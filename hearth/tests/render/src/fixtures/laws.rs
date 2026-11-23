@@ -36,12 +36,12 @@ pub fn patches(seed: u64, depth: u32) -> (Json, Json) {
     let mut rng = Rng::new(SEED + seed);
     (json::generate(&mut rng, depth), json::generate(&mut rng, depth))
 }
-pub fn cases() -> impl Iterator<Item = (u64, Json, Json)> {
-    CASES.map(|seed| {
-        skein_checks::count("seed", 1);
+pub fn cases(mut check: impl FnMut(u64, Json, Json)) {
+    for seed in CASES {
         let (target, patch) = patches(seed, DEPTH);
-        (seed, target, patch)
-    })
+        check(seed, target, patch);
+    }
+    skein_checks::count("seed", CASES.end - CASES.start);
 }
 #[must_use]
 pub fn object(value: Json) -> Json {

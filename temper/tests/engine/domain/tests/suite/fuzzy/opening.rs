@@ -247,7 +247,6 @@ fn same(first: &Driver, replay: &Driver, seed: u64) {
     assert_eq!(first.world.assigned, replay.world.assigned);
 }
 fn run_replayed(seed: u64) {
-    skein_checks::count("seed", 1);
     let mut rng = Rng::new(seed + 91_700);
     let mut first = Driver::new();
     let mut replay = Driver::new();
@@ -293,13 +292,9 @@ fn run_replayed(seed: u64) {
 }
 #[test]
 fn fuzzy_opening_shard_0() {
-    for seed in 0..SEEDS / 2 {
-        run_replayed(seed);
-    }
+    skein_world::sweep::each_seed(0..SEEDS / 2, run_replayed);
 }
 #[test]
 fn fuzzy_opening_shard_1() {
-    for seed in SEEDS / 2..SEEDS {
-        run_replayed(seed);
-    }
+    skein_world::sweep::each_seed(SEEDS / 2..SEEDS, run_replayed);
 }

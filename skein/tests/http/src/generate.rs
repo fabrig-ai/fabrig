@@ -2,6 +2,7 @@
 //! 2.4): valid ones, written as servers write them and with the liberties
 //! the standards allow, and those mutated.
 
+pub use skein_checks::MutationBatch;
 use skein_http::Header;
 use skein_http::client::{Body, Call, Limits, Method, Refusal};
 use skein_lib::Rng;
@@ -413,9 +414,7 @@ fn space(rng: &mut Rng, line: &mut Vec<u8>) {
 /// upgrade nobody asked for, a coding the client does not undo, framing
 /// headers that conflict, a chunk size past a `u64`, or a trailer section
 /// that does not end.
-#[must_use]
-pub fn corrupt(rng: &mut Rng, server: &[u8]) -> Vec<u8> {
-    skein_checks::count("mutation", 1);
+pub fn corrupt(rng: &mut Rng, server: &[u8]) -> skein_checks::Mutation<Vec<u8>> {
     let mut out = server.to_vec();
     let at_status = find(&out, b"HTTP/1.");
     match rng.below(7) {
@@ -457,7 +456,7 @@ pub fn corrupt(rng: &mut Rng, server: &[u8]) -> Vec<u8> {
             }
         }
     }
-    out
+    skein_checks::mutation(out)
 }
 
 pub(crate) fn find(haystack: &[u8], needle: &[u8]) -> Option<usize> {
@@ -469,9 +468,7 @@ pub(crate) fn find(haystack: &[u8], needle: &[u8]) -> Option<usize> {
 const BYTES: &[u8] = b"\r\n:; \t0123456789aAfFxX-,HTP/.\x00\x01\x7f\x80\xef\xbb\xbf\xff";
 
 /// `bytes` with a few edits drawn at random.
-#[must_use]
-pub fn mutate(rng: &mut Rng, bytes: &[u8]) -> Vec<u8> {
-    skein_checks::count("mutation", 1);
+pub fn mutate(rng: &mut Rng, bytes: &[u8]) -> skein_checks::Mutation<Vec<u8>> {
     let mut out = bytes.to_vec();
     for _ in 0..rng.between(1, 3) {
         let at = usize::try_from(rng.below(out.len() as u64 + 1)).expect("fits a usize");
@@ -491,5 +488,5 @@ pub fn mutate(rng: &mut Rng, bytes: &[u8]) -> Vec<u8> {
             _ => out.truncate(at),
         }
     }
-    out
+    skein_checks::mutation(out)
 }

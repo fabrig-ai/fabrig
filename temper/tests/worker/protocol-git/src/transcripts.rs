@@ -1,4 +1,5 @@
 //! Raw captured bytes; tests never run git to refresh them.
+pub use skein_checks::MutationBatch;
 /// The four files of a real-git invocation.
 #[derive(Debug)]
 pub struct Transcript {
@@ -17,8 +18,7 @@ pub fn read(case: &str) -> Transcript {
     Transcript { argv: bytes("argv"), exit, stdout: bytes("stdout"), stderr: bytes("stderr") }
 }
 /// Drop each line, cut it midway, uppercase a hex digit, and drop the terminator.
-#[must_use]
-pub fn mutations(bytes: &[u8]) -> Vec<Box<[u8]>> {
+pub fn mutations(bytes: &[u8]) -> impl Iterator<Item = skein_checks::Mutation<Box<[u8]>>> + use<> {
     let mut out = Vec::new();
     let mut start = 0;
     for (at, byte) in bytes.iter().enumerate() {
@@ -44,8 +44,5 @@ pub fn mutations(bytes: &[u8]) -> Vec<Box<[u8]>> {
     if !bytes.is_empty() {
         out.push(bytes[..bytes.len() - 1].into());
     }
-    if !out.is_empty() {
-        skein_checks::count("mutation", skein_lib::len_u64(out.len()));
-    }
-    out
+    out.into_iter().map(skein_checks::mutation)
 }

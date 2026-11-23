@@ -32,11 +32,10 @@ impl World {
     pub(super) fn check_commit(&mut self) -> Result<(), String> {
         self.commits = self.commits.checked_add(1).expect("world commit count fits u64");
         if self.store_checks.due(self.commits) {
-            StoreChecks::record_rehearsal();
             let stored = self.stored.clone();
             let (mut restored, _) = self.restored(&stored);
             let mut output = Queue::uncapped();
-            restored.start_links(&self.tasks, &self.env, &mut output).map_err(|refusal| {
+            StoreChecks::rehearse(|| restored.start_links(&self.tasks, &self.env, &mut output)).map_err(|refusal| {
                 jig_conformance::store_check::finding(self.commits, "Link", &format!("{refusal:?}"))
             })?;
         }

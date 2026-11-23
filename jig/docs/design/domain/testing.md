@@ -497,12 +497,11 @@ more than one world needs them (testing-strategy.md, section 4):
     commit; the same story without it passes with every commit checked;
     a commit-cut sweep's child refused names its commit; a sampled run
     reports its count and replays it from its seed.
-  - **Coverage:** jig and application worlds record one `store-check`
-    through `StoreChecks::record_rehearsal` each time a committed
-    snapshot is rehearsed. For a commit-cut restart the parent records
-    the check on the child's successful exit. A policy draw alone
-    records no coverage. These counts show when a change leaves fewer
-    committed snapshots checked
+  - **Coverage:** `StoreChecks::rehearse` records one `store-check`
+    when a rehearsal of a committed snapshot returns its verdict.
+    For a commit-cut restart the parent records the check through
+    `StoreChecks::fork_restarted` on the child's successful exit.
+    These counts show when a change leaves fewer committed snapshots checked
     (`skein/docs/design/testing/checks.md`, 1; `tools/tiers/budgets.md`).
 
 They stay in jig, and an application's worlds reuse them. What jig finds

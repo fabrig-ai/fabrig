@@ -7020,7 +7020,6 @@ dependencies = [
  "jig-test-profile",
  "jig-test-store-files",
  "serde_json",
- "skein-checks",
  "skein-fake-forge-domain",
  "skein-fake-llm-domain",
  "skein-forge",

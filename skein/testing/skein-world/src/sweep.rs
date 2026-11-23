@@ -6,6 +6,17 @@ use alloc::{format, string::String, vec::Vec};
 
 use crate::faults::{FaultLedger, Kind};
 
+/// Judge each seed in a range, then record the completed sweep.
+pub fn each_seed<F: FnMut(u64)>(seeds: core::ops::Range<u64>, mut check: F) {
+    let count = seeds.end.saturating_sub(seeds.start);
+    for seed in seeds {
+        check(seed);
+    }
+    if count > 0 {
+        skein_checks::count("seed", count);
+    }
+}
+
 /// One ignored scenario's combination of fault, workload and state.
 #[derive(Debug)]
 pub struct Exclusion {
@@ -101,13 +112,13 @@ impl Sweep {
 
     /// Folds one seed's ledger: what fell, and what its exclusions left out.
     pub fn ran(&mut self, ledger: &FaultLedger) {
-        skein_checks::count("seed", 1);
         self.seeds = self.seeds.checked_add(1).expect("a sweep's seed count fits u64");
         self.fell.extend(ledger.fell());
         for (scenario, _, _) in ledger.left_out_draws() {
             let count = self.left_out.entry(scenario).or_default();
             *count = count.checked_add(1).expect("a sweep's left-out draw count fits u64");
         }
+        skein_checks::count("seed", 1);
     }
 
     /// Each configured fault fell in at least one seed folded.

@@ -18,7 +18,6 @@ pub struct Story {
 impl Story {
     /// Count the reference's relative commits, then hold the story's prefix once.
     pub fn sweep(&self, seed: u64, each_commit: bool) {
-        skein_checks::count("seed", 1);
         let (before, commits) = {
             let mut reference = (self.setup)(seed);
             let commits = (self.run)(&mut reference, None);
@@ -35,6 +34,7 @@ impl Story {
         }
         world.cut_passed();
         assert_eq!(world.forked, cuts, "{}: every reference boundary passed", self.name);
+        skein_checks::count("seed", 1);
     }
 }
 

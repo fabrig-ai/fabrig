@@ -19,7 +19,6 @@ pub fn check_digests(name: &str) {
     read_leaves(&root, &root, kinds, &mut leaves);
     let repository = golden::repository_of(&leaves);
     for seed in GOLDEN_SEEDS {
-        skein_checks::count("seed", 1);
         let run = crate::parent::run(&repository, &[], seed);
         let digests: Vec<_> = run
             .answers
@@ -36,6 +35,7 @@ pub fn check_digests(name: &str) {
             golden.target_digests("").into_iter().map(|(name, digest)| (name, digest.to_vec())).collect();
         let digests: Vec<_> = digests.into_iter().map(|(name, digest)| (name.to_owned(), digest)).collect();
         assert_eq!(digests, targets, "{name}: seed {seed}");
+        skein_checks::count("seed", 1);
     }
 }
 

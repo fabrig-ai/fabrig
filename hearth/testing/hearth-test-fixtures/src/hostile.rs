@@ -1,4 +1,5 @@
 //! Hostile document mutations (hearth/docs/design/testing/README.md, 2.9).
+pub use skein_checks::MutationBatch;
 use skein_lib::Rng;
 const HOSTILE: &[&[u8]] = &[
     br#"{"a":1,"a":2}"#,
@@ -18,10 +19,8 @@ const HOSTILE: &[&[u8]] = &[
     br#"{"a":[[[[[0]]]]]}"#,
     br#"{"a":0,"b":0,"c":0,"d":0,"e":0}"#,
 ];
-#[must_use]
-pub fn mutate(rng: &mut Rng, bytes: &[u8]) -> Vec<u8> {
-    skein_checks::count("mutation", 1);
-    match rng.below(4) {
+pub fn mutate(rng: &mut Rng, bytes: &[u8]) -> skein_checks::Mutation<Vec<u8>> {
+    let bytes = match rng.below(4) {
         0 | 1 => HOSTILE[usize::try_from(rng.below(HOSTILE.len() as u64)).expect("draw fits usize")].to_vec(),
         2 => bytes[..usize::try_from(rng.below(bytes.len() as u64 + 1)).expect("draw fits usize")].to_vec(),
         3 => {
@@ -33,5 +32,6 @@ pub fn mutate(rng: &mut Rng, bytes: &[u8]) -> Vec<u8> {
             out
         }
         _ => unreachable!(),
-    }
+    };
+    skein_checks::mutation(bytes)
 }

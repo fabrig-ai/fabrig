@@ -255,7 +255,6 @@ fn compare(world: &mut World, task: u64, doc: &c::Task, draft: &c::Authority, ke
 }
 
 pub(crate) fn sweep(seed: u64) {
-    skein_checks::count("seed", 1);
     let mut rng = Rng::new(seed);
     for own in [true, false] {
         let mut world = World::new(Setup { seed, ..Setup::default() });
@@ -295,4 +294,5 @@ pub(crate) fn sweep(seed: u64) {
             compare(&mut world, task, &doc, &after, 110 + case);
         }
     }
+    skein_checks::count("seed", 1);
 }

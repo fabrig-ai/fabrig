@@ -1,6 +1,7 @@
 pub mod template;
 use crate::fixtures;
 use crate::fixtures::Shape;
+pub use skein_checks::MutationBatch;
 use skein_lib::Rng;
 #[must_use]
 fn literal(rng: &mut Rng, shape: Shape) -> Vec<u8> {
@@ -35,9 +36,7 @@ fn literal(rng: &mut Rng, shape: Shape) -> Vec<u8> {
 pub fn cut(rng: &mut Rng, text: &[u8]) -> Vec<u8> {
     text[..usize::try_from(rng.below(text.len() as u64 + 1)).expect("bounded by fixture or checked text")].to_vec()
 }
-#[must_use]
-pub fn mutate(rng: &mut Rng, text: &[u8]) -> Vec<u8> {
-    skein_checks::count("mutation", 1);
+pub fn mutate(rng: &mut Rng, text: &[u8]) -> skein_checks::Mutation<Vec<u8>> {
     let mut out = text.to_vec();
     let at = usize::try_from(rng.below(out.len() as u64 + 1)).expect("bounded by fixture or checked text");
     let pieces: &[&[u8]] = &[
@@ -74,7 +73,7 @@ pub fn mutate(rng: &mut Rng, text: &[u8]) -> Vec<u8> {
             out.splice(at..at, span);
         }
     }
-    out
+    skein_checks::mutation(out)
 }
 
 /// Generates nested grammar forms, including filter arguments and lookups.

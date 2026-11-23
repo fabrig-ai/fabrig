@@ -7,6 +7,9 @@ use std::{
     sync::OnceLock,
 };
 
+mod mutation;
+pub use mutation::{Mutation, MutationBatch, mutation};
+
 struct Output {
     path: PathBuf,
     file: File,

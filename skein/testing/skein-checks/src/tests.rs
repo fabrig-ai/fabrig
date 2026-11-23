@@ -1,4 +1,4 @@
-use crate::count;
+use crate::{MutationBatch, count, mutation};
 use std::{env, fs, io::ErrorKind, os::unix::fs::DirBuilderExt, path::PathBuf, process::Command};
 
 struct Scratch(PathBuf);
@@ -43,6 +43,15 @@ fn appends_counts_and_refuses_malformed_kinds() {
         }
         count("seed", 1);
         count("mutation", u64::MAX);
+        let mut batch = MutationBatch::default();
+        let mut candidates = [mutation(1), mutation(2), mutation(3)].into_iter();
+        let selected = candidates.nth(1).expect("select exactly one candidate");
+        assert_eq!(batch.judge(selected, |value| value), 2);
+        assert_eq!(batch.judge(4.into(), |value: u32| value), 4);
+        let pair = mutation(5).zip(mutation(6));
+        assert_eq!(batch.judge(pair, |(left, right)| left + right), 11);
+        batch.finish();
+        MutationBatch::default().finish();
         return;
     }
 
@@ -74,7 +83,7 @@ fn appends_counts_and_refuses_malformed_kinds() {
         } else {
             assert_eq!(
                 fs::read_to_string(&path).expect("check counts"),
-                "seed 2\nseed 1\nmutation 18446744073709551615\n",
+                "seed 2\nseed 1\nmutation 18446744073709551615\nmutation 3\n",
                 "{mode}"
             );
         }

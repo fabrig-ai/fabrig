@@ -152,10 +152,7 @@ fn trim_end(value: &[u8]) -> &[u8] {
 /// fields, a request line past the head, a body past the limit, by length
 /// or in chunks, a length with a sign, a trailer section that never ends,
 /// chunk extensions past the head in all, or HTTP/2's preface.
-#[must_use]
-#[expect(clippy::too_many_lines, reason = "one table keeps all generated request corruptions and their count together")]
-pub fn corrupt(rng: &mut Rng, client: &[u8]) -> Vec<u8> {
-    skein_checks::count("mutation", 1);
+pub fn corrupt(rng: &mut Rng, client: &[u8]) -> skein_checks::Mutation<Vec<u8>> {
     let mut out = client.to_vec();
     let after_line = find(&out, b"\n").map_or(0, |at| at + 1);
     let insert = |out: &mut Vec<u8>, bytes: &[u8]| {
@@ -263,7 +260,7 @@ pub fn corrupt(rng: &mut Rng, client: &[u8]) -> Vec<u8> {
         }
         _ => out = b"PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n".to_vec(),
     }
-    out
+    skein_checks::mutation(out)
 }
 
 /// `chunks` put before the last chunk of `out`'s chunked body, or, if it

@@ -21,60 +21,63 @@ impl World {
         for (connector, kinds) in &self.hold_kinds {
             domain.configure_holds(&env, *connector, kinds.clone());
         }
-        StoreChecks::record_rehearsal();
-        domain.rehearse();
-        let mut events =
-            std::collections::VecDeque::from([root::Event::StartBegin { pending: store.generation_pending }]);
-        loop {
-            if let Some(error) = refusal(&domain, commit) {
-                return Err(error);
-            }
-            if domain.rehearsed() {
-                return Ok(());
-            }
-            if !sweep_waits(&domain, events.front())
-                && let Some(event) = events.pop_front()
-            {
-                root::step(&mut domain, &env, event);
-            }
-            let mut out = Queue::with_capacity(128);
-            root::release(&mut domain, &env, &mut out);
-            while let Some(request) = out.pop() {
-                match request {
-                    root::Request::Start { phase, census } => store.ask(StoreOut::Start { phase, census }),
-                    root::Request::Commit { number, mut writes } => {
-                        let mut rows = Vec::new();
-                        while let Some(write) = writes.pop() {
-                            rows.push(write);
-                        }
-                        store.submit(number, rows.into_boxed_slice(), 0);
-                    }
-                    // Rehearsal never serves runtime neighbours or external effects.
-                    _ => {}
-                }
-            }
-            match store.tick(false) {
-                Ok(Some(number)) => events.push_front(root::Event::Committed { number, fill: self.fill }),
-                Ok(None) => {}
-                Err(number) => events.push_back(root::Event::Failed { number }),
-            }
-            for answer in store.answers() {
-                match answer {
-                    Up::Root(event) => events.push_back(event),
-                    Up::Ask(_) => return Err(format!("store check: commit {commit}: unexpected page continuation")),
-                }
-            }
-            if events.is_empty() && store.pending.is_empty() && !store.loading() {
+        StoreChecks::rehearse(|| {
+            domain.rehearse();
+            let mut events =
+                std::collections::VecDeque::from([root::Event::StartBegin { pending: store.generation_pending }]);
+            loop {
                 if let Some(error) = refusal(&domain, commit) {
                     return Err(error);
                 }
                 if domain.rehearsed() {
                     return Ok(());
                 }
-                let phase = domain.start_phase().map_or_else(|| "None".into(), |phase| format!("{phase:?}"));
-                return Err(format!("store check: commit {commit}: start stalled at {phase}"));
+                if !sweep_waits(&domain, events.front())
+                    && let Some(event) = events.pop_front()
+                {
+                    root::step(&mut domain, &env, event);
+                }
+                let mut out = Queue::with_capacity(128);
+                root::release(&mut domain, &env, &mut out);
+                while let Some(request) = out.pop() {
+                    match request {
+                        root::Request::Start { phase, census } => store.ask(StoreOut::Start { phase, census }),
+                        root::Request::Commit { number, mut writes } => {
+                            let mut rows = Vec::new();
+                            while let Some(write) = writes.pop() {
+                                rows.push(write);
+                            }
+                            store.submit(number, rows.into_boxed_slice(), 0);
+                        }
+                        // Rehearsal never serves runtime neighbours or external effects.
+                        _ => {}
+                    }
+                }
+                match store.tick(false) {
+                    Ok(Some(number)) => events.push_front(root::Event::Committed { number, fill: self.fill }),
+                    Ok(None) => {}
+                    Err(number) => events.push_back(root::Event::Failed { number }),
+                }
+                for answer in store.answers() {
+                    match answer {
+                        Up::Root(event) => events.push_back(event),
+                        Up::Ask(_) => {
+                            return Err(format!("store check: commit {commit}: unexpected page continuation"));
+                        }
+                    }
+                }
+                if events.is_empty() && store.pending.is_empty() && !store.loading() {
+                    if let Some(error) = refusal(&domain, commit) {
+                        return Err(error);
+                    }
+                    if domain.rehearsed() {
+                        return Ok(());
+                    }
+                    let phase = domain.start_phase().map_or_else(|| "None".into(), |phase| format!("{phase:?}"));
+                    return Err(format!("store check: commit {commit}: start stalled at {phase}"));
+                }
             }
-        }
+        })
     }
 
     pub(super) fn check_durable(&mut self) -> Result<(), String> {

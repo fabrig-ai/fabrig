@@ -91,6 +91,15 @@ fn tokens(source: &str) -> Vec<Token<'_>> {
     located_tokens(source).into_iter().map(|(_, token)| token).collect()
 }
 
+/// First line naming an identifier outside comments and literals.
+#[must_use]
+pub fn identifier_line(source: &str, identifier: &str) -> Option<usize> {
+    located_tokens(source)
+        .into_iter()
+        .find(|(_, token)| *token == Token::Word(identifier))
+        .map(|(at, _)| source[..at].bytes().filter(|byte| *byte == b'\n').count() + 1)
+}
+
 fn located_tokens(source: &str) -> Vec<(usize, Token<'_>)> {
     let bytes = source.as_bytes();
     let mut result = Vec::new();
