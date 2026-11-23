@@ -1,10 +1,13 @@
 # git-operations: status
 
-2026-11-22. Where the tree's code lags or departs from [git-operations.md](git-operations.md).
+2026-11-23. Where the tree's code lags or departs from [git-operations.md](git-operations.md).
 
 - **Not yet:** 1.7: an empty listing still refuses with its words rather
   than ending `ParentUnreachable { head, merging, parent }` [in flight:
   change 6015].
+- **Not yet:** 1.3, *Main's counts*: the component has no `Counts`; 1.13: the view
+  copies no `refs/temper/counts`; 1.14: so no counts fetch takes the store's
+  lock [in flight: change 13129].
 
 Section 1.7's delivery snapshot has no other known implementation gap: it reads
 HEAD and MERGE_HEAD, checks a second parent against freshly fetched remote
