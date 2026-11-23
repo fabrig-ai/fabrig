@@ -392,11 +392,9 @@ class CloseBudgets(unittest.TestCase):
         self.publish()
         counts = module(HERE.parent / 'tiers/counts.py')
         packet = PRE.budget_input(self.repository, self.env, counts.read(self.repository, self.env))
-        path = self.root / 'budget.json'
-        path.write_text(json.dumps(packet))
-        self.env['TEMPER_CLOSE_COUNTS'] = str(path)
         with mock.patch.object(subprocess, 'Popen', side_effect=AssertionError('sandbox accessed Git history')):
-            error, = self.verdict(self.result(self.process(30 * self.G)))
+            error, = PRE.close_budgets(self.root, self.repository, self.env,
+                                      [self.result(self.process(30 * self.G))], selected=packet)
             self.assertIn('instruction growth over allowance', error['log'])
 
     def test_tree_without_head_has_no_budget_baseline(self):

@@ -111,7 +111,7 @@ fn check_versions(tree: &Files, failures: &mut Vec<String>) -> u16 {
     match floor(tree) {
         Err(why) => failures.push(why),
         Ok(floor) if floor > greatest => {
-            failures.push(format!("contract/floor {floor} exceeds current version {greatest}"))
+            failures.push(format!("contract/floor {floor} exceeds current version {greatest}"));
         }
         Ok(_) => {}
     }

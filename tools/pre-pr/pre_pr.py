@@ -349,13 +349,12 @@ def budget_input(repository, env, data):
     return {**data, 'base': base}
 
 
-def close_budgets(root, repository, env, runs):
+def close_budgets(root, repository, env, runs, *, selected=None):
     """Judge whole binaries against the selected published budget input (section 4.1)."""
     counts = runpy.run_path(str(TIERS / 'counts.py'))
     try:
-        if 'TEMPER_CLOSE_COUNTS' in env:
-            data = json.loads(Path(env['TEMPER_CLOSE_COUNTS']).read_bytes())
-        else:
+        data = selected
+        if data is None:
             data = budget_input(repository, env, counts['read'](repository, env))
         if 'unavailable' in data:
             print(f"budgets: no verdict at close: {data['unavailable']}; the gate still judges", flush=True)
@@ -1027,7 +1026,6 @@ def check(scope, commits):
     env.setdefault('TEMPER_INTERNAL_BUNDLE', 'none')
     env.setdefault('CARGO_TARGET_DIR', str(root / 'target'))
     env.pop('TIERS_LEDGER', None)
-    env.pop('TEMPER_CLOSE_COUNTS', None)
     has_git = (root / '.git').exists()
 
     def current_head():
