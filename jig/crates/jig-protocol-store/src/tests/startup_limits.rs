@@ -43,6 +43,33 @@ fn the_runtime_check_is_the_installed_and_reopened_view() {
     }
 }
 
+// The fixture starts with a narrowed turn bound, then opens with one more byte.
+const NARROW_TRANSCRIPT: u32 = 64;
+const WIDER_TRANSCRIPT: u32 = NARROW_TRANSCRIPT + 1;
+
+fn narrowed(stock: &crate::Checked) -> crate::Checked {
+    let limits = stock.limits();
+    crate::runtime_limits(limits, &limits.core, fixtures::APPLICATION, NARROW_TRANSCRIPT).unwrap()
+}
+
+#[test]
+fn a_runtime_reopen_checks_a_changed_transcript_bound() {
+    let stock = opened().checked();
+    let cached = narrowed(&stock);
+    let limits = stock.limits();
+    let reopened =
+        crate::runtime_limits_reusing(limits, &limits.core, fixtures::APPLICATION, WIDER_TRANSCRIPT, Some(&cached))
+            .unwrap();
+    assert_eq!(reopened.codec().core.turn_record_transcript, WIDER_TRANSCRIPT);
+}
+
+#[test]
+fn a_stock_reopen_does_not_use_a_narrowed_bound() {
+    let cached = narrowed(&opened().checked());
+    let reopened = crate::check_reusing(cached.limits(), Some(&cached)).unwrap();
+    assert_eq!(reopened.codec().core.turn_record_transcript, crate::core_v6::CEILINGS.turn_record_transcript);
+}
+
 #[test]
 fn installed_codecs_encode_only_records_within_the_resolved_ceiling() {
     let mut store = opened();

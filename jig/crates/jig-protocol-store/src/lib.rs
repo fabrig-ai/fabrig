@@ -70,7 +70,7 @@ pub fn levels(sets: &OwnerSets) -> codec::component::Levels {
 }
 
 mod startup_limits;
-pub use startup_limits::{InstallRefusal, runtime_limits};
+pub use startup_limits::{InstallRefusal, runtime_limits, runtime_limits_reusing};
 
 /// The store component's bounds (protocol/store/README.md, section 8).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -276,6 +276,7 @@ impl Store {
         Ok(PatchPage { rows: found.into_boxed(), next: page.next })
     }
     /// A component over open stores; `models` are the configuration's, in its order.
+    /// Its codec bounds come from the checked limits without deriving them again.
     #[must_use]
     pub fn over(
         checked: &Checked,
@@ -324,6 +325,7 @@ impl Store {
         }
     }
 
+    /// A directory component with its bounds already checked. Open and admission still run normally.
     #[must_use]
     pub fn on_directory(
         checked: &Checked,
@@ -479,6 +481,18 @@ pub struct PatchPage {
 /// every derived capacity fits (programming-model.md, 6.3).
 #[must_use]
 pub fn check(limits: &Limits) -> Option<Checked> {
+    check_reusing(limits, None)
+}
+
+/// Reuse a matching check only if it retained the full stock transcript bound.
+#[must_use]
+pub fn check_reusing(limits: &Limits, opening: Option<&Checked>) -> Option<Checked> {
+    if let Some(checked) = opening
+        && checked.limits() == limits
+        && checked.codec().core.turn_record_transcript == core_v6::CEILINGS.turn_record_transcript
+    {
+        return Some(*checked);
+    }
     let codec = limits.codec_view()?;
     if valid_with_codec(limits, &codec) { Some(Checked { limits: *limits, codec }) } else { None }
 }

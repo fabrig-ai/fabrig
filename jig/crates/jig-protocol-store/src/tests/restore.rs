@@ -89,6 +89,45 @@ fn the_core_restore_hands_up_header_people_then_live_tasks() {
 }
 
 #[test]
+fn checked_limits_open_and_restore_the_same_rows() {
+    let source = live_store();
+    let checked = source.checked();
+    let mut plain = fixtures::over(source.fork_memory().expect("memory stores"));
+    let mut reused = Store::over(
+        &checked,
+        fixtures::APPLICATION,
+        &[],
+        source.fork_memory().expect("copy of the same memory stores"),
+    );
+    for store in [&mut plain, &mut reused] {
+        let events = fixtures::run(
+            store,
+            Request::Open {
+                purpose: crate::Purpose::Serve,
+                owner: OWNER,
+                root: fixtures::ROOT,
+                installation: fixtures::INSTALLATION,
+            },
+        );
+        let [Event::Opened { owner: OWNER, last: 1, pending: false, .. }, Event::Census { .. }] = events.as_ref()
+        else {
+            panic!("fixture opens: {events:?}");
+        };
+    }
+    let (rows, next) = page(live_page(&mut plain, None, 2, 65_536));
+    let (reused_rows, reused_next) = page(live_page(&mut reused, None, 2, 65_536));
+    assert_eq!(jig_rows(reused_rows), jig_rows(rows));
+    assert!(next.is_some());
+    assert_eq!(reused_next, next);
+
+    let (rows, next) = page(live_page(&mut plain, next, 2, 65_536));
+    let (reused_rows, reused_next) = page(live_page(&mut reused, reused_next, 2, 65_536));
+    assert_eq!(jig_rows(reused_rows), jig_rows(rows));
+    assert_eq!(next, None);
+    assert_eq!(reused_next, None);
+}
+
+#[test]
 fn a_store_without_public_rows_reads_every_project_private() {
     use jig_domain_people::{DeletionStep, Holding, Role, Stored};
     let mut store = fixtures::opened();

@@ -63,6 +63,58 @@ fn a_reopen_checks_new_limits_only_when_admission_inputs_change() {
 }
 
 #[test]
+#[expect(
+    clippy::disallowed_methods,
+    clippy::disallowed_types,
+    reason = "the directory fixture supplies static schema texts and sets to real opens"
+)]
+fn prepared_binary_texts_keep_the_open_verdict() {
+    use jig_protocol_store::{Event, OpenRefusal, Owner, OwnerSets};
+
+    let mut prepared: Vec<skein_codec::schema::Schema> = Vec::new();
+    for family in store::OWNER_SETS.sets.iter().flat_map(|set| set.families) {
+        let frames = family.frames.as_ref().map_or(&[][..], |frames| frames.texts);
+        for text in core::iter::once(family.current).chain(frames.iter().copied()) {
+            if !prepared.iter().any(|schema| schema.text() == text.as_bytes()) {
+                prepared.push(skein_codec::schema::parse(text.as_bytes()).expect("binary schema"));
+            }
+        }
+    }
+    let prepared = Box::leak(prepared.into_boxed_slice());
+
+    // The application still has the same family and keys but an unmatched text
+    // that cannot be admitted. Borrowing its binary schema instead would hide the refusal.
+    let mut sets = store::OWNER_SETS.sets.to_vec();
+    let application = sets.iter_mut().find(|set| set.owner == Owner::Application).expect("application set");
+    let mut families = application.families.to_vec();
+    families.first_mut().expect("application family").current = "invalid schema";
+    application.families = Box::leak(families.into_boxed_slice());
+    let refused = OwnerSets { sets: Box::leak(sets.into_boxed_slice()) };
+
+    for (sets, expected) in
+        [(store::OWNER_SETS, Ok(())), (refused, Err(OpenRefusal::Set { owner: Owner::Application }))]
+    {
+        for schemas in [None, Some(&*prepared)] {
+            let settings = fixtures::start_settings(fixtures::engine(), &[(1, 100)]);
+            let mut service =
+                crate::Service::engine(settings, &fixtures::seeds(), None, fixtures::forge_runtime()).expect("engine");
+            service.owner_sets(sets);
+            if let Some(schemas) = schemas {
+                service.prepared_schemas(schemas);
+            }
+            let event = fixtures::directory::Directory::new().open(&mut service.engine.as_mut().expect("engine").store);
+            let verdict = if let Event::OpenRefused { why, .. } = event {
+                Err(why)
+            } else {
+                let Event::Opened { .. } = event else { panic!("open terminal: {event:?}") };
+                Ok(())
+            };
+            assert_eq!(verdict, expected, "prepared={}", schemas.is_some());
+        }
+    }
+}
+
+#[test]
 fn sizes_past_skein_kvs_limits_refuse_the_store() {
     let (root, _, profile) = fixtures::store_limits();
     let admission = store::limits(&root, &root.forge, &profile).expect("small fits");

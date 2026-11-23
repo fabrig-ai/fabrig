@@ -82,34 +82,70 @@ fn an_erased_scripted_task_no_longer_supplies_a_link() {
     assert!(finding.contains("need: Task { task: 91, retired: None }"), "{finding}");
 }
 
-fn sampled(seed: u64) -> Vec<(u64, u64)> {
-    let mut world = World::new(seed);
-    world.take_seen();
-    let calls = world.calls();
-    let writes = world.writes();
-    let wall = world.wall();
-    let mut counts = Vec::new();
-    for number in 1..=128_u64 {
-        let row = top::Stored::Binding { address: Box::new([1]), subject: Box::from(number.to_be_bytes()) };
+#[test]
+fn the_kept_batch_refuses_a_missing_task_even_if_it_is_handed_over_later() {
+    // Seed 7 keeps the second of these three batches.
+    let mut world = World::new(7);
+    world.commit(Box::new([save(binding(1))])).expect("valid binding");
+    world.commit(Box::new([save(top::Stored::Subscription(subscriber()))])).expect("check deferred until end");
+    world.hold_task(91);
+    world
+        .commit(Box::new([top::Request::Erase { key: top::Key::Subscription { task: 91, topic: subscriber().topic } }]))
+        .expect("erase commits");
+    assert_eq!(world.store_counts(), (3, 0));
+    let finding = world.finish().expect_err("task was absent at the kept batch");
+    assert!(finding.starts_with("store check: commit 2: start refused at Link: Link("), "{finding}");
+    assert!(finding.contains("Subscription { task: 91"), "{finding}");
+    assert!(finding.contains("need: Task { task: 91, retired: None }"), "{finding}");
+    assert_eq!(world.store_counts(), (3, 1));
+}
+
+#[test]
+fn the_kept_batch_links_a_task_that_is_forgotten_later() {
+    let mut world = World::new(19);
+    world.hold_task(91);
+    world.commit(Box::new([save(top::Stored::Subscription(subscriber()))])).expect("valid subscription");
+    world.event(top::Event::Unnamed { task: 91 });
+    assert_eq!(world.store_counts(), (1, 0));
+    world.finish().expect("task was held at the kept batch");
+    assert_eq!(world.store_counts(), (1, 1));
+}
+
+const BINDINGS: u64 = 128;
+
+fn binding(number: u64) -> top::Stored {
+    top::Stored::Binding { address: Box::new([1]), subject: Box::from(number.to_be_bytes()) }
+}
+
+fn bindings(world: &mut World) {
+    for number in 1..=BINDINGS {
+        let row = binding(number);
         world.commit(Box::new([save(row.clone())])).expect("valid binding");
         assert_eq!(world.stored().get(&top::Key::Binding(Box::new([1]))), Some(&row));
-        counts.push(world.store_counts());
     }
-    let (commits, checked) = world.store_counts();
-    assert_eq!(commits, 128);
-    assert!(checked > 0 && checked < commits);
-    assert_eq!(
-        world.store_report(),
-        format!("store check: {checked} of 128 commits checked (one in 1024, seed {seed})")
-    );
-    assert_eq!((world.calls(), world.writes(), world.wall()), (calls, writes, wall));
-    assert!(world.seen().is_empty(), "the check's outputs stay in its copy");
-    counts
+}
+
+fn sampled(seed: u64) -> u64 {
+    let mut world = World::new(seed);
+    let mut control = World::new(seed);
+    control.store_checks(StoreChecks::none("unchecked control for the binding story"));
+    bindings(&mut control);
+    bindings(&mut world);
+    assert_eq!(world.store_counts(), (BINDINGS, 0));
+    world.finish().expect("valid kept binding");
+    assert_eq!(world.store_counts(), (BINDINGS, 1));
+    let report = world.store_report();
+    let prefix = format!("store check: 1 of {BINDINGS} commits checked (one per run, seed {seed}, commit ");
+    let commit = report.strip_prefix(&prefix).and_then(|suffix| suffix.strip_suffix(')')).expect(&report);
+    let commit = commit.parse().expect("kept batch number");
+    assert!((1..=BINDINGS).contains(&commit), "{report}");
+    assert_eq!((world.calls(), world.writes(), world.wall()), (control.calls(), control.writes(), control.wall()));
+    assert_eq!(world.seen(), control.seen(), "the check's outputs stay in its copy");
+    commit
 }
 
 #[test]
 fn the_default_sample_reports_and_replays_without_touching_the_world() {
-    // These seeds select commits 87 and 63 in the default one-in-1024 sample.
     let first = sampled(4);
     assert_eq!(first, sampled(4));
     assert_ne!(first, sampled(26));

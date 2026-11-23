@@ -35,6 +35,7 @@ jig-protocol-config.workspace = true
 jig-protocol-store.workspace = true
 jig-protocol-worker-wire.workspace = true
 skein-channel.workspace = true
+skein-codec.workspace = true
 skein-fake-forge-domain.workspace = true
 skein-fake-forge-forgejo.workspace = true
 skein-fake-llm-domain.workspace = true

@@ -175,6 +175,12 @@ impl Harness for OneProcess {
     fn owner_sets() -> Option<jig_protocol_store::OwnerSets> {
         OWNER_SETS.with(std::cell::Cell::get)
     }
+    fn prepared_schemas() -> Option<&'static [skein_codec::schema::Schema]> {
+        Some(crate::schemas::binary_schemas())
+    }
+    fn checked_opening_limits(limits: &jig_protocol_store::Checked) {
+        crate::store_check::opening_limits(limits);
+    }
     fn github() -> bool {
         crate::lower::github::active()
     }
@@ -244,13 +250,15 @@ impl Harness for OneProcess {
         temper_playground::documents::settings::seed_configuration(engine, &document);
     }
     fn given(document: &temper_playground::documents::Configuration) -> temper_service::stock::Given {
-        if stories::playground() {
-            return temper_playground::documents::given(document);
-        }
-        if stories::adoption() {
-            return fixtures::adoption_given();
-        }
-        stories::given(&fixtures::document())
+        crate::store_check::given(|| {
+            if stories::playground() {
+                temper_playground::documents::given(document)
+            } else if stories::adoption() {
+                fixtures::adoption_given()
+            } else {
+                stories::given(&fixtures::document())
+            }
+        })
     }
 }
 /// Scope the harness's scenario documents and shared forge around its world.
@@ -1212,7 +1220,10 @@ pub fn refused_restore(settings: Settings) -> Outcome {
     let scenario = Story::Chat { words: b"Hello" };
     let run = Rc::new(RefCell::new(referee::Run::default()));
     let (_, disk, store) = run_phase(settings, scenario, Phase::SignIn, machine::fresh(), Store::new(), run.clone());
-    run_phase(settings, scenario, Phase::Refused, disk, store, run).0
+    crate::store_check::with_policy(
+        jig_conformance::store_check::StoreChecks::none("persisted policy exceeds the smaller restore bound"),
+        || run_phase(settings, scenario, Phase::Refused, disk, store, run).0,
+    )
 }
 
 fn ended(procs: &[Proc], phase: Phase) -> Option<temper_service::End> {
@@ -1287,7 +1298,7 @@ pub(crate) fn try_run_phase(
         (start.fakes.llm, start.fakes.peer)
     });
     let (outcome, store_checks) =
-        crate::store_check::scope(settings, machine.0.clone(), (*parameters.deployment).clone(), || {
+        crate::store_check::scope(settings, machine.0.clone(), parameters.deployment.clone(), || {
             programs::with(parameters, || {
                 let mut world =
                     skein_world::World::new_controlled(settings.seed, settings.config, settings.memory, |controls| {

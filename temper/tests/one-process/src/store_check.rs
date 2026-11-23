@@ -4,8 +4,8 @@ use jig_conformance::store_check::{StoreChecks, finding};
 use std::{cell::RefCell, rc::Rc};
 use temper_playground::{documents::Configuration, programs::Harness};
 
-// Focused run phases have a median of 21 commits; most runs do no rehearsal.
-const ONE_IN: u64 = 1024;
+use skein_fake_machine::Machine;
+use temper_playground::machine;
 
 /// The run's selection count and the number of isolated rehearsals it performed.
 #[derive(Debug)]
@@ -16,15 +16,23 @@ pub struct Report {
     pub words: String,
 }
 
+enum Pending {
+    Check(u64),
+    Keep,
+}
+
 struct State {
     checks: StoreChecks,
-    pending: Option<u64>,
+    pending: Option<Pending>,
+    kept: Option<Machine>,
     newest: u64,
     rehearsals: u64,
     settings: Settings,
-    disk: Rc<RefCell<skein_fake_machine::Machine>>,
-    document: Configuration,
+    disk: Rc<RefCell<Machine>>,
+    document: Rc<Configuration>,
     given: Option<temper_service::stock::Given>,
+    inputs: Option<rehearsal::Inputs>,
+    opening_limits: Option<jig_protocol_store::Checked>,
 }
 
 thread_local! {
@@ -46,10 +54,10 @@ pub fn with_policy<R>(checks: StoreChecks, run: impl FnOnce() -> R) -> R {
 
 pub(crate) fn scope<R>(
     settings: Settings,
-    disk: Rc<RefCell<skein_fake_machine::Machine>>,
-    mut document: Configuration,
-    run: impl FnOnce() -> R,
-) -> (R, Report) {
+    disk: Rc<RefCell<Machine>>,
+    document: Rc<Configuration>,
+    run: impl FnOnce() -> Result<R, String>,
+) -> (Result<R, String>, Report) {
     struct Reset;
     impl Drop for Reset {
         fn drop(&mut self) {
@@ -60,30 +68,43 @@ pub(crate) fn scope<R>(
             });
         }
     }
-    crate::world::OneProcess::configure(&mut document);
-    // Parameters omit world settings for ordinary stories; their defaults use these same settings.
-    if document.get("world_settings").is_none() {
-        document["world_settings"] = crate::fixtures::world_document()["world_settings"].clone();
-    }
-    let checks = POLICY.with(RefCell::take).unwrap_or_else(|| StoreChecks::sampled(settings.seed, ONE_IN));
+    let checks = POLICY.with(RefCell::take).unwrap_or_else(|| StoreChecks::one(settings.seed));
     STATE.with(|at| {
         assert!(at.borrow().is_none(), "one live store-check scope");
-        *at.borrow_mut() =
-            Some(State { checks, pending: None, newest: 0, rehearsals: 0, settings, disk, document, given: None });
+        *at.borrow_mut() = Some(State {
+            checks,
+            pending: None,
+            kept: None,
+            newest: 0,
+            rehearsals: 0,
+            settings,
+            disk,
+            document,
+            given: None,
+            inputs: None,
+            opening_limits: None,
+        });
     });
     let _reset = Reset;
     let result = run();
-    let report = STATE.with(|at| {
-        let state = at.borrow();
-        let state = state.as_ref().expect("store-check scope");
-        Report {
+    STATE.with(|at| {
+        let mut state = at.borrow_mut();
+        let state = state.as_mut().expect("store-check scope");
+        let result = result.and_then(|outcome| {
+            if let Some(number) = state.checks.end() {
+                let copy = state.kept.take().expect("the referee kept the selected commit's disk");
+                state.rehearse(copy, number)?;
+            }
+            Ok(outcome)
+        });
+        let report = Report {
             commits: state.checks.commits(),
             checked: state.checks.checked(),
             rehearsals: state.rehearsals,
             words: state.checks.report(),
-        }
-    });
-    (result, report)
+        };
+        (result, report)
+    })
 }
 
 /// Called only for commits returned by the durable referee, including recovery's commits.
@@ -91,8 +112,10 @@ pub(crate) fn observed(number: u64) {
     STATE.with(|at| {
         if let Some(state) = at.borrow_mut().as_mut() {
             state.newest = state.newest.max(number);
-            if state.checks.due(number) && state.pending.is_none() {
-                state.pending = Some(number);
+            if state.checks.due(number) {
+                state.pending.get_or_insert(Pending::Check(number));
+            } else if state.checks.keeps() {
+                state.pending = Some(Pending::Keep);
             }
         }
     });
@@ -103,27 +126,72 @@ pub(crate) fn check() -> Result<(), String> {
     STATE.with(|at| {
         let mut state = at.borrow_mut();
         let Some(state) = state.as_mut() else { return Ok(()) };
-        let Some(_sampled) = state.pending.take() else { return Ok(()) };
-        #[cfg(test)]
-        tests::inject(state);
-        let mut copy = state.disk.borrow().fork();
-        let number = newest(&mut copy).max(state.newest);
-        // Derive the immutable configuration only on the first selected commit.
-        if state.given.is_none() {
-            state.given = Some(crate::world::OneProcess::given(&state.document));
-        }
-        let given = state.given.as_ref().expect("selected commit's configuration").copied();
-        let result = StoreChecks::rehearse(|| rehearsal::check(copy, state.settings, state.document.clone(), given));
-        state.rehearsals += 1;
-        match result {
-            Ok((_, 0)) => Ok(()),
-            Ok((words, _)) | Err(words) => Err(finding(number, "upgrade rehearsal", &words)),
+        match state.pending.take() {
+            Some(Pending::Check(number)) => {
+                #[cfg(test)]
+                tests::inject(state);
+                let copy = state.disk.borrow().fork();
+                state.rehearse(copy, number.max(state.newest))
+            }
+            Some(Pending::Keep) => {
+                let copy = state.disk.borrow().fork();
+                #[cfg(test)]
+                let copy = tests::inject_kept(copy, state.newest);
+                state.kept = Some(copy);
+                Ok(())
+            }
+            None => Ok(()),
         }
     })
 }
 
-// The copy may hold a completed frame whose Sync completion the live service has not reaped yet.
-fn newest(disk: &mut skein_fake_machine::Machine) -> u64 {
+// The live start already derives these defaults from the phase's configuration.
+pub(crate) fn given(build: impl FnOnce() -> temper_service::stock::Given) -> temper_service::stock::Given {
+    STATE.with(|at| {
+        let mut state = at.borrow_mut();
+        let Some(state) = state.as_mut() else { return build() };
+        if let Some(given) = &state.given {
+            return given.copied();
+        }
+        let given = build();
+        state.given = Some(given.copied());
+        given
+    })
+}
+
+pub(crate) fn opening_limits(limits: &jig_protocol_store::Checked) {
+    STATE.with(|at| {
+        if let Some(state) = at.borrow_mut().as_mut() {
+            state.opening_limits = Some(*limits);
+        }
+    });
+}
+
+impl State {
+    fn rehearse(&mut self, copy: Machine, number: u64) -> Result<(), String> {
+        let copy = machine::Machine::new(copy);
+        let inputs = self.inputs.get_or_insert_with(|| {
+            let mut document = (*self.document).clone();
+            crate::world::OneProcess::configure(&mut document);
+            // Parameters omit world settings for ordinary stories.
+            if document.get("world_settings").is_none() {
+                document["world_settings"] = crate::fixtures::world_document()["world_settings"].clone();
+            }
+            rehearsal::Inputs::new(document)
+        });
+        let given = self.given.as_ref().expect("live start's defaults");
+        self.rehearsals += 1;
+        StoreChecks::rehearse(|| rehearsal::check(&copy, self.settings, inputs, given, self.opening_limits.as_ref()))
+            .map_err(|words| {
+                // The source is unchanged by the tool. Read it only to name a refusal:
+                // its newest frame can be ahead of the observation that kept it.
+                let number = newest(&mut copy.0.borrow_mut()).max(number);
+                finding(number, "upgrade rehearsal", &words)
+            })
+    }
+}
+
+fn newest(disk: &mut Machine) -> u64 {
     use skein_fake_machine::How;
     let active = crate::golden::files::active(disk);
     let active = std::str::from_utf8(&active).expect("active text").trim();
@@ -159,19 +227,39 @@ mod tests {
     use crate::{fixtures, referee, world};
     use std::cell::Cell;
 
-    thread_local! { static CORRUPT: Cell<bool> = const { Cell::new(false) }; }
+    const CHAT_SEED: u64 = 45;
+    const CHAT_KEPT: u64 = 17;
+
+    thread_local! {
+        static CORRUPT: Cell<bool> = const { Cell::new(false) };
+        static CORRUPT_KEPT: Cell<Option<u64>> = const { Cell::new(None) };
+    }
 
     pub(super) fn inject(state: &mut State) {
         if !CORRUPT.with(|at| at.replace(false)) {
             return;
         }
+        let mut disk = state.disk.borrow_mut();
+        corrupt(&mut disk);
+        state.newest = newest(&mut disk);
+        assert!(state.checks.due(state.newest), "corrupt fixture uses every commit");
+    }
+
+    pub(super) fn inject_kept(mut copy: Machine, number: u64) -> Machine {
+        CORRUPT_KEPT.with(|at| {
+            if at.get() == Some(number) {
+                corrupt(&mut copy);
+                at.set(None);
+            }
+        });
+        copy
+    }
+
+    fn corrupt(disk: &mut Machine) {
         let key =
             jig_protocol_store::keys::encode(&jig_domain_core::Key::Core(jig_domain_core::CoreKey::Deployment), 64)
                 .expect("deployment key");
-        let mut disk = state.disk.borrow_mut();
-        crate::golden::files::change_record(&mut disk, &key, Some(&[0]));
-        state.newest = newest(&mut disk);
-        assert!(state.checks.due(state.newest), "corrupt fixture uses every commit");
+        crate::golden::files::change_record(disk, &key, Some(&[0]));
     }
 
     fn story(seed: u64, phase: world::Phase) -> (world::Outcome, [u8; 32], u64) {
@@ -203,13 +291,37 @@ mod tests {
 
     #[test]
     fn the_default_sample_reports_the_storys_commits() {
-        // Seed 45 selects commit 17 with the default one-in-1024 sample.
-        let (outcome, _, _) = story(45, world::Phase::Story);
+        // Seed 45 keeps commit 17 out of this phase's 22 commits.
+        let (outcome, _, _) = story(CHAT_SEED, world::Phase::Story);
         assert_eq!(outcome.chats_answered, 1);
         assert_eq!(outcome.store_checks.commits, 22);
         assert_eq!(outcome.store_checks.checked, 1);
         assert_eq!(outcome.store_checks.rehearsals, 1);
-        assert_eq!(outcome.store_checks.words, "store check: 1 of 22 commits checked (one in 1024, seed 45)");
+        assert_eq!(
+            outcome.store_checks.words,
+            "store check: 1 of 22 commits checked (one per run, seed 45, commit 17)"
+        );
+    }
+
+    #[test]
+    fn a_kept_refusal_fails_the_completed_phase() {
+        CORRUPT_KEPT.with(|at| at.set(Some(CHAT_KEPT)));
+        let run = Rc::new(RefCell::new(referee::Run::default()));
+        let words = world::try_run_phase(
+            fixtures::calm(CHAT_SEED),
+            world::Story::Chat { words: b"Hello" },
+            world::Phase::Story,
+            temper_playground::machine::fresh(),
+            referee::Store::new(),
+            run.clone(),
+        )
+        .err()
+        .expect("the phase must return the kept record's refusal");
+        assert!(run.borrow().applied > CHAT_KEPT, "the live phase continued past the kept commit");
+        // Frame 18 is already on disk when the referee observes commit 17;
+        // the corrupt record appends commit 19 to that copy, not the live disk.
+        assert!(words.contains("store check: commit 19: start refused at upgrade rehearsal:"), "{words}");
+        assert!(words.contains("record not decodable: jig-store-core 0, store key 010000"), "{words}");
     }
 
     #[test]

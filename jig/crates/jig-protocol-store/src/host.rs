@@ -31,6 +31,7 @@ pub struct Hosted {
     /// The answers to the accounts' records' loads and writes (protocol/store/secrets.md).
     pub sources: Queue<crate::Event>,
     env: Env<crate::Limits>,
+    opening_limits: crate::Checked,
     drivers: Drivers,
     not_ready: NotReady,
     closing: bool,
@@ -59,6 +60,7 @@ pub enum Adoption {
 }
 
 impl Hosted {
+    /// Construct the directory store and drivers with an already checked opening envelope.
     #[must_use]
     pub fn new(
         checked: &crate::Checked,
@@ -75,10 +77,16 @@ impl Hosted {
             secrets: Queue::uncapped(),
             sources: Queue::uncapped(),
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *limits },
+            opening_limits: *checked,
             drivers,
             not_ready,
             closing: false,
         }
+    }
+    /// The bounds passed at construction, before any runtime settings are installed.
+    #[must_use]
+    pub fn opening_limits(&self) -> &crate::Checked {
+        &self.opening_limits
     }
     #[must_use]
     pub fn limits(&self) -> &crate::Limits {

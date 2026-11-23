@@ -68,7 +68,19 @@ pub const KERNEL_HANDOFF_ENTRIES: u32 = protocol::host::KERNEL_HANDOFF_ENTRIES;
 /// Admit the core, journal and temper families, then copy checked sizes to KV.
 #[must_use]
 pub fn limits(root: &root::Limits, forge: &forge::Limits, profile: &protocol::Limits) -> Option<protocol::Checked> {
-    admit(root, forge, profile, None).ok()
+    limits_reusing(root, forge, profile, None)
+}
+
+/// Admit the application and reuse a matching stock store's codec bounds.
+#[must_use]
+pub fn limits_reusing(
+    root: &root::Limits,
+    forge: &forge::Limits,
+    profile: &protocol::Limits,
+    opening: Option<&protocol::Checked>,
+) -> Option<protocol::Checked> {
+    let limits = admitted_layout(root, forge, profile, None).ok()?;
+    protocol::check_reusing(&limits, opening)
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -86,6 +98,16 @@ pub fn admit(
     profile: &protocol::Limits,
     turn: Option<u32>,
 ) -> Result<protocol::Checked, Refusal> {
+    let limits = admitted_layout(root, forge, profile, turn)?;
+    protocol::check(&limits).ok_or(Refusal::Map(protocol::sizes::SizeRefusal::Ceiling))
+}
+
+fn admitted_layout(
+    root: &root::Limits,
+    forge: &forge::Limits,
+    profile: &protocol::Limits,
+    turn: Option<u32>,
+) -> Result<protocol::Limits, Refusal> {
     let limits = layout(root, forge, profile)?;
     let needs = read_room(&limits, turn).ok_or(Refusal::Map(protocol::sizes::SizeRefusal::Ceiling))?;
     let decoded = decoded_read_room(turn).ok_or(Refusal::Map(protocol::sizes::SizeRefusal::Ceiling))?;
@@ -100,7 +122,7 @@ pub fn admit(
         Ok(()) => {}
         Err(why) => return Err(Refusal::Map(why)),
     }
-    protocol::check(&limits).ok_or(Refusal::Map(protocol::sizes::SizeRefusal::Ceiling))
+    Ok(limits)
 }
 
 /// The room named by either read refusal: the drivers' encoded page or the
