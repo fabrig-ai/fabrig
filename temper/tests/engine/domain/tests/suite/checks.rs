@@ -888,6 +888,27 @@ fn a_goals_change_lands_with_checks_at_every_quiet_point() {
 }
 
 #[test]
+fn a_sittings_clock_starts_after_the_setup_restart_drains() {
+    let mut shared = super::forge_routes::status::shared::shared(false);
+    let before = shared.world.env.now;
+    super::forge_routes::status::restart_status_world(&mut shared.world);
+    assert!(shared.world.env.now > before, "the restart drained work after the fixture's initial clock read");
+    let start = shared.world.env.now;
+    shared.first_run();
+    assert!(shared.world.env.now >= start.saturating_add(Duration::from_secs(80 * 60)));
+    shared.world.close();
+}
+
+#[test]
+#[should_panic(expected = "the story clock moves forward")]
+fn a_story_cannot_move_its_clock_backwards() {
+    let mut world = temper_engine_domain_world::kinds::forge_world();
+    let before = world.env.now;
+    world.jump(Duration::from_secs(1));
+    world.advance_to(before);
+}
+
+#[test]
 fn ticks_and_idle_skips_visit_a_stall_bound_between_grid_points() {
     for skip in [false, true] {
         let (mut world, change, bound) = checking();

@@ -7,8 +7,8 @@ use jig_domain_core::{documents, reads};
 const PROJECT_KEY: u32 = 30;
 const PROJECT_SOURCE: u32 = 31;
 
-struct Shared {
-    world: World,
+pub(crate) struct Shared {
+    pub(crate) world: World,
     requester: engine::Assignment,
     members: [(u64, u64); 3],
     start: Time,
@@ -66,7 +66,7 @@ fn source(account: u32, number: u32, kind: accounts::Kind) -> Record {
     }))
 }
 
-fn shared(project_key: bool) -> Shared {
+pub(crate) fn shared(project_key: bool) -> Shared {
     // All three sessions cover this world's interleaved, multi-hour sittings.
     let world = status_world_with_sessions(true, true, None, Duration::from_secs(8 * 3600));
     let (mut world, requester) = opened_chat_in(world);
@@ -190,7 +190,9 @@ impl Shared {
         self.world.signed_in = Some(self.members[0].1);
         land_numbered(&mut self.world, &self.requester, number, landed);
     }
-    fn first_run(&mut self) {
+    pub(crate) fn first_run(&mut self) {
+        // The sittings start after setup, including any restart that drains work.
+        self.start = self.world.env.now;
         self.look(1, 0, 180);
         assert!(!self.world.store.rows.contains_key(&Key::Forge(forge_top::Key::ProjectFacts { project: PROJECT })));
         self.land(10, 93, 1);

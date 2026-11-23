@@ -9,7 +9,7 @@ const SENTENCE: &[u8] = b"The widget fix has landed.";
 const REPORT: &[u8] = b"The widget fix has landed.\n\nThe review passed and the branch is ready.";
 
 #[path = "status/shared.rs"]
-mod shared;
+pub(crate) mod shared;
 
 fn status_world(allowed: bool, funded: bool) -> World {
     status_world_with_spec(allowed, funded, None)
@@ -398,7 +398,7 @@ fn drain_api(world: &mut World) {
     panic!("forge answers drained before restart");
 }
 
-fn restart_status_world(world: &mut World) {
+pub(crate) fn restart_status_world(world: &mut World) {
     drain_api(world);
     world.restart_same();
     for event in &mut world.events {

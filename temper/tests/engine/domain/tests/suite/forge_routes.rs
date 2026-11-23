@@ -76,7 +76,7 @@ pub(crate) mod goal_closer;
 #[path = "forge_routes/goal_closes.rs"]
 mod goal_closes;
 #[path = "forge_routes/status.rs"]
-mod status;
+pub(crate) mod status;
 
 #[path = "forge_routes/flights.rs"]
 mod flights;
