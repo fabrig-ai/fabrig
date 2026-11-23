@@ -103,7 +103,7 @@ rests on them, and the reference documents the rest.
 - **The small store written before a step's exchanges leave, and a
   navigation away only after:** skein's transport's. The client gives a
   request's first exchange only once the transport says its record
-  stored (`../../client/domain/client/README.md`, section 8); the client's
+  stored (`../../client/domain/client/small-store.md`, section 1); the client's
   adapter hands the transport a step's requests whole, so no exchange
   of a step leaves before that step's writes, and a navigation to an
   application's sign-in leaves nothing unkept behind it. When a write
@@ -123,7 +123,7 @@ rests on them, and the reference documents the rest.
 - **Why not types:** skein's reason (skein's `ui/web/README.md`, 4.3). A part
   that holds its invariant asks nothing of the loop but to be used;
   documented order alone would leave an application's code ordering
-  what jig promises, against `../../README.md`, section 6.
+  what jig promises, against `../../rails.md`, section 1.
 
 ## 2. The tree as elements
 

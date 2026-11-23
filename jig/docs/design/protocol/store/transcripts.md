@@ -84,7 +84,7 @@ the committed length. The next open cuts the file to its committed length
 - **A turn,** for a party's read: from its attempt's first turn, walking
   frames forwards to its number. A turn read alone is bounded by the
   read's byte bound (`loads.md`, 3): past it, the read answers the turn's size in
-  place of its bytes (`../../client/domain/contract/README.md`, section 4).
+  place of its bytes (`../../client/domain/contract/reads.md`, section 1).
 - **A page's turns,** for a party's page of a task's activity (`loads.md`, 3):
   backwards, one frame for each turn line, from the frame of the page's
   newest turn: the transcript's last frame when the page reads from the

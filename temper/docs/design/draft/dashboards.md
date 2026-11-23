@@ -34,7 +34,7 @@ here is adopted, and nothing here is a part of v0.1.0 (`v0.1.0.md`).
   spends most of its code on its sources and their medians, p90s,
   rates and paces; its layout is the easy part.
   jig's client reads windows of tasks by a fixed set of keys, and
-  nothing aggregates (jig's `client/domain/contract/README.md`, 4.1): a client
+  nothing aggregates (jig's `client/domain/contract/reads.md`, 1.1): a client
   cannot compute "p90 of gate time per repository, the last week" from
   a window, and should not try.
 - **A metric is its facts' owner's.** jig computes those over tasks,
@@ -74,7 +74,7 @@ here is adopted, and nothing here is a part of v0.1.0 (`v0.1.0.md`).
   a small child of temper's root, the dashboards child, and the forge's
   metrics kind (`dashboards.md`, section 4). jig adds a metric kind of its own.
 - **On jig's watches.** A metric's values are its owner's subject (jig's
-  `client/domain/contract/README.md`, 5.2): named by its owner, its scope and
+  `client/domain/contract/watches.md`, 1.2): named by its owner, its scope and
   its window, judged by its owner, marked as its owner folds facts in,
   and level-triggered, so a busy metric never floods a client: the view
   reads the latest when it is ready.
@@ -122,8 +122,8 @@ by its owner first, and the agent says so (6.3).
     otherwise, a gate ended) or live state (tasks by phase, what waits
     on people, hosts' slots, accounts by state, spend this period);
   - *its filter:* any conjunction of the source's keys, a fixed set per
-    source, as a task query's are (jig's `client/domain/contract/README.md`,
-    4.1): project, charter, model, effort, executor kind, label and
+    source, as a task query's are (jig's `client/domain/contract/reads.md`,
+    1.1): project, charter, model, effort, executor kind, label and
     outcome for a task; repository and outcome for a change;
   - *its group:* at most one key, its groups at most a bound, the rest
     counted as "other";
@@ -143,7 +143,7 @@ by its owner first, and the agent says so (6.3).
   filter it matches, in the same decision; the forge does the same when
   a change lands. Matching is bounded by the metrics per source, each a
   fixed set of keys, as marking a task query's watch is (jig's
-  `client/domain/contract/README.md`, 5.2).
+  `client/domain/contract/watches.md`, 1.2).
 - **One shape, owned per owner.** jig gives the metric's record, its
   operations and its folding as one library; jig's tasks child folds
   jig's facts, and a connector, the forge here, folds its own with the
@@ -164,8 +164,8 @@ by its owner first, and the agent says so (6.3).
 
 - **A subject of its owner's,** a metric's values over its window, its
   groups and its buckets, bounded by its own bounds, so that every
-  document fits the client's limits (jig's `client/domain/contract/README.md`,
-  5.5).
+  document fits the client's limits (jig's `client/domain/contract/watches.md`,
+  1.5).
 - **Admitted on the scope:** a project's metrics to a party with a role
   in that project, the deployment's to one with a role in the
   deployment, as the settings themselves are shown
@@ -233,7 +233,7 @@ drawn by `temper-client-view`:
 | chart | a series over its window | a drawing, its words a sentence of its extremes and its last bucket, with the table beside it in a disclosure, "As a table" |
 | use | a sum or a gauge against its bound, with its projection: "63% of the week's budget · runs out Thursday" | text; a drawing of the bar where a shell draws |
 | cards | a tile per group: a host, a project, an account | a list, an item per group |
-| lines | a task query's live tasks, as the board's lines (jig's `client/domain/contract/README.md`, 4.1) | a list of temper's task lines, each leading to its task's page |
+| lines | a task query's live tasks, as the board's lines (jig's `client/domain/contract/reads.md`, 1.1) | a list of temper's task lines, each leading to its task's page |
 | warning | a threshold crossed: "host-3: no free slots for 20 min" | an alert, said at once |
 | link | one of temper's pages: the inbox, a project's board, the changes, Accounts, How work runs | a link |
 
@@ -411,7 +411,7 @@ wasm32 (`../playground.md`). Default: none.
 - **A party's own dashboards.** Settings are the deployment's or a
   project's (jig's `domain/engine/settings.md`, 1); a person's own would be an
   application's records in the party's own scope (jig's
-  `client/domain/contract/README.md`, 5.5). Default: the two scopes only.
+  `client/domain/contract/watches.md`, 1.5). Default: the two scopes only.
 - **Filling a new metric from history,** from the ended indexes, paged
   and partial (4.2). Default: none; a metric counts from its acceptance.
 - **The store's cost** of writing metrics in every decision that folds

@@ -139,7 +139,7 @@ pub fn proposal_history(
         },
     })
 }
-/// Retained lifecycle facts (client/domain/contract/README.md, 4).
+/// Retained lifecycle facts (client/domain/contract/reads.md, 1).
 pub fn attempt(value: &d::AttemptLine, limits: &w::Limits) -> Result<w::AttemptLine, w::Problem> {
     Ok(w::AttemptLine {
         task: value.task,

@@ -272,7 +272,7 @@ prefix; jig's test application mounts it at `/jig`.
   sent again after their backoffs. A read ends unreachable and is not
   resent (`../../client/domain/client/README.md`, 6). A lost sign-out keeps the
   party signed in and tells the link it did not reach the engine; another
-  `SignOut` sends it again (`../../client/domain/client/README.md`, 9). The
+  `SignOut` sends it again (`../../client/domain/client/sign-in.md`, 1). The
   application's
   server bounds its own connections, never by the engine end's room,
   and a call handed with no room is the application's bug, asserted.

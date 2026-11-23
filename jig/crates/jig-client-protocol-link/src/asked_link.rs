@@ -1,4 +1,4 @@
-//! Asked links are transient exchanges (jig/docs/design/client/domain/client/README.md, 9).
+//! Asked links are transient exchanges (jig/docs/design/client/domain/client/sign-in.md, 1).
 use crate::component::{Attempt, ExchangeKind};
 use crate::{AskedLink, Link, Message, NotAsked, Request, Signing};
 use jig_client_protocol_wire as w;

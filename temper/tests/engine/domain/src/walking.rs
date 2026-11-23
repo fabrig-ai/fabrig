@@ -515,7 +515,7 @@ pub struct Settings {
     /// before its completion or ACK/result release; mutually exclusive with
     /// `restart`. The retained worker answer recovers through the real root
     /// routes; reading the result after the cut is the core's (jig's
-    /// `client/domain/contract/README.md`, 4).
+    /// `client/domain/contract/reads.md`, 1).
     pub terminal_restart: bool,
     /// Drain observational child facts or leave their tiny queues saturated.
     pub facts: bool,

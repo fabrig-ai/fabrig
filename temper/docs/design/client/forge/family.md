@@ -336,7 +336,7 @@ client removes no account and closes no chat of its own.
   composer's line by an account of another provider: the person's own,
   from the `accounts` document, or, for a person whose deployment role
   is owner, the deployment's, from the `deployment` document (jig's
-  `client/domain/contract/README.md`, 5.1), an account held by the deployment,
+  `client/domain/contract/watches.md`, 1.1), an account held by the deployment,
   uncut, with a usable source; that document counts only by such an
   account, and while it is not delivered, or is cut, it adds none. An
   account of the person's own added while the playground runs, or

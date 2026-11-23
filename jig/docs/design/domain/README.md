@@ -396,7 +396,7 @@ where each is answered:
 - **Refusals with facts,** and **acts offered** in each object's
   document, so a client never computes authority; creating and amending
   are offered with bounds, made, proposable and to whom, or refused, and
-  judged again when they come (`../client/domain/contract/README.md`, section 3, and `../client/domain/contract/documents.md`, section 3
+  judged again when they come (`../client/domain/contract/answers.md`, section 1, and `../client/domain/contract/documents.md`, section 3
   ).
 - **An application's keyed requests** kept by the people child as jig's
   are, their outcomes by their connector (people/acts.md, 1;

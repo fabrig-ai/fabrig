@@ -127,7 +127,7 @@ Each deployment host's `HostRule` is `open`, `person` with a
 current kept-login placement rule. The `position` hello refusal names a
 worker position that is unconfigured or held by a live channel. These
 are bounded secret-free configuration and derived facts
-(`../../client/domain/contract/documents.md`, 1, and `../../client/domain/contract/README.md`, 5.1).
+(`../../client/domain/contract/documents.md`, 1, and `../../client/domain/contract/watches.md`, 1.1).
 
 The wire carries added dependencies (`../../domain/tasks/lifecycle-endings.md`, 1 and `../../domain/tasks/holds.md`, 7 and `../../domain/tasks/changes.md`
 ): an `Amend` names a task's dependencies as one whole list;
@@ -136,7 +136,7 @@ which a batch's cycle becomes, *dependency* and *kept*; a task
 document's dependencies, each with its phase, its wall and maker when
 it was added, and whether they keep the task; a kept task's pending
 dependencies in what it waits on; and a hold for a circle of waits,
-naming it (`../../client/domain/contract/requests.md` and `../../client/domain/contract/README.md`, section 3 and `../../client/domain/contract/documents.md`). The
+naming it (`../../client/domain/contract/requests.md` and `../../client/domain/contract/answers.md`, section 1 and `../../client/domain/contract/documents.md`). The
 owner's activity also carries the parked run's kept line, its attempt
 and pending dependencies, and the owner's message kinds the met
 notice, the dependency and whether it was removed
@@ -239,7 +239,7 @@ the engine's messages to the client as they come.
   opening naming `0` is refused as a name the stream already holds, and
   a closing of it is answered as one the client never opened. The watch
   holds its place in the party's room and the stream's as any watch
-  does (`../../client/domain/contract/README.md`, 5.2), and ends with
+  does (`../../client/domain/contract/watches.md`, 1.2), and ends with
   its stream. Refused or ended, it ends its stream: signed out where
   the sign-in ended, and otherwise busy (2.2), which the client takes as
   the stream dropped and opens again after its backoff
@@ -289,7 +289,7 @@ the engine's messages to the client as they come.
   twice the span with nothing read, it takes the stream as dropped.
 - **A dropped stream** drops every watch on it, each told so, and the
   engine ends them as the client left; until then, each holds its place
-  in the party's room (`../../client/domain/contract/README.md`, 5.2). The client
+  in the party's room (`../../client/domain/contract/watches.md`, 1.2). The client
   reopens them, and the stream with them, after its backoffs
   (`../../client/domain/client/watches.md`, 2). A watch's opening or closing
   that gets no answer drops the stream too (`README.md`, section 5).
@@ -459,7 +459,7 @@ none.
 - **Sent at the settling.** The link hands out no `Exchange`,
   `OpenStream` or `CloseStream` while the client steps: it gathers them,
   in the order they were asked for, and hands them out when the client
-  settles (`../../client/domain/client/README.md`, 4.1). Then each read, watch's opening and
+  settles (`../../client/domain/client/vocabulary.md`, 1.1). Then each read, watch's opening and
   watch's closing that may leave (an opening once the stream has its
   name, a closing once its opening is admitted, `README.md`, section 5) goes in a
   batch while more than one does: its members in the order asked, at

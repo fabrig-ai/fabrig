@@ -1,5 +1,5 @@
-//! Durable refusal facts and unsaved retry kinds (client/domain/contract/README.md,
-//! section 3). A judged settings refusal also carries the connector's bounded words.
+//! Durable refusal facts and unsaved retry kinds (client/domain/contract/answers.md,
+//! section 1). A judged settings refusal also carries the connector's bounded words.
 use crate::Role;
 use alloc::boxed::Box;
 use skein_lib::Wall;
@@ -342,7 +342,7 @@ pub enum Again {
     NotReady,
 }
 
-/// The terminal phase of an added prerequisite (client/domain/contract/README.md, 3).
+/// The terminal phase of an added prerequisite (client/domain/contract/answers.md, 1).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum DependencyStatus {
     Done,

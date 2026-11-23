@@ -119,7 +119,7 @@ agent must name.
   party's projects: exit 1, nothing sent, `settings file item 1: model M offers
   no effort xhigh; it offers high, medium`, or `it offers none`. A model
   `me` doesn't show goes to the engine, which refuses it by name (jig's
-  `client/domain/contract/README.md`, 3). jig's kinds are the deployment's; a landing rule names
+  `client/domain/contract/answers.md`, 1). jig's kinds are the deployment's; a landing rule names
   its scope, the deployment's or a project's, as a project's policy
   names its project, and a set that touches a project's needs an owner
   of it, one that touches the deployment's too one person who owns both

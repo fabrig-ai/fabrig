@@ -584,7 +584,7 @@ pub enum StoreInput {
         waiter: Token,
         result: core::reads::Loaded,
     },
-    /// The one terminal of a core read load (jig's `client/domain/contract/README.md`, 4).
+    /// The one terminal of a core read load (jig's `client/domain/contract/reads.md`, 1).
     ReadLoaded {
         load: Token,
         result: core::reads::Loaded,

@@ -463,7 +463,7 @@ Moved to [`needs-you-state.md`](needs-you-state.md), section 1.
   wait for it (`accounts-words.md`, 1, *A run's wait*), and nothing else does.
   - *Its read,* `pages::only_you`, one domain function every shell may
     call, from the `accounts` document every page holds (jig's
-    `client/domain/contract/documents.md`, 1, and `jig/docs/design/client/domain/contract/README.md`, 5.1), read and never kept. An item
+    `client/domain/contract/documents.md`, 1, and `jig/docs/design/client/domain/contract/watches.md`, 1.1), read and never kept. An item
     is the deciding source, the first supplied, of an account the person
     holds (`AccountHolder::Party`, the party `me` names), but the
     playground provider's (`../forge/family.md`, 7), as the rail's mark reads it (`../view-navigation.md`, 1), whose

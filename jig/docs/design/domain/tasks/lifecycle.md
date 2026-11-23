@@ -403,7 +403,7 @@ record HoldRow { task: u64 position: u64 held: Held at: u64 }
   attempts, then its holds, each in key order; a subtree's, each task's
   in turn, by the index of its delegates (`../../protocol/store/loads.md`,
   3). The client's wire carries them as a history page's rows
-  (`../../client/domain/contract/README.md`, 4).
+  (`../../client/domain/contract/reads.md`, 1).
 - **Goals' projections** are fed holds and ends alone
   (`../connectors.md`, 8): each hold row as it is saved, as the lifecycle
   identity `{ task, position }` with its held phase; and a task's end,

@@ -102,7 +102,7 @@
     refused; ../contract/documents.md, 3), and what a decision will do, where the
     act is offered with it (../contract/documents.md, 4); read, never inferred;
   - *a refusal and why:* an offer's refusal, with its facts
-    (../contract/README.md, section 3); a request's comes with them in its answer
+    (../contract/answers.md, section 1); a request's comes with them in its answer
     (`requests.md`);
   - *whether an act is dangerous:* a cancel, a proposal's rejection and
     a note's deletion are, and no other act. A presentation that

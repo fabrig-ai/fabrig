@@ -24,7 +24,7 @@
   the store, a revision by its number and the records a page at a
   time, newest first, each with what it changed; a revision erased is
   answered as forgotten, naming the oldest kept
-  (`../../client/domain/contract/README.md`, section 4). The store keeps the
+  (`../../client/domain/contract/reads.md`, section 1). The store keeps the
   history's extent, the oldest revision it holds, among the live
   settings. Each commit that makes a revision, and a start whose history
   limit was lowered, erases from the oldest up to the limit's cutoff,

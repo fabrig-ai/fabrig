@@ -66,7 +66,7 @@ commit it follows from:
   restart would not know of, and its host does not know it yet either.
   So a grant waits for the last commit made before it, and leaves after
   its attempt's assignment, since held outputs leave in order
-  (`../../README.md`, 6.2).
+  (`../../rails.md`, 1.2).
 
 What decides nothing and shows nothing durable waits for nothing: a
 run's text streamed to watchers as it is written (`views.md`), and the
@@ -108,7 +108,7 @@ answers to a run's reads.
   run's preparation never fails for a slot, however many tasks a
   restart makes due together (`briefs.md`, 1.1, *A dependency's result*).
 - **Parties' reads** are documents and pages the client's contract lists
-  (`../../client/domain/contract/README.md`, section 4): from live state where the
+  (`../../client/domain/contract/reads.md`, section 1): from live state where the
   engine holds it, loaded otherwise, and answered once the last commit
   made is durable (1.2).
 - **Ended tasks are read through the store's indexes** (`views.md`, 2): an ended

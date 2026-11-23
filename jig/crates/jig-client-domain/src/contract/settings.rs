@@ -1,4 +1,4 @@
-//! Whole settings values and retained revision facts (client/domain/contract/requests.md and client/domain/contract/README.md, 3 and client/domain/contract/documents.md and client/domain/contract/README.md, 4–5; domain/engine/settings.md).
+//! Whole settings values and retained revision facts (client/domain/contract/requests.md and client/domain/contract/answers.md, 1 and client/domain/contract/documents.md and client/domain/contract/reads.md, 1, and client/domain/contract/watches.md, 1; domain/engine/settings.md).
 use super::{
     Authority, DocumentText, Grant, KindImplication, PolicyEditRole, PolicyPermission, PolicyRequirement, ProposalKey,
     Proposer, Template, TemplateOverride, Text, WakePolicy,

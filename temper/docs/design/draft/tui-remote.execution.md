@@ -80,7 +80,7 @@ the nearest thing, and says so in the draft's status.
 - **Design:** jig's `protocol/client/sign-in.md`, *A sign-in approved by
   a browser*; jig's `protocol/client/default-http.md`, 3 and 4; jig's
   `protocol/client/wire.md`, 2.1 and 2.2; jig's
-  `client/domain/client/README.md`, 4.1 and 9; jig's
+  `client/domain/client/vocabulary.md`, 1.1, and `client/domain/client/sign-in.md`, 1; jig's
   `protocol/configuration-engine.md`, 1, and `protocol/configuration.md`, 8; jig's `protocol/client/README.md`,
   10 and 12; `../protocol/sign-in.md`, 2.1 and 2.3;
   `../client/pages/shared-behaviour.md`, 1, *The approval page*;

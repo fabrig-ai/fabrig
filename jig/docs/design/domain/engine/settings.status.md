@@ -16,7 +16,7 @@
   unignored is unknown. The core's own tests of a restore run
   (`jig-domain-core/src/tests/settings/restore.rs`).
 - **Departs:**  the unstarted-core departure remains `restart.status.md` (Departs, the whole document).
-   the optional-answer facts departure remains `jig/docs/design/client/domain/contract/README.status.md`, 3.
+   the optional-answer facts departure remains `jig/docs/design/client/domain/contract/answers.status.md`, 1.
    the undocumented root methods remain `vocabulary.status.md`, 1.
    the child-timer departure remains `vocabulary.status.md`, 1.1.
   2, 8: accepting proposed settings rechecks the change and

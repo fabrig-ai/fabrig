@@ -361,8 +361,8 @@ otherwise (skein's `ui/web/README.md`, section 10).
 ## 15. What is not the layer's
 
 - **Following data as it comes** (a log tailed, a metric's latest
-  points) is an application's streams (`../../client/domain/contract/README.md`,
-  5.4): a contract and engine piece, carried by skein's parts and the
+  points) is an application's streams (`../../client/domain/contract/watches.md`,
+  1.4): a contract and engine piece, carried by skein's parts and the
   client as any watch, with no change to them.
 - **Graphics beyond a scene** (a canvas of hundreds of thousands of
   points, three dimensions, video) are out of jig's scope: a component
@@ -499,12 +499,12 @@ otherwise (skein's `ui/web/README.md`, section 10).
 
 ## 18. What jig promises, and where its promise stops
 
-- **jig's promise** is `../../README.md`, section 10's: a request
+- **jig's promise** is `../../client-stack.md`, section 1's: a request
   presented with a valid credential is that credential's party's, and
   everything after is checked below the API
   (`../../client/domain/contract/documents.md`, 2); jig mints, verifies, expires
   and revokes the credential (`../client/sign-in.md`).
-- **Where it stops,** as `../../README.md`, section 10 says what is the
+- **Where it stops,** as `../../client-stack.md`, section 1 says what is the
   application's:
   - *a credential not used across sites* is the application's server's
     work, as keeping it out of its logs is: jig gives example guards
@@ -538,4 +538,4 @@ invariants, on which the client's "once" rests (the table's last row).
 | the link's route safe to GET (`sign-in.md`, section 1) | A GET is the one request any other site can make the person's browser send (a link, an image), with no header of its own and past every guard; one that signed in, or drew a fresh link on a refusal (`../client/sign-in.md`), would let any page the person visits spend the printed link or keep drawing new ones, until the link printed never works. | its own page at its own route, as safe |
 | the secret taken out of the address first (`sign-in.md`, section 1) | Left in the address, the secret stays in the tab's history and in what the page shows or shares, after it is spent and before. Taken out first, it leaves the address bar and the tab's history; the browser's record of visited addresses keeps it, spent once signed in. | its own page at its own sign-in route |
 | the credential never kept (`sign-in.md`, section 1) | A service's credential acts as the service; kept in a tab, it would outlive its dialog, in storage any script of the origin reads and in the session's restore. | the person copies it from the dialog, which the application's stylesheet may restyle |
-| a step's client requests through the transport (`loop.md`, 1.3) | A request that leaves before it is kept is lost or made twice after a reload. It is the client's "once" (`../../client/domain/client/requests.md`), which jig owns (`../../README.md`, section 10), and which skein's transport holds for any application (skein's `ui/web/README.md`, section 14). | its own order for the rest of the turn (`loop.md`, 1.2); the transport replaced, the order taken with it and checked by skein's stories for a browser shell and jig's (`testing.md`) |
+| a step's client requests through the transport (`loop.md`, 1.3) | A request that leaves before it is kept is lost or made twice after a reload. It is the client's "once" (`../../client/domain/client/requests.md`), which jig owns (`../../client-stack.md`, section 1), and which skein's transport holds for any application (skein's `ui/web/README.md`, section 14). | its own order for the rest of the turn (`loop.md`, 1.2); the transport replaced, the order taken with it and checked by skein's stories for a browser shell and jig's (`testing.md`) |

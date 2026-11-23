@@ -1,4 +1,4 @@
-//! Dense revision reads (domain/engine/settings-store.md, 1; client/domain/contract/README.md, section 4).
+//! Dense revision reads (domain/engine/settings-store.md, 1; client/domain/contract/reads.md, section 1).
 
 use crate::{
     Core, CoreRecord, Limits, Record, Request,

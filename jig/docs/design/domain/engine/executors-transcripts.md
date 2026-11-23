@@ -14,7 +14,7 @@
   they wrote them, its runs' beginnings and ends, the results and news it
   heard and the decisions made about it, kept in the order they
   committed, so a client reads a conversation whole after its words have
-  been taken from the inbox (`../../client/domain/contract/README.md`, section 4).
+  been taken from the inbox (`../../client/domain/contract/reads.md`, section 1).
   A failed run's end retains its class and the optional invalid-result
   kind computed for that attempt (../tasks/lifecycle.md, 7), beside the task record's
   current reason. Starting another attempt clears the current reason,
@@ -25,8 +25,8 @@
   delegate's line, never repeated in the answering task's activity,
   whose turn holds the call that sent it; a read of the question joins
   its answer by a point read (`../../protocol/store/loads.md`, 3). Who may read
-  an answer is the client's contract's (`../../client/domain/contract/README.md`,
-  section 4).
+  an answer is the client's contract's (`../../client/domain/contract/reads.md`,
+  section 1).
 - **Committed turn by turn.** A run sends each turn up as it ends: what
   the LLM said and the calls it made, their results, what it spent, the
   last inbox message it read, and whether it opens a window. The core
@@ -76,7 +76,7 @@
   each and resumes. The core keeps every call as committed. One
   past the limit starts fresh from a brief that carries the transcript's
   tail. Earlier windows' turns stay readable by parties
-  (`../../client/domain/contract/README.md`, section 4), and are never sent to a
+  (`../../client/domain/contract/reads.md`, section 1), and are never sent to a
   run. A transcript the agent cannot use fails its run as transient,
   saying so, and closes its window (its run proof's `CurrentWindow`
   marked closed): the next run is prepared fresh from that window's

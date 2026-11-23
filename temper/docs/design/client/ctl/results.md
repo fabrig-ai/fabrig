@@ -283,7 +283,7 @@ digest: task 7c1e09a2b44f0d13
   role is jig's refusal, exit 2 (3).
 - **A tree** prints `tree:`, then its root and each row its window
   holds, a chip a line. The engine answers the tools' window within its
-  own rows (jig's `client/domain/contract/README.md`, 5.2), so a tree larger
+  own rows (jig's `client/domain/contract/watches.md`, 1.2), so a tree larger
   than either folds the rest. Its text prints one total line after the
   rows: `cut: 3 more not shown (1 Waiting, 2 Running)`, the folded tasks'
   count, then each phase that has any, in a chip's words and jig's order

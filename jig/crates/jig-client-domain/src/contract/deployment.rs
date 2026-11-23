@@ -1,6 +1,6 @@
 //! Deployment-owned hosts, accounts and bounded diagnostics.
 //! Core-owned facts; connector diagnostics are supplied independently.
-//! client/domain/contract/documents.md and client/domain/contract/README.md, 5.1;
+//! client/domain/contract/documents.md and client/domain/contract/watches.md, 1.1;
 //! client/domain/pages.md, 7.
 use super::{AdmissionLimit, Chip, Funder, Proposer, Requester, SeenThrough, TaskLink};
 use alloc::boxed::Box;

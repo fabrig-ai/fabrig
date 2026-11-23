@@ -1,5 +1,5 @@
 //! Whole immutable activity and admitted words (domain/engine/decisions.md, 1.4, and domain/engine/executors-transcripts.md, 1;
-//! client/domain/contract/documents.md and client/domain/contract/README.md, 5). Commit position orders lines; wall time
+//! client/domain/contract/documents.md and client/domain/contract/watches.md, 1). Commit position orders lines; wall time
 //! is supplied metadata. Turns here are archive references, never decoded content.
 use super::{FailureTries, HoldFailure, Requester, ResultField, Text};
 use skein_lib::{List, Wall};

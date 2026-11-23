@@ -580,7 +580,7 @@ rest of the branch lands while a sign-off waits a night
   roles and eligibility live with the people and the forge holds none: the
   core's ask names the watcher's party, and the root answers that party's
   rows. The party's own scope skips jig's project check (jig's
-  `client/domain/contract/README.md`, 5.5), so the root filters every row by the
+  `client/domain/contract/watches.md`, 1.5), so the root filters every row by the
   watcher's role itself. One subject serves the deployment, as `dismissed`
   does (`../attention.md`, 1). It stores nothing.
 - **The forge's part:** each live change, in a project that lands by queue or

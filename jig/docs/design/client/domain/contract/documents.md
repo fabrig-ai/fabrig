@@ -35,7 +35,7 @@
     nothing. Shapes retain configured intent, never the preview, and
     a clipped catalogue gives no order from which to guess it. Relevant
     account/source, policy, membership and effective-executor changes
-    invalidate it (`README.md`, 5.2). The document also gives what they may create
+    invalidate it (`watches.md`, 1.2). The document also gives what they may create
     in each project, as the bounds a draft is compared with (3);
     their role in the deployment, if
     any; the **offer** in each project, what they can pick there now, one
@@ -144,7 +144,7 @@
     (`../../../domain/engine/settings.md`, 3 and 4); none for a procedure's or
     a person's task; and the acts the party may make on it, with what
     each would do (3, 4);
-  - *a task line:* one record for every list of tasks (`README.md`, 4.1): the task's
+  - *a task line:* one record for every list of tasks (`reads.md`, 1.1): the task's
     chip; its project and its requester; tracked and priority, label
     and flags; when it last changed, its last activity, and when it
     ended, if it has; its deadline; what it waits on; its budget spent
@@ -185,7 +185,7 @@
     it is now (its value, following its default or the change of which
     revision, or not offered) and what it would be, each value within
     the document's bound or with its size, as a revision's items are
-    (`README.md`, section 4), an item of an application's kinds with its size alone,
+    (`reads.md`, section 1), an item of an application's kinds with its size alone,
     the application serving its values, and an item of a project's own
     policy with that project's policy now and as it would be, each whole
     within the document's bound or with its size (`../../../domain/engine/settings.md`,
@@ -267,7 +267,7 @@
     came from, and how many live tasks hold it; the pending proposals of
     settings, by number (`../../../domain/engine/settings.md`). It
     carries no value: one setting is read whole on its own, from the
-    newest or a held revision (`README.md`, section 4), and one of an application's
+    newest or a held revision (`reads.md`, section 1), and one of an application's
     kinds from the application, whose connector keeps its value (17.5),
     jig's read giving its state and size alone. Seen by a party with a
     deployment role, and a project's items by a party with a role there.

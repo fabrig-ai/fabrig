@@ -336,11 +336,11 @@ dependencies among them.
   *An ended one* and *Its prerequisite*): one done adds no wait and is
   kept as a met dependency, its result read as any dependency's; one
   failed or cancelled refuses the batch, naming it and how it ended
-  (*dependency*, `../../client/domain/contract/README.md`, section 3).
+  (*dependency*, `../../client/domain/contract/answers.md`, section 1).
   Each is judged at the batch's admission, against the state the batch
   commits in, never by an earlier read: a dependency that ends while the
   batch waits for another's row is judged as it ended. A task's batch
-  names live tasks alone (section 8). An amendment may add
+  names live tasks alone (`README.md`, section 8). An amendment may add
   more once a task is made (`changes.md`). Admission checks the batch's new
   waits with the live ones (`holds.md`, 7): its tasks' dependencies, the queues
   they join and the holds handed down to them, and its creator's wait

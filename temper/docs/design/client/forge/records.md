@@ -191,7 +191,7 @@ Moved to [`records-deployment.md`](records-deployment.md), section 2.
   (`../../draft/redeploys.md`, section 8).
 ## 8. Dismissed facts
 - **A person's facts, the subject `dismissed`:** of the party's own
-  scope (jig's `client/domain/contract/README.md`, 5.5), with no fields, its
+  scope (jig's `client/domain/contract/watches.md`, 1.5), with no fields, its
   window unused; on the wire `Watching`'s `dismissed`. One subject for
   the deployment: the core names each watcher's party, and each
   watcher gets its own party's document (`../../domain/forge/attention.md`, 1). Its
@@ -215,7 +215,7 @@ Moved to [`records-deployment.md`](records-deployment.md), section 2.
   the forge side's facts, which Home reads to compute To begin (`../pages/README.md`).
 ## 9. Changes
 - **A project's changes, the subject `changes`:** of the project's scope
-  (jig's `client/domain/contract/README.md`, 5.5), for a party with a role
+  (jig's `client/domain/contract/watches.md`, 1.5), for a party with a role
   there, its window unused; on the wire `Watching`'s `changes`,
   `ChangesSubject`: `project`. `Changes`' page watches it while open. Its
   document, `ChangesPanel`:

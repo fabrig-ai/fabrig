@@ -125,7 +125,7 @@ temper ──"run this experiment at this head" (active)────────
   evidence; its result is a verdict with its evidence. The lab's price
   is spent from the requesting task's budget (jig's `domain/authority-budgets.md`,
   section 1). temper is then a client of the lab that is not a person
-  (jig's `README.md`, section 10).
+  (jig's `client-stack.md`, section 1).
 - **Done means proven in production.** A goal that changes a service can
   wait on the run side's health status at the commit it landed, and end
   only then.

@@ -77,7 +77,7 @@ section 4), and its requester ends it with `Conclude` (section 3).
 - **No delegate joins it once concluded.** A batch beneath a concluded
   gathering is refused `Concluded { at }`, naming when, in the tasks
   child and to the party (*concluded*,
-  `../../client/domain/contract/README.md`, section 3).
+  `../../client/domain/contract/answers.md`, section 1).
 - **It ends** in the decision where the last of these comes to hold: it
   is concluded; no delegate of it lives; it is active, not held. So at
   `Conclude` itself when it has no live delegate; when its last live

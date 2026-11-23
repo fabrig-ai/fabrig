@@ -229,7 +229,7 @@ or, for the deployment's key added and account removed, the
 deployment's act a connector makes in its owners' name (people/acts.md, 3);
 each answer and each state is a fact the application's pages show
 (`../client/domain/contract/documents.md`), which a party watches
-among their own (`../client/domain/contract/README.md`, 5.1).
+among their own (`../client/domain/contract/watches.md`, 1.1).
 
 | Request | What it does |
 |---|---|

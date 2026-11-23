@@ -188,7 +188,7 @@ pub enum Fact {
     UndecodableStore,
 }
 
-/// Authentication held by the link (client/domain/client/README.md, 9).
+/// Authentication held by the link (client/domain/client/sign-in.md, 1).
 #[derive(Debug, PartialEq, Eq)]
 pub enum With {
     Service(Secret),
@@ -271,7 +271,7 @@ pub enum AuthorizeWhy {
     NotAPerson,
 }
 
-/// Why an approval take installed nothing (jig/docs/design/client/domain/client/README.md, 9).
+/// Why an approval take installed nothing (jig/docs/design/client/domain/client/sign-in.md, 1).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Taking {
     Waiting,
@@ -282,7 +282,7 @@ pub enum Taking {
     Unknown,
 }
 
-/// An asked link's transient answer (jig/docs/design/client/domain/client/README.md, 9).
+/// An asked link's transient answer (jig/docs/design/client/domain/client/sign-in.md, 1).
 #[derive(Debug, PartialEq, Eq)]
 pub enum AskedLink {
     Asked { secret: Secret, expires: u64 },

@@ -65,7 +65,7 @@ processes (smith's `protocol/host.md`, sections 2 and 3).
   client the application holds, with its domain, `jig-client-domain`,
   and the reference UI, `jig-client-view`, are `../client/domain/`'s.
   Every client crate is named under `jig-client`, wherever it runs
-  (`../README.md`, section 15).
+  (`../crate-names.md`, section 1).
 - **Each crate is step code** under the subset (skein/docs/foundation/programming-model.md,
   section 10), as every crate of jig's is but its test kits and the
   client's shells and their parts. The reference UI's bundle is made at

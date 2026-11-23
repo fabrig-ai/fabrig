@@ -25,7 +25,7 @@
 
 ## Why it matters
 
-`jig/docs/design/README.md`, 6.3 and 6.7 make `ops` the reference root, one shape for
+`jig/docs/design/rails.md`, 1.3 and 1.7 make `ops` the reference root, one shape for
 every root. Different root shapes and hand-off order make copied wiring harder to
 share and keep aligned.
 

@@ -5,7 +5,7 @@ This document holds lLM accounts' words, split from [`accounts.md`](accounts.md)
 ## 1. LLM accounts' words
 
 temper's phrasebook words what jig's accounts document holds (jig's
-`client/domain/contract/README.md`, 5.1; jig's `domain/accounts-sources.md`, 2, and `domain/accounts.md`, 5
+`client/domain/contract/watches.md`, 1.1; jig's `domain/accounts-sources.md`, 2, and `domain/accounts.md`, 5
 ); the providers' names and their plans' are the
 configuration's. The owned example and the default document offer
 OpenAI's ChatGPT sign-in and API keys (`../../protocol/setup/init.md`, 1),
@@ -379,7 +379,7 @@ The words for each offered source are:
   or why it was refused, in Each state's words. Each ending offers
   "Continue with ChatGPT" again, and a refusal Each state's acts.
   Each reads jig's ending on the `accounts` document (jig's
-  `client/domain/contract/README.md`, 5.1): signed in, `Made`; the same
+  `client/domain/contract/watches.md`, 1.1): signed in, `Made`; the same
   account again, `Renewed`, named by who it is (*An account*, above) where
   that says anything, and "your ChatGPT account" otherwise ("That's your ChatGPT account
   again. To add another account, …"); signed in without
@@ -453,7 +453,7 @@ The words for each offered source are:
   ChatGPT account not eligible for plan usage; plan usage declined at
   the provider, apart from its consent's `declined`; and a missing
   scope said in its own words, where jig gives its number. Each waits
-  for a fact of jig's ending (jig's `client/domain/contract/README.md`, 5.1;
+  for a fact of jig's ending (jig's `client/domain/contract/watches.md`, 1.1;
   the providers' facts, jig's `domain/providers.md`, 2.5); until then,
   each reads as the ending jig gives, in its words. Default: none drawn
   before jig's fact.

@@ -19,7 +19,7 @@ still open is listed in `README.md`, section 15.
   section 3): `jig_client::Client`, with its own vocabulary, limits
   and world. The application steps it with each event, and
   it gives back what to send and what to tell. It runs no loop of its
-  own, and it never calls the application (section 4).
+  own, and it never calls the application (`vocabulary.md`, section 1).
 - **Presentation-agnostic.** It knows no page, place, card, confirmation
   or draft. A browser, a terminal, a chat bot, a one-shot command and a
   service with no presentation hold the same client (section 16). jig's
@@ -38,18 +38,18 @@ still open is listed in `README.md`, section 15.
   not yet answered. At start, each is restored and told to the
   application as kept. An unanswered `Seen` is silently lost on closing,
   reload or crash; the next opening checks and sends the forward-only
-  watermark again (section 8).
+  watermark again (`small-store.md`, section 1).
 - **The link is the client's to judge,** from the stream, whose hello
   brings `me`: signed out, starting, live, offline, or out of date
   (`watches.md`, 2).
 - **Signing in by `SignIn { with }`:** a printed link's secret, a
   service's credential, a credential the application obtained by its own
   sign-in, or one its transport carries unseen. jig owns credentials;
-  every sign-in flow beyond its two is the application's (section 9).
+  every sign-in flow beyond its two is the application's (`sign-in.md`, section 1).
 - **The application's families travel as bytes,** under their owner's
   number and version, on the same connection and through the same
   table. The application's wire crate encodes and decodes them; the
-  client never reads them (`README.md`, section 4 and `requests.md`; ../root.md, section 7).
+  client never reads them (`vocabulary.md`, section 1 and `requests.md`; ../root.md, section 7).
 - **jig's messages, not HTTP.** The client gives jig's messages to a
   transport the application chooses: jig's default HTTP mapping, a local
   socket, or an in-process channel (section 13).
@@ -58,6 +58,12 @@ still open is listed in `README.md`, section 15.
 - **Helpers beside it, optional:** shapes of work from templates, facts
   over documents, a conversation's thread, and jig's words, each built
   only from the public client (`conversations.md` and `helpers.md`).
+
+The client's documents include:
+
+- [`vocabulary.md`](vocabulary.md): the client's vocabulary toward the application.
+- [`small-store.md`](small-store.md): kept work and the small store.
+- [`sign-in.md`](sign-in.md): credentials and signing in.
 
 ## 2. The client in the system
 
@@ -79,7 +85,7 @@ the engine     the application's root around jig's core, and jig's clients' comp
   application does.
 - **The client has no store of the truth.** The engine's store is the
   truth. The client holds the latest document of each watch, and a small
-  store of what it must not lose across its own restart (section 8).
+  store of what it must not lose across its own restart (`small-store.md`, section 1).
 - **A party may have many clients:** tabs, devices, a command. Each is
   its own client, with its own keys and its own small store. Two of them
   deciding one thing are two requests to the engine: the first commit
@@ -100,17 +106,17 @@ jig-client                        jig_client::Client: the domain and the link, c
   `#![no_std]`, depending on skein-lib alone. It holds:
   - *the API's types:* operations, subjects, reads, documents and
     answers, as ../contract/README.md gives them;
-  - *the link:* its state, the sign-in it is on, the stream (watches.md, 2, and README.md, 9
+  - *the link:* its state, the sign-in it is on, the stream (watches.md, 2, and sign-in.md, 1
     ). The credential's value is never domain state
     (`../../../protocol/README.md`, section 8): `jig-client` holds it
     beside the domain, as an engine's protocol layer holds its secrets,
     and puts it on each `Exchange` and `OpenStream`;
-  - *handles:* each watch's and each read's, with its asker (section
-    4), each watch mapped onto a watch of the engine's with its latest
+  - *handles:* each watch's and each read's, with its asker (`vocabulary.md`, section 1
+    ), each watch mapped onto a watch of the engine's with its latest
     document (`README.md`, section 6 and `watches.md`);
   - *the request table,* skein-lib's `RequestTable` (skein's `runtime/lib.md`,
     section 12), with each request's key and asker (`requests.md`);
-  - *kept work:* the requests restored at start (section 8);
+  - *kept work:* the requests restored at start (`small-store.md`, section 1);
   - *its timers and its seed,* from which the table's keys, the engine
     watches' names and every jitter are drawn.
 - **`jig-client-protocol-link`** (`../../../protocol/client/wire.md`, 2.3)
@@ -139,7 +145,7 @@ jig-client                        jig_client::Client: the domain and the link, c
 - **Builds:** the three crates and the helpers are step code under the
   strict subset, built for the host and for wasm32 (skein/docs/foundation/programming-model.md,
   section 10). Only `jig-protocol-transcript` links smith, the client's
-  only use of smith (`../../../README.md`, section 10).
+  only use of smith (`../../../client-stack.md`, section 1).
 - **Its handles inside are skein-lib's:** its watches, reads and
   exchanges are `Id`s in slabs sized at startup, and what crosses to the
   transport is their tokens (skein/docs/foundation/programming-model.md, 4.2). A terminal is
@@ -151,165 +157,7 @@ jig-client                        jig_client::Client: the domain and the link, c
 
 ## 4. Its vocabulary toward the application
 
-```
-jig_client::Client: step(now, wall, Event, &mut Queue<Request>), fire(now, wall, &mut Queue<Request>), settle(now, wall, &mut Queue<Request>), next_deadline()
-
-Event, in
-  from the application:
-    Start { kept }                                the small store's records, as the host loaded them
-    SignIn { with } | SignOut                     with: Link { secret, held } | Service(credential) | Held(credential) | Transport
-    Watch { handle, subject, window } | Unwatch { handle }
-    Read { handle, read, cursor }
-    Send { key, name, request }                   an operation, a compound request, or a family's request as bytes; name optional
-  from the transport:
-    Reply { exchange, message } | Part { exchange, message } | Done { exchange } | Lost { exchange }
-    Streamed { message } | StreamGone
-    Stored | NotStored
-Request, out
-  to the transport:   Exchange { exchange, credential, message } | OpenStream { credential, replaces } | CloseStream | Save { records } | Erase { records }
-  to the application: Link(state) | Changed { handle } | Ended { handle, why } | Page { handle, page }
-                      Pending { key } | Answered { key, outcome } | Kept { key, request } | Dropped { count } | Text { handle }
-read by the application: client.document(handle), client.text(handle), client.pending(key), client.link()
-```
-
-- **`now` and `wall`** are the monotonic instant and the wall time, as
-  every step machine takes them (skein/docs/foundation/programming-model.md, section 9:
-  `env.now` and `env.wall`).
-- **Handles and keys are the application's.** Each names its asker and a
-  number of the asker's. The asker is the owner number of the child of
-  the client root that asked (../root.md, section 15; jig's reference UI's
-  is 65536): the client keeps it, hands it back with everything it says
-  of that handle or key, and never reads it, as skein-ui keeps an owner
-  (skein's `ui/tree.md`, 1.3). The client root routes by it, and keeps no map
-  from handles or keys to its children (../root.md, section 5).
-
-### 4.1 What it hears
-
-- **From the application:**
-  - *`Start { kept }`:* the small store's records, as the host loaded
-    them, before any other event (section 8);
-  - *`SignIn { with }` and `SignOut`* (section 9);
-  - *`AskApproval { port }`, `ReadApproval { code }` and `DecideApproval { code,
-    approve }`:* an approval's ask, read and decision (section 9);
-  - *`AskLink`:* an asked link's ask (section 9);
-  - *`Watch { handle, subject, window }` and `Unwatch { handle }`:* a
-    subject of jig's (../contract/README.md, 5.1), or a family's as bytes, and the
-    window its document holds (`watches.md`);
-  - *`Read { handle, read, cursor }`:* one document, or one page of a
-    list from a cursor (section 6);
-  - *`Send { key, name, request }`:* an operation, a compound request,
-    or a family's request as bytes, with a name or none (`requests.md`).
-- **From the transport:**
-  - *`Reply { exchange, message }`:* the one record that answers an
-    exchange; *`Part { exchange, message }`:* one record of a batch's
-    answer, a member's reply, as it comes; *`Done { exchange }`:* a
-    batch's answer ended whole after its parts
-    (`../../../protocol/client/wire.md`, 2.3); *`Lost { exchange }`:*
-    none came whole, or a batch's answer was cut short;
-  - *`Streamed { message }`:* one event of the stream, in order: the
-    hello, a delivery, a heartbeat, a watch ended; *`StreamGone`:* the
-    stream ended;
-  - *`Stored` and `NotStored`:* the last `Save` or `Erase` written, or
-    not (section 8).
-- **Time:** `fire(now, wall, ..)`, at the deadline `next_deadline()` gave
-  (section 10).
-- **The settling:** `settle(now, wall, ..)`, once the client root has
-  routed every event of its iteration and what followed from it
-  (../root.md, section 3). Linked, `step` and `fire` give the transport
-  no `Exchange`, `OpenStream` or `CloseStream`: the link gathers them,
-  in the order they were asked for, and `settle` gives them, each
-  gathered read, watch's opening and watch's closing in one batch while
-  more than one is gathered (`../../../protocol/client/wire.md`, 2.3).
-  `Save` and `Erase` leave from `step` and `fire`, as before, so a kept
-  request's record is still stored before its exchange leaves (section
-  8). Unlinked, `settle` gives nothing.
-
-### 4.2 What it asks for
-
-- **Of the transport:**
-  - *`Exchange { exchange, credential, message }`:* one of jig's messages
-    (`../../../protocol/client/wire.md`, 2.1) with the credential held, or
-    none, a batch of reads and watches among them; answered by one
-    `Reply`, by a batch's `Part`s then `Done`, or by one `Lost`;
-  - *`OpenStream { credential, replaces }` and `CloseStream`:* the one
-    stream every watch's deliveries come on; `replaces` names the last
-    stream this client knew, the one its small store kept at start and
-    then its own, or none (`../../../protocol/client/wire.md`, section 2);
-  - *`Save { records }` and `Erase { records }`:* the small store's,
-    written before the requests they keep are sent (section 8).
-- **Of the application,** told, never asked to act:
-  - *`Link(state)`:* the link's state, whenever it changes, and when a
-    sign-out does not reach the engine (watches.md, 2, and README.md, 9): what a
-    presentation shows of the link, which it reads with `client.link()`;
-  - *`Changed { handle }`:* a newer document for the handle, or the
-    handle behind or live again (`watches.md`, 1);
-    *`Text { handle }`:* more of a run's text (`watches.md`, 3); *`Ended { handle,
-    why }`:* the handle's one terminal, and why (`watches.md`, 1);
-  - *`Approval(answer)`:* an approval's ask, read or decision answered,
-    once each (section 9);
-  - *`Page { handle, page }`:* a read's one terminal (section 6);
-  - *`Pending { key }`:* the request's progress changed; *`Answered {
-    key, outcome }`:* its one answer; *`Kept { key, request }`:* a
-    request restored at start (`requests.md` and `README.md`, section 8); *`Dropped { count
-    }`:* how many kept records were dropped at start, unread, under no
-    asker (`README.md`, section 8).
-
-### 4.3 What it never asks
-
-- **It never calls the application.** What it tells is a value in the
-  queue, which the application takes when it steps it. What it holds,
-  the application reads:
-  - `client.document(handle)`: the handle's latest document, and its
-    state (`watches.md`, 1);
-  - `client.text(handle)`: the run's text it holds for the handle, the
-    one turn being written (`watches.md`, 3);
-  - `client.pending(key)`: the request's progress, its party and its
-    owner (`requests.md`);
-  - `client.link()`: the link's state, and the credential held (watches.md, 2, and README.md, 9
-    ).
-- **It never reads an application's value.** A family's request, read,
-  subject, page and document are bytes under their owner's number, which
-  the application's wire crate encodes and decodes; the client reads
-  their owner, their version and their size, and nothing more. A part
-  that one of jig's documents names stays a reference (../root.md, section
-  6).
-- **It never decides for a presentation:** what to show, when to
-  confirm, what to keep of a draft. It gives the facts as data: the
-  documents with their revisions and offers (../contract/documents.md, 3), and each
-  request's progress and answer.
-
-### 4.4 Without a link
-
-`Client::unlinked` makes a client that holds no link: its host carries
-the domain's work in the link's place, and answers it with `Up`. Each
-mode is stepped by its own pair, and each pair has its own request type:
-
-```
-Client::new:      step(now, wall, Event, &mut Queue<Request>), fire(now, wall, &mut Queue<Request>)
-Client::unlinked: step_unlinked(now, wall, Event, &mut Queue<UnlinkedRequest>),
-                  fire_unlinked(now, wall, &mut Queue<UnlinkedRequest>)
-
-UnlinkedRequest, out
-  Told { told }               as a linked client's
-  Authorized(authorized)      a printed link's authorization, always lost: no link signs in
-  ApprovalAct(act)            an approval's ask, read or decision, which the host carries (section 12)
-  Approval(answer)            its answer, as the host gave it back
-  AskedLink(asked)            an asked link's answer, always lost: its host carries no ask (section 9)
-  Down { down }               the domain's work, which the host carries: a save, an erase, a send,
-                              a watch opened, continued or closed, a read
-  SignOut                     the sign-out, which the host answers
-Event, in, besides the application's: StartUnlinked { kept } in place of Start, Up { up }, SignOutLost,
-  ApprovalAnswer { answer }
-```
-
-- **A linked client's `Request` holds no `Down` and no `SignOut`:** what
-  its domain asks goes to the link, and its sign-out is an exchange. A
-  linked host matches only what a linked client asks.
-- **A pair given the other mode's client is a fault** (an assertion), as
-  an event of the other mode is.
-- **An application root stepping either mode** keeps the two apart in its
-  own requests: what the linked client asks, and what the unlinked one
-  asks, each under its own variant.
+Moved to [`vocabulary.md`](vocabulary.md), section 1.
 
 ## 5. Pages and the working set
 
@@ -339,8 +187,8 @@ handles, as every presentation does (`README.md`, section 6 and `watches.md`).
   there is none: unknown, gone, too large with its size, malformed,
   refused, busy, signed out, version not served, or unreachable, when
   its exchange is lost or not sent for want of room (gone and too large for a
-  turn read alone, ../contract/README.md, section 4; malformed for a turn that does not decode, and
-  for any read whose answer does not, section 13). A read is one attempt
+  turn read alone, ../contract/reads.md, section 1; malformed for a turn that does not decode, and
+  for any read whose answer does not, `README.md`, section 13). A read is one attempt
   (`../../../protocol/client/README.md`, section 4): the application reads again
   if it wants.
 - **What is live is watched; what is past is read.** The engine holds
@@ -350,11 +198,11 @@ handles, as every presentation does (`README.md`, section 6 and `watches.md`).
 - **A window** is what a watch's document holds of a list, or a read's
   page: its size, its order and where it starts, by cursor. The
   application gives it; the engine bounds it in bytes and rows, never in
-  rows sized for one client's screen (../contract/documents.md, 3, and ../contract/README.md, 4.1 and 5.5).
+  rows sized for one client's screen (../contract/documents.md, 3, and ../contract/reads.md, 1.1, and ../contract/watches.md, 1.5).
   A window past the engine's rows is answered within them, never
   refused: the document or the page holds the rows the bound admits and
   says there are more, by its cursor for the next and, for a tree, by
-  its folded counts (../contract/README.md, 5.2). So an application asks for the
+  its folded counts (../contract/watches.md, 1.2). So an application asks for the
   window it can show, and never needs the deployment's bounds first.
   Keeping rows across pages, as a list slides while a person scrolls, is
   the presentation's.
@@ -378,8 +226,8 @@ handles, as every presentation does (`README.md`, section 6 and `watches.md`).
   never answers under the new one. Supersession and `Unwatch` still
   abandon reads as above; credential boundaries do not.
 - **A family's read** names its owner, its scope (a project, the
-  deployment, or the party's own) and its record's bytes (../contract/README.md,
-  5.5); its page is its owner's, as bytes.
+  deployment, or the party's own) and its record's bytes (../contract/watches.md,
+  1.5); its page is its owner's, as bytes.
 - **A read of an owner not served** (`watches.md`, 2), a family's outside its
   owner's range or any read while the link is out of date, is answered
   at once and never sent: version not served, naming the owner and the
@@ -395,248 +243,11 @@ request table's once (`requests.md`); jig's check is ../testing.md's, 6.2.
 
 ## 8. The small store
 
-- **What the client keeps across its own restart:** the requests not yet
-  answered, except top-level `Seen` and requests carrying a value
-  (`requests.md`), as the request table's records, each with the key the
-  engine knows it by, its party, the application's key, the request (jig's record, or a family's
-  bytes under its owner's number and version), and the wall time of its first
-  sending; and the name of its stream, which the client that follows
-  sends gone before it opens its own
-  (`../../../protocol/client/wire.md`, section 2, and `../../../protocol/client/small-store.md`, section 1). Nothing else of the
-  client's: everything shown is read again. A presentation's own records
-  (the reference UI's drafts and its place) are the application's, which
-  it keeps beside the client's (../root.md, section 8; ../view-state.md, 8).
-- **Kept requests before sent.** An ordinary request's record leaves in a
-  `Save`, and the client gives its first `Exchange` only once the transport
-  says `Stored`. `NotStored` (a quota full, a disk failing) retires the
-  requests the write carried, unsent, each answered *not kept*, by its
-  key (skein's `runtime/lib.md`, 12, not kept): parked, or with its `Exchange`
-  waiting for the write, since a parked request's record leaves at its
-  admission too. Its erase leaves as any retired request's, since an
-  earlier write may hold its record; if that erase is not stored either,
-  a restart tells the request `Kept` again, under its key. A record is
-  whole in each write, so a request whose record a later write carries
-  again is decided by that later write, and one whose record the write
-  did not carry is sent once its own write is stored. So a restart never
-  loses an ordinary kept request the engine may have made. A request
-  carrying a value is sent once without a record, and its caller asks
-  again (`requests.md`).
-- **A record that can't be written is not kept.** A request whose record
-  the link can't encode for the store (past a kept record's bounds,
-  `../../../protocol/client/small-store.md`, section 1) is retired as one
-  `NotStored` retires: unsent, answered *not kept* by its key, once, its
-  erase leaving as any retired request's. It is never answered lost, so
-  never sent again under its key, and the requests whose records were
-  encoded go on as before.
-- **A later write holds its requests.** `request_records_durable`
-  requires pending writes to finish before held requests are sent; an
-  earlier write's completion cannot release a later write's requests.
-  A failed write ends its own obligations as not kept. The client
-  world holds this under load in `jig-client-world`,
-  `orders::a_later_write_holds_its_requests_under_load`.
-- **The durability hold is uncapped.** Held exchanges are bounded by
-  admitted attempts, never refused as not kept for a full hold. Once
-  the write is durable, live attempts leave in FIFO order; stale
-  attempts are skipped. Not kept reports a store failure, not internal
-  queue room (skein/docs/foundation/programming-model.md, 7.2).
-- **`Seen` has no save of its own.** Closing, reload or crash silently
-  loses an unanswered in-memory mark, with no `Kept`, `Dropped` or not
-  kept notice from its own store. The next opening checks and sends the
-  watermark again; repeating a forward-only read position is safe. Its
-  exchange still waits behind writes already given. A failed mixed
-  write retires only the ordinary requests whose records it carried as
-  not kept; a `Seen` exchange held behind it is lost and follows its
-  normal retry. Consuming the table's save creates no tracked store
-  write and changes no store acknowledgement protocol.
-- **Every terminal erases.** The table's terminal `Erase` holds for
-  `Seen` too: erasing an absent key is harmless, and its store
-  acknowledgement completes normally. A `Seen` record the small store
-  holds is not read: it is dropped, counted in `Dropped`, and its key
-  erased at start.
-- **Restored at `Start { kept }`,** before any other event: each
-  request's record admitted to the table under its key, parked until
-  the link is live, its party confirmed and the retention known; and
-  each told to the application as `Kept { key, request }`, which the
-  client root routes by the key's asker (../root.md, section 8).
-- **It names its party.** Each record carries the party it is for, and
-  its request is sent, under its original key, only once `me` confirms
-  that party. While another party is signed in, it stays parked and
-  unsent, until its party returns or the retention passes and it is
-  answered unknown. Whether, and how, to warn of someone else's kept
-  work is the presentation's (the reference UI's: ../pages.md, section 8).
-  A `Send` before `me` has named the party is answered unconfirmed at
-  once, and nothing of it is kept (`requests.md`).
-- **Versioned** with jig's store version, so a client updated since reads
-  what an older one kept. A record of a version it does not read is
-  dropped, and the application told (`../../../protocol/client/small-store.md`, section
-  1). A family's request is kept in its owner's version: one whose
-  owner the build does not declare, or whose version is not the one
-  declared (`watches.md`, 2), is such a record. So is one past the records the
-  table holds (`README.md`, section 11). The client tells only how many, `Dropped {
-  count }`, once at start, under no asker: nothing of a record it
-  does not read is read, its key's asker included. The client root
-  gives the count to the presentation that says so (../root.md, section
-  8): the reference UI's notice (../view-state.md, 7).
-- **Where it lives is the host's:** a browser tab's session storage, a
-  file written whole and synced, a world's memory. A host whose store is
-  copied (a browser tab duplicated) sends the same keys from both
-  copies, whose ordinary deciding acts the engine makes once, while each
-  copy draws new keys from a seed of its own; the copy sends the original's
-  stream gone, once, which the original takes as a drop (`watches.md`, 2).
-- **It is never the truth.** An ordinary deciding request kept is
-  answered by the engine by its key, made once whatever the client did
-  before.
+Moved to [`small-store.md`](small-store.md), section 1.
 
 ## 9. Signing in
 
-- **jig owns credentials, not sign-in flows** (../contract/README.md, section 2).
-  Its own three ways of signing in are the printed link's one-time
-  secret, on loopback, a service's credential, and a sign-in approved
-  by a signed-in browser (below). Every other way is
-  the application's sign-in, on its own routes, ending in a `Mint` its
-  server gives the clients' component (`../../../protocol/client/sign-in.md`
-  ).
-- **`SignIn { with }`:**
-  - *`Link { secret, held }`:* the printed link's secret, beside the
-    credential the application holds from an earlier sign-in, if any.
-    The client sends the component's sign-in with the secret, carrying
-    `held` as its credential, and holds the credential the answer gives;
-    an answer that gives none keeps `held`, the sign-in the engine kept
-    (`../../../protocol/client/sign-in.md`), unless the transport keeps
-    it: a browser's `held` is none, its cookie carried by the transport.
-    An answer refused, not ready, busy, full, why a link can't sign in
-    or lost installs nothing, and `held` stays the application's to give
-    again. Not ready, busy and full leave the link's secret usable until
-    its expiry (`../../../protocol/client/sign-in.md`), and the link's
-    view says which, as `not_signed_in`: not ready, busy, or full with the
-    deployment's room for sign-ins, the earliest saved expiry among
-    them and the link's own expiry, for the application's words. It says
-    too why a link can't sign in, `link_used`, `link_expired` or
-    `link_unknown`, as the answer did, and these are not sent again. The client keeps no secret and
-    signs in again by itself never: the person's retry is the
-    application's, the same `Link { secret, held }` given again, as a
-    native shell does, or the printed link opened again, as a browser
-    does. The next `SignIn`, and signed in, clear `not_signed_in`;
-  - *a service's busy* ends its signing as a refusal does: a service
-    waits for no room, and is never answered full;
-  - *`Service(credential)`:* a service's credential, sent the same way,
-    and answered with a sign-in's credential, held the same way;
-  - *`Approval { secret, grant }`:* an approval's take, its secret the
-    one `Asked` gave (below), and `grant` the grant its loopback return
-    brought, or none, sent with no credential. Answered signed in,
-    the client holds the credential the answer gives, as a link's. While
-    it is answered waiting, the client sends the same take again by
-    itself after a second, `APPROVAL_AGAIN`, and tells `not_signed_in`
-    `Approval(Waiting)`; answered `not_granted`, a grant that doesn't
-    match, it tells `not_signed_in` `Approval(NotGranted)` and sends the
-    take again after a second without the grant, as while it waits, the
-    approval left as it was or ended by then; not ready, busy and lost take the backoff a
-    link's sign-in takes, and `not_signed_in` says not ready for not
-    ready and busy for busy and for lost, so its application tells a
-    lost take from one not yet answered. Any other answer ends it,
-    installing nothing:
-    `not_signed_in` says `Approval` with why (refused, expired, used or
-    unknown), or full with the deployment's room, the earliest saved
-    expiry and the approval's own expiry in place of the link's. A next
-    `SignIn` or a `SignOut` ends it too. The client keeps the secret in
-    memory while it takes, never in the small store, and drops it at
-    the end;
-  - *`Held(credential)`:* a credential the application obtained by its own
-    sign-in, which the client holds as it is;
-  - *`Transport`:* the transport carries a credential the client never
-    sees, as a browser carries a cookie its server set.
-
-  The `credential` on `Exchange` and `OpenStream` is the one held, or
-  none; a `Link` sign-in's is its `held`. Signed in, the client opens
-  the stream, whose hello brings `me` (`watches.md`, 2), and opens the watches asked before
-  (`watches.md`, 1); under `Transport` it is signed in from its `SignIn`. So a host
-  may sign in after `Start { kept }`, its children watching from their
-  start.
-- **An approval, asked and decided** (`../../../protocol/client/sign-in.md`
-  ), each one exchange whose one answer the client tells the
-  application, `Approval`, and keeps nothing of:
-  - *`AskApproval { port }`,* sent with no credential, by a client
-    signed out, `port` its loopback return, `Option<u16>`, or none:
-    `Asked { secret, code, expires }`, the secret the application's to
-    give back in `Approval { secret, grant }` and never show, the code
-    to show; or `NotAsked`, refused, not ready, busy or lost;
-  - *`ReadApproval { code }` and `DecideApproval { code, approve }`,*
-    sent with the credential held, or none under `Transport`, by a
-    browser's client: `Read { code, state }`, the approval waiting,
-    `Waiting { asked, kind, source, reader }`, with when it was asked,
-    its kind, the wire's `ApprovalKind`, its source and the reader's,
-    each an `Option<IpAddr>`, an IPv4-mapped address read as its IPv4
-    one; approved, taken, refused, expired or unknown; `Decided { code,
-    decided }`, approved, `Approved { loopback }`, its loopback return's
-    `Loopback { port, grant }` where the ask named one, the grant a
-    `Secret` the application hands to the deciding browser alone and
-    never shows or logs, refused, used, expired or unknown; either not
-    a browser, signed out, not ready, busy or lost. Answered signed
-    out, the client is signed out, as by any exchange (below);
-  - *the code* is `ApprovalCode`, the wire's (`../../../protocol/client/sign-in.md`
-    ): eight letters of its alphabet, read from what a person
-    types or an address carries, either case, hyphens and spaces
-    ignored, and shown as four letters, a hyphen and four.
-- **An asked link** (`../../../protocol/client/sign-in.md`, the asked
-  link), one exchange whose one answer the client tells the
-  application, `AskedLink`, and keeps nothing of: *`AskLink`,* sent with
-  the credential held, by a client signed in, or with none under
-  `Transport`, is answered `Asked { secret, expires }`, the secret the
-  application's to give the person's browser in the printed link's URL
-  (`../../../protocol/client/default-http.md`, 1) and never show or log,
-  `expires` the link's wall time; `NotAsked`, refused, not ready, busy
-  or lost, as an approval's ask; or `SignedOut`, the client then signed
-  out, as by any exchange (below). A client not signed in sends it with
-  no credential, and the engine refuses it. A client with no link
-  answers it at once, `NotAsked` lost (4.4). At most one ask is in
-  flight: another meanwhile is answered `NotAsked` busy, unsent.
-- **The credential is never in the small store.** It is the link's, and
-  `client.link()` gives it: a host that keeps a sign-in across its own
-  restart keeps the credential where its platform keeps secrets, and
-  gives it back with `Held`.
-- **Signed out:** an answer, a read's terminal, a watch's end or the
-  stream saying so drops the credential held, ends every watch handle
-  (`Ended`, signed out), visibly ends every pending read (section 6),
-  parks every request, and tells `Link` signed out. The application
-  signs in again as it likes, and the parked requests are sent once the
-  same party is confirmed, within the
-  retention (`../../../domain/people/acts.md`, 1).
-- **`SignOut`** sends the component's sign-out with the credential held,
-  or none under `Transport`, to end the sign-in on the engine. Answered
-  signed out, the client drops the credential and is signed out, as
-  above.
-- **A sign-out that does not reach the engine** (lost, or answered not
-  ready while the engine stops) leaves the party signed in, as they
-  still are on the engine: the client keeps the credential and its
-  handles, and the link says the sign-out did not reach the engine.
-  `SignOut` again sends it again, which is safe: a sign-out whose
-  sign-in has already ended is answered signed out, the end asked for.
-  Signed out meanwhile, whatever ended the sign-in, the client is signed
-  out, as above, and the link no longer names the sign-out.
-- **A sign-out's answer is its sign-in's.** The client knows which of
-  its sign-ins each exchange belongs to. Once a newer sign-in is
-  live, an earlier one's sign-out answer is dropped, and the newer
-  stands. Nothing else the earlier sign-in owes reaches the newer one:
-  going signed out parks every request, visibly ends every pending read
-  and ends every watch handle. Successful sign-in also ends all pending
-  reads before opening its stream, even before the first sign-in's `me`.
-  Thus an earlier attempt's answer is stale to the request table, a
-  completed or cancelled read's late terminal fails its token match,
-  and an ended watch's deliveries are dropped by their names (`requests.md` and `README.md`, section 6 and `watches.md`
-  ). The link erases old exchange names; the domain owns read
-  cancellation, with no new link output, public `Readout` variant or
-  wire record.
-- **A service's credential, when an owner makes one,** reaches the
-  application once, in that request's `Answered` outcome; the client
-  keeps no copy of it, and the small store holds no answer
-  (`../../../protocol/client/sign-in.md`).
-- **A bot relaying a person's decision** holds that person's own
-  credential, from the application's sign-in (`Held`), and the decision
-  is the person's request, naming the revision the bot showed them: jig
-  adds no acting for another (`../../../domain/people/README.md`, section 3).
-- **Keys are the party's across sign-ins,** so the parked requests are
-  sent again once the same party is confirmed, within the engine's
-  retention.
+Moved to [`sign-in.md`](sign-in.md), section 1.
 
 ## 10. Time and notices
 
@@ -685,8 +296,8 @@ Each is configured and bounds what enters or is retained:
   client's limits (`../../../protocol/client/README.md`, section 10);
 - the request table's: requests held, and their bytes, a family's
   included (skein's `runtime/lib.md`, section 12); the records restored at
-  start, no more than the table holds and the stream's name (section
-  8);
+  start, no more than the table holds and the stream's name (`small-store.md`, section 1
+  );
 - backoffs' first and most spans, the heartbeat's tolerance, the
   retention's margin;
 - the family owners the application declares, each once, with its
@@ -860,7 +471,7 @@ with a person in front of a tree, are ../view-state.md's, 10.
   says starting in a list, and its document alone says why. Default: so.
 - **Several clients of one party,** such as two tabs: whether pending
   requests should be shared between them, which they are not; and the
-  party's room for watches on the engine (../contract/README.md, 5.2), which they
+  party's room for watches on the engine (../contract/watches.md, 1.2), which they
   share while each counts its own, so that one may find its watches
   busy, behind until the other's end.
 - **A window's turn:** how a thread shows a turn that opens a window (a
@@ -874,7 +485,7 @@ with a person in front of a tree, are ../view-state.md's, 10.
   keep the sign-out and send it once the engine is reached, or a host
   forget its credential there, leaving the sign-in live on the engine
   until it expires. A browser's cookie only its server clears
-  (section 9).
+  (`sign-in.md`, section 1).
 - **The generic half in skein:** keyed requests until durable,
   level-triggered watches and the link are jig's while they have one
   user; whether they move to skein, by a rename and a crate move, once

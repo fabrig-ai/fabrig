@@ -15,7 +15,7 @@ the engine; the tiers below the client are the client's protocol's
 
 - **The client is tested through its surface.** Its worlds give
   `jig-client` the events an application gives it and read the requests
-  it makes, as an application does (client/README.md, section 4). A story of
+  it makes, as an application does (client/vocabulary.md, section 1). A story of
   the client is written in those terms, and needs no tree and no person.
 - **Trees and the fake person are skein's and the applications'.** A
   presentation on skein's UI kit is tested as skein says, by skein's
@@ -162,8 +162,8 @@ its own, wherever a presentation builds on skein's UI kit.
   visibly once, no read is replayed, and refusal, loss or not-ready
   without installation leaves old reads eligible. Late `Reply` and
   `Lost`, same-handle replacement, and full independent read room check
-  token fencing and bounded event fan-out (client/README.md, sections 6, 9 and
-  11).
+  token fencing and bounded event fan-out (client/README.md, section 6, and client/sign-in.md, section 1, and client/README.md, section 11
+  ).
   The protocol world is used only for an ordering the lower fixture
   cannot express (`../../protocol/client/testing.md`, section 1).
 - **Internal orders under load** are checked by composed client and
@@ -171,7 +171,7 @@ its own, wherever a presentation builds on skein's UI kit.
   a credential boundary with occupied exchanges, and held exchanges
   leave in FIFO order after durability. Each step settles its domain
   and link outputs; deferred reads alone may wait on exchange credit
-  (client/README.md, sections 3 and 8; programming-model.md, 7.2).
+  (client/README.md, section 3, and client/small-store.md, section 1; programming-model.md, 7.2).
 - **Shapes** preserve a template's omitted LLM intent even when its
   `resolved_default` preview names a model; the shapes step tests check
   that the preview never enters `Create`.
@@ -261,7 +261,7 @@ In every world, whatever stands in front of the client:
 - **Kept requests stored before sent, for their party:** no kept request
   is sent before its record is stored, and no request is sent for a
   party `me` has not confirmed. `Seen` has no save of its own but still
-  waits behind writes already given (client/requests.md and client/README.md, section 8).
+  waits behind writes already given (client/requests.md and client/small-store.md, section 1).
 - **Documents of what was committed:** every document the client
   delivered for a handle reflects only commits the engine made durable,
   and none after a newer one of the same subject reflects an older
@@ -284,7 +284,7 @@ engine key, application-key joins, and named `Send` held
 while its name is held. An application key reused for another request
 or name is the application's bug and an assertion, which no test
 triggers (`skein/docs/foundation/programming-model.md`, 10.4), as is a
-client stepped with the other mode's pair (client/README.md, 4.4). The composed-client store tests contrast
+client stepped with the other mode's pair (client/vocabulary.md, 1.4). The composed-client store tests contrast
 `Seen` alone, which needs no own `Stored` before its exchange, with
 ordinary and mixed requests: kept requests wait for `Stored`, failed
 writes answer only the ordinary records they carried as not kept, and
@@ -293,7 +293,7 @@ unknown outcome erase; acknowledging an absent-key `Seen` erase then a
 later ordinary save must allow that request to send, with no tracked
 write left waiting. A kept `Seen` record restores as kept, is never
 saved again and erases at its terminal. These proofs use the client's tiers, harnesses and
-budgets (sections 2 and 9).
+budgets (`testing.md`, sections 2 and 9).
 
 ### 6.2 jig's check
 

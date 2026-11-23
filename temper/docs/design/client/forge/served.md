@@ -4,7 +4,7 @@ Each part is the forge's family's (`family.md`): read
 or watched by the forge's client side through the family's own reads
 and subjects, under the forge's owner number, each naming its scope, a
 project, the deployment or the party's own (jig's
-`client/domain/contract/README.md`, 5.5; jig's
+`client/domain/contract/watches.md`, 1.5; jig's
 `client/domain/root.md`, section 7), their records in
 `temper-client-protocol-wire` beside `Adopt` (`records.md`).
 The first read served is the playground's (`records.md` and `family.md`, 7
@@ -236,7 +236,7 @@ made by the forge connector from what it keeps of the change
 
 - **Its subject** names the change task by its number, in the scope of
   the task's project. jig admits the watch on the party's role in that
-  project (jig's `client/domain/contract/README.md`, 5.2). The connector
+  project (jig's `client/domain/contract/watches.md`, 1.2). The connector
   answers unknown for a task that is not a change into a repository the
   project holds, and the page's slot says the panel is unknown (jig's
   `client/domain/root.md`, section 6). The watch's window is unused:

@@ -472,7 +472,7 @@
 - **Where a sign-in's credential is held:** by the client, as a secret,
   when its transport needs it in hand; the application keeps it across a
   restart, where its platform keeps secrets, and gives it back as held
-  (`../../client/domain/client/README.md`, section 9). A transport may keep it
+  (`../../client/domain/client/sign-in.md`, section 1). A transport may keep it
   itself, as a browser's cookie the client never sees: a sign-in's
   answer then carries none, and every exchange leaves with none, the
   transport adding it (`default-http.md`, 3). A link's answer that carries none to a
@@ -481,7 +481,7 @@
 - **Signed out:** a credential the engine does not know, or a sign-in
   ended or expired, is answered signed out on every exchange and ends
   the stream, and the client reports signed out to the application
-  (`../../client/domain/client/README.md`, section 9). Signing out is a message
+  (`../../client/domain/client/sign-in.md`, section 1). Signing out is a message
   that ends the sign-in whose credential it carries, its digest erased;
   a transport that keeps the credential clears it then. Sent with a
   credential whose sign-in has ended, it is answered signed out like
@@ -489,7 +489,7 @@
   lost one clears nothing on the client's side. Its answer, signed out
   or lost, is the sign-in's whose credential it carried: a client that
   has since authenticated a newer sign-in drops it, and keeps the newer
-  credential (`../../client/domain/client/README.md`, section 9).
+  credential (`../../client/domain/client/sign-in.md`, section 1).
 - **Installing a credential** ends every pending read visibly in the
   client domain (`README.md`, section 4), including `Held` or `Transport` before
   the first `me`. A `Link` or `Service` exchange that fails, is refused,
@@ -502,7 +502,7 @@
   spent. Not ready is *again* (`README.md`, section 3): a service's client signs in
   again after its backoff, reaching the next engine; a person's sign-out
   shows as one that did not reach the engine
-  (`../../client/domain/client/README.md`, section 9). A refusal would tell the
+  (`../../client/domain/client/sign-in.md`, section 1). A refusal would tell the
   person their sign-in failed, and an answer with no record would be
   *lost*, which cannot tell a sign-in not taken from one taken whose
   answer was lost.

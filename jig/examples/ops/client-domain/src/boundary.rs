@@ -58,7 +58,7 @@ pub enum Request {
     Client {
         request: jig_client::Request,
     },
-    /// What the unlinked client asks (jig/docs/design/client/domain/client/README.md, 4.4).
+    /// What the unlinked client asks (jig/docs/design/client/domain/client/vocabulary.md, 1.4).
     Unlinked {
         request: jig_client::UnlinkedRequest,
     },

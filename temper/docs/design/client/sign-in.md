@@ -6,7 +6,7 @@ Signing in and the client's small store are split from [the client's overview](R
 
 How jig signs a client in, and how a native client keeps its credential
 and its small store, are jig's (jig's `protocol/client/sign-in.md` and `jig/docs/design/protocol/client/small-store.md`, section 1, and `jig/docs/design/protocol/client/shells.md`, section 1
-; jig's `client/domain/client/README.md`, sections 8 and 9).
+; jig's `client/domain/client/small-store.md`, section 1, and `client/domain/client/sign-in.md`, section 1).
 temper's:
 
 - **A sign-in's address in the small store** (`pages/accounts.md`, 1, `ConnectModel`, *A reload
@@ -139,12 +139,12 @@ was answered with. A box enables it beside the printed link
     grant: None } }`, and holds `Asked { code, expires, port }`, `port`
     its ask's, for its host to draw. The secret goes to `jig-client`,
     which holds it while the take runs (jig's
-    `client/domain/client/README.md`, section 9), never into
+    `client/domain/client/sign-in.md`, section 1), never into
     `asked::State`, a print or a log. An ask that named a port keeps it
     in the root too, in a field no reader is given, for the take with
     the grant (*The grant*, below), until the link leaves signed out or
     another ask replaces it. An unlinked client (jig's
-    `client/domain/client/README.md`, 4.4) leaves the take to its host's link,
+    `client/domain/client/vocabulary.md`, 1.4) leaves the take to its host's link,
     which made the ask and holds the secret: the root holds the code
     and the expiry, and drops the secret it was told.
   - *The grant:* `Event::Granted { grant }`, the host's, `grant` a

@@ -50,7 +50,7 @@ decided call, as every other is.
 **A run's proposal read** reads one proposal of settings by its proposer
 and number, a task's, `t` its task and its proposal's number, or a
 party's, `p` (../tasks/proposals.md), and answers what a party's proposal read
-answers (`../../client/domain/contract/README.md`, section 4): a proposal waiting,
+answers (`../../client/domain/contract/reads.md`, section 1): a proposal waiting,
 from the core's state, with its reason, its items and its review against
 the newest settings (`settings-proposals.md`, 1), a value past the review's bound by its size; a
 proposal decided, withdrawn or replaced, from its history row in the
@@ -111,7 +111,7 @@ ended task's unavailable terminal report is unknown. Both fields use bounded UTF
 and reject offsets inside a character or past the source. A run's chunk is
 bounded by the room its application names with the read, held to
 `core.call_answer_bytes`, and not by `documents.text_bytes`, which is what a
-client decodes (`../../client/domain/contract/README.md`, section 4): the application
+client decodes (`../../client/domain/contract/reads.md`, section 1): the application
 knows what its run's reply holds. An application that cuts a chunk further to
 render it prints `next` from its cut. Continue with the same
 field and the printed `next` offset. Every chunk names the current spec revision; restart specification
@@ -119,7 +119,7 @@ reads at zero if it changes between chunks.
 
 **A run's read as its person** is how an application's asking tool reads
 for a run that explains to its person: one of a party's reads
-(`../../client/domain/contract/README.md`, section 4), read as the run's task's
+(`../../client/domain/contract/reads.md`, section 1), read as the run's task's
 requester, a person, would read it, and of that task's project alone. The
 application names it as the run's call, the named action `PersonRead`
 with the party's `Read`; it decides nothing and keeps no call record, as

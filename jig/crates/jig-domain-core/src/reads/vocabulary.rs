@@ -1,4 +1,4 @@
-//! Read pages and the owner-keyed store transport (`client/domain/contract/README.md`, section 4).
+//! Read pages and the owner-keyed store transport (`client/domain/contract/reads.md`, section 1).
 //! Cursors name a query and an owner key. The client only echoes them.
 
 use crate::{Core, Record};

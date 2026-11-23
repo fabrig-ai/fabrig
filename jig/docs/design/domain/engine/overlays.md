@@ -123,8 +123,8 @@ its parts, `../tasks/messages.md`, 6.
 
 ## 6. Reads
 
-- **A setting's read** (`settings-store.md`, 1, `../../client/domain/contract/README.md`,
-  section 4) of an overlaid charter gives the charter as its runs read
+- **A setting's read** (`settings-store.md`, 1, `../../client/domain/contract/reads.md`,
+  section 1) of an overlaid charter gives the charter as its runs read
   it, the revision's version, as for any charter, and beside it the
   overlay itself, whole; a charter with no overlay gives no overlay. So
   a client shows what runs read and what the overlay replaced and added,

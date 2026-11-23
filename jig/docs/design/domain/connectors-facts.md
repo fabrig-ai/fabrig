@@ -84,7 +84,7 @@ documents, beside jig's (`../client/domain/contract/documents.md`):
   of it, and answers that it is unknown, or not allowed, otherwise;
 - **windows:** a watch of one of its subjects, and a read, carry a
   window, as jig's do; the connector makes the document within it
-  (`../client/domain/contract/README.md`, 5.5);
+  (`../client/domain/contract/watches.md`, 1.5);
 - **document bytes:** the ops connectors' `document_bound` counts the
   largest document at their limits, including its owned nested values.
   It sizes a document's envelope, not the connector's heap;

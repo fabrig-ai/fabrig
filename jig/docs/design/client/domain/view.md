@@ -3,7 +3,7 @@
 Provisional, 2026-10-09, revised 2026-10-18. `jig-client-view`: the
 reference UI, jig's optional presentation, for `ops` and jig's test
 application. It is built on the public client alone, `jig-client` and
-its helpers (client/README.md, section 4 and client/helpers.md), and on skein's UI kit,
+its helpers (client/vocabulary.md, section 1 and client/helpers.md), and on skein's UI kit,
 `skein-ui` (skein's `ui/README.md`); a service has none, and an application may
 present jig's work its own way instead. It holds the reference UI's
 state (`view-state.md`: its place and page, the working set, the requests it
@@ -484,7 +484,7 @@ What a shell is, and each platform's, is skein's (skein's `ui/shells.md`
 
 - **The order that protects requests** is the client's and its
   transport's: a request is kept in the client's small store before it
-  is sent, whatever the loop (client/README.md, section 8;
+  is sent, whatever the loop (client/small-store.md, section 1;
   `../../protocol/browser/loop.md`, 1.3). The application's loop gives the
   reference UI's records to be written with the client's, in the same
   step's writes (`view-state.md`, 8), shows the place the reference UI asked for, and,
@@ -621,12 +621,12 @@ skein's (skein's `ui/text.md`, section 7). What is jig's:
 
 - **Closing** closes the client without signing out. What is pending
   stays in the client's small store, sent at the next start with its
-  keys (client/README.md, section 8), and the reference UI's drafts and place
+  keys (client/small-store.md, section 1), and the reference UI's drafts and place
   stay in its records (`view-state.md`, 8).
 - **Signing in** is the host's: a terminal follows no browser's
   navigation, so it signs the client in at start with the printed link's
   secret or a credential the application's own sign-in gave it
-  (client/README.md, section 9). The reference UI's sign-in page shows, in its
+  (client/sign-in.md, section 1). The reference UI's sign-in page shows, in its
   slot, the application's own ways of signing in (pages.md, section 8);
   what the terminal cannot follow, the host prints as the application's
   own line (skein's `ui/text.md`, section 7).

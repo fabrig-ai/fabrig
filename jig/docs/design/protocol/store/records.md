@@ -192,7 +192,7 @@ follow from the limits that bound each kind (4).
   the live tasks, and judges their waits whole (`../../domain/engine/restart.md`
   ). People's retained answers keep the refusals for added
   dependencies as the client's contract has them
-  (`../../client/domain/contract/README.md`, section 3).
+  (`../../client/domain/contract/answers.md`, section 1).
 - **Question credits share the inbox's list.** The tasks family's
   schema stores `QuestionCredit { number, answerer, asked, line }`:
   the question's number, its answering party and logical addressed

@@ -127,7 +127,7 @@ the shell: fetch, skein's HTTP client, a socket            skein's HTTP server, 
   decoded, turns decoded by `jig-protocol-transcript`, and the
   translation between the wire's records and `jig-client`'s vocabulary.
   It is step code, built for the host and for wasm32
-  (`../../README.md`, section 10).
+  (`../../client-stack.md`, section 1).
 - **`jig-client-protocol-wire`** holds jig's records, for both ends
   (`wire.md`, section 1).
 - **The transport** is the application's: what carries a message's bytes
@@ -224,7 +224,7 @@ recipient.
 - **One exchange per read,** or one member of a batch (`wire.md`, section 2),
   answered once: the document, a page with its
   cursors, or why there is none (unknown, busy, signed out, version not
-  served) (`../../client/domain/contract/README.md`, section 4). A page's cursor
+  served) (`../../client/domain/contract/reads.md`, section 1). A page's cursor
   is the engine's, opaque bytes the client gives back. Inside they are a
   record of the family `jig-engine-cursor`
   (`jig/crates/jig-protocol-engine-clients/schema/cursor-v2.schema`),
@@ -235,7 +235,7 @@ recipient.
   in the domain's `Page` forms: jig's `ReadNone::SignedOut` or
   a family's `None`, once each, on sign-out and unconditionally on
   successful sign-in, before the first `me` too
-  (`../../client/domain/client/README.md`, sections 6 and 9). The link erases
+  (`../../client/domain/client/README.md`, section 6, and `../../client/domain/client/sign-in.md`, section 1). The link erases
   old exchange names; the domain retains pending token and optional
   family and fences late completions with its token match. The
   boundary needs no link output, public `Readout` variant or wire
@@ -243,14 +243,14 @@ recipient.
 - **A task query's page** carries its two groups, live then ended, each
   with its cursor, and says whether the ended group was cut by a filter
   beyond its index's prefix, or has none for the query's keys
-  (`../../client/domain/contract/README.md`, 4.1).
+  (`../../client/domain/contract/reads.md`, 1.1).
 - **An application's read** names its scope and its window, and its
   connector's read, in the application's wire, and is answered with the
   application's document, or unknown, or not allowed.
 - **A turn read** (`turn{n, attempt, turn}`) is answered with the
   turn's bytes, or its size where the turn alone passes the read's byte
   bound, or gone past its transcript's horizon, or why there is none, as
-  above (`../../client/domain/contract/README.md`, section 4; `../store/transcripts.md`, 3).
+  above (`../../client/domain/contract/reads.md`, section 1; `../store/transcripts.md`, 3).
 - **Held until durable** on the engine's side, as every read's answer is
   (`../../domain/engine/decisions.md`, 1.2); the exchange waits for it.
 
@@ -263,7 +263,7 @@ recipient.
   the first delivery follows on the stream. A subject an application's
   connector judges is admitted at the end of the step that takes it, and
   the connector's refusal, if it comes later, ends the watch with its
-  reason (`../../client/domain/contract/README.md`, 5.2). A subject of the party's
+  reason (`../../client/domain/contract/watches.md`, 1.2). A subject of the party's
   own (`me`, their inbox, an application's subject in the party's own
   scope) names no party, on the wire or in the core's events: the
   protocol layer hands the core the sign-in's number, and the core names
@@ -278,7 +278,7 @@ recipient.
   streamed to that client, and the views coalesce what changes
   meanwhile. A client is never told it missed anything.
 - **Ending:** a streamed message naming the watch and why
-  (`../../client/domain/contract/README.md`, 5.2); or closing it by an exchange,
+  (`../../client/domain/contract/watches.md`, 1.2); or closing it by an exchange,
   answered once the engine has ended it. A stream that ends ends its
   watches. Once its connection is closed, the component sends each
   watch's unwatch and outstanding delivery acknowledgements, then drops
@@ -315,7 +315,7 @@ recipient.
   whole.
 - **A run's text** is a watch of the run: each `RunText` delivery carries
   the turn's name, text after the client's offset, and its end offset
-  (`../../client/domain/contract/README.md`, 5.3). `writing` carries the current call
+  (`../../client/domain/contract/watches.md`, 1.3). `writing` carries the current call
   being written whole: provider id, tool, input suffix, byte offsets and
   `cut`. `call` remains the call being made. The client keeps text and
   replaces `writing` whole on an accepted delivery. A new turn or retry
@@ -341,7 +341,7 @@ Moved to [`small-store.md`](small-store.md), section 1.
   streamed message's record is its watch's owner's.
 - **Scopes:** an application's request, read or subject names its
   scope, a project, the deployment, or the party's own, and a read or
-  subject its window (`../../client/domain/contract/requests.md`, 3, and `../../client/domain/contract/README.md`, 5.5).
+  subject its window (`../../client/domain/contract/requests.md`, 3, and `../../client/domain/contract/watches.md`, 1.5).
   The party's own names no party: the core names it from the sign-in
   (`README.md`, section 5), and admits it on the credential alone.
 - **The engine's side** decodes an application's record with the
@@ -388,7 +388,7 @@ Moved to [`shells.md`](shells.md), section 1.
   Token)`, an input with no output, public only because the link and the
   client are separate crates. One already sent keeps its transport
   credit to its terminal, whose answer fails its token match
-  (`../../client/domain/client/README.md`, section 9). So the reads the
+  (`../../client/domain/client/sign-in.md`, section 1). So the reads the
   link holds stay within the client's reads in flight, and the held
   queue keeps the order asked across reads, openings and closings.
 - **The transport's:** an exchange's deadline, and what it buffers of the
@@ -396,7 +396,7 @@ Moved to [`shells.md`](shells.md), section 1.
 - **The component's:** streams in all, whatever their sign-ins (`wire.md`, section 2
   ); the watches one stream holds, each until the engine has ended it,
   at least the engine's watches one client opens at its limit, as a
-  party's room is (`../../client/domain/contract/README.md`, 5.2), and past them
+  party's room is (`../../client/domain/contract/watches.md`, 1.2), and past them
   an opening is refused busy, within the views' limits on a party's
   watches and on all (`../../domain/engine/README.md`, section 7); exchanges in
   flight per sign-in, which its clients share, since an exchange names
@@ -493,7 +493,7 @@ Moved to [`testing.md`](testing.md), section 1.
   `Seen` memory-only (`small-store.md`, section 1); a credential held, or carried by the transport (`sign-in.md`); reads and
   watches answered signed out, a reopened run's watch taken from its
   turn's beginning, and a run's document with no text and no call, for
-  a run whose host gives neither (`../../client/domain/contract/README.md`, 5.3);
+  a run whose host gives neither (`../../client/domain/contract/watches.md`, 1.3);
   a request carrying a value, sent once, never stored, its value taken
   out and kept before the core sees it (`README.md`, section 3).
 - **The application owes:** its transport, or jig's default mapping; its

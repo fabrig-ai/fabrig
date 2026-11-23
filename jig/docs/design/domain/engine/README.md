@@ -292,8 +292,8 @@ why. The root adds the core's worst case to its connectors' and its own
   the people child's limit (../people/acts.md, 1), times the costliest
   operation it may hold: a cancel of a whole tree, within tasks per tree,
   with the hand-offs to the connectors its tasks name. It is summed into
-  the worst case with the rest, as every decision is (`../../README.md`,
-  6.2), so one request holding a whole conversation's close, or a whole
+  the worst case with the rest, as every decision is (`../../rails.md`,
+  1.2), so one request holding a whole conversation's close, or a whole
   project's goals reordered, fits.
 - **The check for circles of waits** is priced as a walk of every live
   task, with a mark and a counter per task and per resource, within the

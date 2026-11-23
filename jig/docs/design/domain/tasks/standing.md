@@ -333,8 +333,8 @@ while they are there.
   the last; its session's end is a line in its activity all the same
   (5.2).
 - **Read by people** with the notes read of its scope, by the
-  description `now` (`../../client/domain/contract/README.md`, section
-  4), as any
+  description `now` (`../../client/domain/contract/reads.md`, section
+  1), as any
   note is read.
 
 ## 7. Its forms

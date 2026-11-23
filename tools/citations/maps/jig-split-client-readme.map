@@ -1,0 +1,24 @@
+# Jig's fifth split pass: the client and design overview (temper/docs/design/draft/design-upkeep.md, 4.3), at 65bb6b8351f06920264a3f291eaaf379abcd49d8.
+# jig/docs/design/client/domain/contract/README.md: 64,756 bytes. Answers, reads and watches get their own pages; the overview, parties, versions, obligations, open questions and public documents stay.
+title jig/docs/design/client/domain/contract/answers.md: The client and the engine: answers
+title jig/docs/design/client/domain/contract/reads.md: The client and the engine: reads
+title jig/docs/design/client/domain/contract/watches.md: The client and the engine: watches
+jig/docs/design/client/domain/contract/README.md 3 -> jig/docs/design/client/domain/contract/answers.md 1
+jig/docs/design/client/domain/contract/README.md 4 -> jig/docs/design/client/domain/contract/reads.md 1
+jig/docs/design/client/domain/contract/README.md 5 -> jig/docs/design/client/domain/contract/watches.md 1
+
+# jig/docs/design/client/domain/client/README.md: 56,823 bytes. The vocabulary toward the application, the small store and signing in get their own pages; the overview, structure, pages, reads, drafts, notices, limits, boundaries, world, open questions and modes stay.
+title jig/docs/design/client/domain/client/vocabulary.md: The client: vocabulary toward the application
+title jig/docs/design/client/domain/client/small-store.md: The client: the small store
+title jig/docs/design/client/domain/client/sign-in.md: The client: signing in
+jig/docs/design/client/domain/client/README.md 4 -> jig/docs/design/client/domain/client/vocabulary.md 1
+jig/docs/design/client/domain/client/README.md 8 -> jig/docs/design/client/domain/client/small-store.md 1
+jig/docs/design/client/domain/client/README.md 9 -> jig/docs/design/client/domain/client/sign-in.md 1
+
+# jig/docs/design/README.md: 56,122 bytes. The rails, the client stack and crates' names get their own pages; the overview, purpose, system, root, core, connectors, store, agents and hosts, application building, document index, conventions and open questions stay.
+title jig/docs/design/rails.md: jig's design: the rails
+title jig/docs/design/client-stack.md: jig's design: the client stack
+title jig/docs/design/crate-names.md: jig's design: crates' names
+jig/docs/design/README.md 6 -> jig/docs/design/rails.md 1
+jig/docs/design/README.md 10 -> jig/docs/design/client-stack.md 1
+jig/docs/design/README.md 15 -> jig/docs/design/crate-names.md 1

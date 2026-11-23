@@ -292,7 +292,7 @@ impl Component {
         out.push(request);
     }
     /// Answer unsupported model choices before translating names to core indices
-    /// (client/domain/contract/README.md, 3). Malformed records remain the caller's to reject.
+    /// (client/domain/contract/answers.md, 1). Malformed records remain the caller's to reject.
     fn refuse_llm(&mut self, env: &Env<Limits>, exchange: Token, ask: &w::Ask) -> bool {
         if let Ok(Some(answer)) = crate::translate::llm::refused(ask, &self.settings.models, &env.limits.wire) {
             self.respond(exchange, routes::encoded(&answer));

@@ -26,7 +26,7 @@
   no such project in `me`, the page reads the project, jig's
   `Read::Project { project }`, once for its address, and draws its
   heading alone until the read answers; answered gone, a project
-  deleted (jig's `client/domain/contract/README.md`, section 4), it says
+  deleted (jig's `client/domain/contract/reads.md`, section 1), it says
   "Project N was deleted." in that sentence's place, with the same
   link; any other answer, the sentence above. How work runs says the
   same where it says a project is not one of yours (`settings.md`, 1).

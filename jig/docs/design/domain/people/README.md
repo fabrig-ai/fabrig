@@ -272,7 +272,7 @@ inbox are the views child's (../engine/views.md).
   (../accounts.md, 3.2).
 - **The deployment's roles** are a roster of their own, kept as
   project 0's: a party's role in the deployment, on which the
-  deployment's scope is admitted (`../../client/domain/contract/README.md`, 5.5).
+  deployment's scope is admitted (`../../client/domain/contract/watches.md`, 1.5).
   - *The first start* makes each first owner its owner, whether or not
     configuration seeds a project. It is seeded then only: a later start
     reads it from the store, and seeds it into no store that lacks it
@@ -441,7 +441,7 @@ entry naming the task or proposal it is and its project:
   (`../../client/domain/contract/documents.md`, 1).
 - **Across projects,** since a party who works in several decides in one
   place; a client filters it by project, kind or root
-  (`../../client/domain/contract/README.md`, section 4, and 5.1). It is not a task
+  (`../../client/domain/contract/reads.md`, section 1, and `../../client/domain/contract/watches.md`, section 1.1). It is not a task
   query: proposals, escalations and questions are entries, not tasks.
 - **What is addressed to a role** is in the inbox of every party holding
   it, until one of them acts, when it leaves every one.
@@ -511,8 +511,8 @@ entry naming the task or proposal it is and its project:
   its documents (`../../client/domain/client/helpers.md`), never the
   engine's state.
 - **A party's chats** are a task query by requester and label 1, live
-  and ended (`../../client/domain/contract/README.md`, 4.1), each line carrying its
-  unread count (section 5).
+  and ended (`../../client/domain/contract/reads.md`, 1.1), each line carrying its
+  unread count (`README.md`, section 5).
 - **Closing, through a helper.** jig's helper for chats, in `jig-client`
   (`../../client/domain/client/helpers.md`), composes one compound
   request (`acts.md`, 1): each live delegate cancelled or moved to the party, as

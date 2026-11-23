@@ -1,4 +1,4 @@
-//! Public offers and payer readiness (client/domain/contract/documents.md, 1, and client/domain/contract/README.md, 5.1).
+//! Public offers and payer readiness (client/domain/contract/documents.md, 1, and client/domain/contract/watches.md, 1.1).
 //! Closed at once (jig/docs/design/domain/people/acts.md, 2).
 
 use crate::{

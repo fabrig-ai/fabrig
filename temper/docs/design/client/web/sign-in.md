@@ -25,7 +25,7 @@ Signing in through the browser is split from [the browser overview](README.md).
   the inbox, drawing nothing of itself, on a deployment with no welcome
   (`../pages/README.md`, The welcome).
 - **A reload, or another tab,** signs in with `Transport`, by the cookie
-  (jig's `client/domain/client/README.md`, section 9).
+  (jig's `client/domain/client/sign-in.md`, section 1).
 - **Signed out,** by "Sign out" (`../line.md`, 6; jig's sign-out clears
   the cookie) or with no link: the main is the view's
   signed-out column (`../view.md`, 1), its heading "Signed out" and,

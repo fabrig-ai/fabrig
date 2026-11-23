@@ -406,7 +406,7 @@ not found. Every answer of theirs carries the page's policy,
 7. **Google's tokens are dropped:** the client's record is never kept,
    and the sign-in under way ends with its answer. The page at `then`
    loads, and its own exchanges carry jig's cookie: the client signs in
-   by `Transport` (jig's `client/domain/client/README.md`, section 9).
+   by `Transport` (jig's `client/domain/client/sign-in.md`, section 1).
 
 - **The return's call is held** while the exchange, the binding and
   `Mint` run, within `sign_in.deadline`; past it, the expired page.

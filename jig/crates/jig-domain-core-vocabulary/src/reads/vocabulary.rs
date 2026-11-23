@@ -1,4 +1,4 @@
-//! Read pages and the owner-keyed store transport (`client/domain/contract/README.md`, section 4).
+//! Read pages and the owner-keyed store transport (`client/domain/contract/reads.md`, section 1).
 //! Cursors name a query and an owner key. The client only echoes them.
 use crate::{
     CoreRecord, Key, Record,
@@ -133,7 +133,7 @@ pub enum Cursor {
     /// Exclusive owner key; `None` starts the stored portion after live rows.
     Store { scope: Scope, after: Option<Position> },
 }
-/// Which side of an activity line to read (client/domain/contract/README.md, section 4).
+/// Which side of an activity line to read (client/domain/contract/reads.md, section 1).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Side {
     Earlier,
@@ -232,7 +232,7 @@ pub enum Read {
         task: u64,
         before: Option<Cursor>,
     },
-    /// The page next to a line of a task's activity, that line left out (client/domain/contract/README.md, section 4).
+    /// The page next to a line of a task's activity, that line left out (client/domain/contract/reads.md, section 1).
     ActivityBeside {
         task: u64,
         position: u64,
@@ -566,7 +566,7 @@ pub fn row_bytes(row: &Row) -> Option<u64> {
     }
     Some(total)
 }
-/// One setting's value, or an application setting's state and size (jig/docs/design/client/domain/contract/README.md, 4).
+/// One setting's value, or an application setting's state and size (jig/docs/design/client/domain/contract/reads.md, 1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct SettingDocument {
     pub overlay: Option<Box<crate::settings::Overlay>>,

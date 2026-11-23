@@ -555,7 +555,7 @@ pub enum Held {
     },
 }
 
-/// Why an unkeyed watch was not admitted (`client/domain/contract/README.md`, 5.2).
+/// Why an unkeyed watch was not admitted (`client/domain/contract/watches.md`, 1.2).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum WatchRefusal {
     /// Its sign-in is absent or expired.

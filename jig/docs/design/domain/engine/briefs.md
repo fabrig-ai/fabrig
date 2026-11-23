@@ -396,7 +396,7 @@ Ask temper is the first, its `temper/docs/design/draft/ask-temper.md`, section 7
   never cut; a scope whose index cannot be read fails the brief as the notes
   index does (1.1). The notes index (section 2) never lists the scope.
 - **Read and kept by its party alone:** the party reads the scope through a
-  client (`../../client/domain/contract/README.md`, section 4) and corrects or deletes
+  client (`../../client/domain/contract/reads.md`, section 1) and corrects or deletes
   its entries whatever their roles, project 0 named as a deployment's note
   names it. No other party reads it, an owner of the deployment included: a
   read is answered unknown, a correction or a deletion refused as unknown.
@@ -414,7 +414,7 @@ Ask temper is the first, its `temper/docs/design/draft/ask-temper.md`, section 7
   become the heading and one line, `Withheld: shown to its
   person alone.`, and each private tool's call keeps its tool and position
   with its input `{}` and its result that line. A run's live document
-  (`../../client/domain/contract/README.md`, 5.3) shows a private tool's call and the
+  (`../../client/domain/contract/watches.md`, 1.3) shows a private tool's call and the
   input being written to the task's requester alone, and to every other
   follower the call's tool alone. The stored turn stays whole, so that the
   run resumes from it and its person reads it as it was.

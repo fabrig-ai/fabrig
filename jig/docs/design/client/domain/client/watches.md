@@ -2,10 +2,10 @@
 
 ## 1. Watches
 
-- **A watch** follows one subject (../contract/README.md, 5.1): `me`, a task, a
+- **A watch** follows one subject (../contract/watches.md, 1.1): `me`, a task, a
   tree, chips, the inbox, a task query, a run's text, the deployment, or
   a family's subject, naming its owner, its scope and its record's bytes
-  (../contract/README.md, 5.5). Its deliveries are documents, each the subject's
+  (../contract/watches.md, 1.5). Its deliveries are documents, each the subject's
   whole current state within the window.
 - **Level-triggered, as facts are** (`../../../domain/model.md`, section 4).
   A watch never carries a change to apply to what came before, so it
@@ -21,7 +21,7 @@
   (the link signed out, 2) is admitted, its handle opening, and
   nothing leaves for the transport: a stream opened with no credential
   ends at once (`../../../protocol/client/wire.md`, 2.2), and the client sends
-  none unless the transport carries one (`README.md`, section 9). Once signed in,
+  none unless the transport carries one (`sign-in.md`, section 1). Once signed in,
   the client opens each such watch under a fresh name; one on `me` is
   the client's own, which its stream brings (2), and opens nothing.
 - **Each opening is named afresh.** The client names each watch it opens
@@ -38,7 +38,7 @@
   (`../../../protocol/client/README.md`, section 5). So, but for a dropped
   stream's watches until the engine has ended them, the engine holds no
   watch of the client's that the client does not count, and a client
-  within its limit takes no more of the party's room (../contract/README.md, 5.2).
+  within its limit takes no more of the party's room (../contract/watches.md, 1.2).
 - **A `Watch` on an open handle** changes its subject or its window: the
   client opens the new one, keeps the handle's last document, marked
   behind, until the new one's first delivery, and closes the old once no
@@ -53,7 +53,7 @@
   go as it stopped, or one it refused as busy, is opened again after a
   backoff, under a fresh name; its handle stays, behind, and is live
   again at its next delivery. Busy is the party's room full for now
-  (../contract/README.md, 5.2): the party's other clients, or a stream this client
+  (../contract/watches.md, 1.2): the party's other clients, or a stream this client
   dropped, or its predecessor's (`../../../protocol/client/wire.md`, section 2),
   whose watches the engine has not yet ended, hold the rest, and it
   empties as their watches end.
@@ -85,7 +85,7 @@
   ranges serve jig's version is a record out of its order: it drops the
   stream, to open again after its backoff.
 - **Its states,** told by `Link(state)` and read with `client.link()`:
-  - *signed out:* no sign-in is live (`README.md`, section 9);
+  - *signed out:* no sign-in is live (`sign-in.md`, section 1);
   - *starting:* signed in, and no hello has come on the stream;
   - *live:* the stream is live, its hello and `me` with it come;
   - *offline:* the stream dropped, or went silent past twice its
@@ -102,7 +102,7 @@
 
   Beside its state, the link names the party confirmed, each declared
   owner whose version the last hello does not serve (below), and a
-  sign-out that did not reach the engine (`README.md`, section 9). It names too the
+  sign-out that did not reach the engine (`sign-in.md`, section 1). It names too the
   expiry of the sign-in it holds, `expires`, a wall time, as the last
   sign-in's answer said it (`../../../protocol/client/sign-in.md`): a
   sign-in made or kept by a link, a service's credential or an
@@ -168,7 +168,7 @@
     link is out of date, and its reads are answered so too.
   - *Served again* by a later hello, the client sends what it kept,
     under its keys. Updated, it sends what it kept in a version its new
-    build speaks, and drops what it kept in another (`README.md`, section 8).
+    build speaks, and drops what it kept in another (`small-store.md`, section 1).
     `jig-client` and the engine come from one pin of jig in an
     application; how jig is released and pinned is `../../../README.md`'s,
     section 14.
@@ -182,7 +182,7 @@
   attempt; the turn being written, named by its attempt, its number
   within it and its completion's retry; that retry's text so far; and
   the call it is making and the call being written (`writing`); all
-  provisional, and marked so (../contract/README.md, 5.3).
+  provisional, and marked so (../contract/watches.md, 1.3).
 - **Read from an offset, one turn at a time.** The client keeps the
   text it holds of the turn being written, within the bound on a
   provisional turn's bytes, takes each delivery's text past its offset,
@@ -205,7 +205,7 @@
   written: the client keeps what it holds, and takes what lies past it.
 - **Committed turns are not in it.** A turn reaches the application
   committed only through its task's activity, read once the task's
-  document says the activity has moved (../contract/README.md, 5.3).
+  document says the activity has moved (../contract/watches.md, 1.3).
   `jig_client::thread` puts the two together (`conversations.md`).
 - **The call being written.** `RunText.writing` is the whole current
   provider id, tool and UTF-8 input suffix, its byte offsets and cut mark.

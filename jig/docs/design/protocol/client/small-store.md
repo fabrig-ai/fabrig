@@ -2,7 +2,7 @@
 
 ## 1. The small store
 
-- **The client's records** (`../../client/domain/client/README.md`, section 8):
+- **The client's records** (`../../client/domain/client/small-store.md`, section 1):
   the request table's, each a whole request, jig's or an application's,
   with the key the engine knows it by, its party, the application's key
   for it, its owner and version, and when it was first sent; and the
@@ -36,7 +36,7 @@
   `Save` is answered `Stored`. `NotStored` (a quota full, a disk failing)
   is each request
   whose record that write was the last to carry not sent, parked or not,
-  answered *not kept* (`../../client/domain/client/README.md`, section 8).
+  answered *not kept* (`../../client/domain/client/small-store.md`, section 1).
   A record the link can't encode for the store is a write never made:
   its request is answered *not kept* by its key, unsent, as for
   `NotStored`, and never answered lost. A
@@ -69,12 +69,12 @@
   so a request kept across an update that changed its record's version
   is lost, not sent wrong. A family's request whose owner and version
   are not among those the application declares is one
-  (`../../client/domain/client/README.md`, 8). Pre-release, nothing is
+  (`../../client/domain/client/small-store.md`, 1). Pre-release, nothing is
   translated.
 - **An unanswered `Seen` is lost** on closing, reload or crash, since
   it is in memory alone; the next opening checks and sends the
   watermark again, with no notice from a record of its own
-  (`../../client/domain/client/README.md`, section 8).
+  (`../../client/domain/client/small-store.md`, section 1).
 - **Where** is the shell's: a browser tab's session storage, as text
   skein's small store part encodes (skein's `ui/web/effects.md`, section 1); a
   file a native client writes whole and syncs; a service's file, synced

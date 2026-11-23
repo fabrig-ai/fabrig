@@ -1,4 +1,4 @@
-//! Settings inventory without values (client/domain/contract/documents.md, 1, and client/domain/contract/README.md, 5.1).
+//! Settings inventory without values (client/domain/contract/documents.md, 1, and client/domain/contract/watches.md, 1.1).
 
 use crate::{
     Core,

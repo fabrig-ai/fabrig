@@ -242,7 +242,7 @@ deployment's rules       the most any project may have; requirements on effects
     owners narrow the role first. Any policy edit past a ceiling (the
     project's above the rules', a role's above the project's, a cut
     below a role's) is refused as lacking that ceiling, typed with its
-    holder, dimension and value (`../client/domain/contract/README.md`, section 3),
+    holder, dimension and value (`../client/domain/contract/answers.md`, section 1),
     never as a shape; the ceilings are judged before the open period's
     room (`authority-budgets.md`, section 1), so a raise past both names the ceiling first;
   - its spend per period, from which every root task's budget is carved;

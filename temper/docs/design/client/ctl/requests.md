@@ -64,7 +64,7 @@ This document holds request delivery through ctl, split from [`README.md`](READM
   An unknown proposal answers exit 2: "this proposal isn't waiting; it
   may have been decided or replaced." A task's automatically replaced
   settings proposal keeps no decision to report (jig's
-  `client/domain/contract/requests.md`, section 2, and `jig/docs/design/client/domain/contract/README.md`, section 3).
+  `client/domain/contract/requests.md`, section 2, and `jig/docs/design/client/domain/contract/answers.md`, section 1).
 - **The other acts** (`task stop`, `task cancel`, `proposal decide`,
   ...) take `--key` optionally; without it the table draws one, which
   the small store keeps until answered (`command-line.md`, 1.2).

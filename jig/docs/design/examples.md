@@ -6,9 +6,9 @@ on two connectors, with its agents inside its engine. It exists to be
 tested and to be copied.
 
 - Its root is the reference root every application starts from
-  (`README.md`, 6.7).
-- Its domain is the subject of jig's conformance world (`README.md`,
-  6.6).
+  (`rails.md`, 1.7).
+- Its domain is the subject of jig's conformance world (`rails.md`,
+  1.6).
 - As a second application, it is what keeps jig's vocabulary from
   being one application's in disguise.
 
@@ -168,7 +168,7 @@ jig-ops-domain                    the engine's root
 └── agent                         smith-inline-agent: smith's domains, one per run in flight (domain/hosts/README.md, 5.2)
 ```
 
-- **It has the one shape** of `README.md`, 6.3. Every write and every
+- **It has the one shape** of `rails.md`, 1.3. Every write and every
   output goes into the journal.
 - **It routes, and nothing else:**
   - between the core and each connector, in their vocabularies;
@@ -355,7 +355,7 @@ Q, a developer
 ## 8. Its client
 
 `ops` holds one `jig-client` and presents it with jig's reference UI
-(`README.md`, section 10). With jig's test application, it is how jig
+(`client-stack.md`, section 1). With jig's test application, it is how jig
 shows that the API is enough for a whole application: everything `ops`
 shows, it reads through the public client.
 

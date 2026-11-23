@@ -283,7 +283,7 @@ would make a commit:
 - **no run is placed, and no procedure stepped.**
 
 It ends every watch saying the engine is stopping
-(`../../client/domain/contract/README.md`, 5.2), and says once when nothing it holds
+(`../../client/domain/contract/watches.md`, 1.2), and says once when nothing it holds
 waits for a commit, so the service can close its components. A restart
 then starts from the store as `restart.md` says.
 

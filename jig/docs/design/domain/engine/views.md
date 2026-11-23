@@ -4,10 +4,10 @@ The views child domain keeps parties' watches, and paces what each is
 delivered; the core makes the documents they deliver, and answers
 parties' reads, from what its children hold. What a watch shows, and
 what a client reads, is the client's contract
-(`../../client/domain/contract/documents.md` and `../../client/domain/contract/README.md`, sections 4 to 5); what the core
+(`../../client/domain/contract/documents.md` and `../../client/domain/contract/reads.md`, section 1, and `../../client/domain/contract/watches.md`, section 1); what the core
 computes for them is said below (1 to 5).
 
-- **Watches:** jig's subjects (`../../client/domain/contract/README.md`, 5.1):
+- **Watches:** jig's subjects (`../../client/domain/contract/watches.md`, 1.1):
   `me`, the signed-in party's own document (1); a task; a task's
   tree; chips, a bounded set of tasks; the party's inbox, across
   projects; a task query's live lines (2); a task's live run; the
@@ -24,7 +24,7 @@ computes for them is said below (1 to 5).
   views' limits, as it admits jig's; whether the subject is in that
   scope, and what the party may see of it, is the connector's to judge
   (../connectors-facts.md, 1.5). Its watches and reads carry a window, as jig's
-  do (`../../client/domain/contract/README.md`, 5.5). Only the document, or why
+  do (`../../client/domain/contract/watches.md`, 1.5). Only the document, or why
   there is none, crosses back; the root only routes.
 - **Public reads** (../people/public-reading.md) are the public party's,
   with no sign-in: the core admits one only on its public index
@@ -58,7 +58,7 @@ computes for them is said below (1 to 5).
   core through the people's timer (../people/README.md, section 3); stopping still
   completes watch endings and the drain notification (`restart.md`, section 1).
 - **An ended task or tree opens as a finished read**
-  (`../../client/domain/contract/README.md`, 5.2). Construction uses a bounded
+  (`../../client/domain/contract/watches.md`, 1.2). Construction uses a bounded
   task load (`decisions.md`, 1.3), held behind preceding commits. The core
   checks the sign-in and retained row's project on completion, makes the
   final document without restoring the row, and closes the watch after
@@ -178,14 +178,14 @@ Nothing the core decides depends on a view arriving.
   order and a window: its keys among project, requester (a party or a
   task), root, parent, label, phase class, executor kind and tracked;
   its order one of number, last change, last activity, priority and
-  ended at; its window by cursor (`../../client/domain/contract/README.md`, 4.1).
+  ended at; its window by cursor (`../../client/domain/contract/reads.md`, 1.1).
   Its rows are task lines, the one record every list of tasks is made of
   (`../../client/domain/contract/documents.md`, 1): its live tasks first, in its
   order, then its ended ones, each group with its own cursor. Its live
   lines are watched; its ended ones are read, a page at a time. The core
   admits it on the party's role in the project it names, or, naming
   none, for tasks whose requester the party is
-  (`../../client/domain/contract/README.md`, 5.1).
+  (`../../client/domain/contract/watches.md`, 1.1).
 - **Live tasks are scanned.** The tasks child keeps no secondary index,
   and its live tasks are bounded by its limits (../tasks/README.md, section 6), so
   a query's live part is one pass over them, whatever its keys, keeping

@@ -265,7 +265,7 @@ no credential's keeping: jig mints, verifies, expires and revokes them.
   6).
 - **What outlives a process** carries its version: the store's records,
   per family (`store/records.md`), and the client's small store
-  (`../client/domain/client/README.md`, section 8).
+  (`../client/domain/client/small-store.md`, section 1).
 - **jig's messages are the exception:** they are versioned per owner,
   jig's by jig and the application's by the application, each message
   naming its owner and its version, and the engine serves a range of

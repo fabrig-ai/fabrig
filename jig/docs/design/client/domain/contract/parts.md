@@ -14,7 +14,7 @@ it would read otherwise. The engine's side is
 ## 1. In one page
 
 - **A query names its parts** (2): a task query, read or watched
-  (`README.md`, 4.1), names at most four of an application's parts, each by
+  (`reads.md`, 1.1), names at most four of an application's parts, each by
   its owner, its kind and the owner's version.
 - **A row carries them** (3): each row, live or ended, comes with one part
   per part named, in the query's order: the part's record in its owner's
@@ -38,7 +38,7 @@ it would read otherwise. The engine's side is
   version the client decodes. A query naming none is as before, and its rows
   carry none.
 - **Part of the subject.** A query's parts are among its keys as a subject
-  (`README.md`, 5.1): two watches naming different parts are two subjects,
+  (`watches.md`, 1.1): two watches naming different parts are two subjects,
   and a client shares a watch only where the queries are the same, parts
   and all (`../client/watches.md`, 1).
 - **Checked by the engine's clients' component**
@@ -48,8 +48,8 @@ it would read otherwise. The engine's side is
   read in a version not served is (`README.md`, section 6); a kind no
   connector of that owner declares is answered `unknown` on every row.
   Neither refuses the read or the watch, and neither asks a connector.
-- **Admitted, windowed and clamped** as any task query is (`README.md`, 4.1
-  and 5.2): parts add nothing to whom a query admits.
+- **Admitted, windowed and clamped** as any task query is (`reads.md`, 1.1, and `watches.md`, 1.2
+  ): parts add nothing to whom a query admits.
 
 ## 3. A row carries its parts
 
@@ -58,7 +58,7 @@ it would read otherwise. The engine's side is
   Each is a `RowPart`:
   - `value`: the part's record in its owner's envelope, `Owned { owner,
     version, record }`, at the version asked, as an application's read is
-    answered (`README.md`, section 4). jig reads none of its bytes, on
+    answered (`reads.md`, section 1). jig reads none of its bytes, on
     either end;
   - `not_served`, or `unknown` (2);
   - `failed`, with why: `busy`, the loads it needed were full;
@@ -71,7 +71,7 @@ it would read otherwise. The engine's side is
 - **At the client,** jig's link checks that a row carries as many parts as
   its query names and that each value's envelope names the owner and the
   version its part asked; otherwise the answer or delivery is malformed
-  (`README.md`, section 4). It hands a value's bytes to the application
+  (`reads.md`, section 1). It hands a value's bytes to the application
   undecoded, as it hands an application's read (`../client/README.md`,
   section 13); the application decodes them as its own records.
 - **The client's contract** (`jig_client_domain::contract`) names them
@@ -102,7 +102,7 @@ it would read otherwise. The engine's side is
   see that task may see.
 - **Durable before shown.** The answer or the delivery, parts and all, is
   held until every commit it reflects is durable, as any read's is
-  (`README.md`, section 4, and 5.2).
+  (`reads.md`, section 1, and `watches.md`, section 1.2).
 - **Bounded by its kind.** Each kind declares its bytes, and the core
   answers a part past them `too_large`. A part holding a list bounds it in
   rows too, in a stated order, saying how many more; a connector cuts a
@@ -120,7 +120,7 @@ it would read otherwise. The engine's side is
   (`../../../domain/connectors-facts.md`, 1.5).
 - **A commit to an input marks the row:** each watch whose query names a
   kind with that input, and which the row's task matches before the
-  decision or after it, is marked changed (`README.md`, 5.2), and its next
+  decision or after it, is marked changed (`watches.md`, 1.2), and its next
   delivery makes the part again. A note made, edited or deleted in a task's
   scope is a commit to that task's notes and to its requester's delegates'
   notes. It moves no task's last activity
@@ -144,7 +144,7 @@ it would read otherwise. The engine's side is
   delivery is made.
 - **Only a delivery tells.** Comparing a watch's live rows cannot show a
   task that started and ended between two deliveries, since deliveries
-  coalesce (`README.md`, 5.2); the mark does.
+  coalesce (`watches.md`, 1.2); the mark does.
 - **The client reads the ended group again only when the mark grows:** on a
   delivery whose `ended_mark` is greater than that of the ended read it
   holds, it reads the ended group's first page again, and on no other

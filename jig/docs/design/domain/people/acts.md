@@ -87,7 +87,7 @@ The operations as the client sends them are
   authority it lacked and by how much, and, where their role and pool
   decided it, whether a proposal could be accepted; a limit; the
   object's revision since; a task since ended
-  (`../../client/domain/contract/README.md`, section 3). Who would accept a
+  (`../../client/domain/contract/answers.md`, section 1). Who would accept a
   proposal is the offer's to say (`../../client/domain/contract/documents.md`, 3).
 - **Proposing is explicit.** A `Create` or an `Amend` beyond the party's
   authority is refused, naming what it lacked and whether a proposal
@@ -197,7 +197,7 @@ The operations as the client sends them are
   party's own. This child keeps them by key as it keeps its own:
   admitted on the party's sign-in and, by the scope the request names,
   their role in its project, their role in the deployment, or nothing
-  more for the party's own (`../../client/domain/contract/requests.md`, 3, and `../../client/domain/contract/README.md`, 5.5
+  more for the party's own (`../../client/domain/contract/requests.md`, 3, and `../../client/domain/contract/watches.md`, 1.5
   ); joined when sent twice; and their answer, the connector's
   outcome, kept under the key by token. One it refuses at admission
   (signed out, the party's role in the request's scope, a key sent again
@@ -313,7 +313,7 @@ own, in this order.
   `RemoveProject` is refused while any task of the project is live,
   a conversation closing or finishing under a grace among them, and
   nothing of the deletion is made: the refusal, *live tasks*
-  (`../../client/domain/contract/README.md`, section 3), names the
+  (`../../client/domain/contract/answers.md`, section 1), names the
   project's live roots, by number, lowest first, at most `NAMED_TASKS`
   (32, the bound a circle's refusal names its tasks within), and how
   many more there are. Its owner ends them first, closing a chat or
@@ -348,7 +348,7 @@ refused for its grace.
   mark of the people child's, the project's number and nothing more,
   which no step of the deletion erases, so that the project is said
   deleted once its deletion has ended as while it lasts. A read of the
-  project (`../../client/domain/contract/README.md`, section 4) naming a
+  project (`../../client/domain/contract/reads.md`, section 1) naming a
   marked number answers *gone*, to any signed-in party, where an
   absent or hidden one answers unknown: the number tells nothing of what
   the project held, and its name is not kept. The marks are at most as

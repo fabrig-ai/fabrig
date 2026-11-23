@@ -316,7 +316,7 @@ engine's protocol layer
   a browser on the engine's machine; the provider redirects to the
   listener; the driver exchanges the code, checks the ID token and keeps
   the record before it says signed in. The party sees the sign-in end on
-  its `accounts` watch (`../client/domain/contract/README.md`, 5.1).
+  its `accounts` watch (`../client/domain/contract/watches.md`, 1.1).
 - **Only a public registration signs in.** A confidential one, whose
   redirect reaches a web server (skein's `oauth/accounts.md`, 5), is refused
   at its start, naming the LLM provider.

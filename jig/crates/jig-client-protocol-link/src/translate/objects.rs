@@ -1,4 +1,4 @@
-//! Single read documents (client/domain/contract/documents.md and client/domain/contract/README.md, 4).
+//! Single read documents (client/domain/contract/documents.md and client/domain/contract/reads.md, 1).
 use super::pages::{ended_fields, escalation_fields, person_task_fields, proposal_fields, question_fields};
 use super::{Undecodable, classify};
 use crate::Limits;

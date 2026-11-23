@@ -117,7 +117,7 @@ the triager first, are charters 14 to 16
 - **Its Now** is the note described `now` in its own scope, which its
   project's people read: Team's card and `role show` read it with jig's
   notes read of the role's scope (jig's
-  `client/domain/contract/README.md`, section 4).
+  `client/domain/contract/reads.md`, section 1).
 
 ## 5. What it may do
 

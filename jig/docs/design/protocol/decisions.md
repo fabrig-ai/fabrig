@@ -74,7 +74,7 @@
   `jig-domain-*` and `jig-protocol-*` for what runs in the engine and on
   workers; `jig-client-{domain,protocol,<kind>}-*` for the client's,
   wherever it runs, with `jig-client` their base, as `skein-ui` is
-  `skein-ui-*`'s (`../README.md`, section 15).
+  `skein-ui-*`'s (`../crate-names.md`, section 1).
 - **On one person's machine, a browser on loopback** signs in by the
   printed link: the clients' component gives a one-time secret at
   start, and the application's startup prints it in a URL of its own,

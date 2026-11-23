@@ -170,7 +170,7 @@ listed in `service.md`, section 9.
    Workers may dial in and say hello during the restart, which needs
    them (`../domain/engine/restart.md`); the clients' component
    answers clients not ready until decisions open
-   (`../client/domain/contract/README.md`, section 3). Where configuration
+   (`../client/domain/contract/answers.md`, section 1). Where configuration
    enables the printed link, or a browser's approval, the startup first
    checks that the clients' listener, a member of the application's own,
    is on a loopback address, and refuses the start, naming both, if it

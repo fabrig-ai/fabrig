@@ -1,4 +1,4 @@
-//! Kit independence (jig/docs/design/README.md, 6.6).
+//! Kit independence (jig/docs/design/rails.md, 1.6).
 
 use super::kit_root;
 use crate::manifest::workspace::{Package, jig_packages};

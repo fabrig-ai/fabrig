@@ -110,7 +110,7 @@ root for one step at a time, and the root asks the store:
 
 ## 3. Parties' reads
 
-A party's read (`../../client/domain/contract/README.md`, section 4) names a
+A party's read (`../../client/domain/contract/reads.md`, section 1) names a
 scope, a position, a direction and its bounds. The component serves each
 scope as intervals over jig's families, and joins each row in the same
 step by point reads, those its scope's rows carry: its owner task, live
@@ -139,7 +139,7 @@ a page, and each turn's line its turn (below).
 | a project's notes, a scope's notes | the notes' lines of the project's scopes, or of the one scope, filtered by description, each with its entry: by scope, then by name within it, as the lines are keyed |
 | a project's spend | the funders' periods of the project |
 
-- **A task query's ended part** (`../../client/domain/contract/README.md`, 4.1)
+- **A task query's ended part** (`../../client/domain/contract/reads.md`, 1.1)
   is served from one index, chosen by the query's keys in the table's
   order: a requester party; a requester task or a parent; a project. A
   query naming none of these has no ended part, and its page says so.
@@ -192,7 +192,7 @@ a page, and each turn's line its turn (below).
   escalation's hold, a task's proposal in its proposer's history), the
   domain names it there, or keeps an index (`README.md`, section 10).
 - **An answer is read where it was heard** (`../../domain/engine/executors-transcripts.md`, 1;
-  who may read it, `../../client/domain/contract/README.md`, section 4): the
+  who may read it, `../../client/domain/contract/reads.md`, section 1): the
   question's record names the answer by its task and position, and the
   read joins it by a point read, as the record it relates to.
 - **A read past its bounds** is cut and says so, as every load is
@@ -255,5 +255,5 @@ reads newest first by computing forward intervals from its last
 position, which its owner task's record names; a family read newest
 first by time is keyed reversed. skein-kv's load runs forwards only
 (skein's `data/kv.md`, section 12). The lines after a position (a page beside
-a line, `../../client/domain/contract/README.md`, section 4) walk the same dense positions
+a line, `../../client/domain/contract/reads.md`, section 1) walk the same dense positions
 upward, from the one after it, stopping at the same bounds.

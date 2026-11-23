@@ -39,8 +39,8 @@ way and an exit status the other, and runs nothing.
   terminal, once, from its seed, which tells its terminal from another
   of the party's. Its document is the login asked of that terminal while
   one is under way, and none otherwise (5). The party watches it, any
-  sign-in of theirs; no one else may (`../client/domain/contract/README.md`,
-  5.1).
+  sign-in of theirs; no one else may (`../client/domain/contract/watches.md`,
+  1.1).
 - **The watch is the offer.** From its admission the party offers that
   terminal; its end withdraws it, whether the client closed it or its
   stream went (`../protocol/client/README.md`). A party offers at most
@@ -117,7 +117,7 @@ way and an exit status the other, and runs nothing.
 
 ## 5. The contract
 
-The client's contract (`../client/domain/contract/README.md`, 5.1;
+The client's contract (`../client/domain/contract/watches.md`, 1.1;
 `../client/domain/contract/documents.md`, 1;
 `../client/domain/contract/requests.md`, 2), in `jig-client-domain`'s
 words, and the client wire's schema carrying each form in place:

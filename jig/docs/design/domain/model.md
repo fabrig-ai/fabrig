@@ -90,7 +90,7 @@ systems   what the application's connectors drive
   commits several changes as one, applies commits in order, and answers
   bounded reads (engine/decisions.md, section 1).
 - **People reach the engine through a client** of the application's,
-  built on jig's, `jig-client` (people/README.md; `../README.md`, section 10).
+  built on jig's, `jig-client` (people/README.md; `../client-stack.md`, section 1).
 
 ## 3. The five primitives
 
@@ -347,7 +347,7 @@ A project's name:
   chooses it (people/acts.md, 1).
 - **Renamed by an owner** (people/acts.md, 1): the engine refuses a name
   another project holds, as *name taken*, or one out of shape, as it
-  refuses a made project's (`../client/domain/contract/README.md`, section 3). A rename changes nothing
+  refuses a made project's (`../client/domain/contract/answers.md`, section 1). A rename changes nothing
   else: the number, the addresses and the tasks stay.
 - **Not a resource's:** a name is the project's own, never read from a
   resource or a home, which may be renamed, replaced or adopted
@@ -583,9 +583,9 @@ credential (people/README.md, section 3).
 - **The client knows the primitives,** not the shapes of work built from
   them. What a client asks of the engine, and reads from it, is jig's
   API, and the API is *plumbing*: the primitives as operations, subjects
-  and reads, all in general form (`../client/domain/contract/requests.md` and `../client/domain/contract/README.md`, sections 4 and 5
+  and reads, all in general form (`../client/domain/contract/requests.md` and `../client/domain/contract/reads.md`, section 1, and `../client/domain/contract/watches.md`, section 1
   ). `jig-client` carries the plumbing, and knows no
-  page and no shape (`../README.md`, section 10).
+  page and no shape (`../client-stack.md`, section 1).
 - **Shapes are sugar** (7.3): templates, helpers, and facts and models.
 - **The one rule: sugar is built only from plumbing.** Whatever must be
   atomic (several operations in one decision, people/acts.md, 1),
@@ -606,7 +606,7 @@ credential (people/README.md, section 3).
   (people/acts.md, 1); procedures decide nothing.
 - **Presentation is the application's:** its screens, words, look,
   confirmations and navigation, its server and its URL space
-  (`../README.md`, section 10). An application adds its own connectors' objects as
+  (`../client-stack.md`, section 1). An application adds its own connectors' objects as
   subjects and requests of its own, through the same client.
 
 ## 10. A goal, as tasks

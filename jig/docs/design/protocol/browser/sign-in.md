@@ -5,7 +5,7 @@
 The cookie is the mapping's, set by its engine end; the browser header
 is added by the client's adapter (`loop.md`, 1.1); the engine end checks both
 (`serving.md`, 1.2). The sign-in part is jig's (`loop.md`, 1.1), and the client's own exchanges
-sign in and out (`../../client/domain/client/README.md`, section 9; `../client/sign-in.md`
+sign in and out (`../../client/domain/client/sign-in.md`, section 1; `../client/sign-in.md`
 ).
 
 - **The cookie,** its attributes `../client/default-http.md`, 3's (why: README.md, section 18):
@@ -61,7 +61,7 @@ sign in and out (`../../client/domain/client/README.md`, section 9; `../client/s
   read as one) nor one of its reserved prefixes.
 - **Signing out** is the client's exchange to the sign-out route, which
   the engine end answers by clearing the cookie (`Max-Age=0`). Its
-  answer is its sign-in's (`../../client/domain/client/README.md`, section 9): each sign-in
+  answer is its sign-in's (`../../client/domain/client/sign-in.md`, section 1): each sign-in
   loads a new page (the printed link's, before the client starts, or an
   application's sign-in by navigation), so an earlier page's sign-out
   never answers into the client of a newer sign-in.

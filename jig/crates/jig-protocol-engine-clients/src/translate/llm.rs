@@ -323,7 +323,7 @@ fn model_effort(value: t::ModelEffort, models: &[Model], _limits: &w::Limits) ->
 
 /// A choice naming a model or an effort configuration lacks is refused before the core sees the
 /// ask, as a project mismatch is: by the model's name, and for a compound request the place of its
-/// operation (client/domain/contract/requests.md, 2, and client/domain/contract/README.md, 3).
+/// operation (client/domain/contract/requests.md, 2, and client/domain/contract/answers.md, 1).
 pub(crate) fn refused(
     record: &w::Ask,
     models: &[Model],

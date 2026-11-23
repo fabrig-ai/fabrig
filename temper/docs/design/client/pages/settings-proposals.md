@@ -84,7 +84,7 @@ This document holds proposals of settings, split from [`settings.md`](settings.m
 **Later: the fuller page.** Roles as settings, ways to start work, rules, running work and
 history join the page, the review page opens, and the card gains "Review". The
 pages then read jig's `settings` document and each setting they show whole
-(`setting`, jig's `client/domain/contract/documents.md`, 1, and `jig/docs/design/client/domain/contract/README.md`, 4), again as the document
+(`setting`, jig's `client/domain/contract/documents.md`, 1, and `jig/docs/design/client/domain/contract/reads.md`, 1), again as the document
 says it changed; temper's kinds' values, and a proposal's items of them, from
 the forge's reads (`../forge/served.md`). A party sees the deployment's settings
 with a role in the deployment, and a project's with a role in that project, as
@@ -211,7 +211,7 @@ the document gives them; the client hides nothing of its own.
 - **Which tasks hold a revision, and which could move** (`settings.md`, 2). jig's
   `settings` document counts the live tasks holding each revision, but
   a task query has no revision among its keys (jig's
-  `client/domain/contract/README.md`, 4.1), and nothing says before a move or
+  `client/domain/contract/reads.md`, 1.1), and nothing says before a move or
   an acceptance how many tasks could not move. Default, asked of jig:
   a task query keyed by revision, its live group only (a scan, which
   costs live tasks no more than any key), and a proposal's or a move's

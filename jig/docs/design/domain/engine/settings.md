@@ -457,8 +457,8 @@ decided by the owners of what it touches.
   deleted since, which went with it (../people/acts.md, 2), and the answer
   names each one left out.
 - **Its decision loads the records after R** before it decides, a page
-  at a time as `revisions` reads them (`../../client/domain/contract/README.md`,
-  section 4), at most the history's limit of records; the decision is
+  at a time as `revisions` reads them (`../../client/domain/contract/reads.md`,
+  section 1), at most the history's limit of records; the decision is
   made against the newest it loaded, and a revision made meanwhile
   refuses it as stale, naming the newest, as any change against an
   older one is. A restore of a revision erased is refused as forgotten,
@@ -471,7 +471,7 @@ decided by the owners of what it touches.
 - **Reviewed as any proposal,** each value whole within the document's
   bound or with its size; a value past it is read whole by
   `setting{kind, scope, number, proposal}`, a pending proposal's item
-  (`../../client/domain/contract/README.md`, section 4), and an application's
+  (`../../client/domain/contract/reads.md`, section 1), and an application's
   items from the application's own read of a proposal's items (5).
 
 The restore's size is counted before any deleted project's items are left

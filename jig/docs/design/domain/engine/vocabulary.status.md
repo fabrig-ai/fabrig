@@ -5,7 +5,7 @@
 - **Not yet:** 1.2: the remaining point-load fences.
 
 - **Departs:**
-  1.2: the optional-answer facts departure remains `jig/docs/design/client/domain/contract/README.status.md`, 3.
+  1.2: the optional-answer facts departure remains `jig/docs/design/client/domain/contract/answers.status.md`, 1.
   1: the root interface has no text for public `Core::effect_owner` and
   `application_part_request`
   (`jig-domain-core/src/routing/flight.rs`), `call_room`

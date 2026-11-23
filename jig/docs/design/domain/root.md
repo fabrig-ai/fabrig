@@ -185,7 +185,7 @@ iterate, after the step:
   admitted agent with a window to load while the root is busy, wait in
   the core's due set; the root takes the next with `take_due` when it
   has room to carry it, as it takes a restart's
-  (`jig/docs/design/README.md`, 6.4).
+  (`jig/docs/design/rails.md`, 1.4).
 - **Released outputs addressed to a child** (the core's resumption after
   a claim commits, a connector's entry to make) are fed back to it as
   events by `iterate`, each as one more step of this shape.
