@@ -34,8 +34,8 @@ Draft, 2026-11-21, from the user's words that day: support setting fast or ultra
 - **`speed`,** optional: the model's default speed, taken where neither a choice nor its charter names one. Left out, that's standard.
 - **One namespace per model.** A speed's name and its `also` names are at most 32 bytes of lower-case letters, digits, `-` and `_`. None appears twice in the model, and none is `standard` or the dialect's own name for standard (`default` for OpenAI's).
 - **Out of shape,** besides those rules: a default speed the model doesn't declare; a speed's price of zero, or below the model's own; any speed on a model whose dialect takes none, which today is Anthropic's, or whose endpoint names a program, which chooses its own (section 10).
-- **An added model takes no speeds** (jig's `domain/engine/settings.md`, sections 11 and 12). Neither an owner's add by name nor a provider's list says them, so an owner gives them by a set.
-- **A model's speeds are part of each resolution that includes it** (jig's `domain/engine/settings.md`, section 11). A change of a model's speeds or its default speed changes every charter resolution that includes the model, and so makes those charters' next versions, as a change of its efforts does. A charter that leaves the model out doesn't move.
+- **An added model takes no speeds** (jig's `domain/engine/settings-catalogue.md`, sections 1 and 2). Neither an owner's add by name nor a provider's list says them, so an owner gives them by a set.
+- **A model's speeds are part of each resolution that includes it** (jig's `domain/engine/settings-catalogue.md`, section 1). A change of a model's speeds or its default speed changes every charter resolution that includes the model, and so makes those charters' next versions, as a change of its efforts does. A charter that leaves the model out doesn't move.
 - **They count in a charter's size,** with their names and prices, as its models' other members do (jig's `domain/engine/settings.md`, section 8).
 
 ## 4. Choosing a speed

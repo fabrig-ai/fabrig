@@ -1,5 +1,5 @@
 //! Brief, fleet and account outputs translated for the root, with sibling continuations
-//! (`domain/engine/README.md`, section 4.4).
+//! (`domain/engine/vocabulary.md`, section 1.4).
 
 use crate::{
     Ask, Core, CoreRecord, Event, Held, Key, Limits, LinkNow, Now, Record, Request, Write,
@@ -39,7 +39,7 @@ pub(crate) fn append_tasks(core: &mut Core, env: &Env<Limits>, event: tasks::Eve
 
 /// The release's withdrawals keep their records in its decision. A run's activation or
 /// relay is the start's to make from those records, after the durable Wires
-/// (jig/docs/design/domain/engine/settings.md, 7).
+/// (jig/docs/design/domain/engine/settings-store.md, 1).
 fn release_outputs(mut child: Queue<tasks::Request>) -> Queue<tasks::Request> {
     let mut out = Queue::uncapped();
     for _ in 0..child.len() {

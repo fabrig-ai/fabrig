@@ -33,8 +33,8 @@ holds, and neither of its components reads them.
   read and whether it opens a window; the core keeps the bytes as they
   came. Down, a resumed run's transcript is its current window's turns,
   in order, within the resume limit, decoded on the worker as the agent
-  starts; earlier windows' turns are never sent (`../../domain/engine/executors.md`,
-  2).
+  starts; earlier windows' turns are never sent (`../../domain/engine/executors-transcripts.md`,
+  1).
 - **A window crosses as one piece,** in smith's form: each turn's bytes
   after their length, a `u32`, as smith's channel carries a start's
   transcript (smith's `protocol/channel.md`, section 3; skein's
@@ -59,10 +59,10 @@ holds, and neither of its components reads them.
   does not decode** is refused as invalid by the worker's root, naming
   which, before the agent is started (`../../domain/hosts/hub.md`, 8). One
   refused for its transcript is the engine's to start afresh
-  (`../../domain/engine/executors.md`, 2).
+  (`../../domain/engine/executors-transcripts.md`, 1).
 - **Calls committed since a resumed run's last turn** cross with their
   answers as the engine kept them, so the run is told of them, not asked
-  them again (`../../domain/engine/executors.md`, 3).
+  them again (`../../domain/engine/executors-tools.md`, 1).
 - **In the engine's own hub,** nothing crosses this channel: the engine's
   root hands its hub's payloads out the same way, so the core holds the
   same bytes from either kind of host.

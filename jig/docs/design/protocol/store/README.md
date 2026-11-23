@@ -6,10 +6,10 @@ engine's process, holds every record jig's core and the application
 keep, transcripts are files beside it, and secrets are in a second
 store. jig ships the component that does this, `jig-protocol-store`; the
 application hands it its own records as bytes it encodes. The domain's
-half (commits, loads, what is kept) is `../../domain/engine/README.md`, section 5,
+half (commits, loads, what is kept) is `../../domain/engine/decisions.md`, section 1,
 and what the rest of the protocol layer relies on is `../README.md`,
 section 9. Read it with skein's `data/kv.md`. What is still open is listed in
-section 11.
+`README.md`, section 11.
 
 - [`keys.md`](keys.md): key order, owner tags and ranges.
 - [`commits.md`](commits.md): commit ordering, durability and failure.
@@ -282,7 +282,7 @@ skein-io                        files: the ring, or the simulator's disk
 ## 3. The boundary
 
 What the component takes and answers, as the engine's protocol layer
-routes it. The core's side is `../../domain/engine/README.md`, section 5 and `../../domain/engine/restart.md`;
+routes it. The core's side is `../../domain/engine/decisions.md`, section 1 and `../../domain/engine/restart.md`;
 the root wraps it, and the protocol layer's routing unwraps it, encoding
 the application's part with the application's codecs.
 
@@ -291,12 +291,12 @@ the application's part with the application's codecs.
 | **commit** n: jig's writes, typed (the core's saves and erases of its records and its children's, a copy of the bytes under one of its keys to another, and a task's transcript or history log dropped whole); the application's writes, each a key's bytes and a value's bytes, or an erase | **committed** n, with the store's fill (`growth.md`, 1.2); **failed** n, with why (`commits.md`, section 1); or **FrameTooLarge** n, with task, full encoded bytes and page limit (`commits.md`, section 1) |
 | **restore** a restart step's range: jig's (the core's live families, `loads.md`, 2), or the application's, as byte intervals under its tag | jig's records, typed, then done; the application's rows as bytes, then done |
 | **load** a page of a child's range: jig's, or the application's intervals | the page's rows, typed or as bytes, and a cursor if more remain |
-| **read** a party's read: its scope, position, direction, rows and bytes (`../../domain/engine/README.md`, 5.3) | the page, each row with its joins, and its cursor; or busy, or gone |
+| **read** a party's read: its scope, position, direction, rows and bytes (`../../domain/engine/decisions.md`, 1.3) | the page, each row with its joins, and its cursor; or busy, or gone |
 | **get** a record by key: jig's or the application's | the record, or none |
 | **transcript**: a task's current window, from the turn the core names as its start; a turn by its task, attempt and number; a page of a task's turns from either end | the turns, with their fields and bytes, and a cursor; or unread |
 | **secrets**: keep, replace, erase, get and load, by owner and number; carry a value under a drawn number; adopt a carried value into its source's row (`secrets.md`) | kept, stale, erased, the value or none, a page, or the carried number and digest |
 
-- **Turns are records of the core's** (`../../domain/engine/README.md`, 5.4): the
+- **Turns are records of the core's** (`../../domain/engine/decisions.md`, 1.4): the
   core saves each accepted turn, keyed by its task, attempt and number,
   with its spend, the last message it read, its time, whether it opens a
   window, and its bytes. The component keeps the bytes and those fields
@@ -307,7 +307,7 @@ the application's part with the application's codecs.
   sees every commit answered before it was asked, and nothing that is
   not durable (skein's `data/kv.md`, section 2). Each load of the core's is
   held until every commit made before it is answered
-  (`../../domain/engine/README.md`, 4.2 and 5.3), so it sees what the decisions
+  (`../../domain/engine/vocabulary.md`, 1.2, and `../../domain/engine/decisions.md`, 1.3), so it sees what the decisions
   before it wrote.
 - **One terminal per request,** tagged with the asker's token
   (skein/docs/foundation/programming-model.md, 4.4).
@@ -430,7 +430,7 @@ task's ended delegates; a subtree's delegates for its history (`loads.md`, 3, 4
 
 Saved with whether each opens a window, never erased one by one, a
 task's transcript dropped whole; a resume reads the current window, from
-the turn the core keeps as its start (`transcripts.md`, 3; `../../domain/engine/README.md`, 5.4, and `../../domain/engine/executors.md`, 2
+the turn the core keeps as its start (`transcripts.md`, 3; `../../domain/engine/decisions.md`, 1.4, and `../../domain/engine/executors-transcripts.md`, 1
 );
 
 ### 10.5 Fill
@@ -457,7 +457,7 @@ logical addressed party and question activity position
 (`QuestionCredit`, `records.md`, 1), so a person's answer is credited to its asker,
 a move carries the question to the asker's new requester under the same
 number, and an answering task's end lifts its asker's keep with a notice
-(`../../domain/tasks/lifecycle.md`, 8; `../../domain/people/README.md`, section 5);
+(`../../domain/tasks/lifecycle-endings.md`, 1; `../../domain/people/README.md`, section 5);
 
 ### 10.8 Read positions over conversations
 

@@ -412,7 +412,7 @@ other.
   meaning moved, carries `mark fresh-windows` in its header (skein's
   `data/codec/patches.md`, 1). A host closes each live window across it, and the
   next run starts afresh from its brief with the transcript's tail (jig's
-  `domain/engine/executors.md`, 2), never resumed from patched turns. A patch
+  `domain/engine/executors-transcripts.md`, 1), never resumed from patched turns. A patch
   without it is resumed across. The word is `FRESH_WINDOWS` and its
   meaning smith's; a host reads it from the constant, as data. A patch
   may carry the mark and change no declaration.

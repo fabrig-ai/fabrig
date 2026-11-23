@@ -1174,7 +1174,7 @@ pub enum StoreRequest {
     Checkpoint {
         token: Token,
     },
-    /// Replace the names before the catalogue decision commits (jig jig/docs/design/domain/engine/settings.md, 11).
+    /// Replace the names before the catalogue decision commits (jig jig/docs/design/domain/engine/settings-catalogue.md, 1).
     Catalogue {
         names: Box<[core::settings::ModelName]>,
     },
@@ -1231,7 +1231,7 @@ pub enum WorkerRequest {
 }
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub enum PartyRequest {
-    /// Replace the clients' catalogue before its decision commits (jig jig/docs/design/domain/engine/settings.md, 11).
+    /// Replace the clients' catalogue before its decision commits (jig jig/docs/design/domain/engine/settings-catalogue.md, 1).
     Catalogue {
         models: Box<[core::settings::CatalogueModel]>,
     },

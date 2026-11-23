@@ -120,7 +120,7 @@ pub struct Config {
     pub defaults: settings::Defaults,
     /// Application constants, checked but never changed.
     pub fixed_providers: Box<[settings::ProviderSetting]>,
-    /// An application's kinds of settings (domain/engine/settings.md, 5).
+    /// An application's kinds of settings (domain/engine/settings-application.md, 1).
     pub kinds: Box<[settings::Kind]>,
     /// Deployment and run settings retained by the core.
     pub settings: Settings,
@@ -143,7 +143,7 @@ pub struct Settings {
     /// Provider number for the application's services.
     pub deployment_provider: u16,
     /// The current catalogue by number: row `i` is setting `i + 1`, including holes
-    /// (domain/engine/settings.md, 11; authority.md, 3; domain/tasks/README.md, 3).
+    /// (domain/engine/settings-catalogue.md, 1; authority.md, 3; domain/tasks/README.md, 3).
     pub models: Box<[Model]>,
     /// Maximum committed conversation bytes resumed whole.
     pub resume_bytes: u32,
@@ -243,10 +243,10 @@ impl ToolFamilies {
     };
 }
 
-/// Endpoint identity used to check model settings (domain/engine/settings.md, 11).
+/// Endpoint identity used to check model settings (domain/engine/settings-catalogue.md, 1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct EndpointFacts {
-    /// Providers that name this endpoint for added models (domain/engine/settings.md, 11).
+    /// Providers that name this endpoint for added models (domain/engine/settings-catalogue.md, 1).
     pub providers: Box<[u32]>,
     /// Providers that name this endpoint as their direct way (protocol/configuration-engine.md, 1).
     pub direct: Box<[u32]>,

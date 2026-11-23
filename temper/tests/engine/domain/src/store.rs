@@ -47,7 +47,7 @@ struct Delayed {
     delay: u32,
 }
 /// Numbered root transactions and their durable typed mirror.
-/// Today's catalogue survives reopening (jig/docs/design/domain/engine/settings.md, 11).
+/// Today's catalogue survives reopening (jig/docs/design/domain/engine/settings-catalogue.md, 1).
 pub struct Store {
     pub applied: u64,
     pub pending_generation: bool,
@@ -837,7 +837,7 @@ pub fn with_start_mark(mut rows: BTreeMap<Key, Record>) -> BTreeMap<Key, Record>
 
 /// Writer/store oracle for selected families, exclusive walk order and page
 /// continuation. Census owners can repeat; its cursor names an index instead
-/// (temper/docs/design/domain/root-restart.md, 1.1; jig/docs/design/domain/engine/README.md, 9).
+/// (temper/docs/design/domain/root-restart.md, 1.1; jig/docs/design/domain/engine/world.md, 1).
 ///
 /// # Errors
 /// Returns the violated family, ordering or continuation obligation.

@@ -502,7 +502,7 @@ pub struct CallRecord {
 
 /// Ordered address of a durable row. Root and child identities keep their own
 /// variants; a scoped note index includes its bounded resource pattern
-/// (jig's domain/engine/README.md, 5.3–5.6).
+/// (jig's domain/engine/decisions.md, 1.3–1.6).
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub enum Key {
     Wires,

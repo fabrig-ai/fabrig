@@ -200,7 +200,7 @@ terminal client, the captures and the faults.
   - a person signs in by the link `temper-box serve` prints, and a chat is
     answered;
   - a provider's list read by the worker's hosted list program (jig's
-    `domain/engine/settings.md`, 12): asked once, no run, its new name
+    `domain/engine/settings-catalogue.md`, 2): asked once, no run, its new name
     drawn in `me`, nothing spent;
   - a person still signed in signs in again by a fresh link, with the
     same directory, and keeps their sign-in: its number, token and

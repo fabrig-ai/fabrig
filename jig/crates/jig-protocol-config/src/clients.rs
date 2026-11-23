@@ -55,7 +55,7 @@ pub(crate) fn parse(
     object.finish(document, path, problems);
     Some(Clients { heartbeat: heartbeat?, link: link?, approval: approval?, provider })
 }
-/// The startup catalogue in the clients' numbered positions (domain/engine/settings.md, 11).
+/// The startup catalogue in the clients' numbered positions (domain/engine/settings-catalogue.md, 1).
 #[must_use]
 pub fn models(llm: &crate::Llm) -> Box<[jig_protocol_engine_clients::Model]> {
     jig_protocol_engine_clients::translate::llm::catalogue(&llm.models)

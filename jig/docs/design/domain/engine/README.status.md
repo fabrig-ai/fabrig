@@ -8,7 +8,7 @@ link and terminal proof into the task's notice and exhausted hold. The
 nonempty worker detail and an invalid start's why use the existing reason
 bound; no retry allowance changes.
 
-Section 5.1 has no known gap in *Whole across families, through a kill*:
+`decisions.md`, section 1.1 has no known gap in *Whole across families, through a kill*:
 the core world over its directory-backed store on the simulated disk,
 killed at each file operation of a decision that makes a task and the
 person task it links, of the one that saves a caller's `Person` row and
@@ -21,7 +21,7 @@ every restart operation under
 A snapshot racing commits and several commits in flight are proven in
 the store's world alone (`../../protocol/store/testing.status.md`, 1).
 
-Section 5.1 has no known gap in *Nothing links ahead of what it names*:
+`decisions.md`, section 1.1 has no known gap in *Nothing links ahead of what it names*:
 seventeen routes that take a person's number from outside the core
 (a connector's batch, as executor, pool funder or requester; a party's
 and a procedure's batch, as executor; an agent's person task; a
@@ -55,17 +55,17 @@ continuation; none has a test (`temper/docs/design/draft/panics.md`,
 (`temper/docs/design/domain/root-restart.md`, 1.1).
 
 
-`executors.md`, section 2's immutable failed run end retains the invalid-result kind
+`executors-transcripts.md`, section 1's immutable failed run end retains the invalid-result kind
 computed for its attempt. No known gap remains in this field.
 
-`executors.md`, section 2 has no known gap in *Resuming* across a worker's link: the
+`executors-transcripts.md`, section 1 has no known gap in *Resuming* across a worker's link: the
 core hands the link every call committed since the run's last turn,
 whole and in commit order (`jig/tests/core`'s
 `settled_answers_resume_in_commit_order_and_a_replay_preserves_exact_bytes`),
 and the engine's link fits their answers to its room
 (`../../protocol/channel/liveness.status.md`, 1).
 
-`executors.md`, section 2, and `briefs.md`, section 1 have no known gap in *A turn too large for a page*.
+`executors-transcripts.md`, section 1, and `briefs.md`, section 1 have no known gap in *A turn too large for a page*.
 `TranscriptLoad::Cut` hands the core a turn's fields and length.
 `Core::append_cut_transcript` admits it as `append_transcript` admits a
 turn, counting its length and 4 bytes. It keeps `CUT_TURN_TEXT`,
@@ -87,13 +87,13 @@ starts fresh (`many_one_byte_turns_start_fresh_when_their_lengths_pass_the_limit
 example's root gets transcript pages as rows, from its tests alone. No
 store there cuts a turn, and it maps no cut.
 
-`executors.md`, section 3's asking-family routing and run proposal read are present.
+`executors-tools.md`, section 1's asking-family routing and run proposal read are present.
 `reads/settings.rs` checks settings authority and project scope before
 reading, and checks them and the current attempt after loading a stored
 row. `reads/vocabulary.rs` restricts retained task proposals to the
 reader's project and settings actions.
 
-`executors.md`, section 3's run read as its person is present but for the two gaps
+`executors-tools.md`, section 1's run read as its person is present but for the two gaps
 below. `NamedAction::PersonRead` is routed before replay and call
 admission (`routing/run/calls.rs`) to `reads/person.rs`, which checks the
 asking family, the run's current attempt and a person requester, admits
@@ -112,7 +112,7 @@ core's `tests/reads/person.rs` (`admission_names_exactly_one_project_or_a_task_t
 `stored_person_reads_recheck_the_role_and_share_load_limits`,
 `person_application_reads_reach_the_connector_as_the_person`) hold it.
 
-`briefs.md`, section 2.1, with `executors.md`, 3's withheld turns of a run's read as its person and
+`briefs.md`, section 2.1, with `executors-tools.md`, 1's withheld turns of a run's read as its person and
 9's `preferences` section, is present by plan `ui-ask-m4` but for the
 gaps below. The notes child keeps `Party { party }`, keyed after every
 project's scopes, so no project's notes read or deletion meets it;
@@ -147,7 +147,7 @@ client protocol world's
 `jig-protocol-transcript`'s
 `private_parts_are_withheld_with_the_same_admission` hold it.
 
-`settings.md`, sections 9 and 11 have no known gap in the stored-policy size
+`settings.md`, section 9, and `settings-catalogue.md`, section 1 have no known gap in the stored-policy size
 refusal or a charter's selected effort. Size facts include parts and
 cross proposal answers, client wire 19 and people store 14 unchanged,
 with `StoredPolicy` appended after the existing members. Charter
@@ -162,7 +162,7 @@ in-process worker from a crash and a worker elsewhere: committed turns
 and saved work remain, no try or backoff is charged by the interruption,
 and the task is due again. Jobs retain their claims for restart recovery.
 
-`executors.md`, sections 1, 2 and 4, and `briefs.md`, section 1 have no known gap in selecting a charter's
+`executors.md`, section 1, and `executors-transcripts.md`, section 1, and `executors.md`, section 4, and `briefs.md`, section 1 have no known gap in selecting a charter's
 parts from a run's reasons, preparing a run again when a reason arrives
 before its claim (`routing/run/parts.rs`, `preparation_current`), taking
 only offered messages at a turn's fence, parking a finish while its
@@ -197,13 +197,13 @@ A refused start's class has no known gap: a refused transcript is
 transient, any other invalid start permanent, and a busy one is placed
 again, no failure.
 
-`settings.md`, sections 1, 7, 8 and 11 have no known implementation gap in
+`settings.md`, section 1, and `settings-store.md`, section 1, and `settings.md`, section 8, and `settings-catalogue.md`, section 1 have no known implementation gap in
 numbered model settings, release-default overlays, resolved charter versions,
 withdrawal, catalogue notifications or the owner's newest-revision act.
 Unlisted provisions have no known gap, including the saved-window load
-and unread-tail retry guard in `executors.md`, 1 and 2, and the prospective templates
-query for settings judges in `settings.md`, 5, and the bounded document refusal
-facts carried through proposal answers in 17.9. `settings.md`, section 6's atomic
+and unread-tail retry guard in `executors.md`, 1, and `executors-transcripts.md`, 1, and the prospective templates
+query for settings judges in `settings-application.md`, 1, and the bounded document refusal
+facts carried through proposal answers in 17.9. `settings-proposals.md`, section 1's atomic
 replacement of a run's own pending settings proposal has no known gap.
 At `settings.proposals`, replacement is refused with the old set retained;
 counting that set as room is deferred in `README.md`, section 10.
@@ -211,7 +211,7 @@ counting that set as room is deferred in `README.md`, section 10.
 not-due account timer skips account work and leaves its alarm scheduled;
 a due expiry marks and delivers the changed offer.
 
-`settings.md`, section 5 has no known gap in a default its connector no longer
+`settings-application.md`, section 1 has no known gap in a default its connector no longer
 gives: `jig-domain-core/src/settings/application.rs`, `prepare_start`,
 erases, with a removal in the release's revision, only a default-following
 state its connector names in `SettingsDefaults`' `dropped`, and a reset
@@ -230,7 +230,7 @@ again unrefused (the fleet's tests
 of a restarted workstation, which would show it on processes, stays
 ignored for its fixture (`temper/docs/design/testing/README.status.md`).
 
-`settings.md`, section 12's held worker reads, filtered catalogue changes decided by
+`settings-catalogue.md`, section 2's held worker reads, filtered catalogue changes decided by
 the provider's list, atomic account and settings commits, and retention
 of running work have no known implementation gap. The mark table covers
 failures, repeats, first empty reads and catalogue changes; account times
@@ -245,8 +245,8 @@ try. A window's later pages keep its first page's slot there
 
 ## Gaps and departures
 
-- **Not yet:** `executors.md`, 3, *A run's read as its person*: the gap remains `executors.status.md`, 3, *A run's read as its person*.
-- **Not yet:** `executors.md`, 3, *Of its project alone*: the gap remains `executors.status.md`, 3, *Of its project alone*.
+- **Not yet:** `executors-tools.md`, 1, *A run's read as its person*: the gap remains `executors-tools.status.md`, 1, *A run's read as its person*.
+- **Not yet:** `executors-tools.md`, 1, *Of its project alone*: the gap remains `executors-tools.status.md`, 1, *Of its project alone*.
 
 - **Not yet:** `briefs.md`, 2.1, *Its runs' parts are its party's*: the gap remains `briefs.status.md`, 2.1, *Its runs' parts are its party's*.
 - **Not yet:** `briefs.md`, 2.1, *Read and kept by its party alone*: the gap remains `briefs.status.md`, 2.1, *Read and kept by its party alone*.
@@ -261,36 +261,15 @@ try. A window's later pages keep its first page's slot there
   (`jig-domain-core-vocabulary/src/vocabulary.rs`), where the request gives it `lines`, `added`,
   `removed` and `first` too, because nothing makes it: a write's answer goes by the
   call's own part, which has them.
-- **Design departs:** `settings.md`, 6, from the request `ui-walk-large`: the proposal-projects departure remains `settings.status.md`, 6.
-
-- **Not yet:** 2: engine slots, hello and placement remain `fleet.status.md` (Not yet, the whole document). 4.2, 5.3: the remaining point-load fences.
-   the brief's missing sections remain `briefs.status.md`, 1.  turn-call objects remain `executors.status.md`, 2.  the missing tools remain `executors.status.md`, 3.
-  9: the restart-oracle gaps remain `../testing.status.md`, 9.
-   the pending-reasons continuation gap remains `settings.status.md`, 6.
-   the settings-holder gap remains `settings.status.md`, 6.
-   the ignored restore stories remain `settings.status.md`, 10.
-
-- **Not yet:** 5.1: the whole project-deletion commit has no
-  established admission price against `journal.writes`, because the
-  established allowance covers settings-proposal withdrawals alone,
-  excluding the remaining state writes, closing the project and cancellation
-  operations. No reason is recorded.
-
-- **Departs:**  the unstarted-core departure remains `restart.status.md` (Departs, the whole document).
-  4.2: the optional-answer facts departure remains `jig/docs/design/client/domain/contract/README.status.md`, 3.
-  4: the root interface has no text for public `Core::effect_owner` and
-  `application_part_request`
-  (`jig-domain-core/src/routing/flight.rs`), `call_room`
-  (`jig-domain-core/src/runs/calls.rs`), or `next_finishing_deadline` and
-  `finishing_due` (`jig-domain-core/src/routing/timers.rs`), which the test
-  service uses; no reason is recorded.
-  4.1: children's timers arrive through `fire`, but the section has no
-  text on how many due children a pass fires.
-  `jig-domain-core/src/routing/timers.rs`, `due`, returns one `Timer`, the
-  first due child in people, tasks, fleet, brief and accounts order;
-  `temper-engine-domain/src/domain.rs`, `fire_routed`, fires it once per
-  pass, and `jig-test-service/src/engine.rs`, `fire`, also fires one;
-  no reason is recorded.
-   the acceptance-capacity question remains `settings.status.md`, 2, 6 and 8.
+- **Design departs:** `settings-proposals.md`, 1, from the request `ui-walk-large`: the proposal-projects departure remains `settings-proposals.status.md`, 1.
 
 - **Not yet:** 7: the preparations waiting for notes are bounded by `brief.briefs`, not by live tasks (`briefs.md`, 2.2).
+- **Not yet:** 2: engine slots, hello and placement remain `fleet.status.md` (Not yet, the whole document).
+   the brief's missing sections remain `briefs.status.md`, 1.  turn-call objects remain `executors-transcripts.status.md`, 1.  the missing tools remain `executors-tools.status.md`, 1.
+   the restart-oracle gaps remain `../testing.status.md`, 9.
+   the pending-reasons continuation gap remains `settings-proposals.status.md`, 1.
+   the settings-holder gap remains `settings-proposals.status.md`, 1.
+   the ignored restore stories remain `settings.status.md`, 10.
+
+- **Departs:** the unstarted-core departure remains `restart.status.md` (Departs, the whole document).
+  the acceptance-capacity question remains `settings.status.md`, 2, and `settings-proposals.status.md`, 1, and `settings.status.md`, 8.

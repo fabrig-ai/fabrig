@@ -188,7 +188,7 @@ producing ─► opening ─► gating ─► ready ─► in its landing ─►
     the project's setting `dependencies_join` says such dependencies
     only order them. A dependency that only orders, and any dependency
     in one repository, orders results, as jig's dependencies do (jig's
-    `domain/tasks/lifecycle.md`, 8): the dependent is kept, so not
+    `domain/tasks/lifecycle-endings.md`, 1): the dependent is kept, so not
     ready, until its dependency has landed, and then waits for its own
     landing.
   - **Pin-only members:** where the project keeps downstream pins at

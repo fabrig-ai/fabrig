@@ -1,13 +1,13 @@
 //! Refused rows are retried at the opening stock before naming a lowering.
 //! Generated codec problems carry a path and `Bound`, but not the held figure
-//! (jig/docs/design/domain/engine/settings.md, 7).
+//! (jig/docs/design/domain/engine/settings-store.md, 1).
 use super::{View, decode, limits, tasks};
 use jig_domain_core_vocabulary::{self as core, Key, Record};
 
 /// A value-free lowering. Both figures are in the named setting's own units:
 /// `held` is the least source-limit figure that admits this stock-readable
 /// record, not a derived codec field's length. Other probed lowerings are
-/// restored to stock when measuring it (jig/docs/design/domain/engine/settings.md, 7).
+/// restored to stock when measuring it (jig/docs/design/domain/engine/settings-store.md, 1).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Lowered {
     pub name: &'static [u8],

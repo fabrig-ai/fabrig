@@ -1,4 +1,4 @@
-//! A closer's funds follow its task's runs (jig/docs/design/domain/tasks/lifecycle.md, 11).
+//! A closer's funds follow its task's runs (jig/docs/design/domain/tasks/lifecycle-endings.md, 3).
 use super::revisions::{Harness, amendment, task, to};
 use crate::{
     Active, AuthorityExecutor, Cause, Closer, End, EndedBy, Event, Funder, Numbers, Party, Phase, ProcedureDecision,

@@ -211,7 +211,7 @@ Every request has one answer, of one of these kinds:
     than the newest, which it names (`../../../domain/engine/settings.md`, 2);
   - *judged:* an application's connector refused an item of its kind of
     settings, naming the item and with its reason, in its own words
-    (`../../../domain/engine/settings.md`, 5);
+    (`../../../domain/engine/settings-application.md`, 1);
   - *full:* the settings' revisions or charter versions held would pass
     their limits, naming the oldest revision held and its live tasks,
     cut at their limit, which a `MoveToNewest` may move
@@ -232,7 +232,7 @@ Every request has one answer, of one of these kinds:
     concluded, naming when (`../../../domain/tasks/gatherings.md`,
     section 3);
   - *kept:* a person task's answer while it is kept, naming its pending
-    dependencies (`../../../domain/tasks/lifecycle.md`, 8);
+    dependencies (`../../../domain/tasks/lifecycle-endings.md`, 1);
   - *not well formed:* which task or operation, and why (two tasks of a
     batch giving `AsAllowed`; the conversation flag on a task that is not
     an agent's; a `Conclude` of a task that is not a gathering, and a
@@ -315,7 +315,7 @@ party reads is therefore never lost by a crash.
 | `tasks{query}`: a task query's page (4.1) | live state, then the store's indexes of ended tasks |
 | a project; its spend, a page; its notes, a page | live state; the store; the notes child |
 | the deployment | live state |
-| `settings`; `setting{kind, scope, number, revision}`: one setting's value whole, as the newest reads it, or, for a charter, as a held revision reads it, or, with `proposal`, as a pending proposal of settings would set it, or, of an application's kind, its state and size alone; `revision{n}`: a revision's record and its items, as it set them, an application's with their sizes alone; `revisions`: its records, a page, newest first | live state; the store's history, for a revision no longer held (`../../../domain/engine/settings.md`, 7) |
+| `settings`; `setting{kind, scope, number, revision}`: one setting's value whole, as the newest reads it, or, for a charter, as a held revision reads it, or, with `proposal`, as a pending proposal of settings would set it, or, of an application's kind, its state and size alone; `revision{n}`: a revision's record and its items, as it set them, an application's with their sizes alone; `revisions`: its records, a page, newest first | live state; the store's history, for a revision no longer held (`../../../domain/engine/settings-store.md`, 1) |
 | an application's read, naming its owner, its scope and its window (5.5) | its owner, the connector, through the engine's root |
 
 - **Task source text** is read independently of its overview. `field` selects
@@ -341,7 +341,7 @@ party reads is therefore never lost by a crash.
   the party's current visibility. A retained load
   waits for the preceding commits to be durable and checks current
   sign-in and visibility when it completes; it never restores a retired
-  row into the live set (`../../../domain/engine/README.md`, 5.2 and 5.3).
+  row into the live set (`../../../domain/engine/decisions.md`, 1.2 and 1.3).
 - **A history page's rows** are a task's changes, its attempts and its
   holds (`../../../domain/tasks/lifecycle.md`, 12), in the store's
   order: for each task, its changes, then its attempts, then its holds.
@@ -386,7 +386,7 @@ party reads is therefore never lost by a crash.
   it, at once or by line ranges (`../../../domain/engine/briefs.md`, section 2): a read
   sees no parts, and nothing of a range reaches the wire.
 - **Pages** are within a row and a byte limit, and carry a cursor for the
-  next, or say there is none (`../../../domain/engine/README.md`, 5.3).
+  next, or say there is none (`../../../domain/engine/decisions.md`, 1.3).
 - **A deleted project's read is gone.** A read of a project the
   people child marks deleted, while its deletion lasts and after it,
   answers *gone* to any signed-in party, where a project absent or
@@ -408,7 +408,7 @@ party reads is therefore never lost by a crash.
 - **A question's answer** is read with the question, by whoever may read
   the question: a delegate is in its requester's project, and the
   answer's words are those of the task the question was put to
-  (`../../../domain/engine/executors.md`, 2; `../../../protocol/store/loads.md`, 3).
+  (`../../../domain/engine/executors-transcripts.md`, 1; `../../../protocol/store/loads.md`, 3).
 - **A page beside a line** is how a window that let lines go reads them
   again: an activity line's position is a fact of the line, dense and
   never reused, so it names a place where no cursor was kept. Its answer
@@ -449,10 +449,10 @@ party reads is therefore never lost by a crash.
     large, read whole by `setting{…}` while its revision is held; an
     item of an application's kinds with its size and the state it
     replaced alone, its connector keeping the values, those it replaced
-    for a restore (`../../../domain/engine/settings.md`, 5 and 10); an item of a
+    for a restore (`../../../domain/engine/settings-application.md`, 1, and `../../../domain/engine/settings.md`, 10); an item of a
     project's own policy with the policy it set and the one it replaced;
   - *forgotten,* a revision made but erased past the history
-    (`../../../domain/engine/settings.md`, 7), naming the oldest kept;
+    (`../../../domain/engine/settings-store.md`, 1), naming the oldest kept;
   - *unknown,* past the newest;
   - *busy,* as any read.
 - **`revisions`** is the history a page at a time, newest first, from
@@ -783,10 +783,10 @@ What `../../domain/` owes this contract, each designed where named:
     up to a limit (`../../../domain/people/README.md`, section 5).
 14. **A task's activity kept in commit order,** including each party's
     words as written, so that a conversation reads whole after its words
-    are taken (`../../../domain/engine/executors.md`, 2).
+    are taken (`../../../domain/engine/executors-transcripts.md`, 1).
 15. **The reads of section 4,** task queries among them (4.1), their
     answers held until the last commit made is durable
-    (`../../../domain/engine/README.md`, 5.2 and 5.3).
+    (`../../../domain/engine/decisions.md`, 1.2 and 1.3).
 16. **Level-triggered views** with the subjects of 5.1, what marks them
     changed, task queries by their keys among them (5.2), a run's text
     by turn, retry and offset, and an application's subjects through

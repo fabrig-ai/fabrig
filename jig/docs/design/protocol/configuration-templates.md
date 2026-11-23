@@ -15,7 +15,7 @@
   deployment's own, added by a change, 33 to 64; a start refuses
   anything else (`../domain/engine/settings.md`, 1). The document's
   charters, templates, policies and `llm` models are defaults when the
-  application passes none (`../domain/engine/settings.md`, 7), so they
+  application passes none (`../domain/engine/settings-store.md`, 1), so they
   take 1 to 32 too.
 - **What each carries,** every field required (`configuration.md`, section 9):
   - a name, for showing;
@@ -154,7 +154,7 @@ Templates optionally name `ended_by` as `result` (the default),
 `requester`, `standing` (`../domain/tasks/standing.md`, section 2), or a
 closer, `{"closer": {"connector": C, "code": N}}`, the
 procedure that ends the task once nothing is left to await
-(`../domain/tasks/lifecycle.md`, 11), its connector by number and its code within
+(`../domain/tasks/lifecycle-endings.md`, 3), its connector by number and its code within
 the connector's procedures. Requester requires a named agent charter and
 `conversation: true`; a closer requires a named agent charter and no
 conversation, and is checked at the start as an executor is: a connector

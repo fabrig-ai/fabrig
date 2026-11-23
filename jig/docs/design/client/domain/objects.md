@@ -113,7 +113,7 @@ and its mandatory details together.
 |---|---|
 | waiting | waiting for T2, T3: each a chip, with its phase; or for a hold: "waiting for a slot in staging" |
 | active, an agent: idle | waiting on what its task says it waits on (a party, its delegates, news), and what would wake it, from its wake policy |
-| active, kept by its dependencies | kept until T7, T8 are done: each a chip, with its phase, and who added it and when ("kept until T7 is done, added by P at 10:42"); a run still live is shown as running is, and then that it parked (`../../domain/tasks/lifecycle.md`, 8) |
+| active, kept by its dependencies | kept until T7, T8 are done: each a chip, with its phase, and who added it and when ("kept until T7 is done, added by P at 10:42"); a run still live is shown as running is, and then that it parked (`../../domain/tasks/lifecycle-endings.md`, 1) |
 | due, preparing, claimed | starting |
 | running | running: writing, or a tool (which, when its host names it), on its host's last report (`../../domain/hosts/hub.md`, 5), and working otherwise; its attempt, for how long |
 | backing off | retrying at a time, and why: "host lost, try 2 of 3"; from a brief that failed, its reason too, after the count: "try 2 of 3. Why: pull: the forge's answer did not match its read" (`../../domain/engine/briefs.md`, 1.1) |
@@ -184,7 +184,7 @@ Proposal from I, incident: checkout errors                waiting 4 min
 ## 5. Escalation, and holds by reason
 
 A held task whose escalation reached the party
-(`../../domain/tasks/lifecycle.md`, 6 and `../../domain/tasks/proposals.md`).
+(`../../domain/tasks/lifecycle-holds.md`, 1 and `../../domain/tasks/proposals.md`).
 
 - **The task,** from `Escalation.task`, and **why it is held,**
   from its hold, in words with the supplied details (the table below).
@@ -277,7 +277,7 @@ A task whose executor is the party, or a role they hold
   answer at once; the others see who took it; *hand it back* (a
   `HandBack`).
 - **Its stall:** when it will become news for its requester.
-- **Kept by its dependencies** (`../../domain/tasks/lifecycle.md`, 8): the card
+- **Kept by its dependencies** (`../../domain/tasks/lifecycle-endings.md`, 1): the card
   names the pending ones, as chips, and offers no answer until they are
   done; it may still be taken.
 
@@ -346,7 +346,7 @@ across windows and gaps (client/helpers.md):
 - **its calls to the engine, as cards:** a delegation as the chips of the
   tasks it made; a proposal as its card; a message to a delegate; an
   effect and what it made; a note and a link to it; a decision and what
-  was decided (`../../domain/engine/executors.md`, 2 and 3);
+  was decided (`../../domain/engine/executors-transcripts.md`, 1, and `../../domain/engine/executors-tools.md`, 1);
 - **the proposals waiting in its subtree** (its task's document,
   contract/documents.md, 1) that no call or decision of it shows, as their cards
   after its lines: a delegate's proposal, which none of the
@@ -376,7 +376,7 @@ will do:
   policy; its dependencies, added and removed until it closes, the form
   saying what an add does (a waiting task waits longer; an active one is
   kept, its live run finishing its turn and its next waiting for them:
-  `../../domain/tasks/lifecycle.md`, 8); its authority,
+  `../../domain/tasks/lifecycle-endings.md`, 1); its authority,
   narrowed freely and widened within the party's own (beyond it,
   proposed); its charter's instructions. A procedure's parameters are
   its connector's, amended through its form in a slot, as the

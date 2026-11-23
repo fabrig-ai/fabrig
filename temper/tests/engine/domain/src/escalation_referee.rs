@@ -539,7 +539,7 @@ impl Referee {
 
     /// Count durable claims whose assignment never escaped and whose canonical
     /// refusal preserved expense without spending a try (jig's domain/engine/executors.md,
-    /// section 4; jig's domain/tasks/lifecycle.md, section 6).
+    /// section 4; jig's domain/tasks/lifecycle-holds.md, section 1).
     #[must_use]
     pub fn unplaced_claims(&self) -> usize {
         self.unplaced_claims.len()
@@ -796,7 +796,7 @@ fn undated(outcome: people::Outcome) -> people::Outcome {
 }
 
 /// Cross-record obligations of escalation writers, checked after each
-/// durable transaction and at the settled store (jig/docs/design/domain/engine/README.md, 9).
+/// durable transaction and at the settled store (jig/docs/design/domain/engine/world.md, 1).
 ///
 /// # Errors
 /// Returns the violated policy, held-entry or actor high-water obligation.

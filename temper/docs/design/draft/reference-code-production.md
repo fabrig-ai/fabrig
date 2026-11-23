@@ -275,7 +275,7 @@ rule for goal branches (N4):
 
 A change that depends on another change into g starts kept (jig's
 `domain/connectors.md`, 6.1): it steps while its dependency is produced,
-and its merge waits for it (jig's `domain/tasks/lifecycle.md`, 8). Its producer
+and its merge waits for it (jig's `domain/tasks/lifecycle-endings.md`, 1). Its producer
 starts early under N2's rules:
 
 - once each pending dependency has a pushed head and none of them is
@@ -305,7 +305,7 @@ A change relays its agents' questions (N1).
 
 1. **The producer asks** its requester, the change, in the question
    form, with its options and its recommendation, after pushing what it
-   has. It is kept by its own question (jig's `domain/tasks/lifecycle.md`, 8):
+   has. It is kept by its own question (jig's `domain/tasks/lifecycle-endings.md`, 1):
    its run parks, no try spent.
 2. **The change asks a foreman:** a delegate under the foreman's
    charter, read-only, its brief the change's words, the question and
@@ -352,7 +352,7 @@ A change relays its agents' questions (N1).
 
 ## 9. Failures, holds and escalations
 
-jig's rules, unchanged (jig's `domain/tasks/lifecycle.md`, 6 and `domain/tasks/proposals.md`):
+jig's rules, unchanged (jig's `domain/tasks/lifecycle-holds.md`, 1 and `domain/tasks/proposals.md`):
 
 - **A producer's failures** are tried again within their class's tries:
   a peer gone, an agent crashed, a host lost. Its own failure (the task

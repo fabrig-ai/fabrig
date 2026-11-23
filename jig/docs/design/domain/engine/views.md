@@ -59,7 +59,7 @@ computes for them is said below (1 to 5).
   completes watch endings and the drain notification (`restart.md`, section 1).
 - **An ended task or tree opens as a finished read**
   (`../../client/domain/contract/README.md`, 5.2). Construction uses a bounded
-  task load (`README.md`, 5.3), held behind preceding commits. The core
+  task load (`decisions.md`, 1.3), held behind preceding commits. The core
   checks the sign-in and retained row's project on completion, makes the
   final document without restoring the row, and closes the watch after
   its delivery terminal. A close during the load drains construction
@@ -89,7 +89,7 @@ computes for them is said below (1 to 5).
 
   A connector marks its own subjects (../connectors.md, 5.5).
 - **Durable before shown:** a delivery waits for the last commit made
-  before it, as every read's answer does (`README.md`, 5.2).
+  before it, as every read's answer does (`decisions.md`, 1.2).
 - **A run's text as it is written** is the one stream: kept per live run
   being watched, within a bound, named by the turn and the retry the host
   reports it for (../hosts/hub.md, 5), and delivered from the offset each
@@ -103,8 +103,8 @@ computes for them is said below (1 to 5).
   replaces an earlier one's text; text that starts past what the views
   hold of its retry, because facts were dropped between, marks that
   turn's text cut, as text past its bound does. It decides nothing and
-  leaves at once (`README.md`, 5.2). A committed turn reaches a client through the
-  task's activity, read (`executors.md`, 2).
+  leaves at once (`decisions.md`, 1.2). A committed turn reaches a client through the
+  task's activity, read (`executors-transcripts.md`, 1).
   Input retains the call being written in the current-call slot, within
   the same id + tool + input allowance. A later call replaces it; gaps and
   trimming the oldest bytes mark it cut. A begun call replaces it, so the
@@ -113,7 +113,7 @@ computes for them is said below (1 to 5).
   change it. Deliveries carry the current input suffix whole as `writing`.
 - **History is the store's.** What a client shows of the past (a task's
   results, its activity, a plan's revisions and why, the ended tasks a
-  query finds) is read (`README.md`, 5.3), paged, never held.
+  query finds) is read (`decisions.md`, 1.3), paged, never held.
 
 Nothing the core decides depends on a view arriving.
 
@@ -250,10 +250,10 @@ Nothing the core decides depends on a view arriving.
     and a watch in the views' *making*; it checks each part against its
     kind's `bytes`, answering one past them `TooLarge`, and an answer of
     the wrong shape `Unreadable` for every part it was to give; then holds
-    the answer or the delivery until durable, as any (`README.md`, 5.2).
+    the answer or the delivery until durable, as any (`decisions.md`, 1.2).
     A read ended or a watch closed while it waits drops the answer when it
     comes. Each pending answer holds one load slot until its parts are in,
-    so the asks under way are bounded as reads are (`README.md`, 5.3).
+    so the asks under way are bounded as reads are (`decisions.md`, 1.3).
 - **Marked by a part's inputs** (`../../client/domain/contract/parts.md`,
   5): besides the marks above, a task is touched for an input, and marks
   the watches whose query names a kind with that input and which it
@@ -292,14 +292,14 @@ section 3):
     role, and how many wait;
   - *nothing,* when it is working: its run live and not waiting;
   - *its question,* when it is active and kept by its own unanswered
-    question to its requester (../tasks/lifecycle.md, 8), which no
+    question to its requester (../tasks/lifecycle-endings.md, 1), which no
     entry for a party covers since its requester is a task: the number
     of the oldest such question, the one the keep names. It comes
     before its dependencies and its delegates, since its requester's
     answer is what moves it, and an idle task kept so is never shown as
     waiting for news. A question asked or answered commits on the
     asking task, so its watches are marked as its other waits' are;
-  - *its dependencies,* when it is kept (../tasks/lifecycle.md, 8): the pending
+  - *its dependencies,* when it is kept (../tasks/lifecycle-endings.md, 1): the pending
     ones, the oldest first, and how many;
   - *its delegates,* when it has live delegates;
   - *news,* when it is idle, its run parked or waiting, or its procedure
@@ -324,7 +324,7 @@ section 3):
 
 - **Known by its flag,** never by its charter, its label, or the
   template that made it (../tasks/README.md, section 3). Only an agent's task
-  carries it, so its turns are its transcript's (`executors.md`, 2).
+  carries it, so its turns are its transcript's (`executors-transcripts.md`, 1).
 - **Its turns are entries for its requester,** while that requester is a
   party: a turn committed is an update for them, and marks their `me`,
   their inbox, and the queries the task matches.
@@ -336,7 +336,7 @@ section 3):
   - *a live task's,* in the people child, restored at start (`restart.md`);
   - *an ended task's,* moved to the store by the decision that ends it,
     never held, and joined by a point read where a party reads the
-    conversation or a query's ended row (`README.md`, 5.3), so an ended conversation
+    conversation or a query's ended row (`decisions.md`, 1.3), so an ended conversation
     reads with what its party had read.
 - **A task's retention class** says what becomes of it once ended
   (../people/README.md, section 5; ../tasks/README.md, section 3 defines the flag); the

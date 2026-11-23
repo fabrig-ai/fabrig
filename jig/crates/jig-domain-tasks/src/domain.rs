@@ -1166,7 +1166,7 @@ impl Domain {
     }
 
     /// Financial numbers a run can claim after its closer yields its unused reservation
-    /// (jig/docs/design/domain/tasks/lifecycle.md, 11). The claim commits the resize.
+    /// (jig/docs/design/domain/tasks/lifecycle-endings.md, 3). The claim commits the resize.
     #[must_use]
     pub fn claim_numbers(&self, number: u64) -> Option<crate::Numbers> {
         crate::closer::claim_numbers(self, number)

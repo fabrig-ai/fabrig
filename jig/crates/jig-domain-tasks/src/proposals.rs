@@ -84,7 +84,7 @@ fn wake_holder(domain: &mut Domain, env: &Env<Limits>, proposal: &Proposal, out:
     expect(clippy::large_enum_variant, reason = "a stored proposed amendment stays inline and is priced by size_of")
 )]
 pub enum ProposalAction {
-    /// Settings values stay in the core (domain/engine/settings.md, 6).
+    /// Settings values stay in the core (domain/engine/settings-proposals.md, 1).
     Settings { against: u32, items: Box<[SettingHead]>, projects: Box<[u32]> },
     /// Whole batch with IDs allocated on proposal admission, before reservation.
     Batch(Box<[New]>),
@@ -196,7 +196,7 @@ pub enum PersonAction {
     Amend { task: u64, revision: u64, amendment: Box<Amendment> },
 }
 
-/// The tasks child retains only settings item heads (domain/engine/settings.md, 6).
+/// The tasks child retains only settings item heads (domain/engine/settings-proposals.md, 1).
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub enum Setting {
     Model(u32),
@@ -1174,7 +1174,7 @@ impl Domain {
     }
 }
 
-/// The accepted action and its decision are preflighted before either changes (domain/tasks/lifecycle.md, 10).
+/// The accepted action and its decision are preflighted before either changes (domain/tasks/lifecycle-holds.md, 2).
 fn release_plan(
     domain: &Domain,
     env: &Env<Limits>,

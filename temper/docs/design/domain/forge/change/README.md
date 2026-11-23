@@ -260,7 +260,7 @@ own pull request merged is landed, never this. A held change judges it
 once released. So a change started from it (`questions.md`, 1) finds its
 dependency done, not cancelled, and goes on from its own head; jig's rules
 stay as they are: a cancelled dependency holds its dependent, and one
-started from is never removed (jig's `domain/tasks/lifecycle.md`, 6, and
+started from is never removed (jig's `domain/tasks/lifecycle-holds.md`, 1, and
 `domain/connectors.md`, 6.1).
 
 **From its turn on, a contained head has landed** (2026-11-13). Under

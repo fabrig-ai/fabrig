@@ -404,7 +404,7 @@ pub struct Chip {
 /// Each project has its kept name (domain/model.md, 6.1); unopened pools have no ledger.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct FrameProjectRole {
-    /// Catalogue models beyond the chat charter's bounds (domain/engine/settings.md, 11).
+    /// Catalogue models beyond the chat charter's bounds (domain/engine/settings-catalogue.md, 1).
     pub left_out: u32,
     pub project: u32,
     pub role: people::Role,

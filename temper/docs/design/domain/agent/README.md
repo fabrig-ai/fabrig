@@ -216,7 +216,7 @@ forge's change procedure goes on from it (../forge/change/README.md).
 
 Turns are smith's bytes (smith's `domain/session.md`, section 3), which
 the worker relays and the engine keeps opaque, by conversation and
-window (jig's `domain/engine/executors.md`, 2; jig's `domain/hosts/hub.md`, 4).
+window (jig's `domain/engine/executors-transcripts.md`, 1; jig's `domain/hosts/hub.md`, 4).
 temper's client decodes them as jig's client does (jig's
 `client/domain/client/conversations.md`). A run that resumes is given its
 transcript's current window and the calls committed after its last turn;
@@ -224,7 +224,7 @@ past the resume limit, or when smith refuses the transcript, the next
 run starts fresh, its brief carrying the tail when it is readable. If
 the saved window is unread, the first load spends a transient try; its
 retry starts fresh without the tail, keeping the person's pending words
-(jig's `domain/engine/executors.md`, 2).
+(jig's `domain/engine/executors-transcripts.md`, 1).
 
 An unidentified startup fault keeps its agent-failure classification and
 bounded operator diagnostic through cleanup (jig's `domain/hosts/hub.md`, 3).

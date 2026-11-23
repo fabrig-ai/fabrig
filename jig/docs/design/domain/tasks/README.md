@@ -14,6 +14,9 @@ that stands, its budget per period, its sessions and its Now,
 requester concludes, `gatherings.md`. What
 is still open is listed in `README.md`, section 8.
 
+- [`lifecycle-holds.md`](lifecycle-holds.md): failures and placed holds.
+- [`lifecycle-endings.md`](lifecycle-endings.md): added dependencies and ending a task.
+
 ## 1. In one page
 
 - **The tasks child domain is the center of the core.** The other
@@ -41,7 +44,7 @@ is still open is listed in `README.md`, section 8.
 - **A dependency may be added to a live task.** It stops the task going
   on and never sends it back: while it is pending, an active task is
   kept, starts no run, asks no effect that waits for dependencies, and
-  ends no way but failed or cancelled (`lifecycle.md`, 8).
+  ends no way but failed or cancelled (`lifecycle-endings.md`, 1).
 - **Holds are taken whole, and no waits circle.** A task takes every
   resource it writes at once, or waits with none. A task holding some
   may still wait, for its delegates or, kept, for its dependencies, so
@@ -81,7 +84,7 @@ What it does not know, and how it is told:
   of hold each takes; what they are is their connector's.
 - **Connectors' news** reaches it as messages already classified (`messages.md`, 3).
 - **The store** is the root's: this domain's saves and erases are part of
-  the decision the core's step is making (../engine/README.md, 5.6).
+  the decision the core's step is making (../engine/decisions.md, 1.6).
 
 ## 3. A task
 
@@ -149,7 +152,7 @@ it is live:
   delegates (`messages.md`, 5).
 - **Its executor** (2) and, for an agent, its **charter**: the role's
   instructions, the models it allows, in order, its resolution in the
-  catalogue (../engine/settings.md, 11), the tools, the outcome it must produce, its default wake policy
+  catalogue (../engine/settings-catalogue.md, 1), the tools, the outcome it must produce, its default wake policy
   and waiting time, whether a run resumes its transcript or starts
   fresh, and which hosts may run it (../engine/executors.md, 1); and its **parts**, in
   order, each with instructions of its own for some of the reasons a run
@@ -257,7 +260,7 @@ it is live:
   done, failed and cancelled, kept as each ends, so that a list of tasks says
   how far a task has gone without reading its delegates. A delegate moved
   away is not counted, and a retained delegate's erasure takes nothing back.
-- **Its closer,** while one lives: its number (`lifecycle.md`, 11).
+- **Its closer,** while one lives: its number (`lifecycle-endings.md`, 3).
 - **Its holds:** the resources it writes and holds alone, or the pool
   slots it holds; or, while it waits for them, its place in their queues
   (`holds.md`).
@@ -276,7 +279,7 @@ it is live:
 - **Its result,** once it has one.
 
 What the store keeps beside it, and the engine loads only when wanted:
-its transcript (../engine/executors.md, 2), its history (every change made to it,
+its transcript (../engine/executors-transcripts.md, 1), its history (every change made to it,
 by whom, and why), its attempts and holds (`lifecycle.md`, 12), and the
 results of its ended delegates. While a task
 that ended is named by a live one (a dependency's result not yet read,
@@ -287,7 +290,7 @@ What a task **waits on** is not kept: the engine computes it when a
 document shows the task, since only the engine holds the tree and the
 inbox together (../engine/views.md). It is a party, and who, for a
 question, a proposal, an escalation or a person task in its tree; its
-dependencies, for a kept task (`lifecycle.md`, 8); its delegates; news; or nothing.
+dependencies, for a kept task (`lifecycle-endings.md`, 1); its delegates; news; or nothing.
 
 ## 4. Batches
 
@@ -470,7 +473,7 @@ worst case (../engine/README.md, section 7):
   (`standing.md`, section 2);
 - a grace's span: the longest grace a cancel may give;
 - placed holds per project and per party, live at once, and the
-  exemptions one holds (`lifecycle.md`, 10), which a start refuses past the live
+  exemptions one holds (`lifecycle-holds.md`, 2), which a start refuses past the live
   tasks: a profile that shrinks its live tasks shrinks the exemption
   bound it inherits.
 
@@ -509,7 +512,7 @@ go beyond its task's authority, their proposal accepted and the
 follow-ups run before the result reaches the requester, and another
 whose proposal is rejected, its result delivered at once.
 
-Its stories of placed holds (`lifecycle.md`, 10): a person's stop
+Its stories of placed holds (`lifecycle-holds.md`, 2): a person's stop
 of a goal, its runs and its delegates' runs cancelled, a maintainer's
 release refused for it as the person's, the coordinator above it
 proposing the release, the person accepting it in their inbox, and the
@@ -525,7 +528,7 @@ event, the hold lifting itself as the event's commit delivers it, and
 another parked until a time; a restart in the middle of a drain,
 draining on.
 
-Its stories of added dependencies (`lifecycle.md`, 8; `holds.md`, 7; `changes.md`): the
+Its stories of added dependencies (`lifecycle-endings.md`, 1; `holds.md`, 7; `changes.md`): the
 reordering, two tasks waiting for one write hold, the first given a
 dependency on the second, leaving the queue, the second taking the
 hold and ending, and the first back at its place, ahead of a third that
@@ -610,7 +613,7 @@ the newest when it moved.
   the fresh settings proposal may count the set it replaces as room.
   Default: the core checks the bound before withdrawing anything; a full
   bound refuses the fresh proposal and leaves the old one pending
-  (`../engine/README.md`, 10, and `../engine/settings.md`, 6).
+  (`../engine/README.md`, 10, and `../engine/settings-proposals.md`, 1).
 
 - **Wake defaults:** which kinds wake each charter's tasks, and how
   batching is tuned; whether a cheap model should triage news before a
@@ -635,11 +638,11 @@ the newest when it moved.
   roles when the policy stops naming any for its kind, or that stalls
   past its last holder: who may decide it then, or whether it is
   withdrawn, saying why.
-- **A finish refused at the call** (`lifecycle.md`, 8): a run with its own question open
+- **A finish refused at the call** (`lifecycle-endings.md`, 1): a run with its own question open
   that calls `finish` parks, the run hearing nothing live, and its next run's
   transcript shows that finish as accepted. Refusing it at the call needs a
   new crossing from jig through the worker to smith, since the run serves
-  `finish` with no call to its host (../engine/executors.md, 3 and 4), and costs a turn;
+  `finish` with no call to its host (../engine/executors-tools.md, 1, and ../engine/executors.md, 4), and costs a turn;
   parking stays underneath it, as a refusal can't cover every path to a finish.
   Default: it parks, an application's charter saying beforehand to call `wait`.
 - **A finish put off for live delegates, told** (`lifecycle.md`, 7; ../engine/executors.md, 4):

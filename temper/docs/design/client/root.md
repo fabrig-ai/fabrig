@@ -200,8 +200,8 @@ credential.
     and no count at zero:
     the run, while one of this task's is live: "The run under way gets N seconds
     to finish, then stops.", the template's grace, or "The run under way stops
-    now." with none (a chat at rest closes at once, jig's `domain/tasks/lifecycle.md`,
-    9); each live delegate, by its number and title and its fate, "T4 Fix the
+    now." with none (a chat at rest closes at once, jig's `domain/tasks/lifecycle-endings.md`,
+    2); each live delegate, by its number and title and its fate, "T4 Fix the
     parser is cancelled." or "T5 Review the parser moves to you.", with the other
     fate as "Take it instead" or "Cancel it instead"; the tasks below it that are
     not delegates, "N tasks below it are cancelled.", the document's waiting,

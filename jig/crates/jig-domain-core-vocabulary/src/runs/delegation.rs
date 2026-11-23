@@ -1,4 +1,4 @@
-//! Delegates and procedure steps (jig/docs/design/domain/engine/README.md, 4.4).
+//! Delegates and procedure steps (jig/docs/design/domain/engine/vocabulary.md, 1.4).
 
 use alloc::boxed::Box;
 use jig_domain_tasks as tasks;

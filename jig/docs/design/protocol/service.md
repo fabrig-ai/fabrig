@@ -209,7 +209,7 @@ down:  released and door outputs → components → io submissions
   (`../domain/root.md`, section 4).
 - **A store's answer is always taken,** however full the journal, so the
   bound on commits in flight never stops the answer that frees it
-  (`../domain/engine/README.md`, 5.1).
+  (`../domain/engine/decisions.md`, 1.1).
 - **Nothing waits in `iterate`** between iterations but what its
   components and the root hold as state.
 - **The policy deadline.** skein's `Host` asks each service for its

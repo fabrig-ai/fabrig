@@ -1,4 +1,4 @@
-//! Settings travel through the real restart, store and commit barrier (domain/engine/settings.md, 7).
+//! Settings travel through the real restart, store and commit barrier (domain/engine/settings-store.md, 1).
 
 use jig_client_protocol_wire::Record as _;
 use jig_core_world::client_peer::ClientPeer;

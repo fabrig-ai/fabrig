@@ -2118,7 +2118,7 @@ pub struct Installation {
     pub suspended: bool,
 }
 /// Pending task dependencies supplied by the root, never retained by the connector
-/// (jig's domain/tasks/lifecycle.md, 8; domain/landing.md, 4.1).
+/// (jig's domain/tasks/lifecycle-endings.md, 1; domain/landing.md, 4.1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ChangeDependencies {
     pub change: u64,

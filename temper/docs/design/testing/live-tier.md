@@ -147,7 +147,7 @@ section 1; skein/docs/foundation/testing-strategy.md, 2.9).
   (../protocol/credentials-llm-accounts.md, 1). The stock catalogue has no Haiku, so
   a fresh sitting takes it by name, as a person adds a Claude
   subscription's model on Settings' Models and then chooses it (jig's
-  `domain/engine/settings.md`, 11), in two `settings apply`s. The first sets a
+  `domain/engine/settings-catalogue.md`, 1), in two `settings apply`s. The first sets a
   model at the highest number its catalogue leaves free, with the figures
   of the provider's dearest stock model, `claude-fable-5-1`, marked
   estimated and the person's, its efforts with `low` its default; the

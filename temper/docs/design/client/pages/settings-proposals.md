@@ -164,7 +164,7 @@ the document gives them; the client hides nothing of its own.
   choice of running work, naming the proposal by its proposer and
   number (jig's `client/domain/contract/requests.md`, 2, and `jig/docs/design/client/domain/contract/documents.md`, 2); the revision
   it was made against is its own, and one made against an older is
-  withdrawn, never accepted (jig's `domain/engine/settings.md`, 6).
+  withdrawn, never accepted (jig's `domain/engine/settings-proposals.md`, 1).
 - **What the review page says plainly:** a landing rule naming a role
   nobody holds cannot be accepted: the refusal names the affected
   project, role, required and eligible forge-person counts, and asks
@@ -177,7 +177,7 @@ the document gives them; the client hides nothing of its own.
   hold it on revision 7"; a landing rule with an enforcing approval on an
   owned Forgejo, the card's sentence for it (above).
 - **Stale:** a proposal made against an older revision is withdrawn by
-  the decision that made the newer (jig's `domain/engine/settings.md`, 6). Its
+  the decision that made the newer (jig's `domain/engine/settings-proposals.md`, 1). Its
   review page keeps its items, dimmed, under the banner "Withdrawn:
   made against revision 7; now 8.", what revision 8 changed in a line
   and who made it, and "T21 How we work is redoing it against revision

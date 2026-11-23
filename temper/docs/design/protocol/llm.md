@@ -139,7 +139,7 @@ agent    every LLM call: smith's agent shell, over skein's LLM client
 - **A task read refused as unknown says what to read instead.** jig
   refuses `read_task` as `unknown` for a task it has no row of, an offset
   outside the text, and a `result` no ended task kept, a running one's
-  among them (jig's `domain/engine/executors.md`, 3). The words say each, that a
+  among them (jig's `domain/engine/executors-tools.md`, 1). The words say each, that a
   task's result reaches its requester as a `result` message when it
   ends, and that its specification, `field` left out, shows a running
   task's state, holds and questions. The other refusals keep their words.

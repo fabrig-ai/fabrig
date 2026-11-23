@@ -108,16 +108,16 @@ Authority
 - **Tools:** families, as an agent's charter names them (hosts/charters.md
   ): smith's own (inspecting the workspace, modifying it, the
   shell, sub-agents), each connector's reads, and the engine's tools
-  (engine/executors.md, 3), in families of their own: delegate; message, with
+  (engine/executors-tools.md, 1), in families of their own: delegate; message, with
   `introduce`; amend and cancel, with `release`; decide, with
   `withdraw`; propose; subscribe, with `unsubscribe`; effect; note;
   recall; and asking, the tools an application declares to a run that
   explains to its person, whatever each reads or writes, decided as one
-  family (engine/executors.md, 3). A procedure has no tools; its authority's tools are empty. On
+  family (engine/executors-tools.md, 1). A procedure has no tools; its authority's tools are empty. On
   a program backend, the program's own tools are these families too,
   each call asked of smith's policy before it runs (8.5).
 - **Models:** the catalogue's models a task's LLM choice may name, bit `i`
-  the setting numbered `i + 1` (engine/settings.md, 11), for
+  the setting numbered `i + 1` (engine/settings-catalogue.md, 1), for
   its main model and its sub-agents' (tasks/README.md, section 3), and so the
   LLM providers whose accounts may pay for its runs (accounts.md, 4.3);
   every configured model, unless the deployment's rules, the project's
@@ -411,7 +411,7 @@ task had made it.
 - **Its shape:** an agent of `charter`, its creator and requester the
   task (`Party::Task`), funded by it (`Funder::Task`), its deadline
   `Named`, its wake the default; `flags` may name a closer
-  (`tasks/lifecycle.md`, section 11), and `holdings` are the
+  (`tasks/lifecycle-endings.md`, section 3), and `holdings` are the
   application's, translated as a creation's are.
 - **Its money and room:** its spend `budget`, refused `Funding` where
   the task's numbers leave less (budget less spent, spent below and
@@ -440,7 +440,7 @@ task had made it.
   reserved for the live tasks it funds. What it has left is its budget
   less the other three, and never below zero. A task is a funder; so is
   each party's pool and each project's spend, per period, whose numbers
-  the tasks child domain keeps too, in the store (engine/README.md, 5.4).
+  the tasks child domain keeps too, in the store (engine/decisions.md, 1.4).
 - **Every reservation records its funder:** the task above, a party's
   pool, or a project's period. A batch reserves each delegate's budget
   from its creator in the commit that makes it; an accepted proposal
@@ -532,7 +532,7 @@ task had made it.
   made, or, for a program backend's completions, held in its run's
   reserve (below), so what is recorded against a task never passes its
   budget. A task left with too little for its next run or effect waits,
-  or is held for its budget (tasks/lifecycle.md, 6).
+  or is held for its budget (tasks/lifecycle-holds.md, 1).
 - **Periods.** A project's spend and a party's allotment are per period.
   A reservation counts in the period that funded it, and what it returns
   goes back to that period, so a reset frees nothing reserved. A
@@ -565,7 +565,7 @@ task had made it.
   any is made.
 - **Periods are the application's to say.** The engine keeps no
   calendar: a period begins when the application's root says so
-  (engine/README.md, 4.1), and the root may say when the next begins, if its
+  (engine/vocabulary.md, 1.1), and the root may say when the next begins, if its
   source knows (a deployment configured with a monthly period does).
   The core keeps that with the period's record, and a project's
   document shows it (`../client/domain/contract/documents.md`, 1).
@@ -583,7 +583,7 @@ task had made it.
     writes when priced apart (at the input's rate otherwise), and
     output. A run prices each completion it makes, its sub-agents'
     included, and reports what it spent with each turn it commits
-    (engine/executors.md, 2), and the whole with its answer. The core charges
+    (engine/executors-transcripts.md, 1), and the whole with its answer. The core charges
     each turn as it commits it.
   - *Priced effects.* A connector may price a kind of effect, in the
     deployment's unit: an environment for a week, a scale-up for a day.
@@ -652,9 +652,9 @@ task had made it.
   whose share is too little for a run, at or below the deployment's
   minimum or short of the reserve and the completions above, waits, or
   is held for its budget, as one with too little left (8.3;
-  tasks/lifecycle.md, 6). A delegating task whose half is above the
+  tasks/lifecycle-holds.md, 1). A delegating task whose half is above the
   minimum but short of the reserve keeps the half rule, and so waits or
-  is held even where what it has left would fund the run (section 12).
+  is held even where what it has left would fund the run (`authority.md`, section 12).
   One function of this child,
   `run_spend(rules, authority, numbers)` beside `left`, computes the
   share, and every run check the core makes asks it: a claim's, a
@@ -772,7 +772,7 @@ the fleet's, at each host's hello: the endpoints it declares, their window
 and output bounds, the most turns, spend, time and waiting a run may have, and
 the reserve's time against the checks' timeout (engine/fleet.md). A
 start the agent refuses all the same fails its attempt as an assignment
-its host found invalid, naming why (tasks/lifecycle.md, 6).
+its host found invalid, naming why (tasks/lifecycle-holds.md, 1).
 
 The run-specific answer retains the exact provider/account/source evidence and
 checked spend. Account checks include source usability and host eligibility;
@@ -878,7 +878,7 @@ proposals wait and how they move is tasks/proposals.md.
   widening of a task's authority among them: a party makes no effect,
   and their own authority is their role, which the policy sets
   (people/acts.md, 1). A change of settings may be proposed by a party
-  with a role or by a run its charter lets (engine/settings.md, 6); no task's
+  with a role or by a run its charter lets (engine/settings-proposals.md, 1); no task's
   authority covers one, so only owners accept it, and accepting it
   funds nothing: a setting is spent from by what is made under it.
 - **Proposing is explicit,** for tasks and parties alike. An action
@@ -886,7 +886,7 @@ proposals wait and how they move is tasks/proposals.md.
   proposal could be accepted; who would accept it is the offer's to say
   (`../client/domain/contract/documents.md`, 3). It is proposed only when its
   proposer asks: a run's `propose` call, a procedure's step that
-  proposes, a party's `Propose` (engine/executors.md, 3; people/acts.md, 1). Nothing
+  proposes, a party's `Propose` (engine/executors-tools.md, 1; people/acts.md, 1). Nothing
   becomes a proposal by itself, so nobody is asked by accident, but a
   result's follow-ups beyond its task's authority, which its verdict's
   contract allows, and which become one proposal as the result commits
@@ -989,7 +989,7 @@ under a party with the same authority and numbers left, answering alike;
 `AsAllowed` resolved over generated pools, roles and caps, never above
 any of them, after a batch's named amounts; a party's root refused
 whenever its escalations have no holder. The core's world exercises it
-in place (engine/README.md, section 9), whose referee holds the first promise
+in place (engine/world.md, section 1), whose referee holds the first promise
 of model.md, section 11.
 
 ## 12. Open questions

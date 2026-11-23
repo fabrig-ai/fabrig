@@ -223,7 +223,7 @@ own, never a change's:
 ## 2. A goal's closer
 
 A goal from a template that names it is ended by temper's goal closer
-(jig's `domain/tasks/lifecycle.md`, 11): when nothing is left for its agent to
+(jig's `domain/tasks/lifecycle-endings.md`, 3): when nothing is left for its agent to
 judge, jig makes the closer as the goal's own delegate, and the closer
 does with no model what a goal's run did once its plan's changes had
 ended: it settles the goal's branch, lands it, and reports. The goal's
@@ -270,7 +270,7 @@ section 6).
      (`../after-landing.md`, section 6). A goal with no goal branch, or whose base
      already holds its tip, skips it.
   3. **Report:** the closer's result, below, and its end: done, which
-     ends the goal (jig's `domain/tasks/lifecycle.md`, 11).
+     ends the goal (jig's `domain/tasks/lifecycle-endings.md`, 3).
 - **What wakes the goal meanwhile** is what wakes it for any delegate:
   a step's change held past its bounds, its resolution or repair
   failing, escalates past the closer, a procedure, to the goal (jig's
@@ -390,7 +390,7 @@ section 6).
     project's bound L`. So `the landing T41 ended cancelled; attempts
     ended without landing: 3, the project's bound 3`.
 - **Its authority across attempts.** The closer's budget and task
-  count (jig's `domain/tasks/lifecycle.md`, 11) fund each attempt up to
+  count (jig's `domain/tasks/lifecycle-endings.md`, 3) fund each attempt up to
   the bound:
   - *Spend:* each step's change is given half of what the closer has
     left, its budget less what it spent, what its ended delegates spent
@@ -398,7 +398,7 @@ section 6).
     back to the closer as it ends (jig's `domain/authority.md`, section
     7), so an attempt costs the closer what it spent, never its share.
   - *Lent to its goal's run:* while a run of its goal holds the
-    closer's funds (jig's `domain/tasks/lifecycle.md`, 11), a step the
+    closer's funds (jig's `domain/tasks/lifecycle-endings.md`, 3), a step the
     closer cannot fund waits, with no hold, keeping the step to make;
     that run's answer gives the funds back and makes the closer due,
     and the step is made then. So a release the goal's run makes takes
@@ -426,7 +426,7 @@ section 6).
     now fits.
 - **New work waits for, and reopens, the steps.** A change the goal
   makes while its closer lives is the closer's dependency (jig's
-  `domain/tasks/lifecycle.md`, 11). The closer, kept, makes no new step while it
+  `domain/tasks/lifecycle-endings.md`, 3). The closer, kept, makes no new step while it
   is pending, and a step's change already made goes on: a landing into
   whose branch the new work lands takes it as its new head (`change/drift.md`, 1). Once
   the work has ended, the closer reads afresh: a change of the goal that

@@ -1,4 +1,4 @@
-//! Restoring a version through the real store (jig/docs/design/domain/engine/settings.md, 5, 7, 10;
+//! Restoring a version through the real store (jig/docs/design/domain/engine/settings-application.md, 1, jig/docs/design/domain/engine/settings-store.md, 1, jig/docs/design/domain/engine/settings.md, 10;
 //! jig/docs/design/domain/connectors.md, 17; jig/docs/design/domain/people/acts.md, 1 and 2).
 use crate::settings_support::*;
 use jig_core_world::fixtures::PROJECT;

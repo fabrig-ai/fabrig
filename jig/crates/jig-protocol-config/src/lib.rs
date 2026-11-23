@@ -48,7 +48,7 @@ pub use document::{DocumentLimits, document};
 pub use forms::{digest, secret};
 pub use problem::{CodecBound, PROBLEMS, Path, Problem, Problems, Segment, What};
 /// Where an engine's settings defaults come from (configuration.md, 1;
-/// domain/engine/settings.md, 1 and 7).
+/// domain/engine/settings.md, 1, and domain/engine/settings-store.md, 1).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Defaults {
     /// The document's `charters`, `templates`, `policies` and `rules`.

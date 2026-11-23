@@ -122,7 +122,7 @@ impl RepairSeed {
     }
 
     /// Root-made procedure delegate, checking its requester's room, depth and funding,
-    /// without requiring an agent-selectable delegation kind (jig/docs/design/domain/tasks/lifecycle.md, 11).
+    /// without requiring an agent-selectable delegation kind (jig/docs/design/domain/tasks/lifecycle-endings.md, 3).
     pub fn delegate(
         self,
         task: u64,
@@ -247,7 +247,7 @@ pub enum EffectRefusal {
 }
 
 /// A default a connector stored that the application no longer gives
-/// (jig/docs/design/domain/engine/settings.md, 5; jig/docs/design/domain/connectors.md, section 17).
+/// (jig/docs/design/domain/engine/settings-application.md, 1; jig/docs/design/domain/connectors.md, section 17).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct DroppedDefault {
     pub kind: u32,
@@ -256,7 +256,7 @@ pub struct DroppedDefault {
 }
 
 /// A connector's answer in jig's vocabulary, after root translation.
-/// Application settings: jig/docs/design/domain/engine/settings.md, 5;
+/// Application settings: jig/docs/design/domain/engine/settings-application.md, 1;
 /// jig/docs/design/domain/connectors.md, section 17.
 #[derive(Hash, Debug)]
 pub enum Event {
@@ -394,7 +394,7 @@ pub struct AdoptedParty {
     pub role: people::Role,
 }
 
-/// A connector's judgment of one item (jig/docs/design/domain/engine/settings.md, 5;
+/// A connector's judgment of one item (jig/docs/design/domain/engine/settings-application.md, 1;
 /// jig/docs/design/domain/connectors.md, section 17).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Judged {
@@ -403,7 +403,7 @@ pub enum Judged {
     Refuse { why: Box<[u8]> },
 }
 
-/// A connector's default metadata (jig/docs/design/domain/engine/settings.md, 5;
+/// A connector's default metadata (jig/docs/design/domain/engine/settings-application.md, 1;
 /// jig/docs/design/domain/connectors.md, section 17).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct DefaultState {
@@ -416,7 +416,7 @@ pub struct DefaultState {
 }
 
 /// What the core asks a numbered connector to do.
-/// Application settings: jig/docs/design/domain/engine/settings.md, 5;
+/// Application settings: jig/docs/design/domain/engine/settings-application.md, 1;
 /// jig/docs/design/domain/connectors.md, section 17.
 #[derive(Hash, Debug)]
 pub enum Ask {

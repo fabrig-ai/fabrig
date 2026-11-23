@@ -94,7 +94,7 @@ it would read otherwise. The engine's side is
   a part: there is no read of one by itself.
 - **From live state or the store.** A connector makes a part from its own
   state, the core's and the store's, its loads bounded and admitted as a
-  read's (`../../../domain/engine/README.md`, 5.3). What it keeps to save
+  read's (`../../../domain/engine/decisions.md`, 1.3). What it keeps to save
   loads is its own and kept nowhere durable: parts are made when their rows
   are.
 - **Its visibility is its row's.** A connector is handed only rows the

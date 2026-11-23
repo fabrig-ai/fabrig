@@ -17,6 +17,8 @@ mechanics are those of skein's `programming-model.md`.
    batches, lifecycle, holds, inboxes and wake policies, proposals and
    escalations; a task that stands, and a gathering parties fill
    (`tasks/gatherings.md`).
+   - **tasks/lifecycle-holds.md:** failures and placed holds.
+   - **tasks/lifecycle-endings.md:** added dependencies and ending a task.
 3. **authority.md:** what a task may do: authority as a value, budgets
    and spend, checks, proposals, requirements and their verdicts.
 4. **connectors.md:** the contract every connector meets, and what
@@ -25,6 +27,15 @@ mechanics are those of skein's `programming-model.md`.
    toward the root, commits and the store, the restart script, agents'
    runs and the engine's tools, the fleet, briefs, notes, views,
    accounts.
+   - **engine/vocabulary.md:** what crosses between the core and the root.
+   - **engine/decisions.md:** decisions, commits and the store.
+   - **engine/world.md:** the core's domain world and its stories.
+   - **engine/executors-transcripts.md:** turns, transcripts and resumption.
+   - **engine/executors-tools.md:** the tools the engine offers a run.
+   - **engine/settings-application.md:** an application's settings.
+   - **engine/settings-proposals.md:** proposing settings and deciding a proposal.
+   - **engine/settings-store.md:** how settings are kept and loaded at startup.
+   - **engine/settings-catalogue.md:** the model catalogue and a provider's list.
 6. **root.md:** what an application's root does: the one shape, the
    journal, routing, translation, putting outputs together, and what it
    never does.
@@ -118,7 +129,7 @@ system.
 | journal | skein-lib's container that numbers commits and holds outputs until durable (root.md, section 4) |
 | decision | what one event changes and asks for, gathered into one commit |
 | hand-off | a question the core asks a connector within one decision, through the root |
-| the door | the journal's way out for outputs that decide nothing and show nothing durable (engine/README.md, 4.2) |
+| the door | the journal's way out for outputs that decide nothing and show nothing durable (engine/vocabulary.md, 1.2) |
 | project | a number, a name unique in the deployment, resources with roles, homes, a policy, parties' roles, notes (model.md, 6.1) |
 | task | a unit of work someone asked for (model.md, 3.1) |
 | goal | a tracked task: a priority, projections, goals' topics, a notes scope (model.md, 6.2); jig's goal template gives its defaults |
@@ -141,7 +152,7 @@ system.
 | run, attempt | one activation of an agent task on a host; one try at it, fenced by a number that only grows |
 | tries | the failed attempts counted per class, which a release resets |
 | transcript, turn | an agent task's conversation, kept turn by turn; one LLM turn, committed as it ends |
-| window | smith's: the turns from the last that opens a window (a window turn, or a conversation's first) are the current window, all a resumed run is given (engine/executors.md, 2) |
+| window | smith's: the turns from the last that opens a window (a window turn, or a conversation's first) are the current window, all a resumed run is given (engine/executors-transcripts.md, 1) |
 | a completion's retry | a turn's completion asked for again within one run, counted from zero by smith; a later retry's live text replaces an earlier one's (hosts/hub.md, 5). Not one of a task's tries |
 | call | a run's tool call, named by the run, decided once |
 | brief | the context a run is given for why it runs |
@@ -268,7 +279,7 @@ where each is answered:
   tasks and spend is carved again each period (authority.md, section 7).
 - **Periods are the application's to say:** the engine keeps no
   calendar; a period reaches it from the root, saying when the next
-  begins if its source knows (authority.md, section 7; engine/README.md, 4.1).
+  begins if its source knows (authority.md, section 7; engine/vocabulary.md, 1.1).
 - **Pools that shrink** keep their holders and admit nobody until they
   drain; the promise is about admission (tasks/holds.md, 6).
 - **Effective authority:** a narrowing of rules, policy or access reaches
@@ -321,7 +332,7 @@ where each is answered:
   ). This and what follows are what the domain owes the
   client (`../client/domain/contract/README.md`, section 7).
 - **What a party reads is durable:** a read's answer and a watch's
-  delivery wait for the last commit made before them (engine/README.md, 5.2).
+  delivery wait for the last commit made before them (engine/decisions.md, 1.2).
   What marks a watch changed is named by each commit (engine/views.md
   ).
 - **The inbox across projects,** its read positions (one over results,
@@ -388,7 +399,7 @@ where each is answered:
   was given, within the same decision, for its connector to record
   durably (connectors.md, 6.3).
 - **A task's activity kept** in commit order, the words parties wrote
-  among it (engine/executors.md, 2).
+  among it (engine/executors-transcripts.md, 1).
 - **LLM accounts are runtime state, never configuration:** each
   application is its own client, with its own registration, records and
   refreshes; an account is a holder's, a person's or the deployment's,

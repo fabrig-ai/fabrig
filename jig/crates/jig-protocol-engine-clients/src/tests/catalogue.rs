@@ -1,4 +1,4 @@
-//! Catalogue replacement and numbered holes (jig/docs/design/domain/engine/settings.md, 11).
+//! Catalogue replacement and numbered holes (jig/docs/design/domain/engine/settings-catalogue.md, 1).
 #![expect(clippy::disallowed_macros, reason = "ordinary tests make exact wire-bound byte fixtures")]
 use super::fixtures as f;
 use crate::{Event, Message, Request, translate};

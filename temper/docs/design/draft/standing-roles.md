@@ -60,7 +60,7 @@ role of the project's people.
   ): instructions for its area's work, in parts by why a run runs
   (`per-wake.md`, section 3), its models and efforts, its tools and its
   documents (jig's `domain/engine/settings.md`, 9). They change by a proposal of
-  settings, as every setting does (jig's `domain/engine/settings.md`, 6).
+  settings, as every setting does (jig's `domain/engine/settings-proposals.md`, 1).
 - **Its area:** what it covers, in words, section 4.
 - **Its person:** the person who handed it its area requests it, a party
   (jig's `domain/tasks/README.md`, section 3). So jig's routes carry its questions,
@@ -191,10 +191,10 @@ role of the project's people.
   - triage the findings and reds routed to it;
   - write its Now and its report;
   - propose changes to its own rules, its wakes, its area's words or its
-    budget, as a proposal of settings (jig's `domain/engine/settings.md`, 6).
+    budget, as a proposal of settings (jig's `domain/engine/settings-proposals.md`, 1).
 - **It may not:**
-  - accept its own proposal: an owner decides it (jig's `domain/engine/settings.md`,
-    6);
+  - accept its own proposal: an owner decides it (jig's `domain/engine/settings-proposals.md`,
+    1);
   - change files outside its area. Its changes land under the project's
     rules by path (`what-reaches-you.md`, section 7): one touching paths a
     rule guards waits for that rule's sign-offs, as any change does, and
@@ -223,7 +223,7 @@ role of the project's people.
   goal, a setting.
 - **Leaving ends the session.** The person leaves, the standing role writes
   its Now, and the conversation stays as its activity (jig's
-  `domain/engine/executors.md`, 2), read on Team, never resumed.
+  `domain/engine/executors-transcripts.md`, 1), read on Team, never resumed.
 - **Not a chat.** A chat is the person's own and delegates for them. A standing
   role's conversation is its own: its words join its activity, and what it
   starts is its own.
@@ -266,9 +266,9 @@ Each is a design lag, by its status file.
   finished is committed as parked (`standing-roles.md`, section 3). Two more of jig's rules for
   finite tasks don't hold it: idle with delegates still live, it is not held
   past the stall's bound, since a goal it started may run for days (jig's
-  `domain/tasks/lifecycle.md`, 6, and `domain/tasks/README.md`, 6); and its tries per class of failure
+  `domain/tasks/lifecycle-holds.md`, 1, and `domain/tasks/README.md`, 6); and its tries per class of failure
   count within a session and start again with the next, not over its life
-  (jig's `domain/tasks/lifecycle.md`, 6).
+  (jig's `domain/tasks/lifecycle-holds.md`, 1).
 - **Its person as its requester** (jig and temper). Its requester is a party,
   its person (section 2), so jig's routes for questions, escalations and
   proposals reach a person as they are. Moving it to an owner when its

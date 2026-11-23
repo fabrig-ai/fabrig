@@ -3,7 +3,7 @@
 2026-11-21. Where the tree's code lags or departs from [documents.md](documents.md).
 
 
-- **Not yet:** 1: the omitted-count mark gap remains `../../../domain/engine/settings.status.md`, 12.
+- **Not yet:** 1: the omitted-count mark gap remains `../../../domain/engine/settings-catalogue.status.md`, 2.
 
 `README.md`, sections 4 and 5.3 have a party's scope and withheld turns by plan
 `ui-ask-m4` but for the gaps below: `NoteScope::Party { party }` on the

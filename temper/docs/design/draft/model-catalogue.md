@@ -130,7 +130,7 @@ provider has an account usable now and serving its payer (jig's
 - **The defaults are the binary's,** as a charter's are. A release that adds
   to section 2's table adds to the defaults at its start, decided by the
   release, and a model a person turned off stays off (jig's
-  `domain/engine/settings.md`, 7).
+  `domain/engine/settings-store.md`, 1).
 - **What the files refuse:** under passed defaults, `engine.llm.models` and
   each provider's `models` in `temper.json`; each endpoint's `models` in
   `agent.json`. Providers, endpoints and sources stay (`../protocol/configuration/README.md`, section 2).

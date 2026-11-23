@@ -61,7 +61,7 @@ LLM:
 - **no overlap:** kept, for its next run to read;
 - **overlap unknown** (a landing too large to list, a read that failed):
   wakes, since a wasted turn is cheaper than a missed conflict.
-- **A hold parked until a landing** (jig's `domain/tasks/lifecycle.md`, 10):
+- **A hold parked until a landing** (jig's `domain/tasks/lifecycle-holds.md`, 2):
   subscribed to the landings on a branch, with path prefixes or none; a
   landing wakes it, and so lifts it, when one of its files lies under a
   prefix, or with none named, or when the overlap is unknown.

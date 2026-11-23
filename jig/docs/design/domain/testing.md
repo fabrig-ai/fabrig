@@ -91,7 +91,7 @@ referee in the loop, the heap counted at every iteration
   fake LLM; with turns that open windows, and messages refused and left
   unread: hosts/README.md, section 9.
 
-Each child's world plays its parent and the store as engine/README.md, 5.6
+Each child's world plays its parent and the store as engine/decisions.md, 1.6
 says: it keeps saved records, commits at the end of each step, and
 restarts by restoring them, so restart is tested in each child before the
 core exists.
@@ -112,7 +112,7 @@ testing, against fakes that share none of its types:
 - **restarts,** cold, at drawn moments or at one a scenario chooses, from
   the store's last durable commit.
 
-Its stories are engine/README.md, section 9's; its referee is section 6's.
+Its stories are engine/world.md, section 1's; its referee is `testing.md`, section 6's.
 Beside the referee, the documents the core delivers are held to a
 reference made from outside: a task query's rows against every task the
 scenario made, filtered and ordered as the query asks, its ended part
@@ -123,7 +123,7 @@ The `joint_clock` and documents fixtures compare a source's
 deadline in task waits, accounts and deployment documents and in its
 stored reset. Different injected clock pairs between reads leave those
 wall facts exactly equal, including after restore: literal equality,
-never a real-clock sample or tolerance (accounts.md, 3.5; engine/README.md, 5.4).
+never a real-clock sample or tolerance (accounts.md, 3.5; engine/decisions.md, 1.4).
 
 The charters and templates stories check `me`'s
 `resolved_default` with catalogue and charter orders opposed, explicit
@@ -142,7 +142,7 @@ fixed-rule values in the store's tests (`../protocol/store/testing.md`, section 
 document's members read as defaults, and the settings' limits, in the
 configuration's tests; the change's and the move's records in the
 client wire's. This world holds what needs the decision and the
-children together: the stories of engine/README.md, section 9. None needs a
+children together: the stories of engine/world.md, section 1. None needs a
 process: the world's cold restart shows what a restart keeps.
 
 First-start and restart stories use people roster capacities equal to

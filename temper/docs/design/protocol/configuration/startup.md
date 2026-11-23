@@ -103,7 +103,7 @@ This document holds the configuration checks at a start, split from [`README.md`
   - a later start gives no period from the smallest source, but the
     calendar's (`../../domain/routing.md`, 7) where a project's next start
     has passed: the store keeps each project's
-    current one (jig's `domain/engine/README.md`, 5.4).
+    current one (jig's `domain/engine/decisions.md`, 1.4).
 - **Repositories are never configured.** A person adopts each at runtime
   through the client, by the forge's number, the owner and the name, and
   the store keeps it (jig's `protocol/configuration-engine.md`, section 1;

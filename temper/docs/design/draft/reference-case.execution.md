@@ -170,7 +170,7 @@ section 14 it adds.
 - **Builds:** temper's `change` and change procedure (a producer's
   charter, an LLM choice per role); jig's check of them; temper's
   kinds as settings, on jig's application settings (jig's
-  `domain/engine/settings.md`, 5 to 7), built once for both: the landing
+  `domain/engine/settings-application.md`, 1, and `domain/engine/settings-proposals.md`, 1, and `domain/engine/settings-store.md`, 1), built once for both: the landing
   rules, out of `Config`'s `landing` member (`../domain/routing.md`, 5 and 6, and `../domain/root-translation.md`, 1
   ; `../domain/forge/change/gates.md`, 3; temper's `../protocol/configuration/settings-kinds.md`, 1, and `../protocol/configuration/settings.md`, 3
   ), and the forge's charters, out of `Config`'s

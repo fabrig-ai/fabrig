@@ -319,7 +319,7 @@ impl Store {
         store
     }
 
-    /// Today's models, before a commit that holds them (domain/engine/settings.md, 11).
+    /// Today's models, before a commit that holds them (domain/engine/settings-catalogue.md, 1).
     pub fn catalogue(&mut self, names: Box<[jig_domain_core_vocabulary::settings::ModelName]>) {
         self.names = names;
     }

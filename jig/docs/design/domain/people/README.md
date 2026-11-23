@@ -380,7 +380,7 @@ entry naming the task or proposal it is and its project:
   so a conversation never answers for its person; the person's answer
   reaches the asking task as its requester's answer, and the asked task
   hears a notice naming the question answered, with the answer words cut
-  at 256 bytes on a UTF-8 boundary and marked when cut (../tasks/lifecycle.md, 8). A
+  at 256 bytes on a UTF-8 boundary and marked when cut (../tasks/lifecycle-endings.md, 1). A
   delegate's question to a conversation waits with the conversation, not
   here (../tasks/messages.md, 5).
 - **A conversation** is a task its creator flagged so (../tasks/README.md,
@@ -405,7 +405,7 @@ entry naming the task or proposal it is and its project:
     moves to the larger of the two, never back. One such mark loads at a
     time: while it does, the party's next `Seen` over that
     conversation's turns, or over results that would forget it, is
-    answered busy (../engine/README.md, 5.3). Its loads are held behind the
+    answered busy (../engine/decisions.md, 1.3). Its loads are held behind the
     commits before them, so a mark sent after another was decided sees
     that one's position, and no mark saves a position over a newer one,
     or saves one for a task already forgotten.
@@ -492,8 +492,8 @@ entry naming the task or proposal it is and its project:
   (../authority.md, section 6).
 - **Turn by turn, live.** The party's words, each a `Message`, wake it,
   or reach its live run at once; its replies stream to the client as the
-  run reports them, and each turn is committed as it ends (../engine/executors.md,
-  2), so the conversation the client shows is the transcript in the
+  run reports them, and each turn is committed as it ends (../engine/executors-transcripts.md,
+  1), so the conversation the client shows is the transcript in the
   store.
 - **Waiting, then parked.** A chat waits for the next words holding its
   host's slot; idle past its charter's threshold it parks, and the next
@@ -570,7 +570,7 @@ A task whose executor is a party, or a role (../model.md, 3.2):
   addressed to, and answer it through its requests.
 - **Stalled,** past its bound, it is news for its requester, which may
   amend, cancel or address it to someone else.
-- **Kept** by a dependency an amendment added (../tasks/lifecycle.md, 8), it stays
+- **Kept** by a dependency an amendment added (../tasks/lifecycle-endings.md, 1), it stays
   in its party's inbox, shown waiting on its dependencies, and an
   `Answer` is refused, naming them; once they are done, it is answered
   as ever. A take stands while it is kept. A task that depends on a
@@ -638,7 +638,7 @@ its surface owe this domain:
 ## 10. The world
 
 The people child domain has its world, with its parent scripted. In the
-core's world (../engine/README.md, section 9), scripted parties sign in and act
+core's world (../engine/world.md, section 1), scripted parties sign in and act
 through operations: a member creates a chat from jig's template, which
 proposes a goal they cannot fund, routed to a maintainer who accepts it;
 a member's `Create` beyond their authority is refused, naming what it

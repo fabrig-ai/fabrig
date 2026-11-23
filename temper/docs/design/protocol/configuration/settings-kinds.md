@@ -5,7 +5,7 @@ This document holds temper's settings kinds, split from [`settings.md`](settings
 ## 1. temper's kinds
 
 temper declares ten kinds of its own beside jig's, each owned by the
-forge's connector, which judges them (jig's `domain/engine/settings.md`, 5):
+forge's connector, which judges them (jig's `domain/engine/settings-application.md`, 1):
 
 | Kind | Scope | Numbers | Value | Decided by |
 |---|---|---|---|---|
@@ -148,13 +148,13 @@ forge's connector, which judges them (jig's `domain/engine/settings.md`, 5):
   person linked on a forge is known there (`../../domain/forge/adoption-person.md`, 1).
   Later membership changes can leave an accepted rule waiting for
   eligible approvers. Kind 3 declares
-  that its value names one charter (jig's `domain/engine/settings.md`, 5): the
+  that its value names one charter (jig's `domain/engine/settings-application.md`, 1): the
   forge says which when it judges or reports it, and jig's check of
   references refuses a change that would leave the forge's charter
   unoffered, naming kind 3, as it refuses one that would leave a
   template's.
 - **Kept by the forge,** in its family `Setting` (`../store.md`, section
-  2), written in jig's decisions (jig's `domain/engine/settings.md`, 5): the
+  2), written in jig's decisions (jig's `domain/engine/settings-application.md`, 1): the
   stock defaults of its kinds the binary gave it at the last start, each
   setting's current change, the items of pending proposals of settings
   that name its kinds, and, beside each change it saves, the value the

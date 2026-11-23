@@ -33,7 +33,7 @@ commit and the jobs
 and before any family's restore, and takes its names as the given defaults'
 overlaid with them, so that a stored vocabulary's model a person added isn't read as gone; and it
 takes each later catalogue from the root, before the commit that makes it
-(`../../domain/engine/settings.md`, 11).
+(`../../domain/engine/settings-catalogue.md`, 1).
 
 Settings (`../../domain/engine/settings.md`) are the core's two
 settings families (`keys.md`, 1.4), under a schema of their own, `settings`, whose
@@ -73,12 +73,12 @@ follow from the limits that bound each kind (4).
   `data/codec/maps.md`, sections 2 to 4.
 - **A failed run's immutable activity** keeps its failure class and an
   optional invalid-result kind, independently of the task's current retry
-  context (`../../domain/engine/executors.md`, 2).
+  context (`../../domain/engine/executors-transcripts.md`, 1).
 - **A task's ending authority** is carried in the tasks and people
   families, and a template's in the settings family: `EndedBy`'s
   `closer`, a record of the procedure's connector (`u16`) and code
   (`u32`), beside `result`, `requester` and `standing`; and a live task's closer, its
-  number, in the tasks family (`../../domain/tasks/lifecycle.md`, 11). Each family
+  number, in the tasks family (`../../domain/tasks/lifecycle-endings.md`, 3). Each family
   carries them in its registered layout (`layouts.md`, 1).
 - **Standing task forms** (`../../domain/tasks/standing.md`, section 7) keep
   `TaskRecord.activation_open: bool` and `TaskRecord.session: Option<Session>`, with `Session { first: u64,
@@ -185,7 +185,7 @@ follow from the limits that bound each kind (4).
   its queues and came back, when its wait bound counts from
   (`../../domain/tasks/holds.md`, 2). The tasks family's activity also keeps a
   parked run's `Kept` line, its attempt and pending dependencies
-  (`../../domain/tasks/lifecycle.md`, 8; `../../domain/engine/executors.md`), and the
+  (`../../domain/tasks/lifecycle-endings.md`, 1; `../../domain/engine/executors.md`), and the
   `Met` notice, the dependency and whether it was removed
   (`../../domain/tasks/messages.md`, 1). The index of holders,
   waiters and dependents is not stored: the restart rebuilds it from
@@ -203,7 +203,7 @@ follow from the limits that bound each kind (4).
   `Credit` or a `Word`; decoding separates them into questions and
   unread words. The task record also keeps `asked_requester`, the
   durable latch set by admitting its first question-form message to its
-  current requester, never cleared (`../../domain/tasks/lifecycle.md`, 8),
+  current requester, never cleared (`../../domain/tasks/lifecycle-endings.md`, 1),
   and `question_woken`, a `u64`: the newest question number that has
   woken it once at a park while it held a timer or a task watch, 0 for
   none, never lowered (`../../domain/tasks/lifecycle.md`, 2).

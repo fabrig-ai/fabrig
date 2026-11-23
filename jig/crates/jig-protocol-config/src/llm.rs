@@ -21,7 +21,7 @@ pub struct Llm {
 }
 impl Llm {
     /// The catalogue's run models, with a row at each number's position
-    /// (jig/docs/design/domain/engine/settings.md, 11).
+    /// (jig/docs/design/domain/engine/settings-catalogue.md, 1).
     #[must_use]
     pub fn models(&self) -> Box<[Model]> {
         let mut highest = 0;

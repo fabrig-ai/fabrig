@@ -1,5 +1,5 @@
 //! Generic delegate executor and symbolic-grant decisions owned by the core
-//! (domain/engine/README.md, 4.4, and domain/engine/settings.md, 3).
+//! (domain/engine/vocabulary.md, 1.4, and domain/engine/settings.md, 3).
 #![cfg_attr(
     not(target_arch = "wasm32"),
     expect(
@@ -230,7 +230,7 @@ impl Core {
     }
 }
 
-/// A closer is a procedure the task's own delegation must name (jig/docs/design/domain/tasks/lifecycle.md, 11).
+/// A closer is a procedure the task's own delegation must name (jig/docs/design/domain/tasks/lifecycle-endings.md, 3).
 pub(crate) fn missing_closer(flags: tasks::Flags, authority: &tasks::Authority) -> Option<tasks::Closer> {
     match flags.ended_by {
         tasks::EndedBy::Result | tasks::EndedBy::Requester | tasks::EndedBy::Standing => None,

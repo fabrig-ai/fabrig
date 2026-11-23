@@ -1,4 +1,4 @@
-//! The core's vocabulary toward its root (`domain/engine/README.md`, section 4).
+//! The core's vocabulary toward its root (`domain/engine/vocabulary.md`, section 1).
 
 use crate::{CallKey, CallPart, Delegate, EscalationDecisionRecord, Key, ProcedureStep, Record, RunCharter};
 use alloc::boxed::Box;
@@ -427,7 +427,7 @@ pub enum Held {
         name: SourceName,
         result: Option<SignOutResult>,
     },
-    /// A grant follows every prior commit and its attempt's assignment (domain/engine/README.md, 5.2).
+    /// A grant follows every prior commit and its attempt's assignment (domain/engine/decisions.md, 1.2).
     Grant {
         channel: Token,
         run: Token,
@@ -578,7 +578,7 @@ pub enum LinkNow {
         number: u64,
         answer: jig_domain_link::AskAnswer,
     },
-    /// The host receives a read answer without waiting for a commit (domain/engine/README.md, 4.4).
+    /// The host receives a read answer without waiting for a commit (domain/engine/vocabulary.md, 1.4).
     Relayed {
         channel: Token,
         run: Token,
@@ -629,14 +629,14 @@ pub enum Now {
     Ask { channel: Token, run: Token, attempt: Token, number: u64, bytes: Box<[u8]> },
     /// The core's outputs for the link (domain/root.md, 5).
     Link(LinkNow),
-    /// A bounded task read has no durable call record (domain/engine/executors.md, 3).
+    /// A bounded task read has no durable call record (domain/engine/executors-tools.md, 1).
     TaskRead { to: ReplyTo, key: CallKey, answer: Box<Result<crate::reads::run_task::TaskRead, tasks::Refusal>> },
-    /// A settings document leaves without a durable call record (domain/engine/executors.md, 3).
+    /// A settings document leaves without a durable call record (domain/engine/executors-tools.md, 1).
     SettingsAnswer { to: ReplyTo, key: CallKey, answer: Box<crate::reads::SettingsAnswer> },
     /// A run's read as its person answered: the party read's own answer, `None(Why::Unknown)`
-    /// for what is not admitted, `None(Why::Busy)` where the loads are full (domain/engine/executors.md, 3).
+    /// for what is not admitted, `None(Why::Busy)` where the loads are full (domain/engine/executors-tools.md, 1).
     PersonAnswer { to: ReplyTo, key: CallKey, answer: Box<crate::reads::Answer> },
-    /// A run's proposal read answered (domain/engine/executors.md, 3).
+    /// A run's proposal read answered (domain/engine/executors-tools.md, 1).
     ProposalRead { to: ReplyTo, key: CallKey, answer: Box<crate::reads::ProposalRead> },
     /// The root answers this host call with its own busy payload.
     CallBusy { to: ReplyTo },
@@ -845,7 +845,7 @@ pub enum Event {
         connector: u16,
         project: u32,
     },
-    /// One model act at the newest revision (domain/engine/settings.md, 11).
+    /// One model act at the newest revision (domain/engine/settings-catalogue.md, 1).
     ChangeModel {
         reply_to: ReplyTo,
         sign_in: u64,
@@ -1328,20 +1328,20 @@ pub enum NamedAction {
         field: crate::reads::TaskTextField,
         task: u64,
         from: u64,
-        /// The most words this answer holds, named by its application (domain/engine/executors.md, 3).
+        /// The most words this answer holds, named by its application (domain/engine/executors-tools.md, 1).
         room: u32,
     },
-    /// A settings read decides nothing and keeps no call record (domain/engine/executors.md, 3).
+    /// A settings read decides nothing and keeps no call record (domain/engine/executors-tools.md, 1).
     Settings(crate::reads::SettingsRead),
     /// A run reads as its task's requester, a person, of its task's project alone
-    /// (domain/engine/executors.md, 3, *A run's read as its person*). Decides nothing, keeps no call record.
+    /// (domain/engine/executors-tools.md, 1, *A run's read as its person*). Decides nothing, keeps no call record.
     PersonRead(Box<crate::reads::Read>),
-    /// A run's read of one proposal of settings, by the `settings` family (domain/engine/executors.md, 3).
+    /// A run's read of one proposal of settings, by the `settings` family (domain/engine/executors-tools.md, 1).
     ReadProposal {
         proposer: jig_domain_people::Proposer,
         number: u64,
     },
-    /// A run proposes settings against the revision it read (domain/engine/settings.md, 6).
+    /// A run proposes settings against the revision it read (domain/engine/settings-proposals.md, 1).
     ProposeSettings {
         against: u32,
         items: Box<[crate::settings::Item]>,
@@ -1859,7 +1859,7 @@ impl Timer {
     }
 }
 
-/// The store transport's transcript answer (jig/docs/design/domain/engine/README.md, 4.1, and jig/docs/design/domain/engine/executors.md, 2).
+/// The store transport's transcript answer (jig/docs/design/domain/engine/vocabulary.md, 1.1, and jig/docs/design/domain/engine/executors-transcripts.md, 1).
 #[derive(Hash, Debug)]
 pub enum TranscriptLoad {
     Page {
@@ -1868,7 +1868,7 @@ pub enum TranscriptLoad {
     },
     /// A window's turn past its store page's room, alone in its page: its
     /// fields, `turn.transcript` empty and its transcript's length
-    /// (jig/docs/design/domain/engine/executors.md, 2).
+    /// (jig/docs/design/domain/engine/executors-transcripts.md, 1).
     Cut {
         turn: crate::TurnRecord,
         bytes: u64,

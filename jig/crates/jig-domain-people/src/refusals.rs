@@ -67,7 +67,7 @@ pub enum Refusal {
         dependency: u64,
         how: DependencyStatus,
     },
-    /// An answer is kept by its pending prerequisites (domain/tasks/lifecycle.md, 8).
+    /// An answer is kept by its pending prerequisites (domain/tasks/lifecycle-endings.md, 1).
     Kept {
         pending: Box<[u64]>,
     },
@@ -162,7 +162,7 @@ pub enum Malformed {
 pub enum Lack {
     /// A policy edit passes this ceiling; scalar values use their dimension's unit.
     Ceiling { holder: CeilingHolder, dimension: CeilingDimension, value: Option<u64>, asked: Option<u64> },
-    /// A placed hold waits for its owner (domain/tasks/lifecycle.md, 10).
+    /// A placed hold waits for its owner (domain/tasks/lifecycle-holds.md, 2).
     HoldOwner { hold: u64, owner: HoldOwner },
     /// No policy role may accept this kind of party proposal.
     Approver,
@@ -350,7 +350,7 @@ pub enum DependencyStatus {
     Cancelled,
 }
 
-/// Who placed a hold, independent of the tasks child (domain/tasks/lifecycle.md, 10).
+/// Who placed a hold, independent of the tasks child (domain/tasks/lifecycle-holds.md, 2).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum HoldOwner {
     Party { person: u64 },

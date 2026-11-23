@@ -116,20 +116,20 @@ pub enum ProposeAction {
     Amendment { task: u64, revision: Revision, change: Box<Amendment> },
 }
 
-/// The immutable authority that may end a task (domain/tasks/lifecycle.md, 9).
+/// The immutable authority that may end a task (domain/tasks/lifecycle-endings.md, 2).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum EndedBy {
     /// Its run's judged result ends it.
     Result,
     /// Only its requester ends it; a run's raw finish parks it (5.8).
     Requester,
-    /// A named procedure closes an agent task (jig/docs/design/domain/tasks/lifecycle.md, 11).
+    /// A named procedure closes an agent task (jig/docs/design/domain/tasks/lifecycle-endings.md, 3).
     Closer(Closer),
     /// A standing agent task ends only by cancel (jig/docs/design/domain/tasks/standing.md, 2).
     Standing,
 }
 
-/// The procedure named to close a task (jig/docs/design/domain/tasks/lifecycle.md, 11).
+/// The procedure named to close a task (jig/docs/design/domain/tasks/lifecycle-endings.md, 3).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Closer {
     pub connector: u16,

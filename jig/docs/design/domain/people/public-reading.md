@@ -202,7 +202,7 @@ every signed-in one. Every figure below is the deployment's
   the answers within their freshness, limits each address and admits
   public reads before they take its connections to the engine; jig
   trusts no address and counts none.
-- **Durable before shown,** as every read's answer is (../engine/README.md, 5.2).
+- **Durable before shown,** as every read's answer is (../engine/decisions.md, 1.2).
 
 ## 6. Its world
 

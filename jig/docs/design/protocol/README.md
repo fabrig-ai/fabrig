@@ -300,7 +300,7 @@ no credential's keeping: jig mints, verifies, expires and revokes them.
 | an application's credential, for a run's workspace | the application's protocol layer: its table on the engine, and on each worker that holds a grant of it | its own source's: a file, or an exchange it refreshes | the workspace's systems, through credential grants with the assignment (`channel/README.md`, section 7) |
 
 - **Names in the domain, values beside it.** A domain names a secret by
-  number and generation (`../domain/engine/README.md`, sections 5.4 and 6); no
+  number and generation (`../domain/engine/decisions.md`, section 1.4, and `../domain/engine/README.md`, section 6); no
   domain state, fact, record of the main store or log holds a value.
   Values move between components through the protocol layer's routing,
   never through a root.
@@ -332,14 +332,14 @@ no credential's keeping: jig mints, verifies, expires and revokes them.
   - **commits** numbered as the journal numbers them, applied in order,
     each answered once durable, which makes every earlier one durable; a
     failed commit, or one the store refuses, answered failed, after which
-    nothing is answered and the engine stops (`../domain/engine/README.md`, 5.1
-    and 5.5);
+    nothing is answered and the engine stops (`../domain/engine/decisions.md`, 1.1
+    and 1.5);
   - **loads** by the domain's ranges, in bounded pages, seeing every
     commit answered before they were asked;
   - **transcripts** appended with the commit that accepts their turns,
     each turn kept with whether it opens a window, and read from either
     end, or from the turn that opens a task's current window
-    (`../domain/engine/executors.md`, 2);
+    (`../domain/engine/executors-transcripts.md`, 1);
   - **secrets' records** in a store of their own, in a directory only the
     engine's user may read, written by components alone, durable on
     request before what they protect is used, read at start;
@@ -365,7 +365,7 @@ What the protocol layer relies on from jig's domain is designed there:
 - **the hub's link vocabulary, whole, and smith's payloads and facts by
   hand-out:** `../domain/hosts/hub.md`, 1 and 8;
 - **what smith gives** (`needs.md`, section 2): windows, and resuming from the
-  current one (`../domain/engine/executors.md`, 2); the start's messages
+  current one (`../domain/engine/executors-transcripts.md`, 1); the start's messages
   (`../domain/engine/executors.md`, 1; `../domain/hosts/README.md`, section 7), and
   messages refused or unread kept in the inbox (`../domain/tasks/messages.md`,
   2 and 3); refusals carried with turns (`../domain/hosts/hub.md`, 4);

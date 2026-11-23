@@ -36,7 +36,7 @@ pub struct Model {
 }
 
 impl Model {
-    /// An unoccupied catalogue position (domain/engine/settings.md, 11).
+    /// An unoccupied catalogue position (domain/engine/settings-catalogue.md, 1).
     #[must_use]
     pub fn hole() -> Self {
         Self {

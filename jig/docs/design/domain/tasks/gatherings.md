@@ -13,8 +13,8 @@ section 4), and its requester ends it with `Conclude` (section 3).
 - **A core procedure, never stepped.** Its executor is the core's, so no
   connector steps it and nothing it hears runs anything (section 4).
 - **Made by a party, who ends it.** A party's `Create` makes it, as a
-  root, with `ended_by: Requester` (`lifecycle.md`, section 9) and a
-  report for its contract (section 2).
+  root, with `ended_by: Requester` (`lifecycle-endings.md`, section 2) and a
+  report for its contract (`gatherings.md`, section 2).
 - **Filled by parties.** A party who may act on it makes its delegates
   with `Delegate`, funded from its budget, within its delegation and its
   deadline, as if it had made them itself (`README.md`, section 4;
@@ -49,7 +49,7 @@ section 4), and its requester ends it with `Conclude` (section 3).
     spec's `asks` false;
   - *no dependencies:* a batch naming one for it, and an amendment
     adding one, are refused. It waits on nothing, so it is active from
-    the commit that makes it, and never kept (`lifecycle.md`, 8).
+    the commit that makes it, and never kept (`lifecycle-endings.md`, 1).
 - **Its template,** where an application offers one: a template whose
   executor is chosen, whose ending is `Requester` and which is no
   conversation is a gathering's.

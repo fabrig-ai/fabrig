@@ -101,7 +101,7 @@ application root            routes between the core and every connector
   application's protocol layer and their answers up; its system's hints
   (webhooks, a stream of alerts) arrive as events no request caused.
 - **Its store records are its own,** saved and erased as part of the
-  decisions it takes part in, restored at a restart (engine/README.md, 5.6).
+  decisions it takes part in, restored at a restart (engine/decisions.md, 1.6).
 
 ## 3. Resources
 
@@ -175,8 +175,8 @@ that its goal's changes land into one at a time. The queue then orders
 only writes made under the hold, by the holder's delegates, each taking
 the resource's writer slot as it writes (tasks/holds.md, 1 and 3). Such a queue is
 outside the waits the core checks for circles (tasks/holds.md, 7), so its
-connector keeps it clear of them: a task kept by a dependency (tasks/lifecycle.md,
-8) leaves it, and comes back once it goes on, so that no task in it
+connector keeps it clear of them: a task kept by a dependency (tasks/lifecycle-endings.md,
+1) leaves it, and comes back once it goes on, so that no task in it
 waits behind one that waits for it.
 
 ### 3.4 Live resources
@@ -217,7 +217,7 @@ which it keeps. What the core gets is its **description:**
 - **whether it waits for dependencies,** which its kind declares: one
   that does (a merge, a deploy, a release) is what a task kept by a
   pending dependency must not make, and is refused while it is, naming
-  them (tasks/lifecycle.md, 8); one that does not (a comment, a status, a draft)
+  them (tasks/lifecycle-endings.md, 1); one that does not (a comment, a status, a draft)
   is made as ever;
 - **its price,** if its kind is priced: its maximum, in the deployment's
   unit (authority.md, section 7);
@@ -244,7 +244,7 @@ which it keeps. What the core gets is its **description:**
 - **Retries are the connector's:** a transient failure is tried again
   after a backoff, within its budget; a failure for good (forbidden, a
   conflict, the object gone) holds the task that asked, saying so
-  (tasks/lifecycle.md, 6); a procedure's task instead hears it and steps (6.2),
+  (tasks/lifecycle-holds.md, 1); a procedure's task instead hears it and steps (6.2),
   holding itself if it needs a decision (6.3). A projection's or a
   release's failure for good is news for the goal, or the closing task,
   it was made for.
@@ -285,7 +285,7 @@ which it keeps. What the core gets is its **description:**
   - *unrecoverable:* none of the above, such as a restart through an
     interface that gives no operation's id. An uncertain entry is never
     tried again by the engine: its task is held, saying so, for a person
-    to decide whether to make it again (tasks/lifecycle.md, 6). **At most once,
+    to decide whether to make it again (tasks/lifecycle-holds.md, 1). **At most once,
     by holding.**
 - **Retry deadlines are absolute.** Each attempt to make an entry is
   committed, with its deadline (the wall time it is sent, plus the
@@ -313,7 +313,7 @@ which it keeps. What the core gets is its **description:**
   never from when it was asked, so asking again for the same thing finds
   the same key:
   - an agent's effect: its task, its attempt and the call that asked
-    (engine/executors.md, 3);
+    (engine/executors-tools.md, 1);
   - a procedure's: its task and the purpose within it (provisioning its
     environment; rolling back to a version; merging at a head);
   - a projection's: its goal and what it writes;
@@ -332,7 +332,7 @@ which it keeps. What the core gets is its **description:**
 
 ### 4.5 Effects asked by agents
 
-An agent asks for an effect with its `effect` tool (engine/executors.md, 3),
+An agent asks for an effect with its `effect` tool (engine/executors-tools.md, 1),
 naming one of the kinds the connector offers to agents. Its input
 reaches the root decoded, as the connector's typed request; the
 connector describes it; the core checks it (authority.md, 8.2); and, in
@@ -376,7 +376,7 @@ bound: a restart can have more fresh reads under way than closing tasks.
   (4.2), taking the resource's writer slot while in flight (tasks/holds.md,
   3). The connector orders its own later uses of the resource after
   them: a write into a branch still being made waits for it.
-- **A taking's effect failed for good holds the task** (tasks/lifecycle.md, 6),
+- **A taking's effect failed for good holds the task** (tasks/lifecycle-holds.md, 1),
   its words the connector's, saying why: the resource it could not make
   and what its system answered. The task keeps its holds, and its
   requester decides, as for any effect that failed for good.
@@ -422,7 +422,7 @@ bound: a restart can have more fresh reads under way than closing tasks.
   bounded. A task subscribes through its tool, through its creator, or
   through the core (a goal's topics, 5.4).
 - **Offered to agents.** A connector says which kinds of its topics an
-  agent may subscribe to with `subscribe` (engine/executors.md, 3), each with
+  agent may subscribe to with `subscribe` (engine/executors-tools.md, 1), each with
   what a call names it by, as it offers kinds of effect (4.5); asked,
   it names the resources a topic concerns, which a read grant of the
   task's must cover (authority.md, 8.5; hosts/charters.md).
@@ -455,7 +455,7 @@ documents, beside jig's (`../client/domain/contract/documents.md`):
   (engine/views.md);
 - **its reads,** a document of its own a party asks for once, which it
   makes when the core has admitted the read, as jig's reads are answered
-  (engine/README.md, 5.3);
+  (engine/decisions.md, 1.3);
 - **the scope each names:** a watch of one of its subjects, and a read
   of one of its documents, name a project, the deployment, or the
   party's own (what is the signed-in party's across projects), since the
@@ -507,12 +507,12 @@ value, kept in the store with the connector's records and committed with
 each step, including the effects it has asked for that are not yet
 settled and the wall times of what it waits for. It knows its task's
 number, its delegates by number, which of its task's dependencies are
-pending (tasks/lifecycle.md, 8), and the facts it reads. A projection
+pending (tasks/lifecycle-endings.md, 1), and the facts it reads. A projection
 (`connectors.md`, section 8) is not a procedure: no task asked for it.
 
 **A procedure that starts kept.** A connector may declare, per
 procedure, that a task of it made with a pending dependency enters
-active and kept (tasks/lifecycle.md, 8) rather than waiting: it steps and
+active and kept (tasks/lifecycle-endings.md, 1) rather than waiting: it steps and
 delegates while its dependency goes on, under 5.7's refusals, ending no
 way but failed or cancelled while kept and asking no effect that waits
 for dependencies (4.1). It is for work whose producing may run beside
@@ -537,7 +537,7 @@ is not among its task's dependencies refuses the step whole (6.3).
 - when its task becomes active;
 - when its task is kept or goes on again: an amendment adding a
   dependency, and the notice that its last pending one is done or
-  removed (tasks/lifecycle.md, 8, and tasks/messages.md, 1);
+  removed (tasks/lifecycle-endings.md, 1, and tasks/messages.md, 1);
 - when a message its owner lets through reaches its task: a delegate's
   result, an amendment, a cancel, an answer, news it subscribed to; a
   cancel's grace, asking it to finish, comes as an amendment does
@@ -600,7 +600,7 @@ Every effect and batch is checked against its task's authority, as any
 decision is (authority.md, section 8); a procedure's authority is its
 task's, given by its creator.
 
-**Kept, it steps as ever.** While its task is kept (tasks/lifecycle.md, 8), a
+**Kept, it steps as ever.** While its task is kept (tasks/lifecycle-endings.md, 1), a
 step may do all of the above but two: ask an effect of a kind that
 waits for dependencies (4.1), and end its task done. A step that does
 either is refused whole, its connector told which dependencies are
@@ -609,8 +609,8 @@ still hold its task, or end it failed.
 
 **The same operations, by the same rules.** A step's batches,
 amendments, cancels, proposals and messages are the operations a
-party's requests and a run's tools make (people/acts.md, 1; engine/executors.md,
-3), and reach the same rules: who may amend or cancel a task, what an
+party's requests and a run's tools make (people/acts.md, 1; engine/executors-tools.md,
+1), and reach the same rules: who may amend or cancel a task, what an
 amendment may change, a grace's bound (tasks/changes.md); who may
 message whom (tasks/messages.md, 5). What a procedure never does is decide: it
 releases no hold and decides no proposal or escalation, which pass over
@@ -652,7 +652,7 @@ condition on the facts, armed with a deadline past which it stalls.
 
 Each procedure declares its limits: remediations, retries, the stall of
 each wait. Past one, it holds its task, saying why, and its requester
-hears (tasks/lifecycle.md, 6).
+hears (tasks/lifecycle-holds.md, 1).
 
 ### 6.6 Standing procedures
 
@@ -667,7 +667,7 @@ deployment or a person on call.
 ### 6.7 Drained
 
 A procedure in the scope of a draining hold
-(tasks/lifecycle.md, 10) is told so in its next step, and steps on as ever until
+(tasks/lifecycle-holds.md, 2) is told so in its next step, and steps on as ever until
 its connector answers that it is idle: at the first point where its
 step would start something new, rather than finish what it began. The
 core then holds it, by its step's end, `Idle`, which outside a drain
@@ -745,7 +745,7 @@ release the writer; Uncertain and Held retain it for connector recovery.
 
 ## 9. Reads and brief sections
 
-- **Reads an agent may call** (engine/executors.md, 3): typed, each with an
+- **Reads an agent may call** (engine/executors-tools.md, 1): typed, each with an
   answer bounded in bytes and charged to the connector's request budget:
   a service's logs in a window, a metric's series, a pull request's
   diff. The call reaches the root decoded as the connector's request; the
@@ -968,8 +968,8 @@ history making the same calls while idle.
 
 ## 17. An application's settings
 
-A connector may own kinds of settings of the application's (engine/settings.md,
-5): the application declares each kind with its connector's number,
+A connector may own kinds of settings of the application's (engine/settings-application.md,
+1): the application declares each kind with its connector's number,
 and gives the connector its defaults. The connector keeps the values in
 its own family; the core keeps whether each setting follows its default
 or a change, the revisions, the proposals and their sizes, never the
@@ -980,7 +980,7 @@ bytes.
   core which settings' defaults differ and their sizes, and naming, by
   kind, scope and number, each default it stored that the application
   no longer gives; it saves the new ones in the decision that makes the
-  release's revision (engine/settings.md, 5). A default
+  release's revision (engine/settings-application.md, 1). A default
   past its kind's bounds, a stored value it cannot read, or one of a
   kind no longer declared, refuses the start, naming it.
 - **Judged in the change's decision.** A change naming items of its
@@ -989,7 +989,7 @@ bytes.
   scope and number and the value it would leave or its removal (a reset
   as the default it returns to), and the revision they would make. It
   accepts, with the charters each value names where its kind declares
-  that it names some (engine/settings.md, 5); refuses with a reason in its own
+  that it names some (engine/settings-application.md, 1); refuses with a reason in its own
   words, which the change's refusal carries to the party; or says an
   item leaves its setting as it is. A judge reads only its own state, and decides what the items
   mean in its system's terms.
@@ -1005,7 +1005,7 @@ bytes.
   setting held before (none for one that followed its default or was
   removed), by the revision the change made, and erases those of a
   revision in the decision that erases the revision's record from the
-  history (engine/settings.md, 7); a release's revision asks it to keep
+  history (engine/settings-store.md, 1); a release's revision asks it to keep
   none. Its worst case prices, for each record the history may keep, a
   whole set of its kinds' values. A restore's decision hands it the
   proposal the restore makes and its items of its kinds, each by kind,

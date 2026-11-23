@@ -1,5 +1,5 @@
 //! Core-owned funding admission for person-origin goals
-//! (domain/engine/README.md, section 4.4; domain/authority.md, section 9).
+//! (domain/engine/vocabulary.md, section 1.4; domain/authority.md, section 9).
 
 use jig_domain_authority as authority;
 use jig_domain_tasks as tasks;

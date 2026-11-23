@@ -433,8 +433,8 @@ tests feed it agents' replies and results kept as files beside them.
   decoded below the client (client/conversations.md), so the reference UI
   links nothing of smith's.
 - **Calls to the engine** show as the cards of what they made, live:
-  what the core wrote beside their turn (`../../domain/engine/executors.md`,
-  2). A proposal waiting in the task's subtree that no call or
+  what the core wrote beside their turn (`../../domain/engine/executors-transcripts.md`,
+  1). A proposal waiting in the task's subtree that no call or
   decision shows has its card after the conversation (objects.md,
   section 10).
 - **Provisional text** is said to be provisional in words: its region

@@ -8,8 +8,8 @@ engine's next start, since what dials and signs in through a provider
 is built at start. This document is the kind, its check, how a start
 takes it, and what crosses the store and the client's wire. It is
 written from temper's `draft/config.md`, 6.2. What a provider offers its
-accounts is `../accounts.md`, 3.4; a provider's list is `settings.md`,
-12; the `llm` member a document gives is
+accounts is `../accounts.md`, 3.4; a provider's list is `settings-catalogue.md`,
+2; the `llm` member a document gives is
 `../../protocol/configuration-engine.md`, section 1.
 
 ## 1. The kind
@@ -43,7 +43,7 @@ accounts is `../accounts.md`, 3.4; a provider's list is `settings.md`,
   same records (`skein/docs/foundation/programming-model.md`, 4.6). An
   endpoint's address moves with it, as the `Host` and socket forms the
   document reads. A `Provider` keeps no model names: a model names its
-  provider by number (`settings.md`, 11). `jig_domain_accounts::Provider`
+  provider by number (`settings-catalogue.md`, 1). `jig_domain_accounts::Provider`
   stays the accounts child's projection, its offers and terms, built
   from a `ProviderSetting` as it is built from a document's provider
   today.
@@ -100,7 +100,7 @@ accounts is `../accounts.md`, 3.4; a provider's list is `settings.md`,
 ## 3. Numbers and names
 
 - **A number keeps its name** for the deployment's life, as a model's
-  and a worker's do (`settings.md`, 11; `workers.md`, 2): a set naming
+  and a worker's do (`settings-catalogue.md`, 1; `workers.md`, 2): a set naming
   another name than its default's or its stored change's is out of
   shape, and so is a name another number holds, withdrawn ones and fixed
   ones included. Accounts and models name a provider by number, so no
@@ -163,7 +163,7 @@ is the last item naming that model, or 0 when none does (the dispatch's
 - **A change applies at the next start.** It is checked and stored, and
   the running providers stay. A model whose provider or endpoint the
   running providers don't hold is out of the offer until a start runs
-  it, as a model no usable account serves is (`settings.md`, 11): no
+  it, as a model no usable account serves is (`settings-catalogue.md`, 1): no
   lookup of a model's or an account's provider among the running ones
   assumes it is there.
 - **Kept for the next start.** The core asks the root to keep the
@@ -175,8 +175,8 @@ is the last item naming that model, or 0 when none does (the dispatch's
   where its next start reads them before it builds what they configure
   (temper's `protocol/configuration/providers.md`, 3). An application
   that keeps none starts on its defaults each time.
-- **A release's new default** comes in as for any kind (`settings.md`,
-  7): a provider a change is over stays as the change left it, and a new
+- **A release's new default** comes in as for any kind (`settings-store.md`,
+  1): a provider a change is over stays as the change left it, and a new
   default provider applies at the start after the one that brought it,
   once kept.
 

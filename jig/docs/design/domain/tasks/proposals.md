@@ -9,7 +9,7 @@ proposed, what an action needs, and what an acceptance funds.
   batch or an amendment beyond its maker's authority is refused, naming
   what it lacked and whether a proposal could be accepted (`README.md`, section 4),
   and its maker proposes it, with reasons: a run with its `propose`
-  call (../engine/executors.md, 3), a procedure in its step (../connectors.md, 6.3), a
+  call (../engine/executors-tools.md, 1), a procedure in its step (../connectors.md, 6.3), a
   party with a `Propose` request (../people/acts.md, 1). So a person is never
   asked by accident, by a program or by their own client. The one
   exception is a result's follow-ups beyond its task's authority, which
@@ -22,8 +22,8 @@ proposed, what an action needs, and what an acceptance funds.
   (../people/acts.md, 2). Either may propose a change of settings, in the
   deployment's scope (below), and a task's
   release from a placed hold, which waits for the hold's owner alone
-  (`lifecycle.md`, 10).
-- **A proposal of settings** (../engine/settings.md, 6) holds a set of settings
+  (`lifecycle-holds.md`, 2).
+- **A proposal of settings** (../engine/settings-proposals.md, 1) holds a set of settings
   against a revision. It is proposed by a party with a role in the
   deployment or a project, or by a run whose charter gives it the
   settings family; no task's authority covers it, so it waits from the
@@ -63,8 +63,8 @@ proposed, what an action needs, and what an acceptance funds.
 - **Where they wait.** At the nearest task above the proposer, or the
   held task, whose authority covers the decision (../authority.md,
   section 9), skipping procedures, kept tasks and conversations: procedures
-  decide nothing, kept tasks start no run to decide (`lifecycle.md`, 8), and a
-  conversation is ended by its requester (`lifecycle.md`, 9). Above the tree's
+  decide nothing, kept tasks start no run to decide (`lifecycle-endings.md`, 1), and a
+  conversation is ended by its requester (`lifecycle-endings.md`, 2). Above the tree's
   root task is whoever requested it: a party is the next holder there,
   when their authority covers it; past them, or past a root the
   deployment requested, it waits for the parties whose role the project's

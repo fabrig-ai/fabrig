@@ -70,7 +70,7 @@ still open is listed in `README.md`, section 10.
   What a host loses before it was committed (its turns, when a worker
   dies) is done again by the task's next attempt, which starts from the
   last committed turn and is told of the calls committed after it
-  (../engine/executors.md, 1 and 3).
+  (../engine/executors.md, 1, and ../engine/executors-tools.md, 1).
 
 ## 2. The contract
 

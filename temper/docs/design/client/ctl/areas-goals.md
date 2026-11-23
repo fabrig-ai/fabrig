@@ -124,7 +124,7 @@ This document holds goals and plans through ctl, split from [`areas.md`](areas.m
      section 7, "Whoever widens a task funds it"): from their role's pool,
      within what the policy lets them give alone, or proposed past it, as
      the next bullets say. It is the way out a hold for a task's own
-     budget or tasks names (jig's `domain/tasks/lifecycle.md`, 6; `../../domain/forge/change/repairs.md`
+     budget or tasks names (jig's `domain/tasks/lifecycle-holds.md`, 1; `../../domain/forge/change/repairs.md`
      ): `task amend 41 --rev 8 --budget 20 "room for its review"`,
      then `task release 41 --hold 3`. `--budget 20` restates the task's
      authority with spend 2,000 units, which `task show` then prints `of

@@ -126,11 +126,11 @@ pub use jig_domain_hub_link::Assignment;
 #[derive(Debug)]
 pub enum Request {
     Workers(Box<[core::settings::WorkerSetting]>),
-    /// The store's names, replaced before the catalogue decision commits (domain/engine/settings.md, 11).
+    /// The store's names, replaced before the catalogue decision commits (domain/engine/settings-catalogue.md, 1).
     StoreCatalogue {
         names: Box<[core::settings::ModelName]>,
     },
-    /// The clients' catalogue, after the store's replacement (domain/engine/settings.md, 11).
+    /// The clients' catalogue, after the store's replacement (domain/engine/settings-catalogue.md, 1).
     ClientsCatalogue {
         models: Box<[core::settings::CatalogueModel]>,
     },

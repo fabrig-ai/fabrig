@@ -28,7 +28,7 @@ stored setting naming it is refused, not read, naming the setting
   question in the line form (`../../agent/agents.md`, 2) reaches a person's client
   as its choices where it is relayed whole, and any other as words. An
   agent that asked is kept by its own question (jig's
-  `domain/tasks/lifecycle.md`, 8): its run parks, no try spent, until the
+  `domain/tasks/lifecycle-endings.md`, 1): its run parks, no try spent, until the
   change answers, a `finish` before then parking it too, whatever its
   form, and the change's wait for it is no stall (`stalls.md`, 1). Its
   reviews are delegated without the Message family, as under `none`.
@@ -82,8 +82,8 @@ stored setting naming it is refused, not read, naming the setting
   the question form, its words the asker's question whole, as its
   record kept them when it was taken, cut from its end to the message
   bound and marked. The change is
-  kept by its own question while it waits (jig's `domain/tasks/lifecycle.md`,
-  8): it steps as ever, and merges nothing, its merge waiting as for
+  kept by its own question while it waits (jig's `domain/tasks/lifecycle-endings.md`,
+  1): it steps as ever, and merges nothing, its merge waiting as for
   a pending dependency (`README.md`, 2, step 7). A repair's or a resolution's
   question passed up takes it out of its queue until answered, as a
   kept change's place is (`../queues.md`). Its requester, a goal among
@@ -256,7 +256,7 @@ What follows holds under either question route.
 - **Words never answer.** Passing words settles and clears no
   question: a question asked of the requester stays asked, an answer
   held stays held, and a producer kept by its own open question stays
-  kept (jig's `domain/tasks/lifecycle.md`, 8), the words waiting in its
+  kept (jig's `domain/tasks/lifecycle-endings.md`, 1), the words waiting in its
   inbox until that question's answer lets it go on. An answer from the
   requester that the relay does not take, to no question asked of it
   or a second answer to one answered, receives the fallback feedback as
@@ -558,7 +558,7 @@ early, by these rules:
   refused, naming it (jig's `domain/tasks/changes.md`): its requester
   cancels the change and makes it again instead. One that fails or is
   cancelled holds the change, as any failed dependency does (jig's
-  `domain/tasks/lifecycle.md`, 6).
+  `domain/tasks/lifecycle-holds.md`, 1).
 
 ## 2. Waiting on a person's approval
 

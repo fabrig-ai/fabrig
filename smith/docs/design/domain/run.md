@@ -603,7 +603,7 @@ host tool for it, as temper's `delegate` does.
   given no brief to start fresh from. A host that moves a task to
   another endpoint or backend, program to direct or back, starts its
   run fresh rather than offer it the window, as jig's engine does
-  (jig's `domain/engine/executors.md`, 2, *Resumed only where it ran*).
+  (jig's `domain/engine/executors-transcripts.md`, 1, *Resumed only where it ran*).
   A window a host offers anyway, or one that ran on another dialect or
   account, is not refused: it is carried over (session.md, 8.2). A run
   that does not resume starts fresh from its brief, which carries what

@@ -393,7 +393,7 @@ pub enum End {
 }
 
 /// What the child asks of its parent. A save or an erase is part of the decision that makes
-/// the change (domain/engine/README.md, 5.6): each account and source the child makes, removes or whose hold
+/// the change (domain/engine/decisions.md, 1.6): each account and source the child makes, removes or whose hold
 /// changes, and the counter whenever it moves.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Request {
@@ -442,7 +442,7 @@ pub enum Request {
     Closed,
 }
 
-/// A source-owned deadline (domain/accounts.md, 3.5; domain/engine/README.md, 5.4).
+/// A source-owned deadline (domain/accounts.md, 3.5; domain/engine/decisions.md, 1.4).
 /// Scheduling uses `at`; documents and stored resets retain `wall` exactly.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Deadline {

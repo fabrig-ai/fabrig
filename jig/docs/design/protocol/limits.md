@@ -306,7 +306,7 @@
   needs pass it refuse the start as `NeedsPastLimit`
   (`../domain/engine/restart.md`).
 - **An application's kinds of settings** declare a value's largest
-  bytes and the values per scope (`../domain/engine/settings.md`, 5), which
+  bytes and the values per scope (`../domain/engine/settings-application.md`, 1), which
   enter the core's worst case for what it keeps of each setting, and
   the connector's for the values it keeps; a default past either
   refuses the start, naming the kind.

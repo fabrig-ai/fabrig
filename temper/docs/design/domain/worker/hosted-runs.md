@@ -86,7 +86,7 @@ temper's workspace items beside it:
   a merge in progress the files in conflict (smith's `domain/run.md`,
   3.2).
 - **Transcript,** for a run that resumes: its current window, and the
-  calls committed after its last turn (jig's `domain/engine/executors.md`, 2;
+  calls committed after its last turn (jig's `domain/engine/executors-transcripts.md`, 1;
   jig's `domain/hosts/hub.md`, 4). Across the link, those calls' answers
   fit its room: the newest whole, each older host answer cut to words
   saying the call ran and how many bytes its answer had (jig's
@@ -154,7 +154,7 @@ jig's types (jig's `domain/hosts/hub.md`, 3), with temper's detail:
   the limits or which item the workspace cannot take. Once prepared, a
   start smith refuses, or whose charter, transcript, call names or
   delivery evidence do not decode or agree, is refused as invalid too,
-  which the engine counts as permanent (jig's `domain/tasks/lifecycle.md`, 6). A
+  which the engine counts as permanent (jig's `domain/tasks/lifecycle-holds.md`, 1). A
   start smith refuses as busy, an agent or a run it has no room for, is
   refused busy, as at the entrance (jig's `domain/hosts/charters.md`).
 - **A start the link cannot carry** never reaches the worker. An
@@ -187,7 +187,7 @@ jig's types (jig's `domain/hosts/hub.md`, 3), with temper's detail:
   not have it, a branch or a commit, or it refuses the identity. jig
   counts a transient one as an infrastructure failure, within its own
   longer allowance, its detail on the task's hold (jig's
-  `domain/tasks/lifecycle.md`, 6). The detail names the worker, the
+  `domain/tasks/lifecycle-holds.md`, 1). The detail names the worker, the
   workspace, the repository, the step, git's command and fault, and the
   operation's and the prepare's times (`checkouts.md`, 1), and the worker
   logs a line for it (`checkouts.md`, 1.3).
@@ -272,7 +272,7 @@ A job's puts `job <kind>` after `<name>`, its kind as serve's job line
 prints it (`jobs.md`). `<run>` is the worker's `run`. `<name>` is the
 worker's configured name (`workers[].name`), or `channel <n>` for a channel
 no configured worker holds. `<why>` is the claim's cause (jig's
-`domain/tasks/lifecycle.md`, 6): `recheck` where the attempt before ended in
+`domain/tasks/lifecycle-holds.md`, 1): `recheck` where the attempt before ended in
 one; else, with the retry notice the claim cleared, `retry after <class>
 failure <count> of <allowance>` or `retry after refusal <count>`, then
 `: <reason>` where it carries one; else the due reason, `made`, `ready`,
@@ -307,8 +307,8 @@ it a unit the tag does not identify.
 - **The included bounds name the call's allowance.** The answer's
   reasoning, metadata, items and bytes, and the request's tools, history,
   window and declared output ceiling become `Exceeded`. The tasks child
-  holds the run at once without counting a try (jig's `domain/tasks/lifecycle.md`,
-  6). The classification does not infer a measured size from the
+  holds the run at once without counting a try (jig's `domain/tasks/lifecycle-holds.md`,
+  1). The classification does not infer a measured size from the
   failure or require proof that every provider response will repeat.
 - **Other limits stay `Model`.** `Cap::Request` stays `Model` rather than
   being identified with a retained-history or model-window bound.

@@ -389,7 +389,7 @@ impl Domain {
         let entry = self.sources.get(&number)?;
         Some(fact(number, entry))
     }
-    /// The number the counter gives next; the store keeps it (domain/engine/README.md, 5.4).
+    /// The number the counter gives next; the store keeps it (domain/engine/decisions.md, 1.4).
     #[must_use]
     pub const fn next_number(&self) -> u32 {
         self.next
@@ -1230,7 +1230,7 @@ pub(crate) fn changed(
     }
 }
 /// A source's record: its place in its account's order, and a limit's reset on the wall clock,
-/// so that it means the same after a restart (domain/engine/README.md, 5.4).
+/// so that it means the same after a restart (domain/engine/decisions.md, 1.4).
 pub(crate) fn stored(domain: &Domain, number: u32) -> Stored {
     let entry = domain.sources.get(&number).expect("a kept source");
     let account = domain.accounts.get(&entry.account).expect("a source's account is kept");

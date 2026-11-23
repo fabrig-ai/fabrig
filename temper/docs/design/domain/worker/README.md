@@ -158,7 +158,7 @@ agent    smith: LLM work, one run per agent process, reporting to the worker
 - **A run loses at most a turn's tail** that the drain's bound cut, and
   what its saved work leaves out, ignored files and build outputs: its
   conversation, its committed calls and its saved work go on in its next
-  attempt, on any worker (jig's `domain/engine/executors.md`, 2;
+  attempt, on any worker (jig's `domain/engine/executors-transcripts.md`, 1;
   `../../draft/redeploys.md`, 6.2).
 - **In one process,** the worker is stopped after the engine has drained
   and settled its claims, so it does not drain: it cancels at once
@@ -204,8 +204,8 @@ agent    smith: LLM work, one run per agent process, reporting to the worker
 - **Past the bound, an interruption.** A run cancelled for lost contact
   saves its work first and answers `Cancelled(Contact)`; the engine ends
   the attempt interrupted, with no try spent, and the next attempt, on
-  any worker, resumes from its transcript (jig's `domain/engine/executors.md`,
-  2) and starts its checkout from the work it saved (`checkouts.md`).
+  any worker, resumes from its transcript (jig's `domain/engine/executors-transcripts.md`,
+  1) and starts its checkout from the work it saved (`checkouts.md`).
 - **A worker's restart loses no work.** Stopped, it cancels each run for
   shutdown, saving its work first, and answers `Cancelled(Shutdown)`, an
   interruption as above, before it gives up its link (jig's

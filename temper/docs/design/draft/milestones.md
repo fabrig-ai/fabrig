@@ -105,7 +105,7 @@ differ until its plans fold it in.
   comes later: that time is its completion, distinct from its last
   landing.
 - **A goal that fails or is closed** doesn't stop the others. The goals
-  waiting on it are held (jig's `domain/tasks/lifecycle.md`, section 6),
+  waiting on it are held (jig's `domain/tasks/lifecycle-holds.md`, section 1),
   each a held card in Needs you. Release alone holds it again, since the
   dependency still stands: to go on, the person or the maker removes or
   replaces the dependency and releases it, or closes it (jig's
@@ -113,7 +113,7 @@ differ until its plans fold it in.
 - **Pause, Resume and Close** are a task's (`../client/pages/task.md`,
   section 4). Pause stops every goal under the milestone, and those made
   later, at once, cancelling their runs (jig's
-  `domain/tasks/lifecycle.md`, section 10); Resume lifts it. Close
+  `domain/tasks/lifecycle-holds.md`, section 2); Resume lifts it. Close
   cancels every goal in it that hasn't ended. What landed stays.
 
 ## 4. States and words

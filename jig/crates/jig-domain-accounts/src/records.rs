@@ -1,4 +1,4 @@
-//! What an account is and what the store keeps of it (accounts.md, 3.1 to 3.5; domain/engine/README.md, 5.4).
+//! What an account is and what the store keeps of it (accounts.md, 3.1 to 3.5; domain/engine/decisions.md, 1.4).
 //! An account and each of its sources are numbered by one counter that never gives a number
 //! twice; a source's number is the number its grants and its runs' notices carry.
 use alloc::boxed::Box;
@@ -38,7 +38,7 @@ pub enum Kind {
 }
 
 /// What runs' agents noticed of a source, kept with a wall reset so that it means the same
-/// after a restart (domain/engine/README.md, 5.4). The component says the rest of a source's state again.
+/// after a restart (domain/engine/decisions.md, 1.4). The component says the rest of a source's state again.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Held {
     Limited { reset: Option<Wall> },

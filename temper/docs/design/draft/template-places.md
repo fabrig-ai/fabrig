@@ -142,7 +142,7 @@ until its owners change them.
 - **Who owns kinds 7 and 8:** the forge's connector, which owns
   temper's other kinds, or a child of temper's root of its own for the
   client's settings: jig lets the root route a kind to any child (jig's
-  `domain/engine/settings.md`, 5), and an offer is no concern of the forge's.
+  `domain/engine/settings-application.md`, 1), and an offer is no concern of the forge's.
 - **A context's places** need a template's input (section 3), a jig
   change.
 - **A person's own:** recent ways first, or a person's order, kept by

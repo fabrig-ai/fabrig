@@ -183,7 +183,7 @@ fn batch_state(domain: &Domain, number: u64, word: &Word) -> (u32, Wall, bool) {
     (hits, oldest, latched)
 }
 
-/// Admit root's numbered notice only while the kept task can go on (domain/tasks/lifecycle.md, 8).
+/// Admit root's numbered notice only while the kept task can go on (domain/tasks/lifecycle-endings.md, 1).
 pub(crate) fn met(
     domain: &mut Domain,
     env: &Env<Limits>,

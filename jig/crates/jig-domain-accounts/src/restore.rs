@@ -5,7 +5,7 @@ use crate::{Deadline, Fact, Held, Key, Kind, Limits, Stored};
 use skein_lib::{Duration, Env, List, Map, Wall};
 
 /// A kept hold means the same after a restart: a reset passed while the child was down has
-/// lifted it, and a later one is projected onto this run's clock (domain/engine/README.md, 5.4).
+/// lifted it, and a later one is projected onto this run's clock (domain/engine/decisions.md, 1.4).
 fn hold(entry: &mut Source, env: &Env<Limits>, kept: Option<Held>) {
     let (hold, attention) = match kept {
         None => return,

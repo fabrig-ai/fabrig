@@ -366,7 +366,7 @@ Checks at `.temper/pre-pr`, guides at `AGENTS.md` (smith's
   turns and one reserved turn; its waking prompt supersedes prior exhaustion.
   The task's monetary spending remains cumulative and each activation is
   funded only from what remains.
-- **Its mode is its task's ending** (jig's `domain/tasks/lifecycle.md`, 9;
+- **Its mode is its task's ending** (jig's `domain/tasks/lifecycle-endings.md`, 2;
   `jig/docs/design/domain/hosts/charters.md`, 1), the assignment's `ended_by`, whatever the
   charter: a task its result ends runs smith's `Finite` mode, and one
   its requester ends runs `Open`, granted the wait and neither `finish`

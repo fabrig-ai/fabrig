@@ -517,7 +517,7 @@ pub struct SettingDetail {
     pub bound: u32,
 }
 
-/// A whole model setting (jig/docs/design/domain/engine/settings.md, 11).
+/// A whole model setting (jig/docs/design/domain/engine/settings-catalogue.md, 1).
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct CatalogueEntry {
     pub number: u32,
@@ -536,7 +536,7 @@ pub enum ModelSource {
     Person,
 }
 
-/// A model act uses the newest catalogue (jig/docs/design/domain/engine/settings.md, 11).
+/// A model act uses the newest catalogue (jig/docs/design/domain/engine/settings-catalogue.md, 1).
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum ModelAct {
     Picker { number: u32, on: bool },

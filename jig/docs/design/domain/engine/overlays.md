@@ -86,13 +86,13 @@ its parts, `../tasks/messages.md`, 6.
 
 - **The defaults are laid under the overlay again.** A start reads the
   stored overlay and lays it over the default it is given
-  (`settings.md`, 7). A default that differs under an overlay changes the
+  (`settings-store.md`, 1). A default that differs under an overlay changes the
   current settings, unlike a default under a charter whole, which the
   change masks: so it makes the release's revision, with a version of
   the newly overlaid charter, and withdraws stale proposals as that
   revision always does. An overlay whose default is unchanged makes no
   revision.
-- **Checked whole:** the current settings are checked as `settings.md`, 7
+- **Checked whole:** the current settings are checked as `settings-store.md`, 1
   checks them, each overlaid charter whole. A start whose new default
   leaves an overlaid charter past a bound (its stored policy and parts
   past the journal's run bytes, its parts past `tasks.charter_parts`, its
@@ -106,7 +106,7 @@ its parts, `../tasks/messages.md`, 6.
 
 ## 5. Proposals, history and restoring
 
-- **A proposal** (`settings.md`, 6) carries an overlay as it carries any
+- **A proposal** (`settings-proposals.md`, 1) carries an overlay as it carries any
   value: proposed, reviewed, accepted, refused and withdrawn when stale
   alike, and checked whole at its proposal and again at its acceptance
   (2).
@@ -123,7 +123,7 @@ its parts, `../tasks/messages.md`, 6.
 
 ## 6. Reads
 
-- **A setting's read** (`settings.md`, 7, `../../client/domain/contract/README.md`,
+- **A setting's read** (`settings-store.md`, 1, `../../client/domain/contract/README.md`,
   section 4) of an overlaid charter gives the charter as its runs read
   it, the revision's version, as for any charter, and beside it the
   overlay itself, whole; a charter with no overlay gives no overlay. So

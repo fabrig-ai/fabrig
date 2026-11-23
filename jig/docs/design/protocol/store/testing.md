@@ -9,7 +9,7 @@ Each within jig's suites' budgets.
   story runs the real keys, codecs, intervals, paging and joins. No
   world fakes the store's component: the real one runs in each
   (skein/docs/foundation/testing-strategy.md, section 4).
-- **The restart oracle** (`../../domain/engine/README.md`, section 9): every
+- **The restart oracle** (`../../domain/engine/world.md`, section 1): every
   world story ends with a cold restart over its store that restores
   with every link made and reads back what it wrote. The cross-record
   rules a restore once checked are proved there, writer by writer,
@@ -31,7 +31,7 @@ Each within jig's suites' budgets.
   past its commit and none missing before it; numbers that match the
   header; pages equal to a model's.
 - **The core's world on the simulated disk,** for a decision's
-  durability across families (`../../domain/engine/README.md`, 5.1 and `../../domain/engine/restart.md`): the
+  durability across families (`../../domain/engine/decisions.md`, 1.1 and `../../domain/engine/restart.md`): the
   core world's directory-backed store (`jig-test-store-files`), killed
   at a chosen file operation of a chosen commit, and the engine started
   again through its link pass. Its rows: a kill at each operation of a
@@ -108,7 +108,7 @@ Each within jig's suites' budgets.
   points, a cut at each step of a read changes no file. Fuzzed: a frame's
   decode with machines, over random fixture frames. The core's closed
   window starts fresh with its tail, counted as a transition
-  (`../../domain/engine/executors.md`, 2); no map patch closes it at open.
+  (`../../domain/engine/executors-transcripts.md`, 1); no map patch closes it at open.
   Generation, upgrade, check and frame scenarios run in the focused
   `jig-store-world::suite` binary, with short cases as data rows and a few
   cuts chosen for what a cut there can lose (`../../domain/testing.md`, 9). Their

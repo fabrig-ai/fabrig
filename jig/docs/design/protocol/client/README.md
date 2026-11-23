@@ -252,7 +252,7 @@ recipient.
   bound, or gone past its transcript's horizon, or why there is none, as
   above (`../../client/domain/contract/README.md`, section 4; `../store/transcripts.md`, 3).
 - **Held until durable** on the engine's side, as every read's answer is
-  (`../../domain/engine/README.md`, 5.2); the exchange waits for it.
+  (`../../domain/engine/decisions.md`, 1.2); the exchange waits for it.
 
 ## 5. Watches
 
@@ -268,7 +268,7 @@ recipient.
   scope) names no party, on the wire or in the core's events: the
   protocol layer hands the core the sign-in's number, and the core names
   the subject's party from it, as it does a read's, from the sign-ins its
-  people child keeps (`../../domain/engine/README.md`, 5.4). The protocol layer
+  people child keeps (`../../domain/engine/decisions.md`, 1.4). The protocol layer
   never keeps a sign-in's party, which a restart would lose.
 - **A delivery** is one streamed message: the watch's name, and the
   document, whole, in its owner's wire. The component hands it to the

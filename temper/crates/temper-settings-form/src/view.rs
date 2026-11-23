@@ -120,12 +120,12 @@ pub enum EndedBy {
     Result,
     /// Only its requester ends it; a run's raw finish parks it (5.8).
     Requester,
-    /// A named procedure closes an agent task (jig/docs/design/domain/tasks/lifecycle.md, 11).
+    /// A named procedure closes an agent task (jig/docs/design/domain/tasks/lifecycle-endings.md, 3).
     Closer(Closer),
     Standing,
 }
 
-/// The procedure named to close a task (jig/docs/design/domain/tasks/lifecycle.md, 11).
+/// The procedure named to close a task (jig/docs/design/domain/tasks/lifecycle-endings.md, 3).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Closer {
     pub connector: u16,

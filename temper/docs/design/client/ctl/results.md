@@ -201,7 +201,7 @@ digest: task 7c1e09a2b44f0d13
   jig's `Dependency.added`), ` · added by WHO at 2026-10-22 05:10 UTC`,
   WHO as the requester is said (`you`, `party 3`, `task 7`,
   `deployment 1`); then, while it keeps the task (jig's `keeps`, jig's
-  `domain/tasks/lifecycle.md`, 8), ` · keeps task N from ending`:
+  `domain/tasks/lifecycle-endings.md`, 1), ` · keeps task N from ending`:
 
   ```
   dependencies:

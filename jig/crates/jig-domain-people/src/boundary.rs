@@ -344,7 +344,7 @@ pub enum Ask {
         revision: u64,
         again: Option<bool>,
     },
-    /// End a placed hold, optionally releasing its tasks (domain/tasks/lifecycle.md, 10).
+    /// End a placed hold, optionally releasing its tasks (domain/tasks/lifecycle-holds.md, 2).
     Lift {
         hold: u64,
         revision: u64,

@@ -44,7 +44,7 @@ The fleet child domain knows the hosts and the runs they host:
   attempt is its task's live one, but a cancelled attempt's answer. No
   attempt of a task is placed while the fleet knows a host may still run
   another.
-- **Answers and turns are acknowledged once committed** (`README.md`, 5.2), or once
+- **Answers and turns are acknowledged once committed** (`decisions.md`, 1.2), or once
   fenced off; a copy before then is dropped unacknowledged, one for an
   attempt the core has finished with is acknowledged again.
 - **Losing contact.** A lost worker's runs are kept for a grace; one that
@@ -106,7 +106,7 @@ The fleet child domain knows the hosts and the runs they host:
   the program source's login on that worker, never of its task.
   - **It fails once.** The core ends the attempt
     `End::RefusedWithReason { reason }`, as an untranslated assignment's,
-    spending no try (`../tasks/lifecycle.md`, 6), its reason
+    spending no try (`../tasks/lifecycle-holds.md`, 1), its reason
     `PROGRAM started without smith's tools: account SOURCE on worker
     WORKER`: the program the attempt's main model's endpoint names
     (`claude_code`), the program source that model ran on, by name
@@ -266,7 +266,7 @@ The fleet child domain knows the hosts and the runs they host:
   refusing it at its proposal is open (`README.md`, section 10).
 - **A hello waits for the stored settings.** The fleet judges a hello's
   agent bounds against the needs of the settings the store holds
-  (`settings.md`, 7), never the configuration's alone: from its construction until
+  (`settings-store.md`, 1), never the configuration's alone: from its construction until
   the start's settings restore tells it their needs (`Event::Needs`,
   `restart.md`, step 1), it holds each hello it hears, admitting and
   refusing none, and judges them in the order heard once told, a first
@@ -319,7 +319,7 @@ The fleet child domain knows the hosts and the runs they host:
   attempt that holds one (`README.md`, section 6), and each attempt the fleet keeps
   at a worker's hello, or adopts, is sent its current grants, so no run
   outlives its token for want of a resend. A grant never overtakes its
-  attempt's assignment (`README.md`, 5.2), so a generation renewed while the
+  attempt's assignment (`decisions.md`, 1.2), so a generation renewed while the
   assignment waits for its commit reaches the attempt after it.
 - **Every start and adoption ends once:** answered, lost, withdrawn (the
   core cancelled it), or refused (busy, a duplicate, or invalid).
@@ -330,7 +330,7 @@ The fleet child domain knows the hosts and the runs they host:
   is placed again, as no failure; one refused as invalid ends its start,
   refused. The task's class comes from the answer's payload: a refused
   transcript is transient, and any other invalid start permanent, an
-  assignment its host found invalid (../tasks/lifecycle.md, 6; ../hosts/hub.md, 3). One lost with its channel leaves its attempt unlisted at the
+  assignment its host found invalid (../tasks/lifecycle-holds.md, 1; ../hosts/hub.md, 3). One lost with its channel leaves its attempt unlisted at the
   next hello, and the start ends lost; the next attempt is refused again,
   or placed.
 - **Restarting** (`restart.md`): the fleet adopts the claims the store

@@ -400,7 +400,7 @@ the providers' faults (`smith/docs/design/faults.md`).
   goal; the world records each fault in its ledger, and holds:
   - **3.3 for runs:** no task try is spent for the fault:
     `Counter::TaskTries`, counted from jig's failed attempts
-    (`jig/docs/design/domain/tasks/lifecycle.md`, 6) of the struck
+    (`jig/docs/design/domain/tasks/lifecycle-holds.md`, 1) of the struck
     account's tasks within the fault's interval, stays at zero; spent
     credits or an expired sign-in that is never cleared holds the struck
     goal's tasks with words naming the account

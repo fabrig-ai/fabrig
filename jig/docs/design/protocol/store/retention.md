@@ -147,8 +147,8 @@ fields and nothing more.
 - **In pages, behind the commits before them:** each read of a task's
   rows waits for the commits before it to be durable, as a deletion's
   does, and each decision erases at most what one page of rows brings,
-  each page within its load's bounds (`../../domain/engine/README.md`,
-  5.3).
+  each page within its load's bounds (`../../domain/engine/decisions.md`,
+  1.3).
 - **Its clock** is the wall time of the step that reads the page.
 
 ## 6. Stages

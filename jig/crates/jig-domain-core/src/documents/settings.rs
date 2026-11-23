@@ -15,7 +15,7 @@ pub(super) fn make(core: &Core, party: u64) -> Result<Settings, Missing> {
     Ok(inventory(core))
 }
 
-/// The root's settings context at the newest revision (domain/engine/settings.md, 7).
+/// The root's settings context at the newest revision (domain/engine/settings-store.md, 1).
 #[must_use]
 pub fn inventory(core: &Core) -> Settings {
     let mut result = build(core);

@@ -77,8 +77,8 @@ ones in the fuzzy suite.
   root is handed every call, the newest answers whole and the rest cut,
   its run's turn and answer go up and are kept, and the link lives. The
   core's choice of the calls a start carries, every one committed since
-  the last turn in commit order, is the core world's (`../../domain/engine/executors.md`,
-  2).
+  the last turn in commit order, is the core world's (`../../domain/engine/executors-transcripts.md`,
+  1).
 - **The channel's protocol world,** `tests/channel`: the engine's side
   with the core under jig's test root, and the worker's side with the hub
   under the test worker's root, both as the reference service composes

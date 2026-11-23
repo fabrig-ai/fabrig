@@ -57,7 +57,7 @@ pub(super) fn read_row_visible(core: &Core, party: u64, row: &Row, run_project: 
     row_visible(core, party, row)
 }
 
-// A run reads settings proposals in its project without a party's visibility (domain/engine/executors.md, 3).
+// A run reads settings proposals in its project without a party's visibility (domain/engine/executors-tools.md, 1).
 pub(super) fn proposal_row_visible(project: u32, row: &Row) -> bool {
     match &row.value {
         Record::Tasks(tasks::Stored::History(history)) => {

@@ -9,7 +9,7 @@
 //!
 //! Model index `i` is catalogue setting `i + 1` and bit `i` of `Models`; a hole has no
 //! efforts and belongs to no charter. Effort `e` is the `e`th effort that row declares
-//! (domain/engine/settings.md, 11; `../../../docs/design/protocol/configuration-engine.md`, section 1).
+//! (domain/engine/settings-catalogue.md, 1; `../../../docs/design/protocol/configuration-engine.md`, section 1).
 
 use alloc::boxed::Box;
 

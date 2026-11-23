@@ -39,7 +39,7 @@
 - **A failure stops the engine.** skein-kv answers failed for every commit
   in flight when a write or a sync fails or stalls, and a failed write or
   sync of a transcript fails its commit the same way. The component
-  answers failed, the root stops (`../../domain/engine/README.md`, 5.1), and the
+  answers failed, the root stops (`../../domain/engine/decisions.md`, 1.1), and the
   process ends; the next opens the store, which recovers. The engine
   never carries on over a store that recovered beneath it.
 - **A refusal is a failure.** Past the checks at start, a commit skein-kv

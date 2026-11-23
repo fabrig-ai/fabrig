@@ -39,7 +39,7 @@ pub struct Charter {
     pub documents: Box<[Document]>,
     pub parts: Box<[CharterPart]>,
 }
-/// Resolve names against the current catalogue (domain/engine/settings.md, 11).
+/// Resolve names against the current catalogue (domain/engine/settings-catalogue.md, 1).
 #[must_use]
 pub fn resolved(charter: &Charter, models: &[CatalogueModel], limits: &Limits) -> Option<Charter> {
     resolution(charter, models, limits).0

@@ -324,7 +324,7 @@ A section with nothing in it is not shown.
   it writes alone, and which run holds the writer slot.
 - **Activity.** For an agent, its conversation and its runs: each run's
   attempt, why it ran, how it began (resuming, or fresh and why where
-  its activity says: `../../domain/engine/executors.md`, 2), how it ended,
+  its activity says: `../../domain/engine/executors-transcripts.md`, 1), how it ended,
   what it spent; failed runs kept, folded. For a procedure, its
   connector's panel, a part. For a party's task, its card, then who
   answered and how.

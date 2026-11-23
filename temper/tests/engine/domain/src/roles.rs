@@ -43,7 +43,7 @@ pub struct Settings {
     pub base: Base,
 
     /// Lose one successful role commit completion after atomic application
-    /// (jig's domain/engine/README.md, section 5.1).
+    /// (jig's domain/engine/decisions.md, section 1.1).
     pub cut: bool,
 
     /// Delay each atomic store application by this many passes

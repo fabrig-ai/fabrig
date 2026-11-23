@@ -267,7 +267,7 @@ Moved to [`owners.md`](owners.md), section 1.
   `domain/run.md`, 5.2). The root that composes the hub hands the name
   out to be encoded before the hub relays the call (`owners.md`, 1.1); the hub, this
   channel and the engine carry and echo its bytes, which no domain reads
-  (`../../domain/engine/executors.md`, 3), and the hub matches a relayed answer by
+  (`../../domain/engine/executors-tools.md`, 1), and the hub matches a relayed answer by
   them. The hub's link vocabulary names a relayed call by these bytes,
   its answer and its cancel included (`../../domain/hosts/hub.md`, 1), so
   neither the worker's link nor a root that composes a hub, the engine's
@@ -432,8 +432,8 @@ Moved to [`testing.md`](testing.md), section 1.
   bound's meaning is `../../domain/hosts/hub.md`, 6's, which counts it from
   the engine's view of the link, as `worker-link.md`, 1.1 does, and the fleet checks it
   at the hello (4.3; `../../domain/engine/fleet.md`).
-- **The domain gives the records their fields** (`../../domain/engine/executors.md`,
-  1 and 2; `../../domain/hosts/README.md`, section 2, and `../../domain/hosts/hub.md`, section 8): the
+- **The domain gives the records their fields** (`../../domain/engine/executors.md`, 1, and `../../domain/engine/executors-transcripts.md`, 1
+  ; `../../domain/hosts/README.md`, section 2, and `../../domain/hosts/hub.md`, section 8): the
   assignment's current window, start's messages and conversation's
   first attempt; the turns' windows, the refusals with turns and
   answers, and the unread fence; activity typed; smith's payloads as the

@@ -35,7 +35,7 @@ pub(crate) mod testing {
     }
 }
 
-/// Startup of the core world (`jig/docs/design/domain/engine/README.md`, section 9).
+/// Startup of the core world (`jig/docs/design/domain/engine/world.md`, section 1).
 #[derive(Debug)]
 pub struct Setup {
     pub seed: u64,

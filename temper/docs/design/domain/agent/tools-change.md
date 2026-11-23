@@ -124,7 +124,7 @@ delegate from what it knows:
   the call does not give before it, or a task jig refuses, refuses the
   call, naming it. Its producer, and every other task it delegates to, may
   read each of them with `read_task`, live or retained, read only (jig's
-  `domain/engine/executors.md`, 3): a dependency is no reference, and
+  `domain/engine/executors-tools.md`, 1): a dependency is no reference, and
   carries no message.
 - **`merge`:** a catch-up (../forge/updates.md, section 1): the commit to take, as
   40 or 64 hexadecimal digits, which the merge job merges into a branch

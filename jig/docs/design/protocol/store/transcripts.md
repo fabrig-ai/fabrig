@@ -43,7 +43,7 @@ converted; retention drops them as it drops a turns log.
 
 The core commits a turn with its spend, its run proof and the messages it
 read, in one decision, and acknowledges the host once that commit is
-durable (`../../domain/engine/executors.md`, 2). For a commit with turns, the
+durable (`../../domain/engine/executors-transcripts.md`, 1). For a commit with turns, the
 component takes the following steps.
 
 Before step 1, it encodes and checks every frame against `P` as described
@@ -68,10 +68,10 @@ the committed length. The next open cuts the file to its committed length
 
 - **Resuming:** a run that resumes is given its current window's turns,
   from the window's first turn to the end, within the resume limit
-  (`../../domain/engine/executors.md`, 2), read forwards a page at a time while the
+  (`../../domain/engine/executors-transcripts.md`, 1), read forwards a page at a time while the
   task prepares. The core asks only when its conversation has a window,
-  and names the turn that opens it, as it keeps it (`../../domain/engine/README.md`,
-  5.4); a window that starts at another turn fails the read as unread.
+  and names the turn that opens it, as it keeps it (`../../domain/engine/decisions.md`,
+  1.4); a window that starts at another turn fails the read as unread.
 - **A window's turn past its page's room** is handed on cut: its fields
   and its transcript's length, not its bytes, as a party's page has a
   turn past its bound, alone in its page, with the continuation past its
@@ -80,7 +80,7 @@ the committed length. The next open cuts the file to its committed length
   always moves on, and a window's read is never unread for a turn's
   size: unread stays for a window that starts at another turn and for a
   frame unread or refused (below). The core keeps the cut turn's place
-  and length, never its bytes (`../../domain/engine/executors.md`, 2).
+  and length, never its bytes (`../../domain/engine/executors-transcripts.md`, 1).
 - **A turn,** for a party's read: from its attempt's first turn, walking
   frames forwards to its number. A turn read alone is bounded by the
   read's byte bound (`loads.md`, 3): past it, the read answers the turn's size in
@@ -114,7 +114,7 @@ the committed length. The next open cuts the file to its committed length
 - **A frame that fails its checksum** fails the read as unread, and so
   does one its machines refuse (6). The core
   treats the transcript as one the agent cannot use: the run fails as
-  transient and the next starts fresh (`../../domain/engine/executors.md`, 2); a
+  transient and the next starts fresh (`../../domain/engine/executors-transcripts.md`, 1); a
   closed window's tail it cannot read, it leaves out.
 - **Open files are bounded:** the component keeps a bounded set open,
   live tasks' first, and opens others to read them.
@@ -127,7 +127,7 @@ task's file to its committed length, syncing it: zero for a task with no
 places yet, whose first turn's commit was lost; a missing file is left
 missing. Only a crash leaves bytes past a committed length, since a
 failed commit stops the engine, and only a claimed task has frames, its
-claim durable before its run was placed (`../../domain/engine/README.md`, 5.2).
+claim durable before its run was placed (`../../domain/engine/decisions.md`, 1.2).
 After the cut every file holds exactly its committed turns. An ended
 task's file was cut while its task lived, and is not touched again.
 

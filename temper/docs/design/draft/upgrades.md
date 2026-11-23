@@ -412,7 +412,7 @@ start, naming the record and what it links to; no effect leaves before
 the switch. Nothing judges a writer's domain rules again.
 
 The cross-record rules are oracles over every writer, a cold restart
-closing every world story (jig's `domain/engine/README.md`, section 9).
+closing every world story (jig's `domain/engine/world.md`, section 1).
 Registry changes and jobs are proved over sample stores (13); the
 counts per family, before and after, stay in the manifest.
 

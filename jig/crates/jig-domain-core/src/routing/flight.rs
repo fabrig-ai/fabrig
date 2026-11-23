@@ -1,5 +1,5 @@
 //! Child replies resume the continuation named by their handle
-//! (`jig/docs/design/domain/engine/README.md`, sections 4.3 and 4.4).
+//! (`jig/docs/design/domain/engine/vocabulary.md`, sections 1.3 and 1.4).
 
 use crate::Core;
 use alloc::boxed::Box;
@@ -341,7 +341,7 @@ impl Core {
         }
     }
     /// Name a connector payload before handing it to the core's effect route
-    /// (`jig/docs/design/domain/engine/README.md`, section 4.4).
+    /// (`jig/docs/design/domain/engine/vocabulary.md`, section 1.4).
     pub fn effect_owner(&mut self) -> Token {
         self.fly(Flight::EffectStaging)
     }

@@ -1,5 +1,5 @@
 //! Pure borrowed durable-row heap measurement for root journal/load admission
-//! (domain/tasks/README.md, section 2; domain/engine/README.md, sections 5.3 and 5.6).
+//! (domain/tasks/README.md, section 2; domain/engine/decisions.md, sections 1.3 and 1.6).
 //! Measures existing ownership without allocating or cloning; shape admission
 //! remains with tasks and authority decisions remain with root policy checks.
 use crate::{

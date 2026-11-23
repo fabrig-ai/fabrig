@@ -1,5 +1,5 @@
 //! Core-owned proposal action checks and nearest-holder routing
-//! (domain/engine/README.md, 4.4; domain/tasks/proposals.md).
+//! (domain/engine/vocabulary.md, 1.4; domain/tasks/proposals.md).
 
 use alloc::boxed::Box;
 use jig_domain_authority as authority;

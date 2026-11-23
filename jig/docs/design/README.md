@@ -294,8 +294,8 @@ store answers n → journal.committed(n) → the outputs held for n leave, in or
 Outputs that decide nothing and show nothing durable leave through one
 explicit door of the journal, untagged, so review finds every use. These
 are, among others, a run's text streamed to watchers as it is written,
-and answers to a run's read tools (`domain/engine/README.md`, 4.2). What parties read and watch shows state, so it is
-held like any other output (`domain/engine/README.md`, 5.2;
+and answers to a run's read tools (`domain/engine/vocabulary.md`, 1.2). What parties read and watch shows state, so it is
+held like any other output (`domain/engine/decisions.md`, 1.2;
 `client/domain/contract/README.md`, sections 4 and 5).
 
 ### 6.4 Ordering belongs to the core
@@ -313,7 +313,7 @@ held like any other output (`domain/engine/README.md`, 5.2;
 
   The root does the step it is asked for, and the core asks for the next
   one only after hearing that this one is done.
-- **Effects follow one loop** (`domain/engine/README.md`, 4.4;
+- **Effects follow one loop** (`domain/engine/vocabulary.md`, 1.4;
   `domain/connectors.md`, section 4):
   1. a connector proposes an effect, from a procedure's step or from an
      agent's call;
@@ -424,7 +424,7 @@ and the conformance world crashes the application at every commit.
     under the application's tag (`protocol/store/README.md`, section 7).
 - **One commit spans both,** through the journal. The live records of
   both are loaded by the core's restart script (6.4). skein-kv is
-  underneath, inside the engine (`domain/engine/README.md`, section 5).
+  underneath, inside the engine (`domain/engine/decisions.md`, section 1).
 
 ## 9. Agents and their hosts
 
@@ -715,7 +715,14 @@ application as its first user.
   (`providers.md`) and a program's login in a lent terminal
   (`terminal-login.md`), and testing. Its `README.md` gives the reading order
   and the names, and the decisions it took on what this document left
-  open.
+  open. The tasks' documents include failures and holds (`tasks/lifecycle-holds.md`)
+  and dependencies and endings (`tasks/lifecycle-endings.md`). The core's
+  include its vocabulary (`engine/vocabulary.md`), decisions and the store
+  (`engine/decisions.md`), and its world (`engine/world.md`); transcripts
+  (`engine/executors-transcripts.md`) and tools (`engine/executors-tools.md`);
+  and application settings (`engine/settings-application.md`), proposals
+  (`engine/settings-proposals.md`), the settings store (`engine/settings-store.md`)
+  and the model catalogue (`engine/settings-catalogue.md`).
 - **`client/domain/`:** jig's client: `jig-client`, what it holds and
   its surface; the API between a client and the engine: plumbing
   operations, subjects and reads, documents and their revisions,

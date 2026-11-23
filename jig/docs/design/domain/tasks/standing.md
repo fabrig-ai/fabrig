@@ -7,8 +7,8 @@ each starting fresh from the few lines it keeps, its Now. It is the
 middle kind of agent task, between a run that finishes once and a
 conversation a person is in: an application's agent that owns some work
 for a project's life, works in short sessions and answers to a person.
-It revises `README.md`, sections 3, 5 and 6, `lifecycle.md`, sections 2,
-6 and 9, `messages.md`, section 6, `../engine/executors.md`, section 4,
+It revises `README.md`, sections 3, 5 and 6, `lifecycle.md`, section 2, and `lifecycle-holds.md`, section 1, and `lifecycle-endings.md`, section 2
+, `messages.md`, section 6, `../engine/executors.md`, section 4,
 `../engine/briefs.md`, sections 1 and 2, `../authority.md`, section 7,
 `../people/acts.md`, section 1, and `../../protocol/configuration-engine.md`,
 section 1, which say where it differs. It takes up `../../draft/notes-memory.md`, section 4, for a
@@ -41,7 +41,7 @@ standing task's Now alone.
 
 ## 2. A task that stands
 
-- **Made standing.** A task's `ended_by` (`lifecycle.md`, 9) may be
+- **Made standing.** A task's `ended_by` (`lifecycle-endings.md`, 2) may be
   `standing`, fixed at its making as every ending is. Its shape: an agent
   executor; its requester a person, not the deployment and not a task; not
   a conversation; untracked. Any other shape is refused as its ending's
@@ -58,7 +58,7 @@ standing task's Now alone.
 - **A finish parks it.** A run that answers finished, done or failed,
   with follow-ups or none, is committed as parked: its turns first, then
   its saved state, with no try spent, and its result and follow-ups
-  discarded, as a task its requester ends (`lifecycle.md`, 9). The fences
+  discarded, as a task its requester ends (`lifecycle-endings.md`, 2). The fences
   of saved work, of charge and of messages are checked first, as for any
   finish. Its activity takes a line, `Stood`, naming the attempt and
   holding the result's words, cut to 512 bytes at a character's edge, so
@@ -74,8 +74,8 @@ standing task's Now alone.
   live; a standing task has no such bound, since a goal it started may
   run for days.
 - **Its tries count per session.** Its tries per class of failure
-  (`lifecycle.md`, 6) start again as each of its sessions begins
-  (section 5.1), as a release starts them again, so that a failure in one
+  (`lifecycle-holds.md`, 1) start again as each of its sessions begins
+  (`standing.md`, section 5.1), as a release starts them again, so that a failure in one
   week's work does not count against the next. Past them within a
   session, it is held as any task is.
 
@@ -119,7 +119,7 @@ standing task's Now alone.
   too little left, leaves it as it is, judged again at its next run's
   end and the next period's start.
 - **Past its budget,** with too little left for its next run's reserve
-  (`lifecycle.md`, 6), it is held for its budget, and the hold's
+  (`lifecycle-holds.md`, 1), it is held for its budget, and the hold's
   escalation reaches its person, as money always waits for a person. A
   renewal lifts that hold in the decision that renews it, its cause
   passed, and withdraws its escalation. Its person may release or widen
@@ -132,7 +132,7 @@ standing task's Now alone.
 
 - **A stretch of its runs,** from the wake that begins it to the end code
   judges (5.2). Within it each run resumes the session's transcript
-  (`../engine/executors.md`, 2 and 4); across sessions each starts fresh
+  (`../engine/executors-transcripts.md`, 1, and `../engine/executors.md`, 4); across sessions each starts fresh
   from a brief (5.4). A standing task whose charter starts fresh has a
   session of one wake.
 - **Its record,** kept with the task (`README.md`, section 3) and saved
@@ -150,7 +150,7 @@ standing task's Now alone.
 - **Judged at a wake.** A session's ends at a wake (5.2) are judged when
   a wake makes the task due and its run is prepared: a message, an entry
   waiting for its decision, or a timer. A retry, the continuation of a run
-  parked kept (`lifecycle.md`, 8), and an attempt interrupted or lost and
+  parked kept (`lifecycle-endings.md`, 1), and an attempt interrupted or lost and
   due again go on within their session, unjudged.
 - **The open activation tells them apart.** The task's record keeps
   `activation_open`, set at the claim that begins an activation and
@@ -177,7 +177,7 @@ that woke it and its talk (5.6). At a wake, the first of:
 - **Fresh:** its run cannot resume: its charter starts fresh, or its
   transcript's window cannot be resumed, closed, cut, past
   `resume_bytes`, or run on another endpoint or backend than the one
-  this run's source runs on (`../engine/executors.md`, 2, *Resumed only
+  this run's source runs on (`../engine/executors-transcripts.md`, 1, *Resumed only
   where it ran*). The run that follows reads its Now whole and its
   notes' index as any session's first (5.4), and nothing it keeps
   outside its transcript is lost.
@@ -291,7 +291,7 @@ while they are there.
 - **Its lines:** `TalkOpened { party }` as it opens, and
   `TalkEnded { party, lapsed }` as it ends, left or lapsed, each in the
   task's activity, so that a client reads a talk as the activity between
-  them (`../engine/executors.md`, 2), its words and the runs' turns,
+  them (`../engine/executors-transcripts.md`, 1), its words and the runs' turns,
   never resumed once ended.
 - **Restored with the task** (5.5): its times are wall times, so a
   restart neither ends nor lapses it.

@@ -61,7 +61,7 @@ rules; their statuses say where the design still lags.
   the words and the design do not settle.
   A designer's questions are about the draft, which no foreman can read
   better than the coordinator.
-- **The change kept by its question** (jig's `domain/tasks/lifecycle.md`, 8)
+- **The change kept by its question** (jig's `domain/tasks/lifecycle-endings.md`, 1)
   still steps. It merges nothing while its producer works, and a
   repair's or a resolution's question takes it out of its queue until
   answered, which suits a change that cannot merge yet. A procedure

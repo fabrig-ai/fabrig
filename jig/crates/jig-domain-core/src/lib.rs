@@ -1,7 +1,7 @@
 //! The engine core composes the task hub, policy, parties, fleet, accounts,
 //! briefs, notes and views. It keeps work in jig's vocabulary and asks its
 //! application's root to route the store, hosts, parties and connectors.
-//! See `domain/engine/README.md`, sections 3 to 5.
+//! See `domain/engine/README.md`, section 3, and `domain/engine/vocabulary.md`, section 1, and `domain/engine/decisions.md`, section 1.
 //!
 //! The core never holds a connector's value or a store encoding.
 

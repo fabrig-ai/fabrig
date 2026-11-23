@@ -186,7 +186,7 @@ pub(crate) fn room_staged(
         return false;
     };
     // Amendment, grace and Met each have a separately priced slot. A notice
-    // that the task may go on cannot consume a sender's room (domain/tasks/lifecycle.md, 8, and domain/tasks/messages.md, 2).
+    // that the task may go on cannot consume a sender's room (domain/tasks/lifecycle-endings.md, 1, and domain/tasks/messages.md, 2).
     let mut extra_count = 0_usize;
     let mut extra_bytes = 0_usize;
     for word in record.inbox {

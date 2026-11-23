@@ -344,7 +344,7 @@ handles, as every presentation does (`README.md`, section 6 and `watches.md`).
   (`../../../protocol/client/README.md`, section 4): the application reads again
   if it wants.
 - **What is live is watched; what is past is read.** The engine holds
-  live work only (`../../../domain/engine/README.md`, 5.3), so ended tasks, history
+  live work only (`../../../domain/engine/decisions.md`, 1.3), so ended tasks, history
   and transcripts are pages read from its store, a page at a time, as
   the application asks.
 - **A window** is what a watch's document holds of a list, or a read's

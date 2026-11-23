@@ -88,7 +88,7 @@ systems   what the application's connectors drive
   engine only through tools their host relays (hosts/README.md).
 - **The store is assumed.** It keeps durably what the engine gives it,
   commits several changes as one, applies commits in order, and answers
-  bounded reads (engine/README.md, section 5).
+  bounded reads (engine/decisions.md, section 1).
 - **People reach the engine through a client** of the application's,
   built on jig's, `jig-client` (people/README.md; `../README.md`, section 10).
 
@@ -499,7 +499,7 @@ An agent delegates in two ways, and chooses between them:
 
 An agent reaches the engine through tools its host relays, each a
 party's operation or a task's own, checked against its task's authority
-(engine/executors.md, 3).
+(engine/executors-tools.md, 1).
 
 ## 8. Applications and external systems
 

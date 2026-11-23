@@ -191,12 +191,12 @@ a page, and each turn's line its turn (below).
   key a single read needs (a question's line and its answer's, an
   escalation's hold, a task's proposal in its proposer's history), the
   domain names it there, or keeps an index (`README.md`, section 10).
-- **An answer is read where it was heard** (`../../domain/engine/executors.md`, 2;
+- **An answer is read where it was heard** (`../../domain/engine/executors-transcripts.md`, 1;
   who may read it, `../../client/domain/contract/README.md`, section 4): the
   question's record names the answer by its task and position, and the
   read joins it by a point read, as the record it relates to.
 - **A read past its bounds** is cut and says so, as every load is
-  (`../../domain/engine/README.md`, 5.3).
+  (`../../domain/engine/decisions.md`, 1.3).
 
 ## 4. Indexes
 

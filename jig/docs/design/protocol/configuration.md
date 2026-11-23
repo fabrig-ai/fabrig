@@ -155,7 +155,7 @@ host's half reports it (`llm.md`, 5.5).
   party's request, its root opens one period for each configured
   project, its budget the project's spend per period, with no next
   start, since it keeps no calendar. A later start says none: the store
-  keeps the current period (`../domain/engine/README.md`, 5.4).
+  keeps the current period (`../domain/engine/decisions.md`, 1.4).
 - **A project made after the first start** has its first period opened
   by the core, in the decision that makes it, its budget the policy's
   spend per period, with no next start (`../domain/people/acts.md`, 2);
@@ -193,7 +193,7 @@ host's half reports it (`llm.md`, 5.5).
   `urn:uuid:…` sent to LLM providers as `ext_agent_host_id`
   (`store/keys.md`, 1.4), and the core seeds owners, the deployment's roles
   and projects from configuration into its first commit
-  (`../domain/engine/README.md`, 5.4 and section 8). The admitted projects seed as a whole; fixed
+  (`../domain/engine/decisions.md`, 1.4, and `../domain/engine/README.md`, 8). The admitted projects seed as a whole; fixed
   insufficient capacity is rejected by the whole-config check after
   overrides (`limits.md`), never handled by partial or incremental seed.
   Configuration's tests put two configured projects, with the
@@ -206,7 +206,7 @@ host's half reports it (`llm.md`, 5.5).
   installation's identifier, ignoring the one the shell drew. The
   configuration's projects are ignored, every project, seeded or made,
   restored from the store alone. The settings are the defaults with the
-  store's changes over them (`../domain/engine/settings.md`, 7): where the
+  store's changes over them (`../domain/engine/settings-store.md`, 1): where the
   application passes no defaults, the document's `rules`, `charters`,
   `templates` and `policies` are them, so a restart with the same
   document and no change behaves as before; a document edited since the

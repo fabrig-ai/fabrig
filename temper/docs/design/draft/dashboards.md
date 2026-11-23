@@ -22,8 +22,8 @@ here is adopted, and nothing here is a part of v0.1.0 (`v0.1.0.md`).
   dashboard; an owner accepts it on the review page, and it is one of
   the client's pages from then on (section 6).
 - **A dashboard is a setting.** A kind of temper's, defaulted, changed,
-  proposed and decided as every setting is (jig's `domain/engine/settings.md`,
-  5), each change a revision with its history. No new process: the
+  proposed and decided as every setting is (jig's `domain/engine/settings-application.md`,
+  1), each change a revision with its history. No new process: the
   proposal card, the review page and "How work runs" are
   `configuring.md`'s (`../client/pages/settings.md`, 2).
 - **Three layers:** *facts*, what the engine and its connectors already
@@ -93,7 +93,7 @@ by its owner first, and the agent says so (6.3).
 | Owner | Facts kept | Where |
 |---|---|---|
 | jig's tasks | each task's project, label, executor kind, charter and its revision, model and effort; its phase; its times (made, changed, ended, last activity); its outcome or failure's reason; a goal is a tracked task | jig's `domain/tasks/README.md`, section 3, and `domain/tasks/lifecycle.md`, section 1; `jig/docs/design/domain/model.md`, 6.2; `jig/docs/design/domain/engine/settings.md`, 3 |
-| jig's runs | each run begun and ended, in its task's activity; each turn's spend | jig's `domain/engine/executors.md`, 2 |
+| jig's runs | each run begun and ended, in its task's activity; each turn's spend | jig's `domain/engine/executors-transcripts.md`, 1 |
 | jig's spend | each funder's spend per period, against its budget | jig's `domain/authority.md`, section 7 |
 | jig's people | what waits on each party: questions, proposals, escalations and person tasks, counted exactly | jig's `client/domain/contract/documents.md`, 1 (`me`); `jig/docs/design/domain/people/README.md`, section 5 |
 | jig's accounts | each source's state; *limited*, with its reset where the provider says it | jig's `domain/accounts.md`, 3.5 |
@@ -103,7 +103,7 @@ by its owner first, and the agent says so (6.3).
 - **Not kept:** token counts as numbers (smith's turn records them,
   smith's `protocol/transcript.md`, section 2, and jig's core reads only
   a turn's size, its spend, what it took and whether it opens a window,
-  jig's `domain/engine/executors.md`, 2); a host's load, memory or disk; how much
+  jig's `domain/engine/executors-transcripts.md`, 1); a host's load, memory or disk; how much
   of a provider's plan is used, beyond limited; a landing's own time
   (its change's ended time stands in); CI's steps, and CI across a
   restart, which forgets it.
@@ -217,8 +217,8 @@ caption:
   lines.
 - **It names metrics,** and a change that would remove a metric a
   dashboard shows is refused, naming the dashboard, as one that would
-  leave a template's charter unoffered is (jig's `domain/engine/settings.md`,
-  5, "Charters a value names"). jig's check of references widens from
+  leave a template's charter unoffered is (jig's `domain/engine/settings-application.md`,
+  1, "Charters a value names"). jig's check of references widens from
   charters to settings of any kind: a jig change.
 
 ### 5.2 The palette
@@ -426,7 +426,7 @@ wasm32 (`../playground.md`). Default: none.
 - **Warnings that reach a person,** a threshold crossed as an entry in
   an inbox. Default: later; a warning panel only.
 - **A run's own dashboard,** proposed by an agent for the goal it owns
-  (jig's `domain/engine/settings.md`, 6). Default: later; the configuring
+  (jig's `domain/engine/settings-proposals.md`, 1). Default: later; the configuring
   chat only.
 - **Hand edits** of a dashboard, by an owner who also decides it.
   Default: proposals only, as `configuring.md`'s (its section 10).

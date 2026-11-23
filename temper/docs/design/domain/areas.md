@@ -43,11 +43,11 @@ Routing by path is later (`../draft/standing-roles.md`, section 13).
   (`../protocol/configuration/settings-kinds.md`, 1). With none, every
   finding is the triager's.
 - **Changed as any setting:** by the project's owners, or by proposal
-  (jig's `domain/engine/settings.md`, 6). Handing an area to a role, or
+  (jig's `domain/engine/settings-proposals.md`, 1). Handing an area to a role, or
   back, is a change of its owner. A standing role may propose a change
   of its own area's words (`agent/standing.md`, section 5). An area
   removed leaves its findings' `area` as written, and their owner falls
-  to the triager by section 4's chain.
+  to the triager by `areas.md`, section 4's chain.
 
 ## 3. Owners
 

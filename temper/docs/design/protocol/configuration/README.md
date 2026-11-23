@@ -169,7 +169,7 @@ Documents:
   refused (`moved.md`, 3). A start runs the providers its engine last
   kept, and every check below of a provider runs on them. A provider
   holds no model, account, key or record: models are settings
-  (`stock.md`; jig's `domain/engine/settings.md`, 11), and accounts are
+  (`stock.md`; jig's `domain/engine/settings-catalogue.md`, 1), and accounts are
   made from the client (../credentials-llm-accounts.md, section 1). The
   registration's name hint is `temper` in every deployment (jig's
   `domain/providers.md`, 2.2); a provider temper does not ship is

@@ -424,7 +424,7 @@ Moved to [`needs-you-terminal.md`](needs-you-terminal.md), section 1.
       item against the newest revision, its reason "Stop asking in PROJECT:
       let agents decide OBJECT, then tell whoever they would have asked.",
       which a party with a role in the project may make and the owners
-      decide (jig's `domain/people/acts.md`, 1, and `jig/docs/design/domain/engine/settings.md`, 6);
+      decide (jig's `domain/people/acts.md`, 1, and `jig/docs/design/domain/engine/settings-proposals.md`, 1);
       it is the person's own proposal, never a procedure's. While one is out
       every act of the open offers, and the line's own, is off. Applied, the toast "Applied: the
       next one is decided and listed. This one still waits for you.";

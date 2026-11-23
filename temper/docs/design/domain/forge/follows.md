@@ -200,7 +200,7 @@ every setting is, its decision that project's owners'. Its value, a
 - **One follow change per entry,** made in queue order: a change
   (`change/README.md`, 1) into the target's branch, depending on the
   follow change before it while that one lives (jig's
-  `domain/tasks/lifecycle.md`, 8), on none when none does. Its
+  `domain/tasks/lifecycle-endings.md`, 1), on none when none does. Its
   parameters: 1, the target; 2, its branch; 11, where the follow names a
   producer; and 18, the landings it follows. It carries no parameter 14:
   parameter 18 makes its question route `up`, to the follow task, and
@@ -298,8 +298,8 @@ every setting is, its decision that project's owners'. Its value, a
 - **An end without landing:** a follow change failed, or cancelled by
   anyone but its follow, leaves its landings in the queue, its entry
   `ended without landing: WORDS`, its result's first line; jig holds the
-  change after it for its dependency (jig's `domain/tasks/lifecycle.md`,
-  6), and the owner starts the entry again or skips it (section 5). The
+  change after it for its dependency (jig's `domain/tasks/lifecycle-holds.md`,
+  1), and the owner starts the entry again or skips it (`follows.md`, section 5). The
   follow never releases that hold: a procedure releases none (jig's
   `domain/connectors.md`, 6.3). None of the follow changes after the
   ended one has produced, as each waits on it, so the act that starts

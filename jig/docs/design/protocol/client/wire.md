@@ -14,7 +14,7 @@
     `Compound { project, operations }` (3.4 of it). A change of settings
     carries each value as the configuration's member describes it, field
     for field, a charter's instructions as text and an application's
-    kind's value as its bytes (`../../domain/engine/settings.md`, 1 and 5);
+    kind's value as its bytes (`../../domain/engine/settings.md`, 1, and `../../domain/engine/settings-application.md`, 1);
   - their answers, with refusals' facts (section 2 of it), *version not
     served* among them;
   - the reads of its section 6 and their pages, the task query among
@@ -129,7 +129,7 @@ worker position that is unconfigured or held by a live channel. These
 are bounded secret-free configuration and derived facts
 (`../../client/domain/contract/documents.md`, 1, and `../../client/domain/contract/README.md`, 5.1).
 
-The wire carries added dependencies (`../../domain/tasks/lifecycle.md`, 8 and `../../domain/tasks/holds.md`, 7 and `../../domain/tasks/changes.md`
+The wire carries added dependencies (`../../domain/tasks/lifecycle-endings.md`, 1 and `../../domain/tasks/holds.md`, 7 and `../../domain/tasks/changes.md`
 ): an `Amend` names a task's dependencies as one whole list;
 the refusals *circle*, naming its tasks in order, cut at its limit,
 which a batch's cycle becomes, *dependency* and *kept*; a task
@@ -140,7 +140,7 @@ naming it (`../../client/domain/contract/requests.md` and `../../client/domain/c
 owner's activity also carries the parked run's kept line, its attempt
 and pending dependencies, and the owner's message kinds the met
 notice, the dependency and whether it was removed
-(`../../domain/tasks/lifecycle.md`, 8, and `../../domain/tasks/messages.md`, 1; `../../domain/engine/executors.md`).
+(`../../domain/tasks/lifecycle-endings.md`, 1, and `../../domain/tasks/messages.md`, 1; `../../domain/engine/executors.md`).
 
 A task's run wait carries `TaskRunWait.refused`: a hello refusal,
 `TaskWaitHello`, the `HostKind`, the wall receipt time, the

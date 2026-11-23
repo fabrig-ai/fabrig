@@ -10,7 +10,7 @@ use jig_domain_tasks as t;
 use skein_lib::{List, Reader, bytes};
 
 /// The current catalogue in numbered positions, including empty rows for holes
-/// (jig/docs/design/domain/engine/settings.md, 11).
+/// (jig/docs/design/domain/engine/settings-catalogue.md, 1).
 #[must_use]
 #[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 pub fn catalogue(models: &[jig_domain_core_vocabulary::settings::CatalogueModel]) -> Box<[Model]> {

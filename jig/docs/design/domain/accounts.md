@@ -114,7 +114,7 @@ in a record of its own (3.7).
   (people/README.md, section 3), and the two are numbered apart.
 - **Accounts are made at runtime,** by a person's sign-in, a key added
   or a program's source declared (section 5), and kept in the store
-  (engine/README.md, 5.4). An LLM provider whose source is *none* has one
+  (engine/decisions.md, 1.4). An LLM provider whose source is *none* has one
   account, the deployment's, made at the first start that configures
   it. An application's configuration names LLM providers, never
   accounts, and an endpoint names no account. On restart the accounts
@@ -392,12 +392,12 @@ says (`../protocol/llm.md`, section 5) and what runs' agents notice
   No wall from a losing reset replaces the winner's wall.
 - **What the store keeps** of each source is its kind, its name, its
   hold (limited, refused or moving), and a limit's reset as a wall
-  time (engine/README.md, 5.4): a restart preserves that saved wall exactly,
+  time (engine/decisions.md, 1.4): a restart preserves that saved wall exactly,
   maps it once to a fresh monotonic
   `at`, lifts a limit whose reset passed while the engine was down,
   and holds a later one until it. The optional wall reset
   represents both timed and indefinite limits. A source held moving is stored so, and a restart brings it
-  back as a cancelled move does (section 6). A program's login on a
+  back as a cancelled move does (`accounts.md`, section 6). A program's login on a
   worker is not stored: its
   half reports it as `logins`, which follow the worker's hello
   (`../protocol/channel/README.md`, 4.3).
@@ -436,7 +436,7 @@ uncapped and grow with the admitted work.
 
 Each LLM provider says what it lists, and an account's list says what it serves
 (providers.md, 2.4). The accounts child says when an account's is read and keeps
-what its last read gave; what a read does to the catalogue is `engine/settings.md`, 12.
+what its last read gave; what a read does to the catalogue is `engine/settings-catalogue.md`, 2.
 
 - **Which accounts have one:** an account of a provider whose configuration gives
   `keep` (`../protocol/configuration-engine.md`, section 1), whose first source in its
@@ -457,7 +457,7 @@ what its last read gave; what a read does to the catalogue is `engine/settings.m
   is due until it is: nothing is asked of a limited or a refused source.
 - **How it is read:** the child asks with the account's source's grant, by its
   number and generation as a run's, and hears one answer. The core gives it to the
-  fleet (`engine/settings.md`, 12), and a worker reads it (`hosts/README.md`, 5.1). It is no
+  fleet (`engine/settings-catalogue.md`, 2), and a worker reads it (`hosts/README.md`, 5.1). It is no
   run, and spends no budget and no slot. It goes to the provider's `direct`
   endpoint where the provider names one, else to its `endpoint`
   (`../protocol/configuration-engine.md`, section 1): a key's read is the direct way's,
@@ -465,7 +465,7 @@ what its last read gave; what a read does to the catalogue is `engine/settings.m
   list directly.
 - **What the store keeps** on the account's record (`../protocol/store/keys.md`, 1.4):
   - `names`: which of the catalogue's models its last good read gave, a bit per
-    setting, as a task's choice holds a number (`engine/settings.md`, 11);
+    setting, as a task's choice holds a number (`engine/settings-catalogue.md`, 1);
   - `read`: when that read was, or none;
   - `tried`: when its last attempt ended, or none;
   - `failure`: why its last attempt failed, or none: refused with a status, the
@@ -478,7 +478,7 @@ what its last read gave; what a read does to the catalogue is `engine/settings.m
 - **What it decides:** whether this account can run a model, for the offer (`engine/views.md`,
   1) and for a task given no choice (4.3). An account **allows** a model of
   its provider when:
-  - a person added the model, whatever any list says (`engine/settings.md`, 11); or
+  - a person added the model, whatever any list says (`engine/settings-catalogue.md`, 1); or
   - it has a good read, and `names` holds the model; or
   - it has no good read: no list, none read yet or only failures, and the model
     is the stock's.
@@ -821,7 +821,7 @@ among their own (`../client/domain/contract/README.md`, 5.1).
   kept in the secrets' store first, and handed to the core by a drawn
   number and its digest. An LLM key, or a moved record, is then adopted
   into its source's secret row before it is granted (`../protocol/store/secrets.md`).
-  Requests and their answers are committed and kept (engine/README.md, 5.4);
+  Requests and their answers are committed and kept (engine/decisions.md, 1.4);
   a value is not. A client sends a request carrying a value once, and
   never keeps nor resends it
   (`../protocol/client/README.md`, section 3, and `../protocol/client/small-store.md`, section 1). A moved-out record goes
