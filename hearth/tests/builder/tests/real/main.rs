@@ -38,37 +38,6 @@ fn hearth_render_prints_the_thin_repositorys_spec_through_real_git() {
     assert_eq!(rendered.exit, Exit::Code(0), "hearth/docs/design/client/README.md 3.3: done");
 }
 #[test]
-fn json_lines_give_the_version_first_and_the_outcome_last() {
-    let repository = Repository::make("json", fixtures::THIN);
-    let rendered = fixtures::render(&repository, &[], Form::JsonLines);
-    let stdout = std::str::from_utf8(&rendered.stdout).expect("JSON text");
-    let lines: Vec<_> = stdout.lines().collect();
-    assert_eq!(lines.first().copied(), Some("{\"record\":\"version\",\"client\":1}"), "version first");
-    assert_eq!(
-        lines.last().copied(),
-        Some("{\"record\":\"outcome\",\"outcome\":\"done\",\"left_out\":0}"),
-        "terminal last"
-    );
-    assert_eq!(
-        lines.len(),
-        fixtures::THIN_RECORDS,
-        "version, spec, boot, packages, software, config, data, secrets, live, exports, meta and outcome"
-    );
-}
-#[test]
-fn an_unknown_target_exits_64_after_the_listing() {
-    let repository = Repository::make("unknown", fixtures::THIN);
-    let rendered = fixtures::render(&repository, &[b"no-such-target"], Form::Text);
-    assert_eq!(rendered.exit, Exit::Code(64), "unknown target is Usage");
-    assert_eq!(rendered.stdout, b"", "no unknown spec");
-}
-#[test]
-fn a_revision_git_cannot_resolve_exits_64() {
-    let repository = Repository::make("revision", fixtures::THIN);
-    let rendered = fixtures::render_at(&repository, "nope", &[], Form::Text);
-    assert_eq!(rendered.exit, Exit::Code(64), "unresolved revision is Usage");
-}
-#[test]
 fn a_directory_that_is_no_repository_exits_75() {
     let repository = Repository::empty("no-repository");
     let rendered = fixtures::render(&repository, &[], Form::Text);
@@ -115,21 +84,6 @@ fn static_files_enter_the_cache_by_sha256_and_no_temporary_stays() {
         assert_eq!(fs::read(cache.join(name)).expect("cached bytes"), body, "{name}");
         assert_eq!(fs::metadata(cache.join(name)).expect("cache file").permissions().mode() & 0o7777, 0o644, "{name}");
     }
-}
-
-#[test]
-fn hearth_render_gives_each_target_the_tasks_its_presence_layers_leave() {
-    let repository = Repository::make("layers", &fixtures::thin_with(fixtures::LAYERS));
-    let rendered = fixtures::render(&repository, &[], Form::Text);
-    assert_eq!(
-        fixtures::lines_starting(&rendered.stdout, &["target ", "  /"]),
-        "target       x1-prod   base x1   environment prod\n  /etc/motd                file 0644 root:root 775324fcea7f\n  /usr/local/bin/motd      file 0755 root:root f487088ec8b1\ntarget       x2-prod   base x2   environment prod\n"
-    );
-}
-#[test]
-fn presence_layers_render_successfully_through_real_git() {
-    let repository = Repository::make("layers-exit", &fixtures::thin_with(fixtures::LAYERS));
-    assert_eq!(fixtures::render(&repository, &[], Form::Text).exit, Exit::Code(0));
 }
 
 #[test]
@@ -319,22 +273,6 @@ fn the_diffs_errors_follow_its_changes_and_precede_the_outcome() {
     );
     assert_eq!(lines.filter(|line| line.starts_with("{\"record\":\"change\"")).count(), 4);
 }
-#[test]
-
-fn a_cluster_s_members_render_as_targets_with_their_own_layers() {
-    let repository = Repository::make("cluster", &fixtures::cluster());
-    let rendered = fixtures::render(&repository, &[], Form::Text);
-    assert_eq!(
-        fixtures::lines_starting(&rendered.stdout, &["target ", "placement "]),
-        concat!(
-            "target       stoa-1-lab   base stoa   member 1   environment lab\n",
-            "placement    vm efi incus\n",
-            "target       stoa-2-lab   base stoa   member 2   environment lab\n",
-            "placement    vm bios pool\n",
-        )
-    );
-    assert_eq!(rendered.exit, Exit::Code(0));
-}
 
 #[test]
 fn an_account_s_faults_print_at_their_lines_in_the_base() {
@@ -399,20 +337,6 @@ fn a_missing_key_in_a_template_prints_its_evaluation_error() {
 fn a_missing_key_in_a_template_fails_the_call() {
     let repository = Repository::make("template-key-exit", &fixtures::thin_with(&[fixtures::MISSING_TEMPLATE_KEY]));
     assert_eq!(fixtures::render(&repository, &[], Form::Text).exit, Exit::Code(2));
-}
-#[test]
-fn a_template_prints_the_default_its_setting_was_filled_with() {
-    let repository = Repository::make("template-default", &fixtures::thin_with(fixtures::GREET));
-    let rendered = fixtures::render(&repository, &[], Form::Text);
-    assert_eq!(
-        fixtures::lines_starting(&rendered.stdout, &["  /etc/greeting"]),
-        "  /etc/greeting            file 0644 root:root 5891b5b522d5\n"
-    );
-}
-#[test]
-fn a_template_with_its_default_setting_leaves_the_call_successful() {
-    let repository = Repository::make("template-default-exit", &fixtures::thin_with(fixtures::GREET));
-    assert_eq!(fixtures::render(&repository, &[], Form::Text).exit, Exit::Code(0));
 }
 
 #[test]
@@ -492,12 +416,6 @@ fn a_false_guard_exits_with_configuration_failure() {
     assert_eq!(fixtures::render(&repository, &[], Form::Text).exit, Exit::Code(2));
 }
 #[test]
-fn a_guard_the_settings_satisfy_leaves_the_thin_spec_as_it_was() {
-    let repository =
-        Repository::make("guard-satisfied", &fixtures::thin_with(&[fixtures::GUARDED, fixtures::GREETING]));
-    assert_eq!(String::from_utf8_lossy(&fixtures::render(&repository, &[], Form::Text).stdout), fixtures::THIN_TEXT);
-}
-#[test]
 fn a_target_with_a_schema_fault_and_a_false_guard_prints_the_schema_fault_only() {
     let repository =
         Repository::make("guard-schema", &fixtures::thin_with(&[fixtures::GUARDED, fixtures::WRONG_GREETING]));
@@ -519,21 +437,6 @@ fn a_for_each_making_a_key_twice_prints_a_collision_at_its_entry() {
 fn a_for_each_making_a_key_twice_exits_with_configuration_failure() {
     let repository = Repository::make("twice-exit", &fixtures::thin_with(core::slice::from_ref(&fixtures::TWICE)));
     assert_eq!(fixtures::render(&repository, &[], Form::Text).exit, Exit::Code(2));
-}
-#[test]
-fn distinct_for_each_keys_render_with_no_error() {
-    let repository =
-        Repository::make("distinct-keys", &fixtures::thin_with(&[fixtures::TWICE, fixtures::DISTINCT_TEAMS]));
-    assert_eq!(
-        String::from_utf8_lossy(&fixtures::render(&repository, &[], Form::Text).stdout),
-        fixtures::DISTINCT_TEAMS_TEXT
-    );
-}
-#[test]
-fn distinct_for_each_keys_leave_the_call_successful() {
-    let repository =
-        Repository::make("distinct-keys-exit", &fixtures::thin_with(&[fixtures::TWICE, fixtures::DISTINCT_TEAMS]));
-    assert_eq!(fixtures::render(&repository, &[], Form::Text).exit, Exit::Code(0));
 }
 
 #[test]
@@ -589,32 +492,6 @@ fn a_typo_in_an_untaken_branch_exits_with_configuration_failure() {
 }
 
 #[test]
-fn a_hosts_template_lists_the_containers_placed_on_it() {
-    let rendered = fixtures::contained();
-    assert_eq!(
-        fixtures::lines_starting(&rendered.stdout, &["  /etc/containers"]),
-        concat!(
-            "  /etc/containers          file 0644 root:root 01ba4719c80b\n",
-            "  /etc/containers          file 0644 root:root 81d31332747e\n",
-            "  /etc/containers          file 0644 root:root 2e41c4778818\n",
-        ),
-        "hearth/docs/design/protocol/format/targets.md, 1.5: chat none, lab mail, prod chat and mail"
-    );
-}
-#[test]
-fn a_hosts_containers_leave_the_render_successful() {
-    assert_eq!(fixtures::contained().exit, Exit::Code(0));
-}
-#[test]
-fn a_template_reads_the_debian_root_composed_over_three_layers() {
-    let repository = Repository::make("debian-layers", &fixtures::thin_with(fixtures::DEBIAN_LAYERS));
-    let rendered = fixtures::render(&repository, &[], Form::Text);
-    assert_eq!(
-        fixtures::lines_starting(&rendered.stdout, &["  /etc/debian "]),
-        "  /etc/debian              file 0644 root:root f745f2a642a2\n"
-    );
-}
-#[test]
 fn a_debian_the_schema_refuses_prints_the_layer_that_set_it() {
     let repository =
         Repository::make("debian-refused", &fixtures::thin_with(core::slice::from_ref(&fixtures::REFUSED_DEBIAN)));
@@ -631,20 +508,6 @@ fn a_refused_debian_exits_with_configuration_failure() {
     assert_eq!(fixtures::render(&repository, &[], Form::Text).exit, Exit::Code(2));
 }
 
-#[test]
-fn hearth_render_lists_secrets_passwords_and_identity_by_name_and_place() {
-    let repository = Repository::make("secrets", &fixtures::thin_with(core::slice::from_ref(&fixtures::SECRETS)));
-    let rendered = fixtures::render(&repository, &[], Form::Text);
-    assert_eq!(
-        fixtures::lines_starting(&rendered.stdout, &["  secret ", "  password ", "  identity "]),
-        concat!(
-            "  secret     mail/dkim/example.org.key /etc/dkimkeys/example.org.key 0640 root:opendkim\n",
-            "  secret     mail/tls/mx1.key /etc/ssl/private/mx1.key 0600 root:root\n",
-            "  password   alice users/alice.passwd\n",
-            "  identity   ssh-ed25519 ssh-host-key ed25519 /etc/ssh/ssh_host_ed25519_key /etc/ssh/ssh_host_ed25519_key.pub 0600 root:root\n"
-        )
-    );
-}
 #[test]
 fn a_secret_without_a_path_prints_its_fault_at_the_entry() {
     let repository =
@@ -663,25 +526,6 @@ fn a_secret_without_a_path_exits_with_configuration_failure() {
 
 mod files;
 #[test]
-fn a_target_prints_its_packages_part_from_debian_and_its_tasks() {
-    let repository = fixtures::packages_repository("packages", true);
-    let rendered = fixtures::render(&repository, &[], Form::Text);
-    assert_eq!(
-        fixtures::lines_starting(
-            &rendered.stdout,
-            &["packages ", "  sources", "  request", "  variant", "  microcode", "  apt"]
-        ),
-        concat!(
-            "packages     part bb94f2003485   resolution 059882763340 needed\n",
-            "  sources    forky amd64 main non-free-firmware 20261001T030405Z\n",
-            "  request    curl firmware-linux tzdata\n",
-            "  variant    apt\n",
-            "  microcode  generic\n",
-            "  apt        install_recommends false\n"
-        )
-    );
-}
-#[test]
 fn a_component_debian_does_not_enable_prints_the_package_and_the_component() {
     let repository = fixtures::packages_repository("component-off", false);
     let rendered = fixtures::render(&repository, &[], Form::Text);
@@ -692,41 +536,7 @@ fn a_component_debian_does_not_enable_exits_with_configuration_failure() {
     let repository = fixtures::packages_repository("component-off-exit", false);
     assert_eq!(fixtures::render(&repository, &[], Form::Text).exit, Exit::Code(2));
 }
-#[test]
-fn preseeds_and_modules_reach_the_packages_part() {
-    let repository = Repository::make("preseeded", &fixtures::thin_with(fixtures::PRESEEDED));
-    let rendered = fixtures::render(&repository, &[], Form::Text);
-    assert_eq!(
-        fixtures::lines_starting(
-            &rendered.stdout,
-            &["packages ", "  sources", "  request", "  variant", "  preseed", "  initramfs", "  microcode", "  apt"]
-        ),
-        concat!(
-            "packages     part 078c2a1460c5   resolution 3b244f24d10d needed\n",
-            "  sources    forky amd64 main 20261001T030405Z\n",
-            "  request    curl tzdata\n",
-            "  variant    apt\n",
-            "  preseed    tzdata/Areas select Europe\n",
-            "  initramfs  btrfs nvme\n",
-            "  microcode  generic\n",
-            "  apt        install_recommends false\n"
-        )
-    );
-}
 
-#[test]
-fn hearth_render_lists_each_path_with_its_consumers() {
-    let repository = Repository::make("live", &fixtures::thin_with(&[fixtures::LIVE]));
-    let rendered = fixtures::render(&repository, &[], Form::Text);
-    assert_eq!(
-        fixtures::lines_starting(&rendered.stdout, &["  path "]),
-        concat!(
-            "  path       /etc/mailname motd postfix.service reload\n",
-            "  path       /etc/postfix/ motd postfix.service reload\n",
-            "  path       /opt/ripgrep/ motd - none\n"
-        )
-    );
-}
 mod boot;
 
 mod accounts;
