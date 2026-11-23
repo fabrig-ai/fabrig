@@ -143,6 +143,7 @@ impl Inputs {
 thread_local! { static SERVICE: std::cell::RefCell<Option<temper_service::Service>> = const { std::cell::RefCell::new(None) }; }
 fn start(inherited: &skein_world::Inherited) -> SignalHost<Tool> {
     let mut service = SERVICE.with(|at| at.borrow_mut().take().expect("configured rehearsal"));
+    service.prepared_schemas(crate::schemas::binary_schemas());
     let root = |name: &[u8]| inherited.roots.iter().find(|(key, _)| key.as_ref() == name).expect("tool root").1;
     service
         .rehearse_store(root(b"source"), root(b"scratch"), 1000, jig_protocol_store::Reach::Whole)

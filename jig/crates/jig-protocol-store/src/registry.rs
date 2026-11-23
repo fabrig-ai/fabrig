@@ -72,9 +72,24 @@ type RowKey = (Box<str>, u16, u16);
 #[derive(Debug)]
 struct Text {
     bytes: Box<[u8]>,
-    schema: Option<Schema>,
+    schema: Option<ReadSchema>,
     stored: bool,
     current: bool,
+}
+impl Text {
+    fn schema(&self) -> Option<&Schema> {
+        match &self.schema {
+            Some(ReadSchema::Owned(schema)) => Some(schema),
+            Some(ReadSchema::Borrowed(schema)) => Some(*schema),
+            None => None,
+        }
+    }
+}
+#[derive(Debug)]
+#[expect(clippy::large_enum_variant, reason = "owning a parsed text needs no extra allocation")]
+enum ReadSchema {
+    Owned(Schema),
+    Borrowed(&'static Schema),
 }
 #[derive(Debug)]
 struct Row {
@@ -104,6 +119,7 @@ pub(crate) struct Layouts {
     retired: Map<Box<[u8]>, Box<[u8]>>,
     written: Map<RowKey, &'static str>,
     texts: Map<Digest, Text>,
+    prepared_schemas: &'static [Schema],
     pending: Queue<skein_kv::Op>,
 }
 impl Layouts {
@@ -116,6 +132,7 @@ impl Layouts {
             retired: Map::uncapped(),
             written: Map::uncapped(),
             texts: Map::uncapped(),
+            prepared_schemas: &[],
             pending: Queue::uncapped(),
         }
     }
@@ -323,6 +340,7 @@ pub(crate) fn open(store: &mut Store, empty: bool) -> Result<bool, OpenRefusal> 
     #[cfg(test)]
     counting::reset();
     let mut layouts = Layouts::new();
+    layouts.prepared_schemas = store.prepared_schemas;
     let registered = rows::open(store, &mut layouts, empty)?;
     let seeded = !layouts.rows.is_empty();
     if !seeded && !registered {

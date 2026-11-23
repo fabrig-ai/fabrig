@@ -45,6 +45,11 @@ pub trait Harness: 'static {
     fn owner_sets() -> Option<jig_protocol_store::OwnerSets> {
         None
     }
+    /// Optionally pass immutable parsed binary texts to the store before open.
+    #[must_use]
+    fn prepared_schemas() -> Option<&'static [skein_codec::schema::Schema]> {
+        None
+    }
     /// A world's worker may speak chosen versions; the playground keeps the build's ranges.
     #[must_use]
     fn worker_wires() -> Option<temper_service::worker_settings::Wires> {
@@ -362,6 +367,9 @@ pub fn service<H: Harness>(inherited: &Inherited) -> Process<H> {
     }
     if let Some(sets) = H::owner_sets() {
         service.owner_sets(sets);
+    }
+    if let Some(schemas) = H::prepared_schemas() {
+        service.prepared_schemas(schemas);
     }
     service.adopt_store(root, 1000).expect("deployment store");
     service.adopt_signals(inherited.signal).expect("service signal");

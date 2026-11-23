@@ -83,9 +83,12 @@ impl Layouts {
             .map_err(|why| format!("registry layout: {why:?}"))?;
         let old = self.text(layout.text)?;
         let old_held = layout.held.iter().map(|digest| self.text(*digest)).collect::<Result<Vec<_>, _>>()?;
-        let binary = binary_schemas()?;
-        let new = &binary.iter().find(|(text, _)| *text == family.current).expect("binary family present").1;
-        let new_held = binary.iter().map(|(_, schema)| schema).collect::<Vec<_>>();
+        let new_held = crate::schemas::current_schemas();
+        let new = new_held
+            .iter()
+            .copied()
+            .find(|schema| schema.text() == family.current.as_bytes())
+            .expect("binary family present");
         let old_root = old.root(&layout.root, layout.variant.as_deref()).ok_or("stored root present")?;
         let new_root = new.root(ty.root.as_bytes(), ty.variant.map(str::as_bytes)).ok_or("binary root present")?;
         let plan = Plan::derive(
@@ -94,7 +97,7 @@ impl Layouts {
             &old_held.iter().map(AsRef::as_ref).collect::<Vec<_>>(),
             new,
             new_root,
-            &new_held,
+            new_held,
         )
         .map_err(|why| format!("registered value readable: {why:?}"))?;
         Ok(Decoder { from: old.version(), to: new.version(), plan })
@@ -139,28 +142,6 @@ impl Layouts {
             }
         }
     }
-}
-
-/// Only the binary's immutable schemas are shared between worlds, never stored registry rows.
-fn binary_schemas() -> Result<&'static [(&'static str, Schema)], String> {
-    type Schemas = Result<Box<[(&'static str, Schema)]>, String>;
-    static SCHEMAS: std::sync::OnceLock<Schemas> = std::sync::OnceLock::new();
-    SCHEMAS
-        .get_or_init(|| {
-            let mut schemas = Vec::new();
-            for set in temper_engine_service::store::OWNER_SETS.sets {
-                for family in set.families {
-                    if !family.current.is_empty() {
-                        let schema = schema::parse(family.current.as_bytes())
-                            .map_err(|why| format!("binary schema: {why:?}"))?;
-                        schemas.push((family.current, schema));
-                    }
-                }
-            }
-            Ok(schemas.into_boxed_slice())
-        })
-        .as_deref()
-        .map_err(Clone::clone)
 }
 
 fn resolve(key: &[u8]) -> Option<(&'static KeptFamily, &'static ValueType)> {

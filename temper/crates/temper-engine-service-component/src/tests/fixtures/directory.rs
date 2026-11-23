@@ -59,20 +59,21 @@ impl Directory {
         store.adopt(self.fd, 0).expect("directory adopted");
         service
     }
-    /// Open the directory before settings resolution constructs the root.
-    pub fn open_limits(&mut self, store: &mut Store) {
+    pub fn open(&mut self, store: &mut Store) -> Event {
         store.adopt(self.fd, 0).expect("directory adopted");
         for _ in 0..PASSES {
             self.io(store);
             if let Some(event) = store.events().pop() {
-                let Event::Opened { installation, pending, .. } = event else {
-                    panic!("directory open: {event:?}");
-                };
-                store.opened_limits(installation, pending);
-                return;
+                return event;
             }
         }
-        panic!("directory opened");
+        panic!("directory open answered");
+    }
+    /// Open the directory before settings resolution constructs the root.
+    pub fn open_limits(&mut self, store: &mut Store) {
+        let event = self.open(store);
+        let Event::Opened { installation, pending, .. } = event else { panic!("directory open: {event:?}") };
+        store.opened_limits(installation, pending);
     }
     /// Drive the whole service, including its listener and worker IO.
     pub fn full_turn(&mut self, service: &mut Service) {

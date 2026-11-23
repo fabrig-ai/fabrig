@@ -175,6 +175,9 @@ impl Harness for OneProcess {
     fn owner_sets() -> Option<jig_protocol_store::OwnerSets> {
         OWNER_SETS.with(std::cell::Cell::get)
     }
+    fn prepared_schemas() -> Option<&'static [skein_codec::schema::Schema]> {
+        Some(crate::schemas::binary_schemas())
+    }
     fn github() -> bool {
         crate::lower::github::active()
     }
