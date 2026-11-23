@@ -39,7 +39,6 @@ pub(crate) fn start_closer_step(domain: &mut Domain, env: &Env<Limits>, context:
         super::holds::hold(domain, task, b"the goal closer requires the project's adopted home");
         return;
     };
-    let branch = goal_branch(domain, env, goal, &repository);
     let mut row = domain.forge.closer(task).cloned().unwrap_or(forge::CloserRow {
         task,
         goal,
@@ -58,6 +57,16 @@ pub(crate) fn start_closer_step(domain: &mut Domain, env: &Env<Limits>, context:
         return;
     }
     let Some((_, _, procedure_step)) = domain.core.tasks.procedure_due(task) else { return };
+    let branch = match goal_branch(domain, env, goal, &repository) {
+        Some((branch, name)) => {
+            if domain.forge.park_closer_for_goal_branch(task, &name) {
+                submit(domain, env, row, ProcedureStep::new(StepEnd::Wait));
+                return;
+            }
+            Some(branch)
+        }
+        None => None,
+    };
     let base_holds = match domain.forge.closer_checked(task, procedure_step) {
         Some(Ok(contains)) => Some(contains),
         Some(Err(_)) => {
@@ -190,7 +199,12 @@ fn submit(domain: &mut Domain, env: &Env<Limits>, mut row: forge::CloserRow, mut
     domain.work.push(Work::Core(jig_domain_core::Event::ProcedureStep { task, step, connector, code, decision }));
 }
 
-fn goal_branch(domain: &Domain, env: &Env<Limits>, goal: u64, repository: &forge::Repository) -> Option<Box<[u8]>> {
+fn goal_branch(
+    domain: &Domain,
+    env: &Env<Limits>,
+    goal: u64,
+    repository: &forge::Repository,
+) -> Option<(Box<[u8]>, forge::Name)> {
     let root = domain.core.tasks.root(goal)?;
     let branch = super::tree_branch(repository, root, b'g', goal, None, env.limits.forge.name_bytes)?;
     let name = forge::Name {
@@ -198,7 +212,7 @@ fn goal_branch(domain: &Domain, env: &Env<Limits>, goal: u64, repository: &forge
         repository: repository.provider.repository,
         what: super::branch_what(&branch, env.limits.forge.name_bytes)?,
     };
-    if domain.forge.hold(&name)?.task == goal { Some(branch) } else { None }
+    if domain.forge.hold(&name)?.task == goal { Some((branch, name)) } else { None }
 }
 
 fn original(domain: &Domain, closer: &forge::CloserRow, row: &forge::ChangeRow) -> bool {

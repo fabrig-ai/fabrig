@@ -221,7 +221,8 @@ named, in the words and order of `../../protocol/service-process.md`, 1.3:
   fresh reads still owed, by resource and listing (skein's
   `forge/client.md`, 8, *What it still owes*), the landings' gathers,
   the CI reads, the goal files' reads and the lost writers' reads still
-  pending, and the goal branches still being made (`branches.md`, 1);
+  pending, and the goal branches whose making's read is out, never one
+  waiting for room or for its forge (`branches.md`, 1);
 - **settling the outbox** owes each restored entry not yet looked for,
   by its number and task.
 
