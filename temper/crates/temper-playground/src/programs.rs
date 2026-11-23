@@ -9,7 +9,8 @@ use skein_io::kernel::{Complete, Exit, Spawn, Submit};
 use skein_lib::{Queue, Time, Wall};
 use skein_shell::Host;
 use skein_sim_world::{HostedProgram, Inherited, StartupRoot, StartupRoots};
-use std::{cell::RefCell, rc::Rc};
+use std::{cell::RefCell, rc::Rc, sync::OnceLock};
+use temper_engine_service_vocabulary::store::OWNER_SETS;
 mod issuer;
 mod shell;
 pub use issuer::Issuer;
@@ -270,6 +271,12 @@ pub fn service_roots() -> Vec<StartupRoot> {
         StartupRoot { name: b"worker".as_slice().into(), path: b"worker".as_slice().into() },
     ]
 }
+/// Share the binary's parsed store texts across this process's opens.
+#[must_use]
+pub fn prepared_schemas() -> &'static [skein_codec::schema::Schema] {
+    static SCHEMAS: OnceLock<Box<[skein_codec::schema::Schema]>> = OnceLock::new();
+    SCHEMAS.get_or_init(|| OWNER_SETS.prepare())
+}
 /// Start the same service from deployment bytes as `temper serve`.
 #[must_use]
 pub fn service<H: Harness>(inherited: &Inherited) -> Process<H> {
@@ -363,6 +370,7 @@ pub fn service<H: Harness>(inherited: &Inherited) -> Process<H> {
     if let Some(sets) = H::owner_sets() {
         service.owner_sets(sets);
     }
+    service.prepared_schemas(prepared_schemas());
     service.adopt_store(root, 1000).expect("deployment store");
     service.adopt_signals(inherited.signal).expect("service signal");
     Process::Service(Box::new(ServiceHost::new(service, H::Service::started(root, inherited), parameters)))

@@ -112,6 +112,10 @@ impl Store {
     pub(crate) fn owner_sets(&mut self, sets: protocol::OwnerSets) {
         self.host.component.owner_sets(sets);
     }
+    /// Supply parsed binary texts before opening the store. Only exact text matches are reused.
+    pub fn prepared_schemas(&mut self, schemas: &'static [skein_codec::schema::Schema]) {
+        self.host.component.prepared_schemas(schemas);
+    }
     /// Whether the component has reported that its deployment opened.
     #[must_use]
     pub const fn opened(&self) -> bool {

@@ -1,8 +1,18 @@
-//! Factory parameters for the worker and scoped worlds (temper/docs/design/playground.md, 3).
-use super::{Parameters, install, parameters, with};
+//! Shared inputs to the composition's programs (temper/docs/design/playground.md, 3).
+use super::{Parameters, install, parameters, prepared_schemas, with};
 use crate::{stories, story};
+use skein_codec::schema::Schema;
 use skein_lib::Wall;
-use std::rc::Rc;
+use std::{ptr, rc::Rc};
+use temper_engine_service_vocabulary::store::OWNER_SETS;
+
+#[test]
+fn prepared_schemas_share_the_binary_texts_in_order() {
+    let schemas = prepared_schemas();
+    assert!(ptr::eq(schemas, prepared_schemas()), "opens share one schema slice");
+    let expected = OWNER_SETS.prepare();
+    assert!(schemas.iter().map(Schema::text).eq(expected.iter().map(Schema::text)));
+}
 
 fn assert_parameters(expected: &Parameters) {
     let current = parameters();

@@ -239,6 +239,10 @@ impl engine::Engine {
     pub fn owner_sets(&mut self, sets: jig_protocol_store::OwnerSets) {
         self.store.owner_sets(sets);
     }
+    /// Supply parsed binary texts before adopting the deployment store.
+    pub fn prepared_schemas(&mut self, schemas: &'static [skein_codec::schema::Schema]) {
+        self.store.prepared_schemas(schemas);
+    }
     /// Rehearse the configured restart over a copy, without adopting a worker or listeners.
     pub fn rehearse_store(
         &mut self,
