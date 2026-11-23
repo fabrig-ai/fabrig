@@ -4,7 +4,7 @@
 
 ## 1. In one page
 
-- **Thirteen parts,** A to M. Eight start at once (B to H, and A); four build on A's composed profiles (I, J, K, L); M, last, removes what the others leave unused and this document.
+- **Thirteen parts,** A to M. Eight start at once (B to H, and A); four build on A's composed profiles (I, J, K, L); M, last, removes what the others leave unused and this document. Their changes: A 14020, B 14021, C 14022, D 14023, E 14045, F 14046, G 14047, H 14048, I 14113, J 14114, K 14123, L 14124, M 14125.
 - **Every row moves whole:** a moved test keeps each assertion and each table row (`../../draft/slow-tests-down.md`, 3.2). Where a test keeps a native row above, the table says which.
 - **A slow test is deleted** by the part that adds or names its holder below, in the same change, and its report names the holder of each assertion.
 
