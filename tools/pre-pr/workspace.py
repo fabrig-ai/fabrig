@@ -25,7 +25,7 @@ def owns_package(root, path):
                for directory in (root / path).parents if directory.is_relative_to(root) and directory != root)
 
 
-def package_plan(root, paths, packages, layers):
+def package_plan(root, paths, packages, layers, also=()):
     dirs = {Path(package['manifest_path']).parent: name for name, package in packages.items()}
     affected = defaultdict(set)
     for path in paths:
@@ -50,6 +50,9 @@ def package_plan(root, paths, packages, layers):
     for name, package in packages.items():
         if any(dep.get('path') and Path(dep['path']) in changed for dep in package['dependencies']):
             selected[name] = None
+    # The gate's always-run packages: every test, without widening to their dependents.
+    for name in also:
+        selected[name] = None
 
     # Group only identical Cargo target selections. A --test flag applies to every -p.
     groups = defaultdict(list)

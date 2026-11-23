@@ -82,6 +82,20 @@ class Packages(unittest.TestCase):
         self.assertEqual(list(PLAN.rust_commands(self.plan('skein/top/src/lib.rs'), {}, None)),
                          [['cargo', 'check', '--offline', '--locked', '-p', 'top']])
 
+    def test_always_run_packages_add_no_dependents(self):
+        groups = PLAN.package_plan(self.root, [], self.packages, {}, also=['leaf'])
+        self.assertEqual(sorted(name for names in groups.values() for name in names), ['leaf'])
+
+    def test_close_inputs_reach_the_workspace_the_gate_lists_and_nothing_for_prose(self):
+        root = self.root
+        self.enterContext(mock.patch.object(PRE, 'lines', return_value=['leaf', 'middle skein/middle/', 'ghost']))
+        self.assertEqual(PRE.always_packages(root, ['skein/top/src/lib.rs'], self.packages), ['leaf'])
+        self.assertEqual(PRE.always_packages(root, ['skein/middle/src/lib.rs'], self.packages), ['leaf', 'middle'])
+        self.assertEqual(PRE.always_packages(root, ['tools/citations/maps/a.map'], self.packages), [])
+        for path in ('Cargo.lock', 'Cargo.toml', 'rust-toolchain.toml', '.cargo/config.toml', '.config/nextest.toml'):
+            self.assertTrue(PRE.workspace_wide(path), path)
+        self.assertFalse(PRE.workspace_wide('skein/mid/Cargo.toml'))
+
     def test_helper_builds_once_before_suites(self):
         groups = self.plan('skein/leaf/src/lib.rs')
         helper = [{'package': 'fixture', 'bin': 'serve'}]
@@ -118,7 +132,7 @@ class Delivery(unittest.TestCase):
             selected = PRE.workspace_checks(self.root, ['tools/pre-pr/pre_pr.py'], 'tree',
                                             self.env, self.errors, self.outcomes)
         self.assertEqual([call.args[0][3] for call in run.call_args_list],
-                         ['tools/pre-pr/test_pre_pr.py'])
+                         ['tools/pre-pr/test_pre_pr.py', 'tools/citations/citations.py'])
         outward.assert_called_once_with(self.root, self.env, ['tools/pre-pr/pre_pr.py'])
         self.assertTrue(all(call.args[1] == self.root for call in run.call_args_list))
         self.assertEqual(selected, [])
@@ -171,11 +185,23 @@ class Delivery(unittest.TestCase):
             with self.subTest(final=final), mock.patch.object(Path, 'cwd', return_value=self.root), \
                  mock.patch.object(PRE, 'checked_git', return_value=b''), \
                  mock.patch.object(PRE, 'snapshot', side_effect=['first', final]), \
+                 mock.patch.object(PRE, 'scope_base', return_value=('b' * 40, 'refs/temper/landing', None)), \
+                 mock.patch.object(PRE, 'changed_paths', return_value=[]), \
                  mock.patch.object(PRE, 'workspace_checks', return_value=[]):
                 self.assertEqual(PRE.main([]), expected)
 
+    def test_no_base_refuses_with_its_reason_and_checks_nothing(self):
+        with mock.patch.object(Path, 'cwd', return_value=self.root), \
+             mock.patch.object(PRE, 'checked_git', return_value=b''), \
+             mock.patch.object(PRE, 'snapshot', side_effect=['first', 'first']), \
+             mock.patch.object(PRE, 'workspace_checks', return_value=[]) as checks:
+            self.assertEqual(PRE.main([]), 1)
+        checks.assert_not_called()
+        self.assertIn('no base: this is no git checkout', self.log.getvalue())
+
     def test_shell_entry_points_forward_to_the_expected_mode(self):
-        for hook, suffix in [('pre-pr', ''), ('goal-child-pre-pr', ' --child "$@"'), ('goal-pre-pr', ' --goal "$@"')]:
+        for hook, suffix in [('pre-pr', ''), ('goal-child-pre-pr', ' --child "$@"'), ('goal-pre-pr', ' --goal "$@"'),
+                             ('checked-close', ' --close')]:
             script = HERE.parents[1] / '.temper' / hook
             commands = [line for line in script.read_text().splitlines() if line.startswith('exec ')]
             self.assertEqual(commands, ['exec python3 -I -B tools/pre-pr/pre_pr.py' + suffix])
@@ -186,6 +212,7 @@ class Delivery(unittest.TestCase):
         directory.mkdir(parents=True)
         (directory / 'test_rules.py').touch()
         with mock.patch.object(PRE, 'run', return_value=(0, '')) as run, \
+             mock.patch.object(PRE, 'citations', return_value=(0, [])), \
              mock.patch.object(PRE, 'journeys', return_value=[]), mock.patch.object(PRE, 'outward', return_value=(0, [])):
             args = (self.root, ['tools/example/rules.py', 'tools/example/test_rules.py'],
                     'tree', {}, self.errors, {})
@@ -204,6 +231,54 @@ class Delivery(unittest.TestCase):
         self.assertEqual(run.call_args.args[0][-1], '--paths0')
         self.assertEqual(run.call_args.kwargs['input'], path.encode())
 
+    def test_changed_rust_files_format_their_packages_and_wide_inputs_the_workspace(self):
+        data = {'packages': [{'id': 'leaf', 'name': 'leaf', 'edition': '2021',
+                              'manifest_path': str(self.root / 'leaf/Cargo.toml')},
+                             {'id': 'twig', 'name': 'twig', 'edition': '2024',
+                              'manifest_path': str(self.root / 'twig/Cargo.toml')}],
+                'workspace_members': ['leaf', 'twig']}
+        cases = [(['leaf/src/lib.rs', 'twig/Cargo.toml', 'fixtures/orphan.rs', 'docs/a.md'],
+                  [['cargo', 'fmt', '-p', 'leaf', '-p', 'twig', '--', '--check']]),
+                 (['fixtures/orphan.rs'], []),
+                 (['docs/a.md'], []),
+                 (['leaf/rustfmt.toml'], [['cargo', 'fmt', '--all', '--', '--check']]),
+                 (['Cargo.toml'], [['cargo', 'fmt', '--all', '--', '--check']])]
+        for paths, expected in cases:
+            with self.subTest(paths=paths), mock.patch.object(PRE, 'metadata', return_value=data), \
+                 mock.patch.object(PRE, 'run', return_value=(0, '')) as run, \
+                 mock.patch.object(PRE, 'citations', return_value=(0, [])), \
+                 mock.patch.object(PRE, 'outward', return_value=(0, [])), mock.patch.object(PRE, 'journeys', return_value=[]), \
+                 mock.patch.object(PRE, 'baselines', return_value=(0, [])):
+                PRE.workspace_checks(self.root, paths, 'tree', {}, self.errors, {}, whole=False)
+                self.assertEqual([call.args[0] for call in run.call_args_list if call.args[0][0] == 'cargo'], expected)
+        self.assertEqual(self.errors, [])
+
+    def test_a_goal_changing_no_tooling_runs_no_python_suite(self):
+        (self.root / 'tools/example').mkdir(parents=True)
+        (self.root / 'tools/example/test_rules.py').touch()
+        with mock.patch.object(PRE, 'run', return_value=(0, '')) as run, \
+             mock.patch.object(PRE, 'citations', return_value=(0, [])), \
+             mock.patch.object(PRE, 'outward', return_value=(0, [])), mock.patch.object(PRE, 'journeys', return_value=[]):
+            self.assertEqual(PRE.workspace_checks(self.root, ['docs/guide.md', 'temper/docs/design/a.md'], 'tree',
+                                                  {}, self.errors, {}, completed_goal=True, whole=False), [])
+        run.assert_not_called()
+
+    def test_a_path_without_cargo_gains_the_users_cargo_tools(self):
+        home = self.root / 'home'
+        (home / '.cargo/bin').mkdir(parents=True)
+        (home / '.cargo/bin/cargo').touch()
+        user = mock.Mock(pw_dir=str(home))
+        with mock.patch.object(PRE.pwd, 'getpwuid', return_value=user), \
+             mock.patch.object(PRE.shutil, 'which', return_value=None):
+            env = {'PATH': '/usr/bin:/bin', 'HOME': '/nonexistent'}
+            PRE.with_rust_tools(env)
+        self.assertEqual(env, {'PATH': f'{home}/.cargo/bin:/usr/bin:/bin', 'HOME': '/nonexistent',
+                               'CARGO_HOME': f'{home}/.cargo', 'RUSTUP_HOME': f'{home}/.rustup'})
+        with mock.patch.object(PRE.shutil, 'which', return_value='/usr/bin/cargo'):
+            env = {'PATH': '/usr/bin'}
+            PRE.with_rust_tools(env)
+        self.assertEqual(env, {'PATH': '/usr/bin'})
+
     def test_close_receipt_records_only_the_checked_tree(self):
         self.assertEqual(PRE.finish('staged', None, [], self.root, {}, 'close', ['dest'], ['head']), 0)
         receipt = json.loads((self.root / 'target/temper/goal-close-pre-pr.json').read_text())
@@ -214,6 +289,7 @@ class Delivery(unittest.TestCase):
     def test_known_outward_failure_requires_a_complete_scan(self):
         key = ('test', 'fabrig-boundary::outward', 'no_file_names_the_lab')
         with mock.patch.object(PRE, 'outward', return_value=(0, [])) as outward, \
+             mock.patch.object(PRE, 'citations', return_value=(0, [])), \
              mock.patch.object(PRE, 'journeys', return_value=[]):
             PRE.workspace_checks(self.root, ['other'], 'tree', {}, self.errors, self.outcomes, [key])
         outward.assert_called_once_with(self.root, {}, None)
@@ -312,6 +388,136 @@ class Delivery(unittest.TestCase):
                           record['destination']), ('child', 'head', 'dest', None))
 
 
+class Changes(unittest.TestCase):
+    """The checks' base and paths come from the checkout's own refs, and its snapshot from its own index."""
+
+    def setUp(self):
+        self.root = Path(self.enterContext(tempfile.TemporaryDirectory())) / 'checkout'
+        self.root.mkdir()
+        self.env = {**os.environ, 'GIT_CONFIG_NOSYSTEM': '1', 'GIT_CONFIG_GLOBAL': os.devnull,
+                    'GIT_AUTHOR_NAME': 'Fixture', 'GIT_AUTHOR_EMAIL': 'fixture@example.test',
+                    'GIT_COMMITTER_NAME': 'Fixture', 'GIT_COMMITTER_EMAIL': 'fixture@example.test'}
+        self.enterContext(mock.patch.object(subprocess, 'Popen', side_effect=self.git_only))
+        self.enterContext(mock.patch.object(PRE, 'PUBLIC_SOURCE', None))
+        self.enterContext(mock.patch.dict(PRE.PUBLISHED, clear=True))
+        self.git('init', '-q')
+        for name in ('kept.rs', 'edited.rs', 'unstaged.md', 'gone.md'):
+            (self.root / name).write_text(name + '\n')
+        self.git('add', '-A')
+        self.git('commit', '-qm', 'main')
+        self.main = self.git('rev-parse', 'HEAD')
+
+    def git_only(self, args, **kwargs):
+        self.assertEqual(args[0], 'git')
+        return POPEN(args, **kwargs)
+
+    def git(self, *args):
+        return subprocess.run(('git', *args), cwd=self.root, env=self.env, capture_output=True, text=True,
+                              check=True).stdout.strip()
+
+    def change(self):
+        (self.root / 'edited.rs').write_text('edited\n')
+        self.git('commit', '-qam', 'committed')
+        (self.root / 'staged.rs').write_text('staged\n')
+        self.git('add', 'staged.rs')
+        (self.root / 'unstaged.md').write_text('unstaged\n')
+        (self.root / 'gone.md').unlink()
+        (self.root / 'new.md').write_text('new\n')
+        (self.root / 'ignored.log').write_text('ignored\n')
+        (self.root / '.git/info/exclude').write_text('*.log\n')
+
+    def test_delivery_checks_only_what_changed_since_the_pin(self):
+        self.git('update-ref', 'refs/temper/landing', self.main)
+        self.change()
+        self.assertEqual(PRE.change_base(self.root, self.env, 'delivery'),
+                         (self.main, 'merge base of refs/temper/landing and HEAD'))
+        self.assertEqual(PRE.changed_paths(self.root, self.env, self.main),
+                         ['edited.rs', 'gone.md', 'new.md', 'staged.rs', 'unstaged.md'])
+
+    def test_close_compares_with_main_not_the_pin(self):
+        self.git('update-ref', 'refs/remotes/origin/main', self.main)
+        self.change()
+        self.git('update-ref', 'refs/temper/landing', 'HEAD')
+        self.assertEqual(PRE.change_base(self.root, self.env, 'close'),
+                         (self.main, 'merge base of refs/remotes/origin/main and HEAD'))
+        self.assertEqual(PRE.change_base(self.root, self.env, 'delivery'),
+                         (self.git('rev-parse', 'HEAD'), 'merge base of refs/temper/landing and HEAD'))
+
+    def publish(self, commits):
+        data = json.dumps(dict(version=1, commits=commits, profiles={}))
+        blob = subprocess.run(['git', 'hash-object', '-w', '--stdin'], cwd=self.root, env=self.env, input=data,
+                              capture_output=True, text=True, check=True).stdout.strip()
+        tree = subprocess.run(['git', 'mktree'], cwd=self.root, env=self.env, input=f'100644 blob {blob}\tcounts.json\n',
+                              capture_output=True, text=True, check=True).stdout.strip()
+        self.git('update-ref', 'refs/temper/counts', self.git('commit-tree', tree, '-m', 'counts'))
+
+    def test_close_starts_from_mains_newest_published_commit_in_the_goal(self):
+        later = self.git('commit-tree', 'HEAD^{tree}', '-p', self.main, '-m', 'main moved on')
+        self.change()
+        self.git('update-ref', 'refs/remotes/origin/main', later)
+        self.publish(['0' * 40, self.main, later])
+        self.assertEqual(PRE.change_base(self.root, self.env, 'close'),
+                         (self.main, "main's newest published commit in HEAD"))
+
+    def test_unchecked_saves_and_a_pending_merge_stay_checked(self):
+        (self.root / 'edited.rs').write_text('saved\n')
+        self.git('commit', '-qam', PRE.UNCHECKED_SAVE)
+        self.git('update-ref', 'refs/temper/landing', 'HEAD')
+        self.assertEqual(PRE.change_base(self.root, self.env, 'delivery')[0], self.main)
+        self.git('checkout', '-q', '-b', 'side', self.main)
+        (self.root / 'side.rs').write_text('side\n')
+        self.git('add', 'side.rs')
+        self.git('commit', '-qm', 'side')
+        side = self.git('rev-parse', 'HEAD')
+        self.git('checkout', '-q', '-')
+        self.git('update-ref', 'refs/temper/landing', side)
+        self.assertEqual(PRE.change_base(self.root, self.env, 'delivery')[0], self.main)
+        # Merging the moved landing branch in: its own changes aren't the delivery's.
+        (self.root / '.git/MERGE_HEAD').write_text(side + '\n')
+        self.assertEqual(PRE.change_base(self.root, self.env, 'delivery')[0], side)
+
+    def test_without_a_usable_base_the_check_refuses_loudly(self):
+        for scope in ('delivery', 'child', 'close'):
+            base, name, why = PRE.scope_base(self.root, self.env, scope, True)
+            self.assertEqual((base, name), (None, None))
+            self.assertIn('update from main' if scope == 'close' else 'sharing history with HEAD', why)
+            self.assertIn('no base', PRE.scope_base(self.root, self.env, scope, False)[2])
+        self.git('update-ref', 'refs/remotes/origin/main', 'HEAD')
+        self.assertEqual(PRE.scope_base(self.root, self.env, 'delivery', True)[:2],
+                         (self.main, 'merge base of refs/remotes/origin/main and HEAD'))
+        base, name, why = PRE.scope_base(self.root, self.env, 'close', True)
+        self.assertIsNone(base)
+        self.assertIn('is HEAD itself', why)
+
+    def test_skipped_entries_are_not_seeded(self):
+        work = self.root.parent / 'work'
+        subprocess.run(['git', 'init', '-q', str(work)], env=self.env, check=True, capture_output=True)
+        self.git('update-index', '--skip-worktree', 'kept.rs')
+        self.assertFalse(PRE.seed(self.root, work, self.env, work / '.git/index'))
+        self.git('update-index', '--no-skip-worktree', 'kept.rs')
+        self.git('update-index', '--assume-unchanged', 'kept.rs')
+        self.assertFalse(PRE.seed(self.root, work, self.env, work / '.git/index'))
+        self.git('update-index', '--no-assume-unchanged', 'kept.rs')
+        self.assertTrue(PRE.seed(self.root, work, self.env, work / '.git/index'))
+
+    def test_without_a_base_reference_there_is_no_base(self):
+        for scope in ('delivery', 'child', 'close', 'goal'):
+            self.assertEqual(PRE.change_base(self.root, self.env, scope), (None, None))
+
+    def test_the_seeded_snapshot_is_the_fresh_one(self):
+        self.change()
+        trees = []
+        for seeded in (True, False):
+            work = self.root.parent / f'work-{seeded}'
+            subprocess.run(['git', 'init', '-q', str(work)], env=self.env, check=True, capture_output=True)
+            with mock.patch.object(PRE, 'seed', wraps=PRE.seed) if seeded else \
+                    mock.patch.object(PRE, 'seed', return_value=False) as seed:
+                trees.append(PRE.snapshot(self.root, work, self.env, self.env, work / '.git/index'))
+                self.assertEqual(seed.call_count, 1)
+        self.assertEqual(trees[0], trees[1])
+        self.assertTrue((self.root.parent / 'work-True/.git/objects/info/alternates').is_file())
+
+
 class CloseBudgets(unittest.TestCase):
     G = 1_000_000_000
     BINARY = 'leaf::suite'
@@ -343,6 +549,8 @@ class CloseBudgets(unittest.TestCase):
         }}
         self.profile['binaries'][self.BINARY]['counts'][self.main] = 50 * self.G
         self.enterContext(mock.patch.object(PRE, 'WORKER_COUNTS', self.root / 'no-worker-counts.json'))
+        self.enterContext(mock.patch.object(PRE, 'PUBLIC_SOURCE', None))
+        self.enterContext(mock.patch.dict(PRE.PUBLISHED, clear=True))
         self.budget_table()
 
     def git_only(self, args, **kwargs):
@@ -388,6 +596,19 @@ class CloseBudgets(unittest.TestCase):
         self.assertEqual(self.log.getvalue(),
                          "budgets: no main's counts in this repository (refs/temper/counts); "
                          'no verdict at close, an infrastructure fault to repair; the gate still judges\n')
+
+    def test_counts_missing_here_are_fetched_from_main(self):
+        self.publish()
+        public = self.root.parent / 'public.git'
+        self.git('init', '-q', '--bare', str(public))
+        self.git('push', '-q', str(public), 'refs/temper/counts:refs/temper/counts')
+        self.git('update-ref', '-d', 'refs/temper/counts')
+        self.enterContext(mock.patch.object(PRE, 'PUBLIC_SOURCE', 'file://' + str(public)))
+        self.enterContext(mock.patch.object(PRE, 'PUBLIC_PROTOCOLS', 'file'))
+        self.enterContext(mock.patch.object(subprocess, 'Popen', side_effect=POPEN))
+        error, = self.verdict(self.result(self.process(30 * self.G)))
+        self.assertIn('instruction growth over allowance', error['log'])
+        self.assertIsNone(module(HERE.parent / 'tiers/counts.py').read(self.repository, self.env))
 
     def test_selected_baseline_can_be_used_without_git(self):
         self.publish()
@@ -497,6 +718,7 @@ class CloseBudgets(unittest.TestCase):
              mock.patch.object(PRE, 'baselines', return_value=(0, [])), \
              mock.patch.object(PRE, 'metadata', return_value=metadata), \
              mock.patch.object(PRE, 'journeys', return_value=[]), \
+             mock.patch.object(PRE, 'citations', return_value=(0, [])), \
              mock.patch.object(PRE, 'outward', return_value=(0, [])):
             PRE.workspace_checks(self.root, [str(source.relative_to(self.root))], 'tree', self.env, errors, {},
                                  completed_goal=completed_goal, counts_source=(self.repository, self.env))
