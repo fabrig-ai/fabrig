@@ -8,6 +8,7 @@ use crate::{direct::Driver, oracle::config, store::Store};
 
 /// Rehearse a start over an independent durable image, stopping before the switch.
 pub fn store(store: &Store, config: &Config, limits: &Limits, wall: Wall, commit: u64) -> Result<(), String> {
+    StoreChecks::record_rehearsal();
     let mut driver = Driver::rehearsing(store.fork(), config::copy(config), limits, wall);
     let mut quiet = 0;
     loop {

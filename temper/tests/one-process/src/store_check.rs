@@ -113,6 +113,7 @@ pub(crate) fn check() -> Result<(), String> {
             state.given = Some(crate::world::OneProcess::given(&state.document));
         }
         let given = state.given.as_ref().expect("selected commit's configuration").copied();
+        StoreChecks::record_rehearsal();
         let result = rehearsal::check(copy, state.settings, state.document.clone(), given);
         state.rehearsals += 1;
         match result {

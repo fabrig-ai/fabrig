@@ -59,6 +59,7 @@ pub fn faulty(fault: Fault) -> Scenario<'static> {
 pub fn each_protocol(scenario: &Scenario<'_>, mut test: impl FnMut(crate::protocol::Run, u64)) {
     for seed in super::WORLD_SEEDS {
         test(crate::protocol::run(scenario, seed), seed);
+        skein_world::checks::count("seed", 1);
     }
 }
 

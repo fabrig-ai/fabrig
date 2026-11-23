@@ -18,6 +18,7 @@ jig-domain-fleet.workspace = true
 jig-domain-link.workspace = true
 smith-channel.workspace = true
 skein-lib.workspace = true
+skein-world.workspace = true
 
 jig-domain-authority.workspace = true
 
@@ -45,7 +46,7 @@ jig-domain-accounts.workspace = true
 jig-domain-notes.workspace = true
 jig-domain-views.workspace = true
 jig-protocol-tools.workspace = true
-skein-world.workspace = true
+skein-scratch.workspace = true
 jig-fake-store.workspace = true
 jig-test-patches-smith.workspace = true
 skein-codec.workspace = true

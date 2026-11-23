@@ -415,6 +415,7 @@ fn space(rng: &mut Rng, line: &mut Vec<u8>) {
 /// that does not end.
 #[must_use]
 pub fn corrupt(rng: &mut Rng, server: &[u8]) -> Vec<u8> {
+    skein_world::checks::count("mutation", 1);
     let mut out = server.to_vec();
     let at_status = find(&out, b"HTTP/1.");
     match rng.below(7) {
@@ -470,6 +471,7 @@ const BYTES: &[u8] = b"\r\n:; \t0123456789aAfFxX-,HTP/.\x00\x01\x7f\x80\xef\xbb\
 /// `bytes` with a few edits drawn at random.
 #[must_use]
 pub fn mutate(rng: &mut Rng, bytes: &[u8]) -> Vec<u8> {
+    skein_world::checks::count("mutation", 1);
     let mut out = bytes.to_vec();
     for _ in 0..rng.between(1, 3) {
         let at = usize::try_from(rng.below(out.len() as u64 + 1)).expect("fits a usize");

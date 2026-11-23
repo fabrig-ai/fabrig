@@ -19,6 +19,7 @@ pub fn check_digests(name: &str) {
     read_leaves(&root, &root, kinds, &mut leaves);
     let repository = golden::repository_of(&leaves);
     for seed in GOLDEN_SEEDS {
+        skein_world::checks::count("seed", 1);
         let run = crate::parent::run(&repository, &[], seed);
         let digests: Vec<_> = run
             .answers

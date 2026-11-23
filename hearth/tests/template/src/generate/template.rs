@@ -82,6 +82,7 @@ pub fn mutate(rng: &mut Rng, text: &[u8]) -> Vec<u8> {
         b"{{ '@\\q' }}",
         b"{{ @ }}",
     ];
+    skein_world::checks::count("mutation", 1);
     let mut out = text.to_vec();
     let at = usize::try_from(rng.below(out.len() as u64 + 1)).expect("template offset");
     let piece = PIECES[usize::try_from(rng.below(PIECES.len() as u64)).expect("piece index")];

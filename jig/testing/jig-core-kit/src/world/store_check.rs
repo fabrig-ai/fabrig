@@ -21,6 +21,7 @@ impl World {
         for (connector, kinds) in &self.hold_kinds {
             domain.configure_holds(&env, *connector, kinds.clone());
         }
+        StoreChecks::record_rehearsal();
         domain.rehearse();
         let mut events =
             std::collections::VecDeque::from([root::Event::StartBegin { pending: store.generation_pending }]);

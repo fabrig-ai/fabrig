@@ -246,6 +246,7 @@ const BYTES: &[u8] = b"{}[],:\"\\ \n-+.eE0179tfnux/\x00\x01\x1f\x7f\x80\xbf\xc0\
 /// `document` with a few edits drawn at random.
 #[must_use]
 pub fn mutate(rng: &mut Rng, document: &[u8]) -> Vec<u8> {
+    skein_world::checks::count("mutation", 1);
     let mut out = document.to_vec();
     for _ in 0..rng.between(1, 3) {
         let at = usize::try_from(rng.below(out.len() as u64 + 1)).expect("fits a usize");

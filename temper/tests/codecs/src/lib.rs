@@ -18,6 +18,7 @@ pub fn mutated(rng: &mut Rng, fixed_value: &[u8]) -> Vec<u8> {
 
 /// The same mutation, retaining scratch capacity between complete inputs.
 pub fn mutated_into(rng: &mut Rng, fixed_value: &[u8], bytes: &mut Vec<u8>) {
+    skein_world::checks::count("mutation", 1);
     bytes.clear();
     bytes.extend_from_slice(fixed_value);
     let length = skein_lib::len_u64(bytes.len());

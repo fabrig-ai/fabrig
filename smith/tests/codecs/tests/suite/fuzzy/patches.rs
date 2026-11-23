@@ -54,6 +54,7 @@ fn draw_record(rng: &mut Rng, fixed_value: &[u8]) -> Box<[u8]> {
 }
 
 fn sweep(seed: u64) {
+    skein_world::checks::count("seed", 1);
     let old_schema = schema::parse(fixture::kept::fixture_turn::TEXTS[0].as_bytes()).expect("v1 schema");
     let new_schema = schema::parse(fixture::kept::fixture_turn::TEXTS[1].as_bytes()).expect("v2 schema");
     let old_root = old_schema.find(smith_transcript::ROOT.as_bytes()).expect("old Turn");

@@ -23,6 +23,7 @@ fn drawn(seed: u64) -> Settings {
 /// Eight shards share the fuzzy suite's threads (testing-strategy.md, section 8).
 fn shard(seeds: Range<u64>) {
     for seed in seeds {
+        skein_world::checks::count("seed", 1);
         let settings = drawn(seed);
         let world = run_replayed(settings);
         assert!(world.referee.done(), "seed {seed}");

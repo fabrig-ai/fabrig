@@ -18,6 +18,7 @@ pub struct Story {
 impl Story {
     /// Count the reference's relative commits, then hold the story's prefix once.
     pub fn sweep(&self, seed: u64, each_commit: bool) {
+        skein_world::checks::count("seed", 1);
         let (before, commits) = {
             let mut reference = (self.setup)(seed);
             let commits = (self.run)(&mut reference, None);

@@ -258,5 +258,6 @@ pub fn refusal(row: &Mutation) -> Startup {
 pub fn each(mut check: impl FnMut(u64, &mut Rng)) {
     for seed in CASES {
         check(seed, &mut Rng::new(SEED + seed));
+        skein_world::checks::count("seed", 1);
     }
 }

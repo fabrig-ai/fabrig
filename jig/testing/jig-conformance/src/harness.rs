@@ -337,6 +337,7 @@ impl<A: Application> Harness<A> {
         A::cold(&mut peers, &store, clock)?;
         let mut systems = A::systems(&config, self.seed);
         let mut domain = A::build(&config);
+        StoreChecks::record_rehearsal();
         A::rehearse(&mut domain);
         let mut events: VecDeque<_> = A::start(&config, &mut store).into_iter().map(Input::Event).collect();
         for _ in 0..self.referee.policy.story_steps {
@@ -582,6 +583,7 @@ impl<A: Application> Harness<A> {
             }
             skein_fork::Split::Parent(skein_fork::Exit::Code(0)) => {
                 self.forked.push(commit);
+                StoreChecks::record_rehearsal();
                 self.store_checks.restarted(commit);
                 Ok(false)
             }

@@ -223,6 +223,7 @@ pub fn each_seed<S: Check>(config: Config, seeds: u64, scenario: fn(&mut Simulat
         eprintln!("running conformance scenario at seed {seed} of {config:?}");
         let mut world = Simulated::new(seed, config);
         scenario(&mut world).check();
+        skein_world::checks::count("seed", 1);
     }
 }
 

@@ -44,6 +44,7 @@
 
 extern crate alloc;
 
+pub mod checks;
 #[cfg(unix)]
 pub mod deadline;
 #[cfg(unix)]

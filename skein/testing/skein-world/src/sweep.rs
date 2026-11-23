@@ -101,6 +101,7 @@ impl Sweep {
 
     /// Folds one seed's ledger: what fell, and what its exclusions left out.
     pub fn ran(&mut self, ledger: &FaultLedger) {
+        crate::checks::count("seed", 1);
         self.seeds = self.seeds.checked_add(1).expect("a sweep's seed count fits u64");
         self.fell.extend(ledger.fell());
         for (scenario, _, _) in ledger.left_out_draws() {

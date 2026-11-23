@@ -133,6 +133,7 @@ pub fn check_recording_mutations(seeds: &[u64]) {
         for stdout in mutate::all(&recording.stdout) {
             recording.stdout = stdout;
             for seed in seeds {
+                skein_world::checks::count("seed", 1);
                 if let Some(decoded) = world::replay(&recording, &expected, &RECORDED, &Settings::cut(*seed)) {
                     assert_eq!(decoded, expected, "{case}, seed {seed}");
                 }
