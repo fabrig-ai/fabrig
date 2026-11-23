@@ -36,13 +36,21 @@ pub use hearth_test_repository::{
 /// Overrides THIN by path and appends the new files.
 #[must_use]
 pub fn thin_with(files: &[File]) -> Vec<File> {
-    let mut combined = THIN.to_vec();
-    for file in files {
+    edited(THIN, files, &[])
+}
+/// Applies replacements and additions, then drops the removed paths.
+#[must_use]
+pub fn edited(files: &[File], changed: &[File], removed: &[&str]) -> Vec<File> {
+    let mut combined = files.to_vec();
+    for file in changed {
         if let Some(previous) = combined.iter_mut().find(|previous| previous.path == file.path) {
             *previous = *file;
         } else {
             combined.push(*file);
         }
+    }
+    if !removed.is_empty() {
+        combined.retain(|file| !removed.contains(&file.path));
     }
     combined
 }

@@ -38,13 +38,6 @@ fn hearth_render_prints_the_thin_repositorys_spec_through_real_git() {
     assert_eq!(rendered.exit, Exit::Code(0), "hearth/docs/design/client/README.md 3.3: done");
 }
 #[test]
-fn a_directory_that_is_no_repository_exits_75() {
-    let repository = Repository::empty("no-repository");
-    let rendered = fixtures::render(&repository, &[], Form::Text);
-    assert_eq!(fixtures::lines_starting(&rendered.stdout, &["git "]), "git rev-parse exited 128\n");
-    assert_eq!(rendered.exit, Exit::Code(75), "git failed operationally");
-}
-#[test]
 fn a_scratch_repository_without_git_on_the_path_fails_by_name_not_by_skip() {
     let scratch = skein_scratch::Scratch::new("without-git");
     let error = Repository::try_make_on(scratch.path().as_os_str(), "no-git", fixtures::THIN)
@@ -127,27 +120,6 @@ fn a_work_trees_gitattributes_do_not_make_a_file_binary() {
         fixtures::lines_starting(&rendered.stdout, &["               @@"]),
         "               @@ -1,5 +1,5 @@\n               @@ -9,7 +9,7 @@ line 8\n"
     );
-}
-#[test]
-fn json_counts_the_hunk_lines_left_out_past_200() {
-    let repository = Repository::make("diff-left-out", fixtures::MOTD);
-    let from = repository.next(&[fixtures::File { body: b"old\n".repeat(300).leak(), ..fixtures::MOTD_KIND }], &[]);
-    let to = repository.next(&[fixtures::File { body: b"new\n".repeat(300).leak(), ..fixtures::MOTD_KIND }], &[]);
-    let asked = fixtures::Asked { form: Form::JsonLines, targets: &[b"x1-prod"], ..fixtures::Asked::new(&from, &to) };
-    let rendered = fixtures::diff(&repository, &asked);
-    let stdout = std::str::from_utf8(&rendered.stdout).expect("JSON");
-    assert_eq!(stdout.matches("\"kind\":\"removed\"").count(), 199);
-    assert!(stdout.contains("\"hunks\":{\"binary\":false,\"left_out\":401,\"lines\":["));
-}
-#[test]
-fn a_binary_file_answers_binary_with_no_hunk_line() {
-    let repository = Repository::make("diff-binary", fixtures::MOTD);
-    let from = repository.next(&[fixtures::File { body: b"old\0\n", ..fixtures::MOTD_KIND }], &[]);
-    let to = repository.next(&[fixtures::File { body: b"new\0\n", ..fixtures::MOTD_KIND }], &[]);
-    let asked = fixtures::Asked { form: Form::JsonLines, targets: &[b"x1-prod"], ..fixtures::Asked::new(&from, &to) };
-    let rendered = fixtures::diff(&repository, &asked);
-    let stdout = std::str::from_utf8(&rendered.stdout).expect("JSON");
-    assert!(stdout.contains("\"hunks\":{\"binary\":true,\"left_out\":0,\"lines\":[]}"));
 }
 
 #[test]
@@ -253,25 +225,6 @@ fn a_template_that_does_not_compile_leaves_its_target_out() {
         &fixtures::thin_with(core::slice::from_ref(&fixtures::BROKEN_TEMPLATE)),
     );
     assert_eq!(fixtures::render(&repository, &[], Form::Text).exit, Exit::Code(2));
-}
-
-#[test]
-fn the_diffs_errors_follow_its_changes_and_precede_the_outcome() {
-    let repository = Repository::make("diff-error-order", fixtures::MOTD);
-    let from = repository.head();
-    let to = repository.next(&[fixtures::MOTD_KIND, fixtures::BAD_WEST_LAB], &[]);
-    let asked = fixtures::Asked { form: Form::JsonLines, ..fixtures::Asked::new(&from, &to) };
-    let rendered = fixtures::diff(&repository, &asked);
-    let stdout = std::str::from_utf8(&rendered.stdout).expect("JSON text");
-    let mut lines = stdout.lines();
-    assert_eq!(lines.next_back().and_then(|line| line.split(',').next()), Some("{\"record\":\"outcome\""));
-    assert_eq!(
-        lines.next_back(),
-        Some(
-            "{\"record\":\"error\",\"side\":\"to\",\"kind\":\"decode\",\"decode\":\"unexpected\",\"class\":\"configuration\",\"at\":{\"column\":2,\"line\":1,\"path\":\"hosts/west/west-lab.json\"}}"
-        )
-    );
-    assert_eq!(lines.filter(|line| line.starts_with("{\"record\":\"change\"")).count(), 4);
 }
 
 #[test]

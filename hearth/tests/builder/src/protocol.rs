@@ -48,18 +48,23 @@ pub fn run(scenario: &Scenario<'_>, seed: u64) -> Run {
 }
 #[must_use]
 pub fn with_pipe(scenario: &Scenario<'_>, seed: u64, pipe: u32) -> Run {
-    World::new(scenario, seed, pipe, &hearth::limits()).finish()
+    World::new(scenario, seed, pipe, &hearth::limits()).finish(fixtures::PROTOCOL_TURNS)
+}
+/// For a fixture that has more stream and printer work than the default world bound.
+#[must_use]
+pub fn with_turns(scenario: &Scenario<'_>, seed: u64, turns: u32) -> Run {
+    World::new(scenario, seed, fixtures::WORLD_PIPE, &hearth::limits()).finish(turns)
 }
 /// The same cut-pipe world at a fixture's declared limits.
 #[must_use]
 pub fn with_limits(scenario: &Scenario<'_>, seed: u64, limits: &hearth::Limits) -> Run {
-    World::new(scenario, seed, fixtures::WORLD_PIPE, limits).finish()
+    World::new(scenario, seed, fixtures::WORLD_PIPE, limits).finish(fixtures::PROTOCOL_TURNS)
 }
 #[must_use]
 pub fn with_lock(scenario: &Scenario<'_>, seed: u64, release: Time) -> Run {
     let mut world = World::new(scenario, seed, fixtures::WORLD_PIPE, &hearth::limits());
     world.below.hold_lock_until(release);
-    world.finish()
+    world.finish(fixtures::PROTOCOL_TURNS)
 }
 impl World {
     fn new(scenario: &Scenario<'_>, seed: u64, pipe: u32, limits: &hearth::Limits) -> Self {
@@ -90,8 +95,8 @@ impl World {
             rng: skein_lib::Rng::new(seed),
         }
     }
-    fn finish(mut self) -> Run {
-        for _ in 0..fixtures::PROTOCOL_TURNS {
+    fn finish(mut self, turns: u32) -> Run {
+        for _ in 0..turns {
             let now = self.protocol_env.now;
             self.below.step(now);
             self.schedule_events(now);
@@ -141,7 +146,7 @@ impl World {
             self.protocol_env.now = now;
             self.domain_env.now = now;
         }
-        panic!("hearth-28 protocol world exceeded its bounded turns");
+        panic!("protocol world exceeded its bound of {turns} turns");
     }
     fn schedule_events(&mut self, now: Time) {
         for _ in 0..fixtures::PROTOCOL_QUEUE {

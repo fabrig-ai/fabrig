@@ -14,7 +14,12 @@ mod properties;
 mod protocol;
 mod simulation;
 
+mod diff {
+    mod hunks;
+}
+
 mod render {
+    mod git;
     mod outputs;
 }
 
