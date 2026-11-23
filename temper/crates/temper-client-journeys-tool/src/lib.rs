@@ -2,13 +2,14 @@
 
 use std::{
     ffi::OsStr,
-    fs,
     path::{Path, PathBuf},
 };
 use temper_client_shell_web::journey::{self, Stale};
+use temper_client_walk_lines::walk::Client;
 
 #[expect(dead_code, reason = "the writer and look-refresh commands will dispatch through this host")]
 mod host;
+mod output;
 mod run;
 mod table;
 pub use run::main;
@@ -70,12 +71,18 @@ const REPOSITORY: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../..");
 /// Resolve OUT without writing, refusing the checkout's writer-owned roots.
 /// # Errors
 /// Refuses a path inside either root or one that cannot be resolved.
-pub fn destination(out: &Path) -> Result<PathBuf, Refusal> {
+fn destination(
+    out: &Path,
+    repository: &Path,
+    absolute: impl FnOnce(&Path) -> std::io::Result<PathBuf>,
+    mut canonicalize: impl FnMut(&Path) -> std::io::Result<PathBuf>,
+) -> Result<PathBuf, Refusal> {
     use temper_client_walk_lines::layout::{self, TUI, WEB};
-    let out = std::path::absolute(out).and_then(|path| layout::resolve(&path)).map_err(|_| io_refusal(out))?;
+    let out =
+        absolute(out).and_then(|path| layout::resolve_with(&path, &mut canonicalize)).map_err(|_| io_refusal(out))?;
     for root in [WEB, TUI] {
-        let path = Path::new(REPOSITORY).join(root);
-        let root = layout::resolve(&path).map_err(|_| io_refusal(&path))?;
+        let path = repository.join(root);
+        let root = layout::resolve_with(&path, &mut canonicalize).map_err(|_| io_refusal(&path))?;
         if out.starts_with(root) {
             return Err(Refusal::OutputRoot);
         }
@@ -93,18 +100,14 @@ fn recording_name(file: &OsStr) -> String {
         .to_owned()
 }
 
-/// Check the layout, redact, scan and prove a person's recording before printing
-/// any pages into OUT (draft/archive/journey-walks.md, 4.3).
-/// # Errors
-/// Refuses a writer-owned OUT, incompatible layout, unsafe bytes, failed proof or io.
-pub fn print(
-    file: &OsStr,
-    recording: &[u8],
-    given: &[Box<[u8]>],
-    out: &Path,
-    build: &Build,
-) -> Result<Printed, Refusal> {
-    let out = destination(out)?;
+struct Admitted {
+    client: Client,
+    printed: Printed,
+    pages: Vec<print::Printed>,
+}
+
+/// Check the layout, redact, scan and prove the recording before publication.
+fn admit(file: &OsStr, recording: &[u8], given: &[Box<[u8]>], build: &Build) -> Result<Admitted, Refusal> {
     let name = recording_name(file);
     let is_tui = recording
         .split(|byte| *byte == b'\n')
@@ -112,7 +115,7 @@ pub fn print(
         .nth(1)
         .is_some_and(|line| line.starts_with(b"screen "));
     if is_tui {
-        return tui::print(&out, &name, file, recording, given, build);
+        return tui::admit(&name, file, recording, given, build);
     }
     let lines = journey::lines(recording).map_err(|why| proof_refusal(&name, journey::Refusal::Unreadable(why)))?;
     if let Some(path) =
@@ -132,10 +135,10 @@ pub fn print(
             });
         }
     }
-    print_web(&out, &name, recording, given)
+    admit_web(&name, recording, given)
 }
 
-fn print_web(out: &Path, name: &str, recording: &[u8], given: &[Box<[u8]>]) -> Result<Printed, Refusal> {
+fn admit_web(name: &str, recording: &[u8], given: &[Box<[u8]>]) -> Result<Admitted, Refusal> {
     let redacted = journey::redact(recording, given).map_err(|why| match why {
         journey::Unredacted::Unreadable(unreadable) => proof_refusal(name, journey::Refusal::Unreadable(unreadable)),
         journey::Unredacted::Undecoded(undecoded) => Refusal::Undecoded { name: name.to_owned(), line: undecoded.line },
@@ -177,16 +180,7 @@ fn print_web(out: &Path, name: &str, recording: &[u8], given: &[Box<[u8]>]) -> R
         credential: 0,
         bearer: 0,
     };
-    let directory = out.join(temper_client_walk_lines::layout::WEB).join(name);
-    write_pages(&directory, pages)?;
-    write_assets(out, temper_client_walk_lines::walk::Client::Web)?;
-    Ok(printed)
-}
-
-fn write_assets(out: &Path, client: temper_client_walk_lines::walk::Client) -> Result<(), Refusal> {
-    let repository = fs::canonicalize(REPOSITORY).map_err(|_| io_refusal(Path::new(REPOSITORY)))?;
-    temper_client_walk_lines::layout::assets(&repository, out, client).map_err(|_| io_refusal(out))?;
-    Ok(())
+    Ok(Admitted { client: Client::Web, printed, pages })
 }
 
 fn scanned(name: &str, lines: &[journey::Line], originals: &journey::Originals) -> Result<(), Refusal> {
@@ -223,29 +217,6 @@ fn printed_replay(mut replay: journey::Replay) -> Result<Vec<print::Printed>, St
         }
     }
     Ok(print::pages(&marks))
-}
-
-fn write_pages(out: &Path, pages: Vec<print::Printed>) -> Result<(), Refusal> {
-    fs::create_dir_all(out).map_err(|_| io_refusal(out))?;
-    for entry in fs::read_dir(out).map_err(|_| io_refusal(out))? {
-        let entry = entry.map_err(|_| io_refusal(out))?;
-        let path = entry.path();
-        if printed_page(&path) && entry.file_type().map_err(|_| io_refusal(&path))?.is_file() {
-            fs::remove_file(&path).map_err(|_| io_refusal(&path))?;
-        }
-    }
-    for page in pages {
-        let path = out.join(page.name);
-        fs::write(&path, page.document).map_err(|_| io_refusal(&path))?;
-    }
-    Ok(())
-}
-
-fn printed_page(path: &Path) -> bool {
-    path.file_name()
-        .and_then(|name| name.to_str())
-        .and_then(|name| name.strip_suffix(".html"))
-        .is_some_and(|number| number.len() >= 2 && number.bytes().all(|byte| byte.is_ascii_digit()))
 }
 
 fn io_refusal(path: &Path) -> Refusal {
