@@ -103,7 +103,7 @@ class CountedCommandTests(CountsRepository):
             'binary\tdefault\tjig-suite::domain\tjig\tdomain',
             'binary\tdefault\tjig-lib\tjig\tstep',
             'layer\tdefault\tjig\tdomain\t241400000000\t4828000000',
-            'layer\tdefault\tjig\tstep\t10000000000\t1000000000',
+            'layer\tdefault\tjig\tstep\t10000000000\t2500000000',
         ])
         args = ('-p', 'jig-suite', '--test', 'domain', '-E', 'test(=one)')
         lines, first = self.run_command(*args)
@@ -111,7 +111,7 @@ class CountedCommandTests(CountsRepository):
             f"budgets: jig default domain: this run's tests count 2.0 G; "
             f"a change may grow the layer by 4.8 G at main {self.second[:10]} (2% of 241.4 G, at least 1 G)",
             f"budgets: jig default step: this run's tests count 0.4 G; "
-            f"a change may grow the layer by 1.0 G at main {self.second[:10]} (2% of 10.0 G, at least 1 G)",
+            f"a change may grow the layer by 2.5 G at main {self.second[:10]} (to the user's accepted level of 12.5 G)",
             "budgets: new-world::only is not in main's counts; "
             "the gate places a new binary by tools/tiers/layers.toml",
         ])
