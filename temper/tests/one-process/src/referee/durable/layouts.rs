@@ -17,15 +17,30 @@ struct Decoder {
     held: skein_lib::List<[u8; 32]>,
 }
 
+enum Parsed {
+    Binary(&'static Schema),
+    Registry(Box<Schema>),
+}
+
+impl AsRef<Schema> for Parsed {
+    fn as_ref(&self) -> &Schema {
+        match self {
+            Self::Binary(schema) => schema,
+            Self::Registry(schema) => schema,
+        }
+    }
+}
+
 #[derive(Clone, Default)]
 struct Prepared {
-    texts: BTreeMap<[u8; 32], Rc<Schema>>,
+    texts: BTreeMap<[u8; 32], Rc<Parsed>>,
     decoders: BTreeMap<Vec<u8>, Rc<Decoder>>,
 }
 
 #[derive(Clone, Default)]
 pub(super) struct Layouts {
-    rows: BTreeMap<Vec<u8>, Box<[u8]>>,
+    // Pending observations share the registry bytes until a row changes.
+    rows: Rc<BTreeMap<Vec<u8>, Box<[u8]>>>,
     // Tentative and committed observations of the same rows share preparation.
     // A changed row detaches the view and drops only the entries it fed.
     prepared: Rc<RefCell<Prepared>>,
@@ -66,15 +81,16 @@ impl Layouts {
                 }
                 _ => unreachable!("only registry text and layout rows are observed"),
             }
+            let rows = Rc::make_mut(&mut self.rows);
             match op {
                 skein_kv::Op::Append { .. } | skein_kv::Op::Drop { .. } => {
                     unreachable!("decoded commit frames contain map operations")
                 }
                 skein_kv::Op::Put { key, value } => {
-                    self.rows.insert(key.to_vec(), value.clone());
+                    rows.insert(key.to_vec(), value.clone());
                 }
                 skein_kv::Op::Erase { key } => {
-                    self.rows.remove(key.as_ref());
+                    rows.remove(key.as_ref());
                 }
             }
         }
@@ -84,7 +100,7 @@ impl Layouts {
         self.prepared = Rc::default();
     }
 
-    fn text(&self, digest: [u8; 32]) -> Result<Rc<Schema>, String> {
+    fn text(&self, digest: [u8; 32]) -> Result<Rc<Parsed>, String> {
         if let Some(schema) = self.prepared.borrow().texts.get(&digest) {
             return Ok(schema.clone());
         }
@@ -92,25 +108,34 @@ impl Layouts {
         let bytes = self.rows.get(key.as_ref()).ok_or("registered text present")?;
         let text = wire::Text::decode(&wire::CEILINGS, &mut Reader::new(bytes))
             .map_err(|why| format!("registry text: {why:?}"))?;
-        let schema = Rc::new(schema::parse(&text.text).map_err(|why| format!("registry schema: {why:?}"))?);
+        // A digest names a row; only its decoded bytes can establish equality with the binary text.
+        let parsed = if let Some((_, schema)) =
+            binary_schemas()?.iter().find(|(binary, _)| binary.as_bytes() == text.text.as_ref())
+        {
+            Parsed::Binary(schema)
+        } else {
+            Parsed::Registry(Box::new(schema::parse(&text.text).map_err(|why| format!("registry schema: {why:?}"))?))
+        };
+        let schema = Rc::new(parsed);
         self.prepared.borrow_mut().texts.insert(digest, schema.clone());
         Ok(schema)
     }
 
-    fn decoder(&self, family: &KeptFamily, ty: &ValueType, key: &[u8]) -> Result<Decoder, String> {
-        let layout = wire::Layout::decode(&wire::CEILINGS, &mut Reader::new(self.rows.get(key).expect("found layout")))
+    fn decoder(&self, family: &KeptFamily, ty: &ValueType, row: &[u8]) -> Result<Decoder, String> {
+        let layout = wire::Layout::decode(&wire::CEILINGS, &mut Reader::new(row))
             .map_err(|why| format!("registry layout: {why:?}"))?;
         let old = self.text(layout.text)?;
         let old_held = layout.held.iter().map(|digest| self.text(*digest)).collect::<Result<Vec<_>, _>>()?;
         let binary = binary_schemas()?;
         let new = &binary.iter().find(|(text, _)| *text == family.current).expect("binary family present").1;
         let new_held = binary.iter().map(|(_, schema)| schema).collect::<Vec<_>>();
+        let old = old.as_ref().as_ref();
         let old_root = old.root(&layout.root, layout.variant.as_deref()).ok_or("stored root present")?;
         let new_root = new.root(ty.root.as_bytes(), ty.variant.map(str::as_bytes)).ok_or("binary root present")?;
         let plan = Plan::derive(
-            &old,
+            old,
             old_root,
-            &old_held.iter().map(AsRef::as_ref).collect::<Vec<_>>(),
+            &old_held.iter().map(|schema| schema.as_ref().as_ref()).collect::<Vec<_>>(),
             new,
             new_root,
             &new_held,
@@ -124,15 +149,13 @@ impl Layouts {
         let Some(id) = Reader::new(&bytes).u16() else { return Ok(bytes) };
         let key = keys::encode_own(&keys::Own::Layout { family: family.name.into(), number: ty.number, id }, 1024)
             .expect("registry layout key");
-        // Unit snapshots without registry rows carry the binary's family version.
-        if !self.rows.contains_key(key.as_ref()) {
-            return Ok(bytes);
-        }
         let prepared = self.prepared.borrow().decoders.get(key.as_ref()).cloned();
         let decoder = if let Some(decoder) = prepared {
             decoder
         } else {
-            let decoder = Rc::new(self.decoder(family, ty, &key)?);
+            // Unit snapshots without registry rows carry the binary's family version.
+            let Some(row) = self.rows.get(key.as_ref()) else { return Ok(bytes) };
+            let decoder = Rc::new(self.decoder(family, ty, row)?);
             self.prepared.borrow_mut().decoders.insert(key.to_vec(), decoder.clone());
             decoder
         };
@@ -305,6 +328,27 @@ pub(super) mod tests {
     }
 
     #[test]
+    fn only_byte_identical_registry_texts_share_the_binary_parse() {
+        let (mut layouts, key, _) = registered_attempt();
+        let (family, _) = resolve(&key).expect("registered task value");
+        let binary = &binary_schemas()
+            .expect("binary schemas")
+            .iter()
+            .find(|(text, _)| *text == family.current)
+            .expect("attempt family")
+            .1;
+        let digest = digest(family.current);
+        let edited = format!("\n{}", family.current);
+        for (text, shares_binary) in [(family.current, true), (edited.as_str(), false)] {
+            layouts.observe(&[Op::Put { key: text_key(digest), value: encoded_text(text) }]);
+            let schema = layouts.text(digest).expect("stored text parses");
+            let schema = schema.as_ref().as_ref();
+            assert_eq!(std::ptr::eq(schema, binary), shares_binary);
+            assert_eq!(schema.text(), text.as_bytes());
+        }
+    }
+
+    #[test]
     fn a_registry_edit_detaches_preparation_from_the_unchanged_observation() {
         let (mut committed, key, bytes) = registered_attempt();
         // Learn the decoder through a tentative view, just as pending commits do.
@@ -312,11 +356,13 @@ pub(super) mod tests {
         let current = pending.serving(&key, bytes.clone()).expect("pending registered value");
         assert_same_decoder(&pending, &committed, &key);
         assert_eq!(committed.serving(&key, bytes.clone()).expect("committed registered value"), current);
-        for (registry_key, value) in committed.rows.clone() {
+        for (registry_key, value) in committed.rows.as_ref().clone() {
             let mut pending = committed.clone();
             pending.observe(&[skein_kv::Op::Put { key: registry_key.clone().into(), value: value.clone() }]);
             assert_eq!(pending.serving(&key, bytes.clone()).expect("same registry row"), current);
+            assert!(Rc::ptr_eq(&pending.rows, &committed.rows), "unchanged registry rows share storage");
             pending.observe(&[skein_kv::Op::Put { key: registry_key.clone().into(), value: Box::default() }]);
+            assert!(!Rc::ptr_eq(&pending.rows, &committed.rows), "changed registry rows detach");
             assert!(pending.serving(&key, bytes.clone()).is_err(), "a changed registry row must be checked");
             assert_eq!(committed.serving(&key, bytes.clone()).expect("unchanged observation"), current);
             pending.observe(&[skein_kv::Op::Put { key: registry_key.clone().into(), value }]);
