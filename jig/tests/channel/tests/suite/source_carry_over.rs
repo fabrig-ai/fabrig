@@ -82,7 +82,10 @@ fn a_source_grant_change_carries_plain_history_and_discards_replay() {
             | session::Request::CancelIo { .. }
             | session::Request::Job { .. }
             | session::Request::Delegate { .. }
-            | session::Request::Withdraw { .. }) => panic!("unexpected opening output: {other:?}"),
+            | session::Request::Withdraw { .. }
+            | session::Request::RateLimitWait { .. }
+            | session::Request::RateLimitWaitDone { .. }
+            | session::Request::RateLimitOutlastsSession { .. }) => panic!("unexpected opening output: {other:?}"),
         }
     }
     let prompt = prompt.expect("source change starts a carry-over compaction");
