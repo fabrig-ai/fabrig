@@ -25,6 +25,7 @@ const NAMES: &[&[u8]] = &[b"keep", b"text", b"array", b"nested", b"omit"];
 #[test]
 fn ten_thousand_generated_mutated_and_extended_documents_obey_drawn_filters() {
     let mut seen = BTreeSet::new();
+    let mut mutations = generate::MutationBatch::default();
     for seed in 0..10_000 {
         let mut rng = Rng::new(0xC011_EC70 + seed);
         let mut tokens = generate::tokens(&mut rng, Shape { depth: 4, width: 4, string: 8 });
@@ -34,7 +35,7 @@ fn ten_thousand_generated_mutated_and_extended_documents_obey_drawn_filters() {
                     Token::Key(NAMES[usize::try_from(rng.below(NAMES.len() as u64)).expect("a name index")].into());
             }
         }
-        let mut document = generate::render(&mut rng, &tokens);
+        let document = generate::render(&mut rng, &tokens);
         let filter =
             Filter { root: FILTERS[usize::try_from(rng.below(FILTERS.len() as u64)).expect("a filter index")] };
         seen.insert(format!("{:?}", filter.root));
@@ -57,41 +58,44 @@ fn ten_thousand_generated_mutated_and_extended_documents_obey_drawn_filters() {
                 _ => limits.skip = rng.below(24),
             }
         }
-        if rng.chance(200) {
-            document = generate::mutate(&mut rng, &document);
-        }
+        let document = if rng.chance(200) { generate::mutate(&mut rng, &document) } else { document.into() };
         let settings = Settings::calm(&mut rng, limits.tokenizer);
-        let run = world::collect(&document, filter, limits, &settings, seed);
-        let outcome = run.outcome.expect("test value fits its admitted bounds");
-        if let Some((expected, skipped, kinds)) = reference::prune(&document, filter, &limits) {
-            for kind in kinds {
-                seen.insert(format!("skip {:?}", core::mem::discriminant(&kind)));
+        mutations.judge(document, |document| {
+            let run = world::collect(&document, filter, limits, &settings, seed);
+            let outcome = run.outcome.expect("test value fits its admitted bounds");
+            if let Some((expected, skipped, kinds)) = reference::prune(&document, filter, &limits) {
+                for kind in kinds {
+                    seen.insert(format!("skip {:?}", core::mem::discriminant(&kind)));
+                }
+                assert_eq!(outcome, expected, "seed {seed}: {}", document.escape_ascii());
+                if matches!(outcome, Event::Collected(_)) {
+                    assert_eq!(run.counts.skipped, skipped, "seed {seed}");
+                }
+            } else {
+                assert!(matches!(outcome, Event::Failed(_)), "seed {seed}: corrupt JSON cannot collect");
             }
-            assert_eq!(outcome, expected, "seed {seed}: {}", document.escape_ascii());
-            if matches!(outcome, Event::Collected(_)) {
-                assert_eq!(run.counts.skipped, skipped, "seed {seed}");
-            }
-        } else {
-            assert!(matches!(outcome, Event::Failed(_)), "seed {seed}: corrupt JSON cannot collect");
-        }
-        match &outcome {
-            Event::Collected(document) => {
-                seen.insert("collected".into());
-                for i in 0..document.len() {
-                    if document.token(i).expect("test value fits its admitted bounds").kind == skein_json::Kind::Long {
-                        seen.insert("long".into());
+            match &outcome {
+                Event::Collected(document) => {
+                    seen.insert("collected".into());
+                    for i in 0..document.len() {
+                        if document.token(i).expect("test value fits its admitted bounds").kind
+                            == skein_json::Kind::Long
+                        {
+                            seen.insert("long".into());
+                        }
                     }
                 }
+                Event::Failed(error) => {
+                    seen.insert(format!("{error:?}"));
+                }
+                Event::Closed => unreachable!(),
             }
-            Event::Failed(error) => {
-                seen.insert(format!("{error:?}"));
-            }
-            Event::Closed => unreachable!(),
-        }
+        });
         if seed % 10 == 0 {
             unchanged_extension(&mut rng, seed, limits, &settings);
         }
     }
+    mutations.finish();
     for what in ["collected", "long", "TooManyTokens", "TooMuchText { cap: None }", "SkippedTooLong", "Duplicate"] {
         assert!(seen.contains(what), "{what} fell: {seen:?}");
     }

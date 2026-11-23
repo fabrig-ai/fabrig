@@ -9,6 +9,45 @@ use jig_test_domain as root;
 
 const SEED: u64 = 2911;
 
+#[test]
+#[expect(clippy::disallowed_methods, reason = "the child starts with its own check-count destination")]
+fn every_rehearsal_writes_one_store_check_line() {
+    use std::{env, fs, process::Command};
+
+    const CHILD: &str = "JIG_STORE_CHECK_COUNT_CHILD";
+    const TEST: &str = "store_checks::every_rehearsal_writes_one_store_check_line";
+    if let Some(path) = env::var_os(CHILD) {
+        let mut world = World::new(Setup { seed: SEED, ..Setup::default() });
+        world.store_checks(StoreChecks::every());
+        for _ in 0..3 {
+            world.try_seed(Box::new([])).expect("correct fixture commit");
+        }
+        world.finish().expect("closing oracle");
+        let checked = world.store_checks.checked();
+        assert!(checked > 1);
+        assert_eq!(checked, world.store_checks.commits());
+        if env::var_os("TIERS_CHECKS_FILE").is_some() {
+            let counts = fs::read_to_string(path).expect("store check counts");
+            assert_eq!(counts, "store-check 1\n".repeat(usize::try_from(checked).expect("fixture count")));
+        } else {
+            assert!(!std::path::Path::new(&path).exists(), "unset counting leaves no file");
+        }
+        return;
+    }
+
+    let scratch = skein_scratch::Scratch::new("store-check-counts");
+    let path = scratch.path().join("checks");
+    for enabled in [false, true] {
+        let mut child = Command::new(env::current_exe().expect("test binary"));
+        child.args(["--exact", TEST, "--nocapture"]).env(CHILD, &path).env_remove("TIERS_CHECKS_FILE");
+        if enabled {
+            child.env("TIERS_CHECKS_FILE", &path);
+        }
+        let result = child.output().expect("run isolated store check story");
+        assert!(result.status.success(), "{result:?}");
+    }
+}
+
 fn missing_project(world: &World) -> Box<[root::Record]> {
     let mut row = fixtures::live_row(world, 1).clone();
     row.project = 99;

@@ -84,6 +84,7 @@ members = [
     "skein/testing/skein-fake-person",
     "skein/testing/skein-fake-person-browser",
     "skein/testing/skein-heap",
+    "skein/testing/skein-checks",
     "skein/testing/skein-scratch",
     "skein/testing/skein-throwaway-forgejo",
     "skein/testing/skein-world",
@@ -539,6 +540,7 @@ skein-conformance = { path = "skein/testing/skein-conformance" }
 skein-browser = { path = "skein/testing/skein-browser" }
 skein-browser-rig = { path = "skein/testing/skein-browser-rig" }
 skein-heap = { path = "skein/testing/skein-heap" }
+skein-checks = { path = "skein/testing/skein-checks" }
 skein-scratch = { path = "skein/testing/skein-scratch" }
 skein-echo-domain = { path = "skein/examples/echo/domain" }
 skein-echo-protocol = { path = "skein/examples/echo/protocol" }

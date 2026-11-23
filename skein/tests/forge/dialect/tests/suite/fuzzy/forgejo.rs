@@ -6,46 +6,58 @@ use skein_lib::Rng;
 #[test]
 fn forgejo_decoders_answer_every_mutated_transcript_without_panicking() {
     let mut rng = Rng::new(0x06_05);
+    let mut mutations = common::MutationBatch::default();
     for (case, request) in forgejo::json_cases() {
         let body = forgejo::transcript(&case).body;
         let mut bytes = Vec::new();
         for _ in 0..32 {
-            mutated_into(&mut rng, &body, &mut bytes);
-            let decoded = match &request {
-                Some(request) => forgejo::decode(request, &bytes),
-                None => forgejo::decode_error(&bytes),
-            };
-            assert!(decoded.steps <= forgejo::STEP_BOUND, "{case}: decode terminates within its bound");
+            let mutated = mutated_into(&mut rng, &body, &mut bytes);
+            mutations.judge(mutated, |bytes| {
+                let decoded = match &request {
+                    Some(request) => forgejo::decode(request, bytes),
+                    None => forgejo::decode_error(bytes),
+                };
+                assert!(decoded.steps <= forgejo::STEP_BOUND, "{case}: decode terminates within its bound");
+            });
         }
     }
+    mutations.finish();
 }
 #[test]
 fn forgejo_server_routes_answer_every_mutated_request_without_panicking() {
     let mut rng = Rng::new(0x06_05_02);
     let limits = forgejo::limits();
+    let mut mutations = common::MutationBatch::default();
     for case in forgejo::transcript_cases() {
         let transcript = forgejo::transcript(&case);
         for _ in 0..200 {
             let target = mutated(&mut rng, &transcript.target);
             let body = mutated(&mut rng, &transcript.request_body);
-            if let Ok((_, steps)) = forgejo::decode_route(transcript.method, &target, &body, &limits) {
-                assert!(steps <= forgejo::STEP_BOUND, "{case}: route terminates within its bound");
-            }
+            mutations.judge(target.zip(body), |(target, body)| {
+                if let Ok((_, steps)) = forgejo::decode_route(transcript.method, &target, &body, &limits) {
+                    assert!(steps <= forgejo::STEP_BOUND, "{case}: route terminates within its bound");
+                }
+            });
         }
     }
+    mutations.finish();
 }
 #[test]
 fn forgejo_delivery_decoders_answer_every_mutated_delivery_without_panicking() {
     let mut rng = Rng::new(0x04_02);
     let limits = forgejo::profile_limits();
+    let mut mutations = common::MutationBatch::default();
     for (case, _) in forgejo::delivery_cases() {
         let sent = forgejo::delivery(case);
         let mut bytes = Vec::new();
         for _ in 0..16 {
-            mutated_into(&mut rng, &sent.body, &mut bytes);
-            let _decoded = forgejo::decode_delivery(&sent.event, &bytes, &limits);
+            let mutated = mutated_into(&mut rng, &sent.body, &mut bytes);
+            mutations.judge(mutated, |bytes| {
+                let _decoded = forgejo::decode_delivery(&sent.event, bytes, &limits);
+            });
         }
     }
+    mutations.finish();
 }
 
 #[test]
@@ -58,6 +70,7 @@ fn generated_documents_and_their_mutations_end_within_the_step_bound() {
     let limits = generated::limits();
     let mut rng = Rng::new(0x06_03);
     let mut bytes = Vec::new();
+    let mut mutations = common::MutationBatch::default();
     for seed in SEEDS {
         for (name, request) in generated::request_documents() {
             let sent = client::encode(&request, &limits).expect("generated request");
@@ -70,10 +83,12 @@ fn generated_documents_and_their_mutations_end_within_the_step_bound() {
                 "{seed}/{name}"
             );
             for _ in 0..MUTATIONS {
-                mutated_into(&mut rng, body, &mut bytes);
-                if let Ok((_, steps)) = forgejo::decode_route(sent.method, &sent.target, &bytes, &limits) {
-                    assert!(steps <= forgejo::STEP_BOUND, "{seed}/{name}: bounded request");
-                }
+                let mutated = mutated_into(&mut rng, body, &mut bytes);
+                mutations.judge(mutated, |bytes| {
+                    if let Ok((_, steps)) = forgejo::decode_route(sent.method, &sent.target, bytes, &limits) {
+                        assert!(steps <= forgejo::STEP_BOUND, "{seed}/{name}: bounded request");
+                    }
+                });
             }
         }
         for reply in generated::documents(seed) {
@@ -86,19 +101,24 @@ fn generated_documents_and_their_mutations_end_within_the_step_bound() {
             assert_eq!(decoded.document, Ok(reply.document), "{seed}/{}", reply.name);
             assert_eq!(decoded.rows, reply.rows, "{seed}/{}", reply.name);
             for _ in 0..MUTATIONS {
-                mutated_into(&mut rng, &body, &mut bytes);
-                let decoded = forgejo::decode_answer(decoder(), &bytes, &limits);
-                assert!(decoded.steps <= forgejo::STEP_BOUND, "{seed}/{}: bounded answer", reply.name);
+                let mutated = mutated_into(&mut rng, &body, &mut bytes);
+                mutations.judge(mutated, |bytes| {
+                    let decoded = forgejo::decode_answer(decoder(), bytes, &limits);
+                    assert!(decoded.steps <= forgejo::STEP_BOUND, "{seed}/{}: bounded answer", reply.name);
+                });
             }
         }
         for (name, delivery) in generated::deliveries(seed) {
             let sent = server::delivery::encode(&delivery, &limits).expect("generated delivery");
             assert_eq!(forgejo::decode_delivery(sent.event, &sent.body, &limits), Ok(delivery), "{seed}/{name}");
             for _ in 0..MUTATIONS {
-                mutated_into(&mut rng, &sent.body, &mut bytes);
-                let (_, steps) = forgejo::decode_delivery_steps(sent.event, &bytes, &limits);
-                assert!(steps <= forgejo::STEP_BOUND, "{seed}/{name}: bounded delivery");
+                let mutated = mutated_into(&mut rng, &sent.body, &mut bytes);
+                mutations.judge(mutated, |bytes| {
+                    let (_, steps) = forgejo::decode_delivery_steps(sent.event, bytes, &limits);
+                    assert!(steps <= forgejo::STEP_BOUND, "{seed}/{name}: bounded delivery");
+                });
             }
         }
     }
+    mutations.finish();
 }

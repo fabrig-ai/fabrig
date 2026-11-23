@@ -59,6 +59,7 @@ fn client_wire_decoders_never_panic_and_reencode_the_same() {
     ];
     let mut rng = Rng::new(0x7e3d_0302);
     let fixed_values = values::client();
+    let mut mutations = temper_codecs_world::MutationBatch::default();
     for _ in 0..2_000 {
         let request = v1::Requesting { request: drawn_request(&mut rng) };
         let bytes = temper_client_protocol_wire::requesting(&request);
@@ -91,11 +92,11 @@ fn client_wire_decoders_never_panic_and_reencode_the_same() {
         };
         let encoded = temper_client_protocol_wire::answer(&record);
         answer(&encoded);
-        answer(&temper_codecs_world::mutated(&mut rng, &encoded));
+        mutations.judge(temper_codecs_world::mutated(&mut rng, &encoded), |bytes| answer(&bytes));
         let record = drawn_makings(&mut rng);
         let encoded = temper_client_protocol_wire::forges(&record);
         forges(&encoded);
-        forges(&temper_codecs_world::mutated(&mut rng, &encoded));
+        mutations.judge(temper_codecs_world::mutated(&mut rng, &encoded), |bytes| forges(&bytes));
         let rule = drawn_rule(&mut rng);
         let mut writer = Writer::new(
             usize::try_from(rule.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings"))
@@ -104,7 +105,7 @@ fn client_wire_decoders_never_panic_and_reencode_the_same() {
         rule.write(&temper_client_protocol_wire::v1::CEILINGS, &mut writer).expect("measured room");
         let encoded = writer.finish();
         landing_rule(&encoded);
-        landing_rule(&temper_codecs_world::mutated(&mut rng, &encoded));
+        mutations.judge(temper_codecs_world::mutated(&mut rng, &encoded), |bytes| landing_rule(&bytes));
         let charter = v1::ForgeCharter { charter: u32::try_from(rng.below(1_u64 << 32)).expect("u32 draw") };
         let mut writer = Writer::new(
             usize::try_from(charter.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings"))
@@ -113,7 +114,7 @@ fn client_wire_decoders_never_panic_and_reencode_the_same() {
         charter.write(&temper_client_protocol_wire::v1::CEILINGS, &mut writer).expect("measured room");
         let encoded = writer.finish();
         forge_charter(&encoded);
-        forge_charter(&temper_codecs_world::mutated(&mut rng, &encoded));
+        mutations.judge(temper_codecs_world::mutated(&mut rng, &encoded), |bytes| forge_charter(&bytes));
         let record = v1::SettingAnswer {
             value: if rng.chance(500) {
                 Some(temper_codecs_world::drawn(&mut rng, 64).into_boxed_slice())
@@ -129,7 +130,7 @@ fn client_wire_decoders_never_panic_and_reencode_the_same() {
         let encoded = temper_client_protocol_wire::setting_answer(&record);
         assert_eq!(temper_client_protocol_wire::decode_setting_answer(&encoded, &v1::CEILINGS), Some(record));
         setting_answer(&encoded);
-        setting_answer(&temper_codecs_world::mutated(&mut rng, &encoded));
+        mutations.judge(temper_codecs_world::mutated(&mut rng, &encoded), |bytes| setting_answer(&bytes));
         let bytes = temper_codecs_world::drawn(&mut rng, 512);
         for decode in decoders {
             decode(&bytes);
@@ -141,12 +142,14 @@ fn client_wire_decoders_never_panic_and_reencode_the_same() {
             decode(fixed_value);
         }
         for _ in 0..8 {
-            let bytes = temper_codecs_world::mutated(&mut rng, fixed_value);
-            for decode in decoders {
-                decode(&bytes);
-            }
+            mutations.judge(temper_codecs_world::mutated(&mut rng, fixed_value), |bytes| {
+                for decode in decoders {
+                    decode(&bytes);
+                }
+            });
         }
     }
+    mutations.finish();
 }
 
 fn landing_rule(bytes: &[u8]) {
