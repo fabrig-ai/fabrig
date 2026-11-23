@@ -397,6 +397,42 @@ class RunnerFixture(unittest.TestCase):
 
 
 class CountingRunTests(RunnerFixture):
+    def checks_fixture(self, contents):
+        runner = self.root / 'write-checks'
+        runner.write_text(rf"""#!{shutil.which('python3')}
+import os
+from pathlib import Path
+import sys
+name = sys.argv[-1]
+checks = Path(os.environ['TIERS_CHECKS_FILE'])
+assert checks.is_absolute() and not checks.exists()
+if name == 'a':
+    with checks.open('ab') as output:
+        output.write({contents!r})
+print(f'test {{name}} ... ok')
+with open(sys.argv[sys.argv.index('--logfile') + 1], 'w') as log:
+    log.write(f'ok {{name}}\n')
+print('test result: ok')
+""")
+        runner.chmod(0o700)
+        self.binary(names=('a', 'b'))
+        self.listing['rust-suites']['fixture::suite']['binary-path'] = str(runner)
+        self.run.__globals__['LANES'] = 2
+
+    def test_checks_are_read_once_per_process_and_missing_is_empty(self):
+        self.checks_fixture(b'store-check 2\nseed 4\nstore-check 3\n')
+        result = self.invoke()
+        self.assertEqual({tuple(p['tests']): p['checks'] for p in result['processes']},
+                         {('a',): {'store-check': 5, 'seed': 4}, ('b',): {}})
+        checks, = self.directory.glob('checks-*.txt')
+        self.assertEqual(checks.read_bytes(), b'store-check 2\nseed 4\nstore-check 3\n')
+
+    def test_malformed_checks_refuse_the_run_with_process_file_and_line(self):
+        self.checks_fixture(b'seed 1\nstore-check 0\n')
+        with self.assertRaisesRegex(ValueError, r'process \d+ \(fixture::suite\): .*checks-\d+\.txt, '
+                                    r"malformed check line 2: b'store-check 0\\n'"):
+            self.invoke()
+
     def test_suite_counts_spawned_thread_and_idle_process(self):
         self.listing['rust-suites'].clear()
         self.binary('fixture::count', names=('idle', 'spin'), native='count')
@@ -450,7 +486,7 @@ class CountingRunTests(RunnerFixture):
                     events.append(dict(event=kind, **fields))
                 with mock.patch.dict(globals_, counting=lambda: dict(counted=True, why=None),
                                      perf_event_open=opener, emit=emit):
-                    self.module['lanes'](plan)
+                    self.module['lanes'](plan, self.root)
                 self.assertEqual([e['event'] for e in events[:2]], ['lanes', 'counting'])
                 process, = [e['item'] for e in events if e['event'] == 'process']
                 test, = [e['item'] for e in events if e['event'] == 'test']
@@ -483,7 +519,7 @@ class LaneTests(RunnerFixture):
                 self.assertEqual(plan['lanes'], fixed)
                 output = io.StringIO()
                 with contextlib.redirect_stdout(output):
-                    self.module['lanes'](plan)
+                    self.module['lanes'](plan, self.root)
                 events = [json.loads(line.removeprefix(self.module['EVENT']))
                           for line in output.getvalue().splitlines()]
                 self.assertEqual([event['lanes'] for event in events if event['event'] == 'lanes'],
@@ -731,6 +767,25 @@ class PlacementTests(RunnerFixture):
 
 
 class WorkspaceTests(RunnerFixture):
+    def test_package_scope_survives_a_binary_skipped_by_the_default_filter(self):
+        package = self.metadata['packages'][0]
+        self.metadata['packages'].append(dict(package, id='other-id', name='other'))
+        self.metadata['workspace_members'].append('other-id')
+        self.metadata['workspace_default_members'] = ['fixture-id']
+        self.listing['rust-suites']['fixture::suite'] = dict(status='skipped')
+        self.config.write_text('[profile.default]\ndefault-filter = "none()"\n')
+        cases = [([], ['fixture']), (['--workspace'], ['fixture', 'other']),
+                 (['--workspace', '--exclude', 'fixture'], ['other']), (['--package=fixture'], ['fixture'])]
+        command = self.command[:4]
+        for index, (selection, packages) in enumerate(cases):
+            with self.subTest(selection=selection):
+                self.command = [*command, *selection, '--no-tests=pass']
+                self.directory = self.root / f'run-{index}'
+                result = self.invoke()
+                self.assertEqual(result['selected_packages'], packages)
+                self.assertFalse(result['test_filtered'])
+                self.assertTrue(all(not binary['listed'] for binary in result['workspace']))
+
     def test_workspace_includes_unlisted_packages_and_excludes_non_test_targets(self):
         package = self.metadata['packages'][0]
         package.update(name='temper-fixture', manifest_path=str(self.root / 'temper/crates/fixture/Cargo.toml'),
@@ -756,6 +811,8 @@ class WorkspaceTests(RunnerFixture):
                     dict(binary_id='temper-fixture', tree='temper', layer='step', listed=True),
                     dict(binary_id='temper-fixture::suite', tree='temper', layer=layer, listed=True)])
                 self.assertEqual(result['selected'], 2)
+                self.assertEqual(result['selected_packages'], ['temper-fixture'])
+                self.assertFalse(result['test_filtered'])
 
     def test_workspace_ids_follow_target_kinds(self):
         rows = [
@@ -791,6 +848,8 @@ class WorkspaceTests(RunnerFixture):
             dict(binary_id='fixture::suite', tree='repository', layer='checks', listed=True)])
         self.assertEqual(result['selected'], 0)
         self.assertEqual(result['processes'], [])
+        self.assertEqual(result['selected_packages'], ['fixture'])
+        self.assertTrue(result['test_filtered'])
 
 
 class ReferenceTests(RunnerFixture):
@@ -1160,10 +1219,11 @@ class EndToEndTests(RunnerFixture):
         self.assertEqual(len(result['processes']), 2)
         count = self.assert_ledger_counts(result, data, ledger, output.getvalue())
         counts = [] if count is None else [dict(commit=data['commit'], instructions=count)]
-        self.assertEqual(ledger, dict(ledger=5, profile='default', budgets={}, moves=[], binaries={
+        self.assertEqual(ledger, dict(ledger=6, profile='default', budgets={}, moves=[], coverage_reasons=[], binaries={
             'fixture::suite': dict(tree='repository', layer='checks',
                                   cpu=[sum(p['cpu_s'] for p in result['processes'])],
-                                  tests={t['test_name']: [t['wall_s']] for t in result['tests']}, alone={}, counts=counts)}))
+                                  tests={t['test_name']: [t['wall_s']] for t in result['tests']},
+                                  alone={}, counts=counts, checks={})}))
         self.assertEqual(set(ledger['binaries']['fixture::suite']['tests']), {'a', 'b', 'c'})
 
         self.directory = self.root / 'second run with spaces'
