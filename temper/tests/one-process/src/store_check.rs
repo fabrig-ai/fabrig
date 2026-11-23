@@ -32,6 +32,7 @@ struct State {
     document: Rc<Configuration>,
     given: Option<temper_service::stock::Given>,
     inputs: Option<rehearsal::Inputs>,
+    opening_limits: Option<jig_protocol_store::CheckedLimits>,
 }
 
 thread_local! {
@@ -81,6 +82,7 @@ pub(crate) fn scope<R>(
             document,
             given: None,
             inputs: None,
+            opening_limits: None,
         });
     });
     let _reset = Reset;
@@ -157,6 +159,14 @@ pub(crate) fn given(build: impl FnOnce() -> temper_service::stock::Given) -> tem
     })
 }
 
+pub(crate) fn opening_limits(limits: &jig_protocol_store::CheckedLimits) {
+    STATE.with(|at| {
+        if let Some(state) = at.borrow_mut().as_mut() {
+            state.opening_limits = Some(*limits);
+        }
+    });
+}
+
 impl State {
     fn rehearse(&mut self, copy: Machine, number: u64) -> Result<(), String> {
         let copy = machine::Machine::new(copy);
@@ -171,7 +181,7 @@ impl State {
         });
         let given = self.given.as_ref().expect("live start's defaults");
         self.rehearsals += 1;
-        rehearsal::check(&copy, self.settings, inputs, given).map_err(|words| {
+        rehearsal::check(&copy, self.settings, inputs, given, self.opening_limits.as_ref()).map_err(|words| {
             // The source is unchanged by the tool. Read it only to name a refusal:
             // its newest frame can be ahead of the observation that kept it.
             let number = newest(&mut copy.0.borrow_mut()).max(number);

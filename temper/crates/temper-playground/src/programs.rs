@@ -50,6 +50,8 @@ pub trait Harness: 'static {
     fn prepared_schemas() -> Option<&'static [skein_codec::schema::Schema]> {
         None
     }
+    /// Let a world keep the live store's checked opening bounds for its copies.
+    fn checked_opening_limits(_limits: &jig_protocol_store::CheckedLimits) {}
     /// A world's worker may speak chosen versions; the playground keeps the build's ranges.
     #[must_use]
     fn worker_wires() -> Option<temper_service::worker_settings::Wires> {
@@ -370,6 +372,9 @@ pub fn service<H: Harness>(inherited: &Inherited) -> Process<H> {
     }
     if let Some(schemas) = H::prepared_schemas() {
         service.prepared_schemas(schemas);
+    }
+    if let Some(limits) = service.checked_opening_limits() {
+        H::checked_opening_limits(limits);
     }
     service.adopt_store(root, 1000).expect("deployment store");
     service.adopt_signals(inherited.signal).expect("service signal");

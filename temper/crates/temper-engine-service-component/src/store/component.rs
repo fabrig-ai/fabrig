@@ -53,6 +53,16 @@ impl Store {
         models: &[jig_domain_core::Model],
         seeds: &crate::settings::Seeds,
     ) -> Self {
+        Self::with_opening_limits(application, limits, models, seeds, None)
+    }
+
+    pub(crate) fn with_opening_limits(
+        application: &root::Limits,
+        limits: &protocol::Limits,
+        models: &[jig_domain_core::Model],
+        seeds: &crate::settings::Seeds,
+        opening: Option<&protocol::CheckedLimits>,
+    ) -> Self {
         let installation = seeds.installation;
         let routes = Self::routes(
             application,
@@ -63,7 +73,12 @@ impl Store {
         let application_sizes = temper_protocol_store::application(&application.forge, application.tasks.spec_bytes)
             .expect("checked application sizes");
         let seed = u64::from_le_bytes(*installation.first_chunk::<8>().expect("installation seed"));
-        let mut host = Hosted::new(limits, application_sizes, models, seed, NotReady::Above);
+        let mut host = match opening {
+            Some(checked) if checked.limits() == limits => {
+                Hosted::new_checked(checked, application_sizes, models, seed, NotReady::Above)
+            }
+            Some(_) | None => Hosted::new(limits, application_sizes, models, seed, NotReady::Above),
+        };
         assert!(host.component.wires(&WIRES), "valid engine wires before open");
         host.component.owner_sets(OWNER_SETS);
         host.component.keyspaces(temper_protocol_store::KEYSPACES);

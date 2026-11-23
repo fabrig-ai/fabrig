@@ -1,6 +1,6 @@
 //! Temper's worlds over jig's real store and the service's store routing.
 use jig_protocol_store::core_v6::Record as _;
-use jig_protocol_store::{self as protocol, Below, Event, Io, Limits, Request, Stores};
+use jig_protocol_store::{self as protocol, Below, CheckedLimits, Event, Io, Limits, Request, Stores};
 use jig_test_store_files::Files;
 use skein_lib::{Env, Queue, Time, Token, Wall};
 use std::collections::{BTreeMap, VecDeque};
@@ -50,6 +50,7 @@ struct Delayed {
 struct Shape {
     limits: engine::Limits,
     component_limits: Limits,
+    checked_limits: CheckedLimits,
     application: protocol::sizes::Application,
     route_bounds: temper_protocol_store::Bounds,
 }
@@ -193,9 +194,11 @@ impl Store {
     }
     #[must_use]
     pub fn with_limits(limits: &engine::Limits) -> Store {
+        let component_limits = component_limits(limits);
         let shape = Shape {
             limits: *limits,
-            component_limits: component_limits(limits),
+            component_limits,
+            checked_limits: CheckedLimits::new(&component_limits).expect("the store's limits are valid"),
             application: temper_protocol_store::application(&limits.forge, limits.tasks.spec_bytes)
                 .expect("checked family sizes"),
             route_bounds: temper_protocol_store::bounds(&limits.forge, limits.tasks.spec_bytes).expect("family bounds"),
@@ -556,7 +559,7 @@ impl Store {
     }
     fn reopen(&mut self, stores: Stores) {
         let mut component =
-            protocol::Store::over(&self.shape.component_limits, self.shape.application, &self.models, stores);
+            protocol::Store::over_checked(&self.shape.checked_limits, self.shape.application, &self.models, stores);
         assert!(component.wires(&temper_engine_service_vocabulary::store::WIRES));
         if let Some(names) = &self.catalogue {
             component.catalogue(names.clone());

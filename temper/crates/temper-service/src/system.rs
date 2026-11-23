@@ -141,7 +141,7 @@ impl Service {
         io_limits: io::Limits,
     ) -> Result<Self, Problems> {
         let forges = crate::forge::prepare(&settings, forges)?;
-        Self::prepared(settings, seeds, accounts, forges, worker, io_limits, None, None)
+        Self::prepared(settings, seeds, accounts, forges, worker, io_limits, None, None, None)
     }
     #[expect(clippy::too_many_arguments, reason = "startup keeps the checked settings and runtime facts together")]
     pub(crate) fn prepared(
@@ -153,6 +153,7 @@ impl Service {
         io_limits: io::Limits,
         box_line_bytes: Option<u32>,
         program_login: Option<Box<[u8]>>,
+        opening: Option<&jig_protocol_store::CheckedLimits>,
     ) -> Result<Self, Problems> {
         let links = settings.limits.sign_in.pending;
         let notes = settings.limits.forge.forges;
@@ -165,13 +166,14 @@ impl Service {
             },
         )
         .ok_or(start_problem(b"limits", What::Bound))?;
-        let engine = temper_engine_service::Engine::prepared(
+        let engine = temper_engine_service::Engine::prepared_with_store_limits(
             settings,
             seeds,
             accounts,
             forges,
             box_line_bytes,
             if worker.is_some() { program_login } else { None },
+            opening,
         )?;
         Ok(Self {
             engine: Some(Box::new(engine)),
@@ -213,6 +215,14 @@ impl Service {
     /// (protocol/floor.md, 3). Production keeps the binary's sets.
     pub fn owner_sets(&mut self, sets: jig_protocol_store::OwnerSets) {
         self.engine.as_mut().expect("engine patch sets").owner_sets(sets);
+    }
+    /// The directory component's checked bounds before runtime settings.
+    #[must_use]
+    pub fn checked_opening_limits(&self) -> Option<&jig_protocol_store::CheckedLimits> {
+        match &self.engine {
+            Some(engine) => Some(engine.checked_opening_limits()),
+            None => None,
+        }
     }
     /// Supply optional parsed binary texts before open; admission still checks the sets.
     pub fn prepared_schemas(&mut self, schemas: &'static [skein_codec::schema::Schema]) {

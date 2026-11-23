@@ -1,6 +1,6 @@
 //! The component behind the domain worlds' durable store face.
 use crate::Files;
-use jig_protocol_store::{self as protocol, Below, Event, Io, Limits, Request, Stores};
+use jig_protocol_store::{self as protocol, Below, CheckedLimits, Event, Io, Limits, Request, Stores};
 use jig_test_domain as root;
 use jig_test_store::{StoreOut, Up, route};
 use skein_lib::{Duration, Env, Queue, Time, Token, Wall};
@@ -74,6 +74,7 @@ pub struct Store {
     routes: route::Routes,
     limits: root::Limits,
     component_limits: Limits,
+    checked_limits: CheckedLimits,
     application: protocol::sizes::Application,
     /// The configured models the component names a role's models by.
     models: Rc<[jig_domain_core::Model]>,
@@ -156,15 +157,16 @@ impl Store {
         component_limits: &Limits,
         application: protocol::sizes::Application,
     ) -> Store {
+        let checked_limits = CheckedLimits::new(component_limits).expect("the store's limits are valid");
         let disk = if sets.sets.is_empty() && !on_disk { None } else { Some(crate::disk::Disk::new(component_limits)) };
         let component = if let Some(disk) = &disk {
-            protocol::Store::on_directory(component_limits, application, models, disk.seeded())
+            protocol::Store::on_directory_checked(&checked_limits, application, models, disk.seeded())
         } else {
             let stores = Stores {
                 store: skein_kv::Store::memory(&component_limits.store),
                 secrets: skein_kv::Store::memory(&component_limits.secrets),
             };
-            protocol::Store::over(component_limits, application, models, stores)
+            protocol::Store::over_checked(&checked_limits, application, models, stores)
         };
         let mut routes = route::Routes::new(limits.routes);
         routes.configure(limits);
@@ -176,7 +178,7 @@ impl Store {
             component,
             Files::new(),
             disk,
-            component_limits,
+            &checked_limits,
             application,
             routes,
         );
@@ -192,7 +194,7 @@ impl Store {
         mut component: protocol::Store,
         files: Files,
         disk: Option<crate::disk::Disk>,
-        component_limits: &Limits,
+        checked_limits: &CheckedLimits,
         application: protocol::sizes::Application,
         routes: route::Routes,
     ) -> Store {
@@ -217,7 +219,8 @@ impl Store {
             disk,
             routes,
             limits: *limits,
-            component_limits: *component_limits,
+            component_limits: *checked_limits.limits(),
+            checked_limits: *checked_limits,
             application,
             models,
             mirror_writes: true,
@@ -392,11 +395,11 @@ impl Store {
         self.component = Some(if let Some(disk) = &mut self.disk {
             drop(component);
             disk.crash(&self.component_limits, seed);
-            protocol::Store::on_directory(&self.component_limits, application, &self.models, disk.seeded())
+            protocol::Store::on_directory_checked(&self.checked_limits, application, &self.models, disk.seeded())
         } else {
             let stores = component.into_stores();
             self.files.crash(seed);
-            protocol::Store::over(&self.component_limits, application, &self.models, stores)
+            protocol::Store::over_checked(&self.checked_limits, application, &self.models, stores)
         });
         self.component.as_mut().expect("rebuilt component").owner_sets(component_sets(self.sets));
         assert!(self.component.as_mut().expect("rebuilt component").wires(self.wires));

@@ -112,7 +112,11 @@ impl Inputs {
         }
     }
 
-    fn service(&self, given: &temper_service::stock::Given) -> temper_service::Service {
+    fn service(
+        &self,
+        given: &temper_service::stock::Given,
+        opening: Option<&jig_protocol_store::CheckedLimits>,
+    ) -> temper_service::Service {
         let mut runtime = temper_service::AccountsRuntime { providers: List::with_capacity(2), trust: None };
         for &provider in &self.providers {
             let endpoint = || accounts::Endpoint {
@@ -125,7 +129,7 @@ impl Inputs {
                 .expect("sign-in origin");
             runtime.providers.push((provider, endpoint(), origins)).expect("two providers");
         }
-        temper_service::startup::restoring_with_limits(
+        temper_service::startup::restoring_with_opening_limits(
             &self.document,
             &jig_protocol_config::Directories::working(),
             &self.files,
@@ -135,6 +139,7 @@ impl Inputs {
             given,
             &self.jig,
             &self.limits,
+            opening,
         )
         .unwrap_or_else(|why| panic!("{}", String::from_utf8_lossy(&temper_service::startup::lines(&why))))
     }
@@ -165,8 +170,9 @@ pub(crate) fn check(
     settings: crate::world::Settings,
     inputs: &Inputs,
     given: &temper_service::stock::Given,
+    opening: Option<&jig_protocol_store::CheckedLimits>,
 ) -> Result<(), String> {
-    let outcome = tool_world(machine::Machine(disk.0.clone()), settings, inputs.service(given)).try_run()?;
+    let outcome = tool_world(machine::Machine(disk.0.clone()), settings, inputs.service(given, opening)).try_run()?;
     let [tool] = outcome.procs.as_slice() else { panic!("one upgrade tool") };
     let report = tool.0.upgrade_report().expect("tool report");
     // A whole rehearsal that restored and closed its scratch has no refusal
@@ -276,7 +282,7 @@ fn golden_check_with(directory: &Path, configuration: temper_playground::documen
     let before = golden::files::image_root(&mut disk, 0);
     // The fixture client's root is the tool's disposable scratch, not a running client.
     let given = temper_playground::documents::given(&configuration);
-    let service = Inputs::new(configuration).service(&given);
+    let service = Inputs::new(configuration).service(&given, None);
     let outcome = tool_world(machine::Machine::new(disk), fixtures::calm(fixtures::SEED), service).run();
     let [tool] = outcome.procs.as_slice() else { panic!("one upgrade tool") };
     let (lines, code) = render(&tool.0);

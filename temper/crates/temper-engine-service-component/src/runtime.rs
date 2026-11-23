@@ -19,17 +19,30 @@ fn normalize_trust(transport: &mut jig_protocol_config::Transport, directories: 
     }
 }
 impl engine::Engine {
+    pub fn prepared(
+        settings: settings::Engine,
+        seeds: &settings::Seeds,
+        accounts: Option<AccountsRuntime>,
+        forges: skein_forge_connection::Settings,
+        box_line_bytes: Option<u32>,
+        program_login: Option<Box<[u8]>>,
+    ) -> Result<Self, Problems> {
+        Self::prepared_with_store_limits(settings, seeds, accounts, forges, box_line_bytes, program_login, None)
+    }
+
+    /// Construct an engine, reusing a source store's opening bounds only when they match.
     #[expect(
         clippy::too_many_lines,
         reason = "the checked component construction also pins the providers kept by the shell"
     )]
-    pub fn prepared(
+    pub fn prepared_with_store_limits(
         mut settings: settings::Engine,
         seeds: &settings::Seeds,
         accounts: Option<AccountsRuntime>,
         forges: skein_forge_connection::Settings,
         box_line_bytes: Option<u32>,
         program_login: Option<Box<[u8]>>,
+        opening: Option<&jig_protocol_store::CheckedLimits>,
     ) -> Result<Self, Problems> {
         let mut limits =
             limits::engine(&settings.jig.limits, &settings.limits).ok_or(start_problem(b"limits", What::Bound))?;
@@ -119,7 +132,8 @@ impl engine::Engine {
             under_box: box_line_bytes.is_some(),
             playground: playground_config(settings.demo.as_ref(), settings.limits.setup.deadline),
         };
-        let store = store::Store::new(&limits, &store_limits, &config.core.settings.models, seeds);
+        let store =
+            store::Store::with_opening_limits(&limits, &store_limits, &config.core.settings.models, seeds, opening);
         let providers_path = settings
             .directories
             .join(jig_protocol_config::Directory::Data, b"providers.setting")
