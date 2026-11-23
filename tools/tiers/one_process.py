@@ -35,6 +35,7 @@ save = CPU['save']
 session_processes = CPU['session_processes']
 signal_group = CPU['signal_group']
 stop = CPU['stop']
+SUITE_PROCESS_KINDS = CPU['SUITE_PROCESS_KINDS']
 LANES = None
 TERM_GRACE_S = 10.0
 WALL_GRACE_S = 15.0
@@ -944,7 +945,7 @@ def lanes(plan):
                     job = jobs.pop(candidate)
                     child = BinaryProcess(job, processes, selector,
                                           count=bool(decision and decision['counted']
-                                                     and job['kind'] in ('tests', 'fresh', 'alone')))
+                                                     and job['kind'] in SUITE_PROCESS_KINDS))
                     processes += 1
                     first = child.start if first is None else first
                     active.append(child)

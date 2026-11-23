@@ -2,6 +2,7 @@
 
 from collections import Counter
 import contextlib
+from fractions import Fraction
 import io
 import json
 import math
@@ -35,6 +36,8 @@ ONE_PROCESS = Path(__file__).with_name('one_process.py')
 # A binary's last counted landings (tools/tiers/budgets.md, 7).
 COUNTS_KEPT = 100
 INSTRUCTION_ALLOWANCE = 10_000_000_000
+INSTRUCTION_GROWTH_FLOOR = 1_000_000_000
+SUITE_PROCESS_KINDS = ('tests', 'fresh')
 
 
 def timed_out(directory):
@@ -709,7 +712,7 @@ def one_process_summary(directory, limits, pair, run, gate=False, ledger=None, b
             if data['cancelled'] is None or outcome not in ('passed', 'failed', 'starved'):
                 raise ValueError('invalid test process index')
         elif (type(index) is not int or not 0 <= index < len(processes)
-                or processes[index]['kind'] not in ('tests', 'fresh')
+                or processes[index]['kind'] not in SUITE_PROCESS_KINDS
                 or processes[index]['binary_id'] != key[0]):
             raise ValueError('invalid test process index')
         if outcome == 'cancelled' and data['cancelled'] is None:
@@ -755,7 +758,7 @@ def one_process_summary(directory, limits, pair, run, gate=False, ledger=None, b
                  starved=sum(test['starved'] for test in tests),
                  starved_run=run['starved'] or ('wall_hard_s' in limits and run['wall_s'] > limits['wall_hard_s']),
                  unobserved=len(unobserved), leaked=None, incomplete=None, cpu_by='process')
-    suite_processes = [p for p in processes if p['kind'] in ('tests', 'fresh', 'alone')]
+    suite_processes = [p for p in processes if p['kind'] in SUITE_PROCESS_KINDS]
     for field in ('cpu_s', 'user_s', 'system_s'):
         suite[field] = figure(sum(process[field] for process in suite_processes), field)
     over = []
@@ -799,6 +802,7 @@ def one_process_summary(directory, limits, pair, run, gate=False, ledger=None, b
     counted = counting is not None and counting['counted']
     instruction_held = instruction_budgets(gate_limits, ledger, head_counts, main_counts,
                                            layer_counts(binaries, binary_count), selected_layers, counted)
+    move_credits = instruction_move_credits(gate_limits, ledger, main_counts, main) if counted else {}
     keys = {key for key in grouped.keys() | main.keys() if layer_selected(key[1], selected_layers)}
     instruction_layers = {(tree, layer) for tree, layer in keys
                           if 'instructions' in gate_limits.get(tree, {}).get(layer, {})}
@@ -828,7 +832,8 @@ def one_process_summary(directory, limits, pair, run, gate=False, ledger=None, b
         label = f'{tree} {pair} {layer}'
         line, grew = None, []
         if use_instructions:
-            line = instruction_verdict(label, count, main_count, growth, count_state, warnings)
+            line = instruction_verdict(label, count, main_count, growth, count_state, warnings,
+                                       move_credit=move_credits.get(key, 0))
             if line is not None and ledger is not None:
                 grew = growing_binaries(key, instruction_binaries, tests, ledger, instructions=True)
         else:
@@ -1037,7 +1042,7 @@ def head_binaries(processes, workspace, ledger, selected_layers=None):
     """The head's whole figures, including unlisted targets (budgets.md, 8)."""
     head = {}
     for process in processes:
-        if (process['kind'] not in ('tests', 'fresh', 'alone')
+        if (process['kind'] not in SUITE_PROCESS_KINDS
                 or not layer_selected(process['layer'], selected_layers)):
             continue
         binary = process['binary_id']
@@ -1064,19 +1069,42 @@ def main_budget(ledger, key):
     return min(entry['ceiling_s'], math.ceil(round(lowest + max(lowest / 10, 1), 3)))
 
 
-def move_net(profile, ledger, field):
-    """New moves of this measure, counted with multiplicity (budgets.md, 9)."""
+def new_moves(profile, ledger, *fields):
+    """Moves absent from main's ledger, counted with multiplicity (budgets.md, 8 and 9)."""
     def moves(items):
-        return Counter((m['from'], m['to'], m[field], m['why']) for m in items if field in m)
+        return Counter((m['from'], m['to'], m['why'], *(m.get(field) for field in fields)) for m in items)
 
+    if ledger is None:
+        return Counter()
+    return moves(profile.get('moves', [])) - moves(ledger['moves'])
+
+
+def move_net(profile, ledger, field):
+    """Net of new moves in this measure (budgets.md, 9)."""
     net = {}
-    if ledger is not None:
-        new = moves(profile.get('moves', [])) - moves(ledger['moves'])
-        for (source, target, amount, _), count in new.items():
-            for endpoint, sign in ((source, -1), (target, 1)):
-                key = tuple(endpoint.split('.'))
-                net[key] = net.get(key, 0) + sign * amount * count
+    for (source, target, _, amount), count in new_moves(profile, ledger, field).items():
+        if amount is None:
+            continue
+        for endpoint, sign in ((source, -1), (target, 1)):
+            key = tuple(endpoint.split('.'))
+            net[key] = net.get(key, 0) + sign * amount * count
     return net
+
+
+def instruction_move_credits(profile, ledger, main_counts, main_cpu):
+    """Growth allowance from new moves into each layer (budgets.md, 8)."""
+    credits, seconds = {}, {}
+    for (_, target, _, cpu, instructions), copies in new_moves(profile, ledger, 'cpu_s', 'instructions').items():
+        key = tuple(target.split('.'))
+        if instructions is not None:
+            credits[key] = credits.get(key, 0) + instructions * copies
+        else:
+            seconds[key] = seconds.get(key, 0) + Fraction(str(cpu)) * copies
+    for key, cpu in seconds.items():
+        count, main = main_counts.get(key), main_cpu.get(key)
+        if count and main:
+            credits[key] = credits.get(key, 0) + math.floor(cpu * count / Fraction(str(main)))
+    return credits
 
 
 def held_budgets(profile, ledger, figures, selected_layers=None):
@@ -1104,7 +1132,7 @@ def instruction_budget(ceiling, lowest):
     return min(ceiling, lowest + max((lowest + 9) // 10, INSTRUCTION_ALLOWANCE))
 
 
-def instruction_verdict(label, count, main, growth, state, warnings):
+def instruction_verdict(label, count, main, growth, state, warnings, *, move_credit=0):
     """The change's instruction verdict and main's warnings (budgets.md, 8 and 9)."""
     budget = state['instructions_budget']
     ceiling = state['instructions_ceiling']
@@ -1114,16 +1142,30 @@ def instruction_verdict(label, count, main, growth, state, warnings):
     if main is not None and lowest is not None and lowest < main <= main_budget and 100 * main >= 108 * lowest:
         warnings.append(f'layer instruction drift: {label}: {main} instructions at main, '
                         f'lowest {lowest} instructions, budget {main_budget} instructions')
-    grew = main is not None and 100 * count > 102 * main
+    increase = count - main if main is not None else 0
+    percentage = main // 50 if main is not None else 0
+    allowance = max(percentage, INSTRUCTION_GROWTH_FLOOR) + move_credit
+    grew = increase > allowance
+    detail = ''
+    if increase > percentage:
+        adjustments = []
+        if percentage < INSTRUCTION_GROWTH_FLOOR:
+            adjustments.append(f'{INSTRUCTION_GROWTH_FLOOR} instruction growth floor')
+        if move_credit:
+            adjustments.append(f'{move_credit} instructions of credit from new moves into the layer')
+        if adjustments:
+            detail = f', growth allowance {allowance} instructions ({", ".join(adjustments)})'
     if count > budget and main_over and not grew:
         warnings.append(f'layer over budget at main: {label}: {main} instructions at main, '
-                        f'budget {main_budget} instructions; {count} instructions at the head')
+                        f'budget {main_budget} instructions; {count} instructions at the head{detail}')
     if grew or (count > budget and not main_over):
         reason = 'layer over budget' if count > budget else 'layer instruction growth'
         at_main = 'none' if main is None else str(main)
         growth_text = 'n/a' if growth is None else f'{growth:.2f}%'
         return (f'{reason}: {label}: {count} instructions, budget {budget} instructions, '
-                f'ceiling {ceiling} instructions, at main {at_main} instructions, growth {growth_text}')
+                f'ceiling {ceiling} instructions, at main {at_main} instructions, growth {growth_text}{detail}')
+    if detail and count <= budget:
+        warnings.append(f'layer instruction growth within allowance: {label}: {increase} instructions of growth{detail}')
     return None
 
 
