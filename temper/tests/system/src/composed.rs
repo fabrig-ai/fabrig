@@ -1829,6 +1829,7 @@ fn forge_operation(mut op: worker::checkout::git::Op) -> worker::checkout::git::
         Op::Store { remote, .. }
         | Op::Clone { remote, .. }
         | Op::Fetch { remote, .. }
+        | Op::Counts { remote, .. }
         | Op::Create { remote, .. }
         | Op::Push { remote, .. } => remote,
         Op::Commit { snapshot: Some(snapshot), .. } => &mut snapshot.remote,

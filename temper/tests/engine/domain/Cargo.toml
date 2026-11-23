@@ -74,6 +74,7 @@ jig-tasks-kit.workspace = true
 skein-fake-llm-domain.workspace = true
 smith-agent-world.workspace = true
 temper-fake-checkout.workspace = true
+temper-fake-git.workspace = true
 temper-fake.workspace = true
 temper-worker-checkout-world.workspace = true
 temper-worker-domain-checkout.workspace = true

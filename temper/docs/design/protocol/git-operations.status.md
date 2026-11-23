@@ -1,6 +1,6 @@
 # git-operations: status
 
-2026-11-22. Where the tree's code lags or departs from [git-operations.md](git-operations.md).
+2026-11-23. Where the tree's code lags or departs from [git-operations.md](git-operations.md).
 
 - **Not yet:** 1.7: an empty listing still refuses with its words rather
   than ending `ParentUnreachable { head, merging, parent }` [in flight:

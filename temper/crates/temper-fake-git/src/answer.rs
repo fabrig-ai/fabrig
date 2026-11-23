@@ -163,6 +163,29 @@ pub fn answer(checked: &Checked, checkout: &mut Checkout, transport: &mut impl T
             source,
             &temper_worker_protocol_git::invocation::store_reference(*workspace, *into),
         ),
+        Command::FetchCounts { remote, workspace } => {
+            let reference = crate::counts::store_reference(*workspace);
+            match transport.fetch_counts(remote) {
+                Ok(Some(commit)) => {
+                    let previous = checkout.content(&path(at, &reference)).map_or(0, count_bytes);
+                    crate::counts::import(checkout, at, &reference, commit, &transport.tree(commit));
+                    fetched(transport, &reference, previous, commit)
+                }
+                Ok(None) => Answer { exit: 128, stdout: Vec::new(), stderr: crate::counts::ABSENT.to_vec() },
+                Err(fault) => failed(remote, fault),
+            }
+        }
+        Command::UpdateCounts { commit } => {
+            if git::update_ref(checkout, at, crate::counts::REFERENCE, count(*commit)).is_ok() {
+                Answer::success(Vec::new())
+            } else {
+                Answer::local_failure()
+            }
+        }
+        Command::DeleteCounts => {
+            checkout.remove(&meta(checkout, at, crate::counts::REFERENCE));
+            Answer::success(Vec::new())
+        }
         Command::Create { remote, branch, commit } => create(checked, checkout, transport, remote, branch, commit),
         Command::CheckOut { commit } => {
             let lock = meta(checkout, at, b"index.lock");
@@ -451,24 +474,27 @@ fn fetch(
     match git::fetch(transport, checkout, remote, at, want) {
         Ok(commit) => {
             checkout.write(&target, &commit.to_le_bytes());
-            let flag = if previous == 0 {
-                b'*'
-            } else if previous == commit {
-                b'='
-            } else if transport.is_ancestor(previous, commit) {
-                b' '
-            } else {
-                b'+'
-            };
-            // An absent previous head is git's zero marker, not the fake's count-zero id.
-            let previous_id = if previous == 0 { [b'0'; 40] } else { id(previous) };
-            Answer::success(
-                format!("{} {} {} {}\n", char::from(flag), text(&previous_id), text(&id(commit)), text(reference))
-                    .into_bytes(),
-            )
+            fetched(transport, reference, previous, commit)
         }
         Err(fault) => failed(remote, fault),
     }
+}
+
+fn fetched(transport: &mut impl Transport, reference: &[u8], previous: u64, commit: u64) -> Answer {
+    let flag = if previous == 0 {
+        b'*'
+    } else if previous == commit {
+        b'='
+    } else if transport.is_ancestor(previous, commit) {
+        b' '
+    } else {
+        b'+'
+    };
+    // An absent previous head is git's zero marker, not the fake's count-zero id.
+    let previous_id = if previous == 0 { [b'0'; 40] } else { id(previous) };
+    Answer::success(
+        format!("{} {} {} {}\n", char::from(flag), text(&previous_id), text(&id(commit)), text(reference)).into_bytes(),
+    )
 }
 
 fn create(

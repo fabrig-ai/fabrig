@@ -190,12 +190,17 @@ fn packing_world(workspaces: u32) -> World {
     world
 }
 
-/// Fetch the existing push branch once, as both start and pin, and release.
+/// Fetch the existing push branch once, as both start and pin, then counts, and release.
 fn prepare_base(world: &mut World, workstream: u32) -> u64 {
     let client = world.submit(world.now(), Plan { start: Some(Pick::Base), ..plan(workstream) });
     world.run(ITERATIONS);
     ready(world, client);
-    assert_eq!(world.transfers(client, b"r0").iter().filter(|transfer| transfer.kind == Kind::Fetch).count(), 1);
+    let fetches: Vec<_> = world
+        .transfers(client, b"r0")
+        .iter()
+        .filter_map(|transfer| matches!(transfer.kind, Kind::Fetch | Kind::Counts).then_some(transfer.kind))
+        .collect();
+    assert_eq!(fetches, [Kind::Fetch, Kind::Counts]);
     client
 }
 
@@ -211,19 +216,23 @@ fn store_of(world: &World) -> Token {
     Token::new(u64::from_be_bytes(*hash.first_chunk::<8>().expect("first eight bytes")))
 }
 
+// Each prepare asks a branch fetch and a counts fetch. The store is
+// due at 25, between the twelfth and thirteenth prepares (Kept packed).
+const PREPARES_BELOW_STORE_THRESHOLD: u32 = 12;
+
 #[test]
 fn the_first_twenty_four_fetches_ask_no_pack() {
     let mut world = packing_world(1);
-    for _ in 0..24 {
+    for _ in 0..PREPARES_BELOW_STORE_THRESHOLD {
         let client = prepare_base(&mut world, 0);
         assert_eq!(world.client(client).packs, [], "not yet 25 fetches");
     }
 }
 
 #[test]
-fn the_twenty_fifth_fetch_packs_the_store_and_resets_both_counts() {
+fn crossing_twenty_five_fetches_packs_the_store_and_resets_both_counts() {
     let mut world = packing_world(1);
-    for _ in 0..24 {
+    for _ in 0..PREPARES_BELOW_STORE_THRESHOLD {
         prepare_base(&mut world, 0);
     }
     let due = prepare_base(&mut world, 0);
@@ -234,17 +243,17 @@ fn the_twenty_fifth_fetch_packs_the_store_and_resets_both_counts() {
 
 #[test]
 fn a_due_checkout_packs_without_its_store() {
-    let mut world = packing_world(2);
-    for workstream in (0..24).map(|place| place % 2) {
-        prepare_base(&mut world, workstream);
+    // A checkout plus two delivery snapshots per hold leave 24 local
+    // packs in eight holds, but just 16 store fetches (Kept packed).
+    const WARM_PREPARES: u32 = 8;
+    const PUSHES_PER_HOLD: u32 = 2;
+    let mut world = packing_world(1);
+    for _ in 0..WARM_PREPARES {
+        let client = world.submit(world.now(), Plan { pushes: PUSHES_PER_HOLD, ..Plan::simple(0) });
+        world.run(ITERATIONS);
+        ready(&world, client);
+        assert_eq!(world.client(client).packs, [], "the prepare is below both thresholds");
     }
-    let a = prepare_base(&mut world, 0);
-    assert_pack(&world, a, Some(store_of(&world)));
-    for _ in 0..12 {
-        let b = prepare_base(&mut world, 1);
-        assert_eq!(world.client(b).packs, [], "B has not reached 25 checkouts");
-    }
-    let b = prepare_base(&mut world, 1);
-    assert_ne!(world.client(a).workspace, world.client(b).workspace);
-    assert_pack(&world, b, None);
+    let due = prepare_base(&mut world, 0);
+    assert_pack(&world, due, None);
 }

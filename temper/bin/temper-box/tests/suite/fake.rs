@@ -1455,6 +1455,7 @@ fn git_run() {
             match &mut step.command {
                 GitCommand::SnapshotFetch { remote: url, .. }
                 | GitCommand::Store { remote: url, .. }
+                | GitCommand::FetchCounts { remote: url, .. }
                 | GitCommand::Remote { remote: url, .. }
                 | GitCommand::Push { remote: url, .. } => {
                     *url = remote.as_bytes().into();
@@ -1470,6 +1471,8 @@ fn git_run() {
                 | GitCommand::Repack { .. }
                 | GitCommand::Format
                 | GitCommand::UpdateRef { .. }
+                | GitCommand::UpdateCounts { .. }
+                | GitCommand::DeleteCounts
                 | GitCommand::Fetch { .. }
                 | GitCommand::Create { .. }
                 | GitCommand::CheckOut { .. }

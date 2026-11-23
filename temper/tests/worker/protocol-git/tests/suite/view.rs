@@ -134,6 +134,7 @@ fn nonwriting_operations_and_failed_writers_start_no_view() {
             scenario.op,
             git::Op::Clone { .. }
                 | git::Op::Fetch { .. }
+                | git::Op::Counts { .. }
                 | git::Op::Point { .. }
                 | git::Op::CheckOut { .. }
                 | git::Op::Merge { .. }
@@ -166,4 +167,23 @@ fn nonwriting_operations_and_failed_writers_start_no_view() {
     let outcome = world::run(&scenario, fixtures::SEED);
     view_broken(&outcome);
     assert_eq!(outcome.spawns, 1);
+}
+
+#[test]
+fn counts_copies_the_present_ref_and_removes_the_stale_ref() {
+    let run_ref = b"workspaces/1/specimen/.git/refs/temper/counts".as_slice();
+    for present in [true, false] {
+        let mut scenario = fixtures::counts(present);
+        scenario.files.insert(run_ref.to_vec(), Node::File(b"stale\n".as_slice().into()));
+        let outcome = world::run(&scenario, fixtures::SEED);
+        assert_eq!(outcome.verdict, Verdict::Passed);
+        assert_eq!(outcome.spawns, 2);
+        assert!(outcome.view_steps > 0);
+        let worker_ref = scenario.files.get(b"gitdirs/1/specimen/refs/temper/counts".as_slice());
+        match (outcome.tree.get(run_ref), worker_ref) {
+            (Some(Node::File(run)), Some(Node::File(worker))) if present => assert_eq!(run, worker),
+            (None, None) if !present => {}
+            other => panic!("present={present}: {other:?}"),
+        }
+    }
 }

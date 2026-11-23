@@ -180,10 +180,8 @@ impl Fill {
             assert_eq!(self.done(hold, missing)[..], [Asked::Io { op: Kind::Fetch }], "the default branch");
             assert_eq!(self.done(hold, Done::Fetched { commit: commit(place) })[..], [Asked::Io { op: Kind::Create }]);
             assert_eq!(self.done(hold, Done::Succeeded)[..], [Asked::Io { op: Kind::Fetch }]);
-            assert_eq!(
-                self.done(hold, Done::Fetched { commit: commit(place) })[..],
-                [Asked::Io { op: Kind::CheckOut }]
-            );
+            assert_eq!(self.done(hold, Done::Fetched { commit: commit(place) })[..], [Asked::Io { op: Kind::Counts }]);
+            assert_eq!(self.done(hold, Done::Succeeded)[..], [Asked::Io { op: Kind::CheckOut }]);
             let next = self.done(hold, Done::Succeeded);
             if place + 1 < limits.repositories {
                 assert_eq!(next[..], [Asked::Io { op: Kind::Fetch }]);
@@ -336,6 +334,7 @@ impl Fill {
             assert_eq!(self.done(hold, Done::Fetched { commit: commit(5) })[..], [Asked::Io { op: Kind::CheckOut }]);
             assert_eq!(self.done(hold, Done::Succeeded)[..], [Asked::Io { op: Kind::IsAncestor }]);
             assert_eq!(self.done(hold, Done::IsAncestor { contains: false })[..], [Asked::Io { op: Kind::Point }]);
+            assert_eq!(self.done(hold, Done::Succeeded)[..], [Asked::Io { op: Kind::Counts }]);
             assert_eq!(self.done(hold, Done::Succeeded)[..], [Asked::Io { op: Kind::Merge }]);
             if place + 1 < limits.repositories {
                 assert_eq!(
