@@ -582,12 +582,16 @@ def close_budgets(root, repository, env, runs):
         accepted = profile.get(key[0], {}).get(key[1], {}).get('accepted_instructions')
         allowance = counts['allowance'](before, credits.get(key, 0), accepted)
         ceiling = ceilings.get(key)
-        over = ceiling is not None and before <= ceiling < after
+        limit = max(ceiling, accepted) if ceiling is not None and accepted is not None else ceiling
+        over = limit is not None and before <= limit < after
         increase = after - before
         if not over and increase <= allowance:
             continue
         growth = f'{100 * increase / before:.2f}%' if before else 'n/a (zero at base)'
-        reason = f'over instruction ceiling {ceiling}' if over else 'instruction growth over allowance'
+        reason = 'instruction growth over allowance'
+        if over:
+            bound = 'accepted instruction level' if limit != ceiling else 'instruction ceiling'
+            reason = f'over {bound} {limit}'
         findings.append(f'{key[0]} default {key[1]}: {reason}, {before} at base, {after} at head, '
                         f'growth {growth}, allowance {allowance} instructions')
         causes = sorted(grew[key], key=lambda cause: (-cause[0], cause[1]))
@@ -1094,6 +1098,12 @@ def summary(base_id, lints, tests, errors, reason, failures_tail, starved=(), sc
             break
         output += entry
     print(output + diagnostic, end='', flush=True)
+    if refused and scope == 'close' and new:
+        # The close job's hold keeps only the last 128 bytes of the check's stderr: name the first failure there.
+        first = new[0]
+        line = diagnostic.strip() or first['name'] + ': ' + next(
+            (text.strip() for text in first['log'].splitlines() if text.strip()), '')
+        print(line.encode()[:127].decode(errors='ignore'), file=sys.stderr, flush=True)
     return int(refused)
 
 
@@ -1224,7 +1234,11 @@ def workspace_checks(root, paths, tree_id, env, errors, outcomes, reds=(), *, co
             else:
                 if runs:
                     repository, git_env = counts_source if counts_source is not None else (root, env)
-                    errors += close_budgets(root, repository, git_env, runs)
+                    # A worker's counts differ from the gate's by more than the allowance (2.2% in a layer a
+                    # docs-only goal never touched, 11-23), so growth at close is a warning; the gate refuses it.
+                    for finding in close_budgets(root, repository, git_env, runs):
+                        print('pre-pr: budgets at close, a warning: the landing gate judges them\n'
+                              + finding['log'], end='', flush=True)
     return suites
 
 

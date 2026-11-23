@@ -1,5 +1,5 @@
 """Delivery policy checks with recording fakes and a scratch counts repository."""
-from contextlib import redirect_stdout
+from contextlib import redirect_stderr, redirect_stdout
 import importlib.util
 import io
 import json
@@ -278,6 +278,16 @@ class Delivery(unittest.TestCase):
             env = {'PATH': '/usr/bin'}
             PRE.with_rust_tools(env)
         self.assertEqual(env, {'PATH': '/usr/bin'})
+
+    def test_a_refused_close_names_its_first_failure_on_stderr(self):
+        errors = [PRE.failure('budgets', 'temper default simulated: instruction growth over allowance, ' + 'x' * 200)]
+        with redirect_stderr(io.StringIO()) as err:
+            self.assertEqual(PRE.finish('tree', 'b' * 40, errors, self.root, {}, 'close', [], ['head']), 1)
+        self.assertEqual(err.getvalue(),
+                         ('budgets: temper default simulated: instruction growth over allowance, ' + 'x' * 200)[:127] + '\n')
+        with redirect_stderr(io.StringIO()) as err:
+            PRE.finish('tree', 'b' * 40, errors, self.root, {}, 'delivery', [], ['head'])
+        self.assertEqual(err.getvalue(), '')
 
     def test_close_receipt_records_only_the_checked_tree(self):
         self.assertEqual(PRE.finish('staged', None, [], self.root, {}, 'close', ['dest'], ['head']), 0)
@@ -685,9 +695,14 @@ class CloseBudgets(unittest.TestCase):
         self.assertEqual(self.verdict(self.result(self.process(30 * self.G))), [])
         error, = self.verdict(self.result(self.process(31 * self.G)))
         self.assertIn('100000000000 at base, 106000000000 at head, growth 6.00%, allowance 5000000000', error['log'])
-        self.budget_table(103 * self.G, accepted=f'accepted_instructions = {105 * self.G}\n')
-        error, = self.verdict(self.result(self.process(29 * self.G)))
-        self.assertIn('over instruction ceiling 103000000000', error['log'])
+
+    def test_accepted_level_raises_the_close_limit_above_the_ceiling(self):
+        self.publish()
+        self.budget_table(100 * self.G + 1, accepted=f'accepted_instructions = {101 * self.G}\n')
+        self.assertEqual(self.verdict(self.result(self.process(25 * self.G + 2))), [])
+        self.assertEqual(self.verdict(self.result(self.process(26 * self.G))), [])
+        error, = self.verdict(self.result(self.process(26 * self.G + 1)))
+        self.assertIn('over accepted instruction level 101000000000', error['log'])
 
     def test_credit_counts_only_new_moves_and_uses_the_base_binaries(self):
         run = self.result(self.process(28 * self.G))
@@ -754,16 +769,21 @@ class CloseBudgets(unittest.TestCase):
             return status, 'fixture\n'
 
         self.assertEqual(self.close(fake, completed_goal=False), [])
-        for status, name in ((100, 'focused tests'), (0, 'budgets')):
-            with self.subTest(status=status):
-                error, = self.close(fake)
-                self.assertEqual(error['name'], name)
+        status = 100
+        error, = self.close(fake)
+        self.assertEqual(error['name'], 'focused tests')
+        status = 0
+        self.assertEqual(self.close(fake), [])
+        self.assertIn('pre-pr: budgets at close, a warning: the landing gate judges them\n', self.log.getvalue())
+        self.assertIn('instruction growth over allowance', self.log.getvalue())
 
 
 class Gate(unittest.TestCase):
     def test_complete_candidate_decides_scope(self):
         self.assertEqual(GATE.route(set()), 'full')
         self.assertEqual(GATE.route({'.temper/pre-pr', 'tools/pre-pr/workspace.py'}), 'checker')
+        self.assertEqual(GATE.route({'.temper/checked-close', 'tools/pre-pr/pre_pr.py'}), 'checker')
+        self.assertEqual(GATE.HOOKS, PRE.HOOKS)
         self.assertEqual(GATE.route({'.temper/pre-pr', 'src/lib.rs'}), 'mixed')
         self.assertEqual(GATE.route({'docs/guide.md'}), 'classify')
 
