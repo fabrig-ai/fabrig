@@ -6,6 +6,5 @@ mod patch_bridges;
 mod patch_check;
 mod patch_generated;
 mod patch_registered;
-mod patch_run;
 mod patch_tree;
 mod patch_wires;
