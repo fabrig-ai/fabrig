@@ -1238,6 +1238,189 @@ fn an_unfinished_gate_past_its_bound_is_found_despite_a_dependency() {
     );
 }
 
+fn producer_wait(turn: bool) -> (World, u64, u64) {
+    use super::forge_routes::merge_job::producer;
+    let (mut world, change, child) = if turn {
+        let (world, change, child, _, _) = producer::turn_producer();
+        (world, change, child.task)
+    } else {
+        let (world, change, child, _, _, _) = producer::displaced_producer();
+        (world, change, child.task)
+    };
+    for _ in 0..1000 {
+        world.tick();
+        let row = world.root.forge().change(change).expect("change");
+        let waiting = if turn {
+            matches!(row.change.state, temper_engine_domain_forge_change::State::Ready { .. })
+        } else {
+            matches!(row.change.state, temper_engine_domain_forge_change::State::WaitingProducer { .. })
+                && row.delegate.is_none()
+        };
+        if waiting
+            && world.events.is_empty()
+            && world.store.idle()
+            && world.root.quiescent()
+            && world.root.next_deadline(&world.env).is_none_or(|due| due > world.env.now)
+        {
+            assert!(world.root.inspection_pushing_child(child));
+            assert!(world.root.tasks().task(change).expect("owner").delegates.contains(&child));
+            return (world, change, child);
+        }
+    }
+    panic!("change waits for its pushing child");
+}
+
+#[test]
+fn a_ready_change_waits_for_its_live_pushing_child() {
+    let (world, change, child) = producer_wait(true);
+    let inspection = inspect(&world);
+    let wait = inspection.waits().iter().find(|wait| wait.waiter == format!("task {change}")).expect("ready wait");
+    assert_eq!(wait.kind, "change: ready");
+    assert_eq!(wait.wakes, [Wake::Waiter(format!("task {child}"))]);
+    assert_eq!(wait.bound, None);
+    assert_eq!(Checks::new(71).quiet(&world.root, world.env.now, 1), Ok(()));
+}
+
+fn misplaced_producer_wait(turn: bool) -> (World, u64) {
+    let (mut world, change, child) = producer_wait(turn);
+    // A broken restored row names a task that has no pushing children. The
+    // other change's live child must not become a fallback for this owner.
+    let mut row = world.root.forge().change(change).expect("change").clone();
+    row.task = child;
+    row.change.task = child;
+    row.delegate = None;
+    world.root.hold_landings(true);
+    engine::step(
+        &mut world.root,
+        &world.env,
+        engine::Event::Forge(Box::new(forge::Event::Restore { record: forge::Stored::Change(Box::new(row)) })),
+    );
+    engine::fire(&mut world.root, &world.env);
+    world.root.hold_landings(false);
+    (world, child)
+}
+
+#[test]
+fn a_ready_change_cannot_borrow_another_changes_pushing_child() {
+    let (world, change) = misplaced_producer_wait(true);
+    let inspection = inspect(&world);
+    let wait = inspection.waits().iter().find(|wait| wait.waiter == format!("task {change}")).expect("misplaced wait");
+    assert_eq!(wait.wakes, Vec::<Wake>::new());
+    let tasks::Party::Task(owner) = world.root.tasks().task(change).expect("misplaced owner").requester else {
+        panic!("change requester");
+    };
+    let finding = Checks::new(71).quiet(&world.root, world.env.now, 1).expect_err("no pushing child of this owner");
+    assert_eq!(
+        finding,
+        format!(
+            "seed 71: at {} ns, iteration 1: engine task {owner}: waits on change: ready with no live wake: [waiter task {change} (waits: change: ready)]",
+            world.env.now.as_nanos(),
+        )
+    );
+}
+
+#[test]
+fn a_displaced_pushing_child_exempts_its_conflict_wait() {
+    let (world, change, child) = producer_wait(false);
+    let inspection = inspect(&world);
+    let wait = inspection.waits().iter().find(|wait| wait.waiter == format!("task {change}")).expect("conflict wait");
+    assert_eq!(wait.kind, "change: resolving");
+    assert!(wait.wakes.contains(&Wake::Waiter(format!("task {child}"))));
+    assert_eq!(wait.bound, None);
+    let row = world.root.forge().change(change).expect("change");
+    let old_bound = Time::from_nanos(row.change.since.as_nanos())
+        .saturating_add(world.root.forge().inspection_limits().change_policy.stall);
+    let mut checks = Checks::new(71);
+    assert_eq!(checks.quiet(&world.root, world.env.now, 1), Ok(()));
+    assert_eq!(checks.step(old_bound.saturating_add(Duration::from_nanos(1)), 2), Ok(()));
+    assert_eq!(checks.quiet(&world.root, old_bound.saturating_add(Duration::from_nanos(1)), 3), Ok(()));
+}
+
+#[test]
+fn a_conflict_wait_cannot_borrow_another_changes_pushing_child() {
+    let (world, change) = misplaced_producer_wait(false);
+    let finding = Checks::new(71).quiet(&world.root, world.env.now, 1).expect_err("no pushing child of this owner");
+    assert_eq!(
+        finding,
+        format!(
+            "seed 71: at {} ns, iteration 1: engine task {change}: waits on change: resolving with no live wake: []",
+            world.env.now.as_nanos(),
+        )
+    );
+}
+
+fn conflict_read() -> (World, u64, Time, Time) {
+    let (mut world, change, child) = producer_wait(false);
+    let row = world.root.forge().change(change).expect("change");
+    let old_bound = Time::from_nanos(row.change.since.as_nanos())
+        .saturating_add(world.root.forge().inspection_limits().change_policy.stall);
+    world.jump(world.root.forge().inspection_limits().change_policy.stall);
+    world.sign_in();
+    world.send(engine::Event::Party(engine::PartyInput::Ask {
+        models: Box::new([]),
+        reply_to: skein_lib::ReplyTo::new(skein_lib::Token::new(951)),
+        sign_in: world.signed_in.expect("person"),
+        key: [96; 16],
+        ask: jig_domain_people::Ask::Cancel {
+            project: 1,
+            task: child,
+            reason: b"finish pushing".as_slice().into(),
+            grace: None,
+        },
+    }));
+    for _ in 0..1000 {
+        world.tick();
+        if world.root.tasks().task(child).is_none() && world.root.forge().inspection_change_read_bound(change).is_some()
+        {
+            world.hold_reads_at_any_step = true;
+            world.held_reads.get_or_insert_with(Vec::new);
+        }
+        if world.root.tasks().task(child).is_none()
+            && let Some(bound) = world.root.forge().inspection_change_read_bound(change)
+            && bound.as_nanos() > old_bound.as_nanos()
+            && world.events.is_empty()
+            && world.store.idle()
+            && world.root.quiescent()
+        {
+            assert!(matches!(
+                world.root.forge().change(change).expect("change").change.state,
+                temper_engine_domain_forge_change::State::WaitingProducer { .. }
+            ));
+            return (world, change, old_bound, Time::from_nanos(bound.as_nanos()));
+        }
+    }
+    panic!("a conflict's fresh gather after the producer's terminal");
+}
+
+#[test]
+fn a_conflict_read_after_the_producers_end_uses_its_gather_bound() {
+    let (world, change, old_bound, bound) = conflict_read();
+    let inspection = inspect(&world);
+    let wait = inspection.waits().iter().find(|wait| wait.waiter == format!("task {change}")).expect("conflict wait");
+    assert_eq!(wait.bound, Some(bound));
+    let mut checks = Checks::new(71);
+    assert_eq!(checks.quiet(&world.root, world.env.now, 1), Ok(()));
+    assert_eq!(checks.step(old_bound.saturating_add(Duration::from_nanos(1)), 2), Ok(()));
+    assert_eq!(checks.quiet(&world.root, bound, 3), Ok(()));
+}
+
+#[test]
+fn a_conflict_read_past_its_gather_bound_is_found() {
+    let (world, change, _, bound) = conflict_read();
+    let mut checks = Checks::new(71);
+    assert_eq!(checks.quiet(&world.root, bound, 1), Ok(()));
+    let at = bound.saturating_add(Duration::from_nanos(1));
+    let finding = checks.step(at, 2).expect_err("the gather still has a bound after its producer ends");
+    assert_eq!(
+        finding,
+        format!(
+            "seed 71: at {} ns, iteration 2: engine task {change}: waits on change: resolving past bound {} ns with no quiet point since",
+            at.as_nanos(),
+            bound.as_nanos(),
+        )
+    );
+}
+
 fn checking() -> (World, u64, Time) {
     let (mut world, _, producer, _) = temper_engine_domain_world::forge_routes::change_world(true, 1000, None);
     let task = world.root.tasks().task(producer.task).expect("producer");

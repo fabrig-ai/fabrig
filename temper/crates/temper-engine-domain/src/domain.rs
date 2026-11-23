@@ -196,6 +196,12 @@ impl Domain {
         Some(Wall::from_nanos(at.as_nanos().saturating_add(self.limits.forge.queue_window.as_nanos())))
     }
 
+    /// Whether this child's contract pushes for its change (testing/engine-checks.md, 2.2).
+    #[must_use]
+    pub fn inspection_pushing_child(&self, child: u64) -> bool {
+        forge_route::change_pushing_child(self, child)
+    }
+
     #[must_use]
     pub fn landing_way(&self, project: u32) -> temper_engine_domain_forge_change::Way {
         self.forge.landing_way(project)

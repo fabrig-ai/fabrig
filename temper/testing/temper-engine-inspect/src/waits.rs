@@ -192,7 +192,30 @@ fn change_wakes(view: &View<'_>, row: &temper_engine_domain_forge::ChangeRow) ->
             }
         }
     }
+    if matches!(row.change.state, State::WaitingProducer { .. })
+        || (matches!(row.change.state, State::Ready { .. }) && row.change.landing.is_none())
+    {
+        for child in pushing_children(view, row.task) {
+            let wake = view.waiter(child);
+            if !wakes.contains(&wake) {
+                wakes.push(wake);
+            }
+        }
+    }
     wakes
+}
+
+// A gate can displace the current delegate without ending a pushing child.
+// The root uses every such child's terminal to release forming or resolution.
+fn pushing_children(view: &View<'_>, task: u64) -> Vec<u64> {
+    let Some(root) = view.root else { return Vec::new() };
+    let Some(owner) = root.tasks().task(task) else { return Vec::new() };
+    owner
+        .delegates
+        .iter()
+        .copied()
+        .filter(|child| root.inspection_pushing_child(*child) && !view.ended(*child))
+        .collect()
 }
 
 // A change can prepare its own rebase before it belongs to a landing.
@@ -320,6 +343,9 @@ fn bound(view: &View<'_>, row: &temper_engine_domain_forge::ChangeRow) -> Option
         && !view.ended(delegate)
     {
         return None;
+    }
+    if matches!(row.change.state, State::WaitingProducer { .. }) {
+        return view.forge.inspection_change_read_bound(row.task).map(|at| Time::from_nanos(at.as_nanos()));
     }
     if matches!(row.change.state, State::Producing { .. })
         && (!view.forge.inspection_step_dependencies(row.task).is_empty()

@@ -77,6 +77,13 @@ impl Domain {
         crate::settling::gates_settled(row, None, self.landing.limits.change_policy.gates)
     }
 
+    /// The started gather's bound, absent while its agent or another exemption stands.
+    /// For its worlds' inspection adapter (testing/engine-checks.md, 2.2).
+    #[must_use]
+    pub fn inspection_change_read_bound(&self, task: u64) -> Option<Wall> {
+        super::read_session::inspection_bound(self, task)
+    }
+
     /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
     #[must_use]
     pub fn inspection_change_due(&self, task: u64) -> Option<Wall> {

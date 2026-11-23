@@ -97,8 +97,8 @@ change's due step.
 | `landing: room`, `change: room`, `making: room` | for each entry holding the outbox's room: `Waiter(task T)`, its owner, while its owner lives; `Ended("entry N of task T")` once its owner has ended; for a making, `Party("forge: room")`, its ask while it stands unanswered |
 | `change: held` | `Party("person")`: a person's release |
 | `change: ready`, `change: preparing` | `Waiter(task L)`, its landing |
+| `change: ready` with no landing | its live pushing children from the root, `Waiter(task D)`, while their final heads keep its train from forming; while the forge's limits refuse its train a landing, `Waiter(task L)` for each live landing; while a live landing holds its train, `Waiter(task L)`, that landing, even with room for other trains; while the operator's landing hold stands (`../domain/landing-settings.md`, 1.3), `Party("operator restart")`, the start without that hold; while a refused forming awaits its queue-window retry (`../domain/landing-forming.md`, 3), `Timer(until)`, that train's armed retry; while a member's due step holds its train's forming (`../domain/landing-turn.md`, 2), `Waiter(task M)`, that member's change; otherwise its landing's making, as the root's turn below |
 | `change: preparing` with its own write | `Party("forge: entry N")`, its outstanding rebase write, including before it belongs to a landing |
-| `change: ready` with no landing | while the forge's limits refuse its train a landing, `Waiter(task L)` for each live landing; while a live landing holds its train, `Waiter(task L)`, that landing, even with room for other trains; while the operator's landing hold stands (`../domain/landing-settings.md`, 1.3), `Party("operator restart")`, the start without that hold; while a refused forming awaits its queue-window retry (`../domain/landing-forming.md`, 3), `Timer(until)`, that train's armed retry; while a member's due step holds its train's forming (`../domain/landing-turn.md`, 2), `Waiter(task M)`, that member's change; otherwise its landing's making, as the root's turn below |
 | every other `change:` step | its live delegate (producer, repair, resolution, gate or merge job), `Waiter(task D)`; its write in flight, `Party("forge: entry N")`; its write still settling, `Party("forge: entry N")` (below); its read in flight, `Party("forge: call N")`; its open question's answerer, `Waiter(task R)` or `Party("person")`; each dependency's end, `Waiter(task D)`; its follow owner's word or act, `Waiter(task T)` or `Party("person")`, including an unstarted change held behind an ended entry awaiting the owner's start or skip (below); else the root's turn below |
 
 - **The root's turn:** a change the forge has decided an act for that
@@ -178,6 +178,10 @@ change's due step.
   end or an owner's word or act is their only wake, never a fallback for
   another wait.
 
+- **A conflict waiting for its producer:** `inspect` names every live pushing
+  child of the change as `Waiter(task D)`, even after a gate displaces the
+  current delegate; its `WaitingProducer` row has only the gather's armed
+  read-session bound, absent while exempt, not a stall from the old conflict.
 - **The change's steps,** in the change procedure's words
   (`../domain/forge/change/README.md`, 2): `producing`, `opening`,
   `checking`, `gating`, `queued`, `first`, `landing`, and beside them

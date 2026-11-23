@@ -13,7 +13,7 @@ const STEPS: u32 = 200;
 #[path = "merge_job/history.rs"]
 mod history;
 #[path = "merge_job/producer.rs"]
-mod producer;
+pub(crate) mod producer;
 
 pub(crate) fn world(up_to_date: bool, kind: bool, authority: bool) -> World {
     world_with_spec(up_to_date, kind, authority, Some(2048))
