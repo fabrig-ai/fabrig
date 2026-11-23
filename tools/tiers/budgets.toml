@@ -2,8 +2,11 @@
 # Live pairs have no entry yet: the user has not set their CPU budgets here.
 # Gate tables: tools/tiers/budgets.md, 6; the CI builder's 11-16 gate runs' median by tree, suite and layer, plus the larger of a tenth and a second, rounded up, by the user's word of 11-16; references and ideals from temper/docs/design/draft/test-budgets.md, 6 and 9.
 # Optional per-pair auto_reap = ["test_name", ...] declares known auto-reaping tests; empty today.
+# A suite's [[gate.PROFILE.coverage_reasons]] explains measured coverage losses (tools/tiers/budgets.md, 13).
 
 # Suite paths are quoted keys, e.g. [tools."tools/tiers/test_run.py"].
+# Accepted levels (accepted_instructions): the user's weekly growth allowance for the cheap layers, step, machine, protocol, io and
+# domain, at main's count plus 5%, renewed each week by temper/draft/store (the user, 11-23); simulated, system and slower layers get none.
 [tools]
 
 [gate.default]
@@ -119,6 +122,7 @@ ideal_s = 40
 [gate.default.skein.step]
 cpu_s = 7
 instructions = 42_000_000_000
+accepted_instructions = 46_900_000_000
 
 [gate.default.skein.domain]
 cpu_s = 2
@@ -127,10 +131,12 @@ instructions = 9_600_000_000
 [gate.default.skein.machine]
 cpu_s = 5
 instructions = 37_500_000_000
+accepted_instructions = 27_600_000_000
 
 [gate.default.skein.protocol]
 cpu_s = 7
 instructions = 45_800_000_000
+accepted_instructions = 34_900_000_000
 
 [gate.default.skein.io]
 cpu_s = 2
@@ -158,6 +164,7 @@ ideal_s = 30
 [gate.default.smith.step]
 cpu_s = 7
 instructions = 62_500_000_000
+accepted_instructions = 89_500_000_000
 
 [gate.default.smith.domain]
 cpu_s = 3
@@ -205,24 +212,28 @@ ideal_s = 30
 [gate.default.jig.step]
 cpu_s = 47
 instructions = 343_100_000_000
+accepted_instructions = 491_600_000_000
 ideal_s = 1
 ideal_instructions = 7_200_000_000
 
 [gate.default.jig.domain]
 cpu_s = 4
 instructions = 301_600_000_000
+accepted_instructions = 254_100_000_000
 ideal_s = 17
 ideal_instructions = 84_600_000_000
 
 [gate.default.jig.machine]
 cpu_s = 2
 instructions = 17_900_000_000
+accepted_instructions = 28_200_000_000
 ideal_s = 1
 ideal_instructions = 8_900_000_000
 
 [gate.default.jig.protocol]
 cpu_s = 13
 instructions = 49_700_000_000
+accepted_instructions = 60_500_000_000
 ideal_s = 8
 ideal_instructions = 51_600_000_000
 
@@ -256,12 +267,14 @@ ideal_s = 100
 [gate.default.temper.step]
 cpu_s = 253
 instructions = 1_932_500_000_000
+accepted_instructions = 1_554_300_000_000
 ideal_s = 25
 ideal_instructions = 189_800_000_000
 
 [gate.default.temper.domain]
 cpu_s = 136
 instructions = 641_400_000_000
+accepted_instructions = 813_600_000_000
 ideal_s = 20
 ideal_instructions = 89_800_000_000
 
@@ -280,6 +293,7 @@ ideal_instructions = 7_300_000_000
 [gate.default.temper.protocol]
 cpu_s = 9
 instructions = 50_400_000_000
+accepted_instructions = 70_000_000_000
 ideal_s = 1
 ideal_instructions = 5_600_000_000
 reference_s = 1
@@ -339,6 +353,7 @@ instructions = 27_200_000_000
 [gate.default.hearth.machine]
 cpu_s = 13
 instructions = 119_200_000_000
+accepted_instructions = 110_300_000_000
 
 [gate.default.hearth.real-loop]
 cpu_s = 11
@@ -413,6 +428,7 @@ ideal_s = 120
 [gate.fuzzy.skein.step]
 cpu_s = 32
 instructions = 215_700_000_000
+accepted_instructions = 268_100_000_000
 
 [gate.fuzzy.skein.domain]
 cpu_s = 2
@@ -421,14 +437,17 @@ instructions = 11_500_000_000
 [gate.fuzzy.skein.machine]
 cpu_s = 43
 instructions = 345_400_000_000
+accepted_instructions = 318_000_000_000
 
 [gate.fuzzy.skein.protocol]
 cpu_s = 23
 instructions = 149_000_000_000
+accepted_instructions = 136_600_000_000
 
 [gate.fuzzy.skein.io]
 cpu_s = 21
 instructions = 115_000_000_000
+accepted_instructions = 105_300_000_000
 
 [gate.fuzzy.skein.simulated]
 cpu_s = 2
@@ -452,10 +471,12 @@ ideal_s = 120
 [gate.fuzzy.smith.step]
 cpu_s = 3
 instructions = 35_700_000_000
+accepted_instructions = 26_600_000_000
 
 [gate.fuzzy.smith.domain]
 cpu_s = 16
 instructions = 100_100_000_000
+accepted_instructions = 89_100_000_000
 
 [gate.fuzzy.smith.system]
 cpu_s = 2
@@ -497,6 +518,7 @@ instructions = 21_600_000_000
 [gate.fuzzy.jig.domain]
 cpu_s = 9
 instructions = 354_200_000_000
+accepted_instructions = 307_600_000_000
 
 [gate.fuzzy.jig.machine]
 cpu_s = 2
@@ -505,6 +527,7 @@ instructions = 16_700_000_000
 [gate.fuzzy.jig.protocol]
 cpu_s = 55
 instructions = 206_100_000_000
+accepted_instructions = 187_900_000_000
 
 [gate.fuzzy.jig.simulated]
 cpu_s = 72
@@ -528,10 +551,12 @@ ideal_s = 180
 [gate.fuzzy.temper.step]
 cpu_s = 13
 instructions = 175_700_000_000
+accepted_instructions = 268_000_000_000
 
 [gate.fuzzy.temper.domain]
 cpu_s = 78
 instructions = 366_600_000_000
+accepted_instructions = 425_400_000_000
 
 [gate.fuzzy.temper.system]
 cpu_s = 13
@@ -588,10 +613,12 @@ cpu_s = 1
 [gate.fuzzy.hearth.domain]
 cpu_s = 32
 instructions = 221_800_000_000
+accepted_instructions = 201_200_000_000
 
 [gate.fuzzy.hearth.machine]
 cpu_s = 50
 instructions = 427_000_000_000
+accepted_instructions = 394_000_000_000
 
 [gate.fuzzy.hearth.real-loop]
 cpu_s = 9

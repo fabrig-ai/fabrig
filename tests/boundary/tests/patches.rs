@@ -36,6 +36,9 @@ fn git(root: &Path, args: &[&str]) -> Result<Vec<u8>, String> {
 }
 
 fn base(root: &Path) -> String {
+    if let Some(commit) = fabrig_boundary::gate_landing_base() {
+        return commit;
+    }
     // During a landing merge, the incoming target already owns its kept patches.
     let args = if git(root, &["rev-parse", "--verify", "MERGE_HEAD^{commit}"]).is_ok() {
         vec!["rev-parse", "MERGE_HEAD"]
@@ -91,13 +94,12 @@ fn stored_changes_have_patches() {
 }
 
 #[test]
-fn patch_modules_are_current() {
+fn generated_patch_modules_are_current() {
     let root = paths::workspace();
-    let base = base(&root);
     let mut failures = Vec::new();
     for owner in OWNERS {
         if let Err(why) = patch::current(&root.join(owner)) {
-            failures.push(format!("{owner} (base {base}): {why}"));
+            failures.push(format!("{owner}: {why}"));
         }
     }
     assert!(failures.is_empty(), "{}", failures.join("\n"));

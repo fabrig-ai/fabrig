@@ -133,21 +133,25 @@ fn scenario(rng: &mut Rng, count: usize) -> (Vec<u8>, Vec<Plan>) {
 #[test]
 fn generated_mutated_and_corrupted_requests_are_served_as_the_reference_reads_them_whatever_the_neighbours() {
     let mut tally = Seen::default();
+    let mut mutations = generate::MutationBatch::default();
     for round in 0..ROUNDS {
         let seed = 0x0090_0000 + round;
         let mut rng = Rng::new(seed);
         let count = usize::try_from(rng.between(1, 4)).unwrap();
-        let (mut client, plans) = scenario(&mut rng, count);
-        if rng.chance(300) {
-            client = generate::mutate(&mut rng, &client);
+        let (client, plans) = scenario(&mut rng, count);
+        let client = if rng.chance(300) {
+            generate::mutate(&mut rng, &client)
         } else if rng.chance(400) {
-            client = requests::corrupt(&mut rng, &client);
-        }
+            requests::corrupt(&mut rng, &client)
+        } else {
+            client.into()
+        };
         let limits = server_world::limits(&mut rng);
-        let settings = Settings::chaotic(&mut rng, limits, client.len());
-        let run = server_world::check(&client, &plans, &settings, seed);
+        let settings = Settings::chaotic(&mut rng, limits, client.input().len());
+        let run = mutations.judge(client, |client| server_world::check(&client, &plans, &settings, seed));
         record(&mut tally, &run, &settings);
     }
+    mutations.finish();
     let mut every: Vec<String> = [
         "Done(Keep)",
         "Done(Close)",
@@ -223,19 +227,19 @@ fn generated_mutated_and_corrupted_requests_are_served_as_the_reference_reads_th
 fn request_transcripts_cut_mutated_and_failed_are_served_as_the_reference_reads_them() {
     let transcripts = request_transcript::all();
     let mut tally = Seen::default();
+    let mut mutations = generate::MutationBatch::default();
     for round in 0..TRANSCRIPT_ROUNDS {
         let seed = 0x0091_0000 + round;
         let mut rng = Rng::new(seed);
         let transcript = &transcripts[usize::try_from(rng.below(transcripts.len() as u64)).unwrap()];
-        let mut client = transcript.bytes.clone();
-        if rng.chance(500) {
-            client = generate::mutate(&mut rng, &client);
-        }
+        let client = transcript.bytes.clone();
+        let client = if rng.chance(500) { generate::mutate(&mut rng, &client) } else { client.into() };
         let plans: Vec<Plan> = (0..4).map(|_| server_world::plan(&mut rng)).collect();
-        let settings = Settings::chaotic(&mut rng, transcript.limits, client.len());
-        let run = server_world::check(&client, &plans, &settings, seed);
+        let settings = Settings::chaotic(&mut rng, transcript.limits, client.input().len());
+        let run = mutations.judge(client, |client| server_world::check(&client, &plans, &settings, seed));
         record(&mut tally, &run, &settings);
     }
+    mutations.finish();
     let every: Vec<String> =
         ["Done(Keep)", "Done(Close)", "Ended", "Failed(Truncated)", "failed Stream", "closed before the outcome"]
             .iter()

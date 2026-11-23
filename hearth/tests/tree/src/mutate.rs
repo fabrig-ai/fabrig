@@ -1,8 +1,8 @@
 //! Eight mutations of frames obtained from the real record writers.
+pub use skein_checks::MutationBatch;
 use skein_lib::Rng;
 
-#[must_use]
-pub fn frames(rng: &mut Rng, frame: &[u8]) -> Vec<Vec<u8>> {
+pub fn frames(rng: &mut Rng, frame: &[u8]) -> impl Iterator<Item = skein_checks::Mutation<Vec<u8>>> + use<> {
     let mut changed = Vec::with_capacity(8);
     let at = usize::try_from(rng.below(u64::try_from(frame.len()).expect("frame size"))).expect("offset");
     let mut value = frame.to_vec();
@@ -29,5 +29,5 @@ pub fn frames(rng: &mut Rng, frame: &[u8]) -> Vec<Vec<u8>> {
     changed.push(value);
     let cut = usize::try_from(rng.below(u64::try_from(frame.len()).expect("frame size"))).expect("cut");
     changed.push(frame[..cut].to_vec());
-    changed
+    changed.into_iter().map(skein_checks::mutation)
 }

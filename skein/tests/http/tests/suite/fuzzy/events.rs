@@ -84,18 +84,18 @@ const EVERY: [&str; 26] = [
 #[test]
 fn generated_and_mutated_streams_read_as_the_reference_reads_them_whatever_the_neighbours() {
     let mut tally = Seen::default();
+    let mut mutations = generate::MutationBatch::default();
     for round in 0..ROUNDS {
         let seed = 0x0080_0000 + round;
         let mut rng = Rng::new(seed);
-        let mut stream = generate::events(&mut rng);
-        if rng.chance(500) {
-            stream = generate::mutate(&mut rng, &stream);
-        }
+        let stream = generate::events(&mut rng);
+        let stream = if rng.chance(500) { generate::mutate(&mut rng, &stream) } else { stream.into() };
         let limits = sse_world::limits(&mut rng);
-        let settings = Settings::chaotic(&mut rng, limits, stream.len());
-        let run = sse_world::check(&stream, &settings, seed);
+        let settings = Settings::chaotic(&mut rng, limits, stream.input().len());
+        let run = mutations.judge(stream, |stream| sse_world::check(&stream, &settings, seed));
         record(&mut tally, &run, &settings);
     }
+    mutations.finish();
     tally.assert_fell(&EVERY);
 }
 
@@ -113,19 +113,19 @@ fn the_transcripts_events_cut_mutated_and_failed_read_as_the_reference_reads_the
     }
     assert!(bodies.len() >= 4, "the transcripts hold event streams");
     let mut tally = Seen::default();
+    let mut mutations = generate::MutationBatch::default();
     for round in 0..ROUNDS / 6 {
         let seed = 0x0081_0000 + round;
         let mut rng = Rng::new(seed);
         let (body, limits) = &bodies[usize::try_from(rng.below(bodies.len() as u64)).unwrap()];
-        let mut stream = body.clone();
-        if rng.chance(500) {
-            stream = generate::mutate(&mut rng, &stream);
-        }
+        let stream = body.clone();
+        let stream = if rng.chance(500) { generate::mutate(&mut rng, &stream) } else { stream.into() };
         let mut limits = *limits;
         limits.chunk = u32::try_from(rng.between(1, 128)).unwrap();
-        let settings = Settings::chaotic(&mut rng, limits, stream.len());
-        let run = sse_world::check(&stream, &settings, seed);
+        let settings = Settings::chaotic(&mut rng, limits, stream.input().len());
+        let run = mutations.judge(stream, |stream| sse_world::check(&stream, &settings, seed));
         record(&mut tally, &run, &settings);
     }
+    mutations.finish();
     tally.assert_fell(&["Ended", "failed Stream", "closed before the outcome", "a stream ended early"]);
 }
