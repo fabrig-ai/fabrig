@@ -21,6 +21,8 @@
 |---|---|
 | `jig-engine-clients-world::suite`, its five provider tests | `jig-engine-clients-world::protocol`, same names, with a committed test key and a fixed client secret in place of `openssl`'s; the scratch key file's own mode check goes with the scratch file |
 | `jig-test::process`'s `a_premature_exit_names_its_status_milestone_and_safe_stderr_tail` | `jig-test::step`, same name |
+| `jig-test::process`'s `the_live_configurations_are_ones_jig_test_reads` | `jig-test::step`, same name: the real, fake and refusing configurations accepted by startup's check over supplied documents and trust roots |
+| `jig-test::real`'s `a_secret_file_readable_by_others_refuses_the_start` | `jig-test::step`, same name: the unsafe refusal, no secret byte in its words, and no descriptor taken, over a supplied refusal for the secret file |
 
 ## Stays above
 

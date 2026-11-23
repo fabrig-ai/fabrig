@@ -46,6 +46,19 @@ Each within jig's suites' budgets.
   stderr, read to its end or for a bounded while, never a sign-in's
   address, in words a step test of `jig-test` holds. Account sign-in,
   refresh, sign-out and moves are covered in their lower worlds.
+- **Startup's reads, as steps:** `jig-test`'s startup reads its
+  configuration, its agent's document and the private files the
+  configuration names through one face: the files themselves in the
+  binary, documents and answers its step tests supply in
+  `jig-test::step`. The agent's document takes its trust roots from the
+  same face, through smith's document reader (smith's
+  `shell/README.md`, 2.6). The step tests hold that a worker's secret
+  refused as unsafe ends the start, naming the file and the refusal and
+  none of its bytes, before any root or descriptor is opened; and that
+  the live layer's real, fake and refusing configurations are ones
+  startup accepts. The native private-file reader's refusals (group
+  bits, a leaf link, a linked directory) stay in the real loop, in
+  `jig-test::real`.
 - **The live layer:** `jig-test` with a real LLM account, a key added
   by a request, a sign-in made as the test starts, or a program's login
   on its test worker's host (`llm.md`, 5.4 and 5.5), a native client
@@ -56,8 +69,8 @@ Each within jig's suites' budgets.
   needed for the fixed loopback callback on port 1455, and however the
   run ends, the sign-in's record does not outlive it.
   The live story declares low effort on the engine's and agent's models;
-  focused checks read the real, fake and refusing configurations through
-  startup's readers, without network or a person.
+  its real, fake and refusing configurations are checked as startup
+  reads them, without a file, a network or a person (above).
   After the sign-in, the story prints a line at each change of the
   chat's run, and a run that can no longer answer (a failed or refused
   attempt, a hold, another ending) fails it at once in those words. A
