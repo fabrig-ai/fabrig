@@ -189,23 +189,31 @@ pub struct RefreshFacts {
 
 /// Read a saved record's refresh facts; `None` when there is no record.
 pub fn refresh_facts(file: &std::path::Path) -> Result<Option<RefreshFacts>, String> {
-    record(file)
-        .map(|record| {
-            record.map(|record| RefreshFacts {
-                generation: record.generation,
-                refreshable: record.refresh_token.is_some(),
-                expires_at: record.expires_at,
-                earliest_refresh_at: record.earliest_refresh_at,
-            })
-        })
-        .map_err(RecordFailure::line)
+    read_record(file).map_err(RecordFailure::line)?.map(|bytes| refresh_facts_from_bytes(bytes.expose())).transpose()
+}
+
+/// Decode a saved sign-in record and return only its refresh facts, without its tokens.
+pub fn refresh_facts_from_bytes(bytes: &[u8]) -> Result<RefreshFacts, String> {
+    let record = decode_record(bytes).map_err(RecordFailure::line)?;
+    Ok(RefreshFacts {
+        generation: record.generation,
+        refreshable: record.refresh_token.is_some(),
+        expires_at: record.expires_at,
+        earliest_refresh_at: record.earliest_refresh_at,
+    })
 }
 
 pub(super) fn record(file: &std::path::Path) -> Result<Option<oauth::SavedToken>, RecordFailure> {
+    read_record(file)?.map(|bytes| decode_record(bytes.expose())).transpose()
+}
+
+fn decode_record(bytes: &[u8]) -> Result<oauth::SavedToken, RecordFailure> {
+    oauth::decode_record(bytes, &document_limits()).map_err(|_| RecordFailure::Invalid)
+}
+
+fn read_record(file: &std::path::Path) -> Result<Option<skein_lib::Secret>, RecordFailure> {
     match skein_shell::read_private_file(file, document_limits().record_bytes, skein_shell::effective_user()) {
-        Ok(bytes) => {
-            oauth::decode_record(bytes.expose(), &document_limits()).map(Some).map_err(|_| RecordFailure::Invalid)
-        }
+        Ok(bytes) => Ok(Some(bytes)),
         Err(skein_shell::Unread::Absent) => Ok(None),
         Err(_) => Err(RecordFailure::Unreadable),
     }

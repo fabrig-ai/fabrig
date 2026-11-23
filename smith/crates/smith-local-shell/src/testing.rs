@@ -1,6 +1,6 @@
 //! Native operations shared with the local shell's real-loop suite.
 
-pub use crate::credentials::testing::{inspect_key, keep_key, logout, raw_key, read_or_draw};
+pub use crate::credentials::testing::{inspect_key, read_or_draw};
 
 /// Write a synthetic key fixture with the requested native file mode.
 #[must_use]

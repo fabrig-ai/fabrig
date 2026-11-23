@@ -16,8 +16,6 @@ pub(crate) mod testing {
     use super::{Credential, Directory, host_id, key};
     use std::path::Path;
 
-    pub use super::login::testing::{keep_key, logout};
-
     pub fn read_or_draw(directory: &Directory, entropy: &[u8; 32]) -> Result<String, String> {
         host_id::read_or_draw(directory, entropy)
     }
@@ -25,14 +23,6 @@ pub(crate) mod testing {
     #[must_use]
     pub fn inspect_key(file: &Path) -> Credential {
         key::inspect(file)
-    }
-
-    pub mod raw_key {
-        use super::{Credential, Path, key};
-
-        pub fn read(file: &Path) -> Result<Box<[u8]>, Credential> {
-            key::read(file)
-        }
     }
 }
 pub(crate) mod key;
@@ -53,7 +43,7 @@ pub use login::{Environment, LoginOutcome, command};
 pub(crate) use product::status_words;
 pub use product::{Location, Prepared, limits, prepare, record_generation};
 use program_check::ProgramStates;
-pub use sign_in::{RefreshFacts, Registered, refresh_facts, registration};
+pub use sign_in::{RefreshFacts, Registered, refresh_facts, refresh_facts_from_bytes, registration};
 use smith_agent_shell::config::ProgramName;
 
 /// An account's state reported without its credential value.
