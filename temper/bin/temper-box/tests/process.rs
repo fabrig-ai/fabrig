@@ -2572,13 +2572,7 @@ fn a_box_signs_its_person_in_to_its_owned_forgejo_with_one_click() {
 }
 
 #[test]
-fn an_owned_forgejo_accepts_a_public_source_once_and_exchanges_its_code() {
-    let scratch = support::Scratch::new("forgejo_public_source");
-    support::forgejo_sign_in::public(scratch.path());
-    scratch.remove();
-}
-#[test]
-fn an_owned_forgejo_signs_its_member_in_through_temper() {
+fn an_owned_forgejo_signs_its_people_in_through_temper() {
     let scratch = support::Scratch::new("forgejo_sign_in");
     support::forgejo_sign_in::run(scratch.path());
     scratch.remove();
