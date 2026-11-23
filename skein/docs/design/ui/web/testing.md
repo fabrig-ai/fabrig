@@ -8,10 +8,10 @@ Each within skein's suites' budgets (../../../foundation/testing-strategy.md, se
   - the mapping and its overrides, a golden row per role, state and
     property (`elements.md`), a primary shortcut's under each primary
     modifier;
-  - the fold (`README.md`, section 5): an address moved folding the open
+  - the fold (`patches.md`, section 1): an address moved folding the open
     disclosures; the first apply, and an apply at the same address,
     folding none;
-  - keys made shortcuts under each primary modifier (`README.md`, section 5): the
+  - keys made shortcuts under each primary modifier (`patches.md`, section 1): the
     primary one pressing; the other one, Shift besides, or Control with
     Alt pressing nothing; Alt's composed character read by its `code`;
   - patches applied to a model of the document, printed as HTML and
@@ -23,7 +23,7 @@ Each within skein's suites' budgets (../../../foundation/testing-strategy.md, se
   - the transport's order over a fake platform: writes before exchanges,
     a failed write failing the step's exchanges and cancelling the
     navigation; the inbox's: no turn inside a turn;
-  - the navigation's targets (`README.md`, section 8): each kind accepted or
+  - the navigation's targets (`effects.md`, section 1): each kind accepted or
     refused, plaintext loopback with loopback navigation on and off;
   - the bundler: the directory named by its digest, the same inputs
     giving the same bundle, references under the prefix, an own page's
@@ -73,7 +73,7 @@ Each within skein's suites' budgets (../../../foundation/testing-strategy.md, se
 ## 2. The face and the harness
 
 - **The face,** in `skein-fake-person-browser`: the person's `Find`
-  (../README.md, 14.1) over skein's browser kit:
+  (../testing.md, 1.1) over skein's browser kit:
   - roles through `elements.md`'s mapping, which an override keeps (`elements.md`, 1):
     for each role, the accessible roles its elements compute in
     Chromium, which a find of that role asks the kit for (a text field:
@@ -87,7 +87,7 @@ Each within skein's suites' budgets (../../../foundation/testing-strategy.md, se
     being several runs. A described disclosure's name, as Chromium
     computes it from its summary, holds its description after it (`elements.md`
     ), so a find by words in its name finds it, as the fake person's
-    find by its name alone does (../README.md, 14.1);
+    find by its name alone does (../testing.md, 1.1);
   - `Pending` while the kit answers.
 - **Its tabs:** the person's other tabs read as the browser lists them
   (../../testing/browser.md, section 6), awaited until they read as the step says: how
@@ -97,7 +97,7 @@ Each within skein's suites' budgets (../../../foundation/testing-strategy.md, se
   selected whole by the kit's select-all key, then the words typed over
   it), a date's or a time's by the kit's keys (below);
   Enter for a send; a key with Shift held, Shift+Enter a new line in a
-  text area that sends on Enter (`README.md`, section 5); an application's shortcut,
+  text area that sends on Enter (`patches.md`, section 1); an application's shortcut,
   the kit's letter with Alt and Shift held (../../testing/browser.md, section 5); an
   option chosen with the
   kit's keys, as a keyboard chooses one; `Go`, a navigation to the path
@@ -209,7 +209,7 @@ Each within skein's suites' budgets (../../../foundation/testing-strategy.md, se
     its handle, as a world's test reads them after its run.
   At a story's step it also:
   - presses a drawing's mark, which the person cannot: the kit's press
-    at the mark's point on the drawing's figure (`README.md`, section 6; ../../testing/browser.md,
+    at the mark's point on the drawing's figure (`svg.md`, section 1; ../../testing/browser.md,
     sections 5 and 6);
   - **stops the server binary and starts it again** at the address it
     had, which its arguments name, so that a page sees its server go and
@@ -290,7 +290,7 @@ Each within skein's suites' budgets (../../../foundation/testing-strategy.md, se
 
 - **What the application names is what a story takes,** and nothing
   else. What a story must see on a person's page is named as what a
-  person looks for (../README.md, 14.1), and the story awaits it: never for a
+  person looks for (../testing.md, 1.1), and the story awaits it: never for a
   fixed time, and never by skein's words where the page shows the
   application's, as the restart part does (`README.md`, 4.1). A story looks for
   something absent only once its page shows that it holds its server's
@@ -328,7 +328,7 @@ parts carry, so that its tier tests each once.
   pending add, which the server makes once; and the closing warning met
   by a reload while an add is pending, and by none once it is made
   (../../examples.md, 9.2 and 9.5).
-- **A tab,** at a test build's address alone, `/test/tab` (`README.md`, section 8):
+- **A tab,** at a test build's address alone, `/test/tab` (`effects.md`, section 1):
   a press opens the tab in that press's turn, its words its title; a
   second points it, on the page's own origin, its opener cut; one outside
   the targets closes it, as a third does; and an opening no press started,
@@ -342,7 +342,7 @@ parts carry, so that its tier tests each once.
   report; `?at-start` writes with no press, and is refused; `?no-clipboard`,
   as on plain http, is refused at once.
 - **Reading a log,** in its test build alone, at the addresses under
-  `/test/reading/` (`README.md`, section 5): a short log reads each page once until no
+  `/test/reading/` (`patches.md`, section 1): a short log reads each page once until no
   more remains; the words stay within a pixel across a read above, with
   the browser's own anchoring and with `overflow-anchor: none`, where an end
   request and PageUp and PageDown are held too; a read drawn within a

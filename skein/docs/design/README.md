@@ -85,12 +85,12 @@ code is from this design and how to roll up the status files.
 | the throwaway Forgejo | `skein-throwaway-forgejo` | for tests: the pinned Forgejo run in a scratch, and the conformance that holds the dialect to it | [testing/fakes/throwaway.md](testing/fakes/throwaway.md) |
 | the fake GitHub | `skein-fake-forge-github`, `skein-fake-forge-http`, `skein-fake-peers` | GitHub's API and browser faces, signed job-log blobs and hosted peer scenarios | [testing/fakes/github.md](testing/fakes/github.md) |
 | the browser kit | `skein-browser` | for tests: a headless Chromium driven over the DevTools protocol on a pipe, by role and name, from the loop | [testing/browser.md](testing/browser.md) |
-| the UI kit | `skein-ui` | a semantic tree of an application's state, by accessibility roles, built, diffed into patches, its acts bound to their owners; words, Markdown, scenes | [ui/README.md](ui/README.md) |
+| the UI kit | `skein-ui` | a semantic tree of an application's state, by accessibility roles, built, diffed into patches, its acts bound to their owners; words, Markdown, scenes | [ui/README.md](ui/README.md), [ui/tree.md](ui/tree.md) |
 | the text shell | `skein-ui-text` | the tree printed as lines, a typed line read as an act, for a terminal or a pipe | [ui/text.md](ui/text.md) |
 | the full-screen shell | `skein-ui-screen`, `skein-ui-screen-terminal` | the tree laid out on a terminal's grid of cells in an application's theme, keys read as acts | [ui/screen.md](ui/screen.md) |
-| the browser parts | `skein-ui-web`, `skein-ui-bundle` | parts an application's browser shell wires into its own loop, compiled to WebAssembly; the bundler | [ui/web/README.md](ui/web/README.md) |
+| the browser parts | `skein-ui-web`, `skein-ui-bundle` | parts an application's browser shell wires into its own loop, compiled to WebAssembly; the bundler | [ui/web/README.md](ui/web/README.md), [ui/web/patches.md](ui/web/patches.md), [ui/web/svg.md](ui/web/svg.md), [ui/web/effects.md](ui/web/effects.md) |
 | a world in a browser | `skein-playground` | an application's simulated world in a Web Worker, stepped in slices paced by the browser; the visitor speaking HTTP to its listener; the bridge; the session log and its replay | [playground.md](playground.md) |
-| the fake person | `skein-fake-person`, `skein-fake-person-browser` | for tests: a person who finds nodes by role, name and text and acts on them, on the tree or in Chromium | [ui/README.md](ui/README.md), [ui/web/README.md](ui/web/README.md) |
+| the fake person | `skein-fake-person`, `skein-fake-person-browser` | for tests: a person who finds nodes by role, name and text and acts on them, on the tree or in Chromium | [ui/README.md](ui/README.md), [ui/testing.md](ui/testing.md), [ui/web/README.md](ui/web/README.md) |
 
 Directory reading guides:
 

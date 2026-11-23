@@ -149,7 +149,7 @@
     is carried, the root asks its shell to open a tab (`Request::Tab`,
     `Tab::Open`), which holds "Opening ChatGPT’s sign-in…" until the
     address comes: a browser blocks as a pop-up a tab opened once an
-    answer has come back (skein's `ui/web/README.md`, section 8). The sign-in's
+    answer has come back (skein's `ui/web/effects.md`, section 1). The sign-in's
     answer, `AccountSignInStarted`, names its source S and the address.
     The root asks its shell to point the tab at the address
     (`Tab::Point`), its opener cut, once, from that answer: never from its
@@ -173,7 +173,7 @@
     `Accounts` with its line (*Ready's place*, below), or the welcome's
     Ready, its address replacing the step's, or to the ending's words and
     acts. A hidden tab lets its
-    stream go after a minute (skein's `ui/web/README.md`, section 8), so a slow
+    stream go after a minute (skein's `ui/web/effects.md`, section 1), so a slow
     sign-in moves on when the person returns, its stream opened again;
     the page says nothing of this. The new tab ends on the listener's
     fixed page, "Sign-in received. You can close this tab.", which never

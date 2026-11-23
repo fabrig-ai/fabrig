@@ -63,10 +63,10 @@ The page part keeps the full mapping (web/elements.md); in brief:
 | pressed, selected | `aria-pressed`, a check's `checked`; `aria-selected`, a choice's `checked`, an option's `selected` |
 | required, submits on enter | `required` or `aria-required`; `enterkeyhint="send"` |
 | completed | the page part's word, last in the item, hidden from sight and read (web/elements.md) |
-| continues, an end request | nothing of their own: the page part reads them (web/README.md, section 5) |
-| folds away | `data-folds-away` on the `<details>`, read by the page part (web/README.md, section 5) |
+| continues, an end request | nothing of their own: the page part reads them (web/patches.md, section 1) |
+| folds away | `data-folds-away` on the `<details>`, read by the page part (web/patches.md, section 1) |
 | shown folded | nothing of its own: the child's element in the `<summary>` (web/elements.md) |
-| to log end | `data-to-log-end` on the `<button>`, read by the page part (web/README.md, section 5) |
+| to log end | `data-to-log-end` on the `<button>`, read by the page part (web/patches.md, section 1) |
 | a name, a description, a level | `aria-label`; `aria-describedby`; `<h1>` to `<h6>`, deeper `aria-level` |
 | a placeholder | `placeholder` |
 | a hint | `title` |

@@ -212,7 +212,7 @@ keeps its fake of its own git component, its worlds and its cost ceilings.
 | Service tier | Real | What skein supplies |
 |---|---|---|
 | step tests | one of its step functions | lib |
-| domain worlds | one domain or child domain | lib, the counting allocator; for an application on skein-ui, the fake person (../ui/README.md, 14.1) |
+| domain worlds | one domain or child domain | lib, the counting allocator; for an application on skein-ui, the fake person (../ui/testing.md, 1.1) |
 | system worlds | several of its domains, or several services' domains | lib, the counting allocator |
 | protocol worlds | its protocol layer, over skein's machines | the machines, tested in skein's tiers; the counting allocator |
 | simulated worlds | every layer, `iterate` per process | the simulator, the world harness, the counting allocator, the examples as a template |
@@ -603,7 +603,7 @@ testing/skein-forge-kit         the forge machine world's machine, peers, pipes 
 testing/skein-forge-connection-fixtures the forge connection's fixtures for the machine world's hand, a copy of the crate's step tests' own (../forge/connection.md, 10; ../../foundation/cli.md, 3)
 testing/skein-codegen           the codec generator, run by a consumer's tests (codec.md)
 testing/skein-browser           the browser kit, a step machine: headless Chromium over the DevTools protocol on a pipe (browser.md)
-testing/skein-fake-person       the person: targets by role, name and text, steps, the tree face, the random person (../ui/README.md, 14.1)
+testing/skein-fake-person       the person: targets by role, name and text, steps, the tree face, the random person (../ui/testing.md, 1.1)
 testing/skein-fake-person-browser the person's face over the browser kit, and the harness: an application's server binary, Chromium and the peers a test lends in one loop; skein's stories for a browser shell (../ui/web/testing.md, 2)
 tests/heap                      the counting allocator's own tests, skein-heap-tests
 tests/echo                      the echo's simulated worlds and its real loop, skein-echo-world
@@ -644,7 +644,7 @@ tests/browser                   the browser kit's machine world against a fake b
 tests/tls                       the TLS client's machine worlds against a rustls server in memory, the HTTP client stacked on it, and its peaks under scenario ceilings with the counting allocator, skein-tls-world
 tests/tls/fixtures              its certificates and key, and the script that makes them
 tests/link                      a link's close rule against a rustls server in memory, skein-link-world (../net/link.md, 4)
-tests/ui                        skein-ui's peaks under scenario ceilings with the counting allocator, and its comparisons with naive functions, skein-ui-tests (../ui/README.md, 14)
+tests/ui                        skein-ui's peaks under scenario ceilings with the counting allocator, and its comparisons with naive functions, skein-ui-tests (../ui/testing.md, 1)
 tests/ui-text                   the text shell's terminal on the simulated machine, skein-ui-text-tests (../ui/text.md, 8)
 tests/ui-screen                 the full-screen shell's terminal on the simulated machine, skein-ui-screen-tests (../ui/screen.md, 9)
 tests/ui-web                    the browser parts' host tests that need more than a crate's step tests, and the UI example's browser tier, skein-ui-web-tests (../ui/web/testing.md)

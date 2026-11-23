@@ -108,7 +108,7 @@ on the timer, or after a message:
   io's sockets, which an application's composition hosts as one of its
   processes. Its inputs come from the loop between steps (testing/world.md, 5);
   its outputs go back to the loop after each slice.
-- **Its inputs** are fetch's (ui/web/README.md, section 8): an exchange (its
+- **Its inputs** are fetch's (ui/web/effects.md, section 1): an exchange (its
   id, a path, the method, headers and body, a bound on its answer's
   body); an abandon of one; the stream opened (a path, its headers, a
   bound on a piece), read on, or closed.
@@ -135,7 +135,7 @@ on the timer, or after a message:
   (programming-model.md, 6).
 - **Fetch's reports by construction:** the visitor keeps its exchanges
   and its stream in `skein-ui-web`'s fetch bookkeeping, the pure half
-  the browser's fetch keeps (ui/web/README.md, 8), so a refusal past the
+  the browser's fetch keeps (ui/web/effects.md, 1), so a refusal past the
   bound in flight, a body past its bound, an abandon and the stream's
   pieces are reported as a browser's are: the first piece as it comes,
   each further one after a read-on.

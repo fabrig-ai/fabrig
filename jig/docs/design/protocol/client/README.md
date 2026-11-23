@@ -496,7 +496,7 @@ recipient.
   watermark again, with no notice from a record of its own
   (`../../client/domain/client/README.md`, section 8).
 - **Where** is the shell's: a browser tab's session storage, as text
-  skein's small store part encodes (skein's `ui/web/README.md`, section 8); a
+  skein's small store part encodes (skein's `ui/web/effects.md`, section 1); a
   file a native client writes whole and syncs; a service's file, synced
   before its requests leave; a world's memory.
 

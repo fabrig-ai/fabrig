@@ -394,7 +394,7 @@ to the next command, never a closure waiting on a reply:
   - A story's page counts as hidden while Chromium reports it hidden:
     after another tab takes the front, until this page is brought back.
     Looking brings it back and makes it visible to its own
-    `visibilitychange` listener (../ui/web/README.md, section 8). A story about a
+    `visibilitychange` listener (../ui/web/effects.md, section 1). A story about a
     hidden page leaves it without these looks for the hidden interval;
     listing tabs and reading attributes do not bring it to the front.
 

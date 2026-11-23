@@ -451,7 +451,7 @@ Each is generic, and says nothing about jig.
   presentation may use or leave:
   - `skein-ui`: the tree and its vocabulary, owners as opaque numbers,
     to which jig maps its own (`../client/domain/view.md`, section 3;
-    skein's `ui/README.md`, 3.3), the builder with slots and splicing, bindings
+    skein's `ui/tree.md`, 1.3), the builder with slots and splicing, bindings
     and acts, the diff and the view, style tokens and the look's names,
     the phrasebook's machinery with its reference hole, Markdown,
     scenes, the outline's rules, and limits with their worst case;

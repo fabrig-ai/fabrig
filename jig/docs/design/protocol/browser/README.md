@@ -465,7 +465,7 @@ from the origin (3.5, step 7).
 
 ## 7. Patches and acts
 
-skein's (skein's `ui/web/README.md`, section 5). What the reference UI adds:
+skein's (skein's `ui/web/patches.md`, section 1). What the reference UI adds:
 
 - **Escape in a dialog** presses the first bound, enabled node in the
   open dialog naming Escape as its shortcut (skein's `ui/README.md`, 6.1).
@@ -480,7 +480,7 @@ skein's (skein's `ui/web/README.md`, section 5). What the reference UI adds:
 
 ## 8. Scenes as SVG
 
-skein's (skein's `ui/web/README.md`, section 6; skein's `ui/scenes.md`).
+skein's (skein's `ui/web/svg.md`, section 1; skein's `ui/scenes.md`).
 What is jig's:
 
 - **The reference UI draws no kind of its own** (section 15): the
@@ -544,7 +544,7 @@ The default mapping's browser end: the client host's
 `jig-client-protocol-http`, the mapping's client end (`../client/default-http.md`,
 4), maps `jig-client`'s requests onto HTTP, and the client's adapter
 gives them to skein's fetch, small store and transport as their plain
-data (skein's `ui/web/README.md`, section 8; 5.1).
+data (skein's `ui/web/effects.md`, section 1; 5.1).
 
 - **Exchanges** by skein's fetch: each of the client's exchanges as
   `jig-client-protocol-http` maps it, a POST of the message's record to
@@ -583,7 +583,7 @@ data (skein's `ui/web/README.md`, section 8; 5.1).
   skein's default, which jig's reference keeps (the application's
   parameter): fetch closes the stream and reports its end, which the
   client takes as any drop, and an opening while hidden waits until the
-  tab is shown (skein's `ui/web/README.md`, section 8).
+  tab is shown (skein's `ui/web/effects.md`, section 1).
 - **The small store** is skein's, the tab's session storage: each of the
   client's records under its key (`../client/README.md`, section 7), the stream's
   name among them, both as base64 text, under the prefix the application
@@ -824,7 +824,7 @@ otherwise (skein's `ui/web/README.md`, section 10).
     skein's harness first (skein's `testing/browser.md`, section 11; skein's
     `ui/web/README.md`, section 13); *a press that copies text, downloads and
     uploads of files:* effects (skein's `ui/README.md`, section 11), their parts
-    skein's (skein's `ui/web/README.md`, sections 9 and 12), for an application
+    skein's (skein's `ui/web/effects.md`, section 2, and `ui/web/README.md`, section 12), for an application
     whose people need them;
   - *`ops`'s browser shell,* `jig-ops-client-shell-web`, and its server:
     part of `ops` standalone (`../../examples.md`, 9.1), which gives it an
@@ -847,7 +847,7 @@ otherwise (skein's `ui/web/README.md`, section 10).
   elements and scenes is skein's question (skein's `ui/README.md`, section 16).
 - **Media from the origin:** the bundle's closed list (skein's
   `ui/web/bundle.md`, 4) has no audio or video type, and skein's vocabulary
-  no media (skein's `ui/README.md`, 4.2): what an application serving its own
+  no media (skein's `ui/tree.md`, 2.2): what an application serving its own
   would need of both.
 - **A JavaScript snippet in jig's test application,** the user's
   decision; by default, none. skein's example carries the snippet that
@@ -905,7 +905,7 @@ otherwise (skein's `ui/web/README.md`, section 10).
   the transport, it owes the transport's order (5.3).
 - **skein owes:**
   - `skein-ui`, which the reference UI builds on: the tree (skein's
-    `ui/README.md`, section 3), owners as opaque numbers (skein's `ui/README.md`, 3.3),
+    `ui/tree.md`, section 1), owners as opaque numbers (skein's `ui/tree.md`, 1.3),
     the look (skein's `ui/README.md`, section 8), and Escape as a dialog's
     shortcut (skein's `ui/README.md`, 6.1);
   - `skein-ui-text`, the text shell an application's terminal composes
@@ -925,7 +925,7 @@ otherwise (skein's `ui/web/README.md`, section 10).
     copy (skein's `examples.md`, 9.3);
   - `skein-fake-person` and its browser face and harness,
     `skein-fake-person-browser`, with skein's stories for a browser
-    shell (skein's `ui/README.md`, 14.1; skein's `ui/web/testing.md`, 2): the harness
+    shell (skein's `ui/testing.md`, 1.1; skein's `ui/web/testing.md`, 2): the harness
     opening an address the binary prints, found by a prefix the test
     gives, or one the test gives; stopping the binary and starting it
     again within a story; and failing a test only on trouble its story

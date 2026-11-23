@@ -654,7 +654,7 @@ drawn from the seed.
 
 - **On the fake forge** it acts as a forge user.
 - **Through temper's client** it is skein's: skein's fake person
-  (skein's `ui/README.md`, 14.1), reading the tree temper's view makes and
+  (skein's `ui/testing.md`, 1.1), reading the tree temper's view makes and
   acting on it, with jig's client test kit's faults and check (jig's
   `client/domain/testing.md`), in `tests/client`; and the same person in
   front of temper's terminal client (../client/README.md, section 2), in the

@@ -1,4 +1,4 @@
-//! Panel folding through the page part in real Chromium (skein/docs/design/ui/web/README.md, 5).
+//! Panel folding through the page part in real Chromium (skein/docs/design/ui/web/patches.md, 1).
 use skein_browser::boundary::Key;
 use skein_fake_person_browser::{
     Outcome, Script, Setup, harness,

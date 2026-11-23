@@ -1,0 +1,16 @@
+# A split pass (temper/docs/design/draft/design-upkeep.md, 4.3), at 9676260a6a.
+# skein/docs/design/ui/web/README.md: 63,242 bytes. Patches and acts, SVG and effects get their own pages; the application shell, loop, history and stylesheet stay.
+title skein/docs/design/ui/web/patches.md: The browser parts: patches and acts
+title skein/docs/design/ui/web/svg.md: The browser parts: scenes as SVG
+title skein/docs/design/ui/web/effects.md: The browser parts: fetch, the store, transport and effects
+skein/docs/design/ui/web/README.md 5 -> skein/docs/design/ui/web/patches.md 1
+skein/docs/design/ui/web/README.md 6 -> skein/docs/design/ui/web/svg.md 1
+skein/docs/design/ui/web/README.md 8 -> skein/docs/design/ui/web/effects.md 1
+skein/docs/design/ui/web/README.md 9 -> skein/docs/design/ui/web/effects.md 2
+
+# skein/docs/design/ui/README.md: 59,851 bytes. The tree, its vocabulary and testing get their own pages; building, bindings, the diff and view, and limits stay.
+title skein/docs/design/ui/tree.md: The UI kit: the tree and its vocabulary
+title skein/docs/design/ui/testing.md: The UI kit: testing and the fake person
+skein/docs/design/ui/README.md 3 -> skein/docs/design/ui/tree.md 1
+skein/docs/design/ui/README.md 4 -> skein/docs/design/ui/tree.md 2
+skein/docs/design/ui/README.md 14 -> skein/docs/design/ui/testing.md 1

@@ -80,7 +80,7 @@ own after this one (section 6).
 ## 6. The bar that fills: skein's
 
 skein-ui's progress node carries text alone: "how far a piece of work
-has gone, its text saying it" (`skein/docs/design/ui/README.md`, 3.1). A bar that fills with the percentage needs a value it maps to
+has gone, its text saying it" (`skein/docs/design/ui/tree.md`, 1.1). A bar that fills with the percentage needs a value it maps to
 the platform's (`aria-valuenow` on the web) and a width the stylesheet
 can draw. That is skein's, in a draft of its own, after this one. Until
 it lands, the bar stays the moving one, and the percentage says how

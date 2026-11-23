@@ -563,7 +563,7 @@ two places, the small store, exchanges and a stream.
 
 ### 9.1 What a person sees
 
-- **One owner,** the example's (ui/README.md, 3.3), with the look's prefix
+- **One owner,** the example's (ui/tree.md, 1.3), with the look's prefix
   `notes`: its style tokens and region names start with `notes-` (ui/README.md,
   section 8). Its words are English, from its phrasebook (ui/README.md,
   section 9).
@@ -578,8 +578,8 @@ two places, the small store, exchanges and a stream.
     takes (the number entry kind), a label (a select of three options:
     idea, task, reference), a button that adds it, and one that clears
     it. A field the view finds wrong is invalid, its description saying
-    why (ui/README.md, 3.2). Adding a note, or discarding a draft, moves the
-    focus to the title by a focus request (ui/README.md, 3.2);
+    why (ui/tree.md, 1.2). Adding a note, or discarding a draft, moves the
+    focus to the title by a focus request (ui/tree.md, 1.2);
   - *a complementary landmark:* the chart (9.4), and beside it a choice
     group showing all notes or one label's;
   - *a dialog,* while the person clears a form holding words: whether to
@@ -599,7 +599,7 @@ two places, the small store, exchanges and a stream.
 and for `wasm32-unknown-unknown`:
 
 - **Its state:** the notes the page knows, the form's values with the
-  view's count of its own writes to each (ui/README.md, 3.4), the label shown,
+  view's count of its own writes to each (ui/tree.md, 1.4), the label shown,
   the place, the adds pending, and whether the stream is live.
 - **Its view,** built through skein-ui's builder from the state, with
   its bindings decoded into its actions (ui/README.md, sections 5 and 6), its
@@ -611,7 +611,7 @@ and for `wasm32-unknown-unknown`:
   event's data, as base64 (runtime/lib-bytes.md, 1.1), read with HTTP's event-stream
   reader (http.md, section 4).
 - **An add is written to the small store first,** under a key drawn from
-  the seed, then sent, in the transport's order (ui/web/README.md, section 8).
+  the seed, then sent, in the transport's order (ui/web/effects.md, section 1).
   The server makes an add once per key, so an add a reload sends again
   makes one note; its record leaves the small store once answered.
   Closing loses requests while an add is pending, so the page holds its
@@ -687,8 +687,8 @@ a service copies that.
 - **A drawing acted on** (ui/scenes.md): a bar chart of the notes
   by label, of the example's one drawing kind, its data the counts and
   their words. Its drawing code draws a bar and a text per label, with
-  the token `notes-bar`, as SVG in a browser by default (ui/web/README.md,
-  section 6). Its fallback is a list saying each label's count in
+  the token `notes-bar`, as SVG in a browser by default (ui/web/svg.md,
+  section 1). Its fallback is a list saying each label's count in
   words. Each bar's mark carries the act that shows its label's notes,
   which the choice group beside the chart does too (ui/scenes.md, 3).
 - **Its module's size,** built with the `web` profile (ui/web/bundle.md, 1),
@@ -711,7 +711,7 @@ a service copies that.
 - **Step tests** of the view: its pages printed through skein-ui-text
   and kept as golden text (ui/text.md, section 8); the fake person's
   tree face adding a note, a required title refused in words, a label
-  chosen, a note opened and left (ui/README.md, 14.1); golden scenes of the
+  chosen, a note opened and left (ui/testing.md, 1.1); golden scenes of the
   chart (ui/scenes.md); its places printed and parsed back; its
   limits and memory under a scenario ceiling.
 - **Step tests** of the server: each route, an add made once per key,

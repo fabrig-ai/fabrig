@@ -2,13 +2,13 @@
 
 Provisional, 2026-11-07. The design of `skein-ui-screen` and
 `skein-ui-screen-terminal`: skein-ui's shell for a person at a terminal
-who works in it full screen. It lays the view's tree (README.md, section 3)
+who works in it full screen. It lays the view's tree (tree.md, section 1)
 out on a grid of cells, placing regions by their names (README.md, section
 8) in the colours, glyphs and borders of a theme the application gives,
 and reads a person's keys as acts on nodes (README.md, section 6). It says
 what its parts are, the theme, how a frame is laid out, the keys, the
 terminal and its ways out, and how it is tested. What is left for later
-is in section 10, what is open in section 11.
+is in `screen.md`, section 10, what is open in `screen.md`, section 11.
 
 ## 1. In one page
 
@@ -67,7 +67,7 @@ the application's host                   its loop over skein-shell's drive: its 
 
 It is one of skein-ui's shells (shells.md), beside the text shell
 (text.md) and the browser parts (web/README.md). The fake person reads the
-same tree, not a frame (README.md, 14.1).
+same tree, not a frame (testing.md, 1.1).
 
 ## 3. The theme
 
@@ -229,7 +229,7 @@ the tree's nodes and the frame's cells.
   row; the frame says the scroll it used, which the shell keeps, and
   `Focus::rows` the body's rows it laid, which the key reader pages by
   (6.2).
-- **The body follows a log's end** (README.md, 3.2, *an end request*): a log
+- **The body follows a log's end** (tree.md, 1.2, *an end request*): a log
   in the body whose end request is newer than `Focus::ended` sets
   `Focus::follow` and `Focus::ended` to it; while `follow` is set, the
   body shows its last rows, whatever it grows by between frames, unless
@@ -284,7 +284,7 @@ the tree's nodes and the frame's cells.
   - *a log:* its entries are laid whole, oldest first, without the text
     shell's `(up, down: more lines)` command hint, and followed as 5.2
     says; reporting an edge in view is deferred to section 10;
-  - *an options menu* (README.md, 3.2, *options*), while its field is in the
+  - *an options menu* (tree.md, 1.2, *options*), while its field is in the
     tree: one row an item, its focus columns, its name padded with spaces
     to the longest name among the menu's items and three more, then the
     first line of its description, cut at the row's end; each part in its
@@ -294,7 +294,7 @@ the tree's nodes and the frame's cells.
     active paint across the menu's inner width beneath them, as a band;
     the others' focus columns are blank. A menu with no field before it
     is laid as any menu. A token's `active_name` replaces only the active
-    name's token paint as section 3 specifies;
+    name's token paint as `screen.md`, section 3 specifies;
   - *a code block:* its lines are indented four spaces and cut rather
     than wrapped (5.1).
 - **A spread region** lays each child's first line on one row, the first
@@ -337,12 +337,12 @@ the tree's nodes and the frame's cells.
   body's rows in the last frame laid. The shell keeps it; the renderer
   and the key reader change it. It starts with none of them: no focus,
   nothing active, not following, no request honoured, no rows.
-- **The active item** of an options menu (README.md, 3.2): the shell's, while
+- **The active item** of an options menu (tree.md, 1.2): the shell's, while
   the focus is in the field the menu follows. The renderer keeps it on
   one of the menu's enabled items: one gone, disabled, or none, and it is
   the item marked selected, or else the first; the field losing the
   focus, or the menu leaving the tree, leaves it none.
-- **A focus request** (README.md, 3.2) newer than the last honoured moves
+- **A focus request** (tree.md, 1.2) newer than the last honoured moves
   the focus to its node, the caret at its value's end. A focused node
   gone from the tree, or no longer one a person acts on, leaves the
   focus none.
