@@ -15,8 +15,8 @@ real costs of each step.
   one snapshot.debian.org gives), the suite, components and
   architecture, and the requests of the test repository's targets:
   `test-min` (the `apt` variant with no package of its own: the test
-  repository's `tasks/hearth/task.json` declares none, hearth/docs/design/protocol/format/tasks.md,
-  12), and `test-boot` for the boot
+  repository's `tasks/hearth/task.json` declares none, hearth/docs/design/protocol/format/tasks-hearth.md,
+  1), and `test-boot` for the boot
   test and the VM tier (a kernel, tiny-initramfs, systemd, systemd-container,
   openssh-server, incus-agent, and the tools hearth runs: mmdebstrap,
   uidmap, efibootmgr, git). The

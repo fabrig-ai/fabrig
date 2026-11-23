@@ -377,7 +377,7 @@ be shared between machines and peers.
 | `/var/lib/systemd/credential.secret` | secret | `systemd-creds` run at build | refused |
 | `/etc/shadow`, `/etc/gshadow` and their `-` backups: a password field but `*`, `!`, `!!`, `!*` | secret | `chpasswd`, `useradd -p` in a script | refused; hashes applied at prepare |
 | `/etc/passwd`: a password field but `x` or `*` | secret | the same | refused |
-| `/var/cache/debconf/passwords.dat`, not empty | secret | a password preseed | refused; render refuses `password` preseeds (hearth/docs/design/protocol/format/tasks.md, 11) |
+| `/var/cache/debconf/passwords.dat`, not empty | secret | a password preseed | refused; render refuses `password` preseeds (hearth/docs/design/protocol/format/tasks-reserved.md, 1) |
 | `/etc/resolv.conf`, `/etc/hostname` | the builder | mmdebstrap copies the host's | removed (`packages.md`, 6); a task may write its own |
 | `/etc/apt/sources.list` | the builder | mmdebstrap: the local repository | replaced by the part's sources (`packages.md`, 6) |
 | an apt proxy setting | the builder | os's `--aptopt` | never passed: the build is offline |

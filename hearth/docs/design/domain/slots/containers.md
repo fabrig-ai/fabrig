@@ -13,7 +13,7 @@
   classes, as on a host. A container has no `journal` entry: its
   journal is its host's (hearth/docs/design/domain/operating.md, section 5).
 - **Its classes follow its host's policies** [M5]: a container has no
-  `hearth` task (hearth/docs/design/protocol/format/tasks.md, 12), so the host's activator snapshots its
+  `hearth` task (hearth/docs/design/protocol/format/tasks-hearth.md, 1), so the host's activator snapshots its
   classes by the host's running slot's data policies, into the host's
   `@hearth.snapshots` under the container's target, and sends them to
   the backup peer of the container's environment [M6]
@@ -37,7 +37,7 @@
   - the identity and secrets are the container's target's, made and
     kept by the host's activator, so a container no longer shares its
     host's machine-id.
-- **Its parameters arrive in its `boot` part** (hearth/docs/design/protocol/format/README.md, 3.5;
+- **Its parameters arrive in its `boot` part** (hearth/docs/design/protocol/format/targets.md, 1.5;
   hearth/docs/design/domain/render/spec.md, 1.3): the id base, the binds, the capabilities and the
   network. Its slot record (`README.md`, 2.2) holds them where a host's holds a
   kernel and a command line, and its nspawn settings are written from
@@ -101,7 +101,7 @@ and no one-shot. A change to the container's parameters is never live
   leaves them as they are.
 - **No output enables them:** a host's output enables no
   `systemd-nspawn@` unit of its containers, and render refuses one that
-  does (hearth/docs/design/protocol/format/tasks.md, 11). Started at boot before its link exists, it
+  does (hearth/docs/design/protocol/format/tasks-reserved.md, 1). Started at boot before its link exists, it
   would fail.
 
 ## 3. Trial
@@ -201,7 +201,7 @@ A container's facts are its host's activator's, read from outside:
 A container leaves its host's spec when its target is deleted from the
 repository or placed on another host. The host's steward then finds,
 in the activator's facts, a container whose target its spec no longer
-names (`target.containers`, hearth/docs/design/protocol/format/README.md, 3.5), and asks its activator to
+names (`target.containers`, hearth/docs/design/protocol/format/targets.md, 1.5), and asks its activator to
 remove it (hearth/docs/design/domain/activator/operations.md, 16):
 
 1. **Stop it:** `systemctl stop systemd-nspawn@<container>.service`;
@@ -229,7 +229,7 @@ A container gets live changes with the same mechanics (`trial.md`, 6 to 9), run
 by its host's activator from outside, since no hearth runs inside:
 
 - **Eligibility** is `trial.md`, 7's, read inside the container: the never-live
-  list (hearth/docs/design/protocol/format/tasks.md, 14) applies to its units, the same as a host's;
+  list (hearth/docs/design/protocol/format/tasks-live.md, 1) applies to its units, the same as a host's;
   rule 10 reads the host's kernel and the container's own facts (6);
   rule 11 reads the mount namespaces of the container's processes.
 - **The delta** is built from the container's new slot, in the

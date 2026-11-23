@@ -87,7 +87,13 @@ beside this one.
 1. **hearth/docs/design/README.md:** this overview.
 2. **hearth/docs/design/protocol/format/README.md:** the IaC format: the repository, targets, merging,
    tasks and their schemas, templates, exports, and secrets and data as
-   the format names them.
+   the format names them. The format's companion pages are:
+   - [`targets.md`](protocol/format/targets.md): composition and placement.
+   - [`schema.md`](protocol/format/schema.md): settings and their validation.
+   - [`exports.md`](protocol/format/exports.md): shared data between targets.
+   - [`tasks-reserved.md`](protocol/format/tasks-reserved.md): reserved names and paths.
+   - [`tasks-hearth.md`](protocol/format/tasks-hearth.md): the built-in `hearth` task.
+   - [`tasks-live.md`](protocol/format/tasks-live.md): live changes and their consumers.
 3. **hearth/docs/design/domain/render/README.md:** from a revision and a target to a spec: the pipeline,
    parts and digests, package resolution, the rendered diff.
 4. **hearth/docs/design/domain/store/README.md:** the store on btrfs: digests and keys, layers, the tree
@@ -416,7 +422,7 @@ user (`skein/docs/foundation/testing-strategy.md`, section 9). From the earliest
 | Need | For | Milestone |
 |---|---|---|
 | a public, streaming SHA-256 in lib, usable by the domain | digests | M1 |
-| JSON: each of the tokenizer's tokens and errors with its position in the document, its byte offset, line and column (the column in bytes, both from 1). `hearth-protocol-config` reads every document through skein-json's tokenizer, and refuses duplicate keys itself, at every depth, as it decodes each object's keys | strict configuration (hearth/docs/design/protocol/format/README.md, 2.2); the file, line and column of every render error (hearth/docs/design/domain/render/README.md, 3.1 and hearth/docs/design/domain/render/errors.md; hearth/docs/design/protocol/format/README.md, 5.5) | M1 |
+| JSON: each of the tokenizer's tokens and errors with its position in the document, its byte offset, line and column (the column in bytes, both from 1). `hearth-protocol-config` reads every document through skein-json's tokenizer, and refuses duplicate keys itself, at every depth, as it decodes each object's keys | strict configuration (hearth/docs/design/protocol/format/README.md, 2.2); the file, line and column of every render error (hearth/docs/design/domain/render/README.md, 3.1 and hearth/docs/design/domain/render/errors.md; hearth/docs/design/protocol/format/schema.md, 1.5) | M1 |
 | a full stat by name, without following links; readlink; extended attributes (`skein/docs/design/runtime/kernel-files.md`, 1 and 2; `skein/docs/design/runtime/io/files.md`) | the tree helper's walk | M2 |
 | writing a tree's metadata: symlink, link, chmod, chown, extended attributes, mkdir, truncate (`skein/docs/design/runtime/kernel-files.md`, 2) | change sets | M2 |
 | setting an entry's times, without following links (`utimensat`) | a slot's `/var`, copied (hearth/docs/design/domain/slots/prepare.md, 3); later, the walk's clamp (hearth/docs/design/domain/build/reproducible.md, 5.1) | M3 |

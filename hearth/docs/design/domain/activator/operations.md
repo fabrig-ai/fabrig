@@ -154,13 +154,13 @@ Identity { target, items: [ { item, kind, algorithm } ] }
   | Kind | Made with | Public half |
   |---|---|---|
   | the machine-id, always | `/proc/sys/kernel/random/uuid`: a random v4 UUID's 32 hexadecimal digits | itself |
-  | `ssh-host-key` | the running system's `ssh-keygen -q -t <algorithm> -N "" -C "" -f <.new>/<item>`: the running slot's, from the `hearth` task's `openssh-client` (hearth/docs/design/protocol/format/tasks.md, 12), or the live system's at bootstrap, which checks for it | the `.pub` line |
+  | `ssh-host-key` | the running system's `ssh-keygen -q -t <algorithm> -N "" -C "" -f <.new>/<item>`: the running slot's, from the `hearth` task's `openssh-client` (hearth/docs/design/protocol/format/tasks-hearth.md, 1), or the live system's at bootstrap, which checks for it | the `.pub` line |
   | `wireguard-key` [later] | in-process, from the kernel's random source and X25519, an ask of skein: no running slot need carry `wg` | the base64 public key |
-  | `backup-key` [M6] | `age-keygen -o <.new>/<item>`: an X25519 key, kept in the identity store and written into no slot (hearth/docs/design/protocol/format/README.md, 7.3 and 6.7) | the `age1…` recipient, reported as a fact |
+  | `backup-key` [M6] | `age-keygen -o <.new>/<item>`: an X25519 key, kept in the identity store and written into no slot (hearth/docs/design/protocol/format/README.md, 7.3, and hearth/docs/design/protocol/format/exports.md, 1.7) | the `age1…` recipient, reported as a fact |
 
 - **Done:** the generation and the public halves, which the steward
   reports so that people and agents can record them as data in the
-  repository (hearth/docs/design/protocol/format/README.md, section 6).
+  repository (hearth/docs/design/protocol/format/exports.md, section 1).
 - **A crash** leaves a `.new` directory, removed at the next start.
 - **Prepare asks for it first,** before it computes its key
   (hearth/docs/design/domain/slots/prepare.md), so a new item never causes a second prepare;

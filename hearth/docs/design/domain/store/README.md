@@ -841,7 +841,7 @@ What the steward must keep across restarts and reboots lives in
   with `nodev,nosuid,noatime`; its root is 0700 and owned by `hearth`,
   so no other user of the machine reaches anything beneath it.
 - **No task places anything beneath it:** `/var/lib/hearth/` is
-  reserved (hearth/docs/design/protocol/format/tasks.md, 11). It is never bound into a container, nor into a
+  reserved (hearth/docs/design/protocol/format/tasks-reserved.md, 1). It is never bound into a container, nor into a
   sandbox but for the one layer a step builds.
 - **Read-only is no barrier to the builder,** which can clear the flag;
   the activator snapshots an output before verifying it (hearth/docs/design/domain/activator/README.md,

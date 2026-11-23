@@ -1,4 +1,4 @@
-//! A task's fixed declaration shape (hearth/docs/design/protocol/format/tasks.md, 1, 8, 9, 13, hearth/docs/design/protocol/format/README.md, 5.4).
+//! A task's fixed declaration shape (hearth/docs/design/protocol/format/tasks.md, 1, 8, 9, 13, hearth/docs/design/protocol/format/schema.md, 1.4).
 use crate::{
     Declared, Decode, Error, Expected, Fault, Object, Position, Required,
     json::{Entry, Kind, Value},

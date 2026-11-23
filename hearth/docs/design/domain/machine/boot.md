@@ -339,7 +339,7 @@ initrd=\initrd.img.x1-prod.b root=UUID=0f3c9a6e-5b2d-4c1e-9a7f-2d8e6b1c4a90 root
   are the activator's, nor `rootfstype`, `rootwait`, `rootdelay` or
   `init`, which would change how tiny-initramfs finds and starts the
   root; `rootwait` in particular would make a missing root wait for ever
-  instead of panicking. Render refuses them (hearth/docs/design/protocol/format/tasks.md, 11), and the
+  instead of panicking. Render refuses them (hearth/docs/design/protocol/format/tasks-reserved.md, 1), and the
   activator refuses them again.
 - **Tokens** are printable ASCII without spaces, quotes or what GRUB's
   script reads (`\`, `$`, `;`, `&`, `|`, `<`, `>`, `{`, `}`, `#`;

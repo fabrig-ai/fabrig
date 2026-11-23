@@ -13,7 +13,7 @@
 | `secrets` | slot | secret files, password secrets and identity items, by name | no key |
 | `boot` | slot | the kernel's command-line parameters; a container's parameters instead [M5] | no key |
 | `checks` [M5] | other | the target's checks (hearth/docs/design/domain/operating.md, section 2) | no key |
-| `live` | other | the consumers of the target's paths, for live changes (hearth/docs/design/protocol/format/tasks.md, 14) | no key; read by the builder to plan a live trial |
+| `live` | other | the consumers of the target's paths, for live changes (hearth/docs/design/protocol/format/tasks-live.md, 1) | no key; read by the builder to plan a live trial |
 | `exports` | other | what this target publishes to its environment | no key; read by other targets' renders |
 | `meta` | | target, base, member, environment, placement | no key |
 
@@ -55,8 +55,8 @@ config
   scripts              list of { task, order, content digest }        customize.sh, in order
 ```
 
-- **The variant is a function of placement,** never a task (hearth/docs/design/protocol/format/README.md, 3.4): os chose it from a `container` task in render and from the target's kind in deploy, which disagreed. A container's variant changes its resolution key (2.1), so a host and its container never share a packages layer. Until M5 settles what mmdebstrap is given, `container` is a placeholder: it enters the key, but render asks no resolution for it, so its packages key stays needed, with `--resolve` too, and that is no error (2.7).
-- **A container's packages part has no initramfs,** and render refuses a task's module on it, as it refuses a boot parameter (hearth/docs/design/protocol/format/README.md, 3.4; `errors.md`, 2): with no kernel there is nothing to configure.
+- **The variant is a function of placement,** never a task (hearth/docs/design/protocol/format/targets.md, 1.4): os chose it from a `container` task in render and from the target's kind in deploy, which disagreed. A container's variant changes its resolution key (2.1), so a host and its container never share a packages layer. Until M5 settles what mmdebstrap is given, `container` is a placeholder: it enters the key, but render asks no resolution for it, so its packages key stays needed, with `--resolve` too, and that is no error (2.7).
+- **A container's packages part has no initramfs,** and render refuses a task's module on it, as it refuses a boot parameter (hearth/docs/design/protocol/format/targets.md, 1.4; `errors.md`, 2): with no kernel there is nothing to configure.
 - **The initramfs configuration is render's,** written as `tiny-initramfs.conf` from the part's two fields: `AUTO_MODULES=no` always, `INCLUDE_MODULES` from `modules`, `MICROCODE=no` or `generic` from `microcode` (hearth/docs/design/domain/machine/boot.md, 4.1; hearth/docs/design/domain/build/packages.md, 5). `microcode` is `none` on a VM and `generic` on metal: placement enters no key, so the part carries the choice for the build. Nothing a task writes can set `yes` for either. Render writes the text into the cache as a rendered file (`README.md`, 3.6), and the spec names its content digest beside the part, outside the part's digest, which the two fields already make; build copies it into its inputs (hearth/docs/design/domain/build/packages.md, 4).
 - **`seeds` are the fixed ids build writes into `/etc/passwd` and `/etc/group`** in mmdebstrap's extract hook, before any package is configured (hearth/docs/design/domain/build/packages.md, 5): every package user and group, and every owner of a data path, a secret or an identity file, with its uid and gid (`README.md`, 3.3). They change what the packages layer builds (adduser keeps a user it finds), so they enter its key; they don't change what apt resolves, so not the resolution's.
 - **`install_recommends` is the part's one option.** hearth's fixed apt and dpkg options (`Check-Valid-Until "false"`, `force-confold`, and the rest hearth/docs/design/domain/build/packages.md, 4 passes) are constants of the encoding's version (hearth/docs/design/domain/store/README.md, 3.2): changing one changes every key.
@@ -85,8 +85,8 @@ boot                   { mutable, params }: mutable from placement (../developme
 ```
 
 - **Slot parts never enter a layer key:** changing one makes a new slot of the same output (hearth/docs/design/domain/slots/prepare.md).
-- **A container's slot parts are its own,** placed by its host's activator into the container's slot on the host [M5] (hearth/docs/design/domain/slots/containers.md, 1). Its `boot` part holds no command line but the parameters its placement gives nspawn (hearth/docs/design/protocol/format/README.md, 3.5): what starts the slot, so a change to them prepares a new slot of the same output.
-- **The data part's entries are the tasks' `data` entries,** a name, a class and a path each (hearth/docs/design/protocol/format/tasks.md, 7); mode and owners go to the config part's tmpfiles lines (1.2). **Its policies are the `hearth` task's `snapshots` and `backups` settings** (hearth/docs/design/protocol/format/tasks.md, 12), by class, a backup's peer and recipient read from the `backup_peer` task's exports (hearth/docs/design/protocol/format/README.md, 6.7). A host carries every class's policy its settings give, used or not, since its containers' classes follow them; a container's data part carries none (hearth/docs/design/domain/slots/containers.md, 1).
+- **A container's slot parts are its own,** placed by its host's activator into the container's slot on the host [M5] (hearth/docs/design/domain/slots/containers.md, 1). Its `boot` part holds no command line but the parameters its placement gives nspawn (hearth/docs/design/protocol/format/targets.md, 1.5): what starts the slot, so a change to them prepares a new slot of the same output.
+- **The data part's entries are the tasks' `data` entries,** a name, a class and a path each (hearth/docs/design/protocol/format/tasks.md, 7); mode and owners go to the config part's tmpfiles lines (1.2). **Its policies are the `hearth` task's `snapshots` and `backups` settings** (hearth/docs/design/protocol/format/tasks-hearth.md, 1), by class, a backup's peer and recipient read from the `backup_peer` task's exports (hearth/docs/design/protocol/format/exports.md, 1.7). A host carries every class's policy its settings give, used or not, since its containers' classes follow them; a container's data part carries none (hearth/docs/design/domain/slots/containers.md, 1).
 - **The secrets part holds names, never values:** secret files, password secrets and identity items, the three things the activator writes into a slot from the secret store (hearth/docs/design/protocol/format/README.md, section 7; hearth/docs/design/domain/slots/prepare.md, 4).
 
 ### 1.4 Other parts and meta
@@ -96,7 +96,7 @@ checks                 from M3, the units whose failure does not block a bless (
                        [M5] the target's checks, and the probes it runs for others (README.md, 3.9; ../operating.md, section 2)
 live                   map path → list of { task, unit?, action }, in path order, each path's consumers
                        by task, then unit (none first), then action; a path ending in `/` covers its
-                       subtree (../../protocol/format/tasks.md, 14)
+                       subtree (../../protocol/format/tasks-live.md, 1)
 exports                map task → map name → value, empty when no task exports, every integer in a value
                        at any depth as its decimal text (1.6); and [M5] the task's probes with `from`, rendered
 meta                   { target, base, member?, environment, placement { kind, firmware?, hardware?, on?, and a container's parameters [M5] } }

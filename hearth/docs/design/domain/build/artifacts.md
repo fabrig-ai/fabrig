@@ -101,7 +101,7 @@ text.
 
 - **A build environment is a target,** with tasks, packages and a pinned
   Debian snapshot like any other. Its placement's kind is `container`
-  with no host (no `on`, hearth/docs/design/protocol/format/README.md, 3.4): it has no kernel and no
+  with no host (no `on`, hearth/docs/design/protocol/format/targets.md, 1.4): it has no kernel and no
   bootloader, takes the containers' bootstrap variant, and is never
   prepared into a slot. Its output is used only as a sandbox's root
   (5.2), never run by nspawn as a host's containers are (hearth/docs/design/domain/slots/containers.md
@@ -109,7 +109,7 @@ text.
   ever activates it.
 - **It is named by target,** in the recipe's repository at the recipe's
   commit by default: stoa's is `stoa-build-lab`, base `stoa-build` in
-  environment `lab` (hearth/docs/design/protocol/format/README.md, 3.1), which every plane builds. Another
+  environment `lab` (hearth/docs/design/protocol/format/targets.md, 1.1), which every plane builds. Another
   repository's is `{ "repository", "commit", "target" }`.
 - **What enters the key is its identity,** what was asked for: its
   resolution key and its three output parts' digests (hearth/docs/design/domain/render/spec.md, 1.5).

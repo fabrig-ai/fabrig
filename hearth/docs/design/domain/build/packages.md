@@ -177,7 +177,7 @@ mmdebstrap
 - **The initramfs configuration is the packages part's,** which render
   writes from its two fields, the modules and the microcode choice
   (hearth/docs/design/domain/render/spec.md, 1.2; hearth/docs/design/domain/machine/boot.md, 4.1). Nothing a task writes reaches it
-  (hearth/docs/design/protocol/format/tasks.md, 11), so `AUTO_MODULES=yes` and `MICROCODE=yes`, which
+  (hearth/docs/design/protocol/format/tasks-reserved.md, 1), so `AUTO_MODULES=yes` and `MICROCODE=yes`, which
   read the build host, cannot occur.
 - **apt's configuration** enters as `--aptopt` (4), written by
   mmdebstrap during its setup, permanent by design.

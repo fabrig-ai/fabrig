@@ -108,8 +108,8 @@ Notes on the rows that research corrected or confirmed:
   inputs (hearth/docs/design/domain/build/packages.md, 8), but two builds of one key differ in it, so the
   gate and every comparison of outputs meet it.
 - **Containers [M5].** A container's output has no kernel and no
-  initramfs (hearth/docs/design/protocol/format/README.md, 3.4), so row 4 never reaches it, nor does
-  section 4's initramfs judged by its inputs. Whatever its variant
+  initramfs (hearth/docs/design/protocol/format/targets.md, 1.4), so row 4 never reaches it, nor does
+  `reproducible.md`, section 4's initramfs judged by its inputs. Whatever its variant
   (hearth/docs/design/protocol/format/README.md, section 11), it installs exactly its closure (hearth/docs/design/domain/build/packages.md,
   7) and meets the other rows as a host's output does.
 - **Row 6.** mmdebstrap's `cleanup/reproducible` writes an empty

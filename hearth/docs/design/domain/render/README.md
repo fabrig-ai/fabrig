@@ -105,21 +105,21 @@ Step 1 and discovery run once per revision; the rest once per target, and step 4
 
 ### 3.2 Compose and merge
 
-- **Discovery** makes the targets from the listing and the bases' `members` (hearth/docs/design/protocol/format/README.md, section 3): base, member, environment, name. Two targets of one name are an error.
-- **Each target's layers merge** in the format's order by RFC 7386 (hearth/docs/design/protocol/format/README.md, 3.2 and 4.1).
-- **Presence** comes from the base, member and base-env layers alone (hearth/docs/design/protocol/format/README.md, 3.3); the `hearth` task joins every target but a container (hearth/docs/design/protocol/format/tasks.md, 12), and the composed settings are restricted to the present tasks.
+- **Discovery** makes the targets from the listing and the bases' `members` (hearth/docs/design/protocol/format/targets.md, section 1): base, member, environment, name. Two targets of one name are an error.
+- **Each target's layers merge** in the format's order by RFC 7386 (hearth/docs/design/protocol/format/targets.md, 1.2, and hearth/docs/design/protocol/format/README.md, 4.1).
+- **Presence** comes from the base, member and base-env layers alone (hearth/docs/design/protocol/format/targets.md, 1.3); the `hearth` task joins every target but a container (hearth/docs/design/protocol/format/tasks-hearth.md, 1), and the composed settings are restricted to the present tasks.
 - **Every value keeps its provenance,** the layer, file, line and column that set it, so a later error names the right file. An object's is the layer that made it (RFC 7386's `result = target`), not a later one that patched its members, and each member keeps its own.
 
 ### 3.3 Validate
 
-- **Once per revision, each declaration is checked against itself:** its schema is well formed and its defaults have their types. **For each task an asked target has,** every `settings.<name>`, `tasks.<task>.<setting>` and `exports.<task>` its templates and expressions name is declared (hearth/docs/design/protocol/format/README.md, 5.4), its templates are used and its scripts declared.
-- **Per target, the composed settings are checked against the schemas** (hearth/docs/design/protocol/format/README.md, 5.5), and defaults filled at every depth (hearth/docs/design/protocol/format/README.md, 5.3); `debian` and `placement` against their fixed schemas.
+- **Once per revision, each declaration is checked against itself:** its schema is well formed and its defaults have their types. **For each task an asked target has,** every `settings.<name>`, `tasks.<task>.<setting>` and `exports.<task>` its templates and expressions name is declared (hearth/docs/design/protocol/format/schema.md, 1.4), its templates are used and its scripts declared.
+- **Per target, the composed settings are checked against the schemas** (hearth/docs/design/protocol/format/schema.md, 1.5), and defaults filled at every depth (hearth/docs/design/protocol/format/schema.md, 1.3); `debian` and `placement` against their fixed schemas.
 - **Owners of what persists have fixed ids.** Once the declarations are concrete (3.5), every owner and group of a data path, a secret file or an identity file is a declared user or group with a fixed `uid` or `gid`, package users included, and a download's is `root` or such a package user or group (hearth/docs/design/protocol/format/tasks.md, 6; hearth/docs/design/protocol/format/README.md, 8.1). Why: the packages layer is rebuilt from scratch, and an id a postinst took could move under data that keeps the old one.
 
 ### 3.4 Exports
 
-- **For each task whose exports a task of this target reads,** render composes every target of the environment that has that task, validates that task's settings there and evaluates its exports (hearth/docs/design/protocol/format/README.md, section 6), once per revision for all their readers. No cycle is possible: exports depend only on their own task's settings and on `target` (hearth/docs/design/protocol/format/README.md, 6.1).
-- **Placements are read alike:** `target.containers` holds the environment's targets placed on this one (hearth/docs/design/protocol/format/README.md, 3.5), each entry the fields of that container's `target.placement`. A container's `on` names a target of its environment that is not a container, and a build environment has none (hearth/docs/design/protocol/format/README.md, 3.4); the containers placed on one host have id ranges that overlap neither each other nor the builder's [M5] (hearth/docs/design/protocol/format/README.md, 3.5).
+- **For each task whose exports a task of this target reads,** render composes every target of the environment that has that task, validates that task's settings there and evaluates its exports (hearth/docs/design/protocol/format/exports.md, section 1), once per revision for all their readers. No cycle is possible: exports depend only on their own task's settings and on `target` (hearth/docs/design/protocol/format/exports.md, 1.1).
+- **Placements are read alike:** `target.containers` holds the environment's targets placed on this one (hearth/docs/design/protocol/format/targets.md, 1.5), each entry the fields of that container's `target.placement`. A container's `on` names a target of its environment that is not a container, and a build environment has none (hearth/docs/design/protocol/format/targets.md, 1.4); the containers placed on one host have id ranges that overlap neither each other nor the builder's [M5] (hearth/docs/design/protocol/format/targets.md, 1.5).
 - **An error in another target's exports fails this render too,** naming both targets: a spec never reads a guess. What else fails on the exporter (another task, its own `requires`, its files) leaves its exports as they are, and its readers render. When they can't be computed (a document the exporter composes is broken, the task's settings fail validation, an export's expression fails, or a refused `hosts/` document hides which targets have the task, 3.1), each reader fails with an `exported` error (`errors.md`, 2). A container whose placement can't be composed fails its host.
 - **A container reads of its host its placement alone,** that `on` names a target of its environment that is not a container; its context holds nothing else of the host (hearth/docs/design/protocol/format/templates.md, 7), and its data part none of the host's policies (`spec.md`, 1.3). So what else fails on the host leaves its containers to render. A host whose placement can't be composed fails each container placed on it: while a document the host composes is refused (3.1; `errors.md`, 2), the container is left out under that error, which prints once and without a target (`errors.md`, 1); a host whose documents compose no placement gives each container asked a `composition` error at its `on`, beside the host's own when the host is asked too.
 
@@ -147,7 +147,7 @@ Render compares the concrete declarations of all the target's tasks:
 | a path in the tree under a data path | never: the mount would hide it |
 | a download's path | one task only; never equal to, beneath or over another's, a path of the tree, or a secret's or identity's path; never under a data path |
 | users, groups (a sysusers user's own group among them: hearth/docs/design/protocol/format/tasks.md, 6), presets, tmpfiles lines, preseeds, boot parameters | several tasks only identically |
-| a path a `live` entry covers | several entries, of one task or several: their consumers are a union (hearth/docs/design/protocol/format/tasks.md, 14) |
+| a path a `live` entry covers | several entries, of one task or several: their consumers are a union (hearth/docs/design/protocol/format/tasks-live.md, 1) |
 | a uid or gid; a subordinate range | one user or group; ranges never overlap |
 | packages, initramfs modules | a union |
 
@@ -159,7 +159,7 @@ Render compares the concrete declarations of all the target's tasks:
 
 - **Each part's record** (`spec.md`, section 1) is built from the admitted entries and the produced files, sorted as hearth/docs/design/protocol/format/README.md, 4.3 says, encoded canonically and digested.
 - **Render gives the resolution key** (`spec.md`, 2.1), and the layer keys when the store holds that key's resolution (`spec.md`, 1.5); otherwise the key is needed, and the layer keys unknown until it is resolved (`spec.md`, 2.7).
-- **The live part maps each covered path to its consumers** (hearth/docs/design/protocol/format/tasks.md, 14). Render decides nothing about a change: the builder pairs two specs' live parts with two outputs' tree files when it plans a trial (hearth/docs/design/domain/slots/trial.md, 7; hearth/docs/design/domain/steward.md, 3.3).
+- **The live part maps each covered path to its consumers** (hearth/docs/design/protocol/format/tasks-live.md, 1). Render decides nothing about a change: the builder pairs two specs' live parts with two outputs' tree files when it plans a trial (hearth/docs/design/domain/slots/trial.md, 7; hearth/docs/design/domain/steward.md, 3.3).
 - **The output is the spec.** Every file it names is in the store's cache by digest. Specs are never stored: a builder renders again when it needs one (hearth/docs/design/domain/steward.md, 3.3).
 
 ### 3.9 Checks and probes [M5]
@@ -238,7 +238,7 @@ west-prod                                           nothing to build
 
 - The client prints it as text, or as JSON for agents (hearth/docs/design/client/README.md, section 3); the typed diff is the same either way.
 - The coupling shows: carbon-prod changes because it reads west-prod's exports, and carbon-lab doesn't, because exports stay in their environment.
-- **Hunks print as git gives them,** three lines of context and each `@@` line with git's own context after it (hearth/docs/design/protocol/format/README.md, 6.6's template rendered for carbon-prod). A failed target prints `failed (from)`, `failed (to)` or `failed (both)` where the rebuild goes, and its errors after the changes.
+- **Hunks print as git gives them,** three lines of context and each `@@` line with git's own context after it (hearth/docs/design/protocol/format/exports.md, 1.6's template rendered for carbon-prod). A failed target prints `failed (from)`, `failed (to)` or `failed (both)` where the rebuild goes, and its errors after the changes.
 
 ### 4.4 Who posts it
 

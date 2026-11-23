@@ -142,7 +142,7 @@ devices and starting it. hearth's test VMs do not use it.
 
 ### 2.7 What placement says
 
-Placement is data of the environment (hearth/docs/design/protocol/format/README.md, 3.4), in the spec's
+Placement is data of the environment (hearth/docs/design/protocol/format/targets.md, 1.4), in the spec's
 `meta`. What this document takes from it:
 
 | Field | Values | Decides here |
@@ -454,7 +454,7 @@ hearth/docs/design/domain/slots/README.md, section 4's, judged by booting the fi
 - **Updating GRUB after bootstrap:** never in M3b, since GRUB is shared
   by both slots and cannot be tried; depends on how often trixie's GRUB
   changes in ways that matter.
-- **The `hearth` user's fixed uid and gid,** 59999 (hearth/docs/design/protocol/format/tasks.md, 12), to
+- **The `hearth` user's fixed uid and gid,** 59999 (hearth/docs/design/protocol/format/tasks-hearth.md, 1), to
   verify against the ids the fleet's packages take.
 - **Owners of persistent data:** users made by maintainer scripts get
   dynamic uids, which may differ between outputs; depends on hearth/docs/design/domain/build/README.md

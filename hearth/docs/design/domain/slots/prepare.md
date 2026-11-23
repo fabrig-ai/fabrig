@@ -167,8 +167,8 @@ entry joins the `/var` manifest.
   prepare and names them all.
 - **Never readable by the steward or its builder:** a secret or
   identity file owned by `hearth`, or by a group `hearth` belongs to,
-  and a secret whose mode lets others read it, are refused (hearth/docs/design/protocol/format/tasks.md,
-  11 refuses them first).
+  and a secret whose mode lets others read it, are refused (hearth/docs/design/protocol/format/tasks-reserved.md,
+  1 refuses them first).
 - **Password hashes,** secrets too, for the users the `secrets` part
   names: the activator replaces the second field of those users' lines
   in the slot's `/etc/shadow`, keeping the file's owner, group and mode.
@@ -201,7 +201,7 @@ manifest, by the format crates of hearth/docs/design/domain/activator/README.md,
 
 An output that holds `/.hearth`, any of these unit names, or a drop-in
 sorting after `zz-hearth-watchdog.conf` is refused: they are hearth's
-(hearth/docs/design/protocol/format/tasks.md, 11). The units, for slot `x1-prod.b` with a 10-minute
+(hearth/docs/design/protocol/format/tasks-reserved.md, 1). The units, for slot `x1-prod.b` with a 10-minute
 window (their exact behaviour is to verify on the VM tier):
 
 ```

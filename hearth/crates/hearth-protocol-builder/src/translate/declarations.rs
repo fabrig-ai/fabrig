@@ -1,4 +1,4 @@
-//! Declaration schemas and reads (hearth/docs/design/protocol/format/README.md, 5.1 to 5.5).
+//! Declaration schemas and reads (hearth/docs/design/protocol/format/schema.md, 1.1 to 1.5).
 use super::documents::{position, value};
 use crate::{Limits, config, render::revision::declaration as target};
 use alloc::boxed::Box;

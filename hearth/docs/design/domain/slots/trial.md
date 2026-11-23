@@ -186,7 +186,7 @@ stays the root: no reboot and no soft reboot. With `x1-prod` running
   path afterwards gets `b`'s file; one already open stays `a`'s, and
   nothing on disk changes, so there is no `ETXTBSY` and no torn file.
 - **The units** that read the changed files are stopped, reloaded,
-  restarted or started, as the tasks declare (hearth/docs/design/protocol/format/tasks.md, 14).
+  restarted or started, as the tasks declare (hearth/docs/design/protocol/format/tasks-live.md, 1).
 - **The live bless arms `b`'s trial, and does not move the default**
   (`bless.md`, 1.6). `a + delta` is not `b`: `b`'s early boot, generators, udev,
   sysctl and every unit run `b`'s configuration only at `b`'s first
@@ -215,7 +215,7 @@ mount, `fsopen("overlay")` then `move_mount` with `MOVE_MOUNT_BENEATH`,
 is the kernel mechanism upstream's fix and NixOS's `/etc` use: it swaps
 with no window, fails without touching the old overlay, and costs about
 as much code as driving the tools and checking their output. The
-`hearth` task disables both services (hearth/docs/design/protocol/format/tasks.md, 12), so nothing
+`hearth` task disables both services (hearth/docs/design/protocol/format/tasks-hearth.md, 1), so nothing
 merges extensions behind hearth's back.
 
 ## 7. What may be live
@@ -233,11 +233,11 @@ why (hearth/docs/design/protocol/wire.md, section 5).
 | 1 | **The same packages layer:** both outputs have one packages key | packages, the kernel, its modules, the initramfs's inputs, systemd, dbus and libc stay; a packages change is never live | builder; activator, from the layer records' parents (hearth/docs/design/domain/activator/README.md, 5.1) |
 | 2 | **The prepare key equal but for the output,** the window and the units allowed to fail: the same `data`, `secrets` and `boot` digests, the same identity and secret store generations | a new data entry, a class changed or a policy changed alters the `data` part: a new bind changes fstab and the class's directory must be made and seeded at prepare; a new command line changes the boot; a rotated secret is not in the output's diff | both, from the slot records |
 | 3 | **Changes only under `etc/`, `usr/local/` and `opt/`** | `/var` content reaches a slot only at prepare; `/boot` and the rest of `/usr` are the packages', which rule 1 keeps and the build refuses above them (hearth/docs/design/domain/build/README.md, 7.3) | both |
-| 4 | **No boot-time or PID 1 configuration** (hearth/docs/design/protocol/format/tasks.md, 14) | read only at boot or at PID 1's re-exec; applied live it is not what a boot does (a removed sysctl is not reverted), so the trial would test the wrong thing | both |
+| 4 | **No boot-time or PID 1 configuration** (hearth/docs/design/protocol/format/tasks-live.md, 1) | read only at boot or at PID 1's re-exec; applied live it is not what a boot does (a removed sysctl is not reverted), so the trial would test the wrong thing | both |
 | 5 | **Users and groups only added:** no line of `passwd`, `group`, `shadow`, `gshadow`, `subuid` or `subgid` removed, no id changed | a renumbering touches files in `/var` and data; a removal strands running processes | builder; activator, with its account parsers (hearth/docs/design/domain/activator/README.md, 2.3) |
 | 6 | **tmpfiles only creatable:** the changed lines of `etc/tmpfiles.d/hearth.conf` are of types `systemd-tmpfiles --create` applies whole; none is `r`, `R` or `D` | the output's `/var` got them at build; the running `/var` needs them now, and nothing removes live | builder |
-| 7 | **Every changed path has a consumer:** a task's `live` entry, or one hearth knows (hearth/docs/design/protocol/format/tasks.md, 14); a deleted path's from the running slot's spec, every other path's from the new one | hearth must know what to reload or restart; guessing from paths is how this fails | builder |
-| 8 | **Nothing never-live** (hearth/docs/design/protocol/format/tasks.md, 14): systemd's own units and configuration, dbus (its policy files are allowed, with a reload of dbus), logind, journald, udevd, networkd, NetworkManager, the gettys, AppArmor, and hearth itself for now | restarting them live is risky or wrong | builder; activator, for the plan's units |
+| 7 | **Every changed path has a consumer:** a task's `live` entry, or one hearth knows (hearth/docs/design/protocol/format/tasks-live.md, 1); a deleted path's from the running slot's spec, every other path's from the new one | hearth must know what to reload or restart; guessing from paths is how this fails | builder |
+| 8 | **Nothing never-live** (hearth/docs/design/protocol/format/tasks-live.md, 1): systemd's own units and configuration, dbus (its policy files are allowed, with a reload of dbus), logind, journald, udevd, networkd, NetworkManager, the gettys, AppArmor, and hearth itself for now | restarting them live is risky or wrong | builder; activator, for the plan's units |
 | 9 | **No file dpkg owns** under `usr/local/` or `opt/` changed by the software layer, by the packages layer's dpkg database; conffiles in `etc/` are fine | a download over a packaged file is a packages change in disguise | builder |
 | 10 | **The machine fits:** Linux 6.8 or later (`MOVE_MOUNT_BENEATH` since 6.5, overlayfs's `lowerdir+` since 6.8; trixie runs 6.12); `etc`, `usr` and `opt` are directories in the base; no mount on or beneath them but hearth's; running = default = blessed; no trial; at most one live state, whose base is the running slot; [M5] the new slot's window no longer than the base's | the swap's mechanisms; a base proven by a native boot; the base's dead-man ends the trial | activator |
 | 11 | **Sandboxes beneath the hierarchies:** units whose mount namespace has a mount beneath `/etc`, `/usr/local` or `/opt` join the restarts, and if one is never-live the change is not eligible | the overlay, propagated into the unit's namespace, shadows that mount until the unit restarts | activator, as root, from `/proc/<pid>/mountinfo` of every process and its cgroup |
@@ -315,7 +315,7 @@ sealed: nothing writes a layer once it is merged, which overlayfs calls
 undefined.
 
 **L4 and L6, the units.** Each changed path's consumers
-(hearth/docs/design/protocol/format/tasks.md, 14) decide:
+(hearth/docs/design/protocol/format/tasks-live.md, 1) decide:
 
 - **Before the swap** stop what must not straddle it: a `restart` unit
   whose binary, library or tree under `usr/local/` or `opt/` changes, so it

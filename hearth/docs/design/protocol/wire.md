@@ -542,7 +542,7 @@ Application kinds of skein's channel; each belongs to one direction.
   crosses the wire; a log's time is what it says, not a deadline.
 - **The steward reads the journal itself.** The activator spawns it
   with `hearth`'s supplementary groups (hearth/docs/design/domain/activator/README.md, 3.2), and the
-  hearth task puts `hearth` in `systemd-journal` (hearth/docs/design/protocol/format/tasks.md, 12), the
+  hearth task puts `hearth` in `systemd-journal` (hearth/docs/design/protocol/format/tasks-hearth.md, 1), the
   group of `/var/log/journal` (hearth/docs/design/protocol/format/tasks.md, 7). No root is involved in
   a read, and no builder: it runs with no supplementary group
   (hearth/docs/design/domain/steward.md, 2.3).

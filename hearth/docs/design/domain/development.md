@@ -58,7 +58,7 @@ activity at different stakes (`hearth/docs/design/draft/archive/factory.md`, sec
 revision somewhere and watch it, here on one agent's throwaway machine
 with a root it may change. A session, adding DKIM to `mail-dev`, the
 mail stack, which `dev` places as a container on `east-dev` as `prod`
-places `mail-prod` on `east-prod` (hearth/docs/design/protocol/format/README.md, 3.1):
+places `mail-prod` on `east-prod` (hearth/docs/design/protocol/format/targets.md, 1.1):
 
 ```
 hearth dev up east-dev --containers mail-dev     east-dev's VM, cloned (3.2), running mail-dev alone of its containers (3.4)
@@ -108,7 +108,7 @@ production is developed as a machine of its own (3.4).
 2. **Copy** `hearth-dev-seed` to `east-dev`, a snapshot on the btrfs
    pool, set the instance's keys (8.2), start it, and wait for its agent.
 3. **Push** the commit's bundle (6.2), the secrets, and the hearth
-   binary the target's `hearth` task pins (hearth/docs/design/protocol/format/tasks.md, 12), fetched
+   binary the target's `hearth` task pins (hearth/docs/design/protocol/format/tasks-hearth.md, 1), fetched
    once by its digest.
 4. **Retarget:** `incus exec east-dev -- <binary> retarget east-dev --revision
    <commit> --bundle <file> --secrets <dir> [--containers <c>,…]`; wait
@@ -133,10 +133,10 @@ seed's slots, entries, ESP files, records and identity (hearth/docs/design/domai
 - **`--count <n>`** makes `east-dev-1` to `east-dev-<n>`, one target
   with its own identity on each: agents in parallel, or replicas.
 - **Several targets make a cluster** [M5]: `hearth dev up stoa-1-dev
-  stoa-2-dev stoa-3-dev`, a machine per member (hearth/docs/design/protocol/format/README.md, 3.6) on one
+  stoa-2-dev stoa-3-dev`, a machine per member (hearth/docs/design/protocol/format/targets.md, 1.6) on one
   bridge, which resolves `<instance>.incus`; the development
   environment's settings name peers that way, and members read each
-  other's exports as anywhere (hearth/docs/design/protocol/format/README.md, section 6). Containers placed
+  other's exports as anywhere (hearth/docs/design/protocol/format/exports.md, section 1). Containers placed
   `on` a development machine's target run in its VM, as on any host
   (3.4).
 - **Built once:** the driver builds every output in the first clone
@@ -156,7 +156,7 @@ seed's slots, entries, ESP files, records and identity (hearth/docs/design/domai
   { "placement": { "kind": "container", "on": "east-dev", "mutable": true } }
   ```
 
-  A placement is replaced whole (hearth/docs/design/protocol/format/README.md, 3.4), so it names `mutable`
+  A placement is replaced whole (hearth/docs/design/protocol/format/targets.md, 1.4), so it names `mutable`
   again, which `envs/dev.json`'s VM placement set. `hearth dev up
   mail-dev` is refused before Incus is touched: `mail-dev is a container
   on east-dev: hearth dev up east-dev`. What counts is the placement in
@@ -202,7 +202,7 @@ seed's slots, entries, ESP files, records and identity (hearth/docs/design/domai
   target that runs as a container in production is placed on a VM in
   `dev`, its base-env file adding what a machine needs and a container
   lacks, the `hearth` and `boot` tasks, as `mail-lab` runs in the lab
-  until M5 (hearth/docs/design/protocol/format/README.md, 3.1). It is then a machine, and `up` takes it.
+  until M5 (hearth/docs/design/protocol/format/targets.md, 1.1). It is then a machine, and `up` takes it.
   What that leaves untried, the container's parameters and its host, is
   the lab's.
 
@@ -216,7 +216,7 @@ seed's slots, entries, ESP files, records and identity (hearth/docs/design/domai
 { "placement": { "kind": "vm", "firmware": "efi", "hardware": "incus", "mutable": true } }
 ```
 
-Placement is data of the environment (hearth/docs/design/protocol/format/README.md, 3.4). Render puts
+Placement is data of the environment (hearth/docs/design/protocol/format/targets.md, 1.4). Render puts
 `mutable` in the `boot` part (hearth/docs/design/domain/render/spec.md, 1.3): a slot part, so it
 enters the prepare key and no layer key, and a mutable target builds the
 very output its sealed twin would.

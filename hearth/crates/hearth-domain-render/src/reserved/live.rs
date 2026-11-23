@@ -1,4 +1,4 @@
-//! Consumers may not act on boot configuration or core services (hearth/docs/design/protocol/format/tasks.md, 14).
+//! Consumers may not act on boot configuration or core services (hearth/docs/design/protocol/format/tasks-live.md, 1).
 use super::{Installed, Refused, refused};
 use crate::{
     entries::{Expansion, Located},

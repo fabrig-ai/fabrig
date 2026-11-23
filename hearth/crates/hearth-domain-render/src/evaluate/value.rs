@@ -1,4 +1,4 @@
-//! Validated values and expression operands (hearth/docs/design/protocol/format/README.md, 5.2, hearth/docs/design/protocol/format/templates.md, 4, 6).
+//! Validated values and expression operands (hearth/docs/design/protocol/format/schema.md, 1.2, hearth/docs/design/protocol/format/templates.md, 4, 6).
 use super::{Budget, ELEMENT, FaultKind};
 use alloc::boxed::Box;
 pub use hearth_domain_render_vocabulary::evaluate::value::{Entry, Value};

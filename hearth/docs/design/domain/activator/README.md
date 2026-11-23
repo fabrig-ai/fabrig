@@ -97,7 +97,7 @@ open is in section 9.
 | `boot` tokens | hearth/docs/design/domain/machine/boot.md, 3.2 |
 | `mutable`, in the `boot` part | only where the machine record accepts mutable targets (hearth/docs/design/domain/development.md, 4.3); the slot is then left unsealed and its `/` mounted `rw` |
 | unit names [M5] | systemd's unit name syntax, at most 256 bytes; never hearth's own |
-| a live plan's units (`operations.md`, 17) | systemd's unit name syntax, at most 256 bytes; at most 256 in all; never hearth's own nor a never-live one (hearth/docs/design/protocol/format/tasks.md, 14) |
+| a live plan's units (`operations.md`, 17) | systemd's unit name syntax, at most 256 bytes; at most 256 in all; never hearth's own nor a never-live one (hearth/docs/design/protocol/format/tasks-live.md, 1) |
 | a check [M5] | a user of the running slot, never `root`; capabilities from a closed list; an absolute program path and at most 64 arguments of at most 4 KiB in all (hearth/docs/design/domain/operating.md, 2.4) |
 | a fault [M6] | a kind from `operations.md`, 15's closed list, typed parameters within bounds, an end; only on a lab pool host |
 
@@ -188,7 +188,7 @@ a secret's value or digest.
 ### 3.1 Started by systemd
 
 Every output but a container's carries hearth's binary and its unit,
-from the `hearth` task (hearth/docs/design/protocol/format/tasks.md, 12); a container's activator is its
+from the `hearth` task (hearth/docs/design/protocol/format/tasks-hearth.md, 1); a container's activator is its
 host's [M5]:
 
 ```
@@ -232,7 +232,7 @@ WantedBy=multi-user.target
 |---|---|
 | program | `/proc/self/exe`, argument `steward`: the activator's own binary, wherever it lives (on a live system, not in `/usr/local/bin`) |
 | cgroup | `steward/` (3.1), through skein's contained process trees (README, 7.1) |
-| user | `hearth`'s fixed uid and gid (hearth/docs/design/protocol/format/tasks.md, 12; hearth/docs/design/domain/store/README.md, 7.2), and its supplementary groups as the running slot's `/etc/group` lists them, in practice `systemd-journal`, so the steward reads the journal for telemetry (hearth/docs/design/protocol/wire.md, section 6); no capabilities. An ask of skein: spawning as another user (README, 7.1) |
+| user | `hearth`'s fixed uid and gid (hearth/docs/design/protocol/format/tasks-hearth.md, 1; hearth/docs/design/domain/store/README.md, 7.2), and its supplementary groups as the running slot's `/etc/group` lists them, in practice `systemd-journal`, so the steward reads the journal for telemetry (hearth/docs/design/protocol/wire.md, section 6); no capabilities. An ask of skein: spawning as another user (README, 7.1) |
 | environment | given whole: `LANG=C.UTF-8`, and the store's path |
 | descriptors | the link: fd 3 reads what the activator writes, fd 4 writes what it reads; stdin `/dev/null` |
 | working directory | `/var/lib/hearth/store` |

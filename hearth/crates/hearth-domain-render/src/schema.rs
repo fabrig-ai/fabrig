@@ -1,4 +1,4 @@
-//! Declared schemas, defaults and target settings (hearth/docs/design/protocol/format/README.md, 5).
+//! Declared schemas, defaults and target settings (hearth/docs/design/protocol/format/schema.md, 1).
 mod debian;
 pub(crate) mod forms;
 pub(crate) mod references;

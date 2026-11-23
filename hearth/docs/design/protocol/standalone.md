@@ -288,7 +288,7 @@ be made or run, so its prepare key is refused.
 ## 7. Containers [M5]
 
 - **A host's spec names the containers it runs** (`target.containers`,
-  hearth/docs/design/protocol/format/README.md, 3.5). Each is a target with slots of its own on the host's
+  hearth/docs/design/protocol/format/targets.md, 1.5). Each is a target with slots of its own on the host's
   top level, which the host's activator prepares (hearth/docs/design/domain/slots/containers.md, 1).
 - **The loop takes the containers first, one at a time, and the host's
   own target last,** since the host's trial may reboot the machine and

@@ -11,7 +11,7 @@ use crate::{
 };
 use alloc::boxed::Box;
 use skein_lib::{List, Stack};
-/// Validate an evaluated value without interpreting or filling it (hearth/docs/design/protocol/format/README.md, 6.1).
+/// Validate an evaluated value without interpreting or filling it (hearth/docs/design/protocol/format/exports.md, 1.1).
 #[cfg(test)]
 pub(crate) fn conform(
     value: &Value,

@@ -1,4 +1,4 @@
-//! Generated schema arenas and an independent recursive validator (hearth/docs/design/protocol/format/README.md, 5).
+//! Generated schema arenas and an independent recursive validator (hearth/docs/design/protocol/format/schema.md, 1).
 use hearth_domain_render::{
     compose::{Composed, Composite, Layer, Pair, Provenance},
     errors::{Schema, TypeName},
