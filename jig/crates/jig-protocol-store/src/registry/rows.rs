@@ -107,14 +107,8 @@ pub(super) fn register(store: &Store, layouts: &mut Layouts, binary: &mut texts:
             for ty in family.types {
                 let refusal = OpenRefusal::Set { owner: set.owner };
                 let value = made(layouts, binary, family, ty).ok_or(refusal.clone())?;
-                let version = layouts
-                    .texts
-                    .get(&value.text)
-                    .ok_or(refusal.clone())?
-                    .schema
-                    .as_ref()
-                    .ok_or(refusal.clone())?
-                    .version();
+                let version =
+                    layouts.texts.get(&value.text).ok_or(refusal.clone())?.schema().ok_or(refusal.clone())?.version();
                 let mut found = None;
                 let mut greatest = None;
                 let first = (Box::from(family.name), ty.number, u16::MIN);

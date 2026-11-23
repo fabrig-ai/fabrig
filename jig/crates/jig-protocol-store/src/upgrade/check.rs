@@ -116,11 +116,10 @@ fn rows(store: &mut Store) -> Result<(), OpenRefusal> {
             return Err(OpenRefusal::Failed);
         }
         for item in page.rows {
-            let key = item.cursor.after;
-            let source = restore::site(store, &item.row.key);
-            if let Err(failure) = restore::reader::decode_row(store, item.row, &source) {
+            if let Err(cause) = restore::reader::decode_row(store, &item.row.key, item.row.value) {
+                let failure = restore::Failure::at(cause, restore::site(store, &item.row.key));
                 store.open_failed(restore::OpenFailure::Data(failure));
-                return Err(OpenRefusal::Check { why: Check::Load { key } });
+                return Err(OpenRefusal::Check { why: Check::Load { key: item.cursor.after } });
             }
         }
         cursor = page.next;

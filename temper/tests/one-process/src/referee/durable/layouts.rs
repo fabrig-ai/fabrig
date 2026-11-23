@@ -1,5 +1,6 @@
 //! The durable observer decodes registered rows through their retained layouts.
 //! See temper/docs/design/testing/tiers.md, 1.5 and temper/docs/design/testing/checks.md, 1.
+use crate::schemas::{binary_schemas, current_schemas};
 use jig_protocol_store::core_v6::Record as _;
 use jig_protocol_store::{KeptFamily, Owner, ValueType, keys, registry_v1 as wire};
 use skein_codec::{
@@ -109,9 +110,7 @@ impl Layouts {
         let text = wire::Text::decode(&wire::CEILINGS, &mut Reader::new(bytes))
             .map_err(|why| format!("registry text: {why:?}"))?;
         // A digest names a row; only its decoded bytes can establish equality with the binary text.
-        let parsed = if let Some((_, schema)) =
-            binary_schemas()?.iter().find(|(binary, _)| binary.as_bytes() == text.text.as_ref())
-        {
+        let parsed = if let Some(schema) = binary_schemas().iter().find(|schema| schema.text() == text.text.as_ref()) {
             Parsed::Binary(schema)
         } else {
             Parsed::Registry(Box::new(schema::parse(&text.text).map_err(|why| format!("registry schema: {why:?}"))?))
@@ -126,9 +125,12 @@ impl Layouts {
             .map_err(|why| format!("registry layout: {why:?}"))?;
         let old = self.text(layout.text)?;
         let old_held = layout.held.iter().map(|digest| self.text(*digest)).collect::<Result<Vec<_>, _>>()?;
-        let binary = binary_schemas()?;
-        let new = &binary.iter().find(|(text, _)| *text == family.current).expect("binary family present").1;
-        let new_held = binary.iter().map(|(_, schema)| schema).collect::<Vec<_>>();
+        let new_held = current_schemas();
+        let new = new_held
+            .iter()
+            .copied()
+            .find(|schema| schema.text() == family.current.as_bytes())
+            .expect("binary family present");
         let old = old.as_ref().as_ref();
         let old_root = old.root(&layout.root, layout.variant.as_deref()).ok_or("stored root present")?;
         let new_root = new.root(ty.root.as_bytes(), ty.variant.map(str::as_bytes)).ok_or("binary root present")?;
@@ -138,7 +140,7 @@ impl Layouts {
             &old_held.iter().map(|schema| schema.as_ref().as_ref()).collect::<Vec<_>>(),
             new,
             new_root,
-            &new_held,
+            new_held,
         )
         .map_err(|why| format!("registered value readable: {why:?}"))?;
         Ok(Decoder { from: old.version(), to: new.version(), plan, text: layout.text, held: layout.held })
@@ -181,28 +183,6 @@ impl Layouts {
             }
         }
     }
-}
-
-/// Only the binary's immutable schemas are shared between worlds, never stored registry rows.
-fn binary_schemas() -> Result<&'static [(&'static str, Schema)], String> {
-    type Schemas = Result<Box<[(&'static str, Schema)]>, String>;
-    static SCHEMAS: std::sync::OnceLock<Schemas> = std::sync::OnceLock::new();
-    SCHEMAS
-        .get_or_init(|| {
-            let mut schemas = Vec::new();
-            for set in temper_engine_service::store::OWNER_SETS.sets {
-                for family in set.families {
-                    if !family.current.is_empty() {
-                        let schema = schema::parse(family.current.as_bytes())
-                            .map_err(|why| format!("binary schema: {why:?}"))?;
-                        schemas.push((family.current, schema));
-                    }
-                }
-            }
-            Ok(schemas.into_boxed_slice())
-        })
-        .as_deref()
-        .map_err(Clone::clone)
 }
 
 fn resolve(key: &[u8]) -> Option<(&'static KeptFamily, &'static ValueType)> {
@@ -331,12 +311,8 @@ pub(super) mod tests {
     fn only_byte_identical_registry_texts_share_the_binary_parse() {
         let (mut layouts, key, _) = registered_attempt();
         let (family, _) = resolve(&key).expect("registered task value");
-        let binary = &binary_schemas()
-            .expect("binary schemas")
-            .iter()
-            .find(|(text, _)| *text == family.current)
-            .expect("attempt family")
-            .1;
+        let binary =
+            binary_schemas().iter().find(|schema| schema.text() == family.current.as_bytes()).expect("attempt family");
         let digest = digest(family.current);
         let edited = format!("\n{}", family.current);
         for (text, shares_binary) in [(family.current, true), (edited.as_str(), false)] {

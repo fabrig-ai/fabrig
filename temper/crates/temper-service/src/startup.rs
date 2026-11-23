@@ -1188,7 +1188,7 @@ pub fn restoring_with(
 ) -> Result<Service, Problems> {
     let CheckedStart { engine, io, forges, .. } =
         checked_start_with(document, directories, files, agent, seeds, List::with_capacity(0), None, given, None)?;
-    match Service::prepared(engine, seeds, accounts, forges, None, io, None, None) {
+    match Service::prepared(engine, seeds, accounts, forges, None, io, None, None, None) {
         Ok(service) => Ok(service),
         Err(found) => Err(Problems::jig(found, &Path::root())),
     }
@@ -1210,6 +1210,23 @@ pub fn restoring_with_limits(
     jig: &config::Limits,
     own: &crate::limits::Limits,
 ) -> Result<Service, Problems> {
+    restoring_with_opening_limits(document, directories, files, agent, seeds, accounts, given, jig, own, None)
+}
+
+/// Restore with the source store's checked opening bounds, if they match the resolved bounds.
+#[expect(clippy::too_many_arguments, reason = "the typed restore also carries its source store's opening bounds")]
+pub fn restoring_with_opening_limits(
+    document: &[u8],
+    directories: &config::Directories,
+    files: &settings::Files,
+    agent: Option<&settings::Agent>,
+    seeds: &settings::Seeds,
+    accounts: Option<AccountsRuntime>,
+    given: &crate::stock::Given,
+    jig: &config::Limits,
+    own: &crate::limits::Limits,
+    opening: Option<&jig_protocol_store::CheckedLimits>,
+) -> Result<Service, Problems> {
     let CheckedStart { engine, io, forges, .. } = checked_start_with_limits(
         document,
         directories,
@@ -1223,7 +1240,7 @@ pub fn restoring_with_limits(
         jig,
         own,
     )?;
-    match Service::prepared(engine, seeds, accounts, forges, None, io, None, None) {
+    match Service::prepared(engine, seeds, accounts, forges, None, io, None, None, opening) {
         Ok(service) => Ok(service),
         Err(found) => Err(Problems::jig(found, &Path::root())),
     }
@@ -1350,7 +1367,7 @@ pub fn from_checked(
     if let (Some(worker), Some(figures)) = (&mut worker, figures) {
         worker.built_from(figures);
     }
-    match Service::prepared(engine, seeds, accounts, forges, worker, io, box_line_bytes, program_login) {
+    match Service::prepared(engine, seeds, accounts, forges, worker, io, box_line_bytes, program_login, None) {
         Ok(mut service) => {
             for warning in &warnings.problems {
                 let mut found = Problems::empty();
