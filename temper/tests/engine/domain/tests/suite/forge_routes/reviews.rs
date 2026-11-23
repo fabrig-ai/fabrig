@@ -38,7 +38,7 @@ fn read_answer(
     panic!("forge read was not answered");
 }
 
-pub(super) fn next_assignment(world: &mut World, index: usize) -> engine::Assignment {
+pub(crate) fn next_assignment(world: &mut World, index: usize) -> engine::Assignment {
     for _ in 0..MAX_TICKS {
         world.tick();
         if let Some(run) = world.assigned.get(index) {
@@ -524,12 +524,13 @@ fn a_runs_busy_reads_and_a_change_steps_read_each_get_their_own_answer() {
     let before = world.answers.len();
     let file = Read::File { head, path: FILE.into(), max_bytes: 1024 };
     // These concurrent attempts fit inside the held call's lifetime; ticks keep one clock sample.
-    let now = world.env.now;
+    let cadence = world.tick_interval;
+    world.advance_to(world.env.now.saturating_add(cadence));
+    world.tick_interval = Duration::ZERO;
     for attempt in 0..SWEEP {
         let busy = world.busy_calls;
         ask_read(&mut world, &reviewer, 10, forge_world::REPO, file.clone());
         for _ in 0..MAX_TICKS {
-            world.env.now = now;
             world.tick();
             if world.busy_calls != busy {
                 break;
@@ -554,6 +555,7 @@ fn a_runs_busy_reads_and_a_change_steps_read_each_get_their_own_answer() {
         }
         assert_eq!(world.busy_calls, busy + 1, "attempt {attempt}: the run hears its own Busy");
     }
+    world.tick_interval = cadence;
     assert_eq!(world.answers.len(), before, "Busy has no model-visible answer");
     for event in completions {
         world.send(event);
@@ -705,8 +707,8 @@ fn reviewer_reads_back_off_for_the_background_reserve() {
     let before = world.answers.len();
     let busy = world.busy_calls;
     // A due keeping read must get the reserved request before another fresh read.
-    world.env.now = world.env.now.saturating_add(world.env.limits.forge.client.poll);
-    world.env.wall = skein_lib::Wall::from_nanos(world.env.now.as_nanos());
+    world.advance_to(world.env.now.saturating_add(world.env.limits.forge.client.poll));
+
     for _ in 0..8 {
         engine::fire(&mut world.root, &world.env);
     }
@@ -874,7 +876,7 @@ fn assert_repository_grants(task: u64, authority: &tasks::Authority) {
     }
 }
 
-pub(super) fn finish_review(world: &mut World, reviewer: &engine::Assignment, result: tasks::TaskResult) {
+pub(crate) fn finish_review(world: &mut World, reviewer: &engine::Assignment, result: tasks::TaskResult) {
     let event = world.protocol.answer(
         CHANNEL,
         reviewer.task,
@@ -1109,7 +1111,7 @@ fn a_review_repair_waiting_on_an_answer_ends_when_another_writer_advances_its_br
     delivered_review_repair(false, true);
 }
 
-fn delivered_review_repair(moved: bool, idle: bool) {
+fn waiting_review_repair() -> (World, engine::Assignment, u64, Box<[u8]>, engine::Assignment) {
     let (mut world, requester) = super::questions::plan_world_with_gate(
         None,
         Gate { agent: true, ..Gate::default() },
@@ -1144,6 +1146,31 @@ fn delivered_review_repair(moved: bool, idle: bool) {
     let event =
         world.protocol.answer(CHANNEL, repair.task, repair.attempt, 0, tasks::End::Parked, engine::Parts::none());
     world.send(event);
+    (world, requester, change, branch, repair)
+}
+
+pub(crate) fn preparing_review_repair() -> (World, u64) {
+    let (mut world, _, change, branch, _) = waiting_review_repair();
+    world.advance_ticks(MAX_TICKS);
+    fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"another-file", b"another writer", 2)
+        .expect("another writer advances the idle repair's branch");
+    for _ in 0..MAX_TICKS {
+        world.tick();
+        let row = change_row(&world, change);
+        if matches!(row.change.state, temper_engine_domain_forge_change::State::Preparing { .. })
+            && row.pending.is_some_and(|entry| world.root.forge().inspection_entry(entry).is_some())
+            && world.events.is_empty()
+            && world.store.idle()
+            && world.root.quiescent()
+        {
+            return (world, change);
+        }
+    }
+    panic!("review repair reaches its own preparing write");
+}
+
+fn delivered_review_repair(moved: bool, idle: bool) {
+    let (mut world, requester, change, branch, repair) = waiting_review_repair();
     if idle {
         world.advance_ticks(MAX_TICKS);
         let head = fake::advance(
@@ -2132,7 +2159,7 @@ pub(super) fn producer_for(world: &mut World, change: u64) -> engine::Assignment
     panic!("change {change} has no producer: {:?}; answers {:?}", live_task(world, change), world.answers);
 }
 
-fn pending_large_with_alpha_and_beta(tasks: u32) -> (World, u64, u64, u64) {
+pub(crate) fn pending_large_with_alpha_and_beta(tasks: u32) -> (World, u64, u64, u64) {
     let mut documents = jig_protocol_config_fixtures::small().core.documents;
     documents.grants = 32;
     documents.text_bytes = 512;

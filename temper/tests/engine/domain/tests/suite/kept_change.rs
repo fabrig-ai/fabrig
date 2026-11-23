@@ -137,7 +137,7 @@ fn replace_dependencies(story: &mut Story, dependencies: Box<[u64]>, revision: u
 }
 
 fn keep(story: &mut Story) {
-    story.driver.env.now = skein_lib::Time::from_nanos(1_000_000_000);
+    story.driver.advance_to(skein_lib::Time::from_nanos(1_000_000_000));
     story.driver.env.wall = skein_lib::Wall::from_nanos(1_000_000_000);
     let dependencies = story.dependencies.iter().map(|dep| dep.task).collect();
     replace_dependencies(story, dependencies, 0, 2);
@@ -323,11 +323,11 @@ fn removing_the_last_pending_dependency_resumes_the_parked_run() {
 fn a_second_wait_added_while_parked_keeps_both_addition_times() {
     let mut story = story(2);
     let dependencies = Box::new([story.dependencies[0].task]);
-    story.driver.env.now = skein_lib::Time::from_nanos(1_000_000_000);
+    story.driver.advance_to(skein_lib::Time::from_nanos(1_000_000_000));
     story.driver.env.wall = skein_lib::Wall::from_nanos(1_000_000_000);
     replace_dependencies(&mut story, dependencies, 0, 2);
     park(&mut story);
-    story.driver.env.now = skein_lib::Time::from_nanos(2_000_000_000);
+    story.driver.advance_to(skein_lib::Time::from_nanos(2_000_000_000));
     story.driver.env.wall = skein_lib::Wall::from_nanos(2_000_000_000);
     let dependencies = story.dependencies.iter().map(|dep| dep.task).collect();
     replace_dependencies(&mut story, dependencies, 1, 3);

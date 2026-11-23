@@ -1879,6 +1879,6 @@ fn assert_no_coordinator_close_out(run: &engine::Assignment) {
 
 fn settle_implementation(world: &mut PersonWorld) {
     // The restart oracle observes the fake landing on the watched branch.
-    world.env.now = world.env.now.saturating_add(world.env.limits.forge.client.poll_max);
+    world.advance_to(world.env.now.saturating_add(world.env.limits.forge.client.poll_max));
     world.until(temper_engine_domain_world::forge_routes::Until::Ready);
 }

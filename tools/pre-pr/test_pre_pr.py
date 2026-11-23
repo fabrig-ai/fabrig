@@ -516,6 +516,32 @@ class Changes(unittest.TestCase):
         self.assertIsNone(base)
         self.assertIn('is HEAD itself', why)
 
+    def test_a_lock_moving_only_workspace_edges_reaches_no_more_packages(self):
+        lock = ('version = 4\n\n[[package]]\nname = "leaf"\nversion = "0.1.0"\ndependencies = [%s]\n\n'
+                '[[package]]\nname = "serde"\nversion = "%s"\nsource = "registry+https://github.com/rust-lang/crates.io-index"\n')
+        (self.root / 'Cargo.lock').write_text(lock % ('', '1.0.0'))
+        self.git('add', 'Cargo.lock')
+        self.git('commit', '-qm', 'lock')
+        base = self.git('rev-parse', 'HEAD')
+        (self.root / 'Cargo.lock').write_text(lock % ('"serde"', '1.0.0'))
+        self.assertFalse(PRE.lock_moves_externals(self.root, self.env, base, self.root))
+        (self.root / 'Cargo.lock').write_text(lock % ('"serde"', '1.0.1'))
+        self.assertTrue(PRE.lock_moves_externals(self.root, self.env, base, self.root))
+        (self.root / 'Cargo.lock').write_text('not toml [')
+        self.assertTrue(PRE.lock_moves_externals(self.root, self.env, base, self.root))
+
+    def test_a_root_manifest_adding_a_crate_reaches_no_more_packages(self):
+        manifest = ('[workspace]\nmembers = [%s]\n\n[workspace.dependencies]\nserde = "%s"\n%s\n'
+                    '[profile.dev]\ndebug = false\n')
+        (self.root / 'Cargo.toml').write_text(manifest % ('"a"', '1', ''))
+        self.git('add', 'Cargo.toml')
+        self.git('commit', '-qm', 'manifest')
+        base = self.git('rev-parse', 'HEAD')
+        (self.root / 'Cargo.toml').write_text(manifest % ('"a", "b"', '1', 'b = { path = "b" }'))
+        self.assertFalse(PRE.root_manifest_moves_more(self.root, self.env, base, self.root))
+        (self.root / 'Cargo.toml').write_text(manifest % ('"a", "b"', '2', 'b = { path = "b" }'))
+        self.assertTrue(PRE.root_manifest_moves_more(self.root, self.env, base, self.root))
+
     def test_skipped_entries_are_not_seeded(self):
         work = self.root.parent / 'work'
         subprocess.run(['git', 'init', '-q', str(work)], env=self.env, check=True, capture_output=True)
@@ -578,6 +604,8 @@ class CloseBudgets(unittest.TestCase):
         self.enterContext(mock.patch.object(PRE, 'WORKER_COUNTS', self.root / 'no-worker-counts.json'))
         self.enterContext(mock.patch.object(PRE, 'PUBLIC_SOURCE', None))
         self.enterContext(mock.patch.dict(PRE.PUBLISHED, clear=True))
+        # The allowance's own rules; the close's margin has a test of its own.
+        self.enterContext(mock.patch.object(PRE, 'CLOSE_MARGIN', 0))
         self.budget_table()
 
     def git_only(self, args, **kwargs):
@@ -623,6 +651,15 @@ class CloseBudgets(unittest.TestCase):
         self.assertEqual(self.log.getvalue(),
                          "budgets: no main's counts in this repository (refs/temper/counts); "
                          'no verdict at close, an infrastructure fault to repair; the gate still judges\n')
+
+    def test_growth_within_the_margin_warns_and_past_it_refuses(self):
+        self.publish()
+        self.enterContext(mock.patch.object(PRE, 'CLOSE_MARGIN', 0.03))
+        # leaf::suite's base is 25e9 of a 100e9 layer; the allowance is 2e9 and the margin 3e9.
+        self.assertEqual(self.verdict(self.result(self.process(29 * self.G))), [])
+        self.assertIn('by less than its 3% margin, a warning', self.log.getvalue())
+        error, = self.verdict(self.result(self.process(31 * self.G)))
+        self.assertIn('instruction growth over allowance', error['log'])
 
     def test_counts_missing_here_are_fetched_from_main(self):
         self.publish()
@@ -791,9 +828,8 @@ class CloseBudgets(unittest.TestCase):
         error, = self.close(fake)
         self.assertEqual(error['name'], 'focused tests')
         status = 0
-        self.assertEqual(self.close(fake), [])
-        self.assertIn('pre-pr: budgets at close, a warning: the landing gate judges them\n', self.log.getvalue())
-        self.assertIn('instruction growth over allowance', self.log.getvalue())
+        error, = self.close(fake)
+        self.assertEqual(error['name'], 'budgets')
 
 
 class Gate(unittest.TestCase):

@@ -304,6 +304,17 @@ pub fn advance(
     Ok(commit)
 }
 
+/// Stores a fixture's root commit without naming a reference or starting CI.
+/// # Errors
+/// Refuses a tree or object store past the fixture's limits.
+pub fn root_commit(domain: &mut Domain, config: &Config, files: Box<[File]>) -> Result<u64, Error> {
+    let tree = git::tree(&config.limits, files)?;
+    git::store(
+        domain,
+        Object { parent: None, merge_parent: None, tree, message: Box::new([]), author: None, committer: None },
+    )
+}
+
 /// Git's commit-tree stores even an unchanged tree, without moving a branch.
 pub fn commit_tree(
     domain: &mut Domain,

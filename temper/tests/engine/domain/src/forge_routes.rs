@@ -94,6 +94,9 @@ pub struct CallError {
 
 #[expect(clippy::struct_excessive_bools, reason = "independent outside fault and observation switches remain explicit")]
 pub struct World {
+    checks: crate::checks::Checks,
+    iteration: u64,
+    pub ends: crate::ends::Ends,
     idle_revision: Option<(u64, Option<Time>)>,
     auto_prepare: bool,
     restart_config: engine::Config,
@@ -175,6 +178,8 @@ pub struct World {
     gate: paths::Gate,
     pub held_reads: Option<Vec<engine::Request>>,
     pub hold_reads_at_any_step: bool,
+    /// Hold one admitted forge read belonging to this change's step.
+    pub hold_read_for: Option<u64>,
     pub busy_reads: bool,
     /// Answer every engine forge call before it reaches the peer.
     pub unavailable: bool,
@@ -207,6 +212,8 @@ pub struct World {
     pub forgejo_merge_divergence: bool,
     pub fail_issue_writes: bool,
     pub fail_open_writes: bool,
+    /// Limit the permanent open refusal to one repository; None means every one.
+    pub fail_open_in: Option<skein_forge::api::Repository>,
     pub issue_write_times: Vec<Wall>,
     /// The durable commit number observed when the root drained.
     pub drained: Option<u64>,
@@ -269,7 +276,9 @@ pub struct StoryLimits {
     pub dispatch_by_test: bool,
     pub across: bool,
     pub library_gate_latency: Option<Duration>,
+    /// Zero stages a waiting batch under the operator hold, with a one-member engine limit.
     pub landing_members: Option<u32>,
+    pub landings: Option<u32>,
     pub batch: Option<u16>,
     pub slots: Option<u32>,
     pub tasks: Option<u32>,
@@ -925,9 +934,12 @@ impl World {
                     limits.tasks.result_bytes = 256 + RESULT_MESSAGE_BYTES;
                     limits.tasks.inbox_bytes += limits.tasks.inbox_messages * RESULT_MESSAGE_BYTES;
                     limits.journal.run_bytes = 32768;
+                    if let Some(slots) = timing.landings {
+                        limits.forge.landings = slots;
+                    }
                     if let Some(slots) = landing_members {
-                        limits.forge.landing_members = slots;
-                        limits.tasks.holdings = limits.tasks.holdings.max(slots);
+                        limits.forge.landing_members = slots.max(1);
+                        limits.tasks.holdings = limits.tasks.holdings.max(slots.max(1));
                     }
                     let mut grants = List::with_capacity(15);
                     for grant in &rules.ceiling.grants {
@@ -1462,7 +1474,7 @@ impl World {
         stock: Option<(&jig_domain_core::settings::Defaults, &engine::Model, Option<&engine::Limits>)>,
         charter_documents: &[jig_domain_core::Document],
     ) -> Self {
-        let [(bootstrap, mut limits), (config, _)] =
+        let [(bootstrap, mut limits), (mut config, _)] =
             Self::configurations(with_read, with_change, gate, documents, timing, stock, charter_documents);
         let StoryLimits { turn, tier, across, library_gate_latency, tasks, landing_members, slots, .. } = *timing;
         let mut fake_config = forge_world::fake_config();
@@ -1674,8 +1686,17 @@ impl World {
         }
         let store =
             temper_engine_domain_world::fixtures::restored_over(Store::with_limits(&store_limits), bootstrap, &limits);
+        if landing_members == Some(0) {
+            config.landing_held = true;
+        }
         let period_budget = config.core.defaults.rules.period_spend;
+        let checks = crate::checks::Checks::new(config.core.seed);
+        let mut ends = crate::ends::Ends::new(config.core.seed, crate::ends::OPENING);
+        ends.restarted(Time::ZERO);
         Self {
+            checks,
+            iteration: 0,
+            ends,
             restart_config: crate::oracle::config::copy(&config),
             idle_revision: None,
             oracle_documents: Vec::new(),
@@ -1739,6 +1760,7 @@ impl World {
             gate,
             held_reads: None,
             hold_reads_at_any_step: false,
+            hold_read_for: None,
             busy_reads: false,
             unavailable: false,
             unavailable_calls: Vec::new(),
@@ -1757,6 +1779,7 @@ impl World {
             forgejo_merge_divergence: false,
             fail_issue_writes: false,
             fail_open_writes: false,
+            fail_open_in: None,
             issue_write_times: Vec::new(),
             drained: None,
             restarting: Vec::new(),
@@ -2328,6 +2351,15 @@ impl World {
             .expect("held start");
         self
     }
+    /// Drive forming before observing quiescence after a story releases its start hold.
+    pub fn release_landings(&mut self) {
+        self.root.hold_landings(false);
+        engine::fire(&mut self.root, &self.env);
+        engine::release(&mut self.root, &self.env, &mut self.out);
+        self.collect();
+        self.flush();
+    }
+
     pub fn restart_with_landing_held(&mut self, held: bool) {
         self.restart_config.landing_held = held;
         self.restart_same();
@@ -2349,6 +2381,12 @@ impl World {
         crate::oracle::config::landing(&mut self.restart_config, 1).batch = batch;
         self.restart_same();
     }
+    /// Restart a staged batch after removing the operator's landing hold.
+    pub fn restart_with_unheld_batch(&mut self, batch: u16) {
+        self.restart_config.landing_held = false;
+        self.restart_with_batch(batch);
+    }
+
     /// Restart with a project's new landing configuration, retaining only durable rows.
     pub fn restart_with_project_landing(&mut self, project: u32, landing: temper_landing_fixtures::ProjectLanding) {
         crate::oracle::config::set_landing(&mut self.restart_config, project, landing);
@@ -2393,6 +2431,7 @@ impl World {
         self.root =
             engine::Domain::new(crate::oracle::config::copy(&config), &self.env.limits).expect("restart config");
         self.restart_config = config;
+        self.ends.restarted(self.env.now);
         self.out = Queue::uncapped();
         self.events.clear();
         self.held_write_answers.clear();
@@ -2560,9 +2599,18 @@ impl World {
                     }
                     if let Some(reads) = &mut self.held_reads
                         && matches!(op, skein_forge::api::Op::Read(_))
-                        && (self.hold_reads_at_any_step || self.store.rows.values().any(|row| matches!(row,
-                            Record::Forge { row, .. } if matches!(row.as_ref(), forge_top::Stored::ChangeHot(row)
-                                if matches!(row.change.state, temper_engine_domain_forge_change::State::Queued { .. } | temper_engine_domain_forge_change::State::First { .. })))))
+                        && match self.hold_read_for {
+                            Some(task) => reads.is_empty() && self.root.forge().inspection_client().holders().iter().any(|holder| {
+                                holder.repository == repository
+                                    && matches!((&holder.call, &op),
+                                        (skein_forge_client::Holding::Read(held), skein_forge::api::Op::Read(read)) if held == read)
+                                    && matches!(holder.owner, skein_forge_client::CallOwner::Read(owner)
+                                        if self.root.forge().inspection_read_task(owner) == Some(task))
+                            }),
+                            None => self.hold_reads_at_any_step || self.store.rows.values().any(|row| matches!(row,
+                                Record::Forge { row, .. } if matches!(row.as_ref(), forge_top::Stored::ChangeHot(row)
+                                    if matches!(row.change.state, temper_engine_domain_forge_change::State::Queued { .. } | temper_engine_domain_forge_change::State::First { .. })))),
+                        }
                     {
                         reads.push(engine::Request::Forge { call, repository, op });
                         continue;
@@ -2618,6 +2666,7 @@ impl World {
                         self.issue_write_times.push(self.env.wall);
                     }
                     let fail_open = self.fail_open_writes
+                        && self.fail_open_in.is_none_or(|only| only == repository)
                         && matches!(op, skein_forge::api::Op::Write(skein_forge::api::Write::OpenPull { .. }));
                     if (self.fail_issue_writes && issue_write) || fail_open {
                         self.events.push_back(engine::Event::Forge(Box::new(forge_top::Event::Client(
@@ -3066,6 +3115,7 @@ impl World {
     pub fn drain_cut(&mut self) {
         for _ in 0..STEPS {
             if self.store.pending.is_empty() && self.pending.is_empty() && self.events.is_empty() {
+                self.check_quiet();
                 return;
             }
             self.tick();
@@ -3157,6 +3207,23 @@ impl World {
         question
     }
 
+    fn quiet(&self) -> bool {
+        self.events.is_empty()
+            && self.immediate.is_empty()
+            && self.out.is_empty()
+            && self.fake_out.is_empty()
+            && self.store.idle()
+            && !self.fake.is_due(self.env.now)
+            && self.root.next_deadline(&self.env).is_none_or(|due| due > self.env.now)
+            && self.root.quiescent()
+    }
+
+    fn check_quiet(&mut self) {
+        if self.quiet() {
+            self.checks.quiet(&self.root, self.env.now, self.iteration).unwrap_or_else(|finding| panic!("{finding}"));
+        }
+    }
+
     fn idle_until_timer(&mut self) -> bool {
         if self.period.is_none()
             || !self.events.is_empty()
@@ -3179,9 +3246,8 @@ impl World {
         true
     }
 
-    /// Observe the entire fixed-tick horizon, jumping only over ticks with no
-    /// immediate work and strictly before either machine's next timer. Timers
-    /// still fire on the first tick of the story's grid at or after their due time.
+    /// Observe the fixed-tick horizon, skipping only idle ticks before either
+    /// machine's next timer or the next inspection bound.
     pub fn advance_ticks(&mut self, mut ticks: u32) {
         if ticks > 0 && !self.oracle_running {
             self.sync_clock();
@@ -3189,7 +3255,9 @@ impl World {
         while ticks > 0 {
             let interval = self.tick_interval.as_nanos();
             if !self.oracle_running && interval > 0 && self.idle_until_timer() {
+                self.check_quiet();
                 let root = self.idle_revision.expect("idle root revision").1;
+                let root = root.into_iter().chain(self.checks.next_bound()).min();
                 let due = match (root, self.fake.next_deadline()) {
                     (Some(root), Some(fake)) => Some(root.min(fake)),
                     (root, None) => root,
@@ -3201,9 +3269,14 @@ impl World {
                 let skip = u32::try_from(skip.min(u64::from(ticks))).expect("bounded by remaining ticks");
                 if skip > 0 {
                     self.changed_tasks.clear();
-                    self.env.now =
-                        self.env.now.saturating_add(Duration::from_nanos(interval.saturating_mul(u64::from(skip))));
+                    for _ in 0..skip {
+                        self.env.now = self.env.now.saturating_add(self.tick_interval);
+                        self.iteration += 1;
+                        self.checks.step(self.env.now, self.iteration).unwrap_or_else(|finding| panic!("{finding}"));
+                        self.check_ends().unwrap_or_else(|finding| panic!("{finding}"));
+                    }
                     self.sync_clock();
+                    self.check_quiet();
                     self.fake.reclaim();
                     ticks -= skip;
                     continue;
@@ -3221,24 +3294,43 @@ impl World {
     }
 
     pub fn tick(&mut self) {
+        self.try_tick().unwrap_or_else(|finding| panic!("{finding}"));
+    }
+
+    /// A tick whose referee finding is returned to a check's own test.
+    pub fn try_tick(&mut self) -> Result<(), String> {
         self.tick_with_reply_cut(None, true);
+        self.check_ends()?;
         if self.auto_prepare {
             self.complete_prepare();
         }
+        Ok(())
     }
 
     /// Let inputs, commits and API outcomes advance without an owner Resume.
     pub fn tick_without_resume(&mut self) {
         self.tick_with_reply_cut(None, false);
+        self.check_ends().unwrap_or_else(|finding| panic!("{finding}"));
     }
 
     /// Apply the step saving a reply to `target`, losing its commit terminal.
     /// Other decisions and the clock follow an ordinary world tick.
     pub fn tick_losing_reply_commit(&mut self, target: u64) -> bool {
-        self.tick_with_reply_cut(Some(target), true)
+        let lost = self.tick_with_reply_cut(Some(target), true);
+        self.check_ends().unwrap_or_else(|finding| panic!("{finding}"));
+        lost
+    }
+
+    fn check_ends(&mut self) -> Result<(), String> {
+        if self.ends.awaiting_open() && self.root.ready() {
+            self.ends.opened(self.env.now);
+        }
+        self.ends.step(self.env.now, &self.store)
     }
 
     fn tick_with_reply_cut(&mut self, target: Option<u64>, resume: bool) -> bool {
+        self.check_quiet();
+        self.iteration += 1;
         self.changed_tasks.clear();
         // A Busy retry keeps the offered change step in flight. Drain that
         // read's timer before snapshotting; an idle procedure's poll is not work.
@@ -3258,19 +3350,23 @@ impl World {
                 .root
                 .next_deadline(&self.env)
                 .is_some_and(|due| due <= self.env.now.saturating_add(Duration::from_secs(1)));
+        let mut next = self.env.now;
         if retrying_change && let Some(due) = self.root.next_deadline(&self.env) {
-            self.env.now = self.env.now.max(due);
+            next = next.max(due);
         }
         if self.oracle_running {
             if !self.pending.is_empty()
                 && let Some(due) = self.fake.next_deadline()
             {
-                self.env.now = self.env.now.max(due);
+                next = next.max(due);
             }
         } else {
-            self.env.now = self.env.now.saturating_add(self.tick_interval);
+            next = next.saturating_add(self.tick_interval);
         }
+        let lost = self.visit_bounds(next, target, resume);
+        self.env.now = next;
         self.sync_clock();
+        self.checks.step(self.env.now, self.iteration).unwrap_or_else(|finding| panic!("{finding}"));
         // An idle shell has no input, output or owner continuation to run.
         // Keep the tick's observation instant, including both timer boundaries.
         if !self.oracle_running
@@ -3281,7 +3377,70 @@ impl World {
             self.fake.reclaim();
             return false;
         }
-        self.tick_at_now(target, resume, retrying_change)
+        self.tick_at_now(target, resume, retrying_change) || lost
+    }
+
+    /// Move the story's clock through every kept bound, draining its timers at
+    /// that instant. Other timers keep the story's ordinary tick policy.
+    pub fn jump(&mut self, duration: Duration) {
+        self.advance_to(self.env.now.saturating_add(duration));
+    }
+
+    /// An absolute clock move for stories that choose a deadline themselves.
+    pub fn advance_to(&mut self, at: Time) {
+        self.try_advance_to(at).unwrap_or_else(|finding| panic!("{finding}"));
+    }
+
+    /// Refuse a backwards clock move without changing the world.
+    pub fn try_advance_to(&mut self, at: Time) -> Result<(), String> {
+        if at < self.env.now {
+            return Err("the story clock moves forward".to_owned());
+        }
+        self.check_quiet();
+        self.visit_bounds(at, None, true);
+        self.env.now = at;
+        self.sync_clock();
+        self.checks.step(at, self.iteration).unwrap_or_else(|finding| panic!("{finding}"));
+        Ok(())
+    }
+
+    fn visit_bounds(&mut self, at: Time, target: Option<u64>, resume: bool) -> bool {
+        let mut lost = false;
+        while let Some(bound) = self.checks.next_bound().filter(|bound| *bound < at) {
+            if bound < self.env.now {
+                self.checks.step(self.env.now, self.iteration).unwrap_or_else(|finding| panic!("{finding}"));
+            }
+            self.env.now = bound;
+            self.sync_clock();
+            let mut drained = false;
+            for _ in 0..STEPS {
+                self.iteration += 1;
+                self.checks.step(bound, self.iteration).unwrap_or_else(|finding| panic!("{finding}"));
+                lost |= self.tick_at_now(target, resume, true);
+                if self.auto_prepare {
+                    self.complete_prepare();
+                }
+                self.check_ends().unwrap_or_else(|finding| panic!("{finding}"));
+                if self.quiet() {
+                    self.check_quiet();
+                    drained = true;
+                    break;
+                }
+            }
+            assert!(
+                drained,
+                "seed {}: at {} ns, iteration {}: engine bound drain: immediate work did not drain in {STEPS} steps",
+                self.restart_config.core.seed,
+                bound.as_nanos(),
+                self.iteration
+            );
+            // A wait still standing at the bound must not pin the clock forever:
+            // its next move is the referee's finding, not another drain.
+            if self.checks.next_bound().is_some_and(|next| next <= bound) {
+                self.checks.step(at, self.iteration).unwrap_or_else(|finding| panic!("{finding}"));
+            }
+        }
+        lost
     }
 
     #[expect(
@@ -3313,6 +3472,9 @@ impl World {
             if !lost {
                 self.send(engine::Event::Store(engine::StoreInput::Committed { number, fill: 0 }));
             }
+        }
+        if self.ends.awaiting_open() && self.root.ready() {
+            self.ends.opened(self.env.now);
         }
         if self.period.is_none() && self.root.ready() {
             self.period = Some(1);
@@ -3418,6 +3580,7 @@ impl World {
         self.flush();
         self.root.reclaim();
         self.fake.reclaim();
+        self.check_quiet();
         lost
     }
 
@@ -3925,10 +4088,12 @@ impl World {
     /// Settle, read the public documents, crash the same store, and compare.
     pub fn close(&mut self) {
         if self.broken {
+            self.ends.close(self.env.now, &self.store).unwrap_or_else(|finding| panic!("{finding}"));
             return;
         }
         self.oracle_running = true;
         self.oracle_settle();
+        self.ends.close(self.env.now, &self.store).unwrap_or_else(|finding| panic!("{finding}"));
         let forges = self.root.forges();
         let mut snapshot = crate::oracle::Snapshot::new(&self.store.rows, self.env.wall);
         for (sign_in, read) in &snapshot.queries {
@@ -3950,8 +4115,9 @@ impl World {
         std::mem::swap(&mut self.out, &mut fresh.out);
         std::mem::swap(&mut self.events, &mut fresh.events);
         std::mem::swap(&mut self.store, &mut fresh.store);
-        fresh.broken = crate::oracle::Fixture::Broken;
+        fresh.broken("temporary driver transfers its cold root to the forge world");
         self.drained = None;
+        self.ends.restarted(self.env.now);
         self.period = Some(1);
         self.events.push_back(engine::Event::Credential { number: 1, generation: 1, valid: Duration::from_secs(3600) });
         if let Some((channel, worker, slots)) = self.oracle_peer {
@@ -3978,13 +4144,16 @@ impl World {
         }
         self.oracle_settle();
         self.oracle_running = false;
+        self.ends.close(self.env.now, &self.store).unwrap_or_else(|finding| panic!("{finding}"));
     }
 
     /// Drain immediate terminals while permitting tasks that wait on an account or a host.
     pub fn oracle_settle(&mut self) {
         // These are the world's held terminals, not new actions from surviving peers.
         self.release_write_answers();
-        if let Some(reads) = self.held_reads.take() {
+        if self.hold_read_for.is_none()
+            && let Some(reads) = self.held_reads.take()
+        {
             for read in reads {
                 self.out.push(read);
             }

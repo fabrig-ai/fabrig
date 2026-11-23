@@ -218,6 +218,8 @@ impl Remote for Route {
         }
     }
 }
+impl crate::counts::Remote for Route {}
+
 impl Transport for Route {
     fn authenticate(&mut self, credential: Option<&Credential>) {
         self.authenticated = credential.is_some();

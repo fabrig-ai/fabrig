@@ -69,6 +69,14 @@ enum Phase {
     AfterUpdate,
     AfterMerge { merged: Commit },
 }
+impl Domain {
+    /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
+    #[must_use]
+    pub fn inspection_entry(&self, number: u64) -> Option<&Entry> {
+        Some(&self.outbox.entries.get(&number)?.entry)
+    }
+}
+
 impl Outbox {
     pub(crate) fn new(l: &Limits) -> Outbox {
         Outbox {

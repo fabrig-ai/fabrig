@@ -532,7 +532,7 @@ fn a_later_approved_change_lands_while_the_earlier_waits_outside_the_queue() {
     world.restart_same();
     settle(&mut world);
     assert!(matches!(light_rules::change_row(&world, x).change.state, State::Queued { .. }));
-    world.env.now = world.env.now.saturating_add(Duration::from_secs(1));
+    world.advance_to(world.env.now.saturating_add(Duration::from_secs(1)));
     let y = another_waiting_approval(&mut world, 94);
     post_approval(&mut world, y, 7);
     assert_eq!(world.merges, 1, "Y lands while X's sign-off waits");
@@ -566,9 +566,9 @@ fn a_returning_signoff_follows_the_owner_and_yields_when_its_exact_gate_is_asked
     use temper_engine_domain_forge_change::State;
     let (mut world, x) = waiting_approval_with_client(true);
     let since = light_rules::change_row(&world, x).change.ready_since;
-    world.env.now = world.env.now.saturating_add(Duration::from_secs(1));
+    world.advance_to(world.env.now.saturating_add(Duration::from_secs(1)));
     let y = another_waiting_approval(&mut world, 94);
-    world.env.now = world.env.now.saturating_add(Duration::from_secs(1));
+    world.advance_to(world.env.now.saturating_add(Duration::from_secs(1)));
     let z = another_waiting_approval(&mut world, 95);
     super::update_first::move_base(&mut world, b"main");
     world.hold_write_answers = Some(HoldWrite::All);
@@ -598,7 +598,7 @@ fn a_returning_signoff_follows_the_owner_and_yields_when_its_exact_gate_is_asked
     }
     assert_eq!(light_rules::change_row(&world, x).change.ready_since, since);
     world.release_write_answers();
-    world.env.now = world.env.now.saturating_add(world.env.limits.forge.queue_window);
+    // Drive the released update and its reads before their stall bound.
     settle(&mut world);
     assert_eq!(world.merges, 1, "Y lands first");
     assert!(matches!(light_rules::change_row(&world, y).change.state, State::Landed { .. }));
@@ -716,7 +716,7 @@ pub(super) fn post_approval_read(world: &mut World, change: u64, user: u64) {
 
 pub(super) fn post_approval(world: &mut World, change: u64, user: u64) {
     post_approval_read(world, change, user);
-    world.env.now = world.env.now.saturating_add(world.env.limits.forge.queue_window);
+    world.advance_to(world.env.now.saturating_add(world.env.limits.forge.queue_window));
     settle(world);
 }
 
@@ -837,7 +837,7 @@ fn a_persons_request_for_changes_repairs_with_its_remarks() {
                 key: None,
             },
         })));
-        world.env.now = world.env.now.saturating_add(world.env.limits.forge.queue_window);
+        world.advance_to(world.env.now.saturating_add(world.env.limits.forge.queue_window));
         for _ in 0..200 {
             request_reads(&mut world, review, reviewed, remarks);
             world.tick();
@@ -1046,7 +1046,7 @@ fn a_box_persons_change_waits_under_needs_you_until_their_review_lands_it() {
     watch_approvals(&mut world, watcher);
     assert!(approvals_of(&world, watcher).rows.is_empty());
     let change = stock_waiting_change(&mut world);
-    world.env.now = world.env.now.saturating_add(world.env.limits.forge.queue_window);
+    world.advance_to(world.env.now.saturating_add(world.env.limits.forge.queue_window));
     settle(&mut world);
     assert_eq!(world.merges, 0, "the person's approval keeps the change waiting after the step budget");
     let document = approvals_of(&world, watcher);
