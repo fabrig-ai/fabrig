@@ -158,6 +158,13 @@ nothing is written.
   frames' text kept and each of its frames' patches planned, and held
   by the transcripts' part for the whole run. No map patch machine is
   made. A family with no frames' text has no machine.
+- **A text kept once.** Each `Patcher` an open makes of a frames'
+  family (the frames' check's, the one that sizes a machine and the
+  machine itself) keeps each of the family's texts once: a copy of the
+  shell's prepared schema whose whole text equals it (`opening.md`, 3),
+  or its own parse where none does. What the open reads of a kept text
+  after (its version, its root, its nodes' bound) it reads from the
+  schema the `Patcher` keeps, never from a parse of its own.
 - **A frame's versions** are read with its head, past the frame's
   length: the body's first two bytes, and the turn's first two, past the
   `transcript` field's length, after the fields the head reads already.

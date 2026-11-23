@@ -178,8 +178,11 @@ answers that encoding for a field with `=`, `[0]` for an `option`
 without one, and `None` for any other field without one.
 
 The plain types derive `Clone`, `Copy` where small, `Debug`, equality
-and `Hash`; `Schema` derives `Debug` alone, as lib's `Map` holding its
-names has neither `Clone` nor equality. A refusal names its token by `at`; skein-codegen writes the
+and `Hash`; `Schema` derives `Debug` and `Clone` alone: a copy is its
+text and tables, for a holder that keeps schemas of its own (a
+`Patcher`'s `keep_schema`, `patches.md`) from one already parsed, at a
+fraction of a parse; two schemas are told apart by their texts, not by
+an equality. A refusal names its token by `at`; skein-codegen writes the
 message from it and the text. A type's fewest bytes are the generator's
 (a list's precheck, section 2.2): a scalar's width, `fixed N`'s N, 4 for
 a length or a count, 1 for an `option`, a record's fields' sum (2 more
