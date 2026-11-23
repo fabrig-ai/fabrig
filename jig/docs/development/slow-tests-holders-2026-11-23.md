@@ -24,6 +24,8 @@
 | `jig-test::process`'s `the_live_configurations_are_ones_jig_test_reads` | `jig-test::step`, same name: the real, fake and refusing configurations accepted by startup's check over supplied documents and trust roots |
 | `jig-test::real`'s `a_secret_file_readable_by_others_refuses_the_start` | `jig-test::step`, same name: the unsafe refusal, no secret byte in its words, and no descriptor taken, over a supplied refusal for the secret file |
 
+The provider's signed-message boundary stays real in its new place: the story signs its ID token with skein's RS256 over the committed key and checks it with skein's verification, which refuses a different signing input. Only the key's generation leaves, so no slow test of the provider remains, as the survey's group 4 and its "empty after the move" have it.
+
 ## Stays above
 
 - `browser_attacks`: the cross-port, cross-site and framed-page stories, the browser's own rules.
