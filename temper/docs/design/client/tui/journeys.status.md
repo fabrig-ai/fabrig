@@ -16,7 +16,7 @@
   `temper/crates/temper-client-journeys-tool/src/drive/io/tui.rs`, looks
   for `session/state/temper/tui/recording`. The recorder writes
   `recording-TIME`; the observer needs to follow the per-run filename
-  for `see`, `mark` and approval to receive its saves.
+  for `see`, `mark` and approval to receive its saves [in flight: change 14084].
 - **Not yet:** 8.3 and 9: `box-welcome` and `box-claude-sign-in` have no
   directories or walks. The drive session starts the TUI at a box's
   address, not in front of its child box; the world's TUI starts with

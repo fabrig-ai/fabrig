@@ -1,16 +1,37 @@
 # testing: status
 
-2026-11-18. Where the tree's code lags or departs from [testing.md](testing.md).
+2026-11-23. Where the tree's code lags or departs from [testing.md](testing.md).
 
-
+- **Not yet:** 6: the public story (13) still walks a deployment in the
+  browser, sweeps its pages' words, its landings and a revocation, and the
+  tier's library keeps its landings recognizer [in flight: change 14051].
+- **Not yet:** 6: the view's public holders named in the list after the
+  stories (the projects page, the populated board and card, Unknown and
+  empty pages whole, each row's phase and time, the landings page whole) are
+  not written [in flight: change 14049].
+- **Not yet:** 6: the host's revoked task and upper-case board path, and the
+  one-process world's private card and change and its widened markers, are
+  not written [in flight: change 14050].
+- **Not yet:** 6: stories 2, 4, 5 and 11 still walk to their checks, 15 is a
+  test of its own, and the picker's two lower tests and the host's fresh load
+  of a playground's chats are not written [in flight: change 14081].
+- **Not yet:** 6: reading's long story (14) still walks its chat to its
+  opening and back, and the client world's ordered-window test is not
+  written [in flight: change 14082].
+- **Not yet:** 6: the Workers tab's story is still a browser test, and its
+  client world story is not written [in flight: change 14083].
+- **Not yet:** 6: the journey chain's story is still a browser test, its
+  scripted test reading no page an ancestor changed, and a TUI walk's
+  scripted test is not written [in flight: change 14084].
 - **Not yet:** 2, 3, 6: the tier holds twelve test functions. Its merged
-  tests 2 (with 11 and the call line), 4 (with 5 and the model picker),
+  tests 2 (with 11 and the call line), 4 (with 5, the model picker and 15),
   8 and 9 (welcome then ConnectModel, with Accounts history and key
   re-entry), 14 (short, Latest, unanchored and long), and 16 (sheet scroll
   and phone geometry) retain story labels for failed steps. Tests 2 and 14
   have passing runs on record in Chromium, each run alone (2's in 6, above;
-  14's with its failures, below); none proves the other current merged
-  stories. The picker's 420 px, one-press
+  14's with its failures, below), from before the slow-tests-down draft
+  reshaped them (`temper/docs/design/draft/slow-tests-down.md`, 5.1); none
+  proves a merged story as it now stands. The picker's 420 px, one-press
   model and effort, outside and Escape checks, a step changing and restoring anchoring on a
   live page (3), and both sign-ins in one browser (2) await after-landing
   proof (`README.md`, section 3). The picker's separate render and fake-box proof at
