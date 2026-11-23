@@ -394,7 +394,9 @@
   admin by the handover file, as `temper help server`'s walk does, and
   the page answers with its forge's meta (../protocol/openid-provider.md, 7).
   One test, `an_owned_forgejo_signs_its_people_in_through_temper`, on one
-  Forgejo and one serve, walks both of temper's sources in turn: first a
+  Forgejo, walks both of temper's sources in turn, its serve started
+  again with each source's configuration, since a serve's clients are
+  fixed at its start, and once more for the links-only restart: first a
   public source, added by `forge source` twice and kept once, whose
   exchange joins the owner's existing account to its `sub`; then the
   confidential source above, its secret on no output, the member made,
