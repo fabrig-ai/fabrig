@@ -716,9 +716,12 @@ In each layer measured, replace the base counts of binaries measured whole
 with the sum of their `tests` and `fresh` processes. Carry forward the other
 binaries' base counts. Apply the growth allowance, new move credit and the user's accepted level
 from `tools/tiers/budgets.md`, 8, using the base's counted binaries for the CPU
-sum. Growth beyond the allowance or a crossing of the ceiling or the
-accepted level, whichever is higher, refuses as `budgets`, with the layer
-counts, growth, allowance, largest growing binaries and repair line.
+sum. Growth beyond the allowance or a crossing of the instruction ceiling
+(or the accepted level if higher) is reported as `budgets`, with the layer
+counts, growth, allowance, largest growing binaries and repair line, as a
+warning: a worker's counts differ from the gate's by more than the allowance
+(2.2% in a layer a docs-only goal never touched, 2026-11-23), so the landing
+gate alone refuses.
 
 ## 5. Inherited failures
 

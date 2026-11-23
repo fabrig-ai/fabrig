@@ -1234,7 +1234,11 @@ def workspace_checks(root, paths, tree_id, env, errors, outcomes, reds=(), *, co
             else:
                 if runs:
                     repository, git_env = counts_source if counts_source is not None else (root, env)
-                    errors += close_budgets(root, repository, git_env, runs)
+                    # A worker's counts differ from the gate's by more than the allowance (2.2% in a layer a
+                    # docs-only goal never touched, 11-23), so growth at close is a warning; the gate refuses it.
+                    for finding in close_budgets(root, repository, git_env, runs):
+                        print('pre-pr: budgets at close, a warning: the landing gate judges them\n'
+                              + finding['log'], end='', flush=True)
     return suites
 
 
