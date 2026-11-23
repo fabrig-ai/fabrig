@@ -3,10 +3,10 @@ use skein_lib::Duration;
 
 #[test]
 fn message_words_give_only_provider_stated_waits() {
-    const BEFORE_UNIT: &str = "Try again in 8";
+    const BEFORE_UNIT: &[u8] = b"Try again in 8";
     let cap = u32::try_from(BEFORE_UNIT.len()).expect("fixture length fits");
     let clipped = common::clipped(b"Try again in 8 hours", cap);
-    let clipped = core::str::from_utf8(&clipped).expect("ASCII fixture");
+    assert_eq!(worded(&clipped), None, "the duration's clipped unit gives no wait");
     for (message, expected) in [
         ("Please try again in 6.5s.", Some(Duration::from_millis(6500))),
         ("TRY AGAIN IN   120MS", Some(Duration::from_millis(120))),
@@ -23,7 +23,6 @@ fn message_words_give_only_provider_stated_waits() {
         ("try again in 999999999ms", Some(Duration::from_millis(999_999_999))),
         ("try again in 6.5", None),
         ("try again in s", None),
-        (clipped, None),
         ("try again in 1m30", None),
         ("try again in 1m30 seconds", None),
         ("try again in 1.5 minutes", None),
