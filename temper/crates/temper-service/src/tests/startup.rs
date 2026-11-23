@@ -789,6 +789,40 @@ fn a_clients_provider_key_and_secret_are_private_files_named_by_path() {
     }
 }
 #[test]
+#[expect(clippy::disallowed_macros, reason = "jig's committed public RSA test key fixture")]
+fn a_2048_bit_provider_key_refuses_checked_start_with_a_valid_client() {
+    const RSA_2048: &[u8] =
+        include_bytes!("../../../../../jig/crates/jig-protocol-config/src/tests/keys/rsa-2048-pkcs8.pem");
+    let document = fixtures::with(&fixtures::document(), b"engine.clients", br#"{"provider":{"key":"provider.pem","clients":[{"id":"forgejo","secret":"forgejo.secret","redirect_uri":"http://127.0.0.1:9/callback"}],"addresses":[]}}"#);
+    let directories = config::Directories::working();
+    let agent = fixtures::startup_agent();
+    let seeds = fixtures::seeds();
+    let mut files = fixtures::files();
+    for (path, bytes) in
+        [(b"provider.pem".as_slice(), RSA_2048), (b"forgejo.secret", b"synthetic-provider-client-secret")]
+    {
+        files.entries.push((path.into(), skein_lib::Secret::new(bytes.into()))).unwrap();
+    }
+    let checked =
+        fixtures::checked_start(&document, &directories, &files, Some(&agent), &seeds, fixtures::forge_runtime(), None)
+            .expect("configuration and named files checked");
+    let refused = crate::startup::from_checked(
+        checked,
+        &files,
+        Some(&agent),
+        &seeds,
+        None,
+        Some(fixtures::worker_runtime()),
+        None,
+        None,
+        Box::new([]),
+    )
+    .err()
+    .expect("2048-bit signing key refused");
+    assert_eq!(&*lines(&refused), b"engine.clients.provider.key: invalid form\n");
+}
+
+#[test]
 fn null_webhook_members_are_read_as_none() {
     let (members, problems) = application(fixtures::APPLICATION, &fixtures::engine().jig);
     assert_eq!(&*lines(&problems), b"");

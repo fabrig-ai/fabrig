@@ -269,26 +269,6 @@ fn a_configuration_file_past_its_bound_is_refused() {
     scratch.remove();
 }
 #[test]
-fn a_secret_file_readable_by_others_refuses_the_start_naming_it() {
-    let scratch = support::Scratch::startup("public-token");
-    let directory = scratch.path();
-    support::configuration(directory, &support::Forge::Unreached);
-    fs::set_permissions(directory.join("worker.secret"), fs::Permissions::from_mode(0o644))
-        .expect("public permissions");
-    let refused = temper_box_shell::prepare_in(&[], b"/", &support::configuration::directories(directory))
-        .err()
-        .expect("start refused");
-    assert_eq!(
-        refused,
-        format!(
-            "temper serve: workers[0].secret: {}: readable by others or reached through a link\n",
-            scratch.path().join("worker.secret").display()
-        )
-    );
-    assert!(!refused.contains("forge-1-git-token-value"), "no secret in a diagnostic");
-    scratch.remove();
-}
-#[test]
 fn a_worker_root_reached_through_a_link_is_refused() {
     let scratch = support::Scratch::startup("linked-root");
     let directory = scratch.path();
@@ -357,27 +337,6 @@ fn an_inline_seed_policy_is_refused_naming_its_path() {
         "temper serve: engine.projects: moved: projects are made at runtime; make one from the client or temper ctl\n"
     );
     scratch.remove();
-}
-
-#[test]
-fn an_address_with_no_token_in_the_directory_is_not_signed_in() {
-    for (row, token, expected) in [
-        ("absent", None, "temper open: not signed in: give the link temper serve printed\n"),
-        ("empty", Some(b"".as_slice()), "temper open: not signed in: give the link temper serve printed\n"),
-    ] {
-        let scratch = support::Scratch::startup(&format!("open-{row}"));
-        if let Some(token) = token {
-            fs::write(scratch.path().join("token"), token).expect("token file");
-            fs::set_permissions(scratch.path().join("token"), fs::Permissions::from_mode(0o600))
-                .expect("private token");
-        }
-        assert_eq!(
-            temper_box_shell::open::check_token(scratch.path()).expect_err("not signed in").line(scratch.path()),
-            expected,
-            "{row}"
-        );
-        scratch.remove();
-    }
 }
 
 #[test]

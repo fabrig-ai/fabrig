@@ -28,6 +28,5 @@ fn admission(directories: &temper_box_shell::directories::Directories, bytes: &[
 }
 
 mod admission_edges;
-mod provider_admission;
 mod support_tests;
 mod wiring;

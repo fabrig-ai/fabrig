@@ -2,7 +2,7 @@
 use jig_protocol_config as config;
 use skein_io::kernel::{Exit, Fd};
 use skein_lib::{List, Secret};
-use skein_shell::{Clock, Config, Kernel};
+use skein_shell::{Clock, Config, Kernel, Unread};
 use std::{fmt::Write, os::unix::ffi::OsStrExt, path::Path};
 use temper_service_core::{self as service, settings::Files};
 use temper_shell::directories::EnvironmentEntry;
@@ -76,6 +76,22 @@ pub fn read_files_with_asked(
     asked: Box<[config::File]>,
     user: u32,
 ) -> Result<Files, String> {
+    read_files_with_asked_using(names, asked, user, |path, max, private| {
+        if private {
+            skein_shell::read_private_file(path, max, user)
+        } else {
+            skein_shell::read_file(path, max).map(Secret::new)
+        }
+    })
+}
+
+/// Read the required and asked files in order. The caller supplies a reader for the given effective user.
+pub fn read_files_with_asked_using(
+    names: Box<[config::File]>,
+    asked: Box<[config::File]>,
+    _user: u32,
+    mut read: impl FnMut(&Path, u32, bool) -> Result<Secret, Unread>,
+) -> Result<Files, String> {
     let count = names.len().checked_add(asked.len()).expect("bounded files");
     let mut entries = List::with_capacity(u32::try_from(count).expect("bounded files"));
     let mut refused = String::new();
@@ -83,16 +99,11 @@ pub fn read_files_with_asked(
         names.into_iter().map(|file| (file, false)).chain(asked.into_iter().map(|file| (file, true)))
     {
         let resolved = path(&file.path);
-        let value = if file.private {
-            skein_shell::read_private_file(resolved, file.max, user)
-        } else {
-            skein_shell::read_file(resolved, file.max).map(Secret::new)
-        };
-        match value {
+        match read(resolved, file.max, file.private) {
             Ok(value) => entries.push((file.path, value)).expect("named capacity"),
-            Err(skein_shell::Unread::Absent) if optional => {}
+            Err(Unread::Absent) if optional => {}
             Err(why) => {
-                writeln!(refused, "{}: {}: {}", file_path(file.at), path(&file.path).display(), unread(why))
+                writeln!(refused, "{}: {}: {}", file_path(file.at), resolved.display(), unread(why))
                     .expect("writing into a string");
             }
         }

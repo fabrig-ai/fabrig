@@ -119,6 +119,22 @@ fn each_open_argument_reads_as_a_link_an_address_or_a_refusal() {
     }
 }
 #[test]
+fn an_absent_or_empty_token_read_is_not_signed_in() {
+    use super::open::check_token_read;
+    use skein_lib::Secret;
+    use skein_shell::Unread;
+    use std::path::Path;
+
+    for (row, read) in [("absent", Err(Unread::Absent)), ("empty", Ok(Secret::new(Box::new([]))))] {
+        assert_eq!(
+            check_token_read(read).expect_err("not signed in").line(Path::new("client")),
+            "temper open: not signed in: give the link temper serve printed\n",
+            "{row}"
+        );
+    }
+}
+
+#[test]
 fn open_without_two_arguments_prints_its_usage() {
     for (row, arguments, expected) in [
         ("none", vec![], "temper open: usage: temper open DIRECTORY LINK_OR_ADDRESS\n"),
