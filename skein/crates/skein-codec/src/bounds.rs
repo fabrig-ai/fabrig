@@ -71,6 +71,25 @@ impl Frame {
     const fn new(at: u32) -> Self {
         Self { at, next: 0, sum: Bounds { encoded: 0, decoded: 0 } }
     }
+
+    fn add(&mut self, parent: Node, value: Bounds) -> Option<()> {
+        match parent {
+            Node::Enum { .. } => {
+                self.sum.encoded = self.sum.encoded.max(value.encoded);
+                self.sum.decoded = self.sum.decoded.max(value.decoded);
+            }
+            Node::Scalar(_)
+            | Node::Bytes { .. }
+            | Node::List { .. }
+            | Node::Option { .. }
+            | Node::Boxed { .. }
+            | Node::Record { .. } => {
+                self.sum.encoded = self.sum.encoded.checked_add(value.encoded)?;
+                self.sum.decoded = self.sum.decoded.checked_add(value.decoded)?;
+            }
+        }
+        Some(())
+    }
 }
 
 /// What a walk has finished: for each node up to the declaration, one more than
@@ -104,51 +123,37 @@ impl Memo {
     }
 }
 
-fn evaluate(nodes: &[Node], limits: &[u32], at: u32, memo: &mut Memo) -> Option<Bounds> {
-    let mut stack = Stack::with_capacity(u32::try_from(nodes.len()).ok()?);
+fn evaluate(nodes: &[Node], limits: &[u32], at: u32, memo: &mut Memo, stack: &mut Stack<Frame>) -> Option<Bounds> {
+    if let Some(value) = memo.get(at) {
+        return Some(value);
+    }
     stack.push(Frame::new(at)).ok()?;
-    // Each step finishes a reached node or advances one of its edges. Edges
-    // strictly descend, so stack depth and memo size are bounded by the table.
-    while let Some(mut frame) = stack.pop() {
-        if memo.get(frame.at).is_some() {
-            continue;
-        }
+    // Keep unfinished parents in place. Only an edge to an uncached child
+    // pushes a frame; strictly descending edges bound the depth by the table.
+    while let Some(frame) = stack.top_mut() {
         let node = *nodes.get(usize::try_from(frame.at).ok()?)?;
         if let Some(child) = node.child(frame.next) {
             if child >= frame.at {
                 return None;
             }
-            match memo.get(child) {
-                Some(value) => {
-                    match node {
-                        Node::Enum { .. } => {
-                            frame.sum.encoded = frame.sum.encoded.max(value.encoded);
-                            frame.sum.decoded = frame.sum.decoded.max(value.decoded);
-                        }
-                        Node::Scalar(_)
-                        | Node::Bytes { .. }
-                        | Node::List { .. }
-                        | Node::Option { .. }
-                        | Node::Boxed { .. }
-                        | Node::Record { .. } => {
-                            frame.sum.encoded = frame.sum.encoded.checked_add(value.encoded)?;
-                            frame.sum.decoded = frame.sum.decoded.checked_add(value.decoded)?;
-                        }
-                    }
-                    frame.next = frame.next.checked_add(1)?;
-                    stack.push(frame).ok()?;
-                }
-                None => {
-                    stack.push(frame).ok()?;
-                    stack.push(Frame::new(child)).ok()?;
-                }
+            frame.next = frame.next.checked_add(1)?;
+            if let Some(value) = memo.get(child) {
+                frame.add(node, value)?;
+            } else {
+                stack.push(Frame::new(child)).ok()?;
             }
         } else {
             let value = node.finish(frame.sum, limits)?;
             memo.insert(frame.at, value)?;
+            stack.pop()?;
+            // Finish the parent's edge with the result just computed, instead
+            // of visiting that edge again to retrieve it from the memo.
+            let Some(parent) = stack.top_mut() else { return Some(value) };
+            let node = *nodes.get(usize::try_from(parent.at).ok()?)?;
+            parent.add(node, value)?;
         }
     }
-    memo.get(at)
+    None
 }
 
 fn valid(limits: &[u32], ceilings: &[u32]) -> Option<()> {
@@ -168,7 +173,8 @@ fn valid(limits: &[u32], ceilings: &[u32]) -> Option<()> {
 pub fn declaration(nodes: &[Node], limits: &[u32], ceilings: &[u32], at: u32) -> Option<Bounds> {
     valid(limits, ceilings)?;
     let mut memo = Memo::new(nodes, at)?;
-    evaluate(nodes, limits, at, &mut memo)
+    let mut stack = Stack::with_capacity(u32::try_from(nodes.len()).ok()?);
+    evaluate(nodes, limits, at, &mut memo, &mut stack)
 }
 
 /// The maxima among a family's declarations, checking its limits once.
@@ -176,9 +182,10 @@ pub fn declaration(nodes: &[Node], limits: &[u32], ceilings: &[u32], at: u32) ->
 pub fn family(nodes: &[Node], limits: &[u32], ceilings: &[u32], declarations: &[u32]) -> Option<Bounds> {
     valid(limits, ceilings)?;
     let mut memo = Memo::new(nodes, declarations.iter().copied().max().unwrap_or(0))?;
+    let mut stack = Stack::with_capacity(u32::try_from(nodes.len()).ok()?);
     let mut result = Bounds { encoded: 0, decoded: 0 };
     for at in declarations {
-        let value = evaluate(nodes, limits, *at, &mut memo)?;
+        let value = evaluate(nodes, limits, *at, &mut memo, &mut stack)?;
         result.encoded = result.encoded.max(value.encoded);
         result.decoded = result.decoded.max(value.decoded);
     }

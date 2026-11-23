@@ -15,7 +15,7 @@ use jig_test_domain as root;
 use jig_test_store::{StoreOut, Up};
 use jig_test_system::{Fault, System};
 use skein_lib::{Duration, Env, Queue, ReplyTo, Time, Token, Wall};
-use std::collections::VecDeque;
+use std::{collections::VecDeque, rc::Rc};
 mod admission;
 mod constructors;
 mod sweep;
@@ -112,6 +112,8 @@ pub struct AssignedTranscript {
     pub turns: Box<[Box<[u8]>]>,
 }
 
+type HoldKinds = Vec<(u16, Box<[tasks::Kind]>)>;
+
 /// Root, store and separate systems, with an answer channel that may disappear.
 #[derive(Debug)]
 #[expect(clippy::struct_excessive_bools, reason = "independently held peer traffic and crash cuts")]
@@ -131,10 +133,11 @@ pub struct World {
     /// Policy and counts for this run's cold store checks.
     pub store_checks: StoreChecks,
     pub(crate) store_checks_reported: bool,
+    kept_check: Option<store_check::Rehearsal>,
     restart_check: Option<(u64, bool)>,
     iteration: u64,
     inspections: u64,
-    pub(crate) restart_config: (root::Config, root::Limits),
+    pub(crate) restart_config: (Rc<root::Config>, root::Limits),
     startup: Option<fn(&mut root::Domain)>,
     fixture_rows: Box<[root::Record]>,
     pub domain: root::Domain,
@@ -262,7 +265,7 @@ pub struct World {
     sweep: Vec<Cut>,
     fork_child: Option<Cut>,
     case_child: bool,
-    hold_kinds: Vec<(u16, Box<[tasks::Kind]>)>,
+    hold_kinds: Rc<HoldKinds>,
     wall: u64,
     wall_lag: u64,
     supplied_wall: Option<Wall>,

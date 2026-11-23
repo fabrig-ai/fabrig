@@ -162,7 +162,7 @@ impl World {
 
     /// Install the connector's fixed hold vocabulary, retained across cold starts.
     pub fn configure_holds(&mut self, connector: u16, kinds: Box<[tasks::Kind]>) {
-        self.hold_kinds.push((connector, kinds.clone()));
+        super::Rc::make_mut(&mut self.hold_kinds).push((connector, kinds.clone()));
         self.send(root::Event::Core(core::Event::Tasks(tasks::Event::Kinds { connector, kinds })));
     }
 
@@ -253,7 +253,7 @@ impl World {
         for worker in &mut config.core.defaults.workers {
             worker.places = self.limits.core.fleet.slots;
         }
-        self.restart_config = (crate::oracle::configuration(&config), self.limits);
+        self.restart_config = (super::Rc::new(crate::oracle::configuration(&config)), self.limits);
         self.restart_configured(config)
     }
 
@@ -300,8 +300,9 @@ impl World {
         if let Some(setup) = self.startup {
             setup(&mut self.domain);
         }
-        for (connector, kinds) in self.hold_kinds.clone() {
-            self.domain.configure_holds(&self.env(), connector, kinds);
+        let env = self.env();
+        for (connector, kinds) in self.hold_kinds.iter() {
+            self.domain.configure_holds(&env, *connector, kinds.clone());
         }
         self.events.clear();
         self.internal_reads.clear();

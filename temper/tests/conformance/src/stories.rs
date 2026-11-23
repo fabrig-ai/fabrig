@@ -526,5 +526,6 @@ pub fn run(story: Story, cut: Cut, seed: u64) -> Result<Outcome, Violation> {
         })
     })?;
     crate::oracle::close(&mut world)?;
+    world.finish()?;
     Ok(world.outcome())
 }

@@ -100,6 +100,26 @@ impl Limits {
     }
 }
 
+/// Limits whose derived codec bounds were checked once (protocol/store/README.md, 8).
+#[derive(Clone, Copy, Debug)]
+pub struct CheckedLimits {
+    limits: Limits,
+    codec: codec::View,
+}
+
+impl CheckedLimits {
+    #[must_use]
+    pub fn new(limits: &Limits) -> Option<Self> {
+        let codec = limits.codec_view()?;
+        if valid_with_codec(limits, &codec) { Some(Self { limits: *limits, codec }) } else { None }
+    }
+
+    #[must_use]
+    pub fn limits(&self) -> &Limits {
+        &self.limits
+    }
+}
+
 /// Stores made by the caller, kept across a world's crash (protocol/store/README.md, 9).
 #[derive(Debug)]
 pub struct Stores {
@@ -262,9 +282,25 @@ impl Store {
         limits: &Limits,
         application: sizes::Application,
         models: &[jig_domain_core_vocabulary::Model],
+        stores: Stores,
+    ) -> Store {
+        Self::over_checked(
+            &CheckedLimits::new(limits).expect("the store's limits are valid"),
+            application,
+            models,
+            stores,
+        )
+    }
+
+    /// A component over open stores, reusing the checked bounds without deriving them again.
+    #[must_use]
+    pub fn over_checked(
+        checked: &CheckedLimits,
+        application: sizes::Application,
+        models: &[jig_domain_core_vocabulary::Model],
         mut stores: Stores,
     ) -> Store {
-        let codec_limits = checked_codec(limits).expect("the store's limits are valid");
+        let limits = checked.limits();
         stores.store.forget_reads();
         stores.secrets.forget_reads();
         let census = Box::new(census::State::new());
@@ -280,7 +316,7 @@ impl Store {
             runtime_started: false,
             startup_setting: None,
             application,
-            codec_limits,
+            codec_limits: checked.codec,
             stock_core: None,
             read_failure: None,
             registry: Box::new(registry::Layouts::new()),
@@ -312,11 +348,28 @@ impl Store {
         limits: &Limits,
         application: sizes::Application,
         models: &[jig_domain_core_vocabulary::Model],
+        seeded: Seeded,
+    ) -> Store {
+        Self::on_directory_checked(
+            &CheckedLimits::new(limits).expect("the store's limits are valid"),
+            application,
+            models,
+            seeded,
+        )
+    }
+
+    /// A directory component with its bounds already checked. Open and admission still run normally.
+    #[must_use]
+    pub fn on_directory_checked(
+        checked: &CheckedLimits,
+        application: sizes::Application,
+        models: &[jig_domain_core_vocabulary::Model],
         _seeded: Seeded,
     ) -> Store {
+        let limits = checked.limits();
         let stores =
             Stores { store: skein_kv::Store::new(&limits.store), secrets: skein_kv::Store::new(&limits.secrets) };
-        let mut store = Store::over(limits, application, models, stores);
+        let mut store = Self::over_checked(checked, application, models, stores);
         store.directory.disk = true;
         store
     }
@@ -455,13 +508,7 @@ pub struct PatchPage {
 /// is finite and every capacity they derive fits (programming-model.md, 6.3).
 #[must_use]
 pub fn valid(limits: &Limits) -> bool {
-    checked_codec(limits).is_some()
-}
-
-// Validate and retain one family mapping for both admission and the live store (protocol/store/README.md, 8).
-fn checked_codec(limits: &Limits) -> Option<codec::View> {
-    let codec = limits.codec_view()?;
-    if valid_with_codec(limits, &codec) { Some(codec) } else { None }
+    CheckedLimits::new(limits).is_some()
 }
 
 fn valid_with_codec(limits: &Limits, codec: &codec::View) -> bool {
