@@ -43,6 +43,7 @@ mod outbox_room;
 mod panel;
 mod playground;
 mod projection;
+pub(crate) mod read_line;
 pub(crate) mod reconcile;
 pub(crate) mod records;
 pub(crate) mod reds;

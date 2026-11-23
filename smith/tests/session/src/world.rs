@@ -855,7 +855,11 @@ impl World {
                 );
                 session.priced += 1;
             }
-            agent::Request::JobsCancelled { .. } | agent::Request::Yield { .. } => {}
+            agent::Request::JobsCancelled { .. }
+            | agent::Request::Yield { .. }
+            | agent::Request::RateLimitWait { .. }
+            | agent::Request::RateLimitWaitDone { .. }
+            | agent::Request::RateLimitOutlastsSession { .. } => {}
             agent::Request::Opened { opener, session } => self.opened(opener.raw(), session),
             agent::Request::Yielded { opener, stop, text } => self.yielded(opener.raw(), stop, text),
             agent::Request::Used { opener, usage } => {
@@ -1810,6 +1814,13 @@ fn describe_agent_request(request: &agent::Request) -> String {
         agent::Request::Used { opener, usage, .. } => format!("used {} {usage:?}", opener.raw()),
         agent::Request::Ended { opener, end, turns, usage, .. } => {
             format!("ended {} {end:?} after {turns} turns, {usage:?}", opener.raw())
+        }
+        agent::Request::RateLimitWait { opener, until } => {
+            format!("rate limit wait {} until {}", opener.raw(), until.as_nanos())
+        }
+        agent::Request::RateLimitWaitDone { opener } => format!("rate limit wait done {}", opener.raw()),
+        agent::Request::RateLimitOutlastsSession { opener, retry_after } => {
+            format!("rate limit outlasts session {} by reset in {retry_after:?}", opener.raw())
         }
         agent::Request::Complete { owner, prompt, deadlines, .. } => {
             let (messages, most) = (prompt.messages.len(), prompt.max_tokens);
