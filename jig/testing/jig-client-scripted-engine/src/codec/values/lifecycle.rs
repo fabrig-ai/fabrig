@@ -1,28 +1,25 @@
 //! Wire projections of attempts and holds (client/domain/testing.md, 4).
 use super::super::{c, facts, w};
 use super::{wire_hold_category, wire_part, wire_prior_phase, wire_run_end};
-pub(in crate::codec) fn wire_attempt_line(
-    value: &c::AttemptLine,
-    limits: &w::Limits,
-) -> Result<w::AttemptLine, w::Problem> {
-    Ok(w::AttemptLine {
+pub(in crate::codec) fn wire_attempt_line(value: &c::AttemptLine) -> w::AttemptLine {
+    w::AttemptLine {
         task: value.task,
         attempt: value.attempt,
         claimed: value.claimed.map(skein_lib::Wall::as_nanos),
         started: value.started.map(skein_lib::Wall::as_nanos),
         ended: value.ended.map(skein_lib::Wall::as_nanos),
-        end: value.end.as_ref().map(|item| wire_run_end(item, limits)).transpose()?,
+        end: value.end.as_ref().map(wire_run_end),
         phases: value.phases,
-    })
+    }
 }
 pub(in crate::codec) fn wire_hold_line(value: &c::HoldLine, limits: &w::Limits) -> Result<w::HoldLine, w::Problem> {
     Ok(w::HoldLine {
         task: value.task,
         position: value.position,
         at: value.at.as_nanos(),
-        before: wire_prior_phase(&value.before, limits)?,
-        why: wire_hold_category(&value.why, limits)?,
-        source: value.source.as_ref().map(|item| wire_part(item, limits)).transpose()?,
+        before: wire_prior_phase(&value.before),
+        why: wire_hold_category(&value.why),
+        source: value.source.as_ref().map(wire_part),
         ending: value.ending.as_ref().map(|item| facts::chip_ending(item, limits)).transpose()?,
     })
 }
