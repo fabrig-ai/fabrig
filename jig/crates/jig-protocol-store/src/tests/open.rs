@@ -31,7 +31,12 @@ const LARGE_RESULT_BYTES: u32 = 2048;
 fn a_store_opens_with_result_bytes_above_the_verdict_field_ceiling() {
     let mut limits = fixtures::store_limits();
     limits.core.tasks.result_bytes = LARGE_RESULT_BYTES;
-    let mut store = Store::over(&limits, fixtures::APPLICATION, &[], fixtures::stores());
+    let mut store = Store::over(
+        &crate::check(&limits).expect("fixture store limits"),
+        fixtures::APPLICATION,
+        &[],
+        fixtures::stores(),
+    );
     assert_opened(&open(&mut store), 0);
 }
 

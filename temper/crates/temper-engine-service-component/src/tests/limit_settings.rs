@@ -48,7 +48,8 @@ pub(super) fn item(name: &[u8], value: u64) -> s::Override {
 }
 fn opening(inputs: &LimitInputs, kept: Option<jig_protocol_store::Stores>) -> Store {
     let mut store = Store::for_limits(inputs, &[]).unwrap();
-    let limits = store.opening_limits();
+    let checked = store.host.component.checked();
+    let limits = checked.limits();
     let (jig, own) = inputs.stock().unwrap();
     let root = crate::limits::engine(&jig, &own).unwrap();
     let application = temper_protocol_store::application(&root.forge, root.tasks.spec_bytes).unwrap();
@@ -56,7 +57,7 @@ fn opening(inputs: &LimitInputs, kept: Option<jig_protocol_store::Stores>) -> St
         store: skein_kv::Store::memory(&limits.store),
         secrets: skein_kv::Store::memory(&limits.secrets),
     });
-    store.host.component = jig_protocol_store::Store::over(&limits, application, &[], kept);
+    store.host.component = jig_protocol_store::Store::over(&checked, application, &[], kept);
     store.host.ask(jig_protocol_store::Request::Open {
         purpose: jig_protocol_store::Purpose::Serve,
         owner: Token::new(1),

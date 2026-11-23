@@ -1225,7 +1225,7 @@ pub fn restoring_with_opening_limits(
     given: &crate::stock::Given,
     jig: &config::Limits,
     own: &crate::limits::Limits,
-    opening: Option<&jig_protocol_store::CheckedLimits>,
+    opening: Option<&jig_protocol_store::Checked>,
 ) -> Result<Service, Problems> {
     let CheckedStart { engine, io, forges, .. } = checked_start_with_limits(
         document,

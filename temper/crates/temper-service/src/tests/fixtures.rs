@@ -559,25 +559,26 @@ pub fn start_with_store(projects: &[(u32, u64)], stored: Option<crate::store::St
 }
 
 struct ForgeSeed {
-    limits: jig_protocol_store::Limits,
+    checked: jig_protocol_store::Checked,
     application: jig_protocol_store::sizes::Application,
     models: Box<[jig_domain_core::Model]>,
 }
 impl ForgeSeed {
     fn new(root: &temper_engine_domain::Limits, config: &jig_protocol_config::Engine) -> Self {
         Self {
-            limits: crate::store::limits(root, &root.forge, &config.limits.store).unwrap(),
+            checked: crate::store::limits(root, &root.forge, &config.limits.store).unwrap(),
             application: temper_protocol_store::application(&root.forge, root.tasks.spec_bytes).unwrap(),
             models: jig_protocol_config::core(config, [7; 16], 7).settings.models,
         }
     }
     fn component(&self, maps: jig_protocol_store::Stores) -> jig_protocol_store::Store {
-        jig_protocol_store::Store::over(&self.limits, self.application, &self.models, maps)
+        jig_protocol_store::Store::over(&self.checked, self.application, &self.models, maps)
     }
     fn empty(&self) -> jig_protocol_store::Store {
+        let limits = self.checked.limits();
         self.component(jig_protocol_store::Stores {
-            store: skein_kv::Store::memory(&self.limits.store),
-            secrets: skein_kv::Store::memory(&self.limits.secrets),
+            store: skein_kv::Store::memory(&limits.store),
+            secrets: skein_kv::Store::memory(&limits.secrets),
         })
     }
 }
@@ -658,11 +659,12 @@ pub fn memory_store_for(
     models: &[jig_domain_core::Model],
 ) -> crate::store::Store {
     use jig_protocol_store::host::{Hosted, NotReady};
-    let limits = crate::store::limits(root, &root.forge, profile).unwrap();
+    let checked = crate::store::limits(root, &root.forge, profile).unwrap();
+    let limits = checked.limits();
     let application = temper_protocol_store::application(&root.forge, root.tasks.spec_bytes).unwrap();
-    let mut host = Hosted::new(&limits, application, models, 7, NotReady::InPass);
+    let mut host = Hosted::new(&checked, application, models, 7, NotReady::InPass);
     host.component = jig_protocol_store::Store::over(
-        &limits,
+        &checked,
         application,
         models,
         jig_protocol_store::Stores {
@@ -682,7 +684,7 @@ pub fn memory_store_for(
     };
     // This fixture handoff does not consume the census (jig jig/docs/design/protocol/store/growth.md, 1.3).
     let Some(jig_protocol_store::Event::Census { .. }) = host.above.pop() else { panic!("opened census") };
-    crate::store::Store::new(root, &limits, models, &seeds()).on_opened(host.component, installation, pending)
+    crate::store::Store::new(root, &checked, models, &seeds()).on_opened(host.component, installation, pending)
 }
 pub fn keep_forge(service: &mut crate::Service, record: temper_engine_domain_forge::ForgeRecord) {
     service.engine_component().restore_forge(record);

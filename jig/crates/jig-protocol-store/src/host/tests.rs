@@ -27,7 +27,12 @@ impl World {
         let pid = sim.spawn_process();
         let fd = sim.root(pid, Handle::new(handle.raw()));
         let host = Drivers::new(&fixtures::store_limits(), 1);
-        let store = Store::on_directory(&fixtures::store_limits(), fixtures::APPLICATION, &[], host.seeded());
+        let store = Store::on_directory(
+            &crate::check(&fixtures::store_limits()).expect("fixture store limits"),
+            fixtures::APPLICATION,
+            &[],
+            host.seeded(),
+        );
         Self { host, store, machine, sim, pid, fd, above: Queue::uncapped() }
     }
     fn adopt(&mut self) {
@@ -95,7 +100,7 @@ fn adoption_modes_open_rehearse_and_go_back_without_an_implicit_open() {
     let scratch = world.machine.lay(&[]);
     let scratch = world.sim.root(world.pid, Handle::new(scratch.raw()));
     world.host = Drivers::new(&fixtures::store_limits(), 2);
-    world.store = Store::on_directory(&fixtures::store_limits(), fixtures::APPLICATION, &[], world.host.seeded());
+    world.store = Store::on_directory(&world.store.checked(), fixtures::APPLICATION, &[], world.host.seeded());
     world
         .host
         .adopt_mode(
@@ -123,7 +128,7 @@ fn adoption_modes_open_rehearse_and_go_back_without_an_implicit_open() {
     let source = world.machine.reopen_root(0);
     world.fd = world.sim.root(world.pid, Handle::new(source.raw()));
     world.host = Drivers::new(&fixtures::store_limits(), 3);
-    world.store = Store::on_directory(&fixtures::store_limits(), fixtures::APPLICATION, &[], world.host.seeded());
+    world.store = Store::on_directory(&world.store.checked(), fixtures::APPLICATION, &[], world.host.seeded());
     world.host.adopt_mode(world.fd, 0, Token::new(41), fixtures::INSTALLATION, super::Adoption::Back).unwrap();
     world.settle();
     let Some(Event::BackRefused { why: crate::BackRefusal::NoPrevious, .. }) = world.above.pop() else {
@@ -150,7 +155,7 @@ fn a_commit_waits_for_its_driver_and_is_recovered_after_close() {
     let handle = world.machine.reopen_root(0);
     world.fd = world.sim.root(world.pid, Handle::new(handle.raw()));
     world.host = Drivers::new(&fixtures::store_limits(), 2);
-    world.store = Store::on_directory(&fixtures::store_limits(), fixtures::APPLICATION, &[], world.host.seeded());
+    world.store = Store::on_directory(&world.store.checked(), fixtures::APPLICATION, &[], world.host.seeded());
     world.adopt();
     world.settle();
     let Some(Event::Opened { last: 1, .. }) = world.above.pop() else { panic!("committed map recovers") };
@@ -219,7 +224,13 @@ fn failed_adoption_answers_once_and_can_still_close() {
 fn a_get_not_ready_follows_its_value() {
     const OWNER: Token = Token::new(9);
     for (not_ready, in_pass) in [(NotReady::InPass, true), (NotReady::Above, false)] {
-        let mut hosted = Hosted::new(&fixtures::store_limits(), fixtures::APPLICATION, &[], 1, not_ready);
+        let mut hosted = Hosted::new(
+            &crate::check(&fixtures::store_limits()).expect("fixture store limits"),
+            fixtures::APPLICATION,
+            &[],
+            1,
+            not_ready,
+        );
         let answer = hosted.secrets(OWNER, crate::Secrets::Get { owner: crate::SecretOwner::SignIn, number: 1 });
         assert_eq!(answer.is_some(), in_pass);
         assert_eq!(hosted.above.is_empty(), in_pass);
@@ -232,7 +243,13 @@ fn a_get_not_ready_follows_its_value() {
 
 #[test]
 fn debug_of_the_hosted_store_counts_its_terminals() {
-    let mut hosted = Hosted::new(&fixtures::store_limits(), fixtures::APPLICATION, &[], 1, NotReady::InPass);
+    let mut hosted = Hosted::new(
+        &crate::check(&fixtures::store_limits()).expect("fixture store limits"),
+        fixtures::APPLICATION,
+        &[],
+        1,
+        NotReady::InPass,
+    );
     hosted.above.push(Event::Secret {
         owner: Token::new(9),
         value: Some(crate::SecretValue::Digest { expiry: 0, digest: [171; 32] }),
@@ -339,7 +356,7 @@ fn a_registry_upgrade_without_a_logs_directory_opens() {
     let handle = world.machine.reopen_root(0);
     world.fd = world.sim.root(world.pid, Handle::new(handle.raw()));
     world.host = Drivers::new(&fixtures::store_limits(), 2);
-    world.store = Store::on_directory(&fixtures::store_limits(), fixtures::APPLICATION, &[], world.host.seeded());
+    world.store = Store::on_directory(&world.store.checked(), fixtures::APPLICATION, &[], world.host.seeded());
     world.store.owner_sets(crate::OwnerSets {
         sets: &[crate::OwnerSet { families: &[crate::KeptFamily { current: CURRENT, ..FAMILY }], ..SET }],
     });

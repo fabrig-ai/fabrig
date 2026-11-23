@@ -297,7 +297,28 @@ terminal client, the captures and the faults.
     default branch without green CI, and a run's change is the tree its
     agent left;
   - no git identity's value or API token in a domain's state, a store
-    record or an agent process's environment.
+    record or an agent process's environment;
+  - the observer of saved artifacts (`scenarios.md`, 1.2): each value
+    the fakes issue (the App key, its DER, its body and each of its
+    lines of 32 bytes or more; each installation token and its
+    `x-access-token:` credential), in its bytes, its Debug forms and
+    base64, is absent from every window the observer keeps. A window
+    is an artifact and its name; an append, with as many bytes before
+    it as the longest value it is checked for, less one; a stream's new
+    bytes, with as many before them as the longest value, less one; a
+    stream's earlier bytes, for the values issued since; and, at the
+    close, every public file, its name and its turns' bodies. Each
+    window is checked at a checkpoint for the values issued since it
+    was last checked, a token issued after a checkpoint against every
+    byte saved before it. A finding names the kind of the
+    earliest-issued value found and the surface, never the value.
+    Each window is matched against all its values in one pass, by one
+    automaton over each value's first bytes, and the whole value is
+    compared where they are found: an automaton over whole values is
+    built again at each issued token and walked through every value's
+    bytes, and a matcher per group of values or a finder per value
+    cost more (`temper/docs/development/limits-worlds.md`, *Causes
+    found and left*).
 - **Budget:** a story aims at 2 s (`checks.md`, 1); sweeps of drawn kills are fuzzy
   tests. The upgrade module's tests are placed as `../protocol/floor.md`, 7
   lists.

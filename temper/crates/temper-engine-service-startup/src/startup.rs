@@ -184,14 +184,14 @@ pub fn deployment_store(
     };
     let root = engine_limits(&mut jig, &own, None)?;
     let store = checked_store(&root, &jig.store, None)?;
-    Ok(StoreLimits { store, forge: root.forge })
+    Ok(StoreLimits { store: *store.limits(), forge: root.forge })
 }
 
 pub fn checked_store(
     root: &temper_engine_domain::Limits,
     profile: &jig_protocol_store::Limits,
     turn: Option<u32>,
-) -> Result<jig_protocol_store::Limits, Problems> {
+) -> Result<jig_protocol_store::Checked, Problems> {
     match crate::store::admit(root, &root.forge, profile, turn) {
         Ok(store) => Ok(store),
         Err(why) => Err(checks::store_refusal(why)),

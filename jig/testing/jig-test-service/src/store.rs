@@ -25,7 +25,7 @@ pub(super) struct Store {
     pub(super) models: Box<[jig_domain_core::Model]>,
 }
 
-pub(super) fn limits(root: &root::Limits, profile: &protocol::Limits) -> Option<protocol::Limits> {
+pub(super) fn limits(root: &root::Limits, profile: &protocol::Limits) -> Option<protocol::Checked> {
     let mut kv = profile.store;
     kv.value = kv.value.max(protocol::sizes::settings_value(&root.core)?);
     kv.page.bytes = kv.page.bytes.max(kv.key.checked_add(kv.value)?);
@@ -56,12 +56,12 @@ pub(super) fn limits(root: &root::Limits, profile: &protocol::Limits) -> Option<
     };
     protocol::sizes::whole(max_whole(&limits)).ok()?;
     check_read_page(&limits)?;
-    Some(limits)
+    protocol::check(&limits)
 }
 impl Store {
     pub(super) fn new(
         application: &root::Limits,
-        limits: &protocol::Limits,
+        checked: &protocol::Checked,
         models: &[jig_domain_core::Model],
         installation: [u8; 16],
         seed: u64,
@@ -69,9 +69,9 @@ impl Store {
         // Route correlations grow with admitted work, without reserving an output envelope.
         let mut routes = route::Routes::new(u32::MAX);
         routes.configure(application);
-        routes.configure_restore(limits).expect("restart page bounds fit");
+        routes.configure_restore(checked.limits()).expect("restart page bounds fit");
         let host =
-            Hosted::new(limits, jig_test_store::application(&application.connector), models, seed, NotReady::InPass);
+            Hosted::new(checked, jig_test_store::application(&application.connector), models, seed, NotReady::InPass);
         Self {
             host,
             routes,
@@ -312,8 +312,9 @@ mod sizing_tests {
     fn drivers_read_a_whole_page_in_every_admitted_store() {
         for profile in [jig_protocol_config_fixtures::small(), jig_protocol_config::stock()] {
             let configured = crate::limits::small(&profile);
-            let limits = super::limits(&configured.root, &configured.store).expect("admitted profile");
-            assert!(max_read(&limits) >= limits.store.page.bytes);
+            let checked = super::limits(&configured.root, &configured.store).expect("admitted profile");
+            let limits = checked.limits();
+            assert!(max_read(limits) >= limits.store.page.bytes);
         }
     }
 }

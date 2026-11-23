@@ -377,6 +377,15 @@ Moved to [`growth.md`](growth.md), section 1.
   raises its page raises its drivers' read with it.
 - **Checked whole at startup** with the root's and every component's
   (`../limits.md`).
+- **Checked once:** `check` gives the check's result, `Checked`: the
+  limits with the codec view derived from them; `runtime_limits` gives
+  the runtime one, its turn's transcript bound narrowed. The component
+  is made over one (`Store::over`, `Store::on_directory`,
+  `host::Hosted::new`) and derives no bound again, and an install takes
+  the runtime check's view as it is. A reopen over the same maps at the
+  same limits takes the `Checked` the first component was made over; one
+  at other limits is checked afresh. `Store::checked` gives the one in
+  force.
 
 `jig_protocol_store::host` hosts the three file drivers around the store for any engine: the drivers, their kernel hand-offs and their adoption and close. An application's service routes its own keys and records to it and writes no driver of its own.
 

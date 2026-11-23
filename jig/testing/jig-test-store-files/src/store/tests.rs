@@ -138,12 +138,12 @@ fn readback_discovers_actual_inventory_without_changing_the_mirror() {
     assert_eq!(store.retained().expect("complete readback"), before, "readers write and erase nothing");
     assert_eq!(store.applied, 1);
     assert!(
-        before.contains_key(&jig_protocol_store::keys::installation(store.component_limits.store.key).expect("key"))
+        before.contains_key(&jig_protocol_store::keys::installation(store.checked.limits().store.key).expect("key"))
     );
     for own in [jig_protocol_store::keys::Own::Format, jig_protocol_store::keys::Own::Wires] {
         assert!(
             before.contains_key(
-                &jig_protocol_store::keys::encode_own(&own, store.component_limits.store.key).expect("key")
+                &jig_protocol_store::keys::encode_own(&own, store.checked.limits().store.key).expect("key")
             )
         );
     }
@@ -445,7 +445,7 @@ fn readback_rejects_unread_transcript_after_a_successful_prefix() {
             owner: Token::new(0),
             read: jig_protocol_store::TranscriptRead::Page { task: 1, backwards: false, after: None },
             rows: 2,
-            bytes: u64::from(store.component_limits.store.page.bytes),
+            bytes: u64::from(store.checked.limits().store.page.bytes),
         })
         .expect("prefix page");
     let jig_protocol_store::Event::Turns { turns, next: Some(offset), .. } = event else { panic!("prefix page") };

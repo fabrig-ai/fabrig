@@ -1,5 +1,5 @@
 //! A cold copy with no typed mirror, submissions or pending requests.
-use super::{CheckedLimits, Files, Limits, Store, Stores, protocol, root, route};
+use super::{Files, Store, Stores, protocol, root, route};
 use crate::disk::Disk;
 use skein_fake_machine::Machine;
 use std::{fmt, rc::Rc};
@@ -8,8 +8,7 @@ use std::{fmt, rc::Rc};
 pub struct StoreImage {
     storage: Storage,
     limits: root::Limits,
-    component_limits: Limits,
-    checked_limits: CheckedLimits,
+    checked: protocol::Checked,
     application: protocol::sizes::Application,
     routes: route::Routes,
     models: Rc<[jig_domain_core::Model]>,
@@ -41,8 +40,7 @@ impl Store {
         StoreImage {
             storage,
             limits: self.limits,
-            component_limits: self.component_limits,
-            checked_limits: self.checked_limits,
+            checked: self.checked,
             application: self.application,
             routes: self.routes.fresh(),
             models: Rc::clone(&self.models),
@@ -56,18 +54,13 @@ impl StoreImage {
     pub(super) fn shell(self) -> Store {
         let (component, files, disk) = match self.storage {
             Storage::Directory(machine) => {
-                let disk = Disk::from_image(&self.component_limits, machine);
-                let component = protocol::Store::on_directory_checked(
-                    &self.checked_limits,
-                    self.application,
-                    &self.models,
-                    disk.seeded(),
-                );
+                let disk = Disk::from_image(self.checked.limits(), machine);
+                let component =
+                    protocol::Store::on_directory(&self.checked, self.application, &self.models, disk.seeded());
                 (component, Files::new(), Some(disk))
             }
             Storage::Memory { stores, files } => {
-                let component =
-                    protocol::Store::over_checked(&self.checked_limits, self.application, &self.models, *stores);
+                let component = protocol::Store::over(&self.checked, self.application, &self.models, *stores);
                 (component, Files::from_image(files), None)
             }
         };
@@ -78,7 +71,6 @@ impl StoreImage {
             component,
             files,
             disk,
-            &self.checked_limits,
             self.application,
             self.routes,
         );

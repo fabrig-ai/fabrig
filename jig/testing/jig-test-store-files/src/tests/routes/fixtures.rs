@@ -59,7 +59,12 @@ fn build_component() -> Component {
     let kv = limits.store;
     let stores =
         jig_protocol_store::Stores { store: skein_kv::Store::memory(&kv), secrets: skein_kv::Store::memory(&kv) };
-    let store = jig_protocol_store::Store::over(&limits, jig_test_store::application(&root.connector), &[], stores);
+    let store = jig_protocol_store::Store::over(
+        &jig_protocol_store::check(&limits).expect("route fixture limits"),
+        jig_test_store::application(&root.connector),
+        &[],
+        stores,
+    );
     let mut component = Component { store, files: crate::Files::new(), limits };
     let root = component.files.root();
     let mut above = skein_lib::Queue::uncapped();

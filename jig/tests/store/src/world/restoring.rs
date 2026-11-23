@@ -11,7 +11,7 @@ impl World {
     /// Run a stopped adoption; callers stop first and reopen through the ordinary world's path afterwards.
     pub fn stopped_adoption(&mut self, mode: Adoption, fail_at: Option<u32>) -> Vec<Event> {
         let mut drivers = Drivers::new(&self.env.limits, self.starts);
-        self.store = Store::on_directory(&self.env.limits, root::APPLICATION, &[], drivers.seeded());
+        self.store = Store::on_directory(&self.store.checked(), root::APPLICATION, &[], drivers.seeded());
         self.store.owner_sets(self.sets);
         drivers.adopt_mode(self.root.fd, 0, Token::new(987), self.drawn, mode).expect("stopped adoption");
         self.operations = 0;

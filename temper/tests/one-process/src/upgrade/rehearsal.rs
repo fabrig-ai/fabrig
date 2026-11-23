@@ -115,7 +115,7 @@ impl Inputs {
     fn service(
         &self,
         given: &temper_service::stock::Given,
-        opening: Option<&jig_protocol_store::CheckedLimits>,
+        opening: Option<&jig_protocol_store::Checked>,
     ) -> temper_service::Service {
         let mut runtime = temper_service::AccountsRuntime { providers: List::with_capacity(2), trust: None };
         for &provider in &self.providers {
@@ -170,7 +170,7 @@ pub(crate) fn check(
     settings: crate::world::Settings,
     inputs: &Inputs,
     given: &temper_service::stock::Given,
-    opening: Option<&jig_protocol_store::CheckedLimits>,
+    opening: Option<&jig_protocol_store::Checked>,
 ) -> Result<(), String> {
     let outcome = tool_world(machine::Machine(disk.0.clone()), settings, inputs.service(given, opening)).try_run()?;
     let [tool] = outcome.procs.as_slice() else { panic!("one upgrade tool") };

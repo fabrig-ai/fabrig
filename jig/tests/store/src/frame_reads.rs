@@ -66,7 +66,8 @@ pub fn closed(sets: OwnerSets, limits: &store::Limits) -> (store::Store, Env<sto
         &mut above,
         &mut below,
     );
-    let mut component = store::Store::over(limits, root::APPLICATION, &[], maps);
+    let mut component =
+        store::Store::over(&store::check(limits).expect("frame fixture limits"), root::APPLICATION, &[], maps);
     component.owner_sets(sets);
     (component, env(limits))
 }
