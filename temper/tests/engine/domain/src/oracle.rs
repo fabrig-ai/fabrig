@@ -19,6 +19,7 @@ use jig_domain_tasks as tasks;
 use skein_lib::{ReplyTo, Token};
 use std::{borrow::Cow, collections::BTreeMap};
 use temper_engine_domain::{self as engine, Delivery, Key, Record};
+use temper_engine_domain_forge::Document as ForgeDocument;
 
 /// The one inventory of rows rebuilt by startup, with the step's reason.
 #[must_use]
@@ -35,6 +36,17 @@ pub fn rebuilt(key: &Key) -> Option<&'static str> {
     } else {
         None
     }
+}
+
+/// The unprojected readback of a successful closing restart, when requested.
+#[derive(Debug, Default, PartialEq, Eq)]
+pub struct CloseObservation {
+    pub queries: Vec<(u64, Read)>,
+    pub before: Vec<Answer>,
+    pub after: Vec<Answer>,
+    pub forge_subjects: Vec<(u64, u32, u64)>,
+    pub forge_before: Vec<Option<ForgeDocument>>,
+    pub forge_after: Vec<Option<ForgeDocument>>,
 }
 
 /// Last answers and retained rows at a quiescent boundary.
@@ -193,6 +205,7 @@ impl Driver {
         }
         // A finding ends this attempt too; Drop must not repeat a failed readback.
         self.broken = Fixture::Closed;
+        let mut observation = self.close_observation.take();
         self.oracle_settle();
         self.ends.close(self.env.now, &self.store)?;
         assert!(self.store.idle() && self.store.held.is_empty(), "restart oracle store settled");
@@ -225,15 +238,29 @@ impl Driver {
         compare_forges(forges, self.root.forges())?;
         for (index, (sign_in, read)) in snapshot.queries.iter().enumerate() {
             let answer = self.oracle_read(*sign_in, read);
+            if let Some(observation) = &mut observation {
+                observation.after.push(answer.clone());
+            }
             snapshot.compare_answer(index, answer)?;
         }
         for ((sign_in, project, subject), before) in subjects.iter().zip(documents) {
             let after = self.oracle_document(*sign_in, *project, *subject);
+            if let Some(observation) = &mut observation {
+                observation.forge_before.push(before.clone());
+                observation.forge_after.push(after.clone());
+            }
             compare_forge(*project, *subject, before, after)?;
         }
         self.oracle_settle();
         self.ends.close(self.env.now, &self.store)?;
-        self.check_store()
+        self.check_store()?;
+        if let Some(observation) = &mut observation {
+            observation.queries = snapshot.queries;
+            observation.before = snapshot.answers;
+            observation.forge_subjects = subjects;
+        }
+        self.close_observation = observation;
+        Ok(())
     }
 
     fn oracle_settle(&mut self) {

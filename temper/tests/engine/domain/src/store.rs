@@ -166,22 +166,31 @@ impl Store {
     }
     #[must_use]
     pub fn with_limits(limits: &engine::Limits) -> Store {
+        Self::with_read_keeping(limits, true)
+    }
+    /// Choose whether both memory stores keep their checked payload reads for this world.
+    /// A crash reopens the same stores; a fork copies the setting, not the kept reads.
+    #[must_use]
+    pub fn with_read_keeping(limits: &engine::Limits, keep: bool) -> Store {
         Self::prepared(
             limits,
             &component_limits(limits),
             temper_protocol_store::application(&limits.forge, limits.tasks.spec_bytes).expect("checked family sizes"),
+            keep,
         )
     }
-    // A fork has the source's immutable configuration and its checked sizes.
     fn prepared(
         limits: &engine::Limits,
         component_limits: &Limits,
         application: protocol::sizes::Application,
+        keep: bool,
     ) -> Store {
-        let stores = Stores {
+        let mut stores = Stores {
             store: skein_kv::Store::memory(&component_limits.store),
             secrets: skein_kv::Store::memory(&component_limits.secrets),
         };
+        stores.store.keep_reads(keep);
+        stores.secrets.keep_reads(keep);
         // The worlds' configured models, in their order (jig's store over a configuration's).
         let models = crate::walking::models();
         let mut store = Self::empty(limits, component_limits, application, models);
@@ -892,5 +901,72 @@ fn walk_position(range: &Range, key: &Key) -> Result<(u32, Key), &'static str> {
         }
         (_, Key::Wires | Key::Opening(_)) => Err("wires are not a load cursor"),
         _ => Ok((0, key.clone())),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use jig_domain_core::{CoreRecord, Record as Core};
+    use skein_kv::{Direction, Event, Op, Request};
+
+    fn seed_turn(store: &mut Store) {
+        let turn = engine::TurnRecord {
+            task: 1,
+            attempt: 1,
+            turn: 1,
+            spent: 1,
+            read: None,
+            at: Wall::EPOCH,
+            opens_window: false,
+            transcript: Box::from(b"worked".as_slice()),
+        };
+        store.seed(Box::new([Record::Core(Core::Core(CoreRecord::Turn(turn)))]), Box::new([]));
+    }
+
+    // Secrets are not read as payload logs by the component. Exercise one
+    // directly on the extracted backing so a zero count tests the switch.
+    fn read_secret_backing(secrets: &mut skein_kv::Store, limits: skein_kv::Limits) {
+        const LOG: u64 = 1;
+        let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
+        let record = b"fixture";
+        secrets.logs(skein_kv::LogRule { prefix: Box::from(b"test-extent/".as_slice()) });
+        let frame = secrets.frame(record).expect("fixture frame fits");
+        let owner = Token::new(1);
+        let mut above = Queue::uncapped();
+        let mut below = Queue::uncapped();
+        let commit = Request::Commit { owner, ops: Box::new([Op::Append { log: LOG, frame }]) };
+        skein_kv::down(secrets, &env, commit, &mut above, &mut below);
+        assert!(matches!(above.pop(), Some(Event::Committed { .. })));
+        let read = Request::ReadLog { owner, log: LOG, at: 0, direction: Direction::Forward, max: 64, rows: 1 };
+        skein_kv::down(secrets, &env, read, &mut above, &mut below);
+        let Some(Event::LogRead { records, .. }) = above.pop() else { panic!("secrets backing read") };
+        assert_eq!(records.len(), 1);
+    }
+
+    fn read_counts(mut world: Store) -> (u64, u64) {
+        let turns = Range::Core(engine::CoreRange::Turns { task: 1, attempt: 1 });
+        assert_eq!(world.page(&turns, None, 1).0.len(), 1, "the main backing serves its turns log");
+        let mut stores = world.component.take().expect("live component").into_stores();
+        read_secret_backing(&mut stores.secrets, world.component_limits.secrets);
+        (stores.store.kept_reads(), stores.secrets.kept_reads())
+    }
+
+    #[test]
+    fn read_keeping_reaches_both_backings_through_crash_and_fork() {
+        let mut on = Store::new();
+        seed_turn(&mut on);
+        let (main, secrets) = read_counts(on);
+        assert!(main > 0 && secrets > 0, "both default backings keep checked records");
+
+        let mut off = Store::with_read_keeping(&widest(), false);
+        seed_turn(&mut off);
+        let mut crashed = Store::with_read_keeping(&widest(), false);
+        seed_turn(&mut crashed);
+        crashed.crash(0);
+        let forked = crashed.fork();
+        assert_eq!(read_counts(off), (0, 0), "initial world");
+        assert_eq!(read_counts(crashed), (0, 0), "crashed world");
+        assert_eq!(read_counts(forked), (0, 0), "fork of the crashed world");
     }
 }

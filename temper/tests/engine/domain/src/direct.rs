@@ -26,6 +26,8 @@ pub struct Driver {
     pub(crate) rehearsal: bool,
     pub(crate) broken: crate::oracle::Fixture,
     pub(crate) restart_config: engine::Config,
+    /// Set to `Some(Default::default())` to capture the next successful oracle close.
+    pub close_observation: Option<crate::oracle::CloseObservation>,
     creating: jig_test_profile::fixtures::Creating,
     pub forge: Option<crate::forge_stand::ForgeStand>,
     pub root: engine::Domain,
@@ -151,6 +153,7 @@ impl Driver {
             rehearsal: false,
             broken: crate::oracle::Fixture::Checked,
             restart_config: crate::oracle::config::copy(&config),
+            close_observation: None,
             creating: jig_test_profile::fixtures::Creating::new(&config.core, limits.tasks.tree_tasks),
             forge: None,
             root: engine::Domain::new(config, limits).expect("valid engine configuration"),
