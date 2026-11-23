@@ -185,13 +185,14 @@ fn compose(
         resolved.local.resume = true;
     }
     let programs = credentials::program_check::needed(&resolved, clock);
-    let prepared =
-        credentials::prepare(&resolved, wall, interactive.is_some(), &programs).map_err(Refused::Credentials)?;
-    let (workspace, chat_path) = chat_paths(
-        &resolved.settings.workspace,
-        &resolved.local.chat,
+    let credentials_environment = credentials::Environment { variables: std::env::vars_os().collect() };
+    let (prepared, workspace, chat_path) = preflight(
+        &resolved,
+        wall,
+        interactive.is_some(),
+        &programs,
+        &credentials_environment,
         files.temporary.as_deref(),
-        &resolved.settings.paths,
     )?;
     trace_admission(&resolved, &workspace)?;
     deliver_contract(&mut resolved.local, invocation.deliver);
@@ -253,6 +254,22 @@ fn compose(
     local.result_file(files.output.take());
     files.composed();
     Ok(local)
+}
+
+// The run's channel, provider and stdout are composed only after preflight succeeds.
+fn preflight(
+    resolved: &settings::resolve::Resolved,
+    wall: Wall,
+    interactive: bool,
+    programs: &credentials::program_check::ProgramStates,
+    environment: &credentials::Environment,
+    temporary: Option<&Path>,
+) -> Result<(credentials::Prepared, PathBuf, PathBuf), Refused> {
+    let prepared =
+        credentials::prepare_in(resolved, wall, interactive, programs, environment).map_err(Refused::Credentials)?;
+    let (workspace, chat_path) =
+        chat_paths(&resolved.settings.workspace, &resolved.local.chat, temporary, &resolved.settings.paths)?;
+    Ok((prepared, workspace, chat_path))
 }
 
 fn recheck_programs(

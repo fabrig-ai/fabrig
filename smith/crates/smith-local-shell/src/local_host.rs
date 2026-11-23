@@ -731,7 +731,7 @@ impl Host for Local {
         if self.is_empty() && self.announcement != Announcement::Ended {
             self.announcement = Announcement::Ended;
             if let Some(text) = self.last_line.take() {
-                drop(write!(self.errors, "smith: {}", String::from_utf8_lossy(&text)));
+                drop(crate::front::headless::write_operator_line(self.errors.as_mut(), &text));
             }
             if let Some(Err(why)) = self.result() {
                 let why = why.to_owned();

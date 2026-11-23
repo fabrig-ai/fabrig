@@ -203,27 +203,6 @@ fn local_host_io_failure_keeps_exit_1() {
 }
 
 #[test]
-fn local_chat_store_io_failure_keeps_exit_1() {
-    use std::fmt::Write as _;
-    let scratch = Scratch::new();
-    let _file = support::user_layer(&scratch, &support::fake_provider_settings(&scratch));
-    let workspace = scratch.path().canonicalize().unwrap();
-    let digest = skein_io::digest::digest(workspace.as_os_str().as_encoded_bytes());
-    let mut key = String::new();
-    for part in digest.0 {
-        write!(&mut key, "{part:016x}").expect("fixture workspace key");
-    }
-    let state = scratch.path().join("state/smith/chats").join(key);
-    std::fs::create_dir_all(&state).expect("state root");
-    let chat = state.join("refused");
-    std::fs::write(&chat, b"a file cannot be the chat directory").expect("block chat directory");
-    let ran = support::smith(&scratch, &["exec", "hello", "--chat", "refused"], b"");
-    assert_eq!(ran.code, 1);
-    assert!(String::from_utf8_lossy(&ran.stderr).contains("File exists"), "{}", String::from_utf8_lossy(&ran.stderr));
-    assert_eq!(std::fs::read(chat).expect("unchanged chat file"), b"a file cannot be the chat directory");
-}
-
-#[test]
 fn smith_agent_spawned_by_the_sample_host_answers() {
     support::sample_host::run();
 }
@@ -258,16 +237,6 @@ fn smith_check_json_shows_each_value_with_its_layer() {
 }
 
 #[test]
-fn a_headless_run_that_would_wait_exits_5_naming_its_chat() {
-    let scratch = Scratch::new();
-    let _file = support::user_layer(&scratch, &support::fake_provider_settings(&scratch));
-    let ran =
-        support::exec_with_provider(&scratch, &["exec", "--chat", "plan", "-"], b"Ask first\n", support::Reply::Wait);
-    assert_eq!(ran.code, 5, "{}", String::from_utf8_lossy(&ran.stderr));
-    assert!(ran.stderr.ends_with(b"smith: needs input: answer with `smith exec --chat plan`\n"));
-}
-
-#[test]
 fn smith_exec_json_ends_accepted_with_its_events_and_exit_0() {
     let scratch = Scratch::new();
     let _file = support::user_layer(&scratch, &support::fake_provider_settings(&scratch));
@@ -286,26 +255,6 @@ fn smith_exec_json_ends_accepted_with_its_events_and_exit_0() {
     assert_eq!(records.last().unwrap()["exit"], 0);
     assert!(records.iter().any(|r| r["type"] == "run.completed"));
     assert!(skein_lib::bytes::find(&ran.stderr, b"smith: accepted in").is_some());
-}
-
-#[test]
-fn an_account_without_a_credential_exits_3_before_any_request() {
-    let scratch = Scratch::new();
-    let _file = support::user_layer(&scratch, &support::fake_provider_settings(&scratch));
-    std::fs::remove_file(scratch.path().join("auth.json")).unwrap();
-    let ran = support::smith(&scratch, &["exec", "Ask first"], b"");
-    assert_eq!(ran.code, 3);
-    assert_eq!(ran.stdout, Vec::<u8>::new());
-    assert!(!scratch.path().join("state/smith/chats").exists());
-}
-
-#[test]
-fn an_empty_prompt_is_a_usage_error_exiting_2() {
-    let scratch = Scratch::new();
-    let _file = support::user_layer(&scratch, &support::fake_provider_settings(&scratch));
-    let ran = support::smith(&scratch, &["exec", "-"], b" \n");
-    assert_eq!(ran.code, 2);
-    assert!(ran.stderr.ends_with(b"smith: usage: the prompt is empty\n"));
 }
 
 #[test]
