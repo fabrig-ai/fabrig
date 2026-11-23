@@ -68,24 +68,54 @@ impl std::fmt::Display for Refusal {
     }
 }
 
+#[derive(Clone, Copy)]
+enum Kind {
+    Directory,
+    Link,
+    Other,
+}
+
+#[derive(Clone, Copy)]
+struct Facts {
+    kind: Kind,
+    owner: u32,
+    mode: u32,
+}
+
+fn inspect(path: &Path) -> std::io::Result<Facts> {
+    let metadata = fs::symlink_metadata(path)?;
+    let kind = if metadata.file_type().is_symlink() {
+        Kind::Link
+    } else if metadata.is_dir() {
+        Kind::Directory
+    } else {
+        Kind::Other
+    };
+    Ok(Facts { kind, owner: metadata.uid(), mode: metadata.mode() })
+}
+
 /// Check an existing directory's kind, owner and mode; `Ok(false)` means absent.
 pub fn private_directory(path: &Path) -> Result<bool, Refusal> {
+    private_directory_with(path, skein_shell::effective_user, &mut inspect)
+}
+
+fn private_directory_with(
+    path: &Path,
+    effective_user: fn() -> u32,
+    inspect: &mut impl FnMut(&Path) -> std::io::Result<Facts>,
+) -> Result<bool, Refusal> {
     let inspected: PathBuf = path.components().collect();
-    let metadata = match fs::symlink_metadata(&inspected) {
-        Ok(metadata) => metadata,
+    let facts = match inspect(&inspected) {
+        Ok(facts) => facts,
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(false),
         Err(error) => return Err(Refusal::Io { path: path.into(), error }),
     };
-    let found = if metadata.file_type().is_symlink() {
-        Some(Unsafe::Link)
-    } else if !metadata.is_dir() {
-        Some(Unsafe::NotADirectory)
-    } else if metadata.uid() != skein_shell::effective_user() {
-        Some(Unsafe::Owner { found: metadata.uid() })
-    } else if metadata.mode() & 0o077 != 0 {
-        Some(Unsafe::Mode(metadata.mode() & 0o077))
-    } else {
-        None
+    let found = match facts.kind {
+        Kind::Link => Some(Unsafe::Link),
+        Kind::Other => Some(Unsafe::NotADirectory),
+        Kind::Directory if facts.owner != effective_user() => Some(Unsafe::Owner { found: facts.owner }),
+        Kind::Directory if facts.mode & 0o077 != 0 => Some(Unsafe::Mode(facts.mode & 0o077)),
+        Kind::Directory => None,
     };
     match found {
         Some(found) => Err(Refusal::Unsafe { path: path.into(), found }),
@@ -95,35 +125,54 @@ pub fn private_directory(path: &Path) -> Result<bool, Refusal> {
 
 /// Make and recheck the private programs and source directories, refusing names first.
 pub fn prepare(directory: &Path, source: &str) -> Result<PathBuf, Refusal> {
+    prepare_with(directory, source, skein_shell::effective_user, inspect, make_directory)
+}
+
+fn prepare_with(
+    directory: &Path,
+    source: &str,
+    effective_user: fn() -> u32,
+    mut inspect: impl FnMut(&Path) -> std::io::Result<Facts>,
+    mut make_directory: impl FnMut(&Path, bool, u32) -> std::io::Result<()>,
+) -> Result<PathBuf, Refusal> {
     let programs = Programs { directory: directory.as_os_str().as_bytes().into(), claude: Box::default() };
     let configuration = match configuration_directory(&programs, source.as_bytes()) {
         Ok(path) => PathBuf::from(OsStr::from_bytes(&path)),
         Err(Error::Name) => return Err(Refusal::Name),
         Err(Error::Directory | Error::Environment) => return Err(Refusal::Relative(directory.into())),
     };
-    let programs_present = private_directory(directory)?;
-    let source_present = private_directory(&configuration)?;
+    let mut check = |path: &Path| private_directory_with(path, effective_user, &mut inspect);
+    let programs_present = check(directory)?;
+    let source_present = check(&configuration)?;
     if !programs_present {
-        make(directory, true)?;
+        make(directory, true, &mut make_directory)?;
     }
-    require_directory(directory)?;
+    require_directory(directory, check(directory)?)?;
     if !source_present {
-        make(&configuration, false)?;
+        make(&configuration, false, &mut make_directory)?;
     }
-    require_directory(&configuration)?;
+    require_directory(&configuration, check(&configuration)?)?;
     Ok(configuration)
 }
 
-fn require_directory(path: &Path) -> Result<(), Refusal> {
-    if private_directory(path)? {
+fn require_directory(path: &Path, present: bool) -> Result<(), Refusal> {
+    if present {
         Ok(())
     } else {
         Err(Refusal::Io { path: path.into(), error: std::io::Error::from(std::io::ErrorKind::NotFound) })
     }
 }
 
-fn make(path: &Path, parents: bool) -> Result<(), Refusal> {
-    match fs::DirBuilder::new().recursive(parents).mode(0o700).create(path) {
+fn make_directory(path: &Path, parents: bool, mode: u32) -> std::io::Result<()> {
+    fs::DirBuilder::new().recursive(parents).mode(mode).create(path)
+}
+
+fn make(
+    path: &Path,
+    parents: bool,
+    make_directory: &mut impl FnMut(&Path, bool, u32) -> std::io::Result<()>,
+) -> Result<(), Refusal> {
+    match make_directory(path, parents, 0o700) {
         Ok(()) => Ok(()),
         Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => Ok(()),
         Err(error) => Err(Refusal::Io { path: path.into(), error }),

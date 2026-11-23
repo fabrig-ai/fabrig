@@ -2,12 +2,6 @@
 
 pub use crate::credentials::testing::{inspect_key, keep_key, logout, raw_key, read_or_draw};
 
-pub mod resolve {
-    pub mod programs {
-        pub use crate::settings::resolve::programs::testing::locate;
-    }
-}
-
 /// Write a synthetic key fixture with the requested native file mode.
 #[must_use]
 pub fn key_file(files: &std::path::Path, bytes: &[u8], mode: u32) -> std::path::PathBuf {

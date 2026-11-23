@@ -5,26 +5,43 @@ use smith_agent_profile::profile::{Check, Layer, LimitName, Refusal, Value};
 #[cfg(unix)]
 #[test]
 fn rg_finding_skips_relative_directories_and_a_directory_named_rg() {
-    use std::os::unix::ffi::OsStrExt;
-    use std::{
-        cell::RefCell,
-        path::{Path, PathBuf},
-    };
+    use crate::config::native::{FileFacts, find_rg_with};
+    use std::{os::unix::ffi::OsStrExt, path::PathBuf};
 
-    let checked = RefCell::new(Vec::new());
-    let executable = |candidate: &Path| {
-        checked.borrow_mut().push(candidate.to_path_buf());
-        candidate == Path::new("relative/rg")
-    };
-    assert!(executable(Path::new("relative/rg")), "relative entry holds the executable fixture");
-    checked.borrow_mut().clear();
+    let mut checked = Vec::new();
     let path = std::env::join_paths(["relative", "/fixture/directory"]).expect("PATH");
+    let found = find_rg_with(Some(path.as_bytes()), |candidate| {
+        checked.push(candidate.to_path_buf());
+        Some(FileFacts { is_file: candidate == std::path::Path::new("relative/rg"), mode: 0o700 })
+    });
+    assert_eq!(found, None, "neither relative entries nor directories are programs");
+    assert_eq!(checked, [PathBuf::from("/fixture/directory/rg")], "only the absolute entry is checked");
+}
+
+#[cfg(unix)]
+#[test]
+fn rg_finding_takes_the_first_executable_file_on_path() {
+    use crate::config::native::{FileFacts, find_rg_with};
+    use std::{os::unix::ffi::OsStrExt, path::PathBuf};
+
+    let path =
+        std::env::join_paths(["rel", "/fixture/missing", "/fixture/A", "/fixture/B", "/fixture/C"]).expect("PATH");
+    let mut checked = Vec::new();
+    let found = find_rg_with(Some(path.as_bytes()), |candidate| {
+        checked.push(candidate.to_path_buf());
+        match candidate.to_str().expect("fixture path") {
+            "/fixture/missing/rg" => None,
+            "/fixture/A/rg" => Some(FileFacts { is_file: true, mode: 0o600 }),
+            "rel/rg" | "/fixture/B/rg" | "/fixture/C/rg" => Some(FileFacts { is_file: true, mode: 0o700 }),
+            other => panic!("unexpected candidate {other}"),
+        }
+    });
+    assert_eq!(found, Some("/fixture/B/rg".into()), "first executable file");
     assert_eq!(
-        crate::config::native::find_rg_with(Some(path.as_bytes()), executable),
-        None,
-        "neither relative entries nor directories are programs"
+        checked,
+        ["/fixture/missing/rg", "/fixture/A/rg", "/fixture/B/rg"].map(PathBuf::from),
+        "only absolute candidates through the first executable are inspected"
     );
-    assert_eq!(checked.into_inner(), [PathBuf::from("/fixture/directory/rg")], "only the absolute entry is checked");
 }
 
 #[cfg(unix)]
@@ -45,7 +62,11 @@ fn resolving_finds_rg_after_decoding_without_running_it() {
         .expect("decode without filesystem effects");
     let rg = Path::new("/fixture/bin/rg");
     let configuration = decoded
-        .resolve_with_rg(&mut Vec::new(), |path| crate::config::native::find_rg_with(path, |file| file == rg))
+        .resolve_with_rg(&mut Vec::new(), |path| {
+            crate::config::native::find_rg_with(path, |file| {
+                (file == rg).then_some(crate::config::native::FileFacts { is_file: true, mode: 0o700 })
+            })
+        })
         .expect("configuration resolution");
     assert_eq!(configuration.service.rg.as_ref(), rg.as_os_str().as_encoded_bytes(), "startup's rg");
 }

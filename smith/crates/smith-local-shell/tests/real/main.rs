@@ -12,8 +12,3 @@ mod credentials {
         }
     }
 }
-mod settings {
-    mod sources_tests {
-        mod resolution;
-    }
-}

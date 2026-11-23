@@ -23,21 +23,29 @@ pub fn find_rg(path: Option<&[u8]>) -> Option<std::path::PathBuf> {
     use std::os::unix::fs::PermissionsExt;
 
     find_rg_with(path, |file| {
-        std::fs::metadata(file).is_ok_and(|metadata| metadata.is_file() && metadata.permissions().mode() & 0o111 != 0)
+        std::fs::metadata(file)
+            .ok()
+            .map(|metadata| FileFacts { is_file: metadata.is_file(), mode: metadata.permissions().mode() })
     })
+}
+
+#[cfg(unix)]
+pub(super) struct FileFacts {
+    pub(super) is_file: bool,
+    pub(super) mode: u32,
 }
 
 #[cfg(unix)]
 pub(super) fn find_rg_with(
     path: Option<&[u8]>,
-    executable: impl Fn(&std::path::Path) -> bool,
+    mut facts: impl FnMut(&std::path::Path) -> Option<FileFacts>,
 ) -> Option<std::path::PathBuf> {
     use std::{ffi::OsStr, os::unix::ffi::OsStrExt};
 
     std::env::split_paths(OsStr::from_bytes(path?))
         .filter(|directory| directory.is_absolute())
         .map(|directory| directory.join("rg"))
-        .find(|file| executable(file))
+        .find(|file| facts(file).is_some_and(|file| file.is_file && file.mode & 0o111 != 0))
 }
 
 #[cfg(unix)]

@@ -89,7 +89,9 @@ fn program_documents_use_the_supplied_path() {
     settings.values.remove("programs.claude_code");
     settings.paths.path = Some(path.as_os_str().to_owned());
     settings.values.get_mut("environment.inherit").expect("built-in inheritance").value = toml::Value::Array(vec![]);
-    let document = crate::fixture::ready(resolve::agent_document_with(&settings, |path| path == executable));
+    let document = crate::fixture::ready(resolve::agent_document_with(&settings, |path| {
+        (path == executable).then_some(resolve::programs::FileFacts { is_file: true, mode: 0o700 })
+    }));
     assert!(document["programs"]["claude_code"]["path"].as_str() == executable.to_str(), "supplied PATH used");
 }
 
