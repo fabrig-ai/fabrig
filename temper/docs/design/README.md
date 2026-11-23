@@ -218,6 +218,8 @@ forge, temper adds:
   - `testing/README.md`: the testing overview, neighbours and layout.
   - `testing/tiers.md`: temper's testing tiers and their open work.
   - `testing/scenarios.md`: scenarios and their referee.
+  - `testing/checks.md`: what the worlds check beyond the strategy.
+  - `testing/checks-stage-one.md`: stage 1's golden, its check and its judge.
   - `testing/reference-case.md`: the case library and its opening act.
   - `testing/reference-case-changing-direction.md`: the case's change of direction.
   - `testing/reference-case-milestones.md`: the case's milestones and hand-offs.

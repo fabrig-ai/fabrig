@@ -17,6 +17,8 @@ is still open (`README.md`, section 6).
 
 - `tiers.md`: temper's testing tiers and their open work.
 - `scenarios.md`: scenarios and their referee.
+- `checks.md`: what the worlds check beyond the strategy.
+  - `checks-stage-one.md`: stage 1's golden, its check and its judge.
 - `reference-case.md`: the case library and its opening act.
   - `reference-case-changing-direction.md`: the case's change of direction.
   - `reference-case-milestones.md`: the case's milestones and hand-offs.
