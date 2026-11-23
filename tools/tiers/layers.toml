@@ -150,9 +150,9 @@ layers = ["step", "domain", "system", "machine", "protocol", "io", "simulated", 
 "jig-test-connector-world::suite" = "domain"
 "jig-test-store-files::real" = "real-loop" # A forked disk cut and its reaped child exit.
 "jig-test::live" = "end-to-end" # Real-account service processes.
-"jig-test::process" = "end-to-end" # Shipped agent modes, durable restart and SIGTERM during sign-in; live configurations on scratch files.
-"jig-test::real" = "real-loop" # Scratch-file permissions and symlink traversal.
-"jig-test::step" = "step" # Offline checks of sign-in plan and premature-exit diagnostics.
+"jig-test::process" = "end-to-end" # Shipped agent modes, durable restart and SIGTERM during sign-in.
+"jig-test::real" = "real-loop" # Native provider-key reads refuse group permissions and leaf or directory symlinks.
+"jig-test::step" = "step" # Supplied startup reads: unsafe worker secret and live configurations; sign-in plan and premature-exit diagnostics.
 "jig-worker-link-world::suite" = "protocol" # step + machine + protocol: prepared fixtures, scripted engine and both real channel components.
 "jig-worker-wire-world::suite" = "step" # Schema drift and bounded record decoders.
 

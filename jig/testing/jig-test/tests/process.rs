@@ -9,7 +9,6 @@ use std::{
     path::Path,
     process::{Command, Stdio},
 };
-use support::live_sign_in;
 
 fn status_script(path: &Path, line: &str, code: u8) -> OsString {
     let script = format!(
@@ -109,16 +108,3 @@ fn a_binary_told_to_stop_with_a_sign_in_under_way_ends_at_once() {
 
 #[path = "support/accounts.rs"]
 mod accounts;
-
-/// The live sign-in configurations, read as jig-test's startup reads them: no network, no person.
-#[test]
-fn the_live_configurations_are_ones_jig_test_reads() {
-    let sign_in = support::scratch();
-    live_sign_in::configuration_at(sign_in.path(), "192.0.2.1:443", live_sign_in::Peers::Real);
-    assert_eq!(jig_test::check(&sign_in.path().join("config.json")), Ok(()));
-    for peers in [live_sign_in::Peers::Fake, live_sign_in::Peers::Refusing] {
-        let fake = support::scratch();
-        live_sign_in::configuration_at(fake.path(), "127.0.0.1:34443", peers);
-        assert_eq!(jig_test::check(&fake.path().join("config.json")), Ok(()));
-    }
-}

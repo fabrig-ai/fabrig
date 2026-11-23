@@ -52,6 +52,10 @@ pub fn configuration(directory: &Path) {
 }
 #[must_use]
 pub fn configuration_value(directory: &Path) -> serde_json::Value {
+    write_configuration_fixtures(directory);
+    deployment_value(directory, &skein_scratch::paths::binary("jig-test"))
+}
+fn write_configuration_fixtures(directory: &Path) {
     for name in ["secrets", "charters", "state", "agent-root"] {
         fs::create_dir(directory.join(name)).expect("deployment directory");
     }
@@ -61,14 +65,15 @@ pub fn configuration_value(directory: &Path) -> serde_json::Value {
     private(&directory.join("worker.secret"), b"worker-secret");
     private(&directory.join("root.der"), skein_tls_kit::pki::ROOT);
     agent_configuration(directory);
+}
+fn deployment_value(directory: &Path, program: &Path) -> serde_json::Value {
     let mut value: serde_json::Value =
         serde_json::from_slice(&jig_channel_kit::fixtures::engine_document()).expect("engine JSON");
     let worker: serde_json::Value =
         serde_json::from_slice(jig_channel_kit::fixtures::WORKER_DOCUMENT).expect("worker JSON");
     value["workers"] = worker["workers"].clone();
     value["workers"][0]["engine"] = serde_json::json!({"in_process":"workers"});
-    value["workers"][0]["agent"]["program"] =
-        skein_scratch::paths::binary("jig-test").to_str().expect("a UTF-8 path").into();
+    value["workers"][0]["agent"]["program"] = program.to_str().expect("a UTF-8 path").into();
     value["workers"][0]["agent"]["configuration"] = directory.join("agent.json").to_str().expect("agent path").into();
     value["workers"][0]["agent"]["arguments"] = serde_json::json!(["agent", directory.join("agent.json")]);
     value["application"]["workers"] = worker["application"]["workers"].clone();
