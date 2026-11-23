@@ -101,7 +101,7 @@ fn retained(row: ProjectionRecord, header: bool) {
     }
     assert_eq!(restore_fixture(&mut started, &limits, row), Restored::Live);
     assert_eq!(started.start_failure(), None);
-    started.start_projections_link();
+    started.start_projections_link(&mut super::Queue::uncapped());
     assert_eq!(started.projections.len(), 1);
 }
 
@@ -157,7 +157,7 @@ fn policy_is_linked_after_loading_and_deployment_needs_none() {
         project.name.clone(),
         crate::admission::policy::snapshot(&project.policy.policy, &[], &[]).expect("bounded policy")
     ));
-    core.start_projections_link();
+    core.start_projections_link(&mut super::Queue::uncapped());
     assert_eq!(core.projections.get(&1).expect("linked goal").goal.project, 1);
     let mut row = goal(2);
     let ProjectionRecord::GoalHot { goal, .. } = &mut row else { unreachable!() };
@@ -199,13 +199,106 @@ fn pending_on_a_live_tracked_goal_is_retained() {
         );
         assert_eq!(restore_fixture(&mut core, &limits, row.clone()), { Restored::Live });
         {
-            core.start_projections_link();
+            core.start_projections_link(&mut super::Queue::uncapped());
             assert_eq!(
                 core.projections.get(&1).expect("linked live projection").pending.as_ref(),
                 config(401).connectors.as_ref().get(..1).expect("one connector")
             );
         }
     }
+}
+
+fn live_goal(phase: tasks::Phase) -> tasks::TaskRecord {
+    let (mut source, limits) = crate::tests::core();
+    crate::tests::make_task(&mut source, &limits, 1);
+    let mut live = source.tasks.task(1).expect("live fixture").clone();
+    live.tracked = Some(1);
+    live.phase = phase;
+    live
+}
+
+fn restore_live(core: &mut Core, limits: &Limits, live: tasks::TaskRecord) {
+    let mut out = super::Queue::uncapped();
+    tasks::step(
+        &mut core.tasks,
+        &super::Env { now: super::Time::ZERO, wall: Wall::EPOCH, limits: limits.tasks },
+        tasks::Event::Restore { record: tasks::Stored::Live(Box::new(live)) },
+        &mut out,
+    );
+    assert!(out.is_empty(), "admitted stored task: {out:?}");
+}
+
+#[test]
+fn held_goal_phases_written_past_the_old_bound_start_unchanged() {
+    for source in [
+        tasks::HoldSource::Preparation {
+            words: vec![b'p'; usize::try_from(tasks::REASON_BYTES).expect("reason fits usize")].into_boxed_slice(),
+        },
+        tasks::HoldSource::Account {
+            connector: 1,
+            entry: None,
+            words: vec![b'a'; usize::try_from(tasks::HOLD_ACCOUNT_BYTES).expect("account fits usize")]
+                .into_boxed_slice(),
+        },
+    ] {
+        let phase = tasks::Phase::Held {
+            was: tasks::Was::Waiting,
+            why: tasks::Hold::Failures(tasks::Class::Infrastructure),
+            source: Some(Box::new(source)),
+        };
+        let (mut source_core, mut limits) = crate::tests::core();
+        limits.tasks.result_bytes = 64;
+        let live = live_goal(phase.clone());
+        assert!(tasks::phase_bytes(&phase).expect("bounded phase") > u64::from(limits.tasks.result_bytes) * 2);
+        let mut writes = super::Queue::uncapped();
+        crate::effects::projections::save(&mut source_core, &limits, &live, &mut writes);
+        let expected = source_core.projections.get(&1).expect("written projection").clone();
+        let (mut started, _) = loaded();
+        restore_live(&mut started, &limits, live);
+        for _ in 0..writes.len() {
+            let write = writes.pop().expect("written row");
+            let crate::Request::Write(crate::Write::Save(crate::Record::Core(CoreRecord::Projection(row)))) = write
+            else {
+                panic!("projection save: {write:?}");
+            };
+            assert_eq!(restore(&mut started, &limits, row), Restored::Live);
+        }
+        let mut repairs = super::Queue::uncapped();
+        started.start_projections_link(&mut repairs);
+        assert_eq!(started.start_failure(), None);
+        assert_eq!(started.projections.get(&1), Some(&expected));
+        assert!(repairs.is_empty(), "old writer's admitted phase is read without repair");
+    }
+}
+
+#[test]
+fn an_over_bound_goal_phase_is_rebuilt_from_its_task_and_saved_at_link() {
+    let (mut core, limits) = loaded();
+    let live = live_goal(tasks::Phase::Waiting);
+    restore_live(&mut core, &limits, live.clone());
+    let mut row = goal(1);
+    let ProjectionRecord::GoalHot { goal, .. } = &mut row else { unreachable!() };
+    goal.phase = tasks::Phase::Ended(tasks::Ending::Failed {
+        reason: vec![
+            b'x';
+            usize::try_from(tasks::phase_bound(&limits.tasks).expect("phase bound") + 1).expect("fixture size")
+        ]
+        .into_boxed_slice(),
+    });
+    assert_eq!(restore_fixture(&mut core, &limits, row), Restored::Live);
+    let mut repairs = super::Queue::uncapped();
+    core.start_projections_link(&mut repairs);
+    assert_eq!(core.start_failure(), None);
+    let projection = core.projections.get(&1).expect("repaired goal");
+    assert_eq!(projection.goal.phase, live.phase);
+    assert!(projection.changed, "feed the repaired goal");
+    let Some(crate::Request::Write(crate::Write::Save(crate::Record::Core(CoreRecord::Projection(saved))))) =
+        repairs.pop()
+    else {
+        panic!("repaired header is saved");
+    };
+    assert_eq!(saved, crate::effects::projections::header(projection));
+    assert!(repairs.is_empty());
 }
 
 #[test]
@@ -215,7 +308,7 @@ fn pieces_in_any_order_finalize_to_the_default_projection() {
     for row in &rows {
         assert_eq!(restore(&mut expected, &limits, row.clone()), Restored::Live);
     }
-    expected.start_projections_link();
+    expected.start_projections_link(&mut super::Queue::uncapped());
     assert_eq!(expected.projections.get(&1).unwrap().goal.words.as_ref(), b"goal");
     assert_eq!(expected.projections.get(&1).unwrap().plan[1].words.as_ref(), b"task");
     for order in [[7, 5, 3, 1, 6, 4, 2, 0], [1, 4, 3, 6, 0, 7, 5, 2]] {
@@ -223,7 +316,7 @@ fn pieces_in_any_order_finalize_to_the_default_projection() {
         for index in order {
             assert_eq!(restore(&mut started, &limits, rows[index].clone()), Restored::Live);
         }
-        started.start_projections_link();
+        started.start_projections_link(&mut super::Queue::uncapped());
         assert_eq!(started.start_failure(), None);
         assert_eq!(started.projections.get(&1), expected.projections.get(&1));
         assert!(started.start.projections.is_none());
@@ -246,7 +339,7 @@ fn orphan_task_refuses_at_link_with_its_key() {
             | ProjectionRecord::Milestone { .. } => unreachable!(),
         }
     );
-    core.start_projections_link();
+    core.start_projections_link(&mut super::Queue::uncapped());
     assert_eq!(
         core.start_failure(),
         Some(Failure::Link {
@@ -260,7 +353,7 @@ fn orphan_task_refuses_at_link_with_its_key() {
 fn orphan_milestone_refuses_at_link_with_its_key() {
     let (mut core, limits) = loaded();
     assert_eq!(restore_fixture(&mut core, &limits, milestone(2)), Restored::Live);
-    core.start_projections_link();
+    core.start_projections_link(&mut super::Queue::uncapped());
     assert_eq!(
         core.start_failure(),
         Some(Failure::Link {
@@ -329,7 +422,7 @@ fn words_phase_and_pending_fits_keep_the_row_key() {
         u64::try_from(bound + 1).expect("fixture count"),
         u64::try_from(bound).expect("fixture count"),
     );
-    for mut row in [goal(1), task(2), milestone(2)] {
+    for mut row in [task(2), milestone(2)] {
         let (mut core, _) = loaded();
         let phase = match &mut row {
             ProjectionRecord::GoalHot { goal, .. } => &mut goal.phase,
@@ -338,14 +431,19 @@ fn words_phase_and_pending_fits_keep_the_row_key() {
             ProjectionRecord::GoalWords { .. } | ProjectionRecord::TaskWords { .. } => unreachable!(),
         };
         *phase = tasks::Phase::Ended(tasks::Ending::Failed {
-            reason: vec![b'x'; skein_lib::length::usize_of(limits.tasks.result_bytes * 2 + 1)].into_boxed_slice(),
+            reason: vec![
+                b'x';
+                usize::try_from(tasks::phase_bound(&limits.tasks).expect("phase bound") + 1)
+                    .expect("fixture size")
+            ]
+            .into_boxed_slice(),
         });
         refused(
             &mut core,
             &limits,
             row,
-            u64::from(limits.tasks.result_bytes) * 2 + 1,
-            u64::from(limits.tasks.result_bytes) * 2,
+            tasks::phase_bound(&limits.tasks).expect("phase bound") + 1,
+            tasks::phase_bound(&limits.tasks).expect("phase bound"),
         );
     }
 }
@@ -388,7 +486,7 @@ fn a_missing_project_refuses_at_link() {
     let ProjectionRecord::GoalHot { goal, .. } = &mut row else { unreachable!() };
     goal.project = 2;
     assert_eq!(restore_fixture(&mut core, &limits, row), Restored::Live);
-    core.start_projections_link();
+    core.start_projections_link(&mut super::Queue::uncapped());
     assert_eq!(
         core.start_failure(),
         Some(Failure::Link {
@@ -405,7 +503,7 @@ fn a_missing_pending_connector_refuses_at_link() {
     let ProjectionRecord::GoalHot { pending, .. } = &mut row else { unreachable!() };
     *pending = Box::new([99]);
     assert_eq!(restore_fixture(&mut core, &limits, row), Restored::Live);
-    core.start_projections_link();
+    core.start_projections_link(&mut super::Queue::uncapped());
     assert_eq!(
         core.start_failure(),
         Some(Failure::Link {
@@ -422,7 +520,7 @@ fn an_open_goal_requires_its_live_task_at_link() {
     let ProjectionRecord::GoalHot { goal, .. } = &mut row else { unreachable!() };
     goal.phase = tasks::Phase::Waiting;
     assert_eq!(restore_fixture(&mut core, &limits, row), Restored::Live);
-    core.start_projections_link();
+    core.start_projections_link(&mut super::Queue::uncapped());
     assert_eq!(
         core.start_failure(),
         Some(Failure::Link {
@@ -456,7 +554,12 @@ fn exact_word_and_phase_bounds_remain_loadable() {
         *words = vec![b'x'; skein_lib::length::usize_of(bound)].into_boxed_slice();
         if let ProjectionRecord::Milestone { milestone, .. } = &mut row {
             milestone.phase = Some(tasks::Phase::Ended(tasks::Ending::Failed {
-                reason: vec![b'x'; skein_lib::length::usize_of(limits.tasks.result_bytes * 2)].into_boxed_slice(),
+                reason: vec![
+                    b'x';
+                    usize::try_from(tasks::phase_bound(&limits.tasks).expect("phase bound"))
+                        .expect("fixture size")
+                ]
+                .into_boxed_slice(),
             }));
         }
         assert_eq!(restore(&mut core, &limits, row), Restored::Live);
@@ -470,11 +573,15 @@ fn exact_word_and_phase_bounds_remain_loadable() {
             | ProjectionRecord::Milestone { .. } => unreachable!(),
         };
         *phase = tasks::Phase::Ended(tasks::Ending::Failed {
-            reason: vec![b'x'; skein_lib::length::usize_of(limits.tasks.result_bytes * 2)].into_boxed_slice(),
+            reason: vec![
+                b'x';
+                usize::try_from(tasks::phase_bound(&limits.tasks).expect("phase bound")).expect("fixture size")
+            ]
+            .into_boxed_slice(),
         });
         assert_eq!(restore(&mut core, &limits, row), Restored::Live);
     }
-    core.start_projections_link();
+    core.start_projections_link(&mut super::Queue::uncapped());
     let projection = core.projections.get(&1).expect("projection at byte bounds");
     assert_eq!(projection.goal.words.len(), skein_lib::length::usize_of(limits.tasks.spec_bytes));
     assert_eq!(projection.plan.len(), 1);
@@ -495,7 +602,7 @@ fn each_unjoined_part_refuses_at_link_with_its_missing_part() {
             assert_eq!(restore(&mut core, &limits, row), Restored::Live);
         }
         assert_eq!(core.start_failure(), None);
-        core.start_projections_link();
+        core.start_projections_link(&mut super::Queue::uncapped());
         assert_eq!(
             core.start_failure(),
             Some(Failure::Link {

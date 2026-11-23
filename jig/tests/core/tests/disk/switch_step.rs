@@ -210,6 +210,7 @@ fn orphan_source() -> root::Record {
 #[test]
 fn an_account_source_without_its_account_refuses_at_link_on_the_active_generation() {
     let mut world = before();
+    world.store_checks(jig_core_world::world::StoreChecks::none("source fixture names missing Account(98)"));
     world.seed(Box::new([orphan_source()]));
     world.broken();
     world.restart(f::SEED, false);
@@ -236,6 +237,7 @@ fn an_account_source_without_its_account_refuses_at_link_on_the_active_generatio
 #[test]
 fn a_task_naming_a_missing_project_refuses_before_the_switch() {
     let mut world = before();
+    world.store_checks(jig_core_world::world::StoreChecks::none("task fixture names the erased Project(1)"));
     let row = jig_core_world::fixtures::live_row(&world, world.task()).clone();
     assert_eq!(row.number, 1);
     // Leave the task and its funding internally consistent, but without its project.

@@ -724,6 +724,21 @@ fn from_session(domain: &mut Domain, env: &Env<Limits>, request: session::Reques
                 domain.turns.insert(TurnHandoff { turn: Some(turn) }).expect("room for every queued session turn");
             run::Event::Turn { conversation: opener, record: record.token(), sequence, opens_window }
         }
+        session::Request::RateLimitWait { opener, until } => {
+            let host_run = run::host_name(&domain.run, opener).expect("waiting session retains its run");
+            return out.push(Request::Long { host_run, operation: Operation::Completion, until });
+        }
+        session::Request::RateLimitWaitDone { opener } => {
+            let host_run = run::host_name(&domain.run, opener).expect("waiting session retains its run");
+            return out.push(Request::LongDone { host_run });
+        }
+        session::Request::RateLimitOutlastsSession { opener, retry_after } => {
+            let id = peer(domain, opener);
+            let peer = domain.peers.get_mut(id).expect("session retains peer through its terminal");
+            let account = peer.account.expect("the failed call issued with this account's grant");
+            peer.retry_at = Some(env.now.saturating_add(retry_after));
+            return out.push(Request::Limited { account, reset: Some(retry_after) });
+        }
         session::Request::Complete {
             owner,
             name,

@@ -341,6 +341,69 @@ call slab limit and background reserve (skein's `forge/client.md`, 5–6).
 An admitted answer or any other terminal forge error follows the normal
 read-answer path once.
 
+**Reads waiting for room take turns** (2026-11-22). The connector's own
+reads that wait for the client's call room wait in one line, the read
+line, and are asked again in its order as calls end. Each kind was asked
+again only when the connector resumed with room, after the client's own
+`resume` had put a poll into the freed call and after the kinds checked
+before it, one of each a turn, with no deadline: under steady reads a
+goal branch's making was never asked again, and dev.fabrig.ai's new
+goals waited hours for their branches on 2026-11-19 and 20.
+
+- **Who waits in it:** a goal branch making's read (`branches.md`, 1),
+  a brief section's and a brief document's read
+  (`change/repairs-briefs.md`, 1), a lost writer's read, its ancestry
+  comparison and a written head's included (`branches.md`, 1 and 3), and a
+  landing gather's read (`../landing-turn.md`, 2). Each joins the line's
+  tail once the client refuses it `Busy` at its admission (skein's
+  `forge/client.md`, 5–6), once its wait after `Unavailable` or
+  `Timeout` is over (5), or once its forge connects after
+  `NotConnected`. Its place is a number from one counter all these kinds
+  share, so arrival order holds across kinds. A change step's gather
+  keeps its own wait of a second, and an agent's read the host's backoff
+  (both above): neither waits in the line.
+- **A freed call goes to the line first.** Once a call ends and its
+  place is reclaimed, the connector's next turn (`resume`) asks the
+  line's head before the client's own keeping and slow reads and before
+  any read asked later; admitted, it leaves the line, and the next is
+  asked while the client has room. The outbox's handoff of an entry
+  keeps its turn before the line. While any read waits in the line, a
+  read asked from outside it, the connector's own or an agent's, is
+  refused `Busy` by the connector as the client refuses one at a full
+  table, with the same answer to the same asker: a read of the line's
+  kinds joins its tail, and an agent's read takes the host's backoff.
+  So no poll, no later read and no other kind takes the call a waiter
+  waits for.
+- **A refused waiter keeps its place.** Asked and refused `Busy` again,
+  by a full table or the client's reserve (4), it stays where it was and
+  is asked again after the next call ends or at its deadline, never
+  twice in one turn. What it has read so far it keeps, as a gather does
+  (above).
+- **Each waits on a deadline:** `forge.client.backoff_ms` from its place,
+  doubling at each deadline it passes still waiting to at most
+  `forge.client.slow_ms`, set back once it is admitted. A deadline wakes
+  the line and never jumps it: the line is asked from its head at the
+  connector's next turn with room, as when a call ends. A goal branch's
+  making, a lost writer's read and a landing gather's read are retried
+  so for as long as they wait, holding nothing and failing for nothing,
+  as a read whose forge is away (5). A brief's read still waiting at its
+  brief's deadline leaves the line, and its brief fails `the forge
+  client is busy`, the words naming what it waited for
+  (`change/repairs-briefs.md`, 1).
+- **A making says it waits.** A goal branch making's read writes a line
+  as it joins the read line, again at each deadline it passes still
+  waiting, and once when the client admits it, as the forge's other
+  facts are written (`../../protocol/service-process.md`, 1.3):
+  - `BINARY serve: task T's goal branch making waits for the forge's read admission: branch B of OWNER/NAME, N ahead`;
+  - at each deadline, `BINARY serve: task T's goal branch making waits for the forge's read admission for AGE: branch B of OWNER/NAME, N ahead`;
+  - `BINARY serve: task T's goal branch making has the forge's read admission after AGE: branch B of OWNER/NAME`.
+
+  B is the branch the read reads, the goal's own, or the landing
+  branch whose tip the making reads; N the waiters ahead of it; AGE in
+  1.3's words, counted from its place. A refusal of a waiter already in
+  the line writes nothing. The words are the forge's words fact, the
+  one its full tables' lines take, and are no figure.
+
 **Each answer reaches the read that asked.** The client answers a read
 under the owner it was asked with, and two reads under one owner cannot
 be told apart. The root's fresh reads take their owners from a range
@@ -501,14 +564,6 @@ back. The forge stays connected throughout: connected is its access
   nor a retry is spent for them.
 
 ## 6. Open questions
-
-- **The connector's own retries** (`keeping-up.md`, 3): a brief read or lost-read
-  recovery waiting for client room is retried when the connector resumes
-  with room, without a timed backoff. A run's host call instead uses
-  smith's growing, capped backoff (`smith/docs/design/domain/run.md`,
-  5.2). Whether those internal reads need a timed backoff is separate
-  connector work. Default: retry when room is available; the host-call
-  rule changes no connector timer or admission bound.
 
 - **Which checks are CI on GitHub, without required checks:** temper's
   draft (`../../draft/github-app.md`, section 5) takes the repository's Actions

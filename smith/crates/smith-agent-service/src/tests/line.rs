@@ -83,6 +83,9 @@ fn read_prompt(calls: u8, line: u64, usage: llm::Usage) -> (llm::Prompt, Vec<usi
                 | session::Request::Priced { .. }
                 | session::Request::Yielded { .. }
                 | session::Request::Used { .. }
+                | session::Request::RateLimitWait { .. }
+                | session::Request::RateLimitWaitDone { .. }
+                | session::Request::RateLimitOutlastsSession { .. }
                 | session::Request::Ended { .. }
                 | session::Request::Cancel { .. }
                 | session::Request::Yield { .. }

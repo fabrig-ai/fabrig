@@ -103,7 +103,11 @@ impl Harness {
         while let Some(request) = self.next() {
             match request {
                 Request::Part { .. } => panic!("parts not requested"),
-                Request::Turn { .. } | Request::Priced { .. } => unreachable!("next observes records"),
+                Request::Turn { .. }
+                | Request::Priced { .. }
+                | Request::RateLimitWait { .. }
+                | Request::RateLimitWaitDone { .. }
+                | Request::RateLimitOutlastsSession { .. } => unreachable!("next consumes notices and records"),
                 Request::Used { opener: _, usage, .. } => {
                     assert!(one.is_none(), "a completion's usage comes first");
                     self.turns = self.turns.checked_add(1).expect("bounded completions");
@@ -152,6 +156,9 @@ impl Harness {
                     }
                     self.turn_records.push(turn).expect("configured fixture turn observation bound");
                 }
+                Request::RateLimitWait { .. }
+                | Request::RateLimitWaitDone { .. }
+                | Request::RateLimitOutlastsSession { .. } => {}
                 other @ (Request::JobsCancelled { .. }
                 | Request::Opened { .. }
                 | Request::Yielded { .. }
@@ -179,7 +186,11 @@ impl Harness {
         while let Some(request) = self.next() {
             match request {
                 Request::Part { .. } => panic!("parts not requested"),
-                Request::Turn { .. } | Request::Priced { .. } => unreachable!("next observes records"),
+                Request::Turn { .. }
+                | Request::Priced { .. }
+                | Request::RateLimitWait { .. }
+                | Request::RateLimitWaitDone { .. }
+                | Request::RateLimitOutlastsSession { .. } => unreachable!("next consumes notices and records"),
                 Request::Io { owner, .. }
                 | Request::Job { owner, .. }
                 | Request::CancelIo { owner }
@@ -1411,6 +1422,9 @@ fn completion_name_exhaustion_ends_before_any_owned_or_delegated_effect() {
                     ended = true;
                 }
                 Request::JobsCancelled { .. }
+                | Request::RateLimitWait { .. }
+                | Request::RateLimitWaitDone { .. }
+                | Request::RateLimitOutlastsSession { .. }
                 | Request::Opened { .. }
                 | Request::Yielded { .. }
                 | Request::Complete { .. }

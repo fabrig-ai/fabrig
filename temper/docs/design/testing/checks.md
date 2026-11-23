@@ -58,7 +58,28 @@ The two suites are the strategy's (skein/docs/foundation/testing-strategy.md, se
   document methods, query routing and authorization refusals without Chromium.
 - **Fuzzy tests** are each world's `tests/suite/fuzzy/*.rs` modules. A sweep
   settles each random world under every invariant, and reaches every
-  ending among them.
+  ending among them. A fuzzy module never compiles a focused module a
+  second time, nor wraps a focused test with the same arguments: that
+  repeats the focused suite's work with no draw of its own, and is
+  retired, the focused test kept. A wrapper that is its scenario's only
+  run is not such a copy, and stays.
+- **A story keeps only what its tier alone shows.** A real-loop or
+  one-process story keeps the assertions that only its tier can show
+  (skein/docs/foundation/testing-strategy.md, 2.7 and 2.8): real
+  processes and a worker's lives, a wall or a timer on the real clock,
+  git and the forge reached over loopback, the simulator's disk and
+  service. Each of its other assertions is a focused scenario of the
+  lowest world that shows it: the engine's domain worlds for the
+  engine's policy and its order, the system world for what a query
+  carries to the model, and a step test for a check over supplied
+  values. A story whose every assertion is held below is retired. No
+  story asserts an order between its own work and a product deadline on
+  the real clock, nor a count that depends on how fast the machine runs
+  (a placement's rechecks, a poll's tries): those are the domain
+  worlds', on their own clock, and a story that asserted one was
+  load-sensitive at its cause (skein/docs/foundation/testing-strategy.md,
+  10, *The same work at every run*). `reference-case.md` names, for each step, what its story
+  still shows and which tests hold the rest.
 - **Budgets.** temper's focused and fuzzy suites have a CPU budget for
   each layer they have, in `tools/tiers/budgets.toml`'s gate tables
   (`tools/tiers/budgets.md`, 2): the CI builder's gate figures of 11-16
@@ -510,7 +531,9 @@ the facts the engine and the worker emit and the durable records
 (`scenarios.md`, 1.2); a harness invariant, which reads a component's frozen
 state through its inspection adapter (skein's `testing/inspection.md`);
 or a settings test, outside every world. Each returns its finding, naming
-the object, the moment and the seed.
+the object, the moment and the seed. The settings tests are
+`settings-tests.md`'s, and the check of every commit's store against a
+start is `store-check.md`'s.
 
 ### 6.1 The inspection adapters
 

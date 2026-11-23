@@ -58,6 +58,11 @@ pub struct Typed {
 }
 
 impl Typed {
+    /// The fake provider's fault entrances for a composed backend.
+    pub fn provider_mut(&mut self) -> &mut provider::Domain {
+        &mut self.provider
+    }
+
     fn completion(
         &self,
         answer: provider::api::Answer,
@@ -76,20 +81,32 @@ impl Typed {
         })
     }
 
-    pub(crate) fn new(settings: &Settings) -> Self {
+    /// Build the typed provider with caller-supplied scripts and the usual boundaries.
+    #[must_use]
+    pub fn scripted(settings: &Settings, scripts: Box<[provider::api::Script]>) -> Self {
         let mut client = skein_llm_kit::limits();
         client.input = u32::try_from(settings.limits.session.answer_bytes).expect("domain call input fits u32");
         let stated = smith_protocol_llm::Stated::from_tools(&settings.limits.session.tools, client.input)
             .expect("domain tool declarations fit");
         Self {
             translation: smith_protocol_llm_fixtures::small(client, stated),
-            provider: crate::scripted_provider(&settings.provider, settings.seed ^ 0x25),
+            provider: provider::Domain::configured(
+                &settings.provider,
+                settings.seed ^ 0x25,
+                scripts,
+                smith_session_world::provider::menu(),
+            )
+            .expect("caller scripts obey provider admission"),
             stage: Stage::uncapped(settings.provider),
             failure: None,
             failure_report: llm::Report::none(),
             failure_count: None,
             calls: Ledger::new("fake provider call"),
         }
+    }
+
+    pub(crate) fn new(settings: &Settings) -> Self {
+        Self::scripted(settings, crate::script::all())
     }
 }
 impl Backend for Typed {

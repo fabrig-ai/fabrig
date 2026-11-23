@@ -9,6 +9,7 @@ fn crashed_at_every_live_commit(story: Story) {
     let outcome = stories::run(story, Cut::EachCommitFrom(first_live), 101)
         .unwrap_or_else(|error| panic!("{story:?}: {error:?}"));
     jig_conformance::cut_passed();
+    assert_eq!(outcome.checked, outcome.commits - first_live + 1, "every live commit checked by its child");
     assert_eq!(
         outcome.forked,
         (first_live..=outcome.commits).collect::<Vec<_>>(),

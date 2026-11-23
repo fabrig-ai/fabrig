@@ -349,11 +349,13 @@ class RunnerFixture(unittest.TestCase):
         if decision['counted']:
             self.assertNotIn(line, output)
             for process in results['processes']:
-                if process['kind'] in ('tests', 'fresh', 'alone'):
+                if process['kind'] in ('tests', 'fresh'):
                     self.assertIs(type(process['instructions']), int)
                     self.assertGreater(process['instructions'], 0)
                     if process['binary_id'] == 'fixture::count' and 'spin' in process['tests']:
                         self.assertGreaterEqual(process['instructions'], 10_000_000)
+                else:
+                    self.assertIsNone(process['instructions'])
         else:
             self.assertEqual(output.count(line), 1)
             self.assertEqual(output.count(f"{line}{decision['why']}\n"), 1)
@@ -1057,10 +1059,10 @@ class EndToEndTests(RunnerFixture):
         self.assertEqual(result['counting'], data['counting'])
         self.assertEqual([p['instructions'] for p in result['processes']],
                          [p['instructions'] for p in data['processes']])
-        processes = [p for p in result['processes'] if p['kind'] in ('tests', 'fresh', 'alone')]
+        processes = [p for p in result['processes'] if p['kind'] in ('tests', 'fresh')]
         self.assertTrue(processes)
         for process in result['processes']:
-            if process['kind'] not in ('tests', 'fresh', 'alone'):
+            if process['kind'] not in ('tests', 'fresh'):
                 self.assertIsNone(process['instructions'])
         if result['counting']['counted']:
             for process in processes:

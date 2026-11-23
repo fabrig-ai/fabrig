@@ -419,44 +419,51 @@ fn delegate(world: &mut World, first: &engine::Assignment) -> engine::Assignment
 
 #[test]
 fn a_tasks_words_to_a_coordinator_are_offered_to_the_run_they_wake() {
-    let ReferenceGoal { mut world, first, results, .. } = reference_goal();
-    let delegate = delegate(&mut world, &first);
-    let turns = live_task(&world, first.task).turn;
-    park_after_turn(&mut world, &first, None, turns);
-    world.until(Until::Ready);
-    assert_eq!(live_task(&world, first.task).phase, tasks::Phase::Active(tasks::Active::Idle));
+    const M1_REPORT: &[u8] = b"M1 ended.\nDesign followed.\nChanges landed.\nCI green.\nReviews passed.\nSTATUS updated.\nNo blocker.\nM2 may start.\nQA follows.\nA1 stays live.";
+    for words in [QUESTION, M1_REPORT] {
+        let ReferenceGoal { mut world, first, results, .. } = reference_goal();
+        let delegate = delegate(&mut world, &first);
+        let turns = live_task(&world, first.task).turn;
+        park_after_turn(&mut world, &first, None, turns);
+        world.until(Until::Ready);
+        assert_eq!(live_task(&world, first.task).phase, tasks::Phase::Active(tasks::Active::Idle));
 
-    let answer = world.scripted_call(
-        &delegate,
-        QUESTION_CALL,
-        engine::Tool::Message { target: first.task, form: engine::MessageForm::Words, words: QUESTION.into() },
-    );
-    let engine::CallAnswer::Sent { message } = answer else { panic!("delegate words sent: {answer:?}") };
-    world.until(Until::Ready);
-    let next = world
-        .assigned
-        .iter()
-        .find(|run| run.task == first.task && run.attempt > first.attempt)
-        .expect("task's words wake the idle goal")
-        .clone();
-    assert!(live_task(&world, first.task).offered.contains(tasks::Reasons::WORDS));
-    let offered = next.messages.iter().find(|word| word.number == message).expect("waking words offered");
-    assert_eq!(offered.kind, tasks::MessageKind::Words);
-    assert_eq!(offered.from, tasks::Party::Task(delegate.task));
-    assert_eq!(offered.words.as_ref(), QUESTION);
-    assert_eq!(next.run.policy.instructions.as_ref(), results);
-    assert!(
-        String::from_utf8_lossy(&next.run.policy.instructions)
-            .contains("**Words:** read them; act on what is yours, and note what is news.")
-    );
+        let answer = world.scripted_call(
+            &delegate,
+            QUESTION_CALL,
+            engine::Tool::Message { target: first.task, form: engine::MessageForm::Words, words: words.into() },
+        );
+        let engine::CallAnswer::Sent { message } = answer else { panic!("delegate words sent: {answer:?}") };
+        world.until(Until::Ready);
+        let next = world
+            .assigned
+            .iter()
+            .find(|run| run.task == first.task && run.attempt > first.attempt)
+            .expect("task's words wake the idle goal")
+            .clone();
+        assert!(live_task(&world, first.task).offered.contains(tasks::Reasons::WORDS));
+        let offered = next.messages.iter().find(|word| word.number == message).expect("waking words offered");
+        assert_eq!(offered.kind, tasks::MessageKind::Words);
+        assert_eq!(offered.from, tasks::Party::Task(delegate.task));
+        assert_eq!(offered.words.as_ref(), words);
+        assert_eq!(next.messages.iter().filter(|word| word.number == message).count(), 1);
+        let sender = live_task(&world, delegate.task);
+        assert_eq!(sender.phase, tasks::Phase::Active(tasks::Active::Running { attempt: delegate.attempt }));
+        assert_eq!(sender.last_answer, None, "the report precedes the sender's first run end");
+        assert_eq!(next.run.policy.instructions.as_ref(), results);
+        assert!(
+            String::from_utf8_lossy(&next.run.policy.instructions)
+                .contains("**Words:** read them; act on what is yours, and note what is news.")
+        );
 
-    let runs = world.assigned.len();
-    world.scripted_read_inbox(&next);
-    let turns = live_task(&world, next.task).turn;
-    park_after_turn(&mut world, &next, None, turns);
-    world.until(Until::Ready);
-    world.advance_ticks(20);
-    assert_eq!(world.assigned.len(), runs, "the same words cause no second wake");
-    assert_eq!(live_task(&world, first.task).phase, tasks::Phase::Active(tasks::Active::Idle));
-    world.close();
+        let runs = world.assigned.len();
+        world.scripted_read_inbox(&next);
+        let turns = live_task(&world, next.task).turn;
+        park_after_turn(&mut world, &next, None, turns);
+        world.until(Until::Ready);
+        world.advance_ticks(20);
+        assert_eq!(world.assigned.len(), runs, "the same words cause no second wake");
+        assert_eq!(live_task(&world, first.task).phase, tasks::Phase::Active(tasks::Active::Idle));
+        world.close();
+    }
 }

@@ -9,22 +9,11 @@ use temper_real_loop_world::{
 };
 
 #[test]
-fn a_stopped_owner_holds_its_delegates_and_its_release_resumes_them_and_its_news_waits_for_its_release_without_a_park_or_a_retired_charter()
- {
-    // Leaves out the director parking B, an undesigned power:
-    // an agent's task tools delegate, amend, message, cancel and release, but
-    // none stops a task (crates/temper-engine-smith/src/calls.rs:42-52), so the
-    // director proposes and the person stops. Leaves out retiring the helper's
-    // charter, 6.8 (b), missing: no charter is withdrawn while a deployment
-    // runs, and across a restart a live task on a charter no longer configured
-    // refuses the restore (jig's crates/jig-domain-tasks/src/stored.rs:656), so
-    // the helper's cancel stands for it. Leaves out a second helper. A held
-    // review stands for h1 in flight,
-    // not already ready in kit's queue: this fixture's CI passes at once.
-    // Nothing acts on the results until B's one release; the person's tour of
-    // every owner's work is left out (testing/reference-case.md's 5.2 row).
+fn a_stopped_owners_reviewed_change_lands_and_its_news_arrives_after_release() {
+    // A held review is the in-flight seam; the person's one release resumes
+    // the whole subtree before the change lands over the loopback forge.
     let ran = run_cluster_forge(
-        case::CASE_5_2_WORKERS,
+        case::PAUSE_WORKERS,
         &[],
         case::fixture_5_2(),
         case::scripts::step_5_2,

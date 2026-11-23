@@ -54,7 +54,7 @@ impl World {
         world.run();
         for number in 1..EXCHANGES {
             let proposal = world.pending_configuration();
-            world.process.resume(exchange(&reply, u32::from(number) + 1));
+            world.process.resume(exchange(&world.restart_config, &reply, u32::from(number) + 1));
             world.act(
                 parties::Ask::Decision { proposer: parties::Proposer::Task(1), proposal, accept: true },
                 [number; 16],
@@ -71,7 +71,7 @@ impl World {
     fn long_chat(mode: u8, reply: &[u8]) -> Self {
         let mut world = Self::configured_limits(
             933,
-            exchange(reply, 1),
+            exchange(&config(933), reply, 1),
             false,
             if mode == 0 { window_config } else { config },
             limits,
@@ -125,7 +125,7 @@ impl World {
 
     fn restart_long_chat(&mut self) {
         assert!(self.store.idle(), "restart between committed activations");
-        self.root = engine::Domain::new(config(self.seed), &self.env.limits).expect("restart configuration");
+        self.replace_root(config(self.seed));
         self.root_events = super::VecDeque::from([engine::Event::Restart { pending: false }]);
         self.protocol = super::Protocol::default();
         self.worker = worker::Domain::new(&self.worker_env.limits, Box::new([]));
@@ -154,10 +154,10 @@ impl World {
 
     fn prompt_contains(&self, words: &[u8]) -> bool {
         self.agent().prompts().iter().any(|prompt| {
-            prompt.system.windows(words.len()).any(|bytes| bytes == words)
+            skein_lib::bytes::find(&prompt.system, words).is_some()
                 || prompt.messages.iter().flat_map(|message| &message.parts).any(|part| {
                     matches!(part, skein_fake_llm_domain::api::Part::Text { text }
-                        if text.windows(words.len()).any(|bytes| bytes == words))
+                        if skein_lib::bytes::find(text, words).is_some())
                 })
         })
     }
@@ -184,9 +184,8 @@ fn transcript_bytes(row: &engine::Record) -> Option<usize> {
     }
 }
 
-fn exchange(reply: &[u8], against: u32) -> super::Script {
+fn exchange(config: &engine::Config, reply: &[u8], against: u32) -> super::Script {
     use jig_domain_core::{SettingsAnswer, reads::SettingDocument, settings as s};
-    let config = config(933);
     let mut charter = config.core.defaults.charters[0].clone();
     charter.policy.instructions =
         [INSTRUCTIONS, format!("\nExplain configuration revision {against}.").as_bytes()].concat().into_boxed_slice();

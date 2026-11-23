@@ -311,7 +311,12 @@ impl Scripted {
                 self.used.push(usage);
             }
             session::Request::Yielded { stop, text, .. } => self.yielded.push((stop, text)),
-            session::Request::Cancel { .. } | session::Request::Yield { .. } | session::Request::Withdraw { .. } => {}
+            session::Request::Cancel { .. }
+            | session::Request::Yield { .. }
+            | session::Request::Withdraw { .. }
+            | session::Request::RateLimitWait { .. }
+            | session::Request::RateLimitWaitDone { .. }
+            | session::Request::RateLimitOutlastsSession { .. } => {}
             session::Request::Io { owner, op, .. } => {
                 assert!(!self.operations.iter().any(|(pending, _)| pending == &owner));
                 self.operations.push((owner, op));

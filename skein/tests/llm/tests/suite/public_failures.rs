@@ -82,6 +82,44 @@ fn the_plans_limit_inside_response_failed_is_exhausted() {
 }
 
 #[test]
+fn responses_stream_reads_rate_limit_delay_from_message() {
+    const CODE: &str = "rate_limit_exceeded";
+    const LIMIT: &str = "Rate limit reached for gpt-5 in organization org-test on tokens per min (TPM): Limit 30000, Used 25000, Requested 8000.";
+    const LINK: &str = "Visit https://platform.openai.com/account/rate-limits to learn more.";
+    const HEAD: &str = "Content-Type: text/event-stream\r\n";
+    for (message, retry_after) in [
+        (format!("{LIMIT} Please try again in 6.5s. {LINK}"), Duration::from_millis(6500)),
+        (format!("{LIMIT} {LINK}"), Duration::from_secs(60)),
+        (CODE.to_owned(), Duration::ZERO),
+    ] {
+        for document in [
+            format!(r#"{{"type":"response.failed","response":{{"error":{{"code":"{CODE}","message":"{message}"}}}}}}"#),
+            format!(r#"{{"type":"error","code":"{CODE}","message":"{message}"}}"#),
+        ] {
+            let source = response(200, HEAD, &events(&[&document]), false);
+            let world = run_call(public_call(1), limits_for(Provider::OpenAi), source, 1);
+            world.assert_once();
+            let terminal = world.seen.iter().find_map(|event| {
+                if let client::Event::Failed { failure, evidence, report, .. } = event {
+                    Some((*failure, *evidence, report.code.as_ref()))
+                } else {
+                    None
+                }
+            });
+            assert_eq!(
+                terminal,
+                Some((
+                    Failure::RateLimited { retry_after },
+                    client::Evidence::Response { status: 200 },
+                    CODE.as_bytes()
+                )),
+                "{document}"
+            );
+        }
+    }
+}
+
+#[test]
 fn the_plans_reset_comes_from_the_error_then_retry_after() {
     let code = "subscription_sharing_usage_limit_exceeded";
     for (fields, headers, expected) in [

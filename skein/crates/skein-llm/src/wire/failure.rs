@@ -1,3 +1,4 @@
+//! Provider failures and rate-limit waits (`skein/docs/design/llm/rate-limits.md`, 1–2).
 use super::{Json, Limits, detail as common, json};
 use crate::{Failure, Provider};
 use alloc::boxed::Box;
@@ -50,7 +51,15 @@ impl RateLimit {
     }
     #[must_use]
     pub fn delay(self, error: Option<&ProviderError>, wall: Wall) -> Duration {
-        self.reset(error, wall).unwrap_or(Duration::ZERO)
+        if let Some(delay) = self.reset(error, wall) {
+            return delay;
+        }
+        if let Some(error) = error
+            && let Some(delay) = worded(&error.message)
+        {
+            return delay;
+        }
+        Duration::ZERO
     }
     /// The first supplied reset, or none when the provider gives no reset.
     #[must_use]
@@ -72,6 +81,144 @@ impl RateLimit {
         None
     }
 }
+fn worded(message: &[u8]) -> Option<Duration> {
+    if let Some(delay) = figure(message) {
+        return Some(delay);
+    }
+    window(message)
+}
+
+fn figure(message: &[u8]) -> Option<Duration> {
+    const PHRASE: &[u8] = b"try again in";
+    for (offset, text) in message.windows(PHRASE.len()).enumerate() {
+        if text.eq_ignore_ascii_case(PHRASE) {
+            let tail = message.get(offset.checked_add(PHRASE.len())?..)?.strip_prefix(b" ")?;
+            for (space, &byte) in tail.iter().enumerate() {
+                if byte != b' ' {
+                    return figure_parts(tail.get(space..)?);
+                }
+            }
+            return None;
+        }
+    }
+    None
+}
+
+const DIGITS: usize = 9;
+// Keep nine decimal places of a millisecond so only the sum is rounded.
+const SCALE: u128 = 1_000_000_000;
+
+fn figure_parts(mut input: &[u8]) -> Option<Duration> {
+    const SPELLED: &[(&[u8], u64)] = &[
+        (b"hour", 3_600_000),
+        (b"hours", 3_600_000),
+        (b"minute", 60_000),
+        (b"minutes", 60_000),
+        (b"second", 1_000),
+        (b"seconds", 1_000),
+        (b"millisecond", 1),
+        (b"milliseconds", 1),
+    ];
+    let mut total = 0_u128;
+    for part in 0..input.len() {
+        let (whole, mut tail) = digits(input)?;
+        let whole = u128::from(bytes::decimal(whole)?);
+        if part == 0
+            && let Some(text) = tail.strip_prefix(b" ")
+        {
+            return millis_duration(whole.checked_mul(u128::from(word_unit(text, SPELLED)?))?);
+        }
+        let mut amount = whole.checked_mul(SCALE)?;
+        if let Some(after_dot) = tail.strip_prefix(b".") {
+            let (fraction, after_digits) = digits(after_dot)?;
+            let places = u32::try_from(DIGITS.checked_sub(fraction.len())?).ok()?;
+            let fraction = u128::from(bytes::decimal(fraction)?).checked_mul(10_u128.checked_pow(places)?)?;
+            amount = amount.checked_add(fraction)?;
+            tail = after_digits;
+        }
+        let (unit, after_unit) = compact_unit(tail)?;
+        total = total.checked_add(amount.checked_mul(unit)?)?;
+        if let Some(&byte) = after_unit.first()
+            && byte.is_ascii_digit()
+        {
+            input = after_unit;
+        } else {
+            return millis_duration(total.div_ceil(SCALE));
+        }
+    }
+    None
+}
+
+fn digits(input: &[u8]) -> Option<(&[u8], &[u8])> {
+    let mut count = 0_usize;
+    for &byte in input {
+        if !byte.is_ascii_digit() {
+            break;
+        }
+        count = count.checked_add(1)?;
+        if count > DIGITS {
+            return None;
+        }
+    }
+    Some((input.get(..count)?, input.get(count..)?))
+}
+
+fn compact_unit(input: &[u8]) -> Option<(u128, &[u8])> {
+    let (unit, tail) = input.split_first()?;
+    let unit = unit.to_ascii_lowercase();
+    if unit == b'h' {
+        return Some((3_600_000, tail));
+    }
+    if unit == b'm' {
+        if let Some(&byte) = tail.first()
+            && byte.eq_ignore_ascii_case(&b's')
+        {
+            return Some((1, tail.get(1..)?));
+        }
+        return Some((60_000, tail));
+    }
+    if unit == b's' {
+        return Some((1_000, tail));
+    }
+    None
+}
+
+fn millis_duration(millis: u128) -> Option<Duration> {
+    let nanos = millis.checked_mul(1_000_000)?;
+    Some(Duration::from_nanos(u64::try_from(nanos).ok()?))
+}
+
+fn window(message: &[u8]) -> Option<Duration> {
+    const PER: &[u8] = b"per ";
+    const WINDOWS: &[(&[u8], u64)] =
+        &[(b"sec", 1), (b"second", 1), (b"min", 60), (b"minute", 60), (b"hour", 3600), (b"day", 86_400)];
+    for (offset, text) in message.windows(PER.len()).enumerate() {
+        if text.eq_ignore_ascii_case(PER) && (offset == 0 || message.get(offset.saturating_sub(1)) == Some(&b' ')) {
+            return Some(Duration::from_secs(word_unit(message.get(offset.checked_add(PER.len())?..)?, WINDOWS)?));
+        }
+    }
+    None
+}
+
+fn word_unit(input: &[u8], units: &[(&[u8], u64)]) -> Option<u64> {
+    for &(word, amount) in units {
+        if let Some(&byte) = input.get(word.len())
+            && byte.is_ascii_alphabetic()
+        {
+            continue;
+        }
+        if let Some(prefix) = input.get(..word.len())
+            && prefix.eq_ignore_ascii_case(word)
+        {
+            return Some(amount);
+        }
+    }
+    None
+}
+
+#[cfg(test)]
+mod tests;
+
 /// A route's named error decides before its HTTP status (llm/README.md, sections 4.7 and 4.8).
 /// A 403 without a decoded provider error is unavailable (section 2.5).
 #[must_use]

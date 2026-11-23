@@ -23,7 +23,9 @@ mod walking;
 pub use walking::{Scenario, Walking};
 mod deliveries;
 mod store;
+mod store_check;
 pub use constructors::fixture;
+pub use jig_conformance::store_check::StoreChecks;
 
 pub(crate) mod testing {
     use super::{Cut, World};
@@ -120,6 +122,10 @@ pub struct World {
     pub(crate) broken: bool,
     pub(crate) oracle_closed: bool,
     seed: u64,
+    /// Policy and counts for this run's cold store checks.
+    pub store_checks: StoreChecks,
+    pub(crate) store_checks_reported: bool,
+    restart_check: Option<(u64, bool)>,
     iteration: u64,
     inspections: u64,
     pub(crate) restart_config: (root::Config, root::Limits),
@@ -472,11 +478,7 @@ impl World {
             self.observer.observe(self.wall, crate::referee::Observed::Tick)?;
             let env = self.env();
             self.observer.systems(self.wall, &self.systems)?;
-            let sweep_waits = self.domain.start_phase() == Some(core::start::Phase::Sweep)
-                && !self.domain.quiescent()
-                && self.events.front().is_some_and(|event| {
-                    matches!(event, root::Event::StartRecord(_) | root::Event::StartDone(core::start::Phase::Sweep))
-                });
+            let sweep_waits = store_check::sweep_waits(&self.domain, self.events.front());
             if consume
                 && !sweep_waits
                 && let Some(mut event) = self.events.pop_front()
@@ -521,6 +523,7 @@ impl World {
             }
             let mut out = Queue::with_capacity(128);
             root::release(&mut self.domain, &env, &mut out);
+            self.check_restarted_child()?;
             let empty = out.is_empty();
             for _ in 0..out.len() {
                 let mut request = out.pop().expect("root output count");

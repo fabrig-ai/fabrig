@@ -6,6 +6,7 @@ use skein_forge::api::{Answer, Commit, Error, Read, Repository};
 use skein_lib::{Decimal, Queue, Time, Token, Writer};
 
 use crate::brief_words::{self, bounds, busy, room};
+use crate::domain::read_line::{self, Waiter};
 use crate::{BriefDocument, BriefRead, Domain, Request};
 
 #[derive(Hash, Debug)]
@@ -16,7 +17,7 @@ pub(crate) struct Fetch {
     read: Read,
     head: Option<Commit>,
     max_bytes: u32,
-    refused: Option<u64>,
+    refused: bool,
     deadline: Option<Time>,
 }
 
@@ -132,7 +133,7 @@ pub(crate) fn gather(
         read: read.clone(),
         head: None,
         max_bytes,
-        refused: None,
+        refused: false,
         deadline: None,
     };
     let owner = call(section);
@@ -154,13 +155,15 @@ pub(crate) fn answer(
     domain: &mut Domain,
     owner: Token,
     result: Result<Answer, Error>,
+    now: Time,
     out: &mut Queue<Request>,
 ) -> bool {
     let Some(mut fetch) = domain.document_fetches.remove(&owner) else { return false };
     let section = fetch.section;
     if result == Err(Error::Busy) {
-        fetch.refused = Some(domain.brief_reclaim);
+        fetch.refused = true;
         domain.document_fetches.insert(owner, fetch).expect("same document read room");
+        read_line::join(domain, Waiter::Document(owner), now, out);
         return true;
     }
     let unread = brief_words::unread_of(&result);
@@ -337,7 +340,7 @@ pub(crate) fn set_deadline(domain: &mut Domain, section: Token, deadline: Time) 
 pub(crate) fn next_deadline(domain: &Domain) -> Option<Time> {
     let mut next: Option<Time> = None;
     for (_, fetch) in &domain.document_fetches {
-        if fetch.refused.is_some()
+        if fetch.refused
             && let Some(deadline) = fetch.deadline
         {
             next = Some(match next {
@@ -349,39 +352,17 @@ pub(crate) fn next_deadline(domain: &Domain) -> Option<Time> {
     next
 }
 
-fn waiting_section(domain: &Domain) -> Option<Token> {
-    for (section, fetch) in &domain.document_fetches {
-        if let Some(reclaim) = fetch.refused
-            && reclaim != domain.brief_reclaim
-        {
-            return Some(*section);
-        }
-    }
-    None
-}
-
-pub(crate) fn waiting(domain: &Domain) -> bool {
-    waiting_section(domain).is_some()
-}
-
-pub(crate) fn retry(domain: &mut Domain, out: &mut Queue<Request>) {
-    let Some(section) = waiting_section(domain) else { return };
-    let fetch = domain.document_fetches.get_mut(&section).expect("waiting document read");
-    fetch.refused = None;
-    out.push(Request::BriefClient {
-        event: skein_forge_client::Event::Read {
-            owner: section,
-            repository: fetch.repository,
-            read: fetch.read.clone(),
-        },
-    });
+pub(crate) fn ask(domain: &mut Domain, owner: Token) -> Option<skein_forge_client::Event> {
+    let fetch = domain.document_fetches.get_mut(&owner)?;
+    fetch.refused = false;
+    Some(skein_forge_client::Event::Read { owner, repository: fetch.repository, read: fetch.read.clone() })
 }
 
 pub(crate) fn expire(domain: &mut Domain, now: Time, out: &mut Queue<Request>) {
     for _ in 0..domain.document_fetches.capacity() {
         let mut expired = None;
         for (section, fetch) in &domain.document_fetches {
-            if fetch.refused.is_some()
+            if fetch.refused
                 && let Some(deadline) = fetch.deadline
                 && deadline <= now
             {
@@ -391,6 +372,7 @@ pub(crate) fn expire(domain: &mut Domain, now: Time, out: &mut Queue<Request>) {
         }
         let Some(section) = expired else { break };
         let fetch = domain.document_fetches.remove(&section).expect("expired document");
+        domain.read_line.leave(Waiter::Document(section));
         let stage = if fetch.head.is_none() { "branch" } else { "file" };
         out.push(Request::BriefReadRefused {
             section: fetch.section,
@@ -412,6 +394,7 @@ pub(crate) fn release_repository(d: &mut Domain, repository: Repository) {
     }
     for key in keys.into_boxed() {
         let fetch = d.document_fetches.remove(&key).expect("collected document_fetches");
+        d.read_line.leave(Waiter::Document(key));
         d.brief_pending.remove(&fetch.section);
         d.brief_held.remove(&fetch.section);
         d.brief_planned.remove(&fetch.section);

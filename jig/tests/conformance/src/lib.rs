@@ -320,6 +320,26 @@ impl Application for Testing {
         Engine { root: domain, fixture: Some(fixture), journal: Box::new([]) }
     }
 
+    fn rehearse(domain: &mut Engine) {
+        domain.root.rehearse();
+    }
+
+    fn rehearsed(domain: &Engine) -> bool {
+        domain.root.rehearsed()
+    }
+
+    fn refused(domain: &Engine) -> Option<String> {
+        domain
+            .root
+            .start_failure()
+            .map(|(_, failure)| format!("{failure:?}"))
+            .or_else(|| domain.root.start_page_failure().map(|(_, failure)| format!("{failure:?}")))
+    }
+
+    fn start_phase(domain: &Engine) -> String {
+        format!("{:?}", domain.root.start_phase())
+    }
+
     fn systems(config: &Config, _: u64) -> [System; 2] {
         let mut systems = [System::new(), System::new()];
         if matches!(config.scenario, Some(Scenario::ChangedJudge | Scenario::NarrowingPolicy)) {

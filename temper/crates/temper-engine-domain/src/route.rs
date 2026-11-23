@@ -616,21 +616,20 @@ pub(crate) fn route_into(domain: &mut Domain, env: &Env<Limits>, decision: &mut 
             }
             Work::ForgeRestored => {
                 settings_parts::restored(domain);
-                if let Some(key) = domain.forge.unjoined_change() {
-                    domain.stop_start(crate::StartStop::ForgeRow(key));
-                    return;
-                }
-                domain.forge.link_names(&domain.core.tasks, &env.limits.forge);
-                domain.forge.link_tiers(&domain.core.tasks, &env.limits.forge);
                 let mut output = Queue::uncapped();
-                domain.forge.link_landings(&domain.core.tasks, &environment_forge(env), &mut output);
+                let links = domain.forge.start_links(&domain.core.tasks, &environment_forge(env), &mut output);
                 forge_route::outputs(domain, env, decision, &mut output);
-                if domain.forge.fit_restored(&env.limits.forge).is_err() {
-                    refuse_forge_fit(domain);
-                    return;
-                }
-                if let Some(link) = domain.forge.missing_link(&domain.core.tasks) {
-                    domain.stop_start(crate::StartStop::ForgeLink { phase: domain.start_phase(), link });
+                if let Err(failure) = links {
+                    let stop = match failure {
+                        forge::StartLink::Row(key) => crate::StartStop::ForgeRow(key),
+                        forge::StartLink::Fit(failure) => {
+                            crate::StartStop::ForgeFit { phase: domain.start_phase(), failure }
+                        }
+                        forge::StartLink::Link(link) => {
+                            crate::StartStop::ForgeLink { phase: domain.start_phase(), link }
+                        }
+                    };
+                    domain.stop_start(stop);
                     return;
                 }
                 kinds::restored_figures(domain, env, decision);

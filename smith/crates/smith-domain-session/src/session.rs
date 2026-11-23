@@ -220,6 +220,8 @@ struct Conversation {
     provider: accounting::Provider,
     /// One-based attempt of the last issued completion, retained through close.
     completion_attempts: u32,
+    /// Retries spent on transient failures of this completion, excluding rate limits.
+    retries_spent: u32,
     /// What the session may spend, and what it has: completions received, and
     /// the tokens they used.
     budget: Budget,
@@ -255,10 +257,10 @@ struct Spending {
 
 #[derive(Debug)]
 enum State {
-    /// A call is in flight, after `attempt` retries.
+    /// A call is in flight, with zero-based `attempt`.
     Completing { attempt: u32 },
-    /// The last call failed transiently: calling again at `until`.
-    Backoff { attempt: u32, until: Time },
+    /// Calling again at `until`; a rate limit wait is reported to the opener.
+    Backoff { attempt: u32, until: Time, rate_limited: bool },
     /// Running the tool calls of the last assistant message.
     Tooling { tools: Tools },
     /// The tools answered every call of the last batch in the step that
@@ -799,7 +801,10 @@ pub(crate) fn close(domain: &mut Domain, env: &Env<Limits>, session: Token, out:
             };
             State::Closing { end, waiting: KIT_ONLY, tools }
         }
-        State::Backoff { .. } => finish(End::Closed),
+        State::Backoff { rate_limited, .. } => {
+            rate_limit_wait_done(&session.conversation, rate_limited, out);
+            finish(End::Closed)
+        }
         State::Tooling { tools } => cancel_tools(&domain.calls.runs, tools, End::Closed, out),
         // It is already ending, with the end it had first.
         State::Closing { end, waiting, tools } => State::Closing { end, waiting, tools },
@@ -1141,7 +1146,7 @@ pub(crate) fn failed(
     };
     // A retry is told with its wait: no request goes out until then.
     match &session.state {
-        State::Backoff { attempt, until } => {
+        State::Backoff { attempt, until, .. } => {
             let delay = until.saturating_since(env.now);
             domain.facts.push_response(
                 FactKind::CompletionRetried { opener, attempt: *attempt, delay },
@@ -1282,7 +1287,10 @@ pub(crate) fn expire(domain: &mut Domain, env: &Env<Limits>, id: Id<Session>, ou
         State::Completing { attempt: _ } => cancel_completion(id, OUT_OF_TIME, out),
         State::Resting { tools } => finish_batch(OUT_OF_TIME, tools),
         State::Yielded { tools } => State::Closing { end: OUT_OF_TIME, waiting: KIT_ONLY, tools },
-        State::Backoff { .. } => finish(OUT_OF_TIME),
+        State::Backoff { rate_limited, .. } => {
+            rate_limit_wait_done(&session.conversation, rate_limited, out);
+            finish(OUT_OF_TIME)
+        }
         State::Tooling { tools } => cancel_tools(&domain.calls.runs, tools, OUT_OF_TIME, out),
         State::Closing { .. } | State::Closed => {
             unreachable!("the expiry alarm runs only in Completing, Backoff, Tooling, Resting and Yielded")
@@ -1296,7 +1304,10 @@ pub(crate) fn retry(domain: &mut Domain, env: &Env<Limits>, id: Id<Session>, out
     let session = domain.sessions.get_mut(id).expect("an alarm is cancelled before its session closes");
     let state = mem::replace(&mut session.state, State::Closed);
     session.state = match state {
-        State::Backoff { attempt, until: _ } => ask(&mut session.conversation, id, attempt, env, out),
+        State::Backoff { attempt, rate_limited, .. } => {
+            rate_limit_wait_done(&session.conversation, rate_limited, out);
+            ask(&mut session.conversation, id, attempt, env, out)
+        }
         State::Completing { .. }
         | State::Tooling { .. }
         | State::Resting { .. }
@@ -1305,6 +1316,12 @@ pub(crate) fn retry(domain: &mut Domain, env: &Env<Limits>, id: Id<Session>, out
         | State::Closed => unreachable!("the retry alarm runs only in Backoff"),
     };
     conclude(domain, env, id, out, mark);
+}
+
+fn rate_limit_wait_done(conversation: &Conversation, rate_limited: bool, out: &mut Queue<Request>) {
+    if rate_limited {
+        out.push(Request::RateLimitWaitDone { opener: conversation.opener });
+    }
 }
 
 /// Off the ready list: the session rested after a batch the tools answered at
@@ -2189,6 +2206,9 @@ fn ask(
         }
     }
     assert!(reserve_provider(conversation, &env.limits), "admitted provider work has receiving room");
+    if attempt == 0 {
+        conversation.retries_spent = 0;
+    }
     conversation.completion_attempts = attempt.checked_add(1).expect("admitted one-based completion attempt");
     out.push(complete(id, conversation, attempt, &env.limits));
     State::Completing { attempt }
@@ -2363,6 +2383,7 @@ fn admit(
         reserved: 0,
         provider: accounting::Provider::Idle,
         completion_attempts: 0,
+        retries_spent: 0,
         budget: spec.budget,
         turns: 0,
         usage: Usage::ZERO,

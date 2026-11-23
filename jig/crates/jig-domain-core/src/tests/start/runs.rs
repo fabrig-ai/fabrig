@@ -8,7 +8,7 @@ use crate::{
     },
 };
 use jig_domain_link::{Form, Scheme};
-use skein_lib::Token;
+use skein_lib::{List, Token};
 
 const WORKER: u64 = 2;
 const ENGINE: u64 = 1;
@@ -16,6 +16,10 @@ const DUE: u64 = 3;
 const ATTEMPT: u64 = 7;
 
 pub(in crate::tests) fn loaded(in_process: bool, attempts: u32) -> (Core, Env<crate::Limits>) {
+    loaded_with_writes(in_process, attempts, &[])
+}
+
+fn loaded_with_writes(in_process: bool, attempts: u32, saved: &[crate::Record]) -> (Core, Env<crate::Limits>) {
     let (mut source, mut limits) = crate::tests::tree_core();
     for number in [WORKER, ENGINE, DUE] {
         crate::tests::make_task(&mut source, &limits, number);
@@ -52,8 +56,9 @@ pub(in crate::tests) fn loaded(in_process: bool, attempts: u32) -> (Core, Env<cr
     ] {
         drop(crate::step(&mut core, &env, Event::People(people::Event::Restore { record })));
     }
+    let mut image = List::with_capacity(16);
     for (_, ledger) in source.tasks.funding_records() {
-        restore(&mut core, &env, tasks::Stored::Ledger(*ledger));
+        image.push(crate::Record::Tasks(tasks::Stored::Ledger(*ledger))).expect("fixture ledgers");
     }
     for (number, host) in
         [(WORKER, Some(fleet::HostKind::Worker)), (ENGINE, Some(fleet::HostKind::Engine)), (DUE, None)]
@@ -63,11 +68,33 @@ pub(in crate::tests) fn loaded(in_process: bool, attempts: u32) -> (Core, Env<cr
             row.phase = tasks::Phase::Active(tasks::Active::Claimed { attempt: ATTEMPT });
             row.attempt = ATTEMPT;
             row.settings.run = Some(row.settings.task);
-            assert!(
-                core.restore_proof(RunProof::claimed(number, ATTEMPT, ATTEMPT, None, host), limits.tasks.result_bytes)
-            );
+            image
+                .push(crate::Record::Core(CoreRecord::RunProof(RunProof::claimed(
+                    number, ATTEMPT, ATTEMPT, None, host,
+                ))))
+                .expect("fixture claims");
         }
-        restore(&mut core, &env, tasks::Stored::Live(Box::new(row)));
+        image.push(crate::Record::Tasks(tasks::Stored::Live(Box::new(row)))).expect("fixture live tasks");
+    }
+    for record in saved {
+        let mut replaced = false;
+        for row in image.iter_mut() {
+            if row.key() == record.key() {
+                row.clone_from(record);
+                replaced = true;
+                break;
+            }
+        }
+        if !replaced {
+            image.push(record.clone()).expect("fixture committed records");
+        }
+    }
+    for record in image.into_boxed() {
+        if let crate::Record::Tasks(row) = record {
+            restore(&mut core, &env, row);
+        } else if let crate::Record::Core(CoreRecord::RunProof(proof)) = record {
+            assert!(core.restore_proof(proof, limits.tasks.result_bytes));
+        }
     }
     crate::tests::restore_key_account(&mut core, &limits, 0, 1, 1);
     drop(crate::step(
@@ -138,6 +165,68 @@ fn stored_worker_claims_past_attempts_refuse_before_any_are_delivered() {
     assert_eq!(core.start_phase(), Some(Phase::AdoptRuns));
     assert_eq!(core.adopted.len(), 2);
     assert!(!core.start_opened());
+}
+
+#[test]
+fn a_worker_claim_commit_fits_the_next_start_before_its_fleet_handoff() {
+    for attempts in [2, 3] {
+        let (mut core, env) = loaded(false, attempts);
+        core.proofs.get_mut(&ENGINE).expect("second worker proof").host = fleet::HostKind::Worker;
+        let mut out = Queue::uncapped();
+        let token = wires(&mut core, &env, &mut out);
+        step_phase(core.start_resume(&env, token, &mut out), Phase::AdoptRuns);
+        let _action = core.start_done(&env, Phase::AdoptRuns, &mut out);
+        open(&mut core, &env, &mut out);
+
+        // The root has prepared another claim, but has not handed it to the fleet.
+        crate::tests::send_task(
+            &mut core,
+            &env.limits,
+            tasks::Event::Prepare { reply_to: skein_lib::ReplyTo::new(Token::new(DUE)), task: DUE },
+        );
+        core.proofs
+            .insert(DUE, RunProof::claimed(DUE, ATTEMPT, ATTEMPT, None, fleet::HostKind::Worker))
+            .expect("pending proof");
+        core.claiming.insert(DUE, (ATTEMPT, tasks::Reasons::ALL, None, None)).expect("pending claim");
+        let mut writes = crate::step(
+            &mut core,
+            &env,
+            Event::ClaimPrepared { task: DUE, attempt: ATTEMPT, budget: 1, writes: Box::new([]) },
+        );
+        assert_eq!(core.tasks.task(DUE).expect("prepared task").tries, tasks::Tries::NONE);
+
+        // Apply the writer's records to a cold image, not its in-memory task state.
+        let mut saved = List::with_capacity(writes.len());
+        let mut saved_task = false;
+        for _ in 0..writes.len() {
+            if let Request::Write(crate::Write::Save(row)) = writes.pop().expect("writer output count") {
+                if let crate::Record::Tasks(tasks::Stored::Live(live)) = &row {
+                    saved_task |= live.number == DUE;
+                }
+                if let crate::Record::Tasks(tasks::Stored::Live(_) | tasks::Stored::Ledger(_))
+                | crate::Record::Core(CoreRecord::RunProof(_)) = &row
+                {
+                    saved.push(row).expect("no more records than outputs");
+                }
+            }
+        }
+        assert!(saved_task, "the claim or its capacity refusal is durable");
+        let (mut cold, cold_env) = loaded_with_writes(false, attempts, saved.as_slice());
+        cold.proofs.get_mut(&ENGINE).expect("second worker proof").host = fleet::HostKind::Worker;
+        let mut out = Queue::uncapped();
+        let token = wires(&mut cold, &cold_env, &mut out);
+        let resumed = cold.start_resume(&cold_env, token, &mut out);
+        let Action::Step(Phase::AdoptRuns) = resumed else {
+            panic!("writer's commit must reopen: {resumed:?}");
+        };
+        assert_eq!(cold.restored_worker_claims().expect("worker claims").1, u64::from(attempts));
+        let _action = cold.start_done(&cold_env, Phase::AdoptRuns, &mut out);
+        open(&mut cold, &cold_env, &mut out);
+        assert_eq!(
+            tasks::run_attempt(&cold.tasks.task(DUE).expect("restored task").phase),
+            if attempts == 3 { Some(ATTEMPT) } else { None }
+        );
+    }
 }
 
 #[test]

@@ -153,6 +153,7 @@ child domain `smith-domain-session`, whose own child is the tools domain
   invalid, unauthorised, an account exhausted or refused, a request
   unsupported, a local limit), retries the transient ones after a
   jittered exponential backoff, and gives up when its retries run out.
+  A rate limit is retried too, but spends none of them (below).
   An exhausted account, a refused one and an unsupported request are
   never retried: the same request on the same account would meet them
   again, and the agent never moves a run to another account
@@ -173,6 +174,35 @@ child domain `smith-domain-session`, whose own child is the tools domain
   pool at capacity, in connections or in memory, waits below the session
   for room, within its deadline. It is not a failed call and spends none
   of the session's retries.
+- **A rate limit means waiting, not a spent retry.** A call failed *rate
+  limited*, whatever its HTTP status (a refusal inside a stream whose
+  head said 200 included), is made again after its wait, and spends
+  none of the session's retries: they count the other transient
+  failures alone, so a run that meets one limit after another is never
+  failed for them.
+  - **Its wait** is the backoff its attempt would take, and at least
+    the delay its provider gave: skein's `RateLimited { retry_after }`,
+    the head's `retry-after`, the error's reset, its message's `try
+    again in` figure, else its limit's window (skein's
+    `llm/rate-limits.md`). A delay of zero leaves the ordinary backoff,
+    capped at `backoff_max`.
+  - **Each try is an attempt.** The attempt number goes on rising, and
+    a session that later fails for another class counts every attempt
+    it made, rate limited ones included.
+  - **The host hears of it.** While the session waits, its root tells
+    its host of the wait as the completion's long operation,
+    `completion`, its span ending at the retry, and says it done as the
+    retry is asked or the session ends: so the host's watchdog stretches
+    over a wait longer than its no-progress deadline (host.md, section
+    4; protocol/channel.md, section 4). The run's budgets keep counting.
+  - **A wait past the session's time,** a delay that would end at or
+    after its expiry, is not taken on a call with an account: the
+    session ends as an exhausted account's does, its root raising
+    `limited` for the call's account with that delay as its reset, and
+    the run ends limited for it (run.md, section 9), so its task waits
+    for the account and spends no try (jig's `domain/accounts.md`,
+    3.5). With no account to name, the session waits as for any delay,
+    and its expiry ends it (section 6).
 - **A local limit is typed:** `Limit { which, bound }`, naming the limit
   that fired and its bound. It is not retried, since the same request
   would meet it again.

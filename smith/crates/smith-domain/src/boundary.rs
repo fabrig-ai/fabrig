@@ -323,7 +323,7 @@ pub enum Request {
 pub enum Operation {
     /// The run reports its checks before a delivery; their terminal ends this span.
     Checks,
-    /// The root reports an issued provider completion; its terminal ends this span.
+    /// The root reports an issued provider completion or its wait out of a rate limit until retry.
     Completion,
     /// The root reports an issued session command; its IO terminal ends this span.
     Command,

@@ -140,27 +140,74 @@ fn known(overrides: &[Override], kind: LimitKind, left_out: &mut List<LeftOut>) 
 /// start's facts and the store's stock envelope. Unknown names are retained as
 /// observations, not applied. No engine or IO is constructed here.
 pub fn resolve_limits(inputs: &LimitInputs, jig: &[Override], temper: &[Override]) -> Result<Resolved, Problems> {
+    checked_limits(inputs, jig, temper, true, None)
+}
+
+/// The immutable stock and store envelope, prepared once for related mutations.
+pub(crate) struct Preflight {
+    stock_jig: config::Limits,
+    stock_own: limits::Limits,
+    store: jig_protocol_store::Limits,
+}
+
+impl Preflight {
+    pub(crate) fn new(inputs: &LimitInputs) -> Result<Self, Problems> {
+        let (stock_jig, stock_own) = inputs.stock()?;
+        let (mut store_jig, store_own) = inputs.store_base()?;
+        let stock_root = super::engine_limits(&mut store_jig, &store_own, None)?;
+        let store = super::checked_store(&stock_root, &store_jig.store, None)?;
+        Ok(Self { stock_jig, stock_own, store })
+    }
+
+    /// Use the same preflight as startup; composed relations retain the full start.
+    #[cfg(test)]
+    pub(crate) fn check(
+        &self,
+        inputs: &LimitInputs,
+        jig: &[Override],
+        temper: &[Override],
+        full_start: bool,
+    ) -> Result<Resolved, Problems> {
+        checked_limits(inputs, jig, temper, full_start, Some(self))
+    }
+}
+
+fn checked_limits(
+    inputs: &LimitInputs,
+    jig: &[Override],
+    temper: &[Override],
+    full_start: bool,
+    prepared: Option<&Preflight>,
+) -> Result<Resolved, Problems> {
     let capacity = u32::try_from(jig.len().saturating_add(temper.len())).expect("checked override counts");
     let mut left_out = List::with_capacity(capacity);
     let jig = known(jig, LimitKind::Jig, &mut left_out);
     let temper = known(temper, LimitKind::Temper, &mut left_out);
-    let result = resolve(inputs, &jig, &temper, left_out);
+    let result = match prepared {
+        Some(prepared) => preflight(inputs, &jig, &temper, left_out, prepared),
+        None => match Preflight::new(inputs) {
+            Ok(prepared) => preflight(inputs, &jig, &temper, left_out, &prepared),
+            Err(problems) => Err(problems),
+        },
+    };
+    let result = match result {
+        Ok(resolved) if full_start => complete(inputs, resolved),
+        result => result,
+    };
     match result {
         Ok(resolved) => Ok(resolved),
         Err(problems) => Err(named(problems, &jig, &temper)),
     }
 }
-#[expect(clippy::too_many_lines, reason = "the six resolution steps retain one checked ordering")]
-fn resolve(
+#[expect(clippy::too_many_lines, reason = "the settings preflight retains one checked ordering")]
+fn preflight(
     inputs: &LimitInputs,
     jig: &[Override],
     temper: &[Override],
     left_out: List<LeftOut>,
+    prepared: &Preflight,
 ) -> Result<Resolved, Problems> {
-    let (stock_jig, stock_own) = inputs.stock()?;
-    let (mut store_jig, store_own) = inputs.store_base()?;
-    let stock_root = super::engine_limits(&mut store_jig, &store_own, None)?;
-    let store = super::checked_store(&stock_root, &store_jig.store, None)?;
+    let Preflight { stock_jig, stock_own, store } = *prepared;
     let mut sources = stock_own;
     for item in temper {
         if item.name.as_ref() == b"live_goals" && item.value > u64::from(derived::STORE_LIVE_GOALS) {
@@ -196,6 +243,11 @@ fn resolve(
         derived::follow_task_overrides(&mut base, jig);
     }
     let minimum_jig = base;
+    let mut early = Problems::empty();
+    jig_floors(&minimum_jig, jig, &mut early);
+    if !early.is_empty() {
+        return Err(early);
+    }
     let mut jig = match config::with_overrides(&base, jig) {
         Ok(jig) => jig,
         Err(found) => return Err(Problems::jig(found, &Path::root())),
@@ -229,6 +281,9 @@ fn resolve(
             What::Jig(config::What::Bound),
         ))?;
     }
+    if followers && supplied(temper, b"forge_component.forges").is_none() {
+        own.forge_component.forges = own.forge.forges;
+    }
     if followers && supplied(temper, b"forge_component.repositories").is_none() {
         own.forge_component.repositories = own.forge.repositories;
     }
@@ -240,11 +295,13 @@ fn resolve(
             own.forge.landings.min(own.forge.holds.checked_div(own.forge.landing_members).unwrap_or(0));
     }
     let mut floors = Problems::empty();
-    derived_floors(&minimum_jig, &minimum_own, &jig, &own, &mut floors);
+    derived_floors(&minimum_own, &jig, &own, &mut floors);
+    related_limits(&jig, &own, &mut floors);
+    super::application::tier_bounds(&own, &mut floors);
     if !floors.is_empty() {
         return Err(floors);
     }
-    let mut root = super::engine_limits(&mut jig, &own, None)?;
+    let root = super::engine_limits(&mut jig, &own, None)?;
     let application = temper_protocol_store::application(&root.forge, root.tasks.spec_bytes)
         .ok_or(checks::store_refusal(crate::store::Refusal::Map(jig_protocol_store::sizes::SizeRefusal::Ceiling)))?;
     let commits = jig_protocol_store::sizes::Commits { in_flight: root.journal.commits, writes: root.journal.writes };
@@ -258,6 +315,11 @@ fn resolve(
         return Err(checks::store_refusal(crate::store::Refusal::Map(why)));
     }
     jig.store = store;
+    Ok(Resolved { jig, temper: own, root, left_out, store, payload })
+}
+
+fn complete(inputs: &LimitInputs, resolved: Resolved) -> Result<Resolved, Problems> {
+    let Resolved { mut jig, temper: own, left_out, store, payload, .. } = resolved;
     let start = checked_start_limits(
         &inputs.document,
         &inputs.directories,
@@ -271,7 +333,7 @@ fn resolve(
         Some(&store),
     )?;
     jig = start.engine.jig.limits;
-    root = super::engine_limits(&mut jig, &own, None)?;
+    let mut root = super::engine_limits(&mut jig, &own, None)?;
     root.host_reply_bytes = start.engine.host_reply_bytes;
     let application = temper_protocol_store::application(&root.forge, root.tasks.spec_bytes)
         .ok_or(checks::store_refusal(crate::store::Refusal::Map(jig_protocol_store::sizes::SizeRefusal::Ceiling)))?;
@@ -286,18 +348,13 @@ fn resolve(
     Ok(Resolved { jig, temper: own, root, left_out, store, payload })
 }
 
-fn derived_floors(
-    base: &config::Limits,
-    own_base: &limits::Limits,
-    jig: &config::Limits,
-    own: &limits::Limits,
-    problems: &mut Problems,
-) {
+fn jig_floors(base: &config::Limits, overrides: &[Override], problems: &mut Problems) {
     for name in [
         b"tasks.message_bytes".as_slice(),
         b"tasks.result_bytes",
         b"tasks.inbox_bytes",
         b"hub.turn_bytes",
+        b"hub.event_bytes",
         b"core.resume_bytes",
         b"hub.transcript_bytes",
         b"hub.turn_queue_bytes",
@@ -306,11 +363,24 @@ fn derived_floors(
         b"core.call_answer_bytes",
     ] {
         let row = config::names::find(name).expect("derived jig name");
-        let (has, needs) = ((row.value)(jig), (row.value)(base));
-        if has < needs {
+        let needs = (row.value)(base);
+        if let Some(has) = supplied(overrides, name)
+            && has < needs
+        {
             problems.push(Path::root().member(name), What::Short { bytes: has, of: b"the source's derivation", needs });
         }
     }
+    // These two carriers also follow explicitly overridden same-set sources.
+    let message = supplied(overrides, b"tasks.message_bytes").unwrap_or(u64::from(base.core.tasks.message_bytes));
+    let result = supplied(overrides, b"tasks.result_bytes").unwrap_or(u64::from(base.core.tasks.result_bytes));
+    floor(problems, b"tasks.message_bytes", message, result, b"tasks.result_bytes");
+    let resume = supplied(overrides, b"core.resume_bytes").unwrap_or(u64::from(base.core.resume_bytes));
+    let transcript = supplied(overrides, b"hub.transcript_bytes").unwrap_or(base.hub.transcript_bytes);
+    let needs =
+        resume.checked_add(12_u64.checked_mul(resume / 4).expect("u32 resume carrier")).expect("u32 resume window");
+    floor(problems, b"hub.transcript_bytes", transcript, needs, b"core.resume_bytes");
+}
+fn derived_floors(own_base: &limits::Limits, jig: &config::Limits, own: &limits::Limits, problems: &mut Problems) {
     for name in [
         b"root.journal.transcript_bytes".as_slice(),
         b"root.loads.transcript_bytes",
@@ -323,8 +393,96 @@ fn derived_floors(
     ] {
         let row = limits::find(name).expect("derived temper name");
         let (has, needs) = ((row.value)(own), (row.value)(own_base));
+        let (needs, source) = if name == b"root.journal.transcript_bytes" {
+            (needs.max(u64::from(jig.core.resume_bytes)), b"the source's derivation (core.resume_bytes)".as_slice())
+        } else {
+            (needs, b"the source's derivation".as_slice())
+        };
+        floor(problems, name, has, needs, source);
+    }
+}
+
+fn floor(problems: &mut Problems, name: &[u8], has: u64, needs: u64, source: &'static [u8]) {
+    if has < needs {
+        problems.push(Path::root().member(name), What::Short { bytes: has, of: source, needs });
+    }
+}
+/// Name related settings before whole-domain or codec validity can hide the relation.
+fn related_limits(jig: &config::Limits, own: &limits::Limits, problems: &mut Problems) {
+    for (name, has, needs, source) in [
+        (
+            b"forge.client.op_bytes".as_slice(),
+            u64::from(own.forge.client.op_bytes),
+            u64::from(jig.core.tasks.result_bytes),
+            b"the source's derivation (tasks.result_bytes)".as_slice(),
+        ),
+        (
+            b"forge_component.body_bytes".as_slice(),
+            u64::from(own.forge_component.body_bytes),
+            u64::from(derived::forge_body(own.forge.client.op_bytes).unwrap_or(u32::MAX)),
+            b"the source's derivation (forge.client.op_bytes)".as_slice(),
+        ),
+        (
+            b"root.brief.read_bytes",
+            u64::from(own.root.brief.read_bytes),
+            u64::from(own.root.brief.budgets.task),
+            b"the source's derivation (root.brief.budgets.task)",
+        ),
+        (
+            b"forge.brief_bytes",
+            u64::from(own.forge.brief_bytes),
+            u64::from(own.root.brief.read_bytes),
+            b"the source's derivation (root.brief.read_bytes)",
+        ),
+        (
+            b"root.journal.result_bytes",
+            u64::from(own.root.journal.result_bytes),
+            u64::from(own.root.brief.brief_bytes),
+            b"the source's derivation (root.brief.brief_bytes)",
+        ),
+        (
+            b"root.loads.reply_bytes",
+            u64::from(own.root.loads.reply_bytes),
+            u64::from(own.root.loads.bytes),
+            b"root.loads.bytes",
+        ),
+    ] {
+        floor(problems, name, has, needs, source);
+    }
+    for (name, has, needs, source) in [
+        (
+            b"forge.client.repositories".as_slice(),
+            own.forge.client.repositories,
+            own.forge.repositories,
+            b"forge.repositories".as_slice(),
+        ),
+        (b"forge.client.entries", own.forge.client.entries, own.forge.entries, b"forge.entries"),
+        (b"forge.client.resources", own.forge.client.resources, own.forge.holds, b"forge.holds"),
+        (b"forge_component.string_bytes", own.forge_component.string_bytes, own.forge.name_bytes, b"forge.name_bytes"),
+    ] {
         if has < needs {
-            problems.push(Path::root().member(name), What::Short { bytes: has, of: b"the source's derivation", needs });
+            problems.push(Path::root().member(name), What::Against { other: source });
+        }
+    }
+    for (name, has, bound, source) in [
+        (
+            b"forge.client.answer_bytes".as_slice(),
+            own.forge.client.answer_bytes,
+            temper_protocol_store::v25::CEILINGS.answer_name_name,
+            b"the store schema's answer byte ceiling".as_slice(),
+        ),
+        (
+            b"forge.holds",
+            own.forge.holds,
+            temper_protocol_store::v25::CEILINGS.tier_row_goals,
+            b"the store schema's tier goals ceiling",
+        ),
+    ] {
+        if has > bound {
+            problems.push(
+                Path::root().member(name),
+                What::Within { bytes: u64::from(has), limit: source, bound: u64::from(bound) },
+            );
         }
     }
 }
