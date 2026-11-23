@@ -29,32 +29,29 @@ impl Drop for Scratch {
 }
 
 #[test]
-#[expect(
-    clippy::disallowed_methods,
-    reason = "a fresh test process selects its fixture without changing its environment"
-)]
-fn appends_counts_and_refuses_malformed_kinds() {
-    const CHILD: &str = "SKEIN_CHECK_COUNTS_CHILD";
-    const TEST: &str = "tests::appends_counts_and_refuses_malformed_kinds";
-    if let Some(mode) = env::var_os(CHILD) {
-        if mode == "bad" {
-            count("bad kind", 1);
-            return;
-        }
-        count("seed", 1);
-        count("mutation", u64::MAX);
-        let mut batch = MutationBatch::default();
-        let mut candidates = [mutation(1), mutation(2), mutation(3)].into_iter();
-        let selected = candidates.nth(1).expect("select exactly one candidate");
-        assert_eq!(batch.judge(selected, |value| value), 2);
-        assert_eq!(batch.judge(4.into(), |value: u32| value), 4);
-        let pair = mutation(5).zip(mutation(6));
-        assert_eq!(batch.judge(pair, |(left, right)| left + right), 11);
-        batch.finish();
-        MutationBatch::default().finish();
-        return;
-    }
+#[ignore = "selected by the isolated check-count regression"]
+fn append_counts_in_child() {
+    count("seed", 1);
+    count("mutation", u64::MAX);
+    let mut batch = MutationBatch::default();
+    let mut candidates = [mutation(1), mutation(2), mutation(3)].into_iter();
+    let selected = candidates.nth(1).expect("select exactly one candidate");
+    assert_eq!(batch.judge(selected, |value| value), 2);
+    assert_eq!(batch.judge(4.into(), |value: u32| value), 4);
+    let pair = mutation(5).zip(mutation(6));
+    assert_eq!(batch.judge(pair, |(left, right)| left + right), 11);
+    batch.finish();
+    MutationBatch::default().finish();
+}
 
+#[test]
+#[ignore = "selected by the isolated check-count regression to exercise fail-stop"]
+fn malformed_kind_in_child() {
+    count("bad kind", 1);
+}
+
+#[test]
+fn appends_counts_and_refuses_malformed_kinds() {
     let scratch = Scratch::new();
     let path = scratch.0.join("checks");
     for (mode, destination) in [
@@ -63,8 +60,9 @@ fn appends_counts_and_refuses_malformed_kinds() {
         ("valid", Some(path.as_os_str())),
         ("bad", Some(path.as_os_str())),
     ] {
+        let test = if mode == "bad" { "tests::malformed_kind_in_child" } else { "tests::append_counts_in_child" };
         let mut child = Command::new(env::current_exe().expect("test binary"));
-        child.args(["--exact", TEST, "--nocapture"]).env(CHILD, mode).env_remove("TIERS_CHECKS_FILE");
+        child.args(["--exact", "--ignored", "--nocapture", test]).env_remove("TIERS_CHECKS_FILE");
         if let Some(destination) = destination {
             child.env("TIERS_CHECKS_FILE", destination);
         }
