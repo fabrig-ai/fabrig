@@ -1111,7 +1111,7 @@ fn a_review_repair_waiting_on_an_answer_ends_when_another_writer_advances_its_br
     delivered_review_repair(false, true);
 }
 
-fn delivered_review_repair(moved: bool, idle: bool) {
+fn waiting_review_repair() -> (World, engine::Assignment, u64, Box<[u8]>, engine::Assignment) {
     let (mut world, requester) = super::questions::plan_world_with_gate(
         None,
         Gate { agent: true, ..Gate::default() },
@@ -1146,6 +1146,31 @@ fn delivered_review_repair(moved: bool, idle: bool) {
     let event =
         world.protocol.answer(CHANNEL, repair.task, repair.attempt, 0, tasks::End::Parked, engine::Parts::none());
     world.send(event);
+    (world, requester, change, branch, repair)
+}
+
+pub(crate) fn preparing_review_repair() -> (World, u64) {
+    let (mut world, _, change, branch, _) = waiting_review_repair();
+    world.advance_ticks(MAX_TICKS);
+    fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"another-file", b"another writer", 2)
+        .expect("another writer advances the idle repair's branch");
+    for _ in 0..MAX_TICKS {
+        world.tick();
+        let row = change_row(&world, change);
+        if matches!(row.change.state, temper_engine_domain_forge_change::State::Preparing { .. })
+            && row.pending.is_some_and(|entry| world.root.forge().inspection_entry(entry).is_some())
+            && world.events.is_empty()
+            && world.store.idle()
+            && world.root.quiescent()
+        {
+            return (world, change);
+        }
+    }
+    panic!("review repair reaches its own preparing write");
+}
+
+fn delivered_review_repair(moved: bool, idle: bool) {
+    let (mut world, requester, change, branch, repair) = waiting_review_repair();
     if idle {
         world.advance_ticks(MAX_TICKS);
         let head = fake::advance(

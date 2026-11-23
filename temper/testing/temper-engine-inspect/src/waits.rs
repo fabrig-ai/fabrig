@@ -145,6 +145,9 @@ fn change_wakes(view: &View<'_>, row: &temper_engine_domain_forge::ChangeRow) ->
                     }
                 }
             }
+            if matches!(row.change.state, State::Preparing { .. }) {
+                pending_write(view, row, &mut wakes);
+            }
             // A terminal landing may still occupy a table slot while its writes
             // settle. With no live landing wake, read the train's due member.
             if matches!(row.change.state, State::Ready { .. }) && row.change.landing.is_none() && wakes.is_empty() {
@@ -158,11 +161,7 @@ fn change_wakes(view: &View<'_>, row: &temper_engine_domain_forge::ChangeRow) ->
                     wakes.push(view.waiter(delegate));
                 }
             }
-            if let Some(entry) = row.pending
-                && view.forge.inspection_entry(entry).is_some()
-            {
-                wakes.push(Wake::Party(format!("forge: entry {entry}")));
-            }
+            pending_write(view, row, &mut wakes);
             if !row.questions.open.is_empty() {
                 wakes.push(view.answerer(row.task));
             }
@@ -173,6 +172,15 @@ fn change_wakes(view: &View<'_>, row: &temper_engine_domain_forge::ChangeRow) ->
         }
     }
     wakes
+}
+
+// A change can prepare its own rebase before it belongs to a landing.
+fn pending_write(view: &View<'_>, row: &temper_engine_domain_forge::ChangeRow, wakes: &mut Vec<Wake>) {
+    if let Some(entry) = row.pending
+        && view.forge.inspection_entry(entry).is_some()
+    {
+        wakes.push(Wake::Party(format!("forge: entry {entry}")));
+    }
 }
 
 // The forge does not expose the spent one-step forming hold. Name the due

@@ -99,6 +99,57 @@ fn a_parked_producing_change_with_its_live_delegate_passes() {
     assert_eq!(Checks::new(71).quiet(&driver.root, driver.env.now, 1), Ok(()));
 }
 
+#[test]
+fn a_preparing_change_without_a_landing_waits_on_its_write() {
+    let (world, change) = super::forge_routes::reviews::preparing_review_repair();
+    let row = world.root.forge().change(change).expect("preparing change");
+    assert_eq!(row.change.landing, None);
+    assert_eq!(row.delegate, None);
+    let entry = row.pending.expect("preparing write");
+    assert_eq!(world.root.forge().inspection_entry(entry).expect("live write").task, change);
+    for root in [true, false] {
+        let mut inspection = Inspection::new("engine", temper_engine_inspect::KINDS);
+        if root {
+            temper_engine_inspect::inspect(&world.root, &mut inspection);
+        } else {
+            temper_engine_inspect::forge(world.root.forge(), &mut inspection);
+        }
+        let wait = inspection.waits().iter().find(|wait| wait.waiter == format!("task {change}")).expect("change wait");
+        assert_eq!(wait.kind, "change: preparing");
+        assert_eq!(wait.wakes, [Wake::Party(format!("forge: entry {entry}"))]);
+        assert_eq!(wait.bound, None);
+    }
+    assert_eq!(Checks::new(71).quiet(&world.root, world.env.now, 1), Ok(()));
+}
+
+#[test]
+fn a_preparing_change_without_a_landing_or_live_write_is_found() {
+    let (mut world, source) = super::forge_routes::reviews::preparing_review_repair();
+    let mut row = world.root.forge().change(source).expect("preparing change").clone();
+    let tasks::Party::Task(change) = world.root.tasks().task(source).expect("change task").requester else {
+        panic!("change belongs to its requester")
+    };
+    // Seed an unstepped preparing row on a live task, with a stale write
+    // reference. Unlike restoration, registration arms no recovery timer.
+    assert!(world.root.forge().change(change).is_none());
+    row.task = change;
+    row.change.task = change;
+    row.pending = Some(u64::MAX);
+    engine::step(&mut world.root, &world.env, engine::Event::Forge(Box::new(forge::Event::Change { row })));
+    let inspection = inspect(&world);
+    let wait = inspection.waits().iter().find(|wait| wait.waiter == format!("task {change}")).expect("change wait");
+    assert_eq!(wait.kind, "change: preparing");
+    assert_eq!(wait.wakes, Vec::<Wake>::new());
+    let finding = Checks::new(71).quiet(&world.root, world.env.now, 1).expect_err("preparing write is absent");
+    assert_eq!(
+        finding,
+        format!(
+            "seed 71: at {} ns, iteration 1: engine task {change}: waits on change: preparing with no live wake: []",
+            world.env.now.as_nanos(),
+        )
+    );
+}
+
 fn preparing() -> (World, u64, u64) {
     let (mut world, change) = super::forge_routes::landing::produced_turn_change(None);
     world.manual_prepare_jobs();
