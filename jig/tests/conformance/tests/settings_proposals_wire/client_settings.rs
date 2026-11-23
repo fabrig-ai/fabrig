@@ -149,7 +149,7 @@ fn engine_settings_reads_and_deliveries_decode_at_the_client_end() {
     let mut holding = List::with_capacity(1);
     holding.push(d::HeldRevision { head: head.clone(), holders: 2 }).expect("held newest");
     let source = d::Settings { newest: 6, settings, held: holding, pending: List::with_capacity(0) };
-    let wire = engine::document(&source, t).expect("engine inventory");
+    let wire = engine::document(&source).expect("engine inventory");
     let bytes = encoded!(&w::ReadValue::Settings(wire.clone()));
     let c::ReadValue::Settings(document) = translate::reads::value(&bytes, &limits).expect("client inventory") else {
         panic!("settings inventory")
@@ -194,7 +194,7 @@ fn engine_settings_reads_and_deliveries_decode_at_the_client_end() {
     let mut rows = List::with_capacity(1);
     rows.push(reads::RevisionRow { head, items: List::with_capacity(0), more: 3 }).expect("revision row");
     let page = reads::RevisionsPage { rows, next: Some(6), forgotten: false };
-    let bytes = encoded!(&w::ReadValue::Revisions(engine::revisions(&page, t).expect("engine page")));
+    let bytes = encoded!(&w::ReadValue::Revisions(engine::revisions(&page)));
     let c::ReadValue::Revisions(page) = translate::reads::value(&bytes, &limits).expect("client page") else {
         panic!("revisions page")
     };

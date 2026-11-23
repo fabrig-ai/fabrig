@@ -11,9 +11,8 @@ const RELEASES: [(acts::ReleaseEffect, w::ReleaseEffect); 3] = [
 ];
 #[test]
 fn a_release_offer_preserves_each_supplied_consequence() {
-    let limits = fixtures::wire_limits();
     for (source, expected) in RELEASES {
-        let value = translate::task::effect(&acts::Effect::Release(source), &limits).unwrap();
+        let value = translate::task::effect(&acts::Effect::Release(source));
         let w::Effect::Release(value) = value else { panic!("release effect") };
         assert_eq!((&value.what), &expected);
     }

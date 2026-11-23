@@ -107,7 +107,7 @@ impl Component {
                                         out.push(Request::Secrets(SecretsRequest::Get { owner: owner.secret() }));
                                     }
                                     GetOwner::SignIn(_) | GetOwner::LinkAskService(_) => {
-                                        self.denied(env, exchange, route);
+                                        self.denied(exchange, route);
                                     }
                                     GetOwner::Service(_) => {
                                         self.respond(exchange, routes::refused());

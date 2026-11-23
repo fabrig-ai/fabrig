@@ -2299,9 +2299,7 @@ pub fn trials(rows: Box<[root::TrialRow]>, limits: &w::Limits) -> Option<Box<[u8
 }
 
 fn trial_wait(value: jig_domain_core::documents::TaskRunWait) -> Option<Box<[u8]>> {
-    let value =
-        jig_protocol_engine_clients::translate::task_wait::waiting(Some(value), &jig_client_protocol_wire::CEILINGS)
-            .ok()??;
+    let value = jig_protocol_engine_clients::translate::task_wait::waiting(Some(value))?;
     value.encode(&jig_client_protocol_wire::CEILINGS).ok()
 }
 

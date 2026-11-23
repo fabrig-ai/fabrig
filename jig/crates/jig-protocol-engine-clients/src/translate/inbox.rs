@@ -4,8 +4,9 @@ use alloc::boxed::Box;
 use jig_client_protocol_wire::Record as _;
 use jig_domain_core_vocabulary::documents as d;
 use skein_lib::{List, Writer};
-pub fn object(value: d::InboxObject, _limits: &w::Limits) -> Result<w::InboxObject, w::Problem> {
-    Ok(match value {
+#[must_use]
+pub fn object(value: d::InboxObject) -> w::InboxObject {
+    match value {
         d::InboxObject::Question { message } => w::InboxObject::Question(w::InboxObjectQuestion { message }),
         d::InboxObject::Proposal { proposer, number } => w::InboxObject::Proposal(w::InboxObjectProposal {
             proposer: match proposer {
@@ -18,20 +19,21 @@ pub fn object(value: d::InboxObject, _limits: &w::Limits) -> Result<w::InboxObje
         d::InboxObject::PersonTask => w::InboxObject::PersonTask,
         d::InboxObject::Reply { message } => w::InboxObject::Turn(w::InboxObjectTurn { message }),
         d::InboxObject::Result { position } => w::InboxObject::Result(w::InboxObjectResult { position }),
-    })
+    }
 }
-pub fn cursor(value: d::Cursor, limits: &w::Limits) -> Result<w::InboxCursor, w::Problem> {
-    Ok(match value {
+#[must_use]
+pub fn cursor(value: d::Cursor) -> w::InboxCursor {
+    match value {
         d::Cursor::Number { number } => w::InboxCursor::Number(w::InboxCursorNumber { number }),
         d::Cursor::Inbox { task, object: value, at } => w::InboxCursor::Inbox(w::InboxCursorInbox {
             task,
-            object: object(value, limits)?,
+            object: object(value),
             at: match at {
                 Some(item) => Some(item.as_nanos()),
                 None => None,
             },
         }),
-    })
+    }
 }
 pub fn entry(value: &d::InboxEntry, limits: &w::Limits) -> Result<w::InboxEntry, w::Problem> {
     Ok(w::InboxEntry {
@@ -42,14 +44,14 @@ pub fn entry(value: &d::InboxEntry, limits: &w::Limits) -> Result<w::InboxEntry,
         },
         task: task::link(&value.task, limits)?,
         project: value.project,
-        object: object(value.object, limits)?,
+        object: object(value.object),
         activity: value.activity,
         at: match value.at {
             Some(item) => Some(item.as_nanos()),
             None => None,
         },
         unread: value.unread,
-        cursor: cursor(value.cursor, limits)?,
+        cursor: cursor(value.cursor),
     })
 }
 pub fn selection(
@@ -65,7 +67,7 @@ pub fn selection(
         for number in &row.goals {
             goals.push(*number).expect("supplied roots fit");
         }
-        rows.push(w::InboxSelection { cursor: cursor(row.cursor, limits)?, goals }).expect("supplied selections fit");
+        rows.push(w::InboxSelection { cursor: cursor(row.cursor), goals }).expect("supplied selections fit");
     }
     Ok(Some(selection_pieces(&rows, bound, path, limits)?))
 }
@@ -86,11 +88,11 @@ pub fn document(value: &d::Inbox, limits: &w::Limits) -> Result<w::Inbox, w::Pro
         needs,
         updates,
         next: match value.next {
-            Some(item) => Some(cursor(item, limits)?),
+            Some(item) => Some(cursor(item)),
             None => None,
         },
         cached_needs: value.cached_needs,
-        cached_updates: live::count(value.cached_updates, limits)?,
+        cached_updates: live::count(value.cached_updates),
         results_seen: value.results_seen,
         updates_time_complete: value.updates_time_complete,
         selection: selection(value.selection.as_ref(), limits, limits.inbox_selection_some, w::paths::INBOX_SELECTION)?,

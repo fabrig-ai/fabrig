@@ -124,7 +124,7 @@ impl Component {
                     let answer = match &spent {
                         Some(link) => {
                             let link_until = link.expires(env);
-                            routes::sign_in_full(&env.limits.wire, sign_ins, earliest.as_nanos(), link_until)
+                            routes::sign_in_full(sign_ins, earliest.as_nanos(), link_until)
                         }
                         None => routes::sign_in_busy(),
                     };

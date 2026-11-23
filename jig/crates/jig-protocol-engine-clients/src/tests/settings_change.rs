@@ -295,7 +295,7 @@ fn settings_proposals_reach_the_core_with_the_whole_set_and_exact_digest() {
             reason: b"review this set".as_slice().into()
         })
     );
-    exchange.send(crate::Message::Request(proposal_envelope(bytes, &exchange.env.limits.wire)));
+    exchange.send(crate::Message::Request(proposal_envelope(bytes)));
     exchange.authenticate();
     let Some(Request::Core(event)) = exchange.out.pop() else { panic!("core proposal") };
     let core::Event::ProposeSettings { sign_in, digest: held, change, .. } = *event else {
@@ -334,7 +334,7 @@ fn unknown_models_in_settings_proposals_are_named_before_decoding_the_set() {
     env.limits.message_bytes = 8192;
     env.limits.wire.keyed_request = 8192;
     let mut exchange = Exchange::with_env(env);
-    let bytes = proposal_envelope(f::encode_ask(&proposal_ask()), &exchange.env.limits.wire);
+    let bytes = proposal_envelope(f::encode_ask(&proposal_ask()));
     let owner = exchange.send(crate::Message::Request(bytes));
     exchange.authenticate();
     assert!(exchange.out.is_empty());
@@ -344,7 +344,7 @@ fn unknown_models_in_settings_proposals_are_named_before_decoding_the_set() {
     assert_eq!(refusal.why, w::LlmWhy::Unconfigured);
 }
 
-fn proposal_envelope(request: Box<[u8]>, _limits: &w::Limits) -> Box<[u8]> {
+fn proposal_envelope(request: Box<[u8]>) -> Box<[u8]> {
     let keyed = w::Keyed {
         key: [5; 16],
         owner: w::Owner::Jig,

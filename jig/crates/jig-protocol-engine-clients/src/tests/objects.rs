@@ -247,10 +247,9 @@ fn record_with_decision(source: &w::Ended, decision: w::EscalationDecision) -> w
 
 #[test]
 fn a_person_answer_notice_encodes_its_question_number() {
-    let limits = fixtures::wire_limits();
     for question in [0, 1, u64::MAX] {
         let value = jig_domain_tasks::MessageKind::QuestionAnswered { question };
-        let encoded = translate::objects::question_answer::message_kind(&value, &limits).expect("notice");
+        let encoded = translate::objects::question_answer::message_kind(&value).expect("notice");
         let expected = w::MessageKind::QuestionAnswered(w::MessageKindAnswer { question });
         assert_eq!(encoded, expected);
     }

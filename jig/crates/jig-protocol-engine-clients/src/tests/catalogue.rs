@@ -158,23 +158,22 @@ fn a_hole_is_no_model() {
     assert_eq!(added.shown.as_deref(), Some(b"New model".as_slice()));
     assert_eq!(added.description.as_deref(), Some(b"Added to the catalogue".as_slice()));
     assert!(!added.picker);
-    let names =
-        translate::llm::authority(jig_domain_authority::Models::from_parts(0b111, false), &models, &f::wire()).unwrap();
+    let names = translate::llm::authority(jig_domain_authority::Models::from_parts(0b111, false), &models);
     let Some(w::ModelSet::Names(names)) = names else { panic!("named authority") };
     assert_eq!(names.names.as_slice(), &[Box::<[u8]>::from(b"careful".as_slice()), NEW.into()]);
     let offer = [
         core::Offered { model: 1, accounts: List::with_capacity(0) },
         core::Offered { model: 2, accounts: List::from_boxed(Box::new([7])) },
     ];
-    let shown = translate::llm::models(&offer, &models, &f::wire()).unwrap();
+    let shown = translate::llm::models(&offer, &models).unwrap();
     assert_eq!(shown.len(), 1);
     assert_eq!(shown.get(0).unwrap().name.as_ref(), NEW);
     assert_eq!(shown.get(0).unwrap().accounts.as_slice(), &[7]);
     assert_eq!(
-        translate::llm::refusal(1, p::LlmWhy::Charter, &models, &f::wire()),
+        translate::llm::refusal(1, p::LlmWhy::Charter, &models),
         Err(w::Problem { path: w::paths::REFUSAL_LLM_MODEL, reason: skein_codec::Reason::Bound })
     );
-    let w::Refusal::Llm(refusal) = translate::llm::refusal(2, p::LlmWhy::Charter, &models, &f::wire()).unwrap() else {
+    let w::Refusal::Llm(refusal) = translate::llm::refusal(2, p::LlmWhy::Charter, &models).unwrap() else {
         panic!("named refusal")
     };
     assert_eq!(refusal.model.as_ref(), NEW);
