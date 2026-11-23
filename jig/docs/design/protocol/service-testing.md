@@ -27,17 +27,24 @@ Each within jig's suites' budgets.
   endpoint, a person's requests answered through a native client on
   loopback, over jig's default HTTP mapping,
   runs taken by smith's real agent processes, then the binary killed and
-  restarted, and the work found where it was. The focused suite has four
-  paths through `main`: that restart story, a binary told to stop with a
-  sign-in under way, and its fixture bundle served under the reference
-  policy, each through the real loop, whose shared `Deadline`
-  classifies unanswered waits under measured starvation; and a table of
-  its agent modes (`service.md`, section 7), a row each, the program child running a
-  scripted Claude Code's `auth status` whose output smith reads as its
-  status check does, with no loop. A binary that ends before its story
-  asks it to fails the story with its exit status, the last step the
-  story saw and the end of its stderr, read to its end or for a bounded
-  while, never a sign-in's address. Account sign-in,
+  restarted, and the work found where it was. The process tier has three
+  paths through `main`: that restart story and a binary told to stop
+  with a sign-in under way, each through the real loop, whose shared
+  `Deadline` classifies unanswered waits under measured starvation; and
+  a table of its agent modes (`service.md`, section 7), with no loop, a
+  row each: the relay's usage, a program child refused with no parent,
+  and a program child running a scripted Claude Code's `auth status`,
+  signed in, whose output smith reads as its status check does. The
+  child hands the program's exit and answer on as they are, so what
+  another status reads as is smith's status reading's alone (smith's
+  `protocol/programs.md`, 3). The fixture bundle's page under the
+  reference policy is the reference server's step tests' and the
+  bundle reader's, in `jig-test-service` and `jig-test`, and the
+  shipped bundle booting from the printed link is the browser tier's.
+  A binary that ends before its story asks it to fails the story with
+  its exit status, the last step the story saw and the end of its
+  stderr, read to its end or for a bounded while, never a sign-in's
+  address, in words a step test of `jig-test` holds. Account sign-in,
   refresh, sign-out and moves are covered in their lower worlds.
 - **The live layer:** `jig-test` with a real LLM account, a key added
   by a request, a sign-in made as the test starts, or a program's login
