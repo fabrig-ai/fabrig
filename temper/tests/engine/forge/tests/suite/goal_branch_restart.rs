@@ -6,7 +6,7 @@ use temper_engine_domain_forge as top;
 use temper_engine_forge_world::{
     REPO, World,
     restarts::{
-        BRANCH, GOAL, goal_name as name, synthetic_cancelled_landing, synthetic_held_dispatch as held_dispatch,
+        BRANCH, ENDED, GOAL, goal_name as name, synthetic_cancelled_landing, synthetic_held_dispatch as held_dispatch,
         synthetic_missing_branch,
     },
 };
@@ -93,6 +93,8 @@ fn finish_making(world: &mut World) {
 #[test]
 fn a_full_outbox_lines_up_a_restarted_goal_making_until_a_holder_is_released() {
     let mut world = before_restart();
+    // Closing tasks stay held until their outbox entries have settled.
+    world.hold_task(ENDED);
     world.store_before_restart(top::Stored::Landing(synthetic_cancelled_landing(&[1, 2])));
     for number in [1, 2] {
         world.store_before_restart(held_dispatch(number));

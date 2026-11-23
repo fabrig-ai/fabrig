@@ -1,4 +1,4 @@
-//! The link follows the sole owner and the forge's account read (temper/docs/design/domain/forge/adoption.md, 6).
+//! The link follows the sole owner and the forge's account read (temper/docs/design/domain/forge/adoption-person.md, 1).
 use super::*;
 
 #[test]

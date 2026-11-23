@@ -1,4 +1,4 @@
-//! The box's lines to its TUI in front (temper/docs/design/protocol/setup/box.md, 6).
+//! The box's lines to its TUI in front (temper/docs/design/protocol/setup/box-front.md, 1).
 use crate::{
     layout::Placed,
     lines::joined,
@@ -8,12 +8,12 @@ use alloc::boxed::Box;
 use skein_lib::{List, bytes};
 use temper_forge_setup::machine::BoxKind;
 
-/// A line's most bytes, its line feed among them (protocol/setup/box.md, 6).
+/// A line's most bytes, its line feed among them (protocol/setup/box-front.md, 1).
 pub const LINE_BYTES: usize = 8192;
-/// The most lines the box holds that its front has not taken (protocol/setup/box.md, 6).
+/// The most lines the box holds that its front has not taken (protocol/setup/box-front.md, 1).
 pub const HELD: u32 = 256;
 
-/// One of the box's lines to its front (protocol/setup/box.md, 6).
+/// One of the box's lines to its front (protocol/setup/box-front.md, 1).
 #[derive(Clone, PartialEq, Eq)]
 pub enum Line {
     Link { url: Box<[u8]> },
@@ -77,7 +77,7 @@ impl core::fmt::Debug for Line {
     }
 }
 
-/// The group's kind's name, never its label (protocol/setup/box.md, 6).
+/// The group's kind's name, never its label (protocol/setup/box-front.md, 1).
 #[must_use]
 pub fn name(kind: BoxKind) -> &'static [u8] {
     match kind {

@@ -1,8 +1,8 @@
-//! Pending landings and retained verdicts (temper/docs/design/domain/after-landing.md, 10).
+//! Pending landings and retained verdicts (temper/docs/design/domain/after-landing-storage.md, 1).
 use crate::{LandingLog, LoggedChange, LoggedLanding};
 use core::mem::size_of;
 
-/// A logged title's UTF-8 byte bound (temper/docs/design/domain/after-landing.md, 10).
+/// A logged title's UTF-8 byte bound (temper/docs/design/domain/after-landing-storage.md, 1).
 pub const LOGGED_TITLE_BYTES: usize = 256;
 pub(crate) fn row_bytes(row: &LandingLog) -> Option<u64> {
     let mut held =

@@ -1,4 +1,4 @@
-//! Tier lifecycle stories (temper/docs/design/domain/after-landing.md, 2–4 and 10).
+//! Tier lifecycle stories (temper/docs/design/domain/after-landing-runs.md, 1–3, and temper/docs/design/domain/after-landing-storage.md, 1).
 #![expect(
     clippy::disallowed_types,
     clippy::disallowed_methods,

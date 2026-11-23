@@ -1,4 +1,4 @@
-//! Owner deletion through ctl and the real engine (client/ctl/tools.md, 3).
+//! Owner deletion through ctl and the real engine (client/ctl/tools-acts.md, 1).
 use jig_client_kit::harness::{ClientId, World};
 use temper_client_tools::jig::Printed;
 use temper_client_world::{app::Temper, fixtures, front::Joint};

@@ -1,4 +1,4 @@
-//! Tiers follow their configured branches (temper/docs/design/domain/after-landing.md, 2, 3, 4 and 10).
+//! Tiers follow their configured branches (temper/docs/design/domain/after-landing-runs.md, 1, 2 and 3, and temper/docs/design/domain/after-landing-storage.md, 1).
 //! Landing targets use the adoption (temper/docs/design/domain/forge/adoption.md, 8).
 use crate::{
     Domain, Follows, Limits, Name, Request, Stored, Tier, TierBranch, TierHeld, TierLanding, TierRow, Topic, What,
@@ -1840,7 +1840,7 @@ pub(crate) fn restart(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request
     watch(d, env, out);
 }
 impl Domain {
-    /// Drop restored runs whose task is absent (temper/docs/design/domain/after-landing.md, 3).
+    /// Drop restored runs whose task is absent (temper/docs/design/domain/after-landing-runs.md, 2).
     pub fn link_tiers(&mut self, tasks: &jig_domain_tasks::Domain, limits: &Limits) {
         if self.restore_fit_failure().is_some() {
             return;
@@ -1860,7 +1860,7 @@ impl Domain {
         }
     }
 
-    /// The top owns each tier task's deadline (temper/docs/design/domain/after-landing.md, 10).
+    /// The top owns each tier task's deadline (temper/docs/design/domain/after-landing-storage.md, 1).
     pub fn wait_tier(&mut self, env: &Env<Limits>, task: u64, until: Option<Wall>) {
         let until = match until {
             Some(until) => until,

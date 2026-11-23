@@ -162,7 +162,7 @@ fn whitespace_only_paste_stays_disabled_and_sends_nothing() {
     h::assert_no_carried(&front);
 }
 
-// client/pages/README.md, client/pages/accounts.md, 2: an oversized paste is refused locally,
+// client/pages/README.md, client/pages/accounts-words.md, 1: an oversized paste is refused locally,
 // but a later correctly sized paste can be sent.
 #[test]
 fn oversized_paste_is_local_and_editing_it_recovers() {
@@ -179,7 +179,7 @@ fn oversized_paste_is_local_and_editing_it_recovers() {
     assert!(!disabled(&root));
 }
 
-// client/pages/README.md and client/README.md, 3.6: the secret is absent from the semantic
+// client/pages/README.md and client/root.md, 1.6: the secret is absent from the semantic
 // tree and address, including before sending. Assertions never format it.
 #[test]
 fn typed_callback_never_appears_in_the_view_or_page_address() {
@@ -218,7 +218,7 @@ fn leaving_the_page_or_way_drops_the_paste() {
     }
 }
 
-// client/pages/README.md and client/README.md, 3.6: repeated submission while out joins
+// client/pages/README.md and client/root.md, 1.6: repeated submission while out joins
 // the pending finish, even when supplied under another name.
 #[test]
 fn duplicate_finish_sends_one_request_and_clears_the_field() {
@@ -232,7 +232,7 @@ fn duplicate_finish_sends_one_request_and_clears_the_field() {
     assert!(!has(&root, &callback()), "sending clears the secret");
 }
 
-// client/pages/README.md and client/pages/accounts.md, 2: the accounts watch owns the final result,
+// client/pages/README.md and client/pages/accounts-words.md, 1: the accounts watch owns the final result,
 // including when a finish was already submitted.
 #[test]
 fn watch_success_replaces_a_pending_paste_with_ready() {

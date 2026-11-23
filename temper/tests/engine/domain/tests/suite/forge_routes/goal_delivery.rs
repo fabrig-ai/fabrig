@@ -1,5 +1,5 @@
 //! A goal writes design straight to g while changes land beside it
-//! (temper/docs/design/domain/forge/change/README.md, 1 and 3, and temper/docs/design/domain/forge/change/questions.md, 1, and temper/docs/design/domain/forge/branches.md, 1;
+//! (temper/docs/design/domain/forge/change/README.md, 1, and temper/docs/design/domain/forge/change/drift.md, 1, and temper/docs/design/domain/forge/change/questions.md, 1, and temper/docs/design/domain/forge/branches.md, 1;
 //! temper/docs/design/domain/agent/tools.md;
 //! temper/docs/design/protocol/configuration/reference.md).
 use super::goal_branch::{branch_tip, forge_hold, goal_request, writer};

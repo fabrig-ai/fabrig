@@ -71,7 +71,7 @@ runs it or writes what it makes.
 |---|---|---|---|
 | `Reconcile { forge, adopted }` | Forgejo, managed, owned or fake | each managed, owned or fake start; a managed connect; the box's `started` (1) | `README.md`, section 4 |
 | `Adopt { forge, repository }` | Forgejo, managed, owned or fake | an adoption, before its reads; the fake's start (`playground.md`) | 4.5 |
-| `Create { forge, org, repository, files }` | Forgejo, owned or managed | an owned forge's, after reconcile at the box's `started` or a start, while its record keeps a first repository's intent not yet made (`owned.md`, 7); a managed connect's with `first` (5) | 4.9 |
+| `Create { forge, org, repository, files }` | Forgejo, owned or managed | an owned forge's, after reconcile at the box's `started` or a start, while its record keeps a first repository's intent not yet made (`owned-repositories.md`, 1); a managed connect's with `first` (5) | 4.9 |
 | `Check { forge }` | Forgejo, connected | a connect; a replacement | 4.6 |
 | `TakeOver { forge, admin_token }` | Forgejo, owned or fake | a start or the box's `started` with a handover, even with a kept `AdminToken` (`owned.md`, 5) | 4.7 |
 | `Reachable { forge, installation?, page }` | every kind | the picker | 4.8 |
@@ -123,7 +123,7 @@ runs it or writes what it makes.
   | the forge's number | its record's (../forge/engine.md, 1) |
   | the bot's login and email | its record's bot (../forge/engine.md, 1); at a connect as its admin of a forge connected before, the connected user's login (5) |
   | the tokens' names | `temper-api` for the API's, `temper-git` for git's |
-  | the orgs, and their owner | none: reconcile makes no org; an owned forge's org is its first repository's, made by `Create` (`owned.md`, 7) |
+  | the orgs, and their owner | none: reconcile makes no org; an owned forge's org is its first repository's, made by `Create` (`owned-repositories.md`, 1) |
   | the person's login | an owned forge's person's, on a box (`../../draft/forge-identity.md`, section 9), whose answer the connector keeps as the forge's link to its person (the same, 4.1); none otherwise, a fake forge's among them |
   | the repositories | the forge's adopted repositories, the root's, restored before the start's reconcile |
   | the name a failure gives the admin | `temper-admin` |
@@ -133,7 +133,7 @@ runs it or writes what it makes.
 
   The API's address is the forge's record's place (../forge/engine.md, 1).
   temper-forge-setup maps the setup onto these values and runs the
-  kit's check on them, at each start and for every command (`README.md`, section 7
+  kit's check on them, at each start and for every command (`crate-layout.md`, section 1
   ); a value the check refuses comes back as its `Place` (skein's
   `forge/setup/README.md`, 4.1), and is named by the path this table gives for
   it.
@@ -213,7 +213,7 @@ runs it or writes what it makes.
   ends. One run holds the paste:
   `Reconcile` reads it, never an older `AdminToken` record; its writes
   are kept, then the forge's `Origin` under `AdminOrigin`. With `first`,
-  `Create` (`owned.md`, 7) runs with the same paste. Only after both plans are Done
+  `Create` (`owned-repositories.md`, 1) runs with the same paste. Only after both plans are Done
   is the token kept as the forge's `AdminToken` record, and the forge
   connects, managed.
   Without `first`, Create is skipped. This connect never runs `TakeOver`.
@@ -224,7 +224,7 @@ runs it or writes what it makes.
   no organizations or organization owner.
 - **Its listener:** a forge whose API is on loopback, by its record's
   address as resolved, so on this host, is served the listener, and its
-  hooks are made and checked as an owned forge's are (4, `README.md`, section 6).
+  hooks are made and checked as an owned forge's are (4, `webhooks.md`, section 1).
   One on another host is served none and polls: a loopback listener is
   out of its reach, and given one it would post, signed, to its own
   loopback.
@@ -261,7 +261,7 @@ runs it or writes what it makes.
   change (skein's `forge/setup/forgejo.md`, section 1): the webhooks'
   `ALLOWED_HOST_LIST`, and whether Actions are enabled. A managed forge
   on this host whose host list refuses temper's listener delivers no
-  webhook, and polling keeps up (`README.md`, section 6); `temper help forgejo` says
+  webhook, and polling keeps up (`webhooks.md`, section 1); `temper help forgejo` says
   what to set. A delivery's failure stays the forge's: temper reads no
   delivery's outcome from a Forgejo, so none reaches a task, the forge's
   row or its connection.

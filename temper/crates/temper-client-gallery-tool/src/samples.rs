@@ -19,7 +19,7 @@ pub enum World {
     FirstRun { step: u8 },
     Bare,
 }
-/// Confirmation states named by client/README.md, 3.6.
+/// Confirmation states named by client/root.md, 1.6.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Confirmation {
     CloseWork,

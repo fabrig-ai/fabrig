@@ -1,4 +1,4 @@
-//! The project's frame (temper/docs/design/client/view.md, 1 and 3).
+//! The project's frame (temper/docs/design/client/view.md, 1, and temper/docs/design/client/view-navigation.md, 1).
 #![expect(
     clippy::disallowed_types,
     clippy::disallowed_methods,

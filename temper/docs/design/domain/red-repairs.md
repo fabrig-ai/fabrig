@@ -56,7 +56,7 @@ filed it. What waits is section 11.
   the request.
   - It is asked of the culprit goal's person, `Person N` in the
     finding's body, with a person task as `need ask` makes one
-    (`../client/ctl/tools.md`, section 3): the question in one sentence,
+    (`../client/ctl/tools-acts.md`, section 1): the question in one sentence,
     then each choice on its own line, the recommended one first.
   - It is asked of the triager's own person where its delegate to that
     person is refused, or where the finding names no person.
@@ -80,8 +80,8 @@ filed it. What waits is section 11.
   blame`, by the finding's holder or a project owner (`areas.md`,
   section 7), on a red finding with a blame (one filed under `wait:
   landed`), uncleared, in any state.
-- **To a landing:** a commit that the landing log (`after-landing.md`,
-  section 10) holds as a landing of the finding's repository on the
+- **To a landing:** a commit that the landing log (`after-landing-storage.md`,
+  section 1) holds as a landing of the finding's repository on the
   branch its tier follows. The finding's blame then names that landing
   alone, with its members' goals, milestones and persons as filing
   takes them (`red-findings.md`, section 3).
@@ -343,7 +343,7 @@ BODY
   gains `moved`, a `BlameMove`, and `BlameStrength` the variant
   `Moved`. Each is an added field of the registered `temper-store`
   family with its default (none), so no version moves and no patch
-  comes (`../protocol/store.md`, sections 2 and 4); a finding filed
+  comes (`../protocol/store.md`, section 2, and `../protocol/store-versions.md`, section 1); a finding filed
   before reads as unrepaired and unmoved. `ProjectLanding`'s `repairs`
   is an added field, none.
 - **In the code,** the forge's vocabulary

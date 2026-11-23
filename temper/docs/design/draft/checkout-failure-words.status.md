@@ -4,8 +4,8 @@
 
 The design carries this draft. Section 1's detail, its bound, the worker's
 host and line and serve's line are `../domain/worker/checkouts.md`, 1; check
-out and clean told apart are `../protocol/git.md`, 4.5 and 6; serve's line
-and the preparation's failure are `../domain/worker/README.md`, 4.3. No wire
+out and clean told apart are `../protocol/git-operations.md`, 1.5, and `../protocol/git.md`, 6; serve's line
+and the preparation's failure are `../domain/worker/hosted-runs.md`, 1.3. No wire
 or stored format changes: the command a failure ended in is the checkout's
 in-process `PushDiagnostic`, and the rest is bytes of the failure's detail.
 

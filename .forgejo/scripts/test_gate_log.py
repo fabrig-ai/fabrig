@@ -63,6 +63,30 @@ right: 7</failure></testcase></testsuite></testsuites>"""
         self.assertIn("FAIL  gate.default", footer)
         self.assertIn("16 CPU s, ceiling 12 s", footer)
 
+    def test_all_failed_checks_and_instruction_counts_reach_the_failed_step(self):
+        ids = [f"case{i}" for i in range(7)]
+        report = ("<testsuite>" + "".join(
+            f'<testcase classname="suite" name="{name}"><failure message="failed"/></testcase>'
+            for name in ids) + "</testsuite>").encode()
+        raw = (b"gate: default: RED, layer instruction growth: a: 118 instructions, at main 90 instructions\n"
+               b"  alpha::suite: 118 instructions, +28 instructions, at main 90 instructions\n"
+               b"    slow_case: 0.04 wall s, new\n"
+               b"    5 more tests\n"
+               b"gate: default: warning: layer over budget at main: other\n"
+               b"  other::suite: 500 instructions, new\n"
+               b"gate: fuzzy: RED, layer over budget: b: 91 instructions, at main 50 instructions\n"
+               b"  beta::suite: 91 instructions, new\n")
+        _, footer = self.replay(raw, 17, report)
+        for name in ids:
+            self.assertIn(f"FAIL  suite.{name}", footer)
+        self.assertIn("Failed IDs:\ngate.default\n", footer)
+        self.assertIn("118 instructions, +28 instructions, at main 90 instructions", footer)
+        self.assertIn("beta::suite: 91 instructions, new", footer)
+        self.assertNotIn("other::suite", footer)
+        self.assertNotIn("slow_case", footer)
+        self.assertNotIn("5 more tests", footer)
+        self.assertIn("timing context", footer)
+
     def test_timeout_and_missing_report(self):
         live, footer = self.replay(b"gate: default (head): 299 s, past its wall limit; full stalls io 6%\n"
                                    b"FAULT: worker terminated\n", 42, b"incomplete")

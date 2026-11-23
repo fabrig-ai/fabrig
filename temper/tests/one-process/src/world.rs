@@ -41,6 +41,7 @@ pub enum Story {
 #[derive(Debug)]
 pub struct Outcome {
     pub stopped: Option<Stopped>,
+    pub store_checks: crate::store_check::Report,
     pub verdict: skein_world::domain::Verdict,
     pub peaks: Option<Vec<u64>>,
     /// Names in the same process-index order as `peaks`.
@@ -62,7 +63,7 @@ pub struct Outcome {
     pub playground: Option<stories::playground::Outcome>,
     pub model_list: Option<crate::model_list::Outcome>,
 }
-/// The signal's run and its next start (temper/docs/design/protocol/README.md, 6).
+/// The signal's run and its next start (temper/docs/design/protocol/service-process.md, 1).
 #[derive(Debug)]
 pub struct Stopped {
     pub task: u64,
@@ -89,12 +90,18 @@ pub struct Counts {
 }
 #[derive(Clone, Copy)]
 pub(crate) enum Phase {
+    /// Stop after the first durable image, for the store check's isolation comparison.
+    #[cfg(test)]
+    Committed,
     Story,
     SignIn,
     Drain,
     Restart,
     Refused,
-    Fault { cut: skein_world::Cut, before: u32 },
+    Fault {
+        cut: skein_world::Cut,
+        before: u32,
+    },
 }
 #[derive(Default)]
 struct Progress {
@@ -345,7 +352,12 @@ impl Observe for ServiceObserver {
                 &self.families,
             );
             match observed {
-                Ok(commits) => self.commits.extend(commits),
+                Ok(commits) => {
+                    for commit in &commits {
+                        crate::store_check::observed(commit.number);
+                    }
+                    self.commits.extend(commits);
+                }
                 Err(why) => self.finding = Some(why),
             }
         }
@@ -650,7 +662,7 @@ impl Person {
 }
 // Select the story's project and provision its real account before its own acts.
 /// The switcher's button for a project `me` leaves unnamed, "Project N"
-/// (client/view.md, 3).
+/// (client/view-navigation.md, 1).
 fn an_unnamed_project(name: Option<&[u8]>) -> bool {
     let Some(number) = name.and_then(|name| name.strip_prefix(b"Project ".as_slice())) else { return false };
     !number.is_empty() && number.iter().all(u8::is_ascii_digit)
@@ -1233,15 +1245,26 @@ fn model_list_agent(spawn: &skein_io::kernel::Spawn, inherited: &Inherited) -> P
     crate::model_list::agent(inherited)
 }
 
-#[expect(clippy::too_many_lines, reason = "the scenario owns its registry, restartable processes and outcome together")]
 pub(crate) fn run_phase(
+    settings: Settings,
+    scenario: Story,
+    phase: Phase,
+    disk: skein_fake_machine::Machine,
+    previous: Store,
+    run: Rc<RefCell<referee::Run>>,
+) -> (Outcome, skein_fake_machine::Machine, Store) {
+    try_run_phase(settings, scenario, phase, disk, previous, run).unwrap_or_else(|why| panic!("{why}"))
+}
+
+#[expect(clippy::too_many_lines, reason = "the scenario owns its registry, restartable processes and outcome together")]
+pub(crate) fn try_run_phase(
     settings: Settings,
     scenario: Story,
     phase: Phase,
     mut disk: skein_fake_machine::Machine,
     previous: Store,
     run: Rc<RefCell<referee::Run>>,
-) -> (Outcome, skein_fake_machine::Machine, Store) {
+) -> Result<(Outcome, skein_fake_machine::Machine, Store), String> {
     stories::set(scenario);
     REFUSE_START.with(|refused| refused.set(matches!(phase, Phase::Refused)));
     stories::setup_settings(phase);
@@ -1272,71 +1295,90 @@ pub(crate) fn run_phase(
         parameters.links = start.links;
         (start.fakes.llm, start.fakes.peer)
     });
-    let outcome = programs::with(parameters, || {
-        let mut world =
-            skein_world::World::new_controlled(settings.seed, settings.config, settings.memory, |controls| {
-                if let Some(injector) = &run.borrow().restart_faults {
-                    injector.borrow_mut().attach(controls.clone());
+    let (outcome, store_checks) =
+        crate::store_check::scope(settings, machine.0.clone(), (*parameters.deployment).clone(), || {
+            programs::with(parameters, || {
+                let mut world =
+                    skein_world::World::new_controlled(settings.seed, settings.config, settings.memory, |controls| {
+                        if let Some(injector) = &run.borrow().restart_faults {
+                            injector.borrow_mut().attach(controls.clone());
+                        }
+                        referee::Referee::new(
+                            controls,
+                            store.clone(),
+                            scenario,
+                            observed_forge.clone(),
+                            run.clone(),
+                            phase,
+                        )
+                    })
+                    .with_machine(machine);
+                for (mut program, roots) in programs::programs::<OneProcess>() {
+                    if matches!(scenario, Story::ModelsList)
+                        && program.program.as_ref() == temper_playground::documents::PINNED_AGENT_PROGRAM
+                    {
+                        program.make = model_list_agent;
+                    }
+                    world.host_roots(program, roots);
                 }
-                referee::Referee::new(controls, store.clone(), scenario, observed_forge.clone(), run.clone(), phase)
-            })
-            .with_machine(machine);
-        for (mut program, roots) in programs::programs::<OneProcess>() {
-            if matches!(scenario, Story::ModelsList)
-                && program.program.as_ref() == temper_playground::documents::PINNED_AGENT_PROGRAM
-            {
-                program.make = model_list_agent;
-            }
-            world.host_roots(program, roots);
-        }
-        world.host_roots(
-            crate::ctl::program(|spawn, inherited| {
-                Proc::Other(HarnessProcess::Ctl(Box::new(crate::ctl::host(spawn, inherited))))
-            }),
-            crate::ctl::roots,
-        );
-        world.spawn_restartable(programs::service_roots(), programs::service::<OneProcess>);
-        match phase {
-            Phase::Fault { cut, before } => {
-                world.spawn_restartable(
-                    vec![skein_world::StartupRoot {
-                        name: b"private".as_slice().into(),
-                        path: b"client".as_slice().into(),
-                    }],
-                    person,
+                world.host_roots(
+                    crate::ctl::program(|spawn, inherited| {
+                        Proc::Other(HarnessProcess::Ctl(Box::new(crate::ctl::host(spawn, inherited))))
+                    }),
+                    crate::ctl::roots,
                 );
-                world.spawn_restartable(vec![], programs::llm::<OneProcess>);
-                world.spawn_restartable(vec![], programs::forge::<OneProcess>);
-                crate::oracle::spawn(&mut world);
-                world.cut(0, before, cut);
-            }
-            Phase::Restart | Phase::Refused => {
-                world.spawn(|| Proc::Peer(Box::new(SignalHost::new(stories::provider(scenario), None))));
-                world.spawn(|| {
-                    Proc::Forge(Box::new(SignalHost::new(
-                        temper_playground::fakes::forge_peer(&transport, fixtures::SEED),
-                        None,
-                    )))
-                });
-            }
-            Phase::Story | Phase::SignIn | Phase::Drain => {
-                world.spawn_root(skein_sim::Handle::new(client.expect("story client root").raw()), |root| {
-                    Proc::Other(HarnessProcess::Client(Box::new(SignalHost::new(Person::new(root, scenario), None))))
-                });
-                let (llm, forge) = peers.unwrap_or_else(|| {
-                    (stories::provider(scenario), temper_playground::fakes::forge_peer(&transport, fixtures::SEED))
-                });
-                world.spawn(|| Proc::Peer(Box::new(SignalHost::new(llm, None))));
-                world.spawn(|| Proc::Forge(Box::new(SignalHost::new(forge, None))));
-            }
-        }
-        let injector = run.borrow().restart_faults.clone();
-        if let Some(injector) = injector {
-            world.run_with_inputs(|sim, pids, procs| injector.borrow_mut().inputs(sim, pids, procs))
-        } else {
-            world.run()
-        }
-    });
+                world.spawn_restartable(programs::service_roots(), programs::service::<OneProcess>);
+                match phase {
+                    #[cfg(test)]
+                    Phase::Committed => {}
+                    Phase::Fault { cut, before } => {
+                        world.spawn_restartable(
+                            vec![skein_world::StartupRoot {
+                                name: b"private".as_slice().into(),
+                                path: b"client".as_slice().into(),
+                            }],
+                            person,
+                        );
+                        world.spawn_restartable(vec![], programs::llm::<OneProcess>);
+                        world.spawn_restartable(vec![], programs::forge::<OneProcess>);
+                        crate::oracle::spawn(&mut world);
+                        world.cut(0, before, cut);
+                    }
+                    Phase::Restart | Phase::Refused => {
+                        world.spawn(|| Proc::Peer(Box::new(SignalHost::new(stories::provider(scenario), None))));
+                        world.spawn(|| {
+                            Proc::Forge(Box::new(SignalHost::new(
+                                temper_playground::fakes::forge_peer(&transport, fixtures::SEED),
+                                None,
+                            )))
+                        });
+                    }
+                    Phase::Story | Phase::SignIn | Phase::Drain => {
+                        world.spawn_root(skein_sim::Handle::new(client.expect("story client root").raw()), |root| {
+                            Proc::Other(HarnessProcess::Client(Box::new(SignalHost::new(
+                                Person::new(root, scenario),
+                                None,
+                            ))))
+                        });
+                        let (llm, forge) = peers.unwrap_or_else(|| {
+                            (
+                                stories::provider(scenario),
+                                temper_playground::fakes::forge_peer(&transport, fixtures::SEED),
+                            )
+                        });
+                        world.spawn(|| Proc::Peer(Box::new(SignalHost::new(llm, None))));
+                        world.spawn(|| Proc::Forge(Box::new(SignalHost::new(forge, None))));
+                    }
+                }
+                let injector = run.borrow().restart_faults.clone();
+                if let Some(injector) = injector {
+                    world.try_run_with_inputs(|sim, pids, procs| injector.borrow_mut().inputs(sim, pids, procs))
+                } else {
+                    world.try_run()
+                }
+            })
+        });
+    let outcome = outcome.inspect_err(|_| STORE.with(|cell| *cell.borrow_mut() = None))?;
     if let Some(injector) = &run.borrow().restart_faults {
         injector.borrow_mut().end_phase(outcome.end);
     }
@@ -1385,6 +1427,7 @@ pub(crate) fn run_phase(
     let records = std::mem::take(&mut *store.borrow_mut());
     let result = Outcome {
         stopped: None,
+        store_checks,
         peaks: outcome.peaks(),
         process_names: outcome.procs.iter().map(process_name).collect(),
         verdict: skein_world::domain::Verdict::Passed,
@@ -1405,7 +1448,7 @@ pub(crate) fn run_phase(
         model_list: matches!(scenario, Story::ModelsList).then(|| crate::model_list::outcome(&outcome.procs, &records)),
     };
     drop(run);
-    (result, std::mem::replace(&mut outcome.machine.0.borrow_mut(), machine::fresh()), records)
+    Ok((result, std::mem::replace(&mut outcome.machine.0.borrow_mut(), machine::fresh()), records))
 }
 
 #[cfg(test)]

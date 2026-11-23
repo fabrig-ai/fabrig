@@ -1686,7 +1686,7 @@ a.temper-repository-link:hover { text-decoration: underline; }
 /* A closed chat ends on one quiet line, between two hairlines. */
 #app > .temper-session .temper-thread-inner > .temper-ended { display: flex; align-items: center; gap: 14px; margin: 8px 0 0; font-size: 12.5px; color: var(--gf-faint); }
 #app > .temper-session .temper-thread-inner > .temper-ended::before, #app > .temper-session .temper-thread-inner > .temper-ended::after { content: ''; flex: 1; height: 1px; background: var(--gf-line); }
-/* The sheet owns its pending ask and last failure (client/README.md, 3.6). */
+/* The sheet owns its pending ask and last failure (client/root.md, 1.6). */
 #app dialog.temper-confirm > :is([role=status], [role=alert]) { margin: 0; font-size: 14px; color: var(--gf-ink-2); }
 #app dialog.temper-confirm > [role=alert] { color: var(--gf-error); }
 /* An uncertain effect is chosen before its release is confirmed. */
@@ -2899,7 +2899,7 @@ button.temper-sheet-link { border: 0; background: none; padding: 0; cursor: poin
 #app > .temper-session .temper-doc-inner td > span > strong { font-size: 14.5px; font-weight: 500; letter-spacing: normal; text-transform: none; color: var(--gf-ink); white-space: nowrap; }
 #app > .temper-session .temper-doc-inner td { color: var(--gf-ink-2); }
 
-/* The person's menu opens above the rail's foot (client/view.md, 3). */
+/* The person's menu opens above the rail's foot (client/view-navigation.md, 1). */
 #app > .temper-rail > .temper-rail-foot > .temper-rail-person { position: relative; }
 #app > .temper-rail > .temper-rail-foot > .temper-rail-person > [aria-haspopup] { width: 100%; padding: 6px 10px; border: 0; border-radius: 6px; background: none; color: var(--gf-muted); font: inherit; text-align: left; }
 #app > .temper-rail > .temper-rail-foot > .temper-rail-person > [aria-haspopup]:is(:hover, [aria-expanded=true]) { background: var(--gf-rail-hover); color: var(--gf-ink); }

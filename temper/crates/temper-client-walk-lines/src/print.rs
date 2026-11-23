@@ -14,7 +14,7 @@ pub const STYLESHEETS: [&str; 4] = [
     "../overlay.css",
 ];
 
-/// A page as the person saw it, at one mark (client/web/journeys.md, 3.4).
+/// A page as the person saw it, at one mark (client/web/journeys-recordings.md, 1.4).
 pub struct Mark {
     pub html: String,
     pub heading: Vec<u8>,

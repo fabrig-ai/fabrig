@@ -1,8 +1,8 @@
-//! Retained first-edition story (testing/reference-case.md): M1's message, M2's admission and QA's owner-landed test.
+//! The tester's test reaches main only through its owner's change, with no tester forge writes.
 use temper_real_loop_world::{Exit, case, run_cluster_forge};
 
 #[test]
-fn m1s_end_message_starts_m2_beside_a_tester_without_forge_effects_whose_test_lands_only_through_a1s_change() {
+fn a_testers_test_lands_only_through_its_owners_change_without_tester_forge_writes() {
     // Left out: A's fresh next run (5.5's gap; no milestone-end operation),
     // a Codex tester reading only the design (the tester here is scripted),
     // the three kinds of finding and A1's decisions (one test lands here),
@@ -42,6 +42,19 @@ fn m1s_end_message_starts_m2_beside_a_tester_without_forge_effects_whose_test_la
             "{path}"
         );
     }
+    let mut tester_write = observed.clone();
+    tester_write.kit.records.push(skein_fake_forge_domain::Observation::Reported {
+        repository: case::KIT.as_bytes().into(),
+        commit: 1,
+        context: case::qa::STATUS_CONTEXT.as_bytes().into(),
+        state: skein_fake_forge_domain::api::Check::Passed,
+        by: 1,
+    });
+    assert!(
+        case::oracle::step_6_8(&tester_write)
+            .iter()
+            .any(|miss| { miss.promise == case::oracle::Promise::Must("the tester writes nothing to the forge") })
+    );
     let mut wrong_tree = observed.clone();
     wrong_tree.kit.main.remove(case::qa::QA_TEST_PATH.as_bytes());
     assert!(

@@ -40,7 +40,7 @@ pub struct Component {
     pub(crate) settings: Settings,
     slots: Slab<Operation>,
     index: Map<Token, Id<Operation>>,
-    /// Arrival-ordered store waiters; each is one admitted operation (git.md, 4.14).
+    /// Arrival-ordered store waiters; each is one admitted operation (protocol/git-operations.md, 1.14).
     store_waiters: Map<Token, Id<Operation>>,
     serial: u64,
     start: Start,
@@ -194,7 +194,7 @@ impl Component {
         }
         self.wake_stores(now, out);
     }
-    /// Lock holders and waiters are operations, bounded by `Limits::operations` (git.md, 4.14).
+    /// Lock holders and waiters are operations, bounded by `Limits::operations` (protocol/git-operations.md, 1.14).
     fn store_step(&mut self, id: Id<Operation>, command: &Command) -> bool {
         let operation = self.slots.get(id).expect("live operation");
         let access = match &operation.op {

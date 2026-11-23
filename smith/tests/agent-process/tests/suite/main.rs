@@ -17,15 +17,18 @@ mod program;
 mod program_budget;
 mod program_children;
 mod program_events;
+mod program_faults;
 mod program_open;
 mod program_resume;
 mod program_tools;
 mod program_turns;
+mod provider_faults;
 mod signals;
 mod stories;
 
 mod fuzzy {
     mod fact_drain;
+    mod faults;
     mod open_opening;
     mod process;
     mod profile;

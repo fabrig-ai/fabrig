@@ -153,7 +153,7 @@ does: no worker, no listener, no root.
 ## 3. The act
 
 `temper ctl DIR deployment checkpoint [--timeout DURATION]`, a row of
-`../client/ctl/tools.md`, 3.
+`../client/ctl/tools-acts.md`, 1.
 
 - **Its request** is temper's client family's (`../client/forge/records.md`):
   `Checkpoint`, with no field, keyed as an act is, the key optional. It

@@ -809,6 +809,30 @@ pub(crate) fn preparation_failure(task: u64, failure: brief::GatherFailure, out:
     }
 }
 
+/// Check the next durable claim against live worker claims, including those
+/// whose fleet handoff trails their commit. The same claims must fit at a cold start.
+pub(crate) fn claim_fits(core: &Core, task: u64, attempt: u64) -> bool {
+    match core.claiming.get(&task) {
+        Some((prepared, ..)) if *prepared == attempt => {}
+        Some(_) | None => return true,
+    }
+    if core.workers_in_process
+        || core.proofs.get(&task).expect("prepared claim proof").host == jig_domain_fleet::HostKind::Engine
+    {
+        return true;
+    }
+    let mut held = 0_u32;
+    for (number, proof) in &core.proofs {
+        if proof.host == jig_domain_fleet::HostKind::Worker
+            && let Some(row) = core.tasks.task(*number)
+            && tasks::run_attempt(&row.phase).is_some()
+        {
+            held = held.checked_add(1).expect("bounded live tasks");
+        }
+    }
+    held < core.restart_attempts
+}
+
 pub(crate) fn route_claim_refused(core: &mut Core, work: &mut Queue<Work>, task: u64) -> Queue<Request> {
     let mut out = Queue::uncapped();
     if core.claiming.remove(&task).is_some() {

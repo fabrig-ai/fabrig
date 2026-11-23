@@ -1,4 +1,4 @@
-//! Pure goal shape and repair-row translations (domain/agent/tools.md, 2; domain/red-repairs.md, 4.3–4.4).
+//! Pure goal shape and repair-row translations (domain/agent/tools-goal.md, 1; domain/red-repairs.md, 4.3–4.4).
 use alloc::boxed::Box;
 use forge::FindingRefusal;
 use jig_domain_tasks as tasks;

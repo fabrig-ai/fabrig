@@ -208,6 +208,22 @@ fn address(source: Option<core::net::IpAddr>) -> Option<[u8; 16]> {
     }
 }
 impl Component {
+    /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
+    #[must_use]
+    pub fn inspection_approval_count(&self) -> u32 {
+        self.approval.live.len()
+    }
+
+    /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
+    #[must_use]
+    pub fn inspection_approval_deadline(&self, index: u32) -> Option<Time> {
+        let (_, approval) = self.approval.live.iter().nth(skein_lib::length::usize_of(index))?;
+        match approval.decision {
+            Decision::Waiting | Decision::Approved { .. } => Some(approval.until),
+            Decision::Taking { .. } => None,
+        }
+    }
+
     pub(super) fn approval_ask(&mut self, env: &Env<Limits>, connection: &mut Exchange, body: &[u8]) {
         let mut reader = Reader::new(body);
         let Ok(record) = w::ApprovalAsk::decode(&env.limits.wire, &mut reader) else {

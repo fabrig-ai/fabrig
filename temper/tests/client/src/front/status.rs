@@ -1,4 +1,4 @@
-//! Home's looks through the joined roots (temper/docs/design/testing/README.md, 2.1).
+//! Home's looks through the joined roots (temper/docs/design/testing/tiers.md, 1.1).
 use super::{Joint, client, engine_limits, fixtures, walking};
 use jig_client_kit::harness::ClientId;
 use skein_lib::Duration;

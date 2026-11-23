@@ -36,7 +36,7 @@ ready ones and starts a goal from each (`../../client/pages/work.md`, 1,
   (`../../client/pages/work.md`, 1, *Work*). A row with a goal, or not
   ready, is **unlisted**.
 - **Erased** with its project, and with its repository's forge, as the
-  repository's landing log is (`../after-landing.md`, section 10),
+  repository's landing log is (`../after-landing-storage.md`, section 1),
   marking the subject `drafts` (3).
 
 ## 2. Saying so: `SetDraft`

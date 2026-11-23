@@ -1,5 +1,5 @@
 //! The engine root's store vocabulary: keys, records, ranges and bounded pages.
-//! temper/docs/design/domain/root.md, 7–8.
+//! temper/docs/design/domain/root.md, 7, and temper/docs/design/domain/root-restart.md, 1.
 
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]

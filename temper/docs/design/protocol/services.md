@@ -3,12 +3,12 @@
 Provisional, 2026-11-13, from `../draft/cli.md`, section 6 and
 `../draft/deployment-binaries.md`, section 9's second item; the
 engine's half's pieces from `../draft/crate-graph.md`, 5. The service
-of `README.md`, sections 4 to 6, is four crates: what both halves share,
+of `service-routing.md`, sections 1 to 2, and `service-process.md`, section 1, is four crates: what both halves share,
 the engine's, the worker's, and the one process that composes them. The
 engine's binary links the engine's alone, the worker's the worker's
 alone, and the box and the tests the composition (`binaries.md`, 1 and
 4). No Cargo feature chooses either half (`../draft/cli.md`, 3.2).
-Section 2 is the crates, 3 to 6 each one, with the engine's pieces in
+`services.md`, section 2 is the crates, 3 to 6 each one, with the engine's pieces in
 4.1 to 4.4, 7 the shells that drive them, 8 the tests, 9 the checks.
 
 ## 1. In one page
@@ -28,10 +28,10 @@ Section 2 is the crates, 3 to 6 each one, with the engine's pieces in
   keeps the name `temper-engine-service`, over the component and the
   startup, which compile side by side over a vocabulary both name, with
   the stock beneath the startup.
-- **The composition is today's one process** (`README.md`, section 6):
+- **The composition is today's one process** (`service-process.md`, section 1):
   both components on one process, joined by the in-process name
   `workers`, with the standalone start's paired checks and the
-  supervision that starts, drains and stops them together (section 6).
+  supervision that starts, drains and stops them together (`services.md`, section 6).
   It keeps the name `temper-service`, so the box, the playground and the
   worlds that run one process keep theirs.
 - **Nothing a person or a program sees changes:** the documents read,
@@ -382,7 +382,7 @@ and their tests.
 
 `temper-service`, the composition: one process and both components,
 joined by the in-process name `workers`, the engine listening and the
-worker dialling it through the same process, as `README.md`, section 6
+worker dialling it through the same process, as `service-process.md`, section 1
 says. Nothing crosses between them but bytes.
 
 - **One turn, today's order:** the process's completions and events,

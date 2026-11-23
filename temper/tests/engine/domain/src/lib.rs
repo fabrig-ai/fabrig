@@ -19,6 +19,8 @@ pub mod roles;
 /// Independent role-cohort and recipient evidence.
 pub mod roles_referee;
 
+pub mod budget;
+pub mod check;
 /// Shared direct root route driver for focused and randomized scenarios.
 pub mod direct;
 pub mod fixtures;
@@ -46,7 +48,7 @@ pub fn poll(
     }
 }
 
-/// Peer input waits for durable Wires (temper/docs/design/domain/root.md, 8.1).
+/// Peer input waits for durable Wires (temper/docs/design/domain/root-restart.md, 1.1).
 pub(crate) fn waits_for_start(root: &temper_engine_domain::Domain, event: &temper_engine_domain::Event) -> bool {
     use jig_domain_core::start::Phase;
     let runtime = root.ready() || matches!(root.start_phase(), Some(Phase::AdoptRuns | Phase::Open));

@@ -20,7 +20,7 @@ use std::{
 /// (testing/checks.md 1). Keep a duration under test separate from this horizon.
 pub const BOX_DEADLINE: Duration = Duration::from_secs(240);
 
-/// The box's own log of this run, empty before its first line (protocol/setup/box.md, 2).
+/// The box's own log of this run, empty before its first line (protocol/setup/box-supervision.md, 1).
 #[must_use]
 pub fn box_log(data: &Path) -> String {
     match std::fs::read_to_string(data.join("box/logs/box.log")) {
@@ -30,7 +30,7 @@ pub fn box_log(data: &Path) -> String {
     }
 }
 
-/// Serve has listened on the clients' listener this run: the moment the first link used to print (protocol/setup/box.md, 2).
+/// Serve has listened on the clients' listener this run: the moment the first link used to print (protocol/setup/box-supervision.md, 1).
 #[must_use]
 pub fn serve_listening(data: &Path) -> bool {
     check_serve_listening(data).unwrap_or_else(|why| panic!("{why}"))

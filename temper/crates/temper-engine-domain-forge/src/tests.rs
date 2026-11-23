@@ -43,6 +43,7 @@ mod outbox_room;
 mod panel;
 mod playground;
 mod projection;
+pub(crate) mod read_line;
 pub(crate) mod reconcile;
 pub(crate) mod records;
 pub(crate) mod reds;
@@ -1352,7 +1353,7 @@ fn native_effect_rows_keep_the_clients_recovery_promises() {
 }
 
 /// An issue creation whose lifetime ran out unanswered: unrecoverable, it
-/// is held for a person (domain/forge/README.md, 4).
+/// is held for a person (domain/forge/effects.md, 1).
 fn held_issue() -> skein_forge_client::Entry {
     skein_forge_client::Entry {
         queued: false,
@@ -2100,7 +2101,7 @@ fn a_release_waits_while_its_lost_writer_is_waiting_for_read_room() {
 }
 
 #[test]
-fn a_release_still_fails_for_a_running_writer_or_a_lost_writer_without_a_read() {
+fn a_holders_release_waits_for_a_running_writer_or_a_lost_writer_without_a_read() {
     for writer in [Writer::Run { task: 9, attempt: 1 }, Writer::Lost { task: 9, attempt: 1 }] {
         let mut d = active_domain();
         outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
@@ -2119,7 +2120,9 @@ fn a_release_still_fails_for_a_running_writer_or_a_lost_writer_without_a_read() 
         );
         let closing =
             outputs(&mut d, Event::Release { task: 7, root: 7, ending: ReleaseEnding::Done, reason: None, entry: 20 });
-        assert!(release_failed(&closing, 7));
+        assert!(!release_failed(&closing, 7));
+        assert!(!closing.contains(&Request::Released { task: 7 }));
+        assert_eq!(d.hold(&run_branch(b"7")).unwrap().writer, Some(writer));
     }
 }
 

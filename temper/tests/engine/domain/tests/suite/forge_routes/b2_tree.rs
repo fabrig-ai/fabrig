@@ -455,7 +455,7 @@ fn land_change_with_words(world: &mut World, work: &engine::Assignment, words: &
 #[test]
 fn b2s_tree_admits_every_run_under_the_stock() {
     // A goal has half of a 24K chat, and each change half of what the goal has left
-    // (domain/agent/tools.md, 1): its three runs, a producer, a repair and a review.
+    // (domain/agent/tools-change.md, 1): its three runs, a producer, a repair and a review.
     const WORK_RUNS: u64 = 7;
     const CHANGE_RUNS: u64 = 3;
     let (mut world, chat) = stock_world();
@@ -748,6 +748,12 @@ fn every_row_of_b2s_tree_reads_whole_on_standard() {
         // Owner membership permits the person to read all eleven tasks in this tree.
         let document = task_document(world.party_read(reads::Read::Task { task: expected.task }));
         assert_eq!(document.chip.number, expected.task);
+        if let Some(requester) = expected.requester {
+            assert_eq!(document.requester, tasks::Party::Task(requester));
+            assert_eq!(document.chip.phase, documents::PhaseLine::Ended);
+            assert!(document.delegates.is_empty());
+            assert!(document.result.is_some());
+        }
         // Documents display lineage root first; inspect nearest first to verify
         // that their separate line bound keeps the closest ancestors.
         let mut lineage = document.lineage.iter().map(|chip| chip.number).collect::<Vec<_>>();

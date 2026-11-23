@@ -176,6 +176,18 @@ impl Application for Temper {
             returned: None,
         }
     }
+    fn rehearse(domain: &mut Domain) {
+        domain.root.rehearse();
+    }
+    fn rehearsed(domain: &Domain) -> bool {
+        domain.root.rehearsed()
+    }
+    fn refused(domain: &Domain) -> Option<String> {
+        domain.root.start_stop().map(|stop| format!("{stop:?}"))
+    }
+    fn start_phase(domain: &Domain) -> String {
+        format!("{:?}", domain.root.start_phase())
+    }
     fn store(config: &Config) -> Store {
         let configuration = config::root(config.seed, config.scenario, config.story).0;
         temper_engine_domain_world::fixtures::restored_over(
@@ -517,7 +529,7 @@ impl Application for Temper {
                 peers.started = true;
                 // The project's first period comes from outside the root, once
                 // (jig's `protocol/configuration.md`, 5); the repository's git
-                // identity is an application credential (domain/root.md, 6.1).
+                // identity is an application credential (domain/root-translation.md, 2.1).
                 if !store.rows.keys().any(|key| {
                     matches!(
                         key,

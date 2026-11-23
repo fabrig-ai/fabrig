@@ -27,7 +27,7 @@ impl Accounts<'_> {
         out.finish()
     }
 }
-// client/ctl/README.md, 9: the result is 80 KiB and each account list has at most 32
+// client/ctl/bounds.md, 1: the result is 80 KiB and each account list has at most 32
 // rows. Reserve 1 KiB for the envelope, 128 B for digest/wait, and 128 B
 // per row in each readiness list. Split the rest equally: structural takes
 // charge their JSON field/number costs; text reserves six escaped bytes per

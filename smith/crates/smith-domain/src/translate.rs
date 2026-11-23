@@ -245,7 +245,9 @@ pub(crate) fn end(
         session::End::Busy => run::End::Busy,
         session::End::Invalid => run::End::Invalid,
         session::End::Closed => run::End::Closed,
-        session::End::Failed { failure: llm::Failure::Exhausted { .. }, .. } if account.is_some() => {
+        session::End::Failed { failure: llm::Failure::Exhausted { .. } | llm::Failure::RateLimited { .. }, .. }
+            if account.is_some() =>
+        {
             run::End::Fault(run::Fault::Limited { account: account.expect("guarded account"), reset_at: retry_at })
         }
         session::End::Failed { failure: llm::Failure::Refused, .. } if account.is_some() => {

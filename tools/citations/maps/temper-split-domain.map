@@ -1,0 +1,47 @@
+# The first split pass (temper/docs/design/draft/design-upkeep.md, 4.3): domain, beside its forge part.
+
+# Tier runs and their durable effects are separate from verdicts and clearing.
+title temper/docs/design/domain/after-landing-runs.md: Running tiers after landing
+temper/docs/design/domain/after-landing.md 2 -> temper/docs/design/domain/after-landing-runs.md 1
+temper/docs/design/domain/after-landing.md 3 -> temper/docs/design/domain/after-landing-runs.md 2
+temper/docs/design/domain/after-landing.md 4 -> temper/docs/design/domain/after-landing-runs.md 3
+
+title temper/docs/design/domain/after-landing-storage.md: After-landing effects and storage
+temper/docs/design/domain/after-landing.md 10 -> temper/docs/design/domain/after-landing-storage.md 1
+
+# Preparing candidates, proving content and holding the turn.
+title temper/docs/design/domain/landing-prepare.md: Preparing a landing
+temper/docs/design/domain/landing.md 5 -> temper/docs/design/domain/landing-prepare.md 1
+
+title temper/docs/design/domain/landing-proof.md: Landing keys, receipts and proof
+temper/docs/design/domain/landing.md 6 -> temper/docs/design/domain/landing-proof.md 1
+temper/docs/design/domain/landing.md 7 -> temper/docs/design/domain/landing-proof.md 2
+
+title temper/docs/design/domain/landing-turn.md: The landing turn and its trains
+temper/docs/design/domain/landing.md 8 -> temper/docs/design/domain/landing-turn.md 1
+temper/docs/design/domain/landing.md 9 -> temper/docs/design/domain/landing-turn.md 2
+
+# Root boundary translation and lifecycle.
+title temper/docs/design/domain/root-translation.md: The root's translation
+temper/docs/design/domain/root.md 5 -> temper/docs/design/domain/root-translation.md 1
+temper/docs/design/domain/root.md 6 -> temper/docs/design/domain/root-translation.md 2
+
+title temper/docs/design/domain/root-restart.md: Restarting and stopping the root
+temper/docs/design/domain/root.md 8 -> temper/docs/design/domain/root-restart.md 1
+
+# Tool families keep their policy page; reads, changes and goals stand beside it.
+title temper/docs/design/domain/agent/tools-forge.md: The agent's forge reads
+temper/docs/design/domain/agent/tools.md 6 -> temper/docs/design/domain/agent/tools-forge.md 1
+
+title temper/docs/design/domain/agent/tools-change.md: A change in the run's words
+temper/docs/design/domain/agent/tools.md 1 -> temper/docs/design/domain/agent/tools-change.md 1
+
+title temper/docs/design/domain/agent/tools-goal.md: A goal in the run's words
+temper/docs/design/domain/agent/tools.md 2 -> temper/docs/design/domain/agent/tools-goal.md 1
+
+# The worker keeps its one page and structure; hosting and processes stand beside it.
+title temper/docs/design/domain/worker/hosted-runs.md: The worker's hosted runs
+temper/docs/design/domain/worker/README.md 4 -> temper/docs/design/domain/worker/hosted-runs.md 1
+
+title temper/docs/design/domain/worker/agent-processes.md: The worker's agent processes
+temper/docs/design/domain/worker/README.md 5 -> temper/docs/design/domain/worker/agent-processes.md 1

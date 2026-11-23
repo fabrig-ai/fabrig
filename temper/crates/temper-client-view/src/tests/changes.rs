@@ -1,4 +1,4 @@
-//! Every form of Changes' words and links (temper/docs/design/client/pages/README.md, temper/docs/design/client/view.md, 3, temper/docs/design/client/pages/task.md, 3).
+//! Every form of Changes' words and links (temper/docs/design/client/pages/README.md, temper/docs/design/client/view-navigation.md, 1, temper/docs/design/client/pages/task.md, 3).
 use super::fixtures as f;
 
 use crate::{

@@ -1,10 +1,10 @@
-//! The recording's strict byte codec (client/web/journeys.md, 3.2).
+//! The recording's strict byte codec (client/web/journeys-recordings.md, 1.2).
 use jig_client_shell_web::adapter::Heard;
 use skein_lib::{Time, Wall};
 use skein_ui::{Act, LogEdge};
 use skein_ui_web::{mapping::Primary, transport::Header};
 
-/// One line of a recording, its kind first (client/web/journeys.md, 3.2).
+/// One line of a recording, its kind first (client/web/journeys-recordings.md, 1.2).
 #[derive(Debug, PartialEq, Eq)]
 pub enum Line {
     Journey {
@@ -422,7 +422,7 @@ pub enum Field {
     Word(Box<[u8]>),
     Bytes(Box<[u8]>),
 }
-/// The journeys' shared strict field reader (client/web/journeys.md, 3.2).
+/// The journeys' shared strict field reader (client/web/journeys-recordings.md, 1.2).
 pub struct Read {
     fields: std::vec::IntoIter<Field>,
 }

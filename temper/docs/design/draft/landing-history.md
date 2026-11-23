@@ -1,6 +1,6 @@
 # landing-history: temper keeps how each landing went
 
-temper keeps what a change and a landing are now, not how they got there. A change's step and head are current, and the time beside them moves with each step; a landing keeps its current round, the next overwriting it; once either has ended, its row goes as soon as another needs the room (`../domain/forge/change/README.md`, 7; `../domain/landing.md`, 12), and a change landing by `queue` makes no landing row at all (`../domain/landing.md`, 14). So what a project asks of its landings, where the time from ready to landed went and what held it, is answered today only by rebuilding each timeline by hand from the forge's pull request timelines, the runner's logs and the agents' tasks, with the queue's own steps inferred between them. This draft has temper keep each change's and each landing's steps as events, each interval with an event at both ends, written by the commit that decides or observes each step, kept by change for a bounded time after the change and the landing are gone, and read through `ctl`, with the split of each change's time computed by code. temper/dev builds it.
+temper keeps what a change and a landing are now, not how they got there. A change's step and head are current, and the time beside them moves with each step; a landing keeps its current round, the next overwriting it; once either has ended, its row goes as soon as another needs the room (`../domain/forge/change/records.md`, 1; `../domain/landing.md`, 12), and a change landing by `queue` makes no landing row at all (`../domain/landing.md`, 14). So what a project asks of its landings, where the time from ready to landed went and what held it, is answered today only by rebuilding each timeline by hand from the forge's pull request timelines, the runner's logs and the agents' tasks, with the queue's own steps inferred between them. This draft has temper keep each change's and each landing's steps as events, each interval with an event at both ends, written by the commit that decides or observes each step, kept by change for a bounded time after the change and the landing are gone, and read through `ctl`, with the split of each change's time computed by code. temper/dev builds it.
 
 ## 1. In one page
 
@@ -18,8 +18,8 @@ temper keeps what a change and a landing are now, not how they got there. A chan
   - a change's first ready time, its step, its head and the time of its last step, replaced at the next (`../domain/forge/change/README.md`, 2);
   - its updates, repairs and resolutions as counts, not times;
   - a landing's members, their heads and why each left, without when, and its current round only (`../domain/landing.md`, 12);
-  - each gate's receipts by key, with the time temper recorded the verdict, a few per gate (`../domain/landing.md`, 6.2);
-  - the landing log, the recent landings per repository, a ring (`../domain/after-landing.md`, 10).
+  - each gate's receipts by key, with the time temper recorded the verdict, a few per gate (`../domain/landing-proof.md`, 1.2);
+  - the landing log, the recent landings per repository, a ring (`../domain/after-landing-storage.md`, 1).
 - **Kept elsewhere:** jig keeps each task's activity, attempts, milestones and holds with their times after the task ends: the agents' side of resolutions and repairs, not the change's or the landing's steps. The forge keeps pushes, merges and runs with its own times; the runner keeps a gate's inner steps in its logs.
 - **What goes with the rows:** the forge's limits evict ended changes and ended landings as room is needed (`../protocol/configuration/limits.md`): a change read after that has no panel, and an ended landing no row.
 - **Never kept:** when a change became ready again, joined a queue or a landing, was taken by it, was updated, left it and why; when a job ran; when a delivery was accepted; when a gate's outcome was seen; when the turn was taken. These are the boundaries a timeline rebuilt by hand can only infer.
@@ -43,7 +43,7 @@ temper keeps what a change and a landing are now, not how they got there. A chan
 | `paused`, `resumed` | its CI is paused or resumed (`../domain/forge/change/README.md`, 2, step 3) | why |
 | `formed`, `round-ended` | a landing forms or a round starts; a round ends | landing, round, base, its units and their members in order with their heads; the cause: turned, a member left, stale, cancelled |
 | `gate`, `gate-ended` | a gate's run is dispatched or seen running; its outcome is heard | gate, key, head or prefix, run and attempt; verdict, a runner's fault and its retry, or superseded |
-| `proved` | a candidate or prefix is proved, by runs or by receipts already held (`../domain/landing.md`, 7.2) | the prefix; each gate's receipt or run |
+| `proved` | a candidate or prefix is proved, by runs or by receipts already held (`../domain/landing-proof.md`, 2.2) | the prefix; each gate's receipt or run |
 | `search`, `searched` | the search by prefixes starts, and holds its boundary (`../domain/landing-search.md`, 2 to 4) | round; the green and red prefixes, the blamed unit |
 | `probe`, `probe-ended` | a probe runs at a prefix, and its outcome is heard | prefix; outcome |
 | `turn` | the branch moves to a proved prefix, or a `queue` change's merge is made by temper | prefix or head, members landed |
@@ -70,13 +70,13 @@ temper keeps what a change and a landing are now, not how they got there. A chan
 - **By change, apart from the rows:** a change's events, and its landing's events naming it, stay after the change and landing rows go.
 - **By age and by count:** once a change's last event is older than the project's `history_days`, its events go together; past `history_events`, the changes whose last event is oldest go first, whole. A history is never cut in its middle, so what remains of a change is all of it, from its first event.
 - **Swept in bounded steps,** on the engine's own tick as well as on writes, so an idle project's events still go.
-- **On demand:** the history is read from the store when asked, as jig reads a task's activity, and is not part of what a restart restores (`../protocol/store.md`, 5).
+- **On demand:** the history is read from the store when asked, as jig reads a task's activity, and is not part of what a restart restores (`../protocol/store-restart.md`, 1).
 - **With the project:** a project's deletion deletes its events.
 - **Bounded records:** each field is a name, a number, a hash or a short reason within the forge's existing bounds; a `formed` event's members within `landing_members`; no event carries a log, a body or words.
 
 ## 6. Reading it
 
-- **`landing history --project PROJECT [--change TASK | --landing TASK] [--since TIME] [--until TIME] [--after CURSOR] [--json]`:** the events in the project's order, at most 32 a page within ctl's document bound (`../client/ctl/README.md`, 9). The first page fixes the project's last number as the read's upper bound and the cursor carries it, so later pages read the same history. A change's or a landing's events are read through their own index, and a project's by its order, so a filtered read does bounded work. A cursor past the events that remain is refused, naming the first that does.
+- **`landing history --project PROJECT [--change TASK | --landing TASK] [--since TIME] [--until TIME] [--after CURSOR] [--json]`:** the events in the project's order, at most 32 a page within ctl's document bound (`../client/ctl/bounds.md`, 1). The first page fixes the project's last number as the read's upper bound and the cursor carries it, so later pages read the same history. A change's or a landing's events are read through their own index, and a project's by its order, so a filtered read does bounded work. A cursor past the events that remain is refused, naming the first that does.
 - **A change whose row went** answers `change show` by naming its last events and the read that lists them all; once its events have gone too, it says so.
 - **Who may read it:** the project's readers, as for its changes, whether or not the change's task remains. The public projection shows none of it (`../client/forge/README.md`, 9.3).
 
@@ -104,7 +104,7 @@ temper keeps what a change and a landing are now, not how they got there. A chan
 
 ## 9. Upgrades
 
-- **A new stored family,** demand-loaded, registered with defaults, in the landing that adds it (`../protocol/store.md`, 2 and 4). There is no history before it: a change live at the upgrade has a partial history, and nothing is rebuilt or backdated.
+- **A new stored family,** demand-loaded, registered with defaults, in the landing that adds it (`../protocol/store.md`, 2, and `../protocol/store-versions.md`, 1). There is no history before it: a change live at the upgrade has a partial history, and nothing is rebuilt or backdated.
 - **`ctl`'s wire** moves its version for the new reads (`../protocol/wires.md`, 8).
 
 ## 10. Acceptance

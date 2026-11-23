@@ -32,7 +32,7 @@ workspace root, its repository under its own name; `request.json` and
 ## A call's room
 
 The reference takes a payload of 63,740 bytes and output of 48,000 tokens,
-the fallback in `../../design/protocol/configuration/settings.md`, 7. Its agent's
+the fallback in `../../design/protocol/configuration/settings-output.md`, 1. Its agent's
 measured largest turn is 18,431,842 bytes. The stock derives its carriers
 from that turn and payload; `room.json` holds only the agent's and worker's
 figures, not engine or application overrides.

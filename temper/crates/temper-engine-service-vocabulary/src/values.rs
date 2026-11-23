@@ -1,4 +1,4 @@
-//! Lent account credentials stay in the protocol layer (protocol/credentials.md, 3).
+//! Lent account credentials stay in the protocol layer (protocol/credentials-llm-accounts.md, 1).
 use alloc::boxed::Box;
 use jig_domain_link::{Form, Grant};
 use jig_protocol_accounts::table::{self, Table};
@@ -19,7 +19,7 @@ pub fn credential_bytes(engine: &jig_protocol_config::Engine) -> u32 {
     }
     token
 }
-/// The engine's git identities' values (protocol/credentials.md, 4): two newest
+/// The engine's git identities' values (protocol/credentials-git-identities.md, 1): two newest
 /// generations per number, each encoded once by temper-protocol-worker-wire.
 #[derive(Debug)]
 pub struct Identities {

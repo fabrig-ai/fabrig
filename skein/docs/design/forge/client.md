@@ -377,12 +377,19 @@ Before a decision depends on a fact, the owner asks for it afresh with
 - **Refused at the entrance,** with no API call, `TooLarge` by section
   2.3 first, then `Busy` when the call slab is full or when the
   foreground share is spent and a keeping read is due (section 6).
+  The client keeps no refused read: asking it again, and in what order
+  beside the owner's other refused reads, is the owner's. A read the
+  owner asks before `resume`, once a place is reclaimed, and the client
+  admits takes that place ahead of the keeping and slow reads `resume`
+  would start, so an
+  owner that asks its waiting reads first gives them the freed call
+  (temper's `domain/forge/keeping-up.md`, 3).
 - **Its holders.** The client answers, at any time and changing
   nothing, the calls that hold the slab's places, oldest admitted
   first, each with its owner, its repository and what it reads, or that
   it is a write, never the write's content, so that
-  an owner can say who holds a full slab (temper's `protocol/README.md`,
-  6.3). It keeps the order each call was admitted in, a number, not a
+  an owner can say who holds a full slab (temper's `protocol/service-process.md`,
+  1.3). It keeps the order each call was admitted in, a number, not a
   time.
 - **Retries.** `Unavailable` and `Timeout` are tried again, `read_attempts`
   tries in all, after `backoff` doubling to `backoff_max` plus a draw
@@ -665,7 +672,7 @@ was neither made nor refused, and it lands, or not, later.
 ### 7.8 A stop
 
 An owner that stops settles its effects first (jig's
-`domain/connectors.md`, 4.2; temper's `domain/root.md`, 8.2). `Settle`
+`domain/connectors.md`, 4.2; temper's `domain/root-restart.md`, 1.2). `Settle`
 tells the client to finish what it sent and to send nothing new; it is
 the client's last state, and a start builds a new client.
 
@@ -753,7 +760,7 @@ like any, in the owner's own order, and holds no read of the step open.
    own reads are in.
 
 **What it still owes,** for an owner that reports a restart that runs
-long (temper's `protocol/README.md`, 6.3), read at any time and changing
+long (temper's `protocol/service-process.md`, 1.3), read at any time and changing
 nothing: during step 4, each watched resource and each repository's
 listing whose fresh read is still owed, in its table's order; during
 step 5, each entry not yet looked for, by number. A `Settle` ends both

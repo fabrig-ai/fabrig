@@ -115,7 +115,7 @@ pub fn unadopted_first(forges: &State) -> Option<(u16, &[u8], &[u8])> {
     first
 }
 
-/// A project's repositories (temper/docs/design/client/view.md, 3).
+/// A project's repositories (temper/docs/design/client/view-navigation.md, 1).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Held<'a> {
     Unknown,

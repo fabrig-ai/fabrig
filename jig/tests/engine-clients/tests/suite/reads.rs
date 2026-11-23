@@ -3,7 +3,7 @@ use jig_client_protocol_wire::Record as _;
 use jig_domain_core as core;
 use jig_engine_clients_world::fixtures::{self, Peer};
 use skein_lib::{Reader, Writer};
-fn read() -> Box<[u8]> {
+pub(super) fn read() -> Box<[u8]> {
     read_at_version(w::VERSION)
 }
 fn read_at_version(version: u32) -> Box<[u8]> {

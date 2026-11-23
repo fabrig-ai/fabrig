@@ -1,4 +1,4 @@
-//! Push tools through both roots (client/ctl/tools.md, 2, 3; attention.md, 7.1).
+//! Push tools through both roots (client/ctl/tools-reads.md, 1, client/ctl/tools-acts.md, 1; attention.md, 7.1).
 use jig_client_kit::harness::{ClientId, Settings, World};
 use temper_client_world::{
     app::{Event, Temper},

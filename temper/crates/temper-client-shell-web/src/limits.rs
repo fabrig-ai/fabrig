@@ -13,7 +13,7 @@ use temper_client_domain as client;
 pub const EXCHANGES: u32 = 8;
 /// Whole small-store and HTTP response bodies.
 pub const BODY_BYTES: u32 = 33_554_432;
-/// Recording bytes in memory (client/web/README.md, 2.1): two of `BODY_BYTES`.
+/// Recording bytes in memory (client/web/shell.md, 1): two of `BODY_BYTES`.
 pub const RECORDING_BYTES: u32 = 67_108_864;
 /// Stream body chunk bytes.
 pub const PIECE: u32 = 4096;
@@ -26,7 +26,7 @@ pub const LONG_TEXT: u32 = 131_072;
 pub fn client() -> client::Limits {
     client_for(false)
 }
-/// The page's limits with its internal small-window setting (client/web/README.md, 2.1).
+/// The page's limits with its internal small-window setting (client/web/shell.md, 1).
 #[must_use]
 #[expect(clippy::arithmetic_side_effects, reason = "the request count is the nonzero constant declared here")]
 pub fn client_for(small_window: bool) -> client::Limits {

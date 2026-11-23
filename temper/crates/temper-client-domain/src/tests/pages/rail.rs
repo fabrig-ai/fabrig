@@ -1,4 +1,4 @@
-//! The rail's rules and domain facts (temper/docs/design/client/view.md, 3).
+//! The rail's rules and domain facts (temper/docs/design/client/view-navigation.md, 1).
 use super::{
     fixtures as f,
     welcome::{deliver, event, up},

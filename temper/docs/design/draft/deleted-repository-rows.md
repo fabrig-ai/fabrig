@@ -1,6 +1,6 @@
 # A store with a deleted project's leftovers starts again
 
-Draft, 2026-11-15, on the user's word. This is the stop-gap; `project-delete-cascade.md` is the root fix.
+Draft, 2026-11-15, on the user's word. This is the stop-gap; `archive/project-delete-cascade.md` is the root fix.
 
 On staging, 11-15, a person deleted two projects with `temper ctl project delete`. The deletion finished in the background after the next restart. It removed repository 20's `Repository` record but left records naming it, a `PullState` (pull 45) among them. From then on every start refused, on the old build and on main alike: `restart refused during link: forge PullState … links missing Repository`. The strict check has been on main since f26b0a0c90 (11-14), and the design calls such a link a writer's bug, refused before the switch (`temper/docs/design/domain/root.md`). The staging engine crash-looped until it was stopped. Its refusing store and a stopped backup are kept.
 
@@ -17,7 +17,7 @@ On staging, 11-15, a person deleted two projects with `temper ctl project delete
 
 ## 2. Out
 
-- Making `project delete` take its records with it: `project-delete-cascade.md`. Until it lands, projects aren't deleted on a deployment.
+- Making `project delete` take its records with it: `archive/project-delete-cascade.md`. Until it lands, projects aren't deleted on a deployment.
 - Changing the link check's rules.
 
 ## 3. Tests

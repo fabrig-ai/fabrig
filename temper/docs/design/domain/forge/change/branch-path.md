@@ -19,13 +19,13 @@ Ask temper's `see ways` and views (`../../agent/ask-temper.md`, 1;
     on and `way` names a template whose resources hold *its own goal
     branch*, as template 4's do (`../../../protocol/configuration/stock.md`);
     otherwise as a chat's change;
-  - that template's work (kind 11; `../../../protocol/configuration/settings.md`,
-    2): whether its coordinator designs first and whether it makes a
+  - that template's work (kind 11; `../../../protocol/configuration/settings-kinds.md`,
+    1): whether its coordinator designs first and whether it makes a
     close-out, neither where it has none;
   - the project's landing, by queue or by turn, whether it names a
     merge job (`repairs.md`, *The merge job*), and the repository's CI, its test
     gates and its tiers, each with the branch it follows (`../../landing-settings.md`,
-    1.1; `../../after-landing.md`, section 2);
+    1.1; `../../after-landing-runs.md`, section 1);
   - the project's path sets, its classes' `sets` (kind 8; `../attention.md`,
     6), each its number, name and patterns, which its rules by path name
     (*A rule by path*, below);
@@ -79,12 +79,12 @@ Ask temper's `see ways` and views (`../../agent/ask-temper.md`, 1;
   6. *By queue:* "conflict", code, opening the queue, and "resolve",
      the producer's, where a covering rule that enforces asks up to
      date: as a change takes its branch at the front of its queue
-     (`../queues.md`; `../README.md`, section 6), the queue merges the branch's tip into it,
+     (`../queues.md`; `../updates.md`, section 1), the queue merges the branch's tip into it,
      never by an agent; a clean merge is the queue's update, no stop of
      its own, said in the conflict's and the merge's cards; a clash
      takes the change out of the queue to its resolution (`repairs.md`). Then
-     "merge", code, opening the queue. *By turn* (`../../landing.md`, section
-     8): "prepare", code, opening the turn; "resolve", the producer's;
+     "merge", code, opening the queue. *By turn* (`../../landing-turn.md`, section
+     1): "prepare", code, opening the turn; "resolve", the producer's;
      "prove", code, where the repository has test gates, opening the
      turn, its card naming the gates, since a stop opens a rule's gate
      by number and a repository's test gates have none
@@ -100,7 +100,7 @@ Ask temper's `see ways` and views (`../../agent/ask-temper.md`, 1;
      a goal's segment where the project names a merge job, "catch up",
      code, opening nothing: the goal's branch taking its landing
      branch's tip, a change into it whose producer is the merge job
-     (`README.md`, 2; `../README.md`, section 6).
+     (`README.md`, 2; `../updates.md`, section 1).
   8. *The branch's bar:* "goal branch" ends a goal's segment, and the
      landing branch's segment follows by its own rules, its start not
      repeated; the landing branch's bar, its name, as "main", ends the
@@ -212,8 +212,8 @@ Ask temper's `see ways` and views (`../../agent/ask-temper.md`, 1;
   holds them, joined by ", " and a last " and ", but those a test gate
   or a tier of the repository names: temper dispatches those on its own
   branches, never at a change's head, so they report no check CI folds,
-  and their own stops name them (`../../landing.md`, 7.1; `../../after-landing.md`,
-  section 2); with none left, no such fact. Then its fact "Checks",
+  and their own stops name them (`../../landing-proof.md`, 2.1; `../../after-landing-runs.md`,
+  section 1); with none left, no such fact. Then its fact "Checks",
   where the landing branch's protection names required checks (`gates.md`, 2,
   the forge's `contexts`), "the CI workflows' checks A, B and C, at the
   change's head", each context as the forge holds it, joined the same
@@ -280,7 +280,7 @@ Ask temper's `see ways` and views (`../../agent/ask-temper.md`, 1;
   the model and effort a run of it would take now for the reader, "Can"
   (*What an agent can*) and "Asked to", its instructions' first
   sentence. What it does is its charter's words as the settings hold
-  them (`../../../protocol/configuration/settings.md`, 2, kind 9; the
+  them (`../../../protocol/configuration/settings-kinds.md`, 1, kind 9; the
   forge's `charter_words`); where none are kept, its instructions'
   first sentence, as "Asked to" takes it but unquoted; where its
   instructions give no sentence either, `who` is when it runs alone.

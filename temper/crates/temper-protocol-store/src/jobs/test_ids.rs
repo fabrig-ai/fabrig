@@ -1,4 +1,4 @@
-//! Written id narrowing jobs (temper/docs/design/protocol/store.md, 4).
+//! Written id narrowing jobs (temper/docs/design/protocol/store-versions.md, 1).
 use super::refusal;
 use crate::v25;
 use alloc::{boxed::Box, string::String};

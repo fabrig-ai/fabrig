@@ -12,6 +12,6 @@
 
 ## 2. Order
 
-- **No priority mark:** the pilot isn't one of v0.1.0's critical pieces. The user approved its execution (`notes.md`, 18): E2 starts once E1 is applied, when places are free and marked work isn't about to arrive.
+- **No priority mark:** the pilot isn't one of v0.1.0's critical pieces. The user approved its execution (`design-economy.notes.md`): E2 starts once E1 is applied, when places are free and marked work isn't about to arrive.
 - **E1, then E2, then E3.** Adoption (`design-economy.md`, 9) waits for the user's word on E3's figures.
 - **The area stays quiet from E2's start to its landing:** another goal changing the area's crates, its design or the tests that pin it waits for E2 to land, or E2 waits for it.

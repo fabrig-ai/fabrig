@@ -1,4 +1,4 @@
-//! Object stores and borrowing repositories (protocol/git.md, 4.1–4.3, 4.11).
+//! Object stores and borrowing repositories (protocol/git-operations.md, 1.1–1.3 and 1.11).
 use super::fixtures::{self, Started};
 use crate::{
     Request,

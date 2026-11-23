@@ -1,12 +1,25 @@
 //! An independent counted-time model against random stderr lines and read splits.
 
 use crate::checks::held::Check;
-use skein_lib::{Duration, Rng, Time, Token};
+use skein_lib::{Duration, Time, Token};
+use skein_world::{
+    faults::{FaultLedger, Struck},
+    streams::{Stream, Streams},
+    sweep::Sweep,
+};
 
 #[test]
 fn marker_sequences_and_read_splits_keep_the_held_bound_and_absolute_cap() {
+    let mut sweep = Sweep::new("checks_waiting_for_a_place_fall");
+    sweep.configure(smith_faults::CHECK_WAITS);
+    let mut fell_in = 0;
+    let mut intervals = 0;
     for seed in 0..96 {
-        let mut rng = Rng::new(seed);
+        eprintln!("checks_waiting_for_a_place_fall seed {seed}");
+        let streams = Streams::new(seed);
+        let mut rng = streams.rng(Stream::Faults, "checks");
+        let mut ledger = FaultLedger::new();
+        let mut held = None;
         let mut check = Check::new(500, 600);
         let mut counted = 0_u64;
         let mut waiting = false;
@@ -47,8 +60,20 @@ fn marker_sequences_and_read_splits_keep_the_held_bound_and_absolute_cap() {
                         line.push(*byte);
                         if *byte == b'\n' {
                             if line == b"smith-check: waiting\n" {
+                                if !waiting {
+                                    held = Some(ledger.inject(
+                                        smith_faults::CHECK_WAITS,
+                                        Time::ZERO.saturating_add(Duration::from_secs(now)),
+                                        Struck { request: Some("check 1".into()), ..Struck::default() },
+                                    ));
+                                }
                                 waiting = true;
                             } else if line == b"smith-check: admitted\n" {
+                                if let Some(entry) = held.take() {
+                                    ledger
+                                        .stop(entry, Time::ZERO.saturating_add(Duration::from_secs(now)))
+                                        .expect("admission ends the check's wait");
+                                }
                                 waiting = false;
                             }
                             line.clear();
@@ -67,5 +92,16 @@ fn marker_sequences_and_read_splits_keep_the_held_bound_and_absolute_cap() {
             }
         }
         check.settle_at_deadline(deadline);
+        if let Some(entry) = held {
+            ledger
+                .stop(entry, Time::ZERO.saturating_add(Duration::from_secs(deadline)))
+                .expect("the check's end ends its wait");
+        }
+        assert!(ledger.entries().iter().all(|entry| entry.until.is_some()), "every wait ended");
+        fell_in += usize::from(!ledger.entries().is_empty());
+        intervals += ledger.entries().len();
+        sweep.ran(&ledger);
     }
+    sweep.check_fell().expect("checks waited for a place");
+    eprintln!("check waits: {intervals} intervals in {fell_in}/96 seeds");
 }

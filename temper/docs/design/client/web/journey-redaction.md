@@ -1,9 +1,9 @@
 # A journey's redaction
 
-`temper-client-journeys print FILE OUT` redacts before its replay's proof (`journeys.md`, 4.3). It reads the
-recording as its lines (`journeys.md`, 3.2), and every byte field of each. It writes
+`temper-client-journeys print FILE OUT` redacts before its replay's proof (`journeys-recordings.md`, 2.3). It reads the
+recording as its lines (`journeys-recordings.md`, 1.2), and every byte field of each. It writes
 nothing and prints no original. A browser's saved file already holds
-the *link* and the *stored* replaced (`journeys.md`, 3.1): their values are `x`s
+the *link* and the *stored* replaced (`journeys-recordings.md`, 1.1): their values are `x`s
 alone, which are no original, so `print` counts none of either. It
 scans the redacted records, proves them against the redacted saved
 marks while scanning the pages drawn at each turn's end, then prints
@@ -19,7 +19,7 @@ OUT is outside both repository journeys roots (`journeys.md`, 5.1).
     still reads it, and its `record` is the original. A value that isn't
     one is an original whole;
   - *typed:* each value of an act whose event shows a secret's length
-    (`Secret { len: N }`, `journeys.md`, 3.3), such as a typed key or a pasted sign-in;
+    (`Secret { len: N }`, `journeys-recordings.md`, 1.3), such as a typed key or a pasted sign-in;
   - *given:* each `--redact TEXT`, supplied by the person for any other
     text they want left out; no capture path is supplied implicitly;
   - *approval*, *credential* and *bearer:* the TUI's, the approval's
@@ -46,7 +46,7 @@ OUT is outside both repository journeys roots (`journeys.md`, 5.1).
   value, and `written`, `unwritten` and `erase`) a form becomes `x`s of
   its own length. In any other field, which no length prefix counts, it
   becomes the replacement.
-- **Typing:** the recorder keeps each input act (`journeys.md`, 3.3), so a typed value
+- **Typing:** the recorder keeps each input act (`journeys-recordings.md`, 1.3), so a typed value
   shorter than 4 bytes, or the head of a longer typed value, is replaced
   in its own act alone, and sought nowhere else. The view draws a secret
   field's value empty, so no mark holds it.
@@ -63,13 +63,13 @@ OUT is outside both repository journeys roots (`journeys.md`, 5.1).
 - **The rest is the proof's:** the host derives what it asks from what
   it heard, so a consistent replacement replays as the original did. An
   ask is proved, then: what is left of a typed value in an exchange
-  differs from what the replay asks and is refused (`journeys.md`, 4.2). A report is
-  only replaced and scanned (`journeys.md`, 3.7).
+  differs from what the replay asks and is refused (`journeys-recordings.md`, 2.2). A report is
+  only replaced and scanned (`journeys-recordings.md`, 1.7).
 - **What `print` reports:** the count of each kind of original, and of the
   places replaced.
 - **A real deployment serves its own bundle,** enabled for recording
-  by the page setting or `--record` (`journeys.md`, 3.5).
+  by the page setting or `--record` (`journeys-recordings.md`, 1.5).
 - **Email addresses** are neither replaced nor refused unless a
   `--redact` names them: they may stand in a person's printed pages.
   Read the pages before sharing; the last scan's limits are
-  `journeys.md`, 3.8.
+  `journeys-recordings.md`, 1.8.

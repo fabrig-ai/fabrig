@@ -1,6 +1,6 @@
 //! Kinds through the party entrance and the root's real store
-//! (temper/docs/design/domain/routing.md, 6, and temper/docs/design/domain/root.md, 8.1;
-//! temper/docs/design/protocol/configuration/settings.md, 2 to 3 and temper/docs/design/protocol/configuration/stock.md).
+//! (temper/docs/design/domain/routing.md, 6, and temper/docs/design/domain/root-restart.md, 1.1;
+//! temper/docs/design/protocol/configuration/settings-kinds.md, 1, and temper/docs/design/protocol/configuration/settings.md, 3 and temper/docs/design/protocol/configuration/stock.md).
 use jig_domain_core::settings as s;
 use skein_lib::{ReplyTo, Token};
 use temper_engine_domain::{self as engine, Key, Record};
@@ -191,9 +191,8 @@ pub fn change_row(world: &crate::forge_routes::World, task: u64) -> temper_engin
     world.store.change(task).expect("durable change")
 }
 
-/// Push and finish the producer without giving its head any CI verdict.
-pub fn produce(world: &mut crate::forge_routes::World, change: u64, producer: &engine::Assignment) {
-    use jig_domain_tasks as tasks;
+/// Push a producer's branch without giving its head any CI verdict.
+pub fn push(world: &mut crate::forge_routes::World, change: u64) -> u64 {
     use skein_fake_forge_domain::{self as fake, api as raw};
     let branch = change_row(world, change).branch.clone();
     let landing = change_row(world, change).base.clone();
@@ -203,7 +202,13 @@ pub fn produce(world: &mut crate::forge_routes::World, change: u64, producer: &e
         raw::Answer::Branch(raw::Created::Created)
     );
     fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"file", b"small fix", 1)
-        .expect("producer pushed");
+        .expect("producer pushed")
+}
+
+/// Push and finish the producer without giving its head any CI verdict.
+pub fn produce(world: &mut crate::forge_routes::World, change: u64, producer: &engine::Assignment) {
+    use jig_domain_tasks as tasks;
+    push(world, change);
     let event = world.protocol.answer(
         Token::new(7),
         producer.task,

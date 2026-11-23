@@ -40,17 +40,17 @@ RUN the run's number where the top knows it, L a landing's task.
 | `release` | held (`landing.md`, 4.2) | a person's release | `its release` |
 | `ready` | a member's change not ready: judging at its head, repairing, held | the change's step | `change C to be ready` |
 | `turn` | a single landing proved while another holds the turn (`landing.md`, 12) | that turn's end | `the turn, held by landing L` |
-| `prepare` | the round's prepare lives (`landing.md`, 5.2) | its answer | `the round's prepare job` |
+| `prepare` | the round's prepare lives (`landing-prepare.md`, 1.2) | its answer | `the round's prepare job` |
 | `prefixes` | the prepare ended, the prefixes it pushed not yet read, or the round's prepare ended with no answer it keeps, before the same prepare is asked once again (`landing-preparing.md`, 5) | a deadline: its members' branches read again | `the prepared prefixes on the members' branches` |
 | `open` | the round's pull request opening (`landing.md`, 10) | its result | `the round's pull request to open` |
-| `close` | the round's pull request closing (`landing.md`, 5.1) | its result | `the round's pull request to close` |
-| `delete` | a member's branch in the landing deleted (`landing.md`, 5.1) | its result | `change C's branch in the landing to be deleted` |
+| `close` | the round's pull request closing (`landing-prepare.md`, 1.1) | its result | `the round's pull request to close` |
+| `delete` | a member's branch in the landing deleted (`landing-prepare.md`, 1.1) | its result | `change C's branch in the landing to be deleted` |
 | `post` | a gate's status posted (`landing.md`, 10) | its result | `gate NAME's status at change C's prefix` |
-| `run` | the landing's own run of a gate (`landing.md`, 7.1) | its end, read at a deadline | `gate NAME's run RUN at change C's prefix` |
+| `run` | the landing's own run of a gate (`landing-proof.md`, 2.1) | its end, read at a deadline | `gate NAME's run RUN at change C's prefix` |
 | `receipt` | a run of the same key in another landing, or a run whose receipt is not yet read | that receipt, read at a deadline | `gate NAME's receipt for change C's prefix` |
 | `judgement` | a member's judgement gates at its prefix (`landing.md`, 3) | the change's verdict | `change C's judgement at its prefix` |
-| `merge` | the turn's merge and its readback (`landing.md`, 8) | its result; the readback at a deadline | `the turn's merge` |
-| `record` | a squashed member's pull request recorded merged (`landing.md`, 8) | its result | `the record of change C's pull request as merged` |
+| `merge` | the turn's merge and its readback (`landing-turn.md`, 1) | its result; the readback at a deadline | `the turn's merge` |
+| `record` | a squashed member's pull request recorded merged (`landing-turn.md`, 1) | its result | `the record of change C's pull request as merged` |
 | `ancestry` | a single landing's read of whether the branch holds its member's head | a deadline | `whether the branch holds change C's head` |
 | `read` | the top's read of the landing's facts (`landing.md`, 2) failed or found one not there yet: a member's pull request, a branch, a pull request, commits, a tree, the cleanup's reads; the top's | a deadline: its facts read again | `a fresh read of its facts from the forge` |
 | room | a write waiting in the outbox's line (`landing.md`, 11), the top's | room (`forge/room.md`, 3) | `room in the forge's outbox` |
@@ -64,7 +64,7 @@ it. A step that acts keeps no wait: `nothing; it steps next`.
 - **Every wait names its wake.** A wait with no deadline is one of the
   table's whose wake is an effect's result, a change's step or a
   release; every other wait carries a deadline, the forge's `poll`
-  (`landing.md`, 7.1), after which the landing reads its facts afresh.
+  (`landing-proof.md`, 2.1), after which the landing reads its facts afresh.
   A fact that no write in flight will answer is read again at a
   deadline, never awaited.
 - **No decision is lost.** A decision the root cannot carry out, its
@@ -73,7 +73,7 @@ it. A step that acts keeps no wait: `nothing; it steps next`.
   kept for the write, and the landing is woken to decide again in its
   next due step. A write waiting for room is the one wait whose wake is
   room alone.
-- **After a round ends** (`landing.md`, 5.1), once its cleanup's close
+- **After a round ends** (`landing-prepare.md`, 1.1), once its cleanup's close
   and deletions are answered, the next step is due at once and is one
   of: a prepare for the members above the last kept prefix, the opening
   of the round's pull request from its top, the top's proof and turn,

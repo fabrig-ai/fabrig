@@ -26,7 +26,7 @@ fn occurrences(query: &Query, words: &[u8]) -> usize {
         .iter()
         .flat_map(|message| &message.parts)
         .map(|part| match part {
-            Part::Text { text } => text.windows(words.len()).filter(|bytes| *bytes == words).count(),
+            Part::Text { text } => super::text::occurrences(text, words),
             Part::ToolCall { .. } | Part::ToolOutput { .. } | Part::Opaque { .. } => 0,
         })
         .sum()
@@ -34,6 +34,10 @@ fn occurrences(query: &Query, words: &[u8]) -> usize {
 
 fn healthy(world: &World) {
     assert_eq!(world.next_turn_task().tries, tasks::Tries::NONE);
+    no_failed_runs(world);
+}
+
+fn no_failed_runs(world: &World) {
     for row in world.store.rows.values() {
         if let Record::Core(CoreRow::Core(CoreRecord::Terminal(terminal))) = row {
             assert!(!matches!(terminal.end, tasks::End::Failed(_)), "{terminal:?}");
@@ -60,6 +64,40 @@ fn changed_answer(mut world: World) {
     assert_ne!(answer.choice, ToolChoice::None);
     assert_eq!(occurrences(answer, NEXT_WORDS), 1, "the next words are delivered once");
     healthy(&world);
+}
+
+#[test]
+fn an_agents_amendment_changes_its_delegates_next_provider_query() {
+    let waiting = Script {
+        cue: b"@system".as_slice().into(),
+        turns: Box::new([
+            call(b"message", br#"{"target":1,"form":"question","words":"Which pace?"}"#),
+            call(b"wait", b"{}"),
+        ]),
+    };
+    let mut world = World::delegating_chat(964, temper_system_world::composed::survey_delegation(1), waiting);
+    world.run();
+    let first = world.task_agent(2).prompts().first().expect("delegate's first query").model.clone();
+    let amendment = Script {
+        cue: b"@system".as_slice().into(),
+        turns: Box::new([
+            call(b"amend", br#"{"target":2,"revision":0,"amendment":{"reason":"Keep the pace on the default model.","llm":{"main":{"model":0}}}}"#),
+            call(b"wait", b"{}"),
+            call(b"finish", br#"{"report":"Pace kept."}"#),
+        ]),
+    };
+    let report = temper_system_world::composed::report_script(false).turns[0].clone();
+    let summary = text_script(b"Keep the pace on the default model.").turns[0].clone();
+    let resumed = Script { cue: b"@system".as_slice().into(), turns: Box::new([report.clone(), report, summary]) };
+    world.resume_requester(amendment, resumed);
+    world.run();
+    world.answer_delegate_question(b"Keep the pace on the default model.");
+    world.run();
+    assert_eq!(first.as_ref(), b"owner");
+    let answer = world.task_agent(2).prompts().last().expect("delegate's amended query");
+    assert_eq!(answer.model.as_ref(), b"fake-1");
+    assert!(occurrences(answer, b"Keep the pace on the default model.") > 0);
+    no_failed_runs(&world);
 }
 
 #[test]

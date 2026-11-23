@@ -540,7 +540,7 @@ fn task_reads_do_not_settle_over_a_mutation_call() {
 }
 
 // Designer changes and the charter-7 close-out share delegation admission
-// (temper/docs/design/domain/agent/tools.md, 1).
+// (temper/docs/design/domain/agent/tools-change.md, 1).
 #[test]
 fn a_change_authority_refusal_names_producer_and_settings() {
     let (mut world, chat) = producer_refusal_world();

@@ -1,4 +1,4 @@
-//! The box's ordered commands and lifetimes (temper/docs/design/protocol/setup/box.md, 2).
+//! The box's ordered commands and lifetimes (temper/docs/design/protocol/setup/box-supervision.md, 1).
 //! Source retries follow temper/docs/design/protocol/openid-provider.md, 9.
 use crate::machine::{BoxKind, OwnedMachine};
 use alloc::boxed::Box;
@@ -41,7 +41,7 @@ pub struct Steps {
     pub always: Box<[Step]>,
     pub asked: Box<[Group]>,
 }
-/// How the box runs a step (protocol/setup/box.md, 2).
+/// How the box runs a step (protocol/setup/box-supervision.md, 1).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Kind {
     Once,
@@ -83,7 +83,7 @@ impl Step {
         self.arguments = arguments;
         self
     }
-    /// Its group goes on however it ends (protocol/setup/box.md, 2).
+    /// Its group goes on however it ends (protocol/setup/box-supervision.md, 1).
     #[must_use]
     pub fn ending_ignored(mut self) -> Self {
         self.ignore_ending = true;

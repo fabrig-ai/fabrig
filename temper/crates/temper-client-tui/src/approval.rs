@@ -1,4 +1,4 @@
-//! The browser's approval on the TUI (temper/docs/design/client/README.md, 4.1).
+//! The browser's approval on the TUI (temper/docs/design/client/sign-in.md, 1.1).
 use crate::Tui;
 use alloc::boxed::Box;
 use jig_client::{ApprovalCode, Link, NotSignedIn, Taking};

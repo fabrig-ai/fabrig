@@ -78,7 +78,7 @@ pub(crate) struct Items {
 /// Stages an engine assignment's workspace items at the root, and gives the
 /// hub its assignment, naming them: no workspace when it has no repository,
 /// and a save only where there is a writable destination. The checkout commits
-/// merges before saving them (`domain/worker/README.md`, 4.2, step 7). Items come with
+/// merges before saving them (`domain/worker/hosted-runs.md`, 1.2, step 7). Items come with
 /// a workstream, which the caller checked. Refused as busy, keeping nothing,
 /// when every record is taken: one for each of the hub's slots, a run hosted
 /// or its answer kept, and one for an assignment the hub has yet to take or
@@ -870,7 +870,7 @@ pub(crate) fn report_owner(domain: &Domain, client: Token) -> Option<Token> {
 }
 
 /// The hosted owner of a checkout hold, during prepare and throughout its
-/// prepared life (domain/worker/README.md, 4.3).
+/// prepared life (domain/worker/hosted-runs.md, 1.3).
 pub(crate) fn hold_owner(domain: &Domain, hold: Token) -> Option<Token> {
     for (_, workspace) in &domain.workspaces {
         let checkout_hold = match workspace.state {

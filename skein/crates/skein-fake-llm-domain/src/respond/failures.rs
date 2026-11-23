@@ -41,6 +41,10 @@ fn reply(query: &Query, scripts: &[Script]) -> Result<(Answer, Option<crate::pie
 #[test]
 fn a_failing_line_answers_its_class_and_report() {
     let rows = [
+        Error::Spent,
+        Error::SignedOut,
+        Error::Unserved,
+        Error::Window { reset: Duration::from_millis(250), limit: 1000, remaining: 40 },
         Error::Exhausted { retry_after: Some(Duration::from_secs(2)) },
         Error::Exhausted { retry_after: None },
         Error::Refused,

@@ -1,4 +1,4 @@
-//! Forge removal (temper/docs/design/domain/forge/adoption.md, 1).
+//! Forge removal (temper/docs/design/domain/forge/adoption-connection.md, 1).
 use crate::{Answered, Domain, ForgeRefusal, ForgeState, Key, Mode, RemoveAnswer, Request, forges};
 use alloc::boxed::Box;
 use jig_domain_people::Role;

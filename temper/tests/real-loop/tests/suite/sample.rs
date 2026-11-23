@@ -1,5 +1,5 @@
 //! The sample uses the real shell, the lowest tier admitting child programs
-//! (skein/docs/foundation/testing-strategy.md, 2.8; protocol/setup/owned.md, 7).
+//! (skein/docs/foundation/testing-strategy.md, 2.8; protocol/setup/owned-repositories.md, 1).
 use std::{fs, process::Command};
 
 #[test]

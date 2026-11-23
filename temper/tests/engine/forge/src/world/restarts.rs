@@ -199,6 +199,7 @@ pub fn goal_name() -> top::Name {
 /// legitimate sequence of events makes this synthetic restart snapshot.
 pub fn synthetic_missing_branch(world: &mut World) {
     assert!(!world.has_branch(BRANCH));
+    world.hold_task(GOAL);
     world.store_before_restart(top::Stored::Hold(top::Hold {
         name: goal_name(),
         task: GOAL,
@@ -214,6 +215,7 @@ pub fn synthetic_missing_branch(world: &mut World) {
 /// dispatches too. No legitimate sequence of events makes this synthetic
 /// restart snapshot.
 pub fn synthetic_ended_entries(world: &mut World) {
+    world.hold_task(ENDED);
     let mut entries: Vec<_> = world
         .stored
         .iter()

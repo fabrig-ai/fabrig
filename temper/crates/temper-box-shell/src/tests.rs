@@ -8,7 +8,7 @@ mod limits;
 mod reference_settings;
 mod settings_fields;
 
-// jig/docs/design/protocol/client/sign-in.md; temper/docs/design/protocol/setup/box.md, 2.
+// jig/docs/design/protocol/client/sign-in.md; temper/docs/design/protocol/setup/box-supervision.md, 1.
 #[test]
 fn the_box_footer_hours_agree_with_the_small_profile() {
     let span = jig_protocol_config_fixtures::small().clients.link_span;

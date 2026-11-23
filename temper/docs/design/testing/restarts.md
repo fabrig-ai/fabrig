@@ -151,7 +151,7 @@ root over the fake forge's domain, the world of the follows workload
 - **A settled stop at any moment** (`SETTLED_STOP`): at the drawn
   iteration, opened or still starting, the world gives the root its stop
   (`engine::Event::Stop`), runs it until it has stopped as
-  `../domain/root.md`, 8.2 has it, then starts a new root from the
+  `../domain/root-restart.md`, 1.2 has it, then starts a new root from the
   store. Its interval runs from the stop to the next opening.
 - **A stop in each class of a start:** during a start that follows a
   crash or a settled stop, the injector may draw a stop in one of two
@@ -166,7 +166,7 @@ root over the fake forge's domain, the world of the follows workload
   The world holds the start in the drawn class long enough for the stop
   to fall there (by holding the store's answers, `store::Fault::Hold`, or
   stepping the start one event at a time), gives the root its stop, runs
-  it until the start has ended as `../domain/root.md`, 8.2 has it, then
+  it until the start has ended as `../domain/root-restart.md`, 1.2 has it, then
   starts a new root from the store. Its interval runs from the stop to
   the next opening.
 - **No stop between the mark and the opening:** since the engine opens
@@ -300,7 +300,7 @@ worker's root and smith's agent over the fake LLM
 
 `temper/tests/one-process/`: the engine's and one worker's services in
 one process on skein's simulator, its agents and their programs hosted
-as the world's programs (`README.md`, 2.5).
+as the world's programs (`tiers.md`, 1.5).
 
 - **A unit signalled mid-turn** (`UNIT_SIGNALLED`): at a drawn moment of
   a run's turn, the world delivers the termination signal to the service

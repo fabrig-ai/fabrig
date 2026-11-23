@@ -1,24 +1,29 @@
 # checks: status
 
-2026-11-21. Where the tree's code lags or departs from [checks.md](checks.md).
+2026-11-22. Where the tree's code lags or departs from [checks.md](checks.md).
 
 - **Not yet:** 6.1: `temper-engine-inspect` doesn't exist, and no
   engine world calls the shared checks; the worker's adapter is
   `worker.status.md`'s. 6.2: outside the engine's forge world, only the
-  restart family's faults are kept in a fault ledger, drawn from the
-  seed's streams and swept with configured faults (`restarts.md`). No
-  check holds the 3.3 failure table's rows for runs.
+  restart family's faults (`restarts.md`) and the system world's account
+  faults (6.3) are kept in a fault ledger, drawn from the seed's streams
+  and swept with configured faults. No
+  check holds the 3.3 failure table's rows for runs outside the system
+  world's account case (6.3).
 
-- **Departs:** 1: eighteen named real-loop stories remain in the fuzzy
-  suite: sixteen scripted stories (fourteen reference-case stories,
-  kept-delegate landing and the program backend) and the B0/B1 recorded
-  transcript twins.
+- **Departs:** 1: twelve named real-loop stories remain in the fuzzy
+  suite: nine scripted stories cut to what only the real loop shows
+  (the reference case's 4.1 with 4.3, 4.6, 5.1, 5.2, 5.4, 6.4, 6.6
+  and 6.8, and the kept-delegate landing), the program backend, and the
+  B0/B1 recorded transcript twins (`green_light` and `repair`).
   They remain there because the request for `limits-worlds` kept surviving
-  stories in place. Being past a guide is not a reason to
+  stories in place, and the request for room in the budget
+  (`../draft/failure-worlds.md`, 8) moved their other assertions down
+  without choosing their suite. Being past a guide is not a reason to
   choose that suite (`skein/docs/foundation/testing-strategy.md`, 8.1).
   [`limits-worlds.md`](../../development/limits-worlds.md) gives every
-  survivor's unique coverage, CPU and profiled instructions, and names
-  the closest lower-story candidates. Their placement is the user's to
+  survivor's coverage and CPU as it stood, and `reference-case.md` each
+  step's holders now. Their placement is the user's to
   decide; no exception or cost-driven move resolves this departure.
 
 Section 1's budgets by layer start at the CI builder's gate figures of
@@ -35,7 +40,7 @@ fake forge; no real model or real forge is proved by it. `checks.md`, section 5.
 reference obligations retain their current charter words; folding in the
 goal-as-designer workflow remains in `README.md`, section 7.
 
-`README.md`, section 2.1 has no known gap in the merge job's story:
+`tiers.md`, section 1.1 has no known gap in the merge job's story:
 `a_changes_merge_job_runs_on_its_worker` (`tests/system/tests/suite/merge_job.rs`)
 runs a change's merge job in the composed world, both roots declaring the
 kind as production does (`temper-service`'s `limits::job_kinds` and
@@ -68,7 +73,7 @@ Sections 4 and 5.3 have no gap in scripted note-backed proposals and single-revi
 
 `macos.md`, section 3 lists the killed-box lifetime test as Linux-only, matching its
 parent-death mechanism. The combined default-runner browser and terminal
-proof is not established by the supplied inventory (`../protocol/setup/box.status.md`, 1 and 2, and `../protocol/setup/testing.status.md`, 4
+proof is not established by the supplied inventory (`../protocol/setup/box.status.md`, 1, and `../protocol/setup/box-supervision.status.md`, 1, and `../protocol/setup/testing.status.md`, 4
 ); the existing real-box sign-in story still awaits its
 after-landing execution (`../protocol/openid-provider.status.md`, 9).
 

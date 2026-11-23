@@ -1,4 +1,4 @@
-//! Switcher repositories (temper/docs/design/client/view.md, 3).
+//! Switcher repositories (temper/docs/design/client/view-navigation.md, 1).
 use super::{Held, held};
 use crate::forge::{
     Playground, PlaygroundState,

@@ -501,7 +501,7 @@ pub fn opening_tab(view: &View, root: &Domain, opening: temper_client_domain::Op
 }
 
 /// The address a link node opens, which the browser shell gives as its href
-/// (client/web/README.md, 2.3, and client/web/gallery.md, 1): its external address, or the page its press goes to.
+/// (client/web/addresses.md, 1, and client/web/gallery.md, 1): its external address, or the page its press goes to.
 #[must_use]
 pub fn href(view: &mut View, node: NodeId) -> Option<Box<[u8]>> {
     for shown in view.tree().nodes() {
@@ -543,7 +543,7 @@ pub fn shell_event(view: &View, node: NodeId, act: &Act) -> Option<ShellEvent> {
     }
 }
 
-/// Read the event an act gives, without changing the view (client/web/journeys.md, 3.3).
+/// Read the event an act gives, without changing the view (client/web/journeys-recordings.md, 1.3).
 /// Shell inputs can move a secret directly to the domain without a clonable action.
 #[must_use]
 pub fn event(view: &View, node: NodeId, act: Act) -> Option<temper_client_domain::Event> {

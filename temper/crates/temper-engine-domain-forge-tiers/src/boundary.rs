@@ -1,13 +1,13 @@
-//! Top-owned tier records and verdicts (temper/docs/design/domain/after-landing.md, sections 2–5).
+//! Top-owned tier records and verdicts (temper/docs/design/domain/after-landing-runs.md, sections 1–3, and temper/docs/design/domain/after-landing.md, section 5).
 use alloc::boxed::Box;
 
 pub type Commit = [u8; 32];
-/// A tier's key at a commit (temper/docs/design/domain/landing.md, 6.1), computed by the top.
+/// A tier's key at a commit (temper/docs/design/domain/landing-proof.md, 1.1), computed by the top.
 pub type Key = [u8; 32];
 /// A test's id, at most `Limits::test_id_bytes` bytes.
 pub type TestId = Box<[u8]>;
 
-/// Bounds on what a run reports (temper/docs/design/domain/after-landing.md, 4).
+/// Bounds on what a run reports (temper/docs/design/domain/after-landing-runs.md, 3).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Limits {
     pub failing_tests: u32,
@@ -27,7 +27,7 @@ pub enum Suspects {
     TellAll,
 }
 
-/// A tier's report file's format (temper/docs/design/domain/after-landing.md, 2).
+/// A tier's report file's format (temper/docs/design/domain/after-landing-runs.md, 1).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Format {
     Junit,
@@ -44,7 +44,7 @@ pub enum Failures {
     Many,
 }
 
-/// What a report read as many still names (after-landing.md, section 4).
+/// What a report read as many still names (domain/after-landing-runs.md, section 3).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ManyTests {
     /// Failed ids read whole within `test_id_bytes`: the lowest `failing_tests`, sorted, unique.
@@ -65,12 +65,12 @@ pub enum Outcome {
     Passed,
     /// Failed naming these tests: never `Tests` empty.
     Failed(Failures),
-    /// The runner's fault (temper/docs/design/domain/landing.md, 7.4), or a failed run whose
-    /// report is absent, unreadable or names no test (temper/docs/design/domain/after-landing.md, 4).
+    /// The runner's fault (temper/docs/design/domain/landing-proof.md, 2.4), or a failed run whose
+    /// report is absent, unreadable or names no test (temper/docs/design/domain/after-landing-runs.md, 3).
     Fault,
 }
 
-/// A receipt at the tip's key, as a tier reads it (temper/docs/design/domain/landing.md, 6.2).
+/// A receipt at the tip's key, as a tier reads it (temper/docs/design/domain/landing-proof.md, 1.2).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Receipt {
     Passed,
@@ -119,7 +119,7 @@ pub struct Run {
     pub faults: u32,
 }
 
-/// One landing in a run's range (temper/docs/design/domain/after-landing.md, 3): its commit, the
+/// One landing in a run's range (temper/docs/design/domain/after-landing-runs.md, 2): its commit, the
 /// last of its own range, and the tier's key there (the last landing's
 /// is the tip's).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]

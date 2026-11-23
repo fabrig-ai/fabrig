@@ -16,7 +16,7 @@ memory alone; answered as the printed link is. Its route is
 `protocol/client/wire.md`, 2.1). The client's `AskLink` is jig's
 `client/domain/client/README.md`, section 9. ctl's `link --out FILE`,
 its file and its refusals, and the refusals naming both ways to a fresh
-link, are `../client/ctl/README.md`, 6.1 and 7, and `../client/ctl/host.md`;
+link, are `../client/ctl/command-line.md`, 1.1, and `../client/ctl/README.md`, 7, and `../client/ctl/host.md`;
 temper's deployment is `../protocol/sign-in.md`, 2.3. The refusal of
 an unknown link names both ways too, as the spent and expired ones do.
 
