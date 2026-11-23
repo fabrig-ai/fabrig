@@ -16,8 +16,10 @@
   hearth task run in the builder's real loop. [in flight: change 13958]
 - **Not yet:** 2.5, 2.7: the diffs of outcomes, recorded resolutions,
   packages and parts run in the builder's real loop. [in flight: change 13959]
-- **Not yet:** 2.5, 2.7: the diffs of accounts, additions, data, exports,
-  files and scripts run in the builder's real loop. [in flight: change 13960]
+- **Not yet:** 2.5, 2.7: the diffs of accounts, additions, data and scripts
+  run in the builder's real loop. [in flight: change 14257]
+- **Not yet:** 2.5, 2.7: the diffs of exports and files run in the builder's
+  real loop. [in flight: change 14258]
 - **Not yet:** 2.5, 2.7: the store's and the cache's cases run in the
   builder's real loop, and its protocol world can't lay a store or call
   twice over one. [in flight: change 13961]
