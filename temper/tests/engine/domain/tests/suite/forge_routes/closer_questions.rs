@@ -115,6 +115,9 @@ fn a_closers_landing_amends_its_live_ci_repair_without_a_producer() {
     let message = delegate_amendment::assert_amended(&world, landing, repair.task, &original, revision);
     let turns = live_task(&world, repair.task).turn;
     park_after_turn(&mut world, &repair, None, turns);
+    // Preparing the next brief can wait for the existing forge rate window.
+    let window = world.env.limits.forge.client.window;
+    super::super::stall_hold::jump(&mut world, window);
     let resumed = delegate_amendment::next_attempt(&mut world, &repair);
     delegate_amendment::assert_brief(&world, &resumed, &message);
     let head = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"repair", b"fixed", 1)

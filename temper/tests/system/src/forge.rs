@@ -14,6 +14,8 @@ use temper_engine_domain_world::{store::Store, walking};
 use temper_engine_forge_world::{self as forge_world, translate};
 
 struct World {
+    checks: jig_conformance::store_check::StoreChecks,
+    restart_config: engine::Config,
     creating: jig_test_profile::fixtures::Creating,
     root: engine::Domain,
     env: Env<engine::Limits>,
@@ -32,6 +34,12 @@ struct World {
     immediate: VecDeque<engine::Event>,
     /// Whether the funding period and the git identity were sent to the root once it was ready.
     started: bool,
+}
+
+impl Drop for World {
+    fn drop(&mut self) {
+        eprintln!("{}", self.checks.report());
+    }
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -284,6 +292,8 @@ impl World {
         let store =
             temper_engine_domain_world::fixtures::restored_over(Store::with_limits(&limits), bootstrap, &limits);
         Self {
+            checks: jig_conformance::store_check::StoreChecks::sampled(config.core.seed, crate::STORE_CHECK_ONE_IN),
+            restart_config: temper_engine_domain_world::oracle::config::copy(&config),
             creating: jig_test_profile::fixtures::Creating::new(&config.core, limits.tasks.tree_tasks),
             root: engine::Domain::new(config, &limits).expect("valid engine configuration"),
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
@@ -476,6 +486,10 @@ impl World {
     }
 
     fn tick(&mut self) {
+        self.try_tick().unwrap_or_else(|finding| panic!("{finding}"));
+    }
+
+    fn try_tick(&mut self) -> Result<(), String> {
         self.env.now = self.env.now.saturating_add(Duration::from_millis(100));
         self.env.wall = Wall::from_nanos(self.env.now.as_nanos());
         self.fake_env.now = self.env.now;
@@ -484,7 +498,9 @@ impl World {
             self.send(event);
         }
         if !self.store.pending.is_empty() {
+            let previous = self.store.applied;
             let number = self.store.apply();
+            self.check_commit(previous)?;
             self.send(engine::Event::Store(engine::StoreInput::Committed { number, fill: 0 }));
         }
         if !self.started && self.root.ready() {
@@ -525,6 +541,18 @@ impl World {
         self.flush();
         self.root.reclaim();
         self.fake.reclaim();
+        Ok(())
+    }
+
+    fn check_commit(&mut self, previous: u64) -> Result<(), String> {
+        temper_engine_domain_world::check::committed(
+            &self.store,
+            &self.restart_config,
+            &self.env.limits,
+            self.env.wall,
+            previous,
+            &mut self.checks,
+        )
     }
 
     fn until(&mut self, target: Until) {

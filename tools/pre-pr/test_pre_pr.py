@@ -21,7 +21,6 @@ def module(path):
 HERE = Path(__file__).resolve().parent
 PRE = module(HERE / 'pre_pr.py')
 PLAN = module(HERE / 'workspace.py')
-CPU = module(HERE.parent / 'tiers/cpu.py')
 GATE = module(HERE.parents[1] / '.forgejo/scripts/gate_scope.py')
 
 
@@ -91,22 +90,22 @@ class Delivery(unittest.TestCase):
         self.log = io.StringIO()
         self.enterContext(redirect_stdout(self.log))
 
-    def test_default_entry_and_explicit_replay(self):
-        with mock.patch.object(PRE, 'delivery', return_value=0) as local:
-            self.assertEqual(PRE.main([]), 0)
-            local.assert_called_once_with('delivery', ())
-        with mock.patch.object(PRE, 'goal_check', return_value=1) as goal:
-            self.assertEqual(PRE.main(['--goal', 'head', 'base']), 1)
-            goal.assert_called_once_with(['head', 'base'])
+    def test_modes_share_the_tree_only_checker(self):
+        with mock.patch.object(PRE, 'check', return_value=0) as check:
+            for args, mode in [([], 'delivery'), (['--child'], 'child'), (['--goal'], 'goal'),
+                               (['--child', 'dest'], 'child'), (['--close'], 'close'),
+                               (['--close', 'dest'], 'close'), (['--goal', 'head', 'dest'], 'goal')]:
+                self.assertEqual(PRE.main(args), 0)
+                self.assertEqual(check.call_args.args[0], mode)
         with self.assertRaises(ValueError):
             PRE.main(['--goal', 'head'])
 
     def test_checker_changes_run_only_python_and_write_local_receipt(self):
         with mock.patch.object(PRE, 'run', return_value=(0, '')) as run, \
              mock.patch.object(PRE, 'outward', return_value=(0, [])) as outward, \
-             mock.patch.object(PRE, 'journeys', return_value=(0, [])):
-            selected = PRE.workspace_checks(self.root, ['tools/pre-pr/pre_pr.py'], 'tree', 'base',
-                                            self.env, self.env, self.errors, self.outcomes)
+             mock.patch.object(PRE, 'journeys', return_value=[]):
+            selected = PRE.workspace_checks(self.root, ['tools/pre-pr/pre_pr.py'], 'tree',
+                                            self.env, self.errors, self.outcomes)
         self.assertEqual([call.args[0][3] for call in run.call_args_list],
                          ['tools/pre-pr/test_pre_pr.py'])
         outward.assert_called_once_with(self.root, self.env, ['tools/pre-pr/pre_pr.py'])
@@ -117,210 +116,52 @@ class Delivery(unittest.TestCase):
         receipt = json.loads((self.root / name.removeprefix('every key in ')).read_text())
         self.assertEqual((receipt['scope'], receipt['tree'], receipt['verdict']), ('light', 'tree', 'passed'))
 
-    def test_registered_codec_is_tested_but_only_handwritten_rust_is_formatted(self):
-        crate = self.root / 'smith/crates/smith-transcript'
-        generated = 'smith/crates/smith-transcript/src/generated/transcript.rs'
-        handwritten = 'other/src/generated/transcript.rs'
-        for path in (generated, handwritten, 'tools/merge/codecs.txt',
-                     'tools/tiers/layers.toml', 'tools/tiers/packages.toml'):
-            file = self.root / path
-            file.parent.mkdir(parents=True, exist_ok=True)
-            file.touch()
-        (self.root / 'tools/merge/codecs.txt').write_text(f'# Outputs and inputs\n{generated} schema\n')
-        target = dict(kind=['lib'], name='transcript', src_path=str(crate / 'src/lib.rs'), test=True)
-        package = dict(id='transcript', name='smith-transcript', manifest_path=str(crate / 'Cargo.toml'),
-                       edition='2024', dependencies=[], targets=[target])
-        data = dict(packages=[package], workspace_members=['transcript'])
-        self.enterContext(mock.patch.object(PRE, 'metadata', return_value=data))
-        for check in ('baselines', 'outward', 'journeys'):
-            self.enterContext(mock.patch.object(PRE, check, return_value=(0, [])))
-        run = self.enterContext(mock.patch.object(PRE, 'run', return_value=(0, '')))
-        args = (self.root, [generated, handwritten], 'tree', 'base', {}, {}, self.errors, {})
-        self.assertEqual(PRE.workspace_checks(*args), [])
-        fmt, = [call.args[0] for call in run.call_args_list]
-        self.assertEqual(fmt[0], 'rustfmt')
-        self.assertEqual(fmt[fmt.index('--') + 1:], [handwritten])
-        run.reset_mock()
-        selected = PRE.workspace_checks(*args, completed_goal=True)
-        fmt, tests = [call.args[0] for call in run.call_args_list]
-        self.assertEqual(fmt[fmt.index('--') + 1:], [handwritten])
-        self.assertEqual(selected, ['smith-transcript'])
-        self.assertEqual(tests[:3], ['cargo', 'nextest', 'run'])
-        self.assertIn('smith-transcript', tests)
+    def test_rustfmt_reports_a_relative_location_and_a_repair(self):
+        def run(args, root, env, output):
+            self.assertEqual(args, ['cargo', 'fmt', '--all', '--', '--check'])
+            with redirect_stdout(io.TextIOWrapper(io.BytesIO())):
+                log = PRE.Tail()
+                output(f'Diff in {root}/src/lib.rs:17:\n'.encode(), log)
+                output(b'+ ' + b'x' * 4096 + b'\n', log)
+            return 1, log.text()
+        with mock.patch.object(PRE, 'run', side_effect=run):
+            errors = PRE.format_workspace(self.root, {})
+        self.assertEqual(errors[0]['log'], 'src/lib.rs:17: run cargo fmt --all\n')
 
     def test_failed_checker_refuses_and_publishes_reason(self):
         with mock.patch.object(PRE, 'run', side_effect=[(1, 'fixture failed'), (0, '')]), \
              mock.patch.object(PRE, 'outward', return_value=(0, [])) as outward, \
-             mock.patch.object(PRE, 'journeys', return_value=(0, [])):
-            PRE.workspace_checks(self.root, ['.temper/pre-pr'], 'tree', None, {}, {}, self.errors, {})
+             mock.patch.object(PRE, 'journeys', return_value=[]):
+            PRE.workspace_checks(self.root, ['.temper/pre-pr'], 'tree', {}, self.errors, {})
         self.assertEqual(PRE.finish('tree', None, self.errors, self.root, {}, 'delivery', (), None), 1)
         self.assertIn('fixture failed', self.log.getvalue())
 
-    def test_budget_validation_reads_only_the_delivered_tree(self):
-        paths = ['doc.md', 'tools/tiers/budgets.toml']
-        layers = b'layers = ["step"]\n'
-        for seconds in (1, 0):
-            with self.subTest(seconds=seconds):
-                budgets = f'[gate.default]\nreferences = {{ step = {seconds} }}\n'.encode()
-                blobs = [subprocess.CompletedProcess([], 0, blob, b'') for blob in (budgets, layers)]
-                errors = []
-                with mock.patch.object(PRE, 'git', side_effect=blobs) as git, \
-                     mock.patch.object(PRE, 'run', return_value=(0, '')) as run, \
-                     mock.patch.object(PRE, 'outward', return_value=(0, [])), \
-                     mock.patch.object(PRE, 'journeys', return_value=(0, [])):
-                    PRE.workspace_checks(self.root, paths, 'snapshot', 'start', self.env, self.env, errors, {})
-                run.assert_called_once_with(
-                    ['python3', '-I', '-B', 'tools/citations/citations.py', '--all', '--head', 'snapshot'],
-                    self.root, self.env, stdout=True)
-                self.assertEqual(git.call_args_list, [
-                    mock.call(['cat-file', 'blob', 'snapshot:tools/tiers/budgets.toml'], self.root, self.env),
-                    mock.call(['cat-file', 'blob', 'snapshot:tools/tiers/layers.toml'], self.root, self.env),
-                ])
-                if seconds:
-                    self.assertEqual(errors, [])
-                else:
-                    error, = errors
-                    self.assertEqual(error['name'], 'budgets')
-                    self.assertEqual(error['log'].splitlines(), [
-                        'gate.default.references.step must be finite positive seconds', CPU.REPAIR_LINE,
-                    ])
+    def test_current_budget_tables_and_empty_overlay_are_checked(self):
+        from shutil import copyfile
+        tiers = self.root / 'tools/tiers'
+        tiers.mkdir(parents=True)
+        for name in ('cpu.py', 'layers.toml', 'budgets.toml'):
+            copyfile(HERE.parent / 'tiers' / name, tiers / name)
+        self.assertEqual(PRE.budget_table(self.root), [])
+        (tiers / 'budgets.toml').write_text('[gate.unknown]\n')
+        error, = PRE.budget_table(self.root)
+        self.assertEqual(error['name'], 'budgets')
+        self.assertIn('tools/tiers/budgets.toml', error['log'])
+        self.assertEqual(error['log'].splitlines()[-1], module(tiers / 'cpu.py').REPAIR_LINE)
+        overlay = self.root / PRE.JOURNEY_ROOTS[0] / 'overlay.css'
+        overlay.parent.mkdir(parents=True)
+        overlay.touch()
+        self.assertEqual(PRE.journeys(self.root), [])
+        overlay.write_text('nonempty')
+        self.assertIn('overlay.css must be empty', PRE.journeys(self.root)[0]['log'])
 
-    def test_changed_paths_include_deletions_and_exclude_cleanly_imported_entries(self):
-        results = [subprocess.CompletedProcess([], 0, value, b'') for value in
-                   (b'deleted\0added\0from-parent\0', b'added\0deleted\0')]
-        with mock.patch.object(PRE, 'git', side_effect=results) as git:
-            self.assertEqual(PRE.delivery_paths('start', 'tree', self.root, {}, ['parent']), ['added', 'deleted'])
-        self.assertEqual([call.args[0] for call in git.call_args_list],
-                         [['diff-tree', '-r', '--no-renames', '--name-only', '-z', ref, 'tree'] for ref in ('start', 'parent')])
-
-    def test_scope_requires_the_checked_base_and_exact_published_tree(self):
-        tip = 'a' * 40
-        PRE.remember_merges(self.root, 'base', 'published', [tip])
-        PRE.remember_merges(self.root, 'other-base', 'unrelated', [tip])
-        for tree, expected in [('published', [tip]), ('unrelated', None)]:
-            answer = subprocess.CompletedProcess([], 0, f'head\n{tree}\n'.encode(), b'')
-            with mock.patch.object(PRE, 'git', return_value=answer):
-                if expected:
-                    self.assertEqual(PRE.local_scope(self.root, 'base', self.root, {}, []), expected)
-                else:
-                    with self.assertRaisesRegex(ValueError, 'formatting scope unavailable'):
-                        PRE.local_scope(self.root, 'base', self.root, {}, ['older-merge'])
-
-    def test_main_fetch_must_follow_prepare_and_be_integrated(self):
-        main = 'a' * 40
-        pin = self.root / 'refs/temper/landing'
-        pin.parent.mkdir(parents=True)
-        pin.touch()
-        fetch = self.root / 'FETCH_HEAD'
-        fetch.write_text(f"{main}\t\tbranch 'main' of example\n")
-        os.utime(pin, (20, 20))
-        head = subprocess.CompletedProcess([], 0, b'head\ntree\n', b'')
-        missing = subprocess.CompletedProcess([], 1, b'', b'')
-        passed = subprocess.CompletedProcess([], 0, b'', b'')
-        for stamp, answers, allowed in [(10, [head], False), (21, [head, missing, missing], False),
-                                        (21, [head, missing, passed], True)]:
-            os.utime(fetch, (stamp, stamp))
-            with self.subTest(stamp=stamp, allowed=allowed), mock.patch.object(PRE, 'git', side_effect=answers):
-                if allowed:
-                    self.assertEqual(PRE.local_scope(self.root, 'base', self.root, {}, []), [main])
-                else:
-                    with self.assertRaises(PRE.UnknownScope):
-                        PRE.local_scope(self.root, 'base', self.root, {}, [])
-
-    def test_cold_delivery_fetches_the_mapped_main_once_in_its_worktree(self):
-        url = 'https://example.org/team/repo.git'
-        main = 'a' * 40
-        revision = subprocess.CompletedProcess([], 0, b'head\nlanding\n', b'')
-        effective = subprocess.CompletedProcess([], 0, (url + '\n').encode(), b'')
-        fetched = subprocess.CompletedProcess([], 0, b'', b'')
-        head = subprocess.CompletedProcess([], 0, b'head\n', b'')
-        with mock.patch.object(PRE, 'public_main_source', return_value=url), \
-             mock.patch.object(PRE, 'checkout_main', side_effect=[None, (main, url[:-4])]), \
-             mock.patch.object(PRE, 'git', side_effect=[revision, effective, fetched, revision, head]) as git, \
-             mock.patch.object(PRE, 'integrated_main', return_value=True):
-            self.assertEqual(PRE.recover_main(self.root, self.root, {}), main)
-        commands = [call.args[0] for call in git.call_args_list]
-        self.assertEqual([c for c in commands if c[0] == 'fetch'],
-                         [['fetch', '--no-tags', '--no-recurse-submodules', '--', url, 'main']])
-        self.assertTrue(all(call.args[1] == self.root for call in git.call_args_list))
-
-    def test_waiting_for_goal_integration_reuses_the_fetched_tip(self):
-        url = 'https://example.org/team/repo.git'
-        main = 'b' * 40
-        head = subprocess.CompletedProcess([], 0, b'head\n', b'')
-        with mock.patch.object(PRE, 'public_main_source', return_value=url), \
-             mock.patch.object(PRE, 'checkout_main', return_value=(main, url)), \
-             mock.patch.object(PRE, 'git', return_value=head) as git, \
-             mock.patch.object(PRE, 'integrated_main', return_value=False):
-            with self.assertRaisesRegex(PRE.UnknownScope, 'goal owns main integration'):
-                PRE.recover_main(self.root, self.root, {})
-        self.assertEqual([call.args[0] for call in git.call_args_list], [['rev-parse', '--verify', 'HEAD']])
-
-    def test_clean_automatic_import_is_excluded_from_formatted_files(self):
-        files = ['owned.rs', 'working.rs', 'combined-on-main.rs']
-        values = [subprocess.CompletedProcess([], 0, b'owned.rs\0', b''),
-                  subprocess.CompletedProcess([], 1, b'', b''),
-                  subprocess.CompletedProcess([], 0, b'working.rs\0', b'')]
-        with mock.patch.object(PRE, 'handwritten_rust', return_value=files), \
-             mock.patch.object(PRE, 'git', side_effect=values):
-            self.assertEqual(PRE.producer_format_paths(self.root, {}, 'base', 'tree', files), files[:2])
-
-    def test_remaining_checks_and_receipt_use_the_formatted_tree(self):
-        with mock.patch.object(Path, 'cwd', return_value=self.root), \
-             mock.patch.object(subprocess, 'check_output', return_value=str(self.root).encode()), \
-             mock.patch.object(PRE, 'base', return_value=('base', None)), \
-             mock.patch.object(PRE, 'local_scope', return_value=[]), \
-             mock.patch.object(PRE, 'merged_tips', return_value=[]), \
-             mock.patch.object(PRE, 'goal_reds', return_value=(set(), None, False)), \
-             mock.patch.object(PRE, 'tree', side_effect=[('before', {}), ('formatted', {})]), \
-             mock.patch.object(PRE, 'delivery_paths', side_effect=[['one.rs', 'two.rs'], ['two.rs']]), \
-             mock.patch.object(PRE, 'format_delivery', return_value='formatted'), \
-             mock.patch.object(PRE, 'workspace_checks', return_value=[]) as checks:
-            self.assertEqual(PRE.delivery('delivery', ()), 0)
-        self.assertEqual(checks.call_args.args[1:3], (['two.rs'], 'formatted'))
-        receipt = json.loads((self.root / 'target/temper/pre-pr-light-failures.json').read_text())
-        self.assertEqual((receipt['tree'], receipt['verdict']), ('formatted', 'passed'))
-
-    def test_candidate_snapshot_uses_only_a_private_index(self):
-        gitdir = self.root / '.git'
-        gitdir.mkdir()
-        (gitdir / 'index').write_bytes(b'original')
-        index = self.root / 'private-index'
-        with mock.patch.object(PRE, 'git', return_value=subprocess.CompletedProcess([], 0, b'tree', b'')) as git:
-            tree, env = PRE.tree(self.root, gitdir, index, {})
-        self.assertEqual(tree, 'tree')
-        self.assertEqual(env['GIT_INDEX_FILE'], str(index))
-        self.assertEqual([call.args[0] for call in git.call_args_list], [['add', '-A'], ['write-tree']])
-        self.assertEqual((gitdir / 'index').read_bytes(), b'original')
-
-    def test_changed_workspace_never_gets_a_pass(self):
-        for snapshots, expected in [(('first', 'second'), 1), (('first', 'first'), 0)]:
-            with self.subTest(snapshots=snapshots), mock.patch.object(Path, 'cwd', return_value=self.root), \
-                 mock.patch.object(subprocess, 'check_output', return_value=str(self.root).encode()), \
-                 mock.patch.object(PRE, 'base', return_value=('start', None)), \
-                 mock.patch.object(PRE, 'local_scope', return_value=[]), \
-                 mock.patch.object(PRE, 'merged_tips', return_value=[]), \
-                 mock.patch.object(PRE, 'delivery_paths', return_value=[]), \
-                 mock.patch.object(PRE, 'workspace_checks', return_value=[]), \
-                 mock.patch.object(PRE, 'goal_reds', return_value=(set(), None, True)), \
-                 mock.patch.object(PRE, 'check_results') as report, \
-                 mock.patch.object(PRE, 'tree', side_effect=[(value, {}) for value in snapshots]):
+    def test_snapshot_changed_during_checks_refuses(self):
+        for final, expected in [('first', 0), ('other', 1)]:
+            with self.subTest(final=final), mock.patch.object(Path, 'cwd', return_value=self.root), \
+                 mock.patch.object(PRE, 'checked_git', return_value=b''), \
+                 mock.patch.object(PRE, 'snapshot', side_effect=['first', final]), \
+                 mock.patch.object(PRE, 'workspace_checks', return_value=[]):
                 self.assertEqual(PRE.main([]), expected)
-                self.assertEqual(report.call_args.args[:3], ('first', 'start', expected))
-
-    def test_journey_generated_page_mixed_with_code_refuses(self):
-        with mock.patch.object(PRE, 'git', return_value=subprocess.CompletedProcess([], 0, b'', b'')):
-            code, failures = PRE.journeys('base', 'tree', ['temper/docs/design/client/web/journeys/a/01.html',
-                                                         'other.rs'], self.root, {})
-        self.assertEqual(code, 1)
-        self.assertEqual(failures[0]['name'], 'journeys')
-
-    def test_explicit_goal_rejects_wrong_head(self):
-        head, dest = 'a' * 40, 'b' * 40
-        with mock.patch.object(PRE, 'git', side_effect=[subprocess.CompletedProcess([], 0, commit.encode(), b'')
-                                                       for commit in (head, dest, dest)]):
-            with self.assertRaisesRegex(ValueError, 'checkout HEAD'):
-                PRE.goal_base([head, dest], self.root, self.root, {})
 
     def test_shell_entry_points_forward_to_the_expected_mode(self):
         for hook, suffix in [('pre-pr', ''), ('goal-child-pre-pr', ' --child "$@"'), ('goal-pre-pr', ' --goal "$@"')]:
@@ -334,9 +175,9 @@ class Delivery(unittest.TestCase):
         directory.mkdir(parents=True)
         (directory / 'test_rules.py').touch()
         with mock.patch.object(PRE, 'run', return_value=(0, '')) as run, \
-             mock.patch.object(PRE, 'journeys', return_value=(0, [])), mock.patch.object(PRE, 'outward', return_value=(0, [])):
+             mock.patch.object(PRE, 'journeys', return_value=[]), mock.patch.object(PRE, 'outward', return_value=(0, [])):
             args = (self.root, ['tools/example/rules.py', 'tools/example/test_rules.py'],
-                    'tree', 'base', {}, {}, self.errors, {})
+                    'tree', {}, self.errors, {})
             PRE.workspace_checks(*args)
             run.assert_not_called()
             PRE.workspace_checks(*args, completed_goal=True)
@@ -352,35 +193,75 @@ class Delivery(unittest.TestCase):
         self.assertEqual(run.call_args.args[0][-1], '--paths0')
         self.assertEqual(run.call_args.kwargs['input'], path.encode())
 
-    def test_goal_close_checks_the_whole_tree_without_reapplying_delivery_mixing(self):
-        with mock.patch.object(PRE, 'outward', return_value=(0, [])), \
-             mock.patch.object(PRE, 'check_budgets') as budgets, \
-             mock.patch.object(PRE, 'journeys', return_value=(0, [])) as journeys:
-            PRE.workspace_checks(self.root, ['tools/tiers/budgets.toml', 'notes'], 'tree', 'base',
-                                 {}, {}, self.errors, {}, completed_goal=True)
-        budgets.assert_not_called()
-        journeys.assert_called_once_with('base', 'tree', [], self.root, {})
-
-    def test_close_receipt_identifies_pre_settlement_head_and_post_settlement_tree(self):
-        self.assertEqual(PRE.finish('staged', 'base', [], self.root, {}, 'close', ('head', 'main'), None), 0)
+    def test_close_receipt_records_only_the_checked_tree(self):
+        self.assertEqual(PRE.finish('staged', None, [], self.root, {}, 'close', ['dest'], ['head']), 0)
         receipt = json.loads((self.root / 'target/temper/goal-close-pre-pr.json').read_text())
-        self.assertEqual((receipt['goal_head'], receipt['destination'], receipt['base'], receipt['tree'],
-                          receipt['verdict']), ('head', 'main', 'base', 'staged', 'passed'))
+        self.assertEqual((receipt['goal_head'], receipt['requested_destination'], receipt['tree']),
+                         ('head', 'dest', 'staged'))
+        self.assertEqual((receipt['comparison'], receipt['base'], receipt['destination']), ('tree-only', None, None))
 
     def test_known_outward_failure_requires_a_complete_scan(self):
         key = ('test', 'fabrig-boundary::outward', 'no_file_names_the_lab')
         with mock.patch.object(PRE, 'outward', return_value=(0, [])) as outward, \
-             mock.patch.object(PRE, 'journeys', return_value=(0, [])):
-            PRE.workspace_checks(self.root, ['other'], 'tree', 'base', {}, {}, self.errors, self.outcomes, [key])
+             mock.patch.object(PRE, 'journeys', return_value=[]):
+            PRE.workspace_checks(self.root, ['other'], 'tree', {}, self.errors, self.outcomes, [key])
         outward.assert_called_once_with(self.root, {}, None)
         self.assertEqual(self.outcomes[key[1:]], {'outcome': 'passed'})
+
+    def test_close_compiler_error_survives_a_long_log_and_hold_truncation(self):
+        location = 'smith/tests/local/src/world.rs:1423:15'
+        message = 'non-exhaustive patterns: `smith_domain::Lower::Classify { .. }` not covered'
+        raw = (f'error[E0004]: {message}\n    --> {location}\n'
+               'error[E0308]: mismatched types\n    --> other.rs:8:2\n' + 'cargo argument ' * 1200 + '\n').encode()
+        diagnostic = PRE.RustcDiagnostic()
+        process = mock.MagicMock(stdout=io.BytesIO(raw))
+        process.wait.return_value = 101
+        stream = io.BytesIO()
+        with mock.patch.object(subprocess, 'Popen', return_value=process), redirect_stdout(io.TextIOWrapper(stream)) as out:
+            status, log = PRE.run(['cargo', 'nextest', 'run'], self.root, {}, output=diagnostic.consume)
+            self.assertEqual(out.buffer.getvalue(), raw)
+        self.assertEqual(status, 101)
+        self.assertNotIn('E0004', log)
+        error = dict(PRE.failure('focused tests', log), diagnostic=diagnostic.reason())
+        self.assertEqual(PRE.finish('tree', 'base', [error], self.root, {}, 'close', ['dest'], ['head'],
+                                    tests=['package'] * 2000), 1)
+        self.assertEqual(self.log.getvalue().encode()[-128:], f'rustc E0004 {location}: {message}\n'.encode())
+        receipt = json.loads((self.root / 'target/temper/goal-close-pre-pr.json').read_text())
+        self.assertEqual(receipt['verdict'], 'refused')
+        self.assertEqual(receipt['counts'], {'new': 1, 'flake': 0, 'inherited': 0})
+
+    def test_close_nextest_assertion_survives_the_generic_summary(self):
+        case = 'registered_value_type_numbers_are_pinned'
+        site = 'jig/crates/jig-protocol-accounts/src/tests/value_types.rs:98:9'
+        output = (f"  FAIL [  0.011s] ( 3304/13294) jig-protocol-accounts tests::value_types::{case}\n"
+                  f"    thread 'tests::value_types::{case}' (16248) panicked at {site}:\n"
+                  "    assertion `left == right` failed: jig-store-core\n      left: 9\n     right: 8\n"
+                  + "other output\n" * 500 + "error: test run failed\n").encode()
+        diagnostic = PRE.NextestDiagnostic()
+        with redirect_stdout(io.TextIOWrapper(io.BytesIO())):
+            log = PRE.Tail()
+            for line in output.splitlines(keepends=True):
+                diagnostic.consume(line, log)
+        self.assertNotIn(case, log.text())
+        error = dict(PRE.failure('focused tests', log.text()), diagnostic=diagnostic.reason())
+        self.assertEqual(PRE.finish('tree', 'base', [error], self.root, {}, 'close', ['main'], ['head']), 1)
+        self.assertEqual(self.log.getvalue().encode()[-128:], f'{case} {site}: jig-store-core: 9 != 8\n'.encode())
+
+    def test_failed_case_without_a_panic_keeps_its_name(self):
+        diagnostic = PRE.NextestDiagnostic()
+        log = PRE.Tail()
+        with redirect_stdout(io.TextIOWrapper(io.BytesIO())):
+            for line in (b"   FAIL [ 0.01s] (1/2) crate tests::first", b"   FAIL [ 0.02s] (2/2) crate tests::second",
+                         b"thread 'tests::second' panicked at second.rs:8:1:", b"other panic"):
+                diagnostic.consume(line, log)
+        self.assertEqual(diagnostic.reason(), 'failed test tests::first\n')
 
     def test_large_receipt_preserves_every_key_and_bounds_summary(self):
         errors = [PRE.failure(f'test api::suite case_{i}', 'x' * 9000, ('api::suite', f'case_{i}'))
                   for i in range(450)]
         PRE.inherited({('test', 'api::suite', 'case_0')}, errors)
         errors[1]['flake'] = (1, 0.1)
-        self.assertEqual(PRE.finish('tree', 'base', errors, self.root, {}, 'goal', ['head', 'dest'], None), 1)
+        self.assertEqual(PRE.finish('tree', 'base', errors, self.root, {}, 'goal', ['head', 'dest'], ['head']), 1)
         receipt = json.loads((self.root / 'target/temper/pre-pr-failures.json').read_text())
         self.assertEqual(receipt['counts'], {'new': 448, 'flake': 1, 'inherited': 1})
         self.assertEqual({entry['key']['test'] for entry in receipt['failures']}, {f'case_{i}' for i in range(450)})
@@ -389,11 +270,11 @@ class Delivery(unittest.TestCase):
     def test_diagnostic_cpu_measurements_do_not_enable_budget_refusals(self):
         for profile in ('default', 'fuzzy'):
             with mock.patch.object(PRE, 'run', return_value=(2, 'one-process: nextest listing exited with 101')) as run:
-                result, errors, _ = PRE.one_process(['api'], self.root, {}, profile=profile, ledger='main-ledger')
+                result, errors, _ = PRE.one_process(['api'], self.root, {}, profile=profile)
             self.assertEqual(result, 2)
             self.assertTrue(errors[0]['name'].startswith('build'))
             cmd = run.call_args.args[0]
-            self.assertEqual(cmd[cmd.index('--ledger') + 1:], ['main-ledger', profile, '-p', 'api', '--no-tests=warn'])
+            self.assertNotIn('--ledger', cmd)
             self.assertNotIn('--gate', cmd)
 
     def test_diagnostic_preserves_the_failing_case(self):
@@ -410,11 +291,11 @@ class Delivery(unittest.TestCase):
             _, errors, _ = PRE.one_process(['api'], self.root, {})
         self.assertEqual(errors[0]['key'], ('api::suite', 'example'))
 
-    def test_pending_merge_and_destination_bound_child_receipt(self):
-        PRE.finish('tree', 'base', [], self.root, {}, 'child', ['dest'], ['head', 'other'])
+    def test_child_destination_is_only_a_request_label(self):
+        PRE.finish('tree', None, [], self.root, {}, 'child', ['dest'], ['head'])
         record = json.loads((self.root / 'target/temper/goal-child-pre-pr.json').read_text())
-        self.assertEqual((record['scope'], record['delivery_head'], record['merge_heads'], record['destination']),
-                         ('child', 'head', ['other'], 'dest'))
+        self.assertEqual((record['scope'], record['delivery_head'], record['requested_destination'],
+                          record['destination']), ('child', 'head', 'dest', None))
 
 
 class Gate(unittest.TestCase):

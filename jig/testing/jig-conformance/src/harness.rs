@@ -2,7 +2,12 @@
 //! Applications translate boundaries; this loop owns commit application and
 //! checks observations after every iteration (`domain/testing.md`, 5–6).
 use crate::referee::{Observed, Policy, PolicySnapshot, Referee, Violation};
+use crate::store_check::{self, StoreChecks};
 use crate::trace::Trace;
+
+// The twenty conformance stories' median is 18.5 commits (seeds 31 and 71).
+// Most runs do no rehearsal, keeping instruction growth within the gate's bound.
+const STORE_CHECK_ONE_IN: u64 = 1024;
 use std::collections::VecDeque;
 use std::fmt::Debug;
 
@@ -93,7 +98,7 @@ pub trait Application {
     /// Concrete durable storage and the writes it accepts.
     type Store: Durable;
     /// Scenario configuration retained for cold starts.
-    type Config;
+    type Config: Clone;
     /// Independent system fakes.
     type Systems;
     /// Scripted hosts, parties and outside correlation state.
@@ -105,6 +110,14 @@ pub trait Application {
 
     /// Build the engine from its original scenario configuration.
     fn build(config: &Self::Config) -> Self::Domain;
+    /// Stop the next cold start before its switch, without reaching outside peers.
+    fn rehearse(domain: &mut Self::Domain);
+    /// Report that the rehearsing start reached its switch.
+    fn rehearsed(domain: &Self::Domain) -> bool;
+    /// The start's refusal in its Debug form alone.
+    fn refused(domain: &Self::Domain) -> Option<String>;
+    /// The current start phase, also when a start stalls or refuses.
+    fn start_phase(domain: &Self::Domain) -> String;
     /// Construct empty storage using the scenario's final limits.
     fn store(config: &Self::Config) -> Self::Store;
     /// Construct independent system fakes from the scenario seed.
@@ -121,8 +134,9 @@ pub trait Application {
     }
     /// Prepare the initial durable fixture and begin the cold-load script.
     fn start(config: &Self::Config, store: &mut Self::Store) -> Vec<Self::Event>;
-    /// Reconnect retained peers and observe the last durable store on a crash.
-    /// This clears outside correlation only; `start` chooses the application's
+    /// Reconnect peers and observe the last durable store on a crash or rehearsal.
+    /// Rehearsal peers are freshly built. This clears outside correlation only;
+    /// `start` chooses the application's
     /// cold-load vocabulary after the harness rebuilds its domain.
     fn cold(peers: &mut Self::Peers, store: &Self::Store, clock: Clock) -> Result<(), Violation>;
     /// Translate the application’s fleet, task and connector timers.
@@ -186,6 +200,7 @@ pub trait Application {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Outcome {
     pub commits: u64,
+    pub checked: u64,
     pub iterations: u64,
     pub stopped: bool,
     pub crashes: Vec<u64>,
@@ -239,6 +254,9 @@ pub struct Harness<A: Application> {
     forked_at: Option<u64>,
     fork_only: Option<Vec<u64>>,
     commit_hook: Option<CommitHook<A>>,
+    store_checks: StoreChecks,
+    cut_start: Option<u64>,
+    cut_inspection: Option<Violation>,
 }
 
 impl<A: Application> Harness<A> {
@@ -288,6 +306,89 @@ impl<A: Application> Harness<A> {
             forked_at: None,
             fork_only: None,
             commit_hook: None,
+            store_checks: StoreChecks::sampled(seed, STORE_CHECK_ONE_IN),
+            cut_start: None,
+            cut_inspection: None,
+        }
+    }
+
+    /// Choose which durable commits receive an independent cold store check.
+    pub fn store_checks(&mut self, checks: StoreChecks) {
+        self.store_checks = checks;
+    }
+
+    /// The run's checked count and its selection policy.
+    #[must_use]
+    pub fn store_check_report(&self) -> String {
+        self.store_checks.report()
+    }
+
+    /// Rehearse a cold start on an owned durable snapshot, apart from the live run.
+    ///
+    /// # Errors
+    /// Returns the start's refusal or a start stalled before the switch.
+    pub fn check_store(&self) -> Result<(), Violation> {
+        let commit = self.store.applied();
+        let config = self.config.clone();
+        let mut store = self.store.fork().map_err(|why| Violation { promise: crate::referee::Promise::Once, why })?;
+        store.crash(self.seed).map_err(|why| Violation { promise: crate::referee::Promise::Once, why })?;
+        let mut peers = A::peers(&config, self.seed);
+        let mut clock = self.clock;
+        A::cold(&mut peers, &store, clock)?;
+        let mut systems = A::systems(&config, self.seed);
+        let mut domain = A::build(&config);
+        A::rehearse(&mut domain);
+        let mut events: VecDeque<_> = A::start(&config, &mut store).into_iter().map(Input::Event).collect();
+        for _ in 0..self.referee.policy.story_steps {
+            clock.now = clock.now.checked_add(1_000_000).expect("scenario time fits");
+            if let Some(input) = events.pop_front() {
+                A::step(&mut domain, &config, clock, input);
+            }
+            let mut stopped = false;
+            let outputs = A::release(&mut domain, &config, clock);
+            let empty = outputs.is_empty();
+            for output in outputs {
+                match output {
+                    Output::Commit { number, writes } => store.submit(number, writes, 0),
+                    Output::Deliver(delivery) => {
+                        events.extend(A::deliver(&mut peers, &mut systems, &mut store, clock, delivery)?);
+                    }
+                    Output::Stop => stopped = true,
+                }
+            }
+            if let Some(refusal) = A::refused(&domain) {
+                return Err(Violation {
+                    promise: crate::referee::Promise::Once,
+                    why: store_check::finding(commit, &A::start_phase(&domain), &refusal),
+                });
+            }
+            if A::rehearsed(&domain) {
+                return Ok(());
+            }
+            if stopped {
+                break;
+            }
+            match store.tick(false) {
+                Ok(Some(number)) => events.push_front(Input::Committed(number)),
+                Ok(None) => {}
+                Err(number) => events.push_front(Input::Failed(number)),
+            }
+            events.extend(A::poll(&mut peers, &mut systems, &mut store, clock, false)?);
+            A::reclaim(&mut domain);
+            if empty && events.is_empty() && store.idle() && (A::quiescent(&domain) || store.holding()) {
+                break;
+            }
+        }
+        Err(Violation {
+            promise: crate::referee::Promise::Once,
+            why: format!("store check: commit {commit}: start stalled at {}", A::start_phase(&domain)),
+        })
+    }
+
+    fn start_finding(&self, commit: u64, refusal: &str) -> Violation {
+        Violation {
+            promise: crate::referee::Promise::Once,
+            why: store_check::finding(commit, &A::start_phase(&self.domain), refusal),
         }
     }
 
@@ -338,7 +439,9 @@ impl<A: Application> Harness<A> {
         self.events.clear();
         self.outputs.clear();
         A::cold(&mut self.peers, &self.store, self.clock)?;
-        self.inspect()?;
+        if self.cut_start.is_none() {
+            self.inspect()?;
+        }
         self.domain = A::build(&self.config);
         self.events.extend(A::start(&self.config, &mut self.store).into_iter().map(Input::Event));
         self.stopped = false;
@@ -396,7 +499,17 @@ impl<A: Application> Harness<A> {
                     )?);
                     self.inspect()?;
                 }
-                Output::Stop => self.stopped = true,
+                Output::Stop => {
+                    self.stopped = true;
+                    if let Some(commit) = self.cut_start
+                        && let Some(refusal) = A::refused(&self.domain)
+                    {
+                        return Err(self.start_finding(commit, &refusal));
+                    }
+                    if let Some(finding) = self.cut_inspection.take() {
+                        return Err(finding);
+                    }
+                }
             }
         }
         if !self.stopped {
@@ -406,30 +519,11 @@ impl<A: Application> Harness<A> {
                 Ok(None) => {}
                 Err(number) => self.events.push_front(Input::Failed(number)),
             }
-            self.inspect()?;
-            if self.store.applied() != previous {
-                if let Some(mut hook) = self.commit_hook.take() {
-                    hook(self);
-                    self.commit_hook = Some(hook);
-                }
-                let should_cut = match self.cut {
-                    Cut::None => false,
-                    Cut::AfterCommit(number) => number == self.store.applied(),
-                    Cut::Random { seed } => {
-                        let mut random = skein_lib::Rng::new(seed ^ self.store.applied());
-                        random.below(4) == 0
-                    }
-                    Cut::EachCommitFrom(first) => {
-                        let commit = self.store.applied();
-                        commit >= first && self.fork_cut(commit)?
-                    }
-                };
-                if should_cut {
-                    self.cut = Cut::None;
-                    self.crash()?;
-                    return Ok(true);
-                }
+            let inspection = self.inspect();
+            if self.store.applied() != previous && self.committed()? {
+                return Ok(true);
             }
+            inspection?;
             self.events.extend(A::poll(
                 &mut self.peers,
                 &mut self.systems,
@@ -439,6 +533,9 @@ impl<A: Application> Harness<A> {
             )?);
             self.inspect()?;
         }
+        if A::ready(&self.domain) {
+            self.cut_start = None;
+        }
         A::reclaim(&mut self.domain);
         self.referee.observe(self.clock.now, Observed::Heap { held: self.meter.held(), maximum: self.maximum })?;
         Ok(!self.stopped
@@ -446,6 +543,31 @@ impl<A: Application> Harness<A> {
                 && self.events.is_empty()
                 && self.store.idle()
                 && (A::quiescent(&self.domain) || self.store.holding())))
+    }
+
+    fn committed(&mut self) -> Result<bool, Violation> {
+        let commit = self.store.applied();
+        let forked = matches!(self.cut, Cut::EachCommitFrom(first) if commit >= first)
+            && self.fork_only.as_ref().is_none_or(|commits| commits.contains(&commit));
+        if !forked && self.store_checks.due(commit) {
+            self.check_store()?;
+        }
+        if let Some(mut hook) = self.commit_hook.take() {
+            hook(self);
+            self.commit_hook = Some(hook);
+        }
+        let should_cut = match self.cut {
+            Cut::None => false,
+            Cut::AfterCommit(number) => number == commit,
+            Cut::Random { seed } => skein_lib::Rng::new(seed ^ commit).below(4) == 0,
+            Cut::EachCommitFrom(first) => commit >= first && self.fork_cut(commit)?,
+        };
+        if should_cut {
+            self.cut = Cut::None;
+            self.cut_start = Some(commit);
+            self.crash()?;
+        }
+        Ok(should_cut)
     }
 
     fn fork_cut(&mut self, commit: u64) -> Result<bool, Violation> {
@@ -460,6 +582,7 @@ impl<A: Application> Harness<A> {
             }
             skein_fork::Split::Parent(skein_fork::Exit::Code(0)) => {
                 self.forked.push(commit);
+                self.store_checks.restarted(commit);
                 Ok(false)
             }
             skein_fork::Split::Parent(exit) => Err(Violation {
@@ -470,7 +593,17 @@ impl<A: Application> Harness<A> {
     }
 
     fn inspect(&mut self) -> Result<(), Violation> {
-        Self::inspect_outside(&mut self.peers, &self.systems, &self.store, &mut self.referee, self.clock)
+        let result = Self::inspect_outside(&mut self.peers, &self.systems, &self.store, &mut self.referee, self.clock);
+        if self.cut_start.is_some() && !A::ready(&self.domain) {
+            if let Err(finding) = result {
+                self.cut_inspection.get_or_insert(finding);
+            }
+            return Ok(());
+        }
+        if let Some(finding) = self.cut_inspection.take() {
+            return Err(finding);
+        }
+        result
     }
 
     fn inspect_outside(
@@ -513,6 +646,7 @@ impl<A: Application> Harness<A> {
         let spent = self.iterations.checked_sub(started).expect("drain starts before its snapshot");
         let remaining = self.referee.policy.story_steps.saturating_sub(spent);
         let result = self.drain_iterations(remaining);
+        eprintln!("{}", self.store_check_report());
         result.map_err(|violation| self.diagnostic(violation))
     }
 
@@ -540,6 +674,7 @@ impl<A: Application> Harness<A> {
     pub fn outcome(&self) -> Outcome {
         Outcome {
             commits: self.store.applied(),
+            checked: self.store_checks.checked(),
             iterations: self.iterations,
             stopped: self.stopped,
             crashes: self.crashes.clone(),
@@ -562,20 +697,20 @@ pub struct ColdSnapshot<A: Application> {
     clock: Clock,
     iterations: u64,
     crashes: Vec<u64>,
+    store_checks: StoreChecks,
 }
 
-impl<A: Application> Harness<A>
-where
-    A::Config: Clone,
-    A::Systems: Clone,
-    A::Peers: Clone,
-{
+impl<A: Application> Harness<A> {
     /// Capture the outside state only; resuming necessarily performs a cold start.
     /// Held domain continuations are discarded along with the domain.
     ///
     /// # Errors
     /// Returns a recovery readback finding from replaying the captured store.
-    pub fn cold_snapshot(&self) -> Result<ColdSnapshot<A>, Violation> {
+    pub fn cold_snapshot(&self) -> Result<ColdSnapshot<A>, Violation>
+    where
+        A::Systems: Clone,
+        A::Peers: Clone,
+    {
         Ok(ColdSnapshot {
             config: self.config.clone(),
             seed: self.seed,
@@ -588,6 +723,7 @@ where
             clock: self.clock,
             iterations: self.iterations,
             crashes: self.crashes.clone(),
+            store_checks: self.store_checks.clone(),
         })
     }
 
@@ -635,6 +771,9 @@ where
             forked_at: None,
             fork_only: None,
             commit_hook: None,
+            store_checks: snapshot.store_checks,
+            cut_start: None,
+            cut_inspection: None,
         })
     }
 }

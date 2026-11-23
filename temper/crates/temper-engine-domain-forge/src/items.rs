@@ -19,6 +19,15 @@ impl Domain {
         !crate::domain::fresh_reads_in(self)
     }
 
+    /// A producer whose selection was deferred can retry once its goal branch facts are in.
+    #[must_use]
+    pub fn producer_workspace_waiting(&self, task: u64, parent: u64) -> bool {
+        let Some(row) = self.change(parent) else { return false };
+        row.delegate == Some((task, change::Delegate::Produce))
+            && (self.goal_branch_read_waiting(row.repository, &row.branch)
+                || self.goal_branch_read_waiting(row.repository, &row.base))
+    }
+
     /// One landing job's repository and new writable branch (temper/docs/design/domain/worker/jobs.md).
     #[must_use]
     pub fn prepare_item(
@@ -71,6 +80,13 @@ impl Domain {
     /// (temper/docs/design/domain/forge/branches.md, 3).
     #[must_use]
     pub fn design_workspace_waiting(&self, task: u64) -> bool {
+        self.goal_workspace_waiting(task, true)
+    }
+
+    /// A goal's checkout waits for its making, even when it does not write design
+    /// (temper/docs/design/domain/forge/branches.md, 1).
+    #[must_use]
+    pub fn goal_workspace_waiting(&self, task: u64, modify: bool) -> bool {
         for (name, hold) in &self.holds {
             if hold.task != task {
                 continue;
@@ -82,7 +98,7 @@ impl Domain {
             }
             if let Some((_, goal)) = goal_branch(name, &repository.prefix)
                 && goal == task
-                && self.design_branch_waiting(name)
+                && self.goal_checkout_waiting(name, modify)
             {
                 return true;
             }
@@ -90,9 +106,14 @@ impl Domain {
         false
     }
 
-    fn design_branch_waiting(&self, name: &crate::Name) -> bool {
-        if !self.repository_fresh(api::Repository { forge: name.forge, repository: name.repository }) {
+    fn goal_checkout_waiting(&self, name: &crate::Name, modify: bool) -> bool {
+        if !self.repository_fresh(api::Repository { forge: name.forge, repository: name.repository })
+            || self.goal_branch_waiting(name)
+        {
             return true;
+        }
+        if !modify {
+            return false;
         }
         let undrifted = match self.holds.get(name) {
             Some(hold) => hold.drift.is_none(),
@@ -102,7 +123,7 @@ impl Domain {
             Some(head) => head.owned,
             None => false,
         };
-        !undrifted || !owned || self.goal_branch_waiting(name)
+        !undrifted || !owned
     }
 
     /// Select one checkout item from the task's saved and procedure state.
@@ -127,7 +148,10 @@ impl Domain {
         let (mut start, mut push, holder, selected_landing, delivers) = match inherited {
             Some((row, kind)) => match kind {
                 change::Delegate::Produce => {
-                    if seed.saved_branch.is_none() && !self.repository_fresh(seed.repository) {
+                    if seed.saved_branch.is_none()
+                        && (!self.repository_fresh(seed.repository)
+                            || self.goal_branch_read_waiting(seed.repository, &row.branch))
+                    {
                         return None;
                     }
                     // A saved start replaces this selection below and needs no branch observation.
@@ -200,7 +224,9 @@ impl Domain {
             if merge_landing {
                 match &start {
                     Start::Branch(branch) | Start::Saved(branch) => {
-                        if !self.repository_fresh(seed.repository) {
+                        if !self.repository_fresh(seed.repository)
+                            || self.goal_branch_read_waiting(seed.repository, &row.base)
+                        {
                             return None;
                         }
                         start = Start::Merge {
@@ -315,7 +341,7 @@ impl Domain {
                 }
                 if let Some((_, task)) = goal_branch(name, &repository.prefix)
                     && task == seed.task
-                    && (!self.repository_fresh(seed.repository) || (seed.modify && self.design_branch_waiting(name)))
+                    && self.goal_checkout_waiting(name, seed.modify)
                 {
                     return None;
                 }

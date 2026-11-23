@@ -8,7 +8,9 @@ keeps what is temper's: its tiers (`tiers.md`, section 1), its neighbours and th
 fakes (`README.md`, section 3 and `fakes.md`), its scenarios, referee and its case library
 (`scenarios.md`, section 1), what its worlds check beyond the strategy (`checks.md`; the
 engine's, `engine-checks.md`; blame and tries for gates, `blame.md`; the worker's
-waits, disk and faults, `worker.md`), its
+waits, disk and faults, `worker.md`), the
+shipped settings checked against themselves (`settings-tests.md`), every commit's store
+checked against a start (`store-check.md`), its
 layout (`README.md`, section 5), its tools and fixtures as binaries (`tools.md`), what
 macOS tests (`macos.md`), QA after landing beside the deployment (`qa/README.md`), and what
 is still open (`README.md`, section 6).

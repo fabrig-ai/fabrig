@@ -20,6 +20,7 @@ pub mod roles;
 /// Independent role-cohort and recipient evidence.
 pub mod roles_referee;
 
+pub mod check;
 /// Shared direct root route driver for focused and randomized scenarios.
 pub mod direct;
 pub mod ends;

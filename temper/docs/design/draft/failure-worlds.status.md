@@ -8,8 +8,11 @@
   - 3.7: the start's link checks run only at a scenario's final cold restart.
   - 4: nothing models a stop in each phase of a start. The faults marked [script], [composition] or [assertion] need no design change.
   - 5: `../testing/tiers.md`, 1.1 has no world running several goals at once.
-  - 7: nothing.
+  - 7: no design holds its rows but the settings rows, P128, P59 and P81's residual (`../testing/settings-tests.md`, 7).
 - **Design departs:**
+  - 3.7: the engine's forge world, which runs the forge without jig's core or store, checks the forge's half of a start over its stored records, by the function the root's link calls (`../testing/store-check.md`, 2); jig's half is checked in the worlds that run the core. The goal's designer, 2026-11-21.
+  - 3.7: a sampled world's commits are drawn from a part of its own of the seed's scheduling stream, `store check`, so that the sample moves none of the world's draws (`jig/docs/design/domain/testing.md`, 7). The goal's designer, 2026-11-21.
+  - 7, P59: the row is fixed. Settings apply's whole check already refuses removing a producer a stock template's work names, `Fault::Reference`, committing nothing; its scenario, `a_retired_producer_is_refused_while_named`, passed when written and runs enabled in the engine's domain world, not ignored for the provider failures' work (`../testing/settings-tests.md`, 3 and 7). The goal's coordinator, 2026-11-22, from the scenario's change.
   - 3.1: jig's bounded waits are checked at each quiet point against the component's own armed deadline, not by a deadline the referee arms: jig's worlds settle within each drain or fail, so a wait starved past its bound is found at the first quiet point after it (`jig/docs/design/domain/testing.md`, 7.2). The goal's designer, 2026-11-21.
   - 7: P76's scenario runs in jig's core world, not its people world, which answers account changes with a fixed outcome and has no accounts child, so only the core world shows a service paid by an account (`jig/docs/design/domain/testing.md`, 7.3). The goal's designer, 2026-11-21.
   - 3: an adapter is a kit of its component's tree, beside it, over `pub` reads the component documents as its adapter's, not code inside the component's crate (`skein/docs/design/testing/inspection.md`, 2): the workspace has no feature or `cfg` for test-only code, and a shipped binary links no testing crate. The adapter still changes with its component, reads it by a shared borrow and is linked only by worlds. The goal's designer, 2026-11-20.
@@ -24,4 +27,6 @@
   - 7: three differences from 3.3's rows that the catalog missed are scenarios of `../testing/blame.md`, 6, beside the catalog's rows, since a goal leaves the draft's text as it is. The goal's designer, 2026-11-21.
   - 7: the sweeps found two open problems of the landing train that the catalog lacks: a late manual merge record of a landed squash, and a batch member merged by someone else, held rather than landed. They are open scenarios of `../testing/fakes.md`, 2, for the same reason. The goal's coordinator, 2026-11-22.
   - 7: P124's `cancelled_landing_frees_its_write_entries` is fixed by its own goal, before the landing train: an active focused test of `temper-engine-forge-world`'s suite (`../domain/landing-forming.md`, 5), so F2 neither writes it nor excludes it from a sweep. P124's other scenario, a wait for room with a bound, stays F2's. The user, 2026-11-21.
-- **Open:** 8: the moves between layers that F0's plan proposes are the user's decision.
+- **Open:**
+  - 8: the moves between layers that F0's plan proposes are the user's decision.
+  - 7: the settings walk found a problem the catalog has no row for: a member's batch addressed to a role whose authority spend can't fund it (`../testing/settings-tests.md`, 5 and 7). Its scenario is ignored; no work fixes it yet, and one of its fixes moves a stock figure, the user's.

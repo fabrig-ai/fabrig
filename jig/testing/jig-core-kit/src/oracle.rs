@@ -72,6 +72,7 @@ impl Drop for World {
         if !std::thread::panicking() {
             self.close();
         }
+        self.report_store_checks();
     }
 }
 
@@ -92,7 +93,16 @@ impl World {
 
     /// Run the closing cold restart and readback once, returning its first finding.
     pub fn finish(&mut self) -> Result<(), String> {
-        self.close_oracle()
+        let result = self.close_oracle();
+        self.report_store_checks();
+        result
+    }
+
+    fn report_store_checks(&mut self) {
+        if !self.store_checks_reported {
+            eprintln!("{}", self.store_checks.report());
+            self.store_checks_reported = true;
+        }
     }
 
     fn close_oracle(&mut self) -> Result<(), String> {

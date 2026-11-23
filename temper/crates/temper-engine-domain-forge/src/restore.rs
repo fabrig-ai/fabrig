@@ -1,11 +1,82 @@
 //! Configured restoration fit before linking (temper/docs/design/domain/forge/effects.md, 2).
 use super::Domain;
-use crate::{CallPayload, Limits, RecordKind, Stored, What};
+use crate::{CallPayload, Key, Limits, MissingLink, RecordKind, Request, Stored, What};
 use alloc::boxed::Box;
-use skein_lib::{Map, Wall};
+use skein_lib::{Env, Map, Queue, Wall};
 pub use temper_engine_domain_forge_vocabulary::restore::*;
 
+/// The forge's half of a start's Link phase (temper/docs/design/testing/store-check.md, 2).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum StartLink {
+    Row(Key),
+    Fit(RestoreFit),
+    Link(MissingLink),
+}
+
 impl Domain {
+    /// Link restored records in the same order at a root start and a store check.
+    pub fn start_links(
+        &mut self,
+        tasks: &jig_domain_tasks::Domain,
+        env: &Env<Limits>,
+        out: &mut Queue<Request>,
+    ) -> Result<(), StartLink> {
+        if let Some(key) = self.unjoined_change() {
+            return Err(StartLink::Row(key));
+        }
+        self.link_names(tasks, &env.limits);
+        self.link_tiers(tasks, &env.limits);
+        self.link_landings(tasks, env, out);
+        self.link_writers(tasks, env);
+        if let Err(failure) = self.fit_restored(&env.limits) {
+            return Err(StartLink::Fit(failure));
+        }
+        if let Some(link) = self.missing_link(tasks) {
+            return Err(StartLink::Link(link));
+        }
+        Ok(())
+    }
+    /// A retired run cannot own a slot. Keep its old durable row until the
+    /// post-switch fresh read saves the writerless hold; a crash repeats the read
+    /// (jig's domain/tasks/holds.md, 3).
+    fn link_writers(&mut self, tasks: &jig_domain_tasks::Domain, env: &Env<Limits>) {
+        use super::{LostReadState, LostWriterKind, PendingLost};
+        let mut retired = skein_lib::List::with_capacity(self.holds.len());
+        for (name, hold) in &self.holds {
+            if let Some(crate::Writer::Run { task, attempt } | crate::Writer::Lost { task, attempt }) = hold.writer
+                && tasks.task(task).is_none()
+                && !self.forge_ended(name.forge)
+            {
+                retired.push((name.clone(), task, attempt)).expect("retired writers bounded by holds");
+            }
+        }
+        for (name, task, attempt) in retired.into_boxed() {
+            let hold = self.holds.get_mut(&name).expect("selected retired writer");
+            let previous = hold.clone();
+            hold.writer = None;
+            let repaired = hold.clone();
+            self.reconciliation.forget(&Stored::Hold(previous), &env.limits);
+            self.reconciliation.restore(&Stored::Hold(repaired.clone())).expect("repair removes one reference");
+            self.sequence = self.sequence.checked_add(1).expect("restored writer read sequence fits");
+            let owner = skein_lib::Token::new(self.sequence | (1_u64 << 62));
+            let baseline = self.branch_head(&name);
+            self.lost
+                .insert(
+                    owner,
+                    PendingLost {
+                        task,
+                        attempt,
+                        name,
+                        comparison: None,
+                        baseline,
+                        state: LostReadState::Restoring,
+                        kind: LostWriterKind::Retired,
+                    },
+                )
+                .expect("one retired read per hold");
+        }
+    }
+
     /// Establish the start's single expiry observation without resetting restored state.
     pub fn restore_begin(&mut self, started: Wall) {
         if self.restore_started.is_none() {
@@ -22,15 +93,15 @@ impl Domain {
     }
     /// A change with only one part is an unreadable row (protocol/store-restart.md, 1).
     #[must_use]
-    pub fn unjoined_change(&self) -> Option<crate::Key> {
+    pub fn unjoined_change(&self) -> Option<Key> {
         for (task, _) in &self.change_cold {
             if !self.changes.contains_key(task) && !self.change_hot.contains_key(task) {
-                return Some(crate::Key::ChangeCold(*task));
+                return Some(Key::ChangeCold(*task));
             }
         }
         for (task, _) in &self.change_hot {
             if !self.change_cold.contains_key(task) {
-                return Some(crate::Key::ChangeHot(*task));
+                return Some(Key::ChangeHot(*task));
             }
         }
         None

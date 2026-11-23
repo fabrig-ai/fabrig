@@ -110,6 +110,8 @@ enum Adoption {
 
 /// A composed deployment: all roots retain their own state, with IO outside.
 pub struct World {
+    store_checks: jig_conformance::store_check::StoreChecks,
+    restart_config: engine::Config,
     seed: u64,
     checks: Checks,
     pub ends: Ends,
@@ -152,6 +154,12 @@ pub struct World {
     disk: Checkout,
     pub observed: Observed,
     pub run_watch: Option<RunWatch>,
+}
+
+impl Drop for World {
+    fn drop(&mut self) {
+        eprintln!("{}", self.store_checks.report());
+    }
 }
 
 /// One text-only reply, with no finish call.
@@ -483,6 +491,8 @@ impl World {
         let mut ends = Ends::new(seed, OPENING);
         ends.restarted(Time::ZERO);
         Self {
+            store_checks: jig_conformance::store_check::StoreChecks::sampled(seed, crate::STORE_CHECK_ONE_IN),
+            restart_config: temper_engine_domain_world::oracle::config::copy(&config),
             seed,
             checks: Checks::new(seed),
             ends,
@@ -533,6 +543,11 @@ impl World {
         }
     }
 
+    fn replace_root(&mut self, config: engine::Config) {
+        self.restart_config = temper_engine_domain_world::oracle::config::copy(&config);
+        self.root = engine::Domain::new(config, &self.env.limits).expect("restart configuration");
+    }
+
     /// Offer one input through admission; one the journal cannot take
     /// returns to the back of the queue (jig's `domain/root.md`, 3).
     fn root_step(&mut self, event: engine::Event) {
@@ -551,7 +566,8 @@ impl World {
         self.try_tick().unwrap_or_else(|finding| panic!("{finding}"));
     }
 
-    fn try_tick(&mut self) -> Result<(), String> {
+    /// A store refusal is a run finding, before any peer sees the commit.
+    pub fn try_tick(&mut self) -> Result<(), String> {
         self.try_move_to(self.env.now.saturating_add(TICK))?;
         self.tick_at_now()
     }
@@ -575,7 +591,10 @@ impl World {
             if let Some(event) = self.root_events.pop_front() {
                 self.root_step(event);
             }
-            if let Some(number) = self.store.tick(false).expect("calm store") {
+            let previous = self.store.applied;
+            let committed = self.store.tick(false).expect("calm store");
+            self.check_commit(previous)?;
+            if let Some(number) = committed {
                 self.root_step(engine::Event::Store(engine::StoreInput::Committed { number, fill: 0 }));
             }
             engine::fire(&mut self.root, &self.env);
@@ -688,6 +707,26 @@ impl World {
     /// Jump controlled time through the engine's retained bounds.
     pub fn jump(&mut self, duration: Duration) {
         self.try_move_to(self.env.now.saturating_add(duration)).unwrap_or_else(|finding| panic!("{finding}"));
+    }
+
+    pub fn store_checks(&mut self, checks: jig_conformance::store_check::StoreChecks) {
+        self.store_checks = checks;
+    }
+
+    #[must_use]
+    pub fn store_check_counts(&self) -> &jig_conformance::store_check::StoreChecks {
+        &self.store_checks
+    }
+
+    fn check_commit(&mut self, previous: u64) -> Result<(), String> {
+        temper_engine_domain_world::check::committed(
+            &self.store,
+            &self.restart_config,
+            &self.env.limits,
+            self.env.wall,
+            previous,
+            &mut self.store_checks,
+        )
     }
 
     /// Advance controlled time, driving both roots and the process at each tick.

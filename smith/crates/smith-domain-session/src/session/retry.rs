@@ -9,14 +9,15 @@ use super::{
     finish,
 };
 use crate::llm::{Cap, CompletionPhase, Evidence, Limit};
-use skein_lib::{Duration, Time};
+use skein_lib::Duration;
 
 /// One policy class for every provider failure.
 #[derive(Clone, Copy)]
 enum Class {
     Gone,
     Context,
-    Transient { floor: Duration },
+    Transient,
+    RateLimited { delay: Duration },
     TimeUp,
     Lasting,
 }
@@ -28,13 +29,11 @@ fn class(failure: Failure) -> Class {
         Failure::TimedOut { phase } => match phase {
             CompletionPhase::Whole => Class::TimeUp,
             CompletionPhase::Connect | CompletionPhase::Handshake | CompletionPhase::Head | CompletionPhase::Idle => {
-                Class::Transient { floor: Duration::ZERO }
+                Class::Transient
             }
         },
-        Failure::Overloaded | Failure::Unavailable | Failure::Unauthorized => {
-            Class::Transient { floor: Duration::ZERO }
-        }
-        Failure::RateLimited { retry_after } => Class::Transient { floor: retry_after },
+        Failure::Overloaded | Failure::Unavailable | Failure::Unauthorized => Class::Transient,
+        Failure::RateLimited { retry_after } => Class::RateLimited { delay: retry_after },
         Failure::Limit { .. }
         | Failure::ApplicationLimit
         | Failure::Protocol
@@ -66,6 +65,7 @@ pub(super) fn failed(
     out: &mut Queue<Request>,
 ) -> State {
     let class = class(failure);
+    let attempts = conversation.completion_attempts;
     match class {
         Class::Gone => {
             return match compaction::session_gone(conversation, &env.limits) {
@@ -74,54 +74,74 @@ pub(super) fn failed(
             };
         }
         Class::Context => {
-            return match compaction::start(
-                conversation,
-                &env.limits,
-                evidence,
-                attempt.checked_add(1).expect("a completion has a one-based attempt"),
-            ) {
+            return match compaction::start(conversation, &env.limits, evidence, attempts) {
                 Some(end) => finish(end),
                 None => ask(conversation, id, 0, env, out),
             };
         }
-        Class::Transient { .. } | Class::TimeUp | Class::Lasting => {}
+        Class::Transient | Class::RateLimited { .. } | Class::TimeUp | Class::Lasting => {}
     }
     let response = match evidence {
         Evidence::Response { .. } => true,
         Evidence::Unsent | Evidence::Unknown => false,
     };
     let decision = if failure == Failure::Unauthorized && (conversation.account.is_none() || (!retry_ok && response)) {
-        Retry::Fail
+        Retry::Fail { reset: None }
     } else {
-        decision(class, attempt, env.now, conversation.expires, &env.limits, rng)
+        decision(class, attempt, conversation, env, rng)
     };
     match decision {
-        Retry::After(delay) => {
-            State::Backoff { attempt: attempt.saturating_add(1), until: env.now.saturating_add(delay) }
+        Retry::After { delay, rate_limited } => {
+            // The retry would need a new identity and a representable one-based count.
+            if attempts == u32::MAX {
+                return finish(End::Failed {
+                    failure: Failure::ApplicationLimit,
+                    evidence: Evidence::Unsent,
+                    attempts,
+                    detail: Box::default(),
+                });
+            }
+            let until = env.now.saturating_add(delay);
+            if rate_limited {
+                out.push(Request::RateLimitWait { opener: conversation.opener, until });
+            }
+            State::Backoff { attempt: attempts, until, rate_limited }
         }
-        Retry::Fail => finish(End::Failed {
-            failure,
-            evidence,
-            detail: Box::default(),
-            attempts: attempt.checked_add(1).expect("an admitted completion leaves room for its first attempt"),
-        }),
+        Retry::Fail { reset } => {
+            if let Some(retry_after) = reset {
+                out.push(Request::RateLimitOutlastsSession { opener: conversation.opener, retry_after });
+            }
+            finish(End::Failed { failure, evidence, detail: Box::default(), attempts })
+        }
         Retry::TimeUp => finish(OUT_OF_TIME),
     }
 }
 
 enum Retry {
-    After(Duration),
-    Fail,
+    After { delay: Duration, rate_limited: bool },
+    Fail { reset: Option<Duration> },
     TimeUp,
 }
 
-fn decision(class: Class, attempt: u32, now: Time, expiry: Time, limits: &Limits, rng: &mut Rng) -> Retry {
-    if now >= expiry {
+fn decision(class: Class, attempt: u32, conversation: &mut Conversation, env: &Env<Limits>, rng: &mut Rng) -> Retry {
+    if env.now >= conversation.expires {
         return Retry::TimeUp;
     }
     match class {
-        Class::Transient { floor } if attempt < limits.retries => Retry::After(backoff(floor, attempt, limits, rng)),
-        Class::Transient { .. } | Class::Lasting => Retry::Fail,
+        Class::RateLimited { delay } => {
+            if delay != Duration::ZERO
+                && conversation.account.is_some()
+                && env.now.saturating_add(delay) >= conversation.expires
+            {
+                return Retry::Fail { reset: Some(delay) };
+            }
+            Retry::After { delay: backoff(delay, attempt, &env.limits, rng), rate_limited: true }
+        }
+        Class::Transient if conversation.retries_spent < env.limits.retries => {
+            conversation.retries_spent = conversation.retries_spent.checked_add(1).expect("retry budget checked");
+            Retry::After { delay: backoff(Duration::ZERO, attempt, &env.limits, rng), rate_limited: false }
+        }
+        Class::Transient | Class::Lasting => Retry::Fail { reset: None },
         Class::TimeUp => Retry::TimeUp,
         Class::Gone | Class::Context => unreachable!("window recovery precedes retry policy"),
     }
