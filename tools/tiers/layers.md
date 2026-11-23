@@ -102,13 +102,14 @@ The gate runs the layers that replay, and the real loop and end to end run after
 
 ## 7. The boundary check
 
-A focused test of `fabrig-boundary`, `tests/boundary/tests/layers.rs` (`.config/gate/README.md`, the gate's 16th item), reads `cargo metadata --no-deps --format-version 1 --locked` and `tools/tiers/layers.toml`, and lists, each naming the binary's id or the line and why:
+A focused test of `fabrig-boundary`, `tests/boundary/tests/layers.rs` (`.config/gate/README.md`, the gate's 16th item), reads `cargo metadata --no-deps --format-version 1 --locked`, `tools/tiers/layers.toml`, `.config/nextest.toml` and `tools/tiers/packages.toml`, and lists, each naming the binary's id or the line and why:
 
 - a test binary of a tree, placed by no rule, with no line;
 - a line naming no test binary of the workspace, or one placed by rule (section 4);
 - a line under a table other than its binary's tree, or a table that is no tree's;
 - a line whose layer the `layers` list doesn't name, a `layers` list with a name twice or without `step`, or anything at the top but that list and the trees' tables;
 - from `.config/nextest.toml`'s text, for a tree with a line at `real-loop` or `end-to-end`: no `[profile.real-TREE]`, or one whose `default-filter` doesn't name, by `binary_id(=ID)`, each such line of the tree, or names by `binary_id(=…)` an id that is no such line of the tree (section 9.2). A `real-TREE` profile for a tree with no such line is a finding too.
+- from `tools/tiers/packages.toml`, for each such tree: no `real-TREE` list, a package of one of those lines missing from it, or a package on it that is no such line's. The lines of binaries the slow tiers own by name, `browser_*`, `conformance_*`, `recorded_*`, `live` and `live_github`, need no package there, since the pair's clause leaves them out (section 9.2): the runner builds only the packages its list names, so a missing one's tests run nowhere.
 
 The check passes with no finding. Its findings are computed from the metadata's, the table's and the configuration's text, so its own tests run it on small fixtures of each, and once on the workspace's.
 
@@ -142,7 +143,7 @@ The real loop and end to end don't stop running: each tree with a line at `real-
 
 - **What it runs:** the tests that the focused or the fuzzy profile selects in the tree's real-loop and end-to-end binaries, the ones one-process now leaves out of the gate. Its `[profile.real-TREE]` in `.config/nextest.toml` has the `default-filter` `(FOCUSED) | (FUZZY)` and'ed with `binary_id(=ID) | …` for every line of the tree at `real-loop` or `end-to-end`, FOCUSED and FUZZY copies of the tree's own clause of `[profile.default]`'s and `[profile.fuzzy]`'s `default-filter`. The clauses already leave out what the slow tiers own (`browser_*`, `live`, `process`, `conformance_*` and the rest), so the list names every such line, those included, and the boundary check holds it to the table (section 7). A change to a tree's clause in either profile changes its copy.
 - **Its settings:** `junit = { path = "junit.xml" }`, as every pair writes its report, and no `global-timeout`, `slow-timeout` or `test-threads` of its own: it takes `[profile.default]`'s, 810 s and a 6 s period, and its overrides after its own, until the user sets the pair's figures. Its macOS overrides double its Linux slow periods, as every profile's do (`temper/docs/design/testing/macos.md`, 7).
-- **Its packages** in `tools/tiers/packages.toml`: the packages of the binaries it selects tests from, sorted, as the map is generated (`tools/tiers/design.md`, 1 and 6). Its `[binaries]` list holds what its tree's `[test-binaries]` list holds, since the tests that run another package's program are its own now: `smith-fake-claude`'s `fake-claude` for `real-smith`, an empty list for the others.
+- **Its packages** in `tools/tiers/packages.toml`: the packages of the binaries it selects tests from, sorted, as the map is generated (`tools/tiers/design.md`, 1 and 6), and the boundary check holds the list to the tree's lines (section 7). Its `[binaries]` list holds what its tree's `[test-binaries]` list holds, since the tests that run another package's program are its own now: `smith-fake-claude`'s `fake-claude` for `real-smith`, an empty list for the others.
 - **Its budgets** are the tree's `real-loop` and `end-to-end` ceilings of both suites in `tools/tiers/budgets.toml`'s gate tables, reported by its runs as warnings, never red (draft, 11; `tools/tiers/budgets.md`, 4.2). It has no table of its own; a table the user adds later applies as any pair's.
 
 ## 10. Later
