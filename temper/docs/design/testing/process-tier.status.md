@@ -1,6 +1,6 @@
 # process-tier: status
 
-2026-11-20. Where the tree's code lags or departs from [process-tier.md](process-tier.md).
+2026-11-23. Where the tree's code lags or departs from [process-tier.md](process-tier.md).
 
 
 
@@ -14,6 +14,13 @@
   current margin is unknown; neither a current tier total nor its fit
   within 540 CPU s is established by the instruction account.
 - **Not yet:** the whole document: the story of a deployment at its place has no runtime result in the tier; it is written and compiled in its plan and runs after landing.
+- **Not yet:** the whole document, *One real owned-Forgejo landing*, *A real Forgejo's deliveries* and *Its endings*: the ordinary landing story still runs and crashes its box; the signed-push witness hears no job's end; the first owned repository's story reads no Forgejo state apart from temper's reads. [in flight: change 13992]
+- **Not yet:** the whole document, *The plan's model face, offline*: the plan face's story still lands a change on its owned Forgejo and restarts its box. [in flight: change 14015]
+- **Not yet:** the whole document, *One real owned-Forgejo landing*: the playground story still sets up and reads `playground/widget` on a real box. [in flight: change 13979]
+- **Not yet:** the whole document, *One real owned-Forgejo landing*: the Forgejo elsewhere story still lands a chat's change and adopts two more repositories. [in flight: change 14035]
+- **Not yet:** the whole document, *One real owned-Forgejo landing*: the older recorded runner's story and the deployment client's `me` wrapper still run on their own. [in flight: change 13948]
+- **Not yet:** the whole document, *Forgejo signing in through temper*: the public source's and the member's stories still start a Forgejo and a serve each. [in flight: change 14058]
+- **Not yet:** the whole document, *Two drivers' offline proofs*: B0's setup still runs as a test of its own, and its twin checks no account, model request or funding at the import. [in flight: change 13952]
 
 - **Departs:** the whole document: `temper-fixtures/src/ports.rs`, `ephemeral_first`,
   uses 49152 when `/proc/sys/net/ipv4/ip_local_port_range` is absent,
