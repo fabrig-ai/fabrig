@@ -15,6 +15,7 @@ process ID on Linux and no parent on macOS; the child mode is Unix-only
 and absent from the portable face. macOS's direct launch and deferred
 crash lifetime are ../protocol/programs-claude-code.md, section 1.1, and ../protocol/programs.md, section 9's.
 
+- **Not yet:** 2.6: resolving a document reads its trust natively only; no caller can supply the roots for its tests. [in flight: change 14093]
 - **Departs:**
   - 2.5: in `smith/crates/smith-agent-document/src/config/`,
     `TrustDocument`'s fields, `EndpointTransport::Tls`'s and the
