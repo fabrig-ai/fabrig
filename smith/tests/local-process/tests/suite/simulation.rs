@@ -678,3 +678,16 @@ fn slash_model_drops_an_effort_the_new_model_does_not_declare() {
     assert_eq!(world.queries()[0].model.as_ref(), b"alternate");
     assert_eq!(world.exit(), Some(kernel::Exit::Code(0)));
 }
+
+#[test]
+fn standard_profile_runs_a_large_coding_write_and_the_following_checks() {
+    let files = Files::new();
+    let mut world = World::standard_coding_change(37, &files);
+    let before = world.head().expect("initial head");
+    world.settle();
+    world.assert_ended(Ending::Change { before });
+    let tree = world.commit_files();
+    assert_eq!(tree[b"result.txt".as_slice()], b"new\n");
+    assert_eq!(tree[b"original.txt".as_slice()], b"edited\n");
+    assert_eq!(tree[b"checks-ran.txt".as_slice()], b"checked\n");
+}

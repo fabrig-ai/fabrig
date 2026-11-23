@@ -17,10 +17,11 @@ use skein_world::{HostedProgram, Memory, Outcome};
 use smith_local_domain as local;
 use smith_local_shell::credentials::token_limits;
 use smith_local_world::git::History;
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
+mod checked;
 mod composition;
 mod key;
 mod lending;
@@ -243,6 +244,8 @@ pub struct Machine {
     checkout: CheckoutView,
     commands: Vec<Box<[Box<[u8]>]>>,
     chat_path: PathBuf,
+    head_unreadable: bool,
+    checked_change: bool,
 }
 impl Machine {
     fn current_tree(&mut self) -> Tree {
@@ -274,6 +277,9 @@ impl Machine {
     }
 
     fn git_reply(&mut self, args: &[Box<[u8]>]) -> (Box<[u8]>, u8) {
+        if self.head_unreadable && args.iter().map(AsRef::as_ref).eq([b"rev-parse".as_slice(), b"HEAD"]) {
+            return (Box::new([]), 128);
+        }
         let tree = self.current_tree();
         let mut shared = self.checkout.0.borrow_mut();
         let (checkout, history, head) = shared.as_mut().expect("git fixture");
@@ -381,6 +387,9 @@ impl skein_world::Machine for Machine {
             }
         }
         self.files.close(root);
+        if self.checked_change && checked::command(&mut self.files, &call, answers) {
+            return;
+        }
         skein_fake_machine::step(&mut self.files, call, answers);
         if let Ok(root) = self.files.open(self.master, b"tokens", How::Directory) {
             if let Ok(file) = self.files.open(root, b"0.json", How::Read) {
@@ -403,6 +412,7 @@ struct Behaviour {
     interrupt_on_query: bool,
     discard_facts: bool,
     change: bool,
+    checked: bool,
 }
 
 /// A reusable story and its immutable hosted-launch settings.
@@ -415,6 +425,7 @@ pub struct Scenario {
     /// Keep the answered spawned process alive until its host sends a signal.
     pub linger_agent: bool,
     pub authentication: Option<Authentication>,
+    first_query_grant: Option<(&'static [u8], u64)>,
     pub scripts: Option<Box<[api::Script]>>,
     /// Kernel faults are independent of the seed and story text.
     pub faults: skein_sim::Faults,
@@ -430,7 +441,7 @@ pub struct World {
     outcome: Option<Outcome<Proc, Machine>>,
     commit_message: Vec<u8>,
     first_post: Option<Wall>,
-    saved_before_query: bool,
+    saved_before_query: Rc<Cell<bool>>,
 }
 impl World {
     /// Check the ending using the invocation's retained seed.
@@ -634,6 +645,10 @@ impl World {
     }
     #[must_use]
     pub fn changed(seed: u64, files: &Files, placement: Placement) -> Self {
+        Self::changing(seed, files, placement, false)
+    }
+
+    fn changing(seed: u64, files: &Files, placement: Placement, checked: bool) -> Self {
         let mut world = Self::configured(
             seed,
             files,
@@ -644,7 +659,7 @@ impl World {
                 Action::Eof,
             ],
             Ending::Change { before: format!("{:040x}", 1).into_bytes() },
-            Behaviour { change: true, ..Behaviour::default() },
+            Behaviour { change: true, checked, ..Behaviour::default() },
         );
         let local::Event::Loaded { transcript, .. } =
             load_chat(&world.scenario.launch.state_directory, &process::lower_configuration().channel_endpoints)
@@ -678,7 +693,7 @@ impl World {
         ending: Ending,
         behaviour: Behaviour,
     ) -> Self {
-        let Behaviour { interrupt_on_query, discard_facts, change } = behaviour;
+        let Behaviour { interrupt_on_query, discard_facts, change, checked } = behaviour;
         let keep_facts = !discard_facts;
         let mut disk = Filesystem::for_user(skein_shell::effective_user());
         std::fs::create_dir_all(files.path().join("chat")).expect("chat fixture");
@@ -697,10 +712,17 @@ impl World {
             items.push(skein_fake_machine::Item::directory(b"repo"));
             items.push(skein_fake_machine::Item::file(b"repo/original.txt", b"original\n"));
         }
+        if checked {
+            items.extend(checked::files());
+        }
         let master = disk.lay(&items);
         let checkout = CheckoutView(
             Rc::new(RefCell::new(if change {
-                let mut history = History::new(Tree::from([(b"original.txt".to_vec(), b"original\n".to_vec())]));
+                let mut tree = Tree::from([(b"original.txt".to_vec(), b"original\n".to_vec())]);
+                if checked {
+                    tree.insert(checked::CHECK.to_vec(), checked::CHECK_FILE.to_vec());
+                }
+                let mut history = History::new(tree);
                 let mut checkout = Checkout::new();
                 git::clone_repository(&mut history, &mut checkout, b"repo", b"work").expect("clone fixture");
                 git::check_out(&history, &mut checkout, b"work", 1).expect("checkout fixture");
@@ -740,7 +762,10 @@ impl World {
                     commands_path: None,
                     trust_der: None,
                     change,
-                    tools: false,
+                    tools: checked,
+                    standard_profile: false,
+                    repository_name: None,
+                    refresh_lead_ms: None,
                     read_report: false,
                     headless: false,
                     interactive: false,
@@ -762,6 +787,7 @@ impl World {
                 terminate_on_output_end: false,
                 linger_agent: false,
                 authentication: None,
+                first_query_grant: None,
                 scripts: None,
                 faults: skein_sim::Faults::NONE,
                 line_on_wait: None,
@@ -772,13 +798,15 @@ impl World {
                 checkout: checkout.clone(),
                 commands: Vec::new(),
                 chat_path: files.path().join("chat"),
+                head_unreadable: false,
+                checked_change: checked,
             }),
             checkout,
             memory: Memory::Unchecked,
             outcome: None,
             commit_message: Vec::new(),
             first_post: None,
-            saved_before_query: false,
+            saved_before_query: Rc::new(Cell::new(false)),
         }
     }
     #[must_use]
@@ -789,15 +817,20 @@ impl World {
             placement,
             if mode == Authentication::Refused { b"not delivered" } else { b"First answer" },
         );
-        world.scenario.launch.authenticated = true;
-        world.scenario.authentication = Some(mode);
+        world.with_authentication(mode);
+        world
+    }
+
+    fn with_authentication(&mut self, mode: Authentication) {
+        self.scenario.launch.authenticated = true;
+        self.scenario.authentication = Some(mode);
         if mode == Authentication::Refused {
-            world.scenario.ending = Ending::Unavailable;
+            self.scenario.ending = Ending::Unavailable;
         }
-        let tokens = credential_fixture::Tokens::new(&world.scenario.launch.token_directory, token_limits())
+        let tokens = credential_fixture::Tokens::new(&self.scenario.launch.token_directory, token_limits())
             .expect("private store");
         if mode == Authentication::SignIn {
-            std::fs::remove_file(world.scenario.launch.token_directory.join("0.json")).expect("no saved token");
+            std::fs::remove_file(self.scenario.launch.token_directory.join("0.json")).expect("no saved token");
         } else {
             let saved = skein_oauth::SavedToken {
                 issued_client_id: None,
@@ -831,8 +864,84 @@ impl World {
                 .save(0, &skein_oauth::encode_record(&saved, &token_limits()).expect("prior token"))
                 .expect("expired grant");
         }
+    }
+
+    /// Run a checked repository change using the grant obtained from a browser sign-in.
+    #[must_use]
+    pub fn signed_in_change(seed: u64, files: &Files) -> Self {
+        let mut world = Self::changing(seed, files, Placement::InProcess, true);
+        world.scenario.scripts = Some(checked::scripts(false));
+        world.with_authentication(Authentication::SignIn);
         world
     }
+
+    /// Run the large coding write and deliver its checked change under the shipped profile.
+    #[must_use]
+    pub fn standard_coding_change(seed: u64, files: &Files) -> Self {
+        let mut world = Self::changing(seed, files, Placement::InProcess, true);
+        world.scenario.launch.standard_profile = true;
+        world.scenario.scripts = Some(checked::scripts(true));
+        world
+    }
+
+    /// Start a headless run in a writable repository whose HEAD lookup fails.
+    #[must_use]
+    pub fn without_head(seed: u64, files: &Files) -> Self {
+        let mut world = Self::changed(seed, files, Placement::InProcess);
+        world.scenario.launch.repository_name = Some("workspace".into());
+        world.scenario.launch.headless = true;
+        world.scenario.commands = vec![Action::Eof];
+        world.scenario.ending = Ending::UnreadableHead;
+        world.machine.as_mut().expect("unstarted world").head_unreadable = true;
+        world
+    }
+
+    /// Start a headless run with a timed record and the grant expected on its first query.
+    #[must_use]
+    pub fn with_refresh_window(
+        seed: u64,
+        files: &Files,
+        lead: Duration,
+        expires_at: Wall,
+        earliest_refresh_at: Option<Wall>,
+        held: &'static [u8],
+        expected: (&'static [u8], u64),
+    ) -> Self {
+        let mut world = Self::authenticated(
+            seed,
+            files,
+            Placement::InProcess,
+            if expected.1 == 1 { Authentication::Current } else { Authentication::Refresh },
+        );
+        world.scenario.launch.headless = true;
+        world.scenario.commands = vec![Action::Eof];
+        world.scenario.launch.refresh_lead_ms = Some(lead.as_millis());
+        world.scenario.first_query_grant = Some(expected);
+        let tokens = credential_fixture::Tokens::new(&world.scenario.launch.token_directory, token_limits())
+            .expect("private store");
+        let mut record = tokens.load(0).expect("fixture record").expect("held grant");
+        record.expires_at = expires_at;
+        record.earliest_refresh_at = earliest_refresh_at;
+        record.access_token = skein_lib::Secret::new(held.into());
+        tokens
+            .save(0, &skein_oauth::encode_record(&record, &token_limits()).expect("timed record"))
+            .expect("timed record kept");
+        world
+    }
+
+    /// The statuses sent by the fake issuer for this account's token exchanges.
+    #[must_use]
+    pub fn oauth_statuses(&self) -> Vec<u16> {
+        self.issuer()
+            .into_iter()
+            .flat_map(|issuer| issuer.peer().observations())
+            .filter_map(|event| match event {
+                skein_fake_peers::oauth::Observation::Answered { status, .. } => Some(*status),
+                _ => None,
+            })
+            .collect()
+    }
+
     /// Use the shared per-process construction, iteration and drop meter.
     pub fn check_memory(&mut self) {
         self.memory = Memory::Checked;
@@ -866,6 +975,8 @@ impl World {
             launch.keep_facts,
             self.scenario.expected_token_posts(),
         );
+        referee.observe_grant(self.scenario.expected_query_grant());
+        self.saved_before_query = referee.saved_before_query();
         if let Some(line) = &self.scenario.line_on_wait {
             referee.line_on_wait(line.clone());
         }
@@ -990,7 +1101,6 @@ impl World {
         self.commit_message = head.as_ref().map_or_else(Vec::new, |head| self.checkout.message(head));
         // The shared referee's observed values are retained by the peers.
         self.first_post = self.issuer().and_then(process::IssuerProcess::first_post);
-        self.saved_before_query = self.scenario.launch.authenticated && !self.queries().is_empty();
     }
     fn procs(&self) -> &[Proc] {
         &self.outcome.as_ref().expect("settled world").procs
@@ -1046,7 +1156,7 @@ impl World {
     }
     #[must_use]
     pub fn saved_before_query(&self) -> bool {
-        self.saved_before_query
+        self.saved_before_query.get()
     }
     #[must_use]
     pub fn shown(&self) -> &[u8] {
@@ -1081,7 +1191,7 @@ impl World {
     pub fn seen(&self) -> crate::referee::Seen {
         crate::referee::seen(
             self.procs(),
-            self.saved_before_query,
+            self.saved_before_query(),
             self.git_commands().iter().any(|args| args[0].as_ref() == b"push"),
         )
     }
@@ -1125,6 +1235,15 @@ impl Scenario {
         }
     }
 
+    /// Synthetic bearer and optional generation the referee should find at first use.
+    #[must_use]
+    pub fn expected_query_grant(&self) -> Option<(&'static [u8], Option<u64>)> {
+        self.launch.authenticated.then(|| {
+            self.first_query_grant
+                .map_or((b"access-new".as_slice(), None), |(bearer, generation)| (bearer, Some(generation)))
+        })
+    }
+
     /// Provider scripts and credentials are scenario data, shared across tiers.
     #[must_use]
     pub fn provider(&self) -> crate::llm::Peer {
@@ -1133,8 +1252,8 @@ impl Scenario {
         }
         let token = if self.launch.lending.is_some() {
             login_token(false)
-        } else if self.launch.authenticated {
-            b"access-new".as_slice().into()
+        } else if let Some((bearer, _)) = self.expected_query_grant() {
+            bearer.into()
         } else {
             b"token".as_slice().into()
         };
@@ -1235,16 +1354,6 @@ pub fn load_chat(path: &Path, endpoints: &smith_protocol_translate::Endpoints) -
 pub fn headless_provider(wait: bool, credential: skein_llm::Credential) -> crate::llm::Peer {
     smith_agent_process_world::fake::configured_openai(
         if wait { waiting_scripts() } else { scripts() },
-        credential,
-        Duration::ZERO,
-        skein_fake_peers::Transport::Tls,
-    )
-}
-
-/// The existing checked change script with the product story's synthetic grant.
-pub fn change_provider(credential: skein_llm::Credential) -> crate::llm::Peer {
-    smith_agent_process_world::fake::configured_openai(
-        tool_scripts(),
         credential,
         Duration::ZERO,
         skein_fake_peers::Transport::Tls,

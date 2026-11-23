@@ -25,7 +25,7 @@ mod agent_process;
 mod configuration;
 pub use agent_process::AgentProcess;
 
-use configuration::{Parsed, configuration_for_launch, specialize};
+use configuration::{Parsed, configuration_for_launch, launch_limits};
 pub use configuration::{
     agent_document, configuration, configuration_with, configuration_with_tools, lower_configuration,
     lower_configuration_with, prepared_accounts,
@@ -53,8 +53,17 @@ pub struct Launch {
     pub commands_path: Option<String>,
     pub trust_der: Option<PathBuf>,
     pub change: bool,
-    /// Include the real-loop tool and mandatory-check story.
+    /// Use the tool story with mandatory checks.
     pub tools: bool,
+    /// Derive coding limits from the shipped profile rather than the tiny fixture.
+    #[serde(default)]
+    pub standard_profile: bool,
+    /// The declared name of the repository when it differs from the fixture default.
+    #[serde(default)]
+    pub repository_name: Option<String>,
+    /// Override the standard account refresh lead, in milliseconds.
+    #[serde(default)]
+    pub refresh_lead_ms: Option<u64>,
     /// Keep the workspace but accept a report after reads.
     pub read_report: bool,
     /// Start one unattended run from the fixture's retained prompt.
@@ -588,7 +597,7 @@ pub fn make_local(spawn: &kernel::Spawn, inherited: &Inherited) -> Proc {
     });
     let (lower, spawned) =
         if launch.placement == crate::Placement::InProcess { (Some(lower), None) } else { (None, Some(lower)) };
-    let handed = lending_accounts(&launch, spawn, config.limits.process.io).unwrap_or_else(|| {
+    let mut handed = lending_accounts(&launch, spawn, config.limits.process.io).unwrap_or_else(|| {
         prepared_accounts(
             &launch.token_directory,
             launch.authenticated,
@@ -597,6 +606,9 @@ pub fn make_local(spawn: &kernel::Spawn, inherited: &Inherited) -> Proc {
             config.limits.process.io,
         )
     });
+    if let Some(lead) = launch.refresh_lead_ms {
+        handed.limits.refresh_lead = Duration::from_millis(lead);
+    }
     let mut local = Local::within_memory(
         config,
         lower,
@@ -718,7 +730,7 @@ pub fn make_agent(spawn: &kernel::Spawn, inherited: &Inherited) -> Proc {
     let (errors, capture) = smith_agent_process_world::AgentErrors::pipe(fd);
     let document = std::path::Path::new(std::ffi::OsStr::from_bytes(&spawn.args[0]));
     let parsed = smith_agent_shell::config::read(document).expect("generated child JSON");
-    let mut configuration = specialize(parsed.service);
+    let mut configuration = launch_limits(&launch, parsed.service);
     let trace = if launch.traced {
         configuration.limits.events = Some(
             smith_agent_service::event_limits(

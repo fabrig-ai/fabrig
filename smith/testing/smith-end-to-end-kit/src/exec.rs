@@ -93,21 +93,6 @@ pub fn chat_waiting(scratch: &Scratch, commands: Vec<Action>) -> Ran {
     .0
 }
 
-#[must_use]
-pub fn chat_signed_in(scratch: &Scratch, commands: Vec<Action>) -> Ran {
-    run_fixture(
-        scratch,
-        &[],
-        Options {
-            provider: Some(world::change_provider(credential(scratch))),
-            person: (Mode::Terminal, commands),
-            sign_in: true,
-            ..Options::default()
-        },
-    )
-    .0
-}
-
 fn credential(scratch: &Scratch) -> skein_llm::Credential {
     let login = std::fs::read(scratch.path().join("auth.json")).expect("scratch login");
     let document: serde_json::Value = serde_json::from_slice(&login).expect("scratch login document");
@@ -185,22 +170,6 @@ pub fn key_chat(scratch: &Scratch, commands: Vec<Action>) -> Ran {
     .0
 }
 
-/// Start the product in a scratch repository with no commit, retaining provider requests.
-#[must_use]
-pub fn exec_without_head(scratch: &Scratch) -> (Ran, Vec<skein_fake_llm_domain::api::Query>) {
-    drop(super::refusal_program_code(
-        std::path::Path::new("/usr/bin/git"),
-        scratch,
-        ["init", "-q"].into_iter().map(Into::into).collect(),
-        0,
-    ));
-    run_fixture(
-        scratch,
-        &["exec", "hello"],
-        Options { provider: Some(provider(scratch, Reply::Accepted)), ..Options::default() },
-    )
-}
-
 fn person(input: &[u8]) -> (Mode, Vec<Action>) {
     (Mode::Pipes, if input.is_empty() { vec![Action::Eof] } else { vec![Action::Send(input.into()), Action::Eof] })
 }
@@ -209,13 +178,12 @@ struct Options {
     provider: Option<skein_fake_peers::llm::Peer>,
     foreign: bool,
     person: (Mode, Vec<Action>),
-    sign_in: bool,
     watching: window::Story,
 }
 
 impl Default for Options {
     fn default() -> Self {
-        Self { provider: None, foreign: false, person: person(b""), sign_in: false, watching: window::Story::None }
+        Self { provider: None, foreign: false, person: person(b""), watching: window::Story::None }
     }
 }
 
@@ -224,7 +192,7 @@ fn run_fixture(
     arguments: &[&str],
     options: Options,
 ) -> (Ran, Vec<skein_fake_llm_domain::api::Query>) {
-    let Options { provider, foreign, person, sign_in, watching } = options;
+    let Options { provider, foreign, person, watching } = options;
     assert_no_children();
     let mut command_arguments: Vec<std::ffi::OsString> = arguments.iter().map(std::ffi::OsString::from).collect();
     let smith = skein_scratch::paths::binary("smith");
@@ -276,7 +244,7 @@ fn run_fixture(
                 .windows(2)
                 .find(|pair| pair.first().is_some_and(|flag| *flag == "--trace"))
                 .map(|pair| (scratch.path().join(pair.get(1).expect("trace path")), false)),
-            ..Settling::new(now, now.saturating_add(watching.budget(sign_in)))
+            ..Settling::new(now, now.saturating_add(watching.budget()))
         },
         watching,
         master,
@@ -293,20 +261,10 @@ fn run_fixture(
     if let Some(peer) = provider {
         world.spawn_with_fds(smith_real_world::listener_fds(34_443), || Process::Script(Proc::Peer(Box::new(peer))));
     }
-    if sign_in {
-        world.spawn_with_fds(smith_real_world::listener_fds(34_444), || {
-            Process::Script(Proc::Issuer(Box::new(smith_local_process_world::process::IssuerProcess::with_token(
-                skein_fake_peers::Transport::Plaintext,
-                34_444,
-                credential(scratch).value,
-            ))))
-        });
-        world.spawn(|| Process::Script(Proc::Browser(Box::default())));
-    }
     let outcome = world.run(
         &clock,
         match watching {
-            window::Story::ProgramRun | window::Story::ProgramCheck => watching.budget(sign_in),
+            window::Story::ProgramRun | window::Story::ProgramCheck => watching.budget(),
             window::Story::None | window::Story::Modes | window::Story::Resize => window::WORLD_PATIENCE,
         },
     );

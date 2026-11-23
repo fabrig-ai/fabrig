@@ -13,7 +13,11 @@ pub fn lower_configuration() -> agent::Config {
     lower_configuration_with(false)
 }
 
-pub(super) fn specialize(mut lower: agent::Config) -> agent::Config {
+pub(super) fn launch_limits(launch: &Launch, lower: agent::Config) -> agent::Config {
+    if launch.standard_profile { lower } else { specialize(lower) }
+}
+
+fn specialize(mut lower: agent::Config) -> agent::Config {
     let fixture = smith_agent_process_world::limits();
     lower.limits.llm.connection.endpoints = fixture.llm.connection.endpoints;
     lower.limits.llm.connection.connections = fixture.llm.connection.connections;
@@ -83,7 +87,14 @@ pub(super) fn configuration_for_launch(
     let configured = smith_agent_shell::config::from_value(document).expect("generated fixture JSON");
     let parsed =
         Parsed { memory: configured.memory, profile: configured.profile, declarations: configured.declarations };
-    let (mut local, lower) = configuration_for(root, launch.change, launch.tools, specialize(configured.service));
+    let (mut local, lower) =
+        configuration_for(root, launch.change, launch.tools, launch_limits(launch, configured.service));
+    if launch.standard_profile {
+        local.local.models[0].output = smith_agent_process_world::CODING_OUTPUT;
+    }
+    if let Some(name) = &launch.repository_name {
+        local.local.workspace.as_mut().expect("named repository").directories[0].name = name.as_bytes().into();
+    }
     if launch.lending == Some(crate::world::Lending::Key) {
         for model in &mut local.local.models {
             model.dialect = 2;
@@ -343,6 +354,9 @@ fn fixture_launch(tls: bool) -> Launch {
             .then(|| PathBuf::from(concat!(env!("CARGO_MANIFEST_DIR"), "/../protocol-llm/fixtures/root.der"))),
         change: false,
         tools: false,
+        standard_profile: false,
+        repository_name: None,
+        refresh_lead_ms: None,
         read_report: false,
         headless: false,
         interactive: false,
@@ -363,10 +377,12 @@ fn fixture_launch(tls: bool) -> Launch {
 /// Generated agent JSON from the shared tiny declarations, with the spawned trace suffix.
 #[must_use]
 pub fn agent_document(launch: &Launch) -> serde_json::Value {
-    let profile = smith_agent_process_world::profile();
+    let profile =
+        if launch.standard_profile { agent::profile::standard() } else { smith_agent_process_world::profile() };
     let declared = profile.declared;
     let policy = profile.policy;
-    let limits = serde_json::json!({"window":1_048_576,"output":512,"reasoning_item":64,
+    let output = if launch.standard_profile { smith_agent_process_world::CODING_OUTPUT } else { 512 };
+    let limits = serde_json::json!({"window":1_048_576,"output":output,"reasoning_item":64,
         "head":10000,"idle":30000});
     let mut endpoint = serde_json::json!({"name":if launch.choices {"main"} else {"fake"},"number":0,"dialect":3,
         "provider":"openai","connect":1000,"handshake":1000,"limits":limits,

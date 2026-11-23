@@ -170,7 +170,7 @@ fn a_sign_in_address_waits_for_its_whole_piped_line() {
 #[test]
 fn resize_referee_uses_world_patience() {
     let now = Time::ZERO;
-    let referee = Settling::new(now, now.saturating_add(Story::Resize.budget(false)));
+    let referee = Settling::new(now, now.saturating_add(Story::Resize.budget()));
     assert_eq!(referee.overdue(now.saturating_add(Duration::from_millis(1118))), None);
     let deadline = now.saturating_add(WORLD_PATIENCE);
     assert_eq!(referee.next_deadline(), Some(deadline));
@@ -180,6 +180,6 @@ fn resize_referee_uses_world_patience() {
 #[test]
 fn program_stories_allow_thirty_seconds_total() {
     for story in [Story::ProgramRun, Story::ProgramCheck] {
-        assert_eq!(story.budget(false), Duration::from_secs(30));
+        assert_eq!(story.budget(), Duration::from_secs(30));
     }
 }

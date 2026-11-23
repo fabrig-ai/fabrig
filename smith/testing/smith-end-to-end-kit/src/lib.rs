@@ -281,8 +281,7 @@ fn check_fixture_access(directory: &Path) -> Result<Box<[u8]>, String> {
         .into())
 }
 
-#[must_use]
-pub fn settings(scratch: &Scratch, scenario: &Scenario) -> Box<[u8]> {
+fn settings(scratch: &Scratch, scenario: &Scenario) -> Box<[u8]> {
     let token = smith_local_process_world::world::login_at(Clock::new().now().wall, false);
     let login =
         serde_json::json!({"tokens":{"access_token":std::str::from_utf8(&token).expect("synthetic token text")}});
@@ -325,18 +324,10 @@ pub fn settings(scratch: &Scratch, scenario: &Scenario) -> Box<[u8]> {
 }
 
 #[must_use]
-pub fn run(scratch: &Scratch, scenario: Scenario) -> Seen {
-    run_with_provider(scratch, scenario, None)
-}
-
-pub fn run_with_provider(
-    scratch: &Scratch,
-    mut scenario: Scenario,
-    provider: Option<skein_fake_peers::llm::Peer>,
-) -> Seen {
+pub fn run(scratch: &Scratch, mut scenario: Scenario) -> Seen {
     assert_no_children();
     scenario.launch.tls = true;
-    let token = if provider.is_some() { fixture_access(scratch.path()) } else { settings(scratch, &scenario) };
+    let token = settings(scratch, &scenario);
     let path = trace_path(scratch.path());
     let old_trace = std::fs::read(&path).unwrap_or_default();
     let before = Before::new(scratch.path());
@@ -364,9 +355,7 @@ pub fn run_with_provider(
         Process::Script(Proc::Terminal(Box::new(Terminal::attached(stream, scenario.commands.clone()))))
     });
     world.spawn_with_fds(smith_real_world::listener_fds(34_443), || {
-        Process::Script(Proc::Peer(Box::new(
-            provider.unwrap_or_else(|| scenario.provider_with(skein_llm::Credential::bearer(token.clone()))),
-        )))
+        Process::Script(Proc::Peer(Box::new(scenario.provider_with(skein_llm::Credential::bearer(token.clone())))))
     });
     if scenario.launch.authenticated {
         world.spawn_with_fds(smith_real_world::listener_fds(34_444), || {
@@ -777,9 +766,8 @@ pub fn smith_with_environment(
 
 mod exec;
 pub use exec::{
-    Reply, chat_modes, chat_resized, chat_signed_in, chat_waiting, exec_with_foreign_file, exec_with_provider,
-    exec_without_head, fake_provider_settings, key_chat, program_chat, program_interrupt, run as run_product,
-    run_scripted as run_product_scripted,
+    Reply, chat_modes, chat_resized, chat_waiting, exec_with_foreign_file, exec_with_provider, fake_provider_settings,
+    key_chat, program_chat, program_interrupt, run as run_product, run_scripted as run_product_scripted,
 };
 
 pub mod login;

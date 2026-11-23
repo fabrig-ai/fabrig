@@ -192,15 +192,15 @@ impl Referee<Process> for Judge {
 }
 
 impl Story {
-    /// The settlement patience for this story and sign-in path.
+    /// The settlement patience for this story.
     #[must_use]
-    pub fn budget(self, sign_in: bool) -> Duration {
+    pub fn budget(self) -> Duration {
         match self {
             // Widths are this story's subject, so its referee uses the world's
             // patience (skein/docs/foundation/testing-strategy.md, 2.9).
             Self::Resize => WORLD_PATIENCE,
             Self::ProgramRun | Self::ProgramCheck => Duration::from_secs(30),
-            Self::None | Self::Modes => Duration::from_secs(if sign_in { 5 } else { 1 }),
+            Self::None | Self::Modes => Duration::from_secs(1),
         }
     }
 }

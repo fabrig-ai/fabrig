@@ -418,7 +418,9 @@ pub fn charter() -> Box<[u8]> {
     })
 }
 
-pub use world::{Order, OrderSnapshot, TraceCase, World, long_child_answer};
+pub use world::{
+    CODING_LINES, CODING_OUTPUT, Order, OrderSnapshot, TraceCase, World, large_coding_write, long_child_answer,
+};
 
 /// Panics on the direct provider stream's first conformance finding.
 pub fn assert_event_conformance(records: &[smith_events::Record]) {
