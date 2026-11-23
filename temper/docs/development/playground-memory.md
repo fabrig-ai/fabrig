@@ -286,7 +286,7 @@ so the memory test remains ignored and its high water is not yet bound
 (`temper/docs/design/playground.status.md`, 9).
 Measuring that figure needs a skein mechanism for a service world's observer
 to keep its storage outside the process's span first
-(`skein/docs/design/testing/README.md`, 5).
+(`skein/docs/design/testing/service-tiers.md`, 1).
 
 Measured 2026-11-12 (`date -u +%F`), on a builder, on branch
 `temper6684/c748`. R2's stock charters' prompts/settings and the expanded

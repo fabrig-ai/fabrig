@@ -1,4 +1,4 @@
-//! Forge component boundary (forge/connection.md, sections 2, 3.5, 7 and 8).
+//! Forge component boundary (forge/connection.md, sections 2 and 3.5, and forge/connection-machines.md, sections 1 and 2).
 use crate::Access;
 use alloc::boxed::Box;
 use skein_forge::api;
@@ -11,7 +11,7 @@ pub struct Account {
     pub login: Box<[u8]>,
 }
 
-/// An installation lifecycle change (forge/connection.md, 4.4).
+/// An installation lifecycle change (forge/connection-calls.md, 1.4).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Change {
     Created,
@@ -22,7 +22,7 @@ pub enum Change {
     /// A retained installation's repository selection changed (4.4).
     Repositories,
 }
-/// A diagnostic for the owner's log (forge/connection.md, 4.4).
+/// A diagnostic for the owner's log (forge/connection-calls.md, 1.4).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Fact {
     /// An unconfigured job log origin, once per remembered origin per connect.
@@ -49,7 +49,7 @@ pub struct Answered {
     /// its rate does not count them. Zero until a call's read takes a validator.
     pub free: u32,
     /// The latest window reported by an answer of the call, per installation on
-    /// GitHub. None when no answer reported one (forge/connection.md, 4.1).
+    /// GitHub. None when no answer reported one (forge/connection-calls.md, 1.1).
     pub rate: Option<api::Rate>,
     pub result: Result<api::Answer, api::Error>,
 }
@@ -69,7 +69,7 @@ pub enum Request {
     /// A replacement suppresses the old generation's remaining events.
     /// A forge not configured, or a Request after Close, is ignored.
     Connect { forge: u16, access: Access },
-    /// Replaces the bounded set of accepted installations (forge/connection.md, 4.4).
+    /// Replaces the bounded set of accepted installations (forge/connection-calls.md, 1.4).
     Installations { forge: u16, accepted: Box<[u64]> },
     /// The root's `Request::Forge`: one `Event::Answered`; while ending, `Unavailable` at no cost.
     Call { call: Token, repository: api::Repository, op: api::Op },
@@ -119,7 +119,7 @@ pub enum Event {
     Closed,
 }
 
-/// Why a forge's access was refused (forge/connection.md, 3.5 and 8.3).
+/// Why a forge's access was refused (forge/connection.md, 3.5, and forge/connection-machines.md, 2.3).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Stopped {
     /// A connect's access refused before any io, naming the value.

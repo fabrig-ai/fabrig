@@ -123,7 +123,7 @@ pub(super) fn proposals(kept: &Text, current: &Text, confirmed: &[Rename], first
 }
 
 /// Compares wire layouts with the current header at the kept version, including
-/// `versioned` records (data/codec/command.md, 2; data/codec/README.md, 9.1).
+/// `versioned` records (data/codec/command.md, 2; data/codec/fingerprints.md, 1.1).
 pub(super) fn layout_changed(kept: &Text, current: &Text) -> Result<bool, Error> {
     let parsed = schema(current)?;
     let after_family = usize::try_from(parsed.family().end).expect("schema text ceiling");

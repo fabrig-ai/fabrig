@@ -285,8 +285,8 @@ upgraded by the registry's commit and the jobs alone (temper's
    - **Linked:** `A`'s `snapshot` and each of its log segments but the
      newest (`log-<20 digits>`, the newest the one whose number is
      largest), each given a second name in `A + 1`'s `store/` by io's
-     `HardLink` (skein's `runtime/io/files.md`; `runtime/kernel.md`,
-     6.4). The newest is found over every page of `A`'s `store/`
+     `HardLink` (skein's `runtime/io/files.md`; `skein/docs/design/runtime/kernel-files.md`,
+     2). The newest is found over every page of `A`'s `store/`
      before the first link is made. So is each task log in `A`'s
      `store/logs/`: `logs/` and each directory in it made in `A + 1`'s
      `store/`, each log file linked there, and each such directory
@@ -306,8 +306,8 @@ upgraded by the registry's commit and the jobs alone (temper's
      system without hard links upgrades as before, its maps twice on
      disk. Any other failure is a file's fault, as a copy's is.
    - Then `A + 1`'s `store/` and `secrets/` are synced, which makes
-     their links and new names durable (skein's `runtime/kernel.md`,
-     6.4), then `generations/`. This document calls `A + 1` the copy,
+     their links and new names durable (skein's `runtime/kernel-files.md`,
+     2), then `generations/`. This document calls `A + 1` the copy,
      however its files were made.
 3. **Open the copy:** both its stores recovered, and its format row,
    layouts and header read and checked at the copy's own levels, as
@@ -634,7 +634,7 @@ partial one removed, or the new.
 - **A cut per write, sync, link and rename,** each run from its own start in
   the store's world (`README.md`, section 9), not their product. A link
   is kept past a cut once its directory is synced, as a new file's name
-  is (skein's `runtime/kernel.md`, 6.4).
+  is (skein's `runtime/kernel-files.md`, 2).
 - **No `active` names a generation before it is whole:** its maps,
   their directories and its manifest are synced before the rename that
   names it, and nothing writes a generation once a later one is

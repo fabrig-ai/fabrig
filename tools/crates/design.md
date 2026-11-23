@@ -127,7 +127,7 @@ shared within the test that reads the tree.
   stays the one-tree form, which `sizes.rs` reads, one tree per library.
 - **Tracked sources:** `skein_worlds.rs` lists the tracked Rust sources once, with `git ls-files`,
   and reads each once; its seam, `#[path]` and ignored-exclusion-scenario rules take their text
-  from that read, and a source any rule parses is parsed once (`skein/docs/design/testing/README.md`, 6;
+  from that read, and a source any rule parses is parsed once (`skein/docs/design/testing/layout.md`, 1;
   `skein/docs/design/testing/sweeps.md`, 5).
 - **Its count:** each walk counts what it read, and parsed where it parses, and the check's test
   prints the count, as `cli_names.rs` prints the files it read: a fixture pins that a shared source
@@ -201,8 +201,8 @@ covers no finding fails the check.
   public function of the kit that holds its body. A helper that sat under `cfg(test)`, which a
   dependency is never built with, becomes plain public code.
 - **A world's own library,** when the code drives that world alone and adds no dependency to the
-  library, as skein's layout has it for a world's binaries (`skein/docs/design/testing/README.md`,
-  6).
+  library, as skein's layout has it for a world's binaries (`skein/docs/design/testing/layout.md`,
+  1).
 - **The binaries keep their paths.** A binary that declared `mod support;` names the kit with
   `use <kit> as support;`, so its own code reads unchanged. What the binaries reached through their
   parent module becomes the kit's public interface.
@@ -266,7 +266,7 @@ into its suite, or keeps one copy alone.
 - **`skein-browser-rig`,** the library `skein_browser_rig`: real Chromium in one service loop with a
   `skein-http` page server, today's `tests/support/real.rs` and `real/`, and the pages the world's
   tests serve, today's `src/pages.rs`. `skein-browser-world` takes it as a dev-dependency. It
-  depends on no package under `skein/tests/` (`skein/docs/design/testing/README.md`, 6).
+  depends on no package under `skein/tests/` (`skein/docs/design/testing/layout.md`, 1).
 - **`jig-test-kit`,** the library `jig_test_kit`: the reference binary's stories' rig, the binary, its
   native person and the provider on skein's real ring, today's `tests/support/mod.rs`, `ports.rs`
   and `trace.rs`. The sign-in visitor is `jig-protocol-accounts-kit`'s `visitor` module, which the
@@ -332,7 +332,7 @@ section 1). The other eight are G3's, one codec crate each, its owner's `-codec`
   where it named it before: a public one is re-exported at the same path (`skein_oauth::v3`), so
   callers keep their paths.
 - **The drift test** reads the schema in the owner and the code in the codec crate, and writes the
-  code where it reads it (skein's `data/codec/README.md`, section 6).
+  code where it reads it (skein's `data/codec/golden.md`, section 1).
 
 The check reads section 2.2's classification of files as the size check does, so the two agree on
 what generated record code is.
@@ -461,8 +461,8 @@ can't call a build script's code.
 7, milestone C1 of its execution file, and `temper/docs/design/draft/codec-shape.md`, 5.3. Generated
 record code holds no tests, the generator writing none, and a codec crate's library builds no test
 target when it holds no other tests, so that a test build compiles its generated code once (skein's
-`data/codec/README.md`, section 6). The check reads `cargo metadata` and the sources, as the other checks do, and builds nothing. For each
-package holding generated record code (section 2.2), its findings:
+`data/codec/golden.md`, section 1). The check reads `cargo metadata` and the sources, as the other checks do, and builds nothing. For each
+package holding generated record code (`design.md`, section 2.2), its findings:
 
 - **A test module in generated record code:** a generated record file whose text holds `cfg(test)`
   or `#[test]` outside comments and literals, read by section 2.1's scan. The finding names the

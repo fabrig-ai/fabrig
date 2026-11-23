@@ -1,0 +1,31 @@
+# A split pass (temper/docs/design/draft/design-upkeep.md, 4.3), at 22479eea55.
+# skein/docs/design/forge/connection.md: 65,519 bytes. Calls, webhooks and machines get their own pages; startup, credentials and the owner's contract stay.
+title skein/docs/design/forge/connection-calls.md: The forge component: calls, repositories and users
+title skein/docs/design/forge/connection-webhooks.md: The forge component: the webhooks' listener
+title skein/docs/design/forge/connection-machines.md: The forge component: entities, limits and state machines
+skein/docs/design/forge/connection.md 4 -> skein/docs/design/forge/connection-calls.md 1
+skein/docs/design/forge/connection.md 6 -> skein/docs/design/forge/connection-webhooks.md 1
+skein/docs/design/forge/connection.md 7 -> skein/docs/design/forge/connection-machines.md 1
+skein/docs/design/forge/connection.md 8 -> skein/docs/design/forge/connection-machines.md 2
+
+# skein/docs/design/forge/github.md: 65,453 bytes. Operations and App documents get their own pages; the dialect overview, deliveries and conformance facts stay.
+title skein/docs/design/forge/github-operations.md: GitHub's dialect: operations, merges and protection
+title skein/docs/design/forge/github-app.md: GitHub's dialect: the App and setup documents
+skein/docs/design/forge/github.md 4 -> skein/docs/design/forge/github-operations.md 1
+skein/docs/design/forge/github.md 5 -> skein/docs/design/forge/github-operations.md 2
+skein/docs/design/forge/github.md 8 -> skein/docs/design/forge/github-app.md 1
+skein/docs/design/forge/github.md 11 -> skein/docs/design/forge/github-app.md 2
+
+# skein/docs/design/forge/README.md: 64,279 bytes. The vocabulary and dialects get their own pages; the kit overview, markers, deliveries and credentials stay.
+title skein/docs/design/forge/vocabulary.md: The forge kit: the vocabulary
+title skein/docs/design/forge/dialects.md: The forge kit: dialects and their call plans
+skein/docs/design/forge/README.md 3 -> skein/docs/design/forge/vocabulary.md 1
+skein/docs/design/forge/README.md 4 -> skein/docs/design/forge/dialects.md 1
+
+# skein/docs/design/forge/forgejo.md: 56,735 bytes. Operations get their own page; conventions, decoding, failures and conformance facts stay.
+title skein/docs/design/forge/forgejo-operations.md: Forgejo, as the kit uses it: operations
+skein/docs/design/forge/forgejo.md 1.2 -> skein/docs/design/forge/forgejo-operations.md 1
+
+# skein/docs/design/forge/client.md: 51,730 bytes. Write effects get their own page; the working set, reads, budget and restart stay.
+title skein/docs/design/forge/client-effects.md: The forge client: effects, keys, write lanes and recovery
+skein/docs/design/forge/client.md 7 -> skein/docs/design/forge/client-effects.md 1

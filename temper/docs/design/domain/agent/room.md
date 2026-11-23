@@ -55,7 +55,7 @@ both the encoded charter, including framing, and its decoded ownership.
   engine fills from its records, and that a codec checks as UTF-8, text
   before it fits the brief: each byte that is not part of a UTF-8
   character becomes `?` (skein's `bytes::utf8_replaced`,
-  `runtime/lib.md`, 6), the length kept, so every bound the field met
+  `skein/docs/design/runtime/lib-bytes.md`, 1), the length kept, so every bound the field met
   still holds and the fit below cuts whole characters. UTF-8 is sent
   unchanged, and a field a codec carries as bytes is left as it is. The
   transcript tail keeps its own cut first (`text_tail`), and a source
@@ -65,7 +65,7 @@ both the encoded charter, including framing, and its decoded ownership.
   way a repository's or a tool's bytes reach a field: a CI log, a
   configured document, a dependency's result, a message. No field's
   bytes make an assignment unsendable as not UTF-8, and no refusal of
-  section 3 names a reason `not UTF-8` for a field this covers.
+  `room.md`, section 3 names a reason `not UTF-8` for a field this covers.
 - **The worker fits again.** The worker service also fits the brief after
   the workspace is prepared and before encoding the start, using the
   receiving run's limits and measured schema costs. It fits both rendered

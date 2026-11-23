@@ -106,7 +106,7 @@ record Paused { state: PauseState }
 Focused, in the worlds that own each side:
 
 - **The wire:** generated records' drift, as
-  skein's `data/codec/README.md`, section 6 has it; the patch's goldens
+  skein's `data/codec/golden.md`, section 1 has it; the patch's goldens
   up and down, both variants refused below 19; `KINDS` against the
   schema (`wires.md`, 7).
 - **The worker's link:** a `pause` of each mode handed up as

@@ -9,6 +9,10 @@ the generated code shares, and reads schemas and their records at run
 time. Codecs carry the bodies of a framed channel (../../net/channel.md), and
 records kept in files or stores.
 
+- [`golden.md`](golden.md): golden bytes and tests.
+- [`run-time.md`](run-time.md): run-time schemas and generic values.
+- [`fingerprints.md`](fingerprints.md): family and value-type fingerprints.
+
 ## 1. In one page
 
 - **The schema is the specification.** A small file per family and version
@@ -22,7 +26,7 @@ records kept in files or stores.
   - measured encoding;
   - bounded decoding with typed problems;
   - each record's encoded and decoded bounds, from a table;
-  - for tests, each record's fixed-rule values (section 6).
+  - for tests, each record's fixed-rule values (`golden.md`, section 1).
 - **The subset's Rust, calling generic helpers** (../../../foundation/programming-model.md,
   section 10): each declaration implements `skein-codec`'s `Record`,
   one helper call per field. The helpers are `skein-codec`'s, under
@@ -30,7 +34,7 @@ records kept in files or stores.
   code defines no generic item, closure or macro. The output is kept in
   the consumer's repository. A test fails when the code and the schema
   drift.
-- **One pin on the bytes** (section 6). The `every` fixture uses every
+- **One pin on the bytes** (`golden.md`, section 1). The `every` fixture uses every
   construct of the language, and its golden files pin the encoding for
   every family, whose tests build their values from their schemas.
 - **Sized** (../../../foundation/programming-model.md, section 8). Every length comes before
@@ -52,16 +56,16 @@ records kept in files or stores.
   field or variant the names it had, so that a layout converts to the
   next with no text beside the schema.
 - **Read at run time too.** `skein-codec` reads a schema's text as step
-  code (section 7), and decodes the bytes of any of its records into a
+  code (`run-time.md`, section 1), and decodes the bytes of any of its records into a
   generic value, an index over those bytes, with the generated code's
-  checks (section 8). The generator reads schemas through the same
+  checks (`run-time.md`, section 2). The generator reads schemas through the same
   parser, so there is one language.
 - **Upgrades by patches, or by plans at read.** A layout's fingerprint
-  (section 9), a diff of two versions into the kinds of change
+  (`fingerprints.md`, section 1), a diff of two versions into the kinds of change
   (`diff.md`), patches over generic values, run at run time without
   generated code for old versions (`patches.md`), and the command that
   writes them, whose check a gate calls (`command.md`); for a registered
-  family, a value type's layout fingerprint (9.4) and a derived plan from
+  family, a value type's layout fingerprint (`fingerprints.md`, 1.4) and a derived plan from
   one layout to another, a pass over a value's bytes run as it is read
   (`layouts.md`).
 
@@ -80,8 +84,8 @@ records kept in files or stores.
   - writing a piece of items and splitting one (section 3).
 
   And, as step code, what reads schemas and records at run time:
-  - `schema`: the parser and the layout checks (section 7);
-  - `value`: generic values (section 8);
+  - `schema`: the parser and the layout checks (`run-time.md`, section 1);
+  - `value`: generic values (`run-time.md`, section 2);
   - `patch`: patches and the machine that runs them (`patches.md`);
   - `layout`: derived plans from one layout of a value type to another,
     and their pass over a value's bytes (`layouts.md`);
@@ -91,7 +95,7 @@ records kept in files or stores.
   diff (`diff.md`), the command (`command.md`) and the translation from
   maps files (`maps.md`). Ordinary Rust, not
   step code. It reads schemas through `skein-codec`'s parser and adds
-  the checks only Rust needs (`README.md`, section 7). A consumer depends on it in its
+  the checks only Rust needs (`run-time.md`, section 1). A consumer depends on it in its
   tests and tools only.
 - **A consumer's codec crate** holds a family's generated record code,
   `src/generated/<stem>.rs` (section 4), and depends
@@ -99,7 +103,7 @@ records kept in files or stores.
   `skein-codegen` among them. The family's **owner**, the crate that
   keeps it, holds the rest: its schemas, kept texts and patches where
   the family uses them (`command.md`, 1), its generated glue, its drift
-  test (section 6), and the translation between its records and a
+  test (`golden.md`, section 1), and the translation between its records and a
   domain, with the domain's crates as its dependencies. So the generated
   code compiles beside the domains rather than after them, and only a
   change of schema recompiles it (temper's `draft/crate-graph.md`, 4.1).
@@ -182,14 +186,14 @@ enum Form {
   their layout lacks (`layouts.md`, 2), written after the type:
   `infrastructure: u32 = 0`. An `option` without one defaults to none.
   Its forms are a patch's values (`patches.md`, 2), each checked against
-  the field's type and encoded once, as the text is read (7.3): a
+  the field's type and encoded once, as the text is read (`run-time.md`, 1.3): a
   decimal word for an integer or a duration's nanoseconds, `true` or
   `false`, `0x` and hex for `fixed` and `bytes`, a quoted text, `[]`,
   `none` or `some` and a value, a variant without a record by its name.
   A record, a variant with one, a `secret` and a `bytes` that holds a
   record take none: a field of those an older layout lacks is a written
   change (`layouts.md`, 2). A default changes neither the bytes, the
-  generated code, the golden bytes nor any fingerprint (section 9): it
+  generated code, the golden bytes nor any fingerprint (`fingerprints.md`, section 1): it
   speaks only to a layout without its field.
 - **Former names:** a declaration, a field or a variant may name what it
   was called, `was` and one or more names after its own:
@@ -206,12 +210,12 @@ enum Form {
 - **A variant marked `boxed`** (`report: boxed Report`) holds its record
   in a `Box`, and its bytes are the record's as they would be. Its owner
   marks a variant whose record is much larger than its siblings', where
-  the workspace's lints report it (section 6): only the compiler knows a
-  type's size (section 4), so the generator never guesses one, and every
+  the workspace's lints report it (`golden.md`, section 1): only the compiler knows a
+  type's size (`README.md`, section 4), so the generator never guesses one, and every
   other variant's record stays inline, costing no allocation. Like
   `secret`, the word changes the Rust type and not the bytes, so marking
   a variant or unmarking it moves no golden bytes and no version
-  (section 5).
+  (`README.md`, section 5).
 - **A sum crosses as one piece.** A schema bounds each field and each
   count, so a list's worst case is its count times its item's, and lists
   of items that hold lists multiply. Where an owner bounds a collection
@@ -249,7 +253,7 @@ enum Form {
   them.
 - **A credential is a `secret N`,** never `bytes N`: a token, a key, a
   secret, a grant's value. Its bytes cross as `bytes N` would; its type,
-  lib's `Secret` (../../runtime/lib.md, section 6), shows only its length in `Debug`, so
+  lib's `Secret` (../../runtime/lib-bytes.md, section 1), shows only its length in `Debug`, so
   a record that holds one is printed, logged or traced without it. Its
   owner reads the bytes with `expose`, to use or send them.
 
@@ -273,8 +277,8 @@ For each family:
 - **Its limits by name.** `LIMIT_NAMES: &[&str]`, each limit's field
   name in the struct's order, and `Limits::values(&self)`, their values
   in the same order, read as a `&[u32]`, so that a kept version's bounds can be
-  computed at run time with these limits (7.3, `most_bytes_within`). A
-  limit's name is the rule's `schema::limit_name` gives (7.3), the one
+  computed at run time with these limits (`run-time.md`, 1.3, `most_bytes_within`). A
+  limit's name is the rule's `schema::limit_name` gives (`run-time.md`, 1.3), the one
   the generator names the field by.
 - **Its paths, as data.** A path is a declaration and a part of it, each
   by its position in the schema: a record's fields, its version and its
@@ -370,11 +374,11 @@ of `Record` or `Field` in any file but `skein-codec`'s and a generated
 one.
 
 `generate(schema)` writes one schema version's records' module, and
-nothing else: no tests (section 6). The module holds no bound
+nothing else: no tests (`golden.md`, section 1). The module holds no bound
 arithmetic and no split function: a function of one line per field or
-limit too long for the lint carries section 6's expectation. What tests
+limit too long for the lint carries `golden.md`, section 1's expectation. What tests
 take from the generator, its fixed-rule values and the constructs a
-text uses, is section 6's.
+text uses, is `golden.md`, section 1's.
 
 - **Its file:** `src/generated/<stem>.rs`, in the crate that holds the
   family's records. `<stem>` is the family's current schema file's name
@@ -424,7 +428,7 @@ pub fn generate(schema: &Schema) -> Output;
   run, its version moves whenever its layout does, an old value
   surviving or not, so that two builds that name one version lay it out
   alike and a peer can be judged by its version and its fingerprint
-  (section 9) before anything else crosses (`command.md`, 2, the wire
+  (`fingerprints.md`, section 1) before anything else crosses (`command.md`, 2, the wire
   rule).
 - **A patch moves its family's version:** a new schema, whose generated
   code replaces the old (`command.md`, 2). There is one generated
@@ -434,7 +438,7 @@ pub fn generate(schema: &Schema) -> Output;
   *another version*. Its generated code reads the current version only.
 - **A patched family keeps its versions, from the baseline on.** Its
   owner keeps each version's schema as text, and a kept record
-  of an older version is read as a generic value (section 8) and patched
+  of an older version is read as a generic value (`run-time.md`, section 2) and patched
   to the current version (`patches.md`) before the generated code reads
   it. A version then names one layout. Until the baseline, nothing is
   translated. What a channel's sides speak across two builds is agreed
@@ -446,7 +450,7 @@ pub fn generate(schema: &Schema) -> Output;
   value's layout and converts it as it is read (jig's
   `protocol/store/layouts.md`): its crate keeps no texts or patches for
   older layouts. A change of its layout is a new layout of each value
-  type it reaches (9.4), derived by a plan (`layouts.md`) or converted
+  type it reaches (`fingerprints.md`, 1.4), derived by a plan (`layouts.md`) or converted
   by its owner's written job. The registry holds the layouts and texts
   values may still use. Its generated code reads and writes its version
   at a value's head, as any family's; the store maps that head to and
@@ -460,672 +464,26 @@ pub fn generate(schema: &Schema) -> Output;
 - **A writer writes its current version only.**
 - **On a channel,** the agreed version picks the code for its bodies
   (../../net/channel.md, section 5.2). Bodies carry no version of their own.
-- **No family keeps golden files** but the `every` fixture (section 6).
+- **No family keeps golden files** but the `every` fixture (`golden.md`, section 1).
   A patched family's kept versions are represented by its texts and
   patch goldens (`command.md`, 3), and a test of an older version builds
   that version's values from its kept text.
 
 ## 6. Golden bytes and tests
 
-- **One pin on the bytes.** A record's bytes are its fields' bytes in
-  schema order, and a field's bytes follow from its kind alone, never
-  from the family it is in. So one schema that uses every construct of
-  the language (below), nested, pins every family's bytes, and each
-  family's drift test proves that its committed code is the generator's
-  output. That schema is skein's `every` fixture (`skein/tests/codec`):
-  its current version holds every construct, and its earlier versions
-  stay for the patch story (`patches.md`, 8). Its golden files and the
-  `every` and `secrets` digest literals (9.3) pin the bytes and fingerprints: a generator or `skein-codec`
-  change that moves either fails there.
-- **Fixed-rule values,** so the generator can change without moving
-  them. For each record, and each variant of each enumeration, there are
-  two:
-  - **the smallest:** integers zero, bytes, text and lists empty, options
-    absent, each enumeration at its first variant;
-  - **a full one:** integers at their maximum, `fixed` bytes `0xa5`,
-    bytes and text a pattern of up to three bytes, each list with one
-    full item, options present.
-
-  They are named `record_<record>_<smallest|full>.bin` and
-  `enum_<enum>_<variant>_<smallest|full>.bin`. Their bytes come
-  from the schema alone, not the generated code, so
-  `every`'s golden files are the rule written down, and any test builds
-  a schema's values at run time from its text, a kept text's as a
-  current one's.
-- **`every`'s own tests:** its drift test compares its records' modules
-  and its golden files with the generator's output, and each golden
-  decodes by the generated code at the ceilings, measures its length,
-  encodes back to its bytes, and decodes generically to the same bytes
-  (8.3).
-- **The constructs,** the list the pin holds:
-  - each kind (`u8`, `u16`, `u32`, `u64`, `bool`, `duration`, `fixed`,
-    `bytes`, `secret`, `text`, `list`, `option`, a record, an
-    enumeration) in each place: a record's field, a list's item, an
-    option's value;
-  - an empty record and a `versioned` one; a variant without a record,
-    one with a record, and a `boxed` one;
-  - a `bytes` and a `secret` that hold another family's type, and a
-    `bytes` and a `secret` of pieces;
-  - a field with a default, and a former name.
-
-  The pin's check fails, naming each construct the list has that
-  `every-v3` lacks. No family needs an unlisted-construct check: the
-  list is the classifier's whole range, its matches over `Type`,
-  `Shape` and `Held` tables have no rest arm, and the generator's tests
-  hold each construct listed once. A new table variant fails
-  skein-codegen's build until listed, then the pin's check until
-  `every-v3` holds it. A held type's record or enumeration is its
-  family's, unknown to the text (7.2), so the list counts a hold per
-  carrier; `every` holds both from `every-other`.
-- **What each family keeps,** none of it reading a golden file:
-  - **drift:** the generator run on the schema equals the committed
-    records' module.
-    On a difference it fails, saying how to write the code again, which
-    the same test does when `SKEIN_CODEGEN_WRITE=1` asks it to. The test
-    reads the owner's schema and the family's codec crate (section 2),
-    writing the code where it reads it;
-  - **fuzzing,** in the fuzzy suite, where the family has it: each
-    top-level record's decoder over arbitrary bytes, and over the
-    fixed-rule values with bytes changed, cut or grown. It never panics,
-    and what decodes encodes back to the same bytes;
-  - **memory:** each owner's suite includes `skein/testing/codec-memory.rs`
-    by relative path, test code outside any crate. This harness holds
-    the choice of limits under the test's cap (ceiling bounds pinned
-    when lowered), the family check over all roots, and the round trip.
-    It decodes each root's `largest` value, each enum variant, measuring
-    the allocator's peak against the decoded bound (section 4).
-
-  Values are built at run time from schema text (`values`), at given
-  limits (`largest`), or by the test. Older versions use their kept
-  text (`command.md`, 1).
-- **Each text once.** An owner exports each family's current text as a
-  public constant, `SCHEMA`, or `<STEM>_SCHEMA` where it owns several,
-  a split schema's parts concatenated; jig's and temper's stores export
-  theirs in `STORE_FAMILIES` and `OWNER_SET`. Tests name a text by it,
-  never by its file.
-- **No generated tests.** The generator writes no tests and no crate
-  keeps a `tests/generated` target: a field's round trip, bounds and
-  refusals are its kind's, which `every` and the generic decoder's
-  comparison with the generated code (8.3) hold for every family. A
-  hand-written test pins what is its own, a projection or a
-  translation, with values it builds.
-- **No test target of a library that holds no other tests:** such a
-  codec crate sets `[lib] test = false`, so a test build compiles its
-  generated code once (`tools/crates/design.md`, 3.4); one whose tests
-  need private items keeps them.
-- **The generator's cost grows with its schema,** not with its square:
-  what it needs of a type or a field (its declaration by name, whether a
-  type holds bounds, a field's path) is found once per generation. The
-  limits are checked against the ceilings once per family, where their
-  owner makes them, and once by each worst case asked of them; never in
-  each type or decoder (section 4).
-- **Generated files** say so in their first line. They are left out of
-  formatting, and pass the workspace's lints: the generator writes what
-  the lints accept (functions short enough, no nesting to collapse), and
-  an owner marks `boxed` an enum's variant the lints find too large
-  (section 3). Two scoped expectations stand, emitted only where their
-  lint fires: `too_many_lines` on a function of one line per field,
-  limit or path (a long record's codec, `Limits::values`), and
-  `struct_excessive_bools` on a record of more than three booleans,
-  which it holds as named fields.
-- **Nothing every change touches:** a generated module holds no array
-  whose length counts the schema's items (a `fixed N` field's `[u8; N]`
-  is its width), no item named by an ordinal, no version in its file's
-  name and no committed fingerprint, and each declaration's code sits in
-  its own place, in schema order, with family-wide lists one entry a
-  line. So two branches that change different declarations of one
-  family merge its generated module line by line, into the module of
-  the merged schema; where they don't, the merge job writes it again
-  from the merged texts (`temper/docs/design/protocol/tooling.md`, 4.1).
-- **What tests read of the generator:**
-
-  ```rust
-  pub struct FixedValue { pub name: String, pub bytes: Vec<u8> }
-  // the fixed-rule values, in declaration order, without writing code
-  pub fn fixed_values(schema: &Schema) -> Vec<FixedValue>;
-  pub enum Construct { /* one of the list; its Debug names it */ }
-  pub const CONSTRUCTS: &[Construct];  // the list the pin holds
-  // the constructs a schema text uses, each once
-  pub fn constructs(text: &str) -> Result<Vec<Construct>, Error>;
-  // those of CONSTRUCTS the text lacks
-  pub fn missing(text: &str) -> Result<Vec<Construct>, Error>;
-  // the declarations no other declaration names, in declaration order
-  pub fn roots(schema: &Schema) -> Vec<String>;
-  // the bytes of a declaration's largest value at these limits,
-  // given in LIMIT_NAMES order
-  pub fn largest(schema: &Schema, declaration: &str, limits: &[u32])
-      -> Result<Vec<u8>, Error>;
-  // an enumeration's, once per variant in order; a record's, once
-  pub fn largest_variants(schema: &Schema, declaration: &str, limits: &[u32])
-      -> Result<Vec<Vec<u8>>, Error>;
-  // made once per text for the process; a text that fails panics
-  pub struct Values { pub schema: Schema, pub fixed: Vec<FixedValue> }
-  pub fn values(text: &'static str) -> &'static Values;
-  ```
-
-  The largest value: each list at its count limit, each item, option
-  and field at its largest, each bytes, secret and text at its length
-  limit, integers at their maximum, each enumeration at the variant
-  whose encoding there is longest, the first of equals. Its bytes are
-  computed from the schema alone, as the fixed rule's are.
-
-- **The generator's own tests:** the schemas it refuses (a type used
-  before it is declared, a name used twice, a worst case too large);
-  small schemas' encodings and largest values against bytes written by
-  hand; each construct found in a small schema and in `every`'s text,
-  and `missing` naming one taken out of it.
+Moved to [`golden.md`](golden.md), section 1.
 
 ## 7. Schemas at run time
 
-- **One grammar.** `skein-codec`'s `schema` module reads a schema's text
-  into tables and checks its layout, as step code: bounded, no
-  recursion, nothing allocated past the text's ceilings. skein-codegen's
-  `parse` calls it, converts the tables into the generator's own tree,
-  and adds the checks only Rust needs: names that are Rust identifiers
-  of the right case and no keyword, fields not named as the generated
-  methods, declarations and their parts (fields, a version, a tail)
-  numbered within a path's `u16`, and each generated name (types,
-  paths, limits) used once, and no type named `Path`, `Problem` or
-  `Record`, which the module names (section 4).
-- **Refusals as before.** A text with one fault is refused at the same
-  line with the same message as before the parser moved; a text with
-  several gives the first by pass: characters, then the grammar, then
-  the layout, then Rust's names.
-- **Every version is read so.** The same parser reads a kept version's
-  text at run time (`patches.md`) and the current one in the generator,
-  so a kept text means what it meant when it was current.
-
-### 7.1 The grammar
-
-```
-schema      = "family" family version declaration*
-declaration = ["versioned"] "record" name former* "{" field* "}"
-            | "enum" name former* "{" variant* "}"
-field       = name former* ":" type ["=" default] [","]
-variant     = name former* [":" ["boxed"] name] [","]
-former      = "was" name
-default     = "none" | "some" default | "[" "]" | word | text
-type        = "u8" | "u16" | "u32" | "u64" | "bool" | "duration"
-            | "fixed" bound | "secret" bound [held] | "text" bound
-            | "bytes" bound [held]
-            | "list" bound type | "option" type
-            | word                        # a declaration declared before
-held        = "holds" family word | "pieces" word   ; after a bytes or a secret bound
-```
-
-- **Tokens:** words of ASCII letters, digits, `_` and `-`; the marks
-  `{`, `}`, `:`, `,`, `=`, `[` and `]`; a text, `"` then bytes of UTF-8
-  other than `"`, `\` and control bytes, then `"`, a `#` among them one
-  of its bytes, as a patch's (`patches.md`, 1); whitespace between them.
-  `#` elsewhere starts a comment that runs to the end of its line. Any
-  other byte outside a comment or a text is refused, before the grammar
-  is read.
-- **`was`** after a declaration's, a field's or a variant's name, or
-  after a former name, starts a former name, one name each: `paused was
-  suspended was halted`, so that a variant's former names never run
-  into the next variant's name. A field named `was` follows its
-  record's `{` or the field before it, as any field does; a variant
-  named `was` after another variant follows a comma.
-- **A default** follows its field's type and its `=`: one word, one
-  text, `[]`, or `none` or `some` and a default, so it ends where the
-  next field's name starts.
-- **Words:** a `name` starts with a letter or `_` and holds letters,
-  digits and `_`; a `family` holds letters, digits, `_` and `-`; a
-  `bound` is a decimal `u32` and a `version` a decimal `u16`.
-- **`holds` and `pieces`** after a `bytes` or `secret` bound start its
-  `held` clause, unless a `:` follows them: then they name the next field,
-  as `holds: list 8 ChangeHold` does.
-- **Lines** count from 1, one more after each `\n`. Each declaration,
-  field and variant keeps the line of its name. A refusal of the
-  grammar has the line of its token, or the text's last line at its
-  end, which a final `\n` ends without starting another; a refusal of
-  the layout, the line of the field, variant or declaration it names.
-- **Bounded:** a text of at most `MAX_TEXT` bytes and `MAX_DECLARATIONS`
-  declarations, refused past either. Each table is allocated once, at a
-  size the text's length bounds. A type's chain of `list` and `option`
-  is read in a loop, outermost first, and a named type is looked up in
-  the declarations already read, so neither the parser nor the checks
-  recurse.
-
-### 7.2 The layout checks
-
-Each declaration, in order, as the generator checked them (section 6):
-
-- a record: for each field in order, its name not used before in the
-  record, each name its type reaches declared before the record, and its
-  worst case, and the record's up to it, within `u64`;
-- an enumeration: 1 to 256 variants; for each in order, its name not
-  used before in the enumeration, and its payload, if any, a record
-  declared before; then its worst case within `u64`;
-- the declaration's name not used before in the schema;
-- its encoded worst case (section 4) within `u32`.
-
-Then, once every declaration is read, the names and defaults:
-
-- each former name none of its scope's names nor another former name
-  there (`Former`): a declaration's among every declaration's name and
-  former name, a field's among its record's, a variant's among its
-  enumeration's;
-- each default a value its field's type takes (`Default`), as a
-  patch's value is checked (`patches.md`, 2): within its width or bound,
-  UTF-8 for `text`, a variant without a record of a named enumeration,
-  `some` only under `option`, `[]` only for `list`, `0x` alone for
-  `pieces`; none for a named record, a `secret` or a `bytes` that holds
-  a record. Its encoding, as the type's decoder would read it, is kept
-  in the tables (7.3).
-
-`pieces T` names a declaration declared before; `holds` names another
-family's type, which the schema cannot check.
-
-### 7.3 The tables
-
-```rust
-pub const MAX_TEXT: u32 = 1_048_576;
-pub const MAX_DECLARATIONS: u32 = 4_096;
-
-pub fn parse(text: &[u8]) -> Result<Schema, SchemaError>; // copies the text
-
-pub struct Schema { /* the text, the family, the version, the tables */ }
-pub struct DeclIx(u32);    // and FieldIx, VariantIx, TypeIx: indexes in
-                           // the schema's tables, in the text's order
-impl DeclIx {
-    pub const fn new(index: u32) -> DeclIx;
-    pub const fn index(self) -> u32;
-}
-pub struct Span { pub start: u32, pub end: u32 }  // a range of the text
-
-pub struct Declaration { pub name: Span, pub line: u32, pub shape: Shape }
-pub enum Shape {
-    Record { versioned: bool, first: FieldIx, count: u32 },
-    Enum { first: VariantIx, count: u32 },
-}
-pub struct Field { pub name: Span, pub line: u32, pub ty: TypeIx }
-pub struct Variant { pub name: Span, pub line: u32, pub record: Option<DeclIx>, pub boxed: bool }
-pub enum Type {
-    U8, U16, U32, U64, Bool, Duration,
-    Fixed(u32),
-    Secret { bound: u32, held: Held },
-    Text(u32), Bytes { bound: u32, held: Held },
-    List { bound: u32, item: TypeIx },
-    Option(TypeIx),
-    Named(DeclIx),
-}
-pub enum Held { Opaque, Record { family: Span, name: Span }, Pieces(DeclIx) }
-
-impl Schema {
-    pub fn text(&self) -> &[u8];
-    pub fn spelled(&self, span: Span) -> &[u8];
-    pub fn family(&self) -> Span;
-    pub fn version(&self) -> u16;
-    pub fn declarations(&self) -> u32;
-    pub fn declaration(&self, at: DeclIx) -> Declaration;
-    pub fn field(&self, at: FieldIx) -> Field;
-    pub fn variant(&self, at: VariantIx) -> Variant;
-    pub fn ty(&self, at: TypeIx) -> Type;
-    pub fn find(&self, name: &[u8]) -> Option<DeclIx>;
-    pub fn fewest_bytes(&self, at: TypeIx) -> u32;
-    pub fn most_bytes(&self, at: DeclIx) -> u32;  // the encoded worst case
-    pub fn most_bytes_within(&self, at: DeclIx, names: &[&str], values: &[u32]) -> Option<u64>;
-    pub fn default(&self, at: FieldIx) -> Option<&[u8]>; // its default's encoding; an option's none without one
-    pub fn was(&self, named: Named) -> &[Span];          // its former names, in the text's order
-}
-pub enum Named { Declaration(DeclIx), Field(FieldIx), Variant(VariantIx) }
-
-pub struct SchemaError { pub line: u32, pub at: Span, pub wrong: Wrong }
-pub enum Wrong {
-    Long, Many,                                       // past a ceiling
-    Character, End, Expected(Expected), Name, Bound, Family, Version,
-    Undeclared, NotRecord, NoVariants, ManyVariants,  // the layout
-    DuplicateType, DuplicateField, DuplicateVariant, Overflow, Large,
-    Former, Default,                                  // the names and defaults
-}
-pub enum Expected { Family, Open, Colon, Record, Type, Declaration, Name, Default }
-```
-
-`Declaration`, `Field` and `Variant` keep their fields: a former name
-and a default live in tables of their own, read by `was` and `default`,
-so no code that builds or matches the three changes. A field's default
-is a span of the text for its error's `at`, and its encoding in a pool
-the tables allocate at a size the text bounds: an integer at its width,
-a `bool`'s byte, a length or a count before its bytes (0 for `[]`), an
-option's presence byte before its value, a variant's tag. `default`
-answers that encoding for a field with `=`, `[0]` for an `option`
-without one, and `None` for any other field without one.
-
-The plain types derive `Clone`, `Copy` where small, `Debug`, equality
-and `Hash`; `Schema` derives `Debug` alone, as lib's `Map` holding its
-names has neither `Clone` nor equality. A refusal names its token by `at`; skein-codegen writes the
-message from it and the text. A type's fewest bytes are the generator's
-(a list's precheck, section 8.2): a scalar's width, `fixed N`'s N, 4 for
-a length or a count, 1 for an `option`, a record's fields' sum (2 more
-if `versioned`), and an enumeration's 1 more than its smallest
-variant's.
-
-- **A kept version's bounds under a side's limits:**
-  `most_bytes_within(at, names, values)` is the most bytes `at` encodes
-  to, as `most_bytes` computes it, with each bound of the text replaced
-  by the value of the limit of the same name, when `names` holds it and
-  the value is no larger than the bound, and the text's own bound
-  otherwise. Names follow the generator's rule (section 4, *Its limits
-  by name*): the record's name in snake case, an underscore and the
-  field's, `_some` for an option's value and `_item` for a list's item,
-  level by level. The rule lives in `skein-codec` beside the parser,
-  and the generator names its limits by it, so the two never differ.
-  `None` when `names` and `values` differ in length or the sum
-  overflows. So a channel that speaks an older version states and checks
-  its terms from that version's kept text with its current limits
-  (jig's `protocol/channel/wires.md`): an appended field, absent
-  there, counts nothing.
+Moved to [`run-time.md`](run-time.md), section 1.
 
 ## 8. Generic values
 
-- **An index over the bytes.** A `Value` holds a record's bytes, moved
-  in, and an index of entries, one per node, in preorder: the record,
-  each field's value, each item of a list, an option's value, a
-  variant's record. An entry names its declaration or type, where its
-  bytes start and end, its count, tag or presence, its parent, and the
-  entry after its subtree. Nothing is copied out of the bytes.
-- **Encoding is the bytes.** The encoding is canonical (section 1), so
-  a decoded value's encoding is the bytes it was decoded from, two
-  values of one type are equal when their bytes are, and a subtree's
-  encoding is its range, which a patch carries by copying it (`patches.md`
-  ).
-- **Decoded at the schema's ceilings,** with the generated code's
-  checks in its order (8.2), so a value within its room decodes
-  generically exactly when its generated decoder, given the ceilings as
-  its limits, decodes it, and a refusal names the same field with the
-  same reason. Limits below
-  the ceilings stay the generated decoders'.
-- **Its room.** A value made with `with_room` sets an entry cap and
-  grows its entry tables as they fill, reusing their storage on later
-  decodes. A patch's machine
-  grows its own entries (`patches.md`, 7). A record that needs more nodes than
-  the room is refused with `Refusal::Room`, since a node may take no
-  bytes (an empty record), so the bytes alone do not bound the count.
-- **Held fields stay opaque.** A `bytes` field that holds a record or
-  pieces is read as its bytes, as the generated code reads it; a patch
-  opens it (`patches.md`).
-- **Printed without content.** A value's bytes are a `lib::Secret`, so
-  its `Debug` shows their length and the index (types, offsets, counts,
-  tags), never a byte of a field, a secret's or any other. They are
-  given back as that `Secret`, moved, not copied.
-- **Built by a patch.** A new value is built only by a patch's machine
-  (`patches.md`), checked against its schema as it goes.
-
-### 8.1 The value
-
-```rust
-pub struct Value { /* the bytes, as a Secret, and the entries */ }
-pub struct Node(u32);                          // an entry, in preorder
-pub struct Items { /* the next item and how many are left */ }
-pub struct Path { pub decl: DeclIx, pub part: Part }
-pub enum Part { Field(FieldIx), Tag, Tail, Version }
-pub struct Problem { pub path: Path, pub reason: Reason }
-pub enum Refusal { Problem(Problem), Room }
-pub struct Misread { pub node: Node }          // the node is not of that kind
-
-impl Value {
-    pub fn with_room(nodes: u32) -> Value;
-    pub fn decoder_bound(nodes: u32) -> Option<u64>; // the decoder entry tables
-    pub fn decode(&mut self, schema: &Schema, root: DeclIx, bytes: Box<[u8]>)
-        -> Result<Node, Refusal>;              // the root; the bytes are dropped on a refusal
-    pub fn bytes(&self) -> &[u8];              // the encoding
-    pub fn take(&mut self) -> Secret;          // the bytes back, moved; the value is empty
-    pub fn span(&self, node: Node) -> Result<Span, Misread>;
-    pub fn field(&self, record: Node, field: FieldIx) -> Result<Node, Misread>;
-    pub fn items(&self, list: Node) -> Result<Items, Misread>;
-    pub fn next_item(&self, items: &mut Items) -> Option<Node>;
-    pub fn some(&self, option: Node) -> Result<Option<Node>, Misread>;
-    pub fn tag(&self, enumeration: Node) -> Result<VariantIx, Misread>;
-    pub fn payload(&self, enumeration: Node) -> Result<Option<Node>, Misread>;
-    pub fn uint(&self, node: Node) -> Result<u64, Misread>;     // u8 to u64; a duration's nanoseconds
-    pub fn boolean(&self, node: Node) -> Result<bool, Misread>;
-    pub fn content(&self, node: Node) -> Result<&[u8], Misread>; // fixed, bytes, text
-    pub fn expose(&self, node: Node) -> Result<&[u8], Misread>;  // a secret's
-}
-```
-
-A `Path` names what the generated `Path` (section 4) names, by the
-same positions: `Report`'s field `title` (`paths::REPORT_TITLE`), the
-tag of `Effect`, the bytes after `Field`, the version of `Report`. Reading a node as what it is not is a `Misread`, a value
-the caller handles, never a panic.
-
-### 8.2 The order of the checks
-
-As the generated decoder's, with each bound at its ceiling:
-
-- **A versioned record** reads its version first: too short is `Short`
-  at its `Version`, another than the schema's is `Version` there. Then
-  its fields in order.
-- **An enumeration** reads its tag: too short is `Short` at its `Tag`,
-  one past its variants `Tag` there. Then the variant's record, if it
-  has one.
-- **A field's value** is refused at the field's path, whatever list or
-  option holds it; a named type's own checks name its own paths:
-  - an integer, a duration or `fixed N`: too short is `Short`;
-  - `bool`: too short is `Short`, a byte past 1 is `Bool`;
-  - `bytes N`, `secret N` and `text N`: a length too short to read is
-    `Short`, past N `Bound`, past the bytes left `Short`; text not UTF-8
-    is `Utf8`;
-  - `list N T`: a count too short to read is `Short`, past N `Bound`,
-    and past the bytes left divided by T's fewest bytes `Short`, when
-    those are at least 1; then each item;
-  - `option T`: its byte too short is `Short`, 0 is none, 1 is T, any
-    other `Tag`.
-- **The root** refuses bytes left over with `Trailing`: at its `Tail` if
-  a record, at its `Tag` if an enumeration.
-- **The room** is checked as each node is entered, before its bytes are
-  read.
-
-### 8.3 Tests
-
-- **Step tests** of the parser and the checks: each refusal from both
-  sides, a text that passes beside one that does not; `holds` and
-  `pieces`, and the fields so named; the ceilings at and past their
-  bound.
-- **Generic against generated,** in the fuzzy suite, over skein's
-  schemas and a fixture that holds every type of the language: values
-  drawn from a schema by a seeded generator decode by both to the same
-  tree and encode back to the same bytes; arbitrary bytes, and fixed-rule
-  values with a byte changed, cut or grown, are refused by both with the
-  same path and reason, or decode by both alike. The trees are compared
-  without changing the generated code: the generic one is printed in the
-  form the generated types' `Debug` takes, and compared with it. The test
-  names each case's family, root and seed on stderr before both decoders
-  run it, and a disagreement is a finding the comparison returns, with
-  the bytes, which the test fails on; nothing catches a decoder's panic
-  (../../../foundation/programming-model.md, 10.4).
-- **Fixed-rule values:** every fixed-rule value of every skein schema
-  (section 6) decodes generically to its own bytes.
-- **Memory:** the decoder entry tables stay within `decoder_bound`,
-  growing only past the room earlier decodes reached, counted by the
-  counting allocator.
+Moved to [`run-time.md`](run-time.md), section 2.
 
 ## 9. Fingerprints
 
-- **Of the layout, not the names.** A declaration's fingerprint is a
-  SHA-256 (lib's) over a canonical encoding of what its bytes are
-  (9.1): record or enumeration, `versioned` and the family's version,
-  each field's type in order (its kind and width, a `fixed` length, a
-  bound, `list` and `option`, text, bytes or secret, what a `bytes`
-  holds), the variants' payloads in order, and each named type by its
-  own fingerprint. Names, former names, defaults, comments, the text's
-  layout and `boxed` are not in it. A record held from another family is
-  named by its family and type, since its layout is that family's.
-  These are the wires' and the patches' fingerprints, unchanged; a
-  stored value's layout is 9.4's, which leaves the family's version out
-  and resolves what a value holds.
-- **A family's fingerprint** is over all its declarations', in the
-  text's order, including those no other declaration names: the schema
-  text is the unit, and any declaration may be a root, which only its
-  owner's use says. A declaration added, dropped or moved moves it, as
-  a declaration's own change does.
-- **Step code,** in `schema`: one pass over the declarations in order,
-  each named type's fingerprint read from the entries already made, so
-  nothing recurses. It allocates that table alone, a fingerprint per
-  declaration, at most `MAX_DECLARATIONS`.
-- **A rename moves no fingerprint.** For a patched family, the command
-  refreshes a text not frozen or keeps renames waiting beside a frozen
-  one (`command.md`, 4), so that a later diff never mistakes a rename
-  for a field dropped and another added. A registered family's former
-  names are in its current schema (section 3).
-- **A family's fingerprint is not a value type's layout.** The patch
-  check judges changes by the diff and, for wires, the family
-  fingerprint (`command.md`, 2). Registered values use 9.4's layout
-  fingerprints, not kept versions of the family.
-
-### 9.1 The encoding
-
-A fingerprint is the SHA-256 of a byte string that starts with the
-encoding's version, 1, so that a later encoding is never mistaken for
-this one. Integers are big-endian; a fingerprint inside another is its
-32 bytes.
-
-```
-fingerprint = SHA-256(0x01 · layout)
-layout      = record | enumeration | family
-record      = 0x01 · (0x00 | 0x01 · u16 version) · u32 count · type*
-enumeration = 0x02 · u32 count · (0x00 | 0x01 · fingerprint)*
-family      = 0x03 · u32 count · fingerprint*
-type        = 0x01 u8 | 0x02 u16 | 0x03 u32 | 0x04 u64
-            | 0x05 bool | 0x06 duration
-            | 0x07 · u32 N               fixed N
-            | 0x08 · u32 N               secret N
-            | 0x09 · u32 N               text N
-            | 0x0a · u32 N · held        bytes N
-            | 0x0b · u32 N · type        list N, then its item
-            | 0x0c · type                option, then its value
-            | 0x0d · fingerprint         a named declaration
-            | 0x0e · u32 N · held        secret N that says what it holds (held never 0x00)
-held        = 0x00                       nothing said
-            | 0x01 · u32 n · family · u32 n · name     holds
-            | 0x02 · fingerprint         pieces of a declaration
-```
-
-- A record's types are its fields', in order; an enumeration's entries
-  its variants', 0 for none and 1 with the record's fingerprint; a
-  family's its declarations', in order.
-- The `version` is the family's, in a `versioned` record only: a family
-  with no versioned record has the same fingerprints at every version.
-- A plain `secret N` keeps `0x08`, and one that says what it holds takes
-  `0x0e` with its `held`, so no family's fingerprint moves for the word
-  until it uses it.
-- Each production starts with a byte of its own and ends where its
-  grammar says, so two layouts' bytes are equal only when the layouts
-  are.
-
-### 9.2 The interface
-
-```rust
-pub struct Fingerprint(/* 32 bytes */);  // Clone, Copy, Debug, equality, order, Hash
-pub struct Fingerprints { /* a fingerprint per declaration, and the family's */ }
-
-impl Fingerprint {
-    pub const fn digest(self) -> [u8; 32];
-}
-impl Schema {
-    pub fn fingerprints(&self) -> Fingerprints;
-}
-impl Fingerprints {
-    pub fn declaration(&self, at: DeclIx) -> Fingerprint;
-    pub fn family(&self) -> Fingerprint;
-}
-```
-
-`Fingerprints` derives `Debug` alone, as `Schema` does.
-
-### 9.3 Tests
-
-- **Step tests,** from both sides: each element the encoding covers
-  moves a fingerprint, beside the nearest change that moves none (a
-  rename, a comment, the text's layout, `boxed`); a named type's change
-  moves its referrers', and its rename does not; a declaration nothing
-  names moves the family's alone.
-- **Golden digests:** a small schema's, its encoded bytes written out
-  beside it, and the `every` fixture's, its first version's and its
-  current one's, so that a change of the encoding is a reviewed diff.
-- **Every skein schema,** at run time: its fingerprints equal those of
-  its text with every name changed, the comments gone, the layout
-  changed and `boxed` turned over.
-
-### 9.4 A value type's layout
-
-A store that names each value's layout (jig's
-`protocol/store/layouts.md`) names it by the layout of the value's
-**value type**: a root declaration of the family, and, where the root
-is broad, the one variant of its leading enumeration that the value's
-key says it holds. For example, a schema with `record Envelope {
-value: Entry }` and `enum Entry { book: Book, note: Note }` has a broad
-root: a book's layout is `Envelope` with `Entry` at `book` alone, so a
-change to `Note` moves the book's layout not at all.
-
-- **The root,** `Root { decl, variant }`: `variant` may be given only
-  when `decl` is broad, a declaration with a leading enumeration as
-  `patches.md`, 3.1 defines it (an enumeration itself, or a record whose
-  first field's type is an enumeration with no `list` or `option`
-  level), and names a variant of that enumeration. Any other root takes
-  none. A broad root without one is the declaration whole, every variant
-  of its enumeration, encoded as `value`: the root of a value type whose
-  keys do not tell its variants apart (the settings' `ApplicationState`,
-  whose `follows` leads it; a key that holds an older variant beside the
-  one its owner writes).
-- **Without the family's version.** A `versioned` record is encoded by
-  its flag alone, so that a layout keeps its fingerprint while its
-  family's version moves, and a value type whose bytes no change reached
-  keeps its layout across versions.
-- **What a value holds, resolved.** A `bytes N holds F T` (or a `secret`
-  that says so) whose family `F` the caller gives (its text among
-  `held`) is encoded by `T`'s own layout in that text, so a change to a
-  held record moves the layout of every value type that holds it, and a
-  plan converts it with its holder (`layouts.md`, 2). One the caller
-  does not give is encoded as 9.1 names it, by family and type. A held
-  text's own holds resolve among the same texts, to a depth of
-  `MAX_HELD`, 4; deeper is refused (`LayoutError::Deep`).
-- **Everything else as 9.1:** a layout's fingerprint equals another's
-  only when every value of one is, byte for byte, a value of the other
-  but for versioned heads.
-
-```
-layout      = SHA-256(0x02 · value)        # the encoding's version, 2
-value       = record' | enumeration'        # the root's
-record'     = 0x01 · (0x00 | 0x01) · u32 count · type'*   # versioned by its flag alone
-enumeration' = 0x02 · u32 count · (0x00 | 0x01 · inner)*
-restricted  = 0x04 · u32 index · (0x00 | 0x01 · inner)    # a broad root's leading enumeration at its variant
-type'       = as 9.1's type, each named declaration 0x0d · inner, each held' in place of held
-            | 0x0f · restricted                           # a broad record's first field, at its variant
-held'       = held                                        # 9.1's, for a family not given, and pieces by inner
-            | 0x03 · inner                                # holds F T, F given: T's layout
-inner       = SHA-256(0x02 · record' | 0x02 · enumeration')  # a declaration's, by this encoding
-```
-
-A broad enumeration root at a variant is `restricted` in place of
-`value`; a broad record root at a variant is `record'` whose first type
-is `0x0f · restricted`; a broad root without one is `value`, as any
-other root.
-`index` is the variant's place in its enumeration, which its tag is,
-so two layouts that put the variant at two tags differ.
-
-```rust
-pub const MAX_HELD: u32 = 4;
-pub struct Root { pub decl: DeclIx, pub variant: Option<VariantIx> }
-pub enum LayoutError { Root, Deep }     // a variant where none is taken, or one its enumeration lacks; held past MAX_HELD
-impl Schema {
-    pub fn root(&self, decl: &[u8], variant: Option<&[u8]>) -> Option<Root>; // by its text's own names
-    pub fn layout(&self, root: Root, held: &[&Schema]) -> Result<Fingerprint, LayoutError>;
-}
-```
-
-`Root` derives `Clone`, `Copy`, `Debug`, equality and `Hash`. `layout`
-is step code as `fingerprints` is: a pass over the declarations the
-root reaches, each held text's in turn, with no recursion and a table
-per text it reaches, at most `MAX_DECLARATIONS` each. Its tests, beside
-9.3's: a versioned root's layout equal across its family's versions; a
-restricted variant's layout unmoved by a change to a sibling
-variant's record and moved by its own; a broad root without a variant
-moved by either; a held record's change moving
-its holder's layout when its family is given and not when it is not;
-defaults and former names moving nothing; golden digests for the
-fixture that holds every type, as 9.3's.
+Moved to [`fingerprints.md`](fingerprints.md), section 1.
 
 ## 10. Open questions
 

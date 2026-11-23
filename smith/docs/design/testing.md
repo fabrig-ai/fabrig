@@ -79,7 +79,7 @@ Domain worlds use domains and fakes only, never protocol crates. Codec
 tests build values with public fields or fixed-rule encodings from
 embedded schema text; earlier versions use their kept texts. Drift compares
 the records' module with the committed code (skein's
-`data/codec/README.md`, section 6). Families keep no golden files or
+`data/codec/golden.md`, section 1). Families keep no golden files or
 generated test targets; event JSONL and patch goldens remain. Memory and
 boundary tests check the generated `encoded_bound` and `decoded_bound`
 vocabulary.
@@ -587,7 +587,7 @@ Every component's files and processes go through it:
   world and the real loop share theirs. End to end, the referee checks
   the same outcomes from outside (2.3). A domain world's referee is its
   own, as its scenarios stay in its tier.
-- **Its checks return their findings** (`skein/docs/design/testing/README.md`, 5;
+- **Its checks return their findings** (`skein/docs/design/testing/service-tiers.md`, 1;
   `skein/docs/foundation/programming-model.md`, 10.4): every referee and
   judge of smith's worlds implements `watch`, in every tier, and keeps
   what its `act` or `idle` finds for its next `watch`. The event

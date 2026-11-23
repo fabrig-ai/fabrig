@@ -203,7 +203,7 @@ impl Page {
 }
 
 /// A navigation the worker's platform follows: a path on the page's own origin
-/// (ui/web/README.md, 8), shown in the address bar.
+/// (ui/web/effects.md, 1), shown in the address bar.
 #[must_use]
 pub fn shown(to: &[u8]) -> bool {
     to.starts_with(b"/") && navigation::allowed(to, false)

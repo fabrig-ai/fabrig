@@ -1,4 +1,4 @@
-//! Fixed-rule client values (skein/docs/design/data/codec/README.md, 6).
+//! Fixed-rule client values (skein/docs/design/data/codec/golden.md, 1).
 use skein_codegen::FixedValue;
 use std::sync::OnceLock;
 

@@ -1,4 +1,4 @@
-//! A reach, observed inside its tree (io/processes.md, 6; kernel.md, 6.6;
+//! A reach, observed inside its tree (io/processes.md, 6; runtime/kernel-cgroups.md, 1;
 //! testing/README.md, 4). Each scenario submits one probe spawn directly as a
 //! kernel record, below io's ABI admission check.
 
@@ -46,10 +46,18 @@ impl Check for Refused {
             let Err(Error::Reach(Unenforced::Abi { found, needs })) = self.result else {
                 unexpected("a missing ABI refuses the spawn (io/processes.md, 6)", &self.result)
             };
-            assert_eq!(needs, u32::MAX, "the record's ABI is preserved below io's entrance (kernel.md, 6.6)");
-            assert!(found < needs, "the kernel names its lower ABI (kernel.md, 6.6)");
+            assert_eq!(
+                needs,
+                u32::MAX,
+                "the record's ABI is preserved below io's entrance (runtime/kernel-cgroups.md, 1)"
+            );
+            assert!(found < needs, "the kernel names its lower ABI (runtime/kernel-cgroups.md, 1)");
         } else {
-            assert_eq!(self.result, Err(Error::Reach(self.expected)), "a reach fails whole (kernel.md, 6.6)");
+            assert_eq!(
+                self.result,
+                Err(Error::Reach(self.expected)),
+                "a reach fails whole (runtime/kernel-cgroups.md, 1)"
+            );
         }
         assert!(
             self.pipes_empty,
@@ -176,7 +184,7 @@ pub fn descriptors<B: Backend>(backend: &mut B, executable: &[u8]) -> Observed {
     probe.observe(
         &[Question::Descriptors],
         vec![Answer::Descriptors(Box::new([0, 1, 2, 63]))],
-        "only named descriptors survive restriction, not the service's canary (kernel.md, 6.6; io/processes.md, 6)",
+        "only named descriptors survive restriction, not the service's canary (runtime/kernel-cgroups.md, 1; io/processes.md, 6)",
     )
 }
 

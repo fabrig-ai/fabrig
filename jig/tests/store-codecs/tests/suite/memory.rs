@@ -1,4 +1,4 @@
-//! Accounts' longest variants at the ceilings (skein's data/codec/README.md, 6).
+//! Accounts' longest variants at the ceilings (skein's data/codec/golden.md, 1).
 use jig_protocol_store::accounts_v2::{self, Record};
 use skein_heap::Meter;
 use skein_lib::Reader;

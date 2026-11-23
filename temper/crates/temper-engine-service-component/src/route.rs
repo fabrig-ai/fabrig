@@ -108,7 +108,7 @@ pub(crate) fn request(engine: &mut Engine, request: root::Request) {
                 | Event::MakingStopped { .. }
                 | Event::MakingAdopt { .. }) => engine.events.push(root::Event::Forge(Box::new(event))),
                 // skein's forge/connection.md, section 2: no returned-hint request; never offer it again.
-                // protocol/forge/engine.md: these views are not kept; restart publishes connections and skein's forge/connection.md, 4.4's baseline.
+                // protocol/forge/engine.md: these views are not kept; restart publishes connections and skein's forge/connection-calls.md, 1.4's baseline.
                 Event::AppRecorded { .. }
                 | Event::Hint { .. }
                 | Event::Connection { .. }

@@ -1,4 +1,4 @@
-//! Fixed-rule values and record measurements (skein/docs/design/data/codec/README.md, section 6).
+//! Fixed-rule values and record measurements (skein/docs/design/data/codec/golden.md, section 1).
 
 pub fn all(family: &str, version: u16) -> Vec<skein_codegen::FixedValue> {
     let text = match (family, version) {

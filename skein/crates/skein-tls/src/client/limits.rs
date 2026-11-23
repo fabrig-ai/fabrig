@@ -17,7 +17,7 @@ pub const MAX_RECORD: u32 = HEADER + MAX_BODY;
 
 /// The most bytes the client demands below at once: a record's body.
 /// Whoever stacks it checks at startup that the stream below's intake holds
-/// it (runtime/lib.md, 7): a demand past that cap could never be met.
+/// it (runtime/lib-streams.md, 1): a demand past that cap could never be met.
 pub const LARGEST_READ: u32 = MAX_BODY;
 
 /// The most of TLS's own output held at once: a flight of the handshake, or

@@ -65,7 +65,7 @@ fn a_suspended_producer_waits_past_the_stall_without_blame_and_restarts_with_who
         if row.task == producer.task && row.attempt == producer.attempt
             && row.end == Some(tasks::EndKind::Suspended { worker: 1, why: tasks::SuspendWhy::Stopped }))));
     let assigned = world.assigned.len();
-    world.env.now = world.env.now.saturating_add(GAP);
+    world.jump(GAP);
     early_start::observe_push(&mut world, &producer);
     // Complete a fresh change step past the stall, not only the timer's wake.
     let past = suspended.since.as_nanos() + GAP.as_nanos();

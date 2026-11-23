@@ -1,4 +1,4 @@
-//! No fixture outlives its test (skein/docs/design/testing/README.md, 5).
+//! No fixture outlives its test (skein/docs/design/testing/service-tiers.md, 1).
 #![cfg(target_os = "linux")]
 
 use std::fs::{self, File, OpenOptions};

@@ -57,7 +57,7 @@ answer ownership is checked before effects or payload copies.
   writes the prefix at each of its marks; what it writes past what it
   read is its cache write.
 - **Usage is optional, field by field.** The domain's usage has the same
-  five fields as skein-llm's `Usage` (../../llm/README.md, section 2.3), each present
+  five fields as skein-llm's `Usage` (../../llm/vocabulary.md, section 1.3), each present
   or not. The
   configuration says which the wire reports, per dialect; the peer omits
   the rest, so worlds meet usage not reported as well as usage of zero.
@@ -108,8 +108,8 @@ answer ownership is checked before effects or payload copies.
   provider failure: its class, as the domain's error; the provider's
   error code; its request id; and the field it names, for `Unsupported`.
   The domain's error has `Refused` and `Unsupported`, and `Exhausted`'s
-  reset is optional, as skein-llm's failure has them (../../llm/README.md, section
-  2.5). Exhausted with a reset or without, refused, unsupported and
+  reset is optional, as skein-llm's failure has them (../../llm/vocabulary.md, section
+  1.5). Exhausted with a reset or without, refused, unsupported and
   unauthorized are its point; any class with a row on its route may be
   scripted (below).
 - **Where it falls.** A failing line that names no credential ends its
@@ -122,25 +122,25 @@ answer ownership is checked before effects or payload copies.
   (`response.failed` on Responses, an `error` event on Anthropic), once
   their pieces are sent, a hold's included when released (2.2).
 - **As the route says it.** The byte peer renders the class as its
-  route's section names it (../../llm/README.md, sections 4.7 and 4.8): the status, a
+  route's section names it (../../llm/wire.md, sections 1.7 and 1.8): the status, a
   code the section maps to that class unless the script gives one, the
   reset as the next bullet says, and the field as `error.param`. Where
   the section reads the class from the error's message, as Anthropic's
-  context too long (../../llm/README.md, section 4.7), the peer sends that message.
+  context too long (../../llm/wire.md, section 1.7), the peer sends that message.
   So the client's own classification reads back the class the script
   gave.
 - **A reset, per route.** On the public route,
   `Exhausted`'s reset goes in the error's `resets_in_seconds`, in whole
   seconds rounded up, never in `retry-after`, before a stream as in
   `response.failed`. Anthropic's `Exhausted` has no reset; a script that
-  supplies one is refused at configuration (../../llm/README.md, section 4.7).
+  supplies one is refused at configuration (../../llm/wire.md, section 1.7).
 - **A class needs its row.** A class has a row on a route where the
   route's section names an error for it, not a status alone; a failing
   line of a class without one on its peer's route is refused at
   configuration. `Unsupported` has none on Anthropic, whose refused
   fields are `Invalid`. `Overloaded` has one on every route: on
-  Responses, a 503 whose error is `overloaded_error` (../../llm/README.md, section
-  4.8).
+  Responses, a 503 whose error is `overloaded_error` (../../llm/wire.md, section
+  1.8).
 - **Whose calls it fails.** A failing line may name the accepted
   credentials it answers, by index (section 3), which the byte peer puts
   in each query; it fails only their calls, and a call with another
@@ -158,8 +158,8 @@ answer ownership is checked before effects or payload copies.
   through, and so drives each account's state deterministically.
 - **The evidence is the script's.** The code, the request id and the
   field are sent as given, past the client's bounds too, so that a story
-  sees the client keep each or leave it empty (../../llm/README.md, section 2.5). An
-  empty request id is the peer's own (section 3.1).
+  sees the client keep each or leave it empty (../../llm/vocabulary.md, section 1.5). An
+  empty request id is the peer's own (`llm.md`, section 3.1).
 - **The chances stay,** for soak runs: a seeded failure carries its
   route's code for its class and the peer's own request id, and names no
   field.
@@ -254,12 +254,12 @@ is not understood, but a known recap prompt can have its own rule.
 - **No assistant message,** as with any failure (2.3): the same call made
   again fails again, until the conversation changes.
 - **On the wire,** the byte peer renders it as its route renders
-  `Invalid` before a stream (2.3; ../../llm/README.md, sections 4.7 and
-  4.8): the route's status and error type, the code as the error's code,
+  `Invalid` before a stream (2.3; ../../llm/wire.md, sections 1.7 and
+  1.8): the route's status and error type, the code as the error's code,
   and the provider text as the error's message, in place of the message
   a code alone gives. So the client reads `Failure::Invalid`, its
   report's code `no_script`, and the text in its detail
-  (../../llm/README.md, section 2.5).
+  (../../llm/vocabulary.md, section 1.5).
 - **Nothing when off:** no script byte and no state; `configured`,
   `played` and `played_by_input` take the switch from the `Config` they
   are given, and every world that sets none keeps 2.4's answers.
@@ -402,10 +402,10 @@ pub enum Error { /* today's */, Spent, SignedOut, Unserved, Window { reset: Dura
   no header.
 - **What the client reports:** `Exhausted` with no reset, `Unauthorized`,
   `Invalid` and `RateLimited` with a zero delay, since it reads no
-  provider reset header (../../llm/README.md, 2.5, 4.7 and 4.8). A
+  provider reset header (../../llm/vocabulary.md, 1.5, and ../../llm/wire.md, 1.7 and 1.8). A
   domain-face world translates each class as the client reports the
   peer's rendering of it, so that a change to the client's reading
-  changes those translations with it; section 5's stories pin the
+  changes those translations with it; `llm.md`, section 5's stories pin the
   client's side.
 
 ### 2.8 A cut stream
@@ -445,7 +445,7 @@ ten tasks' Responses streams did on 2026-11-20.
   whole, its last chunk sent, and the connection stays as it would
   after a response.
 - **What the client reports:** `Protocol`, "incomplete Responses
-  stream" or "incomplete Anthropic stream" (../../llm/README.md, 4.8;
+  stream" or "incomplete Anthropic stream" (../../llm/wire.md, 1.8;
   `skein-llm`'s `openai/response.rs` and `anthropic/response.rs`), where
   a connection closed within a response is `Unavailable`. A domain-face
   world translates `Cut` as `Protocol`, under 2.7's rule.
@@ -468,7 +468,7 @@ the actual connection token; an unmatched/closed route returns the same
 owned terminal. Looking up a route never discards its reply right.
 
 **Credentials.** The peer accepts several credentials, each a
-`skein_llm::Credential` with its scheme (../../llm/README.md, section 2.6), so that one
+`skein_llm::Credential` with its scheme (../../llm/vocabulary.md, section 1.6), so that one
 peer serves several accounts. `Peer::new` takes one, the index 0, and
 `Peer::accept` adds another and returns its index. Every credential is
 accepted before the peer serves its first request, and none after. Each
@@ -476,10 +476,10 @@ entry receives the accepted credentials, borrowed. A request is
 authorized when it presents one of them as its route sends it: on
 Responses, either scheme as `Authorization: Bearer`; on Anthropic, a key
 as `x-api-key`; the peer refuses a bearer on Anthropic, as the client does
-(../../llm/README.md, section 4.7). A peer whose wire configuration takes
+(../../llm/wire.md, section 1.7). A peer whose wire configuration takes
 calls with no credential, as a local model's server does, also
-authorizes a request that presents no credential field (../../llm/README.md, section
-2.6). Anything else, a credential it
+authorizes a request that presents no credential field (../../llm/vocabulary.md, section
+1.6). Anything else, a credential it
 does not hold or no credential without that configuration, is answered
 as unauthorized.
 The fake compares bytes; it owns no sign-in, refresh, JWT parser,
@@ -524,7 +524,7 @@ vouches for nothing outside a test: its key is in the tree.
   assert what reached the wire: that every request of a conversation
   carries the same affinity.
 - **It reads a gzip body back with an inflater of its own.** A body sent
-  with `Content-Encoding: gzip` (../../llm/README.md, section 4.8)
+  with `Content-Encoding: gzip` (../../llm/wire.md, section 1.8)
   is inflated beside its member, in room the server holds from the start:
   the gzip bound of the request cap, twice. The inflater is test code,
   simple over fast, and shares nothing with the client's encoder. A body
@@ -538,7 +538,7 @@ vouches for nothing outside a test: its key is in the tree.
   thinking. A request that breaks a rule the dialect promises is refused
   as invalid: the fake checks its client (../../../foundation/testing-strategy.md, section 6).
 - **It refuses what a plan's route refuses.** On the public route, a
-  request carrying a field of ../../llm/README.md, section 4.8's refused list is
+  request carrying a field of ../../llm/wire.md, section 1.8's refused list is
   answered as unsupported, naming that field.
 - **It answers with a request id,** in each response's head under its
   route's name (`x-request-id` or `request-id`):
@@ -547,7 +547,7 @@ vouches for nothing outside a test: its key is in the tree.
 - **It echoes as a provider does.** Its Responses events can carry
   the request's instructions and tools and a usage
   attribution entry per input item, sized by configuration, so worlds
-  exercise a client that keeps only what it reads (../../llm/README.md, section 4.4).
+  exercise a client that keeps only what it reads (../../llm/wire.md, section 1.4).
 
 ### 3.2 A list
 
@@ -587,7 +587,7 @@ storage. A complete raw replay admitted at its cap still fits its envelope.
 Provider compatibility is validated by the real Client when replay is used.
 `Prompt::output_ceiling` applies configured dialect support: Responses omits
 its unsupported wire field, the public route refuses an explicit cap at
-admission (../../llm/README.md, section 4.8), and the caller still bounds local output.
+admission (../../llm/wire.md, section 1.8), and the caller still bounds local output.
 
 ## 5. Outside stories and bounds
 
@@ -727,7 +727,7 @@ the fake forge (forge.md) and the fake issuer (../../oauth/accounts.md, section 
 Its script is the same `Script`, `Turn` and `Line`, and the referee reads
 the same observations.
 
-- **Most stories give an account a key** (../../llm/README.md, section 2.6), which the
+- **Most stories give an account a key** (../../llm/vocabulary.md, section 1.6), which the
   peer accepts: no sign-in is driven.
 - **Stories of an account with no credential** configure the peer to
   take calls with none (section 3).
@@ -758,6 +758,6 @@ the same observations.
   prefixes, it is accepted rather than paid for in memory.
 - **A failure's reset as a header.** Section 2.3 renders a reset on the
   public route in the error's `resets_in_seconds`,
-  though the client also reads `retry-after` (../../llm/README.md, section 4.8). What
+  though the client also reads `retry-after` (../../llm/wire.md, section 1.8). What
   stays open is which the public route sends. Default: the error's field
   alone, until a capture shows it.

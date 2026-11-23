@@ -21,7 +21,7 @@ fn creations(world: &World, branch: &[u8]) -> usize {
         .count()
 }
 
-fn passed_making() -> (World, u64, Box<[u8]>) {
+pub(crate) fn passed_making() -> (World, u64, Box<[u8]>) {
     let mut world = World::configured(true, true).with_forge_entries(1);
     world.adopt();
     world.send(protocol::hello_slots(Token::new(7), 2, Box::new([])));

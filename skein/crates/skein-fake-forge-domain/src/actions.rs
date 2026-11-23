@@ -30,7 +30,7 @@ pub enum JobWait {
     Runner,
     Needs,
 }
-/// A run's identity and current outcome (forge/forgejo.md, 1.2).
+/// A run's identity and current outcome (forge/forgejo-operations.md, 1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Run {
     pub id: u64,

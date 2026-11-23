@@ -1,4 +1,4 @@
-//! Forge protocol component (forge/connection.md, sections 2, 3, 4, 7 and 8).
+//! Forge protocol component (forge/connection.md, sections 2 and 3, and forge/connection-calls.md, section 1, and forge/connection-machines.md, sections 1 and 2).
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]
 extern crate alloc;

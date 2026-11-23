@@ -1,5 +1,5 @@
 //! A decoded value at every ceiling stays within its declared heap bound
-//! (data/codec/README.md, sections 4 and 6; testing-strategy.md, section 6).
+//! (data/codec/README.md, section 4, and data/codec/golden.md, section 1; testing-strategy.md, section 6).
 
 #[cfg(test)]
 mod tests {

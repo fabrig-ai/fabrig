@@ -1,4 +1,4 @@
-//! Forgejo's removed file spelling (skein/docs/design/forge/README.md, 3.3, and skein/docs/design/forge/forgejo.md, 1.2).
+//! Forgejo's removed file spelling (skein/docs/design/forge/vocabulary.md, 1.3, and skein/docs/design/forge/forgejo-operations.md, 1).
 use super::fixtures;
 use crate::{
     api::{Op, Read},

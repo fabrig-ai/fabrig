@@ -19,6 +19,7 @@ pub(crate) fn enabled(op: &git::Op) -> bool {
         | git::Op::Pack { .. }
         | git::Op::Point { .. }
         | git::Op::Fetch { .. }
+        | git::Op::Counts { .. }
         | git::Op::Create { .. }
         | git::Op::CheckOut { .. }
         | git::Op::DiffPaths { .. }
@@ -111,7 +112,10 @@ pub(crate) fn after(op: &git::Op, command: &Command, code: u8, stdout: &[u8]) ->
         | Command::Remote { .. }
         | Command::Store { .. }
         | Command::UpdateRef { .. }
+        | Command::UpdateCounts { .. }
+        | Command::DeleteCounts
         | Command::Fetch { .. }
+        | Command::FetchCounts { .. }
         | Command::Create { .. }
         | Command::CheckOut { .. }
         | Command::Clean
@@ -144,6 +148,7 @@ fn parameters(op: &git::Op) -> (&git::Commit, &Option<git::Commit>, &git::Snapsh
         | git::Op::Pack { .. }
         | git::Op::Point { .. }
         | git::Op::Fetch { .. }
+        | git::Op::Counts { .. }
         | git::Op::Create { .. }
         | git::Op::CheckOut { .. }
         | git::Op::DiffPaths { .. }

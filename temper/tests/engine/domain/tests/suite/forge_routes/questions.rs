@@ -105,7 +105,7 @@ fn plan_world_with_pull_room(
     (world, requester)
 }
 
-pub(super) fn call(world: &mut World, run: &engine::Assignment, number: u64, tool: engine::Tool) {
+pub(crate) fn call(world: &mut World, run: &engine::Assignment, number: u64, tool: engine::Tool) {
     let before = world.answers.len() + world.call_errors.len();
     let event = world.protocol.call(
         CHANNEL,
@@ -162,7 +162,7 @@ pub(super) fn make_change(
     made[0].task
 }
 
-pub(super) fn next_producer(world: &mut World, change: u64) -> engine::Assignment {
+pub(crate) fn next_producer(world: &mut World, change: u64) -> engine::Assignment {
     for _ in 0..TICKS {
         if let Some(run) = world.assigned.iter().rev().find(|run| {
             world.root.tasks().task(run.task).is_some_and(|task| task.requester == tasks::Party::Task(change))
@@ -324,7 +324,7 @@ fn a_question_open_past_the_stall_holds_nothing() {
     ask(&mut world, &producer, change);
     park_after_turn(&mut world, &producer, None, 0);
     let before_question = row(&world, change).change.since;
-    world.env.now = world.env.now.saturating_add(stall.saturating_add(stall));
+    world.advance_to(world.env.now.saturating_add(stall.saturating_add(stall)));
     world.advance_ticks(TICKS);
     assert_eq!(row(&world, change).change.state, State::Producing { requested: true });
     assert!(!matches!(live_task(&world, change).phase, tasks::Phase::Held { .. }));
@@ -338,11 +338,11 @@ fn a_question_open_past_the_stall_holds_nothing() {
     assert!(since > before_question);
     let deadline = since.as_nanos().saturating_add(stall.as_nanos());
     // Leave a minute before the deadline, beyond these ticks' twenty seconds.
-    world.env.now = Time::from_nanos(deadline - Duration::from_secs(60).as_nanos());
+    world.advance_to(Time::from_nanos(deadline - Duration::from_secs(60).as_nanos()));
     world.advance_ticks(TICKS);
     assert_eq!(row(&world, change).change.state, State::Producing { requested: true });
     assert!(row(&world, change).change.since >= since);
-    world.env.now = Time::from_nanos(deadline);
+    world.advance_to(Time::from_nanos(deadline));
     world.advance_ticks(TICKS);
     assert_eq!(row(&world, change).change.state, State::Producing { requested: true });
     assert!(!matches!(live_task(&world, change).phase, tasks::Phase::Held { .. }));
@@ -1021,16 +1021,17 @@ fn an_answer_with_a_new_dependency_waits_for_it_to_land() {
     assert_eq!(replies(&world, producer.task, change)[0].words.as_ref(), ANSWER);
 }
 
-struct AddedDependency {
-    world: World,
-    dependency: u64,
-    change: u64,
+pub(crate) struct AddedDependency {
+    pub(crate) world: World,
+    pub(crate) requester: engine::Assignment,
+    pub(crate) dependency: u64,
+    pub(crate) change: u64,
     upstream: engine::Assignment,
     producer: engine::Assignment,
     question: u64,
 }
 
-fn existing_sibling_question() -> AddedDependency {
+pub(crate) fn existing_sibling_question() -> AddedDependency {
     let (mut world, requester) = plan_world(None);
     let dependency = make_change(&mut world, &requester, CALL, engine::ChangeQuestions::None);
     let upstream = next_producer(&mut world, dependency);
@@ -1051,7 +1052,7 @@ fn existing_sibling_question() -> AddedDependency {
     assert!(live_task(&world, change).started_from.is_empty());
     answer(&mut world, &requester, change, CALL + 3);
     assert_answer_held(&mut world, change, &producer, dependency);
-    AddedDependency { world, dependency, change, upstream, producer, question }
+    AddedDependency { world, requester, dependency, change, upstream, producer, question }
 }
 
 fn assert_answer_held(world: &mut World, change: u64, producer: &engine::Assignment, dependency: u64) {
@@ -1065,8 +1066,8 @@ fn assert_answer_held(world: &mut World, change: u64, producer: &engine::Assignm
     assert_pending_dependency(world, change, dependency);
 }
 
-fn land_sibling_and_resume(story: &mut AddedDependency) {
-    let AddedDependency { world, dependency, change, upstream, producer, question } = story;
+pub(crate) fn land_sibling_and_resume(story: &mut AddedDependency) {
+    let AddedDependency { world, dependency, change, upstream, producer, question, .. } = story;
     let branch = row(world, *dependency).branch.clone();
     world.external(2, raw::Op::Git(raw::Git::Create { branch: branch.clone(), commit: 1 }));
     fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"prerequisite", b"ready", 1)

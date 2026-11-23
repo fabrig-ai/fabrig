@@ -1,4 +1,4 @@
-//! Command line entry point for data/codec/README.md, section 6, and data/codec/command.md, section 8.
+//! Command line entry point for data/codec/golden.md, section 1, and data/codec/command.md, section 8.
 
 extern crate alloc;
 

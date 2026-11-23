@@ -1,5 +1,5 @@
 //! The browser half replays operations and copies events into the pure half.
-//! Patches preserve mounted controls (skein/docs/design/ui/web/README.md, 5).
+//! Patches preserve mounted controls (skein/docs/design/ui/web/patches.md, 1).
 
 use std::{cell::RefCell, collections::BTreeMap, rc::Rc};
 
@@ -31,7 +31,7 @@ pub struct Dom {
 }
 
 impl Dom {
-    #[expect(clippy::too_many_lines, reason = "The listeners share one event dispatch path (ui/web/README.md, 5).")]
+    #[expect(clippy::too_many_lines, reason = "The listeners share one event dispatch path (ui/web/patches.md, 1).")]
     pub fn new<R: 'static>(
         mount: Element,
         page: &Rc<RefCell<Page<'static>>>,
@@ -235,7 +235,7 @@ impl Mounted {
         self.apply(&ops);
     }
 
-    // The page owns panel folding, without an application report (ui/web/README.md, 5).
+    // The page owns panel folding, without an application report (ui/web/patches.md, 1).
     // A target is an outside press; no target is Escape, with focus restored inside.
     fn fold_away(&self, target: Option<&Element>) -> bool {
         let details = self.mount.query_selector_all("details[open][data-folds-away]").expect("panel selector");
@@ -601,7 +601,7 @@ impl Mounted {
             })
     }
 
-    // A wheel's movement and follow decision share one turn, as a page key's do (ui/web/README.md, 5).
+    // A wheel's movement and follow decision share one turn, as a page key's do (ui/web/patches.md, 1).
     fn wheel(&self, element: &Element, event: &WheelEvent) {
         if !event.cancelable()
             || event.default_prevented()
@@ -655,7 +655,7 @@ impl Mounted {
         self.measure(node);
     }
 
-    // Four deepest entries reaching the screen bound the notes per log (ui/web/README.md, 5).
+    // Four deepest entries reaching the screen bound the notes per log (ui/web/patches.md, 1).
     fn hold_view(&self, node: NodeId) {
         let element = self.group(node).element;
         let bounds = element.get_bounding_client_rect();

@@ -5,8 +5,8 @@ doing: waiting for a runner, blocked by the jobs it needs, or running at
 a step. A service reads it when a wait on CI has passed its bound, to
 say why in the hold it makes (temper's
 `domain/forge/change/stalls.md`, 3 and 4;
-`domain/landing.md`, 4.2). It is a call of the vocabulary (README.md,
-3.2), rendered by each dialect (forgejo.md, github.md), and the fake
+`domain/landing.md`, 4.2). It is a call of the vocabulary (vocabulary.md,
+1.2), rendered by each dialect (forgejo.md, github.md), and the fake
 forge models the states it reads (../testing/fakes/forge.md, 2.3).
 
 ## 1. In one page
@@ -17,9 +17,9 @@ forge models the states it reads (../testing/fakes/forge.md, 2.3).
 - **Four states:** `Waiting` (no runner has taken it), `Blocked` (the
   jobs it needs have not ended), `Running`, and `Completed`.
 - **No log is read:** the job itself, and on Forgejo its run, as `Job`
-  reads them (forgejo.md, 1.2), its steps streamed and only the one
+  reads them (forgejo-operations.md, 1), its steps streamed and only the one
   running kept.
-- **`MissingJob`,** as `Job`'s (README.md, 3.4): the job absent, or its
+- **`MissingJob`,** as `Job`'s (vocabulary.md, 1.4): the job absent, or its
   run, head or attempt not the attempt's.
 
 ## 2. The call and its answer
@@ -29,7 +29,7 @@ forge models the states it reads (../testing/fakes/forge.md, 2.3).
 - **The answer:** `Answer::JobState { attempt, state, labels, step }`:
   the attempt asked; `state`, a `JobState`; `labels`, the runner labels
   the job asks for, in the forge's order, each at most 255 bytes and at
-  most 16, kept while the answer's bytes hold them (README.md, 3.7),
+  most 16, kept while the answer's bytes hold them (vocabulary.md, 1.7),
   those past either bound dropped and `cut` set; `step`, the `Step` (its
   number and name) the job is at while `Running`, the first of its
   steps the forge says is running, none in any other state or when no
@@ -44,7 +44,7 @@ forge models the states it reads (../testing/fakes/forge.md, 2.3).
 ## 3. On Forgejo
 
 - **Its requests:** `GET R/actions/runs/<run>`; `GET
-  R/actions/jobs/<job>`, as `Job`'s first two (forgejo.md, 1.2).
+  R/actions/jobs/<job>`, as `Job`'s first two (forgejo-operations.md, 1).
 - **Its answer:** the run's `commit_sha`, the job's `run_id` and
   `attempt` checked against the attempt's, as `Job` checks them;
   `status`: `waiting` and `unknown` as `Waiting`, `blocked` as
@@ -62,13 +62,13 @@ forge models the states it reads (../testing/fakes/forge.md, 2.3).
 
 - **Its request:** `GET R/actions/jobs/<job>`.
 - **Its answer:** `run_id`, `run_attempt` and `head_sha` checked
-  against the attempt's, as `Job` checks them (github.md, 4.1);
+  against the attempt's, as `Job` checks them (github-operations.md, 1.1);
   `status`: `queued`, `requested` and `pending` as `Waiting`, `waiting`
   (a deployment's protection rule holds it) as `Blocked`,
   `in_progress` as `Running`, `completed` as `Completed`; `labels` as
   the labels; `steps[]` streamed, the first whose `status` is
   `in_progress` kept as the step.
-- GitHub's pending checks name no job (github.md, 4.4), so a service
+- GitHub's pending checks name no job (github-operations.md, 1.4), so a service
   reading a GitHub change's pending checks has no attempt to ask about;
   the call serves a run's jobs there, as a landing's gate run names
   them.

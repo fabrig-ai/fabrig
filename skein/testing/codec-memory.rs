@@ -1,4 +1,4 @@
-// Codec owners' largest-root memory checks (data/codec/README.md, section 6).
+// Codec owners' largest-root memory checks (data/codec/golden.md, section 1).
 // Included by each world's test binary, with its counting allocator installed.
 
 /// Find the largest common clamp that fits, bisecting the remaining interval.

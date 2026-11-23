@@ -1,5 +1,5 @@
 //! Literal event documents retain their bytes and framing
-//! (skein/docs/design/testing/README.md, 6).
+//! (skein/docs/design/testing/layout.md, 1).
 
 #[test]
 fn events_keep_literal_documents_and_delimiters() {

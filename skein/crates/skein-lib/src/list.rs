@@ -1,4 +1,4 @@
-//! Bounded sequences (skein/docs/design/runtime/lib.md, 5): what a step appends to,
+//! Bounded sequences (skein/docs/design/runtime/lib-containers.md, 1): what a step appends to,
 //! growing as they fill under a cap, or allocated once at that cap.
 
 #![expect(clippy::disallowed_types, reason = "a list is a Vec allocated once or grown as it fills, never past its cap")]
@@ -59,7 +59,7 @@ impl<T> List<T> {
         self.capacity
     }
 
-    /// Raises the capacity in place, allocating nothing (runtime/lib.md, 5).
+    /// Raises the capacity in place, allocating nothing (runtime/lib-containers.md, 1).
     pub fn raise(&mut self, capacity: u32) {
         assert!(capacity >= self.capacity(), "a capacity never falls");
         self.capacity = capacity;

@@ -1,4 +1,4 @@
-//! Demo tables shared by the render tests (runtime/shell.md, 14).
+//! Demo tables shared by the render tests (runtime/shell-table.md, 1).
 
 use super::{Argument, Command, Reach, Set, Switch, Table, TestTable, Variable, Way};
 use crate::{Base, Fallback, Setting, Settings};

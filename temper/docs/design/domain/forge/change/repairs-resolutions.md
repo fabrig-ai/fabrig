@@ -17,7 +17,7 @@ This document holds merge jobs and conflict resolutions, split from [`repairs.md
   on from it as from a resolution's push; a head that did not move
   means the command left conflicts, and the change makes a resolution
   of the same base, its words carrying the job's result, made text first
-  (each byte outside UTF-8 a `?`, skein's `runtime/lib.md`, 6, since the
+  (each byte outside UTF-8 a `?`, skein's `runtime/lib-bytes.md`, 1, since the
   job's result is the merge command's bytes and a task's words are
   text), cut to the resolution's words' room and marked. A job that fails for good holds
   the change as a resolution that fails does. Each of its failures, a
@@ -123,7 +123,7 @@ This document holds merge jobs and conflict resolutions, split from [`repairs.md
   decimal, a NUL byte, then the bytes, in lowercase hex: SHA-1's 40
   digits where the section's pinned head is a SHA-1 id (its last 12 of
   32 bytes zero, as the engine reads a commit), SHA-256's 64 otherwise
-  (skein's `runtime/lib.md`, 6.2 and 6.3). The agent reads it with `git
+  (skein's `runtime/lib-bytes.md`, 1.2 and 1.3). The agent reads it with `git
   cat-file -p ID`, or, resolving, as the merge in progress holds it.
   This check comes before the room's, so a file not text is named so
   whatever its size, and its line takes its room alone as a file named
@@ -132,7 +132,7 @@ This document holds merge jobs and conflict resolutions, split from [`repairs.md
   would hold its task for good; the assignment's own check for text,
   behind this one, is `../../agent/room.md`, 2.
   Its pinned comparison, of the head and the base it conflicts with, is by
-  names (skein's `forge/README.md`, 3.2 and 3.3), so a conflict however far its
+  names (skein's `forge/vocabulary.md`, 1.2 and 1.3), so a conflict however far its
   branches have gone apart is compared: `What landed in the base: N
   commits`, N its `ahead`; then each path it names, `Base file: PATH`,
   followed by `Conflicting file: PATH` where the pull's own files name it
@@ -151,13 +151,13 @@ This document holds merge jobs and conflict resolutions, split from [`repairs.md
   to the pull sections for reviews and repairs.
   Likewise, if a page of the pull's files exceeds the forge client's answer
   byte or row limit (a page carries each of its files whole on both sides,
-  skein's `forge/forgejo.md`, 1.2, so one large document can pass it however small
+  skein's `forge/forgejo-operations.md`, 1, so one large document can pass it however small
   its change), the section keeps its pull identity, its gathered content and
   the pages before it, and appends a files-omitted notice within its byte
   budget, naming that page, its bound and the tools that read its files:
   `[files omitted from page P: past BOUND; the pull changes F files; read_issues what=pull_files from page P+1 lists the rest, and read_forge what=file reads a path at the head or the base]`,
   F the forge's count of the pull's changed files from the section's pull
-  read (skein's `forge/README.md`, 3.6, `Pull`'s `size`), its clause
+  read (skein's `forge/vocabulary.md`, 1.6, `Pull`'s `size`), its clause
   `the pull changes F files; ` left out where the forge gave no count. The section then goes on as after its last page, to its
   comparison where it has one; it reads no later page of files and raises no
   limit. This holds for every pull section, a review's included, so a

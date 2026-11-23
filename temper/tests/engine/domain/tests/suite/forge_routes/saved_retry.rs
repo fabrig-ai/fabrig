@@ -108,6 +108,13 @@ impl Remote for Git<'_> {
     }
 }
 
+/// The engine world's forge publishes no counts (temper/docs/design/protocol/git-operations.md, 1.3).
+impl temper_fake_git::counts::Remote for Git<'_> {
+    fn fetch_counts(&mut self, _: &[u8]) -> Result<Option<u64>, Fault> {
+        Ok(None)
+    }
+}
+
 pub(super) struct Workspace {
     domain: checkout::Domain,
     env: Env<checkout::Limits>,

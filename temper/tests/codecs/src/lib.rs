@@ -1,4 +1,4 @@
-//! Shared deterministic codec inputs (skein's data/codec/README.md, section 6).
+//! Shared deterministic codec inputs (skein's data/codec/golden.md, section 1).
 pub use skein_checks::MutationBatch;
 use skein_lib::Rng;
 

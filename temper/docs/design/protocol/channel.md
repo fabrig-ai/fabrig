@@ -470,11 +470,11 @@ Within the suites' budgets (`../testing/tiers.md`, section 1):
   handoff is jig's protocol world's rule; these stories hold temper's
   composition to it.
 
-- **Codec tests,** as skein's `data/codec/README.md`, section 6: records
+- **Codec tests,** as skein's `data/codec/golden.md`, section 1: records
   drift, built-value round trips and
   bounds, with no family golden files or generated tests. skein's `every`
   pins the bytes. `Identity`'s `Debug` holds no byte of its tokens, of
-  either kind. Section 3's version rule holds for an encoding change.
+  either kind. `channel.md`, section 3's version rule holds for an encoding change.
 - **Step tests of the translation** in `temper-service`: each function
   both ways for every variant; an engine's workspace through `Items` to
   the worker's, field for field, with its remote made from the base, the

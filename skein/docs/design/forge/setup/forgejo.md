@@ -74,7 +74,7 @@ GitHub's, has this shape.
   (`github.md`, 1.9); or `None`. A key the host cannot sign with answers `Unsigned`,
   and the request is never sent.
 - **The host decodes a reply** with `skein-forge`'s decoders (../forgejo.md,
-  section 1; ../github.md, sections 8 and 11): 2xx with a document,
+  section 1; ../github-app.md, sections 1 and 2): 2xx with a document,
   `Document`; with a listing, `Rows`, one page; 2xx with no body,
   `Empty`; any other status, `Status(code)`; no answer or a body that
   does not decode, `Down`.
@@ -222,7 +222,7 @@ answers `204` with no body, `404` when the repository is not there.
   reconcile beside Forgejo with no readiness probe. After the first
   answer a `Down` stops the machine.
 - **A failure** is `{forge, step, subject, why}`, and shows no secret
-  (../../runtime/lib.md, section 6). The step is `Admin`, `Bot` (its id included),
+  (../../runtime/lib-bytes.md, section 1). The step is `Admin`, `Bot` (its id included),
   `Token`, `Org`, `Repository` (its collaborator and hook), `Person`
   (1.3, step 7), `File` (1.9), and for
   GitHub's plans `App`, `Installation` (a picker's too, 1.8) and `State`
@@ -504,7 +504,7 @@ whole, finishes what the last one left.
 ## 2. What reconcile relies on of Forgejo
 
 Each fact is recorded by the conformance on the throwaway Forgejo at the
-pin (../README.md, section 4.3), and named by the fact's name.
+pin (../dialects.md, section 1.3), and named by the fact's name.
 
 - **Users and tokens, by the admin's token** (steps 1 to 3, and 1.7):
   - the admin's token reads as a site admin; another's is refused:

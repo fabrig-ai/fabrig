@@ -116,7 +116,7 @@ fn account_rows(d: &Driver) -> Vec<&accounts::Stored> {
 }
 fn restart(d: &mut Driver, granted: bool, seed: u64) {
     d.store.crash(seed);
-    d.root = engine::Domain::new(config(granted), &d.env.limits).expect("playground fixture");
+    d.replace_root(config(granted));
     d.events.clear();
     d.out.clear();
     d.immediate.clear();

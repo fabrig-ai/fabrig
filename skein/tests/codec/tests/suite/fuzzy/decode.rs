@@ -1,5 +1,5 @@
 //! Deterministic arbitrary wire bytes for every top-level sample record
-//! (data/codec/README.md, section 6; testing-strategy.md, section 8).
+//! (data/codec/golden.md, section 1; testing-strategy.md, section 8).
 
 #[cfg(test)]
 mod tests {

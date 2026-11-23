@@ -129,7 +129,7 @@ Focused, in the worlds that own each side, with their simulated clocks:
   14; a connection whose hello is not heard told nothing; a second ask
   sent again.
 - **The wire:** generated records' drift, as skein's
-  `data/codec/README.md`, section 6 has it; the patch's goldens up and down
+  `data/codec/golden.md`, section 1 has it; the patch's goldens up and down
   with the variant refused below 15, and `KINDS` against the schema (`wires.md`, 7).
 - **Fuzzy,** in the worker-link world's seeded runs: any order of words,
   losses, refusals, redials and admissions, and the clock never ends

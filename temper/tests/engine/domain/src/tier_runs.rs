@@ -267,7 +267,7 @@ pub fn job_logs(world: &World, run: &raw::Run) -> Vec<temper_engine_domain_forge
 }
 
 /// Complete the typed run read with the fake's jobs, as the forge protocol does
-/// (skein/docs/design/forge/forgejo.md, 1.2). The root world's generic projection carries
+/// (skein/docs/design/forge/forgejo-operations.md, 1). The root world's generic projection carries
 /// the run alone; the forge world's projection uses the same `run_jobs` builder.
 pub fn tick(world: &mut World) {
     for event in &mut world.events {

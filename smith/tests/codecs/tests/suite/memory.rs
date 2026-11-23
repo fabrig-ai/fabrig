@@ -1,5 +1,5 @@
 //! The largest text payloads admitted by the charter and turn codecs stay
-//! within their generated heap bounds (skein/docs/design/data/codec/README.md, sections 4 and 6).
+//! within their generated heap bounds (skein/docs/design/data/codec/README.md, section 4, and skein/docs/design/data/codec/golden.md, section 1).
 
 use skein_heap::Meter;
 use skein_lib::{List, Reader, Writer};

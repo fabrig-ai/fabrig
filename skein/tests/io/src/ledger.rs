@@ -8,7 +8,7 @@
 //! - Each demand answered once, by `Bytes` exactly what it reads, or by
 //!   `Room` if it asks for room; no `Bytes` after `End`: no buffer past its
 //!   cap.
-//! - The side above's half (runtime/lib.md, 7): a demand only once the last is
+//! - The side above's half (runtime/lib-streams.md, 1): a demand only once the last is
 //!   answered, never in place of it; a withdrawal only when it reads no
 //!   more, so only a close after it.
 //! - Every socket announced is answered once.
@@ -146,7 +146,7 @@ impl Ledger {
             Asked::Stream { stream, down } => {
                 let owner = self.sockets.get(stream).expect("a stream request names a socket io told");
                 let told = self.owners.get_mut(owner).expect("a socket's owner");
-                // The side above's half of the contract (runtime/lib.md, 7): a demand
+                // The side above's half of the contract (runtime/lib-streams.md, 1): a demand
                 // only once the last is answered, never in place of it; a
                 // withdrawal only when it will read no more, so nothing but a
                 // close after it.
@@ -231,7 +231,7 @@ impl Ledger {
                 assert!(told.connected, "a stream event once connected or bound: {event:?}");
                 assert!(!told.failed && !told.closing, "only Closed after Failed or the owner's close: {event:?}");
                 match up {
-                    // Either answer ends the demand (runtime/lib.md, 7).
+                    // Either answer ends the demand (runtime/lib-streams.md, 1).
                     Up::Bytes(bytes) => {
                         assert!(!told.ended, "no Bytes after End");
                         assert!(met(told.read, bytes), "Bytes meet the demand: {:?}, {} bytes", told.read, bytes.len());
@@ -278,7 +278,7 @@ impl Ledger {
     }
 }
 
-/// Whether `bytes` meet `read` exactly, or with what has arrived (runtime/lib.md, 7).
+/// Whether `bytes` meet `read` exactly, or with what has arrived (runtime/lib-streams.md, 1).
 fn met(read: Read, bytes: &[u8]) -> bool {
     match read {
         Read::Nothing => false,

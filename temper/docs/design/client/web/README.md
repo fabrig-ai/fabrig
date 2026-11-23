@@ -31,7 +31,7 @@ skein's (skein's `ui/web/README.md`), and how a client of jig's does is jig's
   subset in a browser too (skein's `ui/README.md`, section 1).
 - **The view tree is the fake DOM.** Below the browser, every world
   reads skein-ui's tree by role, name and text through skein's fake
-  person (skein's `ui/README.md`, 14.1): no browser, no WebAssembly and no fake
+  person (skein's `ui/testing.md`, 1.1): no browser, no WebAssembly and no fake
   DOM library.
 - **Served by temper's server, from one origin.** `temper-service` serves
   the page and the bundle on its clients' listener (skein's `ui/web/bundle.md`,

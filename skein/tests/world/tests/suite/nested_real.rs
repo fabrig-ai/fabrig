@@ -1,4 +1,4 @@
-//! A scripted step waits for its inner real run (skein/docs/design/testing/README.md, 5).
+//! A scripted step waits for its inner real run (skein/docs/design/testing/service-tiers.md, 1).
 
 use skein_io::kernel::{Complete, Submit};
 use skein_lib::{Duration, Queue, Time, Wall};

@@ -313,6 +313,7 @@ variable of the worker's own process reaches git.
 | A line of stderr (C locale) | Fault |
 |---|---|
 | `fatal: repository '…' not found` | `Missing { Repository }` |
+| `fatal: couldn't find remote ref refs/temper/counts`, exactly (Counts) | none: the forge has no counts, and `Counts` goes on to its deletion (`git-operations.md`, 1.3) |
 | `fatal: couldn't find remote ref …` (Fetch) | `Missing { Branch }` |
 | `fatal: remote error: upload-pack: not our ref …` (Fetch) | `Missing { Commit }` |
 | `fatal: could not read Username for …`, `fatal: Authentication failed for …` | `Refused`: the forge did not take the token |
@@ -322,7 +323,7 @@ variable of the worker's own process reaches git.
 | `fatal: the remote end hung up unexpectedly`, `fatal: early EOF`, `error: RPC failed…` | `Unreachable` |
 
 - **Only invocations that reach the forge** (`Store`'s clone, `Fetch`'s
-  fetch, `Create`, `Push`, and `CheckOut`'s checkout and `Merge`'s merge,
+  and `Counts`' fetches, `Create`, `Push`, and `CheckOut`'s checkout and `Merge`'s merge,
   whose lazy fetch may) are classified by the table. A local one that
   fails is `Broken`, as is a checkout's or a merge's failure no row names.
 - **The faults** are the checkout's (`git::Fault`): `Missing` where the

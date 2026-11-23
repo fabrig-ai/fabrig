@@ -69,7 +69,7 @@ navigation named by the open project, in this order:
   the engine." while `me` or the page cannot say otherwise (`line.md`, 6), the
   terminal's "Sign out" being the `Accounts` tab's (`pages/README.md`);
 - the person's menu, a browser's: the person's name is the button of
-  skein-ui's menu (`Role::Menu`; skein's `ui/web/README.md`, 5), in a
+  skein-ui's menu (`Role::Menu`; skein's `ui/web/patches.md`, 1), in a
   `div.temper-rail-person`, drawn as the foot's other rows. It opens a panel
   above the row, as wide as it, in the look of the switcher's menu. Its items:
   "Accounts", to `Accounts`; "What temper remembers about you", to
@@ -260,7 +260,7 @@ The acts of both, each one act and one request (`root.md`, 1.6):
   brings the new name wherever the project's name shows; refused (the
   name taken, its shape, the role), the form stays and says why under
   its field. A closed form leaves the focus on the switcher's summary
-  (skein's `ui/web/README.md`, 5), or on a page's own field where the page asks
+  (skein's `ui/web/patches.md`, 1), or on a page's own field where the page asks
   it (a new chat, Ask temper's page, a composer after a send, `pages/README.md`).
 - **A new project:** the list ends with a form, "New project", holding
   a name's field, "+ New project" its placeholder, and "Create".

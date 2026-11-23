@@ -68,6 +68,7 @@ fn merge_git(op: root::checkout::git::Op) -> root::checkout::git::Done {
         | Op::Reset { .. }
         | Op::Pack { .. }
         | Op::Point { .. }
+        | Op::Counts { .. }
         | Op::Store { .. }
         | Op::Keep { .. }
         | Op::Make { .. }
@@ -415,9 +416,11 @@ fn failed_job_preparations_log_once_across_reconnect() {
         panic!("failed job preparation");
     };
     assert!(detail.starts_with(b"host worker-a: "));
-    for want in
-        [Want::Branch { branch: b"temper/task-7".as_slice().into() }, Want::Commit { commit: Commit::new(MERGE_BASE) }]
-    {
+    for what in [
+        Git::Fetch { want: Want::Branch { branch: b"temper/task-7".as_slice().into() }, into: Into::Fetched },
+        Git::Counts,
+        Git::Fetch { want: Want::Commit { commit: Commit::new(MERGE_BASE) }, into: Into::Fetched },
+    ] {
         assert_eq!(
             worker.notes().pop(),
             Some(crate::worker_alone::Note::Git {
@@ -425,7 +428,7 @@ fn failed_job_preparations_log_once_across_reconnect() {
                 attempt: 2,
                 job: Some((3, b"merge".as_slice().into())),
                 repository: b"app".as_slice().into(),
-                what: Git::Fetch { want, into: Into::Fetched },
+                what,
             })
         );
     }

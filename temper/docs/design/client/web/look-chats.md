@@ -104,7 +104,7 @@ Chats and their documents' look is split from [the browser's look](look.md).
 
 - **The composers** (`NewChat`'s and a chat's) are text areas with
   skein-ui's `SubmitsOnEnter`: Enter sends, Shift+Enter is a new line
-  (skein's `ui/web/README.md`, section 5), which the view allows in a
+  (skein's `ui/web/patches.md`, section 1), which the view allows in a
   composer's words, counted within its bound (`../view.md`, 1). A
   chat's shows its placeholder, "Reply to T6", while it is empty, as
   `placeholder`, its name staying "Message", and `NewChat`'s "What do you
@@ -117,7 +117,7 @@ Chats and their documents' look is split from [the browser's look](look.md).
   being written (`../pages/README.md`) change in place;
   skein's page keeps focus, caret and scroll across it, and the
   conversation, a log, keeps its end in view while the person has not
-  scrolled away (skein's `ui/web/README.md`, section 5). Where the window has
+  scrolled away (skein's `ui/web/patches.md`, section 1). Where the window has
   let its newest lines go, live text waits until the end is read again
   (`../pages/chat/conversation.md`, 2).
 - **Reading the conversation** (`../pages/chat/conversation.md`, 2): the bound log's

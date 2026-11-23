@@ -201,8 +201,8 @@
     `.btn.quiet.small`.
   - *Reading back:* "Latest", `temper-latest`, a browser's alone: a small
     pill, centred 12 px over the pane's foot, its " ↓" the stylesheet's, on
-    a button *to log end* (skein's `ui/README.md`, 3.2) beside the log, shown while
-    the log is away from its end (`data-log-away`, skein's `ui/web/README.md`, 5).
+    a button *to log end* (skein's `ui/tree.md`, 1.2) beside the log, shown while
+    the log is away from its end (`data-log-away`, skein's `ui/web/patches.md`, 1).
     At a phone's width it stands in a row of its own below the log instead,
     so nothing lies beneath it and it covers none of a card's controls.
     Pressed, the view returns to the end and it goes. Where the window has
@@ -226,7 +226,7 @@
 A chat's conversation and an agent's task's (`../task.md`, 2) are read by scrolling
 (`../../../draft/chat-reading.md`, section 5). jig's thread holds the window
 (jig's `client/domain/client/conversations.md`), and skein's page part
-measures it (skein's `ui/web/README.md`, section 5).
+measures it (skein's `ui/web/patches.md`, section 1).
 
 - **The log is bound** while an earlier page remains or the window has let
   its newest lines go, its act decoding to `Older` at its head and `Newer` at
@@ -259,14 +259,14 @@ measures it (skein's `ui/web/README.md`, section 5).
   and reading later the earliest; they come back when scrolled to, and nothing
   says how many left.
 - **While a window has let its newest go** the log *continues* (skein's
-  `ui/README.md`, 3.2), so it isn't followed and "Latest" shows, even at its foot.
+  `ui/tree.md`, 1.2), so it isn't followed and "Latest" shows, even at its foot.
   New words and a run's live text wait: they show when the end is back.
 - **A delivery that makes the view stale** rebuilds the semantic page tree,
   rereads the held Markdown and compares the old and new trees across the
   window. Unchanged builds are gated; the diff patches changed DOM nodes in
   place. No parsed Markdown or conversation subtree is retained. Following
   reads aggregate log geometry; holding an away reader can scan entries for
-  its anchors, including on a patch outside that log (skein's `ui/web/README.md`, 5).
+  its anchors, including on a patch outside that log (skein's `ui/web/patches.md`, 1).
 - **Each line's outer node is keyed,** a turn by its name, a run of calls by
   its first turn's, a person's words by their message, an activity line by its
   position. So a page read in above is an insert, nothing already drawn is
@@ -295,7 +295,7 @@ measures it (skein's `ui/web/README.md`, section 5).
   which `Chat` counts. An agent's page has the same pill; while its window
   has let the end go, a press asks for the next later page (`Thread::newer`),
   and the log, following, asks for each next until its end is back (skein's
-  `ui/web/README.md`, section 5). Its log has no end request, so sending there does
+  `ui/web/patches.md`, section 1). Its log has no end request, so sending there does
   not request the end.
 - **The terminal:** the log is bound and continues as in a browser, with no
   measures: `up` reads earlier and `down` later (skein's `ui/text.md`, section

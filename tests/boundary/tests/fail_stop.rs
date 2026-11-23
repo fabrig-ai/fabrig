@@ -4,7 +4,7 @@
 //! bin targets, wherever cargo finds them, and reads each one's source: in each `fn main()`,
 //! only white space, `//` comments, `use` and `const` items and the helper's
 //! first-line dispatch may come before `skein_fail_stop::install();`
-//! (skein/docs/design/runtime/shell.md, 6.4). A source with no `fn main()` breaches it. A source it cannot
+//! (skein/docs/design/runtime/shell-startup.md, 1.4). A source with no `fn main()` breaches it. A source it cannot
 //! read and metadata it does not read are failures, never skips.
 
 use std::fs;

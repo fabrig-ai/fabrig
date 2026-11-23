@@ -94,10 +94,10 @@ forge runs on its records are `effects.md`, section 2.
   (jig's `domain/connectors.md`, 14), and the forge clears its
   catching-up state (section 5).
 - **No bound.** A forge down keeps its reads waiting and its finds
-  retrying, each as its owner's rule says (skein's `forge/client.md`,
-  4.2 and 7.5); a read rate-limited at every attempt keeps its pass
+  retrying, each as its owner's rule says (skein's `forge/client.md`, 4.2, and `forge/client-effects.md`, 1.5
+  ); a read rate-limited at every attempt keeps its pass
   open. None of it holds the engine: only the procedures and writes
-  that wait on it, as sections 3 and 4 say.
+  that wait on it, as `catching-up.md`, sections 3 and 4 say.
 
 ## 3. Writes while it catches up
 
@@ -109,7 +109,7 @@ forge runs on its records are `effects.md`, section 2.
 - **A write is sent behind its lane.** The forge hands entries to the
   client in number order, the restored ones first; the client sends an
   entry only once no earlier entry on its lane is left (skein's
-  `forge/client.md`, 7.2). So a write on a lane that holds a restored
+  `forge/client-effects.md`, 1.2). So a write on a lane that holds a restored
   entry waits for that entry, an uncertain one's find included, and a
   write on any other lane goes ahead. The lane is the fence: no second
   order is kept.

@@ -220,7 +220,7 @@ follow from the limits that bound each kind (4).
   to the record; each decoded `InboxItem` includes the variant's
   discriminant, eight more inline bytes per slot on a 64-bit target.
 - **Fixed-rule values** built in memory from each family's current schema,
-  not stored codec bytes (skein's `data/codec/README.md`, section 6);
+  not stored codec bytes (skein's `data/codec/golden.md`, section 1);
   hand-written tests may build generated records by their public fields
   or use fixed-rule values from the schema's text. A fuzz target per family's
   decoder uses the full fixed-rule values; bounds at their limit and one
@@ -446,7 +446,7 @@ versioned record Floor { number: u32 build: text 64 }
   version and its other rows are independent of it.
 - **No layouts' row.** The store keeps no family's fingerprint: a
   build computes one from the schema text it embeds where it needs it
-  (skein's `data/codec/README.md`, section 9), and the levels and
+  (skein's `data/codec/fingerprints.md`, section 1), and the levels and
   versions name the binary's families, the registry each registered
   value's layout. Key `00 03` is never given to another row: a store
   an older build wrote holds its layouts' row there, which no open,

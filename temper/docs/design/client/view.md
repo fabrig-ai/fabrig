@@ -293,7 +293,7 @@ under the composer says how far over they are, counting the characters past the
 bound: "That's 3,200 characters over what one message holds." The client holds an
 edit's first `long_text` bytes and counts the characters past them in that line. A
 browser's field keeps them, since a field's value is written only when its owner's
-count moves (skein's `ui/README.md`, 3.4), and a composer drawn anew shows what the
+count moves (skein's `ui/tree.md`, 1.4), and a composer drawn anew shows what the
 client holds. A suggestion's words and a choice's stay within `CUE_BYTES`, as a
 cue's and a button's. The view prices one composer's value at `long_text`.
 
@@ -417,7 +417,7 @@ the change's chip in a chat (`forge/README.md`, 2.4 and 2.5).
   four once it has landed, none otherwise. A ticked step is skein-ui's
   `completed` item, its tick the look's (STEP_DONE): a screen reader
   reads "Branch pushed completed" and the terminal prints "- Branch
-  pushed (completed)" (skein's `ui/README.md`, 3.2), so nothing is said by
+  pushed (completed)" (skein's `ui/tree.md`, 1.2), so nothing is said by
   style alone (1). The change's live stages are later (`README.md`, section 5).
 - **What it stands for:** the call's work summary, its result's, and
   the line that heard the task's result, whose words are the card's: a
@@ -529,4 +529,4 @@ the change's chip in a chat (`forge/README.md`, 2.4 and 2.5).
 
 - **A time's moment on demand:** an ago ("12 min ago") has no title
   or hover saying its moment. Default: none; the view can give the time
-  node its moment as a hint (`skein/docs/design/ui/README.md`, 3.2).
+  node its moment as a hint (`skein/docs/design/ui/tree.md`, 1.2).

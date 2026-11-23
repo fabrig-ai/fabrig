@@ -11,7 +11,7 @@ when configuration is read. What is still open is listed in section 8.
 
 - **Read once, before the loop.** A process's shell reads its
   configuration file whole, within a bound, with skein's startup kit
-  (skein's `runtime/shell.md`, 6.1), and parses it before io starts. Nothing is
+  (skein's `runtime/shell-startup.md`, 1.1), and parses it before io starts. Nothing is
   read again while the process runs: a change of the document is a
   restart. Settings change at runtime, in the store (below).
 - **JSON, strict.** The file is a JSON document read with skein's JSON
@@ -534,7 +534,7 @@ host's half reports it (`llm.md`, 5.5).
 | an application's credential, for runs' workspaces | the application's | its own member's source: a file, or an exchange it refreshes (section 3) |
 
 - **Read at startup,** each within its bound, from a private file, with
-  skein's `read_private_file` (skein's `runtime/shell.md`, 6.1): a file readable
+  skein's `read_private_file` (skein's `runtime/shell-startup.md`, 1.1): a file readable
   by anyone but the process's user, or reached through a link, refuses
   the start, naming it.
 - **Held by the protocol layer,** never the domain: the domains name
@@ -618,13 +618,13 @@ host's half reports it (`llm.md`, 5.5).
 - **An address** is one of three objects:
   - `{"socket": "127.0.0.1:7100"}`, a socket address, IPv4 or IPv6;
   - `{"host": "issuer.example", "port": 443}`, a host's name, which the
-    shell resolves at startup (skein's `runtime/shell.md`, section 6);
+    shell resolves at startup (skein's `runtime/shell-startup.md`, section 1);
   - `{"in_process": "<name>"}`, an in-process name within skein's bound
     (skein's `runtime/io/README.md`, section 3), in one process only (`service.md`,
     section 10).
 - **A path** is a string of bytes, of one of three kinds, which its
   member fixes: a *configuration path*, a *data path* or a *cache path*,
-  after the application's three directories (skein's `runtime/shell.md`, 6.5).
+  after the application's three directories (skein's `runtime/shell-startup.md`, 1.5).
   Configuration is what the operator writes and may copy or publish (the
   document itself, charters' instructions, trusted roots, the agent's
   configuration); data is what the deployment keeps, secrets among it
@@ -640,7 +640,7 @@ host's half reports it (`llm.md`, 5.5).
     refused, naming its member.
   - *The directories* are the caller's: each absolute, given to the
     parsers with the document by the application's startup, which takes
-    them from its arguments (skein's `runtime/shell.md`, 6.5). A caller that
+    them from its arguments (skein's `runtime/shell-startup.md`, 1.5). A caller that
     gives none, as `jig-test` and tests do, has each relative path
     resolved against the working directory. Every file the
     configuration names (`files`, `worker_files`) is reported resolved,

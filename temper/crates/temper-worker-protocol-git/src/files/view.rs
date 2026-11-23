@@ -9,7 +9,7 @@ use alloc::boxed::Box;
 use skein_io::kernel::{self, Error, Fd, Op, OpenHow};
 use temper_worker_domain_checkout::git;
 
-const NAMES: [&[u8]; 8] = [
+const NAMES: [&[u8]; 9] = [
     b"HEAD",
     b"index",
     b"MERGE_HEAD",
@@ -17,8 +17,12 @@ const NAMES: [&[u8]; 8] = [
     b"MERGE_MODE",
     b"refs/temper/fetched",
     b"refs/temper/landing",
+    invocation::COUNTS_REF,
     b"objects/info/alternates",
 ];
+const REFS: usize = 5;
+const ALTERNATES: usize = NAMES.len() - 1;
+const END: usize = NAMES.len();
 const TEMP: &[u8] = b"temper-view.tmp";
 
 #[derive(Debug)]
@@ -104,10 +108,10 @@ impl View {
         )
     }
     fn parent_name(&self) -> &'static [u8] {
-        if self.index == 7 { b"objects" } else { b"refs" }
+        if self.index == ALTERNATES { b"objects" } else { b"refs" }
     }
     fn directory_name(&self) -> &'static [u8] {
-        if self.index == 7 { b"info" } else { b"temper" }
+        if self.index == ALTERNATES { b"info" } else { b"temper" }
     }
     fn destination(&self) -> Fd {
         self.directory.or(self.git).expect("view directory")
@@ -219,7 +223,7 @@ impl View {
             Phase::Parent => Phase::OpenParent,
             Phase::OpenParent => Phase::Directory,
             Phase::Directory => Phase::OpenDirectory,
-            Phase::OpenDirectory if self.index == 7 => {
+            Phase::OpenDirectory if self.index == ALTERNATES => {
                 self.content =
                     invocation::joined(&[b"../../../../../", &invocation::git_dir(&self.place), b"/objects\n"]);
                 Phase::Discard
@@ -228,12 +232,12 @@ impl View {
             Phase::Source if self.source.is_none() => Phase::Remove,
             Phase::Source => Phase::Discard,
             Phase::Discard => Phase::Target,
-            Phase::Target if self.index == 7 => Phase::Write,
+            Phase::Target if self.index == ALTERNATES => Phase::Write,
             Phase::Target => Phase::Read,
             Phase::Read if self.content.is_empty() => Phase::CloseSource,
             Phase::Read => Phase::Write,
             Phase::Write if usize::try_from(self.written).expect("chunk size") < self.content.len() => Phase::Write,
-            Phase::Write if self.index == 7 => Phase::CloseTarget,
+            Phase::Write if self.index == ALTERNATES => Phase::CloseTarget,
             Phase::Write => {
                 self.offset = self.offset.checked_add(u64::from(self.written)).expect("file offset");
                 Phase::Read
@@ -259,11 +263,11 @@ impl View {
         self.written = 0;
         self.content = Box::new([]);
         self.phase = match self.index {
-            5 => Phase::Parent,
-            7 => Phase::CloseDirectory,
-            8 => return self.drain(dirs, settings, limits),
-            0..=4 | 6 => Phase::Source,
-            9.. => unreachable!("fixed view list"),
+            REFS => Phase::Parent,
+            ALTERNATES => Phase::CloseDirectory,
+            END => return self.drain(dirs, settings, limits),
+            index if index < END => Phase::Source,
+            _ => unreachable!("fixed view list"),
         };
         self.first(dirs, settings, limits)
     }

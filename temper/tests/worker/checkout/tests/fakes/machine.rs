@@ -297,3 +297,35 @@ fn successful_fetch_checkout_and_merge_leave_numbered_packs_and_pack_uses_fifty(
     assert_eq!(perform(&mut forge, &mut disk, check_out(head)), Done::Succeeded, "objects still usable");
     assert!(disk.exists(b"ws/3/r/.git/objects/pack/pack-53.pack"));
 }
+
+#[test]
+fn counts_fetches_the_whole_published_commit_then_removes_the_stale_ref() {
+    const LOCAL: &[u8] = b"ws/3/r/.git/refs/temper/counts";
+    const STORE_REF: &[u8] = b"stores/7/refs/temper/3/counts";
+    const REMOTE: &[u8] = b"forge/r";
+    const FILE: &[u8] = b"{\"checks\":7}\n";
+    let (mut forge, mut disk, head) = fixture();
+    let op = Op::Counts { at: place(), store: STORE, remote: REMOTE.into(), identity: 1, account: None };
+    assert_eq!(perform(&mut forge, &mut disk, op.clone()), Done::Succeeded);
+    assert!(disk.content(LOCAL).is_none());
+    let counts = forge.publish_counts(REMOTE, FILE);
+    assert_eq!(forge.branches(REMOTE), [b"main".to_vec()], "a publication isn't a branch");
+    assert_eq!(forge.branch(REMOTE, b"main"), Some(head));
+    assert_eq!(perform(&mut forge, &mut disk, op.clone()), Done::Fetched { commit: commit(counts) });
+    let tip = counts.to_le_bytes();
+    for reference in [LOCAL, STORE_REF] {
+        assert_eq!(disk.content(reference), Some(tip.as_slice()));
+    }
+    let contents = format!("stores/7/objects/trees/{counts}/counts.json");
+    assert_eq!(disk.content(contents.as_bytes()), Some(FILE));
+    assert!(git::object_present(&disk, b"ws/3/r", counts));
+
+    forge.remove_counts(REMOTE);
+    forge.set_reachable(REMOTE, false);
+    assert_eq!(perform(&mut forge, &mut disk, op.clone()), Done::Failed { fault: Fault::Unreachable });
+    assert_eq!(disk.content(LOCAL), Some(tip.as_slice()), "a failure doesn't delete the local ref");
+    forge.set_reachable(REMOTE, true);
+    assert_eq!(perform(&mut forge, &mut disk, op), Done::Succeeded);
+    assert!(!disk.exists(LOCAL));
+    assert_eq!(disk.content(STORE_REF), Some(tip.as_slice()), "the store still retains its fetched objects");
+}

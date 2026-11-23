@@ -36,7 +36,7 @@ use crate::{HostedProgram, Inherited, StartupAppends, StartupRoots};
 use std::os::unix::ffi::OsStrExt;
 
 /// A story's Linux bound, doubled on the slower macOS host
-/// (skein/docs/design/testing/README.md, 5). No budget or product deadline scales.
+/// (skein/docs/design/testing/service-tiers.md, 1). No budget or product deadline scales.
 #[must_use]
 pub const fn host_bound(linux: Duration) -> Duration {
     host_bound_on(linux, cfg!(target_os = "macos"))
@@ -192,7 +192,7 @@ pub fn try_run<P: Host, R: Referee<P>>(
 }
 
 /// A killed hosted child, reported after its operations and descriptors settle
-/// (skein/docs/design/testing/README.md, 5).
+/// (skein/docs/design/testing/service-tiers.md, 1).
 #[derive(Debug)]
 #[expect(clippy::partial_pub_fields, reason = "metered peaks are read only through the outcome accessor")]
 pub struct Killed {
@@ -227,7 +227,7 @@ impl Killed {
 impl core::fmt::Display for Killed {
     #[expect(
         clippy::use_debug,
-        reason = "the kill record's Display names Exit with its Debug form (testing/README.md, 5)"
+        reason = "the kill record's Display names Exit with its Debug form (testing/service-tiers.md, 1)"
     )]
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "host {} ({}", self.host, self.program)?;

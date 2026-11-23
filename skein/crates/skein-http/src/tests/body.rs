@@ -151,7 +151,7 @@ fn a_fill_past_what_is_left_of_the_body_is_answered_by_its_end() {
     assert_eq!(
         events,
         [Event::Body(Up::End), Event::Done(Reuse::Keep)],
-        "a read larger than what is left (runtime/lib.md, 7)"
+        "a read larger than what is left (runtime/lib-streams.md, 1)"
     );
     assert_eq!((requests).len(), 0);
     assert_eq!(machine.client.waiting(), Waiting::Call);
@@ -208,7 +208,7 @@ fn a_withdrawal_that_crosses_its_answer_withdraws_all_the_same() {
     machine.down(Request::Body(Down::Demand { read: Read::Fill(2), room: 0 }));
     let (events, _) = machine.bytes(b"ab");
     assert_eq!(events, [Event::Body(Up::Bytes(super::boxed(b"ab")))]);
-    // The side above withdrew before it saw the answer (runtime/lib.md, 7).
+    // The side above withdrew before it saw the answer (runtime/lib-streams.md, 1).
     let (events, requests) = machine.down(Request::Body(Down::Demand { read: Read::Nothing, room: 0 }));
     assert!(events.is_empty() && requests.is_empty());
     let (_, requests) = machine.down(Request::Discard);

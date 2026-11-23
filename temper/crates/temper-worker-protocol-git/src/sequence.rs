@@ -49,6 +49,7 @@ pub fn first(op: &git::Op) -> Next {
                 git::Want::Default => Source::Default,
             },
         },
+        git::Op::Counts { at, remote, .. } => Command::FetchCounts { remote: remote.clone(), workspace: at.workspace },
         git::Op::Create { remote, branch, commit, .. } => {
             Command::Create { remote: remote.clone(), branch: branch.clone(), commit: *commit }
         }
@@ -136,6 +137,7 @@ pub fn after(
             | git::Op::Pack { .. }
             | git::Op::Point { .. }
             | git::Op::Fetch { .. }
+            | git::Op::Counts { .. }
             | git::Op::Create { .. }
             | git::Op::CheckOut { .. }
             | git::Op::DiffPaths { .. }
@@ -172,12 +174,26 @@ pub fn after(
             }
             return Next::RemakeView { done: Box::new(git::Done::Succeeded), format: Some(*format) };
         }
-        Command::Clean if code == 0 => return Next::End(git::Done::Succeeded),
+        Command::Clean | Command::DeleteCounts if code == 0 => return Next::End(git::Done::Succeeded),
         Command::Fetch { into, workspace, .. } if code == 0 => {
             if let Some(commit) = output::fetched(stdout, &invocation::store_reference(*workspace, *into)) {
                 return Next::Run(Command::UpdateRef { into: *into, commit });
             }
         }
+        Command::FetchCounts { workspace, .. } => {
+            return if code == 0 {
+                match output::fetched(stdout, &invocation::counts_store_reference(*workspace)) {
+                    Some(commit) => Next::Run(Command::UpdateCounts { commit }),
+                    None => failed(git::Fault::Broken, tail, cut),
+                }
+            } else {
+                match output::counts_failure(tail, cut) {
+                    Ok(()) => Next::Run(Command::DeleteCounts),
+                    Err(fault) => failed(fault, tail, cut),
+                }
+            };
+        }
+        Command::UpdateCounts { commit } if code == 0 => return Next::End(git::Done::Fetched { commit: *commit }),
         Command::UpdateRef { commit, .. } if code == 0 => {
             return Next::End(if op.kind() == git::Kind::Point {
                 git::Done::Succeeded
@@ -230,6 +246,7 @@ pub fn after(
             | git::Op::Pack { .. }
             | git::Op::Point { .. }
             | git::Op::Fetch { .. }
+            | git::Op::Counts { .. }
             | git::Op::Create { .. }
             | git::Op::CheckOut { .. }
             | git::Op::Look { .. }
@@ -295,6 +312,7 @@ pub fn after(
             | git::Op::Pack { .. }
             | git::Op::Point { .. }
             | git::Op::Fetch { .. }
+            | git::Op::Counts { .. }
             | git::Op::Create { .. }
             | git::Op::CheckOut { .. }
             | git::Op::Merge { .. }
@@ -310,6 +328,8 @@ pub fn after(
         | Command::Clone { .. }
         | Command::Remote { .. }
         | Command::UpdateRef { .. }
+        | Command::UpdateCounts { .. }
+        | Command::DeleteCounts
         | Command::Fetch { .. }
         | Command::CheckOut { .. }
         | Command::Clean
@@ -386,6 +406,7 @@ fn unmerged(op: &git::Op, stdout: &[u8], checkout: &checkout::Limits) -> Option<
         | git::Op::Pack { .. }
         | git::Op::Point { .. }
         | git::Op::Fetch { .. }
+        | git::Op::Counts { .. }
         | git::Op::Create { .. }
         | git::Op::CheckOut { .. }
         | git::Op::Look { .. }
@@ -410,6 +431,7 @@ fn commit_tree(op: &git::Op, stdout: &[u8]) -> Option<Command> {
         | git::Op::Pack { .. }
         | git::Op::Point { .. }
         | git::Op::Fetch { .. }
+        | git::Op::Counts { .. }
         | git::Op::Create { .. }
         | git::Op::CheckOut { .. }
         | git::Op::Look { .. }
@@ -434,6 +456,7 @@ fn checked_out(op: &git::Op) -> Next {
         | git::Op::Pack { .. }
         | git::Op::Point { .. }
         | git::Op::Fetch { .. }
+        | git::Op::Counts { .. }
         | git::Op::Create { .. }
         | git::Op::Look { .. }
         | git::Op::DiffPaths { .. }
@@ -449,6 +472,7 @@ fn remote(command: &Command) -> bool {
     match command {
         Command::Store { .. }
         | Command::Fetch { .. }
+        | Command::FetchCounts { .. }
         | Command::Create { .. }
         | Command::Push { .. }
         | Command::CheckOut { .. }
@@ -462,6 +486,8 @@ fn remote(command: &Command) -> bool {
         | Command::Clone { .. }
         | Command::Remote { .. }
         | Command::UpdateRef { .. }
+        | Command::UpdateCounts { .. }
+        | Command::DeleteCounts
         | Command::SnapshotHead
         | Command::SnapshotMerge { .. }
         | Command::SnapshotFetch { .. }
@@ -512,6 +538,7 @@ pub(crate) fn view_place(op: &git::Op) -> Option<&git::Place> {
     match op {
         git::Op::Clone { at, .. }
         | git::Op::Fetch { at, .. }
+        | git::Op::Counts { at, .. }
         | git::Op::Point { at, .. }
         | git::Op::CheckOut { at, .. }
         | git::Op::Merge { at, .. }
@@ -592,7 +619,10 @@ pub(crate) fn after_view(
         | Command::Remote { .. }
         | Command::Store { .. }
         | Command::UpdateRef { .. }
+        | Command::UpdateCounts { .. }
+        | Command::DeleteCounts
         | Command::Fetch { .. }
+        | Command::FetchCounts { .. }
         | Command::Create { .. }
         | Command::CheckOut { .. }
         | Command::Clean

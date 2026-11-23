@@ -1,0 +1,21 @@
+# A split pass (temper/docs/design/draft/design-upkeep.md, 4.3), at e44a6dd1df1.
+# skein/docs/design/testing/README.md: 65,516 bytes. Service tiers and layout get their own pages; skein's tiers, examples, the minimal fake machine and open questions stay.
+title skein/docs/design/testing/service-tiers.md: Testing skein: what skein supplies for a service's tiers
+title skein/docs/design/testing/layout.md: Testing skein: layout
+skein/docs/design/testing/README.md 5 -> skein/docs/design/testing/service-tiers.md 1
+skein/docs/design/testing/README.md 6 -> skein/docs/design/testing/layout.md 1
+
+# skein/docs/design/llm/README.md: 65,344 bytes. Vocabulary and ownership, and bounds and wire format get their own pages; driving the stack, verification and open work stay.
+title skein/docs/design/llm/vocabulary.md: LLM calls: vocabulary and ownership
+title skein/docs/design/llm/wire.md: LLM calls: bounds and wire format
+skein/docs/design/llm/README.md 2 -> skein/docs/design/llm/vocabulary.md 1
+skein/docs/design/llm/README.md 4 -> skein/docs/design/llm/wire.md 1
+
+# skein/docs/design/data/codec/README.md: 64,378 bytes. Golden bytes and tests, run-time schemas and generic values, and fingerprints get their own pages; schemas, generation, versions and open questions stay.
+title skein/docs/design/data/codec/golden.md: Codecs from schemas: golden bytes and tests
+title skein/docs/design/data/codec/run-time.md: Codecs from schemas: run-time schemas and generic values
+title skein/docs/design/data/codec/fingerprints.md: Codecs from schemas: fingerprints
+skein/docs/design/data/codec/README.md 6 -> skein/docs/design/data/codec/golden.md 1
+skein/docs/design/data/codec/README.md 7 -> skein/docs/design/data/codec/run-time.md 1
+skein/docs/design/data/codec/README.md 8 -> skein/docs/design/data/codec/run-time.md 2
+skein/docs/design/data/codec/README.md 9 -> skein/docs/design/data/codec/fingerprints.md 1

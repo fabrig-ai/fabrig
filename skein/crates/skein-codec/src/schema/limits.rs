@@ -1,4 +1,4 @@
-//! Limits by name and kept-version bounds (data/codec/README.md, sections 4 and 7.3).
+//! Limits by name and kept-version bounds (data/codec/README.md, section 4, and data/codec/run-time.md, section 1.3).
 
 use alloc::boxed::Box;
 use skein_lib::{List, Map, Writer};

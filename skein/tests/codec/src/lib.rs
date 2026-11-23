@@ -1,4 +1,4 @@
-//! Generated sample family for data/codec/README.md, sections 4 and 6.
+//! Generated sample family for data/codec/README.md, section 4, and data/codec/golden.md, section 1.
 //! Values are checked where bytes are made. They know no peer or transport.
 //! Tests drive their wire entry points.
 
@@ -7,7 +7,7 @@
 
 extern crate alloc;
 
-/// The current family schema text (skein data/codec/README.md, section 6).
+/// The current family schema text (skein data/codec/golden.md, section 1).
 pub const SAMPLE_SCHEMA: &str = include_str!("../schema/sample-v1.schema");
 
 /// The maps fixture's record schema (data/codec/maps.md, 8).
@@ -16,19 +16,19 @@ pub const MAPPED_SCHEMA: &str = include_str!("../schema/mapped-v1.schema");
 /// The maps fixture's domain mapping (data/codec/maps.md, 8).
 pub const MAPPED_MAPS: &str = include_str!("../schema/mapped.maps");
 
-/// The current family schema text (skein data/codec/README.md, section 6).
+/// The current family schema text (skein data/codec/golden.md, section 1).
 pub const EVERY_SCHEMA: &str = include_str!("../schema/every-v3.schema");
 
-/// The current family schema text (skein data/codec/README.md, section 6).
+/// The current family schema text (skein data/codec/golden.md, section 1).
 pub const SCALARS_SCHEMA: &str = include_str!("../schema/scalars-v1.schema");
 
-/// The current family schema text (skein data/codec/README.md, section 6).
+/// The current family schema text (skein data/codec/golden.md, section 1).
 pub const LINTS_SCHEMA: &str = include_str!("../schema/lints-v1.schema");
 
-/// The current family schema text (skein data/codec/README.md, section 6).
+/// The current family schema text (skein data/codec/golden.md, section 1).
 pub const SECRETS_SCHEMA: &str = include_str!("../schema/secrets-v1.schema");
 
-/// The current family schema text (skein data/codec/README.md, section 6).
+/// The current family schema text (skein data/codec/golden.md, section 1).
 pub const GROWTH_SCHEMA: &str = include_str!("../schema/growth-v1.schema");
 
 

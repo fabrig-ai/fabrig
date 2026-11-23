@@ -14,10 +14,10 @@ whose document draws how work reaches main (the look request
 - **A flow is a fenced block,** `mermaid` its info string, in a subset
   of Mermaid's flowchart syntax, which models already write and a
   forge already renders in a repository (section 2).
-- **skein-ui's Markdown reader makes it a drawing** (`../ui/README.md`, 3.5)
+- **skein-ui's Markdown reader makes it a drawing** (`../ui/tree.md`, 1.5)
   of skein-ui's own kind, the flow, its data the boxes and arrows read,
   its fallback the same in words; a block past the subset stays fenced
-  code, as today (section 3).
+  code, as today (`diagrams.md`, section 3).
 - **skein-ui's drawing code lays it out** for its box's width, left to
   right where it fits and top to bottom otherwise, by fixed rules, so
   that the same block at the same width always makes the same scene
@@ -151,7 +151,7 @@ value. Centred is at a box's left plus half its width, rounded down.
 
 - **The acceptance cases,** `diagrams/` (its `README.md` says what each
   file is): each case's block, the scene the web mapping prints for it
-  at given widths, byte for byte (`../ui/web/README.md`, section 6), its name
+  at given widths, byte for byte (`../ui/web/svg.md`, section 1), its name
   and its fallback's words; a case with who acts at each node; a case that
   stays code. The tests read
   them, and a change of the look is a change of a case, made with the
@@ -175,11 +175,11 @@ value. Centred is at a box's left plus half its width, rounded down.
 - **When:** the user's; this draft keeps the idea and its cases, and
   no plan takes it up until then (2026-11-04).
 - **skein-ui as an owner** of a drawing kind: owners today are an
-  application's (`../ui/README.md`, 3.3); the flow is skein-ui's own, routed
+  application's (`../ui/tree.md`, 1.3); the flow is skein-ui's own, routed
   as any.
 - **A scene that says its height** (section 4): a scene is its box's
   size today, and skein-ui.css places its SVG at the figure's top left
-  (`../ui/scenes.md`, 2; `../ui/web/README.md`, section 6). A flow needs a scene
+  (`../ui/scenes.md`, 2; `../ui/web/svg.md`, section 1). A flow needs a scene
   that may say its height and an SVG in the figure's flow; the other
   way, an owner's stylesheet giving each flow's figure a height, cannot
   know it.

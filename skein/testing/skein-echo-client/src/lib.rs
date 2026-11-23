@@ -100,7 +100,7 @@ pub struct Plan {
     /// The most bytes in one send, at least 1 and at most io's output cap.
     pub piece: u32,
     /// When it starts reading answers; `None`, never. A demand is never
-    /// replaced (runtime/lib.md, 7): one for room alone, still outstanding when the
+    /// replaced (runtime/lib-streams.md, 1): one for room alone, still outstanding when the
     /// time comes, reads only once its room is granted. And a connection
     /// that never reads never hears the server's end, which waits behind the
     /// answers it left unread (runtime/io/sockets.md, 3): with lines to send, it needs an

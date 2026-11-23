@@ -175,6 +175,7 @@ impl World {
                     | git::Op::Pack { .. }
                     | git::Op::Point { .. }
                     | git::Op::Fetch { .. }
+                    | git::Op::Counts { .. }
                     | git::Op::Create { .. }
                     | git::Op::CheckOut { .. }
                     | git::Op::Look { .. }

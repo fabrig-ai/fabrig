@@ -101,7 +101,7 @@ This document holds the box's supervision, split from [`box.md`](box.md).
   `--front`, these lines go to `box.log` and fd 4 (`box-front.md`, 1).
 
   `--echo steps` (`TEMPER_ECHO`; the default, `none`; skein's
-  `runtime/shell.md`, 6.5) also writes every line each step writes, but serve's
+  `runtime/shell-startup.md`, 1.5) also writes every line each step writes, but serve's
   stdout, prefixed `<step>: `, as it reaches the step's log. It adds no
   line of the box's own log.
 - **Its own log,** `<data>/box/logs/box.log`, holds what a person need not
@@ -161,7 +161,7 @@ This document holds the box's supervision, split from [`box.md`](box.md).
   holds (`box.md`, 1), the browser showing its own loading, and then signs in. That
   socket is the one the box holds today on both systems: it hands on what
   skein's `open_listener` or `temper-box init` made, and on macOS, where no
-  socket says it is listening (skein's `runtime/shell.md`, 6.6), serve's check of it
+  socket says it is listening (skein's `runtime/shell-startup.md`, 1.6), serve's check of it
   passes as it does for any listener given.
 
   A fresh link, after a spent or expired one was opened (jig's
@@ -291,7 +291,7 @@ This document holds the box's supervision, split from [`box.md`](box.md).
   terminal's closing reaches the box from the kernel and again from the
   person's shell, so a `SIGHUP` while the box already stops does nothing,
   and the stop keeps its order. A `SIGHUP` already ignored when the box
-  starts stays ignored (skein's `runtime/shell.md`, 6.3), so `nohup temper box`
+  starts stays ignored (skein's `runtime/shell-startup.md`, 1.3), so `nohup temper box`
   outlives its terminal. The box exits 1 if a write finds that terminal
   gone, as for any terminal that fails.
 - **A failure's tail:** under each terminal line of a step's failure,

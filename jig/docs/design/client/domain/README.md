@@ -194,7 +194,7 @@ jig-client-world, jig-client-protocol-world, jig-client-wire-world   the client'
 | confirmation | what an act will do, said before it is sent: the presentation's, from the facts jig gives |
 | bounds | the engine's facts a draft of an act is compared with, and what happens beyond them, offered for creating and amending (contract/documents.md, 3) |
 | phrasebook | the words a view says, for one language, by skein's machinery (skein's `ui/README.md`, section 9; view.md, section 7) |
-| fake person | skein's person, `skein-fake-person`, in the client's worlds: reads the tree by role, name and text, and acts on it (skein's `ui/README.md`, 14.1; testing.md, section 3) |
+| fake person | skein's person, `skein-fake-person`, in the client's worlds: reads the tree by role, name and text, and acts on it (skein's `ui/testing.md`, 1.1; testing.md, section 3) |
 | scripted engine | the engine as the client's worlds play it (testing.md, section 4) |
 
 The engine's names (`../../domain/README.md`, section 4) keep their
@@ -364,7 +364,7 @@ where each is answered.
 - **Home and navigation are the presentation's,** among the reference
   UI's pages and the application's own (pages.md, section 2).
 - **The view is semantic and platform-neutral:** skein's tree (skein's
-  `ui/README.md`, section 3), shaped like an accessibility tree, which each
+  `ui/tree.md`, section 1), shaped like an accessibility tree, which each
   shell maps onto its platform (skein's `ui/shells.md`).
 - **Words come from a phrasebook,** one per language: jig ships English,
   and an application may give its own as data (client/helpers.md;
@@ -390,14 +390,14 @@ where each is answered.
   the reference UI's regions carry stable region names (view.md, section
   3).
 - **The tree's closed sets are skein's,** grown by skein's criterion
-  through its light path (skein's `ui/README.md`, sections 3 and 4): the
+  through its light path (skein's `ui/tree.md`, sections 1 and 2): the
   reference UI uses them and adds none.
 - **Owners, not connectors.** Everything that names an application's
   owner, as root.md, section 15, lists (parts, the client's askers, the
   view's slots, bindings, styles, drawings and region names, requests,
   reads and subjects), names it by a number its engine's root and its
   client root share, a connector's being its connector's. In the tree,
-  an owner is skein-ui's opaque number (skein's `ui/README.md`, 3.3): an
+  an owner is skein-ui's opaque number (skein's `ui/tree.md`, 1.3): an
   application's owner its own number, and jig 65536, one past every
   `u16`, so the two never meet (root.md, section 15).
 - **The text shell is skein's:** printing a tree and reading a line

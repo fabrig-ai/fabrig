@@ -80,7 +80,7 @@
     cut within it after its 71st character;
   - *the whole title* stays in the heading's name, "TN · TITLE", and where
     the short form isn't the whole title it is the heading's hint as well,
-    which a browser shows on hover (`skein/docs/design/ui/README.md`, 3.2); a title
+    which a browser shows on hover (`skein/docs/design/ui/tree.md`, 1.2); a title
     shown whole has no hint. The person's message, the task card and the stored title keep it
     whole. Only a chat's heading is short: an agent's page keeps "TN ·
     TITLE" whole.

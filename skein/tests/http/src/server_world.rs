@@ -76,11 +76,11 @@ pub struct Settings {
     pub withdraw_reply: u32,
     /// Per mille, per piece of the body: how likely the side above had
     /// withdrawn its demand before the piece reached it, so that the two
-    /// cross (runtime/lib.md, 7). Drawn only for neighbours that withdraw.
+    /// cross (runtime/lib-streams.md, 1). Drawn only for neighbours that withdraw.
     pub cross: u32,
     /// Per mille, per grant for a reply in chunks: how likely the side
     /// above finishes in place of the one Send the grant allows, which the
-    /// contract lets it (runtime/lib.md, 7).
+    /// contract lets it (runtime/lib-streams.md, 1).
     pub finish_early: u32,
     /// Whether the client sends each request only once the last exchange is
     /// over, rather than pipelining them.
@@ -633,10 +633,10 @@ struct Below<'a> {
     /// The `Send`s since the last `Room`.
     sends: u32,
     /// Whether the server holds a grant it has not sent within: it sends,
-    /// or finishes, before it demands room again (runtime/lib.md, 7).
+    /// or finishes, before it demands room again (runtime/lib-streams.md, 1).
     held: bool,
     /// Whether the read outstanding crossed the end: it stays outstanding
-    /// until the server withdraws it (runtime/lib.md, 7), so the server demands
+    /// until the server withdraws it (runtime/lib-streams.md, 1), so the server demands
     /// nothing over it.
     crossed: bool,
     life: Life,

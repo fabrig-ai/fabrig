@@ -18,7 +18,7 @@
 - **Design departs:** 1, from the greenfield target, by the request
   `ui-rename-focus` of 2026-11-06: closing the rename's form leaves the project
   menu open with the focus on its summary, where the mock draws the menu closed,
-  since a disclosure's fold is skein's page part's (`skein/docs/design/ui/web/README.md`, 5). The field does
+  since a disclosure's fold is skein's page part's (`skein/docs/design/ui/web/patches.md`, 1). The field does
   not select its name on opening, and no toast says "Renamed": the request names
   neither, and `README.md`, section 5 holds them. On a new chat or Ask temper's page the closed form
   leaves the focus on the page's own field, where the request has the opener or the

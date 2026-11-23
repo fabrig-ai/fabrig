@@ -1,6 +1,6 @@
 use core::cmp::Ordering;
 
-/// A caller-driven lower-bound search of a sorted slice (runtime/lib.md, 5.3).
+/// A caller-driven lower-bound search of a sorted slice (runtime/lib-containers.md, 1.3).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Bisection {
     low: usize,

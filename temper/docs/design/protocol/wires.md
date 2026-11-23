@@ -9,7 +9,7 @@ is answered across versions, and how `versions` prints them. It carries
 `../draft/redeploys.md`, sections 3, 4 and 8, for temper's parts. The
 mechanisms are skein's (`data/codec/command.md`, the wire rule;
 `data/codec/bridges.md`, reverses, floors and bridges;
-`data/codec/README.md`, section 9, fingerprints) and jig's
+`skein/docs/design/data/codec/fingerprints.md`, section 1, fingerprints) and jig's
 (`protocol/channel/wires.md`, the opening's statement and a mismatch's
 refusal; `protocol/channel/bridges.md`, translation in the channel's
 components); this document says what temper's deployment puts through
@@ -101,7 +101,7 @@ them.
       pub const FAMILY: &str;          // the family's name, as its header gives it
       pub const VERSION: u16;          // the current version, as its header gives it
       pub const FLOOR: u16;            // its floor, the generated kept::<family>::FLOOR
-      pub fn layout() -> [u8; 32];     // the current text's family fingerprint (skein's data/codec/README.md, 9)
+      pub fn layout() -> [u8; 32];     // the current text's family fingerprint (skein's data/codec/fingerprints.md, 1)
   }
   ```
 

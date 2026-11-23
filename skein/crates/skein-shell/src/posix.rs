@@ -51,7 +51,7 @@ pub(crate) fn status_flags(fd: i32) -> Result<i32, i32> {
 }
 
 /// Whether a startup descriptor is open for writing. Reads its flags without
-/// taking ownership or changing them (runtime/shell.md, 6).
+/// taking ownership or changing them (runtime/shell-startup.md, 1).
 pub fn descriptor_writes(fd: Fd) -> Result<bool, i32> {
     retry(|| status_flags(fd.raw())).map(|flags| flags & libc::O_ACCMODE != libc::O_RDONLY)
 }
@@ -70,14 +70,14 @@ pub(crate) fn close(fd: Fd) -> Result<(), i32> {
     status(unsafe { libc::close(fd.raw()) })
 }
 
-/// The process effective user, read once by startup for io's private files (runtime/shell.md, section 6).
+/// The process effective user, read once by startup for io's private files (runtime/shell-startup.md, section 1).
 #[must_use]
 pub fn effective_user() -> u32 {
     // SAFETY: geteuid takes no pointers and has no preconditions.
     unsafe { libc::geteuid() }
 }
 
-/// The host's name, as the kernel gives it (runtime/shell.md, 6.1).
+/// The host's name, as the kernel gives it (runtime/shell-startup.md, 1.1).
 pub fn host_name() -> Result<Box<[u8]>, i32> {
     // SAFETY: utsname is a plain C structure of byte arrays, valid when zeroed.
     let mut name: libc::utsname = unsafe { std::mem::zeroed() };
@@ -88,7 +88,7 @@ pub fn host_name() -> Result<Box<[u8]>, i32> {
     Ok(Box::from(hostname.to_bytes()))
 }
 
-/// A user's login at startup (runtime/shell.md, 6). macOS's directory
+/// A user's login at startup (runtime/shell-startup.md, 1). macOS's directory
 /// service need not list the effective user in `/etc/passwd`.
 pub fn login(user: u32) -> Result<Box<[u8]>, String> {
     if cfg!(target_os = "macos") { crate::login_id() } else { login_passwd(user) }

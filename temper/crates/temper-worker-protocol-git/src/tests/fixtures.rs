@@ -529,3 +529,7 @@ fn clone_file_kind(kind: &skein_io::kernel::Op) -> skein_io::kernel::Op {
         | Op::Cancel { .. } => panic!("unexpected file operation"),
     }
 }
+
+pub(super) fn counts_op() -> git::Op {
+    git::Op::Counts { at: at(), store: skein_lib::Token::new(9), remote: REMOTE.into(), identity: 1, account: None }
+}

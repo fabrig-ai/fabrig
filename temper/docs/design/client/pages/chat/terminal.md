@@ -18,7 +18,7 @@
     A browser with no record of its own starts
     `{ terminal: false, theme: Dark, font: DejaVu, night: false }`: a first visit
     is day, whatever the system's scheme. The shell reads it at start
-    from the kept store's record `look` (skein's `ui/web/README.md`, 8), four bytes,
+    from the kept store's record `look` (skein's `ui/web/effects.md`, 1), four bytes,
     one for each field, in that order, `0` or `1`, `1` the terminal, `Light`,
     `Plex` and night; a record of three, the form before `night`, reads with
     `night` off, and a record of any other form is none. A change writes the record, in
@@ -40,7 +40,7 @@
     still leaves it, so that no one is stranded; this request does not
     decide the look's future. `terminal::Act::Enter`, which the button gave
     and no control gives now, stays: it sets `terminal` and asks the shell for full
-    screen in the same step (skein's `ui/web/README.md`, 9, *Full screen*), and
+    screen in the same step (skein's `ui/web/effects.md`, 2, *Full screen*), and
     draws the terminal in that step, before the browser answers: every terminal
     act, and a list's closing on any event, moves the pages' shown count, as
     each change the view draws does (`../../root.md`, section 1). Full screen refused, the
@@ -96,7 +96,7 @@
     `/model`'s list, then " · 778 spent", the chat's own spend. On a phone the spend
     goes. While a list is open the quiet line gives it its place.
   - *Commands,* typed in the box: words that begin with "/" and hold no white space
-    open the list under the box (skein's `ui/README.md`, 3.2, *options*), named
+    open the list under the box (skein's `ui/tree.md`, 1.2, *options*), named
     "Commands": each command the page offers now whose name begins with the words,
     in the table's order, its name and its words. Enter presses the active one, Tab
     completes its name, a click presses it. Enter on words that name no command
@@ -144,7 +144,7 @@
     `/font`'s, a closed chat's. They are the page's state, at most 8, the oldest
     going first, gone when the page closes; nothing sends or keeps them.
   - *Keys:* Enter sends, Shift+Enter makes a new line, `Ctrl+\` shows or hides the
-    draft, PgUp and PgDn read back (skein's `ui/web/README.md`, 5), Esc closes a list and
+    draft, PgUp and PgDn read back (skein's `ui/web/patches.md`, 1), Esc closes a list and
     otherwise does nothing; in a list, the arrows move, Tab completes, Enter takes.
     In full screen, where the browser lets the terminal hold Escape (Chromium's), a
     short Esc is the terminal's and a long one leaves full screen; where it doesn't

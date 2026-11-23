@@ -124,7 +124,7 @@ caps, as for any machine stacked on a stream (../runtime/io/README.md, 2).
 
 - **Framing.** Each message is one JSON document ending in a NUL byte,
   both ways. The kit reads replies with a scan to the NUL under
-  `Limits::message` (../runtime/lib.md, 7), and writes each command whole, sized,
+  `Limits::message` (../runtime/lib-streams.md, 1), and writes each command whole, sized,
   within the room granted. A message past the limit fails the browser:
   the limit is the test's to raise.
 - **Commands, replies and events.** A command carries an id, a method,
@@ -394,7 +394,7 @@ to the next command, never a closure waiting on a reply:
   - A story's page counts as hidden while Chromium reports it hidden:
     after another tab takes the front, until this page is brought back.
     Looking brings it back and makes it visible to its own
-    `visibilitychange` listener (../ui/web/README.md, section 8). A story about a
+    `visibilitychange` listener (../ui/web/effects.md, section 1). A story about a
     hidden page leaves it without these looks for the hidden interval;
     listing tabs and reading attributes do not bring it to the front.
 
@@ -620,7 +620,7 @@ named scenario ceiling with headroom.
   never a skip.
 
 The kit's tests are a crate of their own, `tests/browser`
-(`skein-browser-world`) (README.md, 6).
+(`skein-browser-world`) (layout.md, 1).
 
 ## 10. What it asks of others
 
