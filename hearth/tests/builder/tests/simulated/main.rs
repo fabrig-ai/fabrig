@@ -21,6 +21,7 @@ mod diff {
 mod render {
     mod git;
     mod outputs;
+    mod resolution;
 }
 
 mod fuzzy {

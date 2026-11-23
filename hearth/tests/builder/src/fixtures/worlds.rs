@@ -261,13 +261,17 @@ pub fn diffing<'a>(files: &'a [File], later: &'a [File]) -> Scenario<'a> {
 }
 #[must_use]
 pub fn resolving(files: &[File]) -> Scenario<'_> {
+    render_targets(files, &[], true)
+}
+#[must_use]
+pub fn render_targets<'a>(files: &'a [File], targets: &[&[u8]], resolve: bool) -> Scenario<'a> {
     Scenario {
         files,
         call: Call::Render {
-            resolve: true,
+            resolve,
             repository: GIT_DIR.into(),
             revision: b"HEAD".as_slice().into(),
-            targets: Box::default(),
+            targets: targets.iter().map(|target| Box::<[u8]>::from(*target)).collect(),
         },
         ..thin()
     }

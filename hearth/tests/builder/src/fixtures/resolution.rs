@@ -4,6 +4,8 @@ pub use hearth_test_repository::{
     TEST_MIN_DIGEST, TEST_MIN_KEY, TEST_MIN_KEYS_LINE, TEST_MIN_RESOLUTION, TEST_REPOSITORY, hex_digest,
     record_test_min, recorded_test_min, test_min_recorded,
 };
+pub const TEST_MIN_TARGET: &[u8] = b"test-min";
+
 #[must_use]
 pub fn spec_packages_digests(bytes: &[u8]) -> Vec<String> {
     String::from_utf8_lossy(bytes)
