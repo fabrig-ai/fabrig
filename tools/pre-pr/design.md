@@ -38,7 +38,9 @@ current package map. On a close failure the final report preserves a coded Rust
 compiler error or the first failed Nextest case and its panic details where
 available, within the job hold's 128-byte limit. The explicit goal diagnostic
 runs workspace Clippy and the
-default and fuzzy suites with the tree's budgets. The receipt names the
+default and fuzzy suites with the tree's budgets. Where the builder
+supplies main's ledgers, the suites also refuse coverage loss
+(`tools/tiers/budgets.md`, 13). The receipt names the
 snapshot tree and sets `comparison` to `tree-only`. The checked base and
 destination are null. A destination supplied by a caller is recorded separately
 as `requested_destination`.
@@ -417,11 +419,15 @@ failure, when observed, in the Git directory’s `temper/repair-trial-result.jso
    each layer the run measured with `tools/tiers/budgets.toml`. Where the
    check took main's ledger for the run's profile (*Main's ledgers*,
    below), it passes `--ledger LEDGER` before the profile. The run includes
-   the ledger's unselected binaries in its comparison and measures new and
+   the ledger's unlisted binaries in its budget comparison and measures new and
    flagged tests alone (`tools/tiers/budgets.md`, 5 and 8;
    `tools/tiers/references.md`, 3). Both profiles print layer budget and
-   per-test CPU reference overruns as warnings. The run's exit decides:
+   per-test CPU reference overruns as warnings. With a ledger, both
+   refuse coverage losses in the same way as the gate
+   (`tools/tiers/budgets.md`, 13). The run's exit decides:
    - **0:** passed, a starved run included (below);
+   - **1 with a ledger:** a coverage refusal. The check keeps the runner's
+     verdict in its failure log;
    - **100:** test failures, each a `testcase` of the run directory's
      `junit.xml` with a `failure` or an `error`, named by its suite (the
      binary id) and its name, its log the case's text, but a test the
@@ -523,18 +529,17 @@ failure, when observed, in the Git directory’s `temper/repair-trial-result.jso
    **Main's ledgers** (`temper/docs/design/draft/test-budgets.md`, 3): a
    builder that runs goals may keep each suite's
    (`tools/tiers/budgets.md`, 7) as `default.json` and `fuzzy.json` in the
-   directory `TIERS_LEDGER` names. The check reads them once, after
-   `temper/rerun` and before the cache's check, so the bytes the cache
-   keys are those the runs are judged by (section 7):
+   directory `TIERS_LEDGER` names. The explicit goal check reads each once
+   before running its profile:
    - **Unset or empty:** no ledger, and one line, `pre-pr: budgets:
      warnings only (TIERS_LEDGER unset)`.
    - **Otherwise,** for `default` then `fuzzy`, the file
      `<TIERS_LEDGER>/<profile>.json`, a relative directory taken from the
-     tree's root, is read whole, its bytes written to
+     original checkout's root, is read whole, its bytes written to
      `<profile>-ledger.json` in the check's private temporary directory,
      and that copy read by `tools/tiers/cpu.py`'s `ledger()`. It is taken
      where `ledger()` returns and its `profile` is the profile: `pre-pr:
-     budgets: <profile> warnings only with main's ledger
+     budgets: <profile> CPU and reference warnings with coverage checked
      (TIERS_LEDGER/<profile>.json)`. Otherwise the profile has none, and
      one line says why, `pre-pr: budgets: <profile> warnings only
      (<why>)`, `<why>` one of `no <profile>.json in TIERS_LEDGER`,

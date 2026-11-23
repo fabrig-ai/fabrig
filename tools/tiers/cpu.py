@@ -38,6 +38,9 @@ COUNTS_KEPT = 100
 INSTRUCTION_ALLOWANCE = 10_000_000_000
 INSTRUCTION_GROWTH_FLOOR = 1_000_000_000
 SUITE_PROCESS_KINDS = ('tests', 'fresh')
+CHECK_KIND = re.compile(r'[a-z][a-z0-9-]{0,31}')
+COVERAGE_REASON_LINE = ('coverage repair: add a [[gate.{profile}.coverage_reasons]] line to '
+                        'tools/tiers/budgets.toml (tools/tiers/budgets.md, 13).')
 
 
 def timed_out(directory):
@@ -138,7 +141,8 @@ def budgets(path, pairs=None, layers=Path('tools/tiers/layers.toml')):
                 raise ValueError("gate budgets must be a table keyed by default or fuzzy")
             for profile, groups in values.items():
                 name = f'gate.{profile}'
-                if not isinstance(groups, dict) or groups.keys() - {*GROUPS, 'references', 'moves', 'reasons'}:
+                if not isinstance(groups, dict) or groups.keys() - {
+                        *GROUPS, 'references', 'moves', 'reasons', 'coverage_reasons'}:
                     raise ValueError(f'invalid budget groups for {name}')
                 references = groups.get('references')
                 if not isinstance(references, dict) or references.keys() - (layer_names | {'checks'}):
@@ -146,7 +150,7 @@ def budgets(path, pairs=None, layers=Path('tools/tiers/layers.toml')):
                 for layer, value in references.items():
                     seconds(f'{name}.references.{layer}', value)
                 for group, table in groups.items():
-                    if group in ('references', 'moves', 'reasons'):
+                    if group in ('references', 'moves', 'reasons', 'coverage_reasons'):
                         continue
                     allowed = {'checks'} if group == 'repository' else layer_names
                     if (not isinstance(table, dict) or 'ideal_s' not in table
@@ -182,6 +186,7 @@ def budgets(path, pairs=None, layers=Path('tools/tiers/layers.toml')):
                     if key in seen:
                         raise ValueError(f'duplicate reason for {key}')
                     seen.add(key)
+                validate_coverage_reasons(name, groups.get('coverage_reasons', []))
                 moves = groups.get('moves', [])
                 if not isinstance(moves, list):
                     raise ValueError(f'{name}.moves must be an array of tables')
@@ -230,6 +235,50 @@ def positive_instructions(name, value):
         raise ValueError(f'{name} must be a positive integer')
 
 
+def validate_checks(checks, label):
+    """Counts by kind (tools/tiers/budgets.md, 13)."""
+    if not isinstance(checks, dict):
+        raise ValueError(f'{label} must be an object of check counts')
+    for kind, count in checks.items():
+        if CHECK_KIND.fullmatch(kind) is None:
+            raise ValueError(f'{label}: invalid check kind {kind!r}')
+        if type(count) is not int or count < 1:
+            raise ValueError(f'{label}.{kind} must be a positive integer')
+
+
+def validate_coverage_reasons(profile, reasons):
+    """Check the form of each coverage reason (tools/tiers/budgets.md, 13)."""
+    if not isinstance(reasons, list):
+        raise ValueError(f'{profile}.coverage_reasons must be an array of tables')
+    for index, reason in enumerate(reasons):
+        label = f'{profile}.coverage_reasons[{index}]'
+        required = {'binary', 'kind', 'why', 'by'}
+        if not isinstance(reason, dict) or not required <= reason.keys():
+            raise ValueError(f'invalid coverage reason keys for {label}')
+        kind = reason['kind']
+        if kind not in ('removed', 'duplicate', 'renamed', 'moved', 'budget'):
+            raise ValueError(f'{label}.kind must be removed, duplicate, renamed, moved or budget')
+        if kind == 'renamed':
+            required.add('to')
+        if reason.keys() not in (required | {'tests'}, required | {'checks'}):
+            raise ValueError(f'invalid coverage reason keys for {label}: give tests or checks')
+        for key in ('binary', 'why', 'by'):
+            if not isinstance(reason[key], str) or not reason[key].strip():
+                raise ValueError(f'{label}.{key} must be a nonempty string')
+        for key in ('tests', 'to'):
+            if key in reason:
+                names = reason[key]
+                if (not isinstance(names, list) or not names
+                        or any(not isinstance(name, str) or not name.strip() for name in names)):
+                    raise ValueError(f'{label}.{key} must be a nonempty list of names')
+        if 'checks' in reason:
+            validate_checks(reason['checks'], f'{label}.checks')
+            if not reason['checks']:
+                raise ValueError(f'{label}.checks must name at least one kind')
+        if kind == 'budget' and not reason['by'].startswith('the user'):
+            raise ValueError(f'{label}.by must start with "the user" for a budget coverage reason')
+
+
 def check_commit(value):
     """A run's commit, where git names one (design.md, 11.8)."""
     if value is not None and (not isinstance(value, str)
@@ -270,22 +319,28 @@ def ledger(path):
             raise ValueError(f'invalid ledger groups for {label}')
 
     keys(data, {'ledger', 'profile', 'binaries', 'budgets', 'moves'}, 'ledger')
-    if type(data['ledger']) is not int or data['ledger'] not in (1, 2, 3, 4, 5):
-        raise ValueError('ledger version must be 1 to 5')
+    version = data['ledger']
+    if type(version) is not int or not 1 <= version <= 6:
+        raise ValueError('ledger version must be 1 to 6')
     if data['profile'] not in ('default', 'fuzzy'):
         raise ValueError('ledger profile must be default or fuzzy')
     if not isinstance(data['binaries'], dict):
         raise ValueError('ledger binaries must be an object')
     for binary, entry in data['binaries'].items():
         name(binary, 'binary id')
-        cpu_key = 'cpu' if data['ledger'] >= 3 else 'cpu_s'
+        cpu_key = 'cpu' if version >= 3 else 'cpu_s'
         keys(entry, {'tree', 'layer', cpu_key, 'tests'}
-             | ({'alone'} if data['ledger'] != 1 else set())
-             | ({'counts'} if data['ledger'] >= 4 else set()), binary)
+             | ({'alone'} if version != 1 else set())
+             | ({'counts'} if version >= 4 else set())
+             | ({'checks'} if version >= 6 else set()), binary)
+        if version >= 6:
+            validate_checks(entry['checks'], f'{binary}.checks')
+        else:
+            entry['checks'] = {}
         if entry['tree'] not in GROUPS:
             raise ValueError(f'invalid ledger group for {binary}')
         name(entry['layer'], f'{binary}.layer', nullable=True)
-        if data['ledger'] < 3:
+        if version < 3:
             figure(entry['cpu_s'], f'{binary}.cpu_s')
             entry['cpu'] = [entry.pop('cpu_s')]
         if not isinstance(entry['cpu'], list) or not 1 <= len(entry['cpu']) <= 3:
@@ -300,7 +355,7 @@ def ledger(path):
                 raise ValueError(f'{binary} {test} must have one to three walls')
             for wall in walls:
                 figure(wall, f'{binary} {test} wall')
-        if data['ledger'] == 1:
+        if version == 1:
             entry['alone'] = {}
         if not isinstance(entry['alone'], dict):
             raise ValueError(f'{binary}.alone must be an object')
@@ -311,7 +366,7 @@ def ledger(path):
                 raise ValueError(f'{binary} {test} must have one to three alone figures')
             for cpu in figures:
                 figure(cpu, f'{binary} {test} alone')
-        if data['ledger'] < 4:
+        if version < 4:
             entry['counts'] = []
         if not isinstance(entry['counts'], list) or len(entry['counts']) > COUNTS_KEPT:
             raise ValueError(f'{binary}.counts must have at most {COUNTS_KEPT} entries')
@@ -328,7 +383,7 @@ def ledger(path):
         for layer, entry in layers.items():
             name(layer, f'{tree} layer')
             expected = {'ceiling_s', 'lowest_s'}
-            if (data['ledger'] == 5 and isinstance(entry, dict)
+            if (version >= 5 and isinstance(entry, dict)
                     and entry.keys() & {'instructions_ceiling', 'instructions_lowest'}):
                 expected |= {'instructions_ceiling', 'instructions_lowest'}
             keys(entry, expected, f'{tree}.{layer}')
@@ -344,7 +399,7 @@ def ledger(path):
         raise ValueError('ledger moves must be an array')
     for move in data['moves']:
         expected = {'from', 'to', 'cpu_s', 'why'}
-        if data['ledger'] == 5 and isinstance(move, dict) and 'instructions' in move:
+        if version >= 5 and isinstance(move, dict) and 'instructions' in move:
             expected.add('instructions')
         keys(move, expected, 'move')
         for key in ('from', 'to'):
@@ -697,6 +752,9 @@ def one_process_summary(directory, limits, pair, run, gate=False, ledger=None, b
                    'wall_s', 'exit_code', 'signal', 'kind', 'leaked')}
         process.update(tree=item.get('tree'), layer=item.get('layer'), instructions=item.get('instructions'))
         check_instructions(process['instructions'])
+        process['checks'] = item.get('checks', {})
+        if 'checks' in item:
+            validate_checks(process['checks'], 'process checks')
         process['cpu_s'] = figure(item['user_s'] + item['system_s'], 'cpu_s')
         processes.append(process)
     tests, failures, warnings, seen = [], [], [], set()
@@ -794,9 +852,10 @@ def one_process_summary(directory, limits, pair, run, gate=False, ledger=None, b
         return tree_index, tree or '', order, layer or ''
 
     ceilings = gate_ceilings(gate_limits)
-    binaries = fold_binaries(data, head, tests, ledger)
+    partial = partial_binaries(data)
+    binaries = fold_binaries(data, head, tests, ledger, partial)
     held = held_budgets(gate_limits, ledger, ledger_figures(binaries), selected_layers)
-    instruction_binaries = instruction_head(data, head, ledger)
+    instruction_binaries = instruction_head(data, head, ledger, partial)
     head_counts = layer_counts(instruction_binaries, lambda entry: entry['instructions'])
     main_counts = layer_counts((ledger or {}).get('binaries', {}), binary_count)
     counted = counting is not None and counting['counted']
@@ -895,11 +954,17 @@ def one_process_summary(directory, limits, pair, run, gate=False, ledger=None, b
         warnings.append(f"test swings alone at main: {row['binary_id']} {row['test_name']}: "
                         f'{a:.3f}, {b:.3f}, {c:.3f} CPU s alone')
     over = [line + '\n' + REPAIR_LINE for line in over]
+    coverage_reasons = []
+    if ledger is not None:
+        coverage_reasons = coverage_verdict(data, head, suite_processes, ledger, partial,
+                                            gate_limits.get('coverage_reasons', []), over, warnings)
     verdict = ('over budget' if over else 'starved' if suite['starved_run'] or suite['starved']
                else 'within budget' if limits or (gate and gate_limits) else 'no budget set')
     return dict(pair=pair, tests=tests, suite=suite, processes=processes, failures=failures,
                 layers=layers, trees=list(trees.values()), counting=counting, references=references, swings=swings,
-                unobserved=unobserved, warnings=warnings, over_budget=over, verdict=verdict)
+                checks={binary: entry['checks'] for binary, entry in head.items() if 'checks' in entry},
+                coverage_reasons=coverage_reasons, unobserved=unobserved, warnings=warnings,
+                over_budget=over, verdict=verdict)
 
 
 def reference_values(profile, tree, layer, binary, name):
@@ -1047,9 +1112,13 @@ def head_binaries(processes, workspace, ledger, selected_layers=None):
             continue
         binary = process['binary_id']
         if binary not in head:
-            head[binary] = dict(tree=process['tree'], layer=process['layer'], cpu_s=0.0, instructions=0)
+            head[binary] = dict(tree=process['tree'], layer=process['layer'], cpu_s=0.0,
+                                instructions=0, checks={})
         head[binary]['cpu_s'] += process['cpu_s']
         head[binary]['instructions'] = sum_counts((head[binary]['instructions'], process['instructions']))
+        checks = head[binary]['checks']
+        for kind, count in process['checks'].items():
+            checks[kind] = checks.get(kind, 0) + count
     if ledger is not None:
         for entry in workspace:
             binary = entry['binary_id']
@@ -1059,6 +1128,74 @@ def head_binaries(processes, workspace, ledger, selected_layers=None):
                                     cpu_s=binary_median(ledger['binaries'][binary]),
                                     instructions=binary_count(ledger['binaries'][binary]))
     return head
+
+
+def coverage_verdict(data, head, processes, ledger, partial, reasons, over, warnings):
+    """Report coverage loss against main (tools/tiers/budgets.md, 13)."""
+    selected = data.get('selected_layers')
+    workspace = {entry['binary_id']: entry for entry in data['workspace']}
+    names = set()
+    for process in processes:
+        names.update(process['tests'])
+    if data['cancelled'] is not None:
+        names.update(test['test_name'] for test in data['tests'] if test['process'] is None)
+    by_binary = {}
+    for index, reason in enumerate(reasons):
+        by_binary.setdefault(reason['binary'], []).append((index, reason))
+    applied = {}
+    for binary, main in ledger['binaries'].items():
+        if binary in partial or not layer_selected(main['layer'], selected):
+            continue
+        current = workspace.get(binary)
+        if current is not None and (not current['listed'] or not layer_selected(current['layer'], selected)):
+            continue
+        entry = head.get(binary)
+        checks = entry['checks'] if entry is not None else {}
+        lost = main['tests'].keys() - names
+        fewer = {kind: (count, checks.get(kind, 0)) for kind, count in main.get('checks', {}).items()
+                 if checks.get(kind, 0) < count}
+        if not lost and not fewer:
+            continue
+        covered_tests, covered_checks = set(), set()
+        for index, reason in by_binary.get(binary, ()):
+            tests = set()
+            for pattern in reason.get('tests', ()):
+                if '*' in pattern:
+                    match = re.compile(re.escape(pattern).replace(r'\*', '.*')).fullmatch
+                    tests.update(name for name in lost if match(name))
+                elif pattern in lost:
+                    tests.add(pattern)
+            kinds = {kind for kind, count in reason.get('checks', {}).items()
+                     if kind in fewer and fewer[kind][0] - fewer[kind][1] == count}
+            if tests or kinds:
+                covered_tests.update(tests)
+                covered_checks.update(kinds)
+                applied[index] = coverage_reason(reason, tests, kinds)
+        lost = sorted(lost - covered_tests)
+        kinds = sorted(fewer.keys() - covered_checks)
+        if lost or kinds:
+            placement = current if current is not None else main
+            lines = [f"layer coverage loss: {placement['tree']} {data['profile']} {placement['layer']}: {binary}"]
+            lines.extend(f'  lost test: {name}' for name in lost[:10])
+            if len(lost) > 10:
+                lines.append(f'  {len(lost) - 10} more lost tests')
+            lines.extend(f'  {kind}: {fewer[kind][0]} at main, {fewer[kind][1]} at the head' for kind in kinds)
+            over.append('\n'.join([*lines, REPAIR_LINE, COVERAGE_REASON_LINE.format(profile=data['profile'])]))
+    for index, reason in enumerate(reasons):
+        if index not in applied:
+            warnings.append('stale coverage reason: ' + coverage_reason(reason))
+    return [applied[index] for index in sorted(applied)]
+
+
+def coverage_reason(reason, tests=(), kinds=()):
+    targets = reason.get('tests') or reason['checks']
+    detail = f"{reason['binary']}: {reason['kind']} {targets!r}"
+    if 'to' in reason:
+        detail += f" to {reason['to']!r}"
+    detail += f": {reason['why']} (by {reason['by']})"
+    if tests or kinds:
+        detail += f" (matched {', '.join(sorted(tests or kinds))})"
+    return detail
 
 
 def main_budget(ledger, key):
@@ -1271,9 +1408,8 @@ def partial_binaries(data):
                or t['outcome'] in ('starved', 'cancelled')})
 
 
-def instruction_head(data, head, ledger):
+def instruction_head(data, head, ledger, partial):
     """Use last whole counts for binaries the run cut short (budgets.md, 8)."""
-    partial = partial_binaries(data)
     old = (ledger or {}).get('binaries', {})
     counted = dict(head)
     for entry in data.get('workspace', []):
@@ -1286,7 +1422,7 @@ def instruction_head(data, head, ledger):
     return counted
 
 
-def fold_binaries(data, head, tests, ledger):
+def fold_binaries(data, head, tests, ledger, partial):
     """Keep whole measurements and their histories (tools/tiers/budgets.md, 7)."""
     old = (ledger or {}).get('binaries', {})
     alone = {(entry['binary_id'], entry['test_name']): entry['cpu_s']
@@ -1294,7 +1430,6 @@ def fold_binaries(data, head, tests, ledger):
     by_binary = {}
     for test in tests:
         by_binary.setdefault(test['binary_id'], []).append(test)
-    partial = partial_binaries(data)
     counted = (data.get('counting') or {}).get('counted', True)
     binaries = {}
     for binary, entry in head.items():
@@ -1318,10 +1453,11 @@ def fold_binaries(data, head, tests, ledger):
                 counts = [*counts[-(COUNTS_KEPT - 1):],
                           dict(commit=data.get('commit'), instructions=entry['instructions'])]
             binaries[binary] = dict(tree=entry['tree'], layer=entry['layer'], cpu=cpu,
-                                    tests=walls, alone=figures, counts=counts)
+                                    tests=walls, alone=figures, counts=counts, checks=entry['checks'])
         elif binary in old:
             binaries[binary] = dict(old[binary], tree=entry['tree'], layer=entry['layer'],
-                                    alone=old[binary].get('alone', {}), counts=old[binary].get('counts', []))
+                                    alone=old[binary].get('alone', {}), counts=old[binary].get('counts', []),
+                                    checks=old[binary].get('checks', {}))
     # An unobserved binary may have no process and still keeps its last whole CPU.
     workspace = {entry['binary_id']: entry for entry in data.get('workspace', [])}
     for binary in partial - head.keys():
@@ -1330,7 +1466,8 @@ def fold_binaries(data, head, tests, ledger):
             if not layer_selected(entry['layer'], data.get('selected_layers')):
                 continue
             binaries[binary] = dict(old[binary], tree=entry['tree'], layer=entry['layer'],
-                                    alone=old[binary].get('alone', {}), counts=old[binary].get('counts', []))
+                                    alone=old[binary].get('alone', {}), counts=old[binary].get('counts', []),
+                                    checks=old[binary].get('checks', {}))
     return binaries
 
 
@@ -1339,13 +1476,14 @@ def fold_ledger(directory, result, limits, ledger=None):
     data = json.loads((Path(directory) / 'results.json').read_text())
     selected_layers = data.get('selected_layers')
     head = head_binaries(result['processes'], data.get('workspace', []), ledger, selected_layers)
-    binaries = fold_binaries(data, head, result['tests'], ledger)
+    partial = partial_binaries(data)
+    binaries = fold_binaries(data, head, result['tests'], ledger, partial)
     figures = ledger_figures(binaries)
     profile = (limits or {}).get('gate', {}).get(result['pair'], {})
     folded_budgets = {}
     for (tree, layer), state in held_budgets(profile, ledger, figures, selected_layers).items():
         folded_budgets.setdefault(tree, {})[layer] = {key: state[key] for key in ('ceiling_s', 'lowest_s')}
-    head_counts = layer_counts(instruction_head(data, head, ledger), lambda entry: entry['instructions'])
+    head_counts = layer_counts(instruction_head(data, head, ledger, partial), lambda entry: entry['instructions'])
     main_counts = layer_counts((ledger or {}).get('binaries', {}), binary_count)
     counted = (data.get('counting') or {}).get('counted', False)
     for (tree, layer), state in instruction_budgets(
@@ -1353,7 +1491,7 @@ def fold_ledger(directory, result, limits, ledger=None):
             selected_layers, counted).items():
         folded_budgets[tree][layer].update(
             instructions_ceiling=state['instructions_ceiling'], instructions_lowest=state['instructions_lowest'])
-    return dict(ledger=5, profile=result['pair'], binaries=binaries, budgets=folded_budgets,
+    return dict(ledger=6, profile=result['pair'], binaries=binaries, budgets=folded_budgets,
                 moves=profile.get('moves', []))
 
 
@@ -1475,6 +1613,11 @@ def print_summary(result, as_json=False):
         figures = ', '.join(f"{key.removesuffix('_s')} {row[key] if row[key] is not None else 'none'} s"
                             for key in ('cpu_s', 'reference_s', 'line_s', 'main_cpu_s', 'limit_s'))
         print(f"reference {row['binary_id']} {row['test_name']} ({row['why']}): {figures}; over {row['over']}")
+    for binary, checks in result.get('checks', {}).items():
+        if checks:
+            print(f"{binary} checks: " + ', '.join(f'{kind} {count}' for kind, count in sorted(checks.items())))
+    for reason in result.get('coverage_reasons', []):
+        print(f'coverage reason applied: {reason}')
     for message in result['warnings']:
         print(f'warning: {message}')
     for message in result['over_budget']:

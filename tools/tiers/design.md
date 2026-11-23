@@ -921,8 +921,10 @@ Relative paths are the caller's working directory's, the checkout root.
 | `pair` | the pair, or `tools` |
 | `verdict` | `over budget`, `starved`, `within budget` (the pair has a table) or `no budget set` |
 | `failures` | `"BINARY_ID TEST_NAME"` for each test whose failure stands (7.3); for tools, `"ID suite"` |
-| `over_budget` | one entry for each CPU budget passed, naming its test or suite, and with `gate` each layer with a red finding (`tools/tiers/budgets.md`, 4 and 8); every entry ends with the repair line (`tools/tiers/budgets.md`, 10.1) |
-| `warnings` | one line for each `auto_reap` declaration and each unobserved attempt; in a one-process run, each unplaced binary, each advisory layer comparison, missing-count and drift warnings, and tests over their references; with a ledger, each test that swings alone at main, last (`tools/tiers/references.md`, 6) |
+| `over_budget` | one entry for each CPU budget passed, naming its test or suite, and with `gate` each layer with a red finding (`tools/tiers/budgets.md`, 4 and 8); with a ledger, each binary with a coverage loss (`tools/tiers/budgets.md`, 13). Every entry has the repair line (`tools/tiers/budgets.md`, 10.1) |
+| `warnings` | one line for each `auto_reap` declaration and each unobserved attempt; in a one-process run, each unplaced binary, each advisory layer comparison, missing-count and drift warnings, and tests over their references; with a ledger, each test that swings alone at main (`tools/tiers/references.md`, 6) and each stale coverage reason |
+| `checks` | a one-process run's totals by binary and check kind across suite processes (`tools/tiers/budgets.md`, 13) |
+| `coverage_reasons` | a one-process run's applied coverage reasons, each with the loss it covers (`tools/tiers/budgets.md`, 13) |
 | `unobserved` | `{binary_id, test_name, attempt}` for each attempt cancellation stopped before its record (7.3); always empty for tools |
 | `tests` | for each test: `binary_id`, `test_name`, `attempts`, `cpu_s`, `user_s`, `system_s`, `wall_s`, `starved`, `leaked`, `incomplete` |
 | `suite` | the totals: `tests`, `attempts`, `cpu_s`, `user_s`, `system_s`, `wall_s`, `test_wall_s`, `starved`, `starved_run`, `unobserved`, `leaked`, `incomplete`, `cpu_by` |
@@ -1311,7 +1313,8 @@ What nextest gives a test today, resolved per binary from the listing and
   under `NEXTEST`, ending its process with exit 0 after its line, so that
   nothing follows it and nothing unwinds
   (`skein/docs/design/testing/README.md`, 5), and the lanes start a fresh
-  process for the names it had left (11.6).
+  process for the names it had left (11.6);
+- `TIERS_CHECKS_FILE`, the process's own file for check counts (11.8).
 
 ### 11.6 A test's outcome
 
@@ -1456,8 +1459,9 @@ In the directory `run` made, once it has returned:
 - `results.json`, written once after the lanes end: each process with a record
   (binary ID, kind, its tests in the order they ran, user and system seconds,
   wall, exit status or signal, leaked, its binary's `tree` and `layer`,
-  `tools/tiers/budgets.md`, 3, and `instructions`, its count, a nonnegative
-  integer or null, 11.4), `counting`, the lanes' report as
+  `tools/tiers/budgets.md`, 3, `instructions`, its count, a nonnegative
+  integer or null, 11.4, and `checks`, its check counts by kind,
+  below), `counting`, the lanes' report as
   `{"counted": BOOL, "why": WHY}`, null where the plan didn't count,
   `commit`, the commit the run's checkout is at (`git rev-parse --verify
   HEAD` in `cargo metadata`'s `workspace_root`, 40 or 64 lowercase hex
@@ -1476,6 +1480,16 @@ In the directory `run` made, once it has returned:
   land, the ledger it was given, or none, with the run's figures folded in
   (`tools/tiers/budgets.md`, 7); `--again` writes none;
 - `plan.json`, the lanes' input, no result; `starved.json` as in 10.3.
+
+**Checks done.** Each test process receives `TIERS_CHECKS_FILE` (11.5), an
+absolute path of its own in the run directory, `checks-INDEX.txt` with its
+process index. A kit appends `KIND COUNT\n` for checks it did. `KIND`
+matches `[a-z][a-z0-9-]{0,31}` and `COUNT` is a decimal integer of at least
+1. The runner reads the file once after the process ends and sums its
+lines by kind into the process's `checks`; a missing file gives an empty
+object. A malformed line refuses the run and names the process, file and
+line. The summary uses the suite processes' counts
+(`tools/tiers/budgets.md`, 13).
 
 **Kept times.** After the lanes end, the mode writes each test's wall time into
 `TARGET/tiers-one-process/times.json` (Cargo's target directory, from the

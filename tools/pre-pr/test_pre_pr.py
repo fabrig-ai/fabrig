@@ -291,6 +291,29 @@ class Delivery(unittest.TestCase):
             _, errors, _ = PRE.one_process(['api'], self.root, {})
         self.assertEqual(errors[0]['key'], ('api::suite', 'example'))
 
+    def test_goal_runner_uses_a_private_main_ledger_copy_and_refuses_coverage_loss(self):
+        ledgers = self.root / 'ledgers'
+        ledgers.mkdir()
+        source = ledgers / 'fuzzy.json'
+        source.write_text(json.dumps(dict(ledger=6, profile='fuzzy', binaries={}, budgets={}, moves=[])))
+        cpu = HERE.parents[1] / 'tools/tiers/cpu.py'
+        destination = self.root / 'tools/tiers/cpu.py'
+        destination.parent.mkdir(parents=True)
+        destination.write_bytes(cpu.read_bytes())
+
+        def coverage_red(command, cwd, env, stdout=False):
+            copy = Path(command[command.index('--ledger') + 1])
+            self.assertNotEqual(copy, source)
+            self.assertEqual(copy.read_bytes(), source.read_bytes())
+            self.assertNotIn('--gate', command)
+            return 1, 'layer coverage loss: temper fuzzy domain: api::suite'
+
+        with mock.patch.object(PRE, 'run', side_effect=coverage_red):
+            code, errors, _ = PRE.one_process(['api'], self.root, {}, profile='fuzzy', ledger_directory=ledgers)
+        self.assertEqual(code, 1)
+        self.assertIn('layer coverage loss:', errors[0]['log'])
+        self.assertIn('CPU and reference warnings with coverage checked', self.log.getvalue())
+
     def test_child_destination_is_only_a_request_label(self):
         PRE.finish('tree', None, [], self.root, {}, 'child', ['dest'], ['head'])
         record = json.loads((self.root / 'target/temper/goal-child-pre-pr.json').read_text())

@@ -446,13 +446,44 @@ def build_test_binaries(binaries, root, env):
     return 0, []
 
 
-def one_process(packages, root, env, reds=(), rerun=0, outcomes=None, profile='default'):
+def copy_ledger(root, source, directory, profile):
+    """Read the profile's main ledger once and pass its private copy (section 4)."""
+    name = f'{profile}.json'
+    try:
+        contents = (source / name).read_bytes()
+    except FileNotFoundError:
+        print(f'pre-pr: budgets: {profile} warnings only (no {name} in TIERS_LEDGER)', flush=True)
+        return None
+    except OSError as error:
+        print(f'pre-pr: budgets: {profile} warnings only ({name} unreadable: {error_line(error)})', flush=True)
+        return None
+    copy = directory / f'{profile}-ledger.json'
+    copy.write_bytes(contents)
+    try:
+        ledger = runpy.run_path(str(root / 'tools/tiers/cpu.py'))['ledger'](copy)
+    except (OSError, ValueError, KeyError, TypeError) as error:
+        print(f'pre-pr: budgets: {profile} warnings only ({name} refused: {error_line(error)})', flush=True)
+        return None
+    if ledger['profile'] != profile:
+        print(f"pre-pr: budgets: {profile} warnings only ({name} holds the {ledger['profile']} ledger)", flush=True)
+        return None
+    print(f'pre-pr: budgets: {profile} CPU and reference warnings with coverage checked '
+          f'(TIERS_LEDGER/{name})', flush=True)
+    return copy
+
+
+def one_process(packages, root, env, reds=(), rerun=0, outcomes=None, profile='default', ledger_directory=None):
     """Read one-process's exit and run directory, keeping starvation a warning (section 4)."""
     check_name = 'tests' if profile == 'default' else 'fuzzy tests'
     suffix = '' if profile == 'default' else ' fuzzy'
     with tempfile.TemporaryDirectory(prefix='temper-pre-pr-') as directory:
-        directory = Path(directory) / ('tests' if profile == 'default' else 'fuzzy')
+        private = Path(directory)
+        directory = private / ('tests' if profile == 'default' else 'fuzzy')
         arguments = ['python3', '-I', '-B', 'tools/tiers/one-process', '--out', str(directory)]
+        if ledger_directory is not None:
+            ledger = copy_ledger(root, ledger_directory, private, profile)
+            if ledger is not None:
+                arguments.extend(['--ledger', str(ledger)])
         arguments += [profile] + package_args(packages) + ['--no-tests=warn']
         test_env = dict(env, TIERS_PRE_PR_TARGETS='1')
         code, log = run(arguments, root, test_env, stdout=True)
@@ -782,7 +813,7 @@ def summary(base_id, lints, tests, errors, reason, failures_tail, starved=(), sc
     return int(refused)
 
 
-def goal_checks(root, paths, env, errors, rerun):
+def goal_checks(root, paths, env, errors, rerun, ledger_directory=None):
     """Run the explicit full diagnostic against the current workspace packages."""
     data = metadata(root, env)
     active = members(data)
@@ -794,8 +825,11 @@ def goal_checks(root, paths, env, errors, rerun):
     errors += found
     warnings = []
     if tests and not build_code:
+        if ledger_directory is None:
+            print('pre-pr: budgets: warnings only (TIERS_LEDGER unset)', flush=True)
         for profile in ('default', 'fuzzy'):
-            _, found, warning = timed(profile, lambda: one_process(tests, root, env, rerun=rerun, profile=profile))
+            _, found, warning = timed(profile, lambda: one_process(
+                tests, root, env, rerun=rerun, profile=profile, ledger_directory=ledger_directory))
             errors += found
             if warning:
                 warnings.append(warning)
@@ -895,7 +929,8 @@ def check(scope, commits):
     env.update(CARGO_NET_OFFLINE='true', GIT_NO_LAZY_FETCH='1', GIT_NO_REPLACE_OBJECTS='1')
     env.setdefault('TEMPER_INTERNAL_BUNDLE', 'none')
     env.setdefault('CARGO_TARGET_DIR', str(root / 'target'))
-    env.pop('TIERS_LEDGER', None)
+    ledger_path = env.pop('TIERS_LEDGER', None)
+    ledger_directory = root / ledger_path if ledger_path else None
     has_git = (root / '.git').exists()
 
     def current_head():
@@ -929,7 +964,8 @@ def check(scope, commits):
                 raise ValueError('working tree differs from the staged close tree')
             tests = workspace_checks(work, paths, tree_id, env, errors, outcomes, completed_goal=scope == 'close')
             if scope == 'goal' and not errors:
-                lints, tests, warnings = goal_checks(work, paths, env, errors, rerun_bound(root, source_env) if has_git else 0)
+                lints, tests, warnings = goal_checks(
+                    work, paths, env, errors, rerun_bound(root, source_env) if has_git else 0, ledger_directory)
             if scope == 'close' and has_git and checked_git(['write-tree', '--missing-ok'], root, source_env).decode().strip() != tree_id:
                 raise ValueError('staged close tree changed during checks')
             if tree_id != snapshot(root, work, env, source_env, Path(directory) / 'final-index') or head != current_head():

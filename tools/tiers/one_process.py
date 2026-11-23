@@ -36,6 +36,7 @@ session_processes = CPU['session_processes']
 signal_group = CPU['signal_group']
 stop = CPU['stop']
 SUITE_PROCESS_KINDS = CPU['SUITE_PROCESS_KINDS']
+CHECK_LINE = re.compile(rb'(' + CPU['CHECK_KIND'].pattern.encode() + rb') ([0-9]+)\n')
 LANES = None
 TERM_GRACE_S = 10.0
 WALL_GRACE_S = 15.0
@@ -683,9 +684,33 @@ def emit(kind, **fields):
     print(EVENT + json.dumps(dict(event=kind, **fields), allow_nan=False), flush=True)
 
 
+def checks_path(directory, index):
+    return directory / f'checks-{index}.txt'
+
+
+def read_checks(path, index, binary):
+    """Read the process's checks once after it ends (tools/tiers/design.md, 11.8)."""
+    try:
+        data = path.read_bytes()
+    except FileNotFoundError:
+        return {}
+    counts = {}
+    for number, line in enumerate(data.splitlines(keepends=True), 1):
+        match = CHECK_LINE.fullmatch(line)
+        try:
+            count = int(match[2]) if match else 0
+        except ValueError:
+            count = 0
+        if count < 1:
+            raise ValueError(f'process {index} ({binary}): {path}, malformed check line {number}: {line!r}')
+        kind = match[1].decode('ascii')
+        counts[kind] = counts.get(kind, 0) + count
+    return counts
+
+
 class BinaryProcess:
     """One owned child, reaped only by wait4 (design.md, 11.4 and 11.6)."""
-    def __init__(self, job, index, selector, *, count=False):
+    def __init__(self, job, index, selector, directory, *, count=False):
         self.job, self.index = job, index
         self.output = bytearray()
         self.log = bytearray()
@@ -725,7 +750,8 @@ class BinaryProcess:
                  '--color', 'never',
                  *(['--logfile', str(logfile)] if job['kind'] != 'empty' else []),
                  *[t['name'] for t in job['tests']]],
-                cwd=binary['cwd'], env=binary['env'], stdin=subprocess.DEVNULL,
+                cwd=binary['cwd'], env=dict(binary['env'], TIERS_CHECKS_FILE=str(checks_path(directory, index))),
+                stdin=subprocess.DEVNULL,
                 stdout=output_write, stderr=subprocess.STDOUT, process_group=0,
                 preexec_fn=open_counter if count else None)
             if sockets is not None:
@@ -897,7 +923,7 @@ class BinaryProcess:
         return fresh
 
 
-def lanes(plan):
+def lanes(plan, directory):
     count = plan['lanes'] or default_lanes()
     jobs = split_jobs(plan, count)
     active, processes = [], plan.get('process_offset', 0)
@@ -943,7 +969,7 @@ def lanes(plan):
                     if candidate is None:
                         break
                     job = jobs.pop(candidate)
-                    child = BinaryProcess(job, processes, selector,
+                    child = BinaryProcess(job, processes, selector, directory,
                                           count=bool(decision and decision['counted']
                                                      and job['kind'] in SUITE_PROCESS_KINDS))
                     processes += 1
@@ -1393,8 +1419,9 @@ def execute_plan(plan, prefix, env, directory, limits, *, no_tests='fail', outpu
             while len(results['processes']) <= index:
                 results['processes'].append(None)
             record = item['item']
-            results['processes'][index] = record
             binary = record['binary_id']
+            record['checks'] = read_checks(checks_path(directory, index), index, binary)
+            results['processes'][index] = record
             if record['kind'] == 'reference':
                 name = record['reference_name']
                 reference_indices[round_index, binary, name] = index
@@ -1568,4 +1595,5 @@ if __name__ == '__main__':
     os.umask(0o077)
     if len(sys.argv) != 3 or sys.argv[1] != 'lanes':
         sys.exit('usage: one_process.py lanes PLAN')
-    lanes(json.loads(Path(sys.argv[2]).read_text()))
+    path = Path(sys.argv[2]).resolve()
+    lanes(json.loads(path.read_text()), path.parent)
