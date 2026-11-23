@@ -203,13 +203,13 @@ mod tests {
 
     #[test]
     fn the_default_sample_reports_the_storys_commits() {
-        // Seed 45 selects commit 17 with the default one-in-1024 sample.
+        // Seed 45 selects commit 17 of the story's 24 commits with the default one-in-1024 sample.
         let (outcome, _, _) = story(45, world::Phase::Story);
         assert_eq!(outcome.chats_answered, 1);
-        assert_eq!(outcome.store_checks.commits, 22);
+        assert_eq!(outcome.store_checks.commits, 24);
         assert_eq!(outcome.store_checks.checked, 1);
         assert_eq!(outcome.store_checks.rehearsals, 1);
-        assert_eq!(outcome.store_checks.words, "store check: 1 of 22 commits checked (one in 1024, seed 45)");
+        assert_eq!(outcome.store_checks.words, "store check: 1 of 24 commits checked (one in 1024, seed 45)");
     }
 
     #[test]
