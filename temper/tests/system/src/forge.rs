@@ -14,7 +14,7 @@ use temper_engine_domain_world::{store::Store, walking};
 use temper_engine_forge_world::{self as forge_world, translate};
 
 struct World {
-    checks: jig_conformance::store_check::StoreChecks,
+    checks: temper_engine_domain_world::check::Run,
     restart_config: engine::Config,
     creating: jig_test_profile::fixtures::Creating,
     root: engine::Domain,
@@ -38,7 +38,9 @@ struct World {
 
 impl Drop for World {
     fn drop(&mut self) {
-        eprintln!("{}", self.checks.report());
+        let result = if std::thread::panicking() { Ok(()) } else { self.finish_store_checks() };
+        eprintln!("{}", self.checks.counts().report());
+        result.unwrap_or_else(|finding| panic!("{finding}"));
     }
 }
 
@@ -292,7 +294,9 @@ impl World {
         let store =
             temper_engine_domain_world::fixtures::restored_over(Store::with_limits(&limits), bootstrap, &limits);
         Self {
-            checks: jig_conformance::store_check::StoreChecks::sampled(config.core.seed, crate::STORE_CHECK_ONE_IN),
+            checks: temper_engine_domain_world::check::Run::new(jig_conformance::store_check::StoreChecks::one(
+                config.core.seed,
+            )),
             restart_config: temper_engine_domain_world::oracle::config::copy(&config),
             creating: jig_test_profile::fixtures::Creating::new(&config.core, limits.tasks.tree_tasks),
             root: engine::Domain::new(config, &limits).expect("valid engine configuration"),
@@ -545,14 +549,11 @@ impl World {
     }
 
     fn check_commit(&mut self, previous: u64) -> Result<(), String> {
-        temper_engine_domain_world::check::committed(
-            &self.store,
-            &self.restart_config,
-            &self.env.limits,
-            self.env.wall,
-            previous,
-            &mut self.checks,
-        )
+        self.checks.committed(&self.store, &self.restart_config, &self.env, previous)
+    }
+
+    fn finish_store_checks(&mut self) -> Result<(), String> {
+        self.checks.finish(&self.restart_config)
     }
 
     fn until(&mut self, target: Until) {

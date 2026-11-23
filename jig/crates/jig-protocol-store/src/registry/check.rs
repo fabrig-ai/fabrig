@@ -95,11 +95,11 @@ fn derive(
     if row.stored && !text.stored {
         return Err(Unplanned::Text);
     }
-    let old = text.schema.as_ref().ok_or(Unplanned::Text)?;
+    let old = text.schema().ok_or(Unplanned::Text)?;
     let old_held = texts::schemas(layouts, &row.value.held, row.stored).ok_or(Unplanned::Text)?;
     let variant = row.value.variant.as_deref();
     let old_root = old.root(&row.value.root, variant).ok_or(Unplanned::Text)?;
-    let new = layouts.texts.get(&digest).ok_or(Unplanned::Text)?.schema.as_ref().ok_or(Unplanned::Text)?;
+    let new = layouts.texts.get(&digest).ok_or(Unplanned::Text)?.schema().ok_or(Unplanned::Text)?;
     let new_root = new.root(ty.root.as_bytes(), super::variant(ty.variant)).ok_or(Unplanned::Text)?;
     let new_held = texts::schemas(layouts, held, false).ok_or(Unplanned::Text)?;
     // Check that the kept text and the row agree, rather than trusting its id.

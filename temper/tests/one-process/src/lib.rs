@@ -13,6 +13,7 @@ pub mod referee;
 pub mod replay;
 mod restart_control;
 pub mod restarts;
+mod schemas;
 pub mod store_check;
 mod stories;
 pub mod world;

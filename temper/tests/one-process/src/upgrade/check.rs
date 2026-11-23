@@ -49,6 +49,7 @@ fn drive(
 ) -> (String, u8, Progress) {
     let mut service = configured(document);
     service.owner_sets(sets);
+    service.prepared_schemas(crate::schemas::binary_schemas());
     let mut sim = Sim::new(fixtures::SEED, skein_sim::Config::calm());
     let pid = sim.spawn_process();
     let source = disk.reopen_root(0);

@@ -413,35 +413,58 @@ more than one world needs them (testing-strategy.md, section 4):
   - **Which commits,** `jig_conformance::store_check`:
 
     ```rust
-    pub struct StoreChecks { /* policy, commits, checked */ }
+    pub struct StoreChecks { /* policy, commits, checked, kept */ }
     impl StoreChecks {
         /// Every commit: the worlds whose budgets carry it.
         pub fn every() -> StoreChecks;
+        /// One of the run's commits, drawn from its seed, checked as the
+        /// run ends: the worlds' default.
+        pub fn one(seed: u64) -> StoreChecks;
         /// Each commit with one chance in `one_in`, drawn from the run's seed.
         pub fn sampled(seed: u64, one_in: u64) -> StoreChecks;
         /// None, for a story whose own input is a record a start refuses.
         pub fn none(reason: &'static str) -> StoreChecks;
         /// Counts commit `number`; whether the world checks it now.
         pub fn due(&mut self, number: u64) -> bool;
+        /// After `due`: whether the world keeps that commit's store, in
+        /// place of any it kept, for the run's check as it ends.
+        pub fn keeps(&self) -> bool;
+        /// As the run ends: the kept commit, now counted checked, which the
+        /// world rehearses over the store it kept; `None` when it kept
+        /// none, under any other policy, and at every later call.
+        pub fn end(&mut self) -> Option<u64>;
         /// Counts commit `number` checked by a restart the run made from it anyway.
         pub fn restarted(&mut self, number: u64);
         pub fn checked(&self) -> u64;
         pub fn commits(&self) -> u64;
-        /// `store check: 3 of 41 commits checked (one in 16, seed 7)`.
+        /// `store check: 3 of 41 commits checked (one in 16, seed 7)`;
+        /// `store check: 1 of 22 commits checked (one per run, seed 45, commit 17)`.
         pub fn report(&self) -> String;
     }
     pub fn finding(commit: u64, phase: &str, refusal: &str) -> String;
     ```
 
-    A sampled commit `n` is due when `Rng::new(draw ^ n).below(one_in)`
-    is 0, `draw` the seed's `store check` part of `Stream::Scheduling`
+    Under `one`, the `k`th commit `due` counts is kept when
+    `Rng::new(draw ^ k).below(k)` is 0, so the first is always kept and
+    each of a run's `n` counted commits ends kept with one chance in
+    `n`; `due` answers false, and `restarted` counts no candidate. Its
+    report names `one per run, seed <s>`, and `, commit <k>` once `end`
+    has answered `k`. A sampled commit `n` is due when
+    `Rng::new(draw ^ n).below(one_in)` is 0. `draw` is the seed's
+    `store check` part of `Stream::Scheduling`
     (`skein/docs/design/testing/sweeps.md`, 2): a part of its own, so
     its draws move none of the world's, and a seed replays its sample.
-    A world writes its report to stderr as its run ends.
+    A world writes its report to stderr as its run ends, after its kept
+    check. A run is a world's story from its construction, or its last
+    `store_checks` setter, which starts the count afresh and drops what
+    was kept, to its end; a commit-cut child keeps nothing, its restart
+    its check.
   - **The core's world:** `jig_core_kit::World::check_store(&self) ->
     Result<(), String>`, over jig's test root rehearsing, called once
     each commit is durable as the world's `StoreChecks` say
-    (`World::store_checks`), sampled from the world's seed by default.
+    (`World::store_checks`), one per run from the world's seed by
+    default: the kept commit's fork is rehearsed in `World::finish`,
+    after the closing oracle, and from `Drop` where no `finish` ran.
   - **The conformance harness:** `Harness::check_store(&self) ->
     Result<(), Violation>`, over a cold snapshot (`cold_snapshot`), with
     four methods each application gives: `rehearse(domain: &mut
@@ -465,8 +488,12 @@ more than one world needs them (testing-strategy.md, section 4):
     verdict is the start's alone: it runs no outside inspection of the
     referee's, whose systems it would not match.
     `Harness::store_checks(&mut self, StoreChecks)` sets the commits,
-    sampled from the harness's seed by default, and `Outcome` gains
-    `checked: u64`.
+    one per run from the harness's seed by default, and `Outcome` gains
+    `checked: u64`. The kept commit's store (`Durable::fork`, with the
+    configuration and clock at that commit) is rehearsed at the story's
+    end, `Harness::finish(&mut self) -> Result<(), Violation>`, which the
+    story and scenario runners call before they return their outcome,
+    and from the harness's `Drop` where no `finish` ran.
   - **A restart the run makes anyway is its commit's check:** in a
     commit-cut sweep (`Cut::EachCommitFrom`, `fork_cuts`, the core
     world's `World::sweep`), each child's cold restart is a start over
@@ -488,15 +515,18 @@ more than one world needs them (testing-strategy.md, section 4):
     start refuses, reads the check's `Err` as its outcome, or sets
     `StoreChecks::none` with a reason naming the refusal it tests.
   - **A sampled world's finding** names the commit it checked, at or
-    after the one that made the record; the same seed under `every()`
-    names the commit that made it.
+    after the one that made the record, a kept commit's as the run ends;
+    the same seed under `every()` names the commit that made it.
   - **Tests,** in the core's world and the conformance world: a committed
     record a start would refuse (a task naming a project the store
     doesn't hold, written by a fixture's commit as a writer's defect
     would) fails at its commit under `every()`, naming the record and the
     commit; the same story without it passes with every commit checked;
-    a commit-cut sweep's child refused names its commit; a sampled run
-    reports its count and replays it from its seed.
+    a commit-cut sweep's child refused names its commit; a run under the
+    default checks exactly one commit as it ends, reports it and replays
+    it from its seed, and the defect's story at a seed keeping a commit
+    at or after the defect's fails as it ends, naming the kept commit; a
+    sampled run reports its count and replays it from its seed.
   - **Coverage:** `StoreChecks::rehearse` records one `store-check`
     when a rehearsal of a committed snapshot returns its verdict.
     For a commit-cut restart the parent records the check through

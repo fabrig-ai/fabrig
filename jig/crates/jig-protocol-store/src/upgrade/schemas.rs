@@ -5,7 +5,7 @@ use skein_lib::List;
 /// Reuse successful parses within one owner-set check, matched by exact text.
 /// At most one cached schema per current family; other frame texts use scratch.
 pub(super) fn current<'a>(prepared: &'a [Schema], cache: &'a mut List<Schema>, text: &[u8]) -> Option<&'a Schema> {
-    if let Some(schema) = find(prepared, text) {
+    if let Some(schema) = matching(prepared, text) {
         return Some(schema);
     }
     for index in 0..cache.len() {
@@ -19,13 +19,13 @@ pub(super) fn current<'a>(prepared: &'a [Schema], cache: &'a mut List<Schema>, t
 }
 
 pub(super) fn get<'a>(prepared: &'a [Schema], cache: &'a [Schema], text: &[u8]) -> Option<&'a Schema> {
-    match find(prepared, text) {
+    match matching(prepared, text) {
         Some(schema) => Some(schema),
-        None => find(cache, text),
+        None => matching(cache, text),
     }
 }
 
-pub(super) fn frame<'a>(
+pub(crate) fn frame<'a>(
     prepared: &'a [Schema],
     cache: &'a [Schema],
     text: &[u8],
@@ -39,7 +39,7 @@ pub(super) fn frame<'a>(
 }
 
 #[expect(clippy::manual_find, reason = "step code uses no closures (programming-model.md, 10.3)")]
-fn find<'a>(schemas: &'a [Schema], text: &[u8]) -> Option<&'a Schema> {
+pub(crate) fn matching<'a>(schemas: &'a [Schema], text: &[u8]) -> Option<&'a Schema> {
     for schema in schemas {
         if schema.text() == text {
             return Some(schema);
