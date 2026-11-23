@@ -950,10 +950,9 @@ only processes have it (section 11). In a one-process run:
 - a process's `kind` is `"tests"`, `"fresh"` (after a process that ended
   before its names did, 11.6), `"alone"` (a diagnostic), `"reference"` (one
   test alone, for its reference) or `"empty"` (its binary selecting no test)
-  (`tools/tiers/references.md`, 4), and its `cpu_s` is `user_s` plus `system_s`. An `alone`
-  process's CPU is in the suite's: every process with a record of the
-  first three kinds is counted. A `reference` or `empty` process counts in
-  no sum: it measures one test after the suite.
+  (`tools/tiers/references.md`, 4), and its `cpu_s` is `user_s` plus `system_s`.
+  The suite, layers, binaries and ledger sum `tests` and `fresh` in both
+  measures. The other kinds keep their own process records.
   A forced kill can leave a started process without a record; its CPU is
   unknown and excluded, so the sum is a lower bound (11.7).
 
@@ -1010,8 +1009,8 @@ unchanged, every slow tier stays on it, and `cpu-wrapper.c` stays.
 
 CPU is measured per process only, by the user's word: each process's user
 and system time, its own and its waited-for descendants', from `wait4`'s
-rusage, and a suite's CPU is their sum. No test's CPU is measured: the
-kernel's per-process times tick at 10 ms, and libtest reports a result after
+rusage. A suite's CPU sums its `tests` and `fresh` processes. The kernel's
+per-process times tick at 10 ms, and libtest reports a result after
 it has moved on, so an outer runner can't divide a process among its tests.
 A test's record carries its outcome and wall time, and its CPU is null, "not
 measured", never a share or a guess. No `/proc` sampling. A test is
@@ -1020,7 +1019,7 @@ flagged test runs alone after the suite, its CPU that process's less its
 binary's run selecting no test, outside every sum of the suite
 (`tools/tiers/references.md`, 3 and 4).
 
-Beside its CPU, each process of a suite's run has its **count**: the
+Beside its CPU, each counted `tests` or `fresh` process has its **count**: the
 user-space instructions the CPU retired for it, its threads' and its
 descendants' that ended before it settled included, from a hardware
 counter opened on the process before it runs its binary (11.4,
@@ -1217,8 +1216,8 @@ until end of file or 100 ms (nextest's default leak timeout) and then
 
 **Instructions.** Where the plan's `count` is true, which `run` sets for
 its suite (11.1) and the reference phase, `--again` and `--alone` don't
-(11.9), the lanes count each process of the suite's kinds (`tests`, `fresh`,
-`alone`, 11.6) with Linux's `perf_event_open`. Python's `os` has no such
+(11.9), the lanes count each `tests` and `fresh` process (11.6) with
+Linux's `perf_event_open`. Python's `os` has no such
 call, so the lanes make it through `ctypes`' `syscall`, by its number on the
 machine: 298 on `x86_64`, 241 on `aarch64`. `tools/tiers/cpu-wrapper.c`
 takes no part: it wraps nextest's attempts (section 7), and the lanes start
@@ -1250,11 +1249,10 @@ and reap a one-process run's processes themselves.
   scaled. A read that fails or comes short is null too. A descendant still
   running when the process settles is in no count, as `wait4`'s rusage holds
   no descendant its process didn't wait for.
-- **Uncounted:** a `reference` or `empty` process, which measures one test
-  alone (`tools/tiers/references.md`, 4), opens no counter: a test run alone
-  is counted in the draft's second pass (`temper/docs/design/draft/test-budgets.md`,
-  6). Its `instructions` is null, as is every process's in a run that
-  doesn't count.
+- **Uncounted:** `alone` diagnostics and `reference` and `empty` processes
+  open no counter. Their `instructions` is null, as is every process's in a
+  run that doesn't count. The draft's second pass counts tests for their
+  references (`temper/docs/design/draft/test-budgets.md`, 6).
 - **Before the suite,** the lanes decide once whether the run counts, and
   report it as their first event after `lanes`:
   `{"event": "counting", "counted": BOOL, "why": WHY}`, `why` null where the
@@ -1420,8 +1418,8 @@ starved. Its tests that libtest had reported passed, failed or starved keep
 those outcomes, with no process, as 7.3 keeps an attempt that has its record,
 so that a failure stays red; its running test, the tests after it and a test
 whose outcome rests on its end (crashed, cancelled) are unobserved. Its CPU is
-unknown and in no total: the suite's CPU is the sum over the processes with a
-record, as 10.2 gives it, and so a lower bound, as a nextest run's is without
+unknown and in no total: the suite's CPU sums the `tests` and `fresh`
+processes with a record (10.2), so it is a lower bound, as a nextest run's is without
 its unobserved attempts (7.3). A CPU budget that bound passes is passed; one it
 stays under is unproven, and the run is starved. A process left without its
 final event otherwise, or lanes that exit with a status other than 0 without
@@ -1591,7 +1589,7 @@ fixture run on the machine that runs the suite pins both outcomes by what
 that machine's decision is: counted, each process of the suite's kinds has
 a positive `instructions`, a test spinning ten million iterations under
 `std::hint::black_box` on a thread it spawns counts at least ten million
-in its process, and its `reference` and `empty` processes have null;
+in its process, and `alone`, `reference` and `empty` processes have null;
 uncounted, the output's line names the decision's `why` and every count is
 null. `--again` and `--alone` write null counts, `counting` and `commit`.
 `test_cpu.py` covers `summary`'s reading of a one-process directory, a forced
