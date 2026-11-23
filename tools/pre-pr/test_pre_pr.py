@@ -1,5 +1,5 @@
 """Delivery policy checks with recording fakes and a scratch counts repository."""
-from contextlib import redirect_stdout
+from contextlib import redirect_stderr, redirect_stdout
 import importlib.util
 import io
 import json
@@ -278,6 +278,16 @@ class Delivery(unittest.TestCase):
             env = {'PATH': '/usr/bin'}
             PRE.with_rust_tools(env)
         self.assertEqual(env, {'PATH': '/usr/bin'})
+
+    def test_a_refused_close_names_its_first_failure_on_stderr(self):
+        errors = [PRE.failure('budgets', 'temper default simulated: instruction growth over allowance, ' + 'x' * 200)]
+        with redirect_stderr(io.StringIO()) as err:
+            self.assertEqual(PRE.finish('tree', 'b' * 40, errors, self.root, {}, 'close', [], ['head']), 1)
+        self.assertEqual(err.getvalue(),
+                         ('budgets: temper default simulated: instruction growth over allowance, ' + 'x' * 200)[:127] + '\n')
+        with redirect_stderr(io.StringIO()) as err:
+            PRE.finish('tree', 'b' * 40, errors, self.root, {}, 'delivery', [], ['head'])
+        self.assertEqual(err.getvalue(), '')
 
     def test_close_receipt_records_only_the_checked_tree(self):
         self.assertEqual(PRE.finish('staged', None, [], self.root, {}, 'close', ['dest'], ['head']), 0)

@@ -39,7 +39,7 @@ INSTRUCTION_ALLOWANCE = 10_000_000_000
 INSTRUCTION_GROWTH_FLOOR = 1_000_000_000
 SUITE_PROCESS_KINDS = ('tests', 'fresh')
 CHECK_KIND = re.compile(r'[a-z][a-z0-9-]{0,31}')
-COVERAGE_REASON_LINE = ('coverage repair: add a [[gate.{profile}.coverage_reasons]] line to '
+CHECK_REASON_LINE = ('checks repair: add a [[gate.{profile}.check_reasons]] line to '
                         'tools/tiers/budgets.toml (tools/tiers/budgets.md, 13).')
 
 
@@ -142,7 +142,7 @@ def budgets(path, pairs=None, layers=Path('tools/tiers/layers.toml')):
             for profile, groups in values.items():
                 name = f'gate.{profile}'
                 if not isinstance(groups, dict) or groups.keys() - {
-                        *GROUPS, 'references', 'moves', 'reasons', 'coverage_reasons'}:
+                        *GROUPS, 'references', 'moves', 'reasons', 'check_reasons'}:
                     raise ValueError(f'invalid budget groups for {name}')
                 references = groups.get('references')
                 if not isinstance(references, dict) or references.keys() - (layer_names | {'checks'}):
@@ -150,7 +150,7 @@ def budgets(path, pairs=None, layers=Path('tools/tiers/layers.toml')):
                 for layer, value in references.items():
                     seconds(f'{name}.references.{layer}', value)
                 for group, table in groups.items():
-                    if group in ('references', 'moves', 'reasons', 'coverage_reasons'):
+                    if group in ('references', 'moves', 'reasons', 'check_reasons'):
                         continue
                     allowed = {'checks'} if group == 'repository' else layer_names
                     if (not isinstance(table, dict) or 'ideal_s' not in table
@@ -187,7 +187,7 @@ def budgets(path, pairs=None, layers=Path('tools/tiers/layers.toml')):
                     if key in seen:
                         raise ValueError(f'duplicate reason for {key}')
                     seen.add(key)
-                validate_coverage_reasons(name, groups.get('coverage_reasons', []))
+                validate_check_reasons(name, groups.get('check_reasons', []))
                 moves = groups.get('moves', [])
                 if not isinstance(moves, list):
                     raise ValueError(f'{name}.moves must be an array of tables')
@@ -247,43 +247,25 @@ def validate_checks(checks, label):
             raise ValueError(f'{label}.{kind} must be a positive integer')
 
 
-def validate_coverage_reasons(profile, reasons):
-    """Check the form of each coverage reason (tools/tiers/budgets.md, 13)."""
+def validate_check_reasons(profile, reasons):
+    """Check the form of each check reason (tools/tiers/budgets.md, 13)."""
     if not isinstance(reasons, list):
-        raise ValueError(f'{profile}.coverage_reasons must be an array of tables')
+        raise ValueError(f'{profile}.check_reasons must be an array of tables')
     for index, reason in enumerate(reasons):
-        label = f'{profile}.coverage_reasons[{index}]'
-        required = {'binary', 'kind', 'why', 'by'}
-        if not isinstance(reason, dict) or not required <= reason.keys():
-            raise ValueError(f'invalid coverage reason keys for {label}')
+        label = f'{profile}.check_reasons[{index}]'
+        if not isinstance(reason, dict) or reason.keys() != {'binary', 'kind', 'why', 'by', 'checks'}:
+            raise ValueError(f'invalid check reason keys for {label}')
         kind = reason['kind']
-        if kind not in ('removed', 'duplicate', 'renamed', 'moved', 'budget'):
-            raise ValueError(f'{label}.kind must be removed, duplicate, renamed, moved or budget')
-        if kind == 'renamed':
-            required.add('to')
-        choices = (required | {'tests'},) if kind == 'renamed' else (required | {'tests'}, required | {'checks'})
-        if reason.keys() not in choices:
-            raise ValueError(f'invalid coverage reason keys for {label}: give tests or checks')
+        if kind not in ('removed', 'duplicate', 'moved', 'budget'):
+            raise ValueError(f'{label}.kind must be removed, duplicate, moved or budget')
         for key in ('binary', 'why', 'by'):
             if not isinstance(reason[key], str) or not reason[key].strip():
                 raise ValueError(f'{label}.{key} must be a nonempty string')
-        for key in ('tests', 'to'):
-            if key in reason:
-                names = reason[key]
-                if (not isinstance(names, list) or not names
-                        or any(not isinstance(name, str) or not name.strip() for name in names)):
-                    raise ValueError(f'{label}.{key} must be a nonempty list of names')
-        for pattern in reason.get('tests', ()):
-            if not any(segment.strip() and '*' not in segment for segment in pattern.split('::')):
-                raise ValueError(f'{label}.tests patterns must contain a literal segment')
-        if 'to' in reason and len(set(reason['to'])) != len(reason['to']):
-            raise ValueError(f'{label}.to must name distinct tests')
-        if 'checks' in reason:
-            validate_checks(reason['checks'], f'{label}.checks')
-            if not reason['checks']:
-                raise ValueError(f'{label}.checks must name at least one kind')
+        validate_checks(reason['checks'], f'{label}.checks')
+        if not reason['checks']:
+            raise ValueError(f'{label}.checks must name at least one kind')
         if kind == 'budget' and not reason['by'].startswith('the user'):
-            raise ValueError(f'{label}.by must start with "the user" for a budget coverage reason')
+            raise ValueError(f'{label}.by must start with "the user" for a budget check reason')
 
 
 def check_commit(value):
@@ -326,21 +308,33 @@ def ledger(path):
             raise ValueError(f'invalid ledger groups for {label}')
 
     expected = {'ledger', 'profile', 'binaries', 'budgets', 'moves'}
-    if isinstance(data, dict) and data.get('ledger') == 6:
+    version = data.get('ledger') if isinstance(data, dict) else None
+    if version == 6:
         expected |= data.keys() & {'coverage_reasons', 'spent_coverage_reasons'}
+    elif version == 7:
+        expected |= data.keys() & {'check_reasons', 'spent_check_reasons'}
     keys(data, expected, 'ledger')
-    version = data['ledger']
-    if type(version) is not int or not 1 <= version <= 6:
-        raise ValueError('ledger version must be 1 to 6')
+    if type(version) is not int or not 1 <= version <= 7:
+        raise ValueError('ledger version must be 1 to 7')
     if data['profile'] not in ('default', 'fuzzy'):
         raise ValueError('ledger profile must be default or fuzzy')
-    if 'coverage_reasons' in data:
-        validate_coverage_reasons('ledger', data['coverage_reasons'])
-    if 'spent_coverage_reasons' in data:
-        spent = data['spent_coverage_reasons']
-        validate_coverage_reasons('ledger spent', spent)
+    if version == 6:
+        data['ledger'] = 7
+        for prefix in ('', 'spent_'):
+            old_key = f'{prefix}coverage_reasons'
+            if old_key in data:
+                reasons = data.pop(old_key)
+                if isinstance(reasons, list):
+                    reasons = [reason for reason in reasons if not (
+                        isinstance(reason, dict) and 'tests' in reason and 'checks' not in reason)]
+                data[f'{prefix}check_reasons'] = reasons
+    if 'check_reasons' in data:
+        validate_check_reasons('ledger', data['check_reasons'])
+    if 'spent_check_reasons' in data:
+        spent = data['spent_check_reasons']
+        validate_check_reasons('ledger spent', spent)
         if any(reason['kind'] != 'budget' for reason in spent):
-            raise ValueError('only budget coverage reasons may be spent')
+            raise ValueError('only budget check reasons may be spent')
     if not isinstance(data['binaries'], dict):
         raise ValueError('ledger binaries must be an object')
     for binary, entry in data['binaries'].items():
@@ -756,7 +750,7 @@ def one_process_summary(directory, limits, pair, run, gate=False, ledger=None, b
         raise ValueError('invalid one-process result lists')
     if (type(data.get('test_filtered', False)) is not bool
             or ('selected_packages' in data and not names(data['selected_packages']))):
-        raise ValueError('invalid coverage selection in one-process results')
+        raise ValueError('invalid checks selection in one-process results')
     processes = []
     for item in data['processes']:
         if (not isinstance(item['binary_id'], str) or not item['binary_id']
@@ -984,25 +978,25 @@ def one_process_summary(directory, limits, pair, run, gate=False, ledger=None, b
         warnings.append(f"test swings alone at main: {row['binary_id']} {row['test_name']}: "
                         f'{a:.3f}, {b:.3f}, {c:.3f} CPU s alone')
     over = [line + '\n' + REPAIR_LINE for line in over]
-    coverage_reasons, coverage_moves, used_budget_reasons = [], [], []
+    check_reasons, check_moves, used_budget_reasons = [], [], []
     if ledger is not None:
         if data.get('test_filtered', False):
-            warnings.append('coverage comparison skipped: the run used a caller test filter')
+            warnings.append('checks comparison skipped: the run used a caller test filter')
         else:
-            main_reasons = ledger.get('coverage_reasons', [])
-            spent = ledger.get('spent_coverage_reasons', [])
-            reasons = [reason for reason in gate_limits.get('coverage_reasons', [])
+            main_reasons = ledger.get('check_reasons', [])
+            spent = ledger.get('spent_check_reasons', [])
+            reasons = [reason for reason in gate_limits.get('check_reasons', [])
                        if ((reason in main_reasons and reason not in spent) if reason['kind'] == 'budget'
                            else reason not in main_reasons)]
-            coverage_reasons, coverage_moves, used_budget_reasons = coverage_verdict(
+            check_reasons, check_moves, used_budget_reasons = checks_done_verdict(
                 data, head, suite_processes, ledger['binaries'], partial, reasons, over, warnings)
     verdict = ('over budget' if over else 'starved' if suite['starved_run'] or suite['starved']
                else 'within budget' if limits or (gate and gate_limits) else 'no budget set')
     return dict(pair=pair, tests=tests, suite=suite, processes=processes, failures=failures,
                 layers=layers, trees=list(trees.values()), counting=counting, references=references, swings=swings,
                 checks={binary: entry['checks'] for binary, entry in head.items() if 'checks' in entry},
-                coverage_reasons=coverage_reasons, coverage_moves=coverage_moves,
-                used_budget_coverage_reasons=used_budget_reasons, unobserved=unobserved, warnings=warnings,
+                check_reasons=check_reasons, check_moves=check_moves,
+                used_budget_check_reasons=used_budget_reasons, unobserved=unobserved, warnings=warnings,
                 over_budget=over, verdict=verdict)
 
 
@@ -1169,64 +1163,52 @@ def head_binaries(processes, workspace, ledger, selected_layers=None):
     return head
 
 
-def new_coverage_tests(observed, main_binaries):
+def new_test_names(observed, main_binaries):
     for binary, names in observed.items():
         at_main = main_binaries.get(binary, {}).get('tests', {})
         for name in names - at_main.keys() if at_main else names:
             yield name, binary
 
 
-def record_coverage_move(moves, used, binary, name, target):
+def test_move(binary, name, target):
     moved_name, moved_binary = target
-    moves.append({'from': dict(binary_id=binary, test_name=name),
-                  'to': dict(binary_id=moved_binary, test_name=moved_name)})
-    used.add(target)
+    return {'from': dict(binary_id=binary, test_name=name),
+            'to': dict(binary_id=moved_binary, test_name=moved_name)}
 
 
-def match_coverage_moves(lost_by_binary, observed, main_binaries, moved_out):
+def match_test_moves(lost_by_binary, observed, main_binaries, moved_out):
     """Pair tests within a binary or into a new binary (tools/tiers/budgets.md, 13)."""
     lost = sorted((name, binary) for binary, names in lost_by_binary.items()
                   if binary not in moved_out for name in names)
     if not lost:
-        return [], set()
+        return []
     segments = {name.rsplit('::', 1)[-1] for name, _ in lost}
     targets = {}
-    for name, binary in new_coverage_tests(observed, main_binaries):
+    for name, binary in new_test_names(observed, main_binaries):
         segment = name.rsplit('::', 1)[-1]
         if segment in segments:
             key = (binary, segment) if binary in main_binaries else (None, segment)
             targets.setdefault(key, []).append((name, binary))
     for candidates in targets.values():
         candidates.sort(reverse=True)
-    moves, used, unmatched = [], set(), []
+    moves, unmatched = [], []
     for name, binary in lost:
         segment = name.rsplit('::', 1)[-1]
         candidates = targets.get((binary, segment))
         if candidates:
-            record_coverage_move(moves, used, binary, name, candidates.pop())
+            moves.append(test_move(binary, name, candidates.pop()))
             lost_by_binary[binary].remove(name)
         else:
             unmatched.append((name, binary, segment))
     for name, binary, segment in unmatched:
         candidates = targets.get((None, segment))
         if candidates:
-            record_coverage_move(moves, used, binary, name, candidates.pop())
+            moves.append(test_move(binary, name, candidates.pop()))
             lost_by_binary[binary].remove(name)
-    return moves, used
+    return moves
 
 
-def matching_coverage_tests(lost, patterns):
-    tests = set()
-    for pattern in patterns:
-        if '*' in pattern:
-            match = re.compile(re.escape(pattern).replace(r'\*', '.*')).fullmatch
-            tests.update(name for name in lost if match(name))
-        elif pattern in lost:
-            tests.add(pattern)
-    return tests
-
-
-def coverage_check_groups(binaries, automatic_moves, partial):
+def check_count_groups(binaries, automatic_moves, partial):
     """Group whole binaries by automatic moves (tools/tiers/budgets.md, 13)."""
     neighbors = {}
     for move in automatic_moves:
@@ -1255,9 +1237,9 @@ def coverage_check_groups(binaries, automatic_moves, partial):
                     yield member, [member]
 
 
-def coverage_check_losses(head, main_binaries, lost_by_binary, automatic_moves, partial):
+def check_count_losses(head, main_binaries, lost_by_binary, automatic_moves, partial):
     """Compare each whole group's counts with main (tools/tiers/budgets.md, 13)."""
-    for binary, group in coverage_check_groups(lost_by_binary, automatic_moves, partial):
+    for binary, group in check_count_groups(lost_by_binary, automatic_moves, partial):
         if len(group) == 1:
             before = main_binaries[binary].get('checks', {})
             after = head.get(binary, {}).get('checks', {})
@@ -1271,8 +1253,8 @@ def coverage_check_losses(head, main_binaries, lost_by_binary, automatic_moves, 
             yield binary, group, fewer
 
 
-def coverage_verdict(data, head, processes, main_binaries, partial, reasons, over, warnings):
-    """Report coverage loss against main (tools/tiers/budgets.md, 13)."""
+def checks_done_verdict(data, head, processes, main_binaries, partial, reasons, over, warnings):
+    """Report tests and checks done against main (tools/tiers/budgets.md, 13)."""
     selected = data.get('selected_layers')
     packages = set(data.get('selected_packages', []))
     workspace = {entry['binary_id']: entry for entry in data['workspace']}
@@ -1299,42 +1281,12 @@ def coverage_verdict(data, head, processes, main_binaries, partial, reasons, ove
         names = planned.get(binary, ()) if binary in partial else observed.get(binary, ())
         lost_by_binary[binary] = main['tests'].keys() - (() if binary in moved_out else names)
 
-    automatic_moves, used = match_coverage_moves(lost_by_binary, observed, main_binaries, moved_out)
-    renames = []
-    renamed_targets, applied_tests = {}, {}
-    rename_names = {name for reason in reasons if reason['kind'] == 'renamed' for name in reason['to']}
-    if rename_names:
-        for target in sorted(new_coverage_tests(observed, main_binaries)):
-            if target[0] in rename_names:
-                renamed_targets.setdefault(target[0], []).append(target)
-    for index, reason in enumerate(reasons):
-        binary, kind = reason['binary'], reason['kind']
-        lost = lost_by_binary.get(binary)
-        if not lost or 'tests' not in reason or (binary in moved_out and kind != 'moved'):
-            continue
-        tests = matching_coverage_tests(lost, reason['tests'])
-        if tests and kind == 'renamed':
-            if any(name not in renamed_targets for name in reason['to']):
-                continue
-            targets = []
-            for name in sorted(reason['to']):
-                target = next((target for target in renamed_targets[name] if target not in used), None)
-                if target is not None:
-                    targets.append(target)
-            pairs = list(zip(sorted(tests), targets))
-            for name, target in pairs:
-                record_coverage_move(renames, used, binary, name, target)
-            tests = {name for name, _ in pairs}
-        if tests:
-            lost.difference_update(tests)
-            applied_tests[index] = tests
-
-    applied_checks, check_lines = {}, {}
+    moves = match_test_moves(lost_by_binary, observed, main_binaries, moved_out)
+    applied_checks, red_by_binary = {}, {}
     check_reasons = {}
     for index, reason in enumerate(reasons):
-        if 'checks' in reason:
-            check_reasons.setdefault(reason['binary'], []).append((index, reason))
-    for binary, group, fewer in coverage_check_losses(head, main_binaries, lost_by_binary, automatic_moves, partial):
+        check_reasons.setdefault(reason['binary'], []).append((index, reason))
+    for binary, group, fewer in check_count_losses(head, main_binaries, lost_by_binary, moves, partial):
         covered = set()
         for member in group:
             for index, reason in check_reasons.get(member, ()):
@@ -1347,44 +1299,41 @@ def coverage_verdict(data, head, processes, main_binaries, partial, reasons, ove
                     applied_checks[index] = kinds
         kinds = sorted(fewer.keys() - covered)
         if kinds:
-            lines = ['  checks across: ' + ', '.join(group)] if len(group) > 1 else []
-            lines.extend(f'  {kind}: {fewer[kind][0]} at main, {fewer[kind][1]} at the head' for kind in kinds)
-            check_lines[binary] = lines
-
-    for binary, lost in lost_by_binary.items():
-        checks = check_lines.get(binary, [])
-        if lost or checks:
             main = main_binaries[binary]
             placement = main if binary in moved_out else workspace.get(binary, main)
-            lines = [f"layer coverage loss: {placement['tree']} {data['profile']} {placement['layer']}: {binary}"]
+            lines = [f"layer checks lost: {placement['tree']} {data['profile']} {placement['layer']}: {binary}"]
             if binary in moved_out:
                 lines.append(f"  moved to unselected layer: {workspace[binary]['layer']}")
-            names = sorted(lost)
-            lines.extend(f'  lost test: {name}' for name in names[:10])
-            if len(names) > 10:
-                lines.append(f'  {len(names) - 10} more lost tests')
-            over.append('\n'.join([*lines, *checks, REPAIR_LINE, COVERAGE_REASON_LINE.format(profile=data['profile'])]))
+            if len(group) > 1:
+                lines.append('  checks across: ' + ', '.join(group))
+            lines.extend(f'  {kind}: {fewer[kind][0]} at main, {fewer[kind][1]} at the head' for kind in kinds)
+            red_by_binary[binary] = '\n'.join([*lines, REPAIR_LINE, CHECK_REASON_LINE.format(profile=data['profile'])])
+
+    for binary, lost in lost_by_binary.items():
+        if binary in red_by_binary:
+            over.append(red_by_binary[binary])
+        if lost:
+            names = ', '.join(sorted(lost)[:10])
+            if len(lost) > 10:
+                names += f', ... ({len(lost) - 10} more)'
+            warnings.append(f"checks note: {binary}: {len(lost)} tests main ran didn't run at the head: {names}")
 
     applied, used_budget = [], []
     for index, reason in enumerate(reasons):
-        tests, kinds = applied_tests.get(index, ()), applied_checks.get(index, ())
-        if tests or kinds:
-            applied.append(coverage_reason(reason, tests, kinds))
+        kinds = applied_checks.get(index, ())
+        if kinds:
+            applied.append(check_reason(reason, kinds))
             if reason['kind'] == 'budget':
                 used_budget.append(reason)
         elif reason['kind'] != 'budget':
-            warnings.append('stale coverage reason: ' + coverage_reason(reason))
-    return applied, automatic_moves + renames, used_budget
+            warnings.append('stale check reason: ' + check_reason(reason))
+    return applied, moves, used_budget
 
 
-def coverage_reason(reason, tests=(), kinds=()):
-    targets = reason.get('tests') or reason['checks']
-    detail = f"{reason['binary']}: {reason['kind']} {targets!r}"
-    if 'to' in reason:
-        detail += f" to {reason['to']!r}"
-    detail += f": {reason['why']} (by {reason['by']})"
-    if tests or kinds:
-        detail += f" (matched {', '.join(sorted(tests or kinds))})"
+def check_reason(reason, kinds=()):
+    detail = f"{reason['binary']}: {reason['kind']} {reason['checks']!r}: {reason['why']} (by {reason['by']})"
+    if kinds:
+        detail += f" (matched {', '.join(sorted(kinds))})"
     return detail
 
 
@@ -1709,14 +1658,14 @@ def fold_ledger(directory, result, limits, ledger=None):
             selected_layers, counted).items():
         folded_budgets[tree][layer].update(
             instructions_ceiling=state['instructions_ceiling'], instructions_lowest=state['instructions_lowest'])
-    folded = dict(ledger=6, profile=result['pair'], binaries=binaries, budgets=folded_budgets,
-                  moves=profile.get('moves', []), coverage_reasons=profile.get('coverage_reasons', []))
-    spent = list((ledger or {}).get('spent_coverage_reasons', []))
-    for reason in result.get('used_budget_coverage_reasons', []):
+    folded = dict(ledger=7, profile=result['pair'], binaries=binaries, budgets=folded_budgets,
+                  moves=profile.get('moves', []), check_reasons=profile.get('check_reasons', []))
+    spent = list((ledger or {}).get('spent_check_reasons', []))
+    for reason in result.get('used_budget_check_reasons', []):
         if reason not in spent:
             spent.append(reason)
     if spent:
-        folded['spent_coverage_reasons'] = spent
+        folded['spent_check_reasons'] = spent
     return folded
 
 
@@ -1841,13 +1790,13 @@ def print_summary(result, as_json=False):
     for binary, checks in result.get('checks', {}).items():
         if checks:
             print(f"{binary} checks: " + ', '.join(f'{kind} {count}' for kind, count in sorted(checks.items())))
-    for reason in result.get('coverage_reasons', []):
-        print(f'coverage reason applied: {reason}')
+    for reason in result.get('check_reasons', []):
+        print(f'check reason applied: {reason}')
     moves = {}
-    for move in result.get('coverage_moves', []):
+    for move in result.get('check_moves', []):
         moves.setdefault(move['from']['binary_id'], []).append(move)
     for binary, pairs in sorted(moves.items()):
-        print(f'coverage moves: {binary}: {len(pairs)}')
+        print(f'check moves: {binary}: {len(pairs)}')
         for move in pairs[:10]:
             target = move['to']
             print(f"  moved test: {move['from']['test_name']} to {target['binary_id']} {target['test_name']}")
