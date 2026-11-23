@@ -56,8 +56,7 @@ fn nested(rng: &mut Rng, shape: Shape, depth: u32) -> Vec<u8> {
     }
     out
 }
-#[must_use]
-pub fn mutate(rng: &mut Rng, text: &[u8]) -> Vec<u8> {
+pub fn mutate(rng: &mut Rng, text: &[u8]) -> skein_checks::Mutation<Vec<u8>> {
     const PIECES: &[&[u8]] = &[
         b"{% set settings = 1 %}",
         b"{% endfor %}",
@@ -97,7 +96,7 @@ pub fn mutate(rng: &mut Rng, text: &[u8]) -> Vec<u8> {
         }
         _ => out.extend_from_slice(piece),
     }
-    out
+    skein_checks::mutation(out)
 }
 
 fn tag(rng: &mut Rng, source: &[u8]) -> Vec<u8> {

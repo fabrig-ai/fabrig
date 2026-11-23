@@ -60,5 +60,6 @@ elided_lifetimes_in_paths = "deny"
 unused_must_use = "deny"
 
 [dev-dependencies]
+skein-checks.workspace = true
 smith-local-protocol-fixtures.workspace = true
 smith-domain-session-fixtures.workspace = true

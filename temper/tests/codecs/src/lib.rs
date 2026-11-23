@@ -1,4 +1,5 @@
 //! Shared deterministic codec inputs (skein's data/codec/README.md, section 6).
+pub use skein_checks::MutationBatch;
 use skein_lib::Rng;
 
 /// Draw arbitrary bytes of any length through the given maximum.
@@ -9,15 +10,13 @@ pub fn drawn(rng: &mut Rng, most: u32) -> Vec<u8> {
 }
 
 /// Flip, remove or insert one byte of a fixed-rule value value.
-#[must_use]
-pub fn mutated(rng: &mut Rng, fixed_value: &[u8]) -> Vec<u8> {
+pub fn mutated(rng: &mut Rng, fixed_value: &[u8]) -> skein_checks::Mutation<Vec<u8>> {
     let mut bytes = Vec::new();
-    mutated_into(rng, fixed_value, &mut bytes);
-    bytes
+    write_mutation(rng, fixed_value, &mut bytes);
+    skein_checks::mutation(bytes)
 }
 
-/// The same mutation, retaining scratch capacity between complete inputs.
-pub fn mutated_into(rng: &mut Rng, fixed_value: &[u8], bytes: &mut Vec<u8>) {
+fn write_mutation(rng: &mut Rng, fixed_value: &[u8], bytes: &mut Vec<u8>) {
     bytes.clear();
     bytes.extend_from_slice(fixed_value);
     let length = skein_lib::len_u64(bytes.len());

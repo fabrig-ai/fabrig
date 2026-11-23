@@ -51,6 +51,7 @@ fn worker_wire_decoders_never_panic_and_reencode_the_same() {
     let decoders: [fn(&[u8]); 6] = [items, repository, left, saved, preparation, identity];
     let mut rng = Rng::new(0x7e3d_0301);
     let fixed_values = values::worker();
+    let mut mutations = temper_codecs_world::MutationBatch::default();
     for fixed_value in [
         values::fixed_value(values::worker(), "enum_kind_forgejo_full.bin"),
         values::fixed_value(values::worker(), "enum_kind_github_full.bin"),
@@ -65,7 +66,7 @@ fn worker_wire_decoders_never_panic_and_reencode_the_same() {
         let seed = temper_protocol_worker_wire::identity(&value);
         identity(seed.expose());
         for _ in 0..8 {
-            identity(&temper_codecs_world::mutated(&mut rng, seed.expose()));
+            mutations.judge(temper_codecs_world::mutated(&mut rng, seed.expose()), |bytes| identity(&bytes));
         }
     }
     for _ in 0..2_000 {
@@ -80,10 +81,12 @@ fn worker_wire_decoders_never_panic_and_reencode_the_same() {
             decode(fixed_value);
         }
         for _ in 0..8 {
-            let bytes = temper_codecs_world::mutated(&mut rng, fixed_value);
-            for decode in decoders {
-                decode(&bytes);
-            }
+            mutations.judge(temper_codecs_world::mutated(&mut rng, fixed_value), |bytes| {
+                for decode in decoders {
+                    decode(&bytes);
+                }
+            });
         }
     }
+    mutations.finish();
 }

@@ -1,5 +1,6 @@
 use crate::world::End;
 use hearth_protocol_mmdebstrap::limits::Limits;
+pub use skein_checks::MutationBatch;
 use skein_lib::Rng;
 use std::fmt::Write;
 #[must_use]
@@ -31,10 +32,9 @@ pub fn output(rng: &mut Rng, limits: &Limits) -> Vec<u8> {
     }
     text.into_bytes()
 }
-#[must_use]
-pub fn mutate(rng: &mut Rng, bytes: &[u8]) -> Vec<u8> {
+pub fn mutate(rng: &mut Rng, bytes: &[u8]) -> skein_checks::Mutation<Vec<u8>> {
     if bytes.is_empty() {
-        return Vec::new();
+        return skein_checks::mutation(Vec::new());
     }
     let mut bytes = bytes.to_vec();
     let at = usize::try_from(rng.between(0, u64::try_from(bytes.len()).expect("bounded fixture value").max(1)))
@@ -55,7 +55,7 @@ pub fn mutate(rng: &mut Rng, bytes: &[u8]) -> Vec<u8> {
             }
         }
     }
-    bytes
+    skein_checks::mutation(bytes)
 }
 #[must_use]
 pub fn end(rng: &mut Rng, bytes: &[u8]) -> End {
