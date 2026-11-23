@@ -81,14 +81,14 @@ fn settings_contract_fixtures_keep_the_ask_answers_documents_and_selectors() {
         let why = c::MalformedSettings { setting: c::Setting::Rules, fault, detail: None };
         let wire = w::Refusal::Malformed(w::RefusalMalformed {
             at: 0,
-            why: w::Malformed::Settings(wire::wire_malformed_settings(&why, t).expect("fault")),
+            why: w::Malformed::Settings(wire::wire_malformed_settings(&why)),
         });
         assert_eq!(refusal(&wire, &limits), Ok(c::Refusal::Malformed { at: 0, why: c::Malformed::Settings(why) }));
     }
     let unchanged = w::Refusal::Malformed(w::RefusalMalformed { at: 0, why: w::Malformed::SettingsUnchanged });
     assert_eq!(refusal(&unchanged, &limits), Ok(c::Refusal::Malformed { at: 0, why: c::Malformed::SettingsUnchanged }));
     let document = values::settings_document();
-    let settings = wire::wire_settings_document(&document, t).expect("settings");
+    let settings = wire::wire_settings_document(&document);
     let bytes = encoded!(&w::ReadValue::Settings(settings.clone()));
     assert_eq!(translate::reads::value(&bytes, &limits), Ok(c::ReadValue::Settings(Box::new(document))));
     let bytes = encoded!(&w::DeliveryValue::Settings(settings));
@@ -118,7 +118,7 @@ fn settings_contract_fixtures_keep_the_ask_answers_documents_and_selectors() {
         assert_eq!(translate::reads::value(&bytes, &limits), Ok(c::ReadValue::Revision(Box::new(answer))));
     }
     let page = values::settings_page();
-    let bytes = encoded!(&w::ReadValue::Revisions(wire::wire_revisions_page(&page, t).expect("page")));
+    let bytes = encoded!(&w::ReadValue::Revisions(wire::wire_revisions_page(&page)));
     assert_eq!(translate::reads::value(&bytes, &limits), Ok(c::ReadValue::Revisions(Box::new(page))));
 }
 

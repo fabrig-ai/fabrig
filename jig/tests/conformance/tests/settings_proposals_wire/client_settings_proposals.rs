@@ -120,7 +120,7 @@ fn pending_reviews_keep_origins_values_sizes_and_the_cut_fact() {
 fn retained_settings_actions_keep_the_revision_they_made() {
     let limits = limits();
     let retained = values::retained();
-    let wire = wire::wire_retained_action_settings(&retained, limits.wire()).expect("retained settings");
+    let wire = wire::wire_retained_action_settings(&retained);
     let mut proposal = w::ProposalHistory::decode(
         limits.wire(),
         &mut Reader::new(super::client_values::fixed_value("record_proposal_history_smallest.bin")),
