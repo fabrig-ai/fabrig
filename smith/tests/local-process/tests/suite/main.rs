@@ -11,6 +11,8 @@ mod memory;
 mod referee;
 mod replay;
 mod simulation;
+mod store;
+mod store_world;
 mod terminal;
 
 mod fuzzy {
