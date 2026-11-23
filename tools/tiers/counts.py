@@ -63,5 +63,6 @@ def layers(data, profile, commit):
     return result
 
 
-def allowance(count, credit=0):
-    return max(count // 50, INSTRUCTION_GROWTH_FLOOR) + credit
+def allowance(count, credit=0, accepted=None):
+    usual = max(count // 50, INSTRUCTION_GROWTH_FLOOR) + credit
+    return usual if accepted is None else max(usual, accepted - count)
