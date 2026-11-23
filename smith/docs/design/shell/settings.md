@@ -339,10 +339,10 @@ profile (`README.md`, 2.1).
 
 | | `openai` | `anthropic` |
 |---|---|---|
-| endpoint | `api.openai.com:443`, TLS name `api.openai.com`, `/v1/responses`, OpenAI's public Responses dialect, `openai` (skein's `llm/README.md`, 4.8) | `api.anthropic.com:443`, TLS name `api.anthropic.com`, `/v1/messages`, Anthropic's Messages dialect, `anthropic`, with a key (skein's `llm/README.md`, 4.7) |
+| endpoint | `api.openai.com:443`, TLS name `api.openai.com`, `/v1/responses`, OpenAI's public Responses dialect, `openai` (skein's `llm/wire.md`, 1.8) | `api.anthropic.com:443`, TLS name `api.anthropic.com`, `/v1/messages`, Anthropic's Messages dialect, `anthropic`, with a key (skein's `llm/wire.md`, 1.7) |
 | program | none | `claude_code`, Claude Code (../protocol/programs.md) |
 | sources | `sign_in`, with smith's registration; `key`; `env` | `program`; `key`; `env` |
-| how a credential is sent | `Authorization: Bearer`, a sign-in's token or a key alike (skein's `llm/README.md`, 2.6) | a key, in `x-api-key` |
+| how a credential is sent | `Authorization: Bearer`, a sign-in's token or a key alike (skein's `llm/vocabulary.md`, 1.6) | a key, in `x-api-key` |
 | `connect`, `handshake` | 10 s each | 10 s each |
 | `connection_keep` | 30 s, provisional | 30 s, provisional |
 

@@ -74,7 +74,7 @@ work runs' frame alike; with a fourth tab the tabs stand two by two at
 small words `--gf-faint`; and each rise's fade colours its stops by the
 `temper-ways-fade-*` tokens, the line's rules written under
 `:not([data-fade])` so that no stroke outweighs the fade (skein's
-`ui/web/README.md`, section 6). The gallery's `ask-ways-*` states are reprinted
+`ui/web/svg.md`, section 1). The gallery's `ask-ways-*` states are reprinted
 with them.
 
 `look.md`, *How work runs' look*, and `gallery.md`, 2 have no known

@@ -101,12 +101,13 @@ fn at(world: &mut World, when: Wall) {
     // snapshot; Q6 still retains its selected required reply explicitly.
     world.fake_env.limits.latency_min = Duration::ZERO;
     world.fake_env.limits.latency_max = Duration::ZERO;
-    // World::tick advances 100 ms. Drain continuations at the chosen snapshot
-    // by giving each tick the same starting time; no step sees time go backwards.
+    let cadence = world.tick_interval;
+    world.advance_to(Time::from_nanos(when.as_nanos()));
+    world.tick_interval = Duration::ZERO;
     for _ in 0..200 {
-        world.env.now = Time::from_nanos(when.as_nanos() - TICK.as_nanos());
         world.tick();
     }
+    world.tick_interval = cadence;
     assert_eq!(world.env.wall, when);
 }
 
@@ -180,7 +181,7 @@ fn stalled_change_notifies_its_requester() {
     let deadline = change_row(&world).change.clock.expect("first execution reading").at.as_nanos() + STALL.as_nanos();
     // Jump to the stall, then advance through any one-second Busy retries.
     // Unlike the boundary snapshots, this story must settle the requester notice.
-    world.env.now = Time::from_nanos(deadline - TICK.as_nanos());
+    world.advance_to(Time::from_nanos(deadline - TICK.as_nanos()));
     for _ in 0..200 {
         world.tick();
         if matches!(task(&world, change).phase, tasks::Phase::Held { .. })

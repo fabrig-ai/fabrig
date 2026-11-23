@@ -8,7 +8,7 @@ build command.
 ## The gate
 
 A landing check checks the branch merged onto main: every check below, with
-nothing slower than the fuzzy suite (`skein/docs/design/testing/README.md`, 6;
+nothing slower than the fuzzy suite (`skein/docs/design/testing/layout.md`, 1;
 `skein/docs/foundation/testing-strategy.md`, 8).
 
 The dispatched Gate reads its selector, reporter and replay tests from the

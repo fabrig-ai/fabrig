@@ -165,7 +165,7 @@ proofs are in the step and world tiers, within their budgets.
 `Cut::EachCommitFrom` does. A sweep over a story's cuts (both sides of
 its commits, a commit's or a restart's file operations, a second kill
 during a recovery) runs the story once: at each cut it sweeps, the world
-forks (`skein_fork::split`, `skein/docs/design/testing/README.md`, 6),
+forks (`skein_fork::split`, `skein/docs/design/testing/layout.md`, 1),
 and the child takes that cut as a world built for that cut alone would,
 through the same crash, cold restart, recovery and checks, its closing
 oracle included; the parent waits for it and goes on uncut to the next
@@ -538,7 +538,7 @@ They stay in jig, and an application's worlds reuse them. What jig finds
 missing in skein's world harness goes into skein first.
 
 **Their checks return their findings,** as skein's do
-(`skein/docs/design/testing/README.md`, 5;
+(`skein/docs/design/testing/service-tiers.md`, 1;
 `skein/docs/foundation/programming-model.md`, 10.4), and nothing in jig's
 tests catches a panic:
 
@@ -615,7 +615,7 @@ tests catches a panic:
 reads its kit through its library, which re-exports it.
 `jig/tests/boundary/src/tests/kits.rs` holds this. Two packages named as worlds
 are kits by design: skein's world harness, `skein-world`
-(`skein/docs/design/testing/README.md`, 6), and smith's `smith-agent-process-world`.
+(`skein/docs/design/testing/layout.md`, 1), and smith's `smith-agent-process-world`.
 
 ### 7.1 What jig's adapter reports
 

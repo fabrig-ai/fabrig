@@ -1,4 +1,4 @@
-//! Portable UI trees, building and diffs (ui/README.md, sections 3, 5 and 7).
+//! Portable UI trees, building and diffs (ui/tree.md, section 1, and ui/README.md, sections 5 and 7).
 
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]

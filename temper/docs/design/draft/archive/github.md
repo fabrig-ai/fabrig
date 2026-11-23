@@ -237,15 +237,15 @@ is open `github.md`, section 19.
   worker keeps the two newest generations, so an operation in flight
   across a change finishes on the value it began with.
 - **The forge writer at runtime.** skein's forge client takes its
-  writers, one per forge, at construction (skein's `forge/client.md`,
-  7.1), and refuses every effect on a forge with none, `Forbidden`. It
+  writers, one per forge, at construction (skein's `forge/client-effects.md`,
+  1.1), and refuses every effect on a forge with none, `Forbidden`. It
   now takes a forge's writer later too, once, when the forge connects:
   temper's routing tells the root, which hands it on. At a start the
   writers are the store's, as configuration's are today. A forge's
   writer never changes: a replacement that answers as another user is
   refused, since the keys and echoes already on the forge are the old
   user's. Connecting a forge as someone else is a disconnect and a new
-  connection, later (section 18).
+  connection, later (`github.md`, section 18).
 - **The connector** knows a forge as connected or not: an adoption on
   one not connected is refused as such, and the client offers Connect.
 

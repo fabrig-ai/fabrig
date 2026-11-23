@@ -20,7 +20,7 @@ of the model's shape.
   answer goes down at once.
 - **Two streams per exchange.** The side above writes the request body
   as a stream and reads the response body as one, each a `lib::stream`
-  face (../../runtime/lib.md, 7) of which the client is the side below; the server's
+  face (../../runtime/lib-streams.md, 1) of which the client is the side below; the server's
   side above reads the request body and writes the response body the
   same way. A machine stacked on a body (server-sent events, JSON)
   cannot tell it from a socket.
@@ -115,7 +115,7 @@ both machines, each of which keeps its own policy for what it reads
 with the module's public predicates (`is_tchar`, `is_token`, `is_field_byte`,
 `trim`, `field_len`) and `client::request_head_len`.
 
-A head prints its lengths (../../runtime/lib.md, 6). A `Header`'s `Debug` shows its name
+A head prints its lengths (../../runtime/lib-bytes.md, 1). A `Header`'s `Debug` shows its name
 and its value's length. A server's `Call`, and the request line a server is
 still reading, show the target's length, and a `Call` its fields so; a
 client's written head, held until room comes to send it, shows its own

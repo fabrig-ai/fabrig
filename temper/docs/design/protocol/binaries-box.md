@@ -88,7 +88,7 @@ default; the document is `temper.json` in the configuration directory
     --box`, adopts the box's pipe, the two fds after the listeners the
     box gives it (setup/box.md, 1). Given listeners, `LISTEN_FDS` of them
     from fd 3, its clients' and webhooks' listeners take them by their
-    addresses (skein's `runtime/shell.md`, 6.6).
+    addresses (skein's `runtime/shell-startup.md`, 1.6).
   - A first termination signal settles the engine's forge writes, then
     drains it (`../domain/root-restart.md`, 1.2; jig's `protocol/service.md`,
     section 5), and a worker alone's runs its worker's ending (jig's

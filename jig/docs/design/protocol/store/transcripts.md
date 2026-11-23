@@ -25,7 +25,7 @@ converted; retention drops them as it drops a turns log.
   smith's largest turn (smith's `protocol/limits.md`, 4). No frame is
   rewritten: one behind the binary's versions is patched each time it is
   read (6). The word is core-v6's: it is part of the family's layout
-  and moves no byte (skein's `data/codec/README.md`, section 9).
+  and moves no byte (skein's `data/codec/fingerprints.md`, section 1).
 - **The map keeps each transcript's places,** in the component's own
   family: its committed length and the offset of its current window's
   first turn, one row per task with a transcript; and each attempt's

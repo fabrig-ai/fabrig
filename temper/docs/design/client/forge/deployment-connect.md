@@ -307,7 +307,7 @@ This document holds connecting a forge, split from [`deployment.md`](deployment.
     scheme and host, as the page went with `back`: a browser's platform
     points a tab only at a path on the origin or an `https` address, its
     plaintext loopback a test page's alone
-    (`skein/docs/design/ui/web/README.md`, 8 and 14), and a page reached
+    (`skein/docs/design/ui/web/effects.md`, 1, and `skein/docs/design/ui/web/README.md`, 14), and a page reached
     through another address than the listener's names its own origin.
     The terminal prints the whole address. An answer
     with no link (connecting, refused, unknown or lost) closes the tab
@@ -368,7 +368,7 @@ This document holds connecting a forge, split from [`deployment.md`](deployment.
     (`../pages/welcome.md`, 1); on Forges, the row; a page still at
     Connect a forge goes to Forges, its address replacing its own, with
     the row open, as Completion does. A hidden tab lets its stream go
-    after a minute (skein's `ui/web/README.md`, section 8), so a slow way
+    after a minute (skein's `ui/web/effects.md`, section 1), so a slow way
     moves on when the person returns. The new tab ends on the setup
     route's "temper has the installation; you may close this tab.", or
     an ending's "You can close this tab." (`served.md`, 1); temper

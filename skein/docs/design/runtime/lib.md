@@ -9,7 +9,7 @@ this document says what lib holds and what each part promises.
 
 - **Everything step code needs and the subset does not give it.** Typed
   handles and the slabs that issue them, containers, the join of two maps
-  and the search of a sorted slice (5.2, 5.3), cursors over
+  and the search of a sorted slice (`lib-containers.md`, 1.2, 1.3), cursors over
   owned bytes, secrets' bytes, base64 and SHA-256, the stream vocabulary
   and its intake, deadlines, time, randomness, the environment a step
   reads, and the digest of a state that replay compares.
@@ -18,7 +18,7 @@ this document says what lib holds and what each part promises.
   container's `price(capacity)` prices its bookkeeping too; sums
   of those prices are estimates, not process-wide bounds
   (../../foundation/programming-model.md, 6.3). The queues and journal inside a service
-  have no cap of their own (sections 5 and 11).
+  have no cap of their own (`lib-containers.md`, section 1, and `lib.md`, section 11).
 - **Written once, tested hardest.** Every layer of every service stands on
   lib. Application code does not hand-roll a data structure: what is
   missing goes into lib.
@@ -101,584 +101,15 @@ A token's top four bits may tag its namespace (`Token::tagged`, `tag`, `untagged
 
 ## 5. Containers
 
-| Container | What | Over |
-|---|---|---|
-| `Queue<T>` | the records between stages, first in first out | a ring buffer grown as it fills |
-| `Lossy<T>` | facts a reader may miss: kept up to a cap, the rest dropped and counted | a capped `Queue` and a count |
-| `List<T>` | a sequence a step appends to | a buffer costing what it holds |
-| `Map<K, V>` | a table keyed by value, ordered by key | a B-tree, priced in tree nodes |
-| `Set<K>` | a `Map` without values | a B-tree, priced in tree nodes |
-| `Lru<K, V>` | a table that drops the entry used longest ago, the least key first among equal uses | a pair of B-trees, priced in tree nodes |
-| `Stack<T>` | what a parser keeps instead of recursing | a buffer costing what it holds |
-
-Each capped container refuses past its capacity, handing the value back
-rather than panicking, with one exception: `Queue::push` on a full capped
-queue is a bug, asserted; `Queue::try_push` is the refusing form.
-`Queue::with_capacity` keeps its cap but allocates as it fills, growing
-exactly and never past the cap. A B-tree allocates as it fills, so its
-`price(capacity)` counts its nodes at capacity, not its entries.
-`List`, `Queue`, `Intake`, `Map`, `Set`, `Lru`, `Stack` and `Buffer` give this
-allocation price through `price(capacity)`.
-The shared growth rule for `Queue`, `List`, `Stack`, `Slab`'s lists and
-`Intake` grows storage to twice its length (its storage capacity for
-`Intake`), at least the needed size and a floor of 4, never past its cap.
-
-`Lru::get` makes an entry the most recently used. `Lru::insert` does too, and
-hands back what left: the old value under that key, the entry it evicted, or at
-capacity 0 the pair it was given, since a zero capacity keeps nothing. Its use
-clock saturates; at the end of it, equal uses still fall to the least key.
-
-`List::from_boxed` makes a list of owned items, its capacity their count,
-and `List::into_boxed` moves them into a box of exactly their number.
-`List::allocated(capacity)` allocates its storage once, at its capacity,
-and never grows: a decoder's list, whose count has passed its limit and
-what is left (`skein/docs/design/data/codec/README.md`, 4).
-`List::swap_remove` takes one item out, the last taking its place, and
-`List::iter_mut` hands each item to change in place.
-
-**`Queue::clear(&mut self)`** drops every item, keeping the capacity and
-the grown buffer: refilling to the previous length allocates nothing.
-
-**`raise(&mut self, capacity: u32)`** on `Queue`, `List`, `Map`, `Set`,
-`Lru`, `Slab` and `Deadlines` raises the container's capacity to `capacity` in place,
-allocating nothing: what it holds stays, storage still grows by the
-shared rule as it fills, and a slab's spent slots stay spent and its
-handles valid. A capacity below the current one is a bug, asserted, as
-a capacity never falls; an equal one changes nothing. It is how a
-limit's raise reaches a table already made (temper's
-`protocol/configuration/limit-settings.md`, 5).
-
-**`Stack::clear(&mut self)`** drops every item, keeping the capacity and
-the grown buffer: refilling to the previous depth allocates nothing.
-
-**`Queue::uncapped()`, `Map::uncapped()` and `List::uncapped()`**
-start empty and grow, with `u32::MAX` as their capacity. They hold the
-hops, correlations and collections inside a service, never what a peer
-can push in. An uncapped queue's `push` cannot fail; its allocation
-price is for a chosen capacity, not a bound on the queue.
-
-### 5.1 State digests
-
-A seed replays to the same trace, and to the same digest of each
-process's state (../../foundation/testing-strategy.md, section 6). lib gives the hasher,
-and every type of its own that a state holds hashes what it holds, never
-where it holds it.
-
-- **`StateHasher`** is a `core::hash::Hasher` over SHA-256 (6.2), with
-  no key: a digest is a function of the values hashed alone, the same in
-  every run, on every machine and every target.
-  - `write` hashes the bytes given; `write_u8` to `write_u128` and
-    `write_i8` to `write_i128` hash the integer's little-endian bytes at
-    its own width; `write_usize` and `write_isize` hash 8 bytes, so a
-    32-bit build (section 2) and a 64-bit one digest one state alike.
-    std hashes a slice of `usize` or `isize` whole, through `hash_slice`,
-    at the target's width, which no `Hasher` reaches: a state holds them
-    as fields or in lib's containers, which hash item by item, and a type
-    that keeps a slice of them hashes it item by item, by hand.
-  - `digest(self) -> [u8; 32]` ends it. `finish()`, which `Hasher`
-    requires, gives the digest's first 8 bytes as a big-endian `u64`,
-    without ending it.
-  - `state_digest(&value) -> [u8; 32]` hashes one value whole.
-- **A state is digested through its types' derived `Hash`.** A service's
-  state types derive it, as they derive `Debug`. A field that no later
-  step reads, such as a measurement kept for display, may be left out by
-  a hand-written impl whose comment says why.
-- **lib's types hash what their later answers depend on:**
-
-  | Type | Its `Hash` covers |
-  |---|---|
-  | `Slab<T>` | each slot in index order: free, with its generation; occupied, with its generation, whether it is retired, and its value; or spent. Then the order in which its free and retired slots will be handed out again |
-  | `Map<K, V>`, `Set<K>` | the count, then each entry in key order |
-  | `Lru<K, V>` | the count, then each entry from least to most recently used, never its clock |
-  | `Queue<T>`, `List<T>`, `Stack<T>` | the count, then each item: a queue front to back, a list in order, a stack bottom to top |
-  | `Deadlines<K>` | the count, then each armed deadline, its time and its key, in the order `expire` takes them |
-  | `Journal<W, O>`, `RequestTable<O, R>` | their entries in their own order, and the counters, keys and attempts that decide what they emit next |
-  | `Intake`, `Buffer` | the bytes it holds, in order |
-  | `Id<T>`, `Token`, `Time`, `Duration`, `Wall`, `Civil`, `Secret`, `Rng` | their value |
-  | `CryptoRng` | its stream number and how many bytes it has drawn, never its key |
-
-- **Never hashed:** a container's capacity, which its owner fixed, and
-  its layout in memory: a B-tree's nodes, a ring's head, a buffer's spare
-  room, an address. Two states that would answer every later step alike
-  digest alike, however each was reached. A `Slab` hashes all the slots
-  it holds in index order, free ones included.
-- **An environment retained by a world:** `Env<L>` derives `Hash` where
-  `L: Hash`, over its clocks and limits. A step still receives it by
-  shared borrow and keeps none (../../foundation/programming-model.md, section 3), but a
-  world comparing its complete frozen state can include the environments
-  it retains beside its domains. A service comparing only its domains,
-  as the echo's does, leaves those environments outside that comparison.
-- **No `Hash` for stream views:** `stream::Held` and `stream::Slice`, a
-  buffer served as a stream's side below, which the step that makes it
-  reads. A state that keeps a `Held` past its step hashes, by hand, what
-  of it is left to read.
-- **A digest reads the whole state,** so a world asks for one at the end
-  of a run, and after each iteration only when it chooses to (../testing/README.md,
-  section 5). No step code calls it.
-
-### 5.2 Joining two maps
-
-A step that compares two versions of one table, such as a part's rows
-before and after a change, walks them together by key. Step code has no
-closure to hand a generic walk and defines no generic item
-(../../foundation/programming-model.md, 10.3), and a merge hand-rolled in
-each table is what lib is for (section 1), so lib joins two of its maps:
-
-```rust
-impl<K: Ord, V> Map<K, V> {
-    pub fn join<'a>(&'a self, other: &'a Map<K, V>) -> Join<'a, K, V>;
-}
-// Join<'a, K, V>: Iterator<Item = (&'a K, Joined<'a, V>)>
-pub enum Joined<'a, V> {
-    First(&'a V),
-    Second(&'a V),
-    Both(&'a V, &'a V),
-}
-```
-
-- **Each key of either map comes once, in key order,** with its value in
-  the first map alone (`First`), in the second alone (`Second`), or in
-  both (`Both`, the first's value, then the second's). A key in both is
-  given as the first map's; the two are equal under `Ord`.
-- **It holds a cursor on each map and allocates nothing.** Each step
-  advances one cursor or both, so a join takes as many steps as the maps
-  hold distinct keys. It borrows both maps while it runs.
-- **`Joined` is `Copy` for every `V`,** and `Debug`, `PartialEq` and `Eq`
-  where `V` is. `Join` and `Joined` are exported from lib's root beside
-  `Map`.
-- **Step code joins rows it already holds** by building a `Map` for each
-  side, keyed by what the rows are compared by and borrowing them (a
-  `Map<&[u8], &Row>` holds no copy of a key), then matching each
-  `Joined` in a plain `for`:
-
-  ```rust
-  for (key, joined) in before.join(&after) {
-      let change = match joined {
-          Joined::First(row) => Change::Removed { key: bytes::copy_of(key), value: row.value.clone() },
-          Joined::Second(row) => Change::Added { key: bytes::copy_of(key), value: row.value.clone() },
-          Joined::Both(old, new) if old == new => continue,
-          Joined::Both(old, new) => Change::Changed { key: bytes::copy_of(key), before: old.value.clone(), after: new.value.clone() },
-      };
-      changes.push(change).expect("a change for each key");
-  }
-  ```
-
-### 5.3 Searching a sorted slice
-
-A slice sorted once by a key that its items hold, and searched many
-times, as a revision's listing is by path, keeps its shape: other code
-builds it and reads it by position, and a `Map` beside it would hold every
-key twice. lib can't read the key from an item (no closure, no trait:
-../../foundation/programming-model.md, 10.3), so the search is one its
-caller drives: lib keeps the bounds, and the step code compares.
-
-```rust
-pub struct Bisection { /* the indices still open, low..high */ }
-impl Bisection {
-    pub const PROBES: u32 = usize::BITS;
-    pub const fn over(len: usize) -> Bisection;
-    pub const fn probe(&self) -> Option<usize>;
-    pub fn narrow(&mut self, order: core::cmp::Ordering);
-    pub const fn end(&self) -> usize;
-}
-```
-
-- **`over(len)` opens the indices `0..len`.** `probe()` names the next to
-  compare, the middle of those open, `low + (high - low) / 2`, or `None`
-  once none is open. `narrow(order)` takes how the item at that index
-  orders against the key sought: `Less` leaves open the indices above it,
-  `Equal` and `Greater` those below it. A `narrow` with none open is a
-  bug, asserted.
-- **`end()` is the first index whose item is not below the key:** where
-  the key is, or where it would go, `len` past the last. Among equal keys
-  it is the first. Once `probe()` has given `None`, the step code reads the
-  item at `end()` and compares its key for equality; a search for the
-  first item not below a bound, as task paths are found after `tasks/`,
-  stops there.
-- **A search over any length ends within `PROBES` probes:** each probe at
-  least halves what is open, so `for _ in 0..Bisection::PROBES` bounds
-  the step code's loop.
-- **It holds two indices and allocates nothing.** It is `Copy`, and
-  derives `Clone`, `PartialEq`, `Eq`, `Hash` and `Debug`.
-
-```rust
-let mut search = Bisection::over(entries.len());
-for _ in 0..Bisection::PROBES {
-    let Some(probe) = search.probe() else { break };
-    let entry = entries.get(probe).expect("a probe within the slice");
-    search.narrow(entry.key.as_ref().cmp(name));
-}
-let entry = entries.get(search.end())?;
-if entry.key.as_ref() == name { Some(entry) } else { None }
-```
+Moved to [`lib-containers.md`](lib-containers.md), section 1.
 
 ## 6. Bytes
 
-- **Owned bytes** are a `Box<[u8]>` allocated at its final length.
-  `bytes::copy_of` copies one, for data a domain keeps and also sends;
-  `bytes::concat` copies parts, in order, into one box of their summed
-  length; `bytes::zeroed` makes one for the side below to fill, a receive
-  buffer.
-  The byte search (`bytes::find`, `find_from`, `count`) runs in linear
-  time and allocates nothing. `bytes::is_utf8` says whether bytes are UTF-8,
-  `bytes::utf8_prefix` cuts valid UTF-8 at a character boundary at or
-  below a byte count, and `bytes::utf8_replaced(bytes: &[u8]) -> Box<[u8]>`
-  makes any bytes text of the same length: each byte that is not part of
-  a UTF-8 character (`core::str::from_utf8`'s reading, a sequence cut
-  short included) becomes `?`, and UTF-8 comes back unchanged. These are
-  the one place skein and its users check text. Keeping the length keeps
-  every bound the bytes already met, so a step that must send bytes it
-  cannot vouch for as text (a repository's file, a job's log) sends them
-  so rather than being refused whole.
-- **`bytes::decimal(digits: &[u8]) -> Option<u64>`** reads `1*DIGIT` as a
-  `u64`, or returns `None` for no digits, a byte other than an ASCII digit,
-  or a number past `u64::MAX`; leading zeros are read as zeros.
-- **`bytes::hex_value(byte: u8) -> Option<u8>`** is a `const fn` returning
-  the value of an ASCII hex digit in either case, or `None` for any other
-  byte.
-- **`Reader`** reads a delivery without trusting any length in it: every
-  read (`u8`, `u16`, `u32`, `u64`, `bytes`, `skip`) returns an `Option`,
-  and a short one is a framing error for the caller, never a panic.
-- **`Writer`** builds a message into a box whose length was computed
-  first: `Writer::new(len)`, `put` the fields, `finish()`. A write past
-  the end is refused whole (`Overflow`), writing nothing; finishing short
-  is an assertion.
-- **`Buffer`** builds bytes whose length is learnt as they are put, and
-  is reused from one to the next: `Buffer::with_capacity(n)` allocates
-  its n bytes once (`Buffer::price(n)`), `put` appends or refuses
-  whole past the capacity (`Overflow`), writing nothing, and `set_u32`
-  back-patches a big-endian `u32` over four bytes already put, a count
-  or a length known only later (asserted in range). `len`, `room`,
-  `capacity`, `as_slice`; `truncate` and `clear` for reuse; `to_boxed`
-  copies the bytes out at their exact length, the buffer kept. Its
-  `Debug` shows its length and capacity, never its bytes. A patch builds
-  each record in one, a secret's bytes among them (../data/codec/patches.md).
-- **`Tail`** keeps a stream's newest bytes in a ring: `Tail::with_capacity(n)`
-  holds at most n, `push` and `put` drop the oldest once it is full, and a
-  capacity of zero keeps nothing. `get` reads a byte in arrival order,
-  `to_boxed` copies them out at their exact length, `into_boxed` hands them
-  over in the ring's own buffer, and `clear` keeps the capacity.
-- **`Decimal`** holds the decimal digits of a count, for a step that
-  writes a number as text without formatting: measure it, then put it.
-- **`bytes::ip_text(ip: IpAddr) -> Box<[u8]>`** writes an address as
-  text without formatting, byte for byte as core's `IpAddr` prints it:
-  an IPv4 address in dotted decimal, an IPv6 one in RFC 5952's text
-  (lowercase hex, the longest run of two or more zero groups, the first
-  of equals, as `::`, an IPv4-mapped one as `::ffff:a.b.c.d`). It
-  leaves a mapped address as given: the caller reads one as its IPv4
-  first where it means to.
-- **`Secret`** holds a secret's owned bytes: a credential, a token, a
-  key. Its `Debug` shows its length only, never its bytes, so a record
-  that holds one prints, logs and traces without it (../data/codec/README.md, section 3).
-  Its owner reads the bytes with `expose`, which makes each use visible in
-  review. Clone, equality and `Hash` are over its bytes, as a record's
-  derives need; it neither zeroes nor locks memory (io/files.md, 3).
-- **A carrier prints lengths.** A record carrying a peer's bytes prints them
-  as their length in `Debug`, never a byte of them, and a header prints its
-  name and its value's length, so a credential passing through prints and
-  traces without its bytes (http.md, 2; ../net/channel.md, 3). Only what ../oauth/README.md, 4
-  names as no credential prints as it came.
-- **Widening:** `length::usize_of` widens a `u32` count to an index and `length::len_u64` a length to a count, so no step writes `try_from` for either.
-- **A length added up with checks:** `length::Measure` starts at `Measure::ZERO` and `add`s lengths: past a `usize` it stays `None`. `total` gives the sum, and `total_u32` the sum a `u32` holds. A writer measures a head or a frame with it before `Writer::new`.
-
-### 6.1 Base64
-
-`lib::base64` encodes bytes as base64 text and decodes it back (RFC
-4648), for every crate that carries bytes in text: PKCE's challenge and a
-token's claims (../oauth/README.md), PEM's certificates (shell.md, 6.2), a
-browser's screenshots (../testing/browser.md), a record in an event's data. skein's
-crates use it and keep no copy of their own.
-
-- **Two alphabets, each with its padding:** `Alphabet::Standard` (`+`,
-  `/`), padded with `=` to whole groups of four; and `Alphabet::Url` (`-`,
-  `_`), unpadded, as JWTs and PKCE use it (RFC 7515, RFC 7636).
-- **Measured, then written.** `encoded_len` gives the text's length
-  before anything is set aside, and `encode` writes into a `Writer` with
-  that much room left (section 6): nothing allocates but the box its
-  caller sized.
-- **Decoding is bounded and canonical.** `decode` takes a maximum of
-  decoded bytes and refuses past it before setting anything aside. It
-  refuses, with `base64::Error`: a symbol outside the alphabet; padding
-  where the alphabet takes none, or anywhere but the end; a length no
-  encoding has; trailing bits that are not zero. So one value has one
-  encoding.
-- **In pieces.** A `Decoder` takes text in pieces, carrying what a piece
-  leaves of a group, within the same maximum and the same refusals, so a
-  reader that skips what surrounds the text (PEM's line breaks) or
-  receives it in chunks (an event's data) decodes it without copying it
-  whole first.
-
-### 6.2 SHA-256
-
-`lib::sha256` is SHA-256 (FIPS 180-4), for every crate that names bytes
-by their content: io's content versions (io/files.md), PKCE's
-challenge (../oauth/README.md), a browser bundle's digest directory (../ui/web/README.md),
-replay's state digests (5.1), and a service's own, such as hearth's,
-whose domains name every input and output by it. skein's crates use it
-and keep no copy of their own.
-
-- **Streaming.** `Sha256::new()`, then `update(&[u8])` with each piece as
-  it arrives, cut anywhere, then `finish(self) -> [u8; 32]`.
-  `sha256::digest(&[u8]) -> [u8; 32]` is the one-shot form. The digest is
-  its 32 bytes in the standard's order, as `sha256sum` prints them in
-  hex.
-- **No heap, no copy.** The state is eight words, one 64-byte block and
-  the count of bytes hashed, so a step keeps one in its state and it
-  allocates no heap. `update` compresses each whole block straight from
-  the caller's slice, and copies only the part of a block a piece
-  leaves: hashing costs the compression, not a copy.
-- **`Clone`,** so a prefix common to several digests is hashed once and
-  each goes on from its own copy. Its `Debug` shows the count of bytes
-  hashed, not the state.
-- **The standard's bound,** 2^64 − 1 bits, is asserted: no bounded step
-  hashes that much.
-- **Its users.** skein-io's `digest` module keeps its public
-  API, `Digest([u64; 4])` and `digest(&[u8])`, as a thin layer over lib's
-  (io/files.md): its words are the digest's 32 bytes read as four
-  big-endian `u64`s. `skein-oauth`'s PKCE
-  and `skein-ui-bundle`'s digests use lib's and keep no copy;
-  `skein-ui-bundle`, a build tool in ordinary Rust (../ui/README.md, section 2),
-  depends on lib for it.
-- **HMAC.** `sha256::Hmac::new(key: &[u8])`, then `update(&[u8])` with
-  each piece as it arrives, then `finish(self) -> [u8; 32]`, is
-  HMAC-SHA256 (RFC 2104), for a service that checks a signed message as
-  it streams. A key longer than a block is hashed first, as the standard
-  says. Its state is two SHA-256 states, the inner seeded with the key's
-  inner pad and the outer with its outer pad, with no heap. `Clone` as
-  `Sha256`'s; its `Debug` shows the count of the message's bytes hashed
-  alone (`Hmac { hashed: N }`), the pads not counted, never the key or
-  its pads.
-- **Comparing in constant time.** `sha256::equal(a: &[u8], b: &[u8]) ->
-  bool` takes a time that depends on the lengths alone, never on where
-  the bytes differ, for comparing a signature, a state or a token with
-  the one expected. `skein-oauth`'s comparison of a returned state uses
-  it and keeps no copy.
-
-### 6.3 SHA-1
-
-`lib::sha1` is SHA-1 (FIPS 180-4), for naming bytes as git names an
-object in a SHA-1 repository: a blob's id is SHA-1 over `blob `, the
-length in decimal, a NUL byte, then the bytes. It is never for a
-security purpose: SHA-1 is broken for collisions, and nothing checks a
-signature, a token or a state with it.
-
-- **Streaming, as SHA-256's.** `Sha1::new()`, then `update(&[u8])` with
-  each piece as it arrives, cut anywhere, then `finish(self) -> [u8; 20]`;
-  `sha1::digest(&[u8]) -> [u8; 20]` is the one-shot form. The digest is
-  its 20 bytes in the standard's order, as `sha1sum` and git print them in
-  hex.
-- **No heap, no copy.** The state is five words, one 64-byte block and
-  the count of bytes hashed; `update` compresses whole blocks from the
-  caller's slice and copies only the part of a block a piece leaves.
-- **`Clone`,** with a `Debug` that shows the count of bytes hashed, not
-  the state. The standard's bound, 2^64 − 1 bits, is asserted.
-- **No HMAC and no comparison** of its own: a step that needs either
-  takes SHA-256's (6.2).
-- **Its users.** temper's engine, naming a file of a pull request by its
-  blob id where the repository is SHA-1 (temper's
-  `domain/forge/change/repairs.md`, a resolution's pull section).
+Moved to [`lib-bytes.md`](lib-bytes.md), section 1.
 
 ## 7. Streams
 
-`lib::stream` is the classic shape of a byte boundary
-(../../foundation/programming-model.md, 4.3):
-
-```rust
-pub enum Read {
-    Nothing,
-    Fill(u32),
-    Scan { until: Delimiter, max: u32 },
-    Line { max: u32 },
-    Arrived { max: u32 },               // what has arrived: one byte to max
-}
-
-pub enum Down {                         // to the side below
-    Demand { read: Read, room: u32 },   // what this state needs, and the output room it wants
-    Send(Box<[u8]>),                    // moved down, within the room granted
-    Finish,                             // nothing more to send: flush, then end the stream
-}
-
-pub enum Up {                           // from the side below
-    Bytes(Box<[u8]>),                   // the demand: exactly, or what has arrived of it
-    Room,                               // the room asked for is free
-    End,                                // the other side will send nothing more
-    Failed(Fault),                      // the stream is broken: no more Bytes or Room
-}
-```
-
-A `Fault` says why a stream broke as far as the side above can act on it:
-the peer reset it, the side below could not make sense of the peer's data
-(a TLS record that fails to decrypt), or anything else.
-
-**The contract of a stream.** Every side below meets it, io's and every
-machine's:
-
-- **A demand is answered at most once:** by `Bytes`, what its read asks
-  for (exactly, but for a read of what has arrived, below), or by `Room`,
-  whichever the side below can give first;
-  either answer ends it, and nothing is outstanding until the side above
-  states its next. The side above states its next demand only after an
-  answer, never in place of one outstanding. A state that wants nothing
-  more after an answer states nothing (../../foundation/programming-model.md, 5.4).
-- **`Read::Nothing` with no room withdraws** the outstanding demand, and
-  only when the side above will read no more: it is closing, or its read
-  crossed `End`. An answer
-  already on its way may still arrive, and the side above drops it:
-  dropping `Bytes` loses data, so only a reader giving up the stream may.
-  No other `Bytes` or `Room` come without a demand.
-- **`End` comes once nothing the side below holds can meet a demand:**
-  with one outstanding, when it can never be met; with none, only when
-  nothing is held. It comes once, and ends reading only. A read that
-  crosses it is never met, and `End` does not end the demand: it stays
-  outstanding until `Room` answers it, if it asked for room, or until the
-  side above withdraws it, and the side above states no other demand
-  meanwhile. Room may still be granted after `End`, as the stream can
-  still send to a peer that only half-closed. A read larger than what is
-  left before the end is never met; a side above that must see every byte
-  reads by its framing (a scan, or fills no larger than its framing says
-  remain), or reads what has arrived, which is met while a byte is left.
-- **`Room` grants one `Send`** of at most the room asked for; the side
-  above sends within it (an empty `Send` gives it up), or finishes, before
-  it demands room again. **`Finish` comes with no read outstanding,**
-  other than one that crossed `End`: a side below that reads another
-  stream to meet a read, as TLS does, could not send the end behind it.
-  io asserts neither; a side above keeps both, so that it works over any
-  side below.
-- **`Failed` may come at any time,** a demand outstanding or not, and
-  nothing follows it. After `End` it says only that the stream can no
-  longer send: what was read stands.
-- **A scan that meets no delimiter within its maximum delivers exactly
-  the maximum.** What that means is the side above's: a framing error for
-  a line or a head, one piece of a longer text for a string scanned to its
-  quote (../data/json.md, 3.2).
-- **A read of what has arrived (`Arrived`) is met as soon as the side
-  below holds a byte,** by all it holds then, up to the read's maximum: at
-  least one byte, at most the maximum. It is the read of bytes nothing
-  frames: a child's output, a body read to its end. It waits for no more
-  than one byte, so a reader of such a stream pays one delivery for what
-  arrived together, not one per byte.
-  - **What a delivery holds is how the bytes arrived:** the receives,
-    records or chunks they came in. A side above that reads what has
-    arrived makes the same of the bytes whatever the cuts; only their
-    order is the stream's. In a simulated world, how bytes arrive is the
-    writers' writes and the cuts the seed draws (../testing/simulator.md, 1 and 4),
-    so a world stays one function of its seed.
-  - **Its maximum is at least one byte** (a read of none is `Nothing`). A
-    maximum past what the side below can hold is met with what it holds:
-    the side below never waits to fill it. The side above's memory counts
-    a delivery of its maximum.
-  - **A side below that reads another stream to meet it** reads below no
-    more than it needs: a read of what has arrived, where its framing
-    allows one (an HTTP body within what is left of its chunk or its
-    length, http.md, 3.3), or by its framing (TLS, a record at a time,
-    ../net/tls.md, 3.2).
-  - **Exact reads stay where the bytes are framed,** or where the side
-    above must not take more than it can act on in one step: a header, a
-    length-prefixed frame, a document read up to its end and never past
-    (../data/json.md, 3.2), a terminal's keys when each may be an event of its
-    own.
-- **A line scan (`Line`) ends at the first line end, a CR or an LF,
-  whichever comes first,** for text whose lines end with LF, CRLF or CR
-  alone, as an event stream's do (http.md, 4.1): a CRLF is two ends, the
-  CR ending one delivery and the LF the next, and the side above pairs
-  them. Otherwise it is a scan: within its maximum, or exactly the
-  maximum. A `Delimiter` stays one exact sequence of bytes; "either of
-  two bytes" is a read of its own.
-
-**`Intake`** is the carry-over of a stream: the bytes the side below has
-received and the side above has not yet demanded, up to a cap fixed when
-it is made. It allocates as it fills, growing exactly and never past the
-cap.
-
-- It appends what arrives while it has room, and reports the room left,
-  so receiving stops at the cap.
-- It meets a fill, a scan or a line scan as soon as it can, each delivery
-  a box of exactly the demanded length, and a read of what has arrived as
-  soon as it holds a byte, with all it holds up to the read's maximum. A
-  scan that reaches its maximum with no delimiter delivers exactly the
-  maximum: the side above sees a scan that does not end with the
-  delimiter, and decides what it means.
-- A fill larger than the cap, or a scan whose maximum is shorter than the
-  delimiter (one byte, for a line scan) or longer than the cap, could
-  never be met: the caller's bug, asserted. So is a read of what has
-  arrived with a maximum of zero; any other maximum can be met.
-- A scan remembers how far it has searched, so a scan for the same
-  delimiter, or a line scan after a line scan, does not search the same
-  bytes again.
-- It says whether what it holds ends partway through a delimiter
-  (`ends_partway`): a side below that fills its own intake from another
-  stream, as the HTTP client does a body's, then reads a byte at a time,
-  so that it never reads past a delimiter its next bytes complete.
-
-A **complete buffer** is its own side below. `stream::Held` owns one and
-`stream::Slice` borrows one; both answer a demand at once, in the same
-step, as an intake would meet it, and answer `End` once what is left can
-never meet a demand. Neither asks anything of room: the data is read, not
-written. A `Slice` copies only each delivery, never the whole buffer.
-
-### 7.1 Independent output reservations
-
-A framed connection can need to send while its next read waits for a peer
-that is itself waiting for that output. Its lower face supports an explicit
-independent output vocabulary alongside the classic read vocabulary:
-
-```rust
-pub enum OutputDown {
-    Room { right: Token, bytes: u32 },
-    Cancel { right: Token },
-    Send { right: Token, bytes: Box<[u8]> },
-    Release { right: Token },
-}
-
-pub enum OutputUp {
-    Settled { right: Token, outcome: OutputOutcome },
-}
-
-pub enum OutputOutcome { Granted, Cancelled, Failed(Fault) }
-```
-
-One admitted Room request owns one obligation. Its token is generated by
-the caller, never reused for another request on that stream, and never a
-wire identity. Token exhaustion prevents a new request before effects.
-Its positive byte count fits the lower output cap. The lower grants only
-when both those bytes and one Send record slot are reserved, including
-output held in flight or stalled. Exactly one Settled terminal consumes
-the demand. Granted creates an affine reservation with the same token;
-one matching Send, Release, Finish or actual failure/close consumes it.
-A Send moves at most the granted bytes and spends the whole reservation,
-including unused capacity. An empty Send also consumes it.
-
-There is one independent output demand or grant at a time. It can coexist
-with a classic read-only Demand, which it neither answers nor withdraws.
-Bytes, End and classic Room cannot settle it. Classic room demands and
-grants cannot coexist with independent output ownership, and a classic
-Send cannot spend an independent grant. Classic consumers keep the joined
-Demand.
-
-Cancel names a pending output demand. Cancellation wins only before the
-lower has emitted its terminal. A Granted terminal already queued above
-remains the winner; the caller consumes it and releases its grant while
-closing. Old Cancel, Send and Release tokens cannot consume a newer right.
-They are inert, including a Send with no live matching grant. A matching
-Send larger than its reservation is the caller's bug, asserted before
-retaining or submitting its bytes. There is no
-second terminal when an already granted reservation is retired.
-
-Actual failure settles a pending output demand with Failed before telling
-classic stream Failed. Close or Abort settles it with Cancelled before the
-entity's real Closed. The caller stops admitting output when closing;
-requests naming an already closing or absent entity are not admitted.
-Only a positive, within-cap Room on an open stream with idle output and
-no competing classic room ownership creates an obligation; the lower
-retains only its active cell, without a history of the caller's tokens.
-Neither a grant nor Closed proves peer receipt or durable commitment.
-
-Finish keeps its classic restriction: withdraw a read only when closing or
-after End, settle any pending output demand, and finish once. There is no
-general live-read cancellation and no Finish terminal. End concerns
-reading alone; independent output can progress after it. Native lower
-support is required: an adapter over an arbitrary classic combined Demand
-cannot manufacture independent room.
+Moved to [`lib-streams.md`](lib-streams.md), section 1.
 
 ## 8. Time, deadlines and randomness
 
@@ -696,7 +127,7 @@ cannot manufacture independent room.
   offset. `Civil::wall` is its midnight, or `None` outside `Wall`.
   `Civil::month_name` is a month's English three-byte name. The texts of
   a date are their readers': RFC 3339 and the HTTP date's reading in
-  skein-forge (../forge/README.md, 4.4), IMF-fixdate's writing in skein-http
+  skein-forge (../forge/dialects.md, 1.4), IMF-fixdate's writing in skein-http
   (http.md, 5.4), and `YYYY-MM-DD` in skein-ui (../ui/README.md, 9).
 - **`earliest(left: Option<Time>, right: Option<Time>) -> Option<Time>`**
   is a `const fn` returning the earlier of two optional deadlines, `None`
@@ -769,8 +200,8 @@ plain reference, over random cases drawn from a seed: a few hundred in
 the step tests, and 20,000 from the same seeds in the fuzzy suite, in
 `tests/lib` (../../foundation/testing-strategy.md, 8).
 
-The join (5.2) is held to a naive one, every key of either map looked up
-in both and taken in key order, and the bisection (5.3) to a linear scan
+The join (`lib-containers.md`, 1.2) is held to a naive one, every key of either map looked up
+in both and taken in key order, and the bisection (`lib-containers.md`, 1.3) to a linear scan
 for the first item not below the key, the same way: random pairs of maps
 with shared, disjoint and interleaved keys and values that differ or
 agree; random sorted slices with repeated keys, each searched for every
@@ -802,7 +233,7 @@ obligation model, replay and seeded sweep are in `tests/lib/src/request_table.rs
 and `tests/lib/tests/suite/{request_table,fuzzy/request_table}.rs`.
 
 Each capped container's allocation price is checked against the counting
-allocator (../testing/README.md, 5), in `tests/lib/tests/suite/memory.rs`, in the
+allocator (../testing/service-tiers.md, 1), in `tests/lib/tests/suite/memory.rs`, in the
 focused suite. Every capped container is built at capacities from 0 to
 300, filled to them, emptied and filled again, every operation a step of
 the meter, and what it held of its own is never more than its price:
@@ -811,7 +242,7 @@ the meter, and what it held of its own is never more than its price:
 What an item owns is its owner's to count, so the items own no heap; they
 come in several sizes and alignments, up to 64 bytes, as a container's
 price depends on both. An input moved into a step is accounted for as
-../testing/README.md, 5 states. What an operation hands
+../testing/service-tiers.md, 1 states. What an operation hands
 out (an item taken, a delivery, a list moved into a box) is no longer
 the container's, and the meter takes it off.
 
@@ -838,8 +269,8 @@ data structure, like a queue; a service does not hand-roll one
 (../../foundation/programming-model.md, 10.2).
 
 - **Admission:** `Journal::uncapped(release, durable)` keeps commits,
-  held outputs and the door in queues that grow as they fill (section
-  5); `release` is the most one release call moves, `durable` the last
+  held outputs and the door in queues that grow as they fill (`lib-containers.md`, section 1
+  ); `release` is the most one release call moves, `durable` the last
   commit number the store holds, from which numbering goes on.
   `JournalLimits` holds only `release`, the per-call output limit.
   `decide()` opens a decision with no room to reserve, which cannot be
@@ -1007,12 +438,12 @@ What of this document is not built is in [`lib.status.md`](lib.status.md).
   `temper-client-tools`, move onto `Wall::civil` and `Civil`, and its
   hand-set token tags onto `Token::tagged`, in its own tree. They wait with
   no debt item to hold them.
-- **The carriers left:** section 6's rule goes crate by crate, each when a
+- **The carriers left:** `lib-bytes.md`, section 1's rule goes crate by crate, each when a
   draft asks for it; `lib.status.md` names those it has not reached. The
   stream's records and `Intake` would close the most at once, since every
   head, body and frame passes through them.
 - **Widening's other shapes:** a `u32` written through `.ok()`, `?` or
-  `is_err` can never fail, so `usize_of` (section 6) could take it too, as
+  `is_err` can never fail, so `usize_of` (`lib-bytes.md`, section 1) could take it too, as
   `len_u64` could `skein-fake-checkout`'s two lengths, should it take
   `skein-lib`. `lib.status.md` names what stands, and
   `skein/scripts/old_forms.py`'s `widening` holds the `.expect(..)` form at its

@@ -29,7 +29,7 @@ pub enum Error {
     Limits,
 }
 
-/// One listening host's io passes and queues (skein/docs/design/testing/README.md, 5).
+/// One listening host's io passes and queues (skein/docs/design/testing/service-tiers.md, 1).
 /// The host routes events, retains its listener and address, and closes admission.
 pub struct Face {
     pub io: io::Io,

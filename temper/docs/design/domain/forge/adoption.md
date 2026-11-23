@@ -200,7 +200,7 @@ reads the picker:
 - **GitHub:** one accepted installation's repositories (`GET
   /installation/repositories`), `installation` its id, read on a token
   the host mints for the page and drops. An id the forge has not
-  accepted is refused. The document is skein's (`forge/github.md`, 8.3).
+  accepted is refused. The document is skein's (`forge/github-app.md`, 1.3).
 - **A connected Forgejo:** the repositories temper's API token can push
   to, read on that token (skein's `forge/setup/forgejo.md`, 1.6).
 - **A managed or owned Forgejo:** every repository the admin can see, by
@@ -251,7 +251,7 @@ narrowed, and its changes wait.
   may bypass them, `Never`, `PullsOnly` or `Always` (the App's own,
   never the ruleset's list). skein's `Protection` carries them as
   `queue`, `signatures`, `linear`, `code_owners` and `bypass` (skein's
-  `forge/README.md`, 3.6; `skein/docs/design/forge/github.md`, 5.3).
+  `forge/vocabulary.md`, 1.6; `skein/docs/design/forge/github-operations.md`, 2.3).
   Forgejo answers each false, and `Never`.
 - **What each means:**
   - a merge queue: temper's changes enter it (`queues.md`, 1);
@@ -266,7 +266,7 @@ narrowed, and its changes wait.
 - **The merge style** is shown at adoption. On Forgejo it is the
   repository's default (skein's `forge/README.md`, section 10). GitHub keeps
   none: it is the first the repository allows of merge, squash and
-  rebase (skein's `forge/github.md`, 5.1). On a branch a merge queue
+  rebase (skein's `forge/github-operations.md`, 2.1). On a branch a merge queue
   guards, the queue merges by its own method, set in the branch's rules,
   and the adoption says so.
 - **Commit statuses on GitHub:** temper's App reads statuses and writes
@@ -359,7 +359,7 @@ repository's record what it found there, which CI's card names (`change/branch-p
 
 - **The read** is the workflows' directory at a tip of the landing
   branch, the record's `landing` (8): its immediate entries,
-  one `Read::File` (skein's `forge/README.md`, 3.2) answered as a directory's,
+  one `Read::File` (skein's `forge/vocabulary.md`, 1.2) answered as a directory's,
   `skein_forge::api::Answer::Directory`, within the client's
   `answer_bytes`, as a charter document's read is
   (`../../protocol/configuration/settings.md`, 6). On GitHub it is

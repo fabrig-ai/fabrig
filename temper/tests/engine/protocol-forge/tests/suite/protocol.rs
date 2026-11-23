@@ -315,7 +315,7 @@ fn a_merge_with_its_answer_lost_is_found_after_restart_without_merging_twice() {
     assert!(world.stored().get(&top::Key::Entry(1)).is_none());
 }
 
-// The story's reads resolve every check's job (skein/docs/design/forge/forgejo.md, 1.2).
+// The story's reads resolve every check's job (skein/docs/design/forge/forgejo-operations.md, 1).
 const CI_REPAIR_REQUEST_ALLOWANCE: u32 = 128;
 
 #[test]

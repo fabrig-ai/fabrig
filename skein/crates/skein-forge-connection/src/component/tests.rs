@@ -33,7 +33,7 @@ fn call_sizes_distinguish_real_rows_single_recovery_and_github() {
     }
 }
 
-// forge/connection.md 6.1 reserves the listener's owner prefix.
+// forge/connection-webhooks.md 1.1 reserves the listener's owner prefix.
 const LISTENER_OWNER: u64 = 1_u64 << 59_u32;
 const LAST_API_OWNER: u64 = LISTENER_OWNER - 1;
 fn token_fixture() -> (Component, Env<Limits>, Queue<skein_io::Request>) {

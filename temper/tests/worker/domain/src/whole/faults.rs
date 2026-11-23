@@ -52,6 +52,7 @@ impl Faults {
             Op::Store { .. }
                 | Op::Clone { .. }
                 | Op::Fetch { .. }
+                | Op::Counts { .. }
                 | Op::Point { .. }
                 | Op::CheckOut { .. }
                 | Op::Merge { .. }

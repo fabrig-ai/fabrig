@@ -223,7 +223,7 @@ caption:
 
 ### 5.2 The palette
 
-Each panel is nodes of skein-ui's closed roles (skein's `ui/README.md`, 3.1),
+Each panel is nodes of skein-ui's closed roles (skein's `ui/tree.md`, 1.1),
 drawn by `temper-client-view`:
 
 | Panel | Shows | In skein-ui |
@@ -242,7 +242,7 @@ drawn by `temper-client-view`:
   a panel; it arranges them.
 - **Nothing said by style alone.** A warning is an alert in words, a
   chart's colour is a token the shell may ignore, and the fake person
-  reads every panel by role, name and text (skein's `ui/README.md`, section 14).
+  reads every panel by role, name and text (skein's `ui/testing.md`, section 1).
 
 ### 5.3 In the client
 

@@ -1,4 +1,4 @@
-//! A tab opened, pointed with its opener cut, and let go (skein/docs/design/ui/web/README.md, section 8).
+//! A tab opened, pointed with its opener cut, and let go (skein/docs/design/ui/web/effects.md, section 1).
 
 #[derive(Default)]
 pub struct Tab {

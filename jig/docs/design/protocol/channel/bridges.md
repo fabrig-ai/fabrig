@@ -120,7 +120,7 @@ them is its own (temper's `protocol/wires.md`).
   version is the generated `encoded_bound` with the side's limits, as
   today, and for an older one the kept text's
   `most_bytes_within(record, LIMIT_NAMES, limits.values())` (skein's
-  `data/codec/README.md`, 7.3). So a field the older version lacks counts
+  `data/codec/run-time.md`, 1.3). So a field the older version lacks counts
   nothing, and a body that fits once translated fits its terms.
 - **Built once per service, from the floor's texts:** `kinds::schema`
   parses each kept text from the floor to the current once, and none

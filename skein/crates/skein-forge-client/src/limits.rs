@@ -43,7 +43,7 @@ pub struct Limits {
     pub fallback: Duration,
     pub facts: u32,
 }
-/// The settled stop's bound (forge/client.md, 7.8), saturating at the longest span.
+/// The settled stop's bound (forge/client-effects.md, 1.8), saturating at the longest span.
 #[must_use]
 pub fn stop_bound(limits: &Limits) -> Duration {
     limits.lifetime.saturating_add(limits.clock_margin).saturating_mul(2)

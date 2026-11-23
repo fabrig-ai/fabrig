@@ -9,7 +9,7 @@ const SENTENCE: &[u8] = b"The widget fix has landed.";
 const REPORT: &[u8] = b"The widget fix has landed.\n\nThe review passed and the branch is ready.";
 
 #[path = "status/shared.rs"]
-mod shared;
+pub(crate) mod shared;
 
 fn status_world(allowed: bool, funded: bool) -> World {
     status_world_with_spec(allowed, funded, None)
@@ -147,8 +147,8 @@ fn own_brief(world: &World) -> &forge_top::PersonBrief {
     person_brief(world, 1)
 }
 fn next_sitting(world: &mut World, number: u8) {
-    world.env.now = world.env.now.saturating_add(forge_top::SITTING);
-    world.env.wall = Wall::from_nanos(world.env.now.as_nanos());
+    world.advance_to(world.env.now.saturating_add(forge_top::SITTING));
+
     looked(world, number);
 }
 fn ready(allowed: bool) -> World {
@@ -398,7 +398,7 @@ fn drain_api(world: &mut World) {
     panic!("forge answers drained before restart");
 }
 
-fn restart_status_world(world: &mut World) {
+pub(crate) fn restart_status_world(world: &mut World) {
     drain_api(world);
     world.restart_same();
     for event in &mut world.events {
@@ -529,8 +529,8 @@ fn a_roles_status_counts_live_person_questions_not_its_unchanged_now() {
     answer_person_question(&mut world, second, 121);
     let resumed = world.assigned.iter().rev().find(|run| run.task == role.task).expect("role heard answers").clone();
     park_chat(&mut world, &resumed);
-    world.env.now = world.env.now.saturating_add(Duration::from_secs(3601));
-    world.env.wall = Wall::from_nanos(world.env.now.as_nanos());
+    world.advance_to(world.env.now.saturating_add(Duration::from_secs(3601)));
+
     // The fake credential provider renews the forge grant across clock jumps.
     world.send(engine::Event::Credential { number: 1, generation: 1, valid: Duration::from_secs(3600) });
     land_numbered(&mut world, &requester, 94, 2);
@@ -617,8 +617,8 @@ fn a_failed_now_read_omits_only_its_role_and_still_starts_status() {
     seed_note(&mut world, 2, 42, b"now", b"Still working");
     restart_status_world(&mut world);
     land(&mut world, &requester);
-    world.env.now = world.env.now.saturating_add(forge_top::SITTING);
-    world.env.wall = Wall::from_nanos(world.env.now.as_nanos());
+    world.advance_to(world.env.now.saturating_add(forge_top::SITTING));
+
     look_request(&mut world, 171);
     let mut failed = false;
     for _ in 0..200 {
@@ -1014,7 +1014,7 @@ fn status_names_milestone_goals_and_reports_live_and_recently_ended_milestones()
     world.store.seed(saves.into_boxed_slice(), Box::new([]));
     restart_status_world(&mut world);
     // The sitting is two hours after the previous brief.
-    world.env.now = world.env.now.saturating_add(forge_top::SITTING);
+    world.advance_to(world.env.now.saturating_add(forge_top::SITTING));
     world.env.wall = minute(22, 0);
     looked(&mut world, 171);
     let words = status_words(&world);

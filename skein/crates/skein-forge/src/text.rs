@@ -1,4 +1,4 @@
-//! Capped body text (skein/docs/design/forge/README.md, 4.4).
+//! Capped body text (skein/docs/design/forge/dialects.md, 1.4).
 use alloc::boxed::Box;
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Body {

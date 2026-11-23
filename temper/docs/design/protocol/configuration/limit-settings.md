@@ -345,8 +345,8 @@ this document says how settings lie over it.
   root the raised limits, which it takes into its own copy and its
   environment, and hands the forge child, which raises each table's
   ceiling and the forge client's. A ceiling is raised in place: skein's
-  containers take a raise without allocating (`skein/docs/design/runtime/lib.md`, 5).
-  Then the work held on a raised limit goes on (section 6).
+  containers take a raise without allocating (`skein/docs/design/runtime/lib-containers.md`, 1).
+  Then the work held on a raised limit goes on (`limit-settings.md`, section 6).
 
 ### 5.2 A live figure
 

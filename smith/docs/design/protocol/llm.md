@@ -61,7 +61,7 @@ A completion's prompt is built from what the domain gives:
   completion's tool choice;
 - **the model, and the prompt's output cap,** the charter's `output` for
   that model (charter.md, section 2): a dialect that takes an output cap
-  sends it, Anthropic's as `max_tokens` (skein's `llm/README.md`, section 4);
+  sends it, Anthropic's as `max_tokens` (skein's `llm/wire.md`, section 1);
 - **the endpoint's options,** from its configuration, and the reasoning
   effort the conversation's LLM asks for in its charter (charter.md,
   section 2);
@@ -125,7 +125,7 @@ program backend sends none of these messages, keeping its own history
     cached prefix, the request reads the cached prefix;
   - on the Anthropic dialect a changed choice keeps the cache of the
     tools and the system text and loses that of the messages (skein's
-    `llm/README.md`, 4.7), so the compaction writes its window's messages to
+    `llm/wire.md`, 1.7), so the compaction writes its window's messages to
     the cache again. The design accepts that cost, once per window.
 - **Byte-deterministic.** The same prompt becomes the same bytes:
   translation here, rendering (section 5) and skein's dialect encoding
@@ -310,7 +310,7 @@ program backend sends none of these messages, keeping its own history
   result in its place, so the history stays replayable
   (domain/session.md, section 4).
 - **Neither goes back as it came.** skein refuses a history that holds
-  an oversize or a cut block (skein's `llm/README.md`, 2.4), so this component
+  an oversize or a cut block (skein's `llm/vocabulary.md`, 1.4), so this component
   replaces each when it builds a prompt from history: a call with its
   provider id and its tool's name, and an empty object as its input,
   followed by its error result, which says what was wrong and how to
@@ -559,7 +559,7 @@ program backend sends none of these messages, keeping its own history
 - **A credential's scheme says how it is sent, and whether its host may
   renew it** (channel.md, section 6). A bearer goes as an
   authorization bearer and a key as its provider's key, as the
-  endpoint's dialect sends that scheme (skein's `llm/README.md`, 2.6). A scheme the
+  endpoint's dialect sends that scheme (skein's `llm/vocabulary.md`, 1.6). A scheme the
   dialect does not take is a value the agent cannot install (a bearer on
   `anthropic`, which takes a key alone) (channel.md, section 6).
 - **A program source is never read here.** Its run makes no call through
@@ -609,7 +609,7 @@ program backend sends none of these messages, keeping its own history
     per-call headers, `ToolChoice`, an oversized call as a block of its
     own, typed limits and HTTP statuses, Anthropic's cache markers, and
     `Limits::derive`;
-  - the public OpenAI Responses dialect (skein's `llm/README.md`, 4.8) and
+  - the public OpenAI Responses dialect (skein's `llm/wire.md`, 1.8) and
     Anthropic's Messages with a key (4.7), the credential's scheme
     (2.6), and the failure classes exhausted, with its reset only where
     the provider gives one, refused and unsupported, naming its field,
@@ -702,7 +702,7 @@ component and skein's client against scripted byte peers, in each dialect.
     for byte;
   - one exception, Anthropic's tail marker. skein moves that cache
     marker to the newest message's last eligible block on every request
-    (skein's `llm/README.md`, 4.7), and the provider's cache does not hash the
+    (skein's `llm/wire.md`, 1.7), and the provider's cache does not hash the
     marker. So the referee:
     - removes from each request's messages the one marker the dialect
       placed there, exactly the bytes the dialect writes. Since a quote

@@ -208,7 +208,7 @@ This document holds the gathering of a change's forge brief, split from [`repair
   | a section the plan gave wrong bounds, or the connector no longer holds | permanent | `the connector cannot hold this section` |
 
 - **A bound's words.** A `TooLarge` is named by its `Excess` (skein's
-  `forge/README.md`, 3.4), in the same words wherever temper writes it: a
+  `forge/vocabulary.md`, 1.4), in the same words wherever temper writes it: a
   brief's notices and its REASON above, a host tool's refusal
   (`../../agent/tools.md`) and the log's `brief read refused` line. BOUND is
   `forge.client.rows (LIMIT): SIZE rows`, `forge.client.answer_bytes

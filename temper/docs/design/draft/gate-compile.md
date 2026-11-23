@@ -49,12 +49,12 @@ The gate builds every test target of the workspace (`cargo nextest run --no-run`
 
 ### 3.1 What it costs
 
-- **Each generated file ends with its tests:** a `golden_tests` module under `cfg(test)`, its golden values and its bounds in tables of up to 1,024 cases (skein's `data/codec/README.md`, section 6). Across the workspace's 39 such modules they use the file's public items alone, with helpers of their own.
+- **Each generated file ends with its tests:** a `golden_tests` module under `cfg(test)`, its golden values and its bounds in tables of up to 1,024 cases (skein's `data/codec/golden.md`, section 1). Across the workspace's 39 such modules they use the file's public items alone, with helpers of their own.
 - **So a codec crate's own tests compile its generated code again,** as `crate-graph.md`, 6.2, describes for every crate. The own tests of crates holding generated code took 90.0, 70.3 and 78.1 s in the three builds. Of the temper store's codec crate's 15 to 21 s, its library's compile is about 15.5 s.
 
 ### 3.2 The rule
 
-- **The generator writes a file's tests as an output of their own,** apart from its record code, naming the records by the public path it is given. The drift test (skein's `data/codec/README.md`, section 6) writes, reads and checks both outputs, and the inventories list both (`crate-graph.md`, 4.4).
+- **The generator writes a file's tests as an output of their own,** apart from its record code, naming the records by the public path it is given. The drift test (skein's `data/codec/golden.md`, section 1) writes, reads and checks both outputs, and the inventories list both (`crate-graph.md`, 4.4).
 - **A codec crate has one integration test target for them,** `tests/generated/main.rs`, a module for each generated file, written with them.
 - **A codec crate builds no test target of its library** (`[lib] test = false`) once nothing else is tested there. Its hand-written tests move to the integration target where they use public items. A crate whose remaining tests need private items keeps its library tests, and gains only from smaller tables. Today the two client wires, the two worker wires, `smith-charter`, `smith-channel`, `smith-transcript` and `temper-protocol-records`' patch module hold such tests. The temper store's codec crate and jig's five store codec crates hold none.
 - **A generated module behind a private path,** such as `jig-client-view`'s records, takes a public one first, or follows G3, which moves it to a codec crate.
@@ -77,7 +77,7 @@ The gate builds every test target of the workspace (`cargo nextest run --no-run`
 ### 4.2 The rule
 
 - **A product family's generated code is its current version's alone,** in its codec crate or its owner, and `schema/` holds the current text alone. Older wire and frame versions stay as kept texts; a registered store family's layouts and texts are held in its store's registry.
-- **A reader of an older wire or frame record,** a patch or a test, reads it as a generic value of its kept text (skein's `data/codec/README.md`, section 8), or takes it from a patch's goldens (`data/codec/command.md`, section 1).
+- **A reader of an older wire or frame record,** a patch or a test, reads it as a generic value of its kept text (skein's `data/codec/run-time.md`, section 2), or takes it from a patch's goldens (`data/codec/command.md`, section 1).
 - **skein's codec fixtures keep two versions' code on purpose:** their tests compare the old and new generated decoders (`skein/tests/codec/`), and fixtures follow their stories (`data/codec/command.md`, section 1).
 - **No wire keeps an older version's code for a bridge:** a bridge goes up over generic values and down by reversing patches (`redeploys.md`, section 4).
 

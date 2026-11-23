@@ -131,6 +131,7 @@ impl World {
         self.worker = worker::Domain::new(&self.worker_env.limits, Box::new([]));
         self.worker_events = super::VecDeque::from([worker::Event::Ready]);
         self.opened = false;
+        self.ends.restarted(self.env.now);
     }
 
     fn assert_description(&self, mode: u8) {

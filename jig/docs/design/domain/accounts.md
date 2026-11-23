@@ -324,7 +324,7 @@ A source's state is one of:
   nothing of the record's generation is lent.
 
 Each source's mechanism maps its LLM provider's failures onto these,
-skein for what a provider's API answers (skein's `llm/README.md`, section 2.5)
+skein for what a provider's API answers (skein's `llm/vocabulary.md`, section 1.5)
 and smith for what a program reports (smith's `protocol/programs.md`,
 section 5). A failure a run meets is the run's: unavailable is retried
 by smith's session; unsupported, a field the LLM provider will not

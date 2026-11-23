@@ -1,4 +1,4 @@
-//! The byte search's naive counterparts (runtime/lib.md, 6): every position
+//! The byte search's naive counterparts (runtime/lib-bytes.md, 1): every position
 //! compared, and random haystacks and needles of few letters.
 
 use skein_lib::Rng;

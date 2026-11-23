@@ -68,6 +68,7 @@ fn prepared(job: Option<JobKind>) -> (Harness, Token, Box<[Request]>) {
                     | Op::Store { .. }
                     | Op::Clone { .. }
                     | Op::Point { .. }
+                    | Op::Counts { .. }
                     | Op::Create { .. }
                     | Op::CheckOut { .. } => Done::Succeeded,
                     Op::IsAncestor { .. }
@@ -142,7 +143,7 @@ fn routed(h: &mut Harness, owner: Token, op: Op) -> Box<[Request]> {
 }
 
 #[test]
-fn a_prepared_hold_notes_only_fetch_and_check_out_before_forwarding_io() {
+fn a_prepared_hold_notes_counts_fetch_and_check_out_before_forwarding_io() {
     let (mut h, hold, _) = prepared(None);
     let at = Place { workspace: Token::new(0), repository: b"app".as_slice().into(), git: None };
     for (op, what) in [
@@ -161,6 +162,16 @@ fn a_prepared_hold_notes_only_fetch_and_check_out_before_forwarding_io() {
         (
             Op::CheckOut { at: at.clone(), commit: COMMIT, clean: true, identity: 0, account: None },
             Some(Git::CheckOut { commit: COMMIT }),
+        ),
+        (
+            Op::Counts {
+                at: at.clone(),
+                store: Token::new(0),
+                remote: b"org/app".as_slice().into(),
+                identity: 0,
+                account: None,
+            },
+            Some(Git::Counts),
         ),
         (Op::Pack { at: at.clone(), store: Some(Token::new(0)) }, None),
         (Op::Pack { at: at.clone(), store: None }, None),

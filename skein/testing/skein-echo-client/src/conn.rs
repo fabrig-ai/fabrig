@@ -8,7 +8,10 @@
 #[path = "tests.rs"]
 mod tests;
 
-#[expect(clippy::disallowed_types, reason = "the peer check returns its finding as text (testing/README.md, 5)")]
+#[expect(
+    clippy::disallowed_types,
+    reason = "the peer check returns its finding as text (testing/service-tiers.md, 1)"
+)]
 use alloc::string::String;
 use core::mem;
 
@@ -488,7 +491,7 @@ fn send(open: &mut Open, room: u32, seen: &mut Seen, down: &mut Queue<Io>) {
 /// limit; nothing comes after either but the end; a piece of a line, with no
 /// end of line, is never answered. A breach returns its finding. No line begins
 /// with `b` (`first_byte`), so `busy` is never an answer misread.
-#[expect(clippy::disallowed_types, reason = "the peer check returns its finding as text (testing/README.md, 5)")]
+#[expect(clippy::disallowed_types, reason = "the peer check returns its finding as text (testing/service-tiers.md, 1)")]
 fn check(
     open: &mut Open,
     plan: &Plan,

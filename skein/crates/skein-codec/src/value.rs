@@ -1,4 +1,4 @@
-//! An index over canonical bytes at a schema's ceilings (data/codec/README.md, section 8).
+//! An index over canonical bytes at a schema's ceilings (data/codec/run-time.md, section 2).
 
 use alloc::boxed::Box;
 use skein_lib::{List, Reader, Secret, usize_of};

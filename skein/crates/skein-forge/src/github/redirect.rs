@@ -22,7 +22,7 @@ pub struct Redirect {
 
 impl Origin {
     /// Host comparison ignores ASCII case; the scheme and port are exact
-    /// (forge/connection.md, 4.5).
+    /// (forge/connection-calls.md, 1.5).
     #[must_use]
     pub fn same(&self, other: &Origin) -> bool {
         self.tls == other.tls && self.port == other.port && self.host.eq_ignore_ascii_case(&other.host)

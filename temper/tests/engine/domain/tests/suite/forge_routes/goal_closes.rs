@@ -11,6 +11,9 @@ use jig_client::contract as c;
 use temper_engine_domain_forge_change as change;
 use temper_protocol_worker_wire::v1::Record as WorkerRecord;
 
+#[path = "ends_goals.rs"]
+mod ends;
+
 const CHANNEL: Token = Token::new(7);
 const STEPS: u32 = 4000;
 const WORDS: &[u8] = b"Build the draft\n\nDraft: PATH";
@@ -282,6 +285,11 @@ fn make_change(world: &mut World, goal: &engine::Assignment, call: u64) -> (u64,
     (task, producer_for(world, task))
 }
 fn produce(world: &mut World, task: u64, branch: &[u8], producer: &engine::Assignment, title: &[u8]) {
+    push_production(world, task, branch, producer, title);
+    wait_ended(world, task);
+}
+
+fn push_production(world: &mut World, task: u64, branch: &[u8], producer: &engine::Assignment, title: &[u8]) {
     let own = row(world, task).branch.clone();
     let tip = branch_tip(world, branch);
     assert_eq!(
@@ -302,7 +310,6 @@ fn produce(world: &mut World, task: u64, branch: &[u8], producer: &engine::Assig
             words: b"Implemented.\n\n## Left:\nnone".as_slice().into(),
         },
     );
-    wait_ended(world, task);
 }
 fn goal_runs(world: &World, goal: u64) -> usize {
     world.assigned.iter().filter(|run| run.task == goal).count()
@@ -746,7 +753,7 @@ fn a_cancelled_stalled_landing_retries_without_holding_or_waking_its_goal() {
     }
     assert!(matches!(row(&world, landing).change.state, change::State::Checking { .. }));
     super::stall_hold::execution_reads(&mut world, landing, skein_forge::api::RunState::Running);
-    world.env.now = world.env.now.saturating_add(world.env.limits.forge.change_policy.stall);
+    world.advance_to(world.env.now.saturating_add(world.env.limits.forge.change_policy.stall));
     wait_held(&mut world, landing, goal.task);
     assert!(matches!(row(&world, landing).change.state, change::State::Held { why: change::Hold::Stalled, .. }));
     let run = awakened(&mut world, goal.task);

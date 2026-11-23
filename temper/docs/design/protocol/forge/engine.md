@@ -33,7 +33,7 @@ skein-io socket
   carries what passes between it, io and the root, and decides nothing
   (../components.md and ../service-routing.md, section 1; jig's `protocol/service.md`, section 2).
   One component serves every kept forge. What it holds is skein's
-  (`forge/connection.md`, sections 3 to 7): the calls in flight, the
+  (`forge/connection.md`, section 3, and `forge/connection-calls.md`, section 1, and `forge/connection.md`, section 5, and `forge/connection-webhooks.md`, section 1, and `forge/connection-machines.md`, section 1): the calls in flight, the
   forges' connections, each forge's start, the repositories' paths and
   the users, a GitHub App's installations and tokens, the translation
   between the forge client's vocabulary and the documents, the webhooks'
@@ -90,14 +90,14 @@ skein-io socket
   returns during its drain is dropped. The root's view of them is not
   kept, so the next process's root starts from what a fresh start
   publishes: each connection afresh, and the installations by the
-  baseline listing (skein's `forge/connection.md`, section 4.4). The
+  baseline listing (skein's `forge/connection-calls.md`, section 1.4). The
   routing closes the component after the root's drain (jig's
   `protocol/service.md`, section 5); calls in flight end with their
   connections, and no answer goes up once the root has stopped.
 - **A start that fails for good stops that forge only** (3): a user
   other than the forge's own, a credential refused, or a `4xx` that
-  asking again would not mend (skein's `forge/connection.md`, sections 3
-  and 8). The engine and every other forge run on.
+  asking again would not mend (skein's `forge/connection.md`, section 3, and `forge/connection-machines.md`, section 2
+  ). The engine and every other forge run on.
 
 ## 1. A forge's records, and its access at start
 
@@ -274,7 +274,7 @@ skein-io socket
   deployment's page says as whom (../../client/forge/README.md, the deployment's
   page). The connector then gives the forge client its writer, which the
   forge client keeps as its own record and restores at start (skein's
-  `forge/client.md`, 7.1; `../../domain/forge/adoption-connection.md`, 1). A GitHub forge's
+  `forge/client-effects.md`, 1.1; `../../domain/forge/adoption-connection.md`, 1). A GitHub forge's
   `Reconcile { forge }` runs next, once the forge's writing run is free
   (6); it ends in no connect.
 - **The box's pipe** (../setup/box.md, 1), under the box alone, through the
@@ -308,7 +308,7 @@ skein-io socket
   user its tokens answer as with the kept `User`, on a forge connected
   again as on a `Replace`: tokens of another user stop the run
   `OtherUser`, nothing kept and the forge as it was. A forge's writer is
-  its user (skein's `forge/client.md`, 7.1; ../credentials.md, 2.1), so
+  its user (skein's `forge/client-effects.md`, 1.1; ../credentials.md, 2.1), so
   another user's tokens connect a new forge, once this one is removed.
 - **`Replace`** runs `Check` on a connected Forgejo, its pasted tokens
   read before the forge's rows, so that a token not pasted is the kept
@@ -376,7 +376,7 @@ skein-io socket
   The routing hands the list over with `Request::Installations { forge,
   accepted }` at start, after an `Accept`'s `Done` and after a deletion;
   the component reads the installations and mints a token for each one
-  accepted (skein's `forge/connection.md`, 4.4 and 5.1).
+  accepted (skein's `forge/connection-calls.md`, 1.4, and `forge/connection.md`, 5.1).
 - **`Event::Installation { forge, installation, account, change }`,**
   an `account` being its id and login:
   - `Created`: nothing, unless accepted, at the setup URL or by the
@@ -560,7 +560,7 @@ entrance limits and settings before it builds it, with room for
 
 ## 7. What the vocabulary adds
 
-skein's (`forge/README.md`, section 3; `skein/docs/design/forge/connection.md`, 4.1), as the
+skein's (`forge/vocabulary.md`, section 1; `skein/docs/design/forge/connection-calls.md`, 1.1), as the
 routing carries it to the root, and the domain reads it
 (`../../domain/forge/adoption.md` and `../../domain/forge/keeping-up.md`):
 

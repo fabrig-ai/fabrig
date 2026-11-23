@@ -21,7 +21,7 @@ the forge's, judged in the change's decision:
 
 Kind 5 was a repository's gates, numbered by the repository's adoption
 packed in 32 bits beside its forge's number. A repository's id is the
-forge's own, 32 bits (skein's `forge/README.md`, 3.1), so it doesn't
+forge's own, 32 bits (skein's `forge/vocabulary.md`, 1.1), so it doesn't
 pack, and kind 5 is the project's: one value holding each of its
 repositories (2026-11-16).
 

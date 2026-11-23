@@ -55,7 +55,7 @@ impl<K: Ord, V> Map<K, V> {
         self.capacity
     }
 
-    /// Raises the capacity in place, allocating nothing (runtime/lib.md, 5).
+    /// Raises the capacity in place, allocating nothing (runtime/lib-containers.md, 1).
     pub fn raise(&mut self, capacity: u32) {
         assert!(capacity >= self.capacity(), "a capacity never falls");
         self.capacity = capacity;
@@ -141,7 +141,7 @@ impl<K: Ord, V> Map<K, V> {
         self.entries.iter()
     }
 
-    /// Each key of either map once, in key order (runtime/lib.md, 5.2).
+    /// Each key of either map once, in key order (runtime/lib-containers.md, 1.2).
     #[must_use]
     pub fn join<'a>(&'a self, other: &'a Map<K, V>) -> Join<'a, K, V> {
         let mut first = self.entries.iter();
@@ -162,7 +162,7 @@ impl<K: Ord, V> Map<K, V> {
     }
 }
 
-/// The values at a joined key, first map then second (runtime/lib.md, 5.2).
+/// The values at a joined key, first map then second (runtime/lib-containers.md, 1.2).
 #[derive(Debug, PartialEq, Eq)]
 pub enum Joined<'a, V> {
     First(&'a V),
@@ -178,7 +178,7 @@ impl<V> Clone for Joined<'_, V> {
     }
 }
 
-/// A borrowing, allocation-free walk over two maps by key (runtime/lib.md, 5.2).
+/// A borrowing, allocation-free walk over two maps by key (runtime/lib-containers.md, 1.2).
 #[derive(Debug)]
 pub struct Join<'a, K, V> {
     first: btree_map::Iter<'a, K, V>,
@@ -227,7 +227,7 @@ impl<'a, K, V> IntoIterator for &'a Map<K, V> {
     }
 }
 
-// runtime/lib.md, 5.1: hash held state, never capacity or storage layout.
+// runtime/lib-containers.md, 1.1: hash held state, never capacity or storage layout.
 impl<K: Hash, V: Hash> Hash for Map<K, V> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.entries.hash(state);

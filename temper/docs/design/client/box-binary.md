@@ -83,7 +83,7 @@ side is `../protocol/setup/box-front.md`, 1.
 
 - **What's trusted:** fabrig.ai over HTTPS, with the machine's roots or
   `SSL_CERT_FILE`, read as the forge's fetch reads them (skein's
-  `runtime/shell.md`, 6.2; `../protocol/setup/owned.md`, 6). The sums
+  `runtime/shell-startup.md`, 1.2; `../protocol/setup/owned.md`, 6). The sums
   come from the same site, so they catch a damaged file, not a site that
   lies; writing the checksum into `temper` at release is Later
   (`../draft/cli.md`, section 10).

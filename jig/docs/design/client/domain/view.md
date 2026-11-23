@@ -53,8 +53,8 @@ listed in `view.md`, section 14, and what it adds later in `view.md`, section 16
   (section 4; pages.md, section 12).
 - **A semantic tree.** The tree says what each node is (a region, a
   heading, a list, a button, a text field, a log), the way an
-  accessibility tree does, never how it looks (skein's `ui/README.md`, section
-  3). Each shell maps it onto its platform.
+  accessibility tree does, never how it looks (skein's `ui/tree.md`, section
+  1). Each shell maps it onto its platform.
 - **One outline, skein-ui's.** Every tree keeps skein-ui's outline
   (skein's `ui/README.md`, section 12), which jig's referee checks; jig adds no
   rule. jig's default arrangement keeps a banner with the link, what
@@ -133,8 +133,8 @@ The application's view root (`<application>-client-view`:
 
 ## 3. The tree
 
-The tree is skein-ui's (skein's `ui/README.md`, section 3). Provisional text is
-said in words, never by a state (section 9). What of the tree is jig's:
+The tree is skein-ui's (skein's `ui/tree.md`, section 1). Provisional text is
+said in words, never by a state (`view.md`, section 9). What of the tree is jig's:
 
 - **jig's owner.** `jig_client_view::Owner` is `Jig`, or `Application {
   number }`, one of the application's owners by its `u16`, mapped onto
@@ -149,14 +149,14 @@ said in words, never by a state (section 9). What of the tree is jig's:
   drawing kind (section 17).
 - **A field's value** carries the reference UI's count of its own writes
   to the field (`view-state.md`, 5) as skein-ui's count of the owner's writes (skein's
-  `ui/README.md`, 3.4).
-- **Menus and disclosures** are skein-ui's (skein's `ui/README.md`, section 3):
+  `ui/tree.md`, 1.4).
+- **Menus and disclosures** are skein-ui's (skein's `ui/tree.md`, section 1):
   a card or a page offers the acts past the few it shows in a menu; a
   fold that leaves what it folds out of the tree is the reference UI's
   state's (`view-state.md`, 5).
 - **An application's own kinds of node** are drawings, skein-ui's
-  (skein's `ui/README.md`, 3.5): a chart of an incident's error rate, a map of a
-  pool's environments, a timeline (section 17).
+  (skein's `ui/tree.md`, 1.5): a chart of an incident's error rate, a map of a
+  pool's environments, a timeline (`view.md`, section 17).
 
 ### 3.1 The page's outline
 
@@ -440,7 +440,7 @@ tests feed it agents' replies and results kept as files beside them.
 - **Provisional text** is said to be provisional in words: its region
   holds a status in jig's phrase for it, and carries jig's style token
   `jig-provisional`, its look (section 13). There is no provisional
-  state (skein's `ui/README.md`, 3.2). It shows as it comes, and gives way to
+  state (skein's `ui/tree.md`, 1.2). It shows as it comes, and gives way to
   the turn once it commits, matched by its key so the place on screen
   holds.
 - **The conversation is a log:** its role tells a shell to keep its end
@@ -686,12 +686,12 @@ drawing into nothing (`view.md`, section 5).
 
 ### 17.4 In each shell
 
-skein's (skein's `ui/scenes.md`, 4; in a browser, skein's `ui/web/README.md`,
-section 6). jig adds nothing.
+skein's (skein's `ui/scenes.md`, 4; in a browser, skein's `ui/web/svg.md`,
+section 1). jig adds nothing.
 
 ### 17.5 Its tests
 
-Golden scenes are skein's (skein's `ui/README.md`, section 14), and a scene as
+Golden scenes are skein's (skein's `ui/testing.md`, section 1), and a scene as
 SVG is skein's browser parts' to test (skein's `ui/web/testing.md`
 ). jig's are its test family's: its drawing code's golden scenes and
 its act (testing.md, section 4).

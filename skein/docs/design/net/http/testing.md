@@ -39,7 +39,7 @@
   - **The client's** runs one connection for one exchange after another.
     Below, the server's stream: its bytes arrive in pieces cut at random,
     late, into an intake under its cap, and meet each read as lib's
-    intake does (../../runtime/lib.md, 7); room
+    intake does (../../runtime/lib-streams.md, 1); room
     is granted late, one `Send` a grant, while a response may wait; now
     and then the server is patient, and answers each exchange only once
     it has the whole request, so that a client that waited for the
@@ -237,7 +237,7 @@
   has none of, so these keep their own loop, of the same shape: the
   contracts as it goes, the referee beside it.
 - **Memory** (`tests/http/tests/suite/memory.rs`, with the counting allocator,
-  ../../testing/README.md, 5): every call of an entry point a step of the meter. The
+  ../../testing/service-tiers.md, 1): every call of an entry point a step of the meter. The
   client at its limits: a head at the head limit with folds among its
   fields, bodies by length, chunked with a trailer section at its limit,
   and to the end of the stream, an interim head, an upload, a request

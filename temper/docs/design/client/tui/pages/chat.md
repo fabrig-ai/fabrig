@@ -63,7 +63,7 @@ Illustrative (the request's 03, with the look request
   - *While a list stands* under the box (the commands, a question), the
     rule above the box keeps the title; on the launchpad the box's rule
     has no title, and its framed header stays as it is.
-- **The conversation,** in the body, from the screen's first row: a log (skein's `ui/README.md`, 3.2) with
+- **The conversation,** in the body, from the screen's first row: a log (skein's `ui/tree.md`, 1.2) with
   the chat's end request (`Chat::to_end`), holding one list, an item an
   entry, in the thread's order as the browser's terminal reads it (`../../pages/chat/terminal.md`, 1, *The
   conversation*), with a blank row between two entries

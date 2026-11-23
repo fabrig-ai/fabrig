@@ -1,6 +1,6 @@
 # Inspection: a harness invariant over a component's frozen state
 
-Provisional, 2026-11-20. How a world's harness invariant reads what a component holds between iterations: the component's inspection adapter, the records it gives, where a world calls it, and the two checks every component's waits and bounded tables share. Written from `temper/docs/design/draft/failure-worlds.md`, section 3's opening and 3.1 and 3.2. The invariants are the strategy's (../../foundation/testing-strategy.md, 6): a world's own checks of its frozen state once a driver is quiet, never the referee's, which watches from outside (section 7 there). The module is `skein_world::inspect`, in the world harness (README.md, 5).
+Provisional, 2026-11-20. How a world's harness invariant reads what a component holds between iterations: the component's inspection adapter, the records it gives, where a world calls it, and the two checks every component's waits and bounded tables share. Written from `temper/docs/design/draft/failure-worlds.md`, section 3's opening and 3.1 and 3.2. The invariants are the strategy's (../../foundation/testing-strategy.md, 6): a world's own checks of its frozen state once a driver is quiet, never the referee's, which watches from outside (section 7 there). The module is `skein_world::inspect`, in the world harness (service-tiers.md, 1).
 
 ## 1. In one page
 
@@ -13,7 +13,7 @@ Provisional, 2026-11-20. How a world's harness invariant reads what a component 
 
 ## 2. The adapter
 
-- **Its place:** a kit under its component's tree's `testing/`, beside the component, and built against it: it changes in the change that changes what it reads. A world of the component, and a world of a component above it, depend on the kit; no shipped binary does, as no shipped binary links a testing crate (README.md, 5).
+- **Its place:** a kit under its component's tree's `testing/`, beside the component, and built against it: it changes in the change that changes what it reads. A world of the component, and a world of a component above it, depend on the kit; no shipped binary does, as no shipped binary links a testing crate (service-tiers.md, 1).
 - **Its form:** one function, `pub fn inspect(component: &C, into: &mut skein_world::inspect::Inspection)`, `C` the component's root or child type, concrete. A component whose worlds hold several children has a function per child, each adding to the one inspection. It allocates, as test code may, and panics on nothing.
 - **What it reads:** the component's own `pub` reads. Where the component keeps a table or a wait private, it gains a `pub` read that borrows it, documented as its adapter's (`/// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).`), returning a borrow, a count or an entry by key, under the strict subset as any step code. The workspace has no feature and no `cfg` for test-only code (tools/crates/design.md, 3.2), and none is added for this: a read is a borrow, and a shipped binary that never calls it pays nothing.
 - **A gap is the adapter's.** A check that can't read what it needs is a gap in its adapter, built in its adapter, never a finding of the product's (the draft, 3).
@@ -131,7 +131,7 @@ Each takes the inspections a world made at one moment and returns its first find
 - **At its driver's quiet point,** as that driver defines it, never only once the whole world is quiet, since another task's steady work can keep a world busy for good (the draft, 3.1): a domain world's driver once it has drained its immediate work, before time moves; a world on `World` once nothing is due before time moves.
 - **Between iterations:** no step runs while an adapter reads, so what it reads is frozen.
 - **Outside every heap meter:** an adapter and the checks allocate as test code, and their bytes are no process's.
-- **Each call is a run's finding:** the world returns the `Err` as its run's finding, as a referee's (README.md, 5); only the loop or the test at its top panics on it.
+- **Each call is a run's finding:** the world returns the `Err` as its run's finding, as a referee's (service-tiers.md, 1); only the loop or the test at its top panics on it.
 
 ## 6. A finding
 

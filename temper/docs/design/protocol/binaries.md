@@ -208,7 +208,7 @@ internal  temper-agent AGENT.json
   run one copy of each (`../cli/README.md`, 7.3).
 - **Its arguments,** captured once `main` has installed skein's
   fail-stop hook, as every binary's `main` does first, reach a command
-  by `Table::reach` (skein's `runtime/shell.md`, 14.4;
+  by `Table::reach` (skein's `runtime/shell-table.md`, 1.4;
   `../cli/README.md`, 3):
   1. run by a name whose file name is `claude`: Claude Code's launcher,
      `temper-launcher`'s, its arguments unchanged (setup/owned.md, 6),

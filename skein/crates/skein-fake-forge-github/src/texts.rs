@@ -75,7 +75,7 @@ pub(crate) fn approval(out: &mut skein_lib::Writer, count: u32) -> Option<()> {
     out.put(if count == 1 { APPROVAL_SINGULAR } else { APPROVAL_PLURAL }).ok()
 }
 
-// Unrecorded primary-rate message; inferred from forge/github.md, 7 and 8.5.
+// Unrecorded primary-rate message; inferred from forge/github.md, 7, and forge/github-app.md, 1.5.
 pub(crate) const PRIMARY_RATE: &[u8] = b"API rate limit exceeded";
 // forge/github.md, 7, recorded secondary-limit classifier.
 pub(crate) const SECONDARY_RATE: &[u8] = b"You have exceeded a secondary rate limit";

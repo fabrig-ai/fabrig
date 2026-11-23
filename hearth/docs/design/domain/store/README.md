@@ -450,7 +450,7 @@ change set digest = H("changes", parent tree digest, child tree digest, list [ c
    in a published layer under a record that claims its tree digest.
    `syncfs` is one call for the whole layer. It is synchronous and can
    take seconds, so it runs in the helper, whose loop has nothing else
-   to do meanwhile, never on the builder's (skein/docs/design/runtime/kernel.md, 6.5).
+   to do meanwhile, never on the builder's (skein/docs/design/runtime/kernel-files.md, 3).
 5. **Record:** the tree file renamed into place, then the record, which
    names the tree file's SHA-256 and the uuids (`records.md`, 8).
 6. **Publish:** a rename within `layers/` (2.3). A layer is published

@@ -320,7 +320,7 @@ Moved to [`worker.md`](worker.md), section 2.
   newline, which is not part of the secret (jig's
   `protocol/configuration.md`, section 9).
 - **Private reads,** each within its bound, with skein's
-  `read_private_file` (skein's `runtime/shell.md`, 6.1): a file readable by
+  `read_private_file` (skein's `runtime/shell-startup.md`, 1.1): a file readable by
   anyone but the process's user, or reached through a link, is refused,
   naming it. For the handover, the forge stays not connected, or set up
   failed at the box's `started`; the engine and other forges run on

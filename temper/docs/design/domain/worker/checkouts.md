@@ -31,7 +31,8 @@ runs as contained processes and whose output it parses.
   assignment does not name, but for the store's making and the file
   contents it checks out. A store is blob-less: its making and every fetch
   into it bring the history's commits and trees whole and no file
-  contents (git's `--filter=blob:none`), and a check out or a merge fetches
+  contents (git's `--filter=blob:none`), but main's counts' one file
+  (*Main's counts*), and a check out or a merge fetches
   the contents it needs from the forge into its checkout, which keeps them
   (`../../protocol/git-operations.md`, 1.5, 1.6 and 1.11). A prepare makes
   each store its repositories need that the cache has not made yet, before
@@ -75,7 +76,8 @@ runs as contained processes and whose output it parses.
     directory's and, through them, the store's. The worker never reads
     it, but for the one file a check writes for it (`../forge/reds.md`,
     5.5), read as bytes; it writes into it, after each operation that
-    moves its own, a view of its HEAD, index, merge and pins, so a run's
+    moves its own, a view of its HEAD, index, merge, pins and main's
+    counts, so a run's
     git, its checks among them, works as with one directory: clean at the
     start, a merge in progress shown, `refs/temper/landing` the pin
     (`../../protocol/git-operations.md`, 1.13). A run that breaks its `.git` has it
@@ -235,6 +237,25 @@ runs as contained processes and whose output it parses.
   are a repair's as before. An item naming both a pin and a landing branch
   is refused at the worker's entrance as an invalid start that names it
   (`hosted-runs.md`, 1.1).
+- **Main's counts** (`../../draft/test-budgets.md`, 3). Each repository
+  whose prepare writes `refs/temper/landing` (any pin above) asks one
+  `Counts` at once after it, on the same remote and identity: the forge's
+  `refs/temper/counts`, the commit holding `counts.json` that the gate's
+  runner publishes, fetched into the store with its blob and pointed at in
+  `refs/temper/counts`, which the view copies into the run's `.git`
+  (`../../protocol/git-operations.md`, 1.3 and 1.13), so the run's checks
+  read it offline. Then the pin's continuation follows.
+  - **Where the forge has none,** nothing is fetched and nothing fails:
+    no reference is written, a cached checkout's from an earlier hold is
+    removed, and the prepare goes on as without it.
+  - **Frozen for the hold:** written afresh by each prepare alone, never
+    by a catch-up, so a cached checkout's is replaced, never read. A
+    repository whose prepare writes no pin asks none, its reference left
+    as it is.
+  - **A fault** fails the preparation as a fetch's does, at the stage
+    `fetch counts` (section 1.1): its remote has just served the pin, and
+    no prepare ends with a reference it could not bring up to date. Its
+    fetch counts toward the store's next `Pack` (*Kept packed*).
 - **A goal's reds for each check** (`../forge/reds.md`, 5.2 and 5.3), in
   each writable repository with a pin, under the run's git directory, at
   `.git/temper` (`../../protocol/git-operations.md`, 1.13): prepare
@@ -551,7 +572,7 @@ stored format changes; the worker's line and serve's print it escaped
 
 - **`<stage>`:** the step the prepare was in, in the words it has always had
   (`make`, `store`, `clone`, `fetch`, `check out`, `fetch landing`,
-  `merge`, `check out merged`, a job's `fetch member` and the rest;
+  `fetch counts`, `merge`, `check out merged`, a job's `fetch member` and the rest;
   `hold.rs`, `preparation_detail`). A step that checks reds files fails
   nothing and has no detail.
 - **`<fault>`:** git's fault as `git::Fault::name` writes it

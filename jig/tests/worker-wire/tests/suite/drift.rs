@@ -1,4 +1,4 @@
-//! Records' drift (skein's data/codec/README.md, 6).
+//! Records' drift (skein's data/codec/golden.md, 1).
 use skein_codegen::{generate, values};
 use std::fs;
 

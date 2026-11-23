@@ -1,4 +1,4 @@
-//! Generator regressions for data/codec/README.md, sections 3 and 6.
+//! Generator regressions for data/codec/README.md, section 3, and data/codec/golden.md, section 1.
 
 use crate::{FixedValue, fixed_values, generate, parse};
 

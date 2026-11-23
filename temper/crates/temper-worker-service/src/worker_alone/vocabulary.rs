@@ -14,7 +14,7 @@ pub enum Stop {
 }
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Note {
-    /// Each fetch and check out the checkout asks (domain/worker/hosted-runs.md, 1.3).
+    /// Each fetch, counts fetch and check out the checkout asks (domain/worker/hosted-runs.md, 1.3).
     Git {
         run: u64,
         attempt: u64,

@@ -125,7 +125,7 @@ pub fn request(provider: Provider, data: &[u8], limits: &Limits) -> Result<api::
 
 /// Decodes the route's request, naming fields refused by public Responses.
 ///
-/// Contract: docs/design/testing/fakes/llm.md, section 3.1; llm/README.md, section 4.8.
+/// Contract: docs/design/testing/fakes/llm.md, section 3.1; llm/wire.md, section 1.8.
 pub fn request_on(route: skein_llm::Provider, data: &[u8], limits: &Limits) -> Result<api::Query, Error> {
     match route {
         skein_llm::Provider::Anthropic => anthropic_request(data, &limits.anthropic),

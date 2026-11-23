@@ -130,7 +130,7 @@ drains as jig's `domain/engine/restart.md`, 1 says.
     listeners already refuse new openings and parties' requests
     (jig's `protocol/service.md`, section 5).
   With no write lacking its outcome, the forge has settled at once.
-- **Bounded** by its client's (skein's `forge/client.md`, 7.8): twice
+- **Bounded** by its client's (skein's `forge/client-effects.md`, 1.8): twice
   the writes' lifetime and their clock margin from the stop
   (`forge.client.lifetime_ms`, `forge.client.clock_margin_ms`), by
   which each write sent before has its answer and its proving read, or

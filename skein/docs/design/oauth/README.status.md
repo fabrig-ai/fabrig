@@ -20,7 +20,7 @@ deferred in `README.md`, section 6.
 - **Not yet:** 4: `skein-oauth/src/json.rs`'s `Json` and `Collector` derive
   `Debug` over their tokens, and a `Json` holds a token response, though only
   as a local of `machine.rs`'s reader, in no record that prints: the request
-  of 2026-11-05 did not name them, and they stand among ../runtime/lib.md, 6's carriers.
+  of 2026-11-05 did not name them, and they stand among ../runtime/lib-bytes.md, 1's carriers.
 - **Departs:** 2.2: a refresh's profile reader requires a nonce claim, though
   it compares none (`skein-oauth/src/jwt.rs`, `refreshed_claims`). A token
   without one gives no profile claims and the refresh still succeeds, as

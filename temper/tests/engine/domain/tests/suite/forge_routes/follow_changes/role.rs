@@ -73,7 +73,7 @@ fn answered(world: &mut World, producer: u64, change: u64, question: u64, words:
     }
     panic!("answer missing: {:?}", questions::replies(world, producer, change));
 }
-fn owned(start: s::FollowStart, budget: u64, passes: u32) -> (World, u64) {
+pub(crate) fn owned(start: s::FollowStart, budget: u64, passes: u32) -> (World, u64) {
     let mut world = unaccepted_follow(passes, Gate::default(), false, true);
     let role = standing(&mut world, 150, budget);
     let mut value = setting(start);

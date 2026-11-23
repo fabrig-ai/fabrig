@@ -83,9 +83,9 @@ of the provider's API.
 
 `smith/docs/design/benchmarks/README.md`, 14 says whether failed calls
 carry usage is skein's LLM document's question. That document defines
-usage and failures (`skein/docs/design/llm/README.md`, 2.3 and 2.5), but
+usage and failures (`skein/docs/design/llm/vocabulary.md`, 1.3 and 1.5), but
 its Open questions section (`skein/docs/design/llm/README.md`, 7) has no
-such item. **Owner:** `skein/docs/design/llm/README.md`, 2.5.
+such item. **Owner:** `skein/docs/design/llm/vocabulary.md`, 1.5.
 **Suggest:** have the LLM designer own the proposed failure-vocabulary
 extension, with the benchmark retaining its null-reporting consequence.
 Moving the benchmark's entire wording upstream would carry downstream

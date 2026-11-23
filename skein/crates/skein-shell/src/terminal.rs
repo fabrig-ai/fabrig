@@ -1,4 +1,4 @@
-//! Startup terminal modes and window sizes (runtime/shell.md, section 6.3).
+//! Startup terminal modes and window sizes (runtime/shell-startup.md, section 1.3).
 use skein_io::kernel::{Error, Fd, Size};
 
 /// Whether interrupt keys keep their terminal signals once raw.
@@ -45,13 +45,13 @@ pub fn raw_input(input: Fd, keys: Keys) -> Result<Input, Error> {
 }
 /// Opens the process's controlling terminal, `/dev/tty`, for reading and
 /// writing, close-on-exec, never making it a controlling terminal
-/// (runtime/shell.md, 6.3). The caller owns the descriptor.
+/// (runtime/shell-startup.md, 1.3). The caller owns the descriptor.
 pub fn open_terminal() -> Result<Fd, Error> {
     crate::system::terminal::open_terminal()
 }
 /// Makes the caller's process group the foreground group of `terminal`,
 /// with SIGTTOU blocked for the call, so that a background group may take
-/// it (runtime/shell.md, 6.3).
+/// it (runtime/shell-startup.md, 1.3).
 pub fn take_foreground(terminal: Fd) -> Result<(), Error> {
     crate::system::terminal::take_foreground(terminal)
 }
@@ -71,7 +71,7 @@ impl Kept {
     }
 
     /// Writes `leave` to `output` with blocking writes, then restores the kept modes.
-    /// Errors are ignored: this runs inside a panic (runtime/shell.md, 6.3).
+    /// Errors are ignored: this runs inside a panic (runtime/shell-startup.md, 1.3).
     /// Take the function back from the hook before calling [`Self::restore`].
     pub fn on_abort(&self, output: Fd, leave: &'static [u8]) -> Box<dyn Fn() + Send + Sync> {
         let fd = self.fd;

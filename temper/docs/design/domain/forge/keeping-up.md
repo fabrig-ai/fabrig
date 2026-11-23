@@ -185,14 +185,14 @@ part:
   of its timed reads. It is long enough because a change waits on its
   dependencies or its producer for many minutes, through which `slow`'s
   40 seconds read an absent branch, and through it the repository's
-  row (skein's `forge/connection.md`, 4.2), about seven times in five
+  row (skein's `forge/connection-calls.md`, 1.2), about seven times in five
   minutes for nothing. `fallback_ms` 0 keeps `slow` and `queue_window`.
 - **Hints** come from the forge's webhook deliveries, or a GitHub App's
   delivery log (`../../protocol/forge/README.md`, section 4 and 4.1). Every hint
   goes to the client, temper's own echoes among them, which keep their
   repository hearing. The client reads on every hint it holds a
   resource for, and drops the news temper's own writes cause by its
-  echo ledger and keys (skein's `forge/client.md`, 4 and 7.6); a hint's
+  echo ledger and keys (skein's `forge/client.md`, 4, and `forge/client-effects.md`, 1.6); a hint's
   pusher is used for drift alone.
 - **Which change a hint wakes:** within its repository, a named branch
   wakes changes with that head branch or landing base; a commit is
@@ -221,7 +221,7 @@ part:
 - **temper's own polls fall back too.** A landing's or a tier's flight
   polling its runs in flight (`../landing-proof.md`, 2.1; `../after-landing-runs.md`,
   section 2), a landing waiting on a fact it lacks (`../landing-prepare.md`, 1.2)
-  and a queued merge's look (skein's `forge/client.md`, 7.7)
+  and a queued merge's look (skein's `forge/client-effects.md`, 1.7)
   are due at `Domain::poll_at` for their repository with `poll`, so
   while it hears they come at the later of `poll` and its last hint
   plus `fallback`. A job's delivery still wakes its flight at once.
@@ -436,7 +436,7 @@ for it, never a read of another kind or another party's.
   ancestry range by the rule above, never `Read::Compare`: `Read::Commits
   { before: container, after: contained, page: 1 }`, the commits the
   contained one has that the container lacks. On Forgejo that is one
-  comparison with `files=false` (skein's `forge/forgejo.md`, 1.2), so a branch
+  comparison with `files=false` (skein's `forge/forgejo-operations.md`, 1), so a branch
   however far ahead of and behind the other answers in a page, and no
   file's name or side is read. Complete and empty, it is contained; a
   range that lists a commit, whether or not more follow, or one the forge
@@ -454,7 +454,7 @@ for it, never a read of another kind or another party's.
     drift; unknown, the reread fails as any failed reread does.
 - **CI on a commit** is read as its checks, skein's `Read::Checks`: the
   commit statuses and, on GitHub, the check runs, each a row with its
-  context and verdict (skein's `forge/forgejo.md`, 1.2; `skein/docs/design/forge/github.md`, 4.4),
+  context and verdict (skein's `forge/forgejo-operations.md`, 1; `skein/docs/design/forge/github-operations.md`, 1.4),
   never the combined status alone, which on GitHub stays pending with no
   status at all while Actions' check runs end. Which rows are CI is the
   adoption's: where the landing branch's rules name required checks
@@ -473,10 +473,10 @@ for it, never a read of another kind or another party's.
   its statuses, each context's latest, so its CI reads as before.
 - **Each commit's CI is read once in a gather.** A pull request's read
   asks for its CI only where its reader uses it, and `PullFor` reads
-  none (skein's `forge/README.md`, 3.2). In a change's gather, where no
+  none (skein's `forge/vocabulary.md`, 1.2). In a change's gather, where no
   required checks are named and its pull request is known by number,
   the pull request is read with its CI, which folds every row of its
-  head as `Checks` does (skein's `forge/github.md`, 4.4), and that is the
+  head as `Checks` does (skein's `forge/github-operations.md`, 1.4), and that is the
   head's CI when the pull request is at the head: no `Read::Checks` of
   the head is made. Otherwise, required checks named, the pull request
   found by `PullFor`, or the pull request at another commit, the pull
@@ -495,7 +495,7 @@ for it, never a read of another kind or another party's.
   not once each. A landing's gather reads each branch and each pull
   request once, however many of its members name it.
 - **The repository's own facts are read once** and kept by the forge
-  component (skein's `forge/connection.md`, 4.2): its settings answer
+  component (skein's `forge/connection-calls.md`, 1.2): its settings answer
   `Settings` with no request, the agents' `read_forge what=settings` among them,
   until a redirect, a `404` that is no answer, a merge refused its style
   or a write refused `Forbidden` drops them, each the forge's word that

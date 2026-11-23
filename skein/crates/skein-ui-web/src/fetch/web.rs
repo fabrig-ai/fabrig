@@ -1,5 +1,5 @@
 //! Window fetch carries exchanges; the pure half bounds and retires answers.
-//! The loop asks each next piece (skein/docs/design/ui/web/README.md, 4.2 and 8).
+//! The loop asks each next piece (skein/docs/design/ui/web/README.md, 4.2, and skein/docs/design/ui/web/effects.md, 1).
 use super::{Cache, Exchange, Report};
 use crate::inbox::Inbox;
 use skein_lib::usize_of;

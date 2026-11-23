@@ -112,7 +112,7 @@ iteration. Any other error says the socket no longer listens, and stops
 it.
 
 **A held listener.** A listening socket opened before the loop, by the
-service's startup or inherited from its parent (../shell.md, 6.6), is
+service's startup or inherited from its parent (../shell-startup.md, 1.6), is
 adopted with the address it is bound to,
 `Io::adopt_listener(fd: Fd, addr: SocketAddr) -> Result<Token, Fd>`, and
 held: io arms no accept on it, and the kernel queues the connections it
@@ -142,8 +142,8 @@ takes in its backlog until someone accepts.
 - **Refused,** the caller keeping the descriptor (`Err(fd)`) as every
   adoption does: on a full slab, which counts it among
   `Limits::sockets`, and when a listener at the same address is already
-  held. io checks nothing of the socket itself: startup has (../shell.md,
-  6.6).
+  held. io checks nothing of the socket itself: startup has (../shell-startup.md,
+  1.6).
 - **Its events.** Unclaimed, the held listener's token is its own
   owner, as an adopted pipe's is: its `Closed` names it. Claimed, its
   events are the claimant's. One never claimed is closed at io's close
@@ -156,7 +156,7 @@ takes in its backlog until someone accepts.
 
 ## 3. The stream
 
-Sockets and write pipes also expose ../lib.md, section 7.1's independent
+Sockets and write pipes also expose ../lib-streams.md, section 1.1's independent
 output reservations through `Request::Output` and `Event::Output`. They
 keep one pending or granted output token beside the classic demand; a
 read-only demand remains live while that output progresses. The native
@@ -256,10 +256,10 @@ it, and by `resume` after a request in the down pass
    never be met, or none is and the intake is empty;
 3. a `Recv`, if none is in flight and the intake has room again.
 
-io keeps the contract of a stream (../lib.md, 7) as the side below:
+io keeps the contract of a stream (../lib-streams.md, 1) as the side below:
 
 - **A demand is answered at most once:** by `Bytes`, what its read asks
-  for (../lib.md, 7: exactly, or for a read of what has arrived, what the
+  for (../lib-streams.md, 1: exactly, or for a read of what has arrived, what the
   intake holds up to its maximum), or by `Room`, whichever io can give
   first; either answer ends it, and nothing is outstanding until the side
   above states its next. The side above states its next demand only after
@@ -297,7 +297,7 @@ io keeps the contract of a stream (../lib.md, 7) as the side below:
   output counts a `Send` in flight until all of it is sent. A `Send` past
   the output cap or `Limits::sends`, or after `Finish`, is the layer
   above's bug, asserted; so is room demanded after `Finish`.
-- **A `Send` is within the room granted** (../lib.md, 7), and io holds the
+- **A `Send` is within the room granted** (../lib-streams.md, 1), and io holds the
   layer above to it: each open stream keeps what its last `Room` granted,
   less what was sent since. `Room` sets it to the room asked for, each
   `Send` must fit within it and spends it, and a demand for no room leaves

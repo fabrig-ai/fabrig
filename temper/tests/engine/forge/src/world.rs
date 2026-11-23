@@ -178,6 +178,10 @@ pub struct World {
     serial: u64,
     generation: u64,
     seed: u64,
+    iteration: u64,
+    finding: Option<String>,
+    // Output accepted by the scripted root, not yet answered with that task's next step.
+    owed: BTreeSet<u64>,
     engine_seed: u64,
     ledger: FaultLedger,
     blame: Option<blame::Blame>,
@@ -896,6 +900,9 @@ impl World {
             serial: 0,
             generation: 1,
             seed,
+            iteration: 0,
+            finding: None,
+            owed: BTreeSet::new(),
             engine_seed,
             ledger: FaultLedger::new(),
             blame: None,
@@ -1227,6 +1234,24 @@ impl World {
 
     pub fn event(&mut self, event: top::Event) {
         self.handed_tasks(&event);
+        match &event {
+            top::Event::StepChange { task, .. } | top::Event::StepLanding { task, .. } => {
+                self.owed.remove(task);
+            }
+            top::Event::Change { row } => {
+                self.owed.insert(row.task);
+            }
+            top::Event::Landing { row } => {
+                self.owed.insert(row.landing.task);
+            }
+            top::Event::Restore { record } => {
+                let task = Self::restored_task(record);
+                if let Some(task) = task {
+                    self.owed.insert(task);
+                }
+            }
+            _ => {}
+        }
         self.observe_blame_event(&event);
         top::step(&mut self.top, &self.env, event, &mut self.top_out);
         self.take_top();
@@ -1465,8 +1490,19 @@ impl World {
         self.stored.insert(top::Key::Landing(task), top::Stored::Landing(row)).expect("existing landing");
         self.restart();
     }
+    fn restored_task(record: &top::Stored) -> Option<u64> {
+        match record {
+            top::Stored::Change(row) => Some(row.task),
+            top::Stored::ChangeCold(row) => Some(row.task),
+            top::Stored::ChangeHot(row) => Some(row.task),
+            top::Stored::Landing(row) => Some(row.landing.task),
+            _ => None,
+        }
+    }
+
     pub fn restart(&mut self) {
         self.generation += 1;
+        self.owed.extend(self.stored.iter().filter_map(|(_, record)| Self::restored_task(record)));
         let config = self.restore_config();
         let (restored, mut output) = config.restored(&self.stored);
         self.top = restored;
@@ -1746,7 +1782,47 @@ impl World {
         panic!("world did not reach horizon");
     }
 
+    /// The adapter's frozen view, shared by the quiet-point check and its own tests.
+    #[must_use]
+    pub fn inspection(&self) -> skein_world::inspect::Inspection {
+        let mut inspection = skein_world::inspect::Inspection::new("engine", temper_engine_inspect::KINDS);
+        temper_engine_inspect::forge(&self.top, &mut inspection);
+        inspection
+    }
+
+    /// Return the run's first finding, or check its current frozen state.
+    pub fn check(&self) -> Result<(), String> {
+        if let Some(finding) = &self.finding {
+            return Err(finding.clone());
+        }
+        let frozen = self.inspection();
+        let mut inspection = skein_world::inspect::Inspection::new("engine", temper_engine_inspect::KINDS);
+        for wait in frozen.waits() {
+            let mut wait = wait.clone();
+            if self.owed.iter().any(|task| wait.waiter == format!("task {task}")) {
+                wait.wakes.push(skein_world::inspect::Wake::Party("root".into()));
+            }
+            inspection.wait(wait);
+        }
+        for table in frozen.tables() {
+            inspection.table(table.clone());
+        }
+        let moment = skein_world::inspect::Moment { seed: self.seed, at: self.env.now, iteration: self.iteration };
+        let waits = skein_world::inspect::check_waits(&[&inspection], moment);
+        let tables = skein_world::inspect::check_tables(&[&inspection], moment);
+        waits.and(tables)
+    }
+
     fn iterate(&mut self, end: Time) -> bool {
+        let more = self.iterate_inner(end);
+        if let Some(finding) = &self.finding {
+            panic!("{finding}");
+        }
+        more
+    }
+
+    fn iterate_inner(&mut self, end: Time) -> bool {
+        self.iteration = self.iteration.saturating_add(1);
         self.copy_fell();
         self.stop_sweep_faults();
         if let Some((generation, event)) = self.to_top.pop() {
@@ -1797,6 +1873,10 @@ impl World {
             self.take_top();
             self.top.reclaim();
         } else {
+            if let Err(finding) = self.check() {
+                self.finding = Some(finding);
+                return false;
+            }
             if self.env.now >= end {
                 return false;
             }
@@ -1943,6 +2023,12 @@ impl World {
                     };
                     self.seen.push(top::Request::RestartDone { stage }).expect("world output capacity");
                 }
+                other @ (top::Request::ChangeDecision { task, .. }
+                | top::Request::LandingDecision { task, .. }
+                | top::Request::WakeProcedure { task }) => {
+                    self.owed.insert(task);
+                    self.seen.push(other).expect("world output capacity");
+                }
                 other @ (top::Request::Bound { .. }
                 | top::Request::PlaygroundActs { .. }
                 | top::Request::ResetAct { .. }
@@ -1982,13 +2068,11 @@ impl World {
                 | top::Request::ReleaseFailed { .. }
                 | top::Request::StepDependents { .. }
                 | top::Request::CloserChecked { .. }
-                | top::Request::WakeProcedure { .. }
                 | top::Request::ProjectAfter { .. }
                 | top::Request::ProjectionSettled { .. }
                 | top::Request::GoalUntopic { .. }
                 | top::Request::ProjectionFailed { .. }
                 | top::Request::LandingNews { .. }
-                | top::Request::LandingDecision { .. }
                 | top::Request::Decided { .. }
                 | top::Request::StatusRun { .. }
                 | top::Request::TierRun { .. }
@@ -1997,7 +2081,6 @@ impl World {
                 | top::Request::FileVerdict { .. }
                 | top::Request::ReturnFinding(_)
                 | top::Request::FailRepair { .. }
-                | top::Request::ChangeDecision { .. }
                 | top::Request::Reviewed { .. }
                 | top::Request::News { .. }
                 | top::Request::Read { .. }

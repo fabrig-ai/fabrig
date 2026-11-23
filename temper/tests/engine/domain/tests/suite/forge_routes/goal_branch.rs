@@ -7,6 +7,8 @@ use jig_domain_link::EndpointBound;
 #[path = "goal_branch/room.rs"]
 mod room;
 
+pub(crate) use room::passed_making;
+
 const FORGE_CONNECTOR: u16 = 0;
 const OWN_GOAL_BRANCH: u16 = 1; // temper/docs/design/domain/forge/README.md, 2, Symbols.
 const GOAL_REQUEST: u8 = 92;

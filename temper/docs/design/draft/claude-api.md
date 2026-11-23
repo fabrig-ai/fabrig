@@ -55,10 +55,10 @@ user, 2026-11-11). temper/migration carries it out. The reasons are
 - **A subscription reaches Claude through Claude Code alone,** as its
   publisher ships it (smith's `protocol/programs.md`, section 6).
 - **The direct backend can't take one:** it sends its credential as
-  `x-api-key` with no `Authorization` field (skein's `llm/README.md`,
-  4.7), which a Claude.ai token does not authenticate, and no page or
+  `x-api-key` with no `Authorization` field (skein's `llm/wire.md`,
+  1.7), which a Claude.ai token does not authenticate, and no page or
   command offers to paste one. A key's words say where a key comes from
-  (section 6).
+  (`claude-api.md`, section 6).
 
 ## 3. The provider
 
@@ -69,7 +69,7 @@ What is there:
   `protocol/programs.md`, sections 1 and 3). The direct backend's
   Anthropic dialect is skein's LLM client's: streaming, tool calls,
   adaptive thinking with an effort, cache marks and usage (skein's
-  `llm/README.md`, 4.7).
+  `llm/wire.md`, 1.7).
 - **A key's way through:** jig keeps a key in its secrets' store and
   grants it as a key (`../protocol/credentials-llm-accounts.md`, section 1).
 - **`ctl` adds keys** to any provider that offers them
@@ -141,8 +141,8 @@ What step 1 adds:
 - **Cache prices become Anthropic's,** as read on 2026-11-11: a cache
   read $0.20 per million tokens for Opus 5.5 and Sonnet 5.5, $0.25 for
   Fable 5.1; a cache write 1.25 times the input price, for the
-  five-minute cache smith's marks ask for (skein's `llm/README.md`,
-  4.7). The stock prices cached input as input and a write not at all,
+  five-minute cache smith's marks ask for (skein's `llm/wire.md`,
+  1.7). The stock prices cached input as input and a write not at all,
   its providers' pages giving no figure (`../protocol/configuration/stock.md`);
   Anthropic's does, and a key pays it.
 - **The same figures for both ways:** a subscription's runs bill nobody,
@@ -150,7 +150,7 @@ What step 1 adds:
   budget means the same whichever way a run took.
 - **The output:** the stock's 8,192 bounds thinking and the answer
   together on the direct route, since `max_tokens` is the declared
-  output (skein's `llm/README.md`, 4.7). Whether Claude's models declare
+  output (skein's `llm/wire.md`, 1.7). Whether Claude's models declare
   more, up to Anthropic's 128,000, M1's design weighs against the
   agent's largest turn, which a larger output raises (`model-catalogue.md`,
   section 2); the walk after landing shows whether a delegated change at
@@ -172,7 +172,7 @@ What step 1 adds:
   check passes over for the login, and the deployment's key, which the
   check doesn't try, are proven by the first run that takes them, as an
   OpenAI key added through `ctl` is; a refused key says so on its
-  source (skein's `llm/README.md`, 4.7).
+  source (skein's `llm/wire.md`, 1.7).
 - **The pages draw it where they draw OpenAI's key**
   (`../client/pages/accounts-words.md`, section 1): with two providers offering
   keys, the ways read "Use an OpenAI API key" and "Use an Anthropic API
@@ -193,8 +193,8 @@ focused test of the dialect:
   `disabled`, which these models refuse at every effort. An effort
   that turns thinking off is not offered for them.
 - **No forced tool and no sampling settings:** `tool_choice` never
-  `any` or a named tool, as skein's dialect has it (`llm/README.md`,
-  4.7), and no `temperature`, `top_p` or `top_k`.
+  `any` or a named tool, as skein's dialect has it (`skein/docs/design/llm/wire.md`,
+  1.7), and no `temperature`, `top_p` or `top_k`.
 - **The effort is always sent:** Opus 5.5's own default is `medium`,
   below the stock's `high`.
 - **History only grows:** for an Anthropic account made on or after

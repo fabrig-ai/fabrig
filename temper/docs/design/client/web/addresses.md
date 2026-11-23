@@ -180,7 +180,7 @@ The browser's addresses and navigation are split from [the browser overview](REA
 - **A heading drawn after its page** (the answer of 2026-11-06 to the
   `ui-composer-focus` task `composer-focus`): a new entry whose level-1 heading
   isn't drawn yet, as a chat's isn't until its task is read, has the focus on the
-  main (skein's `ui/web/README.md`, 5). When the heading is drawn, the shell moves the focus from the
+  main (skein's `ui/web/patches.md`, 1). When the heading is drawn, the shell moves the focus from the
   main to it, unless the focus has moved meanwhile: a focus placed since keeps its
   place, even back on the main, and a focus request ends the wait. While
   `me` is read the main is empty and marked busy (`../view.md`, 1), so a
@@ -200,6 +200,6 @@ The browser's addresses and navigation are split from [the browser overview](REA
   rendered browser result. The TUI's own flow and walk follow
   `../../draft/tui.execution.md`, M2.
 - **A heading drawn after its page, in skein's reference** (`addresses.md`, 1): the kit's rule
-  stops at the main (skein's `ui/web/README.md`, 5), and any application whose page reads
+  stops at the main (skein's `ui/web/patches.md`, 1), and any application whose page reads
   before it draws its heading meets what this shell repairs. Default: this shell's
   alone, until a second application writes the same.

@@ -1,4 +1,4 @@
-//! Actions status job attempts and verified logs (skein/docs/design/forge/forgejo.md, 1.2).
+//! Actions status job attempts and verified logs (skein/docs/design/forge/forgejo-operations.md, 1).
 use crate::api;
 use crate::forgejo::plans::{
     Body, Heard,
@@ -334,7 +334,7 @@ impl Plan {
     #[expect(
         clippy::wildcard_enum_match_arm,
         clippy::manual_let_else,
-        reason = "the exchange's decoder picks the kind: forge/README.status.md, 4.2"
+        reason = "the exchange's decoder picks the kind: forge/dialects.status.md, 1.2"
     )]
     fn done(&mut self, state: State, body: Body) -> Result<(State, Option<Step>), api::Error> {
         let state = match state {

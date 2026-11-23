@@ -83,8 +83,8 @@ This document holds the Model step, split from [`welcome.md`](welcome.md).
       browser alone: a quiet "Copy" in the block's top right corner, whose
       right padding keeps the text from running under it at every width. A
       press writes the command's exact text, as one line, an effect asked in
-      the press's own turn (skein's `ui/README.md`, section 11; `skein/docs/design/ui/web/README.md`, section
-      9). It reads "Copied" for 2 s. On plain http, where a browser has no
+      the press's own turn (skein's `ui/README.md`, section 11; `skein/docs/design/ui/web/effects.md`, section
+      2). It reads "Copied" for 2 s. On plain http, where a browser has no
       clipboard, and on any refusal or failure, it reads "Couldn’t copy" for
       2 s, and the text stays selectable. A press within the 2 s writes again,
       and an answer to an earlier press says nothing. The terminal has no

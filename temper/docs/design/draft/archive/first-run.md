@@ -243,7 +243,7 @@ With the user, 2026-10-23. Amends 3.9; the mechanics are
 
 | Piece | Its home | Useful alone for |
 |---|---|---|
-| A command's arguments, environment and defaults (3.1) | skein: `skein/docs/design/runtime/shell.md`, 6.5 | every binary of every repository |
+| A command's arguments, environment and defaults (3.1) | skein: `skein/docs/design/runtime/shell-startup.md`, 1.5 | every binary of every repository |
 | Configuration, data and cache directories (3.2) | temper: `../../protocol/configuration/README.md`; jig for its parts' paths | every deployment, with or without the box |
 | `temper init` (3.3) | temper: `../../protocol/setup/init.md` | a person, a test or QA starting a deployment |
 | The fakes as product crates (3.5) | skein: `crates/`, from `testing/` | QA, the real loop, demos, a person trying a charter |
@@ -254,7 +254,7 @@ With the user, 2026-10-23. Amends 3.9; the mechanics are
 
 ### 3.1 Arguments, environment and defaults
 
-skein's rule for every binary (skein's `runtime/shell.md`, 6.5, landed
+skein's rule for every binary (skein's `runtime/shell-startup.md`, 1.5, landed
 2026-10-20): a flag over an environment variable, `TEMPER_<NAME>`, over
 a default; directories defaulting to XDG's base directories. temper's
 commands adopt it with their next change.
@@ -406,7 +406,7 @@ experience; good defaults for a person's real work are open (section 8).
 ## 5. Order
 
 1. **The arguments' rule:** its function in skein's shell (its design
-   landed, `skein/docs/design/runtime/shell.md`, 6.5); each binary adopts it with its own next
+   landed, `skein/docs/design/runtime/shell-startup.md`, 1.5); each binary adopts it with its own next
    change.
 2. **Directories, `temper init`, the box changed,** on the default
    document without the fakes: the person signs into an empty project.
@@ -422,7 +422,7 @@ experience; good defaults for a person's real work are open (section 8).
    wording; and the first run's ports, each step's listener held by the
    box from its start and given to the step (3.3; ../../protocol/setup/box.md, 1), which
    rests on skein holding, giving and adopting a listener (skein's
-   `runtime/io/sockets.md`, 2, and `runtime/io/processes.md`, 3; `skein/docs/design/runtime/shell.md`, 6.6), Forgejo's on Linux, where
+   `runtime/io/sockets.md`, 2, and `runtime/io/processes.md`, 3; `skein/docs/design/runtime/shell-startup.md`, 1.6), Forgejo's on Linux, where
    forge run stays its parent (../../protocol/setup/owned.md, 4). Built; the process tier
    walks it whole on fresh scratch, the playground then a Forgejo set up
    from the client, with no restart (../../protocol/setup/testing.md, 4, "The first run
