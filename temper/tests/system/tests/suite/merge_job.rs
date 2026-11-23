@@ -83,6 +83,21 @@ fn a_changes_merge_job_runs_on_its_worker() {
     }
 }
 
+#[test]
+fn a_merge_in_progress_is_pushed_once_with_the_head_and_moved_base() {
+    let report = World::merge_job(958, Row::MovedBase).run_merge_job();
+    assert_ne!(report.base_before_move.expect("another party moved the base"), report.base);
+    assert_eq!(report.failures, 0, "{report:?}");
+    assert!(report.command_found);
+    assert_eq!(report.merge_head.as_deref(), Some(report.base.to_le_bytes().as_slice()), "merge in progress");
+    assert_eq!(report.conflicts, [b"FILE".to_vec()]);
+    assert_eq!(report.tree.get(b"FILE".as_slice()).map(Vec::as_slice), Some(b"settled\n".as_slice()));
+    assert_eq!(report.pushes, 1, "the merge job pushes once");
+    assert_ne!(report.branch, report.head);
+    assert_eq!(report.parents, [report.head, report.base]);
+    assert_eq!(report.continued, Some(commit(report.branch).raw()));
+}
+
 fn hex(commit: u64) -> String {
     let mut text = String::new();
     for byte in skein_fake_forge_domain::object_bytes(commit) {

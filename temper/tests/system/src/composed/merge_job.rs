@@ -18,6 +18,7 @@ pub enum Row {
     Clean,
     OtherBranch,
     PastTheBound,
+    MovedBase,
 }
 
 /// What a row's run showed, read from the store, the fake forge and the fake disk.
@@ -27,6 +28,8 @@ pub struct MergeJobReport {
     pub failures: u32,
     pub branch: u64,
     pub parents: Vec<u64>,
+    pub pushes: usize,
+    pub base_before_move: Option<u64>,
     pub program: Vec<u8>,
     pub args: Vec<Vec<u8>>,
     pub request: Vec<u8>,
@@ -63,6 +66,8 @@ pub(super) struct Story {
     pub(super) clean_answered: bool,
     declared: Vec<JobBound>,
     job: Option<u64>,
+    pushes: usize,
+    base_before_move: Option<u64>,
     spawn: Option<Spawn>,
     cached_repository: Option<Vec<u8>>,
     base_present_before: Option<bool>,
@@ -136,12 +141,14 @@ impl World {
     /// A project naming `.temper/merge`, both roots declaring production's merge kind.
     #[must_use]
     pub fn merge_job(seed: u64, row: Row) -> Self {
+        let changes = if row == Row::MovedBase {
+            br#"{"words":"Write the first FILE","landing":"goal"}"#.as_slice()
+        } else {
+            br#"{"changes":[{"words":"Write the first FILE","landing":"goal"},{"words":"Advance the goal FILE","landing":"goal"}]}"#.as_slice()
+        };
         let goal = Script {
             cue: b"Help the person with their work.".as_slice().into(),
-            turns: Box::new([
-                call(b"change", br#"{"changes":[{"words":"Write the first FILE","landing":"goal"},{"words":"Advance the goal FILE","landing":"goal"}]}"#),
-                call(b"wait", b"{}"),
-            ]),
+            turns: Box::new([call(b"change", changes), call(b"wait", b"{}")]),
         };
         let declared = config(seed).core.jobs.to_vec();
         let mut world = Self::configured_with(seed, goal.clone(), true, config);
@@ -161,6 +168,8 @@ impl World {
             clean_answered: false,
             declared,
             job: None,
+            pushes: 0,
+            base_before_move: None,
             spawn: None,
             cached_repository: None,
             base_present_before: None,
@@ -208,6 +217,8 @@ impl World {
             failures,
             branch: head,
             parents: Vec::new(),
+            pushes: story.pushes,
+            base_before_move: story.base_before_move,
             program: spawn.program.clone(),
             args: spawn.args.clone(),
             request: spawn.request.clone(),
@@ -287,7 +298,14 @@ impl World {
                     .expect("producer's cached clone holds its delivery");
                 self.merge_job.as_mut().expect("merge story").cached_repository = Some(repository);
             }
-            let base = self.advance_goal_for_producer(&landing);
+            let base = if self.merge_story().row == Row::MovedBase {
+                let before = self.forge.branch(REMOTE, &landing).expect("original base");
+                self.merge_job.as_mut().expect("merge story").base_before_move = Some(before);
+                // An outside party moves the base while the producer's delivery is held.
+                self.forge.advance(REMOTE, &landing, b"FILE", b"base\n")
+            } else {
+                self.advance_goal_for_producer(&landing)
+            };
             let story = self.merge_job.as_mut().expect("merge story");
             story.base = Some(base);
             let answer = story.held.take().expect("held answer");
@@ -424,6 +442,9 @@ impl World {
         let Some(story) = &mut self.merge_job else { return };
         if story.job.is_none() {
             return;
+        }
+        if matches!(op, Op::Push { .. }) {
+            story.pushes += 1;
         }
         if let Op::Fetch { at, want: Want::Commit { commit }, .. } = op {
             let base = story.base.expect("job's base");

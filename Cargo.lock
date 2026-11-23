@@ -8422,6 +8422,8 @@ dependencies = [
  "smith-host-domain",
  "smith-protocol-channel",
  "smith-protocol-llm",
+ "smith-protocol-llm-fixtures",
+ "smith-protocol-llm-world",
  "smith-transcript",
  "temper-agent-fixtures",
  "temper-engine-domain",

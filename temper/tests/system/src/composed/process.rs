@@ -8,11 +8,12 @@
 
 use std::collections::VecDeque;
 
+use super::{Agent, provider::Provider};
 use jig_domain_host as host;
 use skein_fake_checkout::Checkout as Disk;
 use skein_fake_llm_domain::api::Script;
 use skein_lib::{Duration, ReplyTo, Time, Token};
-use smith_agent_world::{Job, Settings, World as Agent};
+use smith_agent_world::{Job, Settings};
 use smith_domain as smith;
 use smith_domain_run as run;
 use smith_domain_session::{llm, record};
@@ -35,6 +36,9 @@ pub(crate) struct Process {
     seed: u64,
     /// Let the composed clock reach each Smith deadline before driving it.
     pub(super) clocked: bool,
+    pub(super) wire: bool,
+    previous_provider: Option<Box<Provider>>,
+    sent_queries: usize,
     clock_start: Option<Time>,
     /// The fake LLM's script, extended by each resumed activation.
     pub(super) script: Script,
@@ -108,6 +112,7 @@ impl Producer {
 
 /// What a process request needs of the world around it.
 pub(crate) struct Around<'a> {
+    pub(crate) now: Time,
     pub(crate) events: &'a mut VecDeque<worker::Event>,
     pub(crate) observed: &'a mut Observed,
     pub(crate) disk: &'a mut Checkout,
@@ -120,7 +125,7 @@ impl Process {
     pub(super) fn strike(&mut self, credential: u32, strike: skein_fake_llm_domain::api::Strike) {
         if let Some(agent) = &mut self.agent {
             let now = agent.now();
-            agent.provider_mut().strike(credential, strike.clone(), now).expect("account fault fits");
+            agent.backend_mut().strike(credential, strike.clone(), now);
             self.struck_at = Some(now);
         }
         self.strikes.push((credential, strike));
@@ -128,7 +133,8 @@ impl Process {
 
     pub(super) fn clear(&mut self, credential: u32, strike: &skein_fake_llm_domain::api::Strike) {
         if let Some(agent) = &mut self.agent {
-            agent.provider_mut().clear(credential, strike);
+            let now = agent.now();
+            agent.backend_mut().clear(credential, strike, now);
         }
         self.strikes.retain(|(account, held)| *account != credential || held != strike);
     }
@@ -141,6 +147,9 @@ impl Process {
             charter: Box::default(),
             seed,
             clocked: false,
+            wire: false,
+            previous_provider: None,
+            sent_queries: 0,
             clock_start: None,
             script,
             history: None,
@@ -194,18 +203,21 @@ impl Process {
     /// The next activation, with smith's concrete history and more script.
     pub(crate) fn resume(&mut self, script: Script) {
         let agent = self.agent.as_ref().expect("parked activation");
-        let mut history = self.history.clone();
+        let mut history = self.history.take();
         if matches!(
             agent.answer(),
-            run::Answer::Parked { .. } | run::Answer::Failed { failure: run::RunFailure::Cancelled, .. }
+            run::Answer::Parked { .. }
+                | run::Answer::Failed { failure: run::RunFailure::Cancelled | run::RunFailure::Model(_), .. }
         ) {
-            let mut current = crate::world::transcript(agent);
-            if let Some(previous) = history {
-                let mut turns = previous.turns.to_vec();
-                turns.extend(current.turns);
-                current.turns = turns.into_boxed_slice();
+            if !agent.turns().is_empty() {
+                let mut current = crate::world::transcript(agent);
+                if let Some(previous) = history {
+                    let mut turns = previous.turns.into_vec();
+                    turns.extend(current.turns);
+                    current.turns = turns.into_boxed_slice();
+                }
+                history = Some(current);
             }
-            history = Some(current);
         } else {
             assert!(
                 matches!(agent.answer(), run::Answer::Failed { failure: run::RunFailure::Transcript(_), .. }),
@@ -213,12 +225,14 @@ impl Process {
                 agent.answer()
             );
         }
-        let fresh = if script.turns.is_empty() { self.fresh.clone() } else { Some(script.clone()) };
-        let mut turns = self.script.turns.to_vec();
+        let fresh = if script.turns.is_empty() { self.fresh.take() } else { Some(script.clone()) };
+        let mut turns = std::mem::take(&mut self.script.turns).into_vec();
         turns.extend(script.turns);
-        let script = Script { cue: self.script.cue.clone(), turns: turns.into_boxed_slice() };
+        let script = Script { cue: std::mem::take(&mut self.script.cue), turns: turns.into_boxed_slice() };
         let history_messages = self.history_messages;
         let clocked = self.clocked;
+        let wire = self.wire;
+        let previous_provider = if wire { self.agent.take().map(|agent| Box::new(agent.into_backend())) } else { None };
         let tool_payload = self.tool_payload;
         let configure_settings = self.configure_settings;
         *self = Process::new(self.seed, script);
@@ -226,6 +240,8 @@ impl Process {
         self.fresh = fresh;
         self.history_messages = history_messages;
         self.clocked = clocked;
+        self.wire = wire;
+        self.previous_provider = previous_provider;
         self.tool_payload = tool_payload;
         self.configure_settings = configure_settings;
     }
@@ -403,7 +419,21 @@ impl Process {
         if let Some(configure) = self.configure_settings {
             configure(&mut settings);
         }
+        if self.wire {
+            let client = smith_protocol_llm_world::fixture::limits().client;
+            settings.limits.session.completion_blocks = client.output_items;
+            settings.limits.session.failure_bytes = client.detail_bytes;
+            settings.limits.session.completion_bytes = smith_protocol_llm_world::codec::completion_bound(
+                &smith_protocol_llm_world::fixture::limits().client,
+                settings.limits.decoded_call_bytes,
+            )
+            .expect("native completion room");
+        }
         let largest = smith::max_turn_bytes(&settings.limits).expect("bounded Smith turn");
+        let mut provider = Provider::new(&settings, self.script.clone(), self.wire, &start.grants);
+        if let Some(mut previous) = self.previous_provider.take() {
+            provider.continue_provider(&mut previous);
+        }
         let event = smith::Event::Start(smith::Start {
             reply_to: ReplyTo::new(Token::new(402)),
             host_run: start.logical_run,
@@ -417,10 +447,14 @@ impl Process {
             answered: answered(start.answered),
             grants: grants(&start.grants),
         });
-        let mut agent = Agent::with_workspace_scripts_start(settings, mounted, Box::new([self.script.clone()]), event);
+        let mut agent =
+            Agent::with_selected_backend(&settings, None, Box::default(), None, mounted, provider, None, Some(event));
         for (credential, strike) in &self.strikes {
-            agent.provider_mut().strike(*credential, strike.clone(), Time::ZERO).expect("account fault fits");
+            agent.backend_mut().strike(*credential, strike.clone(), Time::ZERO);
             self.struck_at = Some(Time::ZERO);
+        }
+        if self.wire {
+            agent.start_at(around.now);
         }
         agent.enable_parent_host_calls();
         agent.enable_parent_deliveries();
@@ -496,18 +530,28 @@ impl Process {
         // A composed clock waits for the outer world before firing a lower deadline.
         if self.clocked {
             let start = *self.clock_start.get_or_insert(now);
-            if agent.now() > Time::ZERO.saturating_add(now.saturating_since(start)) {
+            let allowed = if self.wire { now } else { Time::ZERO.saturating_add(now.saturating_since(start)) };
+            if agent.now() > allowed {
                 return;
             }
         }
         self.settled = agent.drive(1);
+        if self.wire {
+            for query in &agent.prompts()[self.sent_queries..] {
+                around.observed.queries.push((around.assignment.expect("query's assignment").task, now, query.clone()));
+            }
+            self.sent_queries = agent.prompts().len();
+        }
         for (_, grant) in &agent.unauthorized()[self.sent_unauthorized..] {
             self.up.push_back(agent::Up::Unauthorized { account: grant.account, generation: grant.generation });
         }
         self.sent_unauthorized = agent.unauthorized().len();
         for (_, notice) in agent.take_account_notices() {
             self.up.push_back(match notice {
-                smith_agent_world::AccountNotice::Limited { account, reset } => agent::Up::Limited { account, reset },
+                smith_agent_world::AccountNotice::Limited { account, reset } => {
+                    around.observed.limits.push((account, reset));
+                    agent::Up::Limited { account, reset }
+                }
                 smith_agent_world::AccountNotice::Refused { account, code, reason } => {
                     agent::Up::Refused { account, code, reason }
                 }
@@ -836,8 +880,7 @@ fn activation_settings(seed: u64, charter: &run::Charter, resumed: bool, receivi
     settings.resume = resumed;
     settings.budget = charter.budget;
     settings.limits.run.budget = charter.budget;
-    settings.limits.run.host_tools =
-        u32::try_from(temper_engine_smith::tools(Duration::from_secs(10)).len()).expect("tool count");
+    settings.limits.run.host_tools = crate::world::host_tool_count();
     settings.limits.run.brief_sections = 16;
     settings.limits.run.host_reply_bytes = 8192;
     settings.limits.session.spend = charter.budget.spend;

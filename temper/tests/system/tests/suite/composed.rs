@@ -68,6 +68,63 @@ fn an_open_chats_text_reply_ends_its_turn_after_one_call() {
 }
 
 #[test]
+fn an_open_chat_reads_then_replies_and_waits() {
+    use jig_domain_core::{CoreRecord, Record as CoreRecordRow};
+    use skein_fake_llm_domain::api::{Finish, Line, Part, Script, Turn};
+    use temper_system_world::composed::call;
+
+    let reply = b"Hello there.";
+    let script = Script {
+        cue: b"Complete the task within its authority.".as_slice().into(),
+        turns: Box::new([
+            call(b"read", br#"{"path":"README.md"}"#),
+            Turn {
+                lines: Box::new([
+                    Line::Text { text: reply.as_slice().into() },
+                    Line::Call { name: b"wait".as_slice().into(), arguments: b"{}".as_slice().into() },
+                ]),
+                finish: Finish::ToolCalls,
+                tokens: 20,
+            },
+        ]),
+    };
+    let mut world = World::open_chat_with_repository(957, script);
+    world.run();
+    assert_eq!(world.assignment().task, 1);
+    let [_, answer] = world.agent().prompts() else { panic!("one read, then one reply with wait") };
+    let read_content = format!("content: {:?}", b"The answer is 42.\n");
+    assert!(
+        answer.messages.iter().flat_map(|message| &message.parts).any(|part| {
+            matches!(part, Part::ToolOutput { output, is_error: false, .. }
+            if output.windows(read_content.len()).any(|bytes| bytes == read_content.as_bytes()))
+        }),
+        "the read result reaches the replying model"
+    );
+    assert_eq!(world.observed.turns, 2);
+    assert_eq!(world.observed.turn_acks, 2);
+    let mut turns: Vec<_> = world
+        .store
+        .rows
+        .values()
+        .filter_map(|row| match row {
+            Record::Core(CoreRecordRow::Core(CoreRecord::Turn(turn))) if turn.task == 1 => Some(turn),
+            _ => None,
+        })
+        .collect();
+    turns.sort_by_key(|turn| turn.turn);
+    assert_eq!(turns.len(), 2, "both turns are committed");
+    assert_eq!(turns[1].turn, 2);
+    assert!(turns[1].transcript.windows(reply.len()).any(|bytes| bytes == reply), "the reply is committed");
+    let Some(Record::Core(CoreRecordRow::Tasks(tasks::Stored::Live(live)))) =
+        world.store.rows.get(&Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Live(1))))
+    else {
+        panic!("task 1 remains live");
+    };
+    assert_eq!(live.phase, tasks::Phase::Active(tasks::Active::Idle));
+    assert_eq!(live.tries, tasks::Tries::NONE);
+}
+
+#[test]
 fn a_finite_chats_text_reply_is_nudged_and_finishes_with_its_report() {
     use jig_domain_core::{CoreRecord, Record as CoreRecordRow};
     use skein_fake_llm_domain::api::Part;
@@ -612,7 +669,7 @@ fn assert_review_failed(world: &World, task: u64) {
     assert!(matches!(row.phase, tasks::Phase::Ended(tasks::Ending::Failed { .. })));
 }
 
-fn assert_unfinished_reads(agent: &smith_agent_world::World) {
+fn assert_unfinished_reads(agent: &smith_agent_world::World<temper_system_world::composed::provider::Provider>) {
     use smith_domain_session::llm::{Block, Returned};
     assert!(matches!(
         agent.answer(),

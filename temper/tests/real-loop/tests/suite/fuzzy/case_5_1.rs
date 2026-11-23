@@ -1,4 +1,4 @@
-//! Retained first-edition story (testing/reference-case.md): held chat, retained question, fresh conventions.
+//! Retained first-edition story (testing/reference-case.md): a pushed guide reaches fresh checkouts.
 use temper_real_loop_world::{
     Exit,
     case::{
@@ -9,7 +9,7 @@ use temper_real_loop_world::{
 };
 
 #[test]
-fn a_held_director_keeps_the_owners_question_and_its_fresh_run_reads_the_new_rules() {
+fn released_runs_read_the_pushed_guide_without_the_dropped_rule() {
     // Leaves out the director's compaction budget and fresh context every third
     // check: its charter starts every run fresh. The four hours are a person's
     // release, never a timer; the new shape's rules are words checked, never
@@ -26,6 +26,6 @@ fn a_held_director_keeps_the_owners_question_and_its_fresh_run_reads_the_new_rul
     for (at, called) in ran.calls().iter().enumerate() {
         assert_eq!(called.exit, Some(Exit::Code(0)), "call {at}: {}", String::from_utf8_lossy(&called.stderr));
     }
-    let observed = Observed::from_ran(&ran, case::acts::READS_5_1);
+    let observed = Observed::from_ran(&ran, &[]);
     oracle::assert_met(&oracle::step_5_1(&observed));
 }
