@@ -262,6 +262,7 @@ pub fn each_domain(test: impl FnMut(crate::domain::Run, u64)) {
 pub fn each_scenario(scenario: &Scenario<'_>, mut test: impl FnMut(crate::domain::Run, u64)) {
     for seed in WORLD_SEEDS {
         test(crate::domain::Run::new(scenario, seed), seed);
+        skein_checks::count("seed", 1);
     }
 }
 #[must_use]

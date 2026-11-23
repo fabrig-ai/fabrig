@@ -98,6 +98,7 @@ const EVERY_NEIGHBOUR: [&str; 9] = [
 #[test]
 fn generated_and_mutated_documents_read_as_the_reference_reads_them_whatever_the_neighbours() {
     let mut tally = Seen::default();
+    let mut mutations = generate::MutationBatch::default();
     for round in 0..ROUNDS {
         let seed = 0x0050_0000 + round;
         let mut rng = Rng::new(seed);
@@ -107,15 +108,14 @@ fn generated_and_mutated_documents_read_as_the_reference_reads_them_whatever_the
             string: u32::try_from(rng.between(0, 16)).unwrap(),
         };
         let tokens = generate::tokens(&mut rng, shape);
-        let mut document = generate::render(&mut rng, &tokens);
-        if rng.chance(600) {
-            document = generate::mutate(&mut rng, &document);
-        }
+        let document = generate::render(&mut rng, &tokens);
+        let document = if rng.chance(600) { generate::mutate(&mut rng, &document) } else { document.into() };
         let limits = world::limits(&mut rng);
-        let settings = Settings::chaotic(&mut rng, limits, document.len());
-        let run = world::check(&document, &settings, seed);
+        let settings = Settings::chaotic(&mut rng, limits, document.input().len());
+        let run = mutations.judge(document, |document| world::check(&document, &settings, seed));
         record(&mut tally, &run, &settings);
     }
+    mutations.finish();
     tally.assert_fell(&EVERY_ERROR);
     tally.assert_fell(&EVERY_FAULT);
     tally.assert_fell(&EVERY_NEIGHBOUR);
@@ -126,6 +126,7 @@ fn transcripts_cut_mutated_and_failed_read_as_the_reference_reads_them() {
     let (hostile, realistic): (Vec<_>, Vec<_>) =
         transcript::all().into_iter().partition(|transcript| transcript.name.starts_with("hostile-"));
     let mut tally = Seen::default();
+    let mut mutations = generate::MutationBatch::default();
     for round in 0..ROUNDS / 4 {
         let seed = 0x0051_0000 + round;
         let mut rng = Rng::new(seed);
@@ -133,16 +134,15 @@ fn transcripts_cut_mutated_and_failed_read_as_the_reference_reads_them() {
         // mutate in many places.
         let transcripts = if rng.chance(800) { &realistic } else { &hostile };
         let transcript = &transcripts[usize::try_from(rng.below(transcripts.len() as u64)).unwrap()];
-        let mut document = transcript.document.clone();
-        if rng.chance(500) {
-            document = generate::mutate(&mut rng, &document);
-        }
+        let document = transcript.document.clone();
+        let document = if rng.chance(500) { generate::mutate(&mut rng, &document) } else { document.into() };
         let mut limits = transcript.limits;
         limits.chunk = u32::try_from(rng.between(1, 128)).unwrap();
-        let settings = Settings::chaotic(&mut rng, limits, document.len());
-        let run = world::check(&document, &settings, seed);
+        let settings = Settings::chaotic(&mut rng, limits, document.input().len());
+        let run = mutations.judge(document, |document| world::check(&document, &settings, seed));
         record(&mut tally, &run, &settings);
     }
+    mutations.finish();
     tally.assert_fell(&EVERY_ERROR);
     tally.assert_fell(&EVERY_FAULT);
     tally.assert_fell(&EVERY_NEIGHBOUR);

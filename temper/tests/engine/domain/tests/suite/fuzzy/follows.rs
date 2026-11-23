@@ -264,9 +264,7 @@ fn run_replayed(seed: u64) {
     replay.world.close();
 }
 fn shard(seeds: Range<u64>) {
-    for seed in seeds {
-        run_replayed(seed);
-    }
+    skein_world::sweep::each_seed(seeds, run_replayed);
 }
 #[test]
 fn fuzzy_follows_shard_0() {
