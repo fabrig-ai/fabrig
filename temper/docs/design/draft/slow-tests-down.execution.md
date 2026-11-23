@@ -14,7 +14,7 @@ One milestone, *slow tests at the gate*, of eighteen goals. Each lands into main
 | D4, skein's browser kit's bookkeeping, patch shapes and refused writes below the browser | 5.1 | skein | D1 | not started |
 | D5, jig's browser duplicates, provider lifetimes and process controls | 5.1, 5.3 | jig | none | not started |
 | D6, hearth's conformance duplicates and its builder world's render, diff, outcome and store matrix | 5.1, 5.2 | hearth | none | not started |
-| D7, `temper-box::suite`'s admission, configuration, startup and support checks | 5.2 | temper | none | not started |
+| D7, `temper-box::suite`'s admission, configuration, startup and support checks | 5.2 | temper | none | landed |
 | D8, `temper-box::suite`'s fake backends, relay, forge setup, landing launcher and listeners | 5.2 | temper | D7 | not started |
 | D9, `skein-codegen::suite`'s tables to its step tests, with an in-memory tree for the patch commands | 5.2 | skein | none | not started |
 | D10, `github-conformance::suite` to step and protocol tests on the fake, with a supplied file tree for its journal | 5.2 | skein | none | not started |

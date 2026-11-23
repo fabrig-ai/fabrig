@@ -224,6 +224,7 @@ forge, temper adds:
   - `testing/reference-case-changing-direction.md`: the case's change of direction.
   - `testing/reference-case-milestones.md`: the case's milestones and hand-offs.
   - `testing/worker.md`: the worker's inspection adapter, the faults of its disk and workspaces, and their sweeps.
+  - `testing/box/README.md`: where the box's own checks run, the facts they are handed at the shell's boundary, and what its slow binaries keep; its goal's contracts while it runs (`testing/box/contracts.md`).
   - `testing/qa/README.md`: QA after landing, beside the deployment: its
     tool, home and loop; its ledger (`testing/qa/ledger.md`), the
     watcher on main (`testing/qa/landings.md`), kept builds

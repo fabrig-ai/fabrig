@@ -8,7 +8,8 @@ keeps what is temper's: its tiers (`tiers.md`, section 1), its neighbours and th
 fakes (`README.md`, section 3 and `fakes.md`), its scenarios, referee and its case library
 (`scenarios.md`, section 1), what its worlds check beyond the strategy (`checks.md`; the
 engine's, `engine-checks.md`; blame and tries for gates, `blame.md`; the worker's
-waits, disk and faults, `worker.md`), the
+waits, disk and faults, `worker.md`), where the box's own checks run
+(`box/README.md`), the
 shipped settings checked against themselves (`settings-tests.md`), every commit's store
 checked against a start (`store-check.md`), its
 layout (`README.md`, section 5), its tools and fixtures as binaries (`tools.md`), what
@@ -114,8 +115,8 @@ Moved to [`scenarios.md`](scenarios.md), section 1.
 ```
 crates/*/src/tests.rs               step tests
 tests/codecs                        temper-codecs-world: the generated codecs and the foreign documents' decoders
-bin/temper-box/tests/domain          step and domain harness checks over values, committed fixtures and scripted client-tool reads
-bin/temper-box/tests/suite           real scratch files, sockets, locks, clocks, shell children and shipped wiring
+bin/temper-box/tests/domain          step and domain checks over values: profiles composed in memory and admitted, the kit's harness checks, scripted openings and client-tool reads (box/README.md, 2)
+bin/temper-box/tests/suite           what only real files, sockets, locks, children and shipped wiring show (box/README.md, 4)
 crates/temper-forge-setup-shell/tests/step  process-boundary checks over committed source and sample calls; suite keeps real files, locks, commands and TLS peers
 bin/temper-box/tests/process.rs      owned Forgejo integration and OS process boundaries (2.6); nextest profile process-temper
 bin/temper-box/tests/proof_live.rs   B0's offline driver proofs (2.6, 2.7), nextest profile process-temper; scripts/proof-live.sh rung-b0-offline runs them
