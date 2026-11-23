@@ -1,4 +1,4 @@
-//! Failure cleanup precedes the panic hook (skein/docs/design/testing/README.md, 5).
+//! Failure cleanup precedes the panic hook (skein/docs/design/testing/service-tiers.md, 1).
 
 use skein_io::kernel::Fd;
 use skein_lib::{Duration, Time};

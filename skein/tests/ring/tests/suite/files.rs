@@ -166,7 +166,7 @@ fn an_error_of_a_file_names_what_the_contract_says() {
 }
 
 /// A `Rename` from one filesystem to another: `EXDEV`, which on a `Rename`
-/// is no escape but `Other` (runtime/kernel.md, 6.1). Needs `/dev/shm` on a mount
+/// is no escape but `Other` (runtime/kernel-files.md, 1). Needs `/dev/shm` on a mount
 /// apart from the temporary directory's; without one, there is nothing to
 /// rename across, and the test says so by passing having checked nothing.
 #[test]

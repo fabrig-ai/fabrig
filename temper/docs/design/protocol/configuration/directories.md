@@ -1,7 +1,7 @@
 # The three directories
 
 Every command that reads the document takes three directories, by
-skein's arguments' rule (skein's `runtime/shell.md`, 6.5): a flag, else its
+skein's arguments' rule (skein's `runtime/shell-startup.md`, 1.5): a flag, else its
 variable, else its default.
 
 | Directory | Flag, variable | Default | Holds | Kept |

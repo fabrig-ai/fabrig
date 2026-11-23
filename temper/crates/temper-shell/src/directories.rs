@@ -65,7 +65,7 @@ pub type Argument = Box<[u8]>;
 pub type EnvironmentEntry = (Argument, Argument);
 #[expect(
     clippy::result_large_err,
-    reason = "skein/docs/design/runtime/shell.md, 6.5 preserves the refused setting and its documentation"
+    reason = "skein/docs/design/runtime/shell-startup.md, 1.5 preserves the refused setting and its documentation"
 )]
 pub fn resolve(
     arguments: &[Argument],

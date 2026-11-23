@@ -6,7 +6,7 @@ allocation of its own beyond what its caller hands it. skein-kv's
 payload logs compress their records with it (`kv.md`, section 6),
 skein-http's gzip member wraps its output (`../net/http/client.md`,
 section 1), and skein-forge reads a ZIP entry with it
-(`../forge/forgejo.md`, 1.2). It is the codec temper's
+(`../forge/forgejo-operations.md`, 1). It is the codec temper's
 `draft/store-shape.md`, section 11 left to its milestone S7 to pick:
 DEFLATE, because skein already held an encoder and a decoder of it
 under the strict subset, and its ratio on the JSON and text a store

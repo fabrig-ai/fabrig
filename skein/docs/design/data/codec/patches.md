@@ -41,13 +41,13 @@
 - **A machine that stops, never calls back.** A family's `Patcher`
   holds its kept schemas and planned patches, decodes an old record into
   a generic value, and walks it, building the new value in preorder in
-  lib's reusable `Buffer` (../../runtime/lib.md, section 6). It stops where its caller
+  lib's reusable `Buffer` (../../runtime/lib-bytes.md, section 1). It stops where its caller
   must act, at a written site or a held field, and resumes on the
   caller's answer: no function pointers or dependency on the owner's
   written functions (4).
 - **Written sites are types,** not only roots, so a patch of a type
   reaches it in lists, variants and options; or one field of a record.
-  A written function reads the old value by `README.md`, section 8.1's accessors and
+  A written function reads the old value by `run-time.md`, section 2.1's accessors and
   builds the new by putting values, opening and closing nested ones, and
   carrying an untouched part through its derived conversion. It may
   refuse a record with a reason its patch's text declares; its caller
@@ -111,8 +111,8 @@ value     = "?" | "written" | "none" | "some" value | "[]"
           | word | text
 ```
 
-- **Types** are `README.md`, section 7.1's `type`, ending where its grammar says.
-- **Tokens:** schema words (`README.md`, 7.1), and `.` `?` `[` `]` as marks; a
+- **Types** are `run-time.md`, section 1.1's `type`, ending where its grammar says.
+- **Tokens:** schema words (`run-time.md`, 1.1), and `.` `?` `[` `]` as marks; a
   text, `"` then bytes of UTF-8 other than `"`, `\` and control bytes,
   then `"`, a `#` among them one of its bytes; `#` elsewhere starts a
   comment to the end of the line. Spaces and tabs separate tokens; a
@@ -121,7 +121,7 @@ value     = "?" | "written" | "none" | "some" value | "[]"
   then `]`.
 - **Numbers:** a `language`, `version` and `level` are decimal words,
   a `u16`, `u16` and `u32`. The language is 1.
-- **Lines** count from 1 as in a schema (`README.md`, 7.1); a refusal names the line
+- **Lines** count from 1 as in a schema (`run-time.md`, 1.1); a refusal names the line
   of its token, and a change a block lacks (3) names the block's
   `family` line.
 - **The header:** the owner's level is the patch's number; `after`
@@ -424,7 +424,7 @@ pub fn shape(old: &Old, new: &mut Build, at: Node, _cx: &mut Context) -> Result<
     the driver reads for it, such as another record's value. It holds
     no references, and a function changes nothing in it that a later
     record reads.
-- **Reading the old:** `README.md`, section 8.1's accessors on `Old`, each misread a
+- **Reading the old:** `run-time.md`, section 2.1's accessors on `Old`, each misread a
   `Halt::Misread`: `field`, `items` and `next_item`, `count` (a list's
   items, so that a function walks them in a `for`), `some`, `tag`,
   `payload`, `uint`, `boolean`, `content`, `expose`; and `root` and
@@ -488,7 +488,7 @@ pub fn shape(old: &Old, new: &mut Build, at: Node, _cx: &mut Context) -> Result<
 ## 6. The interface
 
 ```rust
-// skein-lib (../../runtime/lib.md, section 6)
+// skein-lib (../../runtime/lib-bytes.md, section 1)
 pub struct Buffer { /* bytes, reused, bounded by a capacity */ }
 
 // skein_codec::value, beside 8.1's readers
@@ -668,7 +668,7 @@ impl Build {                         // the new value, in preorder
   texts are kept before the patches that use them are planned. `plan`
   reads the whole text's grammar and plans its family's block, if the
   text has one.
-- The plain types derive as `README.md`, section 7.3's; `Patcher`, `Old` and `Build`
+- The plain types derive as `run-time.md`, section 1.3's; `Patcher`, `Old` and `Build`
   derive `Debug` alone, and print no record's bytes.
 
 ## 7. Bounds
@@ -742,7 +742,7 @@ Step tests, in skein-lib and skein-codec, and the story in
   a head other than `from`, an unknown tag and a short record answered
   false with the record untouched; a root with no head.
 - **A property,** in the fuzzy suite: values drawn from the `every`
-  fixture's old schema (`README.md`, 8.3's seeded generator) through a derived patch
+  fixture's old schema (`run-time.md`, 2.3's seeded generator) through a derived patch
   decode by the new schema, each carried field equal to its old one;
   an identity plan, and a patch without lines between layouts equal but
   for the version, give back the bytes, but for the versions. Wherever
@@ -765,9 +765,9 @@ Step tests, in skein-lib and skein-codec, and the story in
   tests check both stacks with nested and written values, zero and
   tiny capacities, a larger next pass, and reuse after refusal;
   capacities, and the allocations the counting allocator's span counts
-  around each reused pass (../../testing/README.md, 5), show that reuse neither
+  around each reused pass (../../testing/service-tiers.md, 1), show that reuse neither
   grows nor copies a table; no test reads a table's address. A stack's
   room is a list's cap, its buffer growing as the walk deepens
-  (../../runtime/lib.md, 5), so a pass reuses its stacks once a pass as deep has
+  (../../runtime/lib-containers.md, 1), so a pass reuses its stacks once a pass as deep has
   run. The price includes growth's peak within a sixteenth of the
   run's tables.

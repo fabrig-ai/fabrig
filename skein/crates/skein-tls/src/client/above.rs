@@ -42,7 +42,7 @@ pub(super) fn stream(
     below: &mut Queue<Down>,
 ) -> State {
     match down {
-        // A withdrawal: the side above reads no more (runtime/lib.md, 7), and closes
+        // A withdrawal: the side above reads no more (runtime/lib-streams.md, 1), and closes
         // next. What the client reads below for it may still come, and is
         // dropped with the intake. After the end, it gives up the read that
         // crossed it, and may write on.
@@ -55,7 +55,7 @@ pub(super) fn stream(
         Down::Demand { read, room } => {
             assert!(
                 open.above.demand.is_none(),
-                "one demand at a time, stated after the last was answered (runtime/lib.md, 7)"
+                "one demand at a time, stated after the last was answered (runtime/lib-streams.md, 1)"
             );
             let wanted = largest(read);
             assert!(wanted <= limits.read, "no read past Limits::read");
@@ -113,7 +113,7 @@ pub(super) fn sent(
     above: &mut Queue<Event>,
     below: &mut Queue<Down>,
 ) -> State {
-    let grant = open.above.grant.take().expect("a Send within the room granted (runtime/lib.md, 7)");
+    let grant = open.above.grant.take().expect("a Send within the room granted (runtime/lib-streams.md, 1)");
     assert!(bytes.len() <= usize_of(grant), "a Send within the room granted");
     let room = mem::replace(&mut open.below.granted, 0);
     match session::encrypt(&mut open.tls, &mut buffers.records, bytes, &mut buffers.owed) {
@@ -127,7 +127,7 @@ pub(super) fn sent(
     settle(open, buffers, above, below)
 }
 
-/// What the intake answers a read with, as runtime/lib.md, 7 says.
+/// What the intake answers a read with, as runtime/lib-streams.md, 1 says.
 #[derive(Debug)]
 pub(in crate::client) enum Answer {
     Wait,
@@ -152,14 +152,14 @@ pub(in crate::client) fn answer(read: Read, reading: &mut Reading, peer: Peer, i
         Peer::Cut => Answer::Truncated,
         Peer::Closed => {
             // The end answers nothing: a read outstanding stays so, never
-            // met, until the side above withdraws it (runtime/lib.md, 7).
+            // met, until the side above withdraws it (runtime/lib-streams.md, 1).
             *reading = Reading::Ended;
             Answer::End
         }
     }
 }
 
-/// The intake capacity a read needs to be met (runtime/lib.md, 7).
+/// The intake capacity a read needs to be met (runtime/lib-streams.md, 1).
 pub(in crate::client) fn largest(read: Read) -> u32 {
     match read {
         Read::Nothing => 0,

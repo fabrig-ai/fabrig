@@ -1,4 +1,4 @@
-//! Startup file reads and error meanings shared by Linux and Darwin (runtime/shell.md, 6.1, and runtime/readiness.md, 5).
+//! Startup file reads and error meanings shared by Linux and Darwin (runtime/shell-startup.md, 1.1, and runtime/readiness.md, 5).
 //!
 //! # The `unsafe`, and why it is sound
 //!

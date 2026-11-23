@@ -1,4 +1,4 @@
-//! What a second crate takes of the JSON world: the reference reader, the generator and their outcome types (skein/docs/design/testing/README.md, 6).
+//! What a second crate takes of the JSON world: the reference reader, the generator and their outcome types (skein/docs/design/testing/layout.md, 1).
 
 pub mod generate;
 pub mod reference;

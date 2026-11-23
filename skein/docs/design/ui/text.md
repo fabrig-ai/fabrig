@@ -1,11 +1,11 @@
 # The text shell
 
 Provisional, 2026-10-15. The design of `skein-ui-text`: skein-ui's shell
-for a terminal or a pipe. It prints the view's tree (README.md, section 3)
+for a terminal or a pipe. It prints the view's tree (tree.md, section 1)
 as lines, and reads each line a person types as an act on a node, a
 print, or closing. It says what its parts are, when it prints, how each
 role, state and property prints, its numbers and commands, its loop, and
-how it is tested. What is open is in section 9.
+how it is tested. What is open is in `text.md`, section 9.
 
 ## 1. In one page
 
@@ -61,7 +61,7 @@ the application's host           its loop over skein-shell's drive: its steps, i
 
 It is one of skein-ui's shells (shells.md), beside the browser
 parts (web/README.md). The fake person's tree face reads the same tree, not
-this shell's text (README.md, 14.1).
+this shell's text (testing.md, 1.1).
 
 ## 3. Its parts
 
@@ -174,7 +174,7 @@ this shell's text (README.md, 14.1).
   after `== TITLE == `, its trailing space kept. Neither the heading nor the
   status node is printed again, and nothing in the status node is
   numbered.
-- **Then every node in preorder,** by its role (README.md, 3.1). Where a
+- **Then every node in preorder,** by its role (tree.md, 1.1). Where a
   row prints `NAME:` above its children, a name already ending in `?`,
   `!` or `:` takes no colon ("What shall we change?", not "What shall
   we change?:"). A node whose line would be `NAME:` alone, above its
@@ -192,7 +192,7 @@ this shell's text (README.md, 14.1).
   | heading | `#` once per level, a space, its text |
   | paragraph, text, time | its text; a time's text is its owner's words for it (README.md, section 9) |
   | list, tree, menu | named: `NAME:` and its items indented; unnamed: its items |
-  | item, tree item | `- ` before its first line, its other lines indented; an item directly under a list with an order (README.md, 3.2) has its number and `. ` in place of `- `: the order's number for the first, one more for each after it |
+  | item, tree item | `- ` before its first line, its other lines indented; an item directly under a list with an order (tree.md, 1.2) has its number and `. ` in place of `- `: the order's number for the first, one more for each after it |
   | table | its rows, one line each |
   | row | its cells', column headers' and row headers' texts, in order, joined by ` \| `; a row whose cells are all column headers with no text prints no line; every other row prints its line, including empty data cells |
   | cell, column header, row header | its text, as its row joins it; outside a row, its text on a line of its own |
@@ -214,12 +214,12 @@ this shell's text (README.md, 14.1).
   | separator | `--` |
   | slot | its children: the nodes spliced into it (README.md, section 5) |
   | group | its children, as a slot's |
-  | drawing | `NAME:` where it has a name, and its fallback indented (README.md, 3.5): never drawn (scenes.md, 4) |
-  | image | its name, whatever its source: one of its owner's pictures or an address (README.md, 3.5) |
+  | drawing | `NAME:` where it has a name, and its fallback indented (tree.md, 1.5): never drawn (scenes.md, 4) |
+  | image | its name, whatever its source: one of its owner's pictures or an address (tree.md, 1.5) |
 
   A disclosure prints unfolded and a menu prints its items: the text
-  shell keeps no fold of its own, and a child shown folded (README.md,
-  3.2) prints as any first child does, with no word for its state.
+  shell keeps no fold of its own, and a child shown folded (tree.md,
+  1.2) prints as any first child does, with no word for its state.
 - **Indented** means two spaces more than the line it belongs to.
 - **States** follow a node's line as words in parentheses, in this
   order: `(disabled)`, `(expanded)`, `(busy)`, `(current)`,
@@ -229,7 +229,7 @@ this shell's text (README.md, 14.1).
   before its position, whatever nodes its text is made of. A check's
   pressed or selected state, and a choice's or an option's selected
   state, is its mark instead.
-- **Properties** (README.md, 3.2):
+- **Properties** (tree.md, 1.2):
   - *an entry kind:* after a text field's value, before its states, a
     word for each kind but text and secret: `(number)`, `(email)`,
     `(telephone)`, `(url)`, `(date, YYYY-MM-DD)`, `(time, HH:MM)`, the
@@ -258,10 +258,10 @@ this shell's text (README.md, 14.1).
     no focus), an image's source, a placeholder (its field's name says
     what it takes, and a hint beside `(empty)` could read as its value),
     a node's hint (the text shell has no pointer, and a hint is never
-    needed to decide: README.md, 3.2), a menu's button (the text shell
+    needed to decide: tree.md, 1.2), a menu's button (the text shell
     prints a menu's items in place, behind no button, a chosen one with its
     state), and shortcuts, Escape among them: the text shell takes no keys
-    (section 6).
+    (`text.md`, section 6).
 - **Text** is a node's runs, in order: a code run between backticks,
   every other run as it is. Style tokens and region names are not
   printed: nothing a person must know is said by them alone (README.md,
@@ -334,7 +334,7 @@ this shell's text (README.md, 14.1).
   a `\r` just before it. Bytes with no `\n` yet wait for it; a line
   longer than the longest is refused whole, through its `\n`. The input
   is left as it is, never raw: the terminal's own line editing makes
-  each line (../runtime/shell.md, 6.3), and a pipe works as well as a terminal.
+  each line (../runtime/shell-startup.md, 1.3), and a pipe works as well as a terminal.
 - **Each iteration of the host,** in order: the application's steps; the
   view built; each whole line read made into one command and done; a
   print, when one is due; the output written. Time is the host's clock,
@@ -391,7 +391,7 @@ this shell's text (README.md, 14.1).
   too long to print`, with no number acting. The terminal's operations
   are skein-io's for its two pipes; settings it refuses give no count.
 - **The terminal** on skein's simulated machine, in `tests/ui-text`
-  (../testing/README.md, section 6): lines split and joined across reads, a line
+  (../testing/layout.md, section 1): lines split and joined across reads, a line
   too long refused through its newline, prints paced and one at a time,
   the application's lines before the next print, the application's
   lines within their room while the output is held, a read's refusals
@@ -413,7 +413,7 @@ this shell's text (README.md, 14.1).
 - **A secret typed in the clear.** The terminal's line editing echoes
   what the person types, a secret's words among them; the shell never
   prints them again. Turning the echo off for one line would take the
-  terminal's modes (../runtime/shell.md, 6.3) and a command that says a secret
+  terminal's modes (../runtime/shell-startup.md, 1.3) and a command that says a secret
   comes, which the commands do not have.
-- **Right-to-left text** (README.md, 4.2): what printing it in a terminal
+- **Right-to-left text** (tree.md, 2.2): what printing it in a terminal
   asks, when the vocabulary takes it.

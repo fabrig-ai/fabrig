@@ -48,7 +48,7 @@ From main at `ee03a1159c` and dev.fabrig.ai's redeploys of 2026-11-11 and 11-12,
 
 ### 3.2 Fingerprints at the opening
 
-- **Each side states, for each wire, the versions it speaks** and each one's layout fingerprint (skein's `data/codec/README.md`, section 9). jig's channel agrees its own version from both sides' ranges, as skein's opening does (skein's `net/channel.md`, 5.2); the others are agreed beside it.
+- **Each side states, for each wire, the versions it speaks** and each one's layout fingerprint (skein's `data/codec/fingerprints.md`, section 1). jig's channel agrees its own version from both sides' ranges, as skein's opening does (skein's `net/channel.md`, 5.2); the others are agreed beside it.
 - **Agreed per wire:** the highest version both speak. The engine keeps each worker's agreed versions with its channel, and the fleet places by them (4.3).
 - **Terms and limits are the agreed versions'.** Each side states the largest body of each kind as the agreed versions encode it, after translation, and checks the other's against the same; a configured limit both sides must share is stated beside them. So an appended field fails no terms that its translated value fits.
 - **A version both sides name with different fingerprints** is an in-place change past the gate. The opening refuses it, naming the wire, the version and both fingerprints, and the worker redials as after any refusal.
@@ -75,7 +75,7 @@ From main at `ee03a1159c` and dev.fabrig.ai's redeploys of 2026-11-11 and 11-12,
 ### 4.1 The newer side translates
 
 - **In the shared protocol crates,** which both sides link. The side whose current version is newer than the agreed one translates what it sends down and what it receives up. The older side runs as if nothing had changed.
-- **Up, by the forward patch:** each kept version to the next by the patch the command writes (skein's `data/codec/command.md`, section 3), over generic values (skein's `data/codec/README.md`, section 8), chained from the agreed version to the current. It is total: an added field takes the value every older record takes (`upgrades.md`, 4.3).
+- **Up, by the forward patch:** each kept version to the next by the patch the command writes (skein's `data/codec/command.md`, section 3), over generic values (skein's `data/codec/run-time.md`, section 2), chained from the agreed version to the current. It is total: an added field takes the value every older record takes (`upgrades.md`, 4.3).
 - **Down, by its reverse.** The command derives it wherever the forward patch is derived: an added field is dropped when it holds the value the older side assumes (an option at none, a list empty); a widened integer is narrowed when it fits; a dropped field goes down with the value its author declares the older side should assume. Otherwise the author writes the reverse, or declares which values the older side cannot hold (4.3).
 - **Nothing goes up only to come down again.** Bytes kept in a version the reader speaks (a stored turn, a call's name, a delivery's evidence) cross as they were written. What crosses down is what the newer side's own code made.
 - **What the older side must get back is not dropped.** A field an older side sends and expects to meet again (an identity it echoes, a value it resumes from) stays in the schema until the floor passes the versions that need it; dropping it sooner is a breaking change.

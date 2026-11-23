@@ -206,7 +206,7 @@ tests/vm/tests/*.rs                 the VM tier (section 7)
 ```
 
 The world harness is skein's `skein-world`, and the counting allocator
-`skein-heap` (`skein/docs/design/testing/README.md`, section 5).
+`skein-heap` (`skein/docs/design/testing/service-tiers.md`, section 1).
 
 ### 2.10 What changes from os
 

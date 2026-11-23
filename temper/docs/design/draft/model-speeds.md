@@ -58,17 +58,17 @@ Draft, 2026-11-21, from the user's words that day: support setting fast or ultra
 
 - **The charter carries it** (smith's `protocol/charter.md`, section 2). Where a run's speed for an LLM isn't standard, that LLM gains `speed`, its name, with its `also` names and its prices. A standard one carries nothing new, so its charter is today's.
 - **The agent passes it** to each completion of that LLM, main or sub-agent, for the conversation's life, as it passes an effort.
-- **The OpenAI dialect sends `service_tier`** (skein's `llm/README.md`, 4.8):
+- **The OpenAI dialect sends `service_tier`** (skein's `llm/wire.md`, 1.8):
   - the speed's name, for a run with a speed;
   - `default`, for a model that declares speeds run at standard, so that a project's own default can't make it faster;
   - nothing, for a model that declares none, as today.
 
   Both of skein's Responses writers send it: the live client's, from the prompt, and the owned request's.
-- **Anthropic's dialect refuses a prompt with a speed** as unsupported (skein's `llm/README.md`, 4.7). Section 3's shape rules keep that from happening, as they keep a speed off a program's route.
+- **Anthropic's dialect refuses a prompt with a speed** as unsupported (skein's `llm/wire.md`, 1.7). `model-speeds.md`, section 3's shape rules keep that from happening, as they keep a speed off a program's route.
 
 ## 6. Charging what served
 
-- **The response says what served.** skein's Responses decoder keeps the response's `service_tier`, bounded, for a completed and for an incomplete response, and a completion carries it beside its usage (skein's `llm/README.md`, 2.3).
+- **The response says what served.** skein's Responses decoder keeps the response's `service_tier`, bounded, for a completed and for an incomplete response, and a completion carries it beside its usage (skein's `llm/vocabulary.md`, 1.3).
 - **smith charges at that speed's prices** (smith's `domain/session.md`, section 6):
   - a reported name that is the run's speed's name, or one of its `also` names, takes its prices;
   - the dialect's name for standard takes the model's own prices;

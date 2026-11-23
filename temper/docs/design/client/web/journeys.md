@@ -453,7 +453,7 @@ journey mode's lack of implied steps.
 A walk finds a control as a person finds it: by role, exact accessible
 name and order from 0 among controls with both, never by an event.
 The drive session uses skein's fake person's n-th match (skein's
-`ui/README.md`, 14.1). The world's walker uses the same lookup
+`ui/testing.md`, 1.1). The world's walker uses the same lookup
 (`../journey-walks-world.md`, 1.2).
 
 A role is a word of skein's roles, lowercase: `button`, `link`,

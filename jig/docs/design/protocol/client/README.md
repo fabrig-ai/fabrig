@@ -219,7 +219,7 @@ recipient.
   record of the family `jig-engine-cursor`
   (`jig/crates/jig-protocol-engine-clients/schema/cursor-v2.schema`),
   whose fixed-rule values are built from its schema text in tests
-  (skein's `data/codec/README.md`, 6), with a key inside one in the store's
+  (skein's `data/codec/golden.md`, 1), with a key inside one in the store's
   codec. A cursor of another version does not decode, and its read is answered unknown (`../README.md`, section 7).
 - **Credential boundaries, on the client,** visibly end pending reads
   in the domain's `Page` forms: jig's `ReadNone::SignedOut` or
@@ -347,7 +347,7 @@ recipient.
 - **Versions move with a wire's layout.** Each changed record moves its
   wire's version and its schema, codec and translations. Tests build
   fixed-rule values from that schema or use public fields, keeping no golden files
-  (skein's `data/codec/README.md`, 6).
+  (skein's `data/codec/golden.md`, 1).
   The engine serves one version; a client of another version is refused
   before its record is read. Client bridges are deferred
   (`temper/docs/design/draft/redeploys.md`, 8).
@@ -361,7 +361,7 @@ recipient.
   crate keeps, beside its schema, its family's list of layouts,
   `schema/<family>.layouts`: one line per version since the list began,
   oldest first, the version in decimal, one space, and the family's
-  fingerprint at that version (skein's `data/codec/README.md`, section 9)
+  fingerprint at that version (skein's `data/codec/fingerprints.md`, section 1)
   as 64 lowercase hexadecimal digits; a line starting `#` is a comment.
   The family's fingerprint, not its declarations': a declaration added,
   dropped or moved moves it, so a version may move for a change no
@@ -496,7 +496,7 @@ recipient.
   watermark again, with no notice from a record of its own
   (`../../client/domain/client/README.md`, section 8).
 - **Where** is the shell's: a browser tab's session storage, as text
-  skein's small store part encodes (skein's `ui/web/README.md`, section 8); a
+  skein's small store part encodes (skein's `ui/web/effects.md`, section 1); a
   file a native client writes whole and syncs; a service's file, synced
   before its requests leave; a world's memory.
 
@@ -683,13 +683,13 @@ Each within jig's suites' budgets.
   (`jig-client-protocol-link`'s stream table).
 - **Step tests** in `jig-client-protocol-wire` and each application's
   wire are written by hand, with values built from schema text or public
-  fields, as skein's `data/codec/README.md`, section 6 says; the fixed
+  fields, as skein's `data/codec/golden.md`, section 1 says; the fixed
   envelope read across versions among them. No tests are generated.
 - **The client's wire world,** `jig-client-wire-world`: the client
   side's generated codecs (jig's wire, the reference UI's records,
   `ops`'s wire and jig's test family's) checked for drift against their
   schemas, and jig's wire's decoders run over arbitrary and mutated
-  bytes in the fuzzy suite (skein's `data/codec/README.md`, section 6).
+  bytes in the fuzzy suite (skein's `data/codec/golden.md`, section 1).
 - **The template preview** in the client-protocol carriage tests and
   wire tests built from schema text or public fields: both configured
   intent and `resolved_default`, including
@@ -824,8 +824,8 @@ Each within jig's suites' budgets.
 - **HTTP/2:** one connection for the stream and the exchanges, when
   skein's HTTP has it.
 - **JSON records:** the same schemas written as JSON, for clients not
-  built on skein, when the generator writes them (skein's `data/codec/README.md`,
-  section 7).
+  built on skein, when the generator writes them (skein's `data/codec/run-time.md`,
+  section 1).
 - **A sign-in helper for OAuth or OpenID:** a generic flow, configured
   by its issuer and its client, which an application's server would run
   on its own routes before its `Mint`, so an application whose people
@@ -859,7 +859,7 @@ Each within jig's suites' budgets.
 - **skein owes,** for one person's machine: skein-lib, skein-codec and
   skein-http, with its server-sent events reader and writer, built for
   `wasm32-unknown-unknown` (skein's `runtime/lib.md`, section 2; skein's
-  `testing/README.md`, section 6); for the reference UI, its UI kit's browser
+  `testing/layout.md`, section 1); for the reference UI, its UI kit's browser
   parts, its bundler, and its face and harness for the browser tier
   (skein's `ui/web/README.md`, 4.1, and `ui/web/bundle.md`, 2, and `ui/web/testing.md`, 2), over its browser kit
   (skein's `testing/browser.md`, sections 5 and 6); a client compiled to

@@ -1,4 +1,4 @@
-//! Darwin files and startup reads (runtime/readiness.md, 5; runtime/kernel.md, 6.1).
+//! Darwin files and startup reads (runtime/readiness.md, 5; runtime/kernel-files.md, 1).
 //!
 //! # The `unsafe`, and why it is sound
 //!
@@ -297,7 +297,7 @@ fn open_private(path: &CString, flags: i32) -> Result<i32, i32> {
 }
 
 /// Passes only the system's own parent links for a caller's own checks
-/// (runtime/shell.md, 6.1). The answer still needs those checks.
+/// (runtime/shell-startup.md, 1.1). The answer still needs those checks.
 #[must_use]
 pub fn resolve_system_links(path: &Path) -> PathBuf {
     match pass_links(libc::AT_FDCWD, path.as_os_str().as_bytes(), 0) {
@@ -364,7 +364,7 @@ pub(crate) fn read_file(path: &Path, max: u32) -> Result<Box<[u8]>, Unread> {
 }
 
 /// Makes absent directories along `path` durable, then opens it as a root
-/// (runtime/shell.md, 6). Existing directories keep their modes; errors are errno.
+/// (runtime/shell-startup.md, 1). Existing directories keep their modes; errors are errno.
 pub fn make_root(path: &Path, mode: u32) -> Result<Fd, i32> {
     if mode & !PERMISSIONS != 0 {
         return Err(libc::EINVAL);

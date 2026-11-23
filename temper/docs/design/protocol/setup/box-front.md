@@ -110,10 +110,10 @@ in a terminal or not, as `box.md`, 1, `box-supervision.md`, 1, `box.md`, 3 to 4,
   standard input and output, so it runs its TUI, which job control stops
   at its first read. `temper-box` runs the box alone. Telling a
   background start from a foreground one needs `temper` to read its
-  terminal's foreground group, which skein's `runtime/shell.md`, 6.3 does
+  terminal's foreground group, which skein's `runtime/shell-startup.md`, 1.3 does
   not give yet.
 
 - **The terminal after `temper box` killed outright** (`box-front.md`, 1): its
   TUI's modes and screen stay on the terminal, as any program's killed
-  outright do (skein's `runtime/shell.md`, 6.3); the box stops at its
+  outright do (skein's `runtime/shell-startup.md`, 1.3); the box stops at its
   life pipe's end.

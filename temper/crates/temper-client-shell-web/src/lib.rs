@@ -400,7 +400,7 @@ impl<P: ShellPlatform> Shell<P> {
             push::carry(Rc::clone(&self.push_inbox), *duty);
         }
         // Keep the person's gesture: tabs precede transport in this turn
-        // (skein/docs/design/ui/web/README.md, section 9).
+        // (skein/docs/design/ui/web/effects.md, section 2).
         for tab in &duties.tab {
             match tab {
                 host::TabAct::Open { words } => {
@@ -419,7 +419,7 @@ impl<P: ShellPlatform> Shell<P> {
                 self.screen.leave();
             }
         }
-        // Keep the person's gesture (skein/docs/design/ui/web/README.md, section 9).
+        // Keep the person's gesture (skein/docs/design/ui/web/effects.md, section 2).
         if let Some((token, words)) = &duties.copy {
             self.clipboard.write(*token, words);
         }

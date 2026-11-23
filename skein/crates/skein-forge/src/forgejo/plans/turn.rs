@@ -1,4 +1,4 @@
-//! Actions runs and nonrecursive trees (forge/forgejo.md, 1.2).
+//! Actions runs and nonrecursive trees (forge/forgejo-operations.md, 1).
 use super::{
     Body, Heard,
     plan::{Bounds, Step},
@@ -256,7 +256,7 @@ impl Plan {
     }
     #[expect(
         clippy::wildcard_enum_match_arm,
-        reason = "the exchange's decoder picks the kind: forge/README.status.md, 4.2"
+        reason = "the exchange's decoder picks the kind: forge/dialects.status.md, 1.2"
     )]
     fn done(&mut self, document: d::Document, bounds: Bounds) -> Result<Option<Step>, api::Error> {
         let source = core::mem::replace(&mut self.state, State::Ended);

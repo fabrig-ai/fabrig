@@ -1,5 +1,5 @@
 //! Patches applied in place, with the host deciding each document operation.
-//! Log measurements and view keeping follow skein/docs/design/ui/web/README.md, 5.
+//! Log measurements and view keeping follow skein/docs/design/ui/web/patches.md, 1.
 
 use std::collections::BTreeMap;
 
@@ -130,7 +130,7 @@ impl<'a> Page<'a> {
 
     #[expect(
         clippy::too_many_lines,
-        reason = "patch ordering keeps log state changes before the final measurements (ui/web/README.md, 5)"
+        reason = "patch ordering keeps log state changes before the final measurements (ui/web/patches.md, 1)"
     )]
     pub fn apply(&mut self, patches: &[Patch], ops: &mut Vec<Op>) {
         if !patches.is_empty() {
@@ -724,7 +724,7 @@ impl Page<'_> {
         Some((node, act))
     }
 
-    /// A pointer's press on this node leaves the focus where it was (ui/web/README.md, 5).
+    /// A pointer's press on this node leaves the focus where it was (ui/web/patches.md, 1).
     #[must_use]
     pub fn press_keeps_focus(&self, node: NodeId) -> bool {
         let node = self.pressed(node);
@@ -852,7 +852,7 @@ impl Page<'_> {
         }
     }
 
-    // A measure and a person's scroll share the same rules (ui/web/README.md, 5).
+    // A measure and a person's scroll share the same rules (ui/web/patches.md, 1).
     fn scrolled(
         &mut self,
         node: NodeId,

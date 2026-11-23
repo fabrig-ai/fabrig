@@ -206,7 +206,7 @@ impl Domain {
         }
     }
 }
-/// Give a forge's writer once its access is known (forge/client.md, 7.1).
+/// Give a forge's writer once its access is known (forge/client-effects.md, 1.1).
 /// It saves a new writer as a `Writer` row and returns true. The same
 /// author again changes nothing and returns true. A writer `give` refuses
 /// returns false and changes nothing.

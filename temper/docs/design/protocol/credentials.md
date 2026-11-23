@@ -188,7 +188,7 @@ setup/README.md's (`setup/README.md`, section 5). What is open is listed in `cre
   answer as with it, and tokens of another user stop the run
   `OtherUser`, the forge as it was (setup/README.md, section 4). A forge's
   writer is its user (section 5), which skein's client never changes
-  under a writer (skein's `forge/client.md`, 7.1): another user's
+  under a writer (skein's `forge/client-effects.md`, 1.1): another user's
   tokens are another forge, connected anew once this one is removed.
 - **An unreadable row** (an unknown version, bytes skein's decoder
   refuses): that forge is not connected, named, "its records are
@@ -213,8 +213,8 @@ setup/README.md's (`setup/README.md`, section 5). What is open is listed in `cre
 - **The main store** keeps no credential. It keeps each forge's
   record, its kind, mode, place and bot (forge/engine.md, 1), and its writer,
   neither secret: the writer given at runtime (`credentials.md`, section 5), kept by
-  skein's forge client as its own record (skein's `forge/client.md`,
-  7.1), `Stored::Writer` under `Key::Writer(forge)`, temper's small
+  skein's forge client as its own record (skein's `forge/client-effects.md`,
+  1.1), `Stored::Writer` under `Key::Writer(forge)`, temper's small
   store's tag 16. It is restored at start, so effects
   restored with it never meet `Forbidden`.
 
@@ -415,7 +415,7 @@ Moved to [`credentials-git-identities.md`](credentials-git-identities.md), secti
   github.com or uses a real credential. Live calls are skein's opt-in
   conformance's alone.
 - **The codecs,** with records drift, built-value round
-  trips and fuzzing (skein's `data/codec/README.md`, 6): the
+  trips and fuzzing (skein's `data/codec/golden.md`, 1): the
   records' numbers and each item's value, the pasted bundle, and the git
   identity's value of each kind; an unknown version refused, and each
   item's bytes that skein's decoder refuses (an id of 0, `Accepted` out

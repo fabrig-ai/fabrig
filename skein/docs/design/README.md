@@ -26,7 +26,7 @@ code is from this design and how to roll up the status files.
   (programming-model.md, 6.3).
 - **Built when pulled.** A part is built when its first user needs it,
   and that user is its first test.
-- **Laid out by role** (testing/README.md, section 6): step crates, and the
+- **Laid out by role** (testing/layout.md, section 1): step crates, and the
   fakes and the simulated world a playground ships, in
   `crates/`; shared test harnesses and fakes in `testing/`, worlds in
   `tests/`, the example services in `examples/`.
@@ -35,21 +35,21 @@ code is from this design and how to roll up the status files.
 
 | Part | Crate | What | Design |
 |---|---|---|---|
-| lib | `skein-lib` | handles, slabs, bounded containers, cursors, streams, deadlines, time | [runtime/lib.md](runtime/lib.md) |
-| the kernel boundary | `skein-io` (`kernel`) | the records io submits to a backend and the completions it gets back | [runtime/kernel.md](runtime/kernel.md) |
+| lib | `skein-lib` | handles, slabs, bounded containers, cursors, streams, deadlines, time | [runtime/lib.md](runtime/lib.md), [runtime/lib-containers.md](runtime/lib-containers.md), [runtime/lib-bytes.md](runtime/lib-bytes.md), [runtime/lib-streams.md](runtime/lib-streams.md) |
+| the kernel boundary | `skein-io` (`kernel`) | the records io submits to a backend and the completions it gets back | [runtime/kernel.md](runtime/kernel.md), [runtime/kernel-files.md](runtime/kernel-files.md), [runtime/kernel-cgroups.md](runtime/kernel-cgroups.md) |
 | the readiness backend | `skein-shell` | completions emulated over epoll or kqueue on hosts without io_uring | [runtime/readiness.md](runtime/readiness.md) |
 | io | `skein-io` | sockets, pipes, files, processes, signals to the service | [runtime/io/README.md](runtime/io/README.md) |
 | sockets and pipes | `skein-io` | stream entities, transfers, close and in-process sockets | [runtime/io/sockets.md](runtime/io/sockets.md) |
 | files | `skein-io` | the file machine, its requests, events and operation ownership | [runtime/io/files.md](runtime/io/files.md) |
 | processes | `skein-io` | spawning children, their pipes, signals and containment | [runtime/io/processes.md](runtime/io/processes.md) |
-| the shell kit | `skein-shell`, `skein-fail-stop` | the io_uring backend, the clock, the seed, startup; the panic hook every binary's `main` installs first | [runtime/shell.md](runtime/shell.md) |
+| the shell kit | `skein-shell`, `skein-fail-stop` | the io_uring backend, the clock, the seed, startup; the panic hook every binary's `main` installs first | [runtime/shell.md](runtime/shell.md), [runtime/shell-startup.md](runtime/shell-startup.md), [runtime/shell-table.md](runtime/shell-table.md) |
 | the simulator | `skein-sim` | the simulated kernel and its faults; beside it, the conformance suite (`skein-conformance`) | [testing/simulator.md](testing/simulator.md) |
 | the conformance suite | `skein-conformance` | the scenarios that hold the simulator and each backend on the real kernel to the kernel boundary's contract | [testing/conformance.md](testing/conformance.md) |
 | the fake LLM | `skein-fake-llm-domain`, `skein-fake-llm-protocol` | shared bounded scripts and independent byte peers; application worlds supply tools and policy | [testing/fakes/llm.md](testing/fakes/llm.md) |
 | the key-value store | `skein-kv` | ordered byte keys and values in memory, made durable by a commit log and snapshots on io's files | [data/kv.md](data/kv.md) |
 | the fake push service | `skein-fake-push` | for tests: a push service that checks a Web Push request's form, token and seal, records it and answers by a script; its peer in `skein-fake-peers` | [testing/fakes/push.md](testing/fakes/push.md) |
 | the fake checkout | `skein-fake-checkout` | for tests: deterministic files, scripted commands and local git mechanics; worlds own policy and delivery | [testing/fakes/checkout.md](testing/fakes/checkout.md) |
-| the counting allocator | `skein-heap` | for tests: the heap counted, and each scenario's peak checked under its ceiling | [testing/README.md](testing/README.md) |
+| the counting allocator | `skein-heap` | for tests: the heap counted, and each scenario's peak checked under its ceiling | [testing/README.md](testing/README.md), [testing/service-tiers.md](testing/service-tiers.md), [testing/layout.md](testing/layout.md) |
 | test check counts | `skein-checks` | for test kits: the checks they perform | [testing/checks.md](testing/checks.md) |
 | the simulated world | `skein-sim-world`, `skein-fake-machine` | a service's processes hosted over the simulator and run a step at a time, as the harness and a playground run them; the minimal fake machine | [testing/world.md](testing/world.md) |
 | the world harness | `skein-world` | for tests: the simulated world's run with a referee and every world's checks, and the same processes over the ring; the inspection of a component's frozen state, and a sweep's streams, fault ledger and exclusions | [examples.md](examples.md), [testing/inspection.md](testing/inspection.md), [testing/sweeps.md](testing/sweeps.md) |
@@ -61,7 +61,7 @@ code is from this design and how to roll up the status files.
 | JSON | `skein-json` | a bounded tokenizer, a sized writer | [data/json.md](data/json.md) |
 | DEFLATE | `skein-deflate` | raw DEFLATE: a whole input compressed within a bound, and one stream inflated within its caller's room | [data/deflate.md](data/deflate.md) |
 | framed channels | `skein-channel` | a framed channel between two peers over a stream: an opening that agrees a version, bounds, flow control | [net/channel.md](net/channel.md) |
-| codecs | `skein-codec`, `skein-codegen` | records described by schemas, and their codecs and bounds generated from them, their bytes pinned once by the `every` fixture | [data/codec/README.md](data/codec/README.md) |
+| codecs | `skein-codec`, `skein-codegen` | records described by schemas, and their codecs and bounds generated from them, their bytes pinned once by the `every` fixture | [data/codec/README.md](data/codec/README.md), [data/codec/golden.md](data/codec/golden.md), [data/codec/run-time.md](data/codec/run-time.md), [data/codec/fingerprints.md](data/codec/fingerprints.md) |
 | schema diffs | `skein-codegen` | matching two family versions and listing their changes | [data/codec/diff.md](data/codec/diff.md) |
 | record patches | `skein-codec` | versioned patch files for wires and transcripts' frames | [data/codec/patches.md](data/codec/patches.md) |
 | layouts and derived plans | `skein-codec` | a value type's layout, and the plan that converts a value from one layout to another as it is read | [data/codec/layouts.md](data/codec/layouts.md) |
@@ -71,26 +71,26 @@ code is from this design and how to roll up the status files.
 | TLS | `skein-tls` | the TLS client, a stream over rustls's unbuffered connection, with ring | [net/tls.md](net/tls.md) |
 | Web Push | `skein-push` | a push message sealed for a browser's subscription and signed with the service's VAPID key, and its answer read | [net/push.md](net/push.md) |
 | the link | `skein-link` | one socket and its optional TLS, under a protocol layer's HTTP clients: the handshake, a body's upload, a bounded close that sends `close_notify` | [net/link.md](net/link.md) |
-| LLM | `skein-llm` | provider-neutral calls, streaming deltas, concrete replay and completions; subscription wire dialects | [llm/README.md](llm/README.md) |
+| LLM | `skein-llm` | provider-neutral calls, streaming deltas, concrete replay and completions; subscription wire dialects | [llm/README.md](llm/README.md), [llm/vocabulary.md](llm/vocabulary.md), [llm/wire.md](llm/wire.md) |
 | LLM admission | `skein-llm` | why a request is refused before it is sent, each refusal by its cause's name | [llm/admission.md](llm/admission.md) |
 | LLM rate limits | `skein-llm` | how long a provider's rate limit says to wait: its head, its error's reset, its message's figure or window | [llm/rate-limits.md](llm/rate-limits.md) |
 | LLM connections | `skein-llm-connection` | a protocol layer's component that runs LLM calls end to end: connecting, TLS, deadlines, reuse | [llm/connection.md](llm/connection.md) |
-| OAuth | `skein-oauth`, `skein-oauth-codec`, `skein-oauth-accounts`, `skein-fake-oauth` | bounded sign-in and refresh client, with its saved records' generated code in a codec crate below it; the driver that runs it end to end for its owner, listener, connection and keeping included; an independent rotating issuer for worlds | [oauth/README.md](oauth/README.md), [data/codec/README.md](data/codec/README.md) |
+| OAuth | `skein-oauth`, `skein-oauth-codec`, `skein-oauth-accounts`, `skein-fake-oauth` | bounded sign-in and refresh client, with its saved records' generated code in a codec crate below it; the driver that runs it end to end for its owner, listener, connection and keeping included; an independent rotating issuer for worlds | [oauth/README.md](oauth/README.md), [data/codec/README.md](data/codec/README.md), [data/codec/golden.md](data/codec/golden.md), [data/codec/run-time.md](data/codec/run-time.md), [data/codec/fingerprints.md](data/codec/fingerprints.md) |
 | the OAuth issuer | `skein-oauth-issuer` | OpenID Connect's issuer, stateless: an authorization and a token request checked, an ID token signed, the discovery document, key set and userinfo answer | [oauth/issuer.md](oauth/issuer.md) |
-| the forge's vocabulary and dialects | `skein-forge` | a code forge's calls and documents, deliveries and credentials, neutral and rendered by a dialect, Forgejo's or GitHub's | [forge/README.md](forge/README.md), [forge/github.md](forge/github.md), [forge/job-state.md](forge/job-state.md) |
-| the forge component | `skein-forge-connection` | a protocol layer's component that runs a forge's calls end to end: connecting, TLS, credentials, deliveries | [forge/connection.md](forge/connection.md) |
-| the forge client | `skein-forge-client` | a bounded view of a forge for its owner's domain, and each write made at most once | [forge/client.md](forge/client.md) |
+| the forge's vocabulary and dialects | `skein-forge` | a code forge's calls and documents, deliveries and credentials, neutral and rendered by a dialect, Forgejo's or GitHub's | [forge/README.md](forge/README.md), [forge/vocabulary.md](forge/vocabulary.md), [forge/dialects.md](forge/dialects.md), [forge/forgejo.md](forge/forgejo.md), [forge/forgejo-operations.md](forge/forgejo-operations.md), [forge/github.md](forge/github.md), [forge/github-operations.md](forge/github-operations.md), [forge/github-app.md](forge/github-app.md), [forge/job-state.md](forge/job-state.md) |
+| the forge component | `skein-forge-connection` | a protocol layer's component that runs a forge's calls end to end: connecting, TLS, credentials, deliveries | [forge/connection.md](forge/connection.md), [forge/connection-calls.md](forge/connection-calls.md), [forge/connection-webhooks.md](forge/connection-webhooks.md), [forge/connection-machines.md](forge/connection-machines.md) |
+| the forge client | `skein-forge-client` | a bounded view of a forge for its owner's domain, and each write made at most once | [forge/client.md](forge/client.md), [forge/client-effects.md](forge/client-effects.md) |
 | the forge setup | `skein-forge-setup` | makes a forge ready for a service: the identity, credentials, repositories and hooks it acts with | [forge/setup/README.md](forge/setup/README.md) |
 | the fake forge | `skein-fake-forge-domain`, `skein-fake-forge-http`, `skein-fake-forge-forgejo`, `skein-fake-forge-github`, `skein-fake-peers` | for tests: a forge's state and git, its CI and Actions, Forgejo's API over it, GitHub's API and blob layer, and a forge peer on loopback beside the LLM's and OAuth's | [testing/fakes/forge.md](testing/fakes/forge.md), [testing/fakes/forgejo.md](testing/fakes/forgejo.md) |
 | the throwaway Forgejo | `skein-throwaway-forgejo` | for tests: the pinned Forgejo run in a scratch, and the conformance that holds the dialect to it | [testing/fakes/throwaway.md](testing/fakes/throwaway.md) |
 | the fake GitHub | `skein-fake-forge-github`, `skein-fake-forge-http`, `skein-fake-peers` | GitHub's API and browser faces, signed job-log blobs and hosted peer scenarios | [testing/fakes/github.md](testing/fakes/github.md) |
 | the browser kit | `skein-browser` | for tests: a headless Chromium driven over the DevTools protocol on a pipe, by role and name, from the loop | [testing/browser.md](testing/browser.md) |
-| the UI kit | `skein-ui` | a semantic tree of an application's state, by accessibility roles, built, diffed into patches, its acts bound to their owners; words, Markdown, scenes | [ui/README.md](ui/README.md) |
+| the UI kit | `skein-ui` | a semantic tree of an application's state, by accessibility roles, built, diffed into patches, its acts bound to their owners; words, Markdown, scenes | [ui/README.md](ui/README.md), [ui/tree.md](ui/tree.md) |
 | the text shell | `skein-ui-text` | the tree printed as lines, a typed line read as an act, for a terminal or a pipe | [ui/text.md](ui/text.md) |
 | the full-screen shell | `skein-ui-screen`, `skein-ui-screen-terminal` | the tree laid out on a terminal's grid of cells in an application's theme, keys read as acts | [ui/screen.md](ui/screen.md) |
-| the browser parts | `skein-ui-web`, `skein-ui-bundle` | parts an application's browser shell wires into its own loop, compiled to WebAssembly; the bundler | [ui/web/README.md](ui/web/README.md) |
+| the browser parts | `skein-ui-web`, `skein-ui-bundle` | parts an application's browser shell wires into its own loop, compiled to WebAssembly; the bundler | [ui/web/README.md](ui/web/README.md), [ui/web/patches.md](ui/web/patches.md), [ui/web/svg.md](ui/web/svg.md), [ui/web/effects.md](ui/web/effects.md) |
 | a world in a browser | `skein-playground` | an application's simulated world in a Web Worker, stepped in slices paced by the browser; the visitor speaking HTTP to its listener; the bridge; the session log and its replay | [playground.md](playground.md) |
-| the fake person | `skein-fake-person`, `skein-fake-person-browser` | for tests: a person who finds nodes by role, name and text and acts on them, on the tree or in Chromium | [ui/README.md](ui/README.md), [ui/web/README.md](ui/web/README.md) |
+| the fake person | `skein-fake-person`, `skein-fake-person-browser` | for tests: a person who finds nodes by role, name and text and acts on them, on the tree or in Chromium | [ui/README.md](ui/README.md), [ui/testing.md](ui/testing.md), [ui/web/README.md](ui/web/README.md) |
 
 Directory reading guides:
 

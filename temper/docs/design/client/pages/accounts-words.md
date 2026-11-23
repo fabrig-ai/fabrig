@@ -128,7 +128,7 @@ The words for each offered source are:
     (`../../draft/usage-windows.md`, 2): `five_hour` "5 h", `seven_day`
     "Week", any other its label as it is.
   - *Its line:* its name; a bar of its share used, a meter
-    (skein's `ui/README.md`, 3.1) named by the window's name, its
+    (skein's `ui/tree.md`, 1.1) named by the window's name, its
     fraction the share of 10,000 basis points and its words "29% used";
     the share in whole percent, rounded down, "29%"; then its pace,
     "resets in 4 d 14 h · 2.0%/h · full in 1 d 11 h". The bar fills amber
@@ -148,7 +148,7 @@ The words for each offered source are:
     under an hour; "under 1 min". It is read from the page's clock, and
     moves a minute at a time.
   - *Where:* in the browser, in the folded row's head, shown folded
-    (skein's `ui/README.md`, 3.2), a group named "Usage", a line a
+    (skein's `ui/tree.md`, 1.2), a group named "Usage", a line a
     window of its name, bar, share and pace (`../web/look.md`, *An
     account's row*); on a phone the pace goes under the bar. In the
     terminal, a line a window, its words alone: "Week: 29% used · resets in

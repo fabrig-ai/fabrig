@@ -1,4 +1,4 @@
-//! Shared current-text values (data/codec/README.md, section 6).
+//! Shared current-text values (data/codec/golden.md, section 1).
 
 use alloc::collections::BTreeMap;
 use std::sync::{Mutex, OnceLock};
@@ -16,7 +16,7 @@ pub struct Values {
 #[must_use]
 #[expect(
     clippy::panic,
-    reason = "invalid author-owned schema text panics with its parse error (data/codec/README.md, 6)"
+    reason = "invalid author-owned schema text panics with its parse error (data/codec/golden.md, 1)"
 )]
 pub fn values(text: &'static str) -> &'static Values {
     static TEXTS: OnceLock<Mutex<BTreeMap<&'static str, &'static OnceLock<Values>>>> = OnceLock::new();

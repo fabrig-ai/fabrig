@@ -416,7 +416,7 @@ Many of jig's messages in one exchange, each answered as it is ready
 - **The shells give the body in pieces:** the native shell hands each
   piece of a batch's body to the client end as it arrives; the
   browser's shell through skein's fetch reading the exchange's body in
-  pieces (skein's `ui/web/README.md`, section 8), each read on after the step, as the
+  pieces (skein's `ui/web/effects.md`, section 1), each read on after the step, as the
   stream is (`../browser/README.md`, 5.2).
 
 ## 7. Later

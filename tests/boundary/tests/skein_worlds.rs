@@ -1,4 +1,4 @@
-//! A world's library is its own (skein/docs/design/testing/README.md, 6): no package
+//! A world's library is its own (skein/docs/design/testing/layout.md, 1): no package
 //! depends on a package under skein/tests/, and no #[path] leaves its package.
 //! Exclusions name ignored functions of their tree (skein/docs/design/testing/sweeps.md, 5).
 //! One tracked-source walk feeds every source rule (tools/crates/design.md, 3).
@@ -499,7 +499,7 @@ fn skein_worlds_are_private_to_their_packages() {
     failures.extend(walk.failures);
     assert!(
         failures.is_empty(),
-        "A world's library is its own (skein/docs/design/testing/README.md, 6):\n{}",
+        "A world's library is its own (skein/docs/design/testing/layout.md, 1):\n{}",
         failures.join("\n")
     );
 }

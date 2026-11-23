@@ -1,4 +1,4 @@
-//! Loopback webhook listener and its bounded connections (forge/connection.md, 5, 7 and 8).
+//! Loopback webhook listener and its bounded connections (forge/connection.md, 5, and forge/connection-machines.md, 1 and 2).
 use crate::{Event, Limits};
 use skein_forge::api;
 use skein_io::Addr;

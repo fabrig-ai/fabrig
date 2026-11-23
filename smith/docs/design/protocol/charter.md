@@ -260,7 +260,7 @@ and a refusal names what was too large.
 
 - **The codec:**
   - records-only drift (skein's
-    `data/codec/README.md`, section 6); tests build values with
+    `data/codec/golden.md`, section 1); tests build values with
     public fields or take fixed-rule values from embedded current or kept
     text, without stored golden bytes or generated test targets;
   - each decoder fuzzed.

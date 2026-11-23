@@ -1,4 +1,4 @@
-//! The byte pin's committed goldens (data/codec/README.md, section 6).
+//! The byte pin's committed goldens (data/codec/golden.md, section 1).
 
 #[cfg(test)]
 mod tests {

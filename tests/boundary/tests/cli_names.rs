@@ -5,7 +5,7 @@
 //! authored patch functions and context are. Every declaration is read or set outside docs.
 //! Each file is split into maximal ASCII words in one pass, looking each word up
 //! among the trees' prefixes and declared names (cli.md, 9, check 5).
-//! The document parser reads skein/docs/design/runtime/shell.md, 14.3's headings and
+//! The document parser reads skein/docs/design/runtime/shell-table.md, 1.3's headings and
 //! `**Set:**` items alone; the meeting test checks its rendered form.
 
 use std::collections::BTreeSet;

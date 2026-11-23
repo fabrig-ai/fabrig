@@ -1,4 +1,4 @@
-//! The executable's first dispatch (runtime/kernel.md, 6.6; runtime/shell.md, 6.4).
+//! The executable's first dispatch (runtime/kernel-cgroups.md, 1; runtime/shell-startup.md, 1.4).
 //!
 //! Marker: `--skein-reach-v1`, followed by spec, report and ruleset descriptor numbers.
 //! Spec: LE u32 argument/environment/descriptor counts, then length-prefixed program,

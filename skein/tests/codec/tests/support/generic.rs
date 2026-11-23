@@ -1,4 +1,4 @@
-//! Generic/generated agreement and the generic tree's Debug form (data/codec/README.md, 8.3).
+//! Generic/generated agreement and the generic tree's Debug form (data/codec/run-time.md, 2.3).
 
 use skein_codec::schema::{DeclIx, FieldIx, Schema, Shape, Span, Type, TypeIx};
 use skein_codec::value::{Node, Part, Path, Refusal, Value};

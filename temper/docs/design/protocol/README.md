@@ -181,8 +181,8 @@ binary (`jig-test`).
 | the clients' listener | `temper-engine-service`'s listener for clients, on which jig's clients' component is mounted with jig's default HTTP mapping, under `/jig` (`../client/engine.md`) |
 | the fake git program | git as the worker runs it, faked: its core `crates/temper-fake-git`, `temper-box fake git`, and its hosted half `crates/temper-fake-git-hosted` (`../testing/fakes.md`, 3) |
 | the throwaway Forgejo | a Forgejo started by a test script on loopback, with SQLite in a scratch directory, removed after (`../testing/process-tier.md`) |
-| locate | the forge connector's read of a repository's id by owner and name (skein's `forge/forgejo.md`, 1.2) |
-| the webhooks' listener | the forge component's own listener for Forgejo's signed deliveries, plaintext on loopback, one path per forge (skein's `forge/connection.md`, section 6; forge/README.md, section 4) |
+| locate | the forge connector's read of a repository's id by owner and name (skein's `forge/forgejo-operations.md`, 1) |
+| the webhooks' listener | the forge component's own listener for Forgejo's signed deliveries, plaintext on loopback, one path per forge (skein's `forge/connection-webhooks.md`, section 1; forge/README.md, section 4) |
 
 The forge's setup's names are setup/README.md's: connected, managed and owned
 (setup/README.md, section 2), the forge's directory (setup/README.md, section 3), reconcile, a plan of the
@@ -261,7 +261,7 @@ section 8 give them. temper's sit beside them:
     `pieces`, converted at read through the registry.
   - **An effect's key is an identity, never patched:** kept as written,
     in the store and in the forge's markers, compared byte for byte.
-    Its first byte is its version (skein's `forge/client.md`, 7.1);
+    Its first byte is its version (skein's `forge/client-effects.md`, 1.1);
     the connector reads the versions the floor's stores hold,
     and a purpose's tag keeps its meaning for good, a new meaning taking
     a new tag (forge/README.md, section 3). The marker's wrapper and the bot's
@@ -281,8 +281,8 @@ section 8 give them. temper's sit beside them:
     as they were; the preparation's `state` and an owned Forgejo's data
     are the forge's, and going back past a preparation that migrated it
     needs its dump (`../draft/upgrades.md`, 3.2 and 11).
-  - **The bytes' pin is skein's `every`** (`skein/docs/design/data/codec/README.md`,
-    6). Each schema's drift compares its records with the committed code;
+  - **The bytes' pin is skein's `every`** (`skein/docs/design/data/codec/golden.md`,
+    1). Each schema's drift compares its records with the committed code;
     round trips, fuzzing and memory tests build their values,
     without family golden files or generated tests. Fixed forms and the
     key's frame and marker keep their own byte tests.

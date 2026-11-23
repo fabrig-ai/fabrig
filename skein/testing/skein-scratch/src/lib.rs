@@ -1,4 +1,4 @@
-//! A scratch directory, for tests on the real kernel (testing/README.md, 6): made
+//! A scratch directory, for tests on the real kernel (testing/layout.md, 1): made
 //! empty and private beneath the system's temporary directory, the owner's alone (0700),
 //! and removed when dropped, whatever it holds and whatever modes a test gave what is in it,
 //! a failing test's included. The conformance suite lays out a root there

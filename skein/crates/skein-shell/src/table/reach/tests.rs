@@ -1,4 +1,4 @@
-//! Invocation precedence and no-command words (runtime/shell.md, 14.4).
+//! Invocation precedence and no-command words (runtime/shell-table.md, 1.4).
 
 use crate::{Command, Reach, Reached, Set, Table, table::demo::DEMO};
 

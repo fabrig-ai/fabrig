@@ -1,4 +1,4 @@
-//! Reusable bounded bytes (runtime/lib.md, 6): a record whose length is learnt as it is put.
+//! Reusable bounded bytes (runtime/lib-bytes.md, 1): a record whose length is learnt as it is put.
 
 #![expect(clippy::disallowed_types, reason = "a buffer is a Vec allocated once, at its final capacity")]
 
@@ -99,14 +99,14 @@ impl Buffer {
     }
 }
 
-#[expect(clippy::missing_fields_in_debug, reason = "runtime/lib.md, 6: lengths only, never a record's bytes")]
+#[expect(clippy::missing_fields_in_debug, reason = "runtime/lib-bytes.md, 1: lengths only, never a record's bytes")]
 impl core::fmt::Debug for Buffer {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         f.debug_struct("Buffer").field("len", &self.len()).field("capacity", &self.capacity).finish()
     }
 }
 
-// runtime/lib.md, 5.1: hash held state, never capacity or spare room.
+// runtime/lib-containers.md, 1.1: hash held state, never capacity or spare room.
 impl Hash for Buffer {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.bytes.hash(state);

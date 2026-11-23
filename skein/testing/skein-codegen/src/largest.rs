@@ -1,4 +1,4 @@
-//! Largest schema values and their roots (data/codec/README.md, section 6).
+//! Largest schema values and their roots (data/codec/golden.md, section 1).
 
 use alloc::collections::{BTreeMap, BTreeSet};
 

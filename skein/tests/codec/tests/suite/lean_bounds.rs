@@ -1,4 +1,4 @@
-//! Lean every-v3's lowered-limit bounds (data/codec/README.md, 4 and 6).
+//! Lean every-v3's lowered-limit bounds (data/codec/README.md, 4, and data/codec/golden.md, 1).
 //! Decoded bound literals hold the 64-bit target's type sizes.
 
 #[cfg(test)]

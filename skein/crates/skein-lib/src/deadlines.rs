@@ -31,7 +31,7 @@ impl<K: Ord + Copy> Deadlines<K> {
         Deadlines { by_time: Set::with_capacity(capacity), by_key: Map::with_capacity(capacity) }
     }
 
-    /// Raises the capacity in place, allocating nothing (runtime/lib.md, 5).
+    /// Raises the capacity in place, allocating nothing (runtime/lib-containers.md, 1).
     pub fn raise(&mut self, capacity: u32) {
         assert!(capacity >= self.by_key.capacity(), "a capacity never falls");
         self.by_time.raise(capacity);
@@ -121,7 +121,7 @@ impl<K: Copy> Iterator for Iter<'_, K> {
     }
 }
 
-// runtime/lib.md, 5.1: hash held state, never capacity or storage layout.
+// runtime/lib-containers.md, 1.1: hash held state, never capacity or storage layout.
 impl<K: Hash> Hash for Deadlines<K> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.by_time.hash(state);

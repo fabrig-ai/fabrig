@@ -1,4 +1,4 @@
-//! Regeneration check for data/codec/README.md, section 6.
+//! Regeneration check for data/codec/golden.md, section 1.
 
 #[cfg(test)]
 mod tests {

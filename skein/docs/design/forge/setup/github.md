@@ -4,7 +4,7 @@
 
 One App per deployment, owned by the connecting account, public, made by
 its manifest (1.1, 1.2) or by the person (1.8). Its requests and their
-documents are ../github.md's (`../github.md`, section 11); the plans say which, in
+documents are ../github.md's (`../github-app.md`, section 2); the plans say which, in
 what order, and what each answer decides. Every App's request
 (`/app...`) carries the App's JWT (1.3); the conversion and the bot's
 lookup carry none.
@@ -17,7 +17,7 @@ browser to GitHub to make the App. `target` is `Personal` or `Org(login)`.
 - **A pure function** of the given values: the word and a random part,
   three bytes drawn, as six lowercase hex digits, the name being
   `<word>-<random>`; GitHub's web origin, `<web>`, which is
-  `https://github.com` or the fake's (../github.md, section 11); the
+  `https://github.com` or the fake's (../github-app.md, section 2); the
   deployment's URL; the redirect and setup addresses on the owner's
   clients' listener, whole URLs; and the state, which the host draws
   (1.7).
@@ -56,7 +56,7 @@ state first (1.7). Then:
 3. **The App's read,** `GET /app` on the JWT, proving the key signs:
    the id answered must be the conversion's (`OtherApp` otherwise), and
    an `Unsigned` stops it `KeyForm`. It also reads the App's account
-   (../github.md, section 11).
+   (../github-app.md, section 2).
 4. **The bot's id** (1.3).
 5. **The writes:** `AppMade` first (`README.md`, 4.4), then the App's id, slug, key
    (DER) and bot's id. `Done(Made { owner })`, the account step 3 read,
@@ -76,8 +76,8 @@ or the status it answers.
   stops the plan `Missing`. The id is the access's user, which the
   component checks at each start on an installation's token
   (../connection.md, section 3.4).
-- **The JWT** is the dialect's `github::jwt` (../github.md, section
-  8.1), signed by the host with `skein_tls::sign_rs256` (../../net/tls.md, section
+- **The JWT** is the dialect's `github::jwt` (../github-app.md, section
+  1.1), signed by the host with `skein_tls::sign_rs256` (../../net/tls.md, section
   4) on the wall's time, issued a minute in the past and valid ten
   minutes. The host signs one for each request; the plan never sees one.
 
@@ -88,7 +88,7 @@ or the status it answers.
   It reads the App's slug and sends nothing. Installing on another
   account is the same plan again. Which repositories the installation
   takes is the person's choice on GitHub's page; ones granted later
-  arrive as its repositories' change (../connection.md, section 4.4).
+  arrive as its repositories' change (../connection-calls.md, section 1.4).
 - **`Accept { forge, installation, state? }`** runs when GitHub's setup
   address brings the person back with the installation's id and the
   state, or, with no state, when the owner accepts an installation that
@@ -101,7 +101,7 @@ or the status it answers.
   reads the App's id and key and the accepted set, reads the
   installation (`GET /app/installations/{id}`; a `404` stops it
   `Missing`), adds its id and writes the set. The owner then hands the
-  set down (../connection.md, section 4.4).
+  set down (../connection-calls.md, section 1.4).
 - **Only installations accepted this way are the service's.** Another
   account may install a public App: such an installation is never used
   until it is accepted. Reconcile keeps it unless the owner permits
@@ -114,7 +114,7 @@ The App's hook is at `https://<name>.invalid/` at its making, and at
 `https://<slug>.invalid/` once reconcile or a paste sets it, active,
 with no secret the service keeps. GitHub cannot deliver there, and keeps
 each delivery in the App's log, which the component reads on the App's
-JWT (../connection.md, section 6.5). So a deployment needs no address
+JWT (../connection-webhooks.md, section 1.5). So a deployment needs no address
 GitHub can reach, and no webhooks' secret is kept for GitHub: an access
 that carries one is refused (../connection.md, section 3.5).
 
@@ -127,7 +127,7 @@ accepted set; then:
 1. **The App,** `GET /app`: a `401` is the key no longer taken, and
    stops it `Refused(401)`, which the owner shows with the offer to
    replace the key (1.8); another id stops it `OtherApp`. It also reads
-   the App's account (../github.md, section 11). A read that fails
+   the App's account (../github-app.md, section 2). A read that fails
    stops the run as any does, so it answers no account, and what the
    owner holds from an earlier read stands.
 2. **Its permissions and events** against the wanted: contents, pull
@@ -210,13 +210,13 @@ picker.
    `Accepted` stops the run `Installation`, `Missing`: a picker shows
    only an installation the service accepted (1.4).
 2. **The installation's token,** minted on the JWT, full
-   (../github.md, 8.2). A `404` is `Missing`; another status is
+   (../github-app.md, 1.2). A `404` is `Missing`; another status is
    `Refused(status)`.
 3. **One page:**
    `GET /installation/repositories?per_page=<n>&page=<page>`, on that
    token as `Bearer(secret)` (`forgejo.md`, 1.2), `n` being the least of `reachable`
    and 100: each row's `id`, `owner.id`, `owner.login`, `name` and
-   `private` (`github::Reachable`, ../github.md, 8.3).
+   `private` (`github::Reachable`, ../github-app.md, 1.3).
 4. **The outcome,** `Done(Reachable { rows, more })`, as `forgejo.md`, 1.8's; `more`
    when the page holds `n` rows.
 

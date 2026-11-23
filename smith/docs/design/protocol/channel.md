@@ -300,11 +300,11 @@ last one with `opens_window` (domain/host.md, section 6).
   (charter.md, section 2);
 - **the reset,** in limited: how long until the account may be used
   again, an optional `duration`. It is absent when its provider did not
-  say, and zero when it said zero (skein's `llm/README.md`, 2.5);
+  say, and zero when it said zero (skein's `llm/vocabulary.md`, 1.5);
 - **the code,** in refused: the provider's error code, else its error
   type, as text within its bound. It is empty when the provider gave
   none, or one past the bound, which is left out, never clipped (skein's
-  `llm/README.md`, 2.5 and 7);
+  `llm/vocabulary.md`, 1.5, and `llm/README.md`, 7);
 - **the reason,** in refused: the failure's detail, the provider's text,
   within its bound, cut at a character's boundary.
 
@@ -545,7 +545,7 @@ a trace is kept is the agent's configuration (agent.md).
 
 - **The codecs:**
   - records-only drift, under skein's
-    `data/codec/README.md`, section 6; fixed-rule values built from
+    `data/codec/golden.md`, section 1; fixed-rule values built from
     embedded current or kept text, with no generated test targets;
   - each decoder fuzzed in the fuzzy suite.
 - **A protocol world:** the agent's half with `smith-domain`, under a

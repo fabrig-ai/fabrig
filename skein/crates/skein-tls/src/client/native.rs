@@ -1,5 +1,5 @@
 //! The TLS client with independent output on both sides: for a side above
-//! that must write while its read waits (net/tls.md, 3.6; runtime/lib.md, 7.1).
+//! that must write while its read waits (net/tls.md, 3.6; runtime/lib-streams.md, 1.1).
 //!
 //! It shares the classic client's session and buffers. Its four cells each
 //! hold at most one obligation: the read above, the output right above, the

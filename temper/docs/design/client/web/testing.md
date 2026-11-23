@@ -156,7 +156,7 @@ real key in that restored form.
   internal settings (`shell.md`, 1), `internal-loopback-navigation=1`
   and `internal-small-window=1`, which the page honours on the tier's
   loopback origin: so a sign-in's tab (2) can go to the fake issuer on
-  plaintext loopback (skein's `ui/web/README.md`, section 8), and a
+  plaintext loopback (skein's `ui/web/effects.md`, section 1), and a
   reload, a load without them, is loaded again by the tier with them.
   The service's own routes, `/forges/N/github/manifest`, `redirect` and
   `setup` (`../forge/served.md`, 1), aren't the page and carry none:

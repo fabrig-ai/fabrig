@@ -137,7 +137,7 @@ sources in its holder's order. temper configures the LLM providers
   - **Its terminal's foreground,** taken first, before anything it
     writes: where its standard input is a terminal, it makes its own
     process group that terminal's foreground group (skein's
-    `runtime/shell.md`, 6.3, *The terminal's foreground*), so that
+    `runtime/shell-startup.md`, 1.3, *The terminal's foreground*), so that
     started by a program that holds the terminal, as the TUI in front of
     a box starts it (`../client/tui/box.md`, *Lending its terminal*), the
     program's sign-in reads the terminal as it does started by hand,
@@ -156,7 +156,7 @@ sources in its holder's order. temper configures the LLM providers
     `temper-box program-login:`. Smith's configuration reader may precede it with
     its own secret-free `smith: ` diagnostics, as under the other commands
     that read a smith configuration; of its trust roots it says nothing
-    unless a block is malformed (skein's `runtime/shell.md`, 6.2). Temper redirects
+    unless a block is malformed (skein's `runtime/shell-startup.md`, 1.2). Temper redirects
     and suppresses none of them.
   - It reads nothing of the login. The host's half checks it (smith's
     `protocol/programs.md`, section 3; smith's `protocol/host.md`,

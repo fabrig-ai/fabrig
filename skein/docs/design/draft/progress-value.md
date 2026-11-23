@@ -2,7 +2,7 @@
 
 Draft, 2026-11-04, from a session with the user that day. skein-ui's
 progress node says how far a piece of work has gone in words alone
-(`../ui/README.md`, 3.1). This draft gives it a value, done of total, which
+(`../ui/tree.md`, 1.1). This draft gives it a value, done of total, which
 each shell maps to its platform's progress, and which a browser's
 stylesheet can draw as a bar that fills. Its first consumer is temper's
 fetch of Forgejo, whose percentage the clients say in words
@@ -32,7 +32,7 @@ fetch of Forgejo, whose percentage the clients say in words
 ## 2. The fraction
 
 - **`Fraction { done, total }`,** both `u64`, a property of the progress
-  role alone (`../ui/README.md`, 3.2): done at most total, total above zero.
+  role alone (`../ui/tree.md`, 1.2): done at most total, total above zero.
   The builder asserts both, as it asserts an attribute off its roles
   (`../ui/README.md`, section 5).
 - **Absent, indeterminate:** a progress node with no fraction is work
@@ -41,7 +41,7 @@ fetch of Forgejo, whose percentage the clients say in words
   them; skein-ui never divides them for the tree. A shell that needs a
   ratio makes it, checked, from the two (sections 4 and 6).
 - **Not a meter.** A meter, a value in a known range (a disk's use),
-  still waits (`../ui/README.md`, 4.2): progress is how far a piece of work
+  still waits (`../ui/tree.md`, 2.2): progress is how far a piece of work
   has gone toward its end.
 
 ## 3. Words
@@ -115,7 +115,7 @@ with a fraction, beside the `aria-valuetext` it writes today:
 
 ## 9. Its order
 
-1. **skein:** the property, its row in `../ui/README.md`, 3.2, and the rows of
+1. **skein:** the property, its row in `../ui/tree.md`, 1.2, and the rows of
    `../ui/shells.md`; the web mapping and `skein-ui.css`'s rules; the goldens.
    One change.
 2. **temper** (`temper/docs/design/draft/fetch-progress.md`, section 6):

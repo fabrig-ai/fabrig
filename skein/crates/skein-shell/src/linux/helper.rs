@@ -1,4 +1,4 @@
-//! Landlock and the child-only helper calls (runtime/kernel.md, 6.6).
+//! Landlock and the child-only helper calls (runtime/kernel-cgroups.md, 1).
 //!
 //! # The `unsafe`, and why it is sound
 //!

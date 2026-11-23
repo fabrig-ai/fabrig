@@ -119,7 +119,7 @@ A charter's LLM names its account by number, a `u32`, and a
 transcript's opening turn keeps it (../protocol/charter.md, section 2;
 ../protocol/transcript.md, section 2). The local host derives each
 account's number from its name: the first four bytes of the name's
-SHA-256 (skein's `runtime/lib.md`, 6.2), read as a big-endian `u32`. It never
+SHA-256 (skein's `runtime/lib-bytes.md`, 1.2), read as a big-endian `u32`. It never
 comes from the account's place in the settings or among the run's
 models, so that an account has one number in every invocation, and a
 chat resumed on the same account is not carried over. Renaming an

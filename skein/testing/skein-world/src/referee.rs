@@ -45,7 +45,7 @@ impl LastWord {
 ///
 /// Its methods never panic. A finding from `act`, `idle` or `passed` is
 /// kept for the next `watch`, with `passed` answering false while it is kept
-/// (skein/docs/design/testing/README.md, 5).
+/// (skein/docs/design/testing/service-tiers.md, 1).
 pub trait Referee<P> {
     /// Injects what belongs to no process, before they run in an iteration.
     /// It changes only what a process lets be changed between iterations (a

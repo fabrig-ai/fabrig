@@ -620,7 +620,7 @@ convention is a tag on the record, with a fixed mapping:
   - **Its usage is unknown, never zero.** A provider that answered with
     a failure may have read the prompt first. skein's failed call
     carries no usage, whatever the provider sent with it (skein's
-    `llm/README.md`, section 2: a completion carries the token usage).
+    `llm/vocabulary.md`, section 1: a completion carries the token usage).
   - **Its scope's totals and the attempt's are lower bounds,** and each
     names it as a retried failure, apart from any other gap. They miss
     the failed request alone. Its prompt is its retry's (../protocol/events.md,

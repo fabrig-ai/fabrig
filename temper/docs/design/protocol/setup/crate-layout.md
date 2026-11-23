@@ -8,7 +8,7 @@ This document holds the setup's crate layout, split from [`README.md`](README.md
 skein-forge                  + the setup's documents: admin users and their tokens, orgs, repositories'
 │                              collaborators and hooks, GitHub's App documents; both sides, as its
 │                              others; the pins, the versions and the fetched binaries' digests
-│                              (skein's forge/README.md, section 4, and skein/docs/design/forge/forgejo.md, section 1)
+│                              (skein's forge/dialects.md, section 1, and skein/docs/design/forge/forgejo.md, section 1)
 skein-forge-setup            the setup's plans, their types and checks, the access they end with, and the
 │                              host component a service runs them on (skein's forge/setup/README.md, section 4)
 ├── skein-forge

@@ -2,7 +2,7 @@
 
 Provisional, 2026-11-22. How long a provider's rate limit says to wait,
 as the client reads it into `Failure::RateLimited { retry_after }`
-(`README.md`, section 2.5). The client still retries nothing: how its
+(`vocabulary.md`, section 1.5). The client still retries nothing: how its
 owner waits is the owner's policy (smith's `domain/session.md`, section
 4). OpenAI's tokens-per-minute refusal can come inside a stream whose
 head said 200, its only figure in its message's words ("Rate limit
@@ -15,7 +15,7 @@ once, inside the same minute (dev.fabrig.ai, 2026-11-20).
 
 - **A rate limit is read from what its provider said, whatever the
   status.** `RateLimited` is decided by the error's code, else its type,
-  before any status (`README.md`, sections 4.7 and 4.8): a 429's body
+  before any status (`wire.md`, sections 1.7 and 1.8): a 429's body
   and a `response.failed` or `error` event after a 200 head are read
   alike, and the evidence keeps the head's status.
 - **Its delay is the first of:**
@@ -34,15 +34,15 @@ once, inside the same minute (dev.fabrig.ai, 2026-11-20).
 - **Never a guess.** The figure and the window are the provider's own
   words. Text that does not read as one gives none, and a figure the
   detail limit clipped away gives none, so zero still says the provider
-  gave nothing (`README.md`, section 2.5).
+  gave nothing (`vocabulary.md`, section 1.5).
 - **Exhausted is unchanged.** Its reset is still only the response's
   `resets_in_seconds`, `resets_at` or `retry-after`, never a message's
-  words (`README.md`, sections 2.5 and 4.8).
+  words (`vocabulary.md`, section 1.5, and `wire.md`, section 1.8).
 
 ## 2. Reading the message
 
 The message is the error's `message` as the dialect decoded it, clipped
-to the detail limit (`ProviderError.message`, `README.md`, section 2.5),
+to the detail limit (`ProviderError.message`, `vocabulary.md`, section 1.5),
 when the failure is classed. ASCII letters match in either case; no
 other byte matches but itself.
 

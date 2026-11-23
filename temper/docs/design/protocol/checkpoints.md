@@ -77,7 +77,7 @@ does: no worker, no listener, no root.
 - **The child** is io's (skein's `runtime/io/processes.md`), spawned
   from the step code with descriptors 0, 1 and 2 inherited
   (`Way::Inherit`), as a front end lends its terminal to a child
-  (skein's `runtime/shell.md`, 6.3). Its program is COMMAND as a path
+  (skein's `runtime/shell-startup.md`, 1.3). Its program is COMMAND as a path
   when it holds a `/`, made absolute against the working directory.
   Otherwise it is the first regular executable file found in the
   entries of the invocation's `PATH`. A termination signal while the
