@@ -96,6 +96,100 @@ fn a_rate_limit_is_waited_out_and_lasting_failures_are_not_retried() {
     }
 }
 
+// Longer than the fixture's backoff cap.
+const PROVIDER_DELAY: Duration = Duration::from_millis(6500);
+const RESPONSE_200: crate::llm::Evidence = crate::llm::Evidence::Response { status: Some(200) };
+
+#[test]
+fn repeated_rate_limits_wait_and_retry_without_spending_retries() {
+    const RATE_LIMITS: u32 = LIMITS.retries + 2; // More refusals than the transient retry budget.
+    let ordinary = (Duration::from_nanos(1), LIMITS.backoff_max);
+    let provider = (PROVIDER_DELAY, PROVIDER_DELAY);
+    for (delay, (min, max)) in [(PROVIDER_DELAY, provider), (Duration::ZERO, ordinary)] {
+        let mut h = Harness::new(&LIMITS);
+        let (owner, _) = h.open(1);
+        for attempt in 1..=RATE_LIMITS {
+            assert_eq!(h.step(rate_limited(owner, delay)), None, "rate limit {attempt} must not end the session");
+            let retry = h.domain.next_deadline().expect("a retry is armed");
+            let wait = retry.saturating_since(h.env.now);
+            assert!((min..=max).contains(&wait), "unexpected wait {wait:?} for provider delay {delay:?}");
+            h.env.now = retry;
+            let Some(Request::Complete { owner: retried, name, .. }) = h.fire() else {
+                panic!("expected a retry");
+            };
+            assert_eq!((retried, name.retry), (owner, attempt));
+        }
+        let (_, stop, text) = yielded(h.step(Event::Completed { owner, completion: done() }));
+        assert_eq!((stop, text), (Yield::Done, bytes(b"done")));
+    }
+}
+
+#[test]
+fn rate_limits_leave_all_transient_retries_available() {
+    const RATE_LIMITS: u32 = 2;
+    const ATTEMPTS: u32 = RATE_LIMITS + LIMITS.retries + 1;
+    let mut h = Harness::new(&LIMITS);
+    let (owner, _) = h.open(1);
+    let rate_limit = Failure::RateLimited { retry_after: PROVIDER_DELAY };
+    let overload = Failure::Overloaded;
+    for (failure, count) in [(rate_limit, RATE_LIMITS), (overload, LIMITS.retries)] {
+        for _ in 0..count {
+            assert_eq!(h.step(provider_failed(owner, failure)), None);
+            h.env.now = h.domain.next_deadline().expect("the failure armed another attempt");
+            drop(calling(h.fire()));
+        }
+    }
+    assert_eq!(
+        h.step(provider_failed(owner, overload)),
+        Some(ended(
+            End::Failed { failure: overload, evidence: RESPONSE_200, detail: Box::default(), attempts: ATTEMPTS },
+            0,
+        ))
+    );
+}
+
+#[test]
+fn an_accounted_rate_limit_at_or_after_expiry_ends_immediately() {
+    let later = BUDGET.time.saturating_add(PROVIDER_DELAY);
+    for retry_after in [BUDGET.time, later] {
+        let mut h = Harness::new(&LIMITS);
+        let (owner, _) = h.open(1);
+        assert_eq!(
+            h.step(rate_limited(owner, retry_after)),
+            Some(ended(
+                End::Failed {
+                    failure: Failure::RateLimited { retry_after },
+                    evidence: RESPONSE_200,
+                    detail: Box::default(),
+                    attempts: 1,
+                },
+                0,
+            )),
+            "provider delay {retry_after:?}"
+        );
+        assert_eq!(h.domain.next_deadline(), None);
+    }
+}
+
+#[test]
+fn an_unaccounted_rate_limit_waits_until_the_session_expires() {
+    let mut h = Harness::new(&LIMITS);
+    let (owner, _) = h.open_with(1, Spec { account: None, ..spec() });
+    let later = BUDGET.time.saturating_add(PROVIDER_DELAY);
+    assert_eq!(h.step(rate_limited(owner, later)), None);
+    h.after(BUDGET.time);
+    assert_eq!(h.fire(), Some(ended(OUT_OF_TIME, 0)));
+    assert_eq!(h.domain.next_deadline(), None);
+}
+
+fn rate_limited(owner: Token, retry_after: Duration) -> Event {
+    provider_failed(owner, Failure::RateLimited { retry_after })
+}
+
+fn provider_failed(owner: Token, failure: Failure) -> Event {
+    Event::Failed { retry_ok: true, owner, failure, evidence: RESPONSE_200, detail: Box::default() }
+}
+
 #[test]
 fn an_untooled_program_ends_without_retry_and_keeps_its_detail() {
     let mut h = Harness::new(&LIMITS);
