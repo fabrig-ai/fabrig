@@ -177,7 +177,7 @@ fn delivery(record: w::Accounts) -> Box<[u8]> {
 #[test]
 fn accounts_delivery_preserves_every_field_and_terminal_outcome() {
     let limits = fixtures::limits();
-    assert_eq!(watches::subject(&c::Subject::Accounts, limits.wire()), Ok(w::Subject::Accounts));
+    assert_eq!(watches::subject(&c::Subject::Accounts, limits.wire()), w::Subject::Accounts);
     for (end, expected) in jig_client_test_records::account_end_records().into_iter().zip(ends()) {
         assert_eq!(
             watches::delivery(&bytes(Some(end)), &limits),

@@ -511,7 +511,7 @@ fn document_refusal_details_cross_the_client_wire() {
             let w::Refusal::Malformed(wire) = wire else { panic!("malformed") };
             assert_eq!(wire.at, 2);
             let w::Malformed::Settings(facts) = &wire.why else { panic!("settings facts") };
-            let client = jig_client_protocol_link::translate::settings::restore_malformed_settings(facts).unwrap();
+            let client = jig_client_protocol_link::translate::settings::restore_malformed_settings(facts);
             assert_eq!(
                 client,
                 c::MalformedSettings {

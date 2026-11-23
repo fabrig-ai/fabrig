@@ -61,7 +61,7 @@ fn an_activity_answer_with_a_heard_job_result_is_served_whole() {
 
 #[test]
 fn a_read_keeps_its_long_cursor_as_opaque_bytes() {
-    let actual = translate::reads::read(&fixtures::history_read(), fixtures::limits().wire()).unwrap();
+    let actual = translate::reads::read(&fixtures::history_read(), fixtures::limits().wire());
     let w::Read::History(record) = actual else { panic!("history record") };
     assert_eq!(record.task, 7);
     assert!(record.subtree);
@@ -71,7 +71,7 @@ fn a_read_keeps_its_long_cursor_as_opaque_bytes() {
 fn a_read_cursor_past_its_wire_bound_is_refused() {
     let mut limits = *fixtures::limits().wire();
     limits.cursor_value = 47;
-    let problem = translate::reads::read(&fixtures::history_read(), &limits).unwrap().encode(&limits).unwrap_err();
+    let problem = translate::reads::read(&fixtures::history_read(), &limits).encode(&limits).unwrap_err();
     assert_eq!(problem.path, w::paths::CURSOR_VALUE);
     assert_eq!(problem.reason, skein_codec::Reason::Bound);
 }
@@ -86,7 +86,7 @@ fn a_notes_read_keeps_its_scope_and_filter_with_its_cursor() {
             *scope = c::NoteScope::Party { party };
             expected = w::NoteScope::Party(w::NoteScopeParty { party });
         }
-        let actual = translate::reads::read(&read, fixtures::limits().wire()).unwrap();
+        let actual = translate::reads::read(&read, fixtures::limits().wire());
         let w::Read::Notes(record) = actual else { panic!("notes record") };
         assert_eq!((&record.scope), &expected);
         assert_eq!(record.description.as_deref(), Some(b"filter".as_slice()));
@@ -347,7 +347,7 @@ fn me_s_projects_past_the_document_bytes_are_refused_as_too_large() {
 
 #[test]
 fn a_turn_read_keeps_all_three_numbers() {
-    let value = translate::reads::read(&fixtures::turn_read(), fixtures::limits().wire()).unwrap();
+    let value = translate::reads::read(&fixtures::turn_read(), fixtures::limits().wire());
     let w::Read::Turn(value) = value else { panic!("turn read") };
     assert_eq!((value.task, value.attempt, value.turn), (7, 44, 3));
 }
@@ -452,7 +452,7 @@ fn source_text_reads_keep_offsets_and_reject_false_continuations() {
     let limits = fixtures::limits();
     let field = c::TaskTextField::Result;
     let w::Read::TaskText(read) =
-        translate::reads::read(&c::Read::TaskText { task: 7, field, from: 127 }, limits.wire()).unwrap()
+        translate::reads::read(&c::Read::TaskText { task: 7, field, from: 127 }, limits.wire())
     else {
         panic!("source read")
     };
@@ -491,7 +491,7 @@ fn source_text_reads_keep_offsets_and_reject_false_continuations() {
 fn a_tasks_read_is_sent_with_its_project() {
     let limits = fixtures::limits();
     let read = c::Read::Notes { scope: c::NoteScope::Tasks { project: 7 }, description: None, after: None };
-    let w::Read::Notes(value) = translate::reads::read(&read, limits.wire()).unwrap() else { panic!("notes read") };
+    let w::Read::Notes(value) = translate::reads::read(&read, limits.wire()) else { panic!("notes read") };
     let w::NoteScope::Tasks(scope) = &value.scope else { panic!("tasks scope") };
     assert_eq!(scope.project, 7);
     assert_eq!((&value.description), &None);

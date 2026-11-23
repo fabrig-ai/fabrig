@@ -62,9 +62,6 @@ fn provider_identity_value_and_accounts_fault_cross_the_client_wire() {
     let wire = w::SettingValue::decode(limits.receiving(), &mut skein_lib::Reader::new(&writer.finish())).unwrap();
     assert_eq!(settings::restore_setting_value(&wire, &limits).unwrap(), value);
     let identity = c::Setting::Provider(c::SettingNumber { number: 4 });
-    assert_eq!(
-        settings::restore_setting(&settings::wire_setting(&identity, limits.wire()).unwrap()).unwrap(),
-        identity
-    );
-    assert_eq!(settings::restore_setting_fault(&w::SettingFault::Accounts).unwrap(), c::SettingFault::Accounts);
+    assert_eq!(settings::restore_setting(&settings::wire_setting(&identity)), identity);
+    assert_eq!(settings::restore_setting_fault(&w::SettingFault::Accounts), c::SettingFault::Accounts);
 }

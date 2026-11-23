@@ -9,8 +9,9 @@ use jig_client_protocol_wire::Record as _;
 use jig_client_protocol_wire::VERSION;
 use skein_lib::{List, Reader, Writer, length::len_u64};
 
-pub fn subject(value: &c::Subject, limits: &w::Limits) -> Result<w::Subject, w::Problem> {
-    Ok(match value {
+#[must_use]
+pub fn subject(value: &c::Subject, _limits: &w::Limits) -> w::Subject {
+    match value {
         c::Subject::Settings => w::Subject::Settings,
         c::Subject::Me => w::Subject::Me,
         c::Subject::Task { task } => w::Subject::Task(w::SubjectTask { task: *task }),
@@ -18,7 +19,7 @@ pub fn subject(value: &c::Subject, limits: &w::Limits) -> Result<w::Subject, w::
         c::Subject::Chips { tasks } => w::Subject::Chips(w::SubjectChips { tasks: tasks.clone() }),
         c::Subject::Inbox { window } => w::Subject::Inbox(w::SubjectInbox { window: *window }),
         c::Subject::Tasks { query, window } => {
-            w::Subject::Tasks(w::SubjectTasks { query: super::queries::query(query, limits)?, window: *window })
+            w::Subject::Tasks(w::SubjectTasks { query: super::queries::query(query), window: *window })
         }
         c::Subject::Run { task, turn, offset } => {
             let turn = match turn {
@@ -32,12 +33,12 @@ pub fn subject(value: &c::Subject, limits: &w::Limits) -> Result<w::Subject, w::
         c::Subject::Deployment => w::Subject::Deployment,
         c::Subject::Accounts => w::Subject::Accounts,
         c::Subject::Terminal { terminal } => w::Subject::Terminal(w::SubjectTerminal { terminal: *terminal }),
-    })
+    }
 }
 pub fn owned(value: Watchable, limits: &w::Limits) -> Result<w::Owned, w::Problem> {
     let (owner, version, record) = match value {
         Watchable::Jig(value) => {
-            let value = subject(&value, limits)?;
+            let value = subject(&value, limits);
             let mut writer = Writer::new(skein_lib::length::usize_of(value.measure(limits)?));
             value.write(limits, &mut writer).expect("measured subject");
             (w::Owner::Jig, VERSION, writer.finish())

@@ -25,11 +25,10 @@ fn a_job_executor_round_trips() {
 /// Delegation names the same job kind both ways (jig/docs/design/client/domain/contract/documents.md, 7).
 #[test]
 fn a_job_delegation_kind_round_trips() {
-    let limits = fixtures::limits();
     let wire = w::AuthorityExecutor::Job(w::AuthorityExecutorJob { value: 7 });
     let kind = translate::documents::authority_executor_fields(&wire);
     assert_eq!(kind, c::AuthorityExecutor::Job(7));
-    assert_eq!(translate::asks::wire_owner_authority_executor(kind, limits.wire()), Ok(wire));
+    assert_eq!(translate::asks::wire_owner_authority_executor(kind), wire);
 }
 
 /// Both chip projections preserve a job kind (jig/docs/design/client/domain/contract/documents.md, 7).
@@ -78,7 +77,7 @@ fn a_job_executor_filter_round_trips_the_wire() {
         tracked: None,
         order: c::QueryOrder::Number,
     };
-    let read = translate::reads::read(&c::Read::Tasks { query, live: None, ended: None }, limits.wire()).unwrap();
+    let read = translate::reads::read(&c::Read::Tasks { query, live: None, ended: None }, limits.wire());
     let mut out = Writer::new(
         usize::try_from(read.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
     );

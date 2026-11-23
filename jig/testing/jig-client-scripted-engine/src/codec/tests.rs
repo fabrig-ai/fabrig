@@ -193,7 +193,7 @@ fn worker_settings_linked_faults_and_deployment_rows_survive_the_scripted_codec(
     let limits = front::limits(&Bounds::default()).expect("valid limits");
     let setting = c::Setting::Worker(c::SettingNumber { number: 2 });
     let wire = values::wire_setting(&setting);
-    assert_eq!(translate::settings::restore_setting(&wire).unwrap(), setting);
+    assert_eq!(translate::settings::restore_setting(&wire), setting);
     let source = c::SettingValue::Worker(Box::new(c::WorkerSetting {
         number: 2,
         name: b"w1".as_slice().into(),
@@ -205,7 +205,7 @@ fn worker_settings_linked_faults_and_deployment_rows_survive_the_scripted_codec(
     assert_eq!(translate::settings::restore_setting_value(&wire, &limits).unwrap(), source);
     assert_eq!(values::wire_setting_fault(&c::SettingFault::Linked), w::SettingFault::Linked);
     assert_eq!(values::wire_setting_fault(&c::SettingFault::Range), w::SettingFault::Range);
-    assert_eq!(translate::settings::restore_setting_fault(&w::SettingFault::Range), Ok(c::SettingFault::Range));
+    assert_eq!(translate::settings::restore_setting_fault(&w::SettingFault::Range), c::SettingFault::Range);
     let mut source = crate::tests::deployment::empty();
     source.worker_settings = List::from_boxed(Box::new([c::WorkerState {
         pause: c::WorkerPause::Taking,
