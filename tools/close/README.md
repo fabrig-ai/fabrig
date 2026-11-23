@@ -67,9 +67,9 @@ change ends, each seed printed so that it replays (`--seed N`).
 ## Goal validation
 
 A project selecting `.temper/checked-close` as its close job first runs the
-settlement above. It then calls the installed `goal-close-pre-pr` from the
-repository root, even when settlement stages nothing. The verifier checks
-the staged tree against a locally supplied main revision and returns its
-exit status to the worker. A missing verifier, unavailable comparison,
+settlement above. It then runs `tools/pre-pr/pre_pr.py --close` from the
+repository root, even when settlement stages nothing. The check covers the
+goal's changes since its merge base with the checkout's main
+(`tools/pre-pr/design.md`, 1) and returns its exit status to the worker. A missing verifier, unavailable comparison,
 failed check or expired job prevents successful close. The worker still
 owns committing and pushing the settled tree.
