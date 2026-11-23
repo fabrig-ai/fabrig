@@ -137,7 +137,7 @@ pub const TABLE: Table = Table {
     commands: &[OBLIGATIONS, COLLECT, CHECK, JUDGE, VERDICT],
     settings: &[],
     variables: &[],
-    more: "temper-stage-one COMMAND --help prints a command; read temper/docs/design/testing/checks.md, section 5.",
+    more: "temper-stage-one COMMAND --help prints a command; read temper/docs/design/testing/checks-stage-one.md, section 1.",
 };
 
 /// Capture once, answer the front, then run a command (temper/docs/design/testing/tools.md, 4.2).
