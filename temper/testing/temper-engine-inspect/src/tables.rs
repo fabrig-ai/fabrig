@@ -16,7 +16,12 @@ fn writes(view: &View<'_>) -> Table {
         writes.entries.push(Entry {
             key: format!("entry {number} (task {})", entry.task),
             rule: "the write's settlement, or its owner's end with the entry withdrawn",
-            release: if view.ended(entry.task) && forge.inspection_client().inspection_entry(number).is_none() {
+            // Before handoff there is no client write to have settled
+            // (testing/engine-checks.md, 2.3; domain/forge/room.md, 2).
+            release: if view.ended(entry.task)
+                && forge.inspection_entry_handed(number)
+                && forge.inspection_client().inspection_entry(number).is_none()
+            {
                 Release::Due
             } else {
                 Release::Pending

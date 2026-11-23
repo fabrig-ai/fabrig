@@ -1562,6 +1562,277 @@ fn a_conflict_read_past_its_gather_bound_is_found() {
     );
 }
 
+fn first_withheld() -> (World, u64, Time) {
+    let (mut world, change) = super::forge_routes::landing::produced_with_hold(
+        &temper_engine_domain_world::forge_routes::StoryLimits::default(),
+        true,
+    );
+    for _ in 0..1000 {
+        world.tick();
+        if world.root.forge().inspection_merge_withheld(change)
+            && world.events.is_empty()
+            && world.store.idle()
+            && world.root.quiescent()
+        {
+            let row = world.root.forge().change(change).expect("queue first");
+            assert!(matches!(row.change.state, temper_engine_domain_forge_change::State::First { .. }));
+            let bound = Time::from_nanos(row.change.since.as_nanos())
+                .saturating_add(world.root.forge().inspection_limits().change_policy.stall);
+            return (world, change, bound);
+        }
+    }
+    panic!("queue merge withheld by the operator");
+}
+
+#[test]
+fn a_first_whose_merge_is_withheld_waits_for_restart_without_a_stall_bound() {
+    let (world, change, old_bound) = first_withheld();
+    let inspection = inspect(&world);
+    let wait = inspection.waits().iter().find(|wait| wait.waiter == format!("task {change}")).expect("first wait");
+    assert_eq!(wait.bound, None);
+    assert!(wait.wakes.contains(&Wake::Party("operator restart".into())));
+    let mut checks = Checks::new(71);
+    assert_eq!(checks.quiet(&world.root, world.env.now, 1), Ok(()));
+    let at = old_bound.saturating_add(Duration::from_nanos(1));
+    assert_eq!(checks.step(at, 2), Ok(()));
+    assert_eq!(checks.quiet(&world.root, at, 3), Ok(()));
+}
+
+#[test]
+fn a_first_with_unknown_forge_facts_still_stalls_under_the_operators_hold() {
+    let (mut world, change, bound) = first_withheld();
+    // Freeze a restored first before its fresh forge facts arrive. No merge
+    // has been decided in this incarnation: the operator does not hold its read.
+    let row = world.root.forge().change(change).expect("queue first").clone();
+    engine::step(
+        &mut world.root,
+        &world.env,
+        engine::Event::Forge(Box::new(forge::Event::Restore { record: forge::Stored::Change(Box::new(row)) })),
+    );
+    assert!(world.root.forge().landing_held());
+    assert!(!world.root.forge().inspection_merge_withheld(change));
+    let inspection = inspect(&world);
+    let wait = inspection.waits().iter().find(|wait| wait.waiter == format!("task {change}")).expect("first wait");
+    assert_eq!(wait.kind, "change: first");
+    assert_eq!(wait.bound, Some(bound));
+    assert!(!wait.wakes.contains(&Wake::Party("operator restart".into())));
+    let mut checks = Checks::new(71);
+    assert_eq!(checks.quiet(&world.root, bound, 1), Ok(()));
+    let at = bound.saturating_add(Duration::from_nanos(1));
+    assert_eq!(
+        checks.step(at, 2).expect_err("the forge still owes its facts"),
+        format!(
+            "seed 71: at {} ns, iteration 2: engine task {change}: waits on change: first past bound {} ns with no quiet point since",
+            at.as_nanos(),
+            bound.as_nanos(),
+        )
+    );
+}
+
+fn ended_owners_write(withdrawn: bool) -> (World, u64, u64) {
+    use skein_forge_client::{Condition, Effect, Entry};
+    let mut world = World::new();
+    world.adopt();
+    world.oracle_settle();
+    let task = super::reconcile::UNMADE;
+    let entry = Entry {
+        number: 900_002,
+        task,
+        repository: temper_engine_forge_world::REPO,
+        effect: Effect {
+            write: skein_forge::api::Write::Post {
+                number: 1,
+                key: b"milestone".as_slice().into(),
+                body: b"Task milestone".as_slice().into(),
+            },
+            condition: Condition::None,
+        },
+        start: None,
+        attempt: None,
+        failures: 0,
+        queued: false,
+    };
+    let number = entry.number;
+    if withdrawn {
+        // Freeze the leaked entry after handoff and withdrawal from the client.
+        engine::step(
+            &mut world.root,
+            &world.env,
+            engine::Event::Forge(Box::new(forge::Event::Restore {
+                record: forge::Stored::Entry { entry, held: true },
+            })),
+        );
+    } else {
+        // A prior uncommitted entry holds the handoff line. This committed
+        // projection of an ended task is Ready, not yet in the client's outbox.
+        let mut prior = entry.clone();
+        prior.number -= 1;
+        for entry in [prior, entry] {
+            engine::step(&mut world.root, &world.env, engine::Event::Forge(Box::new(forge::Event::Enqueue { entry })));
+        }
+        engine::step(
+            &mut world.root,
+            &world.env,
+            engine::Event::Forge(Box::new(forge::Event::Committed { entry: number })),
+        );
+    }
+    assert!(world.root.tasks().task(task).is_none());
+    assert_eq!(world.root.forge().inspection_entry_handed(number), withdrawn);
+    assert!(world.root.forge().inspection_entry(number).is_some());
+    assert!(world.root.forge().inspection_client().inspection_entry(number).is_none());
+    (world, task, number)
+}
+
+#[test]
+fn an_ended_owners_write_waiting_for_handoff_has_not_settled() {
+    let (world, task, number) = ended_owners_write(false);
+    let inspection = inspect(&world);
+    let table = inspection.tables().iter().find(|table| table.name == "forge write entries").expect("write table");
+    let entry = table.entries.iter().find(|entry| entry.key == format!("entry {number} (task {task})")).expect("entry");
+    assert_eq!(entry.release, skein_world::inspect::Release::Pending);
+    assert_eq!(Checks::new(71).quiet(&world.root, world.env.now, 1), Ok(()));
+}
+
+#[test]
+fn an_ended_owners_write_kept_after_withdrawal_is_found() {
+    let (world, task, number) = ended_owners_write(true);
+    assert_eq!(
+        Checks::new(71).quiet(&world.root, world.env.now, 1).expect_err("withdrawn entry outlives its owner"),
+        format!(
+            "seed 71: at {} ns, iteration 1: engine forge write entries entry {number} (task {task}): still held after release rule: the write's settlement, or its owner's end with the entry withdrawn",
+            world.env.now.as_nanos(),
+        )
+    );
+}
+
+fn landed_waiting_for_restart_reads() -> (forge::Domain, skein_lib::Env<forge::Limits>, u64) {
+    use skein_lib::{Env, Queue};
+    let mut world = World::new();
+    world.adopt();
+    world.oracle_settle();
+    let repository = world.root.forge().repository(temper_engine_forge_world::REPO).expect("repository").clone();
+    let env = Env { now: world.env.now, wall: world.env.wall, limits: world.env.limits.forge };
+    let mut domain = forge::Domain::new(
+        &env.limits,
+        71,
+        forge::Config { push: None, namespace: b"checks".as_slice().into(), writers: Box::new([]) },
+        &[forge::GitIdentity { forge: 1, credential: 1 }],
+        &[forge::Configured {
+            number: 1,
+            kind: forge::Kind::Forgejo,
+            mode: forge::Mode::Connected,
+            admin_connect: false,
+            bot: Box::new([]),
+            owned: None,
+            git: Box::new([]),
+            web: None,
+            read_only: false,
+            asked: false,
+        }],
+        false,
+    )
+    .expect("fixture limits");
+    let mut row = temper_engine_forge_world::changes::change_row();
+    let task = row.task;
+    row.change.state = temper_engine_domain_forge_change::State::Landed { merge: [7; 32], since: env.wall };
+    row.change.last_head = Some([6; 32]);
+    row.pull = Some(1);
+    let mut out = Queue::uncapped();
+    domain.restore_begin(env.wall);
+    for event in [
+        forge::Event::Restore { record: forge::Stored::Repository(repository) },
+        forge::Event::Restore { record: forge::Stored::Change(Box::new(row)) },
+        forge::Event::Restore {
+            record: forge::Stored::Names {
+                task,
+                resources: Box::new([forge::Name { forge: 1, repository: 2, what: forge::What::Pull(1) }]),
+            },
+        },
+        forge::Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic },
+        forge::Event::CatchUp,
+    ] {
+        forge::step(&mut domain, &env, event, &mut out);
+    }
+    domain.offered_change(task);
+    forge::step(
+        &mut domain,
+        &env,
+        forge::Event::StepChange {
+            task,
+            entry: 900_003,
+            heard: temper_engine_domain_forge_change::Heard {
+                review_request: None,
+                start_conflict: None,
+                lacking: None,
+                spend: None,
+                delegate: temper_engine_domain_forge_change::Status::Unknown,
+                flake: false,
+                no_test: false,
+                delegate_running: false,
+                delegate_live: false,
+                effect: temper_engine_domain_forge_change::EffectResult::None,
+                released: false,
+                cancelled: false,
+            },
+            gates: Box::new([]),
+            queue_repair_active: false,
+            kept: false,
+            merge_job: false,
+            pending: Box::new([]),
+        },
+        &mut out,
+    );
+    assert_eq!(domain.inspection_restart_reads(task).len(), 2);
+    (domain, env, task)
+}
+
+#[test]
+fn a_landed_change_waits_for_its_repositories_restart_read() {
+    let (domain, env, task) = landed_waiting_for_restart_reads();
+    let mut inspection = Inspection::new("engine", temper_engine_inspect::KINDS);
+    temper_engine_inspect::forge(&domain, &mut inspection);
+    let wait = inspection.waits().iter().find(|wait| wait.waiter == format!("task {task}")).expect("landed wait");
+    assert_eq!(
+        wait.wakes,
+        [
+            Wake::Party("forge: restart read 1/2/Pull(1)".into()),
+            Wake::Party("forge: restart read 1/2/Repository".into())
+        ]
+    );
+    assert_eq!(
+        skein_world::inspect::check_waits(
+            &[&inspection],
+            skein_world::inspect::Moment { seed: 71, at: env.now, iteration: 1 }
+        ),
+        Ok(())
+    );
+}
+
+#[test]
+fn a_landed_change_cannot_borrow_another_tasks_restart_read() {
+    let (mut domain, env, task) = landed_waiting_for_restart_reads();
+    let mut row = domain.change(task).expect("landed change").clone();
+    row.task += 1;
+    row.change.task = row.task;
+    let unparked = row.task;
+    // The unrelated row has not asked to wait for fresh repository facts.
+    forge::step(&mut domain, &env, forge::Event::Change { row }, &mut skein_lib::Queue::uncapped());
+    assert!(domain.inspection_restart_reads(unparked).is_empty());
+    let mut inspection = Inspection::new("engine", temper_engine_inspect::KINDS);
+    temper_engine_inspect::forge(&domain, &mut inspection);
+    assert_eq!(
+        skein_world::inspect::check_waits(
+            &[&inspection],
+            skein_world::inspect::Moment { seed: 71, at: env.now, iteration: 1 }
+        )
+        .expect_err("no restart wait"),
+        format!(
+            "seed 71: at {} ns, iteration 1: engine task {unparked}: waits on change: landing with no live wake: []",
+            env.now.as_nanos()
+        ),
+    );
+}
+
 fn checking() -> (World, u64, Time) {
     let (mut world, _, producer, _) = temper_engine_domain_world::forge_routes::change_world(true, 1000, None);
     let task = world.root.tasks().task(producer.task).expect("producer");

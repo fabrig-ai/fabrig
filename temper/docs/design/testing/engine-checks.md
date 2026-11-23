@@ -98,7 +98,9 @@ change's due step.
 | `change: held` | `Party("person")`: a person's release |
 | `change: ready`, `change: preparing` | `Waiter(task L)`, its landing |
 | `change: ready` with no landing | its live pushing children from the root, `Waiter(task D)`, while their final heads keep its train from forming; while the forge's limits refuse its train a landing, `Waiter(task L)` for each live landing; while a live landing holds its train, `Waiter(task L)`, that landing, even with room for other trains; while the operator's landing hold stands (`../domain/landing-settings.md`, 1.3), `Party("operator restart")`, the start without that hold; while a refused forming awaits its queue-window retry (`../domain/landing-forming.md`, 3), `Timer(until)`, that train's armed retry; while a member's due step holds its train's forming (`../domain/landing-turn.md`, 2), `Waiter(task M)`, that member's change; otherwise its landing's making, as the root's turn below |
+| `change: first` whose merge the operator's landing hold withholds | `Party("operator restart")`, the start without the hold (`../domain/landing-settings.md`, 1.3); the engine keeps the last step's withheld-merge observation for inspection alone, never stored or read by policy |
 | `change: preparing` with its own write | `Party("forge: entry N")`, its outstanding rebase write, including before it belongs to a landing |
+| a change or landing parked for restart freshness | each still-owed resource read in its awaited repositories, `Party("forge: restart read F/R/RESOURCE")` (below) |
 | every other `change:` step | its live delegate (producer, repair, resolution, gate or merge job), `Waiter(task D)`; its write in flight, `Party("forge: entry N")`; its write still settling, `Party("forge: entry N")` (below); its read in flight, `Party("forge: call N")`; its open question's answerer, `Waiter(task R)` or `Party("person")`; each dependency's end, `Waiter(task D)`; its follow owner's word or act, `Waiter(task T)` or `Party("person")`, including an unstarted change held behind an ended entry awaiting the owner's start or skip (below); else the root's turn below |
 
 - **The root's turn:** a change the forge has decided an act for that
@@ -139,6 +141,13 @@ change's due step.
   applies while a room waiter's place remains on its row: once asked,
   it reads afresh before its decision keeps an entry or leaves the line
   (`../domain/forge/room.md`, 3).
+- **A task waiting for restart freshness:** the forge's parked step or explicit
+  freshness wait names the repositories it awaits (`../domain/forge/catching-up.md`,
+  2 and 4). Each resource the client still owes in those repositories names
+  `Party("forge: restart read F/R/RESOURCE")`, including its admission and retry
+  before it is in flight. These are the client's resource reads, not a change's
+  read token. A task not parked for freshness borrows none of them; a resource
+  already read afresh names nothing.
 - **A write still settling:** a change's procedure can move on from a
   write it no longer needs before the forge's client has answered it:
   containment takes a landed merge while the client still withdraws its
@@ -199,7 +208,13 @@ change's due step.
   gating whose check workflow has ended counts its stall from that end,
   as a delegate's end does. A turn change whose gates have settled and whose
   task still waits on a dependency has no gate-stall bound; its readiness poll
-  does not make that dependency a forge wait. A landing's
+  does not make that dependency a forge wait. A queue's first whose last step
+  decided a merge the operator's landing hold withheld has no stall bound:
+  it waits for restart (`../domain/landing-settings.md`, 1.3). The engine keeps
+  that volatile observation for inspection alone, clearing it when the next
+  step decides otherwise or the row ends. Every other queue's first retains
+  its stall bound, including under the hold while forge facts stay unknown.
+  A landing's
   deadlines are polls, not bounds (`landing-waits.md`, 3), and a wait for
   room has no bound in its design (`../domain/forge/room.md`, 4), so
   neither has one. A wait past its bound at a quiet point is a finding
@@ -213,7 +228,7 @@ change's due step.
 
 | Table | Capacity | Entries | Released by | Due once |
 |---|---|---|---|---|
-| `forge write entries` | `forge.entries` | each outbox entry, `entry N (task T)`, and each reservation of its room, `reserved for task T` | the write's settlement, or its owner's end with the entry withdrawn | its owner has ended and no write or withdrawal of it is outstanding with the forge client |
+| `forge write entries` | `forge.entries` | each outbox entry, `entry N (task T)`, and each reservation of its room, `reserved for task T` | the write's settlement, or its owner's end with the entry withdrawn | its owner has ended, the entry has been handed to the forge client, and that client no longer holds it (no write or withdrawal outstanding) |
 | `forge read admissions` | `forge.client.pending` | each call the forge client admitted, `call N`, with its task where its reader names one | the read's answer | its answer has come and its place isn't reclaimed at the quiet point |
 | `branch holds` | `forge.holds` | each hold, `NAME (task T)` | the closing settlement of the landing or change that holds it; on an ended forge, the forge's return or a person's act | its forge is live, its holder's task has ended and no release of it is under way |
 | `landing rows` | `forge.landings` | each landing's row with its asks, `landing L` | the closing settlement of the landing | the landing has ended, landed or cancelled, and its row still names a write entry no longer in the outbox or holds an ask not handed over |
@@ -232,6 +247,10 @@ change's due step.
   no closing settlement can come while its forge is ended. Its release
   rule is the forge's return or a person's act, not the absent holder's
   end (`../domain/landing-forming.md`, 4).
+- **Before handoff, a write has not settled:** an entry waiting to commit,
+  restored before catch-up, or committed and awaiting its place in the client's
+  handoff order is pending even after its owner ends. Absence from the client's
+  outbox alone is not settlement (`../domain/forge/room.md`, 2).
 - **An ended landing's outstanding writes** keep its row pending until their
   outcomes settle (`../domain/forge/room.md`, 2). Ending does not retire a
   write still in flight; a row's reference left after its outbox entry

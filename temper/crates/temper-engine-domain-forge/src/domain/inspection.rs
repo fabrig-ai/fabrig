@@ -57,6 +57,16 @@ impl Domain {
         Some(&self.entries.get(&key)?.entry)
     }
 
+    /// Handoff precedes settlement: absence from the client before handoff is not an outcome
+    /// (temper/docs/design/testing/engine-checks.md, 2.3).
+    #[must_use]
+    pub fn inspection_entry_handed(&self, key: u64) -> bool {
+        match self.entries.get(&key) {
+            Some(row) => row.handoff == super::Handoff::Handed,
+            None => false,
+        }
+    }
+
     /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
     #[must_use]
     pub fn inspection_entry_capacity(&self) -> u32 {
@@ -77,11 +87,47 @@ impl Domain {
         crate::settling::gates_settled(row, None, self.landing.limits.change_policy.gates)
     }
 
+    /// The last step's merge was withheld by the operator's landing hold. No policy reads it
+    /// (temper/docs/design/testing/engine-checks.md, 2.2).
+    #[must_use]
+    pub fn inspection_merge_withheld(&self, task: u64) -> bool {
+        self.merge_withheld.contains(&task)
+    }
+
     /// The started gather's bound, absent while its agent or another exemption stands.
     /// For its worlds' inspection adapter (testing/engine-checks.md, 2.2).
     #[must_use]
     pub fn inspection_change_read_bound(&self, task: u64) -> Option<Wall> {
         super::read_session::inspection_bound(self, task)
+    }
+
+    /// Client resources still owed by the repositories this task awaits after restart
+    /// (temper/docs/design/domain/forge/catching-up.md, 2 and 4).
+    #[must_use]
+    pub fn inspection_restart_reads(&self, task: u64) -> Box<[skein_forge_client::Resource]> {
+        let repositories = self.fresh_waits.get(&task);
+        let own = if self.fresh_steps.contains_key(&task) {
+            match self.changes.get(&task) {
+                Some(row) => Some(row.repository),
+                None => None,
+            }
+        } else {
+            None
+        };
+        if repositories.is_none() && own.is_none() {
+            return Box::new([]);
+        }
+        let mut reads = List::with_capacity(self.landing.limits.client.resources);
+        for resource in self.client.fresh_resources_owed() {
+            let awaited = match repositories {
+                Some(repositories) => repositories.is_empty() || repositories.contains(&resource.repository),
+                None => own == Some(resource.repository),
+            };
+            if awaited {
+                reads.push(resource).expect("client resources fit their limit");
+            }
+        }
+        reads.into_boxed()
     }
 
     /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).

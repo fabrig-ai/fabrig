@@ -133,6 +133,14 @@ impl View<'_> {
                 wakes.push(Wake::Party(format!("forge: call {call}")));
             }
         }
+        // Restart freshness is owned by the client's resource reader, not a
+        // change's read token (domain/forge/catching-up.md, 2 and 4).
+        for resource in self.forge.inspection_restart_reads(task) {
+            wakes.push(Wake::Party(format!(
+                "forge: restart read {}/{}/{:?}",
+                resource.repository.forge, resource.repository.repository, resource.what
+            )));
+        }
         for owner in self.forge.inspection_retry_readers() {
             if self.forge.inspection_read_task(owner) == Some(task)
                 && let Some(at) = self.forge.inspection_read_retry(owner)

@@ -187,6 +187,9 @@ fn change_wakes(view: &View<'_>, row: &temper_engine_domain_forge::ChangeRow) ->
                 wakes.push(view.answerer(row.task));
             }
             change_turn(view, row.task, &mut wakes);
+            if matches!(row.change.state, State::First { .. }) && view.forge.inspection_merge_withheld(row.task) {
+                wakes.push(Wake::Party("operator restart".into()));
+            }
             if matches!(row.change.state, State::Producing { requested: false }) {
                 follow_restart(view, row.task, &mut wakes);
             }
@@ -359,6 +362,12 @@ fn bound(view: &View<'_>, row: &temper_engine_domain_forge::ChangeRow) -> Option
         && (!view.forge.inspection_step_dependencies(row.task).is_empty()
             || view.root.and_then(|root| root.tasks().task(row.task)).is_some_and(|task| !task.waiting_on.is_empty()))
     {
+        return None;
+    }
+    // Only a decided merge withheld by the operator waits for restart, not
+    // a first still waiting for forge facts (domain/landing-settings.md, 1.3;
+    // testing/engine-checks.md, 2.2).
+    if matches!(row.change.state, State::First { .. }) && view.forge.inspection_merge_withheld(row.task) {
         return None;
     }
     let limits = &view.forge.inspection_limits().change_policy;
