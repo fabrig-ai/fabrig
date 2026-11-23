@@ -1224,32 +1224,42 @@ def matching_coverage_tests(lost, patterns):
     return tests
 
 
-def coverage_check_losses(head, main_binaries, lost_by_binary, moves, partial):
-    """Sum checks across binaries joined by moves (tools/tiers/budgets.md, 13)."""
+def coverage_check_groups(binaries, automatic_moves, partial):
+    """Group whole binaries by automatic moves (tools/tiers/budgets.md, 13)."""
     neighbors = {}
-    for move in moves:
+    for move in automatic_moves:
         source, target = move['from']['binary_id'], move['to']['binary_id']
         if source != target:
             neighbors.setdefault(source, set()).add(target)
             neighbors.setdefault(target, set()).add(source)
     seen = set()
-    for binary in lost_by_binary:
+    for binary in binaries:
         if binary in seen or binary in partial:
             continue
         if binary not in neighbors:
+            yield binary, [binary]
+            continue
+        group = [binary]
+        seen.add(binary)
+        for member in group:
+            for neighbor in neighbors[member] - seen:
+                seen.add(neighbor)
+                group.append(neighbor)
+        if partial.isdisjoint(group):
+            yield binary, sorted(group)
+        else:
+            for member in sorted(group):
+                if member in binaries and member not in partial:
+                    yield member, [member]
+
+
+def coverage_check_losses(head, main_binaries, lost_by_binary, automatic_moves, partial):
+    """Compare each whole group's counts with main (tools/tiers/budgets.md, 13)."""
+    for binary, group in coverage_check_groups(lost_by_binary, automatic_moves, partial):
+        if len(group) == 1:
             before = main_binaries[binary].get('checks', {})
             after = head.get(binary, {}).get('checks', {})
-            group = [binary]
         else:
-            group = [binary]
-            seen.add(binary)
-            for member in group:
-                for neighbor in neighbors[member] - seen:
-                    seen.add(neighbor)
-                    group.append(neighbor)
-            if not partial.isdisjoint(group):
-                continue
-            group.sort()
             before, after = Counter(), Counter()
             for member in group:
                 before.update(main_binaries.get(member, {}).get('checks', {}))
@@ -1287,7 +1297,8 @@ def coverage_verdict(data, head, processes, main_binaries, partial, reasons, ove
         names = planned.get(binary, ()) if binary in partial else observed.get(binary, ())
         lost_by_binary[binary] = main['tests'].keys() - (() if binary in moved_out else names)
 
-    moves, used = match_coverage_moves(lost_by_binary, observed, main_binaries, moved_out)
+    automatic_moves, used = match_coverage_moves(lost_by_binary, observed, main_binaries, moved_out)
+    renames = []
     renamed_targets, applied_tests = {}, {}
     rename_names = {name for reason in reasons if reason['kind'] == 'renamed' for name in reason['to']}
     if rename_names:
@@ -1310,7 +1321,7 @@ def coverage_verdict(data, head, processes, main_binaries, partial, reasons, ove
                     targets.append(target)
             pairs = list(zip(sorted(tests), targets))
             for name, target in pairs:
-                record_coverage_move(moves, used, binary, name, target)
+                record_coverage_move(renames, used, binary, name, target)
             tests = {name for name, _ in pairs}
         if tests:
             lost.difference_update(tests)
@@ -1321,7 +1332,7 @@ def coverage_verdict(data, head, processes, main_binaries, partial, reasons, ove
     for index, reason in enumerate(reasons):
         if 'checks' in reason:
             check_reasons.setdefault(reason['binary'], []).append((index, reason))
-    for binary, group, fewer in coverage_check_losses(head, main_binaries, lost_by_binary, moves, partial):
+    for binary, group, fewer in coverage_check_losses(head, main_binaries, lost_by_binary, automatic_moves, partial):
         covered = set()
         for member in group:
             for index, reason in check_reasons.get(member, ()):
@@ -1361,7 +1372,7 @@ def coverage_verdict(data, head, processes, main_binaries, partial, reasons, ove
                 used_budget.append(reason)
         elif reason['kind'] != 'budget':
             warnings.append('stale coverage reason: ' + coverage_reason(reason))
-    return applied, moves, used_budget
+    return applied, automatic_moves + renames, used_budget
 
 
 def coverage_reason(reason, tests=(), kinds=()):
