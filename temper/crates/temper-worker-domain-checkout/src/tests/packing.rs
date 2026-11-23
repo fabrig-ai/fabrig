@@ -3,35 +3,35 @@
 
 use super::*;
 
-// Kept packed: 25 fetches make a store due; twelve two-fetch prepares
-// stop one short. The reset is followed by another 24 fetches, 49 in all.
+// Kept packed: the start and counts fetches plus a distinct pin make
+// three fetches. Seven such prepares and a local pin leave 23; another
+// local pin brings it to 25. After reset, eight groups of three stop at 24.
 const DUE: u32 = 25;
-const BELOW_DUE: u32 = 24;
-const TWO_FETCH_PREPARES: u32 = 12;
+const BELOW_DUE: u32 = 23;
+const DISTINCT_PIN_PREPARES: u32 = 7;
+const PREPARES_AFTER_RESET: u32 = 8;
 const AFTER_RESET: u32 = 49;
-// Store, make, clone, two fetches and a pin precede the checkout at most.
+// Store, make, clone, start, pin, counts, checkout.
 const PREPARE_OPERATIONS: u32 = 7;
 
 #[test]
-#[ignore = "worker disk: the cache counts no fetch, check out or merge, and no prepare asks a Pack (temper/docs/design/domain/worker/checkouts.md, Kept packed)"]
 fn growing_packs_trigger_packing() {
     for pack_end in [Done::Succeeded, failed(Fault::Broken)] {
         let mut h = Harness::new(LIMITS);
         h.observe_reds = true;
         let mut fetches = 0;
 
-        // Two fetches per prepare distinguish the store's count from the
-        // number of prepares and the repository's check outs.
-        for _ in 0..TWO_FETCH_PREPARES {
+        for _ in 0..DISTINCT_PIN_PREPARES {
             prepare_and_release(&mut h, &mut fetches, true, None);
         }
+        prepare_and_release(&mut h, &mut fetches, false, None);
         assert_eq!(fetches, BELOW_DUE);
         prepare_and_release(&mut h, &mut fetches, false, Some(pack_end));
         assert_eq!(fetches, DUE);
 
         // Either end resets both counts, and a fault still leaves the
         // workspace ready and reusable, without making its store again.
-        for _ in 0..TWO_FETCH_PREPARES {
+        for _ in 0..PREPARES_AFTER_RESET {
             prepare_and_release(&mut h, &mut fetches, true, None);
         }
         assert_eq!(fetches, AFTER_RESET, "24 more fetches ask for no Pack");
@@ -68,7 +68,12 @@ fn prepare_and_release(h: &mut Harness, fetches: &mut u32, pin: bool, pack_end: 
                 };
                 Done::Fetched { commit }
             }
-            Op::Point { .. } | Op::Counts { .. } => Done::Succeeded,
+            Op::Counts { store, .. } => {
+                assert_eq!(store, store_token(b"a"), "counts fetches into the same store");
+                *fetches = fetches.checked_add(1).expect("bounded fetch count");
+                Done::Succeeded
+            }
+            Op::Point { .. } => Done::Succeeded,
             Op::CheckOut { at, .. } => {
                 checkout = Some(at);
                 break;

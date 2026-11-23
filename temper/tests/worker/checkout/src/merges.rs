@@ -1,6 +1,8 @@
 //! Merge scenarios against the real checkout child, fake disk and fake forge.
 //! The referee predicts complete trees, parent pairs and remote refs from
 //! the scenario; it never reads the domain's private state.
+pub mod counts;
+
 use crate::{forge::Forge, translate};
 use skein_lib::{Duration, Env, Queue, Time, Token, Wall};
 use temper_fake_checkout::{Checkout, git::Remote};
@@ -792,14 +794,14 @@ fn heads_spec(heads: &[u64]) -> Spec {
 }
 
 fn prepare_heads(world: &mut World, heads: &[u64]) -> (Token, Vec<u8>) {
-    prepare_heads_spec(world, heads_spec(heads))
+    prepare_single(world, heads_spec(heads))
 }
 
-fn prepare_heads_spec(world: &mut World, spec: Spec) -> (Token, Vec<u8>) {
+fn prepare_single(world: &mut World, spec: Spec) -> (Token, Vec<u8>) {
     let Request::Prepared { prepared: Prepared::Ready { workspace, conflicts }, .. } =
         world.finish(Event::Prepare { client: Token::new(9), spec }, false)
     else {
-        panic!("merged heads prepared")
+        panic!("single repository prepared")
     };
     assert!(conflicts.is_empty());
     let at = translate::path(&temper_worker_domain_checkout::git::Place {
@@ -1030,11 +1032,14 @@ pub fn goal_later_run(case: Case) {
     release_heads(&mut world);
 }
 
-fn design_start() -> (World, Vec<u8>, u64) {
+fn design_world() -> World {
     let mut world = World::new(73, Case::Clean, 64);
-    // Use the same forge and checkout driver as the merge scenarios.
     world.forge.create_branch(b"forge/temper", b"g", world.ours).expect("g created");
-    let spec = Spec {
+    world
+}
+
+fn design_spec(tip: u64) -> Spec {
+    Spec {
         key: b"design".as_slice().into(),
         repositories: Box::new([Repository {
             prefixes: Box::new([]),
@@ -1045,24 +1050,19 @@ fn design_start() -> (World, Vec<u8>, u64) {
             identity: 17,
             account: None,
             push: Some(b"g".as_slice().into()),
-            expected: Some(translate::commit(world.ours)),
+            expected: Some(translate::commit(tip)),
             delivered: None,
             pin: None,
             landing: Some(b"g".as_slice().into()),
             save: Some(b"saved".as_slice().into()),
         }]),
-    };
-    let Request::Prepared { prepared: Prepared::Ready { workspace, conflicts }, .. } =
-        world.finish(Event::Prepare { client: Token::new(9), spec }, false)
-    else {
-        panic!("design prepared")
-    };
-    assert!(conflicts.is_empty());
-    let at = translate::path(&temper_worker_domain_checkout::git::Place {
-        git: None,
-        workspace,
-        repository: b"temper".as_slice().into(),
-    });
+    }
+}
+
+fn design_start() -> (World, Vec<u8>, u64) {
+    let mut world = design_world();
+    let spec = design_spec(world.ours);
+    let (_, at) = prepare_single(&mut world, spec);
     assert_eq!(world.branch_fetches, [b"g".to_vec()], "g is fetched once during prepare");
     assert_eq!(
         world.disk.content(&[at.as_slice(), b"/.git/refs/temper/landing"].concat()),
@@ -1221,7 +1221,7 @@ fn catch_up_start() -> (World, Vec<u8>) {
     let mut world = World::new(83, Case::Clean, 64);
     let mut spec = heads_spec(&[world.ours]);
     spec.repositories[0].landing = Some(b"main".as_slice().into());
-    let (_, at) = prepare_heads_spec(&mut world, spec);
+    let (_, at) = prepare_single(&mut world, spec);
     world.forge.moves();
     (world, at)
 }
@@ -1307,8 +1307,10 @@ pub fn dependency_caught_up(unchecked: bool) {
             world.disk.write(&[at.as_slice(), b"/work"].concat(), b"producer work\n");
         }
         let tip = land_dependency(&mut world, false, false);
+        world.forge.publish_counts(b"forge/temper", b"{\"checks\":1}\n");
         ask_dependency(&mut world, unchecked);
         let landings = answer_dependency(&mut world, true);
+        counts::assert_ref(&world, &at, None);
         let merge = checkout_head(&world, &at);
         assert_pin(&world, &at, tip);
         assert_eq!(world.pins, 2, "only prepare and catch-up move the pin");

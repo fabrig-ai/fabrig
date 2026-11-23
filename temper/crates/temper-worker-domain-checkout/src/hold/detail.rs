@@ -74,6 +74,7 @@ pub(super) fn preparation_detail(
         PrepareStep::PointLanding { repository, .. } | PrepareStep::PinReplaced { repository, .. } => {
             (b"point landing", Some(repository))
         }
+        PrepareStep::Counts { repository, .. } => (b"fetch counts", Some(repository)),
         PrepareStep::FetchBase { repository, .. } => (b"fetch base", Some(repository)),
         PrepareStep::PointBase { repository, .. } => (b"point base", Some(repository)),
         PrepareStep::CheckOutMerge { repository, .. } => (b"check out merge", Some(repository)),
