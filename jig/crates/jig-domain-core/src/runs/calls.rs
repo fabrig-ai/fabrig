@@ -4,6 +4,64 @@ use alloc::boxed::Box;
 use skein_lib::List;
 
 impl Core {
+    /// A decided effect must settle before its task resumes.
+    pub(crate) fn unsettled_effect(&self, task: u64) -> bool {
+        for (key, part) in &self.call_parts {
+            if key.task != task {
+                continue;
+            }
+            match part {
+                CallPart::Effect { outcome, .. } => match outcome {
+                    None
+                    | Some(
+                        crate::effects::connector::OutboxOutcome::Uncertain
+                        | crate::effects::connector::OutboxOutcome::Held { .. },
+                    ) => return true,
+                    Some(
+                        crate::effects::connector::OutboxOutcome::Made
+                        | crate::effects::connector::OutboxOutcome::Failed
+                        | crate::effects::connector::OutboxOutcome::Withdrawn
+                        | crate::effects::connector::OutboxOutcome::NotMade,
+                    ) => {}
+                },
+                CallPart::Connector { .. }
+                | CallPart::EffectRefused(_)
+                | CallPart::EffectDenied { .. }
+                | CallPart::ToolDenied { .. }
+                | CallPart::EscalationDecided { .. }
+                | CallPart::EscalationRefused(_)
+                | CallPart::Proposed { .. }
+                | CallPart::ProposalDecided { .. }
+                | CallPart::ProposalRefused(_)
+                | CallPart::SettingsRefused(_)
+                | CallPart::HoldOwner { .. }
+                | CallPart::Controlled
+                | CallPart::ControlRefused(_)
+                | CallPart::ControlDenied { .. }
+                | CallPart::Sent { .. }
+                | CallPart::Introduced
+                | CallPart::MessageRefused(_)
+                | CallPart::Subscribed { .. }
+                | CallPart::Unsubscribed
+                | CallPart::SubscriptionRefused(_)
+                | CallPart::Delegated(_)
+                | CallPart::DelegationDenied { .. }
+                | CallPart::DelegationRefused(_)
+                | CallPart::NoteWritten { .. }
+                | CallPart::NoteRecalled { .. }
+                | CallPart::NoteRefused(_)
+                | CallPart::NoteDeleted { .. }
+                | CallPart::WordsRecorded { .. }
+                | CallPart::Revised { .. }
+                | CallPart::Moved { .. }
+                | CallPart::Again { .. }
+                | CallPart::PassedUp { .. }
+                | CallPart::Unavailable => {}
+            }
+        }
+        false
+    }
+
     /// Whether a named call can proceed or replay its retained answer.
     /// Pending calls wait; new calls share the configured record bound.
     #[must_use]

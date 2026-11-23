@@ -61,6 +61,36 @@ fn finish(store: &mut Store, below: Below) {
     };
 }
 #[test]
+fn a_burst_of_ready_commits_waits_for_the_maps_durable_credit() {
+    let mut disk = fixtures::disk::Disk::new(&[]);
+    let mut limits = fixtures::store_limits();
+    limits.store.queued = 2;
+    let mut store = disk.store_with_limits(&limits);
+    let opened = disk.open(&mut store);
+    let Some(Event::Opened { .. }) = opened.first() else { panic!("opened store") };
+    let mut above = Queue::uncapped();
+    let mut below = fixtures::below();
+    for number in 1..=4 {
+        crate::down(
+            &mut store,
+            &fixtures::env(),
+            fixtures::commit(number, Box::new([fixtures::header(number)])),
+            &mut above,
+            &mut below,
+        );
+        assert!(above.is_empty(), "no terminal before disk settlement: {above:?}");
+    }
+    disk.drive(&mut below, |io, below| crate::up(&mut store, &fixtures::env(), io, &mut above, below));
+    let mut numbers = skein_lib::List::with_capacity(4);
+    for event in &above {
+        let Event::Committed { number, .. } = event else { panic!("committed burst: {event:?}") };
+        numbers.push(*number).expect("four commits");
+    }
+    assert_eq!(numbers.as_slice(), &[1, 2, 3, 4]);
+    assert_eq!(store.stores.store.last(), 4);
+}
+
+#[test]
 fn a_turn_is_written_and_synced_before_its_commit() {
     let (mut store, below) = writing();
     assert_eq!(store.stores.store.last(), 1);

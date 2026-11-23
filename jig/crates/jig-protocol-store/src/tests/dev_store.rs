@@ -43,6 +43,9 @@ const CURRENT: OwnerSets = OwnerSets { sets: &[crate::SKEIN_SET, crate::SMITH_SE
 fn old_sets() -> OwnerSets {
     let families = crate::STORE_FAMILIES.map(|family| crate::KeptFamily {
         current: TEXTS.iter().find(|(name, _)| *name == family.name).unwrap().1,
+        // Dev's core predates parts: keep only its registered types and key range.
+        types: if family.name == "jig-store-core" { &family.types[..8] } else { family.types },
+        keys: if family.name == "jig-store-core" { &family.keys[..1] } else { family.keys },
         ..family
     });
     let smith = crate::KeptFamily {
@@ -188,8 +191,12 @@ fn raw(disk: &mut Disk, store: &mut Store, mut ops: Vec<skein_kv::Op>) {
 fn registry(store: &mut Store) {
     for (family, text) in TEXTS {
         let family = crate::STORE_FAMILIES.iter().find(|held| held.name == family).unwrap();
+        let schema = schema::parse(text.as_bytes()).unwrap();
         for ty in family.types {
-            let id = schema::parse(text.as_bytes()).unwrap().version();
+            if schema.root(ty.root.as_bytes(), ty.variant.map(str::as_bytes)).is_none() {
+                continue;
+            }
+            let id = schema.version();
             let key = keys::encode_own(
                 &keys::Own::Layout { family: family.name.into(), number: ty.number, id },
                 fixtures::KEY_LIMIT,

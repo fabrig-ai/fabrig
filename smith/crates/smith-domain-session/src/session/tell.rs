@@ -156,17 +156,23 @@ pub(super) fn slot(conversation: &Conversation, tools: &super::Tools, slot: u32,
     }
 }
 
-pub(super) fn not_run(conversation: &Conversation, out: &mut Queue<Request>) {
+pub(super) fn not_run(conversation: &Conversation, tools: &super::Tools, out: &mut Queue<Request>) {
+    let mut slot = 0;
     for block in &conversation.transcript.last().expect("late answer").content {
         if let Some(call) = block.tool_call() {
-            result(
-                conversation,
-                &Block::ToolResult {
-                    id: call.id.clone(),
-                    result: crate::llm::Returned::NotRun { why: crate::llm::NotRun::Stopped },
-                },
-                out,
-            );
+            match tools.slots.get(slot).expect("one slot per late call") {
+                super::Slot::Done { result: block } => result(conversation, block, out),
+                super::Slot::Unstarted => result(
+                    conversation,
+                    &Block::ToolResult {
+                        id: call.id.clone(),
+                        result: crate::llm::Returned::NotRun { why: crate::llm::NotRun::Stopped },
+                    },
+                    out,
+                ),
+                super::Slot::Running { .. } | super::Slot::Withheld => unreachable!("late calls never start"),
+            }
+            slot = slot.checked_add(1).expect("bounded calls");
         }
     }
 }

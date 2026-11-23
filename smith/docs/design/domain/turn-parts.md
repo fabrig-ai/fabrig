@@ -199,11 +199,13 @@ before it asks any completion:
   | `wait` | answered as a parked run's withheld `wait` is, with the messages that woke the run (run.md, section 6) |
   | any other, with no part | run now: a drain tells a part for each it cut, so it never started |
 
-  A host call is asked anew under this activation's name, since a name
-  carries its activation and no later one reuses it (run.md, 5.2), and a
-  host decides an earlier activation's name only in its own activation.
-  It is safe: a drain settles every relay before its run ends, so a
-  call the host decided is among the start's answered calls.
+  A host call is asked anew under this activation's name only when no
+  host decided it, since a name carries its activation and no later one
+  reuses it (run.md, 5.2). A call a host decided in any earlier activation
+  is among the start's answered calls under its own name (run.md, section
+  6), whether a drain settled its relay or the engine settled it after
+  losing the worker, and an engine holding a decided effect it has not
+  yet settled places the run again only once it has.
 - **The model sees each as if the call had run once:** a rerun's or a
   recorded answer is the call's result, in its place, and an
   `interrupted` result is rendered for the model to judge

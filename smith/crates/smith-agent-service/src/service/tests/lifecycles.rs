@@ -69,6 +69,10 @@ fn a_failure_before_the_answer_leaves_the_run_live() {
     assert!(service.stages.io_requests.is_empty());
     assert!(!service.stages.llm.closed());
     assert_eq!(done(&service), None);
+    let Some(domain::Event::Disconnected { run }) = service.stages.domain_events.pop() else {
+        panic!("failed output releases durable credit before cancellation settles")
+    };
+    assert_eq!(run, Token::new(19));
     route_io_event(
         &mut service.stages,
         Some(&mut service.frame),

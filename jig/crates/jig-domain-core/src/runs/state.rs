@@ -185,6 +185,9 @@ impl Core {
     /// Whether a due agent's admission for no writes is anything but a wait
     /// (domain/engine/executors.md, 1), asking the cheaper checks first.
     pub(crate) fn agent_ready(&self, task: u64) -> bool {
+        if self.unsettled_effect(task) {
+            return false;
+        }
         let Some(row) = self.tasks.task(task) else { return false };
         let current = (task, row.project, &row.authority, row.numbers);
         let mut findings = Queue::uncapped();

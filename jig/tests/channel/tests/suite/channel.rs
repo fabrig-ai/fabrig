@@ -252,7 +252,7 @@ fn a_worker_shutdown_stops_its_native_run() {
     assert_eq!(outcome.agent_starts, 2);
     assert!(outcome.shutdown_cancelled);
     assert_eq!(outcome.answers_acknowledged, 2);
-    assert_eq!(outcome.resumed_turns, Some(1));
+    assert_eq!(outcome.resumed_turns, Some(2));
     assert!(outcome.identity_kept);
     assert_eq!(outcome.resumed_tries, Some(jig_domain_tasks::Tries::NONE));
 }

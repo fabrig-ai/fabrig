@@ -554,9 +554,6 @@ pub(crate) fn open(
         refuse(&mut domain.facts, opener, end, out);
         return;
     }
-    if ordinal != 0 {
-        conversation.affinity.thread = ordinal;
-    }
     conversation.cursor.sequence = sequence;
     conversation.cursor.told = told;
     conversation.answer_told = told;
@@ -852,7 +849,7 @@ pub(crate) fn completed(
         State::Completing { attempt: _ } => answered(conversation, id, &mut domain.calls, completion, env, out),
         State::Closing { end, waiting: waiting @ Waiting { completion: true, .. }, tools } => {
             assert!(tools.is_none(), "a completion and a tool batch never run together");
-            answered_late(conversation, end, waiting, completion, &env.limits, out)
+            answered_late(conversation, id, &mut domain.calls, end, waiting, completion, &env.limits, out)
         }
         State::Backoff { .. }
         | State::Tooling { .. }
@@ -1685,8 +1682,11 @@ fn answered(
 /// Closing, completed: the call won the race with its cancel. The session
 /// ends as it was going to, but the provider counted the tokens, and so does
 /// the session.
+#[expect(clippy::too_many_arguments, reason = "late builtins use the session's ordinary observation and credit path")]
 fn answered_late(
     conversation: &mut Conversation,
+    id: Id<Session>,
+    issuer: &mut ToolCalls,
     end: End,
     waiting: Waiting,
     completion: Completion,
@@ -1716,8 +1716,10 @@ fn answered_late(
         .push(Message { role: Role::Assistant, content: completion.content })
         .expect("reserved assistant slot");
     tell::answer(conversation, out);
-    let tools = if calls > 0 { Some(builtin::late(conversation, calls)) } else { None };
-    tell::not_run(conversation, out);
+    let tools = if calls > 0 { Some(builtin::late(conversation, id, issuer, calls, limits)) } else { None };
+    if let Some(tools) = &tools {
+        tell::not_run(conversation, tools, out);
+    }
     State::Closing { end, waiting: Waiting { completion: false, ..waiting }, tools }
 }
 

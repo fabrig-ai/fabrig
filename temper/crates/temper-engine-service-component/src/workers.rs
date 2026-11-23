@@ -631,6 +631,11 @@ impl Workers {
                 limits: crate::translate::limits(&settings.limits).ok_or(kit::host::invalid(What::Bound))?,
                 endpoints: smith_protocol_translate::Endpoints::new(endpoints),
                 deployment,
+                reply_bytes: settings.jig.limits.core.call_answer_bytes,
+                forge_reads: temper_engine_smith::ForgeReadBounds {
+                    rows: settings.limits.forge.client.rows,
+                    answer_bytes: settings.limits.forge.client.answer_bytes,
+                },
                 charter_bytes: crate::assignment::charter_bound(
                     settings.jig.limits.hub.charter_bytes,
                     settings.agent_charter_bytes,

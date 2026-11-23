@@ -179,8 +179,14 @@ pub(super) fn prepare(
     }
 }
 
-/// A late answer schedules no calls; every call has a not-run result.
-pub(super) fn late(conversation: &Conversation, count: u32) -> Tools {
+/// A late answer schedules no calls; builtins retain their observed stand-ins.
+pub(super) fn late(
+    conversation: &mut Conversation,
+    session: Id<Session>,
+    calls: &mut ToolCalls,
+    count: u32,
+    limits: &Limits,
+) -> Tools {
     let mut tools = Tools {
         after: super::After::Complete,
         slots: List::with_capacity(count),
@@ -189,19 +195,7 @@ pub(super) fn late(conversation: &Conversation, count: u32) -> Tools {
         failed: None,
         reached: 0,
     };
-    for block in &conversation.transcript.last().expect("late assistant answer").content {
-        if let Some(call) = block.tool_call() {
-            tools
-                .slots
-                .push(Slot::Done {
-                    result: Block::ToolResult {
-                        id: call.id.clone(),
-                        result: Returned::NotRun { why: crate::llm::NotRun::Stopped },
-                    },
-                })
-                .expect("one result per call");
-        }
-    }
+    prepare(conversation, session, calls, &mut tools, limits);
     tools
 }
 

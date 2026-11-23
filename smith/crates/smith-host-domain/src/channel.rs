@@ -85,7 +85,7 @@ pub struct Window {
 }
 
 /// Parent mount descriptor forwarded without filesystem or delivery policy.
-#[derive(PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Directory {
     /// Opaque mounted IO root for the inline kind; spawned adapters attach their own.
     pub root: Token,

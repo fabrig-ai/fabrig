@@ -1797,6 +1797,7 @@ impl<B: Backend> World<B> {
             | Event::Grant { .. }
             | Event::Cancel { .. }
             | Event::Drain { .. }
+            | Event::Disconnected { .. }
             | Event::Delivered { .. }
             | Event::Below(
                 smith_domain::Below::Usage { .. }
@@ -1876,6 +1877,7 @@ impl<B: Backend> World<B> {
             | Event::Grant { .. }
             | Event::Cancel { .. }
             | Event::Drain { .. }
+            | Event::Disconnected { .. }
             | Event::Below(
                 smith_domain::Below::Usage { .. }
                 | smith_domain::Below::BuiltinResult { .. }
@@ -1898,6 +1900,7 @@ impl<B: Backend> World<B> {
             }
             Event::Cancel { .. }
             | Event::Drain { .. }
+            | Event::Disconnected { .. }
             | Event::Start(_)
             | Event::Message { .. }
             | Event::PartKept { .. }

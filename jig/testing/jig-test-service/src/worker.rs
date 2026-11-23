@@ -33,7 +33,7 @@ pub struct Worker {
     env: Env<root::Limits>,
     agent: Agent,
     workspace_directories: Box<[smith::Directory]>,
-    workspace_delivery: Option<smith_domain::run::outcome::ChangeSpec>,
+    workspace_delivery: Option<smith_domain_run::outcome::ChangeSpec>,
     sources: crate::program_sources::Component,
     source_files: crate::program_sources::FileStage,
     source_events: Queue<jig_domain_host::Event>,
@@ -194,7 +194,7 @@ impl Worker {
     pub fn configure_workspace(
         &mut self,
         directories: Box<[smith::Directory]>,
-        delivery: Option<smith_domain::run::outcome::ChangeSpec>,
+        delivery: Option<smith_domain_run::outcome::ChangeSpec>,
     ) {
         assert!(!self.started, "workspace configured before startup");
         assert!(
@@ -546,21 +546,7 @@ impl Worker {
             self.workspace_directories.is_empty() || start.workspace.is_some(),
             "configured workspace has a prepared owner"
         );
-        let mut directories = List::with_capacity(self.env.limits.agent.directories);
-        for directory in &self.workspace_directories {
-            directories
-                .push(smith::Directory {
-                    root: directory.root,
-                    name: directory.name.clone(),
-                    host: directory.host.clone(),
-                    writable: directory.writable,
-                    git: directory.git,
-                    conflicts: directory.conflicts.clone(),
-                    results: directory.results.clone(),
-                })
-                .expect("configured directories fit the agent");
-        }
-        start.directories = directories.into_boxed();
+        start.directories.clone_from(&self.workspace_directories);
         if let Some(delivery) = &self.workspace_delivery {
             let mut charter = start.charter.into_value();
             charter.grants.deliver = Some(delivery.clone());

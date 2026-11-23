@@ -77,6 +77,12 @@ impl Starts {
 }
 
 pub(crate) fn advance(host: &mut ServiceHost) -> Result<(), String> {
+    if matches!(host.failed_starts.phase, Phase::Normal)
+        && host.failed_starts.ended == 2
+        && let Some(end) = host.service.end()
+    {
+        return Err(format!("third engine start ended: {end:?}"));
+    }
     if !matches!(host.failed_starts.phase, Phase::Draining) || !host.service.is_empty() {
         return Ok(());
     }

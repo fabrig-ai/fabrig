@@ -80,7 +80,8 @@ fn script(story: Story) -> crate::world::Script {
     ) {
         script.leading_turns = 1;
     }
-    if matches!(story, Story::Call) {
+    // A shutdown lets the in-flight answer finish, but starts no next completion.
+    if matches!(story, Story::Call | Story::Shutdown) {
         script.leading_turns = 2;
     }
     if matches!(

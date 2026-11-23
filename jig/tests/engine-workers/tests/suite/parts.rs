@@ -1,4 +1,4 @@
-//! Parts are acknowledged without a domain or store round trip (channel/records.md, 5).
+//! Parts wait for the owner's durable acknowledgement (channel/records.md, 5).
 use jig_domain_host as host;
 use jig_engine_workers_world::{World, fixtures};
 use jig_protocol_engine_workers::{Event, Request};
@@ -6,7 +6,7 @@ use jig_protocol_worker_wire::{self as wire, Record};
 use skein_lib::{Reader, Token};
 
 #[test]
-fn a_part_is_acknowledged_at_once_and_never_handed_to_the_domain() {
+fn a_part_waits_for_its_owner_to_acknowledge_it() {
     let mut world = World::new(&fixtures::limits(), &fixtures::workers(), 1);
     let (connection, _) = world.reporting(fixtures::WORKER_A, fixtures::SECRET_A);
     let codec = wire::sizes::limits(&fixtures::limits().sizes).unwrap();
@@ -24,7 +24,25 @@ fn a_part_is_acknowledged_at_once_and_never_handed_to_the_domain() {
     let sent = world.observed(connection).len();
     world.play(connection, fixtures::frame(wire::Kind::Part.number(), &part.encode(&codec).unwrap()));
     world.run();
-    assert_eq!(world.root().len(), before, "no part retained above the component");
+    let [Request::Up { channel, up: host::LinkUp::Part { run, attempt, part: received }, parts }] =
+        &world.root()[before..]
+    else {
+        panic!("one part handed to the owner")
+    };
+    assert!(parts.is_empty());
+    assert_eq!((*run, *attempt), (Token::new(7), Token::new(2)));
+    assert_eq!((received.number, received.turn, received.thread, received.call), (3, 1, 2, 4));
+    assert_eq!(received.kind, jig_domain_link::PartKind::Window);
+    assert_eq!(received.body.as_ref(), b"opaque");
+    assert_eq!(world.observed(connection).len(), sent, "not acknowledged before the owner keeps it");
+    let channel = *channel;
+    world.down(Event::Down {
+        channel,
+        down: host::LinkDown::PartKept { run: Token::new(7), attempt: Token::new(2), part: 3 },
+        parts: Box::new([]),
+        values: Box::new([]),
+    });
+    world.run();
     let [record] = &world.observed(connection)[sent..] else { panic!("one acknowledgement") };
     assert_eq!(record.kind, wire::Kind::PartKept.number());
     assert_eq!(

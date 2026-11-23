@@ -88,6 +88,10 @@ pub(crate) fn event(domain: &mut Domain, env: &Env<Limits>, event: Event) {
             run::Event::Message { finish_requested, run, name, label, text }
         }
         Event::Cancel { run } => run::Event::Cancel { run },
+        Event::Disconnected { run } => {
+            disconnect_output(domain, run);
+            run::Event::Cancel { run }
+        }
         Event::Drain { run, grace } => run::Event::Drain { run, grace },
         Event::PartKept { run, number } => {
             run_step(domain, env, run::Event::PartKept { run, number });
@@ -298,6 +302,23 @@ fn kept_output(domain: &mut Domain, _env: &Env<Limits>, run: Token, number: u32,
     }
 }
 
+fn disconnect_output(domain: &mut Domain, run: Token) {
+    let mut found = None;
+    for (id, context) in &domain.starts {
+        if context.run == Some(run) && !context.flow.done() {
+            found = Some(id);
+            break;
+        }
+    }
+    if let Some(id) = found {
+        let context = domain.starts.get_mut(id).expect("live start");
+        context.flow.disconnect(&mut domain.notices);
+        if context.flow.done() {
+            domain.starts.retire(id);
+        }
+    }
+}
+
 fn acknowledge(domain: &mut Domain, env: &Env<Limits>, run: Token, turn: u32) {
     run_step(domain, env, run::Event::Acknowledge { run, turn });
     kept_output(domain, env, run, turn, false);
@@ -482,11 +503,10 @@ fn start(
             None => None,
         },
     };
-    let flow_window = if tell_parts { window } else { crate::Window { turns: u32::MAX, bytes: u64::MAX } };
     let context = StartContext {
         host_run,
         run: None,
-        flow: crate::flow::Flow::new(flow_window),
+        flow: crate::flow::Flow::new(window, tell_parts),
         reply_to: Some(reply_to),
         transcript,
         answered,

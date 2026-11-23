@@ -1,5 +1,5 @@
 //! Real agent restarts at the answer, check and command boundaries.
-//! Contract: temper/docs/design/draft/worker-restarts.md, 9, focused 1–3.
+//! Contract: protocol/channel/records.md, 5; smith's domain/turn-parts.md, 7.
 use crate::{
     fixtures,
     processes::Proc,

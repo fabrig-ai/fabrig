@@ -669,6 +669,7 @@ impl Component {
             | DomainEvent::Grant { .. }
             | DomainEvent::Renewals { .. }
             | DomainEvent::Cancel { .. }
+            | DomainEvent::Disconnected { .. }
             | DomainEvent::Drain { .. }
             | DomainEvent::Delivered { .. }
             | DomainEvent::Below(

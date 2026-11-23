@@ -733,7 +733,7 @@ pub(crate) fn route_activate(
     if core.tasks.task(number).expect("current activation").phase != tasks::Phase::Active(tasks::Active::Due) {
         return out;
     }
-    if core.settling || !ready || !core.start_opened() || core.start_stopped() {
+    if core.settling || !ready || !core.start_opened() || core.start_stopped() || core.unsettled_effect(number) {
         remember_due(core, context);
     } else if core.tasks.recurring_template(number).is_none()
         && context.executor != (tasks::Executor::Procedure { connector: crate::RECURRING, code: crate::GATHERING })

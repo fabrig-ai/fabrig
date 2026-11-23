@@ -390,7 +390,13 @@ fn a_stop_reaches_the_group_and_settles_both_output_pipes_before_cancelled() {
         },
         deadline: far(),
     });
-    assert_eq!(done, ToDomain::Done { owner: Token::new(81), done: tools::Done::Cancelled });
+    assert_eq!(
+        done,
+        ToDomain::Done {
+            owner: Token::new(81),
+            done: tools::Done::CommandCancelled { head: Box::new([]), tail: Box::new([]), dropped: 0 },
+        }
+    );
     assert!(world.trace().iter().any(|entry| entry.contains("to: Group")), "cancel targets the group");
 }
 

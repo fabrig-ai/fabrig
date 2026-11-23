@@ -29,6 +29,7 @@ pub const MAKING: skein_io::kernel::Fd = skein_io::kernel::Fd::new(7);
 pub const STORES: skein_io::kernel::Fd = skein_io::kernel::Fd::new(6);
 pub const GITDIRS: skein_io::kernel::Fd = skein_io::kernel::Fd::new(9);
 pub const WORKSPACES: skein_io::kernel::Fd = skein_io::kernel::Fd::new(5);
+pub const KEPT: skein_io::kernel::Fd = skein_io::kernel::Fd::new(10);
 pub fn make(owner: skein_lib::Token, workspace: skein_lib::Token) -> crate::Request {
     crate::Request::Io {
         owner,
@@ -242,6 +243,8 @@ impl Started {
                 GITDIRS
             } else if &**path == b"making" {
                 MAKING
+            } else if &**path == b"kept" {
+                KEPT
             } else {
                 WORKSPACES
             }),

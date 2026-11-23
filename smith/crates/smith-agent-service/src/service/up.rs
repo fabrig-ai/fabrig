@@ -426,11 +426,15 @@ pub(super) fn channel_event(service: &mut Stages, frame: &mut Frame, event: chan
         channel::Heard::WriteFailed => {
             service.host_word_closed = true;
             service.mark_failed(Failure::WriteFailed);
-            if service.signalled {
-                match service.teardown {
-                    Teardown::Live { .. } => super::admission::cancel(service),
-                    Teardown::Answered { .. } | Teardown::Closing { .. } | Teardown::Closed { .. } => {}
+            match service.teardown {
+                Teardown::Live { .. } => {
+                    if let Some(run) = service.admission.run() {
+                        service.domain_events.push(domain::Event::Disconnected { run });
+                    } else {
+                        super::admission::cancel(service);
+                    }
                 }
+                Teardown::Answered { .. } | Teardown::Closing { .. } | Teardown::Closed { .. } => {}
             }
         }
         channel::Heard::Ended { why: _ } => {
@@ -439,7 +443,7 @@ pub(super) fn channel_event(service: &mut Stages, frame: &mut Frame, event: chan
                 Teardown::Live { .. } => {
                     service.mark_failed(Failure::ChannelEnded);
                     if let Some(run) = service.admission.run() {
-                        service.domain_events.push(domain::Event::Cancel { run });
+                        service.domain_events.push(domain::Event::Disconnected { run });
                     } else {
                         teardown::answered(service);
                     }
@@ -495,6 +499,7 @@ fn observe_messages(service: &mut Stages, event: &domain::Event) {
         | domain::Event::Grant { .. }
         | domain::Event::Renewals { .. }
         | domain::Event::Cancel { .. }
+        | domain::Event::Disconnected { .. }
         | domain::Event::Drain { .. }
         | domain::Event::Delivered { .. }
         | domain::Event::Below(

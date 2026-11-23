@@ -446,6 +446,7 @@ fn no_sweep_pass_starts_after_shutdown() {
     for fd in [
         PARENT_CURSOR,
         SWEEP_CURSOR,
+        fixtures::KEPT,
         fixtures::MAKING,
         fixtures::STORES,
         fixtures::GITDIRS,

@@ -181,6 +181,8 @@ pub enum Event {
         /// Root-issued admitted run token, supplied in `Request::Admitted` and echoed by cancellation.
         run: Token,
     },
+    /// The host channel is gone: cancel the run without waiting for durable output credit.
+    Disconnected { run: Token },
     /// Host terminal for `Deliver`, including while shutdown settles.
     /// Constructor-sealed owned evidence is revalidated against admitted writable
     /// mounts; stale callback generations are inert.

@@ -488,6 +488,8 @@ fn smith_breaches(manifests: &[CrateManifest]) -> Vec<String> {
                     "smith-charter",
                     "smith-transcript",
                     "smith-domain-run",
+                    "smith-domain-session",
+                    "smith-protocol-translate",
                     "smith-host-domain",
                     "smith-host-protocol",
                     "smith-protocol-channel",
