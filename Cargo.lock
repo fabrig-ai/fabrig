@@ -376,6 +376,7 @@ dependencies = [
  "hearth-test-mirror",
  "hearth-test-render",
  "hearth-test-repository",
+ "skein-checks",
  "skein-heap",
  "skein-io",
  "skein-lib",
@@ -510,9 +511,9 @@ dependencies = [
  "hearth-protocol-git",
  "hearth-recordings",
  "hearth-test-git",
+ "skein-checks",
  "skein-heap",
  "skein-lib",
- "skein-world",
 ]
 
 [[package]]
@@ -530,6 +531,7 @@ dependencies = [
  "hearth-protocol-mmdebstrap",
  "hearth-recordings",
  "hearth-test-mirror",
+ "skein-checks",
  "skein-heap",
  "skein-lib",
  "skein-scratch",
@@ -620,6 +622,7 @@ dependencies = [
  "hearth-test-fixtures",
  "hearth-test-render",
  "minijinja",
+ "skein-checks",
  "skein-heap",
  "skein-lib",
  "skein-scratch",
@@ -642,19 +645,19 @@ version = "0.0.0"
 dependencies = [
  "hearth-protocol-template",
  "hearth-test-fixtures",
+ "skein-checks",
  "skein-heap",
  "skein-lib",
  "skein-scratch",
- "skein-world",
 ]
 
 [[package]]
 name = "hearth-test-fixtures"
 version = "0.0.0"
 dependencies = [
+ "skein-checks",
  "skein-lib",
  "skein-scratch",
- "skein-world",
 ]
 
 [[package]]
@@ -684,6 +687,7 @@ dependencies = [
  "hearth-protocol-config",
  "hearth-protocol-template",
  "hearth-test-fixtures",
+ "skein-checks",
  "skein-lib",
  "skein-scratch",
  "skein-world",
@@ -710,9 +714,9 @@ dependencies = [
  "hearth-domain-tree",
  "hearth-lib",
  "hearth-protocol-tree",
+ "skein-checks",
  "skein-heap",
  "skein-lib",
- "skein-world",
 ]
 
 [[package]]
@@ -1327,6 +1331,7 @@ dependencies = [
  "jig-domain-tasks",
  "jig-fake-store",
  "jig-protocol-tools",
+ "skein-checks",
  "skein-fork",
  "skein-lib",
  "skein-world",
@@ -1447,6 +1452,7 @@ dependencies = [
  "jig-test-store",
  "jig-test-store-files",
  "jig-test-system",
+ "skein-checks",
  "skein-codec",
  "skein-lib",
  "skein-scratch",
@@ -3166,6 +3172,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "skein-checks"
+version = "0.0.0"
+
+[[package]]
 name = "skein-codec"
 version = "0.0.0"
 dependencies = [
@@ -3233,12 +3243,12 @@ dependencies = [
 name = "skein-conformance-sim"
 version = "0.0.0"
 dependencies = [
+ "skein-checks",
  "skein-conformance",
  "skein-fake-machine",
  "skein-io",
  "skein-lib",
  "skein-sim",
- "skein-world",
 ]
 
 [[package]]
@@ -3624,11 +3634,11 @@ dependencies = [
 name = "skein-forge-dialect-tests"
 version = "0.0.0"
 dependencies = [
+ "skein-checks",
  "skein-forge",
  "skein-json",
  "skein-lib",
  "skein-scratch",
- "skein-world",
 ]
 
 [[package]]
@@ -3654,6 +3664,7 @@ dependencies = [
 name = "skein-forge-machine-world"
 version = "0.0.0"
 dependencies = [
+ "skein-checks",
  "skein-fake-forge-domain",
  "skein-fake-forge-forgejo",
  "skein-fake-forge-github",
@@ -3759,6 +3770,7 @@ dependencies = [
 name = "skein-http-world"
 version = "0.0.0"
 dependencies = [
+ "skein-checks",
  "skein-heap",
  "skein-http",
  "skein-http-kit",
@@ -3767,7 +3779,6 @@ dependencies = [
  "skein-lib",
  "skein-protocol-kit",
  "skein-scratch",
- "skein-world",
 ]
 
 [[package]]
@@ -3804,9 +3815,9 @@ dependencies = [
 name = "skein-json-kit"
 version = "0.0.0"
 dependencies = [
+ "skein-checks",
  "skein-json",
  "skein-lib",
- "skein-world",
 ]
 
 [[package]]
@@ -4406,10 +4417,10 @@ dependencies = [
 name = "skein-world"
 version = "0.0.0"
 dependencies = [
+ "skein-checks",
  "skein-heap",
  "skein-io",
  "skein-lib",
- "skein-scratch",
  "skein-shell",
  "skein-sim",
  "skein-sim-world",
@@ -4775,13 +4786,13 @@ name = "smith-codecs-world"
 version = "0.0.0"
 dependencies = [
  "skein-channel",
+ "skein-checks",
  "skein-codec",
  "skein-codegen",
  "skein-heap",
  "skein-json",
  "skein-lib",
  "skein-scratch",
- "skein-world",
  "smith-channel",
  "smith-charter",
  "smith-events",
@@ -5090,6 +5101,7 @@ dependencies = [
  "serde",
  "serde_json",
  "skein-channel",
+ "skein-checks",
  "skein-fake-checkout",
  "skein-fake-llm-domain",
  "skein-fake-llm-protocol",
@@ -6632,6 +6644,7 @@ dependencies = [
  "jig-protocol-config",
  "jig-protocol-store",
  "sha2",
+ "skein-checks",
  "skein-codec",
  "skein-codegen",
  "skein-fake-forge-github",
@@ -6643,7 +6656,6 @@ dependencies = [
  "skein-io",
  "skein-lib",
  "skein-scratch",
- "skein-world",
  "temper-client-protocol-wire",
  "temper-engine-domain-forge-change",
  "temper-engine-domain-forge-issues",
@@ -7008,6 +7020,7 @@ dependencies = [
  "jig-test-profile",
  "jig-test-store-files",
  "serde_json",
+ "skein-checks",
  "skein-fake-forge-domain",
  "skein-fake-llm-domain",
  "skein-forge",
@@ -7217,6 +7230,7 @@ dependencies = [
  "jig-protocol-store",
  "jig-protocol-worker-wire",
  "serde_json",
+ "skein-checks",
  "skein-codec",
  "skein-forge",
  "skein-forge-client",
@@ -8608,6 +8622,7 @@ dependencies = [
 name = "temper-worker-protocol-git-world"
 version = "0.0.0"
 dependencies = [
+ "skein-checks",
  "skein-io",
  "skein-lib",
  "skein-scratch",

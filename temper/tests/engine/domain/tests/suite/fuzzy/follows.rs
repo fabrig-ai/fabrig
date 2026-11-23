@@ -265,7 +265,7 @@ fn run_replayed(seed: u64) {
 }
 fn shard(seeds: Range<u64>) {
     for seed in seeds {
-        skein_world::checks::count("seed", 1);
+        skein_checks::count("seed", 1);
         run_replayed(seed);
     }
 }

@@ -25,6 +25,6 @@ pub fn all(stdout: &[u8]) -> Vec<Vec<u8>> {
     result.push(stdout[..stdout.len().saturating_sub(1)].to_vec());
     result.sort();
     result.dedup();
-    skein_world::checks::count("mutation", skein_lib::len_u64(result.len()));
+    skein_checks::count("mutation", skein_lib::len_u64(result.len()));
     result
 }

@@ -45,7 +45,7 @@ pub fn mutations(bytes: &[u8]) -> Vec<Box<[u8]>> {
         out.push(bytes[..bytes.len() - 1].into());
     }
     if !out.is_empty() {
-        skein_world::checks::count("mutation", skein_lib::len_u64(out.len()));
+        skein_checks::count("mutation", skein_lib::len_u64(out.len()));
     }
     out
 }

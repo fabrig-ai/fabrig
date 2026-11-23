@@ -38,7 +38,7 @@ pub fn patches(seed: u64, depth: u32) -> (Json, Json) {
 }
 pub fn cases() -> impl Iterator<Item = (u64, Json, Json)> {
     CASES.map(|seed| {
-        skein_world::checks::count("seed", 1);
+        skein_checks::count("seed", 1);
         let (target, patch) = patches(seed, DEPTH);
         (seed, target, patch)
     })

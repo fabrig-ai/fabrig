@@ -28,7 +28,7 @@ pub fn generated(case: u64) -> Generated {
 /// Build each focused case once at its seed.
 pub fn cases() -> impl Iterator<Item = (u64, Generated)> {
     CASES.map(|case| {
-        skein_world::checks::count("seed", 1);
+        skein_checks::count("seed", 1);
         (case, generated(case))
     })
 }
@@ -79,12 +79,12 @@ pub fn render(repository: &super::Repository, targets: &[&[u8]], seed: u64) -> R
 pub fn deterministic(batch: u64) {
     let start = batch * CASES_PER_BATCH;
     for case in start..start + CASES_PER_BATCH {
-        skein_world::checks::count("seed", 1);
+        skein_checks::count("seed", 1);
         let generated = generated(case);
         let repository = super::repository_of(&generated.leaves);
         let digests = self::digests(&render(&repository, &[], 0));
         for seed in SCHEDULES {
-            skein_world::checks::count("seed", 1);
+            skein_checks::count("seed", 1);
             assert_eq!(self::digests(&render(&repository, &[], seed)), digests, "case {case}: seed {seed}");
         }
     }
@@ -93,7 +93,7 @@ pub fn deterministic(batch: u64) {
 pub fn sweep(batch: u64) {
     let start = batch * ROUNDS_PER_BATCH;
     for case in start..start + ROUNDS_PER_BATCH {
-        skein_world::checks::count("seed", 1);
+        skein_checks::count("seed", 1);
         let generated = generated(case);
         let digests = self::digests(&run(&generated, case));
         let mut rng = Rng::new(SEED + case);
@@ -254,13 +254,13 @@ pub fn production_edits() -> [Edit; 3] {
 pub fn collision_order(batch: u64) {
     let start = batch * CASES_PER_BATCH;
     for case in start..start + CASES_PER_BATCH {
-        skein_world::checks::count("seed", 1);
+        skein_checks::count("seed", 1);
         let generated = edited(&generated(case), &Edit::Collide, case);
         let repository = super::repository_of(&generated.leaves);
         let run = render(&repository, &[], 0);
         assert_eq!(collision_places(&run), COLLISIONS, "case {case}");
         for seed in SCHEDULES {
-            skein_world::checks::count("seed", 1);
+            skein_checks::count("seed", 1);
             assert_eq!(errors(&render(&repository, &[], seed)), errors(&run), "case {case}: seed {seed}");
         }
     }

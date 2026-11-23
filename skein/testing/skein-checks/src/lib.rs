@@ -1,4 +1,4 @@
-//! Counts of checks performed by test kits (`skein/docs/design/testing/README.md`, 5.1).
+//! Counts of checks performed by test kits (`skein/docs/design/testing/checks.md`, 1).
 
 use std::{
     fs::{File, OpenOptions},
@@ -37,7 +37,7 @@ fn open() -> Option<Output> {
         .create(true)
         .append(true)
         .open(&path)
-        .unwrap_or_else(|error| crate::fail(&format!("open check counts {}: {error}", path.display())));
+        .unwrap_or_else(|error| panic!("open check counts {}: {error}", path.display()));
     Some(Output { path, file })
 }
 
@@ -51,9 +51,12 @@ impl Output {
         match (&self.file).write(bytes) {
             Ok(written) if written == length => {}
             Ok(written) => {
-                crate::fail(&format!("append check counts {}: wrote {written} of {length} bytes", self.path.display()))
+                panic!("append check counts {}: wrote {written} of {length} bytes", self.path.display())
             }
-            Err(error) => crate::fail(&format!("append check counts {}: {error}", self.path.display())),
+            Err(error) => panic!("append check counts {}: {error}", self.path.display()),
         }
     }
 }
+
+#[cfg(all(test, unix))]
+mod tests;

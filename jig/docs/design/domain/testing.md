@@ -503,7 +503,7 @@ more than one world needs them (testing-strategy.md, section 4):
     the check on the child's successful exit. A policy draw alone
     records no coverage. These counts show when a change leaves fewer
     committed snapshots checked
-    (`skein/docs/design/testing/README.md`, 5.1; `tools/tiers/budgets.md`).
+    (`skein/docs/design/testing/checks.md`, 1; `tools/tiers/budgets.md`).
 
 They stay in jig, and an application's worlds reuse them. What jig finds
 missing in skein's world harness goes into skein first.

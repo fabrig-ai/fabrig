@@ -33,7 +33,7 @@ pub fn output(rng: &mut Rng, limits: &Limits) -> Vec<u8> {
 }
 #[must_use]
 pub fn mutate(rng: &mut Rng, bytes: &[u8]) -> Vec<u8> {
-    skein_world::checks::count("mutation", 1);
+    skein_checks::count("mutation", 1);
     if bytes.is_empty() {
         return Vec::new();
     }

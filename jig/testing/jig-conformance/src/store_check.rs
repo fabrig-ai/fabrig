@@ -23,7 +23,7 @@ impl StoreChecks {
     /// Record a rehearsal or a successful commit-cut restart in the test runner's count.
     #[inline]
     pub fn record_rehearsal() {
-        skein_world::checks::count("store-check", 1);
+        skein_checks::count("store-check", 1);
     }
 
     /// Check every counted commit.

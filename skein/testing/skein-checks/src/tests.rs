@@ -1,6 +1,32 @@
-use crate::checks::count;
-use skein_scratch::Scratch;
-use std::{env, fs, process::Command};
+use crate::count;
+use std::{env, fs, io::ErrorKind, os::unix::fs::DirBuilderExt, path::PathBuf, process::Command};
+
+struct Scratch(PathBuf);
+
+impl Scratch {
+    fn new() -> Self {
+        let base = env::temp_dir();
+        for attempt in 0..1000 {
+            let path = base.join(format!("skein-checks-{}-{attempt}", std::process::id()));
+            match fs::DirBuilder::new().mode(0o700).create(&path) {
+                Ok(()) => return Self(path),
+                Err(error) if error.kind() == ErrorKind::AlreadyExists => {}
+                Err(error) => panic!("create check-count fixture {}: {error}", path.display()),
+            }
+        }
+        panic!("no free check-count fixture name beneath {}", base.display());
+    }
+}
+
+impl Drop for Scratch {
+    fn drop(&mut self) {
+        if let Err(error) = fs::remove_dir_all(&self.0)
+            && !std::thread::panicking()
+        {
+            panic!("remove check-count fixture {}: {error}", self.0.display());
+        }
+    }
+}
 
 #[test]
 #[expect(
@@ -9,7 +35,7 @@ use std::{env, fs, process::Command};
 )]
 fn appends_counts_and_refuses_malformed_kinds() {
     const CHILD: &str = "SKEIN_CHECK_COUNTS_CHILD";
-    const TEST: &str = "tests::checks::appends_counts_and_refuses_malformed_kinds";
+    const TEST: &str = "tests::appends_counts_and_refuses_malformed_kinds";
     if let Some(mode) = env::var_os(CHILD) {
         if mode == "bad" {
             count("bad kind", 1);
@@ -20,8 +46,8 @@ fn appends_counts_and_refuses_malformed_kinds() {
         return;
     }
 
-    let scratch = Scratch::new("check-counts");
-    let path = scratch.path().join("checks");
+    let scratch = Scratch::new();
+    let path = scratch.0.join("checks");
     for (mode, destination) in [
         ("unset", None),
         ("empty", Some("".as_ref())),
@@ -44,7 +70,7 @@ fn appends_counts_and_refuses_malformed_kinds() {
             assert!(result.status.success(), "{result:?}");
         }
         if destination.is_none_or(std::ffi::OsStr::is_empty) {
-            assert_eq!(fs::read_dir(scratch.path()).expect("scratch directory").count(), 0, "{mode}");
+            assert_eq!(fs::read_dir(&scratch.0).expect("scratch directory").count(), 0, "{mode}");
         } else {
             assert_eq!(
                 fs::read_to_string(&path).expect("check counts"),

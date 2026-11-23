@@ -6,6 +6,7 @@ license.workspace = true
 rust-version.workspace = true
 publish.workspace = true
 [dependencies]
+skein-checks.workspace = true
 hearth-test-repository.workspace = true
 hearth-test-render.workspace = true
 hearth.workspace = true

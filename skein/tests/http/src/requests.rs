@@ -155,7 +155,7 @@ fn trim_end(value: &[u8]) -> &[u8] {
 #[must_use]
 #[expect(clippy::too_many_lines, reason = "one table keeps all generated request corruptions and their count together")]
 pub fn corrupt(rng: &mut Rng, client: &[u8]) -> Vec<u8> {
-    skein_world::checks::count("mutation", 1);
+    skein_checks::count("mutation", 1);
     let mut out = client.to_vec();
     let after_line = find(&out, b"\n").map_or(0, |at| at + 1);
     let insert = |out: &mut Vec<u8>, bytes: &[u8]| {

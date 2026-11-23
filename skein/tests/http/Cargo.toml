@@ -18,7 +18,7 @@ skein-scratch.workspace = true
 skein-lib.workspace = true
 skein-http.workspace = true
 skein-json.workspace = true
-skein-world.workspace = true
+skein-checks.workspace = true
 
 [dev-dependencies]
 # The counting allocator, for tests/memory.rs only.

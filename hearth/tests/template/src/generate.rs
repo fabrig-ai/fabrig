@@ -37,7 +37,7 @@ pub fn cut(rng: &mut Rng, text: &[u8]) -> Vec<u8> {
 }
 #[must_use]
 pub fn mutate(rng: &mut Rng, text: &[u8]) -> Vec<u8> {
-    skein_world::checks::count("mutation", 1);
+    skein_checks::count("mutation", 1);
     let mut out = text.to_vec();
     let at = usize::try_from(rng.below(out.len() as u64 + 1)).expect("bounded by fixture or checked text");
     let pieces: &[&[u8]] = &[

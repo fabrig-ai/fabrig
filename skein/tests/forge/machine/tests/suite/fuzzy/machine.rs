@@ -21,7 +21,7 @@ fn a_response_cut_at_each_byte_ends_its_call_once_seed_3() {
     sweep_seed(3);
 }
 fn sweep_seed(seed: u64) {
-    skein_world::checks::count("seed", 1);
+    skein_checks::count("seed", 1);
     let length = machine::case_bytes("branch").len();
     for at in 0..length {
         let mut world = Machine::new(seed, cut_script(at));

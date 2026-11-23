@@ -8,7 +8,7 @@ publish.workspace = true
 
 [dependencies]
 skein-lib.workspace = true
-skein-world.workspace = true
+skein-checks.workspace = true
 hearth-protocol-template.workspace = true
 
 [dev-dependencies]

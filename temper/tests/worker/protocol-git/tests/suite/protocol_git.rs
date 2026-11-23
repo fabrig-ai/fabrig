@@ -120,7 +120,7 @@ pub(crate) fn sweep_past_a_stuck_file(mut seed: u64) {
     use temper_worker_protocol_git::{Component, Event, Request};
     use temper_worker_protocol_git_world::io::{Below, Invocation, Script};
 
-    skein_world::checks::count("seed", 1);
+    skein_checks::count("seed", 1);
     let mut below = Below::new(Script { invocations: [Invocation::captured("version")].into(), ..Script::default() });
     for path in [b"trash/1", b"trash/2", b"trash/3"] {
         below.tree.insert(path.to_vec(), Node::File(Box::new([])));

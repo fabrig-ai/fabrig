@@ -247,7 +247,7 @@ fn same(first: &Driver, replay: &Driver, seed: u64) {
     assert_eq!(first.world.assigned, replay.world.assigned);
 }
 fn run_replayed(seed: u64) {
-    skein_world::checks::count("seed", 1);
+    skein_checks::count("seed", 1);
     let mut rng = Rng::new(seed + 91_700);
     let mut first = Driver::new();
     let mut replay = Driver::new();

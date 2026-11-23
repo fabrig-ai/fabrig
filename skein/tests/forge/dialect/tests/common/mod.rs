@@ -9,7 +9,7 @@ pub fn mutated(rng: &mut Rng, golden: &[u8]) -> Vec<u8> {
     bytes
 }
 pub fn mutated_into(rng: &mut Rng, golden: &[u8], bytes: &mut Vec<u8>) {
-    skein_world::checks::count("mutation", 1);
+    skein_checks::count("mutation", 1);
     bytes.clear();
     bytes.extend_from_slice(golden);
     let length = skein_lib::len_u64(bytes.len());

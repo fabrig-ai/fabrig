@@ -93,7 +93,7 @@ impl Walk {
         reason = "one mutation judgment keeps resolution and its expected decision together"
     )]
     fn judge(&mut self, row: &Relation, name: &str, changes: &[Override], decision: Decision, refusal: &Relation) {
-        skein_world::checks::count("mutation", 1);
+        skein_checks::count("mutation", 1);
         self.count = self.count.checked_add(1).expect("mutation count");
         eprintln!(
             "mutation {name}: {} ({:?}; {}) -> {decision:?} {}",

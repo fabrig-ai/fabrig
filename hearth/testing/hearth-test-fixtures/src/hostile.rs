@@ -20,7 +20,7 @@ const HOSTILE: &[&[u8]] = &[
 ];
 #[must_use]
 pub fn mutate(rng: &mut Rng, bytes: &[u8]) -> Vec<u8> {
-    skein_world::checks::count("mutation", 1);
+    skein_checks::count("mutation", 1);
     match rng.below(4) {
         0 | 1 => HOSTILE[usize::try_from(rng.below(HOSTILE.len() as u64)).expect("draw fits usize")].to_vec(),
         2 => bytes[..usize::try_from(rng.below(bytes.len() as u64 + 1)).expect("draw fits usize")].to_vec(),

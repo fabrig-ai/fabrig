@@ -29,6 +29,6 @@ pub fn frames(rng: &mut Rng, frame: &[u8]) -> Vec<Vec<u8>> {
     changed.push(value);
     let cut = usize::try_from(rng.below(u64::try_from(frame.len()).expect("frame size"))).expect("cut");
     changed.push(frame[..cut].to_vec());
-    skein_world::checks::count("mutation", skein_lib::len_u64(changed.len()));
+    skein_checks::count("mutation", skein_lib::len_u64(changed.len()));
     changed
 }

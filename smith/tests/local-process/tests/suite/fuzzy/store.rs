@@ -358,10 +358,10 @@ fn a_fresh_journal_resumes_its_reset_after_a_power_loss() {
 }
 
 fn sweep(seed_base: u64, fresh: bool, initial: Initial) -> u32 {
-    skein_world::checks::count("seed", 1);
+    skein_checks::count("seed", 1);
     let baseline = run(configured_mode(seed_base, fresh, initial, skein_sim::Config::calm()));
     for before in 0..baseline.procs[0].submitted {
-        skein_world::checks::count("seed", 1);
+        skein_checks::count("seed", 1);
         let seed = seed_base + u64::from(before);
         let mut world = configured_mode(seed, fresh, initial, skein_sim::Config::calm());
         world.cut(0, before, Cut::PowerLoss);
