@@ -44,7 +44,7 @@ impl<T> Queue<T> {
         self.capacity
     }
 
-    /// Raises the capacity in place, allocating nothing (runtime/lib.md, 5).
+    /// Raises the capacity in place, allocating nothing (runtime/lib-containers.md, 1).
     pub fn raise(&mut self, capacity: u32) {
         assert!(capacity >= self.capacity(), "a capacity never falls");
         self.capacity = capacity;
@@ -124,7 +124,7 @@ impl<'a, T> IntoIterator for &'a Queue<T> {
     }
 }
 
-// runtime/lib.md, 5.1: hash held state, never capacity or storage layout.
+// runtime/lib-containers.md, 1.1: hash held state, never capacity or storage layout.
 impl<T: Hash> Hash for Queue<T> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.items.hash(state);

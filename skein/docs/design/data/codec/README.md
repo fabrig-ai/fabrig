@@ -249,7 +249,7 @@ enum Form {
   them.
 - **A credential is a `secret N`,** never `bytes N`: a token, a key, a
   secret, a grant's value. Its bytes cross as `bytes N` would; its type,
-  lib's `Secret` (../../runtime/lib.md, section 6), shows only its length in `Debug`, so
+  lib's `Secret` (../../runtime/lib-bytes.md, section 1), shows only its length in `Debug`, so
   a record that holds one is printed, logged or traced without it. Its
   owner reads the bytes with `expose`, to use or send them.
 

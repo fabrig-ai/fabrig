@@ -205,8 +205,8 @@ binaries; and decides by
   needs is held.
 - **Checks Forgejo's listener,** when the box gave it one (`box.md`, 1):
   descriptor 3, with `LISTEN_FDS=1`. It checks that the descriptor
-  listens at the setup's `listen` (skein's `listener_at`, `skein/docs/design/runtime/shell.md`,
-  6.6) before taking the lock, refusing otherwise, naming the descriptor
+  listens at the setup's `listen` (skein's `listener_at`, `skein/docs/design/runtime/shell-startup.md`,
+  1.6) before taking the lock, refusing otherwise, naming the descriptor
   and the address it found. Forgejo then takes the socket whose address
   its `app.ini` names, in place of binding it (its `modules/graceful`,
   which reads no `LISTEN_PID`). Given none, as under every other
@@ -404,7 +404,7 @@ its own for any other host.
   keeps its own copies names it; the process tier needs none, its
   binaries placed where the fetch looks (`testing.md`, 4).
 - **TLS with the machine's roots,** read at the command's start as
-  skein's shell reads them (skein's `runtime/shell.md`, 6.2): the bundle
+  skein's shell reads them (skein's `runtime/shell-startup.md`, 1.2): the bundle
   `SSL_CERT_FILE` names, or the first of the distributions' bundles that
   exists. skein-tls embeds none, so a machine with neither refuses the
   command.

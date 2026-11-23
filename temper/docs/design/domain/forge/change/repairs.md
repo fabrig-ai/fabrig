@@ -112,7 +112,7 @@
   failed job the receipt keeps (`../../landing-proof.md`, 1.2). KEY is `test
   CLASS NAME` for a JUnit case, or a `lines` report's line as written,
   and a KEY or a job's NAME is made text as it is written (each byte
-  outside UTF-8 a `?`, skein's `runtime/lib.md`, 6), so a report's bytes
+  outside UTF-8 a `?`, skein's `runtime/lib-bytes.md`, 1), so a report's bytes
   never make the repair's words refused;
   PROFILE `fuzzy` where the name (the case's, or the line's last word)
   starts with the report's `fuzzy` prefix, else `focused`. A gate that

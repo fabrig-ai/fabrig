@@ -560,7 +560,7 @@ holds, and neither of its components reads them.
 - **Every frame fits the stream below.** skein's channel asks its stream
   for room for a whole frame (skein's `net/channel.md`, section 7), and a
   stream grants no room past its own output cap: io leaves a larger ask
-  unanswered (skein's `runtime/lib.md`, 7.1). Such a frame would wait below
+  unanswered (skein's `runtime/lib-streams.md`, 1.1). Such a frame would wait below
   forever, and with it every frame behind it and the pings, which a side
   sends only while nothing is queued, until the peer's silence deadline
   lost the link with nothing said. So each side's component is given its
@@ -571,7 +571,7 @@ holds, and neither of its components reads them.
   engine's assignment and job alone are exempt, since the domains'
   limits admit a start larger than any room (a whole charter, a resumed
   window, the calls committed since its last turn, its inbox and its
-  grants, section 10).
+  grants, `README.md`, section 10).
 - **A start past the room fails its run, never the link.** The engine's
   component measures each assignment and job before the channel takes
   it. One whose frame is past the room, or that the channel refuses at

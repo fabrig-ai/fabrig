@@ -1,4 +1,4 @@
-//! The scenarios on files (runtime/kernel.md, 6.1): each lays out a root of its
+//! The scenarios on files (runtime/kernel-files.md, 1): each lays out a root of its
 //! own ([`Item`]), runs records beneath it, and returns what it saw, which
 //! its [`Check`] holds to the rules of the contract (`skein_io::kernel`,
 //! module documentation, files), naming each. Every completion is checked
@@ -1160,7 +1160,7 @@ impl Check for OpenLimit {
     }
 }
 
-/// A `Read` of a file cancelled (runtime/kernel.md, 6.1). On the ring the `Read`
+/// A `Read` of a file cancelled (runtime/kernel-files.md, 1). On the ring the `Read`
 /// goes to the ring's worker, and the `Cancel` stops it before the worker
 /// reads, or comes once it has: both, from one run to the next. A calm
 /// simulator reads at once, so its `Cancel` is too late; its `hung` fault,
@@ -1389,7 +1389,7 @@ impl Check for FileMetadata {
     }
 }
 
-/// Path-only metadata from readable and unreadable entries, a final link, and a special file (runtime/kernel.md, 6.1).
+/// Path-only metadata from readable and unreadable entries, a final link, and a special file (runtime/kernel-files.md, 1).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct PathMetadata {
     pub limits: PathLimits,
@@ -1492,7 +1492,7 @@ pub struct HardLinks {
     pub symlinks: [Stat; 2],
 }
 
-/// Gives the file `a` a second name `b` in this scenario's own root (kernel.md, 6.4).
+/// Gives the file `a` a second name `b` in this scenario's own root (runtime/kernel-files.md, 2).
 pub fn hard_link<B: Backend>(backend: &mut B) -> HardLinks {
     let mut run = Run::new(backend);
     let process = run.process();

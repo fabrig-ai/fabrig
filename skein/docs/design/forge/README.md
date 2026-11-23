@@ -258,7 +258,7 @@ connection-webhooks.md, section 1. This section is what the dialect holds.
   decodes the body at the same time into the few fields its hint reads;
   nothing of it is believed until the whole body is read and the
   signature holds, compared with `sha256::equal`, in constant time
-  (../runtime/lib.md, section 6.2).
+  (../runtime/lib-bytes.md, section 1.2).
 - **Its verdicts:**
 
   | A delivery | Answer | Hint |

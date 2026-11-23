@@ -1,4 +1,4 @@
-//! Startup's synchronous bounded regular-file reads (runtime/shell.md, 6.1).
+//! Startup's synchronous bounded regular-file reads (runtime/shell-startup.md, 1.1).
 //! Every descriptor stays here and is closed before returning bytes or a
 //! refusal. No service or ring state is kept.
 //!
@@ -24,7 +24,7 @@ use crate::startup::Unread;
 use super::sync::kind_of;
 use super::{close_unchecked as close, last_errno};
 
-/// Leaves Linux's path as given for a caller's own link checks (runtime/shell.md, 6.1).
+/// Leaves Linux's path as given for a caller's own link checks (runtime/shell-startup.md, 1.1).
 #[must_use]
 pub fn resolve_system_links(path: &Path) -> PathBuf {
     path.to_path_buf()

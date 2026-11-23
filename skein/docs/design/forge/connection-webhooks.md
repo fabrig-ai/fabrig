@@ -27,7 +27,7 @@ The component computes the HMAC-SHA256 as the body arrives, with
 `sha256::Hmac` keyed by the forge's secret, and decodes the body at the
 same time into the few fields the hint reads. Nothing of it is believed
 until the whole body is read and the signature holds, compared with
-`sha256::equal`, in constant time (../runtime/lib.md, 6.2). The header, the events
+`sha256::equal`, in constant time (../runtime/lib-bytes.md, 1.2). The header, the events
 and the fields are the dialect's (README.md, section 6).
 
 Once the body is read and verified, the `204` is queued, and only then

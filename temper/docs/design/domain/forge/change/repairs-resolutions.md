@@ -17,7 +17,7 @@ This document holds merge jobs and conflict resolutions, split from [`repairs.md
   on from it as from a resolution's push; a head that did not move
   means the command left conflicts, and the change makes a resolution
   of the same base, its words carrying the job's result, made text first
-  (each byte outside UTF-8 a `?`, skein's `runtime/lib.md`, 6, since the
+  (each byte outside UTF-8 a `?`, skein's `runtime/lib-bytes.md`, 1, since the
   job's result is the merge command's bytes and a task's words are
   text), cut to the resolution's words' room and marked. A job that fails for good holds
   the change as a resolution that fails does. Each of its failures, a
@@ -123,7 +123,7 @@ This document holds merge jobs and conflict resolutions, split from [`repairs.md
   decimal, a NUL byte, then the bytes, in lowercase hex: SHA-1's 40
   digits where the section's pinned head is a SHA-1 id (its last 12 of
   32 bytes zero, as the engine reads a commit), SHA-256's 64 otherwise
-  (skein's `runtime/lib.md`, 6.2 and 6.3). The agent reads it with `git
+  (skein's `runtime/lib-bytes.md`, 1.2 and 1.3). The agent reads it with `git
   cat-file -p ID`, or, resolving, as the merge in progress holds it.
   This check comes before the room's, so a file not text is named so
   whatever its size, and its line takes its room alone as a file named

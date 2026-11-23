@@ -252,7 +252,7 @@ impl<W, O> Journal<W, O> {
     }
 }
 
-// runtime/lib.md, 5.1: hash held state, never capacity or storage layout.
+// runtime/lib-containers.md, 1.1: hash held state, never capacity or storage layout.
 impl<W: Hash, O: Hash> Hash for Journal<W, O> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.pending.hash(state);

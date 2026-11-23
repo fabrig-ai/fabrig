@@ -108,7 +108,7 @@ that a face translates to and from the simulator's. Its programs are
 the fixture of the conformance suite's processes, and its crash model
 keeps what a crash keeps (simulator.md, 3.3). It
 keeps each file's lock with the handle that took it (simulator.md, 3.1).
-For a tree's metadata (../runtime/kernel.md, 6.4) it keeps each entry's inode,
+For a tree's metadata (kernel-files.md, 2) it keeps each entry's inode,
 group, mode up to `0o7777`, times and attributes, and hard links, and
 lays FIFOs; it has no devices, no sockets and no btrfs. It answers every
 subvolume call `NotSupported`, and its status a filesystem that is not
@@ -150,7 +150,7 @@ answered. On the ring, the probe is a mode of `tests/conformance/real`'s
 `signal_sender_fixture` binary, chosen by its first argument,
 `reach-probe`. Its `main` hands its arguments to the helper's dispatch
 first, so it is also the helper (`Kernel::set_helper`) of the spawn that
-starts it and of the one it starts to nest (../runtime/kernel.md, 6.6).
+starts it and of the one it starts to nest (kernel-cgroups.md, 1).
 The machine selects its program by its name's last component,
 `reach_probe`, as it selects its other programs.
 
@@ -537,7 +537,7 @@ second, which is why it is skein's (../../foundation/testing-strategy.md, 7).
   and settlement without a kernel in its unit tests and simulated
   worlds. `skein_shell::drive` requires a real `Kernel` and `Clock`;
   its three scheduling rows stay in the real tier as paths.
-- **It carries state digests** (../runtime/lib.md, 5.1). `Host` (../runtime/shell.md, 11) and
+- **It carries state digests** (lib-containers.md, 1.1). `Host` (../runtime/shell.md, 11) and
   `Machine`, the seam a world's fake machine plugs into, each give
   `state_digest() -> Option<[u8; 32]>`, `None` unless the process or the
   fake gives one. What a host hashes is its own choice, its domains'
@@ -804,7 +804,7 @@ memory test stays metered.
 Replay: a seed replays to the same trace of submissions and completions,
 and a JSON world, an HTTP world, an io world and an echo world to the
 same run; a TLS world does not, as rustls draws from the kernel. The
-state digests replay with the trace (../runtime/lib.md, 5.1; section 5).
+state digests replay with the trace (lib-containers.md, 1.1; section 5).
 
 Memory: each part's peak is measured with the counting allocator in its
 own tier, a call of an entry point at a time, under its scenario's named

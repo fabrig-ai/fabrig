@@ -279,7 +279,7 @@ every `Open` with `Busy` and asks once for `Stop`.
 ## 4. The echo's main
 
 `main` reads the address to listen on from its arguments and uses the
-shell's layer limits. Startup (runtime/shell.md, 6) checks usable limits and io's
+shell's layer limits. Startup (runtime/shell-startup.md, 1) checks usable limits and io's
 caps against the protocol's largest demand. It blocks termination signals
 and opens their signalfd (`open_termination_signals`) for io to adopt,
 then obtains the seed and opens the kernel. It runs the loop of
@@ -608,7 +608,7 @@ and for `wasm32-unknown-unknown`:
 - **Its records** are a codec family of its own (data/codec/README.md), a note, an
   add and the list, which the server names too. An exchange carries one
   record as `application/octet-stream`; the stream carries one in each
-  event's data, as base64 (runtime/lib.md, 6.1), read with HTTP's event-stream
+  event's data, as base64 (runtime/lib-bytes.md, 1.1), read with HTTP's event-stream
   reader (http.md, section 4).
 - **An add is written to the small store first,** under a key drawn from
   the seed, then sent, in the transport's order (ui/web/README.md, section 8).
@@ -645,7 +645,7 @@ a service copies that.
 
 - **The bundle,** written by `skein-ui-bundle` with `/bundle/` as the
   bundle's prefix (ui/web/bundle.md, 2), is read from the directory its
-  arguments name, at startup (runtime/shell.md, 6.1), and served under
+  arguments name, at startup (runtime/shell-startup.md, 1.1), and served under
   ui/web/bundle.md, 4: the digest directory immutable, each file in the
   form the request takes, the page with an `ETag` and `no-cache`.
 - **The strict content security policy** of ui/web/bundle.md, 4, on every

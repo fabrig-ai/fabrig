@@ -41,7 +41,7 @@
 - **A machine that stops, never calls back.** A family's `Patcher`
   holds its kept schemas and planned patches, decodes an old record into
   a generic value, and walks it, building the new value in preorder in
-  lib's reusable `Buffer` (../../runtime/lib.md, section 6). It stops where its caller
+  lib's reusable `Buffer` (../../runtime/lib-bytes.md, section 1). It stops where its caller
   must act, at a written site or a held field, and resumes on the
   caller's answer: no function pointers or dependency on the owner's
   written functions (4).
@@ -488,7 +488,7 @@ pub fn shape(old: &Old, new: &mut Build, at: Node, _cx: &mut Context) -> Result<
 ## 6. The interface
 
 ```rust
-// skein-lib (../../runtime/lib.md, section 6)
+// skein-lib (../../runtime/lib-bytes.md, section 1)
 pub struct Buffer { /* bytes, reused, bounded by a capacity */ }
 
 // skein_codec::value, beside 8.1's readers
@@ -768,6 +768,6 @@ Step tests, in skein-lib and skein-codec, and the story in
   around each reused pass (../../testing/README.md, 5), show that reuse neither
   grows nor copies a table; no test reads a table's address. A stack's
   room is a list's cap, its buffer growing as the walk deepens
-  (../../runtime/lib.md, 5), so a pass reuses its stacks once a pass as deep has
+  (../../runtime/lib-containers.md, 1), so a pass reuses its stacks once a pass as deep has
   run. The price includes growth's peak within a sixteenth of the
   run's tables.

@@ -29,7 +29,7 @@ never renames or reuses one on its own. An account has:
 
 - **its registration** (`README.md`, section 1), and the token endpoint's address,
   resolved before the loop (../runtime/io/README.md, 3), with its transport: TLS, with the
-  roots it trusts (../runtime/shell.md, 6.2), or plaintext on loopback. Where the
+  roots it trusts (../runtime/shell-startup.md, 1.2), or plaintext on loopback. Where the
   registration's terms name endpoints on other origins (the metadata, the
   key set, revocation), the account has each origin's address and transport
   too. A key set's URL found in the metadata on an origin the account was

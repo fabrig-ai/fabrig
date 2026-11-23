@@ -10,7 +10,7 @@ and the service, and the only step code that is not deterministic.
 
 - **A stream machine.** Ciphertext comes from the stream below; plaintext
   goes up as a stream to the machine above, which cannot tell it from a
-  socket. TLS meets ../runtime/lib.md, 7's contract twice: as the side above of the
+  socket. TLS meets ../runtime/lib-streams.md, 1's contract twice: as the side above of the
   ciphertext, and as the side below of the plaintext.
 - **It wraps rustls's unbuffered connection,** which does no I/O, keeps no
   clock, and builds without std, with ring for its cryptography.
@@ -36,7 +36,7 @@ pub fn up(client: &mut Client, env: &Env<Limits>, ev: stream::Up,
 pub fn down(client: &mut Client, env: &Env<Limits>, rq: Request,
             above: &mut Queue<Event>, below: &mut Queue<stream::Down>)
 
-// made at startup, from configuration (../runtime/shell.md, 6)
+// made at startup, from configuration (../runtime/shell-startup.md, 1)
 Config::from_der(roots: &[Box<[u8]>], alpn: &[&[u8]]) -> Result<(Config, Parsed), Refusal>
 Config::new(roots: RootCertStore, alpn: &[&[u8]]) -> Result<Config, Refusal>
 Name::new(text: &str) -> Option<Name>
@@ -75,7 +75,7 @@ pub enum Event {
   demanded before `Ready`: its demands wait for the handshake. A
   connection that holds a call while it handshakes (../llm/connection.md,
   section 5) makes the call on `Ready`.
-- **The plaintext stream** keeps ../runtime/lib.md, 7, and holds the side above to it
+- **The plaintext stream** keeps ../runtime/lib-streams.md, 1, and holds the side above to it
   as io does: each demand answered at most once, from the client's intake,
   as lib's intake meets it (exactly, or for a read of what has arrived,
   what the intake holds up to its maximum); `End` once the server's
@@ -126,7 +126,7 @@ pub enum Event {
   hold a demand that room for the side above's next `Send` could not join
   (http.md, 3.1).
 - **At the stream's end,** a read the client has outstanding crosses it
-  and is never met, and io keeps the demand outstanding (../runtime/lib.md, 7). The
+  and is never met, and io keeps the demand outstanding (../runtime/lib-streams.md, 1). The
   client reads nothing more: it withdraws a demand that only read at
   once, and one that asked room too stays until `Room` answers it. Either
   way it is then free to demand room after the end, for a peer that only
@@ -178,7 +178,7 @@ pub enum Event {
 
 ### 3.4 Configuration
 
-Configuration is data (../runtime/shell.md, 6). The shell reads the roots a service
+Configuration is data (../runtime/shell-startup.md, 1). The shell reads the roots a service
 trusts, and hands them over with the protocols it offers by ALPN, in
 order of preference: a configuration every connection shares, rustls's,
 with both versions of TLS, no client certificate, and no session
@@ -193,7 +193,7 @@ nothing; an address is never handed over as text, so that its reader
 writes it in its own form.
 
 - **From DER bytes.** The shell reads the roots as bytes and needs no TLS
-  crate (../runtime/shell.md, 6.2): the certificates of the machine's bundle, each
+  crate (../runtime/shell-startup.md, 1.2): the certificates of the machine's bundle, each
   taken out of its PEM as DER, or the one of a DER file. `Config::from_der`
   takes them as they came, and builds rustls's root store from them with
   its own parser. A certificate it cannot parse, or whose key it does not
@@ -205,7 +205,7 @@ writes it in its own form.
   their own.
 - **The roots are shared configuration.** Every connection shares the
   root store, read within the shell's root count and byte limits
-  (../runtime/shell.md, 6.2).
+  (../runtime/shell-startup.md, 1.2).
 
 ### 3.5 Limits and their validity
 
@@ -233,21 +233,21 @@ pub struct Limits {
 
 `client::native` is the client for a side above that must write while its
 read waits: a framed connection over TLS, whose writing never waits for
-its reading (channel.md, 7; ../runtime/io/sockets.md, 3). It keeps ../runtime/lib.md, 7.1's
+its reading (channel.md, 7; ../runtime/io/sockets.md, 3). It keeps ../runtime/lib-streams.md, 1.1's
 independent output on both its sides: on the plaintext above, and on the
 ciphertext below, read-only demands beside output rights. It is built on
 the classic client's engine: its session, its buffers, its reading of
 records (3.2) and its answers to reads (3.1). The two faces differ in how
 room is asked for and granted, how they finish and how they close.
 Whoever stacks the client picks the face by its constructor, and it stays
-fixed. The stream below must keep ../runtime/lib.md, 7.1 itself: no adapter over a
+fixed. The stream below must keep ../runtime/lib-streams.md, 1.1 itself: no adapter over a
 stream that takes only the classic joined demand gives this
 independence.
 
 - **Requests and events.** Above, `Request::Client` carries the classic
   `Request`, whose stream demands only read: a demand of room or a `Send`
   is a bug, asserted before it has any effect. `Request::Output` carries
-  an output right's requests (../runtime/lib.md, 7.1). `Event::Client` carries the
+  an output right's requests (../runtime/lib-streams.md, 1.1). `Event::Client` carries the
   classic `Event`, `Event::Output` an output right's terminal, and
   `TransportClosing` and `TransportClosed` say that the stream below is
   closing or closed. Below, `LowerRequest` and `LowerEvent` carry the
@@ -609,7 +609,7 @@ a wall time each test chooses.
   record's plaintext, as skein-llm-connection's owner does
   (../llm/connection.md, 7).
 - **A read that crosses the end stays outstanding,** both ways, as
-  ../runtime/lib.md, 7 says and io does, until `Room` answers it or it is withdrawn:
+  ../runtime/lib-streams.md, 1 says and io does, until `Room` answers it or it is withdrawn:
   the client withdraws its own, as it reads no more after the end, unless
   it asked room, and holds the side above to the same, so that a side
   above that works over TLS works over a socket.

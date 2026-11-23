@@ -48,14 +48,14 @@ kernel with `io_uring_disabled` set, or macOS (Apple Silicon, from macOS
   same on both.
 - **No setting of its own.** A service takes `Kernel::open`; nothing in a
   binary's command line or environment chooses the backend, and the
-  settings of `shell.md`, 6.5 gain none. The tests that need the readiness backend on
+  settings of `shell-startup.md`, 1.5 gain none. The tests that need the readiness backend on
   Linux open it themselves. A binary whose own tests need it forced adds
   a setting of its own then, under 6.5.
 - **What runs is said:** `Kernel::chosen()` answers the backend and, when
   the ring was refused, its error number; its `Display` reads, for
   example, `readiness (epoll): io_uring refused (EPERM)`. A service says
   it once on standard error at startup when it is not the ring, beside
-  the trust roots' counts (`shell.md`, 6.2), so that a slower host is never a
+  the trust roots' counts (`shell-startup.md`, 1.2), so that a slower host is never a
   mystery. The line is the service's `main`'s, as the counts are, never
   the kit's, which prints nothing: `<service>: kernel: <chosen>`. In
   skein, the echo's and the UI server's `main` say it; a service
@@ -119,7 +119,7 @@ kernel with `io_uring_disabled` set, or macOS (Apple Silicon, from macOS
   flag, so on a blocking listener shared with another process, one that
   the other takes the connection from between the readiness and the
   call would hold the loop until the next. The backend makes non-blocking
-  the sockets it makes; a listener the service inherited (`shell.md`, 6.6) keeps the
+  the sockets it makes; a listener the service inherited (`shell-startup.md`, 1.6) keeps the
   flags it came with (`shell.md`, section 9).
 - **The backend's own descriptors are non-blocking:** every socket it
   makes (`SOCK_NONBLOCK`), every one it accepts, and the parent's end of
@@ -177,7 +177,7 @@ kernel with `io_uring_disabled` set, or macOS (Apple Silicon, from macOS
   these calls (`shell.md`, section 3), so its `List`, `Lock`, `Spawn`, `Signal`,
   `Usage` and `Window` complete so too. The callers outside the kernel
   that share a call make it again: a held listener's `bind` and `listen`
-  (`shell.md`, 6.6), and `keeper::poll_child`, the harness's. With the signals the shell
+  (`shell-startup.md`, 1.6), and `keeper::poll_child`, the harness's. With the signals the shell
   watches blocked (Linux) or ignored (Darwin), these calls are seldom
   interrupted.
 - **Errors map as the ring's do,** per operation, by the same functions
@@ -388,7 +388,7 @@ other module is safe Rust, the same on both systems.
   record on a descriptor whose `fstat` says regular file registers no
   interest and makes its call at once, as on Linux.
 - **Opening beneath a root:** `openat` with `O_RESOLVE_BENEATH`, and
-  `O_NOFOLLOW_ANY` for the ways that refuse a link (kernel.md, 6.1),
+  `O_NOFOLLOW_ANY` for the ways that refuse a link (kernel-files.md, 1),
   close-on-exec, without blocking or a controlling terminal, as on Linux.
   `PathNoFollow`, which Linux opens `O_PATH | O_NOFOLLOW`, is
   `O_SYMLINK | O_EVTONLY` with `O_NOFOLLOW_ANY` and `O_RESOLVE_BENEATH`:
@@ -411,7 +411,7 @@ other module is safe Rust, the same on both systems.
   owns it and the directory it lies in, and that directory has no group
   or other write bit: no one but root could have placed it there. Every
   no-follow open on Darwin, an `Open` beneath a root and the startup
-  reads alike (`shell.md`, 6.1), passes those and refuses every other
+  reads alike (`shell-startup.md`, 1.1), passes those and refuses every other
   link, as Linux's refuse them:
   1. It opens as above. Any answer but `ELOOP` is the open's.
   2. On `ELOOP`, it walks the path once, from where the open starts (the
@@ -451,8 +451,8 @@ other module is safe Rust, the same on both systems.
     path is: a target that leaves it is an `Escape`.
   - **Linux passes none.** Its no-follow opens stay `RESOLVE_NO_SYMLINKS`,
     which refuses root's links too (`/var/run -> /run`), and
-    `resolve_system_links` answers a path as given there (`shell.md`,
-    6.1); whether Linux should pass them is kernel.md, 9's question.
+    `resolve_system_links` answers a path as given there (`shell-startup.md`,
+    1.1); whether Linux should pass them is kernel.md, 9's question.
 
   The walk is `posix`'s, built for macOS and for the crate's tests, with
   the owner whose links it passes as its argument (root's, 0, on
@@ -467,7 +467,7 @@ other module is safe Rust, the same on both systems.
 - **Files:** `pread`, `pwrite`, `write`, `ftruncate`, `fstat` (decoded by
   `darwin`), `renameatx_np` with `RENAME_EXCL` for a rename that never
   replaces and `renameat` otherwise, `unlinkat`, `mkdirat`, `linkat`
-  with no flags (a second name, `HardLink`: kernel.md, 6.4), `flock`.
+  with no flags (a second name, `HardLink`: kernel-files.md, 2), `flock`.
   A no-replace rename to the identical name succeeds without changing
   it on case-insensitive APFS (macOS conformance run 40003540284): XNU
   `bsd/vfs/vfs_syscalls.c:9538-9564` admits the same vnode on those
@@ -578,7 +578,7 @@ other module is safe Rust, the same on both systems.
   any other non-exit code still fails with the diagnostic.
 - **Signals to the service:** startup sets the signals the service
   watches (`SIGINT`, `SIGTERM`, `SIGWINCH` at a terminal, and `SIGHUP`
-  when asked and not already ignored, `shell.md`, 6.3) to be
+  when asked and not already ignored, `shell-startup.md`, 1.3) to be
   ignored, which Darwin still reports to a kqueue, and opens a kqueue with
   an `EVFILT_SIGNAL` for each: the descriptor `ReadSignal` names, readable
   while one is pending. A `ReadSignal` takes one event without waiting and
@@ -624,7 +624,7 @@ other module is safe Rust, the same on both systems.
   a file operation always comes too late (kernel.md, 6).
 - **Processes are groups, as they are with the ring:** a descendant that
   leaves its group escapes the close's kill. A cgroup or a contained
-  tree (kernel.md, 6.6) is refused on macOS as unsupported.
+  tree (kernel-cgroups.md, 1) is refused on macOS as unsupported.
 - **A descriptor closed outside io leaves its waiters waiting.** The
   ring holds an in-flight operation's file, so the operation completes
   however its descriptor is closed; a readiness waiter holds only the

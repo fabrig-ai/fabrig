@@ -191,7 +191,7 @@ impl Workspace {
   is that reach's parts, not the texts'; the plan holds no reference to
   either text.
 - `convert` writes into lib's reusable `Buffer`
-  (../../runtime/lib.md, section 6), whose capacity bounds the new
+  (../../runtime/lib-bytes.md, section 1), whose capacity bounds the new
   value (`Room` past it): its caller gives the most bytes it admits for
   a value, so a converted value past its store's bound is refused, not
   written past it.

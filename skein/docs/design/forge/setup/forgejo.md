@@ -222,7 +222,7 @@ answers `204` with no body, `404` when the repository is not there.
   reconcile beside Forgejo with no readiness probe. After the first
   answer a `Down` stops the machine.
 - **A failure** is `{forge, step, subject, why}`, and shows no secret
-  (../../runtime/lib.md, section 6). The step is `Admin`, `Bot` (its id included),
+  (../../runtime/lib-bytes.md, section 1). The step is `Admin`, `Bot` (its id included),
   `Token`, `Org`, `Repository` (its collaborator and hook), `Person`
   (1.3, step 7), `File` (1.9), and for
   GitHub's plans `App`, `Installation` (a picker's too, 1.8) and `State`

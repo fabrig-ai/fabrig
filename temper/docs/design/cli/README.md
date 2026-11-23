@@ -2,7 +2,7 @@
 
 How temper's binaries meet their command lines, on the repository's
 convention (`skein/docs/foundation/cli.md`) and skein's table
-(`skein/docs/design/runtime/shell.md`, 14): each binary's package and
+(`skein/docs/design/runtime/shell-table.md`, 1): each binary's package and
 crate, its table, how its arguments reach a command, its help, its
 exits, the environment it reads and passes down, and the reference
 documents generated from its table. The sets are the draft's
@@ -22,7 +22,7 @@ the client's.
   the process's arguments and environment once (3). Every other reader
   takes what the capture holds.
 - **`Table::reach`** answers what the arguments reach
-  (`skein/docs/design/runtime/shell.md`, 14.4): the page, the version,
+  (`skein/docs/design/runtime/shell-table.md`, 1.4): the page, the version,
   a command's page, a command, or no command (3).
 - **Exits:** 0 done, 1 failed, 2 refused its arguments (4).
 - **Help:** `-h`, `--help` and `help` print the table's page;
@@ -114,7 +114,7 @@ Each binary's crate has `pub fn main(version: &'static str, commit:
    under one `#[expect(clippy::disallowed_methods, reason = "the binary's
    capture: ...")]` (`skein/docs/foundation/cli.md`, 9, check 4).
 2. **The reach,** `TABLE.reach(run_as, &arguments)`
-   (`skein/docs/design/runtime/shell.md`, 14.4):
+   (`skein/docs/design/runtime/shell-table.md`, 1.4):
    - `Help`: `TABLE.help()` on stdout, exit 0;
    - `Version`: the version line of the table with `main`'s identity,
      `Table { version, commit, ..TABLE }.version_line()`, on stdout,
@@ -175,7 +175,7 @@ after it, for `--version`.
 ## 5. Help
 
 - **`-h`, `--help` and `help`,** alone, print `TABLE.help()`
-  (`skein/docs/design/runtime/shell.md`, 14.2).
+  (`skein/docs/design/runtime/shell-table.md`, 1.2).
 - **`COMMAND -h` or `COMMAND --help`** print `TABLE.command_help`; an
   internal command's page says it's internal.
 - **`help` with words** (`../protocol/documentation.md`, 4):
@@ -477,7 +477,7 @@ pub const SITE: skein_shell::Variable;
   variable's `Variable` constant lives in the crate that reads it; one
   that several of temper's crates read, the host's among them, lives in
   `temper-shell`'s `environment` module; `HOME` and the XDG base
-  directories are skein's (`skein/docs/design/runtime/shell.md`, 14.1).
+  directories are skein's (`skein/docs/design/runtime/shell-table.md`, 1.1).
 - **smith's names stay smith's:** `SMITH_MCP_SECRET`, which smith's relay
   reads, is declared in no temper table until smith's round.
 - **Renamed** (`../draft/cli.md`, 4.6), each with every reader and
@@ -521,8 +521,8 @@ pub const SITE: skein_shell::Variable;
 
 ## 9. The generated documents
 
-Beside this page, rendered by skein (`skein/docs/design/runtime/shell.md`,
-14.3):
+Beside this page, rendered by skein (`skein/docs/design/runtime/shell-table.md`,
+1.3):
 
 - each binary's arguments document, `<binary>-args.md` for each of the
   five binaries, each checked byte for byte against its table in its
@@ -587,7 +587,7 @@ through it (6 and 8).
   it. A test crate takes it as a dev-dependency; a test-support crate
   that reads the set, as `temper-fixtures` does, as a dependency.
 - **The table:** `temper_test_env::TESTS`, a `skein_shell::TestTable`
-  (`skein/docs/design/runtime/shell.md`, 14.1) whose tree is `temper`,
+  (`skein/docs/design/runtime/shell-table.md`, 1.1) whose tree is `temper`,
   holding every variable of 11.3 in the order of their names. Each is a
   `pub const` `Variable` of its own, named for it without
   `TEMPER_TEST_`: `TEMPER_TEST_LIVE_STORE` is
@@ -599,9 +599,9 @@ through it (6 and 8).
   temper's tools, or by a script. One that nothing reads leaves the
   table, as `TEMPER_TEST_CLAUDE` does (11.3).
 - **Its document:** `test-env`, beside this page, is
-  `TESTS.document()` (`skein/docs/design/runtime/shell.md`, 14.3),
+  `TESTS.document()` (`skein/docs/design/runtime/shell-table.md`, 1.3),
   checked byte for byte in `temper-test-env`'s tests and rewritten when
-  11.2's `rewrite()` is on, as section 9's documents are. Check 5
+  11.2's `rewrite()` is on, as `README.md`, section 9's documents are. Check 5
   (`skein/docs/foundation/cli.md`, 9) reads it with the others.
 
 ### 11.2 Reading it

@@ -48,7 +48,7 @@ pub fn spawn_dying_with_parent(
     system::process::spawn_dying_with_parent(command, signal)
 }
 
-/// The effective user's login from the system command at startup (runtime/shell.md, 6).
+/// The effective user's login from the system command at startup (runtime/shell-startup.md, 1).
 /// Kept on every Unix platform so tests can compare macOS's lookup with passwd's.
 #[expect(clippy::disallowed_types, reason = "startup waits for id to finish before the service loop starts")]
 pub fn login_id() -> Result<Box<[u8]>, String> {
@@ -69,7 +69,7 @@ pub fn login_id() -> Result<Box<[u8]>, String> {
 }
 
 /// Opens the service's termination signal source for io
-/// to adopt before the loop starts (runtime/shell.md, section 6; runtime/io/README.md, section 4).
+/// to adopt before the loop starts (runtime/shell-startup.md, section 1; runtime/io/README.md, section 4).
 pub fn open_termination_signals() -> Result<Fd, i32> {
     system::process::open_signals(crate::Watch::Termination)
 }

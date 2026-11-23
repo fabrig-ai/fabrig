@@ -147,7 +147,7 @@ pub struct Service {
 }
 
 impl Service {
-    /// The domain state a world digests (runtime/lib.md, 5.1).
+    /// The domain state a world digests (runtime/lib-containers.md, 1.1).
     #[must_use]
     pub const fn domain(&self) -> &Domain {
         &self.domain

@@ -199,7 +199,7 @@ to a file.
   between runs is replaced whole through io (../design/runtime/io/files.md, 2); what the shell
   reads off the service between iterations, it reads in the loop's hook
   (../design/runtime/shell.md, 11). Before the loop, startup reads its configuration and
-  certificates with the kit (../design/runtime/shell.md, 6).
+  certificates with the kit (../design/runtime/shell-startup.md, 1).
 - **Panics abort.** A panic anywhere is fail-stop, and a supervisor
   restarts the process. The release and web profiles say `panic =
   "abort"`. The dev profile unwinds, as the test harness needs, so that a
@@ -208,7 +208,7 @@ to a file.
   anything else, which reports the panic and aborts before anything
   unwinds, and each repository's gate checks that it does. A binary that
   changed its terminal gives the hook a restoration to run before its
-  report (`before_report`; ../design/runtime/shell.md, 6.3), so the report reaches the
+  report (`before_report`; ../design/runtime/shell-startup.md, 1.3), so the report reaches the
   person's own screen. In a client compiled
   to WebAssembly the abort is a trap, and its shell restarts the client,
   in a browser by reloading its page.

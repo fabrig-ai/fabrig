@@ -123,7 +123,7 @@ pub struct Header { name: Box<[u8]>, value: Box<[u8]> }   // names compared with
 ## 3. The response body
 
 The client is the side below of the body's stream, so it keeps the
-stream's contract (../../runtime/lib.md, 7) and holds its carry-over, as io does for a
+stream's contract (../../runtime/lib-streams.md, 1) and holds its carry-over, as io does for a
 socket (../../../foundation/programming-model.md, 4.3): the bytes read below that no demand
 above has taken yet, in an intake of `Limits::read`, allocated with the
 client.
@@ -147,10 +147,10 @@ client.
 - **The end:** `End` answers a demand that what the body holds can no
   longer meet, once the framing says the body is over, and `Done`
   follows it in the same step. A read larger than what is left is never
-  met (../../runtime/lib.md, 7): a side above that must see every byte reads by its
+  met (../../runtime/lib-streams.md, 1): a side above that must see every byte reads by its
   framing, as JSON and the reader do.
 - **A withdrawal** of a body demand means the side above reads no more
-  (../../runtime/lib.md, 7), as when a machine stacked on the body closes: what was
+  (../../runtime/lib-streams.md, 1), as when a machine stacked on the body closes: what was
   read for it is dropped, a demand after it is asserted, and the side
   above discards the rest or closes the client. A withdrawal may cross
   its demand's answer: one that comes after the answer withdraws all the

@@ -117,7 +117,7 @@ pub trait Backend {
     fn assert_settled(&self, process: Self::Process);
 
     /// A new root for `process`, laid out as `tree` says, opened as the
-    /// shell opens a root at startup (runtime/kernel.md, 6.1): a descriptor the
+    /// shell opens a root at startup (runtime/kernel-files.md, 1): a descriptor the
     /// scenario closes with a `Close`.
     fn root(&mut self, process: Self::Process, tree: &[Item]) -> Fd;
 

@@ -193,7 +193,7 @@ pub mod links {
 }
 
 #[must_use]
-#[expect(unsafe_code, reason = "the fixture reads the calling thread signal mask (runtime/shell.md, 6.3)")]
+#[expect(unsafe_code, reason = "the fixture reads the calling thread signal mask (runtime/shell-startup.md, 1.3)")]
 pub fn signal_mask() -> Vec<i32> {
     // SAFETY: sigset_t is C storage; zeroing also initializes any unused storage.
     let mut mask: libc::sigset_t = unsafe { std::mem::zeroed() };

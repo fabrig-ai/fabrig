@@ -1,6 +1,6 @@
 //! Independent bounded OAuth issuer. No IO, clock reads, or provider policy.
 //! Credentials and carrier debug views follow skein/docs/design/oauth/README.md, 4
-//! and skein/docs/design/runtime/lib.md, 6.
+//! and skein/docs/design/runtime/lib-bytes.md, 1.
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]
 extern crate alloc;

@@ -39,7 +39,7 @@
   - **The client's** runs one connection for one exchange after another.
     Below, the server's stream: its bytes arrive in pieces cut at random,
     late, into an intake under its cap, and meet each read as lib's
-    intake does (../../runtime/lib.md, 7); room
+    intake does (../../runtime/lib-streams.md, 1); room
     is granted late, one `Send` a grant, while a response may wait; now
     and then the server is patient, and answers each exchange only once
     it has the whole request, so that a client that waited for the

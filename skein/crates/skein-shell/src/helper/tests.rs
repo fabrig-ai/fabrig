@@ -1,4 +1,4 @@
-//! Pure helper protocol and Landlock decisions (runtime/kernel.md, 6.6).
+//! Pure helper protocol and Landlock decisions (runtime/kernel-cgroups.md, 1).
 
 use super::{Record, Spec, abi_error, admit_abi, gaps, rule_rights};
 use skein_io::kernel::{Reach, Rights, Unenforced};

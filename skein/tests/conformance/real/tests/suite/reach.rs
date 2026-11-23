@@ -1,4 +1,4 @@
-//! One reached spawn per proof, on each Linux backend (runtime/kernel.md, 6.6).
+//! One reached spawn per proof, on each Linux backend (runtime/kernel-cgroups.md, 1).
 #![cfg(target_os = "linux")]
 
 use std::fs::File;

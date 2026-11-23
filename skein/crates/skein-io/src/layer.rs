@@ -256,7 +256,7 @@ impl Io {
     }
 
     /// Takes the signalfd opened after blocking termination signals at
-    /// startup (runtime/shell.md, section 6). Each read becomes `Event::Shutdown` or `Event::Resized`;
+    /// startup (runtime/shell-startup.md, section 1). Each read becomes `Event::Shutdown` or `Event::Resized`;
     /// `Close` or `Abort` on the returned token settles the read and closes
     /// the descriptor. On a full slab the caller retains the descriptor.
     pub fn adopt_signals(&mut self, fd: Fd) -> Result<Token, Fd> {

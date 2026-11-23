@@ -35,14 +35,14 @@ code is from this design and how to roll up the status files.
 
 | Part | Crate | What | Design |
 |---|---|---|---|
-| lib | `skein-lib` | handles, slabs, bounded containers, cursors, streams, deadlines, time | [runtime/lib.md](runtime/lib.md) |
-| the kernel boundary | `skein-io` (`kernel`) | the records io submits to a backend and the completions it gets back | [runtime/kernel.md](runtime/kernel.md) |
+| lib | `skein-lib` | handles, slabs, bounded containers, cursors, streams, deadlines, time | [runtime/lib.md](runtime/lib.md), [runtime/lib-containers.md](runtime/lib-containers.md), [runtime/lib-bytes.md](runtime/lib-bytes.md), [runtime/lib-streams.md](runtime/lib-streams.md) |
+| the kernel boundary | `skein-io` (`kernel`) | the records io submits to a backend and the completions it gets back | [runtime/kernel.md](runtime/kernel.md), [runtime/kernel-files.md](runtime/kernel-files.md), [runtime/kernel-cgroups.md](runtime/kernel-cgroups.md) |
 | the readiness backend | `skein-shell` | completions emulated over epoll or kqueue on hosts without io_uring | [runtime/readiness.md](runtime/readiness.md) |
 | io | `skein-io` | sockets, pipes, files, processes, signals to the service | [runtime/io/README.md](runtime/io/README.md) |
 | sockets and pipes | `skein-io` | stream entities, transfers, close and in-process sockets | [runtime/io/sockets.md](runtime/io/sockets.md) |
 | files | `skein-io` | the file machine, its requests, events and operation ownership | [runtime/io/files.md](runtime/io/files.md) |
 | processes | `skein-io` | spawning children, their pipes, signals and containment | [runtime/io/processes.md](runtime/io/processes.md) |
-| the shell kit | `skein-shell`, `skein-fail-stop` | the io_uring backend, the clock, the seed, startup; the panic hook every binary's `main` installs first | [runtime/shell.md](runtime/shell.md) |
+| the shell kit | `skein-shell`, `skein-fail-stop` | the io_uring backend, the clock, the seed, startup; the panic hook every binary's `main` installs first | [runtime/shell.md](runtime/shell.md), [runtime/shell-startup.md](runtime/shell-startup.md), [runtime/shell-table.md](runtime/shell-table.md) |
 | the simulator | `skein-sim` | the simulated kernel and its faults; beside it, the conformance suite (`skein-conformance`) | [testing/simulator.md](testing/simulator.md) |
 | the conformance suite | `skein-conformance` | the scenarios that hold the simulator and each backend on the real kernel to the kernel boundary's contract | [testing/conformance.md](testing/conformance.md) |
 | the fake LLM | `skein-fake-llm-domain`, `skein-fake-llm-protocol` | shared bounded scripts and independent byte peers; application worlds supply tools and policy | [testing/fakes/llm.md](testing/fakes/llm.md) |

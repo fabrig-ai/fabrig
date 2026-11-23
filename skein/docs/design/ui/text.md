@@ -334,7 +334,7 @@ this shell's text (README.md, 14.1).
   a `\r` just before it. Bytes with no `\n` yet wait for it; a line
   longer than the longest is refused whole, through its `\n`. The input
   is left as it is, never raw: the terminal's own line editing makes
-  each line (../runtime/shell.md, 6.3), and a pipe works as well as a terminal.
+  each line (../runtime/shell-startup.md, 1.3), and a pipe works as well as a terminal.
 - **Each iteration of the host,** in order: the application's steps; the
   view built; each whole line read made into one command and done; a
   print, when one is due; the output written. Time is the host's clock,
@@ -413,7 +413,7 @@ this shell's text (README.md, 14.1).
 - **A secret typed in the clear.** The terminal's line editing echoes
   what the person types, a secret's words among them; the shell never
   prints them again. Turning the echo off for one line would take the
-  terminal's modes (../runtime/shell.md, 6.3) and a command that says a secret
+  terminal's modes (../runtime/shell-startup.md, 1.3) and a command that says a secret
   comes, which the commands do not have.
 - **Right-to-left text** (README.md, 4.2): what printing it in a terminal
   asks, when the vocabulary takes it.

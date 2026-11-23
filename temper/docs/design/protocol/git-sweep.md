@@ -152,7 +152,7 @@ What checks this document's contract, beside `git.md`, section 9:
   fails ahead of others, the others swept and the one reported, then
   swept by a later pass once it can be removed. Its io lists an open
   directory from where its last listing stopped, as every backend does
-  (skein's `runtime/kernel.md`, 6.1).
+  (skein's `runtime/kernel-files.md`, 1).
 
 ## 6. Later
 

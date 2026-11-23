@@ -80,7 +80,7 @@ struct Open {
     intake: Intake,
     demand: Demand,
     /// The room the owner holds: what the last `Room` granted, less what it
-    /// sent since. Each `Send` fits within it (runtime/lib.md, 7).
+    /// sent since. Each `Send` fits within it (runtime/lib-streams.md, 1).
     granted: u32,
     classic_grant: bool,
     independent: Reservation,
@@ -89,7 +89,7 @@ struct Open {
     output: Output,
 }
 
-/// What the owner's state needs (runtime/lib.md, 7): a read and output room, answered
+/// What the owner's state needs (runtime/lib-streams.md, 1): a read and output room, answered
 /// once, by the bytes or the room, which ends both.
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct Demand {
@@ -427,7 +427,7 @@ fn state_answer(
     listener
 }
 
-/// A request in the stream vocabulary (runtime/lib.md, 7). Whatever it makes due up
+/// A request in the stream vocabulary (runtime/lib-streams.md, 1). Whatever it makes due up
 /// is told by `resume`, from the ready list.
 fn state_request(
     stream: &mut State,
@@ -941,7 +941,7 @@ fn open(
 }
 
 /// The owner's demand answered, if the stream can: by the bytes it reads,
-/// or else by the room it asks for, and either answer ends it (runtime/lib.md, 7).
+/// or else by the room it asks for, and either answer ends it (runtime/lib-streams.md, 1).
 /// Then the end, once nothing held can meet a demand; and a receive armed
 /// again once the intake has room (runtime/io/sockets.md, 3).
 fn deliver(
@@ -1017,7 +1017,7 @@ pub(crate) fn delivered(
 }
 
 /// A `Demand`: stated once the last is answered, never in place of it, or
-/// withdrawing it (runtime/lib.md, 7); met, if it can be, from the ready list.
+/// withdrawing it (runtime/lib-streams.md, 1); met, if it can be, from the ready list.
 fn demand(open: &mut Open, read: Read, room: u32, id: Id<Entity>, env: &Env<Limits>, tables: &mut Tables) {
     let cap = env.limits.intake;
     let withdrawal = match read {
@@ -1051,7 +1051,7 @@ fn demand(open: &mut Open, read: Read, room: u32, id: Id<Entity>, env: &Env<Limi
     };
     assert!(
         withdrawal || !outstanding,
-        "a demand is stated once the last is answered, never in place of it, or it withdraws it (runtime/lib.md, 7)"
+        "a demand is stated once the last is answered, never in place of it, or it withdraws it (runtime/lib-streams.md, 1)"
     );
     assert!(room == 0 || open.independent.idle(), "classic room cannot overlap independent output");
     assert!(room <= env.limits.output, "room past the output cap could never be granted (Limits::largest_room)");
@@ -1078,7 +1078,7 @@ fn queue(
         return;
     }
     let len = u32::try_from(bytes.len()).expect("a Send within the room granted, under a u32 cap");
-    // Room granted is spent by what is sent within it (runtime/lib.md, 7).
+    // Room granted is spent by what is sent within it (runtime/lib-streams.md, 1).
     open.granted = open.granted.checked_sub(len).expect("a Send within the room granted: no more than the last Room");
     let queued = open.output.bytes.checked_add(len).expect("a Send within the room granted, under a u32 cap");
     assert!(queued <= env.limits.output, "a Send within the room granted: no more than the output cap");

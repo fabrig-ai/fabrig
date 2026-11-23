@@ -144,7 +144,7 @@ mod tests {
     #[test]
     #[expect(
         clippy::disallowed_types,
-        reason = "the isolated test inherits SIG_IGN from its shell (runtime/shell.md, 6.3)"
+        reason = "the isolated test inherits SIG_IGN from its shell (runtime/shell-startup.md, 1.3)"
     )]
     #[expect(
         clippy::disallowed_methods,

@@ -54,7 +54,7 @@ is in section 10, what is open in section 11.
 | `tests/ui-screen`, `skein-ui-screen-tests` | test crate | the terminal on the simulated machine (section 9) | |
 
 Both forbid `unsafe`. The startup that sets the terminal's input raw and
-keeps its modes is skein-shell's (../runtime/shell.md, 6.3); the hook that leaves the
+keeps its modes is skein-shell's (../runtime/shell-startup.md, 1.3); the hook that leaves the
 terminal at a panic is skein-fail-stop's (../../foundation/programming-model.md, section 2).
 
 ```
@@ -532,7 +532,7 @@ completions to it, as the text shell's terminal (text.md, section 3).
     that a child given them (../runtime/io/processes.md, section 1,
     `Inherit`) reads and writes them as any program does. The host
     starts its child only once `lent` is true, after setting the kept
-    modes back (`Kept::set_kept`, ../runtime/shell.md, 6.3).
+    modes back (`Kept::set_kept`, ../runtime/shell-startup.md, 1.3).
   - *`resume`,* once the child has ended and the host has taken the
     foreground back and set its modes raw again (`Kept::set_raw`),
     makes the descriptors as adoption made them, writes `ENTER` again,
@@ -543,7 +543,7 @@ completions to it, as the text shell's terminal (text.md, section 3).
   - *Closing while lent* writes nothing more, `LEAVE` being written, and
     closes at once.
 - **Its startup** is the host's binary's, with skein-shell's parts
-  (../runtime/shell.md, 6.3): the input set raw with the interrupt keys passed
+  (../runtime/shell-startup.md, 1.3): the input set raw with the interrupt keys passed
   through as bytes (`Keys::Pass`), so that Ctrl+C is a key and Ctrl+Z
   and Ctrl+\\ stop nothing; the window's signal watched with the
   termination signals (`Watch::TerminationAndWindow`); and the full-screen

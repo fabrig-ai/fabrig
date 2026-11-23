@@ -161,7 +161,7 @@ past the document:
 | a number | `Fill(1)` per byte; the byte that ends it is held for the next token |
 
 It sends nothing down, so it asks for no room. The side below meets the
-contract of a stream (../runtime/lib.md, 7), and the tokenizer keeps its side of
+contract of a stream (../runtime/lib-streams.md, 1), and the tokenizer keeps its side of
 it: it states a demand only after an answer, withdraws one only when it
 closes, and reads by JSON's framing, so that no read of a whole document
 is larger than what is left of it. What that contract leaves to the side
@@ -200,7 +200,7 @@ pub struct Limits {
 - **`largest_demand(&limits)`** is the larger of `chunk` and 4 (the rest
   of `false`). Whoever stacks the tokenizer checks at startup that it fits
   the cap of the side below: a demand past that cap could never be met,
-  and the side below asserts it (../runtime/lib.md, 7).
+  and the side below asserts it (../runtime/lib-streams.md, 1).
 - **Outputs:** each entrance emits one event above and one request
   below at most: a call emits at most one of each. Only a `Close` of a
   reading tokenizer emits both, `Closed` and the demand withdrawn; an end
@@ -540,7 +540,7 @@ never the whole input. Its steps are bounded by the input length.
 
 `tokenizer::Feed` is that driver, for a caller that reads the tokens itself:
 it owns a tokenizer, its two one-entry queues and a `stream::Slice` of the
-input (../runtime/lib.md, 7).
+input (../runtime/lib-streams.md, 1).
 
 ```rust
 Feed::new(input: &[u8], limits: &tokenizer::Limits) -> Feed<'_>

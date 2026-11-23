@@ -81,9 +81,9 @@ offset  size  field
     direction: from the initiator, or from the responder.
 - **Bodies** are the application's records, encoded by its codecs. The
   channel reads a body as bytes and hands it up whole.
-- **A frame prints its lengths** (../runtime/lib.md, 6). A `Frame`'s `Debug` shows its
+- **A frame prints its lengths** (../runtime/lib-bytes.md, 1). A `Frame`'s `Debug` shows its
   kind and its body's length, and `Event::Body`'s the same. A body the machine
-  is still reading (section 6) shows its length and how much is filled. None
+  is still reading (`channel.md`, section 6) shows its length and how much is filled. None
   shows a byte: a body may hold an application's credential.
 
 ## 4. The schema
@@ -259,7 +259,7 @@ Terms                                           ───►
     dropped. A ping has no token and no answer.
   - A `Refuse` displaces everything queued (8.1).
 - **Writing never waits for reading.** The machine moves output down with
-  ../runtime/lib.md, section 7.1's independent output, which io's sockets and write
+  ../runtime/lib-streams.md, section 1.1's independent output, which io's sockets and write
   pipes provide, as does TLS's native face. It reads with read-only demands.
   On one socket both happen at once; with a pipe each way, each happens on
   its own pipe.
@@ -289,7 +289,7 @@ the output stream is finished once what is queued has gone.
 - **With a stream each way,** reading goes on until the peer ends or the
   owner closes.
 - **Over one stream,** ../runtime/lib.md's contract allows finishing only with no read
-  outstanding (../runtime/lib.md, section 7). The machine finishes once the read in
+  outstanding (../runtime/lib-streams.md, section 1). The machine finishes once the read in
   flight is answered, or has crossed the end, and reads nothing after it.
   An owner that must read until the peer's end finishes after it hears
   ended.
@@ -337,7 +337,7 @@ the output stream is finished once what is queued has gone.
 | closed | the terminal, with why |
 
 - **Below,** the machine speaks ../runtime/lib.md's stream: read-only demands to the
-  stream it reads, and `../runtime/lib.md`, section 7.1's output to the stream it writes.
+  stream it reads, and `../runtime/lib-streams.md`, section 1.1's output to the stream it writes.
 - **Bounds.** Each entry point has a most-outputs bound, which the owner
   reserves first.
 - **Queries.** The owner can ask, at any time:

@@ -101,7 +101,7 @@ shell crates only choose a profile and the values a setting overrides.
   does not declare is refused (../protocol/charter.md, section 2). It never
   holds a credential. It is `smith-agent-document`'s, which this crate
   re-exports (2.6).
-- **Startup,** in the order of skein's `runtime/shell.md`, section 6: the
+- **Startup,** in the order of skein's `runtime/shell-startup.md`, section 1: the
   configuration and the derived edge limits checked, termination
   signals blocked, the endpoints' names resolved, trust roots loaded,
   the seed and the kernel.
@@ -315,7 +315,7 @@ closure:
   2. reads the settings and runs `smith check`'s checks, refusing with
      their exit code (`settings.md`, 1.3);
   3. blocks termination signals, draws the seed, and opens the kernel
-     and the roots (skein's `runtime/shell.md`, section 6);
+     and the roots (skein's `runtime/shell-startup.md`, section 1);
   4. composes the service, runs it with `skein_shell::drive`, and exits
      with the code its outcome maps to (`commands.md`, 3), once the service holds
      nothing (skein's `runtime/shell.md`, section 12).
@@ -373,7 +373,7 @@ closure:
   directories outside the workspace that builds write: for `rust`,
   `$CARGO_HOME/registry` and `$CARGO_HOME/git`. `smith check` confirms
   each is a directory smith's effective user may write and search, as
-  the kernel answers it (skein's `runtime/shell.md`, 6.1, `directory_access`),
+  the kernel answers it (skein's `runtime/shell-startup.md`, 1.1, `directory_access`),
   creating and changing nothing. A cache it cannot confirm (absent, not a
   directory, or denied, with the kernel's error) is a warning naming the
   cache and why: a build that never writes there is not stopped by it.

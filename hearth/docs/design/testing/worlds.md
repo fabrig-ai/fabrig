@@ -152,7 +152,7 @@ section 10.
 - **Replay:** a seed replays to the same trace, the same fake machine,
   whose state the fake digests itself, and the same digest of hearth's
   own state: a digest over the state types' derived `Hash`, which
-  hearth asks of skein (hearth/docs/design/README.md, 7.1; `skein/docs/design/runtime/lib.md`, 5.1). Each
+  hearth asks of skein (hearth/docs/design/README.md, 7.1; `skein/docs/design/runtime/lib-containers.md`, 1.1). Each
   process's `state_digest` and the fake machine's are read at the end of
   a run, and after every iteration when a world asks (
   `skein/docs/design/testing/README.md`, section 5).

@@ -1,4 +1,4 @@
-//! A binary's table (runtime/shell.md, 14; skein/docs/foundation/cli.md, 6).
+//! A binary's table (runtime/shell-table.md, 1; skein/docs/foundation/cli.md, 6).
 
 use crate::{Base, Settings};
 
@@ -19,7 +19,7 @@ pub enum Set {
     Test,
 }
 
-/// A binary's table (runtime/shell.md, 14.1).
+/// A binary's table (runtime/shell-table.md, 1.1).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Table {
     /// The binary's name.
@@ -48,7 +48,7 @@ pub enum Reach {
     RunAs(&'static str),
 }
 
-/// What a binary's arguments reach (runtime/shell.md, 14.4).
+/// What a binary's arguments reach (runtime/shell-table.md, 1.4).
 #[derive(PartialEq, Eq, Debug)]
 pub enum Reached<'a> {
     /// `-h`, `--help` or `help`, alone: the binary's page.
@@ -63,7 +63,7 @@ pub enum Reached<'a> {
     Unknown(String),
 }
 
-/// A command's forms, settings and documentation (runtime/shell.md, 14.1).
+/// A command's forms, settings and documentation (runtime/shell-table.md, 1.1).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Command {
     pub reach: Reach,
@@ -80,7 +80,7 @@ pub struct Command {
     pub notes: &'static str,
 }
 
-/// A positional argument as usage shows it (runtime/shell.md, 14.1).
+/// A positional argument as usage shows it (runtime/shell-table.md, 1.1).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Argument {
     pub shown: &'static str,
@@ -103,7 +103,7 @@ pub enum Way {
     Sets,
 }
 
-/// A variable's name, use and documentation (runtime/shell.md, 14.1).
+/// A variable's name, use and documentation (runtime/shell-table.md, 1.1).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Variable {
     pub name: &'static str,
@@ -121,7 +121,7 @@ impl Variable {
     /// Its bytes in the captured environment, the pairs `environment`
     /// returns; an empty value is unset.
     #[must_use]
-    #[expect(clippy::type_complexity, reason = "runtime/shell.md, 14.1 takes captured byte environment pairs")]
+    #[expect(clippy::type_complexity, reason = "runtime/shell-table.md, 1.1 takes captured byte environment pairs")]
     pub fn value<'a>(&self, environment: &'a [(Box<[u8]>, Box<[u8]>)]) -> Option<&'a [u8]> {
         lookup(environment, self.name.as_bytes())
     }
@@ -182,7 +182,7 @@ const XDG_CACHE_HOME: Variable = Variable {
 };
 
 impl Base {
-    /// Its declared XDG variable (runtime/shell.md, 14.1).
+    /// Its declared XDG variable (runtime/shell-table.md, 1.1).
     #[must_use]
     pub const fn variable(self) -> &'static Variable {
         match self {

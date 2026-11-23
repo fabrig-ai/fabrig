@@ -427,7 +427,7 @@ Each is generic, and says nothing about jig.
 - **Private files read at startup:** the startup kit's
   `read_private_file`, refusing a file that is not private to the
   process's user, or reached through a link, for configuration's secrets
-  (skein's `runtime/shell.md`, 6.1; skein's `runtime/io/files.md`, 3).
+  (skein's `runtime/shell-startup.md`, 1.1; skein's `runtime/io/files.md`, 3).
 - **A cryptographic generator:** skein-lib's `CryptoRng`, keyed by the
   seed the shell draws at start (skein's `runtime/lib.md`, section 8; skein's
   `runtime/shell.md`, section 5), for minted credentials, the printed link's

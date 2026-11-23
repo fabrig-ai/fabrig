@@ -97,7 +97,7 @@ dialect knowledge it keeps is in the plans it is handed.
   from the answers it hears (connection-calls.md, section 1). A row of
   a repository holds its `owner` and `name` (its path), the object
   format, the merge style and the `html_url`. The tables are lib's `Lru`
-  (../runtime/lib.md, 5): bounded, and they evict the row used longest ago.
+  (../runtime/lib-containers.md, 1): bounded, and they evict the row used longest ago.
 - **It ends with the call's result,** its `Done`, and counts nothing:
   the call's cost is the component's, one for each request whose first
   byte it wrote (connection-calls.md, section 1.1). A plan ends on the

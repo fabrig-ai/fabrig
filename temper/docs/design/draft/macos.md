@@ -176,7 +176,7 @@ priority, and its reds are filed and repaired as Linux's are
   beside its cancellable file operations.
 - **Processes are groups, as they are today:** a descendant that leaves
   its group escapes the close's kill. A cgroup tree, when there is one
-  (`skein/docs/design/runtime/kernel.md`, 6.6), is refused on macOS as unsupported.
+  (`skein/docs/design/runtime/kernel-cgroups.md`, 1), is refused on macOS as unsupported.
 
 ### 3.4 The floor
 

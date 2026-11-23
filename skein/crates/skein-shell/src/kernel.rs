@@ -188,7 +188,7 @@ impl Kernel {
         Ok(Self { running, ring_refused: None })
     }
 
-    /// Names the executable whose main dispatches the helper first (runtime/kernel.md, 6.6).
+    /// Names the executable whose main dispatches the helper first (runtime/kernel-cgroups.md, 1).
     /// Defaults to `/proc/self/exe` on Linux.
     pub fn set_helper(&mut self, executable: Box<[u8]>) {
         self.helper().executable = executable;

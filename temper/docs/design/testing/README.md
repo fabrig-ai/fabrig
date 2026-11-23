@@ -229,7 +229,7 @@ scripts/proof-live.sh               the live tier
   Further work needs:
   - A different admitted allocation contract for eager decoder lists,
     or coalesced scalar writing that preserves field order, whole-put
-    refusal and overflow progress (skein's `runtime/lib.md`, sections 5 and 6).
+    refusal and overflow progress (skein's `runtime/lib-containers.md`, section 1, and `runtime/lib-bytes.md`, section 1).
     Required decoding and scalar reads remain; smaller measurement,
     conversion and scratch costs stay below the roughly 2% stop rule.
   - Cheaper independent native sessions and equivalent fake-person and

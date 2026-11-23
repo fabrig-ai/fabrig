@@ -686,7 +686,7 @@ component instead (`elements.md`, 1).
   over HTTP/1.1, each tab's stream holding one.
 - **The small store** is the tab's session storage: it survives a reload
   and goes with the tab. Each record and its key are base64 text
-  (../../runtime/lib.md, 6.1), the key under the application's prefix, read whole at
+  (../../runtime/lib-bytes.md, 1.1), the key under the application's prefix, read whole at
   start. A write fails when the platform refuses it, its quota full, or
   past the small store's own bound, the application's parameter,
   unbounded by default, which a story sets low (`testing.md`, 2).

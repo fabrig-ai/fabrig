@@ -25,7 +25,7 @@ named, answered and tested.
 - **One front:** `skein-shell`'s `Table::front` answers `-h`, `--help`,
   `help`, `--version`, a command's `--help` and a command the table
   lacks, and `Table::refusal` words a command's refused arguments
-  (`skein/docs/design/runtime/shell.md`, 14.5; here 4.2).
+  (`skein/docs/design/runtime/shell-table.md`, 1.5; here 4.2).
 - **Read once:** the crate's `main` captures the arguments and the
   environment, and every variable it reads after is a declared entry of
   its table (4.3).
@@ -37,7 +37,7 @@ named, answered and tested.
 
 Each binary's line is its table's, word for word: help's opening
 paragraph prints it after the binary's name, wrapped at 80 columns
-(`skein/docs/design/runtime/shell.md`, 14.2): where `BINARY: LINE` is
+(`skein/docs/design/runtime/shell-table.md`, 1.2): where `BINARY: LINE` is
 longer than 80 columns, as the gallery's, the journeys', the
 transcripts' and playground-serve's are, it takes two lines of the page.
 
@@ -132,11 +132,11 @@ Their forms are today's:
 
 ### 4.1 The entries
 
-- **The table** (`skein/docs/design/runtime/shell.md`, 14.1): its binary,
-  its line (section 2), an empty version and commit, which its `main`
+- **The table** (`skein/docs/design/runtime/shell-table.md`, 1.1): its binary,
+  its line (`tools.md`, section 2), an empty version and commit, which its `main`
   fills with what its binary hands in (4.2), its commands, no settings
   of its own, its variables, and as its last line where to read more:
-  its design document from section 2, by path from the repository's
+  its design document from `tools.md`, section 2, by path from the repository's
   root, and for a binary with commands of words,
   `BINARY COMMAND --help prints a command;` before it.
 - **Its commands** are its forms (section 2), each `Set::Internal`,
@@ -145,7 +145,7 @@ Their forms are today's:
   help says: the saved recording's print keeps its redaction, replay and
   scan cautions in `print`'s notes, and `print --help` prints them.
 - **Their flags:** a flag with a value is a setting of the command's
-  group (`skein/docs/design/runtime/shell.md`, 6.5), internal, with no
+  group (`skein/docs/design/runtime/shell-startup.md`, 1.5), internal, with no
   twin, `Fallback::Refuse` where it's required and its default where it
   has one; one that repeats, as `--cue`, `--replace` or `--redact`, says
   so in its notes, and the tool reads it itself. A flag without a value,
@@ -169,7 +169,7 @@ Their forms are today's:
 - **The front first:** the crate's `main` hands the captured arguments
   to the front of its table with the identity filled in, `Table {
   version, commit, ..TABLE }.front(&arguments)`
-  (`skein/docs/design/runtime/shell.md`, 14.5), and
+  (`skein/docs/design/runtime/shell-table.md`, 1.5), and
   writes what it prints to stdout with exit 0, or what it refuses to
   stderr with exit 2. So `-h`, `--help`, `help` and `--version` are the
   front's in every binary, and neither `OUT` can be named `help`.
@@ -254,7 +254,7 @@ it byte for byte in its crate's tests.
   `temper-worker`'s does. The rows:
   - `--help`, `-h` and `help` print the same page, whose opening
     paragraph is `BINARY: LINE` as help wraps it, at spaces to 80
-    columns (`skein/docs/design/runtime/shell.md`, 14.2), and which names
+    columns (`skein/docs/design/runtime/shell-table.md`, 1.2), and which names
     no internal command: a row checks that paragraph, its lines joined
     by single spaces, never the page's first line alone;
   - `--version` prints `BINARY VERSION (COMMIT)`, the commit twelve

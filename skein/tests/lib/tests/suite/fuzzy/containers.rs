@@ -1,4 +1,4 @@
-//! Map joins and caller-driven searches against naive ones (runtime/lib.md, 5.2, 5.3).
+//! Map joins and caller-driven searches against naive ones (runtime/lib-containers.md, 1.2, 1.3).
 
 use skein_lib::{Bisection, Rng};
 use skein_lib_tests::containers::{linear_bound, naive_join, random_maps, random_sorted_slice};

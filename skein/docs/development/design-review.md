@@ -24,12 +24,12 @@ hand; no numbered section or document moves.
 
 ### S1. Overlap: the classic stream contract
 
-`skein/docs/design/runtime/lib.md`, 7 and
+`skein/docs/design/runtime/lib-streams.md`, 1 and
 `skein/docs/design/runtime/io/sockets.md`, 3 both state the demand's one
 answer, withdrawal, End with an outstanding demand, and delimiter-maximum
 rules in full. This is more than io's state table applying lib's contract:
 several bullets retell the common obligations before adding io's details.
-**Owner:** `skein/docs/design/runtime/lib.md`, 7.
+**Owner:** `skein/docs/design/runtime/lib-streams.md`, 1.
 **Suggest:** keep the common protocol there and retain in sockets only its
 assertions, intake/delivery timing, kernel operations and entity-close
 behaviour, with a citation. This needs an editorial merge, not a whole-section

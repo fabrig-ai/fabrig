@@ -181,7 +181,7 @@ pub(crate) fn open_signals(watch: crate::Watch) -> Result<Fd, i32> {
         if unsafe { libc::sigaction(libc::SIGHUP, ptr::null(), ptr::from_mut(&mut disposition)) } != 0 {
             return Err(super::last_errno());
         }
-        // Blocked signals reach signalfd even when ignored (runtime/shell.md, 6.3).
+        // Blocked signals reach signalfd even when ignored (runtime/shell-startup.md, 1.3).
         if disposition.sa_sigaction != libc::SIG_IGN {
             // SAFETY: set remains initialized and writable.
             if unsafe { libc::sigaddset(ptr::from_mut(&mut set), libc::SIGHUP) } != 0 {
