@@ -774,6 +774,8 @@ class Gate(unittest.TestCase):
     def test_complete_candidate_decides_scope(self):
         self.assertEqual(GATE.route(set()), 'full')
         self.assertEqual(GATE.route({'.temper/pre-pr', 'tools/pre-pr/workspace.py'}), 'checker')
+        self.assertEqual(GATE.route({'.temper/checked-close', 'tools/pre-pr/pre_pr.py'}), 'checker')
+        self.assertEqual(GATE.HOOKS, PRE.HOOKS)
         self.assertEqual(GATE.route({'.temper/pre-pr', 'src/lib.rs'}), 'mixed')
         self.assertEqual(GATE.route({'docs/guide.md'}), 'classify')
 
