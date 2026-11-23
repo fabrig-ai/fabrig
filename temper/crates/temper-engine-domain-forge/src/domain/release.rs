@@ -647,6 +647,7 @@ pub(super) fn retire(d: &mut Domain, repository: Repository) {
     }
     for key in keys.into_boxed() {
         d.lost.remove(&key);
+        d.read_line.leave(super::read_line::Waiter::Lost(key));
     }
     let mut keys = List::with_capacity(d.pending_ci.len());
     for (key, row) in &d.pending_ci {

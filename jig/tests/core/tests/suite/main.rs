@@ -91,6 +91,7 @@ mod start_links;
 mod start_settings;
 mod stopping;
 mod store;
+mod store_checks;
 mod store_peer;
 mod stories;
 mod switch_step;

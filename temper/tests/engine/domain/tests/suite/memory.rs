@@ -434,6 +434,9 @@ fn full_watch_room_peak(streams: u32, room: u32, distinct: bool, ceiling: u64) {
         driver.delivered.clear();
     }
     driver.delivered = Vec::new();
+    driver.store_checks(jig_conformance::store_check::StoreChecks::none(
+        "the heap measurement covers one live root; its store is checked outside the meter",
+    ));
     meter.start();
     driver.send(root::Event::Party(root::PartyInput::Period {
         project: WATCH_ROOM_PROJECT,
@@ -454,4 +457,12 @@ fn full_watch_room_peak(streams: u32, room: u32, distinct: bool, ceiling: u64) {
     assert_eq!(driver.transactions.len(), 1, "one commit marks the whole room");
     assert!(room <= limits.journal.deliveries, "the full room fits the journal's door");
     meter.check(measured, ceiling, &(streams, distinct));
+    temper_engine_domain_world::check::store(
+        &driver.store,
+        &walking::config(WATCH_ROOM_SEED),
+        &driver.env.limits,
+        driver.env.wall,
+        driver.store.applied,
+    )
+    .expect("the measured root leaves a startable store");
 }

@@ -140,7 +140,13 @@ fn a_saved_delivery_survives_worker_loss_and_engine_restart_beside_proof() {
     assert!(world.root.caught_up(0), "the independent proof is read after opening");
     let recovered =
         landing_rows(&world).into_iter().find(|row| row.landing.task == first_landing).expect("restored landing");
-    assert_eq!(recovered.landing.phase, forge_top::LandingPhase::Proving);
+    // The restart gather can advance the proof before the producer resumes.
+    assert!(matches!(
+        recovered.landing.phase,
+        forge_top::LandingPhase::Proving
+            | forge_top::LandingPhase::Proved { .. }
+            | forge_top::LandingPhase::Turn { .. }
+    ));
     assert!(
         recovered.follows().iter().any(|follow| follow
             .entry

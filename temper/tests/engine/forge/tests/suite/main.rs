@@ -43,6 +43,7 @@ mod rules_by_path;
 mod runner_wait;
 mod settle;
 mod simulation;
+mod store_check;
 mod taking;
 mod tiers;
 mod train_drills;

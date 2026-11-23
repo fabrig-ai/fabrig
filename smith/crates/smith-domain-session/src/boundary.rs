@@ -209,6 +209,12 @@ pub enum Request {
         /// Last bounded provider diagnostic; never part of the model history.
         detail: Box<[u8]>,
     },
+    /// Tell the opener a rate limit wait began, ending in `RateLimitWaitDone`.
+    RateLimitWait { opener: Token, until: Time },
+    /// Tell the opener the rate limit wait ended, before retry or close.
+    RateLimitWaitDone { opener: Token },
+    /// Tell the opener a provider's reset outlasts this accounted session, before its `Ended`.
+    RateLimitOutlastsSession { opener: Token, retry_after: Duration },
     /// Ask an LLM for its next message, ended by one completion or call terminal.
     Complete {
         owner: Token,

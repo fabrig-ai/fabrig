@@ -300,7 +300,7 @@ pub struct Report {
     gives, and `None` when it gives none: the client never guesses a
     reset and never reports an unknown one as zero.
   - `RateLimited`: a short-term limit; its delay is the provider's hint,
-    zero when it gives none.
+    read as rate-limits.md says, zero when it gives none.
   - `Refused`: the provider refuses this account what was asked: not
     eligible, a scope not granted, a permission it lacks. Neither the
     same request again nor a refreshed credential changes the answer.
@@ -863,7 +863,7 @@ bounds still hold.
 |---|---|
 | `subscription_sharing_usage_limit_exceeded` (429, or in `response.failed`) | `Exhausted`, its reset only where the response gives one: the error's `resets_at` or `resets_in_seconds`, or `retry-after` |
 | `insufficient_quota` (429) | `Exhausted`, with no reset: a key's quota is spent |
-| `rate_limit_exceeded` (429) | `RateLimited` |
+| `rate_limit_exceeded` (429, or in `response.failed` or `error`) | `RateLimited`, its delay as rate-limits.md reads it |
 | `subscription_sharing_user_not_eligible`, `chatpass_v2_scope_not_authorized`, `chatpass_v2_invalid_authorization_context` (403) | `Refused` |
 | `subscription_sharing_usage_unavailable`, `subscription_sharing_user_unavailable` (503) | `Unavailable` |
 | `subscription_sharing_unsupported_capability` (400) | `Unsupported`, the report's field from `error.param` |

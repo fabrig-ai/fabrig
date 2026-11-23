@@ -191,6 +191,11 @@ jig-ops-domain                    the engine's root
   its deadline and says each period to the core with the next one's
   start; the protocol layer only fires the deadline
   (`protocol/configuration.md`, section 5).
+- **It rehearses its start:** told to rehearse before its start begins,
+  it serves every phase through the sweep and stops before the switch,
+  marking nothing and making no effect, and it says the phase its start
+  is in and the start's refusal, the store check's reading of a commit
+  (`domain/testing.md`, 7).
 - **It is the reference root.** Its routes, its translations and its
   sum of worst cases are written to be copied, and are commented as
   such.

@@ -44,6 +44,9 @@ pub(super) fn tell(facts: &mut Facts, runs: &Slab<Run>, session: &mut Session, o
                 FactKind::DelegateStarted { opener, block: run.block }
             }
             Request::JobsCancelled { .. }
+            | Request::RateLimitWait { .. }
+            | Request::RateLimitWaitDone { .. }
+            | Request::RateLimitOutlastsSession { .. }
             | Request::Turn { .. }
             | Request::Priced { .. }
             | Request::Cancel { .. }
@@ -67,6 +70,9 @@ pub(super) fn tell(facts: &mut Facts, runs: &Slab<Run>, session: &mut Session, o
             }
             Request::Opened { .. } | Request::Yielded { .. } | Request::Ended { .. } => facts.push(fact),
             Request::JobsCancelled { .. }
+            | Request::RateLimitWait { .. }
+            | Request::RateLimitWaitDone { .. }
+            | Request::RateLimitOutlastsSession { .. }
             | Request::Turn { .. }
             | Request::Priced { .. }
             | Request::Cancel { .. }

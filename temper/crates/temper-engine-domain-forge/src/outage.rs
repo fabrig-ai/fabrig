@@ -1,6 +1,7 @@
 //! Connector-owned fresh reads and never-sent writes ride a forge away
 //! (temper/docs/design/domain/forge/keeping-up.md, 5). All waits and reachability
 //! marks are volatile; a restart asks afresh (section 16).
+use super::read_line::{self, Waiter};
 use super::{Domain, Env, Handoff, Limits, Request, Topic, erase_flight, keep_entry};
 use alloc::boxed::Box;
 use skein_forge::api::{Answer, Error, Op, Read, Repository};
@@ -274,6 +275,12 @@ pub(super) fn read_ended(d: &mut Domain, env: &Env<Limits>, owner: Token, result
     if outage {
         observed(d, env, reading.repository.forge, true);
     }
+    if *result == Err(Error::Busy) && reading.outage && line_waiter(d, owner).is_some() && !d.stopping {
+        // The read is still at the head. Preserve its outage backoff, but
+        // leave the next admission attempt to the read line.
+        state(d).reads.insert(owner, reading).expect("retains its pending read");
+        return false;
+    }
     let capacity = (*result == Err(Error::Busy)
         && (reading.outage || d.pending_ci.contains_key(&owner) || d.rebase_fresh.contains_key(&owner)))
         || (*result == Err(Error::NotConnected) && d.rebase_fresh.contains_key(&owner));
@@ -361,25 +368,31 @@ pub(super) fn outcome(
 
 pub(super) fn fire(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     let Some(active) = &mut d.outage else { return };
-    let mut owner = None;
+    let mut due = None;
     for (token, reading) in &active.reads {
         if let Some(at) = reading.wait.at
             && at <= env.now
         {
-            owner = Some(*token);
+            due = Some(*token);
             break;
         }
     }
-    if let Some(owner) = owner {
-        if riding(d, owner) {
-            let reading = state(d).reads.get_mut(&owner).expect("due pending read");
-            reading.wait.at = None;
-            let event = Event::Read { owner, repository: reading.repository, read: reading.read.clone() };
-            // Do not track again: the same read keeps its wait and outage span.
-            skein_forge_client::step(&mut d.client, &super::child_env(env), event, &mut d.client_out);
-            super::drain(d, env, out);
-        } else {
+    if let Some(owner) = due {
+        if !riding(d, owner) {
             state(d).reads.remove(&owner);
+        } else if let Some(waiter) = line_waiter(d, owner) {
+            state(d).reads.get_mut(&owner).expect("due pending read").wait.at = None;
+            match waiter {
+                Waiter::Lost(owner) => {
+                    d.lost.get_mut(&owner).expect("due lost read").state = super::LostReadState::WaitingForRoom;
+                    read_line::join(d, waiter, env.now, out);
+                }
+                Waiter::Landing(owner) => crate::landing::wait_in_line(d, owner, env.now, out),
+                Waiter::Making(_) | Waiter::Brief(_) | Waiter::Document(_) => unreachable!("outage-owned readers"),
+            }
+            d.read_line.wake();
+        } else {
+            ask(d, env, owner, out);
         }
     }
     let Some(active) = &mut d.outage else { return };
@@ -403,6 +416,37 @@ pub(super) fn fire(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) 
             active.writes.remove(&number);
         }
     }
+}
+
+fn line_waiter(d: &Domain, owner: Token) -> Option<Waiter> {
+    if d.lost.contains_key(&owner) {
+        Some(Waiter::Lost(owner))
+    } else if crate::landing::gather_read(d, owner) {
+        Some(Waiter::Landing(owner))
+    } else {
+        None
+    }
+}
+
+pub(super) fn ask_line(d: &mut Domain, env: &Env<Limits>, owner: Token, out: &mut Queue<Request>) -> bool {
+    if !reading(d, owner) || !riding(d, owner) {
+        return false;
+    }
+    if let Some(lost) = d.lost.get_mut(&owner) {
+        lost.state = super::LostReadState::Asked;
+    } else {
+        crate::landing::asking(d, owner);
+    }
+    ask(d, env, owner, out);
+    true
+}
+
+fn ask(d: &mut Domain, env: &Env<Limits>, owner: Token, out: &mut Queue<Request>) {
+    let reading = state(d).reads.get_mut(&owner).expect("due pending read");
+    reading.wait.at = None;
+    let event = Event::Read { owner, repository: reading.repository, read: reading.read.clone() };
+    // Do not track again: the same read keeps its wait and outage span.
+    super::client_step(d, env, event, out);
 }
 
 pub(super) fn refresh(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {

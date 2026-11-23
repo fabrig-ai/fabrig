@@ -75,7 +75,7 @@ impl World {
         world.env.limits.fleet.grace = world.worker_env.limits.stop_bound.saturating_add(Duration::from_secs(1));
         world.env.limits.people.sign_in_lifetime = Duration::from_secs(3600);
         world.worker = worker::Domain::new(&world.worker_env.limits, Box::new([]));
-        world.root = engine::Domain::new(open_config(seed), &world.env.limits).expect("absence configuration");
+        world.replace_root(open_config(seed));
         world
     }
 
@@ -204,7 +204,7 @@ impl World {
     /// Reopen only the engine root on its store. No worker Ready is generated here.
     pub fn reopen_engine(&mut self) {
         assert!(!self.absence.engine_running);
-        self.root = engine::Domain::new(open_config(self.seed), &self.env.limits).expect("restart configuration");
+        self.replace_root(open_config(self.seed));
         self.root_events = VecDeque::from([engine::Event::Restart { pending: false }]);
         self.absence.engine_running = true;
         self.absence.drained = false;

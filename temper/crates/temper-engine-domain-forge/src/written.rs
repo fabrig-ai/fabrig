@@ -1,4 +1,5 @@
 //! Order a late write record against a design head beside it (domain/forge/branches.md, 3).
+use super::read_line::{self, Waiter};
 use super::{
     Domain, Env, Limits, List, LostReadState, LostWriterKind, Name, PendingLost, Queue, Request, Token,
     ancestry_status, branch_written, child, confirm_written_head, design, lost_release, save_hold, to_client,
@@ -91,6 +92,9 @@ pub(super) fn answered(
     if let Some(state) = waiting {
         pending.state = state;
         d.lost.insert(owner, pending).expect("waiting comparison keeps its slot");
+        if state == LostReadState::WaitingForRoom {
+            read_line::join(d, Waiter::Lost(owner), env.now, out);
+        }
         return;
     }
     let Some((write, _)) = pending.comparison else { unreachable!("written comparison has both heads") };
@@ -103,7 +107,7 @@ pub(super) fn answered(
     save_hold(out, hold.clone());
     let taken = branch_written(d, &pending.name, None);
     child(d, env, skein_forge_client::Event::Writer { resource, taken }, out);
-    lost_release(d, &pending.name, false, out);
+    lost_release(d, &pending.name, pending.task, false, out);
 }
 
 pub(super) fn cleanup(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {

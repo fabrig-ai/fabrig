@@ -280,7 +280,7 @@ fn tier_limits_are_nonzero_and_failure_lists_fit_the_store_row() {
 pub(crate) fn landing_fixture() -> Domain {
     landing_fixture_with(domain())
 }
-fn landing_fixture_with(mut d: Domain) -> Domain {
+pub(super) fn landing_fixture_with(mut d: Domain) -> Domain {
     outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
     let mut row = fixtures::opening_row();
     row.repository = REPO;
@@ -2825,7 +2825,7 @@ fn preparing_landing() -> Domain {
     d
 }
 
-fn preparing_heard(preparation: Option<policy::Preparation>) -> LandingHeard {
+pub(super) fn preparing_heard(preparation: Option<policy::Preparation>) -> LandingHeard {
     LandingHeard {
         job: None,
         outcomes: Box::new([]),

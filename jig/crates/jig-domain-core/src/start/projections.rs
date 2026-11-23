@@ -25,6 +25,7 @@ pub(crate) struct Header {
     pending: Box<[u16]>,
     changed: bool,
     fed_at: Option<u64>,
+    repair_phase: bool,
 }
 
 fn fit(core: &mut Core, key: ProjectionKey, held: u64, limit: u64) -> bool {
@@ -70,14 +71,30 @@ fn fit_row(core: &mut Core, limits: &Limits, row: &ProjectionRecord) -> Option<u
             core,
             key,
             tasks::phase_bytes(phase).unwrap_or(u64::MAX),
-            u64::from(limits.tasks.result_bytes).checked_mul(2).expect("phase byte bound"),
+            tasks::phase_bound(&limits.tasks).expect("phase byte bound"),
         );
         return None;
     }
     Some(goal)
 }
 
-pub(crate) fn start_restore(core: &mut Core, limits: &Limits, row: ProjectionRecord) -> bool {
+pub(crate) fn start_restore(core: &mut Core, limits: &Limits, mut row: ProjectionRecord) -> bool {
+    // A goal header is derived from its task. Drop an over-bound copy before
+    // retaining the assembly; Link takes the phase again from the loaded task.
+    let repair_phase = match &mut row {
+        ProjectionRecord::GoalHot { goal, .. } => {
+            if phase_within(&goal.phase, limits) {
+                false
+            } else {
+                goal.phase = tasks::Phase::Waiting;
+                true
+            }
+        }
+        ProjectionRecord::TaskHot { .. }
+        | ProjectionRecord::GoalWords { .. }
+        | ProjectionRecord::TaskWords { .. }
+        | ProjectionRecord::Milestone { .. } => false,
+    };
     let key = row.key();
     let Some(goal) = fit_row(core, limits, &row) else { return false };
     let assemblies = core.start.projections.get_or_insert(Map::with_capacity(core.projections.capacity()));
@@ -111,7 +128,7 @@ pub(crate) fn start_restore(core: &mut Core, limits: &Limits, row: ProjectionRec
     match row {
         ProjectionRecord::GoalHot { goal, pending, changed, fed_at } => {
             assert!(state.header.is_none(), "duplicate projection {key:?}");
-            state.header = Some(Header { goal, pending, changed, fed_at });
+            state.header = Some(Header { goal, pending, changed, fed_at, repair_phase });
         }
         ProjectionRecord::TaskHot { task, .. } => {
             assert!(!state.tasks.contains_key(&task.number), "duplicate projection {key:?}");
@@ -200,7 +217,8 @@ impl Core {
         }
     }
 
-    pub(crate) fn start_projections_link(&mut self) {
+    #[expect(clippy::too_many_lines, reason = "bounded assembly joins every projection part and repairs its header")]
+    pub(crate) fn start_projections_link(&mut self, out: &mut skein_lib::Queue<Request>) {
         let Some(mut assemblies) = self.start.projections.take() else { return };
         for _ in 0..assemblies.len() {
             let (&goal, _) = assemblies.first().expect("bounded assembly walk");
@@ -230,11 +248,22 @@ impl Core {
                 });
                 return;
             };
-            let Header { goal: hot, pending, changed, fed_at } = state.header.expect("assembled header linked");
+            let Header { goal: mut hot, pending, changed, fed_at, repair_phase } =
+                state.header.expect("assembled header linked");
+            if repair_phase {
+                let Some(task) = self.tasks.task(goal) else {
+                    let _refused = self.start_refuse(Failure::Link {
+                        record: source,
+                        linked: Linked::Record(Key::Tasks(tasks::Key::Live(goal))),
+                    });
+                    return;
+                };
+                hot.phase.clone_from(&task.phase);
+            }
             let mut projection = Projection {
                 goal: hot.join(words),
                 pending,
-                changed,
+                changed: changed || repair_phase,
                 fed_at,
                 plan: Box::new([]),
                 milestones: Box::new([]),
@@ -298,6 +327,9 @@ impl Core {
             }
             projection.plan = plan.into_boxed();
             projection.milestones = milestones.into_boxed();
+            if repair_phase {
+                out.push(Request::Write(Write::Save(Record::Core(CoreRecord::Projection(header(&projection))))));
+            }
             self.projections.insert(goal, Box::new(projection)).expect("bounded assembled projections");
         }
     }
