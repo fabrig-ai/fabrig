@@ -281,6 +281,11 @@ fn bound(view: &View<'_>, row: &temper_engine_domain_forge::ChangeRow) -> Option
             };
             clock.at.as_nanos().saturating_add(remaining)
         }
+        State::Gating { .. } => {
+            // The workflow's completing read can end after the last policy step.
+            let since = view.forge.inspection_follow_check_ended(row.task).unwrap_or(row.change.since);
+            since.max(row.change.since).as_nanos().saturating_add(limits.stall.as_nanos())
+        }
         _ => row.change.since.as_nanos().saturating_add(limits.stall.as_nanos()),
     };
     Some(Time::from_nanos(nanos))

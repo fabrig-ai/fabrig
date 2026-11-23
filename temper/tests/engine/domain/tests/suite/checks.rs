@@ -427,6 +427,79 @@ fn a_wait_still_seen_at_its_bound_is_found_on_the_next_move() {
     );
 }
 
+fn completed_follow_gate() -> (World, u64, Time, Time) {
+    let mut world = super::forge_routes::follow_changes::world(forge::settings::FollowStart::Code);
+    let after = super::forge_routes::follow_changes::push(&mut world, b"Port for the gate bound");
+    let change = super::forge_routes::follow_changes::change(&world, after);
+    let producer = super::forge_routes::follow_changes::next_delegate(&mut world, change, 0);
+    super::forge_routes::follow_changes::produce(&mut world, change, &producer);
+    for _ in 0..1000 {
+        world.tick();
+        let row = world.root.forge().change(change).expect("follow change");
+        if let Some(ended) = world.root.forge().inspection_follow_check_ended(change)
+            && world.events.is_empty()
+            && world.store.idle()
+            && world.root.quiescent()
+            && world.root.next_deadline(&world.env).is_none_or(|due| due > world.env.now)
+        {
+            let stall = world.root.forge().inspection_limits().change_policy.stall;
+            let old_bound = Time::from_nanos(row.change.since.as_nanos()).saturating_add(stall);
+            let bound = Time::from_nanos(ended.as_nanos()).saturating_add(stall);
+            assert!(bound > old_bound, "the workflow's answer comes after its last policy step");
+            assert!(row.delegate.is_none(), "the workflow has no agent delegate");
+            let due = world.root.forge().inspection_change_due(change).expect("next procedure poll");
+            assert_eq!(
+                due.as_nanos(),
+                ended.as_nanos().saturating_add(world.root.forge().inspection_limits().queue_window.as_nanos())
+            );
+            assert!(due.as_nanos() <= bound.as_nanos(), "the next poll is no later than the stall bound");
+            return (world, change, old_bound, bound);
+        }
+    }
+    panic!("follow gate has a completed workflow at a quiet point");
+}
+
+#[test]
+fn a_completed_follow_gate_counts_its_bound_from_the_workflows_end() {
+    let (world, change, old_bound, bound) = completed_follow_gate();
+    for root in [true, false] {
+        let mut inspection = Inspection::new("engine", temper_engine_inspect::KINDS);
+        if root {
+            temper_engine_inspect::inspect(&world.root, &mut inspection);
+        } else {
+            temper_engine_inspect::forge(world.root.forge(), &mut inspection);
+        }
+        let wait = inspection.waits().iter().find(|wait| wait.waiter == format!("task {change}")).expect("gate wait");
+        assert_eq!(wait.kind, "change: gating");
+        assert_eq!(wait.bound, Some(bound));
+    }
+    let mut checks = Checks::new(71);
+    assert_eq!(checks.quiet(&world.root, world.env.now, 1), Ok(()));
+    assert_eq!(checks.quiet(&world.root, old_bound, 2), Ok(()));
+    assert_eq!(checks.step(old_bound.saturating_add(Duration::from_nanos(1)), 3), Ok(()));
+    assert_eq!(checks.quiet(&world.root, old_bound.saturating_add(Duration::from_nanos(1)), 4), Ok(()));
+    assert_eq!(checks.quiet(&world.root, bound, 5), Ok(()));
+}
+
+#[test]
+fn a_completed_follow_gate_still_waiting_past_its_bound_is_found() {
+    let (world, change, _, bound) = completed_follow_gate();
+    let mut checks = Checks::new(71);
+    assert_eq!(checks.quiet(&world.root, world.env.now, 1), Ok(()));
+    // The same hand-off, but frozen: its next procedure step never arrives.
+    assert_eq!(checks.quiet(&world.root, bound, 2), Ok(()));
+    let at = bound.saturating_add(Duration::from_nanos(1));
+    let finding = checks.step(at, 3).expect_err("completed gate still waits for its next step");
+    assert_eq!(
+        finding,
+        format!(
+            "seed 71: at {} ns, iteration 3: engine task {change}: waits on change: gating past bound {} ns with no quiet point since",
+            at.as_nanos(),
+            bound.as_nanos(),
+        )
+    );
+}
+
 fn checking() -> (World, u64, Time) {
     let (mut world, _, producer, _) = temper_engine_domain_world::forge_routes::change_world(true, 1000, None);
     let task = world.root.tasks().task(producer.task).expect("producer");

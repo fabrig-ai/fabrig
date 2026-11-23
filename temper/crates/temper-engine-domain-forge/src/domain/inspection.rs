@@ -76,6 +76,21 @@ impl Domain {
     }
 
     /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
+    /// The completed follow check's receipt ends the workflow wait at its head.
+    #[must_use]
+    pub fn inspection_follow_check_ended(&self, task: u64) -> Option<Wall> {
+        let row = self.changes.get(&task)?;
+        let check = row.follow_check.as_ref()?;
+        let temper_engine_domain_forge_change::State::Gating { head, .. } = row.change.state else { return None };
+        check.key?;
+        self.repository(row.repository)?;
+        if check.head != head || !crate::follow_check::has_verdict(row, head) {
+            return None;
+        }
+        Some(self.receipt(&crate::follow_check::receipt_key(self, row))?.ended)
+    }
+
+    /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
     #[must_use]
     pub fn inspection_step_retry(&self, task: u64) -> Option<Time> {
         for (_, step) in &self.steps {

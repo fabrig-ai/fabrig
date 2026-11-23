@@ -533,7 +533,7 @@ fn push_target(world: &mut World, change: u64) {
         },
     })));
 }
-fn produce(world: &mut World, change: u64, producer: &engine::Assignment) {
+pub(crate) fn produce(world: &mut World, change: u64, producer: &engine::Assignment) {
     push_target(world, change);
     let event = world.protocol.answer(
         Token::new(7),
@@ -562,7 +562,7 @@ fn ended_task(world: &World, task: u64) -> &tasks::TaskRecord {
     };
     row
 }
-fn next_delegate(world: &mut World, change: u64, previous: u64) -> engine::Assignment {
+pub(crate) fn next_delegate(world: &mut World, change: u64, previous: u64) -> engine::Assignment {
     for _ in 0..temper_engine_domain_world::tier_runs::RUN_TICKS {
         world.tick();
         if let Some((child, _)) = questions::row(world, change).delegate

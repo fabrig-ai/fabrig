@@ -173,7 +173,9 @@ change's due step.
 - **Bounds:** a change's wait has the bound its stall gives
   (`../domain/forge/change/stalls.md`, 1): the stall's start plus the
   deployment's stall, where the change's row keeps the moment the stall
-  counts from and no exemption stands; none otherwise. A landing's
+  counts from and no exemption stands; none otherwise. A follow change at
+  gating whose check workflow has ended counts its stall from that end,
+  as a delegate's end does. A landing's
   deadlines are polls, not bounds (`landing-waits.md`, 3), and a wait for
   room has no bound in its design (`../domain/forge/room.md`, 4), so
   neither has one. A wait past its bound at a quiet point is a finding
