@@ -1,5 +1,9 @@
 //! Owner-set admission and binary levels (protocol/store/opening.md, 3).
-use super::sets::{Owner, OwnerSet, OwnerSets};
+use super::{
+    schemas,
+    sets::{Owner, OwnerSet, OwnerSets},
+};
+use skein_codec::schema::Schema;
 use skein_lib::List;
 
 pub(crate) use crate::codec::component::Levels;
@@ -48,7 +52,7 @@ pub(crate) fn checked(store: &mut crate::Store) -> Result<(), Owner> {
 /// The manifest counts each kept family by its name (protocol/store/README.md, 2, protocol/store/opening.md, 3): the
 /// set where the families pass its bounds, in number or a name's bytes, is
 /// refused before a first start writes.
-pub(crate) fn bounds(sets: &OwnerSets, prepared: &[skein_codec::schema::Schema]) -> Result<(), Owner> {
+pub(crate) fn bounds(sets: &OwnerSets, prepared: &[Schema]) -> Result<(), Owner> {
     #[cfg(test)]
     counting::ran();
     let ceilings = &crate::component_v3::CEILINGS;
@@ -67,15 +71,17 @@ pub(crate) fn bounds(sets: &OwnerSets, prepared: &[skein_codec::schema::Schema])
             }
         }
     }
-    keys(sets, prepared)?;
-    super::types::check(sets, prepared)?;
+    let mut current = List::with_capacity(families);
+    keys(sets, prepared, &mut current)?;
+    let current = current.as_slice();
+    super::types::check(sets, prepared, current)?;
     crate::jobs::admission::check(sets)?;
-    frames(sets, prepared)?;
-    holds(sets, prepared)?;
+    frames(sets, prepared, current)?;
+    holds(sets, prepared, current)?;
     Ok(())
 }
 /// The two transcript roots are owners' data, checked even at equal levels.
-pub(crate) fn frames(sets: &OwnerSets, prepared: &[skein_codec::schema::Schema]) -> Result<(), Owner> {
+fn frames(sets: &OwnerSets, prepared: &[Schema], current: &[Schema]) -> Result<(), Owner> {
     let mut smith = None;
     for set in sets.sets {
         let refusal = set.owner;
@@ -107,20 +113,17 @@ pub(crate) fn frames(sets: &OwnerSets, prepared: &[skein_codec::schema::Schema])
             let machine = crate::transcripts::patches::kept_patcher(frames, capacity).ok_or(refusal)?;
             let latest = frames.texts.last().expect("nonempty kept texts");
             let mut parsed = None;
-            let Some(latest) = super::schemas::get(prepared, latest.as_bytes(), &mut parsed) else {
+            let Some(latest) = schemas::frame(prepared, current, latest.as_bytes(), &mut parsed) else {
                 return Err(refusal);
             };
             let last = latest.version();
-            let mut parsed = None;
-            let Some(current) = super::schemas::get(prepared, family.current.as_bytes(), &mut parsed) else {
-                return Err(refusal);
-            };
-            if last != current.version() {
+            let binary = schemas::get(prepared, current, family.current.as_bytes()).ok_or(refusal)?;
+            if last != binary.version() {
                 return Err(refusal);
             }
             for text in frames.texts {
                 let mut parsed = None;
-                let Some(schema) = super::schemas::get(prepared, text.as_bytes(), &mut parsed) else {
+                let Some(schema) = schemas::frame(prepared, current, text.as_bytes(), &mut parsed) else {
                     return Err(refusal);
                 };
                 if schema.spelled(schema.family()) != family.name.as_bytes() {
@@ -158,7 +161,7 @@ pub(crate) fn frames(sets: &OwnerSets, prepared: &[skein_codec::schema::Schema])
     Ok(())
 }
 
-fn held_family(schema: &skein_codec::schema::Schema, mut ty: skein_codec::schema::TypeIx) -> Option<&[u8]> {
+fn held_family(schema: &Schema, mut ty: skein_codec::schema::TypeIx) -> Option<&[u8]> {
     use skein_codec::schema::{Held, Type};
     for _ in 0..schema.text().len() {
         match schema.ty(ty) {
@@ -183,7 +186,7 @@ fn held_family(schema: &skein_codec::schema::Schema, mut ty: skein_codec::schema
 
 /// Incremental transitive closure. Adding i -> j closes a cycle exactly when
 /// j already reaches i; each row is a manifest-bounded, 64-family bit set.
-fn holds(sets: &OwnerSets, prepared: &[skein_codec::schema::Schema]) -> Result<(), Owner> {
+fn holds(sets: &OwnerSets, prepared: &[Schema], current: &[Schema]) -> Result<(), Owner> {
     use skein_codec::schema::{DeclIx, FieldIx, Shape};
     let mut families = List::with_capacity(crate::component_v3::CEILINGS.manifest_counts);
     for set in sets.sets {
@@ -209,7 +212,7 @@ fn holds(sets: &OwnerSets, prepared: &[skein_codec::schema::Schema]) -> Result<(
             }
             for text in &texts {
                 let mut parsed = None;
-                let Some(schema) = super::schemas::get(prepared, text.as_bytes(), &mut parsed) else {
+                let Some(schema) = schemas::frame(prepared, current, text.as_bytes(), &mut parsed) else {
                     return Err(refusal);
                 };
                 for decl in 0..schema.declarations() {
@@ -252,14 +255,11 @@ pub(crate) mod counting;
 
 /// Each range belongs to a declaration in the binary's text, and no two
 /// families claim the same key (protocol/store/opening.md, 3).
-fn keys(sets: &OwnerSets, prepared: &[skein_codec::schema::Schema]) -> Result<(), Owner> {
+fn keys(sets: &OwnerSets, prepared: &[Schema], current: &mut List<Schema>) -> Result<(), Owner> {
     for set in sets.sets {
         let refusal = set.owner;
         for family in set.families {
-            let mut parsed = None;
-            let Some(schema) = super::schemas::get(prepared, family.current.as_bytes(), &mut parsed) else {
-                return Err(refusal);
-            };
+            let schema = schemas::current(prepared, current, family.current.as_bytes()).ok_or(refusal)?;
             let mut through = None;
             for keys in family.keys {
                 if keys.from >= keys.to || schema.find(keys.root.as_bytes()).is_none() {
