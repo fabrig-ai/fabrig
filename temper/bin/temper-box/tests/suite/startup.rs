@@ -838,43 +838,7 @@ fn every_command_checks_setup_before_reading_files() {
         "{}:1: limits: moved: limits are settings; ask temper, or use temper ctl settings apply\n",
         temper_config_shell::FILE
     );
-    for (command, refused) in [
-        (
-            "serve",
-            temper_box_shell::prepare_in(&[], b"/", &support::configuration::directories(scratch.path()))
-                .err()
-                .expect("serve refused"),
-        ),
-        (
-            "temper-box",
-            temper_box_shell::run(
-                temper_box_shell::Command::Box {
-                    directories: support::configuration::directories(scratch.path()),
-                    echo: temper_box_machine::host::Echo::None,
-                    front: false,
-                    record: false,
-                },
-                &[],
-                b"/",
-                b"temper-box",
-                "0.0.0",
-                "0123456789ab",
-            )
-            .expect_err("box refused"),
-        ),
-    ] {
-        assert_eq!(
-            refused,
-            format!("{}: {line}", if command == "serve" { "temper serve" } else { command }),
-            "{command}"
-        );
-    }
-    for verb in ["prepare", "run"] {
-        support::owned::refused(scratch.path(), verb, format!("temper-box forge {verb}: forge 1: {line}").as_bytes());
-    }
-    let runner = support::owned::command(scratch.path(), "runner").output().expect("runner refuses");
-    assert_eq!(runner.status.code(), Some(1));
-    assert_eq!(runner.stderr, format!("temper-box forge run: forge 1: {line}").as_bytes());
+    support::owned::refused(scratch.path(), "prepare", format!("temper-box forge prepare: forge 1: {line}").as_bytes());
     scratch.remove();
 }
 
@@ -1388,39 +1352,31 @@ fn box_initializes_only_absent_or_empty_configuration_directories() {
 
 #[test]
 fn serve_box_refuses_closed_or_non_pipe_descriptors_before_starting() {
-    for inherited in [false, true] {
-        for (redirections, offset) in [("{r}>&- {a}>&-", 0), ("{r}>/dev/null {a}>&-", 0), ("{r}>&1 {a}>&-", 1)] {
-            let requests = if inherited { 4 } else { 3 };
-            let answers = requests + 1;
-            let redirections = redirections.replace("{r}", &requests.to_string()).replace("{a}", &answers.to_string());
-            let script = format!(
-                "exec \"$1\" internal serve --config /unused --data /unused --cache /unused --box {} {redirections}",
-                if inherited { "3<&0" } else { "" }
-            );
-            let mut command = if inherited {
-                listeners::command(std::net::TcpListener::bind("127.0.0.1:0").expect("listener"), &script)
-            } else {
-                let mut command = std::process::Command::new("/bin/sh");
-                command
-                    .args([
-                        "-c",
-                        &script,
-                        "serve-box-test",
-                        skein_scratch::paths::binary("temper-box").to_str().expect("a UTF-8 path"),
-                    ])
-                    .env_clear()
-                    .stdin(std::process::Stdio::piped());
-                command
-            };
-            let output = command.output().expect("serve child");
-            let fd = requests + offset;
-            assert_eq!(output.status.code(), Some(1));
-            assert_eq!((output.stdout).len(), 0);
-            assert_eq!(
-                String::from_utf8(output.stderr).expect("UTF-8 diagnostic"),
-                format!("temper-box serve: --box: fd {fd} is not an open pipe\n")
-            );
-        }
+    for (inherited, fd, redirections) in [(false, 3, "3>&- 4>&-"), (true, 4, "3<&0 4>/dev/null 5>&-")] {
+        let script =
+            format!("exec \"$1\" internal serve --config /unused --data /unused --cache /unused --box {redirections}");
+        let mut command = if inherited {
+            listeners::command(std::net::TcpListener::bind("127.0.0.1:0").expect("listener"), &script)
+        } else {
+            let mut command = std::process::Command::new("/bin/sh");
+            command
+                .args([
+                    "-c",
+                    &script,
+                    "serve-box-test",
+                    skein_scratch::paths::binary("temper-box").to_str().expect("a UTF-8 path"),
+                ])
+                .env_clear()
+                .stdin(std::process::Stdio::piped());
+            command
+        };
+        let output = command.output().expect("serve child");
+        assert_eq!(output.status.code(), Some(1));
+        assert_eq!(output.stdout.as_slice(), b"");
+        assert_eq!(
+            String::from_utf8(output.stderr).expect("UTF-8 diagnostic"),
+            format!("temper-box serve: --box: fd {fd} is not an open pipe\n")
+        );
     }
 }
 
@@ -2038,18 +1994,16 @@ exit 38
 
 #[test]
 fn forge_run_refuses_other_listener_counts_and_any_for_the_runner_before_opening_files() {
-    for (which, count) in [("forgejo", "0"), ("forgejo", "2"), ("forgejo", "many"), ("runner", "1"), ("runner", "0")] {
-        let ended = std::process::Command::new(skein_scratch::paths::binary("temper-box"))
-            .args(["forge", "run", "--config", "/no-document", "--data", "/unused", "--cache", "/unused", "1", which])
-            .env_clear()
-            .env("LISTEN_FDS", count)
-            .output()
-            .expect("run");
-        assert_eq!(ended.status.code(), Some(1));
-        let diagnostic = String::from_utf8(ended.stderr).expect("diagnostic");
-        assert!(diagnostic.contains("LISTEN_FDS") && diagnostic.contains("fd 3"), "{diagnostic}");
-        assert!(!diagnostic.contains("no-document"), "refuses before document read");
-    }
+    let ended = std::process::Command::new(skein_scratch::paths::binary("temper-box"))
+        .args(["forge", "run", "--config", "/no-document", "--data", "/unused", "--cache", "/unused", "1", "forgejo"])
+        .env_clear()
+        .env("LISTEN_FDS", "0")
+        .output()
+        .expect("run");
+    assert_eq!(ended.status.code(), Some(1));
+    let diagnostic = String::from_utf8(ended.stderr).expect("diagnostic");
+    assert!(diagnostic.contains("LISTEN_FDS") && diagnostic.contains("fd 3"), "{diagnostic}");
+    assert!(!diagnostic.contains("no-document"), "refuses before document read");
 }
 
 #[test]

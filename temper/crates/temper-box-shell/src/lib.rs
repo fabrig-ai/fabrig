@@ -383,8 +383,7 @@ pub fn run(
         )
         .map_err(|why| prefixed("temper-box", &why))?,
         Command::Box { directories, echo, front, record } => {
-            box_command::run(&directories, echo, front, record, environment)
-                .map_err(|why| prefixed("temper-box", &why))?
+            return box_status(box_command::run(&directories, echo, front, record, environment));
         }
         Command::Agent { configuration } => {
             return temper_agent_shell::run(
@@ -420,10 +419,18 @@ pub fn run(
         Command::Ctl { arguments } => return Ok(ctl::run(&arguments, &Clock::new())),
         Command::Open { arguments } => return Ok(open::run(&arguments, &Clock::new())),
     };
-    Ok(match exit {
+    Ok(exit_status(exit))
+}
+
+fn box_status(result: Result<Exit, String>) -> Result<u8, String> {
+    result.map(exit_status).map_err(|why| prefixed("temper-box", &why))
+}
+
+fn exit_status(exit: Exit) -> u8 {
+    match exit {
         Exit::Code(code) => code,
         Exit::Signal(_) => 1,
-    })
+    }
 }
 fn path(bytes: &[u8]) -> &Path {
     Path::new(std::ffi::OsStr::from_bytes(bytes))

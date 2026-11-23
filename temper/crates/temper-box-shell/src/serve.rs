@@ -488,8 +488,18 @@ pub fn prepare_in(
     working: &[u8],
     directories: &Directories,
 ) -> Result<Service, String> {
-    let read = temper_service_shell::configuration::read(directories, temper_config_shell::Shape::Standalone)
-        .map_err(|why| prefixed(&format!("{binary} serve"), &why))?;
+    prepare_in_with_read(binary, environment, working, directories, temper_service_shell::configuration::read)
+}
+
+pub(crate) fn prepare_in_with_read(
+    binary: &str,
+    environment: &[EnvironmentEntry],
+    working: &[u8],
+    directories: &Directories,
+    read: impl FnOnce(&Directories, temper_config_shell::Shape) -> Result<temper_service_shell::configuration::Read, String>,
+) -> Result<Service, String> {
+    let read = read(directories, temper_config_shell::Shape::Standalone)
+        .map_err(|why| temper_service_shell::serve_error(binary, &why))?;
     let bytes = &read.document;
     let mut owned = Vec::new();
     let result = read
@@ -498,7 +508,7 @@ pub fn prepare_in(
     if result.is_err() {
         close(owned);
     }
-    result.map_err(|why| prefixed(&format!("{binary} serve"), &read.problems(&why)))
+    result.map_err(|why| temper_service_shell::serve_error(binary, &read.problems(&why)))
 }
 /// Prepare an in-process world's service with the supplied defaults.
 pub fn prepare_in_with(
@@ -704,25 +714,51 @@ pub fn run(
     )
 }
 
-struct BoxInputs {
+pub(crate) struct BoxInputs {
     link: Option<Secret>,
     local: Option<Secret>,
     pipes: Option<(Fd, Fd)>,
 }
 fn box_inputs(boxed: bool, listeners: usize) -> Result<BoxInputs, String> {
+    box_inputs_with(boxed, listeners, cfg!(target_os = "linux").then_some(pipe_kind), || {
+        given_secret(&mut std::io::stdin().lock())
+    })
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(crate) enum PipeKind {
+    Open,
+    Absent,
+    Other,
+}
+
+fn pipe_kind(fd: i32) -> PipeKind {
+    match std::fs::metadata(format!("/proc/self/fd/{fd}")) {
+        Ok(metadata) if metadata.file_type().is_fifo() => PipeKind::Open,
+        Err(why) if why.kind() == std::io::ErrorKind::NotFound => PipeKind::Absent,
+        Ok(_) | Err(_) => PipeKind::Other,
+    }
+}
+
+pub(crate) fn box_inputs_with(
+    boxed: bool,
+    listeners: usize,
+    probe: Option<impl FnMut(i32) -> PipeKind>,
+    stdin: impl FnOnce() -> Result<(Option<Secret>, Option<Secret>), String>,
+) -> Result<BoxInputs, String> {
     if !boxed {
         return Ok(BoxInputs { link: None, local: None, pipes: None });
     }
     let requests = 3 + i32::try_from(listeners).expect("bounded inherited listeners");
     let answers = requests + 1;
-    if cfg!(target_os = "linux") {
+    if let Some(mut probe) = probe {
         for fd in [requests, answers] {
-            if !std::fs::metadata(format!("/proc/self/fd/{fd}")).is_ok_and(|m| m.file_type().is_fifo()) {
+            if probe(fd) != PipeKind::Open {
                 return Err(format!("--box: fd {fd} is not an open pipe"));
             }
         }
     }
-    let (link, local) = given_secret(&mut std::io::stdin().lock())?;
+    let (link, local) = stdin()?;
     Ok(BoxInputs { link, local, pipes: Some((Fd::new(requests), Fd::new(answers))) })
 }
 fn box_refusal(why: service::system::BoxRefusal) -> String {

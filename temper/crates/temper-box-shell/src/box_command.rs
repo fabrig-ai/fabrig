@@ -57,7 +57,18 @@ pub fn run(
     record: bool,
     environment: &[super::EnvironmentEntry],
 ) -> Result<Exit, String> {
-    let (read, held, first_run) = configuration_read(directories, environment)?;
+    run_with_configuration(directories, echo, fronted, record, environment, configuration_read)
+}
+
+pub(crate) fn run_with_configuration(
+    directories: &super::Directories,
+    echo: Echo,
+    fronted: bool,
+    record: bool,
+    environment: &[super::EnvironmentEntry],
+    configuration: impl FnOnce(&super::Directories, &[super::EnvironmentEntry]) -> Result<ConfigurationRead, String>,
+) -> Result<Exit, String> {
+    let (read, held, first_run) = configuration(directories, environment)?;
     let opening = Opening { log_lines: first_run.into_iter().collect(), after_block: Box::new([]) };
     read.prepare(|bytes| {
         run_configuration(directories, bytes, held, Box::new([]), echo, fronted, record, opening, environment)

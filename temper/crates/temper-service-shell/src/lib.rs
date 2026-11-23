@@ -188,8 +188,7 @@ fn run_inner<S, B, A>(
 ) -> Result<Exit, String> {
     let link_file = local_link(directories, environment);
     let listeners = skein_shell::inherited_listeners().map_err(listeners_refusal)?;
-    let input = before(listeners.len())?;
-    let read = configuration::read(directories, shape)?;
+    let (input, read) = read_start(listeners.len(), before, || configuration::read(directories, shape))?;
     let programs = read.programs()?;
     let mut owned = listeners.iter().map(|(fd, _)| *fd).collect::<Vec<_>>();
     let Prepared { mut service, store, adoption } =
@@ -236,7 +235,19 @@ fn run_inner<S, B, A>(
     Ok(exit)
 }
 
-fn serve_error(binary: &str, why: &str) -> String {
+/// Check the binary's early inputs before reading its configuration.
+pub fn read_start<B>(
+    listeners: usize,
+    before: impl FnOnce(usize) -> Result<B, String>,
+    configuration: impl FnOnce() -> Result<configuration::Read, String>,
+) -> Result<(B, configuration::Read), String> {
+    let input = before(listeners)?;
+    Ok((input, configuration()?))
+}
+
+/// Prefix each startup refusal line with its serve command.
+#[must_use]
+pub fn serve_error(binary: &str, why: &str) -> String {
     prefixed(&format!("{binary} serve"), why)
 }
 
