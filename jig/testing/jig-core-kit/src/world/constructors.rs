@@ -40,6 +40,7 @@ impl World {
             startup,
             owner_sets,
             disk_store,
+            keep_reads,
             mut peers,
             cut,
             sweep,
@@ -66,7 +67,7 @@ impl World {
         }
         let rows = rows
             .unwrap_or_else(|| jig_test_profile::fixtures::account_rows(&configuration.core.settings.llm_providers));
-        let mut world = Self::empty(configuration, &limits, owner_sets, disk_store);
+        let mut world = Self::empty(configuration, &limits, owner_sets, disk_store, keep_reads);
         world.seed = seed;
         world.store_checks = super::StoreChecks::sampled(seed, STORE_CHECK_ONE_IN);
         if let Some((now, wall)) = clock {
@@ -188,6 +189,7 @@ impl World {
         limits: &root::Limits,
         sets: jig_protocol_store::OwnerSets,
         disk: bool,
+        keep_reads: bool,
     ) -> World {
         // These nominal fixture workers offer the scenario's full fleet capacity.
         // Stories that change places do so through settings after the start.
@@ -203,7 +205,7 @@ impl World {
             assert!(sets.sets.is_empty(), "disk crash scenarios use the current format");
             Store::on_disk(limits, &configuration.core.settings.models)
         } else {
-            Store::starting_with_owner_sets(limits, &configuration.core.settings.models, sets)
+            Store::starting_with_read_reuse(limits, &configuration.core.settings.models, sets, keep_reads)
         };
         let move_provider = configuration.core.settings.llm_providers.providers.first().map(|provider| provider.number);
         World {
@@ -221,6 +223,7 @@ impl World {
             walking: None,
             broken: false,
             oracle_closed: false,
+            closed_documents: None,
             restart_config: (crate::oracle::configuration(&configuration), *limits),
             startup: None,
             fixture_rows: Box::new([]),

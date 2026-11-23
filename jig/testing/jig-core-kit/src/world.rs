@@ -37,6 +37,7 @@ pub(crate) mod testing {
 
 /// Startup of the core world (`jig/docs/design/domain/engine/README.md`, section 9).
 #[derive(Debug)]
+#[expect(clippy::struct_excessive_bools, reason = "startup options control independent fixture behavior")]
 pub struct Setup {
     pub seed: u64,
     pub requirement: bool,
@@ -48,6 +49,8 @@ pub struct Setup {
     pub owner_sets: jig_protocol_store::OwnerSets,
     /// Exercise the directory-backed store on the simulated crashing disk.
     pub disk_store: bool,
+    /// Reuse checked payload records in the world's memory stores (default on).
+    pub keep_reads: bool,
     pub peers: Option<crate::peers::Peers>,
     pub cut: Option<Cut>,
     /// Fork these cuts during the real first start and the following story.
@@ -77,6 +80,7 @@ impl Default for Setup {
             startup: None,
             owner_sets: jig_protocol_store::OwnerSets::NONE,
             disk_store: false,
+            keep_reads: true,
             peers: None,
             cut: None,
             sweep: Vec::new(),
@@ -121,6 +125,8 @@ pub struct World {
     pub walking: Option<Walking>,
     pub(crate) broken: bool,
     pub(crate) oracle_closed: bool,
+    /// The closing oracle's answers on each side of a successful restart check.
+    pub closed_documents: Option<crate::oracle::Documents>,
     seed: u64,
     /// Policy and counts for this run's cold store checks.
     pub store_checks: StoreChecks,

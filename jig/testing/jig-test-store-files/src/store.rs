@@ -65,6 +65,7 @@ pub struct Store {
     pub pending: VecDeque<Pending>,
     pub held: VecDeque<u64>,
     component: Option<protocol::Store>,
+    keep_reads: bool,
     sets: protocol::OwnerSets,
     turn_text: Option<TurnText>,
     files: Files,
@@ -108,7 +109,7 @@ impl Store {
         models: &[jig_domain_core::Model],
         sets: protocol::OwnerSets,
     ) -> Store {
-        Self::build(limits, models, sets, false)
+        Self::starting_with_read_reuse(limits, models, sets, true)
     }
     /// Open the real store with typed start pages (protocol/store/loads.md, 1).
     #[must_use]
@@ -122,50 +123,59 @@ impl Store {
         models: &[jig_domain_core::Model],
         sets: protocol::OwnerSets,
     ) -> Store {
-        Self::build(limits, models, sets, false)
+        Self::with_owner_sets(limits, models, sets)
     }
     /// Use the directory-backed component even without patch sets.
     #[must_use]
     pub fn on_disk(limits: &root::Limits, models: &[jig_domain_core::Model]) -> Store {
-        Self::build(limits, models, protocol::OwnerSets::NONE, true)
+        Self::build(limits, models, protocol::OwnerSets::NONE, true, true)
+    }
+    /// Select whether memory stores reuse checked payload records. Directory stores never keep reads.
+    #[must_use]
+    pub fn starting_with_read_reuse(
+        limits: &root::Limits,
+        models: &[jig_domain_core::Model],
+        sets: protocol::OwnerSets,
+        keep_reads: bool,
+    ) -> Store {
+        Self::build(limits, models, sets, false, keep_reads)
     }
     fn build(
         limits: &root::Limits,
         models: &[jig_domain_core::Model],
         sets: protocol::OwnerSets,
         on_disk: bool,
+        keep_reads: bool,
     ) -> Store {
-        Self::prepared(
-            limits,
-            models,
-            sets,
-            on_disk,
-            &component_limits(limits),
-            jig_test_store::application(&limits.connector),
-        )
-    }
-    // Forks keep these checked sizes: the source's configuration is immutable.
-    fn prepared(
-        limits: &root::Limits,
-        models: &[jig_domain_core::Model],
-        sets: protocol::OwnerSets,
-        on_disk: bool,
-        component_limits: &Limits,
-        application: protocol::sizes::Application,
-    ) -> Store {
+        let component_limits = &component_limits(limits);
+        let application = jig_test_store::application(&limits.connector);
         let disk = if sets.sets.is_empty() && !on_disk { None } else { Some(crate::disk::Disk::new(component_limits)) };
         let component = if let Some(disk) = &disk {
             protocol::Store::on_directory(component_limits, application, models, disk.seeded())
         } else {
             let stores = Stores {
-                store: skein_kv::Store::memory(&component_limits.store),
-                secrets: skein_kv::Store::memory(&component_limits.secrets),
+                store: Self::memory_store(&component_limits.store, keep_reads),
+                secrets: Self::memory_store(&component_limits.secrets, keep_reads),
             };
             protocol::Store::over(component_limits, application, models, stores)
         };
-        let mut store =
-            Self::over_storage(limits, models, sets, component, Files::new(), disk, component_limits, application);
+        let mut store = Self::over_storage(
+            limits,
+            models,
+            sets,
+            component,
+            Files::new(),
+            disk,
+            component_limits,
+            application,
+            keep_reads,
+        );
         store.open();
+        store
+    }
+    fn memory_store(limits: &skein_kv::Limits, keep_reads: bool) -> skein_kv::Store {
+        let mut store = skein_kv::Store::memory(limits);
+        store.keep_reads(keep_reads);
         store
     }
     #[expect(clippy::too_many_arguments, reason = "fresh and forked storage retain the same checked configuration")]
@@ -178,6 +188,7 @@ impl Store {
         disk: Option<crate::disk::Disk>,
         component_limits: &Limits,
         application: protocol::sizes::Application,
+        keep_reads: bool,
     ) -> Store {
         component.owner_sets(component_sets(sets));
         let mut routes = route::Routes::new(limits.routes);
@@ -197,6 +208,7 @@ impl Store {
             pending: VecDeque::new(),
             held: VecDeque::new(),
             component: Some(component),
+            keep_reads,
             sets,
             turn_text: None,
             files,
@@ -481,6 +493,7 @@ impl Store {
             disk,
             &self.component_limits,
             self.application,
+            self.keep_reads,
         );
         fresh.wires(self.wires);
         fresh.rows.clone_from(&self.rows);

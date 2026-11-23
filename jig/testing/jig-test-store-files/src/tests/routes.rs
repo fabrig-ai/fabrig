@@ -1,4 +1,5 @@
 mod fixtures;
+pub(crate) use fixtures::ended_chat;
 use jig_domain_core as core;
 use jig_domain_people as people;
 use jig_test_domain as root;
