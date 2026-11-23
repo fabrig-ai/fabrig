@@ -202,6 +202,149 @@ fn a_person_stopped_change_with_an_ended_producer_has_a_release_wake() {
     assert_eq!(Checks::new(71).quiet(&world.root, world.env.now, 1), Ok(()));
 }
 
+fn follow_change(world: &mut World, words: &[u8]) -> u64 {
+    let after = super::forge_routes::follow_changes::push(world, words);
+    world.oracle_settle();
+    assert!(world.events.is_empty() && world.store.idle() && world.root.quiescent());
+    super::forge_routes::follow_changes::change(world, after)
+}
+
+fn change_wakes(world: &World, task: u64, root: bool) -> Vec<Wake> {
+    let mut inspection = Inspection::new("engine", temper_engine_inspect::KINDS);
+    if root {
+        temper_engine_inspect::inspect(&world.root, &mut inspection);
+    } else {
+        temper_engine_inspect::forge(world.root.forge(), &mut inspection);
+    }
+    let wait = inspection.waits().iter().find(|wait| wait.waiter == format!("task {task}")).expect("change wait");
+    assert_eq!(wait.kind, "change: producing");
+    wait.wakes.clone()
+}
+
+#[test]
+fn a_follow_waiting_for_its_person_and_a_live_change_has_wakes() {
+    let mut world = super::forge_routes::follow_changes::world(forge::settings::FollowStart::Owner);
+    let first = follow_change(&mut world, b"First port");
+    let second = follow_change(&mut world, b"Second port");
+    assert_eq!(world.root.tasks().task(second).expect("second change").waiting_on.as_ref(), &[first]);
+    assert_eq!(
+        world.root.forge().inspection_follow_wait(first).expect("first entry").1,
+        &forge::FollowState::WaitsWord
+    );
+    assert_eq!(
+        world.root.forge().inspection_follow_wait(second).expect("second entry").1,
+        &forge::FollowState::WaitsFor(first)
+    );
+    for root in [true, false] {
+        assert_eq!(change_wakes(&world, first, root), vec![Wake::Party("person".into())]);
+        assert_eq!(change_wakes(&world, second, root), vec![Wake::Waiter(format!("task {first}"))]);
+    }
+    assert_eq!(Checks::new(71).quiet(&world.root, world.env.now, 1), Ok(()));
+}
+
+#[test]
+fn a_follow_waiting_for_its_standing_owner_has_a_wake() {
+    let (mut world, owner) =
+        super::forge_routes::follow_changes::role::owned(forge::settings::FollowStart::Owner, 40, 1000);
+    let change = follow_change(&mut world, b"Port for the role");
+    for root in [true, false] {
+        assert_eq!(change_wakes(&world, change, root), vec![Wake::Waiter(format!("task {owner}"))]);
+    }
+    assert_eq!(Checks::new(71).quiet(&world.root, world.env.now, 1), Ok(()));
+}
+
+#[test]
+fn a_follow_waiting_for_a_missing_owner_has_no_live_wake() {
+    let mut world = super::forge_routes::follow_changes::world(forge::settings::FollowStart::Owner);
+    let change = follow_change(&mut world, b"Port without its owner");
+    // An inconsistent stored setting: the follow's owner is gone but its
+    // waiting change remains. Restore only that row, without driving a turn
+    // that could cancel the orphan, as for the missing prepare job above.
+    let mut setting = world
+        .store
+        .rows
+        .values()
+        .find_map(|record| match record {
+            engine::Record::Forge { row } => match row.as_ref() {
+                forge::Stored::Setting(row)
+                    if row.key.kind == 12 && row.key.slot == forge::settings::SettingSlot::Change =>
+                {
+                    Some(row.clone())
+                }
+                _ => None,
+            },
+            engine::Record::Core(_) => None,
+        })
+        .expect("follow setting");
+    let forge::settings::Edit::Set(value) = &mut setting.edit else { panic!("set follow") };
+    let forge::settings::Value::Follow(follow) = &mut value.value else { panic!("follow setting") };
+    let missing = u64::MAX;
+    assert!(world.root.tasks().task(missing).is_none());
+    follow.owner = forge::settings::FollowOwner::Task(missing);
+    engine::step(
+        &mut world.root,
+        &world.env,
+        engine::Event::Forge(Box::new(forge::Event::Restore { record: forge::Stored::Setting(setting) })),
+    );
+    assert_eq!(change_wakes(&world, change, true), vec![Wake::Ended(format!("task {missing}"))]);
+    let finding =
+        Checks::new(71).quiet(&world.root, world.env.now, 1).expect_err("missing owner cannot wake the change");
+    assert_eq!(
+        finding,
+        format!(
+            "seed 71: at {} ns, iteration 1: engine task {change}: waits on change: producing with no live wake: [ended task {missing}]",
+            world.env.now.as_nanos(),
+        )
+    );
+}
+
+fn held_follow_tail() -> (World, u64, u64, u64) {
+    let mut world = super::forge_routes::follow_changes::world(forge::settings::FollowStart::Owner);
+    let ended = follow_change(&mut world, b"Ended port");
+    let held = follow_change(&mut world, b"Held port");
+    let tail = follow_change(&mut world, b"Held tail");
+    super::forge_routes::follow_changes::cancel(&mut world, ended, 167);
+    world.oracle_settle();
+    assert!(world.events.is_empty() && world.store.idle() && world.root.quiescent());
+    let task = world.root.tasks().task(held).expect("held change");
+    assert!(matches!(task.phase, tasks::Phase::Held { why: tasks::Hold::Dependency(id), .. } if id == ended));
+    assert!(task.waiting_on.is_empty());
+    assert_eq!(world.root.tasks().task(tail).expect("tail").waiting_on.as_ref(), &[held]);
+    (world, ended, held, tail)
+}
+
+#[test]
+fn a_follow_held_behind_a_queued_ended_entry_has_its_owners_restart_wake() {
+    let (world, _, held, tail) = held_follow_tail();
+    assert_eq!(change_wakes(&world, held, true), vec![Wake::Party("person".into())]);
+    assert_eq!(change_wakes(&world, tail, true), vec![Wake::Waiter(format!("task {held}"))]);
+    assert_eq!(Checks::new(71).quiet(&world.root, world.env.now, 1), Ok(()));
+}
+
+#[test]
+fn a_follow_held_after_its_ended_entry_is_gone_has_no_live_wake() {
+    let (mut world, ended, held, tail) = held_follow_tail();
+    let mut row = world.root.forge().follow_row(2, 1).expect("follow row").clone();
+    row.queue = row.queue.into_vec().into_iter().filter(|entry| entry.change != Some(ended)).collect();
+    // An incomplete stored teardown: the ended entry is gone, but its tail's
+    // dependency holds remain. No owner's act can restart the missing entry.
+    engine::step(
+        &mut world.root,
+        &world.env,
+        engine::Event::Forge(Box::new(forge::Event::Restore { record: forge::Stored::Follow(row) })),
+    );
+    assert_eq!(change_wakes(&world, held, true), Vec::<Wake>::new());
+    assert_eq!(change_wakes(&world, tail, true), vec![Wake::Waiter(format!("task {held}"))]);
+    let finding = Checks::new(71).quiet(&world.root, world.env.now, 1).expect_err("no queued entry to restart");
+    assert_eq!(
+        finding,
+        format!(
+            "seed 71: at {} ns, iteration 1: engine task {held}: waits on change: producing with no live wake: []",
+            world.env.now.as_nanos(),
+        )
+    );
+}
+
 #[test]
 fn a_goals_change_lands_with_checks_at_every_quiet_point() {
     use temper_engine_domain_world::kinds;

@@ -142,9 +142,72 @@ fn change_wakes(view: &View<'_>, row: &temper_engine_domain_forge::ChangeRow) ->
             if !row.questions.open.is_empty() {
                 wakes.push(view.answerer(row.task));
             }
+            change_turn(view, row.task, &mut wakes);
+            if matches!(row.change.state, State::Producing { requested: false }) {
+                follow_restart(view, row.task, &mut wakes);
+            }
         }
     }
     wakes
+}
+
+// Dependencies and a follow owner's word keep an unstarted change waiting
+// without a delegate. Neither is a fallback for an otherwise unwakeable step.
+fn change_turn(view: &View<'_>, task: u64, wakes: &mut Vec<Wake>) {
+    let mut dependencies = view.forge.inspection_step_dependencies(task).into_vec();
+    if let Some(row) = view.root.and_then(|root| root.tasks().task(task)) {
+        dependencies.extend(row.waiting_on.iter().copied());
+    }
+    if let Some((owner, state)) = view.forge.inspection_follow_wait(task) {
+        use temper_engine_domain_forge::FollowState;
+        match state {
+            FollowState::WaitsWord | FollowState::HeldByOwner(_) => {
+                let wake = follow_owner(view, owner);
+                if !wakes.contains(&wake) {
+                    wakes.push(wake);
+                }
+            }
+            FollowState::WaitsFor(dependency) => dependencies.push(*dependency),
+            FollowState::NotMade | FollowState::Producing | FollowState::Held(_) | FollowState::Ended(_) => {}
+        }
+    }
+    for dependency in dependencies {
+        let wake = view.waiter(dependency);
+        if !wakes.contains(&wake) {
+            wakes.push(wake);
+        }
+    }
+}
+
+fn follow_owner(view: &View<'_>, owner: temper_engine_domain_forge::settings::FollowOwner) -> Wake {
+    use temper_engine_domain_forge::settings::FollowOwner;
+    match owner {
+        FollowOwner::Person(_) => Wake::Party("person".into()),
+        FollowOwner::Task(owner) => view.waiter(owner),
+    }
+}
+
+// Jig clears waiting_on when a failed dependency holds the task. Only an
+// owner's start or skip of the queued ended entry can remake this held tail.
+fn follow_restart(view: &View<'_>, task: u64, wakes: &mut Vec<Wake>) {
+    let Some(root) = view.root else { return };
+    let mut seen = vec![task];
+    let mut current = task;
+    while let Some(row) = root.tasks().task(current) {
+        let tasks::Phase::Held { why: tasks::Hold::Dependency(dependency), .. } = row.phase else { return };
+        if seen.contains(&dependency) {
+            return;
+        }
+        if let Some(owner) = view.forge.inspection_follow_restart_owner(task, dependency) {
+            let wake = follow_owner(view, owner);
+            if !wakes.contains(&wake) {
+                wakes.push(wake);
+            }
+            return;
+        }
+        seen.push(dependency);
+        current = dependency;
+    }
 }
 
 // These procedure states keep an act already requested of the parent, not a

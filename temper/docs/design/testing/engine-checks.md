@@ -96,7 +96,7 @@ change's due step.
 | `change: held` | `Party("person")`: a person's release |
 | `change: ready`, `change: preparing` | `Waiter(task L)`, its landing |
 | `change: ready` with no landing | while the forge's limits refuse its train a landing, `Waiter(task L)` for each live landing; otherwise its landing's making, as the root's turn below |
-| every other `change:` step | its live delegate (producer, repair, resolution, gate or merge job), `Waiter(task D)`; its write in flight, `Party("forge: entry N")`; its write still settling, `Party("forge: entry N")` (below); its read in flight, `Party("forge: call N")`; its open question's answerer, `Waiter(task R)` or `Party("person")`; else the root's turn below |
+| every other `change:` step | its live delegate (producer, repair, resolution, gate or merge job), `Waiter(task D)`; its write in flight, `Party("forge: entry N")`; its write still settling, `Party("forge: entry N")` (below); its read in flight, `Party("forge: call N")`; its open question's answerer, `Waiter(task R)` or `Party("person")`; each dependency's end, `Waiter(task D)`; its follow owner's word or act, `Waiter(task T)` or `Party("person")`, including an unstarted change held behind an ended entry awaiting the owner's start or skip (below); else the root's turn below |
 
 - **The root's turn:** a change the forge has decided an act for that
   the root carries out (a delegate to make, a landing task to make,
@@ -149,6 +149,19 @@ change's due step.
   resource's (a forge limit's among them), a resource's access, a lost
   pool's and a circle's each need their own wake, and a person is not
   their fallback. A wait for room gains no person's wake.
+- **A change that waits its turn:** each dependency a change's task
+  waits on names `Waiter(task D)`, from `inspect`'s root tasks and from
+  `forge`'s pending step dependencies and follow entry's `WaitsFor`.
+  A follow entry in `WaitsWord` or `HeldByOwner` names its owner's word
+  or act: `Party("person")` for a person, `Waiter(task T)` for a standing
+  role, from the forge's follow entry and setting in both adapters.
+  An unstarted follow change held behind an ended entry names the same
+  owner, whose start or skip of that entry remakes the held tail: `inspect`
+  reads the root's dependency-hold chain and the forge's still-queued ended
+  entry and owner. An entry already started, skipped or gone names no such
+  wake. A task known to have ended names `Ended` instead. A dependency's
+  end or an owner's word or act is their only wake, never a fallback for
+  another wait.
 
 - **The change's steps,** in the change procedure's words
   (`../domain/forge/change/README.md`, 2): `producing`, `opening`,

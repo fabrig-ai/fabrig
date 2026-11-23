@@ -154,6 +154,56 @@ impl Domain {
     }
 
     /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
+    /// The owner and queued state of a follow change, where its entry still stands.
+    #[must_use]
+    pub fn inspection_follow_wait(&self, task: u64) -> Option<(crate::settings::FollowOwner, &crate::FollowState)> {
+        for (_, row) in &self.follow_rows {
+            for entry in &row.queue {
+                if entry.change == Some(task) {
+                    let setting = self.follow(row.project, row.follow)?;
+                    return Some((setting.owner, &entry.state));
+                }
+            }
+        }
+        None
+    }
+
+    /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
+    /// An owner's start or skip remakes the held tail after this queued ended dependency.
+    #[must_use]
+    pub fn inspection_follow_restart_owner(&self, task: u64, dependency: u64) -> Option<crate::settings::FollowOwner> {
+        for (_, row) in &self.follow_rows {
+            let mut ended = false;
+            for entry in &row.queue {
+                if entry.change == Some(dependency) {
+                    ended = match entry.state {
+                        crate::FollowState::Ended(_) => !entry.remake,
+                        crate::FollowState::NotMade
+                        | crate::FollowState::WaitsWord
+                        | crate::FollowState::HeldByOwner(_)
+                        | crate::FollowState::WaitsFor(_)
+                        | crate::FollowState::Producing
+                        | crate::FollowState::Held(_) => false,
+                    };
+                }
+                if entry.change == Some(task) {
+                    return match entry.state {
+                        crate::FollowState::Held(_) if ended => Some(self.follow(row.project, row.follow)?.owner),
+                        crate::FollowState::Held(_)
+                        | crate::FollowState::NotMade
+                        | crate::FollowState::WaitsWord
+                        | crate::FollowState::HeldByOwner(_)
+                        | crate::FollowState::WaitsFor(_)
+                        | crate::FollowState::Producing
+                        | crate::FollowState::Ended(_) => None,
+                    };
+                }
+            }
+        }
+        None
+    }
+
+    /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
     #[must_use]
     pub fn inspection_lost_read_waiters(&self) -> Box<[u64]> {
         let mut tasks = List::with_capacity(self.lost.len());
