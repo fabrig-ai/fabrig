@@ -659,6 +659,23 @@ class CloseBudgets(unittest.TestCase):
                          "budgets: no main's counts in this repository (refs/temper/counts); "
                          'no verdict at close, an infrastructure fault to repair; the gate still judges\n')
 
+    def test_a_budget_refusal_names_its_figures_in_the_hold_and_the_receipt(self):
+        self.publish()
+        error, = self.verdict(self.result(self.process(30 * self.G)))
+        self.assertEqual(error['diagnostic'], 'budgets skein step: +5.00%, allowance 2.00%, 100.0e9 to 105.0e9, '
+                                              'most leaf::suite\n')
+        figure, = error['figures']
+        self.assertEqual((figure['tree'], figure['layer'], figure['base'], figure['head'], figure['allowance']),
+                         ('skein', 'step', 100 * self.G, 105 * self.G, 2 * self.G))
+        self.assertEqual(figure['binaries'], [{'binary': 'leaf::suite', 'growth': 5 * self.G}])
+        with redirect_stderr(io.StringIO()) as err:
+            PRE.finish('tree', 'b' * 40, [error], self.root, {}, 'close', [], ['head'])
+        self.assertEqual(err.getvalue(), error['diagnostic'])
+        receipt = json.loads((self.root / 'target/temper/goal-close-pre-pr.json').read_text())
+        entry, = receipt['failures']
+        self.assertEqual(entry['figures'], [figure])
+        self.assertIn('instruction growth over allowance', entry['detail'])
+
     def test_growth_within_the_margin_warns_and_past_it_refuses(self):
         self.publish()
         self.enterContext(mock.patch.object(PRE, 'CLOSE_MARGIN', 0.03))
