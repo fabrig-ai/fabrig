@@ -426,7 +426,6 @@ default-filter = """
   binary_id(=jig-client-browser-world::browser_jig_stories) |
   binary_id(=jig-client-browser-world::browser_tier) |
   binary_id(=jig-core-kit::real) |
-  binary_id(=jig-engine-clients-world::suite) |
   binary_id(=jig-test-store-files::real) |
   binary_id(=jig-test::live) |
   binary_id(=jig-test::process) |

@@ -131,7 +131,6 @@ layers = ["step", "domain", "system", "machine", "protocol", "io", "simulated", 
 "jig-core-world::step" = "step" # Referee and memory-store controls, direct Core steps, allocation and profile bounds without a world.
 "jig-core-world::suite" = "domain" # Core stories with every child over the store's in-memory mode.
 "jig-engine-clients-world::protocol" = "protocol" # step + machine + protocol: codec bounds, scripted peers and both HTTP ends.
-"jig-engine-clients-world::suite" = "real-loop" # Synchronous openssl children, scratch files and elapsed clock measurements.
 "jig-engine-workers-world::suite" = "machine" # step + machine: prepared fixtures and worker-channel component against scripted peers.
 "jig-fleet-world::suite" = "domain" # step + domain: referee controls and fleet stories.
 "jig-host-world::suite" = "domain" # step + domain: saturated step fixtures and scripted host stories.
