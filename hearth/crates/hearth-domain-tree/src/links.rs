@@ -1,4 +1,4 @@
-//! Hard links: an inode's first path, and what its later paths must agree with (hearth/docs/design/domain/store/README.md, 3.4, and hearth/docs/design/domain/store/tree-helper.md, 4
+//! Hard links: an inode's first path, and what its later paths must agree with (hearth/docs/design/domain/store/digests.md, 1.4, and hearth/docs/design/domain/store/tree-helper.md, 4
 //! ).
 use crate::{
     limits::Limits,

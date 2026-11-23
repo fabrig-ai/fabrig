@@ -1,4 +1,4 @@
-//! Render's boundary records (hearth/docs/design/domain/render/README.md, 5.2).
+//! Render's boundary records (hearth/docs/design/domain/render/crates.md, 1.2).
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Class {

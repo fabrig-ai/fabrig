@@ -4,7 +4,7 @@
 
 - **What a machine converges to, set locally.** Either a commit, or a
   branch to follow, polled every interval. It lives in the steward's
-  state (hearth/docs/design/domain/store/README.md, 6.3) and survives restarts and reboots:
+  state (hearth/docs/design/domain/store/state.md, 1.3) and survives restarts and reboots:
 
   ```
   desired
@@ -34,11 +34,11 @@
   feet, when its user chooses, not when a commit lands. `auto` tries at
   once, live when eligible, and suits servers.
 - **The target is the activator's,** in its machine record
-  (hearth/docs/design/domain/activator/README.md, 6.1), and the repository the steward's, whose
+  (hearth/docs/design/domain/activator/state.md, 1.1), and the repository the steward's, whose
   builders keep its clone; both are written at bootstrap (hearth/docs/design/client/README.md, 3.8). The
   client changes the revision, never which target the machine is.
 - **The steward's state,** a record each in the store's `state/`,
-  which only the steward writes, read back at startup (hearth/docs/design/domain/store/README.md, 6.3;
+  which only the steward writes, read back at startup (hearth/docs/design/domain/store/state.md, 1.3;
   hearth/docs/design/domain/steward.md, 2.2):
   - the desired revision, above;
   - the mode, the operators' uids and, under an engine, its address,
@@ -288,7 +288,7 @@ be made or run, so its prepare key is refused.
 ## 7. Containers [M5]
 
 - **A host's spec names the containers it runs** (`target.containers`,
-  hearth/docs/design/protocol/format/README.md, 3.5). Each is a target with slots of its own on the host's
+  hearth/docs/design/protocol/format/targets.md, 1.5). Each is a target with slots of its own on the host's
   top level, which the host's activator prepares (hearth/docs/design/domain/slots/containers.md, 1).
 - **The loop takes the containers first, one at a time, and the host's
   own target last,** since the host's trial may reboot the machine and

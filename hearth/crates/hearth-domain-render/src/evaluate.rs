@@ -1,4 +1,4 @@
-//! A bounded postfix value stack (hearth/docs/design/domain/render/README.md, 5.3; hearth/docs/design/protocol/format/templates.md, 4
+//! A bounded postfix value stack (hearth/docs/design/domain/render/crates.md, 1.3; hearth/docs/design/protocol/format/templates.md, 4
 //! to 7).
 pub use hearth_domain_render_vocabulary::evaluate::FaultKind;
 pub mod context;

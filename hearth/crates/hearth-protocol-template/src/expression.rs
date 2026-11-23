@@ -1,5 +1,5 @@
 //! One bounded token pass with explicit nesting (hearth/docs/design/protocol/format/templates.md, 4;
-//! hearth/docs/design/domain/render/README.md, 5.3).
+//! hearth/docs/design/domain/render/crates.md, 1.3).
 mod chain;
 mod jumps;
 mod lexer;

@@ -24,7 +24,7 @@ fn reserved_bytes() {
         ),
         (
             fixtures::reserved::error(Rule::PasswordPreseed),
-            "\"rootwait\" is reserved: a password preseed leaves its value in /var/cache/debconf/passwords.dat (protocol/format/tasks.md, 11)\n",
+            "\"rootwait\" is reserved: a password preseed leaves its value in /var/cache/debconf/passwords.dat (protocol/format/tasks-reserved.md, 1)\n",
             concat!(
                 r#"{"record":"error","kind":"reserved","reserved":{"rule":"password_preseed","what":"rootwait"},"class":"configuration"}"#,
                 "\n"
@@ -40,7 +40,7 @@ fn reserved_bytes() {
         ),
         (
             fixtures::reserved::error(Rule::Overlay),
-            "\"rootwait\" is reserved: extensions would merge over hearth's live overlays (protocol/format/tasks.md, 11)\n",
+            "\"rootwait\" is reserved: extensions would merge over hearth's live overlays (protocol/format/tasks-reserved.md, 1)\n",
             concat!(
                 r#"{"record":"error","kind":"reserved","reserved":{"rule":"overlay","what":"rootwait"},"class":"configuration"}"#,
                 "\n"
@@ -48,7 +48,7 @@ fn reserved_bytes() {
         ),
         (
             fixtures::reserved::error(Rule::TmpfilesSubvolume),
-            "\"rootwait\" is reserved: a nested subvolume breaks a layer (protocol/format/tasks.md, 11)\n",
+            "\"rootwait\" is reserved: a nested subvolume breaks a layer (protocol/format/tasks-reserved.md, 1)\n",
             concat!(
                 r#"{"record":"error","kind":"reserved","reserved":{"rule":"tmpfiles_subvolume","what":"rootwait"},"class":"configuration"}"#,
                 "\n"
@@ -56,7 +56,7 @@ fn reserved_bytes() {
         ),
         (
             fixtures::reserved::error(Rule::TmpfilesWrite),
-            "\"rootwait\" is reserved: a tmpfiles write outside /var, /run or /tmp would fail on the read-only root (protocol/format/tasks.md, 11)\n",
+            "\"rootwait\" is reserved: a tmpfiles write outside /var, /run or /tmp would fail on the read-only root (protocol/format/tasks-reserved.md, 1)\n",
             concat!(
                 r#"{"record":"error","kind":"reserved","reserved":{"rule":"tmpfiles_write","what":"rootwait"},"class":"configuration"}"#,
                 "\n"
@@ -64,7 +64,7 @@ fn reserved_bytes() {
         ),
         (
             fixtures::reserved::error(Rule::TmpfilesPath),
-            "\"rootwait\" is reserved: a tmpfiles path holds no glob or specifier (protocol/format/tasks.md, 11)\n",
+            "\"rootwait\" is reserved: a tmpfiles path holds no glob or specifier (protocol/format/tasks-reserved.md, 1)\n",
             concat!(
                 r#"{"record":"error","kind":"reserved","reserved":{"rule":"tmpfiles_path","what":"rootwait"},"class":"configuration"}"#,
                 "\n"

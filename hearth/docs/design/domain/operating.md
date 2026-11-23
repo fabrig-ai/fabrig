@@ -136,7 +136,7 @@ The postfix task, its checks and the user its command check runs as:
 | `tls` | tcp, http, smtp | `true`, or `{ "expires_within": duration }` | `false`; `true` for https | verify the certificate (for smtp, after `STARTTLS`, or from the start without it), and fail it if it expires within the duration |
 | `server`, `name`, `type`, `expect` | dns | an address; a name; a record type; a value | | ask `server` for `name`'s `type` records; one must equal `expect` |
 
-- **Durations** are the schema's `duration` type (hearth/docs/design/protocol/format/README.md, 5.2): a
+- **Durations** are the schema's `duration` type (hearth/docs/design/protocol/format/schema.md, 1.2): a
   positive integer and one unit, `s`, `m`, `h` or `d`, such as `5s`,
   `1m`, `14d`.
 - **A field may take its value from the task's settings,** as the
@@ -237,7 +237,7 @@ The postfix task, its checks and the user its command check runs as:
 ### 2.6 Probes from another target
 
 - **A probe with `from` runs on the targets that play that role.** A
-  role is a task, as exports are read by task (hearth/docs/design/protocol/format/README.md, 6.2):
+  role is a task, as exports are read by task (hearth/docs/design/protocol/format/exports.md, 1.2):
   `"from": "prober"` names the targets of the environment that have the
   `prober` task. Render exports such a probe with its task's exports,
   rendered, with the target it probes; each target of the environment
@@ -252,7 +252,7 @@ The postfix task, its checks and the user its command check runs as:
   engine pairs it with the probed machine; neither hearth needs the
   other.
 - **Within one environment.** A lab target never probes production, and
-  the reverse, as exports never cross an environment (hearth/docs/design/protocol/format/README.md, 6.3).
+  the reverse, as exports never cross an environment (hearth/docs/design/protocol/format/exports.md, 1.3).
 
 ### 2.7 Results and states
 
@@ -412,7 +412,7 @@ hearth/docs/design/protocol/wire.md, section 5.
   | pressure | `/proc/pressure/{cpu,memory,io}`, `avg60` | `some` above 20 %: warning; `full` above 10 % (memory, io): critical |
 
   - Thresholds are the `alarms` setting of the hearth task
-    (hearth/docs/design/protocol/format/tasks.md, 12), so a target tunes its own.
+    (hearth/docs/design/protocol/format/tasks-hearth.md, 1), so a target tunes its own.
   - **Hysteresis:** an alarm is raised after 3 samples past its
     threshold and cleared after 6 back within it, so a flapping value
     does not flood the channel.
@@ -483,7 +483,7 @@ person reads them through the engine.
   (`/proc/meminfo`), pressure (`/proc/pressure/*`), load
   (`/proc/loadavg`), and disk use per mount (`df`), every 10 s.
   - They are kept in a ring of fixed size in the steward's records, in
-    the store's `state/` (hearth/docs/design/domain/store/README.md, 6.3; hearth/docs/design/domain/steward.md, 2.2), at three
+    the store's `state/` (hearth/docs/design/domain/store/state.md, 1.3; hearth/docs/design/domain/steward.md, 2.2), at three
     resolutions: 10 s for 6 hours, 1 minute for 3 days, 15 minutes for
     60 days. The sizes are computed at startup and bounded.
   - The ring is on disk, so a reboot keeps what led up to it.
@@ -492,7 +492,7 @@ person reads them through the engine.
 - **Served on demand,** by bounded reads of a window
   (hearth/docs/design/protocol/wire.md, section 6). Nothing is pushed. The steward reads the journal
   itself, as `hearth` in the group `systemd-journal` (hearth/docs/design/domain/activator/README.md, 3.2;
-  hearth/docs/design/protocol/format/tasks.md, 12); its builder, spawned with no supplementary group,
+  hearth/docs/design/protocol/format/tasks-hearth.md, 1); its builder, spawned with no supplementary group,
   cannot (hearth/docs/design/domain/steward.md, 2.3).
 - **No central store for metrics or logs to start.** If history across
   the fleet is needed later, it is a service the factory deploys from
@@ -540,7 +540,7 @@ lack of disk, and had no off-machine backup of service data at all.
 ### 7.1 Snapshots [M5]
 
 - **What:** each class the `hearth` task's `snapshots` setting names
-  (hearth/docs/design/protocol/format/tasks.md, 12), whole: a snapshot of `@mail-prod.data` holds
+  (hearth/docs/design/protocol/format/tasks-hearth.md, 1), whole: a snapshot of `@mail-prod.data` holds
   postfix's spool and the mailboxes as they were at one instant. `cache`
   never.
 - **How:** on the class's period, from the running slot's data policies
@@ -589,7 +589,7 @@ lack of disk, and had no off-machine backup of service data at all.
   the parent. The parent is a local snapshot the backup keeps: the
   newest the peer has confirmed, whatever the local retention says.
 - **To a backup peer:** a target of the same environment that has the
-  `backup_peer` task, a role as exports read roles (hearth/docs/design/protocol/format/README.md, 6.2).
+  `backup_peer` task, a role as exports read roles (hearth/docs/design/protocol/format/exports.md, 1.2).
   Render gives each target its peer through that task's exports, and
   the peer the targets it receives from, so a peer accepts streams only
   from the targets its own spec names.
@@ -606,7 +606,7 @@ lack of disk, and had no off-machine backup of service data at all.
   - **The peer's backup key** is an identity item of the peer's target,
     an X25519 key made once with `age-keygen` (hearth/docs/design/domain/activator/operations.md, 7), whose
     public half is a fact, recorded in the repository and exported by
-    the peer's `backup_peer` task (hearth/docs/design/protocol/format/README.md, 6.4 and 6.7).
+    the peer's `backup_peer` task (hearth/docs/design/protocol/format/exports.md, 1.4 and 1.7).
   - **The recipient reaches the activator at prepare,** in the class's
     policy in the sending slot's `data` part, rendered from that export,
     and is kept in the slot record: a send request names a class and a
@@ -719,7 +719,7 @@ lack of disk, and had no off-machine backup of service data at all.
   itself on any machine but a lab pool host, whatever its engine says
   (hearth/docs/design/domain/activator/operations.md, 15). A pool host of the lab is one whose own target
   is in the lab's environment and has containers placed on it
-  (hearth/docs/design/protocol/format/README.md, 3.5; hearth/docs/design/domain/slots/containers.md, 4).
+  (hearth/docs/design/protocol/format/targets.md, 1.5; hearth/docs/design/domain/slots/containers.md, 4).
 - **The kinds, each applied and removed by an operation of the
   activator [M6] (hearth/docs/design/domain/activator/operations.md, 15) with typed arguments, never a
   command line from the engine:**
@@ -734,7 +734,7 @@ lack of disk, and had no off-machine backup of service data at all.
 - **The network faults need a pool's containers on networks of their
   own** (veth pairs and a bridge), where the fleet's containers share
   their host's (`VirtualEthernet=no`); a container's network is a
-  placement field, `network: veth` with its `bridge` (hearth/docs/design/protocol/format/README.md, 3.4).
+  placement field, `network: veth` with its `bridge` (hearth/docs/design/protocol/format/targets.md, 1.4).
 - **Every fault has an end,** a duration in its order, after which the
   host's hearth removes it itself: a fault, like a trial, always ends,
   even if the engine is gone.
@@ -801,7 +801,7 @@ lack of disk, and had no off-machine backup of service data at all.
 - **Restoring an entry without a reboot:** stopping the units that use
   the entry, swapping its directory and remounting its bind; it depends
   on hearth knowing those units, as `live` entries name them for files
-  (hearth/docs/design/protocol/format/tasks.md, 14).
+  (hearth/docs/design/protocol/format/tasks-live.md, 1).
 - **Backups at rest on the peer:** whether the peer keeps the
   ciphertext streams as files, needing no root and never seeing the
   data, at the cost of retention keeping whole chains between periodic

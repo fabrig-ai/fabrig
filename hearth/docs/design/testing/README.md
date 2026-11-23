@@ -96,7 +96,7 @@ its parent; each root (`hearth-domain-builder`, `hearth-domain-steward`,
   steward, including one whose store lies (`worlds.md`, 3).
 - **A restart is cold.** A reboot or a power cut ends every domain; the
   world builds each again from what the fake machine holds, as its
-  startup reads it back (hearth/docs/design/domain/store/README.md, section 6; hearth/docs/design/domain/activator/README.md, section 6).
+  startup reads it back (hearth/docs/design/domain/store/state.md, section 1; hearth/docs/design/domain/activator/state.md, section 1).
 
 ### 2.3 System worlds [M2]
 
@@ -267,7 +267,7 @@ kernel (skein/docs/foundation/testing-strategy.md, section 5).
 ### 3.3 What is compared, and what is not
 
 - **Trees are compared as namespace ids,** as tree digests are
-  (hearth/docs/design/domain/store/README.md, 3.4), so the subordinate base on disk does not matter.
+  (hearth/docs/design/domain/store/digests.md, 1.4), so the subordinate base on disk does not matter.
 - **Left out:** times, inode numbers, the order of entries, keys' bytes,
   logs that carry a timestamp.
 - **Allowed differences are data,** each with its reason, and kept

@@ -100,7 +100,7 @@ fn entries_are_ordered_by_their_full_paths() {
     let mut reversed = child.clone();
     reversed.entries.reverse();
     assert_eq!(original, keyed(&[root, reversed], &ignored));
-    // Independent flattened paths enforce crates.md before crates/a.
+    // Independent flattened paths enforce the dot sorting before the slash.
     assert_eq!(original, keyed(&[tree(1, &[(b"crates.md", 3), (b"crates/a", 5)])], &[]));
 }
 #[test]
