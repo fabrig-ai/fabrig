@@ -25,9 +25,9 @@ pub const REPRESENTATIONS: &[Edit] = &[Edit::Note, Edit::Reorder, Edit::Respace]
 pub fn generated(case: u64) -> Generated {
     repositories::generate(&mut Rng::new(SEED + case), Shape::SMALL)
 }
-/// Build each focused case once at its seed.
-pub fn cases() -> impl Iterator<Item = (u64, Generated)> {
-    CASES.map(|case| (case, generated(case)))
+/// Check each focused case once at its seed.
+pub fn cases(mut check: impl FnMut(u64, Generated)) {
+    skein_world::sweep::each_seed(CASES, |case| check(case, generated(case)));
 }
 #[must_use]
 pub fn digests(run: &Run) -> Vec<(String, Digest)> {
@@ -47,10 +47,10 @@ pub fn run(generated: &Generated, seed: u64) -> Run {
     render(&super::repository_of(&generated.leaves), &[], seed)
 }
 pub fn unchanged(edit: &Edit) {
-    for (case, generated) in cases() {
+    cases(|case, generated| {
         let edited = repositories::edit(&mut Rng::new(SEED + case), &generated, edit);
         assert_eq!(digests(&run(&edited, case)), digests(&run(&generated, case)), "case {case}: {edit:?}");
-    }
+    });
 }
 
 /// Six targets and two tasks; two templates fit within a KiB.
@@ -82,11 +82,13 @@ pub fn deterministic(batch: u64) {
         for seed in SCHEDULES {
             assert_eq!(self::digests(&render(&repository, &[], seed)), digests, "case {case}: seed {seed}");
         }
+        skein_checks::count("seed", 1 + SCHEDULES.end - SCHEDULES.start);
     }
 }
 /// One of ruling 195's fifteen `generated_repositories_and_edits_keep_every_property_<k>` batches.
 pub fn sweep(batch: u64) {
     let start = batch * ROUNDS_PER_BATCH;
+    let mut mutations = skein_checks::MutationBatch::default();
     for case in start..start + ROUNDS_PER_BATCH {
         let generated = generated(case);
         let digests = self::digests(&run(&generated, case));
@@ -101,8 +103,12 @@ pub fn sweep(batch: u64) {
             "case {case}: {edit:?}"
         );
         let isolated = isolated(&generated, case);
-        mutation_property(&isolated, &repositories::mutate(&mut rng, &isolated), case);
+        mutations.judge(repositories::mutate(&mut rng, &isolated), |mutated| {
+            mutation_property(&isolated, &mutated, case);
+        });
     }
+    mutations.finish();
+    skein_checks::count("seed", ROUNDS_PER_BATCH);
 }
 
 /// Named parties of 30.2's production and environment edits.
@@ -132,18 +138,17 @@ pub fn changed(before: &[(String, Digest)], after: &[(String, Digest)]) -> Vec<S
     names
 }
 pub fn locality(edit: &Edit) {
-    for (case, generated) in cases() {
+    cases(|case, generated| {
         let before = digests(&run(&generated, case));
         let after = digests(&run(&edited(&generated, edit, case), case));
         assert_eq!(changed(&before, &after), repositories::touched(&generated, edit), "case {case}: {edit:?}");
-    }
+    });
 }
 #[must_use]
 pub fn environment<T: Clone>(digests: &[(String, T)], environment: &str) -> Vec<(String, T)> {
     digests.iter().filter(|(name, _)| name.ends_with(&format!("-{environment}"))).cloned().collect()
 }
-#[must_use]
-pub fn mutations(case: u64) -> (Generated, Generated) {
+pub fn mutations(case: u64) -> (Generated, skein_checks::Mutation<Generated>) {
     let generated = isolated(&generated(case), case);
     let mutated = repositories::mutate(&mut Rng::new(SEED + case), &generated);
     (generated, mutated)
@@ -255,5 +260,6 @@ pub fn collision_order(batch: u64) {
         for seed in SCHEDULES {
             assert_eq!(errors(&render(&repository, &[], seed)), errors(&run), "case {case}: seed {seed}");
         }
+        skein_checks::count("seed", 1 + SCHEDULES.end - SCHEDULES.start);
     }
 }

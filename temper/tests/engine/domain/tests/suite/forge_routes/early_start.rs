@@ -855,9 +855,7 @@ fn an_amendment_dropping_a_dependency_started_from_is_refused_naming_it() {
     stop(&mut world, &goal);
 }
 
-#[test]
-fn a_dependency_into_another_repository_does_not_wait_for_a_push() {
-    let mut world = world_with(true);
+fn adopt_library(world: &mut World) {
     world.adopted.clear();
     world.send(engine::Event::Party(engine::PartyInput::Application {
         scope: people::ApplicationScope::Project(1),
@@ -886,6 +884,15 @@ fn a_dependency_into_another_repository_does_not_wait_for_a_push() {
         "library adopted: {:?}",
         world.adopted
     );
+}
+
+#[path = "early_start/cross_repository.rs"]
+mod cross_repository;
+
+#[test]
+fn a_dependency_into_another_repository_does_not_wait_for_a_push() {
+    let mut world = world_with(true);
+    adopt_library(&mut world);
     let (mut world, goal, _, _) = goal_world_in(world);
     let upstream = make(&mut world, &goal, b"Change repo", &[]);
     reviews::next_assignment(&mut world, 1);

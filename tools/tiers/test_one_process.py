@@ -48,6 +48,17 @@ def setUpModule():
 
 
 class ProtocolTests(unittest.TestCase):
+    def test_fail_fast_observes_failure_before_output_or_exit(self):
+        module = runpy.run_path(str(HERE / 'one_process.py'))
+        process = module['BinaryProcess'].__new__(module['BinaryProcess'])
+        process.log, process.logs = bytearray(), {}
+        process.announcements, process.done = [], {}
+        process.cancelled_at = None
+        with mock.patch('os.read', side_effect=[b'fail', b'ed a\n']):
+            self.assertFalse(process.read(0, 'log', None, fail_fast=True))
+            self.assertTrue(process.read(0, 'log', None, fail_fast=True))
+        self.assertEqual(process.done, {})
+
     def test_cancellation_keeps_result_read_before_mark(self):
         module = runpy.run_path(str(HERE / 'one_process.py'))
         process = module['BinaryProcess'].__new__(module['BinaryProcess'])
@@ -349,11 +360,13 @@ class RunnerFixture(unittest.TestCase):
         if decision['counted']:
             self.assertNotIn(line, output)
             for process in results['processes']:
-                if process['kind'] in ('tests', 'fresh', 'alone'):
+                if process['kind'] in ('tests', 'fresh'):
                     self.assertIs(type(process['instructions']), int)
                     self.assertGreater(process['instructions'], 0)
                     if process['binary_id'] == 'fixture::count' and 'spin' in process['tests']:
                         self.assertGreaterEqual(process['instructions'], 10_000_000)
+                else:
+                    self.assertIsNone(process['instructions'])
         else:
             self.assertEqual(output.count(line), 1)
             self.assertEqual(output.count(f"{line}{decision['why']}\n"), 1)
@@ -384,6 +397,42 @@ class RunnerFixture(unittest.TestCase):
 
 
 class CountingRunTests(RunnerFixture):
+    def checks_fixture(self, contents):
+        runner = self.root / 'write-checks'
+        runner.write_text(rf"""#!{shutil.which('python3')}
+import os
+from pathlib import Path
+import sys
+name = sys.argv[-1]
+checks = Path(os.environ['TIERS_CHECKS_FILE'])
+assert checks.is_absolute() and not checks.exists()
+if name == 'a':
+    with checks.open('ab') as output:
+        output.write({contents!r})
+print(f'test {{name}} ... ok')
+with open(sys.argv[sys.argv.index('--logfile') + 1], 'w') as log:
+    log.write(f'ok {{name}}\n')
+print('test result: ok')
+""")
+        runner.chmod(0o700)
+        self.binary(names=('a', 'b'))
+        self.listing['rust-suites']['fixture::suite']['binary-path'] = str(runner)
+        self.run.__globals__['LANES'] = 2
+
+    def test_checks_are_read_once_per_process_and_missing_is_empty(self):
+        self.checks_fixture(b'store-check 2\nseed 4\nstore-check 3\n')
+        result = self.invoke()
+        self.assertEqual({tuple(p['tests']): p['checks'] for p in result['processes']},
+                         {('a',): {'store-check': 5, 'seed': 4}, ('b',): {}})
+        checks, = self.directory.glob('checks-*.txt')
+        self.assertEqual(checks.read_bytes(), b'store-check 2\nseed 4\nstore-check 3\n')
+
+    def test_malformed_checks_refuse_the_run_with_process_file_and_line(self):
+        self.checks_fixture(b'seed 1\nstore-check 0\n')
+        with self.assertRaisesRegex(ValueError, r'process \d+ \(fixture::suite\): .*checks-\d+\.txt, '
+                                    r"malformed check line 2: b'store-check 0\\n'"):
+            self.invoke()
+
     def test_suite_counts_spawned_thread_and_idle_process(self):
         self.listing['rust-suites'].clear()
         self.binary('fixture::count', names=('idle', 'spin'), native='count')
@@ -437,7 +486,7 @@ class CountingRunTests(RunnerFixture):
                     events.append(dict(event=kind, **fields))
                 with mock.patch.dict(globals_, counting=lambda: dict(counted=True, why=None),
                                      perf_event_open=opener, emit=emit):
-                    self.module['lanes'](plan)
+                    self.module['lanes'](plan, self.root)
                 self.assertEqual([e['event'] for e in events[:2]], ['lanes', 'counting'])
                 process, = [e['item'] for e in events if e['event'] == 'process']
                 test, = [e['item'] for e in events if e['event'] == 'test']
@@ -470,7 +519,7 @@ class LaneTests(RunnerFixture):
                 self.assertEqual(plan['lanes'], fixed)
                 output = io.StringIO()
                 with contextlib.redirect_stdout(output):
-                    self.module['lanes'](plan)
+                    self.module['lanes'](plan, self.root)
                 events = [json.loads(line.removeprefix(self.module['EVENT']))
                           for line in output.getvalue().splitlines()]
                 self.assertEqual([event['lanes'] for event in events if event['event'] == 'lanes'],
@@ -718,6 +767,25 @@ class PlacementTests(RunnerFixture):
 
 
 class WorkspaceTests(RunnerFixture):
+    def test_package_scope_survives_a_binary_skipped_by_the_default_filter(self):
+        package = self.metadata['packages'][0]
+        self.metadata['packages'].append(dict(package, id='other-id', name='other'))
+        self.metadata['workspace_members'].append('other-id')
+        self.metadata['workspace_default_members'] = ['fixture-id']
+        self.listing['rust-suites']['fixture::suite'] = dict(status='skipped')
+        self.config.write_text('[profile.default]\ndefault-filter = "none()"\n')
+        cases = [([], ['fixture']), (['--workspace'], ['fixture', 'other']),
+                 (['--workspace', '--exclude', 'fixture'], ['other']), (['--package=fixture'], ['fixture'])]
+        command = self.command[:4]
+        for index, (selection, packages) in enumerate(cases):
+            with self.subTest(selection=selection):
+                self.command = [*command, *selection, '--no-tests=pass']
+                self.directory = self.root / f'run-{index}'
+                result = self.invoke()
+                self.assertEqual(result['selected_packages'], packages)
+                self.assertFalse(result['test_filtered'])
+                self.assertTrue(all(not binary['listed'] for binary in result['workspace']))
+
     def test_workspace_includes_unlisted_packages_and_excludes_non_test_targets(self):
         package = self.metadata['packages'][0]
         package.update(name='temper-fixture', manifest_path=str(self.root / 'temper/crates/fixture/Cargo.toml'),
@@ -743,6 +811,8 @@ class WorkspaceTests(RunnerFixture):
                     dict(binary_id='temper-fixture', tree='temper', layer='step', listed=True),
                     dict(binary_id='temper-fixture::suite', tree='temper', layer=layer, listed=True)])
                 self.assertEqual(result['selected'], 2)
+                self.assertEqual(result['selected_packages'], ['temper-fixture'])
+                self.assertFalse(result['test_filtered'])
 
     def test_workspace_ids_follow_target_kinds(self):
         rows = [
@@ -778,6 +848,8 @@ class WorkspaceTests(RunnerFixture):
             dict(binary_id='fixture::suite', tree='repository', layer='checks', listed=True)])
         self.assertEqual(result['selected'], 0)
         self.assertEqual(result['processes'], [])
+        self.assertEqual(result['selected_packages'], ['fixture'])
+        self.assertTrue(result['test_filtered'])
 
 
 class ReferenceTests(RunnerFixture):
@@ -1005,6 +1077,47 @@ class ReferenceTests(RunnerFixture):
 
 
 class EndToEndTests(RunnerFixture):
+    def test_fail_fast_command_skips_budget_and_keeps_nextest_arguments(self):
+        self.env['FIXTURE_CASE'] = 'first-failure'
+        self.binary(names=('a',))
+        self.binary('fixture::waiting', names=('b',))
+        self.config.write_text(self.config.read_text() +
+                               '[test-groups.serial]\nmax-threads = 1\n'
+                               '[[profile.default.overrides]]\n'
+                               'filter = "test(=a)"\npriority = 10\n'
+                               '[[profile.default.overrides]]\n'
+                               'filter = "all()"\ntest-group = "serial"\n')
+        budget = self.root / 'budgets.toml'
+        budget.write_text('[default]\ncpu_suite_s = 0.000001\n')
+        self.prepare()
+        env = dict(self.env, PATH=str(self.root) + os.pathsep + self.env['PATH'])
+        result = subprocess.run([str(HERE / 'one-process'), '--out', str(self.directory),
+                                 '--budgets', str(budget), '--gate', '--fail-fast',
+                                 'default', '-p', 'fixture'],
+                                cwd=self.root, env=env, stdin=subprocess.DEVNULL,
+                                capture_output=True, text=True, timeout=10)
+        self.assertEqual(result.returncode, 100, result.stdout + result.stderr)
+        self.assertEqual(result.stdout.count('stopped after a failure, no budget judged'), 1)
+        self.assertFalse((self.directory / 'ledger.json').exists())
+        results = json.loads((self.directory / 'results.json').read_text())
+        self.assertIsNone(results['cancelled'])
+        run = json.loads((self.directory / 'run.json').read_text())
+        self.assertFalse(run['starved'])
+        summary = self.module['CPU']['summary'](
+            self.directory, {'default': {'cpu_suite_s': 0.000001}}, gate=True)
+        self.assertGreater(summary['suite']['cpu_s'], 0.000001)
+        self.assertEqual(summary['over_budget'], [])
+        self.assertEqual(summary['failures'], ['fixture::suite a'])
+        self.assertEqual(summary['unobserved'], [
+            dict(binary_id='fixture::waiting', test_name='b', attempt=1)])
+        self.assertEqual(len(summary['processes']), 1)
+        self.assertEqual([c.get('name') for c in ET.parse(self.directory / 'junit.xml').findall('.//testcase')],
+                         ['a'])
+        calls = [json.loads(line) for line in (self.root / 'cargo-argv.jsonl').read_text().splitlines()]
+        listing, = [call for call in calls if call[:2] == ['nextest', 'list']]
+        self.assertEqual(listing, ['nextest', 'list', '--message-format', 'json',
+                                   '--profile', 'default', '--config-file', str(self.config), '-p', 'fixture'])
+
     def test_execute_outcomes(self):
         cpu = runpy.run_path(str(HERE / 'cpu.py'))
         execute = cpu['execute_one_process']
@@ -1057,10 +1170,10 @@ class EndToEndTests(RunnerFixture):
         self.assertEqual(result['counting'], data['counting'])
         self.assertEqual([p['instructions'] for p in result['processes']],
                          [p['instructions'] for p in data['processes']])
-        processes = [p for p in result['processes'] if p['kind'] in ('tests', 'fresh', 'alone')]
+        processes = [p for p in result['processes'] if p['kind'] in ('tests', 'fresh')]
         self.assertTrue(processes)
         for process in result['processes']:
-            if process['kind'] not in ('tests', 'fresh', 'alone'):
+            if process['kind'] not in ('tests', 'fresh'):
                 self.assertIsNone(process['instructions'])
         if result['counting']['counted']:
             for process in processes:
@@ -1106,10 +1219,11 @@ class EndToEndTests(RunnerFixture):
         self.assertEqual(len(result['processes']), 2)
         count = self.assert_ledger_counts(result, data, ledger, output.getvalue())
         counts = [] if count is None else [dict(commit=data['commit'], instructions=count)]
-        self.assertEqual(ledger, dict(ledger=5, profile='default', budgets={}, moves=[], binaries={
+        self.assertEqual(ledger, dict(ledger=6, profile='default', budgets={}, moves=[], coverage_reasons=[], binaries={
             'fixture::suite': dict(tree='repository', layer='checks',
                                   cpu=[sum(p['cpu_s'] for p in result['processes'])],
-                                  tests={t['test_name']: [t['wall_s']] for t in result['tests']}, alone={}, counts=counts)}))
+                                  tests={t['test_name']: [t['wall_s']] for t in result['tests']},
+                                  alone={}, counts=counts, checks={})}))
         self.assertEqual(set(ledger['binaries']['fixture::suite']['tests']), {'a', 'b', 'c'})
 
         self.directory = self.root / 'second run with spaces'
@@ -1155,8 +1269,10 @@ class EndToEndTests(RunnerFixture):
         self.assertIn('signal 15 (SIGTERM)', failure.get('message'))
         self.assertEqual(self.module['CPU']['summary'](self.directory)['verdict'], 'starved')
         calls = [json.loads(line) for line in (self.root / 'cargo-argv.jsonl').read_text().splitlines()]
-        self.assertIn(str(self.config), calls[0])
-        self.assertNotIn(str(walls), calls[0])
+        # cargo metadata runs beside the listing, so the listing need not be the first call.
+        listing, = [call for call in calls if call[:2] == ['nextest', 'list']]
+        self.assertIn(str(self.config), listing)
+        self.assertNotIn(str(walls), listing)
 
     def test_walls_refuse_before_commands(self):
         walls = self.root / 'walls.toml'
@@ -1798,6 +1914,43 @@ class HoldTests(RunnerFixture):
 
 
 class RunnerTests(RunnerFixture):
+    def test_fail_fast_drains_active_processes(self):
+        self.run.__globals__['LANES'] = 2
+        self.env['FIXTURE_CASE'] = 'slow'
+        self.config.write_text(self.config.read_text() +
+                               '[test-groups.serial]\nmax-threads = 1\n'
+                               '[[profile.default.overrides]]\n'
+                               'filter = "binary_id(=fixture::suite) | binary_id(=fixture::waiting)"\n'
+                               'test-group = "serial"\n')
+        self.binary(names=('a_sets', 'b_reads'), native='state')
+        self.binary('fixture::active', names=('b', 'c'))
+        self.binary('fixture::waiting', names=('d',))
+        kept = self.root / 'target/tiers-one-process/times.json'
+        kept.parent.mkdir(parents=True, exist_ok=True)
+        kept.write_text(json.dumps({'default': {'fixture::suite': {'a_sets': 0.1, 'b_reads': 0.1}, 'fixture::active': {'b': 0.1, 'c': 0.1}, 'fixture::waiting': {'d': 0.1}}}))  # known costs: one process a binary
+        results = self.invoke(fail_fast=True, ledger=dict(binaries={}))
+        self.assertTrue(results['fail_fast'])
+        self.assertEqual([(p['binary_id'], p['tests']) for p in results['processes']], [
+            ('fixture::suite', ['a_sets', 'b_reads']), ('fixture::active', ['b', 'c'])])
+        tests = {(t['binary_id'], t['test_name']): t['outcome'] for t in results['tests']}
+        self.assertEqual(tests, {('fixture::suite', 'a_sets'): 'passed',
+                                 ('fixture::suite', 'b_reads'): 'failed',
+                                 ('fixture::active', 'b'): 'passed',
+                                 ('fixture::active', 'c'): 'passed'})
+        self.assertEqual(results['unobserved'], [dict(binary_id='fixture::waiting', test_name='d')])
+        self.assertEqual(results['references'], [])
+
+    def test_fail_fast_crash_skips_fresh_process(self):
+        self.env['FIXTURE_CASE'] = 'crash'
+        self.binary('fixture::waiting', names=('d',))
+        results = self.invoke(fail_fast=True)
+        self.assertTrue(results['fail_fast'])
+        self.assertEqual([(t['test_name'], t['outcome']) for t in results['tests']],
+                         [('a', 'passed'), ('b', 'crashed')])
+        self.assertEqual([p['kind'] for p in results['processes']], ['tests'])
+        self.assertEqual(results['unobserved'], [dict(binary_id='fixture::suite', test_name='c'),
+                                                  dict(binary_id='fixture::waiting', test_name='d')])
+
     def test_passing_binary_and_prefix(self):
         self.binary(names=('a', 'b', 'c', 'ignored'))
         self.command.extend(['-Pdefault', '--status-level=fail', '--no-capture',
@@ -2043,6 +2196,15 @@ class RunnerTests(RunnerFixture):
                 if kept:
                     self.assertEqual(times['absent'], 9)
 
+    def test_a_binary_without_kept_times_spreads_over_every_lane(self):
+        # A workspace's first run: the heavy binary must not run as one long process beside a light one.
+        self.run.__globals__['LANES'] = 4
+        self.binary(names=('a', 'b', 'c', 'd'))
+        result = self.invoke()
+        parts = [p['tests'] for p in result['processes'] if p['binary_id'] == 'fixture::suite']
+        self.assertEqual(len(parts), 4)
+        self.assertEqual(sorted(name for part in parts for name in part), ['a', 'b', 'c', 'd'])
+
     def test_repair_case_prioritizes_its_original_process_and_preserves_coverage(self):
         self.run.__globals__['LANES'] = 1
         self.binary(names=('a', 'b'))
@@ -2076,6 +2238,9 @@ class RunnerTests(RunnerFixture):
         self.env['FIXTURE_CASE'] = 'slow'
         self.run.__globals__['LANES'] = 2
         self.binary('fixture::second')
+        kept = self.root / 'target/tiers-one-process/times.json'
+        kept.parent.mkdir(parents=True, exist_ok=True)
+        kept.write_text(json.dumps({'default': {'fixture::suite': dict(a=0.1, b=0.1, c=0.1), 'fixture::second': dict(a=0.1, b=0.1, c=0.1)}}))  # known costs: one process a binary
         self.config.write_text('[test-groups]\nserial={max-threads=1}\n[profile.default]\n'
                                '[[profile.default.overrides]]\nfilter="all()"\ntest-group="serial"\n')
         processes = sorted(self.invoke()['processes'], key=lambda p: p['start_s'])

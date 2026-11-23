@@ -294,4 +294,5 @@ pub(crate) fn sweep(seed: u64) {
             compare(&mut world, task, &doc, &after, 110 + case);
         }
     }
+    skein_checks::count("seed", 1);
 }

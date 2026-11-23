@@ -231,6 +231,54 @@ pub fn account_rows(providers: &jig_domain_accounts::Providers) -> Box<[engine::
     rows.into_boxed_slice()
 }
 
+/// The first provider's bootstrap deployment account.
+pub const FIRST_LLM_ACCOUNT: u32 = 0;
+/// Its one key source, created by `account_rows`.
+pub const FIRST_LLM_SOURCE: u32 = 1;
+/// A second deployment account on the same provider.
+pub const SECOND_LLM_ACCOUNT: u32 = 2;
+/// The second account's one key source.
+pub const SECOND_LLM_SOURCE: u32 = 3;
+
+/// Room for two usable accounts and both simultaneously retained grants.
+pub fn two_account_limits(limits: &mut engine::Limits) {
+    limits.accounts.accounts = 2;
+    limits.accounts.holder_accounts = 2;
+    limits.accounts.credentials = 2;
+    // Core reserves one selected credential and one account grant per account.
+    limits.fleet.grants = 4;
+}
+
+/// Add a second usable deployment account beside the first provider's bootstrap account.
+pub fn add_second_account(store: &mut crate::store::Store) {
+    use jig_domain_accounts::{Holder, Kind, Stored};
+    let rows = [
+        Stored::Account {
+            list: None,
+            number: SECOND_LLM_ACCOUNT,
+            provider: 1,
+            holder: Holder::Deployment,
+            place: 1,
+            uses: None,
+            subject: Box::new([]),
+            display: Box::new([]),
+        },
+        Stored::Source {
+            account: SECOND_LLM_ACCOUNT,
+            number: SECOND_LLM_SOURCE,
+            place: 0,
+            kind: Kind::Key,
+            name: Box::new([]),
+            held: None,
+        },
+        Stored::Next { number: SECOND_LLM_SOURCE + 1 },
+    ]
+    .into_iter()
+    .map(|row| engine::Record::Core(jig_domain_core::Record::Accounts(row)))
+    .collect();
+    store.seed(rows, Box::new([]));
+}
+
 /// Keep temper's actual first-start transaction and wires mark, then account rows at receipt three.
 /// Callers construct a second identical configuration for their cold root; no domain
 /// configuration is cloned by hand and no account/session request precedes the story.

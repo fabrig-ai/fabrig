@@ -17,40 +17,42 @@ pub fn store(store: &Store, config: &Config, limits: &Limits, wall: Wall, commit
 }
 
 fn rehearse(image: Image, mut config: Config, limits: &Limits, wall: Wall, commit: u64) -> Result<(), String> {
-    // The nominal fixture workers offer the scenario's full fleet capacity, as in Driver::cold.
-    for worker in &mut config.core.defaults.workers {
-        worker.places = limits.fleet.slots;
-    }
-    let mut root = engine::Domain::new(config, limits).expect("valid engine configuration");
-    root.rehearse();
-    let store = image.open();
-    let pending = store.pending_generation;
-    let mut start = Rehearsal {
-        root,
-        env: Env { now: Time::from_nanos(wall.as_nanos()), wall, limits: *limits },
-        out: Queue::uncapped(),
-        events: VecDeque::from([Event::Restart { pending }]),
-        store,
-    };
-    let mut quiet = 0;
-    loop {
-        if start.root.rehearsed() {
-            return Ok(());
+    StoreChecks::rehearse(|| {
+        // The nominal fixture workers offer the scenario's full fleet capacity, as in Driver::cold.
+        for worker in &mut config.core.defaults.workers {
+            worker.places = limits.fleet.slots;
         }
-        if let Some(refusal) = start.root.start_stop() {
-            let phase = start.root.start_phase().map_or_else(|| "None".to_owned(), |phase| format!("{phase:?}"));
-            return Err(finding(commit, &phase, &format!("{refusal:?}")));
+        let mut root = engine::Domain::new(config, limits).expect("valid engine configuration");
+        root.rehearse();
+        let store = image.open();
+        let pending = store.pending_generation;
+        let mut start = Rehearsal {
+            root,
+            env: Env { now: Time::from_nanos(wall.as_nanos()), wall, limits: *limits },
+            out: Queue::uncapped(),
+            events: VecDeque::from([Event::Restart { pending }]),
+            store,
+        };
+        let mut quiet = 0;
+        loop {
+            if start.root.rehearsed() {
+                return Ok(());
+            }
+            if let Some(refusal) = start.root.start_stop() {
+                let phase = start.root.start_phase().map_or_else(|| "None".to_owned(), |phase| format!("{phase:?}"));
+                return Err(finding(commit, &phase, &format!("{refusal:?}")));
+            }
+            if quiet == 2 {
+                let phase = start.root.start_phase().map_or_else(|| "None".to_owned(), |phase| format!("{phase:?}"));
+                return Err(format!("store check: commit {commit}: start stalled at {phase}"));
+            }
+            if !start.advance() && start.events.is_empty() && start.store.pending.is_empty() {
+                quiet += 1;
+            } else {
+                quiet = 0;
+            }
         }
-        if quiet == 2 {
-            let phase = start.root.start_phase().map_or_else(|| "None".to_owned(), |phase| format!("{phase:?}"));
-            return Err(format!("store check: commit {commit}: start stalled at {phase}"));
-        }
-        if !start.advance() && start.events.is_empty() && start.store.pending.is_empty() {
-            quiet += 1;
-        } else {
-            quiet = 0;
-        }
-    }
+    })
 }
 
 /// The start talks only to its store and its own durable continuations.

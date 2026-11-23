@@ -63,6 +63,7 @@ mod resource_admission;
 mod asks_no_one;
 
 mod delegate_amendment;
+mod kept_delegate;
 #[path = "forge_routes/producer_amendment.rs"]
 mod producer_amendment;
 mod producer_words;
@@ -584,22 +585,29 @@ fn a_change_whose_ci_takes_minutes_lands_without_being_held() {
 
 #[test]
 fn an_agent_review_gate_runs_at_the_head_and_its_approval_lands_the_change() {
-    check_gate_landing(false, false);
+    check_gate_landing(false, false, false);
 }
 
 #[test]
 fn a_change_to_a_repository_without_ci_lands_on_its_checks() {
-    check_gate_landing(true, false);
+    check_gate_landing(true, false, false);
 }
 
 #[test]
 fn a_projects_own_enforced_rule_holds_landing_for_its_gate() {
-    check_gate_landing(false, true);
+    check_gate_landing(false, true, false);
 }
 
-fn check_gate_landing(no_ci: bool, owner_gate: bool) {
+#[test]
+fn a_change_hears_its_coder_and_released_reviewers_pass() {
+    check_gate_landing(false, false, true);
+}
+
+#[expect(clippy::too_many_lines, reason = "one review gate's preparation, optional stop and landing")]
+fn check_gate_landing(no_ci: bool, owner_gate: bool, stopped: bool) {
     let (mut world, _chat, producer, branch) =
         change_world_with_policy(no_ci, 1000, None, !owner_gate, no_ci, owner_gate, false);
+    let tasks::Party::Task(change) = live_task(&world, producer.task).requester else { panic!("change parent") };
     assert!(matches!(
         world.external(2, raw::Op::Git(raw::Git::Create { branch: branch.clone(), commit: 1 })),
         raw::Answer::Branch(raw::Created::Created)
@@ -630,7 +638,30 @@ fn check_gate_landing(no_ci: bool, owner_gate: bool) {
             break;
         }
     }
-    let gate = world.assigned.get(2).expect("agent gate assigned").clone();
+    let mut gate = world.assigned.get(2).expect("agent gate assigned").clone();
+    if stopped {
+        review_person(&mut world, 180, people::Ask::Stop { project: 1, task: change });
+        world.advance_ticks(100);
+        let event =
+            world.protocol.answer(Token::new(7), gate.task, gate.attempt, 0, tasks::End::Parked, engine::Parts::none());
+        world.send(event);
+        world.advance_ticks(100);
+        let revision = live_task(&world, change).revisions.hold;
+        review_person(&mut world, 181, people::Ask::Release { project: 1, task: change, revision, again: None });
+        for _ in 0..200 {
+            world.tick();
+            if world.assigned.iter().any(|run| run.task == gate.task && run.attempt > gate.attempt) {
+                break;
+            }
+        }
+        gate = world
+            .assigned
+            .iter()
+            .rev()
+            .find(|run| run.task == gate.task && run.attempt > gate.attempt)
+            .expect("released review")
+            .clone();
+    }
     if owner_gate {
         assert!(
             world.store.rows.values().all(|stored| !matches!(stored,
@@ -678,7 +709,42 @@ fn check_gate_landing(no_ci: bool, owner_gate: bool) {
                 && change.verdicts.iter().any(|report| Some(report.head) == change.change.last_head
                     && report.status == temper_engine_domain_forge_change::Status::Passed))
     )));
+    if stopped {
+        let heard = |task, kind: tasks::ResultKind| {
+            world.store.rows.values().any(|row| {
+                matches!(row,
+            Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Activity(line)))
+                if line.task == change && matches!(&line.line, tasks::Line::Heard(word)
+                    if word.from == tasks::Party::Task(task) && word.kind == tasks::MessageKind::Result(kind.clone())))
+            })
+        };
+        assert!(
+            heard(
+                producer.task,
+                tasks::ResultKind::Change {
+                    connector: 0,
+                    kind: 2,
+                    resource: temper_engine_domain_forge::tag(forge_world::REPO.forge, forge_world::REPO.repository)
+                }
+            ),
+            "the change hears its coder"
+        );
+        assert!(
+            heard(gate.task, tasks::ResultKind::Verdict { code: 1, fields: Box::new([]) }),
+            "the change hears the released review's pass"
+        );
+    }
     world.close();
+}
+
+fn review_person(world: &mut World, key: u8, ask: people::Ask) {
+    world.send(engine::Event::Party(engine::PartyInput::Ask {
+        models: Box::new([]),
+        reply_to: ReplyTo::new(Token::new(u64::from(key))),
+        sign_in: world.signed_in.expect("owner"),
+        key: [key; 16],
+        ask,
+    }));
 }
 
 #[test]
@@ -1948,25 +2014,15 @@ fn a_worker_frozen_past_its_grace_resumes_with_a_push_in_hand_and_lands_nothing_
 #[test]
 #[expect(clippy::too_many_lines, reason = "the base repair story drives two consecutive change landings")]
 fn a_broken_landing_branch_gets_one_deployment_repair_before_waiting_changes_land() {
-    let (mut world, _chat, producer, branch) = change_world(false, 1000, None);
-    assert!(matches!(
-        world.external(
-            1,
-            raw::Op::Write(raw::Write::Status {
-                commit: 1,
-                context: Box::from(&b"build"[..]),
-                state: raw::Check::Failed,
-                description: Box::new([]),
-                link: Box::new([])
-            })
-        ),
-        raw::Answer::Done
-    ));
+    let (mut world, _chat, producer, branch) = change_world_with_gate(false, 1000, None, true);
+    let tasks::Party::Task(waiter) = live_task(&world, producer.task).requester else {
+        panic!("producer belongs to a4")
+    };
     assert!(matches!(
         world.external(2, raw::Op::Git(raw::Git::Create { branch: branch.clone(), commit: 1 })),
         raw::Answer::Branch(raw::Created::Created)
     ));
-    fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"file", b"fix", 1)
+    let original = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"file", b"fix", 1)
         .expect("original change pushed");
     let event = world.protocol.answer(
         Token::new(7),
@@ -1992,9 +2048,40 @@ fn a_broken_landing_branch_gets_one_deployment_repair_before_waiting_changes_lan
             break;
         }
     }
+    let review = world.assigned.get(2).expect("first review").clone();
+    assert!(world.store.change(waiter).expect("open change").pull.is_some());
+    assert_eq!(live_task(&world, waiter).phase, tasks::Phase::Active(tasks::Active::Idle));
+    assert!(goal_landing::ended(&world, waiter).is_none(), "a4 has no result at its open read");
+    let red = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", b"main", b"base", b"broken", 1)
+        .expect("person pushes red main");
+    world.advance_ticks(20);
+    assert!(matches!(
+        world.external(
+            1,
+            raw::Op::Write(raw::Write::Status {
+                commit: red,
+                context: Box::from(&b"build"[..]),
+                state: raw::Check::Failed,
+                description: Box::new([]),
+                link: Box::new([])
+            })
+        ),
+        raw::Answer::Done
+    ));
+    goal_landing::finish_run(
+        &mut world,
+        &review,
+        tasks::TaskResult::Verdict { code: 1, fields: Box::new([]), words: b"approved".as_slice().into() },
+    );
+    for _ in 0..200 {
+        world.tick();
+        if world.assigned.len() >= 4 {
+            break;
+        }
+    }
     let repair = world
         .assigned
-        .get(2)
+        .get(3)
         .unwrap_or_else(|| {
             panic!(
                 "base failure assigned deployment repair producer; task4={:?}; task5={:?}; assignments={:?}",
@@ -2004,6 +2091,27 @@ fn a_broken_landing_branch_gets_one_deployment_repair_before_waiting_changes_lan
             )
         })
         .clone();
+    assert_eq!(live_task(&world, waiter).phase, tasks::Phase::Active(tasks::Active::Idle));
+    assert!(goal_landing::ended(&world, waiter).is_none(), "a4 has no result while paused");
+    assert_eq!(world.merges, 0, "nothing lands while main is red");
+    let repairs: Vec<_> = world
+        .store
+        .rows
+        .values()
+        .filter_map(|record| match record {
+            Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(task)))
+                if task.requester == (tasks::Party::Deployment { project: 1 }) =>
+            {
+                Some(task)
+            }
+            _ => None,
+        })
+        .collect();
+    let [procedure] = repairs.as_slice() else { panic!("one deployment repair: {repairs:?}") };
+    assert_eq!(procedure.spec.words.as_ref(), b"Repair landing branch CI");
+    assert_eq!(live_task(&world, repair.task).requester, tasks::Party::Task(procedure.number));
+    let repair_task = procedure.number;
+    // No agent call intervenes: the deployment creates the repair on discovering red CI.
     let repair_branch = repair.workspace.repositories[0].push.as_ref().expect("repair branch").clone();
     assert_ne!(repair_branch, branch);
     assert!(world.store.rows.values().any(|stored| matches!(stored,
@@ -2011,7 +2119,7 @@ fn a_broken_landing_branch_gets_one_deployment_repair_before_waiting_changes_lan
             if world.store.change(change.task).unwrap().base_repair && change.queue_repair.is_none())
     )));
     assert!(matches!(
-        world.external(2, raw::Op::Git(raw::Git::Create { branch: repair_branch.clone(), commit: 1 })),
+        world.external(2, raw::Op::Git(raw::Git::Create { branch: repair_branch.clone(), commit: red })),
         raw::Answer::Branch(raw::Created::Created)
     ));
     fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &repair_branch, b"base", b"fixed", 1)
@@ -2034,8 +2142,26 @@ fn a_broken_landing_branch_gets_one_deployment_repair_before_waiting_changes_lan
         engine::Parts::none(),
     );
     world.send(event);
+    let mut reviewed = std::collections::BTreeSet::from([review.task]);
     for _ in 0..1000 {
         world.tick();
+        for run in world.assigned.clone() {
+            let needs_review =
+                world.store.rows.get(&Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Live(run.task)))).is_some_and(
+                    |stored| {
+                        matches!(stored,
+                    Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(task)))
+                        if matches!(task.contract, tasks::Contract::Verdict { .. }))
+                    },
+                );
+            if needs_review && reviewed.insert(run.task) {
+                goal_landing::finish_run(
+                    &mut world,
+                    &run,
+                    tasks::TaskResult::Verdict { code: 1, fields: Box::new([]), words: b"approved".as_slice().into() },
+                );
+            }
+        }
         if world
             .store
             .rows
@@ -2066,6 +2192,57 @@ fn a_broken_landing_branch_gets_one_deployment_repair_before_waiting_changes_lan
         "deployment repair and waiting change land; forge={:?}",
         world.store.rows.values().filter(|row| matches!(row, Record::Forge { .. })).collect::<Vec<_>>()
     );
+    for _ in 0..200 {
+        world.tick();
+        if [repair_task, waiter].iter().all(|task| goal_landing::ended(&world, *task).is_some()) {
+            break;
+        }
+    }
+    let mut records = Vec::new();
+    while let Some(record) = world.fake.pop_observation() {
+        records.push(record);
+    }
+    assert_eq!(world.fake.observations_lost(), 0);
+    let landings: Vec<_> = records
+        .iter()
+        .filter_map(|record| match record {
+            fake::Observation::Merged { number, head, commit, .. } => Some((*number, *head, *commit)),
+            _ => None,
+        })
+        .collect();
+    assert_eq!(landings.len(), 2);
+    let repair_row = world.store.change(repair_task).expect("repair change");
+    let waiter_row = world.store.change(waiter).expect("waiting change");
+    assert_eq!(landings[0].0, repair_row.pull.expect("repair pull"));
+    assert_eq!(landings[1].0, waiter_row.pull.expect("a4 pull"));
+    assert_ne!(landings[1].1, original, "a4 updates onto the repaired main");
+    let raw::Answer::Comparison { contains_base, .. } = world.external(
+        1,
+        raw::Op::Read(raw::Read::Compare { base: landings[0].2, head: landings[1].1, page: 1, limit: 10 }),
+    ) else {
+        panic!("a4 compared with repaired main")
+    };
+    assert!(contains_base, "a4's updated head contains the repair merge");
+    for (task, (_, head, merge)) in [(repair_task, landings[0]), (waiter, landings[1])] {
+        let green = records.iter().position(|record| {
+            matches!(record,
+            fake::Observation::Reported { commit, state: raw::Check::Passed, .. } if *commit == head)
+        });
+        let landed = records.iter().position(|record| {
+            matches!(record,
+            fake::Observation::Merged { commit, .. } if *commit == merge)
+        });
+        assert!(green.zip(landed).is_some_and(|(green, landed)| green < landed));
+        let ended = goal_landing::ended(&world, task).expect("landed task");
+        let tasks::Phase::Ended(tasks::Ending::Done(tasks::TaskResult::Change { words, .. })) = &ended.phase else {
+            panic!("change result: {:?}", ended.phase)
+        };
+        let id = translate::commit(merge).iter().fold(String::new(), |mut id, byte| {
+            write!(id, "{byte:02x}").expect("merge hex");
+            id
+        });
+        assert!(words.windows(32).any(|word| word == &id.as_bytes()[..32]), "result names merge");
+    }
     world.close();
 }
 
@@ -3232,6 +3409,55 @@ fn an_authorized_forge_read_returns_a_bounded_typed_answer() {
 }
 
 #[test]
+fn a_tester_without_tools_cannot_write_a_forge_status() {
+    let mut world = World::configured(true, false);
+    world.adopt();
+    world.send(protocol::hello_slots(Token::new(7), 1, Box::new([])));
+    let mut ask = world.chat(1, b"Report one adversarial test");
+    let people::Ask::Create { batch, .. } = &mut ask else { panic!("tester creation") };
+    batch[0].authority.tools = 0;
+    batch[0].authority.grants = Box::new([]);
+    batch[0].authority.delegation = people::Delegation { kinds: Box::new([]), tasks: 0, depth: 0 };
+    world.send(engine::Event::Party(engine::PartyInput::Ask {
+        models: Box::new([]),
+        reply_to: ReplyTo::new(Token::new(92)),
+        sign_in: world.signed_in.expect("owner session"),
+        key: [92; 16],
+        ask,
+    }));
+    world.until(Until::Assigned);
+    let tester = world.assigned[0].clone();
+    let before = world.writes.clone();
+    let answer = world.scripted_call(
+        &tester,
+        93,
+        engine::Tool::EffectForge {
+            repository: forge_world::REPO,
+            resource: forge_top::What::Repository,
+            write: Box::new(skein_forge::api::Write::Status {
+                commit: translate::commit(1),
+                context: b"tester-without-authority".as_slice().into(),
+                check: skein_forge::api::Check::Passed,
+                description: Box::new([]),
+                link: Box::new([]),
+            }),
+        },
+    );
+    assert!(
+        matches!(answer, engine::CallAnswer::ToolDenied { findings, .. } if findings.as_ref() == [jig_domain_authority::Finding::Tool])
+    );
+    assert_eq!(world.writes, before, "the refused tester writes nothing to the forge");
+    assert!(
+        !temper_engine_smith::charter(&tester)
+            .grants
+            .host_tools
+            .iter()
+            .any(|tool| tool.name.as_ref() == b"effect_forge")
+    );
+    world.close();
+}
+
+#[test]
 fn a_named_forge_effect_is_committed_before_its_write_and_made_once() {
     let mut world = World::configured(true, false);
     world.adopt();
@@ -3805,49 +4031,65 @@ fn a_tracked_goals_changes_install_their_landing_topic_alone_without_agent_calls
     world.close();
 }
 
+fn planned_goal() -> (World, engine::Assignment, engine::Assignment) {
+    let (mut world, goal, producer, _) = change_world_with_policy(true, 1000, None, false, false, false, true);
+    let event =
+        world.protocol.answer(Token::new(7), goal.task, goal.attempt, 0, tasks::End::Parked, engine::Parts::none());
+    world.send(event);
+    world.advance_ticks(30);
+    (world, goal, producer)
+}
+
+fn landing_over(world: &mut World, path: &[u8]) {
+    assert!(fake::advance(&mut world.fake, &world.fake_env, b"org/repo", b"main", path, b"changed", 1).is_ok());
+    world.send(engine::Event::Forge(Box::new(forge_top::Event::Hint {
+        hint: skein_forge::api::Hint {
+            repository: forge_world::REPO,
+            change: skein_forge::api::Change::Branch(Box::from(&b"main"[..])),
+            key: None,
+        },
+    })));
+    world.advance_ticks(200);
+}
+
+#[test]
+fn a_planned_change_names_its_footprint_before_producing_a_pull() {
+    let (mut world, goal, producer) = planned_goal();
+    let owner = live_task(&world, goal.task);
+    assert_ne!(owner.root, goal.task, "the tracked goal is delegated");
+    assert!(matches!(owner.requester, tasks::Party::Task(_)));
+    let tasks::Party::Task(change) = live_task(&world, producer.task).requester else {
+        panic!("producer belongs to its planned change")
+    };
+    assert_eq!(live_task(&world, change).requester, tasks::Party::Task(goal.task));
+    assert!(
+        live_task(&world, change).spec.parameters.iter().any(
+            |parameter| matches!(parameter, tasks::Parameter::Bytes { name: 6, value } if value.as_ref() == b"file")
+        )
+    );
+    assert!(
+        world.store.rows.values().all(|stored| !matches!(stored,
+        Record::Forge { row, .. } if matches!(row.as_ref(), forge_top::Stored::ChangeHot(row)
+            if row.task == change && row.pull.is_some()))),
+        "change has no produced pull"
+    );
+    world.close();
+}
+
 #[test]
 fn a_delegated_goal_is_woken_by_a_landing_over_its_planned_path() {
     for (path, class, wakes) in
         [(b"file".as_slice(), tasks::NewsClass::Wakes, true), (b"other".as_slice(), tasks::NewsClass::Kept, false)]
     {
-        let (mut world, goal, producer, _) = change_world_with_policy(true, 1000, None, false, false, false, true);
-        let owner = live_task(&world, goal.task);
-        assert_ne!(owner.root, goal.task, "the tracked goal is delegated");
-        assert!(matches!(owner.requester, tasks::Party::Task(_)));
-        let tasks::Party::Task(change) = live_task(&world, producer.task).requester else {
-            panic!("producer belongs to its planned change")
-        };
-        assert_eq!(live_task(&world, change).requester, tasks::Party::Task(goal.task));
-        assert!(live_task(&world, change).spec.parameters.iter().any(
-            |parameter| matches!(parameter, tasks::Parameter::Bytes { name: 6, value } if value.as_ref() == b"file")
-        ));
-        assert!(
-            world.store.rows.values().all(|stored| !matches!(stored,
-            Record::Forge { row, .. } if matches!(row.as_ref(), forge_top::Stored::ChangeHot(row)
-                if row.task == change && row.pull.is_some()))),
-            "change has no produced pull"
-        );
-        let event =
-            world.protocol.answer(Token::new(7), goal.task, goal.attempt, 0, tasks::End::Parked, engine::Parts::none());
-        world.send(event);
-        world.advance_ticks(30);
+        let (mut world, goal, _) = planned_goal();
         let assigned = world.assigned.len();
-        assert!(fake::advance(&mut world.fake, &world.fake_env, b"org/repo", b"main", path, b"changed", 1).is_ok());
-        world.send(engine::Event::Forge(Box::new(forge_top::Event::Hint {
-            hint: skein_forge::api::Hint {
-                repository: forge_world::REPO,
-                change: skein_forge::api::Change::Branch(Box::from(&b"main"[..])),
-                key: None,
-            },
-        })));
-        world.advance_ticks(200);
+        landing_over(&mut world, path);
         assert!(
             live_task(&world, goal.task)
                 .inbox
                 .iter()
                 .any(|word| matches!(word.kind, tasks::MessageKind::News { class: actual, .. } if actual == class)),
-            "landing classification for {path:?}: {:?}",
-            live_task(&world, goal.task).inbox
+            "landing classification for {path:?}"
         );
         assert_eq!(
             world.assigned[assigned..].iter().any(|run| run.task == goal.task),
@@ -3856,6 +4098,69 @@ fn a_delegated_goal_is_woken_by_a_landing_over_its_planned_path() {
         );
         world.close();
     }
+}
+
+#[test]
+fn an_overlapping_landing_waits_in_a_held_goals_inbox_until_release() {
+    let (mut world, goal, producer) = planned_goal();
+    world.send(engine::Event::Party(engine::PartyInput::Ask {
+        models: Box::new([]),
+        reply_to: ReplyTo::new(Token::new(801)),
+        sign_in: world.signed_in.expect("person"),
+        key: [81; 16],
+        ask: people::Ask::Stop { project: 1, task: goal.task },
+    }));
+    world.advance_ticks(30);
+    let terminal = world.protocol.answer(
+        Token::new(7),
+        producer.task,
+        producer.attempt,
+        0,
+        tasks::End::Parked,
+        engine::Parts::none(),
+    );
+    world.send(terminal);
+    world.advance_ticks(30);
+    let assigned = world.assigned.len();
+    landing_over(&mut world, b"file");
+    let row = live_task(&world, goal.task);
+    assert!(matches!(row.phase, tasks::Phase::Held { .. }));
+    let revision = row.revisions.hold;
+    let news: Vec<_> = row
+        .inbox
+        .iter()
+        .filter(|word| matches!(word.kind, tasks::MessageKind::News { class: tasks::NewsClass::Wakes, .. }))
+        .cloned()
+        .collect();
+    assert_eq!(news.len(), 1, "one overlapping landing waits in the held inbox");
+    let number = news[0].number;
+    assert!(!world.assigned[assigned..].iter().any(|run| run.task == goal.task), "no run while held");
+    world.send(engine::Event::Party(engine::PartyInput::Ask {
+        models: Box::new([]),
+        reply_to: ReplyTo::new(Token::new(802)),
+        sign_in: world.signed_in.expect("person"),
+        key: [82; 16],
+        ask: people::Ask::Release { project: 1, task: goal.task, revision, again: None },
+    }));
+    world.advance_ticks(100);
+    // The ancestor acknowledges the hold/release notice and returns its slot.
+    let root = live_task(&world, goal.task).root;
+    let notified = world.assigned.iter().rev().find(|run| run.task == root).expect("notified owner").clone();
+    let terminal =
+        world.protocol.answer(Token::new(7), root, notified.attempt, 0, tasks::End::Parked, engine::Parts::none());
+    world.send(terminal);
+    world.advance_ticks(100);
+    let resumed: Vec<_> = world.assigned[assigned..].iter().filter(|run| run.task == goal.task).collect();
+    assert_eq!(resumed.len(), 1, "release wakes the goal once");
+    assert_eq!(resumed[0].messages.iter().filter(|word| word.number == number).count(), 1);
+    assert!(
+        !world
+            .delivered_messages
+            .get(&(goal.task, resumed[0].attempt))
+            .is_some_and(|numbers| numbers.contains(&number)),
+        "the start's news is not delivered again"
+    );
+    world.close();
 }
 
 /// The task's current specification revision, as its durable row shows it.

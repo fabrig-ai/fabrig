@@ -22,12 +22,12 @@ fn drawn(seed: u64) -> Settings {
 /// at every iteration, then their complete text when settled (`run_replayed`).
 /// Eight shards share the fuzzy suite's threads (testing-strategy.md, section 8).
 fn shard(seeds: Range<u64>) {
-    for seed in seeds {
+    skein_world::sweep::each_seed(seeds, |seed| {
         let settings = drawn(seed);
         let world = run_replayed(settings);
         assert!(world.referee.done(), "seed {seed}");
         assert_eq!(world.restarts, u32::from(settings.restart), "seed {seed}");
-    }
+    });
 }
 
 /// The 64 seeds draw both commit cuts across a delayed and an immediate store
