@@ -68,25 +68,27 @@ fn text_is_written_exactly_when_it_is_utf8_and_reads_back_the_same() {
 #[test]
 fn a_number_is_written_exactly_when_the_grammar_reads_one() {
     let mut written = 0;
+    let mut mutations = generate::MutationBatch::default();
     for round in 0..20_000 {
         let mut rng = Rng::new(0x0059_0000 + round);
-        let mut text = generate::number(&mut rng).into_vec();
-        if rng.chance(500) {
-            text = generate::mutate(&mut rng, &text);
-        }
-        let tokens = [Token::Number(text.clone().into_boxed_slice())];
-        match write(&tokens, &WRITER) {
-            Ok(document) => {
-                assert!(reference::is_number(&text), "{} is a number", text.escape_ascii());
-                assert_eq!(&*document, &text[..], "a number is written as it is");
-                written += 1;
+        let text = generate::number(&mut rng).into_vec();
+        let text = if rng.chance(500) { generate::mutate(&mut rng, &text) } else { text.into() };
+        mutations.judge(text, |text| {
+            let tokens = [Token::Number(text.clone().into_boxed_slice())];
+            match write(&tokens, &WRITER) {
+                Ok(document) => {
+                    assert!(reference::is_number(&text), "{} is a number", text.escape_ascii());
+                    assert_eq!(&*document, &text[..], "a number is written as it is");
+                    written += 1;
+                }
+                Err(refusal) => {
+                    assert_eq!(refusal, Refusal::Number);
+                    assert!(!reference::is_number(&text), "{} is not a number", text.escape_ascii());
+                }
             }
-            Err(refusal) => {
-                assert_eq!(refusal, Refusal::Number);
-                assert!(!reference::is_number(&text), "{} is not a number", text.escape_ascii());
-            }
-        }
+        });
     }
+    mutations.finish();
     assert!(written > 10_000, "most numbers are numbers: {written}");
 }
 

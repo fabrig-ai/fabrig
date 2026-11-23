@@ -634,6 +634,11 @@ impl<B: Backend> World<B> {
         &self.backend
     }
 
+    /// Return the settled provider face for a following process activation.
+    pub fn into_backend(self) -> B {
+        self.backend
+    }
+
     /// Configure the selected fake backend at a boundary between iterations.
     pub fn backend_mut(&mut self) -> &mut B {
         &mut self.backend
@@ -2297,14 +2302,7 @@ impl World<Typed> {
         disk: Checkout,
         scripts: Box<[provider::api::Script]>,
     ) -> World {
-        let mut backend = Typed::new(&settings);
-        backend.provider = provider::Domain::configured(
-            &settings.provider,
-            settings.seed ^ 0x25,
-            scripts,
-            smith_session_world::provider::menu(),
-        )
-        .expect("caller scripts obey provider admission");
+        let backend = Typed::scripted(&settings, scripts);
         Self::with_selected_backend(&settings, transcript, Box::default(), workspace, disk, backend, None, None)
     }
 
@@ -2321,14 +2319,7 @@ impl World<Typed> {
         scripts: Box<[provider::api::Script]>,
         charter: run::Charter,
     ) -> World {
-        let mut backend = Typed::new(&settings);
-        backend.provider = provider::Domain::configured(
-            &settings.provider,
-            settings.seed ^ 0x25,
-            scripts,
-            smith_session_world::provider::menu(),
-        )
-        .expect("caller scripts obey provider admission");
+        let backend = Typed::scripted(&settings, scripts);
         Self::with_selected_backend(
             &settings,
             transcript,
@@ -2350,14 +2341,7 @@ impl World<Typed> {
         scripts: Box<[provider::api::Script]>,
         start: Event,
     ) -> World {
-        let mut backend = Typed::new(&settings);
-        backend.provider = provider::Domain::configured(
-            &settings.provider,
-            settings.seed ^ 0x25,
-            scripts,
-            smith_session_world::provider::menu(),
-        )
-        .expect("caller scripts obey provider admission");
+        let backend = Typed::scripted(&settings, scripts);
         Self::with_selected_backend(&settings, None, Box::default(), None, disk, backend, None, Some(start))
     }
 

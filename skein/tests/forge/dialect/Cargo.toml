@@ -12,6 +12,7 @@ skein-forge.workspace = true
 skein-json.workspace = true
 skein-lib.workspace = true
 skein-scratch.workspace = true
+skein-checks.workspace = true
 
 [lints.rust] # harness: tools/lints/design.md, 2.2
 unsafe_code = "forbid"

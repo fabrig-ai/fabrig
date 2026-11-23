@@ -198,11 +198,6 @@ impl Step {
 pub enum ReadCondition {
     Contains(&'static [u8]),
     NoProjectNamed(&'static str),
-    LimitedTask {
-        task: u64,
-        account: u64,
-        source: u64,
-    },
     /// An open writing attempt on this task. Unmet documents resume a native
     /// subject watch through `watch_after`, rather than repeating a task read.
     WritingTask {
@@ -239,17 +234,6 @@ impl ReadCondition {
                                 == Some(attempt)
                         })
                     && value.get("result").is_some_and(serde_json::Value::is_null)
-            }
-            Self::LimitedTask { task, account, source } => {
-                let Ok(value) = serde_json::from_slice::<serde_json::Value>(stdout) else { return false };
-                value.pointer("/chip/task").and_then(serde_json::Value::as_u64) == Some(task)
-                    && value.pointer("/chip/phase").and_then(serde_json::Value::as_str) == Some("due")
-                    && value.pointer("/run_wait/account/account").and_then(serde_json::Value::as_u64) == Some(account)
-                    && value.pointer("/run_wait/account/source").and_then(serde_json::Value::as_u64) == Some(source)
-                    && value
-                        .pointer("/run_wait/account/why/limited/until")
-                        .and_then(serde_json::Value::as_u64)
-                        .is_some()
             }
         }
     }
@@ -1982,44 +1966,6 @@ mod read_condition_tests {
         assert_eq!(caller.calls[0].stdout, stdout);
         assert_eq!(caller.calls[0].observed_at, Some(Wall::from_nanos(6)));
     }
-    fn limited() -> Vec<u8> {
-        serde_json::to_vec_pretty(&json!({"chip":{"task":crate::case::A,"phase":"due"},
-            "run_wait":{"account":{"account":crate::case::FIRST_ACCOUNT,"source":0,
-                "why":{"limited":{"until":42}}}}}))
-        .expect("task JSON")
-    }
-    fn condition() -> ReadCondition {
-        ReadCondition::LimitedTask { task: crate::case::A, account: crate::case::FIRST_ACCOUNT, source: 0 }
-    }
-    #[test]
-    fn limited_task_requires_all_fields_together_in_one_decoded_document() {
-        let bytes = limited();
-        assert!(condition().matches(&bytes), "JSON whitespace does not change the predicate");
-        for (path, wrong) in [
-            ("/chip/task", json!(999)),
-            ("/chip/phase", json!("running")),
-            ("/run_wait/account/account", json!(999)),
-            ("/run_wait/account/source", json!(1)),
-            ("/run_wait/account/why/limited/until", json!(null)),
-            ("/run_wait/account/why/limited/until", json!("42")),
-            ("/run_wait/account/why/limited/until", json!(-1)),
-            ("/run_wait/account/why/limited/until", json!(42.5)),
-            ("/run_wait/account/why/limited/until", json!(true)),
-        ] {
-            let mut value: serde_json::Value = serde_json::from_slice(&bytes).expect("JSON");
-            *value.pointer_mut(path).expect("field") = wrong;
-            assert!(!condition().matches(&serde_json::to_vec(&value).expect("JSON")), "{path}");
-        }
-        assert!(!condition().matches(br#"{"chip":{"task":2,"phase":"due"},"run_wait":null}"#));
-        assert!(!condition().matches(br#"{"chip":{"task":2,"phase":"due"}}"#));
-        let mut missing: serde_json::Value = serde_json::from_slice(&bytes).expect("JSON");
-        missing["run_wait"]["account"]["why"]["limited"].as_object_mut().expect("limit").remove("until");
-        assert!(!condition().matches(&serde_json::to_vec(&missing).expect("JSON")));
-        assert!(!condition().matches(b"not JSON"));
-        let mut joined = bytes.clone();
-        joined.extend_from_slice(&bytes);
-        assert!(!condition().matches(&joined), "fields cannot be taken from separate responses");
-    }
     #[test]
     fn substring_conditions_keep_existing_non_json_semantics() {
         let condition = ReadCondition::Contains(b"ready");
@@ -2114,7 +2060,7 @@ mod read_condition_tests {
             vec![until_matching(
                 D1,
                 crate::argv!["task", "show", number(crate::case::A), "--json"],
-                condition(),
+                ReadCondition::Contains(b"ready"),
                 b"ended",
             )],
             PathBuf::new(),
@@ -2129,10 +2075,10 @@ mod read_condition_tests {
         caller.calls[0].observed_at = Some(Wall::from_nanos(2));
         caller.read_version.set((1, None));
         caller.advance(Time::from_nanos(3));
-        assert_eq!(caller.next, 0, "initial admission must not advance to accounts");
+        assert_eq!(caller.next, 0, "an unmatched initial response must not advance");
         assert_eq!(caller.calls[0].tries, 2);
         assert_eq!(caller.calls[0].observed_at, None, "a retry clears its preceding response timestamp");
-        let stdout = limited();
+        let stdout = b"ready".to_vec();
         caller.running[0] = None;
         caller.calls[0].exit = Some(Exit::Code(0));
         caller.calls[0].stdout = stdout.clone();

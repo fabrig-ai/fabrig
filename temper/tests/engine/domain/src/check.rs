@@ -8,28 +8,30 @@ use crate::{direct::Driver, oracle::config, store::Store};
 
 /// Rehearse a start over an independent durable image, stopping before the switch.
 pub fn store(store: &Store, config: &Config, limits: &Limits, wall: Wall, commit: u64) -> Result<(), String> {
-    let mut driver = Driver::rehearsing(store.fork(), config::copy(config), limits, wall);
-    let mut quiet = 0;
-    loop {
-        if driver.root.rehearsed() {
-            return Ok(());
+    StoreChecks::rehearse(|| {
+        let mut driver = Driver::rehearsing(store.fork(), config::copy(config), limits, wall);
+        let mut quiet = 0;
+        loop {
+            if driver.root.rehearsed() {
+                return Ok(());
+            }
+            if let Some(refusal) = driver.root.start_stop() {
+                let phase = driver.root.start_phase().map_or_else(|| "None".to_owned(), |phase| format!("{phase:?}"));
+                return Err(finding(commit, &phase, &format!("{refusal:?}")));
+            }
+            if quiet == 2 {
+                let phase = driver.root.start_phase().map_or_else(|| "None".to_owned(), |phase| format!("{phase:?}"));
+                return Err(format!("store check: commit {commit}: start stalled at {phase}"));
+            }
+            let collected = driver.collected;
+            driver.advance(true);
+            if collected == driver.collected && driver.events.is_empty() && driver.store.pending.is_empty() {
+                quiet += 1;
+            } else {
+                quiet = 0;
+            }
         }
-        if let Some(refusal) = driver.root.start_stop() {
-            let phase = driver.root.start_phase().map_or_else(|| "None".to_owned(), |phase| format!("{phase:?}"));
-            return Err(finding(commit, &phase, &format!("{refusal:?}")));
-        }
-        if quiet == 2 {
-            let phase = driver.root.start_phase().map_or_else(|| "None".to_owned(), |phase| format!("{phase:?}"));
-            return Err(format!("store check: commit {commit}: start stalled at {phase}"));
-        }
-        let collected = driver.collected;
-        driver.advance(true);
-        if collected == driver.collected && driver.events.is_empty() && driver.store.pending.is_empty() {
-            quiet += 1;
-        } else {
-            quiet = 0;
-        }
-    }
+    })
 }
 
 /// Count only a newly durable commit, including one whose acknowledgement is held.

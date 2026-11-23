@@ -1,6 +1,6 @@
 # checks: status
 
-2026-11-21. Where the tree's code lags or departs from [checks.md](checks.md).
+2026-11-22. Where the tree's code lags or departs from [checks.md](checks.md).
 
 - **Not yet:** 6.1: `temper-engine-inspect` doesn't exist, and no
   engine world calls the shared checks; the worker's adapter is
@@ -8,16 +8,19 @@
   keeps a fault ledger, draws from the seed's streams or sweeps with
   configured faults and exclusions.
 
-- **Departs:** 1: eighteen named real-loop stories remain in the fuzzy
-  suite: sixteen scripted stories (fourteen reference-case stories,
-  kept-delegate landing and the program backend) and the B0/B1 recorded
-  transcript twins.
+- **Departs:** 1: twelve named real-loop stories remain in the fuzzy
+  suite: nine scripted stories cut to what only the real loop shows
+  (the reference case's 4.1 with 4.3, 4.6, 5.1, 5.2, 5.4, 6.4, 6.6
+  and 6.8, and the kept-delegate landing), the program backend, and the
+  B0/B1 recorded transcript twins (`green_light` and `repair`).
   They remain there because the request for `limits-worlds` kept surviving
-  stories in place. Being past a guide is not a reason to
+  stories in place, and the request for room in the budget
+  (`../draft/failure-worlds.md`, 8) moved their other assertions down
+  without choosing their suite. Being past a guide is not a reason to
   choose that suite (`skein/docs/foundation/testing-strategy.md`, 8.1).
   [`limits-worlds.md`](../../development/limits-worlds.md) gives every
-  survivor's unique coverage, CPU and profiled instructions, and names
-  the closest lower-story candidates. Their placement is the user's to
+  survivor's coverage and CPU as it stood, and `reference-case.md` each
+  step's holders now. Their placement is the user's to
   decide; no exception or cost-driven move resolves this departure.
 
 Section 1's budgets by layer start at the CI builder's gate figures of

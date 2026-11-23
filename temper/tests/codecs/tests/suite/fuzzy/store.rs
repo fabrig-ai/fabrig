@@ -42,14 +42,19 @@ fn fixed_value(bytes: &[u8], bounds: &Bounds) {
     record(&versioned, bounds);
 }
 /// A drawn row, its key, and one mutation of each.
-fn row_and_key(row: &forge::Stored, rng: &mut Rng, bounds: &Bounds) {
+fn row_and_key(
+    mutations: &mut temper_codecs_world::MutationBatch,
+    row: &forge::Stored,
+    rng: &mut Rng,
+    bounds: &Bounds,
+) {
     let bytes = records::encode(row);
     assert_eq!(records::decode(&bytes, bounds), Ok(row.clone()), "drawn row");
     record(&bytes, bounds);
-    record(&temper_codecs_world::mutated(rng, &bytes), bounds);
+    mutations.judge(temper_codecs_world::mutated(rng, &bytes), |bytes| record(&bytes, bounds));
     let bytes = keys::encode(&forge::stored_key(row), u32::MAX).expect("drawn key");
     key(&bytes);
-    key(&temper_codecs_world::mutated(rng, &bytes));
+    mutations.judge(temper_codecs_world::mutated(rng, &bytes), |bytes| key(&bytes));
 }
 fn making_row(rng: &mut Rng) -> forge::Stored {
     forge::Stored::Making(forge::RepositoryMaking {
@@ -103,11 +108,12 @@ fn store_decoders_never_panic_and_reencode_the_same() {
     let bounds = temper_protocol_store::bounds(&LIMITS, LIMITS.client.op_bytes).expect("fixture limits fit");
     let mut rng = Rng::new(0x7e3d_0405);
     let fixed_values = values::store();
+    let mut mutations = temper_codecs_world::MutationBatch::default();
     for _ in 0..2_000 {
         let address = format!("member{}@example.com", rng.next_u64()).into_bytes().into_boxed_slice();
         let binding =
             forge::Stored::Binding { address, subject: temper_codecs_world::drawn(&mut rng, 255).into_boxed_slice() };
-        row_and_key(&binding, &mut rng, &bounds);
+        row_and_key(&mut mutations, &binding, &mut rng, &bounds);
         let device = forge::Stored::Device(forge::Device {
             party: rng.next_u64(),
             number: u32::try_from(rng.below(4_294_967_296)).expect("u32"),
@@ -117,20 +123,20 @@ fn store_decoders_never_panic_and_reencode_the_same() {
             label: vec![b'l'; usize::try_from(rng.below(60)).unwrap() + 1].into_boxed_slice(),
             at: skein_lib::Wall::from_nanos(rng.next_u64()),
         });
-        row_and_key(&device, &mut rng, &bounds);
-        finding_rows(&mut rng, &bounds);
+        row_and_key(&mut mutations, &device, &mut rng, &bounds);
+        finding_rows(&mut mutations, &mut rng, &bounds);
         let making = making_row(&mut rng);
-        row_and_key(&making, &mut rng, &bounds);
+        row_and_key(&mut mutations, &making, &mut rng, &bounds);
         let dismissed = forge::Stored::Dismissed { party: rng.next_u64(), what: person_fact(&mut rng) };
-        row_and_key(&dismissed, &mut rng, &bounds);
+        row_and_key(&mut mutations, &dismissed, &mut rng, &bounds);
         record(&temper_codecs_world::drawn(&mut rng, 512), &bounds);
         key(&temper_codecs_world::drawn(&mut rng, 512));
-        forge_rows(&mut rng, &bounds);
+        forge_rows(&mut mutations, &mut rng, &bounds);
         let writer = forge::Stored::Writer(skein_forge_client::Writer {
             forge: u16::try_from(rng.below(65_536)).expect("u16"),
             author: rng.next_u64().max(1),
         });
-        row_and_key(&writer, &mut rng, &bounds);
+        row_and_key(&mut mutations, &writer, &mut rng, &bounds);
     }
     for owner in [
         forge::settings::AreaOwner::Task(u64::MAX),
@@ -153,6 +159,7 @@ fn store_decoders_never_panic_and_reencode_the_same() {
             (15, s::Value::ProjectTriager(s::ProjectTriager { owner })),
         ] {
             row_and_key(
+                &mut mutations,
                 &forge::Stored::Setting(s::SettingRow {
                     key: s::SettingKey { kind, scope: 1, number: 1, slot: s::SettingSlot::Change },
                     edit: s::Edit::Set(s::SizedValue { value, size: 1 }),
@@ -174,7 +181,7 @@ fn store_decoders_never_panic_and_reencode_the_same() {
             assert_eq!(records::decode(&bytes, &bounds), Ok(row), "all protection facts survive");
             record(&bytes, &bounds);
             for _ in 0..8 {
-                record(&temper_codecs_world::mutated(&mut rng, &bytes), &bounds);
+                mutations.judge(temper_codecs_world::mutated(&mut rng, &bytes), |bytes| record(&bytes, &bounds));
             }
         }
     }
@@ -201,10 +208,10 @@ fn store_decoders_never_panic_and_reencode_the_same() {
                 },
                 held: false,
             };
-            row_and_key(&row, &mut rng, &bounds);
+            row_and_key(&mut mutations, &row, &mut rng, &bounds);
             let bytes = records::encode(&row);
             for _ in 0..8 {
-                record(&temper_codecs_world::mutated(&mut rng, &bytes), &bounds);
+                mutations.judge(temper_codecs_world::mutated(&mut rng, &bytes), |bytes| record(&bytes, &bounds));
             }
         }
     }
@@ -235,7 +242,7 @@ fn store_decoders_never_panic_and_reencode_the_same() {
         let bytes = records::encode(&row);
         record(&bytes, &bounds);
         for _ in 0..8 {
-            record(&temper_codecs_world::mutated(&mut rng, &bytes), &bounds);
+            mutations.judge(temper_codecs_world::mutated(&mut rng, &bytes), |bytes| record(&bytes, &bounds));
         }
     }
     let row = forge::Stored::Application {
@@ -246,22 +253,23 @@ fn store_decoders_never_panic_and_reencode_the_same() {
     let bytes = records::encode(&row);
     record(&bytes, &bounds);
     for _ in 0..8 {
-        record(&temper_codecs_world::mutated(&mut rng, &bytes), &bounds);
+        mutations.judge(temper_codecs_world::mutated(&mut rng, &bytes), |bytes| record(&bytes, &bounds));
     }
     for value in fixed_values {
         let bytes = &value.bytes;
         fixed_value(bytes, &bounds);
         for _ in 0..8 {
-            fixed_value(&temper_codecs_world::mutated(&mut rng, bytes), &bounds);
+            mutations.judge(temper_codecs_world::mutated(&mut rng, bytes), |bytes| fixed_value(&bytes, &bounds));
         }
     }
+    mutations.finish();
 }
 
-fn forge_rows(rng: &mut Rng, bounds: &Bounds) {
-    status_rows(rng, bounds);
-    away_rows(rng, bounds);
-    draft_row(rng, bounds);
-    setting_row(rng, bounds);
+fn forge_rows(mutations: &mut temper_codecs_world::MutationBatch, rng: &mut Rng, bounds: &Bounds) {
+    status_rows(mutations, rng, bounds);
+    away_rows(mutations, rng, bounds);
+    draft_row(mutations, rng, bounds);
+    setting_row(mutations, rng, bounds);
     let number = u16::try_from(rng.below(65_536)).expect("u16");
     let kind = if rng.below(2) == 0 { forge::Kind::Forgejo } else { forge::Kind::GitHub };
     let mode = match rng.below(4) {
@@ -314,8 +322,8 @@ fn forge_rows(rng: &mut Rng, bounds: &Bounds) {
         asked: rng.below(2) == 0,
         first,
     });
-    row_and_key(&row, rng, bounds);
-    row_and_key(&forge::Stored::ForgeNumber { last: number }, rng, bounds);
+    row_and_key(mutations, &row, rng, bounds);
+    row_and_key(mutations, &forge::Stored::ForgeNumber { last: number }, rng, bounds);
     let state = match rng.below(5) {
         0 => forge::PlaygroundState::Starting,
         1 => forge::PlaygroundState::Running,
@@ -329,12 +337,12 @@ fn forge_rows(rng: &mut Rng, bounds: &Bounds) {
         project: optional_number(rng),
         account: optional_number(rng),
     });
-    row_and_key(&row, rng, bounds);
-    tier_rows(rng, bounds);
+    row_and_key(mutations, &row, rng, bounds);
+    tier_rows(mutations, rng, bounds);
 }
 
 #[expect(clippy::too_many_lines, reason = "one drawn tier row covers its policy, flight and independent hold")]
-fn tier_rows(rng: &mut Rng, bounds: &Bounds) {
+fn tier_rows(mutations: &mut temper_codecs_world::MutationBatch, rng: &mut Rng, bounds: &Bounds) {
     use temper_engine_domain_forge_tiers as p;
     let repository = skein_forge::api::Repository {
         forge: u16::try_from(rng.below(65_536)).expect("u16"),
@@ -469,8 +477,8 @@ fn tier_rows(rng: &mut Rng, bounds: &Bounds) {
         });
     }
     let row = forge::Stored::Tier(tier);
-    row_and_key(&row, rng, bounds);
-    verification_row(rng, bounds, repository, blame);
+    row_and_key(mutations, &row, rng, bounds);
+    verification_row(mutations, rng, bounds, repository, blame);
     let row = forge::Stored::Receipt {
         key: forge::ReceiptKey {
             project: 5,
@@ -490,7 +498,7 @@ fn tier_rows(rng: &mut Rng, bounds: &Bounds) {
             ended: skein_lib::Wall::EPOCH,
         },
     };
-    row_and_key(&row, rng, bounds);
+    row_and_key(mutations, &row, rng, bounds);
 }
 fn drawn_failures(rng: &mut Rng) -> temper_engine_domain_forge_tiers::Failures {
     use temper_engine_domain_forge_tiers::Failures;
@@ -513,7 +521,7 @@ fn optional_number(rng: &mut Rng) -> Option<u32> {
     if rng.below(2) == 0 { None } else { Some(u32::try_from(rng.below(4_294_967_296)).expect("u32")) }
 }
 
-fn setting_row(rng: &mut Rng, bounds: &Bounds) {
+fn setting_row(mutations: &mut temper_codecs_world::MutationBatch, rng: &mut Rng, bounds: &Bounds) {
     use forge::settings as s;
     let slot = match rng.below(3) {
         0 => s::SettingSlot::Default,
@@ -551,10 +559,11 @@ fn setting_row(rng: &mut Rng, bounds: &Bounds) {
         key: s::SettingKey { kind: u32::try_from(rng.below(3) + 1).expect("kind"), scope: 0, number: 1, slot },
         edit,
     });
-    row_and_key(&row, rng, bounds);
+    row_and_key(mutations, &row, rng, bounds);
 }
 
 fn verification_row(
+    mutations: &mut temper_codecs_world::MutationBatch,
     rng: &mut Rng,
     bounds: &Bounds,
     repository: skein_forge::api::Repository,
@@ -574,7 +583,7 @@ fn verification_row(
             },
         }]),
     });
-    row_and_key(&row, rng, bounds);
+    row_and_key(mutations, &row, rng, bounds);
     let row = forge::Stored::LandingLog(forge::LandingLog {
         repository,
         landings: Box::new([forge::LoggedLanding {
@@ -596,7 +605,7 @@ fn verification_row(
             }]),
         }]),
     });
-    row_and_key(&row, rng, bounds);
+    row_and_key(mutations, &row, rng, bounds);
     let row = forge::Stored::ChangeCold(Box::new(forge::ChangeCold {
         person: if rng.below(2) == 0 { None } else { Some(rng.next_u64()) },
         goal_title: optional_goal_words(rng),
@@ -621,14 +630,14 @@ fn verification_row(
         follows: None,
         report: Box::new([]),
     }));
-    row_and_key(&row, rng, bounds);
+    row_and_key(mutations, &row, rng, bounds);
 }
 
 fn optional_goal_words(rng: &mut Rng) -> Option<Box<[u8]>> {
     if rng.below(2) == 0 { None } else { Some(temper_codecs_world::drawn(rng, 256).into_boxed_slice()) }
 }
 
-fn status_rows(rng: &mut Rng, bounds: &Bounds) {
+fn status_rows(mutations: &mut temper_codecs_world::MutationBatch, rng: &mut Rng, bounds: &Bounds) {
     use skein_lib::Wall;
     let project = u32::try_from(rng.below(4_294_967_296)).expect("u32");
     let brief = if rng.below(2) == 0 {
@@ -657,7 +666,7 @@ fn status_rows(rng: &mut Rng, bounds: &Bounds) {
         landed: rng.next_u64(),
         last_landed: Wall::from_nanos(rng.next_u64()),
     });
-    row_and_key(&facts, rng, bounds);
+    row_and_key(mutations, &facts, rng, bounds);
     let person = forge::Stored::PersonBrief(forge::PersonBrief {
         party: rng.next_u64(),
         project,
@@ -665,7 +674,7 @@ fn status_rows(rng: &mut Rng, bounds: &Bounds) {
         running,
         unpaid: if rng.below(2) == 0 { None } else { Some(Wall::from_nanos(rng.next_u64())) },
     });
-    row_and_key(&person, rng, bounds);
+    row_and_key(mutations, &person, rng, bounds);
     let looked = forge::Stored::Looked(forge::Looked {
         party: rng.next_u64(),
         project,
@@ -674,10 +683,10 @@ fn status_rows(rng: &mut Rng, bounds: &Bounds) {
         seen: rng.next_u64(),
         next_seen: rng.next_u64(),
     });
-    row_and_key(&looked, rng, bounds);
+    row_and_key(mutations, &looked, rng, bounds);
 }
 
-fn away_rows(rng: &mut Rng, bounds: &Bounds) {
+fn away_rows(mutations: &mut temper_codecs_world::MutationBatch, rng: &mut Rng, bounds: &Bounds) {
     use skein_lib::Wall;
     let project = u32::try_from(rng.below(4_294_967_296)).expect("u32");
     let row = forge::Stored::Away(forge::Away {
@@ -688,7 +697,7 @@ fn away_rows(rng: &mut Rng, bounds: &Bounds) {
         landed: rng.next_u64(),
         off: if rng.below(2) == 0 { None } else { Some(Wall::from_nanos(rng.next_u64())) },
     });
-    row_and_key(&row, rng, bounds);
+    row_and_key(mutations, &row, rng, bounds);
     let count = rng.below(5) + 2;
     let mut options = Vec::new();
     for _ in 0..count {
@@ -726,7 +735,7 @@ fn away_rows(rng: &mut Rng, bounds: &Bounds) {
             away: rng.below(2) == 0,
         },
     });
-    row_and_key(&row, rng, bounds);
+    row_and_key(mutations, &row, rng, bounds);
     if let forge::Stored::Decided(mut row) = row {
         row.took = None;
         row.options = Box::new([]);
@@ -739,11 +748,11 @@ fn away_rows(rng: &mut Rng, bounds: &Bounds) {
         row.reach.sets = u8::try_from(rng.below(64)).expect("six bits");
         row.reach.matched = u8::try_from(rng.below(64)).expect("six bits");
         row.reach.under = u8::try_from(rng.below(21)).expect("item number fits");
-        row_and_key(&forge::Stored::Decided(row), rng, bounds);
+        row_and_key(mutations, &forge::Stored::Decided(row), rng, bounds);
     }
 }
 
-fn finding_rows(rng: &mut Rng, bounds: &Bounds) {
+fn finding_rows(mutations: &mut temper_codecs_world::MutationBatch, rng: &mut Rng, bounds: &Bounds) {
     let hand = rng.below(2) == 0;
     let many = rng.below(2) == 0;
     let blame = if rng.below(4) == 0 {
@@ -827,7 +836,7 @@ fn finding_rows(rng: &mut Rng, bounds: &Bounds) {
             Some(forge::FindingCleared { run: rng.next_u64(), at: skein_lib::Wall::from_nanos(rng.next_u64()) })
         },
     });
-    row_and_key(&row, rng, bounds);
+    row_and_key(mutations, &row, rng, bounds);
     let row = forge::Stored::Subscription(forge::Subscriber {
         task: rng.next_u64(),
         number: rng.next_u64(),
@@ -836,10 +845,10 @@ fn finding_rows(rng: &mut Rng, bounds: &Bounds) {
         goal_tasks: None,
         paths: Box::default(),
     });
-    row_and_key(&row, rng, bounds);
+    row_and_key(mutations, &row, rng, bounds);
 }
 
-fn draft_row(rng: &mut Rng, bounds: &Bounds) {
+fn draft_row(mutations: &mut temper_codecs_world::MutationBatch, rng: &mut Rng, bounds: &Bounds) {
     let row = forge::Stored::LandedDraft(forge::LandedDraft {
         repository: skein_forge::api::Repository {
             forge: u16::try_from(rng.below(65_536)).expect("u16"),
@@ -856,5 +865,5 @@ fn draft_row(rng: &mut Rng, bounds: &Bounds) {
         goal: if rng.below(2) == 0 { None } else { Some(rng.next_u64()) },
         ready: rng.below(2) == 0,
     });
-    row_and_key(&row, rng, bounds);
+    row_and_key(mutations, &row, rng, bounds);
 }

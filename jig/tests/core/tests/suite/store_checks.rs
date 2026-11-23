@@ -9,6 +9,49 @@ use jig_test_domain as root;
 
 const SEED: u64 = 2911;
 
+#[test]
+#[ignore = "selected by the isolated store-check count regression"]
+fn rehearse_every_commit_in_child() {
+    let mut world = World::new(Setup { seed: SEED, ..Setup::default() });
+    world.store_checks(StoreChecks::every());
+    for _ in 0..3 {
+        world.try_seed(Box::new([])).expect("correct fixture commit");
+    }
+    world.finish().expect("closing oracle");
+    let checked = world.store_checks.checked();
+    assert!(checked > 1);
+    assert_eq!(checked, world.store_checks.commits());
+}
+
+#[test]
+fn every_rehearsal_writes_one_store_check_line() {
+    use std::{env, fs, process::Command};
+
+    let scratch = skein_scratch::Scratch::new("store-check-counts");
+    let path = scratch.path().join("checks");
+    for enabled in [false, true] {
+        let mut child = Command::new(env::current_exe().expect("test binary"));
+        child
+            .args(["--exact", "--ignored", "--nocapture", "store_checks::rehearse_every_commit_in_child"])
+            .env_remove("TIERS_CHECKS_FILE");
+        if enabled {
+            child.env("TIERS_CHECKS_FILE", &path);
+        }
+        let result = child.output().expect("run isolated store check story");
+        assert!(result.status.success(), "{result:?}");
+        let stderr = std::str::from_utf8(&result.stderr).expect("store check report is UTF-8");
+        let report = stderr.lines().find_map(|line| line.strip_prefix("store check: ")).expect("child ran the story");
+        let (checked, _) = report.split_once(" of ").expect("report names the checked count");
+        let checked = checked.parse::<usize>().expect("fixture count fits usize");
+        if enabled {
+            let counts = fs::read_to_string(&path).expect("store check counts");
+            assert_eq!(counts, "store-check 1\n".repeat(checked));
+        } else {
+            assert!(!path.exists(), "unset counting leaves no file");
+        }
+    }
+}
+
 fn missing_project(world: &World) -> Box<[root::Record]> {
     let mut row = fixtures::live_row(world, 1).clone();
     row.project = 99;

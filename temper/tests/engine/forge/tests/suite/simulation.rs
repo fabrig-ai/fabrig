@@ -2497,6 +2497,32 @@ fn a_permanently_failed_reason_post_still_closes_and_releases() {
 }
 
 #[test]
+fn cancelling_an_unproduced_change_leaves_only_the_two_existing_pulls() {
+    use skein_fake_forge_domain::Observation;
+    let mut world = World::new(93);
+    world.adopt();
+    for branch in [b"temper/x3".as_slice(), b"temper/a1"] {
+        world.produce(branch);
+        world.open_pull(branch, b"main");
+    }
+    world.event(top::Event::Release {
+        task: RELEASE_TASK,
+        root: RELEASE_TASK,
+        ending: top::ReleaseEnding::Cancelled,
+        reason: Some(Box::from(CANCEL_REASON)),
+        entry: 10,
+    });
+    world.run_for(5);
+    let pulls: Vec<_> = world
+        .observations()
+        .into_iter()
+        .filter_map(|record| if let Observation::Opened { number, .. } = record { Some(number) } else { None })
+        .collect();
+    assert_eq!(pulls, [1, 2], "cancelling a plan without a pull opens none");
+    assert!(world.seen().iter().any(|request| matches!(request, top::Request::Released { task: RELEASE_TASK })));
+}
+
+#[test]
 fn releases_without_a_cancelled_pull_post_no_reason() {
     for ending in [top::ReleaseEnding::Cancelled, top::ReleaseEnding::Done, top::ReleaseEnding::Failed] {
         let mut world = World::new(93);

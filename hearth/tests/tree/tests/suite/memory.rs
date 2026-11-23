@@ -106,16 +106,19 @@ fn reading_generated_cut_and_mutated_frames_holds_no_more_than_its_ceiling() {
     const CEILING: u64 = 6_900;
     const HANDED_OUT_CEILING: u64 = 16_000;
     let limits = fixtures::limits();
+    let mut mutations = mutate::MutationBatch::default();
     for &seed in SEEDS {
         let mut rng = Rng::new(0x7EE0_4000 + seed);
         for record in generate::one_of_each(&mut rng, &limits) {
             let frame = check::write(&record, &limits);
             measure(record.kind(), &frame, &limits, seed, CEILING, HANDED_OUT_CEILING);
             for changed in mutate::frames(&mut rng, &frame) {
-                measure(record.kind(), &changed, &limits, seed, CEILING, HANDED_OUT_CEILING);
+                mutations
+                    .judge(changed, |bytes| measure(record.kind(), &bytes, &limits, seed, CEILING, HANDED_OUT_CEILING));
             }
         }
     }
+    mutations.finish();
 }
 
 #[test]

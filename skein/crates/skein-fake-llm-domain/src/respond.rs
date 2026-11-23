@@ -562,16 +562,25 @@ fn input_turn(group: &[Box<[Rule]>], script: usize, messages: &[Message]) -> Opt
 ///
 /// Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 4.4.
 fn cued(scripts: &[Script], system: &[u8]) -> Option<usize> {
-    // One pass, from each place in the text on, the scripts in order at each.
-    // Bounded by the text: visit every byte suffix, including the empty one.
-    for offset in 0..=system.len() {
-        let text = system.get(offset..).expect("an offset through the text is a suffix");
+    let mut first_bytes = [false; 256];
+    for (index, script) in scripts.iter().enumerate() {
+        // Includes the empty cue, which cannot lose to a later position.
+        if system.starts_with(&script.cue) {
+            return Some(index);
+        }
+        if let Some(first) = script.cue.first() {
+            *first_bytes.get_mut(usize::from(*first)).expect("a byte indexes the byte alphabet") = true;
+        }
+    }
+    // Scan the text once; compare cues only where one can begin. Looking for
+    // each absent cue separately would scan the same long system text again.
+    for (offset, byte) in system.iter().enumerate().skip(1) {
+        if !first_bytes.get(usize::from(*byte)).expect("a byte indexes the byte alphabet") {
+            continue;
+        }
+        let text = system.get(offset..).expect("an enumerated byte begins a suffix");
         for (index, script) in scripts.iter().enumerate() {
-            let leads = match script.cue.first() {
-                Some(first) => text.first() == Some(first),
-                None => true,
-            };
-            if leads && text.starts_with(&script.cue) {
+            if text.starts_with(&script.cue) {
                 return Some(index);
             }
         }
@@ -878,7 +887,7 @@ mod tests {
     use alloc::boxed::Box;
 
     use skein_lib::bytes::copy_of;
-    use skein_lib::{Duration, Rng};
+    use skein_lib::{Duration, List, Rng};
 
     use super::{call_id, respond, valid};
     use crate::api::{Error, Finish, Line, Message, Part, Role, ToolSpec, Turn};
@@ -1100,6 +1109,30 @@ mod tests {
             let unknown = name == b"unknown";
             let broken = arguments == b"{";
             assert!(unknown != broken, "malformed one way: {name:?} {arguments:?}");
+        }
+    }
+
+    #[test]
+    fn cues_choose_the_earliest_position_then_the_first_script() {
+        type Case = (&'static [&'static [u8]], &'static [u8], Option<usize>);
+        let cases: &[Case] = &[
+            (&[b"late", b"early"], b"prefix early late", Some(1)),
+            (&[b"early", b"ear"], b"prefix early", Some(0)),
+            (&[b"ear", b"early"], b"prefix early", Some(0)),
+            (&[b"missing"], b"prefix", None),
+            (&[b"missing", b""], b"", Some(1)),
+            (&[b"x", b""], b"prefix x", Some(1)),
+            (&[b"x", b""], b"x", Some(0)),
+            (&[b"\xffy", b"\0x"], b"prefix \0x \xffy", Some(1)),
+            (&[b"xy"], b"prefix x", None),
+            (&[], b"", None),
+        ];
+        for &(cues, text, expected) in cases {
+            let mut scripts = List::with_capacity(u32::try_from(cues.len()).expect("test cue count"));
+            for cue in cues {
+                scripts.push(script(cue, Box::new([]))).expect("room for every test cue");
+            }
+            assert_eq!(super::cued(scripts.as_slice(), text), expected, "cues {cues:?} in {text:?}");
         }
     }
 

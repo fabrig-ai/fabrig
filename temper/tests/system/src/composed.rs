@@ -19,7 +19,7 @@ use jig_fake_parties as parties;
 use skein_fake_forge_domain::api as fake;
 use skein_fake_llm_domain::api::{Finish, Line, Script, Turn};
 use skein_lib::{Duration, Env, Queue, ReplyTo, Time, Token, Wall};
-use smith_agent_world::World as Agent;
+type Agent = smith_agent_world::World<provider::Provider>;
 use smith_domain_run as run;
 use temper_engine_domain as engine;
 use temper_engine_domain::{Delivery, Key};
@@ -39,6 +39,7 @@ mod agreement;
 #[cfg(test)]
 mod chat;
 pub mod close_job;
+mod delegates;
 #[cfg(test)]
 mod design_delivery;
 mod link;
@@ -48,9 +49,11 @@ mod next_turn;
 mod notes;
 mod parked;
 mod process;
+pub mod provider;
 mod review;
 
 pub use agreement::call;
+pub use delegates::survey_delegation;
 use process::{Around, Process};
 
 const CHANNEL: Token = Token::new(7);
@@ -62,6 +65,10 @@ const RUN_WATCH: Token = Token::new(901);
 /// What crossed the independently driven roots and process channel.
 #[derive(Default, Debug, PartialEq, Eq)]
 pub struct Observed {
+    /// Provider-decoded wire queries, with the task and composed clock.
+    pub queries: Vec<(u64, Time, skein_fake_llm_domain::api::Query)>,
+    /// Limit notices Smith emitted after interpreting the provider's response.
+    pub limits: Vec<(u32, Option<Duration>)>,
     pub assignments: usize,
     pub checkouts: usize,
     pub spawns: usize,
@@ -114,6 +121,8 @@ pub struct World {
     scripts: VecDeque<Script>,
     parked: std::collections::BTreeMap<u64, Process>,
     period_budget: u64,
+    account_generation: Option<u64>,
+    account_read: Option<jig_domain_core::reads::Answer>,
     creating: jig_test_profile::fixtures::Creating,
     chat_ending: tasks::EndedBy,
     goal_branch: bool,
@@ -323,6 +332,12 @@ impl World {
         Self::configured_with(seed, script, false, open_config)
     }
 
+    /// Start an open chat with the adopted repository mounted for local reads.
+    #[must_use]
+    pub fn open_chat_with_repository(seed: u64, script: Script) -> Self {
+        Self::configured_with(seed, script, true, open_config)
+    }
+
     /// Watch an open chat, holding its reply before each later live piece
     /// and before its turn crosses the process channel (testing/tiers.md, 1.1).
     #[must_use]
@@ -453,14 +468,13 @@ impl World {
         config: fn(u64) -> engine::Config,
         limits: fn(&mut engine::Limits),
     ) -> Self {
-        let [(bootstrap, mut limits), (config, _)] = std::array::from_fn(|_| {
-            let (mut config, mut bounds) = configured_parts(config(seed), repository);
-            limits(&mut bounds);
-            for worker in &mut config.core.defaults.workers {
-                worker.places = bounds.fleet.slots;
-            }
-            (config, bounds)
-        });
+        let (mut config, mut bounds) = configured_parts(config(seed), repository);
+        limits(&mut bounds);
+        for worker in &mut config.core.defaults.workers {
+            worker.places = bounds.fleet.slots;
+        }
+        let bootstrap = temper_engine_domain_world::oracle::config::copy(&config);
+        let mut limits = bounds;
         let forge = repository_forge(seed);
         let mut worker_limits =
             if config.core.defaults.charters.len() > 1 { agreement::worker_limits(&limits) } else { worker_limits() };
@@ -487,6 +501,8 @@ impl World {
             scripts: VecDeque::new(),
             parked: std::collections::BTreeMap::new(),
             period_budget: config.core.defaults.rules.period_spend,
+            account_generation: None,
+            account_read: None,
             goal_branch: false,
             creating: jig_test_profile::fixtures::Creating::new(&config.core, limits.tasks.tree_tasks),
             chat_ending: chat_ending(&config),
@@ -595,6 +611,7 @@ impl World {
         }
         self.account_clock();
         let mut around = Around {
+            now: self.env.now,
             events: &mut self.worker_events,
             observed: &mut self.observed,
             disk: &mut self.disk,
@@ -760,8 +777,15 @@ impl World {
         ) else {
             unreachable!("chat creates a task")
         };
+        if self.account_generation.is_some() {
+            batch[0].authority.delegation.depth = 1;
+            batch[0].authority.delegation.tasks = 1;
+        }
         if !self.scripts.is_empty() {
             agreement::quiet(&mut batch[0]);
+            if self.account_generation.is_some() {
+                batch[0].wake.as_mut().expect("chat wake policy").results = people::ResultsWake::LastOrFailure;
+            }
             if self.merge_job.as_ref().is_some_and(|story| story.row == merge_job::Row::Clean) {
                 batch[0].wake.as_mut().expect("goal wake policy").results = people::ResultsWake::LastOrFailure;
             }
@@ -880,6 +904,10 @@ impl World {
     /// One root output: the protocol layer's hand-outs first, then the
     /// store, the forge, and deliveries to the worker and the party.
     fn root_request(&mut self, request: engine::Request) {
+        if let Some(events) = self.provider_account(&request) {
+            self.root_events.extend(events);
+            return;
+        }
         let request = match self.play(request) {
             Ok(events) => {
                 self.root_events.extend(events);
@@ -1167,6 +1195,10 @@ impl World {
         if !self.account_assignment(&assignment) {
             self.select_process(assignment.task);
         }
+        if self.account_generation.is_some() && assignment.task == 2 {
+            self.process.wire = true;
+            self.process.clocked = true;
+        }
         self.observed.assignments += 1;
         let repositories = usize::from(self.adoption != Adoption::Without);
         assert_eq!(assignment.workspace.repositories.len(), repositories);
@@ -1206,7 +1238,13 @@ impl World {
                 self.adoption = Adoption::Adopted;
             }
             Delivery::WebReply { to, reply } => self.web_reply(to.into_token(), reply),
-            Delivery::Read { reply, answer } => self.notes.read(reply, answer),
+            Delivery::Read { reply, answer } => {
+                if self.account_generation.is_some() && reply == ReplyTo::new(Token::new(904)) {
+                    self.account_read = Some(answer);
+                } else {
+                    self.notes.read(reply, answer);
+                }
+            }
             Delivery::Assigned { channel, assignment } => self.assigned(channel, assignment),
             Delivery::Link { channel, down } => {
                 assert_eq!(channel, CHANNEL);
@@ -1281,7 +1319,14 @@ impl World {
         if self.notes.answered(to, &reply) {
             return;
         }
+        if delegates::ranked(to, &reply) {
+            return;
+        }
         if next_turn::picked(to, &reply) {
+            return;
+        }
+        if self.account_generation.is_some() && to == Token::new(903) {
+            assert!(matches!(reply, people::Reply::Outcome(people::Outcome::AccountKeyKept { source: 1 })));
             return;
         }
         if agreement::answered(to, &reply) {
@@ -1391,7 +1436,7 @@ impl World {
         let parts = link::parts(work, preparation);
         let link = engine::Link::Up { up: host::LinkUp::Answer { run, attempt, answer }, parts };
         if let Some(story) = &mut self.merge_job
-            && run.raw() == 4
+            && run.raw() == if story.row == merge_job::Row::MovedBase { 3 } else { 4 }
             && story.base.is_none()
         {
             story.held = Some(link);
@@ -1557,6 +1602,7 @@ impl World {
 
     fn process_request(&mut self, request: worker::agent::process::Request) {
         let mut around = Around {
+            now: self.env.now,
             events: &mut self.worker_events,
             observed: &mut self.observed,
             disk: &mut self.disk,

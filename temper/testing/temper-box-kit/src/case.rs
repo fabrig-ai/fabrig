@@ -34,7 +34,6 @@ pub struct Run {
     told: Vec<Told>,
     kit: Kit,
     workers: BTreeMap<u64, String>,
-    steps: Vec<calls::Step>,
     first_workers: BTreeMap<u64, String>,
 }
 impl Run {
@@ -63,10 +62,8 @@ impl Run {
             documents,
             observed_at,
             told: self.told.clone(),
-            commands: Vec::new(),
             kit: self.kit.clone(),
         }
-        .with_commands(&self.steps)
     }
     #[must_use]
     pub fn first_placed(&self) -> &BTreeMap<u64, String> {
@@ -1221,7 +1218,7 @@ impl Judge {
             use temper_fake::llm::observations::Observation;
             match temper_fake::llm::observations::decode(line).map_err(|why| format!("query record: {why:?}"))? {
                 Observation::Query(query) => {
-                    if let Some(query) = Told::new(&query.system, &query.model, query.credential, &query.messages) {
+                    if let Some(query) = Told::new(&query.system, &query.messages) {
                         told.push(query);
                     }
                 }
@@ -1306,7 +1303,6 @@ impl Judge {
             told,
             kit,
             workers,
-            steps: std::mem::take(&mut self.ran),
             first_workers: std::mem::take(&mut self.first_workers),
         });
 
