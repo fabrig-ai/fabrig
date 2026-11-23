@@ -3,6 +3,9 @@
 2026-11-23. Where skein's code lags or departs from [README.md](README.md).
 
 
+- **Not yet:** 5: the live suite's admission of a lent file is checked
+  by the live binary's own tests on scratch files, not yet in the focused
+  suite over handed facts. [in flight: change 13906]
 - **Not yet:** 5: `skein-live`, the live suite, keeps five of its provider
   stories ignored, outside its automatic run: the suite calls the public route
   with a lent Codex login's API key or access token and Anthropic with a lent

@@ -3,6 +3,9 @@
 2026-11-23. Where skein's code lags or departs from [kv.md](kv.md).
 
 
+- **Not yet:** 9: the golden writer's test runs in the real-loop binary
+  and writes its mismatch to files, not yet telling it in its failure.
+  [in flight: change 13910]
 - **Not yet:** 9: the model-map referee across simulated-disk commits,
   loads, snapshots and crash recovery, commits racing every snapshot
   chunk, and the recovered value check over the real ring. In
