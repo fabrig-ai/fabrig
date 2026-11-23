@@ -135,6 +135,34 @@ fn project_show_lists_a_fork_home_and_keeps_an_owned_non_home_out() {
 }
 
 #[test]
+fn project_show_names_an_owned_home_by_its_forge_and_repository_path() {
+    let mut project = project();
+    project.name = f::document_text(b"widget");
+    project.resources = list(vec![c::ProjectResource {
+        part: c::Part {
+            connector: 1,
+            kind: c::PartKind::Resource,
+            key: c::PartKey::Path(list(vec![1_u16.to_be_bytes().into(), 1_u32.to_be_bytes().into()])),
+        },
+        role: c::ProjectResourceRole::Owned,
+        home: true,
+    }]);
+    let printed = read(&["project", "show", "1", "--json"], project);
+    assert_eq!(printed.status, 0);
+    let json: serde_json::Value = serde_json::from_slice(&printed.stdout).expect("project JSON");
+    assert_eq!(json["number"], 1_u64);
+    assert_eq!(json["name"]["bytes"], "widget");
+    assert_eq!(
+        json["resources"],
+        serde_json::json!([{
+            "part": {"connector": 1_u16, "kind": "resource", "key": {"path": ["0001", "00000001"]}},
+            "role": "owned",
+            "home": true
+        }])
+    );
+}
+
+#[test]
 fn project_show_says_when_no_next_start_is_known() {
     let mut project = project();
     project.current_period.as_mut().unwrap().next = None;
