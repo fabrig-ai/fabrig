@@ -1,5 +1,5 @@
 //! A scratch directory, for tests on the real kernel (testing/README.md, 6): made
-//! empty beneath the system's temporary directory, the owner's alone (0700),
+//! empty and private beneath the system's temporary directory, the owner's alone (0700),
 //! and removed when dropped, whatever it holds and whatever modes a test gave what is in it,
 //! a failing test's included. The conformance suite lays out a root there
 //! for each scenario on files (`tests/conformance/real`; runtime/kernel.md, 8), and
@@ -34,7 +34,10 @@ impl Scratch {
     /// the owner's alone (0700). Its path is canonical, no link on its way:
     /// the shell's startup reads refuse links there (runtime/readiness.md, 5),
     /// and macOS's temporary directory is under
-    /// `/var`, a link to `/private/var`.
+    /// `/var`, a link to `/private/var`. It is made `0o700` whatever the
+    /// process's umask, as a private root is (runtime/io/files.md, 3): a test
+    /// that hands it to a check refusing what others may read passes under
+    /// umask 022 as under 077.
     #[must_use]
     pub fn new(label: &str) -> Scratch {
         let base = std::env::temp_dir();
@@ -51,12 +54,7 @@ impl Scratch {
         for n in 0..TRIES {
             let path = base.join(format!("skein-{label}-{pid}-{n}"));
             match fs::DirBuilder::new().mode(0o700).create(&path) {
-                Ok(()) => {
-                    fs::set_permissions(&path, fs::Permissions::from_mode(0o700)).unwrap_or_else(|error| {
-                        fail(&format!("the scratch directory {} could not be made private: {error}", path.display()));
-                    });
-                    return Scratch { path };
-                }
+                Ok(()) => return Scratch { path },
                 Err(error) if error.kind() == ErrorKind::AlreadyExists => {}
                 Err(error) => fail(&format!("a scratch directory beneath {}: {error}", base.display())),
             }
@@ -139,5 +137,14 @@ mod tests {
     fn a_scratch_directory_has_no_link_on_its_way() {
         let scratch = Scratch::new("canonical");
         assert_eq!(std::fs::canonicalize(scratch.path()).expect("the scratch directory"), scratch.path());
+    }
+
+    #[test]
+    fn a_scratch_directory_is_private_whatever_the_umask() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let scratch = Scratch::new("private");
+        let mode = std::fs::metadata(scratch.path()).expect("the scratch directory").permissions().mode();
+        assert_eq!(mode & 0o777, 0o700, "{}", scratch.path().display());
     }
 }
