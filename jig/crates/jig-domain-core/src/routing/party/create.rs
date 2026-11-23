@@ -1,5 +1,5 @@
 //! Party batches checked whole, then made together (jig/docs/design/domain/tasks/README.md, 4;
-//! jig/docs/design/domain/authority.md, 8.4).
+//! jig/docs/design/domain/authority-checks.md, 1.4).
 use crate::{
     Core, Limits,
     routing::{

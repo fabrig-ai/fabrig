@@ -1,6 +1,6 @@
 //! Values crossing the connector top's parent boundary. Durable records are
 //! whole rows: the parent saves them in the decision and only then sends
-//! `Committed` for a new outbox entry (jig's domain/connectors.md, 4.2).
+//! `Committed` for a new outbox entry (jig's domain/connectors-effects.md, 1.2).
 use alloc::boxed::Box;
 use skein_lib::Token;
 use temper_engine_domain_forge_change as change;
@@ -1865,7 +1865,7 @@ pub enum Stored {
     },
     /// An unsettled outbox entry. A held one is out of the client's outbox,
     /// keeping its room until a person makes it again or it is settled not
-    /// made (domain/forge/effects.md, 1; jig's `domain/connectors.md`, 4.3).
+    /// made (domain/forge/effects.md, 1; jig's `domain/connectors-effects.md`, 1.3).
     Entry {
         entry: skein_forge_client::Entry,
         held: bool,
@@ -2793,7 +2793,7 @@ pub enum Event {
         entry: u64,
     },
     /// A person settled a held entry: make it again, or record it not made
-    /// (domain/forge/effects.md, 1; jig's `domain/connectors.md`, 4.3).
+    /// (domain/forge/effects.md, 1; jig's `domain/connectors-effects.md`, 1.3).
     Resolve {
         entry: u64,
         again: bool,

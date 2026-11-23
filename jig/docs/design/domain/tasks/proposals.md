@@ -9,7 +9,7 @@ proposed, what an action needs, and what an acceptance funds.
   batch or an amendment beyond its maker's authority is refused, naming
   what it lacked and whether a proposal could be accepted (`README.md`, section 4),
   and its maker proposes it, with reasons: a run with its `propose`
-  call (../engine/executors-tools.md, 1), a procedure in its step (../connectors.md, 6.3), a
+  call (../engine/executors-tools.md, 1), a procedure in its step (../connectors-procedures.md, 1.3), a
   party with a `Propose` request (../people/acts.md, 1). So a person is never
   asked by accident, by a program or by their own client. The one
   exception is a result's follow-ups beyond its task's authority, which
@@ -98,7 +98,7 @@ proposed, what an action needs, and what an acceptance funds.
   proposer's (a task's delegates, a party's roots), or, when the proposal
   asked, the accepter's (a chat proposing a goal asks so); a task it
   amends or widens is funded by the accepter from then on, whoever
-  proposed it (../authority.md, section 7). A rejection is
+  proposed it (../authority-budgets.md, section 1). A rejection is
   a message to the proposer: a task hears it in its inbox, and a party
   finds it in theirs (../people/README.md, section 5). A party's proposal to amend
   a task is the party's, not that task's. A party who does not cover a

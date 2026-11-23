@@ -345,7 +345,7 @@ init`'s document carries none of them (`../setup/init.md`, 3).
   "the rest", so that a model the catalogue gains needs no charter's change
   (jig's `domain/engine/settings-catalogue.md`, 1). A task
   given no LLM choice takes the first with an account usable now, at
-  that model's default effort (jig's `domain/accounts.md`, 4.3):
+  that model's default effort (jig's `domain/accounts-uses.md`, 1.3):
 
   | Charter | First choices, in order | Then |
   |---|---|---|

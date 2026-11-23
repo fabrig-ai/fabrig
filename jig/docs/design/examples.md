@@ -102,8 +102,8 @@ production's own binary, `jig-ops-production`.
   - services: their replicas, version, and state;
   - environments, named by pool and name;
   - quotas: a pool's capacity, a team's budget in money.
-- **Effects,** each with its recovery class (`domain/connectors.md`,
-  4.3):
+- **Effects,** each with its recovery class (`domain/connectors-effects.md`,
+  1.3):
   - restarting a service: keyed in the fake production, which takes an
     operation's id with each restart; on a backend that offers none,
     such as systemd's units, unrecoverable, so an uncertain restart
@@ -195,7 +195,7 @@ jig-ops-domain                    the engine's root
   it serves every phase through the sweep and stops before the switch,
   marking nothing and making no effect, and it says the phase its start
   is in and the start's refusal, the store check's reading of a commit
-  (`domain/testing.md`, 7).
+  (`domain/testing-fakes.md`, 1).
 - **It is the reference root.** Its routes, its translations and its
   sum of worst cases are written to be copied, and are commented as
   such.
@@ -267,7 +267,7 @@ P, the person on call
   the lead's batch, in that step, keeping in its state which incident
   the step's task will lead. The core tells observability, in the same
   decision, the number I was given, and observability records I as the
-  incident's lead then, durably (`domain/connectors.md`, 6.3).
+  incident's lead then, durably (`domain/connectors-procedures.md`, 1.3).
 - **One lead per incident,** set once. An incident may gather several
   alerts; a second lead for an incident that has one is refused by
   observability, and reported. Until the core says which task the step
@@ -276,7 +276,7 @@ P, the person on call
 - **I reads** logs and metrics, and decides on a restart.
 - **The restart is in production,** beyond I's authority, and so beyond
   R's, the remediation I delegates: R's step proposes it
-  (`domain/connectors.md`, 6.3). The proposal passes over I and W, a
+  (`domain/connectors-procedures.md`, 1.3). The proposal passes over I and W, a
   procedure, to P, who accepts it.
 - **R holds the service,** restarts it, and waits on observability's
   health (3.3). The service recovers. R's result reaches I, which

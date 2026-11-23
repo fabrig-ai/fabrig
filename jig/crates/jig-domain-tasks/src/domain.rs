@@ -301,7 +301,7 @@ impl Domain {
         }
     }
 
-    /// Configure procedures that start kept (jig/docs/design/domain/connectors.md, 6.1).
+    /// Configure procedures that start kept (jig/docs/design/domain/connectors-procedures.md, 1.1).
     pub fn set_kept_starts(&mut self, starts: Box<[crate::KeptStart]>) {
         self.kept_starts = starts;
     }
@@ -320,7 +320,7 @@ impl Domain {
         }
     }
 
-    /// Dependencies do not delay a configured kept start (connectors.md, 6.1).
+    /// Dependencies do not delay a configured kept start (domain/connectors-procedures.md, 1.1).
     pub(crate) fn dependencies_ready(&self, row: &TaskRecord) -> bool {
         row.waiting_on.is_empty() || self.starts_kept(row.executor)
     }
@@ -389,7 +389,7 @@ impl Domain {
     }
 
     /// Reservation a new requester must fund, including this task's live reservations
-    /// but excluding spend already charged (domain/authority.md, 7).
+    /// but excluding spend already charged (domain/authority-budgets.md, 1).
     #[must_use]
     pub fn takeover_budget(&self, number: u64) -> Option<u64> {
         crate::funders::remaining(record(self, number)?.numbers)
@@ -1361,7 +1361,7 @@ pub(crate) fn publish(domain: &mut Domain, env: &Env<Limits>, number: u64, out: 
     task.observed_hold = held;
     let escalation = crate::escalation::begin(&mut task.record);
     // Admission permits equality with the wall. Wake just after it, without
-    // another alarm or a durable deadline carrier (domain/authority.md, 7).
+    // another alarm or a durable deadline carrier (domain/authority-budgets.md, 1).
     let wall = match deadline(&task.record, env.wall) {
         Some(wall) => match wall.as_nanos().checked_add(1) {
             Some(nanos) => Some(Wall::from_nanos(nanos)),

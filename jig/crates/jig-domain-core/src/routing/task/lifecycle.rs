@@ -61,7 +61,7 @@ pub(crate) fn recurring_due(
         return;
     }
     // No per-occurrence refusal outcome exists. Invalid account hints become
-    // typed next-run waits on the created task (accounts.md, 4.3).
+    // typed next-run waits on the created task (domain/accounts-uses.md, 1.3).
     if let Err(why) = core.recurring_accounts(context.project, &template.batch) {
         if let tasks::Refusal::Account { .. } = why {
             // Keep this occurrence; run_choice rechecks the same facts for its wait.

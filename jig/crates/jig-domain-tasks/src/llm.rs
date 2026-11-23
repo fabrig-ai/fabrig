@@ -2,7 +2,7 @@
 //! with an effort (domain/tasks/README.md, section 3). Tasks checks a choice as a batch or an amendment is
 //! checked: an agent task's only, each model configured, each effort among those its model
 //! declares, each model among its charter's and within its authority's models (domain/tasks/README.md, section 4 and domain/tasks/changes.md
-//! ; domain/authority.md, section 8.1). It resolves a charter's default for the
+//! ; domain/authority-checks.md, section 1.1). It resolves a charter's default for the
 //! root, which checks an omitted choice against its charter and authority (domain/tasks/README.md, section 3).
 //! The root may check a choice alone against its charter and authority's models at the newest
 //! revision, before asking for its batch (domain/tasks/README.md, section 4).
@@ -39,13 +39,13 @@ impl ModelEffort {
 }
 
 /// What an agent task's runs' LLMs are, including its creator's optional account preference
-/// (domain/tasks/README.md, section 3; domain/accounts.md, section 4.3).
+/// (domain/tasks/README.md, section 3; domain/accounts-uses.md, section 1.3).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct LlmChoice {
     /// Creator preference, distinct from the task's successfully claimed account.
     pub account: Option<u32>,
-    /// The model its runs use, and their check holds its most costly completion (authority.md,
-    /// section 8.3).
+    /// The model its runs use, and their check holds its most costly completion (domain/authority-checks.md,
+    /// section 1.3).
     pub main: ModelEffort,
     /// The models its runs' sub-agents may use, each named once, at most `MODELS`, among which
     /// smith chooses within a run.
@@ -113,7 +113,7 @@ pub(crate) fn valid_member(new: &crate::New) -> bool {
 }
 
 /// Check `choice` for a task run by `executor` within `authority` (domain/tasks/README.md, section 4;
-/// domain/authority.md, section 8.1). A refusal names the first model that fails and why. A choice
+/// domain/authority-checks.md, section 1.1). A refusal names the first model that fails and why. A choice
 /// beyond the authority is refused, not proposed: proposing a model's widening comes later.
 pub(crate) fn check(
     domain: &Domain,
@@ -270,7 +270,7 @@ impl Domain {
 }
 
 /// Clearing the creator preference keeps the pin; an explicit different account supersedes it
-/// only in the admitted amendment (accounts.md, 4.3; domain/tasks/changes.md).
+/// only in the admitted amendment (domain/accounts-uses.md, 1.3; domain/tasks/changes.md).
 pub(crate) fn replaces_account(kept: Option<u32>, choice: &LlmChoice) -> bool {
     match choice.account {
         Some(account) => kept.is_some() && kept != Some(account),
@@ -278,7 +278,7 @@ pub(crate) fn replaces_account(kept: Option<u32>, choice: &LlmChoice) -> bool {
     }
 }
 
-/// Why an explicit account cannot fund the prospective task (domain/accounts.md, 4.3).
+/// Why an explicit account cannot fund the prospective task (domain/accounts-uses.md, 1.3).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum AccountWhy {
     Unknown,

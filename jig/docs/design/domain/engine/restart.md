@@ -61,7 +61,7 @@ next only once the root says this one is done (../root.md, section 8).
    - **it reads afresh,** for the live tasks that name them, the
      resources its system owns;
    - **it settles its outbox,** each entry not committed as made
-     resolved as its recovery class says (../connectors.md, 4.3): looked
+     resolved as its recovery class says (../connectors-effects.md, 1.3): looked
      for by its key or the state it leads to, written again if it is a
      set; one not found waits for the retry deadline committed with its
      last attempt, which the restart keeps; one of a kind that cannot be
@@ -73,9 +73,9 @@ next only once the root says this one is done (../root.md, section 8).
 6. **Decide afresh, a resource at a time.** Every procedure steps from
    the opening as its wakes come; a decision on a fact a connector owns
    waits for that fact's first fresh read, or for the connector's fresh
-   reads (../connectors.md, 5.1), and never judges a resource from what
+   reads (../connectors-facts.md, 1.1), and never judges a resource from what
    the store held alone; a write waits for the uncertain entries before
-   it on its lane (../connectors.md, 4.2). A run's call that needs a
+   it on its lane (../connectors-effects.md, 1.2). A run's call that needs a
    connector waits in that call, within the run's own deadlines.
 
 Workers keep the answers and turns they were not acknowledged for, and
@@ -166,7 +166,7 @@ one rule for every child and the store:
   did not load (a task's party, project, placed hold or task, a claim's
   proof), a task or a claim naming a revision not held or a charter
   that revision lacks (`settings-store.md`, 1), a name reserved by another source
-  (../accounts.md, 3.4), an ended read position whose task is missing
+  (../accounts-sources.md, 1), an ended read position whose task is missing
   or whose task's record is not that party's conversation (the census's
   pair, `../../protocol/store/loads.md`, 2), a projection header or part
   naming what it lacks after the derived plan repair, a connector's row

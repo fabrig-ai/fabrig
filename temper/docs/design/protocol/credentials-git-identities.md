@@ -108,7 +108,7 @@ This document holds git identity credentials, split from [`credentials.md`](cred
   credential: a preparation it refuses is `Preparation::Refused`
   (`../domain/worker/hosted-runs.md`, 1.3), a push `Landing::Refused`
   (`../domain/worker/checkouts.md`). Limited, refused and unauthorized
-  are LLM accounts' notices only (jig's `domain/accounts.md`, 3.5).
+  are LLM accounts' notices only (jig's `domain/accounts-sources.md`, 2).
 - **Withdrawn with its forge.** A forge's removal takes its identity's
   values out of the identities' table at once, and withdraws its grant
   in jig's accounts with a last generation valid for no time, which

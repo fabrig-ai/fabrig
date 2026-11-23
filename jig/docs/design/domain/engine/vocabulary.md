@@ -13,7 +13,7 @@
   and facts of runs; notices relayed from a run's agent, a source
   limited (with how long until its limit resets, where its LLM provider
   gives that, which the core makes a time on its clock as it hears it)
-  or refused, or a generation unauthorized (../accounts.md, 3.5); each
+  or refused, or a generation unauthorized (../accounts-sources.md, 2); each
   program source's login on a worker, which follows its hello and which
   its half checks (`fleet.md`); a host lost or back;
 - **from parties:** sign-ins and their ends, a credential to mint for an
@@ -23,12 +23,12 @@
 - **from accounts' protocol:** a generation granted, a failure, a
   sign-in's address for the client that asked and its subject once
   signed in, a revocation's outcome, the component closed
-  (../accounts.md, 3.5 and section 5);
+  (../accounts-sources.md, 2, and ../accounts.md, 5);
 - **from the application,** through its root: each generation of an
   application's credential granted (`README.md`, 6.1); a project's period begun,
   saying when the next begins if its source knows. The core keeps no
   calendar, infers no cadence and schedules nothing of its own
-  (../authority.md, section 7);
+  (../authority-budgets.md, section 1);
 - **from connectors,** each by number, in jig's terms (../connectors.md,
   section 2): resources' roles and kinds of hold; pools' slots; effects'
   descriptions; verdicts; procedures' step decisions; outbox outcomes;
@@ -130,7 +130,7 @@ step its last answer arrives.
   (`../../protocol/channel/owners.md`, 1.3; ../root.md, section 5). No domain parses a
   call's input.
 - **A budget given `AsAllowed`** is resolved by authority as the batch is
-  admitted (../authority.md, section 7). A pool's amount left is a live
+  admitted (../authority-budgets.md, section 1). A pool's amount left is a live
   number only the core holds, which no client could read and send back
   without racing. The task keeps the amount, and the answer, a party's or
   a run's, says what was given.

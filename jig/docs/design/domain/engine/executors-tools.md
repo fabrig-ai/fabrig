@@ -5,7 +5,7 @@
 A run reaches the engine through smith's host tools, declared in its
 charter, which its host relays; their schemas, decoding and rendering
 are the protocol layer's (../hosts/charters.md). Each is checked against
-its task's authority (../authority.md, section 8), decided, committed, and
+its task's authority (../authority-checks.md, section 1), decided, committed, and
 answered after the commit:
 
 `delegate` and `amend` may name an `llm` choice: a main model and optional
@@ -33,8 +33,8 @@ amended task's choice whole, leaving it none.
 | `hold`, `lift` | places a hold of its own, stop or drain, over the subtree of a task below it, with a reason, and optionally the event that lifts it: a connector's event its topic offers, a task's end, or a time (../tasks/lifecycle-holds.md, 2); lifts a hold it may lift, naming its revision | the hold's number and revision; lifted; refused, naming its owner, and whether a proposal could be accepted |
 | `settings`, when its charter gives the family | reads the settings, or one setting whole, as a party's read does (`../../client/domain/contract/documents.md`, 1), or one proposal of settings, a task's of its own project or a party's, as a party's proposal read gives it (below); proposes a change of settings against the revision it read, with a reason (`settings-proposals.md`, 1) | the settings; the proposal, with its review and its outcome; proposed, and to whom; stale, naming the newest; refused, when nobody may accept it |
 | `introduce` | two tasks it references, each given a reference to the other, within their limits (../tasks/messages.md, 5) | done; no reference; refused, and why |
-| `subscribe`, `unsubscribe` | a topic a connector offers to agents (../connectors.md, 5.3), under a read grant on the resources the connector says it concerns (../authority.md, 8.5); a referenced task's state; a timer (../tasks/messages.md, 4) | done; refused, and why |
-| `effect` | one of a connector's kinds of effect offered to agents (../connectors.md, 4.5) | made, with what it made; committed and pending, past the call's deadline; waiting for a verdict; failed; refused, naming them, for a kind that waits for dependencies while its task is kept (../tasks/lifecycle-endings.md, 1) |
+| `subscribe`, `unsubscribe` | a topic a connector offers to agents (../connectors-facts.md, 1.3), under a read grant on the resources the connector says it concerns (../authority-checks.md, 1.5); a referenced task's state; a timer (../tasks/messages.md, 4) | done; refused, and why |
+| `effect` | one of a connector's kinds of effect offered to agents (../connectors-effects.md, 1.5) | made, with what it made; committed and pending, past the call's deadline; waiting for a verdict; failed; refused, naming them, for a kind that waits for dependencies while its task is kept (../tasks/lifecycle-endings.md, 1) |
 | `note`, `recall` | writes a note in a scope, whole or by a line range, and, with `records`, records the unrecorded words it names as `mark_read` does, once the note is written, none when it is refused; reads entries by name or by a search (`briefs.md`, section 2) | written, and what `records` recorded and named in vain, as `mark_read` answers; the entries |
 | a connector's reads | reads its system (../connectors.md, section 9) | the answer, within the read's budget |
 | an application's asking tools, when its charter gives the family | what the application declares to a run that explains to its person: the reads it serves, among them reads as its person (below), and the document it keeps for that run, each call decided by the asking family alone, whatever it reads or writes (../authority.md, section 3); the application answers it | the application's answer; beyond authority, naming the family |
@@ -162,7 +162,7 @@ the run's other reads.
   run's other stored reads are (above). An application's read goes to
   its connector as a party's does, with the person and the project's
   scope, and the connector answers it to the run's call through the root
-  (../connectors.md, 5.5).
+  (../connectors-facts.md, 1.5).
 - **Answered** to the root as the read's own answer, the document, the
   page, the turn, or why there is none, busy among them; the application
   renders it for its run. It marks nothing seen and moves no read
@@ -183,8 +183,8 @@ so calls an attempt made in a turn it lost are still there for the next
 attempt to be told of (1). A run whose call was withdrawn, lost with
 its channel, or answered busy asks it again with the same name while it
 lives, so the LLM is told the outcome rather than trying anew; an
-effect's key is derived from the call that asked for it (../connectors.md,
-4.4).
+effect's key is derived from the call that asked for it (../connectors-effects.md,
+1.4).
 
 Three tools a run has are not the engine's: `wait`, which the run and its
 host serve, holding the slot until a message arrives (4); `finish`,
@@ -199,8 +199,8 @@ their own, so a person is never asked by accident.
 
 **The tools are a party's operations.** Each engine tool that acts on
 tasks, `introduce` aside, is one of the operations a party's requests
-make (../people/acts.md, 1), checked by the same rules (../authority.md, 8.1 and
-8.4), so a run and a party do the same things to the same tasks:
+make (../people/acts.md, 1), checked by the same rules (../authority-checks.md, 1.1 and
+1.4), so a run and a party do the same things to the same tasks:
 `delegate` is `Create`;
 `message` is `Message`, and `Answer` for a question; `propose`,
 `withdraw`, `amend`, `cancel`, `release` and `decide` are theirs by

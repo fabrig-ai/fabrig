@@ -272,7 +272,7 @@ pub struct DependencyPlace {
 /// Amend a task with its root-issued message (domain/tasks/changes.md).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Amend {
-    /// The giver's source for a widening or an accepted proposal (domain/authority.md, 7 and 9).
+    /// The giver's source for a widening or an accepted proposal (domain/authority-budgets.md, 1, and domain/authority.md, 9).
     pub funder: Option<crate::Funder>,
     pub task: u64,
     pub message: u64,

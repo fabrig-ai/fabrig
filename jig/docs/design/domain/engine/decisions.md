@@ -46,7 +46,7 @@ Every output that someone outside the engine could act on waits for the
 commit it follows from:
 
 - **effects:** an outbox entry is handed to its connector to make
-  (../connectors.md, section 4);
+  (../connectors-effects.md, section 1);
 - **assignments:** a run is assigned only once its claim is durable, so
   an attempt never runs that a restart would not know of;
 - **acknowledgements:** a host's answer, and a run's turn, are
@@ -128,7 +128,7 @@ answers to a run's reads.
 | parties' requests' keys, with their answers, for a retention | people | at start, those within it |
 | tasks: every field of ../tasks/README.md, section 3 (its label, flags, last activity, LLM choice, kept account and revision among them), holds and their queues, writer slots, the last turn committed for a live attempt, and the revision a claim was prepared under (`settings.md`, 3) | tasks | live ones at start; ended ones on demand |
 | projection feeds: each tracked goal's hot header and words, its whole subtree's hot task rows and words, pending milestones and connector settlements; a nested tracked task remains in enclosing plans, with every save updating its phase and words there (`../connectors.md`, 8) | the core | at start; derived stale plan links repaired before the switch (`restart.md`) |
-| LLM accounts: each account's holder, LLM provider, subject and display name, uses, and its sources in their order, each with its kind, a program's name, its state and a limit's reset; never a program's login on a host, which hosts report (../accounts.md, 3.1 and 3.5) | accounts | at start |
+| LLM accounts: each account's holder, LLM provider, subject and display name, uses, and its sources in their order, each with its kind, a program's name, its state and a limit's reset; never a program's login on a host, which hosts report (../accounts.md, 3.1, and ../accounts-sources.md, 2) | accounts | at start |
 | the indexes of ended tasks: by requester, every ended task a party requested; by project, the ended tasks flagged listed; each saved in the decision that ends its task (`views.md`, 2; `../../protocol/store/loads.md`, 4) | tasks | on demand |
 | parties' read positions over conversations: a live one's; an ended one's, moved by the decision that ends the task and erased with it (`views.md`, 4) | people | live ones at start; ended ones on demand |
 | calls committed since each live task's last turn, by attempt and name, with the core's part of their answers | the core | with their task |
@@ -150,7 +150,7 @@ root wraps both in its store vocabulary (../root.md, section 6).
 the same after a restart; a wait the core arms is a deadline on its
 monotonic clock (`env.now`), computed from them (skein/docs/foundation/programming-model.md,
 section 9). Accounts' source deadlines retain both clocks where the
-limit or retry is created (`../accounts.md`, 3.5): timers use `Deadline.at`,
+limit or retry is created (`../accounts-sources.md`, 2): timers use `Deadline.at`,
 and every projection and stored reset uses its source-owned
 `Deadline.wall`, never a conversion at read or save time. Restore keeps
 the exact wall and maps it to the new monotonic clock once. Fleet grace

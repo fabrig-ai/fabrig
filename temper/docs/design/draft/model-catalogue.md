@@ -158,7 +158,7 @@ provider has an account usable now and serving its payer (jig's
 | a Claude subscription | nothing: Anthropic allows no other use of its credentials (jig's `domain/providers.md`, 3.1), and Claude Code has no list to read | section 2's table, and names added by a person |
 
 - **Who reads:** a worker, as it checks a program's source (jig's
-  `domain/accounts.md`, 3.4). The core sends it the account's grant, and
+  `domain/accounts-sources.md`, 1). The core sends it the account's grant, and
   smith's agent makes the one request on the endpoint's address and
   transport. It is not a run, and spends no budget.
 - **When:** as an account becomes usable, once a day, and on "Read again".

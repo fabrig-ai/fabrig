@@ -87,7 +87,7 @@ again. Words alone do not release it (../people/acts.md, 1).
 - **A taking has its effects,** as a release does (5): as the commit
   that makes a task active takes its write holds, each hold's connector
   hears of it with an outbox entry of its own, and does what its kind's
-  taking does (../connectors.md, 4.7). One that fails for good holds the
+  taking does (../connectors-effects.md, 1.7). One that fails for good holds the
   task, saying why (`lifecycle-holds.md`, 1).
 - **Queues are ordered** by the priority of the goal each task serves
   (../model.md, 6.2), then by when it began to wait, and bounded per

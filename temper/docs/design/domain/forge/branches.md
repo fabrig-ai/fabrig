@@ -50,7 +50,7 @@
 - **Landing branches are never made by a push.** A landing branch must
   exist when it is adopted or named; a goal's own branch (1) is made
   at its base's tip as its goal's hold is taken, as the taking's effect
-  (jig's `domain/connectors.md`, 4.7), and a change into it reads it
+  (jig's `domain/connectors-effects.md`, 1.7), and a change into it reads it
   once it is made.
 - **Deleted as their tasks close,** as the release of their holds (jig's
   `domain/tasks/holds.md`, 5): a landed change's branch, a cancelled one's,
@@ -395,8 +395,8 @@ section 6).
   - *Spend:* each step's change is given half of what the closer has
     left, its budget less what it spent, what its ended delegates spent
     and what it holds reserved. An ended change's unspent share goes
-    back to the closer as it ends (jig's `domain/authority.md`, section
-    7), so an attempt costs the closer what it spent, never its share.
+    back to the closer as it ends (jig's `domain/authority-budgets.md`, section
+    1), so an attempt costs the closer what it spent, never its share.
   - *Lent to its goal's run:* while a run of its goal holds the
     closer's funds (jig's `domain/tasks/lifecycle-endings.md`, 3), a step the
     closer cannot fund waits, with no hold, keeping the step to make;
@@ -519,7 +519,7 @@ fast-forward never forced. Its repository's other writes are as before.
 
 - **Its first run among them.** A goal's run prepared while its goal
   branch is still being made (the taking's effect in flight, jig's
-  `domain/connectors.md`, 4.7) or not yet confirmed (its head not yet
+  `domain/connectors-effects.md`, 1.7) or not yet confirmed (its head not yet
   recorded as temper's own) waits, as a write into a branch still being
   made does, and starts once g is made and confirmed, at g's tip, a
   design writer like any later run. A modifying goal holding g never

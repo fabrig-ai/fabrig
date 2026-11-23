@@ -1,4 +1,4 @@
-//! The choice that holds a new task to one account (jig/docs/design/domain/accounts.md, 4.3).
+//! The choice that holds a new task to one account (jig/docs/design/domain/accounts-uses.md, 1.3).
 
 use jig_domain_tasks as tasks;
 
@@ -8,7 +8,7 @@ use super::{coverage, llm};
 
 impl Core {
     /// The choice that holds a new task of `charter` to `account`
-    /// (jig/docs/design/domain/accounts.md, 4.3): the charter's first model, in its order
+    /// (jig/docs/design/domain/accounts-uses.md, 1.3): the charter's first model, in its order
     /// within `models`, that `offer(payer, project, models)` holds with `account`; else the
     /// first whose LLM provider is the account's and whose candidates for `payer` hold it.
     /// Each model at its default effort, as a task given no choice takes it, and

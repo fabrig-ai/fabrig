@@ -81,8 +81,8 @@ role of the project's people.
   touches `src/` or `include/` and on a red of vsr-rs, every four hours on
   findings labelled `port`, and on Mondays at 06:00 for its report.
 - **A budget per period:** an amount a week, carved again each period from
-  the project's spend, as a recurring task's is (jig's `domain/authority.md`,
-  section 7; jig's `domain/tasks/README.md`, section 5). What it has left shows on
+  the project's spend, as a recurring task's is (jig's `domain/authority-budgets.md`,
+  section 1; jig's `domain/tasks/README.md`, section 5). What it has left shows on
   Team. Past it, the standing role is held for money and its person is asked,
   since money always waits for a person (`what-reaches-you.md`, section 2).
 - **Its report:** its Now at all times, and a report each week (section 7).
@@ -276,7 +276,7 @@ Each is a design lag, by its status file.
   `domain/tasks/changes.md`), which temper makes when a member leaves.
 - **A budget refilled each period** (jig): carved again from the project's
   spend each period, as a recurring task's is, its unspent rest returning to
-  the period that funded it (jig's `domain/authority.md`, section 7).
+  the period that funded it (jig's `domain/authority-budgets.md`, section 1).
 - **Sessions** (jig): resuming within a session and starting fresh across
   them, by section 3's rule; a charter that both resumes and has parts (jig's
   `domain/tasks/messages.md`, 6; jig's `domain/engine/executors.md`, 4); the quiet span from

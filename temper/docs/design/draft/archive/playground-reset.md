@@ -155,7 +155,7 @@ reference drafts execute.
   what it makes; the fake forge's record, its setup entry the
   playground's; the box asked for its group (`playground-reset.md`, section 3); the scripted
   account, the deployment's, its uses naming the playground's project
-  alone (jig's `domain/accounts.md`, 4.2); and, once the fake forge
+  alone (jig's `domain/accounts-uses.md`, 1.2); and, once the fake forge
   connects, `playground/widget` adopted into the playground's project.
 - **The scripted model, the playground's alone:** the playground's
   project allows only the scripted model, and no other project allows

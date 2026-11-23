@@ -1,4 +1,4 @@
-//! Secret-free party account facts (client/domain/contract/documents.md, 1; domain/accounts.md, 3–5).
+//! Secret-free party account facts (client/domain/contract/documents.md, 1; domain/accounts.md, 3, and domain/accounts-uses.md, 1, and domain/accounts.md, 5).
 use super::{AccountPlace, AccountState, AccountUnread, DocumentText};
 use alloc::boxed::Box;
 use skein_lib::{Duration, List, Wall};
@@ -189,7 +189,7 @@ pub enum LoginExit {
     NotStarted,
 }
 
-/// Registry numbers the client reads (domain/accounts.md, 3.7).
+/// Registry numbers the client reads (domain/accounts-lists.md, 1).
 pub const FACT_EMAIL: u16 = 1;
 pub const FACT_NAME: u16 = 2;
 pub const FACT_USAGE: u16 = 7;

@@ -213,7 +213,7 @@ A subscription is a task's standing interest in what changes:
 
 - **a connector's topic,** such as a service's alerts or the landings on
   a branch: kept by the connector, which names the task by its number and
-  classifies each event for it (../connectors.md, 5.3);
+  classifies each event for it (../connectors-facts.md, 1.3);
 - **another task's state:** done, held, or its result; for a task it
   references;
 - **a timer.**

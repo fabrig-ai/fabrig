@@ -140,7 +140,7 @@ host's half reports it (`llm.md`, 5.5).
 
 ## 5. Periods
 
-- **The core keeps no calendar** (`../domain/authority.md`, section 7). A
+- **The core keeps no calendar** (`../domain/authority-budgets.md`, section 1). A
   project's funding period reaches it from the application's root, saying
   when the next begins if its source knows.
 - **A period's source is the application's:** a child of its root that

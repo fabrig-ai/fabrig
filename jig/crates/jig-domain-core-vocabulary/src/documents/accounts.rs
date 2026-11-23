@@ -73,7 +73,7 @@ pub struct Accounts {
     pub readiness_cut: bool,
 }
 
-/// Whole fact labels and text beside their fixed-size values (domain/accounts.md, 3.7).
+/// Whole fact labels and text beside their fixed-size values (domain/accounts-lists.md, 1).
 pub fn facts_bound() -> Option<u64> {
     List::<AccountFactLine>::price(accounts::FACTS)?.checked_add(
         u64::from(accounts::FACTS)

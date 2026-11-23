@@ -60,8 +60,8 @@ This document holds goals and plans through ctl, split from [`areas.md`](areas.m
    130` makes a milestone that `task show` and `milestone show` both
    print `of 130.00`; `--budget 1.005` is usage, nothing sent. **`--as-allowed`
    takes all the party may give from its pool,** what the pool has
-   left up to its role's spend (jig's `domain/authority.md`, section
-   7), or, with `--milestone`, all the milestone has left
+   left up to its role's spend (jig's `domain/authority-budgets.md`, section
+   1), or, with `--milestone`, all the milestone has left
    (`milestones.md`, 3). Its reservation holds that while the work is
    live, so the party's next start finds none left. Its line in `help`
    says so, `goal start`'s: `--as-allowed: a switch. Take all you may
@@ -120,8 +120,8 @@ This document holds goals and plans through ctl, split from [`areas.md`](areas.m
      most two decimals, as 130 or 1.25; optional. Its budget, as task
      show prints it; the rest of its authority kept`.
    - **A budget or tasks raised is a widening,** funded by the party who
-     gives it, who becomes the task's funder (jig's `domain/authority.md`,
-     section 7, "Whoever widens a task funds it"): from their role's pool,
+     gives it, who becomes the task's funder (jig's `domain/authority-budgets.md`,
+     section 1, "Whoever widens a task funds it"): from their role's pool,
      within what the policy lets them give alone, or proposed past it, as
      the next bullets say. It is the way out a hold for a task's own
      budget or tasks names (jig's `domain/tasks/lifecycle-holds.md`, 1; `../../domain/forge/change/repairs.md`

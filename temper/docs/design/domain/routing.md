@@ -234,7 +234,7 @@ approvals reason (decided 2026-11-03).
 
 ## 7. Periods, from the calendar
 
-A project's spend is per period (jig's `domain/authority.md`, section 7),
+A project's spend is per period (jig's `domain/authority-budgets.md`, section 1),
 and jig keeps no calendar: a period begins when the root says so (jig's
 `protocol/configuration.md`, section 5). temper's root has a third
 child, the calendar, which renews each project's period.
@@ -255,8 +255,8 @@ child, the calendar, which renews each project's period.
   the core (jig's `Event::Period`: the project, the period's number one
   more, its budget the project's spend per period as its policy holds
   it then, its next start a span later). What the last period reserved
-  stays its own and returns to it (jig's `domain/authority.md`, section
-  7); the new one starts full.
+  stays its own and returns to it (jig's `domain/authority-budgets.md`, section
+  1); the new one starts full.
 - **At each start,** before decisions open (`root-restart.md`, section 1.1, step 6), the
   root gives the calendar each restored project's current period (its
   number, start and next start) and its policy's spend per period, from

@@ -10,7 +10,7 @@ pub struct Limits {
     pub holder_accounts: u32,
     /// Sources one account keeps, in its holder's order.
     pub sources: u32,
-    /// Lifetime program names, retired names included (accounts.md, 3.4).
+    /// Lifetime program names, retired names included (domain/accounts-sources.md, 1).
     pub program_names: u32,
     /// Hosts a program sign-out can await; at most `PROGRAM_HOSTS`.
     pub program_hosts: u32,

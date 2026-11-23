@@ -281,7 +281,7 @@ It inspects nothing it holds. What jig asks of it:
     admits for an application's own object or subject goes, as a
     hand-off, to the connector it names, which decides the request or
     makes the document (`../client/domain/contract/requests.md`, 3;
-    connectors.md, 5.5);
+    connectors-facts.md, 1.5);
   - a connector's system's events and answers to that connector;
   - a timer to the child that armed it.
 - **Hand-offs between children,** within one step: what the core asks of
@@ -292,7 +292,7 @@ It inspects nothing it holds. What jig asks of it:
   step's decision, news, an outcome, a pool's slots, drift) goes to the
   core. What the core says of a procedure's step, the task it made, goes
   to the procedure's connector in the same decision, and is never
-  dropped (connectors.md, 6.3).
+  dropped (connectors-procedures.md, 1.3).
 - **Settings of the application's kinds** (engine/settings-application.md, 1): a change's
   items of a kind go, as a hand-off within the change's step, to the
   connector the kind names, and its judgement back to the core; the

@@ -329,14 +329,14 @@ Checks at `.temper/pre-pr`, guides at `AGENTS.md` (smith's
   its task has left, half of it where the task may start a delegate, so
   that a goal's changes are funded while its agent runs, capped per run,
   reserved at its claim, in the deployment's unit (jig's
-  `domain/authority.md`, section 7, and `domain/hosts/charters.md`).
+  `domain/authority-budgets.md`, section 1, and `domain/hosts/charters.md`).
 - **Models:** the main session's and those its sub-agents may use, each
   with its endpoint, window, output and prices (`../../protocol/llm.md`,
   section 3): the task's LLM choice among those its charter allows,
   without one the charter's first whose LLM provider has an account
   usable for the payer (jig's `domain/tasks/README.md`, section 3),
   and the account the run's claim chose for each LLM provider (jig's
-  `domain/accounts.md`, 4.3). A chat's new choice answers its person's
+  `domain/accounts-uses.md`, 1.3). A chat's new choice answers its person's
   next words, whether its run still listens or has parked (jig's
   `domain/tasks/changes.md`). Their credentials, or a program source's
   name, come to the agent as grants through the worker

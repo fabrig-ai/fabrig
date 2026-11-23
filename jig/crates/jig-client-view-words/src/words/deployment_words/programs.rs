@@ -1,4 +1,4 @@
-//! Program login and cleanup words (accounts.md, 3.4).
+//! Program login and cleanup words (domain/accounts-sources.md, 1).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ProgramPhrase {
     Programs,

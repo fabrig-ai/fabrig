@@ -261,7 +261,7 @@ once released. So a change started from it (`questions.md`, 1) finds its
 dependency done, not cancelled, and goes on from its own head; jig's rules
 stay as they are: a cancelled dependency holds its dependent, and one
 started from is never removed (jig's `domain/tasks/lifecycle-holds.md`, 1, and
-`domain/connectors.md`, 6.1).
+`jig/docs/design/domain/connectors-procedures.md`, 1.1).
 
 **From its turn on, a contained head has landed** (2026-11-13). Under
 its project's queue, from its turn (step 6, *First*) through its merge
@@ -465,7 +465,7 @@ producing ─► opening ─► checking ─► gating ─► queued ─► firs
    own merge queue guards the branch, the merge puts the pull request in
    that queue at exactly its head, and the change lands or is ejected
    later (`../queues.md`, 1). The merge waits for dependencies (jig's
-   `domain/connectors.md`, 4.1): the core refuses it while the change's
+   `domain/connectors-effects.md`, 1.1): the core refuses it while the change's
    task is kept, naming what it waits for, a backstop to the queue's own
    rule (`../queues.md`). Merged, the change is **landed**: its result is the
    landing (the pull request, the merge commit, the queue's group's
@@ -573,7 +573,7 @@ Moved to [`panel.md`](panel.md), section 1.
 
 ## 6. Drained
 
-A drain is jig's (jig's `domain/connectors.md`, 6.7). A change in a
+A drain is jig's (jig's `domain/connectors-procedures.md`, 1.7). A change in a
 draining hold's scope is idle, and held, at its next step unless it is
 landing: under the queue, while its merge is sent and not yet settled;
 under the turn, while its landing has begun its proof and not yet landed

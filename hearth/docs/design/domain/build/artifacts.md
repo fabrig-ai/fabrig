@@ -340,7 +340,7 @@ any state ─→ failed (typed, 5.5)          any state ─→ cancelled (the or
   renders the environment for its identity, finds S (the memo, or an
   export) and computes the key, which must equal the pin's (7.1).
 - **Two orders for one key join one build** (a keyed effect,
-  `jig/docs/design/domain/connectors.md`, 4.3): the steward holds the orders, and gives its
+  `jig/docs/design/domain/connectors-effects.md`, 1.3): the steward holds the orders, and gives its
   builder one job per key (hearth/docs/design/domain/steward.md, 3.3). **Preparing** builds the
   environment's output if it is missing (hearth/docs/design/domain/build/README.md, section 4) and
   patches the sources for the cache (6.3).

@@ -1,4 +1,4 @@
-//! The configured LLM providers whose accounts this child holds (accounts.md, 3.1 and 3.4;
+//! The configured LLM providers whose accounts this child holds (domain/accounts.md, 3.1, and domain/accounts-sources.md, 1;
 //! protocol/configuration-engine.md, 1). Numbered apart from identity providers (domain/people/README.md, 3).
 use alloc::boxed::Box;
 
@@ -43,7 +43,7 @@ pub struct Provider {
     pub list: Option<ProviderList>,
 }
 
-/// Which names of a provider's list are models for this work (jig/docs/design/domain/accounts.md, 3.7).
+/// Which names of a provider's list are models for this work (jig/docs/design/domain/accounts-lists.md, 1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ProviderList {
     pub keep: Box<[Box<[u8]>]>,
@@ -51,7 +51,7 @@ pub struct ProviderList {
 }
 
 /// The sources a provider offers its accounts. Offering none of them is the `none` source:
-/// nothing held, as for a local model (accounts.md, 3.4).
+/// nothing held, as for a local model (domain/accounts-sources.md, 1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Offers {
     /// A sign-in, with the provider's public registration, kept by configuration for the driver.

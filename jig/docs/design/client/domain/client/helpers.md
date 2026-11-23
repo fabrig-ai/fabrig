@@ -52,7 +52,7 @@
     clock; no wake policy, so the executor's own;
     the template's LLM choice, or the goal draft's where it names one,
     by configured names (../contract/requests.md, 2), none being the charter's default
-    taken at each run's check (`../../../domain/accounts.md`, 4.3). Shapes copy
+    taken at each run's check (`../../../domain/accounts-uses.md`, 1.3). Shapes copy
     configured intent, never `resolved_default`, the separate preview served
     in `me`;
     no parameters, inputs or dependencies; symbolic resources copied

@@ -97,7 +97,7 @@ impl Config {
     }
 
     /// The joint client story's finite recovery profile. Its actual owner
-    /// deadline remains committed before every attempt (connectors.md, 4.3).
+    /// deadline remains committed before every attempt (domain/connectors-effects.md, 1.3).
     #[must_use]
     pub fn client_recovery(mut self) -> Self {
         self.limits.infrastructure.retry_after_seconds = 1;

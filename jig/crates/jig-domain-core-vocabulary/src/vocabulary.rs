@@ -147,7 +147,7 @@ pub enum Ask {
         task: u64,
         resource: tasks::Name,
         /// The taking's own outbox entry, for the effects its connector's kind has at a taking
-        /// (domain/connectors.md, 4.7).
+        /// (domain/connectors-effects.md, 1.7).
         entry: u64,
     },
     /// Tell the owning connector to end a task's topic interest.

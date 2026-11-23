@@ -4,7 +4,7 @@
 
 A party's requests are jig's plumbing: its primitives as operations, the
 same an agent reaches through its tools (../engine/executors-tools.md, 1), and checked by
-the same rules (../authority.md, 8.1 and 8.4). Every request is keyed by
+the same rules (../authority-checks.md, 1.1 and 1.4). Every request is keyed by
 its client (a double click makes one request), checked against the
 party's role, committed, and answered once durable (../engine/decisions.md, 1.2). A
 task is in a party's tree when they requested it, or a task above it.
@@ -43,8 +43,8 @@ The operations as the client sends them are
 
 | Operation | Needs | Becomes |
 |---|---|---|
-| `Create`, a batch | member, within their role's authority and their pool (../authority.md, 8.4); its dependencies and inputs within their reach, and a holder for its escalations (below) | its tasks, with their dependencies, checked whole and made at once (../tasks/README.md, section 4), each with the fields it names (../tasks/README.md, section 3); the party their requester and their funder; a budget given `AsAllowed` resolved, and what was given answered (../authority.md, section 7) |
-| `Delegate`, a batch beneath a task | member, as for `Create`; a live task in their tree, or maintainer, an agent's or a procedure's, neither closing nor concluded (../tasks/gatherings.md, section 3); within their role's authority and within what the task has left (../authority.md, 8.4); its dependencies and inputs within their reach (below) | its tasks, checked whole and made at once (../tasks/README.md, section 4), the task's delegates: the task their requester and their funder, the party named in their history; a budget given `AsAllowed` resolved against what the task has left, and what was given answered |
+| `Create`, a batch | member, within their role's authority and their pool (../authority-checks.md, 1.4); its dependencies and inputs within their reach, and a holder for its escalations (below) | its tasks, with their dependencies, checked whole and made at once (../tasks/README.md, section 4), each with the fields it names (../tasks/README.md, section 3); the party their requester and their funder; a budget given `AsAllowed` resolved, and what was given answered (../authority-budgets.md, section 1) |
+| `Delegate`, a batch beneath a task | member, as for `Create`; a live task in their tree, or maintainer, an agent's or a procedure's, neither closing nor concluded (../tasks/gatherings.md, section 3); within their role's authority and within what the task has left (../authority-checks.md, 1.4); its dependencies and inputs within their reach (below) | its tasks, checked whole and made at once (../tasks/README.md, section 4), the task's delegates: the task their requester and their funder, the party named in their history; a budget given `AsAllowed` resolved against what the task has left, and what was given answered |
 | `Conclude` | the task in their tree, or maintainer; a live gathering (../tasks/gatherings.md, section 2) | no delegate joins it from that decision, and it ends done once its delegates have ended (../tasks/gatherings.md, section 3); one already concluded changes nothing |
 | `Propose`, an action | member; a batch or an amendment beyond their authority, of a kind a role the project's policy names may accept | a proposal of theirs, waiting for that role (../tasks/proposals.md), its number answered |
 | `Restore`, a version of the settings, in the deployment's scope | a role in the deployment or a project; a revision the history keeps | a proposal of the settings as that revision left them, against the newest, waiting for the owners of its items (../engine/settings.md, 10) |
@@ -53,7 +53,7 @@ The operations as the client sends them are
 | `Message` | the task in their tree, or maintainer | words in its inbox (../tasks/messages.md, 1), their message number answered |
 | `Talk` | as `Message`, to a task that stands; no other party's talk open with it but a lapsed one | its words as a `Message`'s, and a talk opened, its open session ended, or their own talk carried on (../tasks/standing.md, 5.6); their message number answered |
 | `Leave` | the talk open with the task, theirs, or maintainer | the talk ended, and its session (../tasks/standing.md, 5.6) |
-| `Amend` | the task in their tree, or maintainer, and a change within their authority; the spec's revision they saw, but for a change of priority alone; maintainer, for tracked or priority; dependencies added within their reach, as a batch's | ../tasks/changes.md: its spec, instructions, authority, wake policy, a person task's address, whether it is tracked, its priority, its dependencies added or removed; a widened task funded from their pool (../authority.md, section 7) |
+| `Amend` | the task in their tree, or maintainer, and a change within their authority; the spec's revision they saw, but for a change of priority alone; maintainer, for tracked or priority; dependencies added within their reach, as a batch's | ../tasks/changes.md: its spec, instructions, authority, wake policy, a person task's address, whether it is tracked, its priority, its dependencies added or removed; a widened task funded from their pool (../authority-budgets.md, section 1) |
 | `Cancel`, with or without a grace | the task in their tree, or maintainer; a grace within the tasks child's bound (../tasks/README.md, section 6) | the task and its tree closing (../tasks/changes.md); with a grace, the task first asked to finish, and cancelled when the grace ends unless it ended first |
 | `Release` | the task in their tree, or maintainer; the hold's revision they saw; for an effect held uncertain, whether to make it again; for a task a placed hold holds, that they may lift it (../tasks/lifecycle-holds.md, 2) | its hold lifted, the task judged again (../tasks/lifecycle-holds.md, 1); from a placed hold that stands, the task exempt from it |
 | `Stop` | the task in their tree, or maintainer | a placed hold of theirs in the stop mode over the task's subtree, its live runs cancelled (../tasks/lifecycle-holds.md, 2) |
@@ -75,7 +75,7 @@ The operations as the client sends them are
 | `SetVisibility` | owner of the project, never project 0; a project that is live, not being deleted | the project public or private from that decision, `me` saying so (`public-reading.md`, 2) |
 | edit or delete a note | the note's scope within their role | the note revised (../engine/briefs.md, section 2) |
 | set a party's pool | owner | the pool opened or resized in the current period, what was spent and reserved kept |
-| an account request: sign in, sign out, add, replace or remove a key, declare or check a program's login, order, uses, resume, remove an account | the account's holder, not a role: a person for their own, a first owner for the deployment's (../authority.md, 8.4) | ../accounts.md, section 5: the account's sources, states and uses changed; a value never committed |
+| an account request: sign in, sign out, add, replace or remove a key, declare or check a program's login, order, uses, resume, remove an account | the account's holder, not a role: a person for their own, a first owner for the deployment's (../authority-checks.md, 1.4) | ../accounts.md, section 5: the account's sources, states and uses changed; a value never committed |
 
 - **Words are never cut.** A party's words, in a `Message` or answering
   a question, are within the people child's bound, which is at most what
@@ -265,7 +265,7 @@ other. A rename reaches every client through `me`
 of tasks already made included: a narrowing makes their grants beyond it
 unusable, and a widening does not widen them; a change of its spend per
 period, or a role's, resizes the open period's budget, or its parties'
-pools (../authority.md, section 7). What was committed before it is made,
+pools (../authority-budgets.md, section 1). What was committed before it is made,
 and pending proposals are judged against it when accepted (../authority.md,
 section 6, effective authority). An owner who wants work in flight
 stopped cancels it. The policy's overrides of the application's
@@ -395,8 +395,8 @@ refused for its grace.
 - **What outlives it:** its spend, in the deployment's and its parties'
   totals for the period, as closed periods and pools keep it, never per
   task; and an account whose only use was the project keeps that use,
-  so that it pays for no one rather than for every payer (../accounts.md,
-  4.2), while an account with other uses drops it; its mark (above). An act's or a
+  so that it pays for no one rather than for every payer (../accounts-uses.md,
+  1.2), while an account with other uses drops it; its mark (above). An act's or a
   request's answer that named the project is erased with it, so that,
   sent again, it is judged afresh and answered unknown, as one past its
   retention is, but for an owner's `RemoveProject`'s own answer, kept

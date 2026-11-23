@@ -89,7 +89,7 @@ impl Core {
         }
     }
     /// A delegate naming no deadline ends with its creator's: its
-    /// deadline is never later (domain/authority.md, 5 and 7).
+    /// deadline is never later (domain/authority.md, 5, and domain/authority-budgets.md, 1).
     pub(crate) fn take_deadline(&self, task: u64, batch: &mut [Delegate]) {
         let Some(context) = self.tasks.delegation(task) else { return };
         for member in batch {

@@ -116,11 +116,11 @@ section 5, is `../client/pages/milestone.md` and the pages it names.
   later goal's allowance one less, as a change's is narrowed to its
   goal's (`agent/tools-change.md`, 1). jig checks
   it against both the party's role and what the milestone has left,
-  refusing at admission (jig's `domain/authority.md`, 8.4); the tool
+  refusing at admission (jig's `domain/authority-checks.md`, 1.4); the tool
   prints that refusal.
 - **Its budget** is carved from the milestone's when the goal is made,
   waiting or not: an amount, or `AsAllowed`, resolved against what the
-  milestone has left (jig's `domain/authority.md`, 8.4). So the
+  milestone has left (jig's `domain/authority-checks.md`, 1.4). So the
   milestone's budget must hold every goal made at once. `AsAllowed`
   means what it means for any goal, all that fits: a goal started so
   takes all the milestone has left, within the role's spend, and a
@@ -225,7 +225,7 @@ section 5, is `../client/pages/milestone.md` and the pages it names.
   - `spent`, u64: its own spend, its ended goals' settled spend, and its
     live goals' own and settled spend below them, never a reservation:
     `spent + spent_below` of the milestone, plus `spent + spent_below`
-    of each live goal (jig's `domain/authority.md`, section 7);
+    of each live goal (jig's `domain/authority-budgets.md`, section 1);
   - `reds`, u32: the uncleared red findings of its project blamed on
     its goals, each once, whatever their state (`red-findings.md`,
     section 10), the forge's `Domain::reds_owed`.

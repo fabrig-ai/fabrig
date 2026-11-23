@@ -348,7 +348,7 @@ all.
   any live task the party may reach, a sibling or not.
 - **Funding:** the milestone's budget is carved from its maker's, as a
   goal's is; each goal's is carved from the milestone's when the goal is
-  made, waiting or not (jig's `domain/authority.md`, section 7). Its
+  made, waiting or not (jig's `domain/authority-budgets.md`, section 1). Its
   spend is what it and its goals have spent, each task counted once:
   its own, its ended goals' settled spend, and its live goals' own, never
   their reservations.

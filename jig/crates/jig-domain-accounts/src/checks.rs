@@ -33,7 +33,7 @@ pub enum Refusal {
     NotLimited,
     Uses,
     /// A live source holds the program source's name a declaration gives, or another holder's
-    /// reservation does (accounts.md, 3.4).
+    /// reservation does (domain/accounts-sources.md, 1).
     NameTaken,
     /// The program source name remains reserved after its account is forgotten.
     ProgramNameReserved,

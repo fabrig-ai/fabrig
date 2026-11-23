@@ -58,7 +58,7 @@ root for one step at a time, and the root asks the store:
   read; a goal's projection rows come as they lie, the core joining
   their words (`parts.md`, 2 and 3). The root
   has the accounts child want its sources only once these are restored
-  (`../../domain/accounts.md`, 3.5);
+  (`../../domain/accounts-sources.md`, 2);
 - **the inbox's census,** a step of its own once people's read positions
   are restored: the family of ended read positions, one row per ended
   conversation not yet erased (4), then the results' index from each

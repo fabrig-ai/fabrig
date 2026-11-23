@@ -133,7 +133,7 @@ pub struct RunCharter {
     pub budget: u64,
 }
 
-/// A completion's maximum price, rounded up once (domain/authority.md, 7).
+/// A completion's maximum price, rounded up once (domain/authority-budgets.md, 1).
 #[must_use]
 pub fn most_costly(model: &Model) -> Option<u64> {
     let rate = model.input_price.max(model.cached_price).max(model.cache_write_price.unwrap_or(model.input_price));
@@ -145,7 +145,7 @@ pub fn most_costly(model: &Model) -> Option<u64> {
     u64::try_from(rounded).ok()
 }
 
-/// Reserve turns and one completion more (domain/authority.md, 7).
+/// Reserve turns and one completion more (domain/authority-budgets.md, 1).
 #[must_use]
 pub fn reserve_floor(policy: &RunPolicy) -> Option<u64> {
     most_costly(&policy.model)?.checked_mul(u64::from(policy.reserve_turns).checked_add(1)?)

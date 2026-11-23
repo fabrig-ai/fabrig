@@ -723,6 +723,13 @@ application as its first user.
   and application settings (`engine/settings-application.md`), proposals
   (`engine/settings-proposals.md`), the settings store (`engine/settings-store.md`)
   and the model catalogue (`engine/settings-catalogue.md`).
+  Authority covers budgets and spend (`authority-budgets.md`) and checks
+  (`authority-checks.md`). The connector documents cover effects and the
+  outbox (`connectors-effects.md`), facts and events (`connectors-facts.md`),
+  and procedures (`connectors-procedures.md`). The account documents cover
+  sources and states (`accounts-sources.md`), provider lists (`accounts-lists.md`),
+  and uses and account selection (`accounts-uses.md`). The testing documents
+  include fakes and kits (`testing-fakes.md`).
 - **`client/domain/`:** jig's client: `jig-client`, what it holds and
   its surface; the API between a client and the engine: plumbing
   operations, subjects and reads, documents and their revisions,

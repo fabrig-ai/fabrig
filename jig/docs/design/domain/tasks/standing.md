@@ -9,7 +9,7 @@ conversation a person is in: an application's agent that owns some work
 for a project's life, works in short sessions and answers to a person.
 It revises `README.md`, sections 3, 5 and 6, `lifecycle.md`, section 2, and `lifecycle-holds.md`, section 1, and `lifecycle-endings.md`, section 2
 , `messages.md`, section 6, `../engine/executors.md`, section 4,
-`../engine/briefs.md`, sections 1 and 2, `../authority.md`, section 7,
+`../engine/briefs.md`, sections 1 and 2, `../authority-budgets.md`, section 1,
 `../people/acts.md`, section 1, and `../../protocol/configuration-engine.md`,
 section 1, which say where it differs. It takes up `../../draft/notes-memory.md`, section 4, for a
 standing task's Now alone.
@@ -94,7 +94,7 @@ standing task's Now alone.
   the deployment, when its person leaves the project: the application's
   root names the person, and the move's checks and effects are
   `changes.md`'s, its open questions carried, the task funded anew from
-  that person's pool for the open period (`../authority.md`, section 7).
+  that person's pool for the open period (`../authority-budgets.md`, section 1).
   Where its application's inbox holds its people's answers, it asks its
   person by a person task addressed to them (`messages.md`, 5), so the
   application's root makes the move and addresses those person tasks to
@@ -105,7 +105,7 @@ standing task's Now alone.
 ## 4. Its budget per period
 
 - **Carved again each period,** as a standing procedure's is
-  (`../authority.md`, section 7, *Standing work renews by period*;
+  (`../authority-budgets.md`, section 1, *Standing work renews by period*;
   `README.md`, section 5): at a period's start, what it spent and holds
   reserved is kept in the old period's ledger, its delegates keep their
   reservations in the period that funded them, the fresh period reserves
@@ -123,8 +123,8 @@ standing task's Now alone.
   escalation reaches its person, as money always waits for a person. A
   renewal lifts that hold in the decision that renews it, its cause
   passed, and withdraws its escalation. Its person may release or widen
-  it before then, funding it as any widening is (`../authority.md`,
-  section 7).
+  it before then, funding it as any widening is (`../authority-budgets.md`,
+  section 1).
 
 ## 5. Sessions
 
@@ -316,7 +316,7 @@ while they are there.
   so that the run shortens it, and it never fails the brief.
 - **Its period beside it:** the section says, under its title, what the
   task has spent in the period that funds it and its budget there, as
-  `../authority.md`, section 7 keeps them: "This period: spent S of B."
+  `../authority-budgets.md`, section 1 keeps them: "This period: spent S of B."
   in the deployment's unit, so that a run reports what it spent and
   knows what is left before it starts work.
 - **Each write leaves a line.** When a standing task's run writes its

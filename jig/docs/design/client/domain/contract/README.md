@@ -163,7 +163,7 @@ Every request has one answer, of one of these kinds:
     the edit's; a list is named without its contents,
     `../../../domain/authority.md`, section 6); and, where
     the request was judged against the party's role and pool and found
-    beyond them (`../../../domain/authority.md`, 8.4), whether a proposal of
+    beyond them (`../../../domain/authority-checks.md`, 1.4), whether a proposal of
     it could be accepted (`requests.md`, 5). A refusal that another check decided
     (the request's shape, a reference, an uncertain effect's choice, its
     funding, the project's spend per period, an `AsAllowed` that would
@@ -187,7 +187,7 @@ Every request has one answer, of one of these kinds:
   - *provider's rule:* an LLM provider's terms forbid it, naming the
     rule (a plan's uses naming another person, or a project with
     another party; another account for a task its account limits:
-    `../../../domain/accounts.md`, sections 4.2 and 4.3);
+    `../../../domain/accounts-uses.md`, sections 1.2 and 1.3);
   - *account preference:* the account's number and why it cannot fund the
     prospective task: unknown, another provider, uses that do not serve the
     financial payer, or a different account while the kept account of that
@@ -200,7 +200,7 @@ Every request has one answer, of one of these kinds:
     rename gives, under simple case folding (`../../../domain/model.md`,
     6.1); it names no project, which the party may not see; or a live
     source holds the program source's name a declaration gives, or
-    another holder's reservation does (`../../../domain/accounts.md`, 3.4),
+    another holder's reservation does (`../../../domain/accounts-sources.md`, 1),
     naming neither;
   - *not offered:* the deployment does not offer it (an executor it does
     not have, a charter its newest revision removed; for an account's
@@ -768,7 +768,7 @@ What `../../domain/` owes this contract, each designed where named:
    child as jig's are, told apart by a digest, judged as the party's when
    they ask the core for something, their outcomes kept by their
    connector for the retention (`requests.md`, 3; `../../../domain/people/acts.md`, 1;
-   `../../../domain/connectors.md`, 5.5).
+   `../../../domain/connectors-facts.md`, 1.5).
 10. **Refusals with facts,** as section 3 lists them
     (`../../../domain/people/acts.md`, 1).
 11. **Revisions** of holds, specs and person tasks, in their documents
@@ -806,12 +806,12 @@ What `../../domain/` owes this contract, each designed where named:
     with their facts, and each account's sources, states, uses and the
     terms' facts in the party's accounts and the deployment's documents,
     with the *usable* and *settled* facts of the first, marked as 5.2
-    says (`../../../domain/accounts.md`, sections 3 to 5;
+    says (`../../../domain/accounts.md`, section 3, and `../../../domain/accounts-uses.md`, section 1, and `../../../domain/accounts.md`, section 5;
     `../../../domain/people/acts.md`, 1).
 19. **A task's LLM choice** (`requests.md`, 2): given at `Create`, changed by
     `Amend` for the next run, or, where it gives none, taken at each
     run's check, the first of the charter's models it can use
-    (`../../../domain/accounts.md`, 4.3), within the authority's models; the
+    (`../../../domain/accounts-uses.md`, 1.3), within the authority's models; the
     models a party may choose
     in `me` (`../../../domain/tasks/README.md`, sections 3 and 4 and `../../../domain/tasks/changes.md`;
     `../../../domain/authority.md`, section 3).

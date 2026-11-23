@@ -274,7 +274,7 @@ rule for goal branches (N4):
 ## 7. Early starts
 
 A change that depends on another change into g starts kept (jig's
-`domain/connectors.md`, 6.1): it steps while its dependency is produced,
+`domain/connectors-procedures.md`, 1.1): it steps while its dependency is produced,
 and its merge waits for it (jig's `domain/tasks/lifecycle-endings.md`, 1). Its producer
 starts early under N2's rules:
 

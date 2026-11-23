@@ -1,4 +1,4 @@
-//! Idle program accounts and limited windows (jig/docs/design/domain/accounts.md, 3.7).
+//! Idle program accounts and limited windows (jig/docs/design/domain/accounts-lists.md, 1).
 //! Clocks, reset reads and flights live only for this process.
 use crate::{Domain, FactValue, Kind, Request, SourceName};
 use alloc::boxed::Box;

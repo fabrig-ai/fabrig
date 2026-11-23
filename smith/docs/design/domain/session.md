@@ -200,9 +200,9 @@ child domain `smith-domain-session`, whose own child is the tools domain
     session ends as an exhausted account's does, its root raising
     `limited` for the call's account with that delay as its reset, and
     the run ends limited for it (run.md, section 9), so its task waits
-    for the account and spends no try (jig's `domain/accounts.md`,
-    3.5). With no account to name, the session waits as for any delay,
-    and its expiry ends it (section 6).
+    for the account and spends no try (jig's `domain/accounts-sources.md`,
+    2). With no account to name, the session waits as for any delay,
+    and its expiry ends it (`session.md`, section 6).
 - **A local limit is typed:** `Limit { which, bound }`, naming the limit
   that fired and its bound. It is not retried, since the same request
   would meet it again.

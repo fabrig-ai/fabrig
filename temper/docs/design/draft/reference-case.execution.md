@@ -106,7 +106,7 @@ section 14 it adds.
   report) and 13 (G's wake policy).
 - **Design, jig's:** a template naming *its own goal branch* (jig's
   `protocol/configuration-templates.md`, 1); an effect of a hold's taking, and
-  of its release (jig's `domain/connectors.md`, 3.3 and 4.6, and
+  of its release (jig's `domain/connectors.md`, 3.3, and `domain/connectors-effects.md`, 1.6, and
   `jig/docs/design/domain/tasks/holds.md`, 5); a held resource a landing queue orders (jig's
   `domain/tasks/holds.md`, 1); writer slots taken by what a run writes
   (jig's `domain/tasks/holds.md`, 3, against its `domain/engine/executors.md`, 1); a
@@ -233,7 +233,7 @@ section 14 it adds.
   with its dependencies' pushed heads merged in); `../domain/forge/change/README.md`
   (the early start, its once rule, its refusal on a conflict, an
   amendment refused for dropping a dependency started from); `landing.md`,
-  4.1 (a dependent started kept); jig's `domain/connectors.md`, 6.1 (a
+  4.1 (a dependent started kept); jig's `domain/connectors-procedures.md`, 1.1 (a
   procedure that starts kept).
 - **Builds:** jig's kept start; temper's change procedure and the
   worker's checkout.

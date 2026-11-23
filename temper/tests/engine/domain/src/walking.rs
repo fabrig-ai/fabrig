@@ -453,7 +453,7 @@ pub fn models() -> Box<[engine::Model]> {
 }
 
 /// The deployment's one charter: the chats' and the forge's agent work's.
-/// Its default spend holds its reserve floor (jig's `domain/authority.md`, 7).
+/// Its default spend holds its reserve floor (jig's `domain/authority-budgets.md`, 1).
 #[must_use]
 pub fn charter() -> engine::Charter {
     engine::Charter {

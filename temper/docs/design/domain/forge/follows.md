@@ -194,7 +194,7 @@ every setting is, its decision that project's owners'. Its value, a
 - **Its steps** are due whenever its record changes (an entry queued, an
   act taken, a delegate's end, hold, question or answer) and make what
   the record says is due: jig's procedure step, its batch, amendments,
-  cancels and messages one decision (jig's `domain/connectors.md`, 6.6).
+  cancels and messages one decision (jig's `domain/connectors-procedures.md`, 1.6).
   A step that can't make a follow change for want of spend holds the
   follow task, saying so, for the project's escalation role.
 - **One follow change per entry,** made in queue order: a change
@@ -301,7 +301,7 @@ every setting is, its decision that project's owners'. Its value, a
   change after it for its dependency (jig's `domain/tasks/lifecycle-holds.md`,
   1), and the owner starts the entry again or skips it (`follows.md`, section 5). The
   follow never releases that hold: a procedure releases none (jig's
-  `domain/connectors.md`, 6.3). None of the follow changes after the
+  `domain/connectors-procedures.md`, 1.3). None of the follow changes after the
   ended one has produced, as each waits on it, so the act that starts
   or skips the ended entry remakes them: *the tail made again*, below.
 - **The tail made again:** the step cancels every follow change after

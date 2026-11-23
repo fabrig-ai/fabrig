@@ -18,7 +18,7 @@ answer, and a **notice** is not answered.
 | refused | task, attempt; an LLM account and its source; its provider's code and reason, as text within the detail's bound | notice |
 | unauthorized | task, attempt; an LLM account and its source; the generation its provider refused, or whose program login was lost | notice |
 | usage | task, attempt; an LLM account and its source, as limited's; one usage window (below) | notice |
-| logins | for each program source the engine named (2), its name and its login's state on this host: usable, not signed in, signed in otherwise and how, or failed, with bounded detail (smith's `protocol/host.md`, section 2); and, for a usable one, the email its status names, of at most 255 bytes, where it names one, which the engine keeps as a fact of the account (`../../domain/accounts.md`, 3.7) | notice: once checked after each `sources`, then on each change |
+| logins | for each program source the engine named (2), its name and its login's state on this host: usable, not signed in, signed in otherwise and how, or failed, with bounded detail (smith's `protocol/host.md`, section 2); and, for a usable one, the email its status names, of at most 255 bytes, where it names one, which the engine keeps as a fact of the account (`../../domain/accounts-lists.md`, 1) | notice: once checked after each `sources`, then on each change |
 | signed out | a program source's name; whether the program's sign-out ran, or failed, with bounded detail | answer to a sign out |
 | list read | a read's number; at most 256 rows, each a name of at most 128 bytes, a shown name of at most 64, a window, an output and at most 8 efforts of at most 16 bytes, or a typed failure: refused with a status, unreachable, unreadable, deadline or the agent's fault (`../../domain/hosts/README.md`, 5.1) | answer to a read list, best effort: a read's number the engine no longer holds is dropped |
 | usage read | a read's number; at most 8 usage windows (below), or not signed in, spent, or failed with the source's failure and bounded detail, as `logins`' (`../../domain/hosts/README.md`, 5.1) | answer to a read usage, best effort as a list read's |
@@ -27,7 +27,7 @@ answer, and a **notice** is not answered.
 | paused | the worker's state: taking, paused, draining or drained (`pause.md`) | notice: at each change of its state, and again after each hello while it is not taking, on a channel whose version has it (`../../domain/hosts/hub.md`, 7) |
 
 - **A usage window** is a program's report of one window
-  (`../../domain/accounts.md`, 3.7): its label, 1 to 32 printable ASCII
+  (`../../domain/accounts-lists.md`, 1): its label, 1 to 32 printable ASCII
   bytes; its length, an optional duration; its share used, optional basis
   points to 10,000; its reset, an optional wall time, the provider's own;
   and its state, the registry's number. The hub takes it from its agent's
@@ -60,7 +60,7 @@ opening by an engine of 16 (`bridges.md`, 6.3): the engine goes first,
 as for any moved wire (temper's `draft/redeploys.md`, 7.2). Up from 16
 nothing changes.
 
-Usage windows (`../../domain/accounts.md`, 3.7) take `jig-worker-wire`
+Usage windows (`../../domain/accounts-lists.md`, 1) take `jig-worker-wire`
 19, in one move: `usage` and `usage read` up, `read usage` down. Below
 19 the two up records are unheld, so a worker of 19 is refused at the
 opening by an engine of 18, as above; the engine sends `read usage` only
@@ -70,7 +70,7 @@ fleet and the accounts child all name:
 
 ```rust
 /// A window's value, moved from `jig-domain-accounts`, which re-exports
-/// it and the window states under their names (accounts.md, 3.7).
+/// it and the window states under their names (../../domain/accounts-lists.md, 1).
 pub struct FactWindow { pub length: Option<Duration>, pub used: Option<u16>, pub resets: Option<Wall>, pub state: u16 }
 /// One usage window as a program reports it.
 pub struct UsageWindow { pub label: Box<[u8]>, pub window: FactWindow }
@@ -120,12 +120,12 @@ The floor stays 16 and the block is not breaking.
   (smith's `protocol/channel.md`, section 4): limited, refused,
   unauthorized and usage, each naming the account and source by the grant's
   number. They are LLM accounts' only (`README.md`, section 7), and the core decides
-  what each changes (`../../domain/accounts.md`, 3.5). Unsupported is the
+  what each changes (`../../domain/accounts-sources.md`, 2). Unsupported is the
   run's failure, never a notice. A limited notice preserves an absent
   reset as absent; an explicit zero span is a supplied reset. The core
   converts a supplied span to engine time once on receipt, and the accounts
-  child keeps its wall reset across restarts (`../../domain/accounts.md`,
-  3.5).
+  child keeps its wall reset across restarts (`../../domain/accounts-sources.md`,
+  2).
 
 ## 2. Down, engine to worker
 

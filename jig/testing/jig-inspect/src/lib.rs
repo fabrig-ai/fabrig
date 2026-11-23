@@ -1,4 +1,4 @@
-//! Jig's waits and bounded tables (jig/docs/design/domain/testing.md, 7.1).
+//! Jig's waits and bounded tables (jig/docs/design/domain/testing-fakes.md, 1.1).
 //! These reads run at a world's quiet point and change none of the inspected state.
 mod engine_clients;
 pub use engine_clients::{ENGINE_CLIENTS_KINDS, engine_clients};

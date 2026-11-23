@@ -1,5 +1,5 @@
 //! Commit selection and findings for cold store checks
-//! (`jig/docs/design/domain/testing.md`, 7).
+//! (`jig/docs/design/domain/testing-fakes.md`, 1).
 
 use skein_lib::Rng;
 use skein_world::streams::{Stream, Streams};

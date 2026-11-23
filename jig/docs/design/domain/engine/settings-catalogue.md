@@ -72,7 +72,7 @@ models and a charter name.
 
 ## 2. A provider's list
 
-A read of an account's list (../accounts.md, 3.7) comes to the core as an answer.
+A read of an account's list (../accounts-lists.md, 1) comes to the core as an answer.
 The core alone turns it into settings, as the one decider that's neither a party,
 the release nor a first start. It moves no running work.
 
@@ -81,7 +81,7 @@ the release nor a first start. It moves no running work.
   fleet holds it until a connected worker's bounds hold that endpoint, sends it to
   the one with the most free slots, one read in flight per worker, and holds it
   again if that worker's channel is lost before it answers. A renewal reaches a
-  read still held. Host rule is not asked (../accounts.md, 3.4): no tool runs on a
+  read still held. Host rule is not asked (../accounts-sources.md, 1): no tool runs on a
   read. With no worker connected, a read waits and nothing says it failed.
 - **What it keeps.** Of the rows, in the provider's order: a name that a `keep`
   pattern matches and no `drop` pattern does, and that `valid_name` holds. The rest
@@ -103,7 +103,7 @@ the release nor a first start. It moves no running work.
   that hold it. A withdrawn one with `source` list that a read names again comes
   back. A read never touches a model of the binary's or a person's, nor another
   provider's, nor a kept row's picker, prices or figures; the accounts' names narrow
-  those (../accounts.md, 3.7).
+  those (../accounts-lists.md, 1).
 - **What a read decides.** The new, gone and returned models are one change at
   the newest revision, `Running::Stays`, decided as 2's, by the provider's list
   (`Decider::List`, naming the provider, in the revision's record). A read that
@@ -120,4 +120,4 @@ the release nor a first start. It moves no running work.
   `names` changed, which narrows its offer, or its displayed `left_out` changed
   (`../../client/domain/contract/documents.md`, 1). A day's alarm alone marks nothing, nor
   does a failed read, a repeat, a refused act or a read still held.
-- **A failed read** changes no setting and no name (../accounts.md, 3.7).
+- **A failed read** changes no setting and no name (../accounts-lists.md, 1).

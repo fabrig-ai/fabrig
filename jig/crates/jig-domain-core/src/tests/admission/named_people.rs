@@ -75,7 +75,7 @@ fn amendment_input(core: &Core, named: u64) -> Event {
 #[expect(
     clippy::disallowed_macros,
     clippy::print_stderr,
-    reason = "the table reports each route, person and case before running it (domain/testing.md, 7)"
+    reason = "the table reports each route, person and case before running it (domain/testing-fakes.md, 1)"
 )]
 fn raw_writers_refuse_unknown_people_before_any_child_changes() {
     type Input = fn(&Core, u64) -> Event;

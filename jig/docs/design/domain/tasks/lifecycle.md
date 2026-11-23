@@ -11,7 +11,7 @@ waiting ──► active ──► closing ──► done, failed or cancelled
 - **Waiting:** some dependency is not done, or some hold it needs is
   not yet free (`holds.md`). A procedure its connector declares to start
   kept is not waiting on its dependencies: it enters active and kept
-  (../connectors.md, 6.1).
+  (../connectors-procedures.md, 1.1).
 - **Active:** its executor is engaged (2 to 5). It enters active in
   the commit that makes it ready, which takes its holds. An active task
   with a pending dependency, which an amendment gives it, or its
@@ -25,7 +25,7 @@ waiting ──► active ──► closing ──► done, failed or cancelled
      any, has been decided (7);
   3. every effect it asked for that went out has settled, made or
      failed, and those not sent are withdrawn if it was cancelled
-     (../connectors.md, 4.2);
+     (../connectors-effects.md, 1.2);
   4. its connectors release the resources it held, as effects of their
      own, after all its others (`holds.md`, 5).
 
@@ -37,7 +37,7 @@ waiting ──► active ──► closing ──► done, failed or cancelled
   its delegates are still closing, and which connectors it waits on to
   settle its effects, by number. It never knows their outbox entries,
   which are each connector's, kept by the connector and settled by it
-  (../connectors.md, 4.2; ../model.md, section 5).
+  (../connectors-effects.md, 1.2; ../model.md, section 5).
 - **Done, failed, cancelled:** ended. Its result is a message to its
   requester, and kept. An ended task leaves the engine's working set once
   that message is committed, leaving a stub while live tasks name it;
@@ -174,7 +174,7 @@ park reaches.
 ## 3. Procedure tasks
 
 An active procedure task is stepped by the part of the engine that owns
-its procedure: a connector (../connectors.md, section 6), or this child
+its procedure: a connector (../connectors-procedures.md, section 1), or this child
 domain for the core's (`README.md`, section 5). The tasks child hears a step's
 decisions (effects asked, tasks made, amended or cancelled, proposals,
 messages up, the result) as one decision, committed with the

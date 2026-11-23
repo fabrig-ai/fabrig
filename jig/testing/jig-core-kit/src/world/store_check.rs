@@ -1,4 +1,4 @@
-//! Cold starts over durable copies (`jig/docs/design/domain/testing.md`, 7).
+//! Cold starts over durable copies (`jig/docs/design/domain/testing-fakes.md`, 1).
 use super::{Cut, Queue, StoreChecks, StoreOut, Up, World, root};
 use jig_conformance::store_check::finding;
 

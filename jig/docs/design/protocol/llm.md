@@ -32,7 +32,7 @@ without agents has none of this. What is still open is listed in section
 - **Accounts: the policy is the core's, the mechanism the protocol
   layer's.** The accounts child decides which sources are usable, which
   account a run takes, and which runs hear of a new credential
-  (`../domain/accounts.md`, sections 3 and 4). skein's OAuth accounts
+  (`../domain/accounts.md`, section 3, and `../domain/accounts-uses.md`, section 1). skein's OAuth accounts
   driver, a component of the engine's protocol layer, signs sources in
   as a party asks, refreshes each signed-in source before it lapses,
   signs it out with revocation, keeps each new record in the secrets'
@@ -68,7 +68,7 @@ without agents has none of this. What is still open is listed in section
   completion's most before making it and winds down on its reserve, so a
   run never spends past its budget (smith's `domain/budget.md`).
   The core places no run smith would refuse for its budget
-  (`../domain/authority.md`, section 7), and sees spend in the turns it
+  (`../domain/authority-budgets.md`, section 1), and sees spend in the turns it
   commits.
 
 ## 2. Where it sits
@@ -192,7 +192,7 @@ engine's protocol layer
   models and its authority's (`../domain/tasks/README.md`, section 3;
   `../domain/authority.md`, section 3); a task that names none takes, at
   each run's check, the first of its charter's models it can use
-  (`../domain/accounts.md`, 4.3).
+  (`../domain/accounts-uses.md`, 1.3).
 
 ## 5. Accounts
 
@@ -259,7 +259,7 @@ engine's protocol layer
 | taken: a redirected the sign-in took | the finish taken: its answer, *finishing* |
 | refused, a redirected: another address, another sign-in's state, full, or not waiting | the finish refused, saying which (full: *too many*), the sign-in still waiting: never a sign-in failed, nor its source signed out; not waiting for any other refusal of a redirected |
 | signed in: the subject, the scopes granted, the profile claims it read | signed in, with the subject and display name and what the claims say: the child makes the account, renews the one of that subject, or refuses the subject another holder holds (`../domain/accounts.md`, 3.3), and keeps what they say for the first two (3.7). Every registration of the accounts' driver asks for `email` and `name` (skein's `oauth/README.md`, 2.2) |
-| refreshed: the generation, the profile claims it read | what they say, of the source's account: the child keeps it (`../domain/accounts.md`, 3.7) |
+| refreshed: the generation, the profile claims it read | what they say, of the source's account: the child keeps it (`../domain/accounts-lists.md`, 1) |
 | signed in, without a scope the provider requires | refused, naming the scope |
 | granted: the access token, its generation, how long it is valid | granted: the generation and how long it is valid; the token goes into the table (5.3) |
 | failed: retry later (with how long), malformed, limit, not kept | failed, later, with how long (the driver's delay, or the child's backoff) |
@@ -367,7 +367,7 @@ engine's protocol layer
   configuration directory on each host, named by the source's name under
   the programs directory the worker's configuration
   names (`configuration.md`, section 4); jig never reads it
-  (`../domain/accounts.md`, 3.4).
+  (`../domain/accounts-sources.md`, 1).
 - **Each worker is told its program sources,** by name, after its hello
   and on each change (`channel/records.md`, 2). The worker has smith's host
   half check each login once told its sources, when told of a new
@@ -379,7 +379,7 @@ engine's protocol layer
 - **A person's logins keep a host to that person's runs.** A host that
   keeps a person's program logins takes only runs that person's accounts
   pay for, until a run's process tree is contained from them; one
-  person's deployment is unaffected (`../domain/accounts.md`, 3.4).
+  person's deployment is unaffected (`../domain/accounts-sources.md`, 1).
 - **Signing out or removing a program source** has each worker's host
   half run the program's own sign-out in the source's configuration
   directory (smith's `protocol/host.md`, section 2; the command is
@@ -485,7 +485,7 @@ engine's protocol layer
 - **Pushed to every live attempt** whose account's source it is, when a
   new generation is lent, and sent again to each attempt a worker keeps
   after its hello, or that the fleet adopts (`../domain/engine/fleet.md`
-  ; `../domain/accounts.md`, 3.5).
+  ; `../domain/accounts-sources.md`, 2).
 - **Notices,** from either kind of run, reach the child with the account
   and source and, for a credential, its generation, fenced by attempt:
   - **limited:** skein's `exhausted`, or a program's usage limit (smith's
@@ -495,7 +495,7 @@ engine's protocol layer
     with its evidence; the source stays so until its holder acts;
   - **unauthorized:** for a signed-in source, a generation the driver
     refreshes once (5.1); for a key or a program's login, a source that
-    needs its holder (`../domain/accounts.md`, 3.5).
+    needs its holder (`../domain/accounts-sources.md`, 2).
 
   Unsupported is the request's error, which smith never sends again
   unchanged; misconfigured is the driver's state, never a notice.
@@ -574,7 +574,7 @@ Each within jig's suites' budgets.
 ## 9. What it owes and is owed
 
 - **The domain** wants every signed-in source, and pushes each new
-  generation to every live attempt (`../domain/accounts.md`, 3.5;
+  generation to every live attempt (`../domain/accounts-sources.md`, 2;
   `../domain/engine/README.md`, section 6).
 - **What smith gives** serves as it is, beside what it is owed (below;
   `needs.md`, section 2).

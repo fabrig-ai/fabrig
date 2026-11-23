@@ -64,7 +64,7 @@
     another account" with both or with a key, and with no usable account
     at all. Its words offer other providers and models and promise no
     capacity, since a limited task waits for its own account (jig's
-    `domain/accounts.md`, 4.3).
+    `domain/accounts-uses.md`, 1.3).
   - *The card:* a region named "To begin", its head holding the level-2
     heading "To begin", the tag "Optional" and, at its right, the button
     "Skip"; under them a line by what is left: "Two steps left. Skip

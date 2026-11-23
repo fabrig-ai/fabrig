@@ -1,6 +1,6 @@
 //! Effect decisions and answer lifetimes belong to the core. Descriptions,
 //! facts and outbox payloads belong to their numbered connectors
-//! (`domain/engine/vocabulary.md`, 1.3, and `domain/engine/executors-tools.md`, 1; `domain/connectors.md`, 4.4–4.5).
+//! (`domain/engine/vocabulary.md`, 1.3, and `domain/engine/executors-tools.md`, 1; `domain/connectors-effects.md`, 1.4–1.5).
 //! Projection origins use current project grants and requirements, with no
 //! task debit (`domain/authority.md`, 6; `domain/connectors.md`, 8).
 //!

@@ -256,7 +256,7 @@ Moved to [`command-line.md`](command-line.md), section 1.
   runs are paid by jig's LLM accounts, added from the client
   (`../../protocol/credentials-llm-accounts.md`, section 1): on a box, by the deployment's
   key the harness adds (`README.md`, section 8), which pays for every party's runs
-  (jig's `domain/accounts.md`, 4.2). An agent acting for a person
+  (jig's `domain/accounts-uses.md`, 1.2). An agent acting for a person
   connects that person's own accounts with area 5's tools, as the
   person would on the accounts page.
 

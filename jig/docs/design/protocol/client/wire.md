@@ -178,7 +178,7 @@ codecs, translations and served-version declarations carry those fields
 (`versions.md`, section 1, and `testing.md`, section 1). Tests build their values from schema text
 or with public fields, without golden files (skein's `data/codec/golden.md`, 1). The
 preview says what a run's check would take now for a task keeping no
-account (`../../domain/accounts.md`, 4.3), never task intent or a reservation;
+account (`../../domain/accounts-uses.md`, 1.3), never task intent or a reservation;
 no store family carries it or the offer, and application families' versions
 are their own.
 

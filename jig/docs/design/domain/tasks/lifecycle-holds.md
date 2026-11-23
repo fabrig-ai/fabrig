@@ -37,8 +37,8 @@
   failure: the task claims again after a
   pause, with no bound, its retry notice saying why. Nor is a run ended
   because its LLM account's source turned limited, refused or in need of
-  a sign-in: its task waits for its account, saying why (../accounts.md,
-  3.5 and 4.3). Such a terminal, or a checked placement losing its room,
+  a sign-in: its task waits for its account, saying why (../accounts-sources.md, 2, and ../accounts-uses.md, 1.3
+  ). Such a terminal, or a checked placement losing its room,
   returns the task to due without a retry counter or polling timer, retaining
   its account and committed conversation. But an account's terminal read
   once its source is usable again, its limit's reset zero or already past,
@@ -79,7 +79,7 @@
   structured fields alone (../hosts/hub.md, 3). A preparation that always fails still
   holds, past that bound. A run whose account waits turns an
   infrastructure failure into a recheck as it does a transient one
-  (../accounts.md, 3.5).
+  (../accounts-sources.md, 2).
 - **A configured bound holds at once.** `End::Exceeded(Exceeded)` becomes
   `Hold::Exceeded(Exceeded)`, with prior lifecycle `Active(Due)` and no
   source. The tasks child's own `Exceeded { bound: Bound, value: u64 }`
@@ -96,9 +96,9 @@
   past its bound, a dependency fails or is cancelled, drift breaks a
   resource it relies on (../connectors.md, section 11), an effect it asked
   for fails for good (a procedure's task hears it and steps instead,
-  ../connectors.md, 4.2), an effect it asked for is uncertain and of a kind
-  that cannot be recovered (../connectors.md, 4.3), its budget or its
-  deadline runs out (../authority.md, section 7; the deadline moved
+  ../connectors-effects.md, 1.2), an effect it asked for is uncertain and of a kind
+  that cannot be recovered (../connectors-effects.md, 1.3), its budget or its
+  deadline runs out (../authority-budgets.md, section 1; the deadline moved
   later by the time the task spent suspended, ../engine/executors.md,
   6.3; for an agent task, its
   share for its next run, half of what it has left where it may start a
@@ -184,7 +184,7 @@ deadline, circles, a procedure's need) keep their rules.
     scope is cancelled as parked at its next committed turn, its turn
     kept and no try spent, so it ends at a turn's boundary and resumes
     from its transcript; a procedure in scope is told to drain, and
-    steps on until its connector says it is idle (../connectors.md, 6.7);
+    steps on until its connector says it is idle (../connectors-procedures.md, 1.7);
     no due task in scope gets a run; and each task in scope is held as
     it goes idle: an agent's once its run has parked or ended, a
     person's at once, a procedure's once its connector says so.
@@ -200,7 +200,7 @@ deadline, circles, a procedure's need) keep their rules.
     with no wake;
   - placing a drain steps each idle procedure in scope once, told it is
     draining, so that its connector says whether it is idle
-    (../connectors.md, 6.7); a procedure mid-step learns it at its next;
+    (../connectors-procedures.md, 1.7); a procedure mid-step learns it at its next;
   - a closing task finishes under a drain: what runs finishes; a stop
     holds it;
   - a drain lifted before a task is idle clears its hold and the task
@@ -232,8 +232,8 @@ deadline, circles, a procedure's need) keep their rules.
   the stop stands.
 - **Parked until an event:** a hold a task places on a task below it may
   name the event that lifts it, with every task it holds: a connector's
-  event that its connector classes as waking for the hold (../connectors.md,
-  5.3); a named task's end; or a time. The core subscribes the hold to
+  event that its connector classes as waking for the hold (../connectors-facts.md,
+  1.3); a named task's end; or a time. The core subscribes the hold to
   it, as it subscribes a task (`messages.md`, 4), and lifts the hold in the commit
   that delivers the event. A party's hold names no event: a person lifts
   their own.

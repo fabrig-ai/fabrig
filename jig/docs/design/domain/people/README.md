@@ -238,7 +238,7 @@ inbox are the views child's (../engine/views.md).
   token: what the application's sign-in received is the application's,
   and jig acts on no system as a party (section 11). An LLM provider's
   record is an LLM account's, kept by the protocol layer and lent only to
-  pay for runs (../accounts.md, 3.4; `../../protocol/store/secrets.md`).
+  pay for runs (../accounts-sources.md, 1; `../../protocol/store/secrets.md`).
 - **Whose sign-in, for the OpenID provider.** The clients' component,
   as the deployment's OpenID provider (`../../protocol/client/openid.md`
   ), names a signed-in person to the deployment's other applications

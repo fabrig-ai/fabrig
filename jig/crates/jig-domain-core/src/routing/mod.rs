@@ -65,7 +65,7 @@ use skein_lib::{Env, List, Queue, ReplyTo, Token};
 
 use crate::routing::run::turns::route_accepted_turn;
 
-/// Only a widening replaces the funder (jig/docs/design/domain/authority.md, 7).
+/// Only a widening replaces the funder (jig/docs/design/domain/authority-budgets.md, 1).
 pub(crate) fn amendment_funder(
     core: &Core,
     before: &tasks::Authority,

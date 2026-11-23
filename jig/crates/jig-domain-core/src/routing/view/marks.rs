@@ -16,7 +16,7 @@ use jig_domain_views as views;
 use skein_lib::{Env, List, Queue, Set, Token};
 
 impl Core {
-    /// A rate changes only documents that carry its holder's account facts (accounts.md, 3.7).
+    /// A rate changes only documents that carry its holder's account facts (domain/accounts-lists.md, 1).
     pub(crate) fn touch_account_rate(&mut self, holder: jig_domain_accounts::Holder) {
         for (id, _) in &self.flights {
             let Some(binding) = self.watch_binding(id.token()) else { continue };

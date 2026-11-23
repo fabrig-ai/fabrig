@@ -117,7 +117,7 @@ fn readiness(core: &Core, payer: tasks::Payer, provider: u32) -> (Readiness, boo
 
 impl Core {
     /// An account's current list narrows catalogue models; held names without a row stay usable
-    /// (jig/docs/design/domain/accounts.md, 3.7 and 4.3).
+    /// (jig/docs/design/domain/accounts-lists.md, 1, and jig/docs/design/domain/accounts-uses.md, 1.3).
     pub(crate) fn account_allows(&self, account: u32, model: &crate::Model) -> bool {
         for number in 1..=tasks::MODELS {
             let Some(value) = self.current.value(crate::settings::Setting::Model(number)) else { continue };
@@ -215,7 +215,7 @@ impl Core {
     }
 
     /// Whether `model` has an account usable for `payer`, on a connected host
-    /// (jig/docs/design/domain/accounts.md, 4.3).
+    /// (jig/docs/design/domain/accounts-uses.md, 1.3).
     pub(crate) fn model_readiness(
         &self,
         payer: tasks::Payer,

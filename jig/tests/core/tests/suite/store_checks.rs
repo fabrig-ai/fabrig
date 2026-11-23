@@ -1,4 +1,4 @@
-//! A committed snapshot must cold-start apart from the live world (domain/testing.md, 7).
+//! A committed snapshot must cold-start apart from the live world (domain/testing-fakes.md, 1).
 use jig_core_world::{
     fixtures,
     world::{Cut, Setup, StoreChecks, World, fixture},

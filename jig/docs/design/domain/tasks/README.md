@@ -8,7 +8,7 @@ and escalations travel the tree. It is the first primitive of ../model.md
 (../engine/README.md, section 3).
 Authority, which every action here is checked against, is ../authority.md;
 what an agent's run is, ../engine/executors.md; a connector's procedures,
-../connectors.md, section 6; what a party asks, ../people/acts.md; a task
+../connectors-procedures.md, section 1; what a party asks, ../people/acts.md; a task
 that stands, its budget per period, its sessions and its Now,
 `standing.md`; a gathering, which parties fill with delegates and its
 requester concludes, `gatherings.md`. What
@@ -77,7 +77,7 @@ What it does not know, and how it is told:
   activation ends.
 - **Authority** is a value of its own type, which it carries and keeps
   the numbers of (budgets spent and reserved, tasks made), as it keeps
-  every other funder's (../authority.md, section 7), and never judges: every
+  every other funder's (../authority-budgets.md, section 1), and never judges: every
   check goes to the authority child domain, whose answers say what the
   numbers become.
 - **Resources** are names (a connector's number and a path) and the kind
@@ -169,13 +169,13 @@ it is live:
 - **Its LLM choice,** for an agent task, what its runs' LLMs are:
   - *main:* a configured model, and an effort among those the model
     declares (`../../protocol/configuration-engine.md`, section 1); its runs use
-    it, and their check holds its most costly completion (../authority.md,
-    8.3);
+    it, and their check holds its most costly completion (../authority-checks.md,
+    1.3);
   - *sub-agents:* the models its runs' sub-agents may use, each with an
     effort, among which smith chooses within a run (smith's
     `domain/run.md`, 5.3);
   - *account:* optionally, one LLM account its creator wants in
-    particular, within the account's uses (../accounts.md, 4.3);
+    particular, within the account's uses (../accounts-uses.md, 1.3);
   - *later:* optionally, a second main model with its effort and the
     sub-agents' models with theirs, which every run whose reasons hold no
     `first` takes (`messages.md`, 6), the first choice going to the runs of its first
@@ -190,7 +190,7 @@ it is live:
   authority (../authority.md, section 3). A task given none keeps none: each
   of its runs' checks takes its models from its charter, within its
   authority, the first it can use its main and the others its sub-agents'
-  (../accounts.md, 4.3); each takes the effort its charter selects, or else
+  (../accounts-uses.md, 1.3); each takes the effort its charter selects, or else
   its model's default (`effort`, `../../protocol/configuration-engine.md`, section 1),
   or none where it declares none, which leaves its LLM provider's default. Its document shows what its next run would take
   (`../../client/domain/contract/documents.md`, 1). A batch or an amendment that
@@ -208,7 +208,7 @@ it is live:
   provider, chosen at its first run's check and kept from run to run,
   so that a conversation stays on one account's cache and replay, until
   a change of its payer or of that LLM provider chooses again
-  (../accounts.md, 4.3), as its first run to take a `later` on another LLM
+  (../accounts-uses.md, 1.3), as its first run to take a `later` on another LLM
   provider does. The accounts its sub-agents use are each run's,
   recorded in its claim (../engine/executors.md, 1, step 3). This kept number is separate
   from the creator's optional preference. Only a successful claim changes it,
@@ -310,7 +310,7 @@ dependencies among them.
   its flags, and an agent task's LLM choice (section 3). Both pass the
   same checks; only the source of the creator's authority differs: a
   task's authority and what it has left, or a party's role and pool
-  (../authority.md, 8.1 and 8.4).
+  (../authority-checks.md, 1.1 and 1.4).
 - **A party's root has someone to escalate to.** Every task a party
   requests is the root of a tree, whose escalations wait for that party
   or past them (`proposals.md`). A party becomes a root's requester only
@@ -324,7 +324,7 @@ dependencies among them.
   root and depth below it, as if it had made them; none of them is a
   root, so it needs no holder of its own escalations. It is checked as
   both: within the party's role and within what the task has left
-  (../authority.md, 8.4). It reaches as the party does: its
+  (../authority-checks.md, 1.4). It reaches as the party does: its
   dependencies and inputs within the party's reach, never the task's.
   The history of each task it makes names the party.
 - **Dependencies** name tasks in the same batch, or tasks the
@@ -351,13 +351,13 @@ dependencies among them.
   reach.
 - **A budget as `AsAllowed`.** A creator gives each task's budget as an
   amount, or, for one task of a batch, as `AsAllowed`, which the
-  authority child resolves as it checks the batch (../authority.md,
-  section 7); the task keeps the amount, and the batch's answer names
+  authority child resolves as it checks the batch (../authority-budgets.md,
+  section 1); the task keeps the amount, and the batch's answer names
   it.
 - **A deadline as a span.** A creator gives each task's deadline as a
   wall, as a span from the decision that makes the task, or none;
-  authority makes a span a wall as it checks the batch (../authority.md,
-  section 7), and the task keeps the wall.
+  authority makes a span a wall as it checks the batch (../authority-budgets.md,
+  section 1), and the task keeps the wall.
 - **Checked whole,** before anything of it exists:
   - every task well formed: a known executor kind, a charter or
     procedure the deployment has, a result contract its executor can
@@ -379,10 +379,10 @@ dependencies among them.
     tasks in the deployment, tasks in the tree, depth below its root,
     delegates of the creator, goals in its project (section 6);
   - within authority: each task's authority fits what the creator has
-    left, its budgets carved from what it has left (../authority.md, 8.1),
-    or, for a party, fits their role and their pool (../authority.md, 8.4);
+    left, its budgets carved from what it has left (../authority-checks.md, 1.1),
+    or, for a party, fits their role and their pool (../authority-checks.md, 1.4);
     its LLM choice names models its authority allows, and an account
-    only one whose uses serve its payer (../authority.md, 8.1).
+    only one whose uses serve its payer (../authority-checks.md, 1.1).
 
   A batch that fails a check other than authority is refused, saying
   which task and why, and nothing of it is made. One that fails only on
@@ -403,7 +403,7 @@ dependencies among them.
   resources by their specs and the grants named after them, and hands
   down none, since a party holds nothing (`holds.md`, 1).
 - **Procedure tasks' parameters** go to their connector in the same
-  decision, under the numbers the batch gives (../connectors.md, 6.1).
+  decision, under the numbers the batch gives (../connectors-procedures.md, 1.1).
 
 ## 5. Core procedures
 
@@ -414,8 +414,8 @@ Procedures the core owns, stepped by this child domain:
   templates, ../model.md, 7.3): at each period, as the period reaches the
   core from the application's root, it makes its recurring batch as its
   own delegates, within its authority, its budget carved again each
-  period from the project's spend for that period (../authority.md,
-  section 7). If the last batch is still live, the period passes, or the
+  period from the project's spend for that period (../authority-budgets.md,
+  section 1). If the last batch is still live, the period passes, or the
   new batch waits, as its maker chose. A recurring task ends when it is
   cancelled.
 - **Gathering.** A task whose procedure does nothing: parties make its
@@ -426,9 +426,9 @@ Procedures the core owns, stepped by this child domain:
 The core has no other procedure. A static plan is a batch; waiting for
 several tasks is a dependency; anything that needs a condition over
 results is a coordinator's judgement. A standing task that makes tasks
-from news is a connector's procedure (../connectors.md, 6.6). Both kinds of
+from news is a connector's procedure (../connectors-procedures.md, 1.6). Both kinds of
 standing task have their allotment of tasks and spend renewed each
-period (../authority.md, section 7), and so does an agent task made
+period (../authority-budgets.md, section 1), and so does an agent task made
 standing (`standing.md`, section 4), which also ends only when it is
 cancelled.
 

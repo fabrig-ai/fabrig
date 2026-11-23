@@ -101,14 +101,14 @@ What step 1 adds:
   holder's order, an Anthropic account's Claude Code then a key by
   default; a run takes the first usable on its host, and passes to the
   next only when the earlier is unusable there alone, such as a login
-  not signed in on that host (jig's `domain/accounts.md`, 3.4). Today a
+  not signed in on that host (jig's `domain/accounts-sources.md`, 1). Today a
   model whose endpoint names a program takes program sources alone, and
   one naming none direct sources alone; a model of a provider with both
   endpoints takes either.
 - **Account, source, host and endpoint are chosen together:** the
   endpoint a host is checked for is the chosen source's, never the
   model's stored one, at a run's start, in readiness and the offer, and
-  when a claim is checked again (jig's `domain/accounts.md`, 4.3).
+  when a claim is checked again (jig's `domain/accounts-uses.md`, 1.3).
 - **The charter names the chosen source's endpoint:** Claude Code's for
   a program source, the direct one for a key. smith then does what it
   already says: a key on the direct backend, a program source on the
@@ -116,10 +116,10 @@ What step 1 adds:
 - **One way per run:** a charter's models of one provider share its
   grant, so a run's alternatives take the same way as its main model.
 - **A run keeps its source** (smith's `protocol/programs.md`, section 3),
-  and **a task its account** (jig's `domain/accounts.md`, 4.3). A
+  and **a task its account** (jig's `domain/accounts-uses.md`, 1.3). A
   source limited everywhere holds its account's runs until its holder
-  acts, since the order decides who pays (jig's `domain/accounts.md`,
-  3.4): no key is spent because a subscription ran out. Whether it
+  acts, since the order decides who pays (jig's `domain/accounts-sources.md`,
+  1): no key is spent because a subscription ran out. Whether it
   should be is step 2's.
 - **A conversation crosses backends:** a task whose next run takes the
   other way carries its conversation over from smith's transcript
@@ -130,7 +130,7 @@ What step 1 adds:
 - **A key reads Anthropic's list** through the direct endpoint, never
   Claude Code's (`model-catalogue.md`, section 5), for an account whose
   first source is the key. One that lists Claude Code first reads none,
-  as jig's rule has it (jig's `domain/accounts.md`, 3.7): the order
+  as jig's rule has it (jig's `domain/accounts-lists.md`, 1): the order
   decides who pays, and a subscription has no list to read.
 
 ## 5. The models' figures
@@ -163,7 +163,7 @@ What step 1 adds:
   PROVIDER `anthropic`'s number as `me` prints it, 2 as init writes it:
   a key-only account, a key after ACCOUNT's Claude Code login, or the
   deployment's key, which pays for every payer (jig's
-  `domain/accounts.md`, 4.2). FILE is private, as any key's is.
+  `domain/accounts-uses.md`, 1.2). FILE is private, as any key's is.
   `replace-key`, `forget`, `rank` and `account list` work on it as on
   OpenAI's.
 - **Its proof:** a key-only account of a person's is tried by the model

@@ -439,7 +439,7 @@ Searching by description.
   period, its budget per period, its last batch and when it next runs.
   The engine keeps no calendar: periods are the application's to say,
   and a period says when the next begins only if its source knows
-  (`../../domain/authority.md`, section 7). Where the current one said
+  (`../../domain/authority-budgets.md`, section 1). Where the current one said
   so, the line says when the next period begins; otherwise, that the
   task runs at the next period, with the current period and when it
   began.

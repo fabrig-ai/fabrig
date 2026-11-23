@@ -316,7 +316,7 @@ landing's or a change's wait and a task's resolve across inspections.
     forge read admissions; branch holds and landing rows with their asks.
     Build places are the worker's.
   - **The tasks the root holds** are jig's adapter's
-    (`jig/docs/design/domain/testing.md`, 7), over `Domain::tasks()`:
+    (`jig/docs/design/domain/testing-fakes.md`, 1), over `Domain::tasks()`:
     an engine world runs both, and checks the two inspections together,
     once jig's is built (`engine-checks.md`, 7).
   - **Called** through the engine's world kit (`engine-checks.md`, 3):
@@ -348,7 +348,7 @@ landing's or a change's wait and a task's resolve across inspections.
     domain world's quiet point, and in the git protocol world after each
     operation (`worker.md`, 4).
 - **smith's and jig's** are their trees' (`smith/docs/design/testing.md`,
-  6; `jig/docs/design/domain/testing.md`, 7); the system world calls
+  6; `jig/docs/design/domain/testing-fakes.md`, 1); the system world calls
   each beside the engine's and the worker's.
 
 ### 6.2 Faults, streams and sweeps
@@ -404,7 +404,7 @@ the providers' faults (`smith/docs/design/faults.md`).
     account's tasks within the fault's interval, stays at zero; spent
     credits or an expired sign-in that is never cleared holds the struck
     goal's tasks with words naming the account
-    (`jig/docs/design/domain/accounts.md`, 3.5); and smith's
+    (`jig/docs/design/domain/accounts-sources.md`, 2); and smith's
     half, by `smith_faults::Runs::judge` over the runs' attempts and ends
     (`smith/docs/design/faults.md`, 4).
   - **3.4:** the other account's goal lands as if the fault weren't

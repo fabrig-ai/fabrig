@@ -138,8 +138,8 @@ its own, wherever a presentation builds on skein's UI kit.
   (`jig-client-test-view`). The family's parts fill every kind of slot,
   and its page fills both of an application's: a card's, and a
   section's (a task's plan), as the test connector stands in for an
-  application in the engine's worlds (`../../domain/testing.md`,
-  section 7). Its page also presents one of jig's objects itself, a
+  application in the engine's worlds (`../../domain/testing-fakes.md`,
+  section 1). Its page also presents one of jig's objects itself, a
   proposal, from its document as the client delivers it, saying what
   `facts` gives, with a confirmation of its own, so jig's check holds an
   application's own presentation in jig's world (6.2). It takes jig's
@@ -225,7 +225,7 @@ them), and what the engine made durable (the scripted engine's commits,
 or the engine's store), never a client's state. Its checks, jig's check's
 among them, return their findings, and the world fails with the first at
 its top; a test of a check reads it through the world's returning entry
-points (`../../domain/testing.md`, 7).
+points (`../../domain/testing-fakes.md`, 1).
 
 ### 6.1 On the client's surface
 

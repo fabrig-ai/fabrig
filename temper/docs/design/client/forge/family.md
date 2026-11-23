@@ -329,7 +329,7 @@ client removes no account and closes no chat of its own.
   as leaving the same way, until the read answers none.
 - **The scripted model, the playground's alone.** Only the playground's
   project allows it, and no other project does (`../../protocol/setup/playground.md`
-  ; jig's `domain/accounts.md`, 4.2). The client names its LLM
+  ; jig's `domain/accounts-uses.md`, 1.2). The client names its LLM
   provider from the read and leaves its account out of the accounts'
   lists and counts and its provider out of the ways to connect a model
   (`../pages/README.md`, `../pages/accounts-words.md`, 1). A model is usable for the welcome, Ready and the

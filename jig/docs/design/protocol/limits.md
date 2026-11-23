@@ -184,10 +184,10 @@
   (`../domain/authority.md`, section 6).
 - **Charters' budgets:** each charter's turns and time are above its
   reserve's, and its default budget holds its reserve and one of its
-  default model's most costly completions (`../domain/authority.md`,
-  section 7), or the engine's start is refused, naming the charter. A
+  default model's most costly completions (`../domain/authority-budgets.md`,
+  section 1), or the engine's start is refused, naming the charter. A
   task's chosen model is checked with its run's check
-  (`../domain/authority.md`, 8.3).
+  (`../domain/authority-checks.md`, 1.3).
 - **A charter's documents:** at most `tasks.charter_documents` per
   charter (`../domain/engine/settings.md`, 9; 2 in Small), with the brief's
   sections 8 in both profiles, the core's own six kinds and two

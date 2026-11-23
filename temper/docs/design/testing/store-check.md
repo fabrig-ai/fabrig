@@ -6,8 +6,8 @@ that committed snapshot, apart from the live world, passes everything a
 start checks, jig's checks and temper's connector checks above them,
 and a record a start would refuse fails the world at the commit that
 made it, naming the record and the commit. jig gives the operation, its
-choice of commits and its finding (`jig/docs/design/domain/testing.md`,
-7, the store check); this document is temper's: its root's rehearsal as
+choice of commits and its finding (`jig/docs/design/domain/testing-fakes.md`,
+1, the store check); this document is temper's: its root's rehearsal as
 the start that checks, and where each world calls it.
 
 ## 1. In one page
@@ -83,8 +83,8 @@ the start that checks, and where each world calls it.
 
 ## 3. Which commits, in which world
 
-jig's `StoreChecks` choose them (`jig/docs/design/domain/testing.md`,
-7): every commit, or each commit with one chance in `one_in` drawn from
+jig's `StoreChecks` choose them (`jig/docs/design/domain/testing-fakes.md`,
+1): every commit, or each commit with one chance in `one_in` drawn from
 the run's seed, each run's count reported.
 
 | World | Commits | Where it calls the check |

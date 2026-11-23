@@ -60,8 +60,8 @@
 ## 2. A pass
 
 The convergence loop is a procedure of `hearth-domain-converge`:
-level-triggered, bounded, and stepped by events (`jig/docs/design/domain/connectors.md`,
-section 6, is the model). It compares what the desired revision makes
+level-triggered, bounded, and stepped by events (`jig/docs/design/domain/connectors-procedures.md`,
+section 1, is the model). It compares what the desired revision makes
 with what runs, and does the next thing that closes the gap. Its
 stages that read the repository or build, `fetching`, `rendering` and
 `building`, and the live plan in `trying`, are a builder's jobs

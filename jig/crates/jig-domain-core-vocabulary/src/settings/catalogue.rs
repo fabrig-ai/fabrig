@@ -194,7 +194,7 @@ pub fn matches(pattern: &[u8], name: &[u8]) -> bool {
     false
 }
 
-/// A drop wins over any keep (jig/docs/design/domain/accounts.md, 3.7).
+/// A drop wins over any keep (jig/docs/design/domain/accounts-lists.md, 1).
 #[must_use]
 pub fn kept(name: &[u8], list: &jig_domain_accounts::ProviderList) -> bool {
     for pattern in &list.drop {

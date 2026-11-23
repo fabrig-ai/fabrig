@@ -1,6 +1,6 @@
 # A program's login in a lent terminal
 
-A person's program source (`accounts.md`, 3.4, *program*) is signed in
+A person's program source (`accounts-sources.md`, 1, *program*) is signed in
 by the program's own sign-in, which the application's command runs on
 the host that keeps the login, in a terminal the person holds (smith's
 `protocol/programs.md`, 4.1). This document is how a client of the
@@ -51,7 +51,7 @@ way and an exit status the other, and runs nothing.
   `accounts` watches.
 - **The engine trusts the offer:** it cannot see where a client runs. A
   client offers only a terminal on the machine of the host that keeps
-  its person's program logins (section 6; `accounts.md`, 3.4, *The host
+  its person's program logins (section 6; `accounts-sources.md`, 1, *The host
   rule*).
 - **Nothing is kept:** offers live in the engine's memory, and a restart
   forgets them; a client's watch, opened again after it, offers again.
@@ -62,7 +62,7 @@ way and an exit status the other, and runs nothing.
   *log a program in*, `AccountChange::LoginProgram { provider, name }`.
   It is checked, in this order, refused at the first that fails:
   1. as a declaration under that holder, provider and name would be
-     (`accounts.md`, 3.4 and 5): a name out of its bounds, a provider
+     (`accounts-sources.md`, 1, and `accounts.md`, 5): a name out of its bounds, a provider
      that offers the holder no program's login (*not offered*), a name
      another holder's live source or reservation holds (*name taken*).
      The deployment as holder is refused *not offered*: a lent terminal
@@ -91,7 +91,7 @@ way and an exit status the other, and runs nothing.
     program's login*); otherwise the name is declared, joining no
     account, as the holder's declaration (`accounts.md`, 5, *declare a
     program's login*), so that each host checks the new source's login
-    (`accounts.md`, 3.4). Either ends `SignedIn { source }`; a
+    (`accounts-sources.md`, 1). Either ends `SignedIn { source }`; a
     declaration refused, the name taken meanwhile or the lifetime names
     spent, ends `Refused { refusal }`, its refusal;
   - any other exit: `NotFinished { exit: Some(exit) }`.
@@ -112,7 +112,7 @@ way and an exit status the other, and runs nothing.
   theirs ends; as `last_end` is for a sign-in (`accounts.md`, 5).
 - **Usable is the host's to say.** `SignedIn` says the program exited 0
   and the source was declared or checked; whether the login is usable
-  comes as any check's answer does (`accounts.md`, 3.4 and 3.5), and the
+  comes as any check's answer does (`accounts-sources.md`, 1 and 2), and the
   `accounts` document lists the check under way until it does.
 
 ## 5. The contract
@@ -132,7 +132,7 @@ pub struct Terminal { pub login: Option<TerminalLogin> }
 pub struct TerminalLogin {
     pub number: u32,
     pub provider: u32,
-    pub name: Box<[u8]>,                     // the source's name, 1 to 32 bytes (accounts.md, 3.4)
+    pub name: Box<[u8]>,                     // the source's name, 1 to 32 bytes (accounts-sources.md, 1)
     pub cancelled: bool,
 }
 // Accounts gains, beside `signing` and `last_end`:
@@ -175,7 +175,7 @@ moving its version to 21 (`../protocol/client/versions.md`, 1).
   no other program holding it.
 - **It runs the application's own command,** from the application's own
   binary and directories, for the name the login names, which it checks
-  against the name's bounds again (`accounts.md`, 3.4), taking nothing
+  against the name's bounds again (`accounts-sources.md`, 1), taking nothing
   else from the document. The program's own sign-in holds the terminal
   while it runs, and the client reads nothing of it, draws nothing and
   keeps nothing.

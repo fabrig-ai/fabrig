@@ -1,4 +1,4 @@
-//! Keeping and replacing LLM keys (accounts.md, 3.5 and section 5).
+//! Keeping and replacing LLM keys (domain/accounts-sources.md, 2, and domain/accounts.md, 5).
 use crate::domain::{Account, Source, stored};
 use crate::{Answer, Bound, Domain, Holder, KeyFailure, Kind, Limits, Refusal, Request, Signing};
 use alloc::boxed::Box;

@@ -636,7 +636,7 @@ pub(crate) fn back(domain: &mut Domain, env: &Env<Limits>, number: u64, out: &mu
 }
 
 /// In a queue: waiting for holds once dependencies permit starting (domain/tasks/holds.md, 2;
-/// connectors.md, 6.1).
+/// domain/connectors-procedures.md, 1.1).
 pub(crate) fn queued(domain: &Domain, row: &TaskRecord) -> bool {
     row.phase == Phase::Waiting && row.hold_wait_since.is_some() && !row.holds_taken && domain.dependencies_ready(row)
 }

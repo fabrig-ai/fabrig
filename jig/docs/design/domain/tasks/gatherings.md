@@ -18,7 +18,7 @@ section 4), and its requester ends it with `Conclude` (section 3).
 - **Filled by parties.** A party who may act on it makes its delegates
   with `Delegate`, funded from its budget, within its delegation and its
   deadline, as if it had made them itself (`README.md`, section 4;
-  `../authority.md`, 8.4).
+  `../authority-checks.md`, 1.4).
 - **Concluded by its requester's word.** `Conclude` says no delegate
   joins it any more. It ends done once that is said and every delegate
   it has has ended, with a report counting their endings (section 3).
@@ -61,7 +61,7 @@ section 4), and its requester ends it with `Conclude` (section 3).
   none, tracked and priority, label, listed and retention, budget,
   deadline and authority. Its authority bounds its delegates, as any
   task's bounds those it makes: its delegation's kinds, tasks and depth,
-  its budget, its deadline (`../authority.md`, 8.1).
+  its budget, its deadline (`../authority-checks.md`, 1.1).
 
 ## 3. Concluding
 
@@ -119,7 +119,7 @@ section 4), and its requester ends it with `Conclude` (section 3).
   Where the gathering's requester is the deployment, the question waits
   in its inbox, which no run reads.
 - **It spends nothing of its own.** It has no run; what it spends is its
-  delegates' (`../authority.md`, section 7).
+  delegates' (`../authority-budgets.md`, section 1).
 
 ## 5. Reads
 

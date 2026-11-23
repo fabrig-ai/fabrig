@@ -1,4 +1,4 @@
-//! Resolve a task's batch against its own remaining allotment (authority.md, 7).
+//! Resolve a task's batch against its own remaining allotment (domain/authority-budgets.md, 1).
 use crate::{Core, Delegate};
 use alloc::boxed::Box;
 use jig_domain_people::Budget;

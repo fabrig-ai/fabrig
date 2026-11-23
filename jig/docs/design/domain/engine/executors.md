@@ -8,15 +8,15 @@ has its claim refused, its preparation abandoned with no try spent; it
 is due again once its dependencies are done.
 
 1. **Checks** that the run may start, and with what budget
-   (../authority.md, 8.3), takes its task's LLM choice: its `later` when the
+   (../authority-checks.md, 1.3), takes its task's LLM choice: its `later` when the
    task's reasons hold no `first` and its charter doesn't resume, its first
    choice otherwise (../tasks/README.md, section 3, and ../tasks/messages.md, section 6); takes its models where
-   its task was given none, the first it can use its main (../accounts.md,
-   4.3), and chooses the
+   its task was given none, the first it can use its main (../accounts-uses.md,
+   1.3), and chooses the
    accounts that pay for it: one
    for its main model's LLM provider, kept by its task, and one for each
    other LLM provider its sub-agents' models use, each with its first
-   source usable on a host with room (../accounts.md, 4.3).
+   source usable on a host with room (../accounts-uses.md, 1.3).
 2. **Prepares it,** the task preparing over as many steps as it takes:
    takes its reasons, `first` and the kinds that woke it, which the tasks
    child gives with the activation (../tasks/messages.md, 6), and chooses its
@@ -35,7 +35,7 @@ is due again once its dependencies are done.
    note after the transcript, a fresh one as a section of its brief.
 3. **Commits the claim:** the task claimed, with its new attempt number,
    the revision its preparation began under (`settings.md`, 3), the host kind it is placed on, the accounts and sources its check
-   chose, the task's kept account among them (../accounts.md, 4.3), the
+   chose, the task's kept account among them (../accounts-uses.md, 1.3), the
    endpoint its main model runs on, which names its backend (2,
    *Resumed only where it ran*), the
    writer slots of the holds its workspace writes (../tasks/holds.md, 3), its
@@ -71,19 +71,19 @@ is due again once its dependencies are done.
      so a run's host part spends nothing on it), the outcome its result
      contract asks for; its budget for the run: turns, spend and time,
      with a reserve of turns and time for finishing, its spend reserved
-     from what its task has left in the claim's commit (../authority.md,
-     section 7); and its models, from its task's LLM choice (../tasks/README.md,
+     from what its task has left in the claim's commit (../authority-budgets.md,
+     section 1); and its models, from its task's LLM choice (../tasks/README.md,
      section 3): the main model with its effort, and those its
      sub-agents may use, each with its effort, its window (the input
      tokens a conversation's window may hold), its output (the most
-     output tokens a completion may have) and its prices (../authority.md,
-     section 7).
+     output tokens a completion may have) and its prices (../authority-budgets.md,
+     section 1).
      The engine's protocol layer translates it into smith's (`protocol/charter.md`,
      section 2);
    - its transcript's current window, when it resumes, and the calls
      committed since its last turn;
    - its credential grants: for each account its check chose, its
-     source's (../accounts.md, 3.4), a value's current generation with how
+     source's (../accounts-sources.md, 1), a value's current generation with how
      it is sent, or a program source's name, which has its agent run the
      program backend (smith's `protocol/programs.md`, section 3); and
      the application's credentials its connectors named (`README.md`, 6.1).
@@ -369,10 +369,10 @@ pub enum Request {
 
 - **The gap** is a suspension's age (6.2): from the suspended end until
   the task leaves due and preparing.
-- **The task's deadline** (../authority.md, 7) is its authority's,
+- **The task's deadline** (../authority-budgets.md, 1) is its authority's,
   moved later by `suspended` and by its open suspension's age. The
   core's checks of a claim and of a job against the task's own deadline
-  (../authority.md, 8.3) and the tasks child's alarm at it
+  (../authority-checks.md, 1.3) and the tasks child's alarm at it
   (../tasks/lifecycle-holds.md, 1) read that moved deadline, which
   `tasks::Domain::deadline(task, wall) -> Option<Wall>` gives, reading
   the open suspension's age at the caller's wall, the same wall the

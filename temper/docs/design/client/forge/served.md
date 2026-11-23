@@ -19,7 +19,7 @@ and its hold (`README.md`, 2.5) follow.
 |---|---|---|
 | a change's way to landing, its gates, requirements and heads | a panel, on its task's page | `../../domain/forge/change/README.md` |
 | a change's result | a result, on its task's page, in a chat, in an update | `../../domain/forge/change/README.md`, 2 and 4 |
-| its holds | a hold, on the held card | `../../domain/forge/change/repairs.md` and `../../domain/forge/change/drift.md`, 1; jig's `domain/connectors.md`, 4.3 and section 11 |
+| its holds | a hold, on the held card | `../../domain/forge/change/repairs.md` and `../../domain/forge/change/drift.md`, 1; jig's `domain/connectors-effects.md`, 1.3, and `domain/connectors.md`, 11 |
 | what a proposed write would do; the outbox | an effect, on a proposal card; an outbox entry | `../../domain/forge/effects.md`, section 1 |
 | a project's queues, its branches' red and its last landings | temper's `Changes` page, from the subject `changes` (`records.md`) | `../../domain/forge/queues.md`; `../../domain/after-landing-storage.md`, section 1 |
 | approvals | a person task's card; a panel; a change waiting on a review, a card under Needs you from the subject `approvals`, of the party's own scope (`README.md`, 4.1; `records.md`) | `../../domain/forge/change/gates.md`, 1 and 2, and `../../domain/forge/change/questions.md`, 2; jig's `domain/people/README.md`, section 7 |

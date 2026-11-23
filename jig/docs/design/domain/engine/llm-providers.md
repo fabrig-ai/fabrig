@@ -8,7 +8,7 @@ engine's next start, since what dials and signs in through a provider
 is built at start. This document is the kind, its check, how a start
 takes it, and what crosses the store and the client's wire. It is
 written from temper's `draft/config.md`, 6.2. What a provider offers its
-accounts is `../accounts.md`, 3.4; a provider's list is `settings-catalogue.md`,
+accounts is `../accounts-sources.md`, 1; a provider's list is `settings-catalogue.md`,
 2; the `llm` member a document gives is
 `../../protocol/configuration-engine.md`, section 1.
 
@@ -75,7 +75,7 @@ accounts is `../accounts.md`, 3.4; a provider's list is `settings-catalogue.md`,
   endpoints or none; `list`, its `keep` and `drop` patterns; its
   `signed_in_plan` and `manage_usage` terms (`../providers.md`, 2.6);
   and its sources: `sign_in`, a public registration, `keys`, and
-  `programs`, each name at most 32 bytes (`../accounts.md`, 3.4).
+  `programs`, each name at most 32 bytes (`../accounts-sources.md`, 1).
 - **Its endpoints:** each as today's `Endpoint`: its name and number,
   unique across every provider's endpoints, fixed ones included; its
   dialect; its `provider`, this provider's name; its optional `program`,

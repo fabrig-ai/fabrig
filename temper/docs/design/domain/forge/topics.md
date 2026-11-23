@@ -25,7 +25,7 @@ goals.
   same repository, whose base has moved. Concurrent plans meeting this
   way is the ordinary case, not an exception for outside activity.
 - **A goal hears of landings** through the forge's topic for goals
-  (jig's `domain/connectors.md`, 5.4): the landings on the branches its
+  (jig's `domain/connectors-facts.md`, 1.4): the landings on the branches its
   subtree's changes target, which the core subscribes it to as the first
   change into each is made, until the goal ends. A goal ended by its
   closer (`branches.md`, 2) takes no subscription to the repository's default
@@ -49,7 +49,7 @@ goals.
 ### 1.3 Which landings wake
 
 Not every piece of news wakes. The connector classifies each landing for
-each subscribed goal (jig's `domain/connectors.md`, 5.3), without an
+each subscribed goal (jig's `domain/connectors-facts.md`, 1.3), without an
 LLM:
 
 - **its own change landed:** kept; what comes after it is due

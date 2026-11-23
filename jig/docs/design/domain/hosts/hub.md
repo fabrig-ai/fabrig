@@ -151,7 +151,7 @@ Typed, so the engine can act on them without reading prose:
   section 9), a failure of its model naming the model call where it can
   (below), or because the source of an LLM account it needs turned
   limited, refused or in need of a sign-in, naming the account, which
-  is no failure of its task's (../tasks/lifecycle-holds.md, 1; ../accounts.md, 3.5),
+  is no failure of its task's (../tasks/lifecycle-holds.md, 1; ../accounts-sources.md, 2),
   or because its program started without its agent's tools, a fault of
   its place (below);
 - **the agent failed:** it could not be started, it exited or was dropped

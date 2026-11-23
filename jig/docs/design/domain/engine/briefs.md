@@ -42,7 +42,7 @@ whom; its delegates, their states, and the
   prices, and what it is good at, a description its configuration gives
   (`../../protocol/configuration-engine.md`, section 1), and whether an account
   that serves the run's payer is usable now, limited and until when, or
-  needs sign-in (../accounts.md, 3.5), so that a planning agent gives each
+  needs sign-in (../accounts-sources.md, 2), so that a planning agent gives each
   task it delegates the LLM choice its work needs, by capability and
   cost (../tasks/README.md, section 4).
 - **Its charter's documents' (`settings.md`, 9),** gathered by the connector that

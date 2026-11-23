@@ -40,7 +40,7 @@
   reasons, or refused by the forge with the connector's. The
   connector keeps it under the people child's token, to give again when
   the request is sent again, until its retention ends or it makes room
-  for a newer request (section 9; jig's `domain/connectors.md`, 5.5;
+  for a newer request (section 9; jig's `domain/connectors-facts.md`, 1.5;
   `../../protocol/store.md`, section 2).
 - **The forge's host** in a repository's resource path, and in what a
   person reads of it, is the forge's as its record has it: the host of
@@ -506,7 +506,7 @@ apart.
 
 The answers to the forge's keyed requests, each kept under the people
 child's token and given again when its request is sent again (jig's
-`domain/connectors.md`, 5.5): an adoption's (the opening's bullets), an
+`domain/connectors-facts.md`, 1.5): an adoption's (the opening's bullets), an
 opening's (`change/opened.md`, 2), a repository's making and its
 dismissal (5), and a follow's act (`follows.md`). One table holds them
 all.

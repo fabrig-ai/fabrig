@@ -130,7 +130,7 @@ Who carries a task out. A task has one:
 - **A procedure:** engine code, pure: given the task's state, what it has
   heard and the facts it reads afresh, it says which effects to make,
   which tasks to create, amend or cancel, and whether it is done.
-  Procedures belong to connectors (connectors.md, section 6), or to the
+  Procedures belong to connectors (connectors-procedures.md, section 1), or to the
   core, such as a recurring task (tasks/README.md, section 5). They cost no LLM
   turns.
 - **A person:** a party who answers through a client: a choice, a
@@ -238,7 +238,7 @@ tasks, inboxes and authority know none of them.
   system offers for its kind: a key the system keeps, a condition it
   checks, a write that may be repeated. An effect with none of these is
   never repeated on the engine's own: its task is held for a person
-  (connectors.md, 4.3).
+  (connectors-effects.md, 1.3).
 - **Facts are read afresh.** What a connector's system owns is read again
   before a decision that depends on it, as level-triggered state. Events
   are hints that something changed, never the state itself.
@@ -545,7 +545,7 @@ Each object the application deals with is one of two kinds:
   keeps its key or checks its condition; otherwise its task is held for a
   person when its outcome is uncertain. A requirement holds when an
   effect is applied only if the effect's own system checks it then
-  (connectors.md, 4.3 and section 7).
+  (connectors-effects.md, 1.3, and connectors.md, 7).
 - **What the application may do there is read at adoption,** and the
   project's policy keeps within it (connectors.md, section 12).
 
@@ -600,8 +600,8 @@ credential (people/README.md, section 3).
   once, atomicity) is never sugar. Any application may refuse or redo
   jig's sugar; the plumbing changes rarely.
 - **A party does what an agent does.** Their operations pass the same
-  checks, only the source of their authority differing (authority.md,
-  8.1 and 8.4), and both ask explicitly to propose (tasks/proposals.md
+  checks, only the source of their authority differing (authority-checks.md,
+  1.1 and 1.4), and both ask explicitly to propose (tasks/proposals.md
   ). What stays asymmetric, by design, is what only parties do
   (people/acts.md, 1); procedures decide nothing.
 - **Presentation is the application's:** its screens, words, look,

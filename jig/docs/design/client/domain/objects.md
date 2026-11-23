@@ -124,7 +124,7 @@ and its mandatory details together.
 | done, failed, cancelled | ended so, when, and by whom for a cancel |
 
 A closing task's effects are its connectors'
-(`../../domain/connectors.md`, 4.2): the chip names each connector it
+(`../../domain/connectors-effects.md`, 1.2): the chip names each connector it
 waits on to settle, in the connector's own words (a part), and never
 counts their effects. How many, and which, the connector shows in its
 panel on the task's page (pages.md, 5.2).
@@ -231,10 +231,10 @@ A held task whose escalation reached the party
 - **Widening a budget** is funded by whoever gives it: the party's pool
   when it is within their authority, the accepter's when it is
   proposed; from then the giver is the task's funder
-  (`../../domain/authority.md`, section 7).
+  (`../../domain/authority-budgets.md`, section 1).
 - **A person deciding an uncertain effect** decides whether to make it
   again, which only someone who looks at the system can
-  (`../../domain/connectors.md`, 4.3); the card says where to look, as
+  (`../../domain/connectors-effects.md`, 1.3); the card says where to look, as
   its connector's part, and that the engine will do as they say.
 
 ## 6. Question
@@ -412,7 +412,7 @@ will do:
   jig's words, that effects not yet made are withdrawn and those in
   flight settle. The core never counts a connector's effects, and its
   closing asks every connector to settle the tree's (`objects.md`, section 3;
-  `../../domain/connectors.md`, 4.2): which, and how many, each
+  `../../domain/connectors-effects.md`, 1.2): which, and how many, each
   connector's panel says.
 - **Close,** for a chat: asks it to finish and cancels it if it has not
   within a grace. A chat with live delegates asks first what becomes of

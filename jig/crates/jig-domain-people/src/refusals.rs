@@ -51,7 +51,7 @@ pub enum Refusal {
         tasks: Box<[u64]>,
         more: u32,
     },
-    /// Another project holds this name under simple case folding, or a program source's name a declaration gives is taken (domain/accounts.md, 3.4).
+    /// Another project holds this name under simple case folding, or a program source's name a declaration gives is taken (domain/accounts-sources.md, 1).
     NameTaken,
     /// A holder's account move could not proceed (domain/accounts.md, section 6).
     AccountMove {
@@ -119,7 +119,7 @@ pub enum Refusal {
     /// The program source name remains reserved after its account is forgotten.
     ProgramNameReserved,
     /// A plan's uses name another person, directly or through a project
-    /// (domain/accounts.md, 4.2; domain/providers.md, 2.6 and 3.4).
+    /// (domain/accounts-uses.md, 1.2; domain/providers.md, 2.6 and 3.4).
     Provider,
     /// This party's key names another ask.
     KeyConflict,

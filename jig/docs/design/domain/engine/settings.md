@@ -152,7 +152,7 @@ section 17; the records are `../../protocol/store/keys.md`, 1.4.
   counted toward *empty*. Committed, it replaces the project's policy
   whole in the change's decision, as its owners' edits apply (../people/acts.md,
   2): the open period and the parties' pools resized to its spends
-  (../authority.md, section 7), and every later decision under it. It makes
+  (../authority-budgets.md, section 1), and every later decision under it. It makes
   no setting and is never pinned (4): the revision's record keeps
   the item as any other, its value whole and the project's policy it
   replaced (10). A change, and a pending proposal (6), naming one

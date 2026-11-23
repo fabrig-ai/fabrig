@@ -44,7 +44,7 @@ them.
   application's own, and calls Anthropic's API itself with an API key
   otherwise. The person signs in with Claude Code's own flow on each
   machine, and nothing of jig's or smith's ever reads that login
-  (accounts.md, 3.4).
+  (accounts-sources.md, 1).
 
 ## 2. OpenAI
 
@@ -185,7 +185,7 @@ of paying. The tool keeps the status, body, error code and request id.
 
 - **An unknown limit reset stays unknown.** No new grant or restart lifts
   it: its holder resumes it, replaces the LLM key or signs in again
-  (accounts.md, 3.5). An explicit zero is a supplied reset; an absent reset
+  (accounts-sources.md, 2). An explicit zero is a supplied reset; an absent reset
   is not zero, and no delay is guessed.
 - **Never erase credentials** for a temporary network or service
   failure.
@@ -428,4 +428,3 @@ results and the trackers below.
   [Log in to your Claude account](https://support.claude.com/en/articles/13189465-logging-in-to-your-claude-account).
 - Reports: [The Register, 2026-02-20](https://www.theregister.com/software/2026/02/20/anthropic-clarifies-ban-on-third-party-tool-access-to-claude/5014546);
   [Zed, on Anthropic's billing change](https://zed.dev/blog/anthropic-subscription-changes).
-

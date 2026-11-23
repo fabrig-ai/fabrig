@@ -157,8 +157,8 @@ The draft takes the third.
 
 - **A provider's usage read,** polled, where one is documented.
 - **Money:** credits or a balance, a new shape.
-- **Choosing an account by its headroom** (`../domain/accounts.md`,
-  4.3), once usage windows are kept.
+- **Choosing an account by its headroom** (`../domain/accounts-uses.md`,
+  1.3), once usage windows are kept.
 
 ## 8. Open questions
 

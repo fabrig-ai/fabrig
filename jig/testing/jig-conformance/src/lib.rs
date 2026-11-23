@@ -1,5 +1,5 @@
 //! Application conformance from durable records and independent neighbours
-//! (`domain/testing.md`, 5–7).
+//! (`domain/testing.md`, 5–6, and `domain/testing-fakes.md`, 1).
 #![forbid(unsafe_code)]
 pub mod harness;
 pub mod referee;

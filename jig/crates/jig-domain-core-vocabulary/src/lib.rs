@@ -130,7 +130,7 @@ pub struct Config {
     pub connectors: Box<[u16]>,
     /// Application job kinds and their bounds (jig/docs/design/domain/engine/executors.md, 5).
     pub jobs: Box<[jig_domain_link::JobBound]>,
-    /// Connectors' procedures that start kept (jig/docs/design/domain/connectors.md, 6.1).
+    /// Connectors' procedures that start kept (jig/docs/design/domain/connectors-procedures.md, 1.1).
     pub kept_starts: Box<[jig_domain_tasks::KeptStart]>,
     /// Application task-row parts (domain/engine/views.md, 2).
     pub parts: Box<[PartKind]>,

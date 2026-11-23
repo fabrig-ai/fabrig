@@ -120,7 +120,7 @@ READ [--since DIGEST] [--until CONDITION] [--timeout DURATION]
   progress from its request's answer until it ends: made, renewed,
   refused, or past the sign-in's deadline (skein's `oauth/README.md`, section
   3); a check, until each host it asks has reported (jig's
-  `domain/accounts.md`, 3.4). So a wait begun once `account connect` or
+  `domain/accounts-sources.md`, 1). So a wait begun once `account connect` or
   `account verify` has answered is not met before them: `account
   connect 1 --key chatgpt`, then `account list --until settled`, then
   the account's state in its answer. On `forge list`, a connect or an
@@ -134,7 +134,7 @@ READ [--since DIGEST] [--until CONDITION] [--timeout DURATION]
   `forge setup 3`, then `forge list --until settled`. `connected:FORGE` is
   met by a delivery where forge F is connected, whoever connected it.
 - **`usable`** counts the party's own accounts, those whose uses name
-  the party, and the deployment's (jig's `domain/accounts.md`, 4.3), on
+  the party, and the deployment's (jig's `domain/accounts-uses.md`, 1.3), on
   any host: the box's harness waits on it once it has added the
   deployment's key (`README.md`, section 8).
 - **`ended`** is met by a delivery that shows the subject ended, or by

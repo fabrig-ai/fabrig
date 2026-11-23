@@ -402,8 +402,8 @@ for it: it links such a task by its budget of 0 and its funder's period
 being older than its project's newest live one, and refuses a task
 whose ledger is not live on any other ground, as before. The task's end
 posts nothing to the closed ledger, and what it spent, if anything,
-goes to its project's current period (`../../domain/authority.md`,
-section 7). No ledger is kept open for such a task, and no task is
+goes to its project's current period (`../../domain/authority-budgets.md`,
+section 1). No ledger is kept open for such a task, and no task is
 moved off its funder. An escalation's decider is stored with its kind,
 a task's or a person's, and linked by it (`../../domain/tasks/proposals.md`,
 *An escalation's decider has its kind*; `jobs.md`, 1, for the stores
@@ -471,12 +471,12 @@ The next number; each account with its holder, LLM provider, subject,
 display name and uses; each source with its place in its holder's order,
 kind, name for a program's, and its hold, limited with its reset,
 refused or moving; each account's facts, at most 24, a record apart that goes
-with its account (`../../domain/accounts.md`, 3.7); restored at start by fit and
+with its account (`../../domain/accounts-lists.md`, 1); restored at start by fit and
 link, a set past its limit refusing the start and a link the start cannot make
 refusing it too (`../../domain/accounts.md`, 3.6), and facts whose account is gone dropped
 as they are read; a source's record or key named by the
 source's number, and erased when the source goes (`keys.md`, 1.4, `secrets.md`;
-`../../domain/accounts.md`, 3.5). The installation's identifier is the
+`../../domain/accounts-sources.md`, 2). The installation's identifier is the
 component's (`keys.md`, 1.4, `records.md`, 3).
 
 ### 10.10 What skein owes

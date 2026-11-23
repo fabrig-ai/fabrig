@@ -714,7 +714,7 @@ impl Referee {
     ///
     /// # Errors
     /// Rejects lost/doubled prices, held reopening or wrong final funding
-    /// (jig's domain/authority.md, section 7).
+    /// (jig's domain/authority-budgets.md, section 1).
     pub fn final_state(&self, rows: &BTreeMap<Key, Record>) -> Result<(), &'static str> {
         store_rules(rows)?;
         let number = self.task.ok_or("no script task")?;

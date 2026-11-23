@@ -73,7 +73,7 @@ agent    every LLM call: smith's agent shell, over skein's LLM client
   the run's workspace.
 - **Limited, refused and unauthorized** come back from the agent as
   notices that reach jig's accounts child, fenced by attempt
-  (credentials-llm-accounts.md, section 1; jig's `domain/accounts.md`, 3.5).
+  (credentials-llm-accounts.md, section 1; jig's `domain/accounts-sources.md`, 2).
 - **Agents in a host's own process** (`smith-inline-agent`), in the
   engine or on a worker, are not used (section 7).
 
@@ -103,7 +103,7 @@ agent    every LLM call: smith's agent shell, over skein's LLM client
 - **Which LLM providers:** OpenAI, with keys and ChatGPT's sign-in, in
   the owned example (setup/init.md, 1), Anthropic, with Claude Code's
   program and keys in one provider, a run's source choosing its endpoint
-  (setup/init.md, 3; jig's `domain/accounts.md`, 3.4), and any other smith's dialects speak over skein's LLM
+  (setup/init.md, 3; jig's `domain/accounts-sources.md`, 1), and any other smith's dialects speak over skein's LLM
   client, such as a local model's server, whose source is *none*. Claude
   Code is the one program, through smith's program backend. temper
   keeps no provider's dialect, no program's adapter and no fake provider
@@ -184,7 +184,7 @@ agent    every LLM call: smith's agent shell, over skein's LLM client
   codec encodes it (`smith_protocol_channel::encode_charter`) against the
   engine's endpoints. The charter carries the models jig's claim chose
   for the run, the task's LLM choice among those its charter allows,
-  with an account usable for each (jig's `domain/accounts.md`, 4.3); the
+  with an account usable for each (jig's `domain/accounts-uses.md`, 1.3); the
   run's grants carry one credential, or one program source's name, per
   LLM provider it uses (jig's `protocol/llm.md`, section 6). It crosses
   as smith's charter bytes in jig's assignment, and the worker's

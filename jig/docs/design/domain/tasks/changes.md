@@ -5,11 +5,11 @@
   (../people/acts.md, 1). Nobody else. An escalation's holder decides the
   escalation (`lifecycle-holds.md`, 1; `proposals.md`). A party's request, an agent's tool and a
   procedure's step reach the same rules (../people/acts.md, 1; ../engine/executors-tools.md, 1;
-  ../connectors.md, 6.3). The deployment has a cancel within its project
+  ../connectors-procedures.md, 1.3). The deployment has a cancel within its project
   (`messages.md`, section 1) and two releases, each of a task of its project,
   never where a placed hold or a party's stop also holds it, and recorded as
   the deployment's: a procedure task from a hold of its own, whose cause its
-  connector found gone (../connectors.md, 6.3); and a task of any executor
+  connector found gone (../connectors-procedures.md, 1.3); and a task of any executor
   from a resource hold on a connector's account (`Hold::ResourceUnavailable`
   with `HoldSource::Account`), which the application asks once that
   connector's resource has room again. The application checks that the hold
@@ -20,7 +20,7 @@
   narrowed freely and widened only within
   the amender's own (beyond it, refused, and proposed if the amender asks:
   `proposals.md`), the amender, or the proposal's accepter, funding the
-  widened task from then on (../authority.md, section 7); an agent task's
+  widened task from then on (../authority-budgets.md, section 1); an agent task's
   instructions; a procedure's parameters, which go to its connector; a
   person task's address, to another party or role, naming the person
   task's revision as an amendment names the spec's, a party who took it
@@ -39,14 +39,14 @@
 - **A new LLM choice is for the next run.** A run in flight keeps its
   own models and account; the next run's check uses the new choice and
   chooses its account again when its main model's LLM provider changed
-  (../accounts.md, 4.3). The new choice replaces the old whole, its `later`
+  (../accounts-uses.md, 1.3). The new choice replaces the old whole, its `later`
   with it (`README.md`, section 3): one given without `later` leaves the task none, and
   the next run takes its first choice or its `later` by its reasons (`messages.md`, 6). A conversation that moves to another LLM provider
   or another account is carried over, its text, calls and results kept
   and the provider's opaque replay dropped (smith's
   `protocol/transcript.md`, section 4). An amendment naming another
   account of an LLM provider whose account the task keeps is refused
-  while that account is limited (../accounts.md, 4.3; ../providers.md, 2.5 and
+  while that account is limited (../accounts-uses.md, 1.3; ../providers.md, 2.5 and
   3.4). An accepted explicit different account clears the pin in that
   amendment's commit, even when the preference itself was already the same;
   the next successful claim keeps the new account. Clearing the optional
@@ -123,7 +123,7 @@
   - *Removing* one lifts it: a task that waits on nothing else goes on,
     a waiting one to its queues at its place, a kept one woken.
   - *Started from:* a dependency its procedure marked started from
-    (../connectors.md, 6.1) is never removed: an amendment leaving it out
+    (../connectors-procedures.md, 1.1) is never removed: an amendment leaving it out
     is refused as `Dependencies` naming exactly it in the problem's
     `blocked_by`, as one out of reach is, whether it is pending or
     done.
@@ -199,8 +199,8 @@
 - **Moving a task.** A party may make themselves the requester of a live
   task they may amend, so that it outlives the task that asked for it,
   as a goal outlives the chat it came from. Its reservation moves to
-  their funding (../authority.md, section 7), and its next run keeps its
-  LLM account only if the account serves them (../accounts.md, 4.3); the
+  their funding (../authority-budgets.md, section 1), and its next run keeps its
+  LLM account only if the account serves them (../accounts-uses.md, 1.3); the
   task that asked for it keeps a reference to it, and does not wait for
   it as for a delegate. It becomes the root of a tree of the party's, so
   a move needs their escalations to have a holder, as their batch does

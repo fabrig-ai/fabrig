@@ -73,7 +73,7 @@ Draft, 2026-11-21, from the user's words that day: support setting fast or ultra
   - a reported name that is the run's speed's name, or one of its `also` names, takes its prices;
   - the dialect's name for standard takes the model's own prices;
   - any other name, or none, takes the run's speed's prices, so that a budget stops early rather than late.
-- **A budget holds the chosen speed** (jig's `domain/authority.md`, 8.3). A run's check, its reservation and smith's reserve for each completion price it at the chosen speed's prices, which section 3 makes the dearest it may be charged.
+- **A budget holds the chosen speed** (jig's `domain/authority-checks.md`, 1.3). A run's check, its reservation and smith's reserve for each completion price it at the chosen speed's prices, which `model-speeds.md`, section 3 makes the dearest it may be charged.
 - **A refusal is a completion's failure, as today.** When a provider refuses the speed (no access, or past its own rate limit), the completion fails with the provider's words, and the run's retries and holds follow. Nothing falls back to standard on its own.
 
 ## 7. The stock

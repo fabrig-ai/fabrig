@@ -64,8 +64,8 @@
   family's tools, whatever they name. Authority decides
   each call by its family as for every charter: `see`, `document` and
   `remember` by the asking family, `propose_settings` by the settings family. The task's authority decides
-  each call by its family (jig's `domain/authority.md`, sections 3 and
-  8.5): a call beyond it is answered beyond authority, naming what it
+  each call by its family (jig's `domain/authority.md`, section 3, and `domain/authority-checks.md`, section 1.5
+  ): a call beyond it is answered beyond authority, naming what it
   lacked, and the run may `propose` it instead. A refused tool family
   is named from the call's tool, and repeated findings for that family
   print once; the refusal grants no additional authority.

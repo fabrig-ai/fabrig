@@ -1,5 +1,5 @@
 //! Ops's infrastructure connector (examples.md, section 3.2;
-//! domain/connectors.md, sections 3, 4, 6 and 11).
+//! domain/connectors.md, section 3, and domain/connectors-effects.md, section 1, and domain/connectors-procedures.md, section 1, and domain/connectors.md, section 11).
 //!
 //! It keeps the resources tasks rely on, fresh service and environment facts,
 //! level-triggered procedures, proposed payloads and durable outbox entries. The root

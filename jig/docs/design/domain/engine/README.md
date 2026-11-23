@@ -232,7 +232,7 @@ record.
 A connector's workspace may need credentials of the application's own: a
 token to read from a system and write to it. The accounts child keeps
 them beside LLM accounts, and lends them as it lends a source's value
-(../accounts.md, 3.5):
+(../accounts-sources.md, 2):
 
 - **Named, never seen:** each by the application's number for it and a
   generation, with how long it is valid. Their values are the
@@ -241,7 +241,7 @@ them beside LLM accounts, and lends them as it lends a source's value
 - **Granted through the root:** the application's root tells the child
   each generation granted, as the accounts' component does for an
   account (`vocabulary.md`, 1.1). One is usable while a granted generation is still
-  valid (../authority.md, 8.3).
+  valid (../authority-checks.md, 1.3).
 - **Lent to runs:** a connector names those a run's workspace needs as
   it gathers its items (../connectors.md, section 10); the assignment
   carries them as grants, each naming the application form, which

@@ -90,7 +90,7 @@ Each step reads what the page already watches, in the terminal as lines:
 - **Having left the welcome:** Home's line about the accounts says "Claude didn't
   answer when tried", with "Try again".
 - **Nothing is taken from the account:** a source's own state is the host's
-  check's (jig's `domain/accounts.md`, 3.4).
+  check's (jig's `domain/accounts-sources.md`, 1).
 
 ## 5. Open questions
 

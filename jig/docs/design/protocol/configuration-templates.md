@@ -28,11 +28,11 @@
   - the authority: the creator's role narrowed, by as many levels of
     delegation as its `shallower` says;
   - the budget: an amount; `AsAllowed`, with a cap or none
-    (`../domain/authority.md`, section 7); or *given*, the creator's,
+    (`../domain/authority-budgets.md`, section 1); or *given*, the creator's,
     within their allotment;
   - the deadline: none; a span from creation, which the client sends
     as a span and the engine makes a wall when it makes the task
-    (`../domain/authority.md`, section 7); or *given*, the creator's,
+    (`../domain/authority-budgets.md`, section 1); or *given*, the creator's,
     or none;
   - tracked, with a default priority, or untracked;
   - the flags: *conversation*, *listed*, and the retention class,
@@ -40,7 +40,7 @@
   - the label: an opaque 32-bit number, which jig gives no meaning;
   - the grace its helpers give a close or a deletion, or none;
   - the LLM choice: none, for the first of the charter's models each run
-    can use (`../domain/accounts.md`, 4.3); or a main model
+    can use (`../domain/accounts-uses.md`, 1.3); or a main model
     with its effort, and the models its run's sub-agents may use, each
     with an effort (`../domain/tasks/README.md`, section 3), and optionally
     `later`, the same again for every run after its first activation's
@@ -111,7 +111,7 @@
 - **A served preview is separate from configuration.** `me` adds
   `resolved_default: Option<LlmChoice>` beside each effective template's
   configured intent, what a run's check would take now for a task keeping no
-  account (`../domain/accounts.md`, 4.3), in charter order,
+  account (`../domain/accounts-uses.md`, 1.3), in charter order,
   under the effective creating authority and current receiving-party payer
   (`../domain/engine/views.md`, 1). Explicit intent previews itself; omitted
   intent with a chosen executor or no usable model gives `None`. It is not a

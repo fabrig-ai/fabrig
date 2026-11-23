@@ -240,8 +240,8 @@ worker, `Accept` or `Refuse` from the engine, then each side's `Terms`.
 - **Logins follow the hello** (`records.md`, 1 and 2): the engine sends a worker
   `sources` after its hello, and places no run on it until the first
   `logins` that answers them, so that a host keeping a person's logins
-  is known before it is given another's run (`../../domain/accounts.md`,
-  3.4; `../../domain/engine/fleet.md`).
+  is known before it is given another's run (`../../domain/accounts-sources.md`,
+  1; `../../domain/engine/fleet.md`).
 - **Deadlines:** the opening within the handshake's deadline from the
   connection being made; the hello within the hello's deadline from
   `Accept`. Each is the component's, from its limits.
@@ -428,7 +428,7 @@ Moved to [`testing.md`](testing.md), section 1.
   reported usable, and places on a host that keeps a person's logins only
   runs that person's accounts pay for, until a run's process tree is
   contained from them (`../../domain/engine/fleet.md`;
-  `../../domain/accounts.md`, 3.4). The stop
+  `../../domain/accounts-sources.md`, 1). The stop
   bound's meaning is `../../domain/hosts/hub.md`, 6's, which counts it from
   the engine's view of the link, as `worker-link.md`, 1.1 does, and the fleet checks it
   at the hello (4.3; `../../domain/engine/fleet.md`).

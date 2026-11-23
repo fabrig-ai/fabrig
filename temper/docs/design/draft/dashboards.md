@@ -94,9 +94,9 @@ by its owner first, and the agent says so (6.3).
 |---|---|---|
 | jig's tasks | each task's project, label, executor kind, charter and its revision, model and effort; its phase; its times (made, changed, ended, last activity); its outcome or failure's reason; a goal is a tracked task | jig's `domain/tasks/README.md`, section 3, and `domain/tasks/lifecycle.md`, section 1; `jig/docs/design/domain/model.md`, 6.2; `jig/docs/design/domain/engine/settings.md`, 3 |
 | jig's runs | each run begun and ended, in its task's activity; each turn's spend | jig's `domain/engine/executors-transcripts.md`, 1 |
-| jig's spend | each funder's spend per period, against its budget | jig's `domain/authority.md`, section 7 |
+| jig's spend | each funder's spend per period, against its budget | jig's `domain/authority-budgets.md`, section 1 |
 | jig's people | what waits on each party: questions, proposals, escalations and person tasks, counted exactly | jig's `client/domain/contract/documents.md`, 1 (`me`); `jig/docs/design/domain/people/README.md`, section 5 |
-| jig's accounts | each source's state; *limited*, with its reset where the provider says it | jig's `domain/accounts.md`, 3.5 |
+| jig's accounts | each source's state; *limited*, with its reset where the provider says it | jig's `domain/accounts-sources.md`, 2 |
 | jig's hosts | connected or lost, slots used and free, the runs each hosts | jig's `domain/hosts/README.md`, section 2; `client/domain/pages.md`, section 7 |
 | temper's forge | each change and its result; the merges temper made, `Landed`, without a time; gates as tasks; CI at a change's head, in memory | `../domain/forge/change/README.md`, 2, and `../domain/forge/change/gates.md`, 1, and `../domain/forge/change/panel.md`, 1; `../protocol/store.md`, section 2 |
 

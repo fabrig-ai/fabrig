@@ -8,7 +8,7 @@ use std::collections::{BTreeMap, VecDeque};
 
 const READER: Token = Token::new(0);
 
-/// The first finding of a complete readback (jig/docs/design/domain/testing.md, 7).
+/// The first finding of a complete readback (jig/docs/design/domain/testing-fakes.md, 1).
 #[derive(Debug)]
 pub enum ReadbackFinding {
     NotQuiescent,

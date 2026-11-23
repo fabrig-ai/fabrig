@@ -285,7 +285,7 @@ producing ─► opening ─► gating ─► ready ─► in its landing ─►
   Short of a hold, a step waits only on what it names, and with no
   deadline only on its own effect, a change's step or a release
   (`landing-waits.md`, 3).
-- **Drained** (jig's `domain/connectors.md`, 6.7): a landing in a
+- **Drained** (jig's `domain/connectors-procedures.md`, 1.7): a landing in a
   draining hold's scope that has begun its proof goes on, through the
   turn, to land; one still preparing is idle, and held. A stale base or
   a fault that would send it back to prepare makes it idle there.

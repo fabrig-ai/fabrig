@@ -32,11 +32,11 @@ The fleet child domain knows the hosts and the runs they host:
   Hello listings and adoption recovery still run while new placement waits.
   A run is placed only on a host that declares its task's models and,
   for a program source, where that source's login is usable
-  (../accounts.md, 3.4). The engine's own slots never take a program
+  (../accounts-sources.md, 1). The engine's own slots never take a program
   source: `smith-inline-agent` has no program backend.
 - **The host rule:** a host that keeps a person's program logins takes
   only runs that person's accounts pay for, until a run's process tree is
-  contained from them (../accounts.md, 3.4; ../hosts/README.md, 5.1). One person's
+  contained from them (../accounts-sources.md, 1; ../hosts/README.md, 5.1). One person's
   deployment is unaffected. The deployment's document names each host
   the rule keeps a run from, and why. The rule governs placement: a queued
   assignment rechecks it, while assigned and adopted runs continue.
@@ -110,7 +110,7 @@ The fleet child domain knows the hosts and the runs they host:
     `PROGRAM started without smith's tools: account SOURCE on worker
     WORKER`: the program the attempt's main model's endpoint names
     (`claude_code`), the program source that model ran on, by name
-    (`../accounts.md`, 3.4), and the worker's configured name
+    (`../accounts-sources.md`, 1), and the worker's configured name
     (`workers.md`, 2), its number where its setting is gone; cut as an
     invalid start's words are (`../hosts/hub.md`, 3):
     `claude_code started without smith's tools: account claude-alice on
@@ -123,7 +123,7 @@ The fleet child domain knows the hosts and the runs they host:
     untranslated task: one entry per run and source, in memory, so a
     restart starts with none. While it stands, placement takes that
     source's login there as unusable for that run alone, as a login
-    needing sign-in on that host (`../accounts.md`, 3.4): the holder's
+    needing sign-in on that host (`../accounts-sources.md`, 1): the holder's
     order passes to the account's next source on that host, or the run
     goes to another host whose login is usable, the claim's recheck
     before its assignment leaves (`run_choice`) judging it the same way.
@@ -132,7 +132,7 @@ The fleet child domain knows the hosts and the runs they host:
     the worker's next channel starts with none (the worker reopens); the
     fleet sends that channel a check of that source (`check`: a holder's
     check, a declaration of its name again, a terminal login's end,
-    `../accounts.md`, 3.4 and section 5); or that channel's `logins`
+    `../accounts-sources.md`, 1, and `../accounts.md`, 5); or that channel's `logins`
     report that source other than usable, so a sign-in there makes it
     usable with no fault.
   - **With no place left, the task waits,** trying nothing until a fault

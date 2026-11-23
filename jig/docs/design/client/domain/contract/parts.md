@@ -9,7 +9,7 @@ a list of tasks is drawn with no read per row. It gives a task query's
 ended group a mark too, so that a client reads that group again only when
 it would read otherwise. The engine's side is
 `../../../domain/engine/views.md`, 2; the connector's,
-`../../../domain/connectors.md`, 5.5.
+`../../../domain/connectors-facts.md`, 1.5.
 
 ## 1. In one page
 
@@ -117,7 +117,7 @@ it would read otherwise. The engine's side is
 - **Each kind names its inputs,** what it is made from, among: its task's
   line; its task's notes; its delegates' lines; its delegates' notes; and
   the application's own records of the task, which its connector marks
-  (`../../../domain/connectors.md`, 5.5).
+  (`../../../domain/connectors-facts.md`, 1.5).
 - **A commit to an input marks the row:** each watch whose query names a
   kind with that input, and which the row's task matches before the
   decision or after it, is marked changed (`README.md`, 5.2), and its next

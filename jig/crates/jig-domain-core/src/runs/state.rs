@@ -459,7 +459,7 @@ pub enum GoalRoute {
 
 impl Core {
     /// The spend a run of `task` reserves: its reserve turns and one completion more of its LLM
-    /// choice's main model (domain/authority.md, 7 and 8.3).
+    /// choice's main model (domain/authority-budgets.md, 1, and domain/authority-checks.md, 1.3).
     pub(crate) fn run_reserve(&self, task: u64) -> u64 {
         // No spend holds a reserve beyond the numbers' range, so no run of it starts.
         reserve_floor(&self.chosen_policy(task)).unwrap_or(u64::MAX)

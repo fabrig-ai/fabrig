@@ -83,12 +83,12 @@ impl Core {
     }
 
     /// What a task's next run takes: its named choice, or its charter's models within
-    /// its authority, the first it can use its main (domain/accounts.md, 4.3).
+    /// its authority, the first it can use its main (domain/accounts-uses.md, 1.3).
     pub(crate) fn next_llm(&self, row: &tasks::TaskRecord) -> Option<tasks::LlmChoice> {
         self.task_llm(row, true)
     }
 
-    /// A task given none names no model when no candidate serves it (domain/accounts.md, 4.3).
+    /// A task given none names no model when no candidate serves it (domain/accounts-uses.md, 1.3).
     pub(crate) fn document_llm(&self, row: &tasks::TaskRecord) -> Option<tasks::LlmChoice> {
         self.task_llm(row, false)
     }

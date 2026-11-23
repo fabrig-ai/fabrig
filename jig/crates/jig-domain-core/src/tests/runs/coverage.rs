@@ -1,4 +1,4 @@
-//! People/accounts joins and a pool seed's financial payer (accounts.md, 4.2).
+//! People/accounts joins and a pool seed's financial payer (domain/accounts-uses.md, 1.2).
 #![expect(
     clippy::disallowed_types,
     clippy::disallowed_macros,

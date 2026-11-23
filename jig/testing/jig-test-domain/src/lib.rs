@@ -474,7 +474,7 @@ impl Domain {
     }
 
     /// Stop this start at the switch, before its mark or any external effects
-    /// (`jig/docs/design/domain/testing.md`, 7).
+    /// (`jig/docs/design/domain/testing-fakes.md`, 1).
     pub fn rehearse(&mut self) {
         self.rehearsing = true;
     }
@@ -1425,7 +1425,7 @@ pub fn initial_settings_current(current: &core::settings::Current) -> Box<[core:
 }
 
 /// A connector's stored value cannot fit this start's configuration
-/// (`jig/docs/design/domain/testing.md`, 7).
+/// (`jig/docs/design/domain/testing-fakes.md`, 1).
 fn refuse_settings_restore(domain: &mut Domain, kind: u32, scope: u32, number: u32) {
     let _action = domain.core.start_refuse(core::start::Failure::Application {
         kind,

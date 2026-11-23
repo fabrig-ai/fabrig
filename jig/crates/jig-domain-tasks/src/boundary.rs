@@ -7,7 +7,7 @@ use alloc::boxed::Box;
 use skein_lib::{Decimal, Duration, List, ReplyTo, Wall};
 
 /// A connector's procedure whose tasks, made with a pending dependency, are active and
-/// kept rather than waiting (jig/docs/design/domain/connectors.md, 6.1).
+/// kept rather than waiting (jig/docs/design/domain/connectors-procedures.md, 1.1).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct KeptStart {
     pub connector: u16,
@@ -391,7 +391,7 @@ pub struct ProcedureDecision {
     pub cancels: Box<[crate::Cancel]>,
     pub messages: Box<[Message]>,
     pub proposals: Box<[crate::Proposal]>,
-    /// Dependencies the procedure's work started from (domain/connectors.md, 6.1).
+    /// Dependencies the procedure's work started from (domain/connectors-procedures.md, 1.1).
     pub started_from: Box<[u64]>,
     pub end: ProcedureEnd,
 }
@@ -1257,7 +1257,7 @@ pub struct TaskRecord {
     /// Admitted dependency identities, bounded by `Limits::dependencies`: those named at creation,
     /// then those amendments added, the oldest first (domain/tasks/changes.md).
     pub dependencies: Box<[u64]>,
-    /// Dependencies started from, in first-marked order, each once (domain/connectors.md, 6.1).
+    /// Dependencies started from, in first-marked order, each once (domain/connectors-procedures.md, 1.1).
     pub started_from: Box<[u64]>,
     /// The dependencies an amendment added, each with when and by whom, in their order among
     /// `dependencies`.
@@ -1320,7 +1320,7 @@ pub struct TaskRecord {
     pub refusals: u32,
     /// Current lifecycle or the retained final outcome.
     pub phase: Phase,
-    /// A procedure batch refused for live task room (connectors.md, 6.2).
+    /// A procedure batch refused for live task room (domain/connectors-procedures.md, 1.2).
     pub room_wait: Option<crate::RoomWait>,
     /// A question-form message to its requester has been admitted; never cleared.
     pub asked_requester: bool,
@@ -2024,7 +2024,7 @@ pub enum Event {
         budget: u64,
     },
     /// Change the open period's budget after root authorization, its reservations and
-    /// spending kept (domain/authority.md, 7); emits the ledger's `Save` plus `Done`, or one
+    /// spending kept (domain/authority-budgets.md, 1); emits the ledger's `Save` plus `Done`, or one
     /// `Refused` with no mutation.
     ResizePeriod {
         reply_to: ReplyTo,
@@ -2543,7 +2543,7 @@ pub struct RunContext {
     /// what the task waited for (domain/engine/briefs.md, section 1).
     pub added: Box<[Added]>,
     /// Pending dependencies keeping the task, the oldest first; a procedure steps knowing them
-    /// (domain/tasks/lifecycle-endings.md, 1; domain/connectors.md, 6.1).
+    /// (domain/tasks/lifecycle-endings.md, 1; domain/connectors-procedures.md, 1.1).
     pub pending: Box<[u64]>,
     /// Resources whose next activation resumes saved state.
     pub saved: Box<[SavedResource]>,

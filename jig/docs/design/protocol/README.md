@@ -371,7 +371,7 @@ What the protocol layer relies on from jig's domain is designed there:
   2 and 3); refusals carried with turns (`../domain/hosts/hub.md`, 4);
   the hello's agent bounds checked (`../domain/engine/fleet.md`);
   no run placed that smith would refuse for its budget
-  (`../domain/authority.md`, section 7);
+  (`../domain/authority-budgets.md`, section 1);
 - **an application's credentials:** `../domain/engine/README.md`, 6.1;
 - **the client's API:** `../domain/people/README.md`, section 3, and `../domain/people/acts.md`, section 1, and `../domain/people/README.md`, section 5;
   `../domain/tasks/README.md`, sections 3 and 4 and `../domain/tasks/changes.md` and `../domain/tasks/README.md`, section 6; `../domain/engine/views.md`

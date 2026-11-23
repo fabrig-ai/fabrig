@@ -31,7 +31,7 @@ owed. What is still open is listed in section 16.
 - **Effects** are committed into the outbox with the decision that asks
   for them, and made after the commit, keyed. Each kind declares a
   recovery class, which says how an effect whose outcome is uncertain is
-  resolved and how strong its promise of once is (4.3). A connector
+  resolved and how strong its promise of once is (`connectors-effects.md`, 1.3). A connector
   describes each effect for authority, priced at its maximum when it
   costs.
 - **Facts are read afresh; events are hints.** A connector keeps a
@@ -117,7 +117,7 @@ application root            routes between the core and every connector
 - **Kinds of effect and read** are the connector's, numbered, each with
   the resource kinds it applies to, and the order among them that
   authority holds as data. A kind of effect has one form and one
-  recovery class (4.1, 4.3): writes that differ in either are different
+  recovery class (`connectors-effects.md`, 1.1, 1.3): writes that differ in either are different
   kinds, even on one object (creating an issue, editing it). A grant
   that should cover several names each, or one the order says implies
   the others.
@@ -158,9 +158,9 @@ connector says what they apply to:
   shrinks below its holders keeps them, and the connector says which
   holder's allocation is gone, which is drift (tasks/holds.md, 6);
 - **whether a taken hold refuses or waits** (tasks/holds.md, 2);
-- **what a taking does** to the resource, as effects of its own (4.7):
+- **what a taking does** to the resource, as effects of its own (`connectors-effects.md`, 1.7):
   a branch made at its base's tip, say;
-- **what a release does** to the resource, per way its task ended (4.6);
+- **what a release does** to the resource, per way its task ended (`connectors-effects.md`, 1.6);
 - **each held resource's report,** its role and hold kind, for every
   resource a batch member holds, sent before or with its holdings
   answer (3.1's symbols, tasks/holds.md, 2). The core keeps those a
@@ -182,7 +182,7 @@ waits behind one that waits for it.
 ### 3.4 Live resources
 
 The resources live tasks name are the connector's live resources: what
-its working set holds (section 5) and what it reads afresh at a restart.
+its working set holds (`connectors-facts.md`, section 1) and what it reads afresh at a restart.
 When no live task names a resource, it leaves the working set.
 
 - **What an ended task named** may outlive its release as a record of
@@ -200,481 +200,15 @@ When no live task names a resource, it leaves the working set.
 
 ## 4. Effects and the outbox
 
-### 4.1 Effects
-
-An effect is a typed request the connector defines, in its own terms,
-which it keeps. What the core gets is its **description:**
-
-- **its kind and its resources,** for grants and roles;
-- **its purpose,** from which its key is derived (4.4);
-- **its condition,** where it has one: the state it was decided against
-  that the system can check as it applies it (a rollback only from the
-  version decided on, a merge at exactly a head);
-- **its form:** a **creation** (an environment, a pull request, a
-  comment), a **transition** (a rollback, a merge, a scale to a size), or
-  a **set** (a body, a label, a silence's end);
-- **its recovery class,** which its kind declares (4.3);
-- **whether it waits for dependencies,** which its kind declares: one
-  that does (a merge, a deploy, a release) is what a task kept by a
-  pending dependency must not make, and is refused while it is, naming
-  them (tasks/lifecycle-endings.md, 1); one that does not (a comment, a status, a draft)
-  is made as ever;
-- **its price,** if its kind is priced: its maximum, in the deployment's
-  unit (authority.md, section 7);
-- **the state its requirements are judged at:** what the judges are
-  asked about (section 7).
-
-### 4.2 The outbox
-
-- **An entry per effect,** committed with the decision that asks for it.
-  Its connector holds the entries not yet made, which the store keeps
-  too, as the connector's records.
-- **Made after the commit,** when the journal releases the request to
-  make it: in commit order per resource and one at a time on each, in
-  parallel across resources within the connector's limits and request
-  budget.
-- **Each attempt is committed before it is sent,** with its absolute
-  retry deadline (4.3), so no restart forgets when an attempt went out.
-- **Its outcome is committed in turn:** made, with what it made; failed,
-  typed; or uncertain. A task closing waits until every entry it asked
-  for has settled (tasks/lifecycle.md, 1). The core asks each connector to
-  settle a closing task's entries and waits for its word that it has,
-  connector by connector; how many entries, and which, are the
-  connector's to know and to show, never counted by the core.
-- **Retries are the connector's:** a transient failure is tried again
-  after a backoff, within its budget; a failure for good (forbidden, a
-  conflict, the object gone) holds the task that asked, saying so
-  (tasks/lifecycle-holds.md, 1); a procedure's task instead hears it and steps (6.2),
-  holding itself if it needs a decision (6.3). A projection's or a
-  release's failure for good is news for the goal, or the closing task,
-  it was made for.
-- **Withdrawn** when the task that asked for an entry is cancelled before
-  the entry went out. An entry that went out is never withdrawn: what may
-  have been made counts.
-
-### 4.3 Uncertainty and recovery classes
-
-- **Only what provably never reached the system did nothing.** Any other
-  failure (a timeout, a reset after sending, an answer that does not
-  decode) is uncertain: the write may still take effect, even after the
-  connector has tried again.
-- **Each kind of effect declares its recovery class,** from what its
-  system offers, and the connector's world shows the class holds
-  (section 15):
-  - *keyed:* the system keeps the effect's key, or an operation's id,
-    and refuses or returns a second request with the same one. An
-    uncertain entry is looked for by its key, and tried again with the
-    same key if not found; a late copy finds the first. **At most
-    once.**
-  - *conditional:* the system applies the effect only from the state it
-    was decided against (a rollback only from the version decided on, a
-    merge only at the head decided on), and the state it leads to can be
-    told from any other's, from what the system keeps, which no other
-    hand can erase (a pull request closed is still found; a branch
-    deleted is not). An uncertain entry is looked for by that
-    state, and tried again under the same condition; a late copy fails
-    its condition. **At most once in effect.**
-  - *idempotent:* a set, which may be applied twice to the same final
-    state. It is written again. Where the system offers a version to
-    check, the set carries it, so a late copy cannot land over a newer
-    write; where it does not, the kind says a late copy may. A transition
-    is idempotent only if every copy of it, in any order, leaves true the
-    one state its kind names, or changes nothing: it is looked for by
-    that state and made again if not found, and the kind says what else a
-    copy may move. **The same final state, possibly more than once.**
-  - *unrecoverable:* none of the above, such as a restart through an
-    interface that gives no operation's id. An uncertain entry is never
-    tried again by the engine: its task is held, saying so, for a person
-    to decide whether to make it again (tasks/lifecycle-holds.md, 1). **At most once,
-    by holding.**
-- **Retry deadlines are absolute.** Each attempt to make an entry is
-  committed, with its deadline (the wall time it is sent, plus the
-  system's lifetime for a write, plus a margin for the clock), before it
-  is sent. An uncertain entry that was not found is tried again once its
-  deadline has passed, and only by committing a new attempt. A restart
-  keeps the deadlines it loads, rather than counting a lifetime from its
-  own start, so restarting never postpones an entry for ever. A clock
-  that moved back only delays a retry; the margin covers a clock that
-  moved forward by as much as the deployment configures.
-- **A copy lands within its write's lifetime, or never, except for an
-  idempotent transition.** The other classes' promises rest on it: an
-  attempt is retried only once the lifetime of the one before has passed,
-  so no copy of an earlier attempt lands after a later one is sent. A fake
-  system that delivers copies later breaks this assumption, not the
-  connector, unless the kind is an idempotent transition. A system whose
-  writes cannot be bounded so has no class but unrecoverable, or an
-  idempotent transition:
-  no copy can undo the state it names, so its promise alone rests on no
-  lifetime, and its world shows a copy landing past one.
-
-### 4.4 Keys
-
-- **Committed with the entry,** and derived from what the effect is for,
-  never from when it was asked, so asking again for the same thing finds
-  the same key:
-  - an agent's effect: its task, its attempt and the call that asked
-    (engine/executors-tools.md, 1);
-  - a procedure's: its task and the purpose within it (provisioning its
-    environment; rolling back to a version; merging at a head);
-  - a projection's: its goal and what it writes;
-  - a release's: the closing task and the resource.
-- **The deployment's,** too: every key carries the deployment's
-  identity, so two deployments on one system, or a store made anew, never
-  find each other's objects. A key the connector writes itself (a marker
-  in a body, an operation's id) carries the deployment's id. A key that
-  is a name the system keeps (a branch, an environment's name) carries
-  the deployment's prefix (section 12), which is the deployment's alone
-  on that system, so the name stays readable and the grants that name it
-  by pattern (authority.md, section 4) stay as they are.
-- **Carried on what it creates,** where the system keeps it, so that a
-  creation can be found by its key alone. The connector records every
-  object it made, by key, in the store: the ownership of section 11.
-
-### 4.5 Effects asked by agents
-
-An agent asks for an effect with its `effect` tool (engine/executors-tools.md, 1),
-naming one of the kinds the connector offers to agents. Its input
-reaches the root decoded, as the connector's typed request; the
-connector describes it; the core checks it (authority.md, 8.2); and, in
-the same decision, the connector keeps it under its key, or under the
-proposal's number if it was proposed, or drops it. A check that answers
-wait commits nothing: the call is answered so, and the run may ask again
-or delegate to a procedure that waits. What the connector's procedures
-own (provisioning, remediation, a change's way to landing) is not
-offered to agents: a run that wants it done delegates it to the
-procedure.
-
-### 4.6 Releases
-
-- **A task closes after its effects settle.** `task_effects_settled`
-  requires every pending effect of the task to settle before the
-  connector reports it closed. The ops world holds this under load in
-  `jig-ops-world`,
-  `connector_checks::infrastructure_orders::a_task_closes_after_its_effects_settle_under_load`.
-
-When a task that held resources closes, its connector releases them
-with effects of its own, after every other effect of the task has
-settled (tasks/holds.md, 5): per kind of resource and per way the task
-ended, what becomes of it. An environment a task provisioned is torn
-down; a branch a landed change was pushed to is deleted; a failed one's
-is kept for a person to read until its tree's root closes. A release's
-effects are keyed by the task and the resource, and its failure for good
-is news for the closing task.
-
-Infrastructure's closing table is bounded by its configured tasks plus
-procedures plus effects. This is independent of the refresh table's
-bound: a restart can have more fresh reads under way than closing tasks.
-
-### 4.7 Takings
-
-- **A taking may have effects,** as a release does. When a task takes a
-  write hold (tasks/holds.md, 2), the core tells the hold's connector, with a
-  numbered outbox entry of the taking's own; per kind of resource, the
-  connector says what taking it does: none, for most; a forge's goal
-  branch is made at its base's tip.
-- **Keyed by the task and the resource,** in the outbox as any effect
-  (4.2), taking the resource's writer slot while in flight (tasks/holds.md,
-  3). The connector orders its own later uses of the resource after
-  them: a write into a branch still being made waits for it.
-- **A taking's effect failed for good holds the task** (tasks/lifecycle-holds.md, 1),
-  its words the connector's, saying why: the resource it could not make
-  and what its system answered. The task keeps its holds, and its
-  requester decides, as for any effect that failed for good.
+Moved to [`connectors-effects.md`](connectors-effects.md), section 1.
 
 ## 5. Facts and events
 
-### 5.1 The working set
-
-- **What the system owns of the live work:** for `ops`'s observability,
-  the services' health and error rates; for its infrastructure, the
-  services' versions and replicas, the environments' states, the pools'
-  slots; for a forge, pull requests' heads and CI on them. A working set,
-  not a copy: it grows with the live resources, never with the system's
-  history.
-- **Kept up** by reading what changed, sooner when a hint arrives, with
-  polling as the backstop, at a cost that follows the rate of change.
-- **Read afresh** before a decision depends on a fact, after a restart
-  as at any time: a decision on a resource still waiting for its first
-  fresh read waits for that read, or for the connector's fresh reads
-  (section 14), a resource at a time, and a restart adds no barrier of
-  its own. A procedure's step
-  reads what its decision needs, and a judge reads what its verdict
-  needs (section 7).
-
-### 5.2 Events
-
-- **Hints, never state.** A webhook, an alert, or a change keeping up
-  found, tells the connector that something may have changed; it reads
-  what it needs and updates its working set.
-- **Echoes dropped.** What the application itself did comes back as
-  events too; the connector drops those it can tell are its own (an
-  effect it made, by its key; a run's write, by its writer slot,
-  section 11) and reads the rest.
-- **Then three things follow:** procedures whose facts changed step;
-  holds whose resources drifted are checked (section 11); news is
-  published on the topics it touches.
-
-### 5.3 Topics
-
-- **A topic is a subject a connector names:** a service's alerts, its
-  health, an environment's state, the landings on a branch.
-- **Subscribers are tasks,** by number, and their number per topic is
-  bounded. A task subscribes through its tool, through its creator, or
-  through the core (a goal's topics, 5.4).
-- **Offered to agents.** A connector says which kinds of its topics an
-  agent may subscribe to with `subscribe` (engine/executors-tools.md, 1), each with
-  what a call names it by, as it offers kinds of effect (4.5); asked,
-  it names the resources a topic concerns, which a read grant of the
-  task's must cover (authority.md, 8.5; hosts/charters.md).
-- **Each event is classified per subscriber:** *wakes*, *kept* or
-  *dropped*, by the connector's judgement and without an LLM: an alert
-  on a service a watch covers wakes it; one it already has open news of
-  merges; one below the watch's threshold is kept. The class travels
-  with the news into the task's inbox, whose wake policy may lower it,
-  never raise it (tasks/messages.md, 3).
-
-### 5.4 Goals' topics
-
-A connector may offer topics for goals: what a goal's subtree should
-hear of the resources it works on, such as the landings that overlap a
-goal's changes, or the alerts on the services an incident's
-remediations touched. The core subscribes each goal to them as its
-subtree names resources (model.md, 6.2). A goal is a task marked
-tracked, by whatever request made or amended it: the core knows it by
-that mark, never by a template or a label, and a connector hears of it
-only from the core (tasks/README.md, section 3).
-
-### 5.5 What clients see of it
-
-A connector's values reach a party's client in the application's own
-documents, beside jig's (`../client/domain/contract/documents.md`):
-
-- **its subjects,** which parties watch as they watch jig's: the
-  connector marks each changed, through the root, as its state changes,
-  and makes its document when the views make a delivery
-  (engine/views.md);
-- **its reads,** a document of its own a party asks for once, which it
-  makes when the core has admitted the read, as jig's reads are answered
-  (engine/decisions.md, 1.3);
-- **the scope each names:** a watch of one of its subjects, and a read
-  of one of its documents, name a project, the deployment, or the
-  party's own (what is the signed-in party's across projects), since the
-  core cannot read a connector's subject. The core admits them by that
-  scope (engine/views.md); the connector, asked for the document,
-  judges that the subject is in that scope and what the party may see
-  of it, and answers that it is unknown, or not allowed, otherwise;
-- **windows:** a watch of one of its subjects, and a read, carry a
-  window, as jig's do; the connector makes the document within it
-  (`../client/domain/contract/README.md`, 5.5);
-- **document bytes:** the ops connectors' `document_bound` counts the
-  largest document at their limits, including its owned nested values.
-  It sizes a document's envelope, not the connector's heap;
-- **its parts,** which jig's documents name by reference (a resource, a
-  kind, a task's panel, a proposed effect, a hold's account), read and
-  followed by its side of the application's client. An outbox entry is
-  a part of its own, named by the connector's number and the entry's,
-  apart from a proposed effect's description: an effect made or in
-  flight, or the one that held a task. A part's value lives as long as
-  the connector's records keep it (a procedure's result, while it keeps
-  that procedure's record); past that, the part is unknown, and its
-  connector answers so;
-- **its parts of jig's task rows**
-  (`../client/domain/contract/parts.md`): the kinds it makes, which the
-  application declares in the core's configuration, each with its bytes
-  and its inputs, among its task's line, its task's notes, its delegates'
-  lines, its delegates' notes and the connector's own records of the task
-  (engine/views.md, 2). Asked for a page of rows' parts, it makes each from
-  its state, the core's and the store's, loading as a read loads, and
-  answers each made or failed, within the decision or after its loads. It
-  marks a task's parts through the root when its own records of that task
-  change. jig reads none of a part's bytes;
-- **its keyed requests:** a request about one of its own objects comes
-  to it through the root, keyed by the people child; it decides it
-  within the decision, asks the core for what it needs on the party's
-  behalf, and keeps its outcome under the people child's token, durably,
-  for the retention, to give again when the request is sent again
-  (people/acts.md, 1).
+Moved to [`connectors-facts.md`](connectors-facts.md), section 1.
 
 ## 6. Procedures
 
-### 6.1 What a procedure is
-
-A step machine a connector owns, one per task whose executor it is:
-remediate, provision, a change, a standing watch. Its parameters come
-with the batch that makes its task, in the connector's terms, and the
-connector keeps them under the task's number. Its state is a plain
-value, kept in the store with the connector's records and committed with
-each step, including the effects it has asked for that are not yet
-settled and the wall times of what it waits for. It knows its task's
-number, its delegates by number, which of its task's dependencies are
-pending (tasks/lifecycle-endings.md, 1), and the facts it reads. A projection
-(`connectors.md`, section 8) is not a procedure: no task asked for it.
-
-**A procedure that starts kept.** A connector may declare, per
-procedure, that a task of it made with a pending dependency enters
-active and kept (tasks/lifecycle-endings.md, 1) rather than waiting: it steps and
-delegates while its dependency goes on, under 5.7's refusals, ending no
-way but failed or cancelled while kept and asking no effect that waits
-for dependencies (4.1). It is for work whose producing may run beside
-its dependency's, and whose landing or result is what the dependency
-orders: temper's change procedure, whose dependent change across
-repositories is coded beside its dependency and merged after it. The
-declaration is the connector's, given with its configuration to the
-core, which keeps it for each procedure it names by connector and code.
-
-**A dependency started from.** A step of such a procedure may mark
-pending dependencies of its task as started from, when what its task
-makes builds on their unfinished work (temper's early start, whose
-producer starts on its dependencies' pushed heads). The mark is kept
-with the task's dependencies and never lifted: an amendment that leaves
-a marked dependency out is refused, naming it (tasks/changes.md),
-since the task's work cannot drop what it was built on; its requester
-cancels the task and makes it again instead. A mark naming a task that
-is not among its task's dependencies refuses the step whole (6.3).
-
-### 6.2 When it steps
-
-- when its task becomes active;
-- when its task is kept or goes on again: an amendment adding a
-  dependency, and the notice that its last pending one is done or
-  removed (tasks/lifecycle-endings.md, 1, and tasks/messages.md, 1);
-- when a message its owner lets through reaches its task: a delegate's
-  result, an amendment, a cancel, an answer, news it subscribed to; a
-  cancel's grace, asking it to finish, comes as an amendment does
-  (tasks/changes.md);
-- when its last step was refused, with why (6.3);
-- when room it was refused for frees: a step whose batch was refused
-  for a count that frees on its own (the live tasks in the deployment or
-  in its project, tasks/README.md, section 4; never its tree's allotment, which
-  counts every task the tree made and never frees) is told so, and
-  its task waits for that room as a condition (6.4): a task ending that
-  frees a place wakes the procedures waiting on it, one per place freed,
-  in the order they were refused, each stepping again on the facts as
-  they are then; the waiters are its live procedure tasks, so their
-  number is bounded by theirs, and a restart rebuilds them from the
-  refusals their states keep;
-- when an effect it asked for settles, made or failed (4.2);
-- when a fact it reads changes, which its connector knows from its
-  working set;
-- when a deadline its state names passes: a stall, a backoff, the end of
-  what its task was asked to keep. The connector's top arms one deadline
-  per procedure task, from the wall time its state keeps; the procedure
-  arms none.
-
-### 6.3 What a step decides
-
-One decision, committed with its new state:
-
-- optional specification words for its own task: `ProcedureStep.words`
-  reaches `ProcedureDecision.words`, replaces only its specification
-  words, and saves in this decision (tasks/lifecycle.md, 3). Its connector and
-  code must match the task's due step; words and byte-valued parameters
-  share `Limits::spec_bytes`. Parameters, inputs and `asks` do not change;
-  this adds no revision, amendment, message, wake or amendment history;
-- effects, described and kept for the outbox (4.1);
-- batches of delegates: agents for what needs judgement (a triage, a
-  diagnosis, a repair), people for what needs a decision, each task
-  with what a party's `Create` names (tasks/README.md, section 4);
-- amendments of its delegates and the tasks below them, each naming the
-  revision of the spec it was told, but for a change of priority alone
-  (tasks/changes.md);
-- cancels of its delegates and their trees, with a reason, and a grace
-  when the step gives one, in which the task is asked to finish first
-  (tasks/changes.md);
-- proposals, for what its task's authority does not cover, while the
-  rest of the step commits: a batch, an amendment, an effect, or a
-  widening of its task's authority (authority.md, section 9);
-- messages: words to its delegates and to the tasks its task references
-  (tasks/messages.md, 5), and an answer to a delegate's question; and up, a
-  question, an escalation, news its requester should have;
-- marks on pending dependencies of its task, started from (6.1);
-- a hold, when it needs a decision it cannot make. Its connector, finding
-  the hold's cause gone while the task is held, may ask the root to release
-  the task as the deployment's (tasks/changes.md): the procedure then steps
-  as after any release, and no person is asked;
-- its result, which ends its task: in jig's terms (a report, a verdict),
-  or a connector's result it keeps, with words summarising it (tasks/README.md,
-  section 3).
-
-Every effect and batch is checked against its task's authority, as any
-decision is (authority.md, section 8); a procedure's authority is its
-task's, given by its creator.
-
-**Kept, it steps as ever.** While its task is kept (tasks/lifecycle-endings.md, 1), a
-step may do all of the above but two: ask an effect of a kind that
-waits for dependencies (4.1), and end its task done. A step that does
-either is refused whole, its connector told which dependencies are
-pending, and the procedure steps again once they are done. A step may
-still hold its task, or end it failed.
-
-**The same operations, by the same rules.** A step's batches,
-amendments, cancels, proposals and messages are the operations a
-party's requests and a run's tools make (people/acts.md, 1; engine/executors-tools.md,
-1), and reach the same rules: who may amend or cancel a task, what an
-amendment may change, a grace's bound (tasks/changes.md); who may
-message whom (tasks/messages.md, 5). What a procedure never does is decide: it
-releases no hold and decides no proposal or escalation, which pass over
-it to the next holder (tasks/proposals.md); stopping a run and moving a
-task are parties' alone.
-
-**A step names the revisions it was told.** An amendment names its
-task's spec's revision as the core last told the procedure's connector:
-with what its step made or amended (below), or with a step refused as
-moved. A step whose amendment names a revision that has moved is
-refused whole, as a step that fails any check other than authority is:
-nothing of it commits, its connector is told why, with what the task is
-now, and the procedure steps again on that (6.2). So no procedure writes
-over a change it was not told of.
-
-**What its step made comes back** within the same decision. The core
-numbers a step's batch as it admits it, so the step cannot know its
-delegates' numbers; the core tells the procedure's connector, through
-the root, the number of the first task the step made, or that it made
-none, with the revisions of the specs it made or amended; or that the
-step was refused, and why. A connector that must know what that task is
-for (an incident's lead) keeps, in its procedure's state, what the step
-made it for, and
-records the number when it hears it, durably, in that decision, so a
-restart keeps it. Nothing is inferred from the task's words or the
-order tasks were made in.
-
-### 6.4 Level-triggered
-
-A step decides from the facts as they are and its own state, never from
-the event that woke it, so stepping twice on the same facts decides the
-same, and a step lost to a restart is made again from what is read. It
-never asks for an effect while one for the same purpose is outstanding
-in its state, so deciding the same twice asks for nothing twice. What it
-waits for (a service healthy, an environment ready, a verdict met) is a
-condition on the facts, armed with a deadline past which it stalls.
-
-### 6.5 Bounded
-
-Each procedure declares its limits: remediations, retries, the stall of
-each wait. Past one, it holds its task, saying why, and its requester
-hears (tasks/lifecycle-holds.md, 1).
-
-### 6.6 Standing procedures
-
-A procedure may stand: subscribed to topics, it makes tasks as news
-arrives, and ends only when cancelled. `ops`'s watch is one: woken by a
-batch of alerts, it makes a triage task for them, and, when a triage's
-verdict says so, an incident and the task that leads it
-(`../examples.md`, 7.1). A standing procedure's tasks are its
-delegates, within its authority, and its requester is usually the
-deployment or a person on call.
-
-### 6.7 Drained
-
-A procedure in the scope of a draining hold
-(tasks/lifecycle-holds.md, 2) is told so in its next step, and steps on as ever until
-its connector answers that it is idle: at the first point where its
-step would start something new, rather than finish what it began. The
-core then holds it, by its step's end, `Idle`, which outside a drain
-is a wait. What counts as new is the connector's to say, for each
-procedure, as part of the procedure's own design. A procedure
-already waiting for nothing of its own is idle at once. A drain lifted
-before it is idle leaves it as it was.
+Moved to [`connectors-procedures.md`](connectors-procedures.md), section 1.
 
 ## 7. Requirements and verdicts
 
@@ -686,7 +220,7 @@ before it is idle leaves it as it was.
   their parameters as its own configuration.
 - **Guarded or observed.** A requirement is *guarded* when the effect's
   own system checks it as it applies the effect, as the effect's
-  condition (4.1): a branch's head, a service's version. It holds when
+  condition (`connectors-effects.md`, 1.1): a branch's head, a service's version. It holds when
   the effect is applied. Every other requirement is *observed:* judged
   when the effect is decided, by whichever connector owns its facts,
   within a freshness the policy gives it, and it may stop holding before
@@ -732,7 +266,7 @@ procedure, but a mechanism of the connector's, keyed to the goal.
   untracks is fed its state then, as a last feed (tasks/changes.md).
 - **Where:** in the project's home for that connector (model.md, 6.1).
   A project with no home there has no projection there.
-- **Its effects** have keys of their own (4.4), are checked against the
+- **Its effects** have keys of their own (`connectors-effects.md`, 1.4), are checked against the
   authority the project's policy gives its goals' projections, and are
   made through the outbox like any other.
 - **Its state** (what it last wrote, by a digest) is kept with the goal,
@@ -749,7 +283,7 @@ release the writer; Uncertain and Held retain it for connector recovery.
   answer bounded in bytes and charged to the connector's request budget:
   a service's logs in a window, a metric's series, a pull request's
   diff. The call reaches the root decoded as the connector's request; the
-  core checks the read grant (authority.md, 8.5); the connector serves
+  core checks the read grant (authority-checks.md, 1.5); the connector serves
   it; its answer goes out through the journal's door for outputs that
   decide nothing (root.md, section 3). The core never holds it.
 - **Sections a brief carries** for the resources a task names, and for
@@ -799,7 +333,7 @@ release the writer; Uncertain and Held retain it for connector recovery.
 
 ## 11. Ownership and drift
 
-- **Owned objects are recorded by key** (4.4), so ownership is the
+- **Owned objects are recorded by key** (`connectors-effects.md`, 1.4), so ownership is the
   store's, whatever the system shows.
 - **Projections are written, never read back** (model.md, 8.1).
 - **The application's own moves.** A held resource moves under the
@@ -896,7 +430,7 @@ asks for each step:
      reads are in**;
    - **its outbox to settle:** it hands its restored entries to its
      outbox before any entry made since, and looks for every entry not
-     committed as made, by its key or the state it leads to (4.3); it
+     committed as made, by its key or the state it leads to (`connectors-effects.md`, 1.3); it
      reports `RestartStage::Settled` once each has been looked at once;
    it has **caught up** once both reports are made, and the core records
    them (engine/restart.md, *The start's interface*). Nothing bounds it:
@@ -908,9 +442,9 @@ asks for each step:
 
 From the opening its procedures step as their wakes come. A decision
 on a fact its system owns waits for that fact's first fresh read, or for
-its fresh reads where the procedure names no read of its own (5.1); a
+its fresh reads where the procedure names no read of its own (`connectors-facts.md`, 1.1); a
 write waits for the entries before it on its lane, the restored ones
-among them, and a write on another lane goes ahead (4.2). Nothing it
+among them, and a write on another lane goes ahead (`connectors-effects.md`, 1.2). Nothing it
 held in memory before the restart is needed, and nothing is judged
 from what the store held alone.
 

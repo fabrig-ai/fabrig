@@ -23,7 +23,7 @@ computes for them is said below (1 to 5).
   role in that scope, the party's own on the sign-in alone, and on the
   views' limits, as it admits jig's; whether the subject is in that
   scope, and what the party may see of it, is the connector's to judge
-  (../connectors.md, 5.5). Its watches and reads carry a window, as jig's
+  (../connectors-facts.md, 1.5). Its watches and reads carry a window, as jig's
   do (`../../client/domain/contract/README.md`, 5.5). Only the document, or why
   there is none, crosses back; the root only routes.
 - **Public reads** (../people/public-reading.md) are the public party's,
@@ -87,7 +87,7 @@ computes for them is said below (1 to 5).
     ended: the `accounts` of the parties it concerns, and the
     deployment's (../accounts.md, section 5).
 
-  A connector marks its own subjects (../connectors.md, 5.5).
+  A connector marks its own subjects (../connectors-facts.md, 1.5).
 - **Durable before shown:** a delivery waits for the last commit made
   before it, as every read's answer does (`decisions.md`, 1.2).
 - **A run's text as it is written** is the one stream: kept per live run
@@ -145,7 +145,7 @@ Nothing the core decides depends on a view arriving.
   carries `resolved_default: Option<LlmChoice>` beside its configured
   LLM choice. An explicit template choice previews itself. For an omitted
   choice, the core takes what a run's check would take now for a task
-  keeping no account (../accounts.md, 4.3): the first model in charter order
+  keeping no account (../accounts-uses.md, 1.3): the first model in charter order
   with an account usable now, at its default effort, under the effective
   creating authority and with the
   current receiving party as payer. No usable model, or an executor still
@@ -153,12 +153,12 @@ Nothing the core decides depends on a view arriving.
   an account reservation. The client's shapes keep the configured
   intent, never copy the preview into a request. A task made with an
   omitted choice keeps none, and each of its runs' checks takes its
-  models (../tasks/README.md, section 3; ../accounts.md, 4.3);
+  models (../tasks/README.md, section 3; ../accounts-uses.md, 1.3);
   the preview changes no task or core store layout.
 - **The offer** (`../../client/domain/contract/documents.md`, 1), per project: each
   model of configuration's order that the party's authority there allows and
-  an account usable now for the party as payer can run (../accounts.md, 4.3) and
-  allows (../accounts.md, 3.7), with those accounts. A direct source's account needs no host, so that a
+  an account usable now for the party as payer can run (../accounts-uses.md, 1.3) and
+  allows (../accounts-lists.md, 1), with those accounts. A direct source's account needs no host, so that a
   worker's restart takes no model away and what `account list` calls usable
   is offered; a program's source needs a connected host that has reported
   its login usable. A
@@ -229,7 +229,7 @@ Nothing the core decides depends on a view arriving.
   kinds in the core's configuration, each a `PartKind`: its `owner` (the
   family's number), its `kind`, the `connector` that makes it, its
   `bytes`, and its `inputs` (`PartInputs`: `line`, `notes`, `delegates`,
-  `delegate_notes`, `records`; `../connectors.md`, 5.5). The core's
+  `delegate_notes`, `records`; `../connectors-facts.md`, 1.5). The core's
   `TaskQuery` carries the parts the clients' component passed it as
   served, each a `PartAsk { owner, kind, version }`, and its `TaskLine`
   their answers, each a `RowPart`: `Made` with its record's bytes,
@@ -305,7 +305,7 @@ section 3):
   - *news,* when it is idle, its run parked or waiting, or its procedure
     waiting on its facts: what moves it next is a message its wake
     policy lets through, or a fact its connector reads (../tasks/messages.md, 3;
-    ../connectors.md, 6.2);
+    ../connectors-procedures.md, 1.2);
   - *nothing,* otherwise: its phase says what it waits for (its
     dependencies, its holds, its closing), or it has ended.
 

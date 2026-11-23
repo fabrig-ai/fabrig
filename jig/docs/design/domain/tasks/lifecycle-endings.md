@@ -17,13 +17,13 @@ hold if they don't. While kept, a task:
   (`messages.md`, 1), and its next run goes on from what the last one left, its brief
   saying what it waited for (../engine/briefs.md, section 1).
 - **asks no effect that waits for dependencies.** Its connector says
-  which kinds of effect do (../connectors.md, 4.1). One asked while a
+  which kinds of effect do (../connectors-effects.md, 1.1). One asked while a
   dependency is pending is refused, naming it.
 - **ends no way but failed or cancelled.** An agent's run that finishes
   done, with a result its contract takes, parks instead: its saved state
   is kept, no try is spent, and the task's activity names what it waits
   for (../engine/executors.md, 4). A procedure's step that ends it done is refused
-  whole (../connectors.md, 6.2). A person's answer is refused, naming the
+  whole (../connectors-procedures.md, 1.2). A person's answer is refused, naming the
   dependencies (../people/README.md, section 7). A failure or a cancel ends it as
   ever.
 
@@ -171,7 +171,7 @@ mechanical once the task's work is done (temper's `domain/forge/branches.md`,
   your requester: nothing more will come.`, no parameters or inputs,
   its contract the task's own, its authority the task's own whole, one
   level shallower in delegation, and its budget `AsAllowed` within the
-  task's (../authority.md, section 7). The task keeps the closer's number
+  task's (../authority-budgets.md, section 1). The task keeps the closer's number
   while it lives, stays idle, numbers no notice and spends no run try.
   A refused making (a budget or a limit reached) holds the task, its
   words naming the closer's refusal (6).

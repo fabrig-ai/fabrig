@@ -129,7 +129,7 @@ stored setting naming it is refused, not read, naming the setting
   into another repository orders the landings alone (`../../landing.md`,
   4.1) and holds no answer. Whatever holds or relays an answer, the
   dependencies order the merge: nothing merges before they land
-  (`README.md`, 2, step 7; jig's `domain/connectors.md`, 4.1).
+  (`README.md`, 2, step 7; jig's `domain/connectors-effects.md`, 1.1).
 - **Held for message room.** Apart from that rule, an answer is held
   on its record while the step that takes it has no message room left
   for it (below), and relayed at the next step that has room and no
@@ -291,7 +291,7 @@ What follows holds under either question route.
   are not those the change would give a new producer now (`README.md`,
   2, step 1: its words, then its scope, with *Early starts*' lines
   after their first line), amends that producer in the
-  same step (jig's `domain/connectors.md`, 6.3): its spec as it stands
+  same step (jig's `domain/connectors-procedures.md`, 1.3): its spec as it stands
   with those words and the context as it stands after the amendment,
   naming its spec's revision as the core last told
   the change, and with the reason `Task C, your change, was amended to
@@ -405,7 +405,7 @@ What follows holds under either question route.
 
 ### Early starts
 
-The change procedure starts kept (jig's `domain/connectors.md`, 6.1): a
+The change procedure starts kept (jig's `domain/connectors-procedures.md`, 1.1): a
 change made with a pending dependency is active and kept rather than
 waiting, so its producer may work beside its dependencies while its
 merge waits for them (`README.md`, 2, step 7; `../queues.md`). Its producer starts
@@ -470,7 +470,7 @@ early, by these rules:
   in the order of the change's dependencies (`../../worker/checkouts.md`).
   The change keeps each head it started from, with its dependency
   (`StartedFrom`), and marks those dependencies started from (jig's
-  `domain/connectors.md`, 6.1). The checkout's selection names those
+  `domain/connectors-procedures.md`, 1.1). The checkout's selection names those
   recorded commits, never a branch's tip read afresh.
 - **It is told.** The early producer's words carry one line per
   dependency it started from, in the order of its record:

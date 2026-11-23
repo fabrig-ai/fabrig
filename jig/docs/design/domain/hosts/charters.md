@@ -70,7 +70,7 @@ Its `hosted` puts a run's whole hand-over together from what the hub link kept (
   is decoded by the engine's protocol layer into the connector's typed
   topic, and checked as a read is: the task's tools hold `subscribe`, and
   a read grant covers the resources the connector says the topic
-  concerns (../authority.md, 8.5; ../connectors.md, 5.3).
+  concerns (../authority-checks.md, 1.5; ../connectors-facts.md, 1.3).
 - **Result contracts** (../tasks/README.md, section 3) become smith's (smith's
   `domain/run.md`, 7.1): a report; a verdict, with its labels, fields and
   follow-ups; a connector's result, as a delivery the run must make
@@ -89,7 +89,7 @@ Its `hosted` puts a run's whole hand-over together from what the hub link kept (
   configuration names it, with its window, its output and its prices
   (../engine/executors.md, 1); for each model's LLM provider, the account its check
   chose, whose grant says the source, and so the backend, since an
-  endpoint names no account (../accounts.md, 3.4; smith's
+  endpoint names no account (../accounts-sources.md, 1; smith's
   `protocol/programs.md`, section 3); the charter's waiting time, and
   whether a run resumes its transcript or starts fresh.
 - **What jig asks of smith's budget** (smith's `domain/budget.md`
@@ -100,17 +100,17 @@ Its `hosted` puts a run's whole hand-over together from what the hub link kept (
   budget is spent, the run winds down on its reserve and finishes; a
   completion that does not fit what is left at all ends the run for its
   budget. All of it is inside the run, with no call to its host, so a
-  run never spends past its budget (../authority.md, section 7). On a
+  run never spends past its budget (../authority-budgets.md, section 1). On a
   program backend, which makes its own completions, smith cannot reserve
   one first: the program may pass the ordinary part by one completion of
   its main model, which the reserve takes, and the run stops at its next
   turn (smith's `protocol/programs.md`, 5.7 and section 7). Such a run's
-  reserve holds one more of those completions (../authority.md, section 7),
+  reserve holds one more of those completions (../authority-budgets.md, section 1),
   so it never spends past its budget either.
 - **The core places no run smith would refuse.** A task whose budget
   cannot hold its run's reserve and one of its main model's most costly
   completions, and on a program backend one more again, is held for its
-  budget (../authority.md, 7 and 8.3); the fleet admits no host whose agent
+  budget (../authority-budgets.md, 1, and ../authority-checks.md, 1.3); the fleet admits no host whose agent
   cannot run the engine's charters, and places a run only on a host that
   declares its endpoints and where its sources are usable (../engine/fleet.md
   ). When a change of settings changes the charters (../engine/settings.md,
