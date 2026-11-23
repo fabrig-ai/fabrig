@@ -795,12 +795,14 @@ strategy in full, as the red says; then it asks these questions, in order:
    neither the change, nor its goal, nor the milestone or party above
    it.
 
-**Checking less is red too,** at the gate, beside the budgets: a test
-main ran that the change's run doesn't, or a kit's count of checks done
-below main's, unless a reason line says why
-(`tools/tiers/budgets.md`, 13). A test whose code is gone, a duplicate,
-a rename or a move to a layer the gate doesn't run is a reason the
-change may give itself. "To fit the budget" is the user's alone.
+**Checking less is red too,** at the gate, where it can see it: a test
+main ran that the change's run doesn't, or a kit's count of checks below
+main's, unless a reason line says why (`tools/tiers/budgets.md`, 13). A
+cut the gate doesn't see is still forbidden. A change may give itself a
+reason only when the loss answers no budget: the tested code is gone,
+another test already makes the same checks, a rename, or a move to the
+tier the test belongs to. A loss made to fit a budget is the user's,
+whatever kind would fit, and no role writes its reason.
 
 ## 9. Where a failure is fixed
 
