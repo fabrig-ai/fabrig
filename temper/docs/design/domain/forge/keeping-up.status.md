@@ -3,7 +3,6 @@
 2026-11-22. Where the tree's code lags or departs from [keeping-up.md](keeping-up.md).
 
 - **Not yet:** 1: follows own watches too [in flight: change 105].
-- **Not yet:** 3, *Reads waiting for room take turns*: the connector asks a making's, a brief's, a lost writer's and a landing gather's read refused `Busy` again only after the client's own `resume`, one of each kind a turn, with no line, deadline or log line (`temper-engine-domain-forge/src/domain.rs`, `drive`) [in flight: change 12969].
 
 - **Not yet:** 1, 2: a branch nothing has pushed: a change with no head reads its branch, its `PullFor` and its base's CI at every step; every commit's and item's hint concerns it; a hint matching no change wakes every change; its wait is `queue_window`; and a branch never there rests at `slow` (`temper-engine-domain-forge/src/domain/hints.rs`, `concerns`; `src/domain.rs`, `step_change`, `wait_change`; skein-forge-client's `keep/answer.rs`).
 - **Not yet:** 2, 3: a gather reads its pull request with its head's CI and the head's checks again, every pull read reads CI, and a commit's hint reads its pull request in the client beside the commit's news (`src/domain.rs`, `step_read`).
