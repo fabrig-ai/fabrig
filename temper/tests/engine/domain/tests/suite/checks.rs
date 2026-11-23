@@ -455,6 +455,64 @@ fn a_taskless_hold_on_an_ended_forge_waits_for_its_own_release_rule() {
     assert!(world.root.forge().inspection_holds().contains_key(&name));
 }
 
+fn ended_landing_write(retired: bool) -> (World, u64) {
+    let (mut world, _, _) = preparing();
+    world.hold_write_answers = Some(temper_engine_domain_world::forge_routes::HoldWrite::All);
+    world.automatic_prepare_jobs();
+    for _ in 0..1000 {
+        world.tick();
+        let landing = world
+            .root
+            .forge()
+            .inspection_landings()
+            .iter()
+            .find_map(|(_, row)| (!row.entries.is_empty()).then(|| row.clone()));
+        if let Some(mut row) = landing {
+            let task = row.landing.task;
+            let entry = row.entries.first_mut().expect("landing write");
+            assert!(world.root.forge().inspection_entry(entry.entry).is_some());
+            // Freeze closing while its write is outstanding. The broken row
+            // instead retains a reference whose outbox entry has retired.
+            if retired {
+                entry.entry = u64::MAX;
+            }
+            row.landing.phase = temper_engine_domain_forge_landing::Phase::Cancelled;
+            row.waiting = None;
+            row.asks.fill(None);
+            engine::step(
+                &mut world.root,
+                &world.env,
+                engine::Event::Forge(Box::new(forge::Event::Restore { record: forge::Stored::Landing(row) })),
+            );
+            return (world, task);
+        }
+    }
+    panic!("landing has an outstanding write");
+}
+
+#[test]
+fn an_ended_landing_keeps_its_outstanding_write_until_settlement() {
+    let (world, task) = ended_landing_write(false);
+    let inspection = inspect(&world);
+    let table = inspection.tables().iter().find(|table| table.name == "landing rows").expect("landing table");
+    let row = table.entries.iter().find(|row| row.key == format!("landing {task}")).expect("landing row");
+    assert_eq!(row.release, skein_world::inspect::Release::Pending);
+    assert_eq!(Checks::new(71).quiet(&world.root, world.env.now, 1), Ok(()));
+}
+
+#[test]
+fn an_ended_landings_retired_write_reference_is_found() {
+    let (world, task) = ended_landing_write(true);
+    let finding = Checks::new(71).quiet(&world.root, world.env.now, 1).expect_err("write reference outlived its entry");
+    assert_eq!(
+        finding,
+        format!(
+            "seed 71: at {} ns, iteration 1: engine landing rows landing {task}: still held after release rule: the closing settlement of the landing",
+            world.env.now.as_nanos(),
+        )
+    );
+}
+
 fn refused_train() -> (World, u64) {
     use super::forge_routes::landing::{LIVE_ROOM, fill_live_room, produced_with_hold};
     use temper_engine_domain_world::forge_routes::StoryLimits;
@@ -1402,6 +1460,77 @@ fn conflict_read() -> (World, u64, Time, Time) {
         }
     }
     panic!("a conflict's fresh gather after the producer's terminal");
+}
+
+fn room_read(own_read: bool) -> (World, u64) {
+    let (mut world, source, _, _) = conflict_read();
+    let mut row = world.root.forge().change(source).expect("reading change").clone();
+    let task = if own_read {
+        source
+    } else {
+        let tasks::Party::Task(requester) = world.root.tasks().task(source).expect("change task").requester else {
+            panic!("change requester")
+        };
+        requester
+    };
+    // Freeze a room retry while its gather reads. The place stays on the row
+    // until the fresh decision, even though its ask has reserved room. The
+    // broken snapshot assigns that place to a task with no read of its own.
+    row.task = task;
+    row.change.task = task;
+    row.change.state = temper_engine_domain_forge_change::State::Opening { requested: false };
+    row.room = Some(1);
+    row.delegate = None;
+    row.pending = None;
+    engine::step(
+        &mut world.root,
+        &world.env,
+        engine::Event::Forge(Box::new(forge::Event::Restore { record: forge::Stored::Change(Box::new(row)) })),
+    );
+    engine::fire(&mut world.root, &world.env);
+    assert!(world.root.forge().room_asked(task));
+    (world, task)
+}
+
+#[test]
+fn a_room_wait_keeps_its_in_flight_read_wake() {
+    let (world, task) = room_read(true);
+    for root in [true, false] {
+        let mut inspection = Inspection::new("engine", temper_engine_inspect::KINDS);
+        if root {
+            temper_engine_inspect::inspect(&world.root, &mut inspection);
+        } else {
+            temper_engine_inspect::forge(world.root.forge(), &mut inspection);
+        }
+        let wait = inspection.waits().iter().find(|wait| wait.waiter == format!("task {task}")).expect("room wait");
+        assert_eq!(wait.kind, "change: room");
+        assert!(wait.wakes.iter().any(|wake| matches!(wake, Wake::Party(name) if name.starts_with("forge: call "))));
+        assert_eq!(wait.bound, None);
+        assert_eq!(
+            skein_world::inspect::check_waits(
+                &[&inspection],
+                skein_world::inspect::Moment { seed: 71, at: world.env.now, iteration: 1 },
+            ),
+            Ok(())
+        );
+    }
+    assert_eq!(Checks::new(71).quiet(&world.root, world.env.now, 1), Ok(()));
+}
+
+#[test]
+fn a_room_wait_cannot_borrow_another_changes_read() {
+    let (world, task) = room_read(false);
+    let inspection = inspect(&world);
+    let wait = inspection.waits().iter().find(|wait| wait.waiter == format!("task {task}")).expect("room wait");
+    assert_eq!(wait.wakes, Vec::<Wake>::new());
+    let finding = Checks::new(71).quiet(&world.root, world.env.now, 1).expect_err("room waiter has no read of its own");
+    assert_eq!(
+        finding,
+        format!(
+            "seed 71: at {} ns, iteration 1: engine task {task}: waits on change: room with no live wake: []",
+            world.env.now.as_nanos(),
+        )
+    );
 }
 
 #[test]

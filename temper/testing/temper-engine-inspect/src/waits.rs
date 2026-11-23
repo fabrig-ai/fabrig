@@ -405,7 +405,7 @@ fn bound(view: &View<'_>, row: &temper_engine_domain_forge::ChangeRow) -> Option
 }
 
 fn room(view: &View<'_>, task: u64) -> Vec<Wake> {
-    let mut wakes = view
+    let mut wakes: Vec<Wake> = view
         .forge
         .inspection_entries()
         .iter()
@@ -418,6 +418,10 @@ fn room(view: &View<'_>, task: u64) -> Vec<Wake> {
             })
         })
         .collect();
+    // The place remains while an asked waiter reads afresh, before its next
+    // decision keeps an entry or leaves the line (domain/forge/room.md, 3;
+    // testing/engine-checks.md, 2.2). Those reads still wake their owner.
+    wakes.extend(view.read_wakes(task));
     person_release(view, task, &mut wakes);
     wakes
 }

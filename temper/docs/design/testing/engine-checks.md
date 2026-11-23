@@ -135,7 +135,10 @@ change's due step.
   `Party("forge: call N")`, read from the client's admissions, like a
   write's `Party("forge: entry N")` from the outbox. A call answered or
   closed names nothing, and no read stands in for a wait it can't
-  name. A read still waiting for admission is not in flight.
+  name. A read still waiting for admission is not in flight. This also
+  applies while a room waiter's place remains on its row: once asked,
+  it reads afresh before its decision keeps an entry or leaves the line
+  (`../domain/forge/room.md`, 3).
 - **A write still settling:** a change's procedure can move on from a
   write it no longer needs before the forge's client has answered it:
   containment takes a landed merge while the client still withdraws its
@@ -213,7 +216,7 @@ change's due step.
 | `forge write entries` | `forge.entries` | each outbox entry, `entry N (task T)`, and each reservation of its room, `reserved for task T` | the write's settlement, or its owner's end with the entry withdrawn | its owner has ended and no write or withdrawal of it is outstanding with the forge client |
 | `forge read admissions` | `forge.client.pending` | each call the forge client admitted, `call N`, with its task where its reader names one | the read's answer | its answer has come and its place isn't reclaimed at the quiet point |
 | `branch holds` | `forge.holds` | each hold, `NAME (task T)` | the closing settlement of the landing or change that holds it; on an ended forge, the forge's return or a person's act | its forge is live, its holder's task has ended and no release of it is under way |
-| `landing rows` | `forge.landings` | each landing's row with its asks, `landing L` | the closing settlement of the landing | the landing has ended, landed or cancelled, and its row still names write entries or holds an ask not handed over |
+| `landing rows` | `forge.landings` | each landing's row with its asks, `landing L` | the closing settlement of the landing | the landing has ended, landed or cancelled, and its row still names a write entry no longer in the outbox or holds an ask not handed over |
 
 - **An owner's end, as each function reads it:** `inspect` reads it
   from jig's tasks. `forge` reads what the forge keeps: for write
@@ -229,6 +232,10 @@ change's due step.
   no closing settlement can come while its forge is ended. Its release
   rule is the forge's return or a person's act, not the absent holder's
   end (`../domain/landing-forming.md`, 4).
+- **An ended landing's outstanding writes** keep its row pending until their
+  outcomes settle (`../domain/forge/room.md`, 2). Ending does not retire a
+  write still in flight; a row's reference left after its outbox entry
+  retires is a finding.
 - **Kept:** an ended landing's row naming nothing, kept until a new
   landing needs its place, as the forge retires ended rows. A hold its
   holder's failed ending hands to the root is the root's, and pending
