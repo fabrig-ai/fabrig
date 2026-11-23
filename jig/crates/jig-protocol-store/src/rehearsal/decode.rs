@@ -63,12 +63,12 @@ fn family_records(
 ) -> Result<u64, Failure> {
     layouts.family();
     let registered = !family.types.is_empty();
+    let mut parsed = None;
     let kept = if registered {
         None
     } else {
         Some(
-            schema::parse(family.current.as_bytes())
-                .ok()
+            crate::upgrade::schemas::get(store.prepared_schemas, family.current.as_bytes(), &mut parsed)
                 .ok_or(Failure::Open(OpenRefusal::Set { owner: set.owner }))?,
         )
     };
@@ -83,7 +83,7 @@ fn family_records(
             }
         }
     } else {
-        let schema = kept.as_ref().expect("unregistered family's current decoder");
+        let schema = kept.expect("unregistered family's current decoder");
         for keys in family.keys {
             let root = schema.find(keys.root.as_bytes()).ok_or(Failure::Open(OpenRefusal::Set { owner: set.owner }))?;
             let range =
@@ -116,7 +116,7 @@ fn family_records(
                 let decoded = match root {
                     Root::Layout(number) => layouts.decode(family.name, number, &mut value, item.row.value),
                     Root::Kept(root) => {
-                        let schema = kept.as_ref().expect("current root's decoder");
+                        let schema = kept.expect("current root's decoder");
                         match value.decode(schema, root, item.row.value) {
                             Ok(_) => Ok(()),
                             Err(_) => Err(schema.version()),

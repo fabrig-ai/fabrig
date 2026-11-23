@@ -29,26 +29,16 @@ impl Disk {
     pub fn new(limits: &Limits) -> Self {
         let mut machine = Machine::for_user(0);
         let handle = machine.lay(&[]);
-        let (sim, pid, root, host) = drivers(limits, handle, 0);
-        Self {
-            machine,
-            sim,
-            pid,
-            root,
-            host,
-            operations: 0,
-            mutations: Vec::new(),
-            cut: None,
-            reached: false,
-            sweep: Vec::new(),
-            sweeping: None,
-            fork_child: None,
-            forked: Vec::new(),
-        }
+        Self::over(limits, machine, handle)
     }
-    pub fn fork(&self, limits: &Limits) -> Self {
-        let mut machine = self.machine.fork();
+    pub fn image(&self) -> Machine {
+        self.machine.fork()
+    }
+    pub fn from_image(limits: &Limits, mut machine: Machine) -> Self {
         let handle = machine.reopen_root(0);
+        Self::over(limits, machine, handle)
+    }
+    fn over(limits: &Limits, machine: Machine, handle: skein_fake_machine::Opened) -> Self {
         let (sim, pid, root, host) = drivers(limits, handle, 0);
         Self {
             machine,

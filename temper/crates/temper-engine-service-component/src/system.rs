@@ -155,6 +155,10 @@ impl Service {
     pub fn owner_sets(&mut self, sets: jig_protocol_store::OwnerSets) {
         self.engine.as_mut().expect("engine patch sets").owner_sets(sets);
     }
+    /// Supply optional parsed binary texts before open; admission still checks the sets.
+    pub fn prepared_schemas(&mut self, schemas: &'static [skein_codec::schema::Schema]) {
+        self.engine.as_mut().expect("engine prepared schemas").prepared_schemas(schemas);
+    }
     /// Rehearse the configured restart over a copy, without adopting a worker or listeners.
     pub fn rehearse_store(
         &mut self,

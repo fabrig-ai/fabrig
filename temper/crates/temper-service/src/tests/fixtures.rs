@@ -519,6 +519,7 @@ fn start_configured_worker(
         io,
         if under_box { Some(system::BOX_BYTES) } else { None },
         None,
+        None,
     )
     .unwrap();
 

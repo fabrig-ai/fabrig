@@ -1,30 +1,35 @@
 //! Cold starts over durable copies (`jig/docs/design/domain/testing-fakes.md`, 1).
-use super::{Cut, Queue, StoreChecks, StoreOut, Up, World, root};
+use super::{Cut, Env, HoldKinds, Queue, Rc, StoreChecks, StoreOut, Up, VecDeque, World, root};
 use jig_conformance::store_check::finding;
+use jig_test_store_files::StoreImage;
 
-impl World {
-    /// Choose the commits checked by subsequent durable writes.
-    pub fn store_checks(&mut self, checks: StoreChecks) {
-        self.store_checks = checks;
-    }
+#[derive(Debug)]
+pub(super) struct Rehearsal {
+    image: StoreImage,
+    config: Rc<root::Config>,
+    limits: root::Limits,
+    startup: Option<fn(&mut root::Domain)>,
+    hold_kinds: Rc<HoldKinds>,
+    env: Env<root::Limits>,
+    fill: u64,
+}
 
-    /// Rehearse a cold start without touching the live root, store, clock or peers.
-    pub fn check_store(&self) -> Result<(), String> {
-        let commit = self.store.applied;
-        let mut store = self.store.fork().map_err(|error| finding(commit, "Open", &format!("{error:?}")))?;
-        let mut domain =
-            root::Domain::new(crate::oracle::configuration(&self.restart_config.0), &self.restart_config.1);
+impl Rehearsal {
+    fn run(self, commit: u64) -> Result<(), String> {
+        let mut store = self.image.open();
+        let config = crate::oracle::configuration(&self.config);
+        let mut domain = root::Domain::new(config, &self.limits);
         if let Some(setup) = self.startup {
             setup(&mut domain);
         }
-        let env = self.env();
-        for (connector, kinds) in &self.hold_kinds {
+        let env = self.env;
+        for (connector, kinds) in self.hold_kinds.iter() {
             domain.configure_holds(&env, *connector, kinds.clone());
         }
         StoreChecks::rehearse(|| {
             domain.rehearse();
-            let mut events =
-                std::collections::VecDeque::from([root::Event::StartBegin { pending: store.generation_pending }]);
+            let mut events = VecDeque::from([root::Event::StartBegin { pending: store.generation_pending }]);
+            let mut out = Queue::with_capacity(128);
             loop {
                 if let Some(error) = refusal(&domain, commit) {
                     return Err(error);
@@ -37,7 +42,6 @@ impl World {
                 {
                     root::step(&mut domain, &env, event);
                 }
-                let mut out = Queue::with_capacity(128);
                 root::release(&mut domain, &env, &mut out);
                 while let Some(request) = out.pop() {
                     match request {
@@ -79,12 +83,51 @@ impl World {
             }
         })
     }
+}
+
+impl World {
+    /// Choose the commits checked by subsequent durable writes, starting a new count.
+    pub fn store_checks(&mut self, checks: StoreChecks) {
+        self.store_checks = checks;
+        self.kept_check = None;
+        self.store_checks_reported = false;
+    }
+
+    /// Rehearse a cold start without touching the live root, store, clock or peers.
+    pub fn check_store(&self) -> Result<(), String> {
+        self.rehearsal().run(self.store.applied)
+    }
+
+    fn rehearsal(&self) -> Rehearsal {
+        Rehearsal {
+            image: self.store.image(),
+            config: Rc::clone(&self.restart_config.0),
+            limits: self.restart_config.1,
+            startup: self.startup,
+            hold_kinds: Rc::clone(&self.hold_kinds),
+            env: self.env(),
+            fill: self.fill,
+        }
+    }
 
     pub(super) fn check_durable(&mut self) -> Result<(), String> {
         let number = self.store.applied;
         // A selected durable cut is counted by its child's successful exit instead.
-        if !self.sweep.contains(&Cut::Durable(number)) && self.store_checks.due(number) {
+        if self.sweep.contains(&Cut::Durable(number)) {
+            return Ok(());
+        }
+        if self.store_checks.due(number) {
             self.check_store()?;
+        } else if self.store_checks.keeps() {
+            self.kept_check = Some(self.rehearsal());
+        }
+        Ok(())
+    }
+
+    pub(crate) fn finish_store_check(&mut self) -> Result<(), String> {
+        if let Some(commit) = self.store_checks.end() {
+            let check = self.kept_check.take().expect("the selected commit's store was kept");
+            check.run(commit)?;
         }
         Ok(())
     }

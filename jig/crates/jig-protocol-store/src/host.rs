@@ -31,6 +31,7 @@ pub struct Hosted {
     /// The answers to the accounts' records' loads and writes (protocol/store/secrets.md).
     pub sources: Queue<crate::Event>,
     env: Env<crate::Limits>,
+    opening_limits: crate::CheckedLimits,
     drivers: Drivers,
     not_ready: NotReady,
     closing: bool,
@@ -67,17 +68,41 @@ impl Hosted {
         seed: u64,
         not_ready: NotReady,
     ) -> Self {
+        Self::new_checked(
+            &crate::CheckedLimits::new(limits).expect("the store's limits are valid"),
+            application,
+            models,
+            seed,
+            not_ready,
+        )
+    }
+    /// Construct the directory store and drivers with an already checked opening envelope.
+    #[must_use]
+    pub fn new_checked(
+        checked: &crate::CheckedLimits,
+        application: crate::sizes::Application,
+        models: &[jig_domain_core_vocabulary::Model],
+        seed: u64,
+        not_ready: NotReady,
+    ) -> Self {
+        let limits = checked.limits();
         let drivers = Drivers::new(limits, seed);
         Self {
-            component: crate::Store::on_directory(limits, application, models, drivers.seeded()),
+            component: crate::Store::on_directory_checked(checked, application, models, drivers.seeded()),
             above: Queue::uncapped(),
             secrets: Queue::uncapped(),
             sources: Queue::uncapped(),
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *limits },
+            opening_limits: *checked,
             drivers,
             not_ready,
             closing: false,
         }
+    }
+    /// The bounds passed at construction, before any runtime settings are installed.
+    #[must_use]
+    pub fn opening_limits(&self) -> &crate::CheckedLimits {
+        &self.opening_limits
     }
     #[must_use]
     pub fn limits(&self) -> &crate::Limits {

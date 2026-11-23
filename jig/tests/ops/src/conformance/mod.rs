@@ -186,14 +186,12 @@ impl Application for Ops {
     type Domain = root::Domain;
     type Store = Store;
     type Config = Config;
+    type PeerSetup = jig_conformance::core::Observer;
     type Systems = Systems;
     type Peers = Peers;
     type Event = root::Event;
     type Delivery = Delivery;
 
-    fn store(_: &Config) -> Self::Store {
-        Store::default()
-    }
     fn build(config: &Config) -> root::Domain {
         let mut configuration = config.configuration.as_ref().clone();
         if !config.close_grant {
@@ -226,9 +224,12 @@ impl Application for Ops {
         production.set_pool_quota("staging", 5);
         Systems { production, now: 0 }
     }
-    fn peers(config: &Config, _: u64) -> Peers {
+    fn bootstrap(config: &Config) -> (Store, Self::PeerSetup) {
+        (Store::default(), observations::observer(&config.configuration, config.story == Story::Environment))
+    }
+    fn peers(config: &Config, _: u64, setup: &Self::PeerSetup) -> Peers {
         Peers {
-            observer: observations::observer(&config.configuration, config.story == Story::Environment),
+            observer: setup.clone(),
             applied: 0,
             observed: Vec::new(),
             application_observed: Vec::new(),

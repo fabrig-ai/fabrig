@@ -4,6 +4,7 @@ pub(crate) enum Fixture {
     Checked,
     Closed,
     Broken,
+    Transferred,
 }
 
 pub mod config;
@@ -184,15 +185,25 @@ impl Driver {
 
     /// Fixture fault at the snapshot/restart boundary, returning the oracle's first difference.
     pub fn close_erasing(&mut self, erase: Option<Key>) -> Result<(), String> {
-        if self.store_finding.is_some() {
+        let result = if self.store_finding.is_some() {
             self.broken = Fixture::Closed;
-            return self.check_store();
-        }
-        if !matches!(self.broken, Fixture::Checked) {
-            return self.ends.close(self.env.now, &self.store);
-        }
-        // A finding ends this attempt too; Drop must not repeat a failed readback.
-        self.broken = Fixture::Closed;
+            self.check_store()
+        } else {
+            match self.broken {
+                Fixture::Checked => {
+                    // A finding ends this attempt too; Drop must not repeat a failed readback.
+                    self.broken = Fixture::Closed;
+                    self.restart_oracle(erase)
+                }
+                Fixture::Broken | Fixture::Closed => self.ends.close(self.env.now, &self.store),
+                Fixture::Transferred => Ok(()),
+            }
+        };
+        let kept = self.store_checks.finish(&self.restart_config);
+        result.and(kept)
+    }
+
+    fn restart_oracle(&mut self, erase: Option<Key>) -> Result<(), String> {
         self.oracle_settle();
         self.ends.close(self.env.now, &self.store)?;
         assert!(self.store.idle() && self.store.held.is_empty(), "restart oracle store settled");
@@ -477,7 +488,9 @@ pub fn compare_forges(
 impl Drop for Driver {
     fn drop(&mut self) {
         let result = if std::thread::panicking() { Ok(()) } else { self.close_erasing(None) };
-        self.report_store_checks();
+        if !matches!(self.broken, Fixture::Transferred) {
+            eprintln!("{}", self.store_check_counts().report());
+        }
         result.unwrap_or_else(|finding| panic!("{finding}"));
     }
 }

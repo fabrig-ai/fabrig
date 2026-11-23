@@ -3,6 +3,12 @@
 2026-11-23. Where the tree's code lags or departs from [testing-fakes.md](testing-fakes.md).
 
 - **Not yet:**
+  1: the core kit's `World` keeps one commit per run, rehearsed in
+  `World::finish`, and its rehearsal pays for its store and start alone.
+  [in flight: change 13093]
+  1: the conformance harness keeps one commit per story, rehearsed in
+  `Harness::finish`. [in flight: change 13095]
+- **Not yet:**
   1.1: jig's inspection adapter, `jig-inspect`'s `tasks` and `core`, with
   the reads they take. [in flight: change 11665]
   1.1, 1.2: `jig_inspect::engine_clients`, and the engine-clients world's

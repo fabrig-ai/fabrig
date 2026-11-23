@@ -89,6 +89,11 @@ fn valid_refuses_each_unrepresentable_limit() {
             false,
         ),
     ] {
+        let checked = crate::CheckedLimits::new(&limits);
+        assert_eq!(checked.is_some(), accepted, "{name}");
+        if let Some(checked) = checked {
+            assert_eq!(checked.limits(), &limits, "{name}");
+        }
         assert_eq!(crate::valid(&limits), accepted, "{name}");
     }
 }
@@ -119,6 +124,11 @@ fn valid_requires_room_for_transcript_work() {
             true,
         ),
     ] {
+        let checked = crate::CheckedLimits::new(&limits);
+        assert_eq!(checked.is_some(), accepted, "{name}");
+        if let Some(checked) = checked {
+            assert_eq!(checked.limits(), &limits, "{name}");
+        }
         assert_eq!(crate::valid(&limits), accepted, "{name}");
     }
 }

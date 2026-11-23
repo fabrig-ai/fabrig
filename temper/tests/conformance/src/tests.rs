@@ -51,7 +51,8 @@ fn indexed_effect_evidence_matches_whole_rows_for_each_origin_and_cold_retry() {
 #[test]
 fn a_worker_reports_its_unchanged_push_head_after_an_engine_restart() {
     let config = Config::new(71, Some(jig_conformance::scenarios::Scenario::Grace));
-    let mut peers = Temper::peers(&config, 71);
+    let (_, setup) = Temper::bootstrap(&config);
+    let mut peers = Temper::peers(&config, 71, &setup);
     peers.reported.insert(TASK, HEAD);
     Temper::cold(&mut peers, &Store::new(), RESTART).expect("cold peer evidence");
     let event = link::worker_event(

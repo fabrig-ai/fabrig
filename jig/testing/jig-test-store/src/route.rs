@@ -42,6 +42,11 @@ impl Routes {
         self.restore_bytes = Some(store::sizes::restore_bytes(limits)?);
         Some(())
     }
+    /// The same decode and page bounds, with no requests or continuations.
+    #[must_use]
+    pub fn fresh(&self) -> Routes {
+        Routes { limits: self.limits, restore_bytes: self.restore_bytes, ..Self::new(0) }
+    }
     /// Whether every routed store request has terminated.
     #[must_use]
     pub fn idle(&self) -> bool {

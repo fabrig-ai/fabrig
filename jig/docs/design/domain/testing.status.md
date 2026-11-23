@@ -1,6 +1,6 @@
 # testing: status
 
-2026-11-21. Where jig's code lags or departs from [testing.md](testing.md).
+2026-11-23. Where jig's code lags or departs from [testing.md](testing.md).
 
 Section 5's keyed durable-row evidence and exhaustive forked cuts are
 present. Section 9's seven store sweeps run in fuzzy, sharing their

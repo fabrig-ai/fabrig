@@ -164,6 +164,8 @@ pub struct World {
     stored: Map<top::Key, top::Stored>,
     tasks: jig_domain_tasks::Domain,
     store_checks: StoreChecks,
+    kept_store: Option<store_check::Kept>,
+    store_finished: bool,
     commits: u64,
     // Index coordinates keep number/project order; reads still observe event erasure and replacement.
     history_by_change: BTreeMap<u64, BTreeSet<(u64, u32)>>,
@@ -884,7 +886,9 @@ impl World {
             pending: Map::with_capacity(32),
             stored: Map::with_capacity(4096),
             tasks: tasks::domain(seed),
-            store_checks: StoreChecks::sampled(seed, store_check::ONE_IN),
+            store_checks: StoreChecks::one(seed),
+            kept_store: None,
+            store_finished: false,
             commits: 0,
             history_by_change: BTreeMap::new(),
             history_loads: Vec::new(),
@@ -1499,69 +1503,14 @@ impl World {
     pub fn restart(&mut self) {
         self.generation += 1;
         self.owed.extend(self.stored.iter().filter_map(|(_, record)| Self::restored_task(record)));
-        let (restored, mut output) = self.restored(&self.stored);
+        let config = self.restore_config();
+        let (restored, mut output) = config.restored(&self.stored);
         self.top = restored;
         while let Some(request) = output.pop() {
             self.top_out.push(request);
         }
         self.take_top();
         self.connected();
-    }
-
-    fn restored(&self, stored: &Map<top::Key, top::Stored>) -> (top::Domain, Queue<top::Request>) {
-        let mut restored = top::Domain::new(
-            &self.env.limits,
-            self.engine_seed,
-            temper_engine_domain_forge::Config {
-                push: None,
-                namespace: Box::from(&b"world"[..]),
-                writers: self.writer.into_iter().collect(),
-            },
-            &[top::GitIdentity { forge: REPO.forge, credential: 1 }],
-            &[top::Configured {
-                number: REPO.forge,
-                kind: top::Kind::Forgejo,
-                mode: top::Mode::Connected,
-                admin_connect: false,
-                bot: Box::new([]),
-                owned: None,
-                git: Box::new([]),
-                web: None,
-                read_only: false,
-                asked: false,
-            }],
-            false,
-        )
-        .expect("same configured connector");
-        if let Some((project, way, gates)) = &self.landing_config {
-            assert!(restored.project_landing(
-                *project,
-                *way,
-                gates.clone(),
-                self.landing_policy,
-                top::AfterLanding {
-                    wait: temper_engine_domain_forge_change::Wait::Cleared,
-                    verdict: temper_engine_domain_forge_tiers::Settings {
-                        retries: 2,
-                        suspects: temper_engine_domain_forge_tiers::Suspects::Bisect,
-                    },
-                    bound: Duration::from_millis(7_200_000),
-                },
-            ));
-            assert!(restored.project_batch(*project, self.landing_batch));
-        }
-        let mut output = Queue::uncapped();
-        restored.restore_begin(self.env.wall);
-        for (_, record) in stored {
-            top::step(&mut restored, &self.env, top::Event::Restore { record: record.clone() }, &mut output);
-        }
-        top::step(
-            &mut restored,
-            &self.env,
-            top::Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic },
-            &mut output,
-        );
-        (restored, output)
     }
 
     /// Script a worker's pushed branch through the independent fake git.
