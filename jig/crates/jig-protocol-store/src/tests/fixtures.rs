@@ -38,7 +38,7 @@ pub use store::{
     script, sign_in_secret, stores, written,
 };
 
-/// A shell's prepared binary texts, with any historical fixture texts the test supplies.
+/// A shell's prepared binary texts, with any kept fixture texts the test supplies.
 #[expect(clippy::disallowed_methods, reason = "simulate a shell holding immutable schemas for each fixture")]
 pub fn prepared(sets: crate::OwnerSets, extra: &[&str]) -> &'static [skein_codec::schema::Schema] {
     let mut schemas = skein_lib::List::uncapped();
@@ -46,7 +46,7 @@ pub fn prepared(sets: crate::OwnerSets, extra: &[&str]) -> &'static [skein_codec
         schemas.push(schema).expect("uncapped fixture schemas");
     }
     for text in extra {
-        let schema = skein_codec::schema::parse(text.as_bytes()).expect("historical fixture text parses");
+        let schema = skein_codec::schema::parse(text.as_bytes()).expect("kept fixture text parses");
         schemas.push(schema).expect("uncapped fixture schemas");
     }
     Box::leak(schemas.into_boxed())

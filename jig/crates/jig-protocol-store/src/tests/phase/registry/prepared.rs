@@ -55,7 +55,7 @@ fn assert_same_open(case: Case<'_>) {
 
 #[test]
 fn prepared_and_fresh_opens_write_and_read_the_same_rows() {
-    let historical = base(true);
+    let kept = base(true);
     let current = base_at(CURRENT, Some(&[0, 2, 0, 42, 7]));
     let altered = Box::leak(CURRENT.replacen("= 7", "= 8", 1).into_boxed_str());
     assert_eq!(CURRENT.bytes().zip(altered.bytes()).filter(|(old, new)| old != new).count(), 1);
@@ -71,14 +71,14 @@ fn prepared_and_fresh_opens_write_and_read_the_same_rows() {
             reads: &[(b"a/0", &[0, 2, 0, 42, 7]), (b"c/0", &[0, 2, 1])],
         },
         Case {
-            items: &historical,
+            items: &kept,
             binary: SET,
             prepared: with_history,
             pending: true,
             reads: &[(b"a/0", &[0, 2, 0, 42, 7]), (b"c/0", &[0, 2, 1])],
         },
         Case {
-            items: &historical,
+            items: &kept,
             binary: altered,
             prepared: with_history,
             pending: true,
