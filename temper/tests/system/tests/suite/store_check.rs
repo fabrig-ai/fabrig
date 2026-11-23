@@ -38,3 +38,20 @@ fn a_composed_held_commit_returns_its_refused_record() {
     assert_eq!(world.store_check_counts().checked(), 1);
     assert_eq!(world.store.held.front(), Some(&commit));
 }
+
+#[test]
+fn a_composed_chat_checks_one_commit_as_it_ends() {
+    const SEED: u64 = 910;
+    let mut world = World::chat(SEED, report_script(false));
+    let before = world.store.applied;
+    world.run();
+    assert_eq!(world.store_check_counts().checked(), 0);
+    let mut expected = StoreChecks::one(SEED);
+    for commit in before + 1..=world.store.applied {
+        assert!(!expected.due(commit));
+    }
+    assert!(expected.end().is_some());
+    world.finish_store_checks().expect("the kept store starts");
+    assert_eq!(world.store_check_counts().checked(), 1);
+    assert_eq!(world.store_check_counts().report(), expected.report());
+}

@@ -8,21 +8,14 @@ use std::collections::VecDeque;
 use temper_engine_domain as engine;
 use temper_engine_domain::{Delivery, Key, Record, Write};
 
+use crate::check;
 use crate::protocol::Protocol;
 use crate::store::Store;
 use crate::walking::{config, limits};
 
-// Focused stories have a median of two commits; most runs do no rehearsal.
-const STORE_CHECK_ONE_IN: u64 = 1024;
-
-#[expect(
-    clippy::struct_excessive_bools,
-    reason = "the fixture keeps independent protocol controls and a rehearsal-only lifecycle"
-)]
 pub struct Driver {
-    checks: StoreChecks,
+    pub(crate) checks: check::Run,
     pub(crate) store_finding: Option<String>,
-    pub(crate) rehearsal: bool,
     pub(crate) broken: crate::oracle::Fixture,
     pub(crate) restart_config: engine::Config,
     creating: jig_test_profile::fixtures::Creating,
@@ -78,19 +71,20 @@ impl Driver {
         for worker in &mut configuration.core.defaults.workers {
             worker.places = self.env.limits.fleet.slots;
         }
-        self.restart_config = crate::oracle::config::copy(&configuration);
+        self.checks.replace_config(&mut self.restart_config, crate::oracle::config::copy(&configuration));
         self.protocol.models.clone_from(&configuration.core.settings.models);
         self.root = engine::Domain::new(configuration, &self.env.limits).expect("restart configuration");
     }
     /// Transfer a cold-cut fixture's store; its receiving root runs the oracle.
     pub fn take_store(&mut self) -> Store {
-        self.broken("cold-cut fixture transfers its store to the receiving root");
+        self.broken = crate::oracle::Fixture::Transferred;
+        self.store_finding = None;
+        self.store_checks(StoreChecks::none("its store moved on to another driver"));
         self.store.take_for_drop()
     }
     /// Consume a cold-cut driver without opening a replacement store for its destructor.
     pub(crate) fn into_store(mut self) -> Store {
-        self.broken("cold-cut fixture transfers its store to the receiving root");
-        self.store.take_for_drop()
+        self.take_store()
     }
     #[must_use]
     pub fn new(store: Store) -> Driver {
@@ -138,9 +132,8 @@ impl Driver {
         let mut protocol = Protocol::default();
         protocol.models.clone_from(&config.core.settings.models);
         Driver {
-            checks: StoreChecks::sampled(config.core.seed, STORE_CHECK_ONE_IN),
+            checks: check::Run::new(StoreChecks::one(config.core.seed)),
             store_finding: None,
-            rehearsal: false,
             broken: crate::oracle::Fixture::Checked,
             restart_config: crate::oracle::config::copy(&config),
             creating: jig_test_profile::fixtures::Creating::new(&config.core, limits.tasks.tree_tasks),
@@ -281,17 +274,7 @@ impl Driver {
                         self.fail_archive_once = false;
                         self.events.push_back(engine::Event::Store(engine::StoreInput::Unloaded { owner }));
                     } else {
-                        let terminal = match terminal {
-                            engine::StoreInput::Loaded { rows, next, texts, .. } => {
-                                assert!(rows.len() <= usize::try_from(most).expect("small count"));
-                                let texts = transcript_texts(texts, &rows);
-                                engine::StoreInput::Loaded { owner, rows, next, texts }
-                            }
-                            engine::StoreInput::Unloaded { .. } => engine::StoreInput::Unloaded { owner },
-                            terminal @ engine::StoreInput::Uncommitted { .. } => terminal,
-                            terminal => panic!("page terminal: {terminal:?}"),
-                        };
-                        self.events.push_back(engine::Event::Store(terminal));
+                        self.events.push_back(engine::Event::Store(page_at_owner(terminal, owner, most)));
                     }
                 }
                 engine::Request::Party(engine::PartyRequest::Deliver(Delivery::Push(push))) => {
@@ -416,12 +399,12 @@ impl Driver {
 
     /// Choose which of this run's subsequent commits rehearse a start.
     pub fn store_checks(&mut self, checks: StoreChecks) {
-        self.checks = checks;
+        self.checks = check::Run::new(checks);
     }
 
     #[must_use]
     pub fn store_check_counts(&self) -> &StoreChecks {
-        &self.checks
+        self.checks.counts()
     }
 
     /// Read and consume the first store-check finding, as a referee reads its run.
@@ -430,22 +413,9 @@ impl Driver {
     }
 
     fn check_commit(&mut self, previous: u64) {
-        let result = crate::check::committed(
-            &self.store,
-            &self.restart_config,
-            &self.env.limits,
-            self.env.wall,
-            previous,
-            &mut self.checks,
-        );
+        let result = self.checks.committed(&self.store, &self.restart_config, &self.env, previous);
         if self.store_finding.is_none() {
             self.store_finding = result.err();
-        }
-    }
-
-    pub(crate) fn report_store_checks(&self) {
-        if !self.rehearsal {
-            eprintln!("{}", self.checks.report());
         }
     }
 
@@ -586,15 +556,6 @@ impl Driver {
         driver.period_sent = true;
         driver.env.wall = wall;
         driver.env.now = Time::from_nanos(wall.as_nanos());
-        driver
-    }
-
-    pub(crate) fn rehearsing(store: Store, config: engine::Config, limits: &engine::Limits, wall: Wall) -> Driver {
-        let mut driver = Self::from_store_at(store, config, limits, wall);
-        driver.rehearsal = true;
-        driver.broken = crate::oracle::Fixture::Closed;
-        driver.checks = StoreChecks::none("the store-check rehearsal never checks itself");
-        driver.root.rehearse();
         driver
     }
 
@@ -771,6 +732,19 @@ pub fn say_ask(sign_in: u64, task: u64, key: u8) -> engine::Event {
         key: [key; 16],
         ask: people::Ask::Say { project: 1, task, words: Box::from([key]) },
     })
+}
+
+pub(crate) fn page_at_owner(terminal: engine::StoreInput, owner: Token, most: u32) -> engine::StoreInput {
+    match terminal {
+        engine::StoreInput::Loaded { rows, next, texts, .. } => {
+            assert!(rows.len() <= usize::try_from(most).expect("small count"));
+            let texts = transcript_texts(texts, &rows);
+            engine::StoreInput::Loaded { owner, rows, next, texts }
+        }
+        engine::StoreInput::Unloaded { .. } => engine::StoreInput::Unloaded { owner },
+        terminal @ engine::StoreInput::Uncommitted { .. } => terminal,
+        terminal => panic!("page terminal: {terminal:?}"),
+    }
 }
 
 /// The service renders a transcript window's turns as text (temper-engine-service

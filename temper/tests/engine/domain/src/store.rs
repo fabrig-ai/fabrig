@@ -46,7 +46,35 @@ struct Delayed {
     event: Event,
     delay: u32,
 }
-/// Numbered root transactions and their durable typed mirror.
+#[derive(Clone)]
+struct Shape {
+    limits: engine::Limits,
+    component_limits: Limits,
+    application: protocol::sizes::Application,
+    route_bounds: temper_protocol_store::Bounds,
+}
+
+/// A kept commit has an independent durable image, but no open component or typed mirror.
+pub(crate) struct Image {
+    stores: Stores,
+    shape: Shape,
+    models: Box<[engine::Model]>,
+    catalogue: Option<Box<[jig_domain_core::settings::ModelName]>>,
+    page_delay: u32,
+}
+
+impl Image {
+    pub(crate) fn open(self) -> Store {
+        let mut store = Store::empty(self.shape, self.models);
+        store.inflight = None;
+        store.catalogue = self.catalogue;
+        store.reopen(self.stores);
+        store.page_delay = self.page_delay;
+        store
+    }
+}
+
+/// Numbered root transactions and, in a live world, their durable typed mirror.
 /// Today's catalogue survives reopening (jig/docs/design/domain/engine/settings.md, 11).
 pub struct Store {
     pub applied: u64,
@@ -58,12 +86,11 @@ pub struct Store {
     component: Option<protocol::Store>,
     files: Files,
     routes: route::Routes,
-    limits: engine::Limits,
-    component_limits: Limits,
-    application: protocol::sizes::Application,
+    shape: Shape,
     models: Box<[engine::Model]>,
     catalogue: Option<Box<[jig_domain_core::settings::ModelName]>>,
-    inflight: BTreeMap<u64, Box<[Write]>>,
+    // Only the live world's typed readback needs a copy of its writes.
+    inflight: Option<BTreeMap<u64, Box<[Write]>>>,
     replies: Vec<engine::StoreInput>,
     missing: Vec<(jig_domain_core::Key, jig_domain_core::Key)>,
     delayed: VecDeque<Delayed>,
@@ -166,35 +193,24 @@ impl Store {
     }
     #[must_use]
     pub fn with_limits(limits: &engine::Limits) -> Store {
-        Self::prepared(
-            limits,
-            &component_limits(limits),
-            temper_protocol_store::application(&limits.forge, limits.tasks.spec_bytes).expect("checked family sizes"),
-        )
-    }
-    // A fork has the source's immutable configuration and its checked sizes.
-    fn prepared(
-        limits: &engine::Limits,
-        component_limits: &Limits,
-        application: protocol::sizes::Application,
-    ) -> Store {
+        let shape = Shape {
+            limits: *limits,
+            component_limits: component_limits(limits),
+            application: temper_protocol_store::application(&limits.forge, limits.tasks.spec_bytes)
+                .expect("checked family sizes"),
+            route_bounds: temper_protocol_store::bounds(&limits.forge, limits.tasks.spec_bytes).expect("family bounds"),
+        };
         let stores = Stores {
-            store: skein_kv::Store::memory(&component_limits.store),
-            secrets: skein_kv::Store::memory(&component_limits.secrets),
+            store: skein_kv::Store::memory(&shape.component_limits.store),
+            secrets: skein_kv::Store::memory(&shape.component_limits.secrets),
         };
         // The worlds' configured models, in their order (jig's store over a configuration's).
-        let models = crate::walking::models();
-        let mut store = Self::empty(limits, component_limits, application, models);
+        let mut store = Self::empty(shape, crate::walking::models());
         store.reopen(stores);
         store
     }
 
-    fn empty(
-        limits: &engine::Limits,
-        component_limits: &Limits,
-        application: protocol::sizes::Application,
-        models: Box<[engine::Model]>,
-    ) -> Store {
+    fn empty(shape: Shape, models: Box<[engine::Model]>) -> Store {
         Store {
             applied: 0,
             pending_generation: false,
@@ -204,13 +220,11 @@ impl Store {
             delays: BTreeMap::new(),
             component: None,
             files: Files::new(),
-            routes: routes(limits),
-            limits: *limits,
-            component_limits: *component_limits,
-            application,
+            routes: routes(&shape),
+            shape,
             models,
             catalogue: None,
-            inflight: BTreeMap::new(),
+            inflight: Some(BTreeMap::new()),
             replies: Vec::new(),
             missing: Vec::new(),
             delayed: VecDeque::new(),
@@ -224,7 +238,7 @@ impl Store {
 
     /// Transfer the store, leaving an empty shell that is never driven.
     pub(crate) fn take_for_drop(&mut self) -> Store {
-        let empty = Self::empty(&self.limits, &self.component_limits, self.application, Box::new([]));
+        let empty = Self::empty(self.shape.clone(), Box::new([]));
         std::mem::replace(self, empty)
     }
 
@@ -273,7 +287,9 @@ impl Store {
         }
         self.holding = hold || self.hold_next != 0 || !self.held.is_empty();
         self.hold_next = self.hold_next.saturating_sub(1);
-        self.inflight.insert(number, writes.clone());
+        if let Some(inflight) = &mut self.inflight {
+            inflight.insert(number, writes.clone());
+        }
         self.request(engine::StoreRequest::Commit { number, writes });
         if self.failed {
             return Err(number);
@@ -287,11 +303,13 @@ impl Store {
     pub fn crash(&mut self, seed: u64) {
         let stores = self.component.take().expect("component exists").into_stores();
         self.files.crash(seed);
-        self.routes = routes(&self.limits);
+        self.routes = routes(&self.shape);
         self.pending.clear();
         self.delays.clear();
         self.held.clear();
-        self.inflight.clear();
+        if let Some(inflight) = &mut self.inflight {
+            inflight.clear();
+        }
         self.replies.clear();
         self.missing.clear();
         self.delayed.clear();
@@ -304,14 +322,28 @@ impl Store {
     /// Open independent memory maps and payload logs, not the history of their writes.
     #[must_use]
     pub fn fork(&self) -> Store {
-        let stores = self.component.as_ref().expect("live component").fork_memory().expect("world memory stores");
-        let mut fresh = Self::empty(&self.limits, &self.component_limits, self.application, self.models.clone());
+        let stores = self.fork_memory();
+        let mut fresh = Self::empty(self.shape.clone(), self.models.clone());
         fresh.catalogue.clone_from(&self.catalogue);
         fresh.rows.clone_from(&self.rows);
         fresh.reopen(stores);
         fresh.page_delay = self.page_delay;
         fresh
     }
+    pub(crate) fn image(&self) -> Image {
+        Image {
+            stores: self.fork_memory(),
+            shape: self.shape.clone(),
+            models: self.models.clone(),
+            catalogue: self.catalogue.clone(),
+            page_delay: self.page_delay,
+        }
+    }
+
+    fn fork_memory(&self) -> Stores {
+        self.component.as_ref().expect("live component").fork_memory().expect("world memory stores")
+    }
+
     /// Fixture changes reach the component in one transaction with its header.
     pub fn seed(&mut self, saves: Box<[Record]>, erases: Box<[Key]>) {
         assert!(self.pending.is_empty(), "seed between root commits");
@@ -407,7 +439,7 @@ impl Store {
             range: range.clone(),
             after: after.cloned(),
             most,
-            bytes: self.limits.loads.reply_bytes,
+            bytes: self.shape.limits.loads.reply_bytes,
         });
         loop {
             if !self.replies.is_empty() {
@@ -446,12 +478,12 @@ impl Store {
     /// The actual component allowance used by party reads in this world.
     #[must_use]
     pub const fn read_joins(&self) -> u32 {
-        self.component_limits.joins
+        self.shape.component_limits.joins
     }
     /// The real transcript driver's page room, derived from the world's limits.
     #[must_use]
     pub const fn transcript_page_bytes(&self) -> u32 {
-        self.component_limits.store.page.bytes
+        self.shape.component_limits.store.page.bytes
     }
     /// Read a historical page through the real store and the service's routing.
     #[must_use]
@@ -486,7 +518,7 @@ impl Store {
         let mut below = Queue::uncapped();
         skein_kv::down(
             &mut stores.store,
-            &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: self.component_limits.store },
+            &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: self.shape.component_limits.store },
             skein_kv::Request::Get {
                 owner: Token::new(1),
                 key: protocol::keys::encode_own(&protocol::keys::Own::Wires, u32::MAX).expect("component key fits"),
@@ -523,7 +555,8 @@ impl Store {
         self.drive(VecDeque::from([request]), Queue::uncapped());
     }
     fn reopen(&mut self, stores: Stores) {
-        let mut component = protocol::Store::over(&self.component_limits, self.application, &self.models, stores);
+        let mut component =
+            protocol::Store::over(&self.shape.component_limits, self.shape.application, &self.models, stores);
         assert!(component.wires(&temper_engine_service_vocabulary::store::WIRES));
         if let Some(names) = &self.catalogue {
             component.catalogue(names.clone());
@@ -546,7 +579,7 @@ impl Store {
         assert!(!self.failed, "durable stores reopen");
     }
     fn env(&self) -> Env<Limits> {
-        Env { now: Time::ZERO, wall: Wall::EPOCH, limits: self.component_limits }
+        Env { now: Time::ZERO, wall: Wall::EPOCH, limits: self.shape.component_limits }
     }
     fn drive(&mut self, mut requests: VecDeque<Request>, mut above: Queue<Event>) {
         let mut below = Below {
@@ -602,8 +635,8 @@ impl Store {
             // This world does not consume the census (jig protocol/store/README.md, 6.3).
             Event::Census { .. } => {}
             Event::Committed { number, .. } => {
-                let writes = self.inflight.remove(&number).expect("root commit");
-                for write in writes {
+                let writes = self.inflight.as_mut().map(|inflight| inflight.remove(&number).expect("root commit"));
+                for write in writes.unwrap_or_default() {
                     match write {
                         Write::DropTranscript { task } => {
                             self.rows.retain(|key, _| {
@@ -731,11 +764,11 @@ impl Store {
         self.drive(requests, Queue::uncapped());
     }
 }
-fn routes(limits: &engine::Limits) -> route::Routes {
+fn routes(shape: &Shape) -> route::Routes {
     route::Routes::new(
-        limits.loads.loads,
-        limits,
-        temper_protocol_store::bounds(&limits.forge, limits.tasks.spec_bytes).expect("family bounds"),
+        shape.limits.loads.loads,
+        &shape.limits,
+        shape.route_bounds.clone(),
         skein_lib::CryptoRng::new(&skein_lib::Secret::new(Box::new([7; 32])), 1).expect("world cryptographic seed"),
     )
 }
