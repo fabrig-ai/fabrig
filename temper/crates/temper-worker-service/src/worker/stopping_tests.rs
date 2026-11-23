@@ -23,6 +23,8 @@ fn prepared() -> (fixtures::WorkerStand, AgentPeer, LinkPeer) {
         "update-ref",
         "fetch-missing-branch",
         "update-ref",
+        "counts-absent",
+        "counts-delete",
         "checkout-1",
         "checkout-2",
     ] {

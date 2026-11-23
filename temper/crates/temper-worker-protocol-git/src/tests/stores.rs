@@ -279,6 +279,24 @@ fn fetch_uses_its_store_then_points_the_repository_without_a_second_header() {
     super::view::empty(&mut s);
     assert_eq!(s.done(), Some((fixtures::OWNER, git::Done::Fetched { commit: fixtures::COMMIT })));
 }
+
+#[test]
+fn counts_uses_its_store_then_updates_the_repository_without_a_header() {
+    let mut s = Started::new();
+    request(&mut s, fixtures::counts_op(), true);
+    invocation(
+        &mut s,
+        &Command::FetchCounts { remote: fixtures::REMOTE.into(), workspace: fixtures::WORKSPACE },
+        b"stores/9",
+        true,
+        true,
+        b"* 0000000000000000000000000000000000000000 abababababababababababababababababababab refs/temper/7/counts\n",
+    );
+    invocation(&mut s, &Command::UpdateCounts { commit: fixtures::COMMIT }, b"workspaces/7/app", false, true, b"");
+    assert_eq!(s.done(), None, "the operation still owes the run's view");
+    super::view::empty(&mut s);
+    assert_eq!(s.done(), Some((fixtures::OWNER, git::Done::Fetched { commit: fixtures::COMMIT })));
+}
 #[test]
 fn a_store_clone_installs_from_making_without_replacing_an_existing_store() {
     for raced in [false, true] {

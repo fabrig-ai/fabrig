@@ -9,6 +9,7 @@ This document holds the checkout's git operations, split from [`git.md`](git.md)
 | `Make` | none: four file operations, and one for each store it names | `Succeeded` |
 | `Clone` | 4, a file's write and the view | `Succeeded` |
 | `Fetch` | 2: one in the store, one in the worker's directory | `Fetched { commit }` |
+| `Counts` | 2: one in the store, one in the worker's directory (1.3) | `Fetched { commit }`, `Succeeded` |
 | `Create` | 1 | `Succeeded`, `Exists` |
 | `CheckOut` | 2 | `Succeeded` |
 | `Merge` | 1 or 2 | `Merged`, `Conflicted { files }` |
@@ -144,9 +145,9 @@ workspace's last fetches under its own token.
   fetched (`../domain/worker/checkouts.md`), forced, since a cached
   checkout's pin from an earlier hold may be anywhere; no other operation
   names it, so it stays where prepare put it for the hold.
-- **These two are the references the component writes** in the worker's
-  directory, and their twins under the workspace's token in a store; the
-  view copies them into the run's (1.13).
+- **These two, and main's counts (below), are the references the
+  component writes** in the worker's directory, and their twins under the
+  workspace's token in a store; the view copies them into the run's (1.13).
 - **Missing:** `Repository` for a repository the forge does not have,
   `Branch` for a branch, or a default branch, it does not have; `Commit`
   for a commit it does not have (`git.md`, section 6). A full id is required: git
@@ -154,6 +155,59 @@ workspace's last fetches under its own token.
 - **A push that ended ambiguously** is verified by the domain with a
   fetch of its branch (`../domain/worker/checkouts.md`): no other
   invocation is needed for it.
+
+**Main's counts.** `Counts { at, store, remote, identity }`: the forge's
+`refs/temper/counts`, the one commit holding `counts.json` that the gate's
+runner publishes after each landing (`../draft/test-budgets.md`, 3), in
+the repository as `refs/temper/counts`, with that file's contents; or,
+where the forge has none, no such reference in the repository. A prepare
+asks it beside the pin (`../domain/worker/checkouts.md`, *Main's counts*).
+Two invocations:
+
+1. In the store, `--git-dir=stores/<store>`:
+   ```
+   git fetch --porcelain --verbose --no-filter --no-tags --no-write-fetch-head --no-recurse-submodules -- <url> +refs/temper/counts:refs/temper/<token>/counts
+   ```
+2. In the worker's directory, where the forge has it:
+   ```
+   git update-ref refs/temper/counts <new-id>
+   ```
+   and where it has none:
+   ```
+   git update-ref -d refs/temper/counts
+   ```
+
+`<token>` is as for Fetch above.
+
+- **Present:** exit 0 and one porcelain line, read as Fetch's is, naming
+  `refs/temper/<token>/counts`: the update, and then, at its exit 0,
+  `Fetched { commit: <new-id> }`. A line naming another reference is
+  `Broken`, and so is any other exit of the update.
+- **Absent:** a fetch that fails with the stderr line `fatal: couldn't
+  find remote ref refs/temper/counts`, exactly, is no fault (`git.md`,
+  section 6): the deletion, and then, at its exit 0, whether or not the
+  reference was there, `Succeeded`. So a repository that had none is as it
+  was, and one a cached checkout kept from an earlier hold never outlives
+  a forge that has none. Any other exit of the deletion is `Broken`.
+- **Any other failure** of the fetch is classified as Fetch's is
+  (`git.md`, section 6), and the repository's reference is left as it is.
+- **The blob comes with it.** This is the one fetch that names
+  `--no-filter` in place of `--filter=blob:none`, so the commit, its tree
+  and `counts.json`'s blob come whole into the blob-less store (1.11),
+  and a run reads the file offline with lazy fetches off, as the
+  project's checks run (`GIT_NO_LAZY_FETCH`, `tools/pre-pr/pre_pr.py`),
+  through the alternates its view names (1.13). `--no-filter`, named: a
+  fetch that names no filter in a partial clone may take one git keeps for
+  the remote it fetches from (`remote.<name>.partialclonefilter`), and
+  this one must take none. The forge still sends only what the store
+  lacks: one commit, one tree and one blob for each publish the store has
+  not seen, and no other branch's file contents. Chosen over a filtered
+  fetch followed by a fetch of the blob by its id, which takes a third
+  invocation, a read of the tree to find the id, and the forge's leave to
+  send an object by id.
+- **Frozen for the hold:** only a prepare's `Counts` writes the
+  reference, forced, since a cached checkout's from an earlier hold may be
+  anywhere; no other operation names it, so it stays where prepare put it.
 
 ### 1.4 Create
 
@@ -529,12 +583,15 @@ two `Store`s of one store at once, which the cache never starts
   remote's format, an empty remote's too, which `Clone` then reads (1.2).
   `--single-branch` brings the forge's default branch alone, the history a
   first prepare most likely fetches next, so that fetch brings nothing
-  more; nothing else is fetched but what an assignment names (1.3).
+  more; nothing else is fetched but what an assignment names and main's
+  counts (1.3).
 - **Blob-less.** `--filter=blob:none` brings every commit and tree of the
   default branch and no file contents: on one deployment's forge, 2.3 s
   and 50 MB where the whole clone took 17.4 s and 198 MB (2026-11-12). git
   records the store as a partial clone of `origin`; nothing in the store
   reads a file's contents, and a checkout fetches those it needs (1.5).
+  The one file a store holds whole is main's counts' `counts.json`, which
+  its fetch brings unfiltered (1.3).
   A store made whole before stores were blob-less stays so, and serves as
   well.
 - **Its configuration is the clone's:** `remote.origin` names the remote
@@ -566,17 +623,19 @@ run's to write, and no invocation reads it (`git.md`, section 3). The component
 writes into it, never reading what is there, and makes it:
 
 - **The view,** after each operation that writes the worker's directory
-  (`Clone`, `Fetch`, `Point`, `CheckOut`, `Merge`, `Commit`, `Reset`),
+  (`Clone`, `Fetch`, `Counts`, `Point`, `CheckOut`, `Merge`, `Commit`, `Reset`),
   before it ends, unless it ends failed: the
   worker's `HEAD`, `index`, `MERGE_HEAD`, `MERGE_MSG`, `MERGE_MODE`,
-  `refs/temper/fetched` and `refs/temper/landing`, each copied whole where
+  `refs/temper/fetched`, `refs/temper/landing` and `refs/temper/counts`,
+  each copied whole where
   the worker's directory has it and removed where it has none; and
   `objects/info/alternates`, holding
   `../../../../../gitdirs/<token>/<repository>/objects` and a newline, so
   the run's git reads the worker's objects and, through their alternates,
   the store's. So a run's checkout is clean at its start, shows a merge
   the worker left in progress, and has the pin its checks take their base
-  from (`tools/pre-pr/design.md`, section 2).
+  from (`tools/pre-pr/design.md`, section 2) and main's counts where the
+  forge has them (1.3).
 - **Each file whole or not at all:** written to `temper-view.tmp` in its
   directory, then renamed over its name, so a link or a file the run left
   there is replaced, never followed; a directory missing on the way is
@@ -639,7 +698,7 @@ its git directory named as in `git.md`, section 3:
   (`fatal: cannot use internal rev list with --stdin-packs`).
 - **A store's lock,** the component's, so that a repack never runs beside
   another repack or a fetch in the same store (the user, 2026-11-19).
-  Fetch's store fetch (1.3) shares it with other fetches; a `Pack`'s count
+  Fetch's and Counts' store fetches (1.3) share it with other fetches; a `Pack`'s count
   and repack in the store hold it alone. An operation that cannot take it
   waits, with no invocation, behind those that came before it, under its
   own deadline (`git.md`, section 7), and takes it once those ahead of it have it or

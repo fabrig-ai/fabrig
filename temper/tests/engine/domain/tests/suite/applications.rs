@@ -97,8 +97,7 @@ fn policy_maps_connector_permissions_to_seeded_roles_after_restart() {
         driver.store.rows.contains_key(&engine::Key::Core(jig_domain_core::Key::People(people::Key::Policy(1)))),
         "permission policy committed"
     );
-    driver.root = engine::Domain::new(temper_engine_domain_world::walking::config(71), &driver.env.limits)
-        .expect("valid engine configuration");
+    driver.replace_root(temper_engine_domain_world::walking::config(71));
     driver.delivered.clear();
     driver.send(engine::Event::Restart { pending: false });
     driver.settle();
@@ -187,8 +186,7 @@ fn an_adopted_repository_is_the_projects_home_after_restart() {
     let mut driver = driver();
     adopt(&mut driver, fixtures::adoption(1), 95);
     assert_project_home(&mut driver);
-    driver.root = engine::Domain::new(temper_engine_domain_world::walking::config(71), &driver.env.limits)
-        .expect("valid engine configuration");
+    driver.replace_root(temper_engine_domain_world::walking::config(71));
     driver.delivered.clear();
     driver.send(engine::Event::Restart { pending: false });
     driver.settle();

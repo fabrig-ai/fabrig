@@ -7015,6 +7015,7 @@ dependencies = [
  "jig-protocol-config-fixtures",
  "jig-protocol-engine-clients",
  "jig-protocol-store",
+ "jig-protocol-store-kit",
  "jig-tasks-kit",
  "jig-test-domain",
  "jig-test-profile",
@@ -7046,12 +7047,14 @@ dependencies = [
  "temper-engine-domain-forge-tiers",
  "temper-engine-domain-trials",
  "temper-engine-forge-world",
+ "temper-engine-inspect",
  "temper-engine-service-startup",
  "temper-engine-service-stock",
  "temper-engine-service-vocabulary",
  "temper-engine-smith",
  "temper-fake",
  "temper-fake-checkout",
+ "temper-fake-git",
  "temper-faults",
  "temper-landing-fixtures",
  "temper-limits-fixtures",
@@ -7083,8 +7086,24 @@ dependencies = [
  "temper-engine-domain-forge-issues",
  "temper-engine-domain-forge-landing",
  "temper-engine-domain-forge-tiers",
+ "temper-engine-inspect",
  "temper-faults",
  "temper-protocol-reaches",
+]
+
+[[package]]
+name = "temper-engine-inspect"
+version = "0.0.0"
+dependencies = [
+ "jig-domain-tasks",
+ "skein-forge",
+ "skein-forge-client",
+ "skein-lib",
+ "skein-world",
+ "temper-engine-domain",
+ "temper-engine-domain-forge",
+ "temper-engine-domain-forge-change",
+ "temper-engine-domain-forge-landing",
 ]
 
 [[package]]

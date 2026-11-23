@@ -16,7 +16,12 @@ pub fn used(disk: &Checkout) -> u64 {
 }
 
 /// Run an operation with the world's optional byte capacity. Only the usage at admission matters.
-pub fn perform_with_capacity(forge: &mut impl Remote, disk: &mut Checkout, op: Op, capacity: Option<u64>) -> Done {
+pub fn perform_with_capacity(
+    forge: &mut impl temper_fake_git::counts::Remote,
+    disk: &mut Checkout,
+    op: Op,
+    capacity: Option<u64>,
+) -> Done {
     if capacity.is_some_and(|capacity| used(disk) >= capacity) && writes(&op) {
         return Done::FailedWithOutput {
             fault: Fault::Broken,
@@ -35,6 +40,7 @@ fn writes(op: &Op) -> bool {
         Op::Store { .. }
             | Op::Clone { .. }
             | Op::Fetch { .. }
+            | Op::Counts { .. }
             | Op::Point { .. }
             | Op::CheckOut { .. }
             | Op::Merge { .. }
@@ -74,6 +80,10 @@ fn locked(disk: &Checkout, op: &Op) -> bool {
             reference_locked(disk, &store_path(*store), &store_reference(at, *into))
                 || reference_locked(disk, &[path(at).as_slice(), b"/.git"].concat(), reference(*into))
         }
+        Op::Counts { at, store, .. } => {
+            reference_locked(disk, &store_path(*store), &temper_fake_git::counts::store_reference(at.workspace))
+                || reference_locked(disk, &[path(at).as_slice(), b"/.git"].concat(), temper_fake_git::counts::REFERENCE)
+        }
         Op::Point { at, into, .. } => {
             reference_locked(disk, &[path(at).as_slice(), b"/.git"].concat(), reference(*into))
         }
@@ -83,8 +93,11 @@ fn locked(disk: &Checkout, op: &Op) -> bool {
 
 /// Cut a fetch, checkout or merge partway. Any other operation is a caller error.
 /// Tree writes retain the first ceil(n/2) regular files in path order, without deleting old files.
-pub fn cut(forge: &mut impl Remote, disk: &mut Checkout, op: Op) -> Done {
-    assert!(matches!(op, Op::Fetch { .. } | Op::CheckOut { .. } | Op::Merge { .. }), "only content fetches can be cut");
+pub fn cut(forge: &mut impl temper_fake_git::counts::Remote, disk: &mut Checkout, op: Op) -> Done {
+    assert!(
+        matches!(op, Op::Fetch { .. } | Op::Counts { .. } | Op::CheckOut { .. } | Op::Merge { .. }),
+        "only content fetches can be cut"
+    );
     if locked(disk, &op) {
         return Done::Failed { fault: Fault::Broken };
     }
@@ -92,6 +105,10 @@ pub fn cut(forge: &mut impl Remote, disk: &mut Checkout, op: Op) -> Done {
         Op::Fetch { at, store, remote, want, into, .. } => {
             assert_cloned(disk, &at);
             fetch(forge, disk, &at, store, &remote, &want, into, true)
+        }
+        Op::Counts { at, store, remote, .. } => {
+            assert_cloned(disk, &at);
+            counts(forge, disk, &at, store, &remote, true)
         }
         Op::CheckOut { at, commit, .. } => {
             assert_cloned(disk, &at);
@@ -151,6 +168,42 @@ pub(super) fn fetch(
             git::update_ref(disk, &path(at), reference(into), fetched).expect("borrowed from store");
             add_pack(disk, &store_path(store));
             Done::Fetched { commit: commit(fetched) }
+        }
+        Err(fault) => failed(fault),
+    }
+}
+
+pub(super) fn counts(
+    forge: &mut impl temper_fake_git::counts::Remote,
+    disk: &mut Checkout,
+    at: &Place,
+    store: Token,
+    remote: &[u8],
+    cut: bool,
+) -> Done {
+    use temper_fake_git::counts::{REFERENCE, import, store_reference};
+    let directory = store_path(store);
+    let store_ref = store_reference(at.workspace);
+    let local = path(at);
+    // In this world the worker's metadata is collapsed into the run's .git, as for Fetch.
+    let local_ref = [local.as_slice(), b"/.git/", REFERENCE].concat();
+    match forge.fetch_counts(remote) {
+        Ok(Some(fetched)) => {
+            if cut {
+                disk.write(&[directory.as_slice(), b"/", &store_ref, b".lock"].concat(), b"");
+                return Done::Failed { fault: Fault::TimedOut };
+            }
+            let new = !git::object_present(disk, &directory, fetched);
+            import(disk, &directory, &store_ref, fetched, &forge.tree(fetched));
+            git::update_ref(disk, &local, REFERENCE, fetched).expect("borrowed from store");
+            if new {
+                add_pack(disk, &directory);
+            }
+            Done::Fetched { commit: commit(fetched) }
+        }
+        Ok(None) => {
+            disk.remove(&local_ref);
+            Done::Succeeded
         }
         Err(fault) => failed(fault),
     }

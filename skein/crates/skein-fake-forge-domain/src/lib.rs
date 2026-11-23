@@ -89,7 +89,7 @@ pub use object::{commit_bytes, commit_count, object_bytes};
 pub use observe::{Branches, Observation, Operation};
 pub use scenario::{
     Lag, advance, check, commit, commit_tree, grant, lag, manual_merges, merge_commit, refuse_close, repository,
-    runners, set_failing, set_opening, set_reachable, set_refusing, settings, unborn_repository,
+    root_commit, runners, set_failing, set_opening, set_reachable, set_refusing, settings, unborn_repository,
 };
 pub use trees::blob_id;
 

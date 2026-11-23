@@ -124,7 +124,11 @@ records each in its run's fault ledger, draws its workload, faults,
 parties and scheduling from independent streams of its seed, and a sweep
 over its seeds fails when a fault it configures never falls; its only
 exclusions name ignored scenarios (skein's `testing/sweeps.md`;
-`checks.md`, 6.2).
+`checks.md`, 6.2). Every engine driver calls the engine's world kit at
+its quiet point, and its referee holds that the goals a scenario names
+end, or are held with words, within bounds in simulated minutes and in
+steps, and that the engine opens within a bound after every restart
+(`engine-checks.md`).
 
 ## 2. Open questions
 

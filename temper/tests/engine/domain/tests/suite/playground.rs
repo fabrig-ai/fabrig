@@ -132,7 +132,7 @@ fn account_rows(d: &Driver) -> Vec<&accounts::Stored> {
         .collect()
 }
 fn restart(d: &mut Driver, granted: bool) {
-    d.root = engine::Domain::new(config(granted), &d.env.limits).expect("playground fixture");
+    d.replace_root(config(granted));
     d.events.clear();
     d.delivered.clear();
     d.send(engine::Event::Restart { pending: false });

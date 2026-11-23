@@ -5,7 +5,7 @@ use temper_engine_domain_forge_change as change_step;
 const CHANNEL: Token = Token::new(7);
 const STEPS: u32 = 200;
 
-pub(super) fn change_row(world: &World, task: u64) -> forge_top::ChangeRow {
+pub(crate) fn change_row(world: &World, task: u64) -> forge_top::ChangeRow {
     world.store.change(task).expect("durable change")
 }
 
@@ -40,11 +40,12 @@ fn pushed_change_with_resolutions(conflict: bool, resolutions: Option<u32>) -> (
     pushed_change_in(world, conflict, b"main")
 }
 
-pub(super) fn pushed_change_in(mut world: World, conflict: bool, landing: &[u8]) -> (World, u64, u64, u64) {
+pub(crate) fn pushed_change_in(mut world: World, conflict: bool, landing: &[u8]) -> (World, u64, u64, u64) {
     world.adopt();
+    let start = world.fake.branch(b"org/repo", b"main").expect("initial main");
     if landing != b"main" {
         assert_eq!(
-            world.external(2, raw::Op::Git(raw::Git::Create { branch: landing.into(), commit: 1 })),
+            world.external(2, raw::Op::Git(raw::Git::Create { branch: landing.into(), commit: start })),
             raw::Answer::Branch(raw::Created::Created)
         );
     }
@@ -68,7 +69,7 @@ pub(super) fn pushed_change_in(mut world: World, conflict: bool, landing: &[u8])
     assert_eq!(live_task(&world, producer.task).requester, tasks::Party::Task(task));
     let branch = change_row(&world, task).branch.clone();
     assert_eq!(
-        world.external(2, raw::Op::Git(raw::Git::Create { branch: branch.clone(), commit: 1 })),
+        world.external(2, raw::Op::Git(raw::Git::Create { branch: branch.clone(), commit: start })),
         raw::Answer::Branch(raw::Created::Created)
     );
     let head = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", &branch, b"file", b"producer", 2)

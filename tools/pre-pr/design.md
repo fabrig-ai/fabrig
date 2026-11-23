@@ -722,11 +722,13 @@ with the sum of their `tests` and `fresh` processes. Carry forward the other
 binaries' base counts. Apply the growth allowance, new move credit and the user's accepted level
 from `tools/tiers/budgets.md`, 8, using the base's counted binaries for the CPU
 sum. Growth beyond the allowance or a crossing of the instruction ceiling
-(or the accepted level if higher) is reported as `budgets`, with the layer
-counts, growth, allowance, largest growing binaries and repair line, as a
-warning: a worker's counts differ from the gate's by more than the allowance
-(2.2% in a layer a docs-only goal never touched, 2026-11-23), so the landing
-gate alone refuses.
+(or the accepted level if higher) refuses as `budgets`, with the layer counts, growth, allowance, largest
+growing binaries and repair line, when it passes the allowance or the
+ceiling by more than 3% of the layer's base; within that margin it is a
+warning and the landing gate judges. Close and the gate count some binaries
+differently (cargo-spawning boundary tests about 7% lower, client worlds up
+to 22% higher, 2026-11-23), so a layer's sum can swing about 2% between
+them, and a red at close is one the gate would also give.
 
 ## 5. Inherited failures
 

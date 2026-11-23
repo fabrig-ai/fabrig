@@ -125,6 +125,8 @@ impl Story {
             "update-ref",
             "fetch-missing-branch",
             "update-ref",
+            "counts-absent",
+            "counts-delete",
             "checkout-1",
             "checkout-2",
             "object-format",
@@ -199,7 +201,8 @@ fn a_changed_remote_timeout_is_read_by_the_next_operation_not_the_one_in_flight(
     for capture in ["object-format", "init", "remote-add", "init"] {
         story.stand.below.script.invocations.push_back(Invocation::captured(capture));
     }
-    let _fetch = story.hold(b"fetch");
+    // Run B's first remote operation under the new figures fetches main, before its landing pin.
+    let _fetch_main = story.hold(b"fetch");
     story.deadline(story.link.now, 30);
     assert_eq!(story.stand.worker.root.workspaces(), 2);
     assert_eq!(story.stand.below.signals, 0);

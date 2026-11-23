@@ -2,9 +2,10 @@
 
 2026-11-22. Where the tree's code lags or departs from [checks.md](checks.md).
 
-- **Not yet:** 6.1: `temper-engine-inspect` doesn't exist, and no
-  engine world calls the shared checks; the worker's adapter is
-  `worker.status.md`'s. 6.2: outside the engine's forge world, only the
+Section 6.1's engine adapter is `engine-checks.md`'s; the worker's
+adapter is `worker.status.md`'s.
+
+- **Not yet:** 6.2: outside the engine's forge world, only the
   restart family's faults (`restarts.md`) and the system world's account
   faults (6.3) are kept in a fault ledger, drawn from the seed's streams
   and swept with configured faults. No

@@ -107,8 +107,11 @@ pub fn check(spawn: &Spawn) -> Result<Checked, Refusal> {
             | Command::Repack { .. }
             | Command::Format
             | Command::UpdateRef { .. }
+            | Command::UpdateCounts { .. }
+            | Command::DeleteCounts
             | Command::SnapshotFetch { .. }
             | Command::Fetch { .. }
+            | Command::FetchCounts { .. }
             | Command::Create { .. }
             | Command::CheckOut { .. }
             | Command::Clean
@@ -145,7 +148,7 @@ pub fn check(spawn: &Spawn) -> Result<Checked, Refusal> {
     }
     if author.is_none()
         && credential.is_none()
-        && !matches!(command, Command::UpdateRef { .. })
+        && !matches!(command, Command::UpdateRef { .. } | Command::UpdateCounts { .. } | Command::DeleteCounts)
         && (committer.0.as_ref() != b"temper" || committer.1.as_ref() != b"temper@temper.invalid")
     {
         return Err(Refusal::Broken("placeholder committer"));
@@ -221,6 +224,7 @@ pub(crate) fn remote(command: &Command) -> Option<&[u8]> {
         Command::Store { remote, .. }
         | Command::SnapshotFetch { remote, .. }
         | Command::Fetch { remote, .. }
+        | Command::FetchCounts { remote, .. }
         | Command::Create { remote, .. }
         | Command::Push { remote, .. } => Some(remote),
         Command::Reds(_)
@@ -235,6 +239,8 @@ pub(crate) fn remote(command: &Command) -> Option<&[u8]> {
         | Command::Repack { .. }
         | Command::Format
         | Command::UpdateRef { .. }
+        | Command::UpdateCounts { .. }
+        | Command::DeleteCounts
         | Command::CheckOut { .. }
         | Command::Clean
         | Command::Merge { .. }
@@ -337,6 +343,10 @@ fn parse(args: &[&[u8]]) -> Option<Command> {
         [b"remote", b"add", b"origin", b"--", remote] => {
             Command::Remote { remote: (*remote).into(), format: invocation::Format::Sha1 }
         }
+        [b"update-ref", b"-d", crate::counts::REFERENCE] => Command::DeleteCounts,
+        [b"update-ref", crate::counts::REFERENCE, commit] => {
+            Command::UpdateCounts { commit: invocation::object(commit)? }
+        }
         [b"update-ref", reference, commit] => Command::UpdateRef {
             into: match *reference {
                 b"refs/temper/fetched" => git::Into::Fetched,
@@ -345,6 +355,22 @@ fn parse(args: &[&[u8]]) -> Option<Command> {
             },
             commit: invocation::object(commit)?,
         },
+        [
+            b"fetch",
+            b"--porcelain",
+            b"--verbose",
+            b"--no-filter",
+            b"--no-tags",
+            b"--no-write-fetch-head",
+            b"--no-recurse-submodules",
+            b"--",
+            url,
+            spec,
+        ] => {
+            let token = spec.strip_prefix(b"+refs/temper/counts:refs/temper/")?.strip_suffix(b"/counts")?;
+            let workspace = skein_lib::Token::new(std::str::from_utf8(token).ok()?.parse().ok()?);
+            Command::FetchCounts { remote: (*url).into(), workspace }
+        }
         [
             b"fetch",
             b"--porcelain",

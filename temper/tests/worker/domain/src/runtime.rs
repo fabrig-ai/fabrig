@@ -446,7 +446,8 @@ impl World {
             | Op::Make { .. }
             | Op::Clone { .. }
             | Op::Create { .. }
-            | Op::CheckOut { .. } => Done::Succeeded,
+            | Op::CheckOut { .. }
+            | Op::Counts { .. } => Done::Succeeded,
             Op::Fetch { want, .. } => {
                 let commit = match want {
                     Want::Branch { branch } => {
