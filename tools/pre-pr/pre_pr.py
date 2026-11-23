@@ -1149,8 +1149,10 @@ def summary(base_id, lints, tests, errors, reason, failures_tail, starved=(), sc
     if refused and scope == 'close' and new:
         # The close job's hold keeps only the last 128 bytes of the check's stderr: name the first failure there.
         first = new[0]
-        line = diagnostic.strip() or first['name'] + ': ' + next(
-            (text.strip() for text in first['log'].splitlines() if text.strip()), '')
+        # A failed case, a compiler error or a panic says most; else the log's last line, not its cut marker.
+        texts = [text.strip() for text in first['log'].splitlines() if text.strip() and not text.startswith('[… ')]
+        telling = [text for text in texts if text.startswith(('FAIL', 'error', 'thread ')) or 'panicked' in text]
+        line = diagnostic.strip() or first['name'] + ': ' + (telling or texts or [''])[0 if telling else -1]
         print(line.encode()[:127].decode(errors='ignore'), file=sys.stderr, flush=True)
     return int(refused)
 

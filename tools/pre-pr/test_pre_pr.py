@@ -306,6 +306,13 @@ class Delivery(unittest.TestCase):
             PRE.finish('tree', 'b' * 40, errors, self.root, {}, 'delivery', [], ['head'])
         self.assertEqual(err.getvalue(), '')
 
+    def test_a_refused_close_names_the_last_lines_of_a_cut_log(self):
+        errors = [PRE.failure('focused tests', 'x' * 3000 + '\nFAIL 0.1s leaf::suite a_case\n'
+                              'warning: default leaf::suite b_case: unobserved, the run stopped after a failure\n')]
+        with redirect_stderr(io.StringIO()) as err:
+            PRE.finish('tree', 'b' * 40, errors, self.root, {}, 'close', [], ['head'])
+        self.assertEqual(err.getvalue(), 'focused tests: FAIL 0.1s leaf::suite a_case\n')
+
     def test_close_receipt_records_only_the_checked_tree(self):
         self.assertEqual(PRE.finish('staged', None, [], self.root, {}, 'close', ['dest'], ['head']), 0)
         receipt = json.loads((self.root / 'target/temper/goal-close-pre-pr.json').read_text())
