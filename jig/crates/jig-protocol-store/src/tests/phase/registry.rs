@@ -2,10 +2,12 @@
 #![expect(clippy::arithmetic_side_effects, reason = "ordinary Rust disk step tests")]
 use super::*;
 use crate::{KeptFamily, KeptMap, KeyRange, Keys, Owner, OwnerSet, OwnerSets, Unplanned, ValueType};
-use jig_test_layouts::layouts::{CURRENT, KEPT, WRITTEN};
+use jig_test_layouts::layouts::{CHILD, CHILD_CURRENT, CHILD_WRITTEN, CURRENT, HOLDER, KEPT, WRITTEN};
 use skein_codec::Record as _;
+use skein_codec::schema::Schema;
 use skein_lib::{Buffer, Reader};
 mod edges;
+mod prepared;
 mod restoring;
 mod retired;
 mod unplanned;
@@ -34,13 +36,16 @@ fn store(disk: &Disk, set: OwnerSet) -> Store {
     store
 }
 fn base(values: bool) -> Vec<Item> {
+    base_at(KEPT, values.then_some(&[0, 2, 0, 42]))
+}
+fn base_at(current: &'static str, growing: Option<&[u8]>) -> Vec<Item> {
     let mut disk = Disk::new(&[]);
-    let family = KeptFamily { current: KEPT, ..FAMILY };
+    let family = KeptFamily { current, ..FAMILY };
     let mut store = store(&disk, OwnerSet { families: Box::leak(Box::new([family])), ..SET });
     assert_opened(&disk.open(&mut store), 0);
     let mut writes = vec![fixtures::header(1)];
-    if values {
-        writes.push(Write::Put { key: Box::from(b"a/0".as_slice()), value: Box::from([0, 2, 0, 42]) });
+    if let Some(growing) = growing {
+        writes.push(Write::Put { key: Box::from(b"a/0".as_slice()), value: Box::from(growing) });
         writes.push(Write::Put { key: Box::from(b"c/0".as_slice()), value: Box::from([0, 2, 1]) });
     }
     let events = disk.request(&mut store, fixtures::commit(1, writes.into_boxed_slice()));
@@ -169,25 +174,27 @@ fn empty_first_commit_registers_only_the_binary_layouts_at_the_familys_version()
     assert!(row(&mut store, 0, 3).is_none());
     assert_eq!(text(&mut store, hash(KEPT)), None);
 }
-#[test]
-fn held_changes_move_only_the_broad_roots_reached_variant_and_jobs_get_held_texts() {
-    use jig_test_layouts::layouts::{CHILD, CHILD_CURRENT, CHILD_WRITTEN, HOLDER};
-    let holder = KeptFamily {
-        retired: &[],
-        name: "fixture-holder",
-        current: HOLDER,
-        map: KeptMap::Store,
-        frames: None,
-        keys: &[Keys { from: b"h", to: b"i", root: "Row" }, Keys { from: b"j", to: b"k", root: "Row" }],
-        types: &[
-            ValueType { number: 0, root: "Row", variant: Some("changed"), keys: &[KeyRange { from: b"h", to: b"i" }] },
-            ValueType { number: 1, root: "Row", variant: Some("stable"), keys: &[KeyRange { from: b"j", to: b"k" }] },
-        ],
-    };
-    let child = KeptFamily { name: "fixture-child", current: CHILD, keys: &[], types: &[], ..holder };
-    let set = OwnerSet { families: Box::leak(Box::new([holder, child])), level: Some(0), ..SET };
+const HOLDER_FAMILY: KeptFamily = KeptFamily {
+    retired: &[],
+    name: "fixture-holder",
+    current: HOLDER,
+    map: KeptMap::Store,
+    frames: None,
+    keys: &[Keys { from: b"h", to: b"i", root: "Row" }, Keys { from: b"j", to: b"k", root: "Row" }],
+    types: &[
+        ValueType { number: 0, root: "Row", variant: Some("changed"), keys: &[KeyRange { from: b"h", to: b"i" }] },
+        ValueType { number: 1, root: "Row", variant: Some("stable"), keys: &[KeyRange { from: b"j", to: b"k" }] },
+    ],
+};
+const CHILD_FAMILY: KeptFamily =
+    KeptFamily { name: "fixture-child", current: CHILD, keys: &[], types: &[], ..HOLDER_FAMILY };
+
+const HELD_SET: OwnerSet = OwnerSet { families: &[HOLDER_FAMILY, CHILD_FAMILY], level: Some(0), ..SET };
+const HELD_CURRENT_SET: OwnerSet =
+    OwnerSet { families: &[HOLDER_FAMILY, KeptFamily { current: CHILD_CURRENT, ..CHILD_FAMILY }], ..HELD_SET };
+fn held_source() -> Vec<Item> {
     let mut disk = Disk::new(&[]);
-    let mut store = fresh(&mut disk, set);
+    let mut store = fresh(&mut disk, HELD_SET);
     raw(
         &mut disk,
         &mut store,
@@ -196,10 +203,14 @@ fn held_changes_move_only_the_broad_roots_reached_variant_and_jobs_get_held_text
             skein_kv::Op::Put { key: b"\x02j/0".as_slice().into(), value: Box::from([0, 1, 1]) },
         ],
     );
-    let current =
-        OwnerSet { families: Box::leak(Box::new([holder, KeptFamily { current: CHILD_CURRENT, ..child }])), ..set };
-    let mut disk = Disk::new(&disk.items());
-    let mut store = self::store(&disk, current);
+    disk.items()
+}
+
+#[test]
+fn held_changes_move_only_the_broad_roots_reached_variant_and_jobs_get_held_texts() {
+    let (holder, child) = (HOLDER_FAMILY, CHILD_FAMILY);
+    let mut disk = Disk::new(&held_source());
+    let mut store = store(&disk, HELD_CURRENT_SET);
     let events = disk.open(&mut store);
     assert!(
         { if let Some(Event::Opened { pending: true, .. }) = events.first() { true } else { false } },
@@ -230,7 +241,7 @@ fn held_changes_move_only_the_broad_roots_reached_variant_and_jobs_get_held_text
     let set = OwnerSet {
         families: Box::leak(Box::new([holder, KeptFamily { current: CHILD_WRITTEN, ..child }])),
         jobs: Box::leak(Box::new([job])),
-        ..set
+        ..HELD_SET
     };
     let mut disk = Disk::new(&disk.items());
     let mut store = self::store(&disk, set);
@@ -493,7 +504,7 @@ fn stored_text_bytes_must_give_their_digest_without_writes() {
             skein_kv::Op::Put { key: Box::from(b"\x02a/0".as_slice()), value: Box::from([0, 9, 0, 42]) },
         ],
     );
-    assert_text_refusal_without_writes(&mut disk);
+    assert_text_refusal_without_writes(&mut disk, &[&[], fixtures::prepared(sets(SET), &[KEPT])]);
 }
 
 #[test]
@@ -526,27 +537,32 @@ fn stored_fingerprint_must_match_the_reused_registration_layout_without_writes()
             skein_kv::Op::Put { key: Box::from(b"\x02a/0".as_slice()), value: Box::from([0, 9, 0, 42, 7]) },
         ],
     );
-    assert_text_refusal_without_writes(&mut disk);
+    assert_text_refusal_without_writes(&mut disk, &[&[]]);
 }
 
-fn assert_text_refusal_without_writes(disk: &mut Disk) {
-    let mut disk = Disk::new(&disk.items());
-    let before = snapshot(&mut disk);
-    let mut store = store(&disk, SET);
-    let events = disk.open(&mut store);
-    let [
-        Event::OpenRefused {
-            why: OpenRefusal::Layout { family, value_type: 0, id: 9, values: Some(1), why: Unplanned::Text },
-            ..
-        },
-    ] = events.as_ref()
-    else {
-        panic!("{events:?}")
-    };
-    assert_eq!(family.as_ref(), FAMILY.name);
-    assert_eq!(snapshot(&mut disk), before);
-    assert_eq!(disk.bytes(b"active").as_ref(), b"1\n");
-    assert!(!disk.tree().iter().any(|(path, ..)| path.as_ref() == b"generations/2"));
+fn assert_text_refusal_without_writes(disk: &mut Disk, schemas: &[&'static [Schema]]) {
+    let items = disk.items();
+    for &prepared in schemas {
+        let mut disk = Disk::new(&items);
+        let before = snapshot(&mut disk);
+        let mut store = store(&disk, SET);
+        store.prepared_schemas(prepared);
+        let events = disk.open(&mut store);
+        let [Event::OpenRefused { why, .. }] = events.as_ref() else { panic!("{events:?}") };
+        assert_eq!(
+            *why,
+            OpenRefusal::Layout {
+                family: FAMILY.name.into(),
+                value_type: 0,
+                id: 9,
+                values: Some(1),
+                why: Unplanned::Text,
+            }
+        );
+        assert_eq!(snapshot(&mut disk), before);
+        assert_eq!(disk.bytes(b"active").as_ref(), b"1\n");
+        assert!(!disk.tree().iter().any(|(path, ..)| path.as_ref() == b"generations/2"));
+    }
 }
 
 #[test]

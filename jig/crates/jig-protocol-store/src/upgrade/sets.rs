@@ -1,4 +1,7 @@
 //! Static owner data handed in by the shell (protocol/store/records.md, 3, and protocol/store/opening-owners.md, 1).
+use alloc::boxed::Box;
+use skein_codec::schema::{self, Schema};
+use skein_lib::{List, Set};
 
 /// Whose patch levels the format row keeps, upstream first.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
@@ -79,6 +82,34 @@ pub struct OwnerSets {
 }
 impl OwnerSets {
     pub const NONE: OwnerSets = OwnerSets { sets: &[] };
+
+    /// Parses each distinct text in first-seen order, leaving malformed texts for open to refuse.
+    /// The shell can retain the result for `Store::prepared_schemas` (protocol/store/opening-owners.md, 1).
+    #[must_use]
+    pub fn prepare(&self) -> Box<[Schema]> {
+        let mut seen = Set::with_capacity(u32::MAX);
+        let mut prepared = List::uncapped();
+        for set in self.sets {
+            for family in set.families {
+                prepare_text(family.current, &mut seen, &mut prepared);
+                if let Some(frames) = &family.frames {
+                    for text in frames.texts {
+                        prepare_text(text, &mut seen, &mut prepared);
+                    }
+                }
+            }
+        }
+        prepared.into_boxed()
+    }
+}
+
+fn prepare_text(text: &'static str, seen: &mut Set<&'static str>, prepared: &mut List<Schema>) {
+    if !seen.insert(text).expect("the binary's distinct texts fit a u32 count") {
+        return;
+    }
+    if let Ok(schema) = schema::parse(text.as_bytes()) {
+        prepared.push(schema).expect("no more schemas than distinct texts");
+    }
 }
 
 /// jig's secrets rows, excluding the application's own rows (protocol/store/secrets.md, protocol/store/opening-owners.md, 1).

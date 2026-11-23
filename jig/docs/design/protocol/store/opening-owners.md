@@ -48,6 +48,7 @@ pub struct OwnerSets {
 }
 impl OwnerSets {
     pub const NONE: OwnerSets = OwnerSets { sets: &[] };
+    pub fn prepare(&self) -> Box<[skein_codec::schema::Schema]>; // its texts, each parsed once (below)
 }
 ```
 
@@ -58,7 +59,7 @@ impl OwnerSets {
   temper's `temper_protocol_store::OWNER_SET` and the shell's
   `OWNER_SETS` (`temper-engine-service-vocabulary`) complete the
   hand-over. `jig-test-store-files` takes fixture sets through
-  `Store::with_owner_sets`. The `upgrade` module runs the copy (2).
+  `Store::with_owner_sets`. The `upgrade` module runs the copy (`opening.md`, 2).
 - **Keys.** A family's records are its `map`'s, committed there
   (`secrets.md`). A family's ranges hold records of different
   declarations (the core's tasks beside their turns), so each range
@@ -127,22 +128,39 @@ impl OwnerSets {
   frames' family's `texts`) close a cycle. A set that fails is refused,
   `Set` with its owner, before anything is written. That each record of
   the map lies in one family's range takes a walk, which a rehearsal
-  makes (5), not every open.
-- **One check per open.** An open checks its sets once. By default each
-  text it reads is parsed for it alone. A shell may supply immutable parsed
-  binary schemas through `Store::prepared_schemas` before open. Admission
-  borrows a supplied schema only when its entire text equals the text being
-  checked; a missing or unmatched text is parsed by that open. These schemas
-  contain no stored data, admission verdict or layout verdict: every admission
-  and layout check still runs. jig's test store keeps only schemas derived
-  from its constant Skein, Smith and jig owner-set texts across tests, never a store or an
-  open's state; first starts and cold restarts remain real opens. The
+  makes (`opening-rehearsal.md`, 1), not every open.
+- **Prepared texts.** By default each text an open reads is parsed for
+  that open alone. A shell may supply immutable parsed schemas through
+  `Store::prepared_schemas(&'static [Schema])` before open, made by
+  `OwnerSets::prepare`: each distinct text the sets' families name, each
+  `current` and each frames' `texts` entry, parsed once, in the sets'
+  order, a text that does not parse left out for the open to refuse as
+  it does. Wherever an open reads a text it takes a supplied schema whose
+  whole text equals that text byte for byte, and parses one that no
+  supplied schema equals: admission; the registry's planning, for a
+  binary's `current` and a stored text alike, the stored bytes checked
+  against their digest first (`layouts.md`, 7); the rehearsal's decoding
+  (`opening-rehearsal.md`, 1); and the frames' machines, which keep a copy of it, since a
+  `Patcher` owns what it keeps (`transcripts.md`, 6). The schemas hold
+  no stored data, admission verdict or layout verdict: every check an
+  open makes (owners, digests, held layouts, compatibility) runs over
+  them as over its own parse, so an open given them answers as one given
+  none. A shell keeps them only for its binary's constant texts, across
+  the opens of its process, never a store's or an open's state: jig's
+  test store those of its Skein, Smith and jig sets, and temper's
+  composition those of temper's `OWNER_SETS` (temper's `playground.md`,
+  3). First starts and cold restarts remain real opens. Why: the same
+  texts parsed at every open were a seventh to a third of the cost of
+  the worlds that open stores most; a copy of a parsed schema costs a
+  fraction of its parse, and a match by whole text, not by family and
+  version, keeps an altered text from borrowing another's checks.
+- **One check per open.** An open checks its sets once. The
   component owns no cache that outlives an open. Whichever step needs the check first
   runs it: a first start before anything is written (`opening.md`, 1.2), the
-  rehearsal (5), the registry's (`layouts.md`, 5) or readiness before
+  rehearsal (`opening-rehearsal.md`, 1), the registry's (`layouts.md`, 5) or readiness before
   the open serves. Its verdict, passed or the `Set` it refuses with its
   owner, is that open's: kept through the copy, its check and the
-  reopen (2), and read by each later step in place of a fresh check, so
+  reopen (`opening.md`, 2), and read by each later step in place of a fresh check, so
   each step refuses where it did, with the same `Set`. The verdict is a
   few bytes beside the open's state, not a parsed text: dropped when the
   open settles, served (`Opened`) or refused, and whenever the shell
@@ -199,4 +217,4 @@ Event::Site {                              Request::Site {
   (`Store::owner_sets`); with none it never answers `Site`, never wants
   `Request::Site`, and `Opened`'s `pending` is false. A root that sees
   `pending` true asks for `Request::Switch` before its runs are adopted
-  (2, step 7).
+  (`opening.md`, 2, step 7).

@@ -5,8 +5,9 @@ The playground binary's test holds the service's first-step held bytes from
 the 2026-11-14 worker-wire v8 table below, and its other bounds from the
 2026-11-14 store-shape S4 merge table, each with a quarter's margin rounded
 up to two significant digits;
-nonservice regression bounds retain their 2026-11-12 figures plus a quarter
-([playground.md, section 9](../design/playground.md)). Sections 8 and 11 leave
+nonservice regression bounds retain their 2026-11-12 figures plus a quarter.
+The prepared schemas' bound uses the 2026-11-23 table below, also plus a
+quarter ([playground.md, section 9](../design/playground.md)). Sections 8 and 11 leave
 the memory's bar itself to the user.
 
 ## Commands and scope
@@ -21,8 +22,9 @@ cargo nextest run -p temper-one-process-world --test memory --run-ignored only -
 
 The playground measurement passes. The first step is one world step, including
 one turn of every admitted process. Start is the first idle boundary with
-nothing due now: 159 world steps in the current table. The two snapshots use separate identical
-worlds, so each disk can be destroyed and its retained heap measured separately.
+nothing due now: 171 world steps in the prepared schemas table. The two snapshots
+use separate identical worlds, so each disk can be destroyed and its retained heap
+measured separately.
 The service process contains both engine and worker; they are not separate
 process measurements. The visitor is admitted at both snapshots; no agent
 runs before the visitor acts.
@@ -313,6 +315,33 @@ It completed the three requests at 45.8 simulated seconds, then failed the
 same exact-release check: process 0 freed 1,287,344 bytes against 1,863,104
 metered bytes. It returned no high-water row, so that row remains unmeasured
 and the test remains ignored; no one-process bound changed.
+
+### Prepared schemas before start
+
+Measured 2026-11-23 20:59:43 UTC (`date -u`), based on `temper613652/g13653`
+at commit `48c8fa6549aea970a222bc91dce8efd89df4cf05` with the cache warm-up
+and print in place. All existing comparisons stayed enabled for the focused
+run of `story_as_world_at_its_first_step_and_start`. First step takes one
+world step; start takes 171 world steps.
+
+| Process | First step held | First step peak | Start held | Start peak |
+|---|---:|---:|---:|---:|
+| 0: service (engine + worker) | 308,974 | 703,789 | 781,983 | 1,107,604 |
+| 1: fake LLM | 28,193 | 28,193 | 28,929 | 28,929 |
+| 2: fake forge HTTP | 31,098 | 31,098 | 31,839 | 31,883 |
+| 3: visitor | 1,054 | 1,068 | 1,054 | 1,068 |
+| 4: hosted git | not admitted | not admitted | 3,530 | 3,530 |
+
+| Outside the processes | First step retained | Start retained |
+|---|---:|---:|
+| Fake disk | 9,443 | 263,690 |
+| Shared forge before start | 7,453 | not separately measured at start |
+| Prepared schemas before start | 665,749 | not separately measured at start |
+
+The test fills the process-wide cache under its own span before either world
+is built, so the service's held bytes no longer carry the cache. Its retained
+heap has a separate ceiling of 832,186 bytes (665,749 plus a quarter, using
+integer division). No existing ceiling moves.
 
 ## Halving the knobs
 

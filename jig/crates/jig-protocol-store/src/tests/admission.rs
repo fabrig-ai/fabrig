@@ -1,7 +1,11 @@
 //! Family admission, independent of patch scheduling (protocol/store/opening-owners.md, 1).
-use super::owners::SETS;
+use super::{frame_patches, owners::SETS};
 use crate::upgrade::admission;
-use crate::{KeptFamily, KeptMap, Owner, OwnerSet, OwnerSets};
+use crate::{JIG_STORE_SET, KeptFamily, KeptMap, Owner, OwnerSet, OwnerSets, SKEIN_SET, SMITH_SET};
+use alloc::collections::BTreeSet;
+use jig_test_layouts::records;
+use jig_test_patches_jig::patches::kept::fixture_frame;
+use jig_test_patches_smith::patches::kept::fixture_turn;
 #[test]
 fn duplicate_owners_are_refused_beside_a_single_owner() {
     const SETS_DUPLICATE: OwnerSets = OwnerSets { sets: &[SETS.sets[0], SETS.sets[0], SETS.sets[1]] };
@@ -28,6 +32,76 @@ fn prepared_texts_match_self_parsing_admission_and_refusal() {
         assert_eq!(admission::bounds(&sets, &[]), expected, "self-parsed");
         assert_eq!(admission::bounds(&sets, &prepared), expected, "prepared, with exact-text fallback");
     }
+}
+
+#[test]
+fn prepare_keeps_current_and_frame_texts_in_first_seen_order() {
+    const OWNERS: OwnerSets =
+        OwnerSets { sets: &[SETS.sets[0], frame_patches::SETS.sets[0], frame_patches::SETS.sets[1]] };
+    const EXPECTED: [&str; 7] = [
+        records::LABEL_CURRENT,
+        records::SHELF_CURRENT,
+        records::TOKEN_CURRENT,
+        fixture_frame::TEXTS[1],
+        fixture_frame::TEXTS[0],
+        fixture_turn::TEXTS[1],
+        fixture_turn::TEXTS[0],
+    ];
+    let prepared = OWNERS.prepare();
+    assert_eq!(prepared.len(), EXPECTED.len());
+    for (schema, text) in prepared.iter().zip(EXPECTED) {
+        assert_eq!(schema.text(), text.as_bytes());
+    }
+}
+
+#[test]
+fn prepare_omits_a_malformed_current_and_keeps_the_other_texts() {
+    const APP: OwnerSet = SETS.sets[0];
+    const BROKEN: KeptFamily =
+        KeptFamily { current: "family fixture-shelf 2\nversioned record Shelf {", ..APP.families[1] };
+    const OWNERS: OwnerSets =
+        OwnerSets { sets: &[OwnerSet { families: &[APP.families[0], BROKEN, APP.families[2]], ..APP }] };
+    let prepared = OWNERS.prepare();
+    let expected = [records::LABEL_CURRENT, records::TOKEN_CURRENT];
+    assert_eq!(prepared.len(), expected.len());
+    for (schema, text) in prepared.iter().zip(expected) {
+        assert_eq!(schema.text(), text.as_bytes());
+    }
+}
+
+#[test]
+fn prepare_no_owner_sets_is_empty() {
+    assert!(OwnerSets::NONE.prepare().is_empty());
+}
+
+#[test]
+fn prepare_binary_sets_keeps_each_text_once_including_core() {
+    const BINARY: OwnerSets = OwnerSets { sets: &[SKEIN_SET, SMITH_SET, JIG_STORE_SET] };
+    let mut expected = BTreeSet::new();
+    let mut core_text = None;
+    for set in BINARY.sets {
+        for family in set.families {
+            expected.insert(family.current.as_bytes());
+            if let Some(frames) = family.frames {
+                for text in frames.texts {
+                    expected.insert(text.as_bytes());
+                }
+                if set.owner == Owner::Jig {
+                    assert!(frames.texts.contains(&family.current));
+                    core_text = Some(family.current.as_bytes());
+                }
+            }
+        }
+    }
+
+    let prepared = BINARY.prepare();
+    let mut texts = BTreeSet::new();
+    for schema in &*prepared {
+        texts.insert(schema.text());
+    }
+    assert_eq!(texts, expected);
+    assert_eq!(prepared.len(), texts.len(), "one schema per distinct text");
+    assert!(texts.contains(core_text.expect("core frames family")));
 }
 
 // component-v3.schema bounds: 64 counts, each family at most 64 bytes.

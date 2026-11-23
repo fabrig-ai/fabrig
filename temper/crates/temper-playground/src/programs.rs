@@ -9,7 +9,8 @@ use skein_io::kernel::{Complete, Exit, Spawn, Submit};
 use skein_lib::{Queue, Time, Wall};
 use skein_shell::Host;
 use skein_sim_world::{HostedProgram, Inherited, StartupRoot, StartupRoots};
-use std::{cell::RefCell, rc::Rc};
+use std::{cell::RefCell, rc::Rc, sync::OnceLock};
+use temper_engine_service_vocabulary::store::OWNER_SETS;
 mod issuer;
 mod shell;
 pub use issuer::Issuer;
@@ -45,7 +46,7 @@ pub trait Harness: 'static {
     fn owner_sets() -> Option<jig_protocol_store::OwnerSets> {
         None
     }
-    /// Optionally pass immutable parsed binary texts to the store before open.
+    /// Override the composition's shared binary texts before open.
     #[must_use]
     fn prepared_schemas() -> Option<&'static [skein_codec::schema::Schema]> {
         None
@@ -277,6 +278,12 @@ pub fn service_roots() -> Vec<StartupRoot> {
         StartupRoot { name: b"worker".as_slice().into(), path: b"worker".as_slice().into() },
     ]
 }
+/// Share the binary's parsed store texts across this process's opens.
+#[must_use]
+pub fn prepared_schemas() -> &'static [skein_codec::schema::Schema] {
+    static SCHEMAS: OnceLock<Box<[skein_codec::schema::Schema]>> = OnceLock::new();
+    SCHEMAS.get_or_init(|| OWNER_SETS.prepare())
+}
 /// Start the same service from deployment bytes as `temper serve`.
 #[must_use]
 pub fn service<H: Harness>(inherited: &Inherited) -> Process<H> {
@@ -370,9 +377,7 @@ pub fn service<H: Harness>(inherited: &Inherited) -> Process<H> {
     if let Some(sets) = H::owner_sets() {
         service.owner_sets(sets);
     }
-    if let Some(schemas) = H::prepared_schemas() {
-        service.prepared_schemas(schemas);
-    }
+    service.prepared_schemas(H::prepared_schemas().unwrap_or_else(prepared_schemas));
     if let Some(limits) = service.checked_opening_limits() {
         H::checked_opening_limits(limits);
     }

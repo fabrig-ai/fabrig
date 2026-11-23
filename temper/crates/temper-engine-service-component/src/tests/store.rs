@@ -1,9 +1,10 @@
 use super::fixtures;
 use crate::store::{self, Store};
-use jig_protocol_store::core_v6::Record as _;
+use jig_protocol_store::{Row, core_v6::Record as _};
 use skein_io::kernel::{Complete, Done, Fd, Op, Submit};
 use skein_lib::Time;
 use temper_engine_domain as engine;
+use temper_engine_domain_forge as forge;
 
 #[test]
 fn settings_history_room_follows_effective_capacities() {
@@ -224,6 +225,36 @@ fn a_forge_row_committed_is_restored_by_the_forge_interval() {
     };
     let rows = fixtures::load(&mut store, engine::Range::Forge);
     assert_eq!(rows.as_ref(), [engine::Record::Forge { row: Box::new(row) }]);
+}
+
+#[test]
+#[expect(clippy::disallowed_methods, reason = "test holds parsed owner texts for the store's static input")]
+fn prepared_schemas_preserve_open_and_seeded_rows() {
+    const FORGE: u16 = 1;
+    let rows = [forge::Stored::Forge(fixtures::forge_record(FORGE)), forge::Stored::ForgeNumber { last: FORGE }];
+    let mut seeded = fixtures::directory::Directory::new();
+    let writes = rows.iter().cloned().map(|row| engine::Write::Save(engine::Record::Forge { row: Box::new(row) }));
+    seeded.seed_with_sets(writes.collect(), None);
+
+    let (root, _, profile) = fixtures::store_limits();
+    let limits = store::limits(&root, &root.forge, &profile).expect("checked store limits");
+    let schemas: &'static [_] = Box::leak(store::OWNER_SETS.prepare());
+    for prepared in [None, Some(schemas)] {
+        let mut disk = seeded.fork();
+        let mut store = Store::new(&root, &limits, &[], &fixtures::seeds());
+        if let Some(schemas) = prepared {
+            store.prepared_schemas(schemas);
+        }
+        disk.open_limits(&mut store);
+        for row in &rows {
+            let key = forge::stored_key(row);
+            let Some(Row::Application { key: found, value }) = disk.get(&mut store, &key) else {
+                panic!("seeded row for {key:?}");
+            };
+            assert_eq!(found, temper_protocol_store::keys::encode(&key, u32::MAX).expect("fixture key"));
+            assert_eq!(value, temper_protocol_store::records::encode(row));
+        }
+    }
 }
 
 #[test]

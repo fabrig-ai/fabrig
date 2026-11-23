@@ -10,8 +10,11 @@ use jig_domain_core_vocabulary::{self as domain, reads};
 use jig_domain_tasks as tasks;
 use jig_test_patches_jig::{frames, patches as jig};
 use jig_test_patches_smith::patches as smith;
+use skein_codec::schema::Schema;
 use skein_fake_machine::Item;
 use skein_lib::{Token, Wall, length::len_u64};
+
+mod prepared;
 
 pub(super) const SETS: OwnerSets = OwnerSets {
     sets: &[
@@ -113,9 +116,13 @@ fn put(record: &domain::Record) -> skein_kv::Op {
     }
 }
 fn scene(bytes: &[u8], sets: OwnerSets) -> (Disk, Store) {
+    scene_with_schemas(bytes, sets, &[])
+}
+fn scene_with_schemas(bytes: &[u8], sets: OwnerSets, prepared: &'static [Schema]) -> (Disk, Store) {
     let disk = Disk::new(&[Item::directory(b"0000000000000000"), Item::file(PATH, bytes)]);
     let mut store = fixtures::over(fixtures::stores());
     store.owner_sets(sets);
+    store.prepared_schemas(prepared);
     let opened = fixtures::run(
         &mut store,
         Request::Open {

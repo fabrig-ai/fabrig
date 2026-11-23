@@ -335,12 +335,14 @@ values at a written job's layouts to the job, never to a plan
   Each is made once in that planning and kept to its
   end, so the registration and every row's check read the
   same one, whichever family or row needs it:
-  - **A text parsed** where the planning first reads it: the binary's
+  - **A text parsed** where the planning first reads it, or taken from
+    the shell's prepared schemas where one's whole text equals it
+    (`opening-owners.md`, 1): the binary's
     `current` of each family where the open checks it, kept as that
-    check parsed it; a text the registry already
+    check parsed or took it; a text the registry already
     holds where a row or a family holding it first needs it,
-    its bytes checked against its digest before it is parsed (5.3). No
-    text is parsed twice in one planning.
+    its bytes checked against its digest before it is parsed or taken (5.3). No
+    text is parsed twice in one planning, and a prepared one not at all.
   - **A layout computed,** the fingerprint of a root and variant in a
     text with its held texts (skein's `data/codec/fingerprints.md`, 1.4), once
     per those four: the registration's (5.2) is the
@@ -413,6 +415,17 @@ values at a written job's layouts to the job, never to a plan
   their order are unchanged: a stored text whose bytes do not give its
   digest, a persisted fingerprint its text does not give, a malformed
   declaration, a held depth past a plan's, each refused as before.
+  Given prepared schemas, the planning parses no text they hold and
+  each other text once.
+- **Prepared and fresh opens** (`opening-owners.md`, 1), step tests: over
+  copies of one store, an open given prepared schemas and one given none
+  answer the same, the same `Opened` or refusal and the same registry
+  writes, and read the same values back: over a store at the binary's
+  layouts; over a historical store whose registry holds older texts,
+  its values converted; with the binary's text of a family altered from
+  the prepared one; with a holder whose held family's layout changed;
+  and with a stored text whose bytes do not give its digest, refused as
+  before though a prepared schema holds the text it should be.
 - **Dev's build's store,** step tests: a store whose registry holds the
   jig texts of `13efa77461`, the build dev.fabrig.ai runs, kept verbatim
   as fixtures, with values at those layouts: refused delegations

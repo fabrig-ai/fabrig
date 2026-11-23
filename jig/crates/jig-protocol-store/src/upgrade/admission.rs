@@ -104,25 +104,20 @@ pub(crate) fn frames(sets: &OwnerSets, prepared: &[skein_codec::schema::Schema])
             // Metadata alone resolves a root's spelling back over renames.
             let empty = crate::transcripts::patches::Room { bytes: 0, nodes: 0 };
             let capacity = crate::transcripts::patches::frame_capacity(frames, empty).ok_or(refusal)?;
-            let machine = crate::transcripts::patches::kept_patcher(frames, capacity).ok_or(refusal)?;
-            let latest = frames.texts.last().expect("nonempty kept texts");
+            let machine = crate::transcripts::patches::kept_patcher(frames, capacity, prepared).ok_or(refusal)?;
+            let kept = machine.schemas().as_slice();
+            let last = kept.last().ok_or(refusal)?.version();
+            let text = family.current.as_bytes();
             let mut parsed = None;
-            let Some(latest) = super::schemas::get(prepared, latest.as_bytes(), &mut parsed) else {
-                return Err(refusal);
-            };
-            let last = latest.version();
-            let mut parsed = None;
-            let Some(current) = super::schemas::get(prepared, family.current.as_bytes(), &mut parsed) else {
-                return Err(refusal);
+            let current = if let Some(index) = super::schemas::matching(kept, text) {
+                kept.get(index).ok_or(refusal)?
+            } else {
+                super::schemas::get(prepared, text, &mut parsed).ok_or(refusal)?
             };
             if last != current.version() {
                 return Err(refusal);
             }
-            for text in frames.texts {
-                let mut parsed = None;
-                let Some(schema) = super::schemas::get(prepared, text.as_bytes(), &mut parsed) else {
-                    return Err(refusal);
-                };
+            for schema in kept {
                 if schema.spelled(schema.family()) != family.name.as_bytes() {
                     return Err(refusal);
                 }
