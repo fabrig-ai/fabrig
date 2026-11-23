@@ -1,6 +1,7 @@
 //! The owner-only live boundary. Tests exercise refusals without constructing a connector.
 use crate::{
     Result,
+    directory::{Directory, Kind},
     wire::{Request, Response},
 };
 use skein_forge::github::request::Method;
@@ -10,9 +11,6 @@ use skein_forge_conformance::{
 };
 use std::{
     collections::BTreeMap,
-    fs,
-    io::Read,
-    os::unix::fs::PermissionsExt,
     path::{Path, PathBuf},
 };
 
@@ -44,17 +42,15 @@ fn safe_repository(value: &str) -> bool {
         && value != ".."
         && value.bytes().all(|b| b.is_ascii_alphanumeric() || b"-_.".contains(&b))
 }
-fn file(dir: &Path, name: &str, bound: u64) -> Result<Vec<u8>> {
-    let path = dir.join(name);
-    let meta = fs::symlink_metadata(&path)?;
-    if !meta.file_type().is_file() || meta.permissions().mode() & 0o7777 != 0o600 {
+fn file(dir: &mut Directory, name: &str, bound: u64) -> Result<Vec<u8>> {
+    let meta = dir.metadata(name)?;
+    if meta.kind != Kind::File || meta.mode != 0o600 {
         return Err(format!("fixture {name} must be a regular 0600 file").into());
     }
-    if meta.len() > bound {
+    if meta.size > bound {
         return Err(format!("fixture {name} exceeds its size bound").into());
     }
-    let mut bytes = Vec::new();
-    fs::File::open(path)?.take(bound + 1).read_to_end(&mut bytes)?;
+    let bytes = dir.read_bounded(name, bound + 1)?;
     if u64::try_from(bytes.len())? > bound {
         return Err("fixture changed beyond its size bound".into());
     }
@@ -73,9 +69,9 @@ impl Fixtures {
                 .collect(),
         }
     }
-    pub fn load(dir: &Path) -> Result<Self> {
-        let meta = fs::symlink_metadata(dir)?;
-        if !meta.file_type().is_dir() || meta.permissions().mode() & 0o7777 != 0o700 {
+    pub fn load(dir: &mut Directory) -> Result<Self> {
+        let meta = dir.metadata("")?;
+        if meta.kind != Kind::Directory || meta.mode != 0o700 {
             return Err("live fixtures directory must be a regular 0700 directory".into());
         }
         let data = file(dir, "app.json", 65536)?;
@@ -148,7 +144,18 @@ impl Fixtures {
         if webhook.is_empty() {
             return Err("empty webhook secret".into());
         }
-        Ok(Self { app, slug, version, key, webhook, people, installations, spare, source: Some(dir.to_owned()), pem })
+        Ok(Self {
+            app,
+            slug,
+            version,
+            key,
+            webhook,
+            people,
+            installations,
+            spare,
+            source: dir.host_path().map(Path::to_owned),
+            pem,
+        })
     }
     pub(crate) fn secrets(&self) -> Secrets {
         let mut secrets = Secrets::of(&[]);

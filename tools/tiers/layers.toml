@@ -3,7 +3,7 @@
 layers = ["step", "domain", "system", "machine", "protocol", "io", "simulated", "real-loop", "end-to-end"]
 
 [skein]
-"github-conformance::suite" = "real-loop" # Real journal and transcript files over a simulated network.
+"github-conformance::suite" = "simulated" # Hosted fake over the simulator, with directories in the fake machine.
 "skein-browser-world::browser_facts" = "end-to-end" # Real Chromium and the browser face.
 "skein-browser-world::browser_real" = "end-to-end" # Real Chromium on the served pages.
 "skein-browser-world::suite" = "machine"

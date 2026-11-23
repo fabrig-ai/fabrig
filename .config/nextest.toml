@@ -336,7 +336,6 @@ default-filter = """
   (package(/^skein-/) | package(=forgejo-conformance) | package(=github-conformance))
   & ((kind(test) | package(=skein-deflate)) & test(/^fuzzy::/))
 )) & (
-  binary_id(=github-conformance::suite) |
   binary_id(=skein-browser-world::browser_facts) |
   binary_id(=skein-browser-world::browser_real) |
   binary_id(=skein-codec-patches::suite) |
