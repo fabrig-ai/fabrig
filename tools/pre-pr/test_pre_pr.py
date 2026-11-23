@@ -342,6 +342,7 @@ class CloseBudgets(unittest.TestCase):
             'future::suite': self.binary(110 * self.G, 80, commit=self.main),
         }}
         self.profile['binaries'][self.BINARY]['counts'][self.main] = 50 * self.G
+        self.enterContext(mock.patch.object(PRE, 'WORKER_COUNTS', self.root / 'no-worker-counts.json'))
         self.budget_table()
 
     def git_only(self, args, **kwargs):
@@ -392,9 +393,11 @@ class CloseBudgets(unittest.TestCase):
         self.publish()
         counts = module(HERE.parent / 'tiers/counts.py')
         packet = PRE.budget_input(self.repository, self.env, counts.read(self.repository, self.env))
+        path = self.root / 'worker-counts.json'
+        path.write_text(json.dumps(packet))
+        self.enterContext(mock.patch.object(PRE, 'WORKER_COUNTS', path))
         with mock.patch.object(subprocess, 'Popen', side_effect=AssertionError('sandbox accessed Git history')):
-            error, = PRE.close_budgets(self.root, self.repository, self.env,
-                                      [self.result(self.process(30 * self.G))], selected=packet)
+            error, = self.verdict(self.result(self.process(30 * self.G)))
             self.assertIn('instruction growth over allowance', error['log'])
 
     def test_tree_without_head_has_no_budget_baseline(self):

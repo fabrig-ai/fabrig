@@ -19,6 +19,8 @@ import xml.etree.ElementTree as ET
 
 PLANNER = runpy.run_path(str(Path(__file__).with_name('workspace.py')))
 TIERS = Path(__file__).resolve().parents[1] / 'tiers'
+# Read-only mount supplied by the worker, outside the candidate workspace.
+WORKER_COUNTS = Path('/policy-counts.json')
 
 
 class Tail:
@@ -349,12 +351,13 @@ def budget_input(repository, env, data):
     return {**data, 'base': base}
 
 
-def close_budgets(root, repository, env, runs, *, selected=None):
+def close_budgets(root, repository, env, runs):
     """Judge whole binaries against the selected published budget input (section 4.1)."""
     counts = runpy.run_path(str(TIERS / 'counts.py'))
     try:
-        data = selected
-        if data is None:
+        if WORKER_COUNTS.is_file():
+            data = json.loads(WORKER_COUNTS.read_bytes())
+        else:
             data = budget_input(repository, env, counts['read'](repository, env))
         if 'unavailable' in data:
             print(f"budgets: no verdict at close: {data['unavailable']}; the gate still judges", flush=True)
