@@ -3,12 +3,14 @@
 //! Shared browser test rig (tools/crates/design.md, 3.2).
 
 mod beside;
+mod cleanup;
 mod dialogs;
 mod downloads;
 mod requests;
 mod scope;
 mod tabs;
 mod viewport;
+mod waits;
 use skein_fake_person_browser::{
     BrowserFace, origins as serve,
     person::{Doing, Face, Find, Found},
@@ -16,7 +18,7 @@ use skein_fake_person_browser::{
 use skein_ui::{Act, Role};
 pub mod pages;
 
-use std::collections::VecDeque;
+use std::collections::{BTreeMap, VecDeque};
 use std::os::unix::ffi::OsStrExt;
 use std::path::{Path, PathBuf};
 
@@ -26,8 +28,11 @@ use skein_io::kernel::{self, Complete, Done, Op, Pipe, Spawn, Submit, Way};
 use skein_io::{self as io, Io};
 use skein_lib::stream;
 use skein_lib::{Duration, Env, Queue, Time, Token, Wall};
-use skein_shell::{Clock, Config, Kernel, Wait, open_root};
-use skein_world::{Deadline, Expired};
+use skein_shell::{Clock, Config, Kernel, open_root};
+use skein_world::Deadline;
+
+use cleanup::{CLOSE_WINDOW, Progress};
+use waits::{Decision, End, Finding, OperationWait};
 
 const PROCESS: Token = Token::new(10);
 const BROWSER: Token = Token::new(11);
@@ -151,6 +156,7 @@ pub enum Scenario {
     Viewport,
     Requests,
     Button,
+    MissingHeading,
     Tabs,
     TabBeside,
     MouseDown { replace: bool },
@@ -181,7 +187,7 @@ impl Scenario {
             Scenario::Leave | Scenario::Confirm => "/leave",
             Scenario::Download { .. } => "/download",
             Scenario::Letter => "/letter",
-            Scenario::Button => "/button",
+            Scenario::Button | Scenario::MissingHeading => "/button",
             Scenario::Form => "/form",
             Scenario::Covered => "/covered",
             Scenario::Scroll => "/scroll",
@@ -204,6 +210,12 @@ impl Scenario {
     }
 }
 
+struct TabWait {
+    deadline: Deadline,
+    last: Option<String>,
+    poll: Option<Time>,
+}
+
 #[expect(clippy::struct_excessive_bools, reason = "the referee records independent observations for each scenario")]
 pub struct Rig {
     browser: Browser,
@@ -220,7 +232,12 @@ pub struct Rig {
     events: Queue<Event>,
     browser_down: Queue<Down>,
     pipes: Option<[Token; 3]>,
+    pipes_closed: [bool; 3],
     child: Option<Token>,
+    pid: Option<u32>,
+    operation_waits: BTreeMap<Token, OperationWait>,
+    expired_operations: VecDeque<(Deadline, Finding)>,
+    close_until: Option<Time>,
     root: kernel::Fd,
     pub root_closed: bool,
     pub exited: bool,
@@ -243,8 +260,7 @@ pub struct Rig {
     pub download_trouble: bool,
     form_node: u64,
     tabs_cut: Option<u64>,
-    tabs_until: Option<Time>,
-    tab_due: Option<Time>,
+    tab_wait: Option<TabWait>,
     requests: requests::State,
 }
 
@@ -280,7 +296,12 @@ impl Rig {
             events: Queue::uncapped(),
             browser_down: Queue::uncapped(),
             pipes: None,
+            pipes_closed: [false; 3],
             child: None,
+            pid: None,
+            operation_waits: BTreeMap::new(),
+            expired_operations: VecDeque::new(),
+            close_until: None,
             root,
             root_closed: false,
             exited: false,
@@ -296,8 +317,7 @@ impl Rig {
             download_trouble: false,
             form_node: 0,
             tabs_cut: None,
-            tabs_until: None,
-            tab_due: None,
+            tab_wait: None,
             requests: requests::State::default(),
             context_ready: false,
             exception_seen: false,
@@ -330,125 +350,51 @@ impl Rig {
             while let Some(event) = self.io_events.pop() {
                 self.io_event(event);
             }
-            self.browser_steps(now.now);
-            if self.tab_due.is_some_and(|due| due <= now.now) {
-                self.tab_due = None;
-                self.ask(Request::Tabs { page: PAGE, op: FIND });
+            if self.complete.is_empty() {
+                self.browser_steps(now.now);
             }
             for _ in 0..self.events.len() {
                 let event = self.events.pop().expect("this browser stage's events");
-                self.browser_event(event);
+                self.observe_browser(event);
             }
+            self.check_browser_waits();
             self.drain_browser_down();
-            while self.io.takes() {
-                let Some(request) = self.io_requests.pop_front().or_else(|| self.pages.take()) else { break };
-                io::down(&mut self.io, &self.io_env, request, &mut self.submits);
-            }
-            self.io.reclaim();
-            if self.stage == Stage::Complete
-                && self.child_closed
-                && self.pages.is_closed()
-                && self.io.is_empty()
-                && self.kernel.in_flight() == 0
-            {
-                return;
-            }
-            if deadline.passed() {
-                match deadline.expired() {
-                    Expired::Starved(starved) => {
-                        self.end();
-                        starved.pass();
+            self.io_down();
+            let until = if let Some(until) = self.close_until {
+                let until = until.min(deadline.until().saturating_add(CLOSE_WINDOW));
+                self.close_until = Some(until);
+                let drained = self.stage == Stage::Complete && self.drained() && !self.answers_pending();
+                match cleanup::progress(self.clock.now().now, until, drained) {
+                    Progress::Drained => return,
+                    Progress::Drive => until,
+                    Progress::Cutoff => {
+                        let outstanding = self.outstanding();
+                        let ended = self.end();
+                        let detail = ended.err().unwrap_or_default();
+                        panic!("Chromium did not close cleanly within four seconds: {outstanding}; {detail}");
                     }
-                    Expired::Failed(figures) => panic!(
-                        "Chromium smoke test timed out at {:?}, stderr: {}; {figures}",
-                        self.stage,
-                        String::from_utf8_lossy(&self.stderr)
-                    ),
                 }
-            }
-            let pending = self.io.is_ready()
-                || !self.complete.is_empty()
-                || !self.io_events.is_empty()
-                || !self.events.is_empty()
-                || !self.browser_down.is_empty()
-                || !self.io_requests.is_empty()
-                || self.pages.pending()
-                || self.browser.work_pending();
-            let wait = if pending {
-                Wait::No
             } else {
-                let mut until = deadline.until();
-                if let Some(next) = self.io.next_deadline() {
-                    until = until.min(next);
+                if !self.answers_pending() && deadline.passed() {
+                    let finding = End::Unanswered(String::from("Chromium smoke test timed out")).finding();
+                    self.expire(finding, deadline.expired());
                 }
-                if let Some(next) = self.tab_due {
-                    until = until.min(next);
-                }
-                if let Some(next) = self.browser.next_deadline() {
-                    until = until.min(next);
-                }
-                Wait::Until(until)
+                deadline.until()
             };
-            self.kernel.submit(&mut self.submits, wait);
+            let until = [
+                self.tab_wake(),
+                self.expired_operations.front().map(|(wait, _)| wait.until()),
+                self.browser.next_deadline(),
+            ]
+            .into_iter()
+            .flatten()
+            .fold(until, Time::min);
+            let browser_pending =
+                !self.events.is_empty() || !self.browser_down.is_empty() || self.browser.work_pending();
+            self.enter(until, browser_pending);
         }
-        panic!("Chromium smoke test did not settle at {:?}", self.stage);
-    }
-
-    // testing-strategy.md, 2.10: abort and reap before a starved pass exits.
-    fn end(&mut self) {
-        self.io_requests.retain(|request| matches!(request, io::Request::Spawn { .. }));
-        while self.browser_down.pop().is_some() {}
-        self.pages.stop();
-        for entity in self.child.into_iter().chain(self.pipes.into_iter().flatten()) {
-            self.io_requests.push_back(io::Request::Abort { entity });
-        }
-        loop {
-            self.reap(None);
-            let now = self.clock.now();
-            self.io_env.now = now.now;
-            self.io_env.wall = now.wall;
-            self.pages.update_time(now.now, now.wall);
-            io::stage::up(
-                &mut self.io,
-                &self.io_env,
-                &mut self.complete,
-                &mut self.io_events,
-                &mut self.submits,
-                now.now,
-            );
-            while let Some(event) = self.io_events.pop() {
-                if let io::Event::Failed { error, .. } = &event {
-                    panic!("browser cleanup: {error:?}");
-                }
-                if let io::Event::Spawned { owner: PROCESS, child, pipes } = &event {
-                    self.child = Some(*child);
-                    for entity in core::iter::once(*child).chain(pipes.iter().copied()) {
-                        self.io_requests.push_back(io::Request::Abort { entity });
-                    }
-                    self.submits.push(Submit { op: ROOT_CLOSE, kind: Op::Close { fd: self.root } });
-                    self.root_closed = true;
-                } else if matches!(&event, io::Event::Exited { owner: PROCESS, .. }) {
-                    self.exited = true;
-                } else if matches!(&event, io::Event::Closed { owner: PROCESS }) {
-                    self.child_closed = true;
-                } else if matches!(
-                    &event,
-                    io::Event::Listening { owner: serve::OWNER, .. } | io::Event::Accepted { owner: serve::OWNER, .. }
-                ) || matches!(&event, io::Event::Stream { owner, .. } | io::Event::Closed { owner } if self.pages.owns(*owner))
-                {
-                    self.pages.event(event);
-                }
-            }
-            while self.io.takes() {
-                let Some(request) = self.io_requests.pop_front().or_else(|| self.pages.take()) else { break };
-                io::down(&mut self.io, &self.io_env, request, &mut self.submits);
-            }
-            self.io.reclaim();
-            if self.child_closed && self.io.is_empty() && self.kernel.in_flight() == 0 && self.submits.is_empty() {
-                return;
-            }
-            self.kernel.submit(&mut self.submits, Wait::Until(now.now.saturating_add(Duration::from_millis(10))));
-        }
+        let ended = self.end();
+        panic!("Chromium smoke test did not settle at {:?}; cleanup: {ended:?}", self.stage);
     }
 
     /// Reaps the kernel's answers into io's completions. The root's close is this loop's own, and
@@ -462,13 +408,14 @@ impl Rig {
             if index >= held {
                 if complete.op == ROOT_CLOSE {
                     assert_eq!(complete.result, Ok(Done::Nothing), "close the process root descriptor");
+                    self.root_closed = true;
                     continue;
                 }
-                if let Some(deadline) = deadline.as_deref_mut()
-                    && let Ok(Done::Spawned { pidfd, .. }) = &complete.result
-                    && let Some(pid) = skein_shell::keeper::child_id(*pidfd).ok().filter(|pid| *pid != 0)
-                {
-                    deadline.watch_process(pid);
+                if let Ok(Done::Spawned { pidfd, .. }) = &complete.result {
+                    self.pid = skein_shell::keeper::child_id(*pidfd).ok().filter(|pid| *pid != 0);
+                    if let (Some(deadline), Some(pid)) = (deadline.as_deref_mut(), self.pid) {
+                        deadline.watch_process(pid);
+                    }
                 }
             }
             self.complete.push(complete);
@@ -508,15 +455,7 @@ impl Rig {
             return;
         }
         match event {
-            io::Event::Spawned { owner: PROCESS, child, pipes } => {
-                let [commands, replies, errors] = pipes.as_ref() else {
-                    panic!("Chromium needs pipes 3, 4 and stderr")
-                };
-                self.pipes = Some([*commands, *replies, *errors]);
-                self.child = Some(child);
-                self.submits.push(Submit { op: ROOT_CLOSE, kind: Op::Close { fd: self.root } });
-                self.root_closed = true;
-            }
+            io::Event::Spawned { owner: PROCESS, child, pipes } => self.spawned(child, &pipes),
             io::Event::Spawned { owner, .. } => panic!("unexpected spawned owner {owner:?}"),
             io::Event::Output { .. } => panic!("Chromium uses only classic output"),
             io::Event::Stream { owner, up } => {
@@ -553,20 +492,16 @@ impl Rig {
                 }
             }
             io::Event::Exited { owner: PROCESS, exit } => {
-                assert_eq!(
-                    exit,
-                    kernel::Exit::Code(0),
-                    "Chromium exited with {exit:?}; stderr: {}",
-                    String::from_utf8_lossy(&self.stderr)
-                );
+                if let Decision::Fail(report) = End::Exit(exit).finding().decide(None) {
+                    panic!("{report}; stderr: {}", String::from_utf8_lossy(&self.stderr));
+                }
                 self.exited = true;
                 for pipe in self.pipes.expect("spawned pipes") {
                     self.io_requests.push_back(io::Request::Close { entity: pipe });
                 }
             }
-            io::Event::Closed { owner: PROCESS } => self.child_closed = true,
             io::Event::Failed { owner: PROCESS, error } => panic!("Chromium spawn failed: {error:?}"),
-            io::Event::Closed { .. } => {}
+            io::Event::Closed { owner } => self.note_closed(owner),
             io::Event::Listening { .. }
             | io::Event::Accepted { .. }
             | io::Event::Connecting { .. }
@@ -577,6 +512,29 @@ impl Rig {
             | io::Event::Window { .. }
             | io::Event::Shutdown { .. }
             | io::Event::Failed { .. } => panic!("unexpected io event: {event:?}"),
+        }
+    }
+
+    fn spawned(&mut self, child: Token, pipes: &[Token]) {
+        let [commands, replies, errors] = pipes else { panic!("Chromium needs pipes 3, 4 and stderr") };
+        self.pipes = Some([*commands, *replies, *errors]);
+        self.child = Some(child);
+        self.submit_root_close();
+    }
+
+    fn submit_root_close(&mut self) {
+        self.submits.push(Submit { op: ROOT_CLOSE, kind: Op::Close { fd: self.root } });
+    }
+
+    fn note_closed(&mut self, owner: Token) {
+        if owner == PROCESS {
+            self.child_closed = true;
+        } else if let Some(pipes) = self.pipes {
+            for (pipe, closed) in pipes.into_iter().zip(&mut self.pipes_closed) {
+                if pipe == owner {
+                    *closed = true;
+                }
+            }
         }
     }
 
@@ -596,6 +554,7 @@ impl Rig {
     }
 
     fn ask(&mut self, request: Request) {
+        self.arm_operation(&request);
         browser::down(&mut self.browser, &self.browser_env, request, &mut self.events, &mut self.browser_down);
     }
 
@@ -744,14 +703,19 @@ impl Rig {
                     | Scenario::Attribute { .. } => {
                         unreachable!("dialog scenario handled above")
                     }
-                    Scenario::Reduction => {
+                    Scenario::MissingHeading | Scenario::Reduction => {
                         self.stage = Stage::Expecting;
+                        let (heading, within) = if matches!(self.scenario, Scenario::Reduction) {
+                            (b"Reloaded".as_slice(), Duration::from_secs(2))
+                        } else {
+                            (b"Never shown".as_slice(), Duration::from_millis(500))
+                        };
                         self.ask(Request::Await {
                             page: PAGE,
                             op: EXPECT,
-                            query: query(b"heading", b"Reloaded"),
+                            query: query(b"heading", heading),
                             expect: Expect::Present,
-                            within: Duration::from_secs(2),
+                            within,
                         });
                     }
                     Scenario::Facts => {
@@ -853,7 +817,9 @@ impl Rig {
                         unreachable!("dialog scenario handled above")
                     }
                     Scenario::Choose { .. } => unreachable!("choice handled by the face"),
-                    Scenario::Reduction | Scenario::Facts | Scenario::Dates => panic!("facts handled separately"),
+                    Scenario::MissingHeading | Scenario::Reduction | Scenario::Facts | Scenario::Dates => {
+                        panic!("facts handled separately")
+                    }
                     Scenario::Form => {
                         self.stage = Stage::Typing;
                         self.ask(Request::Type { page: PAGE, op: PRESS, node, text: Box::from(&b"Ada"[..]) });
@@ -960,6 +926,7 @@ impl Rig {
                         | Scenario::Select
                         | Scenario::Dates
                         | Scenario::Reduction
+                        | Scenario::MissingHeading
                         | Scenario::Download { .. }
                         | Scenario::Letter
                         | Scenario::ScopeReload
@@ -1048,14 +1015,14 @@ impl Rig {
                     self.close_browser();
                     return;
                 }
-                panic!("browser refused operation {op:?}: {why:?}; stderr: {}", String::from_utf8_lossy(&self.stderr))
+                self.fail_unexpected(&event);
             }
-            Event::Missed { op, seen, more } => panic!("expectation {op:?} missed; saw {seen:?}, {more} more"),
-            other => panic!("unexpected browser event: {other:?}"),
+            other => self.fail_unexpected(&other),
         }
     }
 
     fn close_browser(&mut self) {
+        self.close_cutoff();
         self.stage = Stage::Closing;
         self.ask(Request::Close { entity: BROWSER });
     }
