@@ -1,10 +1,12 @@
 """Committed-tree checks of the figures rule (tools/tiers/budgets.md, 10.1)."""
 
 from pathlib import Path
+import json
 import runpy
 import subprocess
 import sys
 import tempfile
+import tomllib
 import unittest
 
 SCRIPT = Path(__file__).with_name('figures.py').resolve()
@@ -51,6 +53,13 @@ cpu_s = 3
 why = "a whole chat"
 '''
 REASON_PLACE = 'default reason temper-system::suite suite::chat::a_whole_chat_lands'
+CHECK_REASON = '''\n[[gate.default.check_reasons]]
+binary = "temper-system::suite"
+checks = {seed = 1}
+kind = "budget"
+by = "the user"
+why = "Approved."
+'''
 
 
 class Figures(unittest.TestCase):
@@ -112,7 +121,7 @@ class Figures(unittest.TestCase):
                          (0, f'figures: {BUDGETS} unchanged since {self.base}\n', ''))
 
     def test_budgets_alone_are_the_users_figures(self):
-        self.head(INSTRUCTION_BASE.replace('cpu_s = 136', 'cpu_s = 140') + INSTRUCTION_MOVE + REASON,
+        self.head(INSTRUCTION_BASE.replace('cpu_s = 136', 'cpu_s = 140') + INSTRUCTION_MOVE + REASON + CHECK_REASON,
                   other=False)
         result = self.run_check('--base', self.base)
         self.assertEqual((result.returncode, result.stdout, result.stderr),
@@ -137,6 +146,18 @@ class Figures(unittest.TestCase):
                          (0, [f'figures: {BUDGETS} unchanged since {merged}',
                               f'figures: 0 raised or added since {self.base} and {merged}'], ''))
         self.check([f'figure added: {REASON_PLACE}: 3'], head=head)
+
+    def test_budget_check_reason_requires_a_budgets_only_change(self):
+        merged, head = self.merge_head(BASE + CHECK_REASON)
+        reason, = tomllib.loads(CHECK_REASON)['gate']['default']['check_reasons']
+        line = 'budget check reason added: default budget check reason temper-system::suite: '
+        result = self.run_check('--base', self.base, '--merged', merged, '--head', head)
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertIn(line + json.dumps(reason, sort_keys=True), result.stdout.splitlines())
+
+        self.set_base(BASE + CHECK_REASON.replace('check_reasons', 'coverage_reasons'))
+        self.head(BASE + CHECK_REASON)
+        self.check()
 
     def test_merge_resolution_raise_is_named_once_by_place(self):
         merged, head = self.merge_head(BASE.replace('cpu_s = 136', 'cpu_s = 138') + REASON,

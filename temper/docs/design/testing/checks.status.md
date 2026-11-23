@@ -10,7 +10,7 @@
 
 - **Departs:** 1: twelve named real-loop stories remain in the fuzzy
   suite: nine scripted stories cut to what only the real loop shows
-  (the reference case's 4.1 with 4.3, 4.6, 5.1, 5.2, 5.4, 6.4, 6.6
+  (the reference case's steps 4.1 with 4.3, 4.6, 5.1, 5.2, 5.4, 6.4, 6.6
   and 6.8, and the kept-delegate landing), the program backend, and the
   B0/B1 recorded transcript twins (`green_light` and `repair`).
   They remain there because the request for `limits-worlds` kept surviving
@@ -33,7 +33,7 @@ them is `tools/tiers/budgets.status.md`'s.
 `real-loop.md`'s real-loop goal-delivery story is present, alongside the six
 engine domain stories and the checkout world's later-run cases. It uses
 real smith and a worker with scripted model replies, fake git and the
-fake forge; no real model or real forge is proved by it. `checks.md`, section 5.1's
+fake forge; no real model or real forge is proved by it. `checks-stage-one.md`, section 1.1's
 reference obligations retain their current charter words; folding in the
 goal-as-designer workflow remains in `README.md`, section 7.
 
@@ -66,7 +66,7 @@ merge's listing as the git layer does (`../protocol/git.status.md`).
   although the connector drops the review facts at admission (3's
   *A change waiting on a review on the forge*).
 
-Sections 4 and 5.3 have no gap in scripted note-backed proposals and single-revision collector evidence.
+`checks.md`, section 4, and `checks-stage-one.md`, section 1.3 have no gap in scripted note-backed proposals and single-revision collector evidence.
 
 `macos.md`, section 3 lists the killed-box lifetime test as Linux-only, matching its
 parent-death mechanism. The combined default-runner browser and terminal
@@ -97,20 +97,3 @@ after-landing execution (`../protocol/openid-provider.status.md`, 9).
   client. 4: the client's How work runs, a proposal's card and its
   review, in their step and view tests and joined with the engine,
   since the pages are not built (`../client/README.status.md`).
-- **Departs:** 5.1: stage one's golden holds a row that neither the
-  reference's table (`../draft/reference-code-production.md`, section
-  14) nor this section's rows have, "the goal template's work": two
-  `equal` obligations, `design` and `close_out` true, for the
-  reference's template 4's work (`../protocol/configuration/reference.md`),
-  its subject `template-goal` number 4, not the `goal-template` role, so
-  a proposal whose goal template takes another number is judged at
-  template 4's work there, the stock's neither, and fails both. The plan
-  `ui-p3f-design` added it to keep the golden the profile's values
-  (5); the check binds no kind by a template's role
-  (`temper/crates/temper-stage-one-tool/src/check.rs`, `subject_key`), and nothing
-  tells Ask temper to propose it (`../domain/agent/agents.status.md`, 1).
-   the live scripts' scratch-path departure remains `live-tier.status.md` (Departs, the whole document).
-   the managed script's machine alias remains `live-tier.status.md` (Departs, the whole document).
-   the neutral-owner exceptions remain `live-tier.status.md` (Departs, the whole document).
-   the offline startup helper gap remains `live-tier.status.md` (Departs, the whole document).
-   the held-record return's mechanism remains `live-tier.status.md` (Departs, the whole document).

@@ -48,7 +48,7 @@ transcripts' and playground-serve's are, it takes two lines of the page.
 | `temper-client-walk` | new, the walks' | a journey's walk in a world, printed as its pages. | `../client/journey-walks.md`, 5 |
 | `temper-git-transcripts` | `temper/tools/git-transcripts`, package and binary `git-transcripts` | git's transcripts, recorded from real git against a throwaway Forgejo. | `../protocol/git.md`, 9 |
 | `temper-playground-serve` | binary `playground-serve` of `temper-client-browser-world`, `temper/tests/client-browser/src/bin/` | the browser tier's static host for the playground's bundle. | `../playground.md`, 7 |
-| `temper-stage-one` | `temper/tools/stage-one`, package and binary `temper-stage-one` | configuring's stage 1: its golden, check, judge and evidence. | `checks.md`, 5 |
+| `temper-stage-one` | `temper/tools/stage-one`, package and binary `temper-stage-one` | configuring's stage 1: its golden, check, judge and evidence. | `checks-stage-one.md`, 1 |
 | `temper-twin` | `temper/tools/twin`, package `temper-twin`, binary `twin` | a live run's twin: a fake LLM document that replays its agents. | `fakes.md`, 1; `real-loop.md` |
 | `temper-qa` | new, landed QA's | QA after landing: main's landings triaged into cases, and passes run on builds kept for them. | `qa/README.md` |
 
