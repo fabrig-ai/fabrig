@@ -36,23 +36,3 @@ fn a_binary_file_answers_binary_with_no_hunk_line() {
     let stdout = std::str::from_utf8(&run.stdout).expect("JSON");
     assert!(stdout.contains("\"hunks\":{\"binary\":true,\"left_out\":0,\"lines\":[]}"));
 }
-
-/// One change record for each target in the MOTD fixture.
-const MOTD_TARGETS: usize = 4;
-
-#[test]
-fn the_diffs_errors_follow_its_changes_and_precede_the_outcome() {
-    let later = fixtures::edited(fixtures::MOTD, &[fixtures::MOTD_KIND, fixtures::BAD_WEST_LAB], &[]);
-    let scenario = fixtures::Scenario { form: Form::JsonLines, ..fixtures::diffing(fixtures::MOTD, &later) };
-    let run = protocol::run(&scenario, fixtures::SIMULATION_SEED);
-    let stdout = std::str::from_utf8(&run.stdout).expect("JSON text");
-    let mut lines = stdout.lines();
-    assert_eq!(lines.next_back().and_then(|line| line.split(',').next()), Some("{\"record\":\"outcome\""));
-    assert_eq!(
-        lines.next_back(),
-        Some(
-            "{\"record\":\"error\",\"side\":\"to\",\"kind\":\"decode\",\"decode\":\"unexpected\",\"class\":\"configuration\",\"at\":{\"column\":2,\"line\":1,\"path\":\"hosts/west/west-lab.json\"}}"
-        )
-    );
-    assert_eq!(lines.filter(|line| line.starts_with("{\"record\":\"change\"")).count(), MOTD_TARGETS);
-}

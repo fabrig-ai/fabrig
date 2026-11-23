@@ -160,20 +160,14 @@ mod boot;
 
 mod accounts;
 mod exports;
-mod package_changes;
-
-mod diff;
 
 mod additions;
 mod data;
 mod scripts;
 
-mod diff_resolution;
 mod software;
 
 mod collisions;
 mod ids;
-
-mod part_changes;
 
 mod reserved;

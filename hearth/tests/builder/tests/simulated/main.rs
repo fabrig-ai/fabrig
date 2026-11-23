@@ -16,6 +16,10 @@ mod simulation;
 
 mod diff {
     mod hunks;
+    mod outcomes;
+    mod packages;
+    mod parts;
+    mod resolution;
 }
 
 mod render {

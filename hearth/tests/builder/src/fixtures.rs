@@ -555,8 +555,6 @@ pub mod data;
 pub mod scripts;
 pub mod software;
 
-mod diff_resolution;
-pub use diff_resolution::*;
 pub mod ids;
 
 pub mod collisions;
