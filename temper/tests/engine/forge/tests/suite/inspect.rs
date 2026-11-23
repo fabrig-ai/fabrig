@@ -67,6 +67,50 @@ fn restored(ended: bool) -> World {
     world
 }
 
+fn asked_making() -> World {
+    let mut world = super::goal_branch_restart::before_restart();
+    let holder = super::goal_branch_restart::held_landing();
+    world.hold_task(holder.landing.task);
+    world.store_before_restart(top::Stored::Landing(holder));
+    for number in [1, 2] {
+        world.store_before_restart(super::goal_branch_restart::held_dispatch(number));
+    }
+    world.restart();
+    world.run_for(2);
+    let inspection = world.inspection();
+    let wait = inspection.waits().iter().find(|wait| wait.kind == "making: room").expect("making in line");
+    assert_eq!(wait.wakes, [Wake::Waiter("task 63".into()), Wake::Waiter("task 63".into())]);
+    for number in [1, 2] {
+        world.event(top::Event::Resolve { entry: number, again: false });
+    }
+    world
+}
+
+#[test]
+fn an_asked_making_has_the_forges_room_wake() {
+    let world = asked_making();
+    let inspection = world.inspection();
+    let wait = inspection.waits().iter().find(|wait| wait.waiter == "task 77").expect("making wait");
+    assert_eq!(wait.kind, "making: room");
+    assert_eq!(wait.wakes, [Wake::Party("forge: room".into())]);
+    assert_eq!(check_waits(&[&inspection], moment(&world)), Ok(()));
+}
+
+#[test]
+fn a_making_without_its_ask_or_holders_has_no_live_wake() {
+    let mut world = asked_making();
+    world.event(top::Event::RoomUnavailable { task: 77 });
+    let inspection = world.inspection();
+    let finding = check_waits(&[&inspection], moment(&world)).expect_err("making has neither ask nor holder");
+    assert_eq!(
+        finding,
+        format!(
+            "seed 307: at {} ns, iteration 0: engine task 77: waits on making: room with no live wake: []",
+            world.now().as_nanos(),
+        )
+    );
+}
+
 fn moment(world: &World) -> Moment {
     Moment { seed: 307, at: world.now(), iteration: 0 }
 }

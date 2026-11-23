@@ -31,27 +31,39 @@ fn writes(view: &View<'_>) -> Table {
         });
     }
     for (task, row) in forge.inspection_changes() {
-        if row.room.is_some() && !forge.room_asked(*task) {
+        if row.room.is_some() && refused_room(view, *task) {
             writes.refused.push(refused(*task));
         }
     }
     for (task, row) in forge.inspection_landings() {
-        if row.room.is_some() && !forge.room_asked(*task) {
+        if row.room.is_some() && refused_room(view, *task) {
             writes.refused.push(refused(*task));
         }
     }
     for (task, row) in forge.inspection_releases() {
-        if row.room.is_some() && !forge.room_asked(*task) {
+        if row.room.is_some() && refused_room(view, *task) {
             writes.refused.push(refused(*task));
         }
     }
     for task in forge.inspection_making_waiters() {
-        if !forge.room_asked(task) {
+        if refused_room(view, task) {
             writes.refused.push(refused(task));
         }
     }
 
     writes
+}
+
+// The line passes over tasks held for something other than this table's room.
+fn refused_room(view: &View<'_>, task: u64) -> bool {
+    if view.forge.room_asked(task) {
+        return false;
+    }
+    let Some(root) = view.root else { return true };
+    if root.tasks().task(task).is_some_and(|row| matches!(row.phase, jig_domain_tasks::Phase::Held { .. })) {
+        return root.forge_limit_holds().iter().any(|hold| hold.task == task && hold.set == LimitSet::Entries);
+    }
+    true
 }
 
 fn reads(view: &View<'_>) -> Table {

@@ -9,7 +9,7 @@ use temper_engine_domain_forge as forge;
 use temper_engine_domain_forge_change::State;
 use temper_engine_domain_forge_landing::Phase;
 
-/// Every documented landing wait and change step, in their design's words.
+/// Every documented landing wait, change step and making wait, in their design's words.
 pub const KINDS: &[&str] = &[
     "landing: release",
     "landing: ready",
@@ -44,6 +44,7 @@ pub const KINDS: &[&str] = &[
     "change: cancelling gates",
     "change: held",
     "change: room",
+    "making: room",
 ];
 
 /// The root's forge waits and tables, using its task arena for ownership and prepare jobs.

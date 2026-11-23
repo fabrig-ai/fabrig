@@ -202,6 +202,131 @@ fn a_person_stopped_change_with_an_ended_producer_has_a_release_wake() {
     assert_eq!(Checks::new(71).quiet(&world.root, world.env.now, 1), Ok(()));
 }
 
+fn passed_making() -> (World, u64) {
+    let (world, task, _) = super::forge_routes::goal_branch::passed_making();
+    assert!(world.root.forge().inspection_entries().is_empty());
+    assert!(!world.root.forge().room_asked(task));
+    (world, task)
+}
+
+fn inspect(world: &World) -> Inspection {
+    let mut inspection = Inspection::new("engine", temper_engine_inspect::KINDS);
+    temper_engine_inspect::inspect(&world.root, &mut inspection);
+    inspection
+}
+
+#[test]
+fn a_placed_making_waits_for_its_person_with_room_free() {
+    let (world, task) = passed_making();
+    let inspection = inspect(&world);
+    let wait = inspection.waits().iter().find(|wait| wait.waiter == format!("task {task}")).expect("making wait");
+    assert_eq!(wait.kind, "making: room");
+    assert_eq!(wait.wakes, [Wake::Party("person".into())]);
+    assert_eq!(Checks::new(71).quiet(&world.root, world.env.now, 1), Ok(()));
+    let mut forge = Inspection::new("forge", temper_engine_inspect::KINDS);
+    temper_engine_inspect::forge(world.root.forge(), &mut forge);
+    let wait = forge.waits().iter().find(|wait| wait.waiter == format!("task {task}")).expect("making wait");
+    assert!(wait.wakes.is_empty(), "the forge alone cannot name the person's hold");
+}
+
+fn resource_held_making() -> (World, u64) {
+    let (mut world, task) = passed_making();
+    // Restore the same goal with a hold no person releases. Stop before another
+    // driver tick once its making is passed over, to inspect the broken wait.
+    let mut row = world.root.tasks().task(task).expect("goal").clone();
+    row.phase = tasks::Phase::Held {
+        was: tasks::Was::Active(tasks::Active::Preparing),
+        why: tasks::Hold::ResourceUnavailable,
+        source: None,
+    };
+    row.placed = None;
+    world.store.seed(
+        Box::new([engine::Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(Box::new(row))))]),
+        Box::new([]),
+    );
+    world.restart_same();
+    for _ in 0..1000 {
+        world.tick();
+        if world.root.forge().making_waits(task)
+            && !world.root.forge().room_asked(task)
+            && world.root.forge().inspection_entries().is_empty()
+        {
+            break;
+        }
+    }
+    assert!(world.root.forge().making_waits(task));
+    assert!(!world.root.forge().room_asked(task));
+    assert!(world.root.forge().inspection_entries().is_empty());
+    assert!(matches!(
+        world.root.tasks().task(task).expect("held goal").phase,
+        tasks::Phase::Held { why: tasks::Hold::ResourceUnavailable, .. }
+    ));
+    (world, task)
+}
+
+#[test]
+fn a_resource_held_making_with_room_free_has_no_live_wake() {
+    let (world, task) = resource_held_making();
+    let finding = Checks::new(71).quiet(&world.root, world.env.now, 1).expect_err("resource hold has no release wake");
+    assert_eq!(
+        finding,
+        format!(
+            "seed 71: at {} ns, iteration 1: engine task {task}: waits on making: room with no live wake: []",
+            world.env.now.as_nanos(),
+        )
+    );
+}
+
+#[test]
+fn a_held_room_waiter_is_passed_over_not_refused() {
+    let (world, task) = resource_held_making();
+    let inspection = inspect(&world);
+    let table = inspection.tables().iter().find(|table| table.name == "forge write entries").expect("write table");
+    assert_eq!(table.capacity, 1);
+    assert_eq!(table.entries, []);
+    assert!(table.refused.is_empty(), "held task {task} is passed over");
+    assert_eq!(
+        skein_world::inspect::check_tables(
+            &[&inspection],
+            skein_world::inspect::Moment { seed: 71, at: world.env.now, iteration: 1 }
+        ),
+        Ok(())
+    );
+}
+
+#[test]
+fn an_unheld_room_waiter_is_refused_when_unasked_with_room_free() {
+    let (mut world, _) = passed_making();
+    let task = 1;
+    assert!(!matches!(world.root.tasks().task(task).expect("live first goal").phase, tasks::Phase::Held { .. }));
+    // A frozen change in the line, with no ask despite the room available.
+    let mut row = temper_engine_forge_world::changes::change_row();
+    row.task = task;
+    row.change.task = task;
+    row.room = Some(1);
+    engine::step(
+        &mut world.root,
+        &world.env,
+        engine::Event::Forge(Box::new(forge::Event::Restore { record: forge::Stored::Change(Box::new(row)) })),
+    );
+    engine::step(&mut world.root, &world.env, engine::Event::Forge(Box::new(forge::Event::RoomUnavailable { task })));
+    assert!(!world.root.forge().room_asked(task));
+    assert!(world.root.forge().inspection_reservations().is_empty());
+    let inspection = inspect(&world);
+    let finding = skein_world::inspect::check_tables(
+        &[&inspection],
+        skein_world::inspect::Moment { seed: 71, at: world.env.now, iteration: 1 },
+    )
+    .expect_err("unasked waiter was refused while room is free");
+    assert_eq!(
+        finding,
+        format!(
+            "seed 71: at {} ns, iteration 1: engine forge write entries task {task}: refused admission while the table has room",
+            world.env.now.as_nanos(),
+        )
+    );
+}
+
 fn follow_change(world: &mut World, words: &[u8]) -> u64 {
     let after = super::forge_routes::follow_changes::push(world, words);
     world.oracle_settle();

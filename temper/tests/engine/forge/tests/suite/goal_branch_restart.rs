@@ -24,7 +24,7 @@ fn name() -> top::Name {
     }
 }
 
-fn before_restart() -> World {
+pub(super) fn before_restart() -> World {
     let mut world = World::with_entries(377, 2);
     world.adopt();
     world.hold_task(GOAL);
@@ -52,7 +52,7 @@ fn before_restart() -> World {
     world
 }
 
-fn held_landing() -> top::LandingRow {
+pub(super) fn held_landing() -> top::LandingRow {
     top::LandingRow {
         last_event: None,
         turn_since: None,
@@ -89,7 +89,7 @@ fn held_landing() -> top::LandingRow {
     }
 }
 
-fn held_dispatch(number: u64) -> top::Stored {
+pub(super) fn held_dispatch(number: u64) -> top::Stored {
     top::Stored::Entry {
         entry: Entry {
             number,

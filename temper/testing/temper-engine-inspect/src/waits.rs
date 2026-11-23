@@ -17,6 +17,15 @@ pub(super) fn inspect(view: &View<'_>, into: &mut Inspection) {
             into.wait(wait);
         }
     }
+    for task in view.forge.inspection_making_waiters() {
+        if !view.ended(task) {
+            let mut wakes = room(view, task);
+            if view.forge.room_asked(task) {
+                wakes.push(Wake::Party("forge: room".into()));
+            }
+            into.wait(Wait { waiter: task_name(task), kind: "making: room".into(), wakes, bound: None });
+        }
+    }
 }
 
 fn landing_wait(view: &View<'_>, row: &LandingRow) -> Option<Wait> {
@@ -31,7 +40,7 @@ fn landing_wait(view: &View<'_>, row: &LandingRow) -> Option<Wait> {
             .then_some(Awaited::Prepare)
     });
     let (kind, mut wakes) =
-        if row.room.is_some() { ("landing: room".to_owned(), room(view)) } else { landing(view, row, awaited?) };
+        if row.room.is_some() { ("landing: room".to_owned(), room(view, task)) } else { landing(view, row, awaited?) };
     if row.room.is_none() {
         person_release(view, task, &mut wakes);
         wakes.extend(view.read_wakes(task));
@@ -52,7 +61,7 @@ fn change_wait(view: &View<'_>, row: &temper_engine_domain_forge::ChangeRow) -> 
     }
     let kind = change_kind(&row.change.state)?;
     let (kind, wakes) = if row.room.is_some() {
-        ("change: room", room(view))
+        ("change: room", room(view, task))
     } else {
         let mut wakes = change_wakes(view, row);
         person_release(view, task, &mut wakes);
@@ -291,8 +300,9 @@ fn bound(view: &View<'_>, row: &temper_engine_domain_forge::ChangeRow) -> Option
     Some(Time::from_nanos(nanos))
 }
 
-fn room(view: &View<'_>) -> Vec<Wake> {
-    view.forge
+fn room(view: &View<'_>, task: u64) -> Vec<Wake> {
+    let mut wakes = view
+        .forge
         .inspection_entries()
         .iter()
         .filter_map(|number| {
@@ -303,7 +313,9 @@ fn room(view: &View<'_>) -> Vec<Wake> {
                 Wake::Waiter(task_name(entry.task))
             })
         })
-        .collect()
+        .collect();
+    person_release(view, task, &mut wakes);
+    wakes
 }
 
 fn landing(view: &View<'_>, row: &LandingRow, awaited: Awaited) -> (String, Vec<Wake>) {

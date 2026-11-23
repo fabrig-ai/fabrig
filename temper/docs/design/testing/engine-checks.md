@@ -79,7 +79,9 @@ pub const KINDS: &[&str];
 Each live landing is in the wait its row keeps (`landing-waits.md`,
 2), kind `landing: WAIT`, WAIT the table's first column there, or
 `landing: room` while it holds a place in the outbox's line. Each change
-not ended is in the wait of its step, kind `change: STEP`. Every wait
+not ended is in the wait of its step, kind `change: STEP`. Each goal
+branch's making that waits in the outbox's line is in the wait
+`making: room` of its task (`../domain/forge/branches.md`, 1). Every wait
 also names, as a `Timer`, the deadline the component has armed for it,
 where one is armed: a landing's poll (`landing-waits.md`, 3) and a
 change's due step.
@@ -92,7 +94,7 @@ change's due step.
 | `landing: prepare` | `Waiter(task J)`, the round's live prepare job, from `inspect`; `Party("prepare job")` from `forge` alone; `Ended("prepare job")` where the root has no live prepare child |
 | `landing: open`, `close`, `delete`, `post`, `merge`, `record` | `Party("forge: entry N")`, the landing's write in the outbox for it; `Ended("<wait> write")` where none is outstanding |
 | `landing: prefixes`, `run`, `receipt`, `ancestry`, `read` | its deadline; and its read in flight, `Party("forge: call N")` |
-| `landing: room`, `change: room` | for each entry holding the outbox's room: `Waiter(task T)`, its owner, while its owner lives; `Ended("entry N of task T")` once its owner has ended |
+| `landing: room`, `change: room`, `making: room` | for each entry holding the outbox's room: `Waiter(task T)`, its owner, while its owner lives; `Ended("entry N of task T")` once its owner has ended; for a making, `Party("forge: room")`, its ask while it stands unanswered |
 | `change: held` | `Party("person")`: a person's release |
 | `change: ready`, `change: preparing` | `Waiter(task L)`, its landing |
 | `change: ready` with no landing | while the forge's limits refuse its train a landing, `Waiter(task L)` for each live landing; otherwise its landing's making, as the root's turn below |
@@ -148,7 +150,9 @@ change's due step.
   person releases names none: a dependency's, a wait for holds, a
   resource's (a forge limit's among them), a resource's access, a lost
   pool's and a circle's each need their own wake, and a person is not
-  their fallback. A wait for room gains no person's wake.
+  their fallback. A wait for room gains a person's wake only where its
+  task is held so: the line passes over a held waiter, and the release
+  steps it again (`../domain/forge/room.md`, 3).
 - **A change that waits its turn:** each dependency a change's task
   waits on names `Waiter(task D)`, from `inspect`'s root tasks and from
   `forge`'s pending step dependencies and follow entry's `WaitsFor`.
@@ -213,6 +217,9 @@ change's due step.
   - `forge write entries`: each waiter in the outbox's line
     (`../domain/forge/room.md`, 3), a change, a landing, a making or a
     release, and each task the root holds for the table's room;
+    a waiter whose task is held, other than for the table's room, is
+    passed over, not refused (`../domain/forge/room.md`, 3), and waits
+    for its release (2.2);
   - `forge read admissions`: each reader the forge keeps waiting for read
     room with no deadline of its own (a landing's gather, a lost,
     written or goal branch read waiting for room, a brief fetch waiting
