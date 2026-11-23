@@ -369,20 +369,3 @@ fn notes_record_words_and_refuse_empty_words() {
     refused(&home, &["pass", "note", ""], Some("2"), None, "note refused: no words");
     refused(&home, &["pass", "note", "  "], Some("2"), None, "note refused: no words");
 }
-
-#[test]
-fn finding_options_with_no_number_or_a_nonnumber_are_usage_refusals() {
-    let (_scratch, home) = pass_home();
-    let before = fs::read(&home.ledger).expect("before");
-    for tail in [vec!["--finding"], vec!["--finding", "no"], vec!["--finding", "1", "--finding"]] {
-        let mut arguments = vec!["pass", "outcome", "1", "failed", ""];
-        arguments.extend(tail);
-        let output = run(&home, &arguments, Some("2"), None);
-        assert_eq!(output.status.code(), Some(2));
-        assert_eq!(output.stdout.len(), 0);
-        let stderr = String::from_utf8(output.stderr).expect("UTF-8");
-        assert!(stderr.contains("expected --finding N"));
-        assert!(stderr.contains("pass outcome CASE RESULT NOTES [--finding N]..."));
-        assert_eq!(fs::read(&home.ledger).expect("after"), before);
-    }
-}

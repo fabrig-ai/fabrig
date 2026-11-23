@@ -14,3 +14,5 @@ mod reference;
 mod run;
 #[path = "../suite/stat.rs"]
 mod stat;
+mod table;
+mod tune;

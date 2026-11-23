@@ -322,31 +322,52 @@ pub const TABLE: Table = Table {
     more: "temper-qa COMMAND --help prints a command; read temper/docs/design/testing/qa/README.md.",
 };
 
+/// The command entry's answer before it takes any effect (temper/docs/design/testing/qa/contracts.md, 3).
+#[derive(Debug, PartialEq, Eq)]
+pub enum Admission<'a> {
+    /// A page on stdout (0) or a refusal on stderr (2).
+    Answer { code: u8, stdout: String, stderr: String },
+    /// A command and the captured arguments it accepts.
+    Run { command: Command, arguments: &'a [Box<[u8]>] },
+}
+
+/// Answer the front or check the command's arguments, without opening a home.
+#[must_use]
+pub fn admit<'a>(version: &'static str, commit: &'static str, arguments: &'a [Box<[u8]>]) -> Admission<'a> {
+    let stderr = match (Table { version, commit, ..TABLE }).front(arguments) {
+        Front::Print(stdout) => return Admission::Answer { code: 0, stdout, stderr: String::new() },
+        Front::Refuse(text) => text,
+        Front::Run { command, rest } => {
+            // The front borrows its suffix through the table's lifetime; borrow it from the capture instead.
+            let rest = &arguments[arguments.len() - rest.len()..];
+            match argument(command, rest) {
+                Ok(arguments) => return Admission::Run { command: *command, arguments },
+                Err(why) => TABLE.refusal(command, &why),
+            }
+        }
+    };
+    Admission::Answer { code: 2, stdout: String::new(), stderr }
+}
+
 #[expect(
     clippy::disallowed_methods,
     reason = "the binary's capture: temper-qa's arguments and environment, once (skein/docs/foundation/cli.md, 6)"
 )]
 pub fn main(version: &'static str, commit: &'static str) -> ExitCode {
     let arguments = skein_shell::arguments();
-    let environment = skein_shell::environment();
-    match (Table { version, commit, ..TABLE }).front(&arguments) {
-        Front::Print(text) => {
-            print!("{text}");
-            ExitCode::SUCCESS
+    match admit(version, commit, &arguments) {
+        Admission::Answer { code, stdout, stderr } => {
+            if !stdout.is_empty() {
+                print!("{stdout}");
+            }
+            if !stderr.is_empty() {
+                eprint!("{stderr}");
+            }
+            ExitCode::from(code)
         }
-        Front::Refuse(text) => {
-            eprint!("{text}");
-            ExitCode::from(2)
-        }
-        Front::Run { command, rest } => {
-            let argument = match argument(command, rest) {
-                Ok(argument) => argument,
-                Err(why) => {
-                    eprint!("{}", TABLE.refusal(command, &why));
-                    return ExitCode::from(2);
-                }
-            };
-            match execute(command, argument, &environment) {
+        Admission::Run { command, arguments } => {
+            let environment = skein_shell::environment();
+            match execute(&command, arguments, &environment) {
                 Ok((code, text)) => {
                     print!("{text}");
                     ExitCode::from(code)

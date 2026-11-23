@@ -280,32 +280,3 @@ fn a_deleted_build_is_kept_anew_and_an_abandoned_partial_is_removed() {
     })
     .expect("kept anew");
 }
-
-#[test]
-fn keep_arguments_are_refused_through_the_table_before_home_is_read() {
-    let scratch = Scratch::new("qa-build-arguments");
-    for (rest, why) in [
-        (vec![], "COMMIT and DIR are not given"),
-        (vec![COMMIT], "DIR is not given"),
-        (vec![COMMIT, "stage", "extra"], "expected COMMIT and DIR"),
-        (vec!["--unknown", "stage"], "expected COMMIT and DIR"),
-    ] {
-        let mut arguments = vec!["build", "keep"];
-        arguments.extend(rest);
-        let output = Command::new(skein_scratch::paths::binary("temper-qa"))
-            .args(&arguments)
-            .env_clear()
-            .current_dir(scratch.path())
-            .stdin(Stdio::null())
-            .output()
-            .expect("arguments");
-        assert_eq!(output.status.code(), Some(2));
-        assert_eq!(output.stdout.len(), 0);
-        let command = temper_qa_tool::TABLE
-            .commands
-            .iter()
-            .find(|command| command.forms == ["COMMIT DIR"])
-            .expect("keep command");
-        assert_eq!(output.stderr, temper_qa_tool::TABLE.refusal(command, why).as_bytes());
-    }
-}
