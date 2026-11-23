@@ -1,7 +1,8 @@
 #!/bin/sh
-# The close job settles status first, even when settlement produces no commit.
+# The close job settles status first, even when settlement produces no commit,
+# then checks the goal's changes in this checkout (tools/pre-pr/design.md, 1).
 set -eu
 here=$(cd "$(dirname "$0")" && pwd)
 "$here/close" "$@"
 cd "$here/.."
-exec goal-close-pre-pr
+exec python3 -I -B tools/pre-pr/pre_pr.py --close
