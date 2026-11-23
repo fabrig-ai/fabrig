@@ -2,7 +2,7 @@
 
 2026-11-23. For goal D13 of `temper/docs/design/draft/slow-tests-down.md` (5.3), from four read-only surveys of `smith::end_to_end` at the goal's commit `b574a13436`, checking `../../../temper/docs/development/slow-tests-survey-2026-11-23-smith-jig.md`, group 6. The placement is `smith/docs/design/testing.md`, 2.3 and 2.5; the seams are `smith/docs/design/shell/README.md`, 2.3.
 
-The binary's sources (`smith/tests/end-to-end/end_to_end.rs` and the modules beside it, not `live*.rs`) hold 76 test functions and, counting each independently asserted table row, 95 cases (the survey's 92 counted the withdrawn-settings and offered-tools tables otherwise). **32 cases in 31 functions stay** (section 1), one per path through `main`. **63 cases in 45 functions move** and one function is shortened, in ten groups (section 2), one change each. Nothing is checked less (the draft, 3.2): each moved assertion is held by the existing test named **held**, or by the lower test its group adds, named **new**. A new holder takes the slow test's name unless an existing test is extended.
+The binary's sources (`smith/tests/end-to-end/end_to_end.rs` and the modules beside it, not `live*.rs`) hold 76 test functions and, counting each independently asserted table row, 95 cases (the survey's 92 counted the withdrawn-settings and offered-tools tables otherwise). **32 cases in 31 functions stay** (section 1), one per path through `main`. **63 cases in 45 functions move** and one function is shortened, in ten groups (section 2), built by nine changes, each named in its group's heading. Nothing is checked less (the draft, 3.2): each moved assertion is held by the existing test named **held**, or by the lower test its group adds, named **new**. A new holder takes the slow test's name unless an existing test is extended.
 
 ## 1. What stays
 
@@ -26,7 +26,7 @@ The binary's sources (`smith/tests/end-to-end/end_to_end.rs` and the modules bes
 
 `LP` is `smith-local-process-world::suite` (`smith/tests/local-process/tests/suite/`), `AP` `smith-agent-process-world::suite`, `HP` `smith-hosts-world::suite`, `S` `smith-local-shell`'s lib tests (`smith/crates/smith-local-shell/src/`), `step` `smith::step` (`smith/tests/step/`). "No value" is the slow test's check that no synthetic secret reaches standard output or error.
 
-### 2.1 The result's file and the private chat (LP, the finalizer's seam)
+### 2.1 The result's file and the private chat (LP, the finalizer's seam; change 13996)
 
 | Slow test (`end_to_end.rs`) | Its assertions | Holder |
 |---|---|---|
@@ -37,7 +37,7 @@ The binary's sources (`smith/tests/end-to-end/end_to_end.rs` and the modules bes
 | `smith_exec_ephemeral_keeps_a_foreign_file_and_warns_before_the_last_line` | a foreign file put in the private directory during the run; exit 0; that directory kept, alone beneath the runtime directory, mode `0700`, holding the foreign file alone, its bytes unchanged; the path-naming `NotEmpty` warning the line just before the acceptance line | new LP (all but the mode); new S beside `compose/files.rs`'s tests: the private directory made natively beneath its base with mode `0700`; held in part: `a_foreign_file_survives_and_warns_before_exit` |
 | `an_ephemeral_directory_is_removed_when_product_startup_refuses` | `--ephemeral` with a trace beneath an absent directory; exit 1; nothing on standard output; nothing left beneath the runtime directory | new, S or LP: a start refused after the private directory was made hands it to the cleanup, which removes it through the kernel; held in part: `compose/cleanup.rs`'s tests |
 
-### 2.2 A program account in the local host's world (LP)
+### 2.2 A program account in the local host's world (LP; change 13997)
 
 | Slow test | Its assertions | Holder |
 |---|---|---|
@@ -45,7 +45,7 @@ The binary's sources (`smith/tests/end-to-end/end_to_end.rs` and the modules bes
 | `program_runs.rs`: `a_program_exec_traces_its_run_to_the_agent_file` | exit 0, accepted; the `.agent` trace with a fresh start, the prompt's text, a completed `finish`; the product's stream with its header first, its terminal last, one run completion and none of the child's detailed records (`program_runs/records.rs`) | new LP; held in part: LP `the_spawned_agents_records_stay_in_its_own_trace`, AP `a_program_run_s_events_name_its_backend` |
 | `program_runs.rs`: `a_program_chat_completes_its_live_view` | exit 0 after the report shows; its text once; `tool Read: result`; the model and account label; usage and the budget left; no tool duration invented | new LP, on the interactive front, not plain; held in part: AP `a_built_in_call_is_told_with_its_text` |
 
-### 2.3 A program account's rechecks and environment (LP, after 2.2)
+### 2.3 A program account's rechecks and environment (LP, after 2.2; change 13998)
 
 | Slow test | Its assertions | Holder |
 |---|---|---|
@@ -55,7 +55,7 @@ The binary's sources (`smith/tests/end-to-end/end_to_end.rs` and the modules bes
 | `program_rechecks.rs`: `program_chat_interrupts_a_silent_recheck` | statuses signed in, signed in, silent; an interrupt once the third status runs; exit 130; three statuses, one print; settled within 5 s, the status child gone | new LP, the interrupt sent on the third status's observation, the bound in the world's time, the child exited and reaped; held in part: `interruption_answers_the_queue_before_the_live_child_settles` |
 | `program_rechecks.rs`: `program_chat_runs_both_lines_after_input_ends` | two lines, then end of input; exit 0, two reports; four statuses, two prints, each with MCP; the second's `--resume` the first's `--session-id` | new LP; held in part: AP `a_parked_run_resumes_its_session` |
 
-### 2.4 A sign-in's commit, the standard write and an unreadable head (LP)
+### 2.4 A sign-in's commit, the standard write and an unreadable head (LP; change 13999)
 
 | Slow test (`end_to_end.rs`) | Its assertions | Holder |
 |---|---|---|
@@ -63,14 +63,14 @@ The binary's sources (`smith/tests/end-to-end/end_to_end.rs` and the modules bes
 | `standard_profile_runs_a_large_coding_write_and_the_following_checks` | a write past 2048 bytes; seven queries; the tools' output in the follow-ups; three files committed with their exact bytes | held: AP `a_standard_coding_write_reaches_following_calls_and_checks` (threshold, queries, results, the checks' input); new LP: the committed bytes in place on the standard profile |
 | `exec_in_a_repository_without_a_commit_exits_two_with_its_line` | a repository with no commit; exit 2; the last line exactly `smith: run refused: repository workspace: its head cannot be read`; no provider query | new LP, the fake checkout answering `rev-parse HEAD` as failed; held in part: `a_headless_start_whose_head_cannot_be_read_exits_refused`, `local_failures_keep_their_own_words` |
 
-### 2.5 A grant's refresh (LP)
+### 2.5 A grant's refresh (LP; change 13999)
 
 | Slow test (`credentials.rs`) | Its assertions | Holder |
 |---|---|---|
 | `an_exec_on_a_raised_lead_refreshes_its_record_at_once` | a current record, the refresh lead past its life; exit 0, one accepted answer; the generation 1 to 2; one refresh asked of the issuer, answered 200; no value; nothing left running | new LP, the refreshed grant saved before the first query and lent to it; held in part: LP `an_expired_grant_refreshes_through_the_shared_private_token_store` |
 | `an_exec_before_the_earliest_refresh_time_keeps_its_record` | the same lead, an earliest refresh time ahead; exit 0, one accepted answer; no refresh asked; the generation 1; no value | new LP, the held grant lent; held in part: LP `a_current_sign_in_record_lends_its_grant_without_a_refresh`, skein's `no_refresh_starts_before_the_earliest_refresh_time` |
 
-### 2.6 `smith exec`'s start and words (S)
+### 2.6 `smith exec`'s start and words (S; change 14000)
 
 | Slow test (`end_to_end.rs`) | Its assertions | Holder |
 |---|---|---|
@@ -79,7 +79,7 @@ The binary's sources (`smith/tests/end-to-end/end_to_end.rs` and the modules bes
 | `an_account_without_a_credential_exits_3_before_any_request` | an `env` account, its variable unset; exit 3; nothing on standard output; no chat tree made | new S, the start's credential refusal before any chat, channel or provider |
 | `local_chat_store_io_failure_keeps_exit_1` | a file at the chat's path; exit 1; `File exists` in the line; the file's bytes unchanged | new S `compose/tests.rs`, over `chat_paths` |
 
-### 2.7 `smith check`'s words (S)
+### 2.7 `smith check`'s words (S; change 14001)
 
 | Slow test | Its assertions | Holder |
 |---|---|---|
@@ -90,7 +90,7 @@ The binary's sources (`smith/tests/end-to-end/end_to_end.rs` and the modules bes
 | `program_check.rs`: `a_failed_program_check_is_exit_3` | exit 3; JSON `program_failed`; one status | new S; held: HP `an_unreadable_status_fails_as_unreadable` |
 | `program_check.rs`: `check_inspects_an_unused_program_account_without_refusing_startup` | a required `work`, usable, and an unused `spare`, signed out; exit 0; `spare`'s metadata, its directory kept, its state and the warning; one status each | new S beside `an_unused_program_account_warns_without_refusing_check` |
 
-### 2.8 `smith login`'s words (S)
+### 2.8 `smith login`'s words (S; change 14002)
 
 Each row also checks its code and no value. The holders are `credentials/login/provider/driver/tests.rs`'s.
 
@@ -104,14 +104,14 @@ Each row also checks its code and no value. The holders are `credentials/login/p
 | `a_racing_first_login_preserves_the_winner` | exit 2; one visit; the account's refusal; the winner's bytes unchanged | held: `an_arriving_record_wins_before_the_login_save`; new: its rendered line |
 | `a_seed_refuses_an_existing_public_file` | the test kit's seed refuses a `0644` file already there, its bytes unchanged | new: a unit test beside the kit's `provider_login.rs::keep_record` |
 
-### 2.9 `smith logout`'s sources and a refused program sign-out (S, HP)
+### 2.9 `smith logout`'s sources and a refused program sign-out (S, HP; change 14002)
 
 | Slow test | Its assertions | Holder |
 |---|---|---|
 | `credentials.rs`: `key_commands_keep_values_private`, its three logout rows (a `key` account, a `none` one, an `env` one) | each exit 0; only the key's file removed; no value | new S: logout's decision over each source kind, what it removes and says; removal on disk held: `smith-local-shell::real`'s `piped_keys_replace_privately`, or where goal D12 moves it. The function stays with its two logins |
 | `program_commands.rs`: `a_refused_program_logout_keeps_the_login_and_escapes_its_bounded_detail` | exit 3; the login kept; the line with no raw ESC or BEL, CR, LF and controls escaped, the prefix dropped, the exact escaped tail of 1024 raw bytes | new HP: the sign-out refused with its detail, at the shipped 1024-byte bound; new S: that typed outcome's line and exit 3 |
 
-### 2.10 `smith-agent`, the offered tools, the fake's lookup and the live judge (AP, step)
+### 2.10 `smith-agent`, the offered tools, the fake's lookup and the live judge (AP, step; changes 14003 for the first four rows, 14004 for the rest)
 
 | Slow test | Its assertions | Holder |
 |---|---|---|
