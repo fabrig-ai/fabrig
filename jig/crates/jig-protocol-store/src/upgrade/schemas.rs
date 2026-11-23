@@ -1,4 +1,4 @@
-//! Caller-prepared binary texts, matched whole (protocol/store/opening.md, 3).
+//! Caller-prepared binary texts, matched whole (protocol/store/opening-owners.md, 1).
 use skein_codec::schema::{self, Schema};
 
 pub(super) fn get<'a>(prepared: &'a [Schema], text: &[u8], parsed: &'a mut Option<Schema>) -> Option<&'a Schema> {

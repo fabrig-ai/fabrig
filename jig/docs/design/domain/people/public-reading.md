@@ -48,13 +48,13 @@ its own beside jig's (3). How a public read travels is
   (`acts.md`, 2), and no configuration makes one public: a start opens nothing.
   Project 0, the deployment's roster, is never public. Visibility is a
   row of its own, kept only while a project is public
-  (`../../protocol/store/README.md`, 4.4), so a store written before it holds
+  (`../../protocol/store/keys.md`, 1.4), so a store written before it holds
   none and every project in it reads private: no default makes one
   public.
 - **Made public by its owners:** `SetVisibility { project, public }`,
   owner of the project alone; no policy gives it to another role. It is committed and answered once
   durable, as any request (`acts.md`, 1), and is a record of the project's, kept
-  in the people family's project row (`../../protocol/store/README.md`, 4.4).
+  in the people family's project row (`../../protocol/store/keys.md`, 1.4).
   Making a project public shows its name, its structure and its tasks'
   titles (3).
 - **Every party of the project sees it:** the project's entry in `me`

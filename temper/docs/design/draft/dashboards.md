@@ -108,8 +108,8 @@ by its owner first, and the agent says so (6.3).
   (its change's ended time stands in); CI's steps, and CI across a
   restart, which forgets it.
 - **Ended tasks are history enough.** They are kept to the deployment's
-  retention horizon, whole while none is set (jig's `protocol/store/README.md`,
-  6.1). A metric outlives the tasks it counted: that is what it is for.
+  retention horizon, whole while none is set (jig's `protocol/store/growth.md`,
+  1.1). A metric outlives the tasks it counted: that is what it is for.
 
 ## 4. Metrics
 

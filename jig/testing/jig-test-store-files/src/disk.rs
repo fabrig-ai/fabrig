@@ -1,4 +1,4 @@
-//! Directory stores on the simulated crashing disk (protocol/store/README.md, 9).
+//! Directory stores on the simulated crashing disk (protocol/store/testing.md, 1).
 use jig_protocol_store::host::{Drivers, Lane, Submission};
 use jig_protocol_store::{Event, Limits, Request, Root, Seeded, Store};
 use skein_fake_machine::{How, Machine};

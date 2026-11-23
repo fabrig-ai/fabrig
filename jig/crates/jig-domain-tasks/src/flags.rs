@@ -16,7 +16,7 @@ impl Flags {
     pub const PLAIN: Flags =
         Flags { ended_by: EndedBy::Result, conversation: false, listed: false, retention: Retention::Kept };
 }
-/// How long an ended task is retained (domain/people/README.md, section 5; protocol/store/README.md, section 6.1).
+/// How long an ended task is retained (domain/people/README.md, section 5; protocol/store/growth.md, section 1.1).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Retention {
     /// Kept to the deployment's retention horizon.

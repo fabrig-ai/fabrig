@@ -287,8 +287,8 @@ cancelled landings held.
 - **A whole stop's bound** (`service-process.md`, section 1; `cluster.md`, 4): an engine's stop ends
   within what its parts' own deadlines give, the forge's settling
   (`../domain/root-restart.md`, 1.2), the drain, and its workers' channels
-  within the stall deadline of the close (jig's `protocol/channel/README.md`,
-  9.2), with no deadline of its own, while a service manager kills it
+  within the stall deadline of the close (jig's `protocol/channel/worker-link.md`,
+  1.2), with no deadline of its own, while a service manager kills it
   at its own stop timeout. Default: so; a stop deadline over the whole
   is a figure, the user's to set, and a test of a stop within it
   follows.

@@ -272,7 +272,7 @@ digest: task 7c1e09a2b44f0d13
 - **`deployment census`** (`tools-reads.md`, 1) reads jig's deployment document,
   for a party with a deployment role, and prints its census (jig's
   `client/domain/contract/documents.md`, 1; jig's
-  `protocol/store/README.md`, 6.3): a first line `census at commit N,
+  `protocol/store/growth.md`, 1.3): a first line `census at commit N,
   writes since commit S`, then a line per keyspace in prefix order,
   `PREFIX NAME rows R keys K values V puts P erases E written W heads
   H:R,H:R`, PREFIX its bytes in lower-case hex with no space (`01010a`,

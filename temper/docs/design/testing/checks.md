@@ -205,7 +205,7 @@ world of temper's on a scripted engine (../client/testing.md).
   link the component makes; its stories read the host's frames as text.
 - **A run's live text** has its story there, with a scripted host in
   place of an agent: the host sends a run's text in pieces, held after
-  the first (jig's `protocol/channel/README.md`, 5.4), and the fake person
+  the first (jig's `protocol/channel/owners.md`, 1.4), and the fake person
   reads the chat's words being written, that piece before its "▍", then the
   rest of the held text, and then the committed turn, which replaces it.
   The joint world's front plays the run's worker: at the chat run's

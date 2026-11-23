@@ -53,7 +53,7 @@ impl Record {
 /// One mutation in an atomic decision.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Write {
-    /// Drop a task transcript whole (jig/docs/design/domain/people/acts.md, 2; jig/docs/design/protocol/store/transcripts.md, 5, jig/docs/design/protocol/store/README.md, 6.1).
+    /// Drop a task transcript whole (jig/docs/design/domain/people/acts.md, 2; jig/docs/design/protocol/store/transcripts.md, 5, jig/docs/design/protocol/store/growth.md, 1.1).
     DropTranscript { task: u64 },
     /// Drop a task history log whole (jig/docs/design/protocol/store/logs.md, 3 and 9).
     DropHistory { task: u64 },

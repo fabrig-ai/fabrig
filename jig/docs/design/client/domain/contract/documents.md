@@ -228,7 +228,7 @@
     the deployment's LLM accounts, as the party's own are (below), with
     the runs using each and the tasks waiting on each; capacity; the
     store's fill against its mark, and its census (`census`), the last
-    the store reported (`../../../protocol/store/README.md`, 6.3), or none
+    the store reported (`../../../protocol/store/growth.md`, 1.3), or none
     before its first: the commit it counts to (`commit`) and the one its
     writes count from (`since`), and a row per keyspace in prefix order,
     each its prefix (`prefix`, at most 8 bytes, empty for the keyspaces

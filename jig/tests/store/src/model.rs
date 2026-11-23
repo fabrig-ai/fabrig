@@ -1,4 +1,4 @@
-//! Independent whole-commit prefixes (protocol/store/README.md, 9).
+//! Independent whole-commit prefixes (protocol/store/testing.md, 1).
 use jig_domain_core as core;
 use jig_protocol_store::Write;
 use std::collections::BTreeMap;

@@ -62,7 +62,7 @@ root for one step at a time, and the root asks the store:
 - **the inbox's census,** a step of its own once people's read positions
   are restored: the family of ended read positions, one row per ended
   conversation not yet erased (4), then the results' index from each
-  party's read position over results (`README.md`, 4.4), parties in the census's
+  party's read position over results (`keys.md`, 1.4), parties in the census's
   order; each row joined to its ended task's record by a point read;
   never every ended task (`README.md`, section 10). It then reads each unanswered
   question's activity line by the position its live task keeps (`README.md`, 10.7),
@@ -75,14 +75,14 @@ root for one step at a time, and the root asks the store:
     fit, so a root asks the census for at least two rows;
   - goes on from the last index row's key. The census places each key
     it admits in the walk's order (`Census::interval`), so that a root
-    that keeps its own cursors finds the interval to go on from (`README.md`, 4.3);
+    that keeps its own cursors finds the interval to go on from (`keys.md`, 1.3);
   - restores each ended task once per party, whichever part names it:
     neither part's progress skips a row of the other;
 - **each connector's live ranges,** as the application's byte intervals,
   handed up as bytes for its codecs;
 - **a key's place in the walk:** a restart's request names its ranges
   in order, and their intervals are numbered across the request in
-  that order (`README.md`, 4.3), a cursor naming the interval it is in. The order a
+  that order (`keys.md`, 1.3), a cursor naming the interval it is in. The order a
   walk hands rows up is (interval, key), not the keys' own: an interval
   may start below the one before it (the accounts' issued names, tag 4,
   before their counter, tag 0). jig gives each key its place, so that a
@@ -99,7 +99,7 @@ root for one step at a time, and the root asks the store:
 
   `Census::interval` is the census's case of the first. The second
   finds the interval by containment in the list the walk builds, and
-  `README.md`, 4.3's test pins the two together over generated keys, for each range
+  `keys.md`, 1.3's test pins the two together over generated keys, for each range
   alone, a census, and `[Core, Tasks]`. A page's rows ascend by place,
   a later interval or the same interval and a higher key, which the
   tests assert and no start re-checks (`../../domain/engine/restart.md`
@@ -149,7 +149,7 @@ a page, and each turn's line its turn (below).
   ended first from the two ended indexes; by task from the ended
   delegates', whatever order the query asks of its live part.
 - **A task query's row joins** its task's record, by key: the ended
-  record, or its summary once retention has shrunk it (`README.md`, 6.1); and, for
+  record, or its summary once retention has shrunk it (`growth.md`, 1.1); and, for
   a task flagged conversation, its requester's ended read position, by
   a point read (4).
 - **A page goes on from the last row it examined,** in its scope's
@@ -236,17 +236,17 @@ party (`../../domain/people/README.md`, section 5):
   a point read (3); the inbox's census reads the family through
   (2);
 - *erased with the task:* by retention, as it shrinks a kept task
-  (`README.md`, 6.1); or in the decision that forgets a task forgotten once read
+  (`growth.md`, 1.1); or in the decision that forgets a task forgotten once read
   (below).
 
 **An owner erased first.** When a task's record is erased before the
 records its index rows name, as a task forgotten once read is
-(`../../domain/people/README.md`, section 5; `README.md`, 6.1), its decision erases the rows
+(`../../domain/people/README.md`, section 5; `growth.md`, 1.1), its decision erases the rows
 its record names whole: its result's update, its rows in the ended
 indexes, and its ended read position. Its replies' updates stay, since a
 conversation's replies are unbounded, a decision is bounded, and the
 task's record names only its newest; they go when retention erases the
-reply lines they name (`README.md`, 6.1). Until then a page skips a row whose owner
+reply lines they name (`growth.md`, 1.1). Until then a page skips a row whose owner
 is gone, counting it within its bounds, so nothing of a forgotten task
 shows and no reply read comes back unread.
 

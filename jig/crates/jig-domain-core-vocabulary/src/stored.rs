@@ -369,7 +369,7 @@ pub enum Record {
     People(jig_domain_people::Stored),
     /// Scoped note entries and index lines.
     Notes(jig_domain_notes::Record),
-    /// The accounts' counter, accounts and their sources (protocol/store/README.md, 4.4).
+    /// The accounts' counter, accounts and their sources (protocol/store/keys.md, 1.4).
     Accounts(jig_domain_accounts::Stored),
 }
 

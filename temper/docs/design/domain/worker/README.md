@@ -63,8 +63,8 @@ agent    smith: LLM work, one run per agent process, reporting to the worker
 
 - **The contract is jig's** (jig's `domain/hosts/README.md`, section 2). The
   worker dials the engine and keeps one channel open, through jig's
-  worker link in its protocol layer (jig's `protocol/channel/README.md`,
-  section 9); it says its hello first; the engine holds the claim and
+  worker link in its protocol layer (jig's `protocol/channel/worker-link.md`,
+  section 1); it says its hello first; the engine holds the claim and
   fences attempts; the worker keeps turns and answers until the engine
   acknowledges them, once committed (jig's `domain/hosts/hub.md`, 1 and
   4). temper adds its parts beside jig's records: the workspace items
@@ -169,7 +169,7 @@ agent    smith: LLM work, one run per agent process, reporting to the worker
   engine's restart. While it runs, the worker keeps hosting every run,
   keeps what they send, and redials no further apart than a quarter of
   the grace; it stops only once the engine admits a hello (jig's
-  `protocol/channel/README.md`, 9.1). The restarted engine holds that hello
+  `protocol/channel/worker-link.md`, 1.1). The restarted engine holds that hello
   until its stored settings are restored, so its check is the store's
   (jig's `domain/engine/fleet.md`), then adopts each attempt the
   worker lists that its store holds as claimed: the run goes on in the
@@ -194,11 +194,11 @@ agent    smith: LLM work, one run per agent process, reporting to the worker
   failing as it starts, and is restarted, is one absence to the worker:
   every failed dial, refused opening and channel lost before the
   engine's first record leaves the grace's clock running from the first
-  loss (jig's `protocol/channel/README.md`, 9.1), and the start that
+  loss (jig's `protocol/channel/worker-link.md`, 1.1), and the start that
   admits the hello within the grace adopts every run, as above, however
   many starts failed before it. One of the worker's dials is due at the
   grace's end less the link's handshake deadline (jig's
-  `protocol/channel/README.md`, 9.1), so an engine back by then, however
+  `protocol/channel/worker-link.md`, 1.1), so an engine back by then, however
   late in the grace, finds the worker's hello before the runs are
   cancelled.
 - **Past the bound, an interruption.** A run cancelled for lost contact
@@ -253,7 +253,7 @@ uncapped and no route reserves room. The held entrance is the link's
 capped edge; a host's channel and the kernel's queues stay capped.
 
 - **The link is read and fired on every pass,** whatever the entrance
-  holds (jig's `protocol/channel/README.md`, 8, *Reading never waits for the
+  holds (jig's `protocol/channel/liveness.md`, 1, *Reading never waits for the
   root*): its pings come and go under any load, and the engine's records
   wait in the entrance, never unread in the socket. A socket left unread
   starves the pings both ways, and the engine loses a healthy link at

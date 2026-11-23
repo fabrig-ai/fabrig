@@ -2,7 +2,7 @@
 
 Draft, 2026-11-17, from a session with the user. They asked for "some elegant way to extend what we're doing to new->old flows and not only to old->new flow", since the store's problem and the wires' "are really the same one". This draft is the data's half: how a value or a message written at one layout is read or written at another. [codec-shape.md](codec-shape.md) is the code's half. The figures are the survey's, on main at `a525e539f7` (`temper/docs/development/codec-survey-2026-11-17.md`).
 
-Where they differ, this draft wins over skein's codec versions, patches and bridges (`skein/docs/design/data/codec/README.md`, 5; `skein/docs/design/data/codec/patches.md`; `skein/docs/design/data/codec/bridges.md`; `skein/docs/design/data/codec/command.md`, 2, 3, 5 and 6) and over its layouts' derivation (`skein/docs/design/data/codec/layouts.md`, 2). It also wins over jig's store layouts and going back (`jig/docs/design/protocol/store/layouts.md`, 1; `jig/docs/design/protocol/store/opening.md`, 5) and over the redeploys draft's versions and bridges (`temper/docs/design/draft/redeploys.md`, 3 and 4). That holds until its goals fold it into them.
+Where they differ, this draft wins over skein's codec versions, patches and bridges (`skein/docs/design/data/codec/README.md`, 5; `skein/docs/design/data/codec/patches.md`; `skein/docs/design/data/codec/bridges.md`; `skein/docs/design/data/codec/command.md`, 2, 3, 5 and 6) and over its layouts' derivation (`skein/docs/design/data/codec/layouts.md`, 2). It also wins over jig's store layouts and going back (`jig/docs/design/protocol/store/layouts.md`, 1; `jig/docs/design/protocol/store/opening-rehearsal.md`, 1) and over the redeploys draft's versions and bridges (`temper/docs/design/draft/redeploys.md`, 3 and 4). That holds until its goals fold it into them.
 
 ## 1. In one page
 
@@ -179,7 +179,7 @@ The store's written jobs convert at open what no plan derives (`jig/docs/design/
 
 ### 8.1 Going back keeps what was committed
 
-- **Today,** going back after the new build's first commit means restoring the previous generation, and losing what came after (`jig/docs/design/protocol/store/opening.md`, 5).
+- **Today,** going back after the new build's first commit means restoring the previous generation, and losing what came after (`jig/docs/design/protocol/store/opening-rehearsal.md`, 1).
 - **With Keep plans,** an older build that has this draft's derivation opens the newer store:
   - the registry holds the newer layouts' texts;
   - the older build derives Keep plans from them to its own layouts;

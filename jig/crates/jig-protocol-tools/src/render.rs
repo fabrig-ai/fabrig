@@ -1,4 +1,4 @@
-//! Text answers from the core's parts (protocol/channel/README.md, section 5.3).
+//! Text answers from the core's parts (protocol/channel/owners.md, section 1.3).
 use crate::{Problem, Rendered, Why};
 use alloc::boxed::Box;
 use jig_domain_authority as authority;

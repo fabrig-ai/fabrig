@@ -138,7 +138,7 @@ of it below this world: the current settings from defaults and changes,
 the check, a charter's version for a revision, the held revisions'
 accounting and the bounds' arithmetic as step tests of the core's
 settings functions, pure and fast; the records' round trips over
-fixed-rule values in the store's tests (`../protocol/store/README.md`, section 9); the
+fixed-rule values in the store's tests (`../protocol/store/testing.md`, section 1); the
 document's members read as defaults, and the settings' limits, in the
 configuration's tests; the change's and the move's records in the
 client wire's. This world holds what needs the decision and the
@@ -334,7 +334,7 @@ more than one world needs them (testing-strategy.md, section 4):
 - **the store:** jig's store component over skein-kv's in-memory mode,
   with an in-memory stand-in for transcripts' files, the world holding
   commits, failing one, and serving pages slowly
-  (`../protocol/store/README.md`, section 9);
+  (`../protocol/store/testing.md`, section 1);
 - **scripted workers:** each a host that speaks the contract of
   hosts/README.md, section 2, playing a run's script, keeping turns and answers
   until acknowledged, refusing messages and leaving them unread, losing

@@ -160,7 +160,7 @@ pub enum HeldLimit {
     Versions,
 }
 
-/// Ordered live ranges of the cold start (protocol/store/README.md, 4.3, and protocol/store/loads.md, 2).
+/// Ordered live ranges of the cold start (protocol/store/keys.md, 1.3, and protocol/store/loads.md, 2).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum RestoreRange {
     /// The deployment header, first.
@@ -184,7 +184,7 @@ impl RestoreRange {
     pub const LIVE: [Self; 6] =
         [Self::Deployment, Self::Settings, Self::Accounts, Self::People, Self::Tasks, Self::Core];
 
-    /// Predicate checked against the store's intervals (protocol/store/README.md, 4.3).
+    /// Predicate checked against the store's intervals (protocol/store/keys.md, 1.3).
     #[must_use]
     pub fn admits(&self, key: &Key) -> bool {
         match self {

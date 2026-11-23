@@ -322,7 +322,7 @@ step its last answer arrives.
   from its task's live attempt; the core hands the admitted call out, and
   the engine's protocol layer decodes its input and gives the typed
   request back to the root, which routes it as the rows above say
-  (`../../protocol/channel/README.md`, 5.3; ../root.md, section 5). No domain parses a
+  (`../../protocol/channel/owners.md`, 1.3; ../root.md, section 5). No domain parses a
   call's input.
 - **A budget given `AsAllowed`** is resolved by authority as the batch is
   admitted (../authority.md, section 7). A pool's amount left is a live
@@ -341,7 +341,7 @@ step its last answer arrives.
   and connector it touched is one commit: records written or removed, as
   one.
 - **Whole across families, through a kill.** That commit is one
-  skein-kv commit (`../../protocol/store/README.md`, 5), so a process killed at
+  skein-kv commit (`../../protocol/store/commits.md`, 1), so a process killed at
   any point of its write, after any record, mid-frame or between
   families, starts again from what was durable: the last whole
   decision, never part of one. No family's record is durable without

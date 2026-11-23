@@ -632,7 +632,7 @@ pub(crate) fn tag_account(
                 }
                 out.push(Request::Now(Box::new(Now::Account(request))));
             }
-            // The accounts family (protocol/store/README.md, 4.4 item 9) keeps each record in the
+            // The accounts family (protocol/store/keys.md, 1.4 item 9) keeps each record in the
             // decision that changes it.
             accounts::Request::Save { record } => out.push(Request::Write(Write::Save(Record::Accounts(record)))),
             accounts::Request::Erase { key } => out.push(Request::Write(Write::Erase(Key::Accounts(key)))),

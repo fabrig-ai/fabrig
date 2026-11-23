@@ -1,4 +1,4 @@
-//! Each phase owns its channel (protocol/channel/README.md, 9.3).
+//! Each phase owns its channel (protocol/channel/worker-link.md, 1.3).
 use crate::Limits;
 use skein_channel::{Machine, WriteWait};
 use skein_lib::{Duration, Time, Token};

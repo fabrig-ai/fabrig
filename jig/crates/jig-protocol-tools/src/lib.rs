@@ -1,5 +1,5 @@
 //! Core host tools at the engine's protocol boundary (domain/hosts/charters.md
-//! ; protocol/channel/README.md, section 5.3). These functions keep no state.
+//! ; protocol/channel/owners.md, section 1.3). These functions keep no state.
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]
 extern crate alloc;

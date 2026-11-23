@@ -128,7 +128,7 @@ acknowledged is in the engine or on the forge.
   decoded; the jobs and their counts and time, the whole time, a
   refusal or the restores whole, and whether the workers may stay
   (section 9). What follows the switch is not rehearsed (jig's
-  `protocol/store/opening.md`, 5). Its measurements tell the operator
+  `protocol/store/opening-rehearsal.md`, 1). Its measurements tell the operator
   whether the service manager's start timeout covers the upgrade.
 
 ### 3.2 Going back
@@ -474,8 +474,8 @@ outcomes; the deployment's and installation's ids.
 
 ### 7.5 What is lost
 
-- What retention erased before the upgrade (jig's `protocol/store/README.md`,
-  6.1; temper's bounded `Landed`, `../protocol/store.md`, section 7). A
+- What retention erased before the upgrade (jig's `protocol/store/growth.md`,
+  1.1; temper's bounded `Landed`, `../protocol/store.md`, section 7). A
   deployment that keeps history long sets its retention first.
 - A run's unsaved state on its worker, in a full upgrade, as at any
   stop.

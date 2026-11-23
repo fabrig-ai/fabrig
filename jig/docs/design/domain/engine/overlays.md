@@ -142,7 +142,7 @@ its parts, `../tasks/messages.md`, 6.
   member of each union that carries a setting's value: the core's
   `settings::Value`, the client contract's `SettingValue` and its wire
   (`../../client/domain/contract/requests.md`, 2), the store's settings
-  record (`../../protocol/store/README.md`, 4.4) and a proposal's
+  record (`../../protocol/store/keys.md`, 1.4) and a proposal's
   stored items, which the settings tool's bytes carry too. A setting's
   read document gains the optional overlay of 6.
 - **Stored:** a charter version is one registered root,

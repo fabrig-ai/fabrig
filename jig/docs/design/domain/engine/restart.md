@@ -194,7 +194,7 @@ one rule for every child and the store:
   cold restart that restores and reads back what it wrote, and a record
   left out fails a test build; registry changes and declared jobs are
   proved over stores at the floor
-  (`../../protocol/store/opening.md`, 2, and `../../protocol/store/README.md`, 9).
+  (`../../protocol/store/opening.md`, 2, and `../../protocol/store/testing.md`, 1).
 
 A restart refused before the switch leaves the source generation
 active and unchanged (`../../protocol/store/opening.md`, 2, step 7);

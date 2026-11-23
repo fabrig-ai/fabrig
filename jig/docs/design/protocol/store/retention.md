@@ -60,7 +60,7 @@ retention bounds both the map and the logs.
   retention class. A deferral (6.2) counts again from the time it
   deferred.
 - **A deleted project's tasks** go whole, with no horizon waited for
-  (`README.md`, 6.1).
+  (`growth.md`, 1.1).
 
 ## 3. The summary
 
@@ -96,7 +96,7 @@ tasks family's `Stored::Summary(Box<TaskSummary>)` at
   `TaskSummary::of(&TaskRecord)`. It is never rewritten.
 - **Erased** by the summary stage (6.3), by the forgotten stage (6.4),
   by the record stage for a task forgotten once read (6.2), and by a
-  deleted project's erasure of its tasks (`README.md`, 6.1).
+  deleted project's erasure of its tasks (`growth.md`, 1.1).
 - **Not a live family:** the restart does not load it (`loads.md`, 2).
 
 ## 4. The retention family
@@ -141,7 +141,7 @@ fields and nothing more.
   reads again until the stage has no due row. Then the pass ends and
   arms the next one.
 - **One task at a time,** in the core's serialized walk of ended tasks
-  (the erasure that a deleted project's tasks go by, `README.md`, 6.1).
+  (the erasure that a deleted project's tasks go by, `growth.md`, 1.1).
   A retention pass and a deletion queue behind each other, so no task is
   erased by both at once.
 - **In pages, behind the commits before them:** each read of a task's

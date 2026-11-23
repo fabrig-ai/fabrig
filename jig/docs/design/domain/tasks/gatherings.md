@@ -126,8 +126,8 @@ section 4), and its requester ends it with `Conclude` (section 3).
 - **Its document** carries `concluded`, or none while delegates may join
   (`../../client/domain/contract/documents.md`, 1).
 - **Its delegates,** live and ended, are read as any task's: its live
-  subtree, and the ended delegates' index (`../../protocol/store/README.md`,
-  4.4).
+  subtree, and the ended delegates' index (`../../protocol/store/keys.md`,
+  1.4).
 
 ## 6. Its world
 

@@ -47,7 +47,7 @@ durable (`../../domain/engine/executors.md`, 2). For a commit with turns, the
 component takes the following steps.
 
 Before step 1, it encodes and checks every frame against `P` as described
-in `README.md`, section 5, retaining each accepted encoding once for the pending batch.
+in `commits.md`, section 1, retaining each accepted encoding once for the pending batch.
 No frame from a refused commit is placed on the file IO queue.
 
 1. writes each turn's frame at its file's end, opening the file
@@ -122,7 +122,7 @@ the committed length. The next open cuts the file to its committed length
 ## 4. After a crash
 
 At open, before the root starts, the component reads the core's run
-proofs, one for each live task ever claimed (`README.md`, 4.4), and cuts each such
+proofs, one for each live task ever claimed (`keys.md`, 1.4), and cuts each such
 task's file to its committed length, syncing it: zero for a task with no
 places yet, whose first turn's commit was lost; a missing file is left
 missing. Only a crash leaves bytes past a committed length, since a
@@ -135,11 +135,11 @@ task's file was cut while its task lived, and is not touched again.
 
 Retention drops a task's transcript whole, at its turns' horizon after
 the task ended (`retention.md`, 6.1), or with the task when it is
-erased (`README.md`, 6.1): the commit erases the task's row of places, and the component removes its file and syncs the
+erased (`growth.md`, 1.1): the commit erases the task's row of places, and the component removes its file and syncs the
 directory before it submits the commit. The task's attempts' places,
 as many as its attempts, are orphans from that commit on, read by
 nothing, and go in the commits that follow, a bounded number each
-(`README.md`, section 5, "A commit's operations are bounded"). A crash
+(`commits.md`, section 1, "A commit's operations are bounded"). A crash
 before the commit leaves places whose file is gone: a read of it answers
 as for a dropped transcript, and retention's next pass drops it again.
 Removing a missing file is not a failure.
@@ -151,10 +151,10 @@ what a deployment holds, and a frame is only ever read. So a frame
 behind the binary's versions is patched each time it is read, and
 nothing is written.
 
-- **The machines** are the frames' families' (`opening.md`, 3,
+- **The machines** are the frames' families' (`opening-owners.md`, 1,
   `KeptFamily::frames`): one `Patcher` each, the body's family in jig's
   set and the turn's in smith's, made at every open that serves (`opening.md`, 1)
-  from the sets it was handed, after the frames' checks of `opening.md`, 3, each
+  from the sets it was handed, after the frames' checks of `opening-owners.md`, 1, each
   frames' text kept and each of its frames' patches planned, and held
   by the transcripts' part for the whole run. No map patch machine is
   made. A family with no frames' text has no machine.
@@ -180,7 +180,7 @@ nothing is written.
   read is unread (3), and a turn's reader refuses a version not its
   own (smith's `protocol/transcript.md`, section 4).
 - **Owners' order.** A frame runs jig's plans first and smith's at
-  the held turn (`opening.md`, 3). Neither reads the other's bytes:
+  the held turn (`opening-owners.md`, 1). Neither reads the other's bytes:
   jig's written functions
   on a frame's body never read its `transcript`, and smith's read their
   turn alone (smith's `protocol/transcript.md`, section 12).
@@ -211,10 +211,10 @@ nothing is written.
 - **A halt is an unread frame.** A frame the machines refuse (any
   `Halt` of skein's `data/codec/patches.md`, 4, a site's `NoSite` among them) is
   read as one that fails its checksum (3), in every read kind.
-- **A written site goes up** (`opening.md`, 3): at
+- **A written site goes up** (`opening-owners.md`, 1): at
   `Step::Written` the component answers `Site` to the read's own token,
   `of` the site's owner, its `key` the frame's name (the task's key in
-  the component's places, `README.md`, 4.4, then the frame's offset in its file,
+  the component's places, `keys.md`, 1.4, then the frame's offset in its file,
   eight bytes big-endian), the site, the node and the machine, moved;
   the read waits for `Request::Site` with the result. A shell answers a
   site at once, by its owner's generated `written`, with a `Default`

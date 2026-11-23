@@ -463,7 +463,7 @@ what its last read gave; what a read does to the catalogue is `engine/settings.m
   (`../protocol/configuration.md`, section 3): a key's read is the direct way's,
   never through a program's endpoint, so that an Anthropic key reads Anthropic's
   list directly.
-- **What the store keeps** on the account's record (`../protocol/store/README.md`, 4.4):
+- **What the store keeps** on the account's record (`../protocol/store/keys.md`, 1.4):
   - `names`: which of the catalogue's models its last good read gave, a bit per
     setting, as a task's choice holds a number (`engine/settings.md`, 11);
   - `read`: when that read was, or none;
@@ -609,7 +609,7 @@ Value, one of
 - **Not a secret, and no identity.** An email never tells accounts apart
   (3.3), never opens a session, and is never checked against a subject. The ID
   token stays in the secrets' store (`../protocol/store/secrets.md`).
-- **Kept as:** `../protocol/store/README.md`, 4.4 and 10.9.
+- **Kept as:** `../protocol/store/keys.md`, 1.4, and `../protocol/store/README.md`, 10.9.
 
 ## 4. Uses: whose work an account pays for
 

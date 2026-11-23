@@ -61,7 +61,7 @@ pub enum Event {
     Close,
     Abort,
 }
-/// Why a worker's connection ended (protocol/channel/README.md, 8 and 9.2).
+/// Why a worker's connection ended (protocol/channel/liveness.md, 1, and protocol/channel/worker-link.md, 1.2).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Loss {
     /// Nothing heard for the silence deadline.
@@ -89,7 +89,7 @@ pub enum Loss {
     /// The engine closed it, stopping.
     Stopping,
 }
-/// A record the engine's side did not send (protocol/channel/README.md, 8).
+/// A record the engine's side did not send (protocol/channel/liveness.md, 1).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Unsent {
     pub kind: jig_protocol_worker_wire::Kind,

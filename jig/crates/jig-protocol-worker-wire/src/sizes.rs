@@ -1,4 +1,4 @@
-//! Channel bounds from the owners' numbers (protocol/channel/README.md, 8 and 10).
+//! Channel bounds from the owners' numbers (protocol/channel/liveness.md, 1, and protocol/channel/README.md, 10).
 use crate::Record;
 use crate::{Kind, v21};
 
@@ -7,7 +7,7 @@ use crate::{Kind, v21};
 pub struct Sizes {
     /// Whole program sources per worker, independent of run slots.
     pub program_sources: u32,
-    /// Bytes in one live piece (protocol/channel/README.md, 5.4 and 10).
+    /// Bytes in one live piece (protocol/channel/owners.md, 1.4, and protocol/channel/README.md, 10).
     pub piece: u32,
     pub charter: u32,
     /// The whole resumed window, including each turn's four-byte length.

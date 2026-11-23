@@ -813,7 +813,7 @@ pub struct WorkerOpening {
 /// (domain/root.md, 7).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Write {
-    /// Whole-task transcript erasure (jig/docs/design/domain/people/acts.md, 2; temper/docs/design/domain/forge/adoption-connection.md, 1; jig/docs/design/protocol/store/transcripts.md, 5, jig/docs/design/protocol/store/README.md, 6.1).
+    /// Whole-task transcript erasure (jig/docs/design/domain/people/acts.md, 2; temper/docs/design/domain/forge/adoption-connection.md, 1; jig/docs/design/protocol/store/transcripts.md, 5, jig/docs/design/protocol/store/growth.md, 1.1).
     DropTranscript { task: u64 },
     /// Drop a task history log whole (jig/docs/design/protocol/store/logs.md, 3 and 9).
     DropHistory { task: u64 },

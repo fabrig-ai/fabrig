@@ -420,7 +420,7 @@ impl Store {
                         self.missing.push((record, target));
                         continue;
                     }
-                    // These read helpers do not consume the census (jig protocol/store/README.md, 6.3).
+                    // These read helpers do not consume the census (jig jig/docs/design/protocol/store/growth.md, 1.3).
                     engine::StoreInput::Census(..) | engine::StoreInput::Committed { .. } => continue,
                     reply @ (engine::StoreInput::Checkpointed { .. }
                     | engine::StoreInput::CheckpointRefused { .. }
@@ -462,7 +462,7 @@ impl Store {
                 match reply {
                     engine::StoreInput::ReadLoaded { result, .. } => return result,
                     engine::StoreInput::PartLoaded { .. } => panic!("core read received a part terminal"),
-                    // These read helpers do not consume the census (jig protocol/store/README.md, 6.3).
+                    // These read helpers do not consume the census (jig jig/docs/design/protocol/store/growth.md, 1.3).
                     engine::StoreInput::Census(..) | engine::StoreInput::Committed { .. } => continue,
                     engine::StoreInput::Checkpointed { .. }
                     | engine::StoreInput::CheckpointRefused { .. }
@@ -599,7 +599,7 @@ impl Store {
             | Event::Closed { .. } => {
                 unreachable!("an engine store never rehearses or goes back")
             }
-            // This world does not consume the census (jig protocol/store/README.md, 6.3).
+            // This world does not consume the census (jig jig/docs/design/protocol/store/growth.md, 1.3).
             Event::Census { .. } => {}
             Event::Committed { number, .. } => {
                 let writes = self.inflight.remove(&number).expect("root commit");

@@ -44,7 +44,7 @@ without changing it. Reading and showing them come after (section 6).
   each limit a call meets. Apart, a usage report rewrites a small
   record, and the account's format never moves for a provider's news.
 - **Keyed by the account,** in the accounts' family, the next key tag
-  after the issued sign-ins (`../protocol/store/README.md`, 4.4): at most one
+  after the issued sign-ins (`../protocol/store/keys.md`, 1.4): at most one
   record per account.
 - **Gone with the account;** an account moved to another deployment
   (`../domain/accounts.md`, 6) moves without its facts, which its next

@@ -93,7 +93,7 @@ pub enum Stored {
     Source { account: u32, number: u32, place: u32, kind: Kind, name: Box<[u8]>, held: Option<Held> },
 }
 
-/// A record's key in the store (jig/docs/design/protocol/store/README.md, 4.4).
+/// A record's key in the store (jig/docs/design/protocol/store/keys.md, 1.4).
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub enum Key {
     Next,

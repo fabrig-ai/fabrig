@@ -22,7 +22,7 @@ than one per shape, buys:
 - **On a worker, the worker dials the engine** and keeps one channel
   open, through its protocol layer. The engine never connects to a
   worker, so a worker can run wherever it can reach the engine
-  (`../../protocol/channel/README.md`, 9.1).
+  (`../../protocol/channel/worker-link.md`, 1.1).
 - **In the engine, the link is direct:** the engine's root connects the
   hub to the core's fleet from construction, with one hello, and it is
   never lost. A restart settles its claims at once (../engine/restart.md
@@ -467,14 +467,14 @@ happens.
   (../engine/restart.md, step 3), sends again what it had not
   acknowledged, and the run goes on with no new attempt. The clock
   stops only once the engine admits a hello, and the worker redials
-  within it (`../../protocol/channel/README.md`, 9.1).
+  within it (`../../protocol/channel/worker-link.md`, 1.1).
 - **A loss is told, with why,** on each side, once, in its log: silence,
-  stall, the stream, a refusal and its reason (`../../protocol/channel/README.md`,
-  section 8). A healthy link is never lost for its load: each side reads
+  stall, the stream, a refusal and its reason (`../../protocol/channel/liveness.md`,
+  section 1). A healthy link is never lost for its load: each side reads
   it and keeps its pings whatever its root has yet to take.
 - **A worker comes back as often as it is lost.** Nothing a lost link
   leaves holds its return: the engine closes the old connection within
-  its stall deadline (`../../protocol/channel/README.md`, 9.2), the fleet frees the
+  its stall deadline (`../../protocol/channel/worker-link.md`, 1.2), the fleet frees the
   worker's position as it hears the loss (../engine/fleet.md), and each
   hello is taken as the first was.
 - **Past the grace,** the hub cancels them itself, saving their work
@@ -495,7 +495,7 @@ happens.
   holds whichever comes first. The engine's grace, counted from when the
   engine notices the loss, is strictly longer (../engine/fleet.md), so no
   next attempt starts while this one may still write, however each
-  side's link notices a partition (`../../protocol/channel/README.md`, 9.1).
+  side's link notices a partition (`../../protocol/channel/worker-link.md`, 1.1).
 - **It is kept, not only stated.** The root that composes the hub holds
   the timers (2), and keeps the stop bound as a deadline over the drain,
   every cancellation, delivery and save, and its agents' teardown: from
@@ -598,7 +598,7 @@ section 2):
   and `smith-channel`'s records for a call's name and a fact), keeping
   no state,
   and hands it back as an event of the root, in the order it went out:
-  the path of host tools' calls (`../../protocol/channel/README.md`, 5.3).
+  the path of host tools' calls (`../../protocol/channel/owners.md`, 1.3).
   - **Down,** the charter, the transcript and the committed calls'
     names are decoded, with the endpoints of the agent's configuration,
     which resolve those the charter names, and smith's start goes to the
@@ -617,7 +617,7 @@ section 2):
   and an application's roots that compose smith's agent capability, with
   their protocol layers' routing, which also runs smith's components
   where it composes them. Never the hub, the core, or jig's channel's components,
-  which pass smith's bytes through (`jig/docs/design/protocol/channel/README.md`, 5.1),
+  which pass smith's bytes through (`jig/docs/design/protocol/channel/owners.md`, 1.1),
   translating them by smith's bridges, as bytes, between versions
   (`../../protocol/channel/bridges.md`, 5.3).
 - **A call carries its charter's contract.** The worker's routing, as it

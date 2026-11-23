@@ -7,7 +7,7 @@ over them. A change is one decision; each makes a revision; a task's
 runs read their charter from the revision the task was made in. This
 section is the mechanics; the model is ../model.md, section 13; who asks
 is ../people/acts.md, 1; what crosses to a connector is ../connectors.md,
-section 17; the records are `../../protocol/store/README.md`, 4.4.
+section 17; the records are `../../protocol/store/keys.md`, 1.4.
 
 ## 1. What a setting is
 
@@ -510,7 +510,7 @@ requires no additional limit or root-to-core allowance (decided 2026-11-03).
 ## 7. In the store, and at a start
 
 - **What the store keeps** (the core's settings family,
-  `../../protocol/store/README.md`, 4.4): the defaults the newest revision was
+  `../../protocol/store/keys.md`, 1.4): the defaults the newest revision was
   made with, setting by setting; the changes, each a setting's value whole or its
   removal, with the revision that made it, and of an application's
   kind its state and size alone, its value the connector's (5); a
@@ -660,8 +660,8 @@ requires no additional limit or root-to-core allowance (decided 2026-11-03).
   priced by the endpoints' bound, so that it can judge the host against
   changed needs and name its runs' reply bound (`fleet.md`).
 - **History** is a third number, of revision records the store keeps
-  beyond those held, within the store's fill (`../../protocol/store/README.md`,
-  6.2). The core holds none of it.
+  beyond those held, within the store's fill (`../../protocol/store/growth.md`,
+  1.2). The core holds none of it.
 - **Proposals of settings** bring a fourth limit, of pending ones, each
   priced at a whole set (6).
 - **A change fits one request:** its items within the clients'

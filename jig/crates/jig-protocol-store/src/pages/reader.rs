@@ -1,4 +1,4 @@
-//! Typed map walks (jig/docs/design/protocol/store/loads.md, 1, and jig/docs/design/protocol/store/README.md, 9).
+//! Typed map walks (jig/docs/design/protocol/store/loads.md, 1, and jig/docs/design/protocol/store/testing.md, 1).
 use crate::{Cursor, KeptMap, Store, pages, restore};
 use alloc::boxed::Box;
 use restore::{Arithmetic, Cause, Failure, RangeFailure, WalkFailure};

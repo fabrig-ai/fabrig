@@ -1,4 +1,4 @@
-//! The real store in domain worlds (protocol/store/README.md, 9).
+//! The real store in domain worlds (protocol/store/testing.md, 1).
 #![forbid(unsafe_code)]
 mod disk;
 mod files;

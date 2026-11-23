@@ -21,7 +21,7 @@ use temper_engine_domain_forge as forge;
 /// brief sections are bounded by brief limits (domain/root-translation.md, 2.1 and 2.2).
 /// The protocol layer encodes it as the hub's assignment, with the forge
 /// workspace beside it as temper's application part (jig's
-/// `protocol/channel/README.md`, 5.2).
+/// `protocol/channel/owners.md`, 1.2).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Assignment {
     /// The change project's delivery checks' bound (domain/agent/charter.md, 4).
@@ -542,7 +542,7 @@ pub enum StoreInput {
         token: Token,
         why: CheckpointWhy,
     },
-    /// The named map census (jig's protocol/store/README.md, 6.3).
+    /// The named map census (jig's protocol/store/growth.md, 1.3).
     Census(Box<core::documents::StoreCensus>),
     /// A startup page's missing owner, handed in before that page's Loaded.
     MissingLink {
@@ -555,7 +555,7 @@ pub enum StoreInput {
         /// Store-echoed positive commit number, at most the latest issued commit; older cumulative
         /// answers are inert.
         number: u64,
-        /// The store's map bytes after this commit (jig's `protocol/store/README.md`, 6.2).
+        /// The store's map bytes after this commit (jig's `protocol/store/growth.md`, 1.2).
         fill: u64,
     },
     Uncommitted {
@@ -609,7 +609,7 @@ pub enum Link {
 }
 
 /// Temper's application parts beside a hub answer, named by its work tokens
-/// (jig's `protocol/channel/README.md`, 5.2).
+/// (jig's `protocol/channel/owners.md`, 1.2).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Parts {
     /// Full set of repository tags with saved work after this terminal, when the worker made

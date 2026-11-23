@@ -51,7 +51,7 @@ recovery are skein's `forge/client-effects.md`, section 1. temper's effects:
   settles the entry for good or holds it for a person, and saved again
   before a held entry is made again. So the store shows which writes a
   stop left unsettled without decoding an entry. temper's owner set
-  names its range (jig's `protocol/store/opening.md`, 3). The registered
+  names its range (jig's `protocol/store/opening-owners.md`, 1). The registered
   family converts at read; an in-flight write is not an upgrade
   refusal. The forge's restore links a `Flight` row to its entry, and one whose entry
   it does not hold is a writer's bug, a link that cannot be made, which

@@ -399,7 +399,7 @@ entry naming the task or proposal it is and its project:
     loaded on demand; the child holds none of them in memory, a read of
     the conversation or a task query's row joins it by a point read, and
     the inbox's census reads the family through at start
-    (`../../protocol/store/README.md`, 4.4, and `../../protocol/store/loads.md`, 2 and 4).
+    (`../../protocol/store/keys.md`, 1.4, and `../../protocol/store/loads.md`, 2 and 4).
   - *A mark on an ended conversation,* a `Seen` over its turns, loads
     its record and its position, and is decided on them: the position
     moves to the larger of the two, never back. One such mark loads at a
@@ -414,7 +414,7 @@ entry naming the task or proposal it is and its project:
 - **A task's retention class** says what becomes of it once it has ended
   (../tasks/README.md, section 3):
   - *kept:* its records stay to the deployment's retention horizon, and
-    whole while none is set (`../../protocol/store/README.md`, 6.1). jig's chat
+    whole while none is set (`../../protocol/store/growth.md`, 1.1). jig's chat
     template keeps, so closed conversations stay readable;
   - *forgotten once read:* once it has ended, its requester has read its
     result and, for a conversation, its turns, and no live task names it,
@@ -432,7 +432,7 @@ entry naming the task or proposal it is and its project:
     position before it is decided, and forgets in that decision.
     Retention's next pass forgets the others: one the inbox no longer
     held when it was read, or one a live task named then. Its other
-    remains go at retention's next pass (`../../protocol/store/loads.md`, 4, and `../../protocol/store/README.md`, 6.1
+    remains go at retention's next pass (`../../protocol/store/loads.md`, 4, and `../../protocol/store/growth.md`, 1.1
     ). A task whose requester is not a party is kept, whatever its
     class: no party reads it.
 - **Unread counts.** A conversation's unread turns are counted from its

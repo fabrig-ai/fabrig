@@ -63,7 +63,7 @@ use alloc::boxed::Box;
 use skein_lib::{Env, Queue, Time, Wall};
 
 /// The binary's level of each owner, `None` where its set records none
-/// (jig/docs/design/protocol/store/opening.md, 5, and jig/docs/design/protocol/store/records.md, 3).
+/// (jig/docs/design/protocol/store/opening-rehearsal.md, 1, and jig/docs/design/protocol/store/records.md, 3).
 #[must_use]
 pub fn levels(sets: &OwnerSets) -> codec::component::Levels {
     upgrade::admission::binary(sets)
@@ -100,14 +100,14 @@ impl Limits {
     }
 }
 
-/// Stores made by the caller, kept across a world's crash (protocol/store/README.md, 9).
+/// Stores made by the caller, kept across a world's crash (protocol/store/testing.md, 1).
 #[derive(Debug)]
 pub struct Stores {
     pub store: skein_kv::Store,
     pub secrets: skein_kv::Store,
 }
 
-/// The component's open and stopped states (protocol/store/README.md, 5 and protocol/store/opening.md).
+/// The component's open and stopped states (protocol/store/commits.md, 1 and protocol/store/opening.md).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Phase {
     Closed,
@@ -134,7 +134,7 @@ pub struct Store {
     directory: directory::Directory,
     secret_state: secrets::State,
     transcripts: transcripts::State,
-    /// The installation's identifier (protocol/store/README.md 4.4): drawn by the shell and
+    /// The installation's identifier (protocol/store/keys.md 1.4): drawn by the shell and
     /// kept by an empty store's first commit, or restored from the store.
     installation: [u8; 16],
     owner_sets: OwnerSets,
@@ -153,7 +153,7 @@ pub struct Store {
     restoring: Option<Box<restoring::State>>,
     checkpoint_open: Option<checkpoint_open::State>,
     named_checkpoints: Box<checkpoints::named::Named>,
-    /// Keep the census rule off service construction stacks (protocol/store/README.md, 6.3).
+    /// Keep the census rule off service construction stacks (protocol/store/growth.md, 1.3).
     census: Box<census::State>,
     view: Box<view::State>,
     checkpoint: Box<checkpoints::taking::Taking>,
@@ -351,20 +351,20 @@ impl Store {
         self.build_name = name.get(..end).expect("character boundary");
     }
 
-    /// Supplies the owners' static families, jobs, levels and frames (protocol/store/opening.md 3).
+    /// Supplies the owners' static families, jobs, levels and frames (protocol/store/opening-owners.md 1).
     pub fn owner_sets(&mut self, sets: OwnerSets) {
         self.directory.checked = None;
         self.owner_sets = sets;
     }
 
-    /// Optional parsed binary texts for admission (protocol/store/opening.md, 3).
+    /// Optional parsed binary texts for admission (protocol/store/opening-owners.md, 1).
     /// Only an exact text match is used; other texts are parsed by this open.
     pub fn prepared_schemas(&mut self, schemas: &'static [skein_codec::schema::Schema]) {
         self.directory.checked = None;
         self.prepared_schemas = schemas;
     }
 
-    /// Supplies the application's census names with its owner sets (protocol/store/README.md, 6.3).
+    /// Supplies the application's census names with its owner sets (protocol/store/growth.md, 1.3).
     pub fn keyspaces(&mut self, names: Keyspaces) {
         for (index, &(tag, name)) in names.families.iter().enumerate() {
             assert!(name.len() <= 48, "census name is at most 48 bytes");
@@ -442,7 +442,7 @@ impl Store {
     }
 }
 
-/// A bounded page read while a patch is stopped at a written site (protocol/store/opening.md, 3).
+/// A bounded page read while a patch is stopped at a written site (protocol/store/opening-owners.md, 1).
 #[derive(Debug)]
 pub struct PatchPage {
     pub rows: Box<[skein_kv::Row]>,

@@ -1,5 +1,5 @@
 //! People rows translated exhaustively (protocol/store/records.md, 1).
-//! Durable deletion steps follow jig/docs/design/protocol/store/README.md, 6.1.
+//! Durable deletion steps follow jig/docs/design/protocol/store/growth.md, 1.1.
 use crate::generated::people as mapped;
 use crate::people_v17 as wire;
 use alloc::boxed::Box;

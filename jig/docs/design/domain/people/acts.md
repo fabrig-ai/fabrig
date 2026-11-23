@@ -379,7 +379,7 @@ refused for its grace.
   and with no horizon waited for, as retention would erase it at the
   horizon: its record, its rows in every index, its history, activity
   and terminals, its read positions and its transcript's file
-  (../tasks/README.md, section 3; `../../protocol/store/transcripts.md`, 5, and `../../protocol/store/README.md`, 6.1). The
+  (../tasks/README.md, section 3; `../../protocol/store/transcripts.md`, 5, and `../../protocol/store/growth.md`, 1.1). The
   decision that erases each one tells every connector so
   (`../connectors.md`, 3.4).
 - **Then its own rows:** its policy's copy and its overrides of
@@ -461,7 +461,7 @@ configuration's grant and the act's own subject are its whole check.
 - **Keyed as a party's request** (1): the connector names a key, in
   its own key space, apart from every party's and every other
   connector's, and its answer is kept beside parties' answers
-  (`../../protocol/store/README.md`, 4.4), with the same retention, room, joins
+  (`../../protocol/store/keys.md`, 1.4), with the same retention, room, joins
   and conflicts. The same act under its key joins it while it is
   pending, and once decided is answered from its saved answer, made
   once; another act under the key is a key conflict. A saved answer is

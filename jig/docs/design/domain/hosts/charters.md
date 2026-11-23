@@ -42,7 +42,7 @@ Its `hosted` puts a run's whole hand-over together from what the hub link kept (
   request, or answered as an error naming what is wrong. The engine's
   protocol layer decodes every call the fleet has admitted, from workers
   and from the engine's own hub alike, so no domain parses a call's input
-  (`../../protocol/channel/README.md`, 5.3).
+  (`../../protocol/channel/owners.md`, 1.3).
 - **The engine's tools that act on tasks, `introduce` aside, speak a
   party's operations** (../engine/executors.md, 3; ../people/acts.md, 1). Each host
   tool's input names what its operation names, as the run was shown it:

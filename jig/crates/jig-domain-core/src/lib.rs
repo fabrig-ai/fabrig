@@ -147,7 +147,7 @@ pub struct Core {
     proposal_bounds: (u32, u32),
     pub(crate) run_now: skein_lib::Time,
     pub(crate) run_wall: Wall,
-    /// Last reported store map bytes (protocol/store/README.md, 6.2).
+    /// Last reported store map bytes (protocol/store/growth.md, 1.2).
     pub fill: u64,
     pub census: Option<Box<documents::StoreCensus>>,
     pub(crate) workers_in_process: bool,

@@ -406,7 +406,7 @@ other.
   `written` that answers every site `NoSite`. The baseline's run of the
   command (`--baseline`) keeps the current text as the first and
   generates `patches/mod.rs` in its place, under the same name. jig's store takes the constants into its `Smith` slot (jig's
-  `protocol/store/opening.md`, 3), handed by the host's shell.
+  `protocol/store/opening-owners.md`, 1), handed by the host's shell.
 - **The mark:** a smith patch whose change an agent would misread on a
   resume, such as a provider's replay it cannot carry or a call whose
   meaning moved, carries `mark fresh-windows` in its header (skein's

@@ -1,4 +1,4 @@
-//! Checks before a memory restart (protocol/store/records.md, 3 and protocol/store/README.md, 5 and protocol/store/opening.md).
+//! Checks before a memory restart (protocol/store/records.md, 3 and protocol/store/commits.md, 1 and protocol/store/opening.md).
 mod levels;
 use super::fixtures;
 use crate::{Event, Family, Older, OpenRefusal, Phase, Request, Store, Stores, codec, keys};

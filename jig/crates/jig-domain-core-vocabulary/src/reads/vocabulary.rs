@@ -62,10 +62,10 @@ pub struct Filter {
 /// Identity of a store query, independent of its continuation.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Scope {
-    /// Ended task records in key order for whole-task erasure (jig/docs/design/protocol/store/README.md, 6.1;
+    /// Ended task records in key order for whole-task erasure (jig/docs/design/protocol/store/growth.md, 1.1;
     /// jig/docs/design/domain/people/acts.md, 2).
     EndedTasks,
-    /// Summary-only deletion sweep (protocol/store/README.md, 6.1).
+    /// Summary-only deletion sweep (protocol/store/growth.md, 1.1).
     TaskSummaries,
     /// Due stage prefix (protocol/store/retention.md, 4–5).
     Retention { stage: tasks::RetentionStage, through: Wall },
@@ -77,7 +77,7 @@ pub enum Scope {
     TaskOwnRows { task: u64 },
     /// History, attempts, holds, activity, terminals, decisions, ended reads and the
     /// party proposal and update rows whose task link names this owner
-    /// (jig/docs/design/protocol/store/README.md, 6.1; jig/docs/design/domain/people/acts.md, 2).
+    /// (jig/docs/design/protocol/store/growth.md, 1.1; jig/docs/design/domain/people/acts.md, 2).
     TaskRows { task: u64 },
     /// Dense inclusive revision interval; held newest and tag-9 predecessors.
     SettingsHistory { first: u32, last: u32, newest: u32, whole: bool },

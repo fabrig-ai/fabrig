@@ -274,9 +274,9 @@ It inspects nothing it holds. What jig asks of it:
   - the workers' channel to the core, but for what a run's answer says
     it left on resources, which goes to the connectors that own them;
   - a run's call to the core's fleet, which fences it; the admitted call
-    is handed out to be decoded (`../protocol/channel/README.md`, 5.3), and its
+    is handed out to be decoded (`../protocol/channel/owners.md`, 1.3), and its
     typed request goes to the core, or, for a connector's read or effect,
-    to that connector first (section 9);
+    to that connector first (`root.md`, section 9);
   - clients' requests, reads and watches to the core; what the core
     admits for an application's own object or subject goes, as a
     hand-off, to the connector it names, which decides the request or

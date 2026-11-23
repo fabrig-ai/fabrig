@@ -36,7 +36,7 @@ takes each later catalogue from the root, before the commit that makes it
 (`../../domain/engine/settings.md`, 11).
 
 Settings (`../../domain/engine/settings.md`) are the core's two
-settings families (`README.md`, 4.4), under a schema of their own, `settings`, whose
+settings families (`keys.md`, 1.4), under a schema of their own, `settings`, whose
 version the format row names beside the others' (3), so that their
 records change independently of the core's; and each task's record
 and claim carries a revision in the tasks family's schema. A registered
@@ -251,7 +251,7 @@ follow from the limits that bound each kind (4).
   keeps its outcome alone, no evidence: the application that hands
   evidence down at a later assignment keeps it in a family of its own,
   by the call's key, and puts it in the assignment as it makes it
-  (`../channel/README.md`, 5.2), so jig keeps none of another owner's bytes.
+  (`../channel/owners.md`, 1.2), so jig keeps none of another owner's bytes.
 
 A settings revision's items, each with its edit and replaced state, cross as
 one aggregate byte field of length-prefixed `RevisionItem` pieces, not a
@@ -279,7 +279,7 @@ settings (decided 2026-11-03).
   families (the accounts' and the settings' among them), the application's store version,
   and the deployment's id.
 - **Written in the first commit,** with the deployment's header, by the
-  component, and the installation's identifier with it (`README.md`, 4.4), so that a
+  component, and the installation's identifier with it (`keys.md`, 1.4), so that a
   crash keeps both rows or neither, and the identifier is durable before
   any sign-in sends it.
 - **Checked at open:** a store whose row names another version of
@@ -294,7 +294,7 @@ settings (decided 2026-11-03).
   smith's (its turns' fields, `transcripts.md`, 1). They are fields of the component's
   `Format` in `component-v3.schema`. A build whose shell hands no set
   for an owner writes none. A level is its owner's set's `level`, held
-  explicitly (`opening.md`, 3): jig's 6, temper's 14, skein's and smith's
+  explicitly (`opening-owners.md`, 1): jig's 6, temper's 14, skein's and smith's
   0. No binary moves a level: a registered family changes by
   its registry and its jobs (`layouts.md`; `jobs.md`), and a format
   outside the registry is fixed (temper's `draft/store-floor.md`, section 5). The row is
@@ -322,7 +322,7 @@ settings (decided 2026-11-03).
     - then the floor: a store with no floor row, or one whose number is
       below the binary's `FLOOR`, refuses `OlderBuild` with `Older::Floor`,
       before any plan is made, job is found pending, record is decoded
-      for a rehearsal (`opening.md`, 5) or registry is read (`layouts.md`,
+      for a rehearsal (`opening-rehearsal.md`, 1) or registry is read (`layouts.md`,
       5.1). A number past the binary's is not refused by it: the levels
       and layouts decide;
     - then any owner's store level behind the binary's: `OlderBuild`
@@ -359,7 +359,7 @@ versioned record Floor { number: u32 build: text 64 }
   - **The binary's floor** is the store's constant `FLOOR`, 1,
     moved only by a landing that drops a whole older
     form (temper's `draft/store-floor.md`, section 6). The build is the
-    name the shell hands the store beside its sets (`opening.md`, 3),
+    name the shell hands the store beside its sets (`opening-owners.md`, 1),
     at most 64 bytes: temper's its build's commit, as its version line
     names it; a shell that hands none has an empty one written.
   - **Its bridge** is the store's constant `FLOOR_BRIDGE` beside it,
@@ -394,7 +394,7 @@ versioned record Floor { number: u32 build: text 64 }
   adopted, no connector reaches its system until it is durable. So a
   start that went past its restores leaves its wires, and over a
   upgraded generation that commit is the first past the manifest's
-  position (`opening.md`, 2, step 6), which ends going back (`opening.md`, 5). Read by the open,
+  position (`opening.md`, 2, step 6), which ends going back (`opening-rehearsal.md`, 1). Read by the open,
   never compared: a worker's wire is checked at its link's opening, as
   ever (`../channel/README.md`, 4.1), and the row is for the tool that rehearses
   an upgrade (temper's `draft/upgrades.md`, 3.1), which says it cannot
@@ -424,7 +424,7 @@ versioned record Floor { number: u32 build: text 64 }
   - **Cleared** by the start's wires commit: every start's
     `Write::Wires` deletes every row of them in the same commit, so the
     rows a store keeps are the openings since its last start.
-  - **Read** by the rehearsal alone (`opening.md`, 5), from `A` before
+  - **Read** by the rehearsal alone (`opening-rehearsal.md`, 1), from `A` before
     the plan, by the family's current text. A start loads none.
 
   The family is at version 1, outside the registry; the component's
@@ -487,8 +487,8 @@ admitted within that edge is never refused as too large.
 - **The largest commit is what it can leave in the map,** not its
   writes times the largest row: each key a commit puts is in the map
   once it is applied, at most skein-kv's budget in all, since a commit
-  writes each key once (`README.md`, section 5) and the fill keeps the map within
-  its budget (`README.md`, 6.2). So the largest commit is the map's budget, plus,
+  writes each key once (`commits.md`, section 1) and the fill keeps the map within
+  its budget (`growth.md`, 1.2). So the largest commit is the map's budget, plus,
   for each operation the store's `commits.writes` allows, a key and its
   framing.
   A deployment's commit then fits skein-kv's `u32` whenever its map's

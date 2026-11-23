@@ -295,7 +295,7 @@ pub enum Ask {
     )
 )]
 pub enum Write {
-    /// Drop a task transcript whole with its places (jig/docs/design/protocol/store/transcripts.md, 5, jig/docs/design/protocol/store/README.md, 6.1;
+    /// Drop a task transcript whole with its places (jig/docs/design/protocol/store/transcripts.md, 5, jig/docs/design/protocol/store/growth.md, 1.1;
     /// jig/docs/design/domain/people/acts.md, 2).
     DropTranscript { task: u64 },
     /// Drop a task history log whole (jig/docs/design/protocol/store/logs.md, 3 and 9).
@@ -745,7 +745,7 @@ pub struct Limits {
     pub settings: crate::settings::Limits,
     /// Configured templates and overrides per project policy.
     pub templates: u32,
-    /// Store map bytes at or above which new party work is refused (protocol/store/README.md, 6.2).
+    /// Store map bytes at or above which new party work is refused (protocol/store/growth.md, 1.2).
     pub fill_mark: u64,
     /// Number of numbered connectors retained by the core.
     pub connectors: u32,
@@ -881,11 +881,11 @@ pub enum Event {
         act: Box<people::Act>,
         carried: Option<Carried>,
     },
-    /// Store map bytes from each commit answer; needs no commit (protocol/store/README.md, 6.2).
+    /// Store map bytes from each commit answer; needs no commit (protocol/store/growth.md, 1.2).
     Fill {
         bytes: u64,
     },
-    /// Last store report; refresh the deployment document (protocol/store/README.md, 6.3).
+    /// Last store report; refresh the deployment document (protocol/store/growth.md, 1.3).
     Census(Box<crate::documents::deployment::StoreCensus>),
     /// Refuse new decisions while the service drains (domain/engine/restart.md, 1).
     Stopping,

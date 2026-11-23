@@ -23,8 +23,8 @@ without agents has none of this. What is still open is listed in section
   `protocol/llm.md`; skein's `llm/connection.md`): the engine, for its
   own slots, and a worker that composes `smith-inline-agent`. jig writes
   no prompt, and none of smith's own tools' schemas, decoding or
-  rendering; its engine tools' are `jig-protocol-tools`' (`channel/README.md`,
-  5.3). Agent processes make their own calls (section 6).
+  rendering; its engine tools' are `jig-protocol-tools`' (`channel/owners.md`,
+  1.3). Agent processes make their own calls (`llm.md`, section 6).
 - **The root routes completions,** as `smith-inline-agent` asks them,
   to the protocol layer, which gives smith's component each with its
   slot's result contract, and their terminals back to the agent (section
@@ -339,7 +339,7 @@ engine's protocol layer
   The sign-in ends on the `accounts` watch as any does.
 - **The registration's parts.** The client id the provider issues at
   the first sign-in is kept with the record and used after it; the
-  installation's identifier (`store/README.md`, 4.4) goes where the provider
+  installation's identifier (`store/keys.md`, 1.4) goes where the provider
   takes it (`../domain/providers.md`, 2.2).
 - **A key comes from a request** carrying it, which the clients'
   component keeps in the secrets' store before the core sees the request
@@ -591,7 +591,7 @@ Each within jig's suites' budgets.
   credential's scheme and the failure classes (skein's `llm/vocabulary.md`,
   sections 1 and 1.5).
 - **The store owes** the secrets' records and keys (`store/secrets.md`
-  ), and the accounts' family (`store/README.md`, 4.4).
+  ), and the accounts' family (`store/keys.md`, 1.4).
 
 ## 10. Open questions
 
@@ -608,7 +608,7 @@ Each within jig's suites' budgets.
   iteration.
 - **An account moved out of a stopped deployment,** one whose start
   is refused, without starting its engine: an application's tool,
-  holding the deployment's lock as `store/opening.md`, 5's operations do,
+  holding the deployment's lock as `store/opening-rehearsal.md`, 1's operations do,
   opens the active generation with no upgrade or restore (so only a
   store this build keeps), finds the account's source in the accounts'
   family by its schema, makes the file's bytes from its record (5.6),

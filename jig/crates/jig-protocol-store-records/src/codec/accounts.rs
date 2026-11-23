@@ -1,4 +1,4 @@
-//! The accounts family's rows (protocol/store/README.md, 4.4): the installation's
+//! The accounts family's rows (protocol/store/keys.md, 1.4): the installation's
 //! identifier, and the accounts child's counter, accounts, sources and facts (item 9).
 use crate::accounts_v2::{self as wire, Record};
 use crate::generated::accounts as maps;

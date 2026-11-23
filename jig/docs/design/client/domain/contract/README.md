@@ -427,7 +427,7 @@ party reads is therefore never lost by a crash.
     says, here and on activity's pages alike;
   - *unknown,* when it is not there or the party may not see it;
   - *gone,* past its transcript's horizon, as a dropped transcript is
-    (`../../../protocol/store/transcripts.md`, 5, and `../../../protocol/store/README.md`, 6.1);
+    (`../../../protocol/store/transcripts.md`, 5, and `../../../protocol/store/growth.md`, 1.1);
   - *busy,* as any read;
   - *too large,* with its size in bytes: from the engine, past the
     single read's bound, the store's per-read byte budget
@@ -484,7 +484,7 @@ party reads is therefore never lost by a crash.
   bounds what marks a watch (5.2) and what crosses the wire, not the
   filtering.
 - **Ended tasks are found through the store's indexes**
-  (`../../../protocol/store/README.md`, 4.4, and `../../../protocol/store/loads.md`, 3 and 4), in each index's order,
+  (`../../../protocol/store/keys.md`, 1.4, and `../../../protocol/store/loads.md`, 3 and 4), in each index's order,
   within a label the latest ended first:
   - *by requester:* every ended task whose requester is a party, by that
     party and label;
@@ -507,7 +507,7 @@ party reads is therefore never lost by a crash.
   result and its turns, and no live task names it
   (`../../../domain/people/README.md`, section 5); a kept one stays to the
   deployment's retention horizon, and whole while none is set
-  (`../../../protocol/store/README.md`, 6.1).
+  (`../../../protocol/store/growth.md`, 1.1).
 
 ## 5. Watches
 
@@ -751,7 +751,7 @@ What `../../domain/` owes this contract, each designed where named:
    (`../../../domain/tasks/README.md`, section 3).
 6. **Read positions over conversations,** kept by the people child only
    for tasks with a conversation, and those of ended ones in the store
-   (`../../../domain/people/README.md`, section 5; `../../../protocol/store/README.md`, 4.4).
+   (`../../../domain/people/README.md`, section 5; `../../../protocol/store/keys.md`, 1.4).
 7. **Templates served, never expanded** (`requests.md`, 6): the configuration's
    templates and each policy's overrides, kept only to serve each
    project's merged templates in `me`; an override naming no template,

@@ -100,7 +100,7 @@ listed in section 9.
   the core hands out is decoded, and an answer rendered, by functions the
   routing calls, `jig-protocol-tools`' for the core's tools and the
   application's for its connectors', in the step that routes them
-  (`channel/README.md`, 5.3); they keep no state.
+  (`channel/owners.md`, 1.3); they keep no state.
 - **smith's payloads, decoded and encoded in the routing:** the root
   hands out each of smith's payloads between its own hub and
   `smith-inline-agent`, and the routing decodes or encodes it with
@@ -291,7 +291,7 @@ down:  released and door outputs → components → io submissions
 - **smith's payloads, decoded and encoded in the routing,** as in the
   engine (section 2), the charter against the endpoints of the worker's
   agent configuration (`configuration.md`, section 4), and smith's facts
-  decoded into jig's activity (`channel/README.md`, 5.1 and 5.4).
+  decoded into jig's activity (`channel/owners.md`, 1.1 and 1.4).
 - **Credentials:** `jig-protocol-worker-link` takes grants' values out
   into the worker's tables, and the protocol layer hands LLM accounts'
   values, each with its scheme, or a program source's name, to smith's
@@ -310,8 +310,8 @@ down:  released and door outputs → components → io submissions
   is then no process of its own: no containment, and no watchdog on
   progress (smith's `domain/host.md`, 9.3).
 - **Starting:** configuration; the components; the link dialled at once;
-  the hub reports what it hosts once the link is up (`channel/README.md`,
-  9.1).
+  the hub reports what it hosts once the link is up (`channel/worker-link.md`,
+  1.1).
 - **Ending:** the root drains the hub for its drain bound, then cancels
   what is left, and the hub admits no more; the worker is done once the
   engine has every turn and answer, or past its grace with no engine
@@ -394,7 +394,7 @@ down:  released and door outputs → components → io submissions
   with agents in the engine and no workers: its crates, its server and
   its periods are `../examples.md`'s (sections 4 and 9.1).
 - **A worker's reference** is the reference service's test worker, which
-  jig's channel world runs too (`channel/README.md`, section 11), since `ops`
+  jig's channel world runs too (`channel/testing.md`, section 1), since `ops`
   has none.
 
 ## 8. Testing
@@ -402,8 +402,8 @@ down:  released and door outputs → components → io submissions
 Each within jig's suites' budgets.
 
 - **The domain worlds** run without any of this (`../domain/testing.md`).
-- **The components' worlds** test each component alone (`channel/README.md`,
-  section 11; `llm.md`, section 8; `store/README.md`, section 9; `client/README.md`,
+- **The components' worlds** test each component alone (`channel/testing.md`,
+  section 1; `llm.md`, section 8; `store/testing.md`, section 1; `client/README.md`,
   section 11), and the default HTTP mapping's engine end and its guards
   in their step tests (`browser/testing.md`).
 - **The protocol world:** the reference service (section 7), every
@@ -581,7 +581,7 @@ between hosts.
   fake LLM.
   Joined sockets are io's own and never reach skein's simulator (skein's
   `runtime/io/sockets.md`, 5), so the link's cuts and stalls are the channel's protocol
-  world's, over streams cut at random (`channel/README.md`, section 11).
+  world's, over streams cut at random (`channel/testing.md`, section 1).
 
 ## 11. The service parts
 
@@ -717,7 +717,7 @@ root.
   enums, in a domain crate, and `jig-domain-host` links no smith, so
   each service keeps a few lines matching those enums onto the route.
 - **A delivery's evidence is a value.** The application keeps it and
-  says what it must say (`channel/README.md`, 5.2), and `decode` takes that as
+  says what it must say (`channel/owners.md`, 1.2), and `decode` takes that as
   `Evidence`: `Text`, where the bytes are a receipt's or a refusal's
   words, or `Reply`, where they are smith's `DeliveryReply`, which must
   decode and agree with the outcome the core kept. `evidence` makes

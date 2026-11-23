@@ -188,12 +188,12 @@ program its endpoint names (`../../protocol/configuration.md`, section 3).
 - **Resuming.** A run that resumes is given its current window only,
   within the resume limit (the deployment's bound on the current
   window's bytes, across the attempts it spans, as the window crosses to
-  a host: `../../protocol/channel/README.md`, 5.1), and, as a note after
+  a host: `../../protocol/channel/owners.md`, 1.1), and, as a note after
   it, the calls committed after its last turn, with their answers. A
   start that crosses a worker's link carries those answers within the
   link's room: the newest whole and each older host answer cut to fixed
   words saying the call ran and how many bytes its answer had
-  (`../../protocol/channel/README.md`, 8, *A resumed start fits its room first*),
+  (`../../protocol/channel/liveness.md`, 1, *A resumed start fits its room first*),
   so however many calls a run made since its last turn, it is told of
   each and resumes. The core keeps every call as committed. One
   past the limit starts fresh from a brief that carries the transcript's
@@ -864,7 +864,7 @@ pub enum TaskRunWait { /* as before */ Worker { worker: u32, until: Wall } }
 - **Its hello says so.** The hello's `fresh` is true on each hello of a
   worker's process until the engine has admitted one, at the first
   record the engine sends after it, `sources`
-  (`../../protocol/channel/README.md`, 4.3 and 9.1), and false on every
+  (`../../protocol/channel/README.md`, 4.3, and `../../protocol/channel/worker-link.md`, 1.1), and false on every
   later hello of that process. The workers' wire carries it from
   version 19, added last with a default, bridged both ways
   (`../../protocol/channel/bridges.md`, 5): up, a version 18 hello reads

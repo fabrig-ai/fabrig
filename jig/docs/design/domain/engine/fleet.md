@@ -201,7 +201,7 @@ The fleet child domain knows the hosts and the runs they host:
   - **Until its worker hears the engine.** The first `logins` on the
     channel that lists it answers the `sources` the engine sent after
     that hello, so that worker's clock has stopped
-    (`../../protocol/channel/README.md`, 9.1): the claim is no longer
+    (`../../protocol/channel/worker-link.md`, 1.1): the claim is no longer
     held, and a later loss gives it the grace alone.
   - **Discharged.** Once loaded, when no claim is held any more, ended,
     lost or heard, the fleet says so once, `Request::Discharged`, and

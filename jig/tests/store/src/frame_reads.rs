@@ -91,7 +91,7 @@ pub fn open(component: &mut store::Store, env: &Env<store::Limits>) {
         &mut below,
     );
     assert!(matches!(above.pop(), Some(Event::Opened { pending: false, .. })));
-    // These transcript checks do not consume the map census (protocol/store/README.md, 6.3).
+    // These transcript checks do not consume the map census (protocol/store/growth.md, 1.3).
     let Some(Event::Census { .. }) = above.pop() else { panic!("opened census") };
 }
 pub use crate::patches::fixture_turn as turn;
@@ -122,7 +122,7 @@ pub fn decode(component: &mut store::Store, env: &Env<store::Limits>, raw: &[u8]
     for _ in 0..STEPS {
         if let Some(event) = above.pop() {
             match event {
-                // These transcript checks do not consume the census (protocol/store/README.md, 6.3).
+                // These transcript checks do not consume the census (protocol/store/growth.md, 1.3).
                 Event::Census { .. } => continue,
                 Event::Page { .. } | Event::PageRefused { .. } => {
                     unreachable!("a start's pages need a start-mode store")

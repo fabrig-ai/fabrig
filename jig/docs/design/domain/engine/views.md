@@ -98,7 +98,7 @@ computes for them is said below (1 to 5).
   Reasoning is dropped and counted at that boundary. So is a piece whose
   offset is past the 32 bits the views count, where a host counts
   smith's 64 (`jig/docs/design/domain/hosts/hub.md`, 5). The protocol layer carries every kind
-  and offset as it is (`../../protocol/channel/README.md`, 5.4), and the same root
+  and offset as it is (`../../protocol/channel/owners.md`, 1.4), and the same root
   route serves the engine's own hub and its workers'. A later retry
   replaces an earlier one's text; text that starts past what the views
   hold of its retry, because facts were dropped between, marks that
@@ -209,7 +209,7 @@ Nothing the core decides depends on a view arriving.
   examined. A query whose keys choose none has no ended part, and its
   answer says so. The decision that forgets a task forgotten once read
   erases its index rows (4); retention erases the rest with their
-  tasks (`../../protocol/store/README.md`, 6.1).
+  tasks (`../../protocol/store/growth.md`, 1.1).
 - **What a query never finds:** words in a text (`../../protocol/store/README.md`,
   section 11); ended tasks by outcome, resource or spend; tasks by a
   procedure's parameters, which belong in the application's own records

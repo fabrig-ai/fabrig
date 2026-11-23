@@ -19,7 +19,7 @@ Open with the rows of a whole decision
 every restart operation under
 `fuzzy::faults::every_operation_of_a_restart_after_a_torn_decision_can_be_killed_again`).
 A snapshot racing commits and several commits in flight are proven in
-the store's world alone (`../../protocol/store/README.status.md`, 9).
+the store's world alone (`../../protocol/store/testing.status.md`, 1).
 
 Section 5.1 has no known gap in *Nothing links ahead of what it names*:
 seventeen routes that take a person's number from outside the core
@@ -63,7 +63,7 @@ core hands the link every call committed since the run's last turn,
 whole and in commit order (`jig/tests/core`'s
 `settled_answers_resume_in_commit_order_and_a_replay_preserves_exact_bytes`),
 and the engine's link fits their answers to its room
-(`../../protocol/channel/README.status.md`, 8).
+(`../../protocol/channel/liveness.status.md`, 1).
 
 `executors.md`, section 2, and `briefs.md`, section 1 have no known gap in *A turn too large for a page*.
 `TranscriptLoad::Cut` hands the core a turn's fields and length.

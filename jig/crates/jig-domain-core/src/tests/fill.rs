@@ -1,4 +1,4 @@
-//! Store fill and admission at the high-water mark (protocol/store/README.md, 6.2).
+//! Store fill and admission at the high-water mark (protocol/store/growth.md, 1.2).
 use super::*;
 
 pub(super) fn filled_core(bytes: u64) -> (Core, Env<Limits>) {

@@ -733,6 +733,12 @@ application as its first user.
   skein's. Its `README.md` gives the reading order, the names,
   what jig needs from skein and smith, and what the domain owes, and
   `protocol/store/README.md` the store.
+  The channel's documents include `protocol/channel/owners.md`,
+  `protocol/channel/liveness.md`, `protocol/channel/worker-link.md` and
+  `protocol/channel/testing.md`. The store's include `protocol/store/keys.md`,
+  `protocol/store/commits.md`, `protocol/store/growth.md`,
+  `protocol/store/testing.md`, `protocol/store/opening-owners.md` and
+  `protocol/store/opening-rehearsal.md`.
 
 ## 13. Conventions
 

@@ -1,4 +1,4 @@
-//! Scripted records, without an engine domain (protocol/store/README.md, 9).
+//! Scripted records, without an engine domain (protocol/store/testing.md, 1).
 use jig_domain_core as core;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
@@ -239,7 +239,7 @@ const fn core_fleet_limits() -> jig_domain_fleet::Limits {
     }
 }
 
-/// The shell's commit size check (protocol/store/README.md, 5).
+/// The shell's commit size check (protocol/store/commits.md, 1).
 pub fn check_commits(limits: &Limits) -> Result<sizes::Sizes, sizes::SizeRefusal> {
     sizes::check_commits(&limits.core, &APPLICATION, &limits.commits, &limits.store, limits.orphan_erases)
 }
@@ -525,7 +525,7 @@ pub fn history_commit(number: u64) -> Box<[Write]> {
     writes.into_boxed_slice()
 }
 
-/// A linked person/task pair for crash rows (protocol/store/README.md, 9).
+/// A linked person/task pair for crash rows (protocol/store/testing.md, 1).
 #[must_use]
 pub fn person(number: u64) -> core::Record {
     core::Record::People(people::Stored::Person {

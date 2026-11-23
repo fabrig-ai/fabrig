@@ -326,7 +326,7 @@ A project begins in one of two ways:
 
 Once it is, a project is the same either way: nothing records how it
 began, and a restart restores both from the store alone
-(`../protocol/store/README.md`, 4.4).
+(`../protocol/store/keys.md`, 1.4).
 
 A project's name:
 
@@ -342,7 +342,7 @@ A project's name:
   named "Project N", N its number (`../protocol/configuration.md`,
   section 3). A seed's names, configured and given, are checked
   together, and a collision refuses the start. The store keeps the
-  name with the project's policy (`../protocol/store/README.md`, 4.4). A
+  name with the project's policy (`../protocol/store/keys.md`, 1.4). A
   project made after the first start is never given one: its maker
   chooses it (people/acts.md, 1).
 - **Renamed by an owner** (people/acts.md, 1): the engine refuses a name

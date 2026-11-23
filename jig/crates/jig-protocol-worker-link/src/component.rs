@@ -1,5 +1,5 @@
 //! Opening, admission, loss and redial transitions
-//! (jig/docs/design/protocol/channel/README.md, 4 and 9.1).
+//! (jig/docs/design/protocol/channel/README.md, 4, and jig/docs/design/protocol/channel/worker-link.md, 1.1).
 use crate::{
     Event, Limits, Loss, REFUSED_FRAMING, REFUSED_LIMITS, Request,
     backoff::Backoff,

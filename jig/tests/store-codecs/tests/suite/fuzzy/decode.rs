@@ -1,4 +1,4 @@
-//! Arbitrary and mutated family bytes (protocol/store/records.md, section 1, and protocol/store/README.md, section 9).
+//! Arbitrary and mutated family bytes (protocol/store/records.md, section 1, and protocol/store/testing.md, section 1).
 use super::super::values;
 use jig_protocol_store::tasks_v13::Record;
 use jig_protocol_store::{accounts_v2, component_v3, notes_v1, people_v17};

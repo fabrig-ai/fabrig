@@ -1,4 +1,4 @@
-//! The census's clock, names and copied counts (protocol/store/README.md, 6.3).
+//! The census's clock, names and copied counts (protocol/store/growth.md, 1.3).
 use super::fixtures;
 use crate::{Event, Request, Store, Write};
 use jig_domain_core_vocabulary::documents::StoreCensus;

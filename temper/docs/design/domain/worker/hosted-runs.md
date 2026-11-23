@@ -90,7 +90,7 @@ temper's workspace items beside it:
   jig's `domain/hosts/hub.md`, 4). Across the link, those calls' answers
   fit its room: the newest whole, each older host answer cut to words
   saying the call ran and how many bytes its answer had (jig's
-  `protocol/channel/README.md`, 8, *A resumed start fits its room first*), so a
+  `protocol/channel/liveness.md`, 1, *A resumed start fits its room first*), so a
   producer whose program worked an hour since its last turn resumes,
   told of every call it made. A delivery among those calls comes with
   its evidence, smith's record of the push's terminal, which must decode
@@ -162,7 +162,7 @@ jig's types (jig's `domain/hosts/hub.md`, 3), with temper's detail:
   grants at once, `io.largest_room` (its `io.output`), is answered on the
   engine's side by jig's workers' component, refused as an invalid start
   whose words name the record, its frame's bytes and the room (jig's
-  `protocol/channel/records.md`, 2, and `jig/docs/design/protocol/channel/README.md`, 8). The run fails as any invalid start
+  `protocol/channel/records.md`, 2, and `jig/docs/design/protocol/channel/liveness.md`, 1). The run fails as any invalid start
   does, with serve's operator line below, and serve writes the link's
   `worker unsent` line too (`../../protocol/cluster.md`, 3). The link, its
   pings and the worker's other runs go on; nothing waits for an answer

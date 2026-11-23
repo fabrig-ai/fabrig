@@ -226,7 +226,7 @@ it is live:
   a template or by hand (`../../protocol/configuration.md`, 3.1). jig gives
   it no meaning, and no rule of the engine's keys on it: task queries
   filter on it, and the indexes of ended tasks are keyed by it
-  (`../../protocol/store/README.md`, 4.4).
+  (`../../protocol/store/keys.md`, 1.4).
 - **Its flags,** each with the engine's semantics:
   - *conversation:* its turns are entries for its requester, while that
     requester is a party, with their read position and an unread count
@@ -236,16 +236,16 @@ it is live:
   - *listed:* once ended, it is indexed by its project and its label, so
     its project's lists find it. Every ended task a party requested is
     indexed by that party and its label, listed or not
-    (`../../protocol/store/README.md`, 4.4);
+    (`../../protocol/store/keys.md`, 1.4);
   - *its retention class,* what becomes of it once it has ended: *kept*,
     to the deployment's retention horizon, and whole while none is set
-    (`../../protocol/store/README.md`, 6.1); or *forgotten once read*, erased once
+    (`../../protocol/store/growth.md`, 1.1); or *forgotten once read*, erased once
     its requester, a party, has read it. When and how is ../people/README.md,
     section 5. Whatever its class, a task of a project being deleted is
     erased whole once every task of the project has ended, with no
     horizon waited for, as its retention would erase it at the horizon,
     its transcript's file with it (../people/acts.md, 2;
-    `../../protocol/store/transcripts.md`, 5, and `../../protocol/store/README.md`, 6.1).
+    `../../protocol/store/transcripts.md`, 5, and `../../protocol/store/growth.md`, 1.1).
 
   The label and the flags are what a task is made as: no amendment
   changes them (`changes.md`).

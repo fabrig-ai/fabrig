@@ -363,7 +363,7 @@ Ask temper is the first, its `temper/docs/design/draft/ask-temper.md`, section 7
 - **The scope,** `Party { party }`, a person's number: one per person, in no
   project, so that no project's reads list it and a project's deletion leaves
   it. The store keys it as it keys every scope, its index lines and entries
-  beside the others' (`../../protocol/store/README.md`, section 4).
+  beside the others' (`../../protocol/store/keys.md`, section 1).
 - **Its entries are preferences,** the kind its scope gives them: an entry's
   description is the line and its body is empty, at most `notes.party_bytes`
   for the description, and at most `notes.party_entries` entries in one

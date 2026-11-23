@@ -1,4 +1,4 @@
-//! Streams belong to the layer; the dial policy belongs here (protocol/channel/README.md, 9.1).
+//! Streams belong to the layer; the dial policy belongs here (protocol/channel/worker-link.md, 1.1).
 use alloc::boxed::Box;
 use jig_domain_host as host;
 pub use jig_protocol_worker_wire::Loss;

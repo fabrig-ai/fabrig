@@ -125,7 +125,7 @@ reference drafts execute.
   `domain/tasks/README.md`, the compound request); once each has ended, it is
   erased whole at once, as its retention would erase it at the horizon
   (jig's `domain/tasks/README.md`, its retention class; jig's
-  `protocol/store/README.md`, 6.1), its transcript's file with it.
+  `protocol/store/growth.md`, 1.1), its transcript's file with it.
 - **Then its own rows:** its policy's copy, its roles and parties, its
   pools in the current period, the settings of its scope (the connector
   owning each kind told, temper erasing its kinds 2, 4 and 5:

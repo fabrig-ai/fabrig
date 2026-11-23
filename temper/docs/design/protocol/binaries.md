@@ -104,7 +104,7 @@ spawned        temper-engine internal forge-child --parent PID --signal kill|ter
 - **`versions`** prints, one line each, in this order, and exits 0,
   reading no configuration and no store:
   - `level OWNER LEVEL` for `skein`, `smith`, `jig` and `temper`, the
-    binary's `OwnerSet.level` of each (jig's `protocol/store/opening.md`, 3),
+    binary's `OwnerSet.level` of each (jig's `protocol/store/opening-owners.md`, 1),
     from the sets it hands its store (`floor.md`, 3): skein 0, smith 0,
     jig 6 and temper 14;
   - `store VERSION`, jig's store's component version, then `family

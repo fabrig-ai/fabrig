@@ -3,7 +3,7 @@
 Temper's side of the oldest store a temper build opens: dev.fabrig.ai's
 store as F0 settled it, redeployed onto `3d1c717d37`. The mechanisms are
 jig's (`jig/docs/design/protocol/store/records.md`, 3;
-`jig/docs/design/protocol/store/opening.md`, 1.8 and 3) and skein's
+`jig/docs/design/protocol/store/opening.md`, 1.8, and `jig/docs/design/protocol/store/opening-owners.md`, 1) and skein's
 (`skein/docs/design/data/codec/layouts.md`, 2). This document fixes what
 temper hands them, its fixture and its policy.
 
@@ -88,7 +88,7 @@ declared in `temper-engine-service-vocabulary`, upstream first:
 | `OWNER_SET` | `temper-protocol-store` | 14 | `temper-store`, `temper-secrets` |
 
 - **`OwnerSet`, `OwnerSets` and `KeptFamily`** are jig's data contract
-  (`protocol/store/opening.md`, 3): current families and key ranges,
+  (`jig/docs/design/protocol/store/opening-owners.md`, 1): current families and key ranges,
   registered value types, retired ranges, jobs and levels. A frames'
   family also carries its frame root, texts and patches; no set
   carries a map patch history. `JIG_STORE_SET` owns the store's metadata;
@@ -99,7 +99,7 @@ declared in `temper-engine-service-vocabulary`, upstream first:
   prefix for temper's secrets. Held families have no key range:
   skein's token is held in `Source`, smith's turn in `TurnRecord` and
   jig-accounts' `Moved` in `Carried`. The core's frames name
-  `TurnRecord`; smith's name `Turn` (jig's `protocol/store/opening.md`, 3).
+  `TurnRecord`; smith's name `Turn` (jig's `protocol/store/opening-owners.md`, 1).
 - **Every engine shape hands the same sets** through
   `Store::owner_sets` before opening, beside its wires and build name.
   `Service::owner_sets`, called before `adopt_store`, is the test seam
@@ -110,7 +110,7 @@ declared in `temper-engine-service-vocabulary`, upstream first:
   `level smith 0`, `level jig 6` and `level temper 14`
   (`binaries.md`, 2).
 - **Admission checks the sets at open** (jig's
-  `protocol/store/opening.md`, 3). The one-process test
+  `protocol/store/opening-owners.md`, 1). The one-process test
   `every_golden_key_has_exactly_one_patch_family_or_a_reserved_component_row`
   additionally reads both maps of the golden deployment (5): each
   non-reserved key lies in exactly one family's range. It checks the

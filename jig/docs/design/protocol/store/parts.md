@@ -49,7 +49,7 @@ it, and a hot part holding the rest.
   commit edge (`records.md`, 4). A decision that makes or amends n
   records puts up to 2n rows, and admission that prices a decision's
   writes against the commit edge counts them.
-- **Seen in the census** (`README.md`, 6.3): writes per keyspace, the
+- **Seen in the census** (`growth.md`, 1.3): writes per keyspace, the
   hot part's keyspace written on most commits and the cold part's
   rarely.
 
@@ -79,7 +79,7 @@ record LiveCold { spec: Spec contract: Contract authority: Authority instruction
 - **The ended record stays whole,** `ended_talk` at `01 01 06 <task>`:
   it is written once, when the task ends.
 - **The tasks child's boundary:** its `Key` gains `LiveCold(u64)`, in
-  the order of its bytes (`README.md`, 4.1: keys sort as they derive);
+  the order of its bytes (`keys.md`, 1.1: keys sort as they derive);
   its `Stored` gains `LiveCold`, the task's number and its four cold
   fields. `Stored::Live` saved puts the hot part; read, it is the whole
   record. A live task's save is therefore `Save { Live }` and, when the

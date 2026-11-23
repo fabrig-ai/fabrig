@@ -314,7 +314,7 @@ recipient.
   last complete UTF-8 character; an incomplete final character waits for
   the next piece, and invalid UTF-8 omits `writing`. These deliveries leave
   without a commit, marked provisional. Reasoning has no client surface.
-  Only conversations are asked for text and input (`../channel/README.md`, 5.4).
+  Only conversations are asked for text and input (`../channel/owners.md`, 1.4).
 
 
 ## 6. Versions

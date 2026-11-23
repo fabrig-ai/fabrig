@@ -46,7 +46,7 @@ impl core::fmt::Debug for Hosted {
             .finish_non_exhaustive()
     }
 }
-/// Operation issued once its roots are adopted (protocol/store/opening.md, 5; checkpoints.md, 5–6).
+/// Operation issued once its roots are adopted (protocol/store/opening-rehearsal.md, 1; checkpoints.md, 5–6).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Adoption {
     Open,

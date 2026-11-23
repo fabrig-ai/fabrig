@@ -300,7 +300,7 @@ QA's host starts from a copy and `temper box --config COPY` runs it
     (the worker's check, above);
   - the worker's `limits`: `io.output` a turn of T's frame on its link,
     header included, past the profile's 1,048,576, so that the worker's
-    link is made (jig's `protocol/channel/README.md`, 8 and 10);
+    link is made (jig's `protocol/channel/liveness.md`, 1, and `protocol/channel/README.md`, 10);
   - `engine.limits`: `core.resume_bytes` T + 4, one largest turn with
     its length, so that a chat's window resumes whole up to that size;
   - `application.limits`: `root.journal.transcript_bytes` T + 4, the

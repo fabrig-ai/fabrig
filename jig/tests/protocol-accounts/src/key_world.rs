@@ -81,7 +81,7 @@ impl World {
             installation: [5; 16],
         });
         let Some(store::Event::Opened { pending, owner, .. }) = world.above.pop() else { panic!("store opens") };
-        // This accounts fixture does not consume the map census (protocol/store/README.md, 6.3).
+        // This accounts fixture does not consume the map census (protocol/store/growth.md, 1.3).
         let Some(store::Event::Census { .. }) = world.above.pop() else { panic!("opened census") };
         if pending {
             // This store-only driver has no engine root to ask for the switch.

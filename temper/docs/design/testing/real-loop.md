@@ -293,8 +293,8 @@ in the lower world that owns it, never here.
   - **a program source's usage limit and its lost login** (smith's
     `protocol/programs.md`, 5.6): smith's world over its fake `claude`
     (smith's `protocol/programs.md`, section 8), relayed as limited and
-    as unauthorized in jig's channel world (jig's `protocol/channel/README.md`,
-    section 11); `account verify` answered as each host reports:
+    as unauthorized in jig's channel world (jig's `protocol/channel/testing.md`,
+    section 1); `account verify` answered as each host reports:
     `tests/client` (../client/ctl/testing.md, 2).
 - **Checks between iterations** are the strategy's for the real loop
   (skein/docs/foundation/testing-strategy.md, 2.8 and section 6), with the lower worlds'
