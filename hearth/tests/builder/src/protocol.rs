@@ -78,6 +78,9 @@ impl World {
             seed,
         )
         .with_file_read(limits.files.read);
+        if matches!(scenario.fault, Some(fixtures::Fault::Resolution(_))) {
+            protocol = protocol.with_proxy(Some(fixtures::recorded_proxy(&limits.protocol)));
+        }
         protocol.bind_output(fixtures::PROTOCOL_OUTPUT);
         protocol.bind_error(fixtures::PROTOCOL_ERROR);
         Self {

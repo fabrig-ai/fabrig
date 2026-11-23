@@ -1,4 +1,3 @@
-use super::File;
 use hearth_protocol_tree::resolution::{Package, Resolution};
 pub use hearth_test_repository::{
     TEST_MIN_DIGEST, TEST_MIN_KEY, TEST_MIN_KEYS_LINE, TEST_MIN_RESOLUTION, TEST_REPOSITORY, hex_digest,
@@ -45,19 +44,6 @@ pub fn resolve(repository: &Repository, targets: &[&[u8]], form: Form, proxy: &[
         Some(proxy.into()),
     )
     .rendered
-}
-
-#[must_use]
-pub fn unknown_package_repository() -> Repository {
-    let repository = Repository::make("unknown-package", TEST_REPOSITORY);
-    drop(repository.next(
-        &[
-            File { path: "tasks/absent/task.json", body: br#"{"packages":{"hearth-absent":{}}}"#, mode: 0o644 },
-            File { path: "hosts/test/test-min.json", body: br#"{"absent":{}}"#, mode: 0o644 },
-        ],
-        &[],
-    ));
-    repository
 }
 
 #[must_use]
@@ -109,12 +95,6 @@ pub fn recorded_closure() -> Box<[Package]> {
     packages.into_boxed_slice()
 }
 
-#[must_use]
-pub fn failed_test_min(label: &str) -> (Repository, Rendered) {
-    let repository = Repository::make(label, TEST_REPOSITORY);
-    let rendered = resolve(&repository, &[b"test-min"], Form::Text, &dead_proxy());
-    (repository, rendered)
-}
 #[must_use]
 pub fn mirror_indices() -> [(&'static [u8], [u8; 32]); 2] {
     let mirror = mirror();

@@ -23,6 +23,7 @@ mod render {
     mod git;
     mod outputs;
     mod resolution;
+    mod resolve;
 }
 
 mod fuzzy {

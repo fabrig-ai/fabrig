@@ -41,7 +41,7 @@ impl Below {
     #[must_use]
     pub fn new(scenario: &Scenario<'_>, seed: u64, pipe: u32) -> Self {
         let shared = Shared::for_scenario(scenario, seed, pipe);
-        fixtures::serve(&shared);
+        fixtures::serve_for_protocol(&shared, scenario.fault);
         let files = Files::new(shared.clone(), scenario.fault, seed);
         shared.drain_ledger();
         let pid = shared

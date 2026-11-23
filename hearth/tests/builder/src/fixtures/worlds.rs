@@ -226,6 +226,7 @@ pub enum Fault {
     NoRepository,
     UnreadableTree,
     Stalled { after: u64 },
+    Resolution(RecordedFailure),
 }
 #[must_use]
 pub fn thin() -> Scenario<'static> {
