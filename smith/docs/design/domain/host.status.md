@@ -1,6 +1,8 @@
 # host: status
 
-2026-11-18. Where smith's code lags or departs from [host.md](host.md).
+2026-11-23. Where smith's code lags or departs from [host.md](host.md).
+
+- **Not yet:** 4: the watchdog stretched over a completion's wait out of a rate limit, which its run reports as a long operation; a retry's wait reports none [in flight: change 12974].
 
 Section 4 has no known gap in retaining a panic's closing line and
 message when they fit the detail bound. The host-protocol detail table

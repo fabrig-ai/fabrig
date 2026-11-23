@@ -1,8 +1,9 @@
 # llm: status
 
-2026-11-17. Where skein's code lags or departs from [README.md](README.md).
+2026-11-23. Where skein's code lags or departs from [README.md](README.md).
 
 
+- **Not yet:** 2.5, 4.8: `RateLimited`'s delay read as rate-limits.md says, a message's figure or window included [in flight: change 12973].
 - **Not yet:** 4.7: `off` refused at admission, so no request carries disabled thinking; a focused test holding each shape current Claude models refuse absent; the fake peer refusing disabled thinking and sampling settings [in flight: change 914].
 
 Section 4.9 has no known implementation gap in the route-specific list
