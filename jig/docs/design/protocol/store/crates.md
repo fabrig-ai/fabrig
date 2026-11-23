@@ -221,7 +221,7 @@ each stage a `#[cfg(test)]` module of the crate's root, in one change beside sec
   with the owner (`tools/crates/design.md`, 3.2). Codec tests build fixed-rule values from embedded
   schema texts or build generated records by their public fields; the store and test connector
   keep no family golden directories
-  (skein's `data/codec/README.md`, 6).
+  (skein's `data/codec/golden.md`, 1).
 - **The component's test fixtures by path,** `src/tests/fixtures/*.schema` and
   `src/tests/golden/history-record.bin`, stay with the tests that read them, the component's.
   The latter pins hand-written history-log format-1 framing, not a generated family's codec.

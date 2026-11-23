@@ -177,6 +177,7 @@ pub enum Event {
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Git {
     Fetch { want: git::Want, into: git::Into },
+    Counts,
     CheckOut { commit: git::Commit },
 }
 
@@ -187,7 +188,7 @@ pub enum Request {
     Paused {
         state: jig_domain_link::PauseState,
     },
-    /// Each fetch and check out as the checkout asks it (domain/worker/hosted-runs.md, 1.3).
+    /// Each fetch, counts fetch and check out as the checkout asks it (domain/worker/hosted-runs.md, 1.3).
     Git {
         run: Token,
         attempt: Token,

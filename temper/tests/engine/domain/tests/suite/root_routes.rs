@@ -2607,8 +2607,7 @@ fn a_stalled_proposal_passes_up() {
     let leaf_run = assigned_task(&driver, leaf);
     tool_call(&mut driver, &leaf_run, 70, propose(b"needed", 10, b"need helper", false));
     assert!(proposal_waits_at(&driver, leaf, tasks::ProposalHolder::Task(middle)), "{:?}", driver.delivered.last());
-    driver.env.wall = Wall::from_nanos(Duration::from_millis(11).as_nanos());
-    driver.env.now = Time::from_nanos(Duration::from_millis(11).as_nanos());
+    driver.advance_to(Time::from_nanos(Duration::from_millis(11).as_nanos()));
     engine::fire(&mut driver.root, &driver.env);
     engine::release(&mut driver.root, &driver.env, &mut driver.out);
     driver.collect();
@@ -3018,8 +3017,7 @@ fn release_tool_resets_a_delegates_exhausted_tries() {
     let first = assigned_task(&driver, child);
     driver.answer(Token::new(7), child, first.attempt, 0, tasks::End::Failed(tasks::Class::Run), engine::Parts::none());
     driver.settle();
-    driver.env.now = Time::from_nanos(Duration::from_secs(2).as_nanos());
-    driver.env.wall = Wall::from_nanos(Duration::from_secs(2).as_nanos());
+    driver.advance_to(Time::from_nanos(Duration::from_secs(2).as_nanos()));
     engine::fire(&mut driver.root, &driver.env);
     engine::release(&mut driver.root, &driver.env, &mut driver.out);
     driver.collect();
@@ -3409,14 +3407,12 @@ fn a_lost_attempt_is_told_of_the_calls_committed_after_its_last_turn() {
     unavailable_call(&mut driver, &first, 81);
     driver.settle();
     driver.send(protocol::lost(Token::new(7)));
-    driver.env.now = Time::from_nanos(Duration::from_secs(6).as_nanos());
-    driver.env.wall = Wall::from_nanos(Duration::from_secs(6).as_nanos());
+    driver.advance_to(Time::from_nanos(Duration::from_secs(6).as_nanos()));
     engine::fire(&mut driver.root, &driver.env);
     engine::release(&mut driver.root, &driver.env, &mut driver.out);
     driver.collect();
     driver.settle();
-    driver.env.now = Time::from_nanos(Duration::from_secs(7).as_nanos());
-    driver.env.wall = Wall::from_nanos(Duration::from_secs(7).as_nanos());
+    driver.advance_to(Time::from_nanos(Duration::from_secs(7).as_nanos()));
     engine::fire(&mut driver.root, &driver.env);
     engine::release(&mut driver.root, &driver.env, &mut driver.out);
     driver.collect();
@@ -4030,8 +4026,7 @@ fn restored_unreported_claim_spends_no_try_without_committed_work() {
         }
         assert!(restored.root.ready() && restored.events.is_empty() && restored.store.pending.is_empty());
         // A restored claim waits for fleet grace; it cannot be quiescent yet.
-        restored.env.now = Time::from_nanos(6_000_000_000);
-        restored.env.wall = Wall::from_nanos(6_000_000_000);
+        restored.advance_to(Time::from_nanos(6_000_000_000));
         engine::fire(&mut restored.root, &restored.env);
         engine::release(&mut restored.root, &restored.env, &mut restored.out);
         restored.collect();
@@ -4609,8 +4604,7 @@ fn a_run_failing_transiently_is_retried_then_held_past_its_tries() {
     let task = live(&driver, first.task);
     assert_eq!(task.tries.transient, 1);
     assert!(matches!(task.phase, tasks::Phase::Active(tasks::Active::BackingOff { .. })));
-    driver.env.now = Time::from_nanos(Duration::from_secs(2).as_nanos());
-    driver.env.wall = Wall::from_nanos(Duration::from_secs(2).as_nanos());
+    driver.advance_to(Time::from_nanos(Duration::from_secs(2).as_nanos()));
     engine::fire(&mut driver.root, &driver.env);
     engine::release(&mut driver.root, &driver.env, &mut driver.out);
     driver.collect();
@@ -4646,8 +4640,7 @@ fn a_delegate_held_past_its_tries_is_escalated_two_levels_to_a_person_released_a
         engine::Parts::none(),
     );
     driver.settle();
-    driver.env.now = Time::from_nanos(Duration::from_secs(2).as_nanos());
-    driver.env.wall = Wall::from_nanos(Duration::from_secs(2).as_nanos());
+    driver.advance_to(Time::from_nanos(Duration::from_secs(2).as_nanos()));
     engine::fire(&mut driver.root, &driver.env);
     engine::release(&mut driver.root, &driver.env, &mut driver.out);
     driver.collect();
@@ -4912,8 +4905,7 @@ fn moving_a_held_delegate_rechecks_its_escalation_recipient() {
         engine::Parts::none(),
     );
     driver.settle();
-    driver.env.now = Time::from_nanos(Duration::from_secs(2).as_nanos());
-    driver.env.wall = Wall::from_nanos(Duration::from_secs(2).as_nanos());
+    driver.advance_to(Time::from_nanos(Duration::from_secs(2).as_nanos()));
     engine::fire(&mut driver.root, &driver.env);
     engine::release(&mut driver.root, &driver.env, &mut driver.out);
     driver.collect();
@@ -5031,15 +5023,13 @@ fn a_worker_lost_mid_run_resumes_at_the_last_committed_turn() {
         turn: 1
     }))));
     driver.send(protocol::lost(Token::new(7)));
-    driver.env.now = Time::from_nanos(Duration::from_secs(6).as_nanos());
-    driver.env.wall = Wall::from_nanos(Duration::from_secs(6).as_nanos());
+    driver.advance_to(Time::from_nanos(Duration::from_secs(6).as_nanos()));
     engine::fire(&mut driver.root, &driver.env);
     engine::release(&mut driver.root, &driver.env, &mut driver.out);
     driver.collect();
     driver.settle();
     assert_eq!(live(&driver, first.task).tries.lost, 1);
-    driver.env.now = Time::from_nanos(Duration::from_secs(7).as_nanos());
-    driver.env.wall = Wall::from_nanos(Duration::from_secs(7).as_nanos());
+    driver.advance_to(Time::from_nanos(Duration::from_secs(7).as_nanos()));
     engine::fire(&mut driver.root, &driver.env);
     engine::release(&mut driver.root, &driver.env, &mut driver.out);
     driver.collect();
@@ -5165,8 +5155,7 @@ fn a_worker_frozen_past_its_grace_gets_no_next_attempt_until_its_sum_has_passed(
         "a worker whose stop bound reaches engine grace cannot place runs"
     );
     driver.send(protocol::lost(Token::new(7)));
-    driver.env.now = Time::from_nanos(Duration::from_secs(4).as_nanos());
-    driver.env.wall = Wall::from_nanos(Duration::from_secs(4).as_nanos());
+    driver.advance_to(Time::from_nanos(Duration::from_secs(4).as_nanos()));
     engine::fire(&mut driver.root, &driver.env);
     engine::release(&mut driver.root, &driver.env, &mut driver.out);
     driver.collect();
@@ -5175,8 +5164,7 @@ fn a_worker_frozen_past_its_grace_gets_no_next_attempt_until_its_sum_has_passed(
     }
     assert_eq!(live(&driver, first.task).tries.lost, 0);
     assert_eq!(driver.delivered.iter().filter(|delivery| matches!(delivery, Delivery::Assigned { .. })).count(), 1);
-    driver.env.now = Time::from_nanos(Duration::from_secs(6).as_nanos());
-    driver.env.wall = Wall::from_nanos(Duration::from_secs(6).as_nanos());
+    driver.advance_to(Time::from_nanos(Duration::from_secs(6).as_nanos()));
     engine::fire(&mut driver.root, &driver.env);
     engine::release(&mut driver.root, &driver.env, &mut driver.out);
     driver.collect();

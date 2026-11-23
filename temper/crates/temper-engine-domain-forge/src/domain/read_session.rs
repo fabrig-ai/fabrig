@@ -87,6 +87,13 @@ pub(super) fn until(d: &Domain, task: u64) -> Option<Wall> {
     if session.exempt { None } else { Some(session.until) }
 }
 
+pub(super) fn inspection_bound(d: &Domain, task: u64) -> Option<Wall> {
+    if !d.read_sessions.get(&task)?.started {
+        return None;
+    }
+    until(d, task)
+}
+
 pub(super) fn deadline(d: &Domain) -> Option<Wall> {
     if !super::fresh_reads_in(d) {
         return None;

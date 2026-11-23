@@ -186,7 +186,7 @@
   | `root.` | the engine root's own limits, beyond those jig's `engine.limits` sets |
   | `forge.` | `temper-engine-domain-forge`'s `Limits`: `forge.client.`, `forge.change_policy.` and `forge.issue_policy.` for its children, `forge.queue_window_ms`, `forge.sitting_ms` |
   | `checkout.` | `temper-worker-domain-checkout`'s `Limits` |
-  | `forge_component.` | the forge component's, its webhooks' listener's and its GitHub App's among them (../forge/README.md, section 6): the owner's, given once for every forge as the component is made (skein's `forge/connection.md`, 7.2), so none is per forge |
+  | `forge_component.` | the forge component's, its webhooks' listener's and its GitHub App's among them (../forge/README.md, section 6): the owner's, given once for every forge as the component is made (skein's `forge/connection-machines.md`, 1.2), so none is per forge |
   | `git_component.` | the git component's (../git.md, section 8) |
   | `records.` | the engine's routing's: a forge's records and carried values in jig's secrets' store (../credentials.md, 2.1) |
   | `forges.` | the engine's routing's, per forge: a GitHub forge's accepted installations and every forge's log origins (../forge/README.md, section 6) |
@@ -255,16 +255,16 @@
 - **The forge client's lifetime and the forge call's deadline:**
   `forge.client.lifetime_ms` is how long a sent forge write may still
   arrive, its answer awaited before the client looks for it (skein's
-  `forge/client.md`, 7.5), and `forge_component.deadline_ms` how long
+  `forge/client-effects.md`, 1.5), and `forge_component.deadline_ms` how long
   one forge call, or one of a forge's startup reads, may take before it
-  fails (skein's `forge/connection.md`, 4.1). The slowest call a forge
+  fails (skein's `forge/connection-calls.md`, 1.1). The slowest call a forge
   answers is a merge: Forgejo merges a pull request inside the call,
   bounded by its own git timeout, 360 s by default, and the merge of a
   pull request of about 7,000 files took longer than 10 s. So both
   profiles take a lifetime of 300,000 (5 minutes), under Forgejo's
   360 s, and a deadline of the lesser of the lifetime and 270,000, the
   most a GitHub forge takes, half a JWT's life (skein's
-  `forge/connection.md`, 7.4): a GitHub forge starts at the defaults,
+  `forge/connection-machines.md`, 1.4): a GitHub forge starts at the defaults,
   and a Forgejo merge has 270 s. The deadline follows the lifetime: an
   override of `forge.client.lifetime_ms` moves a deadline that stands
   at the lesser of the lifetime it replaces and 270,000 to the lesser
@@ -273,7 +273,7 @@
   first. The longer lifetime costs a lost write alone: a set waits out
   its first attempt's lifetime before it is written again, a write not
   found is looked for until its lifetime ends (skein's
-  `forge/client.md`, 7.5), and a stop's settling waits at most twice
+  `forge/client-effects.md`, 1.5), and a stop's settling waits at most twice
   the lifetime and `forge.client.clock_margin_ms`
   (`../../domain/root-restart.md`, 1.2), cut under the box by its long step's
   grace (`../setup/box-supervision.md`, 1). The engine forge world's fixture keeps
@@ -313,11 +313,11 @@
   | `forges.log_origins` | a forge's job-log origins, its kind's (../forge/README.md, 2.6); default 20, at most 32 |
   | `forge_component.installations` | the installations the component holds tokens for, per forge |
   | `forge_component.log_origins` | the origins a job log's redirect may reach, per forge (default 20); as many origins said of other redirects are kept per forge (`Fact::Origin`, ../forge/README.md, 2.6) |
-  | `forge_component.token_bytes` | a forge's token: an API token, a git token or a site admin's token (skein's `forge/connection.md`, 7.2) |
+  | `forge_component.token_bytes` | a forge's token: an API token, a git token or a site admin's token (skein's `forge/connection-machines.md`, 1.2) |
   | `forge_component.key_bytes` | a GitHub App's key |
   | `forge_component.renew_before_ms` | `renew_before`: how long before an installation's token expires it is minted again (../credentials.md, section 5) |
   | `forge_component.log_poll_ms` | `log_poll`: between two reads of a GitHub App's delivery log (default 5 s) |
-  | `forge_component.log_catch_up_ms` | `log_catch_up` (default 24 h): how far back the delivery log is read when a forge starts again within one process (skein's `forge/connection.md`, 6.5); at most a day, the log's own reach. temper keeps no `guid` across process starts: a process's first read of a forge's log keeps the newest and reads nothing back, and skein's forge client reads each adopted repository afresh at restart |
+  | `forge_component.log_catch_up_ms` | `log_catch_up` (default 24 h): how far back the delivery log is read when a forge starts again within one process (skein's `forge/connection-webhooks.md`, 1.5); at most a day, the log's own reach. temper keeps no `guid` across process starts: a process's first read of a forge's log keeps the newest and reads nothing back, and skein's forge client reads each adopted repository afresh at restart |
   | `forge_component.log_pages` | the pages one read of the delivery log takes (default 10) |
   | `forge_component.delivery_bytes` | a delivery read from the log (default 1 MiB) |
   | `setup.deadline_ms` | a setup plan's run, its wait for the forge among it |

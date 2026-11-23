@@ -1,4 +1,4 @@
-//! Forge connection grow (forge/connection.md, sections 3 and 8).
+//! Forge connection grow (forge/connection.md, section 3, and forge/connection-machines.md, section 2).
 use alloc::boxed::Box;
 use skein_lib::List;
 
@@ -57,7 +57,7 @@ impl Grow {
         self.bytes.capacity()
     }
 }
-/// A body's last bytes, optionally ending at its first failed process (forge/connection.md, 4.5).
+/// A body's last bytes, optionally ending at its first failed process (forge/connection-calls.md, 1.5).
 #[derive(Debug)]
 pub struct LogTail {
     tail: skein_lib::Tail,

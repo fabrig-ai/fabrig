@@ -1,4 +1,4 @@
-//! A sweep holds its prefix once (`skein/docs/design/testing/README.md`, 6).
+//! A sweep holds its prefix once (`skein/docs/design/testing/layout.md`, 1).
 mod process;
 
 #[cfg(target_os = "linux")]

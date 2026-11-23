@@ -2,7 +2,7 @@
 
 2026-11-20. Where the tree's code lags or departs from [readiness.md](readiness.md).
 
-- **Departs:**  the trust-count reporting departure remains `shell.status.md`, 6.2.
+- **Departs:**  the trust-count reporting departure remains `shell-startup.status.md`, 1.2.
    the user's request of 2026-11-04 asked each part of its
   round to end with fewer lines than it started; the part that built `store_file`
   and `bytes::concat` ended 190 lines up, 215 in skein against 25 down
@@ -20,9 +20,9 @@
   twins and the table's variables, in the settings' order, so `HOME`
   comes after the first XDG variable (`table/help.rs`,
   `help_environment`; `table/help/tests.rs`, `HOST_ENVIRONMENT`). That
-  reads `shell.md`, 14.1's "a table that holds such a setting reads them" as putting
-  them on the page; `shell.md`, 14.1 has the documents say so, and
+  reads `shell-table.md`, 1.1's "a table that holds such a setting reads them" as putting
+  them on the page; `shell-table.md`, 1.1 has the documents say so, and
   `../../foundation/cli.md`, 7's example, the draft's
   (`temper/docs/design/draft/cli.md`, 3.6), lists the directories' twins
   alone. No binary prints a page yet: C2's first tables meet it.
-   the test-document departure remains `shell.status.md`, 14.3.
+   the test-document departure remains `shell-table.status.md`, 1.3.

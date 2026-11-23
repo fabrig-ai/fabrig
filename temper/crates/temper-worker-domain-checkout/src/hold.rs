@@ -399,6 +399,12 @@ enum PrepareStep {
         merging: Option<Commit>,
         pushed: Option<Commit>,
     },
+    /// Main's counts, immediately after writing the pin.
+    Counts {
+        repository: u32,
+        ours: Commit,
+        then: AfterPin,
+    },
     FetchBase {
         repository: u32,
         ours: Commit,
@@ -446,6 +452,13 @@ enum PrepareStep {
     CheckOutMerged {
         repository: u32,
     },
+}
+
+/// The preparation that resumes once the counts ref is refreshed or removed.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+enum AfterPin {
+    Landing { commit: Commit, merging: Option<Commit>, pushed: Option<Commit> },
+    Replaced { pushed: Option<Commit> },
 }
 
 /// A push or a save under way.
@@ -875,6 +888,7 @@ pub(crate) fn done(domain: &mut Domain, env: &Env<Limits>, owner: Token, done: D
                 | PrepareStep::PinReplaced { .. }
                 | PrepareStep::PointLanding { .. }
                 | PrepareStep::FetchLanding { .. }
+                | PrepareStep::Counts { .. }
                 | PrepareStep::FetchBase { .. }
                 | PrepareStep::PointBase { .. }
                 | PrepareStep::CheckOutMerge { .. }
@@ -1418,7 +1432,11 @@ fn prepared(holding: &mut Holding, cache: &mut Cache, step: PrepareStep, done: D
             }
         },
         PrepareStep::FetchLanding { repository, ours, merging, pushed } => match done {
-            Done::Fetched { commit } => after_pin(holding, repository, ours, commit, merging, pushed),
+            Done::Fetched { commit } => Next::Step(PrepareStep::Counts {
+                repository,
+                ours,
+                then: AfterPin::Landing { commit, merging, pushed },
+            }),
             Done::Failed { fault } | Done::FailedWithOutput { fault, .. } => Next::Failed(failure(repository, fault)),
             Done::Succeeded
             | Done::Results { .. }
@@ -1435,7 +1453,11 @@ fn prepared(holding: &mut Holding, cache: &mut Cache, step: PrepareStep, done: D
             | Done::Conflicted { .. } => unreachable!("a landing fetch has fetch terminals"),
         },
         PrepareStep::PointLanding { repository, ours, commit, merging, pushed } => match done {
-            Done::Succeeded => after_pin(holding, repository, ours, commit, merging, pushed),
+            Done::Succeeded => Next::Step(PrepareStep::Counts {
+                repository,
+                ours,
+                then: AfterPin::Landing { commit, merging, pushed },
+            }),
             Done::Failed { fault } | Done::FailedWithOutput { fault, .. } => Next::Failed(failure(repository, fault)),
             Done::Fetched { .. }
             | Done::Results { .. }
@@ -1452,7 +1474,9 @@ fn prepared(holding: &mut Holding, cache: &mut Cache, step: PrepareStep, done: D
             | Done::Conflicted { .. } => unreachable!("a point has local terminals"),
         },
         PrepareStep::PinReplaced { repository, ours, pushed } => match done {
-            Done::Succeeded => after_replaced_pin(holding, repository, ours, pushed),
+            Done::Succeeded => {
+                Next::Step(PrepareStep::Counts { repository, ours, then: AfterPin::Replaced { pushed } })
+            }
             Done::Failed { fault } | Done::FailedWithOutput { fault, .. } => Next::Failed(failure(repository, fault)),
             Done::Fetched { .. }
             | Done::Results { .. }
@@ -1467,6 +1491,27 @@ fn prepared(holding: &mut Holding, cache: &mut Cache, step: PrepareStep, done: D
             | Done::Rejected
             | Done::Merged
             | Done::Conflicted { .. } => unreachable!("a replaced-head pin has local terminals"),
+        },
+        PrepareStep::Counts { repository, ours, then } => match done {
+            Done::Fetched { .. } | Done::Succeeded => match then {
+                AfterPin::Landing { commit, merging, pushed } => {
+                    after_pin(holding, repository, ours, commit, merging, pushed)
+                }
+                AfterPin::Replaced { pushed } => after_replaced_pin(holding, repository, ours, pushed),
+            },
+            Done::Failed { fault } | Done::FailedWithOutput { fault, .. } => Next::Failed(failure(repository, fault)),
+            Done::Results { .. }
+            | Done::Paths { .. }
+            | Done::ParentUnreachable { .. }
+            | Done::Looked { .. }
+            | Done::Brings { .. }
+            | Done::IsAncestor { .. }
+            | Done::Committed { .. }
+            | Done::Unchanged
+            | Done::Exists
+            | Done::Rejected
+            | Done::Merged
+            | Done::Conflicted { .. } => unreachable!("counts has fetch and absence terminals"),
         },
         PrepareStep::FetchPush { repository, ours } => match done {
             Done::Fetched { commit } => fetched_push(holding, repository, ours, Some(commit)),
@@ -1775,6 +1820,7 @@ fn prepared_merge(holding: &mut Holding, step: PrepareStep, done: Done, limits: 
         | PrepareStep::Refetch { .. }
         | PrepareStep::PointLanding { .. }
         | PrepareStep::FetchLanding { .. }
+        | PrepareStep::Counts { .. }
         | PrepareStep::PinReplaced { .. }
         | PrepareStep::CheckOut { .. }
         | PrepareStep::FetchPush { .. } => unreachable!("merge preparation has only its own steps"),
@@ -1835,7 +1881,7 @@ fn remember_fetch(holding: &mut Holding, step: PrepareStep, commit: Commit) {
         ),
         PrepareStep::FetchLanding { repository, .. } => (repository, pin_want(nth(holding, repository))),
         PrepareStep::FetchBase { repository, base, .. } => (repository, Want::Commit { commit: base }),
-        PrepareStep::Pack { .. } => return,
+        PrepareStep::Pack { .. } | PrepareStep::Counts { .. } => return,
         PrepareStep::Unkeep
         | PrepareStep::Reds { .. }
         | PrepareStep::Candidate { .. }
@@ -2297,6 +2343,16 @@ fn prepare_step(
             into: Into::Landing,
             commit: pushed.unwrap_or(ours),
         },
+        PrepareStep::Counts { repository, .. } => {
+            let spec = nth(holding, repository);
+            Op::Counts {
+                at: place(workspace, spec),
+                store: borrowed(holding, repository).token,
+                remote: copy_of(&spec.remote),
+                identity: spec.identity,
+                account: spec.account,
+            }
+        }
         PrepareStep::FetchPush { repository, .. } => {
             let spec = nth(holding, repository);
             Op::Fetch {

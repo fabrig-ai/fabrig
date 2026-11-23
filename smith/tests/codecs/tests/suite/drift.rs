@@ -1,4 +1,4 @@
-//! Generated records follow skein/docs/design/data/codec/README.md, section 6.
+//! Generated records follow skein/docs/design/data/codec/golden.md, section 1.
 
 use std::{fs, path::Path};
 

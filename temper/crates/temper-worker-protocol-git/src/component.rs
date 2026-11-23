@@ -281,6 +281,7 @@ impl Component {
             | git::Op::CheckOut { .. }
             | git::Op::Merge { .. }
             | git::Op::Fetch { .. }
+            | git::Op::Counts { .. }
             | git::Op::Create { .. }
             | git::Op::Commit { .. }
             | git::Op::Push { .. } => true,
@@ -611,6 +612,7 @@ impl Component {
                     | git::Op::Make { .. }
                     | git::Op::Clone { .. }
                     | git::Op::Fetch { .. }
+                    | git::Op::Counts { .. }
                     | git::Op::Create { .. }
                     | git::Op::CheckOut { .. }
                     | git::Op::Look { .. }

@@ -1,4 +1,4 @@
-//! Forgejo's documents in the forge client's vocabulary (forge/README.md, 3.2 and 3.3).
+//! Forgejo's documents in the forge client's vocabulary (forge/vocabulary.md, 1.2 and 1.3).
 use crate::api;
 use crate::forgejo::{
     document as d,

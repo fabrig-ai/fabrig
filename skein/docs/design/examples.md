@@ -279,7 +279,7 @@ every `Open` with `Busy` and asks once for `Stop`.
 ## 4. The echo's main
 
 `main` reads the address to listen on from its arguments and uses the
-shell's layer limits. Startup (runtime/shell.md, 6) checks usable limits and io's
+shell's layer limits. Startup (runtime/shell-startup.md, 1) checks usable limits and io's
 caps against the protocol's largest demand. It blocks termination signals
 and opens their signalfd (`open_termination_signals`) for io to adopt,
 then obtains the seed and opens the kernel. It runs the loop of
@@ -317,7 +317,7 @@ no type with the echo. Each connection follows a plan:
 It holds no copy of what it sent: a line's bytes are drawn from the
 seed, and drawn again, from the same seed, to check its answer. It checks
 its peer as it goes, failing the world on the first breach, which its
-check returns as its finding and its caller panics on (testing/README.md, 5): each answer
+check returns as its finding and its caller panics on (testing/service-tiers.md, 1): each answer
 is the oldest line unanswered, byte for byte; `busy\n` comes only first;
 `too long\n` only to the line past the limit; nothing comes after either
 but the end. What it saw (answers, refusals, the server's end, failures,
@@ -481,7 +481,7 @@ processes, each a host of an `iterate` (a service, or a fake client):
     teardown policy failure, the real-loop harness drops its hosts and
     ends their trees, cancels and drains the shared kernel, then reaps
     retained leaders and closes their deferred descriptors
-    (testing/README.md, 5). A panic that aborts therefore reports after
+    (testing/service-tiers.md, 1). A panic that aborts therefore reports after
     cleanup. An unwinding test also drops its binary unsettled as a
     fallback, and the kit ends what is left the same way: every
     process the walk has found, below the binary's group as well as
@@ -496,7 +496,7 @@ processes, each a host of an `iterate` (a service, or a fake client):
     exercises it (../foundation/programming-model.md, 10.4). A test
     process killed outright, by its runner's timeout or a signal, or one
     that aborts, runs none of this: a fixture's own tie to its owner
-    ends its tree then (testing/README.md, 5).
+    ends its tree then (testing/service-tiers.md, 1).
   - **A crash on purpose.** A test that crashes its binary, to prove
     what a restart finds, is its supervisor (runtime/shell.md, 12). It supervises
     the tree (`Expectation::Supervise`), kills all of it at once
@@ -563,7 +563,7 @@ two places, the small store, exchanges and a stream.
 
 ### 9.1 What a person sees
 
-- **One owner,** the example's (ui/README.md, 3.3), with the look's prefix
+- **One owner,** the example's (ui/tree.md, 1.3), with the look's prefix
   `notes`: its style tokens and region names start with `notes-` (ui/README.md,
   section 8). Its words are English, from its phrasebook (ui/README.md,
   section 9).
@@ -578,8 +578,8 @@ two places, the small store, exchanges and a stream.
     takes (the number entry kind), a label (a select of three options:
     idea, task, reference), a button that adds it, and one that clears
     it. A field the view finds wrong is invalid, its description saying
-    why (ui/README.md, 3.2). Adding a note, or discarding a draft, moves the
-    focus to the title by a focus request (ui/README.md, 3.2);
+    why (ui/tree.md, 1.2). Adding a note, or discarding a draft, moves the
+    focus to the title by a focus request (ui/tree.md, 1.2);
   - *a complementary landmark:* the chart (9.4), and beside it a choice
     group showing all notes or one label's;
   - *a dialog,* while the person clears a form holding words: whether to
@@ -599,7 +599,7 @@ two places, the small store, exchanges and a stream.
 and for `wasm32-unknown-unknown`:
 
 - **Its state:** the notes the page knows, the form's values with the
-  view's count of its own writes to each (ui/README.md, 3.4), the label shown,
+  view's count of its own writes to each (ui/tree.md, 1.4), the label shown,
   the place, the adds pending, and whether the stream is live.
 - **Its view,** built through skein-ui's builder from the state, with
   its bindings decoded into its actions (ui/README.md, sections 5 and 6), its
@@ -608,10 +608,10 @@ and for `wasm32-unknown-unknown`:
 - **Its records** are a codec family of its own (data/codec/README.md), a note, an
   add and the list, which the server names too. An exchange carries one
   record as `application/octet-stream`; the stream carries one in each
-  event's data, as base64 (runtime/lib.md, 6.1), read with HTTP's event-stream
+  event's data, as base64 (runtime/lib-bytes.md, 1.1), read with HTTP's event-stream
   reader (http.md, section 4).
 - **An add is written to the small store first,** under a key drawn from
-  the seed, then sent, in the transport's order (ui/web/README.md, section 8).
+  the seed, then sent, in the transport's order (ui/web/effects.md, section 1).
   The server makes an add once per key, so an add a reload sends again
   makes one note; its record leaves the small store once answered.
   Closing loses requests while an add is pending, so the page holds its
@@ -645,7 +645,7 @@ a service copies that.
 
 - **The bundle,** written by `skein-ui-bundle` with `/bundle/` as the
   bundle's prefix (ui/web/bundle.md, 2), is read from the directory its
-  arguments name, at startup (runtime/shell.md, 6.1), and served under
+  arguments name, at startup (runtime/shell-startup.md, 1.1), and served under
   ui/web/bundle.md, 4: the digest directory immutable, each file in the
   form the request takes, the page with an `ETag` and `no-cache`.
 - **The strict content security policy** of ui/web/bundle.md, 4, on every
@@ -687,8 +687,8 @@ a service copies that.
 - **A drawing acted on** (ui/scenes.md): a bar chart of the notes
   by label, of the example's one drawing kind, its data the counts and
   their words. Its drawing code draws a bar and a text per label, with
-  the token `notes-bar`, as SVG in a browser by default (ui/web/README.md,
-  section 6). Its fallback is a list saying each label's count in
+  the token `notes-bar`, as SVG in a browser by default (ui/web/svg.md,
+  section 1). Its fallback is a list saying each label's count in
   words. Each bar's mark carries the act that shows its label's notes,
   which the choice group beside the chart does too (ui/scenes.md, 3).
 - **Its module's size,** built with the `web` profile (ui/web/bundle.md, 1),
@@ -711,14 +711,14 @@ a service copies that.
 - **Step tests** of the view: its pages printed through skein-ui-text
   and kept as golden text (ui/text.md, section 8); the fake person's
   tree face adding a note, a required title refused in words, a label
-  chosen, a note opened and left (ui/README.md, 14.1); golden scenes of the
+  chosen, a note opened and left (ui/testing.md, 1.1); golden scenes of the
   chart (ui/scenes.md); its places printed and parsed back; its
   limits and memory under a scenario ceiling.
 - **Step tests** of the server: each route, an add made once per key,
   the bundle's headers and the policy on every answer, the page at any
   other path, a digest not the bundle's not found, a limit refused.
 - **The wasm32 builds** of the view and the browser shell, with clippy's
-  lints as errors, in skein's gate (testing/README.md, section 6).
+  lints as errors, in skein's gate (testing/layout.md, section 1).
 - **The browser tier** (ui/web/testing.md, 1 and 3), in `tests/ui-web`:
   the server's binary and Chromium through `skein-fake-person-browser`'s
   harness and face, failing on any trouble a story did not expect, a

@@ -107,7 +107,7 @@ fn approve(world: &mut World, number: u64) {
             && world.pending.is_empty()
             && let Some(next) = world.root.next_deadline(&world.env)
         {
-            world.env.now = world.env.now.max(next);
+            world.advance_to(world.env.now.max(next));
         }
     }
     let reviewer = world.assigned.get(assigned).expect("review assigned").clone();

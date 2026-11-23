@@ -54,6 +54,10 @@ pub fn note_line(binary: &str, note: service::Note) -> String {
                         Into::Landing => " into landing",
                     });
                 }
+                Git::Counts => {
+                    line.push_str(" counts ");
+                    escape_detail(&mut line, &repository);
+                }
                 Git::CheckOut { commit } => {
                     line.push_str(" check out ");
                     escape_detail(&mut line, &repository);

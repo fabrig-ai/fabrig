@@ -441,12 +441,12 @@ Each is intended; what it needs is named with it.
   standard input and output, so it runs its TUI, which job control stops
   at its first read. `temper-box` runs the box alone. Telling a
   background start from a foreground one needs `temper` to read its
-  terminal's foreground group, which skein's `runtime/shell.md`, 6.3 does
+  terminal's foreground group, which skein's `runtime/shell-startup.md`, 1.3 does
   not give yet.
 
 - **The terminal after `temper box` killed outright** (`box-front.md`, 1): its
   TUI's modes and screen stay on the terminal, as any program's killed
-  outright do (skein's `runtime/shell.md`, 6.3); the box stops at its
+  outright do (skein's `runtime/shell-startup.md`, 1.3); the box stops at its
   life pipe's end.
 
 - A start holding the engine's documents to temper's clients: `init.md`, section 4.
@@ -493,7 +493,7 @@ Each is intended; what it needs is named with it.
   so would read the link's OSC 8 from a real box, at the process tier's budget.
 - A copy of a bottle of temper's own: `owned.md`, section 10.
 - **One percentage for both binaries** (`owned.md`, 6): from sizes pinned beside
-  their digests (skein's `forge/README.md`, 4.3), known before the first byte,
+  their digests (skein's `forge/dialects.md`, 1.3), known before the first byte,
   so that the bar does not start again for the runner
   (`../../client/forge/deployment.md`).
 - **The other steps' progress** (`box.md`, 1): preparing and starting take

@@ -1,4 +1,4 @@
-//! Bounded exchanges and kept answer headers (skein/docs/design/ui/web/README.md, 8).
+//! Bounded exchanges and kept answer headers (skein/docs/design/ui/web/effects.md, 1).
 use skein_lib::usize_of;
 use std::collections::BTreeMap;
 #[cfg(target_arch = "wasm32")]

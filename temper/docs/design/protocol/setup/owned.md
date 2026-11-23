@@ -10,7 +10,7 @@
 - **The binaries are checked** by every command that runs them: the
   first line of each one's version equal to temper's pin, Forgejo's and
   the runner's (`skein-forge`'s `VERSION` and `RUNNER_VERSION`, skein's
-  `forge/README.md`, section 4.3), the versions skein's conformance checks
+  `forge/dialects.md`, section 1.3), the versions skein's conformance checks
   (`skein/docs/design/testing/fakes/throwaway.md`, section 2). Another binary refuses the command,
   naming its path and what it printed. A fetched binary is checked so
   too, after its digest at its fetch; temper downloads nothing but by
@@ -205,8 +205,8 @@ binaries; and decides by
   needs is held.
 - **Checks Forgejo's listener,** when the box gave it one (`box.md`, 1):
   descriptor 3, with `LISTEN_FDS=1`. It checks that the descriptor
-  listens at the setup's `listen` (skein's `listener_at`, `skein/docs/design/runtime/shell.md`,
-  6.6) before taking the lock, refusing otherwise, naming the descriptor
+  listens at the setup's `listen` (skein's `listener_at`, `skein/docs/design/runtime/shell-startup.md`,
+  1.6) before taking the lock, refusing otherwise, naming the descriptor
   and the address it found. Forgejo then takes the socket whose address
   its `app.ini` names, in place of binding it (its `modules/graceful`,
   which reads no `LISTEN_PID`). Given none, as under every other
@@ -404,13 +404,13 @@ its own for any other host.
   keeps its own copies names it; the process tier needs none, its
   binaries placed where the fetch looks (`testing.md`, 4).
 - **TLS with the machine's roots,** read at the command's start as
-  skein's shell reads them (skein's `runtime/shell.md`, 6.2): the bundle
+  skein's shell reads them (skein's `runtime/shell-startup.md`, 1.2): the bundle
   `SSL_CERT_FILE` names, or the first of the distributions' bundles that
   exists. skein-tls embeds none, so a machine with neither refuses the
   command.
 - **The digests are pinned,** one SHA-256 per binary and architecture,
   in `skein-forge` beside `VERSION` and `RUNNER_VERSION` (skein's
-  `forge/README.md`, 4.3), and required: on Linux a fetched binary is the build
+  `forge/dialects.md`, 1.3), and required: on Linux a fetched binary is the build
   the conformance checked, byte for byte.
 - **Streamed, never held:** the body's chunks are asked for one at a
   time, as the file takes them; each is hashed into the digest, which

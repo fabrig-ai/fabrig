@@ -35,8 +35,8 @@ This document holds a forge's connection, access state and removal, split from [
   walk straight from its start to an adoption is not refused for the
   moment the start takes to connect.
   A read it answers is final; a write's entry fails at once, as a typed
-  refusal does, having reached no forge (skein's `forge/client.md`,
-  sections 5 and 7). The connector takes it as the forge's access
+  refusal does, having reached no forge (skein's `forge/client.md`, section 5, and `forge/client-effects.md`, section 1
+  ). The connector takes it as the forge's access
   lacking, never as a fact of a repository: nothing is narrowed, no
   change is held, and no effect is found again for it.
 - **What waits on it.** The connector steps no change on a forge not
@@ -109,7 +109,7 @@ This document holds a forge's connection, access state and removal, split from [
   ids), each told by the setup host at the restored connect, its
   account none, neither suspended nor stray, since the component's
   first read tells only those not accepted or changed (skein's
-  `forge/connection.md`, 4.4); the account is filled from the first
+  `forge/connection-calls.md`, 1.4); the account is filled from the first
   `GitToken` minted for it (`keeping-up.md`, 3 there), and changes follow as before.
 - **A forge ended** is one being removed (below), from its removal's
   decision on: the connector's own state, kept in its record
@@ -310,8 +310,8 @@ This document holds a forge's connection, access state and removal, split from [
   that forge's repositories (3). One on a connecting forge waits for
   it, as above.
 - **The writer given at runtime.** The forge client refuses every effect
-  on a forge with no writer, `Forbidden` (skein's `forge/client.md`,
-  7.1). The forge's record names none (`../../protocol/forge/engine.md`, 1):
+  on a forge with no writer, `Forbidden` (skein's `forge/client-effects.md`,
+  1.1). The forge's record names none (`../../protocol/forge/engine.md`, 1):
   the connector gives the client a forge's writer, its
   user's id (the Forgejo user, or the GitHub App's bot user), when the
   routing says the forge is connected (`../../protocol/forge/engine.md`, 2),
@@ -321,7 +321,7 @@ This document holds a forge's connection, access state and removal, split from [
   it reaches the forge (`../../protocol/forge/engine.md`, 2), since the keys and
   echoes already on the forge are the old user's.
 - **The forge client keeps the writer as its own record** (skein's
-  `forge/client.md`, 7.1): `Stored::Writer` under `Key::Writer(forge)`,
+  `forge/client-effects.md`, 1.1): `Stored::Writer` under `Key::Writer(forge)`,
   in temper's small store under its tag 16, and
   restored at start among the forge's rows, in any order: the client
   takes them all before `Restored`, and runs no restored effect before

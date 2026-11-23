@@ -1,4 +1,4 @@
-//! Keeping wire answers and replaying their body stream (forge/connection.md, 4.6).
+//! Keeping wire answers and replaying their body stream (forge/connection-calls.md, 1.6).
 use super::{Connection, Moved, Phase, http};
 use crate::{
     Limits,

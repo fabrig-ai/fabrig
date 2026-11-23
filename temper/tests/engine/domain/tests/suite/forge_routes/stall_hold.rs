@@ -104,7 +104,7 @@ pub(super) fn waiting(world: &mut World, task: u64, producer: &engine::Assignmen
 }
 
 fn stall(world: &mut World, task: u64) {
-    world.env.now = world.env.now.saturating_add(world.env.limits.forge.change_policy.stall);
+    world.jump(world.env.limits.forge.change_policy.stall);
     for _ in 0..STEPS {
         world.tick();
         if matches!(live_task(world, task).escalation, tasks::Escalation::Waiting { .. }) {
@@ -223,7 +223,7 @@ fn not_held(world: &World, task: u64) {
 }
 
 pub(super) fn jump(world: &mut World, duration: Duration) {
-    world.env.now = world.env.now.saturating_add(duration);
+    world.jump(duration);
     world.tick();
     world.until(Until::Ready);
 }
@@ -452,7 +452,7 @@ fn an_undecided_stall_passes_up_to_a_person() {
     waiting(&mut world, task, &producer, true);
     stall(&mut world, task);
     goal_entry(&world, task, goal.task);
-    world.env.now = world.env.now.saturating_add(world.env.limits.tasks.escalation_stall);
+    world.jump(world.env.limits.tasks.escalation_stall);
     for _ in 0..STEPS {
         world.tick();
         if matches!(
@@ -509,7 +509,7 @@ fn a_hold_decided_while_its_procedure_is_not_due_still_holds_its_task() {
         world.tick();
     }
     assert_eq!(live_task(&world, task).phase, tasks::Phase::Active(tasks::Active::Idle));
-    world.env.now = world.env.now.saturating_add(world.env.limits.forge.change_policy.stall);
+    world.jump(world.env.limits.forge.change_policy.stall);
     world.send(read);
     for _ in 0..STEPS {
         world.tick();

@@ -1,4 +1,4 @@
-//! Malformed document fields (skein/docs/design/forge/README.md, 4.4).
+//! Malformed document fields (skein/docs/design/forge/dialects.md, 1.4).
 use skein_json::tokenizer;
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Malformed {

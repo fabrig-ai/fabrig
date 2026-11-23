@@ -301,7 +301,7 @@ in the lower world that owns it, never here.
   outside expectations; real deadlines bound waits, and the fake peers
   stay available until their clients have settled. A story's patience is
   20 s on Linux and twice that on macOS, the slower host, through skein's
-  `real::host_bound` (`skein/docs/design/testing/README.md`, 5); the
+  `real::host_bound` (`skein/docs/design/testing/service-tiers.md`, 1); the
   judge's early diagnostic stays one second before it, and every poll,
   wait or link deadline a story sets beyond or within the patience is
   derived from it, so both move together. Each check returns
@@ -370,7 +370,7 @@ in the lower world that owns it, never here.
   cancel noted`.
 - **A kill no story asked for names its cause.** The check's finding
   prints every kill the world recorded, one line each as skein's
-  `testing/README.md`, section 5 writes it, then each one's time from the run's
+  `testing/service-tiers.md`, section 1 writes it, then each one's time from the run's
   start in milliseconds, and then the service's notes from the run's
   last 5 seconds: each note the service root took, kept with the
   iteration's `now` it was taken at, those taken no more than 5 seconds

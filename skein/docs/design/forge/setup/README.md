@@ -65,7 +65,7 @@ section 3.5), and nothing more:
   collaborator with `write` on each repository the owner adopted (`forgejo.md`, 1.5).
   GitHub's is the App's installations the owner accepted (`github.md`, 1.4).
 - **Forgejo's webhooks' secret, and hooks** that deliver to the
-  service's listener (../connection.md, section 6), one on each
+  service's listener (../connection-webhooks.md, section 1), one on each
   adopted repository, at `/hooks/<number>`, the number being the
   owner's for the forge. GitHub's App has a hook at no listener and no
   secret kept: the component reads its delivery log (`github.md`, 1.5).
@@ -124,7 +124,7 @@ builds the access from them.
   connected user is kept: reconcile is given its login as the bot's and
   takes it over when its full name carries the mark (`forgejo.md`, 1.3, step 2), and
   refuses it `Unmarked` otherwise. The identity never changes under a
-  forge's writer (../client.md, section 7.1).
+  forge's writer (../client-effects.md, section 1.1).
 
 ## 4. The crate, and its host
 
@@ -134,7 +134,7 @@ builds the access from them.
   10): the access's types and checks, Forgejo's plans, GitHub's plans,
   the items' decoders and the host component. Its plans depend on
   skein-lib, skein-json and `skein-forge`, which holds the setup's
-  documents (../forgejo.md, section 1; ../github.md, section 11). The host
+  documents (../forgejo.md, section 1; ../github-app.md, section 2). The host
   component adds io's vocabulary, `skein-link`, skein-http's client and
   skein-tls's client and signing, as the forge component does
   (../connection.md, section 2).

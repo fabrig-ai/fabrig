@@ -1,4 +1,4 @@
-//! Counted loss at a capped queue (skein/docs/design/runtime/lib.md, 5).
+//! Counted loss at a capped queue (skein/docs/design/runtime/lib-containers.md, 1).
 
 use crate::Lossy;
 

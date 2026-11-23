@@ -18,8 +18,8 @@ faults; the service and the hosted peer each have an allocator binary.
 
 ### 1.1 What it serves
 
-- **REST at the pin.** Every route of ../../forge/github.md, sections 4, 8, 9
-  and 11, at github.com's paths, with no prefix. A request without
+- **REST at the pin.** Every route of ../../forge/github-operations.md, section 1, and ../../forge/github-app.md, section 1, and ../../forge/github.md, section 9, and ../../forge/github-app.md, section 2
+  , at github.com's paths, with no prefix. A request without
   `X-GitHub-Api-Version: 2026-03-10`, or without `User-Agent`, is
   refused as GitHub refuses it (`400`, `403`). Pages are GitHub's: up to
   `per_page` rows, at most 100, with `Link` next while more remain.
@@ -70,7 +70,7 @@ faults; the service and the hosted peer each have an allocator binary.
   either all its repositories or a list of them, and may be suspended.
   A repository's `owner.type` is its account's kind, so one an
   organization owns reads `Organization`, and its pulls take the queue
-  (../../forge/github.md, 4.1 and 5.1).
+  (../../forge/github-operations.md, 1.1 and 2.1).
   The mint answers a token that expires an hour later on the forge's
   clock, full, or contents-only when the body asks. The domain sees the
   bot's user number, and the layer refuses beforehand what the token
@@ -170,7 +170,7 @@ faults; the service and the hosted peer each have an allocator binary.
     `hook_attributes` and the rest), since the page's post is not
     otherwise in sight.
   - `POST /app-manifests/<code>/conversions` makes the App and answers
-    as ../../forge/github.md, section 11, says. The converted App retains every
+    as ../../forge/github-app.md, section 2, says. The converted App retains every
     posted `default_permissions` and `default_events` entry. The scenario's
     `Config::app_facts` is `Complete`, `Omitted` (GET /app omits both fields
     while retaining the grants), or `Narrow` (conversion retains only the
@@ -480,7 +480,7 @@ a domain the caller lends, with no io.
   of a blob are `application/octet-stream`, as they stand.
 - **What a scenario turns.** `Service::ambiguous_updates` answers an
   update's conflict with the stale head's refusal, the one spelling
-  ../../forge/github.md, 5.2 reads as ambiguous. `Installations::minted_token`
+  ../../forge/github-operations.md, 2.2 reads as ambiguous. `Installations::minted_token`
   lends a live token by its mint number, so a world that checks for leaks
   holds every token the layer minted, a reply lost on the wire included.
 - **The fixture.** `skein_fake_forge_github::fixture` is the scenario a
@@ -620,7 +620,7 @@ masking and refusal of leaked secrets are `throwaway.md`, section 2's.
 Forgejo's layer (`forgejo.md`, section 1) and GitHub's (`github.md`, section 1) serve different
 APIs from one domain, and speak HTTP the same way. What they have in
 common sits in `skein-fake-forge-http`, which depends on skein-lib,
-skein-http, skein-json, `skein-forge`'s neutral root (../../forge/README.md, 4.4) and
+skein-http, skein-json, `skein-forge`'s neutral root (../../forge/dialects.md, 1.4) and
 the domain. It names no item of either dialect, and neither layer names
 the other's crate: a change to one fake reaches the other only through
 this one. Forgejo's layer is the crate `skein-fake-forge-forgejo`, which

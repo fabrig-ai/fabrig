@@ -110,12 +110,15 @@ impl<T: Transport> Git<T> {
                 | Command::Format
                 | Command::Remote { .. }
                 | Command::UpdateRef { .. }
+                | Command::UpdateCounts { .. }
+                | Command::DeleteCounts
                 | Command::SnapshotHead
                 | Command::SnapshotMerge { .. }
                 | Command::SnapshotReachable { .. }
                 | Command::SnapshotReset { .. }
                 | Command::SnapshotFetch { .. }
                 | Command::Fetch { .. }
+                | Command::FetchCounts { .. }
                 | Command::Create { .. }
                 | Command::Unmerged
                 | Command::DiffPaths { .. }
@@ -198,7 +201,11 @@ impl<T: Transport> Git<T> {
             | Command::SnapshotHead
             | Command::SnapshotMerge { .. }
             | Command::IsAncestor { .. } => false,
-            Command::UpdateRef { .. } | Command::Fetch { .. } => name == b"objects" || name == b"refs",
+            Command::UpdateRef { .. }
+            | Command::Fetch { .. }
+            | Command::FetchCounts { .. }
+            | Command::UpdateCounts { .. } => name == b"objects" || name == b"refs",
+            Command::DeleteCounts => name == b"refs",
             Command::SnapshotReachable { .. } => name == b"temper-delivery-heads",
             Command::SnapshotFetch { .. } => name == b"objects" || name == b"temper-delivery-heads",
             Command::Unmerged => name == b"temper-conflicts",

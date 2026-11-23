@@ -5,7 +5,7 @@
 - **Where the focus stands on a chat** (the request `ui-composer-focus` of
   2026-11-06):
   - *Started by sending:* a chat a person has just started opens with its
-    composer focused, as soon as its composer shows (skein's `ui/web/README.md`, 5):
+    composer focused, as soon as its composer shows (skein's `ui/web/patches.md`, 1):
     from a new chat, its draft, `Ask` and a suggested request alike.
     "Start goal" is none of these: it opens the goal's page, its heading
     focused. A start refused stays on its page and moves nothing.
@@ -14,7 +14,7 @@
     with a screen reader or the keyboard lands on what the page is, though the
     heading is drawn after the page (`../../web/addresses.md`, 1). An address, a reload,
     Back and Forward make no new entry, and take the focus to no heading
-    (skein's `ui/web/README.md`, 5).
+    (skein's `ui/web/patches.md`, 1).
   - *After a send,* by Enter or by "Send", whether or not it went out, the focus
     is in the composer, on a chat's, a goal's and an agent's task's (`../task.md`, 4) alike:
     "Send" disables as the words clear, and a disabled button holds no focus.
@@ -167,7 +167,7 @@
   a suggested request's press asks for the composer's focus there too,
   and a browser that lets a press's activation outlive the answer may raise
   a keyboard the person did not ask for. Telling them apart takes a kit mechanism,
-  a focus request that raises no keyboard (skein's `ui/web/README.md`, 5). Default: the
+  a focus request that raises no keyboard (skein's `ui/web/patches.md`, 1). Default: the
   same focus at every width.
 - **A start refused, by its press** (1, *Where the focus stands on a chat*; the
   request `ui-composer-focus` of 2026-11-06): the send arrow disables while a start
@@ -177,7 +177,7 @@
   nothing.
 - **A composer that comes back** (1, *Where the focus stands on a chat*; the
   request `ui-composer-focus` of 2026-11-06): a composer's request rides its insert
-  (skein's `ui/web/README.md`, 5), so a chat that loses Message and regains it, after a
+  (skein's `ui/web/patches.md`, 1), so a chat that loses Message and regains it, after a
   send or "Change something", takes the focus again, from a person typing elsewhere
   on that page at that moment. Default: not guarded.
 

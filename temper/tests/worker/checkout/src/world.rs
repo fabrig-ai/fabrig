@@ -540,6 +540,16 @@ impl World {
         self.workstreams[workstream] = places.to_vec();
     }
 
+    /// Publish a fresh counts commit for the repository at `place`.
+    pub fn publish_counts(&mut self, place: usize, bytes: &[u8]) -> u64 {
+        self.forge.publish_counts(&self.repositories[place].remote, bytes)
+    }
+
+    /// Remove the forge's counts reference, leaving any checkout's pin alone.
+    pub fn remove_counts(&mut self, place: usize) {
+        self.forge.remove_counts(&self.repositories[place].remote);
+    }
+
     /// Another party advances `branch` of the repository at `place`, at `at`.
     pub fn advance_at(&mut self, at: Time, place: usize, branch: &[u8]) {
         let repository = self.repositories[place].remote.clone();
@@ -1267,6 +1277,7 @@ impl World {
             | Op::Point { .. }
             | Op::Fetch { .. }
             | Op::Keep { .. }
+            | Op::Counts { .. }
             | Op::Make { .. }
             | Op::Clone { .. }
             | Op::Create { .. }
@@ -1398,6 +1409,7 @@ impl World {
             | Op::Pack { .. }
             | Op::Point { .. }
             | Op::Fetch { .. }
+            | Op::Counts { .. }
             | Op::Create { .. }
             | Op::Commit { .. }
             | Op::Push { .. }
@@ -1421,7 +1433,7 @@ impl World {
             Op::Clone { at, .. } => {
                 Some((at.repository.to_vec(), [translate::path(at).as_slice(), b"/.git/objects"].concat()))
             }
-            Op::Fetch { at, store, .. } => {
+            Op::Fetch { at, store, .. } | Op::Counts { at, store, .. } => {
                 Some((at.repository.to_vec(), [translate::store_path(*store).as_slice(), b"/objects"].concat()))
             }
             _ => None,
@@ -1552,6 +1564,7 @@ impl World {
                     | Kind::Point
                     | Kind::Store
                     | Kind::Fetch
+                    | Kind::Counts
                     | Kind::Create
                     | Kind::CheckOut
                     | Kind::Commit

@@ -1,5 +1,6 @@
 //! The walking root with real children, an ordered paged fake store, scripted
 //! person and worker, independent durable-delivery referee and restart cuts.
+pub mod checks;
 pub mod host_tool;
 pub mod journal_limits;
 /// The protocol layer the world plays: link records, tool decode and render, outcomes, accounts.
@@ -23,6 +24,7 @@ pub mod budget;
 pub mod check;
 /// Shared direct root route driver for focused and randomized scenarios.
 pub mod direct;
+pub mod ends;
 pub mod fixtures;
 /// Requester-backed forge change fixture and delayed required-read control.
 pub mod forge_routes;

@@ -1,6 +1,6 @@
 //! Bridge between the provider-neutral vocabulary and Responses documents.
 //! No state or owner references are retained. Measurement and encoding borrow
-//! schemas/replay into the reserved bytes (llm/README.md, sections 4.2, 4.5 and 4.7).
+//! schemas/replay into the reserved bytes (llm/wire.md, sections 1.2, 1.5 and 1.7).
 use crate::{Block, Error, Invalid, Prompt, Provider, Replay, Role, Unsupported, openai};
 use alloc::boxed::Box;
 use skein_json::{Kind, writer};

@@ -1,4 +1,4 @@
-//! Forge connection (forge/connection.md, sections 3 and 8), on skein/docs/design/net/link.md, 3.
+//! Forge connection (forge/connection.md, section 3, and forge/connection-machines.md, section 2), on skein/docs/design/net/link.md, 3.
 use alloc::boxed::Box;
 use skein_forge::decode;
 pub(crate) use skein_forge::plan::Failure;
@@ -39,7 +39,7 @@ use conditional::Conditional;
 pub(crate) mod forgejo;
 pub(crate) mod github;
 
-/// One movement of the stack (forge/connection.md, 8.1).
+/// One movement of the stack (forge/connection-machines.md, 2.1).
 pub(crate) enum Moved {
     Within,
     Nothing,
@@ -82,7 +82,7 @@ pub(crate) enum Membership {
     Configured,
     Removed,
 }
-/// Whose a connection is (forge/connection.md, 7.2).
+/// Whose a connection is (forge/connection-machines.md, 1.2).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub(crate) enum Use {
     /// The calls' pool.
@@ -92,7 +92,7 @@ pub(crate) enum Use {
     /// A GitHub forge's own connection, outside the calls' count.
     Reserved,
 }
-/// A connection's phases hold their exchange (skein/docs/design/forge/connection.md, 8.1).
+/// A connection's phases hold their exchange (skein/docs/design/forge/connection-machines.md, 2.1).
 enum State {
     // Redirect draining survives its ending.
     Closed { closing: bool, ended: Option<Ended>, draining: bool },

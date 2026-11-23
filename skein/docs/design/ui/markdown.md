@@ -48,7 +48,7 @@ nodes by a bounded reader of skein-ui's own:
   space:
   - *a number:* one to nine digits, either `0` or with no leading zero,
     so that it shows as written. The marker leaves the item's words, and
-    the list says it is ordered, from its first item's number (`README.md`, 3.2);
+    the list says it is ordered, from its first item's number (`tree.md`, 1.2);
   - *as written:* a list's numbers go up by one. An item whose number is
     not the next ends its list and opens another from that number, at the
     same nesting, so `1.` then `3.`, or `1.` then `1.`, show as written,
@@ -88,7 +88,7 @@ nodes by a bounded reader of skein-ui's own:
     and no cell is made from no bytes;
   - *its nodes:* a table of rows, the header's of column headers, the
     others' of cells, each holding its runs' text nodes. The delimiter
-    line makes no node: no property of `README.md`, 3.2 is an alignment, so its
+    line makes no node: no property of `tree.md`, 1.2 is an alignment, so its
     colons are read for its form alone, and a column's alignment is the
     look's;
   - *in a quote or a list item,* whose lines hold their runs and no
@@ -152,7 +152,7 @@ stays fenced code, as any fence does while it is still open.
   branch, a merge, an edge's label, another arrow or shape, `subgraph`,
   `style`, `click`, another class after `:::`, a second `accTitle`.
 - **What it makes,** where its data fits:
-  - *a drawing* (`README.md`, 3.5), kind `flow::KIND`, its name the `accTitle`, or none;
+  - *a drawing* (`tree.md`, 1.5), kind `flow::KIND`, its name the `accTitle`, or none;
   - *its data:* the direction, then each node in the path's order, its
     name, its caption or none, and whether it is strong;
   - *its fallback:* one paragraph holding one text node: each node's name,

@@ -5,7 +5,7 @@ use jig_conformance::store_check::StoreChecks;
 use jig_domain_host as host;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
-use skein_lib::{Duration, ReplyTo, Time, Token, Wall};
+use skein_lib::{Duration, ReplyTo, Time, Token};
 use temper_engine_domain as engine;
 use temper_engine_domain::{CoreRange, Range};
 use temper_engine_domain_world::direct::{Driver, say_ask};
@@ -842,8 +842,7 @@ fn a_transcript_read_landing_after_a_message_ended_its_preparation_is_dropped() 
             "a stale first page issues no continuation"
         );
         // The message ended that preparation; the task backs off and prepares again.
-        driver.env.now = Time::from_nanos(Duration::from_secs(1).as_nanos());
-        driver.env.wall = Wall::from_nanos(Duration::from_secs(1).as_nanos());
+        driver.advance_to(Time::from_nanos(Duration::from_secs(1).as_nanos()));
         engine::fire(&mut driver.root, &driver.env);
         driver.settle();
         let next = driver.last_assignment();

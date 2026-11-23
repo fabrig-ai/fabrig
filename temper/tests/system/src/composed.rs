@@ -23,6 +23,8 @@ type Agent = smith_agent_world::World<provider::Provider>;
 use smith_domain_run as run;
 use temper_engine_domain as engine;
 use temper_engine_domain::{Delivery, Key};
+use temper_engine_domain_world::checks::Checks;
+use temper_engine_domain_world::ends::{Ends, OPENING};
 use temper_engine_domain_world::protocol::Protocol;
 use temper_engine_domain_world::store::Store;
 use temper_engine_domain_world::walking;
@@ -38,10 +40,14 @@ pub mod accounts;
 mod agreement;
 #[cfg(test)]
 mod chat;
+#[cfg(test)]
+mod checks;
 pub mod close_job;
 mod delegates;
 #[cfg(test)]
 mod design_delivery;
+#[cfg(test)]
+mod goals;
 mod link;
 mod long_chat;
 pub mod merge_job;
@@ -58,6 +64,7 @@ use process::{Around, Process};
 
 const CHANNEL: Token = Token::new(7);
 const TICK: Duration = Duration::from_millis(1);
+const STEPS: u64 = 10000;
 /// The party's request that adopts the repository.
 const ADOPTION: Token = Token::new(900);
 const RUN_WATCH: Token = Token::new(901);
@@ -110,9 +117,15 @@ enum Adoption {
 
 /// A composed deployment: all roots retain their own state, with IO outside.
 pub struct World {
-    checks: jig_conformance::store_check::StoreChecks,
+    store_checks: jig_conformance::store_check::StoreChecks,
     restart_config: engine::Config,
     seed: u64,
+    checks: Checks,
+    pub ends: Ends,
+    iteration: u64,
+    finding: Option<String>,
+    #[cfg(test)]
+    goal_replies: Option<Vec<(Token, people::Reply)>>,
     absence: absence::Controls,
     account_case: Option<accounts::Story>,
     notes: notes::Party,
@@ -144,7 +157,7 @@ pub struct World {
     adoption: Adoption,
     /// The root heard its funding period and the git identity once ready.
     funded: bool,
-    /// The root was quiescent once: the worker and the party may begin.
+    /// This root has been read ready: the worker and the party may begin.
     opened: bool,
     forge: Forge,
     disk: Checkout,
@@ -154,7 +167,7 @@ pub struct World {
 
 impl Drop for World {
     fn drop(&mut self) {
-        eprintln!("{}", self.checks.report());
+        eprintln!("{}", self.store_checks.report());
     }
 }
 
@@ -489,10 +502,18 @@ impl World {
         let kinds = close_job::worker_kinds(&config.core.jobs, &mut worker_limits);
         let store =
             temper_engine_domain_world::fixtures::restored_over(Store::with_limits(&limits), bootstrap, &limits);
+        let mut ends = Ends::new(seed, OPENING);
+        ends.restarted(Time::ZERO);
         Self {
-            checks: jig_conformance::store_check::StoreChecks::sampled(seed, crate::STORE_CHECK_ONE_IN),
+            store_checks: jig_conformance::store_check::StoreChecks::sampled(seed, crate::STORE_CHECK_ONE_IN),
             restart_config: temper_engine_domain_world::oracle::config::copy(&config),
             seed,
+            checks: Checks::new(seed),
+            ends,
+            iteration: 0,
+            finding: None,
+            #[cfg(test)]
+            goal_replies: None,
             absence: absence::Controls::default(),
             account_case: None,
             notes: notes::Party::default(),
@@ -563,7 +584,17 @@ impl World {
 
     /// A store refusal is a run finding, before any peer sees the commit.
     pub fn try_tick(&mut self) -> Result<(), String> {
-        self.env.now = self.env.now.saturating_add(TICK);
+        self.try_move_to(self.env.now.saturating_add(TICK))?;
+        self.tick_at_now()
+    }
+
+    fn tick_at_now(&mut self) -> Result<(), String> {
+        if let Some(finding) = &self.finding {
+            return Err(finding.clone());
+        }
+        self.iteration += 1;
+        let result = self.checks.step(self.env.now, self.iteration);
+        self.keep_finding(result)?;
         self.env.wall = Wall::from_nanos(self.env.now.as_nanos());
         self.worker_env.now = self.env.now;
         self.worker_env.wall = self.env.wall;
@@ -596,7 +627,10 @@ impl World {
                     self.root_request(request);
                 }
             }
-            self.opened |= self.root.quiescent();
+            if !self.opened && self.root.ready() {
+                self.opened = true;
+                self.ends.opened(self.env.now);
+            }
         }
         if self.absence.engine_running
             && self.opened
@@ -606,7 +640,8 @@ impl World {
             self.party_request(up);
         }
         self.account_party();
-        if self.opened && self.absence.worker_running {
+        // A surviving worker keeps driving its hello while the engine reopens.
+        if (self.opened || self.absence.enabled) && self.absence.worker_running {
             self.worker_tick();
         }
         self.account_clock();
@@ -623,16 +658,81 @@ impl World {
         self.account_observe();
         self.worker.reclaim();
         self.root.reclaim();
+        let result = self.ends.step(self.env.now, &self.store);
+        self.keep_finding(result)?;
+        if self.engine_quiet() {
+            let result = self.checks.quiet(&self.root, self.env.now, self.iteration);
+            self.keep_finding(result)?;
+        }
         Ok(())
     }
 
+    fn keep_finding(&mut self, result: Result<(), String>) -> Result<(), String> {
+        if self.finding.is_none() {
+            self.finding = result.err();
+        }
+        self.finding.clone().map_or(Ok(()), Err)
+    }
+
+    fn engine_quiet(&self) -> bool {
+        self.absence.engine_running
+            && self.root_events.is_empty()
+            && self.root_out.is_empty()
+            && self.store.idle()
+            && self.root.quiescent()
+            && self.root.next_deadline(&self.env).is_none_or(|due| due > self.env.now)
+    }
+
+    /// Visit retained bounds before a story's jump or the next grid tick.
+    fn try_move_to(&mut self, at: Time) -> Result<(), String> {
+        assert!(at >= self.env.now, "the story clock moves forward");
+        if let Some(finding) = &self.finding {
+            return Err(finding.clone());
+        }
+        while let Some(bound) = self.checks.next_bound().filter(|bound| *bound < at) {
+            if bound < self.env.now {
+                let result = self.checks.step(self.env.now, self.iteration);
+                self.keep_finding(result)?;
+            }
+            self.env.now = bound;
+            let mut drained = false;
+            for _ in 0..STEPS {
+                self.tick_at_now()?;
+                if self.engine_quiet() {
+                    drained = true;
+                    break;
+                }
+            }
+            if !drained {
+                let finding = format!(
+                    "seed {}: at {} ns, iteration {}: engine bound drain: immediate work did not drain in {STEPS} steps",
+                    self.seed,
+                    bound.as_nanos(),
+                    self.iteration
+                );
+                return self.keep_finding(Err(finding));
+            }
+            if self.checks.next_bound().is_some_and(|next| next <= bound) {
+                let result = self.checks.step(at, self.iteration);
+                self.keep_finding(result)?;
+            }
+        }
+        self.env.now = at;
+        Ok(())
+    }
+
+    /// Jump controlled time through the engine's retained bounds.
+    pub fn jump(&mut self, duration: Duration) {
+        self.try_move_to(self.env.now.saturating_add(duration)).unwrap_or_else(|finding| panic!("{finding}"));
+    }
+
     pub fn store_checks(&mut self, checks: jig_conformance::store_check::StoreChecks) {
-        self.checks = checks;
+        self.store_checks = checks;
     }
 
     #[must_use]
     pub fn store_check_counts(&self) -> &jig_conformance::store_check::StoreChecks {
-        &self.checks
+        &self.store_checks
     }
 
     fn check_commit(&mut self, previous: u64) -> Result<(), String> {
@@ -642,7 +742,7 @@ impl World {
             &self.env.limits,
             self.env.wall,
             previous,
-            &mut self.checks,
+            &mut self.store_checks,
         )
     }
 
@@ -650,7 +750,9 @@ impl World {
     pub fn advance(&mut self, duration: Duration) {
         let until = self.env.now.saturating_add(duration);
         while self.env.now < until {
-            self.tick();
+            self.try_move_to(until.min(self.env.now.saturating_add(TICK)))
+                .and_then(|()| self.tick_at_now())
+                .unwrap_or_else(|finding| panic!("{finding}"));
         }
     }
 
@@ -686,8 +788,13 @@ impl World {
 
     /// Finish one activation, including its worker answer and committed ACK.
     pub fn run(&mut self) {
-        for _ in 0..10000 {
-            self.tick();
+        self.try_run().unwrap_or_else(|finding| panic!("{finding}"));
+    }
+
+    /// Run with the first referee finding returned for the check's own tests.
+    pub fn try_run(&mut self) -> Result<(), String> {
+        for _ in 0..STEPS {
+            self.try_tick()?;
             if self.process.answered.is_some()
                 && self.party.quiescent()
                 && self.observed.answers != 0
@@ -697,15 +804,18 @@ impl World {
                 && !self.committing()
                 && self.root.quiescent()
             {
-                return;
+                let result = self.ends.close(self.env.now, &self.store);
+                return self.keep_finding(result);
             }
         }
-        panic!(
+        let result = self.ends.close(self.env.now, &self.store);
+        self.keep_finding(result)?;
+        self.keep_finding(Err(format!(
             "composed run did not settle: {:?}; answered={:?}; agent_tail={:?}",
             self.observed,
             self.process.answered,
             self.agent().trace().iter().rev().take(8).collect::<Vec<_>>()
-        );
+        )))
     }
 
     /// Whether the store has commits not yet applied.
@@ -1314,6 +1424,11 @@ impl World {
     }
 
     fn web_reply(&mut self, to: Token, reply: people::Reply) {
+        #[cfg(test)]
+        if let Some(replies) = &mut self.goal_replies {
+            replies.push((to, reply));
+            return;
+        }
         if self.account_reply(to, &reply) {
             return;
         }
@@ -1740,7 +1855,7 @@ impl World {
                 && self.worker_events.is_empty()
                 && !self.committing()
             {
-                self.env.now = self.env.now.saturating_add(Duration::from_secs(1));
+                self.jump(Duration::from_secs(1));
             }
             self.tick();
             let head = self.forge.branch(b"org/repo", base).expect("goal branch stays live");
@@ -1831,6 +1946,7 @@ fn forge_operation(mut op: worker::checkout::git::Op) -> worker::checkout::git::
         Op::Store { remote, .. }
         | Op::Clone { remote, .. }
         | Op::Fetch { remote, .. }
+        | Op::Counts { remote, .. }
         | Op::Create { remote, .. }
         | Op::Push { remote, .. } => remote,
         Op::Commit { snapshot: Some(snapshot), .. } => &mut snapshot.remote,

@@ -182,6 +182,26 @@ impl Domain {
     pub fn hold_landings(&mut self, held: bool) {
         self.forge.hold_landings(held);
     }
+    /// The armed retry of this change's refused train (testing/engine-checks.md, 2.2).
+    #[must_use]
+    pub fn inspection_forming_retry(&self, task: u64) -> Option<Wall> {
+        if self.forge.landing_held() {
+            return None;
+        }
+        let row = self.forge.change(task)?;
+        let (at, _, judged) = self.forge_refused.get(&(row.repository, row.base.clone()))?;
+        if *judged {
+            return None;
+        }
+        Some(Wall::from_nanos(at.as_nanos().saturating_add(self.limits.forge.queue_window.as_nanos())))
+    }
+
+    /// Whether this child's contract pushes for its change (testing/engine-checks.md, 2.2).
+    #[must_use]
+    pub fn inspection_pushing_child(&self, child: u64) -> bool {
+        forge_route::change_pushing_child(self, child)
+    }
+
     #[must_use]
     pub fn landing_way(&self, project: u32) -> temper_engine_domain_forge_change::Way {
         self.forge.landing_way(project)
@@ -275,6 +295,12 @@ impl Domain {
     #[must_use]
     pub fn reply_bound(&self, key: CallKey) -> Option<u32> {
         self.core.fleet.reply_bound(Token::new(key.task), Token::new(key.attempt)).or(self.limits.host_reply_bytes)
+    }
+
+    /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
+    #[must_use]
+    pub const fn forge(&self) -> &temper_engine_domain_forge::Domain {
+        &self.forge
     }
 
     /// The live task arena, for a world to inspect between iterations.

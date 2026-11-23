@@ -212,7 +212,7 @@ fn a_protocol_signoff_waits_outside_the_queue_while_docs_land_without_approval()
     assert_eq!(world.merges, 0);
     let since = change_row(&world, protocol).change.ready_since;
 
-    world.env.now = world.env.now.saturating_add(Duration::from_secs(1));
+    world.advance_to(world.env.now.saturating_add(Duration::from_secs(1)));
     let docs_producer = next_change(&mut world);
     let docs = change_of(&world, &docs_producer);
     assert_eq!(change_row(&world, docs).base, change_row(&world, protocol).base);
@@ -442,7 +442,7 @@ fn landed_sign_offs_keep_the_counted_review_and_survive_restart() {
         head: translate::commit(head),
         at: skein_lib::Wall::from_nanos(review.at.as_nanos()),
     };
-    world.env.now = world.env.now.saturating_add(world.env.limits.forge.queue_window);
+    world.advance_to(world.env.now.saturating_add(world.env.limits.forge.queue_window));
     settle(&mut world);
     assert_landed(&mut world, protocol);
     let docs_producer = next_change(&mut world);
@@ -478,7 +478,7 @@ fn a_turn_keeps_sign_offs_on_the_member_changes_landed_row() {
     assert_eq!(world.merges, 0, "turn waits for its member's approval");
     post_approval_read(&mut world, change, 7);
     let review = pull_of(&mut world, change).reviews.into_vec().pop().expect("member review");
-    world.env.now = world.env.now.saturating_add(world.env.limits.forge.queue_window);
+    world.advance_to(world.env.now.saturating_add(world.env.limits.forge.queue_window));
     for _ in 0..600 {
         world.tick();
         if world.merges == 1 {

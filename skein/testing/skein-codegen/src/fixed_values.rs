@@ -1,4 +1,4 @@
-//! Fixed-rule values (data/codec/README.md, section 6).
+//! Fixed-rule values (data/codec/golden.md, section 1).
 
 use crate::{Declaration, Enumeration, FixedValue, Record, Type, Variant, analysis::Context, emit_limits};
 

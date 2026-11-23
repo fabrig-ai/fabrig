@@ -1,4 +1,4 @@
-//! A decoded schema record at every ceiling (data/codec/README.md, 6).
+//! A decoded schema record at every ceiling (data/codec/golden.md, 1).
 
 use skein_heap::Meter;
 use skein_lib::{Reader, Secret};

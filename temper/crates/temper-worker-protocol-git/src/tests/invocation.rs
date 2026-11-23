@@ -38,7 +38,7 @@ const SETTINGS: &[&[u8]] = &[
 ];
 const ID: &[u8] = b"abababababababababababababababababababab";
 #[expect(clippy::too_many_lines, reason = "the argument table covers both fetch destinations")]
-fn rows() -> [(Command, &'static [&'static [u8]]); 29] {
+fn rows() -> [(Command, &'static [&'static [u8]]); 32] {
     let remote: Box<[u8]> = Box::from(fixtures::REMOTE);
     let branch: Box<[u8]> = Box::from(&b"temper/7"[..]);
     let commit = fixtures::COMMIT;
@@ -175,6 +175,23 @@ fn rows() -> [(Command, &'static [&'static [u8]]); 29] {
             ],
         ),
         (
+            Command::FetchCounts { workspace: Token::new(7), remote: remote.clone() },
+            &[
+                b"fetch",
+                b"--porcelain",
+                b"--verbose",
+                b"--no-filter",
+                b"--no-tags",
+                b"--no-write-fetch-head",
+                b"--no-recurse-submodules",
+                b"--",
+                fixtures::REMOTE,
+                b"+refs/temper/counts:refs/temper/7/counts",
+            ],
+        ),
+        (Command::UpdateCounts { commit }, &[b"update-ref", b"refs/temper/counts", ID]),
+        (Command::DeleteCounts, &[b"update-ref", b"-d", b"refs/temper/counts"]),
+        (
             Command::Create { remote: remote.clone(), branch: branch.clone(), commit },
             &[
                 b"push",
@@ -255,7 +272,8 @@ fn each_command_s_arguments_are_git_md_s_vector() {
             Command::CountObjects { store: Some(_) }
             | Command::Repack { store: Some(_) }
             | Command::Format
-            | Command::Fetch { .. } => &[b"--git-dir=stores/9"],
+            | Command::Fetch { .. }
+            | Command::FetchCounts { .. } => &[b"--git-dir=stores/9"],
             Command::Reds(_)
             | Command::CountObjects { store: None }
             | Command::Repack { store: None }
@@ -266,6 +284,8 @@ fn each_command_s_arguments_are_git_md_s_vector() {
             | Command::SnapshotReset { .. }
             | Command::Remote { .. }
             | Command::UpdateRef { .. }
+            | Command::UpdateCounts { .. }
+            | Command::DeleteCounts
             | Command::Create { .. }
             | Command::CheckOut { .. }
             | Command::Clean
@@ -307,6 +327,8 @@ fn operation(command: &Command) -> git::Op {
     let at = git::Place { git: None, workspace: Token::new(0), repository: Box::from(b"fabrig".as_slice()) };
     if let Command::Format = command {
         git::Op::Clone { at, store: Token::new(9), remote: Box::from(fixtures::REMOTE) }
+    } else if let Command::FetchCounts { .. } | Command::UpdateCounts { .. } | Command::DeleteCounts = command {
+        git::Op::Counts { at, store: Token::new(9), remote: Box::from(fixtures::REMOTE), identity: 1, account: None }
     } else {
         git::Op::Fetch {
             at,

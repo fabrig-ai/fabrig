@@ -138,7 +138,7 @@
 //!   end for a startup file opened with `O_APPEND`. On an ordinary writable
 //!   file it advances the position after each write. Counts are positive;
 //!   a short append continues from `from + n`. Only one is in flight on a
-//!   descriptor opened to write (runtime/kernel.md, 6.1 and 7).
+//!   descriptor opened to write (runtime/kernel-files.md, 1, and runtime/kernel.md, 7).
 //! - **`Sync`** flushes the file, or a directory's entries, to storage:
 //!   once it completes, what was written or renamed before it survives a
 //!   crash.
@@ -476,7 +476,7 @@ pub enum Op {
         to: Box<[u8]>,
         no_replace: bool,
     },
-    /// Gives an existing entry a second name, without following symbolic links (runtime/kernel.md, 6.4).
+    /// Gives an existing entry a second name, without following symbolic links (runtime/kernel-files.md, 2).
     /// Both names pass [`is_name`] and hold at most [`LONGEST_NAME`] bytes.
     HardLink {
         from_dir: Fd,
@@ -529,7 +529,7 @@ pub enum Op {
         fd: Fd,
     },
     /// Reads one blocked signal from the signalfd opened at startup
-    /// (runtime/io/README.md, section 4; runtime/shell.md, section 6).
+    /// (runtime/io/README.md, section 4; runtime/shell-startup.md, section 1).
     ReadSignal {
         fd: Fd,
     },
@@ -728,7 +728,7 @@ pub enum Way {
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 /// A signal a child's owner sends it, or its group, or a cgroup's
-/// processes (runtime/kernel.md, sections 6.2 and 6.6).
+/// processes (runtime/kernel.md, section 6.2, and runtime/kernel-cgroups.md, section 1).
 pub enum Signal {
     /// Ask the recipient to stop what it is doing (`SIGINT`): a program
     /// may handle it and go on.
@@ -799,7 +799,7 @@ pub enum ServiceSignal {
     Interrupt,
     /// A termination request (`SIGTERM`).
     Terminate,
-    /// A terminal's closing (`SIGHUP`), read only by a service that asks (runtime/shell.md, 6.3).
+    /// A terminal's closing (`SIGHUP`), read only by a service that asks (runtime/shell-startup.md, 1.3).
     Hangup,
 }
 
@@ -815,7 +815,7 @@ pub enum Exit {
 /// How an [`Op::Open`] opens what its path names.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub enum OpenHow {
-    /// An entry itself, links refused in its parents, for Stat and Close only (runtime/kernel.md, 6.1).
+    /// An entry itself, links refused in its parents, for Stat and Close only (runtime/kernel-files.md, 1).
     PathNoFollow,
     /// An existing file or directory, to `Read` or `Stat` (`O_RDONLY`).
     Read,

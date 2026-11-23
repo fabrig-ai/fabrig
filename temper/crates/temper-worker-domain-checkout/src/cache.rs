@@ -531,7 +531,7 @@ impl Cache {
     /// Count pack-producing operations when asked, and reset each place a Pack names.
     pub(crate) fn asked(&mut self, workspace: Id<Workspace>, stores: &[Borrowed], op: &Op) {
         match op {
-            Op::Fetch { store, .. } => {
+            Op::Fetch { store, .. } | Op::Counts { store, .. } => {
                 let entry = self.stores.get_mut(store_id(stores, *store)).expect("a hold borrows its store");
                 entry.fetches = entry.fetches.saturating_add(1);
             }

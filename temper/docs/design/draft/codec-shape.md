@@ -2,7 +2,7 @@
 
 Draft, 2026-11-17, from a session with the user, for the store and every wire alike. The user's aim: "a good end story across the board (store and wire)", "eliminating at the root all debt/pain we have accumulated due to the wrong approaches taken in the past (conflicts, generated code, goldens, etc)". This draft is the code's half: what the generator writes, what is still written by hand, how it is tested, and how it merges. [layouts-both-ways.md](layouts-both-ways.md) is the data's half: how a value or a message at one layout is read or written at another, in both directions. The figures are the survey's, on main at `a525e539f7` (`temper/docs/development/codec-survey-2026-11-17.md`).
 
-Where they differ, this draft wins over skein's codec design (`skein/docs/design/data/codec/README.md`, sections 1, 4 and 6; `skein/docs/design/data/codec/command.md`, 2), the subset (`skein/docs/foundation/programming-model.md`, 10.2 and 10.3) and jig's store records (`jig/docs/design/protocol/store/records.md`, 1), until its goals fold it into them.
+Where they differ, this draft wins over skein's codec design (`skein/docs/design/data/codec/README.md`, sections 1 and 4, and `skein/docs/design/data/codec/golden.md`, section 1; `skein/docs/design/data/codec/command.md`, 2), the subset (`skein/docs/foundation/programming-model.md`, 10.2 and 10.3) and jig's store records (`jig/docs/design/protocol/store/records.md`, 1), until its goals fold it into them.
 
 ## 1. In one page
 
@@ -159,8 +159,8 @@ The first two are mechanical, and the generator writes them. The third stays wri
 ### 5.2 What each family keeps
 
 - **Drift:** the generator run on the schema (and on the maps file, section 4) equals the committed code.
-- **Fuzzing,** in the fuzzy suite: each top-level record's decoder over arbitrary bytes never panics, and what decodes encodes back to the same bytes (`skein/docs/design/data/codec/README.md`, 6).
-- **Memory:** decoding the largest value the ceilings allow stays within the bound the generator computed. The value is built at run time, from the schema, by `skein-codec`'s generic values (`skein/docs/design/data/codec/README.md`, 8). Today it is read from a golden file.
+- **Fuzzing,** in the fuzzy suite: each top-level record's decoder over arbitrary bytes never panics, and what decodes encodes back to the same bytes (`skein/docs/design/data/codec/golden.md`, 1).
+- **Memory:** decoding the largest value the ceilings allow stays within the bound the generator computed. The value is built at run time, from the schema, by `skein-codec`'s generic values (`skein/docs/design/data/codec/run-time.md`, 2). Today it is read from a golden file.
 - **None of these reads a golden file.**
 
 ### 5.3 What goes
@@ -203,9 +203,9 @@ Two goals that change different records of one family conflict only where they e
 
 ## 7. What stays
 
-- **The schemas,** their grammar and the generator, which reads them through `skein-codec`'s parser (`skein/docs/design/data/codec/README.md`, 7).
+- **The schemas,** their grammar and the generator, which reads them through `skein-codec`'s parser (`skein/docs/design/data/codec/run-time.md`, 1).
 - **Every byte:** canonical encoding, one encoding per value, sized and bounded decoding, refusals by field.
-- **Fingerprints** (`skein/docs/design/data/codec/README.md`, 9), computed rather than committed.
+- **Fingerprints** (`skein/docs/design/data/codec/fingerprints.md`, 1), computed rather than committed.
 - **The codec crates as crates of their own,** depending only on `skein-lib` and `skein-codec` (`jig/docs/design/protocol/store/crates.md`, 2).
 - **The drift test,** now over code and maps alone.
 - **The subset,** for every line written by hand.

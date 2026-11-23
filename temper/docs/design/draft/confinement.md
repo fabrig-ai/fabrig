@@ -150,7 +150,7 @@ lies on disk within the tree's reach (2.3), the program's login first.
   document*; skein-io's `Spawn` holds a program, its arguments, its
   environment, a root, a directory and its pipes, and nothing more
   (`skein/crates/skein-io/src/kernel.rs`), and the helper that would set
-  a tree up (`skein/docs/design/runtime/kernel.md`, 6.6) does not exist.
+  a tree up (`skein/docs/design/runtime/kernel-cgroups.md`, 1) does not exist.
 - **What waits on them:** jig's agent processes (jig's
   `jig/docs/design/protocol/README.md`, section 10), smith's commands
   (`smith/docs/design/domain/tools.md`, 5), hearth's build sandboxes
@@ -228,7 +228,7 @@ group that opens a privileged socket (a container daemon's, for one),
 since a socket named by a path stays reachable in the first steps (6.5).
 `NoNewPrivileges` covers the whole unit until the full view (5.6) needs
 the set-user-id `newuidmap` for a run's subordinate ids, which it
-defeats (`skein/docs/design/runtime/kernel.md`, 6.6); the helper then
+defeats (`skein/docs/design/runtime/kernel-cgroups.md`, 1); the helper then
 sets it on each run instead.
 
 - **Stops:** privilege, people's homes and keys, other services' state,
@@ -334,7 +334,7 @@ to what this draft does not defend against.
 
 The worker's spawn of the agent carries the run's reach, and skein
 applies it in the child before the agent's first instruction, through
-the helper `skein/docs/design/runtime/kernel.md`, 6.6 designs, built
+the helper `skein/docs/design/runtime/kernel-cgroups.md`, 1 designs, built
 first for Landlock and `no_new_privs` alone. So the fence is the host's,
 not something the run does to itself, and the same spawn serves smith's
 narrower domains for its commands (5.3) and hearth's sandboxes.

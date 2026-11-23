@@ -236,7 +236,7 @@ impl Builder {
         self.node_mut().hint = Some(hint);
     }
     /// Give a menu's button its words and name, within the menu's text bound
-    /// (ui/README.md, 3.2 and 13).
+    /// (ui/tree.md, 1.2, and ui/README.md, 13).
     pub fn menu_button(&mut self, words: &[u8], name: &[u8]) {
         assert!(self.node().role == Role::Menu, "a menu's button belongs to a menu");
         assert!(!self.node().states.as_slice().contains(&State::Options), "an options menu has no button");
@@ -262,7 +262,7 @@ impl Builder {
         self.focused = true;
     }
 
-    /// Request the log's end in view (ui/README.md, 3.2).
+    /// Request the log's end in view (ui/tree.md, 1.2).
     pub fn end_request(&mut self, count: u64) {
         assert!(self.node().role == Role::Log, "end requests belong to logs");
         self.node_mut().end_request = Some(count);
@@ -274,7 +274,7 @@ impl Builder {
         self.node_mut().count = Some(count);
     }
 
-    /// Number a list's items, the first one `first` (ui/README.md, 3.2).
+    /// Number a list's items, the first one `first` (ui/tree.md, 1.2).
     pub fn ordered(&mut self, first: u32) {
         assert!(self.node().role == Role::List, "orders belong to lists");
         self.node_mut().ordered = Some(first);

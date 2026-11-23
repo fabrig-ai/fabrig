@@ -5,7 +5,7 @@
 //!
 //! # Its two sides
 //!
-//! Below, a `lib::stream` (runtime/lib.md, 7) to the client: TLS's plaintext, a
+//! Below, a `lib::stream` (runtime/lib-streams.md, 1) to the client: TLS's plaintext, a
 //! socket or a pipe. Before it reads a request, the server asks for room
 //! for the longest response head it writes, [`Limits::response`], and
 //! holds it: whatever the request comes to, its answer goes down at once.
@@ -26,7 +26,7 @@
 //!   `Done`, once the response is all queued below and the request body
 //!   was read to its end or discarded, or `Failed`.
 //! - **The request body is a stream** (`Body`), read: the server is its
-//!   side below, and keeps its contract (runtime/lib.md, 7). Its first demand of an
+//!   side below, and keeps its contract (runtime/lib-streams.md, 1). Its first demand of an
 //!   empty body gets `End`. `Discard` gives up the rest of it.
 //! - **`Respond` gives the response's head,** once. A response the server
 //!   refuses writes nothing and leaves the exchange as it was
@@ -107,7 +107,7 @@ pub struct Limits {
 /// chunk's size, or a piece of the request body.
 ///
 /// Whoever stacks the server checks at startup that the stream below's
-/// intake holds it (runtime/lib.md, 7): a demand past that cap could never be met.
+/// intake holds it (runtime/lib-streams.md, 1): a demand past that cap could never be met.
 #[must_use]
 pub fn largest_read(limits: &Limits) -> u32 {
     limits.head.max(limits.read).max(2)
@@ -149,7 +149,7 @@ pub enum Request {
     /// the body's `End`, discarded it, or withdrew from a body all read
     /// below: a side above that never reads the body discards it.
     Respond(Response),
-    /// The request body's stream, read (runtime/lib.md, 7): a demand of at most
+    /// The request body's stream, read (runtime/lib-streams.md, 1): a demand of at most
     /// [`Limits::read`] and no room, or its withdrawal, after which the
     /// side above reads no more: it discards the rest, responds, or closes
     /// the server. A withdrawal may cross its demand's answer, even the
@@ -160,7 +160,7 @@ pub enum Request {
     /// or, on a connection not to be, reads no more. A demand outstanding
     /// is dropped unanswered.
     Discard,
-    /// The response body's stream, written (runtime/lib.md, 7), once the response
+    /// The response body's stream, written (runtime/lib-streams.md, 1), once the response
     /// was given, if it has a body: a demand for room only, of at most
     /// [`Limits::send`]; a `Send` within the room granted; `Finish` once
     /// the response's length is sent, or, for one in chunks, when it is
@@ -476,7 +476,7 @@ pub enum Waiting {
 #[derive(Debug)]
 pub struct Server {
     state: State,
-    /// The request body's carry-over (runtime/lib.md, 7), under [`Limits::read`],
+    /// The request body's carry-over (runtime/lib-streams.md, 1), under [`Limits::read`],
     /// empty between exchanges.
     intake: Intake,
 }
@@ -535,7 +535,7 @@ pub fn up(server: &mut Server, env: &Env<Limits>, ev: Up, above: &mut Queue<Even
         State::Idle(line) => State::Idle(idle(line, ev)),
         State::Reading(reading) => reading_up(reading, limits, env.wall, ev, above, below),
         State::Exchange(exchange) => exchange_up(exchange, &mut server.intake, env, ev, above, below),
-        // An answer to a demand withdrawn, on its way (runtime/lib.md, 7); an end or
+        // An answer to a demand withdrawn, on its way (runtime/lib-streams.md, 1); an end or
         // a failure, which changes nothing now.
         State::Spent => State::Spent,
         State::Closed => State::Closed,
@@ -566,7 +566,7 @@ pub fn down(server: &mut Server, env: &Env<Limits>, rq: Request, above: &mut Que
             State::Exchange(exchange) => body_demanded(exchange, down, intake, limits, above, below),
             State::Spent => State::Spent,
             // A withdrawal on its way when the body's end went up with
-            // `Done` (runtime/lib.md, 7): dropped.
+            // `Done` (runtime/lib-streams.md, 1): dropped.
             State::Idle(line) => match down {
                 Down::Demand { read: Read::Nothing, room: 0 } => State::Idle(line),
                 Down::Demand { .. } | Down::Send(_) | Down::Finish => {
@@ -650,7 +650,7 @@ struct Exchange {
     body: Option<Incoming>,
     response: Responding,
     /// The demand outstanding below, if any: stated only when none is, and
-    /// answered at most once (runtime/lib.md, 7).
+    /// answered at most once (runtime/lib-streams.md, 1).
     below: Option<Demand>,
     /// A read the server withdrew below, whose answer may still be on its
     /// way: once the body is given up, any bytes that come are its.
@@ -865,7 +865,7 @@ fn exchange_up(
                 Some(Demand::Read(_)) => exchange.below = None,
                 Some(Demand::Room(_)) | None => {
                     // The answer to a read the server withdrew as it gave the
-                    // body up, on its way (runtime/lib.md, 7).
+                    // body up, on its way (runtime/lib-streams.md, 1).
                     assert!(exchange.withdrawn, "bytes answer a demand that reads");
                     return State::Exchange(exchange);
                 }
@@ -891,7 +891,7 @@ fn exchange_up(
             match exchange.below.take() {
                 Some(Demand::Room(_)) => {}
                 // The answer to room the server withdrew with the reply, on
-                // its way (runtime/lib.md, 7).
+                // its way (runtime/lib-streams.md, 1).
                 None if exchange.withdrawn => return State::Exchange(exchange),
                 Some(Demand::Read(_)) | None => unreachable!("room answers a demand for room"),
             }
@@ -1073,7 +1073,7 @@ fn body_demanded(
     incoming.face = match incoming.face {
         // A withdrawal: what is read for it from now on is dropped. One with
         // nothing outstanding was on its way when its demand's answer went
-        // up (runtime/lib.md, 7): the side above reads no more all the same.
+        // up (runtime/lib-streams.md, 1): the side above reads no more all the same.
         Face::Idle | Face::Demand(_) if read == Read::Nothing => Face::Withdrawn,
         Face::Idle => {
             let wanted = match read {
@@ -1172,7 +1172,7 @@ fn reply(
                     assert!(len <= u64::from(granted), "a Send within the room granted");
                     // An empty chunk would be the last: an empty piece is no
                     // chunk at all, and goes down as it came, to give up the
-                    // room granted below, which grants one Send (runtime/lib.md, 7).
+                    // room granted below, which grants one Send (runtime/lib-streams.md, 1).
                     let send = if bytes.is_empty() { bytes } else { response::chunk(&bytes) };
                     below.push(Down::Send(send));
                     Reply::Chunked { room: Room::Idle }
@@ -1195,7 +1195,7 @@ fn reply(
                 Reply::Finished
             }
             // A Finish may come in place of the one Send a grant allows
-            // (runtime/lib.md, 7): the room granted below holds the last chunk, or
+            // (runtime/lib-streams.md, 1): the room granted below holds the last chunk, or
             // is given up with an empty Send.
             Reply::Chunked { room } => match room {
                 Room::Idle => Reply::Last,

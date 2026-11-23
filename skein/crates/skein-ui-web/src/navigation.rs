@@ -1,4 +1,4 @@
-//! Navigation targets admitted by the web platform (ui/web/README.md, section 8).
+//! Navigation targets admitted by the web platform (ui/web/effects.md, section 1).
 
 pub fn allowed(to: &[u8], loopback: bool) -> bool {
     if !to.iter().all(|byte| (0x21..=0x7e).contains(byte)) {

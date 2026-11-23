@@ -329,8 +329,8 @@ Stop the box? csv-export's running task stops with it.
   columns in, the box's last lines, oldest first, each as the box wrote
   it, read as UTF-8 with a replacement for each invalid byte and cut at
   512 bytes, `limits::LOG_LINE` (`tui-note`); with none kept yet,
-  "Nothing yet." in their place. The lines are a log (skein's `ui/README.md`,
-  3.2) whose end request is the TUI's state's revision, so that it moves
+  "Nothing yet." in their place. The lines are a log (skein's `ui/tree.md`,
+  1.2) whose end request is the TUI's state's revision, so that it moves
   as the note opens and as lines come while it stands, and the body
   shows its end, the newest lines, as many as fit; PgUp reads back the
   rest until the next change (skein's `ui/screen.md`, 5.2).

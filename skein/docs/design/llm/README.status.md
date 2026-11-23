@@ -3,12 +3,6 @@
 2026-11-23. Where skein's code lags or departs from [README.md](README.md).
 
 
-- **Not yet:** 4.7: `off` refused at admission, so no request carries disabled thinking; a focused test holding each shape current Claude models refuse absent; the fake peer refusing disabled thinking and sampling settings [in flight: change 914].
-
-Section 4.9 has no known implementation gap in the route-specific list
-request, bounded parsing, visibility filtering or optional figures.
-Later pages remain section 6's deferred work.
-
 - **Not yet:** 5: `skein-live`, the live suite, keeps five of its provider
   stories ignored, outside its automatic run: the suite calls the public route
   with a lent Codex login's API key or access token and Anthropic with a lent
@@ -25,6 +19,7 @@ Later pages remain section 6's deferred work.
   manual stories run by the owner, how is for later (section 6).
   `openai_unauthorized` stays in the automatic suite, and the daily live run
   runs it too: it sends the lent credential replaced by an invalid one.
+
 - **Departs:** 3: `skein/docs/foundation/programming-model.md`, 5.4 asks for one
   explicit state enum per lifecycle, each state holding exactly its
   data, no lifecycle in flags or `Option`s beside it, exhaustive matches
@@ -35,17 +30,7 @@ Later pages remain section 6's deferred work.
   from any state. Beside `State` it also keeps the request's body in `Upload`,
   which the table has under Prepared and Head, because an early response
   leaves the upload live in Streaming and ErrorBody, and `outcome`, because
-  ErrorBody stays after its terminal has gone. 4.8:
-  the request fields have no text on verbosity, but
-  `skein-llm/src/translate.rs`'s `write_request` sends
-  `"text":{"verbosity":"low"}` on every Responses request, using
-  `openai/request.rs`'s `VERBOSITY`; no reason is recorded. 2:
-  `skein/docs/foundation/programming-model.md`, 10.3 puts generic items out
-  of step code, but `skein-llm/src/wire/output.rs`'s `Output<P>` is one, as
-  this section has it, for the reason it gives. 2: Anthropic's modules name
-  nothing of `openai`, but `skein-llm/src/anthropic/request_tests.rs` spells
-  `openai::Limits` and `openai::json`, reaching `wire` through `openai`'s
-  re-exports, because the request of 2026-11-05 keeps the tests as they are.
+  ErrorBody stays after its terminal has gone.
   3: an owner may also ask one prepared call to keep its rendered body
   (`MeasuredRequest::keep_body`, `Client::take_kept_body`), a copy held until
   taken and made before any compression, because a development deployment must

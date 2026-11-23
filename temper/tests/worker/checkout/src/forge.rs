@@ -109,6 +109,7 @@ pub struct Move {
 pub struct Forge {
     observations: Vec<Observation>,
     domain: Domain,
+    counts: temper_fake_git::counts::Published,
     repositories: u32,
     /// The world's clock, as of its last say.
     now: Time,
@@ -123,6 +124,7 @@ impl Forge {
         Forge {
             observations: Vec::new(),
             domain: Domain::new(&config(), seed),
+            counts: temper_fake_git::counts::Published::default(),
             repositories: 1,
             now: Time::ZERO,
             calls: 0,
@@ -219,6 +221,16 @@ impl Forge {
         skein_fake_forge_domain::grant(&mut self.domain, remote, WORKER, Permission::Write);
         skein_fake_forge_domain::grant(&mut self.domain, remote, OTHER, Permission::Write);
         first
+    }
+
+    /// Publish a new root commit holding `counts.json`, without moving a branch.
+    pub fn publish_counts(&mut self, remote: &[u8], bytes: &[u8]) -> u64 {
+        self.counts.publish(&mut self.domain, &config(), remote, bytes)
+    }
+
+    /// Remove the counts reference if it exists.
+    pub fn remove_counts(&mut self, remote: &[u8]) {
+        self.counts.remove(remote);
     }
 
     /// Makes the repository at `remote` reachable, or not.
@@ -330,6 +342,13 @@ impl Forge {
     /// the forge answers at once.
     fn call(&mut self, remote: &[u8], user: u64, op: Git) -> Result<Answer, Fault> {
         self.api(remote, user, Op::Git(op)).map_err(fault)
+    }
+}
+
+impl temper_fake_git::counts::Remote for Forge {
+    fn fetch_counts(&mut self, remote: &[u8]) -> Result<Option<u64>, Fault> {
+        self.clone_default(remote)?;
+        Ok(self.counts.tip(remote))
     }
 }
 

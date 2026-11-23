@@ -54,6 +54,7 @@ pub fn workspace(op: &Op) -> Option<Token> {
         | Op::Pack { at, .. }
         | Op::Point { at, .. }
         | Op::Fetch { at, .. }
+        | Op::Counts { at, .. }
         | Op::Create { at, .. }
         | Op::CheckOut { at, .. }
         | Op::Look { at, .. }
@@ -74,6 +75,7 @@ pub fn identity(op: &Op) -> Option<u32> {
         | Op::CheckOut { identity, .. }
         | Op::Merge { identity, .. }
         | Op::Fetch { identity, .. }
+        | Op::Counts { identity, .. }
         | Op::Create { identity, .. }
         | Op::Commit { identity, .. }
         | Op::Push { identity, .. } => Some(*identity),
@@ -95,9 +97,11 @@ pub fn identity(op: &Op) -> Option<u32> {
 #[must_use]
 pub fn remote(op: &Op) -> Option<&[u8]> {
     match op {
-        Op::Store { remote, .. } | Op::Fetch { remote, .. } | Op::Create { remote, .. } | Op::Push { remote, .. } => {
-            Some(remote)
-        }
+        Op::Store { remote, .. }
+        | Op::Fetch { remote, .. }
+        | Op::Counts { remote, .. }
+        | Op::Create { remote, .. }
+        | Op::Push { remote, .. } => Some(remote),
         Op::Commit { snapshot, .. } => snapshot.as_ref().map(|snapshot| snapshot.remote.as_ref()),
         Op::Reds { .. }
         | Op::Reset { .. }
@@ -117,12 +121,12 @@ pub fn remote(op: &Op) -> Option<&[u8]> {
 
 /// Runs `op` on the fakes, as the protocol layer would run its git
 /// invocation, git reaching the forge through `forge`, and says how it ended.
-pub fn perform(forge: &mut impl Remote, disk: &mut Checkout, op: Op) -> Done {
+pub fn perform(forge: &mut impl temper_fake_git::counts::Remote, disk: &mut Checkout, op: Op) -> Done {
     perform_with_capacity(forge, disk, op, None)
 }
 
 #[expect(clippy::too_many_lines, reason = "the world translates every checkout operation in one table")]
-fn perform_unchecked(forge: &mut impl Remote, disk: &mut Checkout, op: Op) -> Done {
+fn perform_unchecked(forge: &mut impl temper_fake_git::counts::Remote, disk: &mut Checkout, op: Op) -> Done {
     match op {
         Op::Keep { workspace, mark } => {
             let path = format!("kept/{}", workspace.raw());
@@ -219,6 +223,10 @@ fn perform_unchecked(forge: &mut impl Remote, disk: &mut Checkout, op: Op) -> Do
         Op::Fetch { at, store, remote, want, into, identity: _, account: _ } => {
             assert_cloned(disk, &at);
             machine::fetch(forge, disk, &at, store, &remote, &want, into, false)
+        }
+        Op::Counts { at, store, remote, .. } => {
+            assert_cloned(disk, &at);
+            machine::counts(forge, disk, &at, store, &remote, false)
         }
         Op::Pack { at, store } => {
             if let Some(store) = store {
@@ -365,7 +373,12 @@ fn perform_unchecked(forge: &mut impl Remote, disk: &mut Checkout, op: Op) -> Do
 
 /// `perform`, with the git layer's rules on the checkout's `conflicts`
 /// (temper/docs/design/protocol/git-operations.md, 1.6 and 1.7).
-pub fn perform_within(forge: &mut impl Remote, disk: &mut Checkout, op: Op, conflicts: u32) -> Done {
+pub fn perform_within(
+    forge: &mut impl temper_fake_git::counts::Remote,
+    disk: &mut Checkout,
+    op: Op,
+    conflicts: u32,
+) -> Done {
     let merge = matches!(op, Op::Merge { .. });
     match perform(forge, disk, op) {
         Done::Conflicted { files, cut } if merge => {

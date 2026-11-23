@@ -1,4 +1,4 @@
-//! Real-clock harness deadlines (skein/docs/design/testing/README.md, 5;
+//! Real-clock harness deadlines (skein/docs/design/testing/service-tiers.md, 1;
 //! skein/docs/foundation/testing-strategy.md, 2.8 and 2.10).
 
 #[cfg(target_os = "linux")]
@@ -123,8 +123,8 @@ pub fn starved_passes() -> bool {
 /// Ends the running test with a `skein-world: starved:` line a helper wrote,
 /// as `Starved::pass` ends it; elsewhere fails with the line. The exit skips
 /// every drop, so the caller ends what it owns first.
-#[expect(clippy::exit, reason = "testing/README.md, 5 ends a starved pass with exit 0")]
-#[expect(clippy::print_stderr, reason = "testing/README.md, 5 requires one starvation verdict on stderr")]
+#[expect(clippy::exit, reason = "testing/service-tiers.md, 1 ends a starved pass with exit 0")]
+#[expect(clippy::print_stderr, reason = "testing/service-tiers.md, 1 requires one starvation verdict on stderr")]
 pub fn pass_starved(line: &str) -> ! {
     if starved_passes() {
         eprintln!("{line}");

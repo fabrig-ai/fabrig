@@ -238,7 +238,7 @@ credential.
   words with what fits (look again, change what was asked); unknown,
   past the engine's retention, it says so. A goal's page says it in the toast (`pages/task.md`, 4).
 - **A key is pasted once, never kept.** Its field is a secret (skein's
-  `ui/README.md`, 3.2 and 3.4), and adding or replacing a key is a request
+  `ui/tree.md`, 1.2 and 1.4), and adding or replacing a key is a request
   carrying a value (jig's `client/domain/client/requests.md`; jig's
   `protocol/client/README.md`, section 7): sent once under a name, never in
   the small store, never parked, never sent again by the client. The

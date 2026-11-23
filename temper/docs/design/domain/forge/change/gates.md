@@ -164,7 +164,7 @@
   independently of temper. On GitHub, temper's App has `statuses: read`
   and no more, so temper writes none: `status` is false in the kinds
   there (`../adoption.md`, 4), the post, `Write::Status`, is refused at the connector,
-  and nothing waits for it (skein's `forge/github.md`, 4.2). Every
+  and nothing waits for it (skein's `forge/github-operations.md`, 1.2). Every
   adoption there says so, and the verdict stays temper's own; the App
   asks for no more (`../../../protocol/setup/github.md`, 1). Where an installation
   grants `statuses: write` (`../../../protocol/setup/github.md`, 1), adoption
@@ -202,7 +202,7 @@ merge, kind 4, on a pattern of landing branches (jig's
 - **Guarded or observed.** Each forge applies a merge only at the head
   it names, and a forge's merge queue takes a pull request in only at
   the head it names (`../effects.md`, section 1; skein's `forge/forgejo.md`, section 2;
-  `skein/docs/design/forge/github.md`, 5.1), so a fact pinned to that head still holds as
+  `skein/docs/design/forge/github-operations.md`, 2.1), so a fact pinned to that head still holds as
   the merge lands: CI, gates and approvals are guarded, and are marked
   as requirements that must be guarded. Up to date is observed: the base
   may move between the decision and the merge, and the forge does not
@@ -237,7 +237,7 @@ merge, kind 4, on a pattern of landing branches (jig's
   landing merge waits supply its head, whether the read is complete,
   the verified reviewers and the reviews from unmapped forge accounts,
   and the pull request's size at that head: the forge's own counts of
-  its files, additions and deletions (skein's `forge/README.md`, 3.6),
+  its files, additions and deletions (skein's `forge/vocabulary.md`, 1.6),
   from the read of the pull request the same step made, none where that
   read gave none or answered another head. A pull request's answer the
   store keeps carries no size, as it carries no queue facts, so a step
@@ -320,7 +320,7 @@ merge, kind 4, on a pattern of landing branches (jig's
   merge base with the landing branch to that head: the forge's comparison
   of the landing branch's tip and the head, `Read::Compare { before: tip,
   after: head }`, which counts from their merge base (skein's
-  `forge/README.md`, 3.3), so an update bringing the landing branch's own
+  `forge/vocabulary.md`, 1.3), so an update bringing the landing branch's own
   edits into the change touches nothing. A step reads it with the change's
   review facts, once its base and head are read, wherever a rule covering
   the branch, enforcing or not, names a set, and nowhere else. The decision

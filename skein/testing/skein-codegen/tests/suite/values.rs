@@ -1,4 +1,4 @@
-//! Construct coverage over codec fixtures (data/codec/README.md, 6).
+//! Construct coverage over codec fixtures (data/codec/golden.md, 1).
 
 #[cfg(test)]
 mod tests {

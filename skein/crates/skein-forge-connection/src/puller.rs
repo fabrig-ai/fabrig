@@ -1,4 +1,4 @@
-//! One GitHub forge's bounded delivery-log poll (forge/connection.md, 6.5 and 8.7).
+//! One GitHub forge's bounded delivery-log poll (forge/connection-webhooks.md, 1.5, and forge/connection-machines.md, 2.7).
 use crate::Limits;
 use alloc::boxed::Box;
 use skein_forge::{api, github::log};

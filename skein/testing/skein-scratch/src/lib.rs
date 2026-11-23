@@ -1,6 +1,6 @@
-//! A scratch directory, for tests on the real kernel (testing/README.md, 6): made
-//! empty and private beneath the system's temporary directory, and removed when
-//! dropped, whatever it holds and whatever modes a test gave what is in it,
+//! A scratch directory, for tests on the real kernel (testing/layout.md, 1): made
+//! empty and private beneath the system's temporary directory, the owner's alone (0700),
+//! and removed when dropped, whatever it holds and whatever modes a test gave what is in it,
 //! a failing test's included. The conformance suite lays out a root there
 //! for each scenario on files (`tests/conformance/real`; runtime/kernel.md, 8), and
 //! the ring's own tests their files (`tests/ring`). [`paths`] is where a
@@ -30,9 +30,10 @@ pub struct Scratch {
 
 impl Scratch {
     /// A new, empty directory, `skein-<label>-<pid>-<n>` beneath the
-    /// system's temporary directory, `n` the first not taken. Its path is
-    /// canonical, no link on its way: the shell's startup reads refuse links
-    /// there (runtime/readiness.md, 5), and macOS's temporary directory is under
+    /// system's temporary directory, `n` the first not taken. The directory is
+    /// the owner's alone (0700). Its path is canonical, no link on its way:
+    /// the shell's startup reads refuse links there (runtime/readiness.md, 5),
+    /// and macOS's temporary directory is under
     /// `/var`, a link to `/private/var`. It is made `0o700` whatever the
     /// process's umask, as a private root is (runtime/io/files.md, 3): a test
     /// that hands it to a check refusing what others may read passes under
@@ -46,7 +47,7 @@ impl Scratch {
     }
 
     /// A new, empty directory, as [`Scratch::new`] makes, beneath `base`:
-    /// on another filesystem, say.
+    /// on another filesystem, say. The directory is the owner's alone (0700).
     #[must_use]
     pub fn new_in(base: &Path, label: &str) -> Scratch {
         let pid = std::process::id();
@@ -104,6 +105,16 @@ fn reopen(dir: &Path) -> std::io::Result<()> {
 #[cfg(test)]
 mod tests {
     use super::Scratch;
+
+    #[test]
+    fn a_scratch_directory_is_the_owners_alone() {
+        use std::fs;
+        use std::os::unix::fs::PermissionsExt;
+
+        let scratch = Scratch::new("private");
+        let metadata = fs::metadata(scratch.path()).expect("the scratch directory");
+        assert_eq!(metadata.permissions().mode() & 0o777, 0o700);
+    }
 
     #[test]
     fn a_test_finds_its_package_its_tree_and_its_workspace_when_it_runs() {

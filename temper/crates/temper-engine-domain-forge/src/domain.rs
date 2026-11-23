@@ -30,6 +30,7 @@ pub(crate) mod full;
 mod goal_branch;
 pub(crate) mod heads;
 mod hints;
+mod inspection;
 mod landed;
 #[cfg(test)]
 mod limit_refusals;
@@ -331,6 +332,9 @@ pub struct Domain {
     /// Progress parts awaiting the restore fit barrier.
     pub(crate) change_hot: Map<u64, crate::ChangeHot>,
     pub(crate) steps: Map<Token, PendingStep>,
+    /// Last-step queue merges withheld by the operator, for inspection alone
+    /// (temper/docs/design/testing/engine-checks.md, 2.2).
+    merge_withheld: Set<u64>,
     pub(crate) stall_words: Map<u64, crate::stall::Report>,
     pub(crate) read_sessions: Map<u64, read_session::Session>,
     // Volatile, bounded by changes (temper/docs/design/domain/forge/adoption-connection.md, 1).
@@ -1072,6 +1076,7 @@ impl Domain {
             change_cold: Map::with_capacity(l.changes),
             change_hot: Map::with_capacity(l.changes),
             steps: Map::with_capacity(l.changes),
+            merge_withheld: Set::with_capacity(l.changes),
             stall_words: Map::with_capacity(
                 l.changes
                     .checked_add(l.landings)
@@ -5046,7 +5051,7 @@ fn step_change(d: &mut Domain, env: &Env<Limits>, input: StepInput, out: &mut Qu
     }
     if let Some(owner) = owner {
         let mut pending = d.steps.remove(&owner).expect("found pending step");
-        // Entries hand off in number order (skein's forge/client.md, 7.2);
+        // Entries hand off in number order (skein's forge/client-effects.md, 1.2);
         // the newest wake reserves the restart's entry and reads jig's current kept answer.
         pending.entry = entry;
         pending.heard.delegate = heard.delegate;
@@ -6027,6 +6032,7 @@ fn wait_for_forge(
     retry: Option<skein_lib::Wall>,
     out: &mut Queue<Request>,
 ) {
+    d.merge_withheld.remove(&pending.task);
     let Some(row) = d.changes.get(&pending.task) else { return };
     if row.terminal() {
         d.read_sessions.remove(&pending.task);
@@ -6091,6 +6097,7 @@ fn hold_read_session(
         return;
     }
     let Some(mut row) = d.changes.get(&task).cloned() else { return };
+    d.merge_withheld.remove(&task);
     let before = crate::panel::ready(&row);
     let prior = row.change.clone();
     let owned = row.change.owns_turn;
@@ -6315,9 +6322,11 @@ fn decide_step(d: &mut Domain, env: &Env<Limits>, mut pending: PendingStep, out:
         }
         let effect_prior = row.change.clone();
         let mut stepped = change::step(&row.change, &facts, &heard, env.wall, &env.limits.change_policy);
+        d.merge_withheld.remove(&row.task);
         if d.landing.held
             && let change::Decision::Effect(change::Effect::Merge { .. }) = stepped.decision
         {
+            d.merge_withheld.insert(row.task).expect("one withheld merge per bounded change");
             stepped.change = row.change.clone();
             stepped.decision = change::Decision::Wait { until: None };
         }
@@ -8890,7 +8899,7 @@ fn handoff_one(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     if d.stopping || d.restore_phase == RestorePhase::Restoring {
         return;
     }
-    // skein's forge/client.md, 7.2: each new Make is above every held entry.
+    // skein's forge/client-effects.md, 1.2: each new Make is above every held entry.
     // Decision reads and goal-branch makings retain their reserved numbers; startup
     // reads have none. Built changes, projections and releases wait for lower chains
     // and entries to finish or commit. Hand over at most one per step.
@@ -10112,10 +10121,12 @@ fn restore(d: &mut Domain, env: &Env<Limits>, record: Stored) {
             d.change_cold.insert(row.task, *row).expect("restored cold change room checked");
         }
         Stored::ChangeHot(row) => {
+            d.merge_withheld.remove(&row.task);
             d.change_due.insert(row.task, env.wall).expect("restored change wake room checked");
             d.change_hot.insert(row.task, *row).expect("restored hot change room checked");
         }
         Stored::Change(mut row) => {
+            d.merge_withheld.remove(&row.task);
             crate::settling::forget(d, &row);
             if row.frozen() {
                 row.room = None;
@@ -10625,6 +10636,9 @@ fn retain_terminal_ci(d: &mut Domain, row: &mut ChangeRow) {
 
 /// Remember the cold part last put: callers may already have replaced the in-memory row.
 pub(crate) fn save_change_parts(d: &mut Domain, out: &mut Queue<Request>, row: ChangeRow) {
+    if row.frozen() {
+        d.merge_withheld.remove(&row.task);
+    }
     crate::settling::forget(d, &row);
     let (cold, hot) = row.split();
     if d.change_cold.get(&cold.task) != Some(&cold) {

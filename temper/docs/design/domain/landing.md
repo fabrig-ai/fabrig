@@ -14,7 +14,7 @@ its updates and its merge in the repository's style
 (`forge/change/README.md`, 2 steps 3 and 5 to 7, `forge/queues.md` and
 `forge/updates.md`, section 1). What follows a landing, its tiers and its
 verdict, is `after-landing.md`. The forge's calls it makes are skein's
-`forge/README.md`, 3.2. What is still open is `landing.md`, section 17.
+`forge/vocabulary.md`, 1.2. What is still open is `landing.md`, section 17.
 
 ## 1. In one page
 

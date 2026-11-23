@@ -1,6 +1,6 @@
-//! Streaming SHA-1 over bounded pieces (runtime/lib.md, 6.3).
+//! Streaming SHA-1 over bounded pieces (runtime/lib-bytes.md, 1.3).
 
-/// SHA-1 (FIPS 180-4) over pieces cut anywhere (runtime/lib.md, 6.3).
+/// SHA-1 (FIPS 180-4) over pieces cut anywhere (runtime/lib-bytes.md, 1.3).
 #[derive(Clone)]
 pub struct Sha1 {
     state: [u32; 5],
@@ -64,7 +64,10 @@ impl Sha1 {
     }
 }
 
-#[expect(clippy::missing_fields_in_debug, reason = "runtime/lib.md, 6.3: the count of bytes hashed, not the state")]
+#[expect(
+    clippy::missing_fields_in_debug,
+    reason = "runtime/lib-bytes.md, 1.3: the count of bytes hashed, not the state"
+)]
 impl core::fmt::Debug for Sha1 {
     /// `Sha1 { hashed: N }`.
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {

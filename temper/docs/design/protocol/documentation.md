@@ -238,7 +238,7 @@ Every binary's `help`, `BINARY` its name (`../cli/README.md`, 5):
 - It reads no directory and no configuration: it works before
   `temper-box init`. `BINARY -h`, `--help` and `help` alone print the
   binary's page from its table, its public commands, flags and
-  variables (`skein/docs/design/runtime/shell.md`, 14.2); `temper ctl
+  variables (`skein/docs/design/runtime/shell-table.md`, 1.2); `temper ctl
   help` prints the page `ctl`, then the tools
   (`../client/ctl/testing.md`, 5).
 

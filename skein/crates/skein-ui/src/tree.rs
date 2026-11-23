@@ -1,6 +1,6 @@
 //! Accessibility roles and owned bytes, with no layout or application types.
 //! Nodes are preorder; a subtree occupies `size` consecutive nodes including
-//! its root (skein's ui/README.md, section 3). New builds have unassigned ids;
+//! its root (skein's ui/tree.md, section 1). New builds have unassigned ids;
 //! the diff assigns ids when the tree becomes visible.
 
 use alloc::boxed::Box;
@@ -297,7 +297,7 @@ impl Role {
     }
 }
 
-/// A semantic state, never a visual style (ui/README.md, 3.2).
+/// A semantic state, never a visual style (ui/tree.md, 1.2).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum State {
     /// The node is disabled.
@@ -345,13 +345,13 @@ pub struct Region {
     pub owner: Owner,
     pub number: u16,
 }
-/// One of an owner's pictures, supplied when a shell is built (ui/README.md, 3.5).
+/// One of an owner's pictures, supplied when a shell is built (ui/tree.md, 1.5).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Picture {
     pub owner: Owner,
     pub number: u16,
 }
-/// A field's keyboard or control (ui/README.md, 3.4).
+/// A field's keyboard or control (ui/tree.md, 1.4).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum EntryKind {
     Text,
@@ -363,25 +363,25 @@ pub enum EntryKind {
     Time,
     Secret,
 }
-/// A column header's order (ui/README.md, 3.2).
+/// A column header's order (ui/tree.md, 1.2).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Sort {
     Ascending,
     Descending,
 }
-/// The rows and columns a cell spans, each at least one (ui/README.md, 3.2).
+/// The rows and columns a cell spans, each at least one (ui/tree.md, 1.2).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Spans {
     pub rows: u16,
     pub columns: u16,
 }
-/// Done of total, in its owner's numbers (ui/README.md, 3.2).
+/// Done of total, in its owner's numbers (ui/tree.md, 1.2).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Fraction {
     pub done: u64,
     pub total: u64,
 }
-/// An image's owner picture or checked address (ui/README.md, 3.5).
+/// An image's owner picture or checked address (ui/tree.md, 1.5).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Source {
     Picture(Picture),
@@ -465,7 +465,7 @@ pub struct Drawing {
 }
 
 /// The words and name of the button a shell shows a menu behind
-/// (skein's ui/README.md, 3.2).
+/// (skein's ui/tree.md, 1.2).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct MenuButton {
     pub words: Box<[u8]>,
@@ -486,14 +486,14 @@ pub struct Node {
     pub source: Option<Source>,
     pub description: Option<Box<[u8]>>,
     pub placeholder: Option<Box<[u8]>>,
-    /// Words a shell with a pointer shows on hover, never needed to decide (ui/README.md, 3.2).
+    /// Words a shell with a pointer shows on hover, never needed to decide (ui/tree.md, 1.2).
     pub hint: Option<Box<[u8]>>,
     pub button: Option<MenuButton>,
     pub entry: Option<EntryKind>,
     pub focus: Option<u64>,
     pub end_request: Option<u64>,
     pub count: Option<u32>,
-    /// A list's order: its items are numbered, and this is the first one's number (ui/README.md, 3.2).
+    /// A list's order: its items are numbered, and this is the first one's number (ui/tree.md, 1.2).
     pub ordered: Option<u32>,
     pub position: Option<u32>,
     pub spans: Option<Spans>,

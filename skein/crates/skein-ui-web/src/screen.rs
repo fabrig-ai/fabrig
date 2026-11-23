@@ -1,4 +1,4 @@
-//! Full screen, one effect's part (skein/docs/design/ui/web/README.md, section 9).
+//! Full screen, one effect's part (skein/docs/design/ui/web/effects.md, section 2).
 #[cfg(target_arch = "wasm32")]
 pub mod web;
 

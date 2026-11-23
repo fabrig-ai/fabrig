@@ -341,6 +341,7 @@ impl World {
             Op::Fetch { at, want, into, .. } => {
                 Some((at, temper_worker_domain::Git::Fetch { want: want.clone(), into: *into }))
             }
+            Op::Counts { at, .. } => Some((at, temper_worker_domain::Git::Counts)),
             Op::CheckOut { at, commit, .. } => Some((at, temper_worker_domain::Git::CheckOut { commit: *commit })),
             _ => None,
         };
