@@ -122,8 +122,7 @@ fn assert_counts(parsed: &[&str], layouts: u32) {
     }
 }
 
-#[test]
-fn held_rows_reuse_each_parse_and_layout() {
+fn held_rows() -> Store {
     let mut store =
         planning_store(OwnerSets { sets: &[OwnerSet { families: &[KeptFamily { current: KEPT, ..FAMILY }], ..SET }] });
     store.owner_sets(SETS);
@@ -131,6 +130,12 @@ fn held_rows_reuse_each_parse_and_layout() {
         &mut store.stores,
         &[skein_kv::Op::Put { key: Box::from(b"\x02a/0".as_slice()), value: Box::from([0, 2, 0, 42]) }],
     );
+    store
+}
+
+#[test]
+fn held_rows_reuse_each_parse_and_layout() {
+    let mut store = held_rows();
     assert_eq!(super::open(&mut store, false), Ok(true));
     assert_counts(&[KEPT, CURRENT], 2);
     assert_schemas_dropped(&store.registry);
@@ -141,6 +146,19 @@ fn held_rows_reuse_each_parse_and_layout() {
     assert_counts(&[KEPT, CURRENT], 2);
     assert_eq!(store.registry.rows.len(), 2);
     assert_schemas_dropped(&store.registry);
+}
+
+#[test]
+fn planning_parses_only_texts_missing_from_prepared_schemas() {
+    let mut store = held_rows();
+    let cases: &[(&[&str], &[&str])] = &[(&[KEPT], &[]), (&[], &[KEPT])];
+    for &(extra, parsed) in cases {
+        store.prepared_schemas(fixtures::prepared(SETS, extra));
+        assert_eq!(super::open(&mut store, false), Ok(true));
+        assert_counts(parsed, 2);
+        assert_schemas_dropped(&store.registry);
+        assert!(store.registry.prepared.is_empty());
+    }
 }
 
 #[test]

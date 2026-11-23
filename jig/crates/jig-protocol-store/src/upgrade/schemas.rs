@@ -10,9 +10,13 @@ pub(crate) fn matching(schemas: &[Schema], text: &[u8]) -> Option<usize> {
     None
 }
 
-pub(super) fn get<'a>(prepared: &'a [Schema], text: &[u8], parsed: &'a mut Option<Schema>) -> Option<&'a Schema> {
-    if let Some(index) = matching(prepared, text) {
-        return prepared.get(index);
+pub(crate) fn find<'a>(prepared: &'a [Schema], text: &[u8]) -> Option<&'a Schema> {
+    prepared.get(matching(prepared, text)?)
+}
+
+pub(crate) fn get<'a>(prepared: &'a [Schema], text: &[u8], parsed: &'a mut Option<Schema>) -> Option<&'a Schema> {
+    if let Some(schema) = find(prepared, text) {
+        return Some(schema);
     }
     *parsed = Some(schema::parse(text).ok()?);
     parsed.as_ref()

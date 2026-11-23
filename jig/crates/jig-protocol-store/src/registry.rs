@@ -72,9 +72,17 @@ type RowKey = (Box<str>, u16, u16);
 #[derive(Debug)]
 struct Text {
     bytes: Box<[u8]>,
-    schema: Option<Schema>,
+    schema: Option<texts::Cached>,
     stored: bool,
     current: bool,
+}
+impl Text {
+    fn schema(&self) -> Option<&Schema> {
+        match self.schema.as_ref()? {
+            texts::Cached::Parsed(schema) => Some(schema),
+            texts::Cached::Prepared(schema) => Some(schema),
+        }
+    }
 }
 #[derive(Debug)]
 struct Row {
@@ -104,6 +112,7 @@ pub(crate) struct Layouts {
     retired: Map<Box<[u8]>, Box<[u8]>>,
     written: Map<RowKey, &'static str>,
     texts: Map<Digest, Text>,
+    prepared: &'static [Schema],
     pending: Queue<skein_kv::Op>,
 }
 impl Layouts {
@@ -116,6 +125,7 @@ impl Layouts {
             retired: Map::uncapped(),
             written: Map::uncapped(),
             texts: Map::uncapped(),
+            prepared: &[],
             pending: Queue::uncapped(),
         }
     }
@@ -334,6 +344,7 @@ pub(crate) fn open(store: &mut Store, empty: bool) -> Result<bool, OpenRefusal> 
         return Err(OpenRefusal::Set { owner: why });
     }
     check::retired(store, &mut layouts)?;
+    layouts.prepared = store.prepared_schemas;
     let mut binary = texts::Binary::new(&store.owner_sets, &mut layouts)?;
     let changed = rows::register(store, &mut layouts, &mut binary)?;
     let mut work = Workspace::new();
