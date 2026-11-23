@@ -37,6 +37,7 @@ mod limit_refusals;
 pub(crate) mod make;
 #[path = "outage.rs"]
 mod outage;
+pub(crate) mod read_line;
 pub(crate) mod read_session;
 mod rebase;
 #[path = "reds.rs"]
@@ -84,6 +85,8 @@ enum LostReadState {
     Asked,
     WaitingForRoom,
     WaitingForConnection,
+    WaitingForRetry,
+    WaitingForOutbox,
 }
 /// One fresh verdict read shared by commit news and live CI subscribers.
 #[derive(Hash, Debug)]
@@ -377,7 +380,7 @@ pub struct Domain {
     client: skein_forge_client::Domain,
     client_out: Queue<skein_forge_client::Request>,
     // A refused brief read waits for the next client reclamation.
-    pub(crate) brief_reclaim: u64,
+    pub(crate) read_line: read_line::Line,
     pub(crate) brief_fetches: Map<Token, brief::BriefFetch>,
     pub(crate) brief_planned: Map<Token, held::Planned>,
     pub(crate) brief_documents: Map<Token, Box<crate::BriefDocument>>,
@@ -1127,7 +1130,7 @@ impl Domain {
                 skein_forge_client::Config { namespace: config.namespace, writers: config.writers },
             )?,
             client_out: Queue::uncapped(),
-            brief_reclaim: 0,
+            read_line: read_line::Line::new(l),
             brief_fetches: Map::with_capacity(l.brief_sections),
             brief_planned: Map::with_capacity(l.brief_sections),
             brief_documents: Map::with_capacity(l.brief_sections),
@@ -1178,6 +1181,7 @@ impl Domain {
         self.holds.raise(limits.holds);
         self.lost.raise(limits.holds);
         self.makings.raise(limits.holds);
+        self.read_line.raise(limits);
         self.reds.raise(limits.branch_reds.checked_mul(limits.holds).expect("checked red capacity"));
         self.entries.raise(limits.entries);
         self.entry_looks.raise(limits.entries);
@@ -1242,6 +1246,7 @@ impl Domain {
         .chain(catching_up::deadline(self))
         .chain(crate::tiers::deadline(self))
         .chain(goal_branch::deadline(self))
+        .chain(self.read_line.deadline())
         .chain(if self.stopping { None } else { outage::deadline(self) })
         .chain(if self.stopping { None } else { retry_deadline(self) })
         .min()
@@ -1299,11 +1304,7 @@ impl Domain {
             || !self.procedure_wakes.is_empty()
             || crate::room::waiting(self)
             || self.client.is_ready()
-            || ((self.lost_waiting()
-                || brief::waiting(self)
-                || goal_branch::read_waiting(self)
-                || crate::landing::read_waiting(self))
-                && self.client.has_room())
+            || read_line::askable(self)
     }
 
     fn next_handoff(&self) -> Option<u64> {
@@ -1327,15 +1328,6 @@ impl Domain {
             return Some(*number);
         }
         None
-    }
-
-    /// Whether a lost writer's read waits to be asked again.
-    fn lost_waiting(&self) -> bool {
-        let mut waiting = false;
-        for (_, pending) in &self.lost {
-            waiting |= pending.state == LostReadState::WaitingForRoom;
-        }
-        waiting
     }
 
     /// Whether no brief section is being gathered by the connector.
@@ -1376,8 +1368,7 @@ impl Domain {
         if self.client.has_room() != had_room {
             self.full.dirty = true;
         }
-        crate::landing::reclaim(self);
-        self.brief_reclaim = self.brief_reclaim.wrapping_add(1);
+        self.read_line.wake();
     }
 
     /// Check one typed task interest before the root adds its matching durable task row.
@@ -1507,8 +1498,14 @@ impl Domain {
         names.into_boxed()
     }
 
-    pub(crate) fn goal_branch_waiting(&self, name: &Name) -> bool {
+    /// Whether this branch's own readers must wait for its making (domain/forge/branches.md, 1).
+    #[must_use]
+    pub fn goal_branch_waiting(&self, name: &Name) -> bool {
         goal_branch::waiting(self, name)
+    }
+
+    pub(crate) fn goal_branch_read_waiting(&self, repository: skein_forge::api::Repository, branch: &[u8]) -> bool {
+        goal_branch::base_wait(self, repository, branch)
     }
 
     /// Occupancy at a refused entrance (protocol/configuration/limit-settings.md, 6).
@@ -1872,6 +1869,7 @@ fn decide(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Reque
             d.restart_fresh = None;
             d.watch_due = None;
             crate::landing::settle(d);
+            d.read_line.clear();
             child(d, env, skein_forge_client::Event::Settle, out);
         }
         Event::Bind { request, address, subject } => bind(d, request, address, subject, out),
@@ -1951,9 +1949,15 @@ fn decide(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Reque
                             waiting.push(*owner).expect("lost reads bounded by holds");
                         }
                     }
-                    goal_branch::connected(d, forge);
+                    let line_was_empty = !d.read_line.waiting();
+                    goal_branch::connected(d, env.now, forge, out);
                     for owner in &waiting {
                         d.lost.get_mut(owner).expect("collected lost read").state = LostReadState::WaitingForRoom;
+                        read_line::join(d, read_line::Waiter::Lost(*owner), env.now, out);
+                    }
+                    crate::landing::connected(d, env.now, forge, out);
+                    if line_was_empty {
+                        d.read_line.wake();
                     }
                 }
                 crate::Connection::NotConnected
@@ -2210,6 +2214,7 @@ fn decide(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Reque
             }
         }
         Event::Unnamed { task } => {
+            d.closing.branch_waits.remove(&task);
             if d.kept.remove(&task).is_some() {
                 emit(out, Request::Erase { key: Key::Names(task) });
                 release::first_write(d);
@@ -2542,16 +2547,16 @@ fn drive(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
         // An admission refusal already spent this step's child output burst.
         return;
     }
+    read_line::prune_makings(d);
+    if read_line::serve(d, env, out) {
+        // A successful admission takes this turn. Give any further places
+        // to the line, too, before resuming the client's polls.
+        return;
+    }
     let child_env = child_env(env);
     skein_forge_client::resume(&mut d.client, &child_env, &mut d.client_out);
     drain(d, env, out);
     crate::room::ask(d, env, out);
-    if d.client.has_room() {
-        brief::retry(d, out);
-        ask_lost_again(d, env, out);
-        goal_branch::retry(d, env, out);
-        crate::landing::retry(d, env, out);
-    }
     if out.room() > 0
         && let Some((task, wake)) = d.procedure_wakes.iter().next()
     {
@@ -2590,7 +2595,9 @@ fn expire(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     crate::playground::expire(d, env.now, out);
     brief::expire(d, env.now, out);
     crate::follows::fire(d, env.now);
-    goal_branch::fire(d, env.now);
+    read_line::prune_makings(d);
+    read_line::fire(d, env.now, out);
+    goal_branch::fire(d, env.now, out);
     ci_news::fire(d, env, out);
     admission::fire(d, env, out);
     outage::fire(d, env, out);
@@ -2654,9 +2661,39 @@ fn child_env(env: &Env<Limits>) -> Env<skein_forge_client::Limits> {
 
 pub(crate) fn child(d: &mut Domain, env: &Env<Limits>, event: skein_forge_client::Event, out: &mut Queue<Request>) {
     outage::track(d, env, &event);
-    skein_forge_client::step(&mut d.client, &child_env(env), event, &mut d.client_out);
-    drain(d, env, out);
+    client_step(d, env, event, out);
     outage::refresh(d, env, out);
+}
+
+// An outage retry retains its exact read and its backoff in the outage table.
+fn client_step(d: &mut Domain, env: &Env<Limits>, event: skein_forge_client::Event, out: &mut Queue<Request>) {
+    use skein_forge_client::{Event as ClientEvent, Request as ClientRequest};
+    if let ClientEvent::Read { owner, .. } = &event {
+        let waiter = d.read_line.take_ask(*owner);
+        if waiter.is_none() && d.read_line.waiting() {
+            d.client_out.push(ClientRequest::Read { owner: *owner, result: Err(skein_forge::api::Error::Busy) });
+        } else {
+            let owner = *owner;
+            let before = d.client_out.len();
+            skein_forge_client::step(&mut d.client, &child_env(env), event, &mut d.client_out);
+            if let Some(waiter) = waiter {
+                // An entrance refusal is synchronous; an admitted read has no terminal here.
+                let mut refusal = None;
+                for request in d.client_out.iter().skip(usize::try_from(before).expect("queue length fits usize")) {
+                    if let ClientRequest::Read { owner: refused, result: Err(error) } = request
+                        && *refused == owner
+                    {
+                        refusal = Some(*error);
+                        break;
+                    }
+                }
+                read_line::attempted(d, waiter, refusal, env.now, out);
+            }
+        }
+    } else {
+        skein_forge_client::step(&mut d.client, &child_env(env), event, &mut d.client_out);
+    }
+    drain(d, env, out);
 }
 
 #[cfg(test)]
@@ -3630,16 +3667,10 @@ fn retired_reading(d: &Domain, name: &Name) -> bool {
 
 /// Ask one waiting lost writer's read again: its branch, or the ancestry
 /// of the head it found with the head the forge last knew.
-fn ask_lost_again(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
-    let mut waiting = None;
-    for (owner, pending) in &d.lost {
-        if pending.state == LostReadState::WaitingForRoom && waiting.is_none() {
-            waiting = Some(*owner);
-        }
-    }
-    let Some(owner) = waiting else { return };
-    let baseline = d.branch_head(&d.lost.get(&owner).expect("found above").name);
-    let pending = d.lost.get_mut(&owner).expect("found above");
+fn ask_lost_again(d: &mut Domain, env: &Env<Limits>, owner: Token, out: &mut Queue<Request>) {
+    let Some(pending) = d.lost.get(&owner) else { return };
+    let baseline = d.branch_head(&pending.name);
+    let pending = d.lost.get_mut(&owner).expect("pending lost read");
     pending.state = LostReadState::Asked;
     if pending.comparison.is_none() {
         pending.baseline = baseline;
@@ -3711,6 +3742,9 @@ fn lost_read(
     if let Some(state) = waiting {
         pending.state = state;
         d.lost.insert(owner, pending).expect("the read keeps its own lost slot");
+        if state == LostReadState::WaitingForRoom {
+            read_line::join(d, read_line::Waiter::Lost(owner), env.now, out);
+        }
         return;
     }
     let Some(resource) = to_client(&pending.name, &env.limits) else { return };
@@ -3729,9 +3763,8 @@ fn lost_read(
     };
     if (pending.kind == LostWriterKind::Design || pending.kind == LostWriterKind::Retired) && stale {
         pending.comparison = None;
-        pending.state = LostReadState::WaitingForRoom;
         d.lost.insert(owner, pending).expect("the fresh read retains its slot");
-        ask_lost_again(d, env, out);
+        ask_lost_again(d, env, owner, out);
         return;
     }
     let observed = match (pending.comparison, result) {
@@ -10203,9 +10236,8 @@ fn read_afresh(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
         }
     }
     for owner in retired.into_boxed() {
-        d.lost.get_mut(&owner).expect("selected retired read").state = LostReadState::WaitingForRoom;
+        ask_lost_again(d, env, owner, out);
     }
-    ask_lost_again(d, env, out);
     written::restart(d, env, out);
     for (task, attempt) in &lost_runs {
         lost(d, env, *task, *attempt, out);
@@ -10456,7 +10488,7 @@ pub(crate) fn repository_fresh(d: &Domain, repository: skein_forge::api::Reposit
         }
     }
     for (_, pending) in &d.makings {
-        if pending.outbox_wait.is_none() && repository_reads::repository(&pending.name) == repository {
+        if goal_branch::read_out(pending) && repository_reads::repository(&pending.name) == repository {
             return false;
         }
     }

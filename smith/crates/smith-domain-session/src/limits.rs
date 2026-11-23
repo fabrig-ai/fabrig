@@ -70,8 +70,7 @@ pub struct Limits {
     /// together, up to this many, and a call that writes runs alone. Between
     /// one and [`MAX_PARALLEL`].
     pub parallel_tools: u32,
-    /// Retries of a call that failed transiently, after which the session
-    /// fails.
+    /// Retries of a call that failed transiently, excluding rate limit waits.
     pub retries: u32,
     /// The wait before the first retry, doubled for each one after it, with
     /// jitter.

@@ -95,7 +95,7 @@ pub(crate) fn now(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
             escalation::historical_begin(domain, env, decision, request, person, project, task, revision);
         }
         core::Now::BriefCorePlanned { task, parent, sections, documents } => {
-            if waiting_for_design(domain, task) {
+            if waiting_for_goal_workspace(domain, task, true) {
                 domain
                     .run_workspaces
                     .insert(task, WorkspacePreparation::Brief { parent, sections, documents })
@@ -308,7 +308,7 @@ pub(crate) fn ended(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decis
 }
 
 fn workspace(domain: &mut Domain, env: &Env<Limits>, task: u64, attempt: u64, context: Box<tasks::RunContext>) {
-    if waiting_for_design(domain, task) {
+    if waiting_for_goal_workspace(domain, task, false) {
         domain
             .run_workspaces
             .insert(task, WorkspacePreparation::Workspace { attempt, context })
@@ -317,7 +317,7 @@ fn workspace(domain: &mut Domain, env: &Env<Limits>, task: u64, attempt: u64, co
     }
     let mut credentials = List::with_capacity(env.limits.forge.resources_per_task);
     let workspace = forge_route::run_workspace(domain, env, &context, attempt);
-    if workspace.is_none() && domain.forge.workspace_reads_waiting() {
+    if workspace.is_none() && workspace_facts_waiting(domain, &context) {
         domain
             .run_workspaces
             .insert(task, WorkspacePreparation::Workspace { attempt, context })
@@ -386,25 +386,38 @@ fn workspace(domain: &mut Domain, env: &Env<Limits>, task: u64, attempt: u64, co
     }));
 }
 
-fn waiting_for_design(domain: &Domain, task: u64) -> bool {
+fn workspace_facts_waiting(domain: &Domain, context: &tasks::RunContext) -> bool {
+    if domain.forge.workspace_reads_waiting() {
+        return true;
+    }
+    match context.requester {
+        tasks::Party::Task(parent) => domain.forge.producer_workspace_waiting(context.task, parent),
+        tasks::Party::Person(_) | tasks::Party::Deployment { .. } => false,
+    }
+}
+
+fn waiting_for_goal_workspace(domain: &Domain, task: u64, design_only: bool) -> bool {
     let Some(context) = domain.core.tasks.run_context(task) else { return false };
     let charter = match context.executor {
         tasks::Executor::Agent { charter } => charter,
         tasks::Executor::Procedure { .. } | tasks::Executor::Person(_) | tasks::Executor::Job { .. } => return false,
     };
     let Some(charter) = domain.core.charter(charter) else { return false };
-    charter.policy.modify && !crate::no_workspace(&charter.policy) && domain.forge.design_workspace_waiting(task)
+    (charter.policy.modify || !design_only)
+        && !crate::no_workspace(&charter.policy)
+        && domain.forge.goal_workspace_waiting(task, charter.policy.modify)
 }
 
 /// Retry only after the forge changes: a taking, its confirmation or a drift release.
 pub(super) fn resume_workspaces(domain: &mut Domain, env: &Env<Limits>) {
     let mut ready = List::with_capacity(env.limits.tasks.tasks);
     for (task, preparation) in &domain.run_workspaces {
-        let waiting = match preparation {
-            WorkspacePreparation::Ready(_) => false,
-            WorkspacePreparation::Brief { .. } | WorkspacePreparation::Workspace { .. } => true,
+        let design_only = match preparation {
+            WorkspacePreparation::Ready(_) => continue,
+            WorkspacePreparation::Brief { .. } => true,
+            WorkspacePreparation::Workspace { .. } => false,
         };
-        if waiting && !waiting_for_design(domain, *task) {
+        if !waiting_for_goal_workspace(domain, *task, design_only) {
             ready.push(*task).expect("waiting workspaces bounded by live tasks");
         }
     }

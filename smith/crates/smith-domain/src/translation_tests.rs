@@ -83,29 +83,33 @@ fn every_transcript_refusal_keeps_its_reason() {
 #[test]
 fn every_completion_failure_and_transport_evidence_maps_without_inference() {
     let cooldown = Duration::from_nanos(23);
+    let account = Some(0);
     let failures = [
-        (llm::Failure::ApplicationLimit, run::CompletionFailure::ApplicationLimit),
-        (llm::Failure::Protocol, run::CompletionFailure::Protocol),
-        (llm::Failure::Cancelled, run::CompletionFailure::Cancelled),
-        (llm::Failure::Overloaded, run::CompletionFailure::Overloaded),
-        (llm::Failure::Unavailable, run::CompletionFailure::Unavailable),
+        (llm::Failure::ApplicationLimit, run::CompletionFailure::ApplicationLimit, account),
+        (llm::Failure::Protocol, run::CompletionFailure::Protocol, account),
+        (llm::Failure::Cancelled, run::CompletionFailure::Cancelled, account),
+        (llm::Failure::Overloaded, run::CompletionFailure::Overloaded, account),
+        (llm::Failure::Unavailable, run::CompletionFailure::Unavailable, account),
         (
             llm::Failure::TimedOut { phase: llm::CompletionPhase::Whole },
             run::CompletionFailure::TimedOut { phase: run::CompletionPhase::Whole },
+            account,
         ),
-        (llm::Failure::ContextTooLong, run::CompletionFailure::ContextTooLong),
-        (llm::Failure::Invalid, run::CompletionFailure::Invalid),
-        (llm::Failure::Unauthorized, run::CompletionFailure::Unauthorized),
+        (llm::Failure::ContextTooLong, run::CompletionFailure::ContextTooLong, account),
+        (llm::Failure::Invalid, run::CompletionFailure::Invalid, account),
+        (llm::Failure::Unauthorized, run::CompletionFailure::Unauthorized, account),
         (
             llm::Failure::RateLimited { retry_after: cooldown },
             run::CompletionFailure::RateLimited { retry_after: cooldown },
+            None,
         ),
         (
             llm::Failure::Exhausted { retry_after: Some(cooldown) },
             run::CompletionFailure::Exhausted { retry_after: Some(cooldown) },
+            account,
         ),
     ];
-    for (failure, mapped) in failures {
+    for (failure, mapped, account) in failures {
         for (evidence, mapped_evidence) in [
             (llm::Evidence::Unsent, run::CompletionEvidence::Unsent),
             (llm::Evidence::Unknown, run::CompletionEvidence::Unknown),
@@ -115,7 +119,7 @@ fn every_completion_failure_and_transport_evidence_maps_without_inference() {
                 translate::end(
                     session::End::Failed { detail: Box::default(), failure, evidence, attempts: 1 },
                     0,
-                    Some(0),
+                    account,
                     None,
                     llm::Report::none()
                 ),

@@ -12,7 +12,7 @@ const SECTION: Token = Token::new(99);
 const STEP: &[u8] = b"Each pull request adds changes/<its number>.md";
 #[expect(clippy::disallowed_macros, reason = "the regression embeds recorded runner fixture bytes")]
 const RUNNER_LOG: &[u8] = include_bytes!("fixtures/ci/red-changes.log");
-const HEAD: [u8; 32] = [
+pub(super) const HEAD: [u8; 32] = [
     0xc1, 0xfb, 0x35, 0x99, 0xfa, 0x12, 0xc9, 0x76, 0x6f, 0x9c, 0xc1, 0x62, 0x84, 0x44, 0x16, 0xe8, 0x7a, 0x92, 0x91,
     0x82, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 ];
@@ -1508,7 +1508,10 @@ fn a_deferred_section_requires_its_own_read() {
 }
 
 fn pending_checks() -> (Domain, Token) {
-    let mut d = domain();
+    pending_checks_with(domain())
+}
+
+pub(super) fn pending_checks_with(mut d: Domain) -> (Domain, Token) {
     outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
     let mut row = fixtures::opening_row();
     row.pull = Some(1);

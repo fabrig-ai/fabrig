@@ -439,7 +439,6 @@ whole.
 - A close-out's own charter: `change/branch-path.md`, section 1.
 
 - Project-scoped rules on a real forge: `change/gates.md`, section 4.
-- The connector's own retries: `keeping-up.md`, section 6.
 
 - **Forge-read recovery with real agents** (`keeping-up.md`, 3): the existing ChatGPT
   and Claude Code owned-forge landing stories are the after-landing
