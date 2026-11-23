@@ -108,6 +108,50 @@ fn new_turns_append_bodies_and_keep_window_and_first_attempt_places() {
 }
 
 #[test]
+fn a_new_component_starts_with_both_memory_stores_cold() {
+    const PAGE_ROWS: u32 = 1; // The fixture's one turn.
+    const PAGE_BYTES: u64 = 4096; // Room for the turn's whole body.
+    const SECRET_RECORD_BYTES: u32 = 1; // The secrets fixture admits a one-byte record.
+    const SECRET_LOG: u64 = 1;
+    let mut store = opened();
+    submit(&mut store, &[fixtures::window_turn(LIVE, 1, 1, b"remembered")]);
+    let read = TranscriptRead::Page { task: LIVE, backwards: false, after: None };
+    page(ask(&mut store, None, transcript(read, PAGE_ROWS, PAGE_BYTES)));
+    let mut stores = store.into_stores();
+    // Secrets normally have no payload logs; give the test store one to warm it too.
+    stores.secrets.logs(skein_kv::LogRule { prefix: Box::from(&b"test-extent/"[..]) });
+    let frame = stores.secrets.frame(b"s").expect("secret fixture frame fits");
+    let env = crate::memory_env(fixtures::store_limits().secrets);
+    let mut above = Queue::uncapped();
+    let mut below = Queue::uncapped();
+    skein_kv::down(
+        &mut stores.secrets,
+        &env,
+        skein_kv::Request::Commit { owner: OWNER, ops: Box::new([skein_kv::Op::Append { log: SECRET_LOG, frame }]) },
+        &mut above,
+        &mut below,
+    );
+    skein_kv::down(
+        &mut stores.secrets,
+        &env,
+        skein_kv::Request::ReadLog {
+            owner: OWNER,
+            log: SECRET_LOG,
+            at: 0,
+            direction: skein_kv::Direction::Forward,
+            max: SECRET_RECORD_BYTES,
+            rows: PAGE_ROWS,
+        },
+        &mut above,
+        &mut below,
+    );
+    assert!(stores.store.kept_reads() > 0);
+    assert!(stores.secrets.kept_reads() > 0);
+    let stores = fixtures::over(stores).into_stores();
+    assert_eq!((stores.store.kept_reads(), stores.secrets.kept_reads()), (0, 0));
+}
+
+#[test]
 fn log_read_kinds_match_files_and_keep_directional_offset_cursors() {
     let turns = turns();
     let (mut file, _) = fixtures::opened_with_transcripts();
