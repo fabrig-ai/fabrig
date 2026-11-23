@@ -1,4 +1,5 @@
 """Delivery policy checks with recording fakes and a scratch counts repository."""
+import contextlib
 from contextlib import redirect_stderr, redirect_stdout
 import importlib.util
 import io
@@ -206,6 +207,43 @@ class Delivery(unittest.TestCase):
                  mock.patch.object(PRE, 'changed_paths', return_value=[]), \
                  mock.patch.object(PRE, 'workspace_checks', return_value=[]):
                 self.assertEqual(PRE.main([]), expected)
+
+    def test_a_retried_hard_refusal_replays_without_checking_again(self):
+        store = self.root / 'store'
+        budget = PRE.failure('budgets', 'skein default step: instruction growth over allowance, ...')
+        budget['diagnostic'] = 'budgets skein step: +5.00%, allowance 2.00%\n'
+
+        def refuse(*args, **kwargs):
+            args[4].append(dict(budget))
+            return []
+        common = [mock.patch.object(Path, 'cwd', return_value=self.root),
+                  mock.patch.object(PRE, 'checked_git', return_value=b'first'),
+                  mock.patch.object(PRE, 'scope_base', return_value=('b' * 40, 'base', None)),
+                  mock.patch.object(PRE, 'changed_paths', return_value=['skein/a.rs']),
+                  mock.patch.object(PRE, 'published_counts', return_value={'commits': ['b' * 40]}),
+                  mock.patch.object(PRE, 'verdict_store', return_value=store)]
+        for attempt in range(2):
+            with contextlib.ExitStack() as stack:
+                for patch in common:
+                    stack.enter_context(patch)
+                stack.enter_context(mock.patch.object(PRE, 'snapshot', side_effect=['first', 'first']))
+                checks = stack.enter_context(mock.patch.object(PRE, 'workspace_checks', side_effect=refuse))
+                err = stack.enter_context(redirect_stderr(io.StringIO()))
+                self.assertEqual(PRE.main(['--close']), 1)
+                self.assertEqual(checks.call_count, 1 - attempt)
+                self.assertEqual(err.getvalue(), 'budgets skein step: +5.00%, allowance 2.00%\n')
+        self.assertIn('a retry would measure the same', self.log.getvalue())
+        self.assertEqual(len(list(store.glob('*.json'))), 1)
+
+    def test_a_refusal_with_a_test_failure_is_not_saved(self):
+        store = self.root / 'store'
+        with mock.patch.object(PRE, 'verdict_store', return_value=store):
+            self.assertIsNone(PRE.saved_verdict('nothing'))
+            PRE.save_verdict('k', [PRE.failure('budgets', 'x')])
+            self.assertEqual(PRE.saved_verdict('k')['errors'][0]['name'], 'budgets')
+            with mock.patch.object(PRE.time, 'time', return_value=PRE.time.time() + 2 * 86400):
+                self.assertIsNone(PRE.saved_verdict('k'))
+        self.assertFalse(any(PRE.failure('test leaf::suite a', 'x')['name'].startswith(h) for h in PRE.HARD))
 
     def test_no_base_refuses_with_its_reason_and_checks_nothing(self):
         with mock.patch.object(Path, 'cwd', return_value=self.root), \

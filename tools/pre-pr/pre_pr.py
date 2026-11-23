@@ -1321,6 +1321,48 @@ def workspace_checks(root, paths, tree_id, env, errors, outcomes, reds=(), *, co
 HOOKS = {'.temper/pre-pr', '.temper/goal-child-pre-pr', '.temper/goal-pre-pr', '.temper/checked-close'}
 
 
+# A close's own verdicts, which the same tree, base and main's counts give again: a retry replays them.
+HARD = ('budgets', 'format', 'citations', 'check outward', 'old-forms ',
+        'test fabrig-boundary::outward no_file_names_the_lab')
+SAVED_DAYS = 1
+
+
+def verdict_store():
+    """Outside the checkout, which each attempt gets afresh: the worker user's cache."""
+    return Path(pwd.getpwuid(os.getuid()).pw_dir) / '.cache' / 'fabrig-pre-pr' / 'close'
+
+
+def verdict_key(tree_id, base_id, counts):
+    material = json.dumps([tree_id, base_id, counts], sort_keys=True, separators=(',', ':'))
+    return hashlib.sha256(material.encode()).hexdigest()
+
+
+def saved_verdict(key):
+    path = verdict_store() / f'{key}.json'
+    try:
+        saved = json.loads(path.read_text())
+    except (OSError, ValueError):
+        return None
+    if time.time() - saved.get('at', 0) > SAVED_DAYS * 86400 or not isinstance(saved.get('errors'), list):
+        return None
+    return saved
+
+
+def save_verdict(key, errors):
+    """Keep a refusal made of hard verdicts alone; prune what has aged out."""
+    store = verdict_store()
+    try:
+        store.mkdir(parents=True, exist_ok=True)
+        for old in store.glob('*.json'):
+            if time.time() - old.stat().st_mtime > SAVED_DAYS * 86400:
+                old.unlink(missing_ok=True)
+        with tempfile.NamedTemporaryFile('w', dir=store, delete=False) as out:
+            json.dump({'at': time.time(), 'errors': errors}, out)
+        os.replace(out.name, store / f'{key}.json')
+    except OSError as error:
+        print(f'pre-pr: refusal not saved for retries: {error_line(error)}', flush=True)
+
+
 def with_rust_tools(env):
     """Find the worker's Rust tools where the caller's PATH lacks them, as a close job's does."""
     if shutil.which('cargo', path=env.get('PATH', os.defpath)):
@@ -1374,6 +1416,7 @@ def check(scope, commits):
         # A close builds and tests in the goal's own checkout, warm with the worker's build cache.
         checks_root = root if scope == 'close' and has_git else work
         receipt_head = head
+        key = saved = None
         try:
             if scope == 'goal' and head:
                 # Only the current commit can bind this snapshot to a goal head.
@@ -1384,9 +1427,19 @@ def check(scope, commits):
                         raise ValueError('working tree differs from the requested goal head')
             if scope == 'close' and has_git and checked_git(['write-tree', '--missing-ok'], root, source_env).decode().strip() != tree_id:
                 raise ValueError('working tree differs from the staged close tree')
+            if scope == 'close' and base_id:
+                counts = published_counts(runpy.run_path(str(TIERS / 'counts.py')), root, source_env)
+                key = verdict_key(tree_id, base_id, counts) if counts else None
+            saved = saved_verdict(key) if key else None
             if no_base:
                 # Loud, so that a checkout the worker set up otherwise is seen and repaired (section 1).
                 errors.append(failure('base', no_base))
+            elif saved:
+                # Temper retries a refused close as it would a fault; the same inputs give the same verdict.
+                stamp = time.strftime('%H:%M:%SZ', time.gmtime(saved['at']))
+                print(f'pre-pr: the refusal of {stamp} for this tree, base and main\'s counts, again: '
+                      'a retry would measure the same (tools/pre-pr/design.md, 4.1)', flush=True)
+                errors.extend(saved['errors'])
             else:
                 tests = workspace_checks(checks_root, paths, tree_id, env, errors, outcomes, completed_goal=scope == 'close',
                                          counts_source=(root, source_env), whole=base_id is None, base_id=base_id)
@@ -1400,6 +1453,9 @@ def check(scope, commits):
             errors.append(failure('workspace checks', str(error)))
         verdict = finish(tree_id, base_id, errors, root, env, scope, commits, [receipt_head], lints, tests, warnings,
                          base_name if base_id else None)
+        if scope == 'close' and verdict and key and not saved and errors and all(
+                settled(e) or e['name'].startswith(HARD) for e in errors):
+            save_verdict(key, errors)
         if has_git and scope == 'delivery':
             reds, _, marker = goal_reds(root, source_env)
             if marker:
