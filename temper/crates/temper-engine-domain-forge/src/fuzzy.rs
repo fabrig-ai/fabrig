@@ -5,6 +5,14 @@ use skein_forge::api::Verdict;
 use skein_lib::{List, Rng, Wall};
 
 #[test]
+fn forge_read_waiters_keep_their_turn_under_interleaving() {
+    const SEEDS: u64 = 64;
+    for seed in 0..SEEDS {
+        tests::read_line::check_interleaving(seed);
+    }
+}
+
+#[test]
 fn branch_head_records_respect_capacity_and_refuse_only_new_names() {
     use crate::{BranchHead, Hold, Name, Request, What, domain::heads};
     use skein_lib::Queue;

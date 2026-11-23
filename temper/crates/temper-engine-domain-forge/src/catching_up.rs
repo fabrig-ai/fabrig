@@ -1,5 +1,5 @@
 //! The restart's two halves, reported per forge (domain/forge/catching-up.md, 2 and 5).
-use super::{Domain, Handoff, RestorePhase, fresh_reads_in};
+use super::{Domain, Handoff, RestorePhase, fresh_reads_in, goal_branch};
 use crate::{CatchingUp, Limits, Request, RestartStage, age_words};
 use alloc::boxed::Box;
 use skein_lib::{Env, Queue, Time, bytes};
@@ -76,7 +76,7 @@ impl Domain {
             }
         }
         for (_, pending) in &self.makings {
-            if pending.name.forge == forge && pending.outbox_wait.is_none() {
+            if pending.name.forge == forge && goal_branch::read_out(pending) {
                 state.goal_branches = state.goal_branches.checked_add(1).expect("goal branches fit their limit");
             }
         }

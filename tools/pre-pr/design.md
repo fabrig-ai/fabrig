@@ -18,64 +18,36 @@ runs, the same draft's 4.
 ## 1. In one page
 
 Every worker `deliver` and `finish` calls `.temper/pre-pr` in the implementer's
-checkout. The hook checks the worktree as delivered, including staged,
-unstaged and new files. Its private Git index records the checked tree and
-leaves staging intact. The local prepare pin identifies committed work since
-the branch started. Cargo uses the workspace's existing target and works offline.
+checkout. It checks current files, including staged, unstaged and new sources.
+The checker creates a private Git index and object store from those files. An
+exported source tree also works. Git ignore rules select sources, and an existing
+checkout's tracked files stay included even if they match an ignore rule.
+The checker rechecks the source tree before publishing its receipt.
 
-Delivery formats changed handwritten Rust files with rustfmt and skips codec
-outputs listed in `tools/merge/codecs.txt`. It reads offline Cargo metadata
-for their editions. The worker hook inspects the files in place with rustfmt.
-When a file needs formatting it renders the original snapshot blob, updates
-the private index and applies the resulting patch once. A clean selection
-needs one formatter pass per edition and configuration. The remaining checks
-and publication use the formatted tree. Explicit child and goal-close
-checks are read-only.
+Rust formatting runs `cargo fmt --all -- --check` in the snapshot. A refusal
+reports a file and line from rustfmt's diff and the command to apply the edits
+in the implementer's workspace. Delivery also checks each tree's counted forms,
+citations, outward names, the checker's tests, empty journey overlays and the
+current budget tables. A format refusal returns early. Ordinary delivery runs
+these checks without compiling Rust. Its receipt is
+`target/temper/pre-pr-light-failures.json`.
 
-Delivery reuses the comparison base and exact checked tree recorded in the
-checkout, or a named main fetch made after checkout preparation and integrated
-in HEAD or the pending merge. At the comparison base no refresh is needed.
-For a cold Rust delivery the hook asks the worker's `temper-public-source
-fabrig-ai/fabrig` for this repository's anonymous HTTPS Git URL. An installed
-helper returns that URL on one line or exits 1 for an unconfigured repository.
-A fresh fetch from the configured source takes precedence over another fetch.
-Otherwise the hook fetches main once in place, checks its ancestry and
-recomputes the producer's changed paths. For formatting, first-parent edits,
-merge resolutions and working edits count. Git computes a merge comparison
-from objects in place so cleanly combined upstream edits stay untouched. The landing pin still identifies
-the comparison base. The worker's fetched and landing refs do not name main.
+Child, close and explicit goal checks use the same current-tree policy. Close
+also selects the workspace's focused test targets and helper binaries using the
+current package map. On a close failure the final report preserves a coded Rust
+compiler error or the first failed Nextest case and its panic details where
+available, within the job hold's 128-byte limit. The explicit goal diagnostic
+runs workspace Clippy and the
+default and fuzzy suites with the tree's budgets. The receipt names the
+snapshot tree and sets `comparison` to `tree-only`. The checked base and
+destination are null. A destination supplied by a caller is recorded separately
+as `requested_destination`.
 
-If that tip needs integration, the check reports its exact commit. The
-implementer can merge it in place, or ask the goal to integrate it through
-its catch-up and resume the saved change. An unresolved merge waits for
-the implementer. The check leaves HEAD, the caller's index and the worktree
-in place while obtaining the comparison. A worker without the helper can
-use the existing manual main refresh. Child and close checks do no recovery
-fetch.
-
-Counted baselines, citations, outward names, journey and
-budget rules apply to the changed paths. Checker changes also run its
-subprocess-free Python suite. Delivery and finish perform no Rust build or test.
-The worker receives its check results and the receipt at
-`target/temper/pre-pr-light-failures.json`. A new tree requires a new check.
-
-After status settlement a checked close passes the pinned main commit to
-`pre_pr.py --close DESTINATION`. It applies the lightweight checks above
-to the entire difference from the merge base to the staged goal tree,
-including earlier children and a close that changed no files. The selector
-runs focused Rust tests for changed packages and their immediate consumers.
-An edit confined to an integration test target selects that target alone.
-Close builds any required test helpers, checks packages without test targets
-and runs changed Python modules’ sibling suites. Per-delivery
-journey mixing and budgets-file validation ran on delivery. The final goal
-tree still receives the overlay check. The receipt records the pre-settlement
-head, staged tree, destination and merge base. A changed snapshot refuses.
-
-The main Gate runs the checker suite for a candidate confined to the checker.
-A mixed product candidate also receives its regular Gate. The accumulated
-goal proof is available by explicit diagnostic dispatch. It checks the goal
-head against its supplied destination and uses the full selections described
-below. Ordinary delivery and PR events require no separate CI checkout.
+A trend in budget figures or instruction counts and the mixture of generated
+journey pages with other edits require a comparison between revisions. A
+current-tree receipt provides no verdict on these changes. The landing Gate's
+figures check compares its candidate to its base (`tools/tiers/budgets.md`,
+10.1).
 
 The following sections record the full diagnostic and earlier delivery
 policies. For the current worker command, selection, formatting, tests and

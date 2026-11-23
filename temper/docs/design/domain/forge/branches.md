@@ -120,7 +120,12 @@ own, never a change's:
   goal, its words naming the branch and what the forge answered.
   A making waits for the outbox's room and never fails for it: with the
   outbox full (`forge.entries`), it holds nothing and polls nothing, as a
-  read answered `Busy` waits for the client's room (`keeping-up.md`, 5).
+  read answered `Busy` waits for the client's room. Its reads, the
+  branch's and the landing branch's tip, wait for the client's room in
+  the read line, in arrival order beside the connector's other reads
+  waiting there, each on a deadline and retried at it for as long as it
+  waits, the log saying when it begins to wait and when it is admitted
+  (`keeping-up.md`, 3, *Reads waiting for room take turns*).
   It gives up its entry number while it waits, so it reserves nothing:
   a kept number would stop every later entry's handoff, and an outbox
   full of those would never free. It waits in the outbox's line beside
@@ -146,11 +151,23 @@ own, never a change's:
   reset once it exists. A restart's making is two steps, a read and a
   write, and only the read belongs to the forge's fresh reads as it
   catches up after the opening (`catching-up.md`, 2):
-  - **Its read** is one of the fresh reads (`effects.md`, section 2): is
-    the branch there, at which commit, and is a creation entry of its
-    own in the outbox. There, it is the goal's; missing, with its
-    making's entry restored, that entry settles as its class says, its
-    find answering not found sending it again at its commit.
+  - **Its read** is one of the fresh reads (`effects.md`, section 2)
+    while it is out: is the branch there, at which commit, and is a
+    creation entry of its own in the outbox. There, it is the goal's;
+    missing, with its making's entry restored, that entry settles as its
+    class says, its find answering not found sending it again at its
+    commit. A read the client refuses for room, or one waiting out its
+    forge's absence or its connection (`keeping-up.md`, 5), is no fresh
+    read until it is out again: it waits in the read line and is asked
+    in its turn, as any making's read waiting for room is
+    (`keeping-up.md`, 3), and the start's fresh reads end without it.
+    The branch's own readers wait for its making whatever the fresh
+    reads say: a change into it, its design writers, its closer and a
+    release that judges it decide nothing on its head while its making
+    is pending (`catching-up.md`, 4). Counted as a fresh read, a read
+    waiting for room would hold its repository's fresh reads, and every
+    procedure on the goal's home with them, for a call that others keep
+    taking; the start goes on and the making is asked after.
   - **Its write** waits in the outbox's line. Missing, with no entry
     (the restart cut its making before it committed one), the making
     takes a place in the line, behind the places restored with
