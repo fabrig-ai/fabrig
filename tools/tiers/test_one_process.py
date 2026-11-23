@@ -313,7 +313,9 @@ class RunnerFixture(unittest.TestCase):
             (self.root / name).chmod(0o700)
         self.env = dict(os.environ, FIXTURE_CASE='pass', NEXTEST='1',
                         GIT_CEILING_DIRECTORIES=str(self.root.parent))
-        self.env.pop('TIERS_HOLD', None)
+        # pre-PR sets CARGO_TARGET_DIR, which would bypass the fixtures' metadata target.
+        for key in ('TIERS_HOLD', 'CARGO_TARGET_DIR', 'CARGO_BUILD_TARGET_DIR'):
+            self.env.pop(key, None)
         self.command = [str(self.root / 'prefix'), str(self.root / 'cargo'), 'nextest', 'run',
                         '-p', 'fixture', '--profile', 'default', '--no-fail-fast']
         self.module = runpy.run_path(str(HERE / 'one_process.py'))

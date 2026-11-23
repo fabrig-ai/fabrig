@@ -21,7 +21,9 @@ class CountsRepository(unittest.TestCase):
         scratch = tempfile.TemporaryDirectory()
         self.addCleanup(scratch.cleanup)
         self.root = Path(scratch.name)
-        self.env = {**os.environ, 'GIT_CONFIG_NOSYSTEM': '1', 'GIT_CONFIG_GLOBAL': os.devnull,
+        # pre-PR runs the suites with GIT_NO_LAZY_FETCH set: the reader must add it itself.
+        inherited = {k: v for k, v in os.environ.items() if k != 'GIT_NO_LAZY_FETCH'}
+        self.env = {**inherited, 'GIT_CONFIG_NOSYSTEM': '1', 'GIT_CONFIG_GLOBAL': os.devnull,
                     'GIT_AUTHOR_NAME': 'Fixture', 'GIT_AUTHOR_EMAIL': 'fixture@example.test',
                     'GIT_COMMITTER_NAME': 'Fixture', 'GIT_COMMITTER_EMAIL': 'fixture@example.test'}
         self.git('init', '-q')
