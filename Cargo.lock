@@ -7028,6 +7028,7 @@ dependencies = [
  "temper-engine-smith",
  "temper-fake",
  "temper-fake-checkout",
+ "temper-fake-git",
  "temper-landing-fixtures",
  "temper-limits-fixtures",
  "temper-protocol-reaches",
