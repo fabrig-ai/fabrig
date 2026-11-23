@@ -747,7 +747,7 @@ fn an_unmade_landings_members_form_again_and_land_after_restart() {
         assert_eq!(row.change.landing, None);
         assert_eq!(row.change.ready_since, first_ready);
     }
-    world.root.hold_landings(false);
+    world.release_landings();
     let landing = await_prepare(&mut world);
     assert_ne!(landing, crate::reconcile::UNMADE);
     answer_prepare(&mut world);

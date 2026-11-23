@@ -126,11 +126,21 @@ fn change_wakes(view: &View<'_>, row: &temper_engine_domain_forge::ChangeRow) ->
         State::Ready { .. } | State::Preparing { .. } => {
             if let Some(task) = row.change.landing {
                 wakes.push(view.waiter(task));
-            } else if matches!(row.change.state, State::Ready { .. })
-                && view.forge.inspection_landings().len() >= view.forge.inspection_landings().capacity()
-            {
+            } else if matches!(row.change.state, State::Ready { .. }) {
+                if view.forge.landing_held() {
+                    wakes.push(Wake::Party("operator restart".into()));
+                }
+                if let Some(due) = view.root.and_then(|root| root.inspection_forming_retry(row.task)) {
+                    wakes.push(Wake::Timer(Time::from_nanos(due.as_nanos())));
+                }
+                let full = view.forge.inspection_landings().len() >= view.forge.inspection_landings().capacity();
                 for (task, landing) in view.forge.inspection_landings() {
-                    if !landing_ended(&landing.landing.phase) {
+                    let same_train = landing.landing.branch == row.base
+                        && landing.landing.members.iter().any(|member| {
+                            member.repository.forge == row.repository.forge
+                                && member.repository.repository == row.repository.repository
+                        });
+                    if !landing_ended(&landing.landing.phase) && (full || same_train) {
                         wakes.push(view.waiter(*task));
                     }
                 }

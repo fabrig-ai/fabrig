@@ -156,7 +156,7 @@ pub(crate) fn produced_turn_change(landing_members: Option<u32>) -> (World, u64)
 pub(crate) fn produced_turn_change_with(limits: &StoryLimits) -> (World, u64) {
     produced_with_hold(limits, false)
 }
-fn produced_with_hold(limits: &StoryLimits, held: bool) -> (World, u64) {
+pub(crate) fn produced_with_hold(limits: &StoryLimits, held: bool) -> (World, u64) {
     let mut world = World::configured_limits(true, true, false, 1000, Gate::default(), None, limits.clone())
         .with_landing_held(held);
     world.adopt();
@@ -200,7 +200,7 @@ fn produced_with_hold(limits: &StoryLimits, held: bool) -> (World, u64) {
 }
 
 // One chat, its ready change and four person tasks exercise live-room refusal.
-const LIVE_ROOM: u32 = 6;
+pub(crate) const LIVE_ROOM: u32 = 6;
 
 fn cancel_filler(world: &mut World, task: u64, key: u8, reason: &[u8]) {
     world.send(engine::Event::Party(engine::PartyInput::Ask {
@@ -212,7 +212,7 @@ fn cancel_filler(world: &mut World, task: u64, key: u8, reason: &[u8]) {
     }));
 }
 
-fn fill_live_room(world: &mut World) -> Vec<u64> {
+pub(crate) fn fill_live_room(world: &mut World) -> Vec<u64> {
     let tasks = world.env.limits.tasks.tasks;
     let mut fillers = Vec::new();
     for at in 0..tasks {
@@ -509,10 +509,14 @@ fn a_goal_is_kept_on_its_own_changes_landing_by_turn() {
 }
 
 pub(crate) fn full_landing_room() -> (World, u64, u64) {
+    ready_behind_landing(1)
+}
+
+pub(crate) fn ready_behind_landing(landings: u32) -> (World, u64, u64) {
     let (mut world, first) = produced_turn_change_with(&StoryLimits {
         turn: true,
         landing_members: Some(1),
-        landings: Some(1),
+        landings: Some(landings),
         slots: Some(3),
         forge_branches: Some(8),
         forge_calls: Some(4),
@@ -759,7 +763,7 @@ fn dependent_pair(same_repository: bool) -> (World, u64, u64) {
 // A full batch is these stories' setup: finish its restart reads before giving
 // the train room, so no waiting member is excluded (domain/landing-turn.md, 2).
 fn restart_waiting_batch(world: &mut World, batch: u16, changes: &[u64]) {
-    world.restart_with_batch(batch);
+    world.restart_with_unheld_batch(batch);
     world.root.hold_landings(true);
     for _ in 0..PAIR_TICKS {
         world.tick();
@@ -768,7 +772,7 @@ fn restart_waiting_batch(world: &mut World, batch: u16, changes: &[u64]) {
         }
     }
     assert!(batch_waiting(world, changes), "the restored batch settles while forming is held");
-    world.root.hold_landings(false);
+    world.release_landings();
 }
 
 fn batch_waiting(world: &World, changes: &[u64]) -> bool {

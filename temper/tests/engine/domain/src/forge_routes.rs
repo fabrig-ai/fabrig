@@ -276,6 +276,7 @@ pub struct StoryLimits {
     pub dispatch_by_test: bool,
     pub across: bool,
     pub library_gate_latency: Option<Duration>,
+    /// Zero stages a waiting batch under the operator hold, with a one-member engine limit.
     pub landing_members: Option<u32>,
     pub landings: Option<u32>,
     pub batch: Option<u16>,
@@ -937,8 +938,8 @@ impl World {
                         limits.forge.landings = slots;
                     }
                     if let Some(slots) = landing_members {
-                        limits.forge.landing_members = slots;
-                        limits.tasks.holdings = limits.tasks.holdings.max(slots);
+                        limits.forge.landing_members = slots.max(1);
+                        limits.tasks.holdings = limits.tasks.holdings.max(slots.max(1));
                     }
                     let mut grants = List::with_capacity(15);
                     for grant in &rules.ceiling.grants {
@@ -1473,7 +1474,7 @@ impl World {
         stock: Option<(&jig_domain_core::settings::Defaults, &engine::Model, Option<&engine::Limits>)>,
         charter_documents: &[jig_domain_core::Document],
     ) -> Self {
-        let [(bootstrap, mut limits), (config, _)] =
+        let [(bootstrap, mut limits), (mut config, _)] =
             Self::configurations(with_read, with_change, gate, documents, timing, stock, charter_documents);
         let StoryLimits { turn, tier, across, library_gate_latency, tasks, landing_members, slots, .. } = *timing;
         let mut fake_config = forge_world::fake_config();
@@ -1685,6 +1686,9 @@ impl World {
         }
         let store =
             temper_engine_domain_world::fixtures::restored_over(Store::with_limits(&store_limits), bootstrap, &limits);
+        if landing_members == Some(0) {
+            config.landing_held = true;
+        }
         let period_budget = config.core.defaults.rules.period_spend;
         let checks = crate::checks::Checks::new(config.core.seed);
         let mut ends = crate::ends::Ends::new(config.core.seed, crate::ends::OPENING);
@@ -2347,6 +2351,15 @@ impl World {
             .expect("held start");
         self
     }
+    /// Drive forming before observing quiescence after a story releases its start hold.
+    pub fn release_landings(&mut self) {
+        self.root.hold_landings(false);
+        engine::fire(&mut self.root, &self.env);
+        engine::release(&mut self.root, &self.env, &mut self.out);
+        self.collect();
+        self.flush();
+    }
+
     pub fn restart_with_landing_held(&mut self, held: bool) {
         self.restart_config.landing_held = held;
         self.restart_same();
@@ -2368,6 +2381,12 @@ impl World {
         crate::oracle::config::landing(&mut self.restart_config, 1).batch = batch;
         self.restart_same();
     }
+    /// Restart a staged batch after removing the operator's landing hold.
+    pub fn restart_with_unheld_batch(&mut self, batch: u16) {
+        self.restart_config.landing_held = false;
+        self.restart_with_batch(batch);
+    }
+
     /// Restart with a project's new landing configuration, retaining only durable rows.
     pub fn restart_with_project_landing(&mut self, project: u32, landing: temper_landing_fixtures::ProjectLanding) {
         crate::oracle::config::set_landing(&mut self.restart_config, project, landing);

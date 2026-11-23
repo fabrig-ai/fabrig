@@ -182,6 +182,20 @@ impl Domain {
     pub fn hold_landings(&mut self, held: bool) {
         self.forge.hold_landings(held);
     }
+    /// The armed retry of this change's refused train (testing/engine-checks.md, 2.2).
+    #[must_use]
+    pub fn inspection_forming_retry(&self, task: u64) -> Option<Wall> {
+        if self.forge.landing_held() {
+            return None;
+        }
+        let row = self.forge.change(task)?;
+        let (at, _, judged) = self.forge_refused.get(&(row.repository, row.base.clone()))?;
+        if *judged {
+            return None;
+        }
+        Some(Wall::from_nanos(at.as_nanos().saturating_add(self.limits.forge.queue_window.as_nanos())))
+    }
+
     #[must_use]
     pub fn landing_way(&self, project: u32) -> temper_engine_domain_forge_change::Way {
         self.forge.landing_way(project)

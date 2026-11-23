@@ -96,8 +96,7 @@ fn a_ready_change_waits_on_the_landing_filling_its_room() {
     assert_eq!(Checks::new(71).quiet(&world.root, world.env.now, 1), Ok(()));
 }
 
-#[test]
-fn a_ready_change_without_a_live_landing_or_other_wake_is_found() {
+fn ready_without_landing() -> (World, u64) {
     let (mut world, change, landing) = super::forge_routes::landing::full_landing_room();
     // Freeze forming, then remove the only live landing without waking its follower.
     world.root.hold_landings(true);
@@ -110,6 +109,14 @@ fn a_ready_change_without_a_live_landing_or_other_wake_is_found() {
         engine::Event::Forge(Box::new(forge::Event::Restore { record: forge::Stored::Landing(row) })),
     );
     engine::fire(&mut world.root, &world.env);
+    // Remove the fixture's forming guard without driving the synthetic lost wake.
+    world.root.hold_landings(false);
+    (world, change)
+}
+
+#[test]
+fn a_ready_change_without_a_live_landing_or_other_wake_is_found() {
+    let (world, change) = ready_without_landing();
     let inspection = inspect(&world);
     let wait = inspection.waits().iter().find(|wait| wait.waiter == format!("task {change}")).expect("ready wait");
     assert_eq!(wait.kind, "change: ready");
@@ -151,6 +158,7 @@ fn a_ready_change_has_no_wake_after_the_due_member_leaves_its_train() {
         engine::Event::Forge(Box::new(forge::Event::Restore { record: forge::Stored::Change(Box::new(member)) })),
     );
     engine::fire(&mut world.root, &world.env);
+    world.root.hold_landings(false);
     let inspection = inspect(&world);
     let wait = inspection.waits().iter().find(|wait| wait.waiter == format!("task {ready}")).expect("ready wait");
     assert_eq!(wait.kind, "change: ready");
@@ -160,6 +168,127 @@ fn a_ready_change_has_no_wake_after_the_due_member_leaves_its_train() {
         finding,
         format!(
             "seed 71: at {} ns, iteration 1: engine task {ready}: waits on change: ready with no live wake: []",
+            world.env.now.as_nanos(),
+        )
+    );
+}
+
+#[test]
+fn a_ready_change_waits_for_the_operators_restart() {
+    let (mut world, change) = ready_without_landing();
+    world.root.hold_landings(true);
+    let inspection = inspect(&world);
+    let wait = inspection.waits().iter().find(|wait| wait.waiter == format!("task {change}")).expect("ready wait");
+    assert_eq!(wait.kind, "change: ready");
+    assert_eq!(wait.wakes, vec![Wake::Party("operator restart".into())]);
+    assert_eq!(Checks::new(71).quiet(&world.root, world.env.now, 1), Ok(()));
+}
+
+#[test]
+fn a_ready_change_waits_for_its_train_with_landing_room_free() {
+    let (world, change, landing) = super::forge_routes::landing::ready_behind_landing(2);
+    assert!(world.root.forge().inspection_landings().len() < world.root.forge().inspection_landings().capacity());
+    let row = world.root.forge().change(change).expect("ready change");
+    assert!(matches!(row.change.state, temper_engine_domain_forge_change::State::Ready { .. }));
+    assert_eq!(row.change.landing, None);
+    let inspection = inspect(&world);
+    let wait = inspection.waits().iter().find(|wait| wait.waiter == format!("task {change}")).expect("ready wait");
+    assert_eq!(wait.kind, "change: ready");
+    assert_eq!(wait.wakes, vec![Wake::Waiter(format!("task {landing}"))]);
+    assert_eq!(Checks::new(71).quiet(&world.root, world.env.now, 1), Ok(()));
+}
+
+#[test]
+fn a_ready_change_has_no_wake_from_another_train_with_landing_room_free() {
+    let (mut world, change, landing) = super::forge_routes::landing::ready_behind_landing(2);
+    world.root.hold_landings(true);
+    let mut row = world.root.forge().landing(landing).expect("landing").clone();
+    row.landing.branch = b"another-train".as_slice().into();
+    engine::step(
+        &mut world.root,
+        &world.env,
+        engine::Event::Forge(Box::new(forge::Event::Restore { record: forge::Stored::Landing(row) })),
+    );
+    engine::fire(&mut world.root, &world.env);
+    world.root.hold_landings(false);
+    let inspection = inspect(&world);
+    let wait = inspection.waits().iter().find(|wait| wait.waiter == format!("task {change}")).expect("ready wait");
+    assert_eq!(wait.kind, "change: ready");
+    assert_eq!(wait.wakes, Vec::<Wake>::new());
+    let finding = Checks::new(71).quiet(&world.root, world.env.now, 1).expect_err("other train cannot wake this one");
+    assert_eq!(
+        finding,
+        format!(
+            "seed 71: at {} ns, iteration 1: engine task {change}: waits on change: ready with no live wake: []",
+            world.env.now.as_nanos(),
+        )
+    );
+}
+
+fn refused_train() -> (World, u64) {
+    use super::forge_routes::landing::{LIVE_ROOM, fill_live_room, produced_with_hold};
+    use temper_engine_domain_world::forge_routes::StoryLimits;
+    let (mut world, change) = produced_with_hold(
+        &StoryLimits {
+            turn: true,
+            tasks: Some(LIVE_ROOM),
+            person_executor: true,
+            party_requests: Some(LIVE_ROOM + 2),
+            ..StoryLimits::default()
+        },
+        true,
+    );
+    world.oracle_settle();
+    fill_live_room(&mut world);
+    world.root.hold_landings(false);
+    world.send(engine::Event::Forge(Box::new(forge::Event::Priority { task: change, priority: 0 })));
+    world.oracle_settle();
+    (world, change)
+}
+
+#[test]
+fn a_ready_change_waits_for_its_refused_trains_retry() {
+    let (world, change) = refused_train();
+    let row = world.root.forge().change(change).expect("ready change");
+    assert!(matches!(row.change.state, temper_engine_domain_forge_change::State::Ready { .. }));
+    assert_eq!(row.change.landing, None);
+    assert!(world.root.forge().inspection_landings().is_empty());
+    let due = world.root.inspection_forming_retry(change).expect("refused train has a retry");
+    assert!(due > world.env.wall);
+    let inspection = inspect(&world);
+    let wait = inspection.waits().iter().find(|wait| wait.waiter == format!("task {change}")).expect("ready wait");
+    assert_eq!(wait.kind, "change: ready");
+    assert_eq!(wait.wakes, vec![Wake::Timer(Time::from_nanos(due.as_nanos()))]);
+    assert_eq!(Checks::new(71).quiet(&world.root, world.env.now, 1), Ok(()));
+}
+
+#[test]
+fn a_ready_change_has_no_retry_from_another_refused_train() {
+    let (mut world, change) = refused_train();
+    world.root.hold_landings(true);
+    let mut row = world.root.forge().change(change).expect("ready change").clone();
+    row.base = b"another-train".as_slice().into();
+    engine::step(
+        &mut world.root,
+        &world.env,
+        engine::Event::Forge(Box::new(forge::Event::Restore { record: forge::Stored::Change(Box::new(row)) })),
+    );
+    world.oracle_settle();
+    world.root.hold_landings(false);
+    assert!(matches!(
+        world.root.forge().change(change).expect("ready change").change.state,
+        temper_engine_domain_forge_change::State::Ready { .. }
+    ));
+    assert_eq!(world.root.inspection_forming_retry(change), None);
+    let inspection = inspect(&world);
+    let wait = inspection.waits().iter().find(|wait| wait.waiter == format!("task {change}")).expect("ready wait");
+    assert_eq!(wait.kind, "change: ready");
+    assert_eq!(wait.wakes, Vec::<Wake>::new());
+    let finding = Checks::new(71).quiet(&world.root, world.env.now, 1).expect_err("no retry for this train");
+    assert_eq!(
+        finding,
+        format!(
+            "seed 71: at {} ns, iteration 1: engine task {change}: waits on change: ready with no live wake: []",
             world.env.now.as_nanos(),
         )
     );
