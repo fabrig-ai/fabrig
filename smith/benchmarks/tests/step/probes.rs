@@ -1,9 +1,153 @@
 //! Replaying controls (smith/docs/design/testing.md, 2).
 
-use crate::common;
-use smith_bench::{CheckVerdict, End, Judgment, Measure, judge, judge_suite};
+use std::{io, path::Path};
 
+use skein_fake_machine::Item;
+use smith_bench::{
+    CatalogueTask, CheckVerdict, Count, End, EventCheck, Judgment, Measure, ModelTiers, PinnedConfiguration, Refusal,
+    Suite, judge, judge_suite,
+    testing::task::{configuration, parse_document, validate_suite_with},
+};
+
+use crate::common;
 use crate::common::probe_result as result;
+use crate::large_write_probe::{LARGE_WRITE_DOCUMENT, LARGE_WRITE_MANIFEST, check_large_write};
+use crate::tests::check_probe;
+
+const SMOKE_TOOLS_MANIFEST: &str = "tasks/probes/smoke-tools/task.toml";
+const SMOKE_TOOLS_DOCUMENT: &str = include_str!("../../tasks/probes/smoke-tools/task.toml");
+const SMOKE_TOOLS_SEED: &[u8] = include_bytes!("../../tasks/probes/smoke-tools/seed/README.md");
+
+fn frozen_smoke_tasks() -> Vec<CatalogueTask> {
+    let failures = Item::file(b"README.md", include_bytes!("../../tasks/probes/failures/seed/README.md"));
+    let first_request = Item::file(b"README.md", include_bytes!("../../tasks/probes/first-request/seed/README.md"));
+    let smoke_tools = Item::file(b"README.md", SMOKE_TOOLS_SEED);
+    let budget = budget_seed();
+    let mut tasks: Vec<_> = [
+        (
+            "first-request",
+            "tasks/probes/first-request/task.toml",
+            include_str!("../../tasks/probes/first-request/task.toml"),
+            std::slice::from_ref(&first_request),
+        ),
+        ("smoke-tools", SMOKE_TOOLS_MANIFEST, SMOKE_TOOLS_DOCUMENT, std::slice::from_ref(&smoke_tools)),
+        ("budget", "tasks/probes/budget/task.toml", include_str!("../../tasks/probes/budget/task.toml"), &budget),
+        (
+            "failures",
+            "tasks/probes/failures/task.toml",
+            include_str!("../../tasks/probes/failures/task.toml"),
+            std::slice::from_ref(&failures),
+        ),
+    ]
+    .into_iter()
+    .map(|(id, manifest, document, seed)| CatalogueTask {
+        name: format!("probes/{id}"),
+        manifest: manifest.into(),
+        task: check_probe(Path::new(manifest), document, seed).expect("frozen seed and manifest"),
+    })
+    .collect();
+    tasks.push(CatalogueTask {
+        name: "probes/large-write".into(),
+        manifest: LARGE_WRITE_MANIFEST.into(),
+        task: check_large_write(LARGE_WRITE_DOCUMENT).expect("frozen seed and manifest"),
+    });
+    tasks
+}
+
+fn budget_seed() -> [Item; 11] {
+    macro_rules! file {
+        ($name:literal) => {
+            Item::file($name.as_bytes(), include_bytes!(concat!("../../tasks/probes/budget/seed/", $name)))
+        };
+    }
+    [
+        file!("README.md"),
+        file!("part01.txt"),
+        file!("part02.txt"),
+        file!("part03.txt"),
+        file!("part04.txt"),
+        file!("part05.txt"),
+        file!("part06.txt"),
+        file!("part07.txt"),
+        file!("part08.txt"),
+        file!("part09.txt"),
+        file!("part10.txt"),
+    ]
+}
+
+fn smoke_pin(path: &Path) -> Result<PinnedConfiguration, Refusal> {
+    if path != Path::new("agents/smith/everything.pin.toml") {
+        return Err(Refusal::new(path, "document", io::Error::from(io::ErrorKind::NotFound).to_string()));
+    }
+    configuration(path, include_str!("../../agents/smith/everything.pin.toml"), |layer| {
+        if layer != Path::new("agents/smith/everything.toml") {
+            return Err(Refusal::new(layer, "document", io::Error::from(io::ErrorKind::NotFound).to_string()));
+        }
+        Ok(include_bytes!("../../agents/smith/everything.toml").to_vec())
+    })
+}
+
+#[test]
+fn the_smoke_retains_each_probes_frozen_checks_and_inputs() {
+    // First request, smoke tools, large write and two budget variants.
+    const ACTIVE_PROBES: usize = 5;
+    let tasks = frozen_smoke_tasks();
+    let agents = Path::new("agents");
+    let models: ModelTiers =
+        parse_document(&agents.join("models.toml"), include_str!("../../agents/models.toml")).expect("model tiers");
+    for (file, document) in [
+        ("suites/smoke.toml", include_str!("../../suites/smoke.toml")),
+        ("suites/calibrate.toml", include_str!("../../suites/calibrate.toml")),
+    ] {
+        let path = Path::new(file);
+        let suite: Suite = parse_document(path, document).expect("suite format");
+        assert_eq!(
+            validate_suite_with(path, &suite, &tasks, agents, &models, smoke_pin)
+                .expect("pins/selectors")
+                .iter()
+                .filter(|task| *task != "probes/failures/one-turn")
+                .count(),
+            ACTIVE_PROBES
+        );
+    }
+    let failures = tasks.iter().find(|task| task.name == "probes/failures").expect("authored deferred probe");
+    let one_turn = failures.task.with_variant("one-turn").expect("deferred probe variant");
+    assert_eq!(one_turn.budget.turns, Some(1));
+    assert!(one_turn.deciding.iter().any(|name| name == "no-request"));
+    let write = tasks.iter().find(|task| task.name == "probes/large-write").expect("large-write");
+    let oversized = write.task.with_variant("oversized").expect("named replacement");
+    assert_eq!(write.task.event.len(), 4, "original three assertions plus captured-file comparison");
+    assert!(matches!(write.task.event[1], EventCheck::ToolCall { count: Some(Count::Exactly(1)), .. }));
+    assert!(
+        oversized
+            .event
+            .iter()
+            .any(|check| matches!(check, EventCheck::Blocks { oversized: Some(Count::Exactly(1)), .. }))
+    );
+    assert!(
+        !oversized
+            .event
+            .iter()
+            .any(|check| matches!(check, EventCheck::ToolCall { count: Some(Count::Exactly(1)), .. })),
+        "piecewise repair does not inherit the one-call predicate"
+    );
+    let smoke = tasks.iter().find(|task| task.name == "probes/smoke-tools").expect("smoke-tools");
+    let child = smoke.task.with_variant("child").expect("historical additive behavior");
+    assert!(smoke.task.event.iter().all(|check| child.event.contains(check)));
+    let typo = SMOKE_TOOLS_DOCUMENT.replace("tree-ended", "tree-edned");
+    assert!(
+        check_probe(&smoke.manifest, &typo, &[Item::file(b"README.md", SMOKE_TOOLS_SEED)])
+            .expect_err("misspelled deciding check refused")
+            .key
+            .starts_with("deciding")
+    );
+
+    let recorded = Path::new("tests/recorded/results/attempt.json");
+    let historical = smith_bench::parse_result(recorded, include_str!("../recorded/results/attempt.json"))
+        .expect("unchanged recorded result");
+    let serialized = smith_bench::render_result(&historical).expect("historical result remains valid");
+    assert_eq!(smith_bench::parse_result(recorded, &serialized).expect("historical round trip"), historical);
+}
 
 fn history() -> smith_bench::Task {
     crate::common::task("probes/history")

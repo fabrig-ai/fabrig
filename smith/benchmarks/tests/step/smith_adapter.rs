@@ -1,6 +1,7 @@
 //! Replaying controls (smith/docs/design/testing.md, 2).
 
-use smith_bench::Measure;
+use crate::common;
+use smith_bench::{End, Forced, Measure};
 use std::path::{Path, PathBuf};
 
 mod retried;
@@ -53,4 +54,43 @@ fn a_time_breakdown_sums_to_task_wall_within_one_second() {
     assert_eq!(timing.first_byte_ms, record.first_byte_ms);
     assert_eq!(timing.largest_gap_ms, record.largest_gap_ms);
     assert!(value(&timing.longest_completion_ms) > 10_000);
+}
+
+#[test]
+fn an_exec_arm_classifies_exit_5_as_needs_input() {
+    let mut records = common::events::balanced();
+    for record in &mut records {
+        match &mut record.event {
+            smith_events::Event::RunCompleted(run) => {
+                run.status = smith_events::Status::Parked;
+                run.result = None;
+            }
+            smith_events::Event::SessionEnded(session) => session.exit = 5,
+            smith_events::Event::Budget(_)
+            | smith_events::Event::SessionStarted(_)
+            | smith_events::Event::RunStarted(_)
+            | smith_events::Event::ConversationOpened(_)
+            | smith_events::Event::ConversationClosed(_)
+            | smith_events::Event::ResponseStarted(_)
+            | smith_events::Event::ResponseCompleted(_)
+            | smith_events::Event::TextDelta(_)
+            | smith_events::Event::ToolStarted(_)
+            | smith_events::Event::JobEnded(_)
+            | smith_events::Event::ToolCompleted(_)
+            | smith_events::Event::CheckStarted(_)
+            | smith_events::Event::CheckCompleted(_)
+            | smith_events::Event::MessageReceived(_)
+            | smith_events::Event::MessageRead(_)
+            | smith_events::Event::MessageUnread(_)
+            | smith_events::Event::Notice(_) => {}
+        }
+    }
+    let mut observer = smith_bench::agent::smith::events::Observer::new(&common::events::LIMITS).expect("reader");
+    observer.feed(&common::events::bytes(&records)).expect("records");
+    observer.finish().expect("complete stream");
+    assert!(matches!(
+        observer.classify(smith_bench::Exit::Code(5), Forced::No).end,
+        End::Failed { reason: smith_bench::FailureReason::InputNeeded, .. }
+    ));
+    assert!(matches!(observer.classify(smith_bench::Exit::Code(0), Forced::No).end, End::HarnessError { .. }));
 }

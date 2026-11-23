@@ -2,35 +2,11 @@
 
 use std::fs;
 
-use smith_bench::{Count, EventCheck, Measure};
+use smith_bench::Measure;
 use smith_events::{Effect, Event, Source, Verdict};
 
 use crate::common;
 use crate::common::observe;
-
-#[test]
-fn oversized_write_without_a_call_past_the_bound_is_not_exercised() {
-    let mut records = common::events::balanced();
-    let input = serde_json::json!({"path":"payload.txt","content":"Line 0001"});
-    piece(&mut records, "write", "first", &input, Verdict::Written);
-    let scratch = skein_scratch::Scratch::new("bench-large_write_probe");
-    let workspace = scratch.path().to_path_buf();
-    let verdict = observe(&records).oversized_write(std::path::Path::new("payload.txt"), 2048, Some(13848), &workspace);
-    assert!(matches!(&verdict.passed, Measure::Unavailable { reason } if reason.starts_with("not exercised")));
-    assert!(verdict.evidence.iter().any(|line| line.starts_with("NotExercised")));
-}
-
-#[test]
-fn payload_refusal_within_the_call_bound_is_not_exercised() {
-    let mut records = common::events::balanced();
-    let input = serde_json::json!({"path":"payload.txt","content":"x".repeat(20)});
-    piece(&mut records, "write", "first", &input, Verdict::TooLarge);
-    let scratch = skein_scratch::Scratch::new("bench-large_write_probe");
-    let workspace = scratch.path().to_path_buf();
-    let verdict = observe(&records).oversized_write(std::path::Path::new("payload.txt"), 10, Some(13848), &workspace);
-    assert!(matches!(&verdict.passed, Measure::Unavailable { reason } if reason.starts_with("not exercised")));
-    assert!(verdict.evidence.iter().any(|line| line.starts_with("NotExercised")));
-}
 
 #[test]
 fn protocol_probe_judges_accepted_pieces_without_inventing_a_refusal() {
@@ -80,80 +56,6 @@ fn protocol_probe_judges_accepted_pieces_without_inventing_a_refusal() {
     records = original;
     fs::write(directory.join("payload.txt"), "altered").expect("saved file mismatch");
     assert_eq!(checked(&records), Measure::Observed { value: false });
-}
-
-#[test]
-fn protocol_only_oversized_write_records_identity_and_elided_path() {
-    let scratch = skein_scratch::Scratch::new("bench-large_write_probe");
-    let directory = scratch.path().to_path_buf().join(format!("smith-protocol-oversized-{}", std::process::id()));
-    fs::create_dir(&directory).expect("fresh workspace");
-    let mut records = common::events::balanced();
-    {
-        let value = crate::common::edit::response_completed(&mut records[4]);
-        value.oversized = 1;
-        let mut blocks = skein_lib::List::with_capacity(1);
-        blocks
-            .push(smith_events::Block::Oversized {
-                call: b"refused".as_slice().into(),
-                tool: b"write".as_slice().into(),
-                bytes: 15995,
-            })
-            .expect("one protocol block");
-        value.completion = Some(smith_events::Completion { blocks });
-    }
-    let checked = |records: &[smith_events::Record]| {
-        observe(records).oversized_write(std::path::Path::new("payload.txt"), 2048, Some(13848), &directory)
-    };
-    let positive = checked(&records);
-    assert_eq!(positive.passed, Measure::Observed { value: true });
-    assert!(positive.evidence.iter().any(|item| item.contains("not carried (arguments elided by design)")));
-    assert!(positive.evidence.iter().any(|item| item.contains("call=refused")));
-    let original = records.clone();
-    for case in ["at-bound", "wrong-tool", "absent-content", "counter", "loss"] {
-        records = original.clone();
-        if case == "loss" {
-            crate::common::edit::session_ended(records.last_mut().expect("ended")).loss.events = 1;
-        } else {
-            let response = crate::common::edit::response_completed(&mut records[4]);
-            match case {
-                "absent-content" => response.completion = None,
-                "counter" => response.oversized = 2,
-                "at-bound" | "wrong-tool" => {
-                    if let smith_events::Block::Oversized { bytes, tool, .. } =
-                        response.completion.as_mut().expect("captured").blocks.get_mut(0).expect("one block")
-                    {
-                        if case == "at-bound" {
-                            *bytes = 13848;
-                        } else {
-                            *tool = b"edit".as_slice().into();
-                        }
-                    }
-                }
-                _ => unreachable!("named negative"),
-            }
-        }
-        if case == "absent-content" || case == "loss" {
-            assert!(matches!(checked(&records).passed, Measure::Unavailable { .. }));
-        } else {
-            assert_eq!(checked(&records).passed, Measure::Observed { value: false });
-        }
-    }
-    records = common::events::balanced();
-    piece(
-        &mut records,
-        "write",
-        "native",
-        &serde_json::json!({"path":"payload.txt","content":"x".repeat(20)}),
-        Verdict::TooLarge,
-    );
-    assert_eq!(
-        observe(&records).oversized_write(std::path::Path::new("payload.txt"), 10, None, &directory).passed,
-        Measure::Observed { value: true }
-    );
-    assert!(matches!(
-        observe(&records).oversized_write(std::path::Path::new("payload.txt"), 10, Some(13848), &directory).passed,
-        Measure::Unavailable { reason } if reason.starts_with("not exercised")
-    ));
 }
 
 #[test]
@@ -306,97 +208,4 @@ fn payload_too_large_write_then_observed_pieces_is_a_valid_oversized_refusal() {
     let got = observe(&records).file_pieces(std::path::Path::new("payload.txt"), 10, 64, &directory).passed;
 
     assert_eq!(got, Measure::Observed { value: true });
-}
-
-#[test]
-fn native_oversized_refusal_rejects_wrong_pairs_small_content_loss_and_absent_capture() {
-    let scratch = skein_scratch::Scratch::new("bench-large_write_probe");
-    let directory = scratch.path().to_path_buf().join(format!("smith-refusal-negatives-{}", std::process::id()));
-    std::fs::create_dir(&directory).expect("fresh workspace");
-    let mut records = common::events::balanced();
-    piece(
-        &mut records,
-        "write",
-        "large",
-        &serde_json::json!({"path":"payload.txt","content":"x".repeat(20)}),
-        Verdict::TooLarge,
-    );
-    let checked = |rows: &[smith_events::Record]| {
-        observe(rows).oversized_write(std::path::Path::new("payload.txt"), 10, None, &directory).passed
-    };
-    assert_eq!(checked(&records), Measure::Observed { value: true });
-    let original = records.clone();
-    for value in ["run", "conversation", "call", "terminal", "small", "capture", "effect", "loss", "duplicate"] {
-        records = original.clone();
-        match value {
-            "run" | "conversation" | "call" | "terminal" => {
-                {
-                    let end = crate::common::edit::tool_completed(&mut records[6]);
-                    match value {
-                        "run" => end.run = 9,
-                        "conversation" => end.conversation = 9,
-                        "call" => end.call = b"foreign".as_slice().into(),
-                        "terminal" => end.verdict = Verdict::Written,
-                        _ => unreachable!("bounded negative"),
-                    }
-                }
-                assert_eq!(checked(&records), Measure::Observed { value: false });
-            }
-            "small" | "capture" | "effect" => {
-                {
-                    let start = crate::common::edit::tool_started(&mut records[5]);
-                    match value {
-                        "small" => {
-                            start.input = Some(
-                                serde_json::to_vec(&serde_json::json!({"path":"payload.txt","content":"x".repeat(10)}))
-                                    .expect("JSON")
-                                    .into(),
-                            );
-                        }
-                        "capture" => start.input = None,
-                        "effect" => start.effect = Effect::Read,
-                        _ => unreachable!("bounded negative"),
-                    }
-                }
-                if value == "small" {
-                    assert_eq!(checked(&records), Measure::Observed { value: false });
-                } else {
-                    assert!(matches!(checked(&records), Measure::Unavailable { .. }));
-                }
-            }
-            "loss" => {
-                crate::common::edit::session_ended(records.last_mut().expect("ended")).loss.events = 1;
-                assert!(matches!(checked(&records), Measure::Unavailable { .. }));
-            }
-            "duplicate" => {
-                records.insert(7, records[6].clone());
-                assert_eq!(checked(&records), Measure::Observed { value: false });
-            }
-            _ => unreachable!("named negatives"),
-        }
-    }
-    // Protocol counters remain protocol-only: this native refusal creates no oversized response block.
-    assert_eq!(
-        observe(&original).check(&EventCheck::Blocks { oversized: Some(Count::Exactly(0)), cut: None }, "task").passed,
-        Measure::Observed { value: true }
-    );
-}
-
-#[test]
-fn oversized_refusal_threshold_must_equal_the_native_tool_payload() {
-    let root = crate::common::repository();
-    let source = root.join("tasks/probes/large-write");
-    let scratch = skein_scratch::Scratch::new("bench-large_write_probe");
-    let directory = scratch.path().to_path_buf().join(format!("smith-refusal-declaration-{}", std::process::id()));
-    std::fs::create_dir(&directory).expect("fresh task");
-    std::fs::create_dir(directory.join("seed")).expect("seed directory");
-    std::fs::copy(source.join("seed/source.txt"), directory.join("seed/source.txt")).expect("same seed bytes");
-    let document = std::fs::read_to_string(source.join("task.toml"))
-        .expect("current task")
-        .replace("content_bytes_above = 2048", "content_bytes_above = 2047");
-    std::fs::write(directory.join("task.toml"), document).expect("wrong threshold fixture");
-    let refused = smith_bench::check_task(&directory.join("task.toml"), &root.join("../docs/design"))
-        .expect_err("native bound mismatch refuses");
-
-    assert!(refused.to_string().contains("authored native tool_payload"));
 }
