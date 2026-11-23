@@ -1496,8 +1496,14 @@ impl Domain {
         names.into_boxed()
     }
 
-    pub(crate) fn goal_branch_waiting(&self, name: &Name) -> bool {
+    /// Whether this branch's own readers must wait for its making (domain/forge/branches.md, 1).
+    #[must_use]
+    pub fn goal_branch_waiting(&self, name: &Name) -> bool {
         goal_branch::waiting(self, name)
+    }
+
+    pub(crate) fn goal_branch_read_waiting(&self, repository: skein_forge::api::Repository, branch: &[u8]) -> bool {
+        goal_branch::base_wait(self, repository, branch)
     }
 
     /// Occupancy at a refused entrance (protocol/configuration/limit-settings.md, 6).
@@ -10422,7 +10428,7 @@ pub(crate) fn repository_fresh(d: &Domain, repository: skein_forge::api::Reposit
         }
     }
     for (_, pending) in &d.makings {
-        if pending.outbox_wait.is_none() && repository_reads::repository(&pending.name) == repository {
+        if goal_branch::read_out(pending) && repository_reads::repository(&pending.name) == repository {
             return false;
         }
     }

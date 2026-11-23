@@ -111,11 +111,15 @@ pub(super) fn reading(d: &Domain, name: &Name) -> bool {
     false
 }
 
-/// Reading afresh counts a making's read, not its wait in the outbox's line
+/// A making belongs to the fresh reads only while its read is out
 /// (temper/docs/design/domain/forge/branches.md, 1).
+pub(crate) fn read_out(pending: &Making) -> bool {
+    pending.state == LostReadState::Asked && pending.retry_at.is_none() && pending.outbox_wait.is_none()
+}
+
 pub(super) fn reading_afresh(d: &Domain) -> bool {
     for (_, pending) in &d.makings {
-        if pending.outbox_wait.is_none() {
+        if read_out(pending) {
             return true;
         }
     }
@@ -289,17 +293,17 @@ fn read_result(
             if let Some(resource) = to_client(&pending.name, &env.limits) {
                 child(d, env, skein_forge_client::Event::Pushed { resource, commit }, out);
             }
-            wake(d, &pending.name);
+            wake(d, &pending.name, out);
             released(d, pending.task, out);
         }
         Err(Error::Missing) if !pending.default => missing(d, env, owner, pending, out),
         Err(error) => {
-            wake(d, &pending.name);
+            wake(d, &pending.name, out);
             failed(pending.task, pending.name, &crate::effect_words::error_words(error), out);
             released(d, pending.task, out);
         }
         Ok(_) => {
-            wake(d, &pending.name);
+            wake(d, &pending.name, out);
             failed(pending.task, pending.name, b"forge answered the branch read without a commit", out);
             released(d, pending.task, out);
         }
@@ -361,13 +365,13 @@ fn make(
         Some(_) => None,
     };
     if let Some(reason) = reason {
-        wake(d, &pending.name);
+        wake(d, &pending.name, out);
         failed(pending.task, pending.name, reason, out);
         released(d, pending.task, out);
         return;
     }
     if d.entries.contains_key(&number) {
-        wake(d, &pending.name);
+        wake(d, &pending.name, out);
         failed(pending.task, pending.name, &entry_in_use(number), out);
         released(d, pending.task, out);
         return;
@@ -561,16 +565,23 @@ pub(super) fn outcome(d: &mut Domain, number: u64, outcome: Outcome, out: &mut Q
     if let Some(reason) = reason {
         failed(task, name.clone(), &reason, out);
     }
-    wake(d, &name);
+    wake(d, &name, out);
 }
 
-fn wake(d: &mut Domain, name: &Name) {
+fn wake(d: &mut Domain, name: &Name, out: &mut Queue<Request>) {
     for (task, row) in &d.changes {
         if row.repository.forge == name.forge
             && row.repository.repository == name.repository
             && crate::items::branch_matches(name, &row.base)
         {
             d.procedure_wakes.insert(*task, true).expect("one pending wake per change");
+        }
+    }
+    if let Some(hold) = d.holds.get(name) {
+        for (_, closer) in &d.closing.rows {
+            if closer.goal == hold.task && !closer.done {
+                super::wake_once(out, closer.task);
+            }
         }
     }
 }
