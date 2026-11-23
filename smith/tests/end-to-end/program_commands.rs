@@ -56,8 +56,11 @@ fn configured_program() -> (Scratch, std::path::PathBuf) {
 }
 
 fn signed_in_program() -> (Scratch, std::path::PathBuf) {
+    use std::os::unix::fs::DirBuilderExt;
+
     let (scratch, configuration) = configured_program();
-    std::fs::create_dir_all(&configuration).expect("program directory");
+    // Private whatever the umask, as smith makes it at a login.
+    std::fs::DirBuilder::new().recursive(true).mode(0o700).create(&configuration).expect("program directory");
     std::fs::write(configuration.join("fake-claude.login"), b"claude.ai").expect("signed-in fixture");
     (scratch, configuration)
 }
