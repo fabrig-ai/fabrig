@@ -180,6 +180,7 @@ impl Driver {
     pub fn broken(&mut self, reason: &str) {
         assert!(!reason.is_empty(), "a broken fixture names its reason");
         self.broken = Fixture::Broken;
+        self.ends.no_opening(self.env.now);
     }
 
     /// Fixture fault at the snapshot/restart boundary, returning the oracle's first difference.
@@ -187,19 +188,24 @@ impl Driver {
         let result = if self.store_finding.is_some() {
             self.broken = Fixture::Closed;
             self.check_store()
-        } else if matches!(self.broken, Fixture::Checked) {
-            // A finding ends this attempt too; Drop must not repeat a failed readback.
-            self.broken = Fixture::Closed;
-            self.restart_oracle(erase)
         } else {
-            Ok(())
+            match self.broken {
+                Fixture::Checked => {
+                    // A finding ends this attempt too; Drop must not repeat a failed readback.
+                    self.broken = Fixture::Closed;
+                    self.restart_oracle(erase)
+                }
+                Fixture::Broken | Fixture::Closed => self.ends.close(self.env.now, &self.store),
+                Fixture::Transferred => Ok(()),
+            }
         };
-        let kept = self.checks.finish(&self.restart_config);
+        let kept = self.store_checks.finish(&self.restart_config);
         result.and(kept)
     }
 
     fn restart_oracle(&mut self, erase: Option<Key>) -> Result<(), String> {
         self.oracle_settle();
+        self.ends.close(self.env.now, &self.store)?;
         assert!(self.store.idle() && self.store.held.is_empty(), "restart oracle store settled");
         let forges = self.root.forges();
         let mut snapshot = Snapshot::new(&self.store.rows, self.env.wall);
@@ -224,6 +230,7 @@ impl Driver {
         self.events.clear();
         self.events.push_back(engine::Event::Restart { pending: self.store.pending_generation });
         self.period_sent = true;
+        self.ends.restarted(self.env.now);
         self.oracle_settle();
         snapshot.compare_rows(&self.store.rows)?;
         compare_forges(forges, self.root.forges())?;
@@ -236,6 +243,7 @@ impl Driver {
             compare_forge(*project, *subject, before, after)?;
         }
         self.oracle_settle();
+        self.ends.close(self.env.now, &self.store)?;
         self.check_store()
     }
 
@@ -259,9 +267,7 @@ impl Driver {
                 && let Some(due) = self.root.next_deadline(&self.env)
                 && due <= self.env.now.saturating_add(skein_lib::Duration::from_secs(1))
             {
-                let span = due.as_nanos().saturating_sub(self.env.now.as_nanos());
-                self.env.wall = skein_lib::Wall::from_nanos(self.env.wall.as_nanos().saturating_add(span));
-                self.env.now = self.env.now.max(due);
+                self.advance_to(self.env.now.max(due));
                 engine::fire(&mut self.root, &self.env);
                 engine::release(&mut self.root, &self.env, &mut self.out);
                 self.collect();
@@ -270,6 +276,7 @@ impl Driver {
             if self.idle_since(commit) {
                 quiet += 1;
                 if quiet == 2 {
+                    self.check_quiet();
                     return;
                 }
             } else {
@@ -388,6 +395,8 @@ pub fn close_world(
     std::mem::swap(&mut driver.protocol, protocol);
     driver.env = env.with(env.limits);
     driver.period_sent = true;
+    // The borrowed root already opened in its owning world's driver.
+    driver.ends.no_opening(env.now);
     driver.events.clear();
     let finding = driver.close_erasing(None);
     std::mem::swap(&mut driver.root, root);

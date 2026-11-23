@@ -43,7 +43,7 @@ of it follows landing with the walk.
   - 5.3: `../domain/agent/ask-temper.md`, 3, and `../domain/agent/README.md`, 8: a document moved between a call's read and write is refused naming its section; the run calls again against the newest. Retrying within the same call needs jig to accept a section splice or leave a moved write unrecorded, because jig records the refusal today.
   - 6.2: `../client/pages/chat/conversation.md`, 3 designs the `view` block and the views `path`, `way`, `proposal` and `charter`; `queue`, `task N tree` and `task N timeline`, and a part of a view opening its own view, are M3b's. The TUI prints the four views as 6.2 has it (`../client/tui/pages/README.md`).
   - 8: `../domain/agent/ask-temper.md`: the instructions carry the Showing part's first step and its sketch line in skein's flow subset alone; its other views and the actors' marks join with M3b.
-  - 6.3: skein's `ui/README.md`, 3.5: a flow's node takes no mark but `:::strong`; M3 adds the actors' marks.
+  - 6.3: skein's `ui/tree.md`, 1.5: a flow's node takes no mark but `:::strong`; M3 adds the actors' marks.
 - **Design departs:** 5.2: `../domain/agent/ask-temper.md`, 2 judges a landing rule's approvals at the call for the chat's own project alone, and leaves another project's to acceptance, which says it to the owner who decides, so that nothing of another project reaches this chat's transcript (5.1); decided by the `ui-ask-m1` cut, 2026-11-07. Proposal parts are held in engine memory and lost at restart, with the next proposing call refused once; `ask-temper.md`, section 10 keeps durable parts for later if needed.
 - **Design departs:** 5.1: `../domain/agent/ask-temper.md`, 1 makes `me` of the
   project read and the inbox's needs filtered by the project, where 5.1

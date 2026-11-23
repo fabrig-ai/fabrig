@@ -1,4 +1,4 @@
-//! The pin's schema constructs (data/codec/README.md, section 6).
+//! The pin's schema constructs (data/codec/golden.md, section 1).
 //! Table metadata retains holds, explicit defaults and former names.
 
 use skein_codec::schema::{self, DeclIx, FieldIx, Held, Named, Shape, Type, TypeIx, VariantIx};

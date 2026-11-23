@@ -126,7 +126,7 @@ fn checkout_copies_in_chunks_by_rename_and_removes_absent_merge_state() {
     invocation(&mut s, b"", 0);
     assert_eq!(s.done(), None, "the terminal waits for its view");
     let head = [b'h'; 150];
-    let ops = copy(&mut s, &[(b"HEAD", &head)], true);
+    let ops = copy(&mut s, &[(b"HEAD", &head), (b"refs/temper/counts", b"counts\n")], true);
     assert_eq!(
         *ops.get(0).expect("first step"),
         Op::Open {
@@ -163,6 +163,17 @@ fn checkout_copies_in_chunks_by_rename_and_removes_absent_merge_state() {
     contains(&ops, Op::Remove { dir: RUN, name: b"MERGE_HEAD".as_slice().into(), directory: false });
     contains(&ops, Op::MakeDirectory { dir: RUN, name: b"refs".as_slice().into(), mode: 0o700 });
     contains(&ops, Op::MakeDirectory { dir: PARENT, name: b"temper".as_slice().into(), mode: 0o700 });
+    contains(&ops, Op::Write { fd: TARGET, bytes: b"counts\n".as_slice().into(), from: 0, at: 0 });
+    contains(
+        &ops,
+        Op::Rename {
+            from_dir: DIRECTORY,
+            from: b"temper-view.tmp".as_slice().into(),
+            to_dir: DIRECTORY,
+            to: b"counts".as_slice().into(),
+            no_replace: false,
+        },
+    );
     contains(&ops, Op::MakeDirectory { dir: PARENT, name: b"info".as_slice().into(), mode: 0o700 });
     contains(
         &ops,

@@ -1,5 +1,5 @@
 //! Forge writes, with validation before resolution and no retry
-//! (forge/README.md, 3.2–3.4, and forge/forgejo.md, 1.2 and 1.4).
+//! (forge/vocabulary.md, 1.2–1.4, and forge/forgejo-operations.md, 1, and forge/forgejo.md, 1.4).
 use crate::api;
 use crate::forgejo::plans::{
     Body, Heard,
@@ -168,7 +168,7 @@ impl Plan {
     }
     #[expect(
         clippy::wildcard_enum_match_arm,
-        reason = "the exchange's decoder picks the kind: forge/README.status.md, 4.2"
+        reason = "the exchange's decoder picks the kind: forge/dialects.status.md, 1.2"
     )]
     pub fn heard(
         &mut self,
@@ -340,7 +340,7 @@ impl Plan {
     }
     #[expect(
         clippy::wildcard_enum_match_arm,
-        reason = "the exchange's decoder picks the kind: forge/README.status.md, 4.2"
+        reason = "the exchange's decoder picks the kind: forge/dialects.status.md, 1.2"
     )]
     fn check_repository(&self, document: Option<&d::Document>) -> Result<(), api::Error> {
         match &self.state {
@@ -377,7 +377,7 @@ impl Plan {
     }
     #[expect(
         clippy::wildcard_enum_match_arm,
-        reason = "the exchange's decoder picks the kind: forge/README.status.md, 4.2"
+        reason = "the exchange's decoder picks the kind: forge/dialects.status.md, 1.2"
     )]
     fn check_pull_ids(&self, document: Option<&d::Document>) -> Result<(), api::Error> {
         let Some(document) = document else { return Ok(()) };
@@ -522,7 +522,7 @@ fn writing(write: &api::Write) -> Option<Written> {
 }
 #[expect(
     clippy::wildcard_enum_match_arm,
-    reason = "the exchange's decoder picks the kind: forge/README.status.md, 4.2"
+    reason = "the exchange's decoder picks the kind: forge/dialects.status.md, 1.2"
 )]
 fn next(
     state: State,
@@ -586,7 +586,7 @@ fn next(
 }
 #[expect(
     clippy::wildcard_enum_match_arm,
-    reason = "the exchange's decoder picks the kind: forge/README.status.md, 4.2"
+    reason = "the exchange's decoder picks the kind: forge/dialects.status.md, 1.2"
 )]
 fn compared(row: Repository, open: Open, document: Option<d::Document>) -> Result<(State, Step), api::Error> {
     match document.ok_or(api::Error::InvalidAnswer)? {
@@ -603,7 +603,7 @@ fn compared(row: Repository, open: Open, document: Option<d::Document>) -> Resul
 }
 #[expect(
     clippy::wildcard_enum_match_arm,
-    reason = "the exchange's decoder picks the kind: forge/README.status.md, 4.2"
+    reason = "the exchange's decoder picks the kind: forge/dialects.status.md, 1.2"
 )]
 fn branch(row: &Repository, document: Option<d::Document>) -> Result<ObjectId, api::Error> {
     match document.ok_or(api::Error::InvalidAnswer)? {
@@ -674,7 +674,7 @@ fn remove_reviewers(row: Repository, number: u64, remove: List<Box<[u8]>>) -> (S
 }
 #[expect(
     clippy::wildcard_enum_match_arm,
-    reason = "the exchange's decoder picks the kind: forge/README.status.md, 4.2"
+    reason = "the exchange's decoder picks the kind: forge/dialects.status.md, 1.2"
 )]
 fn written(row: Repository, written: Written, document: Option<d::Document>) -> Result<(State, Step), api::Error> {
     let answer = match written {

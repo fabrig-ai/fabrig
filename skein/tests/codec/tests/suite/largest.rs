@@ -1,4 +1,4 @@
-//! Largest schema values through the lean byte pin (data/codec/README.md, 6).
+//! Largest schema values through the lean byte pin (data/codec/golden.md, 1).
 
 #[cfg(test)]
 mod tests {

@@ -58,7 +58,7 @@ pub fn binary(name: &str) -> PathBuf {
 
 /// Another package's binary: the file `name` in the nearest directory above
 /// the test's executable that holds a file of that name. A directory of that
-/// name is passed over (skein/docs/design/testing/README.md, 6).
+/// name is passed over (skein/docs/design/testing/layout.md, 1).
 #[must_use]
 pub fn built(package: &str, name: &str) -> PathBuf {
     let executable = match std::env::current_exe() {

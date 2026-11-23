@@ -1,5 +1,5 @@
-//! The carry-over of a stream (programming-model.md, 4.3; runtime/lib.md,
-//! 7): bytes received but not yet demanded, held by the side below
+//! The carry-over of a stream (programming-model.md, 4.3; runtime/lib-streams.md,
+//! 1): bytes received but not yet demanded, held by the side below
 //! under its cap, growing as bytes arrive.
 
 #![expect(
@@ -240,7 +240,7 @@ fn count(n: usize) -> u32 {
     u32::try_from(n).expect("a position in the buffer fits its u32 capacity")
 }
 
-// runtime/lib.md, 5.1: hash held state, never capacity or storage layout.
+// runtime/lib-containers.md, 1.1: hash held state, never capacity or storage layout.
 impl Hash for Intake {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.bytes.hash(state);

@@ -44,7 +44,7 @@ pub struct Converts {
     pub from: Layouts,                  // the layouts it converts from (4)
 }
 pub enum Layouts {
-    One([u8; 32]),                      // that layout, by fingerprint (skein's `data/codec/README.md`, 9.4)
+    One([u8; 32]),                      // that layout, by fingerprint (skein's `data/codec/fingerprints.md`, 1.4)
     Unplanned,                          // each layout of its value type the registry holds that no plan reaches (4)
 }
 ```
@@ -251,7 +251,7 @@ What follows holds for both:
   to it, and a written job's page holding rows without their layout is
   the owner's refusal (`JobRefusal`).
 - **Its owner's function** reads each old value as a generic value of
-  that text (skein's `data/codec/README.md`, section 8; the head is the
+  that text (skein's `data/codec/run-time.md`, section 2; the head is the
   layout id, which the function passes over), after converting it by a
   plan of its own where it needs one (skein's `data/codec/layouts.md`;
   temper's does so, `temper/docs/design/protocol/store-versions.md`, 1), and writes the new one by

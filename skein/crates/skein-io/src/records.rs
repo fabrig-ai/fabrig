@@ -27,16 +27,16 @@ pub enum Request {
     /// The answer to `Accepted` that refuses the socket: io closes it, and
     /// tells no one.
     Reject { socket: Token },
-    /// The stream vocabulary (runtime/lib.md, 7), to a socket once it is connected or
+    /// The stream vocabulary (runtime/lib-streams.md, 1), to a socket once it is connected or
     /// bound.
     Stream { stream: Token, down: stream::Down },
-    /// Native independent output (runtime/lib.md, 7.1), once connected or bound.
+    /// Native independent output (runtime/lib-streams.md, 1.1), once connected or bound.
     /// Only positive within-cap Room on idle writable output is admitted;
     /// its exact terminal precedes Closed. Stale identities are inert.
     Output {
         /// The connected socket or actual writable parent pipe (runtime/io/sockets.md, 3).
         stream: Token,
-        /// One bounded request or owning Send within a matching grant (runtime/lib.md, 7.1).
+        /// One bounded request or owning Send within a matching grant (runtime/lib-streams.md, 1.1).
         down: stream::OutputDown,
     },
     /// Start a child, returning its pidfd-backed token and pipe tokens.
@@ -56,11 +56,11 @@ pub enum Request {
     /// input discarded until the peer ends or the close deadline passes. On
     /// the classic face only `Closed` follows; a pending native output right
     /// also receives its owed `Cancelled` terminal before `Closed`
-    /// (runtime/lib.md, 7.1; runtime/io/sockets.md, 3).
+    /// (runtime/lib-streams.md, 1.1; runtime/io/sockets.md, 3).
     Close { entity: Token },
     /// A close at once, whatever is in flight or queued. On the classic face
     /// only `Closed` follows; a pending native output right also receives its
-    /// owed `Cancelled` terminal before `Closed` (runtime/lib.md, 7.1; runtime/io/sockets.md, 3).
+    /// owed `Cancelled` terminal before `Closed` (runtime/lib-streams.md, 1.1; runtime/io/sockets.md, 3).
     Abort { entity: Token },
 }
 
@@ -137,16 +137,16 @@ pub enum Event {
     Connected {
         owner: Token,
     },
-    /// The stream vocabulary (runtime/lib.md, 7), once connected or bound.
+    /// The stream vocabulary (runtime/lib-streams.md, 1), once connected or bound.
     Stream {
         owner: Token,
         up: stream::Up,
     },
-    /// Native independent output terminal, distinct from classic Stream (runtime/lib.md, 7.1).
+    /// Native independent output terminal, distinct from classic Stream (runtime/lib-streams.md, 1.1).
     Output {
         /// The owner of the actual stream, retained until Closed (runtime/io/sockets.md, 3).
         owner: Token,
-        /// One exactly-once terminal for its admitted output right (runtime/lib.md, 7.1).
+        /// One exactly-once terminal for its admitted output right (runtime/lib-streams.md, 1.1).
         up: stream::OutputUp,
     },
     Spawned {

@@ -1,6 +1,6 @@
 # Scenes
 
-A drawing (`README.md`, 3.5) is drawn once, by its owner's drawing code, for every
+A drawing (`tree.md`, 1.5) is drawn once, by its owner's drawing code, for every
 shell that draws: as a scene, which each such shell maps onto its
 platform. Scenes are step code under the subset.
 
@@ -11,7 +11,7 @@ platform. Scenes are step code under the subset.
   pixels as the shell measured it, to a scene. It returns false for a
   kind or data it does not draw, whose fallback then shows.
 - **Routed by owner:** the application's `draw` routes each drawing by
-  its kind's owner, exhaustively (`README.md`, 3.3).
+  its kind's owner, exhaustively (`tree.md`, 1.3).
 - **Of its inputs alone:** the same kind, data and size give the same
   scene.
 - **Given to a shell's parts** with the look, as a function: a shell that
@@ -105,20 +105,20 @@ box's size changes, which is the shell's alone, with no step.
 
 | Shell | A scene |
 |---|---|
-| a browser's, through the page part | inline SVG of the scene's size, its tokens as classes, its hints as `<title>`, its fades as linear gradients whose stops' tokens are classes; the SVG hidden from assistive technology, the fallback from sight while the scene is drawn (web/README.md, section 6) |
-| the text shell, the full-screen shell, the fake person's tree face | not drawn, its fades with it: the fallback is read (text.md, section 5; screen.md, 5.3; `README.md`, 14.1) |
+| a browser's, through the page part | inline SVG of the scene's size, its tokens as classes, its hints as `<title>`, its fades as linear gradients whose stops' tokens are classes; the SVG hidden from assistive technology, the fallback from sight while the scene is drawn (web/svg.md, section 1) |
+| the text shell, the full-screen shell, the fake person's tree face | not drawn, its fades with it: the fallback is read (text.md, section 5; screen.md, 5.3; `testing.md`, 1.1) |
 | a phone's | its platform's drawing: Core Graphics or a SwiftUI `Canvas` on iOS, `android.graphics.Canvas` or a Compose `Canvas` on Android, the fallback kept for assistive technology (`shells.md`, 2, 3) |
 | any, for a kind the look maps to a component | the component draws the data its own way, the fallback kept (`README.md`, section 10) |
 
 ## 5. The flow
 
-`flow::draw` is skein-ui's own drawing code, for `flow::KIND` (`README.md`, 3.3, `markdown.md`, 1).
+`flow::draw` is skein-ui's own drawing code, for `flow::KIND` (`tree.md`, 1.3, `markdown.md`, 1).
 It has the data and the box's width `W`, and reads no height. It measures
 no text: a character, a scalar value, counts as 7.5 pixels in a name and
 6.5 in a caption, a name's or a caption's width that count rounded up, `n`
 the nodes. Centred is at a box's left plus half its width, rounded down.
 The cases in `skein/docs/design/draft/diagrams/` are its acceptance, byte
-for byte (`README.md`, section 14).
+for byte (`testing.md`, section 1).
 
 - **Left to right,** for a flow written `LR`:
   - each box `w` wide: the largest of 120, the widest name plus 24, and

@@ -1,4 +1,4 @@
-//! Literal write exchanges from forge/forgejo.md, section 1.2.
+//! Literal write exchanges from forge/forgejo-operations.md, section 1.
 use super::{Answer, BRANCH, Error, HEAD, ISSUE, PULL};
 use crate::api::{self, Write};
 use crate::forgejo::tests::fixtures::Run;
@@ -321,7 +321,7 @@ pub(super) fn failures() -> [FailureCase; 47] {
     ]
 }
 
-// The three pre-POST stages in forge/forgejo.md 1.2, counting the request at which the call fails.
+// The three pre-POST stages in forge/forgejo-operations.md 1, counting the request at which the call fails.
 const HEAD_REQUESTS: usize = 1;
 const BASE_REQUESTS: usize = 2;
 const COMPARE_REQUESTS: usize = 3;

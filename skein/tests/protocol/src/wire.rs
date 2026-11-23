@@ -1,7 +1,7 @@
 //! The bytes between the two ends (testing-strategy.md, 2.5): an in-memory
 //! stream in each direction, its bytes carried in pieces cut at random and
 //! joined in the receiving end's intake, and the side below each end's
-//! stack of machines, which keeps the contract of a stream (runtime/lib.md, 7) as
+//! stack of machines, which keeps the contract of a stream (runtime/lib-streams.md, 1) as
 //! io keeps it for a socket (runtime/io/sockets.md, 3).
 //!
 //! - **Reads** are met from the intake exactly, as soon as they can be;

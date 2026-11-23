@@ -1,4 +1,4 @@
-//! Terminal syscalls shared by Linux and Darwin (runtime/shell.md, section 6.3, and runtime/readiness.md, section 5).
+//! Terminal syscalls shared by Linux and Darwin (runtime/shell-startup.md, section 1.3, and runtime/readiness.md, section 5).
 //!
 //! # The `unsafe`, and why it is sound
 //!

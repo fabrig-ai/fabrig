@@ -215,7 +215,7 @@ start afresh. Staging is made again at dev's build for each drill
   `temper-protocol-store/schema/store-v25.schema` holds temper's current
   text, not older map versions. Records drift checks it; tests build
   their values, with the bytes pinned
-  by skein's `every` (`skein/docs/design/data/codec/README.md`, 6).
+  by skein's `every` (`skein/docs/design/data/codec/golden.md`, 1).
 - **Formats outside the registry are fixed at their versions.** A
   landing changing one designs how dev.fabrig.ai's store gets there:
   an executor, conversion at read, or registration (`AGENTS.md`, 2).
@@ -254,7 +254,7 @@ start afresh. Staging is made again at dev's build for each drill
     `protocol/store/layouts.md`, 6).
   - **A family outside the registry,** and the client's records: at the
     same version, every declaration both texts hold keeps its layout's
-    fingerprint (skein's `data/codec/README.md`, 9.4), so names and
+    fingerprint (skein's `data/codec/fingerprints.md`, 1.4), so names and
     comments may change and a declaration no row is read by may go; a
     family whose version moved passes where its patch from the kept
     version is in the tree (skein's `data/codec/command.md`, 2).

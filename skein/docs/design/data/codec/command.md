@@ -50,8 +50,8 @@
 - **A codec crate apart from its owner** (`README.md`, section 2) holds
   the family's generated record code alone. The `patch` subcommand keeps
   the owner's files of the table above, and never reads or writes
-  generated code, wherever it sits. The owner's drift test (`README.md`,
-  section 6), which names each family's codec crate, writes the code
+  generated code, wherever it sits. The owner's drift test (`golden.md`,
+  section 1), which names each family's codec crate, writes the code
   there when asked.
 - **A family's baseline is its owner's** (`README.md`, section 5). A crate with no
   kept text, landed or its own, is before its baseline, and a run there
@@ -66,9 +66,9 @@
   generated record code is its current version's alone (`README.md`,
   section 5). An older version is its kept text, and a reader of an
   older record, a patch or a test, reads it as a generic value of that
-  text (`README.md`, section 8) or takes it from a patch's goldens; a
+  text (`run-time.md`, section 2) or takes it from a patch's goldens; a
   test builds that version's fixed-rule values from its kept text
-  (`README.md`, section 6). A
+  (`golden.md`, section 1). A
   version move renames the current text to its new version (5), and the
   new version's generated file replaces the old one. The generator or
   drift test writes it. The boundary suite's one-version check holds
@@ -138,7 +138,7 @@ current text at version `c`:
    is kept afresh, as any is, 1), and a patch is also needed
    when a declaration is dropped or the declarations' order changed:
    whenever the family fingerprint of `C`, its version set aside, is
-   not `K`'s (`README.md`, section 9). A rename, a comment, `boxed` and
+   not `K`'s (`fingerprints.md`, section 1). A rename, a comment, `boxed` and
    the text's layout move no fingerprint and need no patch, so the
    renames wait as under any frozen text (4). A patch whose block moves
    the declarations alone has no line, and plans as the identity. A
@@ -220,7 +220,7 @@ current text at version `c`:
     naming the command, and a golden test per patch.
 - **The golden test** of patch `n` (`patch::goldens(crate, n,
   written)`), for each family it moves: each golden of the old version,
-  made from the kept text by `README.md`, section 6's rule (but see
+  made from the kept text by `golden.md`, section 1's rule (but see
   below), its declaration's counterpart its root (a declaration dropped
   has none, and is passed over), run through the patch, each stop
   answered by the dispatch with

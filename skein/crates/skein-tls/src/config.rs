@@ -1,4 +1,4 @@
-//! What a service hands the TLS client as data (net/tls.md, 3.4; runtime/shell.md, 6):
+//! What a service hands the TLS client as data (net/tls.md, 3.4; runtime/shell-startup.md, 1):
 //! the roots it trusts and the protocols it offers by ALPN, made once at
 //! startup into a [`Config`] every connection shares, and each connection's
 //! server name, a [`Name`].
@@ -27,7 +27,7 @@ use skein_lib::Wall;
 pub const ALPN: usize = 256;
 
 /// What every connection of a service shares, made at startup from its
-/// configuration (runtime/shell.md, 6): the roots it trusts, the protocols it offers
+/// configuration (runtime/shell-startup.md, 1): the roots it trusts, the protocols it offers
 /// by ALPN, and rustls's configuration built from them, with ring for its
 /// cryptography.
 ///

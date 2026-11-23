@@ -3,7 +3,7 @@
 2026-11-13. Where the design lags or departs from [run-provider-outage.md](run-provider-outage.md).
 
 Section 2 is designed. Item 1 in smith's `protocol/programs.md`, 5.6, for
-the program backend, and skein's `llm/README.md`, 2.5, 4.7 and 4.8, for
+the program backend, and skein's `llm/vocabulary.md`, 1.5, and `llm/wire.md`, 1.7 and 1.8, for
 the direct ones. Item 2 in jig's `domain/hosts/hub.md`, 3 (an outage) and
 `domain/tasks/lifecycle.md`, 6, with a review's run in
 `../domain/forge/change/gates.md`, 1: an outage there is retried, not a

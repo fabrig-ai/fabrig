@@ -151,13 +151,13 @@ This document holds the agent's forge reads, split from [`tools.md`](tools.md).
     lines (`room.md`, 2) and the stock texts.
 - **A page the answer's bytes cut names how to read on.** A
   `read_issues` `reviews`, `remarks` or `pull_files` page cut at
-  `forge.client.answer_bytes` (skein's `forge/README.md`, 3.2 and 3.3)
+  `forge.client.answer_bytes` (skein's `forge/vocabulary.md`, 1.2 and 1.3)
   ends with `Page cut: read on with page P, skip S.`, its own page and
   the rows read of it, so the next read loses no row; a page that ends
   uncut and has more says `More pages available.`, as today.
 - **`read_forge`'s `permission` names the person:** its answer is the permission,
   the forge user's id and the login the forge names them by, as
-  `Write; forge user 3, login ada` (skein's `forge/README.md`, 3.3), so that a
+  `Write; forge user 3, login ada` (skein's `forge/vocabulary.md`, 1.3), so that a
   run can match a name to an id; with no login from the forge, the same
   without it. `collaborators` lists ids, for `permission` to
   name.
@@ -166,7 +166,7 @@ This document holds the agent's forge reads, split from [`tools.md`](tools.md).
   how many commits `after` has that `before` lacks and how many it lacks,
   whether `after` contains `before`, and the changed files' paths, at
   most `forge.client.rows` (8 as configured) with how many it left out
-  (skein's `forge/README.md`, 3.2 and 3.3). It reads no file's contents, so two
+  (skein's `forge/vocabulary.md`, 1.2 and 1.3). It reads no file's contents, so two
   branches however far apart compare. Its answer, a line each:
   `AFTER is A commits ahead of BEFORE and B behind it.`, then `AFTER
   contains BEFORE.` or `AFTER lacks BEFORE.`, then `Changed files: N`,
@@ -232,7 +232,7 @@ This document holds the agent's forge reads, split from [`tools.md`](tools.md).
     the one bound a branch list has: name a longer prefix, as
     temper/goal/ in place of temper/, or read one branch by its name
     with read_forge what=branch." No row bound is named, since none applies to
-    branch names (skein's `forge/README.md`, 3.7). The tool's description says
+    branch names (skein's `forge/vocabulary.md`, 1.7). The tool's description says
     the same in its words: the names fit forge.client.answer_bytes, and
     a longer prefix reads fewer.
 

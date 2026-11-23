@@ -22,7 +22,7 @@ use crate::Host;
 use crate::tree::{self, Tree};
 pub use crate::tree::{Cleanup, Containment, Counts, Expectation, Method, PeakScope, TreeStatus};
 
-// A run's finding scope is its thread's (skein/docs/design/testing/README.md, 5).
+// A run's finding scope is its thread's (skein/docs/design/testing/service-tiers.md, 1).
 // Nested runs keep and return their own findings while the outer run waits.
 // Keep each run's first finding until its forced cleanup finishes; leaving its
 // scope drops later findings and restores what the enclosing run kept.

@@ -28,9 +28,15 @@ fn pack_request(h: &Harness, hold: Token, workspace: Token, store: Option<Token>
     }
 }
 
+// Kept packed: each hold asks for its start and counts, so 12 holds
+// leave 24 store fetches and the 13th crosses the threshold of 25.
+const BELOW_STORE_THRESHOLD: u64 = 12;
+const PACKING_CLIENT: u64 = 13;
+const AFTER_PACK: u64 = 14;
+
 fn due_pack(h: &mut Harness) -> Token {
-    warm(h, 24);
-    let (hold, workspace) = checkout_reused(h, 25);
+    warm(h, BELOW_STORE_THRESHOLD);
+    let (hold, workspace) = checkout_reused(h, PACKING_CLIENT);
     let pack = h.one(Event::Done { owner: hold, done: Done::Succeeded });
     assert_eq!(pack, pack_request(h, hold, workspace, Some(store_token(b"a"))));
     hold
@@ -46,7 +52,7 @@ fn pack_faults_leave_the_prepare_ready_and_its_workspace_reusable() {
             panic!("Pack ending in {fault:?} leaves the prepare ready: {ready:?}")
         };
         h.one(Event::Release { hold });
-        let (next, _) = checkout_reused(&mut h, 26);
+        let (next, _) = checkout_reused(&mut h, AFTER_PACK);
         let next = h.one(Event::Done { owner: next, done: Done::Succeeded });
         let Request::Prepared { prepared: Prepared::Ready { .. }, .. } = next else {
             panic!("a fault does not make the next prepare pack again: {next:?}");
@@ -62,7 +68,7 @@ fn interrupting_pack_cancels_it_and_ends_aborted_without_spoiling_the_workspace(
         let interrupt = if release { Event::Release { hold } } else { Event::Abort { hold } };
         assert_eq!(h.one(interrupt), Request::Cancel { owner: hold });
         let settled = h.step(Event::Done { owner: hold, done: failed(Fault::Cancelled) });
-        let client = Token::new(25);
+        let client = Token::new(PACKING_CLIENT);
         let aborted = Request::Prepared { client, prepared: Prepared::Aborted };
         if release {
             assert_eq!(settled.as_slice(), &[aborted, Request::Released { client }]);
@@ -70,7 +76,7 @@ fn interrupting_pack_cancels_it_and_ends_aborted_without_spoiling_the_workspace(
             assert_eq!(settled.as_slice(), &[aborted]);
             h.one(Event::Release { hold });
         }
-        checkout_reused(&mut h, 26);
+        checkout_reused(&mut h, AFTER_PACK);
     }
 }
 
@@ -78,7 +84,7 @@ fn interrupting_pack_cancels_it_and_ends_aborted_without_spoiling_the_workspace(
 fn a_pack_resets_its_shared_store_before_ending() {
     let mut h = Harness::new(LIMITS);
     let _in_flight = due_pack(&mut h);
-    let (hold, make) = h.begin(26, one(b"other"));
+    let (hold, make) = h.begin(AFTER_PACK, one(b"other"));
     assert_eq!(make.kind(), Kind::Make, "the other workspace borrows the made store");
     checkout_one(&mut h, hold);
     let ready = h.one(Event::Done { owner: hold, done: Done::Succeeded });
@@ -89,9 +95,14 @@ fn a_pack_resets_its_shared_store_before_ending() {
 
 #[test]
 fn a_verifying_fetch_brings_the_next_prepares_pack_sooner() {
+    // Twelve prepares ask for 24 fetches; including the verifying
+    // fetch on the eleventh hold brings the final prepare to 25.
+    const WARM_PREPARES: u64 = 10;
+    const PUSH_CLIENT: u64 = 11;
+    const NEXT_CLIENT: u64 = 12;
     let mut h = Harness::new(LIMITS);
-    warm(&mut h, 22);
-    let hold = h.ready(23, one(b"w"));
+    warm(&mut h, WARM_PREPARES);
+    let hold = h.ready(PUSH_CLIENT, one(b"w"));
     assert_eq!(io(h.one(Event::Push { hold, message: message() }), hold).kind(), Kind::Commit);
     let pushed = commit(11);
     assert_eq!(h.next(hold, Done::Committed { commit: pushed }).kind(), Kind::Push);
@@ -100,7 +111,7 @@ fn a_verifying_fetch_brings_the_next_prepares_pack_sooner() {
     assert_eq!(landings(end).as_ref(), &[Landing::Landed { commit: pushed }]);
     h.one(Event::Release { hold });
 
-    let (next, make) = h.begin(24, one(b"other"));
+    let (next, make) = h.begin(NEXT_CLIENT, one(b"other"));
     assert_eq!(make.kind(), Kind::Make);
     let workspace = checkout_one(&mut h, next);
     let pack = h.one(Event::Done { owner: next, done: Done::Succeeded });

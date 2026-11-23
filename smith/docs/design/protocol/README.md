@@ -426,7 +426,7 @@ it.
 
   Smith's family drift checks compare the records' module alone;
   the generator's own pin holds its bytes and tests
-  (skein's `data/codec/README.md`, section 6).
+  (skein's `data/codec/golden.md`, section 1).
 
   Designed in skein's `data/codec/README.md`.
 - **Owners that close, and a process that ends** (programming-model.md,
@@ -465,7 +465,7 @@ it.
   - `Usage` with each count optional, cache writes and reasoning tokens
     included;
   - `ToolChoice`: `Auto`, `None` or `Only`;
-  - the public OpenAI Responses dialect (skein's `llm/README.md`, 4.8) and
+  - the public OpenAI Responses dialect (skein's `llm/wire.md`, 1.8) and
     Anthropic's Messages with a key (4.7); a credential's scheme, a
     bearer or a key (2.6); and the failure classes exhausted, with its
     reset only where the provider gives one, refused and unsupported,
@@ -488,8 +488,8 @@ it.
     directory's records (`skein/docs/design/runtime/io/files.md`);
   - the loop's host interface and its drive, out of the testing crates
     (skein's `runtime/shell.md`, section 11);
-  - trust roots loaded from the machine or a file (skein's `runtime/shell.md`,
-    6.2);
+  - trust roots loaded from the machine or a file (skein's `runtime/shell-startup.md`,
+    1.2);
   - the kernel's resource usage of the process and its children.
 - **Sockets and TLS** for a connected agent.
 - **OAuth** for the local host's sign-in (skein's `oauth/accounts.md`

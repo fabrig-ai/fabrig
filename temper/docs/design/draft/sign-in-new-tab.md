@@ -39,7 +39,7 @@ tab*).
   A browser that opens the tab and hides it is served by "Open it again".
 - **A mechanism of skein's:** the web platform opens a tab with a line of
   words, points it at an address under the navigation's own target rule
-  (`skein/docs/design/ui/web/README.md`, section 8), closes it, and reports a
+  (`skein/docs/design/ui/web/effects.md`, section 1), closes it, and reports a
   tab refused.
 - **The terminal** prints the address, as today.
 

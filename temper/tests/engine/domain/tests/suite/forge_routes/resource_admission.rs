@@ -254,8 +254,8 @@ fn overlapping_changes_open_after_pressure_without_manual_release() {
     let first = verifying(&mut world, &first_producer);
     let second_started = world.env.now;
     let (second, _) = start_change(&mut world, 93);
-    world.env.now = world.env.now.max(second_started.saturating_add(CHAT_GAP));
-    world.env.wall = skein_lib::Wall::from_nanos(world.env.now.as_nanos());
+    world.advance_to(world.env.now.max(second_started.saturating_add(CHAT_GAP)));
+
     let (third, producer) = start_change(&mut world, 94);
     pressure(&mut world, first, second, third);
     finish(&mut world, &producer);
@@ -450,6 +450,26 @@ fn releasing_an_initial_admission_hold_rechecks_the_same_bound() {
     panic!("release bypassed the persistent admission bound: {:?}", live_task(&world, task).phase);
 }
 
+pub(crate) fn limit_held_change() -> (World, u64) {
+    let mut configured = World::configured(true, true);
+    configured.env.limits.forge.holds = 2;
+    let client = skein_forge_client::Limits { resources: 2, ..configured.env.limits.forge.client };
+    let mut world = configured.with_forge_client(client);
+    world.adopt();
+    world.send(protocol::hello_slots(CHANNEL, 2, Box::new([])));
+    let ask = adoption_chat(&world);
+    let chat = assigned_chat(&mut world, 92, ask);
+    fill_chat_watches(&mut world, chat.task);
+    let engine::CallAnswer::Delegated(made) = super::change_tool::change(&mut world, &chat, 93, None, b"Small fix")
+    else {
+        panic!("change delegated")
+    };
+    let task = made[0].task;
+    await_hold(&mut world, task);
+    world.oracle_settle();
+    (world, task)
+}
+
 fn kept_limit(world: &World, task: u64) -> forge_top::LimitHold {
     let Some(Record::Forge { row }) = world.store.rows.get(&Key::Forge(forge_top::Key::LimitHold(task))) else {
         panic!("durable limit hold for {task}")
@@ -556,8 +576,8 @@ fn stock_resources_fit_three_chats_changes_and_a_pending_tier() {
     world.send(protocol::hello_slots(CHANNEL, SLOTS, Box::new([])));
     let mut changes = Vec::new();
     for key in 92..95 {
-        world.env.now = world.env.now.saturating_add(CHAT_GAP);
-        world.env.wall = skein_lib::Wall::from_nanos(world.env.now.as_nanos());
+        world.advance_to(world.env.now.saturating_add(CHAT_GAP));
+
         super::tiers::sign_in(&mut world);
         let ask = adoption_chat(&world);
         let chat = assigned_chat(&mut world, key, ask);

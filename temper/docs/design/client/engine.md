@@ -202,7 +202,7 @@ does for the client:
   one past its retention is.
 - **The forge's errors as reasons,** by the forge connector
   (`temper-engine-domain-forge`'s `reason`, from `skein-forge`'s
-  `Error`, skein's `forge/README.md`, section 3.4): `NotConnected` is not
+  `Error`, skein's `forge/vocabulary.md`, section 1.4): `NotConnected` is not
   connected; `NotInstalled` is not installed; `Missing` is not granted
   on a repository whose account has an installation of selected
   repositories, with that installation's page, and not found

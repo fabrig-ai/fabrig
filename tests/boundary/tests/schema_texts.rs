@@ -1,5 +1,5 @@
 //! Current family texts are embedded only by their public owner constants
-//! (skein/docs/design/data/codec/README.md, section 6).
+//! (skein/docs/design/data/codec/golden.md, section 1).
 
 use std::collections::BTreeMap;
 use std::fs;

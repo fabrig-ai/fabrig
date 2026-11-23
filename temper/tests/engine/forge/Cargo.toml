@@ -12,6 +12,8 @@ test = false
 doctest = false
 
 [dependencies]
+temper-engine-inspect.workspace = true
+skein-world.workspace = true
 temper-client-protocol-wire.workspace = true
 skein-forge.workspace = true
 jig-domain-people.workspace = true
@@ -29,8 +31,8 @@ skein-fake-forge-domain.workspace = true
 
 temper-engine-domain-forge-landing = { path = "../../../crates/temper-engine-domain-forge-landing" }
 
-skein-world.workspace = true
 temper-blame = { path = "../../../testing/temper-blame" }
+
 
 [lints.rust] # harness: tools/lints/design.md, 2.2
 unsafe_code = "forbid"

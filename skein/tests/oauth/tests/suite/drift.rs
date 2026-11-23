@@ -1,4 +1,4 @@
-//! The kept record's schema and generated code (data/codec/README.md, 6).
+//! The kept record's schema and generated code (data/codec/golden.md, 1).
 
 use std::fs;
 use std::path::Path;

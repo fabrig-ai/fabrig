@@ -205,7 +205,7 @@ stays.
   directory (`skein_scratch::paths::package()`), which doesn't move.
 - **The records' owner stays** `jig-client-view`, with `schema/records-v1.schema`.
   `jig/tests/codec-families.rs` compares the generated records with the committed module;
-  it keeps no records' golden bytes or generated tests (skein's `data/codec/README.md`, section 6).
+  it keeps no records' golden bytes or generated tests (skein's `data/codec/golden.md`, section 1).
 - **`.config/fixture-readers.toml`** keeps `jig-client-view`'s entry. The words have no
   `src/tests/fixtures/` directory, so no entry of their own.
 - **No file is read by path** in the words' library: no `include_str!`, `include_bytes!`, `#[path]`

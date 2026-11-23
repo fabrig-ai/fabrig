@@ -1,0 +1,22 @@
+# A split pass (temper/docs/design/draft/design-upkeep.md, 4.3), at 5659f519ab.
+# skein/docs/design/runtime/shell.md: 64,001 bytes. Startup and a binary's table get their own pages; the backends, clock, seed and loop stay.
+title skein/docs/design/runtime/shell-startup.md: The shell kit: startup
+title skein/docs/design/runtime/shell-table.md: The shell kit: a binary's table
+skein/docs/design/runtime/shell.md 6 -> skein/docs/design/runtime/shell-startup.md 1
+skein/docs/design/runtime/shell.md 14 -> skein/docs/design/runtime/shell-table.md 1
+
+# skein/docs/design/runtime/kernel.md: 60,270 bytes. Files and cgroups get their own pages; the records, completions and process operations stay.
+title skein/docs/design/runtime/kernel-files.md: The kernel boundary: files and filesystems
+title skein/docs/design/runtime/kernel-cgroups.md: The kernel boundary: cgroups and the helper
+skein/docs/design/runtime/kernel.md 6.1 -> skein/docs/design/runtime/kernel-files.md 1
+skein/docs/design/runtime/kernel.md 6.4 -> skein/docs/design/runtime/kernel-files.md 2
+skein/docs/design/runtime/kernel.md 6.5 -> skein/docs/design/runtime/kernel-files.md 3
+skein/docs/design/runtime/kernel.md 6.6 -> skein/docs/design/runtime/kernel-cgroups.md 1
+
+# skein/docs/design/runtime/lib.md: 59,092 bytes. Containers, bytes and streams get their own pages; handles, time, the journal and the request table stay.
+title skein/docs/design/runtime/lib-containers.md: lib: containers
+title skein/docs/design/runtime/lib-bytes.md: lib: bytes
+title skein/docs/design/runtime/lib-streams.md: lib: streams
+skein/docs/design/runtime/lib.md 5 -> skein/docs/design/runtime/lib-containers.md 1
+skein/docs/design/runtime/lib.md 6 -> skein/docs/design/runtime/lib-bytes.md 1
+skein/docs/design/runtime/lib.md 7 -> skein/docs/design/runtime/lib-streams.md 1

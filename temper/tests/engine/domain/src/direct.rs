@@ -14,7 +14,8 @@ use crate::store::Store;
 use crate::walking::{config, limits};
 
 pub struct Driver {
-    pub(crate) checks: check::Run,
+    pub ends: crate::ends::Ends,
+    pub(crate) store_checks: check::Run,
     pub(crate) store_finding: Option<String>,
     pub(crate) broken: crate::oracle::Fixture,
     pub(crate) restart_config: engine::Config,
@@ -50,6 +51,8 @@ pub struct Driver {
     pub period_sent: bool,
     /// Outputs collected, including deliveries that need no reply or commit.
     pub(crate) collected: u64,
+    checks: crate::checks::Checks,
+    iteration: u64,
 }
 
 impl Driver {
@@ -71,9 +74,10 @@ impl Driver {
         for worker in &mut configuration.core.defaults.workers {
             worker.places = self.env.limits.fleet.slots;
         }
-        self.checks.replace_config(&mut self.restart_config, crate::oracle::config::copy(&configuration));
+        self.store_checks.replace_config(&mut self.restart_config, crate::oracle::config::copy(&configuration));
         self.protocol.models.clone_from(&configuration.core.settings.models);
         self.root = engine::Domain::new(configuration, &self.env.limits).expect("restart configuration");
+        self.ends.restarted(self.env.now);
     }
     /// Transfer a cold-cut fixture's store; its receiving root runs the oracle.
     pub fn take_store(&mut self) -> Store {
@@ -129,10 +133,14 @@ impl Driver {
         for worker in &mut config.core.defaults.workers {
             worker.places = limits.fleet.slots;
         }
+        let config_seed = config.core.seed;
         let mut protocol = Protocol::default();
         protocol.models.clone_from(&config.core.settings.models);
+        let mut ends = crate::ends::Ends::new(config.core.seed, crate::ends::OPENING);
+        ends.restarted(Time::ZERO);
         Driver {
-            checks: check::Run::new(StoreChecks::one(config.core.seed)),
+            ends,
+            store_checks: check::Run::new(StoreChecks::one(config_seed)),
             store_finding: None,
             broken: crate::oracle::Fixture::Checked,
             restart_config: crate::oracle::config::copy(&config),
@@ -158,6 +166,8 @@ impl Driver {
             immediate: Vec::new(),
             period_sent: false,
             collected: 0,
+            checks: crate::checks::Checks::new(config_seed),
+            iteration: 0,
         }
     }
     #[must_use]
@@ -365,8 +375,13 @@ impl Driver {
     }
 
     pub fn advance(&mut self, apply: bool) {
+        self.iteration += 1;
+        self.checks.step(self.env.now, self.iteration).unwrap_or_else(|finding| panic!("{finding}"));
         if let Some(forge) = &mut self.forge {
             self.events.extend(forge.replies());
+        }
+        if self.ends.awaiting_open() && self.root.ready() {
+            self.ends.opened(self.env.now);
         }
         if !self.period_sent && self.root.ready() {
             self.period_sent = true;
@@ -387,6 +402,10 @@ impl Driver {
         crate::poll(&mut self.root, &self.env, &mut self.out);
         self.collect();
         self.root.reclaim();
+        if self.ends.awaiting_open() && self.root.ready() {
+            self.ends.opened(self.env.now);
+        }
+        self.ends.step(self.env.now, &self.store).unwrap_or_else(|finding| panic!("{finding}"));
     }
 
     /// Make one pending commit durable and check it, leaving its acknowledgement to the caller.
@@ -399,12 +418,12 @@ impl Driver {
 
     /// Choose which of this run's subsequent commits rehearse a start.
     pub fn store_checks(&mut self, checks: StoreChecks) {
-        self.checks = check::Run::new(checks);
+        self.store_checks = check::Run::new(checks);
     }
 
     #[must_use]
     pub fn store_check_counts(&self) -> &StoreChecks {
-        self.checks.counts()
+        self.store_checks.counts()
     }
 
     /// Read and consume the first store-check finding, as a referee reads its run.
@@ -413,7 +432,7 @@ impl Driver {
     }
 
     fn check_commit(&mut self, previous: u64) {
-        let result = self.checks.committed(&self.store, &self.restart_config, &self.env, previous);
+        let result = self.store_checks.committed(&self.store, &self.restart_config, &self.env, previous);
         if self.store_finding.is_none() {
             self.store_finding = result.err();
         }
@@ -437,12 +456,17 @@ impl Driver {
             if self.collected == collected && self.idle_since(commit) {
                 quiet += 1;
                 if quiet == 2 {
+                    self.check_quiet();
                     return;
                 }
             } else {
                 quiet = 0;
             }
         }
+    }
+
+    pub(crate) fn check_quiet(&mut self) {
+        self.checks.quiet(&self.root, self.env.now, self.iteration).unwrap_or_else(|finding| panic!("{finding}"));
     }
 
     /// The restart oracle's immediate-work fence. Quiescent also waits for
@@ -459,10 +483,38 @@ impl Driver {
             && self.store.applied == commit
     }
 
+    /// Move through every kept bound, draining its immediate work before going on.
+    pub fn advance_to(&mut self, at: Time) {
+        assert!(at >= self.env.now, "the story clock moves forward");
+        while let Some(bound) = self.checks.next_bound().filter(|bound| *bound < at) {
+            if bound < self.env.now {
+                self.checks.step(self.env.now, self.iteration).unwrap_or_else(|finding| panic!("{finding}"));
+            }
+            self.move_clock(bound);
+            self.fire();
+            self.settle();
+            if self.checks.next_bound().is_some_and(|next| next <= bound) {
+                self.checks.step(at, self.iteration).unwrap_or_else(|finding| panic!("{finding}"));
+            }
+        }
+        self.move_clock(at);
+        self.checks.step(at, self.iteration).unwrap_or_else(|finding| panic!("{finding}"));
+    }
+
+    fn move_clock(&mut self, at: Time) {
+        let elapsed = at.as_nanos().saturating_sub(self.env.now.as_nanos());
+        self.env.wall = Wall::from_nanos(self.env.wall.as_nanos().saturating_add(elapsed));
+        self.env.now = at;
+    }
+
     /// Fire timers at an absolute simulated time; the caller drives their outputs.
     pub fn fire_at(&mut self, elapsed: Duration) {
-        self.env.now = Time::from_nanos(elapsed.as_nanos());
+        self.advance_to(Time::from_nanos(elapsed.as_nanos()));
         self.env.wall = Wall::from_nanos(elapsed.as_nanos());
+        self.fire();
+    }
+
+    fn fire(&mut self) {
         engine::fire(&mut self.root, &self.env);
         engine::release(&mut self.root, &self.env, &mut self.out);
         self.collect();
@@ -485,10 +537,17 @@ impl Driver {
                 // A stopped root is never quiescent: Domain::quiescent requires ready(),
                 // false once the journal stops. Bytes it drops uncounted never reach this check.
                 assert_eq!(self.root.held_bytes(), 0, "a quiescent root holds no transcript or turn bytes");
+                self.check_quiet();
                 return;
             }
         }
-        panic!("direct root routes did not settle: {:?}", self.root);
+        panic!(
+            "seed {}: at {} ns, iteration {}: engine direct drain: immediate work did not settle in 200 steps: {:?}",
+            self.restart_config.core.seed,
+            self.env.now.as_nanos(),
+            self.iteration,
+            self.root
+        );
     }
 
     /// One worker's empty hello on `channel`.
@@ -556,6 +615,8 @@ impl Driver {
         driver.period_sent = true;
         driver.env.wall = wall;
         driver.env.now = Time::from_nanos(wall.as_nanos());
+        driver.ends.no_opening(driver.env.now);
+        driver.ends.restarted(driver.env.now);
         driver
     }
 

@@ -219,7 +219,7 @@ fn word_unit(input: &[u8], units: &[(&[u8], u64)]) -> Option<u64> {
 #[cfg(test)]
 mod tests;
 
-/// A route's named error decides before its HTTP status (llm/README.md, sections 4.7 and 4.8).
+/// A route's named error decides before its HTTP status (llm/wire.md, sections 1.7 and 1.8).
 /// A 403 without a decoded provider error is unavailable (section 2.5).
 #[must_use]
 pub fn classify(

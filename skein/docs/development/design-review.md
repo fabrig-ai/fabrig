@@ -24,12 +24,12 @@ hand; no numbered section or document moves.
 
 ### S1. Overlap: the classic stream contract
 
-`skein/docs/design/runtime/lib.md`, 7 and
+`skein/docs/design/runtime/lib-streams.md`, 1 and
 `skein/docs/design/runtime/io/sockets.md`, 3 both state the demand's one
 answer, withdrawal, End with an outstanding demand, and delimiter-maximum
 rules in full. This is more than io's state table applying lib's contract:
 several bullets retell the common obligations before adding io's details.
-**Owner:** `skein/docs/design/runtime/lib.md`, 7.
+**Owner:** `skein/docs/design/runtime/lib-streams.md`, 1.
 **Suggest:** keep the common protocol there and retain in sockets only its
 assertions, intake/delivery timing, kernel operations and entity-close
 behaviour, with a citation. This needs an editorial merge, not a whole-section
@@ -39,9 +39,9 @@ move: sockets' section also owns its state machine and io-specific rules.
 
 `skein/docs/design/forge/github.md`, 15 still defers validators beyond the
 log, with the default "the log alone". But
-`skein/docs/design/forge/connection.md`, 4.6 specifies a bounded validator
+`skein/docs/design/forge/connection-calls.md`, 1.6 specifies a bounded validator
 cache keyed by request and identity and says every read in both dialects
-uses it. **Owner:** `skein/docs/design/forge/connection.md`, 4.6.
+uses it. **Owner:** `skein/docs/design/forge/connection-calls.md`, 1.6.
 **Suggest:** the GitHub designer retire or narrow the question against that
 contract; do not leave the two scopes as competing defaults. This item is
 left unchanged; the separate DNS-question consolidation below changes no

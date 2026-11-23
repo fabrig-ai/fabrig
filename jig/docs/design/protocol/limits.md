@@ -206,7 +206,7 @@
   holder, sources per account, sign-ins at once (moves out and in
   count among them: `../domain/accounts.md`, 3.6), program sources per
   worker, and a credential's bytes, which bound a key (skein's
-  `llm/README.md`, 2.6). Within them the accounts' table, skein's driver (its
+  `llm/vocabulary.md`, 1.6). Within them the accounts' table, skein's driver (its
   listeners twice the sign-ins at once, so that a sign-in started
   again has room while the one it cancels settles: `llm.md`, section
   7), the hub's grants, a worker's `sources` and `logins` and the secrets'

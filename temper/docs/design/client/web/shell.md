@@ -25,7 +25,7 @@ The browser's shell and its host are split from [the browser overview](README.md
     `Leave`, an authorization's departure or a removed forge's start
     over, as skein's
     transport's navigation away, in the turn that asked it (skein's
-    `ui/web/README.md`, section 8); the root's `Tab`, a sign-in's tab
+    `ui/web/effects.md`, section 1); the root's `Tab`, a sign-in's tab
     or GitHub's way's (`../pages/accounts.md`, 1, `ConnectModel`, *The
     sign-in's tab*; `../forge/deployment.md`, *GitHub's way, in a new
     tab*), as skein's
@@ -79,7 +79,7 @@ The browser's shell and its host are split from [the browser overview](README.md
     (`testing.md`, 3, The tier's window), where they name none and
     131,072;
   - `internal-loopback-navigation`: skein's platform follows a
-    navigation to plaintext loopback (skein's `ui/web/README.md`, section 8).
+    navigation to plaintext loopback (skein's `ui/web/effects.md`, section 1).
 
   `internal-small-window` and `internal-loopback-navigation` are
   honoured only on a loopback origin, the page's host `127.0.0.1` or

@@ -36,7 +36,7 @@ the hour. What temper adds:
   the trace and the files the run left, since the seed does not replay
   there.
 - **Its checks return their findings,** as skein's do (skein's
-  `testing/README.md`, 5; skein's `../foundation/programming-model.md`,
+  `testing/service-tiers.md`, 1; skein's `../foundation/programming-model.md`,
   10.4), and nothing in temper's tests catches a panic:
   - every referee and judge of temper's worlds implements `watch`, in
     every tier, and keeps what its `act` or `idle` finds for its next
@@ -90,7 +90,7 @@ the hour. What temper adds:
   `../foundation/programming-model.md`, 10.4).
 
 The referee is built on skein's world harness (`skein-world`; skein's
-`testing/README.md`, section 5), as ordinary Rust: each world writes its
+`testing/service-tiers.md`, section 1), as ordinary Rust: each world writes its
 scenario's expectations, with the stimuli it may inject, and the
 harness judges them.
 
@@ -124,7 +124,11 @@ records each in its run's fault ledger, draws its workload, faults,
 parties and scheduling from independent streams of its seed, and a sweep
 over its seeds fails when a fault it configures never falls; its only
 exclusions name ignored scenarios (skein's `testing/sweeps.md`;
-`checks.md`, 6.2).
+`checks.md`, 6.2). Every engine driver calls the engine's world kit at
+its quiet point, and its referee holds that the goals a scenario names
+end, or are held with words, within bounds in simulated minutes and in
+steps, and that the engine opens within a bound after every restart
+(`engine-checks.md`).
 
 ## 2. Open questions
 

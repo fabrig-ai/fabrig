@@ -1,4 +1,4 @@
-//! Reaching a command and refusing unknown words (runtime/shell.md, 14.4).
+//! Reaching a command and refusing unknown words (runtime/shell-table.md, 1.4).
 
 use super::{Reach, Reached, Table};
 

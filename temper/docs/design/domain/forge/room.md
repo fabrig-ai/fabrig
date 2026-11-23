@@ -184,7 +184,7 @@ Decided by the user, 2026-11-16.
   repository not adopted, adopted to be read, or whose adoption does not
   take the write's kind; an entry number already in the outbox; and a
   write over `forge.client.op_bytes`, measured as the client measures a
-  new entry (skein's `forge/client.md`, 7.2). Each ends as its writer
+  new entry (skein's `forge/client-effects.md`, 1.2). Each ends as its writer
   ends such a write now.
 - **A full outbox refuses no one:** the limit's refusal for
   `forge.entries`, and the hold its words named (raise the limit,

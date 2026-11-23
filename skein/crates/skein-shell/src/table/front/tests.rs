@@ -1,4 +1,4 @@
-//! The front's ordered rules and refusals (runtime/shell.md, 14.5).
+//! The front's ordered rules and refusals (runtime/shell-table.md, 1.5).
 
 use crate::table::demo::{DEMO, FRONT_BARE, FRONT_RUN_AS, FRONT_WORDS, OTHER};
 use crate::{Command, Front, Reach, Table};

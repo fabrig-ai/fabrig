@@ -3,7 +3,7 @@
 #![forbid(unsafe_code)]
 extern crate alloc;
 
-/// The current notes schema text (data/codec/README.md, section 6).
+/// The current notes schema text (data/codec/golden.md, section 1).
 #[expect(clippy::disallowed_macros, reason = "the codec exposes its owner's schema to tests without the UI")]
 pub const SCHEMA: &str = include_str!("../../view/schema/notes-v1.schema");
 

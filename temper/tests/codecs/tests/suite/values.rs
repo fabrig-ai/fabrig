@@ -1,4 +1,4 @@
-//! Fixed-rule seeds built from the families' texts (skein's data/codec/README.md, 6).
+//! Fixed-rule seeds built from the families' texts (skein's data/codec/golden.md, 1).
 use skein_codegen::FixedValue;
 pub(super) fn client() -> &'static [FixedValue] {
     &skein_codegen::values(temper_client_protocol_wire::CLIENT_SCHEMA).fixed

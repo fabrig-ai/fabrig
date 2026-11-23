@@ -232,7 +232,7 @@ init`'s document carries none of them (`../setup/init.md`, 3).
 - **Claude's cache prices are Anthropic's,** read on 2026-11-11: a cache
   read $0.20 per million tokens for Opus 5.5 and Sonnet 5.5 and $0.25 for
   Fable 5.1, and a cache write 1.25 times the input price, for the
-  five-minute cache smith's marks ask for (skein's `llm/README.md`, 4.7),
+  five-minute cache smith's marks ask for (skein's `llm/wire.md`, 1.7),
   since Anthropic's page gives them and a key pays them. They are the same
   whichever way a run reaches Claude, Claude Code's program or a key:
   a subscription's runs bill nobody, but their spend is counted at the
@@ -242,7 +242,7 @@ init`'s document carries none of them (`../setup/init.md`, 3).
   write raises C (Budgets in runs of the costliest model, above).
 - **Claude's output stays 8,192.** On the direct route it bounds thinking
   and the answer together, since `max_tokens` is the declared output
-  (skein's `llm/README.md`, 4.7), as OpenAI's reasoning models' output
+  (skein's `llm/wire.md`, 1.7), as OpenAI's reasoning models' output
   already does. Up to Anthropic's 128,000 would raise every Claude run's
   worst-case completion, and so C and every budget below, and the
   agent's largest turn (`settings-output.md`, 1), for a cut no run has shown; the

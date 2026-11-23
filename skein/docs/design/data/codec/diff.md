@@ -2,7 +2,7 @@
 
 - **Two versions of a family into their changes,** in skein-codegen's
   `diff`, ordinary Rust: the latest kept text and the current one, both
-  read by `schema` (`README.md`, section 7). Each change names its declaration and
+  read by `schema` (`run-time.md`, section 1). Each change names its declaration and
   its field or variant, has a kind (3), and is one line of text
   (2), the operation a patch spells (`patches.md`) and the command
   writes (`command.md`).
@@ -78,7 +78,7 @@
 - **Names:** each line names a declaration, field or variant by its
   current name; a rename's first name and a drop's are the kept ones.
   `D.f` is a field or variant `f` of declaration `D`.
-- **Types** are spelled as the schema spells them (`README.md`, 7.1), outermost
+- **Types** are spelled as the schema spells them (`run-time.md`, 1.1), outermost
   first, a named type and a held record by their names: `T` with the
   kept text's names and `U` with the current's. A type ends where the
   grammar says, so a line needs no other marks.

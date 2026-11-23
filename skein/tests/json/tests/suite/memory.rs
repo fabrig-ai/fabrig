@@ -8,7 +8,7 @@
 //! growth is counted with the receiver. Each delivery is made between steps,
 //! by the
 //! stream below, and is the tokenizer's to count from when it is handed over
-//! (runtime/lib.md, 7). What a step emits, a token's box among it, is handed out:
+//! (runtime/lib-streams.md, 1). What a step emits, a token's box among it, is handed out:
 //! dropped before the check, as its receiver's.
 
 use skein_heap::Meter;

@@ -1,4 +1,4 @@
-//! Hostile cursor bytes (jig/docs/design/protocol/client/README.md, 4; skein/docs/design/data/codec/README.md, 6).
+//! Hostile cursor bytes (jig/docs/design/protocol/client/README.md, 4; skein/docs/design/data/codec/golden.md, 1).
 use jig_protocol_engine_clients::cursor_v2::{CEILINGS, Held, Record};
 use skein_lib::{Reader, Rng, length::len_u64};
 

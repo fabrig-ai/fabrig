@@ -1088,8 +1088,11 @@ fn a_failed_landing_reports_without_holding_if_main_holds_the_goal() {
 
 #[test]
 fn a_closer_survives_restart() {
+    use temper_engine_domain_world::ends::{Bound, Expect};
     let (mut world, goal, branch) = goal_world(true, true);
     let closer = make_closer(&mut world, &goal, 93);
+    world.ends.faults_stop(world.env.now);
+    world.ends.expect(closer, Expect::Ends, Bound { minutes: 10, steps: 4000 }).expect("nonzero bound");
     let job = close_job(&mut world);
     let tasks::Party::Task(close) = live_task(&world, job.run.raw()).requester else { panic!("close change") };
     finish_close(&mut world, close, &branch, &job);

@@ -8,7 +8,7 @@ Every effect is committed into the outbox and made by `client`, in
 commit order per lane (a pull request, an issue, a repository) and one
 at a time on each (jig's `domain/connectors.md`, 4.2). The top owns the
 effects and their identities; the client's keys, its write lanes and its
-recovery are skein's `forge/client.md`, section 7. temper's effects:
+recovery are skein's `forge/client-effects.md`, section 1. temper's effects:
 
 | Kind | Effect | What it is | Recovery class (jig's `domain/connectors.md`, 4.3) | Found again after an uncertain failure |
 |---|---|---|---|---|
@@ -57,8 +57,8 @@ recovery are skein's `forge/client.md`, section 7. temper's effects:
   it does not hold is a writer's bug, a link that cannot be made, which
   refuses the start (`../root-restart.md`, 1.1; jig's `domain/engine/restart.md`
   ).
-- **Classes follow what the forges offer** (skein's `forge/client.md`,
-  section 7.3; the facts, skein's `forge/forgejo.md`, section 2, and
+- **Classes follow what the forges offer** (skein's `forge/client-effects.md`,
+  section 1.3; the facts, skein's `forge/forgejo.md`, section 2, and
   `skein/docs/design/forge/github.md`, section 13). Neither Forgejo nor GitHub keeps a
   key it would refuse a second creation by, so no kind is keyed. A pull
   request is opened only while none is open for its branches, and
@@ -83,7 +83,7 @@ recovery are skein's `forge/client.md`, section 7. temper's effects:
   comment, issue or branch found by its key, or by the state it
   leads to, is made; one not found by its deadline holds its task for a
   person, and is never sent again by temper on its own. The client makes
-  the find (skein's `forge/client.md`, section 7). A goal's own branch is
+  the find (skein's `forge/client-effects.md`, section 1). A goal's own branch is
   the exception: found at its commit it is made, found at another its
   making fails for good, and not found it is made again (`branches.md`, 1).
 - **Keys are carried** in what temper creates: a marker at the head of a
@@ -93,10 +93,10 @@ recovery are skein's `forge/client.md`, section 7. temper's effects:
   a candidate; the change owns it when it is open on those branches or
   the change knows its number, as above. An entry's start,
   and the find that reads only what came after it, are the client's (skein's
-  `forge/client.md`, section 7).
+  `forge/client-effects.md`, section 1).
 - **An effect's identity** is its purpose, and the top encodes it. The
   client takes the bytes whole and never inspects them (skein's
-  `forge/client.md`, section 7). A key is the client's frame (version 1, the namespace's
+  `forge/client-effects.md`, section 1). A key is the client's frame (version 1, the namespace's
   length as two bytes big-endian, the namespace) and then the purpose's
   bytes: a tag, and its fields in order, each number big-endian. The
   namespace is the deployment's id, 16 bytes. A purpose is derived from
@@ -129,7 +129,7 @@ recovery are skein's `forge/client.md`, section 7. temper's effects:
   the merge answers `Answer::Queued`, final for the call and not for the
   entry: neither a merge nor a refusal. The entry is the client's until
   a read finds the pull request merged or out of the queue (skein's
-  `forge/README.md`, 3.3; `skein/docs/design/forge/client.md`, 7.7): it is never sent again, and
+  `forge/vocabulary.md`, 1.3; `skein/docs/design/forge/client-effects.md`, 1.7): it is never sent again, and
   it holds its lane, so a comment or a review on that pull request waits
   until the queue decides. What follows is `queues.md`, 1's. Forgejo never answers
   it.
@@ -142,7 +142,7 @@ recovery are skein's `forge/client.md`, section 7. temper's effects:
   entry the client fails `Unavailable`, never sent, is committed again
   after a wait that grows (`keeping-up.md`, 5).
 - **A stop settles first** (../root-restart.md, 1.2): told to settle, the connector
-  tells its client to (skein's `forge/client.md`, 7.8), so no write
+  tells its client to (skein's `forge/client-effects.md`, 1.8), so no write
   starts and none is tried again; a committed entry's notification is
   retired unmade, its row durable; no change steps. The writes already
   sent finish, with the reads that prove them, and their outcomes are
@@ -232,7 +232,7 @@ The root reports them past the report bound as its step's waiters
 **A stop during steps 1 and 2.** Told to settle while it reads afresh
 or settles its outbox (`../root-restart.md`, 1.2), the forge stops waiting for
 either: it settles as at any stop (`effects.md`, section 1), its client sending
-nothing new (skein's `forge/client.md`, 7.8). A read or a find
+nothing new (skein's `forge/client-effects.md`, 1.8). A read or a find
 answered after is taken as a fact and steps nothing, and the end of
 either step is no longer awaited, its report, should it come, dropped.
 What either owed is the next start's to read and find again.

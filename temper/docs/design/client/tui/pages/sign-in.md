@@ -243,7 +243,7 @@ and a typed code with no tab:
   again." and "Press Enter for a code to type instead." stay true. A
   button, not a region acting on Enter alone as the draft has it:
   skein's UI vocabulary has no region that acts on a key
-  (`skein/docs/design/ui/README.md`, 4.1), and a button presses on
+  (`skein/docs/design/ui/tree.md`, 2.1), and a button presses on
   Space too (`skein/docs/design/ui/screen.md`, the keys' table;
   `tui-remote.status.md`, *Design departs*).
 - **The outcomes** are loopback's, each in place of the lines after the

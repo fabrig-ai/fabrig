@@ -11,7 +11,7 @@ is converted as it is read, and written at the binary's layout.
 - **Value types** (2): each registered family's owner says which root
   declaration, and which variant of a broad root, each range of its keys
   holds. A layout is a value type's, not a family's (skein's
-  `data/codec/README.md`, 9.4).
+  `data/codec/fingerprints.md`, 1.4).
 - **The registry** (3): rows of the component's own, a layout per value
   type and id, with its fingerprint and the texts it was made with, and
   the texts themselves. It holds every layout a value of the map may be
@@ -55,7 +55,7 @@ is converted as it is read, and written at the binary's layout.
   layouts that store holds (temper's `protocol/floor.md`, 6).
 - **Held records** of any family the binary holds a text of, registered
   or not, are part of their holder's layout (skein's
-  `data/codec/README.md`, 9.4): a core projection that holds a tasks
+  `data/codec/fingerprints.md`, 1.4): a core projection that holds a tasks
   `PhaseRecord` changes layout when `PhaseRecord` does, and is converted
   with it. A held record's head stays its family's version.
 - **What lies in the map outside every registered range** (the
@@ -95,7 +95,7 @@ pub struct KeyRange {
   roots are records of their own (the settings') has one per root. A
   broad root whose keys do not tell its variants apart is one value type
   without a variant, the declaration whole (skein's
-  `data/codec/README.md`, 9.4): the settings' `ApplicationState`, led by
+  `data/codec/fingerprints.md`, 1.4): the settings' `ApplicationState`, led by
   its `follows`, and the tasks' live and ended tasks, whose keys hold a
   task written before talk (`live`, `ended`) beside one written since
   (`live_talk`, `ended_talk`); a change to any variant of its root moves
@@ -150,7 +150,7 @@ family jig-store-registry 1
 versioned record Layout {
     root: text 256                  # its root declaration, as its text spells it
     variant: option text 256        # its variant, for a broad root
-    layout: fixed 32                # its fingerprint (skein's data/codec/README.md, 9.4)
+    layout: fixed 32                # its fingerprint (skein's data/codec/fingerprints.md, 1.4)
     text: fixed 32                  # its family's text, by digest: a Text row's key
     held: list 16 fixed 32          # the texts of the families it holds, by digest
 }
@@ -318,7 +318,7 @@ dropped, a type changed in meaning) is its owner's **written job**
 converts from, or each of its layouts no plan reaches, walks that value
 type's keys, and is handed each value at such a layout as it is stored,
 with that layout's texts, to put it again at the binary's. Its owner's function reads the old value by skein's
-generic values (skein's `data/codec/README.md`, section 8) and builds
+generic values (skein's `data/codec/run-time.md`, section 2) and builds
 the new by its generated code. The check takes its layouts as converted
 (5.3), and the next writing open retires them.
 
@@ -342,7 +342,7 @@ values at a written job's layouts to the job, never to a plan
     its bytes checked against its digest before it is parsed (5.3). No
     text is parsed twice in one planning.
   - **A layout computed,** the fingerprint of a root and variant in a
-    text with its held texts (skein's `data/codec/README.md`, 9.4), once
+    text with its held texts (skein's `data/codec/fingerprints.md`, 1.4), once
     per those four: the registration's (5.2) is the
     one the check compares a row's persisted fingerprint against when
     the row names the same text, root, variant and held texts, in the

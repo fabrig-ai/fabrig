@@ -1,6 +1,6 @@
 family every 3
 
-# The byte pin holds every construct (data/codec/README.md, 6).
+# The byte pin holds every construct (data/codec/golden.md, 1).
 # Older versions exercise patches (data/codec/patches.md, 8).
 
 versioned record Blank {}

@@ -32,12 +32,12 @@ impl Faults {
     }
 
     pub fn cut_next(&mut self, kind: Kind) {
-        assert!(matches!(kind, Kind::Fetch | Kind::CheckOut | Kind::Merge));
+        assert!(matches!(kind, Kind::Fetch | Kind::Counts | Kind::CheckOut | Kind::Merge));
         self.next_cut = Some(kind);
     }
 
     pub fn draws_cut(&mut self, kind: Kind) -> bool {
-        if !matches!(kind, Kind::Fetch | Kind::CheckOut | Kind::Merge) {
+        if !matches!(kind, Kind::Fetch | Kind::Counts | Kind::CheckOut | Kind::Merge) {
             return false;
         }
         if self.next_cut == Some(kind) {

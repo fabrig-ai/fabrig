@@ -1,4 +1,4 @@
-//! ZIP CRC-32 (forge/forgejo.md, 1.2).
+//! ZIP CRC-32 (forge/forgejo-operations.md, 1).
 
 #[cfg(test)]
 pub(super) use skein_deflate::decode as deflate;

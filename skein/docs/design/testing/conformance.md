@@ -211,7 +211,7 @@ interface for its backend.
     descriptors it holds and finds those the spawn named and no other.
   A disagreement between the simulator and the kernel is a conformance
   bug, fixed in the suite first (`temper/docs/design/draft/confinement.md`, 8.1). The startup check
-  (../runtime/shell.md, 6.4) is the ring's own test: `can_restrict` answers `Ok`
+  (../runtime/shell-startup.md, 1.4) is the ring's own test: `can_restrict` answers `Ok`
   on a machine the suite runs on, which has Landlock at ABI 6 or later,
   and fails, saying so, where it does not.
 

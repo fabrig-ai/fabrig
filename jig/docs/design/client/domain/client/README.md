@@ -180,7 +180,7 @@ read by the application: client.document(handle), client.text(handle), client.pe
   the client root that asked (../root.md, section 15; jig's reference UI's
   is 65536): the client keeps it, hands it back with everything it says
   of that handle or key, and never reads it, as skein-ui keeps an owner
-  (skein's `ui/README.md`, 3.3). The client root routes by it, and keeps no map
+  (skein's `ui/tree.md`, 1.3). The client root routes by it, and keeps no map
   from handles or keys to its children (../root.md, section 5).
 
 ### 4.1 What it hears

@@ -14,7 +14,7 @@
 //! - [`directory_access`]: the kernel's startup answer on writing and searching a directory.
 //! - [`process_id`]: the startup process ID for the service's report.
 //! - [`read_file`] and [`read_trust_roots`]: startup reads within configured bounds.
-//! - [`resolve`] and [`help`]: a command's settings, their sources and help (runtime/shell.md, 6.5).
+//! - [`resolve`] and [`help`]: a command's settings, their sources and help (runtime/shell-startup.md, 1.5).
 //! - [`open_termination_signals`]: the SIGINT/SIGTERM source io adopts.
 //! - [`Clock`]: monotonic and wall time, read together once per iteration.
 //! - [`seed`]: the random seed, drawn from the system once at startup.
@@ -23,7 +23,7 @@
 //!
 //! This is ordinary Rust (programming-model.md, 10.2). System calls live
 //! in `linux`, including its ring adapter, `darwin` and `posix`. The crate's
-//! lints confine the audited boundary to these modules (testing/README.md, 6).
+//! lints confine the audited boundary to these modules (testing/layout.md, 1).
 
 #[cfg(unix)]
 mod calls;

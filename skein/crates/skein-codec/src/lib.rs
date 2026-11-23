@@ -3,7 +3,7 @@
 //! This crate takes lib's exception for its codecs (skein/docs/foundation/programming-model.md, 10.2):
 //! [`Record`], the sealed [`field::Field`] and their generic helpers.
 //! Generated records implement `Record` and call the helpers.
-//! Schemas are read into bounded tables (data/codec/README.md, section 7).
+//! Schemas are read into bounded tables (data/codec/run-time.md, section 1).
 //! Family patches are read and planned by [`patch`] (data/codec/patches.md).
 
 #![cfg_attr(not(test), no_std)]

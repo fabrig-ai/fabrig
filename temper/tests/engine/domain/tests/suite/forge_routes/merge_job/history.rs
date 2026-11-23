@@ -174,7 +174,7 @@ fn cancelling_a_merge_job_without_its_worker_answer_names_cancelled() {
     }));
     // No answer comes back from the cancelled worker; the fleet closes its call at loss.
     world.send(engine::Event::Worker(engine::WorkerInput::Link { channel: CHANNEL, link: engine::Link::Lost }));
-    world.env.now = world.env.now.saturating_add(world.env.limits.fleet.grace).saturating_add(Duration::from_secs(1));
+    world.advance_to(world.env.now.saturating_add(world.env.limits.fleet.grace).saturating_add(Duration::from_secs(1)));
     ended(&mut world, task, &job, h::JobOutcome::Cancelled);
     assert_eq!(events(&world, task).iter().filter(|event| matches!(event.what, h::What::JobEnded { .. })).count(), 1);
     world.close();
@@ -185,7 +185,7 @@ fn losing_a_merge_jobs_worker_without_an_answer_names_lost_before_retry() {
     let (mut world, task, head, base) = pushed_change_in(world(false, true, true).with_merge_job(COMMAND), true, GOAL);
     let first = next_job(&mut world, task, false);
     world.send(engine::Event::Worker(engine::WorkerInput::Link { channel: CHANNEL, link: engine::Link::Lost }));
-    world.env.now = world.env.now.saturating_add(world.env.limits.fleet.grace).saturating_add(Duration::from_secs(1));
+    world.advance_to(world.env.now.saturating_add(world.env.limits.fleet.grace).saturating_add(Duration::from_secs(1)));
     ended(&mut world, task, &first, h::JobOutcome::Lost);
     world.send(protocol::hello_slots(CHANNEL, 2, Box::new([])));
     let retry = next_job(&mut world, task, false);

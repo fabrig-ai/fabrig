@@ -260,7 +260,7 @@ pub fn reference() -> Box<[u8]>;                       // the `configuration` pa
   runs, on Linux and macOS alike: the login is `skein_shell::login` of
   the effective user; the host's name is `skein_shell::host_name()`,
   the kernel's node name through `uname`
-  (`skein/docs/design/runtime/shell.md`, 6.1), which on Linux is the
+  (`skein/docs/design/runtime/shell-startup.md`, 1.1), which on Linux is the
   bytes `/proc/sys/kernel/hostname` gives before its line feed, and on
   macOS, which has no `/proc`, `kern.hostname`, the name `hostname`
   prints; `provider.key`'s presence is the data directory's entry, a

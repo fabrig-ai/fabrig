@@ -1,4 +1,4 @@
-//! Debug-only tab fixture for the browser story (skein/docs/design/ui/web/README.md, 8, and skein/docs/design/ui/web/testing.md, 3).
+//! Debug-only tab fixture for the browser story (skein/docs/design/ui/web/effects.md, 1, and skein/docs/design/ui/web/testing.md, 3).
 use skein_lib::{Queue, Token};
 use skein_ui::{Act, Binding, Builder, NodeId, Owner, Role, Run, View};
 use skein_ui_web::{

@@ -76,7 +76,7 @@ A task's saved work is named by the set its task's record keeps of the
 repositories a next attempt would resume from (`../worker/checkouts.md`). As
 its task's release begins, each branch of that set becomes a hold of the
 closing task, with no writer, and goes as any hold does: deleted, a branch
-already gone counting as deleted (skein's `forge/client.md`, section 7);
+already gone counting as deleted (skein's `forge/client-effects.md`, section 1);
 or, if its task failed and is not its tree's root, kept for a person to
 read and deleted as the root closes. Such a hold has no holding in the
 hub, and no head is read for it. A branch outside that set stays until
@@ -493,7 +493,7 @@ CI selection:
   a goal with no goal branch each of its changes), the selection line
   its CI's jobs'
   logs begin with: the first line of a job's log, read by its start
-  (skein's `forge/README.md`, 3.2, `Job`'s `Start`, its first 4,096 bytes),
+  (skein's `forge/vocabulary.md`, 1.2, `Job`'s `Start`, its first 4,096 bytes),
   when it begins `selection: `, the line whole, cut to 256 bytes; the
   first job of the pull's merged head, in the forge's order, that has
   one gives it; `unknown` where no job's log reads one, a log not read,

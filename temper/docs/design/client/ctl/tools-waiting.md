@@ -19,8 +19,8 @@ READ [--since DIGEST] [--until CONDITION] [--timeout DURATION]
   `--timeout` alone, with neither, and a wait's flag on any other read,
   `task show TASK --tree` among them, are usage errors, exit 1. There is
   no `wait` tool.
-- **A digest** is the first 8 bytes of the SHA-256 (skein's `runtime/lib.md`,
-  6.2) of the subject's document as `--json` prints it (`results.md`, 2), without
+- **A digest** is the first 8 bytes of the SHA-256 (skein's `runtime/lib-bytes.md`,
+  1.2) of the subject's document as `--json` prints it (`results.md`, 2), without
   its `digest` field, printed as 16 hex digits. A read and a wait digest
   one form, the watch's document: for `inbox` and `task list`, whose
   read is a page and whose watch a window, the rows the watch's first

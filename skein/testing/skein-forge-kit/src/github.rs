@@ -33,7 +33,7 @@ pub struct Fake {
 impl Fake {
     /// Uses the GitHub fake's fixture App, accounts, repositories and installations.
     /// The App holds the grants setup asks for: its bot's permission is its
-    /// installation's (forge/github.md, 4.1, 8.2).
+    /// installation's (forge/github-operations.md, 1.1, forge/github-app.md, 1.2).
     #[must_use]
     pub fn new(seed: u64) -> Self {
         Self::scenario(seed, AppFacts::Complete, true, b"https://hook.test/start")

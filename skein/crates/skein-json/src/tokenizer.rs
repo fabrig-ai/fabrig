@@ -4,13 +4,13 @@
 //!
 //! # Its two sides
 //!
-//! Below, a `lib::stream` (runtime/lib.md, 7) carrying one document, then its end.
+//! Below, a `lib::stream` (runtime/lib-streams.md, 1) carrying one document, then its end.
 //! The tokenizer demands only what the token it is reading needs, never
 //! past the document: one byte at a time between tokens and within a
 //! number, the rest of a literal after its first letter, and a string's
 //! text in scans to the next quote of at most [`Limits::chunk`] bytes. It
 //! sends nothing down, so it asks for no room. The side below meets the
-//! contract of a stream (runtime/lib.md, 7); a scan that meets no quote within its
+//! contract of a stream (runtime/lib-streams.md, 1); a scan that meets no quote within its
 //! maximum is one piece of a long string, and the tokenizer reads on.
 //!
 //! Above, the service's decoder ([`Request`] down, [`Event`] up):
@@ -88,7 +88,7 @@ pub struct Limits {
 /// [`Limits::chunk`], or the four letters after the `f` of `false`.
 ///
 /// Whoever stacks the tokenizer checks at startup that the side below's cap
-/// holds it (runtime/lib.md, 7): a demand past that cap could never be met.
+/// holds it (runtime/lib-streams.md, 1): a demand past that cap could never be met.
 #[must_use]
 pub fn largest_demand(limits: &Limits) -> u32 {
     limits.chunk.max(Literal::False.len())
@@ -103,7 +103,7 @@ pub fn largest_demand(limits: &Limits) -> u32 {
 /// It is the stack of open objects and arrays and the text of the string or
 /// number being read, both allocated when the tokenizer is made, and the
 /// delivery it reads: a delivery is made to its demand, so it counts it
-/// (testing/README.md, 5), held for the step that reads it, and at most
+/// (testing/service-tiers.md, 1), held for the step that reads it, and at most
 /// [`largest_demand`] bytes. A
 /// token's box is the side above's to count from when it is emitted.
 #[must_use]
