@@ -20,7 +20,7 @@ One milestone, *slow tests at the gate*, of eighteen goals. Each lands into main
 | D10, `github-conformance::suite` to step and protocol tests on the fake, with a supplied file tree for its journal | 5.2 | skein | none | not started |
 | D11, temper's QA tool and CLI policy to a QA domain world and command-table steps | 5.2 | temper | none | not started |
 | D12, `smith-bench::suite`, smith's store and native setup | 5.2, 5.3 | smith | none | not started |
-| D13, smith's shipped CLI, with a file-operation seam around its finalizer | 5.3 | smith | none | not started |
+| D13, smith's shipped CLI, with a file-operation seam around its finalizer | 5.3 | smith | none | done, by goal 13866 (`../../../../smith/docs/design/testing.md`, 2.3 and 2.5; `../../../../smith/docs/design/shell/README.md`, 2.3; each test's holder in `../../../../smith/docs/development/cli-tests-down-2026-11-23.md`) |
 | D14, temper's shells: forge setup, box, common, TUI, service, fetch and engine shells | 5.3 | temper | D8 | not started |
 | D15, temper's journey tools and its end-to-end binaries' tables | 5.3 | temper | none | not started |
 | D16, skein's shell and world harness, and skein's remaining small groups | 5.3, 5.4 | skein | none | not started |
