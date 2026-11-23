@@ -1,7 +1,7 @@
 //! Named-thread collection retains immutable response ids and bounded raw files.
 //! It walks the attempt's rollouts to find named threads and their descendants
-//! (smith/docs/design/benchmarks/README.md, 6.3), without reading credentials. A missing parent remains
-//! an unavailable child scope (../../../../docs/design/benchmarks/README.md, sections 6, 8.2, 10 and 13).
+//! (smith/docs/design/benchmarks/agents.md, 1.3), without reading credentials. A missing parent remains
+//! an unavailable child scope (../../../../docs/design/benchmarks/agents.md, section 1, and ../../../../docs/design/benchmarks/results.md, section 1.2, and ../../../../docs/design/benchmarks/isolation.md, section 1, and ../../../../docs/design/benchmarks/README.md, section 13).
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::io::Read;

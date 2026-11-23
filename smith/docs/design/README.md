@@ -76,3 +76,7 @@
 11. **protocol/limits-derivation.md:** how each layer's limits and a window's room are derived.
 12. **protocol/programs.md:** choosing and signing in to a program backend, and what it promises.
 13. **protocol/programs-claude-code.md:** running Claude Code, from the command and tools to its stream and sub-agents.
+14. **benchmarks/README.md:** what benchmarks measure, when they run, and how tasks and suites are laid out.
+15. **benchmarks/agents.md:** agent adapters and model tiers.
+16. **benchmarks/results.md:** the result schema and statistics.
+17. **benchmarks/isolation.md:** isolating attempts, logins, and process trees.

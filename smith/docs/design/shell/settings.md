@@ -169,7 +169,7 @@ account = "claude-alice"      # the endpoint's account, when its provider has se
   declares a window at or below the tier's size; prices a person sets
   are used as set. The tiers are a prompt's: the benchmarks price each
   response at the rates its own prompt reaches, as the provider bills
-  it (../benchmarks/README.md, 8.1), and smith's own spend stays at the flat
+  it (../benchmarks/results.md, 1.1), and smith's own spend stays at the flat
   rates its window can reach.
 - **Raw byte limits are not settings.** Tests may override them; a person
   declares quantities (../protocol/limits.md).
@@ -312,14 +312,14 @@ profile (`README.md`, 2.1).
   this table.
 - **The working tier's model.** `gpt-6.1-sol` is the working tier's
   OpenAI model, and a tier's model is one the presets declare
-  (../benchmarks/README.md, section 7), so that the tier runs smith as it ships. Its
+  (../benchmarks/agents.md, section 2), so that the tier runs smith as it ships. Its
   notional prices are its provider's list prices, tiered as 1.2's
   "Tiered list prices" says, and the code holds the numbers. It declares
   no efforts until a preset takes them from its provider's documentation
   (the `efforts` bullet above).
 - **The small tier.** `gpt-6-luna` and `claude-haiku-5-5`, each at `low`
-  effort, are the models benchmarks' probes run on (../benchmarks/README.md,
-  section 7). Each preset model takes its provider's effort names, `low`
+  effort, are the models benchmarks' probes run on (../benchmarks/agents.md,
+  section 2). Each preset model takes its provider's effort names, `low`
   among them; without `effort`, the provider's default applies.
 - **Every preset holds a window.** With the `standard` profile's 80%
   threshold, a window's room after two outputs, counting a byte as a

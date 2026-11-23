@@ -2,7 +2,7 @@
 
 smith is **on par with Codex** at a commit when one run of the `parity`
 suite on that commit's built arm meets every criterion of 16.2. Parity is
-non-inferiority (`README.md`, section 9): on these tasks, smith is not worse than
+non-inferiority (`results.md`, section 2): on these tasks, smith is not worse than
 Codex by more than each criterion's margin. It ranks nothing, and it
 holds for one pinned Codex at one working tier.
 
@@ -11,7 +11,7 @@ holds for one pinned Codex at one working tier.
 - **What runs.** The `parity` suite (`catalogue.md`, 5): the fixtures `01-backoff`,
   `02-line-decoder` and `03-planner`, eight attempts per arm each, and
   the repository task `shell-cwd`, ten attempts per arm: 68 attempts,
-  interleaved in one session (`README.md`, section 9), with no rerun. Every attempt
+  interleaved in one session (`results.md`, section 2), with no rerun. Every attempt
   counts.
 - **Why ten on `shell-cwd`.** RT and RC rest on that task alone, and on
   medians of its attempts. A verdict should turn on smith's time, not on
@@ -20,10 +20,10 @@ holds for one pinned Codex at one working tier.
   attempts narrow the interval without moving the margin, so the second
   holds at any number.
 - **The arms.** smith's built arm of the commit, and Codex at its pinned
-  version, each as it ships (`README.md`, 5.4, 6.1, 6.2), at the working tier
-  (`README.md`, section 7). Delegation is each agent's default; what delegation is
+  version, each as it ships (`README.md`, 5.4, `agents.md`, 1.1, 1.2), at the working tier
+  (`agents.md`, section 2). Delegation is each agent's default; what delegation is
   worth is the `delegation` experiment's (`catalogue.md`, 3), not parity's.
-- **The basis.** Outcome, task wall time and common priced spend (`README.md`, 8.1),
+- **The basis.** Outcome, task wall time and common priced spend (`results.md`, 1.1),
   which both agents report on one basis, each response priced at its own
   prompt's tier. Tokens by field, cache reads, cached share, reasoning,
   responses, process wall, the time record, the agent's own peak
@@ -44,7 +44,7 @@ holds for one pinned Codex at one working tier.
   seeded by the run's seed. FT and FC resample attempts within each task
   and arm, so that each draw keeps the tasks' sizes. A draw in which an
   arm has no pass counts the ratio as infinite. RT and RC take the
-  bootstrap of `README.md`, section 9's comparisons, at ten attempts per arm.
+  bootstrap of `results.md`, section 2's comparisons, at ten attempts per arm.
 - **A pass** is an attempt whose deciding checks all pass (`README.md`, 3.2): its end,
   its grader, its protected files, its tree's end.
 - **Why per solved task.** Every attempt's time and spend count, a
@@ -54,12 +54,12 @@ holds for one pinned Codex at one working tier.
 ## 3. Ends and missing values
 
 - **Unsolved:** a `Completed` attempt whose grader or deciding check
-  fails, `Failed`, `Timeout` and `Budget` (`README.md`, 8.3). Their task wall and
+  fails, `Failed`, `Timeout` and `Budget` (`results.md`, 1.3). Their task wall and
   spend stay in the sums.
 - **Incomplete:** a `Refused(setup)` or a `HarnessError` attempt; an
   unavailable task wall or common priced spend; a lower bound of either
   on smith's side, other than a spend that misses only retried failures
-  (`README.md`, 8.2); Codex without a pass on the fixtures or on `shell-cwd`, since
+  (`results.md`, 1.2); Codex without a pass on the fixtures or on `shell-cwd`, since
   such a task tells the agents nothing. A lower bound on Codex's side is
   taken as observed, which can only raise smith's ratio, and is flagged.
 - **smith's retried failures are taken as observed,** and flagged: a
@@ -127,7 +127,7 @@ holds for one pinned Codex at one working tier.
   its last summary is the evidence, and their answer is a later series',
   a change as above.
 - **Baselines are cut from a series' last `parity` run,** whatever its
-  verdict (`README.md`, section 9): they alarm on the drift of the smith that ships,
+  verdict (`results.md`, section 2): they alarm on the drift of the smith that ships,
   on par or not.
 
 ## 6. A change on the way to a verdict

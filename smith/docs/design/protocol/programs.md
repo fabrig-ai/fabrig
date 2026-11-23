@@ -457,7 +457,7 @@ the next turn of that same cued script (decided 2026-11-02).
   model's (`programs-claude-code.md`, 1.6).
 - **Runs at once on one login:** whether runs that share a
   configuration directory interfere. Default: one at a time where the
-  host can choose (`../benchmarks/README.md`, section 10). A run's
+  host can choose (`../benchmarks/isolation.md`, section 1). A run's
   own children share main's (`programs-claude-code.md`, 1.10), which the live suite checks.
 - **Writing children on a program backend:** whether a child may be
   granted modify or shell there, holding the run's lease (domain/run.md,

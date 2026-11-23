@@ -11,8 +11,8 @@
     (`benchmarks/src/probe/gating.rs`), the smoke suite's among them.
     `cache-reuse/idle-gap` has no variant, and `budget/spend` is missing
     from `suites/probes.toml`.
-  -  the Claude Code arm remains `README.status.md`, 6.
-  -  the missing arms remain `README.status.md`, 7.
+  -  the Claude Code arm remains `agents.status.md`, 1.
+  -  the missing arms remain `agents.status.md`, 2.
   -  version-3 parity remains `codex-parity.status.md`, 4.
   - 1: the `mid-work` and `build-environment` probes.
   - 3: the `affinity`, `cache-lifetime`, `delegation` and
@@ -29,8 +29,8 @@
     could not be resolved.
   -  the change-only projection remains `codex-parity.status.md`, 6.
 - **Departs:**
-  -  the tier-name departure remains `README.status.md`, 5.3 and 7.
-  -  the stored-agent-name departure remains `README.status.md`, 6.
-  -  the Anthropic account departure remains `README.status.md`, 7 and 10.
+  -  the tier-name departure remains `README.status.md`, 5.3, and `agents.status.md`, 2.
+  -  the stored-agent-name departure remains `agents.status.md`, 1.
+  -  the Anthropic account departure remains `agents.status.md`, 2, and `isolation.status.md`, 1.
   - 5: the suites `role` and `repository-check` exist outside the
     catalogue; no reason is recorded.

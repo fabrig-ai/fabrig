@@ -285,8 +285,8 @@ vocabulary.
     login, for the live tests and the benchmarks alike. Which crate holds
     it is benchmarks/README.md, section 14's.
   - **The small tier by default.** The live tests run on each provider's
-    small-tier model unless the caller names another (benchmarks/README.md,
-    section 7).
+    small-tier model unless the caller names another (benchmarks/agents.md,
+    section 2).
   - **Stories,** through `smith exec --json`:
     - a run ends with a commit in place (`--deliver`), on ChatGPT:
       `--account chatgpt -m openai/gpt-6-luna --effort low`; smith loads
