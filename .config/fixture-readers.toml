@@ -1009,7 +1009,7 @@ filter = "binary(=suite) & (test(/^fuzzy::green_light::/) | test(/^fuzzy::repair
 [[fixture.reader]]
 pair = "process-temper"
 package = "temper-box"
-filter = "binary(=process) & test(=rung_b0s_walk_passes_offline_on_its_twin)"
+filter = "binary(=proof_live) & test(=rung_b0s_walk_passes_offline_on_its_twin)"
 
 # real-loop repair::{fixture,recipe,acts,check}; temper suite/fake_opening.rs reads person/llm.
 # llm-base.json feeds the declared regenerator.
