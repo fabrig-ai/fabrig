@@ -13,7 +13,7 @@ pub const PACKAGES: &[File] = &[
 ];
 pub const COMPONENT_OFF: File = File { path: "hosts/x1/x1.json", body: br#"{"motd": {}, "base": {}}"#, mode: 0o644 };
 #[must_use]
-pub fn packages_repository(name: &str, enabled: bool) -> Repository {
+pub fn packages_files(enabled: bool) -> Vec<File> {
     let mut files = thin_with(PACKAGES);
     if !enabled {
         for file in &mut files {
@@ -22,7 +22,11 @@ pub fn packages_repository(name: &str, enabled: bool) -> Repository {
             }
         }
     }
-    Repository::make(name, &files)
+    files
+}
+#[must_use]
+pub fn packages_repository(name: &str, enabled: bool) -> Repository {
+    Repository::make(name, &packages_files(enabled))
 }
 pub const PRESEEDED: &[File] = &[
     File { path: "tasks/base/task.json", body: br#"{"packages": {"curl": {}, "tzdata": {}}, "preseeds": {"tzdata/Areas": {"type": "select", "value": "Europe"}}, "initramfs": {"btrfs": {}, "nvme": {}}}"#, mode: 0o644 },

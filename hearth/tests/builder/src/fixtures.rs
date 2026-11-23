@@ -507,12 +507,6 @@ pub const CONTAINED: &[File] = &[
     File { path: "tasks/inventory/tree/etc/containers.j2", body: b"{% for name, placement in target.containers | items %}{{ name }}={{ placement.kind }}@{{ placement.on }};{% endfor +%}\n", mode: 0o644 },
 ];
 
-#[must_use]
-pub fn contained() -> Rendered {
-    let repository = Repository::make("contained", &thin_with(CONTAINED));
-    render(&repository, &[b"chat-prod", b"east-lab", b"east-prod"], Form::Text)
-}
-
 pub const DEBIAN_LAYERS: &[File] = &[
     File { path: "fleet.json", body: br#"{"debian":{"suite":"trixie","architecture":"amd64","snapshot":{"archive":"20261001T030405Z"},"pockets":{"updates":false,"security":false}}}"#, mode: 0o644 },
     File { path: "hosts/x1/x1.json", body: br#"{"motd":{},"debian":{"suite":"forky","components":{"contrib":true}}}"#, mode: 0o644 },

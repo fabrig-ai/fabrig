@@ -14,6 +14,10 @@ mod properties;
 mod protocol;
 mod simulation;
 
+mod render {
+    mod outputs;
+}
+
 mod fuzzy {
     mod inputs;
     mod memory;
