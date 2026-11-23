@@ -6,9 +6,9 @@ nothing on such a probe. It is `../draft/probes-by-test.md`, written
 from that draft's sections 3 to 10 as its execution's milestone T1. It
 builds on the search's probes, boundary and turn (`landing-search.md`,
 sections 3 to 5), on the landing's keys, receipts and proof by dispatch
-(`landing.md`, sections 6 and 7), on `temper_probe` (`landing-search.md`,
-3), and on a tier's report and its tests by id (`after-landing.md`,
-sections 2 and 4). The policy's types it adds are section 10's.
+(`landing-proof.md`, sections 1 and 2), on `temper_probe` (`landing-search.md`,
+3), and on a tier's report and its tests by id (`after-landing-runs.md`,
+sections 1 and 3). The policy's types it adds are `landing-search-by-test.md`, section 10's.
 
 ## 1. In one page
 
@@ -42,26 +42,26 @@ sections 2 and 4). The policy's types it adds are section 10's.
   report, the artifact its run uploads and its format, `junit` or
   `lines`, written in the gate's `report` object (`landing-settings.md`, 1.1):
   `artifact` and `format`, both required there, the artifact's name 1 to
-  32 bytes with no `/` (`after-landing.md`, 2). Its optional `fuzzy`
-  prefix classifies repair names, not probe ids (`landing.md`, 7.3).
+  32 bytes with no `/` (`after-landing-runs.md`, 1). Its optional `fuzzy`
+  prefix classifies repair names, not probe ids (`landing-proof.md`, 2.3).
   None by default: a gate with no report is probed whole.
 - **Its key:** a gate with a report appends it to its definition
-  (`landing.md`, 6.1) after what `base` appends: the byte 2, the
+  (`landing-proof.md`, 1.1) after what `base` appends: the byte 2, the
   artifact's length in two bytes and its bytes, and the format's byte, 0
   for `junit` and 1 for `lines`. A gate with none encodes as before, so
   its keys are unchanged; a report added or changed moves its gate's
-  keys, as a tier's does (`after-landing.md`, 2), so that a receipt's ids
+  keys, as a tier's does (`after-landing-runs.md`, 1), so that a receipt's ids
   were read as its key's definition says.
 - **Read after a failed run:** each run of a gate with a report whose
-  workflow's own step failed (`landing.md`, 7.3), at a top, a probe or a
+  workflow's own step failed (`landing-proof.md`, 2.3), at a top, a probe or a
   baseline, has its artifact read (skein's `Read::Artifact`), bounded as
   a tier's report's read is, before its failed receipt is made. A
-  passed run, or a runner's fault (`landing.md`, 7.4), reads none.
+  passed run, or a runner's fault (`landing-proof.md`, 2.4), reads none.
 - **The gate's own verdict:** a report is what the gate writes once it
   has judged, so a failed run whose artifact the forge answers absent
   (skein's `Error::Missing`) is one whose gate wrote no verdict, cut by
   a signal, a runner's shutdown or a lost job: `unreported`, a runner's
-  fault (`landing.md`, 7.4), retried within `gate_retries` and holding
+  fault (`landing-proof.md`, 2.4), retried within `gate_retries` and holding
   past them, with no receipt, no search and no repair. That answer
   alone: an artifact past the read's bound, one in no form its format
   reads, or a read that failed otherwise makes the failed receipt as
@@ -70,15 +70,15 @@ sections 2 and 4). The policy's types it adds are section 10's.
   probe, a baseline, a flake rerun and a superseding run
   (`landing-regate.md`, 2 and 3). A gate naming no report has no
   verdict of its own to read, and its failed step stands for one
-  (`landing.md`, 7.3).
-- **What is read:** the failed cases' ids, as `after-landing.md`, 4
+  (`landing-proof.md`, 2.3).
+- **What is read:** the failed cases' ids, as `after-landing-runs.md`, 3
   reads a tier's, but for errored cases, which are not taken: a case
   the run did not observe failed nowhere. A JUnit file's cases with a
   `failure` are its ids (`classname.name`), those with an `error` alone
   none; a `lines` file's each nonempty line, a trailing carriage return
   dropped. The ids are kept sorted, byte by byte, and unique, as a
   tier's are. A failed step is a case where the report names it as one
-  (section 11).
+  (`landing-search-by-test.md`, section 11).
 - **Many:** more than `forge.tiers.failing_tests` ids, an id past
   `forge.tiers.test_id_bytes`, an id that is not UTF-8 or holds a
   control character (a byte below 32, or 127), or a file past the
@@ -87,8 +87,8 @@ sections 2 and 4). The policy's types it adds are section 10's.
   answer of another shape, or a report that names no failed case. It
   is no fault: the run still failed.
 - **The failed receipt** keeps the ids, or "many", or none, in its
-  `failures` (`landing.md`, 6.2). Its failure stands as `landing.md`,
-  7.3 reads it either way: its repair, its member's leaving and its
+  `failures` (`landing-proof.md`, 1.2). Its failure stands as `landing-proof.md`,
+  2.3 reads it either way: its repair, its member's leaving and its
   status are those of any failed receipt.
 
 ## 3. The selection
@@ -120,7 +120,7 @@ sections 2 and 4). The policy's types it adds are section 10's.
 - **Where:** at `landing-search.md`, 3's boundaries, one probe at a time,
   at most `ceil(log2(n))` of them while the search stays by test.
 - **For each gate with a selection,** keyed at the probe's prefix as any
-  probe's (`landing.md`, 6.1), in this order:
+  probe's (`landing-proof.md`, 1.1), in this order:
   1. a passed receipt at the key holds: the whole gate passed there, so
      that gate is green;
   2. a failed receipt whose ids hold a selected case makes that gate
@@ -149,10 +149,10 @@ sections 2 and 4). The policy's types it adds are section 10's.
     test and probes that run's prefix, the round's search keeps it as a
     pass by test at that prefix and gate, with its run's number, for its
     verdict alone, as a tier's rerun and a bisect's probe are kept on the
-    tier's record (`after-landing.md`, 2);
+    tier's record (`after-landing-runs.md`, 1);
   - **failed, its report naming a case among its `temper_tests`:** a
     failed receipt under its key at that prefix, with its report's ids
-    (section 2), reused as any (`landing.md`, 6.2): a later top or probe
+    (section 2), reused as any (`landing-proof.md`, 1.2): a later top or probe
     at that key fails at once;
   - **failed otherwise** (its report absent, unreadable or "many", a
     failed case outside its selection, a selection its command could not
@@ -180,8 +180,8 @@ sections 2 and 4). The policy's types it adds are section 10's.
 ## 5. One run per workflow and commit
 
 - **Why:** temper finds a dispatched run by its repository, workflow,
-  commit, user and dispatch time, never by its inputs (`landing.md`,
-  7.1; skein's `forge/forgejo.md`, section 2), so two of its dispatches
+  commit, user and dispatch time, never by its inputs (`landing-proof.md`,
+  2.1; skein's `forge/forgejo.md`, section 2), so two of its dispatches
   of one workflow at one commit in flight together could each take the
   other's run.
 - **So they never are:** before any dispatch of temper's (a landing's
@@ -190,7 +190,7 @@ sections 2 and 4). The policy's types it adds are section 10's.
   the same repository at the same commit still in flight with other
   inputs makes it wait. In flight is from the dispatch's effect being
   asked until its run is read ended, through its retries. A run in flight
-  of the same key with the same inputs serves as `landing.md`, 7.1 says.
+  of the same key with the same inputs serves as `landing-proof.md`, 2.1 says.
 - **Then:** once that run ends, the waiting dispatch takes what that run
   made for its own key, a receipt holding as any, or is dispatched. A
   landing hears the end as it hears any of its keys' runs; a tier and a
@@ -212,7 +212,7 @@ sections 2 and 4). The policy's types it adds are section 10's.
   the next:
   1. **The blamed unit leaves** with `landing-search.md`, 4's words, and
      its changes repair (section 7).
-  2. **The round ends unlanded** (`landing.md`, 5.1) as when a member
+  2. **The round ends unlanded** (`landing-prepare.md`, 1.1) as when a member
      leaves after the stack: its pull request closed and the branches
      from the blamed unit's first member up deleted. The green prefix's
      members keep their branches, prefixes and receipts; their gates'
@@ -220,8 +220,8 @@ sections 2 and 4). The policy's types it adds are section 10's.
      proves nothing.
   3. **The next round** stacks the units above the blamed one onto the
      green prefix, or, with none, takes the green prefix as its top with
-     no job, as a round after a member's leaving does (`landing.md`,
-     5.1), a stale base stacking every member again. Its top is proved
+     no job, as a round after a member's leaving does (`landing-prepare.md`,
+     1.1), a stale base stacking every member again. Its top is proved
      whole, first in line, and lands at its turn, the green prefix's
      members with it. With no member left, the landing ends
      (`landing.md`, 4.2).

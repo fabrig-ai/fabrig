@@ -1,4 +1,4 @@
-//! The parent's pipes beside the steps (temper/docs/design/protocol/setup/box.md, 6).
+//! The parent's pipes beside the steps (temper/docs/design/protocol/setup/box-front.md, 1).
 use super::{Front, Input, Io, Read, Request, Service, Sink, Token, Up};
 use skein_lib::{Queue, stream::Down};
 

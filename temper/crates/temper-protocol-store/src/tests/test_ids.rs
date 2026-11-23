@@ -1,4 +1,4 @@
-//! The four written jobs' page contract (temper/docs/design/protocol/store.md, 4).
+//! The four written jobs' page contract (temper/docs/design/protocol/store-versions.md, 1).
 #![expect(clippy::disallowed_macros, clippy::disallowed_types, reason = "ordinary Rust job fixtures")]
 use super::fixtures::{self, layouts};
 use crate::{jobs, records};

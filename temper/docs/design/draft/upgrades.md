@@ -577,7 +577,7 @@ store.
 ## 13. Proving it
 
 On the existing tiers (skein's `testing-strategy.md`, section 2;
-`../testing/README.md`, section 2), storage mechanics tested once, below
+`../testing/tiers.md`, section 1), storage mechanics tested once, below
 the domains:
 
 - **Step tests:** a registry change's default and former name read at
@@ -591,7 +591,7 @@ the domains:
   nothing upgrades it (`store-floor.md`, 4.4). No golden store below
   the floor is promised an upgrade.
 - **A story through an upgrade,** in the one-process world
-  (`../testing/README.md`, 2.5): a project, a person and an account; a
+  (`../testing/tiers.md`, 1.5): a project, a person and an account; a
   goal and a change through a landing; a chat paused and a task
   mid-run; settle, stop, start the new binary with a registry change
   and a job, and go on. The referee: the promised history equal before

@@ -1,4 +1,4 @@
-//! A landing's end wakes its train alone (domain/landing.md, 4.2 and 9).
+//! A landing's end wakes its train alone (domain/landing.md, 4.2, and domain/landing-turn.md, 2).
 use super::super::{Work, forge, landing, landing_route, tasks};
 use alloc::boxed::Box;
 use skein_lib::{List, Queue};

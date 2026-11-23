@@ -33,8 +33,8 @@ them as it does any Forgejo.
 - **Offered while no real forge is kept:** `StartPlayground` is
   refused *not offered* while any forge but the playground's own is
   kept, whatever its state but ended: an unfinished one is started over
-  first (`owned.md`, 7), and a whole one is not; one ended, being removed
-  (`../../domain/forge/adoption.md`, 1), is in no list and counts for nothing, as
+  first (`owned-repositories.md`, 1), and a whole one is not; one ended, being removed
+  (`../../domain/forge/adoption-connection.md`, 1), is in no list and counts for nothing, as
   the welcome counts it (`../../client/pages/README.md`); also while the
   row reads resetting, and when the document shows no welcome
   (../configuration/engine.md), runs outside a box, whose scripted
@@ -106,7 +106,7 @@ them as it does any Forgejo.
      settings hold it when the act is sent, or none once it is removed:
      jig's core reads no template, so temper's root reads it and fills
      the act, as it reads the goal template for a goal
-     (`../../domain/agent/tools.md`, 2). It is answered removed once the
+     (`../../domain/agent/tools-goal.md`, 1). It is answered removed once the
      project is closed, so the step passes then; its chats are asked to
      finish within that grace, as their person's close asks one, then
      cancelled and erased with it in the deletion's own kept steps,
@@ -116,7 +116,7 @@ them as it does any Forgejo.
      act under the key, refused as a key conflict, which moves the row
      on as a refusal does (below), and the deletion made then goes on
      with the grace it keeps;
-  2. `forge`: the fake forge removed (`../../domain/forge/adoption.md`, 1), its
+  2. `forge`: the fake forge removed (`../../domain/forge/adoption-connection.md`, 1), its
      group stopped and its directory, file and record removed (`box.md`, 1);
   3. `account`: the scripted account removed, by `RemoveAccount`;
 
@@ -351,7 +351,7 @@ them as it does any Forgejo.
   section 1): each event goes to each hook a repository's setup holds
   that takes it, signed by that hook's secret. A repository's hook is
   made at adoption when the deployment has a webhooks' listener
-  (`README.md`, section 6), at `http://<listener>/hooks/<number>`, so the fake
+  (`webhooks.md`, section 1), at `http://<listener>/hooks/<number>`, so the fake
   reaches serve's listener as a Forgejo does: a push, a pull request's
   change, CI's end and the merge each send one. The box's listener is
   on loopback (`init.md`, 3), and its fake draws no loss and no latency; it
@@ -497,7 +497,7 @@ them as it does any Forgejo.
   checked as the document's are; any other member is refused, naming
   it. With `--strict`, the domain's `Config.strict` is on (skein's
   `testing/fakes/llm.md`, 2.5). The box's fake backends give both
-  (`box.md`, 5).
+  (`box-backends.md`, 1).
 - **Its outputs,** in a document's form, where the box's fakes read the
   files `temper-box init` and the preparation drew: the fake writes each
   file the document names before it binds, so that each exists before
@@ -571,7 +571,7 @@ them as it does any Forgejo.
     task reviews an outside contribution and sets its reviewers
     (`../../domain/forge/README.md`, section 7), while an update of one stays
     foreign, since temper updates only its own change's branch
-    (`../../domain/forge/README.md`, section 6); `bounds` the decisions' count, and
+    (`../../domain/forge/updates.md`, section 1); `bounds` the decisions' count, and
     `temper-fake`'s constant for the objects, past which the judge is
     undecided: `judge full`. The constant is sized for the runs the check
     judges, not for the fake's limits: the judge reserves each repository
@@ -605,8 +605,8 @@ them as it does any Forgejo.
   - *Its order:* the decisions, then `decided`, then the observations,
     then the verdict, so no merge is judged before every decision is
     in. The collection copies OBSERVATIONS no later than STORE: a
-    decision is saved before its merge is sent (`../../domain/forge/README.md`,
-    section 4), so a store copied after the observations holds the
+    decision is saved before its merge is sent (`../../domain/forge/effects.md`,
+    section 1), so a store copied after the observations holds the
     decision behind every merge they hold.
   - *Its verdict,* by the check's contract: a pass is status 0 and no line; breaches are status
     1, a `{"fail": LINE, "summary": TEXT}` line each, its `line()` the
@@ -633,7 +633,7 @@ them as it does any Forgejo.
   decisions, the forge connector's, in `temper-engine-domain-forge`, the
   acts they make routed by `temper-engine-domain`, and the row kept by
   `temper-protocol-store`; the fakes' in `temper-fake`, step code
-  (`README.md`, section 7): the member's
+  (`crate-layout.md`, section 1): the member's
   types and checks; the fake LLM's and the fake forge's configurations
   and seeds, from the deployment's document or from one of their own;
   the fake kind's group, its slot among the box's steps. It names no host. Its dependencies:

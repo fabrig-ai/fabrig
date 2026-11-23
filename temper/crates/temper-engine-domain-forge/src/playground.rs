@@ -256,7 +256,7 @@ fn reset(d: &mut Domain, out: &mut Queue<Request>) {
                 if crate::removal::begin(d, row.forge, out) {
                     return;
                 }
-                // An ended forge can still be waiting for its secrets or box (temper/docs/design/domain/forge/adoption.md, 1).
+                // An ended forge can still be waiting for its secrets or box (temper/docs/design/domain/forge/adoption-connection.md, 1).
                 removed(d, out);
                 return;
             }

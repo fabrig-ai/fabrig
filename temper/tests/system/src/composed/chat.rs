@@ -1,5 +1,5 @@
 //! Stock chat inspection and change routing across Smith and the engine.
-//! Contract: temper/docs/design/domain/agent/tools.md, 1 and temper/docs/design/domain/agent/agents.md;
+//! Contract: temper/docs/design/domain/agent/tools-change.md, 1 and temper/docs/design/domain/agent/agents.md;
 //! temper/docs/design/domain/forge/change/README.md, 1.
 use super::{World, agreement, call, engine, fake, parties, tasks, text_script};
 use skein_fake_llm_domain::api::{Part, Script, Turn};

@@ -1490,7 +1490,7 @@ fn an_asking_chat_reads_each_address() {
 #[test]
 fn propose_settings_refuses_a_stale_revision_and_an_item_out_of_shape() {
     use serde_json::json;
-    // A charter's line holds at most 120 bytes (protocol/configuration/settings.md, 2).
+    // A charter's line holds at most 120 bytes (protocol/configuration/settings-kinds.md, 1).
     const PAST_LINE_BYTES: usize = 121;
     let mut world = World::stock();
     let run = world.chat(ASK_TEMPLATE, world.owner, 20);
@@ -1966,7 +1966,7 @@ fn bounded_call(
     input: &serde_json::Value,
 ) -> (Box<[u8]>, bool) {
     let input = input.to_string();
-    // protocol/configuration/settings.md, 7: init's output 8,192 leaves about 10,662 payload bytes.
+    // protocol/configuration/settings-output.md, 1: init's output 8,192 leaves about 10,662 payload bytes.
     assert!(input.len() <= 10_662, "call exceeds configured payload ceiling: {}", input.len());
     host_tool(&mut world.driver, run, completion, tool, input.as_bytes())
 }

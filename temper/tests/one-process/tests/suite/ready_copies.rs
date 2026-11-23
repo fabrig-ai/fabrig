@@ -1,4 +1,4 @@
-//! Ready's burst made and adopted (temper/docs/design/testing/README.md, 2.5 and temper/docs/design/testing/process-tier.md).
+//! Ready's burst made and adopted (temper/docs/design/testing/tiers.md, 1.5 and temper/docs/design/testing/process-tier.md).
 use temper_one_process_world::ready_copies;
 
 #[test]

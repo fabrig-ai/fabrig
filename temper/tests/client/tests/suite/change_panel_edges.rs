@@ -129,7 +129,7 @@ fn finish_review(world: &mut ClientWorld, task: u64, result: jig_domain_tasks::T
     );
 }
 
-// client/forge/served.md, 2 and domain/forge/change/README.md, 3: a closed pull holds at its current step.
+// client/forge/served.md, 2 and domain/forge/change/drift.md, 1: a closed pull holds at its current step.
 #[test]
 fn externally_closed_pull_holds_the_panel_at_gating() {
     let (mut world, task) = change_world();
@@ -257,7 +257,7 @@ fn leaving_a_live_change_page_releases_its_watch() {
     assert_eq!(&panel(&world, client).step, &wire::Step::Gating);
 }
 
-// domain/forge/change/README.md, 5, and domain/forge/keeping-up.md, 3: CI changes only when a step reads it, and failed CI names its repair.
+// domain/forge/change/panel.md, 1, and domain/forge/keeping-up.md, 3: CI changes only when a step reads it, and failed CI names its repair.
 #[test]
 fn ci_failure_is_read_into_the_panel_and_names_its_repair() {
     let (mut world, task) = change_world();
@@ -282,7 +282,7 @@ fn ci_failure_is_read_into_the_panel_and_names_its_repair() {
     assert_eq!(
         &panel(&world, client).ci,
         &wire::Ci::Passed,
-        "design domain/forge/change/README.md 5: the panel keeps the last step's CI, until another step reads it"
+        "design domain/forge/change/panel.md 1: the panel keeps the last step's CI, until another step reads it"
     );
     // The running review owns the remaining spend. End it so jig can fund
     // the repair when the next step reads the failed CI.
@@ -298,7 +298,7 @@ fn ci_failure_is_read_into_the_panel_and_names_its_repair() {
     assert_eq!(
         &value.ci,
         &wire::Ci::Failed,
-        "design domain/forge/change/README.md 5: the next step's changed CI verdict must reach the watched panel: {value:?}"
+        "design domain/forge/change/panel.md 1: the next step's changed CI verdict must reach the watched panel: {value:?}"
     );
     let wire::Step::Repairing(repair) = &value.step else {
         panic!("design domain/forge/change/repairs.md: failed CI must enter repair: {value:?}");

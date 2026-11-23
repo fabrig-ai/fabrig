@@ -1,4 +1,4 @@
-//! Seeded snapshots of stacks and their changing rounds (domain/landing.md, 4–8).
+//! Seeded snapshots of stacks and their changing rounds (domain/landing.md, 4, and domain/landing-prepare.md, 1, and domain/landing-proof.md, 1–2, and domain/landing-turn.md, 1).
 use crate::tests::step::{stack, stack_facts};
 use crate::{Combine, Decision, Landing, Outcome, Phase, Preparation, Proof, Status};
 use skein_lib::{Duration, List, Rng, Wall};

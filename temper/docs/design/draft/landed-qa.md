@@ -153,12 +153,12 @@ trips".
   commit, each file and its checksum. A build is published to the pass
   only once every executable prints that commit as its version. temper
   needs nothing for this: it is the deployment's, on its disk, a tier of
-  its own or a part of one (`../domain/after-landing.md`, 2).
+  its own or a part of one (`../domain/after-landing-runs.md`, 1).
 - **Not every tip is kept:** after-landing work covers several landings
   at once and a receipt may judge a tip with no run
-  (`../domain/after-landing.md`, 3). A case waits for the next kept build
+  (`../domain/after-landing-runs.md`, 2). A case waits for the next kept build
   that holds its landing. One that has waited past the deployment's bound
-  is a line for the owner (section 2).
+  is a line for the owner (`landed-qa.md`, section 2).
 - **A build is deleted** when no pass holds it, triage has reached it
   (section 4), and either a newer build triage has reached is kept, or no
   queued case's landing is in it. Nothing else deletes one. So what is
@@ -289,13 +289,13 @@ trips".
   the box's own Forgejo included (the user, 2026-11-12: QA on the fakes
   stays the rule). A pass's box or deployment runs on its fake backends:
   the person's forges, GitHub and Forgejo alike, are fake forges
-  (`../protocol/setup/box.md`, 5) keeping their state in the place's data
-  across a restart (section 10), so that a copy keeps their repositories,
+  (`../protocol/setup/box-backends.md`, 1) keeping their state in the place's data
+  across a restart (`landed-qa.md`, section 10), so that a copy keeps their repositories,
   pull requests and checks. A deployment runs the same fakes as processes
   of their own, as a box runs them as its steps. No place runs a Forgejo
   or a runner. What only a real forge shows, the box's own Forgejo set up
-  on the person's machine among it, waits for real backends (section
-  12).
+  on the person's machine among it, waits for real backends (`landed-qa.md`, section 12
+  ).
 - **CI is the fake forge's,** decided by a file's content
   (`../testing/fakes.md`, 2), so that a recipe makes a head pass or fail
   by what its `forge` lines commit; a landing's gate is a workflow the

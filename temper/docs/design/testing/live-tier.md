@@ -2,7 +2,7 @@
 
 Nothing is handed in: no input takes a record, no tool reads another
 program's login, and a ChatGPT account comes only from a sign-in
-(../protocol/credentials.md, section 3), on the owned example's
+(../protocol/credentials-llm-accounts.md, section 1), on the owned example's
 registration (../protocol/setup/init.md, 1). The one exception is a held
 record, a person's signed-in ChatGPT account moved in by `temper ctl
 account import` and back by `account export`, never copied, which the
@@ -29,7 +29,7 @@ section 8; skein/docs/foundation/testing-strategy.md, 2.9).
   developer runs `temper-box program-login --config LIVE live`, `LIVE` the
   live configuration's directory, once on each
   machine that runs the tier, and signs in as Claude Code asks
-  (../protocol/credentials.md, section 3). Each run's deployment declares
+  (../protocol/credentials-llm-accounts.md, section 1). Each run's deployment declares
   the program source `live` (`temper ctl DIRECTORY account declare 2
   claude_code live --key live-program`, ../client/ctl/areas.md, area
   5), then waits with `account list --until usable`: the name, not the
@@ -43,7 +43,7 @@ section 8; skein/docs/foundation/testing-strategy.md, 2.9).
   prints its address, and runs `account list --until settled`, within the
   sign-in's deadline, while the developer approves it in a browser on
   the same machine, or through the port forwarded to it
-  (../protocol/credentials.md, section 3). The account is the person's
+  (../protocol/credentials-llm-accounts.md, section 1). The account is the person's
   that `temper ctl` signed in, a plan's (jig's `domain/accounts.md`,
   3.2), in the run's deployment, and goes with it; its runs are on
   smith's direct backend.
@@ -58,7 +58,7 @@ section 8; skein/docs/foundation/testing-strategy.md, 2.9).
   Forgejo alone and never call github.com. github.com is reached only
   by the GitHub story below and by skein's opt-in conformance (skein's
   `testing/fakes/github.md`, section 2), each run by hand by the developer who
-  holds the probe App's fixtures (`README.md`, section 2), never by an implementer.
+  holds the probe App's fixtures (`tiers.md`, section 1), never by an implementer.
 - **The stories:** the process tier's chat, answered by the real model;
   and one small change, made by the model in a repository of the owned
   Forgejo, adopted as in `process-tier.md`, and pushed by real git. The story ends
@@ -88,7 +88,7 @@ section 8; skein/docs/foundation/testing-strategy.md, 2.9).
   restarts on its three directories, without another provider sign-in,
   push or merge. The change's page says "Passed" for CI at its head on
   both runs: a landed change keeps its last verdict at its head with its
-  record through the restart (../domain/forge/change/README.md, 5), as `process-tier.md`'s restart stories
+  record through the restart (../domain/forge/change/panel.md, 1), as `process-tier.md`'s restart stories
   read it. It closes the chat and drains the box; the sitting
   allows ten minutes for sign-in, forty minutes in total and 1–25
   completions, counted through ctl. Progress and final evidence reach
@@ -113,16 +113,16 @@ section 8; skein/docs/foundation/testing-strategy.md, 2.9).
   Every ctl call of a sitting names one DIRECTORY, `client` beneath the
   run's root in the store (`first`, `second`, or tagged on a kept
   store): the import, the held record's give-back and the sitting's
-  reads alike (../client/ctl/README.md, 6.1). The chat's ended delegates and
+  reads alike (../client/ctl/command-line.md, 1.1). The chat's ended delegates and
   the change's are read whole, a page at a time: `task list --project
   PROJECT --parent TASK --ended --json`, then the same with `--after`
   and the cursor the page printed (`ended.rows.after.value`), until a
-  page prints none (../client/ctl/tools.md, 2); a page cut with no cursor,
+  page prints none (../client/ctl/tools-reads.md, 1); a page cut with no cursor,
   or past 32 pages in all, fails the story, naming it.
   - **A failure says why:** once a sitting has returned with a finding,
     before the test fails with it, the story prints each run the box's
     serve log records as failed or refused, serve's operator line
-    (`../domain/worker/README.md`, 4.3; `../domain/worker/checkouts.md`,
+    (`../domain/worker/hosted-runs.md`, 1.3; `../domain/worker/checkouts.md`,
     1.4): its task, run, attempt and jig's failure, then its detail,
     the agent's last error. Each line goes out redacted as every notice
     is, and the redaction also masks an `x-api-key` header's value and
@@ -144,7 +144,7 @@ section 8; skein/docs/foundation/testing-strategy.md, 2.9).
   `a_person_asks_claude_code_to_land_a_change_on_the_owned_forge`, run
   by `scripts/proof-live.sh forge-land-claude`: the same story, every
   role on Claude Code on `claude-haiku-5-5` at `low` effort, on a held login used in place
-  (../protocol/credentials.md, 3). The stock catalogue has no Haiku, so
+  (../protocol/credentials-llm-accounts.md, 1). The stock catalogue has no Haiku, so
   a fresh sitting takes it by name, as a person adds a Claude
   subscription's model on Settings' Models and then chooses it (jig's
   `domain/engine/settings.md`, 11), in two `settings apply`s. The first sets a
@@ -283,9 +283,9 @@ section 8; skein/docs/foundation/testing-strategy.md, 2.9).
     file, `forge list --until connected:1`, then `--until settled`;
     `forge install 1` issues a state, asked again while setup answers
     "busy", at most 30 times, one a 2 s poll, each under a fresh key (a
-    key's first answer is replayed, ../client/ctl/README.md, 5) and logged
+    key's first answer is replayed, ../client/ctl/requests.md, 1) and logged
     with its time, since the reconcile after a connect is the engine's,
-    which `settled` does not cover (../client/ctl/tools.md, 4); and the
+    which `settled` does not cover (../client/ctl/tools-waiting.md, 1); and the
     test brings it to the engine's setup route with the installation's
     id, as GitHub's redirect would
     (`/forges/1/github/setup?installation_id=I&setup_action=install&state=S`),
@@ -324,7 +324,7 @@ section 8; skein/docs/foundation/testing-strategy.md, 2.9).
     stops the runner with TERM and reaps it first, as
     `scripts/proof-live.sh` does), deletes the
     branches and closes the pulls with the cleanup token it mints from
-    the App's key and revokes afterwards (`../draft/github.md`, 17),
+    the App's key and revokes afterwards (`../draft/archive/github.md`, 17),
     within what is left of the 400. The installation tokens the relay
     minted, which only they revoke and which are never written, lapse
     at GitHub's hour.
@@ -359,7 +359,7 @@ section 8; skein/docs/foundation/testing-strategy.md, 2.9).
   by spending a held login.
   - **What runs:** a fresh box as the help makes one, its owned Forgejo
     set up through ctl with the playground's copy
-    (`../protocol/setup/owned.md`, 7); the model a held ChatGPT record,
+    (`../protocol/setup/owned-repositories.md`, 1); the model a held ChatGPT record,
     `TEMPER_TEST_LIVE_ACCOUNT`, moved in by `temper ctl account import` and
     moved back by `account export` over the same path before the box
     stops; on any ending that comes first, a pass, a failure or a
@@ -409,7 +409,7 @@ section 8; skein/docs/foundation/testing-strategy.md, 2.9).
     the tier runs Claude Code's alone. No directory above these
     needs a mode or a name: ctl opens DIRECTORY and FILE through their
     parents and checks DIRECTORY, its files and FILE alone
-    (../client/ctl/README.md, 6.1).
+    (../client/ctl/command-line.md, 1.1).
   - **Its bounds** are each story's own, within the profile's 50 minutes for the
     pair. Never at the gate, and never run by an implementer.
 - **The held record's return,** for each story that moves a held record

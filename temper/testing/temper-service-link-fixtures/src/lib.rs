@@ -1,4 +1,4 @@
-//! Shared engine/worker link fixtures (temper/docs/design/testing/README.md, 2.2).
+//! Shared engine/worker link fixtures (temper/docs/design/testing/tiers.md, 1.2).
 pub use temper_engine_service::{assignment, limits, startup, stock};
 pub use temper_worker_service::{Worker, WorkerRuntime, worker_settings};
 pub use temper_worker_service_fixtures::{

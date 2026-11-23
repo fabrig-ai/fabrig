@@ -1,4 +1,4 @@
-//! Report reads and selected parts (temper/docs/design/domain/after-landing.md, 2, 4 and 5.2).
+//! Report reads and selected parts (temper/docs/design/domain/after-landing-runs.md, 1 and 3, and temper/docs/design/domain/after-landing.md, 5.2).
 use super::{Box, Commit, Domain, Env, Limits, List, TierRow, api, branch, configured, joined, p};
 
 pub(super) fn part_number(part: &p::Part) -> u16 {

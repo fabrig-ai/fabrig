@@ -1,4 +1,4 @@
-//! client/engine.md and client/testing.md; domain/forge/change/README.md, 2 and domain/forge/change/gates.md, 1 and domain/forge/change/repairs.md and domain/forge/change/README.md, 3–4 and domain/forge/change/gates.md, 2 and domain/forge/change/README.md, 5.
+//! client/engine.md and client/testing.md; domain/forge/change/README.md, 2 and domain/forge/change/gates.md, 1 and domain/forge/change/repairs.md and domain/forge/change/drift.md, 1, and domain/forge/change/README.md, 4 and domain/forge/change/gates.md, 2 and domain/forge/change/panel.md, 1.
 //! A task page watches the whole change through CI, its gate and landing.
 use jig_client::contract as c;
 use jig_client_kit::harness::{ClientId, Until, World};

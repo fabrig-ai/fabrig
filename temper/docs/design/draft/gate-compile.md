@@ -64,7 +64,7 @@ The gate builds every test target of the workspace (`cargo nextest run --no-run`
 
 ### 4.1 What the code holds
 
-- **The design keeps one version's code.** A family's generated code reads its current version only. An older wire or frame record is read as a generic value and patched to the current version before the generated code reads it (skein's `data/codec/README.md`, section 5; `temper/docs/design/protocol/store.md`, section 4). A kept wire or frame version is its text, in `schema/kept/` (`data/codec/command.md`, section 1).
+- **The design keeps one version's code.** A family's generated code reads its current version only. An older wire or frame record is read as a generic value and patched to the current version before the generated code reads it (skein's `data/codec/README.md`, section 5; `temper/docs/design/protocol/store-versions.md`, section 1). A kept wire or frame version is its text, in `schema/kept/` (`data/codec/command.md`, section 1).
 - **The code holds more:** `temper-protocol-store-codec` holds `v16`, `v17` and `v18`, about 3.5 MB each, and `temper-protocol-store/schema/` holds texts from `v14` to `v18`. `jig-protocol-store-people` holds `people_v16` beside `people_v17`, and `smith-transcript` holds `v6` beside `v7`.
 - **Their readers:**
   - `temper-protocol-store`'s own tests use registry changes and jobs, not older stores' patch fixtures.

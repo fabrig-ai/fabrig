@@ -1,4 +1,4 @@
-//! Preparation crossing a stale-round boundary (temper/docs/design/domain/landing.md, 5.1–5.2, 15).
+//! Preparation crossing a stale-round boundary (temper/docs/design/domain/landing-prepare.md, 1.1–1.2, and temper/docs/design/domain/landing.md, 15).
 use super::*;
 
 #[test]

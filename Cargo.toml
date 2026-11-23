@@ -127,6 +127,7 @@ members = [
     "smith/testing/smith-agent-document-fixtures",
     "smith/testing/smith-bench-fixtures",
     "smith/testing/smith-end-to-end-kit",
+    "smith/testing/smith-faults",
     "smith/testing/smith-domain-tools-fixtures",
     "smith/testing/smith-domain-run-fixtures",
     "smith/testing/smith-domain-session-fixtures",
@@ -230,6 +231,7 @@ members = [
     "jig/testing/jig-client-test-kit",
     "jig/testing/jig-test-connector-kit",
     "jig/testing/jig-core-kit",
+    "jig/testing/jig-inspect",
     "jig/testing/jig-client-kit",
     "jig/testing/jig-engine-clients-kit",
     "jig/testing/jig-client-protocol-kit",
@@ -580,6 +582,7 @@ smith-agent-world = { path = "smith/tests/agent" }
 smith-machine-world = { path = "smith/tests/machine" }
 smith-domain = { path = "smith/crates/smith-domain" }
 smith-domain-run = { path = "smith/crates/smith-domain-run" }
+smith-faults = { path = "smith/testing/smith-faults" }
 smith-domain-session = { path = "smith/crates/smith-domain-session" }
 smith-domain-tools = { path = "smith/crates/smith-domain-tools" }
 smith-protocol-llm = { path = "smith/crates/smith-protocol-llm" }
@@ -679,6 +682,7 @@ jig-client-test-domain = { path = "jig/testing/jig-client-test-domain" }
 jig-client-test-kit = { path = "jig/testing/jig-client-test-kit" }
 jig-test-connector-kit = { path = "jig/testing/jig-test-connector-kit" }
 jig-core-kit = { path = "jig/testing/jig-core-kit" }
+jig-inspect = { path = "jig/testing/jig-inspect" }
 jig-client-kit = { path = "jig/testing/jig-client-kit" }
 jig-engine-clients-kit = { path = "jig/testing/jig-engine-clients-kit" }
 jig-client-protocol-kit = { path = "jig/testing/jig-client-protocol-kit" }

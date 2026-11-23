@@ -2,7 +2,7 @@
 
 2026-11-11. Where the tree's code lags or departs from [remembered.md](remembered.md).
 
-The document, with `README.md`'s `Remembered` row and *Sign out* row and `../view.md`, 3's
+The document, with `README.md`'s `Remembered` row and *Sign out* row and `../view-navigation.md`, 1's
 person's menu, is present by plan `ui-ask-m4` but for the gaps below:
 `Address::Remembered` at `/remembered`, of no project, in Deployment's
 column under its own heading and lede; `pages::remembered` reads the

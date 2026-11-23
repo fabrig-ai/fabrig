@@ -120,7 +120,7 @@ and the project's name. Their records, and each field's source, are
   chat can reach a stranger. Titles cross all the same: the user's
   decision, reaffirmed on 2026-11-06 (the request `ui-public-3`), on the
   condition that making a project public says so. temper's words, in
-  each place it offers that (temper's `client/ctl/tools.md`, 3), are:
+  each place it offers that (temper's `client/ctl/tools-acts.md`, 1), are:
   "Anything said in this project's chats may show on its public pages,
   in the titles of its goals and tasks. On a public repository, a
   change's pull request shows what its agent wrote too."

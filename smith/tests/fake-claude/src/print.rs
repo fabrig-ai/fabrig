@@ -527,6 +527,11 @@ impl Print {
             }
         }
         while let Some(step) = self.turn.steps.get(self.step).cloned() {
+            if matches!(&step, Step::RateLimit { .. } | Step::LoseLogin | Step::Hang)
+                || matches!(&step, Step::RateLimitWindow { status, .. } if status == "rejected")
+            {
+                effects.push(Effect::Fault(crate::Fault::Step(step.clone())));
+            }
             self.step = self.step.checked_add(1).expect("step count fits");
             let (step, thinking) = match step {
                 Step::Think { tokens, step } => {
@@ -663,8 +668,12 @@ impl Print {
                 }
                 effects.extend(self.finish(value));
             }
-            End::Error { api_error_status, terminal_reason, errors, resets_at } => {
+            End::Error { api_error_status, terminal_reason, errors, result, resets_at } => {
+                effects.push(Effect::Fault(crate::Fault::End(self.turn.end.clone())));
                 let mut value = stream::failure(api_error_status, terminal_reason, errors);
+                if let Some(text) = result {
+                    value["result"] = json!(text);
+                }
                 if let Some(reset) = resets_at {
                     value["rate_limit_info"] = json!({"resetsAt":reset});
                 }

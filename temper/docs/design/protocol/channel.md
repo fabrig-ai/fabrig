@@ -83,7 +83,7 @@ worker's root      Event::Assign { assignment, items }                  Request:
   3), encoded and decoded with smith's codec by the worker's routing,
   and decoded on the worker against the outcome the engine committed:
   one that does not decode or disagrees refuses the start as invalid
-  (`../domain/worker/README.md`, 4.3). The engine keeps it as bytes.
+  (`../domain/worker/hosted-runs.md`, 1.3). The engine keeps it as bytes.
 
 ## 3. The payload version
 
@@ -111,7 +111,7 @@ worker's root      Event::Assign { assignment, items }                  Request:
 The assignment's `workspace` (jig's: the workstream and the items) is
 present exactly when the run has a repository; its items are one
 `Items` record. A run with none, a chat for one, has no workspace and no
-part (`../domain/worker/README.md`, 4.1).
+part (`../domain/worker/hosted-runs.md`, 1.1).
 
 In the schema's terms (each byte field and list has its limit, section
 8; enums are numbered in this order):
@@ -133,9 +133,9 @@ record Writable    { push: bytes  expected: option fixed 32  landing: option byt
 | `name` | `name` | `name`: the directory, one path component, unique in the workspace |
 | `remote` | made: the `git` base of the forge whose number is `provider.forge`, its record's (forge/engine.md, 1), `/`, `owner`, `/`, `name`, `.git` | `remote`, never interpreted by the domain; the git component's URL (git.md, section 3) |
 | `git` | made by the routing: the git program of the forge whose number is `provider.forge`, its record's, or for the playground's fake forge the machine's fake `git` (configuration/engine.md), resolved to an absolute path; none for a forge with none | `git`, never interpreted by the domain; the program the git component runs for every operation on the repository, and `workers[].git` for none (git.md, section 3) |
-| `start` | `ForgeStart::Base`, `Branch`, `Saved`, `Merge { branch, base }`, `Merged { branch, heads }`; the engine never asks for a commit | `Start`, all six; `Merged`'s heads in their order, one to 64 (a task's dependencies), each a full object id (`../domain/worker/README.md`, 4.1) |
+| `start` | `ForgeStart::Base`, `Branch`, `Saved`, `Merge { branch, base }`, `Merged { branch, heads }`; the engine never asks for a commit | `Start`, all six; `Merged`'s heads in their order, one to 64 (a task's dependencies), each a full object id (`../domain/worker/hosted-runs.md`, 1.1) |
 | `access` | `push: Some(branch)` is `writable { push: branch, expected: none, landing, delivered, pin }`; `landing` is the change's landing branch only for an inherited writable producer starting on its push branch or from a merge in progress; `delivered` is `ForgeRepository.delivered`, the task's own delivery (below); `pin` is `ForgeRepository.pin`, a landing's repair's base (below); `None` push is `read_only` | `Access`; landing is bounded by the branch-name limit; `delivered` is the checkout's `Repository.delivered`; `pin` the checkout's `Repository.pin` |
-| `identity` | `identity`: the number of the forge's git identity, the credential jig grants the attempt (credentials.md, section 4) | `identity`, the grant's number in the application's table |
+| `identity` | `identity`: the number of the forge's git identity, the credential jig grants the attempt (credentials-git-identities.md, section 1) | `identity`, the grant's number in the application's table |
 | `account` | made by the routing, on a GitHub forge: the `account` of the entry in the forge's identity value, as the routing last made it (section 6), whose `account_login` equals `owner`, compared ASCII case-insensitively; none when no entry matches, and none on Forgejo | `account`, by which the worker's routing picks the identity's entry for each git operation on the repository (section 6) |
 | `save` | this repository's `save`, when `run.policy.resume` requests saving | `wire::Repository.save`, its optional saved-work destination, bounded by the same name limit as a branch |
 
@@ -172,8 +172,8 @@ record Writable    { push: bytes  expected: option fixed 32  landing: option byt
   `refs/temper/landing` at in place of the head the delivery replaces
   (`../domain/worker/checkouts.md`, *A named pin*). The engine's item
   carries one on a repair asked by a landing alone: the base that
-  landing's round used, its failed receipt's (`../domain/landing.md`,
-  6.2), where the receipt resolves and keeps one; every other item none,
+  landing's round used, its failed receipt's (`../domain/landing-proof.md`,
+  1.2), where the receipt resolves and keeps one; every other item none,
   and an item naming a pin names no `landing`. It is a full object id, as
   the other heads, independent of `expected` and `delivered`. `Writable`
   gains it last; the family moves by one, from 11 to 12, its floor kept,
@@ -190,9 +190,9 @@ record Writable    { push: bytes  expected: option fixed 32  landing: option byt
   least one writable repository has a destination. Merge starts keep their
   destinations: saving commits both merge parents and refuses unresolved
   conflict markers. Read-only repositories save nothing
-  (`../domain/worker/README.md`, 4.2). `Items` carries only repositories in
+  (`../domain/worker/hosted-runs.md`, 1.2). `Items` carries only repositories in
   `worker-wire-v1.schema`; the schema family and `PAYLOAD_VERSION` stay
-  at 4 under section 3's pre-release rule.
+  at 4 under `channel.md`, section 3's pre-release rule.
 - **The remote and the git** are the fields the routing makes rather
   than copies; everything a worker needs to reach the forge, but the
   credential, is in them. The credential is the grant's (section 6).
@@ -201,12 +201,12 @@ record Writable    { push: bytes  expected: option fixed 32  landing: option byt
   alone, as a fake forge's listener is loopback's (setup/playground.md):
   standalone's worker, and the cluster's workers alone (`cluster.md`,
   2). A worker on another host takes its own machine's git for every
-  repository (configuration/README.md, section 3).
+  repository (configuration/worker.md, section 1).
 - **Checked at the worker's entrance:** names, remotes, programs and
   branches within its limits, a program that is not an absolute path,
   and a repository named twice are refused as an
-  invalid start that names the item (`../domain/worker/README.md`, 4.1), as are
-  items that do not decode (section 7).
+  invalid start that names the item (`../domain/worker/hosted-runs.md`, 1.1), as are
+  items that do not decode (`channel.md`, section 7).
 
 ## 5. Up: what a run left
 
@@ -269,7 +269,7 @@ enum   Missing          { repository, branch, commit }
     identity; from `conflicted`, its tag and the head that did not merge
     into a base with heads merged in (`../domain/worker/checkouts.md`).
     The root reports them as a fact of the attempt
-    (`../domain/root.md`, 6.4), and gives a conflict to the change
+    (`../domain/root-translation.md`, 2.4), and gives a conflict to the change
     whose producer the run is (`../domain/forge/change/questions.md`, 1).
 
 ## 6. A git identity's value
@@ -289,15 +289,15 @@ record Entry    { account: u64  account_login: text  token: secret }
   kind, so a worker tells Forgejo's value from GitHub's before it reads
   a token.
 - **Forgejo's** is one token, the forge's `GitToken` record, with the
-  bot's login, the `User` record's (credentials.md, 2.1 and section 4).
+  bot's login, the `User` record's (credentials.md, 2.1, and credentials-git-identities.md, 1).
 - **GitHub's** is a list of entries, one per installation with a
   token, at most `forges.installations` (configuration/limits.md),
   in the order of their installations' ids: the installation's account
   id and login, and its token. The tokens are those the GitHub forge
   mints, held in memory only and never stored; the login is
   `x-access-token`. No entry carries its expiry: the grant's validity,
-  the earliest of them, bounds the value whole (credentials.md, section
-  4).
+  the earliest of them, bounds the value whole (credentials-git-identities.md, section
+  1).
 - **Its other fields** are the login, and the author's name and email:
   on Forgejo the forge's record's bot (forge/engine.md, 1); on GitHub the
   login above and the author the App's bot (forge/engine.md, 5),
@@ -310,11 +310,11 @@ record Entry    { account: u64  account_login: text  token: secret }
   GitHub, each change of its entries, a token minted or renewed, or an
   installation deleted, suspended or no longer accepted (forge/engine.md, 5).
   Generation 1 at each start, on GitHub at the forge's first
-  `Connected` (credentials.md, section 4).
+  `Connected` (credentials-git-identities.md, section 1).
 - **On the engine:** the routing encodes the value at start and at each
   new generation into the identities' table, as one secret held by
-  number and generation, the two newest kept (credentials.md, section
-  4); `jig-protocol-engine-workers` fills it in as a grant's `value`,
+  number and generation, the two newest kept (credentials-git-identities.md, section
+  1); `jig-protocol-engine-workers` fills it in as a grant's `value`,
   through the routing, translating it down to the channel's agreed
   `temper-worker-wire` version at each send by temper's bridge
   (`wires.md`, 6), so the table holds the engine's current version
@@ -379,7 +379,7 @@ the routing in the step that routes the record:
     never sends one.
   - on the worker: items that do not decode reach the root as such, and
     the root refuses the start as invalid, naming the workspace items,
-    as it refuses items beyond its limits (`../domain/worker/README.md`, 4.1).
+    as it refuses items beyond its limits (`../domain/worker/hosted-runs.md`, 1.1).
 - **The composed system world** (`tests/system`, `composed/link.rs`)
   calls these functions, each record passed from the encoding side to the
   decoding side without its bytes, in place of its own translation of
@@ -459,7 +459,7 @@ the routing in the step that routes the record:
 
 ## 9. Testing
 
-Within the suites' budgets (`../testing/README.md`, section 2):
+Within the suites' budgets (`../testing/tiers.md`, section 1):
 
 - **Review delivery in the one-process world:** a fresh goal reaches a
   blocking review gate, and a small change does so after two restarts.
@@ -486,7 +486,7 @@ Within the suites' budgets (`../testing/README.md`, section 2):
   arbitrary bytes and on mutations of fixed-rule values built from the schema.
 - **Through bytes,** the one-process world carries every part on jig's
   channel joined in process: each story that prepares a workspace,
-  pushes, saves or fails to prepare (`../testing/README.md`, 2.5). jig's channel
+  pushes, saves or fails to prepare (`../testing/tiers.md`, 1.5). jig's channel
   worlds carry them as opaque bytes, and need nothing of temper's.
 - **Without bytes,** the composed system world runs the same functions
   (section 7).

@@ -1,4 +1,4 @@
-//! The two newest git identity generations by grant number (protocol/credentials.md, 4).
+//! The two newest git identity generations by grant number (protocol/credentials-git-identities.md, 1).
 use alloc::boxed::Box;
 use skein_lib::{List, Map, Secret, Time};
 use temper_worker_protocol_git::Identity;

@@ -6,8 +6,7 @@
   engine world calls the shared checks; the worker's adapter is
   `worker.status.md`'s. 6.2: no engine world but the engine's forge world
   keeps a fault ledger, draws from the seed's streams or sweeps with
-  configured faults and exclusions, and no check holds the 3.3 failure
-  table's rows for runs.
+  configured faults and exclusions.
 
 - **Departs:** 1: eighteen named real-loop stories remain in the fuzzy
   suite: sixteen scripted stories (fourteen reference-case stories,
@@ -35,7 +34,7 @@ fake forge; no real model or real forge is proved by it. `checks.md`, section 5.
 reference obligations retain their current charter words; folding in the
 goal-as-designer workflow remains in `README.md`, section 7.
 
-`README.md`, section 2.1 has no known gap in the merge job's story:
+`tiers.md`, section 1.1 has no known gap in the merge job's story:
 `a_changes_merge_job_runs_on_its_worker` (`tests/system/tests/suite/merge_job.rs`)
 runs a change's merge job in the composed world, both roots declaring the
 kind as production does (`temper-service`'s `limits::job_kinds` and
@@ -68,7 +67,7 @@ Sections 4 and 5.3 have no gap in scripted note-backed proposals and single-revi
 
 `macos.md`, section 3 lists the killed-box lifetime test as Linux-only, matching its
 parent-death mechanism. The combined default-runner browser and terminal
-proof is not established by the supplied inventory (`../protocol/setup/box.status.md`, 1 and 2, and `../protocol/setup/testing.status.md`, 4
+proof is not established by the supplied inventory (`../protocol/setup/box.status.md`, 1, and `../protocol/setup/box-supervision.status.md`, 1, and `../protocol/setup/testing.status.md`, 4
 ); the existing real-box sign-in story still awaits its
 after-landing execution (`../protocol/openid-provider.status.md`, 9).
 

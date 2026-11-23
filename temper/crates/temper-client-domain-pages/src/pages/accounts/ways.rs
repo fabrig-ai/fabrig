@@ -1,4 +1,4 @@
-//! Offered ways, in provider order (client/pages/README.md and client/pages/accounts.md, 2).
+//! Offered ways, in provider order (client/pages/README.md and client/pages/accounts-words.md, 1).
 use jig_client::contract as c;
 use skein_lib::List;
 

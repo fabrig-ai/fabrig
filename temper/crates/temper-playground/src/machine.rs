@@ -83,7 +83,7 @@ impl<H: Host> Host for SignalHost<H> {
 }
 
 // Agent roots bind to Start's workspace before the agent uses its supplied descriptor
-// (temper/docs/design/testing/README.md, 2.5).
+// (temper/docs/design/testing/tiers.md, 1.5).
 #[derive(Default)]
 struct Roots {
     next: u64,

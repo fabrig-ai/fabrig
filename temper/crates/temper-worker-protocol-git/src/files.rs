@@ -1,4 +1,4 @@
-//! Kernel steps beneath the worker's root, with one submission per machine (protocol/git.md, 4.1).
+//! Kernel steps beneath the worker's root, with one submission per machine (protocol/git-operations.md, 1.1).
 use crate::{Limits, Settings, invocation, output::Markers, sequence::Next};
 use alloc::boxed::Box;
 use skein_io::kernel::{self, Error, Fd, Op, OpenHow};

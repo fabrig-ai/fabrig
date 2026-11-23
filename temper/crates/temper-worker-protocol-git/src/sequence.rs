@@ -1,4 +1,4 @@
-//! Fixed git sequences and the run's disposable view (protocol/git.md, section 4).
+//! Fixed git sequences and the run's disposable view (protocol/git-operations.md, section 1).
 use crate::{
     invocation::{self, Command, Source},
     output::{self, Status},
@@ -6,7 +6,7 @@ use crate::{
 use alloc::boxed::Box;
 use temper_worker_domain_checkout::{self as checkout, git};
 
-/// Pack bound (temper/docs/design/protocol/git.md, 4.14).
+/// Pack bound (temper/docs/design/protocol/git-operations.md, 1.14).
 const PACKS: u32 = 50;
 
 /// The next step after an invocation has settled and closed.
@@ -507,7 +507,7 @@ fn format(stdout: &[u8]) -> Option<invocation::Format> {
         }
     }
 }
-/// The operations that move the worker's metadata (protocol/git.md, 4.13).
+/// The operations that move the worker's metadata (protocol/git-operations.md, 1.13).
 pub(crate) fn view_place(op: &git::Op) -> Option<&git::Place> {
     match op {
         git::Op::Clone { at, .. }
@@ -530,7 +530,7 @@ pub(crate) fn view_place(op: &git::Op) -> Option<&git::Place> {
         | git::Op::Reds { .. } => None,
     }
 }
-/// Whether the terminal still has a view to write (protocol/git.md, 4.13).
+/// Whether the terminal still has a view to write (protocol/git-operations.md, 1.13).
 pub(crate) fn views(op: &git::Op, done: &git::Done) -> bool {
     match done {
         git::Done::Failed { .. } | git::Done::FailedWithOutput { .. } => false,
@@ -550,7 +550,7 @@ pub(crate) fn views(op: &git::Op, done: &git::Done) -> bool {
         | git::Done::Rejected => view_place(op).is_some(),
     }
 }
-/// Append the view once, only to a nonfailed terminal (protocol/git.md, 4.13).
+/// Append the view once, only to a nonfailed terminal (protocol/git-operations.md, 1.13).
 #[must_use]
 pub(crate) fn ending(op: &git::Op, done: git::Done) -> Next {
     if views(op, &done) { Next::View { done: Box::new(done), retry: false } } else { Next::End(done) }

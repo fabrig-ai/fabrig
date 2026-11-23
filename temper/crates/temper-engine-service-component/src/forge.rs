@@ -1,4 +1,4 @@
-//! The forge component's boundary to the engine (protocol/README.md, 4).
+//! The forge component's boundary to the engine (protocol/service-routing.md, 1).
 pub(crate) mod github;
 pub(crate) mod gone;
 pub(crate) mod origins;

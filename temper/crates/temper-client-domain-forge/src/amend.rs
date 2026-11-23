@@ -1,4 +1,4 @@
-//! A task's controls as read, and whole replacements for its edits (client/README.md, 3.7).
+//! A task's controls as read, and whole replacements for its edits (client/root.md, 1.7).
 use jig_client::contract as c;
 use skein_lib::{List, Wall};
 

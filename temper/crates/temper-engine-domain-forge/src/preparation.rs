@@ -1,4 +1,4 @@
-//! The worker's per-member prepare outcomes (domain/landing.md, 5.2).
+//! The worker's per-member prepare outcomes (domain/landing-prepare.md, 1.2).
 use alloc::boxed::Box;
 use skein_json::{Kind, document::Document};
 use skein_lib::List;

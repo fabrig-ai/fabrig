@@ -1,0 +1,41 @@
+# The first split pass (temper/docs/design/draft/design-upkeep.md, 4.3): the browser's client and the journeys' documents.
+
+# The browser keeps its overview; each shell contract stands beside it.
+title temper/docs/design/client/web/shell.md: The browser's shell
+temper/docs/design/client/web/README.md 2.1 -> temper/docs/design/client/web/shell.md 1
+title temper/docs/design/client/web/serving.md: Serving the browser
+temper/docs/design/client/web/README.md 2.2 -> temper/docs/design/client/web/serving.md 1
+title temper/docs/design/client/web/addresses.md: The browser's addresses
+temper/docs/design/client/web/README.md 2.3 -> temper/docs/design/client/web/addresses.md 1
+title temper/docs/design/client/web/sign-in.md: Signing in through the browser
+temper/docs/design/client/web/README.md 2.4 -> temper/docs/design/client/web/sign-in.md 1
+title temper/docs/design/client/web/bundle.md: The browser's bundle in the binary
+temper/docs/design/client/web/README.md 2.6 -> temper/docs/design/client/web/bundle.md 1
+title temper/docs/design/client/web/push.md: Being pushed in the browser
+temper/docs/design/client/web/README.md 2.7 -> temper/docs/design/client/web/push.md 1
+
+# Contiguous groups of the gallery's table, named in the preparation commit.
+title temper/docs/design/client/web/gallery-project-states.md: The gallery's project and settings states
+temper/docs/design/client/web/gallery.md 2.1 -> temper/docs/design/client/web/gallery-project-states.md 1
+title temper/docs/design/client/web/gallery-journey-states.md: The gallery's journey and interaction states
+temper/docs/design/client/web/gallery.md 2.2 -> temper/docs/design/client/web/gallery-journey-states.md 1
+
+# Each larger page's look, beside the shared look's foundations.
+title temper/docs/design/client/web/look-welcome.md: The welcome's look
+temper/docs/design/client/web/look.md 4 -> temper/docs/design/client/web/look-welcome.md 1
+title temper/docs/design/client/web/look-settings.md: Settings and accounts' look
+temper/docs/design/client/web/look.md 6 -> temper/docs/design/client/web/look-settings.md 1
+title temper/docs/design/client/web/look-chats.md: Chats and their documents' look
+temper/docs/design/client/web/look.md 10 -> temper/docs/design/client/web/look-chats.md 1
+temper/docs/design/client/web/look.md 17 -> temper/docs/design/client/web/look-chats.md 2
+title temper/docs/design/client/web/look-ways.md: Ways of working's look
+temper/docs/design/client/web/look.md 11 -> temper/docs/design/client/web/look-ways.md 1
+
+# Recording and replay are one contract, separate from walks and their prints.
+title temper/docs/design/client/web/journeys-recordings.md: Recording and replaying journeys
+temper/docs/design/client/web/journeys.md 3 -> temper/docs/design/client/web/journeys-recordings.md 1
+temper/docs/design/client/web/journeys.md 4 -> temper/docs/design/client/web/journeys-recordings.md 2
+
+# The world that executes a walk, beside its grammar and program.
+title temper/docs/design/client/journey-walks-world.md: A journey's walk in a world
+temper/docs/design/client/journey-walks.md 4 -> temper/docs/design/client/journey-walks-world.md 1

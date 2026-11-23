@@ -1,4 +1,4 @@
-//! A prepare's in-flight rewrite is its own (domain/landing.md, 5.2).
+//! A prepare's in-flight rewrite is its own (domain/landing-prepare.md, 1.2).
 //! Keeps compare with the original head; prepare instead needs the requested main.
 use super::{Domain, child, drift, from_client, record_change_head};
 use crate::{DriftChange, Limits, Request};

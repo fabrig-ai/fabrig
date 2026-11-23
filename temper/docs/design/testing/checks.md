@@ -28,7 +28,7 @@ Every world checks what the strategy lists (skein/docs/foundation/testing-strate
   also compare their complete `Debug` text, retaining checks of what
   `Hash` omits, a difference again a returned finding, before both close
   through the cold restart oracle. A test of the comparison reads its
-  finding (`README.md`, 4.2).
+  finding (`scenarios.md`, 1.2).
 - **Secrets stay beside the domains:** in every world with the protocol
   layer, no git identity's value or API token appears in a domain's
   state, a fact, a store record or a log; the fake git program checks
@@ -177,7 +177,7 @@ world of temper's on a scripted engine (../client/testing.md).
   engine root alone.
 - **The agents' tools** run there too: their root, as a scripted agent
   beside the fake person (../client/ctl/testing.md, 2).
-- **The TUI's host** runs there too (../client/tui/README.md, 3): its
+- **The TUI's host** runs there too (../client/tui/host.md, 1): its
   shipped host with its root linked, as a native shell holds it, whose
   exchanges and stream the world's front carries to the engine's
   clients' component as the transport would, signed in by the printed
@@ -224,14 +224,14 @@ each behaviour in the lowest world that owns it, and one smoke above:
 | the engine's domain world (`tests/engine/domain`) | through the root and the core on jig's store: a change naming a landing rule and a charter committed in one decision, and refused whole when the forge refuses its rule; a project's rule changed by its owner, refused as not theirs for another; a new forge's charter reaching the next change's delegates while a live change keeps its own; a project made after the first start covered by the deployment's rule; the two requirements removed from the rules, landing left to the procedure's waits; the resume fixture restarting with changed values. A stored settings policy and a stored project policy, each admitted under a larger policy allowance and committed through the real store, refuse a cold start under the smaller allowance naming the setting or project; a policy at the bound is admitted in its own story. Root and store use the same test envelope, including sufficient journal and page bytes. | about 0.6 s |
 | the engine's domain world, configuring by Ask temper (`../domain/agent/agents.md`, 1 and `../domain/agent/ask-temper.md`) | scripted runs of charter 11 from template 5: an owner's chat proposing and its acceptance heard; a member's, waiting for an owner; one withdrawn as stale, read again and proposed afresh; one rejected with a reason and revised; one accepted with running work moved; `see` reads of each kind, a held charter, a revision and the history, each part within its bound; `propose_settings` refused for a stale revision and for an item out of shape; a run with no `settings` family refused by its authority. The settings family's own tools, which no stock charter is declared (`../domain/agent/tools.md`), keep their stories on a charter of the world's own holding that family: the `settings` read's offsets and pages, a proposal from a note, the note's refusals and its replay, `more` refused to a charter that is not asking, and a rule refused at acceptance | about 0.5 s, its stories at the world's usual cost |
 | the engine's domain world, Ask temper's configuring reads (`../domain/agent/agents.md`, 1, and `../domain/agent/ask-temper.md`, 1) | scripted runs of charter 11: a project's ways and questions read at their stock with none stored, and as stored once a change sets them; a read that finds nothing, answered not read; the inventory's people, its own project's alone, the person and temper's writer marked; a member's chat reads what an owner's does and a run without the settings family is refused; an approval's refusal naming no command | its stories at the world's usual cost, not measured apart |
-| the engine's domain world, a box's approval identities (`../domain/agent/agents.md`, 1; `../domain/forge/adoption.md`, 6) | on a box whose owned Forgejo's `Reconcile` answered the person's id, and on one whose manifest-made App's account is the person's: the inventory names the person's forge account by the link; their owner-role rule with `people: 1` is accepted, and `people: 2` refused naming the forge; a link cleared when the deployment has a second owner, and the rule then refused. On a deployment of several members, and on a pasted App, the requester without a forge identity is refused as before, and accepted once a human collaborator is adopted as admin. The script checks context and outcomes, not a real model's judgement | within the domain world's focused budget |
+| the engine's domain world, a box's approval identities (`../domain/agent/agents.md`, 1; `../domain/forge/adoption-person.md`, 1) | on a box whose owned Forgejo's `Reconcile` answered the person's id, and on one whose manifest-made App's account is the person's: the inventory names the person's forge account by the link; their owner-role rule with `people: 1` is accepted, and `people: 2` refused naming the forge; a link cleared when the deployment has a second owner, and the rule then refused. On a deployment of several members, and on a pasted App, the requester without a forge identity is refused as before, and accepted once a human collaborator is adopted as admin. The script checks context and outcomes, not a real model's judgement | within the domain world's focused budget |
 | the engine's domain world, a box's approval waiting (`../domain/forge/change/questions.md`, 2) | on a box whose forge links its person and whose rule of theirs is accepted, as in the box's approval identities, on each forge it links: a change made and stepped to its merge waits on the person's approval; the person's `approvals` document holds its row, theirs to give, while a second party of another project reads none; the linked user's review approving it at the head is posted on the fake forge; the row goes as the merge is admitted, and the change lands. The read's rows by state, head and role are the root's and the forge's step tables | within the domain world's focused budget, steps of an existing story |
 | the engine's domain world, a charter's documents (`../protocol/configuration/settings.md`, 6) | through the core's plan, the root's binding and the forge's gather: a run of a charter naming a document gets its section at the branch's head; after a change lands that edits the file, the next run's section has the new text; a heading's part alone; a missing file, heading or repository, a section saying so and the run going on. The gather's own cases (a heading's bounds, a cut at a line end, each section saying why) are the forge crate's step tests | about 0.1 s, four stories |
 | fuzzy, in an existing sweep | one operation in the forge world's `suite::fuzzy::simulation`: random changes of landing rules among the changes stepping and merging; its referee holds that no merge lands without each requirement of the rules held at its decision | within the forge world's layer's fuzzy budget (1), measured with it; no new binary |
 | the client and the engine, joined (3) | Ask temper's page, and `chat start --template 5` through ctl, starting Ask temper, whose run of charter 11 proposes; "How work runs" read at its defaults and after a change, with its revisions in use; a proposal's review page split into temper enforces and your agents follow, with its effect; one accepted, making a revision; one withdrawn as stale; a member's, waiting for an owner | about 0.4 s, within the system worlds' focused budget (1) |
-| the one-process world (`README.md`, 2.5) | its fixture's document without the six members; its restart story with one change of settings before it | no new story |
+| the one-process world (`tiers.md`, 1.5) | its fixture's document without the six members; its restart story with one change of settings before it | no new story |
 | the real loop (`real-loop.md`) | one smoke: a gate added to a project's landing rule from the client, the next change asking for its review and landing after it | at most 2 s, its guide, within the real loop's focused budget (1) |
-| the system world (`README.md`, 2.1) | running work keeping its revision, and `revision advance` moving it, one story (`../client/ctl/testing.md`, 4) | at most 2 s, a world story's aim (1) |
+| the system world (`tiers.md`, 1.1) | running work keeping its revision, and `revision advance` moving it, one story (`../client/ctl/testing.md`, 4) | at most 2 s, a world story's aim (1) |
 | the process tier | Owned Forgejo gates, real signals and process-tree supervision only (`process-tier.md`). Settings reads, proposals, owner decisions and held revisions use the CLI machine, core and system worlds. | process-temper; one focused wiring smoke |
 
 - **The tests that move:** every test document and typed builder that
@@ -427,7 +427,7 @@ minutes.
 
 After the acceptance, the pass collects what the check reads into one
 directory, with `temper-stage-one collect`, through `temper ctl`'s
-reads alone (`../client/ctl/tools.md`, 3): the revision's record; its
+reads alone (`../client/ctl/tools-acts.md`, 1): the revision's record; its
 items, each value whole, as a settings file; every setting's current
 value, the project's policy and temper's kinds among them, as a
 settings file; the proposal's review and the chat, as text. The pass
@@ -489,7 +489,7 @@ one complete accepted revision, with refusal and decided-call replay cases (4).
   that closes, in the same branch.
 - **Tested in the gate as a tool is:** the crate's own step tests, in
   milliseconds: the golden decodes, and each setting obligation's member
-  resolves in the settings form's `FIELDS` (`../client/ctl/tools.md`, 3)
+  resolves in the settings form's `FIELDS` (`../client/ctl/tools-acts.md`, 1)
   and in the profile; the check over evidence made from the profile
   itself, as if the agent had proposed it, passes with every setting met,
   and with the profile's charters renumbered still passes; each failure
@@ -507,7 +507,7 @@ one complete accepted revision, with refusal and decided-call replay cases (4).
 Written from `../draft/failure-worlds.md`, sections 3, 5 and 6. Each
 check is a referee expectation, which observes only what the fakes saw,
 the facts the engine and the worker emit and the durable records
-(`README.md`, 4.2); a harness invariant, which reads a component's frozen
+(`scenarios.md`, 1.2); a harness invariant, which reads a component's frozen
 state through its inspection adapter (skein's `testing/inspection.md`);
 or a settings test, outside every world. Each returns its finding, naming
 the object, the moment and the seed.
@@ -549,7 +549,7 @@ landing's or a change's wait and a task's resolve across inspections.
     store, and an operation in flight, a workspace's fetch among them. A
     check waiting for a build place is the domain world's fake builder's,
     inspected beside the worker, since build places are the deployment's
-    (`../domain/worker/README.md`, 5).
+    (`../domain/worker/agent-processes.md`, 1).
   - **Tables:** workspaces and per-run scratch, released by the run's end
     or the workspace's release; prepare permits; the Git stores' packs,
     released by the packing their own counts trigger; git's locks; run
@@ -575,7 +575,11 @@ landing's or a change's wait and a task's resolve across inspections.
   commits, and the request.
 - **The failure table** of the draft's 3.3, each failure class's
   expected transition on each counter, is held by temper's 3.3 check,
-  beside the gates' and the runs' blame (`blame.md`).
+  beside the gates' (`blame.md`) and the runs' blame. For runs it has two halves:
+  smith's worlds hold the retries and the run's end
+  (`smith/docs/design/faults.md`, 4), since smith names no temper and
+  its worlds run the runs; the system world holds the task tries and
+  the holds, and calls smith's half beside them (6.3).
 - **Streams** (skein's `testing/sweeps.md`, 2): a world that sweeps
   seeds its workload (goals, items, trees and scripts) from `Workload`;
   each injector from its own part of `Faults` (`forge`, `llm`, `worker`,
@@ -586,3 +590,68 @@ landing's or a change's wait and a task's resolve across inspections.
   ignored scenarios of the draft's section 7. A condition an exclusion
   names is read through the adapters of 6.1, or from the world's own
   state, at the moment the fault would be injected.
+
+### 6.3 Blame for runs, and an account's faults, in the system world
+
+Written from `../draft/failure-worlds.md`, 3.3 for runs, 3.4, 5 and
+the catalog's P26, S1 and P126 rows. The faults are skein's fake LLM's account strikes
+(skein's `testing/fakes/llm.md`, 2.7); smith's worlds hold the rest of
+the providers' faults (`smith/docs/design/faults.md`).
+
+- **Two accounts:** the composed system world (`tiers.md`, 1.1) can
+  give its fake LLM two accounts, each with a key source, each of its own
+  party, so that each party's goal runs on its own account. The queries
+  its agents make carry their account's credential index (skein's
+  `testing/fakes/llm.md`, 2.7), which the agent world's kit fills from
+  the run's account. Its one account with two sources
+  (`World::two_source_chat`) stays for the stories that use it.
+- **The account case,** `an_account_fault_holds_only_its_goals`, a fuzzy
+  test (`tests/suite/fuzzy/accounts.rs`). Each seed draws from `Faults`,
+  part `llm`, one of spent credits, an expired sign-in and a rate window,
+  the account it strikes, the step of the struck goal's run at which it
+  falls, and whether it is cleared at a later step; each party runs a
+  goal; the world records each fault in its ledger, and holds:
+  - **3.3 for runs:** no task try is spent for the fault:
+    `Counter::TaskTries`, counted from jig's failed attempts
+    (`jig/docs/design/domain/tasks/lifecycle.md`, 6) of the struck
+    account's tasks within the fault's interval, stays at zero; spent
+    credits or an expired sign-in that is never cleared holds the struck
+    goal's tasks with words naming the account
+    (`jig/docs/design/domain/accounts.md`, 3.5); and smith's
+    half, by `smith_faults::Runs::judge` over the runs' attempts and ends
+    (`smith/docs/design/faults.md`, 4).
+  - **3.4:** the other account's goal lands as if the fault weren't
+    there, within its bound; the struck goal ends within its bound past
+    the clear, or, spent credits or a sign-in never cleared, is held
+    naming the account. A rate window, cleared or not, lets each window's
+    first prompt through, and it is shorter than the first backoff, so a
+    retry meets a fresh window: the struck goal ends within the same
+    bound, whether or not the window is ever cleared.
+  - **Each fault it configures fell** (`Sweep::check_fell`), over the
+    seeds its budget allows.
+
+  Its exclusions name only the ignored scenarios below, by their narrow
+  conditions, where the case meets their combinations. A rate window is
+  drawn shorter than the session's shortest first backoff: a longer one
+  is P127's combination, whose scenario, `a_rate_window_is_waited_out`,
+  is smith's, and an exclusion names a scenario of its own tree
+  (skein's `testing/sweeps.md`, 5), so smith's sweep excludes it there.
+- **The scenarios,** in `tests/suite/accounts.rs`; the open ones are
+  `#[ignore = "provider failures: ..."]`:
+  - `a_limited_account_frees_its_tasks` (P26): two accounts of one
+    holder; the one its tasks use is limited with no reset; its tasks
+    choose again on the other, and their goal lands;
+  - `spent_credits_stop_placement` (S1): `insufficient_quota` on an
+    account marks it, and no run is placed on it afterwards, while the
+    other account's go on; it passes, and is enabled, an active
+    regression;
+  - `an_unserved_model_moves_the_task` (P126): a model refused for an
+    account narrows that account's models, and the task chooses again
+    and runs.
+
+  The draft's rows name smith's session world for S1 and P126: their
+  assertions are jig's placement and an account's models, which only
+  this world runs with smith's agents, so their scenarios are here. A
+  scenario that passes today shows no open problem: it stays enabled, as
+  an active regression, and the draft's row moves to its held list, as
+  S1's has.

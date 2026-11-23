@@ -53,7 +53,7 @@ names it. Section 2 is the directory, 3 the format, 4 the chain's hash,
 - **`recipe`:** section 3's text, at most 64 KiB.
 - **`scripts.json`,** where it has its own: the fake model's scripts it
   adds to its parents', in the box's `--scripts` form
-  (`../protocol/setup/box.md`, 5), an object of `cued`, `asked` and
+  (`../protocol/setup/box-backends.md`, 1), an object of `cued`, `asked` and
   `otherwise`, each optional. The scripts cover its own steps and,
   where its cases go on past its state, theirs
   (`../draft/landed-qa.md`, 6).
@@ -115,7 +115,7 @@ recipe's own `files/`, just as `forge commit` (`drive.md`, 3.5).
   (`drive.md`, 3.3).
 - **The check** is every line after `check`, where the recipe has one:
   each a `ctl` line, which its author keeps to reads and waits
-  (`ctl/tools.md`, 2 and 4), so that its failure is the state's absence,
+  (`ctl/tools-reads.md`, 1, and `ctl/tools-waiting.md`, 1), so that its failure is the state's absence,
   or a `see`; a `forge` or `deployment` line there refuses the recipe,
   naming it. With no `check`, the check is
   the trailing run of `web see` and `tui see` lines, as before; a `see`

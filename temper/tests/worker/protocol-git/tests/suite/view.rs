@@ -1,4 +1,4 @@
-//! The view's recovery and file-operation lifecycle (protocol/git.md, 4.13).
+//! The view's recovery and file-operation lifecycle (protocol/git-operations.md, 1.13).
 use temper_worker_domain_checkout::git;
 use temper_worker_protocol_git_world::{
     fixtures,

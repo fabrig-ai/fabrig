@@ -5,7 +5,7 @@
 - **Design lags:**
   - 8: `../protocol/configuration/moved.md`, 1, refuses every moved member, and no build reads one. From 2026-11-20 a member that moves is read from its old place too, with a warning, until dev.fabrig.ai runs a build that reads the new form; the members that moved before then stay refused.
   - 5.2: jig's stock holds 16 charter versions besides the newest's (`core.settings.versions`), under twice dev.fabrig.ai's 19, so a start over dev's store is refused; N10 sets it to `live_goals`.
-  - 5.2: `../protocol/configuration/limits.md`, `forge.changes`, and `../protocol/store.md`, section 4, cap `forge.changes` at 379 by the tier rows' ceiling of 759 and keep a failing test's id within 4 KiB; `forge.tiers.test_id_bytes` is 256.
+  - 5.2: `../protocol/configuration/limits.md`, `forge.changes`, and `../protocol/store-versions.md`, section 1, cap `forge.changes` at 379 by the tier rows' ceiling of 759 and keep a failing test's id within 4 KiB; `forge.tiers.test_id_bytes` is 256.
   - 6.1: `../protocol/configuration/limit-settings.md`, section 5, takes a raise at once of five figures alone, `transcript_memory`, `forge.tasks`, `forge.holds`, `forge.entries` and `forge.client.entries`; every other count and time bound, jig's all among them, takes a raise at the next start, by 11's default, since its holders size their tables or copy it at construction (its section 11).
   - 7: `../protocol/configuration/derived.md` derives the turn's, the payload's and the clients' carriers and a worker's places, but not the graces, and not the engine's limits on workers from the workers' settings.
 - **Design departs:**

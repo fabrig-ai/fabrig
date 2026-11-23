@@ -10,7 +10,7 @@
   `../pages/README.md`, *Goals*: the empty Goals-page gap remains `../pages/work.status.md`, 1.
    the Forget request remains `records.status.md` (Not yet).
   `../pages/README.md`, *Ready*: the unhandled Ready endings remain `../pages/welcome.status.md`, 1.
-   the plan's first-use card remains `../pages/accounts.status.md`, 2.
+   the plan's first-use card remains `../pages/accounts-words.status.md`, 1.
   `../pages/README.md`, The welcome:
   the welcome role-scope gap remains `../pages/welcome.status.md`, 1.
   the unfinished-forge name remains `records.status.md` (Not yet). the restarted GitHub setup continuation remains `records.status.md` (Not yet).

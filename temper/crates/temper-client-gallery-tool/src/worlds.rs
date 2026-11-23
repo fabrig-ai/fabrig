@@ -3808,7 +3808,7 @@ fn activity(w: World, task: u64) -> c::ActivityPage {
     }
     c::ActivityPage { rows, after: None, before: None, cut: false }
 }
-/// Held facts for the usage gallery; no account read is simulated (client/pages/accounts.md, 2, Usage).
+/// Held facts for the usage gallery; no account read is simulated (client/pages/accounts-words.md, 1, Usage).
 #[expect(
     clippy::type_complexity,
     reason = "literal gallery windows keep their served rate beside the held fact fields"

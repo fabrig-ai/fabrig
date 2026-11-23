@@ -19,6 +19,8 @@
 
 pub mod backend;
 
+mod faults;
+
 pub mod fixture;
 
 pub mod host_referee;
@@ -47,8 +49,8 @@ pub use limits::{BUDGET, LIMITS, TIGHT};
 pub use script::{JOBS, Job};
 
 pub use world::{
-    Boundary, CompletionObservation, CompletionTerminal, DeliverySubmission, HostReply, HostSchedule, Settings, World,
-    delivered, world,
+    AccountNotice, Boundary, CompletionObservation, CompletionTerminal, DeliverySubmission, HostReply, HostSchedule,
+    Settings, World, delivered, world,
 };
 
 /// Build the scripted fake provider used by agent and local-host worlds.

@@ -1,4 +1,4 @@
-//! Per-origin directories and the move from the TUI's flat directory (client/tui/README.md, 2).
+//! Per-origin directories and the move from the TUI's flat directory (client/tui/directory.md, 1).
 use super::Refused;
 use skein_lib::Secret;
 use std::{

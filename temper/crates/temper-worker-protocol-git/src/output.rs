@@ -1,4 +1,4 @@
-//! Machine output and failure tails (protocol/git.md, sections 4 and 6).
+//! Machine output and failure tails (protocol/git-operations.md, section 1, and protocol/git.md, section 6).
 use crate::{Version, invocation};
 use alloc::boxed::Box;
 use skein_lib::{List, bytes};
@@ -22,7 +22,7 @@ fn split(input: &[u8], delimiter: u8) -> Option<(&[u8], &[u8])> {
     Some((input.get(..at)?, input.get(at.checked_add(1)?..)?))
 }
 
-/// The one decimal packs line from bounded count-objects stdout (protocol/git.md, 4.14).
+/// The one decimal packs line from bounded count-objects stdout (protocol/git-operations.md, 1.14).
 #[must_use]
 pub fn packs(stdout: &[u8]) -> Option<u32> {
     let mut found = None;
@@ -175,7 +175,7 @@ pub(crate) fn design_paths(stdout: &[u8], checkout: &checkout::Limits, markdown:
     paths.finish()
 }
 
-/// The first checkout-bounded paths, dropping a last incomplete path (git.md, 4.6).
+/// The first checkout-bounded paths, dropping a last incomplete path (protocol/git-operations.md, 1.6).
 #[must_use]
 pub(crate) fn conflict_paths(stdout: &[u8], checkout: &checkout::Limits) -> Option<Box<[Box<[u8]>]>> {
     listed_paths(stdout, checkout, true)

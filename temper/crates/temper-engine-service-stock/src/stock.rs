@@ -369,7 +369,7 @@ const ASK_FIRST_CHOICES: &[&[u8]] = &[b"claude-opus-5-5", b"gpt-6-astra", b"gpt-
 pub const PERIOD_SPAN: Duration = Duration::from_secs(7 * 24 * 60 * 60);
 
 /// Delegate (`change` and `delegate`), Message (delegates' questions and answers)
-/// Control (a goal's `change` names its plan's members; temper/docs/design/domain/agent/tools.md, 1),
+/// Control (a goal's `change` names its plan's members; temper/docs/design/domain/agent/tools-change.md, 1),
 /// Note and Recall (a chat keeps its document, a goal writes its report; temper/docs/design/domain/agent/agents.md, 3),
 /// Read (the forge's reads), Settings (Ask temper proposes)
 /// and Ask (Ask temper reads by address), jig's families (jig's `domain/authority.md`);
@@ -1085,7 +1085,7 @@ fn review_rule() -> temper_engine_domain_forge::settings::LandingRule {
 }
 
 /// The welcome's default comes from the box flag at each start
-/// (temper/docs/design/protocol/configuration/settings.md, 2).
+/// (temper/docs/design/protocol/configuration/settings-kinds.md, 1).
 #[must_use]
 pub fn with_welcome(
     stock: Box<[temper_engine_domain_forge::settings::Stock]>,

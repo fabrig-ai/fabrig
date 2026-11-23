@@ -20,6 +20,7 @@ mod jobs;
 mod nesting;
 mod pool_waiting;
 mod prefix;
+mod provider_faults;
 mod referee;
 mod render;
 mod replay;
@@ -31,5 +32,6 @@ mod workspace;
 mod world_fakes;
 
 mod fuzzy {
+    mod faults;
     mod pool;
 }

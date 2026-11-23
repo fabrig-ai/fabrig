@@ -18,7 +18,7 @@ use skein_lib::{List, ReplyTo, Token, Wall};
 use temper_engine_domain_forge as forge;
 
 /// A complete claim's assignment, root to worker after durability; its
-/// brief sections are bounded by brief limits (domain/root.md, 6.1 and 6.2).
+/// brief sections are bounded by brief limits (domain/root-translation.md, 2.1 and 2.2).
 /// The protocol layer encodes it as the hub's assignment, with the forge
 /// workspace beside it as temper's application part (jig's
 /// `protocol/channel/README.md`, 5.2).
@@ -365,7 +365,7 @@ pub enum FindingCall {
     },
 }
 
-/// One change of a `change` call (domain/agent/tools.md, 1).
+/// One change of a `change` call (domain/agent/tools-change.md, 1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ChangeCall {
     pub words: Box<[u8]>,
@@ -402,28 +402,28 @@ impl ChangeCall {
     }
 }
 
-/// A change's landing choice (domain/agent/tools.md, 1).
+/// A change's landing choice (domain/agent/tools-change.md, 1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum ChangeLanding {
     Goal,
     Branch(Box<[u8]>),
 }
 
-/// How a change takes its agents' questions (domain/agent/tools.md, 1).
+/// How a change takes its agents' questions (domain/agent/tools-change.md, 1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum ChangeQuestions {
     None,
     Up,
 }
 
-/// A change's branch choice (domain/agent/tools.md, 1).
+/// A change's branch choice (domain/agent/tools-change.md, 1).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum ChangeBranch {
     /// Its requester's held branch: the goal branch it holds in the change's repository.
     Mine,
 }
 
-/// A change's dependency within a call (domain/agent/tools.md, 1).
+/// A change's dependency within a call (domain/agent/tools-change.md, 1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum ChangeAfter {
     Task(u64),
@@ -507,7 +507,7 @@ pub enum Event {
     Party(PartyInput),
     Account(accounts::Event),
     /// A generation named by temper's own credential source for one numbered
-    /// application credential, a repository's git identity (domain/root.md, 6.1).
+    /// application credential, a repository's git identity (domain/root-translation.md, 2.1).
     Credential {
         number: u32,
         generation: u64,
@@ -649,20 +649,20 @@ pub enum Missing {
     Commit,
 }
 
-/// An observation of the root, which decides nothing (domain/root.md, 3 and 6.4).
+/// An observation of the root, which decides nothing (domain/root.md, 3, and domain/root-translation.md, 2.4).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Fact {
-    /// A forge table full past its bound or free again (protocol/README.md, 6.3).
+    /// A forge table full past its bound or free again (protocol/service-process.md, 1.3).
     ForgeTable {
         words: Box<[u8]>,
     },
-    /// A start step past the report bound (protocol/README.md, 6.3).
+    /// A start step past the report bound (protocol/service-process.md, 1.3).
     StartWaiting {
         step: jig_domain_core::start::Phase,
         age: skein_lib::Duration,
         waits: Box<[u8]>,
     },
-    /// A forge's link changed or was refused (temper/docs/design/domain/forge/adoption.md, 6).
+    /// A forge's link changed or was refused (temper/docs/design/domain/forge/adoption-person.md, 1).
     ForgeLink {
         forge: u16,
         note: forge::LinkNote,
@@ -731,7 +731,7 @@ pub enum Fact {
         attempt: u64,
         preparation: Preparation,
     },
-    /// The core refused a procedure's step; the root decides nothing (domain/root.md, 3 and 6.4).
+    /// The core refused a procedure's step; the root decides nothing (domain/root.md, 3, and domain/root-translation.md, 2.4).
     StepRefused {
         task: u64,
         step: u64,
@@ -1086,7 +1086,7 @@ pub enum Request {
     BoxRemove {
         forge: u16,
     },
-    /// A sent forge entry left without its outcome at the stop bound (domain/root.md, 8.2).
+    /// A sent forge entry left without its outcome at the stop bound (domain/root-restart.md, 1.2).
     Unsettled(Unsettled),
     Bound {
         request: Token,
@@ -1162,7 +1162,7 @@ pub enum Request {
     /// A forge input the drain does not decide, returned to its owner (jig's
     /// `domain/engine/restart.md`, 1).
     Busy(Box<forge::Event>),
-    /// Tell workers after the word is durable and before closing their links (domain/root.md, 8.2).
+    /// Tell workers after the word is durable and before closing their links (domain/root-restart.md, 1.2).
     Restarting {
         wait: skein_lib::Duration,
     },
@@ -1349,7 +1349,7 @@ pub(crate) struct PreparedWorkspace {
 pub(crate) use jig_domain_hub_link::Payload;
 
 /// Temper's connector parts beside the link's prepared assignment
-/// (temper/docs/design/domain/root.md, 6.1).
+/// (temper/docs/design/domain/root-translation.md, 2.1).
 #[derive(Hash, Debug)]
 pub(crate) struct AssignmentParts {
     pub saved: Box<[u64]>,
@@ -1468,14 +1468,14 @@ pub(crate) fn delivery_output(delivery: Delivery) -> Request {
     }
 }
 
-/// A forge write a settling stop left without its outcome (domain/root.md, 8.2).
+/// A forge write a settling stop left without its outcome (domain/root-restart.md, 1.2).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Unsettled {
     pub entry: u64,
     pub task: u64,
 }
 
-/// A failed run's volatile operator evidence (temper/docs/design/domain/worker/README.md, 4.3).
+/// A failed run's volatile operator evidence (temper/docs/design/domain/worker/hosted-runs.md, 1.3).
 /// It is neither a task result nor a fact, and is never journaled or shown to an LLM.
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub struct RunDiagnostic {
@@ -1491,7 +1491,7 @@ pub struct RunDiagnostic {
     pub detail: Box<[u8]>,
 }
 
-/// A refused assignment's volatile operator evidence (temper/docs/design/domain/worker/README.md, 4.3).
+/// A refused assignment's volatile operator evidence (temper/docs/design/domain/worker/hosted-runs.md, 1.3).
 /// It is neither a task result nor a fact, and is never journaled or shown to an LLM.
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub struct RunRefusalDiagnostic {

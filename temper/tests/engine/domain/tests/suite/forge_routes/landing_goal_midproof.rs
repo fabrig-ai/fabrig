@@ -1,5 +1,5 @@
 //! A goal's delivery leaves its proving landing; keys and runs survive the departure
-//! (temper/docs/design/domain/landing.md, 4.3, 6, 7.1 and 15–16).
+//! (temper/docs/design/domain/landing.md, 4.3, and temper/docs/design/domain/landing-proof.md, 1 and 2.1, and temper/docs/design/domain/landing.md, 15–16).
 use super::super::goal_branch::{branch_tip, running_goal_in};
 use super::super::goal_landing::{finish_goal, land_into_goal, mine, row};
 use super::*;

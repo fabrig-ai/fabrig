@@ -1,4 +1,4 @@
-//! The rail waits for the stream's hello (client/README.md, 3.4).
+//! The rail waits for the stream's hello (client/root.md, 1.4).
 use super::fixtures as f;
 use crate::{Address, Event, Request, WorkFilter};
 use jig_client_protocol_wire as w;

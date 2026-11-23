@@ -69,7 +69,7 @@
     Close, on every Ask temper chat that hasn't ended, with or without a
     document: it asks "Start over?", "A new
     Ask temper chat starts. This one stays in Chats." through `crate::confirm`
-    (`../../README.md`, 3.6, *The sheet*), closes the chat with
+    (`../../root.md`, 1.6, *The sheet*), closes the chat with
     the chat's own close, which stays in Chats, Closed, its conversation and
     document kept, and opens `Ask { project }`. The composer's hint gains
     " · Ctrl+\ switches the draft" while the group shows.
@@ -146,8 +146,8 @@
     again; a run that ends with no document leaves the right empty.
   - *"Write it up from this chat"* (the look request `chat-bar`): sends the
     chat the message "Write this up as a draft beside us.", the person's own,
-    shown in the chat as any other: one act, one request (`../../README.md`,
-    3.6). It is the domain's write-up act, `AddDraft`: the chat is writing,
+    shown in the chat as any other: one act, one request (`../../root.md`,
+    1.6). It is the domain's write-up act, `AddDraft`: the chat is writing,
     the pane's right says what its run is doing (*What the run is doing*,
     above) and the button goes, the mode it was pressed in
     kept (from Chat, the terminal look's "+ Draft", it goes to Split,
@@ -164,7 +164,7 @@
     on the engine's, refused in place if over, are "NAME", a blank line, "Implement
     this draft. First commit it, as it stands, at docs/design/draft/SLUG.md.", a blank
     line, the body, a blank line and the line `goal`'s root gives a goal, so that
-    charter 1's instructions read it as a goal (`../../../domain/agent/tools.md`, 2), a
+    charter 1's instructions read it as a goal (`../../../domain/agent/tools-goal.md`, 1), a
     constant the root and the client reach, in `temper-client-protocol-wire`; then
     `../goal.md`, 3's `Draft:` and `Chat:` lines, and `Asks: always` where it is chosen.
   - *Answered:* `../goal.md`, 3's ends; on `Judged::Create` the fact `GoalFrom` is sent (`../../forge/records.md`)
@@ -191,7 +191,7 @@
   write-up mid-run. Owner: temper/ui. Default: each difference a finding
   filed back under the request's trailer.
 
-- **The fresh project's draft flow after landing** (`../README.md`, `../../view.md`, 3, `../settings.md`, 2):
+- **The fresh project's draft flow after landing** (`../README.md`, `../../view-navigation.md`, 1, `../settings.md`, 2):
   checking an Ask temper chat with drafts off, and a fresh chat's draft,
   goal and navigation on a real box. The view tables and `chat-draft`'s
   fake-model journey cover the offers and flow. Default: browser, walk and
