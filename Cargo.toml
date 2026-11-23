@@ -953,6 +953,11 @@ opt-level = 3
 [profile.dev.package.miniz_oxide]
 opt-level = 3
 
+# The store reads every frame through it: optimized, the engine's domain world and jig's core world run
+# 14% and 18% fewer instructions, with the same checks.
+[profile.dev.package.skein-deflate]
+opt-level = 3
+
 [profile.dev.package.crc32fast]
 opt-level = 3
 

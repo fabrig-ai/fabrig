@@ -1,18 +1,33 @@
 """Select and run the small Gate checks in the checked-out landing candidate."""
 from pathlib import Path
+import fnmatch
 import os
 import runpy
 import subprocess
 import sys
 import xml.etree.ElementTree as ET
 
-HOOKS = {'.temper/pre-pr', '.temper/goal-child-pre-pr', '.temper/goal-pre-pr'}
+HOOKS = {'.temper/pre-pr', '.temper/goal-child-pre-pr', '.temper/goal-pre-pr', '.temper/checked-close'}
 PYTHON = ['python3', '-I', '-B']
 SCRIPTS = Path(__file__).resolve().parent
 WORKFLOW = '.forgejo/workflows/gate.yml'
 REPORTING = {'.forgejo/scripts/gate_log.py', '.forgejo/scripts/test_gate_log.py'}
 ROUTING = {'.forgejo/scripts/gate_route.sh', '.forgejo/scripts/gate_scope.py',
            '.forgejo/scripts/gate_validate.py', '.forgejo/scripts/test_gate_routes.py'}
+
+
+# The repository's own tools in Python, shell and prose, which their sibling suites check (tools/*/test_*.py).
+TOOLING_SUFFIXES = ('.py', '.sh', '.md', '')
+
+
+def tooling(path):
+    return path.startswith('tools/') and Path(path).suffix in TOOLING_SUFFIXES
+
+
+def tool_suites(work, paths):
+    """Every suite beside a changed tool, by repository-relative path."""
+    return sorted({str(suite.relative_to(work)) for path in paths
+                   for suite in (work / path).parent.glob('test_*.py')})
 
 
 def route(paths):
@@ -27,6 +42,8 @@ def route(paths):
         return 'full'
     if paths == checker:
         return 'checker'
+    if all(tooling(path) for path in paths):
+        return 'tooling'
     return 'mixed' if checker else 'classify'
 
 
@@ -51,11 +68,19 @@ def checks(work, base, head, reports, execute=subprocess.run):
     if scope in ('checker', 'mixed') or (scope.startswith('gate') and
             any(p in HOOKS or p.startswith('tools/pre-pr/') for p in paths)):
         commands.append(('checker', [*PYTHON, 'tools/pre-pr/test_pre_pr.py']))
+    if scope == 'tooling':
+        # A tool that tests read, or one with no suite beside it, takes the regular route.
+        policy = runpy.run_path(str(work / 'tools/pre-pr/pre_pr.py'))
+        globs = policy['test_input_globs'](work)
+        suites = tool_suites(work, paths)
+        if not suites or any(fnmatch.fnmatchcase(path, glob) for path in paths for glob in globs):
+            return 1
+        commands.extend(('tooling', [*PYTHON, suite]) for suite in suites)
     if scope == 'classify':
         policy = runpy.run_path(str(work / 'tools/pre-pr/pre_pr.py'))
         if policy['code_inputs'](paths, policy['metadata'](work, os.environ), work):
             return 1
-    if scope == 'classify' or scope in ('checker', 'gate') and any(path.endswith('.md') for path in paths):
+    if scope == 'classify' or scope in ('checker', 'gate', 'tooling') and any(path.endswith('.md') for path in paths):
         commands.append(('citations', [*PYTHON, 'tools/citations/citations.py', '--all']))
     report = ET.Element('testsuite', name='preflight')
     failed = []

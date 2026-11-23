@@ -64,7 +64,10 @@ and helpers of the changed packages and their direct dependents using the
 current package map, with the gate's always-run packages
 (`.config/gate/always.txt`) whenever a code input changed, and every package
 when an input every package builds with changed (`Cargo.lock`, the root
-manifest, the toolchain, `.cargo/`, `.config/nextest.toml`). Prose reaches
+manifest, the toolchain, `.cargo/`, `.config/nextest.toml`). A lock that
+moved no package from outside the workspace, or a root manifest that only
+added or removed the workspace's own crates, reaches no more than the
+manifests of the crates that use them. Prose reaches
 tests only where `.config/gate/read-by-tests.txt` or the fixture readers
 declare it. It runs the Python suites of changed Python files alone, runs the
 tests through one-process and judges instruction growth at the goal's base
@@ -699,9 +702,11 @@ hold by its death (`tools/tiers/design.md`, 3).
 
 ### 4.1 The checked close
 
-For each focused package and target group, run `tools/tiers/one-process
---out DIR --fail-fast default --offline --locked --no-tests=warn -p …`
-with the selected target flags. Each DIR is fresh under Cargo's target
+Run the focused packages' selected targets in one `tools/tiers/one-process
+--out DIR --fail-fast default --offline --locked --no-tests=warn -p … -E …`,
+each package's targets named in the filterset, so that the selection builds
+in parallel and its binaries run side by side; a run per group of identical
+target flags paid a build, a listing and a serial pass each. Each DIR is fresh under Cargo's target
 directory. Helper builds and `cargo check` keep their commands. The final
 128 bytes preserve the compiler diagnostic or the first failed or crashed
 case and its panic site and message from `results.json` where available.
@@ -717,8 +722,11 @@ with the sum of their `tests` and `fresh` processes. Carry forward the other
 binaries' base counts. Apply the growth allowance, new move credit and the user's accepted level
 from `tools/tiers/budgets.md`, 8, using the base's counted binaries for the CPU
 sum. Growth beyond the allowance or a crossing of the instruction ceiling
-refuses as `budgets`, with the layer counts, growth, allowance, largest
-growing binaries and repair line.
+(or the accepted level if higher) is reported as `budgets`, with the layer
+counts, growth, allowance, largest growing binaries and repair line, as a
+warning: a worker's counts differ from the gate's by more than the allowance
+(2.2% in a layer a docs-only goal never touched, 2026-11-23), so the landing
+gate alone refuses.
 
 ## 5. Inherited failures
 

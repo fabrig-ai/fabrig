@@ -921,12 +921,12 @@ Relative paths are the caller's working directory's, the checkout root.
 | `pair` | the pair, or `tools` |
 | `verdict` | `over budget`, `starved`, `within budget` (the pair has a table) or `no budget set` |
 | `failures` | `"BINARY_ID TEST_NAME"` for each test whose failure stands (7.3); for tools, `"ID suite"` |
-| `over_budget` | one entry for each CPU budget passed, naming its test or suite, and with `gate` each layer with a red finding (`tools/tiers/budgets.md`, 4 and 8); with a ledger, each binary with a coverage loss (`tools/tiers/budgets.md`, 13). Every entry has the repair line (`tools/tiers/budgets.md`, 10.1) |
-| `warnings` | one line for each `auto_reap` declaration and each unobserved attempt; in a one-process run, each unplaced binary, each advisory layer comparison, missing-count and drift warnings, and tests over their references; with a ledger, each test that swings alone at main (`tools/tiers/references.md`, 6) and each stale coverage reason |
+| `over_budget` | one entry for each CPU budget passed, naming its test or suite, and with `gate` each layer with a red finding (`tools/tiers/budgets.md`, 4 and 8); with a ledger, each binary or group that lost checks without a reason (`tools/tiers/budgets.md`, 13). Every entry has the repair line (`tools/tiers/budgets.md`, 10.1) |
+| `warnings` | one line for each `auto_reap` declaration and each unobserved attempt; in a one-process run, each unplaced binary, each advisory layer comparison, missing-count and drift warnings, and tests over their references; with a ledger, each test that swings alone at main (`tools/tiers/references.md`, 6) and the notes on missing tests and stale check reasons |
 | `checks` | a one-process run's totals by binary and check kind across suite processes (`tools/tiers/budgets.md`, 13) |
-| `coverage_reasons` | a one-process run's applied coverage reasons, each with the loss it covers (`tools/tiers/budgets.md`, 13) |
-| `coverage_moves` | a one-process run's paired tests, each with `from` and `to` objects holding `binary_id` and `test_name` (`tools/tiers/budgets.md`, 13) |
-| `used_budget_coverage_reasons` | the budget coverage reasons the one-process ledger fold marks spent (`tools/tiers/budgets.md`, 13) |
+| `check_reasons` | a one-process run's applied check reasons, each with the loss it covers (`tools/tiers/budgets.md`, 13) |
+| `check_moves` | a one-process run's paired tests, each with `from` and `to` objects holding `binary_id` and `test_name` (`tools/tiers/budgets.md`, 13) |
+| `used_budget_check_reasons` | the budget check reasons the one-process ledger fold marks spent (`tools/tiers/budgets.md`, 13) |
 | `unobserved` | `{binary_id, test_name, attempt}` for each attempt cancellation stopped before its record (7.3); always empty for tools |
 | `tests` | for each test: `binary_id`, `test_name`, `attempts`, `cpu_s`, `user_s`, `system_s`, `wall_s`, `starved`, `leaked`, `incomplete` |
 | `suite` | the totals: `tests`, `attempts`, `cpu_s`, `user_s`, `system_s`, `wall_s`, `test_wall_s`, `starved`, `starved_run`, `unobserved`, `leaked`, `incomplete`, `cpu_by` |
