@@ -1094,6 +1094,12 @@ def summary(base_id, lints, tests, errors, reason, failures_tail, starved=(), sc
             break
         output += entry
     print(output + diagnostic, end='', flush=True)
+    if refused and scope == 'close' and new:
+        # The close job's hold keeps only the last 128 bytes of the check's stderr: name the first failure there.
+        first = new[0]
+        line = diagnostic.strip() or first['name'] + ': ' + next(
+            (text.strip() for text in first['log'].splitlines() if text.strip()), '')
+        print(line.encode()[:127].decode(errors='ignore'), file=sys.stderr, flush=True)
     return int(refused)
 
 
