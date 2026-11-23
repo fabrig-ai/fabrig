@@ -786,6 +786,29 @@ class Gate(unittest.TestCase):
         self.assertEqual(GATE.HOOKS, PRE.HOOKS)
         self.assertEqual(GATE.route({'.temper/pre-pr', 'src/lib.rs'}), 'mixed')
         self.assertEqual(GATE.route({'docs/guide.md'}), 'classify')
+        self.assertEqual(GATE.route({'tools/tiers/cpu.py', 'tools/tiers/one-process', 'tools/close/README.md'}), 'tooling')
+        for product in ('tools/tiers/budgets.toml', 'tools/tiers/fixtures/one-process/tests.rs'):
+            self.assertEqual(GATE.route({'tools/tiers/cpu.py', product}), 'classify', product)
+
+    def test_tooling_runs_the_suites_beside_it_unless_tests_read_it(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            for name in ('tools/example/rules.py', 'tools/example/test_rules.py', 'tools/example/test_more.py',
+                         'tools/lonely/tool.py'):
+                (root / name).parent.mkdir(parents=True, exist_ok=True)
+                (root / name).touch()
+            (root / 'tools/pre-pr').mkdir(parents=True)
+            (root / 'tools/pre-pr/pre_pr.py').write_text('def test_input_globs(root):\n    return ["tools/read/*"]\n')
+            for paths, status, commands in [
+                    (b'tools/example/rules.py\0', 0, [['python3', '-I', '-B', 'tools/example/test_more.py'],
+                                                     ['python3', '-I', '-B', 'tools/example/test_rules.py']]),
+                    (b'tools/lonely/tool.py\0', 1, []),
+                    (b'tools/read/x.py\0', 1, [])]:
+                with self.subTest(paths=paths):
+                    execute = mock.Mock(return_value=subprocess.CompletedProcess([], 0))
+                    with mock.patch.object(subprocess, 'check_output', return_value=paths), redirect_stdout(io.StringIO()):
+                        self.assertEqual(GATE.checks(root, 'base', 'head', root, execute), status)
+                    self.assertEqual([call.args[0] for call in execute.call_args_list], commands)
 
     def test_preflight_runs_tests_and_writes_real_outcome(self):
         for paths, status, expected in [(b'tools/pre-pr/pre_pr.py\0', 0, 0),
