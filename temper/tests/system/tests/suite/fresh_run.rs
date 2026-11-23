@@ -189,7 +189,7 @@ fn repository_rules_are_not_messages_or_reread_notices() {
     for (agent, guide) in [(&released.first, OLD_GUIDE), (&released.director, GUIDE), (&released.owner, GUIDE)] {
         assert_ne!(agent.prompts(), []);
         for query in agent.prompts() {
-            assert!(query.system.windows(guide.len()).any(|part| part == guide));
+            assert!(skein_lib::bytes::find(&query.system, guide).is_some());
             for words in [OLD_GUIDE, GUIDE, b"re-read", b"reread"] {
                 assert_eq!(occurrences(query, words), 0);
             }

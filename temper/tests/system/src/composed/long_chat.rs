@@ -154,10 +154,10 @@ impl World {
 
     fn prompt_contains(&self, words: &[u8]) -> bool {
         self.agent().prompts().iter().any(|prompt| {
-            prompt.system.windows(words.len()).any(|bytes| bytes == words)
+            skein_lib::bytes::find(&prompt.system, words).is_some()
                 || prompt.messages.iter().flat_map(|message| &message.parts).any(|part| {
                     matches!(part, skein_fake_llm_domain::api::Part::Text { text }
-                        if text.windows(words.len()).any(|bytes| bytes == words))
+                        if skein_lib::bytes::find(text, words).is_some())
                 })
         })
     }

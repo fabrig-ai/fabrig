@@ -139,12 +139,12 @@ fn assert_spec(query: &Query, credential: u32) {
     assert_eq!(query.credential, Some(credential));
     let spec = b"@held Retain this specification after the account resumes.";
     assert!(
-        query.system.windows(spec.len()).any(|part| part == spec)
+        skein_lib::bytes::find(&query.system, spec).is_some()
             || query
                 .messages
                 .iter()
                 .flat_map(|message| &message.parts)
-                .any(|part| matches!(part, Part::Text { text } if text.windows(spec.len()).any(|part| part == spec))),
+                .any(|part| matches!(part, Part::Text { text } if skein_lib::bytes::find(text, spec).is_some())),
         "resumed query keeps the spec"
     );
 }

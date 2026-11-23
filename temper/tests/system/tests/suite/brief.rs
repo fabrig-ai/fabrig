@@ -172,7 +172,7 @@ fn large_pull_review(seed: u64, bytes: usize) {
     let head_text = temper_engine_domain::commit_text(&head);
     let cue = format!("Pull request at head {}", std::str::from_utf8(&head_text).expect("head hex"));
     assert!(
-        agent.prompts().iter().any(|query| query.system.windows(cue.len()).any(|bytes| bytes == cue.as_bytes())),
+        agent.prompts().iter().any(|query| skein_lib::bytes::find(&query.system, cue.as_bytes()).is_some()),
         "the review query names its exact head"
     );
     assert_forge_reads(agent);
