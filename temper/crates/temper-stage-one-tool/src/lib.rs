@@ -1,4 +1,4 @@
-//! Configuring stage one: `temper/docs/design/testing/checks.md`, 5.
+//! Configuring stage one: `temper/docs/design/testing/checks-stage-one.md`, 1.
 
 mod cli;
 pub use cli::{TABLE, main};
