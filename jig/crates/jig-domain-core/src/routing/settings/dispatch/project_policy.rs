@@ -1,4 +1,4 @@
-//! Whole project policies in settings decisions (jig/docs/design/domain/engine/settings.md, 2, 6).
+//! Whole project policies in settings decisions (jig/docs/design/domain/engine/settings.md, 2, jig/docs/design/domain/engine/settings-proposals.md, 1).
 use crate::routing::{Work, party::dispatch::Routed};
 use crate::{Core, Event, Limits, Request, settings as s};
 use jig_domain_people as people;

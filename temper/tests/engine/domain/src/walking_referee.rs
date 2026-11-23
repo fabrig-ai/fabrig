@@ -442,7 +442,7 @@ impl WalkingReferee {
 
     /// A story cut after its terminal commit: every effect but the person's
     /// live result notice, which the cut root never released; reading the
-    /// result afterwards is the core's (jig's `client/domain/contract/README.md`, 4).
+    /// result afterwards is the core's (jig's `client/domain/contract/reads.md`, 1).
     #[must_use]
     pub fn done_after_cut(&self) -> bool {
         self.sign_in_replies == 1

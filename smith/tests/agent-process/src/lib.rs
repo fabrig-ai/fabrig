@@ -288,7 +288,7 @@ pub fn host() -> ScriptedPeer {
 fn host_with_limits(mut limits: channel::Limits) -> ScriptedPeer {
     let schema = channel::schema_for_start(&limits.bodies, limits.start_bytes).expect("joint Start schema");
     // The scripted host sends the initiator's kinds, with the same joint
-    // Start as the agent receives (smith/docs/design/protocol/limits.md, section 3, rule 6).
+    // Start as the agent receives (smith/docs/design/protocol/limits-derivation.md, section 1, rule 6).
     let mut largest = 0;
     for version in &schema.versions {
         for kind in &version.kinds {

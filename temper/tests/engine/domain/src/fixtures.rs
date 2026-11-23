@@ -310,6 +310,8 @@ pub fn first_start_over(
     // First-start rows, then the separate header-and-wires mark (domain/root-restart.md, 1.1).
     const FIRST_START_COMMITS: u64 = 2;
     let mut driver = Driver::cold(store, config, limits);
+    driver
+        .store_checks(jig_conformance::store_check::StoreChecks::none("bootstrap passes its store to the live world"));
     driver.period_sent = true;
     driver.settle();
     assert_eq!(driver.store.applied, FIRST_START_COMMITS, "first-start rows and start mark");

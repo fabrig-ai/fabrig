@@ -502,7 +502,7 @@ pub struct CallRecord {
 
 /// Ordered address of a durable row. Root and child identities keep their own
 /// variants; a scoped note index includes its bounded resource pattern
-/// (jig's domain/engine/README.md, 5.3–5.6).
+/// (jig's domain/engine/decisions.md, 1.3–1.6).
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub enum Key {
     Wires,
@@ -816,7 +816,7 @@ pub struct WorkerOpening {
 /// (domain/root.md, 7).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Write {
-    /// Whole-task transcript erasure (jig/docs/design/domain/people/acts.md, 2; temper/docs/design/domain/forge/adoption-connection.md, 1; jig/docs/design/protocol/store/transcripts.md, 5, jig/docs/design/protocol/store/README.md, 6.1).
+    /// Whole-task transcript erasure (jig/docs/design/domain/people/acts.md, 2; temper/docs/design/domain/forge/adoption-connection.md, 1; jig/docs/design/protocol/store/transcripts.md, 5, jig/docs/design/protocol/store/growth.md, 1.1).
     DropTranscript { task: u64 },
     /// Drop a task history log whole (jig/docs/design/protocol/store/logs.md, 3 and 9).
     DropHistory { task: u64 },

@@ -1,5 +1,5 @@
 //! run-world message terminals and positive-first mutations.
-//! Contract: smith/docs/design/domain/run.md, sections 6 and 12.
+//! Contract: smith/docs/design/domain/run-messages.md, section 1, and smith/docs/design/domain/run.md, section 12.
 mod mid_work;
 
 use skein_lib::{Time, Token};

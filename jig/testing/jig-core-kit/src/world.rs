@@ -15,7 +15,7 @@ use jig_test_domain as root;
 use jig_test_store::{StoreOut, Up};
 use jig_test_system::{Fault, System};
 use skein_lib::{Duration, Env, Queue, ReplyTo, Time, Token, Wall};
-use std::collections::VecDeque;
+use std::{collections::VecDeque, rc::Rc};
 mod admission;
 mod constructors;
 mod sweep;
@@ -35,8 +35,9 @@ pub(crate) mod testing {
     }
 }
 
-/// Startup of the core world (`jig/docs/design/domain/engine/README.md`, section 9).
+/// Startup of the core world (`jig/docs/design/domain/engine/world.md`, section 1).
 #[derive(Debug)]
+#[expect(clippy::struct_excessive_bools, reason = "startup options control independent fixture behavior")]
 pub struct Setup {
     pub seed: u64,
     pub requirement: bool,
@@ -48,6 +49,8 @@ pub struct Setup {
     pub owner_sets: jig_protocol_store::OwnerSets,
     /// Exercise the directory-backed store on the simulated crashing disk.
     pub disk_store: bool,
+    /// Reuse checked payload records in the world's memory stores (default on).
+    pub keep_reads: bool,
     pub peers: Option<crate::peers::Peers>,
     pub cut: Option<Cut>,
     /// Fork these cuts during the real first start and the following story.
@@ -77,6 +80,7 @@ impl Default for Setup {
             startup: None,
             owner_sets: jig_protocol_store::OwnerSets::NONE,
             disk_store: false,
+            keep_reads: true,
             peers: None,
             cut: None,
             sweep: Vec::new(),
@@ -108,6 +112,8 @@ pub struct AssignedTranscript {
     pub turns: Box<[Box<[u8]>]>,
 }
 
+type HoldKinds = Vec<(u16, Box<[tasks::Kind]>)>;
+
 /// Root, store and separate systems, with an answer channel that may disappear.
 #[derive(Debug)]
 #[expect(clippy::struct_excessive_bools, reason = "independently held peer traffic and crash cuts")]
@@ -121,14 +127,17 @@ pub struct World {
     pub walking: Option<Walking>,
     pub(crate) broken: bool,
     pub(crate) oracle_closed: bool,
+    /// The closing oracle's answers on each side of a successful restart check.
+    pub closed_documents: Option<crate::oracle::Documents>,
     seed: u64,
     /// Policy and counts for this run's cold store checks.
     pub store_checks: StoreChecks,
     pub(crate) store_checks_reported: bool,
+    kept_check: Option<store_check::Rehearsal>,
     restart_check: Option<(u64, bool)>,
     iteration: u64,
     inspections: u64,
-    pub(crate) restart_config: (root::Config, root::Limits),
+    pub(crate) restart_config: (Rc<root::Config>, root::Limits),
     startup: Option<fn(&mut root::Domain)>,
     fixture_rows: Box<[root::Record]>,
     pub domain: root::Domain,
@@ -256,7 +265,7 @@ pub struct World {
     sweep: Vec<Cut>,
     fork_child: Option<Cut>,
     case_child: bool,
-    hold_kinds: Vec<(u16, Box<[tasks::Kind]>)>,
+    hold_kinds: Rc<HoldKinds>,
     wall: u64,
     wall_lag: u64,
     supplied_wall: Option<Wall>,

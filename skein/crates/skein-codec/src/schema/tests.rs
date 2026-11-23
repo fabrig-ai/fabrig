@@ -17,6 +17,24 @@ const CHAIN: &[u8] = b"family f 1\nversioned record A { a: u16 b: bytes 3 }\nenu
 const SCALARS: &[u8] = b"family f 1 record R { a: u8 b: u16 c: u32 d: u64 e: bool f: duration g: fixed 7 h: bytes 9 i: secret 9 j: text 9 }";
 
 #[test]
+fn a_cloned_schema_preserves_its_tables_and_root_layout() {
+    let original = parse(CHAIN).expect("sample schema");
+    let copy = original.clone();
+    assert_eq!(copy.text(), original.text());
+    assert_eq!(copy.version(), original.version());
+    assert_eq!(copy.declarations(), original.declarations());
+    for index in 0..original.declarations() {
+        let at = DeclIx::new(index);
+        assert_eq!(copy.declaration(at), original.declaration(at));
+    }
+    let root = original.find(b"R").expect("original root");
+    let copied_root = copy.find(b"R").expect("copied root");
+    let digest = original.fingerprints().declaration(root).digest();
+    drop(original);
+    assert_eq!(copy.fingerprints().declaration(copied_root).digest(), digest);
+}
+
+#[test]
 fn one_pass_bounds_equal_each_prefix_with_named_limits() {
     type Case = (&'static [u8], &'static [&'static str], &'static [u32], &'static [Option<u64>]);
     let cases: &[Case] = &[

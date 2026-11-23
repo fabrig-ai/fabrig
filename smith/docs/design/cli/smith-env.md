@@ -11,4 +11,4 @@
 - The run creates the directory if missing before executing the check. The host
   keeps it as long as the workspace tree; smith never reads its contents.
 
-See `smith/docs/design/domain/run.md`, section 8.1.
+See `smith/docs/design/domain/run-delivery.md`, section 1.1.

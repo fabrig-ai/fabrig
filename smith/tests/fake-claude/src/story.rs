@@ -1,5 +1,5 @@
-//! The test's scripts and recorded invocation names (smith/docs/design/protocol/programs.md,
-//! sections 5 and 8; smith/docs/design/testing.md, section 4); no environment values are retained.
+//! The test's scripts and recorded invocation names (smith/docs/design/protocol/programs-claude-code.md, section 1, and smith/docs/design/protocol/programs.md, section 8
+//! ; smith/docs/design/testing.md, section 4); no environment values are retained.
 
 use serde::{Deserialize, Serialize};
 
@@ -35,7 +35,7 @@ pub struct Story {
     pub summary: String,
 }
 
-/// The local usage command's scripted answer (protocol/programs.md, 5.11 and 8).
+/// The local usage command's scripted answer (protocol/programs-claude-code.md, 1.11, and protocol/programs.md, 8).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum UsageReply {
     /// Prints this JSON value as one line, then exits zero.

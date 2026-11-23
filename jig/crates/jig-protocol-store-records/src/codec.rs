@@ -14,7 +14,7 @@ use alloc::boxed::Box;
 use jig_domain_core_vocabulary as domain;
 
 /// Generated family bounds derived from the component's limits (protocol/store/README.md, 8).
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct View {
     pub settings: crate::settings_v3::Limits,
     pub core: crate::core_v6::Limits,

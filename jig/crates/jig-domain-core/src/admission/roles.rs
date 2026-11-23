@@ -1,5 +1,5 @@
 //! Core-owned role and funding admission for authenticated parties
-//! (domain/engine/README.md, sections 3 and 4.4).
+//! (domain/engine/README.md, section 3, and domain/engine/vocabulary.md, section 1.4).
 
 use jig_domain_authority as authority;
 use jig_domain_people as people;
@@ -336,7 +336,7 @@ impl Core {
     }
 }
 
-/// Project roles' precedence for placed holds (domain/tasks/lifecycle.md, 10).
+/// Project roles' precedence for placed holds (domain/tasks/lifecycle-holds.md, 2).
 pub(crate) const fn rank(role: people::Role) -> u8 {
     match role {
         people::Role::Owner => 3,

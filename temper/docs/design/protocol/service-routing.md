@@ -161,7 +161,7 @@ No store; starting, ending and smith's payloads are jig's (jig's
 - **Local channel refusals** use jig's public `u16` constants
   `REFUSED_LIMITS = 2` and `REFUSED_FRAMING = 3` from
   `jig-protocol-worker-link`, including diagnostic matches (jig's
-  `protocol/channel/README.md`, 9.1; skein's `net/channel.md`, 5.1). These are
+  `protocol/channel/worker-link.md`, 1.1; skein's `net/channel.md`, 5.1). These are
   channel reasons, separate from jig's application reasons at 256 and
   above. Existing worker diagnostic tests check those matches; the
   wire and `Closed` facts keep their values.

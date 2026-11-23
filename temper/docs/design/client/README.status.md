@@ -20,8 +20,8 @@
 
 - **Not yet:** `ui-ask-m1`'s `proposal-read` part was never designed,
   according to the retirement brief. Its landed run proposal read needs
-  design coverage reconciliation against `jig/docs/design/domain/engine/executors.md`,
-  3; this is a design gap, not an absent implementation.
+  design coverage reconciliation against `jig/docs/design/domain/engine/executors-tools.md`,
+  1; this is a design gap, not an absent implementation.
 
 
 T1's repair, goal 761, carries the launchpad's brief, Where you left off

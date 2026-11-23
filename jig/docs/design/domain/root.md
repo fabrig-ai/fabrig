@@ -107,7 +107,7 @@ iterate, after the step:
   journal. A root cannot send a held output early without writing code
   to get around the journal.
 - **Every request says what it is.** The core and the connectors mark
-  each request as part of the decision, held, or now (engine/README.md, 4.2).
+  each request as part of the decision, held, or now (engine/vocabulary.md, 1.2).
   The root keeps the mark: a held output goes to `d.push_held`, a now one to
   `journal.now`. The door for outputs that decide nothing and show
   nothing durable is one call, so review finds every use.
@@ -116,7 +116,7 @@ iterate, after the step:
   backlog, the journal's (`backlog()`) with the root's own work and
   queued store answers, is under the watermark; an event handed back
   changes nothing, and its sender keeps it and offers it again, as
-  engine/README.md, 5.1 says. What finishes admitted work is always taken, so
+  engine/decisions.md, 1.1 says. What finishes admitted work is always taken, so
   the backlog drains. An event that carries both is split: the root
   steps the admitted part and hands back the rest, an event of its own
   holding only the new work. The connector captures the rest's baseline
@@ -136,7 +136,7 @@ iterate, after the step:
   invalid mixed fact settles without changing state and leaves no rest.
   No route reserves room. Synchronous hand-offs finish within their
   decision, store answers keep arrival order, and a kept turn precedes
-  its terminal acknowledgement (sections 4 and 5;
+  its terminal acknowledgement (`root.md`, sections 4 and 5;
   programming-model.md, 7.2). A root reads its classes from
   `jig-domain-link`'s `Class` (`Admitted`, `New` and `Mixed`); one none
   of whose events is split needs the first two alone, and may keep them
@@ -185,7 +185,7 @@ iterate, after the step:
   admitted agent with a window to load while the root is busy, wait in
   the core's due set; the root takes the next with `take_due` when it
   has room to carry it, as it takes a restart's
-  (`jig/docs/design/README.md`, 6.4).
+  (`jig/docs/design/rails.md`, 1.4).
 - **Released outputs addressed to a child** (the core's resumption after
   a claim commits, a connector's entry to make) are fed back to it as
   events by `iterate`, each as one more step of this shape.
@@ -274,14 +274,14 @@ It inspects nothing it holds. What jig asks of it:
   - the workers' channel to the core, but for what a run's answer says
     it left on resources, which goes to the connectors that own them;
   - a run's call to the core's fleet, which fences it; the admitted call
-    is handed out to be decoded (`../protocol/channel/README.md`, 5.3), and its
+    is handed out to be decoded (`../protocol/channel/owners.md`, 1.3), and its
     typed request goes to the core, or, for a connector's read or effect,
-    to that connector first (section 9);
+    to that connector first (`root.md`, section 9);
   - clients' requests, reads and watches to the core; what the core
     admits for an application's own object or subject goes, as a
     hand-off, to the connector it names, which decides the request or
     makes the document (`../client/domain/contract/requests.md`, 3;
-    connectors.md, 5.5);
+    connectors-facts.md, 1.5);
   - a connector's system's events and answers to that connector;
   - a timer to the child that armed it.
 - **Hand-offs between children,** within one step: what the core asks of
@@ -292,8 +292,8 @@ It inspects nothing it holds. What jig asks of it:
   step's decision, news, an outcome, a pool's slots, drift) goes to the
   core. What the core says of a procedure's step, the task it made, goes
   to the procedure's connector in the same decision, and is never
-  dropped (connectors.md, 6.3).
-- **Settings of the application's kinds** (engine/settings.md, 5): a change's
+  dropped (connectors-procedures.md, 1.3).
+- **Settings of the application's kinds** (engine/settings-application.md, 1): a change's
   items of a kind go, as a hand-off within the change's step, to the
   connector the kind names, and its judgement back to the core; the
   core's word to keep or erase values, at a change's commit and a
@@ -301,7 +301,7 @@ It inspects nothing it holds. What jig asks of it:
   root routes by the kind's connector number, which may name any child
   of its own, and reads nothing of the values. A child of the
   application that needs a value reads it from the connector that keeps
-  it, by kind, scope and number (engine/settings.md, 5).
+  it, by kind, scope and number (engine/settings-application.md, 1).
 - **A project made** (`people/acts.md`, 2): the core's word that it was
   made, released once its commit is durable, goes to the application's
   period source, which, keeping a calendar, says the project's periods
@@ -340,7 +340,7 @@ It inspects nothing it holds. What jig asks of it:
 - **Small total functions,** one per pair of vocabularies, matching
   exhaustively, with no `_` arm, so a change on either side breaks the
   build in one place.
-- **The core's connector vocabulary** (engine/README.md, 4.1) is translated to
+- **The core's connector vocabulary** (engine/vocabulary.md, 1.1) is translated to
   each connector's own and back: a connector's number, its resources'
   names as paths, its effect descriptions, its verdicts, its news.
 - **The hub's agent vocabulary** is translated to smith's parent face and
@@ -374,7 +374,7 @@ decided:
   asked again.
 - **A run's read's answer** is the connector's alone, and goes out
   through the door; a party's read of a connector's document is held
-  behind the last commit made (engine/README.md, 5.2).
+  behind the last commit made (engine/decisions.md, 1.2).
 - **A connector's result in a dependent's brief** is a section like any
   other.
 - **A token the core drops** (a brief abandoned, a call withdrawn) is
@@ -453,7 +453,7 @@ stops taking them.
   one core decision routes, sibling continuations included. It is the
   bound of every drain within a step (each drain a `for` over at most
   `routes`, its predicate asserted empty after: section 5 and
-  engine/README.md, 4.4), a loop's bound, not a reservation: nothing is sized
+  engine/vocabulary.md, 1.4), a loop's bound, not a reservation: nothing is sized
   by it. The profiles set it (small 20,783, standard 151,655); an
   application whose root wraps jig's core takes it from jig's profile.
 - **The application's limits** are configuration, given to each child as

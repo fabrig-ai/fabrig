@@ -96,6 +96,13 @@ pub struct Domain {
     returned: Option<engine::Event>,
 }
 
+/// Bootstrap evidence and scripts for building independent peers.
+pub struct PeerSetup {
+    first_start: r::Snapshot,
+    policy: r::PolicySnapshot,
+    script: Box<[workers::Script]>,
+}
+
 /// Independent worker, party and store evidence; retained across crashes.
 #[expect(clippy::struct_excessive_bools, reason = "each startup request has independent request and reply evidence")]
 pub struct Peers {
@@ -162,6 +169,7 @@ impl Application for Temper {
     type Domain = Domain;
     type Store = Store;
     type Config = Config;
+    type PeerSetup = PeerSetup;
     type Systems = systems::FakeForge;
     type Peers = Peers;
     type Event = Event;
@@ -188,14 +196,6 @@ impl Application for Temper {
     fn start_phase(domain: &Domain) -> String {
         format!("{:?}", domain.root.start_phase())
     }
-    fn store(config: &Config) -> Store {
-        let configuration = config::root(config.seed, config.scenario, config.story).0;
-        temper_engine_domain_world::fixtures::restored_over(
-            Store::with_limits(&config.limits),
-            configuration,
-            &config.limits,
-        )
-    }
 
     fn systems(config: &Config, _: u64) -> systems::FakeForge {
         let mut system = systems::FakeForge::new_with_ci(
@@ -214,7 +214,16 @@ impl Application for Temper {
             );
         system
     }
-    fn peers(config: &Config, _: u64) -> Peers {
+    fn bootstrap(config: &Config) -> (Store, PeerSetup) {
+        use temper_engine_domain_world::fixtures;
+        let configuration = config::root(config.seed, config.scenario, config.story).0;
+        let accounts = fixtures::account_rows(&configuration.core.settings.llm_providers);
+        let mut store = fixtures::first_start_over(Store::with_limits(&config.limits), configuration, &config.limits);
+        // The referee sees the two setup receipts separately from the account rows.
+        let first_start = observations::snapshot(&store);
+        store.seed(accounts, Box::new([]));
+
+        let policy = observations::policy(config.seed, config.scenario, config.story).into();
         let script: Box<[workers::Script]> = if config.story == Some(stories::Story::PersonWords) {
             Box::new([workers::Script::Silence { for_: Duration::from_secs(1) }, workers::Script::Park])
         } else if config.story.is_some() {
@@ -261,23 +270,23 @@ impl Application for Temper {
                 _ => Box::new([workers::Script::Wait]),
             }
         };
-        // The referee must see receipt one and receipt two separately, even though
-        // both are durable before the harness begins restoring the live root.
-        let first = temper_engine_domain_world::fixtures::first_start_over(
-            Store::with_limits(&config.limits),
-            config::root(config.seed, config.scenario, config.story).0,
-            &config.limits,
-        );
+        (store, PeerSetup { first_start, policy, script })
+    }
+    fn open_rehearsal(_: &mut Store, _: u64) -> Result<(), String> {
+        // The memory fork is already cold-opened with no in-flight work.
+        Ok(())
+    }
+    fn peers(config: &Config, _: u64, setup: &PeerSetup) -> Peers {
         Peers {
             oracle: oracle::Replies::default(),
             seed: config.seed,
             scenario: config.scenario,
             story: config.story,
-            policy: observations::policy(config.seed, config.scenario, config.story).into(),
+            policy: setup.policy.clone(),
             worker: workers::Worker::new(
                 link::CHANNEL,
                 config.limits.fleet.slots,
-                (0..16).map(|_| script.clone()).collect(),
+                (0..16).map(|_| setup.script.clone()).collect(),
             ),
             assignments: Vec::new(),
             answers: Vec::new(),
@@ -288,7 +297,7 @@ impl Application for Temper {
             chatted: false,
             started: false,
             applied: 0,
-            first_start: Some(observations::snapshot(&first)),
+            first_start: Some(setup.first_start.clone()),
             projection: jig_conformance::core::Projection::default(),
             expenses: observations::Expenses::default(),
             observed: Vec::new(),

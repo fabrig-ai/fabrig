@@ -1,5 +1,5 @@
 //! Print conversations through the simulated process face, per
-//! smith/docs/design/protocol/programs.md, sections 5 and 8.
+//! smith/docs/design/protocol/programs-claude-code.md, section 1, and smith/docs/design/protocol/programs.md, section 8.
 
 use crate::support;
 

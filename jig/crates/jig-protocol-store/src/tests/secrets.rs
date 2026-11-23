@@ -77,7 +77,7 @@ fn the_public_names_secret_is_kept_read_and_erased() {
     let key = crate::secrets::key(SecretOwner::PublicNames, 0, fixtures::KEY_LIMIT).expect("public names key");
     assert_eq!(key.as_ref(), &[4, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
     assert_eq!(kept_root(&key), Some("Source"));
-    let mut store = fixtures::over(store.into_stores());
+    let mut store = fixtures::reopen(store);
     let events = fixtures::run(
         &mut store,
         Request::Open {
@@ -528,8 +528,7 @@ fn held_values_at_capacity_refuse_one_more_without_writing() {
 fn reopening_the_store_loses_held_addresses() {
     let mut store = marked();
     let number = hold(&mut store);
-    let limits = fixtures::store_limits();
-    let mut store = Store::over(&limits, fixtures::APPLICATION, &[], store.into_stores());
+    let mut store = fixtures::reopen(store);
     fixtures::run(
         &mut store,
         Request::Open {

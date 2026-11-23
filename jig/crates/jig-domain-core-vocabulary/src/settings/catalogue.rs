@@ -1,15 +1,15 @@
-//! The model setting's value and shape (jig/docs/design/domain/engine/settings.md, 1 and 11–12).
+//! The model setting's value and shape (jig/docs/design/domain/engine/settings.md, 1, and jig/docs/design/domain/engine/settings-catalogue.md, 1–2).
 use super::{Current, Edit, Fault, Item, Setting, Value};
 use crate::{Model, Settings};
 use alloc::boxed::Box;
 use jig_domain_accounts as accounts;
 use jig_domain_link as link;
-use skein_lib::{Duration, List, Wall};
+use skein_lib::{Duration, List, Set, Wall};
 
-/// How long a list model is new (jig/docs/design/domain/engine/settings.md, 12).
+/// How long a list model is new (jig/docs/design/domain/engine/settings-catalogue.md, 2).
 pub const NEW_FOR: Duration = Duration::from_secs(7 * 86_400);
 
-/// One good read's setting edits and account facts (domain/engine/settings.md, 12).
+/// One good read's setting edits and account facts (domain/engine/settings-catalogue.md, 2).
 #[derive(Debug)]
 pub struct ListChange {
     pub items: Box<[Item]>,
@@ -162,7 +162,7 @@ pub fn valid_name(name: &[u8]) -> bool {
     true
 }
 
-/// Whole-name byte glob matching (jig/docs/design/protocol/configuration.md, 3).
+/// Whole-name byte glob matching (jig/docs/design/protocol/configuration-engine.md, 1).
 #[must_use]
 pub fn matches(pattern: &[u8], name: &[u8]) -> bool {
     let mut at = 0_usize;
@@ -194,7 +194,7 @@ pub fn matches(pattern: &[u8], name: &[u8]) -> bool {
     false
 }
 
-/// A drop wins over any keep (jig/docs/design/domain/accounts.md, 3.7).
+/// A drop wins over any keep (jig/docs/design/domain/accounts-lists.md, 1).
 #[must_use]
 pub fn kept(name: &[u8], list: &jig_domain_accounts::ProviderList) -> bool {
     for pattern in &list.drop {
@@ -335,9 +335,24 @@ pub fn entries(current: &Current) -> Box<[CatalogueModel]> {
 /// Select models through the same default/change overlay as the settings check.
 #[must_use]
 pub fn overlay(current: &Current, defaults: bool, items: &[Item]) -> Box<[CatalogueModel]> {
-    let mut models = List::with_capacity(jig_domain_tasks::MODELS);
-    for number in 1..=jig_domain_tasks::MODELS {
-        let setting = Setting::Model(number);
+    let first = Setting::Model(1);
+    let last = Setting::Model(jig_domain_tasks::MODELS);
+    let mut settings = Set::with_capacity(jig_domain_tasks::MODELS);
+    for (&setting, _) in current.defaults.range(first..=last) {
+        settings.insert(setting).expect("one setting per model number");
+    }
+    if !defaults {
+        for (&setting, _) in current.changes.range(first..=last) {
+            settings.insert(setting).expect("one setting per model number");
+        }
+    }
+    for item in items {
+        if item.setting >= first && item.setting <= last {
+            settings.insert(item.setting).expect("one setting per model number");
+        }
+    }
+    let mut models = List::with_capacity(settings.len());
+    for &setting in &settings {
         let before = if defaults { current.default_value(setting) } else { current.value(setting) };
         let mut withdrawn = false;
         let value = match super::check::edit(items, setting) {
@@ -385,7 +400,7 @@ pub fn defaults(settings: &Settings) -> Box<[CatalogueModel]> {
     models.into_boxed()
 }
 
-/// An owner's act, independent of any client revision (domain/engine/settings.md, 11).
+/// An owner's act, independent of any client revision (domain/engine/settings-catalogue.md, 1).
 #[derive(Clone, Hash, Debug)]
 pub enum ModelAct {
     Picker { number: u32, on: bool },
@@ -407,7 +422,7 @@ pub fn free_number(models: &[CatalogueModel]) -> Option<u32> {
     None
 }
 
-/// A new estimated model takes stock figures and its provider's endpoint (domain/engine/settings.md, 11).
+/// A new estimated model takes stock figures and its provider's endpoint (domain/engine/settings-catalogue.md, 1).
 #[must_use]
 pub fn new_model(
     provider: u32,

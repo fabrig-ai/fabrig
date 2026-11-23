@@ -47,7 +47,7 @@ section 8.
   jig's core decides (`domain/root.md`). jig's rails hold temper to
   jig's promises: skein-lib's journal, jig's restart script, its
   conformance world and its referee, with temper's own wiring and its
-  fake forge (jig's `README.md`, section 6).
+  fake forge (jig's `rails.md`, section 1).
 - **One binary for the box, one per process for a deployment,
   standalone first** (`protocol/README.md`; `protocol/binaries.md`).
   `temper-box serve` runs the engine and one worker in one process on
@@ -408,7 +408,7 @@ forge, temper adds:
 
 ## 9. Crates' names
 
-temper's crates follow jig's rule (jig's `README.md`, section 15), with
+temper's crates follow jig's rule (jig's `crate-names.md`, section 1), with
 temper's side before the layer:
 
 - `temper-engine-domain` (the root), its forge children

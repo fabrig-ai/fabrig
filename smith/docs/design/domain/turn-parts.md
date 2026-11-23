@@ -9,7 +9,7 @@ answer in flight, and the next activation runs again what the drain cut
 rather than planning the turn afresh. This document is that: a turn's
 parts, the drain at the answer, and a cut turn resumed. The checks'
 results directory, which lets a check cut by a drain skip what passed,
-is run.md, 8.1's.
+is `run-delivery.md`, 1.1's.
 
 ## 1. In one page
 
@@ -61,7 +61,7 @@ encoded:
   returned (protocol/transcript.md, section 2), and the run's spend so
   far;
 - **a window:** a sub-agent's window turn, which its compaction made
-  (session.md, 8.2). Main's compactions are told as window turns, as
+  (`session-context.md`, 1.2). Main's compactions are told as window turns, as
   before.
 
 Beside its body, a part carries:
@@ -159,7 +159,7 @@ at its turn's end:
     `save`, a host call and a `sub_agent` call** tell nothing: section 5
     runs them again or answers them from the host's record;
   - **a call never started** tells nothing;
-  - **a delivery in flight is never abandoned** (run.md, 8.2): it is not
+  - **a delivery in flight is never abandoned** (`run-delivery.md`, 1.2): it is not
     cut, and its result is told when its host answers.
 - **No whole turn for the cut turn.** The run tells no turn whose calls
   have not all answered: its answer and results so far stay parts, and
@@ -193,7 +193,7 @@ before it asks any completion:
   |---|---|
   | one with a result part | that result |
   | a host call, a delivery or a save that the start's answered calls hold (protocol/channel.md, section 3) | that answer, as the call's own result |
-  | `deliver` or `finish` with a change, its delivery unanswered | its checks run again on the same tree, given the same results directory (run.md, 8.1), then its delivery asked anew; a `finish` is judged as ever |
+  | `deliver` or `finish` with a change, its delivery unanswered | its checks run again on the same tree, given the same results directory (`run-delivery.md`, 1.1), then its delivery asked anew; a `finish` is judged as ever |
   | a `save` or another host call, unanswered | asked anew, under this activation's name for it (run.md, 5.2) |
   | `sub_agent` | its conversation goes on (section 6), and its answer is the call's result |
   | `wait` | answered as a parked run's withheld `wait` is, with the messages that woke the run (run.md, section 6) |
@@ -212,7 +212,7 @@ before it asks any completion:
   (protocol/llm.md, section 5).
 - **The turn ends as any turn,** when its last call has answered: the
   results message holds the results in block order, then the waking
-  text and the messages that woke the run (run.md, sections 3.4 and 6),
+  text and the messages that woke the run (`run-start.md`, 1.4, and `run-messages.md`, 1),
   and the whole turn is told, at the answer's place, as this
   activation's first, its calls keeping the names and positions the
   answer gave them. Its answers the start's answered calls held are not

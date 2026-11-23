@@ -1,4 +1,4 @@
-//! Infrastructure-owned subjects and parts (`domain/connectors.md`, 5.5;
+//! Infrastructure-owned subjects and parts (`domain/connectors-facts.md`, 1.5;
 //! `client/domain/root.md`, section 6; `examples.md`, section 8).
 use crate::{Domain, Environment, EnvironmentFact, Limits, Request, Resource};
 use skein_lib::{List, Queue, Token};

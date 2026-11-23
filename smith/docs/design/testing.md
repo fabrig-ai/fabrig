@@ -285,8 +285,8 @@ vocabulary.
     login, for the live tests and the benchmarks alike. Which crate holds
     it is benchmarks/README.md, section 14's.
   - **The small tier by default.** The live tests run on each provider's
-    small-tier model unless the caller names another (benchmarks/README.md,
-    section 7).
+    small-tier model unless the caller names another (benchmarks/agents.md,
+    section 2).
   - **Stories,** through `smith exec --json`:
     - a run ends with a commit in place (`--deliver`), on ChatGPT:
       `--account chatgpt -m openai/gpt-6-luna --effort low`; smith loads
@@ -301,7 +301,7 @@ vocabulary.
       `--account anthropic-key`, smith's own loop on Anthropic's model;
     - a second run resumes it (`--chat`);
     - a chat started on ChatGPT, resumed on Claude, then on ChatGPT
-      again, each run completing (domain/session.md, 8.2);
+      again, each run completing (domain/session-context.md, 1.2);
     - a run refreshes its grant when the issuer allows: the story
       raises the refresh lead, a policy value a test may set, to 400
       days in the settings' seconds (shell/settings.md, 2.5), past any access
@@ -343,8 +343,8 @@ vocabulary.
     section 2): a story names a file in the working directory, never
     under the directory's name, which would resolve beneath it.
   - **What the program run is offered.** The Claude stories check the
-    first prompt's offered tools (events.md, 3.11) as protocol/programs.md,
-    5.3 and 5.5 has them for a run granted inspect, modify and shell: the
+    first prompt's offered tools (events.md, 3.11) as protocol/programs-claude-code.md,
+    1.3 and 1.5 has them for a run granted inspect, modify and shell: the
     six built-ins and the permission prompt; never `finish`, since every
     exec has a result contract and ends through the program's
     `StructuredOutput`; never a sub-agent. A fake-backed exec on the
@@ -570,7 +570,7 @@ Every component's files and processes go through it:
 
   It never reads a service's state, the simulator's or the fake
   machine's.
-- **Referees check message terminals** (domain/run.md, section 6):
+- **Referees check message terminals** (domain/run-messages.md, section 1):
   - every message a run accepted ends exactly once: read (a turn's fence
     names it or a later one), refused at admission, or unread at the
     answer;
@@ -602,7 +602,7 @@ Every component's files and processes go through it:
   the protocol world's reading of a native request the component sent,
   its cache markers and breakpoints (`protocol/llm.md`, 2.3); the
   session world's window referee, over a window's system, affinity,
-  history and bound (`domain/session.md`, 8); and the local-process
+  history and bound (`domain/session-context.md`, 1); and the local-process
   world's person, whose terminal write that fails where its script
   doesn't expect a failure is its finding. Nothing in smith's tests
   catches a panic, and none triggers an assertion: what an assertion
@@ -758,7 +758,7 @@ own command (2.4).
 
 | Test | Its reason |
 |---|---|
-| `tests/end-to-end/program_lifetime.rs` (`smith::end_to_end`): `an_aborted_agent_takes_its_program_and_relay_with_it`, and `support/lifetime.rs`, its observation | a program dies with its aborted agent by Linux's parent-death signal; on macOS the host's tree must end (`protocol/programs.md`, 5.1 and section 9) |
+| `tests/end-to-end/program_lifetime.rs` (`smith::end_to_end`): `an_aborted_agent_takes_its_program_and_relay_with_it`, and `support/lifetime.rs`, its observation | a program dies with its aborted agent by Linux's parent-death signal; on macOS the host's tree must end (`protocol/programs-claude-code.md`, 1.1, and `protocol/programs.md`, 9) |
 
 ## 7. Layout
 

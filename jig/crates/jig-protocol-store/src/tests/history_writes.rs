@@ -45,7 +45,8 @@ fn open(limits: &crate::Limits) -> Store {
         store: skein_kv::Store::memory(&limits.store),
         secrets: skein_kv::Store::memory(&limits.secrets),
     };
-    let mut store = Store::over(limits, fixtures::APPLICATION, &[], stores);
+    let mut store =
+        Store::over(&crate::check(limits).expect("fixture store limits"), fixtures::APPLICATION, &[], stores);
     store.owner_sets(SETS);
     let events = fixtures::run(
         &mut store,

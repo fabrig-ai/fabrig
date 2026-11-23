@@ -180,7 +180,7 @@ section 9.
   `temper/check-results`, and writes `temper/reds-wait` and
   `temper/rerun`.
 - **At each check's start,** when the run tells its host its checks are
-  starting (smith's `domain/run.md`, 8.1, the `long` of a check): the
+  starting (smith's `domain/run-delivery.md`, 1.1, the `long` of a check): the
   worker removes `temper/reds` and `temper/check-results`, asks (5.4),
   and, with an answer within
   `checkout.reds_read_ms`, writes the file in each repository (5.2).
@@ -195,7 +195,7 @@ section 9.
   `temper/check-results` (5.6). An answer that comes after its check
   ended, or after another check started, is dropped.
 - **Why the check waits:** smith starts the check before it tells its
-  host, and waits for nothing from it (smith's `domain/run.md`, 8.1), so
+  host, and waits for nothing from it (smith's `domain/run-delivery.md`, 1.1), so
   the worker's file can only follow the check's start. The check, finding
   the marker, waits for the file (`../../../../../tools/pre-pr/design.md`, 5),
   and the file it reads is the one written for it.
@@ -330,7 +330,7 @@ with the check. The reference's check writes it as
   not current, or where `tag` names a repository other than the
   change's.
 - **A passed check's alone:** checked is delivered (smith's
-  `domain/run.md`, 8.1), so a refused check's tree is never the
+  `domain/run-delivery.md`, 1.1), so a refused check's tree is never the
   change's, and its `passed` and `failed` lines change nothing. Its
   flakes are filed (5.8).
 - **Each key's latest observation:** for each `passed KEY` the goal holds

@@ -117,7 +117,7 @@ enum Adoption {
 
 /// A composed deployment: all roots retain their own state, with IO outside.
 pub struct World {
-    store_checks: jig_conformance::store_check::StoreChecks,
+    store_checks: temper_engine_domain_world::check::Run,
     restart_config: engine::Config,
     seed: u64,
     checks: Checks,
@@ -167,7 +167,9 @@ pub struct World {
 
 impl Drop for World {
     fn drop(&mut self) {
-        eprintln!("{}", self.store_checks.report());
+        let result = if std::thread::panicking() { Ok(()) } else { self.finish_store_checks() };
+        eprintln!("{}", self.store_checks.counts().report());
+        result.unwrap_or_else(|finding| panic!("{finding}"));
     }
 }
 
@@ -505,7 +507,9 @@ impl World {
         let mut ends = Ends::new(seed, OPENING);
         ends.restarted(Time::ZERO);
         Self {
-            store_checks: jig_conformance::store_check::StoreChecks::sampled(seed, crate::STORE_CHECK_ONE_IN),
+            store_checks: temper_engine_domain_world::check::Run::new(jig_conformance::store_check::StoreChecks::one(
+                seed,
+            )),
             restart_config: temper_engine_domain_world::oracle::config::copy(&config),
             seed,
             checks: Checks::new(seed),
@@ -560,7 +564,8 @@ impl World {
     }
 
     fn replace_root(&mut self, config: engine::Config) {
-        self.restart_config = temper_engine_domain_world::oracle::config::copy(&config);
+        self.store_checks
+            .replace_config(&mut self.restart_config, temper_engine_domain_world::oracle::config::copy(&config));
         self.root = engine::Domain::new(config, &self.env.limits).expect("restart configuration");
     }
 
@@ -727,23 +732,20 @@ impl World {
     }
 
     pub fn store_checks(&mut self, checks: jig_conformance::store_check::StoreChecks) {
-        self.store_checks = checks;
+        self.store_checks = temper_engine_domain_world::check::Run::new(checks);
     }
 
     #[must_use]
     pub fn store_check_counts(&self) -> &jig_conformance::store_check::StoreChecks {
-        &self.store_checks
+        self.store_checks.counts()
     }
 
     fn check_commit(&mut self, previous: u64) -> Result<(), String> {
-        temper_engine_domain_world::check::committed(
-            &self.store,
-            &self.restart_config,
-            &self.env.limits,
-            self.env.wall,
-            previous,
-            &mut self.store_checks,
-        )
+        self.store_checks.committed(&self.store, &self.restart_config, &self.env, previous)
+    }
+
+    pub fn finish_store_checks(&mut self) -> Result<(), String> {
+        self.store_checks.finish(&self.restart_config)
     }
 
     /// Advance controlled time, driving both roots and the process at each tick.
@@ -757,7 +759,7 @@ impl World {
     }
 
     /// The deployment's first period and its git identity's credential, from
-    /// outside the root (jig's domain/authority.md, 7; domain/root-translation.md, 2.1).
+    /// outside the root (jig's domain/authority-budgets.md, 1; domain/root-translation.md, 2.1).
     fn fund(&mut self) {
         let period = engine::PartyInput::Period { project: 1, period: 1, budget: self.period_budget, next: None };
         self.root_events.push_back(engine::Event::Party(period));

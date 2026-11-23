@@ -15,14 +15,14 @@ Its sections come from two places:
 
 - **The core's,** which it holds typed: the task (its number and project,
   which a run names in a note's scope, its requester, its spec and, unless
-  its requester ends it (../tasks/lifecycle.md, 9) or it stands
+  its requester ends it (../tasks/lifecycle-endings.md, 2) or it stands
   (../tasks/standing.md, section 2), its contract,
   and its lineage: its requesters' specs, cut); its dependencies' and
   inputs' results in jig's terms, and, for a run after its task was kept
-(../tasks/lifecycle.md, 8), what it waited for: each dependency added, when and by
+(../tasks/lifecycle-endings.md, 1), what it waited for: each dependency added, when and by
 whom; its delegates, their states, and the
   revisions a decision about them names, each one's spec's and a held
-  one's hold's (`executors.md`, 3), and the results that came since (the plan, for a
+  one's hold's (`executors-tools.md`, 1), and the results that came since (the plan, for a
   coordinator); its earlier
   attempts and why they failed; the calls its task committed since its
   last turn, when it does not resume; what waits for it, the waiting
@@ -35,14 +35,14 @@ whom; its delegates, their states, and the
   when it does not resume, but for a standing task's session's first run
   (../tasks/standing.md, 5.4), the window's last turns as text rendered by the
   host's protocol layer when loaded, a turn too large to load as its
-  fixed marker (`executors.md`, 2), within the tail's own budget; and,
+  fixed marker (`executors-transcripts.md`, 1), within the tail's own budget; and,
   for a run whose tools hold `delegate`,
   the catalogue: each model its authority allows (../authority.md, section
   3), with its LLM provider, its window and output, its efforts, its
   prices, and what it is good at, a description its configuration gives
-  (`../../protocol/configuration.md`, section 3), and whether an account
+  (`../../protocol/configuration-engine.md`, section 1), and whether an account
   that serves the run's payer is usable now, limited and until when, or
-  needs sign-in (../accounts.md, 3.5), so that a planning agent gives each
+  needs sign-in (../accounts-sources.md, 2), so that a planning agent gives each
   task it delegates the LLM choice its work needs, by capability and
   cost (../tasks/README.md, section 4).
 - **Its charter's documents' (`settings.md`, 9),** gathered by the connector that
@@ -121,9 +121,9 @@ How it counts decides what becomes of the task:
 
 - **Capacity:** nothing is wrong but room, which frees by itself. The
   task pauses and is due again after a backoff, no try spent, with no
-  bound on how many times (../tasks/lifecycle.md, 6).
+  bound on how many times (../tasks/lifecycle-holds.md, 1).
 - **Transient**, **infrastructure** or **permanent:** a failure of that
-  class (../tasks/lifecycle.md, 6). The task backs off within that class's
+  class (../tasks/lifecycle-holds.md, 1). The task backs off within that class's
   allowance and, past it, is held for `Failures` of that class, its hold
   naming the reason. A section whose system failed for now, or that its
   system did not answer by the brief's deadline, is the infrastructure's:
@@ -140,7 +140,7 @@ Which is which, by what `executors.md`, 1 prepares:
 | no brief slot: the brief child's table is full, or this brief is still gathering | capacity | `brief: no brief slot is free` |
 | a connector says it has no room, or that its system admits nothing yet | capacity | the connector's |
 | the core's result reads, its notes or its proofs have no room | capacity | `results: no read flight is free`, `notes: no room for the index`, `run: no room for its proof` |
-| a claim refused (a host's or a writer's room; ../tasks/lifecycle.md, 6) | capacity | `claim: refused` |
+| a claim refused (a host's or a writer's room; ../tasks/lifecycle-holds.md, 1) | capacity | `claim: refused` |
 | a required section with nothing gathered by the brief's deadline | infrastructure | `SECTION: not gathered by its deadline` |
 | a required section whose cut is unanswered at the brief's deadline | infrastructure | `SECTION: not cut by its deadline` |
 | a connector says its system failed for now | infrastructure | the connector's |
@@ -149,7 +149,7 @@ Which is which, by what `executors.md`, 1 prepares:
 | a dependency's or input's result the store answered with no row | transient | `results: task N's result is missing: the store holds no ended record of it` |
 | a dependency's or input's result the store answered with another task's row, or with a row of another project | transient | `results: task N's result is missing: the store answered task M's record`, or `results: task N's result is missing: the store's record of it is another project's` |
 | a dependency's or input's result the store answered with its row not ended | transient | `results: task N's result is missing: the store's record of it has not ended` |
-| a transcript's window that does not load | transient | `transcript: its window could not be loaded`, or `transcript: its window could not be read` for an open window unread, which closes it (`executors.md`, 2) |
+| a transcript's window that does not load | transient | `transcript: its window could not be loaded`, or `transcript: its window could not be read` for an open window unread, which closes it (`executors-transcripts.md`, 1) |
 | a required section that cannot fit, whole or cut | permanent | `SECTION: does not fit the brief's budget`, or `brief: its required sections do not fit its budget` |
 | a section a connector answered past its bound | permanent | `SECTION: answered past its bound` |
 | a plan the brief child refuses: more sections than a brief holds, a budget past the limit, a core text past it, a section planned twice, a deadline passed | permanent | `brief: ...`, naming which; for a core text, `SECTION: its text is past the brief's limit` |
@@ -166,16 +166,16 @@ decimal, and what the read found:
 
 - **Busy:** the load failed; the root or the store could not serve it.
   A root that has no slot for the load yet is not failing: it keeps the
-  load until one frees (`README.md`, 5.3), so no preparation fails for
+  load until one frees (`decisions.md`, 1.3), so no preparation fails for
   room. A busy answer counts as infrastructure, so a store that cannot
   serve reads for minutes holds no task: the task backs off within that
   class's spaced allowance, some 20 to 40 minutes at the defaults
-  (../tasks/lifecycle.md, 6), and is held only past it.
+  (../tasks/lifecycle-holds.md, 1), and is held only past it.
 - **No row, another task's or project's row, or a row not ended:** the
   store answered, without task `N`'s ended record in the preparing
   task's project; `M` is the number of the task whose row it gave. It
   counts as transient, as the engine's own reads missing do
-  (../tasks/lifecycle.md, 6): a result that is truly gone holds past
+  (../tasks/lifecycle-holds.md, 1): a result that is truly gone holds past
   that allowance, the hold's words naming the task and what was read.
 
 Each is at most 110 bytes with both numbers at their longest, inside
@@ -195,19 +195,19 @@ on.
 ### 1.2 The open questions in the waiting section
 
 A question a delegate asks stays open until it is answered or ends
-(../tasks/lifecycle.md, 8), but its message is taken from the inbox
+(../tasks/lifecycle-endings.md, 1), but its message is taken from the inbox
 by the turn that reads it (../tasks/messages.md, 2). A run that reads
 a question and ends without answering it would leave the next run
 nothing to go on, so every brief shows the open questions:
 
 - **Which.** Each question asked of the task that is still open: its
-  asker holds the question's credit (../tasks/lifecycle.md, 8), with
+  asker holds the question's credit (../tasks/lifecycle-endings.md, 1), with
   the task as its answerer, and the task has heard no answer to it.
   A question this run's start carries as a message is left out, since
   the run reads it whole as a message.
 - **Which runs.** Every run that starts from a brief. A run that resumes
   has no brief; its window already holds the question it read
-  (`executors.md`, 2).
+  (`executors-transcripts.md`, 1).
 - **Its form.** The waiting section, core kind `Waiting`, opens with
   the line `Questions asked of you, still open, oldest first:` and
   lists them oldest first, each as one line and then its words whole,
@@ -259,7 +259,7 @@ something to go on, every brief shows them:
 
   The sender is `Person N` or `Task N`, its number as the activity
   names it; the number is the message's, the one `mark_read` and a
-  note's `records` take (`executors.md`, 3). Where open questions come
+  note's `records` take (`executors-tools.md`, 1). Where open questions come
   first, a blank line parts the two.
 - **Its place.** The waiting section's, as 1.2 says: optional, kept
   before every other optional section, cut from its end past its budget,
@@ -363,7 +363,7 @@ Ask temper is the first, its `temper/docs/design/draft/ask-temper.md`, section 7
 - **The scope,** `Party { party }`, a person's number: one per person, in no
   project, so that no project's reads list it and a project's deletion leaves
   it. The store keys it as it keys every scope, its index lines and entries
-  beside the others' (`../../protocol/store/README.md`, section 4).
+  beside the others' (`../../protocol/store/keys.md`, section 1).
 - **Its entries are preferences,** the kind its scope gives them: an entry's
   description is the line and its body is empty, at most `notes.party_bytes`
   for the description, and at most `notes.party_entries` entries in one
@@ -377,7 +377,7 @@ Ask temper is the first, its `temper/docs/design/draft/ask-temper.md`, section 7
   application's named actions: `Note`, a new entry or a revision at the
   revision it read, and `NoteDelete`, an entry dropped at the revision it
   read, which no other scope admits from a run. The note family decides and
-  records each as it does a note (`executors.md`, 3); for this scope its check is that
+  records each as it does a note (`executors-tools.md`, 1); for this scope its check is that
   requester and that family, in place of the authority's note scopes, and any
   other run's write there is refused beyond authority, naming the scope. A
   run's own `note` and `recall` tools name no party's scope; a requester two
@@ -396,7 +396,7 @@ Ask temper is the first, its `temper/docs/design/draft/ask-temper.md`, section 7
   never cut; a scope whose index cannot be read fails the brief as the notes
   index does (1.1). The notes index (section 2) never lists the scope.
 - **Read and kept by its party alone:** the party reads the scope through a
-  client (`../../client/domain/contract/README.md`, section 4) and corrects or deletes
+  client (`../../client/domain/contract/reads.md`, section 1) and corrects or deletes
   its entries whatever their roles, project 0 named as a deployment's note
   names it. No other party reads it, an owner of the deployment included: a
   read is answered unknown, a correction or a deletion refused as unknown.
@@ -407,14 +407,14 @@ Ask temper is the first, its `temper/docs/design/draft/ask-temper.md`, section 7
   and those tools and the section's title as its runs' briefs render it in
   the client component's, which projects. Each turn the core answers to any
   other party, on its own (`Turn`) or in an activity page, and every turn a
-  run reads as its person (`executors.md`, 3), is marked *withheld*, and the protocol
+  run reads as its person (`executors-tools.md`, 1), is marked *withheld*, and the protocol
   layer that carries it projects it before it leaves: in the turn's system
   text and each text block of its messages, the section's heading line and
   the lines after it that are empty, `None kept.` or a number then `. `
   become the heading and one line, `Withheld: shown to its
   person alone.`, and each private tool's call keeps its tool and position
   with its input `{}` and its result that line. A run's live document
-  (`../../client/domain/contract/README.md`, 5.3) shows a private tool's call and the
+  (`../../client/domain/contract/watches.md`, 1.3) shows a private tool's call and the
   input being written to the task's requester alone, and to every other
   follower the call's tool alone. The stored turn stays whole, so that the
   run resumes from it and its person reads it as it was.

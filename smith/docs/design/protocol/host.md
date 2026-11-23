@@ -63,7 +63,7 @@ The contract is ../domain/host.md's.
   cancel.
   Named live and Start-carried messages preserve `finish_requested` through
   both spawned and inline adapters. False is ordinary text; only the run's
-  admission can apply a true bit (../domain/run.md, section 6).
+  admission can apply a true bit (../domain/run-messages.md, section 1).
 - **Reads are the domain's.** After the opening, the half reads the agent's
   channel only when `smith-host-domain` asks, one read at a time, and reads
   nothing ahead. Each read is answered once: by one record, one live piece
@@ -109,9 +109,9 @@ The contract is ../domain/host.md's.
   than that. Like a check, it is no record of the channel's and takes no slot.
 - **Reading a program's usage.** When its host asks, with a program
   source, the check's deadline and the host's wall time, by which the
-  read places each reset's year (programs.md, 5.11), the half inspects both directory
+  read places each reset's year (programs-claude-code.md, 1.11), the half inspects both directory
   levels as a check does, then runs the program's usage command in the
-  source's environment (programs.md, 5.11), and answers once the child
+  source's environment (programs-claude-code.md, 1.11), and answers once the child
   has settled: its windows, at most 8, each as the channel's usage notice
   has one (channel.md, section 4); not signed in; spent; or failed,
   missing, deadline, unreadable or exited, with its detail. Like a
@@ -121,7 +121,7 @@ The contract is ../domain/host.md's.
   directory and environment, with the host's deadline (programs.md,
   4.1), and answers signed out or failed, with the detail. It reads
   nothing the sign-out removes. A run live on the source ends as a login
-  lost (programs.md, 5.6).
+  lost (programs-claude-code.md, 1.6).
 - **The end.** The domain reads on after the answer, to the channel's end,
   so that what the agent said before it went is heard. The end answers one
   read, and the half reports it once.
@@ -139,7 +139,7 @@ layer spawns a contained tree:
 - **the view:** at least the workspace's directories, writable as the start
   says, the binary and its configuration, and, for a run on a program,
   the program and the source's configuration directory, writable, since
-  the program keeps its session there (programs.md, 5.8). The rest is
+  the program keeps its session there (programs-claude-code.md, 1.8). The rest is
   the host's choice;
 - **the pipes:** standard input and output for the channel, and standard
   error, whose tail the half keeps for the domain's report of how the agent
@@ -308,7 +308,7 @@ without marker IO. Jig-held transcripts are outside this check.
   prompt has told the LLM of them and a turn has been kept after it.
 - **A program's session** is the program's, in its source's
   configuration directory, found by the conversation's session id
-  (programs.md, 5.8). An `--ephemeral` chat's program session is never
+  (programs-claude-code.md, 1.8). An `--ephemeral` chat's program session is never
   resumed by a later chat, and stays as the program keeps its sessions
   (programs.md, section 9).
 
@@ -355,7 +355,7 @@ directory, each record under its lock (`../shell/credentials.md`
 ### 5.5 Delivering in place
 
 The local host's charters grant `deliver` by its configuration and never
-`save` (../domain/run.md, 8.5): a commit in place is already what a save
+`save` (../domain/run-delivery.md, 1.5): a commit in place is already what a save
 would keep. A save asked of it all the same, by a charter of another
 writer's, is refused, saying that this host does not save.
 
@@ -367,8 +367,8 @@ writer's, is refused, saying that this host does not save.
   the rest, in order.
 - **Nothing is pushed** unless the configuration says so.
 - **A plain directory's files** are kept as they are, and delivered says so.
-  Whether they changed, which the run's *nothing* needs (../domain/run.md,
-  section 8.2), the host learns from a snapshot of the tree before the run,
+  Whether they changed, which the run's *nothing* needs (../domain/run-delivery.md,
+  section 1.2), the host learns from a snapshot of the tree before the run,
   its paths and its files' digests, compared with the tree at delivery.
   The snapshot is bounded, in entries, a path's bytes and a file's bytes,
   so it holds in the host's memory. A tree it cannot hold whole, or read
@@ -391,7 +391,7 @@ writer's, is refused, saying that this host does not save.
     delivery goes on or fails as usual.
   - Still unknown: the delivery fails with the reason *unknown*. The host
     keeps its intent, and the next start settles it and tells the run what
-    landed (../domain/run.md, section 6).
+    landed (../domain/run-messages.md, section 1).
 
 ### 5.6 The agent
 

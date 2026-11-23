@@ -1,4 +1,4 @@
-//! Bounded source text values (jig/docs/design/client/domain/contract/README.md, 4).
+//! Bounded source text values (jig/docs/design/client/domain/contract/reads.md, 1).
 use alloc::boxed::Box;
 
 /// Which source words a task text read retrieves.

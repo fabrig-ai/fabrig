@@ -1,6 +1,6 @@
 //! Root and caller ownership at Start, Complete and concrete Turn boundaries.
 //! Typed Wait/text neighbours keep provider grammar and transport outside this domain measurement.
-//! Contract: smith/docs/design/domain/run.md, sections 3, 6 and 12;
+//! Contract: smith/docs/design/domain/run-start.md, section 1, and smith/docs/design/domain/run-messages.md, section 1, and smith/docs/design/domain/run.md, section 12;
 //! smith/docs/design/protocol/limits.md, section 11.
 
 use skein_lib::{Duration, Env, Queue, Time, Token, Wall};
@@ -847,7 +847,7 @@ fn assert_generated(history: &root::Transcript, messages: u32) {
 
 fn cap(source: &Counted, waking: &[u8]) -> u64 {
     // Fixed SUMMARY and PREAMBLE texts in smith-domain-run/src/prompt.rs;
-    // domain/run.md, section 3.3. The summary includes the 1,000-word limit.
+    // domain/run-start.md, section 1.3. The summary includes the 1,000-word limit.
     const SUMMARY_BYTES: u64 = 415;
     const PREAMBLE_BYTES: u64 = 97;
 

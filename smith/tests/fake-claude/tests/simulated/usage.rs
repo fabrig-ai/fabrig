@@ -1,4 +1,4 @@
-//! The local usage command's scripted result (protocol/programs.md, 5.11 and 8).
+//! The local usage command's scripted result (protocol/programs-claude-code.md, 1.11, and protocol/programs.md, 8).
 use crate::support::{Invocation, run};
 use skein_io::kernel::Exit;
 use smith_fake_claude::{Story, UsageReply};

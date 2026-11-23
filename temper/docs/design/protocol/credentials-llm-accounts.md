@@ -12,8 +12,8 @@ sources in its holder's order. temper configures the LLM providers
 `temper-box program-login`, below.
 
 - **Made from the client, never configured.** Configuration names LLM
-  providers, never an account (jig's `protocol/configuration.md`, section
-  3). A fresh deployment has no account but a *none* source's, so no run
+  providers, never an account (jig's `protocol/configuration-engine.md`, section
+  1). A fresh deployment has no account but a *none* source's, so no run
   on another LLM provider starts until a person adds one, and the client
   says so (`../client/view.md`, 1).
 - **Kept by jig:** a signed-in record and a key in jig's secrets' store
@@ -35,7 +35,7 @@ sources in its holder's order. temper configures the LLM providers
   private by `ctl` and removed once moved in; the account has one
   holder at a time, the file or one deployment, and each side refreshes
   the record once it takes it, so a copy left behind is dead.
-- **The sources** (jig's `domain/accounts.md`, 3.4):
+- **The sources** (jig's `domain/accounts-sources.md`, 1):
   - **signed in:** the person's sign-in with the LLM provider, asked
     from the client. The engine binds a loopback listener for each
     sign-in, on an ephemeral port unless the LLM provider's
@@ -83,23 +83,23 @@ sources in its holder's order. temper configures the LLM providers
   `protocol/programs.md`, section 3). Limited, refused and unauthorized
   travel back from the agent as notices, through smith's host half, the
   hub and the link, to the accounts child, fenced by attempt (jig's
-  `domain/accounts.md`, 3.5). Unknown limit resets stay absent; an explicit
+  `domain/accounts-sources.md`, 2). Unknown limit resets stay absent; an explicit
   zero remains supplied. A notice does not replace the run's terminal answer.
   At the current jig/smith pins, Bearer and Key forms are checked
   against the lent value at start and renewal. A program source's grant
   is jig's Program grant, its name and generation with no credential
-  table's value (jig's `domain/accounts.md`, 3.4), installed by smith's
+  table's value (jig's `domain/accounts-sources.md`, 1), installed by smith's
   program backend for a Finite run and an Open one alike, a person's
-  chat included (smith's `protocol/programs.md`, 5.9).
+  chat included (smith's `protocol/programs-claude-code.md`, 1.9).
 - **A host that keeps a person's program logins** runs only that
   person's work, until a run's process tree is contained from the
-  programs directory (jig's `domain/accounts.md`, 3.4): a run can read
+  programs directory (jig's `domain/accounts-sources.md`, 1): a run can read
   every login kept on its host. A standalone deployment's one worker,
   on its person's machine, keeps that person's logins alone, and is
   unaffected.
 - **`temper-box program-login [DIRECTORIES] NAME`:**
   - `NAME` is a program source's name, 1 to 32 of `a` to `z`, `0` to `9`
-    and `-` (jig's `domain/accounts.md`, 3.4), as the accounts page and
+    and `-` (jig's `domain/accounts-sources.md`, 1), as the accounts page and
     `temper ctl account declare` give it with this command, the accounts
     page as the box's whole command (`../client/forge/records.md`, *The
     printed command*). The tools'
@@ -161,7 +161,7 @@ sources in its holder's order. temper configures the LLM providers
   - It reads nothing of the login. The host's half checks it (smith's
     `protocol/programs.md`, section 3; smith's `protocol/host.md`,
     section 2) at its hello, when told of a new source, on its holder's
-    check and at its interval (jig's `domain/accounts.md`, 3.4), and the
+    check and at its interval (jig's `domain/accounts-sources.md`, 1), and the
     accounts page shows the state.
   - Its name says what it does, never a provider's product (jig's
     `domain/providers.md`, 3.2).
@@ -183,7 +183,7 @@ sources in its holder's order. temper configures the LLM providers
   runs at once on one login).
 - **A program's sign-out** is the host's half's, on each host, by the
   program's own (smith's `protocol/host.md`, section 2; jig's
-  `domain/accounts.md`, 3.4), when its holder signs the source out or
+  `domain/accounts-sources.md`, 1), when its holder signs the source out or
   removes it from the client.
 - **What temper does not do:** configure an account, sign one in at a
   terminal of its own, keep a record or a key in its own store or a

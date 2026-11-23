@@ -1,4 +1,4 @@
-//! Startup stream admission (smith/docs/design/protocol/programs.md, sections 5.1 and 5.5).
+//! Startup stream admission (smith/docs/design/protocol/programs-claude-code.md, sections 1.1 and 1.5).
 //! Retains no stream state; checks complete init lines and encodes user and control input.
 
 use crate::mcp::{self, json};
@@ -39,7 +39,7 @@ pub(super) fn text_message(text: &[u8], maximum: u32) -> Option<Box<[u8]>> {
     Some(bytes)
 }
 
-/// Claude Code's system/init (`protocol/programs.md`, 5.5) hides the
+/// Claude Code's system/init (`protocol/programs-claude-code.md`, 1.5) hides the
 /// permission-prompt tool even though it remains callable.
 /// Accept it absent or listed once, alongside every declared server tool.
 pub(super) fn checked_init(bytes: &[u8], tools: &[mcp::Tool], depth: u32, tokens: u32) -> Option<()> {

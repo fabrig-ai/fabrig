@@ -5,9 +5,7 @@ use super::{
 };
 use jig_domain_link::{Form, Hello, Scheme};
 pub use jig_test_profile::effect_fixture as fixture;
-
-// Focused stories have a median of 12 commits; most runs do no rehearsal.
-const STORE_CHECK_ONE_IN: u64 = 1024;
+use std::rc::Rc;
 
 pub(super) fn limits() -> root::Limits {
     let mut limits = jig_test_profile::limits();
@@ -40,6 +38,7 @@ impl World {
             startup,
             owner_sets,
             disk_store,
+            keep_reads,
             mut peers,
             cut,
             sweep,
@@ -66,9 +65,7 @@ impl World {
         }
         let rows = rows
             .unwrap_or_else(|| jig_test_profile::fixtures::account_rows(&configuration.core.settings.llm_providers));
-        let mut world = Self::empty(configuration, &limits, owner_sets, disk_store);
-        world.seed = seed;
-        world.store_checks = super::StoreChecks::sampled(seed, STORE_CHECK_ONE_IN);
+        let mut world = Self::empty(seed, configuration, &limits, owner_sets, disk_store, keep_reads);
         if let Some((now, wall)) = clock {
             world.set_clock(now, wall);
         }
@@ -184,10 +181,12 @@ impl World {
     #[expect(clippy::too_many_lines, reason = "the world initializes each peer and observation in one place")]
     #[expect(clippy::disallowed_methods, reason = "jig's round: reads JIG_WORLD_TRACE to enable world tracing")]
     fn empty(
+        seed: u64,
         mut configuration: root::Config,
         limits: &root::Limits,
         sets: jig_protocol_store::OwnerSets,
         disk: bool,
+        keep_reads: bool,
     ) -> World {
         // These nominal fixture workers offer the scenario's full fleet capacity.
         // Stories that change places do so through settings after the start.
@@ -203,13 +202,14 @@ impl World {
             assert!(sets.sets.is_empty(), "disk crash scenarios use the current format");
             Store::on_disk(limits, &configuration.core.settings.models)
         } else {
-            Store::starting_with_owner_sets(limits, &configuration.core.settings.models, sets)
+            Store::starting_with_read_reuse(limits, &configuration.core.settings.models, sets, keep_reads)
         };
         let move_provider = configuration.core.settings.llm_providers.providers.first().map(|provider| provider.number);
         World {
-            seed: 0,
-            store_checks: super::StoreChecks::sampled(0, STORE_CHECK_ONE_IN),
+            seed,
+            store_checks: super::StoreChecks::one(seed),
             store_checks_reported: false,
+            kept_check: None,
             restart_check: None,
             iteration: 0,
             inspections: 0,
@@ -221,7 +221,8 @@ impl World {
             walking: None,
             broken: false,
             oracle_closed: false,
-            restart_config: (crate::oracle::configuration(&configuration), *limits),
+            closed_documents: None,
+            restart_config: (Rc::new(crate::oracle::configuration(&configuration)), *limits),
             startup: None,
             fixture_rows: Box::new([]),
             domain: root::Domain::new(configuration, limits),
@@ -321,7 +322,7 @@ impl World {
             sweep: Vec::new(),
             fork_child: None,
             case_child: false,
-            hold_kinds: Vec::new(),
+            hold_kinds: Rc::default(),
             wall: 0,
             wall_lag: 0,
             supplied_wall: None,

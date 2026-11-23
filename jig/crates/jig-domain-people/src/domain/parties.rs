@@ -15,7 +15,7 @@ pub(crate) struct SignIn {
 }
 
 impl Domain {
-    /// People census for the host rule (accounts.md, 3.4); restoration is conservative.
+    /// People census for the host rule (domain/accounts-sources.md, 1); restoration is conservative.
     #[must_use]
     pub fn persons(&self) -> u32 {
         if !self.ready() {

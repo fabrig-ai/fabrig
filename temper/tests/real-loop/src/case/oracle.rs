@@ -443,7 +443,7 @@ pub fn step_4_3(observed: &Observed) -> Vec<Miss> {
 }
 
 // Smith offers queued messages beside settled tool results, including subscribe's
-// result (smith/docs/design/domain/run.md, 6). A live wait is only one delivery seam.
+// result (smith/docs/design/domain/run-messages.md, 1). A live wait is only one delivery seam.
 fn check_timer_delivery(told: &Told, subscription: u64) -> bool {
     use skein_fake_llm_domain::api::{Part, Role};
     let result = format!("Subscription {subscription} added");

@@ -98,7 +98,7 @@ fn admin_record_files_and_directories_are_owner_only() {
         }
     }
     assert!(opened);
-    // This permissions fixture does not consume the census (jig protocol/store/README.md, 6.3).
+    // This permissions fixture does not consume the census (jig jig/docs/design/protocol/store/growth.md, 1.3).
     let Some(StoreEvent::Census { .. }) = store.events().pop() else { panic!("opened census") };
     commit_wires(&mut store);
     for _ in 0_u32..4096 {

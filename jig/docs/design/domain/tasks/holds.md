@@ -1,6 +1,6 @@
 # Holds
 
-**A configured-bound hold** stops the task under `lifecycle.md`, 6; the resource holds
+**A configured-bound hold** stops the task under `lifecycle-holds.md`, 1; the resource holds
 below stay with it as for any held task. An authorized
 `Release` lifts `Hold::Exceeded`, returning it to Due with tries reset.
 If the same bound is reported again, its first report holds the task
@@ -42,7 +42,7 @@ again. Words alone do not release it (../people/acts.md, 1).
 - **What a task holds is its connector's to name,** asked once the task
   has its number: from its executor and specification, and from the
   connectors' symbols its batch member names (../authority.md, section 4;
-  `../../protocol/configuration.md`, 3.3), each resolved to the name the
+  `../../protocol/configuration-templates.md`, 3), each resolved to the name the
   task holds, and whether the task is tracked. A symbol the connector
   does not offer that task refuses the batch, naming the symbol.
 - **Reported before it is taken.** For each resource a batch member
@@ -87,11 +87,11 @@ again. Words alone do not release it (../people/acts.md, 1).
 - **A taking has its effects,** as a release does (5): as the commit
   that makes a task active takes its write holds, each hold's connector
   hears of it with an outbox entry of its own, and does what its kind's
-  taking does (../connectors.md, 4.7). One that fails for good holds the
-  task, saying why (`lifecycle.md`, 6).
+  taking does (../connectors-effects.md, 1.7). One that fails for good holds the
+  task, saying why (`lifecycle-holds.md`, 1).
 - **Queues are ordered** by the priority of the goal each task serves
   (../model.md, 6.2), then by when it began to wait, and bounded per
-  resource. A task waiting past its bound is held (`lifecycle.md`, 6), and its
+  resource. A task waiting past its bound is held (`lifecycle-holds.md`, 1), and its
   requester hears why.
 - **A queue is joined once the dependencies are done.** A waiting task
   given another (`changes.md`) leaves its queues, keeping when it began to
@@ -189,7 +189,7 @@ circle, each for another of the set, so that none of them could end.
   - *an amendment adding a dependency* is refused so (`changes.md`).
   - *a queue joined on its own,* by a task whose dependencies are done,
     and *the waits a release gives back:* a task that would close a
-    circle is held instead, naming the circle (`lifecycle.md`, 6). One held from a
+    circle is held instead, naming the circle (`lifecycle-holds.md`, 1). One held from a
     queue leaves it, keeping when it began to wait. Its hold lifts on
     its own, back where it was, once a task the circle names ends, is
     held or loses a wait (a pending dependency done or removed, a queue

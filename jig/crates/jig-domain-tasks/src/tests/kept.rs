@@ -1,4 +1,4 @@
-//! Kept facts and requester authority (domain/tasks/lifecycle.md, 7–9).
+//! Kept facts and requester authority (domain/tasks/lifecycle.md, 7, and domain/tasks/lifecycle-endings.md, 1–2).
 use super::revisions::{Harness, LIMITS, task};
 use crate::{Domain, Event, Party, Stored};
 use alloc::boxed::Box;

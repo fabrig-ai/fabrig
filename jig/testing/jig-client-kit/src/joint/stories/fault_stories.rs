@@ -1,4 +1,4 @@
-//! Client faults cross the real protocol loop (testing.md, sections 5–7).
+//! Client faults cross the real protocol loop (jig/docs/design/client/domain/testing.md, sections 5–7).
 use super::*;
 
 fn enable_tracing(world: &mut World<Test, Joint>) {

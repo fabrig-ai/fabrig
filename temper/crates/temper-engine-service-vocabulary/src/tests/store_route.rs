@@ -946,7 +946,7 @@ fn job_pages_reach_their_owners_and_progress_is_not_a_root_event() {
     limits.core = core;
     let application = temper_protocol_store::application(&root.forge, root.tasks.spec_bytes).unwrap();
     let mut component = store::Store::over(
-        &limits,
+        &store::check(&limits).expect("route fixture limits"),
         application,
         &[],
         store::Stores {

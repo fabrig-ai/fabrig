@@ -1,4 +1,4 @@
-//! The generic client world over the real session loop (testing.md, 5–7).
+//! The generic client world over the real session loop (jig/docs/design/client/domain/testing.md, 5–7).
 //! Scenario identities and the clock mapping are supplied independently of
 //! owner numbers. Unsupported fault sources remain named until implemented.
 use super::session::{Invalid, Session};

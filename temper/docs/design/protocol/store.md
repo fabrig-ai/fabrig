@@ -52,9 +52,9 @@ a second store. temper's engine-only crate is `temper-protocol-store`
   - opening: the format row and the header checked before the root
     starts (jig's `protocol/store/opening.md`);
   - fill: reported with each commit, new work refused above the
-    high-water mark (jig's `protocol/store/README.md`, 6.2);
+    high-water mark (jig's `protocol/store/growth.md`, 1.2);
   - retention: the core's ended work shrunk past horizons (jig's
-    `protocol/store/README.md`, 6.1); temper's families have none (section 7).
+    `protocol/store/growth.md`, 1.1); temper's families have none (`store.md`, section 7).
 
 ## 2. temper's families
 
@@ -81,14 +81,14 @@ configuration/limits.md).
 | 12 | `Change` | `Change(u64)`: the task | reserved (jig's `protocol/store/layouts.md`, 2): its byte lies outside `temper-store`'s keys and its value type's number is never given again; no row holds it and `Row` has no `change` variant (`store-versions.md`, section 1); it held a change's record whole, which families 47 and 48 hold in two parts (below); the record is a change procedure's state, with its last producer's failure words (`producer_failure`, fitted to the hold's account bytes and cut with `...`; a new delegate or a producer's success clears them), which become a producing hold's account (`../domain/forge/change/repairs.md`); and its questions: its route, those taken since its making or last release, and its open questions, each with its asker, number, words whole, first line and where it stands, an answer held with its words (`../domain/forge/change/questions.md`, 1); and `signed`, the sign-offs its last admitted merge counted, at most 8, each a person, a head and a wall time (`../domain/forge/change/gates.md`, 2, *Sign-offs kept at landing*) | `changes` |
 | 13 | `Issue` | `Issue(u64)`: the goal | a goal's issue projection | `issues` |
 | 14 | `Release` | `Release(u64)`: the task | a closing task's release | `tasks` |
-| 15 | `Application` | `Application(u64)`: the people child's token for the request | a keyed adoption's outcome, or a keyed outcome of the FORGE family, kept until its retention ends or erased earlier to make room for a newer request (`../domain/forge/adoption.md`, 9; jig's `domain/connectors.md`, 5.5: a connector keeps its keyed requests' outcomes durably); an outcome carrying a link is kept in memory alone, until its state's life ends (`setup.state_life_ms` after `Done`; `../client/engine.md`) | `applications` |
+| 15 | `Application` | `Application(u64)`: the people child's token for the request | a keyed adoption's outcome, or a keyed outcome of the FORGE family, kept until its retention ends or erased earlier to make room for a newer request (`../domain/forge/adoption.md`, 9; jig's `domain/connectors-facts.md`, 1.5: a connector keeps its keyed requests' outcomes durably); an outcome carrying a link is kept in memory alone, until its state's life ends (`setup.state_life_ms` after `Done`; `../client/engine.md`) | `applications` |
 | 16 | `Writer` | `Writer(forge)`: the forge's number | the forge's writer, given at runtime from its connect's user (skein's `forge/client-effects.md`, 1.1; credentials.md, section 5), restored at start so that restored effects never meet `Forbidden`; erased in its forge's removal's decision (forge/engine.md, 3) | `forges`, the forges kept |
 | 17 | reserved | none | no row: the byte is never reused | none |
 | 18 | `Binding` | `Binding(address)`: a member's address, ASCII letters folded to lower case | the Google subject that first signed in with that member's address, `{ address, subject }`, the subject at most 255 bytes (`sign-in.md`, section 5). Written by the first sign-in alone, never erased. A family of the forge connector's though it is people's, as `Playground` is: `Stored` holds every family of temper's, restored in the one restart step and written in the root's decisions, so it takes no range of its own | `bindings`, the configured members |
 | 19 | reserved | none | no row, as 17 | none |
-| 20 | `Setting` | `Setting { kind, scope, number, slot }`: a kind of temper's (1, 2, 3, 6, 7, 8, 9, 10, 11 or 12), 0 or a project's number, the setting's number, and the slot, `Default`, `Change`, `Proposal(proposal)`, the proposal as jig's core names it to its connector (jig's `domain/engine/settings.md`, 6), or `Replaced(revision)`, the revision whose change replaced the value | its key's fields and its edit: a value of temper's kinds (configuration/settings-kinds.md, 1), a `LandingRule`, the forge's charter's number, a project's questions' route, a `ProjectWays`, a `ProjectClasses`, a `CharterWords`, a `ProjectWords`, a `TemplateGoal` or a `Follow`, with its size, the bytes of its encoding that jig counts; a removal; or, for a proposal's item alone, a reset. The stock default the binary last gave, the current change, a removal being a change with no value, a pending proposal's item, or the value a committed change replaced, kept for a restore (jig's `domain/engine/settings.md`, 10). Written in jig's decisions as jig's `domain/engine/settings.md`, 5 says: a default in the release's revision when the stock differs, a change at its commit, beside it the value it replaced where the setting held a change with a value, a proposal's item at its making; erased with the change a reset undoes, with the proposal's end, and a replaced value with its revision's record, in the decision that erases it from jig's history | the forge's `landing_rules` per scope, each project's questions, ways, classes and words, each charter's words and each template's work, times the scopes and the slots, plus the pending proposals of settings' items and, for each revision jig's history keeps (`settings.history`), a whole set of its kinds' values |
+| 20 | `Setting` | `Setting { kind, scope, number, slot }`: a kind of temper's (1, 2, 3, 6, 7, 8, 9, 10, 11 or 12), 0 or a project's number, the setting's number, and the slot, `Default`, `Change`, `Proposal(proposal)`, the proposal as jig's core names it to its connector (jig's `domain/engine/settings-proposals.md`, 1), or `Replaced(revision)`, the revision whose change replaced the value | its key's fields and its edit: a value of temper's kinds (configuration/settings-kinds.md, 1), a `LandingRule`, the forge's charter's number, a project's questions' route, a `ProjectWays`, a `ProjectClasses`, a `CharterWords`, a `ProjectWords`, a `TemplateGoal` or a `Follow`, with its size, the bytes of its encoding that jig counts; a removal; or, for a proposal's item alone, a reset. The stock default the binary last gave, the current change, a removal being a change with no value, a pending proposal's item, or the value a committed change replaced, kept for a restore (jig's `domain/engine/settings.md`, 10). Written in jig's decisions as jig's `domain/engine/settings-application.md`, 1 says: a default in the release's revision when the stock differs, a change at its commit, beside it the value it replaced where the setting held a change with a value, a proposal's item at its making; erased with the change a reset undoes, with the proposal's end, and a replaced value with its revision's record, in the decision that erases it from jig's history | the forge's `landing_rules` per scope, each project's questions, ways, classes and words, each charter's words and each template's work, times the scopes and the slots, plus the pending proposals of settings' items and, for each revision jig's history keeps (`settings.history`), a whole set of its kinds' values |
 | 21 | `Flight` | `Flight { task, entry }`: the entry's task, then its number | a write the forge sent and has not settled for good: saved in the commit that records an entry's attempt, beside the `Entry` row; kept through an uncertain outcome, a retry, a merge queued on the forge's queue and the restart's settlement; erased in the commit that settles the entry for good (made, failed for good, withdrawn, not made) or holds it for a person, and saved again before a held entry is made again. So after a stop that settled none is left (`../domain/root-restart.md`, 1.2). Its record is its key's fields, `{ task, entry }`, as every row holds its key's (`store.md`, section 3); the restart settles an unresolved write from its kept entry, and registry conversion does not refuse merely because it is in flight | `entries` |
-| 22 | `Delivery` | `Delivery(CallKey)`: the call's task, attempt, completion and position | a delivery's reply, typed in temper's schema (from smith's `DeliveryReply`), which the worker's routing renders for a resumed run: saved in the decision that settles the delivery, first settlement kept, erased when the call retires (a later turn commits, or the task ends); the routing encodes smith's reply from it into the assignment's evidence (jig's `protocol/channel/README.md`, 5.2). | `named_calls` |
+| 22 | `Delivery` | `Delivery(CallKey)`: the call's task, attempt, completion and position | a delivery's reply, typed in temper's schema (from smith's `DeliveryReply`), which the worker's routing renders for a resumed run: saved in the decision that settles the delivery, first settlement kept, erased when the call retires (a later turn commits, or the task ends); the routing encodes smith's reply from it into the assignment's evidence (jig's `protocol/channel/owners.md`, 1.2). | `named_calls` |
 
 - **Beside them** (`../domain/landing.md`, section 12): 23
   `Landing`, keyed by the landing's task, a landing's state; 24
@@ -291,7 +291,7 @@ configuration/limits.md).
   `Erase` become the root's `Write::Save(Record::Forge { row })` and
   `Write::Erase(Key::Forge(key))`, which the routing encodes into jig's
   application writes, `Put { key, value }` and `Remove { key }`, in the
-  same commit as jig's (jig's `protocol/store/README.md`, sections 3 and 5).
+  same commit as jig's (jig's `protocol/store/README.md`, section 3, and `protocol/store/commits.md`, section 1).
 - **A repository's release** (`../domain/forge/adoption-connection.md`, 1, *A
   repository released* and *A release in pages*) erases its family 2
   row last, after every row that names it: families 1 and 3; 4, the
@@ -314,10 +314,10 @@ configuration/limits.md).
 ## 3. Keys
 
 - **Under the application's tag,** 2, which jig's component prefixes and
-  never lets temper's bytes leave (jig's `protocol/store/README.md`, 4.2).
-  temper's own bytes start with the family's byte (section 2), then the
+  never lets temper's bytes leave (jig's `protocol/store/keys.md`, 1.2).
+  temper's own bytes start with the family's byte (`store.md`, section 2), then the
   key's fields.
-- **By jig's rule** (jig's `protocol/store/README.md`, 4.1), written with
+- **By jig's rule** (jig's `protocol/store/keys.md`, 1.1), written with
   skein-kv's key writer: every number as eight bytes, narrower ones
   widened; a commit as its 32 bytes, a byte string; a branch as the list
   of its segments. So:
@@ -344,9 +344,9 @@ configuration/limits.md).
     then the number.
 - **Each family's byte has a name** for the store's census, in a table
   of `temper-protocol-store` that the engine hands jig's component with
-  its owner set (jig's `protocol/store/README.md`, 6.3): `temper.` and the
+  its owner set (jig's `protocol/store/growth.md`, 1.3): `temper.` and the
   family's name in lower case, its words joined by `-` (`temper.changes`,
-  `temper.landing-history`), one per family byte section 2 names. A test
+  `temper.landing-history`), one per family byte `store.md`, section 2 names. A test
   holds the table to the families' bytes: every byte written has one
   name, and no two names repeat.
 - **Written out, not generated:** each family has a small encoder and
@@ -380,8 +380,8 @@ Within the suites' budgets (`../testing/tiers.md`, section 1):
   bounds at their limit and one past; the sizes against the forge's
   limits.
 - **Fuzz targets** for each family's decoder and for the key decoder.
-- **The real store in the domain worlds,** as jig's `protocol/store/README.md`,
-  section 9 has it: temper's engine worlds run jig's component over
+- **The real store in the domain worlds,** as jig's `protocol/store/testing.md`,
+  section 1 has it: temper's engine worlds run jig's component over
   skein-kv's in-memory mode; `temper-protocol-store` encodes temper's
   families. Every story runs real keys, codecs and interval with faults:
   commits held, delayed, one failed to stop the engine, and a crash
@@ -391,8 +391,8 @@ Within the suites' budgets (`../testing/tiers.md`, section 1):
   at drawn moments; after each restart the forge's records are those of
   the last acknowledged commit, or of that and one whole uncertain one,
   never part of one.
-- **The store's own world** is jig's (jig's `protocol/store/README.md`, section
-  9); temper adds none.
+- **The store's own world** is jig's (jig's `protocol/store/testing.md`, section
+  1); temper adds none.
 
 ## 7. Open questions
 

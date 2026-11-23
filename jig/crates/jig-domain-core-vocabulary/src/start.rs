@@ -1,5 +1,5 @@
 //! Load, link and sweep before durable opening (jig/docs/design/domain/engine/restart.md;
-//! jig/docs/design/domain/engine/settings.md, 7).
+//! jig/docs/design/domain/engine/settings-store.md, 1).
 
 pub mod census;
 pub mod cursor;
@@ -28,7 +28,7 @@ pub enum Phase {
     Open,
 }
 
-/// A default or change outside its numbers (domain/engine/settings.md, 7).
+/// A default or change outside its numbers (domain/engine/settings-store.md, 1).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Numbered {
     pub setting: core_settings::Setting,
@@ -40,7 +40,7 @@ pub enum Failure {
     Numbers {
         settings: Box<[Numbered]>,
     },
-    /// A release's new defaults take numbers held by stored values (domain/engine/settings.md, 7).
+    /// A release's new defaults take numbers held by stored values (domain/engine/settings-store.md, 1).
     Taken {
         settings: Box<[core_settings::Setting]>,
     },
@@ -107,7 +107,7 @@ pub enum Linked {
     Holder(tasks::Name),
 }
 
-/// A setting cannot be held under its application's declared kind (domain/engine/settings.md, 5).
+/// A setting cannot be held under its application's declared kind (domain/engine/settings-application.md, 1).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum ApplicationWhy {
     Undeclared,
@@ -154,14 +154,14 @@ pub enum SweepInput {
     Finished,
 }
 
-/// The held settings bound that prevents a cold start (domain/engine/settings.md, 7–8).
+/// The held settings bound that prevents a cold start (domain/engine/settings-store.md, 1, and domain/engine/settings.md, 8).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum HeldLimit {
     Revisions,
     Versions,
 }
 
-/// Ordered live ranges of the cold start (protocol/store/README.md, 4.3, and protocol/store/loads.md, 2).
+/// Ordered live ranges of the cold start (protocol/store/keys.md, 1.3, and protocol/store/loads.md, 2).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum RestoreRange {
     /// The deployment header, first.
@@ -185,7 +185,7 @@ impl RestoreRange {
     pub const LIVE: [Self; 6] =
         [Self::Deployment, Self::Settings, Self::Accounts, Self::People, Self::Tasks, Self::Core];
 
-    /// Predicate checked against the store's intervals (protocol/store/README.md, 4.3).
+    /// Predicate checked against the store's intervals (protocol/store/keys.md, 1.3).
     #[must_use]
     pub fn admits(&self, key: &Key) -> bool {
         match self {

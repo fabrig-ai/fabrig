@@ -1,4 +1,4 @@
-//! Independent checks for protocol/store/README.md, 2 and protocol/store/secrets.md and protocol/store/opening.md, 1–4 and protocol/store/README.md, 11.
+//! Independent checks for protocol/store/README.md, 2 and protocol/store/secrets.md and protocol/store/opening.md, 1–2, and protocol/store/opening-owners.md, 1, and protocol/store/opening.md, 4 and protocol/store/README.md, 11.
 use jig_domain_core as core;
 use jig_domain_tasks as tasks;
 use jig_protocol_store::{Check, Event, KeptFamily, OpenRefusal, Owner, OwnerSet, OwnerSets, SecretOwner, Secrets};
@@ -9,7 +9,7 @@ use skein_lib::Secret;
 pub(crate) const SEED: u64 = 401;
 // fixture-token's schema bounds its payload at 64 bytes.
 const TOKEN_BOUND: usize = 64;
-// Manifest's family and name bounds (protocol/store/opening.md 3).
+// Manifest's family and name bounds (protocol/store/opening-owners.md 1).
 const FAMILY_BOUND: usize = 64;
 const NAME_BOUND: usize = 64;
 const CARRIED_FIRST: u64 = 1_u64 << 63;

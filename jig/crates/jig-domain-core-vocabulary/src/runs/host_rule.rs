@@ -1,4 +1,4 @@
-//! Placement protects kept personal logins (accounts.md, 3.4; domain/engine/fleet.md).
+//! Placement protects kept personal logins (domain/accounts-sources.md, 1; domain/engine/fleet.md).
 
 use jig_domain_accounts::Holder;
 

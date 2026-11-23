@@ -1,5 +1,5 @@
 //! Resident frame machines, bounded independently of map records (protocol/store/transcripts.md, 6, protocol/store/README.md, 8).
-use crate::{Frames, Limits, Owner, OwnerSets, codec};
+use crate::{Frames, Limits, Owner, OwnerSets, codec, upgrade::schemas};
 use alloc::boxed::Box;
 use skein_codec::Record as _;
 use skein_codec::{
@@ -26,7 +26,7 @@ impl Machines {
     }
 }
 
-pub(crate) fn make(sets: &OwnerSets, limits: &Limits) -> Result<Machines, Owner> {
+pub(crate) fn make(sets: &OwnerSets, limits: &Limits, prepared: &[Schema]) -> Result<Machines, Owner> {
     let mut machines = Machines::new();
     for set in sets.sets {
         for (ix, family) in set.families.iter().enumerate() {
@@ -36,9 +36,9 @@ pub(crate) fn make(sets: &OwnerSets, limits: &Limits) -> Result<Machines, Owner>
                 continue;
             }
             let refusal = set.owner;
-            let capacity = capacity(set, ix, limits).ok_or(refusal)?;
-            let Some(patcher) = kept_patcher(frames, capacity) else { return Err(refusal) };
-            let last = last(frames.texts).ok_or(refusal)?;
+            let capacity = capacity(set, ix, limits, prepared).ok_or(refusal)?;
+            let patcher = kept_patcher(frames, capacity, prepared).ok_or(refusal)?;
+            let last = patcher.schemas().last().ok_or(refusal)?.version();
             let machine = Machine { patcher: Some(patcher), root, last, capacity };
             match set.owner {
                 Owner::Jig => machines.body = Some(machine),
@@ -49,11 +49,8 @@ pub(crate) fn make(sets: &OwnerSets, limits: &Limits) -> Result<Machines, Owner>
     }
     Ok(machines)
 }
-fn last(texts: &[&str]) -> Option<u16> {
-    Some(schema::parse(texts.last()?.as_bytes()).ok()?.version())
-}
 
-pub(crate) fn capacity(set: &crate::OwnerSet, ix: usize, limits: &Limits) -> Option<Capacity> {
+pub(crate) fn capacity(set: &crate::OwnerSet, ix: usize, limits: &Limits, prepared: &[Schema]) -> Option<Capacity> {
     let family = set.families.get(ix)?;
     let frames = family.frames.as_ref()?;
     let root = frames.root;
@@ -66,12 +63,11 @@ pub(crate) fn capacity(set: &crate::OwnerSet, ix: usize, limits: &Limits) -> Opt
     let mut capacity = frame_capacity(frames, Room { bytes, nodes: 0 })?;
     // Either owner's nodes are the most its kept texts allow from the
     // frames' root, so every frame those texts allow is read (protocol/store/transcripts.md 6).
-    let meta = kept_patcher(frames, Capacity { bytes: 0, nodes: 0, ..capacity })?;
-    let last = last(frames.texts)?;
-    for text in frames.texts {
-        let schema = schema::parse(text.as_bytes()).ok()?;
+    let meta = kept_patcher(frames, Capacity { bytes: 0, nodes: 0, ..capacity }, prepared)?;
+    let last = meta.schemas().last()?.version();
+    for schema in meta.schemas() {
         let root = held_root(&meta, schema.version(), last, root.as_bytes()).ok()?;
-        capacity.nodes = capacity.nodes.max(node_bound(&schema, root)?);
+        capacity.nodes = capacity.nodes.max(node_bound(schema, root)?);
     }
     Some(capacity)
 }
@@ -165,11 +161,17 @@ pub(crate) fn frame_capacity(frames: &Frames, room: Room) -> Option<Capacity> {
     Some(Capacity { versions, patches, text, bytes: room.bytes, nodes: room.nodes })
 }
 
-pub(crate) fn kept_patcher(frames: &Frames, capacity: Capacity) -> Option<Box<Patcher>> {
+pub(crate) fn kept_patcher(frames: &Frames, capacity: Capacity, prepared: &[Schema]) -> Option<Box<Patcher>> {
     let mut machine = Box::new(Patcher::new(capacity));
     let mut previous = None;
     for text in frames.texts {
-        let Ok(version) = machine.keep(text.as_bytes()) else { return None };
+        let text = text.as_bytes();
+        let version = if let Some(index) = schemas::matching(prepared, text) {
+            machine.keep_schema(prepared.get(index)?.clone())
+        } else {
+            machine.keep(text)
+        };
+        let version = version.ok()?;
         if let Some(previous) = previous
             && Some(version) != u16::checked_add(previous, 1)
         {
@@ -182,8 +184,7 @@ pub(crate) fn kept_patcher(frames: &Frames, capacity: Capacity) -> Option<Box<Pa
             return None;
         }
     }
-    for text in frames.texts {
-        let schema = schema::parse(text.as_bytes()).ok()?;
+    for schema in machine.schemas() {
         let version = schema.version();
         if Some(version) != previous && machine.plan_from(version).is_none() {
             return None;

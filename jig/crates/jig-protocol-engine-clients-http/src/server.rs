@@ -1,4 +1,4 @@
-//! One listener's connections and routed calls (jig/docs/design/protocol/service.md, 11.4).
+//! One listener's connections and routed calls (jig/docs/design/protocol/service-parts.md, 1.4).
 use core::net::{IpAddr, SocketAddr};
 use skein_http::server as http;
 use skein_io as io;

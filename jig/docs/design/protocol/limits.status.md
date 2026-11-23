@@ -2,7 +2,7 @@
 
 2026-11-20. Where the tree's code lags or departs from [limits.md](limits.md).
 
-- **Not yet:**  the horizons and host settings remain `configuration.status.md`, 3, 4 and 6. The calendar child remains `configuration.status.md`, 5. the whole document: the people envelope diagnostics' words name `people-v13`, where the people family is v17 (`jig/crates/jig-protocol-config/src/problem.rs`, `domain.rs`).
+- **Not yet:**  the horizons and host settings remain `configuration-engine.status.md`, 1, and `configuration.status.md`, 4 and 6. The calendar child remains `configuration.status.md`, 5. the whole document: the people envelope diagnostics' words name `people-v13`, where the people family is v17 (`jig/crates/jig-protocol-config/src/problem.rs`, `domain.rs`).
 - **Departs:** the whole document: standard's map budget is its core's fill
   mark rather than a team's budget, so that the map's budget does not
   refuse growing commits before the core's fill mark refuses new party

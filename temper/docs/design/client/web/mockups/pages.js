@@ -183,7 +183,7 @@
   // designed". `variant` gives what the page shows today in its place.
   // A need is its mark's few words and what would supply it.
   const NEEDS = {
-    display: ['the account’s email', 'the account’s display, its email, which jig’s sign-in leaves empty (jig’s client/domain/contract/README.md, 5.1, OwnerAccountLine.display)'],
+    display: ['the account’s email', 'the account’s display, its email, which jig’s sign-in leaves empty (jig’s client/domain/contract/watches.md, 1.1, OwnerAccountLine.display)'],
     preview: ['the resolved default', 'the model a new chat’s first run takes, before it runs: jig’s Template.resolved_default (jig’s client/domain/contract/documents.md, 3)'],
     ci: ['a CI read at main', 'the verdict of CI at a repository’s main: a later mission (design STATUS.md, first-repo)'],
     projectless: ['no project at first', 'temper init seeding no project, which the playground’s start or the first repository makes (draft draft/archive/first-run.md, 2.4; design STATUS.md, first-run-ux-2)'],
@@ -1181,7 +1181,7 @@
   const isPlan = a => a.sources.some(s => s.kind === 'sign-in');
   // An account's heading (client README, 5.5, An account): its name, its
   // display where jig gives one, and its holder.
-  const accountHeading = a => fact('client README, 5.5, An account: OwnerAccountLine.{provider, display, holder} (jig’s client/domain/contract/README.md, 5.1)', `${esc(a.name)}${isPlan(a) ? future('display', esc(` · ${a.sources[0].name}`)) : ''} · ${esc(holderWords(a))}`);
+  const accountHeading = a => fact('client README, 5.5, An account: OwnerAccountLine.{provider, display, holder} (jig’s client/domain/contract/watches.md, 1.1)', `${esc(a.name)}${isPlan(a) ? future('display', esc(` · ${a.sources[0].name}`)) : ''} · ${esc(holderWords(a))}`);
   const paysFor = a => (isPlan(a) ? 'Your own work, and projects where you’re the only member' : 'Your own work');
   const accountUsers = a => Object.keys(world.tasks).filter(k => T(k).account === a.name && isLive(k) && T(k).kind !== 'change').sort((x, y) => x.slice(1) - y.slice(1));
 
@@ -1346,7 +1346,7 @@
     const link = `<a class="text-link" href="https://issuer.example/visit" target="_blank" rel="noopener noreferrer">${esc(elsewhere ? PASTE_WORDS.link : PASTE_WORDS.open)}</a>`;
     return `<h3>Signing in</h3>${ended ? '' : `${elsewhere ? '' : `<p>${esc(PASTE_WORDS.address)}</p>`}<p>${link}</p>`}${signInPaste(state, !elsewhere && !ended)}`;
   }
-  const wayLabel = w => conf('engine.providers, offered as me.providers (jig’s client/domain/contract/README.md, 5.1, ProviderOffer); the label, client README 5.5, The ways', esc(w));
+  const wayLabel = w => conf('engine.providers, offered as me.providers (jig’s client/domain/contract/watches.md, 1.1, ProviderOffer); the label, client README 5.5, The ways', esc(w));
   function modelChoices(signIn, keyForm = 'connect-model.html?way=key') {
     const ways = world.config.ways || [];
     const chatgpt = ways.find(w => w.startsWith('Continue with'));
@@ -1357,7 +1357,7 @@
   function chatgptReady(a, wasPlayground) {
     const s = a.sources[0];
     const t = Object.keys(world.tasks).find(k => T(k).account === a.name && isLive(k) && isChat(T(k)));
-    const ended = 'jig’s client/domain/contract/README.md, 5.1: OwnerAccounts.last_end, Made { account }';
+    const ended = 'jig’s client/domain/contract/watches.md, 1.1: OwnerAccounts.last_end, Made { account }';
     return `<h3>${fact(ended, `Signed in to ChatGPT${future('display', esc(` as ${s.name}`))}`)}</h3>
       <p>temper’s agents now run on your ChatGPT plan.</p>
       <div class="repo-lines">
@@ -1665,7 +1665,7 @@
     const again = '<button class="button" data-later="Mockup: a fresh sign-in, in this tab; ChatGPT sends it back here.">Continue with ChatGPT</button>';
     if (end === 'not-eligible') return future('eligible', `<div class="welcome-end"><p class="forge-failure">This ChatGPT account can’t be used for plan usage in temper. Plan usage needs an eligible ChatGPT plan.</p><div class="button-row"><a class="button" href="${esc(u('welcome.html?at=model&way=key'))}">Use an API key</a><button class="button" data-later="Mockup: a fresh sign-in, after signing out of ChatGPT in the browser.">Sign in to another account</button></div></div>`);
     const [words, key] = SIGN_IN_ENDS[end]();
-    return `<div class="welcome-end"><p class="forge-failure" role="alert">${fact('jig’s client/domain/contract/README.md, 5.1: OwnerAccounts.last_end, its Refused or Failed', words)}</p><div class="button-row">${again}${key ? `<a class="button" href="${esc(u('welcome.html?at=model&way=key'))}">Use an API key</a>` : ''}</div></div>`;
+    return `<div class="welcome-end"><p class="forge-failure" role="alert">${fact('jig’s client/domain/contract/watches.md, 1.1: OwnerAccounts.last_end, its Refused or Failed', words)}</p><div class="button-row">${again}${key ? `<a class="button" href="${esc(u('welcome.html?at=model&way=key'))}">Use an API key</a>` : ''}</div></div>`;
   }
   pages.welcome = () => {
     document.body.classList.add('terminal-pages');

@@ -17,15 +17,15 @@
 //! What a run is given is policy as data ([`charter`]): the run interprets no
 //! workflow vocabulary, and compares the labels in it byte for byte. So is what
 //! it may finish with ([`outcome`]), which [`outcome::judge`] checks a declared
-//! outcome against (smith/docs/design/domain/run.md, sections 7 and 8).
+//! outcome against (smith/docs/design/domain/run.md, section 7, and smith/docs/design/domain/run-delivery.md, section 1).
 
 //! The retained state is each admitted charter, conversation binding, shared
 //! usage, preparation/check/delivery phase, the write lease and its pending terminal rights.
 //! The lease names the exclusive call schedule; each writer first settles session jobs
-//! (smith/docs/design/domain/run.md, sections 5.3 and 8.1).
+//! (smith/docs/design/domain/run.md, section 5.3, and smith/docs/design/domain/run-delivery.md, section 1.1).
 //! It also keeps the bounded labelled-message FIFO, current/offered read fence,
 //! settled wait/park state and activation-local turn numbering
-//! (smith/docs/design/domain/run.md, sections 6 and 12).
+//! (smith/docs/design/domain/run-messages.md, section 1, and smith/docs/design/domain/run.md, section 12).
 //! The run never knows authentication, provider dialect bytes,
 //! credential secrets, forge state, CI or the host's delivery policy. Output
 //! goes into an uncapped queue, and the caller delivers pending terminals

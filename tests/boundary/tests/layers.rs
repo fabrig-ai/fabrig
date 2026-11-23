@@ -67,8 +67,35 @@ fn layer_names<'a>(table: &'a toml::Table, findings: &mut Vec<String>) -> BTreeS
     names
 }
 
-fn real_profiles(table: &toml::Table, config: &str, findings: &mut Vec<String>) -> Result<(), String> {
+/// The binaries the slow tiers own by name, which a real pair names but its clause leaves out (section 9.2).
+fn another_tiers(id: &str) -> bool {
+    let name = id.split_once("::").map_or("", |(_, name)| name);
+    ["browser_", "conformance_", "recorded_"].iter().any(|prefix| name.starts_with(prefix))
+        || ["live", "live_github"].contains(&name)
+}
+
+fn real_packages(name: &str, lines: &BTreeSet<&str>, packages: &toml::Table, findings: &mut Vec<String>) {
+    let Some(listed) = packages.get(name).and_then(toml::Value::as_array) else {
+        findings.push(format!("tools/tiers/packages.toml: no {name} list"));
+        return;
+    };
+    let listed: BTreeSet<&str> = listed.iter().filter_map(toml::Value::as_str).collect();
+    let mut built = BTreeSet::new();
+    for id in lines.iter().filter(|id| !another_tiers(id)) {
+        let package = id.split_once("::").map_or(*id, |(package, _)| package);
+        built.insert(package);
+        if !listed.contains(package) {
+            findings.push(format!("tools/tiers/packages.toml: {name} lacks {package}, which builds {id}"));
+        }
+    }
+    for package in listed.difference(&built) {
+        findings.push(format!("tools/tiers/packages.toml: {name} lists {package}, which builds no binary it runs"));
+    }
+}
+
+fn real_profiles(table: &toml::Table, config: &str, packages: &str, findings: &mut Vec<String>) -> Result<(), String> {
     let config: toml::Table = toml::from_str(config).map_err(|why| format!("nextest configuration: {why}"))?;
+    let packages: toml::Table = toml::from_str(packages).map_err(|why| format!("package map: {why}"))?;
     let profiles = config.get("profile").and_then(toml::Value::as_table);
     let mut trees: BTreeSet<&str> = TREES.into_iter().collect();
     if let Some(profiles) = profiles {
@@ -108,11 +135,12 @@ fn real_profiles(table: &toml::Table, config: &str, findings: &mut Vec<String>) 
         for id in named.difference(&expected) {
             findings.push(format!("{tree}: [profile.{name}] names {id}, not a real-loop or end-to-end line"));
         }
+        real_packages(&name, &expected, &packages, findings);
     }
     Ok(())
 }
 
-fn findings(metadata: &str, table: &str, config: &str) -> Result<Vec<String>, String> {
+fn findings(metadata: &str, table: &str, config: &str, packages: &str) -> Result<Vec<String>, String> {
     let binaries = binaries(metadata)?;
     let table: toml::Table = match toml::from_str(table) {
         Ok(table) => table,
@@ -164,7 +192,7 @@ fn findings(metadata: &str, table: &str, config: &str) -> Result<Vec<String>, St
             findings.push(format!("{id}: missing line under [{}]", tree.as_deref().expect("a tree binary")));
         }
     }
-    real_profiles(&table, config, &mut findings)?;
+    real_profiles(&table, config, packages, &mut findings)?;
     findings.sort();
     Ok(findings)
 }
@@ -238,7 +266,11 @@ fn rules_on_fixtures() {
         (&world, "[skein]\n\"demo::world\" = 7", vec!["[skein] demo::world: layer must be a string"]),
     ] {
         let table = format!("layers = ['step', 'domain']\n{table}");
-        assert_eq!(findings(metadata, &table, "").expect("fixture metadata reads"), expected, "{metadata}\n{table}");
+        assert_eq!(
+            findings(metadata, &table, "", "").expect("fixture metadata reads"),
+            expected,
+            "{metadata}\n{table}"
+        );
     }
     for (metadata, table, expected) in [
         (&library, "", vec!["layers: expected a list of layer names"]),
@@ -258,7 +290,7 @@ fn rules_on_fixtures() {
             ],
         ),
     ] {
-        assert_eq!(findings(metadata, table, "").expect("fixture metadata reads"), expected, "{table}");
+        assert_eq!(findings(metadata, table, "", "").expect("fixture metadata reads"), expected, "{table}");
     }
 }
 
@@ -268,6 +300,7 @@ fn real_pair_rules_on_fixtures() {
     let real = "layers = ['step', 'real-loop', 'end-to-end']\n[skein]\n\"demo::world\" = 'real-loop'";
     let end_to_end = "layers = ['step', 'real-loop', 'end-to-end']\n[skein]\n\"demo::world\" = 'end-to-end'";
     let profile = "[profile.real-skein]\ndefault-filter = 'binary_id(=demo::world)'";
+    let packages = "real-skein = ['demo']";
     for (table, config, expected) in [
         (real, profile, vec![]),
         (end_to_end, profile, vec![]),
@@ -289,7 +322,27 @@ fn real_pair_rules_on_fixtures() {
             vec!["skein: [profile.real-skein] has no real-loop or end-to-end lines"],
         ),
     ] {
-        assert_eq!(findings(&world, table, config).expect("fixture texts read"), expected, "{table}\n{config}");
+        assert_eq!(
+            findings(&world, table, config, packages).expect("fixture texts read"),
+            expected,
+            "{table}\n{config}"
+        );
+    }
+    let browser = "layers = ['step', 'end-to-end']\n[skein]\n\"demo::world\" = 'end-to-end'\n\
+                   \"view::browser_pages\" = 'end-to-end'";
+    let both = "[profile.real-skein]\ndefault-filter = 'binary_id(=demo::world) | binary_id(=view::browser_pages)'";
+    for (packages, expected) in [
+        (packages, vec![]),
+        (
+            "real-skein = ['demo', 'view']",
+            vec!["tools/tiers/packages.toml: real-skein lists view, which builds no binary it runs"],
+        ),
+        ("real-skein = []", vec!["tools/tiers/packages.toml: real-skein lacks demo, which builds demo::world"]),
+        ("", vec!["tools/tiers/packages.toml: no real-skein list"]),
+    ] {
+        let found = findings(&world, browser, both, packages).expect("fixture texts read");
+        let found: Vec<_> = found.into_iter().filter(|finding| finding.starts_with("tools/")).collect();
+        assert_eq!(found, expected, "{packages}");
     }
 }
 
@@ -305,6 +358,7 @@ fn workspace_binaries_have_layers() {
     let metadata = String::from_utf8(output.stdout).expect("cargo metadata is UTF-8");
     let table = fs::read_to_string(root.join("tools/tiers/layers.toml")).expect("the layer table reads");
     let config = fs::read_to_string(root.join(".config/nextest.toml")).expect("the nextest configuration reads");
-    let findings = findings(&metadata, &table, &config).expect("workspace texts read");
+    let packages = fs::read_to_string(root.join("tools/tiers/packages.toml")).expect("the package map reads");
+    let findings = findings(&metadata, &table, &config, &packages).expect("workspace texts read");
     assert!(findings.is_empty(), "{}", findings.join("\n"));
 }

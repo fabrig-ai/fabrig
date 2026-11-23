@@ -1,4 +1,4 @@
-//! Restart and task closure from jig/docs/design/domain/connectors.md, sections 4 and 14.
+//! Restart and task closure from jig/docs/design/domain/connectors-effects.md, section 1, and jig/docs/design/domain/connectors.md, section 14.
 
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 

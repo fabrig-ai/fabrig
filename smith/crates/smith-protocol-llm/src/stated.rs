@@ -1,6 +1,6 @@
 //! Effective numeric workspace-tool declarations supplied by the service.
 //! This value owns no authority, paths or endpoint data and admits no call.
-//! Contract: protocol/llm.md, section 3; protocol/limits.md, sections 2 and 3.
+//! Contract: protocol/llm.md, section 3; protocol/limits.md, section 2, and protocol/limits-derivation.md, section 1.
 
 use skein_lib::Duration;
 use smith_domain::tools;

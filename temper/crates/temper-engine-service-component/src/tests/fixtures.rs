@@ -483,11 +483,11 @@ pub(crate) fn records_store_from(mut maps: jig_protocol_store::Stores) -> crate:
     let models = jig_protocol_config::core(&settings.jig, [7; 16], 7).settings.models;
     // Secret-record fixtures start from a real completed deployment, as the
     // store now refuses secrets until that start's mark is durable.
-    let limits = crate::store::limits(&root, &root.forge, &profile).expect("record fixture limits");
-    maps.secrets = skein_kv::Store::memory(&limits.secrets);
-    let mut store = memory_store_for(&root, &profile, &models);
+    let checked = crate::store::limits(&root, &root.forge, &profile).expect("record fixture limits");
+    maps.secrets = skein_kv::Store::memory(&checked.limits().secrets);
+    let mut store = memory_opened(opening_memory_store_checked(&root, &profile, &checked, &models));
     store.host.component = jig_protocol_store::Store::over(
-        &limits,
+        &checked,
         temper_protocol_store::application(&root.forge, root.tasks.spec_bytes).expect("fixture families"),
         &models,
         maps,
@@ -502,7 +502,7 @@ pub(crate) fn records_store_from(mut maps: jig_protocol_store::Stores) -> crate:
     let Some(jig_protocol_store::Event::Opened { .. }) = store.host.above.pop() else {
         panic!("record store reopened")
     };
-    // These fixture handoffs do not consume census reports (jig protocol/store/README.md, 6.3).
+    // These fixture handoffs do not consume census reports (jig jig/docs/design/protocol/store/growth.md, 1.3).
     let Some(jig_protocol_store::Event::Census { .. }) = store.host.above.pop() else { panic!("opened census") };
     mark_store(&mut store);
     commit(
@@ -520,9 +520,12 @@ pub(super) fn memory_store_for(
     profile: &jig_protocol_store::Limits,
     models: &[jig_domain_core::Model],
 ) -> crate::store::Store {
-    let mut store = opening_memory_store_for(root, profile, models);
+    memory_opened(opening_memory_store_for(root, profile, models))
+}
+
+fn memory_opened(mut store: crate::store::Store) -> crate::store::Store {
     let Some(jig_protocol_store::Event::Opened { .. }) = store.host.above.pop() else { panic!("store opened") };
-    // These fixture handoffs do not consume census reports (jig protocol/store/README.md, 6.3).
+    // These fixture handoffs do not consume census reports (jig jig/docs/design/protocol/store/growth.md, 1.3).
     let Some(jig_protocol_store::Event::Census { .. }) = store.host.above.pop() else { panic!("opened census") };
     store.opened = true;
     store
@@ -533,10 +536,28 @@ pub(super) fn opening_memory_store_for(
     profile: &jig_protocol_store::Limits,
     models: &[jig_domain_core::Model],
 ) -> crate::store::Store {
-    let limits = crate::store::limits(root, &root.forge, profile).expect("checked store limits");
-    let mut store = crate::store::Store::new(root, &limits, models, &seeds());
+    let checked = crate::store::limits(root, &root.forge, profile).expect("checked store limits");
+    opening_memory_store_checked(root, profile, &checked, models)
+}
+
+#[derive(Debug)]
+pub(crate) struct StoreAdmission {
+    pub(super) root: temper_engine_domain::Limits,
+    pub(super) profile: jig_protocol_store::Limits,
+    pub(super) checked: jig_protocol_store::Checked,
+}
+
+fn opening_memory_store_checked(
+    root: &temper_engine_domain::Limits,
+    profile: &jig_protocol_store::Limits,
+    checked: &jig_protocol_store::Checked,
+    models: &[jig_domain_core::Model],
+) -> crate::store::Store {
+    let limits = checked.limits();
+    let mut store = crate::store::Store::new(root, checked, models, &seeds());
+    store.fixture_admission = Some(Box::new(StoreAdmission { root: *root, profile: *profile, checked: *checked }));
     store.host.component = jig_protocol_store::Store::over(
-        &limits,
+        checked,
         temper_protocol_store::application(&root.forge, root.tasks.spec_bytes).expect("application sizes"),
         models,
         jig_protocol_store::Stores {
@@ -804,7 +825,9 @@ pub fn start_configured(
     let seed = ForgeSeed::new(&root, &settings.jig);
     let store = match stored {
         Some(store) => store,
-        None => memory_store_for(&root, &settings.jig.limits.store, &seed.models),
+        None => {
+            memory_opened(opening_memory_store_checked(&root, &settings.jig.limits.store, &seed.checked, &seed.models))
+        }
     };
     let io = crate::startup::checks::engine_io(&settings.jig.limits.io);
     let endpoints = crate::forge::settings(
@@ -1378,10 +1401,15 @@ pub fn application_request(number: u64, value: Secret) -> jig_protocol_store::Se
 pub fn reopened_store(mut store: crate::store::Store, root: &temper_engine_domain::Limits) -> crate::store::Store {
     let settings = engine();
     let models = jig_protocol_config::core(&settings.jig, [7; 16], 7).settings.models;
-    let limits = crate::store::limits(root, &root.forge, &settings.jig.limits.store).expect("fixture store limits");
+    let profile = settings.jig.limits.store;
+    let checked = match &store.fixture_admission {
+        Some(admission) if admission.root == *root && admission.profile == profile => admission.checked,
+        Some(_) | None => crate::store::limits(root, &root.forge, &profile).expect("fixture store limits"),
+    };
+    store.fixture_admission = Some(Box::new(StoreAdmission { root: *root, profile, checked }));
     let maps = store.host.component.into_stores();
     store.host.component = jig_protocol_store::Store::over(
-        &limits,
+        &checked,
         temper_protocol_store::application(&root.forge, root.tasks.spec_bytes).expect("fixture families"),
         &models,
         maps,
@@ -1396,7 +1424,7 @@ pub fn reopened_store(mut store: crate::store::Store, root: &temper_engine_domai
     let Some(jig_protocol_store::Event::Opened { pending: false, .. }) = store.host.above.pop() else {
         panic!("reopened fixture")
     };
-    // These fixture handoffs do not consume census reports (jig protocol/store/README.md, 6.3).
+    // These fixture handoffs do not consume census reports (jig jig/docs/design/protocol/store/growth.md, 1.3).
     let Some(jig_protocol_store::Event::Census { .. }) = store.host.above.pop() else { panic!("opened census") };
     store.secret_requests = 0;
     store.forge_loads = skein_lib::List::with_capacity(128);
@@ -1719,25 +1747,26 @@ pub(crate) fn configured_forge(
 /// Store inputs for fixture secrets (temper/docs/design/protocol/credentials.md, 2.1).
 #[derive(Debug)]
 struct ForgeSeed {
-    limits: jig_protocol_store::Limits,
+    checked: jig_protocol_store::Checked,
     application: jig_protocol_store::sizes::Application,
     models: Box<[jig_domain_core::Model]>,
 }
 impl ForgeSeed {
     fn new(root: &temper_engine_domain::Limits, config: &jig_protocol_config::Engine) -> Self {
         Self {
-            limits: crate::store::limits(root, &root.forge, &config.limits.store).unwrap(),
+            checked: crate::store::limits(root, &root.forge, &config.limits.store).unwrap(),
             application: temper_protocol_store::application(&root.forge, root.tasks.spec_bytes).unwrap(),
             models: jig_protocol_config::core(config, [7; 16], 7).settings.models,
         }
     }
     fn component(&self, maps: jig_protocol_store::Stores) -> jig_protocol_store::Store {
-        jig_protocol_store::Store::over(&self.limits, self.application, &self.models, maps)
+        jig_protocol_store::Store::over(&self.checked, self.application, &self.models, maps)
     }
     fn empty(&self) -> jig_protocol_store::Store {
+        let limits = self.checked.limits();
         self.component(jig_protocol_store::Stores {
-            store: skein_kv::Store::memory(&self.limits.store),
-            secrets: skein_kv::Store::memory(&self.limits.secrets),
+            store: skein_kv::Store::memory(&limits.store),
+            secrets: skein_kv::Store::memory(&limits.secrets),
         })
     }
 }
@@ -1817,7 +1846,7 @@ fn open_seeded(store: &mut crate::store::Store) {
     let Some(jig_protocol_store::Event::Opened { .. }) = store.host.above.pop() else {
         panic!("seeded fixture reopened")
     };
-    // These fixture handoffs do not consume census reports (jig protocol/store/README.md, 6.3).
+    // These fixture handoffs do not consume census reports (jig jig/docs/design/protocol/store/growth.md, 1.3).
     let Some(jig_protocol_store::Event::Census { .. }) = store.host.above.pop() else { panic!("opened census") };
 }
 

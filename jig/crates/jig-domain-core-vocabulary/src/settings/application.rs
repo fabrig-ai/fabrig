@@ -1,15 +1,15 @@
-//! Application-owned setting values (jig/docs/design/domain/engine/settings.md, 5).
+//! Application-owned setting values (jig/docs/design/domain/engine/settings-application.md, 1).
 use super::Setting;
 use crate::Limits;
 use alloc::boxed::Box;
 
-/// Where a kind's values are kept (jig/docs/design/domain/engine/settings.md, 5).
+/// Where a kind's values are kept (jig/docs/design/domain/engine/settings-application.md, 1).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum KindScope {
     Deployment,
     Project,
 }
-/// A declared application kind and its bounds (jig/docs/design/domain/engine/settings.md, 5).
+/// A declared application kind and its bounds (jig/docs/design/domain/engine/settings-application.md, 1).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Kind {
     pub number: u32,
@@ -19,14 +19,14 @@ pub struct Kind {
     pub per_scope: u32,
     pub charters: u8,
 }
-/// An edit whose value stays with its connector (jig/docs/design/domain/engine/settings.md, 5).
+/// An edit whose value stays with its connector (jig/docs/design/domain/engine/settings-application.md, 1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Edit {
     Set(Box<[u8]>),
     Remove,
     Reset,
 }
-/// One application setting handed to its connector (jig/docs/design/domain/engine/settings.md, 5).
+/// One application setting handed to its connector (jig/docs/design/domain/engine/settings-application.md, 1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Item {
     pub kind: u32,

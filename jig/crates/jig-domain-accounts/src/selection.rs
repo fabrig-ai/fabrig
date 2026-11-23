@@ -1,9 +1,9 @@
-//! Read-only ordered selection (accounts.md, 3.4 and 4.3). The core supplies the people join;
+//! Read-only ordered selection (domain/accounts-sources.md, 1, and domain/accounts-uses.md, 1.3). The core supplies the people join;
 //! this child owns account/source identity and order. No credential or second ledger is held.
 use crate::{Account, Domain, Holder, Kind, State, Use};
 use skein_lib::Time;
 
-/// The ways a model can take its provider's sources (accounts.md, 3.4).
+/// The ways a model can take its provider's sources (domain/accounts-sources.md, 1).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Ways {
     pub program: bool,

@@ -1,4 +1,4 @@
-//! Program backend admission and lower routing (smith/docs/design/protocol/programs.md, 2, 3, 5).
+//! Program backend admission and lower routing (smith/docs/design/protocol/programs.md, 2, 3, smith/docs/design/protocol/programs-claude-code.md, 1).
 //! Keeps main and owner-keyed child backends, grants and pipe routes; never reads source logins.
 //! The service calls these hooks at the same stages as its direct LLM component.
 
@@ -93,7 +93,7 @@ impl Child {
 
 #[expect(
     clippy::disallowed_methods,
-    reason = "protocol/programs.md, section 5.1: the MCP command path must be JSON text"
+    reason = "protocol/programs-claude-code.md, section 1.1: the MCP command path must be JSON text"
 )]
 fn new(
     config: ProgramBackend,

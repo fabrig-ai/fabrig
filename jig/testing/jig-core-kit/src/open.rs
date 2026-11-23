@@ -1,4 +1,4 @@
-//! Open-problem exclusions (`jig/docs/design/domain/testing.md`, 7.3).
+//! Open-problem exclusions (`jig/docs/design/domain/testing-fakes.md`, 1.3).
 //! The sweeps drawing these faults take these exclusions.
 
 use skein_world::{faults::Kind, sweep::Exclusion};

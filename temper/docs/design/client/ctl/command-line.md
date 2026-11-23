@@ -232,7 +232,7 @@ as the terminal's host is:
 - **Another party's kept requests,** in a DIRECTORY signed in again as
   another party, stay parked and unsent, until their party signs in
   there again or the retention passes and they are answered unknown
-  (jig's `client/domain/client/README.md`, section 8). Step 4 does not wait
+  (jig's `client/domain/client/small-store.md`, section 1). Step 4 does not wait
   for them; the call says how many (`results.md`, 1) and goes on.
 - **`pending`** lists what the small store keeps (`host.md`).
 
@@ -262,7 +262,7 @@ An agent runs a wait while it acts, or several agents share a party.
   memory, empty, never DIRECTORY's file: they write no record and send
   nothing but reads and watches. A client loaded from DIRECTORY's
   records would send the stream they name gone (jig's
-  `client/domain/client/README.md`, section 8), ending the watches of the
+  `client/domain/client/small-store.md`, section 1), ending the watches of the
   call that opened it.
 - **Several parties** are several directories, each signed in as its
   own.
@@ -289,7 +289,7 @@ An agent runs a wait while it acts, or several agents share a party.
   from a lost answer needs the protocol owner's decision. Until then it
   keeps that retry behaviour; unsupported settings efforts not caught by
   `tools-acts.md`, 1's local check take the existing final refusal (jig's
-  `client/domain/contract/README.md`, section 3).
+  `client/domain/contract/answers.md`, section 1).
 
 - **The reported settings silence** (`tools-acts.md`, 1, `command-line.md`, 1.2): a final refusal in the
   scripted world does not reproduce the walk's kept, unanswered change.

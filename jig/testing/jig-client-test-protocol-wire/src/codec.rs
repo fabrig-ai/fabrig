@@ -1,4 +1,4 @@
-//! The application's own wire, at the engine's protocol boundary (client/domain/client/README.md, 8).
+//! The application's own wire, at the engine's protocol boundary (client/domain/client/small-store.md, 1).
 use crate::v2::{self as w, Record};
 use alloc::boxed::Box;
 use jig_test_connector as d;

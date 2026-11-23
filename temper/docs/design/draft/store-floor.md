@@ -83,7 +83,7 @@ A migration at open (jig's `protocol/store/jobs.md`), carried by the build that 
   - **Written by every fresh store's first commit,** at the build's floor. A store made after F1 therefore opens again.
 - **Checked by the open,** in `jig/crates/jig-protocol-store/src/open.rs`, after the format row is decoded and before:
   - any plan or seeding;
-  - the rehearsal's decoding of records (jig's `protocol/store/opening.md`, 5).
+  - the rehearsal's decoding of records (jig's `protocol/store/opening-rehearsal.md`, 1).
 
   The rehearsal shares the check, so a check over an older store refuses as its start would. It never writes its source, only its scratch.
 - **What it refuses:**

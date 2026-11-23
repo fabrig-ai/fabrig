@@ -1,9 +1,9 @@
-//! One rule for delegates, dependencies and ending authority (domain/tasks/lifecycle.md, 7–9 and domain/tasks/changes.md).
+//! One rule for delegates, dependencies and ending authority (domain/tasks/lifecycle.md, 7, and domain/tasks/lifecycle-endings.md, 1–2 and domain/tasks/changes.md).
 use crate::domain::{Domain, record};
 use crate::{Active, End, Executor, Phase, TaskResult, Was};
 use alloc::boxed::Box;
 
-/// Whether an active task may go on, and why not (domain/tasks/lifecycle.md, 8).
+/// Whether an active task may go on, and why not (domain/tasks/lifecycle-endings.md, 1).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 #[expect(clippy::struct_excessive_bools, reason = "independent facts keep their separate claim and finish rules")]
 pub(crate) struct Kept {
@@ -20,7 +20,7 @@ pub(crate) struct Kept {
 }
 
 impl Domain {
-    /// A waiting effect reads the task's current kept state (domain/tasks/lifecycle.md, 8).
+    /// A waiting effect reads the task's current kept state (domain/tasks/lifecycle-endings.md, 1).
     #[must_use]
     pub fn waiting_effect_problem(&self, task: u64) -> Option<crate::Problem> {
         let row = record(self, task)?;
@@ -77,7 +77,7 @@ pub(crate) fn pending(dependencies: &[u64], ended_by: crate::EndedBy) -> Kept {
     }
 }
 
-/// The oldest unanswered question addressed to this task's requester (domain/tasks/lifecycle.md, 8).
+/// The oldest unanswered question addressed to this task's requester (domain/tasks/lifecycle-endings.md, 1).
 #[must_use]
 pub fn own_question(row: &crate::TaskRecord) -> Option<u64> {
     question(&row.questions, row.requester)
@@ -146,7 +146,7 @@ impl Kept {
         }
     }
 
-    /// Open discards a run's raw finish before judgment; its run parks (domain/tasks/lifecycle.md, 9).
+    /// Open discards a run's raw finish before judgment; its run parks (domain/tasks/lifecycle-endings.md, 2).
     pub(crate) fn discards(self, end: &End) -> bool {
         self.open
             && match end {

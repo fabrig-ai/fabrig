@@ -15,7 +15,7 @@ agent's largest turn" (`temper-service`'s `startup/checks.rs`).
 - **T,** the configured turn ceiling, must hold smith's largest measured
   turn (`smith-agent-service`'s `profile.rs`). That measurement uses the
   smallest shared room over every endpoint, so one set of bounds
-  holds whichever model a charter names (smith's `protocol/limits.md`, 3.9).
+  holds whichever model a charter names (smith's `protocol/limits-derivation.md`, 1.9).
   `temper-box init`'s agent takes 48 calls per response, 32
   conversations (`stock.md`'s table) and 64 models a charter, its endpoints an
   output of 48,000 and a `reasoning_item` of at most 65,536, and efforts
@@ -116,15 +116,15 @@ agent's largest turn" (`temper-service`'s `startup/checks.rs`).
 | both `core.call_answer_bytes` | at least P; follows it unless overridden | the agent's call input |
 
 - **A sub-agent's answer:** smith's `run.answer_bytes` follows P as the
-  outcome does, the larger of 4,096 and P (smith's `protocol/limits.md`,
-  3.10), so a survey a goal's run asks through `sub_agent` answers in up
+  outcome does, the larger of 4,096 and P (smith's `protocol/limits-derivation.md`,
+  1.10), so a survey a goal's run asks through `sub_agent` answers in up
   to 63,740 bytes on the reference and 10,662 on the stock. temper
   declares nothing for it: smith derives it at the agent's start, holds
   it under `render-in-result` and prints it among the agent's effective
   limits. A longer answer is cut, its words saying how much was left out
   and to ask again, narrower (smith's `domain/run.md`, 5.3).
 - **A batch:** `standard`'s `authority.batch` is 32, so a `change` of up to
-  32 changes passes (jig's `domain/authority.md`, section 8), still
+  32 changes passes (jig's `domain/authority-checks.md`, section 1), still
   within `tasks.batch`, `tasks.batch_bytes` and the task room a batch
   needs. Each model's figures don't enter it. It costs a retained denial
   300 findings at most where it took 92, and a batch's aggregate 512
@@ -134,7 +134,7 @@ agent's largest turn" (`temper-service`'s `startup/checks.rs`).
   `standard` for it and a batch's count isn't a model's figure.
 - **A brief:** `standard`'s `hub.charter_bytes` is 262,144, and smith's
   charter allowance is the larger of 65,536 and twice the payload (smith's
-  `protocol/limits.md`, 3.10). The reference's is 127,480, so this receiving
+  `protocol/limits-derivation.md`, 1.10). The reference's is 127,480, so this receiving
   allowance binds before the hub's 262,144: the engine fits a charter to
   the smaller of the two where its process has the agent, and to 65,536
   where it doesn't know its worker's (`../../domain/agent/room.md`, 2, and `../../domain/agent/README.md`, 8

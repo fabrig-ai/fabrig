@@ -1,4 +1,4 @@
-//! Kernel and hosted glue for the relay (smith/docs/design/protocol/programs.md, section 5.3).
+//! Kernel and hosted glue for the relay (smith/docs/design/protocol/programs-claude-code.md, section 1.3).
 //! Keeps I/O queues, the relay and one fixed diagnostic; knows no MCP policy.
 //! `Process::new` transfers startup descriptors and `main` drives it unchanged.
 
@@ -20,7 +20,7 @@ const QUEUE: u32 = 64;
 const SOCKET: Token = Token::new(100);
 const USAGE: &[u8] = b"smith-agent: usage: smith-agent --mcp-relay 127.0.0.1:PORT, its secret in SMITH_MCP_SECRET\n";
 
-/// Owned descriptors transferred by kernel startup or the hosted factory (smith/docs/design/protocol/programs.md, section 5.3).
+/// Owned descriptors transferred by kernel startup or the hosted factory (smith/docs/design/protocol/programs-claude-code.md, section 1.3).
 #[derive(Debug)]
 pub struct Faces {
     pub stdin: Fd,
@@ -29,7 +29,7 @@ pub struct Faces {
     pub signal: Fd,
 }
 
-/// The shipped relay process, also hosted by simulated worlds (smith/docs/design/protocol/programs.md, section 5.3).
+/// The shipped relay process, also hosted by simulated worlds (smith/docs/design/protocol/programs-claude-code.md, section 1.3).
 pub struct Process {
     io: Io,
     relay: Option<Relay>,
@@ -55,14 +55,14 @@ pub(crate) fn limits() -> io::Limits {
     io::Limits { intake: 4096, receive: 4096, output: 4096, ..crate::list::limits() }
 }
 
-/// Kernel ring size for the relay's I/O limits (smith/docs/design/protocol/programs.md, section 5.3).
+/// Kernel ring size for the relay's I/O limits (smith/docs/design/protocol/programs-claude-code.md, section 1.3).
 #[must_use]
 pub fn operations() -> u32 {
     io::operations(&limits()).expect("relay operation bound")
 }
 
 impl Process {
-    /// A usage error writes one stderr line and settles with exit 1 (smith/docs/design/protocol/programs.md, section 5.3).
+    /// A usage error writes one stderr line and settles with exit 1 (smith/docs/design/protocol/programs-claude-code.md, section 1.3).
     #[must_use]
     #[expect(
         clippy::needless_pass_by_value,
@@ -99,7 +99,7 @@ impl Process {
         }
     }
 
-    /// The fixed line written on stderr for a refusal or failure (smith/docs/design/protocol/programs.md, section 5.3).
+    /// The fixed line written on stderr for a refusal or failure (smith/docs/design/protocol/programs-claude-code.md, section 1.3).
     #[must_use]
     pub fn detail(&self) -> Option<&'static [u8]> {
         match &self.relay {
@@ -229,7 +229,7 @@ impl Host for Process {
     }
 }
 
-/// Drive the shipped relay with arguments, environment, signals and the kernel (smith/docs/design/protocol/programs.md, section 5.3).
+/// Drive the shipped relay with arguments, environment, signals and the kernel (smith/docs/design/protocol/programs-claude-code.md, section 1.3).
 pub fn main() -> ExitCode {
     let arguments: Vec<Box<[u8]>> = std::env::args_os().skip(1).map(|argument| argument.as_bytes().into()).collect();
     let environment: Vec<Box<[u8]>> = std::env::vars_os()

@@ -1,4 +1,4 @@
-//! Financial payer queries (accounts.md, 4.1; authority.md, section 7).
+//! Financial payer queries (domain/accounts-uses.md, 1.1; domain/authority-budgets.md, section 1).
 use crate::{Domain, Funder};
 
 /// The end of a task's financial chain, independent of its requester.

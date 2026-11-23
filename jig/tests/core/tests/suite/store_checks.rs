@@ -1,4 +1,4 @@
-//! A committed snapshot must cold-start apart from the live world (domain/testing.md, 7).
+//! A committed snapshot must cold-start apart from the live world (domain/testing-fakes.md, 1).
 use jig_core_world::{
     fixtures,
     world::{Cut, Setup, StoreChecks, World, fixture},
@@ -97,6 +97,42 @@ fn every_commit_passes_without_changing_the_live_story_or_oracle() {
     assert_eq!(checked.commits, unchecked.commits);
     assert_eq!(checked.assignments, unchecked.assignments);
     assert_eq!(checked.systems[0].observed(), unchecked.systems[0].observed());
+}
+
+#[test]
+fn the_default_checks_one_commit_after_the_closing_oracle() {
+    const BEFORE_CLOSE: u64 = 11;
+    const AFTER_CLOSE: u64 = 12;
+    for (seed, kept) in [(7, 12), (7, 12), (8, 11)] {
+        let mut world = World::new(Setup { seed, ..Setup::default() });
+        while world.store.applied < BEFORE_CLOSE {
+            world.try_seed(Box::new([])).expect("correct fixture commit");
+        }
+        assert_eq!(world.store_checks.checked(), 0);
+        assert_eq!(world.store_checks.commits(), BEFORE_CLOSE);
+        world.finish().expect("closing oracle and kept commit pass");
+        assert_eq!(world.store_checks.commits(), AFTER_CLOSE);
+        assert_eq!(world.store_checks.checked(), 1);
+        assert_eq!(
+            world.store_checks.report(),
+            format!("store check: 1 of {AFTER_CLOSE} commits checked (one per run, seed {seed}, commit {kept})"),
+        );
+    }
+}
+
+#[test]
+fn a_repaired_store_still_reports_its_kept_refusal_at_finish() {
+    const KEPT: u64 = 8;
+    let mut world = World::new(Setup { seed: SEED, ..Setup::default() });
+    world.broken(); // The story reads the kept check, not the closing oracle.
+    assert_eq!(world.store.applied + 1, KEPT);
+    let correct = fixtures::live_row(&world, 1).clone();
+    world.try_seed(missing_project(&world)).expect("the kept commit is not rehearsed yet");
+    world
+        .try_seed(Box::new([root::Record::Core(core::Record::Tasks(tasks::Stored::Live(Box::new(correct))))]))
+        .expect("the following commit repairs the row");
+    assert_eq!(world.store_checks.checked(), 0);
+    assert_eq!(world.finish(), Err(expected(KEPT)));
 }
 
 fn sampled() -> (Vec<u64>, String) {

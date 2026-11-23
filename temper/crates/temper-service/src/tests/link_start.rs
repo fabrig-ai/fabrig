@@ -462,7 +462,7 @@ fn fitted_frame(assignment: &hub::Assignment, parts: &[wire::Part], settings: &s
     }
     // All these answers have the same size: the remaining room admits this
     // many whole answers, kept as a suffix in commit order
-    // (jig/docs/design/protocol/channel/README.md, 8).
+    // (jig/docs/design/protocol/channel/liveness.md, 1).
     let saving = usize::try_from(answer).unwrap().checked_sub(words.len()).unwrap();
     let room = usize::try_from(settings.jig.limits.io.output).unwrap();
     let whole = room.saturating_sub(bytes).checked_div(saving).unwrap().min(assignment.answered.len());

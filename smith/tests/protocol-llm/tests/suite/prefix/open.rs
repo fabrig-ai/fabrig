@@ -1,4 +1,4 @@
-//! Open uses the existing root/native world and byte peers (domain/run.md, sections 6 and 12).
+//! Open uses the existing root/native world and byte peers (domain/run-messages.md, section 1, and domain/run.md, section 12).
 use super::*;
 use skein_fake_llm_domain::api::Finish;
 

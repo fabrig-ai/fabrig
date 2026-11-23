@@ -1,4 +1,4 @@
-//! Store upgrade scenarios on the simulated disk (protocol/store/README.md, 9).
+//! Store upgrade scenarios on the simulated disk (protocol/store/testing.md, 1).
 pub(crate) mod check;
 pub(crate) mod commits;
 mod frame_jobs;

@@ -6,7 +6,7 @@ use skein_io::file;
 use skein_io::kernel::Fd;
 use skein_lib::{Queue, Secret, Token};
 
-/// How far a scratch start runs (protocol/store/opening.md, 5).
+/// How far a scratch start runs (protocol/store/opening-rehearsal.md, 1).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Reach {
     Whole,
@@ -23,7 +23,7 @@ pub enum Request {
     HoldCheckpoint { owner: Token, root: Root, name: crate::CheckpointName },
     /// Remove a checkpoint under its lock, without opening the deployment.
     RemoveCheckpoint { owner: Token, root: Root, name: crate::CheckpointName },
-    /// Rehearse a stopped deployment over a caller-owned scratch root (opening.md 5).
+    /// Rehearse a stopped deployment over a caller-owned scratch root (protocol/store/opening-rehearsal.md 1).
     Rehearse { owner: Token, directory: Root, scratch: Root, installation: [u8; 16], reach: Reach },
     /// Name the previous generation again, before the active one's first own commit.
     Back { owner: Token, root: Root },
@@ -42,7 +42,7 @@ pub enum Request {
     Switch { owner: Token },
     /// The owner's answer to one page handed out at open (protocol/store/jobs.md, 3).
     Job { owner: Token, answer: Result<crate::JobAnswer, crate::JobRefusal> },
-    /// Commit `number` (protocol/store/README.md 5): its writes, in order, one skein-kv
+    /// Commit `number` (protocol/store/commits.md 1): its writes, in order, one skein-kv
     /// commit with the same number. Terminal: `Committed`, `Failed` or
     /// `FrameTooLarge`; a refusal stops the engine.
     Commit { number: u64, writes: Box<[Write]> },
@@ -58,7 +58,7 @@ pub enum Request {
     Transcript { owner: Token, read: TranscriptRead, rows: u32, bytes: u64 },
     /// The secrets' store (protocol/store/secrets.md).
     Secrets { owner: Token, request: Secrets },
-    /// A written site's answer (protocol/store/opening.md 3), with its machine handed back.
+    /// A written site's answer (protocol/store/opening-owners.md 1), with its machine handed back.
     Site { owner: Token, patcher: Box<skein_codec::patch::Patcher>, result: Result<(), skein_codec::patch::Halt> },
 }
 
@@ -76,14 +76,14 @@ pub enum Unready {
     Upgrade,
 }
 
-/// One write of a commit (protocol/store/README.md 5).
+/// One write of a commit (protocol/store/commits.md 1).
 #[derive(Debug)]
 pub enum Write {
     /// The start's component-owned wires row, from `Store::wires` (protocol/store/records.md 3).
     Wires,
     /// The worker's last accepted opening (protocol/store/records.md 3).
     Opening(WorkerOpening),
-    /// Copy the bytes the map holds under `from` to `to` in this commit (protocol/store/README.md 5).
+    /// Copy the bytes the map holds under `from` to `to` in this commit (protocol/store/commits.md 1).
     Copy { from: core::Key, to: core::Key },
     /// jig's save: a put of its encoded key and record; a turn's save
     /// becomes a frame in its task's transcript and puts of its places.
@@ -323,7 +323,7 @@ impl Check {
     }
 }
 
-/// Why a store refuses to open, saying which (protocol/store/records.md, 3, protocol/store/README.md, 5, protocol/store/opening.md).
+/// Why a store refuses to open, saying which (protocol/store/records.md, 3, protocol/store/commits.md, 1, protocol/store/opening.md).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum OpenRefusal {
     /// This open would make or upgrade a deployment (checkpoints.md, 5).
@@ -345,7 +345,7 @@ pub enum OpenRefusal {
     /// A level past the binary's (5.3); `found: None` for a component
     /// version past the binary's, its levels unread.
     Ahead { owner: crate::Owner, found: Option<u32>, wanted: Option<u32> },
-    /// The binary's owner sets do not check (protocol/store/opening.md, 3).
+    /// The binary's owner sets do not check (protocol/store/opening-owners.md, 1).
     Set { owner: crate::Owner },
     /// A job refused its page or answered outside its bounds (protocol/store/jobs.md, 3).
     Job { owner: crate::Owner, job: Box<str>, key: Option<Box<[u8]>>, why: Box<str> },
@@ -618,14 +618,14 @@ pub enum Generations {
     Missing { generation: u64 },
 }
 
-/// The first record refused by a rehearsal's kept text (protocol/store/opening.md, 5).
+/// The first record refused by a rehearsal's kept text (protocol/store/opening-rehearsal.md, 1).
 #[derive(Debug)]
 pub enum Undecoded {
     Record { map: crate::KeptMap, key: Box<[u8]> },
     Frame { transcript: Box<str>, offset: u64 },
 }
 
-/// Why a commit failed (protocol/store/README.md, 5).
+/// Why a commit failed (protocol/store/commits.md, 1).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum CommitFailure {
     /// skein-kv refused it at its entrance, carrying its refusal whole.
@@ -642,7 +642,7 @@ pub enum CommitFailure {
     Stopped,
 }
 
-/// The store's check that refused a commit (protocol/store/README.md, 5).
+/// The store's check that refused a commit (protocol/store/commits.md, 1).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum CommitCheck {
     /// Not the store's next number, or at or before its last durable one.
@@ -722,7 +722,7 @@ pub enum Event {
         removed: bool,
     },
     /// Both stores are open and checked; `last` is the last durable commit.
-    /// `installation` is the installation's identifier (protocol/store/README.md 4.4): the
+    /// `installation` is the installation's identifier (protocol/store/keys.md 1.4): the
     /// kept one, or, in an empty store, the drawn one its first commit keeps.
     Opened {
         owner: Token,
@@ -744,17 +744,17 @@ pub enum Event {
         number: u64,
         fill: u64,
     },
-    /// The map's named census, after Opened or a commit's answer (protocol/store/README.md, 6.3).
+    /// The map's named census, after Opened or a commit's answer (protocol/store/growth.md, 1.3).
     Census {
         census: Box<jig_domain_core_vocabulary::documents::StoreCensus>,
     },
-    /// Commit `number` failed or was refused; the engine stops (protocol/store/README.md 5).
+    /// Commit `number` failed or was refused; the engine stops (protocol/store/commits.md 1).
     Failed {
         number: u64,
         why: CommitFailure,
     },
     /// Commit refused before any of its data IO: this turn's complete encoded
-    /// frame exceeds the page byte bound (protocol/store/README.md, 5, and protocol/store/transcripts.md, 2). In-process only.
+    /// frame exceeds the page byte bound (protocol/store/commits.md, 1, and protocol/store/transcripts.md, 2). In-process only.
     FrameTooLarge {
         number: u64,
         task: u64,
@@ -841,7 +841,7 @@ pub enum Event {
     },
     /// The shell sets this record's key in `of`'s Context, runs its generated
     /// written function over `patcher.parts()`, and answers `Request::Site`
-    /// (protocol/store/opening.md 3). Application keys are relative to their tag; every
+    /// (protocol/store/opening-owners.md 1). Application keys are relative to their tag; every
     /// other owner's keys are the map's whole keys. While serving, a frame's
     /// key is its task's places key followed by its eight-byte big-endian
     /// file offset (protocol/store/transcripts.md 6).
@@ -871,14 +871,14 @@ pub enum Event {
     },
 }
 
-/// A wire the deployment's last start kept (protocol/store/opening.md 5).
+/// A wire the deployment's last start kept (protocol/store/opening-rehearsal.md 1).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct KeptWire {
     pub name: Box<str>,
     pub version: u32,
 }
 
-/// A worker's last authenticated opening (protocol/store/opening.md 5).
+/// A worker's last authenticated opening (protocol/store/opening-rehearsal.md 1).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct WorkerOpening {
     pub worker: Box<str>,
@@ -888,7 +888,7 @@ pub struct WorkerOpening {
     pub at: skein_lib::Wall,
 }
 
-/// A wire's lowest version and ordered layouts (protocol/store/opening.md 5).
+/// A wire's lowest version and ordered layouts (protocol/store/opening-rehearsal.md 1).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct OpenedWire {
     pub name: Box<str>,
@@ -896,14 +896,14 @@ pub struct OpenedWire {
     pub layouts: Box<[[u8; 32]]>,
 }
 
-/// An opening term's largest supported value (protocol/store/opening.md 5).
+/// An opening term's largest supported value (protocol/store/opening-rehearsal.md 1).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct OpenedTerm {
     pub kind: u16,
     pub largest: u32,
 }
 
-/// Why the active generation cannot go back (protocol/store/opening.md 5).
+/// Why the active generation cannot go back (protocol/store/opening-rehearsal.md 1).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum BackRefusal {
     Busy,

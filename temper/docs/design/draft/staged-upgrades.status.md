@@ -3,7 +3,7 @@
 2026-11-22. Where the design lags or departs from [staged-upgrades.md](staged-upgrades.md).
 
 - **Design lags:**
-  - 5, 7: `../protocol/binaries.md` still speaks of patch lines, decoding by version's kept text and a pending fresh patch in the worker verdict. Jig's `protocol/store/opening.md`, 5 decodes registered values from the registry's layout texts and other records from their current formats; starts and rehearsals report jobs and their counts.
+  - 5, 7: `../protocol/binaries.md` still speaks of patch lines, decoding by version's kept text and a pending fresh patch in the worker verdict. Jig's `protocol/store/opening-rehearsal.md`, 1 decodes registered values from the registry's layout texts and other records from their current formats; starts and rehearsals report jobs and their counts.
   - 1, 2, 8: `first-release.md`, 5.4 still has dev.fabrig.ai start afresh when a stored format changes until the baseline. Dev's store is kept at the floor; staging alone is made again at dev's build for each drill.
 - **Design departs:**
   - 5 to 7: the drill's script, its workload, its referee and the restore drill are the deployments' operator's, built outside this repository, which designs and builds only the steps they run on each process: the rehearsal over a checkpoint, `upgrade --check` (`../protocol/binaries.md`, section 2), the backup, a checkpoint (`../protocol/checkpoints.md`, 2.1 and 3), and the restore (`../protocol/checkpoints.md`, 2.5). Because the user decided, 2026-11-20, that the cross-host redeploy and its drills are internal tooling that belongs outside fabrig.

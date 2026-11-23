@@ -1,4 +1,4 @@
-//! The run's MCP listener (protocol/programs.md, sections 5.3, 5.4 and 9).
+//! The run's MCP listener (protocol/programs-claude-code.md, sections 1.3 and 1.4, and protocol/programs.md, section 9).
 //! Keeps one secret, two authentication slots, bounded calls and output lines;
 //! knows no tool policy. `from_io`/`fire` tell calls through `above`, and
 //! `answer`/`verdict` return the owner's decisions. Drain `above` after each
@@ -14,10 +14,10 @@ pub(crate) mod json;
 #[cfg(test)]
 mod tests;
 
-/// MCP configuration name and tool prefix (protocol/programs.md, section 5.3).
+/// MCP configuration name and tool prefix (protocol/programs-claude-code.md, section 1.3).
 pub const SERVER: &[u8] = b"smith";
 
-/// Reserved permission tool (protocol/programs.md, sections 5.3 and 5.4).
+/// Reserved permission tool (protocol/programs-claude-code.md, sections 1.3 and 1.4).
 pub const PROMPT_TOOL: &[u8] = b"permission_prompt";
 
 /// Acceptance line telling the relay it was accepted (protocol/programs.md, section 9).
@@ -32,10 +32,10 @@ pub const SECRET_ENV: &str = "SMITH_MCP_SECRET";
 /// Lowercase hexadecimal bytes for 256 bits of entropy (smith/docs/design/protocol/programs.md, section 9).
 pub const SECRET_BYTES: usize = 64;
 
-/// Negotiated MCP versions, newest first (protocol/programs.md, section 5.3).
+/// Negotiated MCP versions, newest first (protocol/programs-claude-code.md, section 1.3).
 pub const PROTOCOL_VERSIONS: [&str; 4] = ["2025-11-25", "2025-06-18", "2025-03-26", "2024-11-05"];
 
-/// An owner's tool exposed to Claude Code (protocol/programs.md, section 5.3).
+/// An owner's tool exposed to Claude Code (protocol/programs-claude-code.md, section 1.3).
 #[derive(Debug)]
 pub struct Tool {
     pub name: Box<[u8]>,
@@ -56,11 +56,11 @@ pub struct Limits {
     pub unauthenticated: Time,
 }
 
-/// One unanswered call, sent by the server to its owner (smith/docs/design/protocol/programs.md, 5.3).
+/// One unanswered call, sent by the server to its owner (smith/docs/design/protocol/programs-claude-code.md, 1.3).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct CallId(u32);
 
-/// The server's events to its backend (protocol/programs.md, sections 5.3 and 9).
+/// The server's events to its backend (protocol/programs-claude-code.md, section 1.3, and protocol/programs.md, section 9).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Up {
     /// The loopback listener is ready at its resolved port.
@@ -86,7 +86,7 @@ pub enum Ended {
     Failed,
 }
 
-/// A backend's tool answer (protocol/programs.md, section 5.3).
+/// A backend's tool answer (protocol/programs-claude-code.md, section 1.3).
 #[derive(Debug)]
 pub enum Answer {
     /// Successful tool text sent to the model.
@@ -95,7 +95,7 @@ pub enum Answer {
     Error(Box<[u8]>),
 }
 
-/// A backend's built-in permission decision (protocol/programs.md, section 5.4).
+/// A backend's built-in permission decision (protocol/programs-claude-code.md, section 1.4).
 #[derive(Debug)]
 pub enum Verdict {
     /// Allow the supplied JSON input.
@@ -104,7 +104,7 @@ pub enum Verdict {
     Deny { message: Box<[u8]> },
 }
 
-/// Startup refusal returned to the backend before any listener (smith/docs/design/protocol/programs.md, 5.3).
+/// Startup refusal returned to the backend before any listener (smith/docs/design/protocol/programs-claude-code.md, 1.3).
 #[derive(Debug)]
 pub enum Refused {
     /// The tool inventory exceeds a configured schema or answer bound.
@@ -126,7 +126,7 @@ struct Call {
     id: Box<[u8]>,
 }
 
-/// Sans-io run server driven by its backend (protocol/programs.md, 5.3, 5.4, 9).
+/// Sans-io run server driven by its backend (protocol/programs-claude-code.md, 1.3, 1.4, protocol/programs.md, 9).
 #[expect(
     clippy::struct_excessive_bools,
     reason = "listener, authentication, read, output and terminal states advance independently"

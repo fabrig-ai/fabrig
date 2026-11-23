@@ -72,9 +72,17 @@ type RowKey = (Box<str>, u16, u16);
 #[derive(Debug)]
 struct Text {
     bytes: Box<[u8]>,
-    schema: Option<Schema>,
+    schema: Option<texts::Cached>,
     stored: bool,
     current: bool,
+}
+impl Text {
+    fn schema(&self) -> Option<&Schema> {
+        match self.schema.as_ref()? {
+            texts::Cached::Parsed(schema) => Some(schema),
+            texts::Cached::Prepared(schema) => Some(schema),
+        }
+    }
 }
 #[derive(Debug)]
 struct Row {
@@ -104,6 +112,7 @@ pub(crate) struct Layouts {
     retired: Map<Box<[u8]>, Box<[u8]>>,
     written: Map<RowKey, &'static str>,
     texts: Map<Digest, Text>,
+    prepared_schemas: &'static [Schema],
     pending: Queue<skein_kv::Op>,
 }
 impl Layouts {
@@ -116,6 +125,7 @@ impl Layouts {
             retired: Map::uncapped(),
             written: Map::uncapped(),
             texts: Map::uncapped(),
+            prepared_schemas: &[],
             pending: Queue::uncapped(),
         }
     }
@@ -323,6 +333,7 @@ pub(crate) fn open(store: &mut Store, empty: bool) -> Result<bool, OpenRefusal> 
     #[cfg(test)]
     counting::reset();
     let mut layouts = Layouts::new();
+    layouts.prepared_schemas = store.prepared_schemas;
     let registered = rows::open(store, &mut layouts, empty)?;
     let seeded = !layouts.rows.is_empty();
     if !seeded && !registered {

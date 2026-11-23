@@ -1,5 +1,5 @@
-//! A request carrying a value, in front of the engine (protocol/client/README.md, 3
-//! and 11): sent once and never resent, kept by the engine before the core
+//! A request carrying a value, in front of the engine (protocol/client/README.md, 3, and protocol/client/testing.md, 1
+//! ): sent once and never resent, kept by the engine before the core
 //! sees it, and never in the small store nor a root input (the referee's
 //! rules, checked on every exchange, save and input).
 

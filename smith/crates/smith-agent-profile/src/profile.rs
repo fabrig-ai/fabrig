@@ -195,7 +195,7 @@ fn transcript(
     limits.turn_system_some = host;
     limits.text_text = client.answer.max(host).max(run.offer_bytes).max(run.answer_bytes);
     // Consecutive reasoning items share one block, which can hold the
-    // completion's whole reasoning share (smith/docs/design/protocol/limits.md, section 3.3).
+    // completion's whole reasoning share (smith/docs/design/protocol/limits-derivation.md, section 1.3).
     limits.opaque_bytes = client
         .output_items
         .checked_mul(client.reasoning)
@@ -527,7 +527,7 @@ fn derive_domain(
     };
     validate::host_part_holds_the_role(profile, configuration, &run)?;
     // The entrance splits what the rendered charter leaves among the start's
-    // own directories (smith/docs/design/protocol/limits.md, section 3.9); this is only the cap.
+    // own directories (smith/docs/design/protocol/limits-derivation.md, section 1.9); this is only the cap.
     run.guide_bytes =
         u32::try_from(parts.host.min(u64::from(declared.guide))).or(Err(derived(Layer::Run, "guide_bytes")))?;
     let delegated = domain::feedback_bound(&run).ok_or(derived(Layer::Session, "delegated_result_bytes"))?;
@@ -632,7 +632,7 @@ fn derived(layer: Layer, field: &'static str) -> Refusal {
     Refusal::Derived { limit: LimitName::deployment(layer, field) }
 }
 
-// smith/docs/design/protocol/limits.md, section 3.5: each conversation's batch and jobs
+// smith/docs/design/protocol/limits-derivation.md, section 1.5: each conversation's batch and jobs
 // coexist with one check per directory.
 fn machine_processes(domain: &domain::Limits) -> Option<u32> {
     let tools = domain.session.tools;

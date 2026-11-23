@@ -1,4 +1,4 @@
-//! Open failures and their intended outcomes (jig/docs/design/domain/testing.md, 7.3).
+//! Open failures and their intended outcomes (jig/docs/design/domain/testing-fakes.md, 1.3).
 use jig_core_world::{
     fixtures::{ask, ask_as, delegate, finish_chat, goal, live_row, member, second_party},
     world::{Setup, World},
@@ -55,7 +55,7 @@ fn made(world: &World) -> u64 {
 /// finishing. Each unanswered park must spend a run try and eventually hold
 /// with the question's words; today the live task watch leaves it idle.
 #[test]
-#[ignore = "P43, open: bounded waits (jig/docs/design/domain/testing.md, 7.3)"]
+#[ignore = "P43, open: bounded waits (jig/docs/design/domain/testing-fakes.md, 1.3)"]
 fn a_coordinator_watching_its_asker_is_woken() {
     let (mut configuration, mut limits) = jig_core_world::faults::plan_fixture(SEED);
     configuration.core.defaults.charters[0].policy.resume = false;
@@ -183,7 +183,7 @@ fn deadline_change(world: &World, task: u64, deadline: Wall) -> people::Amendmen
 /// the goal started. Today whole-authority admission refuses the unchanged
 /// per-task spend, rather than judging the later deadline.
 #[test]
-#[ignore = "S15, open: provider failures (jig/docs/design/domain/testing.md, 7.3)"]
+#[ignore = "S15, open: provider failures (jig/docs/design/domain/testing-fakes.md, 1.3)"]
 fn a_party_extends_its_goals_deadline() {
     let (mut world, _, maker, task) = retained_goal();
     let run = running(&world, task);
@@ -217,7 +217,7 @@ fn a_party_extends_its_goals_deadline() {
 /// the goal started, and beyond role 0's per-task spend too. A proposal reaching
 /// that owner must be acceptable; today admission refuses the unchanged spend.
 #[test]
-#[ignore = "P77, open: provider failures (jig/docs/design/domain/testing.md, 7.3)"]
+#[ignore = "P77, open: provider failures (jig/docs/design/domain/testing-fakes.md, 1.3)"]
 fn an_owners_widening_is_never_proposed_to_itself() {
     let (mut world, owner, maker, task) = retained_goal();
     let deadline = Wall::from_nanos(10_000_000_000);

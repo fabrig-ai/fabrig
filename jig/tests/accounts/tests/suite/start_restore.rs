@@ -132,7 +132,7 @@ fn removed_providers_and_source_less_accounts_keep_identity() {
 
 #[test]
 fn stored_names_reconstruct_without_declaration_spelling_rules() {
-    const QUIET_SECONDS: u64 = 30 * 60; // accounts.md, 3.7: the first idle usage read.
+    const QUIET_SECONDS: u64 = 30 * 60; // domain/accounts-lists.md, 1: the first idle usage read.
     for name in [b"".as_slice(), b"Upper Name", &[255; 32]] {
         let mut world = start(&[issued(21, name), held(ACCOUNT, b""), program(ACCOUNT, 21, 0, name)]);
         assert_eq!(restore_limit(&world.domain), None);

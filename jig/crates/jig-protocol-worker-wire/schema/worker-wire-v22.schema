@@ -34,7 +34,7 @@ record Hello {
     fresh: bool = false
 }
 
-# Other worker-to-engine records (protocol/channel/records.md, 1, and protocol/channel/README.md, 5.4).
+# Other worker-to-engine records (protocol/channel/records.md, 1, and protocol/channel/owners.md, 1.4).
 enum MessageRefusal { too_large, full, name_in_use, ending }
 record Refused { name: u64 reason: MessageRefusal }
 record Turn {

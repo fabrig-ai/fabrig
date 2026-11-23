@@ -2,7 +2,12 @@
 use skein_heap::{Grown, Span};
 use skein_lib::Wall;
 use skein_sim_world::Meter;
-use temper_playground::{Fakes, Start, machine, programs::Process, stories::A, story};
+use temper_playground::{
+    Fakes, Start, machine,
+    programs::{Process, prepared_schemas},
+    stories::A,
+    story,
+};
 
 #[global_allocator]
 static HEAP: skein_heap::Counting = skein_heap::Counting;
@@ -14,7 +19,8 @@ const STARTUP_STEPS: u64 = 10_000;
 // temper/docs/development/playground-memory.md; its other bounds use the
 // 2026-11-14 store-shape S4 merge table, each plus a quarter, rounded up to
 // two significant digits. Nonservice bounds keep the 2026-11-12 figures
-// plus a quarter.
+// plus a quarter. The schema cache bound uses the 2026-11-23 "Prepared schemas
+// before start" table, also plus a quarter.
 // Bounds follow process names, not admission order.
 const SERVICE_FIRST_STEP_HELD: i64 = 470_000;
 const SERVICE_FIRST_STEP_PEAK: i64 = 910_000;
@@ -37,6 +43,7 @@ const GIT_START_PEAK: i64 = 5_989 + 5_989 / 4;
 const DISK_FIRST_STEP_RETAINED: i64 = 9_393 + 9_393 / 4;
 const DISK_START_RETAINED: i64 = 216_638 + 216_638 / 4;
 const SHARED_FORGE_BEFORE_START_RETAINED: i64 = 7_061 + 7_061 / 4;
+const PREPARED_SCHEMAS_BEFORE_START_RETAINED: i64 = 665_749 + 665_749 / 4;
 
 fn within(process: &str, phase: &str, figure: &str, measured: i64, bound: i64) {
     assert!(measured <= bound, "{process}, {phase}: {figure} {measured} bytes exceeds bound {bound} bytes");
@@ -123,6 +130,11 @@ fn name(process: &Process<()>) -> &'static str {
 
 #[test]
 fn story_as_world_at_its_first_step_and_start() {
+    let span = Span::start();
+    let _ = prepared_schemas();
+    let schemas = span.end().net;
+    println!("prepared schemas before start: {schemas} bytes (outside process spans)");
+    within("prepared schemas", "before start", "retained", schemas, PREPARED_SCHEMAS_BEFORE_START_RETAINED);
     let (prebuilt, shared) = prebuilt();
     println!("shared forge before start: {shared} bytes (outside process spans)");
     within("shared forge", "before start", "retained", shared, SHARED_FORGE_BEFORE_START_RETAINED);

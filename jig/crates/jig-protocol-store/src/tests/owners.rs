@@ -1,4 +1,4 @@
-//! Fixture owners at fixed levels (protocol/store/opening.md, 3).
+//! Fixture owners at fixed levels (protocol/store/opening-owners.md, 1).
 use crate::upgrade::admission::Levels;
 use crate::{KeptFamily, KeptMap, Keys, Owner, OwnerSet, OwnerSets};
 use jig_test_layouts::{self as fixture, records as app};

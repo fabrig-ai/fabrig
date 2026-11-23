@@ -188,7 +188,7 @@ default names a tool:
      waits for a place it takes (below): at the first, the entry point
      prints `<entry point>: hold: <the line>` and writes the line
      `smith-check: waiting` to its stderr, so that smith stops the checks'
-     bound's clock (`smith/docs/design/domain/run.md`, 8.1, *A wait for
+     bound's clock (`smith/docs/design/domain/run-delivery.md`, 1.1, *A wait for
      what a check needs*); later ones it reads and keeps waiting. After
      any `waiting` line, the held line, or the warning below, first writes
      `smith-check: admitted` to its stderr, and the held line prints
@@ -234,7 +234,7 @@ default names a tool:
   and then at least every 60 seconds, so that a hold that waits is told
   from one that hangs; then the held line once it holds them. The entry
   point's waiting has no bound of its own: smith's call deadline and the
-  run's end bound it (smith's `smith/docs/design/domain/run.md`, 8.1).
+  run's end bound it (smith's `smith/docs/design/domain/run-delivery.md`, 1.1).
 
 The runner sets umask 077, closes child stdin, and leaves child output visible,
 what a wrapper prints around a command included. Commands remain sequential,

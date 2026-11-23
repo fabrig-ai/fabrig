@@ -1,5 +1,5 @@
 //! Created batches routed to their owner, retaining accepted proposal evidence
-//! (jig/docs/design/domain/engine/README.md, 4.4).
+//! (jig/docs/design/domain/engine/vocabulary.md, 1.4).
 
 use crate::{
     CallPart, Core, CoreRecord, Limits, PersonProposalRoute, Record, Request, Write,

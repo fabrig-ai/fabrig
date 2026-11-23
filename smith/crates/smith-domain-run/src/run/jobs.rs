@@ -1,4 +1,4 @@
-//! Writers wait for session jobs to settle (smith/docs/design/domain/run.md, sections 5.3 and 8.1).
+//! Writers wait for session jobs to settle (smith/docs/design/domain/run.md, section 5.3, and smith/docs/design/domain/run-delivery.md, section 1.1).
 //! The pending child owns its bounded opening; a withdrawal retains its cause
 //! until the parent's cancellation acknowledgement. No child is opened then.
 

@@ -1,4 +1,4 @@
-//! One verdict belongs to one open, through its copy and reopen (protocol/store/opening.md, 3).
+//! One verdict belongs to one open, through its copy and reopen (protocol/store/opening-owners.md, 1).
 use super::*;
 use crate::{Owner, OwnerSets};
 

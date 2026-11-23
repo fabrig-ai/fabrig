@@ -93,11 +93,13 @@ What is still open is listed in section 11.
 8. **limits.md:** declared quantities, the limits derived from them, the
    relationships checked at startup, memory, and what a limit does to one
    call.
-9. **host.md:** the host's side of a channel, whether the host spawns the
-   agent or connects to it, and the local host's protocol layer.
-10. **programs.md:** programs as backends: a run on Claude Code, signed in
+9. **limits-derivation.md:** how each layer's limits and a window's room are derived.
+10. **host.md:** the host's side of a channel, whether the host spawns the
+    agent or connects to it, and the local host's protocol layer.
+11. **programs.md:** programs as backends: a run on Claude Code, signed in
     by the program's own flow, its tools under smith's policy, its stream
     told as smith's.
+12. **programs-claude-code.md:** running Claude Code, from the command and tools to its stream and sub-agents.
 
 ## 3. Names
 
@@ -327,7 +329,7 @@ to an older reader or writer. Each has one version at a time.
   a new version. Nothing is translated, and no older version is read.
   Until its baseline, the charter changed in place, its version unmoved,
   since a writer and its agents are built together
-  (the owner, 2026-11-09: the `save` grant and ask, domain/run.md, 8.5);
+  (the owner, 2026-11-09: the `save` grant and ask, ../domain/run-delivery.md, 1.5);
   from it, it moves with its layout, as the next bullet says.
 - **The channel, the charter and turns are wires,** whose versions move
   with their layouts (`temper/docs/design/protocol/wires.md`, 3.1):
@@ -382,7 +384,7 @@ to an older reader or writer. Each has one version at a time.
   - **turns and transcripts** carry their own version, since a host keeps
     them and a later agent resumes from them (domain/session.md, section
     3). A transcript in another version fails the run as transient, and
-    its host starts afresh (domain/run.md, section 6). From the
+    its host starts afresh (../domain/run-messages.md, section 1). From the
     baseline, turns are kept for a later release, and so is the local
     host's store: a host that keeps turns patches an older turn to the
     current version as it reads it, by smith's patches (transcript.md,
@@ -475,7 +477,7 @@ it.
     output limit marked;
   - typed `Limit` kinds, and HTTP statuses in failures;
   - `Limits::derive` from declared quantities, with a reasoning bound
-    apart from replay's metadata (limits.md, section 3.1).
+    apart from replay's metadata (limits-derivation.md, section 1.1).
 - **JSON and HTTP:** provider events decoded as they stream and
   selectively, by a general collector, and tokens kept compactly
   (skein's `data/json.md` and `http.md`).

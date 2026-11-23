@@ -1,4 +1,4 @@
-//! One interrupt/result/input-close sequence (protocol/programs.md 5.7).
+//! One interrupt/result/input-close sequence (protocol/programs-claude-code.md 1.7).
 //! Keeps the process-local interrupt sequence, its outstanding response and
 //! whether a result is owed; knows no run budget. Keeping stops write control
 //! requests, cancel/close signal, and the existing grace escalates both.
@@ -16,7 +16,7 @@ pub(super) const INTERRUPTED: &[u8] = b"not run: the program turn was interrupte
 
 impl Backend {
     /// Whether the backend can act on a domain yield request without
-    /// repeating an interrupt already waiting on its result (smith/docs/design/protocol/programs.md 5.9).
+    /// repeating an interrupt already waiting on its result (smith/docs/design/protocol/programs-claude-code.md 1.9).
     #[must_use]
     fn can_yield_for_wind_down(&self) -> bool {
         self.startup.phase() == State::Running
@@ -231,7 +231,7 @@ impl Backend {
         let yielding = self.stopping.action() == Some(super::stopping::Action::Yield);
         if yielding {
             // A complete assistant message retains its text and usage. A partial
-            // message has no completion to charge (smith/docs/design/protocol/programs.md 5.5, 5.9).
+            // message has no completion to charge (smith/docs/design/protocol/programs-claude-code.md 1.5, 1.9).
             self.turns.interrupted();
         }
         self.finish_stop(below);

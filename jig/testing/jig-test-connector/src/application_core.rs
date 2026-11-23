@@ -1,4 +1,4 @@
-//! Facts returned for a connector's party part (domain/connectors.md, 5.5).
+//! Facts returned for a connector's party part (domain/connectors-facts.md, 1.5).
 use skein_lib::Wall;
 
 /// A final reason a keyed request was refused.

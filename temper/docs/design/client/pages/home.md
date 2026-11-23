@@ -26,7 +26,7 @@
   no such project in `me`, the page reads the project, jig's
   `Read::Project { project }`, once for its address, and draws its
   heading alone until the read answers; answered gone, a project
-  deleted (jig's `client/domain/contract/README.md`, section 4), it says
+  deleted (jig's `client/domain/contract/reads.md`, section 1), it says
   "Project N was deleted." in that sentence's place, with the same
   link; any other answer, the sentence above. How work runs says the
   same where it says a project is not one of yours (`settings.md`, 1).
@@ -64,7 +64,7 @@
     another account" with both or with a key, and with no usable account
     at all. Its words offer other providers and models and promise no
     capacity, since a limited task waits for its own account (jig's
-    `domain/accounts.md`, 4.3).
+    `domain/accounts-uses.md`, 1.3).
   - *The card:* a region named "To begin", its head holding the level-2
     heading "To begin", the tag "Optional" and, at its right, the button
     "Skip"; under them a line by what is left: "Two steps left. Skip

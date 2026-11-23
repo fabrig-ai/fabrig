@@ -1,4 +1,4 @@
-//! Deployment facts and store fill (client/domain/pages.md, 7; protocol/store/README.md, 6.2).
+//! Deployment facts and store fill (client/domain/pages.md, 7; protocol/store/growth.md, 1.2).
 //! Closed at once (jig/docs/design/domain/people/acts.md, 2).
 
 use crate::{

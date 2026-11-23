@@ -97,7 +97,10 @@ desktop browsers are well supported (the user, 10-26).
 - **The composition,** moved out of `tests/one-process`: the service,
   the engine and one worker in one `iterate`, started from configuration
   bytes as `temper-box serve` starts them; jig's store on skein-kv over the
-  fake machine's disk; smith's agents hosted (smith's `shell/README.md`, 2.5);
+  fake machine's disk, handed the schemas of `OWNER_SETS`' texts, prepared
+  once in the process and kept across its services' starts, as are the
+  stores the one-process world rehearses over its disks (jig's
+  `protocol/store/opening.md`, 3); smith's agents hosted (smith's `shell/README.md`, 2.5);
   the fake LLM and fake forge peers on simulated sockets; the fake git
   program; skein's visitor (skein's `playground.md`, 4). Its process
   type and its program registry are the composition's; the harness's
@@ -217,7 +220,7 @@ delegate's phases; the frame's speed changes how long the person waits
   for the printed link among the lines the world prints, puts the
   link's path and query in the address, and starts the client, whose
   sign-in part spends it as a person's browser does (jig's
-  `protocol/browser/README.md`, section 11). No credential is made by hand.
+  `protocol/browser/sign-in.md`, section 1). No credential is made by hand.
 - **The frame** wires its controls to the bridge's pace, the worker's
   restart and the story's choice, shows the world's time from the
   platform's clock, and offers the session's log by a key.
@@ -306,10 +309,10 @@ delegate's phases; the frame's speed changes how long the person waits
   document's are, so a story past them fails its walk.
 - **The native heap at start, in the gate:** `tests/playground`'s `memory`
   binary holds each process's held and peak bytes at the first step and at
-  start, and the fake disk's and the shared forge's retained bytes, each at
-  most its figure in `../development/playground-memory.md` and a quarter
-  more. This bound catches a regression; it is not section 8's bar, which
-  stays the user's. Story A's high water in the one-process world
+  start, and the fake disk's, the shared forge's and the prepared schemas'
+  retained bytes, each at most its figure in `../development/playground-memory.md`
+  and a quarter more. This bound catches a regression; it is not section 8's
+  bar, which stays the user's. Story A's high water in the one-process world
   (`tests/one-process`'s `memory`) is bound the same way.
 - **The wasm32 builds,** in the gate: `temper-playground`, and the web
   shell with `playground`, with clippy's lints as errors for

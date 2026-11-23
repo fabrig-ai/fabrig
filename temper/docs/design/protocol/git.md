@@ -358,7 +358,7 @@ variable of the worker's own process reaches git.
 
 - **One invocation at a time per operation,** each spawned in a process
   group of its own (skein's `runtime/io/processes.md`); contained process trees
-  are for hosts apart (jig's `protocol/README.md`, section 10; `git-later.md`, section 1
+  are for hosts apart (jig's `protocol/needs.md`, section 1; `git-later.md`, section 1
   ). git's own children (its remote helper, `index-pack`,
   `pack-objects`) stay in that group. The settings of `git.md`, section 3 leave
   git nothing that would leave the group: no detached maintenance, no

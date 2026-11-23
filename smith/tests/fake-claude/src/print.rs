@@ -1,4 +1,4 @@
-//! One print conversation (smith/docs/design/protocol/programs.md, sections 5 and 8). Keeps
+//! One print conversation (smith/docs/design/protocol/programs-claude-code.md, section 1, and smith/docs/design/protocol/programs.md, section 8). Keeps
 //! parsed flags, session and request cursors, a system-cue selection and file
 //! state; matches cues without otherwise interpreting or retaining prompt text.
 //! Session state survives a process resume.

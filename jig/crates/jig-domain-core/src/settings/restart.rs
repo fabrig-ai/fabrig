@@ -1,4 +1,4 @@
-//! Settings restore precedes live work; stored defaults survive until its holders are known (domain/engine/settings.md, 7–8).
+//! Settings restore precedes live work; stored defaults survive until its holders are known (domain/engine/settings-store.md, 1, and domain/engine/settings.md, 8).
 use crate::{
     Core, CoreKey, CoreRecord, HeldLimit, Limits, Request, Write,
     settings::{
@@ -318,7 +318,7 @@ impl Core {
         true
     }
 
-    /// New defaults cannot take numbers held by stored own values (domain/engine/settings.md, 7).
+    /// New defaults cannot take numbers held by stored own values (domain/engine/settings-store.md, 1).
     fn refuse_taken(&mut self) -> bool {
         if self.settings_restore.defaults.is_empty() {
             return false;
@@ -349,7 +349,7 @@ impl Core {
         true
     }
 
-    /// Stored own values kept at stock numbers (domain/engine/settings.md, 7).
+    /// Stored own values kept at stock numbers (domain/engine/settings-store.md, 1).
     #[must_use]
     pub fn settings_kept(&self) -> Box<[Setting]> {
         super::check::kept(&self.current)

@@ -1,4 +1,4 @@
-//! The agent wrapper preserves both launch contracts (smith/docs/design/protocol/programs.md, 5.1).
+//! The agent wrapper preserves both launch contracts (smith/docs/design/protocol/programs-claude-code.md, 1.1).
 #![expect(clippy::disallowed_methods, reason = "ordinary Rust unit fixtures, programming-model.md 10.2")]
 
 use super::{Below, fixtures};

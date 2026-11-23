@@ -1,5 +1,5 @@
 //! Task continuations and root-numbered notices
-//! (jig/docs/design/domain/engine/README.md, 4.4).
+//! (jig/docs/design/domain/engine/vocabulary.md, 1.4).
 
 use crate::{Core, Limits};
 use alloc::boxed::Box;

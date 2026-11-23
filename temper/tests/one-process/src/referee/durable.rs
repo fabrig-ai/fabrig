@@ -167,6 +167,7 @@ impl Store {
             .collect();
         self.rows.clear();
         self.generations.clear();
+        self.layouts.clear_preparation();
         self.active = None;
         self.deferred = None;
         self.applied = 0;

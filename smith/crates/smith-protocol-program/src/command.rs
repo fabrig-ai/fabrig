@@ -75,7 +75,7 @@ impl Command {
         Self::spawn(io_owner, launch, None, STATUS_BYTES, deadline, detail_bytes, below)
     }
 
-    /// Spawn without stdin, capturing a caller-bounded answer (protocol/programs.md, 5.11).
+    /// Spawn without stdin, capturing a caller-bounded answer (protocol/programs-claude-code.md, 1.11).
     pub fn with_output(
         io_owner: Token,
         launch: Launch,

@@ -1,4 +1,4 @@
-//! Connector-owned subjects and parts (`domain/connectors.md`, 5.5;
+//! Connector-owned subjects and parts (`domain/connectors-facts.md`, 1.5;
 //! `client/domain/root.md`, section 6; `examples.md`, section 8).
 use crate::{Domain, Incident, IncidentState, Limits, Request, Service};
 use skein_lib::{Env, List, Queue, Token, Wall};

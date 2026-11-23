@@ -1,9 +1,10 @@
-//! Cold restart/readback (jig/docs/design/domain/engine/README.md, 9;
+//! Cold restart/readback (jig/docs/design/domain/engine/world.md, 1;
 //! temper/docs/design/testing/scenarios.md, 1.2).
 pub(crate) enum Fixture {
     Checked,
     Closed,
     Broken,
+    Transferred,
 }
 
 pub mod config;
@@ -19,6 +20,7 @@ use jig_domain_tasks as tasks;
 use skein_lib::{ReplyTo, Token};
 use std::{borrow::Cow, collections::BTreeMap};
 use temper_engine_domain::{self as engine, Delivery, Key, Record};
+use temper_engine_domain_forge::Document as ForgeDocument;
 
 /// The one inventory of rows rebuilt by startup, with the step's reason.
 #[must_use]
@@ -35,6 +37,17 @@ pub fn rebuilt(key: &Key) -> Option<&'static str> {
     } else {
         None
     }
+}
+
+/// The unprojected readback of a successful closing restart, when requested.
+#[derive(Debug, Default, PartialEq, Eq)]
+pub struct CloseObservation {
+    pub queries: Vec<(u64, Read)>,
+    pub before: Vec<Answer>,
+    pub after: Vec<Answer>,
+    pub forge_subjects: Vec<(u64, u32, u64)>,
+    pub forge_before: Vec<Option<ForgeDocument>>,
+    pub forge_after: Vec<Option<ForgeDocument>>,
 }
 
 /// Last answers and retained rows at a quiescent boundary.
@@ -168,7 +181,7 @@ fn empty_repository_live(record: &skein_forge_client::LiveRecord) -> bool {
 }
 
 impl Driver {
-    /// The restart oracle (jig jig/docs/design/domain/engine/README.md 9; temper testing/scenarios.md 1.2): settle, snapshot,
+    /// The restart oracle (jig jig/docs/design/domain/engine/world.md 1; temper testing/scenarios.md 1.2): settle, snapshot,
     /// restart cold over the same store, read back, compare through `durable`.
     /// Panics naming the first difference (document or row, field, key).
     pub fn close(&mut self) {
@@ -184,15 +197,26 @@ impl Driver {
 
     /// Fixture fault at the snapshot/restart boundary, returning the oracle's first difference.
     pub fn close_erasing(&mut self, erase: Option<Key>) -> Result<(), String> {
-        if self.store_finding.is_some() {
+        let result = if self.store_finding.is_some() {
             self.broken = Fixture::Closed;
-            return self.check_store();
-        }
-        if !matches!(self.broken, Fixture::Checked) {
-            return self.ends.close(self.env.now, &self.store);
-        }
-        // A finding ends this attempt too; Drop must not repeat a failed readback.
-        self.broken = Fixture::Closed;
+            self.check_store()
+        } else {
+            match self.broken {
+                Fixture::Checked => {
+                    // A finding ends this attempt too; Drop must not repeat a failed readback.
+                    self.broken = Fixture::Closed;
+                    self.restart_oracle(erase)
+                }
+                Fixture::Broken | Fixture::Closed => self.ends.close(self.env.now, &self.store),
+                Fixture::Transferred => Ok(()),
+            }
+        };
+        let kept = self.store_checks.finish(&self.restart_config);
+        result.and(kept)
+    }
+
+    fn restart_oracle(&mut self, erase: Option<Key>) -> Result<(), String> {
+        let mut observation = self.close_observation.take();
         self.oracle_settle();
         self.ends.close(self.env.now, &self.store)?;
         assert!(self.store.idle() && self.store.held.is_empty(), "restart oracle store settled");
@@ -225,15 +249,29 @@ impl Driver {
         compare_forges(forges, self.root.forges())?;
         for (index, (sign_in, read)) in snapshot.queries.iter().enumerate() {
             let answer = self.oracle_read(*sign_in, read);
+            if let Some(observation) = &mut observation {
+                observation.after.push(answer.clone());
+            }
             snapshot.compare_answer(index, answer)?;
         }
         for ((sign_in, project, subject), before) in subjects.iter().zip(documents) {
             let after = self.oracle_document(*sign_in, *project, *subject);
+            if let Some(observation) = &mut observation {
+                observation.forge_before.push(before.clone());
+                observation.forge_after.push(after.clone());
+            }
             compare_forge(*project, *subject, before, after)?;
         }
         self.oracle_settle();
         self.ends.close(self.env.now, &self.store)?;
-        self.check_store()
+        self.check_store()?;
+        if let Some(observation) = &mut observation {
+            observation.queries = snapshot.queries;
+            observation.before = snapshot.answers;
+            observation.forge_subjects = subjects;
+        }
+        self.close_observation = observation;
+        Ok(())
     }
 
     fn oracle_settle(&mut self) {
@@ -478,7 +516,9 @@ pub fn compare_forges(
 impl Drop for Driver {
     fn drop(&mut self) {
         let result = if std::thread::panicking() { Ok(()) } else { self.close_erasing(None) };
-        self.report_store_checks();
+        if !matches!(self.broken, Fixture::Transferred) {
+            eprintln!("{}", self.store_check_counts().report());
+        }
         result.unwrap_or_else(|finding| panic!("{finding}"));
     }
 }

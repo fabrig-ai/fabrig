@@ -1,5 +1,5 @@
 //! Fenced run preparation, claims, activation terminals and holds
-//! (domain/tasks/lifecycle.md, sections 2 and 6–8). Root supplies run
+//! (domain/tasks/lifecycle.md, section 2, and domain/tasks/lifecycle-holds.md, section 1, and domain/tasks/lifecycle.md, section 7, and domain/tasks/lifecycle-endings.md, section 1). Root supplies run
 //! events; tasks checks lifecycle/result shape and emits bounded state changes.
 //! Priced inputs use combined accounting admission; exact replay is root-owned.
 pub(crate) mod ends;

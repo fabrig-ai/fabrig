@@ -1,5 +1,5 @@
 //! Shared projects' status funding, interleaved sittings and late reports
-//! (temper/docs/design/domain/forge/attention.md, 3; jig/docs/design/domain/accounts.md, 4.2).
+//! (temper/docs/design/domain/forge/attention.md, 3; jig/docs/design/domain/accounts-uses.md, 1.2).
 use super::*;
 use jig_domain_accounts as accounts;
 use jig_domain_core::{documents, reads};

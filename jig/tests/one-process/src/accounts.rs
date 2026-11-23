@@ -1,4 +1,4 @@
-//! Composed plan accounts over the simulated service (jig/docs/design/protocol/service.md, 8).
+//! Composed plan accounts over the simulated service (jig/docs/design/protocol/service-testing.md, 1).
 use crate::world::{self, Proc, ServiceHost};
 use crate::world_signals::SignalHost;
 use jig_client::{Asker, Handle, Key, contract as c};

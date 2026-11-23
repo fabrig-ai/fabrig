@@ -8,7 +8,7 @@ mod versions;
 use crate::*;
 use skein_lib::Reader;
 
-/// A version is its schema's family line (protocol/client/README.md, section 6).
+/// A version is its schema's family line (protocol/client/versions.md, section 1).
 #[test]
 fn version_constants_match_their_schemas() {
     let client = &skein_codegen::values(CLIENT_SCHEMA).schema;
@@ -17,7 +17,7 @@ fn version_constants_match_their_schemas() {
     assert_eq!(PUBLIC_VERSION, public.version, "jig-public-wire PUBLIC_VERSION must equal its family version");
 }
 
-/// A kept record holds the largest request (protocol/client/README.md, 7).
+/// A kept record holds the largest request (protocol/client/small-store.md, 1).
 #[test]
 fn kept_holds_the_widest_table_entry_and_round_trips_a_ceiling_request() {
     let widest = TableEntry::encoded_bound(&CEILINGS).expect("representable table entry");

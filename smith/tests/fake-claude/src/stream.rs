@@ -1,4 +1,4 @@
-//! JSON stream messages for smith/docs/design/protocol/programs.md, sections 5 and 8. These
+//! JSON stream messages for smith/docs/design/protocol/programs-claude-code.md, section 1, and smith/docs/design/protocol/programs.md, section 8. These
 //! builders retain no state and know no input or configuration values.
 
 use serde_json::{Value, json};

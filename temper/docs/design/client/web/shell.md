@@ -8,7 +8,7 @@ The browser's shell and its host are split from [the browser overview](README.md
   `wasm32-unknown-unknown` and on every target for its host
   and its journeys (`journeys.md`, section 2), ordinary Rust as a shell is (skein's
   `ui/README.md`, section 2), copied from jig's reference browser shell,
-  `jig-client-test-shell-web` (jig's `protocol/browser/README.md`, 3.1), with
+  `jig-client-test-shell-web` (jig's `protocol/browser/application.md`, 1.1), with
   temper's client root, view and records in place of jig's test
   application's, and none of jig's look (`jig-client-shell-web`'s
   `look`, `jig.css`). Its modules:
@@ -105,11 +105,11 @@ The browser's shell and its host are split from [the browser overview](README.md
   and neither turns it off.
 - **It decides nothing.** What a page shows and does is the domain's
   and the view's, step code under the subset; the shell orders the
-  platform's work (jig's `protocol/browser/README.md`, 3.1).
+  platform's work (jig's `protocol/browser/application.md`, 1.1).
 - **The failure page:** past the restart part's limit, the page says
   "The application failed.", in temper's words, since it takes none of
   jig's look; it starts nothing and keeps the small store (jig's
-  `protocol/browser/README.md`, 5.1).
+  `protocol/browser/loop.md`, 1.1).
 - **The small store** is the browser's session storage, under the
   prefix `temper.`, holding `jig-client`'s records alone, as the
   terminal's file does (`../sign-in.md`, section 1); from the adoption form

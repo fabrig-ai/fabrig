@@ -1,4 +1,4 @@
-//! A check's held time and fixed-space stderr line matcher (domain/run.md, 8.1).
+//! A check's held time and fixed-space stderr line matcher (domain/run-delivery.md, 1.1).
 //! Only a whole newline-ended marker changes the clock. No output is retained
 //! here; the process keeps its ordinary bounded tail independently.
 

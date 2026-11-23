@@ -1,4 +1,4 @@
-//! Durable keyed answers (protocol/client/README.md, section 3; client/domain/contract/README.md, 3).
+//! Durable keyed answers (protocol/client/README.md, section 3; client/domain/contract/answers.md, 1).
 use super::refusals;
 use alloc::boxed::Box;
 use jig_client_protocol_wire as w;
