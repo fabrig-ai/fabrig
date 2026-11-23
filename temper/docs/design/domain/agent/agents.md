@@ -18,8 +18,8 @@ results its wake policy wakes it for (jig's `domain/tasks/messages.md`, 3 and
 6): under the stock's `last_or_failure`, a change failing or
 cancelled, and the result of its last live change, a closer-ended goal's
 included, since a live run makes no closer. smith offers what arrives
-while the run works between two completions (smith's `domain/run.md`,
-section 6, *Messages mid-work*),
+while the run works between two completions (smith's `domain/run-messages.md`,
+section 1, *Messages mid-work*),
 so a design written beside its changes fits what landed or failed. A
 result its run leaves unread is judged again when the run ends.
 

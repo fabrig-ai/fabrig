@@ -63,7 +63,7 @@ The contract is ../domain/host.md's.
   cancel.
   Named live and Start-carried messages preserve `finish_requested` through
   both spawned and inline adapters. False is ordinary text; only the run's
-  admission can apply a true bit (../domain/run.md, section 6).
+  admission can apply a true bit (../domain/run-messages.md, section 1).
 - **Reads are the domain's.** After the opening, the half reads the agent's
   channel only when `smith-host-domain` asks, one read at a time, and reads
   nothing ahead. Each read is answered once: by one record, one live piece
@@ -353,7 +353,7 @@ directory, each record under its lock (`../shell/credentials.md`
 ### 5.5 Delivering in place
 
 The local host's charters grant `deliver` by its configuration and never
-`save` (../domain/run.md, 8.5): a commit in place is already what a save
+`save` (../domain/run-delivery.md, 1.5): a commit in place is already what a save
 would keep. A save asked of it all the same, by a charter of another
 writer's, is refused, saying that this host does not save.
 
@@ -365,8 +365,8 @@ writer's, is refused, saying that this host does not save.
   the rest, in order.
 - **Nothing is pushed** unless the configuration says so.
 - **A plain directory's files** are kept as they are, and delivered says so.
-  Whether they changed, which the run's *nothing* needs (../domain/run.md,
-  section 8.2), the host learns from a snapshot of the tree before the run,
+  Whether they changed, which the run's *nothing* needs (../domain/run-delivery.md,
+  section 1.2), the host learns from a snapshot of the tree before the run,
   its paths and its files' digests, compared with the tree at delivery.
   The snapshot is bounded, in entries, a path's bytes and a file's bytes,
   so it holds in the host's memory. A tree it cannot hold whole, or read
@@ -389,7 +389,7 @@ writer's, is refused, saying that this host does not save.
     delivery goes on or fails as usual.
   - Still unknown: the delivery fails with the reason *unknown*. The host
     keeps its intent, and the next start settles it and tells the run what
-    landed (../domain/run.md, section 6).
+    landed (../domain/run-messages.md, section 1).
 
 ### 5.6 The agent
 

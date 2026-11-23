@@ -47,9 +47,9 @@ moves into its directory.
 | a 200 stream ended before its completion event | `cut before output`, `cut mid-text`, `cut mid-call` | `Line::Cut`, `Config.cut` (fakes/llm.md, 2.8) | protocol-llm |
 | a billing refusal | `billing refusal` | the program's envelope (2.1) | agent-process |
 | an edge's or a proxy's refusal, the billing refusal's control | `edge refusal` | the program's envelope (2.1) | agent-process |
-| a saved window bound to another endpoint [composition] | `window elsewhere` | a run resumed with its transcript on another endpoint (domain/session.md, 8.2) | agent |
+| a saved window bound to another endpoint [composition] | `window elsewhere` | a run resumed with its transcript on another endpoint (domain/session-context.md, 1.2) | agent |
 | a program started without its tools | family `worker`, `untooled program` | the program's `system/init` without the agent's server (protocol/programs-claude-code.md, 1.6) | agent-process |
-| a delivery check waiting for a build place [assertion] | family `worker`, `check waits for a place` | the check's `smith-check: waiting` (domain/run.md, 8.1) | run |
+| a delivery check waiting for a build place [assertion] | family `worker`, `check waits for a place` | the check's `smith-check: waiting` (domain/run-delivery.md, 1.1) | run |
 
 The fake LLM's kinds are `skein_llm_kit::faults`' constants (fakes/llm.md,
 5); the fake program names the same faults by the same constants, and
@@ -125,7 +125,7 @@ A cut drawn with more `times` than the session's retries is no longer a
 cut but an outage: its run ends as one, and the host's outage retries are
 jig's (`jig/docs/design/domain/tasks/lifecycle-holds.md`, 1). A check waiting
 for a place is judged by the run world's own check of the held bound
-(domain/run.md, 8.1): its wait is not the check's time, and spends no
+(domain/run-delivery.md, 1.1): its wait is not the check's time, and spends no
 retry of the check.
 
 ```rust

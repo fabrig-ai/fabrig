@@ -60,16 +60,19 @@
 
 1. **domain/README.md:** this page: what smith is, its parts, how it stays
    generic.
-2. **domain/run.md:** one activation: the charter, the tools a run serves and
-   relays, messages and waiting, results and their contracts, delivering
-   a change, the budget, the answer.
-3. **domain/session.md:** one conversation with an LLM: turns, transcripts,
+2. **domain/run.md:** one activation: the tools a run serves and relays,
+   results and their contracts, the budget, the answer.
+3. **domain/run-start.md:** the charter, the start, the prompt, and the opening.
+4. **domain/run-messages.md:** receiving and reading messages, waiting, parking, and resuming.
+5. **domain/run-delivery.md:** checks, delivery, merges in progress, and saving unchecked.
+6. **domain/session.md:** one conversation with an LLM: turns, transcripts,
    providers, prices, sub-agents.
-4. **domain/tools.md:** what a session does to the workspace.
-5. **domain/host.md:** the other side: what a host owes a run and is owed, the
+7. **domain/session-context.md:** admission against the window, compaction, and keeping context small.
+8. **domain/tools.md:** what a session does to the workspace.
+9. **domain/host.md:** the other side: what a host owes a run and is owed, the
    channel, supervising agent processes, the local host, and one process
    through the inline agent.
-6. **protocol/limits.md:** declared quantities, startup checks, memory and what happens at a limit.
-7. **protocol/limits-derivation.md:** how each layer's limits and a window's room are derived.
-8. **protocol/programs.md:** choosing and signing in to a program backend, and what it promises.
-9. **protocol/programs-claude-code.md:** running Claude Code, from the command and tools to its stream and sub-agents.
+10. **protocol/limits.md:** declared quantities, startup checks, memory and what happens at a limit.
+11. **protocol/limits-derivation.md:** how each layer's limits and a window's room are derived.
+12. **protocol/programs.md:** choosing and signing in to a program backend, and what it promises.
+13. **protocol/programs-claude-code.md:** running Claude Code, from the command and tools to its stream and sub-agents.

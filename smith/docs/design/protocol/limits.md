@@ -84,8 +84,8 @@ settings override them (`../shell/README.md`).
   may name; the session enforces the charter's.
 - **A window is a prompt's, never its output's.** No request's output
   takes room in `window`: the session's check bounds the next prompt,
-  and a compaction's summary is its output (domain/session.md, 8.1 and
-  8.2). Where a provider counts a request's output within its context, a
+  and a compaction's summary is its output (../domain/session-context.md, 1.1 and
+  1.2). Where a provider counts a request's output within its context, a
   model's `window` is declared as that context less `output`.
 - **An oversized reasoning item fails by default.** An endpoint's
   declaration may opt into dropping it instead: the completion is kept,
@@ -116,7 +116,7 @@ model (domain/tools.md, section 4):
 | `shell_head`, `shell_tail` | the ceiling on a command's kept output, and how it splits between head and tail; a check's output keeps the same tail |
 | `search_hits`, `search_bytes` | a search's matches and their bytes |
 | `list_entries` | a listing's entries |
-| `guide` | a guide kept whole in the system text before it is cut (domain/run.md, 3.3) |
+| `guide` | a guide kept whole in the system text before it is cut (../domain/run-start.md, 1.3) |
 
 ### 2.3 Policy values
 
@@ -129,9 +129,9 @@ name `smith check` and the event stream's header print it under
 |---|---|---|
 | `max_turns`, `max_spend`, `max_time`, `max_waiting` | count; the host's unit; duration; duration | the most a charter's budget and waiting time may ask for (../domain/budget.md) |
 | `sections`, `host_tools`, `verdicts`, `items`, `fields` | count | the most of each a charter may hold, at most the charter schema's (charter.md, section 6) |
-| `inbox` | count | the messages a run holds unread (domain/run.md, section 6) |
+| `inbox` | count | the messages a run holds unread (../domain/run-messages.md, section 1) |
 | `unacknowledged` | count | the most turns a start's window may ask to hold unacknowledged (channel.md, section 7) |
-| `compaction_threshold` | fraction | the share of a window at which a session compacts (domain/session.md, section 8) |
+| `compaction_threshold` | fraction | the share of a window at which a session compacts (../domain/session-context.md, section 1) |
 | `parallel_tools` | count | the most adjacent reads of one completion that run at once, as one batch; the reads after them wait, in call order, until every call of that batch has answered, and then form the next batch. A session uses the smaller of it and `calls_per_response` (domain/session.md, section 5). It is from 1 to 8, the most calls a session runs at once |
 | `connect`, `handshake` | duration, per endpoint | connecting, and TLS's handshake (section 7) |
 | `connection_keep` | duration, per endpoint | how long an idle connection stays open in a live service; never how the process ends, since the pool closes at the answer (skein's `llm/connection.md`, section 7) |
@@ -139,7 +139,7 @@ name `smith check` and the event stream's header print it under
 | `shell_timeout` | duration | a command's deadline when its call asks for none |
 | `job_poll` | duration | a `job` call's wait when it asks for none: the default of `wait_seconds` (domain/tools.md, section 5) |
 | `job_wait` | duration | the longest a `shell` call's yield or a `job` call's wait may be: the ceiling of `yield_seconds` and of `wait_seconds` (domain/tools.md, section 5) |
-| `check_timeout` | duration | the checks' deadline where the charter names no bound of its own (domain/run.md, 8.1; charter.md, section 2), cut at the run's end; a check that ran out of time runs once more at twice its bound (domain/run.md, 8.1); a charter that allows a change keeps at least this much time in its reserve (../domain/budget.md, 1) |
+| `check_timeout` | duration | the checks' deadline where the charter names no bound of its own (../domain/run-delivery.md, 1.1; charter.md, section 2), cut at the run's end; a check that ran out of time runs once more at twice its bound (../domain/run-delivery.md, 1.1); a charter that allows a change keeps at least this much time in its reserve (../domain/budget.md, 1) |
 | `group_stop` | duration | each of the three steps that stop a command's group (agent.md, section 2) |
 | `close` | duration | io's close deadline (section 7) |
 | `write_deadline` | duration | the most one write of the event stream may stay in flight before its destination is given up (events.md, section 5.2) |
@@ -156,8 +156,8 @@ in every deployment:
 
 - **a delivery's diagnostic:** the last 512 bytes of the host's
   diagnostic output, with the count of bytes dropped before them
-  (domain/run.md, 8.2);
-- **a run's identity:** 16 opaque bytes (domain/run.md, 3.2;
+  (../domain/run-delivery.md, 1.2);
+- **a run's identity:** 16 opaque bytes (../domain/run-start.md, 1.2;
   domain/host.md, section 2);
 - **a credential:** a grant's value and what travels beside it, such as
   an account's id, within the bound the channel's schema seals for a
@@ -247,7 +247,7 @@ Anthropic's output within what its route accepts. smith checks the rest:
 | `derived` | every derived limit fits its type; the first that overflows is named |
 | `fresh-window` | for each declared endpoint, a new window at its largest (smith's own part, the host's part, the task as its instruction and one offer, a summary of `output` tokens, and one offer of held-back messages) and one `output` fit within the window at the compaction threshold, counting a byte as a token (`limits-derivation.md`, 1.9). The parts are derived so that this holds whenever smith's own part fits the room, for every shipped preset among them (`../shell/settings.md`, 2.1); the check refuses a model whose room smith's own part fills |
 | `host-part-holds-the-role` | for each declared endpoint, the host's part (`limits-derivation.md`, 1.9) holds the task role as written, its bytes as the shell's code holds them, not its 4 KiB cap (`../shell/settings.md`, 2.6), beside one guide at `guide`, the shell's own start's one directory, so that the product's own default never cuts its guide or makes a start too large for the entrance; a start with more directories shares the rest (`limits-derivation.md`, 1.9) |
-| `compaction-headroom` | for each declared endpoint, the window above its threshold holds one `output` (that of the completion whose results a compaction carries), the summary instruction and a cut result's marker for each of `calls_per_response` results: the line is at or above the threshold, and the compaction the check or the guard calls for always fits, its results cut to what is left; what it leaves is the spare (`limits-derivation.md`, 1.9; domain/session.md, 8.1) |
+| `compaction-headroom` | for each declared endpoint, the window above its threshold holds one `output` (that of the completion whose results a compaction carries), the summary instruction and a cut result's marker for each of `calls_per_response` results: the line is at or above the threshold, and the compaction the check or the guard calls for always fits, its results cut to what is left; what it leaves is the spare (`limits-derivation.md`, 1.9; ../domain/session-context.md, 1.1) |
 | `output-in-window` | each model's `output` is less than its `window` |
 | `window-first` | a window's history reaches the compaction threshold before its message, block or byte bound: the line at `TOKEN_BYTES` bytes a token, plus one completion's whole reserve and one batch's results, within the history's bytes (rule 4 of `limits-derivation.md`, section 1). It holds by construction for `limits-derivation.md`, 1.2's derivation, and guards it |
 | `calls-in-transcript` | a message's blocks, derived from `calls_per_response`, are at least a completion's blocks and within the transcript schema's ceiling |
@@ -330,17 +330,17 @@ reserve against the budget.
 | a `sub_agent` call while its run holds `conversations` conversations, or while the agent's tables of conversations or calls are full | refused as too many, or answered busy; no child opens and the parent goes on, however many calls its message asked (domain/run.md, 5.3) |
 | a reasoning item past `reasoning_item` | a typed limit failure, unless the model's declaration drops it (2.1) |
 | a tool call cut off by the output limit | marked by skein; the session keeps a note and an error result in its place (llm.md, section 4) |
-| history that reaches the window's threshold | a compaction, not a failure (domain/session.md, section 8) |
+| history that reaches the window's threshold | a compaction, not a failure (../domain/session-context.md, section 1) |
 | results owed to a compaction past what its headroom leaves | cut with their markers in the compaction's request only (`limits-derivation.md`, 1.9) |
-| a completion's later batch past what is left of the history | each call runs with its share of what is left as its cap, its result saying what it left out; the next completion is the compaction (domain/session.md, 8.1) |
-| a completion's batch past what is left below the line | each call runs with its share of what is left as its cap, its result saying what it left out; the next completion is sent when the guard's exact measure fits (domain/session.md, 8.1) |
+| a completion's later batch past what is left of the history | each call runs with its share of what is left as its cap, its result saying what it left out; the next completion is the compaction (../domain/session-context.md, 1.1) |
+| a completion's batch past what is left below the line | each call runs with its share of what is left as its cap, its result saying what it left out; the next completion is sent when the guard's exact measure fits (../domain/session-context.md, 1.1) |
 | messages queued past one offer | they wait, in order, for the next offer (`limits-derivation.md`, 1.9) |
 | a provider's "context too long" | one compaction; a second in the same window fails the session |
 | a completion past `calls_per_response` | a typed limit failure of the completion; the tools' descriptions state the bound |
 | a `shell` call with `yield_seconds` while its session holds `jobs` jobs | answered as an invalid call that says at most `jobs` may run and how to stop one; the command is not run (domain/tools.md, section 5) |
 | a yield or a wait asked past `job_wait` | clamped to it, and the outcome says so |
 | what a job writes between two answers, past its kept output | its head and tail kept, and the bytes between them counted and said (`limits-derivation.md`, 1.5) |
-| a message, a host's answer, a charter or a start past its bound | refused at its entrance, naming the bound (domain/run.md, sections 4 and 6) |
+| a message, a host's answer, a charter or a start past its bound | refused at its entrance, naming the bound (../domain/run.md, section 4, and ../domain/run-messages.md, section 1) |
 
 ## 7. Deadlines
 
@@ -363,14 +363,14 @@ reserve against the budget.
   the charter, at most `tool_deadline`; a command's from its call, or
   `shell_timeout`, clamped to `tool_deadline`; the checks' is the
   charter's bound, else `check_timeout`, cut at the run's end, and twice
-  that for a check's one retry after it ran out of time (domain/run.md,
-  8.1; domain/tools.md, section 5).
+  that for a check's one retry after it ran out of time (../domain/run-delivery.md,
+  1.1; domain/tools.md, section 5).
 - **A job keeps its command's deadline,** counted from the command's
   start, whatever its yield. A `shell` call's yield and a `job` call's
   wait bound how long that call waits before it answers, never how long
   the job runs, and are at most `job_wait`.
 - **A cancel of jobs settles within the group stop.** A session's close,
-  like whatever takes the lease (domain/run.md, sections 5.3 and 8.1),
+  like whatever takes the lease (../domain/run.md, section 5.3, and ../domain/run-delivery.md, section 1.1),
   stops the groups of the jobs it cancels together, each in the three
   steps of agent.md, section 2, so it waits at most three `group_stop`s
   for them, however many there are.

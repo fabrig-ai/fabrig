@@ -1,5 +1,5 @@
 //! Optional workspace and mixed mounts on the typed fake LLM world.
-//! Contract: smith/docs/design/domain/run.md, sections 3 and 8; smith/docs/design/domain/tools.md, sections 2–4.
+//! Contract: smith/docs/design/domain/run-start.md, section 1, and smith/docs/design/domain/run-delivery.md, section 1; smith/docs/design/domain/tools.md, sections 2–4.
 
 use skein_fake_checkout::Checkout;
 use skein_fake_llm_domain::api::{Line, Part, Query, Script, Turn};

@@ -134,7 +134,7 @@ fn report_delivery_charter() -> Box<[u8]> {
     })
 }
 
-/// Delivery is an independent grant beside a report (domain/run.md, 3.1 and 8.4).
+/// Delivery is an independent grant beside a report (domain/run-start.md, 1.1, and domain/run-delivery.md, 1.4).
 #[test]
 fn a_report_run_offers_its_delivery_grant_and_continues() {
     const REPORT: &[u8] = b"The files were delivered.";

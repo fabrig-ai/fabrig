@@ -254,7 +254,7 @@ pub struct Affinity {
     pub thread: u32,
 }
 
-/// Why the session asks for a completion (smith/docs/design/domain/session.md, section 8.2).
+/// Why the session asks for a completion (smith/docs/design/domain/session-context.md, section 1.2).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Purpose {
     /// An ordinary completion, guarded when its window has a reported last prompt.
@@ -263,7 +263,7 @@ pub enum Purpose {
     Compaction { room: u64 },
 }
 
-/// What the protocol layer checks before an ordinary request (smith/docs/design/domain/session.md, section 8.1).
+/// What the protocol layer checks before an ordinary request (smith/docs/design/domain/session-context.md, section 1.1).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Guard {
     /// The conversation's line, in tokens.

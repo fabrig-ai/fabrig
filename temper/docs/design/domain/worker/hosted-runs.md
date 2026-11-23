@@ -83,8 +83,8 @@ temper's workspace items beside it:
 - **Charter.** smith's, as the engine wrote it (../agent/charter.md),
   carried as bytes. The worker gives it to the agent with the workspace
   it prepared: where the repositories sit, which may be written, and for
-  a merge in progress the files in conflict (smith's `domain/run.md`,
-  3.2).
+  a merge in progress the files in conflict (smith's `domain/run-start.md`,
+  1.2).
 - **Transcript,** for a run that resumes: its current window, and the
   calls committed after its last turn (jig's `domain/engine/executors-transcripts.md`, 1;
   jig's `domain/hosts/hub.md`, 4). Across the link, those calls' answers
@@ -142,7 +142,7 @@ A hosted run's lifecycle is the hub's, in nine steps (jig's
   repository named by its tag (`../../protocol/channel.md`, section 5).
 
 A push that lands while its run winds down is the run's result (smith's
-`domain/run.md`, 8.2). The hub arms no timers: each wait is bounded
+`domain/run-delivery.md`, 1.2). The hub arms no timers: each wait is bounded
 below it, by the deadlines of git operations, the agent's watchdog and
 wall time, and the grace of cancel, then kill.
 

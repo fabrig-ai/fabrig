@@ -176,7 +176,7 @@ workspace, ending in one result (section 8). The kinds are a closed set:
   windows compact also decides on `compaction-carried`: each
   compaction's request holds a result for each call its window owes it,
   and the window after it opens with that compaction's summary
-  (../domain/session.md, sections 8.1 and 8.2). With that check passing, a
+  (../domain/session-context.md, sections 1.1 and 1.2). With that check passing, a
   summary that misstates or drops what it was given is the model's, and
   so is the count that follows from it.
 - **A request smith retried** (../domain/session.md, section 4) is judged
@@ -445,7 +445,7 @@ scope and convention. **Classify** one end (section 8.3).
 
 - **Instructions.** A seed's are in `AGENTS.md`, and every agent gets the
   same text through the file it reads, whole: smith reads it into its
-  system text by its default guide convention (../domain/run.md, 3.3), Codex
+  system text by its default guide convention (../domain/run-start.md, 1.3), Codex
   into its first user message, and Claude Code's `../../../CLAUDE.md` is made at
   preparation and left out of the diff. smith runs with its shipped role
   (../shell/settings.md, 2.6): its pinned settings add nothing and remove nothing. No

@@ -321,7 +321,7 @@ runs as contained processes and whose output it parses.
   commit it merged into stays the checkout's start, so a save with nothing new
   saves the merge commit, and its first push carries the merge, even with
   nothing new. A producer's conflict stays in progress as above, and its start
-  names the files in conflict (smith's `domain/run.md`, 8.3).
+  names the files in conflict (smith's `domain/run-delivery.md`, 1.3).
 - **A goal's later run** (`../forge/branches.md`, 3) starts at g's tip; where its
   run branch holds a head g lacks, it starts as a producer does, on a merge
   in progress naming its landing branch: the branch is g, the commit merged
@@ -329,8 +329,8 @@ runs as contained processes and whose output it parses.
   stays in progress. It pushes to g, a design delivery (below).
 - **Push commits what the run checked.** When a run asks to deliver, at
   `finish` with a change or mid-run, it has run the repository's checks
-  with nothing else writing to the checkout (smith's `domain/run.md`,
-  8.1); the worker commits exactly that tree and pushes the commit, with
+  with nothing else writing to the checkout (smith's `domain/run-delivery.md`,
+  1.1); the worker commits exactly that tree and pushes the commit, with
   the run's title and body. Delivery reads the checkout's current HEAD and
   merge state, the worker's (*Two git directories*): an in-progress merge records HEAD and MERGE_HEAD as its two
   parents, even when its resolution is already staged. A committed merge
@@ -354,7 +354,7 @@ runs as contained processes and whose output it parses.
 - **A design delivery.** A repository naming the same push and landing
   branch is a goal's design delivery (`../forge/branches.md`, 3). It runs
   the repository's `.temper/pre-pr` as any delivery does (smith's
-  `domain/run.md`, 8.1); a failed check refuses it. The checked tree is
+  `domain/run-delivery.md`, 1.1); a failed check refuses it. The checked tree is
   committed, then the goal tip fetched. If the commit lacks that tip, it is
   merged: a clean merge is committed with two
   parents (delivery commit and tip), the repository's identity as author

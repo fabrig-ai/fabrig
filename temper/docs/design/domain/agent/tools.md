@@ -6,7 +6,7 @@
   modifying and the shell in the workspace, and sub-agents, each as the
   charter's `inspect`, `modify`, `shell` and `agents` say; `wait`, always;
   `deliver`, for a finite change's contract and for a goal's run (below)
-  (jig's `domain/hosts/charters.md`; smith's `domain/run.md`, 8.4),
+  (jig's `domain/hosts/charters.md`; smith's `domain/run-delivery.md`, 1.4),
   never in an Open run (`charter.md`, 5). A run that cannot deliver cannot modify
   files: jig's charter translation grants `modify` only with `deliver`
   and the charter's permission (jig's `domain/hosts/charters.md`). A
@@ -15,7 +15,7 @@
   disables `modify`; repository edits, including small fixes, go through
   `change` (1). The stock coder has read, write, edit and remove: a
   file the change drops is removed once read.
-- **`save`, for a change's producer** (smith's `domain/run.md`, 8.5; jig's
+- **`save`, for a change's producer** (smith's `domain/run-delivery.md`, 1.5; jig's
   `domain/hosts/charters.md`): granted with `deliver` to a finite run with
   a change among its outcomes, and to no other run, a goal's included. It
   pushes the checkout's tree to the change's own branch at once, with no
@@ -30,7 +30,7 @@
   writer of it (`../forge/branches.md`, 3), with a `title` and a `body` as a
   change's delivery has them, at any point in its run and as often as it
   likes, and the project's checks run at it (`README.md`, section 5; smith's
-  `domain/run.md`, 8.1). A design delivery carries Markdown alone, takes
+  `domain/run-delivery.md`, 1.1). A design delivery carries Markdown alone, takes
   the goal branch's moved tip first and is never stale (`README.md`, section 5); code
   goes through `change`. Delivering isn't finishing: it has no change
   among its outcomes, its `finish` offers a report and a failure, and it

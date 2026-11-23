@@ -301,7 +301,7 @@ vocabulary.
       `--account anthropic-key`, smith's own loop on Anthropic's model;
     - a second run resumes it (`--chat`);
     - a chat started on ChatGPT, resumed on Claude, then on ChatGPT
-      again, each run completing (domain/session.md, 8.2);
+      again, each run completing (domain/session-context.md, 1.2);
     - a run refreshes its grant when the issuer allows: the story
       raises the refresh lead, a policy value a test may set, to 400
       days in the settings' seconds (shell/settings.md, 2.5), past any access
@@ -570,7 +570,7 @@ Every component's files and processes go through it:
 
   It never reads a service's state, the simulator's or the fake
   machine's.
-- **Referees check message terminals** (domain/run.md, section 6):
+- **Referees check message terminals** (domain/run-messages.md, section 1):
   - every message a run accepted ends exactly once: read (a turn's fence
     names it or a later one), refused at admission, or unread at the
     answer;
@@ -602,7 +602,7 @@ Every component's files and processes go through it:
   the protocol world's reading of a native request the component sent,
   its cache markers and breakpoints (`protocol/llm.md`, 2.3); the
   session world's window referee, over a window's system, affinity,
-  history and bound (`domain/session.md`, 8); and the local-process
+  history and bound (`domain/session-context.md`, 1); and the local-process
   world's person, whose terminal write that fails where its script
   doesn't expect a failure is its finding. Nothing in smith's tests
   catches a panic, and none triggers an assertion: what an assertion

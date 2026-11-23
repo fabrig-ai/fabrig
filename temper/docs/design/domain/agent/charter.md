@@ -2,7 +2,7 @@
 
 The core decides a run's charter in its own terms (jig's
 `domain/engine/executors.md`, 1); `temper-engine-smith` writes it as smith's
-(smith's `domain/run.md`, 3.1) from the root's assignment, and the
+(smith's `domain/run-start.md`, 1.1) from the root's assignment, and the
 engine's routing encodes it (`../../protocol/llm.md`, section 5).
 
 ## 1. Instructions and brief
@@ -115,7 +115,7 @@ a chat that names none, runs with no workspace (../worker/hosted-runs.md, 1.1). 
 whose charter is an asking one (`tools.md`) is given no repository, whatever
 its project's home and context repositories (`../root-translation.md`, 2.1; `ask-temper.md`), so it
 runs with no workspace: no checkout, no file tools, no shell, and smith
-says nothing of a checkout (smith's `domain/run.md`, 3.3; through Claude
+says nothing of a checkout (smith's `domain/run-start.md`, 1.3; through Claude
 Code, smith's `protocol/programs-claude-code.md`, 1.1). A run whose charter names none
 of `inspect`, `modify` and `shell` is given no repository either, whatever
 its project's repositories, since it could neither read, write nor run
@@ -177,7 +177,7 @@ and the state as it is now (jig's `domain/tasks/lifecycle.md`, 7).
 ## 4. Conventions
 
 Checks at `.temper/pre-pr`, guides at `AGENTS.md` (smith's
-`domain/run.md`, 3.1 and 8.1).
+`domain/run-start.md`, 1.1, and `domain/run-delivery.md`, 1.1).
 
 - **What a delivery checks** is its project's: the host runs the
   repository's `.temper/pre-pr` on the run's warm checkout before anything
@@ -200,7 +200,7 @@ Checks at `.temper/pre-pr`, guides at `AGENTS.md` (smith's
   other run names none. The bound is read when the run's charter is
   written, at each attempt, so a changed setting reaches the next
   attempt. A check that runs out of time runs once more at twice its
-  bound (smith's `domain/run.md`, 8.1), so a check that only ran out of
+  bound (smith's `domain/run-delivery.md`, 1.1), so a check that only ran out of
   time never ends the run's work by itself.
 - **No CI before a goal's branch.** A pull request into a goal's branch
   runs no CI: a change's delivery checks are all it meets before it lands
@@ -318,7 +318,7 @@ Checks at `.temper/pre-pr`, guides at `AGENTS.md` (smith's
   - **The agent's own text stays** where it is read whole: the thing's
     page, and Overturn, which quotes the question back.
 - **No security boundary:** an agent can change what a check runs
-  (smith's `domain/run.md`, 8.1); the landing's CI and its authority's
+  (smith's `domain/run-delivery.md`, 1.1); the landing's CI and its authority's
   requirements guard what lands on main.
 
 ## 5. Budget, models, waiting

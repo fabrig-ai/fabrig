@@ -100,7 +100,7 @@ their writer and their reader are `smith-events` (README.md, section
 
 | Field | Type | What it names |
 |---|---|---|
-| `run` | integer | a run, by its activation number (domain/run.md, 3.2), unique within the stream |
+| `run` | integer | a run, by its activation number (../domain/run-start.md, 1.2), unique within the stream |
 | `conversation` | integer | a conversation within its run, numbered in the order the run opened them, compactions included; main's is 0 |
 | `response` | integer | one provider attempt within its run, numbered in order: its id in the stream, on each of its records |
 | `call` | string | a tool call, by the provider's id for it |
@@ -161,7 +161,7 @@ also writes an `operator` notice saying that usage could not be read.
 |---|---|---|
 | `run` | integer | |
 | `resumed` | bool | main opens from a transcript |
-| `messages` | integer | the start's messages (domain/run.md, 3.2) |
+| `messages` | integer | the start's messages (../domain/run-start.md, 1.2) |
 | `main` | model | main's LLM (3.10) |
 | `budget` | object | `turns`, `spend`, `time_ms`, and `reserve`: `turns`, `time_ms` and its derived `spend` (../domain/budget.md, 1) |
 | `tools` | object | `families` granted, as a list of `inspect`, `modify`, `shell` and `sub_agents`; `withheld`, the granted families the run does not offer, none on either backend (programs.md, section 2); `wait`, `deliver` and `save`, bools; `host`, the host tools declared |
@@ -199,7 +199,7 @@ its host writes `run.completed` from the turns it was told:
 | Field | Type | What it is |
 |---|---|---|
 | `run`, `conversation` | integer | |
-| `kind` | string | `main`, `child` or `compaction` (domain/session.md, section 8) |
+| `kind` | string | `main`, `child` or `compaction` (../domain/session-context.md, section 1) |
 | `parent` | integer, optional | a child's asker, or the conversation a compaction summarises |
 | `call` | string, optional | the `sub_agent` call that opened a child |
 | `thread` | integer | the affinity ordinal its requests carry (llm.md, 2.1) |
@@ -215,7 +215,7 @@ its host writes `run.completed` from the turns it was told:
 | `run`, `conversation` | integer | |
 | `end` | string | `closed`, `budget`, `failed`, `refused`, `transcript` or `overflow` (domain/session.md) |
 | `which` | string, optional | for `budget`, what ran out |
-| `failure` | completion failure, optional | for `failed`, when a completion failed (3.10); absent when a compaction's answer gave no summary, whose `response.completed` gives its `stop` (domain/session.md, 8.2) |
+| `failure` | completion failure, optional | for `failed`, when a completion failed (3.10); absent when a compaction's answer gave no summary, whose `response.completed` gives its `stop` (../domain/session-context.md, 1.2) |
 | `turns` | integer | its completions |
 | `usage` | usage | its totals |
 | `spent` | integer | its spend |
@@ -315,7 +315,7 @@ tools that stands in for the workspace's, with `source` `workspace`
 | `clamped` | bool | the call's requested budget or deadline was lowered to its ceiling, as the tool's outcome records it |
 | `duration_ms` | integer | from `tool.started` |
 | `child` | object, optional | for `sub_agent`, under every policy: `conversation`; `stop`, how the child ended: `end`, an answer it chose to give, `budget`, an answer its share ended (domain/run.md, 5.3), or, unanswered, `failed` or `closed`; `turns`, `time_ms`, `spent` and `usage` |
-| `delivery` | string, optional | for `deliver`, `save`, or a `finish` that delivered: `delivered`, `nothing`, `refused`, `failed` or `stale` (domain/run.md, 8.2 and 8.5) |
+| `delivery` | string, optional | for `deliver`, `save`, or a `finish` that delivered: `delivered`, `nothing`, `refused`, `failed` or `stale` (../domain/run-delivery.md, 1.2 and 1.5) |
 
 A tool's terminal tells what the tool observed when it ended. Rendering
 happens later, when the result goes into the next request, and may never
@@ -343,7 +343,7 @@ or this record, never both.
 
 **`check.started`** (`run`, `deadline_ms`) and **`check.completed`**
 (`run`, `exit`, `passed`, `duration_ms`), for the workspace's checks
-(domain/run.md, 8.1). Every `check.started` has one `check.completed`,
+(../domain/run-delivery.md, 1.1). Every `check.started` has one `check.completed`,
 whose `exit` says how the checks ended, as one of five kinds:
 
 - `{"kind":"code","value":n}`: the checks' process exited with code `n`;
@@ -362,8 +362,8 @@ keeps its own shape.
 
 ### 3.7 Messages
 
-Every message the run hears has exactly one terminal (domain/run.md,
-section 6): refused in its `message.received`, or a later
+Every message the run hears has exactly one terminal (../domain/run-messages.md,
+section 1): refused in its `message.received`, or a later
 `message.read` or `message.unread`. A start's messages each have a
 `message.received` at admission, after `run.started` and before any
 message relayed later; a start refused at the entrance refuses them,
@@ -440,7 +440,7 @@ when it is about one; and the kind's fields.
   the provider's text or the limit's words, as the session kept it
   (limits-derivation.md, 1.2): content, so only under `calls` and `everything`
   (llm.md, section 6). A limit a provider's failure caused, the window's
-  after *context too long* (domain/session.md, 8.2), is class `limit`
+  after *context too long* (../domain/session-context.md, 1.2), is class `limit`
   with its `limit`, and that failure's `evidence`, `status` and `detail`,
   in `conversation.closed` and `run.completed`; that attempt's
   `response.completed` keeps the provider's class. A limit no request
@@ -594,7 +594,7 @@ projection.
 The vocabulary is pre-release, like every format (README.md, section 8).
 
 - **One version.** This is version 4. The vocabulary may change in place
-  before v0.1.0, as the `save` bool and delivery did (domain/run.md, 8.5);
+  before v0.1.0, as the `save` bool and delivery did (../domain/run-delivery.md, 1.5);
   an older store starts afresh. Effective limits include
   `domain.content_edge_records`, the optional capture edge's record capacity
   (3.2; limits.md, section 9). Nothing is translated, and no older version

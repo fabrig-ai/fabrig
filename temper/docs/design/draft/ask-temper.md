@@ -127,7 +127,7 @@ carries it out (`ask-temper.md`, section 11). Reasons: `ask-temper.notes.md`.
   `## Checkout` and a git working directory.
 - **smith's mechanics** for an open run then say nothing of a checkout: no
   `## Tools` section on reading files and no `## Checkout` (smith's
-  `domain/run.md`, 3.3, "the workspace, if any").
+  `domain/run-start.md`, 1.3, "the workspace, if any").
 - **A repository's file** comes through the forge, by `see file` (5.1); a text
   the person has only on their machine, they paste.
 

@@ -104,8 +104,8 @@ field. The landing rules were settings already, temper's kinds 1 and 2
   delegated for one of the project's changes, its producers', repairs' and
   resolutions', a goal's landing into the landing branch's among them, in
   place of the agent's `check_timeout`
-  (`../../domain/agent/charter.md`, section 4; smith's `domain/run.md`,
-  8.1). A project whose landings are goal-sized sets it above the agent's,
+  (`../../domain/agent/charter.md`, section 4; smith's `domain/run-delivery.md`,
+  1.1). A project whose landings are goal-sized sets it above the agent's,
   so a landing's repair has room to check. It need not fit a charter's
   reserve: a check is cut at its run's end. One past its bounds refuses the
   start at its member, `application.landing.projects[i].check_timeout_ms`.

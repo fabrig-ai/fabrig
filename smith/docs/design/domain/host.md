@@ -40,21 +40,21 @@ What a host and a run say to each other, in order.
 
 Down, from the host:
 
-- **the start** first (run.md, 3.2): the charter, the workspace, the
+- **the start** first (run-start.md, 1.2): the charter, the workspace, the
   transcript and the calls answered after it, the messages that
   triggered the run, credential grants, an activation number, the
   run's identity, and, if the host wants its words as they come, the ask
   for live content: one boolean for each kind (`text`, `reasoning`,
   `input`; protocol/channel.md, section 3). The transcript is the current window's turns only:
   those from the last turn that opens a window, as each told turn says
-  (section 6). The identity is opaque, of the size the vocabulary seals
+  (`host.md`, section 6). The identity is opaque, of the size the vocabulary seals
   (protocol/limits.md, section 2.4); the host keeps it the same across
   the run's starts, resumes included, or gives none and the run mints
   one. Each conversation of the run carries it with a thread number of
-  its own, main's being zero (run.md, section 3.2);
-- **messages,** named, in order (run.md, section 6);
+  its own, main's being zero (run-start.md, section 1.2);
+- **messages,** named, in order (run-messages.md, section 1);
 - **answers** to the run's calls: host tools' (text, as a result or an
-  error), deliveries' (run.md, 8.2), busy, unavailable, withdrawn, too
+  error), deliveries' (run-delivery.md, 1.2), busy, unavailable, withdrawn, too
   large;
 - **credential grants,** refreshed (section 7);
 - **acknowledgements** of turns, when the host keeps them (section 6);
@@ -107,7 +107,7 @@ Messages:
   - **unread:** the run answered without reading it. The answer's fence
     says which; a message is never read after the answer.
 - **A start's messages** enter the run's inbox at admission, before any
-  message sent after the start, and the run opens on them (run.md, 3.4).
+  message sent after the start, and the run opens on them (run-start.md, 1.4).
   A host that has the first message before it starts a run carries it
   so; one that starts a run before it has a message relays it later.
 
@@ -121,7 +121,7 @@ What a host owes:
   activation number, never reused, which every name carries.
 - **A delivery is never abandoned.** One in flight runs to its end, which
   its deadline bounds, and is answered with what it did, so one that
-  landed is reported landed. A save is a delivery here (run.md, 8.5).
+  landed is reported landed. A save is a delivery here (run-delivery.md, 1.5).
 - **Nothing written after a stop.** The host touches the workspace only
   once the run and everything it started are gone, but for the delivery
   it asked for.
@@ -297,7 +297,7 @@ policy.
 - **its host tools:** their schemas, their decisions, their answers'
   words, their durable records;
 - **deliveries:** what making a tree durable means, and when a delivery
-  is stale; and what marks a save's tree as unchecked (run.md, 8.5);
+  is stale; and what marks a save's tree as unchecked (run-delivery.md, 1.5);
 - **messages:** which reach a run, rendered how, and which a start
   carries;
 - **unread messages:** what becomes of those a run answered without
@@ -414,13 +414,13 @@ the inline agent it is the `smith` product:
     out; a credential the person must fix; usage or settings refused;
     needing input; interrupted. Its charter grants `wait` with a waiting
     time of zero, so a run that would wait for a person parks at once,
-    and needs input (run.md, 3.1). It edits the workspace in
+    and needs input (run-start.md, 1.1). It edits the workspace in
     place and commits nothing, unless asked to deliver, which keeps the
     change contract.
     The statuses' numbers are the shell's (`../shell/README.md`).
 - **The person's lines:**
   - **A line starts a run** when none is live, carried in its start, so
-    the run opens on it (run.md, 3.4). Lines entered while a run is live
+    the run opens on it (run-start.md, 1.4). Lines entered while a run is live
     go to it as messages, each as it is entered, labelled `person`
     whichever kind of agent runs.
   - **Held until read.** The host keeps each line it relayed until a

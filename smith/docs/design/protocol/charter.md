@@ -2,7 +2,7 @@
 
 Provisional, 2026-10-07, revised 2026-10-21. Two records:
 
-- **the charter:** how a run is set up (domain/run.md, 3.1);
+- **the charter:** how a run is set up (../domain/run-start.md, 1.1);
 - **the result:** what a run declares to finish (domain/run.md, section 7).
 
 They are a family of their own, `smith-charter`, versioned apart from the
@@ -49,7 +49,7 @@ workers carry unread, and its version must be the one its agents read
 
 A versioned record (skein's `data/codec/README.md`, section 3):
 
-- **mode:** `finite` or `open` (domain/run.md, 3.1). Open requires `wait`
+- **mode:** `finite` or `open` (../domain/run-start.md, 1.1). Open requires `wait`
   and neither `deliver` nor `save`, or admission refuses MalformedCharter; its result
   contract stays bounded and validated;
 - **instructions:** text;
@@ -63,7 +63,7 @@ A versioned record (skein's `data/codec/README.md`, section 3):
   - whether `wait` is granted;
   - whether `deliver` is granted mid-run, with a change's contract (2.1);
   - whether `save` is granted, a delivery with no checks, marked
-    unchecked (domain/run.md, 8.5): only with `deliver`, or admission
+    unchecked (../domain/run-delivery.md, 1.5): only with `deliver`, or admission
     refuses the grants;
   - the host tools, each declared with:
     - a name;
@@ -82,11 +82,11 @@ A versioned record (skein's `data/codec/README.md`, section 3):
     before it, reads as contract 1;
 - **the result contract** (2.1);
 - **conventions,** if any: the relative paths of the guide and the checks;
-  without them, smith's defaults apply (domain/run.md, 8.1);
+  without them, smith's defaults apply (../domain/run-delivery.md, 1.1);
 - **the checks' bound,** optional, a duration from 1 second to 1 day:
   the wall bound each delivery check is given in place of the agent's
   `check_timeout`, cut at the run's end as every check is
-  (domain/run.md, 8.1). Without it, `check_timeout`. A bound outside
+  (../domain/run-delivery.md, 1.1). Without it, `check_timeout`. A bound outside
   that range is a malformed charter, refused at the entrance. Admission
   reads `check_timeout` alone for the reserve (../domain/budget.md, 1);
   the field is the charter's last;
@@ -126,7 +126,7 @@ A versioned record (skein's `data/codec/README.md`, section 3):
   - **`window`:** its usable input tokens, the most one prompt may hold,
     with a completion's output beside it (limits.md, 2.1). The session
     compacts its conversation before a prompt would pass it
-    (domain/session.md, section 8);
+    (../domain/session-context.md, section 1);
   - **`output`:** the most output tokens a completion may have, thinking
     included. It is sent where the dialect takes it, its budget reserves
     it before each completion (../domain/budget.md), and the window

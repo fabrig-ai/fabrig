@@ -13,27 +13,31 @@ jig and temper are named only as examples.
 | host | what starts runs and serves them: temper's worker, smith's local host, a world |
 | inline agent | smith's domains run in a host's process, a child speaking the same vocabulary as the host kit (host.md, section 9) |
 | run | one activation of an agent, started with a charter, answering once (run.md) |
-| charter | how a run is set up: instructions, brief, tools, result contract, conventions, budget, models, waiting time (run.md, 3.1) |
-| start | the charter, with the workspace, the transcript, the messages that triggered the run, the run's identity and credentials (run.md, 3.2) |
-| a start's messages | the messages that triggered a run, such as a person's first line or a headless prompt, carried in its start and entering its inbox at admission, before any relayed after; the run opens on them (run.md, 3.2 and 3.4) |
-| run identity | opaque, of a fixed size, the same across a run's activations and resumes: its host's, or minted by the run when its start has none; with each conversation's thread number, the affinity its requests carry (run.md, 3.2) |
+| starting a run | the charter, the start, the prompt and the opening (run-start.md) |
+| messages and waiting | how the run reads messages, waits, parks and resumes (run-messages.md) |
+| delivering a change | checks, delivery and saving during a run (run-delivery.md) |
+| charter | how a run is set up: instructions, brief, tools, result contract, conventions, budget, models, waiting time (run-start.md, 1.1) |
+| start | the charter, with the workspace, the transcript, the messages that triggered the run, the run's identity and credentials (run-start.md, 1.2) |
+| a start's messages | the messages that triggered a run, such as a person's first line or a headless prompt, carried in its start and entering its inbox at admission, before any relayed after; the run opens on them (run-start.md, 1.2 and 1.4) |
+| run identity | opaque, of a fixed size, the same across a run's activations and resumes: its host's, or minted by the run when its start has none; with each conversation's thread number, the affinity its requests carry (run-start.md, 1.2) |
 | brief | titled sections of text the host wrote for why the run runs |
 | workspace | the directories a run works in, if any, each writable or not; a git working tree among them is a repository (tools.md, section 2) |
 | repository | a workspace directory that is a git working tree |
-| conventions | the files a run looks for in a workspace: guides and checks (run.md, 8.1) |
+| conventions | the files a run looks for in a workspace: guides and checks (run-delivery.md, 1.1) |
 | guide | a directory's instructions for agents, such as `AGENTS.md` |
 | checks | a directory's executable that says whether a change is good |
 | session | one conversation with an LLM (session.md) |
+| context management | admission against the window and compaction (session-context.md) |
 | turn | one completion of a session, with its calls and their results, told as it ends |
 | transcript | the main session's turns from its current window's opening, versioned, kept by the host, to resume from (session.md, section 3) |
 | owned tool | a tool a session runs itself, on the workspace (tools.md) |
 | served tool | a tool the run answers: `finish`, `deliver`, `wait`, sub-agents (run.md, section 5) |
 | host tool | a tool the charter declares and the host answers, relayed (run.md, 5.2) |
 | call | a run's request to its host, named by the run, answered once |
-| message | what a host relays to a live run or carries in its start, named, read in order, and ending once: read, refused or unread (run.md, section 6) |
-| fence | the last message a run read; messages are read in order, so it covers every one before it, and the answer carries the final one (run.md, section 6) |
+| message | what a host relays to a live run or carries in its start, named, read in order, and ending once: read, refused or unread (run-messages.md, section 1) |
+| fence | the last message a run read; messages are read in order, so it covers every one before it, and the answer carries the final one (run-messages.md, section 1) |
 | result, result contract | what a run declares to finish; what counts as done (run.md, section 7) |
-| delivery | the host making a checked change durable (run.md, section 8) |
+| delivery | the host making a checked change durable (run-delivery.md, section 1) |
 | stale | a run whose deliveries can no longer land, as its host says |
 | spend, unit, prices | what completions cost, in the host's unit, at each model's prices (budget.md) |
 | reserve | the part of a run's budget, in turns and time with a derived spend, kept for main's last word; sub-agents and ordinary work draw on what is above it, and when that is spent the run winds down on it (budget.md, 1) |
@@ -187,15 +191,15 @@ What varies between agents, and between hosts, arrives as data:
   named by the host (run.md, section 7). A pull request's title and body
   are a change's fields; a review's follow-ups are a verdict's items.
 - **Delivery:** the run asks, the host does it and answers in smith's
-  terms: delivered, nothing to deliver, refused, failed or stale (run.md,
-  section 8). The host's git, forge and branches stay its own.
+  terms: delivered, nothing to deliver, refused, failed or stale (run-delivery.md,
+  section 1). The host's git, forge and branches stay its own.
 - **Conventions:** the guide and checks file names, from the charter,
-  with smith's defaults (run.md, 8.1).
+  with smith's defaults (run-delivery.md, 1.1).
 - **The brief:** titled text sections. A host that keeps typed context
   renders it itself; smith adds only the sections about its own
   mechanics, which it enforces.
 - **Messages:** named, with a sender's label and text the host rendered;
-  smith reads their order, never their kinds (run.md, section 6).
+  smith reads their order, never their kinds (run-messages.md, section 1).
 - **Money:** a unit and each model's prices; smith prices, the host
   funds.
 

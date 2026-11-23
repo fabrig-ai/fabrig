@@ -148,7 +148,7 @@ run measures it with the others.
     asks for nothing: a read's window, a command's kept output, a job's
     wait;
   - the window's check, which decides when a window is compacted
-    (../domain/session.md, 8.1).
+    (../domain/session-context.md, 1.1).
 
   A change that alters no prompt and no request's timing, such as the
   harness, the event stream or a refactor, is not one.

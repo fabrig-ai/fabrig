@@ -329,7 +329,7 @@ to an older reader or writer. Each has one version at a time.
   a new version. Nothing is translated, and no older version is read.
   Until its baseline, the charter changed in place, its version unmoved,
   since a writer and its agents are built together
-  (the owner, 2026-11-09: the `save` grant and ask, domain/run.md, 8.5);
+  (the owner, 2026-11-09: the `save` grant and ask, ../domain/run-delivery.md, 1.5);
   from it, it moves with its layout, as the next bullet says.
 - **The channel, the charter and turns are wires,** whose versions move
   with their layouts (`temper/docs/design/protocol/wires.md`, 3.1):
@@ -384,7 +384,7 @@ to an older reader or writer. Each has one version at a time.
   - **turns and transcripts** carry their own version, since a host keeps
     them and a later agent resumes from them (domain/session.md, section
     3). A transcript in another version fails the run as transient, and
-    its host starts afresh (domain/run.md, section 6). From the
+    its host starts afresh (../domain/run-messages.md, section 1). From the
     baseline, turns are kept for a later release, and so is the local
     host's store: a host that keeps turns patches an older turn to the
     current version as it reads it, by smith's patches (transcript.md,

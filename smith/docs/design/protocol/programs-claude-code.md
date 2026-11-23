@@ -395,7 +395,7 @@
   the source's configuration directory. A window's first call retried
   after the program took its user message resumes that session rather
   than naming it again.
-- **Parking:** when the run parks (../domain/run.md, section 6), the agent
+- **Parking:** when the run parks (../domain/run-messages.md, section 1), the agent
   ends the program after its turn by closing its input, and answers
   parked. A turn held on `wait` has no end of its own: the agent stops
   the program as a cancel does (1.7). The program's session stays.
@@ -418,11 +418,11 @@
   window ran on another backend, account or program source, or whose
   program session is gone, on another host or removed, opens a new
   window from smith's transcript, compacted first (transcript.md,
-  section 4; ../domain/session.md, 8.2). On a program backend the
+  section 4; ../domain/session-context.md, 1.2). On a program backend the
   compaction runs as a program session of its own with no tools, and
   the window turn's messages open the program's new session as its
   first user message. Whether a host offers a window from another
-  backend at all is its own decision (../domain/run.md, section 6). jig's
+  backend at all is its own decision (../domain/run-messages.md, section 1). jig's
   engine never does: it starts the run fresh.
 - **A conversation its host does not keep,** such as the product's
   `--ephemeral` chat, resumes its program session only while it lasts:
@@ -437,7 +437,7 @@ whose text replies wait and whose activation parks, on a program. The
 adapter tells the run's domain what the program said, a turn ended with
 its text and its `result`, an interrupted turn ended; the domain decides
 the reply, the waiting, the parking and the wind-down, as on the direct
-backend (../domain/run.md, sections 6 and 7.2, and ../domain/budget.md, section 1).
+backend (../domain/run-messages.md, section 1, and ../domain/run.md, section 7.2, and ../domain/budget.md, section 1).
 
 - **Launched as 1.1 says,** but with no result contract: no
   `--json-schema`, and of the run's own tools only `wait`, since Open
@@ -445,7 +445,7 @@ backend (../domain/run.md, sections 6 and 7.2, and ../domain/budget.md, section 
   section 1).
 - **A reply is a turn's text.** A program turn that ends, with its
   `result`, its last assistant message holding nonempty text and no
-  call, is main's text reply (../domain/run.md, section 6): the agent
+  call, is main's text reply (../domain/run-messages.md, section 1): the agent
   tells the turn, then the run waits with its fence and listens for the
   charter's waiting interval. The program stays, its input open.
 - **A message while it listens** goes in as a user message on the

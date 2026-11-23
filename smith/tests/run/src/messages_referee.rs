@@ -1,5 +1,5 @@
 //! Message terminal oracle over content-free run output. Skein owns
-//! judgments and liveness. Contract: smith/docs/design/domain/run.md, sections 6 and 12.
+//! judgments and liveness. Contract: smith/docs/design/domain/run-messages.md, section 1, and smith/docs/design/domain/run.md, section 12.
 
 use skein_lib::{Duration, Time, Token};
 use skein_world::domain::{Expectations, Judge, Verdict};

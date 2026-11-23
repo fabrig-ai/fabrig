@@ -10,7 +10,7 @@
   told (2). Turns are a loop guard, set generously, never the unit of
   planning, since a turn's worth differs across tools and providers.
 - **Wall time runs from admission.** Preparing, awaiting a first message
-  and waiting for one all count against it (`run.md`, section 6).
+  and waiting for one all count against it (`run-messages.md`, section 1).
 - **Spend is real.** Every host prices completions. A host that pays a
   flat rate prices them notionally, so spend still bounds the work and
   weighs uncached input as a metered host's would; such prices are for
@@ -56,8 +56,8 @@
   ordinary pool is taken by the reserve, and its overrun is recorded as
   spend (../protocol/programs-claude-code.md, 1.7). The run still never spends past
   its budget by more than one completion.
-- **A compaction is a completion** like any other (session.md, section
-  8): reserved, priced, and counted as a turn.
+- **A compaction is a completion** like any other (session-context.md, section
+  1): reserved, priced, and counted as a turn.
 - **Spend is told:** cumulative in each turn, and whole in the answer.
 
 ## 1. The reserve and the wind-down
@@ -86,22 +86,22 @@
   turns or time down to the reserve's, or a completion whose maximum does
   not fit above it. It is for a run that is working. A run waiting for a
   message when its ordinary time runs out, or awaiting its first, parks
-  instead (`run.md`, section 6): it has nothing to finish until a message comes,
+  instead (`run-messages.md`, section 1): it has nothing to finish until a message comes,
   and its host decides what wakes it. The run's budget is in one of two
   stages, ordinary or winding down, and the change is a fact (`run.md`, section 10
   ).
-  An admitted Open finish request also starts this phase (`run.md`, section 6), with
+  An admitted Open finish request also starts this phase (`run-messages.md`, section 1), with
   an explicit host cause and a host-request note, without charging spend or
   claiming budget exhaustion. It uses the same reserve and hard deadline.
   1. Live sub-agents are closed and settled, each call answered once,
      and their jobs end with them (session.md, section 5). Main's own
      jobs run on: a `finish` that delivers, or a `deliver`, cancels them
-     before its checks (`run.md`, 8.1), and the run's end, which closes main's
+     before its checks (`run-delivery.md`, 1.1), and the run's end, which closes main's
      session, cancels any left.
   2. In Open, main gets the reserve's completions for a last text reply,
      with no tool choice. The note says to reply with what it has and
      promise no later work. A successful text end publishes its fence
-     and parks, including with unread words queued (`run.md`, section 6).
+     and parks, including with unread words queued (`run-messages.md`, section 1).
      In Finite, main then gets at most the reserve's turns of completions,
      the first with the run's note that the budget is spent and it is to finish now
      with what it has. They offer only `finish`, `deliver` when granted,
@@ -138,13 +138,13 @@ exact values are the facts', in milliseconds (../protocol/events.md).
 - **A usage line** at the end of every sub-agent's result: whether the
   child stopped for its budget (`run.md`, 5.3), what it used, in turns and time,
   and the turns and time the run has left above its reserve.
-- **Open replies,** under `## Replying` (`run.md`, section 6), and a last-reply note
+- **Open replies,** under `## Replying` (`run-messages.md`, section 1), and a last-reply note
   in place of Finite finishing instructions (1).
-- **The waking instruction** (`run.md`, section 6) scopes prior exhaustion to the earlier
+- **The waking instruction** (`run-messages.md`, section 1) scopes prior exhaustion to the earlier
   activation and names the fresh allowance in `## Budget`.
 - **The wind-down's note** (1) and **a child's final-turn note** (`run.md`, 5.3),
   appended.
-- **Threshold notes,** with messages mid-work (`run.md`, section 6): as the run's
+- **Threshold notes,** with messages mid-work (`run-messages.md`, section 1): as the run's
   time and turns pass set marks, a note saying what is left.
 
 No amount of spend is shown: the host's unit means nothing to a model

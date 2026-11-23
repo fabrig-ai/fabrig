@@ -79,7 +79,7 @@ process has exited and its tree is empty. temper's choices:
   build, and keeps it to the check's end, so that the check's cargo
   commands wait for none; while the hold waits it says so, the check tells
   smith, and the wait is left out of the bound (smith's
-  `smith/docs/design/domain/run.md`, 8.1), whose figure stays the
+  `smith/docs/design/domain/run-delivery.md`, 1.1), whose figure stays the
   deployment's. A check queued behind others is bounded by its call's
   deadline and the run's end alone until it holds its places.
 - **The base's build has a target of its own.** A deployment's cargo

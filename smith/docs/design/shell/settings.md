@@ -26,7 +26,7 @@ before, key by key:
   may not set is refused, naming the file.
   - **The line.** What the layer may set is what the repository's own
     files already do to a run: its guide is read into the system text,
-    its checks are its own executable (../domain/run.md, 3.3 and 8.1), and
+    its checks are its own executable (../domain/run-start.md, 1.3, and ../domain/run-delivery.md, 1.1), and
     the agent's commands build and test its code with the person's
     authority. Its environment values are constants it writes, as its
     own scripts may export: they shape the commands and checks, and widen
@@ -87,7 +87,7 @@ account = "claude-alice"      # the endpoint's account, when its provider has se
 | `account` | the account main's endpoint runs on, for this invocation; `--account` | the endpoint's own |
 | `credentials` | the credentials directory (`credentials.md`) | `$XDG_STATE_HOME/smith` |
 | `profile` | the named bundle of deployment values | `standard` |
-| `instructions` | the role (../domain/run.md, section 3.1) | the task role (2.6): smith's own, one text for a chat and for a task |
+| `instructions` | the role (../domain/run-start.md, section 1.1) | the task role (2.6): smith's own, one text for a chat and for a task |
 | `chat` | the interactive chat | `default` |
 | `waiting_seconds` | how long an interactive run waits before it parks | 2.4 |
 | `sub_agents` | whether runs may delegate | off (../domain/run.md, section 5.3) |
@@ -287,8 +287,8 @@ profile (`README.md`, 2.1).
   with a completion's output beside it; **`output`** is the most output
   tokens, the wire's cap where the dialect sends one, and the output the
   headroom above the threshold holds for the completion whose results a
-  compaction carries (../protocol/limits.md, 2.1, and ../protocol/limits-derivation.md, 1.9; ../domain/session.md,
-  section 8.1).
+  compaction carries (../protocol/limits.md, 2.1, and ../protocol/limits-derivation.md, 1.9; ../domain/session-context.md,
+  section 1.1).
 - **`efforts`** are the reasoning efforts a model accepts, each a name
   within 32 bytes, as its provider documents them for that model. They
   are the model's, not the dialect's: a provider's models differ, and
@@ -458,7 +458,7 @@ names (`../protocol/limits.md`, section 2.3):
 ### 2.6 Instructions
 
 The task role is smith's own instructions: the role a run is given when
-settings set no `instructions` (1.2; ../domain/run.md, section 3.1).
+settings set no `instructions` (1.2; ../domain/run-start.md, section 1.1).
 
 - **One text, at most 4 KiB,** the same for every model, and for chats
   and tasks alike.
@@ -492,7 +492,7 @@ settings set no `instructions` (1.2; ../domain/run.md, section 3.1).
   8. that a compaction does not end the work.
 - **It names only smith's own tools** (../domain/run.md, section 5.1), and
   says nothing that the run's own sections of the system text already
-  say (../domain/run.md, section 3.3).
+  say (../domain/run-start.md, section 1.3).
 - **Its words are code,** in `smith-local-shell`; its topics are this
   list. A topic added, dropped or moved is a change to this
   section.

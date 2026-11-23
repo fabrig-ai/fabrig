@@ -120,7 +120,7 @@ skein's (skein's `testing/fakes/llm.md`):
     `protocol/transcript.md`), never the store opened; and the tasks to
     take, `--cue TASK=PHRASE` each. A fresh Open chat's cue is a phrase
     of its person's opening request, where smith puts that run's
-    brief (smith's `domain/run.md`, 3.4); its script is `asked`. A
+    brief (smith's `domain/run-start.md`, 1.4); its script is `asked`. A
     Finite run's or a delegate's cue is a phrase of its system brief,
     and its script is `cued`. The converter reads the first turn's
     user text before its assistant completion: a cue found there is

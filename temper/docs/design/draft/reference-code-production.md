@@ -249,7 +249,7 @@ rule for goal branches (N4):
    choice, whose workspace starts from g's tip (with its dependencies'
    pushed heads, if it starts kept: N2). It reads the design its words
    cite in its checkout, runs the project's checks at delivery
-   (`.temper/pre-pr`: smith's `domain/run.md`, 8.1), pushes as it goes
+   (`.temper/pre-pr`: smith's `domain/run-delivery.md`, 1.1), pushes as it goes
    (N14), and finishes with the head it pushed and its report: what it
    did, the checks it ran, and a Left list of what it found and did not
    own (N15).

@@ -44,7 +44,7 @@ listed in section 8.
   calls it, so what refers to a sibling by path works. The first is the
   working directory: relative paths and commands start there, and the
   others are its siblings. Each may be writable or not; its host decides
-  which (run.md, 3.2).
+  which (run-start.md, 1.2).
 - **One path namespace,** the same for every tool, however many
   directories there are:
   - a relative path starts at the working directory;
@@ -57,7 +57,7 @@ listed in section 8.
     beneath a directory's host path, compared by whole names, reads as
     that alias; any other reads as `/name/...`.
 - **What the LLM is told depends on how many directories there are**
-  (run.md, 3.3; protocol/llm.md, section 3). One directory hides its
+  (run-start.md, 1.3; protocol/llm.md, section 3). One directory hides its
   name: the LLM is told that it works in its working directory, and
   writes `src/lib.rs`, never the directory's name. With several, the
   working directory is named, and the others are reached as
@@ -93,7 +93,7 @@ listed in section 8.
   opens.
 - **A merge in progress** is a repository like any other, whose
   conflicted files hold their markers until the LLM resolves them
-  (run.md, 8.3).
+  (run-delivery.md, 1.3).
 
 ## 3. The tools
 
@@ -334,8 +334,8 @@ workspace that can write can remove, with no shell needed.
     number its session never answered `running`, or a job whose end was
     already answered, is answered as an invalid call.
   - **Cancelled for another writer.** A session's running jobs are its
-    writes in progress. Whatever takes the lease (run.md, sections 5.3
-    and 8.1) first cancels the running jobs of every other session, and
+    writes in progress. Whatever takes the lease (run.md, section 5.3, and run-delivery.md, section 1.1
+    ) first cancels the running jobs of every other session, and
     a check, a delivery or a save cancels every running job before it runs; each
     waits for the jobs it cancelled to settle before it goes on. A
     cancelled job's end is `cancelled`, answered by the next `job` call

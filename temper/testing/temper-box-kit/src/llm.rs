@@ -18,7 +18,7 @@ pub fn requested(scripts: Box<[skein_fake_llm_domain::api::Script]>) -> skein_fa
     }
 }
 
-/// A fresh Open brief is text in the first user message (smith/docs/design/domain/run.md, 3.4).
+/// A fresh Open brief is text in the first user message (smith/docs/design/domain/run-start.md, 1.4).
 #[must_use]
 pub fn request_has(query: &skein_fake_llm_domain::api::Query, cue: &[u8]) -> bool {
     use skein_fake_llm_domain::api::{Part, Role};

@@ -37,7 +37,7 @@ Every derivation follows these rules:
    two. `TOKEN_BYTES` is skein's decoded bytes per declared token;
    `smith-domain-session::ENCODED_BYTES` is the 5/4 allowance for escaping
    and framing in a batch's estimate of room below the line
-   (../domain/session.md, 8.1). The guard still measures the exact encoding.
+   (../domain/session-context.md, 1.1). The guard still measures the exact encoding.
 5. **An edge queue's bound follows what can be queued at once:** its
    cells and the payload its producers can have queued together, never
    its capacity times the largest payload. Internal queues grow without
@@ -104,14 +104,14 @@ declarations:
   model's;
 - **a window's history:** the messages, blocks and bytes one window may
   hold, set so that the window's check is reached before any of them
-  (../domain/session.md, 8.1). Its bytes come from the window's side, by
+  (../domain/session-context.md, 1.1). Its bytes come from the window's side, by
   rule 4: the line's tokens at `TOKEN_BYTES` bytes each (1.9), plus what
   the window must receive before its next check, which is one
   completion's whole reserve, its answer included, since no output is
   reserved below the threshold, and one batch's results: the
   calls that run together, at most `parallel_tools` (../domain/session.md,
   section 5), each at its render bound. A completion's later batches run
-  within what is left (../domain/session.md, 8.1), never in more history. So `window-first`
+  within what is left (../domain/session-context.md, 1.1), never in more history. So `window-first`
   holds by construction. Its messages and blocks are
   those bytes over a block's cell in memory, by rule 3, and they are
   also skein's declared history items (skein's `llm/wire.md`, 1.2). A prompt
@@ -376,7 +376,7 @@ token is at least one byte, so a byte count bounds a token count: these
 bounds count each byte as one token, and so does the guard, which
 measures a request as encoded. The session's check estimates instead:
 it counts the bytes appended since its last prompt at that window's
-measured ratio (../domain/session.md, 8.1). Where the material, a byte a
+measured ratio (../domain/session-context.md, 1.1). Where the material, a byte a
 token, would not fit, the derivation bounds what a window holds, never
 the window, which is the model's.
 
@@ -385,7 +385,7 @@ For each endpoint the configuration declares:
 - **The room** is its `window` at `compaction_threshold`, less two
   `output`s: one for the summary that opens a new window, one for the
   output of that window's first completion, so that the check holds it
-  below the threshold (../domain/session.md, 8.1). The summary counts as
+  below the threshold (../domain/session-context.md, 1.1). The summary counts as
   the tokens its compaction reported, or `output` when none was, never
   as its bytes.
 - **The line** is its `window` less one `output`, the summary
@@ -395,7 +395,7 @@ For each endpoint the configuration declares:
   included, a byte a token: the request's encoded body less that of the
   same request cut where the new part starts. It refuses, unsent, a
   request whose last prompt and that measure pass the line
-  (../domain/session.md, 8.1; llm.md, section 6). The compaction after a
+  (../domain/session-context.md, 1.1; llm.md, section 6). The compaction after a
   prompt within the line, carrying that prompt's answer of at most
   `output`, fits the window.
   - **The material above the line,** the summary instruction's bytes
@@ -438,7 +438,7 @@ For each endpoint the configuration declares:
     directories keeps its guide whole up to its share: the host's part
     less the charter as rendered, split evenly among the start's
     directories, and never more than `guide`. Past its share a guide is
-    cut as past `guide` (../domain/run.md, 3.3). So a start with one
+    cut as past `guide` (../domain/run-start.md, 1.3). So a start with one
     directory keeps the guide the product sizes, and a start with
     several fits whatever their guides hold: more directories cut their
     guides sooner, never refuse the start. The count is the start's
@@ -466,8 +466,8 @@ For each endpoint the configuration declares:
     opening's instruction and one offer, and a new window carries the
     task, the summary preamble, counted in smith's own part, the summary
     and at most one offer of held-back messages.
-- **One offer** is the most the run gives the model at once (../domain/run.md,
-  sections 3.4 and 6): at most `inbox` messages, and at most half the
+- **One offer** is the most the run gives the model at once (../domain/run-start.md, section 1.4, and ../domain/run-messages.md, section 1
+  ): at most `inbox` messages, and at most half the
   window's messages in rendered bytes. What an offer leaves stays
   queued, in order, for the next one.
 - **A message's bound** is at most one offer's bytes, and at most
@@ -481,7 +481,7 @@ the one the limits were derived for (charter.md, section 6).
 
 A window closes by compaction: its history, the results owed to it, and
 the summary instruction, then a summary of up to `output`, the
-compaction's output, beside its prompt (`limits.md`, 2.1; ../domain/session.md, 8.2).
+compaction's output, beside its prompt (`limits.md`, 2.1; ../domain/session-context.md, 1.2).
 The guard keeps each prompt sent within the line, and its output is at
 most `output`, so the history a compaction carries leaves above it at
 least the summary instruction and a marker for each owed result. **The results owed to a

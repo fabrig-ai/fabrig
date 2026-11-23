@@ -45,7 +45,7 @@ stored setting naming it is refused, not read, naming the setting
   and the question form is its one use of `message` to its change. Its
   words settle nothing, and in a run that may wait, what reaches it
   before its `finish` refuses that `finish` until read (smith's
-  `domain/run.md`, section 6), so feedback meant for a requester would
+  `domain/run-messages.md`, section 1), so feedback meant for a requester would
   cost it a turn. The `message` call itself refuses them, nothing sent:
   a call in the words form to the change from its producing task, or
   the repair or the resolution it has live, answers with an error
@@ -428,7 +428,7 @@ early, by these rules:
   checks passed, as that delegate's answer reports it (the worker's
   `Landed.checked`, heard by the forge as `Pushed.checked`). A
   producer's result is such a push, since a change contract's finish
-  checks and delivers (smith's `domain/run.md`, 8.5). An unchecked save
+  checks and delivers (smith's `domain/run-delivery.md`, 1.5). An unchecked save
   (`../../agent/README.md`, section 5) never sets it, and a push made
   after the last checked one leaves it where it was, so a branch whose
   tip is a save keeps the checked head below it. A head found only by

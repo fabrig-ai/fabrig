@@ -293,8 +293,8 @@ conditions. smith keeps each as a rule of its own:
   command's timeout, read before write and match before edit. The
   transcript tells what the program did; it does not make it smith's.
 - **Two compactions:** the program compacts within its session as it
-  judges, and smith still compacts at its own line (domain/session.md,
-  8.2). The program's own compactions cost what they cost, uncounted:
+  judges, and smith still compacts at its own line (../domain/session-context.md,
+  1.2). The program's own compactions cost what they cost, uncounted:
   a completion's usage is what its assistant message reports (`programs-claude-code.md`, 1.7).
 - **A retried first call:** when a window's first call fails after the
   program took its user message, the retry resumes the session (`programs-claude-code.md`, 1.8)

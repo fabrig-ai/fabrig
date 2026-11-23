@@ -130,12 +130,12 @@ of domain/host.md, section 2.
 | cancel | nothing | at most once |
 | drain | nothing | at most once, and never after a cancel: the run stops at the end of its current turn (domain/run.md, section 9) |
 
-**The start** (domain/run.md, 3.2):
+**The start** (../domain/run-start.md, 1.2):
 
 - **the activation number,** new for every start of the run;
 - **the run's identity,** if the host keeps one: 16 opaque bytes, the
   same in every start of the run, resumes included. Without one, the run
-  mints its own (domain/run.md, 3.2). It reaches providers as the
+  mints its own (../domain/run-start.md, 1.2). It reaches providers as the
   conversations' affinity (llm.md);
 - **the charter,** as bytes (charter.md);
 - **the workspace,** if any: for each directory,
@@ -167,8 +167,8 @@ of domain/host.md, section 2.
   answer; or too large, when that answer is larger than the run takes.
   Busy, unavailable and withdrawn are not decisions, and never appear
   here. The run tells the LLM of them as text in its waking prompt, since
-  they have no open place in the history to go back to (domain/run.md,
-  section 6);
+  they have no open place in the history to go back to (../domain/run-messages.md,
+  section 1);
 - **the messages** that triggered the run, if any: each a message record
   (a name, the sender's label, the text, `finish_requested`), in order, at
   most as many as the run's inbox holds, each within its message bound as it
@@ -195,7 +195,7 @@ of domain/host.md, section 2.
 - **for a host tool,** its text as a result or as an error (domain/run.md,
   5.2);
 - **for a delivery or a save,** delivered, nothing, refused, failed or
-  stale, with what each carries (domain/run.md, 8.2 and 8.5), in the one
+  stale, with what each carries (../domain/run-delivery.md, 1.2 and 1.5), in the one
   delivery record, so a host that keeps a delivery's answer keeps a
   save's alike:
   - delivered names each directory and what was made of it;
@@ -292,7 +292,7 @@ last one with `opens_window` (domain/host.md, section 6).
   reads to do what delivering means to it;
 - **a save:** nothing more: the host makes the tree durable as it would
   a delivery, with no fields, and marks it unchecked in its own terms
-  (domain/run.md, 8.5). The call's effect is a write.
+  (../domain/run-delivery.md, 1.5). The call's effect is a write.
 
 **The account notices' fields:**
 
@@ -392,7 +392,7 @@ edge is independent of the channel's own flow control (section 7).
     against the run's message bound, and checks its inbox's room and the
     name against those in use. One it cannot take is refused, typed, with
     a message refused record, and is never handed further, so nothing below
-    ingress asserts on what a host sent (domain/run.md, section 6). The
+    ingress asserts on what a host sent (../domain/run-messages.md, section 1). The
     host's half and kit check with the same arithmetic first, and refuse
     at their own entrance with the same reasons (domain/host.md, section
     4), so a host that sends what its kit admits sees few refusals from

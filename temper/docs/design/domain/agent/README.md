@@ -129,7 +129,7 @@ worker commits exactly the tree the run checked, with the result's
 `title` and `body`, and pushes it as a fast-forward, never forced, to the
 branch the assignment names; a merge in progress is committed as the
 merge, with both parents. Its outcomes, in smith's terms (smith's
-`domain/run.md`, 8.2):
+`domain/run-delivery.md`, 1.2):
 
 | The push | smith's delivery |
 |---|---|
@@ -149,7 +149,7 @@ pushes that head again and answers delivered
 the stock charter's `deliver`, then `finish` as a change
 (`../../../charters/stock/implementer.md`), holds across a question.
 smith still refuses a genuine nothing, a clean tree with no delivery of
-the task's own (smith's `domain/run.md`, 8.2).
+the task's own (smith's `domain/run-delivery.md`, 1.2).
 
 A goal's design delivery to its goal branch (`../forge/branches.md`, 3; ../worker/checkouts.md
 ) has outcomes of its own, and is never stale:

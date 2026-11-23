@@ -54,7 +54,7 @@ schemas, decodes what the LLM calls, and renders what the tools return.
 
 A completion's prompt is built from what the domain gives:
 
-- **the system text,** which the domain wrote (domain/run.md, 3.3);
+- **the system text,** which the domain wrote (../domain/run-start.md, 1.3);
 - **the messages,** in order. Each block is translated, and a provider's
   replay goes back verbatim, only to its own dialect;
 - **the tools offered,** with their schemas (section 3), and the
@@ -78,7 +78,7 @@ one could otherwise never be sent again. The marker is the request's
 alone: the history keeps the message as it came, and the marker counts
 in the request as any block does, in skein's admission and in the guard
 (section 6). A carried-over history marks its own first
-(domain/session.md, 8.2), so this meets only what that did not. A
+(../domain/session-context.md, 1.2), so this meets only what that did not. A
 program backend sends none of these messages, keeping its own history
 (programs.md), so this is the direct backend's.
 
@@ -87,7 +87,7 @@ program backend sends none of these messages, keeping its own history
 - **One key per run tree, one thread per conversation.** `Affinity { key,
   thread }`: the key is the run tree's identity, 16 opaque bytes, from
   the host's start or minted by the run from its seeded random state
-  (domain/run.md, 3.2); the thread is the conversation's ordinal, main's
+  (../domain/run-start.md, 1.2); the thread is the conversation's ordinal, main's
   being 0. The session puts the affinity unchanged into every prompt of
   the conversation (domain/session.md, section 2). This component passes
   it on and never makes one.
@@ -115,11 +115,11 @@ program backend sends none of these messages, keeping its own history
   once, when the conversation opens.
 - **A window boundary is the one exception.** A compaction opens a new
   window, whose prompt starts afresh from the task, the summary preamble
-  and the summary (domain/session.md, section 8).
+  and the summary (../domain/session-context.md, section 1).
 - **A compaction asks with `None`.** Its request is the window's prompt,
   with the results owed to it and the summary instruction appended
   (section 5), asked with the tool choice `None` whatever the
-  conversation's (section 3; domain/session.md, 8.2). The tool choice is
+  conversation's (section 3; ../domain/session-context.md, 1.2). The tool choice is
   not among what a window fixes:
   - on the OpenAI dialect, which keeps the tool choice outside the
     cached prefix, the request reads the cached prefix;
@@ -247,7 +247,7 @@ program backend sends none of these messages, keeping its own history
   is invalid, too large (limits-derivation.md, 1.9).
 - **`wait`'s result is deferred.** The run withholds it until a message
   arrives, and then the result and the message go in one request, so an
-  exchange costs one completion (domain/run.md, section 6). Its
+  exchange costs one completion (../domain/run-messages.md, section 1). Its
   description says that it returns with the next message.
 - **The tool choice narrows; the tools never change.** A conversation is
   offered the same definitions for its life. Which of them a completion
@@ -442,7 +442,7 @@ program backend sends none of these messages, keeping its own history
   handed over (section 12). Nothing of any delta reaches the domain beyond byte counts.
 - **The guard, before an ordinary request is sent.** When the session
   gives a request the line, its last prompt's reported size and where
-  the new part starts (domain/session.md, 8.1), this layer measures the
+  the new part starts (../domain/session-context.md, 1.1), this layer measures the
   new part, the last answer and every block after it, as the request
   encodes them: the request's encoded body less the encoded body of the
   same request cut where the new part starts, each as skein's client

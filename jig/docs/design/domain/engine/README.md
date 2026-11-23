@@ -429,7 +429,7 @@ Moved to [`world.md`](world.md), section 1.
   section shows in what the agent reads.
 - **Transcripts' limits:** how the resume limit is sized against a
   charter's models' windows, so that a conversation smith compacts
-  (smith's `domain/session.md`, section 8) resumes rather than starts
+  (smith's `domain/session-context.md`, section 1) resumes rather than starts
   fresh; and how long the store keeps earlier windows' turns, which no
   run is sent.
 - **Views:** a limit on watchers per subject; how a watch of a task's

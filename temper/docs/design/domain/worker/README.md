@@ -29,7 +29,7 @@ open is listed in `README.md`, section 10.
   branches, saved work). A worker can be killed at any moment and any
   worker can take any run; its checkouts are caches.
 - **It hosts runs, not jobs.** A run may finish once, or wait for
-  messages, take them and park (smith's `domain/run.md`, section 6): it
+  messages, take them and park (smith's `domain/run-messages.md`, section 1): it
   starts fresh or from its transcript, takes messages, makes calls, sends
   turns, and parks or ends (jig's `domain/hosts/hub.md`, 2).
 - **Policy is data.** The worker interprets no workflow vocabulary: no

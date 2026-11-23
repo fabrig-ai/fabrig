@@ -1,7 +1,7 @@
 # Charters, tools and contracts
 
 The core decides a run's charter in its own terms (../engine/executors.md, 1). Its
-translation into smith's charter (smith's `domain/run.md`, 3.1; smith's
+translation into smith's charter (smith's `domain/run-start.md`, 1.1; smith's
 `protocol/charter.md`, section 2; the version,
 `../../protocol/needs.md`, section 2), is in one place,
 `jig-protocol-charter`, a function of jig's that links smith, which the
@@ -14,11 +14,11 @@ Its `assignment` assembles that charter from the core's run charter, the brief a
 A Finite run takes `deliver` in one of two ways; an Open run never does (1):
 
 - **A change among its outcomes:** with that change's fields and checks, as above. Its `finish` offers the change, the successful `no_change`, a verdict for each of the change contract's choices, named by its code as a verdict contract's are (`../tasks/README.md`, section 3), and a failure.
-- **No change among them:** its outcomes hold a report, its policy's `modify` is set, and its root says its workspace delivers. The assembled charter's `delivers` carries that, as `conventions` carries its paths: a fact of the connectors' items (`../connectors.md`, section 10), false unless a root sets it, which grants nothing by itself. Its `deliver` takes a `title` of at most 1024 bytes and a `body` of at most the contract's words or 1024 bytes, whichever is larger, with its checks required to pass. Delivering isn't finishing: its `finish` offers its contract's forms alone, a report and a failure, and a delivery is no part of its result (smith's `domain/run.md`, 8.4).
+- **No change among them:** its outcomes hold a report, its policy's `modify` is set, and its root says its workspace delivers. The assembled charter's `delivers` carries that, as `conventions` carries its paths: a fact of the connectors' items (`../connectors.md`, section 10), false unless a root sets it, which grants nothing by itself. Its `deliver` takes a `title` of at most 1024 bytes and a `body` of at most the contract's words or 1024 bytes, whichever is larger, with its checks required to pass. Delivering isn't finishing: its `finish` offers its contract's forms alone, a report and a failure, and a delivery is no part of its result (smith's `domain/run-delivery.md`, 1.4).
 
 Every other run has no `deliver`: a verdict's run, and a report's run whose policy withholds `modify` or whose root doesn't say its workspace delivers.
 
-A run granted `deliver` by a change among its outcomes is also granted smith's `save` (smith's `domain/run.md`, 8.5), so that it can keep its work in progress, unchecked, before it asks a question; a run whose `deliver` its root's `delivers` gave, and every other, is not. Like `deliver`, it is jig's decision, in `charter`.
+A run granted `deliver` by a change among its outcomes is also granted smith's `save` (smith's `domain/run-delivery.md`, 1.5), so that it can keep its work in progress, unchecked, before it asks a question; a run whose `deliver` its root's `delivers` gave, and every other, is not. Like `deliver`, it is jig's decision, in `charter`.
 
 Its `hosted` puts a run's whole hand-over together from what the hub link kept (the core's `Assignment`), and so reads the brief's placed parts: the brief's sections with their titles, the charter, the start's messages with their senders and words, and the answered calls by their names. What a root gives it is its own: its tools, its endpoints, its deployment and its bounds. A place in the brief that an application offers no section for refuses the assignment. Its `message` puts together, the same way, a task's message to a run under way, with its sender and words. So a root that calls them renders no words, titles or a call's name, and the hub receives the same assignment from each. An application with a tool vocabulary of its own, as temper is (`temper/docs/design/protocol/components.md`), puts its hand-over together itself.
 

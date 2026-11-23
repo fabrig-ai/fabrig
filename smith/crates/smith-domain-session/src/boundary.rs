@@ -276,7 +276,7 @@ pub enum Request {
 /// What a session is opened for.
 #[derive(PartialEq, Eq, Debug)]
 pub struct Spec {
-    /// Transport named in this conversation's opening turns (smith/docs/design/domain/session.md 8.2).
+    /// Transport named in this conversation's opening turns (smith/docs/design/domain/session-context.md 1.2).
     pub backend: crate::record::Backend,
     /// Account named by the charter, absent for uncredentialed calls.
     pub account: Option<u32>,
@@ -414,7 +414,7 @@ pub enum Yield {
     Malformed,
 }
 
-/// Why a compaction answer cannot open a new window (smith/docs/design/domain/session.md, 8.2).
+/// Why a compaction answer cannot open a new window (smith/docs/design/domain/session-context.md, 1.2).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum NoSummary {
     /// The provider refused the summary, with or without accompanying text.
