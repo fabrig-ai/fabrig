@@ -2,6 +2,7 @@
 //! Closing deletes it once a change landed it, and keeps it otherwise
 //! (temper/docs/design/domain/forge/README.md, 2, and temper/docs/design/domain/forge/branches.md, 1, and temper/docs/design/domain/forge/effects.md, 2).
 //! Landing targets use the adoption (temper/docs/design/domain/forge/adoption.md, 8).
+use super::read_line::{self, Waiter};
 use super::{
     BranchHead, Domain, Env, Limits, LostReadState, Name, Request, Role, Stored, Writer, child, emit, keep_entry,
     save_hold, to_client,
@@ -205,15 +206,11 @@ pub(super) fn answered(
     out: &mut Queue<Request>,
 ) {
     let Some(mut pending) = d.makings.remove(&owner) else { return };
-    if d.stopping
-        || match d.holds.get(&pending.name) {
-            Some(hold) => hold.task != pending.task,
-            None => true,
-        }
-    {
+    if d.stopping || !held(d, &pending) {
         return;
     }
     if let Err(Error::Unavailable | Error::Timeout) = result {
+        pending.state = LostReadState::WaitingForRetry;
         pending.retry_at = Some(env.now.saturating_add(pending.backoff));
         pending.backoff = pending.backoff.saturating_add(pending.backoff).min(env.limits.client.slow);
         d.makings.insert(owner, pending).expect("making keeps its read slot");
@@ -227,6 +224,9 @@ pub(super) fn answered(
     if let Some(state) = read_state {
         pending.state = state;
         d.makings.insert(owner, pending).expect("making keeps its read slot");
+        if state == LostReadState::WaitingForRoom {
+            read_line::join(d, Waiter::Making(owner), env.now, out);
+        }
         return;
     }
     pending.backoff = env.limits.client.backoff;
@@ -324,6 +324,7 @@ fn missing(d: &mut Domain, env: &Env<Limits>, owner: Token, mut pending: Making,
     let repository = d.repositories.get(&resource.repository).expect("held repository");
     let branch = repository.landing.clone();
     pending.default = true;
+    pending.state = LostReadState::Asked;
     d.makings.insert(owner, pending).expect("replaces making read");
     child(
         d,
@@ -415,6 +416,7 @@ fn wait_for_room(d: &mut Domain, owner: Token, mut pending: Making, out: &mut Qu
     }
     pending.entry = None;
     pending.default = false;
+    pending.state = LostReadState::WaitingForOutbox;
     let hold = d.holds.get_mut(&pending.name).expect("making's hold");
     match hold.writer {
         Some(Writer::Entry(_)) => {
@@ -508,19 +510,23 @@ pub(super) fn deadline(d: &Domain) -> Option<Time> {
     next
 }
 
-pub(super) fn fire(d: &mut Domain, now: Time) {
-    let mut due = List::with_capacity(d.makings.capacity());
+pub(super) fn fire(d: &mut Domain, now: Time, out: &mut Queue<Request>) {
+    let mut due = skein_lib::Map::with_capacity(d.makings.len());
     for (owner, pending) in &d.makings {
         if let Some(at) = pending.retry_at
             && at <= now
         {
-            due.push(*owner).expect("bounded making reads");
+            due.insert((at, *owner), ()).expect("bounded making reads");
         }
     }
-    for owner in due.into_boxed() {
-        let pending = d.makings.get_mut(&owner).expect("due making read");
+    for ((_, owner), ()) in &due {
+        let pending = d.makings.get_mut(owner).expect("due making read");
         pending.retry_at = None;
         pending.state = LostReadState::WaitingForRoom;
+        read_line::join(d, Waiter::Making(*owner), now, out);
+    }
+    if !due.is_empty() {
+        d.read_line.wake();
     }
 }
 
@@ -591,21 +597,21 @@ pub(super) fn restart(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request
     }
 }
 
-/// Admission and disconnected reads wait without occupying client call room.
-pub(super) fn retry(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
-    let mut selected = None;
-    for (owner, pending) in &d.makings {
-        if pending.state == LostReadState::WaitingForRoom {
-            selected = Some(*owner);
-            break;
-        }
+pub(super) fn held(d: &Domain, pending: &Making) -> bool {
+    match d.holds.get(&pending.name) {
+        Some(hold) => hold.task == pending.task,
+        None => false,
     }
-    let Some(owner) = selected else { return };
-    let pending = d.makings.get_mut(&owner).expect("selected making read");
-    pending.state = LostReadState::Asked;
-    let resource = to_client(&pending.name, &env.limits).expect("validated held branch");
+}
+
+pub(super) fn branch_read(
+    d: &Domain,
+    limits: &Limits,
+    pending: &Making,
+) -> Option<(skein_forge::api::Repository, Box<[u8]>)> {
+    let resource = to_client(&pending.name, limits)?;
     let branch = if pending.default {
-        d.repositories.get(&resource.repository).expect("held repository").landing.clone()
+        d.repositories.get(&resource.repository)?.landing.clone()
     } else {
         match resource.what {
             skein_forge_client::What::Branch(branch) => branch,
@@ -614,15 +620,17 @@ pub(super) fn retry(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>)
             | skein_forge_client::What::Issue(_) => unreachable!("goal branch"),
         }
     };
-    child(
-        d,
-        env,
-        skein_forge_client::Event::Read { owner, repository: resource.repository, read: Read::Branch { branch } },
-        out,
-    );
+    Some((resource.repository, branch))
 }
 
-pub(super) fn connected(d: &mut Domain, forge: u16) {
+pub(super) fn ask(d: &mut Domain, env: &Env<Limits>, owner: Token, out: &mut Queue<Request>) {
+    let Some(pending) = d.makings.get(&owner) else { return };
+    let Some((repository, branch)) = branch_read(d, &env.limits, pending) else { return };
+    d.makings.get_mut(&owner).expect("selected making read").state = LostReadState::Asked;
+    child(d, env, skein_forge_client::Event::Read { owner, repository, read: Read::Branch { branch } }, out);
+}
+
+pub(super) fn connected(d: &mut Domain, now: Time, forge: u16, out: &mut Queue<Request>) {
     let mut owners = List::with_capacity(d.makings.capacity());
     for (owner, pending) in &d.makings {
         if pending.name.forge == forge && pending.state == LostReadState::WaitingForConnection {
@@ -631,6 +639,7 @@ pub(super) fn connected(d: &mut Domain, forge: u16) {
     }
     for owner in owners.into_boxed() {
         d.makings.get_mut(&owner).expect("collected making read").state = LostReadState::WaitingForRoom;
+        read_line::join(d, Waiter::Making(owner), now, out);
     }
 }
 
@@ -643,16 +652,8 @@ pub(super) fn retire(d: &mut Domain, forge: u16) {
     }
     for owner in owners.into_boxed() {
         d.makings.remove(&owner);
+        d.read_line.leave(Waiter::Making(owner));
     }
-}
-
-pub(super) fn read_waiting(d: &Domain) -> bool {
-    for (_, pending) in &d.makings {
-        if pending.state == LostReadState::WaitingForRoom {
-            return true;
-        }
-    }
-    false
 }
 
 pub(super) fn release_repository(d: &mut Domain, repository: skein_forge::api::Repository) {
@@ -664,5 +665,6 @@ pub(super) fn release_repository(d: &mut Domain, repository: skein_forge::api::R
     }
     for key in keys.into_boxed() {
         let _row = d.makings.remove(&key).expect("collected makings");
+        d.read_line.leave(Waiter::Making(key));
     }
 }
