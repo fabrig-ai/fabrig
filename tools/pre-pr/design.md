@@ -699,9 +699,11 @@ hold by its death (`tools/tiers/design.md`, 3).
 
 ### 4.1 The checked close
 
-For each focused package and target group, run `tools/tiers/one-process
---out DIR --fail-fast default --offline --locked --no-tests=warn -p …`
-with the selected target flags. Each DIR is fresh under Cargo's target
+Run the focused packages' selected targets in one `tools/tiers/one-process
+--out DIR --fail-fast default --offline --locked --no-tests=warn -p … -E …`,
+each package's targets named in the filterset, so that the selection builds
+in parallel and its binaries run side by side; a run per group of identical
+target flags paid a build, a listing and a serial pass each. Each DIR is fresh under Cargo's target
 directory. Helper builds and `cargo check` keep their commands. The final
 128 bytes preserve the compiler diagnostic or the first failed or crashed
 case and its panic site and message from `results.json` where available.

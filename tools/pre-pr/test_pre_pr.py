@@ -56,7 +56,24 @@ class Packages(unittest.TestCase):
         directory = self.root / 'target/close'
         self.assertEqual(list(PLAN.rust_commands(groups, {}, directory)),
                          [['tools/tiers/one-process', '--out', str(directory / '0'), '--fail-fast', 'default',
-                           '--offline', '--locked', '--no-tests=warn', '-p', 'leaf', '--test', 'suite']])
+                           '--offline', '--locked', '--no-tests=warn', '-p', 'leaf',
+                           '-E', 'default() & (((package(=leaf)) & ((kind(test) & binary(=suite)))))']])
+
+    def test_every_group_runs_in_one_run_with_its_own_targets(self):
+        groups = {(('--lib',), ('--test', 'suite')): ['leaf', 'middle'], (('--bin', 'serve'),): ['top'],
+                  (): ['quiet'], (('--lib',),): ['fabrig-boundary']}
+        commands = list(PLAN.rust_commands(groups, {}, self.root / 'target/close'))
+        self.assertEqual(commands[0], ['cargo', 'check', '--offline', '--locked', '-p', 'quiet'])
+        run, = commands[1:]
+        self.assertEqual(run[run.index('--no-tests=warn') + 1:run.index('-E')],
+                         ['-p', 'fabrig-boundary', '-p', 'leaf', '-p', 'middle', '-p', 'top'])
+        expression = run[-1]
+        self.assertTrue(expression.startswith('default() & ('))
+        self.assertIn('((package(=leaf) | package(=middle)) & ((kind(lib) | kind(proc-macro)) | '
+                      '(kind(test) & binary(=suite))))', expression)
+        self.assertIn('((package(=top)) & ((kind(bin) & binary(=serve))))', expression)
+        self.assertIn('& not (package(=fabrig-boundary) & (', expression)
+        self.assertNotIn('quiet', expression)
 
     def test_boundary_filter_keeps_candidate_checks_and_the_profile(self):
         flag, expression = PLAN.workspace_filter(['fabrig-boundary', 'leaf'])
@@ -744,7 +761,8 @@ class CloseBudgets(unittest.TestCase):
             self.assertEqual(Path(command[2]).parent.parent, target)
             self.assertFalse(Path(command[2]).parent.exists())
             self.assertEqual(command[3:], ['--fail-fast', 'default', '--offline', '--locked', '--no-tests=warn',
-                                           '-p', 'leaf', '--test', 'suite'])
+                                           '-p', 'leaf', '-E',
+                                           'default() & (((package(=leaf)) & ((kind(test) & binary(=suite)))))'])
         else:
             run.assert_not_called()
         return errors
