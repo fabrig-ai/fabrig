@@ -56,16 +56,20 @@ class Packages(unittest.TestCase):
         groups = self.plan('skein/leaf/tests/suite.rs')
         directory = self.root / 'target/close'
         self.assertEqual(list(PLAN.rust_commands(groups, {}, directory)),
-                         [['tools/tiers/one-process', '--out', str(directory / '0'), '--fail-fast', 'default',
+                         [['tools/tiers/one-process', '--out', str(directory / str(step)), '--fail-fast', profile,
                            '--offline', '--locked', '--no-tests=warn', '-p', 'leaf',
-                           '-E', 'default() & (((package(=leaf)) & ((kind(test) & binary(=suite)))))']])
+                           '-E', 'default() & (((package(=leaf)) & ((kind(test) & binary(=suite)))))']
+                          for step, profile in enumerate(('default', 'fuzzy'))])
 
     def test_every_group_runs_in_one_run_with_its_own_targets(self):
         groups = {(('--lib',), ('--test', 'suite')): ['leaf', 'middle'], (('--bin', 'serve'),): ['top'],
                   (): ['quiet'], (('--lib',),): ['fabrig-boundary']}
         commands = list(PLAN.rust_commands(groups, {}, self.root / 'target/close'))
         self.assertEqual(commands[0], ['cargo', 'check', '--offline', '--locked', '-p', 'quiet'])
-        run, = commands[1:]
+        run, fuzzy = commands[1:]
+        same = lambda command: [arg for i, arg in enumerate(command) if i not in (2, 4)]
+        self.assertEqual(same(fuzzy), same(run))
+        self.assertEqual((run[4], fuzzy[4], fuzzy[2]), ('default', 'fuzzy', str(self.root / 'target/close/1')))
         self.assertEqual(run[run.index('--no-tests=warn') + 1:run.index('-E')],
                          ['-p', 'fabrig-boundary', '-p', 'leaf', '-p', 'middle', '-p', 'top'])
         expression = run[-1]
@@ -119,7 +123,7 @@ class Packages(unittest.TestCase):
         helper = [{'package': 'fixture', 'bin': 'serve'}]
         commands = list(PLAN.rust_commands(groups, {'leaf': helper, 'middle': helper}, self.root / 'target/close'))
         self.assertEqual(commands[0], ['cargo', 'build', '--offline', '--locked', '-p', 'fixture', '--bin', 'serve'])
-        self.assertEqual(len(commands), 2)
+        self.assertEqual(len(commands), 3)
 
 
 class Delivery(unittest.TestCase):
@@ -665,8 +669,8 @@ class CloseBudgets(unittest.TestCase):
     def binary(self, instructions, cpu, *, commit=None):
         return dict(tree='skein', layer='step', cpu_s=cpu, counts={commit or self.base: instructions})
 
-    def publish(self, commits=None):
-        data = dict(version=1, commits=commits or [self.base, self.main], profiles={'default': self.profile})
+    def publish(self, commits=None, profiles=None):
+        data = dict(version=1, commits=commits or [self.base, self.main], profiles=profiles or {'default': self.profile})
         blob = self.git('hash-object', '-w', '--stdin', content=json.dumps(data))
         tree = self.git('mktree', content=f'100644 blob {blob}\tcounts.json\n')
         commit = self.git('commit-tree', tree, '-m', 'published counts')
@@ -700,8 +704,8 @@ class CloseBudgets(unittest.TestCase):
     def test_a_budget_refusal_names_its_figures_in_the_hold_and_the_receipt(self):
         self.publish()
         error, = self.verdict(self.result(self.process(30 * self.G)))
-        self.assertEqual(error['diagnostic'], 'budgets skein step: +5.00%, allowance 2.00%, 100.0e9 to 105.0e9, '
-                                              'most leaf::suite\n')
+        self.assertEqual(error['diagnostic'], 'budgets skein default step: +5.00%, allowance 2.00%, 100.0e9 to '
+                                              '105.0e9, most leaf::suite\n')
         figure, = error['figures']
         self.assertEqual((figure['tree'], figure['layer'], figure['base'], figure['head'], figure['allowance']),
                          ('skein', 'step', 100 * self.G, 105 * self.G, 2 * self.G))
@@ -713,6 +717,23 @@ class CloseBudgets(unittest.TestCase):
         entry, = receipt['failures']
         self.assertEqual(entry['figures'], [figure])
         self.assertIn('instruction growth over allowance', entry['detail'])
+
+    def test_the_fuzzy_profile_is_judged_by_its_own_counts(self):
+        self.publish(profiles={'default': self.profile, 'fuzzy': json.loads(json.dumps(self.profile))})
+        focused, fuzzy = self.result(self.process(25 * self.G)), self.result(self.process(30 * self.G))
+        error, = PRE.close_budgets(self.root, self.repository, self.env, {'default': [focused], 'fuzzy': [fuzzy]})
+        self.assertIn('skein fuzzy step: instruction growth over allowance', error['log'])
+        self.assertNotIn('skein default step', error['log'])
+        self.assertTrue(error['diagnostic'].startswith('budgets skein fuzzy step: +5.00%'))
+        self.assertEqual(error['figures'][0]['profile'], 'fuzzy')
+
+    def test_a_profile_main_never_counted_gives_no_verdict_of_its_own(self):
+        self.publish()
+        self.assertEqual(PRE.close_budgets(self.root, self.repository, self.env,
+                                           {'default': [self.result(self.process(25 * self.G))],
+                                            'fuzzy': [self.result(self.process(30 * self.G))]}), [])
+        self.assertIn("budgets: no fuzzy counts in main's published counts; no fuzzy verdict at close",
+                      self.log.getvalue())
 
     def test_growth_within_the_margin_warns_and_past_it_refuses(self):
         self.publish()
@@ -854,14 +875,17 @@ class CloseBudgets(unittest.TestCase):
             PRE.workspace_checks(self.root, [str(source.relative_to(self.root))], 'tree', self.env, errors, {},
                                  completed_goal=completed_goal, counts_source=(self.repository, self.env))
         if completed_goal:
-            run.assert_called_once()
-            command = run.call_args.args[0]
-            self.assertEqual(command[:2], [str(PRE.TIERS / 'one-process'), '--out'])
-            self.assertEqual(Path(command[2]).parent.parent, target)
-            self.assertFalse(Path(command[2]).parent.exists())
-            self.assertEqual(command[3:], ['--fail-fast', 'default', '--offline', '--locked', '--no-tests=warn',
-                                           '-p', 'leaf', '-E',
-                                           'default() & (((package(=leaf)) & ((kind(test) & binary(=suite)))))'])
+            # The focused run, then the fuzzy one unless the focused run failed.
+            commands = [call.args[0] for call in run.call_args_list]
+            self.assertIn(len(commands), (1, 2))
+            for step, (command, profile) in enumerate(zip(commands, ('default', 'fuzzy'))):
+                self.assertEqual(command[:2], [str(PRE.TIERS / 'one-process'), '--out'])
+                self.assertEqual(Path(command[2]).name, str(step))
+                self.assertEqual(Path(command[2]).parent.parent, target)
+                self.assertFalse(Path(command[2]).parent.exists())
+                self.assertEqual(command[3:], ['--fail-fast', profile, '--offline', '--locked', '--no-tests=warn',
+                                               '-p', 'leaf', '-E',
+                                               'default() & (((package(=leaf)) & ((kind(test) & binary(=suite)))))'])
         else:
             run.assert_not_called()
         return errors

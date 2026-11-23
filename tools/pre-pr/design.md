@@ -710,6 +710,10 @@ target flags paid a build, a listing and a serial pass each. Each DIR is fresh u
 directory. Helper builds and `cargo check` keep their commands. The final
 128 bytes preserve the compiler diagnostic or the first failed or crashed
 case and its panic site and message from `results.json` where available.
+Then the same selection's fuzzy tests run in a second run, `… --fail-fast fuzzy …`,
+with the same filterset (each profile's `default()` is its own filter), and
+each profile's layers are judged against main's published counts for that
+profile and its `gate.<profile>` table.
 
 After the focused steps pass, read `refs/temper/counts` locally in the
 goal's checkout and find its base (`tools/tiers/budgets.md`, 7.1). A missing
