@@ -103,6 +103,8 @@ enum Adoption {
 
 /// A composed deployment: all roots retain their own state, with IO outside.
 pub struct World {
+    checks: jig_conformance::store_check::StoreChecks,
+    restart_config: engine::Config,
     seed: u64,
     absence: absence::Controls,
     account_case: Option<accounts::Story>,
@@ -139,6 +141,12 @@ pub struct World {
     disk: Checkout,
     pub observed: Observed,
     pub run_watch: Option<RunWatch>,
+}
+
+impl Drop for World {
+    fn drop(&mut self) {
+        eprintln!("{}", self.checks.report());
+    }
 }
 
 /// One text-only reply, with no finish call.
@@ -468,6 +476,8 @@ impl World {
         let store =
             temper_engine_domain_world::fixtures::restored_over(Store::with_limits(&limits), bootstrap, &limits);
         Self {
+            checks: jig_conformance::store_check::StoreChecks::sampled(seed, crate::STORE_CHECK_ONE_IN),
+            restart_config: temper_engine_domain_world::oracle::config::copy(&config),
             seed,
             absence: absence::Controls::default(),
             account_case: None,
@@ -512,6 +522,11 @@ impl World {
         }
     }
 
+    fn replace_root(&mut self, config: engine::Config) {
+        self.restart_config = temper_engine_domain_world::oracle::config::copy(&config);
+        self.root = engine::Domain::new(config, &self.env.limits).expect("restart configuration");
+    }
+
     /// Offer one input through admission; one the journal cannot take
     /// returns to the back of the queue (jig's `domain/root.md`, 3).
     fn root_step(&mut self, event: engine::Event) {
@@ -527,6 +542,11 @@ impl World {
 
     /// Drive one domain iteration and the independently observed IO terminals.
     pub fn tick(&mut self) {
+        self.try_tick().unwrap_or_else(|finding| panic!("{finding}"));
+    }
+
+    /// A store refusal is a run finding, before any peer sees the commit.
+    pub fn try_tick(&mut self) -> Result<(), String> {
         self.env.now = self.env.now.saturating_add(TICK);
         self.env.wall = Wall::from_nanos(self.env.now.as_nanos());
         self.worker_env.now = self.env.now;
@@ -540,7 +560,10 @@ impl World {
             if let Some(event) = self.root_events.pop_front() {
                 self.root_step(event);
             }
-            if let Some(number) = self.store.tick(false).expect("calm store") {
+            let previous = self.store.applied;
+            let committed = self.store.tick(false).expect("calm store");
+            self.check_commit(previous)?;
+            if let Some(number) = committed {
                 self.root_step(engine::Event::Store(engine::StoreInput::Committed { number, fill: 0 }));
             }
             engine::fire(&mut self.root, &self.env);
@@ -583,6 +606,27 @@ impl World {
         self.account_observe();
         self.worker.reclaim();
         self.root.reclaim();
+        Ok(())
+    }
+
+    pub fn store_checks(&mut self, checks: jig_conformance::store_check::StoreChecks) {
+        self.checks = checks;
+    }
+
+    #[must_use]
+    pub fn store_check_counts(&self) -> &jig_conformance::store_check::StoreChecks {
+        &self.checks
+    }
+
+    fn check_commit(&mut self, previous: u64) -> Result<(), String> {
+        temper_engine_domain_world::check::committed(
+            &self.store,
+            &self.restart_config,
+            &self.env.limits,
+            self.env.wall,
+            previous,
+            &mut self.checks,
+        )
     }
 
     /// Advance controlled time, driving both roots and the process at each tick.

@@ -36,6 +36,10 @@ temper-protocol-worker-wire.workspace = true
 temper-service-core.workspace = true
 
 [dev-dependencies]
+temper-worker-service.workspace = true
+skein-forge-client.workspace = true
+temper-worker-domain-checkout.workspace = true
+temper-worker-protocol-git.workspace = true
 temper-config-shell.workspace = true
 temper-service-shell.workspace = true
 skein-scratch.workspace = true

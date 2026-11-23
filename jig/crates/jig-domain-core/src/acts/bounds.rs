@@ -11,14 +11,7 @@ use jig_domain_tasks as tasks;
 use skein_lib::{List, Queue, Wall};
 
 pub(crate) fn recipient(core: &Core, project: u32, kind: authority::ProposalKind) -> Option<Recipient> {
-    let policy = core.authority.policy(project)?;
-    let mut roles = List::with_capacity(core.authority.limits().roles);
-    for role in &policy.roles {
-        if role.decides.allows(kind) {
-            roles.push(role.number).expect("policy roles fit the admitted authority bound");
-        }
-    }
-    if roles.is_empty() { None } else { Some(Recipient::Roles { project, roles }) }
+    super::policy_recipient(&core.authority, project, kind)
 }
 
 pub(crate) fn creating(

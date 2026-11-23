@@ -5,6 +5,7 @@ static HEAP: skein_world::domain::heap::Counting = skein_world::domain::heap::Co
 mod reference_settings;
 #[path = "../fixtures/stock.rs"]
 mod stock;
+mod store_check;
 
 mod accounts;
 mod accounts_restart;

@@ -204,6 +204,21 @@ impl Application for Ops {
         }
         root::Domain::new(configuration, &config.limits).expect("fixture core configuration")
     }
+    fn rehearse(domain: &mut root::Domain) {
+        domain.rehearse();
+    }
+    fn rehearsed(domain: &root::Domain) -> bool {
+        domain.rehearsed()
+    }
+    fn refused(domain: &root::Domain) -> Option<String> {
+        domain.start_failure().map(|(_, failure)| format!("{failure:?}"))
+    }
+    fn start_phase(domain: &root::Domain) -> String {
+        match domain.start_phase() {
+            Some(phase) => format!("{phase:?}"),
+            None => "none".into(),
+        }
+    }
     fn systems(_: &Config, _: u64) -> Systems {
         let mut production = production::Production::new(0, production::Backend::Fake);
         production.add_service(production::ServiceName::new("production", "checkout"), "v2", 3);

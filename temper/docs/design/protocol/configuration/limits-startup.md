@@ -47,6 +47,16 @@ This document holds the limits checked at startup, split from [`limits.md`](limi
   - the git component's: each rule of ../git.md, section 8 (its operations
     at least the checkout's workspaces, its output caps at least what
     it parses and the diagnostic it keeps);
+  - the brief's: `root.brief.read_bytes` at least
+    `root.brief.budgets.task`, so that an agent always reads all of what
+    it was asked; `forge.brief_bytes` at least `root.brief.read_bytes`;
+    `root.journal.result_bytes` at least `root.brief.brief_bytes`. The
+    brief's bytes within the host part's authorised brief is the
+    charter's room, checked per charter (`../../domain/agent/room.md`, 1);
+  - the forge client's tables against the forge's: `forge.repositories`
+    within `forge.client.repositories`, `forge.entries` within
+    `forge.client.entries` (a held entry made again always finds the
+    client's room) and `forge.holds` within `forge.client.resources`;
   - the records': `records.value_bytes` within the largest value jig's
     secrets' store keeps (jig's `protocol/store/secrets.md`), and
     large enough for the maximum encoded `AppKey`, `Accepted`, `AppSlug`

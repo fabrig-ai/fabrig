@@ -14,6 +14,10 @@ use skein_lib::{Token, Wall};
 pub enum Fault {
     /// The faithful testing adapter.
     None,
+    /// A writer saves a task whose project does not exist.
+    UnlinkedTask,
+    /// The start's page request never gets an answer.
+    StalledStart,
     /// A journal-held answer reaches its peer before the store applies its commit.
     EarlyOutput,
     /// An effect's outbox and its charge are submitted separately.
@@ -66,6 +70,8 @@ pub(crate) fn input(
             }
             Fault::DifferentDecision => entry.effect.target += 1,
             Fault::None
+            | Fault::UnlinkedTask
+            | Fault::StalledStart
             | Fault::EarlyOutput
             | Fault::SplitDecision
             | Fault::AdmissionAfterMutation
@@ -143,6 +149,9 @@ pub(crate) fn released(
 ) -> Vec<EngineOutput> {
     let mut corrupt = Vec::new();
     for output in outputs {
+        if config.fault == Fault::StalledStart && matches!(&output, Output::Deliver(Delivery::Start { .. })) {
+            continue;
+        }
         let Output::Commit { number, writes } = output else {
             corrupt.push(output);
             continue;
@@ -157,6 +166,17 @@ pub(crate) fn released(
             )
         });
         match config.fault {
+            Fault::UnlinkedTask => {
+                let mut writes = writes.into_vec();
+                for write in &mut writes {
+                    if let Write::Save(root::Record::Core(core::Record::Tasks(jig_domain_tasks::Stored::Live(task)))) =
+                        write
+                    {
+                        task.project = 999;
+                    }
+                }
+                corrupt.push(Output::Commit { number, writes: writes.into_boxed_slice() });
+            }
             Fault::EarlyOutput if signin => {
                 // Advance only the root's journal; its store remains unchanged.
                 root::step(domain, &env(config, clock), root::Event::Committed { number, fill: 0 });
@@ -179,6 +199,7 @@ pub(crate) fn released(
                 corrupt.push(Output::Commit { number, writes });
             }
             Fault::None
+            | Fault::StalledStart
             | Fault::EarlyOutput
             | Fault::SplitDecision
             | Fault::AdmissionAfterMutation

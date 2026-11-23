@@ -513,6 +513,63 @@ fn goal_budget_argv_and_task_show_share_the_amount() {
     }
 }
 
+// temper/docs/design/testing/settings-tests.md, 7: P81's residual command must round-trip through ctl.
+#[test]
+#[ignore = "its own fix: the JSON answer's proposed command carries an amount in another unit (temper/docs/design/draft/failure-worlds.md, 7, P81 residual)"]
+fn a_json_proposal_carries_hundredths() {
+    let mut root = f::choice_root(goal_me());
+    let number = root.submit(&[
+        "goal",
+        "start",
+        "--project",
+        "1",
+        "--charter",
+        "1",
+        "--budget",
+        "5.00",
+        "--no-deadline",
+        "Work",
+        "--key",
+        "amount",
+        "--json",
+    ]);
+    // 500 is beyond this party's 100-unit budget, but within its 500-unit proposal ceiling.
+    let c::Ask::Propose { action: c::ProposeAction::Batch { tasks }, .. } = f::act_ask(&root, number) else {
+        panic!("the budget needs a proposal");
+    };
+    let spend = tasks.get(0).expect("one proposed goal").authority.spend;
+    assert_eq!(spend, 500);
+    root.answered(
+        number,
+        c::Answer::Refused {
+            refusal: c::Refusal::Authority { lacking: c::Lacking::Approver, proposable: Some(true) },
+            at: None,
+        },
+    );
+    let answer = root.answer(number).expect("authority refusal answered");
+    assert_eq!(answer.status, 2);
+    let json: serde_json::Value = serde_json::from_slice(&answer.stderr).expect("JSON refusal");
+    let command = json.get("propose_instead").expect("proposed command").as_str().expect("command string");
+    // This fixture's arguments contain no quoting or whitespace within a word, and fit in 16 words.
+    let mut words = List::with_capacity(16);
+    for word in command.split_whitespace() {
+        words.push(word).expect("fixture command fits");
+    }
+    let retried = f::call(words.as_slice());
+    assert_eq!(
+        crate::jig::call::argument(&crate::jig::rows::GOAL_START, &retried, b"budget"),
+        Some(&crate::jig::call::Value::Number(spend)),
+        "the proposed command's budget must parse to the requested spend units: {command}"
+    );
+    let mut budget = None;
+    for pair in words.as_slice().windows(2) {
+        if pair.first() == Some(&"--budget") {
+            budget = pair.get(1);
+        }
+    }
+    assert_eq!(budget, Some(&"5.00"));
+}
+
 #[test]
 fn goal_call_budget_keeps_integer_spend_units() {
     let mut me = goal_me();

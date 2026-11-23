@@ -6804,6 +6804,7 @@ dependencies = [
  "jig-domain-core-vocabulary",
  "jig-domain-people",
  "jig-domain-tasks",
+ "jig-tasks-kit",
  "skein-forge",
  "skein-forge-client",
  "skein-forge-setup",
@@ -7041,7 +7042,10 @@ dependencies = [
 name = "temper-engine-forge-world"
 version = "0.0.0"
 dependencies = [
+ "jig-conformance",
  "jig-domain-people",
+ "jig-domain-tasks",
+ "jig-tasks-kit",
  "skein-fake-forge-domain",
  "skein-forge",
  "skein-forge-client",
@@ -7203,6 +7207,7 @@ dependencies = [
  "serde_json",
  "skein-codec",
  "skein-forge",
+ "skein-forge-client",
  "skein-forge-connection",
  "skein-io",
  "skein-json",
@@ -7235,6 +7240,9 @@ dependencies = [
  "temper-service-core",
  "temper-service-shell",
  "temper-settings-form",
+ "temper-worker-domain-checkout",
+ "temper-worker-protocol-git",
+ "temper-worker-service",
  "temper-worker-service-fixtures",
 ]
 
@@ -7246,6 +7254,7 @@ dependencies = [
  "jig-domain-authority",
  "jig-domain-core",
  "jig-domain-fleet",
+ "jig-domain-link",
  "jig-domain-people",
  "jig-domain-tasks",
  "jig-protocol-config",
@@ -8373,6 +8382,7 @@ dependencies = [
 name = "temper-system-world"
 version = "0.0.0"
 dependencies = [
+ "jig-conformance",
  "jig-domain-accounts",
  "jig-domain-authority",
  "jig-domain-brief",
