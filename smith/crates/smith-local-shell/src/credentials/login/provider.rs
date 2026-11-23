@@ -46,8 +46,7 @@ pub(in crate::credentials) fn run(
         registration(account, &settings.workspace)
     }
     .map_err(|why| why.line())?;
-    let first_plan =
-        prior.as_ref().is_none_or(|record| !skein_oauth::missing_scopes(&registered.registration, record).is_empty());
+    let notice = provider && first_plan(&registered.registration, prior.as_ref());
     let source = sign_in::private_source(0, file, registered, false)?;
     let io = skein_io::Limits {
         sockets: 3,
@@ -75,22 +74,7 @@ pub(in crate::credentials) fn run(
     } else {
         assert!(driver.sign_in(0), "selected sign-in account");
     }
-    let directory = Directory::of(settings);
-    let names: BTreeSet<_> = settings
-        .values
-        .iter()
-        .filter_map(|(key, value)| {
-            key.strip_prefix("accounts.")
-                .and_then(|rest| rest.strip_suffix(".source"))
-                .filter(|_| value.value.as_str() == Some("sign_in"))
-                .map(|name| serde_json::from_str::<String>(name).unwrap_or_else(|_| name.into()))
-        })
-        .collect();
-    let others = names
-        .into_iter()
-        .filter(|name| name != &account.name)
-        .filter_map(|name| directory.as_ref().map(|directory| (name.clone(), directory.token(&name))))
-        .collect();
+    let others = other_sign_ins(settings, Directory::of(settings).as_ref(), &account.name);
     let ssh = environment
         .variables
         .iter()
@@ -106,7 +90,7 @@ pub(in crate::credentials) fn run(
         outcome: None,
         state: if logout { State::SignOut } else { State::SignIn },
         closing: false,
-        notice: provider && first_plan,
+        notice,
         others,
         ssh,
         operations,
@@ -115,4 +99,34 @@ pub(in crate::credentials) fn run(
     };
     let _exit = skein_shell::drive(&mut kernel, clock, &mut host);
     Ok(host.outcome.expect("login closes after its terminal"))
+}
+
+fn first_plan(registration: &skein_oauth::Registration, prior: Option<&skein_oauth::SavedToken>) -> bool {
+    prior.is_none_or(|record| !skein_oauth::missing_scopes(registration, record).is_empty())
+}
+
+fn other_sign_ins(
+    settings: &Settings,
+    directory: Option<&Directory>,
+    selected: &str,
+) -> Vec<(String, std::path::PathBuf)> {
+    let Some(directory) = directory else { return Vec::new() };
+    let names: BTreeSet<_> = settings
+        .values
+        .iter()
+        .filter_map(|(key, value)| {
+            key.strip_prefix("accounts.")
+                .and_then(|rest| rest.strip_suffix(".source"))
+                .filter(|_| value.value.as_str() == Some("sign_in"))
+                .map(|name| serde_json::from_str::<String>(name).unwrap_or_else(|_| name.into()))
+        })
+        .collect();
+    names
+        .into_iter()
+        .filter(|name| name != selected)
+        .map(|name| {
+            let file = directory.token(&name);
+            (name, file)
+        })
+        .collect()
 }
