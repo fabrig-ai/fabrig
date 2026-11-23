@@ -243,7 +243,11 @@ second, which is why it is skein's (../../foundation/testing-strategy.md, 7).
   (`Closed`), `forced after its grace` (`Grace`), `at its deadline`
   (`Deadline`) and `cancelled` (`Cancelled`). A test that fails on a
   kill it didn't ask for prints its records with it. The simulated
-  world's `Killed` stays as it is.
+  world's `Killed` stays as it is. The records, their fields and their
+  words, are checked without a kernel, on the real loop's own state with
+  the admissions, the kill's clock reading, and the cancelled records
+  and cleanup completions handed in: none is made before they settle,
+  and each is stamped with its kill's submission, not its cleanup.
 - **It tells a starved run from a slow one** in the real loop
   by `Deadline`, the same real-clock deadline every harness uses
   (../../foundation/testing-strategy.md, 2.10). `skein_world::{Deadline, Expired, Starved,

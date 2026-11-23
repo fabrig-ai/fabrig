@@ -28,6 +28,11 @@ Each within skein's suites' budgets (../../../foundation/testing-strategy.md, se
   - the bundler: the directory named by its digest, the same inputs
     giving the same bundle, references under the prefix, an own page's
     marker, and each refusal of `bundle.md`, 2 and 3 naming its file;
+  - a served bundle's routes (`bundle.md`, 4), over a bundle handed in
+    whole: the compressed form, with its headers, to a client that takes
+    gzip, the plain one to a client that doesn't or refuses it, and no
+    address for a compressed form; one bundle the bundler writes and the
+    example's server reads from disk stays in `tests/ui-web`'s real suite;
   - the stylesheet (`README.md`, section 10): its 101 rules for a progress, read from
     `skein_ui_bundle::STYLESHEET` against the numbers 0 to 100.
 - **The wasm32 builds in skein's gate:** `skein-ui`, `skein-ui-web`, the
