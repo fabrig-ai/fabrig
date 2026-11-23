@@ -644,6 +644,7 @@ def one_process_summary(directory, limits, pair, run, gate=False, ledger=None, b
     if 'cpu_test_s' in limits:
         raise ValueError('one-process runs cannot measure cpu_test_s')
     data = json.loads((directory / 'results.json').read_text())
+    fail_fast = data.get('fail_fast', False)
     if ledger is not None:
         if ledger['profile'] != run['profile']:
             raise ValueError('ledger profile does not match run')
@@ -661,7 +662,8 @@ def one_process_summary(directory, limits, pair, run, gate=False, ledger=None, b
         raise ValueError('results profile does not match run')
     if (type(data['selected']) is not int or data['selected'] < 0
             or data['no_tests'] not in ('fail', 'warn', 'pass')
-            or data['cancelled'] not in (None, 'global-timeout', 'wall-hard')):
+            or data['cancelled'] not in (None, 'global-timeout', 'wall-hard')
+            or type(fail_fast) is not bool):
         raise ValueError('invalid selection or cancellation')
 
     def figure(value, field):
@@ -734,7 +736,7 @@ def one_process_summary(directory, limits, pair, run, gate=False, ledger=None, b
     unobserved = []
     single_process = False
     crashed_binaries = {t['binary_id'] for t in data['tests'] if t['outcome'] == 'crashed'}
-    if data['unobserved'] and data['cancelled'] is None:
+    if data['unobserved'] and data['cancelled'] is None and not fail_fast:
         path = directory / 'plan.json'
         single_process = path.is_file() and json.loads(path.read_text()).get('single_process', False)
     for item in sorted(data['unobserved'], key=identity):
@@ -743,7 +745,9 @@ def one_process_summary(directory, limits, pair, run, gate=False, ledger=None, b
             raise ValueError('duplicate selected test')
         seen.add(key)
         reason = 'the run was cancelled before it'
-        if data['cancelled'] is None:
+        if fail_fast and data['cancelled'] is None:
+            reason = 'the run stopped after a failure'
+        elif data['cancelled'] is None:
             # Again runs promise one process, so a crash leaves later names
             # unobserved instead of starting the ordinary fresh process (11.9).
             if not single_process or key[0] not in crashed_binaries:
@@ -761,6 +765,11 @@ def one_process_summary(directory, limits, pair, run, gate=False, ledger=None, b
     suite_processes = [p for p in processes if p['kind'] in SUITE_PROCESS_KINDS]
     for field in ('cpu_s', 'user_s', 'system_s'):
         suite[field] = figure(sum(process[field] for process in suite_processes), field)
+    if fail_fast:
+        return dict(pair=pair, tests=tests, suite=suite, processes=processes, failures=failures,
+                    layers=[], trees=[], counting=counting, references=[], swings=[],
+                    unobserved=unobserved, warnings=warnings, over_budget=[], fail_fast=True,
+                    verdict='stopped after a failure, no budget judged')
     over = []
     if 'cpu_suite_s' in limits and suite['cpu_s'] > limits['cpu_suite_s']:
         over.append(f"suite {pair}: {suite['cpu_s']:.6f}s > {limits['cpu_suite_s']}s")
@@ -1481,13 +1490,17 @@ def print_summary(result, as_json=False):
         print(message)
 
 
-def execute_one_process(command, env, directory, profile, limits, config=Path('.config/nextest.toml'), walls=None, gate=False, ledger=None, selected_layers=None):
+def execute_one_process(command, env, directory, profile, limits, config=Path('.config/nextest.toml'),
+                        walls=None, gate=False, ledger=None, selected_layers=None, *, fail_fast=False):
     """Run and report one process per binary (tools/tiers/design.md, 10.2)."""
     if 'cpu_test_s' in limits.get(profile, {}):
         raise ValueError('one-process runs cannot measure cpu_test_s')
-    runpy.run_path(str(ONE_PROCESS))['run'](command, env, directory, profile, limits, config, walls=walls, ledger=ledger, selected_layers=selected_layers)
+    runpy.run_path(str(ONE_PROCESS))['run'](command, env, directory, profile, limits, config,
+                                          walls=walls, ledger=ledger, selected_layers=selected_layers,
+                                          **({'fail_fast': True} if fail_fast else {}))
     result = summary(directory, limits, profile, gate=gate, ledger=ledger)
-    save(Path(directory) / 'ledger.json', fold_ledger(directory, result, limits, ledger))
+    if not result.get('fail_fast'):
+        save(Path(directory) / 'ledger.json', fold_ledger(directory, result, limits, ledger))
     output = io.StringIO()
     with contextlib.redirect_stdout(output):
         print_summary(result)
@@ -1497,7 +1510,7 @@ def execute_one_process(command, env, directory, profile, limits, config=Path('.
         log.write(text)
     if result['over_budget']:
         return 1
-    if result['failures']:
+    if result['failures'] or result.get('fail_fast'):
         return 100
     if result['suite']['starved_run'] or result['suite']['starved']:
         return 0

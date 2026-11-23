@@ -208,6 +208,49 @@ Each tree's pair `real-TREE` runs its real-loop and end-to-end tests after landi
   - **`budgets`** as section 9 folds them, and **`moves`** the run's budgets file's for the profile, an empty list without one.
 - **The runner keeps** the `ledger.json` of the gate run whose candidate landed as main's ledger for that suite, and passes it to the next gate on top of that landing. Its first ledger is the `ledger.json` of a whole run of its own on main, with no `-p` and no `--ledger`: until then no selection is judged whole and no budget is held below its ceiling (draft, 5). The gate selects by package alone; a run that also filters tests writes a ledger that isn't main's.
 
+### 7.1 Main's published counts
+
+After each landing the gate's runner publishes one commit at
+`refs/temper/counts` with two files, `counts.json` and `allowances.tsv`. A worker fetches the
+ref and its blob at prepare (`temper/docs/design/draft/test-budgets.md`,
+3). Its form is:
+
+```json
+{"version": 1,
+ "commits": ["<oldest sha>", "...", "<newest sha>"],
+ "profiles": {"default": {"binaries": {"jig-world::domain": {"tree": "jig",
+                    "layer": "domain", "cpu_s": 9.7,
+                    "counts": {"<sha>": 123456789}}},
+                          "moves": []},
+              "fuzzy": {"binaries": {}, "moves": []}}}
+```
+
+`commits` holds the last twenty commits main landed, oldest first.
+At commit C, a binary has the count of the newest entry in its
+`counts` at or before C in that window. It has no count before its first
+entry. Its tree, layer and CPU figure are those at the newest commit.
+Each profile's `moves` are those at the newest commit, as kept in main's
+ledger in section 7.
+
+`allowances.tsv` is the same data at the newest commit, for `tools/tiers/test`'s
+lines (`tools/tiers/design.md`, 11.9), tab-separated, a line each: `version 1`;
+`main SHA`, the newest commit; `binary PROFILE BINARY_ID TREE LAYER` for each
+binary; and `layer PROFILE TREE LAYER COUNT ALLOWANCE` for each layer, its count
+at the newest commit and `allowance` of it. Small and flat, so that an
+implementer's run reads it in a few milliseconds.
+
+`tools/tiers/counts.py` reads the window. `read(root, env)` uses
+`git cat-file blob refs/temper/counts:counts.json` with
+`GIT_NO_LAZY_FETCH=1` and returns the parsed version 1 object or none
+when the local file is unavailable. `base(data, root, env, head='HEAD')`
+checks the window newest first with `git merge-base --is-ancestor`
+under the same environment and returns the newest commit head contains,
+or none. `binaries(data, profile, commit)` maps binary IDs to each
+counted binary's `tree`, `layer` and `instructions`.
+`layers(data, profile, commit)` sums them by `(tree, layer)`.
+`allowance(count, credit=0)` returns the growth allowance in section 8,
+`max(count // 50, 1_000_000_000) + credit`.
+
 ## 8. A partial run, judged whole
 
 `summary`'s `ledger` (section 4) is main's ledger as `ledger()` read it, or none. With one, `summary` refuses (`ValueError`) a nextest run, tools, a ledger whose `profile` isn't the run's, and a `results.json` without `workspace`.

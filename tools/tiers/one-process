@@ -12,6 +12,19 @@ import signal
 import sys
 
 
+def default_target(env):
+    """Cargo's target directory without asking Cargo, where nothing configures another (design.md, 11.9)."""
+    if env.get('CARGO_TARGET_DIR'):
+        return Path(env['CARGO_TARGET_DIR']).resolve()
+    if env.get('CARGO_BUILD_TARGET_DIR') or not Path('Cargo.toml').is_file():
+        return None
+    configs = [Path(base) / '.cargo' / name for base in (Path.cwd(), *Path.cwd().parents, Path.home())
+               for name in ('config.toml', 'config')]
+    if any(path.is_file() and 'target-dir' in path.read_text(errors='replace') for path in configs):
+        return None
+    return (Path.cwd() / 'target').resolve()
+
+
 def main():
     os.umask(0o077)
     parser = argparse.ArgumentParser(description=__doc__)
@@ -20,6 +33,7 @@ def main():
     parser.add_argument('--walls', type=Path)
     parser.add_argument('--ledger', type=Path)
     parser.add_argument('--gate', action='store_true')
+    parser.add_argument('--fail-fast', action='store_true')
     parser.add_argument('--layers', type=lambda value: value.split(','))
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument('--again', type=Path, metavar='RUN_DIR')
@@ -42,8 +56,8 @@ def main():
         signal.signal(signal.SIGTERM, interrupt)
         signal.signal(signal.SIGHUP, interrupt)
         if args.alone is not None:
-            for option in ('budgets', 'walls', 'ledger', 'gate', 'layers'):
-                if getattr(args, option):
+            for option in ('budgets', 'walls', 'ledger', 'gate', 'layers', 'fail-fast'):
+                if getattr(args, option.replace('-', '_')):
                     raise ValueError(f'--{option} is not supported with --alone')
             directory = args.out
             if directory is not None and directory.exists():
@@ -59,6 +73,8 @@ def main():
                 command = [*runner['command_prefix'](env), 'cargo', 'nextest', 'run', *args.arguments]
                 return one['alone_at_base'](args.alone, command, env, directory)
         if args.again is not None:
+            if args.fail_fast:
+                raise ValueError('--fail-fast is not supported with --again')
             if args.layers is not None:
                 raise ValueError('--layers is not supported with --again')
             if args.gate:
@@ -96,8 +112,10 @@ def main():
             limits = cpu['budgets'](budget_path) if budget_path else {}
             directory = args.out
             if directory is None:
-                with contextlib.redirect_stdout(io.StringIO()):
-                    target = runner['target_directory'](env)
+                target = default_target(env)
+                if target is None:
+                    with contextlib.redirect_stdout(io.StringIO()):
+                        target = runner['target_directory'](env)
                 stamp = datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S.%fZ')
                 directory = target / 'tiers-one-process' / 'runs' / f'{stamp}-{os.getpid()}'
                 print(directory, flush=True)
@@ -107,7 +125,9 @@ def main():
             command = [*runner['command_prefix'](env), 'cargo', 'nextest', 'run',
                        '--profile', args.profile, '--no-fail-fast',
                        *([] if packages else ['--workspace']), *extra]
-            code = cpu['execute_one_process'](command, env, directory, args.profile, limits, walls=args.walls, gate=args.gate, ledger=ledger, selected_layers=args.layers)
+            code = cpu['execute_one_process'](command, env, directory, args.profile, limits, walls=args.walls,
+                                              gate=args.gate, ledger=ledger, selected_layers=args.layers,
+                                              fail_fast=args.fail_fast)
             sys.stdout.flush()
             return code
     except (OSError, ValueError, KeyError, TypeError, runner['FailedStep']) as error:
