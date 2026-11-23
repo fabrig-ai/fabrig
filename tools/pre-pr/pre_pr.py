@@ -359,6 +359,44 @@ def workspace_wide(path):
             or path.startswith('.cargo/'))
 
 
+def external_locks(text):
+    """The registry and git packages a Cargo.lock pins, by name, version and source."""
+    return {(package['name'], package['version'], package['source'])
+            for package in tomllib.loads(text).get('package', []) if package.get('source')}
+
+
+def lock_moves_externals(repository, env, base, root):
+    """Whether Cargo.lock moved a package from outside the workspace since base.
+
+    A workspace member's own edges in the lock come with its manifest, which selects it already.
+    """
+    try:
+        before = checked_git(['show', f'{base}:Cargo.lock'], repository, env).decode()
+        return external_locks(before) != external_locks((root / 'Cargo.lock').read_text())
+    except (ValueError, OSError, UnicodeDecodeError, tomllib.TOMLDecodeError):
+        return True
+
+
+def manifest_beyond_members(text):
+    """The root manifest without its members and the workspace's own path dependencies."""
+    manifest = tomllib.loads(text)
+    workspace = manifest.get('workspace', {})
+    workspace.pop('members', None)
+    dependencies = workspace.get('dependencies', {})
+    for name in [name for name, value in dependencies.items() if isinstance(value, dict) and 'path' in value]:
+        del dependencies[name]
+    return manifest
+
+
+def root_manifest_moves_more(repository, env, base, root):
+    """Whether the root manifest changed beyond adding or removing the workspace's own crates."""
+    try:
+        before = checked_git(['show', f'{base}:Cargo.toml'], repository, env).decode()
+        return manifest_beyond_members(before) != manifest_beyond_members((root / 'Cargo.toml').read_text())
+    except (ValueError, OSError, UnicodeDecodeError, tomllib.TOMLDecodeError):
+        return True
+
+
 def always_packages(root, inputs, packages):
     """The gate's always-run packages for these code inputs (.config/gate/README.md, The gate's lists):
     a boundary package where the inputs reach a package, a prefixed one where an input has its prefix."""
@@ -582,12 +620,16 @@ def close_budgets(root, repository, env, runs):
         accepted = profile.get(key[0], {}).get(key[1], {}).get('accepted_instructions')
         allowance = counts['allowance'](before, credits.get(key, 0), accepted)
         ceiling = ceilings.get(key)
-        over = ceiling is not None and before <= ceiling < after
+        limit = max(ceiling, accepted) if ceiling is not None and accepted is not None else ceiling
+        over = limit is not None and before <= limit < after
         increase = after - before
         if not over and increase <= allowance:
             continue
         growth = f'{100 * increase / before:.2f}%' if before else 'n/a (zero at base)'
-        reason = f'over instruction ceiling {ceiling}' if over else 'instruction growth over allowance'
+        reason = 'instruction growth over allowance'
+        if over:
+            bound = 'accepted instruction level' if limit != ceiling else 'instruction ceiling'
+            reason = f'over {bound} {limit}'
         findings.append(f'{key[0]} default {key[1]}: {reason}, {before} at base, {after} at head, '
                         f'growth {growth}, allowance {allowance} instructions')
         causes = sorted(grew[key], key=lambda cause: (-cause[0], cause[1]))
@@ -1094,6 +1136,12 @@ def summary(base_id, lints, tests, errors, reason, failures_tail, starved=(), sc
             break
         output += entry
     print(output + diagnostic, end='', flush=True)
+    if refused and scope == 'close' and new:
+        # The close job's hold keeps only the last 128 bytes of the check's stderr: name the first failure there.
+        first = new[0]
+        line = diagnostic.strip() or first['name'] + ': ' + next(
+            (text.strip() for text in first['log'].splitlines() if text.strip()), '')
+        print(line.encode()[:127].decode(errors='ignore'), file=sys.stderr, flush=True)
     return int(refused)
 
 
@@ -1130,7 +1178,7 @@ def finish(tree_id, base_id, errors, root, env, scope, commits, heads, lints=(),
 
 
 def workspace_checks(root, paths, tree_id, env, errors, outcomes, reds=(), *, completed_goal=False, counts_source=None,
-                     whole=True):
+                     whole=True, base_id=None):
     start = time.monotonic()
     if whole and any(p.endswith('.rs') for p in paths):
         errors += format_workspace(root, env)
@@ -1156,7 +1204,13 @@ def workspace_checks(root, paths, tree_id, env, errors, outcomes, reds=(), *, co
             layers = tomllib.load(file)
         inputs, also = code_inputs(package_paths, data, root), ()
         if not whole and inputs:
-            if any(workspace_wide(p) for p in inputs):
+            wide = [p for p in inputs if workspace_wide(p)]
+            if base_id and counts_source:
+                # Adding a crate edits the lock and the members; the crates that use it changed too.
+                narrow = {'Cargo.lock': lock_moves_externals, 'Cargo.toml': root_manifest_moves_more}
+                wide = [p for p in wide if p not in narrow or narrow[p](*counts_source, base_id, root)]
+            if wide:
+                print(f"pre-pr: every package: {', '.join(wide)} changed", flush=True)
                 inputs = [str(Path(package['manifest_path']).relative_to(root)) for package in packages.values()]
             also = always_packages(root, inputs, packages)
         groups = PLANNER['package_plan'](root, inputs, packages, layers, also=also)
@@ -1224,7 +1278,11 @@ def workspace_checks(root, paths, tree_id, env, errors, outcomes, reds=(), *, co
             else:
                 if runs:
                     repository, git_env = counts_source if counts_source is not None else (root, env)
-                    errors += close_budgets(root, repository, git_env, runs)
+                    # A worker's counts differ from the gate's by more than the allowance (2.2% in a layer a
+                    # docs-only goal never touched, 11-23), so growth at close is a warning; the gate refuses it.
+                    for finding in close_budgets(root, repository, git_env, runs):
+                        print('pre-pr: budgets at close, a warning: the landing gate judges them\n'
+                              + finding['log'], end='', flush=True)
     return suites
 
 
@@ -1299,7 +1357,7 @@ def check(scope, commits):
                 errors.append(failure('base', no_base))
             else:
                 tests = workspace_checks(checks_root, paths, tree_id, env, errors, outcomes, completed_goal=scope == 'close',
-                                         counts_source=(root, source_env), whole=base_id is None)
+                                         counts_source=(root, source_env), whole=base_id is None, base_id=base_id)
             if scope == 'goal' and not errors:
                 lints, tests, warnings = goal_checks(work, paths, env, errors, rerun_bound(root, source_env) if has_git else 0)
             if scope == 'close' and has_git and checked_git(['write-tree', '--missing-ok'], root, source_env).decode().strip() != tree_id:

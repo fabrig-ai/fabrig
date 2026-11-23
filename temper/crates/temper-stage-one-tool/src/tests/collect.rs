@@ -1,4 +1,4 @@
-//! Collector fixtures and fake ctl: `temper/docs/design/testing/checks.md`, 5.3.
+//! Collector fixtures and fake ctl: `temper/docs/design/testing/checks-stage-one.md`, 1.3.
 use std::collections::BTreeMap;
 use std::fs;
 use std::io;
