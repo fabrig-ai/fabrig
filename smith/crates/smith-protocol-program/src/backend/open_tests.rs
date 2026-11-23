@@ -1,4 +1,4 @@
-//! Open stream boundaries (protocol/programs.md 5.9).
+//! Open stream boundaries (protocol/programs-claude-code.md 1.9).
 #![expect(clippy::disallowed_methods, reason = "ordinary Rust step harness, programming-model.md 10.2")]
 use super::*;
 use crate::backend::fixtures::COMPLETION;

@@ -486,13 +486,12 @@ impl<B: Backend> World<B> {
         clippy::too_many_arguments,
         reason = "the scripted world accepts each independent Start and backend fixture"
     )]
-    #[expect(
-        clippy::too_many_lines,
-        reason = "the world initializes its boundary observations beside the selected host start"
-    )]
     /// Start with caller-owned checkout, history and optional complete Start.
     #[must_use]
-    #[expect(clippy::too_many_lines, reason = "one world initializer binds the fake boundary and its observations")]
+    #[expect(
+        clippy::too_many_lines,
+        reason = "one world initializer binds the fake boundary, its observations and the selected host start"
+    )]
     pub fn with_selected_backend(
         settings: &Settings,
         transcript: Option<agent::Transcript>,
@@ -1821,6 +1820,10 @@ impl<B: Backend> World<B> {
         assert!(self.completions[index].terminal.replace((self.now, outcome)).is_none());
     }
 
+    #[expect(
+        clippy::too_many_lines,
+        reason = "one terminal feeds the boundary and message observations before delivery"
+    )]
     fn terminal(&mut self, family: Family, owner: Token, event: Event) {
         if family == Family::Completion
             && let Some(observations) = &mut self.fault_runs

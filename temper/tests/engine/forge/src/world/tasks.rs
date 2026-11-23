@@ -19,27 +19,31 @@ pub(super) fn domain(seed: u64) -> tasks::Domain {
     domain
 }
 
+pub(super) fn hold(domain: &mut tasks::Domain, now: Time, wall: Wall, number: u64) {
+    if domain.task(number).is_some() {
+        return;
+    }
+    let env = Env { now, wall, limits: LIMITS };
+    let mut out = Queue::uncapped();
+    tasks::step(
+        domain,
+        &env,
+        tasks::Event::Make {
+            maker: None,
+            places: Box::new([]),
+            reply_to: ReplyTo::new(Token::new(number)),
+            creator: tasks::Party::Person(jig_tasks_kit::PERSON),
+            batch: Box::new([jig_tasks_kit::task(number, &[])]),
+        },
+        &mut out,
+    );
+    assert!(domain.task(number).is_some(), "scripted task {number} admitted: {out:?}");
+}
+
 impl World {
     /// The scripted core holds a task before giving its work to the connector.
     pub fn hold_task(&mut self, number: u64) {
-        if self.tasks.task(number).is_some() {
-            return;
-        }
-        let env = Env { now: self.env.now, wall: self.env.wall, limits: LIMITS };
-        let mut out = Queue::uncapped();
-        tasks::step(
-            &mut self.tasks,
-            &env,
-            tasks::Event::Make {
-                maker: None,
-                places: Box::new([]),
-                reply_to: ReplyTo::new(Token::new(number)),
-                creator: tasks::Party::Person(jig_tasks_kit::PERSON),
-                batch: Box::new([jig_tasks_kit::task(number, &[])]),
-            },
-            &mut out,
-        );
-        assert!(self.tasks.task(number).is_some(), "scripted task {number} admitted: {out:?}");
+        hold(&mut self.tasks, self.env.now, self.env.wall, number);
     }
 
     fn forget_task(&mut self, number: u64) {

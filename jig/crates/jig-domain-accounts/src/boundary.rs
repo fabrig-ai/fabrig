@@ -7,7 +7,7 @@ use skein_lib::{Duration, Time, Token, Wall};
 pub const ADDRESS: u32 = 2_048;
 
 /// Accounts on the component's terms (protocol/llm.md, 5.2), and what runs' agents
-/// notice (domain/accounts.md, 3.5): a generation unauthorized; a source limited until
+/// notice (domain/accounts-sources.md, 2): a generation unauthorized; a source limited until
 /// its reset, or, with none, until its holder resumes it; a source refused, with the
 /// provider's code and reason; a run failed because its source turned limited or
 /// refused. The component and a notice name a source by its number, the grant's, in
@@ -23,7 +23,7 @@ pub const ADDRESS: u32 = 2_048;
 /// confirmed the revocation (2.3).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Event {
-    /// Close project rows (jig/docs/design/domain/accounts.md, 4.2).
+    /// Close project rows (jig/docs/design/domain/accounts-uses.md, 1.2).
     ForgetProject {
         project: u32,
     },
@@ -42,7 +42,7 @@ pub enum Event {
         failure: crate::ReadFailure,
         at: Wall,
     },
-    /// A run's program reports a usage window through its live source (accounts.md, 3.7).
+    /// A run's program reports a usage window through its live source (domain/accounts-lists.md, 1).
     UsageRead {
         read: u64,
         outcome: jig_domain_link::UsageOutcome,
@@ -51,7 +51,7 @@ pub enum Event {
         source: u32,
         window: jig_domain_link::UsageWindow,
     },
-    /// A usable host login reports through its live program source (accounts.md, 3.7).
+    /// A usable host login reports through its live program source (domain/accounts-lists.md, 1).
     ProgramSaid {
         name: Box<[u8]>,
         email: Box<[u8]>,
@@ -393,7 +393,7 @@ pub enum End {
 }
 
 /// What the child asks of its parent. A save or an erase is part of the decision that makes
-/// the change (domain/engine/README.md, 5.6): each account and source the child makes, removes or whose hold
+/// the change (domain/engine/decisions.md, 1.6): each account and source the child makes, removes or whose hold
 /// changes, and the counter whenever it moves.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Request {
@@ -442,7 +442,7 @@ pub enum Request {
     Closed,
 }
 
-/// A source-owned deadline (domain/accounts.md, 3.5; domain/engine/README.md, 5.4).
+/// A source-owned deadline (domain/accounts-sources.md, 2; domain/engine/decisions.md, 1.4).
 /// Scheduling uses `at`; documents and stored resets retain `wall` exactly.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Deadline {
@@ -450,7 +450,7 @@ pub struct Deadline {
     pub wall: Wall,
 }
 
-/// Secret-free source state (domain/engine/README.md, section 6; domain/accounts.md, 3.5):
+/// Secret-free source state (domain/engine/README.md, section 6; domain/accounts-sources.md, 2):
 /// limited until a time, or, with none, until its holder resumes it; refused until its
 /// holder acts.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]

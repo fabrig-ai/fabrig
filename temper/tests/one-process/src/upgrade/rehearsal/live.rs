@@ -10,6 +10,7 @@ use skein_io::kernel::Op;
 use skein_lib::{List, Queue, Token};
 use temper_engine_domain_forge as forge;
 use temper_engine_service::{self as service, startup};
+use temper_playground::programs::prepared_schemas;
 use temper_shell::directories::Directories;
 
 const OWNER: Token = Token::new(77);
@@ -19,6 +20,7 @@ fn seed(disk: &mut Disk, inputs: &startup::LimitInputs) -> Box<[u8]> {
     let root = startup::engine_limits(&mut jig, &own, None).expect("fixture engine limits");
     let limits = startup::checked_store(&root, &jig.store, None).expect("fixture store limits");
     let mut store = service::store::Store::new(&root, &limits, &[], &inputs.seeds);
+    store.prepared_schemas(prepared_schemas());
     store.adopt(disk.root(0), USER).expect("source adopted");
     let Event::Opened { last, pending, .. } = disk.event(&mut store) else { panic!("source opened") };
     if pending {
@@ -163,6 +165,7 @@ pub fn a_live_change_and_uncertain_write_reach_the_opening_without_network(
     let key = seed(&mut disk, &inputs);
     let before = golden::files::image_root(&mut disk.machine, 0);
     let mut store = service::store::Store::for_limits(&inputs, &models).expect("rehearsal store limits");
+    store.prepared_schemas(prepared_schemas());
     store.build_name("test-build");
     let began = disk.sim.now();
     open_copy(&mut disk, &mut store);

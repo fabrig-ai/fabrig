@@ -29,7 +29,7 @@ indexes, summaries, and a few rows per task saying where its logs are.
   its turns log `2 × task + 1` (skein's `data/kv.md`, 6.1, which puts
   them in the store's `logs/`). A task number of 2^63 or more has no
   log, and a commit that would make one fails `Check(Capacity)`
-  (`README.md`, section 5).
+  (`commits.md`, section 1).
 - **Their extents** are skein-kv's rows under the log rule the component
   gives its store at every open, the prefix `00 09`: so `00 09 <log>`,
   eight bytes big-endian, holds that log's length. The component never
@@ -48,7 +48,7 @@ record LogAttempt { first: u64 }
 ```
 
 - **The census** names them `component.logs`, `component.histories`,
-  `component.turn-logs` and `component.log-attempts` (`README.md`, 6.3).
+  `component.turn-logs` and `component.log-attempts` (`growth.md`, 1.3).
 
 ## 2. What moves
 
@@ -73,7 +73,7 @@ key's first field after the family's tag:
   which are no task's and have a horizon of their own (`retention.md`,
   6.5); past funding periods (`tasks.closed-ledgers`), keyed by funder
   and read by spend pages; parties' updates, the summaries, retention's
-  rows and every index (`README.md`, 4.4); and the application's records,
+  rows and every index (`keys.md`, 1.4); and the application's records,
   temper's change records among them, which go with the full record by
   temper's own rules (temper's `protocol/store.md`).
 - **One function says it:** `keys::logged(key) -> Option<u64>`, the
@@ -83,7 +83,7 @@ key's first field after the family's tag:
 ## 3. Written before the commit
 
 - **A history record** is one commit's rows of one task: after a
-  commit's writes become operations (`README.md`, section 5, one per
+  commit's writes become operations (`commits.md`, section 1, one per
   key, its last write), its log-held keys are taken out, grouped by
   task, and each task's written as one record in key order:
 
@@ -98,7 +98,7 @@ key's first field after the family's tag:
   Big-endian; the value as the map would hold it, its head the binary's
   layout id (`layouts.md`, 4). A record holds at least one row, and a
   format past 1 is a record the component cannot read. Its golden bytes
-  are kept as the transcripts' framing's are (`README.md`, section 9).
+  are kept as the transcripts' framing's are (`testing.md`, section 1).
 - **Appended in the commit:** the record framed by skein-kv
   (`Store::frame`) and appended to the task's history log
   (`Op::Append`), placed at `log_end` (skein's `data/kv.md`, 6.2); the
@@ -196,8 +196,8 @@ task logs this read has fetched. The jobs' pages read the map alone
 
 ## 5. Turns
 
-- **New turns go to the turns log:** a turn's save (`README.md`,
-  section 5) of a task with no transcript place (`00 01 <task>`,
+- **New turns go to the turns log:** a turn's save (`commits.md`,
+  section 1) of a task with no transcript place (`00 01 <task>`,
   `transcripts.md`, 1) is a record of its turns log, the record a
   transcript frame's body (`transcripts.md`, 1), appended in its
   commit; `TurnLog { window }` moves to it where it opens a window, and
@@ -246,7 +246,7 @@ section 2):
   `A` up to `A`'s extent, since `A + 1` writes it only past that (skein's
   `data/kv.md`, 6.4).
 - **A rehearsal copies them** file by file, as it copies the maps
-  (`opening.md`, 5).
+  (`opening-rehearsal.md`, 1).
 - **A generation dropped or a stray removed** takes its `logs/` with
   it, directory by directory; a file another generation names stays.
 
@@ -268,7 +268,7 @@ as it is read (temper's `draft/store-shape.md`, section 3):
 - **Turns** (`retention.md`, 6.1): `Write::DropTranscript` drops the
   turns log and any transcript file (5).
 - **The full record** (`retention.md`, 6.2), **a deleted project's
-  task** (`README.md`, 6.1) and **a forgotten task's remains**
+  task** (`growth.md`, 1.1) and **a forgotten task's remains**
   (`retention.md`, 6.4): the walk reads and erases a task's rows a page
   at a time as it always has, through the view, each erase of a
   log-held row an erase row of its log (3), the activity lines naming

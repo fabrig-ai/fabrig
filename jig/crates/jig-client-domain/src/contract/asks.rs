@@ -1,4 +1,4 @@
-//! Each visible act is one ask; client/domain/contract/requests.md, 2, and client/domain/contract/README.md, 3.
+//! Each visible act is one ask; client/domain/contract/requests.md, 2, and client/domain/contract/answers.md, 1.
 //! Requests carry jig facts alone and their outcomes are durable.
 //! Adoption uses the connector's application request (client/domain/pages.md, 6.5).
 use super::{Decision, HeldRole, NoteScope, ProposalKey, Refusal, Revision, Text};
@@ -247,7 +247,7 @@ pub enum Ask {
         project: u32,
         grace: Option<Duration>,
     },
-    /// Make a project in the deployment scope (client/domain/contract/README.md, 5.5).
+    /// Make a project in the deployment scope (client/domain/contract/watches.md, 1.5).
     MakeProject {
         name: Text,
         policy: u32,

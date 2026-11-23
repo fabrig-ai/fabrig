@@ -1,5 +1,5 @@
 //! Live host operations become named channel records (protocol/channel.md,
-//! sections 3–5; domain/run.md, sections 5 and 8).
+//! sections 3–5; domain/run.md, section 5, and domain/run-delivery.md, section 1).
 //!
 //! This module keeps no state. The component retains each live relay until its
 //! one host answer; these encoders know neither host policy nor callbacks.

@@ -70,7 +70,7 @@ still open is listed in `README.md`, section 10.
   What a host loses before it was committed (its turns, when a worker
   dies) is done again by the task's next attempt, which starts from the
   last committed turn and is told of the calls committed after it
-  (../engine/executors.md, 1 and 3).
+  (../engine/executors.md, 1, and ../engine/executors-tools.md, 1).
 
 ## 2. The contract
 
@@ -94,7 +94,7 @@ Between the core's fleet and a host, whatever its shape:
   - to a worker, the **program sources** it may be given, by name, after
     its hello and as one is added or removed; a holder's **check** of a
     program source's login; and a **sign-out** of one, which the worker
-    runs (../accounts.md, 3.4 and section 5);
+    runs (../accounts-sources.md, 1, and ../accounts.md, 5);
   - **acknowledgements** of turns and of the answer, once committed;
   - at most one **cancel.**
 - **Up, from the host:**
@@ -130,13 +130,13 @@ Between the core's fleet and a host, whatever its shape:
     part), and how its save went;
   - **notices,** relayed from the run's agent: a source *limited*,
     with how long until its limit resets where its LLM provider gave
-    that, or *refused*, and a generation *unauthorized* (../accounts.md,
-    3.5; smith's `protocol/channel.md`, section 4);
+    that, or *refused*, and a generation *unauthorized* (../accounts-sources.md,
+    2; smith's `protocol/channel.md`, section 4);
   - **logins,** from a worker, after its hello: the state of each
     program source's login on it, as the check of the sources the engine
     sent answered (the fleet places no run on the worker until the
     first), then each one whose check answers otherwise than before, and
-    a sign-out's outcome (../accounts.md, 3.4; `../../protocol/channel/README.md`,
+    a sign-out's outcome (../accounts-sources.md, 1; `../../protocol/channel/README.md`,
     4.3);
   - **refusals:** busy, a duplicate among them (`hub.md`, 1), or invalid.
 - **Fenced.** Every message names the run's task and attempt; the core
@@ -236,7 +236,7 @@ keeps nothing durable (skein/docs/foundation/programming-model.md, 7.1).
   the backlog. Only a real sink's credit stops their output.
 - **Due source checks** are a separate new event, held at the watermark;
   the timer continues to advance admitted work without starting them
-  (../accounts.md, 3.4).
+  (../accounts-sources.md, 1).
 - **A link's records follow the assignment they name.** `must_follow`
   prevents a link record naming a held assignment's run and attempt
   from passing it; a held process record also fences later records of
@@ -302,22 +302,22 @@ its root chooses otherwise:
 - **the programs directory** is the worker's, private to its user, with
   one configuration directory per program source, named by the source,
   holding the program's own login and never a value of jig's
-  (../accounts.md, 3.4). The worker's host half checks each login, at the
+  (../accounts-sources.md, 1). The worker's host half checks each login, at the
   engine's asking or its own interval, runs a sign-out, and reports each
-  answer (section 2). A run's process tree, and a program's own tools,
+  answer (`README.md`, section 2). A run's process tree, and a program's own tools,
   run as the worker's user and can read every login there, so until a
   run's tree is contained from the programs directory a worker that
   keeps a person's logins takes only runs that person's accounts pay
-  for (../engine/fleet.md; ../accounts.md, 3.4).
+  for (../engine/fleet.md; ../accounts-sources.md, 1).
 
-A read of an account's list (../accounts.md, 3.7) takes the same queue: the engine
+A read of an account's list (../accounts-lists.md, 1) takes the same queue: the engine
 names an endpoint and a grant, and the root's agent capability has smith's host
 half run the agent's one request (smith's `protocol/host.md`, section 2). It
 takes no slot and no workspace, and its answer, the rows or a typed failure, goes
 up with the read's number. The hub hears the grant's name alone; its value comes
 from the worker's table, as a run's does. A link lost cancels it and sends nothing.
 
-A read of a program source's usage (../accounts.md, 3.7) is one of the source
+A read of a program source's usage (../accounts-lists.md, 1) is one of the source
 machine's commands, queued with a list's read and serialized as every command is:
 the engine names the source, and the protocol layer has smith's host half inspect
 its two levels and run the program's usage command, with the check's deadline
@@ -405,7 +405,7 @@ jig's workspace vocabulary with the hub, through the root:
   naming the resource;
 - **deliver** what the run hands over, from its `deliver` or its
   `finish` (section 7), checked, with its title and body, or from its
-  `save`, unchecked, with neither (smith's `domain/run.md`, 8.5), where a
+  `save`, unchecked, with neither (smith's `domain/run-delivery.md`, 1.5), where a
   checked delivery goes: answered with the delivery's outcome in smith's
   terms, and, for the engine, what it left on the resources. What marks
   an unchecked one is the application's;
@@ -473,7 +473,7 @@ jig's workspace vocabulary with the hub, through the root:
   then (../tasks/messages.md, 2 and 3). Nothing a host does drops a message.
 - **Delivery** is the workspace's: smith's `deliver` is served by the hub
   through the application's workspace (section 6), which makes it. Its
-  outcome is smith's (smith's `domain/run.md`, 8.2): delivered, nothing,
+  outcome is smith's (smith's `domain/run-delivery.md`, 1.2): delivered, nothing,
   stale, refused, failed. A `save` is served the same way, as an
   unchecked delivery with no title or body, one delivery in flight at a
   time with the run's others; its answer is a delivery's, which the

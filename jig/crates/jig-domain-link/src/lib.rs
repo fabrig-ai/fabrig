@@ -73,7 +73,7 @@ pub struct KeptPart {
     pub body: Box<[u8]>,
 }
 
-/// A configuration-directory name (accounts.md, 3.4), never an account number.
+/// A configuration-directory name (domain/accounts-sources.md, 1), never an account number.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub struct SourceName(skein_lib::Name<32>);
 
@@ -496,7 +496,7 @@ pub enum AskAnswer {
     Refused,
 }
 
-/// A program's usage window (jig/docs/design/domain/accounts.md, 3.7).
+/// A program's usage window (jig/docs/design/domain/accounts-lists.md, 1).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct FactWindow {
     pub length: Option<Duration>,

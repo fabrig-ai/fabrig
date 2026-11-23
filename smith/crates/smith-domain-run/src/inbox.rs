@@ -1,6 +1,6 @@
 //! The admitted message queue, one outstanding offer and the read fence.
 //! The run calls admission, offering, told and unread; this module knows no
-//! session or provider state (smith/docs/design/domain/run.md, section 6; smith/docs/design/protocol/limits.md, 3.9).
+//! session or provider state (smith/docs/design/domain/run-messages.md, section 1; smith/docs/design/protocol/limits-derivation.md, 1.9).
 
 use alloc::boxed::Box;
 

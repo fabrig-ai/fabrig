@@ -18,7 +18,12 @@ pub(super) const SETS: OwnerSets =
     OwnerSets { sets: &[store::SKEIN_SET, store::SMITH_SET, jig_protocol_accounts::JIG_SET, crate::OWNER_SET] };
 pub(super) fn component(disk: &Disk, sets: OwnerSets) -> Store {
     let app = crate::application(&super::fixtures::LIMITS, disk.limits().core.tasks.spec_bytes).unwrap();
-    let mut store = Store::on_directory(&disk.limits(), app, &[], disk.seeded());
+    let mut store = Store::on_directory(
+        &jig_protocol_store::check(&disk.limits()).expect("job fixture limits"),
+        app,
+        &[],
+        disk.seeded(),
+    );
     store.owner_sets(sets);
     store
 }

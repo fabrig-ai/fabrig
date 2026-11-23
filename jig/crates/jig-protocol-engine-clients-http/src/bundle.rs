@@ -1,4 +1,4 @@
-//! Bundle helpers (jig/docs/design/protocol/service.md, 11.4; skein/docs/design/ui/web/bundle.md, 4).
+//! Bundle helpers (jig/docs/design/protocol/service-parts.md, 1.4; skein/docs/design/ui/web/bundle.md, 4).
 use crate::server::{Routed, Server};
 use alloc::boxed::Box;
 use skein_http::{Header, server as http};

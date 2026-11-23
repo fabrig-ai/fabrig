@@ -1,4 +1,4 @@
-//! Retained configured host identities (accounts.md, 3.4).
+//! Retained configured host identities (domain/accounts-sources.md, 1).
 use super::w;
 use jig_domain_people as p;
 use skein_lib::List;

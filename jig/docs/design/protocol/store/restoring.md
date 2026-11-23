@@ -224,7 +224,7 @@ it. Then the source's files, in the record's order, on the store's
   source manifest's `after`, `counts` empty, `store` the record's
   `store`, `secrets` its `secrets`, `written` env.wall as staging ends.
   With no `from`, `--back` refuses the restored generation
-  `NoPrevious` (`opening.md`, 5). Going back assumes the transcripts
+  `NoPrevious` (`opening-rehearsal.md`, 1). Going back assumes the transcripts
   are as the previous generation left them, and a restore has changed
   them.
 - **Synced** deepest first: `store/logs/` and each directory in it,
@@ -273,7 +273,7 @@ taken again from what stands after a cut (5):
 Then the locks are let go (4.1), and the request is answered
 `Restored`. The next start opens N + 1 as any start opens a
 generation. A build at later levels upgrades it into N + 2, and
-`--back` may then return to N + 1 (`opening.md`, 2 and 5). Generation
+`--back` may then return to N + 1 (`opening.md`, 2, and `opening-rehearsal.md`, 1). Generation
 N stays as N + 1's previous by number until an upgrade drops it
 (`opening.md`, 2, step 1). Nothing names it again: `--back` follows a
 manifest's `from`, and N + 1's names none.
@@ -325,7 +325,7 @@ name the intent's generation (g).
   generation's is (a transcript's depth allowed), then the top synced.
   A staged generation that no intent named is a stray generation
   already.
-- **A rehearsal** (`opening.md`, 5) writes nothing in the directory it
+- **A rehearsal** (`opening-rehearsal.md`, 1) writes nothing in the directory it
   is given, so it can't roll forward. A directory holding `restore`
   refuses `Generations::Unfinished` before it copies anything:
   "`<deployment>` holds a restore that has not finished, and this
@@ -355,7 +355,7 @@ nothing else:
 | step 4 made, during step 5 | no intent; part of `transcripts.aside/` | removes the rest as a stray; opens N + 1 |
 
 - **A cut per write, sync, link and rename,** each run from its own
-  start in the store's world (`README.md`, section 9), not their
+  start in the store's world (`testing.md`, section 1), not their
   product, as `opening.md`, 4 runs its own.
 - **A failed file request** at any step is answered as 4.8 says, and
   the next open finds what the cut at that step leaves.

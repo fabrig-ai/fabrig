@@ -1,4 +1,4 @@
-//! Built-in stream correlation (protocol/programs.md 5.4–5.5).
+//! Built-in stream correlation (protocol/programs-claude-code.md, 1.4–1.5).
 //! Uses the bounded call ledger: a result waits for its call's Completed owner.
 
 use super::Complete;

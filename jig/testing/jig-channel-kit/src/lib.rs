@@ -1,4 +1,4 @@
-//! Joint workers channel on the simulated kernel (protocol/channel/README.md, 11).
+//! Joint workers channel on the simulated kernel (protocol/channel/testing.md, 1).
 pub mod fixtures;
 mod processes;
 pub mod referee;

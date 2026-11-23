@@ -1,5 +1,5 @@
 //! Check cancellation crosses the run and machine boundaries once.
-//! Contract: smith/docs/design/domain/run.md, sections 8.1 and 9.
+//! Contract: smith/docs/design/domain/run-delivery.md, section 1.1, and smith/docs/design/domain/run.md, section 9.
 
 pub(crate) mod held;
 

@@ -1,4 +1,4 @@
-//! Hosted program starts beside the shipped agent and relay (smith/docs/design/protocol/programs.md, 3, 5).
+//! Hosted program starts beside the shipped agent and relay (smith/docs/design/protocol/programs.md, 3, smith/docs/design/protocol/programs-claude-code.md, 1).
 //! The shared channel parent speaks only wire records; fixture files belong to
 //! the simulated machine, never a person's home or configuration directory.
 

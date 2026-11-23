@@ -17,7 +17,7 @@ are limits.md's, and its event vocabulary events.md's.
 ## 1. In one page
 
 Live and Start-carried messages preserve `finish_requested` through decoding
-and pre-admission buffering to the run entrance (domain/run.md, section 6).
+and pre-admission buffering to the run entrance (../domain/run-messages.md, section 1).
 
 - **The machine component translates the tools' and the checks'
   operations** into skein's io (domain/tools.md, section 6):
@@ -67,7 +67,7 @@ and pre-admission buffering to the run entrance (domain/run.md, section 6).
 | list a tree | the entries beneath a directory, to a depth, leaving out what the ignore files and git exclude, within their bound |
 | search | `rg` in a process group of its own: no configuration, an empty environment, the pattern and glob after `--` |
 | run a command | `sh -c` in a process group of its own, in the working directory, with the configured environment and the domain's deadline, its output's head and tail kept; asked with a yield, answered at the yield with its output so far while it goes on as a job |
-| hold a job | its group kept running under its command's deadline, and what it writes kept as the head and the tail of the bytes not yet read, with the count dropped between them, within the job's kept output (limits.md, 3.5) |
+| hold a job | its group kept running under its command's deadline, and what it writes kept as the head and the tail of the bytes not yet read, with the count dropped between them, within the job's kept output (limits-derivation.md, 1.5) |
 | read a job | the job's kept output, as much of its head and its tail as the domain asks for, the rest counted as dropped, and the read empties it; then its end, once it has ended. It answers at the job's end, or when the wait the domain asks for ends |
 | stop a job | its group stopped in the three steps below, then its end answered |
 | run the checks | the convention's executable, in its directory, the same way |
@@ -118,7 +118,7 @@ and pre-admission buffering to the run entrance (domain/run.md, section 6).
   alone, io's close of the job's child, which kills what is left of the
   group and reaps it within one `close`, so jobs add nothing to the
   teardown bound (limits.md, section 7).
-- **Its limits are derived from the tools'** (limits.md, section 3.5),
+- **Its limits are derived from the tools'** (limits-derivation.md, section 1.5),
   so a tool's limit never meets a smaller one here: its processes hold
   `jobs` for each of `conversations` beside the listings, searches,
   commands and checks the run's calls may have running at once.
@@ -162,8 +162,8 @@ spawns the agent, which `smith-agent-shell` reads whole and strictly; the
 product's own settings are `../shell/README.md`'s.
 
 - **Endpoints:** at least one. Every run needs main's LLM, and the limits
-  are derived from the endpoints' limits and their smallest room (limits.md,
-  3.9), so a configuration with no endpoint is refused as it is read, naming
+  are derived from the endpoints' limits and their smallest room (limits-derivation.md,
+  1.9), so a configuration with no endpoint is refused as it is read, naming
   the field. It is never given neutral bounds, since that would invent a
   declaration. Each endpoint has:
   - its name, which charters and transcripts use;
@@ -205,17 +205,17 @@ product's own settings are `../shell/README.md`'s.
   whose endpoint names a program it gives no path for is refused,
   naming the field. `programs.claude_code.keep_program_prompt` is a
   boolean, `false` when omitted: `true` keeps Claude Code's own prompt
-  and appends the charter instead of replacing it (programs.md, 5.1).
+  and appends the charter instead of replacing it (programs-claude-code.md, 1.1).
   This belongs to the program declaration with its other launch choices,
-  rather than to a model. The agent runs a program as programs.md,
-  section 5 says, in the commands' environment as programs.md, 4.2
+  rather than to a model. The agent runs a program as programs-claude-code.md,
+  section 1 says, in the commands' environment as programs.md, 4.2
   changes it.
 - **A profile:** its name, and the deployment's declared quantities,
   `charter_models` among them, and policy values (limits.md, sections 2.2
   and 2.3). A profile is a named
   bundle, kept as step code in the service crate, which the configuration
   names and may override value by value. Every byte limit is derived
-  from it (limits.md, section 3); none is configuration. Tests may
+  from it (limits-derivation.md, section 1); none is configuration. Tests may
   override a derived limit; nothing else may.
 - **The commands' environment,** whole, and the graces of a group's three
   steps.
@@ -240,7 +240,7 @@ spawns one (host.md, section 5.2).
   output in an uncapped queue (domain/run.md, section 10;
   programming-model.md, section 3). The next domain entrance waits until
   the previous entrance's requests and facts have been dispatched
-  (limits.md, 3.8).
+  (limits-derivation.md, 1.8).
 - **Two sinks, each with its own policy and its own count of loss:**
   - **the channel** projects facts, content-free, only while the run is
     admitted and has not answered, and only with room to spare. The rest

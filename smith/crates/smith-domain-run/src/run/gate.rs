@@ -164,7 +164,7 @@ pub(super) fn begin_wind_down(run: &mut Run, ready: &mut crate::wind_down::Ready
     }
 }
 
-/// The completion's spend bound, supplied by the root (smith/docs/design/protocol/programs.md 5.7).
+/// The completion's spend bound, supplied by the root (smith/docs/design/protocol/programs-claude-code.md 1.7).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Most {
     /// The direct backend's priced worst case, released at settlement.

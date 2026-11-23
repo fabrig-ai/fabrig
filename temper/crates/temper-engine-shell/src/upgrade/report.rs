@@ -138,7 +138,7 @@ fn event_refusal(text: &mut String, binary: &str, event: &Event, mut passed: boo
             writeln!(text, "{binary} upgrade: scratch cleanup failed; check the cache directory")
                 .expect("string write");
         }
-        // Upgrade progress does not consume the census (jig protocol/store/README.md, 6.3).
+        // Upgrade progress does not consume the census (jig jig/docs/design/protocol/store/growth.md, 1.3).
         Event::Rehearsing { .. }
         | Event::Decoded { .. }
         | Event::Ran { .. }

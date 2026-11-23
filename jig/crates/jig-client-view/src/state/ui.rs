@@ -1,7 +1,7 @@
 //! The client spine: frame facts, the shared link, page generation and watches.
 //! No platform or application value is known. Each entry handles one owned event;
 //! fire expires one timer, and reclaim frees entities whose obligations ended.
-//! Nothing is accepted before Start. See client/domain/client/README.md, 3 and 4 and client/domain/client/watches.md.
+//! Nothing is accepted before Start. See client/domain/client/README.md, 3, and client/domain/client/vocabulary.md, 1 and client/domain/client/watches.md.
 //!
 //! | Client | Event | Next | Emits |
 //! |---|---|---|---|

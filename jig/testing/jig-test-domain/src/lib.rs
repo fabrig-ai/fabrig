@@ -53,7 +53,7 @@ impl Record {
 /// One mutation in an atomic decision.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Write {
-    /// Drop a task transcript whole (jig/docs/design/domain/people/acts.md, 2; jig/docs/design/protocol/store/transcripts.md, 5, jig/docs/design/protocol/store/README.md, 6.1).
+    /// Drop a task transcript whole (jig/docs/design/domain/people/acts.md, 2; jig/docs/design/protocol/store/transcripts.md, 5, jig/docs/design/protocol/store/growth.md, 1.1).
     DropTranscript { task: u64 },
     /// Drop a task history log whole (jig/docs/design/protocol/store/logs.md, 3 and 9).
     DropHistory { task: u64 },
@@ -126,11 +126,11 @@ pub use jig_domain_hub_link::Assignment;
 #[derive(Debug)]
 pub enum Request {
     Workers(Box<[core::settings::WorkerSetting]>),
-    /// The store's names, replaced before the catalogue decision commits (domain/engine/settings.md, 11).
+    /// The store's names, replaced before the catalogue decision commits (domain/engine/settings-catalogue.md, 1).
     StoreCatalogue {
         names: Box<[core::settings::ModelName]>,
     },
-    /// The clients' catalogue, after the store's replacement (domain/engine/settings.md, 11).
+    /// The clients' catalogue, after the store's replacement (domain/engine/settings-catalogue.md, 1).
     ClientsCatalogue {
         models: Box<[core::settings::CatalogueModel]>,
     },
@@ -474,7 +474,7 @@ impl Domain {
     }
 
     /// Stop this start at the switch, before its mark or any external effects
-    /// (`jig/docs/design/domain/testing.md`, 7).
+    /// (`jig/docs/design/domain/testing-fakes.md`, 1).
     pub fn rehearse(&mut self) {
         self.rehearsing = true;
     }
@@ -1479,7 +1479,7 @@ pub fn initial_settings_current(current: &core::settings::Current) -> Box<[core:
 }
 
 /// A connector's stored value cannot fit this start's configuration
-/// (`jig/docs/design/domain/testing.md`, 7).
+/// (`jig/docs/design/domain/testing-fakes.md`, 1).
 fn refuse_settings_restore(domain: &mut Domain, kind: u32, scope: u32, number: u32) {
     let _action = domain.core.start_refuse(core::start::Failure::Application {
         kind,

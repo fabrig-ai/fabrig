@@ -1,6 +1,6 @@
 //! Offline checks keep no process state and never execute setup or graders.
 //! `check_tree` finds task manifests; `check_task` verifies prompts, frozen
-//! seeds and design guards, following ../../docs/design/benchmarks/README.md, sections 5.2, 6.1 and 13.
+//! seeds and design guards, following ../../docs/design/benchmarks/README.md, section 5.2, and ../../docs/design/benchmarks/agents.md, section 1.1, and ../../docs/design/benchmarks/README.md, section 13.
 
 mod events;
 mod seed;

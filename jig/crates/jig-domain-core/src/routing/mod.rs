@@ -1,5 +1,5 @@
 //! Child entry points and their requests in the core's vocabulary
-//! (`domain/engine/README.md`, sections 3 and 4). A root receives a whole child
+//! (`domain/engine/README.md`, section 3, and `domain/engine/vocabulary.md`, section 1). A root receives a whole child
 //! request batch and routes it within the same decision.
 
 #![expect(clippy::mod_module_files, reason = "the route split keeps dispatch in routing/mod.rs")]
@@ -65,7 +65,7 @@ use skein_lib::{Env, List, Queue, ReplyTo, Token};
 
 use crate::routing::run::turns::route_accepted_turn;
 
-/// Only a widening replaces the funder (jig/docs/design/domain/authority.md, 7).
+/// Only a widening replaces the funder (jig/docs/design/domain/authority-budgets.md, 1).
 pub(crate) fn amendment_funder(
     core: &Core,
     before: &tasks::Authority,

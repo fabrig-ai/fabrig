@@ -1,4 +1,4 @@
-//! The workers' host and temper's typed root handoff (jig/docs/design/protocol/service.md, 11.3).
+//! The workers' host and temper's typed root handoff (jig/docs/design/protocol/service-parts.md, 1.3).
 //! Worker figures and link timers: temper/docs/design/protocol/configuration/figures.md, 2,
 //! and temper/docs/design/protocol/configuration/limit-settings.md, 5.2.
 use crate::{FiguresRevision, assignment::Encoding, limit_settings::Resolved, settings::Forge, values::Values};

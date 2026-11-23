@@ -191,7 +191,7 @@ agents decide is the project's table.
 - **The client composes it,** from the need's reason, with no model, and
   the person proposes it as their own; an owner may apply it directly
   instead. It is never a procedure's proposal, which jig's
-  `domain/engine/settings.md`, 6 rules out. Ask temper writes one in words when
+  `domain/engine/settings-proposals.md`, 1 rules out. Ask temper writes one in words when
   the person asks for something else (`../domain/agent/ask-temper.md`, 2).
 - **An owner accepts it in place,** one press, and new questions follow it.
   The need in hand still waits for its answer: the rule changes what comes

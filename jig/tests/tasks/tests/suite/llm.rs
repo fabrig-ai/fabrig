@@ -1,6 +1,6 @@
 //! An agent task's LLM choice: kept with the task, moved by Amend, given to a delegate, and
-//! refused naming the model and why (domain/tasks/README.md, sections 3 and 4 and domain/tasks/changes.md; domain/authority.md,
-//! section 8.1).
+//! refused naming the model and why (domain/tasks/README.md, sections 3 and 4 and domain/tasks/changes.md; domain/authority-checks.md,
+//! section 1.1).
 use jig_domain_tasks::{
     self as tasks, Amendment, Authority, CharterModels, Domain, Event, Executor, LlmChoice, LlmFault, LlmLater,
     ModelEffort, Models, Party, PersonAddress, Problem, Refusal,

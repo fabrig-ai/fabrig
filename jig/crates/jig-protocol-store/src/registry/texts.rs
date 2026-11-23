@@ -1,7 +1,8 @@
-//! Each text parsed, layout computed and text's held texts found once in planning,
-//! then dropped when the plans are made (jig/docs/design/protocol/store/layouts.md, 7).
+//! Planning takes each text from the shell or parses it, computes each layout
+//! and finds each text's held texts once. It releases them when the plans are
+//! made (jig/docs/design/protocol/store/layouts.md, 7).
 use super::{Digest, Layouts, Text};
-use crate::{OpenRefusal, OwnerSets};
+use crate::{OpenRefusal, OwnerSets, upgrade::schemas::find};
 use alloc::boxed::Box;
 use skein_codec::schema::{self, DeclIx, FieldIx, Held, Schema, Shape, Type, TypeIx};
 use skein_lib::{List, Map};
@@ -15,6 +16,23 @@ pub(super) fn digest(bytes: &[u8]) -> Digest {
 pub(super) fn string(bytes: &[u8]) -> Option<Box<str>> {
     Some(Box::from(core::str::from_utf8(bytes).ok()?))
 }
+#[derive(Debug)]
+pub(super) enum Cached {
+    Parsed(Box<Schema>),
+    Prepared(&'static Schema),
+}
+impl Cached {
+    #[cfg_attr(not(test), expect(unused_variables, reason = "only the test parse tally needs the digest"))]
+    fn read(prepared: &'static [Schema], bytes: &[u8], digest: Digest) -> Option<Self> {
+        if let Some(schema) = find(prepared, bytes) {
+            return Some(Self::Prepared(schema));
+        }
+        #[cfg(test)]
+        super::counting::parsed(digest);
+        Some(Self::Parsed(Box::new(schema::parse(bytes).ok()?)))
+    }
+}
+
 type LayoutKey = (Digest, Box<[u8]>, Option<Box<[u8]>>, Box<[Digest]>);
 #[derive(Debug)]
 pub(super) struct Binary {
@@ -37,16 +55,16 @@ impl Binary {
                 if let Some(held) = layouts.texts.get_mut(&digest) {
                     held.current = true;
                 } else {
-                    #[cfg(test)]
-                    super::counting::parsed(digest);
-                    let Ok(parsed) = schema::parse(text.as_bytes()) else { return Err(refusal) };
+                    let Some(schema) = Cached::read(layouts.prepared_schemas, text.as_bytes(), digest) else {
+                        return Err(refusal);
+                    };
                     layouts
                         .texts
                         .insert(
                             digest,
                             Text {
                                 bytes: Box::from(text.as_bytes()),
-                                schema: Some(parsed),
+                                schema: Some(schema),
                                 stored: false,
                                 current: true,
                             },
@@ -74,7 +92,7 @@ impl Binary {
         for index in 0..=self.names.len() {
             let Some(digest) = pending.get(index) else { break };
             parse(layouts, *digest)?;
-            let schema = layouts.texts.get(digest)?.schema.as_ref()?;
+            let schema = layouts.texts.get(digest)?.schema()?;
             for decl in 0..schema.declarations() {
                 let Shape::Record { first, count, .. } = schema.declaration(DeclIx::new(decl)).shape else { continue };
                 for offset in 0..count {
@@ -96,7 +114,7 @@ impl Binary {
         let key = (text, Box::from(held.as_slice()));
         if !self.depths.contains_key(&key) {
             let Some(text) = layouts.texts.get(&text) else { return false };
-            let Some(schema) = text.schema.as_ref() else { return false };
+            let Some(schema) = text.schema() else { return false };
             let Some(held) = schemas(layouts, held, false) else { return false };
             let depths = super::depth::heights(schema, held.as_slice());
             self.depths.insert(key.clone(), depths).expect("uncapped depth proofs");
@@ -125,7 +143,7 @@ impl Binary {
         if let Some(digest) = self.layouts.get(&key) {
             return Some(*digest);
         }
-        let schema = layouts.texts.get(&text)?.schema.as_ref()?;
+        let schema = layouts.texts.get(&text)?.schema()?;
         let root = schema.root(root, variant)?;
         let held = schemas(layouts, held, false)?;
         #[cfg(test)]
@@ -165,9 +183,7 @@ pub(super) fn parse(layouts: &mut Layouts, digest: Digest) -> Option<()> {
         if self::digest(&text.bytes) != digest {
             return None;
         }
-        #[cfg(test)]
-        super::counting::parsed(digest);
-        text.schema = Some(schema::parse(&text.bytes).ok()?);
+        text.schema = Some(Cached::read(layouts.prepared_schemas, &text.bytes, digest)?);
     }
     Some(())
 }
@@ -189,6 +205,7 @@ pub(super) fn clear(layouts: &mut Layouts) {
 
 pub(super) fn clear_all(layouts: &mut Layouts) {
     clear_schemas(layouts, true);
+    layouts.prepared_schemas = &[];
 }
 
 fn clear_schemas(layouts: &mut Layouts, all: bool) {
@@ -210,7 +227,7 @@ pub(super) fn schemas<'a>(layouts: &'a Layouts, digests: &List<Digest>, stored: 
         if stored && !text.stored {
             return None;
         }
-        schemas.push(text.schema.as_ref()?).ok()?;
+        schemas.push(text.schema()?).ok()?;
     }
     Some(schemas)
 }

@@ -1,4 +1,4 @@
-//! temper's client crates carry `temper-client-` (jig's README.md, 15).
+//! temper's client crates carry `temper-client-` (jig's crate-names.md, 1).
 
 #[test]
 fn client_crates_carry_the_client_prefix() {

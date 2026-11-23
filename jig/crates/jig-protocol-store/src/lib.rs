@@ -63,14 +63,14 @@ use alloc::boxed::Box;
 use skein_lib::{Env, Queue, Time, Wall};
 
 /// The binary's level of each owner, `None` where its set records none
-/// (jig/docs/design/protocol/store/opening.md, 5, and jig/docs/design/protocol/store/records.md, 3).
+/// (jig/docs/design/protocol/store/opening-rehearsal.md, 1, and jig/docs/design/protocol/store/records.md, 3).
 #[must_use]
 pub fn levels(sets: &OwnerSets) -> codec::component::Levels {
     upgrade::admission::binary(sets)
 }
 
 mod startup_limits;
-pub use startup_limits::{InstallRefusal, runtime_limits};
+pub use startup_limits::{InstallRefusal, runtime_limits, runtime_limits_reusing};
 
 /// The store component's bounds (protocol/store/README.md, section 8).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -100,14 +100,33 @@ impl Limits {
     }
 }
 
-/// Stores made by the caller, kept across a world's crash (protocol/store/README.md, 9).
+/// An admitted store's limits and their generated family bounds (protocol/store/README.md, 8).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Checked {
+    limits: Limits,
+    codec: codec::View,
+}
+
+impl Checked {
+    #[must_use]
+    pub const fn limits(&self) -> &Limits {
+        &self.limits
+    }
+
+    #[must_use]
+    pub const fn codec(&self) -> &codec::View {
+        &self.codec
+    }
+}
+
+/// Stores made by the caller, kept across a world's crash (protocol/store/testing.md, 1).
 #[derive(Debug)]
 pub struct Stores {
     pub store: skein_kv::Store,
     pub secrets: skein_kv::Store,
 }
 
-/// The component's open and stopped states (protocol/store/README.md, 5 and protocol/store/opening.md).
+/// The component's open and stopped states (protocol/store/commits.md, 1 and protocol/store/opening.md).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Phase {
     Closed,
@@ -134,7 +153,7 @@ pub struct Store {
     directory: directory::Directory,
     secret_state: secrets::State,
     transcripts: transcripts::State,
-    /// The installation's identifier (protocol/store/README.md 4.4): drawn by the shell and
+    /// The installation's identifier (protocol/store/keys.md 1.4): drawn by the shell and
     /// kept by an empty store's first commit, or restored from the store.
     installation: [u8; 16],
     owner_sets: OwnerSets,
@@ -153,7 +172,7 @@ pub struct Store {
     restoring: Option<Box<restoring::State>>,
     checkpoint_open: Option<checkpoint_open::State>,
     named_checkpoints: Box<checkpoints::named::Named>,
-    /// Keep the census rule off service construction stacks (protocol/store/README.md, 6.3).
+    /// Keep the census rule off service construction stacks (protocol/store/growth.md, 1.3).
     census: Box<census::State>,
     view: Box<view::State>,
     checkpoint: Box<checkpoints::taking::Taking>,
@@ -257,14 +276,17 @@ impl Store {
         Ok(PatchPage { rows: found.into_boxed(), next: page.next })
     }
     /// A component over open stores; `models` are the configuration's, in its order.
+    /// Its codec bounds come from the checked limits without deriving them again.
     #[must_use]
     pub fn over(
-        limits: &Limits,
+        checked: &Checked,
         application: sizes::Application,
         models: &[jig_domain_core_vocabulary::Model],
         mut stores: Stores,
     ) -> Store {
-        let codec_limits = checked_codec(limits).expect("the store's limits are valid");
+        let limits = checked.limits();
+        stores.store.forget_reads();
+        stores.secrets.forget_reads();
         let census = Box::new(census::State::new());
         if stores.store.last() == 0 && stores.store.is_empty() {
             stores.store.count(census.rule);
@@ -278,7 +300,7 @@ impl Store {
             runtime_started: false,
             startup_setting: None,
             application,
-            codec_limits,
+            codec_limits: *checked.codec(),
             stock_core: None,
             read_failure: None,
             registry: Box::new(registry::Layouts::new()),
@@ -305,21 +327,29 @@ impl Store {
         }
     }
 
+    /// A directory component with its bounds already checked. Open and admission still run normally.
     #[must_use]
     pub fn on_directory(
-        limits: &Limits,
+        checked: &Checked,
         application: sizes::Application,
         models: &[jig_domain_core_vocabulary::Model],
         _seeded: Seeded,
     ) -> Store {
+        let limits = checked.limits();
         let stores =
             Stores { store: skein_kv::Store::new(&limits.store), secrets: skein_kv::Store::new(&limits.secrets) };
-        let mut store = Store::over(limits, application, models, stores);
+        let mut store = Store::over(checked, application, models, stores);
         store.directory.disk = true;
         store
     }
 
-    /// Today's models, before a commit that holds them (domain/engine/settings.md, 11).
+    /// The admitted bounds in force, including any pre-restore installation.
+    #[must_use]
+    pub fn checked(&self) -> Checked {
+        Checked { limits: self.limits, codec: self.codec_limits }
+    }
+
+    /// Today's models, before a commit that holds them (domain/engine/settings-catalogue.md, 1).
     pub fn catalogue(&mut self, names: Box<[jig_domain_core_vocabulary::settings::ModelName]>) {
         self.names = names;
     }
@@ -351,20 +381,20 @@ impl Store {
         self.build_name = name.get(..end).expect("character boundary");
     }
 
-    /// Supplies the owners' static families, jobs, levels and frames (protocol/store/opening.md 3).
+    /// Supplies the owners' static families, jobs, levels and frames (protocol/store/opening-owners.md 1).
     pub fn owner_sets(&mut self, sets: OwnerSets) {
         self.directory.checked = None;
         self.owner_sets = sets;
     }
 
-    /// Optional parsed binary texts for admission (protocol/store/opening.md, 3).
+    /// Optional parsed schemas for every step of an open that reads a text (protocol/store/opening-owners.md, 1).
     /// Only an exact text match is used; other texts are parsed by this open.
     pub fn prepared_schemas(&mut self, schemas: &'static [skein_codec::schema::Schema]) {
         self.directory.checked = None;
         self.prepared_schemas = schemas;
     }
 
-    /// Supplies the application's census names with its owner sets (protocol/store/README.md, 6.3).
+    /// Supplies the application's census names with its owner sets (protocol/store/growth.md, 1.3).
     pub fn keyspaces(&mut self, names: Keyspaces) {
         for (index, &(tag, name)) in names.families.iter().enumerate() {
             assert!(name.len() <= 48, "census name is at most 48 bytes");
@@ -442,24 +472,31 @@ impl Store {
     }
 }
 
-/// A bounded page read while a patch is stopped at a written site (protocol/store/opening.md, 3).
+/// A bounded page read while a patch is stopped at a written site (protocol/store/opening-owners.md, 1).
 #[derive(Debug)]
 pub struct PatchPage {
     pub rows: Box<[skein_kv::Row]>,
     pub next: Option<Cursor>,
 }
 
-/// Whether these limits are representable: every edge bound they size
-/// is finite and every capacity they derive fits (programming-model.md, 6.3).
+/// Keep the limits and codec view when every edge bound is finite and
+/// every derived capacity fits (programming-model.md, 6.3).
 #[must_use]
-pub fn valid(limits: &Limits) -> bool {
-    checked_codec(limits).is_some()
+pub fn check(limits: &Limits) -> Option<Checked> {
+    check_reusing(limits, None)
 }
 
-// Validate and retain one family mapping for both admission and the live store (protocol/store/README.md, 8).
-fn checked_codec(limits: &Limits) -> Option<codec::View> {
+/// Reuse a matching check only if it retained the full stock transcript bound.
+#[must_use]
+pub fn check_reusing(limits: &Limits, opening: Option<&Checked>) -> Option<Checked> {
+    if let Some(checked) = opening
+        && checked.limits() == limits
+        && checked.codec().core.turn_record_transcript == core_v6::CEILINGS.turn_record_transcript
+    {
+        return Some(*checked);
+    }
     let codec = limits.codec_view()?;
-    if valid_with_codec(limits, &codec) { Some(codec) } else { None }
+    if valid_with_codec(limits, &codec) { Some(Checked { limits: *limits, codec }) } else { None }
 }
 
 fn valid_with_codec(limits: &Limits, codec: &codec::View) -> bool {

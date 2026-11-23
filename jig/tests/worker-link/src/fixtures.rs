@@ -1,4 +1,4 @@
-//! Shared constants and per-reader copies (jig/docs/design/protocol/channel/README.md, 11).
+//! Shared constants and per-reader copies (jig/docs/design/protocol/channel/testing.md, 1).
 use jig_domain_link::{Bounds, EndpointBound, Form, Grant, Hello, Hosting, Operation, Phase, Scheme};
 use jig_protocol_worker_link::{Credential, Limits};
 use jig_protocol_worker_wire::Record;

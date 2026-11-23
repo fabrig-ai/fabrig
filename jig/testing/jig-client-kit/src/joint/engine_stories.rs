@@ -1,5 +1,5 @@
 //! Genuine engine acts feed the root; the person's corrections use the view
-//! (domain/engine/README.md, 9; client/domain/testing.md, 5).
+//! (domain/engine/world.md, 1; client/domain/testing.md, 5).
 use super::*;
 
 // Standard's note body fits in one DocumentText, and its goal words fit one specification

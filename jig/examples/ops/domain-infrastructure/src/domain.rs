@@ -1063,7 +1063,7 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
     crate::client_marks::collect(domain, env, out);
 }
 
-// connectors.md 6.2: the connector top arms the procedure's genuine time
+// domain/connectors-procedures.md 1.2: the connector top arms the procedure's genuine time
 // condition. Readiness comes from the supplied fact; deadlines are inclusive
 // in decide, so a missing/late fact stalls in the following whole second.
 fn provision_deadline(domain: &Domain, state: &ProcedureState) -> Option<u64> {

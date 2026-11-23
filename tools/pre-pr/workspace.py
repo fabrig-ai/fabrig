@@ -93,7 +93,7 @@ def target_filter(targets):
 
 
 def rust_commands(groups, prerequisites, directory, runner='tools/tiers/one-process'):
-    """Helper builds, a check of crates without tests, then every group's tests in one run.
+    """Helper builds, a check of crates without tests, then every group's tests in one run a profile.
 
     One run builds the selection in parallel and runs its binaries side by side, where a run per
     group of identical target flags paid a build, a listing and a serial pass each (11-23: 47 groups).
@@ -116,5 +116,8 @@ def rust_commands(groups, prerequisites, directory, runner='tools/tiers/one-proc
     boundary = workspace_filter(names)
     if boundary:
         expression += ' & ' + boundary[1].removeprefix('default() & ')
-    yield [runner, '--out', str(directory / '0'), '--fail-fast', 'default', '--offline', '--locked',
-           '--no-tests=warn', *[arg for name in names for arg in ('-p', name)], '-E', expression]
+    # Then the same packages' fuzzy tests, which the gate judges as their own profile: default() is each
+    # profile's own filter, so one expression selects both.
+    for step, profile in enumerate(('default', 'fuzzy')):
+        yield [runner, '--out', str(directory / str(step)), '--fail-fast', profile, '--offline', '--locked',
+               '--no-tests=warn', *[arg for name in names for arg in ('-p', name)], '-E', expression]

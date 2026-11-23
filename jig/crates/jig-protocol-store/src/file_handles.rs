@@ -1,4 +1,4 @@
-//! Handles and single-terminal asks owned by an open (protocol/store/opening.md, 5).
+//! Handles and single-terminal asks owned by an open (protocol/store/opening-rehearsal.md, 1).
 use crate::{Below, Io, host::Lane};
 use skein_io::file;
 use skein_lib::{List, Token};

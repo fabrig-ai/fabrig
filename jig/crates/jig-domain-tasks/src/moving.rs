@@ -1,5 +1,5 @@
 //! Person adoption of a live task, with one reservation transfer and requester-tree rewrite
-//! (domain/tasks/changes.md; domain/authority.md, section 7). Root authenticates the
+//! (domain/tasks/changes.md; domain/authority-budgets.md, section 1). Root authenticates the
 //! adopter and policy rights; this child checks every local row before changing any of them.
 #![cfg_attr(
     not(target_arch = "wasm32"),

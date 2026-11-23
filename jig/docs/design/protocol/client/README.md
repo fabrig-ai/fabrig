@@ -11,8 +11,18 @@ built-ins or by the application's sign-in and a `Mint`; the small
 store's encoding; an application's documents and requests on the same
 messages; the shells; and jig's default HTTP mapping, an option of
 jig's (`default-http.md`). Its two sides are a component of the engine's
-protocol layer and a part of `jig-client` (`../README.md`, section 5). What
+protocol layer and a part of `jig-client` (`../components.md`, section 1). What
 is still open is listed in `README.md`, section 12.
+
+- [`wire.md`](wire.md): jig's messages and their framing.
+- [`versions.md`](versions.md): versions of the client's wire and its records.
+- [`small-store.md`](small-store.md): the small store's keys and encoding.
+- [`sign-in.md`](sign-in.md): sign-in flows and credentials.
+- [`openid.md`](openid.md): sign-in with OpenID.
+- [`public-reads.md`](public-reads.md): reads that do not require a sign-in.
+- [`default-http.md`](default-http.md): the default HTTP mapping.
+- [`shells.md`](shells.md): the native and browser shells.
+- [`testing.md`](testing.md): the client's protocol tests and worlds.
 
 ## 1. In one page
 
@@ -74,15 +84,15 @@ is still open is listed in `README.md`, section 12.
   ; `default-http.md`, 5).
 - **Versions per owner:** the ranges served in the hello, and a version
   not served answered so, typed, naming the owner and the ranges, in an
-  envelope every version reads (section 6).
+  envelope every version reads (`versions.md`, section 1).
 - **The small store is the client's records,** the request table's and
   its own, per owner, versioned, each kept request's stored before it
   leaves. A top-level `Seen` stays in memory, and a request carrying a
   value is sent once and never stored (section 3). The application keeps
-  its own (section 7).
+  its own (`small-store.md`, section 1).
 - **Shells are the application's.** jig ships a native shell,
   `jig-client-shell-native`, and its browser parts,
-  `jig-client-shell-web` (section 9).
+  `jig-client-shell-web` (`shells.md`, section 1).
 - **On one person's machine** (`../README.md`, section 4) the client reaches
   the engine on a loopback address, in plaintext, and the person signs
   in by a link the application's startup prints at start (`sign-in.md`).
@@ -117,7 +127,7 @@ the shell: fetch, skein's HTTP client, a socket            skein's HTTP server, 
   decoded, turns decoded by `jig-protocol-transcript`, and the
   translation between the wire's records and `jig-client`'s vocabulary.
   It is step code, built for the host and for wasm32
-  (`../../README.md`, section 10).
+  (`../../client-stack.md`, section 1).
 - **`jig-client-protocol-wire`** holds jig's records, for both ends
   (`wire.md`, section 1).
 - **The transport** is the application's: what carries a message's bytes
@@ -127,7 +137,7 @@ the shell: fetch, skein's HTTP client, a socket            skein's HTTP server, 
   and the worlds.
 - **The shell** is the platform's: its HTTP stack or socket, its
   storage, its clock and its entropy, around the application's loop
-  (section 9).
+  (`shells.md`, section 1).
 
 ## 3. Keyed requests
 
@@ -214,7 +224,7 @@ recipient.
 - **One exchange per read,** or one member of a batch (`wire.md`, section 2),
   answered once: the document, a page with its
   cursors, or why there is none (unknown, busy, signed out, version not
-  served) (`../../client/domain/contract/README.md`, section 4). A page's cursor
+  served) (`../../client/domain/contract/reads.md`, section 1). A page's cursor
   is the engine's, opaque bytes the client gives back. Inside they are a
   record of the family `jig-engine-cursor`
   (`jig/crates/jig-protocol-engine-clients/schema/cursor-v2.schema`),
@@ -225,7 +235,7 @@ recipient.
   in the domain's `Page` forms: jig's `ReadNone::SignedOut` or
   a family's `None`, once each, on sign-out and unconditionally on
   successful sign-in, before the first `me` too
-  (`../../client/domain/client/README.md`, sections 6 and 9). The link erases
+  (`../../client/domain/client/README.md`, section 6, and `../../client/domain/client/sign-in.md`, section 1). The link erases
   old exchange names; the domain retains pending token and optional
   family and fences late completions with its token match. The
   boundary needs no link output, public `Readout` variant or wire
@@ -233,16 +243,16 @@ recipient.
 - **A task query's page** carries its two groups, live then ended, each
   with its cursor, and says whether the ended group was cut by a filter
   beyond its index's prefix, or has none for the query's keys
-  (`../../client/domain/contract/README.md`, 4.1).
+  (`../../client/domain/contract/reads.md`, 1.1).
 - **An application's read** names its scope and its window, and its
   connector's read, in the application's wire, and is answered with the
   application's document, or unknown, or not allowed.
 - **A turn read** (`turn{n, attempt, turn}`) is answered with the
   turn's bytes, or its size where the turn alone passes the read's byte
   bound, or gone past its transcript's horizon, or why there is none, as
-  above (`../../client/domain/contract/README.md`, section 4; `../store/transcripts.md`, 3).
+  above (`../../client/domain/contract/reads.md`, section 1; `../store/transcripts.md`, 3).
 - **Held until durable** on the engine's side, as every read's answer is
-  (`../../domain/engine/README.md`, 5.2); the exchange waits for it.
+  (`../../domain/engine/decisions.md`, 1.2); the exchange waits for it.
 
 ## 5. Watches
 
@@ -253,12 +263,12 @@ recipient.
   the first delivery follows on the stream. A subject an application's
   connector judges is admitted at the end of the step that takes it, and
   the connector's refusal, if it comes later, ends the watch with its
-  reason (`../../client/domain/contract/README.md`, 5.2). A subject of the party's
+  reason (`../../client/domain/contract/watches.md`, 1.2). A subject of the party's
   own (`me`, their inbox, an application's subject in the party's own
   scope) names no party, on the wire or in the core's events: the
   protocol layer hands the core the sign-in's number, and the core names
   the subject's party from it, as it does a read's, from the sign-ins its
-  people child keeps (`../../domain/engine/README.md`, 5.4). The protocol layer
+  people child keeps (`../../domain/engine/decisions.md`, 1.4). The protocol layer
   never keeps a sign-in's party, which a restart would lose.
 - **A delivery** is one streamed message: the watch's name, and the
   document, whole, in its owner's wire. The component hands it to the
@@ -268,7 +278,7 @@ recipient.
   streamed to that client, and the views coalesce what changes
   meanwhile. A client is never told it missed anything.
 - **Ending:** a streamed message naming the watch and why
-  (`../../client/domain/contract/README.md`, 5.2); or closing it by an exchange,
+  (`../../client/domain/contract/watches.md`, 1.2); or closing it by an exchange,
   answered once the engine has ended it. A stream that ends ends its
   watches. Once its connection is closed, the component sends each
   watch's unwatch and outstanding delivery acknowledgements, then drops
@@ -305,7 +315,7 @@ recipient.
   whole.
 - **A run's text** is a watch of the run: each `RunText` delivery carries
   the turn's name, text after the client's offset, and its end offset
-  (`../../client/domain/contract/README.md`, 5.3). `writing` carries the current call
+  (`../../client/domain/contract/watches.md`, 1.3). `writing` carries the current call
   being written whole: provider id, tool, input suffix, byte offsets and
   `cut`. `call` remains the call being made. The client keeps text and
   replaces `writing` whole on an accepted delivery. A new turn or retry
@@ -314,191 +324,15 @@ recipient.
   last complete UTF-8 character; an incomplete final character waits for
   the next piece, and invalid UTF-8 omits `writing`. These deliveries leave
   without a commit, marked provisional. Reasoning has no client surface.
-  Only conversations are asked for text and input (`../channel/README.md`, 5.4).
-
+  Only conversations are asked for text and input (`../channel/owners.md`, 1.4).
 
 ## 6. Versions
 
-- **Per owner:** jig's wire and each application's carry their own
-  version; every message names its owner and the version of its record,
-  and a streamed message's record is in the version its watch was opened
-  in.
-- **The envelope is fixed.** A message's owner and version, and the
-  answer *version not served*, are encoded the same in every version of
-  jig's wire, so any engine reads them from any client, and any client
-  reads that answer from any engine. *Version not served* is the first
-  variant, tag 0, of each answer that carries it (a keyed request's, a
-  read's, a watch's opening's, and a watch's end), and its bytes never
-  change: a later version adds its variants after it. So is the hello
-  alone, the stream's first variant, tag 0: the stream's name, the
-  ranges served and the heartbeat, encoded as version 27 encodes them,
-  which an engine sends a stream whose opening names no version it
-  serves, so that a client of any version reads the ranges and is
-  refused by name (`wire.md`, section 2).
-- **The engine serves a range** of each owner's versions, which its
-  stream's hello states (`../../client/domain/contract/README.md`, section 6). To
-  serve a version is to keep its generated codecs and their translations
-  beside the current ones. Pre-release, each range is one version
-  (`../README.md`, section 7).
-- **A version not served** is answered so, typed, before the record is
-  read: *version not served*, naming the owner and the ranges the engine
-  serves. A keyed request, a read and a watch's opening are each
-  answered so; nothing is done.
-- **Versions move with a wire's layout.** Each changed record moves its
-  wire's version and its schema, codec and translations. Tests build
-  fixed-rule values from that schema or use public fields, keeping no golden files
-  (skein's `data/codec/golden.md`, 1).
-  The engine serves one version; a client of another version is refused
-  before its record is read. Client bridges are deferred
-  (`temper/docs/design/draft/redeploys.md`, 8).
-- **A version is its schema's `family` line.** A wire's version is the
-  number its schema's `family` line names (skein's `data/codec/README.md`,
-  section 3), and its crate's version constant equals it: jig's
-  `VERSION` and `PUBLIC_VERSION`, an application's own (temper's
-  `CLIENT_VERSION` and `PUBLIC_VERSION`). The small store's versioned
-  records carry that number too (section 7).
-- **The layouts' list holds versions to layouts.** Each client wire's
-  crate keeps, beside its schema, its family's list of layouts,
-  `schema/<family>.layouts`: one line per version since the list began,
-  oldest first, the version in decimal, one space, and the family's
-  fingerprint at that version (skein's `data/codec/fingerprints.md`, section 1)
-  as 64 lowercase hexadecimal digits; a line starting `#` is a comment.
-  The family's fingerprint, not its declarations': a declaration added,
-  dropped or moved moves it, so a version may move for a change no
-  message's bytes show, which costs an open client a reload and never a
-  record misread. Two checks hold each list, in `fabrig-boundary`, and
-  delivery runs them for any change to a listed wire's crate; the
-  crate's own tests check that its version constant is its schema's
-  version, so that `fabrig-boundary` builds no wire crate:
-  - *Now:* the list's versions rise by one, line to line, and its last
-    line is the schema's version and the schema's fingerprint now.
-  - *Landed:* the list as main has it (git's merge base of the branch
-    with `origin/main`, as the patch check takes it, `.config/gate/README.md`)
-    stands unchanged at the head of the branch's list, its lines in
-    order. A list main lacks passes.
-
-  So a layout changed with its version unmoved fails one check or the
-  other: *now* while its line is left, *landed* once a landed line is
-  edited. A layout changed again before its version reaches main edits
-  that version's own line. The lists: jig's `jig-client-wire` and
-  `jig-public-wire`, in `jig-client-protocol-wire`; temper's
-  `temper-client-wire` and `temper-public-wire`, in
-  `temper-client-protocol-wire`. An application whose clients a
-  deployment serves lists its wires there too; jig's example and test
-  wires, which no deployment serves, are not listed.
-- **The client's versions:** jig's is its wire's; each family owner's,
-  the application declares as it makes the client, and the client
-  judges each hello against them, whole (`../../client/domain/client/watches.md`,
-  2). A hello names at most its wire's bound of ranges, jig's among
-  them: an engine serves no more owners than that, and a client
-  declares no more family owners than that bound less jig's.
-- **A client outside a range,** from the hello or from such an answer,
-  sends nothing more of that owner: its requests stay kept and unsent,
-  its reads are answered at once, unsent, and its watches end, as
-  version not served. Outside jig's range, the link is out of date, and
-  the client sends nothing at all (`../../client/domain/client/watches.md`, 2).
-- **A record the client can't read** is the same news, found later: a
-  stream's record of jig's, or a watch's opening's or closing's answer,
-  that the link cannot decode or translate means the engine speaks a
-  layout this build does not, or is at fault. The stream is dropped and
-  not opened again: the link is out of date, naming it `unreadable`
-  (`../../client/domain/client/watches.md`, 2). Offline, it would open
-  the stream again after each backoff, meet the same record each time,
-  and tell no one. A record refused for a bound (past the client's
-  limits) or for its order on the stream (a delivery, a run's text or
-  an end before the hello names the stream) says nothing of a layout:
-  an engine of the same build can send it, and a new stream may not
-  meet it again. Such a record drops the stream, which opens again after
-  its backoff, as before.
-  The application says how to update; updated, the client sends what it
-  kept in a version it speaks, under its keys (`README.md`, section 7).
-- **One jig pin:** an application's `jig-client` and its engine come from
-  one jig pin, so a client the application's server serves is in range
-  unless the engine was updated under a client still running; reloading
-  or restarting the client updates it. A client that does not come from
-  the engine's application (a phone's, a command line's) may lag it.
-- **How jig is released and pinned** is an open question
-  (`../../README.md`, section 14).
+Moved to [`versions.md`](versions.md), section 1.
 
 ## 7. The small store
 
-- **The client's records** (`../../client/domain/client/README.md`, section 8):
-  the request table's, each a whole request, jig's or an application's,
-  with the key the engine knows it by, its party, the application's key
-  for it, its owner and version, and when it was first sent; and the
-  name of the client's stream (`wire.md`, section 2), under a key of its own, which
-  no request's key can be (a request's is 16 bytes); nothing else of the
-  client's, and never a credential, an answer, a request carrying a
-  value, or one whose answer carries one (`README.md`, section 3). A top-level `Seen` has no stored record. Each
-  kept record is encoded with jig's wire, with its store version.
-- **A kept record holds the largest request.** A kept record's bytes
-  (`Kept.record`) are bounded by the widest request-table entry
-  (`TableEntry`), so that every request the client admits can be kept,
-  and so sent: 1,114,368 bytes, the request's 1,114,240 and 128 for the
-  entry's other fields and the request's length (56 at their widest).
-  The client's own
-  limits still bound what it writes (its `document_bytes`, section 10).
-  A record past them is not kept (below, *Kept requests stored before
-  sent*).
-- **The stream's name** is saved at each hello, in a write of its own,
-  and replaces the last; nothing waits for it, and a write of it not
-  stored retires nothing. It is not a credential: ending a stream takes
-  its sign-in's credential as well (`wire.md`, section 2). It is not one of the
-  request table's records, and the records read at start are bounded by
-  what the table holds and this one.
-- **The application's own records are its own.** What its presentation
-  keeps (where the person was, their drafts; the reference UI's places
-  and drafts among them) it keeps itself, where it likes. The client's
-  `Save` carries only the client's records.
-- **Kept requests stored before sent.** The transport answers each `Save`
-  and `Erase` `Stored` or `NotStored`. A kept request's exchange never
-  leaves before its record is stored: the client sends it only once its
-  `Save` is answered `Stored`. `NotStored` (a quota full, a disk failing)
-  is each request
-  whose record that write was the last to carry not sent, parked or not,
-  answered *not kept* (`../../client/domain/client/README.md`, section 8).
-  A record the link can't encode for the store is a write never made:
-  its request is answered *not kept* by its key, unsent, as for
-  `NotStored`, and never answered lost. A
-  request carrying a value, or whose answer carries one, is never
-  stored, and leaves at once, once (section 3). An account's move
-  *written* is an ordinary request: kept, and sent again under its key.
-- **Held exchanges wait for durability and leave in order.**
-  `request_records_durable` holds keyed exchanges behind pending writes;
-  `held_exchanges_fifo` releases the surviving attempts once, in arrival
-  order, skipping cancelled attempts even when their credit is reused.
-  The client protocol world holds this under load in
-  `jig-client-protocol-world`,
-  `orders::held_exchanges_wait_for_durability_and_leave_in_order_under_load`;
-  it holds failure and late completions without a send in
-  `orders::failed_persistence_never_releases_held_exchanges_under_load`.
-- **`Seen` has no save of its own.** The client domain consumes its
-  table save before the composed client or link registers a store write
-  (`../../client/domain/client/requests.md`). Its exchange still waits
-  behind writes already given, and is eligible only for the confirmed
-  party on the current link. A failed mixed write reports not kept only
-  for the ordinary requests whose records it carried; a held `Seen`
-  exchange is lost and retried normally. Consuming the save creates no
-  tracked write, and its store acknowledgements are any write's. Every terminal
-  still emits `Erase`, including an absent `Seen` key, with the usual
-  acknowledgement.
-- **Read at start,** the records the application's shell loaded handed
-  to `jig-client` as it starts, each request's to the request table, and
-  the stream's name to the link (`wire.md`, section 2); one of a
-  version the client does not read is dropped, and the application told,
-  so a request kept across an update that changed its record's version
-  is lost, not sent wrong. A family's request whose owner and version
-  are not among those the application declares is one
-  (`../../client/domain/client/README.md`, 8). Pre-release, nothing is
-  translated.
-- **An unanswered `Seen` is lost** on closing, reload or crash, since
-  it is in memory alone; the next opening checks and sends the
-  watermark again, with no notice from a record of its own
-  (`../../client/domain/client/README.md`, section 8).
-- **Where** is the shell's: a browser tab's session storage, as text
-  skein's small store part encodes (skein's `ui/web/effects.md`, section 1); a
-  file a native client writes whole and syncs; a service's file, synced
-  before its requests leave; a world's memory.
+Moved to [`small-store.md`](small-store.md), section 1.
 
 ## 8. An application's documents and requests
 
@@ -507,7 +341,7 @@ recipient.
   streamed message's record is its watch's owner's.
 - **Scopes:** an application's request, read or subject names its
   scope, a project, the deployment, or the party's own, and a read or
-  subject its window (`../../client/domain/contract/requests.md`, 3, and `../../client/domain/contract/README.md`, 5.5).
+  subject its window (`../../client/domain/contract/requests.md`, 3, and `../../client/domain/contract/watches.md`, 1.5).
   The party's own names no party: the core names it from the sign-in
   (`README.md`, section 5), and admits it on the credential alone.
 - **The engine's side** decodes an application's record with the
@@ -522,83 +356,7 @@ recipient.
 
 ## 9. Shells
 
-- **A shell is the application's:** its loop around `jig-client` and its
-  presentation, its transport, its storage, its clock and its entropy,
-  on its platform. `jig-client` runs no loop of its own, and never calls
-  the application (`../../client/domain/client/README.md`, section 1).
-- **jig's native shell,** `jig-client-shell-native`: skein's HTTP client
-  on skein's io, with the default mapping's client end,
-  `jig-client-protocol-http`, which cuts the stream's body into
-  messages and a batch's into its parts, each piece handed on as it
-  arrives (`default-http.md`, section 6); a file for the small store, and a private file for the
-  credential, which it writes when its host gives it one to keep, or
-  none, and reads back at start for its host to give as held (`sign-in.md`
-  ); for Linux and for the worlds that make bytes real. With no
-  presentation, it is a service's shell, and a one-shot command's.
-  Its public `Transport` owns the socket loop and admission, including
-  sockets still closing, for both this shell and a caller's shared io,
-  with a caller-chosen owner tag.
-- **Its engine, plain or over TLS:** the shell's settings name the
-  engine one of two ways, `Settings.engine`:
-
-  ```rust
-  pub enum Engine {
-      Plain(skein_io::Addr),                    // HTTP to a socket address, `Host` that address printed
-      Tls(Tls),                                 // HTTPS to an engine by name
-  }
-  pub struct Tls {
-      pub name: skein_tls::Name,                // the server's name: SNI and the certificate's check
-      pub host: Box<[u8]>,                      // `Host`: NAME, or NAME:PORT where PORT isn't 443
-      pub addresses: Box<[core::net::SocketAddr]>, // resolved by the host before the loop, in order, at least one
-      pub config: skein_tls::Config,            // the roots the host gives, `http/1.1` offered by ALPN
-  }
-  impl Shell {
-      pub fn refused(&self) -> Option<skein_tls::client::Error>;
-  }
-  ```
-
-  - *Over TLS,* each connection is skein-io's TCP connection carried by
-    skein's TLS client, `skein-tls`: the server's name `name`, `http/1.1`
-    offered by ALPN, the certificate checked against `config`'s roots at
-    the wall time the handshake starts. The host reads the roots, the
-    machine's as skein-shell's `read_trust_roots` finds them
-    (`SSL_CERT_FILE`, else the distribution's bundle), and resolves the
-    name once, before the loop, as skein's shells resolve their
-    configured peers (skein's `runtime/io/README.md`, section 3); the
-    shell names no resolver and reads no file for it.
-  - *The addresses* are tried in their order at each connection: one
-    not reached, refused or reset before its handshake ends gives way to
-    the next, and the connection fails, as any connection's failure,
-    once none is left. Resolving while running is later.
-  - *What runs above it* is as over plain HTTP: the exchanges, the
-    stream, their limits, deadlines and backoff, the credential as
-    `Authorization: Bearer` and no browser header. The TLS client's
-    limits are the shell's `Limits`' own, checked by `valid` against
-    io's and HTTP's.
-  - *A handshake that fails,* a certificate refused, a name it doesn't
-    name, or the protocol's own failure, fails the connection as any
-    failure does, and the client tries again after its backoff, so a
-    renewal under way heals by itself. The shell keeps that TLS error,
-    `Shell::refused`, from the newest handshake that failed until one
-    succeeds, for its host's words; a connection that fails below TLS
-    leaves it as it was, and a `Plain` engine has none.
-  - *Its tests,* the shell's own, over a TLS listener on skein's
-    simulated io with skein's test certificates (`skein-tls-kit`) and no
-    network: a certificate trusted and the stream through it, one that
-    chains to no root given, one for another name, a first address not
-    reached and the next taken, and `refused` cleared by a handshake
-    that succeeds.
-- **jig's browser parts,** `jig-client-shell-web`: the client's
-  adapter, which carries the default mapping's calls over skein's
-  fetch, the printed link's sign-in, and jig's look, over skein's
-  `skein-ui-web` (`../browser/README.md`, 5.1), for `ops` and jig's test
-  application, whose browser shell is `jig-client-test-shell-web`
-  (`../browser/README.md`, 3.1). An application's own browser shell uses them,
-  skein's parts alone, or neither.
-- **Its pages are served by the application's server,** through skein's
-  serving contract (skein's `ui/web/bundle.md`), under its own
-  policy: jig serves no page, no bundle, and reserves no path
-  (`../service.md`, section 2; `../browser/README.md`, section 12).
+Moved to [`shells.md`](shells.md), section 1.
 
 ## 10. Limits and the worst case
 
@@ -630,7 +388,7 @@ recipient.
   Token)`, an input with no output, public only because the link and the
   client are separate crates. One already sent keeps its transport
   credit to its terminal, whose answer fails its token match
-  (`../../client/domain/client/README.md`, section 9). So the reads the
+  (`../../client/domain/client/sign-in.md`, section 1). So the reads the
   link holds stay within the client's reads in flight, and the held
   queue keeps the order asked across reads, openings and closings.
 - **The transport's:** an exchange's deadline, and what it buffers of the
@@ -638,7 +396,7 @@ recipient.
 - **The component's:** streams in all, whatever their sign-ins (`wire.md`, section 2
   ); the watches one stream holds, each until the engine has ended it,
   at least the engine's watches one client opens at its limit, as a
-  party's room is (`../../client/domain/contract/README.md`, 5.2), and past them
+  party's room is (`../../client/domain/contract/watches.md`, 1.2), and past them
   an opening is refused busy, within the views' limits on a party's
   watches and on all (`../../domain/engine/README.md`, section 7); exchanges in
   flight per sign-in, which its clients share, since an exchange names
@@ -674,115 +432,7 @@ recipient.
 
 ## 11. Testing
 
-Each within jig's suites' budgets.
-
-- **The client link's admission:** a watch ended by its stream while its
-  opening and cleanup HTTP calls remain in the browser's fetch table.
-  Authorization waits for credit, then receives its code; both replies
-  and failures release credit, with one watch terminal throughout
-  (`jig-client-protocol-link`'s stream table).
-- **Step tests** in `jig-client-protocol-wire` and each application's
-  wire are written by hand, with values built from schema text or public
-  fields, as skein's `data/codec/golden.md`, section 1 says; the fixed
-  envelope read across versions among them. No tests are generated.
-- **The client's wire world,** `jig-client-wire-world`: the client
-  side's generated codecs (jig's wire, the reference UI's records,
-  `ops`'s wire and jig's test family's) checked for drift against their
-  schemas, and jig's wire's decoders run over arbitrary and mutated
-  bytes in the fuzzy suite (skein's `data/codec/golden.md`, section 1).
-- **The template preview** in the client-protocol carriage tests and
-  wire tests built from schema text or public fields: both configured
-  intent and `resolved_default`, including
-  `None`, cross whole. The shapes tests keep omission, and the
-  reference view tests consume the supplied preview;
-  core charters/templates stories own resolution order and invalidation
-  (`../../domain/testing.md`, section 4).
-- **The component's world,** `jig-engine-clients-world`: the component
-  against a scripted transport of messages and a scripted root, with no
-  HTTP: answers of every kind and none, deliveries paced by a slow
-  `StreamTaken`, a stream gone mid-delivery, two streams of one sign-in
-  each with its own name, a stream sent gone by the client that followed
-  it, signed out, records that do not decode, a version not served, a
-  `Mint` answered and refused, the printed link spent and drawn again, a
-  link's sign-in carrying a live credential kept (no credential drawn,
-  no digest kept), and one carrying a credential bad, expired or ended
-  while its check is pending signed in afresh and refused nothing; the
-  link's sign-in answered not ready, busy and full, its secret the
-  link's again with its expiry as drawn, and the same link signing in
-  once there is room, or answered `link_expired` past that expiry; a spent
-  secret answered `link_used`, another's `link_unknown`, an empty one's too; the
-  same secret sent again while reserved answered busy, another with no fresh link
-  drawn; the reservation dropped by the core's refusal, a close and an
-  abort; the exchanges' admission full answered busy; full carrying the
-  link's expiry as drawn; a `Mint` and a service's sign-in answered busy
-  for full; a
-  service signing in, a key added, sent again under its key with the
-  same value and with another; an account moved out, its record in the
-  first answer alone and empty in the kept answer sent again, and a
-  moved file moved in under its key; a family's request admitted and
-  its caller gone before the stop, between the stop and the close, and
-  after the close, the component closed with the request's answer still
-  out, and an answer that comes once its caller has gone settling with
-  no reply. Its referee: one reply per exchange; one
-  streamed message in flight per stream; no credential reaches a
-  domain; no key and no moved record is in the small store, a
-  committed request or an answer kept.
-- **A batch, at the component:** its members' parts in the order
-  released, a read held until durable holding back no other member's;
-  one exchange of the sign-in's taken whatever its members, and each
-  read and opening reserved as alone, past `reads_per_client` or
-  `openings_per_client` that member alone busy; a batch finding no
-  exchange's room answered as its messages apart, reads and openings
-  busy and closings taken; a member malformed or conflicting a part with
-  no reply; a batch past its bytes or its 64 members, or no record,
-  answered not a record with nothing done; its caller gone mid-batch,
-  its members settling with no part. A stream's opening naming one of
-  its sign-in's ending it first, so that it is admitted at the
-  streams' bound, and one naming another sign-in's stream or none open
-  changing nothing.
-- **A batch, at the mapping's ends:** the engine end's frames written
-  as the parts come, one slow member holding none back, at most 64
-  unwritten, the body ended at `Done`, one call held until then, `400`
-  and `413` whole; the client end's frames cut out as their last byte
-  comes, from pieces cut at random, each a `Part` at once, `Done` at a
-  boundary, `Lost` after the whole parts for a body cut inside a frame,
-  a frame past the record's bound, or a status other than `200`; the
-  stream's `replaces` query sent and read, and any other query `404`.
-- **A batch, at the link:** gathered messages left at the settling
-  alone, in order, one batch while more than one may leave, split past
-  64 members or `BATCH_BYTES`, and what finds no exchange waiting for a
-  later settling; each part to its member as alone, a busy opening
-  opened again after its backoff and a busy read ended busy; a batch
-  cut short, its answered members kept, its unanswered reads ended
-  unreachable and an unanswered opening or closing dropping the stream;
-  a part naming no unanswered member taken as the batch lost; each
-  stream's opening naming the last stream known, with no stream gone
-  sent.
-- **The default mapping's ends,** each against a scripted peer of bytes:
-  every route, the stream's events cut at random, the credential as a
-  cookie and as a bearer, the printed link's route (a browser's link
-  sign-in with its live cookie answered with no `Set-Cookie`, and one
-  answered busy or full with none), a call ended before its reply said
-  gone once, as `ExchangeGone`, and a call answered or never handed
-  over said gone never, and the
-  example guards' stories (`../browser/testing.md`).
-- **The protocol world,** `jig-client-protocol-world`: the client's
-  world's stories (`../../client/domain/testing.md`, section 4) run through
-  bytes: `jig-client` over the native shell's machines and the default
-  mapping's client end, against the engine's root and core over
-  `jig-protocol-engine-clients` and the mapping's engine end on skein's
-  HTTP server, joined by in-memory streams cut at random; and the same
-  stories over an in-process transport with no HTTP. One story puts
-  skein's text shell's terminal in front of the native client, on
-  skein's simulated machine: lines in on a pipe, pages out on another
-  (`../../client/domain/view.md`, 15.6). Its referee is the joint world's,
-  and adds: every record crossed decodes to what was encoded; no secret,
-  nor any value a request carried, reaches a domain; a carried value is
-  sent once, never resent nor in the small store (section 3); a slow
-  stream never holds the engine up.
-- **The browser tier:** the reference UI's browser shell in Chromium,
-  against jig's test application, `jig-test` (`../browser/testing.md`
-  ).
+Moved to [`testing.md`](testing.md), section 1.
 
 ## 12. Open questions
 
@@ -838,19 +488,19 @@ Each within jig's suites' budgets.
 ## 13. What it owes and is owed
 
 - **`jig-client`** is owed by its design (`../../client/domain/client/README.md`):
-  the link's states, out of date among them (`sign-in.md` and `README.md`, section 6 here); a
+  the link's states, out of date among them (`sign-in.md` and `versions.md`, section 1 here); a
   kept request's exchange sent only once its record is stored, with
-  `Seen` memory-only (`README.md`, section 7); a credential held, or carried by the transport (`sign-in.md`); reads and
+  `Seen` memory-only (`small-store.md`, section 1); a credential held, or carried by the transport (`sign-in.md`); reads and
   watches answered signed out, a reopened run's watch taken from its
   turn's beginning, and a run's document with no text and no call, for
-  a run whose host gives neither (`../../client/domain/contract/README.md`, 5.3);
+  a run whose host gives neither (`../../client/domain/contract/watches.md`, 1.3);
   a request carrying a value, sent once, never stored, its value taken
   out and kept before the core sees it (`README.md`, section 3).
 - **The application owes:** its transport, or jig's default mapping; its
   sign-in flows, with `Mint` sent from its server alone (`sign-in.md`); the
   printed link's URL, printed from the secret the component gives; its
   small store's storage, answering each write; and its server's guards
-  (`../browser/README.md`, 12.2).
+  (`../browser/serving.md`, 1.2).
 - **The engine's domain** is owed nothing beyond
   `../../client/domain/contract/README.md`, section 7: sign-ins numbered by their
   commit, made for an identity the application verified, and a party
@@ -865,4 +515,4 @@ Each within jig's suites' budgets.
   (skein's `testing/browser.md`, sections 5 and 6); a client compiled to
   WebAssembly in its model (`skein/docs/foundation/programming-model.md`, 2.1). Its HTTP
   server and client serve as they are. Between hosts, TLS's server side
-  (`../README.md`, section 10).
+  (`../needs.md`, section 1).

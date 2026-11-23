@@ -163,7 +163,7 @@
     stops its live run and holds the role and every task it started
     until Resume, where this section's Pause stops its wakes alone, since
     a person's hold is placed over a subtree (jig's
-    `domain/tasks/lifecycle.md`, 10) and none holds one task alone yet.
+    `domain/tasks/lifecycle-holds.md`, 2) and none holds one task alone yet.
     Its Now's kicker says "written at 06:58" alone, without "when its
     last session ended", since no client read gives a session's record
     (jig's `domain/tasks/standing.md`, 7). Decided by goal 713's design,

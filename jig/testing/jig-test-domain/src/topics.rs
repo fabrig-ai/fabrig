@@ -1,4 +1,4 @@
-//! Offered topics, completed hub operations, and classified news (connectors.md, 5.3).
+//! Offered topics, completed hub operations, and classified news (domain/connectors-facts.md, 1.3).
 use crate::{Domain, Work, numbered};
 use alloc::boxed::Box;
 use jig_domain_authority as authority;

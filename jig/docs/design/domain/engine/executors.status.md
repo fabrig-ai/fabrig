@@ -3,31 +3,14 @@
 2026-11-21. Where the tree's code lags or departs from [executors.md](executors.md).
 
 
-- **Not yet:** 1, step 3, and 2, *Resumed only where it ran*: the run proof's `endpoint` (core-v6); a window resumed only on the endpoint it ran on, judged at the activation's check and the claim's, a proof with no endpoint judged by its main provider's source kind; a moved window's run started fresh with its tail. [in flight: change 8569]
+- **Not yet:** 1, step 3: the run proof's `endpoint` (core-v6); a window resumed only on the endpoint it ran on, judged at the activation's check and the claim's, a proof with no endpoint judged by its main provider's source kind; a moved window's run started fresh with its tail. [in flight: change 8569]
 - **Not yet:** 4: a standing task's finish parked (`../tasks/standing.md`, section 2).
 - **Not yet:** 4: a standing task's runs resuming only within a session (`../tasks/standing.md`, section 5).
 
-- **Not yet:**  engine slots, hello and placement remain `fleet.status.md` (Not yet, the whole document).  the point-load fences remain `README.status.md`, 4.2 and 5.3.
-  1: the brief's missing sections remain `briefs.status.md`, 1. 2: what a
-  turn's calls made, written beside the turn. 3: the tools `move`, `succeed`,
-  `hold` and `lift`.
+- **Not yet:**  engine slots, hello and placement remain `fleet.status.md` (Not yet, the whole document).  the point-load fences remain `vocabulary.status.md`, 1.2, and `decisions.status.md`, 1.3.
+  1: the brief's missing sections remain `briefs.status.md`, 1.
    the restart-oracle gaps remain `../testing.status.md`, 9.
-   the pending-reasons continuation gap remains `settings.status.md`, 6.
-   the settings-holder gap remains `settings.status.md`, 6.
+   the pending-reasons continuation gap remains `settings-proposals.status.md`, 1.
+   the settings-holder gap remains `settings-proposals.status.md`, 1.
    the ignored restore stories remain `settings.status.md`, 10.
-
-- **Not yet:** 3, *A run's read as its person*: a task query of the
-  project that names a person requester reads its ended part from the
-  person's index, which spans projects (`reads/ended.rs`,
-  `ended_part`), and a page that loads another project's row answers
-  unknown whole (`reads/rows.rs`, `person_from_store`), where a party's
-  read drops that row. temper's addresses name no requester; no test
-  reads such a query.
-
-- **Not yet:** 3, *Of its project alone*: an inbox page filtered by the
-  run's project takes its `next` cursor from the last entry of the
-  person's whole inbox, before the filter (`reads/rows.rs`, the live
-  page's `last`), so whether there is a next page, and the cursor the
-  root holds, can come from another project's entry; temper says only
-  whether more wait. No test pages a filtered inbox.
 

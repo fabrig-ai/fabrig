@@ -1,4 +1,4 @@
-//! Owners kept by the deployment (jig/docs/design/protocol/store/opening.md, 3).
+//! Owners kept by the deployment (jig/docs/design/protocol/store/opening-owners.md, 1).
 use crate::upgrade::sets::{Frames, KeptFamily, KeptMap, Owner, OwnerSet};
 
 /// OAuth records are held inside the secrets family's Source, never direct map rows.

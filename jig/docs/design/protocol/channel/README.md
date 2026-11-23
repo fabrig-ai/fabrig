@@ -17,6 +17,11 @@ or to take work again. An application with no workers has no channel: its
 engine's hub is linked to the core directly (`../../domain/hosts/hub.md`, 1).
 What is still open is listed in `README.md`, section 13.
 
+- [`owners.md`](owners.md): bytes of other owners and where they are decoded.
+- [`liveness.md`](liveness.md): liveness and flow control.
+- [`worker-link.md`](worker-link.md): the worker's link on each side.
+- [`testing.md`](testing.md): the channel's tests and worlds.
+
 ## 1. In one page
 
 - **One channel per worker,** which the worker dials and keeps open: the
@@ -46,7 +51,7 @@ What is still open is listed in `README.md`, section 13.
 - **What is not jig's crosses as bytes:** smith's payloads (the
   charter, a resumed run's transcript, turns, call names and a run's
   result), in smith's own versioned encodings, as the hub holds them
-  (5.1); the application's workspace items, what a run left on
+  (`owners.md`, 1.1); the application's workspace items, what a run left on
   resources, what it saved and a delivery's evidence, in the
   application's own encodings; host tools' inputs and answers as the run
   and the engine wrote them. jig's components never decode them; the
@@ -96,7 +101,7 @@ io: a listener's sockets                            io: one socket, dialled
   liveness deadlines, the workers' names, and the translation between
   `jig-protocol-worker-wire`'s records and the hub's link vocabulary.
 - **The worker's protocol layer** owns `jig-protocol-worker-link`, which owns
-  the one channel it dials, the link's life (section 9), the relays in
+  the one channel it dials, the link's life (`worker-link.md`, section 1), the relays in
   flight across channels, and the same translation.
 - **Below the hub,** a worker's agents run as agent processes, over
   smith's own channel, which smith's host half carries (smith's
@@ -112,7 +117,7 @@ io: a listener's sockets                            io: one socket, dialled
 
 | Crate | Kind | Holds |
 |---|---|---|
-| `jig-protocol-worker-wire` | codecs | the schema: magic, version, kinds and their records; the credential's record; the function from the domains' sizes to each kind's largest body and to each side's output cap; why a channel or a dial ended, `Loss` (sections 8 and 9.1), which `jig-protocol-worker-link` reports and re-exports and an engine's operator notes may name without linking the link |
+| `jig-protocol-worker-wire` | codecs | the schema: magic, version, kinds and their records; the credential's record; the function from the domains' sizes to each kind's largest body and to each side's output cap; why a channel or a dial ended, `Loss` (`liveness.md`, section 1, and `worker-link.md`, section 1.1), which `jig-protocol-worker-link` reports and re-exports and an engine's operator notes may name without linking the link |
 | `jig-protocol-engine-workers` | component | the listener's accepted channels, up to the fleet's workers and those still opening; the opening's checks; one channel per worker; pings, silence and stall; the translation to and from the hub's vocabulary; credential grants' values filled in |
 | `jig-protocol-worker-link` | component | the one link, dialled and redialled; its liveness; the grace after losing it; the relays in flight across channels; the translation to and from the hub's vocabulary; credential grants' values taken out |
 
@@ -123,10 +128,10 @@ io: a listener's sockets                            io: one socket, dialled
   channel, `jig-protocol-worker-wire` and `jig-domain-host`'s vocabulary;
   neither depends on the core, smith or an application's crate. smith's
   payloads pass through both as bytes; smith's codecs are the routing's
-  (5.1).
+  (`owners.md`, 1.1).
 - **Translation is a module of small total functions** in each component,
   between records and the hub's vocabulary, exhaustive both ways. The
-  domain worlds need none of it; the channel's protocol world (section 11)
+  domain worlds need none of it; the channel's protocol world (`testing.md`, section 1)
   runs it with bytes.
 - **The application's parts are decoded by its protocol layer.** A
   component hands up a part's bytes as it decodes a record, and the
@@ -148,7 +153,7 @@ worker, `Accept` or `Refuse` from the engine, then each side's `Terms`.
   kinds' table in the schema (`wires.md`, 4). Its messages, live and carried in an assignment, include the boolean
   `finish_requested` (`../../domain/hosts/README.md`, section 7). Its assignment
   carries the ask for live content and its fact record a piece of it
-  (`records.md`, 1 and 2, and `README.md`, 5.4); a run's typed failure may name the configured
+  (`records.md`, 1 and 2, and `owners.md`, 1.4); a run's typed failure may name the configured
   bound it exceeded (`../../domain/hosts/hub.md`, 3); its `GrantValue` is a
   credential, an application's credential or a program source's name
   (tags 0 to 2: `README.md`, section 7), with no other form. A
@@ -214,7 +219,7 @@ worker, `Accept` or `Refuse` from the engine, then each side's `Terms`.
 
 - **The worker's hello is its first record,** after both terms, as
   `../../domain/hosts/README.md`, section 2 has it: its slots, its stop bound
-  (9.1 says what it counts), its agent's bounds as its agent
+  (`worker-link.md`, 1.1 says what it counts), its agent's bounds as its agent
   configuration declares them (`records.md`, 1), the job kinds its job capability
   runs, each with its bounds (`records.md`, 4), the workstreams it holds, the runs
   it hosts and those whose turns or answer wait for acknowledgement.
@@ -235,181 +240,15 @@ worker, `Accept` or `Refuse` from the engine, then each side's `Terms`.
 - **Logins follow the hello** (`records.md`, 1 and 2): the engine sends a worker
   `sources` after its hello, and places no run on it until the first
   `logins` that answers them, so that a host keeping a person's logins
-  is known before it is given another's run (`../../domain/accounts.md`,
-  3.4; `../../domain/engine/fleet.md`).
+  is known before it is given another's run (`../../domain/accounts-sources.md`,
+  1; `../../domain/engine/fleet.md`).
 - **Deadlines:** the opening within the handshake's deadline from the
   connection being made; the hello within the hello's deadline from
   `Accept`. Each is the component's, from its limits.
 
 ## 5. Bytes of other owners
 
-Calls are refused at the worker component before encoding when their input
-exceeds its configured call-input bound. The hub receives one terminal
-answer under the original run, attempt and opaque call name: an error with
-ASCII `call too large`, shortened to the answer bound (empty at zero).
-Other call encoding failures return `call refused` under the same rule.
-The component never copies or truncates the refused input, sends no call
-frame and retains no replay entry. The agent can then continue its run.
-
-### 5.1 smith's charter, turns and results
-
-smith's payloads are bytes in the hub and typed in the agent; the root
-that composes the two hands each out to its protocol layer's routing, to
-be decoded or encoded with smith's codecs
-(`../../domain/hosts/hub.md`, 8). jig's channel carries the bytes the hub
-holds, and neither of its components reads them.
-
-- **The charter** is put into smith's form by jig's one translation,
-  `jig-protocol-charter` (`../../domain/hosts/charters.md`), in the
-  engine's protocol layer, and crosses as smith's charter bytes (smith's
-  `protocol/charter.md`). The worker's routing decodes it as the agent
-  starts, against the endpoints of the worker's agent configuration,
-  which resolve the names it uses (`../configuration.md`, section 4;
-  smith's `protocol/charter.md`, section 7). The run's provider bindings supply its account/source numbers; configured
-  endpoints carry no account preference or default.
-- **Turns** cross as smith's turn bytes (smith's
-  `protocol/transcript.md`), encoded on the worker as the agent hands
-  each up, before the hub keeps it. The record carries beside them what
-  the core reads: the turn's number, size, spend, the last message it
-  read and whether it opens a window; the core keeps the bytes as they
-  came. Down, a resumed run's transcript is its current window's turns,
-  in order, within the resume limit, decoded on the worker as the agent
-  starts; earlier windows' turns are never sent (`../../domain/engine/executors.md`,
-  2).
-- **A window crosses as one piece,** in smith's form: each turn's bytes
-  after their length, a `u32`, as smith's channel carries a start's
-  transcript (smith's `protocol/channel.md`, section 3; skein's
-  `data/codec/README.md`, section 3, "A sum crosses as one piece"). The resume limit
-  bounds the piece, each turn counted with the four bytes of its length,
-  so one field's bound holds any window the domain may resume, many
-  small turns or a few large; the domain bounds a window's bytes, not
-  its turns, and smith's resume limit holds any window one of its
-  sessions makes. `jig-protocol-engine-workers` joins the core's turns
-  into the piece as it encodes an assignment; the worker's link splits
-  it back into the hub's turns as it decodes, and a piece whose lengths
-  do not end exactly at its end is a transcript that does not decode
-  (below).
-- **A run's result** is encoded on the worker as smith's result, in its
-  charter's version, before the hub keeps the answer.
-  `jig-protocol-charter`'s reader decodes it in the engine's protocol
-  layer, for runs on workers and in the engine alike, by the path of
-  host tools' calls (5.3): the core hands an answer's result out once
-  the fleet has fenced it, and the typed result comes back. A result
-  that does not decode fails its attempt as invalid.
-- **An assignment whose charter, transcript or a committed call's name
-  does not decode** is refused as invalid by the worker's root, naming
-  which, before the agent is started (`../../domain/hosts/hub.md`, 8). One
-  refused for its transcript is the engine's to start afresh
-  (`../../domain/engine/executors.md`, 2).
-- **Calls committed since a resumed run's last turn** cross with their
-  answers as the engine kept them, so the run is told of them, not asked
-  them again (`../../domain/engine/executors.md`, 3).
-- **In the engine's own hub,** nothing crosses this channel: the engine's
-  root hands its hub's payloads out the same way, so the core holds the
-  same bytes from either kind of host.
-
-### 5.2 The application's parts
-
-- **Workspace items, what a run left, what it saved, and a delivery's
-  evidence** are the application's: its connectors name them and its
-  workspace makes them (`../../domain/hosts/README.md`, section 6). Each is a field
-  of bytes in jig's records, encoded and decoded by the application's own
-  codecs in its protocol layers (section 3).
-- **Versioned by the application.** Its encodings are its wires, which
-  the opening states and checks beside jig's (`wires.md`, 2 and 3);
-  another layout is refused before any part crosses.
-- **A delivery's evidence is the application's to keep:** the core
-  keeps a settled delivery's outcome, never its evidence; the
-  application keeps the evidence in its own records, by the call's key,
-  and its routing puts it in the assignment's answered call as it sends
-  one (`../store/records.md`, 1).
-
-### 5.3 Host tools' calls
-
-- **A call crosses as the run wrote it:** the call's name, as the bytes
-  section 6 gives it, the tool's name as the charter declared it, whether
-  it writes, and its input, the JSON the LLM wrote, checked by smith only
-  to be an object within its bound (smith's `domain/run.md`, 5.2).
-- **The fleet fences it first,** as any call: one from an attempt that is
-  not its task's live one is dropped. The core then hands the admitted
-  call out for decoding, and the engine's protocol layer decodes its input
-  with the decoder written beside the tool's schema: `jig-protocol-tools`'
-  for the core's own tools, the application's for its connectors' reads
-  and effects (`../../domain/hosts/charters.md`). The typed request goes
-  back to the root; an input that does not decode is answered at once as
-  an error naming what is wrong, and decides nothing.
-- **Calls from runs in the engine** take the same path: the engine's own
-  hub relays them to the fleet, and the protocol layer decodes them, so no
-  domain parses a call's input.
-- **An answer crosses as the engine's text** for the LLM, with whether it
-  is an error, rendered in the engine's protocol layer, by the same crates,
-  from the core's part and the connector's (`../../domain/root.md`,
-  section 7).
-- **Claude Code's built-in tools run on the worker,** as smith's own
-  workspace tools do, and never cross this channel as calls. On a
-  program source, the run's agent starts Claude Code with an ask rule
-  for each built-in tool of the families the charter grants,
-  `--setting-sources user` with the source's configuration directory,
-  and the agent's own MCP server as its permission prompt tool. So every
-  built-in call asks and reaches smith's policy before it runs. The
-  prompt tool answers allow, with the call's input unchanged, or deny,
-  with a message, within the run's families, as a call of smith's own
-  tools is allowed or denied; the agent never changes a call's input, so
-  the host sees the call that runs, in the run's turns and activity, as
-  it sees a direct backend's (smith's `protocol/programs.md`, 5.3 and
-  5.4; `../../domain/authority.md`, 8.5). What stays outside the agent's
-  reach, the host's managed settings among it, is smith's
-  `protocol/programs.md`, section 7's.
-- **Host tools on a program source** are offered to the program by the
-  agent's own MCP server, under the names the charter declares, and the
-  agent relays each call to the host. Such a call crosses as this
-  section says, the same record whichever backend the run has, and its
-  answer goes back the same way.
-
-### 5.4 Facts, and a run's text
-
-- **Facts are best effort** (`../../domain/hosts/hub.md`, 5): the worker's side
-  sends one only while its output queue leaves room for everything else
-  (`README.md`, section 8), and drops it, counted, otherwise.
-- **Activity** is the fleet's typed report, which every host gives, and
-  which carries no content: a run's phase; its long operations (checks,
-  an LLM completion or a command), each begun with its span and ended
-  (smith's `domain/host.md`, section 2); and counts from smith's channel
-  facts, each its kind, its time since the activation's start and its
-  count (smith's `protocol/channel.md`, section 8), decoded from smith's
-  facts by the worker's hand-out (`../../domain/hosts/hub.md`, 8). The fact
-  record carries jig's activity, never smith's bytes, and the views show
-  a run by it.
-- **A run's text comes from any worker, when the assignment asks.** The
-  fact record carries a piece of live content with its kind, from a
-  worker whose agents are processes as from one whose hub composes
-  `smith-inline-agent`: in a process, smith's channel carries it, decoded
-  by the worker's hand-out into jig's typed fact (`../../domain/hosts/hub.md`,
-  8; smith's `protocol/channel.md`, section 4). The wire carries all
-  three kinds, so that reasoning and a tool's input need no new version;
-  smith produces `text` and `input` from agent processes. A worker never sends a piece of a kind
-  its agents do not build. One that arrives crosses the engine's side as
-  it is, every field translated and nothing decided, and the engine's
-  root routes text and input to the core, dropping reasoning and offsets
-  past `u32`, counted
-  (`../../domain/engine/views.md`).
-- **A tool begun with its call comes only from a host that gives it:** a
-  tool begun with its call's name, its tool and its input within the
-  views' bound. smith drains it only in the host's process, so a hub
-  whose agent capability is `smith-inline-agent` gives it (`../llm.md`,
-  section 3), and this channel carries it from such a worker in the fact
-  record. A worker whose agents are processes gives none; the views
-  show its runs by their activity and their text.
-- **A piece** crosses with its turn, retry, kind and offset as
-  `../../domain/hosts/hub.md`, 5 names them, its offset smith's 64 bits, and
-  its bytes within the sizes' bound on a piece (`README.md`, section 10); the views
-  keep it (`../../domain/engine/views.md`), and the engine's root
-  drops, counted, one whose offset is past what they count. It keeps the
-  order that section gives: pieces of a turn before its turn record,
-  none after.
-- **The ask is not a flow-control matter.** A worker whose assignment
-  asks for nothing sends no piece; one that asks is still best effort,
-  by the rule of this section's first item.
+Moved to [`owners.md`](owners.md), section 1.
 
 ## 6. Names
 
@@ -426,9 +265,9 @@ holds, and neither of its components reads them.
 - **A call is named by the run,** typed by smith: its activation (the
   attempt's number), its completion and its position within it (smith's
   `domain/run.md`, 5.2). The root that composes the hub hands the name
-  out to be encoded before the hub relays the call (5.1); the hub, this
+  out to be encoded before the hub relays the call (`owners.md`, 1.1); the hub, this
   channel and the engine carry and echo its bytes, which no domain reads
-  (`../../domain/engine/executors.md`, 3), and the hub matches a relayed answer by
+  (`../../domain/engine/executors-tools.md`, 1), and the hub matches a relayed answer by
   them. The hub's link vocabulary names a relayed call by these bytes,
   its answer and its cancel included (`../../domain/hosts/hub.md`, 1), so
   neither the worker's link nor a root that composes a hub, the engine's
@@ -436,7 +275,7 @@ holds, and neither of its components reads them.
   They are decoded back on the worker for the calls committed since a
   resumed run's last turn, and by `jig-protocol-charter` in the engine,
   which reads the call's key (its completion and position) as the
-  protocol layer decodes the call (5.3), so a connector keys the call's
+  protocol layer decodes the call (`owners.md`, 1.3), so a connector keys the call's
   effects by it.
 - **A run's identity,** which smith's start carries for the provider's
   prompt cache (smith's `domain/host.md`, section 2), is the first 16
@@ -513,250 +352,11 @@ holds, and neither of its components reads them.
 
 ## 8. Liveness and flow control
 
-- **Pings.** A side that has sent nothing for the ping interval sends
-  skein's `Ping`. A link that has received nothing for the silence
-  deadline, at least three intervals, is lost. Pings never reach a domain.
-- **Silence counts bytes.** Each read from the stream in the open phase
-  restarts the silence deadline, a piece of a frame included, on both
-  sides: a large frame arriving slowly over a busy link keeps it.
-- **Reading never waits for the root.** Each side's protocol layer
-  reads its link and fires its component's deadlines on every pass,
-  whatever its root has yet to take, so pings go out and come in under
-  any load. Records its root is not ready for wait above the component,
-  in the protocol layer's own entrance, never unread in the socket: that
-  entrance holds what the peer's output cap lets it send (`sizes`'
-  engine cap on a worker), so it never fills while the peer keeps its
-  cap, and a record past it breaks the peer's contract and loses the
-  link. A socket left unread starves both sides' pings, and the peer
-  loses a healthy link at its silence deadline.
-- **A lost link says why.** Each side's component tells its protocol
-  layer, once per connection, why it ended, from a closed set: silence,
-  stall, the output cap filled, a deadline of the opening, the stream
-  ending or failing, a framing error, a refusal sent or received with its
-  reason; on the engine's side also no room for the connection and
-  stopping, on the worker's a dial that failed, a fault its root
-  raised, and a turn busy past the busy turns it can keep to send again
-  (9.1, 9.2). The application's protocol layer writes it as a
-  line of its log naming the worker and the reason, so a link that drops
-  is never silent on either side.
-- **A stall deadline.** A link whose output has stayed queued, with no
-  frame drained below, for the stall deadline is lost: its peer stopped
-  reading (skein's `net/channel.md`, section 7).
-- **Output caps from the domains' limits.** Each side's cap is the most
-  its domain can have queued at once, so a record the domain sends is
-  never refused at the channel's entrance:
-  - engine to worker, per worker: for each slot, an assignment at its
-    largest but never past the room, none past it being sent (below),
-    the messages its task's inbox
-    may hold, an answer for each call a run may have in flight, a kept or
-    busy notice for each turn it may have unacknowledged, an
-    acknowledgement of its answer, a cancel, and a grant for each LLM
-    account's source and each of the application's credentials; and a
-    sources notice, and a check and a sign out per program source;
-  - worker to engine: a hello at its largest; for each slot, the turns
-    and the answer it may keep, each with the most refusals it may carry,
-    and its calls in flight; a limited, a refused and an unauthorized
-    notice per LLM account's source a run may hold; a logins notice, and
-    a signed out per program source; and a reserve for facts.
-- **Every frame fits the stream below.** skein's channel asks its stream
-  for room for a whole frame (skein's `net/channel.md`, section 7), and a
-  stream grants no room past its own output cap: io leaves a larger ask
-  unanswered (skein's `runtime/lib-streams.md`, 1.1). Such a frame would wait below
-  forever, and with it every frame behind it and the pings, which a side
-  sends only while nothing is queued, until the peer's silence deadline
-  lost the link with nothing said. So each side's component is given its
-  stream's room, the most bytes it grants at once (io's output cap,
-  `largest_room`), and no frame past it reaches the channel. Every kind
-  a side sends has its largest frame within the room, checked when the
-  component is made, with the channel's own `Open` and `Refuse`; the
-  engine's assignment and job alone are exempt, since the domains'
-  limits admit a start larger than any room (a whole charter, a resumed
-  window, the calls committed since its last turn, its inbox and its
-  grants, `README.md`, section 10).
-- **A start past the room fails its run, never the link.** The engine's
-  component measures each assignment and job before the channel takes
-  it. One whose frame is past the room, or that the channel refuses at
-  its entrance for anything but a full queue, is never sent: the
-  component answers it itself, as it answers one that cannot encode
-  (`records.md`, 2), refused as an invalid start whose words name the record, its
-  frame's bytes and the bound it passed (`assignment of 1300000 bytes
-  past the link's room of 1048576 bytes`). It also tells its protocol
-  layer once, as `Unsent`, with the worker, the channel, the record's
-  kind, its bytes and the bound, which the application writes as a line
-  of its log. The link, its pings and the worker's other runs go on. A
-  record of another kind that the channel refuses is told the same way
-  and dropped; with every other kind within the room and the peer's
-  terms checked at the opening (4.1), only a broken contract reaches
-  that.
-- **A resumed start fits its room first.** The calls committed since a
-  resumed run's last turn (5.1) are the one part of a start that grows
-  with the run's work rather than with a bound of its own: a long run
-  whose turn was never told, its program working an hour between two
-  turns, carries as many as the core retains, each answer up to its
-  bound, far past any room. Before an assignment is measured against the
-  room, the engine's component fits them to the engine's own stream room,
-  its `io.output`. A worker declaring a different room is refused at the
-  authenticated opening (4.1); its declaration never enlarges the fit's
-  bound. It keeps every committed call,
-  by its name and tool, in its order; each delivery's answer whole,
-  since its evidence must decode and agree on the worker (5.1); and
-  each host answer no longer than the words below, which a cut would not
-  shorten. From the newest back, it keeps each host answer whole while the frame with it
-  fits; that first one that does not fit and every older host answer are
-  cut: the body becomes the fixed ASCII words `[this call ran; its answer
-  of BYTES bytes was left out of this start]`, `BYTES` the cut body's
-  length in plain decimal, and the answer keeps its error flag. So the
-  run is told of every call it made, the newest answers as they were,
-  and is asked none again: smith tells the LLM of each, as text in its
-  waking prompt (smith's `domain/run.md`, section 6), and an older read
-  it still needs it reads again. A program that resumes its own session
-  is given the same words as user messages (smith's
-  `protocol/programs.md`, 5.8), so its session goes on from where its
-  work stood. An assignment that fits whole, a job, and a start in the
-  engine's own hub, which crosses no link, are never cut. Only an
-  assignment still past the room with every host answer cut is refused
-  as above, its words naming the frame so cut. The cut is the link's:
-  the core keeps every call as committed, and retires them at the run's
-  next turn as any. Parts go before any answer is cut (`records.md`, 5).
-- **Inventories coalesce while output waits.** The worker's component
-  keeps one latest whole snapshot outside the channel queue and sends it
-  when that queue is empty. A replacement snapshot overwrites an unsent
-  predecessor: fleet has already received that predecessor's first inventory
-  before it sends the replacement list. The held snapshot is priced.
-- **Facts take only the reserve.** The worker's side sends a fact only
-  while the queue leaves the rest of the cap free; a long operation's
-  beginning and end are facts too.
-- **A link that fills its cap anyway** is lost: with caps sized so, only a
-  peer that stopped reading can fill one, and the stall deadline closes
-  it in any case.
-- **Both directions at once:** skein's channel writes while it reads
-  (skein's `net/channel.md`, section 7), on one socket.
+Moved to [`liveness.md`](liveness.md), section 1.
 
 ## 9. The worker's link
 
-### 9.1 The worker's side
-
-- **Dial at once,** to the engine's address from the worker's
-  configuration, with TLS by its server name and trusted roots, in
-  plaintext to a loopback address, or, in one process, to an in-process
-  name (skein's `runtime/io/README.md`, section 3).
-- **Local refusal names** are public `u16` constants exported by
-  `jig-protocol-worker-link`: `REFUSED_LIMITS = 2` and
-  `REFUSED_FRAMING = 3`. These are skein's channel namespace
-  (skein's `net/channel.md`, 5.1), separate from jig's application reasons
-  starting at 256 (4.1). All three local `Refuse`/loss pairs use them:
-  incompatible terms use `REFUSED_LIMITS`, and malformed records,
-  including `TurnBusy`, use `REFUSED_FRAMING`. The sent reason and
-  corresponding `RefusedHere` loss agree. Applications match those
-  names; wire numbers and `Closed` facts do not change.
-- **Redial on loss,** after a jittered backoff that doubles up to a
-  ceiling, starting over once a channel has proved itself: it carried the
-  hello and stayed open for the configured span. While the grace's clock
-  runs (below), no wait passes a quarter of the grace, whatever the
-  ceiling, so a worker dials an engine that is restarting at least four
-  times before its grace passes. One dial is due at the grace's end less
-  the handshake's deadline: a wait begun before that point that would
-  carry past it ends at it, and a dial after it waits as before. So the
-  last dial leaves its handshake the time to be admitted before the
-  grace passes, and an engine answering by then takes the hello.
-- **The hub hears the link,** through the worker's root: up, once ready,
-  when it asks the hub to report what it hosts and sends the hello first;
-  lost, when it starts the grace's clock.
-- **A loss says why** (section 8): every channel or dial that ends goes
-  up once as the component's `Fact`, with its `Loss`: as skein's channel
-  ended it (`Closed`: the stream, a framing error, a refusal sent or
-  received), silence, stall, the handshake's deadline, the output cap
-  filled, a turn busy past the busy turns it keeps (`records.md`, 2, *Busy,
-  sent again*), a fault its root raised, or a dial that failed. The owner logs
-  the loss of a link that said hello, beside its line for the link.
-- **The grace's clock is the component's.** The hub arms no timers
-  (`../../domain/hosts/hub.md`, 2). It runs from when the component notices
-  the link lost. Past the grace with no channel back, the
-  component tells the worker's root, which asks the hub to cancel every
-  run it hosts for lost contact (`../../domain/hosts/hub.md`, 6). A channel
-  back within the grace stops the clock once the engine has admitted its
-  hello: at the first record the engine sends after it, `sources` (4.3).
-  A channel refused, at its opening or at its hello, or lost before that
-  record, leaves the clock running from the first loss, never armed
-  again: so a worker the engine does not take back stops its runs within
-  the stop bound it stated, as one with no channel does, and the
-  engine's grace, counted from its own view, still outlasts it.
-- **A restart said lengthens the clock** (`restart.md`): a channel on
-  which the engine said it restarts arms it, at its loss, for the
-  longer of the restart wait and the grace.
-- **The stop bound counts from the engine's view.** A silent partition is
-  noticed by each side on its own clock, a silence deadline after the last
-  frame it heard, and the engine may have last heard from the worker a
-  ping interval before the partition. So the stop bound the worker states
-  in its hello counts from the last frame the engine may have heard from
-  it: the longer of its ping interval, its silence deadline and its grace
-  together, and its drain's bound, which a worker's own shutdown runs
-  first (`../../domain/hosts/hub.md`, 7); then the longer of its agents'
-  stop graces and a delivery's deadline, then a save
-  (`../configuration.md`, section 4). The engine's grace, which counts from when the engine notices the link lost,
-  must be strictly longer, and the fleet refuses a hello whose stop bound
-  is not (4.3). Then no next attempt is placed while this one may still
-  write (`../../domain/engine/fleet.md`).
-- **Relays outlive channels.** A relayed call's answer may come on a later
-  channel than the call. The component keeps every relay in flight in one
-  table across channels, bounded by the hub's slots and calls per run,
-  and ends each once: answered, or cancelled by the hub. Every active call
-  is validated before the phase-specific send: a valid call is kept for
-  replay even before hello or during an outage; an invalid call ends
-  locally under its original name. Full replay capacity returns retryable
-  busy without registering the call. Cancellation acknowledges only a
-  relay still retained. An answer or local refusal followed by a late or
-  repeated cancellation produces no second terminal. The owner stops the
-  link after draining its hub and agents; the component preserves its
-  stopping and closed guards and emits nothing after closed.
-- **Shutting down,** the worker stops redialling once the hub has given up
-  what it keeps (`../../domain/hosts/hub.md`, 7).
-
-### 9.2 The engine's side
-
-- **A listener per configured address,** TLS, loopback plaintext, or an
-  in-process name in one process, its accepted connections bounded by
-  the fleet's workers plus a few opening at once, accepted one at a time
-  (skein's `runtime/io/sockets.md`).
-- **A channel lost,** by silence, stall, the stream, a framing error or a
-  refusal, goes up as the fleet's lost channel, once, if its hello was
-  heard; the fleet keeps the worker's runs for its grace
-  (`../../domain/engine/fleet.md`).
-- **Every connection's end says why** (section 8): each accepted
-  connection goes up once as the component's `Ended` when it ends, with
-  the worker it authenticated as, the channel its hello opened, if any,
-  and its `Loss`, whether or not its hello was heard: a lost channel, a
-  refused opening and a connection turned away for room each say why,
-  and the owner logs each.
-- **Closing is bounded.** A connection that leaves its open phase, lost,
-  refused or closed, holds the stall deadline from then; past it the
-  component aborts the socket below, whether or not its channel has
-  ended. So a worker that stopped reading never keeps a connection, its
-  room or the engine's stop, and a worker lost any number of times is
-  taken back each time (4.2; `../../domain/hosts/hub.md`, 6).
-- **During a restart,** the listener is open before decisions are: the
-  core's restart adopts runs as workers say hello (`../../domain/engine/restart.md`
-  ; `../service.md`, section 3).
-- **Shutting down,** new openings are refused with *stopping*, and open
-  channels close once the engine's last outputs to them have drained, or
-  at the stall deadline from the close, past which each is aborted: the
-  workers' part closes within the stall deadline of the close, whatever
-  its workers do.
-
-### 9.3 Connections' states
-
-Each side's connection is a state machine whose state names the deadline
-that runs (skein/docs/foundation/programming-model.md, section 9):
-
-```
-engine:  accepted ─► opening ─► terms ─► hello ─► open ─► closing ─► closed
-worker:  idle ─► connecting ─► opening ─► open ─► closing ─► idle (redial after backoff)
-```
-
-Every state also takes the stream failing or ending, a framing error and
-its deadline passing, which close it. A domain output for a channel that
-is gone is dropped: its domain has heard, or will hear, that it is lost,
-and resends what it must after the next hello.
+Moved to [`worker-link.md`](worker-link.md), section 1.
 
 ## 10. Limits and the worst case
 
@@ -781,11 +381,11 @@ and resends what it must after the next hello.
   into the smallest resumed start: an assignment's fixed fields with
   its charter, transcript, workspace, messages and grants empty, and
   the most committed calls the sizes admit, each with its name and tool
-  at their bounds and its answer cut (`README.md`, section 8). It fits a resumed
-  start's committed calls to a room, as `README.md`, section 8 has it. It depends on
+  at their bounds and its answer cut (`liveness.md`, section 1). It fits a resumed
+  start's committed calls to a room, as `liveness.md`, section 1 has it. It depends on
   no domain.
 - **The component's own limits:** the chunk read at once, the room its
-  stream grants at once (section 8), the name's and
+  stream grants at once (`liveness.md`, section 1), the name's and
   the secret's bytes, the handshake's, hello's, ping's, silence's and
   stall's deadlines, the backoff's first span and ceiling, the span that
   proves a channel, and, on the engine's side, the connections opening at
@@ -796,7 +396,7 @@ and resends what it must after the next hello.
   Each side's largest frames but the engine's starts must fit it, or the
   component is not made; a start larger than it is first fitted, and
   only one still past it with its committed calls cut is a run that
-  fails with its numbers (section 8). The smallest resumed start must
+  fails with its numbers (`liveness.md`, section 1). The smallest resumed start must
   fit the room too, or the engine's component is not made: under such
   limits a run that committed its most calls could never resume. How
   large a start the domains admit beside the room is the application's
@@ -814,148 +414,7 @@ and resends what it must after the next hello.
 
 ## 11. Testing
 
-Following skein/docs/foundation/testing-strategy.md, and skein's `net/channel.md`, section 11, each
-within jig's suites' budgets: focused tests in the default suite, randomized
-ones in the fuzzy suite.
-
-- **Records' drift** in `jig-worker-wire-world`: the generated records
-  match the committed module,
-  as skein's `data/codec/golden.md`, section 1 has it. No generated tests
-  or records' golden bytes are kept. Step tests in `jig-protocol-worker-wire`
-  check the sizes against bodies measured by hand; patch goldens stay.
-- **A machine world per component:** the component between the hub's
-  scripted vocabulary and a scripted peer of skein's channel, with every
-  refusal of the opening, a worker replaced, a hello not admitted,
-  silence, stall, the hello late, grants filled and dropped, of both
-  owners and of each kind of value (a bearer, a key, a program source's
-  name), sources, checks, logins and sign-outs, relays across channels,
-  the ask and a piece of each kind, every field both ways, a piece
-  dropped for room counted with the facts, and the grace passing and
-  not. smith's
-  payloads are opaque bytes there, as they are to the components.
-  The engine's world also loses one worker fifty times, each way a link
-  is lost, and takes it back each time, with its connections never past
-  their room; aborts a closing connection whose channel never ends at
-  its deadline; and names each loss's `Loss`. The worker's world keeps a
-  link whose frame arrives in pieces past the silence deadline, and
-  names each loss's `Loss`; joined to the real engine's component, a
-  link busy both ways for minutes, its queue never empty, is never
-  lost. The worker link's incompatible-terms and malformed-body fixtures
-  assert the literal wire reasons 2 and 3, exactly one loss, and no
-  forwarded body. Its trace fixture admits a malformed `TurnBusy` to
-  the real decoder, which never decodes it as a valid busy before the
-  component sees it.
-- **What the machine worlds' fixtures prepare once.** A value the two
-  worlds' fixtures and harness derive from constants alone is built the
-  first time a test reads it, kept in a `std::sync::OnceLock`, and
-  copied to each reader: the channel's schema and limits, jig's kept
-  wires as `jig_protocol_worker_wire::spoken` states them, the kept
-  wires a worker's statement carries, and the agreement a scripted
-  engine plays. Such a value is a constant
-  (`skein/docs/foundation/testing-strategy.md`, 8): nothing a test sets
-  reaches it, and each reader changes only its own copy. Each peer
-  still takes its version's own wire and its credential's encoding, and
-  every connection, loss and assertion runs as before: the fifty-loss
-  row makes each of its peers, but parses the kept texts once, not for
-  each. One focused test in each world checks every prepared value
-  against one built afresh.
-- **A frame past the room, in the machine worlds,** their scripted
-  streams granting room up to a cap and leaving a larger ask unanswered,
-  as io does. The engine's world, one table: an assignment and a job at
-  the room are sent; one byte past it, each is answered refused with its
-  bytes and the room, told once as `Unsent`, and a ping still goes out
-  at each interval for two minutes, with the next record sent after it.
-  The engine's component's step tests: limits whose largest message,
-  relayed answer or grant frame passes the room are not made, a job that
-  cannot encode is answered, and a record the channel refuses at its
-  entrance is answered once. The worker's world: limits whose largest turn,
-  call, answer or hello frame passes the room are not made. Joined to
-  the real engine's component, an assignment past the engine's room
-  leaves the link up for two minutes, pings crossing both ways, its run
-  answered refused, and a run assigned after it is hosted.
-- **A resumed start fitted to its room.** In `jig-protocol-worker-wire`,
-  one step table: an assignment that fits is left whole; one past the
-  room by its committed calls has its newest answers whole and the
-  older cut, its frame within the room, each cut answer's words naming
-  its bytes, its error flag and every call's name and tool kept; a
-  delivery among them whole; the room met exactly; one still past the
-  room with every host answer cut, left so; and the smallest resumed
-  start against an assignment built at it, measured. The engine's
-  world: limits whose smallest resumed start passes the room are not
-  made, and an assignment past the room by its committed calls is sent
-  cut, with no `Unsent`. Joined to the real engine's component, on each
-  stock profile's limits: a resumed start carrying more committed calls
-  at the largest answer than one start can carry crosses, the worker's
-  root is handed every call, the newest answers whole and the rest cut,
-  its run's turn and answer go up and are kept, and the link lives. The
-  core's choice of the calls a start carries, every one committed since
-  the last turn in commit order, is the core world's (`../../domain/engine/executors.md`,
-  2).
-- **The channel's protocol world,** `tests/channel`: the engine's side
-  with the core under jig's test root, and the worker's side with the hub
-  under the test worker's root, both as the reference service composes
-  them (`../service.md`, section 7), with `testing/jig-test-worker`'s smith's agent
-  processes over skein's fake LLM and scripted workspace beneath, joined
-  by in-memory
-  streams cut and rejoined at random; the scripted agents tell real
-  turns and results, so smith's payloads cross the hand-out and
-  `jig-protocol-charter`. It runs the hub's world's stories
-  (`../../domain/hosts/README.md`, section 9) through bytes, and adds:
-  - connections cut mid-frame, and the worker redialling;
-  - a worker cut fifty times, each redial taken back, no run hosted;
-  - a peer that stops reading, and one that goes quiet;
-  - a partition each side notices at a different time;
-  - garbage frames, a wrong secret, another version, another application
-    version, terms that do not fit;
-  - a worker that dials again while its old channel looks alive;
-  - the engine restarting while workers keep runs;
-  - an assignment carrying its task's inbox, a message refused for each
-    of smith's reasons and committed with the next turn or the answer,
-    the engine restarting between, and an answer leaving messages unread;
-  - a run resumed after a compaction, sent only its current window, with
-    its conversation's identity;
-  - an assignment whose charter or transcript does not decode;
-  - smith's facts reaching the views as activity;
-  - a conversation's reply, the fake LLM's text in several held pieces,
-    reaching the views from its agent process as the run's text before
-    its turn: each piece's prefix seen by the run's watcher before the
-    next hold is released, then the turn committed. A task the
-    conversation delegates is not asked and gives no text; no story
-    here runs a delegate, so the lower worlds check it: the core world
-    its ask, the host world the hub's fence, the reference worker's
-    step tests that an unasked run hands up no piece;
-  - a run on a program source, its agent process running smith's fake
-    `claude` (smith's `protocol/programs.md`, section 8) with the
-    source's configuration directory: the login reported usable, not
-    signed in, then signed in again after a check; a usage limit
-    relayed as limited, with its reset and without; a login lost
-    mid-run relayed as unauthorized; and the source signed out, one
-    worker lost before it answers;
-  - runs on a bearer and on a key, a key replaced mid-run, and each
-    notice reaching the core once per run that sent it.
-
-  Its referee is the hub's and the fleet's: every turn, and every answer
-  of a run the host started, reaches the engine once and is acknowledged
-  once; a refused start's answer reaches it at most once and is never
-  acknowledged, and the start ends once, refused or lost (`records.md`, 1;
-  `../../domain/engine/fleet.md`); every relayed call is answered
-  once, every message sent ends once (read, refused or unread), no
-  attempt is placed while a worker may still run the last, no run on a
-  program source is placed on a host whose login was not last reported
-  usable, no run is placed on a worker before its first `logins` after
-  its hello, no run is placed on a host that keeps a person's logins
-  unless that person's accounts pay for it, and no credential grant's
-  value appears in any domain's state. Once a grant exists, the focused
-  suite looks for its value when the wire's grant count changes and at
-  each host's next root step. It also checks before the referee replaces
-  a drained engine's service and checks every surviving host at the story's
-  end. The fuzzy stories check at each root step: drawn `Chat`, `Progress`,
-  `Call`, `HeldCommit`, `MidFrame` and `Restart`, and the replaced-key and
-  application-generation stories. Other stories keep the focused checks.
-- **The application's worlds** keep running its hosts without bytes
-  (`../../domain/testing.md`), on the domain's vocabulary.
-- **Fuzzing,** in the fuzzy suite: each record's decoder and the
-  credential's.
+Moved to [`testing.md`](testing.md), section 1.
 
 ## 12. What it owes and is owed
 
@@ -969,18 +428,18 @@ ones in the fuzzy suite.
   reported usable, and places on a host that keeps a person's logins only
   runs that person's accounts pay for, until a run's process tree is
   contained from them (`../../domain/engine/fleet.md`;
-  `../../domain/accounts.md`, 3.4). The stop
+  `../../domain/accounts-sources.md`, 1). The stop
   bound's meaning is `../../domain/hosts/hub.md`, 6's, which counts it from
-  the engine's view of the link, as 9.1 does, and the fleet checks it
+  the engine's view of the link, as `worker-link.md`, 1.1 does, and the fleet checks it
   at the hello (4.3; `../../domain/engine/fleet.md`).
-- **The domain gives the records their fields** (`../../domain/engine/executors.md`,
-  1 and 2; `../../domain/hosts/README.md`, section 2, and `../../domain/hosts/hub.md`, section 8): the
+- **The domain gives the records their fields** (`../../domain/engine/executors.md`, 1, and `../../domain/engine/executors-transcripts.md`, 1
+  ; `../../domain/hosts/README.md`, section 2, and `../../domain/hosts/hub.md`, section 8): the
   assignment's current window, start's messages and conversation's
   first attempt; the turns' windows, the refusals with turns and
   answers, and the unread fence; activity typed; smith's payloads as the
   hand-out's bytes; and the accounts' notices, the sources, checks,
   logins and sign-outs in the hub's link vocabulary.
-- **What smith gives** (`../README.md`, section 11): smith's codecs, which
+- **What smith gives** (`../needs.md`, section 2): smith's codecs, which
   the hand-out calls, to decode a charter and a transcript against an
   agent configuration's endpoints, and a channel fact, and to encode a
   turn, a call's name and a result; its host domain's long operations
@@ -993,14 +452,14 @@ ones in the fuzzy suite.
   (smith's `protocol/host.md`, section 2; the check's answers are smith's
   `protocol/programs.md`, section 3). No crate of this channel's links
   smith.
-- **What jig asks of smith** (`../README.md`, section 11): the ask in its
+- **What jig asks of smith** (`../needs.md`, section 2): the ask in its
   start, and a run's live content on its channel, at the ask, best
   effort, as pieces naming turn, retry, kind and offset, so that a worker
   whose agents are processes gives a run's text as a host of
-  `smith-inline-agent` does (5.4). smith's host half and host domain hand
+  `smith-inline-agent` does (`owners.md`, 1.4). smith's host half and host domain hand
   the pieces up as they hand up facts, and this channel's fact record
   carries them. What stays for later: the LLM component's closed
-  refusal (`../README.md`, section 11).
+  refusal (`../needs.md`, section 2).
 - **skein owes** in-process addresses, for one process (skein's `runtime/io/sockets.md`,
   5), and, between hosts, TLS's server side with independent output,
   for the engine's listener (skein's `net/channel.md`, section 12; skein's
@@ -1027,7 +486,7 @@ ones in the fuzzy suite.
 - **Large assignments:** a resumed run's transcript crosses in one frame,
   within the resume limit. If transcripts grow to many megabytes, an
   assignment may stream its turns as records of their own after it. A
-  resumed start's committed calls are fitted to the room (section 8),
+  resumed start's committed calls are fitted to the room (`liveness.md`, section 1),
   but a start past it by its other parts, its charter, window, inbox and
   grants, fails its run, and the domains' limits admit one (temper's
   `standard` by a full inbox alone): making it start takes a room sized

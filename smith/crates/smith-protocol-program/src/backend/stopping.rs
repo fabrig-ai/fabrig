@@ -1,4 +1,4 @@
-//! Stop results, finishing intent and signal escalation (smith/docs/design/protocol/programs.md, 5.7–5.9).
+//! Stop results, finishing intent and signal escalation (smith/docs/design/protocol/programs-claude-code.md, 1.7–1.9).
 //! Waiting states own their result action and grace; escalation retains that
 //! action until its result arrives. No startup or completion alarm lives here.
 //! `begin` chooses the result action, `result` settles it, and `terminate`

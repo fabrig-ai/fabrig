@@ -1,1 +1,1 @@
-//! The store codecs world (protocol/store/README.md, section 9).
+//! The store codecs world (protocol/store/testing.md, section 1).

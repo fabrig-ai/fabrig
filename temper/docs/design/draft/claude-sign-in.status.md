@@ -8,7 +8,7 @@ ends in jig's `domain/terminal-login.md`; the terminal lent in skein's
 1; the TUI's side in `../client/tui/box.md`, *Lending its terminal*; the
 browser's in `../client/pages/welcome.md`, 1, *Claude Code's sign-in*,
 and `../client/pages/accounts.md`, 1; `claude-sign-in.md`, section 8's findings in jig's
-`domain/providers.md`, 3, smith's `protocol/programs.md`, 4.2 and 5.3,
+`domain/providers.md`, 3, smith's `protocol/programs.md`, 4.2, and `protocol/programs-claude-code.md`, 1.3,
 and `../protocol/setup/owned.md`, 6. `claude-sign-in.md`, section 7's choices are settled
 there: the ask is a request and a watch (`terminal-login.md`, 2 and 3);
 the TUI in front of the box, signed in as the person, lends; the TUI

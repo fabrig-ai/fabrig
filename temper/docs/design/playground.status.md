@@ -1,6 +1,6 @@
 # playground: status
 
-2026-11-20. Where temper's code lags or departs from [playground.md](playground.md).
+2026-11-23. Where temper's code lags or departs from [playground.md](playground.md).
 
 
 Section 9's walk of story A in the one-process world, by the terminal

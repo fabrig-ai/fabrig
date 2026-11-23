@@ -32,14 +32,14 @@ The pages a person meets it on are `../../client/pages/settings.md`, 2.
   (`engine.llm`) are jig's `provider` kind, and the playground's
   scripted provider the box's constant (`providers.md`). Of the stock's
   providers each has its `keep` and `drop` (jig's
-  `protocol/configuration.md`, section 3): OpenAI's keep `gpt-*` and drop `*audio*`,
+  `protocol/configuration-engine.md`, section 1): OpenAI's keep `gpt-*` and drop `*audio*`,
   `*image*`, `*realtime*`, `*search*`, `*transcribe*`, `*tts*` and the dated
   `*-20??-??-??`; Anthropic's keep `claude-*` and drop the dated `*-20??????`. The
   playground's scripted provider has neither, and no list. jig's
   `engine.projects`,
   the projects a first start seeds, stays jig's member; `temper-box init`'s
   is `[]` (../setup/init.md, 3), and a document's seeded project names its
-  policy as `policy: 1` (jig's `protocol/configuration.md`, section 3),
+  policy as `policy: 1` (jig's `protocol/configuration-engine.md`, section 1),
   so the seed copies the stock's policy 1 and no document carries a
   copy of it (5, step 1). Before opening the store, the copied seed is
   checked against the stock rules and configured authority bounds, its
@@ -111,7 +111,7 @@ Moved to [`settings-kinds.md`](settings-kinds.md), section 1.
 
 - **Refused.** temper passes its defaults, so `jig-protocol-config`
   reads no `engine.charters`, `templates`, `policies` or `rules` (jig's
-  bridge, `jig/docs/design/domain/engine/settings.md`, 7, serves an application that passes
+  bridge, `jig/docs/design/domain/engine/settings-store.md`, 1, serves an application that passes
   none), and temper reads no `application.landing` or `charter`. A
   document naming one is refused as any unknown member is (`README.md`, section 1),
   naming its path and saying where it went: "`engine.charters`:
@@ -169,8 +169,8 @@ side never waits on the part of jig it does not use:
    each rule's criteria become today (`../../domain/forge/change/gates.md`, 2),
    derived at each start from the document as now: a document whose
    landing rules change between starts gives new defaults, which make
-   a revision recorded as the release's (jig's `domain/engine/settings.md`,
-   7). Until step 2, the rules' default carries those requirements,
+   a revision recorded as the release's (jig's `domain/engine/settings-store.md`,
+   1). Until step 2, the rules' default carries those requirements,
    so once the rules hold a stored change, a landing rule edited in the
    document reaches no decision until the rules are reset or changed
    again; step 2 ends that, the rules' standing requirements reading
@@ -201,7 +201,7 @@ side never waits on the part of jig it does not use:
    the stock values starts on the same settings, and makes no
    revision.
 2. **temper's kinds,** on jig's application settings (jig's
-   `domain/engine/settings.md`, 5): kinds 1 to 3 (`settings-kinds.md`, 1), judged by the
+   `domain/engine/settings-application.md`, 1): kinds 1 to 3 (`settings-kinds.md`, 1), judged by the
    forge; `application.landing`'s rules and `charter` refused; 3's two
    standing requirements in the rules, and policy 1 without
    requirements, as `stock.md` has them. `application.landing` keeps its

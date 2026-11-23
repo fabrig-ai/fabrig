@@ -104,7 +104,7 @@ spawned        temper-engine internal forge-child --parent PID --signal kill|ter
 - **`versions`** prints, one line each, in this order, and exits 0,
   reading no configuration and no store:
   - `level OWNER LEVEL` for `skein`, `smith`, `jig` and `temper`, the
-    binary's `OwnerSet.level` of each (jig's `protocol/store/opening.md`, 3),
+    binary's `OwnerSet.level` of each (jig's `protocol/store/opening-owners.md`, 1),
     from the sets it hands its store (`floor.md`, 3): skein 0, smith 0,
     jig 6 and temper 14;
   - `store VERSION`, jig's store's component version, then `family
@@ -220,8 +220,8 @@ internal  temper-agent AGENT.json
   3. by its words: `help` and its words (`documentation.md`, 4),
      `--list AGENT.json`, `--mcp-relay` and `--program-child`, whose
      code is smith's `relay::main` and `program_child::main`, reading
-     every argument themselves (smith's `protocol/programs.md`, 5.1 and
-     5.3); a command's words then `-h` or `--help` alone print its page,
+     every argument themselves (smith's `protocol/programs-claude-code.md`, 1.1 and
+     1.3); a command's words then `-h` or `--help` alone print its page,
      which says it's internal;
   4. else the bare form, its one argument AGENT.json. A document named
      as a command's word is given by a path holding a slash, `./help`;

@@ -17,9 +17,10 @@ use skein_world::Host;
 use std::net::SocketAddr;
 
 /// A store component over empty memory stores.
-fn memory(limits: &store::Limits) -> store::Store {
+fn memory(checked: &store::Checked) -> store::Store {
+    let limits = checked.limits();
     store::Store::over(
-        limits,
+        checked,
         fixtures::APPLICATION,
         &[],
         store::Stores {
@@ -83,7 +84,7 @@ pub struct Owner {
     requests: Queue<io::Request>,
     effects: Queue<Effect>,
     store: store::Store,
-    store_limits: store::Limits,
+    store_limits: store::Checked,
     store_above: Queue<store::Event>,
     below: store::Below,
     paste: [u8; 1024],
@@ -155,7 +156,7 @@ impl Owner {
         }
         let child_limits = fixtures::child_limits();
         let account = ACCOUNT_CHAT;
-        let store_limits = fixtures::store_limits();
+        let store_limits = store::check(&fixtures::store_limits()).expect("account fixture limits");
         let mut owner = Self {
             io: io::Io::new(&limits.io),
             component: None,
@@ -353,7 +354,7 @@ impl Owner {
         let Some(store::Event::Opened { owner: OPEN, last, installation, pending }) = self.store_above.pop() else {
             panic!("the memory store opens at once");
         };
-        // This accounts fixture does not consume the map census (protocol/store/README.md, 6.3).
+        // This accounts fixture does not consume the map census (protocol/store/growth.md, 1.3).
         let Some(store::Event::Census { .. }) = self.store_above.pop() else { panic!("opened census") };
         if pending {
             // This store-only driver has no engine root to ask for the switch.
@@ -463,7 +464,7 @@ impl Owner {
     }
     /// A referee's read owns its temporary handoff buffers outside process calls.
     fn inspect_secret(&mut self, owner: store::SecretOwner, number: u64) -> Option<store::SecretValue> {
-        let env = Env { now: self.now, wall: Wall::EPOCH, limits: self.store_limits };
+        let env = Env { now: self.now, wall: Wall::EPOCH, limits: *self.store_limits.limits() };
         let mut above = Queue::uncapped();
         let mut below = store::Below {
             store: Queue::uncapped(),
@@ -533,7 +534,7 @@ impl Owner {
             providers,
             self.limits,
             crypto,
-            self.store_limits.secrets.page.rows,
+            self.store_limits.limits().secrets.page.rows,
         ));
         self.component.as_mut().expect("component").step(
             env,
@@ -574,7 +575,7 @@ impl Owner {
         }
     }
     fn ask(&mut self, now: Time, wall: Wall, request: store::Request) {
-        let env = Env { now, wall, limits: self.store_limits };
+        let env = Env { now, wall, limits: *self.store_limits.limits() };
         store::down(&mut self.store, &env, request, &mut self.store_above, &mut self.below);
         assert!(
             self.below.store.is_empty() && self.below.secrets.is_empty() && self.below.transcripts.is_empty(),

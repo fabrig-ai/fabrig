@@ -1,4 +1,4 @@
-//! Provisional current run documents (client/domain/contract/README.md, 5.3).
+//! Provisional current run documents (client/domain/contract/watches.md, 1.3).
 use super::Undecodable;
 use super::classify;
 use super::documents::{current_call_fields, live_call_fields, run_state_fields, run_text_fields};

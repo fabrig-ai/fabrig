@@ -6,8 +6,8 @@ Draft, 2026-11-17, on the user's word. A deployment run as a service prints its 
 
 - **The printed link** is drawn at start and spent by a sign-in. A sign-in tried with a secret that isn't live, spent, expired or unknown, is refused, and draws a fresh printed link, which the startup prints again (jig's `jig/docs/design/protocol/client/sign-in.md`, the printed link; `jig/crates/jig-protocol-engine-clients/src/component.rs`, `fresh_link`; `temper/crates/temper-engine-service-component/src/tests/clients.rs`, `a_spent_given_secret_prints_a_fresh_link`).
 - **So a fresh link exists only on the engine's output,** as a side effect of a refused sign-in. ctl's refusals name `temper-box serve` alone as the way to a fresh one (`temper/docs/design/client/ctl/command-line.md`, 1.1). No client can ask for one, an agent driving `temper ctl` among them.
-- **The local link** goes to the person's native clients on the machine, where the startup keeps it; a deployment's engine keeps none (jig's `sign-in.md`, *The local link*).
-- **Approval runs the other way:** a browser signed in approves a terminal client's sign-in, and a program holding a person's credential never approves (jig's `sign-in.md`, a sign-in approved by a browser).
+- **The local link** goes to the person's native clients on the machine, where the startup keeps it; a deployment's engine keeps none (jig's `protocol/client/sign-in.md`, *The local link*).
+- **Approval runs the other way:** a browser signed in approves a terminal client's sign-in, and a program holding a person's credential never approves (jig's `protocol/client/sign-in.md`, a sign-in approved by a browser).
 
 ## 2. Wanted
 
@@ -21,7 +21,7 @@ Draft, 2026-11-17, on the user's word. A deployment run as a service prints its 
   - its answers are the printed link's: `link_used`, `link_expired` and `link_unknown`, remembered as the printed link's are; not ready, busy and full spend nothing.
 - **The client's wire moves its version,** as `temper/docs/design/draft/redeploys.md` says of a client's wire.
 - **ctl's refusals of a spent or expired link** name both ways to a fresh one: `temper-box serve` prints one, and a signed-in client asks one with `temper ctl DIRECTORY link --out FILE`.
-- Revise jig's `sign-in.md` and its client contract's built-ins (`jig/docs/design/client/domain/contract/README.md`, 2), temper's `../client/ctl/command-line.md`, 1.1, and `../client/ctl/README.md`, 7, and `temper/docs/design/protocol/sign-in.md`, 2.3, with their status files.
+- Revise jig's `protocol/client/sign-in.md` and its client contract's built-ins (`jig/docs/design/client/domain/contract/README.md`, 2), temper's `../client/ctl/command-line.md`, 1.1, and `../client/ctl/README.md`, 7, and `temper/docs/design/protocol/sign-in.md`, 2.3, with their status files.
 
 ## 3. Out
 

@@ -1,7 +1,7 @@
 //! Codex preparation retains pinned overrides and private credential paths.
 //! It never writes to the source login. The command's settings are
 //! explicit; its observer retains only root stream evidence until collection.
-//! Contracts: ../../../../docs/design/benchmarks/README.md, sections 6, 8.2, 10 and 13.
+//! Contracts: ../../../../docs/design/benchmarks/agents.md, section 1, and ../../../../docs/design/benchmarks/results.md, section 1.2, and ../../../../docs/design/benchmarks/isolation.md, section 1, and ../../../../docs/design/benchmarks/README.md, section 13.
 
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};

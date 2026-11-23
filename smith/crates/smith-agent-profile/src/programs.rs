@@ -1,5 +1,5 @@
 //! Program configuration bounds without backends or grants (smith/docs/design/shell/README.md, section 2.6).
-//! Contract: smith/docs/design/protocol/programs.md, sections 2, 3 and 5.
+//! Contract: smith/docs/design/protocol/programs.md, sections 2 and 3, and smith/docs/design/protocol/programs-claude-code.md, section 1.
 
 use crate::{Config, Limits};
 use alloc::boxed::Box;
@@ -56,7 +56,7 @@ pub struct ProgramBackend {
     pub effective_user: u32,
     /// The agent's own process ID, read by the shell, when each program
     /// process is to start through the agent's `--program-child` mode and
-    /// die with it (protocol/programs.md, 5.1); `None` where the system
+    /// die with it (protocol/programs-claude-code.md, 1.1); `None` where the system
     /// has no parent-death signal, and in simulated worlds.
     pub parent: Option<u32>,
 }
@@ -70,7 +70,7 @@ pub fn settings(
 ) -> Option<backend::Settings> {
     let mut translation = limits.llm.translation;
     // Built-in results are skipped before rendering; only host text and
-    // bounded root feedback use this MCP reply ceiling (smith/docs/design/protocol/programs.md 5.5).
+    // bounded root feedback use this MCP reply ceiling (smith/docs/design/protocol/programs-claude-code.md 1.5).
     let result = limits
         .domain
         .session
@@ -83,7 +83,7 @@ pub fn settings(
     let contract_bytes = u32::try_from(limits.llm.contract_bytes).ok()?;
     // Host schemas count in run::charter::cost against run_bytes (smith/docs/design/domain/run.md, 5.2).
     // schemas_for_contract caps finish/deliver at contract_bytes; the fixed
-    // inventory bounds every other generated schema (smith/docs/design/protocol/programs.md, 5.3).
+    // inventory bounds every other generated schema (smith/docs/design/protocol/programs-claude-code.md, 1.3).
     let schema_bytes = contract_bytes
         .max(u32::try_from(limits.domain.run.run_bytes).ok()?)
         .max(u32::try_from(llm::fixed_schema_bytes(&translation.stated)?).ok()?);

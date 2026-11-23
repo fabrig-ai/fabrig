@@ -1,4 +1,4 @@
-//! Dense revision reads (domain/engine/settings.md, 7; client/domain/contract/README.md, section 4).
+//! Dense revision reads (domain/engine/settings-store.md, 1; client/domain/contract/reads.md, section 1).
 
 use crate::{
     Core, CoreRecord, Limits, Record, Request,
@@ -315,7 +315,7 @@ fn setting_value(core: &Core, setting: settings::Setting, revision: u32) -> Answ
     }
 }
 
-// domain/engine/settings.md, 6: current authority is read whole, never as a retained revision.
+// domain/engine/settings-proposals.md, 1: current authority is read whole, never as a retained revision.
 fn project_policy(core: &Core, project: u32, revision: u32) -> Answer {
     if revision != core.current.newest() {
         return Answer::None(Why::Unknown);
@@ -480,7 +480,7 @@ pub(super) fn revision(
 }
 
 /// A project's member may load its application revision metadata for the application's own reads.
-/// Core values and other scopes' items stay private (jig/docs/design/domain/engine/settings.md, 5 and 7).
+/// Core values and other scopes' items stay private (jig/docs/design/domain/engine/settings-application.md, 1, and jig/docs/design/domain/engine/settings-store.md, 1).
 pub fn revision_metadata(
     core: &mut Core,
     env: &Env<Limits>,
@@ -504,7 +504,7 @@ pub fn revision_metadata(
 }
 
 /// A project's member reads a proposal of settings that touches the project, for the application's own reads
-/// (jig/docs/design/domain/engine/settings.md, 6). Other scopes' items and core values stay as the run's read gives them.
+/// (jig/docs/design/domain/engine/settings-proposals.md, 1). Other scopes' items and core values stay as the run's read gives them.
 /// Decided party proposals have no retained projects and are unknown to this read.
 pub fn project_proposal(
     core: &mut Core,

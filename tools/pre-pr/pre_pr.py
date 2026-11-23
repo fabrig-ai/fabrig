@@ -566,7 +566,11 @@ def fetched_counts(counts):
 
 
 def close_budgets(root, repository, env, runs):
-    """Judge whole binaries against the selected published budget input (section 4.1)."""
+    """Judge whole binaries against the selected published budget input, profile by profile (section 4.1).
+
+    runs maps each profile to its run directories; a bare list is the focused profile's.
+    """
+    by_profile = runs if isinstance(runs, dict) else {'default': runs}
     counts = runpy.run_path(str(TIERS / 'counts.py'))
     try:
         if WORKER_COUNTS.is_file():
@@ -577,13 +581,7 @@ def close_budgets(root, repository, env, runs):
             print(f"budgets: no verdict at close: {data['unavailable']}; the gate still judges", flush=True)
             return []
         base = data['base']
-        published = data['profiles']['default']
-        old = counts['binaries'](data, 'default', base)
-        base_layers, base_cpu = defaultdict(int), defaultdict(float)
-        for binary, entry in old.items():
-            key = entry['tree'], entry['layer']
-            base_layers[key] += entry['instructions']
-            base_cpu[key] += published['binaries'][binary]['cpu_s']
+        data['profiles']['default']
     except (KeyError, TypeError, ValueError, OSError):
         print("budgets: no main's counts in this repository (refs/temper/counts); "
               'no verdict at close, an infrastructure fault to repair; the gate still judges', flush=True)
@@ -592,67 +590,106 @@ def close_budgets(root, repository, env, runs):
         return [failure('budgets', "the goal is older than main's last twenty landings; update from main and close again")]
 
     cpu = runpy.run_path(str(TIERS / 'cpu.py'))
-    try:
-        measured = close_measurements(runs, cpu['partial_binaries'])
-    except (OSError, ValueError, KeyError, TypeError) as error:
-        print(f'budgets: no verdict at close, instruction counts unavailable: {error_line(error)}', flush=True)
-        return []
-    if not measured:
-        return []
-
     with (root / 'tools/tiers/budgets.toml').open('rb') as file:
-        profile = tomllib.load(file).get('gate', {}).get('default', {})
-    ceilings = cpu['gate_ceilings'](profile, 'instructions')
-    credits = cpu['instruction_move_credits'](profile, published, base_layers, base_cpu)
-    head = base_layers.copy()
-    grew = defaultdict(list)
-    for binary, (key, count) in measured.items():
-        before = 0
-        if binary in old:
-            entry = old[binary]
-            old_key = entry['tree'], entry['layer']
-            head[old_key] -= entry['instructions']
-            if old_key == key:
-                before = entry['instructions']
-        head[key] += count
-        if count > before:
-            grew[key].append((count - before, binary))
-
-    findings, warnings = [], []
-    for key in sorted({key for key, _ in measured.values()}):
-        before, after = base_layers[key], head[key]
-        accepted = profile.get(key[0], {}).get(key[1], {}).get('accepted_instructions')
-        allowance = counts['allowance'](before, credits.get(key, 0), accepted)
-        ceiling = ceilings.get(key)
-        limit = max(ceiling, accepted) if ceiling is not None and accepted is not None else ceiling
-        over = limit is not None and before <= limit < after
-        increase = after - before
-        if not over and increase <= allowance:
+        gate = tomllib.load(file).get('gate', {})
+    findings, warnings, figures, judged = [], [], [], 0
+    for name, profile_runs in by_profile.items():
+        which = '' if name == 'default' else name + ' '
+        try:
+            published = data['profiles'][name]
+            old = counts['binaries'](data, name, base)
+            base_layers, base_cpu = defaultdict(int), defaultdict(float)
+            for binary, entry in old.items():
+                key = entry['tree'], entry['layer']
+                base_layers[key] += entry['instructions']
+                base_cpu[key] += published['binaries'][binary]['cpu_s']
+        except (KeyError, TypeError, ValueError):
+            print(f"budgets: no {which}counts in main's published counts; no {which}verdict at close", flush=True)
             continue
-        margin = int(before * CLOSE_MARGIN)
-        sure = after > limit + margin if over else increase > allowance + margin
-        found = findings if sure else warnings
-        growth = f'{100 * increase / before:.2f}%' if before else 'n/a (zero at base)'
-        reason = 'instruction growth over allowance'
-        if over:
-            bound = 'accepted instruction level' if limit != ceiling else 'instruction ceiling'
-            reason = f'over {bound} {limit}'
-        found.append(f'{key[0]} default {key[1]}: {reason}, {before} at base, {after} at head, '
-                     f'growth {growth}, allowance {allowance} instructions')
-        causes = sorted(grew[key], key=lambda cause: (-cause[0], cause[1]))
-        found.extend(f'  {binary}: +{increase} instructions' for increase, binary in causes[:10])
-        if len(causes) > 10:
-            found.append(f'  {len(causes) - 10} more binaries')
+        try:
+            measured = close_measurements(profile_runs, cpu['partial_binaries'])
+        except (OSError, ValueError, KeyError, TypeError) as error:
+            print(f'budgets: no {which}verdict at close, instruction counts unavailable: {error_line(error)}',
+                  flush=True)
+            continue
+        if not measured:
+            continue
+        judged += 1
+        profile = gate.get(name, {})
+        ceilings = cpu['gate_ceilings'](profile, 'instructions')
+        credits = cpu['instruction_move_credits'](profile, published, base_layers, base_cpu)
+        head = base_layers.copy()
+        grew = defaultdict(list)
+        for binary, (key, count) in measured.items():
+            before = 0
+            if binary in old:
+                entry = old[binary]
+                old_key = entry['tree'], entry['layer']
+                head[old_key] -= entry['instructions']
+                if old_key == key:
+                    before = entry['instructions']
+            head[key] += count
+            if count > before:
+                grew[key].append((count - before, binary))
+
+        for key in sorted({key for key, _ in measured.values()}):
+            before, after = base_layers[key], head[key]
+            accepted = profile.get(key[0], {}).get(key[1], {}).get('accepted_instructions')
+            allowance = counts['allowance'](before, credits.get(key, 0), accepted)
+            ceiling = ceilings.get(key)
+            limit = max(ceiling, accepted) if ceiling is not None and accepted is not None else ceiling
+            over = limit is not None and before <= limit < after
+            increase = after - before
+            if not over and increase <= allowance:
+                continue
+            margin = int(before * CLOSE_MARGIN)
+            sure = after > limit + margin if over else increase > allowance + margin
+            found = findings if sure else warnings
+            growth = f'{100 * increase / before:.2f}%' if before else 'n/a (zero at base)'
+            reason = 'instruction growth over allowance'
+            if over:
+                bound = 'accepted instruction level' if limit != ceiling else 'instruction ceiling'
+                reason = f'over {bound} {limit}'
+            found.append(f'{key[0]} {name} {key[1]}: {reason}, {before} at base, {after} at head, '
+                         f'growth {growth}, allowance {allowance} instructions')
+            causes = sorted(grew[key], key=lambda cause: (-cause[0], cause[1]))
+            if sure:
+                figures.append(dict(tree=key[0], profile=name, layer=key[1], base=before, head=after,
+                                    allowance=allowance, limit=limit if over else None, margin=margin,
+                                    base_commit=base,
+                                    binaries=[dict(binary=binary, growth=grown) for grown, binary in causes[:10]]))
+            found.extend(f'  {binary}: +{increase} instructions' for increase, binary in causes[:10])
+            if len(causes) > 10:
+                found.append(f'  {len(causes) - 10} more binaries')
     if warnings:
         print(f'budgets: past the allowance at close by less than its {CLOSE_MARGIN:.0%} margin, a warning; '
               'the landing gate judges:\n' + '\n'.join(warnings), flush=True)
     if not findings:
-        print(f'budgets: within instruction budgets at close (base {base[:10]})', flush=True)
+        if judged and not warnings:
+            print(f'budgets: within instruction budgets at close (base {base[:10]})', flush=True)
         return []
     report = '\n'.join([*findings, cpu['REPAIR_LINE']])
     if len(report.encode()) >= 1536:
         print(report, flush=True)
-    return [failure('budgets', report)]
+    error = failure('budgets', report)
+    error['figures'] = figures
+    error['diagnostic'] = budget_line(figures[0]) + '\n'
+    return [error]
+
+
+def budget_line(figure):
+    """One refusing layer in the hold's 128 bytes: what grew, by how much, against what."""
+    head = f"budgets {figure['tree']} {figure.get('profile', 'default')} {figure['layer']}: "
+    if figure['limit'] is not None:
+        text = f"over {figure['limit'] / 1e9:.1f}e9 at {figure['head'] / 1e9:.1f}e9"
+    else:
+        base = figure['base'] or 1
+        text = (f"+{100 * (figure['head'] - figure['base']) / base:.2f}%, allowance "
+                f"{100 * figure['allowance'] / base:.2f}%")
+    text += f", {figure['base'] / 1e9:.1f}e9 to {figure['head'] / 1e9:.1f}e9"
+    if figure['binaries']:
+        text += f", most {figure['binaries'][0]['binary']}"
+    return (head + text).encode()[:127].decode(errors='ignore')
 
 
 def merge_tests(root, env):
@@ -1065,8 +1102,10 @@ def failure_file(tree_id, base_id, verdict, cached, errors, root, env, scope='fu
                 elif key and len(key) == 4 and error['name'].startswith('old-forms '):
                     structured = dict(zip(('kind', 'tree', 'form', 'count', 'baseline'), ('old-forms', *key)))
                 entry = {'class': kind, 'name': error['name'], 'key': structured}
-                if error['name'] == 'format':
+                if error['name'] in ('format', 'budgets'):
                     entry['detail'] = error['log'].strip()
+                if error.get('figures'):
+                    entry['figures'] = error['figures']
                 entries.append(entry)
         header = {'form': 'pre-pr-failures 1', 'tree': tree_id, 'base': base_id,
                   'cached': cached, 'verdict': 'refused' if verdict else 'passed',
@@ -1149,10 +1188,10 @@ def summary(base_id, lints, tests, errors, reason, failures_tail, starved=(), sc
     if refused and scope == 'close' and new:
         # The close job's hold keeps only the last 128 bytes of the check's stderr: name the first failure there.
         first = new[0]
-        # A failed case, a compiler error or a panic says most; else the log's last line, not its cut marker.
+        # A failed case, a compiler error or a panic says most; else the log's first line, not its cut marker.
         texts = [text.strip() for text in first['log'].splitlines() if text.strip() and not text.startswith('[… ')]
         telling = [text for text in texts if text.startswith(('FAIL', 'error', 'thread ')) or 'panicked' in text]
-        line = diagnostic.strip() or first['name'] + ': ' + (telling or texts or [''])[0 if telling else -1]
+        line = diagnostic.strip() or first['name'] + ': ' + (telling or texts or [''])[0]
         print(line.encode()[:127].decode(errors='ignore'), file=sys.stderr, flush=True)
     return int(refused)
 
@@ -1277,13 +1316,15 @@ def workspace_checks(root, paths, tree_id, env, errors, outcomes, reds=(), *, co
             target.mkdir(parents=True, exist_ok=True)
             scratch = tempfile.TemporaryDirectory(prefix='pre-pr-close-', dir=target)
         with scratch as directory:
-            runs = []
+            runs = defaultdict(list)
             runner = str(TIERS / 'one-process')
             for args in PLANNER['rust_commands'](groups, prerequisites, Path(directory) if suites else None, runner):
                 if args[0] == runner:
                     out = Path(args[2])
-                    runs.append(out)
-                    if command('focused tests', args, OneProcessDiagnostic(out)):
+                    profile = args[args.index('--fail-fast') + 1]
+                    runs[profile].append(out)
+                    label = 'focused tests' if profile == 'default' else f'{profile} tests'
+                    if command(label, args, OneProcessDiagnostic(out)):
                         break
                 elif command('build check', args, RustcDiagnostic()):
                     break
@@ -1295,6 +1336,48 @@ def workspace_checks(root, paths, tree_id, env, errors, outcomes, reds=(), *, co
 
 
 HOOKS = {'.temper/pre-pr', '.temper/goal-child-pre-pr', '.temper/goal-pre-pr', '.temper/checked-close'}
+
+
+# A close's own verdicts, which the same tree, base and main's counts give again: a retry replays them.
+HARD = ('budgets', 'format', 'citations', 'check outward', 'old-forms ',
+        'test fabrig-boundary::outward no_file_names_the_lab')
+SAVED_DAYS = 1
+
+
+def verdict_store():
+    """Outside the checkout, which each attempt gets afresh: the worker user's cache."""
+    return Path(pwd.getpwuid(os.getuid()).pw_dir) / '.cache' / 'fabrig-pre-pr' / 'close'
+
+
+def verdict_key(tree_id, base_id, counts):
+    material = json.dumps([tree_id, base_id, counts], sort_keys=True, separators=(',', ':'))
+    return hashlib.sha256(material.encode()).hexdigest()
+
+
+def saved_verdict(key):
+    path = verdict_store() / f'{key}.json'
+    try:
+        saved = json.loads(path.read_text())
+    except (OSError, ValueError):
+        return None
+    if time.time() - saved.get('at', 0) > SAVED_DAYS * 86400 or not isinstance(saved.get('errors'), list):
+        return None
+    return saved
+
+
+def save_verdict(key, errors):
+    """Keep a refusal made of hard verdicts alone; prune what has aged out."""
+    store = verdict_store()
+    try:
+        store.mkdir(parents=True, exist_ok=True)
+        for old in store.glob('*.json'):
+            if time.time() - old.stat().st_mtime > SAVED_DAYS * 86400:
+                old.unlink(missing_ok=True)
+        with tempfile.NamedTemporaryFile('w', dir=store, delete=False) as out:
+            json.dump({'at': time.time(), 'errors': errors}, out)
+        os.replace(out.name, store / f'{key}.json')
+    except OSError as error:
+        print(f'pre-pr: refusal not saved for retries: {error_line(error)}', flush=True)
 
 
 def with_rust_tools(env):
@@ -1350,6 +1433,7 @@ def check(scope, commits):
         # A close builds and tests in the goal's own checkout, warm with the worker's build cache.
         checks_root = root if scope == 'close' and has_git else work
         receipt_head = head
+        key = saved = None
         try:
             if scope == 'goal' and head:
                 # Only the current commit can bind this snapshot to a goal head.
@@ -1360,9 +1444,19 @@ def check(scope, commits):
                         raise ValueError('working tree differs from the requested goal head')
             if scope == 'close' and has_git and checked_git(['write-tree', '--missing-ok'], root, source_env).decode().strip() != tree_id:
                 raise ValueError('working tree differs from the staged close tree')
+            if scope == 'close' and base_id:
+                counts = published_counts(runpy.run_path(str(TIERS / 'counts.py')), root, source_env)
+                key = verdict_key(tree_id, base_id, counts) if counts else None
+            saved = saved_verdict(key) if key else None
             if no_base:
                 # Loud, so that a checkout the worker set up otherwise is seen and repaired (section 1).
                 errors.append(failure('base', no_base))
+            elif saved:
+                # Temper retries a refused close as it would a fault; the same inputs give the same verdict.
+                stamp = time.strftime('%H:%M:%SZ', time.gmtime(saved['at']))
+                print(f'pre-pr: the refusal of {stamp} for this tree, base and main\'s counts, again: '
+                      'a retry would measure the same (tools/pre-pr/design.md, 4.1)', flush=True)
+                errors.extend(saved['errors'])
             else:
                 tests = workspace_checks(checks_root, paths, tree_id, env, errors, outcomes, completed_goal=scope == 'close',
                                          counts_source=(root, source_env), whole=base_id is None, base_id=base_id)
@@ -1376,6 +1470,9 @@ def check(scope, commits):
             errors.append(failure('workspace checks', str(error)))
         verdict = finish(tree_id, base_id, errors, root, env, scope, commits, [receipt_head], lints, tests, warnings,
                          base_name if base_id else None)
+        if scope == 'close' and verdict and key and not saved and errors and all(
+                settled(e) or e['name'].startswith(HARD) for e in errors):
+            save_verdict(key, errors)
         if has_git and scope == 'delivery':
             reds, _, marker = goal_reds(root, source_env)
             if marker:

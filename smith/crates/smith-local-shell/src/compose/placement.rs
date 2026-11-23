@@ -10,7 +10,7 @@ pub(crate) fn program_account(accounts: &[settings::resolve::Account]) -> bool {
 
 /// Price the child's validated teardown before selecting the host's grace.
 /// Profile admission includes a final event write even without a destination
-/// (protocol/limits.md, sections 3.6 and 3.8; shell/README.md, section 5).
+/// (protocol/limits-derivation.md, sections 1.6 and 1.8; shell/README.md, section 5).
 pub(crate) fn host_limits(
     agent: &smith_agent_shell::config::Configuration,
     spawned: bool,

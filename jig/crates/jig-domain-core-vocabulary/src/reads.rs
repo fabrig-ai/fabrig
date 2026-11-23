@@ -16,7 +16,7 @@ use skein_lib::List;
 pub use task_text::{TaskText, TaskTextField};
 pub use vocabulary::*;
 
-/// Which physical rows a read scope loads (protocol/store/README.md, 4.3, and protocol/store/loads.md, 3).
+/// Which physical rows a read scope loads (protocol/store/keys.md, 1.3, and protocol/store/loads.md, 3).
 /// Cursor admission is separate: notes lines are joined to entry rows before paging.
 #[must_use]
 pub fn admits(party: u64, scope: &Scope, key: &crate::Key) -> bool {

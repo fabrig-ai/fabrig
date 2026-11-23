@@ -1,4 +1,4 @@
-//! Root translations preserve the party's core refusal facts (domain/connectors.md, 5.5).
+//! Root translations preserve the party's core refusal facts (domain/connectors-facts.md, 1.5).
 use jig_domain_people as people;
 use jig_test_connector::application_core as application;
 

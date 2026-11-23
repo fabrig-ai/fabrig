@@ -64,7 +64,7 @@ This document holds request delivery through ctl, split from [`README.md`](READM
   An unknown proposal answers exit 2: "this proposal isn't waiting; it
   may have been decided or replaced." A task's automatically replaced
   settings proposal keeps no decision to report (jig's
-  `client/domain/contract/requests.md`, section 2, and `jig/docs/design/client/domain/contract/README.md`, section 3).
+  `client/domain/contract/requests.md`, section 2, and `jig/docs/design/client/domain/contract/answers.md`, section 1).
 - **The other acts** (`task stop`, `task cancel`, `proposal decide`,
   ...) take `--key` optionally; without it the table draws one, which
   the small store keeps until answered (`command-line.md`, 1.2).
@@ -72,8 +72,8 @@ This document holds request delivery through ctl, split from [`README.md`](READM
   replace-key`'s (`areas.md`, area 5), and area 6's `forge connect` with a FILE
   and `forge replace`, is sent once and never kept: `jig-client` writes
   no record of it to DIRECTORY's store and never sends it again (jig's
-  `client/domain/client/requests.md`; jig's `protocol/client/README.md`,
-  sections 3 and 7), and the engine takes the value out as it decodes
+  `client/domain/client/requests.md`; jig's `protocol/client/README.md`, section 3, and `protocol/client/small-store.md`, section 1
+  ), and the engine takes the value out as it decodes
   the request, so no committed request or answer holds it (jig's
   `domain/accounts.md`, section 5). A forge's pasted value is kept by
   jig's clients' component in the secrets' store under temper's tag, at

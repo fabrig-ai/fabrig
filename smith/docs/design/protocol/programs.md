@@ -27,11 +27,11 @@ open is section 9.
   credential variable, no setting or hook of the workspace, its built-in
   tools limited to the families the charter grants, and every call of
   one asked of smith's policy through its permission prompt, so that
-  none runs unseen by the host (section 5).
+  none runs unseen by the host (`programs-claude-code.md`, section 1).
 - **Sub-agents are programs of their own.** smith's `sub_agent` is
   served through the agent's own MCP server, and each child is a
   program session of its own at the model and effort its LLM names,
-  inspect only, side by side with the others (5.10).
+  inspect only, side by side with the others (`programs-claude-code.md`, 1.10).
 - **The terms are rules:** the program as its publisher ships it, each
   person's own subscription through the publisher's flow, nobody paying
   for or reselling its use, its name in plain text only (section 6).
@@ -56,36 +56,36 @@ open is section 9.
   the agent's child, started for the run and ended with it. The agent's
   component `smith-protocol-program` (README.md, section 5) adapts it
   both ways: what the charter says becomes the program's
-  command line, settings and input (section 5), and what the program
+  command line, settings and input (`programs-claude-code.md`, section 1), and what the program
   says becomes smith's turns, calls, notices and answer.
 - **The child is inside the run's containment.** The agent's tree is the
   run's (host.md, section 1), so a cancel, a drop or the host's stop
   ends the program with the run, and its own children with it. An
   agent that aborts closes nothing (skein's `runtime/shell.md`, section 12), so
-  on Linux each program process is started to die with its agent (5.1).
-  On macOS an abort still needs the host's tree ended (5.1, section 9).
+  on Linux each program process is started to die with its agent (`programs-claude-code.md`, 1.1).
+  On macOS an abort still needs the host's tree ended (`programs-claude-code.md`, 1.1; section 9).
 - **The run is still smith's.** Its charter, budget, result contract,
   host tools, `finish`, `deliver` and `wait`, its messages, parking and
   answer are domain/run.md's on either backend. What the program does in
-  place of smith's own loop is section 5's, and what that weakens
-  section 7's.
+  place of smith's own loop is `programs-claude-code.md`, section 1's, and what that weakens
+  `programs.md`, section 7's.
 - **The inline agent has no program backend.** `smith-inline-agent` runs
   in its host's process, with no child of its own (domain/host.md, 9.1),
   so it runs the direct backend only. A host runs a run whose grant
   names a program source on a spawned agent.
 - **Sub-agents are smith's, each a program of its own.** Main's
   conversation is the program's, and the program's own sub-agents are
-  withheld (5.3). smith's `sub_agent` is served through the agent's own
+  withheld (`programs-claude-code.md`, 1.3). smith's `sub_agent` is served through the agent's own
   MCP server when the charter grants the sub-agents family, and the run
   answers each call by starting a child: a program session of its own,
   the agent's child too, at the model and effort of the LLM the call
   names, or main's, on the program source its account is granted.
   Children on a program backend are granted inspect alone and run side
-  by side (5.10). A sub-agent's LLM never runs on a program under a
+  by side (`programs-claude-code.md`, 1.10). A sub-agent's LLM never runs on a program under a
   direct main: a start that grants a program source for a sub-agent's
   LLM's account, and not for main's, is refused at the entrance
   (domain/run.md, section 4).
-- **Open runs keep the program across their turns** (5.9): a text reply
+- **Open runs keep the program across their turns** (`programs-claude-code.md`, 1.9): a text reply
   ends the program's turn, not the program, and the run listens as on
   the direct backend; a message while it listens is the program's next
   user message.
@@ -106,7 +106,7 @@ open is section 9.
 - **The host chooses the source,** since it decides who pays. The agent
   runs the run on the grant it was given until the run ends: it never
   moves a run to another account or another source, at a limit or
-  otherwise (5.6).
+  otherwise (`programs-claude-code.md`, 1.6).
 - **A program source is usable** when the program's status, run in the
   source's environment (4.2), says it is signed in the way the source
   needs. For Claude Code: `claude auth status` exits 0, and its answer's
@@ -130,7 +130,7 @@ open is section 9.
     section 8);
   - **the agent** checks again at a program run's start, before the
     program starts, since a login may lapse in between. A check other
-    than usable ends the run before its first turn (5.6).
+    than usable ends the run before its first turn (`programs-claude-code.md`, 1.6).
 
 ## 4. The person's sign-in
 
@@ -204,631 +204,60 @@ open is section 9.
   3.3). Whatever stands in for the subscription, the status run in the
   source's environment names its `authMethod`, which is then not
   `claude.ai`: the source is *signed in otherwise* (section 3), its runs
-  end before their first turn (5.6), and the person is told the method.
+  end before their first turn (`programs-claude-code.md`, 1.6), and the person is told the method.
   Where a gateway session lives is 9's *Credentials outside the
   environment*.
-- **The settings file** in the directory is the agent's (5.3): written
+- **The settings file** in the directory is the agent's (`programs-claude-code.md`, 1.3): written
   whole, by durable replace (skein's `runtime/io/files.md`, 2), with the same content
   for every run, so that runs on one source never race over it.
 
 ## 5. Running Claude Code
 
+Moved to [`programs-claude-code.md`](programs-claude-code.md), section 1.
+
 ### 5.1 The command
 
-| smith's run | Claude Code |
-|---|---|
-| the charter's instructions and brief | `--system-prompt-file`, replacing Claude Code's own prompt by default; `--append-system-prompt-file` when `programs.claude_code.keep_program_prompt` is true (below) |
-| the main LLM's model and effort | `--model`, `--effort` |
-| host tools, `finish`, `deliver` and `wait` | the agent's own MCP server (5.3), given with `--mcp-config` and `--strict-mcp-config` |
-| the result contract | `--json-schema`, the outcome read from `structured_output` when no `finish` was accepted (5.5) |
-| policy on each call | `--permission-prompt-tool`, naming the agent's prompt tool (5.4); `--tools`, for the built-in tools the charter grants (5.3) |
-| the start's messages, and messages mid-run | user messages on `--input-format stream-json` |
-| turns, activity and text as it comes | `--output-format stream-json`, with `--verbose` (which `-p` requires for it) and `--include-partial-messages` |
-| failures | `rate_limit_event`, `system/api_retry`, the `result` message, a lost login (5.6) |
-| the budget | `--max-turns`, and the agent's own measure and clock (5.7) |
-| a cancel | SIGINT, then SIGTERM (5.7) |
-| parking and resuming | `--session-id`, derived from the conversation; `--resume` (5.8) |
-
-- **`-p`, never `--bare`,** which reads no subscription's login.
-- **`--setting-sources user`,** with the source's configuration
-  directory, so that only the settings the agent wrote apply, and no
-  settings, hooks or `.mcp.json` servers of the run's workspace.
-- **The default permission mode,** never `dontAsk`, which turns each
-  prompt into a denial, nor `bypassPermissions`.
-- **Where it runs:** in main's working directory, the start's first
-  directory (domain/tools.md, section 2), with the run's environment
-  (agent.md, section 4) as 4.2 changes it; a run with no workspace in a
-  directory of its own (below).
-- **Every run replaces Claude Code's prompt by default:**
-  `--system-prompt-file` supplies the charter's instructions and brief,
-  with or without a workspace (the person, 2026-11-10: replace by default).
-  The program's own guidance on git, commits, tone and tasks conflicts
-  with charters and costs context on each request. The agent's program
-  declaration (agent.md, section 4) may set
-  `programs.claude_code.keep_program_prompt` to `true` to keep the
-  program's prompt and append with `--append-system-prompt-file` instead;
-  it is `false` when omitted. This launch choice applies to main,
-  children, summary sessions and resumes. A workspace run keeps its
-  granted built-in tools, MCP server, working directory and slash
-  commands. Its summary session (5.8) starts as its run does, with
-  summary tools as 5.8 specifies; a resume keeps the run's arguments.
-- **A run with no workspace** also passes `--tools ""` whatever its
-  charter grants (5.3), and
-  `--disable-slash-commands`, in `work`, an empty private directory
-  beside the run's own files below, made with them and removed with
-  them, which is no repository. By default the program's own prompt, its file
-  tools' text, a git status and its commands are absent from what it
-  sends: seen on 2.1.312 with no MCP server, a billing line, its SDK's
-  line ("You are a Claude agent, built on Anthropic's Claude Agent
-  SDK.") and a message of about 0.9 KB naming the directory, the
-  platform, the model and the date. A subscription's login takes such a
-  request (checked 2026-11-07, 2.1.312). Keeping the program prompt
-  changes only the prompt flag; its tools, slash commands and directory
-  remain as above.
-- **The run's own files for the program,** its instructions, its MCP
-  configuration and its outcome's schema, are private files (skein's
-  `runtime/io/files.md`, 3) in a directory of the run's own outside its workspace,
-  removed when the run ends.
-- **Each program's files are its own.** Main's program, its summary
-  session's and each child's (5.10) keep their files in a directory of
-  their own, under the programs directory's `.runs`, and open, write and
-  remove them one operation at a time. Each operation's answer goes to
-  the program that asked for it, never a child's to main, main's to a
-  child or one child's to another, in whatever order the agent's file
-  component answers a burst of children and main. The agent tells an
-  answer's program by the owner its operation named, one of that
-  program's own file owners, never by a token of its process's pipes,
-  its check's or its server's: those are the io component's, of the
-  same form as the owners of the run's own tools, so a tool's file
-  answer whose owner equals one goes to the tool, never to a program.
-- **An answer not asked for** fails its program's run, never the agent:
-  a file answer that reaches a program with none of its operations
-  outstanding fails that program's run as a start that fails does
-  (5.6), with the detail `smith: a private file answer the program did
-  not ask for`; a child's fails its call alone (5.10), and main goes on.
-  One that comes once the program is ending is dropped, its run having
-  its terminal already.
-- **Its version moves on its own:** the agent learns what the program
-  offers from `system/init`'s `capabilities`, never from a version
-  string.
-- **Started to die with its agent.** On Linux the agent starts each
-  program process through its own binary, the one the relay runs
-  (5.3): `<agent> --program-child <parent> <program> <arguments>…`,
-  `<parent>` the agent's process ID in decimal and `<program>` the
-  program's path. That mode execs the program with its arguments,
-  environment, directory and descriptors unchanged, through skein's
-  `exec_dying_with_parent` (skein's `runtime/shell.md`, section 3) with Kill,
-  so an agent that aborts takes its program with it at once: nothing
-  waits for a graceful stop, and the program's spend ends with the
-  agent. A failure, its parent changed or the program missing, prints
-  `smith-agent: program child: <why>` and exits 1, which the agent
-  hears as a program that could not start (5.6). Every program process
-  the agent starts goes so: its status check (section 3) and each print
-  run, main's, its summary session's and each child's (5.10). The relay,
-  which the program starts, ends at the end of its input, when the
-  program has gone. Where no parent-death signal exists (macOS), the
-  agent starts the program directly, and an abort leaves it running
-  until its host's tree is ended (skein's `runtime/shell.md`, section 12).
+Moved to [`programs-claude-code.md`](programs-claude-code.md), section 1.1.
 
 ### 5.2 Isolated
 
-- **No credential variable** reaches the program (4.2), so the
-  subscription is what pays.
-- **No setting of the workspace's:** `--setting-sources user` reads only
-  the configuration directory's settings, the agent's. A repository's
-  hooks, settings and MCP servers never run.
-- **No other MCP server:** `--strict-mcp-config` takes only the agent's.
-- **What stays outside the agent's reach** is said in section 7: managed
-  settings, and what a command can read.
+Moved to [`programs-claude-code.md`](programs-claude-code.md), section 1.2.
 
 ### 5.3 The tools
 
-- **Built-in tools for the granted families,** under their own names,
-  and no other:
-
-  | Family | Claude Code's tools |
-  |---|---|
-  | inspect | `Read`, `Glob`, `Grep` |
-  | modify | `Write`, `Edit` |
-  | shell | `Bash` |
-
-  Claude Code has no built-in that deletes a file but its shell, so
-  modify's `remove` (`domain/tools.md`, section 3) is served by the
-  agent's own MCP server (below), answered by the agent as on the
-  direct backend, never by granting `Bash`.
-
-  `--tools` names exactly these for the run's granted families, so the
-  program's other built-in tools, its sub-agents, web access and task
-  lists among them, are absent. A run with no workspace names none,
-  `--tools ""`, whatever its families, since it has nothing to read,
-  write or run a shell in (5.1). A run with a result contract, which
-  asks `--json-schema`, also has the program's `StructuredOutput`: the
-  program lists it and the model calls it to give its outcome, which
-  comes back as the turn's `structured_output` (5.5); its call is the
-  program's own, never one the agent answers or asks about. A
-  `system/init` that lists a built-in tool the run did not grant (but
-  that one under a contract), or lacks one it granted, fails the start
-  (5.6).
-- **Every built-in call asks.** The settings the agent writes give each
-  of these tools an ask rule (`permissions.ask`, by bare name). Claude
-  Code applies deny rules, then ask, then allow, and an ask rule wins
-  over allow rules, the permission mode and a hook's allow, so every
-  call of a built-in tool reaches the permission prompt, and smith's
-  policy (5.4), before it runs.
-- **No way of signing in restricted:** the settings never set
-  `forceLoginMethod` or `forceLoginOrgUUID`, so Claude Code's own ways
-  of signing in, and its own choices among them, stay its own (jig's
-  `domain/providers.md`, 3.2).
-- **The agent's own MCP server** serves the run's tools: each host tool
-  the charter declares, `finish`, and `deliver`, `save` and `wait` when
-  granted (domain/run.md, 5.1), `remove` with modify, and the prompt tool. It is
-  a mode of the agent's own binary, which Claude Code starts over
-  standard input and output from the MCP configuration, and it relays
-  each call to its agent, which answers it as on the direct backend.
-  The settings allow its tools by rule, since the run answers them
-  itself. Each tool's `inputSchema` is an object schema, with
-  `"type": "object"` at its top and no `oneOf`, `allOf` or `anyOf`
-  beside it: MCP asks the first, and
-  Claude Code drops every tool of a server one of whose schemas lacks
-  it; the provider's API refuses the second. A choice of alternatives
-  goes in one property, `outcome`, required, which holds the `oneOf`,
-  and the agent unwraps it; a host tool whose declared schema has a
-  top-level combinator is refused at the server's start, naming it. Claude Code shows
-  them to its model under its MCP prefix; the agent tells their calls
-  under smith's names.
-- **The prompt tool's name is reserved:** a host tool may not take it,
-  as it may take no name of smith's (domain/run.md, 5.1).
+Moved to [`programs-claude-code.md`](programs-claude-code.md), section 1.3.
 
 ### 5.4 The permission prompt
 
-- **Each built-in call** reaches the prompt tool with its tool's name
-  and input, and the agent answers allow, with the input unchanged, or
-  deny, with a message for the model.
-- **Allowed** when the tool is one the run granted and each path it
-  names is one a workspace tool may use (domain/tools.md, section 4):
-  `Read`'s, `Write`'s and `Edit`'s file, and `Glob`'s and `Grep`'s path,
-  resolved against the working directory, within the start's
-  directories, outside every `.git` directory, and writable as the start
-  says for `Write` and `Edit`. A path is judged by its names alone,
-  reading nothing, so a symbolic link within the directories that leads
-  out of them is allowed: containment, where the host has it, bounds
-  where it leads (section 7).
-- **After the path check,** an allowed `Read`, `Write` or `Edit` takes
-  the agent's version snapshot as domain/tools.md, section 10 says:
-  before allowing a whole `Read`, and after a `Write` or `Edit` result,
-  before it is told.
-- **Denied otherwise,** with the rule it broke in words, as a workspace
-  tool's invalid call is answered (domain/tools.md, section 4), so the
-  model may try again otherwise.
-- **`Bash`** is allowed as the shell family is. Its command is not
-  parsed, so not confined to the workspace's paths: containment, where
-  the host has it, bounds it (agent.md, section 3; section 7).
-- **The host sees each call** as a direct backend's: its turn tells it
-  with its name and input, and its result, and the event stream records
-  it (events.md, 3.6).
-- **The prompt tool's input and answer** are Claude Code's, and not
-  documented by it: the agent reads the call's tool name and input from
-  it, and answers in the shape the live suite checks against the real
-  program (section 8).
+Moved to [`programs-claude-code.md`](programs-claude-code.md), section 1.4.
 
 ### 5.5 Its stream, told as smith's
 
-- **`system/init`** is checked before the first message: its tools are
-  those 5.3 gives but the permission prompt's (5.4), which the program
-  calls and does not list, its MCP servers only the agent's, connected,
-  and its `capabilities` what the run needs; otherwise the start fails
-  (5.6). A later `system/init`, which the program sends again at each
-  user message after the first, is checked the same way, and a change
-  in it fails the run as a start's would.
-- **`system/status`,** which the program sends before a completion, is
-  a notice of its state, told as nothing: not a turn, not a failure. So
-  is `system/thinking_tokens`, and so is any `system` subtype the agent
-  does not know: the program adds notices between versions, and a new
-  one never fails a person's run. A subtype the agent knows whose
-  meaning it can no longer read (`init` without what 5.3 needs) still
-  fails it.
-- **An unknown top-level `type`** in a well-formed record is also a
-  notice, skipped without changing conversation state. It does not end
-  a turn, discard an outstanding call or result, or advance a completion.
-  Records still pass the stream's decoding and receiving limits; a missing
-  or non-string `type`, or an invalid record of a known type, still fails
-  as 5.6 says.
-- **Each assistant message is a completion,** told as a turn of main's
-  conversation (transcript.md, section 2): its text and calls in
-  position, its usage as the program reported it, and the run's spend.
-  The program may send one message as several assistant records, one
-  per content block, under one message id: they are one completion, its
-  blocks in order and its usage counted once. A framed message waits for
-  `message_stop` and all its announced assistant blocks; a boundary before
-  either is a program failure.
-  A built-in tool's call is a call with its name and input as the model
-  wrote them, and its result is text the program wrote. The program's
-  opaque blocks, its thinking and their signatures, are not kept: no
-  other backend takes them.
-- **Partial messages** feed the event stream's content as it comes
-  (events.md, 3.5), and nothing else.
-- **The outcome, one path:** a run with a result contract gives its
-  outcome through the program's `StructuredOutput` alone (5.3), the
-  outcome `--json-schema` asked for, its failure form included. The
-  schema is the contract wrapped as 5.3 says: an object whose one
-  required property, `outcome`, holds the contract's alternatives. The
-  turn's `structured_output.outcome`, taken as a `finish` call's input and
-  judged by the same contract, ends the run as an accepted `finish`
-  does on the direct backend (domain/run.md, 7.2), the agent closing
-  the program's input. A complete message holding `StructuredOutput` keeps
-  its position when another message starts before the turn's `result`.
-  It waits within the bounded completion backlog until that result supplies
-  the finish input, which replaces the call in its block position in that
-  same completion. No extra completion is synthesized for that call.
-  Following messages retain their own blocks and single-counted usage,
-  and cannot pass the held outcome. If the model calls `StructuredOutput`
-  more than once before the result, that result supplies one `finish`
-  at the last call's position across the held completions. Earlier
-  structured calls are omitted; each completion retains its other blocks
-  in order and its usage. Every received block still counts against its
-  message's receiving limits. The agent cannot refuse an extra call as a
-  tool error: these calls are the program's own and never reach its
-  permission prompt (5.3). Such a run is not offered `finish` over MCP, so
-  the model has one way to end, never two. A run with no result
-  contract, such as an Open run's, is offered `finish` over MCP as on
-  the direct backend. A turn with neither is a model that named no
-  tool, nudged as on the direct backend, and failed *malformed* past its
-  nudges (domain/run.md, section 9).
+Moved to [`programs-claude-code.md`](programs-claude-code.md), section 1.5.
 
 ### 5.6 Failures and notices
 
-- **Every `rate_limit_event` reports a usage window,** whatever its
-  status: the agent sends the usage notice for the run's account
-  (channel.md, section 4), its window read from `rate_limit_info`:
-  - the label, `rateLimitType` as given (`five_hour`, `seven_day`,
-    `seven_day_opus`), 1 to 32 printable ASCII bytes; an event without
-    one reports no window;
-  - the length: 5 hours for `five_hour`, 7 days for a label that begins
-    `seven_day`, none for any other;
-  - the state, from `status`: `allowed` open, `allowed_warning` warned,
-    `rejected` limited; any other status reports no window;
-  - the reset, `resetsAt`, the provider's wall time in Unix seconds, as
-    given, or none;
-  - the share used, `utilization`, a fraction of 1 in plain decimal
-    (`0.28`), read to basis points with digits past the fourth decimal
-    dropped; none where it is absent, in another form or past 1.
-
-  It reports each event, equal to the last or not: the core keeps what
-  changes (jig's `domain/accounts.md`, 3.7). A rejected event's window goes
-  before its limit, which stays as below.
-- **A usage limit** shows as a `rate_limit_event` whose
-  `rate_limit_info.status` is `rejected`, with its
-  `rate_limit_info.resetsAt`, in Unix seconds, when given, or as the
-  final `result`'s `api_error_status`. The account is *limited*: the agent
-  sends the limited notice, with the reset only when given (channel.md,
-  section 4), and the run ends failed for its account (domain/run.md,
-  section 9). It is never retried, and never moved to another source.
-- **A login lost,** mid-run or at the start's check (section 3), not
-  signed in or signed in otherwise, is *unauthorized*: the agent sends
-  the unauthorized notice, and the run ends failed for its account,
-  since no new grant of a program source helps. Its host tells the
-  person the host and the command to run there.
-- **`system/api_retry`** is the program's own retry, told as the event
-  stream's (events.md, 3.5): the program, not the session, retries.
-- **Any other error the `result` reports** (`is_error`, with its
-  `api_error_status`, `terminal_reason`, `result` and `errors`) fails
-  the call as its model's, classed by its status:
-
-  | `api_error_status` | Failure |
-  |---|---|
-  | 403 whose error text holds the provider's own error | *invalid* |
-  | 403 whose does not (an edge's or a proxy's page, or no text) | *unavailable* |
-  | 529 | *overloaded* |
-  | any other 5xx | *unavailable* |
-  | any other, or none | *invalid* |
-
-  The provider's own error is a JSON object whose `error` member is an
-  object, as Anthropic's `{"type":"error","error":{"type":"permission_error",…}}`,
-  found in the `result` text or in one of the `errors`; the backend reads
-  that text only to class the failure, and keeps none of it beyond the
-  failure's detail. The evidence is *unsent*: the program made the call,
-  not smith, and no completion came. The status goes in the failure's
-  report (`Report::status`), never in its evidence, so a host can name it
-  (domain/run.md, section 9): a 403 from an edge is
-  *unavailable, status 403, unsent*. An unavailable or overloaded call
-  restarts the program and is retried as the session retries any
-  transient failure (domain/session.md, section 4), the window's first
-  call resuming the program's session (5.8); past those retries the run
-  fails with it, for its host to retry as an outage.
-- **A start that fails,** the program missing, a check that failed, no
-  `system/init` within the start's deadline, or one that lacks what the
-  run needs or lists a built-in tool not granted, fails the run as its
-  program's, naming the program, with its detail, and no notice.
-- **A program that started without smith's tools,** a `system/init`,
-  the first or a later one (5.5), that is otherwise well formed but does
-  not list the agent's MCP server connected with its tools, fails the
-  run *untooled*: `llm::Failure::Untooled`, never retried in the
-  session, which the run answers as its own fault `Untooled`, naming the
-  program, with the detail `smith: the program started without smith's
-  tools` (domain/run.md, section 9), and no notice. It is told apart from
-  every other program failure because it says nothing of the run: the
-  program on that host came up without what the agent gave it, and its
-  host may run the task elsewhere (jig's `domain/hosts/hub.md`, 3). An
-  init that lists a built-in not granted, or lacks one, or a summary
-  program's that offers tools, stays the program's failure, as above.
-- **A program that exits** before its `result`, or whose stream does not
-  decode, fails the run the same way, with its exit and its standard
-  error's tail.
-- **A decoded record that is refused** names its record category and
-  the failed operation in bounded operator detail. Malformed fields,
-  unsupported content within known records, incomplete message boundaries,
-  receiving limits, retained-reply exhaustion and completion backlog remain
-  distinct. A limit names the measured value and the configured bound in its own
-  unit; neither record payloads nor private names are included. The
-  completion backlog is an invalid completion; the other stream
-  rejections fail as the program's. The owning service keeps this detail
-  on its operator path, without adding it to a review's reason sentence.
+Moved to [`programs-claude-code.md`](programs-claude-code.md), section 1.6.
 
 ### 5.7 The budget, the clock and a cancel
 
-- **Spend is the agent's measure:** each completion's usage, as its
-  assistant message reports it, priced at the charter's prices for the
-  main model (domain/session.md, section 6). Claude Code's own
-  estimate, `total_cost_usd`, is in dollars, not the host's unit, and is
-  neither used nor given as `--max-budget-usd`.
-- **No completion is reserved before it is made,** since the program
-  makes it. The run's reserve, at least one of main's completions at its
-  most (../domain/budget.md, 1), takes a completion that passes the ordinary
-  pool, and its overrun is recorded as spend.
-- **The wind-down:** when the ordinary pool is spent in any part, the
-  agent ends the program's turn with an interrupt (5.9) and sends one
-  user message,
-  the run's note that the budget is spent and to finish now
-  (../domain/budget.md, 1). From then on the agent refuses every call but
-  `finish`, granted `deliver` and `wait`, and host tools declared for the reserve:
-  a built-in's at its permission
-  prompt (5.4), and its own server's tools' as it answers them, each
-  answered as not run, naming the calls allowed, as a call outside a
-  completion's tool choice is (domain/session.md, section 5). Main then
-  has the reserve's turns and time; a program that has not finished
-  within them, or whose spend passes the budget, is stopped as a cancel
-  is, and the run fails for its budget.
-- **Turns:** each completion counts as a turn, as on the direct backend,
-  and `--max-turns` is the charter's turns, a guard behind the agent's
-  own count.
-- **Wall time** is the agent's clock: at the run's time the program is
-  stopped as a cancel is.
-- **A cancel:** SIGINT, which ends the program's turn, then, past a
-  grace from the agent's limits, SIGTERM, on which the program exits
-  143. The agent's tree holds anything left (section 2).
+Moved to [`programs-claude-code.md`](programs-claude-code.md), section 1.7.
 
 ### 5.8 Parking, resuming and carrying over
 
-- **The program's session** is named by `--session-id`, a UUID derived
-  from the run's identity, main's thread and the window's first message
-  (domain/session.md, section 2), so that a later activation finds it
-  and a new window gets a session of its own. Claude Code keeps it in
-  the source's configuration directory. A window's first call retried
-  after the program took its user message resumes that session rather
-  than naming it again.
-- **Parking:** when the run parks (domain/run.md, section 6), the agent
-  ends the program after its turn by closing its input, and answers
-  parked. A turn held on `wait` has no end of its own: the agent stops
-  the program as a cancel does (5.7). The program's session stays.
-- **Resuming on the same source and host:** when the transcript's
-  opening turn names this backend and account (transcript.md, section 2)
-  and the configuration directory holds the program's session, the
-  program starts with `--resume` and that session, and the start's
-  messages, and the answers the transcript lacks, go in as user
-  messages. A restored activation's first user message also carries its
-  current system text: the instructions, freshly prepared brief sections
-  and activation budget, marked as superseding their earlier versions
-  while keeping the conversation history. This refresh is explicit in
-  the input, alongside the system file supplied at launch; resuming does
-  not rely on the program replacing saved context from that file. The
-  refresh and tail share the escaped input byte ceiling and, when
-  captured, the prompt observation. A retry after the same invocation's
-  input was recorded sends only the tail; messages within a live
-  activation keep their existing context.
-- **Otherwise the conversation is carried over:** a transcript whose
-  window ran on another backend, account or program source, or whose
-  program session is gone, on another host or removed, opens a new
-  window from smith's transcript, compacted first (transcript.md,
-  section 4; domain/session.md, 8.2). On a program backend the
-  compaction runs as a program session of its own with no tools, and
-  the window turn's messages open the program's new session as its
-  first user message. Whether a host offers a window from another
-  backend at all is its own decision (domain/run.md, section 6). jig's
-  engine never does: it starts the run fresh.
-- **A conversation its host does not keep,** such as the product's
-  `--ephemeral` chat, resumes its program session only while it lasts:
-  no later conversation derives the same session id, so the session is
-  never resumed after it, and it stays in the configuration directory as
-  the program keeps its sessions (section 9).
+Moved to [`programs-claude-code.md`](programs-claude-code.md), section 1.8.
 
 ### 5.9 Open runs
 
-A conversation, such as a person's chat: domain/run.md's `Mode::Open`,
-whose text replies wait and whose activation parks, on a program. The
-adapter tells the run's domain what the program said, a turn ended with
-its text and its `result`, an interrupted turn ended; the domain decides
-the reply, the waiting, the parking and the wind-down, as on the direct
-backend (../domain/run.md, sections 6 and 7.2, and ../domain/budget.md, section 1).
-
-- **Launched as 5.1 says,** but with no result contract: no
-  `--json-schema`, and of the run's own tools only `wait`, since Open
-  is granted the wait and never `finish` or `deliver` (domain/run.md,
-  section 1).
-- **A reply is a turn's text.** A program turn that ends, with its
-  `result`, its last assistant message holding nonempty text and no
-  call, is main's text reply (domain/run.md, section 6): the agent
-  tells the turn, then the run waits with its fence and listens for the
-  charter's waiting interval. The program stays, its input open.
-- **A message while it listens** goes in as a user message on the
-  program's input, and the program's next turn answers it, in the same
-  process and session. Messages queued before the reply are offered as
-  the direct backend offers them, in order, at most one offer's worth.
-  The program keeps the conversation itself: of what the domain offers,
-  only the messages after the program's last assistant turn go in, and
-  a host's words are bounded by the input's ceiling, not a tool
-  reply's.
-- **Parking:** past the waiting interval, the agent closes the
-  program's input and the program exits after the turn it has ended;
-  the run parks, its session kept (5.8). A turn held on `wait` is ended
-  with an interrupt first, below.
-- **A turn that ends with no text,** and no call left unanswered, is an
-  unsuccessful end, nudged as on the direct backend (domain/run.md,
-  7.2).
-- **An interrupt is a control request,** never a signal: the agent
-  writes `{"type": "control_request", "request": {"subtype":
-  "interrupt"}}` on the program's input, which ends the turn and keeps
-  the process, so a next user message is answered. SIGINT ends the
-  program's turn and its process with it, so it is a cancel's alone
-  (5.7).
-- **An interrupt is the agent's, and says so.** Claude Code records
-  an interrupted turn as the user's (`[Request interrupted by user]`),
-  which a model reads as its person stopping it. The next user message
-  after an interrupt of the agent's opens with one line saying the agent
-  paused the turn and why: the run parked and resumed, or the finishing
-  note; so the model never believes the person stopped it.
-- **An interrupted turn is expected.** A turn the agent ends with an
-  interrupt, to park while it is held on `wait` or to wind down, ends with
-  a `result` the agent asked for, never 5.6's error: the calls it left
-  unanswered are answered as not run, and the next user message, if
-  any, follows.
-- **The wind-down,** the budget spent or the host's finish request
-  (../domain/budget.md, 1): the agent ends the program's turn with an
-  interrupt, sends the run's note as its next user message, and refuses every call
-  from then on (5.7). The domain says when main yields for the note,
-  so that a reply crossing the note is told from the one after it: the
-  text of the turn that follows the yield, at its `result`, is the last
-  reply, and the run parks; a program that has not replied within the
-  reserve is stopped as a cancel is.
-- **The fake program** plays it (section 8): several turns on one
-  input, a `result` each, until its input closes.
+Moved to [`programs-claude-code.md`](programs-claude-code.md), section 1.9.
 
 ### 5.10 Sub-agents
 
-A survey is a question asked side by side with others, each answered
-with its report: smith's `sub_agent` (domain/run.md, 5.3) on a program
-backend.
-
-- **Served by the agent's own server.** When the charter grants the
-  sub-agents family, the agent's MCP server (5.3) lists `sub_agent`
-  beside the run's other tools, its `inputSchema` the direct backend's
-  with `tools` narrowed to `inspect`, and the run answers each call as
-  on the direct backend: it opens a child, and the child's answer is
-  the call's result.
-- **Inspect only.** A child on a program backend is granted inspect
-  alone, so none holds the run's lease (domain/run.md, 5.3) and none
-  writes beside the program's own calls. A call that asks for modify or
-  shell is answered invalid, naming its `tools` field, as any value its
-  schema does not allow is, and no child opens.
-- **Side by side.** The program may ask one message's calls one at a
-  time; the run answers them as the message's calls, as on the direct
-  backend, opening its inspect-only children together, so they run side
-  by side whatever order the program asks them in, and each result
-  goes back as the program asks for it.
-- **Each child a program of its own** when its LLM's account is
-  granted the program source, as main's is (section 3): a second
-  program process, the agent's child, started for the child's
-  conversation and ended with it, and checked first as main's is
-  (section 3). It is started as 5.1 says, with what differs:
-
-  | The child's | Claude Code |
-  |---|---|
-  | brief, with `## Your share` (domain/run.md, 5.3) | `--system-prompt-file` by default, or `--append-system-prompt-file` when keeping the program prompt (5.1), in a private directory of its own |
-  | LLM, the one the call names or main's | `--model`, `--effort` |
-  | inspect | `--tools Read,Glob,Grep`, each call asking at the prompt (5.4) |
-  | served tools: none | the agent's server for it lists the prompt tool alone: no host tool, no `finish`, `deliver`, `wait` or `remove`, and no `sub_agent`, since a child opens no children |
-  | no result contract | no `--json-schema`: its answer is its last text |
-  | session | `--session-id` derived as 5.8 says from its own conversation and activation, never resumed |
-
-  The child's initial user message includes the activation number, rendered
-  in bounded decimal text. A later activation may reuse a child ordinal
-  (domain/run.md, section 13), but its first message differs, so its
-  program session is fresh. Main keeps its first message and resumes as
-  5.8 says.
-
-  Its stream is told as its conversation's, as main's is (5.5): its
-  `system/init` checked, each assistant message a completion of the
-  child's priced at its LLM's prices, its built-in calls judged at the
-  prompt as main's (5.4). The child shares main's configuration
-  directory, each program with a session of its own. The agent sets
-  aside a program's io for each of a run's `conversations`
-  (limits.md, 2.2), so every child the run may open can run on a
-  program of its own.
-- **A child on a credential,** an LLM whose endpoint names no program,
-  runs on the direct backend with that credential, as on a direct main;
-  a program source is never granted for a child's account alone
-  (section 2).
-- **Its share, as the direct backend's.** Its turns are the agent's
-  count of its completions, its time the agent's clock, and its spend
-  counted against the run's one budget through its call's result. Its
-  final turn (domain/run.md, 5.3) is given as main's wind-down is
-  (5.7): the agent ends the child's program turn with an interrupt,
-  its calls left unanswered answered as not run, and sends the
-  final-turn note as its next user message, opening with the line 5.9
-  gives; from then on every call it makes is refused at the prompt as
-  not run. The text of the turn that follows is its answer, given with
-  `stop: budget`. `--max-turns` is the charter's turns, a guard behind
-  the agent's count.
-- **Its end.** Its answer is the text of its last assistant message at
-  its turn's `result`; the run gives it to its parent as on the direct
-  backend, cut to its answer cap and with the run's usage line. Its
-  conversation then ends, and the agent closes the program's input; a
-  program that has not exited within the agent's grace is stopped as a
-  cancel is (5.7), and its private files are removed. A child closed
-  early, its call withdrawn at its deadline, the run winding down or
-  cancelled, is stopped as a cancel is, and returns unanswered as on
-  the direct backend (../domain/budget.md, 1).
-- **Its failures are its call's.** A child whose program cannot start,
-  exits before its answer or sends what does not decode (5.6) fails as
-  a direct child whose completion fails does, and its call is answered
-  failed; main goes on. A usage limit or a lost login on its account is
-  told as 5.6 says, the notice sent for its account.
+Moved to [`programs-claude-code.md`](programs-claude-code.md), section 1.10.
 
 ### 5.11 The usage read
 
-- **When its host asks,** for a program source, with the check's
-  deadline (host.md, section 2). It is no run: no turn, budget, slot or
-  model call.
-- **The command,** in the source's environment (4.2) with `TZ=UTC` set,
-  so that it words its resets in UTC, started as a status check is (5.1):
-  `claude -p /usage --output-format json --setting-sources user --tools
-  ""`. `/usage` is Claude Code's own local command (`"local_command":
-  "usage"`, `"num_turns": 0`): it prints the subscription's windows and
-  calls no model.
-- **Its answer** is the JSON `result`, `is_error` false, whose `result`
-  text is read line by line, one window to a line, as Claude Code
-  2.1.312 prints it:
-
-  ```text
-  Current session: 16% used · resets Nov 19, 4:30am (UTC)
-  Current week (all models): 60% used · resets Nov 23, 5am (UTC)
-  Current week (Fable): 8% used · resets Nov 23, 4:59am (UTC)
-  ```
-
-  - *Its label:* a line that begins `Current session` is `five_hour`;
-    `Current week (all models)` is `seven_day`; any other `Current week (`
-    is `seven_day_` and the first word inside the parenthesis in lower
-    case (`seven_day_fable`). Lines before the first window are passed
-    over, and the first blank line after it ends the windows: what
-    follows (the machine's sessions) is not read.
-  - *Its share:* the `N% used` on its line, N a whole or decimal percent;
-    a window line with none is not reported. A share of 100% is limited,
-    any other open; the length is as 5.6 gives.
-  - *Its reset:* the words after `resets ` on its line, `Mon D, H:MMam
-    (UTC)` or `Mon D, Ham (UTC)`, `am` or `pm` on a 12-hour clock, read in
-    UTC. They name no year: the year is the one, of the host's wall time's
-    year and the years either side, that puts the reset nearest the
-    host's wall time when it asked. A reset in another zone, or words that
-    don't read, give no reset, the share still read.
-  - At most 8 windows. A text with no window line, as a key's or an
-    error's, does not read.
-- **It fails** not signed in where the check's inspection finds no
-  login; missing, deadline or exited as a check does, with the detail;
-  unreadable where the answer does not read or names no window; and
-  *spent* where the result's `usage` names a token or `total_cost_usd`
-  is above zero, a model call the read must never make (jig's
-  `domain/accounts.md`, 3.7 asks no more of that account).
-- **The form is Claude Code's,** recorded nowhere: 9, *The usage
-  command*.
+Moved to [`programs-claude-code.md`](programs-claude-code.md), section 1.11.
 
 ## 6. The terms it keeps
 
@@ -858,20 +287,20 @@ conditions. smith keeps each as a rule of its own:
 - **The budget:** the program makes its completions without smith
   reserving each one's most first, so a run may pass its ordinary pool
   by one completion of each of its programs then running, main's and
-  its children's (5.10), which the reserve takes, and stops at its next
-  turn (5.7).
+  its children's (`programs-claude-code.md`, 1.10), which the reserve takes, and stops at its next
+  turn (`programs-claude-code.md`, 1.7).
 - **The program's, not smith's:** the bounds on a tool's output, a
   command's timeout, read before write and match before edit. The
   transcript tells what the program did; it does not make it smith's.
 - **Two compactions:** the program compacts within its session as it
-  judges, and smith still compacts at its own line (domain/session.md,
-  8.2). The program's own compactions cost what they cost, uncounted:
-  a completion's usage is what its assistant message reports (5.7).
+  judges, and smith still compacts at its own line (../domain/session-context.md,
+  1.2). The program's own compactions cost what they cost, uncounted:
+  a completion's usage is what its assistant message reports (`programs-claude-code.md`, 1.7).
 - **A retried first call:** when a window's first call fails after the
-  program took its user message, the retry resumes the session (5.8)
+  program took its user message, the retry resumes the session (`programs-claude-code.md`, 1.8)
   and sends the message again, so the program's session holds it twice.
 - **Symbolic links:** the prompt judges a built-in call's paths by
-  their names, reading nothing (5.4), and the program follows a link
+  their names, reading nothing (`programs-claude-code.md`, 1.4), and the program follows a link
   that a workspace tool's write would not (domain/tools.md, section 4),
   so `Write` and `Edit` may change a file outside the start's
   directories through a link inside them. Containment, where the host
@@ -895,7 +324,7 @@ conditions. smith keeps each as a rule of its own:
   passes `--bare`, and the live suite finds the release in which `-p`
   stops reading the login.
 - **Children read only:** a child on a program backend is granted
-  inspect alone (5.10), where a direct backend's may write.
+  inspect alone (`programs-claude-code.md`, 1.10), where a direct backend's may write.
 
 ## 8. Testing: the fake program
 
@@ -905,10 +334,10 @@ conditions. smith keeps each as a rule of its own:
   - `auth status`, `auth login` and `auth logout`, answering signed in,
     not signed in or signed in otherwise, and refusing to run without
     `CLAUDE_CONFIG_DIR`;
-  - `-p /usage --output-format json` (5.11), printing the result the
+  - `-p /usage --output-format json` (`programs-claude-code.md`, 1.11), printing the result the
     story gives: windows in `/usage`'s words, an error, or a spent one;
   - `rate_limit_event` of each status, with or without `rateLimitType`,
-    `resetsAt` and `utilization` (5.6);
+    `resetsAt` and `utilization` (`programs-claude-code.md`, 1.6);
   - `-p` with stream-json both ways: `system/init` with the tools
     `--tools` gave and the MCP servers the configuration named;
     assistant and partial messages, with usage; `rate_limit_event`;
@@ -940,19 +369,19 @@ conditions. smith keeps each as a rule of its own:
     start;
   - a usage limit, with a reset and without one;
   - usage windows: an allowed, a warned and a rejected event each
-    reported, and one with no type reporting none (5.6); a usage read
-    answered, failed and spent (5.11);
+    reported, and one with no type reporting none (`programs-claude-code.md`, 1.6); a usage read
+    answered, failed and spent (`programs-claude-code.md`, 1.11);
   - a login lost mid-run, and each answer of the check;
   - a credential variable in the host's environment, absent from the
     program's;
   - the wind-down, a cancel and the wall time;
   - a park, and a resume by the program's session;
   - a conversation carried over from the direct backend and back;
-  - an Open run (5.9): a reply, a message while it listens answered in
+  - an Open run (`programs-claude-code.md`, 1.9): a reply, a message while it listens answered in
     the same process, a park past the waiting interval and its resume,
     a turn with no text nudged, and the wind-down's last reply after a
     host's finish request;
-  - sub-agents (5.10): two inspect-only children asked in one message,
+  - sub-agents (`programs-claude-code.md`, 1.10): two inspect-only children asked in one message,
     each a program of its own, running side by side and each answering
     with its report; a call asking a child to write, answered invalid;
     a child's final turn; and children stopped with their run.
@@ -964,20 +393,20 @@ conditions. smith keeps each as a rule of its own:
   (`docs/design/testing.md`, 2.3), and checks what the fake assumes: the
   prompt tool's shape, `system/init`'s tools and capabilities, a
   summary session's `system/init` with no tools and no MCP servers
-  (5.8), a limit's events, a `rate_limit_event`'s fields (5.6),
-  `/usage`'s answer, spending nothing (5.11), that `-p` reads the login, and what 5.9
+  (`programs-claude-code.md`, 1.8), a limit's events, a `rate_limit_event`'s fields (`programs-claude-code.md`, 1.6),
+  `/usage`'s answer, spending nothing (`programs-claude-code.md`, 1.11), that `-p` reads the login, and what `programs-claude-code.md`, 1.9
   relies on: after a turn's `result`, with its input left open, the
   same process takes a second user message that needs the first
   turn's context, answers it with a second `result`, and exits when its
   input closes; a turn ended by an interrupt control request is
   followed by another in the same process; a later `system/init` and
-  `system/status` are met as 5.5 says; and two children of one run
-  (5.10), each a program of its own on main's configuration directory,
+  `system/status` are met as `programs-claude-code.md`, 1.5 says; and two children of one run
+  (`programs-claude-code.md`, 1.10), each a program of its own on main's configuration directory,
   answering side by side. The fake sends what a real run was recorded
   sending, those messages included. Each probe's program dies with its
   test, however the test ends: it starts dying with the test's thread,
   through `spawn_dying_with_parent` (skein's `runtime/shell.md`, section
-  3) with Kill, as 5.1's program child does, its home and working directory in the
+  3) with Kill, as `programs-claude-code.md`, 1.1's program child does, its home and working directory in the
   probe's scratch. Its configuration directory is the one signed in
   once, used in place, and keeps the sessions Claude Code writes there:
   a login is never copied (`docs/design/testing.md`, 2.3).
@@ -993,11 +422,11 @@ the next turn of that same cued script (decided 2026-11-02).
 
 ## 9. Open questions
 
-- **Program lifetime after an agent abort on macOS** (2, 5.1): how to
+- **Program lifetime after an agent abort on macOS** (2, `programs-claude-code.md`, 1.1): how to
   end the program and relay without Linux's parent-death signal.
   Default: direct launch and the host's supervisor ending the whole tree;
   parent-death exec there is skein's `runtime/shell.md`, section 9's question.
-- **Claude Code's own request with MCP attached** (5.1): record its overhead
+- **Claude Code's own request with MCP attached** (`programs-claude-code.md`, 1.1): record its overhead
   once with smith's server, including tool search's placeholder and prefixed
   tool names. The 2.1.312 subscription check establishes prompt replacement;
   its about 1.1 KB figure was measured without MCP. The application's request bound
@@ -1010,12 +439,12 @@ the next turn of that same cued script (decided 2026-11-02).
 - **The prompt tool's shape:** Claude Code does not document its input
   and answer. Default: the shape the live suite checks against the
   release it runs.
-- **The usage command** (5.11): `/usage` answers in `-p` as a local
-  command, with no model call, and words its windows as 5.11 says: a
+- **The usage command** (`programs-claude-code.md`, 1.11): `/usage` answers in `-p` as a local
+  command, with no model call, and words its windows as `programs-claude-code.md`, 1.11 says: a
   person's recording on Claude Code 2.1.312, 2026-11-19, its private
   lines kept out of the repository. Its words are Claude Code's own and
-  may change with a release; `utilization`'s form (5.6) is recorded
-  nowhere. Default: 5.11's words, and a fraction, until the live suite
+  may change with a release; `utilization`'s form (`programs-claude-code.md`, 1.6) is recorded
+  nowhere. Default: `programs-claude-code.md`, 1.11's words, and a fraction, until the live suite
   says otherwise.
 - **How the MCP server reaches its agent:** Claude Code starts it with
   pipes of its own, and skein's io has no local sockets. Default: a
@@ -1025,22 +454,22 @@ the next turn of that same cued script (decided 2026-11-02).
 - **A refusal from the program:** whether Claude Code tells an account's
   refusal (not eligible, a scope not granted) apart from its other
   errors. Default: it is not told apart, and fails the run as its
-  model's (5.6).
+  model's (`programs-claude-code.md`, 1.6).
 - **Runs at once on one login:** whether runs that share a
   configuration directory interfere. Default: one at a time where the
-  host can choose (`../benchmarks/README.md`, section 10). A run's
-  own children share main's (5.10), which the live suite checks.
+  host can choose (`../benchmarks/isolation.md`, section 1). A run's
+  own children share main's (`programs-claude-code.md`, 1.10), which the live suite checks.
 - **Writing children on a program backend:** whether a child may be
   granted modify or shell there, holding the run's lease (domain/run.md,
   5.3) while the agent holds the program's own calls at the prompt,
   since Claude Code alone decides which of its calls run together.
-  Default: children read only (5.10), as the surveys they serve need.
+  Default: children read only (`programs-claude-code.md`, 1.10), as the surveys they serve need.
 - **A session not kept:** whether the agent removes the program session
   of a conversation its host does not keep, when that conversation ends.
   Where the program keeps a session is its own, and undocumented.
   Default: it is left to the program's own clean-up, and never resumed
-  (5.8).
-- **An unasked answer's open file** (5.1): an `Opened` that reaches a
+  (`programs-claude-code.md`, 1.8).
+- **An unasked answer's open file** (`programs-claude-code.md`, 1.1): an `Opened` that reaches a
   program with none of its operations outstanding is dropped with the
   run's failure, and nothing closes the file it opened before the agent
   ends. Default: left so, since each answer goes to the program that

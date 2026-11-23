@@ -1,9 +1,9 @@
-//! Dense revision read values (domain/engine/settings.md, 7).
+//! Dense revision read values (domain/engine/settings-store.md, 1).
 use super::{RevisionAnswer, RevisionsPage, Row, SettingDocument};
 use crate::{CoreRecord, Limits, Record, settings};
 use skein_lib::Map;
 
-/// Run reads use the same documents and load slots as party reads (domain/engine/executors.md, 3).
+/// Run reads use the same documents and load slots as party reads (domain/engine/executors-tools.md, 1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum SettingsRead {
     Inventory,
@@ -19,7 +19,7 @@ pub enum SettingsAnswer {
     Revisions(RevisionsPage),
     Unknown,
 }
-/// One proposal of settings, as a run reads it (domain/engine/executors.md, 3).
+/// One proposal of settings, as a run reads it (domain/engine/executors-tools.md, 1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 #[cfg_attr(
     target_pointer_width = "64",

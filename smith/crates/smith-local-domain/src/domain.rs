@@ -225,7 +225,7 @@ impl Domain {
     }
 
     /// Entries this domain and its agent child hold for the service to
-    /// drain (protocol/limits.md 3.8): the child's `backlog()` and the
+    /// drain (protocol/limits-derivation.md 1.8): the child's `backlog()` and the
     /// child's output queue. The service counts them in its backlog.
     #[must_use]
     pub fn backlog(&self) -> u32 {

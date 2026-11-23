@@ -9,7 +9,7 @@ pub(crate) use jig_domain_link::{Grant, GrantTable, Hosting, Phase};
 use crate::JobKind;
 use skein_lib::{Duration, Token};
 
-/// What of the hub's start did not decode (jig/docs/design/protocol/service.md, 11.2).
+/// What of the hub's start did not decode (jig/docs/design/protocol/service-parts.md, 1.2).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Undecoded {
     Version(Mismatch),

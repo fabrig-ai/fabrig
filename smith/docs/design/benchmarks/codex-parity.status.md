@@ -4,8 +4,8 @@
 
 - **Not yet:**
   -  calibrations remain `catalogue.status.md`, 5.
-  -  the Claude Code arm remains `README.status.md`, 6.
-  -  the missing arms remain `README.status.md`, 7.
+  -  the Claude Code arm remains `agents.status.md`, 1.
+  -  the missing arms remain `agents.status.md`, 2.
   - 4: `shell-cwd` is at version 3, its first grade having
     changed (`README.md`, 5.2), and both `benchmarks/baselines/parity-*.json` and
     every committed summary hold it at version 2. So a run's drift says

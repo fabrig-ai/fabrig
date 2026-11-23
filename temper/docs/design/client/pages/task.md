@@ -83,7 +83,7 @@ acts on it as its document offers (4).
   time. A run's earlier runs are the
   conversation's "Run N began" and "Run N ended": the page has no run
   groups. A run begun fresh whose activity says why (jig's
-  `domain/engine/executors.md`, 2, *Why a run began fresh*) is "Run N
+  `domain/engine/executors-transcripts.md`, 1, *Why a run began fresh*) is "Run N
   began fresh: " and its why: "its conversation ran on another
   endpoint", "its conversation was closed", "a turn was too large to
   load", "its conversation passed the resume limit" or "its session had

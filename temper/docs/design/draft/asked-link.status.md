@@ -14,7 +14,7 @@ memory alone; answered as the printed link is. Its route is
 `POST <prefix>/v1/link/ask` (jig's `protocol/client/default-http.md`,
 1) and its records are on jig's client wire 28 (jig's
 `protocol/client/wire.md`, 2.1). The client's `AskLink` is jig's
-`client/domain/client/README.md`, section 9. ctl's `link --out FILE`,
+`client/domain/client/sign-in.md`, section 1. ctl's `link --out FILE`,
 its file and its refusals, and the refusals naming both ways to a fresh
 link, are `../client/ctl/command-line.md`, 1.1, and `../client/ctl/README.md`, 7, and `../client/ctl/host.md`;
 temper's deployment is `../protocol/sign-in.md`, 2.3. The refusal of

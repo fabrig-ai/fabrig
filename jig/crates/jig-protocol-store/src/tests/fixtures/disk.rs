@@ -83,6 +83,7 @@ pub struct Disk {
     io: [FileIo; 4],
     file_limits: FileLimits,
     seeded: crate::Seeded,
+    checked: crate::Checked,
     cut: Option<u32>,
     operations: u32,
     starts: u64,
@@ -129,6 +130,7 @@ impl Disk {
             io,
             file_limits,
             seeded,
+            checked: crate::check(&store_limits()).expect("disk fixture limits"),
             cut: None,
             operations: 0,
             starts: 0,
@@ -141,11 +143,11 @@ impl Disk {
         self.root
     }
     pub fn store(&self) -> Store {
-        Store::on_directory(&store_limits(), APPLICATION, &[], self.seeded)
+        Store::on_directory(&self.checked, APPLICATION, &[], self.seeded)
     }
     /// Give schema-bearing registry scenes their map room before construction.
     pub fn store_with_limits(&self, limits: &crate::Limits) -> Store {
-        Store::on_directory(limits, APPLICATION, &[], self.seeded)
+        Store::on_directory(&crate::check(limits).expect("fixture store limits"), APPLICATION, &[], self.seeded)
     }
     /// Bound recovery reads for small generation-operation scenes too.
     pub fn store_with_chunk(&self, chunk: u32) -> Store {
@@ -161,7 +163,7 @@ impl Disk {
         limits.store.value = value;
         limits.secrets.chunk = chunk;
         limits.secrets.value = value;
-        Store::on_directory(&limits, APPLICATION, &[], self.seeded)
+        Store::on_directory(&crate::check(&limits).expect("fixture store limits"), APPLICATION, &[], self.seeded)
     }
     pub fn open(&mut self, store: &mut Store) -> Box<[Event]> {
         self.request(

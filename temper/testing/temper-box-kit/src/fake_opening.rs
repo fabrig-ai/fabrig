@@ -1,5 +1,5 @@
 //! Scripted opening requests and their answer checks.
-//! Fixture selection on smith's fresh Open request (smith's domain/run.md, 3.4).
+//! Fixture selection on smith's fresh Open request (smith's domain/run-start.md, 1.4).
 use serde_json::{Value, json};
 use skein_fake_llm_domain::{self as fake, api};
 use skein_lib::{Duration, Env, Queue, ReplyTo, Time, Token, Wall};

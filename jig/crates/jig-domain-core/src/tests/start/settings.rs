@@ -1,4 +1,4 @@
-//! Stored settings and policy fits precede linking (domain/engine/restart.md, domain/engine/settings.md, 7).
+//! Stored settings and policy fits precede linking (domain/engine/restart.md, domain/engine/settings-store.md, 1).
 use crate::{
     CoreRecord, HeldLimit, Limits, Restored,
     settings::{Changed, CharterVersion, Fault, Head, Record, Revision, Setting, Value},

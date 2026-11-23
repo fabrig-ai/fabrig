@@ -2196,7 +2196,7 @@ fn a_pending_note_reserves_its_named_answer_until_the_store_returns() {
     driver.call(Token::new(7), assignment.task, assignment.attempt, 3121, unavailable);
     driver.settle();
     // A call waiting for a call record is answered busy, to ask again
-    // (jig's `domain/engine/README.md`, 5.1).
+    // (jig's `domain/engine/decisions.md`, 1.1).
     assert!(downs(&driver).into_iter().any(|down| matches!(down,
         host::LinkDown::Relayed { call, answer: host::Relayed::Busy, .. } if call.as_ref() == 3121_u64.to_be_bytes()
     )));

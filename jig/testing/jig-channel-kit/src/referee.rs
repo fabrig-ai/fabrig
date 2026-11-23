@@ -1,4 +1,4 @@
-//! Channel-wide safety and liveness (protocol/channel/README.md, 11).
+//! Channel-wide safety and liveness (protocol/channel/testing.md, 1).
 use crate::{
     processes::Proc,
     world::{Store, answer_parties, answer_store, check_diagnostics, terminal, turns, worker_wire},

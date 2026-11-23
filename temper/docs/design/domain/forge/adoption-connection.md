@@ -189,7 +189,7 @@ This document holds a forge's connection, access state and removal, split from [
 - **A task's names, kept until it is erased.** A kept task is one the
   store keeps: live, or ended and not yet erased (jig's
   `domain/tasks/README.md`, section 3). At a task's release (jig's
-  `domain/connectors.md`, 4.6) its watches, holds and subscriptions go,
+  `domain/connectors-effects.md`, 1.6) its watches, holds and subscriptions go,
   and its `Names` row stays under its key as a kept row: the
   repositories its names lie in, one repository's name each, in name
   order (`../../protocol/store.md`, section 2). A kept row watches nothing

@@ -1,7 +1,99 @@
 use super::*;
 use crate::fixtures::{self, durable as fixture};
 use fixture::{POWER_LOSS_SEED, READ, SYNC, USER, WRITE};
+use layouts::tests::{
+    another_layout, assert_empty_preparation, assert_same_decoder, attempt, registered_attempt, registry_ops,
+};
 use skein_fake_machine::{How, Item, Machine};
+
+// The KV frame and snapshot headers both store their sequence number after the magic and version.
+const SEQUENCE: std::ops::Range<usize> = 6..14;
+
+fn number_frame(frame: &mut [u8], number: u64) {
+    frame[SEQUENCE].copy_from_slice(&number.to_be_bytes());
+    let checksum = frame.len() - 4;
+    let crc = transcripts::frame::crc32c(&frame[..checksum]);
+    frame[checksum..].copy_from_slice(&crc.to_be_bytes());
+}
+
+#[test]
+fn store_reuses_decoders_until_snapshot_or_generation_switch() {
+    const NEXT_REVISION: u64 = 3;
+    let (registered, key, value) = registered_attempt();
+    let mut registry = registry_ops(&registered);
+    let text_key = registry
+        .iter()
+        .find_map(|op| match op {
+            skein_kv::Op::Put { key, .. } if matches!(keys::decode_own(key), Some(keys::Own::Text(_))) => {
+                Some(key.clone())
+            }
+            _ => None,
+        })
+        .expect("registered text key");
+    let attempt_value = skein_kv::Op::Put { key: key.clone(), value };
+    let mut first = registry.clone();
+    first.push(attempt_value.clone());
+    let first = fixture::bytes_with_ops(false, first.into_boxed_slice()).frames.remove(0);
+    let other = another_layout(&registered, &key);
+    registry.push(other.clone());
+    let second = fixture::bytes_with_ops(false, Box::new([other, attempt_value.clone()])).frames.remove(1);
+    let limits = fixtures::codec();
+    let bounds = fixture::bounds();
+    let observe = |store: &mut Store, mut events| store.observe(&mut events, &limits, fixtures::store_names(), &bounds);
+    let mut store = Store::new();
+    let log = fixture::LOG.to_vec();
+    let check_commit = |store: &mut Store, at, bytes, number| {
+        let commits =
+            observe(store, vec![Observed::Bytes { path: log.clone(), at, bytes }, Observed::Sync(log.clone())])
+                .expect("commit is readable through the registry");
+        let [commit] = commits.as_slice() else { panic!("one observed commit") };
+        let [root::Write::Save(root::Record::Core(row))] = commit.writes.as_slice() else {
+            panic!("one saved attempt")
+        };
+        assert_eq!(commit.number, number);
+        assert_eq!(*row, attempt());
+    };
+    let second_offset = first.len();
+    check_commit(&mut store, 0, first, 1);
+    let prepared = store.layouts.clone();
+    check_commit(&mut store, second_offset, second, 2);
+    assert_same_decoder(&prepared, &store.layouts, &key);
+
+    let mut pending = fixture::bytes_with_ops(
+        false,
+        Box::new([skein_kv::Op::Put { key: text_key, value: Box::default() }, attempt_value.clone()]),
+    )
+    .frames
+    .remove(0);
+    number_frame(&mut pending, NEXT_REVISION);
+    let error = observe(&mut store, vec![Observed::Pending { path: log, bytes: pending }])
+        .expect_err("a pending attempt must check its changed registry text");
+    assert!(error.starts_with("registry text:"), "{error}");
+    assert_same_decoder(&prepared, &store.layouts, &key);
+    let row = root::Record::Core(attempt());
+    assert_eq!(store.rows.get(&row.key()), Some(&row));
+
+    // Carry exactly the committed registry, without values that would warm the new preparation.
+    let mut snapshot = fixture::bytes_with_ops(true, registry.into_boxed_slice()).snapshot;
+    let next = NEXT_REVISION + 1;
+    snapshot[SEQUENCE].copy_from_slice(&next.to_be_bytes());
+    let header_crc = transcripts::frame::crc32c(&snapshot[..SEQUENCE.end]);
+    snapshot[SEQUENCE.end..SEQUENCE.end + 4].copy_from_slice(&header_crc.to_be_bytes());
+    let snapshot_read = |path: &[u8]| {
+        vec![Observed::Bytes { path: path.to_vec(), at: 0, bytes: snapshot.clone() }, Observed::Snapshot(path.to_vec())]
+    };
+    observe(&mut store, snapshot_read(b"generations/1/store/snapshot")).expect("current snapshot read");
+    assert_eq!(store.applied, NEXT_REVISION);
+    assert_empty_preparation(&store.layouts);
+
+    let skein_kv::Op::Put { value, .. } = attempt_value else { unreachable!() };
+    store.layouts.serving(&key, value).expect("warm preparation in the current generation");
+    observe(&mut store, snapshot_read(b"generations/2/store/snapshot")).expect("next generation's snapshot read");
+    observe(&mut store, vec![Observed::Bytes { path: b"active".to_vec(), at: 0, bytes: b"2\n".to_vec() }])
+        .expect("generation switch");
+    assert_eq!(store.active.as_deref(), Some(b"generations/2".as_slice()));
+    assert_empty_preparation(&store.layouts);
+}
 
 fn generation_snapshot(old: bool, malformed: bool) -> Vec<u8> {
     let mut format = jig_protocol_store::format::current(temper_protocol_store::STORE_VERSION, [7; 16]);
@@ -120,10 +212,7 @@ fn a_copied_log_arriving_after_new_commits_keeps_untouched_rows_and_newer_writes
     )
     .frames
     .remove(0);
-    newer[6..14].copy_from_slice(&3_u64.to_be_bytes());
-    let checksum = newer.len() - 4;
-    let crc = transcripts::frame::crc32c(&newer[..checksum]);
-    newer[checksum..].copy_from_slice(&crc.to_be_bytes());
+    number_frame(&mut newer, 3);
     let copy = b"generations/2/store/log-00000000000000000001".to_vec();
     let log = b"generations/2/store/log-00000000000000000003".to_vec();
     let mut store = Store::new();

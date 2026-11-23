@@ -513,7 +513,7 @@ fn appended(disk: &[u8], pending: &[u8]) -> Box<[u8]> {
     extended.finish()
 }
 fn reopen(store: Store) -> Store {
-    let mut store = fixtures::over(store.into_stores());
+    let mut store = fixtures::reopen(store);
     fixtures::run(
         &mut store,
         crate::Request::Open {
@@ -869,7 +869,7 @@ fn configured_read_room_and_frame_capacity_are_measured_separately() {
     const MAX_FRAME: u64 = 33_554_496;
     let limits = fixtures::store_limits();
     let sets = super::frame_patches::SETS;
-    let capacity = crate::transcripts::patches::capacity(&sets.sets[0], 0, &limits).expect("body capacity");
+    let capacity = crate::transcripts::patches::capacity(&sets.sets[0], 0, &limits, &[]).expect("body capacity");
     assert_eq!(u64::from(capacity.bytes) + 12, MAX_FRAME);
     assert_eq!(limits.core.resume_bytes, 256);
     assert_eq!(limits.store.page.bytes, limits.store.key.checked_add(limits.store.value).unwrap());

@@ -337,7 +337,7 @@ them is its own (temper's `protocol/wires.md`).
 - **A worker capped at single versions** (3) has stated no range and is
   not checked. A send its link cannot take down is handled as a record
   that cannot encode on its side: a call answered `call refused` to its
-  run (`README.md`, section 5), any other record counted, logged with
+  run (`owners.md`, section 1), any other record counted, logged with
   the halt, and discarded.
 
 ## 7. The worker's hand-out

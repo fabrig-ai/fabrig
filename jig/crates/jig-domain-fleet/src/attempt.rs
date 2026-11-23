@@ -1,4 +1,4 @@
-//! The attempts the fleet tracks (domain/engine/README.md, 4.2 and domain/engine/fleet.md): each
+//! The attempts the fleet tracks (domain/engine/vocabulary.md, 1.2 and domain/engine/fleet.md): each
 //! the parent's claim on a run, from its start or its adoption to the
 //! parent's acknowledgement of its answer; or one a worker hosts or holds the
 //! answer of that the parent has not claimed.

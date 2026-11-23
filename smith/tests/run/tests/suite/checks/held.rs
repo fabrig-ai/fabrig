@@ -1,4 +1,4 @@
-//! A check's held clock across the run and machine boundary (run.md, 8.1).
+//! A check's held clock across the run and machine boundary (domain/run-delivery.md, 1.1).
 
 use super::*;
 use skein_io::{Event as IoEvent, Request as IoRequest, kernel};

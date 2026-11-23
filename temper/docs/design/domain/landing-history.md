@@ -473,8 +473,8 @@ of the forge's family (`../client/ctl/tools-reads.md`, 1):
 
 - **The project's readers,** as for its changes, whether or not the
   change's task remains: the forge read is admitted by jig's check of the
-  party's role in the project (jig's `client/domain/contract/README.md`,
-  section 4).
+  party's role in the project (jig's `client/domain/contract/reads.md`,
+  section 1).
 - **The public projection shows none of it** (`../client/forge/README.md`,
   9.3).
 

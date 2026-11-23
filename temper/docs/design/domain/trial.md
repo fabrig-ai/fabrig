@@ -22,14 +22,14 @@ words, is `../client/pages/README.md`, *The try*.
   turn, charter 1's models and hosts.
 - **What it asks:** the words `Say one word.`, its contract a report of at most 64 bytes, no job, parameters or
   inputs.
-- **The first usable account's names no `llm`,** so that it selects as a new chat does (jig's `domain/accounts.md`,
-  4.3): a trial that named its model could pass while chats still hung. It is first when the person's offer in project
+- **The first usable account's names no `llm`,** so that it selects as a new chat does (jig's `domain/accounts-uses.md`,
+  1.3): a trial that named its model could pass while chats still hung. It is first when the person's offer in project
   0 (jig's `domain/engine/views.md`, 1), within the deployment ceiling's models, holds no account but the one tried.
   Those are the models a person's seed allows (jig's `domain/authority.md`, 6.1); the offer is not narrowed to
   the trial's charter for this decision. Then what a new chat takes is that account.
 - **A later account's names it.** Where that offer holds any other account, the person's own or the deployment's, the
   trial's `llm` is jig's `Core::account_llm` for the account tried: that account, and the charter's first model offered
-  with it, else the first it serves, at its default effort (jig's `domain/accounts.md`, 4.3). Its run takes that
+  with it, else the first it serves, at its default effort (jig's `domain/accounts-uses.md`, 1.3). Its run takes that
   account alone, and waits for it, saying why, rather than moving to another. So whichever provider comes first, in
   either order, and for a second account of one provider, the account just connected is the one tried, and its row's
   `took` is its own (3.1). An account that serves none of the charter's models can't be tried: `Refused` (3.2).
@@ -204,7 +204,7 @@ sign-in or a program's; otherwise "All ways" on the welcome and nothing on an ac
 
 ## 7. What it stops
 
-Nothing of the account: a source's own state is the host's check's (jig's `domain/accounts.md`, 3.4). Ready's
+Nothing of the account: a source's own state is the host's check's (jig's `domain/accounts-sources.md`, 1). Ready's
 heading and act count an account just declared as usable until its host's check says otherwise
 (`../client/pages/README.md`, *Ready*); the trial changes neither. A failed trial is a line in
 the pane, on the account's row and on Home, and "Try again".

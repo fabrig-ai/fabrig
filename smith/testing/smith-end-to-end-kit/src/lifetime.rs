@@ -1,4 +1,4 @@
-//! Outside observation of an aborted agent's tree (smith/docs/design/protocol/programs.md, 5.1).
+//! Outside observation of an aborted agent's tree (smith/docs/design/protocol/programs-claude-code.md, 1.1).
 //! The keeper owns cleanup; the referee keeps PID/start-time identities, never environment.
 use skein_io::kernel::{Exit, Signal};
 use skein_lib::{Duration, Time};

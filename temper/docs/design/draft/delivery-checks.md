@@ -1,6 +1,6 @@
 # delivery-checks: a delivery checks what the change touched, so agents run no build or test
 
-The owner's decision (2026-11-09). Coding agents run no build or test command. They may use `cargo check` on what they're writing, to find compiler errors. When an agent delivers, the delivery check (`.temper/pre-pr`, run by the host on the agent's warm checkout before anything is pushed; `smith/docs/design/domain/run.md`, 8.1) runs the change's checks mechanically. A pull request into a goal's branch runs no CI. The landing's CI into main stays as it is. Today `.temper/pre-pr` runs only the format check and the old-forms counts, so this plan widens it. **Run, unless marked read.**
+The owner's decision (2026-11-09). Coding agents run no build or test command. They may use `cargo check` on what they're writing, to find compiler errors. When an agent delivers, the delivery check (`.temper/pre-pr`, run by the host on the agent's warm checkout before anything is pushed; `smith/docs/design/domain/run-delivery.md`, 1.1) runs the change's checks mechanically. A pull request into a goal's branch runs no CI. The landing's CI into main stays as it is. Today `.temper/pre-pr` runs only the format check and the old-forms counts, so this plan widens it. **Run, unless marked read.**
 
 ## What's wanted, ranked. Drop from the bottom if it passes four tasks, and say what you dropped
 

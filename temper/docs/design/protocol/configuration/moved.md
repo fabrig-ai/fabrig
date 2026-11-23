@@ -14,8 +14,8 @@ that document's, and the file's names that moved are `file.md`, 3.3's.
   reads a member that moved, and none takes its value over
   (`../../draft/config.md`, section 8).
 - **What nobody changes is a constant** (section 2): of jig's parts,
-  those jig lets an application fix (jig's `protocol/configuration.md`,
-  3.4); of temper's, a worker's workspaces and its git.
+  those jig lets an application fix (jig's `protocol/configuration-templates.md`,
+  4); of temper's, a worker's workspaces and its git.
 - **One table names them,** in `temper-service-core`'s startup: each
   moved member's path and its words. The refusals read it, and so do
   the `configuration` and `configuration-engine` reference pages, where
@@ -40,7 +40,7 @@ that document's, and the file's names that moved are `file.md`, 3.3's.
 ## 2. The constants
 
 temper passes jig's parser these as fixed (jig's
-`protocol/configuration.md`, 3.4), in every shape, and decides the
+`protocol/configuration-templates.md`, 4), in every shape, and decides the
 worker's two itself:
 
 | Member | Its constant |

@@ -101,6 +101,8 @@ fn recorded_seed(root: &Path) -> SeedTree<'_> {
 fn read_guard(path: &Path) -> io::Result<String> {
     if path == Path::new("benchmarks/README.md") {
         Ok(include_str!("../../../docs/design/benchmarks/README.md").into())
+    } else if path == Path::new("benchmarks/agents.md") {
+        Ok(include_str!("../../../docs/design/benchmarks/agents.md").into())
     } else {
         Err(io::ErrorKind::NotFound.into())
     }

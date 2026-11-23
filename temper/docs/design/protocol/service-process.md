@@ -19,8 +19,8 @@ Standalone is jig's one process (jig's `protocol/service.md`, section 10):
   open`, signing in by the link `temper-box serve` prints at start, or
   `temper box` before it starts serve (`setup/box-supervision.md`, 1).
 - **Agents and git as child processes,** each in a process group of its
-  own, which a stop signals whole (jig's `protocol/README.md`, section
-  10); containment after a forced stop remains open (`README.md`, section 11). An
+  own, which a stop signals whole (jig's `protocol/needs.md`, section
+  1); containment after a forced stop remains open (`README.md`, section 11). An
   agent's program, `claude`, is the agent's child in a group of its own
   (smith's `protocol/programs.md`, section 2), so killing an agent's
   group leaves its program running: only the agent's own stop ends it.
@@ -29,7 +29,7 @@ Standalone is jig's one process (jig's `protocol/service.md`, section 10):
   so a forge on another host polls alone (forge/README.md, section 4).
 - **The core knows its workers are in process:** the engine's workers'
   listener is the in-process name, from which jig's configuration tells
-  the core so (jig's `protocol/configuration.md`, section 3;
+  the core so (jig's `protocol/configuration-engine.md`, section 1;
   `../domain/root.md`, section 2).
 - **Starting and ending together:** configuration for both, then the
   engine's start, then the worker's. A signal drains the engine; once it
@@ -287,8 +287,8 @@ cancelled landings held.
 - **A whole stop's bound** (`service-process.md`, section 1; `cluster.md`, 4): an engine's stop ends
   within what its parts' own deadlines give, the forge's settling
   (`../domain/root-restart.md`, 1.2), the drain, and its workers' channels
-  within the stall deadline of the close (jig's `protocol/channel/README.md`,
-  9.2), with no deadline of its own, while a service manager kills it
+  within the stall deadline of the close (jig's `protocol/channel/worker-link.md`,
+  1.2), with no deadline of its own, while a service manager kills it
   at its own stop timeout. Default: so; a stop deadline over the whole
   is a figure, the user's to set, and a test of a stop within it
   follows.

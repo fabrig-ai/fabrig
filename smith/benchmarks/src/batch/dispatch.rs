@@ -1,4 +1,4 @@
-//! A settled attempt's result and owned files (smith/docs/design/benchmarks/README.md, 5.3 and 10).
+//! A settled attempt's result and owned files (smith/docs/design/benchmarks/README.md, 5.3, and smith/docs/design/benchmarks/isolation.md, 1).
 
 use std::path::Path;
 

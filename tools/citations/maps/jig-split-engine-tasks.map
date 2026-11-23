@@ -1,0 +1,34 @@
+# Jig's third split pass: engine and tasks (temper/docs/design/draft/design-upkeep.md, 4.3), at 3699df203357de9d7d47d9376d92916287a6db4e.
+# jig/docs/design/domain/engine/executors.md: 62,147 bytes. Transcripts and tools get their own pages; run setup, answers, waiting and parking, jobs and suspended attempts stay.
+title jig/docs/design/domain/engine/executors-transcripts.md: The engine's executors: transcripts
+title jig/docs/design/domain/engine/executors-tools.md: The engine's executors: tools
+jig/docs/design/domain/engine/executors.md 2 -> jig/docs/design/domain/engine/executors-transcripts.md 1
+jig/docs/design/domain/engine/executors.md 3 -> jig/docs/design/domain/engine/executors-tools.md 1
+
+# jig/docs/design/domain/engine/settings.md: 61,407 bytes. Application settings, proposals, the store at startup, and the catalogue and provider lists get their own pages; kinds, changes, revisions, moving running work, bounds, charter documents and restoration stay.
+title jig/docs/design/domain/engine/settings-application.md: The engine's settings: an application's settings
+title jig/docs/design/domain/engine/settings-proposals.md: The engine's settings: proposals
+title jig/docs/design/domain/engine/settings-store.md: The engine's settings: in the store and at a start
+title jig/docs/design/domain/engine/settings-catalogue.md: The engine's settings: the catalogue and provider lists
+jig/docs/design/domain/engine/settings.md 5 -> jig/docs/design/domain/engine/settings-application.md 1
+jig/docs/design/domain/engine/settings.md 6 -> jig/docs/design/domain/engine/settings-proposals.md 1
+jig/docs/design/domain/engine/settings.md 7 -> jig/docs/design/domain/engine/settings-store.md 1
+jig/docs/design/domain/engine/settings.md 11 -> jig/docs/design/domain/engine/settings-catalogue.md 1
+jig/docs/design/domain/engine/settings.md 12 -> jig/docs/design/domain/engine/settings-catalogue.md 2
+
+# jig/docs/design/domain/engine/README.md: 59,058 bytes. Vocabulary, decisions and the store, and the domain world get their own pages; the core overview, placement, structure, accounts, limits, obligations below the domain and open questions stay.
+title jig/docs/design/domain/engine/vocabulary.md: The core: its vocabulary toward the root
+title jig/docs/design/domain/engine/decisions.md: The core: decisions and the store
+title jig/docs/design/domain/engine/world.md: The core: its world
+jig/docs/design/domain/engine/README.md 4 -> jig/docs/design/domain/engine/vocabulary.md 1
+jig/docs/design/domain/engine/README.md 5 -> jig/docs/design/domain/engine/decisions.md 1
+jig/docs/design/domain/engine/README.md 9 -> jig/docs/design/domain/engine/world.md 1
+
+# jig/docs/design/domain/tasks/lifecycle.md: 54,105 bytes. Failures and placed holds, and dependencies and ending a task get their own pages; phases, executor kinds, results, retained records and application failures stay.
+title jig/docs/design/domain/tasks/lifecycle-holds.md: A task's lifecycle: failures and holds
+title jig/docs/design/domain/tasks/lifecycle-endings.md: A task's lifecycle: dependencies and endings
+jig/docs/design/domain/tasks/lifecycle.md 6 -> jig/docs/design/domain/tasks/lifecycle-holds.md 1
+jig/docs/design/domain/tasks/lifecycle.md 8 -> jig/docs/design/domain/tasks/lifecycle-endings.md 1
+jig/docs/design/domain/tasks/lifecycle.md 9 -> jig/docs/design/domain/tasks/lifecycle-endings.md 2
+jig/docs/design/domain/tasks/lifecycle.md 10 -> jig/docs/design/domain/tasks/lifecycle-holds.md 2
+jig/docs/design/domain/tasks/lifecycle.md 11 -> jig/docs/design/domain/tasks/lifecycle-endings.md 3

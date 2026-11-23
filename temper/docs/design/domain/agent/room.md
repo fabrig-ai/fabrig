@@ -42,9 +42,9 @@ both the encoded charter, including framing, and its decoded ownership.
   that allowance is the agent's `run_bytes`, as a task read's room is its
   `host_reply_text` (`../routing.md`, 2). Where it doesn't know its
   worker's, it takes smith's at its floor, 65,536, which the stock agent's
-  `tool_payload` of 10,662 does not raise (smith's `protocol/limits.md`,
-  3.10): the smaller of the two defaults, and how the engine learns a
-  remote worker's is section 5's. The cap stays 65,536 (the user,
+  `tool_payload` of 10,662 does not raise (smith's `protocol/limits-derivation.md`,
+  1.10): the smaller of the two defaults, and how the engine learns a
+  remote worker's is `room.md`, section 5's. The cap stays 65,536 (the user,
   2026-11-16): a reasonable size for what a run is sent at once.
 - **What stays whole.** Instructions, tools, contracts, models and run
   identity stay whole.

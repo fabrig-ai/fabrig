@@ -1,5 +1,5 @@
 //! Run admission, main and child lifetimes, shared spend and terminal rights
-//! (smith/docs/design/domain/run.md, sections 3 and 6–8 and smith/docs/design/domain/budget.md and smith/docs/design/domain/run.md, section 9). State retains the charter, prepared
+//! (smith/docs/design/domain/run-start.md, section 1, and smith/docs/design/domain/run-messages.md, section 1, and smith/docs/design/domain/run.md, section 7, and smith/docs/design/domain/run-delivery.md, section 1 and smith/docs/design/domain/budget.md and smith/docs/design/domain/run.md, section 9). State retains the charter, prepared
 //! guides/checks, run identity, never-reused child ordinals, conversation bindings,
 //! call ownership, the wind-down's budget or host cause, and one pending ending.
 //! Entrances below act only through bounded queues, slabs and injected time.
@@ -16,8 +16,8 @@
 //!
 //! The run and its conversations move through these retained phases. Each row
 //! names the event that changes the phase; all issued operations still owe their
-//! typed terminal while the run winds down (smith/docs/design/domain/run.md, sections 5.2, 6,
-//! 8.2 and 9).
+//! typed terminal while the run winds down (smith/docs/design/domain/run.md, section 5.2, and smith/docs/design/domain/run-messages.md, section 1, and smith/docs/design/domain/run-delivery.md, section 1.2, and smith/docs/design/domain/run.md, section 9
+//! ).
 //!
 //! ```text
 //! run phase    event                              next phase   outward action
@@ -56,7 +56,7 @@
 //! ```
 //!
 //! The two calls with independent lower terminals keep their own phases
-//! (smith/docs/design/domain/run.md, sections 5.2 and 8.2):
+//! (smith/docs/design/domain/run.md, section 5.2, and smith/docs/design/domain/run-delivery.md, section 1.2):
 //!
 //! ```text
 //! operation  phase       event                          next        outward action

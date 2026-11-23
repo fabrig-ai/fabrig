@@ -201,7 +201,7 @@ digest: task 7c1e09a2b44f0d13
   jig's `Dependency.added`), ` · added by WHO at 2026-10-22 05:10 UTC`,
   WHO as the requester is said (`you`, `party 3`, `task 7`,
   `deployment 1`); then, while it keeps the task (jig's `keeps`, jig's
-  `domain/tasks/lifecycle.md`, 8), ` · keeps task N from ending`:
+  `domain/tasks/lifecycle-endings.md`, 1), ` · keeps task N from ending`:
 
   ```
   dependencies:
@@ -272,7 +272,7 @@ digest: task 7c1e09a2b44f0d13
 - **`deployment census`** (`tools-reads.md`, 1) reads jig's deployment document,
   for a party with a deployment role, and prints its census (jig's
   `client/domain/contract/documents.md`, 1; jig's
-  `protocol/store/README.md`, 6.3): a first line `census at commit N,
+  `protocol/store/growth.md`, 1.3): a first line `census at commit N,
   writes since commit S`, then a line per keyspace in prefix order,
   `PREFIX NAME rows R keys K values V puts P erases E written W heads
   H:R,H:R`, PREFIX its bytes in lower-case hex with no space (`01010a`,
@@ -283,7 +283,7 @@ digest: task 7c1e09a2b44f0d13
   role is jig's refusal, exit 2 (3).
 - **A tree** prints `tree:`, then its root and each row its window
   holds, a chip a line. The engine answers the tools' window within its
-  own rows (jig's `client/domain/contract/README.md`, 5.2), so a tree larger
+  own rows (jig's `client/domain/contract/watches.md`, 1.2), so a tree larger
   than either folds the rest. Its text prints one total line after the
   rows: `cut: 3 more not shown (1 Waiting, 2 Running)`, the folded tasks'
   count, then each phase that has any, in a chip's words and jig's order
@@ -310,7 +310,7 @@ digest: task 7c1e09a2b44f0d13
   `adopt`), then its outcome as an act's prints, which names what it
   made or decided. No name and no key: a request's record keeps the
   engine's key, drawn or a name's digest, and the client's, the
-  runner's (jig's `protocol/client/README.md`, section 7), never the name,
+  runner's (jig's `protocol/client/small-store.md`, section 1), never the name,
   and neither key is of use to an agent.
 - **A restored proposal's `kept:` line** prints its identity alone,
   `kept: chat, proposed: t3/17`, with no recipient: jig keeps none with

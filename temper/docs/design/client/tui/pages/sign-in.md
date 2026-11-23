@@ -40,8 +40,8 @@ Illustrative:
     secret stays in the TUI's state only until then.
 - **While it signs in:** "Signing in…". `jig-client` sends the link
   again by itself, after a backoff, when the engine answers not ready
-  or busy, or no answer comes (jig's `client/domain/client/README.md`, section
-  9), and the TUI says which: "Signing in: the engine is busy; trying
+  or busy, or no answer comes (jig's `client/domain/client/sign-in.md`, section
+  1), and the TUI says which: "Signing in: the engine is busy; trying
   again.", "Signing in: the engine is starting or stopping; trying
   again.", "Signing in: no answer from the engine; trying again.".
 - **Refused:** a link used, expired or not this temper's, or the

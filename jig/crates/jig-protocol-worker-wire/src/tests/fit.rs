@@ -1,4 +1,4 @@
-//! A resumed start fitted to its room (jig/docs/design/protocol/channel/README.md, 11).
+//! A resumed start fitted to its room (jig/docs/design/protocol/channel/testing.md, 1).
 use super::fixtures::{self, SIZES_LARGE, SIZES_ONE_SLOT, repeated};
 use crate::fit::{Fitted, cut_words, fit};
 use crate::v22::Record;

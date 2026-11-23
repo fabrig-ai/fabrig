@@ -294,7 +294,7 @@ impl Pages {
     }
 }
 
-/// The engine's model-name shape (jig/docs/design/domain/engine/settings.md, 11).
+/// The engine's model-name shape (jig/docs/design/domain/engine/settings-catalogue.md, 1).
 #[must_use]
 pub fn name_shape(name: &[u8]) -> bool {
     if name.is_empty() || name.len() > 128 {

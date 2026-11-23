@@ -275,7 +275,7 @@ impl Domain {
         identities.into_boxed()
     }
 
-    /// Whole current model settings (jig/docs/design/domain/engine/settings.md, 11).
+    /// Whole current model settings (jig/docs/design/domain/engine/settings-catalogue.md, 1).
     #[must_use]
     pub fn catalogue(&self) -> Box<[jig_domain_core::settings::CatalogueModel]> {
         let mut rows = List::with_capacity(jig_domain_tasks::MODELS);
@@ -761,7 +761,7 @@ impl Domain {
         backlog(self)
     }
 
-    /// Own values kept at stock numbers after start (jig/docs/design/domain/engine/settings.md, 7).
+    /// Own values kept at stock numbers after start (jig/docs/design/domain/engine/settings-store.md, 1).
     #[must_use]
     pub fn settings_kept(&self) -> Box<[jig_domain_core::settings::Setting]> {
         self.core.settings_kept()

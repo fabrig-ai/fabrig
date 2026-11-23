@@ -24,7 +24,7 @@ pub(crate) fn floor(build: &str) -> Box<[u8]> {
     row.encode(&wire::CEILINGS).expect("Store::build_name bounded the name")
 }
 
-/// Decode the last start's optional wires for rehearsal (protocol/store/opening.md 5).
+/// Decode the last start's optional wires for rehearsal (protocol/store/opening-rehearsal.md 1).
 #[expect(clippy::disallowed_methods, reason = "the protocol codec validates stored wire names as UTF-8")]
 pub(crate) fn kept_wires(bytes: &[u8]) -> Option<Box<[crate::KeptWire]>> {
     let row = crate::component_v3::Wires::decode(&crate::component_v3::CEILINGS, &mut Reader::new(bytes)).ok()?;

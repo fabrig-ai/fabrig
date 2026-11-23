@@ -104,7 +104,7 @@ pub fn visitor(document: &serde_json::Value) -> skein_playground::visitor::Confi
         host,
         exchanges: VISITOR_EXCHANGES,
         // jig's only sign-in cookie: jig-sign-in (11 bytes) and a 40-byte credential
-        // in unpadded URL base64 (54 bytes); jig/docs/design/protocol/browser/README.md, 11.
+        // in unpadded URL base64 (54 bytes); jig/docs/design/protocol/browser/sign-in.md, 1.
         cookies: 1,
         cookie_bytes: 65,
         // Nine fetches and one stream, each with its own socket. HTTP's 4096-byte

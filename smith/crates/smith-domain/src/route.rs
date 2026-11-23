@@ -1,4 +1,4 @@
-//! Routing (skein/docs/foundation/programming-model.md, section 4.5; smith/docs/design/domain/run.md, sections 2, 3, 9 and 12;
+//! Routing (skein/docs/foundation/programming-model.md, section 4.5; smith/docs/design/domain/run.md, section 2, and smith/docs/design/domain/run-start.md, section 1, and smith/docs/design/domain/run.md, sections 9 and 12;
 //! smith/docs/design/domain/session.md, sections 3–6): each of the protocol's events to the child domain it is for,
 //! each child domain's requests to the protocol layer or, translated, to the
 //! other, and the hand-offs the ready list deferred.
@@ -484,7 +484,7 @@ fn start(
     };
     let resumed = transcript.is_some();
     // A resume without a host identity keeps the run tree under the recorded
-    // main key (smith/docs/design/domain/run.md, section 3.2). The run only mints when both are absent.
+    // main key (smith/docs/design/domain/run-start.md, section 1.2). The run only mints when both are absent.
     let identity = match identity {
         Some(identity) => Some(identity),
         None => match transcript.as_ref() {

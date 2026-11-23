@@ -1,4 +1,4 @@
-//! Lazy child startup and private entropy-derived names (smith/docs/design/protocol/programs.md, 3, 5.1).
+//! Lazy child startup and private entropy-derived names (smith/docs/design/protocol/programs.md, 3, smith/docs/design/protocol/programs-claude-code.md, 1.1).
 //! Keeps no login; the existing status reader classifies subscription use.
 
 use super::Complete;
@@ -235,7 +235,7 @@ impl Backend {
         below: &mut Queue<Below>,
     ) {
         // Relay EOF can precede waitpid. Let the child and stderr settle
-        // before choosing its program fault (smith/docs/design/protocol/programs.md, 5.6).
+        // before choosing its program fault (smith/docs/design/protocol/programs-claude-code.md, 1.6).
         let waiting = self.startup.phase() == State::Running && self.process.child().is_some();
         let until =
             if waiting && !self.startup.switching() { Some(env.now.saturating_add(self.settings.grace)) } else { None };

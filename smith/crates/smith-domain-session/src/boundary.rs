@@ -97,7 +97,7 @@ pub enum Event {
     CancelJobs { session: Token },
     /// The run asks this session to yield its outstanding Complete; its terminal remains owed.
     Yield { session: Token },
-    /// The program reports a built-in call's result after its completion (smith/docs/design/protocol/programs.md, 5.5).
+    /// The program reports a built-in call's result after its completion (smith/docs/design/protocol/programs-claude-code.md, 1.5).
     BuiltinResult { session: Token, id: Box<[u8]>, text: Box<[u8]>, error: bool },
     /// Terminal for `Complete`: the LLM produced its next message.
     Completed {
@@ -282,7 +282,7 @@ pub enum Request {
 pub struct Spec {
     /// Tell answers and results as they arrive, beside whole turns.
     pub tell_parts: bool,
-    /// Transport named in this conversation's opening turns (smith/docs/design/domain/session.md 8.2).
+    /// Transport named in this conversation's opening turns (smith/docs/design/domain/session-context.md 1.2).
     pub backend: crate::record::Backend,
     /// Account named by the charter, absent for uncredentialed calls.
     pub account: Option<u32>,
@@ -420,7 +420,7 @@ pub enum Yield {
     Malformed,
 }
 
-/// Why a compaction answer cannot open a new window (smith/docs/design/domain/session.md, 8.2).
+/// Why a compaction answer cannot open a new window (smith/docs/design/domain/session-context.md, 1.2).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum NoSummary {
     /// The provider refused the summary, with or without accompanying text.

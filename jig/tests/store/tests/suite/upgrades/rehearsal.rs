@@ -1,4 +1,4 @@
-//! Stopped-deployment tools over fixture sets (protocol/store/opening.md 5).
+//! Stopped-deployment tools over fixture sets (protocol/store/opening-rehearsal.md 1).
 use jig_protocol_store::{
     BackRefusal, Event, KeptMap, KeptWire, OpenRefusal, Owner, OwnerSets, Request, Undecoded, Wire, Write,
 };

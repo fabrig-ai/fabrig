@@ -105,7 +105,7 @@ pub enum TaskLink {
 }
 
 /// Dependency facts from its owning task and the prerequisite's live row or stub
-/// (client/domain/contract/documents.md, 1; domain/tasks/lifecycle.md, 8 and domain/tasks/changes.md).
+/// (client/domain/contract/documents.md, 1; domain/tasks/lifecycle-endings.md, 1 and domain/tasks/changes.md).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Dependency {
     pub number: u64,

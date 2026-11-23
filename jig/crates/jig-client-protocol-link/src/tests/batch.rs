@@ -1,4 +1,4 @@
-//! A settling's members and their independent outcomes (protocol/client/README.md, 11).
+//! A settling's members and their independent outcomes (protocol/client/testing.md, 1).
 use super::*;
 use skein_lib::{List, Writer};
 

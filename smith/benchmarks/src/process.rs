@@ -2,7 +2,7 @@
 //! The pipe observer retains bounded bytes and parsed agent records, never
 //! agent state. Binary owns process-tree discovery, signals and settlement.
 //! Ended terminal masters stay held until Binary settles the tree.
-//! Contract: ../../docs/design/benchmarks/README.md, sections 6, 8 and 10.
+//! Contract: ../../docs/design/benchmarks/agents.md, section 1, and ../../docs/design/benchmarks/results.md, section 1, and ../../docs/design/benchmarks/isolation.md, section 1.
 
 use crate::{Fault, bound, format, io};
 use std::os::fd::IntoRawFd;
@@ -34,7 +34,7 @@ pub struct Bounds {
     pub force_walk: bool,
 }
 
-/// Choose the platform's tree containment (smith/docs/design/benchmarks/README.md, section 10).
+/// Choose the platform's tree containment (smith/docs/design/benchmarks/isolation.md, section 1).
 fn containment(force_walk: bool, linux: bool) -> Containment {
     if force_walk && linux { Containment::Walk } else { Containment::Best }
 }

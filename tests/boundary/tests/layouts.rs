@@ -1,4 +1,4 @@
-//! Client versions are held to layouts (jig/docs/design/protocol/client/README.md, section 6).
+//! Client versions are held to layouts (jig/docs/design/protocol/client/versions.md, section 1).
 //! Only texts cross the checks; the tree test reads main at the patch check's merge base.
 
 use std::{

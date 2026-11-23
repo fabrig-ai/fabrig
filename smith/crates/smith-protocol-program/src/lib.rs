@@ -1,4 +1,4 @@
-//! Lazy program conversations and source commands (protocol/programs.md, 3–5, 9).
+//! Lazy program conversations and source commands (protocol/programs.md, 3–4, and protocol/programs-claude-code.md, 1, and protocol/programs.md, 9).
 //! `backend::Backend` owns startup files, MCP calls, program pipes and turns;
 //! `Command` settles source commands, and `relay` bridges authenticated MCP IO.
 //! Login contents and host policy stay outside this crate.
@@ -35,5 +35,5 @@ pub use status::{
 
 pub use usage::usage_result;
 
-/// The agent binary mode that execs a program to die with its agent (protocol/programs.md, 5.1).
+/// The agent binary mode that execs a program to die with its agent (protocol/programs-claude-code.md, 1.1).
 pub const PROGRAM_CHILD_FLAG: &str = "--program-child";

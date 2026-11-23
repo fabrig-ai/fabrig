@@ -1,4 +1,4 @@
-//! A party's remaining batch budget (domain/authority.md, 7 and 8.4).
+//! A party's remaining batch budget (domain/authority-budgets.md, 1, and domain/authority-checks.md, 1.4).
 use crate::{Domain, PersonAsk, left};
 
 /// Resolve what fits after named amounts, within the role's spend and an optional cap.

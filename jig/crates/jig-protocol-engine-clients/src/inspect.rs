@@ -1,4 +1,4 @@
-//! Frozen reads for the clients' world (jig/docs/design/domain/testing.md, 7.1).
+//! Frozen reads for the clients' world (jig/docs/design/domain/testing-fakes.md, 1.1).
 use super::{Component, Time, Token, Waiting, Which};
 use skein_lib::length::usize_of;
 

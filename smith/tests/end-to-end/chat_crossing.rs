@@ -1,5 +1,5 @@
 //! One scratch keeps the chat while the product crosses Direct, program and Direct
-//! (smith/docs/design/protocol/programs.md, 5.8; smith/docs/design/testing.md, 2.3).
+//! (smith/docs/design/protocol/programs-claude-code.md, 1.8; smith/docs/design/testing.md, 2.3).
 //! Only product streams, each run's own trace and fake invocations are observed.
 
 use super::support;

@@ -1,4 +1,4 @@
-//! The switch and wires belong to the scratch; transcripts never do (opening.md, 5).
+//! The switch and wires belong to the scratch; transcripts never do (protocol/store/opening-rehearsal.md, 1).
 use super::*;
 
 fn opened(pending: bool) -> (Disk, Store, Root, Vec<Item>) {

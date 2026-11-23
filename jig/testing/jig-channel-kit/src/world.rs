@@ -1,5 +1,5 @@
 //! Two reference services joined by loopback, with independent parties and durable rows.
-//! Contract: protocol/channel/README.md, 11, on the real deployment store.
+//! Contract: protocol/channel/testing.md, 1, on the real deployment store.
 use crate::{
     fixtures,
     processes::{self, Machine, Proc},

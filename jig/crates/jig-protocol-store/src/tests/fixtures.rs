@@ -34,9 +34,23 @@ pub use store::floor_put;
 pub use store::limits as store_limits;
 pub use store::{
     Answer, ROOT, answer, below, commit, committed, committed_with_places, directory, env, events, format_put, get_kv,
-    header, header_put, installation_put, opened, opened_with_budget, opened_with_transcripts, over, plant, run, save,
-    script, sign_in_secret, stores, written,
+    header, header_put, installation_put, opened, opened_with_budget, opened_with_transcripts, over, plant, reopen,
+    run, save, script, sign_in_secret, stores, written,
 };
+
+/// A shell's prepared binary texts, with any kept fixture texts the test supplies.
+#[expect(clippy::disallowed_methods, reason = "simulate a shell holding immutable schemas for each fixture")]
+pub fn prepared(sets: crate::OwnerSets, extra: &[&str]) -> &'static [skein_codec::schema::Schema] {
+    let mut schemas = skein_lib::List::uncapped();
+    for schema in sets.prepare() {
+        schemas.push(schema).expect("uncapped fixture schemas");
+    }
+    for text in extra {
+        let schema = skein_codec::schema::parse(text.as_bytes()).expect("kept fixture text parses");
+        schemas.push(schema).expect("uncapped fixture schemas");
+    }
+    Box::leak(schemas.into_boxed())
+}
 
 pub fn codec_limits() -> crate::codec::View {
     crate::codec::limits(&CORE_LIMITS).expect("fixture codec limits")

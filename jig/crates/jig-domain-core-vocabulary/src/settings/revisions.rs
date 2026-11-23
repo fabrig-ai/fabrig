@@ -1,4 +1,4 @@
-//! Revision history keys (domain/engine/settings.md, 7).
+//! Revision history keys (domain/engine/settings-store.md, 1).
 
 /// A held revision's key and the history row it enters as.
 #[must_use]

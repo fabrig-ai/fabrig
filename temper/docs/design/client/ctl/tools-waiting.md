@@ -9,7 +9,7 @@ READ [--since DIGEST] [--until CONDITION] [--timeout DURATION]
 ```
 
 - **A watched read** is one whose arguments are a watch's subject (jig's
-  `client/domain/contract/README.md`, 5.1): `me`; `inbox` with no flag, the
+  `client/domain/contract/watches.md`, 1.1): `me`; `inbox` with no flag, the
   inbox's watch being the party's whole inbox; `task show TASK` with no
   flag; `task tree TASK`; `task run TASK`; `task list` with what its
   watch takes alone, without `--after` or `--ended`, `tasks{query}`
@@ -36,7 +36,7 @@ READ [--since DIGEST] [--until CONDITION] [--timeout DURATION]
   about (jig's `client/domain/contract/documents.md`, 2), so they cannot say
   that a document changed; the digest can, and needs nothing of jig. It
   is not the mark the engine keeps per watch (jig's
-  `client/domain/contract/README.md`, 5.2), which no tool prints.
+  `client/domain/contract/watches.md`, 1.2), which no tool prints.
 - **Which reads print one:** every watched read, and every wait's
   answer. `task show TASK --tree --run` prints one for each of its
   parts, `task show`, `task tree` and `task run`, each over its own part
@@ -112,7 +112,7 @@ READ [--since DIGEST] [--until CONDITION] [--timeout DURATION]
   the lower-case word, and `help task show` lists the words. The ended
   phases, `ended`, `done`, `failed` and `cancelled`, are never conditions: the engine
   ends a task's watch as the task ends (jig's
-  `client/domain/contract/README.md`, 5.2), so a delivery may never show one.
+  `client/domain/contract/watches.md`, 1.2), so a delivery may never show one.
   `--until phase:done` and its kin are usage errors, exit 1, naming
   `--until ended`.
 - **`settled`** follows a sign-in or a check, or a forge's connect or
@@ -120,7 +120,7 @@ READ [--since DIGEST] [--until CONDITION] [--timeout DURATION]
   progress from its request's answer until it ends: made, renewed,
   refused, or past the sign-in's deadline (skein's `oauth/README.md`, section
   3); a check, until each host it asks has reported (jig's
-  `domain/accounts.md`, 3.4). So a wait begun once `account connect` or
+  `domain/accounts-sources.md`, 1). So a wait begun once `account connect` or
   `account verify` has answered is not met before them: `account
   connect 1 --key chatgpt`, then `account list --until settled`, then
   the account's state in its answer. On `forge list`, a connect or an
@@ -134,7 +134,7 @@ READ [--since DIGEST] [--until CONDITION] [--timeout DURATION]
   `forge setup 3`, then `forge list --until settled`. `connected:FORGE` is
   met by a delivery where forge F is connected, whoever connected it.
 - **`usable`** counts the party's own accounts, those whose uses name
-  the party, and the deployment's (jig's `domain/accounts.md`, 4.3), on
+  the party, and the deployment's (jig's `domain/accounts-uses.md`, 1.3), on
   any host: the box's harness waits on it once it has added the
   deployment's key (`README.md`, section 8).
 - **`ended`** is met by a delivery that shows the subject ended, or by
@@ -145,7 +145,7 @@ READ [--since DIGEST] [--until CONDITION] [--timeout DURATION]
   These conditions are `ended` and `replied`; terminal `phase:<phase>`
   conditions are usage errors as above. A watch on a subject
   that has ended is refused `Unknown` (jig's
-  `client/domain/contract/README.md`, sections 4 and 5.2). On that opening
+  `client/domain/contract/reads.md`, section 1, and `client/domain/contract/watches.md`, section 1.2). On that opening
   refusal or `SubjectEnded`, the tool reads N through the existing
   authorized task read. On both paths, a `Historical` record or a
   live-form task establishes completion only when its returned number
@@ -182,8 +182,8 @@ READ [--since DIGEST] [--until CONDITION] [--timeout DURATION]
   `temper-client-tools-jig`'s `jig/wait.rs`, one per admitted call. Arming a
   new timer past that capacity refuses; admitted calls keep within it.
   The tools do not price the timer table.
-- **A watch that ends under a wait** (jig's `client/domain/contract/README.md`,
-  5.2) answers it: met where the condition is `ended` and the subject
+- **A watch that ends under a wait** (jig's `client/domain/contract/watches.md`,
+  1.2) answers it: met where the condition is `ended` and the subject
   ended. For `task show`, `ended` and `replied` first require the matching
   terminal read above and answer according to the condition on that task;
   refused where the party may no longer see the subject; failed
@@ -194,7 +194,7 @@ READ [--since DIGEST] [--until CONDITION] [--timeout DURATION]
   engine comes back, and fails as a link down past the link's deadline
   (`results.md`, 3, `bounds.md`, section 1).
 - **Level-triggered, as the watch is** (jig's
-  `client/domain/contract/README.md`, 5.2): deliveries between are coalesced,
+  `client/domain/contract/watches.md`, 1.2): deliveries between are coalesced,
   and the answer is the document as it is when answered. A change before
   the wait began is in its first delivery, which `--since` compares.
 - **The loop:** `me --until waiting`; `inbox`; act; again. An agent

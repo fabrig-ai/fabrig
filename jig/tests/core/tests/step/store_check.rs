@@ -1,4 +1,4 @@
-//! A connector's store refusal is a start outcome (domain/testing.md, 7).
+//! A connector's store refusal is a start outcome (domain/testing-fakes.md, 1).
 
 use jig_core_world::world::{Setup, World};
 use jig_domain_core::start::{ApplicationWhy, Failure, Phase};

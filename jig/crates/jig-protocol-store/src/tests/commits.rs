@@ -1,4 +1,4 @@
-//! Commits answered only after the same skein-kv number (protocol/store/README.md, 5).
+//! Commits answered only after the same skein-kv number (protocol/store/commits.md, 1).
 use super::fixtures;
 use crate::{CommitCheck, CommitFailure, Event, Phase, Request, Store, Write, codec, keys};
 use alloc::boxed::Box;
@@ -311,7 +311,7 @@ fn later_commits_do_not_replace_the_format_row() {
 #[test]
 fn a_committed_store_reopens_at_its_last_number_with_its_kept_installation() {
     let store = committed_header();
-    let mut restarted = fixtures::over(store.into_stores());
+    let mut restarted = fixtures::reopen(store);
     let drawn = [6; 16];
     let events = fixtures::run(
         &mut restarted,
