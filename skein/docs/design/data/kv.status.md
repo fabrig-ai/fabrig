@@ -3,9 +3,6 @@
 2026-11-23. Where skein's code lags or departs from [kv.md](kv.md).
 
 
-- **Not yet:** 6.5: a store in memory keeps no read: `Store::keep_reads`,
-  `forget_reads` and `kept_reads` are missing, and each read checks and
-  inflates every frame it reaches. [in flight: change 13666]
 - **Not yet:** 9: the model-map referee across simulated-disk commits,
   loads, snapshots and crash recovery, commits racing every snapshot
   chunk, and the recovered value check over the real ring. In
