@@ -34,13 +34,20 @@ fn finding(path: &str, line: usize, source: &str, listed: bool) -> Option<String
 #[test]
 fn only_listed_kit_files_use_the_counter() {
     let root = skein_scratch::paths::workspace();
+    // Only a file naming the crate can use it, so git's own search picks the candidates: reading every tracked
+    // source here instead cost the checks layer some 15e9 instructions (tools/tiers/budgets.md, 8).
     let output = Command::new("git")
         .arg("-C")
         .arg(&root)
-        .args(["ls-files", "-z", "--", "*.rs"])
+        .args(["grep", "-l", "-z", "-F", "skein_checks", "--", "*.rs"])
         .output()
-        .expect("list tracked Rust sources");
-    assert!(output.status.success(), "git ls-files: {}: {}", output.status, String::from_utf8_lossy(&output.stderr));
+        .expect("search tracked Rust sources");
+    assert!(
+        output.status.success() || output.status.code() == Some(1),
+        "git grep: {}: {}",
+        output.status,
+        String::from_utf8_lossy(&output.stderr)
+    );
     let mut remaining: BTreeSet<_> = KIT_FILES.lines().collect();
     assert_eq!(remaining.len(), KIT_FILES.lines().count(), "each kit file is listed once");
     let mut findings = Vec::new();
