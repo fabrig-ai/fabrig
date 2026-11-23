@@ -1,6 +1,32 @@
 # Testing hearth: status
 
-2026-11-11. Where hearth's code lags or departs from [README.md](README.md).
+2026-11-23. Where hearth's code lags or departs from [README.md](README.md).
+
+- **Not yet:** 2.5, 2.7: the builder's protocol world lacks a later
+  revision and git's failures, and the real loop still holds the hunk,
+  error-order and no-repository cases that need them. [in flight: change 13918]
+- **Not yet:** 2.5, 2.7: the client's render outputs of `real/main.rs` run
+  in the builder's real loop, not its protocol world. [in flight: change 13919]
+- **Not yet:** 2.5, 2.7: the client's render errors of `real/main.rs` run
+  in the builder's real loop, not its protocol world. [in flight: change 13920]
+- **Not yet:** 2.5, 2.7: the renders of accounts, additions, boot,
+  collisions, data, files, ids, scripts and software run in the builder's
+  real loop. [in flight: change 13957]
+- **Not yet:** 2.5, 2.7: the renders of exports, reserved paths and the
+  hearth task run in the builder's real loop. [in flight: change 13958]
+- **Not yet:** 2.5, 2.7: the diffs of outcomes, recorded resolutions,
+  packages and parts run in the builder's real loop. [in flight: change 13959]
+- **Not yet:** 2.5, 2.7: the diffs of accounts, additions, data, exports,
+  files and scripts run in the builder's real loop. [in flight: change 13960]
+- **Not yet:** 2.5, 2.7: the store's and the cache's cases run in the
+  builder's real loop, and its protocol world can't lay a store or call
+  twice over one. [in flight: change 13961]
+- **Not yet:** 2.5, 2.7: the goldens and resolutions run in the builder's
+  real loop with real git. [in flight: change 13962]
+- **Not yet:** 2.5, 3.2: the builder's conformance resolves for real in
+  each of its five cases, its failures, progress and index records aren't
+  the protocol world's, and the resolver's include split and the fake's replay
+  of each case still read the fetched mirror. [in flight: change 13963]
 
 - **Not yet:** 2.3: the M2 system world joining the builder and the real tree
   helper on one fake machine. 2.5, 2.6: the tree helper's protocol and simulated
