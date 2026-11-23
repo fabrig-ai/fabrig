@@ -1,4 +1,5 @@
-//! Retained first-edition story (testing/reference-case.md): opener followed by its timer check on three workers.
+//! Three-worker placement, a real-clock wake, cooperative cancellation and a green Markdown landing.
+//! Policy holders are named in testing/reference-case.md, steps 4.1 and 4.3.
 use temper_real_loop_world::{
     End, Exit,
     case::{

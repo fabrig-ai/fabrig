@@ -8,6 +8,12 @@ use smith_domain::{Event, Request, llm, run, tools};
 /// A provider face under the shared agent loop (skein/docs/foundation/testing-strategy.md, section 2).
 /// Implementations own lower progression and return only boundary observations.
 pub trait Backend: core::fmt::Debug {
+    /// Whether this fixture's credential can be renewed by its host.
+    fn renewable(&self) -> bool {
+        true
+    }
+    /// The event stream's logical name for a completion across its attempts.
+    fn name_call(&mut self, _owner: Token, _name: &str) {}
     /// Retain the host's result rules, used only after the root admits its Start.
     fn contract(&mut self, _outcome: run::outcome::OutcomeSpec, _deliver: Option<run::outcome::ChangeSpec>) {}
     /// Admit the root's complete request without reconstructing its contract.
@@ -52,6 +58,11 @@ pub struct Typed {
 }
 
 impl Typed {
+    /// The fake provider's fault entrances for a composed backend.
+    pub fn provider_mut(&mut self) -> &mut provider::Domain {
+        &mut self.provider
+    }
+
     fn completion(
         &self,
         answer: provider::api::Answer,
@@ -70,14 +81,22 @@ impl Typed {
         })
     }
 
-    pub(crate) fn new(settings: &Settings) -> Self {
+    /// Build the typed provider with caller-supplied scripts and the usual boundaries.
+    #[must_use]
+    pub fn scripted(settings: &Settings, scripts: Box<[provider::api::Script]>) -> Self {
         let mut client = skein_llm_kit::limits();
         client.input = u32::try_from(settings.limits.session.answer_bytes).expect("domain call input fits u32");
         let stated = smith_protocol_llm::Stated::from_tools(&settings.limits.session.tools, client.input)
             .expect("domain tool declarations fit");
         Self {
             translation: smith_protocol_llm_fixtures::small(client, stated),
-            provider: crate::scripted_provider(&settings.provider, settings.seed ^ 0x25),
+            provider: provider::Domain::configured(
+                &settings.provider,
+                settings.seed ^ 0x25,
+                scripts,
+                smith_session_world::provider::menu(),
+            )
+            .expect("caller scripts obey provider admission"),
             stage: Stage::uncapped(settings.provider),
             failure: None,
             failure_report: llm::Report::none(),
@@ -85,16 +104,21 @@ impl Typed {
             calls: Ledger::new("fake provider call"),
         }
     }
+
+    pub(crate) fn new(settings: &Settings) -> Self {
+        Self::scripted(settings, crate::script::all())
+    }
 }
 impl Backend for Typed {
     fn start(&mut self, request: Request, now: Time, wall: Wall) -> Vec<provider::api::Query> {
-        let Request::Lower(smith_domain::Lower::Complete { owner, prompt, .. }) = request else {
+        let Request::Lower(smith_domain::Lower::Complete { owner, prompt, grant, .. }) = request else {
             panic!("backend accepts Complete")
         };
         self.stage.tick(now);
         self.stage.env.wall = wall;
         self.calls.open(owner, (prompt.tools, prompt.served.clone(), prompt.asker));
-        let query = translate::query(prompt);
+        let mut query = translate::query(prompt);
+        query.credential = grant.map(|name| name.account);
         self.stage.push(provider::Event::Call { reply_to: ReplyTo::new(owner), call: owner, query: query.clone() });
         vec![query]
     }
@@ -125,8 +149,17 @@ impl Backend for Typed {
                     completion: self.completion(answer, grants, &served, asker),
                 }),
                 Err(error) => {
-                    let (failure, evidence) =
-                        self.failure.unwrap_or((translate::failure(error.error), llm::Evidence::Unknown));
+                    // Domain-face strikes stand for the OpenAI response column
+                    // (skein/docs/design/testing/fakes/llm.md, 2.7).
+                    let status = match &error.error {
+                        provider::api::Error::SignedOut => Some(401),
+                        provider::api::Error::Spent | provider::api::Error::Window { .. } => Some(429),
+                        provider::api::Error::Unserved => Some(404),
+                        _ => None,
+                    };
+                    let evidence = status
+                        .map_or(llm::Evidence::Unknown, |status| llm::Evidence::Response { status: Some(status) });
+                    let (failure, evidence) = self.failure.unwrap_or((translate::failure(error.error), evidence));
                     Event::Below(smith_domain::Below::Failed {
                         owner,
                         failure,

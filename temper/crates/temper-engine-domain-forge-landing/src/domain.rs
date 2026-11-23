@@ -1,4 +1,4 @@
-//! One level-triggered decision (domain/landing.md, 3–10).
+//! One level-triggered decision (domain/landing.md, 3–4, and domain/landing-prepare.md, 1, and domain/landing-proof.md, 1–2, and domain/landing-turn.md, 1–2, and domain/landing.md, 10).
 use crate::{
     Awaited, Decision, Facts, Flight, GateFacts, GateProof, Hold, Landing, Limits, Member, Phase, Posted, Posting,
     Project, Proof, Status, Stepped, Verdict,
@@ -585,7 +585,7 @@ fn prepared(mut landing: Landing, facts: &Facts) -> Stepped {
 
 fn closing(mut landing: Landing, facts: &Facts, ending: crate::RoundEnd) -> Stepped {
     // A released prepare can finish before its prefixes enter the round.
-    // Its pushes settle before cleanup (domain/landing.md, 5.1–5.2).
+    // Its pushes settle before cleanup (domain/landing-prepare.md, 1.1–1.2).
     if facts.preparation == crate::Preparation::Running {
         return wait(landing, None, Awaited::Prepare);
     }
@@ -613,7 +613,7 @@ fn closing(mut landing: Landing, facts: &Facts, ending: crate::RoundEnd) -> Step
     for member in &landing.members {
         remaining |= active(member);
     }
-    // With no next round, task closure releases the held branches (domain/landing.md, 5.1).
+    // With no next round, task closure releases the held branches (domain/landing-prepare.md, 1.1).
     for (index, (member, fresh)) in landing.members.iter().zip(&facts.members).enumerate() {
         if !remaining || index < usize::from(first) || member.candidate.is_none() {
             continue;
@@ -1034,7 +1034,7 @@ fn turn(mut landing: Landing, facts: &Facts, limits: &Limits, now: Wall) -> Step
             }
             if !member.told {
                 // Give manual-merge detection one poll from merge readback;
-                // the branch readback remains authoritative (landing.md, 8).
+                // the branch readback remains authoritative (domain/landing-turn.md, 1).
                 if member.combined == Some(crate::Combine::Merge) && fresh.merged != Some(prefix) {
                     let at = match &landing.phase {
                         Phase::Turn { at } => *at,

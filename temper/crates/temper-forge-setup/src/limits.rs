@@ -13,7 +13,7 @@ pub fn fetch_bytes(value: u64) -> Result<u64, Refused> {
 }
 /// Setup host admission at the stock’s four concurrent forges.
 mod admission {
-    /// A copy may wait thirty minutes for its source (protocol/setup/owned.md, 9).
+    /// A copy may wait thirty minutes for its source (protocol/setup/owned-repositories.md, 2).
     pub const COPY_DEADLINE: skein_lib::Duration = skein_lib::Duration::from_secs(1800);
     // Four forges, each with one writing run and one Reachable beside it.
     pub const RUNS: u32 = 8;

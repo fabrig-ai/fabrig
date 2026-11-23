@@ -1,4 +1,4 @@
-//! Offset joins of `RunText` and `WritingCall` (temper/docs/design/client/web/journeys.md, 3.7).
+//! Offset joins of `RunText` and `WritingCall` (temper/docs/design/client/web/journeys-recordings.md, 1.7).
 use super::{Originals, Streams, What, bytes};
 use jig_client_protocol_wire as w;
 use jig_client_protocol_wire::Record as _;

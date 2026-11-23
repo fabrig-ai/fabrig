@@ -780,7 +780,7 @@ mod tests {
         let deferred = ([127, 0, 0, 1], 0).into();
         let llm = ([127, 0, 0, 1], LLM_PORT).into();
         let forge = ([127, 0, 0, 1], FORGE_PORT).into();
-        for fixture in [crate::forge::fixture(), crate::landing::fixture(), crate::case::fixture_6_5()] {
+        for fixture in [crate::forge::fixture(), crate::landing::fixture()] {
             let (mut agent, mut config) = configured(fixture, deferred, deferred);
             bind_documents(&mut agent, &mut config, llm, forge);
             assert_eq!((agent, config), configured(fixture, llm, forge));
@@ -788,7 +788,7 @@ mod tests {
     }
 
     #[test]
-    fn the_stopped_owner_fixture_fits_its_stock_and_helper_charters() {
+    fn the_stopped_owner_fixture_fits_its_stock_charters() {
         let deferred = ([127, 0, 0, 1], 0).into();
         let (_, config) = configured(crate::case::fixture_5_2(), deferred, deferred);
         let engine = crate::settings::configuration(&config);
@@ -796,7 +796,6 @@ mod tests {
         else {
             panic!("the real loop supplies its own defaults")
         };
-        assert!(defaults.charters.iter().any(|charter| charter.number == 9), "the helper charter is retained");
         assert!(defaults.charters.iter().any(|charter| charter.number == 10), "the stock trial charter is retained");
         assert!(defaults.charters.len() <= usize::try_from(engine.limits.core.tasks.charters).expect("charter limit"));
     }

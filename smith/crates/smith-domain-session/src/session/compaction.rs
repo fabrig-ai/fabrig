@@ -420,6 +420,9 @@ pub(super) fn follow(conversation: &mut Conversation, facts: &mut crate::facts::
         }
         Request::Ended { .. }
         | Request::JobsCancelled { .. }
+        | Request::RateLimitWait { .. }
+        | Request::RateLimitWaitDone { .. }
+        | Request::RateLimitOutlastsSession { .. }
         | Request::Opened { .. }
         | Request::Yielded { .. }
         | Request::Used { .. }

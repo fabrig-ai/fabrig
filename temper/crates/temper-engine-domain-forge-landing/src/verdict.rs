@@ -1,4 +1,4 @@
-//! Workflow failures and runner faults (domain/landing.md, 7.3–7.4).
+//! Workflow failures and runner faults (domain/landing-proof.md, 2.3–2.4).
 use crate::Commit;
 use alloc::boxed::Box;
 
@@ -46,9 +46,9 @@ pub enum Fault {
     OtherCommit,
     Lost,
     /// A tier dispatch refused because its workflow is absent at the run's commit.
-    /// See temper/docs/design/domain/after-landing.md, 3.
+    /// See temper/docs/design/domain/after-landing-runs.md, 2.
     MissingWorkflow,
-    /// A failed landing gate uploaded no report (temper/docs/design/domain/landing.md, 7.4).
+    /// A failed landing gate uploaded no report (temper/docs/design/domain/landing-proof.md, 2.4).
     Unreported,
 }
 

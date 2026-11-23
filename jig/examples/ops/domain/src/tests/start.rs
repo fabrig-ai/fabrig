@@ -66,6 +66,35 @@ fn a_crash_after_the_wires_commit_starts_afresh_and_reaches_open() {
     assert_eq!(restarted.start_phases.as_slice().last(), Some(&Phase::Open));
 }
 
+#[test]
+fn a_rehearsing_snapshot_stops_before_switch_while_a_normal_start_switches() {
+    let (mut original, env) = fixture();
+    let mut rows = Map::uncapped();
+    step(&mut original, &env, Event::Restart { pending: false });
+    assert!(drive(&mut original, &env, &mut rows, false).is_none());
+    assert!(original.ready());
+    let snapshot = rows.clone();
+
+    let (mut rehearsal, _) = fixture();
+    rehearsal.rehearse();
+    assert!(!rehearsal.rehearsed());
+    step(&mut rehearsal, &env, Event::Restart { pending: false });
+    assert!(drive(&mut rehearsal, &env, &mut rows, false).is_none());
+    assert!(rehearsal.rehearsed());
+    assert_eq!(rehearsal.start_phase(), Some(Phase::Switch));
+    assert_eq!(rehearsal.start_failure(), None);
+    assert!(!rehearsal.ready());
+    assert!(rows.iter().eq(snapshot.iter()), "a rehearsal makes no start mark");
+    assert!(take(&mut rehearsal, &env).is_empty(), "no switch or effect follows a rehearsal");
+
+    let (mut restarted, _) = fixture();
+    step(&mut restarted, &env, Event::Restart { pending: false });
+    assert!(drive(&mut restarted, &env, &mut rows, false).is_none());
+    assert!(!restarted.rehearsed());
+    assert!(restarted.ready());
+    assert_eq!(restarted.start_phase(), None);
+}
+
 /// Serve an empty application's durable snapshot, cutting only after Wires.
 fn drive(domain: &mut Domain, env: &Env<Limits>, rows: &mut Map<Key, Record>, cut: bool) -> Option<Continuation> {
     let mut wires = false;
@@ -91,7 +120,10 @@ fn drive(domain: &mut Domain, env: &Env<Limits>, rows: &mut Map<Key, Record>, cu
                     }
                     step(domain, env, Event::Store(Store::Restored(phase)));
                 }
-                Output::Switch => step(domain, env, Event::Store(Store::Switched)),
+                Output::Switch => {
+                    assert!(!domain.rehearsed(), "a rehearsal emits no switch request");
+                    step(domain, env, Event::Store(Store::Switched));
+                }
                 Output::Commit { number, mut writes } => {
                     for _ in 0..writes.len() {
                         match writes.pop().expect("snapshot transaction writes") {
@@ -130,7 +162,7 @@ fn drive(domain: &mut Domain, env: &Env<Limits>, rows: &mut Map<Key, Record>, cu
                 | Output::Stop) => panic!("an empty start only loads and commits: {other:?}"),
             }
         }
-        if domain.ready() {
+        if domain.ready() || domain.rehearsed() {
             return None;
         }
     }

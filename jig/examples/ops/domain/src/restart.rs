@@ -54,7 +54,13 @@ pub(crate) fn route(
                         held(decision, Output::Load { phase, range: Range::People });
                     }
                 }
-                Phase::Switch => held(decision, Output::Switch),
+                Phase::Switch => {
+                    if domain.rehearsing {
+                        domain.rehearsed = true;
+                    } else {
+                        held(decision, Output::Switch);
+                    }
+                }
                 Phase::AdoptRuns => {
                     work.push(Work::StartDone(phase));
                 }

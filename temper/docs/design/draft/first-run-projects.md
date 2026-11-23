@@ -80,7 +80,7 @@ names is tuned on the person's `look-requests` branch
 - **Ready adopts the first repository:** when the connected forge's
   set up made a first repository that no project holds, the same act,
   once the project is made, adopts it into that project, as `temper
-  ctl forge setup`'s `--project` does (`../protocol/setup/owned.md`, 7):
+  ctl forge setup`'s `--project` does (`../protocol/setup/owned-repositories.md`, 1):
   owned, the project's home, landing on `main`, with CI. The person's
   first project can change code from its first page, on the route
   supported first, Forgejo on this machine with its `work/hello` (the

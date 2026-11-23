@@ -791,7 +791,8 @@ fn a_link_that_cannot_sign_in_answers_why() {
             peer.answer_request(to, jig_domain_people::Reply::Again(jig_domain_people::Again::Busy));
         }
         finish_given_sign_in(&mut peer, &live);
-        peer.answer_request(local_reservation, jig_domain_people::Reply::Again(jig_domain_people::Again::Busy));
+        // The local reservation kept expiry history out of this story. End it without restoring an expired link.
+        peer.answer_request(local_reservation, jig_domain_people::Reply::SignedOut);
     }
 }
 

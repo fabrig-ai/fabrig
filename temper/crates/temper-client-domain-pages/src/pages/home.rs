@@ -504,7 +504,7 @@ impl Facts {
     }
 }
 /// Whether To begin shows for the rail: on Home and on Ask temper's page alone
-/// (temper/docs/design/client/view.md, 3, *While To begin shows*).
+/// (temper/docs/design/client/view-navigation.md, 1, *While To begin shows*).
 #[must_use]
 pub fn beginning(root: &dyn Root, project: u32, wall: Wall) -> bool {
     (root.pages().address() == &(crate::Address::Home { project })

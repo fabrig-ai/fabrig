@@ -7,7 +7,7 @@
 //! to be decoded as jig's activity. An agent that has gone waits behind its
 //! hand-outs. The hub hears an agent has started only once smith admits its
 //! run. A refused start waits for cleanup's bounded operator evidence
-//! (`temper/docs/design/domain/worker/README.md`, 4.3).
+//! (`temper/docs/design/domain/worker/hosted-runs.md`, 1.3).
 
 use alloc::boxed::Box;
 use jig_domain_host as host;
@@ -29,7 +29,7 @@ pub(crate) struct Bound {
     stopped_noted: bool,
     pub(crate) checks: crate::reds::State,
     pub(crate) check_number: u64,
-    /// The charter's model-indexed call names (domain/worker/README.md, 4.3).
+    /// The charter's model-indexed call names (domain/worker/hosted-runs.md, 1.3).
     models: Box<[crate::hand_out::ModelName]>,
     /// Bounded operator evidence retained until process cleanup.
     detail: Box<[u8]>,
@@ -234,7 +234,7 @@ pub(crate) fn up(domain: &mut Domain, env: &Env<Limits>, request: smith::parent:
     route::host_step(domain, env, event);
 }
 
-/// Report a fault before the hub can conclude the attempt (domain/worker/README.md, 4.3).
+/// Report a fault before the hub can conclude the attempt (domain/worker/hosted-runs.md, 1.3).
 /// Worker encoding faults and smith faults share the attempt's one note.
 fn faulted(domain: &mut Domain, owner: Token, fault: host::AgentFailure, out: &mut Queue<Request>) -> host::FromAgent {
     let bound = domain.agents.get_mut(&owner).expect("a fault belongs to a started agent");
@@ -560,7 +560,25 @@ pub(crate) fn gone(domain: &mut Domain, env: &Env<Limits>, owner: Token, detail:
             }
             None => host::FromAgent::Gone { owner, detail },
         };
+        domain.ending_agents.insert(owner).expect("one ended agent per hosted slot");
         route::host_step(domain, env, host::Event::Agent(event));
+    }
+}
+
+/// The hub's answer, not the agent's exit, ends the root's hosting obligation.
+/// A stopping attempt can still wait for the engine to cancel its relays.
+pub(crate) fn forget_answered(domain: &mut Domain) {
+    let mut ended = List::with_capacity(domain.ending_agents.len());
+    for owner in &domain.ending_agents {
+        if let Some(hosting) = domain.host.hosting(*owner)
+            && hosting.phase != Phase::Answered
+        {
+            continue;
+        }
+        ended.push(*owner).expect("one entry per ended agent");
+    }
+    for owner in &ended {
+        domain.ending_agents.remove(owner);
     }
 }
 

@@ -1,4 +1,4 @@
-//! Store writes stay serialized while replayed requests run beside a new act (client/ctl/README.md, 5).
+//! Store writes stay serialized while replayed requests run beside a new act (client/ctl/requests.md, 1).
 use jig_client::{Event, Request};
 use jig_client_shell_native::Shell;
 use skein_lib::{Queue, Time};
@@ -61,7 +61,7 @@ impl Recovery {
             shell.down(request);
         }
     }
-    // Treat queued and in-flight writes alike until the store is quiet (client/ctl/README.md, 6.2).
+    // Treat queued and in-flight writes alike until the store is quiet (client/ctl/command-line.md, 1.2).
     pub(crate) fn saving(&self) -> bool {
         self.writing || !self.writes.is_empty()
     }

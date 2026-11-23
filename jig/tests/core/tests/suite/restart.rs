@@ -382,6 +382,8 @@ fn a_restart_with_workers_in_process_settles_their_claims_at_once() {
             stop_with_late_words(&mut world, row.interrupted, row.name);
         }
         let before = world.wall_time().as_nanos();
+        let (now, wall) = world.clocks();
+        world.set_clock(now, wall);
         world.assigned = None;
         world.restart_with(worker_configuration(row.seed, row.in_process));
         assert!(world.domain.ready(), "{}", row.name);
@@ -747,6 +749,8 @@ fn a_restart_settles_an_engine_claim_of_a_both_kinds_charter_at_once() {
         refused: Box::new([]),
         transcript: b"engine window".as_slice().into(),
     });
+    let (now, wall) = world.clocks();
+    world.set_clock(now, wall);
     world.restart_with(both_kinds_engine_fixture(125).0);
     assert!(world.domain.ready(), "engine claim settles before any worker hello");
     assert!(world.store.rows.values().any(|record| matches!(record,

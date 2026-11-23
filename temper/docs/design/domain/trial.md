@@ -150,7 +150,7 @@ versioned record Trials { rows: list 64 TrialRow }    # Watch::trials
   tabs ask twice, and the row stands for both. A reload in the gap asks nothing, and the line stays ticked.
 - **From the ask to its row** the line is `Running`: nothing goes ticked in between.
 - **Why it waits** is its row's `run_wait`, the Task document's, which the person who pays may see (jig's
-  `domain/authority.md`, 6.1), in the words a chat's wait has (`../client/pages/accounts.md`, 2). A wait
+  `domain/authority.md`, 6.1), in the words a chat's wait has (`../client/pages/accounts-words.md`, 1). A wait
   that a moment settles, a source `Asking`, `Refreshing`, `Granted` or `Moving`, isn't a stop; any other says so at
   once, on a row still running, and goes if the wait ends. Its row's `Waited` keeps those words where the client saw
   them, and otherwise says only that it had no answer in a minute.

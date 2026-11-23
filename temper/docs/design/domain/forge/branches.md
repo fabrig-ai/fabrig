@@ -16,7 +16,7 @@
     task, for its first member and `temper/<root>/l<task>-<n>` for its
     member n, each held by the landing from its making, deleted as a
     round that changed its prefix ends unlanded and as the landing
-    closes (`../landing.md`, 5.1);
+    closes (`../landing-prepare.md`, 1.1);
   - a goal's own branch: `temper/<root>/g<task>`, the goal's number, in
     its project's home, held by the goal (1);
   - an agent's task's own branch, for runs that push outside a change,
@@ -120,7 +120,12 @@ own, never a change's:
   goal, its words naming the branch and what the forge answered.
   A making waits for the outbox's room and never fails for it: with the
   outbox full (`forge.entries`), it holds nothing and polls nothing, as a
-  read answered `Busy` waits for the client's room (`keeping-up.md`, 5).
+  read answered `Busy` waits for the client's room. Its reads, the
+  branch's and the landing branch's tip, wait for the client's room in
+  the read line, in arrival order beside the connector's other reads
+  waiting there, each on a deadline and retried at it for as long as it
+  waits, the log saying when it begins to wait and when it is admitted
+  (`keeping-up.md`, 3, *Reads waiting for room take turns*).
   It gives up its entry number while it waits, so it reserves nothing:
   a kept number would stop every later entry's handoff, and an outbox
   full of those would never free. It waits in the outbox's line beside
@@ -141,16 +146,28 @@ own, never a change's:
   is judged first, so a full outbox never hides a making that could
   never be sent.
 - **Made whatever restarts.** temper alone makes and deletes a goal's
-  own branch, so its making is conditional (`README.md`, section 4): while the goal
+  own branch, so its making is conditional (`effects.md`, section 1): while the goal
   holds the branch and none of its name exists, it is made, and never
   reset once it exists. A restart's making is two steps, a read and a
   write, and only the read belongs to the forge's fresh reads as it
   catches up after the opening (`catching-up.md`, 2):
-  - **Its read** is one of the fresh reads (`README.md`, section 9): is
-    the branch there, at which commit, and is a creation entry of its
-    own in the outbox. There, it is the goal's; missing, with its
-    making's entry restored, that entry settles as its class says, its
-    find answering not found sending it again at its commit.
+  - **Its read** is one of the fresh reads (`effects.md`, section 2)
+    while it is out: is the branch there, at which commit, and is a
+    creation entry of its own in the outbox. There, it is the goal's;
+    missing, with its making's entry restored, that entry settles as its
+    class says, its find answering not found sending it again at its
+    commit. A read the client refuses for room, or one waiting out its
+    forge's absence or its connection (`keeping-up.md`, 5), is no fresh
+    read until it is out again: it waits in the read line and is asked
+    in its turn, as any making's read waiting for room is
+    (`keeping-up.md`, 3), and the start's fresh reads end without it.
+    The branch's own readers wait for its making whatever the fresh
+    reads say: a change into it, its design writers, its closer and a
+    release that judges it decide nothing on its head while its making
+    is pending (`catching-up.md`, 4). Counted as a fresh read, a read
+    waiting for room would hold its repository's fresh reads, and every
+    procedure on the goal's home with them, for a call that others keep
+    taking; the start goes on and the making is asked after.
   - **Its write** waits in the outbox's line. Missing, with no entry
     (the restart cut its making before it committed one), the making
     takes a place in the line, behind the places restored with
@@ -194,13 +211,13 @@ own, never a change's:
   and otherwise by the goal on its held branch (`change/README.md`, 1); and deleted as the
   goal closes once that change has landed it (`branches.md`); otherwise
   kept as the goal closes. A goal takes the base only by a catch-up
-  (`README.md`, section 6) for one of its changes that needs what the
+  (`updates.md`, section 1) for one of its changes that needs what the
   base gained since its branch was made, never to stay current
   (`../../draft/squash-in.md`, 4): its landing takes the base at the
   front of the base's queue, as any change does (`change/README.md`,
   2), and a conflict goes to the merge job and a resolution
   (`change/repairs.md`). A landing into the base that touches its open
-  work reaches it as news (`README.md`, 5.3), for it to judge whether a
+  work reaches it as news (`topics.md`, 1.3), for it to judge whether a
   change needs it. A project's rule may require or forbid a catch-up.
 
 ## 2. A goal's closer
@@ -220,7 +237,7 @@ section 6).
   changes, its delegates and theirs. A template names it as `ended_by`
   `{"closer": {"connector": 1, "code": 6}}` (`../../protocol/configuration/stock.md` and `../../protocol/configuration/reference.md`
   ). Its state is a row of the forge's, kept under its
-  task's number as a change's is, and restored with it (`README.md`, section 9).
+  task's number as a change's is, and restored with it (`effects.md`, section 2).
 - **Its steps, in order,** each a change of its own, made as its
   delegate and waited for:
   1. **Close,** where the goal holds a goal branch and its project names
@@ -318,7 +335,7 @@ section 6).
     only once jig admits the step, as a change's relay is
     (`change/questions.md`, 1).
   - *Kept across a restart:* the question, with where it stands, is
-    stored with the closer's row (`README.md`, section 9) and restored
+    stored with the closer's row (`effects.md`, section 2) and restored
     with it; a row stored before reads as none.
   - The closer counts no bound of its own: the change counts each
     question against `forge.change_policy.questions` and holds past it
@@ -411,7 +428,7 @@ section 6).
   makes while its closer lives is the closer's dependency (jig's
   `domain/tasks/lifecycle.md`, 11). The closer, kept, makes no new step while it
   is pending, and a step's change already made goes on: a landing into
-  whose branch the new work lands takes it as its new head (`change/README.md`, 3). Once
+  whose branch the new work lands takes it as its new head (`change/drift.md`, 1). Once
   the work has ended, the closer reads afresh: a change of the goal that
   landed into the goal's branch since its close step makes the close
   step again, and a landing whose result is in while the goal's branch
@@ -509,7 +526,7 @@ fast-forward never forced. Its repository's other writes are as before.
   starts on its base or with its workspace's writes read-only, so its
   first run can deliver the first wave's design before it cuts its
   changes. A making that fails for good holds the goal (1); a drifted
-  g holds it (`change/README.md`, 3), and its run starts once a release settles it.
+  g holds it (`change/drift.md`, 1), and its run starts once a release settles it.
 - **How it calls it:** smith's `deliver`, with a `title` and a `body`
   as a change's delivery has them, at any point in its run and as often
   as it likes; the project's checks run at it (`../agent/README.md`, section 5).
@@ -527,7 +544,7 @@ fast-forward never forced. Its repository's other writes are as before.
   it in the store, so a restart keeps them.
 - **Its pushes are g's own.** While g has a design writer, a forward
   move by temper's identity is that writer's push, never drift, as
-  while any writer holds a branch (`change/README.md`, 3); a move by another identity, or
+  while any writer holds a branch (`change/drift.md`, 1); a move by another identity, or
   not forward, is drift as before. When the design writer's run
   answers, or its attempt is lost, g is read afresh, as a lost writer's
   branch is (`branches.md`): a tip that descends from the head temper last
@@ -577,14 +594,14 @@ fast-forward never forced. Its repository's other writes are as before.
 
   Drift is unchanged: a head
   none of temper's writes made, even on top of g's head, and a move not
-  forward from it, still hold the goal (`change/README.md`, 3).
+  forward from it, still hold the goal (`change/drift.md`, 1).
 - **Written while any writes it.** The forge's keep counts g as written
   while a design writer lives, a run holds its slot, a merge into it
   is in flight, or a write's head waits on its comparison (above); each
   of them ending leaves g written while another stands.
 - **Changes on g take it.** A change on g (the goal's landing,
   `"branch": "mine"`, the closer's land step) treats a live design
-  writer as its requester's own run (`change/README.md`, 3): a forward move is its new
+  writer as its requester's own run (`change/drift.md`, 1): a forward move is its new
   head, checked again, never "branch moved".
 - **Its brief says so**: one line, that `deliver` pushes the
   checkout's Markdown straight to the goal branch, merging its moved tip
@@ -593,7 +610,7 @@ fast-forward never forced. Its repository's other writes are as before.
   itself stays a change (`../../draft/goal-as-designer.md`, section 2): its
   producer delivers its change's branch, and its design reaches g by
   that change's pull request, as any change's does. A push to g from
-  anywhere but a design writer holds as drift (`change/README.md`, 3).
+  anywhere but a design writer holds as drift (`change/drift.md`, 1).
 
 ## 4. Open questions
 

@@ -1,5 +1,5 @@
 //! Cold restart/readback (jig/docs/design/domain/engine/README.md, 9;
-//! temper/docs/design/testing/README.md, 4.2).
+//! temper/docs/design/testing/scenarios.md, 1.2).
 pub(crate) enum Fixture {
     Checked,
     Closed,
@@ -168,7 +168,7 @@ fn empty_repository_live(record: &skein_forge_client::LiveRecord) -> bool {
 }
 
 impl Driver {
-    /// The restart oracle (jig jig/docs/design/domain/engine/README.md 9; temper testing/README.md 4.2): settle, snapshot,
+    /// The restart oracle (jig jig/docs/design/domain/engine/README.md 9; temper testing/scenarios.md 1.2): settle, snapshot,
     /// restart cold over the same store, read back, compare through `durable`.
     /// Panics naming the first difference (document or row, field, key).
     pub fn close(&mut self) {
@@ -183,6 +183,10 @@ impl Driver {
 
     /// Fixture fault at the snapshot/restart boundary, returning the oracle's first difference.
     pub fn close_erasing(&mut self, erase: Option<Key>) -> Result<(), String> {
+        if self.store_finding.is_some() {
+            self.broken = Fixture::Closed;
+            return self.check_store();
+        }
         if !matches!(self.broken, Fixture::Checked) {
             return Ok(());
         }
@@ -225,7 +229,7 @@ impl Driver {
             compare_forge(*project, *subject, before, after)?;
         }
         self.oracle_settle();
-        Ok(())
+        self.check_store()
     }
 
     fn oracle_settle(&mut self) {
@@ -467,9 +471,9 @@ pub fn compare_forges(
 
 impl Drop for Driver {
     fn drop(&mut self) {
-        if !std::thread::panicking() {
-            self.close();
-        }
+        let result = if std::thread::panicking() { Ok(()) } else { self.close_erasing(None) };
+        self.report_store_checks();
+        result.unwrap_or_else(|finding| panic!("{finding}"));
     }
 }
 

@@ -20,7 +20,7 @@ sections 1 to 10; what that draft leaves for later is section 8's.
   once, keeps it and makes the change's own branch at it; then it goes
   on as a change whose producer pushed that head.
 - **Then any change** (5): its way, its gates, its trouble and its end
-  are `README.md`, 2 to 4's.
+  are `README.md`, 2, and `drift.md`, 1, and `README.md`, 4's.
 - **The pushed branch stays the person's:** nothing writes, holds or
   deletes it, and pushing it again changes nothing of the change.
 - **Kept and served** (6): the change's row keeps its source and its
@@ -59,7 +59,7 @@ The root resolves it before anything is made. Each refusal is
   goal's branch as the target is section 8's. A branch the repository
   lacks is not refused here: the change is held at its opening, the
   forge refusing its pull request, as a run's call naming one is
-  (`../../agent/tools.md`, 1).
+  (`../../agent/tools-change.md`, 1).
 - **Their names:** a source or landing branch past the deployment's
   forge name bound, which the client cannot know before sending, is
   refused naming the bound (`name_past`).
@@ -188,7 +188,7 @@ A change with parameter 19 has no producing task. Its own branch is
   read again. A restart before the head is kept reads it, nothing having
   been kept; a restart after makes the branch again at the kept head,
   one found there counting as made, and one found at another head holds
-  the change as its branch moved (`README.md`, 3).
+  the change as its branch moved (`drift.md`, 1).
 - **A read or a make that errors** is retried as the change's effects
   are, the wait counted against the change's stall bound from its
   entering taking, as its producing's would be (`repairs.md`). Past the
@@ -203,7 +203,7 @@ A change with parameter 19 has no producing task. Its own branch is
 - **temper's move, then temper's moves:** temper's identity made the
   branch, so its repairs', resolutions' and updates' pushes are the
   change's own, and a push to it by another identity is drift
-  (`README.md`, 3), as for any change. Drift reads heads and writers,
+  (`drift.md`, 1), as for any change. Drift reads heads and writers,
   not who authored the commits.
 - **The pushed branch is never written, held or deleted.** Pushed again
   or deleted after the change kept its head, nothing of the change
@@ -243,7 +243,7 @@ A change with parameter 19 has no producing task. Its own branch is
   `kept`, the head taking selected, none before; and the state `taking`.
   Each defaults to none, so a stored change reads as before: temper's
   store is a registered family, its version stays and nothing is
-  patched (`../../../protocol/store.md`, section 4).
+  patched (`../../../protocol/store-versions.md`, section 1).
 - **Its panel** (`../../../client/forge/served.md`, 2): its step
   `taking` while it takes, and its source, the branch, the `at` named
   and the kept head, while it takes and after; none for a change with

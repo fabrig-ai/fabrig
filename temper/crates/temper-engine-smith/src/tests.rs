@@ -2902,7 +2902,7 @@ fn document_sections_have_repository_path_and_heading_titles() {
     }
 }
 
-/// temper/docs/design/domain/agent/tools.md, 1: merge accepts both commit widths and pads SHA-1.
+/// temper/docs/design/domain/agent/tools-change.md, 1: merge accepts both commit widths and pads SHA-1.
 #[test]
 fn a_plan_change_reads_merge_as_a_commit() {
     for (digits, length) in [("aB".repeat(20), 20), ("aB".repeat(32), 32)] {
@@ -2924,7 +2924,7 @@ fn a_plan_change_reads_merge_as_a_commit() {
     }
 }
 
-/// temper/docs/design/domain/agent/tools.md, 1: a malformed commit names the refused member.
+/// temper/docs/design/domain/agent/tools-change.md, 1: a malformed commit names the refused member.
 #[test]
 fn a_malformed_merge_is_refused_naming_it() {
     for (digit, length) in [("a", 0), ("a", 39), ("a", 41), ("a", 63), ("a", 65), ("g", 40), ("g", 64)] {

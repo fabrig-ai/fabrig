@@ -1,4 +1,4 @@
-//! Landing history survives its changes (temper/docs/design/domain/after-landing.md, 10).
+//! Landing history survives its changes (temper/docs/design/domain/after-landing-storage.md, 1).
 use super::*;
 
 fn saved(out: &Queue<Request>) -> Box<[LandingLog]> {

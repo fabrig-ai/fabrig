@@ -1,5 +1,5 @@
 //! The root's typed settings routes (temper/docs/design/domain/routing.md, 6;
-//! temper/docs/design/protocol/configuration/settings.md, 2).
+//! temper/docs/design/protocol/configuration/settings-kinds.md, 1).
 mod limit_reads;
 use super::*;
 use crate::{Domain, KindValue, Limits as RootLimits, Work};

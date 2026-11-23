@@ -1,4 +1,4 @@
-//! Pure tier verdict policy (temper/docs/design/domain/after-landing.md, sections 2–5).
+//! Pure tier verdict policy (temper/docs/design/domain/after-landing-runs.md, sections 1–3, and temper/docs/design/domain/after-landing.md, section 5).
 //!
 //! This crate keeps no state and knows no forge call: the connector top owns
 //! the records, reads reports and receipts, and saves and dispatches each part.

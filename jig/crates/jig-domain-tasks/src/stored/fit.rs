@@ -615,3 +615,77 @@ fn model(domain: &Domain, models: &[u8], chosen: crate::ModelEffort) -> Result<(
     }
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::phase;
+    use crate::{Ending, HoldSource, Phase, TaskResult, Was};
+    use skein_lib::{List, Wall, bytes::zeroed, length::usize_of};
+
+    #[test]
+    fn the_phase_bound_is_attained_by_admitted_closing_holds() {
+        let base = crate::tests::revisions::LIMITS;
+        for limits in [
+            crate::Limits { result_bytes: 0, ..base },
+            crate::Limits { result_bytes: 64, ..base },
+            crate::Limits { result_bytes: 1024, hold_bytes: 4096, ..base },
+            crate::Limits { result_bytes: 64, circle: 1024, ..base },
+        ] {
+            let mut fields = List::with_capacity(limits.result_bytes.min(crate::VERDICT_FIELDS));
+            for _ in 0..fields.capacity() {
+                fields.push(crate::ResultField { name: Box::new(*b"x"), value: Box::new([]) }).expect("field room");
+            }
+            let remaining = limits.result_bytes.checked_sub(fields.len()).expect("field names fit result");
+            let results = [
+                TaskResult::Verdict { code: 1, fields: fields.into_boxed(), words: zeroed(usize_of(remaining)) },
+                TaskResult::Change {
+                    connector: 1,
+                    kind: 1,
+                    resource: 1,
+                    title: crate::ChangeTitle::new(zeroed(usize_of(limits.result_bytes))),
+                    words: zeroed(usize_of(limits.result_bytes)),
+                },
+            ];
+            let mut path = List::with_capacity(limits.hold_segments);
+            for at in 0..limits.hold_segments {
+                path.push(zeroed(if at == 0 { usize_of(limits.hold_bytes) } else { 0 })).expect("path room");
+            }
+            let mut circle = List::with_capacity(limits.circle);
+            for number in 0..u64::from(limits.circle) {
+                circle.push(number).expect("circle room");
+            }
+            let mut largest = 0;
+            for result in results {
+                for source in [
+                    HoldSource::Preparation { words: zeroed(usize_of(crate::REASON_BYTES)) },
+                    HoldSource::Account {
+                        connector: 1,
+                        entry: None,
+                        words: zeroed(usize_of(crate::HOLD_ACCOUNT_BYTES)),
+                    },
+                    HoldSource::Resource(crate::Name { connector: 1, path: path.as_slice().into() }),
+                    HoldSource::Circle(crate::Circle { tasks: circle.as_slice().into(), cut: false }),
+                    HoldSource::Effect { connector: 1, entry: 1 },
+                ] {
+                    let value = Phase::Held {
+                        was: Was::Closing(crate::Closing {
+                            stage: crate::Stage::Effects,
+                            ending: Ending::Cancelled {
+                                by: crate::Party::Person(1),
+                                at: Wall::EPOCH,
+                                reason: zeroed(usize_of(limits.result_bytes)),
+                                result: Some(result.clone()),
+                            },
+                        }),
+                        why: crate::Hold::Stopped,
+                        source: Some(Box::new(source)),
+                    };
+                    assert_eq!(phase(&value, &limits), Ok(()));
+                    largest = largest.max(crate::phase_bytes(&value).expect("admitted phase accounted"));
+                    assert!(largest <= crate::phase_bound(&limits).expect("bounded limits"));
+                }
+            }
+            assert_eq!(Some(largest), crate::phase_bound(&limits));
+        }
+    }
+}

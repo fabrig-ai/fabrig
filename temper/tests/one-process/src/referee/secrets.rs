@@ -1,4 +1,6 @@
 //! Secrets are checked in root formatting, stored bytes and actual agent environments.
+#[cfg(test)]
+mod tests;
 use crate::fixtures;
 use std::fmt;
 

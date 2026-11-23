@@ -1,4 +1,4 @@
-//! The switcher's browser form (temper/docs/design/client/view.md, 3).
+//! The switcher's browser form (temper/docs/design/client/view-navigation.md, 1).
 const TASK_PAGES: &str = include_str!("../../task-pages.css");
 const SHEET: &str = include_str!("../../temper.css");
 

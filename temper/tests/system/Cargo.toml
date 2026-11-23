@@ -8,6 +8,7 @@ rust-version.workspace = true
 publish.workspace = true
 
 [dependencies]
+jig-conformance.workspace = true
 temper-limits-fixtures.workspace = true
 jig-protocol-config-fixtures.workspace = true
 temper-agent-fixtures.workspace = true
@@ -19,6 +20,8 @@ skein-llm.workspace = true
 jig-protocol-engine-workers.workspace = true
 jig-test-profile.workspace = true
 smith-protocol-llm.workspace = true
+smith-protocol-llm-world = { path = "../../../smith/tests/protocol-llm" }
+smith-protocol-llm-fixtures.workspace = true
 jig-protocol-charter.workspace = true
 skein-forge.workspace = true
 jig-protocol-config.workspace = true
@@ -30,6 +33,9 @@ temper-protocol-worker-wire.workspace = true
 skein-lib.workspace = true
 skein-world.workspace = true
 temper-faults.workspace = true
+skein-llm-kit.workspace = true
+smith-faults.workspace = true
+smith-channel-world = { path = "../../../smith/tests/channel" }
 skein-fake-checkout.workspace = true
 skein-fake-llm-domain.workspace = true
 smith-domain.workspace = true

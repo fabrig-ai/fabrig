@@ -1,4 +1,4 @@
-//! Bounded completed tier reports (temper/docs/design/domain/after-landing.md, 10).
+//! Bounded completed tier reports (temper/docs/design/domain/after-landing-storage.md, 1).
 use alloc::boxed::Box;
 use skein_lib::List;
 

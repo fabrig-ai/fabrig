@@ -8,7 +8,7 @@
   configuration, startup checks, printed lines, exit statuses and
   signals), or an integration point only processes have: real git, the
   owned Forgejo and its runner, the binary killed and started again
-  (what a restart keeps is `README.md`, 2.5's), the cluster's processes. A behaviour
+  (what a restart keeps is `tiers.md`, 1.5's), the cluster's processes. A behaviour
   a lower tier shows is tested there and not again here: a finding met
   here is reproduced in the lowest tier that shows it
   (skein/docs/foundation/testing-strategy.md, 9), and a story is added here only where its
@@ -19,7 +19,7 @@
   link counts the lines of its stdout and never compares their bytes, which
   would write the link's secret into the log. Each line must be a complete
   link ending in a line feed; any other or unfinished line fails too.
-  The count is a check that returns its finding (`README.md`, 4.2),
+  The count is a check that returns its finding (`scenarios.md`, 1.2),
   which carries the box's stderr with every line holding `secret=`
   filtered out, so that a second
   link says why it came; the story fails with it.
@@ -34,7 +34,7 @@
   with no project, the person makes "Project 1" through the switcher's
   form and takes it as chosen once the native client's applied address
   (`../client/README.md`, 2, `NativeClient::address`) is the creation's
-  own `Home` (`../client/view.md`, 3, *A new project*), never when the
+  own `Home` (`../client/view-navigation.md`, 1, *A new project*), never when the
   project's button appears in the tree, so its script never navigates
   while that opening is armed. On a later start a kept project's button
   is the choice, as before. A support test in the `suite` binary holds the
@@ -207,7 +207,7 @@
   (`bin/temper-box/tests/suite/box_listeners.rs`).
 
 - **A box at its place restarted with a newer build**
-  (`../protocol/setup/box.md`, 1 and 5; `../draft/landed-qa.md`, 10 and
+  (`../protocol/setup/box.md`, 1, and `../protocol/setup/box-backends.md`, 1; `../draft/landed-qa.md`, 10 and
   11), one story on `temper box --fake-backends` on its fake backends
   alone, as a QA place runs it: the box started from a `bin/` of its
   own, holding copies of `temper-box` and `fake-claude` and a bundle's
@@ -227,7 +227,7 @@
   tree, read once the link is printed and again while a run started
   after the restart is live, runs a file of the new `bin/`, by device
   and inode, or, an agent, the worker's pin of the new `temper-box`
-  (`../protocol/setup/box.md`, 1; `../domain/worker/README.md`, 5): a
+  (`../protocol/setup/box.md`, 1; `../domain/worker/agent-processes.md`, 1): a
   file in the worker's `agent/`, its bytes the new `temper-box`'s, and
   not the file the first start pinned, by device and inode; none an old
   or a deleted file, and none a Forgejo or a runner. A process that has
@@ -277,7 +277,7 @@
   refused with no previous generation, in its words; and a start's
   exit and words when the store refuses. The one-process world's
   registry-and-job fixture checks a pending upgrade, a failed start
-  before the wires' commit and going back (`README.md`, 2.5). A drill
+  before the wires' commit and going back (`tiers.md`, 1.5). A drill
   with two released builds and an owned Forgejo's migration needs
   that pair of builds (`../draft/upgrades.md`, section 13).
 
@@ -293,7 +293,7 @@
     path at smith's fake `claude` (`fakes.md`, 1);
   - an owned Forgejo and its runner (below);
   - real git, the machine's, at the absolute path configuration gives it
-    (../protocol/configuration/README.md, section 3; ../protocol/git.md,
+    (../protocol/configuration/worker.md, section 1; ../protocol/git.md,
     section 3);
   - the person: skein's fake person in front of temper's client, over
     jig's native transport (../client/README.md, section 2); and, in a
@@ -321,7 +321,7 @@
 - **The story,** one test:
   1. the person signs in by the link the binary prints, and adds the
      test's key as the deployment's on the accounts page
-     (../client/README.md, 3.6), which shows its account usable (`real-loop.md`);
+     (../client/root.md, 1.6), which shows its account usable (`real-loop.md`);
   2. a chat is answered;
   3. a repository is adopted through temper's client, as above;
   4. a goal is given whose change, its CI passed, lands on the owned
@@ -341,17 +341,17 @@
   deliveries carry the job's end (../protocol/setup/testing.md, 4).
 
 - **The build it runs in.** The tier runs the binary its build made,
-  with or without its browser (`TEMPER_INTERNAL_BUNDLE`; ../client/web/README.md,
-  2.6), and passes in both: where a start with `clients.bundle` `null`
+  with or without its browser (`TEMPER_INTERNAL_BUNDLE`; ../client/web/bundle.md,
+  1), and passes in both: where a start with `clients.bundle` `null`
   shows the browser (init's line for no browser, the page at `/`), the
   test expects what the binary holds, as `temper_box_shell::bundle::OWN` says,
   never one build's answer alone.
 - **Its endings.** The landing story's crash
   proves what a crash of every process keeps on disk, the page cache
   surviving it, not what a power loss does, which the one-process world
-  draws (`README.md`, 2.5). Every end outside a named crash, cancellation or setup cut, is a deployment's healthy stop
+  draws (`tiers.md`, 1.5). Every end outside a named crash, cancellation or setup cut, is a deployment's healthy stop
   (skein's `runtime/shell.md`, 12): the test sends `Terminate`, the engine
-  drains (`../domain/root.md`, 8.2), the service closes what it started, and the
+  drains (`../domain/root-restart.md`, 1.2), the service closes what it started, and the
   binary exits 0 with none of its tree running. A process left at that
   exit is temper's failure, its shutdown's; one left by the crash's kill
   is skein's test kit's (skein's `examples.md`, 6). Neither is relaxed.
@@ -366,7 +366,7 @@
   scratch directory of their own: ../client/ctl/testing.md, 4. A call cut
   by `SIGINT` or `SIGTERM` sends nothing more, prints nothing more,
   leaves DIRECTORY's kept requests as they are, and exits 130 or 143
-  (../client/ctl/README.md, 6.2).
+  (../client/ctl/command-line.md, 1.2).
 - **`temper box`,** a fifth test, on a scratch directory of its own
   (../protocol/setup/testing.md, 4): `temper box` on the owned example prints the
   sign-in link on its stdout; Forgejo killed is restarted by the box, with
@@ -392,7 +392,7 @@
   forge sign-in` in the test's scratch directory, and the temper source
   added by the command it prints. A scripted client with a cookie jar
   signs in to temper by the printed link (the member of Google's
-  provider, `README.md`, 2.3), opens `/user/oauth2/temper` on Forgejo, follows
+  provider, `tiers.md`, 1.3), opens `/user/oauth2/temper` on Forgejo, follows
   temper's authorization (its `Authorize` sent by jig's codec, as the
   page sends it) back to Forgejo's callback, and Forgejo's API, by its
   admin, then names the member's account by their login, their address
@@ -426,7 +426,7 @@
   as the deployment's, and the agents' tools' test with `temper ctl
   account add-key` (../client/ctl/testing.md, 4); it is then kept in jig's
   secrets' store, and no file the configuration names holds an LLM account
-  (../protocol/credentials.md, section 3). The forge's API token, its user
+  (../protocol/credentials-llm-accounts.md, section 1). The forge's API token, its user
   and the git identity's token are records the setup host's plans write
   in jig's secrets' store, and the admin's token the preparation's
   handover, `admin_token`, which the setup host takes once
@@ -447,7 +447,7 @@
     `account list --until settled`) and opens a chat on gpt-6-luna in
     project 1 asking for one README line, unique to the run. The
     chat's agent calls `change`, naming `work/hello`, and the root
-    delegates the change procedure on it (../domain/agent/tools.md, 1; ../domain/forge/change/README.md
+    delegates the change procedure on it (../domain/agent/tools-change.md, 1; ../domain/forge/change/README.md
     ); the coder edits on the plan's grant, its
     pull's starter workflow passes on the owned runner, the change
     lands with no review, since init's landing rule names no gate, and
@@ -489,7 +489,7 @@
   fake forge's API, once
   it joins: ../protocol/cluster.md, 5), and no process of the cluster
   outliving it. The members' verdict is a value, never a panic
-  (`README.md`, 4.2): `Members::verdict(&self) -> Result<bool, String>`
+  (`scenarios.md`, 1.2): `Members::verdict(&self) -> Result<bool, String>`
   answers `Ok(false)` until every member has stopped, `Ok(true)` once
   they all stopped as asked, and, once they have stopped, `Err` with the
   finding of a member that ended unexpectedly or never became ready, or
@@ -554,7 +554,7 @@
   as a retained deployment's across a stop, is `temper_fixtures::ports`'
   (`support::free_addresses`, `support::own_listener_files`), and a fake
   box's are the story's too, through `TEMPER_INTERNAL_FAKE_BOX_PORTS`
-  (`../protocol/setup/box.md`, 5). Such a port is:
+  (`../protocol/setup/box-backends.md`, 1). Such a port is:
   - **below the kernel's ephemeral range,** as
     `/proc/sys/net/ipv4/ip_local_port_range` reads, so that no outgoing
     socket and no bind of port 0 lands on it while nothing listens there;
@@ -578,7 +578,7 @@
   `main` on its fakes, not a story per feature
   (`bin/temper-box/tests/fake_backends/walk`):
   - `here_key::forgejo_here_and_a_key_reach_a_first_chat_on_the_fake_box`,
-    the owned welcome walk (`README.md`, section 2, above), the one short end-to-end
+    the owned welcome walk (`tiers.md`, section 1, above), the one short end-to-end
     test;
   - `sign_in::a_chatgpt_browser_tab_on_the_fake_box_leaves_ready_able_to_create`,
     the plan's path: the box starts the fake issuer as a process, and the
@@ -617,7 +617,7 @@
     the account the sign-in makes reads usable from the engine, where
     before it read not.
   - **The fake issuer's held sockets,** in temper-fake's own tests on
-    skein's simulator (`../protocol/setup/box.md`, 5),
+    skein's simulator (`../protocol/setup/box-backends.md`, 1),
     on the issuer `temper_fake::oauth::Document::peer` makes: a browser's
     held authorize socket and an idle spare don't block the engine's
     sign-in, and past `CONNECTIONS` the issuer turns a connection away;
@@ -635,7 +635,7 @@
     `suite::notes::a_chats_document_is_revised_whole_after_a_follow_up`:
     the person's follow-up message reaches the chat's run, which
     rewrites its note whole.
-  - **Copies made and adopted,** in the one-process world (`README.md`, 2.5), whose
+  - **Copies made and adopted,** in the one-process world (`tiers.md`, 1.5), whose
     service runs the setup's copies (`../domain/forge/adoption.md`, 5), as the joint world
     does not: `suite::ready_copies::readys_two_copies_are_made_in_order_and_adopted_with_the_first_as_home`,
     the person's press of Ready sending both copies in one client pass,

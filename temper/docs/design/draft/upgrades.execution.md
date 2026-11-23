@@ -108,14 +108,14 @@ design is the documents it names, written before its changes.
 ### M9. temper's commands
 
 - **Design:** `../protocol/binaries.md` (`upgrade`, job lines);
-  `../domain/root.md`, 8.1.
+  `../domain/root-restart.md`, 1.1.
 - **Builds:** both binaries' `upgrade --check` and `--back`, the
   rehearsing root, the job lines; the one-process world's rehearsal
   and going-back stories.
 
 ### M10. A story through an upgrade
 
-- **Design:** `../testing/README.md`, 2.5; `store-floor.md`, 4.4.
+- **Design:** `../testing/tiers.md`, 1.5; `store-floor.md`, 4.4.
 - **Current scope:** the story on a registry change and job, its
   referee, the unsettled stop, and a fuzzy sweep of power lost during
   the upgrade's start. Levels and versions stay.

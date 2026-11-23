@@ -57,6 +57,10 @@ pub(crate) struct Start {
 /// Children, one journal, and opaque child-requested continuation bindings.
 /// No root-owned record is stored (domain/root.md, 2).
 #[derive(Debug)]
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "rehearsal selection and completion are independent of journal writes and stop reporting"
+)]
 pub struct Domain {
     pub(crate) environment_closed_reason: Box<[u8]>,
     pub(crate) environment_close_grace: skein_lib::Duration,
@@ -71,6 +75,8 @@ pub struct Domain {
     pub(crate) hub_link: jig_domain_hub_link::Link,
     pub(crate) wrote: bool,
     pub(crate) stopped_reported: bool,
+    pub(crate) rehearsing: bool,
+    pub(crate) rehearsed: bool,
     #[cfg(test)]
     pub(crate) start_phases: skein_lib::List<core::start::Phase>,
     pub(crate) start: Start,
@@ -162,6 +168,8 @@ impl Domain {
             hub_link,
             wrote: false,
             stopped_reported: false,
+            rehearsing: false,
+            rehearsed: false,
             #[cfg(test)]
             start_phases: skein_lib::List::with_capacity(32),
             start: Start {
@@ -173,6 +181,32 @@ impl Domain {
             },
             restored_commits: None,
         })
+    }
+
+    /// Stop the next start before the switch (jig/docs/design/examples.md, 4).
+    pub fn rehearse(&mut self) {
+        self.rehearsing = true;
+    }
+
+    /// The rehearsal served every phase through the sweep and reached the switch.
+    #[must_use]
+    pub const fn rehearsed(&self) -> bool {
+        self.rehearsed
+    }
+
+    /// The phase currently selected by the core's start.
+    #[must_use]
+    pub fn start_phase(&self) -> Option<core::start::Phase> {
+        self.core.start_phase()
+    }
+
+    /// The start's refusal with the phase it refused at.
+    #[must_use]
+    pub fn start_failure(&self) -> Option<(Option<core::start::Phase>, core::start::Failure)> {
+        match self.core.start_failure() {
+            Some(failure) => Some((self.core.start_phase(), failure)),
+            None => None,
+        }
     }
 
     /// Decisions open only when the core's cold-start script says so.

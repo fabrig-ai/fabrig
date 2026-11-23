@@ -242,7 +242,7 @@ fn night(document: &web_sys::Document, on: bool) {
 #[cfg(target_arch = "wasm32")]
 impl<P: ShellPlatform> Shell<P> {
     /// Builds the shared loop from the page's started host and browser parts
-    /// (temper/docs/design/client/web/README.md, 2.1).
+    /// (temper/docs/design/client/web/shell.md, 1).
     #[expect(
         clippy::too_many_arguments,
         reason = "the page supplies the host, DOM and platform parts of the shared loop"

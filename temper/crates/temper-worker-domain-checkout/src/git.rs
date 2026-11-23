@@ -65,7 +65,7 @@ pub enum Op {
     /// Make the workspace's directory empty: rename the old tree aside
     /// into trash, make it afresh, and sweep the old tree later.
     Make { workspace: Token, stores: Box<[Token]> },
-    /// Make a bare object store whole before moving it into place (protocol/git.md, 4.11).
+    /// Make a bare object store whole before moving it into place (protocol/git-operations.md, 1.11).
     Store {
         store: Token,
         aside: Option<Token>,
@@ -85,7 +85,7 @@ pub enum Op {
     Fetch { at: Place, store: Token, remote: Box<[u8]>, want: Want, into: Into, identity: u32, account: Option<u64> },
     /// Point a repository reference at a commit already present. Ends in `Succeeded`.
     Point { at: Place, into: Into, commit: Commit },
-    /// Count and repack the store, then the repository (protocol/git.md, 4.14).
+    /// Count and repack the store, then the repository (protocol/git-operations.md, 1.14).
     Pack { at: Place, store: Option<Token> },
     /// Create `branch` on the forge at `commit`, only if it does not exist:
     /// a branch that does is left where it is, and the operation ends in
@@ -98,7 +98,7 @@ pub enum Op {
     CheckOut { at: Place, commit: Commit, clean: bool, identity: u32, account: Option<u64> },
     /// Whether fetched ancestor is contained in commit, including equality. Local and read-only.
     IsAncestor { at: Place, ancestor: Commit, commit: Commit },
-    /// Whether head and upstream share a commit absent from base (protocol/git.md, 4.9).
+    /// Whether head and upstream share a commit absent from base (protocol/git-operations.md, 1.9).
     Brings { at: Place, head: Commit, base: Commit, upstream: Commit },
     /// Stream paths differing between two commits, including deletions, without
     /// rename detection. Ends Paths with the first name in git's order, or none;
@@ -113,7 +113,7 @@ pub enum Op {
     /// refuses markers remaining in originally conflicted paths, ending `Conflicted` with those
     /// paths. A delivery snapshot reads the checkout's parents, keeps an unchanged local
     /// commit, validates its second parent on the remote and advances HEAD after committing
-    /// (temper/docs/design/protocol/git.md, 4.7).
+    /// (temper/docs/design/protocol/git-operations.md, 1.7).
     Commit {
         at: Place,
         parent: Commit,
@@ -155,7 +155,7 @@ pub struct Red {
     pub head: Box<[u8]>,
 }
 
-/// The local reference a fetch writes (temper/docs/design/protocol/git.md, 4.3).
+/// The local reference a fetch writes (temper/docs/design/protocol/git-operations.md, 1.3).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Into {
     /// The scratch reference, moved freely by fetches.
@@ -166,7 +166,7 @@ pub enum Into {
 
 /// Delivery reads HEAD and `MERGE_HEAD` before committing, preserving a local
 /// commit whose tree is unchanged. Any second parent must be reachable from
-/// this remote's branches or tags (temper/docs/design/protocol/git.md, 4.7).
+/// this remote's branches or tags (temper/docs/design/protocol/git-operations.md, 1.7).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Snapshot {
     pub remote: Box<[u8]>,

@@ -1,4 +1,4 @@
-//! A fresh load must wait for the saved playground start's answer (client/web/README.md, 2.1).
+//! A fresh load must wait for the saved playground start's answer (client/web/shell.md, 1).
 use super::*;
 use jig_client_protocol_wire as w;
 use temper_client_protocol_wire as wire;

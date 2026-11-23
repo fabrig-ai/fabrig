@@ -5,6 +5,7 @@ mod asked_link;
 mod authorize;
 mod closing;
 mod gone;
+mod inspection;
 mod placed_hold_client;
 mod placed_holds;
 mod reads;

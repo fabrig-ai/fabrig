@@ -2,8 +2,8 @@
 pub use crate::worker_settings::Agent;
 use alloc::boxed::Box;
 pub use temper_service_core::settings::{Adapter, Files, PROGRAM_PATH_BYTES, Program};
-/// A worker's settings: jig's part and temper's (protocol/configuration/README.md,
-/// section 3); 09 builds the worker from it.
+/// A worker's settings: jig's part and temper's (protocol/configuration/worker.md,
+/// section 1); 09 builds the worker from it.
 #[derive(Debug)]
 pub struct Worker {
     pub jig: jig_protocol_config::Worker,

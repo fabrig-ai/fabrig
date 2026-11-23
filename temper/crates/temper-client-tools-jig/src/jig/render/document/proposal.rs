@@ -1,4 +1,4 @@
-//! Proposal reads and the settings review supplied by wire 21 (client/ctl/tools.md, 2).
+//! Proposal reads and the settings review supplied by wire 21 (client/ctl/tools-reads.md, 1).
 use super::{Cut, Limits, Text, settings};
 use crate::jig::runner::{
     proposal::{INVENTORY, slot},

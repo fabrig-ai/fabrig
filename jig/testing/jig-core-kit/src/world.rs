@@ -23,7 +23,9 @@ mod walking;
 pub use walking::{Scenario, Walking};
 mod deliveries;
 mod store;
+mod store_check;
 pub use constructors::fixture;
+pub use jig_conformance::store_check::StoreChecks;
 
 pub(crate) mod testing {
     use super::{Cut, World};
@@ -120,6 +122,12 @@ pub struct World {
     pub(crate) broken: bool,
     pub(crate) oracle_closed: bool,
     seed: u64,
+    /// Policy and counts for this run's cold store checks.
+    pub store_checks: StoreChecks,
+    pub(crate) store_checks_reported: bool,
+    restart_check: Option<(u64, bool)>,
+    iteration: u64,
+    inspections: u64,
     pub(crate) restart_config: (root::Config, root::Limits),
     startup: Option<fn(&mut root::Domain)>,
     fixture_rows: Box<[root::Record]>,
@@ -352,6 +360,7 @@ impl World {
     }
 
     /// Advance simulated time, firing fleet and task deadlines through the root.
+    /// Drain at the resulting clock pair, without implicit iteration ticks.
     pub fn advance(&mut self, by: Duration) {
         self.wall = self.wall.checked_add(by.as_nanos()).expect("world time fits");
         self.supplied_wall = self
@@ -362,7 +371,7 @@ impl World {
         self.events.push_back(root::Event::Timer(core::Timer::People));
         self.events.push_back(root::Event::ConnectorTimer { number: 1 });
         self.events.push_back(root::Event::ConnectorTimer { number: 2 });
-        self.drain();
+        self.try_drain_at_clock().unwrap_or_else(|finding| self.fail(&finding));
     }
 
     /// Set the fake tool decoder's bounds independently of the core's admission bounds.
@@ -401,8 +410,33 @@ impl World {
     }
 
     pub fn drain(&mut self) {
+        self.try_drain().unwrap_or_else(|finding| self.fail(&finding));
+    }
+
+    /// Drain immediate work, returning the first referee or quiet-point finding.
+    pub fn try_drain(&mut self) -> Result<(), String> {
+        self.try_drain_restarting(false)
+    }
+
+    fn try_drain_restarting(&mut self, restarting: bool) -> Result<(), String> {
         self.domain.script_project_releases();
-        self.drive(300, true, true).unwrap_or_else(|finding| self.fail(&finding));
+        self.drive(300, true, true, restarting)
+    }
+
+    /// Explicit advancement keeps one clock pair through its drain.
+    /// Ordinary drains resume implicit iteration ticks when no clock was supplied.
+    fn try_drain_at_clock(&mut self) -> Result<(), String> {
+        let supplied = self.supplied_wall;
+        self.supplied_wall = Some(self.env().wall);
+        let result = self.try_drain();
+        self.supplied_wall = supplied;
+        result
+    }
+
+    /// Number of quiet-point inspections, across drains and restarts.
+    #[must_use]
+    pub fn inspections(&self) -> u64 {
+        self.inspections
     }
 
     /// Add the world's replay key and the last boundary events.
@@ -417,11 +451,12 @@ impl World {
     }
 
     #[expect(clippy::too_many_lines, reason = "one loop routes root, store and peer work in order")]
-    fn drive(&mut self, steps: usize, tick: bool, consume: bool) -> Result<(), String> {
+    fn drive(&mut self, steps: usize, tick: bool, consume: bool, restarting: bool) -> Result<(), String> {
         if let Some(Cut::Disk { from: from @ jig_test_store_files::KillFrom::Commit(_), operation }) = self.cut {
             self.store.fault(jig_test_store_files::Fault::Kill { from, operation });
         }
         for _ in 0..steps {
+            self.iteration = self.iteration.checked_add(1).expect("world iteration fits");
             if self.store.reached_kill() {
                 self.reached_cut = self.cut.take();
                 return Ok(());
@@ -429,17 +464,21 @@ impl World {
             if self.stopped {
                 return Ok(());
             }
-            if self.supplied_wall.is_none() {
+            // Loading and switching may take simulated time; adoption and its
+            // following drains share the clock that arms the restored claims.
+            let adoption_clock = restarting
+                && (self.domain.ready()
+                    || matches!(
+                        self.domain.start_phase(),
+                        Some(core::start::Phase::AdoptRuns | core::start::Phase::Open)
+                    ));
+            if self.supplied_wall.is_none() && !adoption_clock {
                 self.wall += 1_000_000;
             }
             self.observer.observe(self.wall, crate::referee::Observed::Tick)?;
             let env = self.env();
             self.observer.systems(self.wall, &self.systems)?;
-            let sweep_waits = self.domain.start_phase() == Some(core::start::Phase::Sweep)
-                && !self.domain.quiescent()
-                && self.events.front().is_some_and(|event| {
-                    matches!(event, root::Event::StartRecord(_) | root::Event::StartDone(core::start::Phase::Sweep))
-                });
+            let sweep_waits = store_check::sweep_waits(&self.domain, self.events.front());
             if consume
                 && !sweep_waits
                 && let Some(mut event) = self.events.pop_front()
@@ -484,6 +523,7 @@ impl World {
             }
             let mut out = Queue::with_capacity(128);
             root::release(&mut self.domain, &env, &mut out);
+            self.check_restarted_child()?;
             let empty = out.is_empty();
             for _ in 0..out.len() {
                 let mut request = out.pop().expect("root output count");
@@ -706,6 +746,19 @@ impl World {
                     || self.reads.as_ref().is_some_and(crate::reads::Parties::paused))
                 && self.watches.as_ref().is_none_or(crate::peers::WatchParties::quiescent)
             {
+                if !self.store.loading() && self.domain.ready() {
+                    if let Some(timer) = self.domain.core().due(env.now, env.wall) {
+                        self.events.push_back(root::Event::Timer(timer));
+                        continue;
+                    }
+                    let mut inspection = skein_world::inspect::Inspection::new("jig", jig_inspect::KINDS);
+                    jig_inspect::core(self.domain.core(), &mut inspection);
+                    let moment =
+                        skein_world::inspect::Moment { seed: self.seed, at: env.now, iteration: self.iteration };
+                    self.inspections = self.inspections.checked_add(1).expect("world inspection count fits");
+                    skein_world::inspect::check_waits(&[&inspection], moment)?;
+                    skein_world::inspect::check_tables(&[&inspection], moment)?;
+                }
                 return Ok(());
             }
         }
@@ -935,7 +988,7 @@ impl World {
 
     /// A scripted executor takes a timer so its later park can await input.
     pub fn await_timer(&mut self, task: u64) {
-        const SUBSCRIPTION: u64 = u64::MAX;
+        let subscription = u64::MAX.checked_sub(task).expect("scripted subscription number");
         if self
             .domain
             .core()
@@ -944,15 +997,15 @@ impl World {
             .expect("timer task")
             .subscriptions
             .iter()
-            .any(|item| item.number == SUBSCRIPTION)
+            .any(|item| item.number == subscription)
         {
             return;
         }
         self.send(root::Event::Core(core::Event::Tasks(tasks::Event::Subscribe {
-            reply_to: ReplyTo::new(Token::new(SUBSCRIPTION)),
+            reply_to: ReplyTo::new(Token::new(subscription)),
             task,
             subscription: tasks::Subscription {
-                number: SUBSCRIPTION,
+                number: subscription,
                 kind: tasks::SubscriptionKind::Timer { at: Wall::from_nanos(u64::MAX), period: None },
             },
         })));

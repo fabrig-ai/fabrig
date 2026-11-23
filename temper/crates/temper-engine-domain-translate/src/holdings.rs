@@ -196,7 +196,7 @@ impl Holdings<'_> {
 }
 
 /// Whether `task` is in `goal`'s subtree below it: its requesters, task by
-/// task, reach `goal` (temper/docs/design/domain/forge/README.md, 5.2).
+/// task, reach `goal` (temper/docs/design/domain/forge/topics.md, 1.2).
 #[must_use]
 pub fn in_subtree(tasks: &tasks::Domain, task: &tasks::TaskRecord, goal: u64) -> bool {
     let mut current = task;

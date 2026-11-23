@@ -6,16 +6,6 @@
 
 
 
-- **Not yet:** 2.7, *Tested*: no browser-tier story turns push on. The
-  browser kit can't do it offline: `skein-browser`'s requests and
-  `fake-person-browser`'s steps can't grant a notification permission,
-  and Chromium's `subscribe` reaches its own push service, a real one.
-  It needs a kit change first: a permission grant and a local push
-  facility in skein's browser kit, by skein's design. The shell's push
-  calls and the service worker are checked by compiling and by the
-  service's route tests only (2026-11-11, goal N3b, which stops at six
-  changes).
-
 - **Not yet:** `look.md`, *What a phone presses*: at 760 px and under an Ask
   temper chat's thread keeps the mock's sizes, its "Latest" and a
   proposal's acts among them, and the path's stops on Ask temper's page
@@ -72,14 +62,6 @@ establish no rendered equality.
   menu also has no mousemove selection handler, so hovering an option
   leaves the active keyboard choice where it is, unlike the request's
   handler. Temper/ui owns these differences from the request.
-- **Not yet:** 2.3, *A heading drawn after its page*: that a focus placed while a heading
-  waits keeps its place, which the answer of 2026-11-06 to the `ui-composer-focus` task
-  `composer-focus` asks, is seen by reading `temper-client-shell-web`'s `focus.rs`. No test moves the focus meanwhile:
-  `browser_pages`'s `enter_starts_one_chat_and_the_composer_keeps_the_focus` holds the
-  heading taking it from the main, and that module has no test of its own. No test
-  opens an address while `me` is read and sees the page's heading take the focus from
-  the empty busy main, nor reaches the wait for a main not yet drawn: `focus.rs`
-  compiles for wasm32, and no browser story walks either.
 - **Design departs:** `look.md`, from the request `ui-phone` of 2026-11-05, decided by
   its plan's cut and its sweep. A chat's foot stands 16 px in, where the
   request's check has the mock's 12: the look request `configure-temper-name`
@@ -95,10 +77,6 @@ establish no rendered equality.
   its plan's cut: a confirmation sheet's acts stand 44 px on a phone, where the
   request's overlay has 38, to keep a phone's target. So at 420 px the sheet stands
   6 px taller and 3 px higher than the request draws it.
-- **Not yet:** 2.2: no test shows a head waiting for jig's mapping's room
-  ended by the stall deadline: `temper-service`'s
-  `a_call_past_the_mounts_room_waits_until_its_peer_closes` ends it by its
-  peer's close.
 - **Departs:** `look.md`, *The first paint*: handing over fades in 160 ms, where this section
   has 200: `loading.css` takes `transition: opacity .16s` from the request
   `bundle-loading`'s own stylesheet, whose message says 200 ms, because
@@ -129,7 +107,7 @@ establish no rendered equality.
   request does not draw, so that no source of the bundle names the old
   mark's `#b8664e`, as its test asks.
 
-`README.md`, section 2.3, and `gallery.md`, section 2 have no known implementation gap in Home and Needs
+`addresses.md`, section 1, and `gallery.md`, section 2 have no known implementation gap in Home and Needs
 you across projects, by plan `ui-p2-home`: `/home` for `AllHome`, which
 the domain's address table parses and prints; `temper.css`'s `/*
 ==== ui: home ==== */` and `/* ==== ui: needs ==== */` holding Home's
@@ -165,39 +143,3 @@ and its state, a control not pressed by `Part::NotPressed`. `temper.css`
 has no rule of its own for the words: whether they fit the switch and
 the chip is the rendered comparison's, after landing (`../README.md`,
 section 5, *Away on All projects after landing*).
-- **Departs:** 2.3: `?forge=elsewhere` still reads, as A Forgejo
-  elsewhere's Details (`temper-client-domain`'s `address.rs`
-  `forge_choice`), words for a forge added to the configuration by hand,
-  which names none (`../forge/README.status.md`).  the unlisted gallery states remain `gallery.status.md`, 2.
-
-`README.md`, sections 2.3 and 2.4 and `look.md` have `/terminal`, its parsed and canonical
-`code` query, transport sign-in by cookie, the signed-out state with
-Google's way back where it is given, and the approval's code, asked
-time and field under the outside rules. `gallery.md`, section 2's twelve
-`approve-*` gallery states are present, with domain, view and shell
-coverage. `README.md`, section 3 keeps the rendered browser check and approval at a
-public name for later; no real-browser result is supplied here.
-
-`look.md`'s *Outside a project* has no known implementation gap: the
-top bar and the column on the eight tokens and the overlay's rules under
-`temper.css`'s outside marker, the placeholder's star in the signal with
-no dot, and the old look's tokens, rules and `files/brand.svg` gone.
-Focused tests hold every class `temper.css` selects to a `look.rs` name
-and keep `#b8664e` out of the bundle's and the server's pages' sources.
-`gallery.md`, section 2's `signed-out`, `out-of-date`, `no-project` and
-`approve-signed-out-google` are present. The rendered comparison against
-the request's pages is `README.md`, section 3's, after landing.
-
-`look.md` and `public.md`, section 2 have no known implementation gap in `look-round-22`'s
-repairs: the column's field-name rule, `.temper-outside form >
-label[for]:has(+ input)`, outweighing skein's small label; at night the
-root's ground, `:root[data-night]:has(body #app)`, giving way to the
-body's; the welcome's top bar, under the welcome's main, packed to its
-end, its steps taking the free space and an end straight after the brand
-its own; and "Sign in"
-on the public pages wherever the view's `Ways` give the origin, Google's
-way or not. The view's public table has the no-way and unknown-way rows,
-and the browser tier's public story expects "temper" and "Sign in" on
-every page (`public.md`, 4), with no passing run supplied here. No focused test
-reads the rules, whose effect is rendered; that comparison is `README.md`, section 3
-'s, after landing.

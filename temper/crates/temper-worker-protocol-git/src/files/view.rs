@@ -1,4 +1,4 @@
-//! The run's disposable git view (temper/docs/design/protocol/git.md, 4.13).
+//! The run's disposable git view (temper/docs/design/protocol/git-operations.md, 1.13).
 use super::{Action, Directories, count, fd, mkdir, open};
 use crate::{
     Limits, Settings,

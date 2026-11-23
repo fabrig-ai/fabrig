@@ -67,6 +67,44 @@ fn a_holds_offered_commands_are_ones_ctl_takes() {
 }
 
 #[test]
+fn a_held_goals_projection_opens_in_a_fresh_root() {
+    let (mut world, agent, task) = tasks_hold();
+    call(&mut world, agent, &[b"task", b"show", task.to_string().as_bytes(), b"--until", b"held"]);
+    let hold = world.front().engine.task(task).expect("first hold").revisions.hold.to_string();
+    offered(&mut world, agent, task);
+    call(&mut world, agent, &[b"task", b"release", task.to_string().as_bytes(), b"--hold", hold.as_bytes()]);
+    call(&mut world, agent, &[b"task", b"show", task.to_string().as_bytes(), b"--until", b"held"]);
+    let engine = &mut world.front().engine;
+    let before = engine.task(task).expect("held change").phase.clone();
+    assert!(matches!(before, tasks::Phase::Held { .. }));
+    let commit = engine.store.applied;
+    eprintln!(
+        "held goal {task}: fresh start over commit {commit}, phase bytes {:?}, result bound {}",
+        tasks::phase_bytes(&before),
+        engine.env.limits.tasks.result_bytes
+    );
+    assert!(
+        tasks::phase_bytes(&before).expect("held phase bytes") > u64::from(engine.env.limits.tasks.result_bytes) * 2
+    );
+    let mut restarted = engine.cold_fork();
+    // The fork has its own root and store, but the same independent forge peer.
+    restarted.forge = engine.forge.take();
+    restarted.connect_forges();
+    for _ in 0..200 {
+        restarted.advance(true);
+        if restarted.root.ready() || restarted.root.start_stop().is_some() {
+            break;
+        }
+    }
+    assert_eq!(restarted.root.start_stop(), None, "commit {commit}: {:?}", restarted.root.start_phase());
+    assert!(restarted.root.ready(), "commit {commit}: start completed");
+    assert_eq!(restarted.task(task).expect("restored held change").phase, before);
+    assert_eq!(engine.store.applied, commit, "the source store was untouched");
+    restarted.close();
+    engine.forge = restarted.forge.take();
+}
+
+#[test]
 fn the_long_specs_amend_hint_and_forge_connect_hint_parse() {
     let words = fixtures::phrasebooks(&fixtures::domain_limits());
     let hint = words.say(temper_client_view::words::Word::SpecTooLong, &[]);

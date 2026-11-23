@@ -254,7 +254,7 @@
     proposals; held tasks, an escalation that reached them; and person
     tasks.
     - *For the person reading:* Needs you's open entries in the project,
-      as the rail counts them (`../view.md`, 3): the standing inbox's rows that show
+      as the rail counts them (`../view-navigation.md`, 1): the standing inbox's rows that show
       in the project, less those answered here, each by its group, and
       the person's approvals' rows of the project, as reviews.
     - *For another:* what the engine says waits on them on their own
@@ -283,14 +283,14 @@
     owner of what has no area, is the areas' last row and Who routes'
     chip; People has no line of it.
   - *Hand an area to a role,* the sheet "+ Hand an area to a role" opens
-    (`../README.md`, 3.6, *The sheet*), headed "Hand an area to a role",
+    (`../root.md`, 1.6, *The sheet*), headed "Hand an area to a role",
     its acts at its foot:
     - *Which area:* a choice of the project's areas, a line each, its
       name in the strong weight, its words, and muted its owner's name,
       the first chosen; then, while the project has fewer than 16, "A new
       area", which shows two fields, "Name" and "What it covers", judged
-      as kind 14 judges them (`../../protocol/configuration/settings.md`,
-      2): "A name is 1 to 32 lowercase letters, digits and -, starting
+      as kind 14 judges them (`../../protocol/configuration/settings-kinds.md`,
+      1): "A name is 1 to 32 lowercase letters, digits and -, starting
       with a letter.", "PROJECT has an area named NAME already." and "What
       it covers is 1 to 480 bytes, on one line.", each under its field
       once the act is pressed, as Start a goal's sheet judges its fields:
@@ -333,7 +333,7 @@
       (`../../protocol/configuration/settings.md`, 8): "Prover\n\nOwns the
       area tests on vsr.". A refusal of either says why in the sheet, in
       jig's words, and keeps it open.
-  - *Give the area back* opens the confirmation (`../README.md`, 3.6,
+  - *Give the area back* opens the confirmation (`../root.md`, 1.6,
     *The sheet*): "Give tests back?", or "Give 2 areas back?", then
     "Its owner becomes you.", or "Their owner becomes Sam.", the role's
     person, its requester, as *An owner's name* says them, then "Keep it"
@@ -423,7 +423,7 @@
       decoded as `temper_client_protocol_wire::v1::ProjectAreas`; the
       roles' watch for the sheet's roles; and `me` for whether the person
       reading owns the project.
-  - *In the rail* (`../view.md`, 3): "Team", after "Work", while the project has two
+  - *In the rail* (`../view-navigation.md`, 1): "Team", after "Work", while the project has two
     people or more or a standing role, current on `Team` whatever its
     `role`. Its count of people is the project's document's, and its
     count of roles the roles' watch's, both read on every project page for
@@ -437,7 +437,7 @@
 
 ## 2. Open questions
 
-- **Team after landing** (1; `../view.md`, 3): temper/ui compares main with
+- **Team after landing** (1; `../view-navigation.md`, 1): temper/ui compares main with
   the intro and People of the whole story's `web/whole-story/team/team.html`,
   and the rail's Team in each page's `nav.rail`, through `../web/gallery.md`, 2's
   `team`, `team-alone` and `night-team`, at 1440, 1000 and 390 px, by day
@@ -465,21 +465,21 @@
   gives it. Default: none is drawn until it is built, and a person's line
   is what *Team* counts.
 - **A role's card, where a read lacks** (1, *A role's card*): its rules as
-  the words kept with its charter (`../../protocol/configuration/settings.md`,
-  2, kind 9), once the `charter N` view carries them, where it has the
+  the words kept with its charter (`../../protocol/configuration/settings-kinds.md`,
+  1, kind 9), once the `charter N` view carries them, where it has the
   "Asked to" fact, its instructions' first sentence; a forge topic in
   words, "A landing on vsr's main touching tests/", once a read gives
   temper's subscriptions of a task; what a timer is for, "Its weekly
   report", which a timer doesn't say; and
   "written at 06:58, when its last session ended", once the client reads
   a session's record (jig's `domain/tasks/standing.md`, 7). Default: each
-  as section 1 has it, the gap recorded in
+  as `team.md`, section 1 has it, the gap recorded in
   `../../draft/surfaces.status.md`, 6.
 - **A week's sign-offs past the rows** (1, *What each signed*): the
   count reads the changes' `landed_default` rows, at most
   `forge.changes_landed` (8 in `small`) across the project's
   repositories, from landing logs of `landings_kept` landings each
-  (`../../domain/after-landing.md`, section 10), so a busy week's count
+  (`../../domain/after-landing-storage.md`, section 1), so a busy week's count
   is a floor, as Work's Landed this week is (`work.md`, 2). Default: so,
   nothing stored added; or the changes' document counts each person's
   sign-offs over every landing its logs keep, a wire field.

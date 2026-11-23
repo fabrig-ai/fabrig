@@ -175,6 +175,54 @@ fn retry_exhaustion_ends_the_run_without_another_start_or_content() {
     assert!(harness.domain.pop_content().is_none());
 }
 
+const HOST_RUN: u64 = 7;
+const PROVIDER_DELAY: Duration = Duration::from_millis(6500); // Above ordinary backoff.
+const COMPLETION: Option<crate::Operation> = Some(crate::Operation::Completion);
+
+fn rate_limit(harness: &mut Harness, owner: Token, retry_after: Duration) -> Box<[Request]> {
+    harness.step(Event::Below(crate::Below::Failed {
+        owner,
+        failure: Failure::RateLimited { retry_after },
+        evidence: Evidence::Response { status: Some(200) },
+        detail: Box::default(),
+        report: crate::llm::Report::none(),
+    }))
+}
+
+#[test]
+fn a_rate_limit_wait_has_its_own_completion_span() {
+    let mut h = Harness::new();
+    let (_, owner, _) = h.admit(HOST_RUN, charter());
+    assert!(rate_limit(&mut h, owner, PROVIDER_DELAY).is_empty());
+    let retry_at = Time::ZERO.saturating_add(PROVIDER_DELAY);
+    assert_eq!(h.long_until, Some(retry_at));
+    h.env.now = retry_at;
+    drop(named(h.fire()));
+    assert_eq!(h.long.as_slice(), &[COMPLETION, None, COMPLETION, None, COMPLETION]);
+}
+
+#[test]
+fn overload_backoff_has_no_long_span() {
+    let mut h = Harness::new();
+    let (_, owner, _) = h.admit(HOST_RUN, charter());
+    let _name = retry(&mut h, owner);
+    assert_eq!(h.long.as_slice(), &[COMPLETION, None, COMPLETION]);
+}
+
+#[test]
+fn cancellation_ends_the_rate_limit_wait_span() {
+    let mut h = Harness::new();
+    let (run, owner, _) = h.admit(HOST_RUN, charter());
+    drop(rate_limit(&mut h, owner, PROVIDER_DELAY));
+    drop(h.step(Event::Cancel { run }));
+    let emitted = h.next();
+    let [Request::Answer { answer: run::Answer::Failed { failure: run::RunFailure::Cancelled, .. }, .. }] = &*emitted
+    else {
+        panic!("cancelling the wait must not need a provider terminal, got {emitted:?}");
+    };
+    assert_eq!(h.long.as_slice(), &[COMPLETION, None, COMPLETION, None]);
+}
+
 #[test]
 fn dropping_all_content_does_not_drop_or_default_the_completion_start_name() {
     let mut harness = Harness::new();
@@ -293,6 +341,37 @@ fn a_limited_account_ends_the_run_with_its_reset() {
             "{reset:?} at {later:?}"
         );
     }
+}
+
+#[test]
+fn a_rate_limit_past_expiry_reports_the_account_reset() {
+    const ACCOUNT: u32 = 0; // The account in `charter` and the harness grant.
+    const RESPONSE_AT: Time = Time::from_nanos(20_000_000);
+    let mut h = Harness::new();
+    let charter = charter();
+    let delay = charter.budget.time;
+    let (_, owner, _) = h.admit(HOST_RUN, charter);
+    h.env.now = RESPONSE_AT;
+    let emitted = rate_limit(&mut h, owner, delay);
+    let [
+        Request::Limited { account, reset },
+        Request::Answer {
+            answer:
+                run::Answer::Failed {
+                    failure: run::RunFailure::Model(run::Fault::Limited { account: ended, reset_at }),
+                    ..
+                },
+            ..
+        },
+    ] = &*emitted
+    else {
+        panic!("expected a limited notice then a limited answer, got {emitted:?}");
+    };
+    assert_eq!(
+        (*account, *reset, *ended, *reset_at),
+        (ACCOUNT, Some(delay), ACCOUNT, Some(RESPONSE_AT.saturating_add(delay)))
+    );
+    assert_eq!(h.long.as_slice(), &[COMPLETION, None], "an untaken wait has no span");
 }
 
 #[test]

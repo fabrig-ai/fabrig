@@ -12,6 +12,7 @@ use smith_fake_claude::{Fake, Story};
 
 use crate::world::{Parent, ParentOptions, Setup};
 
+pub mod faults;
 mod room;
 mod waiting;
 pub use room::child_charter as room_child_charter;
@@ -105,6 +106,7 @@ struct RunOptions<'a> {
     files: Option<Files>,
     activation: u64,
     dumps: Option<&'a crate::world::DumpSettings>,
+    seed: Option<u64>,
 }
 
 enum Proc {
@@ -686,6 +688,9 @@ impl Referee<Proc> for Judge {
 #[expect(clippy::partial_pub_fields, reason = "the fake filesystem stays private to activation replay")]
 pub struct Run {
     files: Option<Files>,
+    /// The played faults and the independently counted run transitions.
+    pub ledger: skein_world::faults::FaultLedger,
+    pub runs: smith_faults::Runs,
     pub frames: Vec<skein_fake_channel::Observed>,
     pub invocations: Vec<smith_fake_claude::Observation>,
     pub seen: Vec<smith_fake_claude::Seen>,
@@ -759,6 +764,18 @@ pub fn run(
     refresh: Option<&smith_channel::GrantValue>,
 ) -> Run {
     run_scenario(case, story, charter, value, RunOptions { login, refresh, ..RunOptions::default() })
+}
+
+/// Run a sweep's story with scheduling independent of its fault draws.
+#[must_use]
+pub fn seeded(seed: u64, case: Case, story: &Story, charter: &[u8]) -> Run {
+    run_scenario(
+        case,
+        story,
+        charter,
+        &crate::program(b"source"),
+        RunOptions { login: Some(b"claude.ai"), seed: Some(seed), ..RunOptions::default() },
+    )
 }
 
 /// Change the workspace file after smith's snapshot and before the native Read.
@@ -838,8 +855,11 @@ fn run_scenario(
         snapshot_closed: false,
         changed: false,
     };
-    let mut world =
-        skein_world::World::new_controlled(7, skein_sim::Config::calm(), skein_world::Memory::Checked, |_| Judge {
+    let mut world = skein_world::World::new_controlled(
+        options.seed.unwrap_or(7),
+        skein_sim::Config::calm(),
+        skein_world::Memory::Checked,
+        |_| Judge {
             finding: None,
             wait_for_exit: case.completes(),
             ended: false,
@@ -848,8 +868,9 @@ fn run_scenario(
                 .map_or_else(|| waiting::Release::new(case == Case::Waiting), waiting::Release::open),
             cancel: if case.completes() { None } else { Some(Time::ZERO.saturating_add(Duration::from_millis(50))) },
             cancel_with_child: options.cancel_with_child,
-        })
-        .with_machine(machine);
+        },
+    )
+    .with_machine(machine);
     host_agent(&mut world, case);
     host_programs(&mut world, case);
     spawn_parent(&mut world, root, case, charter, value, &options);
@@ -858,8 +879,13 @@ fn run_scenario(
     } else if matches!(case, Case::Burst { .. }) {
         world.spawn(|| Proc::Peer(Box::new(room::peer(&story))));
     }
-    let mut outcome = world.run();
+    let mut clock = faults::Clock::default();
+    clock.account(charter);
+    let mut outcome = world.run_with_inputs(|sim, _, procs| {
+        clock.observe(sim.now(), procs);
+    });
     let mut run = observe_run(&mut outcome, base, case, options.dumps.is_some());
+    faults::record(&mut run, &clock, case);
     outcome.machine.files.close(base);
     assert_eq!(outcome.machine.files.open_handles(), 0, "fixture handles settle");
     run.files = Some(core::mem::replace(&mut outcome.machine.files, Files::new()));
@@ -1005,6 +1031,8 @@ fn observe_run(
     let bytes = observation_bytes(&mut outcome.machine.files, base);
     let run_directories = run_directories(&mut outcome.machine.files, base);
     Run {
+        ledger: skein_world::faults::FaultLedger::new(),
+        runs: smith_faults::Runs::new(),
         workspace_file: fixture_file(&mut outcome.machine.files, base, b"work/repo/a"),
         workspace_empty_directory: match outcome.machine.files.open(base, b"work/repo/empty", How::Directory) {
             Ok(directory) => {

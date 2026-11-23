@@ -460,7 +460,7 @@ pub fn down(
             }
         }
         Err(mut failure) => {
-            if failure.parts.is_empty() && server.state == State::Waiting {
+            if failure.parts.is_empty() && server.state == State::Waiting && !pieces::is_cut(failure.error) {
                 response_error(server, service, env, failure);
             } else {
                 let parts = core::mem::replace(&mut failure.parts, Box::new([]));
@@ -874,6 +874,9 @@ fn next_event(
     if let State::Pieces { .. } = server.state {
         match pieces::next(server, service, env) {
             Ok(Some(event)) => writer_down(server, env, sse::Request::Event(event)),
+            Ok(None) if server.state == State::Streaming && server.answer.is_none() => {
+                writer_down(server, env, sse::Request::Finish);
+            }
             Ok(None) => {}
             Err(documents::Error::Malformed | documents::Error::TooLarge | documents::Error::Refused(_)) => {
                 close(server, service, env, above, below);

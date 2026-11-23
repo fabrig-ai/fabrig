@@ -46,7 +46,7 @@ private, never edited by hand:
   `ACCOUNT_LINKING = login`, and `[service]`
   `ALLOW_ONLY_EXTERNAL_REGISTRATION = true` (`../openid-provider.md`, 4). The
   source itself is not the preparation's: it is added by the command
-  `temper-box forge sign-in` prints, as for a managed Forgejo (8);
+  `temper-box forge sign-in` prints, as for a managed Forgejo (`owned-sign-in.md`, 1);
 - on a box, when `application.machine.owned.sign_in` is not `null`: the same, with
   `ACCOUNT_LINKING = auto` (`../openid-provider.md`, 9). Its source is its own step's (`box.md`, 1);
 - `[webhook]`: `ALLOWED_HOST_LIST` the webhooks' listener's IP address,
@@ -267,7 +267,7 @@ binaries; and decides by
   when either appears outside that module, but for what it declares by
   file, each for that use alone: `std::process::ExitCode` in the
   binaries' `main`s, `temper-box`'s, `temper`'s and `temper-agent`'s; `temper-box
-  program-login`'s exec of smith's command (../credentials.md, section 3);
+  program-login`'s exec of smith's command (../credentials-llm-accounts.md, section 1);
   Claude Code's fetch's lock, in `temper-fetch-shell`, and its
   launcher's exec and process id, in `temper-launcher` (6); and the
   process tier's fault, which aborts
@@ -328,9 +328,9 @@ binaries; and decides by
   asks the box, which answers a started group `started` at once (`box.md`, 1),
   and the engine runs the same sequence again.
 - **Then reconcile runs as managed's** (`reconcile.md`), and makes no org:
-  the set up's org is its first repository's, made by `Create` (7).
+  the set up's org is its first repository's, made by `Create` (`owned-repositories.md`, 1).
 - **Then the first repository,** at the box's `started`, when the set
-  up asked for one (7): `Create`, before the forge's connect.
+  up asked for one (`owned-repositories.md`, 1): `Create`, before the forge's connect.
 - **A forge not prepared,** an owned forge's record with neither a
   handover nor an `AdminToken` record, is not set up: no access and no
   connect; every other forge starts as it would. The deployment's page
@@ -340,10 +340,10 @@ binaries; and decides by
     (`init.md`). Its card says CI jobs run here unisolated, Forgejo
     stops with `temper box`, and its files are kept in temper's data
     directory. `SetUp` makes the forge's record, owned, numbered next
-    (../forge/engine.md, 2), with its first repository's intent (7), in its
+    (../forge/engine.md, 2), with its first repository's intent (`owned-repositories.md`, 1), in its
     decision, and the routing asks the box for the forge's group (`box.md`, 1);
     at `started FORGE` the engine takes the handover, reconciles, makes
-    the first repository (7) and connects; at `failed FORGE WHY` the
+    the first repository (`owned-repositories.md`, 1) and connects; at `failed FORGE WHY` the
     page names the step and offers it again, "Set up again", on the
     same record. A box runs one owned Forgejo: a `SetUp` of a new one
     while one is kept is refused *not offered*, or *busy* while that one
@@ -351,7 +351,7 @@ binaries; and decides by
   - **Without the box** (`box.md`, 4), offers none: an owned forge's group is
     the box's, and `SetUp` is refused *not under the box*.
 - **The page's actions** are the engine domain's offers, from the same
-  function that gives the set up's offer (`../../domain/forge/adoption.md`, 1).
+  function that gives the set up's offer (`../../domain/forge/adoption-connection.md`, 1).
   "Connect as its admin" makes a Forgejo elsewhere from the address the
   person gives (`reconcile.md`, 5).
 - **The connected card** says "Connected as LOGIN", with its id on an
@@ -448,7 +448,7 @@ its own for any other host.
 - **Its code:** the fetch's machine in `temper-fetch`, its
   requests, chunks, writes, digests and lines its inputs and outputs, and its
   host in `temper-fetch-shell`, on skein-io, skein-http and skein-tls,
-  which a bottle's extraction is given to by its caller (`README.md`, section 7).
+  which a bottle's extraction is given to by its caller (`crate-layout.md`, section 1).
   Forgejo's pins and the bottle's extraction stay `temper-forge-setup`'s
   and `temper-forge-setup-shell`'s, which re-export the machine's items
   and the host's failure under their own paths, and `setup::Origin`. It holds no credential and writes no record
@@ -535,7 +535,7 @@ its own for any other host.
     `"fetched"`, the launcher's path, `claude-code/claude` beside the
     programs directory (`<data>/claude-code/claude` as init writes it),
     a symbolic link to the worker's agent's program, its `agent` member's
-    `program` (../configuration/README.md, section 4): the box's `temper-box`, or a
+    `program` (../configuration/worker.md, section 2): the box's `temper-box`, or a
     deployment's `temper-agent`, and smith, jig and the agent never meet
     the word. A
     `temper-box` or a `temper-agent` (`../binaries.md`, 3) run by the name
@@ -549,7 +549,7 @@ its own for any other host.
     is replaced by a new one and a rename, and a right one left as it is,
     so that two starts at once are harmless and a person's own command
     never fetches by a stale name. The launcher, the placing of its
-    links and the substitution are `temper-launcher`'s (`README.md`, section 7),
+    links and the substitution are `temper-launcher`'s (`crate-layout.md`, section 1),
     which a worker's commands and the agent's binary both link and which
     checks the links' directory private through smith's
     `smith-agent-document`, never smith's agent. Claude Code's fetch
@@ -584,304 +584,15 @@ its own for any other host.
 
 ## 7. The first repository
 
-- **Asked with the set up, with no project.** `SetUp`'s `first` is one
-  of `Empty { org, name, playground, sample }`, an organization (default
-  `work`) and a repository (default `hello`), made new with the starter
-  workflow alone, or with the playground's copy's files (`playground`)
-  or the sample's (`sample`), below; `Copies { addresses }`, at most 16, each
-  as `../../draft/repository-copies.md`, 5.4, has it; or `Nothing`. It
-  names no project: `Empty`'s repository is made unadopted, and its
-  adoption is a later act's, into a project the person has
-  (`../../draft/first-run-projects.md`, 4). `Copies` and `Nothing` make no
-  repository at set up: the forge connects with no `Create`, and the
-  copies wait for a project to go into (`../../client/pages/README.md`). The
-  forge domain keeps it in the forge's record (../forge/engine.md, 1), the set
-  up's intent: one per forge, written in the decision that admits
-  `SetUp`, and replaced by the next `SetUp` it admits. `temper ctl forge
-  setup` and a managed connect's `first` ask `Empty` alone, the sample
-  never; the welcome's sheet asks the sample, `Copies` or `Nothing`, and
-  no longer an empty repository (`../../client/pages/welcome.md`, 1).
-- **Asked at a managed connect.** `ForgejoAdmin.first` carries the same
-  organization and repository, with no project, and the person's runner label
-  (default `docker` in the client and ctl), kept in the forge's record
-  as `SetUp`'s are. After Reconcile and its
-  `AdminOrigin` write are kept, Create makes the repository
-  before the admin token is kept and the forge connects (`reconcile.md`, 5). A missing
-  organization is owned by the admin Create has verified. On a forge
-  served the listener Create adds the repository's hook, and the forge
-  connects with its secret; on another host it adds none (`reconcile.md`, 5).
-  The forge's row carries `admin`, the string form's admin-connect offer;
-  `first.label`, the runner label; and `ended_stop`, an optional
-  `AdminStop`: `NotAdmin`, `Refused { status, stage: SetupStage }`,
-  `Unmarked` or `Other`. `SetupStage` names admin, bot, token, org,
-  repository, file, app, installation or state. `ended` is the separate
-  diagnostic; the client chooses its stop's words from `ended_stop`.
-- **Made after reconcile.** At the box's `started FORGE`, or at a start
-  while the record keeps an intent whose repository is not made, once
-  `TakeOver` and `Reconcile` are done (5), the setup host runs
-  `Create { forge, org, repository, files }` (skein's `forge/setup/forgejo.md`,
-  1.9) by the admin's token: the org, private and owned by the person;
-  the repository, private, with Forgejo's README on `main`; the bot a
-  collaborator with `write`, and its hook on the webhooks' listener;
-  then the starter workflow, below. Then the forge connects, as before
-  (5). Each step finds what is already there and leaves it, so a set
-  up asked again finishes what the last one left. The engine's limits
-  for it are 3 files of at most 4 KiB each: the starter workflow alone;
-  for the playground's copy, its `src/main.rs` beside it; for the
-  sample, its three (below) (skein's `forge/setup/forgejo.md`, 1.1).
-  The bound was 2 until the sample, and is raised rather than the files
-  carried another way: Create is the one way the design offers to put
-  files in a first repository, and its plan is built and checked in the
-  engine's process (`temper-service`'s setup), on no wire and in no
-  stored format, so that no version moves with it; the intent, which is
-  kept, names the sample, never its files.
-- **The starter workflow,** `.forgejo/workflows/ci.yml`, its commit
-  the bot's, run on a push to `main` and on each pull, on the owned
-  runner's label, `temper-host`. At a managed connect it uses `first.label`
-  instead: 1–64 ASCII letters, digits, `.`, `_` or `-`, checked at the wire
-  and again before the YAML is made. The workflow is otherwise the same:
-
-  ```
-  on:
-    push:
-      branches: [main]
-    pull_request:
-  jobs:
-    check:
-      runs-on: temper-host
-      steps:
-        - run: echo "temper's starter check passed; replace this step with your own checks"
-  ```
-
-  Its push is the repository's first CI run, on the owned runner: the
-  owned forge enables Actions (2), and Forgejo gives a repository
-  made through its API the Actions unit (skein's `forge/setup/forgejo.md`,
-  section 2). The step needs no network and no action from elsewhere.
-- **The playground's copy,** asked with `SetUp`'s `playground`
-  (`../../client/ctl/areas.md`, `forge setup --playground`): the first
-  repository is `playground/widget`, its organization and name fixed,
-  made with the playground's `src/main.rs` (`playground.md`, `temper-fake`'s
-  constant, one source for both) beside the starter workflow, in one
-  Create, so that the playground's three suggested requests (`playground.md`) are
-  asked of a real forge and a real model. Forgejo's README stays, since
-  Create keeps a file already there (skein's `forge/setup/forgejo.md`, 1.9);
-  the fake's `check.yml` is not copied, since the box's runner runs the
-  starter. ctl's call adopts it, as below, into a new project named
-  `widget` unless the call names one. A set up asked again takes its own request's fields, with
-  the flag or without: a first repository already made stays, and the
-  new one is made beside it.
-- **The sample,** asked with `Empty`'s `sample` by the welcome's sheet,
-  on the welcome and on Settings' Connect a forge
-  (`../../client/pages/welcome.md`, 1, *Forge*; the user, 2026-11-19,
-  the look request `local-forge`): the first repository is `work/hello`,
-  the names the sheet sends and shows none of, made in one Create with
-  three files, in this order: `hello`, a short POSIX `sh` script that
-  prints a greeting; `test.sh`, its tests; and the sample's workflow at
-  the starter's path, last, so that its push, the repository's first CI
-  run, finds the other two. Forgejo's README is the fourth: Create keeps
-  a file already there (skein's `forge/setup/forgejo.md`, 1.9), so the
-  sample brings none of its own. It needs nothing the machine lacks,
-  since temper's runs already call git and `/bin/sh`
-  (`../../release.md`, section 4), and a change that breaks the greeting
-  fails `sh test.sh`, so the check is real. Nothing in the engine or the
-  client reads the files: they are `temper-forge-setup`'s constants, one
-  each, beside the starter's, and these bytes, each ending in a newline:
-
-  `hello`:
-
-  ```
-  #!/bin/sh
-  # Prints a greeting, to the name given or to the world: sh hello [NAME]
-  printf 'Hello, %s!\n' "${1:-world}"
-  ```
-
-  `test.sh`:
-
-  ```
-  #!/bin/sh
-  # Checks hello's greetings: sh test.sh
-  status=0
-  check() {
-      expected=$1
-      shift
-      actual=$(sh ./hello "$@")
-      if [ "$actual" = "$expected" ]; then
-          echo "ok: $expected"
-      else
-          echo "failed: expected '$expected', got '$actual'"
-          status=1
-      fi
-  }
-  check 'Hello, world!'
-  check 'Hello, Ada!' Ada
-  exit "$status"
-  ```
-
-  `.forgejo/workflows/ci.yml`, on the forge's label as the starter's
-  (`temper-host` here), its commit the bot's:
-
-  ```
-  on:
-    push:
-      branches: [main]
-    pull_request:
-  jobs:
-    check:
-      runs-on: temper-host
-      steps:
-        - name: Check out
-          env:
-            TOKEN: ${{ github.token }}
-          run: |
-            git init -q .
-            export GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=http.extraHeader GIT_CONFIG_VALUE_0="Authorization: token $TOKEN"
-            git fetch -q --depth 1 "${GITHUB_SERVER_URL%/}/$GITHUB_REPOSITORY.git" "$GITHUB_SHA"
-            git checkout -q FETCH_HEAD
-        - name: Test
-          run: sh test.sh
-  ```
-
-  The owned runner runs a job on the host (3), where its workspace starts
-  empty and no action is fetched from elsewhere, so the workflow takes no
-  `actions/checkout`: its first step fetches the commit it runs for by
-  git, from the forge, with the job's own token in git's environment,
-  never in its arguments. The files are made only with `sample` set; a
-  request setting both `playground` and `sample`, which no client sends,
-  is made as the playground's copy.
-- **The row says it,** the intent, `starts_with`, and the forge's first
-  repository beside its connection (`../../client/forge/deployment.md`;
-  `../../client/forge/records.md`): with `Copies` or `Nothing` the first
-  repository is none; else none; making `ORG/NAME` from the `SetUp`'s admission; made
-  `ORG/NAME`, unadopted, once `Create` is done; or failed
-  `ORG/NAME`, at the step that stopped (the admin, the org, the
-  repository with its access, or the file); with the intent's
-  `playground` and `sample`. A `Create` that stops
-  blocks the connect as any step does (5): the forge is set up
-  failed, its `why` naming the step, and "Set up again" asks with the
-  same fields, the sample again where the row's `sample` says so. A restart reads the row's first repository from the
-  record, making `ORG/NAME`, until `Create` answers again.
-- **Adopted by a client's act, never by the set up.** The welcome's
-  Ready, its last act, adopts it into the project that act makes
-  (`../../client/pages/README.md`), as ctl's call does, below, and the
-  project opens without waiting for it; `ConnectForge` adopts nothing:
-  there the made repository waits, unadopted, for the person to adopt
-  it into a project of theirs from the adoption form
-  (`../../client/forge/family.md`, 4), one choice away. A repository the
-  person's Ready left refused or unanswered waits the same way, Home
-  offering it again.
-  `temper ctl forge setup` and `forge connect … --first` hold their
-  `--project` in their own run (`../../client/ctl/areas.md`): once the
-  row says made, the call sends, under the same party, jig's
-  `MakeProject` for a new project, its name and policy 1, the default
-  document's (`init.md`, 3), when `--project` names no project, then `Adopt`:
-  the project, the forge, `ORG`, `NAME`, landing on `main`, owned, the
-  project's home, with CI. Nothing in the engine reads a project for
-  it.
-- **A restart before the repository is made** keeps the intent, since
-  the record holds it: the start's sequence, or the box's `started`,
-  makes the repository at the next connect, after reconcile (5).
-- **A set up writes as it goes:** each act and plan keeps what it makes
-  when it makes it, the forge's record and its intent at `SetUp`'s
-  admission, each credential record as its plan writes it (`reconcile.md`, 1), and the
-  box's group file and record as the group starts (`box.md`, 1). Nothing is
-  staged in memory to be written at the end, and no write spans two
-  stores.
-- **Found later, it starts over.** A set up cut short, by a restart or a
-  failure, leaves its forge kept but not connected, or its first
-  repository not made: the welcome's Forge step shows it unfinished,
-  "FORGE · not finished", with Start over (`../../client/pages/README.md`),
-  which removes the forge (`../../domain/forge/adoption.md`, 1) and opens the
-  step's choices again. An owned Forgejo then sets up afresh, as a new
-  forge numbered next: its binaries from the cache (6), which its
-  removal keeps, and its directory prepared anew (3), the old one
-  removed with its forge (`box.md`, 1).
-- **GitHub goes on by default:** its App's records are kept as they come
-  (`github.md`, 2), so the step offers Go on, to the App's installation, before
-  Start over, which removes the forge and names the App on GitHub as the
-  person's to delete (`../../domain/forge/adoption.md`, 1).
-- **An account added before** stays: it is the person's, not the set
-  up's, and the Model step shows it ready (`../../client/pages/README.md`).
-- **Its code:** the intent, in the forge's record, in
-  `temper-engine-domain-forge`; `Create`'s start and its end in
-  `temper-service`'s setup; the starter workflow's bytes, the sample's
-  and the plan's limits in `temper-forge-setup`.
+Moved to [`owned-repositories.md`](owned-repositories.md), section 1.
 
 ## 8. Signing in through temper
 
-**A box's owned Forgejo needs none of this:** it makes its key at its first run
-(`init.md`, 2) and adds its own source (`box.md`, 1), with no secret and no command for the person
-(`../openid-provider.md`, 9). What follows is for every other arrangement.
-
-`temper-box forge sign-in [DIRECTORIES] FORGE`, for a Forgejo of
-`application.sign_in.forges` (`../openid-provider.md`), managed or
-owned, on temper's host, before `temper-box serve`:
-
-1. **The provider's key,** when its file, `engine.clients.provider.key`,
-   is missing: `openssl genpkey -algorithm RSA -pkeyopt
-   rsa_keygen_bits:3072`, run with umask 077 into a file beside the
-   key's and renamed over it, so the key is PKCS#8 PEM, mode 0600 and
-   the service's own user's. It is never printed, copied or logged; a
-   key there is left as it is. No `openssl` on the `PATH` refuses the
-   command, naming it.
-2. **The forge's client secret,** when its file, the forge's client's
-   `secret`, is missing: 32 bytes of the system's randomness in
-   base64url, written whole and private (`README.md`, section 3). A secret there is
-   left as it is.
-3. **It prints,** never running them: the `add-oauth` command
-   (`../openid-provider.md`, 5) with the client's id, the secret file's absolute
-   path in `--secret "$(cat PATH)"`, never the secret's bytes, and the
-   discovery document's URL at temper's public origin, or its listener's
-   with none. The source's callback is the forge's browser origin's
-   `/user/oauth2/temper/callback`: its owned setup's `public` when present,
-   else its record's `web` when it has one, else its `git` URL
-   (`../openid-provider.md`, 1 and 7), matching Forgejo's
-   `ROOT_URL` (2). For an owned Forgejo, the command has the binary and
-   its `--work-path` and `--config`; and Forgejo's settings of
-   `../openid-provider.md`, 4, which an owned Forgejo's `app.ini` already holds
-   (2), and a managed one's owner
-   writes.
-
-Then `temper-box serve`, and the printed command, once, on Forgejo's host.
-
-- **Printed for `temper-box serve`'s owned Forgejo too, not run** (with o/sign-in,
-  2026-10-23), for two reasons: `add-oauth` fetches temper's discovery
-  document at once and adds no source when temper does not answer, and
-  the preparation runs before `temper-box serve` (`owned.md`, 3, `box.md`, 2); and `add-oauth`
-  takes its client secret only as an argument, where the preparation
-  puts no secret (3). A source added by Forgejo's command line while
-  Forgejo runs works at once, so the order costs a person nothing.
-- **Its code:** the command, and the key's and the secret's making, in
-  `temper-engine-shell`'s `forge_sign_in.rs`, dispatched from its
-  `forge.rs`; the printed bytes in `temper-forge-setup`'s `sign_in.rs`.
+Moved to [`owned-sign-in.md`](owned-sign-in.md), section 1.
 
 ## 9. A repository made or copied
 
-- **The service runs what the connector holds**
-  (`../../domain/forge/adoption.md`, 5), in the setup's one pull
-  (`temper-service`'s `lifecycle::advance`): on a forge connected with no
-  writing run live, the connector's oldest `Waiting` row starts, the
-  connector told so before the run's first event. A forge whose setup is
-  excluded, ended or not connected keeps its rows waiting.
-- **`Empty` runs `Create`** and **`Copy` runs `Copy`** (skein's
-  `forge/setup/forgejo.md`, 1.9 and 1.10), each with the starter workflow alone
-  in `files`, on the forge's label: the record's `first.label` when it
-  has one, or else `temper-host` on an owned forge and `docker` on a
-  managed one. The plan's limits are 7's; `copy_deadline` is 30
-  minutes, a constant of `small`'s.
-- **`Copying`** is no credential record: the host's `Read` of it is
-  answered from the row, and its `Write` becomes the connector's event,
-  answered `Written` once that decision is kept.
-- **Its end** goes to the connector: `Done` as made, with the id and the
-  branch; `Stop` as failed, with its step, its why and what
-  `Event::Said` said. An event the root is too busy to take is held and
-  given again, since a row, unlike a view, is kept.
-- **The other writing runs wait for it:** the service starts no
-  reconcile, adoption's access or `Create` beside a run of a row, and
-  one that finds it `Busy` waits as a held `Install` does. A copy may
-  last 30 minutes, so a forge's restart and its reconcile wait as long.
-- **Adopting** (`../../domain/forge/adoption.md`, 5) is asked by the same pull: a
-  row `Made` or `Adopting` with no act in flight, on a connected forge,
-  is given to the connector to act.
+Moved to [`owned-repositories.md`](owned-repositories.md), section 2.
 
 ## 10. Open questions
 

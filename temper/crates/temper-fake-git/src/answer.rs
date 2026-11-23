@@ -387,7 +387,7 @@ fn working(checkout: &Checkout, at: &[u8]) -> Tree {
 fn staged(checkout: &Checkout, at: &[u8]) -> Tree {
     checkout.tree(&meta(checkout, at, b"temper-index"))
 }
-// protocol/git.md, 4.7: excluded logs retain the index's contents, even when deleted.
+// protocol/git-operations.md, 1.7: excluded logs retain the index's contents, even when deleted.
 fn stage(checkout: &mut Checkout, at: &[u8]) {
     let mut tree = working(checkout, at);
     let prior = staged(checkout, at);

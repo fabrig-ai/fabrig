@@ -104,6 +104,8 @@ fn entry_world(proposal: bool) -> (World, (u64, u64), u64) {
     let (config, mut limits) = jig_core_world::faults::plan_fixture(DECISION_SEED);
     limits.core.tasks.run_inbox = SINGLE_SLOT;
     let mut world = World::new(Setup { seed: DECISION_SEED, configuration: Some(config), limits, ..Setup::default() });
+    let (now, wall) = world.clocks();
+    world.set_clock(now, wall);
     let holder = world.assignments[0];
     let child = member(&world, tasks::Executor::Agent { charter: 1 }, b"delegate");
     let child = delegate(&mut world, holder, 1, child);

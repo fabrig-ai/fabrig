@@ -46,7 +46,7 @@ joins it from the providers' work (section 7).
   runs' rows (section 7).
 - **The bounds:** a landing's gate is retried at most its project's
   `gate_retries` per key (`../domain/landing-settings.md`, 1.1;
-  `../domain/landing.md`, 7.4); a change's CI at most `reruns` per job at
+  `../domain/landing-proof.md`, 2.4); a change's CI at most `reruns` per job at
   one head (`../domain/forge/change/README.md`, 2, step 3).
 
 ## 3. Kinds and classes
@@ -170,7 +170,7 @@ combination:
 |---|---|---|---|
 | `a_runner_fault_past_its_reruns_holds_without_repair` | a change's CI failed by its runner past `reruns` holds naming the runner, and asks no repair | repaired (`../domain/forge/change/README.md`, 2, step 3) | a change's reds |
 | `a_cancelled_check_is_the_runners` | a change's CI job cancelled by no one of temper's is rerun as the runner's | the change's (the same step) | a change's reds |
-| `a_red_inherited_from_the_base_asks_no_repair` | a landing gate red only for what its base already fails asks no repair, and holds naming the base | repaired (`../domain/landing.md`, 7.3) | a change's reds |
+| `a_red_inherited_from_the_base_asks_no_repair` | a landing gate red only for what its base already fails asks no repair, and holds naming the base | repaired (`../domain/landing-proof.md`, 2.3) | a change's reds |
 
 A sweep that finds another difference adds its row here, with its
 scenario and exclusion, in the same change.

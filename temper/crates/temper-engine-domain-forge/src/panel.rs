@@ -1,4 +1,4 @@
-//! The connector's whole change document (domain/forge/change/README.md, 5; client/forge/README.md, 2.1).
+//! The connector's whole change document (domain/forge/change/panel.md, 1; client/forge/README.md, 2.1).
 use crate::{ChangeRow, Domain, Limits};
 use alloc::boxed::Box;
 use jig_domain_people::ApplicationScope;

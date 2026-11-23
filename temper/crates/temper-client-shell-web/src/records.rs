@@ -1,4 +1,4 @@
-//! The small store’s client records and the kept look (temper/docs/design/client/README.md, 4 and temper/docs/design/client/pages/README.md).
+//! The small store’s client records and the kept look (temper/docs/design/client/sign-in.md, 1 and temper/docs/design/client/pages/README.md).
 use temper_client_domain::pages::terminal::{Font, Look, Theme};
 
 /// The kept store’s look record (client/pages/README.md): four bytes, `0` or `1`.

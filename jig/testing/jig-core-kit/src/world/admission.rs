@@ -23,7 +23,7 @@ impl World {
 
     /// Release one batch without offering queued inputs or applying commits.
     pub fn collect(&mut self) {
-        self.drive(1, false, false).unwrap_or_else(|finding| self.fail(&finding));
+        self.drive(1, false, false, false).unwrap_or_else(|finding| self.fail(&finding));
     }
 
     /// Apply and offer the oldest store completion without releasing outputs.
@@ -66,12 +66,16 @@ impl World {
 
 impl World {
     pub(super) fn tick_store(&mut self) -> Result<(), String> {
+        let before = self.store.applied;
         match self.store.tick(false) {
             Ok(Some(number)) => self.events.push_front(root::Event::Committed { number, fill: self.fill }),
             Ok(None) => {}
             Err(number) => self.events.push_front(root::Event::Failed { number }),
         }
         self.observer.durable(self.wall, &self.store)?;
+        if self.store.applied != before {
+            self.check_durable()?;
+        }
         Ok(())
     }
     pub(super) fn capture(&mut self, mut delivery: root::Delivery) -> Result<(), String> {

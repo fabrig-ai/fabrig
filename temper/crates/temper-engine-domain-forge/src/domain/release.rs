@@ -1,4 +1,4 @@
-//! Whole repository retirement and link-preserving pages (domain/forge/adoption.md, 1).
+//! Whole repository retirement and link-preserving pages (domain/forge/adoption-connection.md, 1).
 use super::{Domain, Env, Key, Limits, List, Map, Queue, Request, Stored, Token, Topic, child, emit};
 use alloc::boxed::Box;
 use skein_forge::api::Repository;
@@ -647,6 +647,7 @@ pub(super) fn retire(d: &mut Domain, repository: Repository) {
     }
     for key in keys.into_boxed() {
         d.lost.remove(&key);
+        d.read_line.leave(super::read_line::Waiter::Lost(key));
     }
     let mut keys = List::with_capacity(d.pending_ci.len());
     for (key, row) in &d.pending_ci {

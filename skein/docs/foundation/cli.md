@@ -6,7 +6,7 @@ arguments, and how they're built. It is the repository's convention
 beside the programming model, for every tree. Where a tree doesn't
 follow it yet, a check's exception says so, and its exceptions only
 shrink (section 9). The reasons are the user's, of 2026-11-08
-(`temper/docs/design/draft/notes.md`, 13). skein's mechanism for it is
+(`temper/docs/design/draft/cli.notes.md`). skein's mechanism for it is
 `skein-shell`'s table (`../design/runtime/shell.md`, 14).
 
 ## 1. In one page
@@ -158,7 +158,7 @@ above, under compiler-cache keys that no other build asks for
   dev-dependencies, so that mode's keys are the ones their builds share.
 - **The browser bundle's nested build keeps its own selection,** with
   `CARGO_RESOLVER_FEATURE_UNIFICATION=selected`
-  (`temper/docs/design/client/web/README.md`, 2.6). It always selects
+  (`temper/docs/design/client/web/bundle.md`, 1). It always selects
   the same packages, so it is a context of its own, and stable. A union
   over every member would give its module features that no package it
   builds asks for.

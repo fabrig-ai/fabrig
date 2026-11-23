@@ -10,7 +10,7 @@ use std::{
 };
 use temper_box_machine::host::{Echo, FirstLink, Front, Service, Settings};
 
-/// How the box's stdout takes a sign-in link (temper/docs/design/protocol/setup/box.md, 2).
+/// How the box's stdout takes a sign-in link (temper/docs/design/protocol/setup/box-supervision.md, 1).
 pub(crate) fn link_form(
     stdout: &impl std::io::IsTerminal,
     environment: &[super::EnvironmentEntry],
@@ -64,7 +64,7 @@ pub fn run(
     })
 }
 
-/// Lines opening the box log and following its sign-in block (protocol/setup/box.md, 2).
+/// Lines opening the box log and following its sign-in block (protocol/setup/box-supervision.md, 1).
 pub(crate) struct Opening {
     pub log_lines: Box<[Box<[u8]>]>,
     pub after_block: Box<[u8]>,
@@ -178,7 +178,7 @@ pub(crate) fn configured_front(
     front(named, first).map(Some)
 }
 
-/// The front signs in locally, at its own address (temper/docs/design/protocol/setup/box.md, 6).
+/// The front signs in locally, at its own address (temper/docs/design/protocol/setup/box-front.md, 1).
 pub(crate) fn front(named: &temper_service::startup::Named, first: &mut FirstLink) -> Result<Front, String> {
     let secret = skein_shell::crypto_seed().map_err(|errno| format!("first link: system randomness: errno {errno}"))?;
     let listener = super::address(&named.clients)?;
@@ -198,7 +198,7 @@ pub(super) fn held_listeners(held: Vec<(Fd, std::num::NonZeroU16)>) -> Result<Ve
         .map_err(super::held_refusal)
 }
 
-/// The first link, where the box prints one (temper/docs/design/protocol/setup/box.md, 2).
+/// The first link, where the box prints one (temper/docs/design/protocol/setup/box-supervision.md, 1).
 pub(super) fn first_link(
     named: &temper_service::startup::Named,
     steps: &temper_forge_setup::Steps,

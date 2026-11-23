@@ -131,7 +131,7 @@ the box's scripted provider, and what the document loses.
   `demo/llm.key`, its cues the scripts'; an engine alone holds none, and
   a test world that runs a playground builds its own in code
   (`moved.md`, 2). Whether the playground is offered stays the welcome's,
-  kind 20 (`settings.md`, 2).
+  kind 20 (`settings-kinds.md`, 1).
 - **`temper-box fake llm DIRS`** takes its listener from the box, its key
   from `demo/llm.key` and its scripts from the binary, and reads no
   document.

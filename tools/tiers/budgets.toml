@@ -319,6 +319,12 @@ to = "temper.domain"
 cpu_s = 3.2
 why = "The redeploy's replaying value checks and fake-host orchestration have their own domain binary (tools/tiers/layers.md, 6.1)."
 
+[[gate.default.moves]]
+from = "temper.simulated"
+to = "temper.step"
+cpu_s = 0.1
+why = "F7's same-machine pair (hel1-19, temper/docs/development/failure-worlds-room.md): default simulated fell 0.77 s as the two supplied-value referee controls left the simulated world for step binaries (the user, 2026-11-22)."
+
 [gate.default.hearth]
 ideal_s = 30
 
@@ -560,6 +566,18 @@ from = "temper.real-loop"
 to = "temper.domain"
 cpu_s = 4.6
 why = "The redeploy's seeded fake-host and parser cases replay in their own domain binary (tools/tiers/layers.md, 6.1)."
+
+[[gate.fuzzy.moves]]
+from = "temper.real-loop"
+to = "temper.domain"
+cpu_s = 20
+why = "F7's same-machine pair (hel1-19, temper/docs/development/failure-worlds-room.md): fuzzy real-loop fell 33.18 s as its stories were cut to their seams and their assertions held in domain worlds (the user, 2026-11-22)."
+
+[[gate.fuzzy.moves]]
+from = "temper.simulated"
+to = "temper.system"
+cpu_s = 2
+why = "F7's same-machine pair (hel1-19, temper/docs/development/failure-worlds-room.md): fuzzy simulated fell 12.70 s as the four fixed-cut upgrade wrappers and two chat/merge wrappers were retired for composed-system holders (the user, 2026-11-22)."
 
 [gate.fuzzy.hearth]
 ideal_s = 120

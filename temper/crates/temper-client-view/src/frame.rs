@@ -1,4 +1,4 @@
-//! temper's frames and project switcher (temper/docs/design/client/view.md, 1 and 3).
+//! temper's frames and project switcher (temper/docs/design/client/view.md, 1, and temper/docs/design/client/view-navigation.md, 1).
 pub(crate) use crate::bindings::Bindings;
 use crate::bindings::{account_mark, ask_address, forge_mark};
 use crate::column::unavailable;
@@ -296,7 +296,7 @@ fn project_repository(
     }
     b.close();
 }
-// The switcher's forms (temper/docs/design/client/view.md, 3).
+// The switcher's forms (temper/docs/design/client/view-navigation.md, 1).
 fn rename_form(b: &mut Builder, root: &Domain, words: &crate::words::Words, project: &[u8], bindings: &mut Bindings) {
     use crate::words::Word;
     let switcher = root.pages().switcher();
@@ -402,7 +402,7 @@ pub(crate) fn rail_project(root: &Domain, words: &crate::words::Words, sign_in: 
     root.pages().project()
 }
 
-/// The rail (temper/docs/design/client/view.md, 3).
+/// The rail (temper/docs/design/client/view-navigation.md, 1).
 #[expect(clippy::too_many_arguments, reason = "the rail carries page-owned forge facts beside its frame bindings")]
 pub(crate) fn rail(
     b: &mut Builder,
@@ -486,7 +486,7 @@ pub(crate) fn rail(
     b.close();
 }
 
-/// The browser's shared rail and top-bar switch (temper/docs/design/client/view.md, 3).
+/// The browser's shared rail and top-bar switch (temper/docs/design/client/view-navigation.md, 1).
 pub(crate) fn night_switch(b: &mut Builder, root: &Domain, w: &crate::words::Words, bindings: &mut Bindings) {
     use crate::words::{Shell, Word};
     if w.shell == Shell::Browser {
@@ -502,7 +502,7 @@ pub(crate) fn night_switch(b: &mut Builder, root: &Domain, w: &crate::words::Wor
 }
 
 /// The rail's person: a line in the terminal, a menu in a browser
-/// (temper/docs/design/client/view.md, 3).
+/// (temper/docs/design/client/view-navigation.md, 1).
 fn person(b: &mut Builder, root: &Domain, w: &crate::words::Words, bindings: &mut Bindings) {
     use crate::words::{Shell, Word};
     let Some(me) = root.pages().me(root.client()) else { return };
@@ -599,7 +599,7 @@ fn away(
     b.close();
 }
 
-/// A phone's tab bar, the browser's alone (temper/docs/design/client/view.md, 3).
+/// A phone's tab bar, the browser's alone (temper/docs/design/client/view-navigation.md, 1).
 pub(crate) fn tabbar(
     b: &mut Builder,
     root: &Domain,
@@ -643,7 +643,7 @@ pub(crate) fn tabbar(
     b.close();
 }
 
-/// Home and Needs you stay across projects together (temper/docs/design/client/view.md, 3).
+/// Home and Needs you stay across projects together (temper/docs/design/client/view-navigation.md, 1).
 fn targets(root: &Domain, project: u32) -> (Address, Option<u32>) {
     if rail::across(root) { (Address::AllHome, None) } else { (Address::Home { project }, Some(project)) }
 }

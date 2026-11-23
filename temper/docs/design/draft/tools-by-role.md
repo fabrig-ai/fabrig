@@ -74,7 +74,7 @@ Read on one deployment, 2026-11-16. The declarations' figures are names, descrip
 - **Each takes a `what` member and the union of its reads' members, each member described once.**
   - A member keeps one meaning. Today two reads give one name different meanings: `after` is an item's comment id in one and a comparison's later commit in the other, and `head` is a branch in one and a commit in another. The union gives each meaning a member of its own, and section 5's adapters map the old names.
   - The decoder checks each `what`'s required members and answers a missing one by naming what that `what` needs.
-- **Each `what` is answered exactly as its tool is today:** the same renderers, bounds and pages. What each reads from the forge is `forge-reads-targeted.md`'s, unchanged here.
+- **Each `what` is answered exactly as its tool is today:** the same renderers, bounds and pages. What each reads from the forge is `archive/forge-reads-targeted.md`'s, unchanged here.
 - **Each stays within section 3's bound.** A terse union with every member described is about 1.4 KB, so `read_forge` likely splits in two, for example the repository's reads and a pull's. The split is part of T2's acceptance, and the design records it.
 
 ## 5. Upgrades

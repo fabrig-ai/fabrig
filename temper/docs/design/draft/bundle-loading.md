@@ -95,7 +95,7 @@ arithmetic and not measured. A release build's sizes are for the plan to read.
   fraction is the same either way.
 - **The bounds** grow to hold both forms: `clients.bundle_files` and
   `clients.bundle_bytes` (`../protocol/configuration/limits.md`) and what the
-  binary embeds (`../client/web/README.md`, 2.6).
+  binary embeds (`../client/web/bundle.md`, 1).
 
 ## 5. Why not Rust
 

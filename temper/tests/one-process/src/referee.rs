@@ -371,6 +371,8 @@ impl Referee {
     fn phase_complete(&mut self, other: &[Proc]) -> Result<bool, String> {
         Ok({
             match self.phase {
+                #[cfg(test)]
+                crate::world::Phase::Committed => self.store.borrow().applied > 0,
                 crate::world::Phase::Refused => return Err(String::from("refused starts send no shutdown signal")),
                 crate::world::Phase::SignIn => other
                     .iter()
@@ -532,6 +534,7 @@ impl skein_world::Referee<Proc> for Referee {
     }
     #[expect(clippy::too_many_lines, reason = "durable commits and their outside receipts are observed in order")]
     fn watch(&mut self, now: Time, procs: &[Proc]) -> Result<(), String> {
+        crate::store_check::check()?;
         if let Some(why) = &self.finding {
             return Err(why.clone());
         }
@@ -567,7 +570,7 @@ impl skein_world::Referee<Proc> for Referee {
                 )
                 .map_err(|why| format!("durable conformance: {why:?}"))?;
             // A result in its requester's durable inbox has reached that task
-            // (temper/docs/design/testing/README.md, 2.5).
+            // (temper/docs/design/testing/tiers.md, 1.5).
             for row in run.rows.values() {
                 if let root::Record::Core(core::Record::Tasks(
                     jig_domain_tasks::Stored::Live(task) | jig_domain_tasks::Stored::Ended(task),
@@ -662,7 +665,7 @@ impl skein_world::Referee<Proc> for Referee {
             }
         }
         // Serve's stop includes supervised agent cancellation. Only its recorded
-        // end leaves teardown waiting on IO alone (protocol/README.md, 6).
+        // end leaves teardown waiting on IO alone (protocol/service-process.md, 1).
         self.ended = service.service.end().is_some();
         self.observe_drain(now, service)?;
         self.say(now, rules::Observed::Tick)?;
@@ -705,10 +708,16 @@ impl skein_world::Referee<Proc> for Referee {
         })
     }
     fn passed(&self) -> bool {
+        let no_client = match self.phase {
+            #[cfg(test)]
+            crate::world::Phase::Committed => true,
+            crate::world::Phase::Restart | crate::world::Phase::Refused => true,
+            _ => false,
+        };
         self.finding.is_none()
             && (self.done.is_some()
                 && self.ended
-                && (matches!(self.phase, crate::world::Phase::Restart | crate::world::Phase::Refused)
+                && (no_client
                     || self.signed_in
                         && (self.released
                             || !matches!(self.phase, crate::world::Phase::Story)

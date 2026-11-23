@@ -128,6 +128,46 @@ impl Story {
         assert!(story.run_until(|s| s.client.link().state == jig_client::Link::Live, RUNNING_WAIT));
         story
     }
+    /// A signed-in member may propose a widening that the owner's larger per-task budget covers.
+    #[must_use]
+    pub fn live_amendment_proposal(seed: u64) -> Self {
+        use jig_domain_authority as a;
+        let mut limits = crate::fixtures::owner_limits();
+        limits.core.people.sign_ins = 3;
+        limits.core.authority.roles = 2;
+        let mut config = crate::fixtures::batch_config(seed);
+        let mut policy = config.core.seed_projects[0].policy.policy.clone();
+        let mut member = policy.roles[0].clone();
+        member.number = jig_domain_people::Role::Member.number();
+        member.decides = a::Proposals(0);
+        policy.roles[0].authority.budget.spend = 200;
+        policy.roles = Box::new([policy.roles[0].clone(), member]);
+        let mut authority = a::Domain::new(config.core.defaults.rules.clone(), limits.core.authority)
+            .expect("two-role amendment policy");
+        let mut out = skein_lib::Queue::uncapped();
+        a::step(&mut authority, a::Event::Policy { project: 1, policy }, &mut out);
+        assert_eq!(out.pop(), Some(a::PolicyFact::Added { project: 1 }));
+        config.core.seed_projects[0].policy.policy = authority.policy(1).expect("checked policy").clone();
+        config.core.defaults.rules = authority.rules().clone();
+        let mut story = Self::configured(seed, &limits, config);
+        story.sign_in();
+        assert!(story.run_until(|s| s.client.link().state == jig_client::Link::Live, RUNNING_WAIT));
+        story.sign_in_as(crate::fixtures::identity(2));
+        let member = story.client.link().party.expect("member signed in");
+        story.engine.driver.world.send(jig_test_domain::Event::Core(jig_domain_core::Event::People(
+            jig_domain_people::Event::Roles {
+                project: 1,
+                holdings: Box::new([
+                    jig_domain_people::Holding {
+                        person: crate::fixtures::FIRST_OWNER,
+                        role: jig_domain_people::Role::Owner,
+                    },
+                    jig_domain_people::Holding { person: member, role: jig_domain_people::Role::Member },
+                ]),
+            },
+        )));
+        story
+    }
     #[must_use]
     pub fn task_budget(&self, task: u64) -> Option<u64> {
         self.task_record(task).map(|v| v.numbers.budget)

@@ -52,7 +52,7 @@ impl World {
     /// the production assignment and receiving-worker fitting entrances.
     #[must_use]
     pub fn large_review_change(seed: u64, bytes: usize, review: Script) -> Self {
-        let small = Self::review_change(seed, review.clone(), review);
+        let mut small = Self::review_change(seed, review.clone(), review);
         let chat = small.scripts.front().expect("chat script").clone();
         let mut world = Self::configured_limits(seed, chat, true, config, |limits| {
             limits.brief.read_bytes = 131_072;
@@ -61,7 +61,7 @@ impl World {
             limits.forge.brief_bytes = 131_072;
             limits.journal.result_bytes = 131_072;
         });
-        world.scripts = small.scripts;
+        world.scripts = std::mem::take(&mut small.scripts);
         let producer = world.scripts.get_mut(1).expect("producer script");
         let mut turns = vec![call(b"read", br#"{"path":"export.csv","offset":1,"window":128}"#)];
         turns.extend(producer.turns.clone());
@@ -112,7 +112,7 @@ impl World {
 
     /// The real Smith run kept for a review, including its reads and terminal failure.
     #[must_use]
-    pub fn review_agent(&self, task: u64) -> &smith_agent_world::World {
+    pub fn review_agent(&self, task: u64) -> &super::Agent {
         if self.assignment().task == task {
             self.agent()
         } else {

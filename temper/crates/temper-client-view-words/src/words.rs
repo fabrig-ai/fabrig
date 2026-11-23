@@ -2253,8 +2253,8 @@ pub enum Word {
 // The Accounts navigation's two state words (5.3).
 // ConnectForge's and the welcome's forge words (client/forge/deployment.md).
 // The Forges page, navigation dot and setup strip, with owned Runs and password (27 phrases).
-// Thirty-one model-flow phrases (client/pages/accounts.md, 2).
-// The account rows' nineteen literal and two shaped phrases (client/pages/accounts.md, 2).
+// Thirty-one model-flow phrases (client/pages/accounts-words.md, 1).
+// The account rows' nineteen literal and two shaped phrases (client/pages/accounts-words.md, 1).
 // The setup fields and first repository add eleven phrases.
 // Seven playground start status, failure and retry phrases (5.6).
 // The Model step adds four forge phrases and twenty-two segments.
@@ -2285,7 +2285,7 @@ pub const SCRIPTED_MODEL: &[u8] = b"demo";
 // The chats page with no welcome and no project adds one literal phrase (3.5).
 // Model’s connected login and first repository are separate detail phrases (3.5).
 // Home and Settings add two phrases, each with one hole and three segments (3.5).
-// The rail adds four literals and one counted entry (client/view.md, 3).
+// The rail adds four literals and one counted entry (client/view-navigation.md, 1).
 // Five switcher phrases describe repository rows in both shells.
 // Home adds 35 phrases for its steps, intro and connected lines (3.5).
 // Everyday Home adds twenty-one phrases (3.5).
@@ -2298,7 +2298,7 @@ pub const SCRIPTED_MODEL: &[u8] = b"demo";
 // Forge status adds two phrases and removes View (client/pages/README.md).
 // The Ask temper opening replaces one phrase with nineteen (client/pages/README.md).
 // Settings, Needs you and the chat document include their literal phrases (client/pages/README.md, client/pages/settings.md, 2).
-// The rail names its navigation, new box and switcher (client/view.md, 3).
+// The rail names its navigation, new box and switcher (client/view-navigation.md, 1).
 // Last landing adds two phrases (client/pages/README.md).
 // The waiting page removes five phrases across its words and accounts (client/pages/README.md).
 // The try adds thirteen phrases and removes the host-check note (client/pages/README.md).
@@ -2327,7 +2327,7 @@ const PHRASES: u32 = 2868;
 // The Ask temper opening adds twenty literal and hole segments (3.5).
 // Settings, Needs you and the chat document include their literal segments (client/pages/README.md, client/pages/settings.md, 2).
 // The agent check refusal names its charter, adding two segments.
-// The rail menu adds six literal segments (client/view.md, 3).
+// The rail menu adds six literal segments (client/view-navigation.md, 1).
 // The unsent answer toast adds one literal phrase and segment (3.5).
 // Last landing adds four segments (client/pages/README.md).
 // The waiting page removes eleven literal and hole segments (client/pages/README.md).
@@ -6652,7 +6652,7 @@ impl Word {
         PhraseId { owner, number }
     }
 }
-/// The shell whose words the view says (client/web/README.md, 2.4).
+/// The shell whose words the view says (client/web/sign-in.md, 1).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Shell {
     Terminal,
@@ -6681,7 +6681,7 @@ pub struct Words {
 // clock: 256 bytes holds its longest three-sentence explanation whole.
 const REFUSAL_BYTES: u32 = 256;
 const SET_UP_FAILURE_BYTES: u32 = temper_client_domain::forge::forges::FAILURE_BYTES;
-// Switcher paths join two Name holes, a slash, " +", and ten u32 digits (client/view.md, 3).
+// Switcher paths join two Name holes, a slash, " +", and ten u32 digits (client/view-navigation.md, 1).
 fn switcher_repository_bytes(joined: u32) -> Result<u32, Invalid> {
     joined.checked_mul(2).ok_or(Invalid::Overflow)?.checked_add(13).ok_or(Invalid::Overflow)
 }
@@ -9780,7 +9780,7 @@ fn next_tick(
     Some(skein_lib::Wall::from_nanos(nanos))
 }
 
-/// Grouped counts and spend (temper/docs/design/client/pages/accounts.md, 2).
+/// Grouped counts and spend (temper/docs/design/client/pages/accounts-words.md, 1).
 #[must_use]
 pub fn grouped(value: u64) -> Box<[u8]> {
     let digits = skein_lib::Decimal::of(value);

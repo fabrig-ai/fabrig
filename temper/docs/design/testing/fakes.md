@@ -13,7 +13,7 @@ the worker's agents are smith's (protocol/llm.md, section 2). The fake is
 skein's (skein's `testing/fakes/llm.md`):
 
 - **Its domain,** `skein-fake-llm-domain` (skein's `testing/fakes/llm.md`,
-  section 2), whose scripts cue on content (`README.md`, 4.1); a scripted reply can
+  section 2), whose scripts cue on content (`scenarios.md`, 1.1); a scripted reply can
   come in pieces, held after a piece, so a world observes the reply
   partway (skein's `testing/fakes/llm.md`, 2.2).
 - **Its peer,** in `skein-fake-peers` (skein's `testing/fakes/llm.md`, section 3),
@@ -65,6 +65,47 @@ skein's (skein's `testing/fakes/llm.md`):
   login lost, which smith's and jig's worlds test (`real-loop.md`). The real loop
   runs it signed in, under smith's agent hosts, and the process tier
   under `temper-box internal agent` and `temper-box program-login` (`process-tier.md`).
+- **The faults production showed** (`../draft/failure-worlds.md`, 4.2):
+  the fake LLM strikes an account by event, with spent credits, an
+  expired sign-in, a model it doesn't serve, or a tokens-per-window
+  rate window every task on the account shares, answered `429` with the
+  provider's reset headers and no `retry-after`; and it cuts a `200`
+  stream before its completion event, before any output, mid-text or
+  mid-call (skein's `testing/fakes/llm.md`, 2.7 and 2.8). A hang is a
+  hold never released (2.2 there). The fake `claude` answers with
+  documented synthetic envelopes for a billing refusal, an edge's
+  refusal and an unserved model (below). Each fake's outputs are its
+  report of what fell, which a world copies into its fault ledger
+  (`checks.md`, 6.2).
+- **Claude Code's refusals, as synthetic envelopes:** the fake `claude`
+  ends a turn with a `result` whose `is_error` is true, as its story's
+  `End::Error` gives it, which gains the `result` text Claude Code
+  writes beside `errors`. Three envelopes stand for their classes; none
+  claims a deployment's own reply, which wasn't kept
+  (`../draft/failure-worlds.md`, 4.2):
+  - **a billing refusal,** as Claude Code reports a refused
+    subscription: `api_error_status` 402, `result` `API Error: 402
+    {"type":"error","error":{"type":"billing_error","message":"This
+    account's plan does not cover this request."},"request_id":"req_fake"}`.
+    The provider's own error is in its text, so smith's classification
+    tells it from an edge's (smith's `protocol/programs.md`, 5.6): today
+    *invalid*;
+  - **an edge's refusal,** the billing refusal's control:
+    `api_error_status` 403, `result` `API Error: 403 <html><head><title>403
+    Forbidden</title></head><body><h1>403 Forbidden</h1></body></html>`,
+    with no provider error: today *unavailable*, and retried;
+  - **an unserved model:** `api_error_status` 404, `result` `API Error:
+    404 {"type":"error","error":{"type":"not_found_error","message":"model:
+    MODEL"}}`, MODEL the run's: today *invalid*.
+
+  Each is a constructor of the story, `End::billing_refusal()`,
+  `End::edge_refusal()` and `End::unserved_model(model)`, so that worlds
+  share one text. The fake reports what it played: each fault step or
+  end (`Step::RateLimit`, a rejected `Step::RateLimitWindow`,
+  `Step::LoseLogin`, `Step::Hang`, an `End::Error`) is an observation of
+  its own, with its moment, beside its others. A world names each by the
+  fake LLM's kind for the same fault (skein's `testing/fakes/llm.md`, 5)
+  or, for the billing and edge refusals, by its own.
 - **What temper's stories need of them** is skein's and smith's to
   design (skein's `testing/fakes/llm.md`, and skein's `oauth/README.md`, section 5;
   smith's `protocol/programs.md`, section 8); temper's stories code
@@ -185,7 +226,7 @@ loopback (skein's `testing/fakes/forge.md`, section 5). temper's worlds add:
 - **Its fixtures.** The scenario gives the protocol layer each
   repository's id and its table of API tokens and the users they stand
   for (skein's `testing/fakes/forgejo.md`, section 1), and the repositories their
-  files and checks (`README.md`, 4.1).
+  files and checks (`scenarios.md`, 1.1).
 - **Its costs.** The protocol layer counts the requests it serves, by
   route, which the engine's cost checks hold to ceilings
   (../protocol/forge/README.md, section 9).
@@ -206,9 +247,9 @@ loopback (skein's `testing/fakes/forge.md`, section 5). temper's worlds add:
 - **Its setup routes** serve reconcile's tests (../protocol/setup/testing.md, 2),
   and on GitHub's dialect its browser's pages serve the real loop's
   connect (`real-loop.md`). temper's own routes on the clients' listener are
-  tested in `temper-service`'s tests, against no fake (`README.md`, 2.1).
+  tested in `temper-service`'s tests, against no fake (`tiers.md`, 1.1).
 - **Its referee** drains the forge's observations (skein's
-  `testing/fakes/forge.md`, 2.4; here, `README.md`, 4.2).
+  `testing/fakes/forge.md`, 2.4; here, `scenarios.md`, 1.2).
 - **Its faults, in the engine's forge world** (`temper/tests/engine/forge`;
   `../draft/failure-worlds.md`, 4.1 and 4.5):
   - **A ledger per run** (skein's `testing/sweeps.md`, 3), in a world
@@ -351,7 +392,7 @@ loopback (skein's `testing/fakes/forge.md`, section 5). temper's worlds add:
   (skein's `testing/fakes/forgejo.md`, 1, `Config.made_checks`); absent,
   they report none, as before. So the box's fake forges let a person's
   commit decide a head's checks by what it holds
-  (`../protocol/setup/box.md`, 5; `../draft/landed-qa.md`, 6), and how
+  (`../protocol/setup/box-backends.md`, 1; `../draft/landed-qa.md`, 6), and how
   long its run waits for a runner and runs before its verdict: a rule
   may open with phases, as `wait 40m run 5m pass`, so a change's wait
   for a runner shows on a box (skein's `testing/fakes/forge.md`, 2.3;
@@ -374,7 +415,7 @@ loopback (skein's `testing/fakes/forge.md`, section 5). temper's worlds add:
     `testing/fakes/forgejo.md`, 1). Each dispatch makes a run at the
     branch's head, read through its runs and jobs; like Forgejo's
     dispatch-only jobs, it writes no commit status (skein's
-    `forge/forgejo.md`, 2; `../domain/landing.md`, 7.1). Absent, no repository holds a workflow, as before,
+    `forge/forgejo.md`, 2; `../domain/landing-proof.md`, 2.1). Absent, no repository holds a workflow, as before,
     and a dispatch finds none.
   - **`manual_merges`,** `{"allow": bool, "autodetect": bool}`, each
     false when absent: the domain's manual-merge settings (skein's
@@ -457,11 +498,11 @@ skein's fake forge, whose domain is its only remote state. It reaches
 that forge in one of two ways (skein's `testing/fakes/forge.md`, section 3):
 through the typed transport of the fake forge's domain, sharing the
 forge with the forge peer (skein's `testing/fakes/forge.md`, section 5) where a
-world hosts both in one ring (`README.md`, 2.5); or over the forge's git route on the
+world hosts both in one ring (`tiers.md`, 1.5); or over the forge's git route on the
 forge's listener (skein's `testing/fakes/forgejo.md`, section 1), from the real
 loop (`real-loop.md`) and from another process.
 
-- **What it takes:** the invocations of ../protocol/git.md, section 4, with
+- **What it takes:** the invocations of ../protocol/git-operations.md, section 1, with
   their settings (../protocol/git.md, section 3) and their environment
   (../protocol/git.md, section 5), and `git version`, answered as git
   2.47 answers it (../protocol/git.md, section 3), and nothing else.
@@ -487,7 +528,7 @@ loop (`real-loop.md`) and from another process.
 - **Checked against real git:** its answers to the transcripts of
   `temper-git-transcripts` match real git's, masked (../protocol/git.md,
   section 9).
-- **Where it runs:** the one-process world (`README.md`, 2.5) on the typed transport;
+- **Where it runs:** the one-process world (`tiers.md`, 1.5) on the typed transport;
   the real loop (`real-loop.md`) over the git route of the forge peer it hosts, so
   that the gate runs the route; `temper-box fake git` in the playground and the
   process tier. The domain worlds keep the fake checkout at the domain
@@ -508,7 +549,7 @@ its own:
   the route's finding, naming the call asked and the call logged: the
   route answers it as it answers a call it lacks, and the program reads
   the finding after the run, before it makes another call or keeps
-  anything, and panics on it at its top (`README.md`, 4.2). A test of
+  anything, and panics on it at its top (`scenarios.md`, 1.2). A test of
   the order reads the finding. A write (a push, a branch made, a commit, a merge or a commit's
   tree stored) is made once, never again by a replay. A command's calls
   share one connection.
@@ -578,7 +619,7 @@ a store sit) is the one the worker's inspection adapter reads
 - **packs:** each fetch into a store leaves a pack in it, and each check
   out's and merge's fetch of contents one in its repository; a `Pack`
   leaves one pack in each place it names that held more than 50
-  (`../protocol/git.md`, 4.14). A pack is a file
+  (`../protocol/git-operations.md`, 1.14). A pack is a file
   `objects/pack/pack-<n>.pack`, `<n>` the place's next number in
   decimal, in the place's git directory: the store's own directory, or
   the repository's `.git`.
@@ -679,7 +720,7 @@ mail server. Neither is reached by a test.
   story reads its records, never a payload's words, which the root's
   boundary holds.
 - **A device with no browser** is registered as `temper ctl push add`
-  registers one (`../client/ctl/tools.md`, 3): a subscription's JSON
+  registers one (`../client/ctl/tools-acts.md`, 1): a subscription's JSON
   whose endpoint is the fake's, `http://ORIGIN/push/NAME`, and whose
   keys are a fixture's.
 - **A fake mail sink** is not built, nor is mail

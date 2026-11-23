@@ -1,4 +1,4 @@
-//! The TUI's host and its loop (temper/docs/design/client/tui/README.md, 3 and 4).
+//! The TUI's host and its loop (temper/docs/design/client/tui/host.md, 1, and temper/docs/design/client/tui/README.md, 4).
 #![forbid(unsafe_code)]
 
 pub mod host;

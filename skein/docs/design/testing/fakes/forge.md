@@ -461,7 +461,7 @@ of its repositories into another, and reaches no network.
 
 An owner that runs the fake as a product across restarts keeps the
 forge's state in a file of its own (temper's box, whose copies hold it:
-temper's `draft/landed-qa.md`, 6, and `protocol/setup/box.md`, 5). The
+temper's `draft/landed-qa.md`, 6, and `temper/docs/design/protocol/setup/box-backends.md`, 1). The
 domain gives an image of its state and is built again from one.
 
 - **`Domain::image(&self) -> Result<Box<[u8]>, image::Refusal>`,**

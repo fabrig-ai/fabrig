@@ -51,7 +51,7 @@ pub use start_refusal::{refused_row_start, refused_start};
 pub use store::{UnreadableRow, wires};
 pub use temper_engine_domain::loads::{Failure as LoadFailure, Kind as RestoreRangeKind};
 pub use tools::{render_for_task, render_for_task_page, settings_note};
-/// How the service ended (protocol/README.md, 4).
+/// How the service ended (protocol/service-routing.md, 1).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum End {
     Drained,
@@ -72,7 +72,7 @@ pub enum Stop {
         why: JournalStop,
     },
     /// A failed commit's cause, after the root's Uncommitted policy
-    /// (temper/docs/design/protocol/store.md, 4).
+    /// (temper/docs/design/protocol/store-versions.md, 1).
     CommitFailed {
         number: u64,
         why: CommitStop,
@@ -124,7 +124,7 @@ pub enum Stop {
     StoreOpen {
         why: jig_protocol_store::OpenRefusal,
     },
-    /// A temper row refused decoding at restart (protocol/store.md, 5).
+    /// A temper row refused decoding at restart (protocol/store-restart.md, 1).
     StoreRow {
         row: UnreadableRow,
     },
@@ -190,7 +190,7 @@ pub enum Note {
     ForgeTable {
         words: Box<[u8]>,
     },
-    /// One long start-step observation (protocol/README.md, 6.3).
+    /// One long start-step observation (protocol/service-process.md, 1.3).
     StartWaiting {
         line: Box<[u8]>,
     },
@@ -199,16 +199,16 @@ pub enum Note {
         sign_in: u64,
         why: StreamFailure,
     },
-    /// A configured charter may differ from the store's settings (protocol/configuration/README.md, 3).
+    /// A configured charter may differ from the store's settings (protocol/configuration/worker.md, 1).
     StartupWarning {
         line: Box<[u8]>,
     },
-    /// The gate has kept a party's input for at least 1 s (protocol/README.md, 6.2).
+    /// The gate has kept a party's input for at least 1 s (protocol/service-process.md, 1.2).
     CoreWaiting {
         why: CoreWait,
     },
     CoreAnswers,
-    /// A forge's link changed or was refused (temper/docs/design/domain/forge/adoption.md, 6).
+    /// A forge's link changed or was refused (temper/docs/design/domain/forge/adoption-person.md, 1).
     ForgeLink {
         forge: u16,
         note: temper_engine_domain_forge::LinkNote,
@@ -237,9 +237,9 @@ pub enum Note {
         channel: u64,
         text: Box<[u8]>,
     },
-    /// A failed answer accepted by the hub, for stderr only (domain/worker/README.md, 4.3).
+    /// A failed answer accepted by the hub, for stderr only (domain/worker/hosted-runs.md, 1.3).
     RunFailed(temper_engine_domain::RunDiagnostic),
-    /// A refused assignment accepted by the hub, for stderr only (domain/worker/README.md, 4.3).
+    /// A refused assignment accepted by the hub, for stderr only (domain/worker/hosted-runs.md, 1.3).
     RunRefused(RunRefusalDiagnostic),
     /// A failed or refused job accepted by the engine (domain/worker/jobs.md).
     JobAnswered(JobDiagnostic),

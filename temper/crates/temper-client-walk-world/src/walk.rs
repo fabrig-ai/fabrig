@@ -1,4 +1,4 @@
-//! Walk a root-first chain in one world (temper/docs/design/client/journey-walks.md, 4).
+//! Walk a root-first chain in one world (temper/docs/design/client/journey-walks-world.md, 1).
 use crate::{
     facts,
     tui::Terminal,

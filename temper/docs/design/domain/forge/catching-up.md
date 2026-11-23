@@ -6,7 +6,7 @@ opened: it reads afresh and settles its outbox while the engine serves,
 and reports when it has caught up. The start that opens before it is
 jig's (`domain/engine/restart.md`; `domain/connectors.md`, 14); the
 client's part is skein's `forge/client.md`, section 8; the steps the
-forge runs on its records are `README.md`, section 9.
+forge runs on its records are `effects.md`, section 2.
 
 ## 1. In one page
 
@@ -32,7 +32,7 @@ forge runs on its records are `README.md`, section 9.
 
 - **Before it begins,** the forge is restored and does nothing outward:
   no read is asked, no entry handed to the client, no timer of its own
-  fires (`README.md`, section 9).
+  fires (`effects.md`, section 2).
 - **It begins** when the root gives the forge `Event::CatchUp`, which
   the core asks of each connector at the opening (jig's
   `domain/engine/restart.md`). Both halves start in that event.
@@ -40,7 +40,9 @@ forge runs on its records are `README.md`, section 9.
   none a write (`../../draft/reconciling-start.status.md`, the check of
   section 2): the client's fresh pass, the landings' startup gathers,
   the pending CI reads, the goal files' reads, the lost writers' reads
-  and the goal-branch makings' reads. They end when every term is
+  and the goal-branch makings' reads while they are out: a making's
+  read waiting for the client's room, or for its forge, is no term
+  until it is out again (`branches.md`, 1). They end when every term is
   empty; the forge then reports `RestartDone { stage: ReadAfresh }`,
   and from then on its **fresh reads are in**. Outside a restart they
   are in too. In code, `fresh_reads_in(d)`:
@@ -58,8 +60,8 @@ forge runs on its records are `README.md`, section 9.
   once no term on that repository is left: the client owes no fresh
   read of its listing or of a resource in it (`fresh_owed_in`, skein's
   `forge/client.md`, 8, step 6), and no startup gather, pending CI read,
-  goal file's read, lost writer's read or making's read on it is
-  pending. In code, beside `fresh_reads_in`:
+  goal file's read or lost writer's read on it is pending, and no
+  making's read on it is out. In code, beside `fresh_reads_in`:
 
   ```rust
   /// One repository's restart reads are in (temper/docs/design/domain/forge/catching-up.md, 2).
@@ -137,7 +139,10 @@ A decision that judges a forge fact after a restart is made on one of:
   (`skein/docs/design/forge/client.md`, 8, step 5).
 
 A procedure may take its own read where the list below says the fresh
-reads, when one is at hand. Nothing is judged from the store alone.
+reads, when one is at hand. Nothing is judged from the store alone. A
+procedure that judges a goal branch's head or existence waits for that
+branch's making too, whatever the fresh reads say, since a making's
+read waiting for room is no fresh read (`branches.md`, 1).
 
 | Procedure | The fact it judges | It waits on |
 |---|---|---|
@@ -145,7 +150,7 @@ reads, when one is at hand. Nothing is judged from the store alone.
 | `step_verified` | tier verdicts, the change's last head | the fresh reads |
 | `change_facts` outside a gather | heads (a moved branch), drift, verdicts, verification | the fresh reads |
 | a read session's stall clock (`read_session`, `hold_read_session`) | how long its reads have gone unanswered | the fresh reads: the session is exempt until they are in, and counts from them |
-| `goal_branch::base_wait` | the goal branch's head as a change's base | the fresh reads |
+| `goal_branch::base_wait` | the goal branch's head as a change's base | the fresh reads, and the branch's making (`goal_branch::waiting`) |
 | `pull_seen_closed`, `closing_pull` on a change's release | the pull's state | the fresh reads |
 | `standing::judge_held_landing` | the last head, verdicts | the fresh reads |
 | `tiers::restart`, `tiers::start_due` | the followed branch's landings | the fresh reads, or the branch's own read |
@@ -195,7 +200,7 @@ that call, within the run's own deadlines, as when the forge is slow
       pub ci: u32,            // CI reads
       pub goal_files: u32,    // goal files' reads
       pub lost_writers: u32,  // lost writers' reads
-      pub goal_branches: u32, // goal-branch makings' reads
+      pub goal_branches: u32, // goal-branch makings' reads out
       pub uncertain: u32,     // restored entries with an attempt not yet looked at
   }
   ```
@@ -214,7 +219,7 @@ that call, within the run's own deadlines, as when the forge is slow
   has caught up.
 
 - **In the log:** past the report bound, the forge's waiters by kind,
-  count and oldest (`../../protocol/README.md`, 6.3).
+  count and oldest (`../../protocol/service-process.md`, 1.3).
 
 ## 6. Open questions
 

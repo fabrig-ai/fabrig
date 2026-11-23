@@ -1,5 +1,5 @@
 //! The durable observer decodes registered rows through their retained layouts.
-//! See temper/docs/design/testing/README.md, 2.5 and temper/docs/design/testing/checks.md, 1.
+//! See temper/docs/design/testing/tiers.md, 1.5 and temper/docs/design/testing/checks.md, 1.
 use jig_protocol_store::core_v6::Record as _;
 use jig_protocol_store::{KeptFamily, Owner, ValueType, keys, registry_v1 as wire};
 use skein_codec::{

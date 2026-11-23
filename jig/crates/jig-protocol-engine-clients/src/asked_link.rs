@@ -47,6 +47,23 @@ impl State {
     }
 }
 impl Component {
+    /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
+    #[must_use]
+    pub fn inspection_asked_link_count(&self) -> u32 {
+        self.asked.places.len()
+    }
+
+    /// For its worlds' inspection adapter (skein/docs/design/testing/inspection.md, 2).
+    #[must_use]
+    pub fn inspection_asked_link(&self, index: u32) -> Option<(u64, Option<Time>)> {
+        let (sign_in, link) = self.asked.places.iter().nth(skein_lib::length::usize_of(index))?;
+        let deadline = match link {
+            Some(link) => Some(link.until),
+            None => None,
+        };
+        Some((*sign_in, deadline))
+    }
+
     pub(super) fn asked_checked(
         &mut self,
         env: &Env<Limits>,

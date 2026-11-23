@@ -386,7 +386,7 @@ The project's readers, as for `landing history` (`landing-history.md`,
 
 `temper ctl landing times --project PROJECT [--since TIME] [--until
 TIME] [--after CURSOR] [--json]`, a read of the forge's family
-(`../client/ctl/tools.md`, 2), TIME as `landing history` takes it:
+(`../client/ctl/tools-reads.md`, 1), TIME as `landing history` takes it:
 
 - **Its header:** `project P: events through UPPER at TIME`, then
   `, whole since TIME` where the sweep took any.
