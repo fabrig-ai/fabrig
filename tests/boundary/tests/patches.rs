@@ -91,13 +91,12 @@ fn stored_changes_have_patches() {
 }
 
 #[test]
-fn patch_modules_are_current() {
+fn generated_patch_modules_are_current() {
     let root = paths::workspace();
-    let base = base(&root);
     let mut failures = Vec::new();
     for owner in OWNERS {
         if let Err(why) = patch::current(&root.join(owner)) {
-            failures.push(format!("{owner} (base {base}): {why}"));
+            failures.push(format!("{owner}: {why}"));
         }
     }
     assert!(failures.is_empty(), "{}", failures.join("\n"));

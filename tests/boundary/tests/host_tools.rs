@@ -81,6 +81,14 @@ fn check(base: &Files, tree: &Files) -> Vec<String> {
             failures.push(format!("landed contract changed or removed: {name}"));
         }
     }
+    let current_version = check_versions(tree, &mut failures);
+    if let Ok(current_floor) = floor(tree) {
+        check_floor(base, tree, current_version, current_floor, &mut failures);
+    }
+    failures
+}
+
+fn check_versions(tree: &Files, failures: &mut Vec<String>) -> u16 {
     let mut versions = BTreeSet::new();
     for name in tree.keys().filter(|name| contract_name(name)) {
         let version = name
@@ -100,8 +108,14 @@ fn check(base: &Files, tree: &Files) -> Vec<String> {
             failures.push(format!("missing kept contract: host-tools-v{version}.txt"));
         }
     }
-    check_floor(base, tree, greatest, &mut failures);
-    failures
+    match floor(tree) {
+        Err(why) => failures.push(why),
+        Ok(floor) if floor > greatest => {
+            failures.push(format!("contract/floor {floor} exceeds current version {greatest}"))
+        }
+        Ok(_) => {}
+    }
+    greatest
 }
 
 fn floor(files: &Files) -> Result<u16, String> {
@@ -116,21 +130,12 @@ fn floor(files: &Files) -> Result<u16, String> {
     }
 }
 
-fn check_floor(base: &Files, tree: &Files, current: u16, failures: &mut Vec<String>) {
+fn check_floor(base: &Files, tree: &Files, current: u16, current_floor: u16, failures: &mut Vec<String>) {
     // A base predating contract/floor answers from version 1.
     let previous_floor = if base.contains_key("floor") { floor(base).expect("the landed floor is valid") } else { 1 };
-    let floor = match floor(tree) {
-        Ok(floor) => floor,
-        Err(why) => {
-            failures.push(why);
-            return;
-        }
-    };
+    let floor = current_floor;
     if floor < previous_floor {
         failures.push(format!("contract/floor lowered from {previous_floor} to {floor}"));
-    }
-    if floor > current {
-        failures.push(format!("contract/floor {floor} exceeds current version {current}"));
     }
     let previous = base
         .keys()
@@ -150,6 +155,13 @@ fn check_floor(base: &Files, tree: &Files, current: u16, failures: &mut Vec<Stri
             failures.push(format!("contract/floor {floor} passes previous version {previous}: add {breaking} with the reason, or keep the floor at or below {previous}"));
         }
     }
+}
+
+#[test]
+fn current_host_tool_contract_versions_and_floor_are_valid() {
+    let mut failures = Vec::new();
+    check_versions(&current(&paths::workspace()), &mut failures);
+    assert!(failures.is_empty(), "{}", failures.join("\n"));
 }
 
 #[test]

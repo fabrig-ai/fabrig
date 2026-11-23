@@ -17,6 +17,10 @@ import tomllib
 import xml.etree.ElementTree as ET
 
 
+PLANNER = runpy.run_path(str(Path(__file__).with_name('workspace.py')))
+TIERS = Path(__file__).resolve().parents[1] / 'tiers'
+
+
 class Tail:
     """Keep a bounded byte tail, including how much preceded it (section 6)."""
 
@@ -314,7 +318,8 @@ def close_measurements(runs, partial_binaries):
         counting = counting or {}
         if not counting.get('counted'):
             raise ValueError(counting.get('why') or 'counting did not start')
-        partial = partial_binaries(results)
+        # The gate measures these binaries with their landed cases included.
+        partial = partial_binaries(results) | {f'fabrig-boundary::{name}' for name in PLANNER['LANDED_CASES']}
         for process in results['processes']:
             binary = process['binary_id']
             key = process['tree'], process['layer']
@@ -328,28 +333,49 @@ def close_measurements(runs, partial_binaries):
     return measured
 
 
+def budget_input(repository, env, data):
+    """Select the applicable published counts while the real checkout is available."""
+    if not data:
+        return {}
+    if not (repository / '.git').exists() or git(['rev-parse', '--verify', '--quiet', 'HEAD^{commit}'],
+                                                repository, env).returncode:
+        return {'unavailable': 'the source checkout has no commit for budget selection'}
+    counts = runpy.run_path(str(TIERS / 'counts.py'))
+    base = counts['base'](data, repository, env)
+    if base is None:
+        shallow = git(['rev-parse', '--is-shallow-repository'], repository, env)
+        if shallow.stdout.strip() != b'false' or git(['rev-list', '--count', 'HEAD'], repository, env).returncode:
+            return {'unavailable': 'source ancestry is incomplete for budget selection'}
+    return {**data, 'base': base}
+
+
 def close_budgets(root, repository, env, runs):
-    """Judge the default profile's whole-binary measurements at the goal's base (section 4.1)."""
-    tools = Path(__file__).resolve().parents[1] / 'tiers'
-    counts = runpy.run_path(str(tools / 'counts.py'))
-    data = counts['read'](repository, env)
+    """Judge whole binaries against the selected published budget input (section 4.1)."""
+    counts = runpy.run_path(str(TIERS / 'counts.py'))
     try:
+        if 'TEMPER_CLOSE_COUNTS' in env:
+            data = json.loads(Path(env['TEMPER_CLOSE_COUNTS']).read_bytes())
+        else:
+            data = budget_input(repository, env, counts['read'](repository, env))
+        if 'unavailable' in data:
+            print(f"budgets: no verdict at close: {data['unavailable']}; the gate still judges", flush=True)
+            return []
+        base = data['base']
         published = data['profiles']['default']
-        base = counts['base'](data, repository, env)
         old = counts['binaries'](data, 'default', base)
         base_layers, base_cpu = defaultdict(int), defaultdict(float)
         for binary, entry in old.items():
             key = entry['tree'], entry['layer']
             base_layers[key] += entry['instructions']
             base_cpu[key] += published['binaries'][binary]['cpu_s']
-    except (KeyError, TypeError):
+    except (KeyError, TypeError, ValueError, OSError):
         print("budgets: no main's counts in this repository (refs/temper/counts); "
               'no verdict at close, an infrastructure fault to repair; the gate still judges', flush=True)
         return []
     if base is None:
         return [failure('budgets', "the goal is older than main's last twenty landings; update from main and close again")]
 
-    cpu = runpy.run_path(str(tools / 'cpu.py'))
+    cpu = runpy.run_path(str(TIERS / 'cpu.py'))
     try:
         measured = close_measurements(runs, cpu['partial_binaries'])
     except (OSError, ValueError, KeyError, TypeError) as error:
@@ -542,7 +568,7 @@ def one_process(packages, root, env, reds=(), rerun=0, outcomes=None, profile='d
     with tempfile.TemporaryDirectory(prefix='temper-pre-pr-') as directory:
         directory = Path(directory) / ('tests' if profile == 'default' else 'fuzzy')
         arguments = ['python3', '-I', '-B', 'tools/tiers/one-process', '--out', str(directory)]
-        arguments += [profile] + package_args(packages) + ['--no-tests=warn']
+        arguments += [profile] + package_args(packages) + ['--no-tests=warn'] + PLANNER['workspace_filter'](packages)
         test_env = dict(env, TIERS_PRE_PR_TARGETS='1')
         code, log = run(arguments, root, test_env, stdout=True)
         if code == 2 and log.rstrip('\r\n').split('\n')[-1] == 'one-process: nextest listing exited with 101':
@@ -910,8 +936,7 @@ def workspace_checks(root, paths, tree_id, env, errors, outcomes, reds=(), *, co
         if errors:
             return []
     if completed_goal:
-        planner = runpy.run_path(str(Path(__file__).with_name('workspace.py')))
-        package_paths = [p for p in paths if p.endswith('.rs') or planner['owns_package'](root, p)]
+        package_paths = [p for p in paths if p.endswith('.rs') or PLANNER['owns_package'](root, p)]
     else:
         package_paths = []
     data = metadata(root, env) if package_paths else {'packages': [], 'workspace_members': []}
@@ -921,7 +946,7 @@ def workspace_checks(root, paths, tree_id, env, errors, outcomes, reds=(), *, co
     if completed_goal and packages:
         with (root / 'tools/tiers/layers.toml').open('rb') as file:
             layers = tomllib.load(file)
-        groups = planner['package_plan'](root, code_inputs(package_paths, data, root), packages, layers)
+        groups = PLANNER['package_plan'](root, code_inputs(package_paths, data, root), packages, layers)
         suites = sorted(name for targets, names in groups.items() if targets for name in names)
         prerequisites = test_binaries(data, root)
     print(f'pre-pr: selection: {len(paths)} paths, {len(suites)} test packages, '
@@ -973,8 +998,9 @@ def workspace_checks(root, paths, tree_id, env, errors, outcomes, reds=(), *, co
             scratch = tempfile.TemporaryDirectory(prefix='pre-pr-close-', dir=target)
         with scratch as directory:
             runs = []
-            for args in planner['rust_commands'](groups, prerequisites, Path(directory) if suites else None):
-                if args[0] == 'tools/tiers/one-process':
+            runner = str(TIERS / 'one-process')
+            for args in PLANNER['rust_commands'](groups, prerequisites, Path(directory) if suites else None, runner):
+                if args[0] == runner:
                     out = Path(args[2])
                     runs.append(out)
                     if command('focused tests', args, OneProcessDiagnostic(out)):
@@ -1001,6 +1027,7 @@ def check(scope, commits):
     env.setdefault('TEMPER_INTERNAL_BUNDLE', 'none')
     env.setdefault('CARGO_TARGET_DIR', str(root / 'target'))
     env.pop('TIERS_LEDGER', None)
+    env.pop('TEMPER_CLOSE_COUNTS', None)
     has_git = (root / '.git').exists()
 
     def current_head():

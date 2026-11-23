@@ -205,32 +205,33 @@ fn main_list(root: &Path, base: &str, path: &str) -> Result<Option<String>, Stri
 }
 
 #[test]
-fn client_wire_layouts_are_current_and_landed() {
+fn current_client_wire_layouts_match_the_schema() {
+    let root = paths::workspace();
+    let mut failures = Vec::new();
+    for wire in WIRES {
+        let directory = root.join(wire.owner).join("schema");
+        let mut schema = String::new();
+        for part in wire.schemas {
+            schema.push_str(&fs::read_to_string(directory.join(part)).expect("read wire schema"));
+        }
+        let list = fs::read_to_string(directory.join(format!("{}.layouts", wire.name))).expect("read current layouts");
+        failures.extend(now(wire.name, &schema, &list));
+    }
+    assert!(failures.is_empty(), "{failures:?}");
+}
+
+#[test]
+fn landing_history_preserves_client_wire_layouts() {
     let root = paths::workspace();
     let base = base(&root);
     let mut failures = Vec::new();
     for wire in WIRES {
-        let result = (|| {
-            let mut schema = String::new();
-            for part in wire.schemas {
-                schema.push_str(
-                    &fs::read_to_string(root.join(wire.owner).join("schema").join(part))
-                        .map_err(|why| format!("{part}: {why}"))?,
-                );
-            }
-            let path = format!("{}/schema/{}.layouts", wire.owner, wire.name);
-            let list = fs::read_to_string(root.join(&path)).map_err(|why| format!("{path}: {why}"))?;
-            let main = main_list(&root, &base, &path)?;
-            let mut findings = now(wire.name, &schema, &list);
-            findings.extend(landed(wire.name, main.as_deref(), &list));
-            Ok::<_, String>(findings)
-        })();
-        match result {
-            Ok(findings) => failures.extend(findings.iter().map(ToString::to_string)),
-            Err(why) => failures.push(format!("{} (base {base}): {why}", wire.name)),
-        }
+        let path = format!("{}/schema/{}.layouts", wire.owner, wire.name);
+        let list = fs::read_to_string(root.join(&path)).expect("read current layouts");
+        let main = main_list(&root, &base, &path).expect("read landed layouts");
+        failures.extend(landed(wire.name, main.as_deref(), &list));
     }
-    assert!(failures.is_empty(), "{}", failures.join("\n"));
+    assert!(failures.is_empty(), "base {base}: {failures:?}");
 }
 
 const WIRE: &str = "jig-client-wire";
