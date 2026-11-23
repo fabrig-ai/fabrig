@@ -621,7 +621,12 @@ named scenario ceiling with headroom.
   exit fail at once. Ending what it owns, after a starved verdict or at
   the end of a run, takes at most four seconds, Chromium's tree then
   killed and its pipes closed, so no run outlives its conversation's
-  bound by more.
+  bound by more. A forced end sends the kill and the pipes' aborts at
+  once and waits for io's answers within the same four seconds; if io
+  still holds records on them then, the run fails, naming them, and is
+  never a starved pass or a clean end: a descriptor with a record in
+  flight is never closed (../runtime/kernel.md, 7), and the process's
+  exit reclaims it.
   The keys a native date or time field takes, and their order, are the
   face's facts, checked with its others in this suite (../ui/web/testing.md, 1). A
   new Chromium version is a run of these, and a fact that changed is fixed
