@@ -604,6 +604,8 @@ class CloseBudgets(unittest.TestCase):
         self.enterContext(mock.patch.object(PRE, 'WORKER_COUNTS', self.root / 'no-worker-counts.json'))
         self.enterContext(mock.patch.object(PRE, 'PUBLIC_SOURCE', None))
         self.enterContext(mock.patch.dict(PRE.PUBLISHED, clear=True))
+        # The allowance's own rules; the close's margin has a test of its own.
+        self.enterContext(mock.patch.object(PRE, 'CLOSE_MARGIN', 0))
         self.budget_table()
 
     def git_only(self, args, **kwargs):
@@ -649,6 +651,15 @@ class CloseBudgets(unittest.TestCase):
         self.assertEqual(self.log.getvalue(),
                          "budgets: no main's counts in this repository (refs/temper/counts); "
                          'no verdict at close, an infrastructure fault to repair; the gate still judges\n')
+
+    def test_growth_within_the_margin_warns_and_past_it_refuses(self):
+        self.publish()
+        self.enterContext(mock.patch.object(PRE, 'CLOSE_MARGIN', 0.03))
+        # leaf::suite's base is 25e9 of a 100e9 layer; the allowance is 2e9 and the margin 3e9.
+        self.assertEqual(self.verdict(self.result(self.process(29 * self.G))), [])
+        self.assertIn('by less than its 3% margin, a warning', self.log.getvalue())
+        error, = self.verdict(self.result(self.process(31 * self.G)))
+        self.assertIn('instruction growth over allowance', error['log'])
 
     def test_counts_missing_here_are_fetched_from_main(self):
         self.publish()
@@ -817,9 +828,8 @@ class CloseBudgets(unittest.TestCase):
         error, = self.close(fake)
         self.assertEqual(error['name'], 'focused tests')
         status = 0
-        self.assertEqual(self.close(fake), [])
-        self.assertIn('pre-pr: budgets at close, a warning: the landing gate judges them\n', self.log.getvalue())
-        self.assertIn('instruction growth over allowance', self.log.getvalue())
+        error, = self.close(fake)
+        self.assertEqual(error['name'], 'budgets')
 
 
 class Gate(unittest.TestCase):
