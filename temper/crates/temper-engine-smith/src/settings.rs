@@ -307,11 +307,7 @@ pub fn settings_text(
             .or(Err(Problem::Range(b"items")))?,
         )),
         SettingsAnswer::Revisions(value) => c::ReadValue::Revisions(Box::new(
-            client::restore_revisions_page(
-                &wire::revisions(value, &limits.settings).or(Err(Problem::Range(b"items")))?,
-                &limits,
-            )
-            .or(Err(Problem::Range(b"items")))?,
+            client::restore_revisions_page(&wire::revisions(value, &limits.settings).or(Err(Problem::Range(b"items")))?),
         )),
         SettingsAnswer::Unknown => return Ok(Box::from(b"not read: no such setting at that revision. This says nothing about the settings: read the inventory; project-ways, project-questions, project-classes, project-words: project, no number; charter-words, template-goal: number, no project.\n".as_slice())),
     };
