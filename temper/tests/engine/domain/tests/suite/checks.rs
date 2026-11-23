@@ -6,6 +6,56 @@ use temper_engine_domain as engine;
 use temper_engine_domain_forge as forge;
 use temper_engine_domain_world::{checks::Checks, forge_routes::World};
 
+#[test]
+fn a_parked_producing_change_without_its_delegate_is_found() {
+    let mut driver = super::panel_before_change::before_change();
+    driver.send(engine::Event::Forge(Box::new(forge::Event::Change {
+        row: super::panel_before_change::producing_row(),
+    })));
+    driver.settle();
+    let original = driver.root.forge().change(51).expect("producing change").clone();
+    let mut row = original.clone();
+    row.change.state = temper_engine_domain_forge_change::State::Producing { requested: false };
+    row.delegate = None;
+    engine::step(
+        &mut driver.root,
+        &driver.env,
+        engine::Event::Forge(Box::new(forge::Event::Restore { record: forge::Stored::Change(Box::new(row)) })),
+    );
+    engine::fire(&mut driver.root, &driver.env);
+    let finding = Checks::new(71).quiet(&driver.root, driver.env.now, 1).expect_err("parked change has no wake");
+    assert_eq!(
+        finding,
+        format!(
+            "seed 71: at {} ns, iteration 1: engine task 51: waits on change: producing with no live wake: []",
+            driver.env.now.as_nanos(),
+        )
+    );
+    // The referee has read the bad snapshot; restore the live wake before the
+    // direct driver's automatic restart oracle drains the fixture on drop.
+    engine::step(
+        &mut driver.root,
+        &driver.env,
+        engine::Event::Forge(Box::new(forge::Event::Restore { record: forge::Stored::Change(Box::new(original)) })),
+    );
+    driver.settle();
+}
+
+#[test]
+fn a_parked_producing_change_with_its_live_delegate_passes() {
+    let mut driver = super::panel_before_change::before_change();
+    driver.send(engine::Event::Forge(Box::new(forge::Event::Change {
+        row: super::panel_before_change::producing_row(),
+    })));
+    driver.settle();
+    let mut inspection = Inspection::new("engine", temper_engine_inspect::KINDS);
+    temper_engine_inspect::inspect(&driver.root, &mut inspection);
+    let wait = inspection.waits().iter().find(|wait| wait.waiter == "task 51").expect("change wait");
+    assert_eq!(wait.kind, "change: producing");
+    assert_eq!(wait.wakes, [Wake::Waiter("task 52".into())]);
+    assert_eq!(Checks::new(71).quiet(&driver.root, driver.env.now, 1), Ok(()));
+}
+
 fn preparing() -> (World, u64, u64) {
     let (mut world, change) = super::forge_routes::landing::produced_turn_change(None);
     world.manual_prepare_jobs();

@@ -109,7 +109,9 @@ change's due step.
   a wait it can't name: the forge world's scripted root answers in its
   own time. `inspect` gives none: the root carries out each act in the
   step that decides it, so a change still awaiting one at the root's
-  quiet point has no wake, and is a finding.
+  quiet point has no wake, and is a finding. A parked producing procedure
+  with no delegate, dependency or other named wake is a finding too:
+  registering its forge row alone does not wake the root's procedure.
 - **What only the scripted root knows:** a decision or a wake the forge
   has emitted and forgotten (a change's or a landing's `Wait` decision
   whose timer only the root arms, a fired deadline handed over as
