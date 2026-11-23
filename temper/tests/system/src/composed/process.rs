@@ -203,7 +203,7 @@ impl Process {
     /// The next activation, with smith's concrete history and more script.
     pub(crate) fn resume(&mut self, script: Script) {
         let agent = self.agent.as_ref().expect("parked activation");
-        let mut history = self.history.clone();
+        let mut history = self.history.take();
         if matches!(
             agent.answer(),
             run::Answer::Parked { .. }
@@ -212,7 +212,7 @@ impl Process {
             if !agent.turns().is_empty() {
                 let mut current = crate::world::transcript(agent);
                 if let Some(previous) = history {
-                    let mut turns = previous.turns.to_vec();
+                    let mut turns = previous.turns.into_vec();
                     turns.extend(current.turns);
                     current.turns = turns.into_boxed_slice();
                 }
@@ -225,10 +225,10 @@ impl Process {
                 agent.answer()
             );
         }
-        let fresh = if script.turns.is_empty() { self.fresh.clone() } else { Some(script.clone()) };
-        let mut turns = self.script.turns.to_vec();
+        let fresh = if script.turns.is_empty() { self.fresh.take() } else { Some(script.clone()) };
+        let mut turns = std::mem::take(&mut self.script.turns).into_vec();
         turns.extend(script.turns);
-        let script = Script { cue: self.script.cue.clone(), turns: turns.into_boxed_slice() };
+        let script = Script { cue: std::mem::take(&mut self.script.cue), turns: turns.into_boxed_slice() };
         let history_messages = self.history_messages;
         let clocked = self.clocked;
         let wire = self.wire;
