@@ -30,7 +30,6 @@ doubling startup refuses, and `documents.text_bytes`,
 `tasks.spec_bytes` and `tasks.result_bytes`, counted by payload alone.
 
 - **Not yet:**
-  - 3, *The composition*: its store, and the one-process world's rehearsal stores, are handed no prepared schemas, so each start parses `OWNER_SETS`' texts again. [in flight: change 13678]
   - 4: the reset without the box: its fake forge's removal waits for the
     box (`domain/forge/adoption-connection.md`, 1, and its status).
   - 6: the playground forge's links shown as text.
