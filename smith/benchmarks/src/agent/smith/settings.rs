@@ -1,6 +1,6 @@
 //! Product user layers hold the account and trace; task settings travel as flags.
 //! Only attempt-owned paths and the selected model are substituted. No preset
-//! value is derived here (../../../../docs/design/benchmarks/README.md, sections 5.4, 6.1 and 10).
+//! value is derived here (../../../../docs/design/benchmarks/README.md, section 5.4, and ../../../../docs/design/benchmarks/agents.md, section 1.1, and ../../../../docs/design/benchmarks/isolation.md, section 1).
 
 use crate::{Fault, configuration};
 use std::path::Path;

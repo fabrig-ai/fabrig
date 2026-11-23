@@ -52,7 +52,7 @@
   the next successful claim keeps the new account. Clearing the optional
   preference alone keeps the pin. The live claim retains its recorded binding.
 - **On a task its requester ends, the next run is the next turn.** Its run
-  listens after a reply (`lifecycle-endings.md`, 2; smith's `domain/run.md`, section 6), and what
+  listens after a reply (`lifecycle-endings.md`, 2; smith's `domain/run-messages.md`, section 1), and what
   reaches it is answered on that run's models, so a person who kept talking
   would keep the old choice. An amendment that changes such a task's LLM
   choice, any of its models, efforts or account preference:
@@ -72,7 +72,7 @@
   - **Resumes as any change does.** The words are answered on the new
     choice. A changed model in a resumable window compacts first with the
     window's own model, when configured
-    (smith's `domain/session.md`, 8.2): the summary names the old model,
+    (smith's `domain/session-context.md`, 1.2): the summary names the old model,
     and the answer the new one. A window carried across an endpoint,
     dialect, account or backend boundary, or without its saved program
     session, compacts on the new model, dropping opaque replay. A changed

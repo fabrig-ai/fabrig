@@ -27,7 +27,7 @@ pub enum ProgramSignOut {
     Failed(ProgramFailure),
 }
 
-/// A usage read returned by the half after inspection and child settlement (protocol/programs.md, 5.11).
+/// A usage read returned by the half after inspection and child settlement (protocol/programs-claude-code.md, 1.11).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ProgramUsage {
     /// The program reported up to eight subscription allowance windows.

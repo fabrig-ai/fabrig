@@ -1,4 +1,4 @@
-//! Sealed host delivery terminals and durable names (smith/docs/design/domain/run.md, section 8).
+//! Sealed host delivery terminals and durable names (smith/docs/design/domain/run-delivery.md, section 1).
 //! This module keeps no runtime state. Constructors bound owned receipts and
 //! marker feedback before they cross a domain boundary; the receiver additionally
 //! validates directory ordinals against its admitted writable mounts. It never

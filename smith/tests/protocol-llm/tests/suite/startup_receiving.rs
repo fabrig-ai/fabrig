@@ -1,5 +1,5 @@
 //! The frozen phase-one control must be refused before effects or service four turns.
-//! Contract: smith/docs/design/protocol/limits.md, sections 3.2 and 4; smith/docs/design/domain/session.md, section 5.
+//! Contract: smith/docs/design/protocol/limits-derivation.md, section 1.2, and smith/docs/design/protocol/limits.md, section 4; smith/docs/design/domain/session.md, section 5.
 
 use smith_session_world::said;
 

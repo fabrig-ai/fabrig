@@ -1,5 +1,5 @@
 //! The calls a conversation's LLM makes of the run, its delegated tools
-//! (smith/docs/design/domain/run.md, sections 5.2, 5.3, 6 and 8.4): each
+//! (smith/docs/design/domain/run.md, sections 5.2 and 5.3, and smith/docs/design/domain/run-messages.md, section 1, and smith/docs/design/domain/run-delivery.md, section 1.4): each
 //! an entity from its `Delegated` to its one `Return`, under the `calls`
 //! limit, so that a call's slot never waits on the reclaim point.
 //!

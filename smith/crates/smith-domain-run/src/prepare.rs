@@ -1,5 +1,5 @@
 //! What a run finds in its workspace before it opens its main conversation
-//! (smith/docs/design/domain/run.md, sections 3.3 and 8.1). The engine never reads a directory, so the
+//! (smith/docs/design/domain/run-start.md, section 1.3, and smith/docs/design/domain/run-delivery.md, section 1.1). The engine never reads a directory, so the
 //! run looks for itself:
 //!
 //! - For each directory, the start of its selected guide, which the system text

@@ -123,7 +123,7 @@ What step 1 adds:
   should be is step 2's.
 - **A conversation crosses backends:** a task whose next run takes the
   other way carries its conversation over from smith's transcript
-  (smith's `protocol/programs.md`, 5.8).
+  (smith's `protocol/programs-claude-code.md`, 1.8).
 - **One row per model:** Claude's models are the same models whichever
   way reaches them, so the catalogue keeps one row each, under
   `anthropic`, and no name is doubled.

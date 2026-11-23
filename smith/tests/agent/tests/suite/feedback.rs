@@ -1,5 +1,5 @@
 //! Public canonical feedback controls with independently specified exact bytes.
-//! Contract: smith/docs/design/domain/run.md, sections 5.2, 7, 8 and 9;
+//! Contract: smith/docs/design/domain/run.md, sections 5.2 and 7, and smith/docs/design/domain/run-delivery.md, section 1, and smith/docs/design/domain/run.md, section 9;
 //! skein/docs/foundation/testing-strategy.md, section 7.
 
 use skein_lib::Duration;

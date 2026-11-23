@@ -1,5 +1,5 @@
 //! Archived openings retain delivered FIRST instructions and fitted document briefs.
-//! Contract: smith/docs/design/domain/run.md, 3.3; temper/docs/help/reference/ctl-task.md.
+//! Contract: smith/docs/design/domain/run-start.md, 1.3; temper/docs/help/reference/ctl-task.md.
 use jig_domain_core::CharterPart;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;

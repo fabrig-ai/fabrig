@@ -136,7 +136,7 @@ default; the document is `temper.json` in the configuration directory
   is its agents' own executable, so the agent shell starts each program
   process through it, its status check and each print run, and the
   program starts its MCP relay through it (smith's
-  `protocol/programs.md`, 5.1 and 5.3). `main` gives either flag, as
+  `protocol/programs-claude-code.md`, 1.1 and 1.3). `main` gives either flag, as
   the first argument, to smith's agent shell,
   `smith_agent_shell::relay::main` and
   `smith_agent_shell::program_child::main`, before it reads the

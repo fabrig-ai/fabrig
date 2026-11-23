@@ -115,8 +115,8 @@ holds, and neither of its components reads them.
   with a message, within the run's families, as a call of smith's own
   tools is allowed or denied; the agent never changes a call's input, so
   the host sees the call that runs, in the run's turns and activity, as
-  it sees a direct backend's (smith's `protocol/programs.md`, 5.3 and
-  5.4; `../../domain/authority-checks.md`, 1.5). What stays outside the agent's
+  it sees a direct backend's (smith's `protocol/programs-claude-code.md`, 1.3 and
+  1.4; `../../domain/authority-checks.md`, 1.5). What stays outside the agent's
   reach, the host's managed settings among it, is smith's
   `protocol/programs.md`, section 7's.
 - **Host tools on a program source** are offered to the program by the

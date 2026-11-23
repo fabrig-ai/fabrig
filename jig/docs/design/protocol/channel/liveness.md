@@ -96,10 +96,10 @@
   length in plain decimal, and the answer keeps its error flag. So the
   run is told of every call it made, the newest answers as they were,
   and is asked none again: smith tells the LLM of each, as text in its
-  waking prompt (smith's `domain/run.md`, section 6), and an older read
+  waking prompt (smith's `domain/run-messages.md`, section 1), and an older read
   it still needs it reads again. A program that resumes its own session
   is given the same words as user messages (smith's
-  `protocol/programs.md`, 5.8), so its session goes on from where its
+  `protocol/programs-claude-code.md`, 1.8), so its session goes on from where its
   work stood. An assignment that fits whole, a job, and a start in the
   engine's own hub, which crosses no link, are never cut. Only an
   assignment still past the room with every host answer cut is refused

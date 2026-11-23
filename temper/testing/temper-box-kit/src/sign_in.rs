@@ -787,7 +787,7 @@ fn plan_chat(directory: &Path, issuer: oauth::Peer, exceeded: bool) {
     } else {
         // Close cancels with the chat template's grace: one final model turn to finish.
         // A provider's context-too-long rejection would start Smith's compaction
-        // (smith docs/design/domain/session.md, 8.2), a fourth request.
+        // (smith smith/docs/design/domain/session-context.md, 1.2), a fourth request.
         assert_eq!(model_requests(&outcome.procs), 3, "two replies and the closing grace turn, without retry");
         assert_eq!(model_answers(&outcome.procs), [Ok(()); 3], "each request answered, the closing turn too");
     }

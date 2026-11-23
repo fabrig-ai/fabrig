@@ -119,7 +119,7 @@ shell crates only choose a profile and the values a setting overrides.
   aborts runs no end. On Linux its programs die with it: it starts each
   through its own binary's `--program-child` mode. On macOS it starts
   them directly, and an abort needs the host's whole tree ended
-  (../protocol/programs.md, 5.1).
+  (../protocol/programs-claude-code.md, 1.1).
 
 ### 2.3 The local shell
 
@@ -252,8 +252,8 @@ closure:
     `program_valid` and `program_operations`, with the programs'
     settings, reservations and bounds they compute; the service's run
     reads those from here, never from a copy;
-  - `host_limits`, the host's share of the profile (../protocol/limits.md,
-    3.6 and 3.8).
+  - `host_limits`, the host's share of the profile (../protocol/limits-derivation.md,
+    1.6 and 1.8).
 
   It depends on what the service depended on for these, and on
   `smith-host-domain` for `host_limits`; never on `smith-agent-service`

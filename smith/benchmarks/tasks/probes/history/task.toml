@@ -3,7 +3,7 @@ deciding = ["end", "exit-code", "answer", "tool-call", "call-count", "calls-per-
 # At medium effort, version 3's base calibration stopped on three wrong
 # sums in five attempts despite written running sums (rulings 121, 124).
 effort = "high"
-guards = ["domain/session.md, section 8", "protocol/limits.md, section 3"]
+guards = ["domain/session-context.md, section 1", "protocol/limits-derivation.md, section 1"]
 id = "history"
 kind = "probe"
 prompt = """

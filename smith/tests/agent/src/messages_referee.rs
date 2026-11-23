@@ -1,7 +1,7 @@
 //! Boundary-only FIFO/read-fence and concrete-turn oracle. parent input,
 //! fake provider terminals and root output populate this state; no run/session
 //! cells or source fixtures are inspected. Skein owns deadlines and judgments.
-//! Contract: smith/docs/design/domain/run.md, sections 6 and 12; skein/docs/foundation/testing-strategy.md, section 7.
+//! Contract: smith/docs/design/domain/run-messages.md, section 1, and smith/docs/design/domain/run.md, section 12; skein/docs/foundation/testing-strategy.md, section 7.
 
 use std::collections::VecDeque;
 

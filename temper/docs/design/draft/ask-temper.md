@@ -10,7 +10,7 @@ field: nothing of `configuring.txt` carries over unless this draft says so
 this chat's runs (`ask-temper.md`, section 7); it extends skein's `draft/diagrams.md`, section
 2, with who acts at each node (6.3); and for this chat's charter it departs
 from `../domain/agent/tools.md`'s every host tool in every charter, and from
-smith's `protocol/programs.md`, 5.1's Claude Code prompt kept for every run
+smith's `protocol/programs-claude-code.md`, 1.1's Claude Code prompt kept for every run
 (`ask-temper.md`, section 4). It wins where they differ until its plans fold it in. temper/ui
 carries it out (`ask-temper.md`, section 11). Reasons: `ask-temper.notes.md`.
 
@@ -127,7 +127,7 @@ carries it out (`ask-temper.md`, section 11). Reasons: `ask-temper.notes.md`.
   `## Checkout` and a git working directory.
 - **smith's mechanics** for an open run then say nothing of a checkout: no
   `## Tools` section on reading files and no `## Checkout` (smith's
-  `domain/run.md`, 3.3, "the workspace, if any").
+  `domain/run-start.md`, 1.3, "the workspace, if any").
 - **A repository's file** comes through the forge, by `see file` (5.1); a text
   the person has only on their machine, they paste.
 
@@ -150,10 +150,10 @@ carries it out (`ask-temper.md`, section 11). Reasons: `ask-temper.notes.md`.
   `--system-prompt-file` in place of `--append-system-prompt-file`,
   `--tools ""`, `--disable-slash-commands`, and a working directory of the
   run's own that is empty and no repository, where today it is the
-  workspace's first directory (smith's `protocol/programs.md`, 5.1 and 5.3).
+  workspace's first directory (smith's `protocol/programs-claude-code.md`, 1.1 and 1.3).
   A run with a workspace also replaces Claude Code's prompt by default;
   `programs.claude_code.keep_program_prompt` opts into appending (smith's
-  `protocol/programs.md`, 5.1).
+  `protocol/programs-claude-code.md`, 1.1).
 - **What Claude Code still sends,** seen on 2.1.312 on 2026-11-07, run against
   a recorder with no MCP server: a billing line; "You are a Claude agent, built
   on Anthropic's Claude Agent SDK."; and a message of about 0.9 KB naming the

@@ -197,7 +197,7 @@ place (jig's `domain/engine/overlays.md`).
   on its forge, the repository's default on Forgejo
   (`../../domain/forge/adoption.md`), set where the repository is made;
   the project's checks are its `.temper/pre-pr` (smith's
-  `domain/run.md`, 8.1; `tools/pre-pr/design.md`): the format check and
+  `domain/run-delivery.md`, 1.1; `tools/pre-pr/design.md`): the format check and
   the counted baselines on everything, then, against the base the worker
   pins (`../../domain/worker/checkouts.md`), the lints of the packages the
   delivery changed and the focused tests of those packages and their
@@ -214,7 +214,7 @@ place (jig's `domain/engine/overlays.md`).
   the only checks a change meets before it lands there; the landing's CI
   into main, the project's full gate, is the guard. An agent can change
   what a check runs: it is no security boundary (smith's
-  `domain/run.md`, 8.1). Its tiers' workflows are
+  `domain/run-delivery.md`, 1.1). Its tiers' workflows are
   `tier-slow.yml` and `tier-goal.yml`, dispatch-only, each running the
   ids in its `temper_tests` input alone when given them
   (`../../domain/after-landing-runs.md`, section 1). Its merge command is its

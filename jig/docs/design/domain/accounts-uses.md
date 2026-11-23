@@ -146,7 +146,7 @@ account a preferred number or an endpoint default.
   run's models (smith's `domain/run.md`, 5.3). A run on a program
   backend has smith's sub-agents, inspect only, each a program session
   of its own on main's account, and the program's own are withheld
-  (smith's `protocol/programs.md`, 5.10). A charter's models of main's
+  (smith's `protocol/programs-claude-code.md`, 1.10). A charter's models of main's
   provider share its grant, so each takes main's way, on the endpoint
   main's source takes for it; a model of another provider takes a
   sign-in, a key or *none* of its own, on its provider's `direct`

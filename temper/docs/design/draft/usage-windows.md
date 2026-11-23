@@ -18,7 +18,7 @@ idle, we spawn one from time to time".
   (jig's `domain/accounts-lists.md`, 1, the facts' registry). Nothing writes
   it yet.
 - **Runs report it, for free:** every Claude Code run already streams
-  `rate_limit_event`s (smith's `protocol/programs.md`, 5.6), and smith
+  `rate_limit_event`s (smith's `protocol/programs-claude-code.md`, 1.6), and smith
   reads only the one that says the limit is hit. Each one becomes the
   account's window, whatever its status. One run of an account is enough:
   a newer report replaces the fact, so many runs cost nothing more.
@@ -50,7 +50,7 @@ idle, we spawn one from time to time".
   held changes nothing and marks nothing, so a busy account doesn't churn
   its readers.
 - **A limit stays as today:** a rejected event still ends the run failed
-  for its account (smith's `protocol/programs.md`, 5.6). The window is
+  for its account (smith's `protocol/programs-claude-code.md`, 1.6). The window is
   reported as limited beside it.
 
 ## 3. A read when no run speaks
@@ -103,8 +103,8 @@ The user: a recent rate, over one hour, rolling.
 
 ## 6. What changes where
 
-- smith's `protocol/programs.md`, 5.6: every `rate_limit_event` is
-  reported, its window read as section 2 says.
+- smith's `protocol/programs-claude-code.md`, 1.6: every `rate_limit_event` is
+  reported, its window read as `usage-windows.md`, section 2 says.
 - jig's `domain/accounts-lists.md`, 1: kind 7 is said by a program's events
   and a program's usage read, and the read's due times and host are
   `usage-windows.md`, section 3's.

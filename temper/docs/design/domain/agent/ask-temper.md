@@ -43,7 +43,7 @@ proposal of settings an owner accepts (`agents.md`, 1).
   figures. Claude Code's own part, which temper never sees (smith's
   `protocol/programs.md`, section 9), is a recorded figure: about 1.1 KB with no
   MCP server, on 2.1.312 on 2026-11-07, its prompt replaced (smith's
-  `protocol/programs.md`, 5.1).
+  `protocol/programs-claude-code.md`, 1.1).
 - **Started** from the client's Ask temper, in the rail and the tab bar of every
   page of a project, which To begin's first step opens too
   (`../../client/pages/README.md` and `../../client/view-navigation.md`, 1), and from `chat start --project PROJECT

@@ -83,8 +83,8 @@ temper's workspace items beside it:
 - **Charter.** smith's, as the engine wrote it (../agent/charter.md),
   carried as bytes. The worker gives it to the agent with the workspace
   it prepared: where the repositories sit, which may be written, and for
-  a merge in progress the files in conflict (smith's `domain/run.md`,
-  3.2).
+  a merge in progress the files in conflict (smith's `domain/run-start.md`,
+  1.2).
 - **Transcript,** for a run that resumes: its current window, and the
   calls committed after its last turn (jig's `domain/engine/executors-transcripts.md`, 1;
   jig's `domain/hosts/hub.md`, 4). Across the link, those calls' answers
@@ -142,7 +142,7 @@ A hosted run's lifecycle is the hub's, in nine steps (jig's
   repository named by its tag (`../../protocol/channel.md`, section 5).
 
 A push that lands while its run winds down is the run's result (smith's
-`domain/run.md`, 8.2). The hub arms no timers: each wait is bounded
+`domain/run-delivery.md`, 1.2). The hub arms no timers: each wait is bounded
 below it, by the deadlines of git operations, the agent's watchdog and
 wall time, and the grace of cancel, then kill.
 
@@ -195,7 +195,7 @@ jig's types (jig's `domain/hosts/hub.md`, 3), with temper's detail:
   **cancelled,** as jig's say, each with bounded detail for operators
   that no LLM is shown.
 - **A program that started without smith's tools,** smith's
-  `ModelFault::Untooled` (smith's `protocol/programs.md`, 5.6), is
+  `ModelFault::Untooled` (smith's `protocol/programs-claude-code.md`, 1.6), is
   jig's `RunFailure::Untooled` with `model` none (jig's
   `domain/hosts/hub.md`, 3), a fault of its place, the program source's
   login on this worker: the engine keeps the task off that place
@@ -342,7 +342,7 @@ structured fields alone:
   without a wildcard. The evidence is smith's, one to one.
 - **The status** is the evidence's response status where it has one,
   else the report's status, which a program's result gives (smith's
-  `protocol/programs.md`, 5.6), else none.
+  `protocol/programs-claude-code.md`, 1.6), else none.
 - **The refusal** is the report's code where the evidence is `Unsent`,
   the kind `Invalid` or `Unsupported` and no status came: the name smith
   gave the cause of a call it refused before sending it (smith's

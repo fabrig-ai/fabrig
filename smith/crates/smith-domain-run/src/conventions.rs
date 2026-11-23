@@ -1,5 +1,5 @@
-//! Host policy for relative workspace guide/check paths (smith/docs/design/domain/run.md,
-//! sections 3.1, 3.3, 8.1 and 11). Admitted charters keep two owning paths;
+//! Host policy for relative workspace guide/check paths (smith/docs/design/domain/run-start.md, sections 1.1 and 1.3, and smith/docs/design/domain/run-delivery.md, section 1.1, and smith/docs/design/domain/run.md, section 11
+//! ). Admitted charters keep two owning paths;
 //! the absent policy keeps no path allocation and selects Smith defaults.
 //! Discovery, system text and exclusive checks borrow the same selection.
 //! This module knows no host workflow or filesystem; IO confines resolution,

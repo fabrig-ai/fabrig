@@ -1,4 +1,4 @@
-//! Tool-free summaries of portable windows (protocol/programs.md 5.8).
+//! Tool-free summaries of portable windows (protocol/programs-claude-code.md 1.8).
 //! Rendering and argv reuse main's settled storage; no second child is live.
 
 use super::Complete;

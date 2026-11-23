@@ -88,7 +88,7 @@ skein's (skein's `testing/fakes/llm.md`):
     {"type":"error","error":{"type":"billing_error","message":"This
     account's plan does not cover this request."},"request_id":"req_fake"}`.
     The provider's own error is in its text, so smith's classification
-    tells it from an edge's (smith's `protocol/programs.md`, 5.6): today
+    tells it from an edge's (smith's `protocol/programs-claude-code.md`, 1.6): today
     *invalid*;
   - **an edge's refusal,** the billing refusal's control:
     `api_error_status` 403, `result` `API Error: 403 <html><head><title>403
@@ -120,7 +120,7 @@ skein's (skein's `testing/fakes/llm.md`):
     `protocol/transcript.md`), never the store opened; and the tasks to
     take, `--cue TASK=PHRASE` each. A fresh Open chat's cue is a phrase
     of its person's opening request, where smith puts that run's
-    brief (smith's `domain/run.md`, 3.4); its script is `asked`. A
+    brief (smith's `domain/run-start.md`, 1.4); its script is `asked`. A
     Finite run's or a delegate's cue is a phrase of its system brief,
     and its script is `cued`. The converter reads the first turn's
     user text before its assistant completion: a cue found there is

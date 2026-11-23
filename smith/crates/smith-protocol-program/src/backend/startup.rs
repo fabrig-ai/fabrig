@@ -1,4 +1,4 @@
-//! Startup, window replacement and final resource settlement (smith/docs/design/protocol/programs.md, 5.1, 5.8).
+//! Startup, window replacement and final resource settlement (smith/docs/design/protocol/programs-claude-code.md, 1.1, 1.8).
 //! A check owns its command; an invocation owns its window and MCP server.
 //! Startup and relay EOF alarms exist only in their waiting states. Closing
 //! retains the resources it must settle, without accepting another invocation.

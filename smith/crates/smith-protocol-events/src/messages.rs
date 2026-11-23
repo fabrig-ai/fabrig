@@ -2,7 +2,7 @@
 //! The service copies decoded labels and text immediately before their domain
 //! hand-off. Arrival order, including repeated names, joins each fact once;
 //! this book knows neither admission policy nor rendered provider content.
-//! Contracts: smith/docs/design/protocol/events.md, sections 3.7 and 5.3; smith/docs/design/domain/run.md, section 6.
+//! Contracts: smith/docs/design/protocol/events.md, sections 3.7 and 5.3; smith/docs/design/domain/run-messages.md, section 1.
 
 use alloc::boxed::Box;
 

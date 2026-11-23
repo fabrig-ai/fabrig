@@ -3,7 +3,7 @@
 //! a no-progress deadline above its silence, tool and endpoint bounds.
 //! Watchdog contract: smith/docs/design/domain/host.md, section 4.
 //! Contracts: smith/docs/design/shell/README.md, sections 2.1 and 2.6;
-//! smith/docs/design/protocol/limits.md, sections 3.6 and 3.8.
+//! smith/docs/design/protocol/limits-derivation.md, sections 1.6 and 1.8.
 
 use crate::profile::{Check, Layer, LimitName, Refusal, Value};
 use skein_lib::Duration;

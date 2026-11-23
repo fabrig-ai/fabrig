@@ -116,7 +116,7 @@ Each is generic, and says nothing about jig.
   with its own login and its built-in tools asking smith's policy; and
   the host half's sources, login checks and sign-outs (smith's
   `protocol/channel.md`, section 6; `smith/docs/design/protocol/host.md`, section 2;
-  `smith/docs/design/protocol/programs.md`, sections 3 to 5).
+  `smith/docs/design/protocol/programs.md`, sections 3 to 4, and `smith/docs/design/protocol/programs-claude-code.md`, section 1).
 - **Not asked: a completion's result contract.** A protocol layer that
   runs `smith-inline-agent` keeps each slot's beside smith's LLM
   component, as smith's own local host does (`llm.md`, section 3).

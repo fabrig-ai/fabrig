@@ -2,7 +2,7 @@
 //! Caller fixtures supply opaque native data and handwritten outside expectations;
 //! Skein alone owns their grammar. Every historical body comes from an observed
 //! root Turn, including the independently saved concrete post-transcript result.
-//! Contract: domain/run.md, section 6 and domain/budget.md and domain/run.md, sections 9 and 12
+//! Contract: domain/run-messages.md, section 1 and domain/budget.md and domain/run.md, sections 9 and 12
 //! ; domain/session.md, section 3; testing-strategy.md, sections 2.3 and 6.
 
 use skein_fake_llm_domain::api::{Line, Message, Part, Query, Role, Script, Turn};

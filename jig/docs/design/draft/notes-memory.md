@@ -75,7 +75,7 @@ document is drawn beside their conversation (the look request
   its brief carries (`../domain/engine/briefs.md`, section 1), never evicted
   while the task lives, so that a fresh run (`../domain/engine/executors.md`,
   4) and a compacted window
-  (`smith/docs/design/domain/session.md`, section 8) find them.
+  (`smith/docs/design/domain/session-context.md`, section 1) find them.
 - **Gone with the task,** by its retention (`../domain/tasks/README.md`,
   section 3); a working note worth keeping is copied by the run into a
   lesson.

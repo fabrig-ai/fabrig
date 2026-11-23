@@ -90,7 +90,7 @@ sources in its holder's order. temper configures the LLM providers
   is jig's Program grant, its name and generation with no credential
   table's value (jig's `domain/accounts-sources.md`, 1), installed by smith's
   program backend for a Finite run and an Open one alike, a person's
-  chat included (smith's `protocol/programs.md`, 5.9).
+  chat included (smith's `protocol/programs-claude-code.md`, 1.9).
 - **A host that keeps a person's program logins** runs only that
   person's work, until a run's process tree is contained from the
   programs directory (jig's `domain/accounts-sources.md`, 1): a run can read

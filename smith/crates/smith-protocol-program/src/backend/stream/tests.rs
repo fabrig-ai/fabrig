@@ -1,4 +1,4 @@
-//! Init fixtures carry the startup metadata required by protocol/programs.md, section 5.
+//! Init fixtures carry the startup metadata required by protocol/programs-claude-code.md, section 1.
 #![expect(
     clippy::disallowed_macros,
     clippy::disallowed_types,

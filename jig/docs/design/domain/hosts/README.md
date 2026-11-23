@@ -404,7 +404,7 @@ jig's workspace vocabulary with the hub, through the root:
   naming the resource;
 - **deliver** what the run hands over, from its `deliver` or its
   `finish` (section 7), checked, with its title and body, or from its
-  `save`, unchecked, with neither (smith's `domain/run.md`, 8.5), where a
+  `save`, unchecked, with neither (smith's `domain/run-delivery.md`, 1.5), where a
   checked delivery goes: answered with the delivery's outcome in smith's
   terms, and, for the engine, what it left on the resources. What marks
   an unchecked one is the application's;
@@ -472,7 +472,7 @@ jig's workspace vocabulary with the hub, through the root:
   then (../tasks/messages.md, 2 and 3). Nothing a host does drops a message.
 - **Delivery** is the workspace's: smith's `deliver` is served by the hub
   through the application's workspace (section 6), which makes it. Its
-  outcome is smith's (smith's `domain/run.md`, 8.2): delivered, nothing,
+  outcome is smith's (smith's `domain/run-delivery.md`, 1.2): delivered, nothing,
   stale, refused, failed. A `save` is served the same way, as an
   unchecked delivery with no title or body, one delivery in flight at a
   time with the run's others; its answer is a delivery's, which the

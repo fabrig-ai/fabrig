@@ -12,7 +12,7 @@ use temper_protocol_worker_wire::{self as wire, v1::Record};
 
 /// A worker's charter allowance where the engine doesn't know it: smith's
 /// `run_bytes` at its floor, which the stock agent's `tool_payload` doesn't
-/// raise (smith/docs/design/protocol/limits.md, 3.10;
+/// raise (smith/docs/design/protocol/limits-derivation.md, 1.10;
 /// temper/docs/design/domain/agent/tools.md).
 pub const WORKER_CHARTER_BYTES: u64 = 65_536;
 

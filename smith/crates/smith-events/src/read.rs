@@ -2,7 +2,7 @@
 //! The accumulator keeps one partial line; the tokenizer keeps no stream state.
 //! Receiving ceilings come from the writer's joint aggregate, independently of
 //! each field's semantic cap. Contracts: protocol/events.md, section 6;
-//! protocol/limits.md, section 3, rule 1.
+//! protocol/limits-derivation.md, section 1, rule 1.
 
 use crate::records::{
     AccountState, Agent, AgentExit, AnswerClass, AnswerFailure, Backend, Block, Budget, BudgetStage, BudgetStanding,
