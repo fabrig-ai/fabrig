@@ -2,7 +2,7 @@
 # Live pairs have no entry yet: the user has not set their CPU budgets here.
 # Gate tables: tools/tiers/budgets.md, 6; the CI builder's 11-16 gate runs' median by tree, suite and layer, plus the larger of a tenth and a second, rounded up, by the user's word of 11-16; references and ideals from temper/docs/design/draft/test-budgets.md, 6 and 9.
 # Optional per-pair auto_reap = ["test_name", ...] declares known auto-reaping tests; empty today.
-# A suite's [[gate.PROFILE.coverage_reasons]] explains measured coverage losses (tools/tiers/budgets.md, 13).
+# A suite's [[gate.PROFILE.check_reasons]] explains measured checks lost (tools/tiers/budgets.md, 13).
 
 # Suite paths are quoted keys, e.g. [tools."tools/tiers/test_run.py"].
 [tools]
