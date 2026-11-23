@@ -37,6 +37,7 @@ live-temper = [
 ]
 
 process-temper = [
+    "temper",
     "temper-box",
 ]
 
@@ -49,10 +50,14 @@ real-skein = [
     "skein-echo-world",
     "skein-fail-stop-tests",
     "skein-fake-peers-tests",
+    "skein-fake-person-browser",
+    "skein-fork",
+    "skein-io-world",
     "skein-kv-tests",
     "skein-oauth-accounts-world",
     "skein-readiness-tests",
     "skein-ring-tests",
+    "skein-shell",
     "skein-throwaway-forgejo",
     "skein-ui-web-tests",
     "skein-world-tests",
@@ -63,13 +68,16 @@ real-smith = [
     "smith-bench",
     "smith-fake-claude",
     "smith-local-protocol",
+    "smith-local-shell",
     "smith-machine-world",
     "smith-real-world",
 ]
 
 real-jig = [
+    "jig-core-kit",
     "jig-engine-clients-world",
     "jig-test",
+    "jig-test-store-files",
 ]
 
 real-temper = [
@@ -77,12 +85,18 @@ real-temper = [
     "temper-agent",
     "temper-box",
     "temper-box-machine",
+    "temper-box-shell",
     "temper-client-gallery",
     "temper-client-journeys",
     "temper-client-journeys-tool",
+    "temper-client-shell-tui",
     "temper-client-walk",
+    "temper-config-shell",
     "temper-engine",
+    "temper-engine-service-component",
     "temper-engine-shell",
+    "temper-fetch-shell",
+    "temper-fixtures",
     "temper-forge-setup-shell",
     "temper-git-transcripts",
     "temper-playground-serve",
@@ -90,10 +104,15 @@ real-temper = [
     "temper-qa",
     "temper-qa-tool",
     "temper-real-loop-world",
+    "temper-service-shell",
+    "temper-shell",
     "temper-stage-one",
     "temper-twin",
     "temper-worker",
     "temper-worker-checkout-world",
+    "temper-worker-protocol-git",
+    "temper-worker-service",
+    "temper-worker-shell",
 ]
 
 real-hearth = [
