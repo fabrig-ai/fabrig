@@ -428,9 +428,9 @@ fn a_chat_opens_at_its_end_and_reads_back_keeping_its_place() {
     in_log(&harness, "latest", "sent-words");
     reading_measures(&harness, "unanchored");
     reading_measures(&harness, "long");
-    in_log(&harness, "long", "before-later");
-    held(&harness, "long", "before-later", "after-later");
-    in_log(&harness, "long", "latest-end");
+    in_log(&harness, "long/later", "before");
+    held(&harness, "long/later", "before", "after");
+    in_log(&harness, "long/later", "latest-end");
     // Read at unanchored's end, after every read, so the rule held throughout that story.
     assert_eq!(
         box_of(&harness, "unanchored", "log-end").0,
@@ -446,9 +446,8 @@ fn a_chat_opens_at_its_end_and_reads_back_keeping_its_place() {
 
 fn short_steps() -> Vec<Step> {
     vec![
+        see(paragraph(reading::SHORT_START.as_bytes())),
         see(Find::text(reading::SHORT_END.as_bytes())),
-        gone(Find::exactly_named(Role::Status, b"Loading earlier messages")),
-        gone(Find::exactly_named(Role::Button, b"Older")),
         gone(Find::exactly_named(Role::Button, b"Latest")),
         keep_box(Find::named(Role::Log, b"Conversation"), "short/log"),
         keep_box(paragraph(reading::SHORT_START.as_bytes()), "short/start"),
@@ -517,8 +516,7 @@ fn reading_chat(address: &[u8], last: &[u8], second_last: &[u8]) -> Vec<Step> {
         see(paragraph(last)),
         // Opening holds only a weight; the second-last message comes by the log's near read.
         see(paragraph(second_last)),
-        gone(Find::exactly_named(Role::Status, b"Loading earlier messages")),
-        gone(Find::exactly_named(Role::Button, b"Older")),
+        gone(loading_earlier()),
         gone(Find::exactly_named(Role::Button, b"Latest")),
     ]
 }
@@ -530,6 +528,7 @@ fn unanchored_steps(tier: &Tier) -> Vec<Step> {
         &reading::position_words(reading::POSITION_MESSAGES - 1),
     );
     steps.extend([
+        gone(Find::exactly_named(Role::Button, b"Older")),
         gone(paragraph(&reading::position_words(1))),
         keep_box(Find::named(Role::Log, b"Conversation"), "unanchored/log-default"),
         reading::anchoring_off(),
@@ -546,6 +545,8 @@ fn unanchored_steps(tier: &Tier) -> Vec<Step> {
 }
 
 fn long_steps(tier: &Tier) -> Vec<Step> {
+    const LATER_HEIGHT: u32 = 600;
+    const UP_TO_OVERLAP: u32 = 3;
     let messages = reading::LONG_MESSAGES;
     let composer = || Find::exactly_named(Role::TextArea, b"Message");
     let mut steps = reading_chat(b"/chats/3", &reading::long_words(messages), &reading::long_words(messages - 1));
@@ -556,34 +557,40 @@ fn long_steps(tier: &Tier) -> Vec<Step> {
         reading::long_words,
         paragraph(&reading::long_words(messages - 2)),
     ));
-    read_to_start(tier, &mut steps, messages - 2);
-    steps.extend([gone(reply_end(messages)), see(Find::exactly_named(Role::Button, b"Latest"))]);
-    // Hold the later read while PageDown reaches the retained window's foot.
-    // An earlier read can still be out after the first message is drawn.
-    steps.push(gone(loading_earlier()));
+    // Stop short of the opening. A shorter log lets the next PgUp read leave us
+    // inside the retained reply but outside the foot's read margin. One PgDown
+    // then reaches that margin without leaving the new window near its head.
+    let latest = || Find::exactly_named(Role::Button, b"Latest");
+    steps.push(Step::Viewport { width: 1280, height: LATER_HEIGHT });
     steps.extend(serve_signal(tier, "-STOP"));
-    for _ in 0..6 {
-        steps.push(Step::Key(Key::PageDown));
+    for _ in 0..UP_TO_OVERLAP {
+        steps.push(Step::Key(Key::PageUp));
     }
-    steps.push(keep_box(reply_end(2), "long/before-later"));
+    steps.push(see(loading_earlier()));
     steps.extend(serve_signal(tier, "-CONT"));
     steps.extend([
-        see(reply_end(3)),
-        keep_box(reply_end(2), "long/after-later"),
-        Step::Focused(composer()),
-        see(Find::exactly_named(Role::Button, b"Latest")),
-    ]);
-    read_to_end(tier, &mut steps, messages);
-    steps.push(gone(paragraph(&reading::long_words(1))));
-    // Read the dropped head again, dropping the newest reply before Latest restores it.
-    read_to_start(tier, &mut steps, messages - 1);
-    steps.extend([
-        see(paragraph(&reading::long_words(1))),
+        see(paragraph(&reading::long_words(messages - 3))),
+        gone(loading_earlier()),
         gone(reply_end(messages)),
-        Step::Person(PersonStep::Press { find: Find::exactly_named(Role::Button, b"Latest") }),
+        see(latest()),
+        keep_box(Find::named(Role::Log, b"Conversation"), "long/later/log"),
+    ]);
+
+    // Both replies carry the numbered paragraph. It belongs to the newer
+    // reply before the slide, and to the older reply after it.
+    let overlap = || paragraph(b"Numbered line 26. Keep this paragraph available while reading.");
+    steps.extend(serve_signal(tier, "-STOP"));
+    steps.extend([Step::Key(Key::PageDown), keep_box(overlap().nth(1), "long/later/before")]);
+    steps.extend(serve_signal(tier, "-CONT"));
+    steps.extend([
+        see(reply_end(messages - 1)),
+        keep_box(overlap(), "long/later/after"),
+        Step::Focused(composer()),
+        see(latest()),
+        Step::Person(PersonStep::Press { find: latest() }),
         see(reply_end(messages)),
-        gone(Find::exactly_named(Role::Button, b"Latest")),
-        keep_box(reply_end(messages), "long/latest-end"),
+        gone(latest()),
+        keep_box(reply_end(messages), "long/later/latest-end"),
     ]);
     steps
 }
@@ -601,6 +608,7 @@ fn reading_back_steps(
     let keep = |find, name: &str| keep_box(find, &format!("{story}/{name}"));
     let mut steps = Vec::new();
     steps.extend([
+        see(reply_end(messages)),
         keep(Find::named(Role::Log, b"Conversation"), "log"),
         keep(reply_end(messages), "end"),
         keep(anchor(), "head"),
@@ -613,12 +621,7 @@ fn reading_back_steps(
     for _ in 0..5 {
         steps.push(Step::Key(Key::PageUp));
     }
-    steps.extend([
-        Step::Focused(composer()),
-        see(loading()),
-        see(Find::text("Loading earlier messages…".as_bytes())),
-        keep(anchor(), "before-earlier"),
-    ]);
+    steps.extend([Step::Focused(composer()), see(loading()), keep(anchor(), "before-earlier")]);
     steps.extend(serve_signal(tier, "-CONT"));
     steps.extend([see(earlier), gone(loading()), keep(anchor(), "after-earlier"), Step::Focused(composer())]);
     steps
@@ -672,38 +675,8 @@ fn in_log(harness: &Harness, story: &str, name: &str) {
 fn reply_end(number: u32) -> Find {
     Find::text(format!("End of reply {number}.").as_bytes())
 }
-fn read_to_start(tier: &Tier, steps: &mut Vec<Step>, from: u32) {
-    // Hold each read until the keys reach the retained head, then await the next message.
-    steps.push(see(paragraph(&reading::long_words(from))));
-    for number in (2..from).rev() {
-        read_earlier(tier, steps, paragraph(&reading::long_words(number)));
-    }
-    // The first reply and the first message cross separate activity pages.
-    read_earlier(tier, steps, reply_end(1));
-    read_earlier(tier, steps, paragraph(&reading::long_words(1)));
-}
 fn loading_earlier() -> Find {
     Find::exactly_named(Role::Status, b"Loading earlier messages")
-}
-fn read_earlier(tier: &Tier, steps: &mut Vec<Step>, next: Find) {
-    // Finish reading the retained head before holding the next read.
-    steps.push(gone(loading_earlier()));
-    steps.extend(serve_signal(tier, "-STOP"));
-    for _ in 0..4 {
-        steps.push(Step::Key(Key::PageUp));
-    }
-    steps.extend(serve_signal(tier, "-CONT"));
-    steps.push(see(next));
-}
-fn read_to_end(tier: &Tier, steps: &mut Vec<Step>, messages: u32) {
-    for number in 4..=messages {
-        steps.extend(serve_signal(tier, "-STOP"));
-        for _ in 0..4 {
-            steps.push(Step::Key(Key::PageDown));
-        }
-        steps.extend(serve_signal(tier, "-CONT"));
-        steps.push(see(reply_end(number)));
-    }
 }
 fn held(harness: &Harness, story: &str, before: &str, after: &str) {
     let before = box_of(harness, story, before);
