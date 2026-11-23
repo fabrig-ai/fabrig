@@ -562,25 +562,30 @@ fn input_turn(group: &[Box<[Rule]>], script: usize, messages: &[Message]) -> Opt
 ///
 /// Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 4.4.
 fn cued(scripts: &[Script], system: &[u8]) -> Option<usize> {
-    let mut selected = None;
-    let mut earliest = None;
+    let mut first_bytes = [false; 256];
     for (index, script) in scripts.iter().enumerate() {
-        if let Some(offset) = bytes::find(system, &script.cue) {
-            let earlier = match earliest {
-                Some(previous) => offset < previous,
-                None => true,
-            };
-            if earlier {
-                selected = Some(index);
-                earliest = Some(offset);
-            }
-            // No later script can precede this one at the start of the text.
-            if offset == 0 {
-                break;
+        // Includes the empty cue, which cannot lose to a later position.
+        if system.starts_with(&script.cue) {
+            return Some(index);
+        }
+        if let Some(first) = script.cue.first() {
+            *first_bytes.get_mut(usize::from(*first)).expect("a byte indexes the byte alphabet") = true;
+        }
+    }
+    // Scan the text once; compare cues only where one can begin. Looking for
+    // each absent cue separately would scan the same long system text again.
+    for (offset, byte) in system.iter().enumerate().skip(1) {
+        if !first_bytes.get(usize::from(*byte)).expect("a byte indexes the byte alphabet") {
+            continue;
+        }
+        let text = system.get(offset..).expect("an enumerated byte begins a suffix");
+        for (index, script) in scripts.iter().enumerate() {
+            if text.starts_with(&script.cue) {
+                return Some(index);
             }
         }
     }
-    selected
+    None
 }
 
 /// The scripted answer `turn`, its calls named afresh; cut short past the
@@ -1116,6 +1121,10 @@ mod tests {
             (&[b"ear", b"early"], b"prefix early", Some(0)),
             (&[b"missing"], b"prefix", None),
             (&[b"missing", b""], b"", Some(1)),
+            (&[b"x", b""], b"prefix x", Some(1)),
+            (&[b"x", b""], b"x", Some(0)),
+            (&[b"\xffy", b"\0x"], b"prefix \0x \xffy", Some(1)),
+            (&[b"xy"], b"prefix x", None),
             (&[], b"", None),
         ];
         for &(cues, text, expected) in cases {
