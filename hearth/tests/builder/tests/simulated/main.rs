@@ -19,6 +19,7 @@ mod diff {
 }
 
 mod render {
+    mod errors;
     mod git;
     mod outputs;
     mod resolution;
