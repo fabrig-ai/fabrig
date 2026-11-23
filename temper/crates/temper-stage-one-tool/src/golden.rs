@@ -1,4 +1,4 @@
-//! The golden and settings files: `temper/docs/design/testing/checks.md`, 5.
+//! The golden and settings files: `temper/docs/design/testing/checks-stage-one.md`, 1.
 use std::collections::BTreeSet;
 use std::fmt;
 use std::fmt::Write as _;
