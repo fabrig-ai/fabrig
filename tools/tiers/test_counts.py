@@ -99,6 +99,83 @@ class CountsTests(CountsRepository):
         self.assertEqual(counts.binaries(self.data, 'default', 'unknown'), {})
 
 
+class ExportTests(CountsRepository):
+    def ledger(self, profile='default', **binaries):
+        return {'ledger': 5, 'profile': profile, 'budgets': {}, 'moves': [], 'binaries': {
+            binary: dict(tree=tree, layer=layer, cpu=cpu, tests={}, alone={},
+                         counts=[dict(commit=commit, instructions=count) for commit, count in entries])
+            for binary, (tree, layer, cpu, entries) in binaries.items()}}
+
+    def test_window_carries_older_counts_and_honours_accepted_levels(self):
+        older = 'a' * 40
+        move = {'from': 'jig.simulated', 'to': 'jig.domain', 'cpu_s': 1, 'why': 'lower'}
+        ledger = self.ledger(**{
+            'jig-suite::domain': ('jig', 'domain', [3, 9, 4], [(older, 7), (self.first, 10), (self.third, 40)]),
+            'jig-old::domain': ('jig', 'domain', [2], [(None, 1), (older, 6)]),
+            'jig-late::domain': ('jig', 'domain', [2, 4], [(older, 3), (self.second, 5)]),
+            'jig-uncounted': ('jig', 'step', [1], []),
+            'temper-lib': ('temper', 'step', [1], [(self.second, 60_000_000_000)]),
+        })
+        ledger['moves'] = [move]
+        profiles = {'default': {'jig': {'domain': {'instructions': 100, 'accepted_instructions': 2_000_000_051}},
+                                'temper': {'step': {'instructions': 100}}}}
+        data, table = counts.export({'default': ledger}, [self.first, self.second, self.third], profiles)
+        self.assertEqual(data['commits'], [self.first, self.second, self.third])
+        self.assertEqual(data['profiles']['fuzzy'], {'binaries': {}, 'moves': []})
+        published = data['profiles']['default']
+        self.assertEqual(published['moves'], [move])
+        self.assertEqual(published['binaries'], {
+            'jig-suite::domain': dict(tree='jig', layer='domain', cpu_s=4, counts={self.first: 10, self.third: 40}),
+            'jig-old::domain': dict(tree='jig', layer='domain', cpu_s=2, counts={self.first: 6}),
+            'jig-late::domain': dict(tree='jig', layer='domain', cpu_s=3, counts={self.first: 3, self.second: 5}),
+            'temper-lib': dict(tree='temper', layer='step', cpu_s=1, counts={self.second: 60_000_000_000}),
+        })
+        self.assertEqual(counts.layers(data, 'default', self.first), {('jig', 'domain'): 19})
+        self.assertEqual(counts.layers(data, 'default', self.third),
+                         {('jig', 'domain'): 51, ('temper', 'step'): 60_000_000_000})
+        self.assertEqual(table.splitlines(), [
+            'version\t1', f'main\t{self.third}',
+            'binary\tdefault\tjig-late::domain\tjig\tdomain',
+            'binary\tdefault\tjig-old::domain\tjig\tdomain',
+            'binary\tdefault\tjig-suite::domain\tjig\tdomain',
+            'binary\tdefault\ttemper-lib\ttemper\tstep',
+            'layer\tdefault\tjig\tdomain\t51\t2000000000',
+            'layer\tdefault\ttemper\tstep\t60000000000\t1200000000',
+        ])
+
+    def test_export_command_reads_main_and_round_trips(self):
+        (self.root / 'tools/tiers').mkdir(parents=True)
+        (self.root / 'tools/tiers/budgets.toml').write_text(
+            '[gate.default.jig.domain]\ninstructions = 100\naccepted_instructions = 3000000040\n')
+        self.git('add', '.')
+        self.git('commit', '-qm', 'budgets')
+        head = self.git('rev-parse', 'HEAD')
+        default = self.root / 'default.json'
+        default.write_text(json.dumps(self.ledger(**{
+            'jig-suite::domain': ('jig', 'domain', [3], [(self.first, 10), (head, 40)])})))
+        fuzzy = self.root / 'fuzzy.json'
+        fuzzy.write_text(json.dumps(self.ledger('fuzzy')))
+        out = self.root / 'published'
+        command = (sys.executable, '-I', '-B', str(HERE / 'counts.py'), 'export',
+                   '--ledger', f'default={default}', '--ledger', f'fuzzy={fuzzy}', '--out', str(out))
+        result = subprocess.run(command, cwd=self.root, env=self.env, capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, f'counts: 1 binaries over 3 commits, main {head[:10]}, in {out}\n')
+        data = json.loads((out / 'counts.json').read_text())
+        self.assertEqual(data['commits'], [self.first, self.second, head])
+        self.assertEqual((out / 'allowances.tsv').read_text().splitlines()[-1],
+                         'layer\tdefault\tjig\tdomain\t40\t3000000000')
+        self.data = data
+        self.publish()
+        self.assertEqual(counts.binaries(counts.read(self.root, self.env), 'default', self.second),
+                         {'jig-suite::domain': dict(tree='jig', layer='domain', instructions=10)})
+
+        swapped = (*command[:5], '--ledger', f'default={fuzzy}', '--out', str(out))
+        result = subprocess.run(swapped, cwd=self.root, env=self.env, capture_output=True, text=True)
+        self.assertEqual(result.returncode, 2)
+        self.assertEqual(result.stderr, f'counts: {fuzzy} is the fuzzy ledger, not default\n')
+
+
 class AllowanceTests(unittest.TestCase):
     def test_floor_and_two_percent_agree_with_gate(self):
         cpu = runpy.run_path(str(HERE / 'cpu.py'))

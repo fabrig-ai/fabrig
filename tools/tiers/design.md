@@ -1526,7 +1526,8 @@ holds `refs/temper/counts`, `tools/tiers/budget-lines.awk` reads its
 `allowances.tsv` (`tools/tiers/budgets.md`, 7.1) with the run's counts, and
 prints one line on stderr for each tree and layer of the run's binaries: their
 count, and how far a change may grow that layer at main's newest published
-commit (2% of its count there, at least a billion instructions). It also prints
+commit (2% of its count there, at least a billion instructions, or up to the
+user's accepted level, `tools/tiers/budgets.md`, 8). It also prints
 one line for each binary main's counts lack. awk, not Python, so the lines cost
 a few milliseconds. They are advisory: goal close and the gate judge, against
 the goal's own base and with the credit of new moves. The command removes the

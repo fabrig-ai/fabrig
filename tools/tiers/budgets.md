@@ -241,6 +241,17 @@ at the newest commit and `allowance` of it, with the layer's accepted level
 in the newest commit's `tools/tiers/budgets.toml`. Small and flat, so that an
 implementer's run reads it in a few milliseconds.
 
+`python3 -I -B tools/tiers/counts.py export --ledger default=PATH [--ledger fuzzy=PATH] [--head REV] --out DIR`,
+from the checkout root, writes both files into DIR, REV `HEAD` by default. The gate's
+runner runs it after each landing, with main's ledgers as main's tip has them
+(section 7) and REV main's tip. `commits` are REV's last twenty first-parent commits.
+A binary keeps the ledger's counts at the window's commits, and the newest count it
+had before them stands at the window's first commit where it has none there, so each
+commit's sums are main's there. Its `cpu_s` is its figure at main (section 8). A binary with no count is left
+out, and a profile without a ledger has no binaries and no moves. The allowances take
+the accepted levels of REV's `tools/tiers/budgets.toml` (section 2). It exits 2 on a
+ledger `ledger()` refuses, a ledger of the other profile, or a git failure.
+
 `tools/tiers/counts.py` reads the window. `read(root, env)` uses
 `git cat-file blob refs/temper/counts:counts.json` with
 `GIT_NO_LAZY_FETCH=1` and returns the parsed version 1 object or none

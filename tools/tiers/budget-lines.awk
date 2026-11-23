@@ -22,7 +22,11 @@ match($0, /"binary_id": *"[^"]*"/) {
 END {
     for (key in sum) {
         split(key, part, " ")
-        printf "budgets: %s %s %s: this run's tests count %.1f G; a change may grow the layer by %.1f G at main %s (2%% of %.1f G, at least 1 G)\n", part[1], profile, part[2], sum[key] / 1e9, allow[key] / 1e9, substr(main, 1, 10), count[key] / 1e9
+        usual = int(count[key] / 50)
+        if (usual < 1e9) usual = 1e9
+        if (allow[key] > usual) why = sprintf("to the user's accepted level of %.1f G", (count[key] + allow[key]) / 1e9)
+        else why = sprintf("2%% of %.1f G, at least 1 G", count[key] / 1e9)
+        printf "budgets: %s %s %s: this run's tests count %.1f G; a change may grow the layer by %.1f G at main %s (%s)\n", part[1], profile, part[2], sum[key] / 1e9, allow[key] / 1e9, substr(main, 1, 10), why
     }
     for (binary in unplaced)
         printf "budgets: %s is not in main's counts; the gate places a new binary by tools/tiers/layers.toml\n", binary
