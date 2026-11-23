@@ -54,4 +54,3 @@ runtime outcome is supplied here.
   are output and the user's request of 2026-11-04 changed no behaviour
   (13).
 
-- **Not yet:** 3.6: a resumed start's parts counted with its transcript against the resume limit, and a part's frame [in flight: change 11455].

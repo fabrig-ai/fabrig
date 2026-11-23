@@ -27,4 +27,3 @@ remains a tail.
     request"), and with another account's waiting it is counted as that
     one's answer.
 
-- **Not yet:** 4, *Drain, then cancel*, and 6, *Parts are held as turns are*: the kit carries no drain's grace and holds no part [in flight: change 11455].

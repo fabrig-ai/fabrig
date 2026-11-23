@@ -66,4 +66,3 @@ together; a field's bound alone does not promise that the whole fits.
   holds numbers. No reason is recorded.
   7: the temper message-rendering departure remains `charters.status.md` (Departs).
 
-- **Not yet:** the agent capability's face: parts up, their acknowledgements down, and a drain's grace [in flight: change 11468].

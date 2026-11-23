@@ -110,5 +110,3 @@ saved start overtaken by a repair remains deferred (`../forge/README.md`, sectio
   rewrite, they do not (`../../protocol/git-later.md`, 1). That is acceptable only for one
   trusted person.
 
-- **Not yet:** *A workspace kept for its run*: a cut run's workspace is not marked, kept across a restart or taken up [in flight: change 11457].
-- **Not yet:** *A workspace kept for its run*, *The checks' results directory*: the worker names no results directory in the agent's start [in flight: change 11471].

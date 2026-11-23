@@ -55,5 +55,3 @@ a silent check still has no output to report (section 13).
 
 - **Not yet:** 6: messages mid-work.
 
-- **Not yet:** 4, step 6, and 9, *A drain with a grace*: no part is told and a drain carries no grace, waiting for the whole turn [in flight: change 11463].
-- **Not yet:** 8.1, *A results directory*: a check is given no results directory [in flight: change 11455].

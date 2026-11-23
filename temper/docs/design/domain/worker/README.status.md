@@ -18,4 +18,3 @@ relinking every two to two and a half minutes on 2026-11-08, but that is
 unproven: its evidence is outside the repository, and no deployment on
 record has run since.
 
-- **Not yet:** 2, *Told to stop, the worker drains*: its agents stop at the end of their turns, with no drain's grace, no part relayed and no workspace kept [in flight: change 11471].

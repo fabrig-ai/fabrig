@@ -123,4 +123,3 @@ whose smallest resumed start passes the room (`limits.rs`). The wire's
   those grants arrive through the same `Assignment` and `Granted` frames as
   the covered stories; extending coverage remains section 13's question.
 
-- **Not yet:** 8, *A resumed start fits its room first*: parts measured away before any host answer is cut [in flight: change 11456].

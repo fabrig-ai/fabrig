@@ -31,4 +31,3 @@
   root holds, can come from another project's entry; temper says only
   whether more wait. No test pages a filtered inbox.
 
-- **Not yet:** 2, *Parts kept between turns*: the core keeps no part and hands none back [in flight: change 11469].
