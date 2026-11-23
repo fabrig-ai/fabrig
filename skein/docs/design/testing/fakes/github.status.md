@@ -1,6 +1,8 @@
 # github: status
 
-2026-11-11. Where the tree's code lags or departs from [github.md](github.md).
+2026-11-23. Where the tree's code lags or departs from [github.md](github.md).
+
+- **Not yet:** 2: the tool writes and reads its directories through the host's calls alone, with no fake-machine face, so `github-conformance::suite` writes real journal, fact and transcript files and runs in the real loop, and its checks that drive no runner are not yet the library's step tests. [in flight: change 13880]
 
 - **Not yet:** 1.1: an issue's comments ignore `since`, on the Forgejo
   layer (`skein-forge/src/forgejo/server/items.rs`) and the GitHub layer.

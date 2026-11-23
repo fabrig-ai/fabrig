@@ -2,6 +2,8 @@
 
 2026-11-23. Where the tree's code lags or departs from [layout.md](layout.md).
 
+- **Not yet:** 1: `tests/forge/github`'s suite, `github-conformance::suite`, is a real-loop binary over real files, not a simulated one. [in flight: change 13880]
+
 - **Departs:** 1: step tests belong in `src/tests.rs` and `src/tests/`, but
   `skein-shell/src/listener_calls.rs` loads sibling `listener_tests.rs`
   through `#[path]`, as other crates load `*_tests.rs`, and
