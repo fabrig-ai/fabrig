@@ -61,16 +61,16 @@ def package_plan(root, paths, packages, layers):
     return groups
 
 
-def rust_commands(groups, prerequisites):
+def rust_commands(groups, prerequisites, directory):
     tested = {name for targets, names in groups.items() if targets for name in names}
     helpers = {(entry['package'], entry['bin']) for name in tested for entry in prerequisites.get(name, [])}
     for package, binary in sorted(helpers):
         yield ['cargo', 'build', '--offline', '--locked', '-p', package, '--bin', binary]
-    for targets, names in sorted(groups.items()):
+    for step, (targets, names) in enumerate(sorted(groups.items())):
         packages = [arg for name in names for arg in ('-p', name)]
         if not targets:
             yield ['cargo', 'check', '--offline', '--locked', *packages]
             continue
         flags = [arg for target in targets for arg in target]
-        yield ['cargo', 'nextest', 'run', '--offline', '--locked', '--profile', 'default',
-               '--no-tests=warn', *packages, *flags]
+        yield ['tools/tiers/one-process', '--out', str(directory / str(step)), '--fail-fast',
+               'default', '--offline', '--locked', '--no-tests=warn', *packages, *flags]

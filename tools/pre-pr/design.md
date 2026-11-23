@@ -32,22 +32,14 @@ current budget tables. A format refusal returns early. Ordinary delivery runs
 these checks without compiling Rust. Its receipt is
 `target/temper/pre-pr-light-failures.json`.
 
-Child, close and explicit goal checks use the same current-tree policy. Close
-also selects the workspace's focused test targets and helper binaries using the
-current package map. On a close failure the final report preserves a coded Rust
-compiler error or the first failed Nextest case and its panic details where
-available, within the job hold's 128-byte limit. The explicit goal diagnostic
-runs workspace Clippy and the
-default and fuzzy suites with the tree's budgets. The receipt names the
-snapshot tree and sets `comparison` to `tree-only`. The checked base and
-destination are null. A destination supplied by a caller is recorded separately
-as `requested_destination`.
-
-A trend in budget figures or instruction counts and the mixture of generated
-journey pages with other edits require a comparison between revisions. A
-current-tree receipt provides no verdict on these changes. The landing Gate's
-figures check compares its candidate to its base (`tools/tiers/budgets.md`,
-10.1).
+Child, close and explicit goal checks share the current-tree policy. Close
+selects focused targets and helpers using the current package map, runs the
+tests through one-process and judges instruction growth at the goal's base
+(section 4.1). The explicit goal diagnostic runs workspace Clippy and both
+suites with the tree's budgets. Receipts name the snapshot tree with
+`comparison` set to `tree-only`, null base and destination, and the caller's
+destination under `requested_destination`. The landing Gate compares its
+candidate's budget figures with its base (`tools/tiers/budgets.md`, 10.1).
 
 The following sections record the full diagnostic and earlier delivery
 policies. For the current worker command, selection, formatting, tests and
@@ -662,6 +654,29 @@ going on unheld`, and refuses nothing; the summary does not repeat it, since
 it is the deployment's, not the delivery's. Killed, the check releases the
 hold by its death (`tools/tiers/design.md`, 3).
 
+### 4.1 The checked close
+
+For each focused package and target group, run `tools/tiers/one-process
+--out DIR --fail-fast default --offline --locked --no-tests=warn -p …`
+with the selected target flags. Each DIR is fresh under Cargo's target
+directory. Helper builds and `cargo check` keep their commands. The final
+128 bytes preserve the compiler diagnostic or the first failed or crashed
+case and its panic site and message from `results.json` where available.
+
+After the focused steps pass, read `refs/temper/counts` locally in the
+goal's checkout and find its base (`tools/tiers/budgets.md`, 7.1). A missing
+counts file warns of an infrastructure fault and leaves judgment to the
+gate. A base outside the window refuses close and asks for an update from
+main. Unavailable counting warns with its reason and gives no verdict.
+
+In each layer measured, replace the base counts of binaries measured whole
+with the sum of their `tests` and `fresh` processes. Carry forward the other
+binaries' base counts. Apply the growth allowance and new move credit from
+`tools/tiers/budgets.md`, 8, using the base's counted binaries for the CPU
+sum. Growth beyond the allowance or a crossing of the instruction ceiling
+refuses as `budgets`, with the layer counts, growth, allowance, largest
+growing binaries and repair line.
+
 ## 5. Inherited failures
 
 Only selected checks contribute failures. The format check runs within
@@ -1003,9 +1018,9 @@ The target is two minutes on a typical warm delivery.
 ### 9.2 The driver's unit tests
 
 Run `python3 -I -B tools/pre-pr/test_pre_pr.py`. The suite uses recording
-fakes for external commands. It checks target selection, checkout and receipt
-identity, refusals and the Gate decision. The target for the entire suite is
-ten seconds. The tests use the same policy functions as the worker.
+fakes and a scratch Git repository for close budgets. It checks target
+selection, checkout and receipt identity, refusals and the Gate decision.
+The target for the entire suite is ten seconds.
 
 ## 10. Later
 

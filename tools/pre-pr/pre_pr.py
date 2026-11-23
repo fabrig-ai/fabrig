@@ -1,4 +1,6 @@
 """Check a snapshot of the current working tree (tools/pre-pr/design.md, 1)."""
+from collections import defaultdict
+from contextlib import nullcontext
 import fnmatch
 import hashlib
 import json
@@ -108,57 +110,44 @@ class RustcDiagnostic:
         return text.encode()[:127].decode(errors='ignore') + '\n'
 
 
-class NextestDiagnostic(RustcDiagnostic):
-    """Keep the first failed case and its panic alongside compiler diagnostics."""
+class OneProcessDiagnostic(RustcDiagnostic):
+    """Keep the first failed case and its panic alongside compiler diagnostics (section 4.1)."""
 
-    def __init__(self):
+    def __init__(self, directory):
         super().__init__()
-        self.case = self.site = self.detail = self.left = self.op = ''
-        self.expect = ''
-
-    def consume(self, line, log):
-        super().consume(line, log)
-        text = line[:1024].decode(errors='replace').strip()
-        if not self.case:
-            failed = re.fullmatch(r'FAIL\s+\[[^\]]+\]\s+\([\d /]+\)\s+\S+\s+(\S+)', text)
-            if failed:
-                self.case = failed[1]
-                self.expect = 'panic'
-        elif self.expect == 'panic':
-            panic = re.fullmatch(r"thread '.+' (?:\(\d+\) )?panicked at (.+:\d+:\d+):", text)
-            if panic:
-                self.site = panic[1]
-                self.expect = 'message'
-            elif re.match(r'(?:PASS|FAIL|TIMEOUT|LEAK)\s+\[', text):
-                self.expect = ''
-        elif self.expect == 'message':
-            self.detail = text
-            assertion = re.fullmatch(r'assertion `left (==|!=) right` failed(?:: (.*))?', text)
-            if assertion:
-                self.detail = assertion[2] or ''
-                self.op = '!=' if assertion[1] == '==' else '=='
-            self.expect = 'left' if assertion else ''
-        elif self.expect == 'left':
-            self.left = text.removeprefix('left: ').strip()
-            self.expect = 'right' if text.startswith('left: ') else ''
-        elif self.expect == 'right':
-            if text.startswith('right: '):
-                values = f'{self.left} {self.op} {text[7:].strip()}'
-                self.detail = f'{self.detail}: {values}' if self.detail else values
-            self.expect = ''
+        self.directory = directory
 
     def reason(self):
-        if not self.case:
+        try:
+            results = json.loads((self.directory / 'results.json').read_bytes())
+            test = next((test for test in results['tests'] if test['outcome'] in ('failed', 'crashed')), None)
+            if test is None:
+                return super().reason()
+            case, output = test['test_name'], test.get('output') or ''
+        except (OSError, ValueError, KeyError, TypeError):
             return super().reason()
-        case = self.case.rsplit('::', 1)[-1]
-        if self.site:
-            text = f'{case} {self.site}'
-            if self.detail:
-                text += ': ' + self.detail
+        lines = iter(output.splitlines())
+        for line in lines:
+            panic = re.fullmatch(r"thread '.+' (?:\(\d+\) )?panicked at (.+:\d+:\d+):", line[:1024].strip())
+            if not panic:
+                continue
+            site = panic[1]
+            detail = next(lines, '')[:1024].strip()
+            assertion = re.fullmatch(r'assertion `left (==|!=) right` failed(?:: (.*))?', detail)
+            if assertion:
+                detail = assertion[2] or ''
+                left, right = (next(lines, '')[:1024].strip() for _ in range(2))
+                if left.startswith('left: ') and right.startswith('right: '):
+                    op = '!=' if assertion[1] == '==' else '=='
+                    values = f'{left[6:].strip()} {op} {right[7:].strip()}'
+                    detail = f'{detail}: {values}' if detail else values
+            name = case.rsplit('::', 1)[-1]
+            text = f'{name} {site}' + (f': {detail}' if detail else '')
             if len(text.encode()) > 127:
-                text = text.replace(self.site, self.site.rsplit('/', 1)[-1], 1)
+                text = text.replace(site, site.rsplit('/', 1)[-1], 1)
+            break
         else:
-            text = 'failed test ' + self.case
+            text = 'failed test ' + case
         return text.encode()[:127].decode(errors='ignore') + '\n'
 
 
@@ -312,6 +301,105 @@ def budget_table(root):
             detail += '\n' + repair
         return [failure('budgets', detail)]
     return []
+
+
+def close_measurements(runs, partial_binaries):
+    """Read the counts of whole binaries from the focused steps (section 4.1)."""
+    measured = {}
+    for directory in runs:
+        results = json.loads((directory / 'results.json').read_bytes())
+        counting = results['counting']
+        if counting is None and results['selected'] == 0:
+            continue
+        counting = counting or {}
+        if not counting.get('counted'):
+            raise ValueError(counting.get('why') or 'counting did not start')
+        partial = partial_binaries(results)
+        for process in results['processes']:
+            binary = process['binary_id']
+            key = process['tree'], process['layer']
+            if process['kind'] not in ('tests', 'fresh') or binary in partial or None in key:
+                continue
+            count = process['instructions']
+            if type(count) is not int or count < 0:
+                raise ValueError(f'{binary} has no instruction count')
+            _, total = measured.get(binary, (key, 0))
+            measured[binary] = key, total + count
+    return measured
+
+
+def close_budgets(root, repository, env, runs):
+    """Judge the default profile's whole-binary measurements at the goal's base (section 4.1)."""
+    tools = Path(__file__).resolve().parents[1] / 'tiers'
+    counts = runpy.run_path(str(tools / 'counts.py'))
+    data = counts['read'](repository, env)
+    try:
+        published = data['profiles']['default']
+        base = counts['base'](data, repository, env)
+        old = counts['binaries'](data, 'default', base)
+        base_layers, base_cpu = defaultdict(int), defaultdict(float)
+        for binary, entry in old.items():
+            key = entry['tree'], entry['layer']
+            base_layers[key] += entry['instructions']
+            base_cpu[key] += published['binaries'][binary]['cpu_s']
+    except (KeyError, TypeError):
+        print("budgets: no main's counts in this repository (refs/temper/counts); "
+              'no verdict at close, an infrastructure fault to repair; the gate still judges', flush=True)
+        return []
+    if base is None:
+        return [failure('budgets', "the goal is older than main's last twenty landings; update from main and close again")]
+
+    cpu = runpy.run_path(str(tools / 'cpu.py'))
+    try:
+        measured = close_measurements(runs, cpu['partial_binaries'])
+    except (OSError, ValueError, KeyError, TypeError) as error:
+        print(f'budgets: no verdict at close, instruction counts unavailable: {error_line(error)}', flush=True)
+        return []
+    if not measured:
+        return []
+
+    with (root / 'tools/tiers/budgets.toml').open('rb') as file:
+        profile = tomllib.load(file).get('gate', {}).get('default', {})
+    ceilings = cpu['gate_ceilings'](profile, 'instructions')
+    credits = cpu['instruction_move_credits'](profile, published, base_layers, base_cpu)
+    head = base_layers.copy()
+    grew = defaultdict(list)
+    for binary, (key, count) in measured.items():
+        before = 0
+        if binary in old:
+            entry = old[binary]
+            old_key = entry['tree'], entry['layer']
+            head[old_key] -= entry['instructions']
+            if old_key == key:
+                before = entry['instructions']
+        head[key] += count
+        if count > before:
+            grew[key].append((count - before, binary))
+
+    findings = []
+    for key in sorted({key for key, _ in measured.values()}):
+        before, after = base_layers[key], head[key]
+        allowance = counts['allowance'](before, credits.get(key, 0))
+        ceiling = ceilings.get(key)
+        over = ceiling is not None and before <= ceiling < after
+        increase = after - before
+        if not over and increase <= allowance:
+            continue
+        growth = f'{100 * increase / before:.2f}%' if before else 'n/a (zero at base)'
+        reason = f'over instruction ceiling {ceiling}' if over else 'instruction growth over allowance'
+        findings.append(f'{key[0]} default {key[1]}: {reason}, {before} at base, {after} at head, '
+                        f'growth {growth}, allowance {allowance} instructions')
+        causes = sorted(grew[key], key=lambda cause: (-cause[0], cause[1]))
+        findings.extend(f'  {binary}: +{increase} instructions' for increase, binary in causes[:10])
+        if len(causes) > 10:
+            findings.append(f'  {len(causes) - 10} more binaries')
+    if not findings:
+        print(f'budgets: within instruction budgets at close (base {base[:10]})', flush=True)
+        return []
+    report = '\n'.join([*findings, cpu['REPAIR_LINE']])
+    if len(report.encode()) >= 1536:
+        print(report, flush=True)
+    return [failure('budgets', report)]
 
 
 def merge_tests(root, env):
@@ -814,7 +902,7 @@ def finish(tree_id, base_id, errors, root, env, scope, commits, heads, lints=(),
     return summary(base_id, lints, tests, errors, None, location, warnings, scope, commits)
 
 
-def workspace_checks(root, paths, tree_id, env, errors, outcomes, reds=(), *, completed_goal=False):
+def workspace_checks(root, paths, tree_id, env, errors, outcomes, reds=(), *, completed_goal=False, counts_source=None):
     start = time.monotonic()
     if any(p.endswith('.rs') for p in paths):
         errors += format_workspace(root, env)
@@ -828,13 +916,13 @@ def workspace_checks(root, paths, tree_id, env, errors, outcomes, reds=(), *, co
     data = metadata(root, env) if package_paths else {'packages': [], 'workspace_members': []}
     packages = members(data)
 
-    suites, rust_commands = [], ()
+    suites, groups, prerequisites = [], {}, {}
     if completed_goal and packages:
         with (root / 'tools/tiers/layers.toml').open('rb') as file:
             layers = tomllib.load(file)
         groups = planner['package_plan'](root, code_inputs(package_paths, data, root), packages, layers)
         suites = sorted(name for targets, names in groups.items() if targets for name in names)
-        rust_commands = planner['rust_commands'](groups, test_binaries(data, root))
+        prerequisites = test_binaries(data, root)
     print(f'pre-pr: selection: {len(paths)} paths, {len(suites)} test packages, '
           f'{time.monotonic() - start:.3f} s', flush=True)
 
@@ -876,10 +964,26 @@ def workspace_checks(root, paths, tree_id, env, errors, outcomes, reds=(), *, co
     if 'tools/tiers/cpu.py' in paths or 'tools/tiers/budgets.toml' in paths:
         errors += timed('budgets', lambda: budget_table(root))
     errors += journeys(root)
-    for args in rust_commands:
-        focused = args[1] == 'nextest'
-        if command('focused tests' if focused else 'build check', args, NextestDiagnostic() if focused else RustcDiagnostic()):
-            break
+    if groups:
+        scratch = nullcontext()
+        if suites:
+            target = Path(data['target_directory'])
+            target.mkdir(parents=True, exist_ok=True)
+            scratch = tempfile.TemporaryDirectory(prefix='pre-pr-close-', dir=target)
+        with scratch as directory:
+            runs = []
+            for args in planner['rust_commands'](groups, prerequisites, Path(directory) if suites else None):
+                if args[0] == 'tools/tiers/one-process':
+                    out = Path(args[2])
+                    runs.append(out)
+                    if command('focused tests', args, OneProcessDiagnostic(out)):
+                        break
+                elif command('build check', args, RustcDiagnostic()):
+                    break
+            else:
+                if runs:
+                    repository, git_env = counts_source if counts_source is not None else (root, env)
+                    errors += close_budgets(root, repository, git_env, runs)
     return suites
 
 
@@ -927,7 +1031,8 @@ def check(scope, commits):
                         raise ValueError('working tree differs from the requested goal head')
             if scope == 'close' and has_git and checked_git(['write-tree', '--missing-ok'], root, source_env).decode().strip() != tree_id:
                 raise ValueError('working tree differs from the staged close tree')
-            tests = workspace_checks(work, paths, tree_id, env, errors, outcomes, completed_goal=scope == 'close')
+            tests = workspace_checks(work, paths, tree_id, env, errors, outcomes, completed_goal=scope == 'close',
+                                     counts_source=(root, source_env))
             if scope == 'goal' and not errors:
                 lints, tests, warnings = goal_checks(work, paths, env, errors, rerun_bound(root, source_env) if has_git else 0)
             if scope == 'close' and has_git and checked_git(['write-tree', '--missing-ok'], root, source_env).decode().strip() != tree_id:
