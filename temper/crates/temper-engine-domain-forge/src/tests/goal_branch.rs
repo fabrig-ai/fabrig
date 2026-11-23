@@ -932,6 +932,272 @@ fn a_goal_branch_already_gone_completes_its_release() {
     complete_goal_delete(&mut d, call, Err(Error::Missing));
 }
 
+const ONE_READ: u32 = 1; // The first goal fills the client's read table.
+const TWO_READS: u32 = 2; // Both goals' reads fit at once.
+const READ_ATTEMPTS: u32 = 1; // The first transport refusal reaches the connector.
+const FIRST_GOAL: u64 = 6;
+const FIRST_GOAL_BRANCH: &[u8] = b"temper/6/g6";
+const FIRST_REPO: skein_forge::api::Repository = skein_forge::api::Repository { forge: REPO.forge, repository: 1 };
+
+fn restore_goal(d: &mut Domain, env: &Env<Limits>, task: u64, name: Name) {
+    at_step(
+        d,
+        env,
+        Event::Restore {
+            record: Stored::Hold(Hold {
+                name,
+                task,
+                writer: None,
+                beside: None,
+                design_writers: Box::new([]),
+                drift: None,
+            }),
+        },
+    );
+}
+
+fn restart_makings(read_room: u32) -> (Domain, Env<Limits>) {
+    let mut env = env();
+    env.limits.client.pending = read_room;
+    env.limits.client.calls = read_room;
+    env.limits.client.read_attempts = READ_ATTEMPTS;
+    let mut d = domain_with_limits(&env.limits);
+    for repository in [adopted(), Repository { provider: FIRST_REPO, home: false, ..adopted() }] {
+        at_step(&mut d, &env, Event::Restore { record: Stored::Repository(repository) });
+    }
+    restore_goal(&mut d, &env, FIRST_GOAL, Name { repository: FIRST_REPO.repository, ..name(FIRST_GOAL_BRANCH) });
+    restore_goal(&mut d, &env, GOAL, name(GOAL_BRANCH));
+    at_step(
+        &mut d,
+        &env,
+        Event::Restore { record: Stored::BranchHead(BranchHead { name: name(GOAL_BRANCH), commit: TIP, owned: true }) },
+    );
+    fixtures::connect(&mut d);
+    at_step(&mut d, &env, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
+    at_step(&mut d, &env, Event::CatchUp);
+    (d, env)
+}
+
+#[test]
+fn restart_finishes_while_a_making_waits_for_read_room() {
+    let (mut d, env) = restart_makings(ONE_READ);
+    let answered = at_answer(&mut d, &env, Ok(Answer::Commit(TIP)));
+    assert!(answered.contains(&Request::RestartDone { stage: RestartStage::ReadAfresh }), "{answered:?}");
+    assert!(d.repository_fresh(REPO));
+    assert!(d.goal_branch_waiting(&name(GOAL_BRANCH)));
+
+    let (call, op) = at_call(&mut d, &env);
+    assert_eq!(op, Op::Read(Read::Branch { branch: GOAL_BRANCH.into() }));
+    let missing = at_answer_call(&mut d, &env, call, Err(Error::Missing));
+    assert!(missing.contains(&Request::ContinueGoalBranch { task: GOAL }), "{missing:?}");
+    let (call, op) = send_restarted_making(&mut d, &env);
+    assert_eq!(op, Op::Write(Write::CreateBranch { branch: GOAL_BRANCH.into(), commit: TIP }));
+    let made = at_answer_call(&mut d, &env, call, Ok(Answer::Branch(BranchCreation::Created)));
+    assert!(made.contains(&self::made()), "{made:?}");
+}
+
+fn missing_after_read_room_frees() -> (Domain, Env<Limits>) {
+    let (mut d, env) = restart_makings(ONE_READ);
+    at_answer(&mut d, &env, Ok(Answer::Commit(TIP)));
+    at_answer(&mut d, &env, Err(Error::Missing));
+    (d, env)
+}
+
+fn send_restarted_making(d: &mut Domain, env: &Env<Limits>) -> (Token, Op) {
+    at_step(d, env, Event::ContinueGoalBranch { task: GOAL, entry: TAKING });
+    at_answer(d, env, Ok(Answer::Commit(TIP)));
+    at_step(d, env, Event::Committed { entry: TAKING });
+    at_answer(d, env, Ok(Answer::Items { cut: false, items: Box::new([]), more: false, now: env.now }));
+    at_call(d, env)
+}
+
+fn finish_restarted_making(d: &mut Domain, env: &Env<Limits>) -> Box<[Request]> {
+    let (call, _) = send_restarted_making(d, env);
+    at_answer_call(d, env, call, Ok(Answer::Branch(BranchCreation::Created)))
+}
+
+#[test]
+fn repository_finishes_while_a_making_waits_for_read_room() {
+    let (d, _) = restart_makings(ONE_READ);
+    assert!(d.repository_fresh(REPO));
+    assert!(!d.repository_fresh(FIRST_REPO));
+    assert!(!d.fresh_reads_in());
+}
+
+#[test]
+fn only_out_making_reads_appear_in_catch_up() {
+    for (room, count, words) in [
+        (ONE_READ, ONE_READ, b"1 goal branch (task 6)".as_slice()),
+        (TWO_READS, TWO_READS, b"2 goal branches (task 6, task 7)".as_slice()),
+    ] {
+        let (d, _) = restart_makings(room);
+        assert_eq!(d.catching_up(REPO.forge).expect("a making's read is out").goal_branches, count);
+        assert_eq!(d.restart_waits(RestartStage::ReadAfresh).as_ref(), words);
+    }
+}
+
+#[test]
+fn restart_does_not_wait_for_a_makings_forge() {
+    for error in [Error::Unavailable, Error::Timeout, Error::NotConnected] {
+        let (mut d, env) = restart_makings(TWO_READS);
+        let (first, _) = at_call(&mut d, &env);
+        at_answer(&mut d, &env, Err(error));
+        assert!(d.repository_fresh(REPO), "{error:?}");
+        let answered = at_answer_call(&mut d, &env, first, Ok(Answer::Commit(TIP)));
+        assert!(answered.contains(&Request::RestartDone { stage: RestartStage::ReadAfresh }), "{answered:?}");
+        assert!(d.goal_branch_waiting(&name(GOAL_BRANCH)));
+    }
+}
+
+#[test]
+fn a_change_waits_for_making_after_read_afresh() {
+    use temper_engine_domain_forge_change as change;
+    let (mut d, env) = missing_after_read_room_frees();
+    let mut row = fixtures::opening_row();
+    row.base = GOAL_BRANCH.into();
+    row.pending = None;
+    row.effect = change::EffectResult::None;
+    at_step(&mut d, &env, Event::Change { row });
+    at_step(&mut d, &env, fixtures::change_step());
+    let waiting = at_answer(&mut d, &env, Ok(Answer::Commit(fixtures::HEAD)));
+    let until = Wall::from_nanos(env.wall.as_nanos().saturating_add(env.limits.change_policy.stall.as_nanos()));
+    assert!(waiting.contains(&Request::ChangeDecision {
+        task: fixtures::CHANGE,
+        decision: change::Decision::Wait { until: Some(until) },
+        entry: None,
+        evidence: None,
+    }));
+
+    finish_restarted_making(&mut d, &env);
+    let mut woke = Queue::uncapped();
+    resume(&mut d, &env, &mut woke);
+    let mut change_woke = false;
+    for request in &woke {
+        change_woke |= *request == Request::WakeProcedure { task: fixtures::CHANGE };
+    }
+    assert!(change_woke);
+}
+
+const DESIGN_ATTEMPT: u64 = 1;
+
+fn claim_design(d: &mut Domain, env: &Env<Limits>) -> Box<[Request]> {
+    at_step(
+        d,
+        env,
+        Event::Claim {
+            task: GOAL,
+            attempt: DESIGN_ATTEMPT,
+            writes: Box::new([]),
+            designs: Box::new([name(GOAL_BRANCH)]),
+            holders: Box::new([]),
+        },
+    )
+}
+
+#[test]
+fn a_design_claim_waits_for_making_after_read_afresh() {
+    let (mut d, env) = missing_after_read_room_frees();
+    let refused = claim_design(&mut d, &env);
+    assert!(refused.contains(&Request::Refused { task: GOAL }), "{refused:?}");
+
+    finish_restarted_making(&mut d, &env);
+    claim_design(&mut d, &env);
+    assert_eq!(
+        d.hold(&name(GOAL_BRANCH)).unwrap().design_writers.as_ref(),
+        &[DesignWriter { task: GOAL, attempt: DESIGN_ATTEMPT, rereading: false }]
+    );
+}
+
+#[test]
+fn a_goal_workspace_waits_for_making_after_read_afresh() {
+    for (modify, start) in
+        [(false, items::Start::Branch(GOAL_BRANCH.into())), (true, items::Start::Base(GOAL_BRANCH.into()))]
+    {
+        let (mut d, env) = missing_after_read_room_frees();
+        let seed = items::Seed {
+            project: adopted().project,
+            modify,
+            task: GOAL,
+            parent: None,
+            repository: REPO,
+            run_branch: b"temper/7/r7".as_slice().into(),
+            saved_branch: None,
+        };
+        assert!(d.goal_workspace_waiting(GOAL, modify));
+        assert!(d.workspace_item(seed.clone()).is_none());
+
+        finish_restarted_making(&mut d, &env);
+        assert!(!d.goal_workspace_waiting(GOAL, modify));
+        assert_eq!(d.workspace_item(seed).expect("goal workspace ready").start, start);
+    }
+}
+
+#[test]
+fn a_producer_workspace_waits_for_its_goal_branch() {
+    use temper_engine_domain_forge_change as change;
+    const SAVED: &[u8] = b"temper/8/s8";
+    const CHANGE_BRANCH: &[u8] = b"temper/51";
+    for (branch, base, early, saved_branch, start) in [
+        (GOAL_BRANCH, b"main".as_slice(), change::Early::None, None, items::Start::Branch(GOAL_BRANCH.into())),
+        (
+            CHANGE_BRANCH,
+            GOAL_BRANCH,
+            change::Early::Started(Box::new([])),
+            Some(Box::from(SAVED)),
+            items::Start::Merge { branch: SAVED.into(), base: TIP },
+        ),
+    ] {
+        let (mut d, env) = missing_after_read_room_frees();
+        let mut row = fixtures::opening_row();
+        row.pending = None;
+        row.branch = branch.into();
+        row.base = base.into();
+        row.change.early = early;
+        row.change.state = change::State::Producing { requested: true };
+        row.delegate = Some((OTHER, change::Delegate::Produce));
+        at_step(&mut d, &env, Event::Restore { record: Stored::Change(Box::new(row)) });
+        let seed = items::Seed {
+            project: adopted().project,
+            modify: true,
+            task: OTHER,
+            parent: Some(fixtures::CHANGE),
+            repository: REPO,
+            run_branch: b"temper/8/r8".as_slice().into(),
+            saved_branch,
+        };
+        assert!(d.producer_workspace_waiting(OTHER, fixtures::CHANGE));
+        assert!(d.workspace_item(seed.clone()).is_none());
+        finish_restarted_making(&mut d, &env);
+        assert!(!d.producer_workspace_waiting(OTHER, fixtures::CHANGE));
+        assert_eq!(d.workspace_item(seed).expect("producer workspace ready").start, start);
+    }
+}
+
+#[test]
+fn goal_release_waits_to_judge_its_branchs_head() {
+    let (mut d, env) = restart_makings(ONE_READ);
+    at_answer(&mut d, &env, Ok(Answer::Commit(TIP)));
+    at_step(&mut d, &env, Event::Restore { record: Stored::Change(Box::new(landed_row(Some(TIP)))) });
+    let released = release(&mut d, ReleaseEnding::Done);
+    assert_eq!(d.releases.get(&GOAL).expect("release still pending").pending, None, "{released:?}");
+
+    let found = at_answer(&mut d, &env, Ok(Answer::Commit(TIP)));
+    assert!(found.contains(&Request::ContinueRelease { task: GOAL }), "{found:?}");
+    at_step(&mut d, &env, Event::ContinueRelease { task: GOAL, entry: CLOSING });
+    assert_eq!(d.releases.get(&GOAL).expect("delete kept").pending, Some((CLOSING, Some(name(GOAL_BRANCH)))));
+}
+
+#[test]
+fn completing_a_making_wakes_the_goals_closer() {
+    const CLOSER: u64 = 9;
+    let (mut d, env) = missing_after_read_room_frees();
+    let row = closer::closer(CLOSER, GOAL, false);
+    at_step(&mut d, &env, Event::Closer { row });
+    assert!(d.park_closer_for_goal_branch(CLOSER, &name(GOAL_BRANCH)));
+    let made = finish_restarted_making(&mut d, &env);
+    assert!(made.contains(&Request::WakeProcedure { task: CLOSER }), "{made:?}");
+}
+
 #[test]
 fn a_goal_branch_found_missing_after_restart_is_asked_as_its_read_ends() {
     let mut d = domain();
@@ -1108,6 +1374,9 @@ fn at_call(d: &mut Domain, env: &Env<Limits>) -> (Token, Op) {
 }
 fn at_answer(d: &mut Domain, env: &Env<Limits>, result: Result<Answer, Error>) -> Box<[Request]> {
     let (call, _) = at_call(d, env);
+    at_answer_call(d, env, call, result)
+}
+fn at_answer_call(d: &mut Domain, env: &Env<Limits>, call: Token, result: Result<Answer, Error>) -> Box<[Request]> {
     let requests = at_step(
         d,
         env,

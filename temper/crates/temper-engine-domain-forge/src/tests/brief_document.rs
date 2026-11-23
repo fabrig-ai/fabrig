@@ -6,11 +6,11 @@ const SECTION: Token = Token::new(72);
 const HEAD: [u8; 32] = [0x11; 32];
 const PREFIX: &[u8] = b"At main's head 1111111111111111111111111111111111111111111111111111111111111111\n";
 // The step fixture's brief allotment, within its client answer bound.
-const BUDGET: u32 = 512;
+pub(super) const BUDGET: u32 = 512;
 // Header (80 bytes), one text line (6), and the exact cut notice (15).
 const LINE_BUDGET: u32 = 101;
 
-fn document() -> BriefDocument {
+pub(super) fn document() -> BriefDocument {
     BriefDocument {
         host: b"forge.example".as_slice().into(),
         owner: b"org".as_slice().into(),
@@ -34,7 +34,7 @@ fn setup() -> Domain {
     d
 }
 
-fn plan(d: &mut Domain, document: BriefDocument, budget: u32) -> Queue<Request> {
+pub(super) fn plan(d: &mut Domain, document: BriefDocument, budget: u32) -> Queue<Request> {
     outputs(d, Event::PlanDocument { section: SECTION, document: Box::new(document) });
     let mut out = Queue::uncapped();
     let env = env();

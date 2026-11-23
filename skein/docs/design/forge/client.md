@@ -377,6 +377,13 @@ Before a decision depends on a fact, the owner asks for it afresh with
 - **Refused at the entrance,** with no API call, `TooLarge` by section
   2.3 first, then `Busy` when the call slab is full or when the
   foreground share is spent and a keeping read is due (section 6).
+  The client keeps no refused read: asking it again, and in what order
+  beside the owner's other refused reads, is the owner's. A read the
+  owner asks before `resume`, once a place is reclaimed, and the client
+  admits takes that place ahead of the keeping and slow reads `resume`
+  would start, so an
+  owner that asks its waiting reads first gives them the freed call
+  (temper's `domain/forge/keeping-up.md`, 3).
 - **Its holders.** The client answers, at any time and changing
   nothing, the calls that hold the slab's places, oldest admitted
   first, each with its owner, its repository and what it reads, or that

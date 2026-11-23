@@ -75,13 +75,16 @@ impl Domain {
                 }
                 add(&mut words, u64::from(self.lost.len()), b"lost writer's read", b"lost writers' reads", &names);
                 let mut names = List::with_capacity(3);
+                let mut count = 0_u64;
                 for (_, pending) in &self.makings {
-                    if names.len() == 3 {
-                        break;
+                    if super::goal_branch::read_out(pending) {
+                        count = count.checked_add(1).expect("bounded goal branches");
+                        if names.room() > 0 {
+                            names.push(task(pending.task)).expect("three oldest goal branches");
+                        }
                     }
-                    names.push(task(pending.task)).expect("three oldest goal branches");
                 }
-                add(&mut words, u64::from(self.makings.len()), b"goal branch", b"goal branches", &names);
+                add(&mut words, count, b"goal branch", b"goal branches", &names);
             }
             RestartStage::Settled => {
                 let unsettled = self.client.unsettled();
