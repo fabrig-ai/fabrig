@@ -1,4 +1,4 @@
-//! Evidence files: `temper/docs/design/testing/checks.md`, 5.3.
+//! Evidence files: `temper/docs/design/testing/checks-stage-one.md`, 1.3.
 use std::collections::BTreeMap;
 use std::fmt;
 use std::fs;

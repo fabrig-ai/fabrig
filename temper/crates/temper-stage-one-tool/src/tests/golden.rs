@@ -1,4 +1,4 @@
-//! Golden decoding and settings-form coverage: `temper/docs/design/testing/checks.md`, 5.4.
+//! Golden decoding and settings-form coverage: `temper/docs/design/testing/checks-stage-one.md`, 1.4.
 use crate::golden::{self, Edit, ObligationKind, Subject, Test};
 use serde_json::{Value, json};
 use std::collections::BTreeSet;
