@@ -46,14 +46,70 @@ pub struct Evidence {
 }
 
 #[derive(Default)]
-pub(crate) struct State {
+pub struct State {
     pub evidence: Evidence,
     pub drain: Option<Time>,
     pub release_at: Option<Time>,
     released: bool,
     wire_seen: usize,
+    assignments_seen: usize,
+    assignment_frames_seen: usize,
+    observations_seen: usize,
     saw_resumed_turn: bool,
     check_tree: Option<Vec<u8>>,
+}
+
+impl State {
+    /// Worker frames are append-only, including across the worker's replacement.
+    /// Decode each assignment once, retaining the second one's carried parts.
+    pub fn observe_assignments(&mut self, frames: &[(Time, u16, Box<[u8]>)]) -> Result<(), String> {
+        for (_, kind, bytes) in &frames[self.assignment_frames_seen..] {
+            if *kind == 3 {
+                return Err(format!("restart worker refused: {bytes:?}"));
+            }
+            if *kind == wire::Kind::Assignment.number() {
+                let assignment =
+                    wire::Assignment::decode(&wire::CEILINGS, &mut skein_lib::Reader::new(bytes)).expect("assignment");
+                self.assignments_seen += 1;
+                if self.assignments_seen == 2 {
+                    self.evidence.resumed = wire::parts::decode(&assignment.parts, &wire::CEILINGS)
+                        .expect("assignment parts")
+                        .into_boxed()
+                        .into_vec();
+                }
+            }
+        }
+        self.assignment_frames_seen = frames.len();
+        Ok(())
+    }
+
+    /// The fake provider keeps its observations after either worker exits.
+    /// Only newly decoded requests can contribute new outputs.
+    pub fn observe_queries(&mut self, observations: &[skein_fake_peers::llm::Observation]) -> Result<(), String> {
+        for observation in &observations[self.observations_seen..] {
+            if let skein_fake_peers::llm::Observation::Query { query, .. } = observation {
+                self.evidence.queries += 1;
+                for part in query.messages.iter().flat_map(|message| &message.parts) {
+                    if let skein_fake_llm_domain::api::Part::ToolOutput { output, .. } = part {
+                        let text = String::from_utf8_lossy(output);
+                        if !self.evidence.outputs.iter().any(|seen| seen == text.as_ref()) {
+                            self.evidence.outputs.push(text.to_string());
+                        }
+                        self.evidence.interrupted_output |= text.contains("interrupted by a worker restart after")
+                            && text.contains(std::str::from_utf8(OUTPUT).expect("fixture text").trim());
+                        self.evidence.delivered |= text.contains("delivered") || text.contains("Delivered");
+                    }
+                }
+            }
+        }
+        self.observations_seen = observations.len();
+        if self.evidence.queries >= 3 && self.evidence.outputs.is_empty() {
+            return Err(
+                "the resumed provider request replanned the cut answer instead of carrying its call result".into()
+            );
+        }
+        Ok(())
+    }
 }
 
 pub(crate) fn engine(inherited: &skein_world::Inherited) -> Proc {
@@ -232,9 +288,7 @@ pub(crate) fn act(point: Point, now: Time, procs: &mut [Proc], views: &mut Views
 
 pub(crate) fn observe(now: Time, procs: &[Proc], store: &Store, state: &mut State) -> Result<(), String> {
     let worker = crate::world::check_worker_wire(procs)?;
-    if let Some((_, _, bytes)) = worker.frames.iter().find(|(_, kind, _)| *kind == 3) {
-        return Err(format!("restart worker refused: {bytes:?}"));
-    }
+    state.observe_assignments(&worker.frames)?;
     for row in store.rows.values() {
         if let jig_test_domain::Record::Core(core::Record::Core(core::CoreRecord::Part(part))) = row
             && part.key.attempt == 1
@@ -247,17 +301,7 @@ pub(crate) fn observe(now: Time, procs: &[Proc], store: &Store, state: &mut Stat
     state.evidence.suspended |= store.rows.values().any(|row| matches!(row,
         jig_test_domain::Record::Core(core::Record::Core(core::CoreRecord::Terminal(end)))
         if end.attempt == 1 && matches!(end.end, jig_domain_tasks::End::Suspended(jig_domain_tasks::Suspended {worker: 1, why: jig_domain_tasks::SuspendWhy::Stopped, ..}))));
-    let assignments = worker
-        .frames
-        .iter()
-        .filter(|(_, kind, _)| *kind == wire::Kind::Assignment.number())
-        .map(|(_, _, bytes)| {
-            wire::Assignment::decode(&wire::CEILINGS, &mut skein_lib::Reader::new(bytes)).expect("assignment")
-        })
-        .collect::<Vec<_>>();
-    if let Some(resumed) = assignments.get(1) {
-        state.evidence.resumed =
-            wire::parts::decode(&resumed.parts, &wire::CEILINGS).expect("assignment parts").into_boxed().into_vec();
+    if state.assignments_seen >= 2 {
         state.evidence.same_worker |= store.rows.values().any(|row| {
             matches!(row,
             jig_test_domain::Record::Core(core::Record::Core(core::CoreRecord::RunProof(proof)))
@@ -306,26 +350,10 @@ pub(crate) fn observe(now: Time, procs: &[Proc], store: &Store, state: &mut Stat
     observe_wire(now, procs, store, state)?;
     for proc in procs {
         if let Proc::Peer(peer) = proc {
-            state.evidence.queries = smith_agent_process_world::fake::queries(peer).count();
-            for query in smith_agent_process_world::fake::queries(peer) {
-                for part in query.messages.iter().flat_map(|message| &message.parts) {
-                    if let skein_fake_llm_domain::api::Part::ToolOutput { output, .. } = part {
-                        let text = String::from_utf8_lossy(output);
-                        if !state.evidence.outputs.iter().any(|seen| seen == text.as_ref()) {
-                            state.evidence.outputs.push(text.to_string());
-                        }
-                        state.evidence.interrupted_output |= text.contains("interrupted by a worker restart after")
-                            && text.contains(std::str::from_utf8(OUTPUT).expect("fixture text").trim());
-                        state.evidence.delivered |= text.contains("delivered") || text.contains("Delivered");
-                    }
-                }
-            }
+            state.observe_queries(peer.observations())?;
         }
     }
 
-    if state.evidence.queries >= 3 && state.evidence.outputs.is_empty() {
-        return Err("the resumed provider request replanned the cut answer instead of carrying its call result".into());
-    }
     Ok(())
 }
 

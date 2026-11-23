@@ -168,9 +168,18 @@ pub(crate) fn endpoints() -> smith_protocol_channel::Endpoints {
 }
 #[must_use]
 pub fn agent() -> jig_test_service::Agent {
-    agent_with_limits(&smith_agent_process_world::limits())
+    static AGENT: std::sync::OnceLock<jig_test_service::Agent> = std::sync::OnceLock::new();
+    let agent = AGENT.get_or_init(|| agent_with_limits(&smith_agent_process_world::limits()));
+    jig_test_service::Agent {
+        endpoints: agent.endpoints.clone(),
+        limits: agent.limits,
+        host_limits: agent.host_limits,
+        bounds: agent.bounds.clone(),
+    }
 }
-pub(crate) fn agent_with_limits(agent_limits: &smith_agent_service::Limits) -> jig_test_service::Agent {
+/// Build independently for a caller's agent bounds; only `agent` reuses the fixed fixture.
+#[must_use]
+pub fn agent_with_limits(agent_limits: &smith_agent_service::Limits) -> jig_test_service::Agent {
     use skein_lib::Duration;
     let host_limits = smith_host_domain::Limits {
         agents: 1,
@@ -370,10 +379,25 @@ pub fn provider_played_at(
 }
 
 pub(crate) fn peer_bounds() -> (skein_channel::Schema, skein_channel::Limits) {
-    let profile = store_limits();
-    let sizes = profile.workers.sizes;
-    let codec = jig_protocol_worker_wire::sizes::limits(&sizes).expect("small wire");
-    let cap = jig_protocol_worker_wire::sizes::worker_cap(&sizes).expect("peer output").cap;
+    peer_bounds_for(&admitted().limits.workers.sizes)
+}
+
+/// Reuse only the fixture's immutable schema; callers can change their copies or sizes.
+#[must_use]
+pub fn peer_bounds_for(
+    sizes: &jig_protocol_worker_wire::sizes::Sizes,
+) -> (skein_channel::Schema, skein_channel::Limits) {
+    static BOUNDS: std::sync::OnceLock<(skein_channel::Schema, skein_channel::Limits)> = std::sync::OnceLock::new();
+    if sizes == &admitted().limits.workers.sizes {
+        BOUNDS.get_or_init(|| build_peer_bounds(sizes)).clone()
+    } else {
+        build_peer_bounds(sizes)
+    }
+}
+
+fn build_peer_bounds(sizes: &jig_protocol_worker_wire::sizes::Sizes) -> (skein_channel::Schema, skein_channel::Limits) {
+    let codec = jig_protocol_worker_wire::sizes::limits(sizes).expect("small wire");
+    let cap = jig_protocol_worker_wire::sizes::worker_cap(sizes).expect("peer output").cap;
     let limits = skein_channel::Limits {
         chunk: 16_384,
         credential: 4096,
@@ -589,13 +613,16 @@ fn configuration(text: &[u8]) -> jig_protocol_config::Engine {
 struct Admitted {
     limits: jig_test_service::limits::Limits,
     names: Box<[jig_domain_core::settings::ModelName]>,
+    codec: jig_protocol_store::codec::View,
 }
 fn admitted() -> &'static Admitted {
     static ADMITTED: std::sync::OnceLock<Admitted> = std::sync::OnceLock::new();
     ADMITTED.get_or_init(|| {
         let engine = configuration(ENGINE);
+        let limits = jig_test_service::limits::small(&engine.limits);
         Admitted {
-            limits: jig_test_service::limits::small(&engine.limits),
+            codec: jig_protocol_store::codec::limits(&limits.root.core).expect("admitted fixture codec"),
+            limits,
             names: jig_protocol_store::codec::names(&engine.llm.models()),
         }
     })
@@ -605,6 +632,18 @@ fn admitted() -> &'static Admitted {
 #[must_use]
 pub fn store_limits() -> jig_test_service::limits::Limits {
     admitted().limits
+}
+
+/// The referee needs only the fleet grace, not a copy of every deployment bound.
+#[must_use]
+pub fn store_grace() -> Duration {
+    admitted().limits.root.core.fleet.grace
+}
+
+/// The immutable codec bounds for the fixture's admitted store.
+#[must_use]
+pub fn store_codec() -> jig_protocol_store::codec::View {
+    admitted().codec
 }
 
 /// The fixture's configured model names, by which the store keeps a role's models.

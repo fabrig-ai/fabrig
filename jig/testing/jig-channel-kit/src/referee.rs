@@ -778,7 +778,7 @@ impl Referee {
     fn horizon(&self) -> Result<Time, String> {
         // A cut assignment leaves an unhosted claim adrift until the fleet's grace.
         // Allow one redial plus 30 s for startup, retry placement and the chat's turn.
-        let grace = crate::fixtures::store_limits().root.core.fleet.grace.as_nanos();
+        let grace = crate::fixtures::store_grace().as_nanos();
         let after_grace = grace
             .checked_add(self.redial_ceiling.as_nanos())
             .and_then(|nanos| nanos.checked_add(30_000_000_000))

@@ -52,8 +52,7 @@ impl ServiceHost {
             submitted: 0,
             worker,
             files: Capture::default(),
-            codec: jig_protocol_store::codec::limits(&fixtures::store_limits().root.core)
-                .expect("admitted fixture codec"),
+            codec: fixtures::store_codec(),
             store_limits: fixtures::store_limits(),
             holding: false,
             corrupt_transcript: false,
