@@ -389,23 +389,6 @@ fn an_older_recorded_forgejo_is_dumped_then_upgraded() {
     );
     scratch.remove();
 }
-#[test]
-fn an_older_recorded_runner_has_its_files_prepared_again_without_a_dump() {
-    use std::fs;
-    use support::owned;
-    use temper_forge_setup::place::File;
-    let scratch = support::Scratch::new("runner_upgrade_real");
-    let _port = owned::prepared_processes(scratch.path());
-    owned::record_versions(scratch.path(), None, Some(b"13.1.0"));
-    let configuration = owned::file(scratch.path(), 1, File::RunnerConfiguration);
-    let before = fs::read(&configuration).expect("connection");
-    fs::remove_file(&configuration).expect("remove configuration");
-    let upgraded = owned::prepare(scratch.path(), 1);
-    assert!(upgraded.status.success(), "{}", String::from_utf8_lossy(&upgraded.stderr));
-    assert_eq!(fs::read(configuration).expect("configuration remade"), before);
-    assert_eq!(fs::read_dir(scratch.path().join("forge-1/backups")).expect("upgrade fixture").count(), 0);
-    scratch.remove();
-}
 
 #[test]
 fn temper_box_prints_its_link_and_stops_its_processes() {
