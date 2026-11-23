@@ -116,7 +116,7 @@ whose charter is an asking one (`tools.md`) is given no repository, whatever
 its project's home and context repositories (`../root-translation.md`, 2.1; `ask-temper.md`), so it
 runs with no workspace: no checkout, no file tools, no shell, and smith
 says nothing of a checkout (smith's `domain/run.md`, 3.3; through Claude
-Code, smith's `protocol/programs.md`, 5.1). A run whose charter names none
+Code, smith's `protocol/programs-claude-code.md`, 1.1). A run whose charter names none
 of `inspect`, `modify` and `shell` is given no repository either, whatever
 its project's repositories, since it could neither read, write nor run
 anything in one: the drafter's runs so (`agents.md`, 4), and keep their sub-agents.
@@ -342,13 +342,13 @@ Checks at `.temper/pre-pr`, guides at `AGENTS.md` (smith's
   name, come to the agent as grants through the worker
   (`../../protocol/credentials-llm-accounts.md`, section 1). A run on a program has
   smith's sub-agents, inspect only, each a program session of its own
-  (smith's `protocol/programs.md`, 5.10).
+  (smith's `protocol/programs-claude-code.md`, 1.10).
   The stock demo is temper's fake model, declared with `gpt-6-luna`'s
   window, 1,048,576 tokens, and an output of 8,192, so it leaves every
   charter the room luna does. At smith's 4/5 threshold, after two
   outputs and less smith's own part, half of the remaining room gives
-  the host part and a quarter the offer (smith's `protocol/limits.md`,
-  3.9): ⌊(⌊1,048,576 × 4/5⌋ − 2 × 8,192 − own) / 2⌋, about 400,000
+  the host part and a quarter the offer (smith's `protocol/limits-derivation.md`,
+  1.9): ⌊(⌊1,048,576 × 4/5⌋ − 2 × 8,192 − own) / 2⌋, about 400,000
   bytes; `temper-service`'s step tests hold the figure at init's agent.
   Every stock charter retains that rendered room, which holds the stock
   tools and the gathered brief with a whole spec. Delivery also enforces

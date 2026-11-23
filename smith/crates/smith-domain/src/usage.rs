@@ -1,4 +1,4 @@
-//! Program allowance notices (protocol/programs.md, 5.6; protocol/channel.md, 4).
+//! Program allowance notices (protocol/programs-claude-code.md, 1.6; protocol/channel.md, 4).
 //! These are provider observations, not the run's token or spend ledger.
 
 use alloc::boxed::Box;

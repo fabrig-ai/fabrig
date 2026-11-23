@@ -95,7 +95,7 @@ pub enum Event {
     CancelJobs { session: Token },
     /// The run asks this session to yield its outstanding Complete; its terminal remains owed.
     Yield { session: Token },
-    /// The program reports a built-in call's result after its completion (smith/docs/design/protocol/programs.md, 5.5).
+    /// The program reports a built-in call's result after its completion (smith/docs/design/protocol/programs-claude-code.md, 1.5).
     BuiltinResult { session: Token, id: Box<[u8]>, text: Box<[u8]>, error: bool },
     /// Terminal for `Complete`: the LLM produced its next message.
     Completed {

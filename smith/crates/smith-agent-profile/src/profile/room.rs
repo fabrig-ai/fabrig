@@ -1,7 +1,7 @@
 //! A declared endpoint's room and the host and message parts derived from it.
 //! Only numeric bounds are retained; no charter, provider destination or
 //! transcript is known. `room` checks every declared endpoint before returning
-//! one set of receiving bounds. Contract: smith/docs/design/protocol/limits.md, sections 3.9 and 4.
+//! one set of receiving bounds. Contract: smith/docs/design/protocol/limits-derivation.md, section 1.9, and smith/docs/design/protocol/limits.md, section 4.
 
 #[cfg(test)]
 mod tests;

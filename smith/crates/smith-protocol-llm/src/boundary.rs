@@ -54,7 +54,7 @@ pub enum FromDomain {
 pub enum ToDomain {
     /// One program allowance observation, independent of completion and failure.
     Usage { owner: Token, window: smith_domain::UsageWindow },
-    /// The program reports a built-in call's result after its completion (protocol/programs.md, 5.5).
+    /// The program reports a built-in call's result after its completion (protocol/programs-claude-code.md, 1.5).
     BuiltinResult { owner: Token, id: Box<[u8]>, text: Box<[u8]>, error: bool },
     /// The completion and its decoded calls.
     Completed { owner: Token, completion: llm::Completion },

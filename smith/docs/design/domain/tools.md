@@ -469,9 +469,9 @@ domain checks each call before it runs.
 
 - **What stands in:** for inspect, the program's `Read`, `Glob` and
   `Grep`; for modify, `Write` and `Edit`; for shell, `Bash`
-  (protocol/programs.md, 5.3). There is no `list`, `search` or `job` of
+  (../protocol/programs-claude-code.md, 1.3). There is no `list`, `search` or `job` of
   this domain's.
-- **What holds, at the permission prompt** (protocol/programs.md, 5.4):
+- **What holds, at the permission prompt** (../protocol/programs-claude-code.md, 1.4):
   - each path a call names, resolved against the working directory,
     within the start's directories, and outside every `.git` directory
     (section 4);

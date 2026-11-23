@@ -328,7 +328,7 @@ pub enum Below {
     Usage { owner: Token, window: crate::UsageWindow },
     /// The program observed this whole file version for the addressed session (smith/docs/design/domain/tools.md, 10).
     ReadVersion { owner: Token, place: tools::Place, version: tools::Version },
-    /// The program reports a built-in call's result after its completion (smith/docs/design/protocol/programs.md, 5.5).
+    /// The program reports a built-in call's result after its completion (smith/docs/design/protocol/programs-claude-code.md, 1.5).
     BuiltinResult { owner: Token, id: Box<[u8]>, text: Box<[u8]>, error: bool },
     /// Terminal for `Complete`: the LLM produced its next message.
     Completed {
@@ -417,7 +417,7 @@ pub enum Lower {
     /// an owner with no outstanding completion is ignored.
     Yield { owner: Token },
     /// The child conversation `owner` has ended and asks nothing more: a backend
-    /// that keeps a process for it ends it (protocol/programs.md, 5.10). Sent once,
+    /// that keeps a process for it ends it (protocol/programs-claude-code.md, 1.10). Sent once,
     /// after the terminal of the conversation's last `Complete`; nothing answers it.
     Close { owner: Token },
     /// Ask io for `op` for a session's tools, giving up at `deadline`.

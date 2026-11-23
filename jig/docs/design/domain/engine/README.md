@@ -467,7 +467,7 @@ Moved to [`world.md`](world.md), section 1.
   2026-11-18). Default: so; every task kept off the place, and the
   deployment's document naming it, if such faults come to strike
   every run there.
-- **Other init faults as a place's** (smith's `protocol/programs.md`,
-  5.6): an init lacking a granted built-in, or listing one not granted,
+- **Other init faults as a place's** (smith's `protocol/programs-claude-code.md`,
+  1.6): an init lacking a granted built-in, or listing one not granted,
   stays the run's own failure, though a program's version on one host
   may cause it. Default: so, until a deployment meets it.

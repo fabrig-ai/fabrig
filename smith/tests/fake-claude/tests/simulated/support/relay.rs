@@ -1,4 +1,4 @@
-//! The real run server and shipped relay around the fake (smith/docs/design/protocol/programs.md, 5.3).
+//! The real run server and shipped relay around the fake (smith/docs/design/protocol/programs-claude-code.md, 1.3).
 
 use serde_json::{Value, json};
 use skein_fake_machine::{Item, Machine as Files};

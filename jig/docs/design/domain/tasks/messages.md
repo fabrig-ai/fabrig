@@ -96,8 +96,8 @@ again when a run leaves one undecided only as 6 says.
     asks dropped by one goal; two messages lost by another whose hung
     run was stopped).
 - **Within what a run reads.** Every message an inbox admits fits a
-  run's message bound as it is rendered (smith's `protocol/limits.md`,
-  3.9), so no run refuses one as too large: words and questions larger
+  run's message bound as it is rendered (smith's `protocol/limits-derivation.md`,
+  1.9), so no run refuses one as too large: words and questions larger
   are refused at their sender's entrance as too large, never cut (a
   party's by the people child, whose bound is at most the run's;
   ../people/acts.md, 1), and every other kind fits by its own bound.

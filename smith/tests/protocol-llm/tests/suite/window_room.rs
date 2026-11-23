@@ -1,5 +1,5 @@
 //! Startup-derived fresh windows through the real session boundary.
-//! Contract: smith/docs/design/protocol/limits.md, sections 3.2, 3.9 and 4.
+//! Contract: smith/docs/design/protocol/limits-derivation.md, sections 1.2 and 1.9, and smith/docs/design/protocol/limits.md, section 4.
 
 use smith_session_world::said;
 

@@ -117,7 +117,7 @@ mod tests;
 /// A tool call, as the protocol layer decoded it.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Decoded {
-    /// A program-owned built-in call; the program reports its result later (smith/docs/design/protocol/programs.md, 5.3–5.5).
+    /// A program-owned built-in call; the program reports its result later (smith/docs/design/protocol/programs-claude-code.md, 1.3–1.5).
     Builtin { effect: tools::Effect },
     /// A call to one of the tools the session owns.
     Owned { call: tools::Call },

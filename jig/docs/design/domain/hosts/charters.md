@@ -9,7 +9,7 @@ engine's protocol layer calls for every run, on workers and in the
 engine alike, and which reads every run's result back by the path of
 host tools' calls (`hub.md`, 8).
 
-Its `assignment` assembles that charter from the core's run charter, the brief and the run's sources, with the contract's policy, which is jig's, not an application's: a contract's text at most 1024 bytes and a change's `body` at most the contract's words, so a report is a setting of the application's, with the agent's outcome, which holds its title, its body and their framing together (smith's `protocol/limits.md`, 3.10), and the hub's `outcome_bytes` beside it, its checks required to pass, and the workspace tools the run's policy grants. Its `charter` translates what `assignment` assembled, decides `deliver`, and grants `modify` only to a run that can deliver: what a run writes leaves its workspace only by a delivery, so a run with no `deliver` inspects alone, whatever its policy says (a rail, not an instruction). A root calls them and decides none of it.
+Its `assignment` assembles that charter from the core's run charter, the brief and the run's sources, with the contract's policy, which is jig's, not an application's: a contract's text at most 1024 bytes and a change's `body` at most the contract's words, so a report is a setting of the application's, with the agent's outcome, which holds its title, its body and their framing together (smith's `protocol/limits-derivation.md`, 1.10), and the hub's `outcome_bytes` beside it, its checks required to pass, and the workspace tools the run's policy grants. Its `charter` translates what `assignment` assembled, decides `deliver`, and grants `modify` only to a run that can deliver: what a run writes leaves its workspace only by a delivery, so a run with no `deliver` inspects alone, whatever its policy says (a rail, not an instruction). A root calls them and decides none of it.
 
 A Finite run takes `deliver` in one of two ways; an Open run never does (1):
 
@@ -29,8 +29,8 @@ Its `hosted` puts a run's whole hand-over together from what the hub link kept (
 
   | jig's family | In smith |
   |---|---|
-  | inspecting, modifying, the shell | smith's inspect, modify and shell, when the run has a workspace, and modify only with `deliver`; on a program backend, the program's built-in tools of these families, each call asked of smith's policy through the program's permission prompt (smith's `protocol/programs.md`, 5.3 and 5.4) |
-  | sub-agents | smith's sub-agents; on a program backend, inspect only, each a program session of its own (smith's `protocol/programs.md`, 5.10) |
+  | inspecting, modifying, the shell | smith's inspect, modify and shell, when the run has a workspace, and modify only with `deliver`; on a program backend, the program's built-in tools of these families, each call asked of smith's policy through the program's permission prompt (smith's `protocol/programs-claude-code.md`, 1.3 and 1.4) |
+  | sub-agents | smith's sub-agents; on a program backend, inspect only, each a program session of its own (smith's `protocol/programs-claude-code.md`, 1.10) |
   | the engine's tools (../engine/executors-tools.md, 1) | host tools, each declared with its schema, its description and whether it writes |
   | each connector's reads, and the effects and topics it offers to agents | host tools, declared by the application; its effects through the engine's `effect`, its topics through `subscribe` |
   | waiting, by its wake policy | smith's `wait` |
@@ -104,7 +104,7 @@ Its `hosted` puts a run's whole hand-over together from what the hub link kept (
   program backend, which makes its own completions, smith cannot reserve
   one first: the program may pass the ordinary part by one completion of
   its main model, which the reserve takes, and the run stops at its next
-  turn (smith's `protocol/programs.md`, 5.7 and section 7). Such a run's
+  turn (smith's `protocol/programs-claude-code.md`, 1.7, and `protocol/programs.md`, 7). Such a run's
   reserve holds one more of those completions (../authority-budgets.md, section 1),
   so it never spends past its budget either.
 - **The core places no run smith would refuse.** A task whose budget
@@ -132,7 +132,7 @@ Open run is granted the wait and never delivery.
 
 An Open task's program path is admitted as a Finite task's is, since
 smith runs an Open run on a program backend, keeping the program across
-its turns (smith's `protocol/programs.md`, 5.9): selection and the
+its turns (smith's `protocol/programs-claude-code.md`, 1.9): selection and the
 claim's recheck judge its models and grants by the same view as any
 task's, each source, account and host still checked and the binding
 revalidated exactly.

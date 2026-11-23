@@ -219,7 +219,7 @@ policy.
   operation (a program's own tools report none), and a run with no call
   running and no turn coming is stopped once it has been silent past the
   longest of them. `host_limits`, the host's share of the profile
-  (protocol/limits.md, 3.8), computes it from the profile, the agent's
+  (../protocol/limits-derivation.md, 1.8), computes it from the profile, the agent's
   limits and the endpoints' declarations (smith's `EndpointLimits`, the
   `limits` of `smith-domain`'s `Config`), each term checked, an overflow
   refused as `derived` naming `no_progress`. At the `standard` profile,

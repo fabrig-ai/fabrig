@@ -129,7 +129,7 @@ One run, then exit:
   `person` (../domain/run.md, section 3.2), so the run opens on it
   (../domain/run.md, section 3.4). `-` reads it from standard input to its
   end, as a harness gives it. A prompt past a message's bound
-  (../protocol/limits.md, 3.9), an empty one, or both an argument and `-`
+  (../protocol/limits-derivation.md, 1.9), an empty one, or both an argument and `-`
   is a usage error.
 - **The shared flags apply:** `-m` and `--effort` choose the main model
   and its effort, `-c` sets any key a layer may, and `-C` the workspace.
@@ -176,7 +176,7 @@ One run, then exit:
   builds fill. The credentials directory is kept as
   usual. A run on a program leaves the program's own session in the
   source's configuration directory, where no later run looks for it
-  (../protocol/programs.md, 5.8).
+  (../protocol/programs-claude-code.md, 1.8).
   - **Removed by the names it wrote.** At exit, after the run has
     answered and before the process ends, the chat store removes through
     io each file it wrote there, by the names it knows (its state, its

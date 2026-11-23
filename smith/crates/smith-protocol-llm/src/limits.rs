@@ -1,6 +1,6 @@
 //! Static receiving compatibility and simultaneous translation ownership.
 //! All prices use checked arithmetic before preparation or final allocation.
-//! Contract: protocol/llm.md, section 8; protocol/limits.md, section 3.
+//! Contract: protocol/llm.md, section 8; protocol/limits-derivation.md, section 1.
 
 use core::mem::size_of;
 

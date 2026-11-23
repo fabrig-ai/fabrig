@@ -2,12 +2,12 @@
 
 2026-11-19. Where smith's code lags or departs from [limits.md](limits.md).
 
-Sections 3.6 and 3.8's `host_limits` and the agent's profile derivation
+`limits-derivation.md`, sections 1.6 and 1.8's `host_limits` and the agent's profile derivation
 are `smith-agent-profile`'s at main's `fdc26f71c6`, re-exported at the
 service's and local service's old paths (smith's `../shell/README.md`, 2.6).
 The move leaves the bounds and the gaps below unchanged.
 
-Sections 2.1, 2.2, 3.9 and 4 have no known gap in endpoint limits,
+`limits.md`, sections 2.1 and 2.2, and `limits-derivation.md`, section 1.9, and `limits.md`, section 4 have no known gap in endpoint limits,
 `charter_models`, saved-window fallback quantities or entrance checks
 against the endpoint rather than a model declaration.
 
@@ -16,9 +16,9 @@ ten program-world rows, asking two to six calls with program and
 credential children. Requests enter together; admitted children answer
 and excess calls return `refused reason=too-many`. The reported
 deployment abort on such a burst was no limit's but a file answer's
-routing (programs.status.md, 5.1); no production limit changed.
+routing (programs-claude-code.status.md, 1.1); no production limit changed.
 
-Sections 3.4, 3.10, 4 and 6 have no known gap in a sub-agent's answer
+`limits-derivation.md`, sections 1.4 and 1.10, and `limits.md`, sections 4 and 6 have no known gap in a sub-agent's answer
 allowance: `answer_bytes` equals `outcome_bytes`, the larger of 4,096 and
 `tool_payload`. A UTF-8 answer is cut at a character's boundary; its
 marker counts the omitted bytes and asks for a new child with a narrower
@@ -28,7 +28,7 @@ feedback, its rendering and transcript receiving bounds at payloads 256,
 10,662 and 63,740. The larger charter and outcome feedback bounds still
 determine the measured profile figures below.
 
-Section 3.10 has no known gap in charter and outcome allowances following
+`limits-derivation.md`, section 1.10 has no known gap in charter and outcome allowances following
 `tool_payload`. The profile table pins T at 16,803,810 for payload 10,662
 and output 8,192, and at 18,431,842 for 63,740 and 48,000. The 131,072 and
 98,500 row is refused at `turn-in-transcript`, with `session.said_text`

@@ -93,11 +93,13 @@ What is still open is listed in section 11.
 8. **limits.md:** declared quantities, the limits derived from them, the
    relationships checked at startup, memory, and what a limit does to one
    call.
-9. **host.md:** the host's side of a channel, whether the host spawns the
-   agent or connects to it, and the local host's protocol layer.
-10. **programs.md:** programs as backends: a run on Claude Code, signed in
+9. **limits-derivation.md:** how each layer's limits and a window's room are derived.
+10. **host.md:** the host's side of a channel, whether the host spawns the
+    agent or connects to it, and the local host's protocol layer.
+11. **programs.md:** programs as backends: a run on Claude Code, signed in
     by the program's own flow, its tools under smith's policy, its stream
     told as smith's.
+12. **programs-claude-code.md:** running Claude Code, from the command and tools to its stream and sub-agents.
 
 ## 3. Names
 
@@ -475,7 +477,7 @@ it.
     output limit marked;
   - typed `Limit` kinds, and HTTP statuses in failures;
   - `Limits::derive` from declared quantities, with a reasoning bound
-    apart from replay's metadata (limits.md, section 3.1).
+    apart from replay's metadata (limits-derivation.md, section 1.1).
 - **JSON and HTTP:** provider events decoded as they stream and
   selectively, by a general collector, and tokens kept compactly
   (skein's `data/json.md` and `http.md`).

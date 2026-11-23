@@ -165,7 +165,7 @@ program backend sends none of these messages, keeping its own history
   tools' `input_schema` lacks the first, with
   `tools.N.custom.input_schema.type: Field required`, and refuses the
   second; the program backend serves its tools under the same rule
-  (programs.md, 5.3). smith's own schemas are written so, `finish`'s
+  (programs-claude-code.md, 1.3). smith's own schemas are written so, `finish`'s
   included (below). A host tool's declared schema, an object, is
   normalized as the program backend's server normalizes it:
   - with no `type` at its top, it is sent with `"type":"object"` as
@@ -244,7 +244,7 @@ program backend sends none of these messages, keeping its own history
   never asked for and never shown (domain/run.md, 5.3). There is no `agents` field: a sub-agent never
   opens sub-agents (section 4). The brief is the child's text in its
   window's host part, and its schema states that bound: a brief past it
-  is invalid, too large (limits.md, 3.9).
+  is invalid, too large (limits-derivation.md, 1.9).
 - **`wait`'s result is deferred.** The run withholds it until a message
   arrives, and then the result and the message go in one request, so an
   exchange costs one completion (domain/run.md, section 6). Its
@@ -269,12 +269,12 @@ program backend sends none of these messages, keeping its own history
   These alternatives, a `oneOf`, go in one property, `outcome`,
   required, beside nothing else, so that the tool's schema is an object
   schema (above). The tool's schema is, byte for byte, the one the
-  program backend serves (programs.md, 5.3):
+  program backend serves (programs-claude-code.md, 1.3):
   `{"type":"object","properties":{"outcome":ALTERNATIVES},"required":["outcome"],"additionalProperties":false}`,
   ALTERNATIVES the `oneOf` object. The schema is written with skein's
   JSON writer, measured first, and the counts the run admits it by
   include the wrapper's bytes, since they count the schema as sent
-  (limits.md, 3.9).
+  (limits-derivation.md, 1.9).
 - **Names are unique across sources.** A charter that declares a host tool
   named like one of smith's is refused at the entrance (domain/run.md,
   5.1).
@@ -380,7 +380,7 @@ program backend sends none of these messages, keeping its own history
   compaction are rendered within what the window leaves above the
   compaction's history, less the summary instruction, each cut with its
   marker as the rest require; its summary is its output, beside its
-  prompt (limits.md, 2.1 and 3.9). Only
+  prompt (limits.md, 2.1, and limits-derivation.md, 1.9). Only
   that request's tail and its tool choice change: the history before it
   is as it was sent, so the cached prefix holds, but for the messages'
   cache on the Anthropic dialect (2.2).
@@ -448,7 +448,7 @@ program backend sends none of these messages, keeping its own history
   same request cut where the new part starts, each as skein's client
   measures a request before it is sent, a byte a token. So each block's
   text counts with its escapes, and its framing as encoded, as the
-  prompt's allowance counts a whole prompt's (limits.md, 3.2). When the
+  prompt's allowance counts a whole prompt's (limits-derivation.md, 1.2). When the
   last prompt's size plus that measure passes the line, the request is
   not sent: the call fails as *context too long*, with evidence
   `unsent`, and its detail names the line and the measure. The same
@@ -476,7 +476,7 @@ program backend sends none of these messages, keeping its own history
   The session's classes are these, unchanged (domain/session.md,
   section 4).
 - **A failure's detail is the operator's.** The provider's text goes up
-  with the failure, within skein's failure detail (limits.md, 3.2). The
+  with the failure, within skein's failure detail (limits-derivation.md, 1.2). The
   operator's line on standard error shows it clipped (limits.md, 2.4),
   and the event stream keeps it whole only under content capture
   (agent.md, section 6; events.md, section 3.10). It never enters a
@@ -585,7 +585,7 @@ program backend sends none of these messages, keeping its own history
   covers the tool payload, and one rendered result covers each tool's
   outcome at its caps, a host's reply, a message and a sub-agent's
   result (limits.md, section 4). The system text is the run's, bounded
-  by a window's room (limits.md, 3.9).
+  by a window's room (limits-derivation.md, 1.9).
 - **Stated to the LLM.** The limits a call can meet are written into the
   tools' descriptions from these effective values (section 3).
 - **Receiving and rendering bounds** (programming-model.md, 6.3):

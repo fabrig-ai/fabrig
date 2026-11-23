@@ -54,7 +54,7 @@
   none is reserved before it is made. Each is priced as it is reported,
   at the charter's prices, and counted as a turn; one that passes the
   ordinary pool is taken by the reserve, and its overrun is recorded as
-  spend (../protocol/programs.md, 5.7). The run still never spends past
+  spend (../protocol/programs-claude-code.md, 1.7). The run still never spends past
   its budget by more than one completion.
 - **A compaction is a completion** like any other (session.md, section
   8): reserved, priced, and counted as a turn.
@@ -117,9 +117,9 @@
   as its next user message. The program's tools are not narrowed, so
   the agent refuses every call but `finish`, granted `deliver`, granted `wait` and host tools
   declared for the reserve from then on,
-  each as an invalid call is answered (../protocol/programs.md, 5.7).
+  each as an invalid call is answered (../protocol/programs-claude-code.md, 1.7).
   An Open run on a program backend gets its last reply as
-  ../protocol/programs.md, 5.9 says.
+  ../protocol/programs-claude-code.md, 1.9 says.
 - **A sub-agent's share** runs out on its own: its final turn (`run.md`, 5.3) ends
   it, and its parent goes on.
 

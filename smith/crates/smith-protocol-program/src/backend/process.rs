@@ -1,4 +1,4 @@
-//! The program child and its pipes (smith/docs/design/protocol/programs.md, 5.6–5.8).
+//! The program child and its pipes (smith/docs/design/protocol/programs-claude-code.md, 1.6–1.8).
 //! A pending spawn owns no handles; a live child owns its remaining pipes.
 //! Exit retains its code and drain grace until closure settles every handle.
 //! This machine knows no completion, window, MCP listener or stop policy.

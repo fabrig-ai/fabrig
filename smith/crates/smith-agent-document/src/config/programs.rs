@@ -18,7 +18,7 @@ pub enum ProgramName {
     ClaudeCode,
 }
 
-/// A program's launch choices and directory of source configurations (smith/docs/design/protocol/programs.md, 4.2 and 5.1).
+/// A program's launch choices and directory of source configurations (smith/docs/design/protocol/programs.md, 4.2, and smith/docs/design/protocol/programs-claude-code.md, 1.1).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Program {
     pub path: PathBuf,

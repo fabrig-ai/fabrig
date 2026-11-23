@@ -88,7 +88,7 @@ skein's (skein's `testing/fakes/llm.md`):
     {"type":"error","error":{"type":"billing_error","message":"This
     account's plan does not cover this request."},"request_id":"req_fake"}`.
     The provider's own error is in its text, so smith's classification
-    tells it from an edge's (smith's `protocol/programs.md`, 5.6): today
+    tells it from an edge's (smith's `protocol/programs-claude-code.md`, 1.6): today
     *invalid*;
   - **an edge's refusal,** the billing refusal's control:
     `api_error_status` 403, `result` `API Error: 403 <html><head><title>403

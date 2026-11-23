@@ -109,9 +109,9 @@ The contract is ../domain/host.md's.
   than that. Like a check, it is no record of the channel's and takes no slot.
 - **Reading a program's usage.** When its host asks, with a program
   source, the check's deadline and the host's wall time, by which the
-  read places each reset's year (programs.md, 5.11), the half inspects both directory
+  read places each reset's year (programs-claude-code.md, 1.11), the half inspects both directory
   levels as a check does, then runs the program's usage command in the
-  source's environment (programs.md, 5.11), and answers once the child
+  source's environment (programs-claude-code.md, 1.11), and answers once the child
   has settled: its windows, at most 8, each as the channel's usage notice
   has one (channel.md, section 4); not signed in; spent; or failed,
   missing, deadline, unreadable or exited, with its detail. Like a
@@ -121,7 +121,7 @@ The contract is ../domain/host.md's.
   directory and environment, with the host's deadline (programs.md,
   4.1), and answers signed out or failed, with the detail. It reads
   nothing the sign-out removes. A run live on the source ends as a login
-  lost (programs.md, 5.6).
+  lost (programs-claude-code.md, 1.6).
 - **The end.** The domain reads on after the answer, to the channel's end,
   so that what the agent said before it went is heard. The end answers one
   read, and the half reports it once.
@@ -139,7 +139,7 @@ layer spawns a contained tree:
 - **the view:** at least the workspace's directories, writable as the start
   says, the binary and its configuration, and, for a run on a program,
   the program and the source's configuration directory, writable, since
-  the program keeps its session there (programs.md, 5.8). The rest is
+  the program keeps its session there (programs-claude-code.md, 1.8). The rest is
   the host's choice;
 - **the pipes:** standard input and output for the channel, and standard
   error, whose tail the half keeps for the domain's report of how the agent
@@ -306,7 +306,7 @@ without marker IO. Jig-held transcripts are outside this check.
   prompt has told the LLM of them and a turn has been kept after it.
 - **A program's session** is the program's, in its source's
   configuration directory, found by the conversation's session id
-  (programs.md, 5.8). An `--ephemeral` chat's program session is never
+  (programs-claude-code.md, 1.8). An `--ephemeral` chat's program session is never
   resumed by a later chat, and stays as the program keeps its sessions
   (programs.md, section 9).
 

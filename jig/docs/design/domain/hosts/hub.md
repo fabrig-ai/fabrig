@@ -199,7 +199,7 @@ history as an invalid start or a model failure.
 **A program that started without its tools** is
 `RunFailure::Untooled`, a unit variant: the run's program, on a
 program source, gave a first output (its init) without smith's tools
-(smith's `protocol/programs.md`, 5.6), so the program source's login
+(smith's `protocol/programs-claude-code.md`, 1.6), so the program source's login
 on this host, not the task, is at fault. Its application names it from
 its agent's own fault (temper's `domain/worker/hosted-runs.md`, 1.3), its
 detail the agent's bounded words as for any failed run, and `model`

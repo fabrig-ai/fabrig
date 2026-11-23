@@ -1,4 +1,4 @@
-//! Local usage reads (protocol/programs.md, 5.11; protocol/host.md, 2).
+//! Local usage reads (protocol/programs-claude-code.md, 1.11; protocol/host.md, 2).
 //! Keeps one bounded child answer, never a run, slot or credential. The caller
 //! drives `SourceInspection` first, as for `ProgramSource`, then `new`, `from_io`
 //! and `fire`; `answer` returns once after every child resource settles.

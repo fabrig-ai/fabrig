@@ -203,12 +203,12 @@ outcomes stay typed (tools.md, section 4).
   The preamble says that what follows is the model's own summary of an
   earlier window, and that the work goes on. Both are the same whatever
   the charter says, so they count in smith's own part of a window
-  (protocol/limits.md, section 3.9).
+  (../protocol/limits-derivation.md, section 1.9).
 
 A guide is read from each workspace directory at the path the
 conventions name, as text, UTF-8: whole within its share of the host's
 part, at most the guide limit, which the product's presets size so that
-a guide is normally whole (protocol/limits.md, 3.9), and past it cut at
+a guide is normally whole (../protocol/limits-derivation.md, 1.9), and past it cut at
 a character boundary, the prompt saying that the file goes on; a file
 that is not text counts as no guide.
 
@@ -331,7 +331,7 @@ that is not empty, or a message.
 
 Names are unique across sources; a declared tool may not take one of
 smith's, nor `permission_prompt`, which a program backend keeps for its
-prompt tool (protocol/programs.md, 5.3). The charter's families say which of
+prompt tool (../protocol/programs-claude-code.md, 1.3). The charter's families say which of
 smith's tools the LLM sees; a host tool is offered exactly when it is
 declared.
 
@@ -406,7 +406,7 @@ section 6).
     reserves from the run's one budget, so together they never pass it.
   The brief takes the charter's place in the child's window, so a brief
   larger than a window's host part is answered as too large, and no child
-  opens (protocol/limits.md, section 3.9).
+  opens (../protocol/limits-derivation.md, section 1.9).
 - **The room.** A run holds at most `conversations` conversations at
   once (protocol/limits.md, 2.2), main among them, so at most
   `conversations` less one children are open at once. A `sub_agent`
@@ -440,7 +440,7 @@ section 6).
   any other answer. A child returns unanswered only when it fails or is
   closed (`budget.md`, 1).
 - **The result.** The child's final message, up to the answer cap it was
-  told, `answer_bytes`, the outcome's room (protocol/limits.md, 3.10), then
+  told, `answer_bytes`, the outcome's room (../protocol/limits-derivation.md, 1.10), then
   a usage line the run writes: whether the child stopped for its budget,
   what it used, in turns and time, and the turns and time the run has left
   above its reserve (`budget.md`, 2).
@@ -481,7 +481,7 @@ section 6).
   share, so a brief names the paths, the decisions already made and the
   scope; independent reading splits among inspect-only children, which
   run side by side; a writing child runs alone.
-- **On a program backend** (protocol/programs.md, 5.10), the run serves
+- **On a program backend** (../protocol/programs-claude-code.md, 1.10), the run serves
   `sub_agent` through the agent's MCP server and answers it as here,
   each child a program session of its own at the model and effort of
   its LLM, or a direct session where its LLM's endpoint names no
@@ -841,16 +841,16 @@ the last message it read (section 6).
   the endpoint and model of the last completion, how many attempts it
   made and its report: the provider's code, request id and field, and the
   HTTP status a program reported for its call, which its evidence does
-  not carry (protocol/programs.md, 5.6); an
+  not carry (../protocol/programs-claude-code.md, 1.6); an
   account limited, naming the account and, when its provider said, how
   long until it may be used again, measured when the run answers; an
   account refused, naming it and the provider's code; a program
   source's login lost, naming the account; a program that started
   without smith's tools, *untooled*, a fault of its host's program
   rather than the run's, naming the program, with its detail
-  (protocol/programs.md, 5.6); a program that could not
+  (../protocol/programs-claude-code.md, 1.6); a program that could not
   run or exited before its answer, naming the program, with its detail
-  (protocol/programs.md, 5.6); a limit that fired, naming the limit and
+  (../protocol/programs-claude-code.md, 1.6); a limit that fired, naming the limit and
   its
   bound; or a fault of the model's own answer, *refused*, *truncated* or
   *malformed*, when it kept refusing, stopping at its output limit, or
@@ -887,7 +887,7 @@ an uncapped queue (programming-model.md, section 3), so no fact is lost
 inside the process. The run exposes its queued count through
 `pending_facts()` for its parent to drain, without an allowance for one
 entrance. The service dispatches those facts before the next
-domain entrance (protocol/limits.md, 3.8). Each carries when it happened,
+domain entrance (../protocol/limits-derivation.md, 1.8). Each carries when it happened,
 taken by the step that emits it, never when a sink takes it:
 
 - a run admitted or ended;

@@ -23,7 +23,7 @@ children on another provider. Each checks the admitted children's
 answers and closure, each excess call's `refused reason=too-many`, main's
 accepted answer and removal of private directories. The reported
 deployment abort on such a burst was no bound's but a file answer's
-routing (protocol/programs.status.md, 5.1); no production bound changed.
+routing (../protocol/programs-claude-code.status.md, 1.1); no production bound changed.
 
 Section 5.2 has no known gap in a busy or unanswered host call's retry
 backoff: it doubles from `host_backoff` to 64 times that first wait,

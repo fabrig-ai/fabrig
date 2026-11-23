@@ -111,7 +111,7 @@ pub fn parse(bytes: &[u8]) -> Result<Configuration, String> {
 }
 
 // The exact encoded count supplies machine.env_bytes before the shared encoder
-// validates names. Contract: smith/docs/design/protocol/limits.md, sections 3.5 and 4.
+// validates names. Contract: smith/docs/design/protocol/limits-derivation.md, section 1.5, and smith/docs/design/protocol/limits.md, section 4.
 fn environment_size_refusal() -> ConfigurationRefusal {
     ConfigurationRefusal::Profile(Refusal::Derived { limit: LimitName::deployment(Layer::Machine, "env_bytes") })
 }

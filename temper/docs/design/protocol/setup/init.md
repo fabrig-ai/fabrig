@@ -223,7 +223,7 @@ QA's host starts from a copy and `temper box --config COPY` runs it
   `conversations` 26 (room for a run and 25 sub-agents, smith's
   `protocol/limits.md`, 2.2: a run's main conversation and its
   sub-agents', each a program session of its own on Claude Code, smith's
-  `protocol/programs.md`, 5.10) and `calls_per_response` 48 (smith's
+  `protocol/programs-claude-code.md`, 1.10) and `calls_per_response` 48 (smith's
   `domain/session.md`, 5, and smith's `protocol/limits.md`, 2.3), and `policy`
   `max_turns` 800, `check_timeout` 60,000 ms, `group_stop` 10, `inbox` 82
   (a run's inbox, jig's `standard` `tasks.run_inbox`, which the fleet

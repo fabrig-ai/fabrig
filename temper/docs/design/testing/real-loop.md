@@ -291,7 +291,7 @@ in the lower world that owns it, never here.
     are fenced" (jig's `domain/engine/fleet.md`; jig's
     `domain/testing.md`, section 3);
   - **a program source's usage limit and its lost login** (smith's
-    `protocol/programs.md`, 5.6): smith's world over its fake `claude`
+    `protocol/programs-claude-code.md`, 1.6): smith's world over its fake `claude`
     (smith's `protocol/programs.md`, section 8), relayed as limited and
     as unauthorized in jig's channel world (jig's `protocol/channel/testing.md`,
     section 1); `account verify` answered as each host reports:

@@ -343,8 +343,8 @@ vocabulary.
     section 2): a story names a file in the working directory, never
     under the directory's name, which would resolve beneath it.
   - **What the program run is offered.** The Claude stories check the
-    first prompt's offered tools (events.md, 3.11) as protocol/programs.md,
-    5.3 and 5.5 has them for a run granted inspect, modify and shell: the
+    first prompt's offered tools (events.md, 3.11) as protocol/programs-claude-code.md,
+    1.3 and 1.5 has them for a run granted inspect, modify and shell: the
     six built-ins and the permission prompt; never `finish`, since every
     exec has a result contract and ends through the program's
     `StructuredOutput`; never a sub-agent. A fake-backed exec on the
@@ -758,7 +758,7 @@ own command (2.4).
 
 | Test | Its reason |
 |---|---|
-| `tests/end-to-end/program_lifetime.rs` (`smith::end_to_end`): `an_aborted_agent_takes_its_program_and_relay_with_it`, and `support/lifetime.rs`, its observation | a program dies with its aborted agent by Linux's parent-death signal; on macOS the host's tree must end (`protocol/programs.md`, 5.1 and section 9) |
+| `tests/end-to-end/program_lifetime.rs` (`smith::end_to_end`): `an_aborted_agent_takes_its_program_and_relay_with_it`, and `support/lifetime.rs`, its observation | a program dies with its aborted agent by Linux's parent-death signal; on macOS the host's tree must end (`protocol/programs-claude-code.md`, 1.1, and `protocol/programs.md`, 9) |
 
 ## 7. Layout
 

@@ -1,4 +1,4 @@
-//! Child-side exec for programs that die with their agent (smith/docs/design/protocol/programs.md, 5.1).
+//! Child-side exec for programs that die with their agent (smith/docs/design/protocol/programs-claude-code.md, 1.1).
 //! Keeps only argv until exec, inheriting environment, directory and descriptors.
 //! `main` enters this mode; `parse` refuses malformed argv before any exec.
 
@@ -24,7 +24,7 @@ fn parse(arguments: &[OsString]) -> Result<Invocation, &'static str> {
     })
 }
 
-#[expect(clippy::disallowed_types, reason = "protocol/programs.md, 5.1: the program dies with its agent")]
+#[expect(clippy::disallowed_types, reason = "protocol/programs-claude-code.md, 1.1: the program dies with its agent")]
 fn exec(invocation: Invocation) -> std::io::Error {
     let mut command = std::process::Command::new(invocation.program);
     command.args(invocation.arguments);

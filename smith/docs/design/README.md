@@ -69,3 +69,7 @@
 5. **domain/host.md:** the other side: what a host owes a run and is owed, the
    channel, supervising agent processes, the local host, and one process
    through the inline agent.
+6. **protocol/limits.md:** declared quantities, startup checks, memory and what happens at a limit.
+7. **protocol/limits-derivation.md:** how each layer's limits and a window's room are derived.
+8. **protocol/programs.md:** choosing and signing in to a program backend, and what it promises.
+9. **protocol/programs-claude-code.md:** running Claude Code, from the command and tools to its stream and sub-agents.

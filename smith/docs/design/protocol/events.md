@@ -272,7 +272,7 @@ complete, is in `response.completed`.
 | `block` | integer | the block's index within the response |
 | `text` | string | the piece, as it came |
 
-**On a program backend** (programs.md, 5.5), each completion the
+**On a program backend** (programs-claude-code.md, 1.5), each completion the
 program reports is one response: `response.started` at its first
 partial message, `response.completed` at its assistant message. A
 `system/api_retry` is a `response.completed` whose `outcome` is
@@ -401,7 +401,7 @@ when it is about one; and the kind's fields.
 | `not_contained` | warning | | at startup, while commands run in process groups rather than contained trees |
 | `limit_near` | info | `which`, `bound`, `value` | the first time in a run a measured size passes the compaction threshold's share of its limit |
 | `reasoning_dropped` | warning | `bytes` | a reasoning item past its bound left out of later requests, as the model's declaration allows (limits.md, section 2.1) |
-| `credential_unauthorized` | warning | `account` | a provider refused a credential, or a program source's login was lost (programs.md, 5.6) |
+| `credential_unauthorized` | warning | `account` | a provider refused a credential, or a program source's login was lost (programs-claude-code.md, 1.6) |
 | `account_limited` | warning | `account`, and `reset_ms` when its provider said | an account reached a usage limit; `reset_ms` is how long from this record until it may be used again |
 | `account_refused` | warning | `account`, `code` | a provider refused the account what the run asked, with its code. The notice's reason is the provider's text, so it is never here: it is the failed response's `detail`, content under the capture policy (3.10) |
 | `teardown_aborted` | warning | | a termination signal after the answer turned closes into aborts |
@@ -438,7 +438,7 @@ when it is about one; and the kind's fields.
   `unsupported`, the field the provider does not take, `code` and
   `request_id`, the provider's, when it gave them, and `detail`,
   the provider's text or the limit's words, as the session kept it
-  (limits.md, 3.2): content, so only under `calls` and `everything`
+  (limits-derivation.md, 1.2): content, so only under `calls` and `everything`
   (llm.md, section 6). A limit a provider's failure caused, the window's
   after *context too long* (domain/session.md, 8.2), is class `limit`
   with its `limit`, and that failure's `evidence`, `status` and `detail`,
@@ -454,7 +454,7 @@ when it is about one; and the kind's fields.
   `unauthorized`, a program source's login lost; or with `program`, its
   name, a program that could not run or exited before its answer, with
   its `exit` when it exited and, as content, its `detail`
-  (programs.md, 5.6); or with
+  (programs-claude-code.md, 1.6); or with
   `which`, a fault of the model's own answer, `refused`, `truncated` or
   `malformed`, domain/run.md, section 9), `budget` (with `which`: `turns`,
   `spend` or `time`, and `used` and `bound` in its unit: a count, the
@@ -533,7 +533,7 @@ projection.
 - **Lossless before the sinks.** Inside the process nothing is dropped:
   the domain's facts are a step's output in an uncapped queue. The next
   domain entrance waits until those facts reach the sinks
-  (limits.md, 3.8; agent.md, section 5).
+  (limits-derivation.md, 1.8; agent.md, section 5).
 
 ### 5.2 A sink's policy
 
@@ -587,7 +587,7 @@ projection.
   size is told.
 - **Bounded.** Each content field is within the limit of what it came
   from, so the largest record follows from the limits and the policy
-  (limits.md, section 3.7).
+  (limits-derivation.md, section 1.7).
 
 ## 6. Version
 
@@ -670,7 +670,7 @@ The vocabulary is pre-release, like every format (README.md, section 8).
   - a run on a program backend against the fake program (programs.md,
     section 8): a response per completion, a program's retry as a failed
     attempt, `withheld` naming `sub_agents`, and each notice and answer
-    failure of programs.md, 5.6;
+    failure of programs-claude-code.md, 1.6;
   - a destination slowed under `complete`: nothing lost and the answer
     unchanged.
 - **End to end:** `smith exec --json` against the fake provider: the

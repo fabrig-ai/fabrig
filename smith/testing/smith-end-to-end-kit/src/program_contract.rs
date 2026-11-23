@@ -1,5 +1,5 @@
 //! The live Claude story's check of what a program run's first prompt offers
-//! (smith/docs/design/protocol/programs.md, 5.3 and 5.5).
+//! (smith/docs/design/protocol/programs-claude-code.md, 1.3 and 1.5).
 
 /// What a program run granted inspect, modify and shell offers in its first prompt, under smith's
 /// names: the six built-ins and the permission prompt.

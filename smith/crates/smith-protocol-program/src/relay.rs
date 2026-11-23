@@ -1,4 +1,4 @@
-//! The agent binary's stdio relay (protocol/programs.md, sections 5.3 and 9).
+//! The agent binary's stdio relay (protocol/programs-claude-code.md, section 1.3, and protocol/programs.md, section 9).
 //! Keeps three stream owners, one chunk per direction and the handshake;
 //! knows no MCP messages or policy. `parse` admits loopback startup and
 //! `from_io`/`terminate` settle every stream before `ended` becomes visible.
@@ -93,7 +93,7 @@ pub fn parse(arguments: &[Box<[u8]>], environment: &[Box<[u8]>]) -> Result<Targe
     Ok(Target { addr, secret: secret.ok_or(Usage::Secret)? })
 }
 
-/// Byte-copying step machine hosted by the shell (protocol/programs.md, 5.3, 9).
+/// Byte-copying step machine hosted by the shell (protocol/programs-claude-code.md, 1.3, protocol/programs.md, 9).
 #[expect(
     clippy::struct_excessive_bools,
     reason = "three independent stream lifecycles, their read/output demands and authentication are tracked separately"

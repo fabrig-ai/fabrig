@@ -211,8 +211,8 @@ child domain `smith-domain-session`, whose own child is the tools domain
   blocks and bytes are derived within skein's request and history
   bounds, with the system text and the tools at their largest, and are
   checked before each completion with the window (8.1), so a history
-  that would pass skein's is compacted first (protocol/limits.md, section
-  3.2). Should one fire anyway, a fault in that derivation, it is taken
+  that would pass skein's is compacted first (../protocol/limits-derivation.md, section
+  1.2). Should one fire anyway, a fault in that derivation, it is taken
   as *context too long*: one compaction, and a second in the same window
   fails the session.
 - **A request past the line,** which the guard refuses before it is
@@ -493,24 +493,24 @@ window, history only grows (section 3).
 - **The line holds a compaction.** The line is the window less one
   completion's most output, the summary instruction and a cut result's
   marker for each of `calls_per_response` calls; the spare is what lies
-  between the threshold and the line (protocol/limits.md, 3.9). No
+  between the threshold and the line (../protocol/limits-derivation.md, 1.9). No
   ordinary completion is sent whose prompt may pass the line:
   - **the guard.** With each ordinary completion that has an earlier
     prompt in its window, the session gives the protocol layer the line,
     which its opener gave it at open from the charter's model entry
-    (protocol/limits.md, 3.9), the last prompt's reported size, and
+    (../protocol/limits-derivation.md, 1.9), the last prompt's reported size, and
     where that completion's answer starts in the history. Before it
     sends the request, the protocol layer measures that answer and
     everything after it as the request encodes them, their framing
     included, a byte a token (protocol/llm.md, section 6). When the last
     prompt's size plus that measure passes the line, the request is not
     sent, and the completion fails as *context too long*, unsent
-    (section 4): the window's one compaction (8.2);
+    (`session.md`, section 4): the window's one compaction (8.2);
   - **why it holds.** A token stands for at least one byte of the text
     it is read from, and encoding only adds bytes to that text, so the
     encoded measure bounds what the new part adds in tokens, whatever
     its ratio; its framing counts as encoded, as the prompt's allowance
-    counts a whole prompt's (protocol/limits.md, 3.2). A prompt the guard lets through
+    counts a whole prompt's (../protocol/limits-derivation.md, 1.2). A prompt the guard lets through
     is within the line. Its output is at most the model's most output,
     so the compaction after it, carrying both, finds above them the
     summary instruction and a marker for each owed result.
@@ -536,7 +536,7 @@ window, history only grows (section 3).
   window would be. A session never ends because its history grew.
 - **A completion's results never cross them.** The derivation holds one
   batch's results whole: the calls that run together (section 5), each
-  at its tool's caps (protocol/limits.md, 3.2). A later batch of the same
+  at its tool's caps (../protocol/limits-derivation.md, 1.2). A later batch of the same
   completion runs within what is left of the history, less room for an
   answer to each call after it, shared among its calls: each result is
   what its tool answers with that share as its cap, saying what it left
@@ -584,17 +584,17 @@ window, history only grows (section 3).
   that wrote them. A message that history leaves with no block keeps one
   text block in its place, `[reasoning not carried over]`. That covers
   an assistant message that held only reasoning, and a program's whose
-  reasoning the program did not tell (protocol/programs.md, 5.5). A
+  reasoning the program did not tell (../protocol/programs-claude-code.md, 1.5). A
   provider may refuse a message with no content, as Anthropic's does,
   unsent, on every attempt. The marker's bytes and block count against
-  the session's limits as any block's (section 3). A carried-over
+  the session's limits as any block's (`session.md`, section 3). A carried-over
   history they would take past those limits is refused as too large. A
   gone session's history they would take past them ends the session
   with the window's limit, as a window that cannot be compacted does.
   It is otherwise this section's compaction, a model change's included: the new window opens on the charter's LLM, and its
   window turn records its endpoint, dialect, account and backend. On a
   program backend it runs as a program session of its own, with no
-  tools (protocol/programs.md, 5.8).
+  tools (../protocol/programs-claude-code.md, 1.8).
 - **The compaction completion** has the same model, affinity, system
   text and tools as the completion it stands in for, and is asked with
   `ToolChoice::None`, whatever the conversation's own choice; the new
@@ -603,7 +603,7 @@ window, history only grows (section 3).
   user message: the summary instruction, which the run gives at open
   (run.md, section 3.3). The results owed to it are rendered within the
   room the window leaves for them, each cut with its marker where they
-  would pass it (protocol/limits.md, section 3.9). Its summary is its
+  would pass it (../protocol/limits-derivation.md, section 1.9). Its summary is its
   output, beside its prompt as every completion's is, and takes no room
   in the window (protocol/limits.md, 2.1). The history before them is
   the ordinary prompt's, unchanged:

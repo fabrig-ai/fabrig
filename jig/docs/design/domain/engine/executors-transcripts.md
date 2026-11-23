@@ -126,7 +126,7 @@
     backend is one it can only carry over, sending its history to a
     backend that did not write it (smith's `domain/session.md`, 8.2). A
     program's turns keep none of its reasoning (smith's
-    `protocol/programs.md`, 5.5), so whether a direct provider takes
+    `protocol/programs-claude-code.md`, 1.5), so whether a direct provider takes
     what a program wrote, or a program what a provider wrote, would
     depend on each pair of backends. A brief's tail is text, which every
     backend takes. The core chooses the source, and with it the backend

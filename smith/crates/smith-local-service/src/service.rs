@@ -33,7 +33,7 @@ pub struct Limits {
     pub process: ProcessLimits,
     /// Edge capacity (kernel, terminal, shell) and the work drained per iteration.
     pub queue: u32,
-    /// Backlog at which a person's new line or command waits (protocol/limits.md 3.8).
+    /// Backlog at which a person's new line or command waits (protocol/limits-derivation.md 1.8).
     pub watermark: u32,
 }
 
@@ -512,7 +512,7 @@ impl Service {
         next
     }
 
-    // Entries between the service's own children (protocol/limits.md 3.8).
+    // Entries between the service's own children (protocol/limits-derivation.md 1.8).
     // Include the local domain and inline effects' handoffs; edges and Accounts stay outside.
     fn backlog(&self) -> u64 {
         let mut total = u64::from(self.io.backlog());

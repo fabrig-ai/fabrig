@@ -60,7 +60,7 @@ const WAIT: &[u8] = b"Call `wait` when you need another message; its result is w
 
 /// Measure the largest fixed system mechanics and the opening instruction.
 /// Charter forms, names, conventions, guides and their scaffolding are excluded.
-/// Contract: smith/docs/design/protocol/limits.md, section 3.9.
+/// Contract: smith/docs/design/protocol/limits-derivation.md, section 1.9.
 #[must_use]
 pub fn fixed_prompt_bytes() -> Option<u64> {
     let mut measured = Text::measuring();

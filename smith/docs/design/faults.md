@@ -39,7 +39,7 @@ moves into its directory.
 
 | Fault | Kind (family `provider` unless said) | Made by | World |
 |---|---|---|---|
-| a rate window shared by an account's tasks, 429 with reset headers and no `retry-after` | `rate window` | the fake LLM's `Strike::Window` (fakes/llm.md, 2.7); the program's rejected `rate_limit_event` (protocol/programs.md, 5.6) | protocol-llm; agent-process |
+| a rate window shared by an account's tasks, 429 with reset headers and no `retry-after` | `rate window` | the fake LLM's `Strike::Window` (fakes/llm.md, 2.7); the program's rejected `rate_limit_event` (protocol/programs-claude-code.md, 1.6) | protocol-llm; agent-process |
 | spent credits, never returning | `spent credits` | `Strike::Spent` (`insufficient_quota`) | protocol-llm |
 | an expired sign-in | `expired sign-in` | `Strike::SignedOut`; the program's lost login (`Step::LoseLogin`) | protocol-llm; agent-process |
 | a model the account doesn't serve | `unserved model` | `Strike::Unserved`; the program's envelope (2.1) | protocol-llm; agent-process |
@@ -48,7 +48,7 @@ moves into its directory.
 | a billing refusal | `billing refusal` | the program's envelope (2.1) | agent-process |
 | an edge's or a proxy's refusal, the billing refusal's control | `edge refusal` | the program's envelope (2.1) | agent-process |
 | a saved window bound to another endpoint [composition] | `window elsewhere` | a run resumed with its transcript on another endpoint (domain/session.md, 8.2) | agent |
-| a program started without its tools | family `worker`, `untooled program` | the program's `system/init` without the agent's server (protocol/programs.md, 5.6) | agent-process |
+| a program started without its tools | family `worker`, `untooled program` | the program's `system/init` without the agent's server (protocol/programs-claude-code.md, 1.6) | agent-process |
 | a delivery check waiting for a build place [assertion] | family `worker`, `check waits for a place` | the check's `smith-check: waiting` (domain/run.md, 8.1) | run |
 
 The fake LLM's kinds are `skein_llm_kit::faults`' constants (fakes/llm.md,
@@ -65,8 +65,8 @@ documented synthetic envelopes, a `result` text each, built by
 plays as an observation with its moment: temper's
 `temper/docs/design/testing/fakes.md`, section 1, gives their bytes and
 the report, beside the fake LLM's faults. Today smith classes them
-*invalid*, *unavailable* (retried) and *invalid* (protocol/programs.md,
-5.6).
+*invalid*, *unavailable* (retried) and *invalid* (protocol/programs-claude-code.md,
+1.6).
 
 ## 3. The ledger and what smith's worlds count
 

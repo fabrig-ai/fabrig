@@ -1,4 +1,4 @@
-//! Summary init accepts only tool-free sessions (smith/docs/design/protocol/programs.md, 5.8).
+//! Summary init accepts only tool-free sessions (smith/docs/design/protocol/programs-claude-code.md, 1.8).
 #![expect(
     clippy::disallowed_macros,
     clippy::disallowed_types,

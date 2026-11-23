@@ -150,8 +150,8 @@ A source's state is one of:
 
 Each source's mechanism maps its LLM provider's failures onto these,
 skein for what a provider's API answers (skein's `llm/vocabulary.md`, section 1.5)
-and smith for what a program reports (smith's `protocol/programs.md`,
-section 5). A failure a run meets is the run's: unavailable is retried
+and smith for what a program reports (smith's `protocol/programs-claude-code.md`,
+section 1). A failure a run meets is the run's: unavailable is retried
 by smith's session; unsupported, a field the LLM provider will not
 take, is the request's error, never sent again unchanged (providers.md,
 2.5).

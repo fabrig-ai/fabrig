@@ -1,5 +1,5 @@
-//! Startup adapters for the same command machine (smith/docs/design/protocol/programs.md,
-//! sections 4.2, 5 and 8; smith/docs/design/testing.md, section 4). Only this module reads the
+//! Startup adapters for the same command machine (smith/docs/design/protocol/programs.md, section 4.2, and smith/docs/design/protocol/programs-claude-code.md, section 1, and smith/docs/design/protocol/programs.md, section 8
+//! ; smith/docs/design/testing.md, section 4). Only this module reads the
 //! process's arguments/environment or opens kernel startup descriptors.
 
 use std::{os::unix::ffi::OsStrExt, path::Path, process::ExitCode};

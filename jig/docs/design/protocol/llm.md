@@ -57,7 +57,7 @@ without agents has none of this. What is still open is listed in section
 - **Failures by class.** skein classes what a provider's API answers
   (exhausted, refused, unsupported, unauthorized, with the provider's
   error code and request id: skein's `llm/vocabulary.md`, 1.5), and smith what a
-  program reports (smith's `protocol/programs.md`, section 5). A run's
+  program reports (smith's `protocol/programs-claude-code.md`, section 1). A run's
   notices reach the accounts child as limited, refused or unauthorized
   (`llm.md`, section 6); unsupported is the request's error.
 - **LLM providers are configuration,** one list from which the charter's
@@ -489,7 +489,7 @@ engine's protocol layer
 - **Notices,** from either kind of run, reach the child with the account
   and source and, for a credential, its generation, fenced by attempt:
   - **limited:** skein's `exhausted`, or a program's usage limit (smith's
-    `protocol/programs.md`, section 5), with when it resets only where
+    `protocol/programs-claude-code.md`, section 1), with when it resets only where
     the provider says;
   - **refused:** the provider refuses the account for what is asked,
     with its evidence; the source stays so until its holder acts;

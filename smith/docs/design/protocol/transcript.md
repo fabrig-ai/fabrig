@@ -38,7 +38,7 @@ section 8).
 - **Opaque provider blocks travel verbatim,** tagged with the dialect that
   wrote them, and go back only to the same endpoint and dialect. A
   window carried over sends none of them, and a program backend's turns
-  hold none (programs.md, 5.5).
+  hold none (programs-claude-code.md, 1.5).
 - **Results are kept as the domain holds them.** Text that the domain wrote
   is kept as text. A workspace tool's outcome is kept typed, and rendered
   for the LLM again when the conversation resumes.
@@ -189,7 +189,7 @@ section 3):
 **A window carried over.** A transcript whose window ran on another
 endpoint or dialect than its charter's main LLM, one the agent's
 configuration does not name, another account or another backend, or
-on a program whose session its host does not hold (programs.md, 5.8),
+on a program whose session its host does not hold (programs-claude-code.md, 1.8),
 is not refused. The session compacts it on the charter's LLM before its
 first ordinary completion, sending its history without opaque blocks or
 provider's replay, which go back only to the dialect that wrote them,
@@ -281,7 +281,7 @@ jobs of every earlier window and activation.
   conversation.
 - **Generated bounds** describe one value: `encoded_bound` bounds its
   wire encoding, and `decoded_bound` its decoded ownership. Neither is
-  a process heap sum (limits.md, section 3).
+  a process heap sum (limits-derivation.md, section 1).
 - **A host that keeps turns** bounds what it keeps unacknowledged with the
   channel's window (channel.md, section 7).
 

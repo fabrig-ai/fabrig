@@ -187,6 +187,6 @@ it runs. The prompt's tool answers *allow*, with the call's input
 unchanged, or *deny*, with a message, and the agent never changes a
 call's input: smith decides the call as it decides one of its own
 tools, within the run's tool families, and the host sees the call that
-runs (smith's `protocol/programs.md`, sections 5.3 and 5.4; hosts/charters.md
+runs (smith's `protocol/programs-claude-code.md`, sections 1.3 and 1.4; hosts/charters.md
 ). So no call runs unseen by its host, and every call's
 effects and reads pass these checks on either backend.

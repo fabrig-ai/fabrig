@@ -49,7 +49,7 @@ archive-read room pressure remains busy, retried by the host; observing it
 changes no admission or grant. These bounded diagnostics are not store rows
 or client wire fields, and overflow drops a fact and increments the root's
 lost-fact count. Claude built-in Read refusals instead retain the permission
-message in the recorded tool result (smith's `protocol/programs.md`, 5.4).
+message in the recorded tool result (smith's `protocol/programs-claude-code.md`, 1.4).
 Forge file, directory, pull-file and compare replies fit the effective
 core and receiving-agent body allowance (`tools.md`), retaining prefixes
 or actionable size feedback. A forge read still exceeding the core settled

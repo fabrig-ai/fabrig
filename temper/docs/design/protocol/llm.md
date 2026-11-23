@@ -66,7 +66,7 @@ agent    every LLM call: smith's agent shell, over skein's LLM client
   sections 1 and 3).
 - **The program backend** runs the program as the agent process's
   child, with the source's configuration directory (smith's
-  `protocol/programs.md`, section 5): the host tools reach it through
+  `protocol/programs-claude-code.md`, section 1): the host tools reach it through
   the agent, as the only tools server it is given, so the engine decides
   each host tool's call as it does a direct run's; and each call of the
   program's built-in tools is asked of smith's policy before it runs, on
@@ -241,7 +241,7 @@ Within the suites' budgets (`../testing/tiers.md`, section 1):
   process each, parking between them and resuming by its session, since
   the real loop's charters park at once; two replies on one process are
   smith's agent-process world's to show (smith's
-  `protocol/programs.md`, 5.9 and 8); and a limit the fake program
+  `protocol/programs-claude-code.md`, 1.9, and `protocol/programs.md`, 8); and a limit the fake program
   reports making the source limited (`../testing/real-loop.md`).
 - **Notices:** a limited, refused and unauthorized notice from a run,
   each scripted on skein's fake LLM peer, reaching the accounts child

@@ -1,4 +1,4 @@
-//! A process follows one window (protocol/programs.md 5.8; domain/session.md 2).
+//! A process follows one window (protocol/programs-claude-code.md 1.8; domain/session.md 2).
 //! Keeps the last recorded id, never the program's session contents.
 //! Affinity and the first rendered message identify the window.
 

@@ -130,7 +130,7 @@ A versioned record (skein's `data/codec/README.md`, section 3):
   - **`output`:** the most output tokens a completion may have, thinking
     included. It is sent where the dialect takes it, its budget reserves
     it before each completion (../domain/budget.md), and the window
-    above its threshold holds it (limits.md, 3.9);
+    above its threshold holds it (limits-derivation.md, 1.9);
   - its prices: positive integer amounts per a positive number of
     tokens, for input, cached input, output and, optionally, cache
     writes. Without a cache-write rate, cache writes are priced at the
@@ -233,8 +233,8 @@ domain's `Limits` check the charter as a whole at the entrance:
   budget's, and a derived spend within its spend;
 - each LLM's `window` and `output`, at most what the configuration
   declares for its model, leaving at least the room the agent's limits
-  were derived for, and a spare that is not negative (limits.md, 3.9
-  and 4). A negative spare is a model entry whose `window` cannot hold
+  were derived for, and a spare that is not negative (limits-derivation.md, 1.9, and limits.md, 4
+  ). A negative spare is a model entry whose `window` cannot hold
   its `output` above the threshold, so it is refused as a window or an
   output above its declaration is: an invalid start naming the model
   (the channel's `llm`, which carries no bound), with no refusal of its
@@ -242,7 +242,7 @@ domain's `Limits` check the charter as a whole at the entrance:
 - its instructions, brief and host tools, including the names and prose added
   to its reserve note, with a guide at its bound for each of the start's
   directories, within a window's host part
-  (limits.md, 3.9).
+  (limits-derivation.md, 1.9).
 
 A writer that keeps within the ceilings writes a charter every agent can
 decode. Whether a given agent admits it is the agent's limits' decision,

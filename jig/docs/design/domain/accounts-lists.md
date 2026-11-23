@@ -95,7 +95,7 @@ Value, one of
   | 4 | workspace | text | account | nothing yet |
   | 5 | renews | instant | holder | nothing yet |
   | 6 | ends | instant | holder | nothing yet |
-  | 7 | usage | window | account | a program's `rate_limit_event`, origin 5 (smith's `protocol/programs.md`, 5.6); a program's usage read, origin 6 (*A usage read*, below) |
+  | 7 | usage | window | account | a program's `rate_limit_event`, origin 5 (smith's `protocol/programs-claude-code.md`, 1.6); a program's usage read, origin 6 (*A usage read*, below) |
 
   Origins: 1 a sign-in, 2 a refresh, 3 a call's answer, 4 a limit error, 5 a
   program's status or event, 6 a provider's usage read. A window's states:
@@ -125,7 +125,7 @@ Value, one of
   one held for that label, so that a report equal to what is held writes
   nothing.
 - **A usage read,** when no run speaks: the program's own usage command, run on
-  a host that keeps the login (smith's `protocol/programs.md`, 5.11):
+  a host that keeps the login (smith's `protocol/programs-claude-code.md`, 1.11):
   - *Which accounts:* one with a program source; its first program source in
     its holder's order that is usable is read.
   - *When it is due:* 30 minutes after the latest of a kind 7 report for the

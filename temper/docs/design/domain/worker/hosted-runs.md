@@ -195,7 +195,7 @@ jig's types (jig's `domain/hosts/hub.md`, 3), with temper's detail:
   **cancelled,** as jig's say, each with bounded detail for operators
   that no LLM is shown.
 - **A program that started without smith's tools,** smith's
-  `ModelFault::Untooled` (smith's `protocol/programs.md`, 5.6), is
+  `ModelFault::Untooled` (smith's `protocol/programs-claude-code.md`, 1.6), is
   jig's `RunFailure::Untooled` with `model` none (jig's
   `domain/hosts/hub.md`, 3), a fault of its place, the program source's
   login on this worker: the engine keeps the task off that place
@@ -342,7 +342,7 @@ structured fields alone:
   without a wildcard. The evidence is smith's, one to one.
 - **The status** is the evidence's response status where it has one,
   else the report's status, which a program's result gives (smith's
-  `protocol/programs.md`, 5.6), else none.
+  `protocol/programs-claude-code.md`, 1.6), else none.
 - **The refusal** is the report's code where the evidence is `Unsent`,
   the kind `Invalid` or `Unsupported` and no status came: the name smith
   gave the cause of a call it refused before sending it (smith's

@@ -210,13 +210,13 @@ section 1; skein/docs/foundation/testing-strategy.md, 2.9).
   completions, counted from the engine's transcripts. Each completion is
   a turn of main's conversation on either backend: on the program
   backend, each assistant message the program writes (smith's
-  `protocol/programs.md`, 5.5), so the count holds for Claude Code's
+  `protocol/programs-claude-code.md`, 1.5), so the count holds for Claude Code's
   runs as for direct ones.
 - **Budget:** at most 25 completions and 30 minutes in all. The live
   configuration's charters bound each run's turns so the two stories
   together make at most 25 completions, which smith's agent holds on
   either backend (on the program backend with `--max-turns` behind its
-  own count; smith's `protocol/programs.md`, 5.7), the script stops the
+  own count; smith's `protocol/programs-claude-code.md`, 1.7), the script stops the
   run at 30 minutes, and the test fails when the transcripts count more
   than 25. Each run's summary, a failed run's included, records its
   completions and its wall time. Nothing in the test catches a panic for

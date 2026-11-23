@@ -132,7 +132,7 @@ account = "claude-alice"      # the endpoint's account, when its provider has se
   declare whose endpoint has an account whose source is not a program;
   the asking LLM names one of them, or gets main's (../domain/run.md, 5.3).
   A sub-agent runs on a program only on main's account, as the models
-  of main's endpoint do (../protocol/programs.md, 5.10); another program
+  of main's endpoint do (../protocol/programs-claude-code.md, 1.10); another program
   account's models stay out.
   Every model main's endpoint declares is also the run's, so that
   `/model` may choose any of them (`commands.md`, 1): they share main's account and
@@ -287,7 +287,7 @@ profile (`README.md`, 2.1).
   with a completion's output beside it; **`output`** is the most output
   tokens, the wire's cap where the dialect sends one, and the output the
   headroom above the threshold holds for the completion whose results a
-  compaction carries (../protocol/limits.md, 2.1 and 3.9; ../domain/session.md,
+  compaction carries (../protocol/limits.md, 2.1, and ../protocol/limits-derivation.md, 1.9; ../domain/session.md,
   section 8.1).
 - **`efforts`** are the reasoning efforts a model accepts, each a name
   within 32 bytes, as its provider documents them for that model. They
@@ -323,13 +323,13 @@ profile (`README.md`, 2.1).
   among them; without `effort`, the provider's default applies.
 - **Every preset holds a window.** With the `standard` profile's 80%
   threshold, a window's room after two outputs, counting a byte as a
-  token (../protocol/limits.md, 3.9), is 96,000 tokens for the Anthropic
+  token (../protocol/limits-derivation.md, 1.9), is 96,000 tokens for the Anthropic
   models and 153,600 for the OpenAI models, and the headroom above the
   threshold, less one output, is 8,000 and 22,400. Both pass
   `fresh-window` and `compaction-headroom`. Less the summary instruction
   and a marker for each of `calls_per_response` calls, that is each
   model's spare, the room between its threshold and its line
-  (../protocol/limits.md, 3.9). Halved after smith's own
+  (../protocol/limits-derivation.md, 1.9). Halved after smith's own
   part, the room bounds one offer, and so a message, a person's line or
   a headless prompt, near 20 KiB when an Anthropic model is declared and
   near 34 KiB with the OpenAI models alone; `smith check` prints the
@@ -505,7 +505,7 @@ settings set no `instructions` (1.2; ../domain/run.md, section 3.1).
   expected effect from none, and otherwise by the counts it targets
   (../benchmarks/README.md, section 4.2, and ../benchmarks/codex-parity.md, section 6).
 - **It is a run's instructions,** so it counts where a charter's
-  instructions count: in the window's host part (../protocol/limits.md,
-  3.9). The startup check counts it as written (../protocol/limits.md,
+  instructions count: in the window's host part (../protocol/limits-derivation.md,
+  1.9). The startup check counts it as written (../protocol/limits.md,
   section 4, `host-part-holds-the-role`): its 4 KiB is the text's own
   cap, never a reservation in the host part.

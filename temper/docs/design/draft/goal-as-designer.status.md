@@ -15,7 +15,7 @@ Section 4's delivery path and section 3's delivery and `after` ordering are carr
 gaps are below.
 
 Section 6's room is carried by `../protocol/configuration/settings-output.md`, 1 and `../protocol/configuration/reference.md`
-, `../domain/agent/charter.md`, 3, smith's `protocol/limits.md`, 3.10,
+, `../domain/agent/charter.md`, 3, smith's `protocol/limits-derivation.md`, 1.10,
 and jig's `domain/hosts/charters.md` and `../protocol/configuration/README.md`,
 section 5. The reference takes the permitted 63,740-byte fallback after
 `turn-in-transcript` refuses the larger pair. Its charter allowance is

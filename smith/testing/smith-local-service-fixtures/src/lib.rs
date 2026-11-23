@@ -1,4 +1,4 @@
-//! Small local composition edges (protocol/limits.md, section 3.8).
+//! Small local composition edges (protocol/limits-derivation.md, section 1.8).
 //! The caller supplies the native layers' receiving profiles.
 //! Shared fixtures (smith/docs/design/testing.md, section 7).
 
