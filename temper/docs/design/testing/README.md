@@ -118,7 +118,7 @@ bin/temper-box/tests/domain          step and domain harness checks over values,
 bin/temper-box/tests/suite           real scratch files, sockets, locks, clocks, shell children and shipped wiring
 crates/temper-forge-setup-shell/tests/step  process-boundary checks over committed source and sample calls; suite keeps real files, locks, commands and TLS peers
 bin/temper-box/tests/process.rs      owned Forgejo integration and OS process boundaries (2.6); nextest profile process-temper
-bin/temper-box/tests/proof_live.rs   B0's offline driver proofs (2.6, 2.7), nextest profile process-temper; scripts/proof-live.sh rung-b0-offline runs them
+bin/temper-box/tests/proof_live.rs   B0's offline driver proof, its twin's walk (2.6, 2.7), nextest profile process-temper; scripts/proof-live.sh rung-b0-offline runs it
 testing/temper-box-kit              what temper-box's test binaries share, compiled once for them all (tools/crates/design.md, 3.2): the stories' processes, forges, people and fixtures
 testing/temper-box-kit/src/github.rs   GitHub's App as processes (2.6): the fake GitHub, the fake LLM, an engine alone and a worker alone, the App made on the layer and connected through ctl
 testing/temper-box-kit/src/cluster.rs  the cluster's reader: `bin/temper-box/tests/fixtures/cluster/` started, awaited and stopped on skein-world's `Binary` (../protocol/cluster.md, 5)
