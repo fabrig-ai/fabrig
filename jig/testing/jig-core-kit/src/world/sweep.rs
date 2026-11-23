@@ -1,5 +1,5 @@
 //! A sweep holds its prefix once (`jig/docs/design/domain/testing.md`, 4).
-use super::{Cut, World};
+use super::{Cut, StoreChecks, World};
 
 impl World {
     /// Arm one sweep. Its children continue the caller's story at the selected
@@ -67,6 +67,7 @@ impl World {
                 self.store.sweep_kills(Vec::new());
                 self.forked.clear();
                 self.fork_child = Some(cut);
+                self.store_checks(StoreChecks::none("a cut's child checks its cut by its restart"));
                 self.restart_check = match cut {
                     Cut::Durable(number) => Some((number, false)),
                     Cut::Submitted(_) | Cut::Failed(_) | Cut::Disk { .. } => None,
@@ -93,6 +94,7 @@ impl World {
             self.sweep.clear();
             self.forked.clear();
             self.fork_child = Some(cut);
+            self.store_checks(StoreChecks::none("a cut's child checks its cut by its restart"));
             self.cut = Some(cut);
         } else {
             self.forked.extend(passed.into_iter().map(|(from, operation)| Cut::Disk { from, operation }));

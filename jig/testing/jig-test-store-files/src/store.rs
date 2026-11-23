@@ -5,10 +5,12 @@ use jig_test_domain as root;
 use jig_test_store::{StoreOut, Up, route};
 use skein_lib::{Duration, Env, Queue, Time, Token, Wall};
 use std::collections::{BTreeMap, VecDeque};
-use std::fmt;
+use std::{fmt, rc::Rc};
 
 mod faults;
+mod image;
 mod readback;
+pub use image::StoreImage;
 pub use readback::ReadbackFinding;
 #[cfg(test)]
 mod tests;
@@ -74,7 +76,8 @@ pub struct Store {
     component_limits: Limits,
     application: protocol::sizes::Application,
     /// The configured models the component names a role's models by.
-    models: Box<[jig_domain_core::Model]>,
+    models: Rc<[jig_domain_core::Model]>,
+    mirror_writes: bool,
     inflight: BTreeMap<u64, Box<[root::Write]>>,
     replies: Vec<Up>,
     delayed: VecDeque<Delayed>,
@@ -163,29 +166,40 @@ impl Store {
             };
             protocol::Store::over(component_limits, application, models, stores)
         };
-        let mut store =
-            Self::over_storage(limits, models, sets, component, Files::new(), disk, component_limits, application);
+        let mut routes = route::Routes::new(limits.routes);
+        routes.configure(limits);
+        routes.configure_restore(component_limits).expect("restart page bounds fit");
+        let mut store = Self::over_storage(
+            limits,
+            models.into(),
+            sets,
+            component,
+            Files::new(),
+            disk,
+            component_limits,
+            application,
+            routes,
+        );
+        store.prefixes.insert(0, BTreeMap::new());
         store.open();
         store
     }
     #[expect(clippy::too_many_arguments, reason = "fresh and forked storage retain the same checked configuration")]
     fn over_storage(
         limits: &root::Limits,
-        models: &[jig_domain_core::Model],
+        models: Rc<[jig_domain_core::Model]>,
         sets: protocol::OwnerSets,
         mut component: protocol::Store,
         files: Files,
         disk: Option<crate::disk::Disk>,
         component_limits: &Limits,
         application: protocol::sizes::Application,
+        routes: route::Routes,
     ) -> Store {
         component.owner_sets(component_sets(sets));
-        let mut routes = route::Routes::new(limits.routes);
-        routes.configure(limits);
-        routes.configure_restore(component_limits).expect("restart page bounds fit");
         Store {
             applied: 0,
-            prefixes: BTreeMap::from([(0, BTreeMap::new())]),
+            prefixes: BTreeMap::new(),
             acknowledged: 0,
             submissions: BTreeMap::new(),
             kill: None,
@@ -205,7 +219,8 @@ impl Store {
             limits: *limits,
             component_limits: *component_limits,
             application,
-            models: models.into(),
+            models,
+            mirror_writes: true,
             inflight: BTreeMap::new(),
             replies: Vec::new(),
             delayed: VecDeque::new(),
@@ -282,7 +297,7 @@ impl Store {
         assert!(!self.failed, "a failed world must restart before writing");
         let previous = self.pending.back().map_or(self.applied, |pending| pending.number);
         assert_eq!(number, previous.checked_add(1).expect("bounded commit number"));
-        if self.disk.is_some() && self.sets.sets.is_empty() {
+        if self.mirror_writes && self.disk.is_some() && self.sets.sets.is_empty() {
             let mut rows = self.prefixes.get(&(number - 1)).unwrap_or(&self.rows).clone();
             apply(&mut rows, &writes);
             self.prefixes.insert(number, rows);
@@ -314,7 +329,9 @@ impl Store {
         }
         self.holding = hold || self.hold_next != 0 || !self.held.is_empty();
         self.hold_next = self.hold_next.saturating_sub(1);
-        self.inflight.insert(pending.number, pending.writes.clone());
+        if self.mirror_writes {
+            self.inflight.insert(pending.number, pending.writes.clone());
+        }
         if let Some(disk) = &mut self.disk
             && disk.sweep.iter().any(|(from, _)| *from == KillFrom::Commit(pending.number))
         {
@@ -383,9 +400,7 @@ impl Store {
         });
         self.component.as_mut().expect("rebuilt component").owner_sets(component_sets(self.sets));
         assert!(self.component.as_mut().expect("rebuilt component").wires(self.wires));
-        self.routes = route::Routes::new(self.limits.routes);
-        self.routes.configure(&self.limits);
-        self.routes.configure_restore(&self.component_limits).expect("restart page bounds fit");
+        self.routes = self.routes.fresh();
         self.pending.clear();
         self.held.clear();
         self.inflight.clear();
@@ -464,25 +479,7 @@ impl Store {
     }
     /// Copy the durable image, then cold-open it without resubmitting history.
     pub fn fork(&self) -> Result<Store, ReadbackFinding> {
-        let disk = self.disk.as_ref().map(|disk| disk.fork(&self.component_limits));
-        let application = self.application;
-        let component = if let Some(disk) = &disk {
-            protocol::Store::on_directory(&self.component_limits, application, &self.models, disk.seeded())
-        } else {
-            let stores = self.component.as_ref().expect("component").fork_memory().expect("memory store");
-            protocol::Store::over(&self.component_limits, application, &self.models, stores)
-        };
-        let mut fresh = Self::over_storage(
-            &self.limits,
-            &self.models,
-            self.sets,
-            component,
-            self.files.fork(),
-            disk,
-            &self.component_limits,
-            self.application,
-        );
-        fresh.wires(self.wires);
+        let mut fresh = self.image().shell();
         fresh.rows.clone_from(&self.rows);
         fresh.prefixes.clone_from(&self.prefixes);
         fresh.submissions.clone_from(&self.submissions);
@@ -676,8 +673,10 @@ impl Store {
                 self.route(event, requests);
             }
             Event::Committed { number, .. } => {
-                let writes = self.inflight.remove(&number).expect("commit belongs to the root");
-                apply(&mut self.rows, &writes);
+                if self.mirror_writes {
+                    let writes = self.inflight.remove(&number).expect("commit belongs to the root");
+                    apply(&mut self.rows, &writes);
+                }
                 self.applied = number;
                 if self.holding {
                     self.held.push_back(number);
