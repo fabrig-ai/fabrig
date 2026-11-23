@@ -51,6 +51,118 @@ fn running_work_keeps_its_revision_a_chat_moves_and_an_advance_moves_the_rest() 
     let _advanced = wake_and_run(&mut root, &first, 92, 4, 2, NEW_INSTRUCTIONS);
 }
 
+#[test]
+#[expect(
+    clippy::too_many_lines,
+    reason = "one amendment crosses the director's tool, the engine and the owner's query"
+)]
+fn a_directors_amendment_carries_the_new_direction_to_the_owners_query() {
+    use temper_engine_domain as engine;
+    use temper_engine_domain_world::fixtures::{report_delegate, tool_call};
+    const DIRECTION: &[u8] = b"@amended-owner Take one end-to-end path first.";
+    const REASON: &[u8] = b"The person wants the end-to-end story before the old plan.";
+    let configs = std::array::from_fn(|_| {
+        let mut config = world::config(SEED);
+        config.core.defaults.rules.ceiling.delegation.depth = 2;
+        config.core.seed_projects[0].policy.policy.ceiling.delegation.depth = 2;
+        config.core.seed_projects[0].policy.policy.roles[0].authority.delegation.depth = 2;
+        config
+    });
+    let mut limits = walking::limits();
+    limits.tasks.depth = 2;
+    limits.fleet.slots = 2;
+    // Delegate, park on a timer, then amend at the observed revision.
+    limits.call_records = 3;
+    let mut root = Driver::configured(Store::new(), configs, &limits);
+    root.settle();
+    root.send(world::hello(2));
+    root.settle();
+    root.sign_in();
+    root.settle();
+    root.send(Event::Party(PartyInput::Ask {
+        models: Box::new([]),
+        reply_to: ReplyTo::new(Token::new(41)),
+        sign_in: root.session(),
+        key: [41; 16],
+        ask: root.chat_ask(1, b"Direct the owner"),
+    }));
+    root.settle();
+    let director = root.last_assignment();
+    tool_call(
+        &mut root,
+        &director,
+        90,
+        engine::Tool::Delegate {
+            batch: Box::new([report_delegate(b"@amended-owner Follow the old plan", Box::new([]))]),
+        },
+    );
+    let owner = root.last_assignment();
+    assert_ne!(owner.task, director.task, "delegate: {:?}", root.answered(90));
+    tool_call(
+        &mut root,
+        &owner,
+        92,
+        engine::Tool::Subscribe {
+            kind: tasks::SubscriptionKind::Timer { at: skein_lib::Wall::from_nanos(u64::MAX), period: None },
+        },
+    );
+    root.answer(world::CHANNEL, owner.task, owner.attempt, 0, tasks::End::Parked, engine::Parts::none());
+    root.settle();
+    let revision = root.task(owner.task).expect("owner").revisions.spec;
+    let arguments = serde_json::to_vec(&serde_json::json!({
+        "target": owner.task, "revision": revision,
+        "amendment": {"instructions": String::from_utf8_lossy(DIRECTION), "reason": String::from_utf8_lossy(REASON)}
+    }))
+    .expect("amend arguments");
+    let script = Script {
+        cue: b"Direct the owner".as_slice().into(),
+        turns: Box::new([temper_system_world::composed::call(b"amend", &arguments)]),
+    };
+    let mut director_agent = world::scripted_waiting_agent_for(&director, None, script);
+    director_agent.enable_parent_host_calls();
+    assert!(!director_agent.drive(1000), "director yields its amendment");
+    let calls = director_agent.pending_host_calls();
+    let submission = calls.first().expect("amend call");
+    let temper_engine_smith::Decoded::Call(body) =
+        temper_engine_smith::call(submission.name, &submission.tool, &submission.input).expect("declared amend tool")
+    else {
+        panic!("amend reaches the engine")
+    };
+    let engine::Tool::Amend { amendment, .. } = &body.tool else { panic!("director amends") };
+    assert_eq!(amendment.reason.as_ref(), REASON, "the director supplies the reason");
+    tool_call(&mut root, &director, 91, body.tool);
+    assert!(matches!(root.answered(91), Some(engine::CallAnswer::Amended { .. })), "{:?}", root.answered(91));
+    root.settle();
+    let amended = root.last_assignment();
+    assert_eq!(amended.task, owner.task);
+    assert!(amended.attempt > owner.attempt);
+    let mut agent = world::scripted_agent_for(
+        &amended,
+        Script {
+            cue: b"@amended-owner".as_slice().into(),
+            turns: Box::new([temper_system_world::composed::call(
+                b"finish",
+                br#"{"report":"The new direction is heard."}"#,
+            )]),
+        },
+    );
+    world::run_assignment(&mut root, &amended, &mut agent);
+    let query = agent.prompts().first().expect("owner query");
+    assert_eq!(
+        query
+            .messages
+            .iter()
+            .flat_map(|message| &message.parts)
+            .filter(|part| {
+                matches!(part, skein_fake_llm_domain::api::Part::Text { text }
+            if skein_lib::bytes::find(text, DIRECTION).is_some())
+            })
+            .count(),
+        1,
+        "the amendment instructions are told once in the query"
+    );
+}
+
 fn park_tasks(root: &mut Driver) -> Vec<(Assignment, Transcript)> {
     let mut parked = Vec::new();
     for (key, words, conversation) in

@@ -71,42 +71,49 @@ fn random_batches_cut_ended_failed_and_closed_settle() {
 fn random_recordings_cut_mutated_ended_and_failed_settle() {
     use hearth_git_world::{expect, mutate};
     let recordings = hearth_recordings::all("git");
+    let mut judgments = mutate::MutationBatch::default();
     for seed in 0..256 {
         let mut rng = Rng::new(seed);
         let (_case, recording) = &recordings[usize::try_from(rng.below(recordings.len() as u64)).expect("case index")];
         let expected = expect::decode(recording.expect.as_ref().expect("expectation"));
-        let mut damaged = recording.clone();
-        let mutations = mutate::all(&damaged.stdout);
-        if !mutations.is_empty() {
-            damaged.stdout =
-                mutations[usize::try_from(rng.below(mutations.len() as u64)).expect("mutation index")].clone();
-        }
-        let settings = Settings {
-            end: Some(usize::try_from(rng.between(0, damaged.stdout.len() as u64)).expect("end")),
-            fail: rng.chance(250),
-            close: Some(u32::try_from(rng.below(32)).expect("close step")),
-            ..Settings::cut(seed)
-        };
-        drop(world::replay(&damaged, &expected, &fixtures::SHIPPED, &settings));
+        let mut variants = mutate::all(&recording.stdout);
+        let index = usize::try_from(rng.below(variants.len() as u64)).expect("mutation index");
+        let selected = variants.nth(index).expect("selected mutation");
+        judgments.judge(selected, |stdout| {
+            let mut damaged = recording.clone();
+            damaged.stdout = stdout;
+            let settings = Settings {
+                end: Some(usize::try_from(rng.between(0, damaged.stdout.len() as u64)).expect("end")),
+                fail: rng.chance(250),
+                close: Some(u32::try_from(rng.below(32)).expect("close step")),
+                ..Settings::cut(seed)
+            };
+            drop(world::replay(&damaged, &expected, &fixtures::SHIPPED, &settings));
+        });
     }
+    judgments.finish();
 }
 
 #[test]
 fn random_hunks_cut_ended_failed_and_closed_settle() {
     use hearth_git_world::mutate;
+    let mut judgments = mutate::MutationBatch::default();
     for seed in 0..256 {
         let mut rng = Rng::new(seed);
         for (input, _) in fixtures::HUNKS {
             let stdout = generate::hunks(&mut rng, input);
             for damaged in mutate::all(&stdout) {
-                let settings = Settings {
-                    end: Some(usize::try_from(rng.between(0, damaged.len() as u64)).expect("end")),
-                    fail: rng.chance(250),
-                    close: Some(u32::try_from(rng.below(48)).expect("close step")),
-                    ..Settings::cut(seed)
-                };
-                drop(world::diff(&damaged, &fixtures::SMALL, &settings));
+                judgments.judge(damaged, |damaged| {
+                    let settings = Settings {
+                        end: Some(usize::try_from(rng.between(0, damaged.len() as u64)).expect("end")),
+                        fail: rng.chance(250),
+                        close: Some(u32::try_from(rng.below(48)).expect("close step")),
+                        ..Settings::cut(seed)
+                    };
+                    drop(world::diff(&damaged, &fixtures::SMALL, &settings));
+                });
             }
         }
     }
+    judgments.finish();
 }

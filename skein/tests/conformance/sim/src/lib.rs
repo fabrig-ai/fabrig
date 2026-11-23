@@ -224,6 +224,9 @@ pub fn each_seed<S: Check>(config: Config, seeds: u64, scenario: fn(&mut Simulat
         let mut world = Simulated::new(seed, config);
         scenario(&mut world).check();
     }
+    if seeds > 0 {
+        skein_checks::count("seed", seeds);
+    }
 }
 
 /// A target's race, as a scenario of the world alone.

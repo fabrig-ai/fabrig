@@ -1,4 +1,5 @@
 //! A person's words during a turn (temper/docs/design/domain/agent/README.md, 7).
+use super::text::occurrences;
 use jig_domain_core::{CoreRecord, Record as CoreRow};
 use jig_domain_tasks as tasks;
 use skein_fake_llm_domain::api::{Part, Query};
@@ -91,8 +92,4 @@ fn message_occurrences(query: &Query, words: &[u8]) -> usize {
             Part::ToolCall { .. } | Part::ToolOutput { .. } | Part::Opaque { .. } => 0,
         })
         .sum()
-}
-
-fn occurrences(text: &[u8], words: &[u8]) -> usize {
-    text.windows(words.len()).filter(|part| *part == words).count()
 }

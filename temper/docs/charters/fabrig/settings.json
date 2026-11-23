@@ -43,7 +43,7 @@
             "dialect": 3,
             "endpoint": 1,
             "program": null,
-            "name": "gpt-6.1-sol",
+            "name": "gpt-6.2-sol",
             "window": 1048576,
             "output": 8192,
             "input_price": 2000,
@@ -86,7 +86,7 @@
           "dialect": 3,
           "endpoint": 1,
           "program": null,
-          "name": "gpt-6.1-sol",
+          "name": "gpt-6.2-sol",
           "window": 1048576,
           "output": 8192,
           "input_price": 2000,
@@ -153,7 +153,7 @@
           },
           "subagents": [
             {
-              "model": "gpt-6.1-sol",
+              "model": "gpt-6.2-sol",
               "effort": "high"
             }
           ],
@@ -164,7 +164,7 @@
             },
             "subagents": [
               {
-                "model": "gpt-6.1-sol",
+                "model": "gpt-6.2-sol",
                 "effort": "high"
               }
             ]

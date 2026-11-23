@@ -147,21 +147,25 @@ fn scenario(rng: &mut Rng, count: usize) -> (Vec<Exchange>, Vec<u8>) {
 #[test]
 fn generated_and_mutated_exchanges_read_as_the_reference_reads_them_whatever_the_neighbours() {
     let mut tally = Seen::default();
+    let mut mutations = generate::MutationBatch::default();
     for round in 0..ROUNDS {
         let seed = 0x0070_0000 + round;
         let mut rng = Rng::new(seed);
         let count = usize::try_from(rng.between(1, 4)).unwrap();
-        let (exchanges, mut server) = scenario(&mut rng, count);
-        if rng.chance(500) {
-            server = generate::mutate(&mut rng, &server);
+        let (exchanges, server) = scenario(&mut rng, count);
+        let server = if rng.chance(500) {
+            generate::mutate(&mut rng, &server)
         } else if rng.chance(300) {
-            server = generate::corrupt(&mut rng, &server);
-        }
+            generate::corrupt(&mut rng, &server)
+        } else {
+            server.into()
+        };
         let limits = client_world::limits(&mut rng);
-        let settings = Settings::chaotic(&mut rng, limits, server.len());
-        let run = client_world::check(&exchanges, &server, &settings, seed);
+        let settings = Settings::chaotic(&mut rng, limits, server.input().len());
+        let run = mutations.judge(server, |server| client_world::check(&exchanges, &server, &settings, seed));
         record(&mut tally, &run, &settings);
     }
+    mutations.finish();
     tally.assert_fell(&EVERY_OUTCOME);
     tally.assert_fell(&EVERY_NEIGHBOUR);
 }
@@ -170,19 +174,19 @@ fn generated_and_mutated_exchanges_read_as_the_reference_reads_them_whatever_the
 fn transcripts_cut_mutated_and_failed_read_as_the_reference_reads_them() {
     let transcripts = transcript::all();
     let mut tally = Seen::default();
+    let mut mutations = generate::MutationBatch::default();
     for round in 0..TRANSCRIPT_ROUNDS {
         let seed = 0x0071_0000 + round;
         let mut rng = Rng::new(seed);
         let transcript = &transcripts[usize::try_from(rng.below(transcripts.len() as u64)).unwrap()];
-        let mut server = transcript.bytes.clone();
-        if rng.chance(500) {
-            server = generate::mutate(&mut rng, &server);
-        }
+        let server = transcript.bytes.clone();
+        let server = if rng.chance(500) { generate::mutate(&mut rng, &server) } else { server.into() };
         let exchanges = [Exchange { call: transcript.call(), upload: Vec::new() }];
-        let settings = Settings::chaotic(&mut rng, transcript.limits, server.len());
-        let run = client_world::check(&exchanges, &server, &settings, seed);
+        let settings = Settings::chaotic(&mut rng, transcript.limits, server.input().len());
+        let run = mutations.judge(server, |server| client_world::check(&exchanges, &server, &settings, seed));
         record(&mut tally, &run, &settings);
     }
+    mutations.finish();
     tally.assert_fell(&[
         "Done(Keep)",
         "Failed(Truncated { answered: true })",

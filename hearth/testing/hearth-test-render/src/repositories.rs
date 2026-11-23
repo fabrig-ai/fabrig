@@ -237,19 +237,21 @@ pub fn touched(generated: &Generated, edit: &Edit) -> Vec<String> {
     names
 }
 /// Corrupt one base's shared file; all other bases remain valid by construction.
-#[must_use]
-pub fn mutate(rng: &mut Rng, generated: &Generated) -> Generated {
+pub fn mutate(rng: &mut Rng, generated: &Generated) -> skein_checks::Mutation<Generated> {
     let mut mutated = generated.clone();
     let index =
         usize::try_from(rng.below(u64::try_from(generated.model.targets.len()).expect("targets"))).expect("target");
     let base = &generated.model.targets[index].base;
     let path = format!("hosts/{base}/{base}.json");
-    let leaf = mutated.leaves.iter_mut().find(|leaf| leaf.path == path.as_bytes()).expect("base document");
-    leaf.bytes = hearth_test_fixtures::hostile::mutate(rng, &leaf.bytes);
-    // A mutator can retain the original; a trailing non-JSON byte guarantees a broken file.
-    leaf.bytes.push(b'!');
-    mutated.model.broken_base = Some(base.clone());
-    mutated
+    let index = mutated.leaves.iter().position(|leaf| leaf.path == path.as_bytes()).expect("base document");
+    hearth_test_fixtures::hostile::mutate(rng, &mutated.leaves[index].bytes).map(|bytes| {
+        let leaf = &mut mutated.leaves[index];
+        leaf.bytes = bytes;
+        // A mutator can retain the original; a trailing non-JSON byte guarantees a broken file.
+        leaf.bytes.push(b'!');
+        mutated.model.broken_base = Some(base.clone());
+        mutated
+    })
 }
 
 /// Targets that compose none of the model's broken files (render plan, ruling 197).

@@ -8,14 +8,11 @@ pub mod defaults;
 pub mod oracle;
 pub mod scripts;
 
-// Fresh deployment numbers; the oracle checks them against the person's documents
-// and A's question's tool output and the answer delivered to A.
+// Fresh deployment numbers used by the scripts and placement observations.
 pub const PROJECT: u64 = 1;
 pub const DIRECTOR: u64 = 1;
 pub const A: u64 = 2;
 pub const DESIGN: u64 = 3;
-// The goals' landing subscriptions and the design's result precede this question.
-pub const QUESTION: u64 = 6;
 // After step_4_1's chat and A's delegation create tasks 1..=5,
 // step_4_3's chat creates CHECK; its delegate creates B, which delegates BENCHMARK.
 pub const CHECK: u64 = 6;
@@ -31,28 +28,8 @@ pub const BENCHMARK_RUNNING: &str = "The benchmark is running.";
 pub const CHECK_REASON: &str = "The two-hour check found the benchmark stalled; cancel it.";
 pub const B_REPORT: &str = "The benchmark was cancelled; B has nothing left running.";
 pub const CHECK_REPORT: &str = "The two-hour check cancelled the stalled benchmark and B reported.";
-pub const FIRST_ACCOUNT: u64 = 1;
-pub const SECOND_ACCOUNT: u64 = 3;
 pub const SECOND_KEY_FILE: &str = "second.key";
 pub const DEFAULT_MODEL: &str = "fake";
-pub const DEFAULT_MODEL_NUMBER: u8 = 0;
-pub const SURVEY: u64 = 3;
-pub const PACE_QUESTION_MESSAGE: u64 = 1;
-pub const PACE_PERSON: &str = "@case_director Ask about the pace and keep my answer.";
-pub const PACE_QUESTION: &str = "Claude spends eight times what the week can sustain. I recommend moving what needs no taste to Codex and switching s2 to the second subscription. Keep the pace?";
-pub const PACE_ANSWER: &str = "Keep the pace while the hardware allows; move what needs no taste.";
-pub const PACE_NOTE: &str = "Pace";
-pub const PACE_PENDING: &str = "The pace question is waiting for your answer.";
-pub const PACE_A_SPEC: &str =
-    "@case_a Ask the director whether to keep the pace; on its direction, have a survey delegated and report.";
-// Distinct from the initial question's cue after smith recaps on a model change.
-pub const PACE_A_RESUMED_SPEC: &str = "@case_a resumed Have the survey delegated and report on the pace direction.";
-pub const HELD_PERSON: &str = "@case_director Delegate A's report and wait for it.";
-pub const HELD_A_SPEC: &str = "@case_a Report when your account allows the work to continue.";
-pub const SURVEY_SPEC: &str = "@case_survey Survey the work that needs no taste and report.";
-pub const RESUMED_REPORT: &str = "The work continued on its account.";
-pub const PACE_REPORT: &str = "The pace is kept and the survey is done.";
-pub const SURVEY_REPORT: &str = "Work needing no taste can move.";
 // The fake forge's one repository stands as kit, since forge.rs names it,
 // until the fixture holds two.
 pub const KIT: &str = "acme/app";
@@ -69,18 +46,12 @@ pub const OWNERS_WORDS: &str = "# Owners\n\nAn owner designs its draft, reports,
 pub const DESIGN_WORDS: &str = "# Export\n\nDesigned by A from the draft at its commit.\n";
 pub const DESIGN_LINE: &str = "Designed by A from the draft at its commit.";
 pub const PERSON: &str = "@case_director Export's draft has landed; schedule it, priority 1.";
-pub const A_SPEC_PREFIX: &str = "@case_a Own the draft Export: docs/drafts/export.md at kit's commit ";
-pub const A_SPEC_SUFFIX: &str = ". Design it as a change of Markdown alone, send me your design report as a question, and finish on my green light.";
-pub const SCHEDULED: &str = "Scheduled: A owns Export at priority 1.";
-pub const GREEN_LIGHT: &str = "Green light: go on.";
-pub const ANSWERED: &str = "Answered A.";
-pub const DIRECTOR_REPORT: &str = "A designed Export and has its green light.";
+pub const A_SPEC: &str = "@case_a Have Export's Markdown design delegated and report once it lands.";
+pub const SCHEDULED: &str = "Scheduled: A owns Export.";
+pub const DIRECTOR_REPORT: &str = "A designed Export.";
 pub const DESIGN_SPEC: &str = "@case_design Write Export's design at docs/design/export.md, Markdown alone.";
 pub const DESIGN_DELEGATED: &str = "Design delegated.";
-pub const DESIGN_REPORT: &str =
-    "Export's design has landed on kit's main at docs/design/export.md: one Markdown file. Green light to go on?";
-pub const ASKED: &str = "Asked the director.";
-pub const A_REPORT: &str = "Export's design landed, and the director gave its green light.";
+pub const A_REPORT: &str = "Export's design landed.";
 pub const DESIGN_TITLE: &str = "Export's design";
 pub const REVIEWED: &str = "Checked";
 
@@ -90,7 +61,6 @@ pub enum Agent {
     A,
     Design,
     Review,
-    Survey,
     Check,
     B,
     Benchmark,
@@ -101,69 +71,37 @@ pub enum Agent {
     Rules,
     Scope,
     Pause,
-    Owner,
     Bowner,
-    Helper,
-    Implementer,
     H1Coder,
     Shape,
     Mover,
-    Plan,
-    Planner,
-    Subowner,
     Direction,
     StoryOwner,
     OverlapOwner,
     X3Writer,
     PlannedWriter,
     StoryWriter,
-    // Act 3, step 6.5 (testing/reference-case.md)
-    BudgetDirector,
-    BudgetOwner,
-    BudgetSubowner,
-    BudgetInvestigator,
-    BudgetAdvisor,
     // 6.6
-    WaitingDirector,
-    WaitingOwner,
+    WaitingStarter,
     WaitingKitCoder,
     WaitingAppCoder,
     // 6.4
-    RedDirector,
-    RedOwner,
-    RedCoder,
     RedRepairCoder,
-    // Act 3, step 6.7 (testing/reference-case.md)
-    CapDirector,
-    CapOwner,
-    CapSubowner,
-    CapImplementer,
     QaDirector,
     QaOwner,
     QaSubowner,
     QaTester,
-    QaNext,
     QaCoder,
 }
 impl Agent {
     #[must_use]
     pub fn cue(self) -> &'static [u8] {
         match self {
-            // Act 3, step 6.5 (testing/reference-case.md)
-            Self::BudgetDirector => b"@case_budget_director",
-            Self::BudgetOwner => b"@case_budget_owner",
-            Self::BudgetSubowner => b"@case_budget_subowner",
-            Self::BudgetInvestigator => b"@case_budget_investigator",
-            Self::BudgetAdvisor => b"@case_budget_advisor",
             // 6.6
-            Self::WaitingDirector => b"@case_waiting_director",
-            Self::WaitingOwner => b"@case_waiting_owner",
+            Self::WaitingStarter => b"@case_waiting_start",
             Self::WaitingKitCoder => b"@case_waiting_kit",
             Self::WaitingAppCoder => b"@case_waiting_app",
             // 6.4
-            Self::RedDirector => b"@case_red_director",
-            Self::RedOwner => b"@case_red_owner",
-            Self::RedCoder => b"@case_red_coder",
             Self::RedRepairCoder => b"Repair landing branch CI",
             Self::Direction => b"@case_direction",
             Self::StoryOwner => b"@case_story_owner",
@@ -171,19 +109,13 @@ impl Agent {
             Self::X3Writer => b"@case_x3_writer",
             Self::PlannedWriter => b"@case_planned_writer",
             Self::StoryWriter => b"@case_story_writer",
-            Self::Plan => b"@case_plan_director",
-            Self::Planner => b"@case_planner",
-            Self::Subowner => b"@case_subowner",
             Self::Shape => b"@case_shape",
             Self::Mover => b"@case_mover",
             Self::Rules => b"@case_rules",
             Self::Scope => b"@case_scope",
             Self::H1Coder => b"@case_h1",
             Self::Pause => b"@case_pause",
-            Self::Owner => b"@case_owner",
             Self::Bowner => b"@case_bowner",
-            Self::Helper => b"@case_helper",
-            Self::Implementer => b"@case_implementer",
             Self::Hang => b"@case_hang",
             Self::Phase => b"@case_phase",
             Self::Check => b"@case_check",
@@ -192,18 +124,11 @@ impl Agent {
             Self::Director => b"@case_director",
             Self::A => b"@case_a ",
             Self::Design => b"@case_design",
-            Self::Survey => b"@case_survey",
             Self::Review => b"Review this change at the named head",
-            // Act 3, step 6.7 (testing/reference-case.md)
-            Self::CapDirector => b"@case_cap_director",
-            Self::CapOwner => b"@case_cap_owner",
-            Self::CapSubowner => b"@case_cap_subowner",
-            Self::CapImplementer => b"@case_cap_implementer",
             Self::QaDirector => b"@case_qa_director",
             Self::QaOwner => b"@case_qa_owner",
             Self::QaSubowner => b"@case_qa_subowner",
             Self::QaTester => b"@case_qa_tester",
-            Self::QaNext => b"@case_qa_next",
             Self::QaCoder => b"@case_qa_coder",
         }
     }
@@ -338,27 +263,14 @@ fn small_two_call_window(value: &mut Value, agent: &mut Value) {
     agent["endpoints"][0]["limits"]["window"] = 262_144.into();
 }
 
-#[must_use]
-pub fn fixture_4_4() -> forge::Fixture {
-    forge::Fixture {
-        configure: |value, agent, forge| {
-            (fixture().configure)(value, agent, forge);
-            // The survey's delegate and wait share one completion. Its
-            // resumed script then cannot collide with the model-change recap.
-            agent["profile"]["declared"]["calls_per_response"] = 2.into();
-            small_two_call_window(value, agent);
-            value.jig_over("hub.run_calls", 2);
-        },
-        ..fixture()
-    }
-}
-
 /// The check keeps all three runs in place, with timer and cancellation authority.
 #[must_use]
 pub fn fixture_check() -> forge::Fixture {
     forge::Fixture {
         configure: |value, agent, forge| {
             (fixture_placed().configure)(value, agent, forge);
+            value["world_settings"]["llm"]["models"].as_array_mut().expect("models").truncate(1);
+            value["world_settings"]["llm"]["providers"][0]["models"] = json!([DEFAULT_MODEL]);
             // One adopted repository contains one pull. Its initial scan and
             // the scripted forge hooks supply the listing changes; repeating
             // the listing every 10 ms adds traffic throughout the timer story.
@@ -434,18 +346,12 @@ pub fn fixture_4_6() -> forge::Fixture {
 // Act 2, step 5.1 (testing/reference-case.md)
 pub const RULES: u64 = 1;
 pub const SCOPE: u64 = 2;
-pub const SCOPE_QUESTION_NUMBER: u64 = 2;
 pub const RULES_HOLD_REVISION: u64 = 1;
-pub const RULES_PERSON: &str = "@case_rules Delegate A to ask about x3's scope and wait for its report.";
-pub const SCOPE_SPEC: &str = "@case_scope Own x3's scope; ask the director and report on its answer.";
-pub const SCOPE_QUESTION: &str = "What is x3's scope in the next milestone?";
-pub const SCOPE_ANSWER: &str = "x3 owns the next milestone's design and its defined end.";
-pub const RULES_DELEGATED: &str = "A owns the scope question.";
-pub const RULES_ANSWERED: &str = "A has its scope answer.";
-pub const SCOPE_ASKED: &str = "The scope question awaits the director.";
-pub const SCOPE_REPORT: &str = "x3's scope has its direction.";
-pub const RULES_REPORT: &str = "A reported x3's scope under the new process.";
-pub const SCOPE_QUESTION_HOLD: &[u8] = b"case-scope-question";
+pub const RULES_PERSON: &str = "@case_rules Delegate A to report under kit's process and wait for its report.";
+pub const SCOPE_SPEC: &str = "@case_scope Read kit's process and report.";
+pub const RULES_DELEGATED: &str = "A owns the process report.";
+pub const SCOPE_REPORT: &str = "The current process has been read.";
+pub const RULES_REPORT: &str = "A reported under the new process.";
 pub const RULES_FILE: &str = "AGENTS.md";
 pub const DROPPED_RULE: &str = "Owners check shared version numbers before they land.";
 pub const OLD_RULES: &str = "# Process\n\nOwners check shared version numbers before they land.\n";
@@ -512,36 +418,21 @@ pub fn fixture_5_3() -> forge::Fixture {
 }
 
 // Act 2, step 5.2 (testing/reference-case.md)
-// The chat delegates A, the helper, then B; only B creates descendants.
-// B delegates its implementer, then h1, which creates its coder and reviewer.
+// The chat delegates B, which owns h1 and its coder and reviewer.
 pub const PAUSE_WORKERS: &[&str] = &["ws", "s1", "s2"];
-pub const CASE_5_2_WORKERS: &[&str] = &["ws", "s1", "s2", "s3"];
 pub const PAUSE: u64 = 1;
-pub const OWNER: u64 = 2;
-pub const HELPER: u64 = 3;
-pub const HELPER_CHARTER: u64 = 9;
-pub const BOWNER: u64 = 4;
-pub const IMPLEMENTER: u64 = 5;
-pub const H1: u64 = 6;
-pub const H1_CODER: u64 = 7;
-pub const H1_REVIEWER: u64 = 8;
+pub const BOWNER: u64 = 2;
+pub const H1: u64 = 3;
+pub const H1_REVIEWER: u64 = 5;
 pub const B_HOLD: u64 = 1;
-pub const PAUSE_PERSON: &str = "@case_pause Pause every owner but A; I'll go through each one's work and say what resumes. Stop the old shape's leftovers.";
-pub const OWNER_SPEC: &str = "@case_owner A remains free to report.";
-pub const BOWNER_SPEC: &str = "@case_bowner Delegate your implementer and h1, then await their endings.";
-pub const HELPER_SPEC: &str = "@case_helper Wait on the old shape's charter.";
-pub const IMPLEMENTER_SPEC: &str = "@case_implementer Finish your running work when released.";
+pub const PAUSE_PERSON: &str = "@case_pause Delegate B's reviewed change; I will stop and release its subtree.";
+pub const BOWNER_SPEC: &str = "@case_bowner Delegate h1, then await its landing.";
 pub const H1_SPEC: &str = "@case_h1 Write docs/design/h1.md, Markdown alone.";
-pub const PAUSE_PROPOSAL: &str = "I propose stopping B; the person must stop it.";
-pub const HELPER_REASON: &str = "The person has stopped the old shape's leftovers; cancel this helper.";
-pub const IMPLEMENTER_RESULT: &str = "B's implementer finished its running work.";
-pub const OWNER_REPORT: &str = "A remained free and finished.";
-pub const BOWNER_REPORT: &str = "B received its implementer's result and h1's landing after release.";
-pub const PAUSE_REPORT: &str = "B reported after release; A finished and the old helper was cancelled.";
+pub const BOWNER_REPORT: &str = "B received h1's landing after release.";
+pub const PAUSE_REPORT: &str = "B's reviewed change landed after release.";
 pub const H1_DOC: &str = "docs/design/h1.md";
 pub const H1_WORDS: &str = "# h1\n\nB's change went on while B was stopped.\n";
 pub const H1_LINE: &str = "B's change went on while B was stopped.";
-pub const IMPLEMENTER_HOLD: &[u8] = b"case-5-2-implementer";
 pub const REVIEW_HOLD: &[u8] = b"case-5-2-review";
 
 #[must_use]
@@ -555,30 +446,22 @@ pub fn fixture_5_2() -> forge::Fixture {
         },
         configure: |value, agent, forge| {
             (fixture_placed().configure)(value, agent, forge);
-            // Four one-slot workers keep the chat, implementer, reviewer and
-            // B's release activation at once (testing/reference-case.md, act 2).
-            value.jig_over("fleet.calls", CASE_5_2_WORKERS.len());
+            // Three one-slot workers keep the chat, B and the reviewer.
+            value.jig_over("fleet.calls", PAUSE_WORKERS.len());
             // Initial adoption and forge hooks supply the listing changes,
             // as in fixture_check; repeating the listing adds no evidence.
             let story_ms = crate::PATIENCE.as_nanos().div_euclid(1_000_000);
             for name in ["poll_ms", "poll_max_ms"] {
                 value.temper_over(format!("forge.client.{name}"), story_ms + 1);
             }
-            value["world_settings"]["helper"] = true.into();
-            // Creating offers charters 1, 2 and 4 plus the helper's charter 9.
-            value.jig_over("documents.lines", 4);
-            // Nine catalogue slots hold the stock with the helper replacing charter 9.
-            // The director, chat, helper, reviewer and change procedure need five delegation kinds.
-            for (name, size) in [("tasks.charters", 9), ("tasks.executor_kinds", 5), ("authority.executors", 5)] {
+            // Stock charters and the chat, reviewer and change executor kinds.
+            value.jig_over("tasks.charters", 9);
+            for (name, size) in [("tasks.executor_kinds", 4), ("authority.executors", 4)] {
                 value.jig_over(name, size);
             }
-            let mut kinds = value["world_settings"]["policies"][0]["policy"]["ceiling"]["delegation"]["kinds"].clone();
-            kinds.as_array_mut().expect("kinds").push(json!({"kind":"charter","number":HELPER_CHARTER}));
             for project in value["world_settings"]["policies"].as_array_mut().expect("projects") {
-                project["policy"]["ceiling"]["delegation"]["kinds"] = kinds.clone();
-                project["policy"]["roles"][0]["authority"]["delegation"]["kinds"] = kinds.clone();
-                // The chat's run, A, the helper and B reserve 10 + 5 + 5 + 40.
-                project["policy"]["roles"][0]["authority"]["budget"]["spend"] = 65.into();
+                // The chat reserves ten and B forty, with no other siblings.
+                project["policy"]["roles"][0]["authority"]["budget"]["spend"] = 50.into();
             }
             // The coder's checkout needs both its LLM and application git grants,
             // as in fixture_check. The cluster supplies one slot per worker.
@@ -586,56 +469,6 @@ pub fn fixture_5_2() -> forge::Fixture {
             landing::admit(value);
         },
         ..forge::fixture()
-    }
-}
-
-// Act 2, step 5.5 (testing/reference-case.md)
-pub const PLAN_DIRECTOR: u64 = 1;
-pub const PLANNER: u64 = 2;
-pub const SUBOWNER: u64 = 3;
-pub const PLAN_QUESTION_NUMBER: u64 = 2;
-pub const PLAN_ANSWER_NUMBER: u64 = 3;
-pub const PLAN_NOTE_NUMBER: u64 = 1;
-pub const A_DEADLINE: u64 = 4_102_444_800_000_000_000;
-pub const A1_DEADLINE: u64 = A_DEADLINE - 14_400_000_000_000;
-pub const PLAN_ANSWER_PENDING: &str = "Wait for A's first run to park before answering.";
-pub const PLAN_ANSWER_HOLD: &[u8] = b"case-5-5-answer";
-pub const PLAN_PERSON: &str = "@case_plan_director Give A the mission's deadline and answer its plan.";
-pub const PLANNER_SPEC: &str =
-    "@case_planner Plan the nearer mission, ask the director, and delegate M1's sub-owner after its green light.";
-pub const SUBOWNER_SPEC: &str =
-    "@case_subowner Own M1 under its deadline; try to delegate a helper and report the refusal.";
-pub const PLAN_NOTE: &str = "Export's nearer mission";
-pub const PLAN_WORDS: &str = "A nearer end: this mission ends at the end-to-end story; the rest of Export is a later mission. M1: the path through app and kit's fake. M2: the rest of the story. Each takes 2 to 3 hours. May I use B's files?";
-pub const PLAN_ANSWER: &str =
-    "Green light: the nearer end, M1 and M2 approved; every ask granted, including B's files.";
-pub const SUBOWNER_REFUSAL: &str =
-    "Authority needs proposal: missing descendant depth (task authority.delegation.depth)";
-/// What the refusal adds when the batch also asks more spend than A1 has left.
-pub const SPEND_DEFICIT: &str = "spend allowance";
-pub const SUBOWNER_REPORT: &str = "M1's sub-owner could not delegate its own helper.";
-pub const PLANNER_REPORT: &str = "The recalled plan started M1's sub-owner under its deadline; it could not delegate.";
-pub const PLAN_REPORT: &str = "A's answered plan and M1's sub-owner have reported.";
-
-#[must_use]
-pub fn fixture_5_5() -> forge::Fixture {
-    forge::Fixture {
-        configure: |value, agent, forge| {
-            (fixture().configure)(value, agent, forge);
-            value["world_settings"]["second_resume"] = false.into();
-            // Creating offers the landing charters 1 and 4 plus the planner's charter 2.
-            value.jig_over("documents.lines", 3);
-            value.jig_over("tasks.charters", 2);
-            let mut kinds = value["world_settings"]["policies"][0]["policy"]["ceiling"]["delegation"]["kinds"].clone();
-            kinds.as_array_mut().expect("kinds").push(json!({"kind":"charter","number":2}));
-            for project in value["world_settings"]["policies"].as_array_mut().expect("projects") {
-                project["policy"]["ceiling"]["delegation"]["kinds"] = kinds.clone();
-                project["policy"]["roles"][0]["authority"]["delegation"]["kinds"] = kinds.clone();
-            }
-            value["world_settings"]["landing"]["projects"] = json!([]);
-            landing::admit(value);
-        },
-        ..fixture()
     }
 }
 
@@ -651,21 +484,9 @@ pub const X3_REVIEWER: u64 = 6;
 pub const PLANNED: u64 = 7;
 pub const PLANNED_CODER: u64 = 8;
 pub const STORY_CHANGE: u64 = 9;
-pub const STORY_CODER: u64 = 10;
-pub const STORY_REVIEWER: u64 = 11;
-pub const DIRECTION_REVISION: u64 = 1;
 pub const OVERLAP_HOLD_REVISION: u64 = 1;
-// Landing subscriptions precede the direction, amendment and deferred note.
-pub const DEFERRED_NOTE_NUMBER: u64 = 7;
-pub const DIRECTION_PERSON_MESSAGE: u64 = 5;
-pub const DIRECTION_AMENDMENT_MESSAGE: u64 = 6;
-pub const OVERLAP_SUBSCRIPTION: u64 = 3;
-pub const OVERLAP_RECHECK_ATTEMPT: u64 = 3;
 pub const DIRECTION_PERSON: &str = "@case_direction Delegate A and B as owners on kit and wait for my direction.";
 pub const DIRECTION_MESSAGE: &str = "The end-to-end story first; cut it to one path; placeholders are fine. Stop x3. B's files are A's where the story needs them.";
-pub const DIRECTION_BRIEF: &str = "The end-to-end story first, one path with placeholders. Stop x3 and defer its plan in a project note. B's files are A's where the story needs them.";
-pub const DIRECTION_REASON: &str =
-    "The person wants the end-to-end story first; stop x3 and use B's files where needed.";
 pub const STORY_OWNER_SPEC: &str =
     "@case_story_owner Own A's work: delegate x3, then await the director's new instructions.";
 pub const OVERLAP_OWNER_SPEC: &str =
@@ -681,17 +502,13 @@ pub const STORY_WORDS: &str = "# B\n\nThe end-to-end story takes one path throug
 pub const STORY_GREEN: &str = "The end-to-end story takes one path through B's file.";
 pub const X3_CANCEL_REASON: &str = "Defer x3: the person's end-to-end story comes first.";
 pub const PLANNED_CANCEL_REASON: &str = "A's landing overlaps h1; cancel the plan to go again from the new main.";
-pub const DEFERRED_NOTE: &str = "x3's deferred plan";
-pub const DEFERRED_WORDS: &str =
-    "Task 4 (x3) is deferred under its closed pull; return to its old plan after the end-to-end story.";
-pub const STORY_OWNER_REPORT: &str = "The story landed; x3's deferred plan was recalled.";
+pub const STORY_OWNER_REPORT: &str = "The story landed; x3 was cancelled.";
 pub const OVERLAP_OWNER_REPORT: &str = "B heard A's overlapping landing after release and cancelled h1.";
 pub const DIRECTION_REPORT: &str = "A's story landed and B reported after release.";
 pub const DIRECTION_HELD_WORDS: &str = "Waiting at the story's event.";
 pub const B_DELEGATE_HOLD: &[u8] = b"case-5-4-b-delegate";
 pub const X3_REVIEW_HOLD: &[u8] = b"case-5-4-x3-review";
 pub const PLANNED_CODING_HOLD: &[u8] = b"case-5-4-h1-code";
-pub const STORY_RECALL_HOLD: &[u8] = b"case-5-4-recall";
 
 #[must_use]
 pub fn fixture_5_4() -> forge::Fixture {
@@ -706,7 +523,7 @@ pub fn fixture_5_4() -> forge::Fixture {
         },
         configure: |value, agent, forge| {
             (fixture().configure)(value, agent, forge);
-            // Delegate/amend/cancel and their wait share one LLM completion.
+            // Delegate/cancel and their wait share one LLM completion.
             agent["profile"]["declared"]["calls_per_response"] = 2.into();
             small_two_call_window(value, agent);
             value.jig_over("hub.run_calls", 2);
@@ -742,104 +559,22 @@ pub fn fixture_5_4() -> forge::Fixture {
     }
 }
 
-pub const BATCH_WRITING: &str = "The batch delegate is writing.";
-
-// Act 3, step 6.5 (testing/reference-case.md)
-pub const BUDGET_DIRECTOR: u64 = 1;
-pub const BUDGET_OWNER: u64 = 2;
-pub const BUDGET_SUBOWNER: u64 = 3;
-pub const BUDGET_A5: u64 = 4;
-pub const BUDGET_ADVISOR: u64 = 5;
-pub const BUDGET_QUESTION_NUMBER: u64 = 1;
-pub const BUDGET_UP_QUESTION_NUMBER: u64 = 2;
-pub const BUDGET_PERSON_ANSWER_NUMBER: u64 = 3;
-pub const BUDGET_NOTICE_NUMBER: u64 = 4;
-pub const BUDGET_ANSWER_NUMBER: u64 = 5;
-pub const BUDGET_TIMER_NUMBER: u64 = 6;
-pub const BUDGET_FINDING_NUMBER: u64 = 7;
-pub const BUDGET_AMENDMENT_NUMBER: u64 = 8;
-pub const BUDGET_A5_REPORT_NUMBER: u64 = 9;
-pub const BUDGET_ADVISOR_REPORT_NUMBER: u64 = 10;
-pub const BUDGET_REVISION: u64 = 1;
-pub const BUDGET_MEDIUM_NUMBER: u8 = 0;
-pub const BUDGET_HIGH_NUMBER: u8 = 1;
-pub const BUDGET_MEDIUM: &str = "medium";
-pub const BUDGET_HIGH: &str = "high";
-pub const BUDGET_PERSON: &str = "@case_budget_director Delegate A to own M1's budget question and wait for its report.";
-pub const BUDGET_QUESTION: &str =
-    "A1 asks A: a4's story takes 70 s against its suite's 60 s. May the budget be raised?";
-pub const BUDGET_UP_QUESTION: &str =
-    "A asks the director: may a4's story take 70 s against its suite's 60 s? Recommend no raise, make it cheaper.";
-pub const BUDGET_PERSON_ANSWER: &str = "The person agrees: no raise, make it cheaper.";
-pub const BUDGET_ANSWER: &str = "A answers A1: the person allows no raise; make the story cheaper.";
-pub const BUDGET_FINDING: &str = "a5 found no cause at medium; evidence: the story's repeated document reads.";
-pub const BUDGET_REASON: &str = "Try the investigation again at high effort, using the repeated-read evidence.";
-pub const BUDGET_A5_REPORT: &str = "a5 found none again at high; evidence: repeated document reads dominate the story.";
-pub const BUDGET_ADVISOR_SPEC: &str = "@case_budget_advisor Read a5's report and evidence in this brief, name the cause, and report once: a5 found none again at high; evidence: repeated document reads dominate the story.";
-pub const BUDGET_ADVISOR_REPORT: &str = "The cause is redundant document polling; await the event and read once.";
-pub const BUDGET_SUBOWNER_REPORT: &str = "A1 reports the advisor named the cause of a4's cost.";
-pub const BUDGET_OWNER_REPORT: &str = "A reports M1's budget question answered and its investigation advised.";
-pub const BUDGET_DIRECTOR_REPORT: &str = "The director reports A resolved the budget question.";
-pub const BUDGET_AMEND_HOLD: &[u8] = b"case-6-5-amend";
-pub const BUDGET_HIGH_HOLD: &[u8] = b"case-6-5-high";
-
-#[must_use]
-pub fn fixture_6_5() -> forge::Fixture {
-    forge::Fixture {
-        configure: |value, agent, forge| {
-            (fixture().configure)(value, agent, forge);
-            value["world_settings"]["llm"]["models"][0]["efforts"] = json!([BUDGET_MEDIUM, BUDGET_HIGH]);
-            // Small profile; default engine/agent model efforts [medium, high].
-            // Singleton delegations, five tasks, parked owners and investigator.
-            // Two calls carry a tool and wait in one completion; three fleet
-            // calls admit PAUSE_WORKERS. Spend: a5 10, advisor 9; A1 25
-            // (3 spent itself + a5's 3 + 9 advisor + 10 run reserve),
-            // A 35 (25 + 10 run reserve), director 45 (35 + 10 reserve).
-            // The base eight-task allowance holds this five-task tree.
-            // landing.projects is empty: no repository or change is adopted.
-            agent["profile"]["declared"]["calls_per_response"] = 2.into();
-            small_two_call_window(value, agent);
-            value.jig_over("hub.run_calls", 2);
-            value.jig_over("fleet.calls", PAUSE_WORKERS.len());
-            value["world_settings"]["cap"] = 45.into();
-            for project in value["world_settings"]["policies"].as_array_mut().expect("projects") {
-                project["policy"]["roles"][0]["authority"]["budget"]["spend"] = 45.into();
-                project["policy"]["ceiling"]["tools"] = (0x0187 | 0x20).into();
-                project["policy"]["roles"][0]["authority"]["tools"] = (0x0187 | 0x20).into();
-            }
-            value["world_settings"]["landing"]["projects"] = json!([]);
-            landing::admit(value);
-        },
-        ..fixture()
-    }
-}
+// The mission and sub-owner deadlines shared by the Act 3 stories.
+pub const A_DEADLINE: u64 = 4_102_444_800_000_000_000;
+pub const A1_DEADLINE: u64 = A_DEADLINE - 14_400_000_000_000;
 
 // Act 3, step 6.4 (testing/reference-case.md)
-pub const RED_DIRECTOR: u64 = 1;
-pub const RED_OWNER: u64 = 2;
-pub const RED_CHANGE: u64 = 3;
-pub const RED_CODER: u64 = 4;
-pub const RED_REVIEW: u64 = 5;
-pub const RED_REPAIR: u64 = 6;
-pub const RED_REPAIR_CODER: u64 = 7;
-pub const RED_REPAIR_REVIEW: u64 = 8;
-pub const RED_UPDATED_REVIEW: u64 = 9;
+pub const RED_CHANGE: u64 = 1;
+pub const RED_REVIEW: u64 = 2;
+pub const RED_REPAIR: u64 = 3;
+pub const RED_REPAIR_CODER: u64 = 4;
+pub const RED_REPAIR_REVIEW: u64 = 5;
+pub const RED_UPDATED_REVIEW: u64 = 6;
 pub const RED_FIRST_HEAD: u64 = 2;
 pub const RED_UPDATED_HEAD: u64 = 6;
 pub const RED_A4_PULL: u64 = 1;
 pub const RED_REPAIR_PULL: u64 = 2;
-// The person's direction precedes the director's interim timer.
-pub const RED_TIMER: u64 = 6;
-pub const RED_PERSON_MESSAGE: u64 = 5;
 pub const RED_REVISION: u64 = 0;
-pub const RED_TIMER_AT: u64 = 4_102_444_800_000_000_000;
-pub const RED_PERSON: &str = "@case_red_director Delegate A1 to own a4 and report its landing.";
-pub const RED_OWNER_SPEC: &str = "@case_red_owner Own a4 as a goal; delegate its change and report.";
-pub const RED_CHANGE_SPEC: &str = "@case_red_coder Write a4 in docs/a4.md, leaving the CI cue in docs/story.md green.";
-pub const RED_MESSAGE: &str = "Kit's tip is red. Rule that a4 fixes it or an interim fix lands within ninety minutes.";
-pub const RED_RULE: &str = "a4 fixes it or an interim fix lands within ninety minutes.";
-pub const RED_OWNER_REPORT: &str = "A1 reports a4 landed after the deployment repair.";
-pub const RED_REPORT: &str = "The interim repair and a4 landed; the timer is removed.";
 pub const RED_FILE: &str = "docs/story.md";
 pub const RED_GREEN: &str = "# Story green";
 pub const RED_BASE: &str = "# Story green\n\nBase story.\n";
@@ -848,9 +583,6 @@ pub const RED_A4_FILE: &str = "docs/a4.md";
 pub const RED_A4: &str = "# A4\n\nA4's story.\n";
 pub const RED_REVIEW_HOLD: &[u8] = b"case-6-4-review";
 pub const RED_REPAIR_HOLD: &[u8] = b"case-6-4-repair";
-
-pub const RED_OWNER_SPEND: u64 = 16;
-pub const RED_CHANGE_SPEND: u64 = 6;
 
 #[must_use]
 pub fn fixture_6_4() -> forge::Fixture {
@@ -864,38 +596,52 @@ pub fn fixture_6_4() -> forge::Fixture {
                 Some(api::Cue::File { path: RED_FILE.as_bytes().into(), green: RED_GREEN.as_bytes().into() });
             setup
         },
+        prepare: |forge, env| {
+            use skein_fake_forge_domain as domain;
+            // a4 starts as the person's existing change; only its update onto
+            // repaired main needs a worker's real git in this story.
+            let base = forge.branch(b"acme/app", b"main").expect("seeded main");
+            let mut out = skein_lib::Queue::uncapped();
+            let mut env = skein_lib::Env { now: env.now, wall: env.wall, limits: env.limits.clone() };
+            domain::step(
+                forge,
+                &env,
+                domain::Event::Call {
+                    reply_to: skein_lib::ReplyTo::new(skein_lib::Token::new(1)),
+                    repository: b"acme/app".as_slice().into(),
+                    user: 1,
+                    op: api::Op::Git(api::Git::Create { branch: b"a4".as_slice().into(), commit: base }),
+                },
+                &mut out,
+            );
+            loop {
+                if let Some(domain::Request::Reply { result, .. }) = out.pop() {
+                    assert_eq!(result, Ok(api::Answer::Branch(api::Created::Created)));
+                    break;
+                }
+                env.now = forge.next_deadline().expect("branch creation reply");
+                domain::fire(forge, &env, &mut out);
+            }
+            domain::advance(forge, &env, b"acme/app", b"a4", RED_A4_FILE.as_bytes(), RED_A4.as_bytes(), 1)
+                .expect("a4's existing green change");
+        },
         configure: |value, agent, forge| {
             (fixture().configure)(value, agent, forge);
-            // These small change/repair allotments retain the world's
-            // one-unit admission floor for their final reviews.
             value["world_settings"]["minimum_run_spend"] = 1.into();
-            // Small, with each capacity/allowance below checked by a passing
-            // whole story and a failing one-less probe in a fresh process.
-            // calls_per_response 1 admits the aggregate turn; hub.run_calls
-            // 1 serializes its paired calls. hub.accounts 2 carries LLM/git;
-            // fleet.calls 1 services worker requests serially; documents.lines
-            // 2 carries the complete creating offer for charters 1 and 4. Live tasks and
-            // project tasks need 5 and 5; tree tasks 6 retains the root's descendants.
-            // a4's allowance 6 funds its coder and two exact-head reviews;
-            // A1's 16 adds its ten-unit run reservation, and the director's
-            // 26 adds ten again. Role spend 26, role period spend 26, and
-            // project period spend 31 leave 5 for the deployment's repair.
-            // A1 allows 4 descendants and a4 3; one repair suffices (repairs
-            // 1). Tools 423 = 391 | 32 adds timer subscription tools, with
-            // 5.4's six forge grants unchanged. Forge statuses 3 (State::new)
-            // retain a4's head, the red tip and repair head; 2 omits repair CI.
-            // Listing polls stay PATIENCE + 1 ms: adoption/hooks supply
-            // changes. This timing bound and every oracle bound stay unchanged.
             agent["profile"]["declared"]["calls_per_response"] = 1.into();
             value.jig_over("hub.run_calls", 1);
             value.jig_over("hub.accounts", 2);
             value.jig_over("fleet.calls", 1);
             value.jig_over("documents.lines", 2);
+            // Independent allotments fund a4's two reviews and the repair;
+            // the project leaves five units beyond the role for that repair.
             value["world_settings"]["cap"] = 26.into();
-            let tools = 0x0187 | 0x0020;
             for project in value["world_settings"]["policies"].as_array_mut().expect("projects") {
-                project["policy"]["ceiling"]["tools"] = tools.into();
-                project["policy"]["roles"][0]["authority"]["tools"] = tools.into();
+                // Opening the person's source branch grants its owned copy's creation.
+                let mut create = project["policy"]["ceiling"]["grants"][0].clone();
+                create["kind"] = 9.into();
+                project["policy"]["ceiling"]["grants"].as_array_mut().expect("ceiling grants").push(create.clone());
+                project["policy"]["roles"][0]["authority"]["grants"].as_array_mut().expect("role grants").push(create);
                 project["policy"]["roles"][0]["authority"]["budget"]["spend"] = 26.into();
                 project["policy"]["roles"][0]["period_spend"] = 26.into();
                 project["policy"]["period_spend"] = 31.into();
@@ -916,72 +662,12 @@ pub fn fixture_6_4() -> forge::Fixture {
     }
 }
 
-// Act 3, step 6.7 (testing/reference-case.md)
-pub const CAP_DIRECTOR: u64 = 1;
-pub const CAP_OWNER: u64 = 2;
-pub const CAP_SUBOWNER: u64 = 3;
-pub const CAP_A5: u64 = 4;
-pub const CAP_REVISION: u64 = 1;
-pub const CAP_HOLD_REVISION: u64 = 1;
-pub const CAP_RELEASE_DECISION: u64 = 2;
-// A1 making to a5 begin: 10 isolated trials max 99,528,732 ns;
-// 3 concurrent fuzzy suites max 113,037,615 ns (3 serial suites: 99,921,661 ns).
-// Twice the largest, 226,075,230 ns, rounded up to whole seconds (at least 1): 1 s.
-pub const CAP_SECONDS: u64 = 1;
-pub const CAP_PERSON: &str = "@case_cap_director Delegate A to own M1 and decide its cap without asking me.";
-pub const CAP_SPLIT: &str = "What has landed is M1; a5's fix opens M2. Report the split once a5 has ended.";
-pub const CAP_REASON: &str = "Split M1 at its cap instead of granting a grace to its delegates.";
-pub const CAP_A5_REPORT: &str = "a5's fix finished within its original running attempt.";
-pub const CAP_SUBOWNER_REPORT: &str = "A1 reports the split: what has landed is M1; a5's fix opens M2.";
-pub const CAP_OWNER_REPORT: &str = "A reports A1's milestone split and a5's ending.";
-pub const CAP_DIRECTOR_REPORT: &str = "The director split M1 by amendment and release without asking the person.";
-pub const CAP_A5_HOLD: &[u8] = b"case-6-7-a5";
-pub const CAP_PASS_HOLD: &[u8] = b"case-6-7-pass";
-pub const CAP_SPLIT_HOLD: &[u8] = b"case-6-7-split";
-
-#[must_use]
-pub fn fixture_6_7() -> forge::Fixture {
-    forge::Fixture {
-        configure: |value, agent, forge| {
-            (fixture().configure)(value, agent, forge);
-            // Small profile, four tasks in singleton batches (base allowance 8).
-            // Two calls admit tool + parked wait, three fleet calls admit the
-            // cluster's workers. Budget 65 admits the widening: 1 director completion + A's
-            // 33 reserved + director run reserve 10 + A1's 21 unspent
-            // funded anew by the director. A needs 33 = its delegation's
-            // 1 spent + A1's 22 + run reserve 10. A1 needs 22 = a5's 10
-            // + one opening completion + next run reserve 10, with one spare. No landing projects are used.
-            agent["profile"]["declared"]["calls_per_response"] = 2.into();
-            small_two_call_window(value, agent);
-            value.jig_over("hub.run_calls", 2);
-            value.jig_over("fleet.calls", PAUSE_WORKERS.len());
-            value["world_settings"]["cap"] = 65.into();
-            for project in value["world_settings"]["policies"].as_array_mut().expect("projects") {
-                project["policy"]["roles"][0]["authority"]["budget"]["spend"] = 65.into();
-            }
-            // Base 391 lacks decide (8) and subscribe (32).
-            for project in value["world_settings"]["policies"].as_array_mut().expect("projects") {
-                project["policy"]["ceiling"]["tools"] = 431.into();
-                project["policy"]["roles"][0]["authority"]["tools"] = 431.into();
-            }
-            value["world_settings"]["landing"]["projects"] = json!([]);
-            landing::admit(value);
-        },
-        ..fixture()
-    }
-}
-
 // Act 3, step 6.6 (testing/reference-case.md). These identities belong only
 // to this two-repository case; earlier steps retain KIT = acme/app.
 pub mod waiting {
-    pub const DIRECTOR: u64 = 1;
-    pub const A1: u64 = 2;
-    pub const E1: u64 = 3;
-    pub const REPIN: u64 = 4;
-    pub const E1_CODER: u64 = 6;
-    pub const E1_REVIEWER: u64 = 7;
-    pub const REPIN_CODER: u64 = 5;
-    pub const REPIN_REVIEWER: u64 = 8;
+    pub const STARTER: u64 = 1;
+    pub const E1: u64 = 2;
+    pub const REPIN: u64 = 3;
     pub const KIT_ID: u32 = 3;
     pub const APP_ID: u32 = 2;
     pub const KIT: &str = "acme/kit";
@@ -991,20 +677,15 @@ pub mod waiting {
     pub const PIN: &str = "kit.pin";
     pub const CI_FILE: &str = "ci.txt";
     pub const GREEN: &str = "green\n";
-    pub const PERSON: &str = "@case_waiting_director Yes: let e1 land in kit, then app's waiting repin; report both.";
-    pub const OWNER_SPEC: &str = "@case_waiting_owner Delegate e1 in kit and app's repin together; repin depends on batch member zero. Wait for both results; send no relay.";
-    pub const E1_SPEC: &str = "@case_waiting_kit Fix B's fake in src/fake.rs and land e1 in kit.";
+    pub const PERSON: &str = "@case_waiting_start Land e1 in kit, then repin app to its merge.";
+    pub const E1_SPEC: &str = "@case_waiting_kit Fix src/fake.rs and land e1 in kit.";
     pub const REPIN_SPEC: &str = "@case_waiting_app Repin kit.pin to e1's landed kit commit and land in app.";
-    pub const OWNER_REPORT: &str = "A1 reports e1 and app's waiting repin landed without relay.";
-    pub const DIRECTOR_REPORT: &str = "The director reports kit e1 and app's dependent repin landed.";
-    pub const REVIEW_HOLD: &[u8] = b"case-6-6-e1-review";
+    pub const REPORT: &str = "Kit and app landed.";
     pub const REPIN_HOLD: &[u8] = b"case-6-6-repin-producer";
     // Script inputs only: app root 1, kit root 2, e1 coder 3, kit merge 4,
     // repin coder 5, app merge 6. The repin turn waits for kit to land.
     // The oracle instead renders the unique kit Merged.commit.
-    pub const KIT_REVIEW_HEAD: u64 = 3;
     pub const PIN_INPUT: u64 = 4;
-    pub const APP_REVIEW_HEAD: u64 = 5;
 
     #[must_use]
     pub fn pin_input() -> String {
@@ -1033,6 +714,7 @@ fn waiting_setup(id: u32, name: &str) -> api::Setup {
 #[must_use]
 pub fn fixture_6_6() -> forge::Fixture {
     forge::Fixture {
+        prepare: |_, _| {},
         manual_merges: api::ManualMerges::OFF,
         setup: || waiting_setup(waiting::APP_ID, waiting::APP),
         extra_setups: || Box::new([waiting_setup(waiting::KIT_ID, waiting::KIT)]),
@@ -1047,9 +729,7 @@ pub fn fixture_6_6() -> forge::Fixture {
             // Configuring-3's new admission check measures this two-repository
             // project policy at 4398 bytes, above the landing fixture's 4096.
             value.jig_over("core.policy_bytes", 8192);
-            // Eight tasks, two batch members, one dependency. The deepest child
-            // has three requester ancestors + its terminal result = four joins;
-            // repin has two ancestors + dependency + result = four as well.
+            // One starter, two changes and their producers and reviewers.
             for name in ["tasks.batch", "authority.batch"] {
                 value.jig_over(name, 2);
             }
@@ -1057,20 +737,18 @@ pub fn fixture_6_6() -> forge::Fixture {
             // also cover the maximum requester ancestry. Two adopted repositories
             // and two checkout repositories fit the existing small capacities.
             value.jig_over("documents.lines", 3);
-            // The coder's write + finish and each owner's delegate + wait share
+            // The coder's write + finish and the starter's delegate + wait share
             // one completion, serialized by the existing single call slot.
             agent["profile"]["declared"]["calls_per_response"] = 1.into();
             value.jig_over("hub.run_calls", 1);
             value.jig_over("hub.accounts", 2);
             value.jig_over("fleet.calls", 1);
-            // F10: the atomic A1 batch exceeds the inherited 2048-byte link
+            // F10: the atomic batch exceeds the inherited 2048-byte link
             // input. Until F10 admission/drop handling is fixed, this fixture
             // gives both link sides the agent's existing tool_payload bound.
             value.jig_over("core.call_answer_bytes", 4096);
-            value.jig_over("core.call_answer_bytes", 4096);
-            // Each procedure reserves ten, A1 adds its ten-unit run reserve,
-            // and the director adds ten: spends 20, 30 and 40 respectively.
-            value["world_settings"]["cap"] = 40.into();
+            // Two ten-unit procedures and the starter's ten-unit run reserve.
+            value["world_settings"]["cap"] = 30.into();
             // Hooks/adoption supply changes; retain the case's PATIENCE+1 polls.
             let story_ms = crate::PATIENCE.as_nanos().div_euclid(1_000_000);
             for name in ["poll_ms", "poll_max_ms"] {
@@ -1087,29 +765,20 @@ pub mod qa {
     pub const A: u64 = 2;
     pub const A1: u64 = 3;
     pub const T: u64 = 4;
-    pub const A2: u64 = 5;
-    pub const C: u64 = 6;
-    pub const CODER: u64 = 7;
-    pub const REVIEWER: u64 = 8;
-    pub const PERSON: &str = "@case_qa_director Delegate A for M1's end, M2's start and QA; report when done.";
-    pub const OWNER_SPEC: &str =
-        "@case_qa_owner Delegate A1, start M2's sub-owner on its M1 message, and pass that report to the director.";
-    pub const SUBOWNER_SPEC: &str = "@case_qa_subowner Message A at M1's end, stay for QA, delegate a tester then land its test through your change.";
-    pub const NEXT_SPEC: &str = "@case_qa_next M2's sub-owner: report admission only; do no work here.";
-    pub const TESTER_SPEC: &str =
-        "@case_qa_tester Report one adversarial test as path and content; try one forge status without authority.";
+    pub const C: u64 = 5;
+    pub const CODER: u64 = 6;
+    pub const REVIEWER: u64 = 7;
+    pub const PERSON: &str = "@case_qa_director Delegate A for QA; report when its tester's test lands.";
+    pub const OWNER_SPEC: &str = "@case_qa_owner Delegate A1 to land QA's test.";
+    pub const SUBOWNER_SPEC: &str = "@case_qa_subowner Delegate a tester then land its test through your change.";
+    pub const TESTER_SPEC: &str = "@case_qa_tester Report one adversarial test as path and content.";
     pub const CHANGE_SPEC: &str = "@case_qa_coder Land the test at tests/qa.rs from T's result, your named spec input.";
-    pub const M1_REPORT: &str = "M1 ended.\nDesign followed.\nChanges landed.\nCI green.\nReviews passed.\nSTATUS updated.\nNo blocker.\nM2 may start.\nQA follows.\nA1 stays live.";
     pub const QA_TEST_PATH: &str = "tests/qa.rs";
     pub const QA_TEST: &str = "#[test]\nfn regression() { assert_eq!(2 + 2, 4); }\n";
     pub const TEST_REPORT: &str = "tests/qa.rs\n#[test]\nfn regression() { assert_eq!(2 + 2, 4); }\n";
     pub const SUBOWNER_REPORT: &str = "A1 closes M1 after its change lands T's test.";
-    pub const NEXT_REPORT: &str = "A2 admitted for M2; no work performed.";
-    pub const OWNER_REPORT: &str = "A reports M1 closed after QA and M2's sub-owner admitted.";
-    pub const DIRECTOR_REPORT: &str = "The director reports M1's end, M2's start and QA's test landed through A1.";
-    pub const OWNER_HOLD: &[u8] = b"case-6-8-owner";
-    pub const TESTER_HOLD: &[u8] = b"case-6-8-tester";
-    pub const NEXT_HOLD: &[u8] = b"case-6-8-next";
+    pub const OWNER_REPORT: &str = "A reports QA's test landed through A1.";
+    pub const DIRECTOR_REPORT: &str = "The director reports QA's test landed through A1.";
     pub const STATUS_CONTEXT: &str = "tester-without-authority";
 }
 
@@ -1137,14 +806,14 @@ pub fn fixture_6_8() -> forge::Fixture {
                 project["policy"]["ceiling"]["delegation"]["depth"] = 6.into();
                 project["policy"]["roles"][0]["authority"]["delegation"]["depth"] = 6.into();
             }
-            // Eight tasks, with A adding one ancestor over 6.6's smoke.
+            // Seven tasks, with A adding one ancestor over 6.6's smoke.
             // Keep each batch singleton and serialize each response's calls.
             value.jig_over("documents.lines", 4);
             agent["profile"]["declared"]["calls_per_response"] = 1.into();
             value.jig_over("hub.run_calls", 1);
             value.jig_over("fleet.calls", PAUSE_WORKERS.len());
             value.jig_over("hub.accounts", 2);
-            // A reserves A1 (50), A2 (10), and its run's ten; the director
+            // A reserves A1 (50) and its run's ten; the director
             // reserves A (80) and its run. All remain below the base ceiling 100.
             value["world_settings"]["cap"] = 100.into();
             for project in value["world_settings"]["policies"].as_array_mut().expect("projects") {

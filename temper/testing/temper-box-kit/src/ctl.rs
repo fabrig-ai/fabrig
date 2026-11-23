@@ -1771,7 +1771,7 @@ pub mod read_condition_tests {
         );
     }
     pub fn process_until_retains_matching_bytes_and_their_completion_wall() {
-        let condition = ReadCondition::LimitedTask { task: 2, account: 1, source: 0 };
+        let condition = ReadCondition::Contains(b"ready");
         let mut calls = Calls::new(Fd::new(0), Vec::new(), None, None);
         calls.action = Some(Action::Until(Call::new(&["task", "show", "2", "--json"]), condition));
         calls.child = Some(completed(br#"{"chip":{"task":2,"phase":"due"},"run_wait":null}"#));
@@ -1779,7 +1779,7 @@ pub mod read_condition_tests {
         calls.finish(Time::from_nanos(1)).unwrap_or_else(|why| panic!("{why}"));
         assert!(calls.ends.is_empty());
         assert_eq!((calls.observed_at()).len(), 0);
-        let stdout = b"{\n \"chip\": {\"task\":2,\"phase\":\"due\"},\n \"run_wait\":{\"account\":{\"account\":1,\"source\":0,\"why\":{\"limited\":{\"until\":30}}}}\n}\n";
+        let stdout = b"ready\n";
         calls.child = Some(completed(stdout));
         calls.wall = Wall::from_nanos(20);
         calls.finish(Time::from_nanos(2)).unwrap_or_else(|why| panic!("{why}"));
