@@ -1485,6 +1485,11 @@ def instruction_budgets(profile, ledger, head_counts, main_counts, folded_counts
             folded = folded_counts.get(key, 0)
             if folded is not None:
                 lowest = folded if lowest is None else min(lowest, folded)
+        accepted = profile.get(tree, {}).get(layer, {}).get('accepted_instructions')
+        if accepted is not None:
+            limit = max(limit, accepted)
+            if main_limit is not None:
+                main_limit = max(main_limit, accepted)
         held[key] = dict(instructions_ceiling=ceiling, instructions_budget=limit,
                          instructions_lowest=lowest, main_instructions_budget=main_limit,
                          main_instructions_lowest=main_lowest)
