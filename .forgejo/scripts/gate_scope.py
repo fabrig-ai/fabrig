@@ -6,7 +6,7 @@ import subprocess
 import sys
 import xml.etree.ElementTree as ET
 
-HOOKS = {'.temper/pre-pr', '.temper/goal-child-pre-pr', '.temper/goal-pre-pr'}
+HOOKS = {'.temper/pre-pr', '.temper/goal-child-pre-pr', '.temper/goal-pre-pr', '.temper/checked-close'}
 PYTHON = ['python3', '-I', '-B']
 SCRIPTS = Path(__file__).resolve().parent
 WORKFLOW = '.forgejo/workflows/gate.yml'
