@@ -5628,7 +5628,6 @@ dependencies = [
  "skein-fail-stop",
  "skein-scratch",
  "temper-client-shell",
- "temper-shell",
  "temper-version",
 ]
 
@@ -5639,11 +5638,9 @@ dependencies = [
  "skein-fail-stop",
  "skein-forge",
  "skein-scratch",
- "skein-shell",
  "smith-protocol-program",
  "temper-agent-shell",
  "temper-fetch",
- "temper-shell",
  "temper-version",
 ]
 

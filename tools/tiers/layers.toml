@@ -159,7 +159,7 @@ layers = ["step", "domain", "system", "machine", "protocol", "io", "simulated", 
 "jig-worker-wire-world::suite" = "step" # Schema drift and bounded record decoders.
 
 [temper]
-"temper-agent::suite" = "end-to-end" # Shipped agent's command-line boundary.
+"temper-agent::suite" = "end-to-end" # Overview, version, no-command refusal and dispatch to the relay, program child, run, list and launcher.
 "temper-blame::step" = "step" # Gate judgement over hand-built ledgers and observations.
 "temper-box-kit::screen" = "step" # Terminal cell reader on renderer output, without io.
 "temper-box-machine::real_loop" = "real-loop" # Box service and hosted children on one real ring.
@@ -239,7 +239,7 @@ layers = ["step", "domain", "system", "machine", "protocol", "io", "simulated", 
 "temper-worker-shell::real" = "real-loop" # Pinned agent files, directory and file modes.
 "temper-worker::suite" = "end-to-end" # Shipped worker's help, identity, unknown command, serve past the shape check and program-login dispatch.
 "temper::process" = "end-to-end"
-"temper::suite" = "end-to-end" # Shipped client's command-line boundary.
+"temper::suite" = "end-to-end" # Overview, version, one bare argument refusal and the TUI's terminal requirement.
 
 [hearth]
 "hearth-accounts-world::suite" = "machine"
