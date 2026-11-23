@@ -25,6 +25,9 @@ fn git(root: &Path, args: &[&str]) -> Result<Vec<u8>, String> {
 }
 
 fn base(root: &Path) -> String {
+    if let Some(commit) = fabrig_boundary::gate_landing_base() {
+        return commit;
+    }
     let args = if git(root, &["rev-parse", "--verify", "MERGE_HEAD^{commit}"]).is_ok() {
         vec!["rev-parse", "MERGE_HEAD"]
     } else if git(root, &["rev-parse", "--verify", "origin/main^{commit}"]).is_ok() {

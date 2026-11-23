@@ -36,6 +36,9 @@ fn git(root: &Path, args: &[&str]) -> Result<Vec<u8>, String> {
 }
 
 fn base(root: &Path) -> String {
+    if let Some(commit) = fabrig_boundary::gate_landing_base() {
+        return commit;
+    }
     // During a landing merge, the incoming target already owns its kept patches.
     let args = if git(root, &["rev-parse", "--verify", "MERGE_HEAD^{commit}"]).is_ok() {
         vec!["rev-parse", "MERGE_HEAD"]
