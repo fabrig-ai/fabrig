@@ -6,6 +6,19 @@ use std::path::{Component, Path, PathBuf};
 
 use serde_json::Value;
 
+/// The destination commit supplied by the landing gate. Local runs choose their own Git base.
+#[must_use]
+pub fn gate_landing_base() -> Option<String> {
+    let value = std::env::var_os("CI_GATE_LANDING_BASE")?;
+    let commit = value.into_string().expect("gate landing base is a hexadecimal commit ID");
+    assert!(
+        matches!(commit.len(), 40 | 64) && commit.bytes().all(|byte| byte.is_ascii_hexdigit()),
+        "invalid gate landing base: {commit:?}"
+    );
+    eprintln!("historical comparison uses gate landing base {commit}");
+    Some(commit)
+}
+
 /// One Cargo target, including whether Cargo builds its test binary (section 2.4).
 #[derive(Debug)]
 pub struct Target {

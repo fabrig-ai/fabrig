@@ -37,7 +37,8 @@ selects focused targets and helpers using the current package map, runs the
 tests through one-process and judges instruction growth at the goal's base
 (section 4.1). Only candidate checks run in the snapshot. The boundary tests that compare landed
 client layouts, retained host-tool contracts, and stored-schema changes require
-repository history. Their current-tree validators and fixture tests still run.
+repository history. At landing, those tests read the exact destination commit
+supplied by the gate in `CI_GATE_LANDING_BASE`. Their current-tree validators and fixture tests still run.
 The worker selects the applicable published counts before isolating the tree
 and supplies that budget file read-only. If the source has no commit or the
 counts are unavailable, close reports that it could not judge growth. The
