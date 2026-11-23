@@ -11,6 +11,7 @@ pub struct StoreImage {
     checked: protocol::Checked,
     application: protocol::sizes::Application,
     routes: route::Routes,
+    keep_reads: bool,
     models: Rc<[jig_domain_core::Model]>,
     sets: protocol::OwnerSets,
     wires: &'static [protocol::Wire],
@@ -43,6 +44,7 @@ impl Store {
             checked: self.checked,
             application: self.application,
             routes: self.routes.fresh(),
+            keep_reads: self.keep_reads,
             models: Rc::clone(&self.models),
             sets: self.sets,
             wires: self.wires,
@@ -73,6 +75,7 @@ impl StoreImage {
             disk,
             self.application,
             self.routes,
+            self.keep_reads,
         );
         store.wires(self.wires);
         store

@@ -285,6 +285,8 @@ impl Store {
         mut stores: Stores,
     ) -> Store {
         let limits = checked.limits();
+        stores.store.forget_reads();
+        stores.secrets.forget_reads();
         let census = Box::new(census::State::new());
         if stores.store.last() == 0 && stores.store.is_empty() {
             stores.store.count(census.rule);

@@ -21,8 +21,9 @@ Each within jig's suites' budgets.
 - **Transcripts' files have a stand-in** in the domain worlds: an
   in-memory file system answering the component's file requests, with
   the same rule after a crash. A crash keeps both in-memory stores and
-  the stand-in, and the next engine's component is made over them and
-  opens as `opening.md` says.
+  the stand-in, and the next engine's component is made over them,
+  forgetting the reads they kept (`skein/docs/design/data/kv.md`, 6.5),
+  and opens as `opening.md` says.
 - **The store's world,** `tests/store`: the component over skein-kv and
   files on skein's simulated, crashing disk, a scripted root committing,
   loading, reading and appending turns, crashed at every file operation

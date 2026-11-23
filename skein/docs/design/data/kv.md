@@ -473,12 +473,46 @@ section 2).
 - **`Store::memory`** keeps each log's frames in memory: an append is
   applied with its commit, a read answered at once, as `Got` is, a drop
   at once.
+- **Reads kept, in memory alone.** A store in memory keeps each record
+  its reads have checked and inflated, by its log and its frame's start,
+  with the frame's end. A read that reaches a kept frame takes the
+  record kept, checking and inflating nothing again, and answers as
+  reading the frame would (6.3): the same records, cuts and `next`. A
+  memory log's committed frames never change below its extent, so a
+  frame checked once stays checked while its log lasts: a drop forgets
+  its log's kept records with its frames, and an `Open`, which takes the
+  store out of memory, forgets them all. A store on a directory keeps
+  none: its bytes are the disk's, read again each time, and its memory
+  follows its reads (section 7).
+  - `Store::keep_reads(&mut self, keep: bool)` turns it on or off;
+    `Store::memory` makes a store with it on, and turning it off forgets
+    what is kept. `Store::forget_reads(&mut self)` forgets what is kept
+    and leaves it on or off. `Store::kept_reads(&self) -> u64` is the
+    number of records kept. `fork_memory` copies whether it is on, and
+    none of the records.
+  - **Each side of a restart starts cold:** the component made over a
+    memory store forgets what the store kept
+    (`jig/docs/design/protocol/store/testing.md`, 1), so a world's read
+    back after its restart checks and inflates every frame again, as a
+    cold start does, and a frame changed at the restart is found there.
+  - **Why:** the test worlds read the same frames many times between two
+    restarts: a history read scans its log from the start for each page,
+    a transcript is read both ways, and each sign-in's documents read
+    their tasks' logs again; this was about 15% of the engine domain
+    world before skein-deflate was optimized. Turned down: keeping a
+    record at its append, so that no read would check its frame; keeping
+    reads on a directory, whose bytes can change under the store and
+    whose memory would grow with its logs; a cache in the worlds'
+    fixtures, which can't reach the reads a component makes within its
+    step; and reading history without the scan, which changes jig's
+    read path for every store.
 - **`Limits`** gains `record`, a record's largest bytes, at most
   `page`; `log`, a log's largest extent; and `logs`, the log files held
   open. `Limits::is_usable` checks them with the rest.
 - **What it costs in memory:** the frames queued with their commits,
   within `queued_bytes`; one read's records, within its `max`; a
-  record's deflated and inflated bytes while it is framed or read.
+  record's deflated and inflated bytes while it is framed or read; and
+  in memory, the records kept, each of its logs' records at most once.
 
 ## 7. Memory and bounds
 

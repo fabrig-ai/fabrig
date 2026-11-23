@@ -67,6 +67,7 @@ pub struct Store {
     pub pending: VecDeque<Pending>,
     pub held: VecDeque<u64>,
     component: Option<protocol::Store>,
+    keep_reads: bool,
     sets: protocol::OwnerSets,
     turn_text: Option<TurnText>,
     files: Files,
@@ -111,7 +112,7 @@ impl Store {
         models: &[jig_domain_core::Model],
         sets: protocol::OwnerSets,
     ) -> Store {
-        Self::build(limits, models, sets, false)
+        Self::starting_with_read_reuse(limits, models, sets, true)
     }
     /// Open the real store with typed start pages (protocol/store/loads.md, 1).
     #[must_use]
@@ -125,18 +126,29 @@ impl Store {
         models: &[jig_domain_core::Model],
         sets: protocol::OwnerSets,
     ) -> Store {
-        Self::build(limits, models, sets, false)
+        Self::with_owner_sets(limits, models, sets)
     }
     /// Use the directory-backed component even without patch sets.
     #[must_use]
     pub fn on_disk(limits: &root::Limits, models: &[jig_domain_core::Model]) -> Store {
-        Self::build(limits, models, protocol::OwnerSets::NONE, true)
+        Self::build(limits, models, protocol::OwnerSets::NONE, true, true)
+    }
+    /// Select whether memory stores reuse checked payload records. Directory stores never keep reads.
+    #[must_use]
+    pub fn starting_with_read_reuse(
+        limits: &root::Limits,
+        models: &[jig_domain_core::Model],
+        sets: protocol::OwnerSets,
+        keep_reads: bool,
+    ) -> Store {
+        Self::build(limits, models, sets, false, keep_reads)
     }
     fn build(
         limits: &root::Limits,
         models: &[jig_domain_core::Model],
         sets: protocol::OwnerSets,
         on_disk: bool,
+        keep_reads: bool,
     ) -> Store {
         Self::prepared(
             limits,
@@ -145,6 +157,7 @@ impl Store {
             on_disk,
             &component_limits(limits),
             jig_test_store::application(&limits.connector),
+            keep_reads,
         )
     }
     // A fresh store checks its bounds; forks keep the checked result.
@@ -155,6 +168,7 @@ impl Store {
         on_disk: bool,
         component_limits: &Limits,
         application: protocol::sizes::Application,
+        keep_reads: bool,
     ) -> Store {
         let checked = protocol::check(component_limits).expect("world store limits");
         let disk = if sets.sets.is_empty() && !on_disk { None } else { Some(crate::disk::Disk::new(component_limits)) };
@@ -162,18 +176,32 @@ impl Store {
             protocol::Store::on_directory(&checked, application, models, disk.seeded())
         } else {
             let stores = Stores {
-                store: skein_kv::Store::memory(&component_limits.store),
-                secrets: skein_kv::Store::memory(&component_limits.secrets),
+                store: Self::memory_store(&component_limits.store, keep_reads),
+                secrets: Self::memory_store(&component_limits.secrets, keep_reads),
             };
             protocol::Store::over(&checked, application, models, stores)
         };
         let mut routes = route::Routes::new(limits.routes);
         routes.configure(limits);
         routes.configure_restore(component_limits).expect("restart page bounds fit");
-        let mut store =
-            Self::over_storage(limits, models.into(), sets, component, Files::new(), disk, application, routes);
+        let mut store = Self::over_storage(
+            limits,
+            models.into(),
+            sets,
+            component,
+            Files::new(),
+            disk,
+            application,
+            routes,
+            keep_reads,
+        );
         store.prefixes.insert(0, BTreeMap::new());
         store.open();
+        store
+    }
+    fn memory_store(limits: &skein_kv::Limits, keep_reads: bool) -> skein_kv::Store {
+        let mut store = skein_kv::Store::memory(limits);
+        store.keep_reads(keep_reads);
         store
     }
     #[expect(clippy::too_many_arguments, reason = "fresh and forked storage retain the same checked configuration")]
@@ -186,6 +214,7 @@ impl Store {
         disk: Option<crate::disk::Disk>,
         application: protocol::sizes::Application,
         routes: route::Routes,
+        keep_reads: bool,
     ) -> Store {
         let checked = component.checked();
         component.owner_sets(component_sets(sets));
@@ -204,6 +233,7 @@ impl Store {
             held: VecDeque::new(),
             checked,
             component: Some(component),
+            keep_reads,
             sets,
             turn_text: None,
             files,

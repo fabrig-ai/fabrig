@@ -69,7 +69,7 @@ impl Store {
                 position = next;
             }
         }
-        let maps = protocol::Stores { store: skein_kv::Store::memory(&limits), secrets: old.secrets };
+        let maps = protocol::Stores { store: Self::memory_store(&limits, self.keep_reads), secrets: old.secrets };
         let mut maps = protocol::Store::over(
             &self.checked,
             jig_test_store::application(&self.limits.connector),
