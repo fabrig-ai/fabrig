@@ -1482,6 +1482,40 @@ fn a_reset_comes_from_the_first_field_given() {
 }
 
 #[test]
+fn structured_rate_limit_waits_beat_figures_and_window_words() {
+    let wall = Wall::from_nanos(100_000_000_000);
+    for (retry_after, resets_in_seconds, resets_at, expected) in [
+        (Some(Duration::from_secs(2)), Some(3), Some(104), Duration::from_secs(2)),
+        (None, Some(3), Some(104), Duration::from_secs(3)),
+        (None, None, Some(104), Duration::from_secs(4)),
+        (None, None, Some(99), Duration::ZERO),
+        (None, None, None, Duration::from_millis(6500)),
+    ] {
+        let rate = RateLimit { retry_after, ..RateLimit::NONE };
+        let error = ProviderError {
+            param: Box::new([]),
+            kind: owned(b"rate_limit_exceeded"),
+            message: owned(b"rate limited per minute. Try again in 6.5s."),
+            resets_in_seconds,
+            resets_at,
+        };
+        assert_eq!(rate.delay(Some(&error), wall), expected, "{rate:?} {error:?}");
+    }
+}
+
+#[test]
+fn a_figure_cut_by_the_detail_limit_is_not_read() {
+    const BEFORE_UNIT: &str = "Try again in 6.5";
+    let body = format!(r#"{{"error":{{"code":"rate_limit_exceeded","message":"{BEFORE_UNIT}s"}}}}"#);
+    let cap = u32::try_from(BEFORE_UNIT.len()).expect("fixture length fits");
+    for (detail_bytes, expected) in [(cap, Duration::ZERO), (cap + 1, Duration::from_millis(6500))] {
+        let limits = Limits { detail_bytes, ..LIMITS };
+        let error = decode_error(&value(body.as_bytes()), &limits).expect("bounded provider error");
+        assert_eq!(RateLimit::NONE.delay(Some(&error), Wall::EPOCH), expected, "{detail_bytes}");
+    }
+}
+
+#[test]
 fn a_failed_response_reads_back_as_written() {
     let error = ProviderError {
         param: owned(b"top_p"),

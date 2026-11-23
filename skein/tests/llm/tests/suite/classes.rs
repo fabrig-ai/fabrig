@@ -56,6 +56,16 @@ fn anthropic_failures_are_classed_by_type_first() {
 }
 
 #[test]
+fn anthropic_rate_limit_reads_its_tokens_per_minute_window() {
+    const KIND: &str = "rate_limit_error";
+    let body = format!(
+        r#"{{"type":"error","error":{{"type":"{KIND}","message":"Your account is limited to 20000 tokens per minute."}}}}"#
+    );
+    let class = Failure::RateLimited { retry_after: Duration::from_secs(60) };
+    assert_eq!(failed(anthropic_call(1), 429, "", body.as_bytes()), expected(class, KIND));
+}
+
+#[test]
 fn a_mid_stream_code_keeps_its_class_or_is_unavailable() {
     for (input, document, code, class) in [
         (
