@@ -67,10 +67,17 @@ impl World {
                 self.store.sweep_kills(Vec::new());
                 self.forked.clear();
                 self.fork_child = Some(cut);
+                self.restart_check = match cut {
+                    Cut::Durable(number) => Some((number, false)),
+                    Cut::Submitted(_) | Cut::Failed(_) | Cut::Disk { .. } => None,
+                };
                 self.cut = Some(cut);
                 Ok(true)
             }
             skein_fork::Split::Parent(skein_fork::Exit::Code(0)) => {
+                if let Cut::Durable(number) = cut {
+                    self.store_checks.restarted(number);
+                }
                 self.forked.push(cut);
                 Ok(false)
             }

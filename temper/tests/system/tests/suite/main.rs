@@ -10,6 +10,7 @@ mod qa;
 mod question_answer;
 mod simulation;
 mod stopped_news;
+mod store_check;
 mod text;
 
 mod fuzzy {

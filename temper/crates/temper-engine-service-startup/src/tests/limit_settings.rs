@@ -10,10 +10,10 @@ use jig_domain_core::settings::Override;
 use jig_protocol_config as config;
 use skein_lib::{List, Secret};
 
-fn inputs() -> startup::LimitInputs {
+pub(super) fn inputs() -> startup::LimitInputs {
     inputs_for(false)
 }
-fn inputs_for(is_box: bool) -> startup::LimitInputs {
+pub(super) fn inputs_for(is_box: bool) -> startup::LimitInputs {
     let mut document: serde_json::Value = serde_json::from_slice(&super::stock::generated()).unwrap();
     if !is_box {
         document["workers"] = serde_json::json!([]);

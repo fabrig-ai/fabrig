@@ -120,7 +120,7 @@ pub struct Worker {
     pub root: Box<[u8]>,
 }
 // Runtime starts and offline store readers judge the same fixed tier carriers.
-fn tier_bounds(limits: &limits::Limits, problems: &mut Problems) {
+pub(super) fn tier_bounds(limits: &limits::Limits, problems: &mut Problems) {
     let bound = temper_service_core::derived::STORE_LIVE_GOALS;
     if limits.live_goals > bound {
         problems.push(

@@ -20,6 +20,7 @@ pub mod roles;
 pub mod roles_referee;
 
 pub mod budget;
+pub mod check;
 /// Shared direct root route driver for focused and randomized scenarios.
 pub mod direct;
 pub mod fixtures;

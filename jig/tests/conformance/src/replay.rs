@@ -305,6 +305,8 @@ outside_state!(world;
     held: std::collections::VecDeque<u64> = &world.store.held,
     referee: jig_conformance::referee::Referee = &world.referee,
     clock: u64 = &world.clock().now,
-    outcome: Outcome = &world.outcome(),
+    // Coverage belongs to the run: a sweep's preceding children checked more
+    // commits than a sampled snapshot prefix, without changing application state.
+    outcome: Outcome = &Outcome { checked: 0, ..world.outcome() },
     trace: Vec<String> = &world.trace.to_vec(),
 );

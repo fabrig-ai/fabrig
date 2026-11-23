@@ -368,6 +368,8 @@ pub struct Domain {
     decision_wrote: bool,
     stopped_reported: bool,
     start_opened: bool,
+    rehearsing: bool,
+    rehearsed: bool,
     start_page_failure: Option<(core::start::Phase, jig_protocol_store::restore::Failure)>,
 }
 
@@ -471,6 +473,18 @@ impl Domain {
         &mut self.journal
     }
 
+    /// Stop this start at the switch, before its mark or any external effects
+    /// (`jig/docs/design/domain/testing.md`, 7).
+    pub fn rehearse(&mut self) {
+        self.rehearsing = true;
+    }
+
+    /// The rehearsal served every phase through the sweep and reached the switch.
+    #[must_use]
+    pub const fn rehearsed(&self) -> bool {
+        self.rehearsed
+    }
+
     /// The phase currently selected by the core's start.
     #[must_use]
     pub fn start_phase(&self) -> Option<core::start::Phase> {
@@ -569,6 +583,8 @@ impl Domain {
             decision_wrote: false,
             stopped_reported: false,
             start_opened: false,
+            rehearsing: false,
+            rehearsed: false,
             start_page_failure: None,
         }
     }
@@ -899,6 +915,7 @@ fn start_action(
     let mut work = Queue::uncapped();
     match action {
         Action::Step(phase) => match phase {
+            Phase::Switch if domain.rehearsing => domain.rehearsed = true,
             Phase::LoadCore | Phase::LoadInbox | Phase::RestoreConnector { .. } | Phase::Sweep | Phase::Switch => {
                 let census = if phase == Phase::LoadInbox { Some(domain.core.census(&env.limits.core)) } else { None };
                 domain.now.push(Request::Start { phase, census });
@@ -1240,7 +1257,8 @@ fn restore_connector(domain: &mut Domain, env: &Env<Limits>, number: u16, record
     for _ in 0..out.len() {
         match out.pop().expect("restored connector output count") {
             connector::Request::RestoreRefused { kind, scope, number } => {
-                refuse_settings_restore(kind, scope, number);
+                refuse_settings_restore(domain, kind, scope, number);
+                return false;
             }
             connector::Request::SettingsRestored { .. }
             | connector::Request::SettingsJudged { .. }
@@ -1406,8 +1424,14 @@ pub fn initial_settings_current(current: &core::settings::Current) -> Box<[core:
     rows.into_boxed()
 }
 
-/// The testing root has no connector-owned start failure (connectors.md, 17).
-#[expect(clippy::panic, reason = "a connector restore refusal stops the test start and names the setting")]
-fn refuse_settings_restore(kind: u32, scope: u32, number: u32) -> ! {
-    panic!("connector settings restore refused: kind {kind}, scope {scope}, number {number}");
+/// A connector's stored value cannot fit this start's configuration
+/// (`jig/docs/design/domain/testing.md`, 7).
+fn refuse_settings_restore(domain: &mut Domain, kind: u32, scope: u32, number: u32) {
+    let _action = domain.core.start_refuse(core::start::Failure::Application {
+        kind,
+        scope,
+        number,
+        why: core::start::ApplicationWhy::Shape,
+    });
+    domain.stopped_reported = false;
 }

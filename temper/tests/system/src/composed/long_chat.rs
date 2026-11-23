@@ -125,7 +125,7 @@ impl World {
 
     fn restart_long_chat(&mut self) {
         assert!(self.store.idle(), "restart between committed activations");
-        self.root = engine::Domain::new(config(self.seed), &self.env.limits).expect("restart configuration");
+        self.replace_root(config(self.seed));
         self.root_events = super::VecDeque::from([engine::Event::Restart { pending: false }]);
         self.protocol = super::Protocol::default();
         self.worker = worker::Domain::new(&self.worker_env.limits, Box::new([]));
