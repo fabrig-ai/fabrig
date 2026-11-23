@@ -10,7 +10,7 @@ Provisional, 2026-11-16. What the focused and fuzzy suites may cost, by layer of
 - **The gate's verdict** (section 5). Callers use `--gate` for red verdicts on layer budgets and per-test references. The gate's runner reports per-test reference overruns as warnings while its per-test check is off. A layer budgeted in instructions uses CPU for warnings when counts are unavailable. Drift gives warnings.
 - **Starting figures** (section 6): the CI builder's gate runs of 11-16, their median by tree, suite and layer, plus a tenth and at least a second.
 - **The ledger** (section 7). Main's ledger keeps each binary's last CPU figures, its counts for the last 100 counted landings, each test's last walls and the lowest layer figures in both measures. The gate's runner keeps it outside this repository. Every run writes a copy with its own figures folded in.
-- **A partial run judged whole** (section 8). The report combines the measured binaries with main's figures for the other binaries. For an instruction layer, a change is red when it takes the layer over budget or its growth, after credit for new moves into the layer, exceeds both 2% of main's count and one billion instructions. This growth cap applies even within budget. Over at both with growth within the allowance warns. Main at least 8% above its lowest while within budget warns of drift. A CPU layer keeps its CPU comparison.
+- **A partial run judged whole** (section 8). The report combines the measured binaries with main's figures for the other binaries. For an instruction layer, a change is red when it takes the layer over budget or its growth, after credit for new moves into the layer, exceeds both 2% of main's count and one billion instructions, unless the head stays within the layer's accepted level, where the user set one. This growth cap applies even within budget. Over at both with growth within the allowance warns. Main at least 8% above its lowest while within budget warns of drift. A CPU layer keeps its CPU comparison.
 - **The held budget** (section 9). The gate holds the lower of the ceiling and the lowest figure at main plus a tenth, with a minimum allowance of a second or ten billion instructions, according to the measure. The lowest figure only falls while the ceiling stands.
 - **Moves down** (section 10). A move transfers CPU seconds and can also transfer instructions between layers. The gate checks that it goes down.
 - **Every figure the user's** (section 10.1): the gate refuses a change that raises a figure of `tools/tiers/budgets.toml` or adds a reason's line, checked against its base by `tools/tiers/figures.py`, unless the change touches that file alone; and each budget red and refusal ends with a line sending its repair to the strategy.
@@ -48,13 +48,14 @@ cpu_s = 72
 - **A profile's table** holds `references`, `moves` where it has any (section 10), `reasons` where it has any (`tools/tiers/references.md`, 2), and one table for each **group**. A group is one of the five trees by name (`skein`, `smith`, `jig`, `temper`, `hearth`), or `repository` for the repository's checks (`tools/tiers/layers.md`, 4).
 - **`references`** is an inline table that maps a layer's name to the per-test reference of a test in that layer, in CPU seconds (`temper/docs/design/draft/test-budgets.md`, 6). It names layers from `tools/tiers/layers.toml`'s `layers` list, and `checks` for the repository's checks.
 - **A group's table** holds `ideal_s`, the group's ideal for the suite, and a table for each layer it has: for a tree, layers named in `layers`; for `repository`, `checks` alone.
-- **A layer's table** holds `cpu_s`, the user's CPU ceiling for the suite, and may hold `instructions`, the user's instruction ceiling. Reports give `ideal_s` and `ideal_instructions` where present. `reference_s` overrides the profile's per-test reference for this layer. Raising a ceiling is the user's (`skein/docs/foundation/testing-strategy.md`, 8.1).
-- **Every CPU value** is a finite positive number. `instructions` and `ideal_instructions` must be positive integers. Booleans are refused. Moves and reasons have their own forms (section 10 and `tools/tiers/references.md`, 2).
+- **A layer's table** holds `cpu_s`, the user's CPU ceiling for the suite, and may hold `instructions`, the user's instruction ceiling, and with it `accepted_instructions`, the user's accepted level: a count the layer may grow to past the growth cap (section 8). Reports give `ideal_s` and `ideal_instructions` where present. `reference_s` overrides the profile's per-test reference for this layer. Raising a ceiling is the user's (`skein/docs/foundation/testing-strategy.md`, 8.1).
+- **Every CPU value** is a finite positive number. `instructions`, `ideal_instructions` and `accepted_instructions` must be positive integers. Booleans are refused. Moves and reasons have their own forms (section 10 and `tools/tiers/references.md`, 2).
 - **`budgets(path, pairs=None, layers=Path('tools/tiers/layers.toml'))`** (`tools/tiers/design.md`, 10.2) reads the layers' names from the `layers` file's `layers` list. It reads that file only when the budgets file has a `gate` table. It raises `ValueError` on:
   - a key or value outside the form above;
   - a group that isn't one of the six;
   - a layer the list doesn't name, `checks` under a tree, or any other layer under `repository`;
-  - a group without `ideal_s`, or a layer without `cpu_s`;
+  - a group without `ideal_s`, or a layer without `cpu_s` or `instructions`;
+  - a layer with `accepted_instructions` and no `instructions`;
   - a layer with no reference: neither its own `reference_s` nor an entry in its profile's `references`;
   - a reasons' line outside its form, or two naming the same binary and test (`tools/tiers/references.md`, 2).
 
@@ -111,7 +112,7 @@ cpu_s = 72
 - **The line for a layer over its budget** reads `layer over budget: TREE PROFILE LAYER: FIGURE CPU s, budget BUDGET s`, or ends `no budget` where the row has none. `FIGURE` has two decimals and `BUDGET` is the file's figure as Python's `str` gives it.
 - **With `gate`,** layer lines eligible for a red go in `over_budget`. The verdict is `over budget` when that list holds any line, else `starved` for a starved run, else `within budget` when the profile has gate tables or a pair table, else `no budget set` (`tools/tiers/design.md`, 10.2).
 - **Without `gate`,** each such line is in `warnings`, and the verdict is what it would be with no gate tables: a layer over its budget is a warning there, never red (the user, 11-16).
-- **Every entry of `over_budget` ends with section 10.1's repair line,** on its own line after any binaries and tests (section 8). Layer warnings and per-test reference warnings carry no repair line.
+- **Each budget red ends with section 10.1's repair line,** on its own line after any binaries and tests (section 8). Coverage reds follow it with the reason instructions (section 13). Layer warnings and per-test reference warnings carry no repair line.
 - **A selection** (a run with `-p`) sums only what it ran. Without a ledger, a layer's figure in it is a lower bound of the layer's whole figure, and is judged as it stands. With main's ledger it is judged whole (section 8).
 - **`print_summary`** prints each layer and tree after the suite totals, giving its CPU figure, budget, ceiling and ideal, plus the reference for a layer and the figure at main when a ledger is present. It prints the head and main instruction counts and, for layers with an instruction ceiling or ideal, the instruction ceilings, budgets, lowest counts, ideals and growth. It prints `none` for a null figure. Each process's line ends with its count. Warnings and reds follow the rows.
 
@@ -176,37 +177,100 @@ Each tree's pair `real-TREE` runs its real-loop and end-to-end tests after landi
 - **Its form:** one JSON object, written as `cpu.py`'s `save` writes a file:
 
 ```json
-{"ledger": 5, "profile": "default",
+{"ledger": 6, "profile": "default",
  "binaries": {"temper-engine::domain": {"tree": "temper", "layer": "domain", "cpu": [60.4, 63.0, 61.2],
                                         "tests": {"forge::opens": [0.011, 0.012, 0.010]},
                                         "alone": {"forge::opens": [0.008]},
                                         "counts": [{"commit": "1f3a...", "instructions": 482103771120},
-                                                   {"commit": "9b0c...", "instructions": 482109310442}]}},
+                                                   {"commit": "9b0c...", "instructions": 482109310442}],
+                                        "checks": {"store-check": 16, "seed": 32}}},
  "budgets": {"temper": {"domain": {"ceiling_s": 141, "lowest_s": 118.4,
                                     "instructions_ceiling": 900000000000,
                                     "instructions_lowest": 482109310442}}},
- "moves": [{"from": "temper.simulated", "to": "temper.domain", "cpu_s": 12, "why": "..."}]}
+ "moves": [{"from": "temper.simulated", "to": "temper.domain", "cpu_s": 12, "why": "..."}],
+ "coverage_reasons": []}
 ```
 
-  - `ledger`, the form's version, 5;
+  - `ledger`, the form's version, 6;
   - `profile`, `default` or `fuzzy`;
   - `binaries`, by binary id: `tree`, one of section 2's six groups; `layer`, a name of the `layers` list, `checks`, or null, as section 3 placed it in the run that wrote the ledger; `cpu`, a list of one to three CPU figures, each the CPU of its processes, of the suite's kinds (section 4), in one of the last runs that measured it whole (below), oldest first, whose median is its figure at main (section 8); `tests`, by test name, a list of one to three walls, that test's in the last runs that measured it, oldest first; `alone`, by test name, a list of one to three CPU figures, that test's alone (`tools/tiers/references.md`, 4) in the last runs that ran it alone, oldest first, for tests some landed gate ran alone: every name in `alone` is in `tests`; `counts`, a list of none to 100 entries, oldest first, one for each of the last runs that measured it whole and counted it (below): `instructions`, its count there (`tools/tiers/design.md`, 11.4), the sum of its processes' of the suite's kinds, and `commit`, that run's `commit` from its `results.json` (`tools/tiers/design.md`, 11.8), or null. Its last entry's count is its count at main (section 8): a count is no sample, so no median is taken (draft, 5). Two entries in a row say what the landings between them added to the binary, and since a gate runs only the packages a change reaches, a landing that didn't run the binary added nothing to it;
   - `budgets`, by group and layer, holds `ceiling_s` and `lowest_s` for each layer with a CPU ceiling. An instruction ceiling adds `instructions_ceiling` and `instructions_lowest`, both nonnegative integers, with null allowed for the lowest until a complete count is available (section 9).
-  - `moves`, the moves of main's budgets file for the profile, each as section 10's form has it.
+  - `moves`, the moves of main's budgets file for the profile, each as section 10's form has it;
+  - `coverage_reasons`, the reasons in main's budgets file for the profile, each as section 13's form has it;
+  - `spent_coverage_reasons`, the budget coverage reasons that have covered a loss on a landed run. The fold keeps them even when their lines leave the budgets file (section 13).
+
+  A binary's `checks` holds its totals by kind from the last run that measured it whole (section 13).
 
   Every figure is a finite number at least 0, never a boolean; a count is an integer at least 0, never a boolean, and a commit is 40 or 64 lowercase hex digits. Nothing else is allowed.
 - **The last 100 landings** (draft-10, 11-20). The draft keeps each landing's count beside the binary's count at main (draft, 5). Kept for every landing, the ledger would grow without end, and every gate run and delivery check reads and rewrites it whole: the week to 11-20 had 470 landings on main and the workspace about 500 test binaries, near 0.75 MB a day of counts. So a binary keeps its counts for its last 100 counted landings, close to the walls' size in the ledger, and says what each of them added. The runner's kept ledgers hold the older counts. Naming drift with the landings that grew a layer since its lowest (draft, 8) may need a longer look-back, and widens the bound with a new version then.
-- **`ledger(path)`** (`tools/tiers/design.md`, 10.2) reads one and returns it as a dictionary. It raises `ValueError` on anything outside the form: another key, a version other than 1 to 5, a profile other than the two, a group other than section 2's six, a layer that is neither a nonempty string nor null (`budgets` takes no null), a figure outside the above, a binary whose `cpu` is no list or has no figure or more than three, a test with no wall or more than three, an `alone` entry with no figure or more than three, or for a name not in `tests`, a binary whose `counts` is no list or has more than 100 entries, an entry of it with keys other than `commit` and `instructions`, a count outside the above or a commit that is neither null nor one, an empty id or name, a move without section 10's keys and their types. It reads neither the layers file nor a budgets file: a layer or a move main no longer has is no error, and counts as section 8 and 9 say. A form that changes moves `ledger` by one, and its reader reads the form before it too, since the runner's ledger outlives the landing that changes it.
+- **`ledger(path)`** (`tools/tiers/design.md`, 10.2) reads one and returns it as a dictionary. It raises `ValueError` on anything outside the form: another key, a version other than 1 to 6, a profile other than the two, a group other than section 2's six, a layer that is neither a nonempty string nor null (`budgets` takes no null), a figure outside the above, a binary whose `cpu` is no list or has no figure or more than three, a test with no wall or more than three, an `alone` entry with no figure or more than three, or for a name not in `tests`, a binary whose `counts` is no list or has more than 100 entries, an entry of it with keys other than `commit` and `instructions`, a count outside the above or a commit that is neither null nor one, an empty id or name, a move without section 10's keys and their types. It reads neither the layers file nor a budgets file: a layer or a move main no longer has is no error, and counts as section 8 and 9 say. A new version's reader reads the forms before it too, since the runner's ledger outlives the landing that changes it.
   - **Versions 1 to 3.** An older ledger reads as one without counts. Version 3, B7's, is version 4 without `counts`: each binary has exactly the keys `tree`, `layer`, `cpu`, `tests` and `alone`, and `ledger()` returns it with `counts` empty. Version 2, B4's, is version 3 with `cpu_s`, one figure, in place of `cpu`: each binary has exactly the keys `tree`, `layer`, `cpu_s`, `tests` and `alone`, and `ledger()` returns it with `cpu` the list of that one figure, no `cpu_s` and `counts` empty. Version 1, B3's, is version 2 without `alone`: each binary has exactly the four other keys, and `ledger()` returns it with `alone` and `counts` empty too. A binary of any is checked against its own version's keys, so a version 2 binary with `cpu`, a version 3 one with `cpu_s` or `counts`, or a version 4 one without `counts`, is refused. The reader preserves the version in `ledger`.
-  - **Versions 1 to 4** have CPU-only `budgets` entries and moves. When a layer gains an instruction ceiling, the fold seeds its lowest from the layer's count at main when available (section 9). Every run writes version 5.
-  - **A reader before version 5** refuses a version 5 ledger. Its delivery check runs without main's ledger and says why until the branch takes main (`tools/pre-pr/design.md`, 4).
+  - **Versions 1 to 4** have CPU-only `budgets` entries and moves. When a layer gains an instruction ceiling, the fold seeds its lowest from the layer's count at main when available (section 9). Every run writes version 6.
+  - **Versions 1 to 5** read with an empty `checks` object on each binary.
+  - **Only version 6** takes `coverage_reasons` and `spent_coverage_reasons`. An absent list is empty.
+  - **A reader before version 6** refuses a version 6 ledger. Its delivery check runs without main's ledger and says why until the branch takes main (`tools/pre-pr/design.md`, 4).
 - **Who passes it:** the gate, as `--ledger PATH` (section 5): main's ledger for the suite, at the candidate's base; and the delivery check, a copy the gate's runner left on its builder, a landing or two old at most. Every other run passes none, and its selection is judged as it stands (section 4).
 - **Every run writes its own.** A one-process run that reaches its summary writes `ledger.json` in its directory (`tools/tiers/design.md`, 11.8): main's ledger as it will stand once the run's candidate lands. It is the given ledger, or an empty one, with the run's figures folded in:
   - **a binary the run measured whole,** every one of its selected tests `passed`, `failed` or `crashed` and none `starved`, `cancelled` or unobserved: its `tree` and `layer` as the run placed it, its `cpu` the ledger's last two figures for it, then the CPU the run measured for it (`[64.0, 61.2, 63.0]` from `[60.0, 64.0, 61.2]` and 63.0; a binary new to the ledger has the run's figure only, and one the run places elsewhere keeps its figures, as a test's walls are kept), and its `tests` as the run ran them, each with the ledger's last two walls for it, then the run's own. Its `alone`, for each test the run ran: the ledger's last two figures for it, then the run's own, where the run's `references` (`tools/tiers/references.md`, 4) give it a `cpu_s` that isn't null, the lowest of the test's runs alone there; otherwise the ledger's figures as they were, where it has any. A test the ledger had and the run didn't run leaves, from both. Its `counts`, where the run counted it (its count at the head isn't null, section 4): the ledger's last 99 entries for it, then `{"commit": COMMIT, "instructions": COUNT}`, COMMIT the run's `commit` and COUNT its count at the head; where the run didn't count it, the ledger's entries as they were, none for a binary new to the ledger. A binary the run places elsewhere keeps its counts, as its walls are kept;
-  - **a binary the run cut short:** its ledger entry as it was, `alone` and `counts` included, with the run's `tree` and `layer`, or none where the ledger lacks it, since its CPU is partial;
-  - **a ledger binary the run didn't run:** kept, with its `workspace` entry's `tree` and `layer` (section 3), where `workspace` has it unlisted. It leaves where `workspace` lacks it (its target is gone), where the listing named it and the run selected none of its tests, and where it is placed in a layer the run left out, listed or not (section 4.1);
-  - **`budgets`** as section 9 folds them, and **`moves`** the run's budgets file's for the profile, an empty list without one.
+  - **a binary the run cut short:** its ledger figures and histories, with the run's `tree` and `layer`, or none where the ledger lacks it, since its CPU is partial. When the selector took whole packages, retain only its selected names in `tests` and `alone` (section 13);
+  - **a ledger binary the run didn't run:** kept, with its `workspace` entry's `tree` and `layer` (section 3), where `workspace` has it unlisted. An unlisted binary in a selected package has empty `tests`, `alone` and `checks` when the selector took whole packages. It leaves where `workspace` lacks it (its target is gone), where the listing named it and the run selected none of its tests, and where it is placed in a layer the run left out, listed or not (section 4.1);
+  - **`budgets`** as section 9 folds them. **`moves`** and **`coverage_reasons`** are the run's budgets file's lists for the profile, each empty where the file gives none.
 - **The runner keeps** the `ledger.json` of the gate run whose candidate landed as main's ledger for that suite, and passes it to the next gate on top of that landing. Its first ledger is the `ledger.json` of a whole run of its own on main, with no `-p` and no `--ledger`: until then no selection is judged whole and no budget is held below its ceiling (draft, 5). The gate selects by package alone; a run that also filters tests writes a ledger that isn't main's.
+
+### 7.1 Main's published counts
+
+After each landing the gate's runner publishes one commit at
+`refs/temper/counts` with two files, `counts.json` and `allowances.tsv`. A worker fetches the
+ref and its blob at prepare (`temper/docs/design/draft/test-budgets.md`,
+3). Its form is:
+
+```json
+{"version": 1,
+ "commits": ["<oldest sha>", "...", "<newest sha>"],
+ "profiles": {"default": {"binaries": {"jig-world::domain": {"tree": "jig",
+                    "layer": "domain", "cpu_s": 9.7,
+                    "counts": {"<sha>": 123456789}}},
+                          "moves": []},
+              "fuzzy": {"binaries": {}, "moves": []}}}
+```
+
+`commits` holds the last twenty commits main landed, oldest first.
+At commit C, a binary has the count of the newest entry in its
+`counts` at or before C in that window. It has no count before its first
+entry. Its tree, layer and CPU figure are those at the newest commit.
+Each profile's `moves` are those at the newest commit, as kept in main's
+ledger in section 7.
+
+`allowances.tsv` is the same data at the newest commit, for `tools/tiers/test`'s
+lines (`tools/tiers/design.md`, 11.9), tab-separated, a line each: `version 1`;
+`main SHA`, the newest commit; `binary PROFILE BINARY_ID TREE LAYER` for each
+binary; and `layer PROFILE TREE LAYER COUNT ALLOWANCE` for each layer, its count
+at the newest commit and `allowance` of it, with the layer's accepted level
+in the newest commit's `tools/tiers/budgets.toml`. Small and flat, so that an
+implementer's run reads it in a few milliseconds.
+
+`python3 -I -B tools/tiers/counts.py export --ledger default=PATH [--ledger fuzzy=PATH] [--head REV] --out DIR`,
+from the checkout root, writes both files into DIR, REV `HEAD` by default. The gate's
+runner runs it after each landing, with main's ledgers as main's tip has them
+(section 7) and REV main's tip. `commits` are REV's last twenty first-parent commits.
+A binary keeps the ledger's counts at the window's commits, and the newest count it
+had before them stands at the window's first commit where it has none there, so each
+commit's sums are main's there. Its `cpu_s` is its figure at main (section 8). A binary with no count is left
+out, and a profile without a ledger has no binaries and no moves. The allowances take
+the accepted levels of REV's `tools/tiers/budgets.toml` (section 2). It exits 2 on a
+ledger `ledger()` refuses, a ledger of the other profile, or a git failure.
+
+`tools/tiers/counts.py` reads the window. `read(root, env)` uses
+`git cat-file blob refs/temper/counts:counts.json` with
+`GIT_NO_LAZY_FETCH=1` and returns the parsed version 1 object or none
+when the local file is unavailable. `base(data, root, env, head='HEAD')`
+checks the window newest first with `git merge-base --is-ancestor`
+under the same environment and returns the newest commit head contains,
+or none. `binaries(data, profile, commit)` maps binary IDs to each
+counted binary's `tree`, `layer` and `instructions`.
+`layers(data, profile, commit)` sums them by `(tree, layer)`.
+`allowance(count, credit=0, accepted=None)` returns the growth allowance in section 8,
+`max(count // 50, 1_000_000_000) + credit`, or `accepted - count` where that is larger.
 
 ## 8. A partial run, judged whole
 
@@ -229,8 +293,8 @@ Each tree's pair `real-TREE` runs its real-loop and end-to-end tests after landi
   Without a ledger, `measured_s` is `cpu_s`, `main_s`, `main_budget_s` are null, `main_over` is false and `grew` empty. A tree's row (section 4's `trees`) gains `main_s`, the sum of its rows', null without a ledger, and its `cpu_s`, `ceiling_s` and `budget_s` are section 4's sums of these figures.
 - **The CPU red is the change's** (draft, 5). A CPU row is over in section 4's cases if main is within budget, or if the head grows by more than the larger of 5% of main's CPU figure and one second. The line is a red with `gate` for a CPU-only layer, or a warning for an instruction layer without counts.
 - **Main's CPU overrun** warns when both figures are over their budgets and the head is within that tolerance. The line reads `layer over budget at main: TREE PROFILE LAYER: MAIN CPU s at main, budget MAIN_BUDGET s; FIGURE CPU s at the head`. The figures have two decimals, and the budget prints as in section 4.
-- **The instruction verdict** is red when the head exceeds its held budget and main is within its budget, or when the head's growth exceeds its growth allowance, even within budget. The allowance is the larger of 2% of main's count and 1,000,000,000 instructions, plus credit for the change's new moves into the layer. The comparison uses whole instructions, with 2% rounded down. If both counts are over budget and growth is within the allowance, the report gives an over-at-main warning with both counts and main's budget. With no ledger, only the head's ceiling is compared. Growth prints as a percentage where main's count is nonzero and available.
-- **Growth credit** comes from moves into the layer that the budgets file has and main's ledger lacks, compared as a multiset of whole move lines. A move giving instructions credits that count. For moves giving CPU seconds alone, multiply their total seconds by the receiving layer's count at main and divide by its CPU seconds at main, rounding down to whole instructions. A missing or zero count or CPU figure at main gives no credit for CPU seconds. Outgoing moves give no growth credit to the source. The red line or a warning names the floor or credit where it changes the growth allowance used to judge growth past 2%.
+- **The instruction verdict** is red when the head exceeds its held budget and main is within its budget, or when the head's growth exceeds its growth allowance, even within budget. The allowance is the larger of 2% of main's count and 1,000,000,000 instructions, plus credit for the change's new moves into the layer. Where the layer's table at the head holds `accepted_instructions` (section 2), the user's accepted level, the allowance is that level less main's count where that is larger: a head count up to the level passes the growth check. The held budget and the ceiling still judge it (section 9). The comparison uses whole instructions, with 2% rounded down. If both counts are over budget and growth is within the allowance, the report gives an over-at-main warning with both counts and main's budget. With no ledger, only the head's ceiling is compared. Growth prints as a percentage where main's count is nonzero and available.
+- **Growth credit** comes from moves into the layer that the budgets file has and main's ledger lacks, compared as a multiset of whole move lines. A move giving instructions credits that count. For moves giving CPU seconds alone, multiply their total seconds by the receiving layer's count at main and divide by its CPU seconds at main, rounding down to whole instructions. A missing or zero count or CPU figure at main gives no credit for CPU seconds. Outgoing moves give no growth credit to the source. The red line or a warning names the floor or credit where it changes the growth allowance used to judge growth past 2%, or the user's accepted level alone where it sets the allowance.
 - **Drift** warns when main's count is at least 8% above its lowest and within its held budget. The warning names the layer, main's count, its lowest and its held budget.
 - **When counts are unavailable**, the CPU comparison runs as a warning for each layer budgeted in instructions. A run that cannot count gives one line saying why instruction enforcement is off. In a counted run, a layer with any missing binary count at the head or at main gives one line naming the layer and the missing side or sides. Layers with CPU budgets alone retain their CPU verdict.
 - **A red names its cause.** An instruction red gives the layer, its head count, held budget, ceiling, main count and growth percent where available. With a ledger, a CPU red continues `, ceiling CEILING s` where the row has a ceiling and then `, at main MAIN CPU s`, the ceiling printed as the budget is and the figure with two decimals. In the same entry of `over_budget` or `warnings`, one per line, follow:
@@ -282,6 +346,7 @@ why = "the store's own mechanics placed below the one-process world"
 
 - **The gate alone refuses a raise** (`temper/docs/design/draft/test-budgets.md`, 8; the user, 11-18 and 11-22). It compares the candidate merged onto main with main's tip and names each raise or addition listed below. Lowering a figure, dropping a reason's line and a CPU move down pass.
 - **A change of that file alone passes the gate's figures check,** whatever it does there (the user, 11-18 12:4xZ): it is how the user's own figures land, by a drafter's mechanical change on their word. The refusal is for a change that touches any other path too, as every goal's landing does: a raise a goal's change makes alone still meets it at the goal's landing.
+- **A budget coverage reason** (section 13) added against BASE in a change that also touches another file gives `budget coverage reason added: PROFILE budget coverage reason BINARY: REASON`. REASON is the whole line as JSON. A merged tip does not excuse this finding against BASE.
 - **The check:** `python3 -I -B tools/tiers/figures.py --base BASE [--head HEAD] [--merged REV]…`, from the checkout root, BASE, HEAD and each REV any commit or tree git names, HEAD `HEAD` by default. It reads committed trees through git, never the working tree, as `tools/citations/citations.py` does. It exits 0 where it passes, 1 where it refuses, and 2 for a usage error, a git failure, a file that isn't TOML, a CPU or wall figure that isn't a finite number, or an instruction figure that isn't a positive integer.
   - **What changed:** `git diff --no-renames --name-only BASE HEAD`. Without `tools/tiers/budgets.toml` among the paths it passes, printing `figures: tools/tiers/budgets.toml unchanged since BASE`; with that path alone it passes, printing `figures: tools/tiers/budgets.toml alone changed since BASE: the user's figures`. Otherwise it compares the file's figures.
   - **What it reads:** `tools/tiers/budgets.toml` at BASE and at HEAD (`git show REV:tools/tiers/budgets.toml`), each as TOML, a side without the file read as an empty table; and HEAD's `tools/tiers/layers.toml`, its `layers` list alone, for the moves' direction. It reads the figures at the places below and leaves the file's form to `budgets()` (section 2), which every suite's run applies: a key it doesn't name is no figure of its.
@@ -292,12 +357,13 @@ why = "the store's own mechanics placed below the one-process world"
   - **a reference:** each entry of a profile's `references`, by layer; and, for each layer with a table at HEAD, its reference as section 4 takes it, its `reference_s` or else its profile's entry;
   - **an ideal:** each group's `ideal_s`, and each layer table's `ideal_s` for a layer with a table at HEAD;
   - **a layer's instruction ceiling and ideal.** Each layer table's `instructions` and `ideal_instructions` are checked directly, even when a move changes its effective instruction ceiling. Adding, raising or removing either field is refused. Removing an instruction ceiling can return the layer to CPU judgment.
+  - **a layer's accepted level,** its table's `accepted_instructions` (section 8): adding or raising it is refused. Lowering or removing it passes, since without it the layer's growth has its usual allowance alone.
   - **a move's instruction amount.** Adding or raising its `instructions` is refused, even for a move down. Lowering or dropping the amount passes this comparison. Within a profile, match moves by endpoints and reason. Match equal amounts first, then compare the remaining amounts in descending order.
   - **a reason's line,** by profile, binary and test: added, or its `cpu_s` raised. A side holding two lines for one test, which `budgets()` refuses, counts its larger;
   - **a suite's limit:** each pair table's (every top-level table but `gate` and `tools`) and each `tools` suite's `cpu_suite_s`, `cpu_test_s` and `wall_hard_s` (`tools/tiers/design.md`, 7.3 and 7.5). A pair's `auto_reap` is no figure.
 
   Dropping a whole layer table lowers its CPU ceiling and removes any instruction figures it held. Dropping a whole group's table drops its `ideal_s`, a raise. A tree with no table for a profile is never over (section 4).
-- **Its refusal lines** use `figure raised: PLACE: BASE_FIGURE to HEAD_FIGURE` for raises and `figure added: PLACE: HEAD_FIGURE` for additions, in the order of the list above. Each figure prints as Python's `str` gives it, or `none` where absent. For a CPU ceiling, HEAD_FIGURE is its ceiling at HEAD less what new moves excuse. The count line is `figures: N raised or added since BASE`, followed by the repair line on a refusal. Where it compares and refuses nothing, it prints `figures: 0 raised or added since BASE` alone. PLACE is one of `PROFILE GROUP LAYER ceiling`, `PROFILE ceilings' sum`, `PROFILE references LAYER`, `PROFILE GROUP LAYER reference`, `PROFILE GROUP ideal`, `PROFILE GROUP LAYER ideal`, `PROFILE GROUP LAYER instruction ceiling`, `PROFILE GROUP LAYER instruction ideal`, `PROFILE move FROM to TO instructions (REASON)`, `PROFILE reason BINARY TEST`, `PAIR KEY` and `tools SUITE KEY`. A move's reason prints as Python's `repr` gives it, with ` #2`, ` #3` and so on after the parentheses for later ranks with the same endpoints and reason. A change raising temper's focused domain `cpu_s` from 136 to 140, so its ceiling, with the 1.5 s moved into it, from 137.5 s to 141.5 s, raising temper's focused simulated `reference_s` from 2 to 3 and adding a line for a test prints the following, with the last line cut here.
+- **Its refusal lines** use `figure raised: PLACE: BASE_FIGURE to HEAD_FIGURE` for raises and `figure added: PLACE: HEAD_FIGURE` for additions, in the order of the list above. Each figure prints as Python's `str` gives it, or `none` where absent. For a CPU ceiling, HEAD_FIGURE is its ceiling at HEAD less what new moves excuse. The count line is `figures: N raised or added since BASE`, followed by the repair line on a refusal. Where it compares and refuses nothing, it prints `figures: 0 raised or added since BASE` alone. PLACE is one of `PROFILE GROUP LAYER ceiling`, `PROFILE ceilings' sum`, `PROFILE references LAYER`, `PROFILE GROUP LAYER reference`, `PROFILE GROUP ideal`, `PROFILE GROUP LAYER ideal`, `PROFILE GROUP LAYER instruction ceiling`, `PROFILE GROUP LAYER instruction ideal`, `PROFILE GROUP LAYER instruction accepted level`, `PROFILE move FROM to TO instructions (REASON)`, `PROFILE reason BINARY TEST`, `PAIR KEY` and `tools SUITE KEY`. A move's reason prints as Python's `repr` gives it, with ` #2`, ` #3` and so on after the parentheses for later ranks with the same endpoints and reason. A change raising temper's focused domain `cpu_s` from 136 to 140, so its ceiling, with the 1.5 s moved into it, from 137.5 s to 141.5 s, raising temper's focused simulated `reference_s` from 2 to 3 and adding a line for a test prints the following, with the last line cut here.
 
 ```
 figure raised: default temper domain ceiling: 137.5 to 141.5
@@ -315,7 +381,7 @@ repair: read skein/docs/foundation/testing-strategy.md in full first, ...
 repair: read skein/docs/foundation/testing-strategy.md in full first, then ask 8.1's three questions in order: does the test belong to its tier; if it does, can it be made faster; if neither, take the measurements to the user.
 ```
 
-  Its text is one constant of `tools/tiers/cpu.py`, which `figures.py` reads. Every entry of `summary`'s `over_budget` (section 4) ends with it on a line of its own. This covers layer budgets, per-test references (`tools/tiers/references.md`, 6), and the budgets for pairs and tools suites. A warning carries none, nor does a red that is no budget's, such as a failed test. The delivery check's failures keep each entry whole as their logs (`tools/pre-pr/design.md`, 4), so it reaches a goal there too.
+  Its text is one constant of `tools/tiers/cpu.py`, which `figures.py` reads. Every entry of `summary`'s `over_budget` (section 4) has it on a line of its own. Coverage reds follow it with the reason line instructions (section 13). This covers layer budgets, per-test references (`tools/tiers/references.md`, 6), and the budgets for pairs and tools suites. A warning carries none, nor does a red that is no budget's, such as a failed test. The delivery check's failures keep each entry whole as their logs (`tools/pre-pr/design.md`, 4), so it reaches a goal there too.
 
 ## 11. Later
 
@@ -325,3 +391,82 @@ repair: read skein/docs/foundation/testing-strategy.md in full first, then ask 8
 
 - **jig's layer ideals.** The draft estimated jig's ideal with its worlds placed by hand. `tools/tiers/layers.toml` places most of them in `simulated` and `protocol`. Under it, jig's `domain` ideal of 17 s sits beside a figure of 2.4 s, and its `simulated` ideal of 3 s beside 99.5 s. Ideals are reported and never enforced. A split re-estimated under the layers' placement is the user's figure.
 - **Counting's cost in CPU.** A counted process's system time carries about 23 µs at each of its context switches (`tools/tiers/design.md`, 11.4, *Its cost*). The budgets and the ledger's lowest figures were measured uncounted, so a layer whose tests switch often, the real loop's above all, which has left the gate for its pairs (section 4.2), may read higher in CPU from the first counted gate on, with no change of its own. Its budget stays the user's figure (section 9), and nothing here moves one. Whether a layer that shows this needs a word from the user is open until the first counted gates show it.
+
+## 13. Coverage at main
+
+- **Faster means doing the same checks for less.** A coverage loss needs a
+  reason, even where the layer uses fewer instructions or less CPU. A
+  budget-driven loss goes to the user, the third question in
+  `skein/docs/foundation/testing-strategy.md`, 8.1.
+- **The figures.** The summary sums each process's `checks`
+  (`tools/tiers/design.md`, 11.8) by binary and kind, across the suite's
+  `tests` and `fresh` processes. The ledger keeps the last whole run's totals
+  for each binary (section 7), with the counts as they were where it keeps
+  an unlisted or cut-short binary. A results file without process `checks`
+  reads those records as empty. A check kind matches
+  `[a-z][a-z0-9-]{0,31}` and its recorded total is a positive integer.
+- **The comparison.** With main's ledger, compare its binaries in the
+  run's selected layers (section 4.1). A caller's test filter skips the
+  coverage comparison with one warning. An unlisted binary is skipped
+  where its package was left out or the record predates package scope.
+  A listed binary with no tests, an unlisted binary in a selected package,
+  or an absent binary is judged with zero tests and checks. A binary moved
+  into an unselected layer is judged with zero tests and checks in its
+  layer at main, even if it is unlisted. Only a `moved` reason covers
+  that loss. Compare each binary's names with the names it ran. For a
+  cut-short binary, compare against all its selected names, including
+  `unobserved`, and skip its check counts. A newly ignored test can lose
+  its name from the run.
+- **A move across modules.** When a name at main is absent from the run,
+  it can pair with a new test in the run that has the same final `::`
+  segment within its binary or in a binary new to main's ledger. A test is
+  new where main's ledger lacks its name in the binary that ran it. Pair
+  one to one within each binary first, then into new binaries, sorting by
+  test name and then binary ID. Remaining losses need a reason.
+  The summary lists both ends in `coverage_moves` and prints up to ten
+  pairs per source binary, with the number beyond them.
+- **Check counts.** Compare each kind's total at the head with main, with
+  an absent kind counting zero. Sum over each connected group of whole
+  binaries joined by automatic moves. A `renamed` reason covers test
+  names only. If a group has a cut-short member, compare each whole
+  member's counts against its own at main. Fixed seeds make the totals
+  comparable without a tolerance.
+- **A reason** is a table of the profile's `coverage_reasons` array in
+  `tools/tiers/budgets.toml`.
+
+```toml
+[[gate.default.coverage_reasons]]
+binary = "temper-engine::domain"
+tests = ["old_module::*"]
+kind = "renamed"
+to = ["new_module::open_session"]
+why = "The cases follow the module's new name."
+by = "The change's reviewer"
+```
+
+  `binary`, `why` and `by` are nonempty strings. Give exactly one of
+  `tests`, a nonempty list of names where `*` matches any part of a name
+  and each pattern has at least one literal `::` segment,
+  and `checks`, a nonempty table from kind to the exact number of checks
+  lost. `kind` is `removed` for
+  code that went away, `duplicate` for coverage another test supplies,
+  `renamed` with `tests` and `to`, a nonempty list of distinct names of
+  new tests the run ran. Each available destination covers at most one
+  loss, in name order. `moved` is for a move to
+  a layer the run leaves out, or `budget`. A `budget` reason's `by` must
+  start with `the user`. `budgets()` refuses other keys and values outside
+  the form.
+- **When a reason applies.** A budget reason must already be in main's
+  ledger and still be in the budgets file. It lands in a budgets-only
+  change (10.1). The run that uses it folds it into
+  `spent_coverage_reasons`; the ledger of a landing makes that use final.
+  An unused approval can wait for its change without warning. Every
+  other kind applies only while main's ledger lacks the whole line.
+  Anyone can prune a spent budget reason or a landed reason of another kind.
+- **The verdict.** Each binary with an unexplained loss has a red for its
+  layer in `over_budget`, with or without `--gate`. The entry names the
+  binary, up to ten lost tests and the number beyond them, and the main and
+  head totals for each kind that lost checks. The repair line (10.1) and
+  the line naming the reason table follow. Every applied reason is named in
+  the summary and its printed verdict, including a red-free verdict. A
+  new non-budget reason applying to no loss gives a `stale coverage reason: …` warning.

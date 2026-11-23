@@ -35,6 +35,7 @@ pub fn check_digests(name: &str) {
             golden.target_digests("").into_iter().map(|(name, digest)| (name, digest.to_vec())).collect();
         let digests: Vec<_> = digests.into_iter().map(|(name, digest)| (name.to_owned(), digest)).collect();
         assert_eq!(digests, targets, "{name}: seed {seed}");
+        skein_checks::count("seed", 1);
     }
 }
 

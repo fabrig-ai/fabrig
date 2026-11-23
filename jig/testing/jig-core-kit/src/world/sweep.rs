@@ -76,7 +76,7 @@ impl World {
             }
             skein_fork::Split::Parent(skein_fork::Exit::Code(0)) => {
                 if let Cut::Durable(number) = cut {
-                    self.store_checks.restarted(number);
+                    self.store_checks.fork_restarted(number);
                 }
                 self.forked.push(cut);
                 Ok(false)

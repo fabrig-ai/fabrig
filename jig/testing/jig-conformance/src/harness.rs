@@ -337,51 +337,53 @@ impl<A: Application> Harness<A> {
         A::cold(&mut peers, &store, clock)?;
         let mut systems = A::systems(&config, self.seed);
         let mut domain = A::build(&config);
-        A::rehearse(&mut domain);
-        let mut events: VecDeque<_> = A::start(&config, &mut store).into_iter().map(Input::Event).collect();
-        for _ in 0..self.referee.policy.story_steps {
-            clock.now = clock.now.checked_add(1_000_000).expect("scenario time fits");
-            if let Some(input) = events.pop_front() {
-                A::step(&mut domain, &config, clock, input);
-            }
-            let mut stopped = false;
-            let outputs = A::release(&mut domain, &config, clock);
-            let empty = outputs.is_empty();
-            for output in outputs {
-                match output {
-                    Output::Commit { number, writes } => store.submit(number, writes, 0),
-                    Output::Deliver(delivery) => {
-                        events.extend(A::deliver(&mut peers, &mut systems, &mut store, clock, delivery)?);
+        StoreChecks::rehearse(|| {
+            A::rehearse(&mut domain);
+            let mut events: VecDeque<_> = A::start(&config, &mut store).into_iter().map(Input::Event).collect();
+            for _ in 0..self.referee.policy.story_steps {
+                clock.now = clock.now.checked_add(1_000_000).expect("scenario time fits");
+                if let Some(input) = events.pop_front() {
+                    A::step(&mut domain, &config, clock, input);
+                }
+                let mut stopped = false;
+                let outputs = A::release(&mut domain, &config, clock);
+                let empty = outputs.is_empty();
+                for output in outputs {
+                    match output {
+                        Output::Commit { number, writes } => store.submit(number, writes, 0),
+                        Output::Deliver(delivery) => {
+                            events.extend(A::deliver(&mut peers, &mut systems, &mut store, clock, delivery)?);
+                        }
+                        Output::Stop => stopped = true,
                     }
-                    Output::Stop => stopped = true,
+                }
+                if let Some(refusal) = A::refused(&domain) {
+                    return Err(Violation {
+                        promise: crate::referee::Promise::Once,
+                        why: store_check::finding(commit, &A::start_phase(&domain), &refusal),
+                    });
+                }
+                if A::rehearsed(&domain) {
+                    return Ok(());
+                }
+                if stopped {
+                    break;
+                }
+                match store.tick(false) {
+                    Ok(Some(number)) => events.push_front(Input::Committed(number)),
+                    Ok(None) => {}
+                    Err(number) => events.push_front(Input::Failed(number)),
+                }
+                events.extend(A::poll(&mut peers, &mut systems, &mut store, clock, false)?);
+                A::reclaim(&mut domain);
+                if empty && events.is_empty() && store.idle() && (A::quiescent(&domain) || store.holding()) {
+                    break;
                 }
             }
-            if let Some(refusal) = A::refused(&domain) {
-                return Err(Violation {
-                    promise: crate::referee::Promise::Once,
-                    why: store_check::finding(commit, &A::start_phase(&domain), &refusal),
-                });
-            }
-            if A::rehearsed(&domain) {
-                return Ok(());
-            }
-            if stopped {
-                break;
-            }
-            match store.tick(false) {
-                Ok(Some(number)) => events.push_front(Input::Committed(number)),
-                Ok(None) => {}
-                Err(number) => events.push_front(Input::Failed(number)),
-            }
-            events.extend(A::poll(&mut peers, &mut systems, &mut store, clock, false)?);
-            A::reclaim(&mut domain);
-            if empty && events.is_empty() && store.idle() && (A::quiescent(&domain) || store.holding()) {
-                break;
-            }
-        }
-        Err(Violation {
-            promise: crate::referee::Promise::Once,
-            why: format!("store check: commit {commit}: start stalled at {}", A::start_phase(&domain)),
+            Err(Violation {
+                promise: crate::referee::Promise::Once,
+                why: format!("store check: commit {commit}: start stalled at {}", A::start_phase(&domain)),
+            })
         })
     }
 
@@ -582,7 +584,7 @@ impl<A: Application> Harness<A> {
             }
             skein_fork::Split::Parent(skein_fork::Exit::Code(0)) => {
                 self.forked.push(commit);
-                self.store_checks.restarted(commit);
+                self.store_checks.fork_restarted(commit);
                 Ok(false)
             }
             skein_fork::Split::Parent(exit) => Err(Violation {

@@ -128,16 +128,28 @@ pub fn check_recording_mutations(seeds: &[u64]) {
         expect, mutate,
         world::{self, Settings},
     };
+    if seeds.is_empty() {
+        return;
+    }
+    let mut mutations = mutate::MutationBatch::default();
+    let mut checked_seeds = 0_u64;
     for (case, mut recording) in hearth_recordings::all("git") {
         let expected = expect::decode(recording.expect.as_ref().expect("recorded expectation"));
         for stdout in mutate::all(&recording.stdout) {
-            recording.stdout = stdout;
-            for seed in seeds {
-                if let Some(decoded) = world::replay(&recording, &expected, &RECORDED, &Settings::cut(*seed)) {
-                    assert_eq!(decoded, expected, "{case}, seed {seed}");
+            mutations.judge(stdout, |stdout| {
+                recording.stdout = stdout;
+                for seed in seeds {
+                    if let Some(decoded) = world::replay(&recording, &expected, &RECORDED, &Settings::cut(*seed)) {
+                        assert_eq!(decoded, expected, "{case}, seed {seed}");
+                    }
+                    checked_seeds = checked_seeds.checked_add(1).expect("seed judgments fit u64");
                 }
-            }
+            });
         }
+    }
+    mutations.finish();
+    if checked_seeds > 0 {
+        skein_checks::count("seed", checked_seeds);
     }
 }
 pub mod revisions;
