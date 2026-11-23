@@ -7,6 +7,8 @@ use std::{
 };
 use temper_client_shell_web::journey::{self, Stale};
 
+#[expect(dead_code, reason = "the writer and look-refresh commands will dispatch through this host")]
+mod host;
 mod run;
 mod table;
 pub use run::main;
