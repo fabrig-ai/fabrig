@@ -189,7 +189,7 @@ fn planning_parses_only_texts_missing_from_prepared_schemas() {
         assert_eq!(super::open(&mut store, false), Ok(true));
         assert_counts(parsed, 2);
         assert_schemas_dropped(&store.registry);
-        assert!(store.registry.prepared.is_empty());
+        assert!(store.registry.prepared_schemas.is_empty());
     }
 }
 
