@@ -12,6 +12,7 @@ mod restart;
 mod scenarios;
 mod simulation;
 mod snapshot;
+mod store_check;
 mod trace;
 
 mod fuzzy {

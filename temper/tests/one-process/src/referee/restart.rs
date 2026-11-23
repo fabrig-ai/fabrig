@@ -1,4 +1,6 @@
 //! The recovered forge is a whole acknowledged prefix, with at most one uncertain commit.
+#[cfg(test)]
+mod tests;
 use std::collections::BTreeMap;
 use temper_engine_domain as root;
 use temper_engine_domain_forge::{Key, Stored};

@@ -169,6 +169,18 @@ impl Application for OpsApplication {
     fn build(config: &Config) -> root::Domain {
         Ops::build(config)
     }
+    fn rehearse(domain: &mut root::Domain) {
+        Ops::rehearse(domain);
+    }
+    fn rehearsed(domain: &root::Domain) -> bool {
+        Ops::rehearsed(domain)
+    }
+    fn refused(domain: &root::Domain) -> Option<String> {
+        Ops::refused(domain)
+    }
+    fn start_phase(domain: &root::Domain) -> String {
+        Ops::start_phase(domain)
+    }
     fn systems(config: &Config, seed: u64) -> Systems {
         Ops::systems(config, seed)
     }

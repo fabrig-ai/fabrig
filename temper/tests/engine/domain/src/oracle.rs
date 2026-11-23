@@ -183,6 +183,10 @@ impl Driver {
 
     /// Fixture fault at the snapshot/restart boundary, returning the oracle's first difference.
     pub fn close_erasing(&mut self, erase: Option<Key>) -> Result<(), String> {
+        if self.store_finding.is_some() {
+            self.broken = Fixture::Closed;
+            return self.check_store();
+        }
         if !matches!(self.broken, Fixture::Checked) {
             return Ok(());
         }
@@ -225,7 +229,7 @@ impl Driver {
             compare_forge(*project, *subject, before, after)?;
         }
         self.oracle_settle();
-        Ok(())
+        self.check_store()
     }
 
     fn oracle_settle(&mut self) {
@@ -468,9 +472,9 @@ pub fn compare_forges(
 
 impl Drop for Driver {
     fn drop(&mut self) {
-        if !std::thread::panicking() {
-            self.close();
-        }
+        let result = if std::thread::panicking() { Ok(()) } else { self.close_erasing(None) };
+        self.report_store_checks();
+        result.unwrap_or_else(|finding| panic!("{finding}"));
     }
 }
 

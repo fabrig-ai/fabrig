@@ -14,6 +14,7 @@ fn every_shared_story_survives_every_commit_and_seeded_random_cuts() {
         })
         .unwrap_or_else(|error| panic!("{scenario:?}, seed {seed}: {error:?}"));
         assert_eq!(baseline.forked, (1..=baseline.commits).collect::<Vec<_>>(), "every original numbered cut");
+        assert_eq!(baseline.checked, baseline.commits, "each original commit checked by its child");
         let cut = Cut::Random { seed };
         run::<Testing>(scenario, cut, seed)
             .unwrap_or_else(|error| panic!("{scenario:?}, {cut:?}: {error:?}"))

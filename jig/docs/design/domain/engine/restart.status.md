@@ -1,6 +1,6 @@
 # restart: status
 
-2026-11-20. Where the tree's code lags or departs from [restart.md](restart.md).
+2026-11-22. Where the tree's code lags or departs from [restart.md](restart.md).
 
 
 - **Departs:** the whole document: `Core::new` without a start is ready, because the

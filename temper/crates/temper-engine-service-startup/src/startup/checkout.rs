@@ -63,8 +63,22 @@ pub(super) fn capacity(
 ) {
     let checkout = &own.checkout;
 
-    let stdout = None;
     let paths = u64::from(checkout.conflicts).checked_mul(u64::from(checkout.path_bytes).saturating_add(1));
+    let stdout = match paths {
+        Some(needs) if u32::try_from(needs).is_ok() => short(u64::from(own.git_component.stdout_bytes), needs),
+        Some(needs) => {
+            problems.push(
+                super::checks::own(b"git_component.stdout_bytes"),
+                What::Short {
+                    bytes: u64::from(own.git_component.stdout_bytes),
+                    of: b"checkout.conflicts * (checkout.path_bytes + 1)",
+                    needs,
+                },
+            );
+            None
+        }
+        None => None,
+    };
     let stdout_of: &'static [u8] = match stdout {
         Some((_, needs)) if paths == Some(u64::from(needs)) => b"checkout.conflicts * (checkout.path_bytes + 1)",
         Some(_) | None => b"checkout.name_bytes and git's push output",

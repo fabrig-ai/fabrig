@@ -1,5 +1,6 @@
 //! Direct root fixture shared by focused routes and the ending sweep.
 
+use jig_conformance::store_check::StoreChecks;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use skein_lib::{Duration, Env, Queue, ReplyTo, Time, Token, Wall};
@@ -11,7 +12,17 @@ use crate::protocol::Protocol;
 use crate::store::Store;
 use crate::walking::{config, limits};
 
+// Focused stories have a median of two commits; most runs do no rehearsal.
+const STORE_CHECK_ONE_IN: u64 = 1024;
+
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "the fixture keeps independent protocol controls and a rehearsal-only lifecycle"
+)]
 pub struct Driver {
+    checks: StoreChecks,
+    pub(crate) store_finding: Option<String>,
+    pub(crate) rehearsal: bool,
     pub(crate) broken: crate::oracle::Fixture,
     pub(crate) restart_config: engine::Config,
     creating: jig_test_profile::fixtures::Creating,
@@ -45,7 +56,7 @@ pub struct Driver {
     /// Whether the deployment's first period was sent once the root was ready.
     pub period_sent: bool,
     /// Outputs collected, including deliveries that need no reply or commit.
-    collected: u64,
+    pub(crate) collected: u64,
 }
 
 impl Driver {
@@ -127,6 +138,9 @@ impl Driver {
         let mut protocol = Protocol::default();
         protocol.models.clone_from(&config.core.settings.models);
         Driver {
+            checks: StoreChecks::sampled(config.core.seed, STORE_CHECK_ONE_IN),
+            store_finding: None,
+            rehearsal: false,
             broken: crate::oracle::Fixture::Checked,
             restart_config: crate::oracle::config::copy(&config),
             creating: jig_test_profile::fixtures::Creating::new(&config.core, limits.tasks.tree_tasks),
@@ -379,13 +393,60 @@ impl Driver {
             let event = self.events.remove(index).expect("eligible queued input");
             self.send(event);
         }
-        if apply && !self.store.pending.is_empty() {
-            let number = self.store.apply();
-            self.send(engine::Event::Store(engine::StoreInput::Committed { number, fill: 0 }));
+        if apply {
+            let previous = self.store.applied;
+            let committed = self.store.tick(false).expect("direct store commit");
+            self.check_commit(previous);
+            if let Some(number) = committed {
+                self.send(engine::Event::Store(engine::StoreInput::Committed { number, fill: 0 }));
+            }
         }
         crate::poll(&mut self.root, &self.env, &mut self.out);
         self.collect();
         self.root.reclaim();
+    }
+
+    /// Make one pending commit durable and check it, leaving its acknowledgement to the caller.
+    pub fn apply_commit(&mut self) -> u64 {
+        let previous = self.store.applied;
+        let number = self.store.apply();
+        self.check_commit(previous);
+        number
+    }
+
+    /// Choose which of this run's subsequent commits rehearse a start.
+    pub fn store_checks(&mut self, checks: StoreChecks) {
+        self.checks = checks;
+    }
+
+    #[must_use]
+    pub fn store_check_counts(&self) -> &StoreChecks {
+        &self.checks
+    }
+
+    /// Read and consume the first store-check finding, as a referee reads its run.
+    pub fn check_store(&mut self) -> Result<(), String> {
+        self.store_finding.take().map_or(Ok(()), Err)
+    }
+
+    fn check_commit(&mut self, previous: u64) {
+        let result = crate::check::committed(
+            &self.store,
+            &self.restart_config,
+            &self.env.limits,
+            self.env.wall,
+            previous,
+            &mut self.checks,
+        );
+        if self.store_finding.is_none() {
+            self.store_finding = result.err();
+        }
+    }
+
+    pub(crate) fn report_store_checks(&self) {
+        if !self.rehearsal {
+            eprintln!("{}", self.checks.report());
+        }
     }
 
     /// Drive immediate work while a story deliberately keeps a fleet deadline armed.
@@ -507,6 +568,17 @@ impl Driver {
         self.protocol.answers.iter().rev().find_map(|(named, answer)| (named.as_ref() == name).then_some(answer))
     }
 
+    /// A fresh root over an independent copy of this driver's committed store.
+    #[must_use]
+    pub fn cold_fork(&self) -> Driver {
+        Self::from_store_at(
+            self.store.fork(),
+            crate::oracle::config::copy(&self.restart_config),
+            &self.env.limits,
+            self.env.wall,
+        )
+    }
+
     /// Restart from a store at a chosen wall, without replaying the first-start source.
     #[must_use]
     pub fn from_store_at(store: Store, config: engine::Config, limits: &engine::Limits, wall: Wall) -> Driver {
@@ -514,6 +586,15 @@ impl Driver {
         driver.period_sent = true;
         driver.env.wall = wall;
         driver.env.now = Time::from_nanos(wall.as_nanos());
+        driver
+    }
+
+    pub(crate) fn rehearsing(store: Store, config: engine::Config, limits: &engine::Limits, wall: Wall) -> Driver {
+        let mut driver = Self::from_store_at(store, config, limits, wall);
+        driver.rehearsal = true;
+        driver.broken = crate::oracle::Fixture::Closed;
+        driver.checks = StoreChecks::none("the store-check rehearsal never checks itself");
+        driver.root.rehearse();
         driver
     }
 

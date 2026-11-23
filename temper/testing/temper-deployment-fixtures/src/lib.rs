@@ -28,6 +28,7 @@ pub fn deployment() -> (skein_scratch::Scratch, Directories) {
     let cache = scratch.path().join("cache");
     for directory in [&config, &data, &cache] {
         std::fs::create_dir(directory).expect("tool directory");
+        std::fs::set_permissions(directory, std::fs::Permissions::from_mode(0o700)).expect("private directory");
     }
     let floor = skein_scratch::paths::tree().join("tests/one-process/golden/floor");
     copy(&floor.join("state"), &data.join("state"));

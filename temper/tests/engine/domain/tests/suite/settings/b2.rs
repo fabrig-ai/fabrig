@@ -173,7 +173,7 @@ fn call(driver: &mut Driver, run: &engine::Assignment, number: u64, tool: engine
     driver.answered(number).expect("tool answered").clone()
 }
 
-fn finish(driver: &mut Driver, run: &engine::Assignment, result: tasks::TaskResult) {
+fn send_end(driver: &mut Driver, run: &engine::Assignment, result: tasks::TaskResult) {
     assert_eq!(run.run.budget, K, "each agent has a full K run");
     driver.answer(
         CHANNEL,
@@ -183,6 +183,10 @@ fn finish(driver: &mut Driver, run: &engine::Assignment, result: tasks::TaskResu
         tasks::End::Finished { result, cancel_delegates: false },
         engine::Parts::none(),
     );
+}
+
+fn finish(driver: &mut Driver, run: &engine::Assignment, result: tasks::TaskResult) {
+    send_end(driver, run, result);
     driver.pump();
 }
 
@@ -274,7 +278,7 @@ fn chat_in(config: [engine::Config; 2]) -> (Driver, engine::Assignment) {
     (driver, chat)
 }
 
-fn repair_change(driver: &mut Driver, coordinator: &engine::Assignment, number: u64) {
+fn repair_change(driver: &mut Driver, coordinator: &engine::Assignment, number: u64, restart: &engine::Config) {
     let answer = call(
         driver,
         coordinator,
@@ -321,17 +325,21 @@ fn repair_change(driver: &mut Driver, coordinator: &engine::Assignment, number: 
         assert_eq!(worker.run.policy.model, box_model());
         workers.push(worker.task);
         driver.forge.as_mut().expect("peer").push_checked(2, &branch, round == 0, round == 2);
-        finish(
-            driver,
-            &worker,
-            tasks::TaskResult::Change {
-                title: jig_domain_tasks::ChangeTitle::new(b"Change".as_slice().into()),
-                connector: 1,
-                kind: 2,
-                resource: forge::tag(1, 2),
-                words: b"pushed".as_slice().into(),
-            },
-        );
+        let result = tasks::TaskResult::Change {
+            title: jig_domain_tasks::ChangeTitle::new(b"Change".as_slice().into()),
+            connector: 1,
+            kind: 2,
+            resource: forge::tag(1, 2),
+            words: b"pushed".as_slice().into(),
+        };
+        if round == 0 {
+            send_end(driver, &worker, result);
+            wait_retired(driver, worker.task);
+            restart_after_delegate(driver, restart, worker.task, change, &branch);
+            driver.pump();
+        } else {
+            finish(driver, &worker, result);
+        }
         worker = child_run(driver, change);
     }
     assert_eq!(worker.charter, 4);
@@ -369,6 +377,66 @@ fn repair_change(driver: &mut Driver, coordinator: &engine::Assignment, number: 
         driver.store.rows.get(&Key::Forge(forge::Key::ChangeHot(change))),
         driver.task(change)
     );
+}
+
+fn wait_retired(driver: &mut Driver, task: u64) {
+    let ended = Key::Core(core::Key::Tasks(tasks::Key::Ended(task)));
+    for _ in 0..200 {
+        if driver.store.rows.contains_key(&ended) {
+            return;
+        }
+        driver.advance(true);
+    }
+    panic!("the producer retires");
+}
+
+fn restart_after_delegate(driver: &Driver, config: &engine::Config, task: u64, holder: u64, branch: &[u8]) {
+    assert!(driver.task(task).is_none(), "the producing delegate has retired");
+    let commit = driver.store.header().commits;
+    eprintln!("restart after delegate {task} retired at commit {commit}");
+    let held = driver
+        .store
+        .rows
+        .values()
+        .find_map(|record| match record {
+            Record::Forge { row } => match row.as_ref() {
+                forge::Stored::Hold(hold) if hold.task == holder => Some(hold.clone()),
+                _ => None,
+            },
+            Record::Core(_) => None,
+        })
+        .expect("the procedure still holds its branch");
+    assert_eq!(held.writer, None, "retiring the delegate erased its writer");
+    for writer in [None, Some(forge::Writer::Run { task, attempt: 1 }), Some(forge::Writer::Lost { task, attempt: 1 })]
+    {
+        let mut store = driver.store.fork();
+        if writer.is_some() {
+            // The durable shapes deployments could retain before the release fix.
+            let mut legacy = held.clone();
+            legacy.writer = writer;
+            store.seed(Box::new([Record::Forge { row: Box::new(forge::Stored::Hold(legacy)) }]), Box::new([]));
+        }
+        let mut restarted = Driver::from_store_at(
+            store,
+            temper_engine_domain_world::oracle::config::copy(config),
+            &driver.env.limits,
+            driver.env.wall,
+        );
+        let mut peer = ForgeStand::with_checks(&[(b"org", b"repo", 2)], &[b"build"]);
+        peer.push_checked(2, branch, true, false);
+        restarted.forge = Some(peer);
+        restarted.connect_forges();
+        restarted.pump();
+        assert_eq!(restarted.root.start_stop(), None, "restart of commit {commit}, writer {writer:?}");
+        assert_eq!(restarted.root.start_phase(), None, "start completes at commit {commit}, writer {writer:?}");
+        let repaired = restarted.store.rows.get(&Key::Forge(forge::Key::Hold(held.name.clone()))).expect("held branch");
+        assert!(
+            matches!(repaired, Record::Forge { row } if matches!(row.as_ref(), forge::Stored::Hold(hold) if hold.writer.is_none())),
+            "the fresh read durably erases the retired writer"
+        );
+        restarted.close();
+    }
+    assert_eq!(driver.store.header().commits, commit, "the restart changes only its copy");
 }
 
 fn no_settings_or_message_tools(run: &engine::Assignment) {
@@ -453,6 +521,7 @@ pub(super) fn changes_without_settings_or_message() {
             }
         }
     }
+    let restart = temper_engine_domain_world::oracle::config::copy(&config[1]);
     let (mut driver, chat) = chat_in(config);
     assert_ne!(chat.run.authority.tools.0 & core::ToolFamilies::JIG.settings, 0);
     assert!(temper_engine_smith::charter(&chat).grants.host_tools.iter().any(|tool| tool.name.as_ref() == b"finding"));
@@ -490,7 +559,7 @@ pub(super) fn changes_without_settings_or_message() {
             .iter()
             .any(|tool| tool.name.as_ref() == b"finding")
     );
-    repair_change(&mut driver, &coordinator, 43);
+    repair_change(&mut driver, &coordinator, 43, &restart);
 }
 
 pub(super) fn story() {
@@ -552,7 +621,7 @@ pub(super) fn story() {
             .any(|word| word.kind == tasks::MessageKind::QuestionAnswered { question })
     );
     assert!(inbox(&driver, first.task, chat.task, &tasks::MessageKind::Answer { question }, b"Go ahead"));
-    repair_change(&mut driver, &first, 46);
+    repair_change(&mut driver, &first, 46, &configuration());
     finish(&mut driver, &first, tasks::TaskResult::Report { words: b"D1 landed".as_slice().into() });
     // The coordinator's ending follows its change's rate-limited branch release.
     let ended = Key::Core(core::Key::Tasks(tasks::Key::Ended(first.task)));

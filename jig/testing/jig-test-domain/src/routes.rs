@@ -671,7 +671,7 @@ pub(super) fn route_connector(
             }
             connector::Request::SettingValue { .. } => unreachable!("a setting read returns to its synchronous caller"),
             connector::Request::RestoreRefused { kind, scope, number } => {
-                crate::refuse_settings_restore(kind, scope, number);
+                crate::refuse_settings_restore(domain, kind, scope, number);
             }
             connector::Request::ProjectReleased { project } => {
                 work.push(Work::Core(core::Event::ProjectReleased { connector: number, project }));

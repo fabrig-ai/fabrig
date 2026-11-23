@@ -250,7 +250,7 @@ of domain/host.md, section 2.
 | turn | its number in this activation; the spend so far; the last message read, if any; `opens_window`; its body, as bytes (transcript.md) | numbered from one in each activation, each once |
 | part | its number in this activation; its `turn`; its `thread`; its `call`; its `kind`, `answer`, `result` or `window`; its body, as a turn's bytes (transcript.md) (below) | only to a start that asked (`tell_parts`), numbered from one in each activation apart from turns, each once; from version 14 |
 | waiting | the last message read, if any | when the run waits for a message, or awaits its first |
-| long | what it is (`check`, `completion`, `command` or `grant`) and how long, at most, as a duration | when the checks, an LLM completion or a command start, or a completion waits for a grant (domain/session.md, section 4) |
+| long | what it is (`check`, `completion`, `command` or `grant`) and how long, at most, as a duration | when the checks, an LLM completion or a command start, a completion waits out its provider's rate limit (as `completion`, until its retry), or a completion waits for a grant (domain/session.md, section 4) |
 | long done | nothing | when one ends |
 | unauthorized | an account and a generation | when a provider refused that credential, or a program source's login was lost (programs.md, 5.6) |
 | limited | an account, and its reset (below) | when its account reached a usage limit |

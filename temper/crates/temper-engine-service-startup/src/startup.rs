@@ -1,6 +1,8 @@
 //! The document's shape and its checked startup (protocol/configuration/README.md, 2).
 pub mod application;
 mod limit_settings;
+#[cfg(test)]
+pub(crate) use limit_settings::Preflight;
 pub use limit_settings::{LeftOut, LimitInputs, LimitKind, Resolved, resolve_limits};
 pub use temper_service_core::startup::fixed_worker;
 pub mod members;

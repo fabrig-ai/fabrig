@@ -12,6 +12,7 @@ fn crashed_at_every_live_commit(scenario: Scenario) {
         .unwrap_or_else(|error| panic!("{scenario:?}: {error:?}"))
         .expect("applicable");
     jig_conformance::cut_passed();
+    assert_eq!(outcome.checked, outcome.commits - first_live + 1, "each live commit checked by its child");
     assert_eq!(
         outcome.forked,
         (first_live..=outcome.commits).collect::<Vec<_>>(),

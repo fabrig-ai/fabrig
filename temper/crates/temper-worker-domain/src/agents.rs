@@ -577,7 +577,25 @@ pub(crate) fn gone(domain: &mut Domain, env: &Env<Limits>, owner: Token, detail:
             }
             None => host::FromAgent::Gone { owner, detail },
         };
+        domain.ending_agents.insert(owner).expect("one ended agent per hosted slot");
         route::host_step(domain, env, host::Event::Agent(event));
+    }
+}
+
+/// The hub's answer, not the agent's exit, ends the root's hosting obligation.
+/// A stopping attempt can still wait for the engine to cancel its relays.
+pub(crate) fn forget_answered(domain: &mut Domain) {
+    let mut ended = List::with_capacity(domain.ending_agents.len());
+    for owner in &domain.ending_agents {
+        if let Some(hosting) = domain.host.hosting(*owner)
+            && hosting.phase != Phase::Answered
+        {
+            continue;
+        }
+        ended.push(*owner).expect("one entry per ended agent");
+    }
+    for owner in &ended {
+        domain.ending_agents.remove(owner);
     }
 }
 

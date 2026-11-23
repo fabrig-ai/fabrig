@@ -1,4 +1,5 @@
 //! The worker's absences across both roots (temper/docs/design/domain/worker/README.md, 2 and 9).
+use super::text::occurrences;
 use jig_domain_core::{CoreRecord, Record as CoreRow};
 use jig_domain_host as host;
 use jig_domain_tasks as tasks;
@@ -276,8 +277,4 @@ fn message_occurrences(query: &Query, words: &[u8]) -> usize {
             _ => 0,
         })
         .sum()
-}
-
-fn occurrences(text: &[u8], words: &[u8]) -> usize {
-    text.windows(words.len()).filter(|part| *part == words).count()
 }

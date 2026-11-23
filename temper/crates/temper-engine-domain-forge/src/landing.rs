@@ -1,5 +1,6 @@
 //! Top-owned landing rows, coherent reads, receipts and effects (domain/landing.md, 2–4, and domain/landing-prepare.md, 1, and domain/landing-proof.md, 1–2, and domain/landing-turn.md, 1–2, and domain/landing.md, 10–15).
 //! Landing targets use the adoption (temper/docs/design/domain/forge/adoption.md, 8).
+use crate::domain::read_line::{self, Waiter};
 use crate::domain::{child, emit, keep_entry};
 use crate::{
     Check, Domain, Key, LandingEntry, LandingHeard, LandingRow, Limits, Operation, Receipt, ReceiptJob, ReceiptKey,
@@ -79,7 +80,7 @@ pub(crate) struct Pending {
 enum Retry {
     None,
     Waiting,
-    Ready,
+    Disconnected,
 }
 
 #[derive(Hash, Debug)]
@@ -1310,44 +1311,52 @@ fn ask(
         child(d, env, skein_forge_client::Event::Read { owner, repository, read }, out);
     }
 }
-pub(crate) fn read_waiting(d: &Domain) -> bool {
-    for (_, pending) in &d.landing.pending {
-        if pending.retry == Retry::Ready {
-            return true;
+pub(crate) fn gather_read(d: &Domain, owner: Token) -> bool {
+    match d.landing.pending.get(&owner) {
+        Some(pending) => !matches_stall(&pending.stage),
+        None => false,
+    }
+}
+
+pub(crate) fn wait_in_line(d: &mut Domain, owner: Token, now: skein_lib::Time, out: &mut Queue<Request>) {
+    d.landing.pending.get_mut(&owner).expect("waiting gather").retry = Retry::Waiting;
+    read_line::join(d, Waiter::Landing(owner), now, out);
+}
+
+pub(crate) fn ask_again(d: &mut Domain, env: &Env<Limits>, owner: Token, out: &mut Queue<Request>) {
+    let Some(pending) = d.landing.pending.get(&owner) else { return };
+    let event = skein_forge_client::Event::Read { owner, repository: pending.repository, read: pending.read.clone() };
+    asking(d, owner);
+    child(d, env, event, out);
+}
+
+pub(crate) fn asking(d: &mut Domain, owner: Token) {
+    d.landing.pending.get_mut(&owner).expect("pending gather").retry = Retry::None;
+}
+
+pub(crate) fn connected(d: &mut Domain, now: skein_lib::Time, forge: u16, out: &mut Queue<Request>) {
+    let mut owners = List::with_capacity(d.landing.pending.len());
+    for (owner, pending) in &d.landing.pending {
+        if pending.repository.forge == forge && pending.retry == Retry::Disconnected {
+            owners.push(*owner).expect("one wait per landing");
         }
+    }
+    for owner in owners.into_boxed() {
+        wait_in_line(d, owner, now, out);
+    }
+}
+
+#[cfg(test)]
+pub(crate) fn read_waiting(d: &Domain) -> bool {
+    if let Some(Waiter::Landing(_)) = d.read_line.ready_head() {
+        return true;
     }
     false
 }
 
+#[cfg(test)]
 pub(crate) fn retry(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
-    if out.room() == 0 {
-        return;
-    }
-    let mut next = None;
-    for (owner, pending) in &d.landing.pending {
-        if pending.retry == Retry::Ready {
-            next = Some((*owner, pending.repository, pending.read.clone()));
-            break;
-        }
-    }
-    let Some((owner, repository, read)) = next else { return };
-    d.landing.pending.get_mut(&owner).expect("waiting gather").retry = Retry::None;
-    child(d, env, skein_forge_client::Event::Read { owner, repository, read }, out);
-}
-
-pub(crate) fn reclaim(d: &mut Domain) {
-    // A rejected read yields the current ready pass before another attempt.
-    for _ in 0..d.landing.pending.len() {
-        let mut next = None;
-        for (owner, pending) in &d.landing.pending {
-            if pending.retry == Retry::Waiting {
-                next = Some(*owner);
-                break;
-            }
-        }
-        let Some(owner) = next else { break };
-        d.landing.pending.get_mut(&owner).expect("waiting gather").retry = Retry::Ready;
-    }
+    read_line::serve(d, env, out);
 }
 
 pub(crate) fn settle(d: &mut Domain) {
@@ -1359,6 +1368,7 @@ pub(crate) fn settle(d: &mut Domain) {
     }
     for owner in &waiting {
         d.landing.pending.remove(owner);
+        d.read_line.leave(Waiter::Landing(*owner));
     }
 }
 
@@ -1453,12 +1463,21 @@ fn advance(
     if d.stopping {
         return;
     }
-    if answer == Err(api::Error::Busy) && !matches_stall(&p.stage) {
-        // Admission made no API call. Keep the coherent prefix and retry only
-        // this read after the client's background work gets its turn.
-        p.retry = Retry::Waiting;
-        d.landing.pending.insert(owner, p).expect("keeps the gather's slot");
-        return;
+    if !matches_stall(&p.stage) {
+        match answer {
+            Err(api::Error::Busy) => {
+                // Admission made no call. Keep the coherent prefix and wait for this read.
+                d.landing.pending.insert(owner, p).expect("keeps the gather's slot");
+                wait_in_line(d, owner, env.now, out);
+                return;
+            }
+            Err(api::Error::NotConnected) => {
+                p.retry = Retry::Disconnected;
+                d.landing.pending.insert(owner, p).expect("keeps the gather's slot");
+                return;
+            }
+            Ok(_) | Err(_) => {}
+        }
     }
     let Some(row) = d.landing.rows.get(&p.task).cloned() else {
         return;
@@ -5992,6 +6011,7 @@ pub(crate) fn release_repository(
     }
     for key in keys.into_boxed() {
         let _row = d.landing.pending.remove(&key).expect("collected landing.pending");
+        d.read_line.leave(Waiter::Landing(key));
     }
     let mut keys = List::with_capacity(d.landing.keys.len());
     for (key, _row) in &d.landing.keys {

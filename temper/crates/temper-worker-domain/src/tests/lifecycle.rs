@@ -111,6 +111,84 @@ fn an_agents_end_waits_behind_its_hand_outs() {
 }
 
 #[test]
+fn a_stopping_run_without_repositories_is_hosted_until_its_relay_settles() {
+    for cancelled in [false, true] {
+        let mut h = Harness::new();
+        h.started();
+        stopping_relay(&mut h, cancelled);
+    }
+}
+
+#[test]
+fn a_stopping_run_with_repositories_is_hosted_until_its_relay_settles() {
+    for cancelled in [false, true] {
+        let mut h = super::reds::prepared();
+        stopping_relay(&mut h, cancelled);
+    }
+}
+
+fn stopping_relay(h: &mut Harness, cancelled: bool) {
+    use skein_lib::{Duration, List, Time, Token};
+
+    h.run(Event::Ready);
+    let rows = h.say(agent::Up::Call {
+        call: Token::new(17),
+        name: agent::CallName { activation: ATTEMPT.raw(), completion: 1, position: 0 },
+        deadline: Time::ZERO.saturating_add(Duration::from_secs(30)),
+        ask: agent::Ask::Host {
+            tool: Box::from(b"inspect".as_slice()),
+            effect: agent::Effect::Read,
+            body: Box::from(b"{}".as_slice()),
+        },
+    });
+    let mut call = None;
+    for row in rows {
+        if let Request::Link(host::LinkUp::Call { call: name, .. }) = row {
+            assert!(call.replace(name).is_none(), "one relayed call");
+        }
+    }
+    let call = call.expect("the host call was relayed to the engine");
+    assert!(h.domain.host().is_relayed(RUN, ATTEMPT, &call));
+    let mut stopped = List::uncapped();
+    if cancelled {
+        for row in h.run(Event::Link(host::LinkDown::Cancel { run: RUN, attempt: ATTEMPT })) {
+            stopped.push(row).expect("stop requests");
+        }
+    }
+    for row in h.gone() {
+        stopped.push(row).expect("agent end requests");
+    }
+    let mut cancelling = false;
+    for row in &stopped {
+        cancelling |= *row == Request::CancelRelay { run: RUN, attempt: ATTEMPT, call: call.clone() };
+        if let Request::Answer { .. } = row {
+            panic!("the relay has not settled: {row:?}");
+        }
+    }
+    assert!(cancelling, "the engine owes the relay's cancellation");
+    assert!(h.domain.agents.is_empty(), "the agent's owner has gone");
+    assert_eq!(h.domain.host().unanswered(), 1);
+    let hosting = h.domain.hosting();
+    assert_eq!(hosting.len(), h.domain.host().unanswered());
+    let hosted = hosting.get(0).expect("the stopping attempt still has an owner");
+    assert_eq!((hosted.run, hosted.attempt, hosted.phase), (RUN, ATTEMPT, Phase::Ending));
+
+    let rows = h.run(Event::RelayCancelled { run: RUN, attempt: ATTEMPT, call });
+    let mut answered = false;
+    for row in &rows {
+        if let Request::Answer { .. } = row {
+            answered = true;
+        }
+    }
+    assert!(answered, "{rows:?}");
+    assert_eq!(h.domain.host().unanswered(), 0);
+    assert!(h.domain.hosting().is_empty(), "a retained answer is not live work");
+    h.run(Event::Link(host::LinkDown::Acknowledge { run: RUN, attempt: ATTEMPT }));
+    assert_eq!(h.domain.host().hosted(), 0);
+    assert!(h.domain.hosting().is_empty());
+}
+
+#[test]
 fn a_worker_shutting_down_waits_for_the_engine_to_have_its_turns() {
     let mut h = Harness::new();
     h.started();

@@ -234,8 +234,8 @@ pub fn prepare(guard: &Guard, seed: &Path, sha256: &str, root: &Path) -> Result<
     Ok(paths)
 }
 
-pub(crate) fn verify_seed_digest(observed: Result<String, crate::Refusal>, expected: &str) -> Result<(), Fault> {
-    if observed.map_err(Fault::at(SetupStep::Seed))? != expected {
+pub(crate) fn verify_seed_digest(digest: Result<String, crate::Refusal>, expected: &str) -> Result<(), Fault> {
+    if digest.map_err(Fault::at(SetupStep::Seed))? != expected {
         return Err(Fault::new(
             FaultKind::Setup(SetupStep::Seed),
             "seed digest differs; setup refused before materialisation",

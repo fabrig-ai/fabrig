@@ -329,6 +329,37 @@ fn goal_holds_branch() -> (super::Domain, skein_lib::Env<super::Limits>) {
     goal_holds_branch_beneath(false)
 }
 
+#[test]
+fn a_closer_waits_for_its_goals_branch_making() {
+    use super::{Work, forge, tasks};
+    const TAKING: u64 = 21;
+    let (mut domain, env) = goal_holds_branch();
+    fresh_procedure_forge(&mut domain, &env);
+    make_goal_task(&mut domain, &env, GOAL_DELEGATE, tasks::Party::Task(GOAL_TASK), Box::new([]));
+    let resource = forge::Name {
+        forge: adopted(1).provider.forge,
+        repository: adopted(1).provider.repository,
+        what: super::branch_what(b"temper/8/g8", env.limits.forge.name_bytes).unwrap(),
+    };
+    forge::step(
+        &mut domain.forge,
+        &env.with(env.limits.forge),
+        forge::Event::Hold { entry: TAKING, task: GOAL_TASK, resource, from: None },
+        &mut skein_lib::Queue::uncapped(),
+    );
+    let context = domain.core.tasks.run_context(GOAL_DELEGATE).expect("due closer");
+    domain.work.clear();
+
+    super::closer_route::start_closer_step(&mut domain, &env, &context);
+    let mut step = None;
+    while let Some(work) = domain.work.pop() {
+        if let Work::Core(jig_domain_core::Event::ProcedureStep { task: GOAL_DELEGATE, decision, .. }) = work {
+            step = Some((decision.end, decision.batch.is_empty()));
+        }
+    }
+    assert_eq!(step, Some((super::StepEnd::Wait, true)));
+}
+
 fn goal_holds_branch_beneath(beneath: bool) -> (super::Domain, skein_lib::Env<super::Limits>) {
     use super::tasks;
     let (mut domain, mut env) = two_forges();

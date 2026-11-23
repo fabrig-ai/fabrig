@@ -2,6 +2,7 @@
 //! (jig's domain/connectors.md, section 9). Sections stop at their cutoff
 //! (temper/docs/design/domain/forge/change/repairs.md, A forge section is sized by its cutoff).
 use crate::brief_words::{self, bounds, busy, moved, moved_transient, room, unnamed};
+use crate::domain::read_line::{self, Waiter};
 use crate::{BriefCommit, BriefItem, BriefRead, BriefSource, Domain, Request};
 use alloc::boxed::Box;
 use skein_lib::{List, Queue, Token};
@@ -20,7 +21,7 @@ pub(crate) struct BriefFetch {
     bytes: u32,
     stage: BriefStage,
     read: skein_forge::api::Read,
-    refused: Option<u64>,
+    refused: bool,
     deadline: Option<skein_lib::Time>,
     cutoff: Option<skein_lib::Time>,
     waiting_on: bool,
@@ -145,7 +146,7 @@ pub(super) fn brief_pull(
         bytes,
         stage: BriefStage::Item,
         read: skein_forge::api::Read::Item { number: item.number, after: 0, since: skein_lib::Time::ZERO },
-        refused: None,
+        refused: false,
         deadline: None,
         cutoff: None,
         waiting_on: false,
@@ -188,7 +189,7 @@ pub(crate) fn brief_answer(
     out: &mut Queue<Request>,
 ) -> bool {
     if domain.document_fetches.contains_key(&owner) {
-        return crate::brief_document::answer(domain, owner, result, out);
+        return crate::brief_document::answer(domain, owner, result, now, out);
     }
     let Some(mut fetch) = domain.brief_fetches.remove(&owner) else { return false };
     if completed_item(domain, fetch.item) {
@@ -200,8 +201,9 @@ pub(crate) fn brief_answer(
         return true;
     }
     if result == Err(skein_forge::api::Error::Busy) {
-        fetch.refused = Some(domain.brief_reclaim);
+        fetch.refused = true;
         domain.brief_fetches.insert(owner, fetch).expect("same refused brief room");
+        read_line::join(domain, Waiter::Brief(owner), now, out);
         return true;
     }
     let unread = brief_words::unread_of(&result);
@@ -595,6 +597,7 @@ fn finish_at_cutoff(domain: &mut Domain, owner: Token, mut fetch: BriefFetch, ou
         domain.brief_fetches.insert(owner, fetch).expect("same waiting section room");
         return;
     }
+    domain.read_line.leave(Waiter::Brief(owner));
     refused(fetch.owner, fetch.stage, CUTOFF, None, None, out);
     match fetch.stage {
         BriefStage::Files => {
@@ -1087,7 +1090,7 @@ pub(super) fn brief_reviews(
         bytes,
         stage: BriefStage::Reviews,
         read: skein_forge::api::Read::Reviews { number: item.number, page: 1, skip: 0 },
-        refused: None,
+        refused: false,
         deadline: None,
         cutoff: None,
         waiting_on: false,
@@ -1176,7 +1179,7 @@ pub(super) fn brief_ci(
         bytes,
         stage: BriefStage::Checks,
         read: skein_forge::api::Read::Checks { commit: head.0 },
-        refused: None,
+        refused: false,
         deadline: None,
         cutoff: None,
         waiting_on: false,
@@ -1243,37 +1246,39 @@ fn completed_item(domain: &Domain, item: BriefItem) -> bool {
     }
 }
 
-/// Admission refusals wait across the client's reclamation boundary.
-fn waiting_owner(domain: &Domain) -> Option<Token> {
-    for (owner, fetch) in &domain.brief_fetches {
-        if let Some(reclaim) = fetch.refused
-            && reclaim != domain.brief_reclaim
-        {
-            return Some(*owner);
-        }
-    }
-    None
-}
-
-pub(crate) fn waiting(domain: &Domain) -> bool {
-    waiting_owner(domain).is_some() || crate::brief_document::waiting(domain)
-}
-
-pub(crate) fn retry(domain: &mut Domain, out: &mut Queue<Request>) {
-    let Some(owner) = waiting_owner(domain) else {
-        crate::brief_document::retry(domain, out);
-        return;
-    };
-    let mut fetch = domain.brief_fetches.remove(&owner).expect("waiting brief");
+pub(crate) fn ask(domain: &mut Domain, owner: Token) -> Option<skein_forge_client::Event> {
+    let mut fetch = domain.brief_fetches.remove(&owner)?;
     if completed_item(domain, fetch.item) {
         drop_section(domain, fetch.owner);
-        return;
+        return None;
     }
-    fetch.refused = None;
-    out.push(Request::BriefClient {
-        event: skein_forge_client::Event::Read { owner, repository: fetch.repository, read: fetch.read.clone() },
-    });
+    fetch.refused = false;
+    let event = skein_forge_client::Event::Read { owner, repository: fetch.repository, read: fetch.read.clone() };
     domain.brief_fetches.insert(owner, fetch).expect("same waiting brief room");
+    Some(event)
+}
+
+#[cfg(test)]
+pub(crate) fn waiting(domain: &Domain) -> bool {
+    if let Some(Waiter::Brief(_) | Waiter::Document(_)) = domain.read_line.ready_head() {
+        return true;
+    }
+    false
+}
+
+// The brief-only fixtures stand in for the client and observe its read event.
+#[cfg(test)]
+pub(crate) fn retry(domain: &mut Domain, out: &mut Queue<Request>) {
+    let Some(waiter) = domain.read_line.ready_head() else { return };
+    let event = match waiter {
+        Waiter::Brief(owner) => ask(domain, owner),
+        Waiter::Document(owner) => crate::brief_document::ask(domain, owner),
+        Waiter::Making(_) | Waiter::Lost(_) | Waiter::Landing(_) => return,
+    };
+    domain.read_line.leave(waiter);
+    if let Some(event) = event {
+        out.push(Request::BriefClient { event });
+    }
 }
 
 fn section_owner(domain: &Domain, section: Token) -> Option<Token> {
@@ -1321,7 +1326,7 @@ pub(crate) fn next_deadline(domain: &Domain) -> Option<skein_lib::Time> {
 fn fetch_deadline(fetch: &BriefFetch) -> Option<skein_lib::Time> {
     skein_lib::earliest(
         if fetch.waiting_on { None } else { cutoff(fetch) },
-        if fetch.refused.is_some() { fetch.deadline } else { None },
+        if fetch.refused { fetch.deadline } else { None },
     )
 }
 
@@ -1347,15 +1352,19 @@ pub(crate) fn expire(domain: &mut Domain, now: skein_lib::Time, out: &mut Queue<
             finish_at_cutoff(domain, owner, fetch, out);
             continue;
         }
+        domain.read_line.leave(Waiter::Brief(owner));
         refused(fetch.owner, fetch.stage, "the forge client is busy", None, Some(skein_forge::api::Error::Busy), out);
         crate::held::ready(domain, fetch.owner, BriefRead::Failed(busy()), out);
     }
 }
 
 pub(crate) fn drop_section(domain: &mut Domain, section: Token) {
-    domain.document_fetches.remove(&crate::brief_document::call(section));
+    let document = crate::brief_document::call(section);
+    domain.document_fetches.remove(&document);
+    domain.read_line.leave(Waiter::Document(document));
     if let Some(owner) = section_owner(domain, section) {
         domain.brief_fetches.remove(&owner);
+        domain.read_line.leave(Waiter::Brief(owner));
     }
     domain.brief_pending.remove(&section);
 }
@@ -1426,5 +1435,6 @@ pub(crate) fn release_repository(d: &mut Domain, repository: skein_forge::api::R
     }
     for key in keys.into_boxed() {
         let _row = d.brief_fetches.remove(&key).expect("collected brief_fetches");
+        d.read_line.leave(Waiter::Brief(key));
     }
 }

@@ -137,6 +137,7 @@ struct Harness {
     out: Queue<Request>,
     turns: List<crate::Turn>,
     long: List<Option<crate::Operation>>,
+    long_until: Option<Time>,
     checking: bool,
 }
 
@@ -191,6 +192,7 @@ impl Harness {
             out: Queue::uncapped(),
             turns: List::with_capacity(CEILING.turns),
             long: List::with_capacity(4096),
+            long_until: None,
             checking: false,
         }
     }
@@ -251,6 +253,7 @@ impl Harness {
                 }
                 Request::Long { host_run, operation, until } => {
                     self.long.push(Some(operation)).expect("bounded issued operation history");
+                    self.long_until = Some(until);
                     match operation {
                         crate::Operation::Checks => {
                             self.checking = true;
