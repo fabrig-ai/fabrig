@@ -2,6 +2,3 @@
 static HEAP: skein_heap::Counting = skein_heap::Counting;
 
 mod store;
-mod tests {
-    mod proxy;
-}
