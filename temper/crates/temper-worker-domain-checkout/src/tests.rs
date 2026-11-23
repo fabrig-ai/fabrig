@@ -778,7 +778,8 @@ fn preparation_failures_are_typed() {
         (3, failed(Fault::TimedOut), Failure::Transient, b"fetch: TimedOut (workspace 0, repository 0 a, command none, operation 0 ms of 60000 ms, prepare 0 ms, queued 0 ms)".as_slice()),
         (0, failed(Fault::Broken), Failure::Transient, b"make: Broken (workspace 0, repository none, command none, operation 0 ms of 10000 ms, prepare 0 ms, queued 0 ms)".as_slice()),
         (4, failed(Fault::Broken), Failure::Transient, b"point landing: Broken (workspace 0, repository 0 a, command none, operation 0 ms of 10000 ms, prepare 0 ms, queued 0 ms)".as_slice()),
-        (5, failed(Fault::Broken), Failure::Transient, b"check out: Broken (workspace 0, repository 0 a, command none, operation 0 ms of 60000 ms, prepare 0 ms, queued 0 ms)".as_slice()),
+        (5, failed(Fault::Broken), Failure::Transient, b"fetch counts: Broken (workspace 0, repository 0 a, command none, operation 0 ms of 60000 ms, prepare 0 ms, queued 0 ms)".as_slice()),
+        (6, failed(Fault::Broken), Failure::Transient, b"check out: Broken (workspace 0, repository 0 a, command none, operation 0 ms of 60000 ms, prepare 0 ms, queued 0 ms)".as_slice()),
         (
             3,
             Done::FailedWithOutput {
@@ -792,9 +793,15 @@ fn preparation_failures_are_typed() {
     for (after, fault, failure, detail) in cases {
         let mut h = Harness::new(LIMITS);
         let (hold, _) = h.prepare(1, two(b"w"));
-        // Make, clone a, clone b, fetch a, point its pin, check out a.
-        let answers =
-            [Done::Succeeded, Done::Succeeded, Done::Succeeded, Done::Fetched { commit: commit(1) }, Done::Succeeded];
+        // Make, clone a, clone b, fetch a, point its pin, fetch counts, check out a.
+        let answers = [
+            Done::Succeeded,
+            Done::Succeeded,
+            Done::Succeeded,
+            Done::Fetched { commit: commit(1) },
+            Done::Succeeded,
+            Done::Succeeded,
+        ];
         for done in answers.into_iter().take(after) {
             h.next(hold, done);
         }
