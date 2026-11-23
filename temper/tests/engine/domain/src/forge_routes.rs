@@ -3388,12 +3388,20 @@ impl World {
 
     /// An absolute clock move for stories that choose a deadline themselves.
     pub fn advance_to(&mut self, at: Time) {
-        assert!(at >= self.env.now, "the story clock moves forward");
+        self.try_advance_to(at).unwrap_or_else(|finding| panic!("{finding}"));
+    }
+
+    /// Refuse a backwards clock move without changing the world.
+    pub fn try_advance_to(&mut self, at: Time) -> Result<(), String> {
+        if at < self.env.now {
+            return Err("the story clock moves forward".to_owned());
+        }
         self.check_quiet();
         self.visit_bounds(at, None, true);
         self.env.now = at;
         self.sync_clock();
         self.checks.step(at, self.iteration).unwrap_or_else(|finding| panic!("{finding}"));
+        Ok(())
     }
 
     fn visit_bounds(&mut self, at: Time, target: Option<u64>, resume: bool) -> bool {

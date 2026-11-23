@@ -1041,12 +1041,24 @@ fn a_sittings_clock_starts_after_the_setup_restart_drains() {
 }
 
 #[test]
-#[should_panic(expected = "the story clock moves forward")]
-fn a_story_cannot_move_its_clock_backwards() {
+fn a_story_clock_refuses_to_move_backwards() {
     let mut world = temper_engine_domain_world::kinds::forge_world();
     let before = world.env.now;
     world.jump(Duration::from_secs(1));
-    world.advance_to(before);
+    let now = world.env.now;
+    let finding = world.try_advance_to(before).expect_err("a backwards clock move is refused");
+    assert!(finding.contains("the story clock moves forward"), "{finding}");
+    assert_eq!(world.env.now, now);
+    world.close();
+}
+
+#[test]
+fn a_story_clock_moves_forward_to_a_later_time() {
+    let mut world = temper_engine_domain_world::kinds::forge_world();
+    let later = world.env.now.saturating_add(Duration::from_secs(1));
+    assert_eq!(world.try_advance_to(later), Ok(()));
+    assert_eq!(world.env.now, later);
+    world.close();
 }
 
 #[test]
