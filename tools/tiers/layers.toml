@@ -111,7 +111,6 @@ layers = ["step", "domain", "system", "machine", "protocol", "io", "simulated", 
 "jig-channel-world::suite" = "simulated" # step + simulated: referee controls; documented protocol world runs whole services on simulated io.
 "jig-client-browser-world::browser_attacks" = "end-to-end" # Chromium on the shipped reference application.
 "jig-client-browser-world::browser_jig_stories" = "end-to-end" # Chromium on the shipped reference application.
-"jig-client-browser-world::browser_skein_stories" = "end-to-end" # Chromium on the shipped reference application.
 "jig-client-browser-world::browser_tier" = "end-to-end" # Chromium on the shipped reference application.
 "jig-client-browser-world::suite" = "step" # Shell mount translated to an HTTP request, no browser.
 "jig-client-protocol-http::frames" = "step" # The frame cutter against seeded byte bodies and cuts.

@@ -424,7 +424,6 @@ default-filter = """
 )) & (
   binary_id(=jig-client-browser-world::browser_attacks) |
   binary_id(=jig-client-browser-world::browser_jig_stories) |
-  binary_id(=jig-client-browser-world::browser_skein_stories) |
   binary_id(=jig-client-browser-world::browser_tier) |
   binary_id(=jig-core-kit::real) |
   binary_id(=jig-engine-clients-world::suite) |

@@ -40,10 +40,7 @@ struct Shell {
 }
 #[wasm_bindgen(start)]
 pub fn start() {
-    let words = look::phrases();
-    if !skein_ui_web::restart::Restart::new(3, skein_lib::Duration::from_secs(60), "jig-restarts", words.failed)
-        .install("app")
-    {
+    if !look::restart().install("app") {
         return;
     }
     // Replace the printed secret's address before starting anything that can send.
