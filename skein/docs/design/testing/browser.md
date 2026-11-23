@@ -610,6 +610,18 @@ named scenario ceiling with headroom.
   expects (one tab, titled `Opening`, its opener true before the cut and
   false after) or 3 seconds pass, the bound the suite's press stories
   give a press's effect, and then checks them, naming what it last saw.
+  Each wait of these tests on Chromium goes through the starvation rule
+  (../../foundation/testing-strategy.md, 2.10): a heading awaited until
+  `Missed`, tabs not reading as the stage expects by their bound, a
+  command the kit refuses with `Timeout`. The test arms a `Deadline` as
+  the wait begins, watching Chromium's processes (service-tiers.md, 1),
+  and classifies its expiry: starved, it ends what it owns and passes as
+  starved; otherwise it fails with the figures. What a reply shows that
+  the stage does not expect, a refusal other than `Timeout` and a bad
+  exit fail at once. Ending what it owns, after a starved verdict or at
+  the end of a run, takes at most four seconds, Chromium's tree then
+  killed and its pipes closed, so no run outlives its conversation's
+  bound by more.
   The keys a native date or time field takes, and their order, are the
   face's facts, checked with its others in this suite (../ui/web/testing.md, 1). A
   new Chromium version is a run of these, and a fact that changed is fixed

@@ -8,7 +8,7 @@ One milestone, *slow tests at the gate*, of eighteen goals. Each lands into main
 
 | Goal | Draft parts | Trees | Needs | State |
 |---|---|---|---|---|
-| D1, the browser's deadlines: every browser step's expiry through the starvation rule, and a red story's wall bounded | 7 | skein, jig, temper | none | not started |
+| D1, the browser's deadlines: every browser step's expiry through the starvation rule, and a red story's wall bounded | 7 | skein, jig, temper | none | landed |
 | D2, temper's real Forgejo paths and repeated command paths shortened to their boundary, in `temper-box::process` and `proof_live` | 5.1 | temper | none | not started |
 | D3, temper's public board, history, reading, workers and journeys stories: their data to the client and domain worlds, their geometry left in Chromium | 5.1 | temper | none | not started |
 | D4, skein's browser kit's bookkeeping, patch shapes and refused writes below the browser | 5.1 | skein | D1 | not started |
