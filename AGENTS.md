@@ -48,7 +48,7 @@ Provisional, 2026-10-30. What every agent working here must know, whatever its r
 - Fix a failure in the lowest tier that shows it: a skein fault seen downstream is reproduced in skein.
 - **While a plan is being built, only the focused and fuzzy suites run.** The browser, process and live tiers run after landing: a new story in one is written and compiled, not run, and a red they raise is repaired then (the user, 2026-11-06). That repair may run the test it repairs, by name, alone.
 - Every tree's tier has the user's CPU budget and a wall hard limit; **starved** is a warning, never red on that account (skein/docs/foundation/testing-strategy.md, 8.1).
-  Over budget is red where the gate enforces it (for now it warns, and a test past its reference only ever warns: the user, 11-19): read `skein/docs/foundation/testing-strategy.md` in full before repairing it, then ask: does the test belong here; can it be made faster; otherwise ask the user, with measurements. Moving a test to escape a budget is raising it, and every figure in `tools/tiers/budgets.toml`, a reason's line included, is the user's: a change never adds or raises one.
+  Over budget is red: the gate refuses a layer over its budget or grown past its allowance, and the goal's close refuses the growth too (`tools/tiers/budgets.md`, 8); a test past its reference only warns (the user, 11-19). To repair it, read `skein/docs/foundation/testing-strategy.md` in full first, then ask: does the test belong here; can it be made faster; otherwise ask the user, with measurements. Moving a test to escape a budget is raising it, and every figure in `tools/tiers/budgets.toml`, a reason's line included, is the user's: a change never adds or raises one.
 
 ## 6. Design documents
 
