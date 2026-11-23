@@ -40,8 +40,15 @@ wherever a step test drives them (`README.md`, 13).
   its diagnostics' words and kinds:
   - reads: an entry's facts without following (`symlink_metadata`) and
     following (`metadata`); a canonical path (`canonicalize`); a
-    directory's children as paths (`read_dir`; native's order, which
-    callers that need one sort, as they do today); a file's bytes whole
+    directory's children (`read_dir(&self, path: &Path) ->
+    io::Result<Box<dyn Iterator<Item = io::Result<Child>> + '_>>`, in
+    native's order, which callers that need one sort, as they do today),
+    each a **`pub struct Child`** whose `path()` gives its path and whose
+    `file_type() -> io::Result<Kind>` gives its kind without following,
+    asked only when called: natively `DirEntry::file_type`, so a caller
+    that refuses a name before asking its kind (the seed walk) makes
+    today's calls in today's order, with no `lstat` per child and no
+    error reordered by collecting; a file's bytes whole
     (`read`) and at most N bytes from its start (a bounded read, so a
     caller sees N + 1 to know a file is over N); a regular file's SHA-256
     over its bytes, streamed natively in 8 KiB chunks as
