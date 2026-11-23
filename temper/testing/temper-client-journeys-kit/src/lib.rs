@@ -165,6 +165,26 @@ impl TuiWorld {
     pub fn exchange(&mut self, approval: bool) -> skein_lib::Token {
         Self::saved_exchange(&self.save(), approval)
     }
+    pub fn offer_approval(&mut self, opened: bool) {
+        use temper_client_shell_tui::host::Report;
+        let exchange = self.exchange(false);
+        self.report(Report::Heard(jig_client::Event::Reply { exchange, message: tui_approval_reply() }));
+        self.report(Report::Opened { opened });
+    }
+    pub fn accept_approval(&mut self) {
+        use temper_client_shell_tui::host::Report;
+        self.mark();
+        let exchange = self.exchange(true);
+        let mut credential = 7_u64.to_be_bytes().to_vec();
+        credential.extend_from_slice(&[8; 32]);
+        let mut reply = vec![0, 1];
+        reply.extend_from_slice(&u32::try_from(credential.len()).expect("credential length").to_be_bytes());
+        reply.extend_from_slice(&credential);
+        reply.extend_from_slice(&7_u64.to_be_bytes());
+        reply.extend_from_slice(&300_000_000_000_u64.to_be_bytes());
+        self.report(Report::Heard(jig_client::Event::Reply { exchange, message: reply.into() }));
+        self.report(Report::Kept { written: true });
+    }
     #[must_use]
     pub fn saved_exchange(file: &[u8], approval: bool) -> skein_lib::Token {
         use temper_client_shell_tui::journey::{Line, Sent, lines};
@@ -205,20 +225,8 @@ pub fn tui_approval_recording() -> Box<[u8]> {
     let mut world = TuiWorld::with_local(b"127.0.0.1:34073", skein_ui_screen::Size { rows: 16, columns: 100 }, true);
     world.mark();
     world.report(Report::Local { link: None });
-    let exchange = world.exchange(false);
-    world.report(Report::Heard(jig_client::Event::Reply { exchange, message: tui_approval_reply() }));
-    world.report(Report::Opened { opened: false });
-    world.mark();
-    let exchange = world.exchange(true);
-    let mut credential = 7_u64.to_be_bytes().to_vec();
-    credential.extend_from_slice(&[8; 32]);
-    let mut reply = vec![0, 1];
-    reply.extend_from_slice(&u32::try_from(credential.len()).expect("credential length").to_be_bytes());
-    reply.extend_from_slice(&credential);
-    reply.extend_from_slice(&7_u64.to_be_bytes());
-    reply.extend_from_slice(&300_000_000_000_u64.to_be_bytes());
-    world.report(Report::Heard(jig_client::Event::Reply { exchange, message: reply.into() }));
-    world.report(Report::Kept { written: true });
+    world.offer_approval(false);
+    world.accept_approval();
     world.save()
 }
 

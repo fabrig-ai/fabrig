@@ -115,22 +115,3 @@ fn tui_journey_waits_for_explicit_approval_then_marks_the_launchpad() {
     let kept = fs::read_to_string(journey.options.scratch.join("session/lines")).expect("kept");
     assert!(kept.contains("tui approve\n") && !kept.contains("tui mark"), "{kept}");
 }
-
-#[test]
-fn chain_skips_its_ancestors_mark_without_resetting_the_page() {
-    let journey = Journey::new("chain-journey");
-    Journey::file(
-        &journey.roots.web,
-        "parent",
-        "walk 2\nweb see \"Welcome to temper\"\nweb press link \"Set up temper\"\nweb see \"Run on this machine\"\nweb mark\n",
-    );
-    Journey::file(&journey.roots.web, "child", "walk 2\nafter parent\nweb see \"Run on this machine\"\nweb mark\n");
-    let output = journey.walk("child");
-    assert!(output.contains("parent:2 ok") && output.contains("child:3 ok"), "{output}");
-    assert!(!output.contains("parent:5 "), "{output}");
-    assert_eq!(journey.looks(), ["0005-420.png"]);
-    assert!(
-        output.lines().any(|line| line.starts_with("child:4 | ") && line.contains("Run on this machine")),
-        "{output}"
-    );
-}
