@@ -2159,7 +2159,7 @@ pub(super) fn producer_for(world: &mut World, change: u64) -> engine::Assignment
     panic!("change {change} has no producer: {:?}; answers {:?}", live_task(world, change), world.answers);
 }
 
-fn pending_large_with_alpha_and_beta(tasks: u32) -> (World, u64, u64, u64) {
+pub(crate) fn pending_large_with_alpha_and_beta(tasks: u32) -> (World, u64, u64, u64) {
     let mut documents = jig_protocol_config_fixtures::small().core.documents;
     documents.grants = 32;
     documents.text_bytes = 512;

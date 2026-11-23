@@ -60,7 +60,7 @@ fn change_wait(view: &View<'_>, row: &temper_engine_domain_forge::ChangeRow) -> 
         return None;
     }
     let kind = change_kind(&row.change.state)?;
-    let (kind, wakes) = if row.room.is_some() {
+    let (kind, mut wakes) = if row.room.is_some() {
         ("change: room", room(view, task))
     } else {
         let mut wakes = change_wakes(view, row);
@@ -85,7 +85,28 @@ fn change_wait(view: &View<'_>, row: &temper_engine_domain_forge::ChangeRow) -> 
         }
         (kind, wakes)
     };
+    admission(view, task, &mut wakes);
     Some(Wait { waiter: task_name(task), kind: kind.into(), wakes, bound: bound(view, row) })
+}
+
+// Admission can park the root before a change gets its delegate. Only a kept
+// limit account or jig's recorded room wait names these release paths.
+fn admission(view: &View<'_>, task: u64, wakes: &mut Vec<Wake>) {
+    let Some(root) = view.root else { return };
+    if let Some(hold) = root.inspection_limit_hold(task) {
+        wakes.push(Wake::Party(format!("operator limits: {}", String::from_utf8_lossy(&hold.member))));
+        wakes.push(Wake::Party("operator restart".into()));
+    }
+    let Some(wait) = root.tasks().task(task).and_then(|row| row.room_wait) else { return };
+    for row in root.tasks().view_tasks() {
+        let serves = match wait.room {
+            tasks::LiveRoom::Deployment => true,
+            tasks::LiveRoom::Project(project) => row.project == project,
+        };
+        if row.number != task && serves && !view.ended(row.number) {
+            wakes.push(view.waiter(row.number));
+        }
+    }
 }
 
 // A person's hold can stop jig without changing the forge procedure's step.

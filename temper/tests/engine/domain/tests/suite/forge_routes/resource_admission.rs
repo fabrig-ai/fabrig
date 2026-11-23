@@ -450,6 +450,26 @@ fn releasing_an_initial_admission_hold_rechecks_the_same_bound() {
     panic!("release bypassed the persistent admission bound: {:?}", live_task(&world, task).phase);
 }
 
+pub(crate) fn limit_held_change() -> (World, u64) {
+    let mut configured = World::configured(true, true);
+    configured.env.limits.forge.holds = 2;
+    let client = skein_forge_client::Limits { resources: 2, ..configured.env.limits.forge.client };
+    let mut world = configured.with_forge_client(client);
+    world.adopt();
+    world.send(protocol::hello_slots(CHANNEL, 2, Box::new([])));
+    let ask = adoption_chat(&world);
+    let chat = assigned_chat(&mut world, 92, ask);
+    fill_chat_watches(&mut world, chat.task);
+    let engine::CallAnswer::Delegated(made) = super::change_tool::change(&mut world, &chat, 93, None, b"Small fix")
+    else {
+        panic!("change delegated")
+    };
+    let task = made[0].task;
+    await_hold(&mut world, task);
+    world.oracle_settle();
+    (world, task)
+}
+
 fn kept_limit(world: &World, task: u64) -> forge_top::LimitHold {
     let Some(Record::Forge { row }) = world.store.rows.get(&Key::Forge(forge_top::Key::LimitHold(task))) else {
         panic!("durable limit hold for {task}")

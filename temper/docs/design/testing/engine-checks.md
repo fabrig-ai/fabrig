@@ -156,6 +156,14 @@ change's due step.
   their fallback. A wait for room gains a person's wake only where its
   task is held so: the line passes over a held waiter, and the release
   steps it again (`../domain/forge/room.md`, 3).
+- **Admission before a delegate:** `inspect` reads the root's retained forge
+  limit account only while its exact task hold still stands, naming
+  `Party("operator limits: MEMBER")` for a raise and `Party("operator restart")`
+  for the startup retry (`../protocol/configuration/limit-settings.md`, 6).
+  A change with jig's live-task `room_wait` names `Waiter(task T)` for each
+  other live task counted by that room (the deployment, or its project),
+  whose ending frees a slot; no recorded room wait or current account means
+  no such wake.
 - **A change that waits its turn:** each dependency a change's task
   waits on names `Waiter(task D)`, from `inspect`'s root tasks and from
   `forge`'s pending step dependencies and follow entry's `WaitsFor`.

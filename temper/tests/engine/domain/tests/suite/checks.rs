@@ -643,6 +643,96 @@ fn a_person_stopped_change_with_an_ended_producer_has_a_release_wake() {
     assert_eq!(Checks::new(71).quiet(&world.root, world.env.now, 1), Ok(()));
 }
 
+#[test]
+fn a_current_limit_account_wakes_its_change_on_raise_or_restart() {
+    let (world, task) = super::forge_routes::resource_admission::limit_held_change();
+    let account = world.root.inspection_limit_hold(task).expect("current limit account");
+    assert_eq!(account.revision, world.root.tasks().task(task).expect("held task").revisions.hold);
+    assert_eq!(
+        change_wakes(&world, task, true),
+        [Wake::Party("operator limits: forge.client.resources".into()), Wake::Party("operator restart".into())]
+    );
+    assert!(change_wakes(&world, task, false).is_empty(), "the forge alone has no root limit account");
+    assert_eq!(Checks::new(71).quiet(&world.root, world.env.now, 1), Ok(()));
+}
+
+#[test]
+fn a_resource_hold_without_a_limit_account_has_no_limit_wake() {
+    let (mut world, task, _) = held_producing(tasks::Hold::ResourceUnavailable);
+    let mut row = world.root.forge().change(task).expect("change").clone();
+    row.delegate = None;
+    row.change.state = temper_engine_domain_forge_change::State::Producing { requested: false };
+    engine::step(
+        &mut world.root,
+        &world.env,
+        engine::Event::Forge(Box::new(forge::Event::Restore { record: forge::Stored::Change(Box::new(row)) })),
+    );
+    engine::fire(&mut world.root, &world.env);
+    assert!(world.root.inspection_limit_hold(task).is_none());
+    let finding = Checks::new(71).quiet(&world.root, world.env.now, 1).expect_err("no retained release path");
+    assert_eq!(
+        finding,
+        format!(
+            "seed 71: at {} ns, iteration 1: engine task {task}: waits on change: producing with no live wake: []",
+            world.env.now.as_nanos()
+        )
+    );
+}
+
+#[test]
+fn a_live_task_room_wait_names_the_tasks_that_can_free_slots() {
+    let (mut world, large, _, task) = super::forge_routes::reviews::pending_large_with_alpha_and_beta(8);
+    world.advance_ticks(80);
+    let row = world.root.tasks().task(task).expect("waiting change");
+    assert_eq!(row.room_wait.map(|wait| wait.room), Some(tasks::LiveRoom::Deployment));
+    let reviewer = world.root.forge().change(large).expect("reviewed change").delegate.expect("reviewer").0;
+    let inspection = inspect(&world);
+    let wait = inspection.waits().iter().find(|wait| wait.waiter == format!("task {task}")).expect("room wait");
+    assert!(wait.wakes.contains(&Wake::Waiter(format!("task {reviewer}"))));
+    assert!(!wait.wakes.contains(&Wake::Waiter(format!("task {task}"))), "ending oneself cannot free a slot");
+    assert_eq!(wait.bound, None);
+    assert!(change_wakes(&world, task, false).is_empty(), "the forge alone has no jig room wait");
+    assert_eq!(Checks::new(71).quiet(&world.root, world.env.now, 1), Ok(()));
+}
+
+#[test]
+fn live_tasks_do_not_wake_a_change_without_a_room_wait() {
+    let mut driver = super::panel_before_change::before_change();
+    driver.send(engine::Event::Forge(Box::new(forge::Event::Change {
+        row: super::panel_before_change::producing_row(),
+    })));
+    driver.settle();
+    let original = driver.root.forge().change(51).expect("change").clone();
+    let producer = original.delegate.expect("live delegate").0;
+    assert!(driver.root.tasks().task(producer).is_some());
+    assert_eq!(driver.root.tasks().task(51).expect("change task").room_wait, None);
+    // Freeze a lost delegate registration, not an admission refusal. Other
+    // live tasks cannot supply the missing registration's wake.
+    let mut row = original.clone();
+    row.delegate = None;
+    row.change.state = temper_engine_domain_forge_change::State::Producing { requested: false };
+    engine::step(
+        &mut driver.root,
+        &driver.env,
+        engine::Event::Forge(Box::new(forge::Event::Restore { record: forge::Stored::Change(Box::new(row)) })),
+    );
+    engine::fire(&mut driver.root, &driver.env);
+    let finding = Checks::new(71).quiet(&driver.root, driver.env.now, 1).expect_err("no room release path");
+    assert_eq!(
+        finding,
+        format!(
+            "seed 71: at {} ns, iteration 1: engine task 51: waits on change: producing with no live wake: []",
+            driver.env.now.as_nanos()
+        )
+    );
+    engine::step(
+        &mut driver.root,
+        &driver.env,
+        engine::Event::Forge(Box::new(forge::Event::Restore { record: forge::Stored::Change(Box::new(original)) })),
+    );
+    driver.settle();
+}
+
 fn passed_making() -> (World, u64) {
     let (world, task, _) = super::forge_routes::goal_branch::passed_making();
     assert!(world.root.forge().inspection_entries().is_empty());

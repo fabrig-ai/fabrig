@@ -57,7 +57,7 @@ mod context_projects;
 mod kind_charters;
 mod opened_panel;
 #[path = "forge_routes/resource_admission.rs"]
-mod resource_admission;
+pub(crate) mod resource_admission;
 
 #[path = "forge_routes/asks_no_one.rs"]
 mod asks_no_one;
