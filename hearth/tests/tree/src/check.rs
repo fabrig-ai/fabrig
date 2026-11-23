@@ -91,7 +91,7 @@ pub fn canonical_body(body: &[u8], limits: &Limits, seed: u64) {
     unreachable!("each item consumes at least a byte")
 }
 
-pub fn sweep(rng: &mut Rng, record: &Record, limits: &Limits, seed: u64) {
+pub fn sweep(rng: &mut Rng, record: &Record, limits: &Limits, seed: u64, mutations: &mut crate::mutate::MutationBatch) {
     let frame = write(record, limits);
     assert_eq!(read(record.kind(), &frame, limits), Ok(record.clone()), "seed {seed}");
     // Header checks make every strict prefix fail; sample their bodies in the
@@ -101,7 +101,7 @@ pub fn sweep(rng: &mut Rng, record: &Record, limits: &Limits, seed: u64) {
         assert!(read(record.kind(), &frame[..cut], limits).is_err(), "seed {seed}, cut {cut}");
     }
     for mutation in crate::mutate::frames(rng, &frame) {
-        canonical(record.kind(), &mutation, limits, seed);
+        mutations.judge(mutation, |bytes| canonical(record.kind(), &bytes, limits, seed));
     }
 }
 

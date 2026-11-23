@@ -40,7 +40,7 @@ Provisional, 2026-10-30. What every agent working here must know, whatever its r
 
 ## 5. Tests
 
-- After each change, the narrowest test that checks it, in the package that holds it: `cargo nextest run -p PKG --test BIN -E 'test(=NAME)'`, or `--lib`. A filter alone still builds every test binary of the package.
+- After each change, run the narrowest test that checks it in the package that holds it with `tools/tiers/test -p PKG --test BIN -E 'test(=NAME)'`, or use `--lib`. It takes nextest's arguments, counts each test where available and shows the layer's allowance once main's counts are fetched. A filter alone still builds every test binary of the package.
 - Development builds and tests set `TEMPER_INTERNAL_BUNDLE=none`: without it, a build of `temper` builds the browser's bundle for wasm32 in a nested cargo (`temper/docs/design/client/web/bundle.md`, 1).
 - Check the count: a run that selected nothing proves nothing (nextest exits 4).
 - Read a failure's log before anything reruns; no unchanged rerun, except once after exit 137.

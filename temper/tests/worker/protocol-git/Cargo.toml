@@ -12,6 +12,7 @@ test = false
 doctest = false
 
 [dependencies]
+skein-checks.workspace = true
 skein-scratch.workspace = true
 skein-lib.workspace = true
 skein-io.workspace = true

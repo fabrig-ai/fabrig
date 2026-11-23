@@ -9,6 +9,7 @@ publish.workspace = true
 
 [dependencies]
 skein-lib.workspace = true
+skein-checks.workspace = true
 hearth-lib.workspace = true
 hearth-protocol-tree.workspace = true
 hearth-domain-tree.workspace = true

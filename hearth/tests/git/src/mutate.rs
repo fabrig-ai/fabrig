@@ -1,6 +1,6 @@
 //! Damage records at framing and object-id boundaries.
-#[must_use]
-pub fn all(stdout: &[u8]) -> Vec<Vec<u8>> {
+pub use skein_checks::MutationBatch;
+pub fn all(stdout: &[u8]) -> impl ExactSizeIterator<Item = skein_checks::Mutation<Vec<u8>>> + use<> {
     let mut result = Vec::new();
     let mut start = 0;
     for (at, byte) in stdout.iter().enumerate() {
@@ -25,5 +25,5 @@ pub fn all(stdout: &[u8]) -> Vec<Vec<u8>> {
     result.push(stdout[..stdout.len().saturating_sub(1)].to_vec());
     result.sort();
     result.dedup();
-    result
+    result.into_iter().map(skein_checks::mutation)
 }
