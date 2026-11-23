@@ -7,7 +7,7 @@
 `checkouts.md`'s design delivery has no known gap in running the repository's
 `.temper/pre-pr` and refusing a failed check. Its landing pin stays frozen
 for the hold. `checkouts.md`'s delivery retains the checkout's ancestry through
-the git snapshot operation (`../../protocol/git.md`, 4.7): staged and committed merges
+the git snapshot operation (`../../protocol/git-operations.md`, 1.7): staged and committed merges
 keep their second parent, checked against the remote, and an unchanged
 local commit is delivered intact. The checkout step test holds the request's
 remote and account; the git protocol's snapshot tests hold its invocations

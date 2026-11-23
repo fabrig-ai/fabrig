@@ -91,8 +91,8 @@ of domain/host.md, section 2.
   pins their program and configuration for its lifetime, and never
   adopts a previous host process's agents. In temper, the worker pins
   both at startup and every run spawns that copy over local standard
-  input and output (`temper/docs/design/domain/worker/README.md`, section
-  5). The engine talks to the worker on jig's channel, not this one:
+  input and output (`temper/docs/design/domain/worker/agent-processes.md`, section
+  1). The engine talks to the worker on jig's channel, not this one:
   restarting the engine leaves the worker and its agents together;
   replacing the configured agent program cannot change a running
   worker's later spawns. This is the per-build exemption in temper's

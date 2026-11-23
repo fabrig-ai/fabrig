@@ -169,10 +169,10 @@ fn deployment_key_choice_opens_details() {
     );
 }
 
-// client/README.md 3.6: a double press joins the pending request, adding one key.
+// client/root.md 1.6: a double press joins the pending request, adding one key.
 #[test]
 fn double_pressing_add_key_makes_one_source() {
-    // One source write for the one submitted key (client/README.md 3.6).
+    // One source write for the one submitted key (client/root.md 1.6).
     const ONE_KEY: usize = 1;
     let mut world = world();
     let client = open(&mut world, way(b"key", None).as_slice());

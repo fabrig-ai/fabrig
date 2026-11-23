@@ -1,4 +1,4 @@
-//! Leaving and bounded proof in the forge's world (domain/landing.md, 4.2–4.3, 7).
+//! Leaving and bounded proof in the forge's world (domain/landing.md, 4.2–4.3, and domain/landing-proof.md, 2).
 use skein_fake_forge_domain::api as raw;
 use skein_forge::api;
 use skein_lib::Duration;

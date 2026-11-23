@@ -134,7 +134,7 @@ fn story(root: &Path) -> io::Result<()> {
         let log = super::boxed::box_log(root);
         assert!(!log.contains("no sign-in through temper"), "{log}");
         // The next start uses its printed link in this same client directory.
-        // End this sign-in first (client/ctl/README.md, 6.1).
+        // End this sign-in first (client/ctl/command-line.md, 1.1).
         success(&ctl_command(root, &["sign-out"]));
         running.stop();
         kept_setup = Some(setup);

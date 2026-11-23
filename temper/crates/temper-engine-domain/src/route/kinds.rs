@@ -1,6 +1,6 @@
 //! Typed settings handoffs within the root's decision
 //! (temper/docs/design/domain/routing.md, 6;
-//! temper/docs/design/protocol/configuration/settings.md, 2).
+//! temper/docs/design/protocol/configuration/settings-kinds.md, 1).
 use alloc::boxed::Box;
 use jig_domain_core::{Event, effects::connector, settings::application};
 use skein_lib::{Decimal, Env, List, Queue};

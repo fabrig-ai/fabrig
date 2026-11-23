@@ -336,7 +336,7 @@ impl World {
 
     fn io(&mut self, owner: Token, op: Op, deadline: Time) {
         assert!(deadline > self.env.now);
-        // Includes delivery, save and catch-up, not just prepare (README.md, 4.3).
+        // Includes delivery, save and catch-up, not just prepare (domain/worker/hosted-runs.md, 1.3).
         let note = match &op {
             Op::Fetch { at, want, into, .. } => {
                 Some((at, temper_worker_domain::Git::Fetch { want: want.clone(), into: *into }))
@@ -988,7 +988,7 @@ pub fn retry(seed: u64, resume: bool) -> Result<Report, String> {
 }
 
 /// The engine assigns one commit twice to one worker, with no saved work
-/// from the first attempt (domain/worker/README.md, 4.3).
+/// from the first attempt (domain/worker/hosted-runs.md, 1.3).
 pub fn reassigned_start(seed: u64) -> Result<(), String> {
     let mut world = World::new(seed);
     world.connect()?;

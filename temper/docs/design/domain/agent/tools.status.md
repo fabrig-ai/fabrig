@@ -8,22 +8,10 @@
 
 
 
-- **Not yet:** the whole document: `read_reviews`, `read_remarks` and
-  `read_pull_files` take no `skip`, and a page the answer's bytes cut
-  says no way on (`temper-engine-smith/src/calls.rs`, `src/answers.rs`).
 - **Not yet:** the whole document: the stock charters (`chat.txt`, `../../../charters/stock/goal.md`)
   say sign-ins, machines and a plan's go-ahead always wait but name no
   kind for them, where this section has them `money` or `irreversible`;
   a call naming them `other` waits all the same.
-
-Section 1 has no known implementation gap in whole-goal child isolation:
-words-only calls and batch members use the nearest held goal branch,
-including callers in its subtree; an explicit destination outside it is
-refused before delegation. The engine-domain world's stock draft-goal
-story decodes a reconstructed words-only call through smith, answers two
-scope questions, releases the change hold and observes the fake forge's
-child merge before the separate whole-goal landing. It establishes no
-real-model or browser outcome.
 
 `agents.md`, section 4 has no known gap in the drafter: a design session's first
 run on the stock gets `drafter.txt` byte for byte, no repository, and no
@@ -95,21 +83,8 @@ world's `configuring/remembering.rs`
 `a_turn_shows_its_persons_list_to_them_alone`) hold it. A real model's
 use of `remember` and the walk follow landing (`README.md`, section 8).
 
-- **Not yet:** the whole document: a goal's run delivers to its run branch r, and
-  `change` still takes `"branch": "run"` to land r into g; the schema
-  offers `["mine","run"]` (`temper-engine-smith/src/calls.rs`, `PLAN_CHANGE`).
-- **Not yet:** 2: no supplied owned-forge live result establishes the
-  `live-change-call` request's plain change through the shipped chat's own
-  `change` on `gpt-6-luna`. The model's response to the declaration and
-  branch-read guidance remains unobserved until after landing (`README.md`, section 8).
-  Whether the reported run's `change` was refused before its `goal` is
-  unknown without its transcript.
 - **Not yet:** the whole document: the real-model receipt and report proof remains `charter.status.md`, 3.
 
-- **Not yet:** 1: a change's refusal omits which model its charter
-  refused, because `temper-engine-smith/src/answers.rs` renders
-  `model outside the charter` without that detail although the typed
-  refusal retains it. No reason is recorded.
 - **Departs:** the whole document: a run that cannot deliver can still change files by a
   command if its charter grants the shell, where the section says it
   cannot: jig's rail narrows `modify` alone (jig's `domain/hosts/charters.md`
@@ -118,12 +93,3 @@ use of `remember` and the walk follow landing (`README.md`, section 8).
   `temper-engine-smith/src/tests.rs` pins the shell staying. The stock
   charters grant no shell; the reference's charter 2 does
   (`../../protocol/configuration/reference.md`). No reason is recorded.
-
-- **Not yet:** *A refused branch read*: `read_branches`'s
-  `TooLarge` keeps its one line and names no bound
-  (`temper-engine-smith/src/answers.rs`).
-
-- **Design departs:** from the same request, decided by its plan's cut: `read_permission`'s login reaches every run with the forge reads, the stock's charters 1, 2, 4 and 6, where the request holds a person's identity to what an agent's authority may read, because it is the forge's own answer about a user of a repository that run may already read (`README.md`, section 8 keeps it open). It is carried through skein's answer and temper's stored record, where the request sizes the work in temper, because adoption seeds a person with an empty login and skein's answer dropped the one its dialects read.
-
-
-

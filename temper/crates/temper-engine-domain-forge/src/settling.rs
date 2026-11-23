@@ -1,4 +1,4 @@
-//! One readiness step can hold a train, unstored (temper/docs/design/domain/landing.md, 9).
+//! One readiness step can hold a train, unstored (temper/docs/design/domain/landing-turn.md, 2).
 use crate::{ChangeRow, Domain};
 use skein_forge::api::Commit;
 use skein_lib::List;

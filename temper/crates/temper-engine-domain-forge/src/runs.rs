@@ -1,4 +1,4 @@
-//! Shared workflow following, independent of its owning procedure (domain/landing.md, 7).
+//! Shared workflow following, independent of its owning procedure (domain/landing-proof.md, 2).
 //! An outage spends no unseen lifetime (temper/docs/design/domain/forge/keeping-up.md, 5).
 use alloc::boxed::Box;
 use skein_forge::api;

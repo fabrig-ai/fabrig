@@ -10,7 +10,7 @@ Claude through Claude Code alone, on a person's subscription
 way to the same provider, run by smith's own loop, in two steps: the
 first in v0.1.0, the second weighed once the first has landed (the
 user, 2026-11-11). temper/migration carries it out. The reasons are
-`notes.md`, section 14.
+`claude-api.notes.md`.
 
 ## 1. In one page
 
@@ -71,7 +71,7 @@ What is there:
   adaptive thinking with an effort, cache marks and usage (skein's
   `llm/README.md`, 4.7).
 - **A key's way through:** jig keeps a key in its secrets' store and
-  grants it as a key (`../protocol/credentials.md`, section 3).
+  grants it as a key (`../protocol/credentials-llm-accounts.md`, section 1).
 - **`ctl` adds keys** to any provider that offers them
   (`../client/ctl/areas.md`, area 5).
 
@@ -174,7 +174,7 @@ What step 1 adds:
   OpenAI key added through `ctl` is; a refused key says so on its
   source (skein's `llm/README.md`, 4.7).
 - **The pages draw it where they draw OpenAI's key**
-  (`../client/pages/accounts.md`, section 2): with two providers offering
+  (`../client/pages/accounts-words.md`, section 1): with two providers offering
   keys, the ways read "Use an OpenAI API key" and "Use an Anthropic API
   key", rows under "Or an API key". A key's details read "An Anthropic
   API key", then "From the Claude Console, under API keys. What temper's

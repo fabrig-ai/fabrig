@@ -1,4 +1,4 @@
-//! The host keeps the approval place and prints its code as shown (client/web/README.md, 2.3).
+//! The host keeps the approval place and prints its code as shown (client/web/addresses.md, 1).
 use super::*;
 use jig_client_protocol_wire as w;
 use skein_lib::Reader;

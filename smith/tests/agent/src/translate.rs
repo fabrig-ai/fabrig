@@ -396,14 +396,17 @@ fn field(arguments: &[u8], name: &[u8]) -> Option<Box<[u8]>> {
 #[must_use]
 pub fn failure(error: provider::Error) -> agent::Failure {
     match error {
+        provider::Error::Spent => agent::Failure::Exhausted { retry_after: None },
+        provider::Error::Window { .. } => agent::Failure::RateLimited { retry_after: skein_lib::Duration::ZERO },
+        provider::Error::Cut(_) => agent::Failure::Protocol,
         provider::Error::Overloaded => agent::Failure::Overloaded,
         provider::Error::RateLimited { retry_after } => agent::Failure::RateLimited { retry_after },
         provider::Error::Unavailable => agent::Failure::Unavailable,
         provider::Error::ContextTooLong => agent::Failure::ContextTooLong,
-        provider::Error::Unauthorized => agent::Failure::Unauthorized,
+        provider::Error::SignedOut | provider::Error::Unauthorized => agent::Failure::Unauthorized,
         provider::Error::Exhausted { retry_after } => agent::Failure::Exhausted { retry_after },
         provider::Error::Refused => agent::Failure::Refused,
         provider::Error::Unsupported => agent::Failure::Unsupported,
-        provider::Error::InvalidRequest => agent::Failure::Invalid,
+        provider::Error::Unserved | provider::Error::InvalidRequest => agent::Failure::Invalid,
     }
 }

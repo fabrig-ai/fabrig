@@ -190,6 +190,7 @@ fn an_error_result_retains_the_usage_limit_notice() {
                 api_error_status: Some(429),
                 terminal_reason: Some("usage_limit".into()),
                 errors: vec!["limit".into()],
+                result: None,
                 resets_at,
             },
             ..Turn::new(vec![])

@@ -61,9 +61,7 @@ pub fn normal(story: Story, count: usize) -> Run {
 }
 
 pub fn unpaced(bytes: &[u8]) -> Invocation {
-    let mut invocation = invocation(0).input(bytes);
-    invocation.stream = false;
-    invocation
+    invocation(0).input(bytes).unpaced()
 }
 
 pub fn without_input() -> Invocation {

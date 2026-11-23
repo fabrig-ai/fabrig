@@ -282,7 +282,10 @@ fn a_full_map_names_its_usage_budget_and_projected_bytes() {
 }
 
 #[test]
-#[expect(clippy::too_many_lines, reason = "one table pins every protocol/store.md section 4 cause and CHECK word")]
+#[expect(
+    clippy::too_many_lines,
+    reason = "one table pins every protocol/store-versions.md section 1 cause and CHECK word"
+)]
 fn every_commit_cause_has_bounded_content_free_words_and_a_whole_stop_line() {
     use CommitStop::{Route, Store};
     use jig_protocol_store::{CommitCheck, CommitFailure};

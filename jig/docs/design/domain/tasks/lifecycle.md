@@ -367,7 +367,7 @@ them (8).
   or cancelled, until an amendment removes it (1, `changes.md`).
 - **A claim's cause stays readable while its attempt is placed,** so that
   an application can say why each assignment left (temper's
-  `domain/worker/README.md`, 4.3): the due reason the claim found, the
+  `domain/worker/hosted-runs.md`, 1.3): the due reason the claim found, the
   retry notice it clears, and whether the attempt before it ended in a
   recheck, which no due reason names. The tasks child holds it in memory
   alone, beside the task's record and never in it, nor on a wire, from the

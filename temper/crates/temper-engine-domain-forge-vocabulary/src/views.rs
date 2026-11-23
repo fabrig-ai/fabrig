@@ -85,7 +85,7 @@ pub enum LandingWaitFor {
     Read,
     Room,
 }
-/// A train is one repository and landing branch (domain/landing.md, 9).
+/// A train is one repository and landing branch (domain/landing-turn.md, 2).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct LandingTrain {
     pub repository: skein_forge::api::Repository,

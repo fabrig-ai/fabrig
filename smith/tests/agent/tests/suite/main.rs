@@ -26,6 +26,7 @@ mod simulation;
 mod workspace;
 
 mod fuzzy {
+    mod faults;
     mod memory;
     mod messages;
     mod simulation;

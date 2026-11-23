@@ -12,7 +12,7 @@
   - 8.4: `process-temper` has no confinement story.
 - **Design departs:**
   - 6.2 and 6.3, by F2's design (2026-11-19), keeping their intent:
-    - the run's git borrows the worker's git directory's objects as well as the store's, since the worker's check outs fetch file contents into it and its commits are written there (`temper/docs/design/protocol/git.md`, 4.13), so a run's reach grants reading beneath that object directory too, and nothing else of the worker's directory;
+    - the run's git borrows the worker's git directory's objects as well as the store's, since the worker's check outs fetch file contents into it and its commits are written there (`temper/docs/design/protocol/git-operations.md`, 1.13), so a run's reach grants reading beneath that object directory too, and nothing else of the worker's directory;
     - the worker reads one file of the run's git directory, the check's report `temper/check-results`, as bytes and never through git (`temper/docs/design/domain/forge/reds.md`, 5.5), where 6.3 has the host never read it, since the check writes its report there and the goal's reds are reported from it.
   - 8.1: skein's simulator restricts only its minimal machine's own programs, the probe among them. A service a world hosts, spawned with a reach, runs unrestricted, and its reach stays in its spawn's call for the world to check (`skein/docs/design/testing/README.md`, 4). Restricting a hosted service's own operations would need a domain on every file call the simulator passes. No world needs that while the trees above check only the reach asked for (8.2). The goal's designer, 2026-11-19.
 - **Open:** 10.2 to 10.6, the user's. 10.1 is answered for the first pass, the login left within the program's reach; its step waits for the user.

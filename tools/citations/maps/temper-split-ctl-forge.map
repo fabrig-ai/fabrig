@@ -1,0 +1,36 @@
+# The first split pass (temper/docs/design/draft/design-upkeep.md, 4.3): temper ctl's client and the forge's client.
+
+# Keep the table's vocabulary; reads, acts and waits are their own contracts.
+title temper/docs/design/client/ctl/tools-reads.md: The tools' reads
+temper/docs/design/client/ctl/tools.md 2 -> temper/docs/design/client/ctl/tools-reads.md 1
+title temper/docs/design/client/ctl/tools-acts.md: The tools' acts
+temper/docs/design/client/ctl/tools.md 3 -> temper/docs/design/client/ctl/tools-acts.md 1
+title temper/docs/design/client/ctl/tools-waiting.md: The tools' waits
+temper/docs/design/client/ctl/tools.md 4 -> temper/docs/design/client/ctl/tools-waiting.md 1
+
+# Keep the areas' overview and smaller areas; move the three full contracts.
+title temper/docs/design/client/ctl/areas-goals.md: Goals and plans through ctl
+temper/docs/design/client/ctl/areas.md 2 -> temper/docs/design/client/ctl/areas-goals.md 1
+title temper/docs/design/client/ctl/areas-accounts.md: LLM accounts through ctl
+temper/docs/design/client/ctl/areas.md 5 -> temper/docs/design/client/ctl/areas-accounts.md 1
+title temper/docs/design/client/ctl/areas-forges.md: Forges through ctl
+temper/docs/design/client/ctl/areas.md 6 -> temper/docs/design/client/ctl/areas-forges.md 1
+
+# Keep ctl's one page and composition; isolate delivery, invocation and bounds.
+title temper/docs/design/client/ctl/requests.md: Requests through ctl
+temper/docs/design/client/ctl/README.md 5 -> temper/docs/design/client/ctl/requests.md 1
+title temper/docs/design/client/ctl/command-line.md: The ctl command line
+temper/docs/design/client/ctl/README.md 6 -> temper/docs/design/client/ctl/command-line.md 1
+title temper/docs/design/client/ctl/bounds.md: The ctl bounds
+temper/docs/design/client/ctl/README.md 9 -> temper/docs/design/client/ctl/bounds.md 1
+
+# Keep the family and work's read models; separate requests and deployment reads.
+title temper/docs/design/client/forge/records-requests.md: The forge's request records
+temper/docs/design/client/forge/records.md 2 -> temper/docs/design/client/forge/records-requests.md 1
+title temper/docs/design/client/forge/records-deployment.md: The forge's deployment records
+temper/docs/design/client/forge/records.md 3 -> temper/docs/design/client/forge/records-deployment.md 1
+temper/docs/design/client/forge/records.md 5 -> temper/docs/design/client/forge/records-deployment.md 2
+
+# Keep the Forges page and row; the connecting flow stands beside them.
+title temper/docs/design/client/forge/deployment-connect.md: Connecting a forge
+temper/docs/design/client/forge/deployment.md 2 -> temper/docs/design/client/forge/deployment-connect.md 1

@@ -1,4 +1,4 @@
-//! The rail's person and sign out (temper/docs/design/client/pages/README.md and temper/docs/design/client/view.md, 3).
+//! The rail's person and sign out (temper/docs/design/client/pages/README.md and temper/docs/design/client/view-navigation.md, 1).
 #![expect(clippy::disallowed_types, clippy::disallowed_methods, reason = "ordinary tests inspect semantic subtrees")]
 use super::fixtures as f;
 use crate::look;

@@ -8,7 +8,7 @@ no placeholder. Mail and the digest have no row: they are not built
 (`../../domain/forge/attention.md`, 7.4).
 
 - **Its address,** `Told`, at `/told`, of no project: the person's menu
-  (`../view.md`, 3) and, on a phone, the `Accounts` tab's last row
+  (`../view-navigation.md`, 1) and, on a phone, the `Accounts` tab's last row
   (`settings.md`, 1) open it. It takes the rail's frame and the column of
   Deployment's tabs, 720 wide, with no kicker and no tabs, under its own
   level-1 heading, "Telling you", and its lede, "When something needs
@@ -18,7 +18,7 @@ no placeholder. Mail and the digest have no row: they are not built
 - **Its reads:** the deployment's read's `push`, which the client holds
   from its start (`../forge/records.md`); the `devices` subject, watched
   while the page is open (`../forge/records.md`); and this browser's
-  state, which the shell reports (`../web/README.md`, 2.7): whether it
+  state, which the shell reports (`../web/push.md`, 1): whether it
   can be pushed to, its notification permission, and its subscription's
   endpoint, if it holds one. Until each answers, the page keeps what it
   last knew (`README.md`).

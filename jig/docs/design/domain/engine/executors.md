@@ -945,7 +945,7 @@ pub enum Request {
   spends no try, adds to no failure count, holds nothing and tells no
   one it failed. An application's change whose producer is suspended
   sees its producer live (6.3) and asks no repair, as a CI runner's
-  stop asks none (temper's `domain/landing.md`, 7.4); a check the stop
+  stop asks none (temper's `domain/landing-proof.md`, 2.4); a check the stop
   cut writes no results (temper's `domain/forge/reds.md`, 5.6), and the
   next attempt runs it again.
 

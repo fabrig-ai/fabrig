@@ -484,7 +484,7 @@ Focused and fuzzy alone; the drills run on the deployments after landing
   `application`'s `Kept` makes speaking from the floor to the current,
   each version's layout its `Spoken`'s.
 - **A story across versions,** in the one-process world
-  (`../testing/README.md`, 2.5), with the worker made to speak its wires'
+  (`../testing/tiers.md`, 1.5), with the worker made to speak its wires'
   floors alone and the engine its whole ranges: a goal through a
   landing, a close job, a chat resumed, a run adopted across an engine
   restart and sent a message, a call's answer and a renewed git

@@ -702,7 +702,7 @@ fn locate_refused(d: &mut Domain, env: &Env<Limits>, request: Token, why: Adopti
 }
 
 /// Release adoptions after the core has erased the project's tasks
-/// (jig/docs/design/domain/people/acts.md, 2; temper/docs/design/domain/forge/adoption.md, 1).
+/// (jig/docs/design/domain/people/acts.md, 2; temper/docs/design/domain/forge/adoption-connection.md, 1).
 pub(crate) fn release(d: &mut Domain, env: &Env<Limits>, project: u32, request: Token, out: &mut Queue<Request>) {
     let mut repositories = List::with_capacity(d.repositories.capacity());
     for (provider, row) in &d.repositories {

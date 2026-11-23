@@ -1,4 +1,4 @@
-//! Seed outputs owned by one fake-peer start (temper/docs/design/protocol/setup/box.md, 5).
+//! Seed outputs owned by one fake-peer start (temper/docs/design/protocol/setup/box-backends.md, 1).
 use std::{
     fs::{self, File, OpenOptions},
     io::{self, Read, Write},

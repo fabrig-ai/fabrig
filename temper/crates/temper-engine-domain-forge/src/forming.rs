@@ -1,4 +1,4 @@
-//! Sealed, indivisible units selected in queue order (domain/landing.md, 4.1, 9).
+//! Sealed, indivisible units selected in queue order (domain/landing.md, 4.1, domain/landing-turn.md, 2).
 use crate::{ChangeDependencies, Domain};
 use alloc::boxed::Box;
 use skein_lib::{List, Wall};
@@ -215,7 +215,7 @@ impl Domain {
         true
     }
 
-    /// A landing ends for its train alone (domain/landing.md, 4.2 and 9).
+    /// A landing ends for its train alone (domain/landing.md, 4.2, and domain/landing-turn.md, 2).
     #[must_use]
     pub fn waiting_after_landing(&self, task: u64, limit: u32) -> Box<[u64]> {
         let mut waiting = List::with_capacity(limit);

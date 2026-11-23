@@ -1,4 +1,4 @@
-//! Settings rows and their bounds (temper/docs/design/protocol/store.md, sections 2 to 4).
+//! Settings rows and their bounds (temper/docs/design/protocol/store.md, sections 2 to 3, and temper/docs/design/protocol/store-versions.md, section 1).
 use super::fixtures;
 use crate::{Undecodable, keys, records, v25 as w};
 use skein_codec::Record;

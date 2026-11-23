@@ -1,4 +1,4 @@
-//! History through a registry and job upgrade (temper/docs/design/testing/README.md, 2.5).
+//! History through a registry and job upgrade (temper/docs/design/testing/tiers.md, 1.5).
 mod cuts;
 mod history;
 mod image;

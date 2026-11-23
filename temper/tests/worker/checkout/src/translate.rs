@@ -364,7 +364,7 @@ fn perform_unchecked(forge: &mut impl Remote, disk: &mut Checkout, op: Op) -> Do
 }
 
 /// `perform`, with the git layer's rules on the checkout's `conflicts`
-/// (temper/docs/design/protocol/git.md, 4.6 and 4.7).
+/// (temper/docs/design/protocol/git-operations.md, 1.6 and 1.7).
 pub fn perform_within(forge: &mut impl Remote, disk: &mut Checkout, op: Op, conflicts: u32) -> Done {
     let merge = matches!(op, Op::Merge { .. });
     match perform(forge, disk, op) {

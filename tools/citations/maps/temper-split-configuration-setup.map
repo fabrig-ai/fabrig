@@ -1,0 +1,48 @@
+# The first split pass (temper/docs/design/draft/design-upkeep.md, 4.3): protocol's configuration and setup.
+
+# The settings catalogue and the output-derived bounds, beside the settings' lifecycle.
+title temper/docs/design/protocol/configuration/settings-kinds.md: temper's settings kinds
+temper/docs/design/protocol/configuration/settings.md 2 -> temper/docs/design/protocol/configuration/settings-kinds.md 1
+
+title temper/docs/design/protocol/configuration/settings-output.md: Settings for a model with a larger output
+temper/docs/design/protocol/configuration/settings.md 7 -> temper/docs/design/protocol/configuration/settings-output.md 1
+
+# Worker and agent configuration share the worker's start; deployment startup stands apart.
+title temper/docs/design/protocol/configuration/worker.md: A worker's configuration
+temper/docs/design/protocol/configuration/README.md 3 -> temper/docs/design/protocol/configuration/worker.md 1
+temper/docs/design/protocol/configuration/README.md 4 -> temper/docs/design/protocol/configuration/worker.md 2
+
+title temper/docs/design/protocol/configuration/startup.md: Configuration at a start
+temper/docs/design/protocol/configuration/README.md 6 -> temper/docs/design/protocol/configuration/startup.md 1
+
+# The limits catalogue's headings were added in the preparation commit.
+title temper/docs/design/protocol/configuration/limits-startup.md: Limits checked at startup
+temper/docs/design/protocol/configuration/limits.md 5 -> temper/docs/design/protocol/configuration/limits-startup.md 1
+
+title temper/docs/design/protocol/configuration/limits-client.md: Engine and client bounds
+temper/docs/design/protocol/configuration/limits.md 6 -> temper/docs/design/protocol/configuration/limits-client.md 1
+
+# Supervision, fake backends and the front's pipe, beside the box's step layout.
+title temper/docs/design/protocol/setup/box-supervision.md: The box's supervision
+temper/docs/design/protocol/setup/box.md 2 -> temper/docs/design/protocol/setup/box-supervision.md 1
+
+title temper/docs/design/protocol/setup/box-backends.md: The box's fake backends
+temper/docs/design/protocol/setup/box.md 5 -> temper/docs/design/protocol/setup/box-backends.md 1
+
+title temper/docs/design/protocol/setup/box-front.md: The box's front
+temper/docs/design/protocol/setup/box.md 6 -> temper/docs/design/protocol/setup/box-front.md 1
+
+# Keep fetching and its pin table in owned.md.
+title temper/docs/design/protocol/setup/owned-repositories.md: An owned forge's repositories
+temper/docs/design/protocol/setup/owned.md 7 -> temper/docs/design/protocol/setup/owned-repositories.md 1
+temper/docs/design/protocol/setup/owned.md 9 -> temper/docs/design/protocol/setup/owned-repositories.md 2
+
+title temper/docs/design/protocol/setup/owned-sign-in.md: Signing in to an owned forge
+temper/docs/design/protocol/setup/owned.md 8 -> temper/docs/design/protocol/setup/owned-sign-in.md 1
+
+# Webhook delivery and the setup's crate layout, beside modes and credentials.
+title temper/docs/design/protocol/setup/webhooks.md: Webhooks on a box
+temper/docs/design/protocol/setup/README.md 6 -> temper/docs/design/protocol/setup/webhooks.md 1
+
+title temper/docs/design/protocol/setup/crate-layout.md: The setup's crates
+temper/docs/design/protocol/setup/README.md 7 -> temper/docs/design/protocol/setup/crate-layout.md 1

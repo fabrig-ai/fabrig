@@ -1,4 +1,4 @@
-//! Drain before closing children, close the store last (protocol/README.md, 4, 6).
+//! Drain before closing children, close the store last (protocol/service-routing.md, 1, protocol/service-process.md, 1).
 use crate::{End, Stop, engine::Engine};
 use jig_protocol_config::{Path, Problems, What};
 use temper_engine_domain as root;

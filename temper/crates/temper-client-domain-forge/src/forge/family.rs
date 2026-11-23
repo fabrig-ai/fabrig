@@ -564,7 +564,7 @@ pub fn follow_act(value: w::FollowActRequest, limits: &w::Limits) -> Option<jig_
     })
 }
 
-/// A keyed tier hold or release (temper/docs/design/domain/after-landing.md, 3).
+/// A keyed tier hold or release (temper/docs/design/domain/after-landing-runs.md, 2).
 #[must_use]
 pub fn tier_act(value: w::TierActRequest, limits: &w::Limits) -> Option<jig_client::Ask> {
     let project = value.project;

@@ -1,4 +1,4 @@
-//! Design edits through the shipped profile (temper/docs/design/protocol/configuration/settings.md, 7).
+//! Design edits through the shipped profile (temper/docs/design/protocol/configuration/settings-output.md, 1).
 #![expect(clippy::disallowed_methods, reason = "ordinary test code inspects the fake checkout's tree")]
 
 use super::fixtures::{self, call, parse};

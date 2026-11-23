@@ -114,7 +114,7 @@ section 5, is `../client/pages/milestone.md` and the pages it names.
   more fit what is left (jig's `domain/authority.md`, 5), so a goal
   narrowed to what is left less one leaves the next goal room, each
   later goal's allowance one less, as a change's is narrowed to its
-  goal's (`agent/tools.md`, 1). jig checks
+  goal's (`agent/tools-change.md`, 1). jig checks
   it against both the party's role and what the milestone has left,
   refusing at admission (jig's `domain/authority.md`, 8.4); the tool
   prints that refusal.

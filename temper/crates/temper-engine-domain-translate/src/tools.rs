@@ -270,7 +270,7 @@ pub enum FindingCall {
     },
 }
 
-/// One change of a `change` call (domain/agent/tools.md, 1).
+/// One change of a `change` call (domain/agent/tools-change.md, 1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ChangeCall {
     pub words: Box<[u8]>,
@@ -286,7 +286,7 @@ pub struct ChangeCall {
     pub llm: ChangeLlm,
 }
 
-/// A change's LLM choices by role (domain/agent/tools.md, 1; domain/forge/change/README.md, 1).
+/// A change's LLM choices by role (domain/agent/tools-change.md, 1; domain/forge/change/README.md, 1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ChangeLlm {
     pub producer: Option<tasks::LlmChoice>,
@@ -319,28 +319,28 @@ impl ChangeCall {
     }
 }
 
-/// A change's landing choice (domain/agent/tools.md, 1).
+/// A change's landing choice (domain/agent/tools-change.md, 1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum ChangeLanding {
     Goal,
     Branch(Box<[u8]>),
 }
 
-/// How a change takes its agents' questions (domain/agent/tools.md, 1).
+/// How a change takes its agents' questions (domain/agent/tools-change.md, 1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum ChangeQuestions {
     None,
     Up,
 }
 
-/// A change's branch choice (domain/agent/tools.md, 1).
+/// A change's branch choice (domain/agent/tools-change.md, 1).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum ChangeBranch {
     /// Its requester's held branch: the goal branch it holds in the change's repository.
     Mine,
 }
 
-/// A change's dependency within a call (domain/agent/tools.md, 1).
+/// A change's dependency within a call (domain/agent/tools-change.md, 1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum ChangeAfter {
     Task(u64),

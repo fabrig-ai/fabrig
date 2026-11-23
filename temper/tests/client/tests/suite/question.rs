@@ -1,4 +1,4 @@
-//! Inbox questions and the conversation around them, client/pages/README.md and client/README.md, 3.6.
+//! Inbox questions and the conversation around them, client/pages/README.md and client/root.md, 1.6.
 use jig_client_kit::harness::{ClientId, Fault, FrontFault, Until, World};
 use skein_fake_person::{Face, Find, Found, Step, TreeFace};
 use skein_lib::Duration;
@@ -314,7 +314,7 @@ fn inbox_answer_is_acknowledged_and_keeps_lines_after_navigation_and_reload() {
             Step::Go { address: f::chat_page(task) },
             see(Find::exactly_named(Role::Heading { level: 1 }, format!("T{task} · Question chat").as_bytes())),
             Step::Reload,
-            // A client closed on any page opens at the inbox (client/README.md, 3.4).
+            // A client closed on any page opens at the inbox (client/root.md, 1.4).
             see(Find::exactly_named(Role::Heading { level: 1 }, b"Inbox")),
             Step::Go { address: f::chat_page(task) },
             see(question.acknowledged()),

@@ -1,4 +1,4 @@
-//! Landing verification stories (temper/docs/design/domain/after-landing.md, 5.3, 6 and 10).
+//! Landing verification stories (temper/docs/design/domain/after-landing.md, 5.3 and 6, and temper/docs/design/domain/after-landing-storage.md, 1).
 #[path = "verification/switched.rs"]
 mod switched;
 use super::*;

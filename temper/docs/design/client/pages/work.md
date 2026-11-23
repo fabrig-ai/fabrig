@@ -8,8 +8,8 @@
   `/projects/<project>/work`, one list of the project's work, under way and
   lately done, a project page in the rail's frame, a column as Home's, at
   most 720 px wide and centred, its parts 60 px apart, 32 on a phone. Its
-  filter, `WorkFilter`, All or Drafts, is in its address (`../web/README.md`,
-  2.3). Goals and Changes are Work's filters at their own addresses,
+  filter, `WorkFilter`, All or Drafts, is in its address (`../web/addresses.md`,
+  1). Goals and Changes are Work's filters at their own addresses,
   `Goals { project, filter }` and `Changes { project }` (1, *Goals*;
   `../forge/pages.md`, *Changes*), and Chats is reached from it (`chats.md`, 1).
   Choosing a filter is a move.
@@ -32,7 +32,7 @@
     open of Work, a reload among them, under each of its filters (All and
     Drafts, Goals' four, Changes), is drawn whole in two waves and two
     requests after its page and bundle, whatever the project's size: the
-    stream, whose hello brings `me` (`../README.md`, 3.4), then one batch
+    stream, whose hello brings `me` (`../root.md`, 1.4), then one batch
     (jig's `protocol/client/default-http.md`, 6) carrying every read and
     watch the frame and the page open.
     - *A wave* is every exchange the client has sent that waits for an
@@ -51,7 +51,7 @@
       `Budget { waves: 2, requests: 2 }`, the record a later page's budget
       takes too (`../../draft/page-round-trips.md`, section 10).
     - *What holds it.* Nothing leaves before the hello but the stream
-      (`../README.md`, 3.4); a reload's kept keyed requests leave once
+      (`../root.md`, 1.4); a reload's kept keyed requests leave once
       the hello's `me` confirms their party (jig's
       `client/domain/client/README.md`, 8), beside the batch. Nothing waits for
       another answer: no read per row (`../forge/parts.md`, 5); no ended
@@ -61,7 +61,7 @@
       Chats page alone draws (`chats.md`, 1), and no `deployment` watch,
       which only a page judging a model usable reads
       (`../forge/family.md`, 7). The session's own reads and watches
-      (`../README.md`, 3.4) and the project's settings' reads stay
+      (`../root.md`, 1.4) and the project's settings' reads stay
       open whatever the page and ride in the same batch: the frame draws
       from most of them, and closing the others on Work only to open them
       again on the next page would cost requests that keeping them
@@ -349,7 +349,7 @@
   Work's head and filters, "Goals" current, take its kicker's place, and
   under them are the project's goals, the filter in its address:
   `GoalsFilter`, All, Needs, Live or Ended, whose query is `?state=needs`,
-  `?state=live` or `?state=ended` (`../web/README.md`, 2.3). Choosing one is a move.
+  `?state=live` or `?state=ended` (`../web/addresses.md`, 1). Choosing one is a move.
   A goal is a tracked agent's task (`goal.md`, 2) at its own `Task` address, so that
   Goals is the list and draws no goal page. Its parts, in order:
   - **Its intro:** under Work's head and filters, the heading, at
@@ -434,7 +434,7 @@
     one function of the view's parts, `shared::row_title`, which the
     chats' heading's cut (`chat::short_title`, at 72) shares, and which
     every line, row and card naming a task by its title takes
-    (`README.md`, 2, *A task's title on a line*): Work's chat cards,
+    (`shared-behaviour.md`, 1, *A task's title on a line*): Work's chat cards,
     landed drafts, nested rows and from lines, and a milestone group's
     rows, as this row.
 
@@ -514,7 +514,7 @@
   draft. Default: so; a landed draft's row names its goal, which a later
   card may read.
 - **A week's landings past the log** (1, *Work*): Landed this week reads the
-  landing log (`../../domain/after-landing.md`, section 10), a ring of
+  landing log (`../../domain/after-landing-storage.md`, section 1), a ring of
   `landings_kept` landings per repository, through `landed_default`'s
   `forge.changes_landed` rows, so a busy week's landings into goal branches
   can push its older landing-branch landings out of the ring, and more than

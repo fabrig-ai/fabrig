@@ -1,4 +1,4 @@
-//! Verdict projections and their ordered writes (temper/docs/design/domain/after-landing.md, 3, 9 and 10).
+//! Verdict projections and their ordered writes (temper/docs/design/domain/after-landing-runs.md, 2, and temper/docs/design/domain/after-landing.md, 9, and temper/docs/design/domain/after-landing-storage.md, 1).
 use super::{Box, Commit, Domain, Env, Limits, List, Request, TierRow, Write, api, joined, p};
 use skein_lib::Queue;
 

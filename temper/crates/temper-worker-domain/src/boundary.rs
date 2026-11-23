@@ -173,7 +173,7 @@ pub enum Event {
     },
 }
 
-/// The checkout operations with operator lines (domain/worker/README.md, 4.3).
+/// The checkout operations with operator lines (domain/worker/hosted-runs.md, 1.3).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Git {
     Fetch { want: git::Want, into: git::Into },
@@ -187,7 +187,7 @@ pub enum Request {
     Paused {
         state: jig_domain_link::PauseState,
     },
-    /// Each fetch and check out as the checkout asks it (domain/worker/README.md, 4.3).
+    /// Each fetch and check out as the checkout asks it (domain/worker/hosted-runs.md, 1.3).
     Git {
         run: Token,
         attempt: Token,
@@ -202,7 +202,7 @@ pub enum Request {
         signal: smith_host_domain::parent::Signal,
         from: Option<u32>,
     },
-    /// The first agent fault of an attempt, before its answer (domain/worker/README.md, 4.3).
+    /// The first agent fault of an attempt, before its answer (domain/worker/hosted-runs.md, 1.3).
     AgentStopped {
         run: Token,
         attempt: Token,

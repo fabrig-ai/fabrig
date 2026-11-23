@@ -208,7 +208,7 @@ fn broken_io_kills_the_group_named_closed() {
     }
 }
 
-/// temper/docs/design/protocol/git.md, 4.5 and 6: one deadline, distinct invocations.
+/// temper/docs/design/protocol/git-operations.md, 1.5, and temper/docs/design/protocol/git.md, 6: one deadline, distinct invocations.
 #[test]
 fn checkout_and_clean_deadlines_name_the_invocation_in_flight() {
     for (during_clean, word) in [(false, b"checkout".as_slice()), (true, b"clean".as_slice())] {
@@ -582,7 +582,7 @@ fn a_point_spawns_one_local_update_ref_without_an_identity() {
     }
 }
 
-/// temper/docs/design/protocol/git.md, 4.6: merge progress is not a parsed result.
+/// temper/docs/design/protocol/git-operations.md, 1.6: merge progress is not a parsed result.
 #[test]
 fn a_merges_progress_stdout_does_not_refuse_its_conflict_listing() {
     for code in [0, 1] {

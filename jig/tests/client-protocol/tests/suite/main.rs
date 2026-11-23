@@ -5,6 +5,7 @@ mod client;
 mod deadline_spans;
 mod me;
 mod native;
+mod open_problems;
 mod orders;
 mod party_notes;
 mod protocol;

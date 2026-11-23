@@ -2,7 +2,7 @@
 
 2026-11-15. Where the design lags or departs from [early-start-checked.md](early-start-checked.md).
 
-The design carries the draft: sections 1 and 2 in `../domain/forge/change/questions.md`, 1 (*Early starts*: *When*, *A checked head*, *From what* and *It is told*), with `../domain/forge/change/README.md`, 2, step 1 and `../domain/agent/README.md`, section 5; section 3 in the stock charters, `temper/docs/charters/stock/designer.md`, `implementer.md` and `coordinator.md` (`stock-charters.status.md`, 9.3 to 9.5).
+The design carries the draft: sections 1 and 2 in `../domain/forge/change/questions.md`, 1 (*Early starts*: *When*, *A checked head*, *From what* and *It is told*), with `../domain/forge/change/README.md`, 2, step 1 and `../domain/agent/README.md`, section 5; section 3 in the stock charters, `temper/docs/charters/stock/designer.md`, `implementer.md` and `coordinator.md` (`stock-charters-texts.status.md`, 1.3 to 1.5).
 
 - **Design lags:** none.
 - **Design departs:**

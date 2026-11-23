@@ -1,11 +1,11 @@
-//! The directory's sign-in note (temper/docs/design/client/tui/README.md, 2).
+//! The directory's sign-in note (temper/docs/design/client/tui/directory.md, 1).
 use alloc::boxed::Box;
 use skein_lib::{
     Decimal, Wall,
     bytes::{concat, decimal},
 };
 
-/// DIRECTORY/sign-in for one address (temper/docs/design/client/tui/README.md, 2).
+/// DIRECTORY/sign-in for one address (temper/docs/design/client/tui/directory.md, 1).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Note {
     Until(Wall),

@@ -100,6 +100,23 @@ class Status(unittest.TestCase):
                 f"{DESIGN}/draft/archive/d.status.md": OPENING + "No gap.\n",
                 f"{DESIGN}/e.status.md": OPENING + "No gap.\n"},
              expected(done=f"- {DESIGN}/draft/a.md\n- {DESIGN}/draft/b.md\n- {DESIGN}/draft/c.md")),
+            ("notes and execution are not drafts", {
+                f"{DESIGN}/draft/a.notes.status.md": OPENING + "No gap.\n",
+                f"{DESIGN}/draft/a.execution.status.md": OPENING + "No gap.\n",
+                f"{DESIGN}/draft/b.status.md": OPENING + "No gap.\n",
+                f"{DESIGN}/draft/archive/a.notes.status.md": OPENING + "No gap.\n",
+                f"{DESIGN}/draft/archive/a.execution.status.md": OPENING + "No gap.\n"},
+             expected(done=f"- {DESIGN}/draft/b.md")),
+            ("notes and execution statuses still read", {
+                f"{DESIGN}/draft/a.notes.status.md": OPENING + "- **Open:** decision\n",
+                f"{DESIGN}/draft/a.execution.status.md": OPENING + "- **Not yet:** 1: x\n",
+                f"{DESIGN}/draft/b.notes.status.md": OPENING + "No known gaps.\n",
+                f"{DESIGN}/draft/b.execution.status.md": ""},
+             expected(counts="1 Not yet (0 in flight), 0 Departs, 0 Design lags, 0 Design departs, 1 Open",
+                      opened=f"- {DESIGN}/draft/a.execution.status.md, 2026-11-20: 1 Not yet\n"
+                      + f"- {DESIGN}/draft/a.notes.status.md, 2026-11-20: 1 Open",
+                      unread=f"- {DESIGN}/draft/b.execution.status.md\n"
+                      + f"- {DESIGN}/draft/b.notes.status.md")),
             ("unread", {
                 f"{DESIGN}/draft/a.status.md": OPENING + "No known gaps.\n",
                 f"{DESIGN}/draft/b.status.md": "# b: status\n\n- **Not yet:** 1: x\n",

@@ -191,7 +191,7 @@ pub fn showing(root: &Domain, object: jig_client::contract::ObjectKey) -> bool {
         None => false,
     }
 }
-/// Each confirmation's sheet (client/README.md, 3.6, The sheet).
+/// Each confirmation's sheet (client/root.md, 1.6, The sheet).
 struct Sheet {
     title: Word,
     keep: Word,

@@ -1,4 +1,4 @@
-// temper/docs/design/client/web/README.md, 2.7. No fetch handler or cache.
+// temper/docs/design/client/web/push.md, 1. No fetch handler or cache.
 self.addEventListener("push", event => {
     let title = "temper", body = "Something needs you.", project = null;
     try {

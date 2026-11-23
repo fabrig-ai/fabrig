@@ -28,7 +28,7 @@ acts on it as its document offers (4).
   its acts' outcome; "Result", once it has ended; "Plan",
   while its tree holds a delegate or a held task's card; the composer
   while Message is offered (4); then the confirmation while one is
-  open (`../README.md`, 3.6). At phone width the order is
+  open (`../root.md`, 1.6). At phone width the order is
   the same: the lineage bar keeps one line, its titles cut short, and
   the taskbar's parts wrap.
 - **What scrolls,** in a browser: the log alone, as on a chat's page, so
@@ -44,7 +44,7 @@ acts on it as its document offers (4).
 - **The lineage bar:** its parent, the last of its lineage
   (`lineage_chips`, root first), as its "Task N" link and its title,
   after an arrow; then the task itself, "Task M" and its title, each
-  title cut past 80 characters (`README.md`, 2, *A task's title on a
+  title cut past 80 characters (`shared-behaviour.md`, 1, *A task's title on a
   line*). With no
   lineage supplied, the parent is its requester's "Task N" link when a
   task asked it, and there is none otherwise. The arrow and the slash
@@ -58,7 +58,7 @@ acts on it as its document offers (4).
 - **"Task brief":** a region, the mockup's "TASK BRIEF", whose capitals
   are the look's: its specification as written (`spec`, read as
   Markdown), left out where its words are only the title the taskbar
-  draws (`README.md`, 2, *A task's words after its title*); who asked, in `goal.md`, 2's words ("Asked by
+  draws (`shared-behaviour.md`, 1, *A task's words after its title*); who asked, in `goal.md`, 2's words ("Asked by
   task N"); then its dependency line, as a plan row's (`goal.md`, 2): the list
   "Dependencies of task N", one item per dependency of its document
   (`dependencies`), in order, keyed by its task, with its "Task M"
@@ -117,7 +117,7 @@ acts on it as its document offers (4).
   agent's page: its held cards are what this page may act on.
 - **Against its mockup,** the page's way:
   - links and the lineage name a task "Task N", the mockup's "T12"
-    (`README.md`, 2, "Links are by number"); the executor is "Agent", where the
+    (`shared-behaviour.md`, 1, "Links are by number"); the executor is "Agent", where the
     mockup names the charter (`README.md`);
   - the playground's banner stays where the frame draws it, before the page,
     where the mockup draws it under the taskbar (`../view.md`, 1);
@@ -272,7 +272,7 @@ supplies it: the page computes none (jig's `client/domain/contract/documents.md`
   read at its head with its record, through a restart too, so its CI is
   unknown only when no step read one at that head between the engine's
   last start and the landing, and no step reads it after
-  (`../../domain/forge/change/README.md`, 5). Then each gate, in the supplied
+  (`../../domain/forge/change/panel.md`, 1). Then each gate, in the supplied
   order: "Gate N · review", "· approval" or "· check", then "·
   blocking" or "· advisory", and its verdict: "Not yet" with none,
   "Waiting" pending, "Approved", "Changes asked". With no gate, a last
@@ -281,7 +281,7 @@ supplies it: the page computes none (jig's `client/domain/contract/documents.md`
   of M · updates N of M", each used of its limit (2.2).
 - **Against its mockup,** the page's way:
   - links name a task "Task N", the tag "Change · Task N", the mockup's
-    "T28" and "Change · T28" (`README.md`, 2, "Links are by number");
+    "T28" and "Change · T28" (`shared-behaviour.md`, 1, "Links are by number");
   - not drawn, since the panel does not carry them (`../forge/served.md`, 2):
     the "Fixes finding" notice (findings are a gap,
     `../web/mockups/README.md`); the head's requirements, its heads in order,
@@ -321,10 +321,10 @@ supplies it: the page computes none (jig's `client/domain/contract/documents.md`
 
 A goal's page (`goal.md`, 2) and an agent's task's page (2) act on their task
 as a chat's page acts on its chat (`README.md`): through the acts its document
-offers (`Task.acts`, read through `acts::offers`), each sent as `../README.md`, 3.6
+offers (`Task.acts`, read through `acts::offers`), each sent as `../root.md`, 1.6
 says. An act the document does not offer is not drawn, not even
 disabled. One it offers is drawn by its admission (jig's
-`client/domain/contract/documents.md`, 3), as a held task's card draws its own (`../README.md`, 3.6):
+`client/domain/contract/documents.md`, 3), as a held task's card draws its own (`../root.md`, 1.6):
 
 - *allowed* or *bounded:* its button;
 - *proposable:* its name, then the card's "This needs a proposal to"
@@ -344,7 +344,7 @@ Its rules on a goal's page:
   revision, at once, no confirmation. A subtree hold's root released lifts it
   whole. Its toast: "Resumed." A goal held for any other cause has no Resume:
   its band has the need.
-- **Close** opens the confirmation (`confirm.rs`, `Role::Dialog`, `../README.md`, 3.6, *The sheet*):
+- **Close** opens the confirmation (`confirm.rs`, `Role::Dialog`, `../root.md`, 1.6, *The sheet*):
   "Close this goal?", then "You can still read it, but it can’t be reopened." and
   "What landed on its branch stays there.", "Keep it", "Close goal". It sends
   `Ask::Cancel` with the reason "Closed from its page". A goal branch nothing
@@ -363,7 +363,7 @@ Its rules on a goal's page:
   act). It says Pause's and Resume's done words, a Pause's, Resume's, Close's or
   Message's refusal in jig's words, with "Look again" after a moved one, which
   closes it, and "Unknown" past the engine's retention. Nothing is shown done
-  before its answer; a pending request's double press joins it (`../README.md`, 3.6).
+  before its answer; a pending request's double press joins it (`../root.md`, 1.6).
 - **No own held card, no held rows:** a goal's page reads no card of its own and
   none for a delegate: a held delegate's Release is on its own page, and a
   need of the reader's is a band.
@@ -376,11 +376,11 @@ Its rules on an agent's task's page:
   The taskbar's acts wrap as a chat's do. While the page's confirmation is
   open, the taskbar draws no act: the dialog is the one place to answer.
 - **Its own held card.** While the page's task is held for any cause but
-  the person's own pause, its held task's card (`../README.md`, 3.6), with Release and its
+  the person's own pause, its held task's card (`../root.md`, 1.6), with Release and its
   confirmation, follows the agent's run heading. The task is no row of its
   own plan, so its plan never draws it; a delegate's held card stays in its
   row. Release names the hold's revision, and a moved one's refusal asks the
-  person to look again (`../README.md`, 3.6).
+  person to look again (`../root.md`, 1.6).
 - **The composer,** while Message is offered: the chat's composer (`README.md`, `../view.md`, 1),
   with its model choice line, its text area "Message", its hint and "Send",
   preceded by the note "Steer this task · words reach its live run at the next
@@ -402,7 +402,7 @@ Its rules on an agent's task's page:
   role's reply as its run's turns, as any run's on this page. Under it,
   small and muted, the terminal's command: "Or in a terminal: temper ctl
   DIR role talk N TEXT --key KEY", N the task's number
-  (`../ctl/tools.md`, 3). While the document's `talk` names the person
+  (`../ctl/tools-acts.md`, 1). While the document's `talk` names the person
   reading, "Leave" stands among the taskbar's acts, before "Pause":
   `Ask::Leave { project, task }` at once, no confirmation, its toast "Left:
   its next session starts fresh from its Now."; a refusal of either says
@@ -414,7 +414,7 @@ Its rules on an agent's task's page:
   and on the person's own pause "Resume", `Ask::Release` naming the hold's revision,
   at once. The page's state says "Paused"; neither draws a done word, and a refusal
   says why as any of its acts' does.
-- **Close,** confirmed (`../README.md`, 3.6, *The sheet*): "Close this task?" saying "You can still
+- **Close,** confirmed (`../root.md`, 1.6, *The sheet*): "Close this task?" saying "You can still
   read it, but it can’t be reopened." and what it changes, then "Keep it" and "Close
   task". It sends `Ask::Cancel` with the reason "Closed from its page".
 
@@ -422,7 +422,7 @@ On both:
 
 - **Amend** opens the amendment's editor, laid out where the page says (above):
   a region "Amend task N". The draft
-  is the amendment editor's (`../README.md`, 3.7), `amend::Draft::of` the task's
+  is the amendment editor's (`../root.md`, 1.7), `amend::Draft::of` the task's
   document as read when it opens, and the page lays out two of its
   edits, no other:
   - "Specification", a text area holding the spec's words, its edit
@@ -439,7 +439,7 @@ On both:
   changed since the editor opened" and draws no "Send amendment": the
   person discards and opens it again on the new document. Otherwise it
   sends `Ask::Amend` with the drafted change, the drafted revision
-  (none for a tracked task's priority alone, `../README.md`, 3.7) and the reason
+  (none for a tracked task's priority alone, `../root.md`, 1.7) and the reason
   "Amended from its page"; a refusal as moved in between says so with
   "Look again" (below). Its outcome is the editor's: pending, then the
   answer in jig's words in the region, a refusal as moved with "Look
@@ -451,7 +451,7 @@ On both:
   dependencies, the deadline, wake and an addressee are `temper ctl
   task amend`'s alone (`../ctl/areas.md`).
 - **Their outcome.** One request per kind of act at a time; a double
-  press joins the pending one (`../README.md`, 3.6). On an agent's task's page: pending, its
+  press joins the pending one (`../root.md`, 1.6). On an agent's task's page: pending, its
   progress as a card says it; answered, the outcome in jig's words, or the
   refusal in jig's words, with "Look again" after a moved one; past the
   engine's retention, "Unknown". It follows the conversation, as a chat's. On a
@@ -468,8 +468,8 @@ On both:
   - the composer carries the chat's model choice line, which the
     mockup's agent page does not draw (`README.md`);
   - the composer shows while Message is offered, the mockup's while the
-    task lives, and a refused Message says why in its place (`../README.md`, 3.6);
-  - each confirmation, and an act's outcome and refusal, are `../README.md`, 3.6's: the
+    task lives, and a refused Message says why in its place (`../root.md`, 1.6);
+  - each confirmation, and an act's outcome and refusal, are `../root.md`, 1.6's: the
     mockup's buttons do nothing;
   - its own held card, which no mockup world draws;
   - the acts hidden while the confirmation is open.
@@ -551,7 +551,7 @@ On both:
   - its acts are 4's.
 - **A task's page's acts** (4), each a default the user may change:
   - an agent's task's Pause sent at once, as a chat's and a goal's, though that
-    page acts on work the person may not be watching: Resume undoes it (`../README.md`, 3.6). A
+    page acts on work the person may not be watching: Resume undoes it (`../root.md`, 1.6). A
     sheet on it is the candidate;
   - Close on a goal's and an agent's task's page alone; a procedure's Cancel, which
     no page draws, is reached from `temper ctl`;

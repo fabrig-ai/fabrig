@@ -15,7 +15,7 @@ fn unswept_lines_escape_the_path_and_name_the_error() {
     );
 }
 
-/// domain/worker/README.md, 4.3: sources, destinations and names stay on one line.
+/// domain/worker/hosted-runs.md, 1.3: sources, destinations and names stay on one line.
 #[test]
 fn git_fetch_words_name_each_source_and_destination() {
     use temper_worker_domain::{
@@ -177,7 +177,7 @@ fn unprepared_words_name_the_run_failure_and_escape_the_hosted_detail() {
     );
 }
 
-/// temper/docs/design/domain/worker/README.md, 4.3: agent faults use serve's failure form.
+/// temper/docs/design/domain/worker/hosted-runs.md, 1.3: agent faults use serve's failure form.
 #[test]
 fn agent_stopped_words_include_only_the_no_progress_bound() {
     use jig_domain_host::AgentFailure;

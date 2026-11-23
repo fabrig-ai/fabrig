@@ -1,4 +1,4 @@
-//! Inbox acts retain the document revision that the person acted on (client/README.md, 3.6).
+//! Inbox acts retain the document revision that the person acted on (client/root.md, 1.6).
 use crate::{
     Limits,
     owner::Owner,
@@ -17,7 +17,7 @@ pub struct Confirm {
     pub revision: Option<contract::Revision>,
     pub act: ActKind,
     pub again: Option<bool>,
-    /// The ask this sheet sent, until it is answered (client/README.md, 3.6).
+    /// The ask this sheet sent, until it is answered (client/root.md, 1.6).
     pub sent: Option<Key>,
     /// Its last answer other than done, said above its acts.
     pub failed: Option<jig_client::Outcome>,

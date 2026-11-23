@@ -187,7 +187,7 @@ pub enum Recovery {
 
 /// Effect form and recovery class declared by the forge connector.
 ///
-/// The kinds follow domain/forge/README.md, section 4, one kind per row:
+/// The kinds follow domain/forge/effects.md, section 1, one kind per row:
 /// 3 opens pulls, 10 edits their title/body, 11 updates from the base,
 /// 4 merges, 12 closes/reopens, 5 posts reviews, 7 posts comments,
 /// 6 sets statuses, 8 creates issues, 13 edits/closes/reopens issues,
