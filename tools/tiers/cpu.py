@@ -318,12 +318,17 @@ def ledger(path):
         if not isinstance(value, dict) or value.keys() - set(GROUPS):
             raise ValueError(f'invalid ledger groups for {label}')
 
-    keys(data, {'ledger', 'profile', 'binaries', 'budgets', 'moves'}, 'ledger')
+    expected = {'ledger', 'profile', 'binaries', 'budgets', 'moves'}
+    if isinstance(data, dict) and data.get('ledger') == 6 and 'coverage_reasons' in data:
+        expected.add('coverage_reasons')
+    keys(data, expected, 'ledger')
     version = data['ledger']
     if type(version) is not int or not 1 <= version <= 6:
         raise ValueError('ledger version must be 1 to 6')
     if data['profile'] not in ('default', 'fuzzy'):
         raise ValueError('ledger profile must be default or fuzzy')
+    if 'coverage_reasons' in data:
+        validate_coverage_reasons('ledger', data['coverage_reasons'])
     if not isinstance(data['binaries'], dict):
         raise ValueError('ledger binaries must be an object')
     for binary, entry in data['binaries'].items():
@@ -954,16 +959,18 @@ def one_process_summary(directory, limits, pair, run, gate=False, ledger=None, b
         warnings.append(f"test swings alone at main: {row['binary_id']} {row['test_name']}: "
                         f'{a:.3f}, {b:.3f}, {c:.3f} CPU s alone')
     over = [line + '\n' + REPAIR_LINE for line in over]
-    coverage_reasons = []
+    coverage_reasons, coverage_moves = [], []
     if ledger is not None:
-        coverage_reasons = coverage_verdict(data, head, suite_processes, ledger, partial,
-                                            gate_limits.get('coverage_reasons', []), over, warnings)
+        main_reasons = ledger.get('coverage_reasons', [])
+        new_reasons = [reason for reason in gate_limits.get('coverage_reasons', []) if reason not in main_reasons]
+        coverage_reasons, coverage_moves = coverage_verdict(
+            data, head, suite_processes, ledger['binaries'], partial, new_reasons, over, warnings)
     verdict = ('over budget' if over else 'starved' if suite['starved_run'] or suite['starved']
                else 'within budget' if limits or (gate and gate_limits) else 'no budget set')
     return dict(pair=pair, tests=tests, suite=suite, processes=processes, failures=failures,
                 layers=layers, trees=list(trees.values()), counting=counting, references=references, swings=swings,
                 checks={binary: entry['checks'] for binary, entry in head.items() if 'checks' in entry},
-                coverage_reasons=coverage_reasons, unobserved=unobserved, warnings=warnings,
+                coverage_reasons=coverage_reasons, coverage_moves=coverage_moves, unobserved=unobserved, warnings=warnings,
                 over_budget=over, verdict=verdict)
 
 
@@ -1130,28 +1137,57 @@ def head_binaries(processes, workspace, ledger, selected_layers=None):
     return head
 
 
-def coverage_verdict(data, head, processes, ledger, partial, reasons, over, warnings):
+def coverage_move_targets(observed, main_binaries):
+    """Index new tests by their final name segment (tools/tiers/budgets.md, 13)."""
+    targets = {}
+    for binary, tests in observed:
+        at_main = main_binaries.get(binary, {}).get('tests', {})
+        for name in tests:
+            if name not in at_main:
+                segment = name.rsplit('::', 1)[-1]
+                target = binary, name
+                previous = targets.get(segment)
+                if previous is None or target < previous:
+                    targets[segment] = target
+    return targets
+
+
+def coverage_verdict(data, head, processes, main_binaries, partial, reasons, over, warnings):
     """Report coverage loss against main (tools/tiers/budgets.md, 13)."""
     selected = data.get('selected_layers')
     workspace = {entry['binary_id']: entry for entry in data['workspace']}
-    names = set()
-    for process in processes:
-        names.update(process['tests'])
+    observed = [(process['binary_id'], process['tests']) for process in processes if process['tests']]
     if data['cancelled'] is not None:
-        names.update(test['test_name'] for test in data['tests'] if test['process'] is None)
+        observed.extend((test['binary_id'], [test['test_name']]) for test in data['tests'] if test['process'] is None)
+    ran, names = set(), set()
+    for binary, tests in observed:
+        ran.add(binary)
+        names.update(tests)
     by_binary = {}
     for index, reason in enumerate(reasons):
         by_binary.setdefault(reason['binary'], []).append((index, reason))
     applied = {}
-    for binary, main in ledger['binaries'].items():
+    moves, targets = [], None
+    for binary, main in main_binaries.items():
         if binary in partial or not layer_selected(main['layer'], selected):
             continue
         current = workspace.get(binary)
-        if current is not None and (not current['listed'] or not layer_selected(current['layer'], selected)):
+        if current is not None and (not current['listed'] or binary not in ran
+                                    or not layer_selected(current['layer'], selected)):
             continue
         entry = head.get(binary)
         checks = entry['checks'] if entry is not None else {}
         lost = main['tests'].keys() - names
+        if lost:
+            if targets is None:
+                targets = coverage_move_targets(observed, main_binaries)
+            for name in sorted(lost):
+                target = targets.get(name.rsplit('::', 1)[-1])
+                if target is not None:
+                    moved_binary, moved_name = target
+                    moves.append({'from': dict(binary_id=binary, test_name=name),
+                                  'to': dict(binary_id=moved_binary, test_name=moved_name)})
+                    lost.remove(name)
         fewer = {kind: (count, checks.get(kind, 0)) for kind, count in main.get('checks', {}).items()
                  if checks.get(kind, 0) < count}
         if not lost and not fewer:
@@ -1184,7 +1220,7 @@ def coverage_verdict(data, head, processes, ledger, partial, reasons, over, warn
     for index, reason in enumerate(reasons):
         if index not in applied:
             warnings.append('stale coverage reason: ' + coverage_reason(reason))
-    return [applied[index] for index in sorted(applied)]
+    return [applied[index] for index in sorted(applied)], moves
 
 
 def coverage_reason(reason, tests=(), kinds=()):
@@ -1492,7 +1528,7 @@ def fold_ledger(directory, result, limits, ledger=None):
         folded_budgets[tree][layer].update(
             instructions_ceiling=state['instructions_ceiling'], instructions_lowest=state['instructions_lowest'])
     return dict(ledger=6, profile=result['pair'], binaries=binaries, budgets=folded_budgets,
-                moves=profile.get('moves', []))
+                moves=profile.get('moves', []), coverage_reasons=profile.get('coverage_reasons', []))
 
 
 def tools_summary(directory, limits, expected):
@@ -1618,6 +1654,9 @@ def print_summary(result, as_json=False):
             print(f"{binary} checks: " + ', '.join(f'{kind} {count}' for kind, count in sorted(checks.items())))
     for reason in result.get('coverage_reasons', []):
         print(f'coverage reason applied: {reason}')
+    moves = Counter(move['from']['binary_id'] for move in result.get('coverage_moves', []))
+    for binary, count in sorted(moves.items()):
+        print(f'coverage moves: {binary}: {count}')
     for message in result['warnings']:
         print(f'warning: {message}')
     for message in result['over_budget']:

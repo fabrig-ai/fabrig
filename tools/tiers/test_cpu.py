@@ -1023,10 +1023,36 @@ class OneProcessTests(unittest.TestCase):
         self.results['tests'][-1]['process'] = None
         self.assertEqual(self.summary(self.limits, gate=True, ledger=self.main)['over_budget'], [])
 
-    def test_coverage_renames_need_a_reason_and_print_it_on_a_pass(self):
-        self.coverage_case(tests={'before::a': [1], 'before::z': [1]})
+    def test_coverage_moves_follow_new_module_paths_and_report_both_names(self):
+        self.coverage_case(tests={'before::moved': [1], 'before::already_there': [1]})
+        self.main['binaries']['lower'] = self.ledger_entry(
+            [1], layer='step', tests={'after::already_there': [1]})
+        names = ['after::moved', 'after::already_there']
+        self.results['processes'].append(self.process(names, binary_id='lower', layer='step'))
+        self.results['tests'].extend(self.entry(name, binary_id='lower', process=1) for name in names)
+        self.results['selected'] += len(names)
         result = self.summary(self.limits, gate=True, ledger=self.main)
-        self.assertIn('lost test: before::a', result['over_budget'][0])
+        self.assertEqual(result['coverage_moves'], [{
+            'from': dict(binary_id='pkg::suite', test_name='before::moved'),
+            'to': dict(binary_id='lower', test_name='after::moved')}])
+        line, = result['over_budget']
+        self.assertIn('lost test: before::already_there', line)
+        self.assertNotIn('before::moved', line)
+        self.assertEqual(result['warnings'], [])
+
+        del self.main['binaries']['pkg::suite']['tests']['before::already_there']
+        result = self.summary(self.limits, gate=True, ledger=self.main)
+        self.assertEqual(result['over_budget'], [])
+        output = io.StringIO()
+        with contextlib.redirect_stdout(output):
+            CPU['print_summary'](result)
+        self.assertEqual([line for line in output.getvalue().splitlines() if line.startswith('coverage moves:')],
+                         ['coverage moves: pkg::suite: 1'])
+
+    def test_coverage_renames_need_a_reason_and_print_it_on_a_pass(self):
+        self.coverage_case(tests={'before::old_a': [1], 'before::old_z': [1]})
+        result = self.summary(self.limits, gate=True, ledger=self.main)
+        self.assertIn('lost test: before::old_a', result['over_budget'][0])
         self.limits['gate']['default']['coverage_reasons'] = [
             dict(binary='pkg::suite', tests=['before::*'], kind='renamed', to=['a', 'z'],
                  why='Names follow the revised module.', by='The maintainer')]
@@ -1034,7 +1060,7 @@ class OneProcessTests(unittest.TestCase):
         self.assertEqual(result['over_budget'], [])
         reason, = result['coverage_reasons']
         self.assertIn("renamed ['before::*'] to ['a', 'z']", reason)
-        self.assertIn('matched before::a, before::z', reason)
+        self.assertIn('matched before::old_a, before::old_z', reason)
         output = io.StringIO()
         with contextlib.redirect_stdout(output):
             CPU['print_summary'](result)
@@ -1048,14 +1074,19 @@ class OneProcessTests(unittest.TestCase):
         self.assertIn('temper default step: selected\n  lost test: selected', line)
         self.assertNotIn('unselected', line)
 
-    def test_coverage_newly_ignored_test_counts_even_when_nothing_remains(self):
+    def test_coverage_newly_ignored_test_counts_when_the_binary_runs_other_tests(self):
         self.coverage_case(tests={'newly_ignored': [1]})
-        # The listing still lists the binary. Nextest selects none of its tests.
-        self.results.update(selected=0, processes=[], tests=[])
         line, = self.summary(self.limits, gate=True, ledger=self.main)['over_budget']
         self.assertIn('lost test: newly_ignored', line)
-        self.results['workspace'][0]['listed'] = False
-        self.assertEqual(self.summary(self.limits, gate=True, ledger=self.main)['over_budget'], [])
+
+    def test_coverage_skips_listed_binary_without_suite_tests(self):
+        self.coverage_case(tests={'newly_ignored': [1]}, checks={'seed': 2})
+        self.results.update(selected=0, tests=[])
+        for processes in ([], [self.process([], kind='tests'), self.process(['z'], kind='reference')]):
+            with self.subTest(processes=processes):
+                self.results['processes'] = processes
+                result = self.summary(self.limits, gate=True, ledger=self.main)
+                self.assertEqual(result['over_budget'], [])
 
     def test_coverage_check_totals_compare_exactly_and_ignore_diagnostics(self):
         self.coverage_case(checks={'store-check': 10})
@@ -1090,6 +1121,41 @@ class OneProcessTests(unittest.TestCase):
         self.assertEqual(result['coverage_reasons'], [])
         warning, = result['warnings']
         self.assertIn('stale coverage reason: pkg::suite', warning)
+
+    def test_coverage_reason_covers_only_the_change_that_adds_it(self):
+        self.coverage_case(tests={'retired::first': [1], 'retired::second': [1]})
+        limits = self.limits['gate']['default']
+        reason = dict(binary='pkg::suite', tests=['retired::*'], kind='removed', why='Dead code.', by='Maintainer')
+        limits['coverage_reasons'] = [reason]
+        self.results['processes'][0]['tests'] = ['z', 'retired::second']
+        self.results['tests'][1]['test_name'] = 'retired::second'
+        first_run = self.summary(self.limits, gate=True, ledger=self.main)
+        self.assertEqual(first_run['over_budget'], [])
+        self.assertIn('matched retired::first', first_run['coverage_reasons'][0])
+
+        landed = CPU['fold_ledger'](self.directory, first_run, self.limits, self.main)
+        path = self.root / 'coverage.json'
+        CPU['save'](path, landed)
+        main = CPU['ledger'](path)
+        self.assertEqual(main['coverage_reasons'], [reason])
+
+        self.results['processes'][0]['tests'] = ['z']
+        self.results['tests'].pop()
+        self.results['selected'] -= 1
+        for reasons in ([reason], [reason, dict(reason)], []):
+            with self.subTest(reasons=reasons):
+                limits['coverage_reasons'] = reasons
+                result = self.summary(self.limits, gate=True, ledger=main)
+                self.assertIn('lost test: retired::second', result['over_budget'][0])
+                self.assertEqual(result['coverage_reasons'], [])
+                self.assertEqual(result['warnings'], [])
+        self.assertEqual(self.folded(main)['coverage_reasons'], [])
+
+        for version, reasons in ((5, [reason]), (6, {}), (6, [dict(reason, by='')])):
+            with self.subTest(version=version, reasons=reasons):
+                CPU['save'](path, dict(landed, ledger=version, coverage_reasons=reasons))
+                with self.assertRaisesRegex(ValueError, 'ledger keys|coverage_reasons'):
+                    CPU['ledger'](path)
 
     def test_coverage_ledger_versions_and_whole_counts(self):
         self.coverage_case(tests={'a': [1]})

@@ -186,30 +186,33 @@ Each tree's pair `real-TREE` runs its real-loop and end-to-end tests after landi
  "budgets": {"temper": {"domain": {"ceiling_s": 141, "lowest_s": 118.4,
                                     "instructions_ceiling": 900000000000,
                                     "instructions_lowest": 482109310442}}},
- "moves": [{"from": "temper.simulated", "to": "temper.domain", "cpu_s": 12, "why": "..."}]}
+ "moves": [{"from": "temper.simulated", "to": "temper.domain", "cpu_s": 12, "why": "..."}],
+ "coverage_reasons": []}
 ```
 
   - `ledger`, the form's version, 6;
   - `profile`, `default` or `fuzzy`;
   - `binaries`, by binary id: `tree`, one of section 2's six groups; `layer`, a name of the `layers` list, `checks`, or null, as section 3 placed it in the run that wrote the ledger; `cpu`, a list of one to three CPU figures, each the CPU of its processes, of the suite's kinds (section 4), in one of the last runs that measured it whole (below), oldest first, whose median is its figure at main (section 8); `tests`, by test name, a list of one to three walls, that test's in the last runs that measured it, oldest first; `alone`, by test name, a list of one to three CPU figures, that test's alone (`tools/tiers/references.md`, 4) in the last runs that ran it alone, oldest first, for tests some landed gate ran alone: every name in `alone` is in `tests`; `counts`, a list of none to 100 entries, oldest first, one for each of the last runs that measured it whole and counted it (below): `instructions`, its count there (`tools/tiers/design.md`, 11.4), the sum of its processes' of the suite's kinds, and `commit`, that run's `commit` from its `results.json` (`tools/tiers/design.md`, 11.8), or null. Its last entry's count is its count at main (section 8): a count is no sample, so no median is taken (draft, 5). Two entries in a row say what the landings between them added to the binary, and since a gate runs only the packages a change reaches, a landing that didn't run the binary added nothing to it;
   - `budgets`, by group and layer, holds `ceiling_s` and `lowest_s` for each layer with a CPU ceiling. An instruction ceiling adds `instructions_ceiling` and `instructions_lowest`, both nonnegative integers, with null allowed for the lowest until a complete count is available (section 9).
-  - `moves`, the moves of main's budgets file for the profile, each as section 10's form has it.
+  - `moves`, the moves of main's budgets file for the profile, each as section 10's form has it;
+  - `coverage_reasons`, the reasons in main's budgets file for the profile, each as section 13's form has it.
 
   A binary's `checks` holds its totals by kind from the last run that measured it whole (section 13).
 
   Every figure is a finite number at least 0, never a boolean; a count is an integer at least 0, never a boolean, and a commit is 40 or 64 lowercase hex digits. Nothing else is allowed.
 - **The last 100 landings** (draft-10, 11-20). The draft keeps each landing's count beside the binary's count at main (draft, 5). Kept for every landing, the ledger would grow without end, and every gate run and delivery check reads and rewrites it whole: the week to 11-20 had 470 landings on main and the workspace about 500 test binaries, near 0.75 MB a day of counts. So a binary keeps its counts for its last 100 counted landings, close to the walls' size in the ledger, and says what each of them added. The runner's kept ledgers hold the older counts. Naming drift with the landings that grew a layer since its lowest (draft, 8) may need a longer look-back, and widens the bound with a new version then.
-- **`ledger(path)`** (`tools/tiers/design.md`, 10.2) reads one and returns it as a dictionary. It raises `ValueError` on anything outside the form: another key, a version other than 1 to 6, a profile other than the two, a group other than section 2's six, a layer that is neither a nonempty string nor null (`budgets` takes no null), a figure outside the above, a binary whose `cpu` is no list or has no figure or more than three, a test with no wall or more than three, an `alone` entry with no figure or more than three, or for a name not in `tests`, a binary whose `counts` is no list or has more than 100 entries, an entry of it with keys other than `commit` and `instructions`, a count outside the above or a commit that is neither null nor one, an empty id or name, a move without section 10's keys and their types. It reads neither the layers file nor a budgets file: a layer or a move main no longer has is no error, and counts as section 8 and 9 say. A form that changes moves `ledger` by one, and its reader reads the form before it too, since the runner's ledger outlives the landing that changes it.
+- **`ledger(path)`** (`tools/tiers/design.md`, 10.2) reads one and returns it as a dictionary. It raises `ValueError` on anything outside the form: another key, a version other than 1 to 6, a profile other than the two, a group other than section 2's six, a layer that is neither a nonempty string nor null (`budgets` takes no null), a figure outside the above, a binary whose `cpu` is no list or has no figure or more than three, a test with no wall or more than three, an `alone` entry with no figure or more than three, or for a name not in `tests`, a binary whose `counts` is no list or has more than 100 entries, an entry of it with keys other than `commit` and `instructions`, a count outside the above or a commit that is neither null nor one, an empty id or name, a move without section 10's keys and their types. It reads neither the layers file nor a budgets file: a layer or a move main no longer has is no error, and counts as section 8 and 9 say. A new version's reader reads the forms before it too, since the runner's ledger outlives the landing that changes it.
   - **Versions 1 to 3.** An older ledger reads as one without counts. Version 3, B7's, is version 4 without `counts`: each binary has exactly the keys `tree`, `layer`, `cpu`, `tests` and `alone`, and `ledger()` returns it with `counts` empty. Version 2, B4's, is version 3 with `cpu_s`, one figure, in place of `cpu`: each binary has exactly the keys `tree`, `layer`, `cpu_s`, `tests` and `alone`, and `ledger()` returns it with `cpu` the list of that one figure, no `cpu_s` and `counts` empty. Version 1, B3's, is version 2 without `alone`: each binary has exactly the four other keys, and `ledger()` returns it with `alone` and `counts` empty too. A binary of any is checked against its own version's keys, so a version 2 binary with `cpu`, a version 3 one with `cpu_s` or `counts`, or a version 4 one without `counts`, is refused. The reader preserves the version in `ledger`.
   - **Versions 1 to 4** have CPU-only `budgets` entries and moves. When a layer gains an instruction ceiling, the fold seeds its lowest from the layer's count at main when available (section 9). Every run writes version 6.
   - **Versions 1 to 5** read with an empty `checks` object on each binary.
+  - **Only version 6** takes `coverage_reasons`. Ledgers without the field have no coverage reasons.
   - **A reader before version 6** refuses a version 6 ledger. Its delivery check runs without main's ledger and says why until the branch takes main (`tools/pre-pr/design.md`, 4).
 - **Who passes it:** the gate, as `--ledger PATH` (section 5): main's ledger for the suite, at the candidate's base; and the delivery check, a copy the gate's runner left on its builder, a landing or two old at most. Every other run passes none, and its selection is judged as it stands (section 4).
 - **Every run writes its own.** A one-process run that reaches its summary writes `ledger.json` in its directory (`tools/tiers/design.md`, 11.8): main's ledger as it will stand once the run's candidate lands. It is the given ledger, or an empty one, with the run's figures folded in:
   - **a binary the run measured whole,** every one of its selected tests `passed`, `failed` or `crashed` and none `starved`, `cancelled` or unobserved: its `tree` and `layer` as the run placed it, its `cpu` the ledger's last two figures for it, then the CPU the run measured for it (`[64.0, 61.2, 63.0]` from `[60.0, 64.0, 61.2]` and 63.0; a binary new to the ledger has the run's figure only, and one the run places elsewhere keeps its figures, as a test's walls are kept), and its `tests` as the run ran them, each with the ledger's last two walls for it, then the run's own. Its `alone`, for each test the run ran: the ledger's last two figures for it, then the run's own, where the run's `references` (`tools/tiers/references.md`, 4) give it a `cpu_s` that isn't null, the lowest of the test's runs alone there; otherwise the ledger's figures as they were, where it has any. A test the ledger had and the run didn't run leaves, from both. Its `counts`, where the run counted it (its count at the head isn't null, section 4): the ledger's last 99 entries for it, then `{"commit": COMMIT, "instructions": COUNT}`, COMMIT the run's `commit` and COUNT its count at the head; where the run didn't count it, the ledger's entries as they were, none for a binary new to the ledger. A binary the run places elsewhere keeps its counts, as its walls are kept;
   - **a binary the run cut short:** its ledger entry as it was, `alone` and `counts` included, with the run's `tree` and `layer`, or none where the ledger lacks it, since its CPU is partial;
   - **a ledger binary the run didn't run:** kept, with its `workspace` entry's `tree` and `layer` (section 3), where `workspace` has it unlisted. It leaves where `workspace` lacks it (its target is gone), where the listing named it and the run selected none of its tests, and where it is placed in a layer the run left out, listed or not (section 4.1);
-  - **`budgets`** as section 9 folds them, and **`moves`** the run's budgets file's for the profile, an empty list without one.
+  - **`budgets`** as section 9 folds them. **`moves`** and **`coverage_reasons`** are the run's budgets file's lists for the profile, each empty where the file gives none.
 - **The runner keeps** the `ledger.json` of the gate run whose candidate landed as main's ledger for that suite, and passes it to the next gate on top of that landing. Its first ledger is the `ledger.json` of a whole run of its own on main, with no `-p` and no `--ledger`: until then no selection is judged whole and no budget is held below its ceiling (draft, 5). The gate selects by package alone; a run that also filters tests writes a ledger that isn't main's.
 
 ## 8. A partial run, judged whole
@@ -345,13 +348,20 @@ repair: read skein/docs/foundation/testing-strategy.md in full first, then ask 8
   `[a-z][a-z0-9-]{0,31}` and its recorded total is a positive integer.
 - **The comparison.** With main's ledger, the gate and the full goal check
   compare binaries measured whole in the run's selected layers (section
-  4.1). An unlisted or cut-short binary is skipped. A binary absent from
-  `workspace`, or listed with no tests to run, has zero tests and checks.
-  A name in main's `tests` is lost if no suite process ran it in any binary.
-  This lets a test keep its name when it moves. A test newly ignored can
+  4.1). An unlisted or cut-short binary is skipped, as is a listed binary
+  whose tests the run did none of (section 8). A binary absent from
+  `workspace` has zero tests and checks. A name in main's `tests` stays
+  covered when the suite runs it in any binary. A test newly ignored can
   lose its name from the run. Each check kind's total at the head must at
   least equal its total at main, for that binary. An absent kind counts
   zero. Fixed seeds make the totals comparable without a tolerance.
+- **A move across modules.** When a name at main is absent from the run,
+  it stays covered if the run has a new test with the same final `::`
+  segment. A test is new where main's ledger lacks its name in the binary
+  that ran it. The summary lists the source and destination of each such
+  move in `coverage_moves`, and prints one line per source binary with
+  the number of moves. Where several new tests match, it names the first
+  by binary ID and test name. A move gives no red or warning.
 - **A reason** is a table of the profile's `coverage_reasons` array in
   `tools/tiers/budgets.toml`.
 
@@ -360,7 +370,7 @@ repair: read skein/docs/foundation/testing-strategy.md in full first, then ask 8
 binary = "temper-engine::domain"
 tests = ["old_module::*"]
 kind = "renamed"
-to = ["new_module::opens"]
+to = ["new_module::open_session"]
 why = "The cases follow the module's new name."
 by = "The change's reviewer"
 ```
@@ -368,16 +378,19 @@ by = "The change's reviewer"
   `binary`, `why` and `by` are nonempty strings. Give exactly one of
   `tests`, a nonempty list of names where `*` matches any part of a name,
   and `checks`, a nonempty table from kind to the exact number of checks
-  lost. The reason applies to each matching loss. `kind` is `removed` for
+  lost. A new reason applies to each matching loss. `kind` is `removed` for
   code that went away, `duplicate` for coverage another test supplies,
   `renamed` with `to` a nonempty list of new names, `moved` for a move to
   a layer the run leaves out, or `budget`. A `budget` reason's `by` must
   start with `the user`. `budgets()` refuses other keys and values outside
   the form.
+- **A reason is new** when main's ledger lacks that whole line. Once the
+  line is in main's ledger, the verdict ignores it and anyone can prune
+  it from the budgets file.
 - **The verdict.** Each binary with an unexplained loss has a red for its
   layer in `over_budget`, with or without `--gate`. The entry names the
   binary, up to ten lost tests and the number beyond them, and the main and
   head totals for each kind that lost checks. The repair line (10.1) and
   the line naming the reason table follow. Every applied reason is named in
   the summary and its printed verdict, including a red-free verdict. A
-  reason applying to no loss gives a `stale coverage reason: …` warning.
+  new reason applying to no loss gives a `stale coverage reason: …` warning.
