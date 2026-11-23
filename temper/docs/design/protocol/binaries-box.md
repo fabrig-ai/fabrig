@@ -165,7 +165,7 @@ default; the document is `temper.json` in the configuration directory
   configuration and no store. Its row and its lines are
   `temper-engine versions`', the same constant run by the same code (2).
 - **`temper-box upgrade --check DIRECTORY`:** a rehearsal (jig's
-  `protocol/store/opening.md`, 5) over DIRECTORY, a stopped deployment's
+  `protocol/store/opening-rehearsal.md`, 1) over DIRECTORY, a stopped deployment's
   data directory, a checkpoint of a deployment
   (`DEPLOYMENT/checkpoints/NAME`, `checkpoints.md`), or a copy of one
   such as last night's backup, which it never writes and whose lock it
@@ -211,7 +211,7 @@ default; the document is `temper.json` in the configuration directory
   (`kind Other`). The open
   registers layouts, runs jobs and checks as a start would, restores,
   and runs on to the opening with no network (jig's
-  `protocol/store/opening.md`, 5, *On to the opening*): the switch and
+  `protocol/store/opening-rehearsal.md`, 1, *On to the opening*): the switch and
   the wires inside the scratch, the runs adopted with no worker, the
   calendar given its periods, decisions opened, and the forge's
   catching up begun with every forge call answered `Unavailable` at
@@ -219,7 +219,7 @@ default; the document is `temper.json` in the configuration directory
   (`../domain/forge/catching-up.md`); it ends at the opening. After the floor check and before
   its plan it decodes every record by its registry layout, or by the
   current text for a family outside the registry (jig's
-  `protocol/store/opening.md`, 5, "Every record decoded"); the first
+  `protocol/store/opening-rehearsal.md`, 1, "Every record decoded"); the first
   that does not decode is printed, `record not decodable: {family}
   {version}, {map} key {hex}` (a frame: `{family} {version},
   transcript {name} at {offset}`), and the rehearsal ends there, exit
@@ -246,14 +246,14 @@ default; the document is `temper.json` in the configuration directory
   check's checkpoint while the engine serves, so that a build that
   cannot read the verdict at the stop is found before anything stops: a
   rehearsal over DIRECTORY, as `--check`'s, of jig's reach `Openings`
-  (jig's `protocol/store/opening.md`, 5), which makes the active
+  (jig's `protocol/store/opening-rehearsal.md`, 1), which makes the active
   generation's maps in its scratch without their task logs, linking
   the snapshot and every segment but the newest and copying the rest,
   recovers them and reads the
   wires and the workers' openings they keep, and ends there: no record
   decoded, no level checked, no plan, job or restore run. It prints
   how many files its rehearsal linked and how many it copied, from
-  `Rehearsing` (jig's `protocol/store/opening.md`, 5), a link the file
+  `Rehearsing` (jig's `protocol/store/opening-rehearsal.md`, 1), a link the file
   system refused counted as a copy:
 
   ```
@@ -269,7 +269,7 @@ default; the document is `temper.json` in the configuration directory
   `--check` prints a refusal, exit 1.
   It never writes DIRECTORY.
 - **`temper-box upgrade --back`:** makes the previous generation active
-  again (jig's `protocol/store/opening.md`, 5), for a binary that upgraded and
+  again (jig's `protocol/store/opening-rehearsal.md`, 1), for a binary that upgraded and
   failed before its first commit of its own: the deployment stopped,
   and the old binary started after it. Refused, changing nothing, once
   the upgraded generation has committed, with no previous generation, or

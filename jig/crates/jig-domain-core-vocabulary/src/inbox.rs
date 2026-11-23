@@ -1,5 +1,5 @@
 //! Volatile party inbox projections from the task child's durable rows.
-//! The core routes these sibling facts on save and restore (domain/engine/README.md, 4.4).
+//! The core routes these sibling facts on save and restore (domain/engine/vocabulary.md, 1.4).
 
 use crate::Limits;
 

@@ -1,4 +1,4 @@
-//! Configuration document members by shape (jig/docs/design/protocol/configuration.md, 3, 4 and 9).
+//! Configuration document members by shape (jig/docs/design/protocol/configuration-engine.md, 1, and jig/docs/design/protocol/configuration.md, 4 and 9).
 use skein_lib::List;
 
 /// A shape of the configuration document, and every path it is read at.

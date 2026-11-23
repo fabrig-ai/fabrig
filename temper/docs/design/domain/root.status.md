@@ -25,7 +25,7 @@ tests read each address's reads as a step function
 (`temper-engine-domain/src/tests/see.rs`) and the engine world's
 `configuring/asking_person.rs` reads them through jig and the forge. The
 run's proposal read that `see proposal` makes is jig's
-`domain/engine/executors.md`, 3, *A run's proposal read*, routed as `routing.md`, 2 routes
+`domain/engine/executors-tools.md`, 1, *A run's proposal read*, routed as `routing.md`, 2 routes
 jig's named actions (`route/see/proposal.rs`, `NamedAction::ReadProposal`).
 
 `routing.md`, section 2 has no known implementation gap in sizing task reads by the

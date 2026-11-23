@@ -1,4 +1,4 @@
-//! Printed link secrets show only their length (jig/docs/design/protocol/README.md, 8 and 10).
+//! Printed link secrets show only their length (jig/docs/design/protocol/README.md, 8, and jig/docs/design/protocol/needs.md, 1).
 use crate::Record as _;
 use crate::{CEILINGS, LinkSignIn};
 use alloc::fmt::format;

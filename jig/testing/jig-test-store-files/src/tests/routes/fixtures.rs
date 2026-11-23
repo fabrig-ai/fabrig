@@ -1,4 +1,4 @@
-//! Component fixtures over the real store and the fake files (protocol/store/README.md, 9).
+//! Component fixtures over the real store and the fake files (protocol/store/testing.md, 1).
 use jig_test_connector as d;
 use skein_lib::{Token, Wall};
 pub const FIRST: u16 = 1;
@@ -80,7 +80,7 @@ fn build_component() -> Component {
 }
 fn matches_opened(above: &mut skein_lib::Queue<jig_protocol_store::Event>) -> bool {
     let Some(jig_protocol_store::Event::Opened { last: 0, .. }) = above.pop() else { return false };
-    // These routing fixtures do not consume the census (protocol/store/README.md, 6.3).
+    // These routing fixtures do not consume the census (protocol/store/growth.md, 1.3).
     let Some(jig_protocol_store::Event::Census { .. }) = above.pop() else { return false };
     above.is_empty()
 }

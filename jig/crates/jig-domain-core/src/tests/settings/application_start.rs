@@ -1,4 +1,4 @@
-//! Application defaults join the start's revision and project deletion (jig/docs/design/domain/engine/settings.md, 5–7).
+//! Application defaults join the start's revision and project deletion (jig/docs/design/domain/engine/settings-application.md, 1, and jig/docs/design/domain/engine/settings-proposals.md, 1, and jig/docs/design/domain/engine/settings-store.md, 1).
 use crate::settings::{self as s, Kind, KindScope, application as app};
 use crate::start::{Action, ApplicationWhy, Failure, Phase};
 use crate::tests::*;

@@ -1,4 +1,4 @@
-//! A current joint account/source/host check (accounts.md, 4.3; domain/engine/executors.md, 1).
+//! A current joint account/source/host check (domain/accounts-uses.md, 1.3; domain/engine/executors.md, 1).
 use crate::{Core, RunPolicy};
 use alloc::boxed::Box;
 use jig_domain_accounts as accounts;

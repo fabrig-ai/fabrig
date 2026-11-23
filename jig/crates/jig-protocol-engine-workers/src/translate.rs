@@ -1,4 +1,4 @@
-//! Total translations of the worker records (protocol/channel/README.md, sections 3 and 5.4).
+//! Total translations of the worker records (protocol/channel/README.md, section 3, and protocol/channel/owners.md, section 1.4).
 //! Jobs use their own records (jig/docs/design/protocol/channel/records.md, 4).
 use alloc::boxed::Box;
 use jig_domain_host as host;

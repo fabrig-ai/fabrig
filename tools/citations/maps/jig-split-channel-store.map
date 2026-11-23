@@ -1,0 +1,26 @@
+# Jig's first split pass: channel and store (temper/docs/design/draft/design-upkeep.md, 4.3), at bf1e1c6bcf.
+# jig/docs/design/protocol/channel/README.md: 65,238 bytes. Other owners' bytes, liveness, the worker's link and testing get their own pages; the channel overview, its sides, opening, names, grants, limits and obligations stay.
+title jig/docs/design/protocol/channel/owners.md: The channel: bytes of other owners
+title jig/docs/design/protocol/channel/liveness.md: The channel: liveness and flow control
+title jig/docs/design/protocol/channel/worker-link.md: The channel: the worker's link
+title jig/docs/design/protocol/channel/testing.md: The channel: testing
+jig/docs/design/protocol/channel/README.md 5 -> jig/docs/design/protocol/channel/owners.md 1
+jig/docs/design/protocol/channel/README.md 8 -> jig/docs/design/protocol/channel/liveness.md 1
+jig/docs/design/protocol/channel/README.md 9 -> jig/docs/design/protocol/channel/worker-link.md 1
+jig/docs/design/protocol/channel/README.md 11 -> jig/docs/design/protocol/channel/testing.md 1
+
+# jig/docs/design/protocol/store/README.md: 63,970 bytes. Keys, commits, growth and testing get their own pages; the store overview, placement, boundary, application's part, limits, obligations and open questions stay.
+title jig/docs/design/protocol/store/keys.md: The store: keys
+title jig/docs/design/protocol/store/commits.md: The store: commits
+title jig/docs/design/protocol/store/growth.md: The store: growth
+title jig/docs/design/protocol/store/testing.md: The store: testing
+jig/docs/design/protocol/store/README.md 4 -> jig/docs/design/protocol/store/keys.md 1
+jig/docs/design/protocol/store/README.md 5 -> jig/docs/design/protocol/store/commits.md 1
+jig/docs/design/protocol/store/README.md 6 -> jig/docs/design/protocol/store/growth.md 1
+jig/docs/design/protocol/store/README.md 9 -> jig/docs/design/protocol/store/testing.md 1
+
+# jig/docs/design/protocol/store/opening.md: 49,280 bytes. Owner sets and frame sites, and rehearsal and going back, get their own pages; generations at open, upgrading a copy and power loss stay.
+title jig/docs/design/protocol/store/opening-owners.md: Opening the store: owner sets and frames' sites
+title jig/docs/design/protocol/store/opening-rehearsal.md: Opening the store: rehearsing and going back
+jig/docs/design/protocol/store/opening.md 3 -> jig/docs/design/protocol/store/opening-owners.md 1
+jig/docs/design/protocol/store/opening.md 5 -> jig/docs/design/protocol/store/opening-rehearsal.md 1

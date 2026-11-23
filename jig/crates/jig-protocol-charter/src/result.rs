@@ -1,4 +1,4 @@
-//! Results read after the fleet's fence (protocol/channel/README.md, section 5.1;
+//! Results read after the fleet's fence (protocol/channel/owners.md, section 1.1;
 //! domain/hosts/charters.md). The routing maps these into domain values.
 use alloc::boxed::Box;
 use skein_lib::{List, Reader};

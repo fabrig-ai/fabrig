@@ -53,8 +53,8 @@ section 5.
 - **On jig's API alone.** What a page shows, it watches through jig's
   subjects (`me`, `inbox`, `tasks{query}`, `task`, `tree`, `run`,
   `accounts`) or
-  reads (`activity`, `proposal`; jig's `client/domain/contract/README.md`,
-  sections 4 and 5); what a person does is jig's operations (jig's
+  reads (`activity`, `proposal`; jig's `client/domain/contract/reads.md`, section 1, and `client/domain/contract/watches.md`, section 1
+  ); what a person does is jig's operations (jig's
   `client/domain/contract/requests.md`), through jig's helpers where
   they fit (`root.md`, 1.6).
 - **The confirmation is temper's.** An act that cannot be undone says

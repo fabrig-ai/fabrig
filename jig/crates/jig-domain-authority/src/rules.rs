@@ -1,4 +1,4 @@
-//! Configuration held in force (domain/authority.md, sections 6, 8 and 10).
+//! Configuration held in force (domain/authority.md, section 6, and domain/authority-checks.md, section 1, and domain/authority.md, section 10).
 
 use alloc::boxed::Box;
 
@@ -7,7 +7,7 @@ use skein_lib::Duration;
 use crate::{Authority, Implies, Pattern};
 
 /// Root-owned deployment configuration admitted by `Domain::new`; hard ceilings apply to every
-/// later check. (domain/authority.md, sections 6 and 8.4).
+/// later check. (domain/authority.md, section 6, and domain/authority-checks.md, section 1.4).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Rules {
     /// Deployment authority ceiling, admitted under `Limits`.
@@ -25,7 +25,7 @@ pub struct Rules {
 }
 
 /// Root-submitted project policy; policy events validate its bounded values before replacing the
-/// current entry. (domain/authority.md, sections 6 and 8.4).
+/// current entry. (domain/authority.md, section 6, and domain/authority-checks.md, section 1.4).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Policy {
     /// Optional final escalation recipient role, distinct from acceptance permissions. When present
@@ -45,7 +45,7 @@ pub struct Policy {
 }
 
 /// Numbered project permission and funding ceiling; role membership is supplied by people through
-/// the root. (domain/authority.md, sections 6 and 8.4).
+/// the root. (domain/authority.md, section 6, and domain/authority-checks.md, section 1.4).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Role {
     pub number: u32,
@@ -90,7 +90,7 @@ pub struct Requirement {
 }
 
 /// Kinds of person request checked against a role's request bit set; execution remains with the
-/// root. (domain/authority.md, sections 6 and 8.4).
+/// root. (domain/authority.md, section 6, and domain/authority-checks.md, section 1.4).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum RequestKind {
     /// Create a task batch.
@@ -114,7 +114,7 @@ pub enum RequestKind {
 }
 
 /// Role's request-permission bit set; policy admission rejects bits outside `ALL`.
-/// (domain/authority.md, sections 6 and 8.4).
+/// (domain/authority.md, section 6, and domain/authority-checks.md, section 1.4).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Requests(
     /** Bits 1 through 256 for Create, Allot, Accept, Amend, Cancel, Release, Move, Watch and Policy respectively. */
@@ -144,7 +144,7 @@ impl Requests {
 }
 
 /// Kinds of proposal a role may accept; permission does not replace the fresh action check.
-/// (domain/authority.md, sections 6 and 8.4).
+/// (domain/authority.md, section 6, and domain/authority-checks.md, section 1.4).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum ProposalKind {
     /// A batch of delegated tasks.
@@ -160,7 +160,7 @@ pub enum ProposalKind {
 }
 
 /// Role's proposal-decision bit set; policy admission rejects bits outside `ALL`.
-/// (domain/authority.md, sections 6 and 8.4).
+/// (domain/authority.md, section 6, and domain/authority-checks.md, section 1.4).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Proposals(/** Bits 1, 2, 4, 8 and 16 for Batch, Effect, Widen, Amend and Escalation respectively. */ pub u8);
 

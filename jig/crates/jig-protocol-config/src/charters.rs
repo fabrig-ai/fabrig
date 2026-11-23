@@ -1,4 +1,4 @@
-//! Offered run policies and their reserve admission (protocol/configuration.md, 3 and protocol/limits.md).
+//! Offered run policies and their reserve admission (protocol/configuration-engine.md, 1 and protocol/limits.md).
 use crate::{Directories, Directory, Limits, Llm, Path, Problems, Segment, What, check, read};
 use alloc::boxed::Box;
 use jig_domain_core_vocabulary::{Charter, CharterPart, Model, RunPolicy};

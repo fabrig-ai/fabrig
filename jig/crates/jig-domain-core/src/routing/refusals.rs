@@ -1,5 +1,5 @@
 //! Total sibling translations into party answer facts
-//! (client/domain/contract/README.md, section 3; domain/people/acts.md, section 1).
+//! (client/domain/contract/answers.md, section 1; domain/people/acts.md, section 1).
 //! The core reads the current live record for an ending; no retained archive
 //! is retained here. Unknown names disclose no object. Retry answers are unsaved.
 use crate::{Core, Event, routing::Work};

@@ -25,7 +25,7 @@ Event, in
     Went { place } | Left           a place of the reference UI's gone to; a place of the application's
     Act { action }                  a person's act on one of its nodes, as its bindings decoded it (section 5)
     Named { objects, sections }     what the application's page names of jig's, the whole list each time (pages.md, 12.5)
-    Client { told }                 what the client tells under jig's asker, the link, and kept records dropped, by count, as the root routes them (client/README.md, section 4; root.md, section 8)
+    Client { told }                 what the client tells under jig's asker, the link, and kept records dropped, by count, as the root routes them (client/vocabulary.md, section 1; root.md, section 8)
 Request, out
   for the client:      Watch | Unwatch | Read | Send | SignOut               the client's events, under its handles and keys
   for the application: Show { place, how } | Save { records } | Erase { records } | ShowPart { part, scope } | PartsLeft
@@ -47,13 +47,13 @@ read by the application: ui.sections(), ui.shown()
   never continues a run's watch: the client does, from the text it
   holds (client/watches.md, 3). A limit that refuses is said where it refuses,
   on the page or in place (2, 4), never as a report beside it.
-- **`now` and `wall`,** as the client's (client/README.md, section 4): the
+- **`now` and `wall`,** as the client's (client/vocabulary.md, section 1): the
   monotonic instant for its deadlines (7), and the wall time it shows
   the engine's wall times against ("waiting 4 min").
 - **Its handles and keys** carry its asker, jig's owner, 65536 (`view.md`, section 3
   ; root.md, section 15), which the client hands back with everything
   it tells of them. It numbers its handles itself, and draws its keys'
-  numbers from its seed, fresh for each request it means (client/README.md, section 4 and client/requests.md
+  numbers from its seed, fresh for each request it means (client/vocabulary.md, section 1 and client/requests.md
   ).
 - **Navigation, home and arrangement** are given when it is made, as
   data, and never change after: which of jig's pages the frame offers,
@@ -146,7 +146,7 @@ read by the application: ui.sections(), ui.shown()
   question, a person task, a result, a note) is read, and read again
   whenever a watch that names it says it moved: its task's activity
   moved, its entry in the inbox changed, its chip's phase changed
-  (contract/README.md, 5.1). Once no watch names it, it is read once more for
+  (contract/watches.md, 1.1). Once no watch names it, it is read once more for
   how it ended.
 - **A card's state,** wherever the card shows:
   - *open;*
@@ -179,7 +179,7 @@ read by the application: ui.sections(), ui.shown()
   key of its own, unless one for the same act on the same object is
   pending, which the second press joins. A double press and a retry
   therefore carry the request's one key, and a reload carries it as the
-  client keeps it (client/README.md, section 8).
+  client keeps it (client/small-store.md, section 1).
 - **One request per act.** What the person sees as one act is one
   request: one of jig's operations, or one compound request
   (contract/requests.md, 4): amending and releasing a held task; words that
@@ -212,7 +212,7 @@ read by the application: ui.sections(), ui.shown()
 - **The answer, applied.** Done: the card shows the outcome (made, or
   proposed, naming the proposal), and leaves if its object stopped
   waiting. Refused: the card says why, from the refusal's facts
-  (contract/README.md, section 3), and offers what fits: look at the object
+  (contract/answers.md, section 1), and offers what fits: look at the object
   again, where it moved; change what was asked, where a limit or the
   party's authority refused it; propose it, where a `Create` or an
   `Amend` was refused for want of authority and the refusal says a
@@ -221,7 +221,7 @@ read by the application: ui.sections(), ui.shown()
   engine's retention may or may not have been made (client/requests.md
   ): the card says so, and where to look.
 - **Not kept.** A request whose record the client could not write was
-  never sent (client/README.md, section 8): the card says so, and offers it
+  never sent (client/small-store.md, section 1): the card says so, and offers it
   again. So it does for one answered unconfirmed, sent before `me` named
   the party (client/requests.md).
 - **Words are a request too.** A composer's words are a `Message`, shown
@@ -241,7 +241,7 @@ read by the application: ui.sections(), ui.shown()
   (7); made, it shows in what it made. Kept for another party, it is
   counted for the page someone else's work (pages.md, section 8). Kept
   work the client dropped at start, unread, is told by how many
-  (`Dropped`; client/README.md, section 8; root.md, section 8): a notice says
+  (`Dropped`; client/small-store.md, section 1; root.md, section 8): a notice says
   that many requests kept from before were not sent.
 - **Bounded.** The intents it keeps are a limit; an act past them is
   refused in place ("too many requests in flight"), never queued; so is
@@ -289,20 +289,20 @@ read by the application: ui.sections(), ui.shown()
 
 ## 6. Signing in and out
 
-- **Signed out:** the link says it (client/watches.md, 2, and client/README.md, 9), and
+- **Signed out:** the link says it (client/watches.md, 2, and client/sign-in.md, 1), and
   the client ends every handle. The reference UI shows the sign-in page
   (pages.md, section 8), keeping the place to come back to; the requests
   in flight wait, parked, in the client.
 - **Signing in is the application's:** the printed link's secret or its
   own sign-in's credential, which its shell or its host gives the
-  client (client/README.md, section 9), or a browser's cookie, which the
+  client (client/sign-in.md, section 1), or a browser's cookie, which the
   client never sees. Once `me` names the party, the reference UI returns
   to the place it kept.
 - **Signing out,** from the frame's party part, sends the client
   `SignOut`; the reference UI shows the sign-in page once the client
   reports the party signed out.
 - **A sign-out that does not reach the engine** leaves the person signed
-  in, as the link says (client/watches.md, 2, and client/README.md, 9): the frame says the
+  in, as the link says (client/watches.md, 2, and client/sign-in.md, 1): the frame says the
   sign-out did not reach the engine and offers it again; nothing is
   shown done before it is (testing.md, 6.3). A sign-in the engine ends
   itself, before the sign-out or after it, ends what was asked: the link
@@ -329,8 +329,8 @@ read by the application: ui.sections(), ui.shown()
 ## 8. Its records
 
 - **Its own records:** the drafts, and where the person was (the place).
-  Nothing else: requests are the client's to keep (client/README.md, section
-  8), and everything shown is read again.
+  Nothing else: requests are the client's to keep (client/small-store.md, section
+  1), and everything shown is read again.
 - **Kept through the application.** The reference UI asks the
   application to save and erase them (`Save`, `Erase`), and is given them
   back at `Start`. The application keeps them where it keeps the

@@ -1,4 +1,4 @@
-//! Admitted-page and codec-frame invariants (protocol/store/README.md, 5; transcripts.md, 1, 2 and 6).
+//! Admitted-page and codec-frame invariants (protocol/store/commits.md, 1; transcripts.md, 1, 2 and 6).
 //! Exact page guards and atomic refusal are covered at the store unit seam in tests/transcripts.rs.
 
 use jig_domain_core as core;

@@ -5,8 +5,8 @@ Signing in and the client's small store are split from [the client's overview](R
 ## 1. Signing in and the small store
 
 How jig signs a client in, and how a native client keeps its credential
-and its small store, are jig's (jig's `protocol/client/sign-in.md` and `jig/docs/design/protocol/client/README.md`, sections 7 and 9
-; jig's `client/domain/client/README.md`, sections 8 and 9).
+and its small store, are jig's (jig's `protocol/client/sign-in.md` and `jig/docs/design/protocol/client/small-store.md`, section 1, and `jig/docs/design/protocol/client/shells.md`, section 1
+; jig's `client/domain/client/small-store.md`, section 1, and `client/domain/client/sign-in.md`, section 1).
 temper's:
 
 - **A sign-in's address in the small store** (`pages/accounts.md`, 1, `ConnectModel`, *A reload
@@ -108,7 +108,7 @@ temper's:
   network in plaintext: plain HTTP reaches an engine on loopback alone
   (`../protocol/configuration/README.md`, section 2; `line.md`, 1), and
   the TUI reaches a deployment by name over HTTPS
-  (`tui/README.md`, 1; jig's `protocol/client/README.md`, section 9),
+  (`tui/README.md`, 1; jig's `protocol/client/shells.md`, section 1),
   each deployment's credential and small store in a directory of its
   own (`tui/directory.md`, 1). `temper-box open` and `temper ctl` stay on
   loopback.
@@ -139,12 +139,12 @@ was answered with. A box enables it beside the printed link
     grant: None } }`, and holds `Asked { code, expires, port }`, `port`
     its ask's, for its host to draw. The secret goes to `jig-client`,
     which holds it while the take runs (jig's
-    `client/domain/client/README.md`, section 9), never into
+    `client/domain/client/sign-in.md`, section 1), never into
     `asked::State`, a print or a log. An ask that named a port keeps it
     in the root too, in a field no reader is given, for the take with
     the grant (*The grant*, below), until the link leaves signed out or
     another ask replaces it. An unlinked client (jig's
-    `client/domain/client/README.md`, 4.4) leaves the take to its host's link,
+    `client/domain/client/vocabulary.md`, 1.4) leaves the take to its host's link,
     which made the ask and holds the secret: the root holds the code
     and the expiry, and drops the secret it was told.
   - *The grant:* `Event::Granted { grant }`, the host's, `grant` a
@@ -237,7 +237,7 @@ was answered with. A box enables it beside the printed link
     PORT to this one first.", then the expiry's line. The engine is on
     loopback, so a browser elsewhere reaches it through a tunnel to its
     listener on the same port, which jig's guards require of the
-    address (jig's `protocol/browser/README.md`, 12.2). The tunnel's
+    address (jig's `protocol/browser/serving.md`, 1.2). The tunnel's
     line is loopback's alone: a deployment by name is reached from any
     browser, and its lines are `tui/pages/sign-in.md`, 3's.
   - *Asking again:* Enter in the Link field while it is empty, once the

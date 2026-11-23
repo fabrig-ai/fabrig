@@ -68,7 +68,7 @@ From main at `ee03a1159c` and dev.fabrig.ai's redeploys of 2026-11-11 and 11-12,
 
 - **What a worker cannot read is a host's refusal, not a run's failure.** An assignment refused for the version of its charter, its items or its transcript, which the opening should have prevented, ends its claim refused: the task claims again after a pause and spends no try (jig's `domain/tasks/lifecycle.md`, 2), and the fleet places no such assignment on that worker while its channel stands.
 - **It is told as a mismatch,** naming the wire and both sides' versions, in the engine's log and the task's retry notice, never as a bare `charter`.
-- **What the engine cannot read once the opening agreed** is a bridge's bug, caught by each bridge's tests (section 10). A result fails its run as invalid, as today. A turn is kept as its bytes and read later; one that cannot be read when its window is resumed closes the window, as today (jig's `domain/engine/executors.md`, 2).
+- **What the engine cannot read once the opening agreed** is a bridge's bug, caught by each bridge's tests (section 10). A result fails its run as invalid, as today. A turn is kept as its bytes and read later; one that cannot be read when its window is resumed closes the window, as today (jig's `domain/engine/executors-transcripts.md`, 1).
 
 ## 4. Bridges
 
@@ -120,7 +120,7 @@ From main at `ee03a1159c` and dev.fabrig.ai's redeploys of 2026-11-11 and 11-12,
 
 - **A change no bridge carries is declared breaking** in the landing that makes it: a reverse that can be neither derived nor written, a message to a running attempt that cannot go down whole (4.3), or a change of meaning the older side cannot be told. The gate asks for the declaration, as it asks for a patch.
 - **It raises the wire's floor to its own version** (3.3), so no build speaks across it, and a redeploy across it restarts every part together (7.3).
-- **A fresh mark on smith's turns** (jig's `domain/engine/executors.md`, 2) is a breaking change of the turns' wire.
+- **A fresh mark on smith's turns** (jig's `domain/engine/executors-transcripts.md`, 1) is a breaking change of the turns' wire.
 - **Rare by design:** for each breaking change, the command names what makes it so and the bridgeable alternative, such as a new field beside the old, kept until the floor passes.
 
 ## 5. The engine alone
@@ -168,7 +168,7 @@ From main at `ee03a1159c` and dev.fabrig.ai's redeploys of 2026-11-11 and 11-12,
 
 ### 6.2 What a run loses
 
-- **At most a turn's tail that the bound cut,** and whatever its saved work leaves out: ignored files and build outputs. Its conversation, its committed calls and its saved work go on in its next attempt, on the same worker while it is back within the restart wait, else on any worker (jig's `domain/engine/executors.md`, 2 and 6.4).
+- **At most a turn's tail that the bound cut,** and whatever its saved work leaves out: ignored files and build outputs. Its conversation, its committed calls and its saved work go on in its next attempt, on the same worker while it is back within the restart wait, else on any worker (jig's `domain/engine/executors-transcripts.md`, 1, and `domain/engine/executors.md`, 6.4).
 
 ### 6.3 A warm start
 

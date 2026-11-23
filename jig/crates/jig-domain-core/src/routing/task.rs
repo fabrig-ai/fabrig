@@ -1,5 +1,5 @@
 //! Task-child decisions routed to people, hosts and connectors
-//! (`domain/engine/README.md`, section 4.4).
+//! (`domain/engine/vocabulary.md`, section 1.4).
 
 mod done;
 mod escalations;

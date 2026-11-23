@@ -30,7 +30,7 @@ pub(crate) fn invalid(limits: &crate::Limits, batch: &[Member]) -> crate::LimitK
 }
 
 /// A connector's symbol: a resource it names after the task once the task has its
-/// number (domain/authority.md, section 4; protocol/configuration.md, 3.3).
+/// number (domain/authority.md, section 4; protocol/configuration-templates.md, 3).
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub struct Symbol {
     pub connector: u16,
@@ -186,25 +186,25 @@ pub(crate) fn valid(limits: &crate::Limits, batch: &[Member]) -> bool {
     true
 }
 
-/// The immutable authority that may end a task (domain/tasks/lifecycle.md, 9).
+/// The immutable authority that may end a task (domain/tasks/lifecycle-endings.md, 2).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum EndedBy {
     Result,
     Requester,
-    /// A named procedure closes an agent task (jig/docs/design/domain/tasks/lifecycle.md, 11).
+    /// A named procedure closes an agent task (jig/docs/design/domain/tasks/lifecycle-endings.md, 3).
     Closer(Closer),
     /// A standing agent task ends only by cancel (jig/docs/design/domain/tasks/standing.md, 2).
     Standing,
 }
 
-/// The procedure named to close a task (jig/docs/design/domain/tasks/lifecycle.md, 11).
+/// The procedure named to close a task (jig/docs/design/domain/tasks/lifecycle-endings.md, 3).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Closer {
     pub connector: u16,
     pub code: u32,
 }
 
-/// Ending authority fits its executor and conversation (jig/docs/design/domain/tasks/lifecycle.md, 9 and 11).
+/// Ending authority fits its executor and conversation (jig/docs/design/domain/tasks/lifecycle-endings.md, 2 and 3).
 #[must_use]
 pub fn shaped(member: &Member) -> bool {
     let gathering = match member.executor {

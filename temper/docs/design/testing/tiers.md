@@ -95,7 +95,7 @@ streams it to the watch, which the world opens and acknowledges as
 temper's client does. Once the turn goes, it commits, and its text is
 the text the watch read. smith's own producer, the fake LLM's named
 holds and the bytes between the roots are jig's channel story's (jig's
-`protocol/channel/README.md`, section 11); the same reply in temper's client is
+`protocol/channel/testing.md`, section 1); the same reply in temper's client is
 `checks.md`, 3's and `real-loop.md`'s.
 
 A chat's reply of text alone has its story there, with its Finite
@@ -151,8 +151,8 @@ in temper.
   each thing deleted made again, the refusals, no secret in a message or a
   log (../protocol/setup/testing.md, 2).
 - **The worker's link and the client's connection** have their protocol
-  worlds in jig (jig's `protocol/channel/README.md`, section 11; jig's
-  `protocol/client/README.md`, section 11), and an agent's channel and its LLM
+  worlds in jig (jig's `protocol/channel/testing.md`, section 1; jig's
+  `protocol/client/testing.md`, section 1), and an agent's channel and its LLM
   calls theirs in smith and skein. temper's parts and records cross them
   as bytes those worlds never read; the one-process world carries
   temper's through bytes (1.5).
@@ -171,8 +171,8 @@ behind the simulator (`README.md`, 3.2).
 
 ### 1.5 The one-process world
 
-`tests/one-process`, after jig's (jig's `protocol/service.md`, sections 8
-and 10). Its composition is `temper-playground`'s, the world the
+`tests/one-process`, after jig's (jig's `protocol/service-testing.md`, section 1, and `protocol/service.md`, section 10
+). Its composition is `temper-playground`'s, the world the
 playground runs in a browser (`../playground.md`, 3), which this world
 composes with its harness: the referee, the fake person and the
 terminal client, the captures and the faults.
@@ -200,7 +200,7 @@ terminal client, the captures and the faults.
   - a person signs in by the link `temper-box serve` prints, and a chat is
     answered;
   - a provider's list read by the worker's hosted list program (jig's
-    `domain/engine/settings.md`, 12): asked once, no run, its new name
+    `domain/engine/settings-catalogue.md`, 2): asked once, no run, its new name
     drawn in `me`, nothing spent;
   - a person still signed in signs in again by a fresh link, with the
     same directory, and keeps their sign-in: its number, token and
@@ -240,7 +240,7 @@ terminal client, the captures and the faults.
     `Service::owner_sets` hands them. The open commits the registry
     and runs the job in a copy, restores before the switch, switches
     and commits its wires. No fresh mark closes the live windows;
-  - the same start rehearsed first (jig's `protocol/store/opening.md`, 5),
+  - the same start rehearsed first (jig's `protocol/store/opening-rehearsal.md`, 1),
     reporting the job and the restores whole and leaving the
     directory as it was, then made; and a start failed by the world
     after `Switched` and before its wires are durable, gone back from
@@ -277,7 +277,7 @@ terminal client, the captures and the faults.
   ledger outliving a restart. Of the draft's section 13, the faults
   below the store (a full disk, a short write, a failed sync, a
   malformed or refused record, a limit too small) are jig's store
-  world's (jig's `protocol/store/README.md`, section 9). An effect in
+  world's (jig's `protocol/store/testing.md`, section 1). An effect in
   flight is not an upgrade refusal. The floor's golden store
   is `../protocol/floor.md`, 5's, kept here; the engine alone (its
   workers kept across the engine's upgrade) waits for wires that can

@@ -1,4 +1,4 @@
-//! Pure action checks and proposal needs (domain/authority.md, sections 8–9).
+//! Pure action checks and proposal needs (domain/authority-checks.md, section 1, and domain/authority.md, section 9).
 
 use alloc::boxed::Box;
 
@@ -572,7 +572,7 @@ pub fn check_run(domain: &Domain, ask: &RunAsk, why: &mut Queue<Finding>) -> cra
 }
 
 /// A job's claim check (jig/docs/design/domain/engine/executors.md, 5;
-/// jig/docs/design/domain/authority.md, 8.3): its deadline, credentials and
+/// jig/docs/design/domain/authority-checks.md, 1.3): its deadline, credentials and
 /// workspace writes, without an account, budget, reserve or model.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct JobAsk {
@@ -846,7 +846,7 @@ pub fn check_request_with_standing(
             batch(domain, policy, &role.authority, drawn, ask.tasks_left, tasks, why)
         }
         PersonRequest::Delegate { creator, tasks } => {
-            // A party supplies authority, the task supplies funding (jig/docs/design/domain/authority.md, 8.4).
+            // A party supplies authority, the task supplies funding (jig/docs/design/domain/authority-checks.md, 1.4).
             let role_numbers =
                 crate::Numbers { budget: role.authority.budget.spend, spent: 0, spent_below: 0, reserved: 0 };
             let role_check = batch(

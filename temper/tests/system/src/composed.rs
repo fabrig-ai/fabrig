@@ -759,7 +759,7 @@ impl World {
     }
 
     /// The deployment's first period and its git identity's credential, from
-    /// outside the root (jig's domain/authority.md, 7; domain/root-translation.md, 2.1).
+    /// outside the root (jig's domain/authority-budgets.md, 1; domain/root-translation.md, 2.1).
     fn fund(&mut self) {
         let period = engine::PartyInput::Period { project: 1, period: 1, budget: self.period_budget, next: None };
         self.root_events.push_back(engine::Event::Party(period));

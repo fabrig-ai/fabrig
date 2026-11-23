@@ -12,7 +12,7 @@ are comparable.
 - **In the queue:** a change is in the queue once it is ready (CI passed
   where its landing branch's rules ask it (`change/gates.md`, 2), and every blocking gate
   holds, at its head, and its task is not kept:
-  no dependency it was given is pending, jig's `domain/tasks/lifecycle.md`, 8),
+  no dependency it was given is pending, jig's `domain/tasks/lifecycle-endings.md`, 1),
   and no person's approval it waits on is short at its head (below).
   It keeps the time it
   first became ready while it stays live, so leaving and coming back

@@ -42,7 +42,7 @@ does for the client:
   the next call at once (`ctl/command-line.md`, 1.2).
 - **The printed link opened in a browser:** a `GET` of the link's route
   spends nothing, and the mapping leaves it to the application's page
-  (jig's `protocol/browser/README.md`, section 11); so does a `GET` of
+  (jig's `protocol/browser/sign-in.md`, section 1); so does a `GET` of
   its page, `/sign-in`, a path of temper's outside the mapping's prefix
   (`sign-in.md`, section 1). With a bundle, temper's
   server answers it with the page, which signs the browser in by it
@@ -50,8 +50,8 @@ does for the client:
   so and names `temper-box open` (`web/serving.md`, 1), with
   `Referrer-Policy: no-referrer`, and the link is `temper-box open`'s alone
   (`line.md`, 1).
-- **jig's example guards, as they are** (jig's `protocol/browser/README.md`,
-  12.2), the Host allow-list holding the listener's own address. The
+- **jig's example guards, as they are** (jig's `protocol/browser/serving.md`,
+  1.2), the Host allow-list holding the listener's own address. The
   terminal sends its credential as a bearer token; the cookie is the
   browser's (`web/README.md`).
 - **jig's clients' component** (jig's `protocol/client/README.md`) serves jig's

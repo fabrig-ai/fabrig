@@ -164,7 +164,7 @@ command.
   again, run temper-box open DIRECTORY LINK with a link temper-box serve
   printed`. A sign-out that did not reach the engine leaves the person
   signed in (jig's
-  `client/domain/client/README.md`, section 9): the rail or the top bar says
+  `client/domain/client/sign-in.md`, section 1): the rail or the top bar says
   "Sign out did not reach the engine.", and "Sign out" is offered
   again, except on the welcome: its bar has the link region alone, no person,
   sign-out alert or Sign out, at every step and before the deployment's read.

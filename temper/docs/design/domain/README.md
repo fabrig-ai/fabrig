@@ -143,7 +143,7 @@ temper-worker-domain                       the worker's root (worker/README.md)
   `../README.md`.
 - **jig's documents** are named with jig's name and their path from
   jig's `docs/design/`, with jig's section numbers: jig's
-  `domain/connectors.md`, 12; jig's `protocol/channel/README.md`, 5.4. Never a
+  `domain/connectors.md`, 12; jig's `protocol/channel/owners.md`, 1.4. Never a
   bare jig file name: jig has two `jig/docs/design/client/domain/client/README.md` and two `../testing/README.md`.
 - **smith's documents** likewise, by their path in smith's
   `docs/design/`: smith's `domain/run.md`. skein's foundation documents

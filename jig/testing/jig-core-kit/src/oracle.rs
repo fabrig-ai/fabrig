@@ -1,4 +1,4 @@
-//! The cold restart oracle (`jig/docs/design/domain/engine/restart.md` and `jig/docs/design/domain/engine/README.md`, section 9).
+//! The cold restart oracle (`jig/docs/design/domain/engine/restart.md` and `jig/docs/design/domain/engine/world.md`, section 1).
 use crate::{reads, world::World};
 use jig_domain_accounts as accounts;
 use jig_domain_core::{self as core, documents::Document};
@@ -78,7 +78,7 @@ impl World {
         self.broken = true;
     }
 
-    /// The restart oracle (domain/engine/README.md 9): settle, snapshot what the parties were last
+    /// The restart oracle (domain/engine/world.md 1): settle, snapshot what the parties were last
     /// answered and the store's retained rows, restart cold, read back, and compare
     /// through `durable`. Panics naming the first difference (document, field, key).
     pub fn close(&mut self) {

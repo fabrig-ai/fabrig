@@ -63,7 +63,7 @@ Steps 1 to 3 cost as many layouts and files as the store holds, not as many reco
 
 ## 6. What temper keeps, and for how long
 
-The owner declares each keyspace's place, its retention and its trigger; the domain's timers apply them, as jig's `protocol/store/README.md`, section 6.1 designs. The user set these horizons (11-13).
+The owner declares each keyspace's place, its retention and its trigger; the domain's timers apply them, as jig's `protocol/store/growth.md`, section 1.1 designs. The user set these horizons (11-13).
 
 | What | Today | Ideal place | Kept |
 |---|---|---|---|

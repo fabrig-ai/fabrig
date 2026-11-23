@@ -21,7 +21,7 @@ its tests, is `cluster.md`.
   timer and its one attempt.
 - **jig's protocol layer, composed.** jig ships the components for its
   own vocabularies: the store, the workers' channel, LLM accounts,
-  clients, configuration (jig's `protocol/README.md`, section 5).
+  clients, configuration (jig's `protocol/components.md`, section 1).
   temper's services own them as children beside smith's, skein's and
   temper's own components, and route between them, io and the roots, as
   jig's reference service does (jig's `protocol/service.md`, section 2).
@@ -330,7 +330,7 @@ temper's protocol layer uses jig, smith and skein as they are, at the
 revisions temper's `Cargo.lock` pins.
 
 - **jig:** the components of `components.md`, with the service parts jig ships
-  (its `protocol/service.md`, section 11), composed; the reference
+  (its `jig/docs/design/protocol/service-parts.md`, section 1), composed; the reference
   service's routing and the reference binary, copied; `jig-client` and
   its native transport; jig's client test kit,
   its check, faults and attack stories, for temper's client tiers; the
@@ -424,7 +424,7 @@ Each document keeps its own; these cross them:
   beyond one person's machine: webhooks from another host, over TLS
   (forge/README.md, section 4); hosts apart: TLS on the engine's listeners,
   containment for shared hosts, a worker alone on another host (jig's
-  `protocol/README.md`, section 10; on one machine it is the cluster's,
+  `protocol/needs.md`, section 1; on one machine it is the cluster's,
   `cluster.md`); the forge as people's sign-in
   provider (credentials.md, section 8); the forge's client documents and
   panels (`../client/forge/README.md`); and what the forge's setup leaves for later

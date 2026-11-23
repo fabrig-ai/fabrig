@@ -1,4 +1,4 @@
-//! Checked store admission bounds (protocol/store/records.md, 4, and protocol/store/README.md, 5 and 8).
+//! Checked store admission bounds (protocol/store/records.md, 4, and protocol/store/commits.md, 1, and protocol/store/README.md, 8).
 use crate::tasks_v13::Record as _;
 use crate::{accounts_v2, codec, component_v3, core_v6, notes_v1, openings_v1, people_v17, tasks_v13};
 use jig_domain_core_vocabulary as core;
@@ -42,7 +42,7 @@ pub fn settings_value(domain: &core::Limits) -> Option<u32> {
 }
 
 /// Largest whole manifest: 88 fixed bytes, plus a length and two counts
-/// beside each family's name (protocol/store/README.md, 2, and protocol/store/opening.md, 3, and protocol/store/README.md, 8).
+/// beside each family's name (protocol/store/README.md, 2, and protocol/store/opening-owners.md, 1, and protocol/store/README.md, 8).
 pub const MANIFEST_BYTES: u32 = {
     let family = 20_u32.checked_add(component_v3::CEILINGS.count_family).expect("manifest family fits u32");
     let counts = component_v3::CEILINGS.manifest_counts.checked_mul(family).expect("manifest counts fit u32");

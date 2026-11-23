@@ -1,4 +1,4 @@
-//! Delegates and procedure steps (jig/docs/design/domain/engine/README.md, 4.4).
+//! Delegates and procedure steps (jig/docs/design/domain/engine/vocabulary.md, 1.4).
 
 use alloc::boxed::Box;
 use jig_domain_tasks as tasks;
@@ -20,7 +20,7 @@ pub struct Delegate {
     pub contract: tasks::Contract,
     pub authority: tasks::Authority,
     /// When the delegate must end: its authority's wall, or a span after
-    /// the decision that makes it (domain/authority.md, 7). Named with no
+    /// the decision that makes it (domain/authority-budgets.md, 1). Named with no
     /// wall ends with its creator's.
     pub deadline: tasks::Deadline,
     /// An agent child's LLM choice; none for the core to resolve its charter's default within
@@ -47,7 +47,7 @@ pub struct ProcedureStep {
     pub messages: Box<[StepMessage]>,
     pub proposals: Box<[tasks::ProposalAction]>,
     /// Dependencies of the procedure's task its work started from; an amendment may never
-    /// remove them (jig/docs/design/domain/connectors.md, 6.1).
+    /// remove them (jig/docs/design/domain/connectors-procedures.md, 1.1).
     pub started_from: Box<[u64]>,
     pub end: StepEnd,
 }

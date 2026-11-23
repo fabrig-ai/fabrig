@@ -55,7 +55,7 @@ fn with_patterns(fields: &[u8]) -> Box<[u8]> {
     one(br#""number": 1"#, &writer.finish())
 }
 
-// The two pattern bounds in configuration.md, 3.
+// The two pattern bounds in protocol/configuration-engine.md, 1.
 const PATTERN_BYTES: usize = 64;
 const PATTERNS: usize = 16;
 

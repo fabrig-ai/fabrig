@@ -14,7 +14,7 @@
 | news: a connector's event, classified | its subscriptions (4) | by policy |
 | a notice: a task it references done or held; a proposal passing through; a hold it waits for | its subscriptions; the core | by policy |
 | a notice: nothing left to await (`lifecycle.md`, 2) | the core | yes |
-| a notice: its last pending dependency done or removed (`lifecycle.md`, 8) | the core | yes |
+| a notice: its last pending dependency done or removed (`lifecycle-endings.md`, 1) | the core | yes |
 | a timer | itself | yes |
 
 Proposals and escalations waiting for its decision are not messages: they
@@ -52,7 +52,7 @@ again when a run leaves one undecided only as 6 says.
   sender's entrance, as words past the inbox's bound are.
 - **Open questions stay in front of it.** A question asked of the task
   is open until it hears an answer or the question ends
-  (`lifecycle.md`, 8). Read or not, an open question is shown to every
+  (`lifecycle-endings.md`, 1). Read or not, an open question is shown to every
   run that starts from a brief: in its waiting section, with its asker,
   its number and how to answer, unless the run's start carries it as a
   message (../engine/briefs.md, 1.2). It is among
@@ -60,9 +60,9 @@ again when a run leaves one undecided only as 6 says.
   wakes the task again (`lifecycle.md`, 2).
 - **Words that direct it stay until a run records them.** A task
   **keeps words** when it is an agent task whose runs start from a
-  brief, never resuming (../engine/executors.md, 2), that is no
+  brief, never resuming (../engine/executors-transcripts.md, 1), that is no
   conversation, does not stand (`standing.md`) and is not ended by its
-  requester (`lifecycle.md`, 9): a task that resumes holds what it read
+  requester (`lifecycle-endings.md`, 2): a task that resumes holds what it read
   in its window, and a conversation or a standing task is read by its
   person turn by turn. In a task that keeps words, a words message (1)
   from a person, or from its requester where that is a task, is
@@ -75,7 +75,7 @@ again when a run leaves one undecided only as 6 says.
     next run will find it, in a spec it writes or in a note, and says
     so: by naming it in `mark_read`, the act that says it was read, or
     in the `records` of a `note`, which records it once the note is
-    written (../engine/executors.md, 3). What records it is that act,
+    written (../engine/executors-tools.md, 1). What records it is that act,
     never the core's reading of a spec or a note. Only a run of the
     task records its words; a number naming none of them records
     nothing and is answered so.
@@ -179,7 +179,7 @@ if its kind does, and otherwise waits for the next activation.
 **A park that wakes at once waits a pause first.** A run that parks and
 leaves its task due again at once, so judged, on a message, a proposal or
 an escalation it left in place, claims again only after the pause a
-refusal takes (`lifecycle.md`, 6): no try spent, the pause growing with
+refusal takes (`lifecycle-holds.md`, 1): no try spent, the pause growing with
 each such park in a row, and from the first again once a park leaves its
 task idle. The run after the pause is woken by the same message, as it
 would have been at once. What arrives meanwhile waits for it, as for any
@@ -187,16 +187,16 @@ pause. So a run that parks without reading what wakes it never has one
 start assigned again without backoff (the user, 2026-11-19).
 
 Each charter brings a default policy, named with the charter in
-configuration (`../../protocol/configuration.md`, section 3) and kept with
+configuration (`../../protocol/configuration-engine.md`, section 1) and kept with
 it in the settings: an agent task made under the charter, by a batch
 entry that names no policy or from a template, which names none
-(`../../protocol/configuration.md`, 3.1), takes the charter's default as
+(`../../protocol/configuration-templates.md`, 1), takes the charter's default as
 the settings hold it when the task is made, and keeps it as its own;
 its creator narrows or widens it by naming a whole policy in the entry,
 and an amendment changes it as any policy. A chat's default wakes on
 its person's words and on its delegates' results; a coordinator's on
 questions, escalations, failures and its last delegate's result
-(`last_or_failure`; for a task its closer ends, a failure alone: `lifecycle.md`, 11),
+(`last_or_failure`; for a task its closer ends, a failure alone: `lifecycle-endings.md`, 3),
 words from its delegates and its person's words, at once, and on news
 its connectors class as waking at a pace, at most once in a span (the
 reference's coordinator: 30 minutes); most other agents' on
@@ -213,7 +213,7 @@ A subscription is a task's standing interest in what changes:
 
 - **a connector's topic,** such as a service's alerts or the landings on
   a branch: kept by the connector, which names the task by its number and
-  classifies each event for it (../connectors.md, 5.3);
+  classifies each event for it (../connectors-facts.md, 1.3);
 - **another task's state:** done, held, or its result; for a task it
   references;
 - **a timer.**
@@ -274,8 +274,8 @@ those parts are for.
   kinds of message that woke it, each named as jig's store names it
   (`../../protocol/store/records.md`). `first` lasts until a run of the task
   parks idle or finishes: a run parked kept, by its own question, a question
-  it owes or a dependency (`lifecycle.md`, 8), leaves the run that continues it `first`
-  too, and so does a failed attempt for its retry (`lifecycle.md`, 6). A first run's
+  it owes or a dependency (`lifecycle-endings.md`, 1), leaves the run that continues it `first`
+  too, and so does a failed attempt for its retry (`lifecycle-holds.md`, 1). A first run's
   reasons are `first` plus the kinds that woke it, such as a person's words
   waiting at its start.
 - **The kinds that woke it:** each kind of a message waiting in its inbox,
@@ -332,10 +332,10 @@ those parts are for.
   takes what waits: under `each`, every result; under `last_or_failure`, a
   failure or a cancel, and the result that leaves the task no live
   delegate, for a task its closer ends too, since a live run is no idle
-  task and makes no closer (`lifecycle.md`, 11). Such a result chooses no part of the
+  task and makes no closer (`lifecycle-endings.md`, 3). Such a result chooses no part of the
   live run, which keeps the instructions it started with; one the run
   leaves unread is judged again when the run ends (3), where, for a task
-  its closer ends, a last success wakes nothing (`lifecycle.md`, 11).
+  its closer ends, a last success wakes nothing (`lifecycle-endings.md`, 3).
 - **Every reason waiting at its claim.** A message or an entry that
   arrives between a run's preparation and its claim, and whose kind would
   join its reasons (one its wake policy lets wake it, of a kind that

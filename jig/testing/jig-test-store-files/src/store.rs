@@ -19,7 +19,7 @@ mod tests;
 /// and a reopened one answers the one it kept (configuration.md, 7).
 const INSTALLATION: [u8; 16] = [0; 16];
 
-/// Store transport and disk faults (jig/docs/design/protocol/store/README.md, 9).
+/// Store transport and disk faults (jig/docs/design/protocol/store/testing.md, 1).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Fault {
     Hold { commits: u32 },
@@ -654,7 +654,7 @@ impl Store {
     }
     fn event(&mut self, event: Event, requests: &mut VecDeque<Request>) {
         match event {
-            // This world does not consume the census (protocol/store/README.md, 6.3).
+            // This world does not consume the census (protocol/store/growth.md, 1.3).
             Event::Census { .. } => {}
             Event::Opened { last, pending, .. } => {
                 self.applied = last;

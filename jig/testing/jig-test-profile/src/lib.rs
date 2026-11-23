@@ -272,7 +272,7 @@ fn authority_value(spend: u64, kinds: Box<[authority::Executor]>) -> authority::
 }
 
 /// The one configured model, which the charter names and which declares two efforts
-/// (`../protocol/configuration.md`, section 3; domain/tasks/README.md, section 3).
+/// (`../../../docs/design/protocol/configuration-engine.md`, section 1; domain/tasks/README.md, section 3).
 #[must_use]
 pub fn scripted_model() -> core::Model {
     core::Model {

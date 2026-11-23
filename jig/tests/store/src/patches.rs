@@ -1,4 +1,4 @@
-//! Equal-level fixture binaries and their independent record model (protocol/store/README.md 9).
+//! Equal-level fixture binaries and their independent record model (protocol/store/testing.md 1).
 use crate::{World, root, world::Change};
 use jig_protocol_store::{Event, KeptFamily, KeptMap, Keys, Owner, OwnerSet, OwnerSets, SecretOwner, Secrets, Write};
 use jig_test_layouts::{self as fixture, records as app};

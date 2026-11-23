@@ -1,4 +1,4 @@
-//! Deployment `OpenID` provider configuration (configuration.md, 3).
+//! Deployment `OpenID` provider configuration (protocol/configuration-engine.md, 1).
 use crate::{Directories, Directory, Path, Problem, Problems, What, check, read};
 use alloc::boxed::Box;
 use skein_json::{Document, document::Kind};
@@ -13,7 +13,7 @@ pub struct Provider {
     pub clients: Box<[ProviderClient]>,
     pub addresses: Box<[u16]>,
 }
-/// A client registration (jig/docs/design/protocol/configuration.md, 3).
+/// A client registration (jig/docs/design/protocol/configuration-engine.md, 1).
 #[derive(Clone, Debug)]
 pub struct ProviderClient {
     pub id: Box<[u8]>,

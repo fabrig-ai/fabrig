@@ -14,7 +14,7 @@ impl Domain {
     }
 
     /// An event's projection lands on a whole census: from the link on
-    /// (jig/docs/design/domain/engine/settings.md, 7), never while loading.
+    /// (jig/docs/design/domain/engine/settings-store.md, 1), never while loading.
     pub(super) fn assert_projection_event(&self) {
         assert!(
             self.ready() || self.start == Start::Linked,

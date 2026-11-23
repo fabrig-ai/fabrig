@@ -1,4 +1,4 @@
-//! Admission, queue room and owned policy memory (domain/authority.md, 6–10).
+//! Admission, queue room and owned policy memory (domain/authority.md, 6, and domain/authority-budgets.md, 1, and domain/authority-checks.md, 1, and domain/authority.md, 9–10).
 
 use alloc::boxed::Box;
 use core::mem::size_of;
@@ -6,7 +6,7 @@ use core::mem::size_of;
 use crate::{Authority, Executor, Grant, Implication, Name, Pattern, Requirement, ResourceScope};
 
 /// Root-configured capacities for policy state and admitted questions; owned values do not enforce
-/// these bounds until admission. (domain/authority.md, sections 6–11).
+/// these bounds until admission. (domain/authority.md, section 6, and domain/authority-budgets.md, section 1, and domain/authority-checks.md, section 1, and domain/authority.md, sections 9–11).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Limits {
     /// Maximum live project policies.

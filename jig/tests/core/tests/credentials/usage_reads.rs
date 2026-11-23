@@ -11,7 +11,7 @@ use skein_lib::{Duration, Token, Wall};
 fn idle_reads_reach_the_link_and_answers_mark_only_changed_facts() {
     const CHANNEL: Token = Token::new(7); // The world's first worker.
     const ACCOUNT: u32 = 0;
-    const QUIET: Duration = Duration::from_secs(30 * 60); // accounts.md, 3.7.
+    const QUIET: Duration = Duration::from_secs(30 * 60); // domain/accounts-lists.md, 1.
     let mut world = program_run(185);
     // Connect the root's link port; the fleet already holds this worker's hello.
     world.send(root::Event::Link {

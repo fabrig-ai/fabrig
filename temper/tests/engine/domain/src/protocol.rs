@@ -292,7 +292,7 @@ impl Protocol {
         up(channel, host::LinkUp::Answer { run: Token::new(task), attempt: Token::new(attempt), answer }, parts)
     }
 
-    /// Answer the oldest read through the worker link (jig/docs/design/domain/engine/settings.md, 12).
+    /// Answer the oldest read through the worker link (jig/docs/design/domain/engine/settings-catalogue.md, 2).
     pub fn answer_read(&mut self, outcome: jig_domain_link::ListOutcome) -> engine::Event {
         let (channel, read) = self.list_reads.pop_front().expect("a worker holds the list read");
         up(channel, host::LinkUp::ListRead { read, outcome }, engine::Parts::none())

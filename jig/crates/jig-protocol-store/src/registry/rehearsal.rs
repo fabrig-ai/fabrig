@@ -1,5 +1,5 @@
 //! Decode stored heads by their own texts before the open plans any change
-//! (protocol/store/opening.md, 5, and protocol/store/layouts.md, 4).
+//! (protocol/store/opening-rehearsal.md, 1, and protocol/store/layouts.md, 4).
 use super::{Layouts, head, rehead, rows, texts};
 use crate::{OpenRefusal, Store};
 use alloc::boxed::Box;

@@ -30,7 +30,7 @@
 //! `Ended`, the retained task row, and original-source
 //! posting share one atomic decision. The current root exposes person result notices and
 //! delays outward replies/effects until durability; retained result reads
-//! remain the root's route (domain/tasks/lifecycle.md, section 7; domain/engine/README.md, section 5.6, and domain/engine/executors.md, section 1, and domain/engine/briefs.md, section 1).
+//! remain the root's route (domain/tasks/lifecycle.md, section 7; domain/engine/decisions.md, section 1.6, and domain/engine/executors.md, section 1, and domain/engine/briefs.md, section 1).
 //!
 //! `fire` expires at most one projected retry timer per call and advances bounded
 //! cascades into an uncapped output queue. `valid` checks edge and retained-count

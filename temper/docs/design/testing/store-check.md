@@ -6,7 +6,7 @@ that committed snapshot, apart from the live world, passes everything a
 start checks, jig's checks and temper's connector checks above them,
 and a record a start would refuse fails the world, naming the record
 and the commit. jig gives the operation, its choice of commits and its
-finding (`jig/docs/design/domain/testing.md`, 7, the store check); this
+finding (`jig/docs/design/domain/testing-fakes.md`, 1, the store check); this
 document is temper's: its root's rehearsal as the start that checks,
 what one costs, and where each world calls it.
 
@@ -84,8 +84,8 @@ what one costs, and where each world calls it.
   - a world that opens temper's whole service (the one-process world)
     hands each open, live and rehearsing, the binary's schema texts
     parsed once a process, through `Store::prepared_schemas`, as jig's
-    test store does (`jig/docs/design/protocol/store/opening.md`, 3,
-    "One check per open"): admission's checks all run, over texts it
+    test store does (`jig/docs/design/protocol/store/opening-owners.md`,
+    1, "One check per open"): admission's checks all run, over texts it
     no longer parses for each open;
   - nothing a start checks is skipped to save cost: every phase and
     check above runs, to the same endpoint, over the same records.
@@ -121,8 +121,8 @@ what one costs, and where each world calls it.
 
 ## 3. Which commits, in which world
 
-jig's `StoreChecks` choose them (`jig/docs/design/domain/testing.md`,
-7): every commit, one per run drawn from the run's seed, or each commit
+jig's `StoreChecks` choose them (`jig/docs/design/domain/testing-fakes.md`,
+1): every commit, one per run drawn from the run's seed, or each commit
 with one chance in `one_in`, each run's count reported.
 
 | World | Commits | Where it counts a commit | Where its run ends |

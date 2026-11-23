@@ -120,12 +120,12 @@ pub enum EndedBy {
     Result,
     /// Only its requester ends it; a run's raw finish parks it (5.8).
     Requester,
-    /// A named procedure closes an agent task (jig/docs/design/domain/tasks/lifecycle.md, 11).
+    /// A named procedure closes an agent task (jig/docs/design/domain/tasks/lifecycle-endings.md, 3).
     Closer(Closer),
     Standing,
 }
 
-/// The procedure named to close a task (jig/docs/design/domain/tasks/lifecycle.md, 11).
+/// The procedure named to close a task (jig/docs/design/domain/tasks/lifecycle-endings.md, 3).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Closer {
     pub connector: u16,
@@ -578,7 +578,7 @@ pub enum TemplateExecutor {
     Charter(u32),
     Chosen,
 }
-/// A connector's resource named after the task (jig/docs/design/protocol/configuration.md, 3.3).
+/// A connector's resource named after the task (jig/docs/design/protocol/configuration-templates.md, 3).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct Symbol {
     /// The connector that resolves the symbol.
@@ -841,9 +841,9 @@ pub struct Provider {
     /// Its name for showing.
     pub name: Box<[u8]>,
     pub number: u32,
-    /// The endpoint its added models take (jig/docs/design/protocol/configuration.md, 3).
+    /// The endpoint its added models take (jig/docs/design/protocol/configuration-engine.md, 1).
     pub endpoint: Option<Box<[u8]>>,
-    /// The program-free endpoint its sign-ins and keys take (jig/docs/design/protocol/configuration.md, 3).
+    /// The program-free endpoint its sign-ins and keys take (jig/docs/design/protocol/configuration-engine.md, 1).
     pub direct: Option<Box<[u8]>>,
     pub list: Option<ProviderList>,
     pub signed_in_plan: bool,

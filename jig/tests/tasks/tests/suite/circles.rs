@@ -672,7 +672,7 @@ fn a_restored_two_holder_pool_circle_holds_its_waiter() {
     assert!(waiter.hold_wait_since.is_some());
 }
 
-// A lift judges the kept rule as every release does (domain/tasks/lifecycle.md, 8).
+// A lift judges the kept rule as every release does (domain/tasks/lifecycle-endings.md, 1).
 #[test]
 fn a_circle_held_agent_given_a_dependency_lifts_idle_and_is_not_due() {
     const LATE: u64 = 10;

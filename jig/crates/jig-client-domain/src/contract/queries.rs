@@ -1,4 +1,4 @@
-//! The fixed task query and the single task line (client/domain/contract/documents.md, 1, and client/domain/contract/README.md, 4.1).
+//! The fixed task query and the single task line (client/domain/contract/documents.md, 1, and client/domain/contract/reads.md, 1.1).
 use super::{Budget, Chip, Count, Cursor, PhaseCounts, Requester, TaskFlags};
 use skein_lib::Wall;
 /// A query's order; ties go by task number.

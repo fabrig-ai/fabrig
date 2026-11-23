@@ -1,5 +1,5 @@
 //! Party note edits and run note requests translated through the notes child
-//! (`domain/engine/README.md`, section 4.4; `domain/people/acts.md`, section 1).
+//! (`domain/engine/vocabulary.md`, section 1.4; `domain/people/acts.md`, section 1).
 
 use crate::{
     CallPart, Core, Event, Held, Key, Limits, Now, Record, Request, RoutedCall, Write,

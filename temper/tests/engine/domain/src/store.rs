@@ -75,7 +75,7 @@ impl Image {
 }
 
 /// Numbered root transactions and, in a live world, their durable typed mirror.
-/// Today's catalogue survives reopening (jig/docs/design/domain/engine/settings.md, 11).
+/// Today's catalogue survives reopening (jig/docs/design/domain/engine/settings-catalogue.md, 1).
 pub struct Store {
     pub applied: u64,
     pub pending_generation: bool,
@@ -452,7 +452,7 @@ impl Store {
                         self.missing.push((record, target));
                         continue;
                     }
-                    // These read helpers do not consume the census (jig protocol/store/README.md, 6.3).
+                    // These read helpers do not consume the census (jig jig/docs/design/protocol/store/growth.md, 1.3).
                     engine::StoreInput::Census(..) | engine::StoreInput::Committed { .. } => continue,
                     reply @ (engine::StoreInput::Checkpointed { .. }
                     | engine::StoreInput::CheckpointRefused { .. }
@@ -494,7 +494,7 @@ impl Store {
                 match reply {
                     engine::StoreInput::ReadLoaded { result, .. } => return result,
                     engine::StoreInput::PartLoaded { .. } => panic!("core read received a part terminal"),
-                    // These read helpers do not consume the census (jig protocol/store/README.md, 6.3).
+                    // These read helpers do not consume the census (jig jig/docs/design/protocol/store/growth.md, 1.3).
                     engine::StoreInput::Census(..) | engine::StoreInput::Committed { .. } => continue,
                     engine::StoreInput::Checkpointed { .. }
                     | engine::StoreInput::CheckpointRefused { .. }
@@ -631,7 +631,7 @@ impl Store {
             | Event::Closed { .. } => {
                 unreachable!("an engine store never rehearses or goes back")
             }
-            // This world does not consume the census (jig protocol/store/README.md, 6.3).
+            // This world does not consume the census (jig/docs/design/protocol/store/growth.md, 1.3).
             Event::Census { .. } => {}
             Event::Committed { number, .. } => {
                 let writes = self.inflight.as_mut().map(|inflight| inflight.remove(&number).expect("root commit"));
@@ -869,7 +869,7 @@ pub fn with_start_mark(mut rows: BTreeMap<Key, Record>) -> BTreeMap<Key, Record>
 
 /// Writer/store oracle for selected families, exclusive walk order and page
 /// continuation. Census owners can repeat; its cursor names an index instead
-/// (temper/docs/design/domain/root-restart.md, 1.1; jig/docs/design/domain/engine/README.md, 9).
+/// (temper/docs/design/domain/root-restart.md, 1.1; jig/docs/design/domain/engine/world.md, 1).
 ///
 /// # Errors
 /// Returns the violated family, ordering or continuation obligation.

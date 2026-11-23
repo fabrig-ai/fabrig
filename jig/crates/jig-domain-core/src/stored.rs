@@ -1,4 +1,4 @@
-//! The core's durable run and call identities (domain/engine/README.md, 5.4 and domain/engine/executors.md).
+//! The core's durable run and call identities (domain/engine/decisions.md, 1.4 and domain/engine/executors.md).
 
 pub use jig_domain_core_vocabulary::stored::*;
 

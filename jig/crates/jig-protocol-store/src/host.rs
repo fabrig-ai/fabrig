@@ -1,5 +1,5 @@
 //! The store's four single-flight file drivers, adoption and close
-//! (jig/docs/design/protocol/store/README.md, 8; jig/docs/design/protocol/service.md, 11.5).
+//! (jig/docs/design/protocol/store/README.md, 8; jig/docs/design/protocol/service-parts.md, 1.5).
 use crate::Below;
 use alloc::boxed::Box;
 use skein_codec::Record as _;
@@ -12,7 +12,7 @@ use skein_lib::{Duration, Env, Map, Queue, Time, Token, Wall};
 mod wait;
 pub use wait::{Wait, WaitLane};
 
-/// Whether a get the store can't answer yet is answered in the pass (protocol/service.md, 11.5).
+/// Whether a get the store can't answer yet is answered in the pass (protocol/service-parts.md, 1.5).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum NotReady {
     /// `Hosted::secrets` returns it, as any answer to a get.
@@ -47,7 +47,7 @@ impl core::fmt::Debug for Hosted {
             .finish_non_exhaustive()
     }
 }
-/// Operation issued once its roots are adopted (protocol/store/opening.md, 5; checkpoints.md, 5–6).
+/// Operation issued once its roots are adopted (protocol/store/opening-rehearsal.md, 1; checkpoints.md, 5–6).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Adoption {
     Open,

@@ -1,4 +1,4 @@
-//! A run's settings reads share party documents without recording a decision (domain/engine/executors.md, 3).
+//! A run's settings reads share party documents without recording a decision (domain/engine/executors-tools.md, 1).
 
 use crate::settings_support as support;
 use jig_core_world::fixtures;

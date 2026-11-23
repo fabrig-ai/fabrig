@@ -1,4 +1,4 @@
-//! The hub's records across the channel (protocol/channel/records.md and protocol/channel/README.md, 5).
+//! The hub's records across the channel (protocol/channel/records.md and protocol/channel/owners.md, 1).
 //! Jobs use their own records (jig/docs/design/protocol/channel/records.md, 4).
 //! Pieces cross whole; only the root judges their kinds and offsets (6.4).
 use crate::{GrantValue, Request, Scheme};

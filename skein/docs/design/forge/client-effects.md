@@ -104,7 +104,7 @@ it by its key, believed, alone.
 could write over a newer one: whichever copy lands, and whenever, its
 head holds the base it asked for, or the copy is refused or changes
 nothing. So its class rests on no lifetime (jig's
-`domain/connectors.md`, 4.3), and a forge's git work may outlast one. What
+`domain/connectors-effects.md`, 1.3), and a forge's git work may outlast one. What
 a copy costs is what it moves:
 
 - **By a merge,** the branch only moves forward. A copy that read a head
@@ -238,7 +238,7 @@ was neither made nor refused, and it lands, or not, later.
 ### 1.8 A stop
 
 An owner that stops settles its effects first (jig's
-`domain/connectors.md`, 4.2; temper's `domain/root-restart.md`, 1.2). `Settle`
+`domain/connectors-effects.md`, 1.2; temper's `domain/root-restart.md`, 1.2). `Settle`
 tells the client to finish what it sent and to send nothing new; it is
 the client's last state, and a start builds a new client.
 

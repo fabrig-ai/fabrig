@@ -15,7 +15,7 @@ idle, we spawn one from time to time".
 
 - **The place is there:** jig keeps an account's facts, and kind 7 is a
   usage window: its length, its share used, when it resets and its state
-  (jig's `domain/accounts.md`, 3.7, the facts' registry). Nothing writes
+  (jig's `domain/accounts-lists.md`, 1, the facts' registry). Nothing writes
   it yet.
 - **Runs report it, for free:** every Claude Code run already streams
   `rate_limit_event`s (smith's `protocol/programs.md`, 5.6), and smith
@@ -45,7 +45,7 @@ idle, we spawn one from time to time".
   changes the state and the reset.
 - **Relayed as a fact:** the agent reports the window with the run's
   account and source, origin 5, a program's event. The core keeps it as
-  any fact (jig's `domain/accounts.md`, 3.7, *A fact is its kind and
+  any fact (jig's `domain/accounts-lists.md`, 1, *A fact is its kind and
   label*), replacing the same kind and label. A report equal to the one
   held changes nothing and marks nothing, so a busy account doesn't churn
   its readers.
@@ -59,10 +59,10 @@ idle, we spawn one from time to time".
   usable, when no fact of kind 7 has come from a run, or from a read, for
   30 minutes; and once at a limited window's reset. A source not usable
   holds what is due until it is, and an account is never read twice at
-  once, as the model list's read (jig's `domain/accounts.md`, 3.7, *When it
+  once, as the model list's read (jig's `domain/accounts-lists.md`, 1, *When it
   is due*).
 - **How:** the core gives the read to a worker whose host keeps the
-  program's login (jig's `domain/accounts.md`, 3.4, the host rule), and the
+  program's login (jig's `domain/accounts-sources.md`, 1, the host rule), and the
   worker's program adapter runs the program's own usage command. The read
   is no run: no budget, no slot, no turn, no model call. Its answer gives
   each window's share and reset, and becomes the facts, origin 6, a
@@ -105,9 +105,9 @@ The user: a recent rate, over one hour, rolling.
 
 - smith's `protocol/programs.md`, 5.6: every `rate_limit_event` is
   reported, its window read as section 2 says.
-- jig's `domain/accounts.md`, 3.7: kind 7 is said by a program's events
+- jig's `domain/accounts-lists.md`, 1: kind 7 is said by a program's events
   and a program's usage read, and the read's due times and host are
-  section 3's.
+  `usage-windows.md`, section 3's.
 - jig's hosts' design: a worker's program adapter offers a usage read for
   a program source.
 - jig's accounts document: each window's rate beside its fact (section 5).

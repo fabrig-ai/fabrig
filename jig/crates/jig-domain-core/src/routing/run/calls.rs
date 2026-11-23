@@ -1,5 +1,5 @@
 //! Named run calls, turns and terminals routed to tasks, authority and the root
-//! (`domain/engine/README.md`, section 4.4 and `domain/engine/executors.md`). Delegation and preparation
+//! (`domain/engine/vocabulary.md`, section 1.4 and `domain/engine/executors.md`). Delegation and preparation
 //! are separate families so each route file stays under 1,500 lines.
 
 use super::{Call, Proposing};

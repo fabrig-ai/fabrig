@@ -183,7 +183,7 @@ pub(super) fn admit_ask(
         return again(to, full_answers(domain, env, occupied), out);
     }
     let project = project(&ask);
-    // An account request's check is its holder, never a role (domain/authority.md, 8.4).
+    // An account request's check is its holder, never a role (domain/authority-checks.md, 1.4).
     let role = match ask.family() {
         AskFamily::Application(ApplicationScope::Own) | AskFamily::Lift | AskFamily::Account => None,
         AskFamily::Project(_)

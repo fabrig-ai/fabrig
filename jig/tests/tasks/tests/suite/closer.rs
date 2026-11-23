@@ -1,4 +1,4 @@
-//! Closer ending authority is retained and checked at making (jig/docs/design/domain/tasks/lifecycle.md, 11).
+//! Closer ending authority is retained and checked at making (jig/docs/design/domain/tasks/lifecycle-endings.md, 3).
 use jig_domain_tasks::{self as tasks, EndedBy, Executor, Party, Problem, Refusal};
 use jig_tasks_world::{LIMITS, Reply, World, task};
 

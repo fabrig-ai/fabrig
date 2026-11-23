@@ -1,4 +1,4 @@
-//! Independent party observations of the watch contract (`client/domain/contract/README.md`, 5.2).
+//! Independent party observations of the watch contract (`client/domain/contract/watches.md`, 1.2).
 //! Commit numbers and changed task identities come only from root outputs;
 //! deliveries are checked against the fake store's durable watermark. The
 //! referee never reads the core, its views child, or the journal's held queue.

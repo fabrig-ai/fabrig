@@ -45,7 +45,7 @@ to the forge; a timer to the child that armed it. What temper adds:
   that decision's commit is durable.
 - **A run's read as its person,** `see`'s for an address of the person's
   (`agent/ask-temper.md`, 1), goes to the core as the run's named action
-  `PersonRead` (jig's `domain/engine/executors.md`, 3), its answers back to the
+  `PersonRead` (jig's `domain/engine/executors-tools.md`, 1), its answers back to the
   call's flight; an application read of the forge's it makes, the core
   admits as a party's and asks of the forge with the person and the
   project's scope, and the forge's document for that person, made as its
@@ -57,7 +57,7 @@ to the forge; a timer to the child that armed it. What temper adds:
   its task's live attempt; the root hands it out (`HostRequest::Decode`),
   and the protocol layer decodes its input into the root's `Tool`
   (`../protocol/llm.md`, section 4). No domain parses a call's input
-  (jig's `domain/engine/README.md`, 4.4).
+  (jig's `domain/engine/vocabulary.md`, 1.4).
 - **Checked for shape** against the core's bounds before any child sees
   it: a call past them becomes its refusal, answered and recorded as any
   decided call is.
@@ -144,8 +144,8 @@ forge's number:
 
 ## 4. The forge's routes
 
-What temper adds to the core's usual routes (jig's `domain/engine/README.md`,
-4.4):
+What temper adds to the core's usual routes (jig's `domain/engine/vocabulary.md`,
+1.4):
 
 | What arrives | Route | Then |
 |---|---|---|
@@ -191,7 +191,7 @@ The settings of temper's kinds are `../protocol/configuration/settings.md`
 
 - **temper's kinds are the forge's.** A change of settings naming items
   of temper's kinds reaches the root within the change's decision, as a
-  requirement's verdict is asked (jig's `domain/engine/settings.md`, 5); the
+  requirement's verdict is asked (jig's `domain/engine/settings-application.md`, 1); the
   root gives each item to the forge, which accepts or refuses it with
   its reason, and carries the answer back. In the decision that commits
   the change the root gives the forge the core's word to keep the
@@ -234,7 +234,7 @@ approvals reason (decided 2026-11-03).
 
 ## 7. Periods, from the calendar
 
-A project's spend is per period (jig's `domain/authority.md`, section 7),
+A project's spend is per period (jig's `domain/authority-budgets.md`, section 1),
 and jig keeps no calendar: a period begins when the root says so (jig's
 `protocol/configuration.md`, section 5). temper's root has a third
 child, the calendar, which renews each project's period.
@@ -255,8 +255,8 @@ child, the calendar, which renews each project's period.
   the core (jig's `Event::Period`: the project, the period's number one
   more, its budget the project's spend per period as its policy holds
   it then, its next start a span later). What the last period reserved
-  stays its own and returns to it (jig's `domain/authority.md`, section
-  7); the new one starts full.
+  stays its own and returns to it (jig's `domain/authority-budgets.md`, section
+  1); the new one starts full.
 - **At each start,** before decisions open (`root-restart.md`, section 1.1, step 6), the
   root gives the calendar each restored project's current period (its
   number, start and next start) and its policy's spend per period, from

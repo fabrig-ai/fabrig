@@ -1,4 +1,4 @@
-//! Owner-set admission and binary levels (protocol/store/opening.md, 3).
+//! Owner-set admission and binary levels (protocol/store/opening-owners.md, 1).
 use super::sets::{Owner, OwnerSet, OwnerSets};
 use skein_lib::List;
 
@@ -35,7 +35,7 @@ pub(crate) fn set(sets: &OwnerSets, owner: Owner) -> Option<&OwnerSet> {
     }
     None
 }
-/// One check per open (protocol/store/opening.md, 3).
+/// One check per open (protocol/store/opening-owners.md, 1).
 pub(crate) fn checked(store: &mut crate::Store) -> Result<(), Owner> {
     if let Some(verdict) = store.directory.checked {
         return verdict;
@@ -45,7 +45,7 @@ pub(crate) fn checked(store: &mut crate::Store) -> Result<(), Owner> {
     verdict
 }
 
-/// The manifest counts each kept family by its name (protocol/store/README.md, 2, protocol/store/opening.md, 3): the
+/// The manifest counts each kept family by its name (protocol/store/README.md, 2, protocol/store/opening-owners.md, 1): the
 /// set where the families pass its bounds, in number or a name's bytes, is
 /// refused before a first start writes.
 pub(crate) fn bounds(sets: &OwnerSets, prepared: &[skein_codec::schema::Schema]) -> Result<(), Owner> {
@@ -251,7 +251,7 @@ fn holds(sets: &OwnerSets, prepared: &[skein_codec::schema::Schema]) -> Result<(
 pub(crate) mod counting;
 
 /// Each range belongs to a declaration in the binary's text, and no two
-/// families claim the same key (protocol/store/opening.md, 3).
+/// families claim the same key (protocol/store/opening-owners.md, 1).
 fn keys(sets: &OwnerSets, prepared: &[skein_codec::schema::Schema]) -> Result<(), Owner> {
     for set in sets.sets {
         let refusal = set.owner;

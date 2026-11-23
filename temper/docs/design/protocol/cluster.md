@@ -105,7 +105,7 @@ w1, w2       temper-box serve DIRS     after the engine: each a worker alone
 ## 3. Joining, and its lines
 
 - **jig's link, in plaintext over loopback** (jig's
-  `protocol/channel/README.md`, section 9): the worker dials the engine's
+  `protocol/channel/worker-link.md`, section 1): the worker dials the engine's
   workers' listener; the engine takes its name and its secret against
   its setting's digest (jig's `domain/engine/workers.md`, 4), then its
   hello: its capability, its position, its capacity and a stop bound
@@ -136,9 +136,9 @@ w1, w2       temper-box serve DIRS     after the engine: each a worker alone
   | `lost <worker> <address> <why>` | a worker alone | once each linked link is lost, with its `Loss` (below) |
   | `temper-box serve: worker lost worker=<worker> channel=<n>: <why>` | each shape with an engine | once each worker's channel that said hello ends |
   | `temper-box serve: worker opening ended worker=<worker>: <why>` | each shape with an engine | once a worker's connection ends before its hello: refused, turned away, out of time or cut; `worker=-` before its name is taken |
-  | `temper-box serve: worker unsent worker=<worker> channel=<n>: <record> of <bytes> bytes <bound>` | each shape with an engine | once each record the engine's link did not send (jig's `protocol/channel/README.md`, 8): `<record>` the record's kind in words (`assignment`, `job`, `message`, `relayed`, `turn-kept`, `turn-busy`, `acknowledge`, `cancel`, `grant`, `sources`, `check`, `sign-out`, `read-list`), `<bytes>` its frame's, and `<bound>` `past the room of <room> bytes` or `refused: <reason>` (`wrong-direction`, `not-taken`, `too-large`, `closed`) |
+  | `temper-box serve: worker unsent worker=<worker> channel=<n>: <record> of <bytes> bytes <bound>` | each shape with an engine | once each record the engine's link did not send (jig's `protocol/channel/liveness.md`, 1): `<record>` the record's kind in words (`assignment`, `job`, `message`, `relayed`, `turn-kept`, `turn-busy`, `acknowledge`, `cancel`, `grant`, `sources`, `check`, `sign-out`, `read-list`), `<bytes>` its frame's, and `<bound>` `past the room of <room> bytes` or `refused: <reason>` (`wrong-direction`, `not-taken`, `too-large`, `closed`) |
 
-  **A link that drops is never silent** (jig's `protocol/channel/README.md`, 8,
+  **A link that drops is never silent** (jig's `protocol/channel/liveness.md`, 1,
   *A lost link says why*). `<why>` is the link's `Loss` in one word or
   two: `silence`, `stall`, `full`, `deadline` (the engine's opening or
   hello), `handshake` (the worker's opening), `stream`, `truncated`,
@@ -355,7 +355,7 @@ worker added later, 4.6's hung worker.
 - **TLS on the workers' listener, contained process trees, and workers
   on other hosts,** with hosts apart (`README.md`, section 11): a worker alone on
   another machine is the same document, its `engine` in TLS (jig's
-  `protocol/README.md`, section 10).
+  `protocol/needs.md`, section 1).
 - **An engine restarted under live workers,** with generations kept
   across starts (`README.md`, section 11).
 - **The cluster's workers of several slots,** as the case of

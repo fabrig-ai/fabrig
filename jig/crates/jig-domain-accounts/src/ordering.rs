@@ -1,4 +1,4 @@
-//! Dense holder and source order (accounts.md, 3.4 and section 5).
+//! Dense holder and source order (domain/accounts-sources.md, 1, and domain/accounts.md, 5).
 use crate::{Domain, Holder, Request, Stored};
 use skein_lib::{List, Map, Queue};
 

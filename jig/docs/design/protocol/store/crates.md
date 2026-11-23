@@ -32,7 +32,7 @@ documents': nothing here changes a behaviour, a public path, a stored byte or a 
 ```
 jig-protocol-store            the component: Store, its boundary, keys, commits, reads, opening, jobs, transcripts, secrets; src/generated/openings.rs; the re-exported `codec` path
 └── jig-protocol-store-records    jig's records to the store's generated families and back: src/generated/ translation modules and the hand-written `codec` module that calls them; limits, names, encode and decode, the component's own rows
-    └── jig-protocol-store-{core,tasks,people,settings,families}   the generated record code (`../README.md`, 5)
+    └── jig-protocol-store-{core,tasks,people,settings,families}   the generated record code (`../components.md`, 1)
 jig-protocol-store-kit        testing: the domain values and limits both pieces' tests build
 ```
 

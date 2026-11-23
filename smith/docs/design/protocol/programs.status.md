@@ -50,8 +50,8 @@ fake status supplies it; this does not establish a real-login render check.
 
 - **Not yet:** `ui-ask-m1`'s `proposal-read` part was never designed,
   according to the retirement brief. Its landed run proposal read needs
-  design coverage reconciliation against `jig/docs/design/domain/engine/executors.md`,
-  3; this is a design gap, not an absent implementation.
+  design coverage reconciliation against `jig/docs/design/domain/engine/executors-tools.md`,
+  1; this is a design gap, not an absent implementation.
 
 
 - **Not yet:** 5.1, 5.5: what the program offers is not read from

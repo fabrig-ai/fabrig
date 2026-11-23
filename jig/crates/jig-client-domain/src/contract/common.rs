@@ -306,7 +306,7 @@ pub struct Count {
     pub limited: bool,
 }
 
-/// The owner-supplied scope of a part's application document (client/domain/contract/README.md, 5.1).
+/// The owner-supplied scope of a part's application document (client/domain/contract/watches.md, 1.1).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum PartScope {
     Project(u32),

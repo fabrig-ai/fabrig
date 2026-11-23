@@ -5010,7 +5010,7 @@ pub(crate) fn effect_ask(
 ) {
     match ask {
         // A person settles a held uncertain effect (brief D14; jig's
-        // `domain/connectors.md`, 4.3): again remakes it, a creation looked
+        // `domain/connectors-effects.md`, 1.3): again remakes it, a creation looked
         // for first; otherwise it is recorded not made.
         jig_domain_core::effects::connector::Ask::ResolveUncertain { entry, again } => {
             if number == domain.config.forge_connector {

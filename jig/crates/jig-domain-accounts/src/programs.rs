@@ -1,4 +1,4 @@
-//! Holder declarations and lifetime names (accounts.md, 3.4 and section 5).
+//! Holder declarations and lifetime names (domain/accounts-sources.md, 1, and domain/accounts.md, 5).
 use crate::domain::{Account, Source};
 use crate::{Domain, Holder, Kind, Limits, Refusal, Request, Stored};
 use alloc::boxed::Box;
@@ -141,7 +141,7 @@ pub fn name(domain: &Domain, source: u32, holder: Holder) -> Option<&[u8]> {
     }
     Some(issued.name.as_bytes())
 }
-/// A report names only a live source, never a retired reservation (accounts.md, 3.7).
+/// A report names only a live source, never a retired reservation (domain/accounts-lists.md, 1).
 pub(crate) fn source_named(domain: &Domain, name: &[u8]) -> Option<u32> {
     for (number, issued) in &domain.issued {
         if issued.name.as_bytes() == name && domain.sources.contains_key(number) {

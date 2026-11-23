@@ -1,4 +1,4 @@
-//! Going back before an active generation's first own commit (protocol/store/opening.md 5).
+//! Going back before an active generation's first own commit (protocol/store/opening-rehearsal.md 1).
 use crate::{Arrived, BackRefusal, Below, Event, Io, Limits, Phase, Root, Store, codec, directory, generations};
 use alloc::boxed::Box;
 use skein_io::file;
@@ -66,7 +66,10 @@ pub(crate) fn up(store: &mut Store, env: &Env<Limits>, io: Io, above: &mut Queue
     }
     file_up(store, env, arrived, above, below);
 }
-#[expect(clippy::too_many_lines, reason = "one terminal per phase of opening.md 5's back operation")]
+#[expect(
+    clippy::too_many_lines,
+    reason = "one terminal per phase of protocol/store/opening-rehearsal.md 1's back operation"
+)]
 fn file_up(store: &mut Store, env: &Env<Limits>, arrived: Arrived, above: &mut Queue<Event>, below: &mut Below) {
     let transition = core::mem::replace(&mut state(store).stage, Stage::Finished);
     match transition {

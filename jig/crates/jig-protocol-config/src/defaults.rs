@@ -1,4 +1,4 @@
-//! The application's settings, passed after parsing (configuration.md, 1 and 3).
+//! The application's settings, passed after parsing (protocol/configuration.md, 1, and protocol/configuration-engine.md, 1).
 use crate::{Engine, Policy, Problems, domain};
 use alloc::boxed::Box;
 use jig_domain_authority as authority;

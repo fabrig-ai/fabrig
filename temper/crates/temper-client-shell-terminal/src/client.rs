@@ -438,7 +438,9 @@ impl NativeClient {
                     self.gathered.push(request);
                 }
                 Down::Unlinked(_) => {
-                    unreachable!("a linked root asks no unlinked request (jig's client/domain/client/README.md, 4.4)")
+                    unreachable!(
+                        "a linked root asks no unlinked request (jig's client/domain/client/vocabulary.md, 1.4)"
+                    )
                 }
                 Down::Notice(notice) => self.notices.push(Shown::Notice(notice)),
                 Down::Duty(duty) => match duty {

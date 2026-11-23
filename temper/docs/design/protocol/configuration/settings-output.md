@@ -124,7 +124,7 @@ agent's largest turn" (`temper-service`'s `startup/checks.rs`).
   limits. A longer answer is cut, its words saying how much was left out
   and to ask again, narrower (smith's `domain/run.md`, 5.3).
 - **A batch:** `standard`'s `authority.batch` is 32, so a `change` of up to
-  32 changes passes (jig's `domain/authority.md`, section 8), still
+  32 changes passes (jig's `domain/authority-checks.md`, section 1), still
   within `tasks.batch`, `tasks.batch_bytes` and the task room a batch
   needs. Each model's figures don't enter it. It costs a retained denial
   300 findings at most where it took 92, and a batch's aggregate 512

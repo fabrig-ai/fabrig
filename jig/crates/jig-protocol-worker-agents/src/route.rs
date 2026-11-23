@@ -1,4 +1,4 @@
-//! Smith payloads are translated in the worker layer (jig/docs/design/protocol/channel/README.md, 5.1 and 5.4).
+//! Smith payloads are translated in the worker layer (jig/docs/design/protocol/channel/owners.md, 1.1 and 1.4).
 use alloc::boxed::Box;
 use jig_domain_host as hub;
 use jig_domain_link::{CountKind, Form, Grant, Scheme};
@@ -8,7 +8,7 @@ use smith_host_domain as smith;
 use smith_host_protocol::Limits;
 use smith_protocol_channel::Endpoints;
 
-/// What a settled delivery's evidence is (jig/docs/design/protocol/channel/README.md, 5.2).
+/// What a settled delivery's evidence is (jig/docs/design/protocol/channel/owners.md, 1.2).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Evidence {
     /// The bytes are a receipt's or a refusal's words, as they stand.

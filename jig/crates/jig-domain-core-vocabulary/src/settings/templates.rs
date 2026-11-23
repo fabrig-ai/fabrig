@@ -3,7 +3,7 @@ use alloc::boxed::Box;
 use jig_domain_people::{TemplateBudget, TemplateDeadline, TemplateExecutor};
 use jig_domain_tasks::{Contract, Flags};
 use skein_lib::Duration;
-/// The application's numbered defaults for one shape of work (configuration.md, 3.1).
+/// The application's numbered defaults for one shape of work (protocol/configuration-templates.md, 1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Template {
     pub number: u32,
@@ -18,13 +18,13 @@ pub struct Template {
     pub label: u32,
     pub grace: Option<Duration>,
     /// The LLM choice a task filled from it carries, each model configured with an effort it
-    /// takes; none for its charter's default (configuration.md, 3.1; domain/tasks/README.md, 3).
+    /// takes; none for its charter's default (protocol/configuration-templates.md, 1; domain/tasks/README.md, 3).
     pub llm: Option<jig_domain_tasks::LlmChoice>,
-    /// Connectors' symbols a task filled from this template holds (protocol/configuration.md, 3.3).
+    /// Connectors' symbols a task filled from this template holds (protocol/configuration-templates.md, 3).
     pub resources: Box<[jig_domain_people::Symbol]>,
 }
 
-/// Apply the project's named overrides in configuration order (configuration.md, 3.1).
+/// Apply the project's named overrides in configuration order (protocol/configuration-templates.md, 1).
 ///
 /// A policy overrides a template at most once, refused at start and on a policy change, so
 /// the first override naming a template is its only one.
@@ -56,7 +56,7 @@ pub fn merged(templates: &[Template], overrides: &[jig_domain_people::TemplateOv
     merged.into_boxed()
 }
 
-/// The executor whose flags a template admits (configuration.md, 3.1).
+/// The executor whose flags a template admits (protocol/configuration-templates.md, 1).
 #[must_use]
 pub fn shape_executor(flags: Flags, executor: TemplateExecutor) -> jig_domain_tasks::Executor {
     use jig_domain_tasks::{EndedBy, Executor, PersonAddress};
@@ -72,7 +72,7 @@ pub fn shape_executor(flags: Flags, executor: TemplateExecutor) -> jig_domain_ta
     }
 }
 
-/// Whether a template's retained choice fits its effective executor (configuration.md, 3.1).
+/// Whether a template's retained choice fits its effective executor (protocol/configuration-templates.md, 1).
 /// A chosen executor still requires configured models and valid efforts; a named charter must
 /// also allow every model. This checks data served in `me`, without granting task authority.
 #[must_use]
@@ -232,7 +232,7 @@ pub fn current_merged(current: &super::Current, overrides: &[jig_domain_people::
 }
 
 /// Whether `chosen` names a configured model and an effort it takes: one it declares, or none
-/// for a model that declares none (configuration.md, 3.1).
+/// for a model that declares none (protocol/configuration-templates.md, 1).
 fn takes(models: &[crate::Model], chosen: jig_domain_tasks::ModelEffort) -> bool {
     let Some(model) = models.get(usize::from(chosen.model)) else {
         return false;

@@ -143,7 +143,7 @@ This document holds the limits checked at startup, split from [`limits.md`](limi
     two `/` and `.git`), and the forge's names and branches, within the
     checkout's `name_bytes` (../channel.md, section 8); and the smallest
     resumed start the engine's link can cut a start to (jig's
-    `protocol/channel/README.md`, 8 and 10), within the engine's room, its
+    `protocol/channel/liveness.md`, 1, and `protocol/channel/README.md`, 10), within the engine's room, its
     `io.output`, so a run that committed every call `core.call_records`
     admits can still resume. Its failure names both: `engine.limits.io.output:
     4096 bytes, short of the smallest resumed start, 27201 bytes`, the
@@ -175,7 +175,7 @@ This document holds the limits checked at startup, split from [`limits.md`](limi
     since each side of the link takes a turn of its own hub's bound;
     as a frame of the worker's link, header included, within the
     worker's `io.output`, the room its stream grants at once, or the
-    worker's link is not made (jig's `protocol/channel/README.md`, 8 and 10);
+    worker's link is not made (jig's `protocol/channel/liveness.md`, 1, and `protocol/channel/README.md`, 10);
     with its 4-byte length, within `core.resume_bytes`, so that a chat's
     largest turn resumes rather than starting afresh, and so within
     `root.journal.transcript_bytes`, a journal row's (the resume

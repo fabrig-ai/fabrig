@@ -30,13 +30,13 @@ never reports within the same sitting.
   resolution or merge job is a live task, running, between its tries or
   waiting for a host, the stall does not count. An agent working for an
   hour is working, and jig bounds what it does (its tries, its
-  executor's stall, its budget: jig's `domain/tasks/lifecycle.md`, 6).
+  executor's stall, its budget: jig's `domain/tasks/lifecycle-holds.md`, 1).
   The stall counts from that delegate's end, as it does while a
   question of that agent's is open (`questions.md`, 1), from the step
   that relays its last answer down.
 - **Nor is a wait for its dependencies:** while the change is at
   producing and its task has a dependency that has not ended (jig's
-  `domain/tasks/lifecycle.md`, 8), the stall does not count, whatever
+  `domain/tasks/lifecycle-endings.md`, 1), the stall does not count, whatever
   the change waits on there: a producer not yet started (`questions.md`,
   1, *Early starts*), an early producer that ended giving nothing, a
   read of the forge. It counts from the last dependency's end, as it
@@ -267,7 +267,7 @@ holds with the stall's words alone.
 
 The change and its task are held together, never one without the
 other: its escalation waits for its holder, which it wakes (jig's
-`domain/tasks/lifecycle.md`, 6 and
+`domain/tasks/lifecycle-holds.md`, 1 and
 `jig/docs/design/domain/tasks/proposals.md`): the goal above it where
 that goal may decide, otherwise its person or the role the project's
 policy names. A decision to hold reaches the task whatever step the

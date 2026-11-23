@@ -53,7 +53,7 @@ and keeps them on the task's claim.
 
 - **`first`:** the task's first activation. It lasts until a run of it parks
   idle or finishes. A run that parks kept, by its own question, a question it
-  owes or a dependency (jig's `domain/tasks/lifecycle.md`, 8), leaves the run that
+  owes or a dependency (jig's `domain/tasks/lifecycle-endings.md`, 1), leaves the run that
   continues it `first` too. A first run's reasons are `first` plus the kinds
   that woke it, such as a person's words waiting at the goal's start.
 - **The kinds that woke it:** each kind of message in its inbox, or entry
@@ -68,7 +68,7 @@ and keeps them on the task's claim.
   message. It runs for that attempt's reasons, kept on the task across attempts,
   plus the kinds at its start that its policy would let wake it. A retry's start
   carries what is waiting then, not what the failed attempt read (jig's
-  `domain/engine/executors.md`, 2).
+  `domain/engine/executors-transcripts.md`, 1).
 
 **Always offered.** Some kinds go to every run, whatever its parts (section 4),
 and choose none: `answer`, `proposal_decision`, `settings_decision`,
@@ -99,7 +99,7 @@ doing. Every other kind chooses parts: `question`,
 - **Bounds.** A charter's stored policy, its parts with it, stays within the
   root's `root.journal.run_bytes`, as its instructions do today. So parts make a
   run read less, not the charter store less.
-- **The settings form** (jig's `protocol/configuration.md`, section 3, the
+- **The settings form** (jig's `protocol/configuration-engine.md`, section 1, the
   charters member) carries `"parts": [{"on": ["question"], "instructions":
   "..."}]`. An unknown kind, an always-offered kind, an empty `on` or a part
   past the limit refuses the change at its path. temper's settings form and `temper ctl
@@ -126,7 +126,7 @@ offered to the run, at its start or while it runs. It keeps its place in the
 inbox, and when the run ends it is judged again as if it arrived then, as a
 message refused or left unread is (jig's `domain/tasks/messages.md`, 2 and 3). This
 changes how a turn takes messages: today a turn's fence takes every message
-before it (jig's `domain/hosts/hub.md`, 4; jig's `domain/engine/executors.md`, 2), so a
+before it (jig's `domain/hosts/hub.md`, 4; jig's `domain/engine/executors-transcripts.md`, 1), so a
 message kept back would go with the next one read. A turn takes only the offered
 messages up to its fence instead. A message a pace keeps back from a live run
 needs the same rule (jig's `domain/tasks/messages.md`, 3). A message that arrives
@@ -162,7 +162,7 @@ cut longer than a pending escalation's stall (jig's `domain/tasks/README.md`, se
   theirs. Every run whose reasons aren't `first` takes it. Without `later`,
   every run takes the one choice, as today.
 - **Who gives it:** the task's creator, or a template (jig's
-  `protocol/configuration.md`, 3.1). It takes no account of its own: a task's
+  `protocol/configuration-templates.md`, 1). It takes no account of its own: a task's
   account preference covers both choices. An amendment changes it as it changes
   the rest.
 - **Checked as the first choice is:** within the task's authority at its batch
@@ -248,9 +248,9 @@ KB every run reads today.
 
 1. **jig:** the reasons, parts, what a run is offered, the fence taking offered
    messages only, an undecided entry's wake, and `later`, design first: jig's
-   `domain/tasks/README.md`, section 3 and `domain/tasks/messages.md` and `domain/tasks/proposals.md`; jig's `domain/engine/executors.md`, 1, 2 and 4, and `domain/engine/briefs.md`, 1
+   `domain/tasks/README.md`, section 3 and `domain/tasks/messages.md` and `domain/tasks/proposals.md`; jig's `domain/engine/executors.md`, 1, and `domain/engine/executors-transcripts.md`, 1, and `domain/engine/executors.md`, 4, and `domain/engine/briefs.md`, 1
    ; jig's `domain/hosts/hub.md`, 4; jig's
-   `protocol/configuration.md`, section 3 and `protocol/limits.md`; the tasks child's take; the
+   `protocol/configuration-engine.md`, section 1 and `protocol/limits.md`; the tasks child's take; the
    store's claim, charter and task records; the client's charter and task
    records.
 2. **temper:** its settings form and `temper ctl settings`, with section 8's

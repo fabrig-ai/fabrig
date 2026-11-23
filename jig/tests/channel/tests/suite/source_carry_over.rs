@@ -1,4 +1,4 @@
-//! The selected source grant is smith's replay identity (accounts.md, 4.3).
+//! The selected source grant is smith's replay identity (domain/accounts-uses.md, 1.3).
 use skein_lib::{Duration, Env, Queue, Time, Token, Wall};
 use smith_domain::{
     session::{self, llm, record},

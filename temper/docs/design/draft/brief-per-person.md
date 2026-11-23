@@ -13,7 +13,7 @@ unless a key pays for it.
   the project (`../domain/forge/attention.md`, 3, *What funds it*), and a
   project with another party is paid for by a key alone: the
   deployment's, or one whose uses name the project. No plan pays for it
-  (jig's `domain/accounts.md`, 4.2, *A shared project's automatic
+  (jig's `domain/accounts-uses.md`, 1.2, *A shared project's automatic
   work*). On dev.fabrig.ai on 2026-11-18, project 2 had several members
   and two plan accounts, so each sitting's run was made and waited for
   good, and Home never showed a brief.
@@ -44,11 +44,11 @@ unless a key pays for it.
   run in flight over an hour counts as none, and its late result is
   dropped, as today.
 - **Funded as the person's work:** the procedure's task is made in the
-  person's pool in the project (jig's `domain/authority.md`, section 7),
+  person's pool in the project (jig's `domain/authority-budgets.md`, section 1),
   within that pool's room and the rules' run cap, so its payer is the
   person. The project's period no longer funds briefs. An account is
-  chosen as for any of the person's runs (jig's `domain/accounts.md`,
-  4.3): their own, then those naming them or the project, then the
+  chosen as for any of the person's runs (jig's `domain/accounts-uses.md`,
+  1.3): their own, then those naming them or the project, then the
   deployment's.
 - **Its words:** section 3's words, with the span since this person's
   last brief, and their name where the words name the reader. The facts

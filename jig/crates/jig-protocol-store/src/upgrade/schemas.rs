@@ -1,4 +1,4 @@
-//! Caller-prepared binary texts, matched whole (protocol/store/opening.md, 3).
+//! Caller-prepared binary texts, matched whole (protocol/store/opening-owners.md, 1).
 use skein_codec::schema::{self, Schema};
 
 #[expect(clippy::manual_find, reason = "step code uses no closures (programming-model.md, 10.3)")]

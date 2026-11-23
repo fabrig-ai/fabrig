@@ -117,7 +117,7 @@ fn denied(why: core::StepRefusal, expected: authority::Answer, source: authority
 }
 
 /// A task may propose a kind covered by its ceilings (jig/docs/design/domain/engine/executors.md, 5;
-/// jig/docs/design/domain/authority.md, 8.1).
+/// jig/docs/design/domain/authority-checks.md, 1.1).
 #[test]
 fn a_job_kind_its_procedures_delegation_lacks_is_answered_propose() {
     let (mut world, procedure) = job_world(903, true);
@@ -127,7 +127,7 @@ fn a_job_kind_its_procedures_delegation_lacks_is_answered_propose() {
 }
 
 /// A project's ceiling cannot be proposed past (jig/docs/design/domain/engine/executors.md, 5;
-/// jig/docs/design/domain/authority.md, 8.1).
+/// jig/docs/design/domain/authority-checks.md, 1.1).
 #[test]
 fn a_job_kind_its_projects_ceiling_lacks_is_answered_refuse() {
     let (mut world, procedure) = job_world(904, false);

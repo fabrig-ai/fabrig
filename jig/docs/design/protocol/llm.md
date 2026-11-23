@@ -23,8 +23,8 @@ without agents has none of this. What is still open is listed in section
   `protocol/llm.md`; skein's `llm/connection.md`): the engine, for its
   own slots, and a worker that composes `smith-inline-agent`. jig writes
   no prompt, and none of smith's own tools' schemas, decoding or
-  rendering; its engine tools' are `jig-protocol-tools`' (`channel/README.md`,
-  5.3). Agent processes make their own calls (section 6).
+  rendering; its engine tools' are `jig-protocol-tools`' (`channel/owners.md`,
+  1.3). Agent processes make their own calls (`llm.md`, section 6).
 - **The root routes completions,** as `smith-inline-agent` asks them,
   to the protocol layer, which gives smith's component each with its
   slot's result contract, and their terminals back to the agent (section
@@ -32,7 +32,7 @@ without agents has none of this. What is still open is listed in section
 - **Accounts: the policy is the core's, the mechanism the protocol
   layer's.** The accounts child decides which sources are usable, which
   account a run takes, and which runs hear of a new credential
-  (`../domain/accounts.md`, sections 3 and 4). skein's OAuth accounts
+  (`../domain/accounts.md`, section 3, and `../domain/accounts-uses.md`, section 1). skein's OAuth accounts
   driver, a component of the engine's protocol layer, signs sources in
   as a party asks, refreshes each signed-in source before it lapses,
   signs it out with revocation, keeps each new record in the secrets'
@@ -63,12 +63,12 @@ without agents has none of this. What is still open is listed in section
 - **LLM providers are configuration,** one list from which the charter's
   endpoint names, smith's component's endpoints and skein's connections
   are all made, so the three never disagree. Configuration names no
-  account: accounts are made at runtime (`configuration.md`, section 3).
+  account: accounts are made at runtime (`configuration-engine.md`, section 1).
 - **The budget is smith's to hold** within each run: it reserves each
   completion's most before making it and winds down on its reserve, so a
   run never spends past its budget (smith's `domain/budget.md`).
   The core places no run smith would refuse for its budget
-  (`../domain/authority.md`, section 7), and sees spend in the turns it
+  (`../domain/authority-budgets.md`, section 1), and sees spend in the turns it
   commits.
 
 ## 2. Where it sits
@@ -152,7 +152,7 @@ engine's protocol layer
 
 - **An LLM provider** is configuration: its name, its endpoints and
   their models, the sources it offers, and the facts its terms ask an
-  application to show (`configuration.md`, section 3;
+  application to show (`configuration-engine.md`, section 1;
   `../domain/providers.md`). jig's code names no provider.
 - **An endpoint** is configuration: its name, its dialect, its address and
   transport (TLS with its server name and trusted roots, or plaintext to
@@ -192,7 +192,7 @@ engine's protocol layer
   models and its authority's (`../domain/tasks/README.md`, section 3;
   `../domain/authority.md`, section 3); a task that names none takes, at
   each run's check, the first of its charter's models it can use
-  (`../domain/accounts.md`, 4.3).
+  (`../domain/accounts-uses.md`, 1.3).
 
 ## 5. Accounts
 
@@ -259,7 +259,7 @@ engine's protocol layer
 | taken: a redirected the sign-in took | the finish taken: its answer, *finishing* |
 | refused, a redirected: another address, another sign-in's state, full, or not waiting | the finish refused, saying which (full: *too many*), the sign-in still waiting: never a sign-in failed, nor its source signed out; not waiting for any other refusal of a redirected |
 | signed in: the subject, the scopes granted, the profile claims it read | signed in, with the subject and display name and what the claims say: the child makes the account, renews the one of that subject, or refuses the subject another holder holds (`../domain/accounts.md`, 3.3), and keeps what they say for the first two (3.7). Every registration of the accounts' driver asks for `email` and `name` (skein's `oauth/README.md`, 2.2) |
-| refreshed: the generation, the profile claims it read | what they say, of the source's account: the child keeps it (`../domain/accounts.md`, 3.7) |
+| refreshed: the generation, the profile claims it read | what they say, of the source's account: the child keeps it (`../domain/accounts-lists.md`, 1) |
 | signed in, without a scope the provider requires | refused, naming the scope |
 | granted: the access token, its generation, how long it is valid | granted: the generation and how long it is valid; the token goes into the table (5.3) |
 | failed: retry later (with how long), malformed, limit, not kept | failed, later, with how long (the driver's delay, or the child's backoff) |
@@ -316,7 +316,7 @@ engine's protocol layer
   a browser on the engine's machine; the provider redirects to the
   listener; the driver exchanges the code, checks the ID token and keeps
   the record before it says signed in. The party sees the sign-in end on
-  its `accounts` watch (`../client/domain/contract/README.md`, 5.1).
+  its `accounts` watch (`../client/domain/contract/watches.md`, 1.1).
 - **Only a public registration signs in.** A confidential one, whose
   redirect reaches a web server (skein's `oauth/accounts.md`, 5), is refused
   at its start, naming the LLM provider.
@@ -339,7 +339,7 @@ engine's protocol layer
   The sign-in ends on the `accounts` watch as any does.
 - **The registration's parts.** The client id the provider issues at
   the first sign-in is kept with the record and used after it; the
-  installation's identifier (`store/README.md`, 4.4) goes where the provider
+  installation's identifier (`store/keys.md`, 1.4) goes where the provider
   takes it (`../domain/providers.md`, 2.2).
 - **A key comes from a request** carrying it, which the clients'
   component keeps in the secrets' store before the core sees the request
@@ -354,7 +354,7 @@ engine's protocol layer
   program's login fills, and none is the driver's handed-in, access-only
   kind: a live test runs on a key, on a sign-in made as it starts, on a
   record moved in (5.6), or on a program's login on its host
-  (`service.md`, section 8). A moved record is this application's own,
+  (`service-testing.md`, section 1). A moved record is this application's own,
   moved by its holder: it enters as a kept record, refreshed once before
   it is lent.
 
@@ -367,7 +367,7 @@ engine's protocol layer
   configuration directory on each host, named by the source's name under
   the programs directory the worker's configuration
   names (`configuration.md`, section 4); jig never reads it
-  (`../domain/accounts.md`, 3.4).
+  (`../domain/accounts-sources.md`, 1).
 - **Each worker is told its program sources,** by name, after its hello
   and on each change (`channel/records.md`, 2). The worker has smith's host
   half check each login once told its sources, when told of a new
@@ -379,7 +379,7 @@ engine's protocol layer
 - **A person's logins keep a host to that person's runs.** A host that
   keeps a person's program logins takes only runs that person's accounts
   pay for, until a run's process tree is contained from them; one
-  person's deployment is unaffected (`../domain/accounts.md`, 3.4).
+  person's deployment is unaffected (`../domain/accounts-sources.md`, 1).
 - **Signing out or removing a program source** has each worker's host
   half run the program's own sign-out in the source's configuration
   directory (smith's `protocol/host.md`, section 2; the command is
@@ -485,7 +485,7 @@ engine's protocol layer
 - **Pushed to every live attempt** whose account's source it is, when a
   new generation is lent, and sent again to each attempt a worker keeps
   after its hello, or that the fleet adopts (`../domain/engine/fleet.md`
-  ; `../domain/accounts.md`, 3.5).
+  ; `../domain/accounts-sources.md`, 2).
 - **Notices,** from either kind of run, reach the child with the account
   and source and, for a credential, its generation, fenced by attempt:
   - **limited:** skein's `exhausted`, or a program's usage limit (smith's
@@ -495,7 +495,7 @@ engine's protocol layer
     with its evidence; the source stays so until its holder acts;
   - **unauthorized:** for a signed-in source, a generation the driver
     refreshes once (5.1); for a key or a program's login, a source that
-    needs its holder (`../domain/accounts.md`, 3.5).
+    needs its holder (`../domain/accounts-sources.md`, 2).
 
   Unsupported is the request's error, which smith never sends again
   unchanged; misconfigured is the driver's state, never a notice.
@@ -543,7 +543,7 @@ Each within jig's suites' budgets.
   and no test triggers it: `skein/docs/foundation/programming-model.md`,
   10.4); the table's generations, schemes, expiry and pushing out.
 - **The engine's LLM path and accounts,** in the protocol world
-  (`service.md`, section 8): the root, `smith-inline-agent`, smith's
+  (`service-testing.md`, section 1): the root, `smith-inline-agent`, smith's
   component with the slots' contracts beside it, skein's connection
   component, the driver and the secrets' store, against skein's fake LLM
   peer and fake issuer (skein's `testing/fakes/llm.md`; skein's `oauth/README.md`,
@@ -574,16 +574,16 @@ Each within jig's suites' budgets.
 ## 9. What it owes and is owed
 
 - **The domain** wants every signed-in source, and pushes each new
-  generation to every live attempt (`../domain/accounts.md`, 3.5;
+  generation to every live attempt (`../domain/accounts-sources.md`, 2;
   `../domain/engine/README.md`, section 6).
 - **What smith gives** serves as it is, beside what it is owed (below;
-  `README.md`, section 11).
+  `needs.md`, section 2).
 - **What jig asks of smith:** grants with a credential's scheme or a
   program source's name; limited, refused and unauthorized notices; the
   program backend and its host half's login checks and sign-out (smith's
   `protocol/channel.md`, section 6; smith's `protocol/programs.md`).
   Later: a completion asked while its LLM component closes refused as
-  closed (`README.md`, section 11).
+  closed (`needs.md`, section 2).
 - **skein owes** the driver's accounts added and removed while it runs,
   its sign-out with revocation, the issued client id kept with the
   record, the scopes granted and the subject on signing in, and the
@@ -591,7 +591,7 @@ Each within jig's suites' budgets.
   credential's scheme and the failure classes (skein's `llm/vocabulary.md`,
   sections 1 and 1.5).
 - **The store owes** the secrets' records and keys (`store/secrets.md`
-  ), and the accounts' family (`store/README.md`, 4.4).
+  ), and the accounts' family (`store/keys.md`, 1.4).
 
 ## 10. Open questions
 
@@ -608,7 +608,7 @@ Each within jig's suites' budgets.
   iteration.
 - **An account moved out of a stopped deployment,** one whose start
   is refused, without starting its engine: an application's tool,
-  holding the deployment's lock as `store/opening.md`, 5's operations do,
+  holding the deployment's lock as `store/opening-rehearsal.md`, 1's operations do,
   opens the active generation with no upgrade or restore (so only a
   store this build keeps), finds the account's source in the accounts'
   family by its schema, makes the file's bytes from its record (5.6),

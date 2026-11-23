@@ -77,7 +77,7 @@ pub(crate) fn withdraw(
         Some(row) => row.proposer == proposer,
         None => false,
     };
-    // A release withdraws restored settings before task adoption (domain/engine/settings.md, 7).
+    // A release withdraws restored settings before task adoption (domain/engine/settings-store.md, 1).
     let restoring_settings = to.is_none()
         && match domain.startup {
             crate::domain::Startup::Restoring | crate::domain::Startup::Checked => true,

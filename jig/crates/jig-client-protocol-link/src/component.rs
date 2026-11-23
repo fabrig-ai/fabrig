@@ -2,7 +2,7 @@
 //! A family's admission refusal uses jig's wire (client/domain/contract/requests.md, 3).
 //! Transport admission counts unfinished exchanges (jig/docs/design/protocol/client/README.md, 10).
 //! The link gathers transport work until settling (protocol/client/wire.md, 2.3).
-//! Stream bounds and order refusals differ from unreadable records (protocol/client/README.md, 6).
+//! Stream bounds and order refusals differ from unreadable records (protocol/client/versions.md, 1).
 use crate::{Event, Fact, Limits, Message, Request, Streamed, Unusable, translate};
 use alloc::boxed::Box;
 use jig_client_domain::{Answered, Ask, Family, Readable, Readout, Retry, Watchable};
@@ -44,7 +44,7 @@ pub(super) enum ExchangeKind {
     SignIn,
     SignOut { generation: u64 },
     // `carrying`: an exchange carrying a value either way, sent once and never held
-    // behind the store (protocol/client/README.md, 3 and 7).
+    // behind the store (protocol/client/README.md, 3, and protocol/client/small-store.md, 1).
     Attempt { carrying: bool, key: RequestKey },
     Read { turn: Option<(u64, u64, u32)>, retry: Option<Readable> },
     WatchOpen { name: u64 },
@@ -495,7 +495,7 @@ fn read_value(attempt: &Attempt, record: w::Owned, limits: &Limits) -> Result<Re
 fn read_none(read: Token, owner: &w::Owner, why: jig_client_domain::contract::ReadNone, out: &mut Queue<Request>) {
     use jig_client_domain::contract::ReadNone;
     // Busy and loss belong to the exchange, not the family's document: callers can retry them
-    // (protocol/client/wire.md, 2.3; protocol/client/README.md, 11).
+    // (protocol/client/wire.md, 2.3; protocol/client/testing.md, 1).
     let transient = match why {
         ReadNone::Busy | ReadNone::Unreachable => true,
         ReadNone::TooLarge { .. }

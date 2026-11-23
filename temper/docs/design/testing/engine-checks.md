@@ -571,7 +571,7 @@ reaches them most cheaply (the draft, 11):
 ## 7. Later
 
 - **jig's inspection beside the engine's,** in every engine world, once
-  jig's adapter is built (`jig/docs/design/domain/testing.md`, 7): the
+  jig's adapter is built (`jig/docs/design/domain/testing-fakes.md`, 1): the
   kit's `quiet` adds `jig_inspect::tasks` over `Domain::tasks()`, so a
   wait on a task resolves against that task's own wait.
 - **The conformance and one-process worlds,** whose drivers are jig's

@@ -1,4 +1,4 @@
-//! A pending proposal's values are reviewed against the newest settings (domain/engine/settings.md, 6).
+//! A pending proposal's values are reviewed against the newest settings (domain/engine/settings-proposals.md, 1).
 
 use crate::{Core, Limits, settings as s};
 use alloc::boxed::Box;

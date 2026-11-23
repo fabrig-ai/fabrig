@@ -1,4 +1,4 @@
-//! Seeded pages against independently committed inputs (protocol/store/loads.md, 1, and protocol/store/README.md, 9).
+//! Seeded pages against independently committed inputs (protocol/store/loads.md, 1, and protocol/store/testing.md, 1).
 use jig_domain_core::{self as core, reads};
 use jig_domain_tasks as tasks;
 use jig_protocol_store::{Restore, Row, Write, keys, restore::Item};

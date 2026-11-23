@@ -69,7 +69,7 @@ them as it does any Forgejo.
      an ordinary project, which the client shows by the name its record
      holds (`../../client/pages/welcome.md`, 2);
   3. the scripted account's uses, naming the playground's project
-     alone (jig's `domain/accounts.md`, 4.2);
+     alone (jig's `domain/accounts-uses.md`, 1.2);
   4. `playground/widget` adopted into the project by `Adopt`, from its
      fake forge, owned, landing on `main`, the project's home, with CI.
 
