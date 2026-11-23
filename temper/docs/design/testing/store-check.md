@@ -81,6 +81,12 @@ what one costs, and where each world calls it.
     bounds derived again for limits already checked), is made cheaper in
     the product for every start, the start's behaviour unchanged; each
     check over each set it checks stays;
+  - a world that opens temper's whole service (the one-process world)
+    hands each open, live and rehearsing, the binary's schema texts
+    parsed once a process, through `Store::prepared_schemas`, as jig's
+    test store does (`jig/docs/design/protocol/store/opening.md`, 3,
+    "One check per open"): admission's checks all run, over texts it
+    no longer parses for each open;
   - nothing a start checks is skipped to save cost: every phase and
     check above runs, to the same endpoint, over the same records.
 - **In the conformance world** temper's `Application` gives jig's harness
