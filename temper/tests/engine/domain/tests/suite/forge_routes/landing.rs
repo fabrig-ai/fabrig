@@ -160,7 +160,7 @@ fn produced_with_hold(limits: &StoryLimits, held: bool) -> (World, u64) {
     let mut world = World::configured_limits(true, true, false, 1000, Gate::default(), None, limits.clone())
         .with_landing_held(held);
     world.adopt();
-    world.send(hello_prepare(2));
+    world.send(hello_prepare(limits.slots.unwrap_or(2)));
     let ask = adoption_chat(&world);
     let chat = assigned_chat(&mut world, 92, ask);
     let engine::CallAnswer::Delegated(made) =
@@ -508,9 +508,50 @@ fn a_goal_is_kept_on_its_own_changes_landing_by_turn() {
     )));
 }
 
+pub(crate) fn full_landing_room() -> (World, u64, u64) {
+    let (mut world, first) = produced_turn_change_with(&StoryLimits {
+        turn: true,
+        landing_members: Some(1),
+        landings: Some(1),
+        slots: Some(3),
+        forge_branches: Some(8),
+        forge_calls: Some(4),
+        forge_pending: Some(8),
+        ..StoryLimits::default()
+    });
+    world.manual_prepare_jobs();
+    for _ in 0..600 {
+        world.tick();
+        if !world.jobs.is_empty() && world.events.is_empty() && world.store.idle() && world.root.quiescent() {
+            break;
+        }
+    }
+    let landing = world.root.forge().change(first).expect("first change").change.landing.expect("first landing");
+    assert!(world.jobs.iter().any(|job| job.workspace.is_some_and(|workspace| workspace.workstream == landing)));
+    let chat = world.assigned[0].clone();
+    let (change, producer) = make_change(&mut world, &chat, 101, b"org/repo");
+    push_change(&mut world, &producer, b"org/repo");
+    finish_producer(&mut world, &producer, forge_world::REPO);
+    for _ in 0..600 {
+        world.tick();
+        if world
+            .root
+            .forge()
+            .change(change)
+            .is_some_and(|row| matches!(row.change.state, temper_engine_domain_forge_change::State::Ready { .. }))
+            && world.events.is_empty()
+            && world.store.idle()
+            && world.root.quiescent()
+        {
+            return (world, change, landing);
+        }
+    }
+    panic!("second change ready behind the unanswered prepare");
+}
+
 #[test]
 fn a_ready_change_waits_when_landing_room_is_full() {
-    let (mut world, change) = produced_turn_change(Some(0));
+    let (mut world, change, landing) = full_landing_room();
     for _ in 0..300 {
         world.prepare_tick();
     }
@@ -529,9 +570,8 @@ fn a_ready_change_waits_when_landing_room_is_full() {
         .expect("change remains");
     assert_eq!(row.change.landing, None);
     assert!(matches!(row.change.state, temper_engine_domain_forge_change::State::Ready { .. }));
-    assert!(world.store.rows.values().all(
-        |record| !matches!(record, Record::Forge { row } if matches!(row.as_ref(), forge_top::Stored::Landing(_)))
-    ));
+    assert!(landing_rows(&world).iter().all(|row| row.landing.members.iter().all(|member| member.change != change)));
+    assert!(world.jobs.iter().any(|job| job.workspace.is_some_and(|workspace| workspace.workstream == landing)));
     assert_eq!(world.merges, 0);
 }
 
@@ -1146,7 +1186,7 @@ mod trains;
 mod merge_drill;
 
 #[path = "landing_wait_drill.rs"]
-mod wait_drill;
+pub(crate) mod wait_drill;
 
 #[path = "landing_restarts.rs"]
 pub(crate) mod restarts;

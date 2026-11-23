@@ -135,6 +135,11 @@ fn change_wakes(view: &View<'_>, row: &temper_engine_domain_forge::ChangeRow) ->
                     }
                 }
             }
+            // A terminal landing may still occupy a table slot while its writes
+            // settle. With no live landing wake, read the train's due member.
+            if matches!(row.change.state, State::Ready { .. }) && row.change.landing.is_none() && wakes.is_empty() {
+                forming(view, row, &mut wakes);
+            }
         }
         _ => {
             if let Some((delegate, _)) = row.delegate {
@@ -158,6 +163,32 @@ fn change_wakes(view: &View<'_>, row: &temper_engine_domain_forge::ChangeRow) ->
         }
     }
     wakes
+}
+
+// The forge does not expose the spent one-step forming hold. Name the due
+// members gating at their head in this train (landing-turn.md, 2). The forge
+// alone cannot read which task is due, so it gives no forming wake.
+fn forming(view: &View<'_>, row: &temper_engine_domain_forge::ChangeRow, wakes: &mut Vec<Wake>) {
+    let Some(root) = view.root else { return };
+    if row.change.way != temper_engine_domain_forge_change::Way::Turn {
+        return;
+    }
+    for (task, member) in view.forge.inspection_changes() {
+        if member.repository != row.repository
+            || member.base != row.base
+            || member.change.way != temper_engine_domain_forge_change::Way::Turn
+            || member.change.landing.is_some()
+            || member.terminal()
+            || root.tasks().procedure_due(*task).is_none()
+        {
+            continue;
+        }
+        if let State::Gating { head, .. } = member.change.state
+            && member.change.last_head == Some(head)
+        {
+            wakes.push(view.waiter(*task));
+        }
+    }
 }
 
 // Dependencies and a follow owner's word keep an unstarted change waiting

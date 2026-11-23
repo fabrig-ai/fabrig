@@ -178,6 +178,8 @@ pub struct World {
     gate: paths::Gate,
     pub held_reads: Option<Vec<engine::Request>>,
     pub hold_reads_at_any_step: bool,
+    /// Hold one admitted forge read belonging to this change's step.
+    pub hold_read_for: Option<u64>,
     pub busy_reads: bool,
     /// Answer every engine forge call before it reaches the peer.
     pub unavailable: bool,
@@ -275,6 +277,7 @@ pub struct StoryLimits {
     pub across: bool,
     pub library_gate_latency: Option<Duration>,
     pub landing_members: Option<u32>,
+    pub landings: Option<u32>,
     pub batch: Option<u16>,
     pub slots: Option<u32>,
     pub tasks: Option<u32>,
@@ -930,6 +933,9 @@ impl World {
                     limits.tasks.result_bytes = 256 + RESULT_MESSAGE_BYTES;
                     limits.tasks.inbox_bytes += limits.tasks.inbox_messages * RESULT_MESSAGE_BYTES;
                     limits.journal.run_bytes = 32768;
+                    if let Some(slots) = timing.landings {
+                        limits.forge.landings = slots;
+                    }
                     if let Some(slots) = landing_members {
                         limits.forge.landing_members = slots;
                         limits.tasks.holdings = limits.tasks.holdings.max(slots);
@@ -1750,6 +1756,7 @@ impl World {
             gate,
             held_reads: None,
             hold_reads_at_any_step: false,
+            hold_read_for: None,
             busy_reads: false,
             unavailable: false,
             unavailable_calls: Vec::new(),
@@ -2573,9 +2580,18 @@ impl World {
                     }
                     if let Some(reads) = &mut self.held_reads
                         && matches!(op, skein_forge::api::Op::Read(_))
-                        && (self.hold_reads_at_any_step || self.store.rows.values().any(|row| matches!(row,
-                            Record::Forge { row, .. } if matches!(row.as_ref(), forge_top::Stored::ChangeHot(row)
-                                if matches!(row.change.state, temper_engine_domain_forge_change::State::Queued { .. } | temper_engine_domain_forge_change::State::First { .. })))))
+                        && match self.hold_read_for {
+                            Some(task) => reads.is_empty() && self.root.forge().inspection_client().holders().iter().any(|holder| {
+                                holder.repository == repository
+                                    && matches!((&holder.call, &op),
+                                        (skein_forge_client::Holding::Read(held), skein_forge::api::Op::Read(read)) if held == read)
+                                    && matches!(holder.owner, skein_forge_client::CallOwner::Read(owner)
+                                        if self.root.forge().inspection_read_task(owner) == Some(task))
+                            }),
+                            None => self.hold_reads_at_any_step || self.store.rows.values().any(|row| matches!(row,
+                                Record::Forge { row, .. } if matches!(row.as_ref(), forge_top::Stored::ChangeHot(row)
+                                    if matches!(row.change.state, temper_engine_domain_forge_change::State::Queued { .. } | temper_engine_domain_forge_change::State::First { .. })))),
+                        }
                     {
                         reads.push(engine::Request::Forge { call, repository, op });
                         continue;
@@ -4108,7 +4124,9 @@ impl World {
     pub fn oracle_settle(&mut self) {
         // These are the world's held terminals, not new actions from surviving peers.
         self.release_write_answers();
-        if let Some(reads) = self.held_reads.take() {
+        if self.hold_read_for.is_none()
+            && let Some(reads) = self.held_reads.take()
+        {
             for read in reads {
                 self.out.push(read);
             }

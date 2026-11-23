@@ -83,6 +83,88 @@ fn a_restored_prepare_wait_without_its_job_is_a_root_finding() {
     assert_eq!(checks.quiet(&world.root, world.env.now, 4), Err(finding));
 }
 
+#[test]
+fn a_ready_change_waits_on_the_landing_filling_its_room() {
+    let (world, change, landing) = super::forge_routes::landing::full_landing_room();
+    let row = world.root.forge().change(change).expect("ready change");
+    assert!(matches!(row.change.state, temper_engine_domain_forge_change::State::Ready { .. }));
+    assert_eq!(row.change.landing, None);
+    let inspection = inspect(&world);
+    let wait = inspection.waits().iter().find(|wait| wait.waiter == format!("task {change}")).expect("ready wait");
+    assert_eq!(wait.kind, "change: ready");
+    assert_eq!(wait.wakes, vec![Wake::Waiter(format!("task {landing}"))]);
+    assert_eq!(Checks::new(71).quiet(&world.root, world.env.now, 1), Ok(()));
+}
+
+#[test]
+fn a_ready_change_without_a_live_landing_or_other_wake_is_found() {
+    let (mut world, change, landing) = super::forge_routes::landing::full_landing_room();
+    // Freeze forming, then remove the only live landing without waking its follower.
+    world.root.hold_landings(true);
+    let mut row = world.root.forge().landing(landing).expect("landing").clone();
+    row.landing.phase = temper_engine_domain_forge_landing::Phase::Cancelled;
+    row.waiting = None;
+    engine::step(
+        &mut world.root,
+        &world.env,
+        engine::Event::Forge(Box::new(forge::Event::Restore { record: forge::Stored::Landing(row) })),
+    );
+    engine::fire(&mut world.root, &world.env);
+    let inspection = inspect(&world);
+    let wait = inspection.waits().iter().find(|wait| wait.waiter == format!("task {change}")).expect("ready wait");
+    assert_eq!(wait.kind, "change: ready");
+    assert_eq!(wait.wakes, Vec::<Wake>::new());
+    let finding = Checks::new(71).quiet(&world.root, world.env.now, 1).expect_err("ready change has lost its wake");
+    assert_eq!(
+        finding,
+        format!(
+            "seed 71: at {} ns, iteration 1: engine task {change}: waits on change: ready with no live wake: []",
+            world.env.now.as_nanos(),
+        )
+    );
+}
+
+#[test]
+fn a_ready_change_waits_for_its_trains_due_member() {
+    let (world, ready, due) = super::forge_routes::landing::wait_drill::waiting_on_due_member();
+    assert!(world.root.tasks().procedure_due(due).is_some());
+    let inspection = inspect(&world);
+    let wait = inspection.waits().iter().find(|wait| wait.waiter == format!("task {ready}")).expect("ready wait");
+    assert_eq!(wait.kind, "change: ready");
+    assert_eq!(wait.wakes, vec![Wake::Waiter(format!("task {due}"))]);
+    let member = inspection.waits().iter().find(|wait| wait.waiter == format!("task {due}")).expect("member wait");
+    assert_eq!(member.kind, "change: gating");
+    assert!(member.wakes.iter().any(|wake| matches!(wake, Wake::Party(party) if party.starts_with("forge: call "))));
+    assert_eq!(Checks::new(71).quiet(&world.root, world.env.now, 1), Ok(()));
+}
+
+#[test]
+fn a_ready_change_has_no_wake_after_the_due_member_leaves_its_train() {
+    let (mut world, ready, due) = super::forge_routes::landing::wait_drill::waiting_on_due_member();
+    // Freeze forming after the member leaves, to expose the unwakeable snapshot.
+    world.root.hold_landings(true);
+    let mut member = world.root.forge().change(due).expect("due member").clone();
+    member.base = b"another-train".as_slice().into();
+    engine::step(
+        &mut world.root,
+        &world.env,
+        engine::Event::Forge(Box::new(forge::Event::Restore { record: forge::Stored::Change(Box::new(member)) })),
+    );
+    engine::fire(&mut world.root, &world.env);
+    let inspection = inspect(&world);
+    let wait = inspection.waits().iter().find(|wait| wait.waiter == format!("task {ready}")).expect("ready wait");
+    assert_eq!(wait.kind, "change: ready");
+    assert_eq!(wait.wakes, Vec::<Wake>::new());
+    let finding = Checks::new(71).quiet(&world.root, world.env.now, 1).expect_err("no member holds this train");
+    assert_eq!(
+        finding,
+        format!(
+            "seed 71: at {} ns, iteration 1: engine task {ready}: waits on change: ready with no live wake: []",
+            world.env.now.as_nanos(),
+        )
+    );
+}
+
 fn held_producing(why: tasks::Hold) -> (World, u64, u64) {
     let (mut world, _, producer, _) = temper_engine_domain_world::forge_routes::change_world(true, 1000, None);
     let tasks::Party::Task(change) = world.root.tasks().task(producer.task).expect("producer").requester else {
