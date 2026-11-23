@@ -357,7 +357,7 @@ impl Store {
         self.owner_sets = sets;
     }
 
-    /// Optional parsed binary texts for admission (protocol/store/opening.md, 3).
+    /// Optional parsed binary texts used during open (protocol/store/opening.md, 3).
     /// Only an exact text match is used; other texts are parsed by this open.
     pub fn prepared_schemas(&mut self, schemas: &'static [skein_codec::schema::Schema]) {
         self.directory.checked = None;
