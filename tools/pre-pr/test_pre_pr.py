@@ -56,7 +56,24 @@ class Packages(unittest.TestCase):
         directory = self.root / 'target/close'
         self.assertEqual(list(PLAN.rust_commands(groups, {}, directory)),
                          [['tools/tiers/one-process', '--out', str(directory / '0'), '--fail-fast', 'default',
-                           '--offline', '--locked', '--no-tests=warn', '-p', 'leaf', '--test', 'suite']])
+                           '--offline', '--locked', '--no-tests=warn', '-p', 'leaf',
+                           '-E', 'default() & (((package(=leaf)) & ((kind(test) & binary(=suite)))))']])
+
+    def test_every_group_runs_in_one_run_with_its_own_targets(self):
+        groups = {(('--lib',), ('--test', 'suite')): ['leaf', 'middle'], (('--bin', 'serve'),): ['top'],
+                  (): ['quiet'], (('--lib',),): ['fabrig-boundary']}
+        commands = list(PLAN.rust_commands(groups, {}, self.root / 'target/close'))
+        self.assertEqual(commands[0], ['cargo', 'check', '--offline', '--locked', '-p', 'quiet'])
+        run, = commands[1:]
+        self.assertEqual(run[run.index('--no-tests=warn') + 1:run.index('-E')],
+                         ['-p', 'fabrig-boundary', '-p', 'leaf', '-p', 'middle', '-p', 'top'])
+        expression = run[-1]
+        self.assertTrue(expression.startswith('default() & ('))
+        self.assertIn('((package(=leaf) | package(=middle)) & ((kind(lib) | kind(proc-macro)) | '
+                      '(kind(test) & binary(=suite))))', expression)
+        self.assertIn('((package(=top)) & ((kind(bin) & binary(=serve))))', expression)
+        self.assertIn('& not (package(=fabrig-boundary) & (', expression)
+        self.assertNotIn('quiet', expression)
 
     def test_boundary_filter_keeps_candidate_checks_and_the_profile(self):
         flag, expression = PLAN.workspace_filter(['fabrig-boundary', 'leaf'])
@@ -499,6 +516,32 @@ class Changes(unittest.TestCase):
         self.assertIsNone(base)
         self.assertIn('is HEAD itself', why)
 
+    def test_a_lock_moving_only_workspace_edges_reaches_no_more_packages(self):
+        lock = ('version = 4\n\n[[package]]\nname = "leaf"\nversion = "0.1.0"\ndependencies = [%s]\n\n'
+                '[[package]]\nname = "serde"\nversion = "%s"\nsource = "registry+https://github.com/rust-lang/crates.io-index"\n')
+        (self.root / 'Cargo.lock').write_text(lock % ('', '1.0.0'))
+        self.git('add', 'Cargo.lock')
+        self.git('commit', '-qm', 'lock')
+        base = self.git('rev-parse', 'HEAD')
+        (self.root / 'Cargo.lock').write_text(lock % ('"serde"', '1.0.0'))
+        self.assertFalse(PRE.lock_moves_externals(self.root, self.env, base, self.root))
+        (self.root / 'Cargo.lock').write_text(lock % ('"serde"', '1.0.1'))
+        self.assertTrue(PRE.lock_moves_externals(self.root, self.env, base, self.root))
+        (self.root / 'Cargo.lock').write_text('not toml [')
+        self.assertTrue(PRE.lock_moves_externals(self.root, self.env, base, self.root))
+
+    def test_a_root_manifest_adding_a_crate_reaches_no_more_packages(self):
+        manifest = ('[workspace]\nmembers = [%s]\n\n[workspace.dependencies]\nserde = "%s"\n%s\n'
+                    '[profile.dev]\ndebug = false\n')
+        (self.root / 'Cargo.toml').write_text(manifest % ('"a"', '1', ''))
+        self.git('add', 'Cargo.toml')
+        self.git('commit', '-qm', 'manifest')
+        base = self.git('rev-parse', 'HEAD')
+        (self.root / 'Cargo.toml').write_text(manifest % ('"a", "b"', '1', 'b = { path = "b" }'))
+        self.assertFalse(PRE.root_manifest_moves_more(self.root, self.env, base, self.root))
+        (self.root / 'Cargo.toml').write_text(manifest % ('"a", "b"', '2', 'b = { path = "b" }'))
+        self.assertTrue(PRE.root_manifest_moves_more(self.root, self.env, base, self.root))
+
     def test_skipped_entries_are_not_seeded(self):
         work = self.root.parent / 'work'
         subprocess.run(['git', 'init', '-q', str(work)], env=self.env, check=True, capture_output=True)
@@ -744,7 +787,8 @@ class CloseBudgets(unittest.TestCase):
             self.assertEqual(Path(command[2]).parent.parent, target)
             self.assertFalse(Path(command[2]).parent.exists())
             self.assertEqual(command[3:], ['--fail-fast', 'default', '--offline', '--locked', '--no-tests=warn',
-                                           '-p', 'leaf', '--test', 'suite'])
+                                           '-p', 'leaf', '-E',
+                                           'default() & (((package(=leaf)) & ((kind(test) & binary(=suite)))))'])
         else:
             run.assert_not_called()
         return errors
@@ -786,6 +830,29 @@ class Gate(unittest.TestCase):
         self.assertEqual(GATE.HOOKS, PRE.HOOKS)
         self.assertEqual(GATE.route({'.temper/pre-pr', 'src/lib.rs'}), 'mixed')
         self.assertEqual(GATE.route({'docs/guide.md'}), 'classify')
+        self.assertEqual(GATE.route({'tools/tiers/cpu.py', 'tools/tiers/one-process', 'tools/close/README.md'}), 'tooling')
+        for product in ('tools/tiers/budgets.toml', 'tools/tiers/fixtures/one-process/tests.rs'):
+            self.assertEqual(GATE.route({'tools/tiers/cpu.py', product}), 'classify', product)
+
+    def test_tooling_runs_the_suites_beside_it_unless_tests_read_it(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            for name in ('tools/example/rules.py', 'tools/example/test_rules.py', 'tools/example/test_more.py',
+                         'tools/lonely/tool.py'):
+                (root / name).parent.mkdir(parents=True, exist_ok=True)
+                (root / name).touch()
+            (root / 'tools/pre-pr').mkdir(parents=True)
+            (root / 'tools/pre-pr/pre_pr.py').write_text('def test_input_globs(root):\n    return ["tools/read/*"]\n')
+            for paths, status, commands in [
+                    (b'tools/example/rules.py\0', 0, [['python3', '-I', '-B', 'tools/example/test_more.py'],
+                                                     ['python3', '-I', '-B', 'tools/example/test_rules.py']]),
+                    (b'tools/lonely/tool.py\0', 1, []),
+                    (b'tools/read/x.py\0', 1, [])]:
+                with self.subTest(paths=paths):
+                    execute = mock.Mock(return_value=subprocess.CompletedProcess([], 0))
+                    with mock.patch.object(subprocess, 'check_output', return_value=paths), redirect_stdout(io.StringIO()):
+                        self.assertEqual(GATE.checks(root, 'base', 'head', root, execute), status)
+                    self.assertEqual([call.args[0] for call in execute.call_args_list], commands)
 
     def test_preflight_runs_tests_and_writes_real_outcome(self):
         for paths, status, expected in [(b'tools/pre-pr/pre_pr.py\0', 0, 0),

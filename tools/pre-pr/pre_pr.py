@@ -359,6 +359,44 @@ def workspace_wide(path):
             or path.startswith('.cargo/'))
 
 
+def external_locks(text):
+    """The registry and git packages a Cargo.lock pins, by name, version and source."""
+    return {(package['name'], package['version'], package['source'])
+            for package in tomllib.loads(text).get('package', []) if package.get('source')}
+
+
+def lock_moves_externals(repository, env, base, root):
+    """Whether Cargo.lock moved a package from outside the workspace since base.
+
+    A workspace member's own edges in the lock come with its manifest, which selects it already.
+    """
+    try:
+        before = checked_git(['show', f'{base}:Cargo.lock'], repository, env).decode()
+        return external_locks(before) != external_locks((root / 'Cargo.lock').read_text())
+    except (ValueError, OSError, UnicodeDecodeError, tomllib.TOMLDecodeError):
+        return True
+
+
+def manifest_beyond_members(text):
+    """The root manifest without its members and the workspace's own path dependencies."""
+    manifest = tomllib.loads(text)
+    workspace = manifest.get('workspace', {})
+    workspace.pop('members', None)
+    dependencies = workspace.get('dependencies', {})
+    for name in [name for name, value in dependencies.items() if isinstance(value, dict) and 'path' in value]:
+        del dependencies[name]
+    return manifest
+
+
+def root_manifest_moves_more(repository, env, base, root):
+    """Whether the root manifest changed beyond adding or removing the workspace's own crates."""
+    try:
+        before = checked_git(['show', f'{base}:Cargo.toml'], repository, env).decode()
+        return manifest_beyond_members(before) != manifest_beyond_members((root / 'Cargo.toml').read_text())
+    except (ValueError, OSError, UnicodeDecodeError, tomllib.TOMLDecodeError):
+        return True
+
+
 def always_packages(root, inputs, packages):
     """The gate's always-run packages for these code inputs (.config/gate/README.md, The gate's lists):
     a boundary package where the inputs reach a package, a prefixed one where an input has its prefix."""
@@ -1140,7 +1178,7 @@ def finish(tree_id, base_id, errors, root, env, scope, commits, heads, lints=(),
 
 
 def workspace_checks(root, paths, tree_id, env, errors, outcomes, reds=(), *, completed_goal=False, counts_source=None,
-                     whole=True):
+                     whole=True, base_id=None):
     start = time.monotonic()
     if whole and any(p.endswith('.rs') for p in paths):
         errors += format_workspace(root, env)
@@ -1166,7 +1204,13 @@ def workspace_checks(root, paths, tree_id, env, errors, outcomes, reds=(), *, co
             layers = tomllib.load(file)
         inputs, also = code_inputs(package_paths, data, root), ()
         if not whole and inputs:
-            if any(workspace_wide(p) for p in inputs):
+            wide = [p for p in inputs if workspace_wide(p)]
+            if base_id and counts_source:
+                # Adding a crate edits the lock and the members; the crates that use it changed too.
+                narrow = {'Cargo.lock': lock_moves_externals, 'Cargo.toml': root_manifest_moves_more}
+                wide = [p for p in wide if p not in narrow or narrow[p](*counts_source, base_id, root)]
+            if wide:
+                print(f"pre-pr: every package: {', '.join(wide)} changed", flush=True)
                 inputs = [str(Path(package['manifest_path']).relative_to(root)) for package in packages.values()]
             also = always_packages(root, inputs, packages)
         groups = PLANNER['package_plan'](root, inputs, packages, layers, also=also)
@@ -1313,7 +1357,7 @@ def check(scope, commits):
                 errors.append(failure('base', no_base))
             else:
                 tests = workspace_checks(checks_root, paths, tree_id, env, errors, outcomes, completed_goal=scope == 'close',
-                                         counts_source=(root, source_env), whole=base_id is None)
+                                         counts_source=(root, source_env), whole=base_id is None, base_id=base_id)
             if scope == 'goal' and not errors:
                 lints, tests, warnings = goal_checks(work, paths, env, errors, rerun_bound(root, source_env) if has_git else 0)
             if scope == 'close' and has_git and checked_git(['write-tree', '--missing-ok'], root, source_env).decode().strip() != tree_id:

@@ -38,7 +38,7 @@
   launcher's return on a live store, and whether a live store's box,
   with its owned Forgejo, answers it within its 240 s is unknown.
    the fake shell subset remains `fakes.status.md`, 3.  the remaining settings-kind stories remain `checks.status.md`, 4.  the remaining client-page stories remain `checks.status.md`, 4.
-- **Departs:**  the extra template-work golden row remains `checks.status.md`, 5.1.
+- **Departs:**  the extra template-work golden row remains `checks-stage-one.status.md`, 1.1.
   the whole document: `scripts/proof-live.sh`'s `TEMPER_TEST_LIVE_STORE` and
   `TEMPER_TEST_LIVE_KEEP`, `proof-live-github.sh`'s fixtures and
   `proof-live-github-managed.sh`'s target and evidence default under
