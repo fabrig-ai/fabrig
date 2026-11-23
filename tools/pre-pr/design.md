@@ -22,30 +22,66 @@ checkout. It checks current files, including staged, unstaged and new sources.
 The checker creates a private Git index and object store from those files. An
 exported source tree also works. Git ignore rules select sources, and an existing
 checkout's tracked files stay included even if they match an ignore rule.
-The checker rechecks the source tree before publishing its receipt.
+The private index starts from the checkout's own index and objects, so only
+changed files are hashed, unless an entry is marked assume-unchanged or
+skip-worktree. The checker rechecks the source tree before publishing its
+receipt.
 
-Rust formatting runs `cargo fmt --all -- --check` in the snapshot. A refusal
-reports a file and line from rustfmt's diff and the command to apply the edits
-in the implementer's workspace. Delivery also checks each tree's counted forms,
-citations, outward names, the checker's tests, empty journey overlays and the
-current budget tables. A format refusal returns early. Ordinary delivery runs
-these checks without compiling Rust. Its receipt is
-`target/temper/pre-pr-light-failures.json`.
+**What changed** is read from the checkout alone, with nothing fetched: the
+paths whose present files differ from the base, committed, staged, unstaged
+or new. The base is the merge base of the scope's base reference with `HEAD`
+and any pending `MERGE_HEAD`, stepped past the worker's unchecked saves
+along first parents (section 2). A delivery or child check takes the
+worker's landing pin, `refs/temper/landing`, else `refs/remotes/origin/main`.
+A close job's pin is the goal branch itself, and its checkout rarely holds
+main, so a close starts from the newest of main's published commits
+(`refs/temper/counts`, read or fetched as for its budgets) that `HEAD`
+holds: main as the goal last merged it. Without one it takes
+`refs/remotes/origin/main` where the checkout has it. A merge of main brings main's paths in too,
+which only widens the checks. With no base reference, outside a git
+checkout, or at a close whose base is `HEAD` itself, the check refuses and
+names what's missing, checking nothing: the worker's checkout is then not
+what it should be, and is repaired rather than checked whole. The explicit
+goal diagnostic alone checks the whole tree.
 
-Child, close and explicit goal checks share the current-tree policy. Close
-selects focused targets and helpers using the current package map, runs the
+Rust formatting runs `cargo fmt -p … -- --check` for the workspace
+packages owning a changed Rust file or manifest, as the gate's format check
+sees them, and `cargo fmt --all -- --check` when a rustfmt configuration,
+the toolchain or the root manifest changed. A refusal
+reports a file and line from rustfmt's diff and the command to apply the
+edits in the implementer's workspace. Delivery also checks the counted forms
+of each tree it touches, citations whenever anything changed (code cites
+design, and a cited file may go), the changed paths' outward names, the
+checker's tests when the checker changed, empty journey overlays and the
+budget tables when they or the layers changed. A format refusal returns
+early. Ordinary delivery runs these checks without compiling Rust. Its
+receipt is `target/temper/pre-pr-light-failures.json`.
+
+`.temper/checked-close` runs the close check itself, in the goal's
+checkout, after settling status. Close builds and tests there, warm with the
+worker's build cache, rather than in a copy. It selects the focused targets
+and helpers of the changed packages and their direct dependents using the
+current package map, with the gate's always-run packages
+(`.config/gate/always.txt`) whenever a code input changed, and every package
+when an input every package builds with changed (`Cargo.lock`, the root
+manifest, the toolchain, `.cargo/`, `.config/nextest.toml`). Prose reaches
+tests only where `.config/gate/read-by-tests.txt` or the fixture readers
+declare it. It runs the Python suites of changed Python files alone, runs the
 tests through one-process and judges instruction growth at the goal's base
 (section 4.1). Only candidate checks run in the snapshot. The boundary tests that compare landed
 client layouts, retained host-tool contracts, and stored-schema changes require
 repository history. At landing, those tests read the exact destination commit
 supplied by the gate in `CI_GATE_LANDING_BASE`. Their current-tree validators and fixture tests still run.
-The worker selects the applicable published counts before isolating the tree
-and supplies that budget file read-only. If the source has no commit or the
-counts are unavailable, close reports that it could not judge growth. The
+Close reads main's published counts from the checkout's `refs/temper/counts`,
+else fetches that one ref from the public repository into private scratch,
+once a run, for its base and its budgets alike. If
+the source has no commit or the counts are unavailable, close reports that it
+could not judge growth. The
 landing gate still enforces its budget. The explicit goal diagnostic runs workspace Clippy and both
-suites with the tree's budgets. Receipts name the snapshot tree with
-`comparison` set to `tree-only`, null base and destination, and the caller's
-destination under `requested_destination`. The landing Gate compares its
+suites with the tree's budgets. Receipts name the snapshot tree and its
+base, with `comparison` set to `changes`, or to `tree-only` with a null base
+when the whole tree counted; the destination is null, and the caller's
+destination is under `requested_destination`. The landing Gate compares its
 candidate's budget figures with its base (`tools/tiers/budgets.md`, 10.1).
 
 The following sections record the full diagnostic and earlier delivery
