@@ -1,7 +1,10 @@
 # journeys: status
 
-2026-11-21. Where temper's code lags or departs from [journeys.md](journeys.md).
+2026-11-23. Where temper's code lags or departs from [journeys.md](journeys.md).
 
+- **Not yet:** 7: the TUI print's admission tests write scratch trees
+  in `temper-client-journeys-tool`'s `suite`, and its refusals launch
+  `temper-client-journeys` [in flight: change 14086].
 - **Not yet:** 4.2: the recording print's mismatch diagnostic in
   `temper/crates/temper-client-journeys-tool/src/run.rs` points to
   section 8, the box session, rather than sections 4 and 6.1's replay
