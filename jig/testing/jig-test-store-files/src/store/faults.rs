@@ -20,23 +20,18 @@ impl Store {
             header.commits = self.applied;
             let row = jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Deployment(header));
             inventory.insert(
-                keys::encode(&key, self.component_limits.store.key).expect("header key"),
-                protocol::codec::encode(
-                    &row,
-                    &protocol::codec::limits(&self.component_limits.core).expect("codec"),
-                    &[],
-                )
-                .expect("header"),
+                keys::encode(&key, self.checked.limits().store.key).expect("header key"),
+                protocol::codec::encode(&row, self.checked.codec(), &[]).expect("header"),
             );
         }
         let old_place =
-            keys::encode_own(&keys::Own::Transcript { task }, self.component_limits.store.key).expect("file place");
+            keys::encode_own(&keys::Own::Transcript { task }, self.checked.limits().store.key).expect("file place");
         if inventory.contains_key(&old_place) {
             self.files.unread_transcript(task);
             return;
         }
         let mut old = self.component.take().expect("component").into_stores();
-        let limits = self.component_limits.store;
+        let limits = self.checked.limits().store;
         let env = self.env().with(limits);
         let mut records = Vec::new();
         for key in inventory.keys().filter(|key| key.starts_with(&protocol::logs::EXTENTS)) {
@@ -76,7 +71,7 @@ impl Store {
         }
         let maps = protocol::Stores { store: skein_kv::Store::memory(&limits), secrets: old.secrets };
         let mut maps = protocol::Store::over(
-            &self.component_limits,
+            &self.checked,
             jig_test_store::application(&self.limits.connector),
             &self.models,
             maps,
@@ -111,7 +106,7 @@ impl Store {
             assert_eq!(got, number);
         }
         let mut component = protocol::Store::over(
-            &self.component_limits,
+            &self.checked,
             jig_test_store::application(&self.limits.connector),
             &self.models,
             maps,

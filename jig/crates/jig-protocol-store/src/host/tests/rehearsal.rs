@@ -113,7 +113,12 @@ fn opened_rehearsal() -> World {
     let mut limits = fixtures::store_limits();
     limits.store.snapshot_after = 1;
     world.host = Drivers::new(&limits, 2);
-    world.store = Store::on_directory(&limits, fixtures::APPLICATION, &[], world.host.seeded());
+    world.store = Store::on_directory(
+        &crate::check(&limits).expect("fixture store limits"),
+        fixtures::APPLICATION,
+        &[],
+        world.host.seeded(),
+    );
     world.store.owner_sets(OwnerSets { sets: &[OwnerSet { jobs: &[JOB], ..BASE }] });
     let mode = super::super::Adoption::Rehearse { scratch, reach: crate::Reach::Whole };
     world.host.adopt_mode(world.fd, 0, Token::new(41), fixtures::INSTALLATION, mode).unwrap();

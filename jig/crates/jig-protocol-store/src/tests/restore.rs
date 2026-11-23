@@ -120,7 +120,7 @@ fn a_store_without_public_rows_reads_every_project_private() {
             expected.insert(row.key(), row).expect("project rows");
         }
     }
-    let mut store = fixtures::over(store.into_stores());
+    let mut store = fixtures::reopen(store);
     let events = fixtures::run(
         &mut store,
         Request::Open {

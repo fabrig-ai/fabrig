@@ -41,7 +41,7 @@ impl engine::Engine {
         let shared = forge::shared(&settings.limits, &settings.jig.limits.io);
         settings.jig.limits.clients.wire.keyed_value_some =
             limits::client_value_bytes(&settings.jig.limits, &settings.limits);
-        let store_limits = match settings.store_limits {
+        let store_checked = match settings.store_limits {
             Some(envelope) => {
                 let application = temper_protocol_store::application(&limits.forge, limits.tasks.spec_bytes)
                     .ok_or(start_problem(b"limits", What::Bound))?;
@@ -56,7 +56,7 @@ impl engine::Engine {
             None => store::limits(&limits, &limits.forge, &settings.jig.limits.store)
                 .ok_or(start_problem(b"limits", What::Bound))?,
         };
-        let accounts = accounts_driver(&settings, seeds, accounts, &store_limits.secrets)?;
+        let accounts = accounts_driver(&settings, seeds, accounts, &store_checked.limits().secrets)?;
         let mut values =
             values::Values::new(settings.jig.limits.driver.accounts, values::credential_bytes(&settings.jig));
         values.fill(&settings);
@@ -119,7 +119,7 @@ impl engine::Engine {
             under_box: box_line_bytes.is_some(),
             playground: playground_config(settings.demo.as_ref(), settings.limits.setup.deadline),
         };
-        let store = store::Store::new(&limits, &store_limits, &config.core.settings.models, seeds);
+        let store = store::Store::new(&limits, &store_checked, &config.core.settings.models, seeds);
         let providers_path = settings
             .directories
             .join(jig_protocol_config::Directory::Data, b"providers.setting")

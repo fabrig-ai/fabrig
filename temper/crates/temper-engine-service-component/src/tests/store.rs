@@ -47,9 +47,26 @@ fn the_store_opens_over_memory_and_answers_a_commit() {
 }
 
 #[test]
+fn a_reopen_checks_new_limits_only_when_admission_inputs_change() {
+    let (root, _, profile) = fixtures::store_limits();
+    let store = fixtures::memory_store_for(&root, &profile, &[]);
+    let first = store.host.component.checked();
+    let reopened = fixtures::reopened_store(store, &root);
+    assert_eq!(reopened.host.component.checked(), first);
+
+    let mut changed = root;
+    changed.tasks.spec_bytes = root.tasks.spec_bytes.checked_add(1).unwrap();
+    let expected = store::limits(&changed, &changed.forge, &profile).unwrap();
+    assert_ne!(expected.limits(), first.limits());
+    let reopened = fixtures::reopened_store(reopened, &changed);
+    assert_eq!(reopened.host.component.checked(), expected);
+}
+
+#[test]
 fn sizes_past_skein_kvs_limits_refuse_the_store() {
     let (root, _, profile) = fixtures::store_limits();
-    let checked = store::limits(&root, &root.forge, &profile).expect("small fits");
+    let admission = store::limits(&root, &root.forge, &profile).expect("small fits");
+    let checked = admission.limits();
     let profile = jig_protocol_store::Limits { store: checked.store, ..profile };
     assert!(checked.store.is_usable());
     assert_eq!(checked.store, checked.secrets);
@@ -83,7 +100,8 @@ fn sizes_past_skein_kvs_limits_refuse_the_store() {
 fn page_floor_admits_the_exact_map_bound_and_refuses_one_short() {
     let (mut root, _, mut profile) = fixtures::store_limits();
     root.loads.transcript_bytes = 8;
-    let map = store::limits(&root, &root.forge, &profile).expect("map-dominant page");
+    let admission = store::limits(&root, &root.forge, &profile).expect("map-dominant page");
+    let map = admission.limits();
     let map_bytes = map.store.key.checked_add(map.store.value).unwrap();
     assert_eq!(map.store.page.bytes, map_bytes);
     profile.store = map.store;
@@ -99,7 +117,8 @@ fn page_floor_admits_the_exact_map_bound_and_refuses_one_short() {
             .checked_add(u64::try_from(size_of::<jig_domain_core::Record>()).unwrap())
             .unwrap();
         profile.store.page.bytes = page;
-        let checked = store::limits(&root, &root.forge, &profile).expect("exact page ceiling");
+        let admission = store::limits(&root, &root.forge, &profile).expect("exact page ceiling");
+        let checked = admission.limits();
         assert_eq!(checked.store.page.bytes, page);
         assert_eq!(checked.store, checked.secrets);
         assert_eq!(checked.store.page.rows, profile.store.page.rows);
@@ -128,7 +147,8 @@ fn shipped_maximum_frame_fits_small_page_and_out_of_codec_admission_refuses() {
         .unwrap()
         .checked_add(u64::try_from(size_of::<jig_domain_core::Record>()).unwrap())
         .unwrap();
-    let checked = store::limits(&root, &root.forge, &profile).expect("shipped maximum fits Small");
+    let admission = store::limits(&root, &root.forge, &profile).expect("shipped maximum fits Small");
+    let checked = admission.limits();
     assert_eq!(checked.store.page.bytes, checked.store.key + checked.store.value);
     assert!(
         checked.store.page.bytes
@@ -238,7 +258,8 @@ fn the_store_uses_the_roots_effective_core_limits() {
     let (root, parsed, profile) = fixtures::store_limits();
     let effective = engine::core_limits(&root);
     assert_ne!(parsed.load_slots, effective.load_slots);
-    let checked = store::limits(&root, &root.forge, &profile).unwrap();
+    let admission = store::limits(&root, &root.forge, &profile).unwrap();
+    let checked = admission.limits();
     assert_eq!(checked.core, effective);
     assert_eq!(checked.core.call_answer_bytes, parsed.call_answer_bytes);
 }
@@ -298,7 +319,8 @@ fn every_service_start_keeps_the_shells_wires() {
     use skein_lib::{Env, Queue, Reader, Token, Wall};
     let service = fixtures::ready();
     let (root, _, profile) = fixtures::store_limits();
-    let limits = store::limits(&root, &root.forge, &profile).expect("fixture limits");
+    let admission = store::limits(&root, &root.forge, &profile).expect("fixture limits");
+    let limits = admission.limits();
     let mut maps = service.engine.expect("started engine").store.host.component.into_stores();
     let mut above = Queue::uncapped();
     let mut below = Queue::uncapped();

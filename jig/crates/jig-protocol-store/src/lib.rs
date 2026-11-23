@@ -100,6 +100,25 @@ impl Limits {
     }
 }
 
+/// An admitted store's limits and their generated family bounds (protocol/store/README.md, 8).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Checked {
+    limits: Limits,
+    codec: codec::View,
+}
+
+impl Checked {
+    #[must_use]
+    pub const fn limits(&self) -> &Limits {
+        &self.limits
+    }
+
+    #[must_use]
+    pub const fn codec(&self) -> &codec::View {
+        &self.codec
+    }
+}
+
 /// Stores made by the caller, kept across a world's crash (protocol/store/README.md, 9).
 #[derive(Debug)]
 pub struct Stores {
@@ -259,12 +278,12 @@ impl Store {
     /// A component over open stores; `models` are the configuration's, in its order.
     #[must_use]
     pub fn over(
-        limits: &Limits,
+        checked: &Checked,
         application: sizes::Application,
         models: &[jig_domain_core_vocabulary::Model],
         mut stores: Stores,
     ) -> Store {
-        let codec_limits = checked_codec(limits).expect("the store's limits are valid");
+        let limits = checked.limits();
         let census = Box::new(census::State::new());
         if stores.store.last() == 0 && stores.store.is_empty() {
             stores.store.count(census.rule);
@@ -278,7 +297,7 @@ impl Store {
             runtime_started: false,
             startup_setting: None,
             application,
-            codec_limits,
+            codec_limits: *checked.codec(),
             stock_core: None,
             read_failure: None,
             registry: Box::new(registry::Layouts::new()),
@@ -307,16 +326,23 @@ impl Store {
 
     #[must_use]
     pub fn on_directory(
-        limits: &Limits,
+        checked: &Checked,
         application: sizes::Application,
         models: &[jig_domain_core_vocabulary::Model],
         _seeded: Seeded,
     ) -> Store {
+        let limits = checked.limits();
         let stores =
             Stores { store: skein_kv::Store::new(&limits.store), secrets: skein_kv::Store::new(&limits.secrets) };
-        let mut store = Store::over(limits, application, models, stores);
+        let mut store = Store::over(checked, application, models, stores);
         store.directory.disk = true;
         store
+    }
+
+    /// The admitted bounds in force, including any pre-restore installation.
+    #[must_use]
+    pub fn checked(&self) -> Checked {
+        Checked { limits: self.limits, codec: self.codec_limits }
     }
 
     /// Today's models, before a commit that holds them (domain/engine/settings.md, 11).
@@ -449,17 +475,12 @@ pub struct PatchPage {
     pub next: Option<Cursor>,
 }
 
-/// Whether these limits are representable: every edge bound they size
-/// is finite and every capacity they derive fits (programming-model.md, 6.3).
+/// Keep the limits and codec view when every edge bound is finite and
+/// every derived capacity fits (programming-model.md, 6.3).
 #[must_use]
-pub fn valid(limits: &Limits) -> bool {
-    checked_codec(limits).is_some()
-}
-
-// Validate and retain one family mapping for both admission and the live store (protocol/store/README.md, 8).
-fn checked_codec(limits: &Limits) -> Option<codec::View> {
+pub fn check(limits: &Limits) -> Option<Checked> {
     let codec = limits.codec_view()?;
-    if valid_with_codec(limits, &codec) { Some(codec) } else { None }
+    if valid_with_codec(limits, &codec) { Some(Checked { limits: *limits, codec }) } else { None }
 }
 
 fn valid_with_codec(limits: &Limits, codec: &codec::View) -> bool {

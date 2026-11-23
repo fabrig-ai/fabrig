@@ -71,7 +71,7 @@ pub struct Store {
     disk: Option<crate::disk::Disk>,
     routes: route::Routes,
     limits: root::Limits,
-    component_limits: Limits,
+    checked: protocol::Checked,
     application: protocol::sizes::Application,
     /// The configured models the component names a role's models by.
     models: Box<[jig_domain_core::Model]>,
@@ -153,22 +153,21 @@ impl Store {
         component_limits: &Limits,
         application: protocol::sizes::Application,
     ) -> Store {
+        let checked = protocol::check(component_limits).expect("world store limits");
         let disk = if sets.sets.is_empty() && !on_disk { None } else { Some(crate::disk::Disk::new(component_limits)) };
         let component = if let Some(disk) = &disk {
-            protocol::Store::on_directory(component_limits, application, models, disk.seeded())
+            protocol::Store::on_directory(&checked, application, models, disk.seeded())
         } else {
             let stores = Stores {
                 store: skein_kv::Store::memory(&component_limits.store),
                 secrets: skein_kv::Store::memory(&component_limits.secrets),
             };
-            protocol::Store::over(component_limits, application, models, stores)
+            protocol::Store::over(&checked, application, models, stores)
         };
-        let mut store =
-            Self::over_storage(limits, models, sets, component, Files::new(), disk, component_limits, application);
+        let mut store = Self::over_storage(limits, models, sets, component, Files::new(), disk, application);
         store.open();
         store
     }
-    #[expect(clippy::too_many_arguments, reason = "fresh and forked storage retain the same checked configuration")]
     fn over_storage(
         limits: &root::Limits,
         models: &[jig_domain_core::Model],
@@ -176,13 +175,13 @@ impl Store {
         mut component: protocol::Store,
         files: Files,
         disk: Option<crate::disk::Disk>,
-        component_limits: &Limits,
         application: protocol::sizes::Application,
     ) -> Store {
+        let checked = component.checked();
         component.owner_sets(component_sets(sets));
         let mut routes = route::Routes::new(limits.routes);
         routes.configure(limits);
-        routes.configure_restore(component_limits).expect("restart page bounds fit");
+        routes.configure_restore(checked.limits()).expect("restart page bounds fit");
         Store {
             applied: 0,
             prefixes: BTreeMap::from([(0, BTreeMap::new())]),
@@ -196,6 +195,7 @@ impl Store {
             rows: BTreeMap::new(),
             pending: VecDeque::new(),
             held: VecDeque::new(),
+            checked,
             component: Some(component),
             sets,
             turn_text: None,
@@ -203,7 +203,6 @@ impl Store {
             disk,
             routes,
             limits: *limits,
-            component_limits: *component_limits,
             application,
             models: models.into(),
             inflight: BTreeMap::new(),
@@ -233,7 +232,7 @@ impl Store {
     #[must_use]
     pub fn into_wires(mut self) -> Box<[u8]> {
         let mut stores = self.component.take().expect("component").into_stores();
-        let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: self.component_limits.store };
+        let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: self.checked.limits().store };
         let mut above = Queue::uncapped();
         let mut below = Queue::uncapped();
         let key = protocol::keys::encode_own(&protocol::keys::Own::Wires, env.limits.key).expect("wires key");
@@ -374,18 +373,18 @@ impl Store {
         let application = self.application;
         self.component = Some(if let Some(disk) = &mut self.disk {
             drop(component);
-            disk.crash(&self.component_limits, seed);
-            protocol::Store::on_directory(&self.component_limits, application, &self.models, disk.seeded())
+            disk.crash(self.checked.limits(), seed);
+            protocol::Store::on_directory(&self.checked, application, &self.models, disk.seeded())
         } else {
             let stores = component.into_stores();
             self.files.crash(seed);
-            protocol::Store::over(&self.component_limits, application, &self.models, stores)
+            protocol::Store::over(&self.checked, application, &self.models, stores)
         });
         self.component.as_mut().expect("rebuilt component").owner_sets(component_sets(self.sets));
         assert!(self.component.as_mut().expect("rebuilt component").wires(self.wires));
         self.routes = route::Routes::new(self.limits.routes);
         self.routes.configure(&self.limits);
-        self.routes.configure_restore(&self.component_limits).expect("restart page bounds fit");
+        self.routes.configure_restore(self.checked.limits()).expect("restart page bounds fit");
         self.pending.clear();
         self.held.clear();
         self.inflight.clear();
@@ -464,13 +463,13 @@ impl Store {
     }
     /// Copy the durable image, then cold-open it without resubmitting history.
     pub fn fork(&self) -> Result<Store, ReadbackFinding> {
-        let disk = self.disk.as_ref().map(|disk| disk.fork(&self.component_limits));
+        let disk = self.disk.as_ref().map(|disk| disk.fork(self.checked.limits()));
         let application = self.application;
         let component = if let Some(disk) = &disk {
-            protocol::Store::on_directory(&self.component_limits, application, &self.models, disk.seeded())
+            protocol::Store::on_directory(&self.checked, application, &self.models, disk.seeded())
         } else {
             let stores = self.component.as_ref().expect("component").fork_memory().expect("memory store");
-            protocol::Store::over(&self.component_limits, application, &self.models, stores)
+            protocol::Store::over(&self.checked, application, &self.models, stores)
         };
         let mut fresh = Self::over_storage(
             &self.limits,
@@ -479,7 +478,6 @@ impl Store {
             component,
             self.files.fork(),
             disk,
-            &self.component_limits,
             self.application,
         );
         fresh.wires(self.wires);
@@ -610,7 +608,7 @@ impl Store {
         assert!(!self.failed, "patched mirror rows read back through the component");
     }
     fn env(&self) -> Env<Limits> {
-        Env { now: Time::ZERO, wall: Wall::EPOCH, limits: self.component_limits }
+        Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *self.checked.limits() }
     }
     fn drive(&mut self, mut requests: VecDeque<Request>, mut above: Queue<Event>) {
         let mut below = Below {

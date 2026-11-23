@@ -7,7 +7,12 @@ use skein_lib::Token;
 fn opened() -> crate::Store {
     let mut limits = fixtures::store_limits();
     limits.commits.writes = 3;
-    let mut store = crate::Store::over(&limits, fixtures::APPLICATION, &[], fixtures::stores());
+    let mut store = crate::Store::over(
+        &crate::check(&limits).expect("fixture store limits"),
+        fixtures::APPLICATION,
+        &[],
+        fixtures::stores(),
+    );
     let events = fixtures::run(
         &mut store,
         Request::Open {
@@ -22,6 +27,22 @@ fn opened() -> crate::Store {
     };
     store
 }
+#[test]
+fn the_runtime_check_is_the_installed_and_reopened_view() {
+    let stock = opened().checked();
+    let mut custom = stock.limits().core;
+    custom.notes.body_bytes = 8;
+    for core in [stock.limits().core, custom] {
+        let mut store = opened();
+        let expected = crate::runtime_limits(stock.limits(), &core, fixtures::APPLICATION, 64).unwrap();
+        assert_eq!(expected.codec().core.turn_record_transcript, 64);
+        store.install_limits(&core, fixtures::APPLICATION, 64).unwrap();
+        assert_eq!(store.checked(), expected);
+        let reopened = fixtures::reopen(store);
+        assert_eq!(reopened.checked(), expected);
+    }
+}
+
 #[test]
 fn installed_codecs_encode_only_records_within_the_resolved_ceiling() {
     let mut store = opened();

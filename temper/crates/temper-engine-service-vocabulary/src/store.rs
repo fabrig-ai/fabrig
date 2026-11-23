@@ -67,7 +67,7 @@ const fn wire_version(version: u16) -> u32 {
 pub const KERNEL_HANDOFF_ENTRIES: u32 = protocol::host::KERNEL_HANDOFF_ENTRIES;
 /// Admit the core, journal and temper families, then copy checked sizes to KV.
 #[must_use]
-pub fn limits(root: &root::Limits, forge: &forge::Limits, profile: &protocol::Limits) -> Option<protocol::Limits> {
+pub fn limits(root: &root::Limits, forge: &forge::Limits, profile: &protocol::Limits) -> Option<protocol::Checked> {
     admit(root, forge, profile, None).ok()
 }
 
@@ -85,7 +85,7 @@ pub fn admit(
     forge: &forge::Limits,
     profile: &protocol::Limits,
     turn: Option<u32>,
-) -> Result<protocol::Limits, Refusal> {
+) -> Result<protocol::Checked, Refusal> {
     let limits = layout(root, forge, profile)?;
     let needs = read_room(&limits, turn).ok_or(Refusal::Map(protocol::sizes::SizeRefusal::Ceiling))?;
     let decoded = decoded_read_room(turn).ok_or(Refusal::Map(protocol::sizes::SizeRefusal::Ceiling))?;
@@ -100,7 +100,7 @@ pub fn admit(
         Ok(()) => {}
         Err(why) => return Err(Refusal::Map(why)),
     }
-    Ok(limits)
+    protocol::check(&limits).ok_or(Refusal::Map(protocol::sizes::SizeRefusal::Ceiling))
 }
 
 /// The room named by either read refusal: the drivers' encoded page or the
@@ -210,6 +210,34 @@ mod sizing_tests {
     }
 
     #[test]
+    fn admission_carries_the_laid_out_limits_and_codec_view() {
+        let (root, _, stock) = crate::tests::fixtures::store_limits();
+        let mut custom = stock;
+        custom.checkpoints.keep = 3;
+        custom.store.page.rows = 32;
+        for profile in [stock, custom] {
+            let layout = super::layout(&root, &root.forge, &profile).unwrap();
+            let checked = super::admit(&root, &root.forge, &profile, None).unwrap();
+            assert_eq!(checked.limits(), &layout);
+            assert_eq!(Some(*checked.codec()), layout.codec_view());
+        }
+    }
+
+    #[test]
+    fn admission_refuses_unrepresentable_store_limits_before_construction() {
+        let (root, _, mut profile) = crate::tests::fixtures::store_limits();
+        profile.files = 0;
+        let layout = super::layout(&root, &root.forge, &profile).unwrap();
+        assert!(super::check_read_page(&layout).is_some());
+        protocol::sizes::whole(max_whole(&layout)).expect("manifest fits");
+        assert_eq!(
+            super::admit(&root, &root.forge, &profile, None),
+            Err(super::Refusal::Map(protocol::sizes::SizeRefusal::Ceiling))
+        );
+        assert!(super::limits(&root, &root.forge, &profile).is_none());
+    }
+
+    #[test]
     fn checkpoint_retention_reaches_the_component() {
         let (application, _, mut profile) = crate::tests::fixtures::store_limits();
         profile.checkpoints.keep = 3;
@@ -220,8 +248,9 @@ mod sizing_tests {
     #[test]
     fn drivers_read_a_whole_page_in_every_admitted_store() {
         let (application, _, profile) = crate::tests::fixtures::store_limits();
-        let limits = super::limits(&application, &application.forge, &profile).unwrap();
-        assert!(max_read(&limits) >= limits.store.page.bytes);
+        let checked = super::limits(&application, &application.forge, &profile).unwrap();
+        let limits = checked.limits();
+        assert!(max_read(limits) >= limits.store.page.bytes);
     }
 
     #[test]
@@ -255,9 +284,10 @@ mod sizing_tests {
     #[test]
     fn an_admitted_store_already_reads_the_whole_manifest() {
         let (application, _, profile) = crate::tests::fixtures::store_limits();
-        let limits = super::limits(&application, &application.forge, &profile).unwrap();
-        assert!(max_read(&limits) >= protocol::sizes::MANIFEST_BYTES);
-        assert_eq!(max_whole(&limits), max_read(&limits));
+        let checked = super::limits(&application, &application.forge, &profile).unwrap();
+        let limits = checked.limits();
+        assert!(max_read(limits) >= protocol::sizes::MANIFEST_BYTES);
+        assert_eq!(max_whole(limits), max_read(limits));
     }
 
     // The core refuses sign-ins at the root's fill mark; a store whose map budget is
@@ -269,7 +299,8 @@ mod sizing_tests {
         let (application, _, _) = crate::tests::fixtures::store_limits();
         let mark = temper_engine_domain::core_limits(&application).fill_mark;
         assert_eq!(mark, jig.core.fill_mark);
-        let limits = super::limits(&application, &application.forge, &jig.store).unwrap();
+        let checked = super::limits(&application, &application.forge, &jig.store).unwrap();
+        let limits = checked.limits();
         assert!(limits.store.budget >= mark);
     }
 
@@ -278,7 +309,8 @@ mod sizing_tests {
         // Secrets keys are the two owner bytes followed by a u64 number.
         const KEY_BYTES: u64 = 2 + 8;
         let (application, _, profile) = crate::tests::fixtures::store_limits();
-        let limits = super::limits(&application, &application.forge, &profile).unwrap();
+        let checked = super::limits(&application, &application.forge, &profile).unwrap();
+        let limits = checked.limits();
         let row = protocol::secrets_v1::encoded_bound(&protocol::secrets_v1::CEILINGS).unwrap();
         assert_eq!(row, 274_504);
         assert!(row <= u64::from(limits.secrets.value));

@@ -56,7 +56,7 @@ impl World {
             swept: Vec::new(),
             loads: 0,
             store: store::Store::over(
-                &limits,
+                &store::check(&limits).expect("account fixture limits"),
                 fixtures::APPLICATION,
                 &[],
                 store::Stores {

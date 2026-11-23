@@ -29,6 +29,8 @@ pub struct Store {
     pub(crate) held_mark: Option<root::StoreRequest>,
     #[cfg(test)]
     pub(crate) secret_requests: u32,
+    #[cfg(test)]
+    pub(crate) fixture_admission: Option<Box<crate::tests::fixtures::StoreAdmission>>,
     pub(crate) host: Hosted,
     pub(crate) routes: route::Routes,
     pub(crate) routed: Queue<Up>,
@@ -49,7 +51,7 @@ impl Store {
     #[must_use]
     pub fn new(
         application: &root::Limits,
-        limits: &protocol::Limits,
+        checked: &protocol::Checked,
         models: &[jig_domain_core::Model],
         seeds: &crate::settings::Seeds,
     ) -> Self {
@@ -63,7 +65,7 @@ impl Store {
         let application_sizes = temper_protocol_store::application(&application.forge, application.tasks.spec_bytes)
             .expect("checked application sizes");
         let seed = u64::from_le_bytes(*installation.first_chunk::<8>().expect("installation seed"));
-        let mut host = Hosted::new(limits, application_sizes, models, seed, NotReady::Above);
+        let mut host = Hosted::new(checked, application_sizes, models, seed, NotReady::Above);
         assert!(host.component.wires(&WIRES), "valid engine wires before open");
         host.component.owner_sets(OWNER_SETS);
         host.component.keyspaces(temper_protocol_store::KEYSPACES);
@@ -83,6 +85,8 @@ impl Store {
             held_mark: None,
             #[cfg(test)]
             secret_requests: 0,
+            #[cfg(test)]
+            fixture_admission: None,
             routes,
             routed: Queue::uncapped(),
             host,

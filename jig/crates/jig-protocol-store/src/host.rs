@@ -61,15 +61,16 @@ pub enum Adoption {
 impl Hosted {
     #[must_use]
     pub fn new(
-        limits: &crate::Limits,
+        checked: &crate::Checked,
         application: crate::sizes::Application,
         models: &[jig_domain_core_vocabulary::Model],
         seed: u64,
         not_ready: NotReady,
     ) -> Self {
+        let limits = checked.limits();
         let drivers = Drivers::new(limits, seed);
         Self {
-            component: crate::Store::on_directory(limits, application, models, drivers.seeded()),
+            component: crate::Store::on_directory(checked, application, models, drivers.seeded()),
             above: Queue::uncapped(),
             secrets: Queue::uncapped(),
             sources: Queue::uncapped(),
@@ -356,11 +357,12 @@ impl Drivers {
     #[must_use]
     pub fn new(limits: &crate::Limits, value: u64) -> Self {
         let serving = serving_read(limits);
+        let whole = max_whole(limits);
         let mut drivers = [
-            driver(limits, serving),
-            driver(limits, serving),
-            driver(limits, serving),
-            driver(limits, serving.max(max_read(limits))),
+            driver(limits, serving, whole),
+            driver(limits, serving, whole),
+            driver(limits, serving, whole),
+            driver(limits, serving.max(max_read(limits)), whole),
         ];
         let seeded = seed(&mut drivers, value);
         Self {
@@ -849,9 +851,8 @@ fn serving_read(limits: &crate::Limits) -> u32 {
         .max(limits.store.record.saturating_add(17))
         .max(limits.secrets.record.saturating_add(17))
 }
-fn driver(limits: &crate::Limits, read: u32) -> Driver {
+fn driver(limits: &crate::Limits, read: u32, whole: u32) -> Driver {
     let files = handles(limits).expect("store and payload file handles fit");
-    let whole = max_whole(limits);
     // Each open adds a log segment, and a store that seldom snapshots keeps them all: 32 entries stopped a store
     // with few writes after its 32nd start.
     let file_limits = FileLimits { files, read, entries: 1024, whole, timeout: limits.store.deadline };

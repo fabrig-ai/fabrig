@@ -59,7 +59,7 @@ pub struct Store {
     files: Files,
     routes: route::Routes,
     limits: engine::Limits,
-    component_limits: Limits,
+    checked: protocol::Checked,
     application: protocol::sizes::Application,
     models: Box<[engine::Model]>,
     catalogue: Option<Box<[jig_domain_core::settings::ModelName]>>,
@@ -175,23 +175,24 @@ impl Store {
     // A fork has the source's immutable configuration and its checked sizes.
     fn prepared(
         limits: &engine::Limits,
-        component_limits: &Limits,
+        checked: &protocol::Checked,
         application: protocol::sizes::Application,
     ) -> Store {
+        let component_limits = checked.limits();
         let stores = Stores {
             store: skein_kv::Store::memory(&component_limits.store),
             secrets: skein_kv::Store::memory(&component_limits.secrets),
         };
         // The worlds' configured models, in their order (jig's store over a configuration's).
         let models = crate::walking::models();
-        let mut store = Self::empty(limits, component_limits, application, models);
+        let mut store = Self::empty(limits, checked, application, models);
         store.reopen(stores);
         store
     }
 
     fn empty(
         limits: &engine::Limits,
-        component_limits: &Limits,
+        checked: &protocol::Checked,
         application: protocol::sizes::Application,
         models: Box<[engine::Model]>,
     ) -> Store {
@@ -206,7 +207,7 @@ impl Store {
             files: Files::new(),
             routes: routes(limits),
             limits: *limits,
-            component_limits: *component_limits,
+            checked: *checked,
             application,
             models,
             catalogue: None,
@@ -224,7 +225,7 @@ impl Store {
 
     /// Transfer the store, leaving an empty shell that is never driven.
     pub(crate) fn take_for_drop(&mut self) -> Store {
-        let empty = Self::empty(&self.limits, &self.component_limits, self.application, Box::new([]));
+        let empty = Self::empty(&self.limits, &self.checked, self.application, Box::new([]));
         std::mem::replace(self, empty)
     }
 
@@ -305,7 +306,7 @@ impl Store {
     #[must_use]
     pub fn fork(&self) -> Store {
         let stores = self.component.as_ref().expect("live component").fork_memory().expect("world memory stores");
-        let mut fresh = Self::empty(&self.limits, &self.component_limits, self.application, self.models.clone());
+        let mut fresh = Self::empty(&self.limits, &self.checked, self.application, self.models.clone());
         fresh.catalogue.clone_from(&self.catalogue);
         fresh.rows.clone_from(&self.rows);
         fresh.reopen(stores);
@@ -446,12 +447,12 @@ impl Store {
     /// The actual component allowance used by party reads in this world.
     #[must_use]
     pub const fn read_joins(&self) -> u32 {
-        self.component_limits.joins
+        self.checked.limits().joins
     }
     /// The real transcript driver's page room, derived from the world's limits.
     #[must_use]
     pub const fn transcript_page_bytes(&self) -> u32 {
-        self.component_limits.store.page.bytes
+        self.checked.limits().store.page.bytes
     }
     /// Read a historical page through the real store and the service's routing.
     #[must_use]
@@ -486,7 +487,7 @@ impl Store {
         let mut below = Queue::uncapped();
         skein_kv::down(
             &mut stores.store,
-            &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: self.component_limits.store },
+            &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: self.checked.limits().store },
             skein_kv::Request::Get {
                 owner: Token::new(1),
                 key: protocol::keys::encode_own(&protocol::keys::Own::Wires, u32::MAX).expect("component key fits"),
@@ -523,7 +524,7 @@ impl Store {
         self.drive(VecDeque::from([request]), Queue::uncapped());
     }
     fn reopen(&mut self, stores: Stores) {
-        let mut component = protocol::Store::over(&self.component_limits, self.application, &self.models, stores);
+        let mut component = protocol::Store::over(&self.checked, self.application, &self.models, stores);
         assert!(component.wires(&temper_engine_service_vocabulary::store::WIRES));
         if let Some(names) = &self.catalogue {
             component.catalogue(names.clone());
@@ -546,7 +547,7 @@ impl Store {
         assert!(!self.failed, "durable stores reopen");
     }
     fn env(&self) -> Env<Limits> {
-        Env { now: Time::ZERO, wall: Wall::EPOCH, limits: self.component_limits }
+        Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *self.checked.limits() }
     }
     fn drive(&mut self, mut requests: VecDeque<Request>, mut above: Queue<Event>) {
         let mut below = Below {
@@ -803,7 +804,7 @@ pub fn widest() -> engine::Limits {
     limits.watermark = engine::default_watermark(&limits.journal);
     limits
 }
-fn component_limits(limits: &engine::Limits) -> Limits {
+fn component_limits(limits: &engine::Limits) -> protocol::Checked {
     // These worlds keep the stock's store joins, including the box-allowance
     // stories. Derive that immutable profile once, not its client wire sizes
     // for every new store as well.
