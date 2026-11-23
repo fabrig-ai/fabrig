@@ -417,16 +417,28 @@ vocabulary.
 
 ### 2.5 Which tier a test belongs to
 
-Local chat layout admission is proven with one crate-local real-directory
-Store/FileIo adapter under `smith-local-protocol/tests/suite/disk.rs`:
-Scratch, real FileIo, Kernel and Clock, bounded queues and explicit close.
-Its `suite` integration binary holds the layout cases over the same public
-test surface. Refusal snapshots compare
-sorted filenames, inode identities, regular-file bytes and no-follow kinds
-and symlink targets. The existing local-process power-loss composition
-covers interrupted creation and refusal immutability; one fake-backed
-process story proves operator words and exit 1.
-
+- **The chat store's layout is checked on the fake disk.** The
+  local-process world drives the real `Store` and `FileIo` over skein's
+  fake disk, each case's directory laid as its files, links,
+  directories and marker bytes. A refusal leaves the directory as it
+  found it: its sorted names and each entry's node, no-follow kind,
+  bytes and link target, read back before the request, after its
+  terminal and after close, the disk asked only to load and scan. The
+  world's power-loss sweeps hold interrupted creation and a refusal's
+  immutability. One case stays on the real file adapter, in
+  `smith-local-protocol`'s `suite`: a fresh journal's recovery, its
+  files unlinked and the marker's bytes and inode unchanged.
+- **Setup decides over facts.** Preparing a program's directories,
+  finding the first executable on `PATH`, refusing a missing or
+  non-executable program, reusing a host ID, replacing a piped key and
+  the live suite's setup words and refresh report are step tests over
+  the facts their functions take (a path's kind, owner and mode, a
+  record's bytes) and the effects they ask for (a directory made, a
+  file published or removed), the native calls in thin wrappers. A
+  provider dump's bytes are checked in the agent service's simulated
+  world, for each provider, against the bodies its fake provider read.
+  The real loop keeps what only processes and the kernel show: two
+  processes racing to publish one host ID, and a real key file's mode.
 - **A boundary is tested where it lives.** An exact bound (at the cap,
   and one past it) is a test of the tier that owns the bound, with tiny
   limits: a decoder's in skein's tier, the session's in its world. A
@@ -732,9 +744,10 @@ Codec patch checks run in the focused codec suite. Kit bounds, parsing and
 landed-file mutations belong to skein's tests rather than a second codec
 binary. The fixture owner's landed-data check remains here: the generated
 `current` check compares generated source, not the landed-data findings.
-Live configuration, piped sign-in lines and window patience are checked once
-in the unconditional focused `live_configuration` target. Shared live
-support contains no tests; its stories stay in `live-smith`.
+The live suite's setup words and refresh report are step tests
+(`tests/step/`, 2.5); the unconditional `live_configuration` target keeps
+the product adapter's user layer through the shipped `smith check`. Shared
+live support contains no tests; its stories stay in `live-smith`.
 
 The live tests are a separate suite, outside the gate, under the
 `live-smith` profile only (2.3). Benchmarks are no suite: they run by their
@@ -769,7 +782,7 @@ src/bin/smith-agent.rs           the binary smith-agent: glue
 crates/*/src/tests.rs            step tests
 crates/smith-*-service           the profile, and its derivation properties
 crates/smith-*-shell             the shells' parsing, settings and refusals
-crates/smith-local-protocol/tests the chat store's real-directory layout cases (2.5)
+crates/smith-local-protocol/tests the chat store's one recovery on the real file adapter (2.5)
 tests/codecs                     the codecs: built values, records-only drift, bounds, fuzzy decoding
 tests/tools                      the tools child domain's world
 tests/session                    the session child domain's world
@@ -787,20 +800,20 @@ tests/real                       the real loop
 tests/fake-claude                smith-fake-claude: the fake program a program backend runs (section 4)
 tests/transcript-patches         the transcript patches' fixture family (protocol/transcript.md, section 12)
 tests/machine/tests/simulated/   machine seam checks and fake-kernel stories: step + simulated
-tests/machine/tests/suite/       real file io, jobs and synchronous rg children
+tests/machine/tests/suite/       real rg children and a held job's teardown
 tests/fake-claude/tests/simulated/ encodings and the hosted fake: step + simulated
 tests/fake-claude/tests/suite/    the fake executables, real files and signals
 tests/*/tests/suite/             a world's focused tests, apart from its split binaries
 tests/*/tests/suite/fuzzy/       its fuzzy tests
 tests/end-to-end/end_to_end.rs   end to end against fakes: a package target, with its modules beside it
 tests/end-to-end/live.rs         the live suite: a package target
-tests/end-to-end/live_configuration.rs  real credential-file controls and the shipped smith check
-tests/step/                      offline configuration controls: the step package target
+tests/end-to-end/live_configuration.rs  the product adapter's user layer through the shipped smith check
+tests/step/                      offline configuration controls and the live suite's setup words: the step package target
 testing/smith-end-to-end-kit/     their shared setup, compiled once
 testing/<crate>-fixtures         a crate's fixtures for other crates' tests and its own integration tests
 benchmarks/                      smith-bench, the benchmark harness (benchmarks.md)
-benchmarks/tests/step/           offline harness checks and recorded parsers
-benchmarks/tests/suite/          scratch files, real clocks, git and replay command processes
+benchmarks/tests/step/           offline harness checks, recorded parsers and the harness over a test tree
+benchmarks/tests/suite/          real git, login shells, terminals, pipes and the shipped probe and suite commands
 ```
 
 - **A crate's fixtures** (skein/docs/foundation/cli.md, 3): the small

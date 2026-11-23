@@ -19,7 +19,7 @@ One milestone, *slow tests at the gate*, of eighteen goals. Each lands into main
 | D9, `skein-codegen::suite`'s tables to its step tests, with an in-memory tree for the patch commands | 5.2 | skein | none | not started |
 | D10, `github-conformance::suite` to step and protocol tests on the fake, with a supplied file tree for its journal | 5.2 | skein | none | not started |
 | D11, temper's QA tool and CLI policy to a QA domain world and command-table steps | 5.2 | temper | none | not started |
-| D12, `smith-bench::suite`, smith's store and native setup | 5.2, 5.3 | smith | none | not started |
+| D12, `smith-bench::suite`, smith's store and native setup | 5.2, 5.3 | smith, skein | none | built by goal 13865 (`smith/docs/design/testing.md`, 2.5, 6.1 and 7; `smith/docs/design/benchmarks/README.md`, 13; `skein/docs/design/testing/README.md`, 4) |
 | D13, smith's shipped CLI, with a file-operation seam around its finalizer | 5.3 | smith | none | not started |
 | D14, temper's shells: forge setup, box, common, TUI, service, fetch and engine shells | 5.3 | temper | D8 | not started |
 | D15, temper's journey tools and its end-to-end binaries' tables | 5.3 | temper | none | not started |
