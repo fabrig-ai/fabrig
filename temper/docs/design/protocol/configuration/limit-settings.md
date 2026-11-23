@@ -198,6 +198,16 @@ this document says how settings lie over it.
   3. it resolves the limits (below), checks them whole, and builds the
      engine with them, the store's codec ceilings among them;
   4. it restores, as today.
+- **The store is admitted once.** The store's admission, its sizing
+  above with its read and whole-file checks, ends with jig's check of
+  the store's limits and gives its result, jig's `Checked` (jig's
+  `protocol/store/README.md`, 8). The store opened at step 1 is made
+  over it, and the engine built at step 3 over the runtime check's;
+  neither evaluates a bound again. A limit jig's check refuses is
+  refused at admission, as the store's ceiling, before any store is
+  made, where it stopped the start at the store's making before. A
+  world that reopens its maps at the figures it admitted them at takes
+  that admission's `Checked`; at a changed figure it admits afresh.
 - **The order of the resolution,** over `derived.md`, section 4:
   1. the stock: jig's, with temper's figures over it;
   2. `live_goals` and `tool_payload` from temper's kind, or the stock's;
