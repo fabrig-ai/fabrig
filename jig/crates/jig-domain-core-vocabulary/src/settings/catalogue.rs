@@ -4,7 +4,7 @@ use crate::{Model, Settings};
 use alloc::boxed::Box;
 use jig_domain_accounts as accounts;
 use jig_domain_link as link;
-use skein_lib::{Duration, List, Wall};
+use skein_lib::{Duration, List, Set, Wall};
 
 /// How long a list model is new (jig/docs/design/domain/engine/settings.md, 12).
 pub const NEW_FOR: Duration = Duration::from_secs(7 * 86_400);
@@ -335,9 +335,24 @@ pub fn entries(current: &Current) -> Box<[CatalogueModel]> {
 /// Select models through the same default/change overlay as the settings check.
 #[must_use]
 pub fn overlay(current: &Current, defaults: bool, items: &[Item]) -> Box<[CatalogueModel]> {
-    let mut models = List::with_capacity(jig_domain_tasks::MODELS);
-    for number in 1..=jig_domain_tasks::MODELS {
-        let setting = Setting::Model(number);
+    let first = Setting::Model(1);
+    let last = Setting::Model(jig_domain_tasks::MODELS);
+    let mut settings = Set::with_capacity(jig_domain_tasks::MODELS);
+    for (&setting, _) in current.defaults.range(first..=last) {
+        settings.insert(setting).expect("one setting per model number");
+    }
+    if !defaults {
+        for (&setting, _) in current.changes.range(first..=last) {
+            settings.insert(setting).expect("one setting per model number");
+        }
+    }
+    for item in items {
+        if item.setting >= first && item.setting <= last {
+            settings.insert(item.setting).expect("one setting per model number");
+        }
+    }
+    let mut models = List::with_capacity(settings.len());
+    for &setting in &settings {
         let before = if defaults { current.default_value(setting) } else { current.value(setting) };
         let mut withdrawn = false;
         let value = match super::check::edit(items, setting) {
