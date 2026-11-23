@@ -29,7 +29,8 @@ GLOBAL_TIMEOUT_LINE = '  Cancelling due to global timeout: 1 test still running\
 
 def clean_env(**fields):
     env = dict(os.environ)
-    for key in ('TIERS_WRAPPER', 'TIERS_DISK_BYTES'):
+    # pre-PR sets CARGO_TARGET_DIR, which would bypass the fixtures' metadata target.
+    for key in ('TIERS_WRAPPER', 'TIERS_DISK_BYTES', 'CARGO_TARGET_DIR', 'CARGO_BUILD_TARGET_DIR'):
         env.pop(key, None)
     env.update(fields)
     return env
