@@ -145,6 +145,7 @@ fn the_live_arguments_carry_private_program_homes() {
 }
 
 mod live_tests;
+mod program_contract;
 
 pub use smith_end_to_end_kit as support;
 

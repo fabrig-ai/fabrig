@@ -183,15 +183,6 @@ fn an_agent_channel_end_is_reported_to_stderr() {
 }
 
 #[test]
-fn an_agent_transport_refusal_is_reported_to_stderr() {
-    let errors = agent_refusal(&agent_document("192.0.2.1:8080"));
-    assert_eq!(
-        String::from_utf8_lossy(&errors).lines().last(),
-        Some("smith: plaintext endpoint address must be loopback")
-    );
-}
-
-#[test]
 fn the_live_outcome_referee_runs_on_the_shared_fake_binary_harness() {
     let report = Scratch::new();
     support::live_run::run_fake(&report, &World::new(35, &report, Placement::Spawned, b"First answer").scenario);
