@@ -730,6 +730,14 @@ differently (cargo-spawning boundary tests about 7% lower, client worlds up
 to 22% higher, 2026-11-23), so a layer's sum can swing about 2% between
 them, and a red at close is one the gate would also give.
 
+Temper retries a close that refused as it would one that failed, and each
+attempt gets a fresh checkout. So close saves a refusal made of its own
+verdicts alone (budgets, formatting, old forms, citations, outward names) in
+the worker user's `~/.cache/fabrig-pre-pr/close/`, keyed by the checked tree,
+the base and main's published counts, for a day. An attempt with the same
+key prints that refusal again, with its figures, and checks nothing; a test
+failure, a build or listing fault, or any other input runs afresh.
+
 ## 5. Inherited failures
 
 Only selected checks contribute failures. The format check runs within
