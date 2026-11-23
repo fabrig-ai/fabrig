@@ -1,8 +1,8 @@
 # openid: status
 
-2026-11-10. Where the tree's code lags or departs from [openid.md](openid.md).
+2026-11-23. Where the tree's code lags or departs from [openid.md](openid.md).
 
-
+- **Not yet:** the whole document's "Configured" and "Testing": the provider's stories run in the real loop, in `jig-engine-clients-world::suite`, over a key and secret `openssl` generates in scratch files. [in flight: change 13942]
 - **Departs:** the whole document: `authorize_reply` in
   `jig/crates/jig-protocol-engine-clients/src/provider.rs` maps people's
   `Again`, including `NotReady` during restoration, to `NotReady`;
