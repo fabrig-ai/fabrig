@@ -96,8 +96,8 @@ This document holds LLM accounts through ctl, split from [`areas.md`](areas.md).
      newline, within the bound of `bounds.md`, section 1. The tool reads it, sends
      it once, and keeps no copy (`requests.md`, section 1).
    - **`PROVIDER` is an LLM provider's number,** as `model list` and
-     `account list` print it (jig's `protocol/configuration.md`, section
-     3); `ADAPTER` is the program's name in smith's agent configuration,
+     `account list` print it (jig's `protocol/configuration-engine.md`, section
+     1); `ADAPTER` is the program's name in smith's agent configuration,
      `claude_code` (smith's `protocol/agent.md`, section 4).
    - **`SOURCE` names one of the account's sources** by its kind,
      `sign_in`, `key` or `program`, as `account list` prints it (`README.md`, section 12
@@ -139,7 +139,7 @@ This document holds LLM accounts through ctl, split from [`areas.md`](areas.md).
      `domain/tasks/README.md`, section 3), and area 2's `task amend` changes it.
      Both take `--sub-agent MODEL[:EFFORT]` too, repeatable, each one of
      the choice's sub-agents in the order given (jig's
-     `protocol/configuration.md`, 3.1), a model at most once, its effort its
+     `protocol/configuration-templates.md`, 1), a model at most once, its effort its
      default where left out as `--model`'s is; given,
      they replace the template's sub-agents whole, and they need
      `--model`. Without them the choice keeps the template's sub-agents,

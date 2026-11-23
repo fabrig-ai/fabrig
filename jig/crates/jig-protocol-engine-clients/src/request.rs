@@ -1,4 +1,4 @@
-//! Keyed request admission and version envelopes (protocol/client/README.md, 3 and 6).
+//! Keyed request admission and version envelopes (protocol/client/README.md, 3, and protocol/client/versions.md, 1).
 use super::{Box, Component, Env, Limits, Queue, ReplyTo, Request, Token, Waiting, core, people, routes, sign_in, w};
 use crate::sign_in::CarriedRequest;
 use jig_client_protocol_wire::Record as _;

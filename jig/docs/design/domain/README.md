@@ -130,7 +130,7 @@ system.
 | charter | how an agent executor is set up, and which hosts may run it |
 | result contract | what counts as done: a report, a verdict, a connector's result (made as a delivery when a run's workspace delivers, hosts/charters.md), a choice, an approval (tasks/README.md, section 3) |
 | chat | jig's default template for a conversation with an agent: an agent task flagged conversation and kept, whose requester is a party (people/README.md, section 6) |
-| template | an application's recipe for creating a task of one shape, numbered in its configuration and overridden by a project's policy; the client fills it into a `Create` or a `Propose`; the engine keeps the configuration's templates and each policy's overrides, serves them merged in `me`, and never expands or checks one (model.md, 7.3; `../protocol/configuration.md`, 3.1) |
+| template | an application's recipe for creating a task of one shape, numbered in its configuration and overridden by a project's policy; the client fills it into a `Create` or a `Propose`; the engine keeps the configuration's templates and each policy's overrides, serves them merged in `me`, and never expands or checks one (model.md, 7.3; `../protocol/configuration-templates.md`, 1) |
 | recurring batch | the batch a recurring task was given when it was made, which it makes again at each period; not a template (tasks/README.md, section 5) |
 | gathering, concluded | a core procedure's task that parties fill with delegates by `Delegate`; its requester's word, `Conclude`, after which none joins and it ends once they have ended (tasks/gatherings.md) |
 | label | an opaque number the application gives a task, through a template or by hand, which lists filter on and no engine rule reads (tasks/README.md, section 3) |
@@ -313,7 +313,7 @@ where each is answered:
   asks for it, a conversation's, from agent processes over smith's
   channel as from a host whose agent runs in its process; a tool begun
   with its call comes only from the second (hosts/hub.md, 5;
-  `../protocol/README.md`, section 11).
+  `../protocol/needs.md`, section 2).
 - **Level-triggered views:** a watch delivers its subject's current
   document, one delivery in flight, changes coalesced, never queued; only
   a run's text as it is written is a stream, from an offset; an
@@ -366,7 +366,7 @@ where each is answered:
   its configuration, their defaults overridden per project by its
   policy, never their flags, label or tracking, served in `me`, and
   filled in by the client; the engine never expands or checks one, and
-  permissions stay primitive (`../protocol/configuration.md`, 3.1;
+  permissions stay primitive (`../protocol/configuration-templates.md`, 1;
   authority.md, section 6).
 - **`AsAllowed` and a deadline as a span,** the plumbing templates need:
   resolved by the engine as it makes the task, the answer saying what

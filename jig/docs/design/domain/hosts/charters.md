@@ -3,7 +3,7 @@
 The core decides a run's charter in its own terms (../engine/executors.md, 1). Its
 translation into smith's charter (smith's `domain/run.md`, 3.1; smith's
 `protocol/charter.md`, section 2; the version,
-`../../protocol/README.md`, section 11), is in one place,
+`../../protocol/needs.md`, section 2), is in one place,
 `jig-protocol-charter`, a function of jig's that links smith, which the
 engine's protocol layer calls for every run, on workers and in the
 engine alike, and which reads every run's result back by the path of

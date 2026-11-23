@@ -229,7 +229,7 @@ deployment's rules       the most any project may have; requirements on effects
   a narrowing or a widening below.
 - **A project's policy** is in the store, whole, from its seed or, for
   a project made after the first start, copied from a configured policy
-  (`../protocol/configuration.md`, section 3); changed by the parties
+  (`../protocol/configuration-engine.md`, section 1); changed by the parties
   whose role allows it, within the deployment's rules:
   - its ceiling: the authority no task in the project exceeds, which
     follows from its resources' roles (owned, fork, context) and from
@@ -256,7 +256,7 @@ deployment's rules       the most any project may have; requirements on effects
     names this role (people/acts.md, 1);
   - its overrides of the application's templates, per template number,
     which no check reads, since a template grants nothing: what they may
-    override is `../protocol/configuration.md`, 3.1, and how `me` serves
+    override is `../protocol/configuration-templates.md`, 1, and how `me` serves
     them merged, engine/views.md, 1;
   - its requirements: per kind of effect and pattern of resources, what
     an effect there needs (section 10);
@@ -840,7 +840,7 @@ pool has left.
   role in the deployment, owner, never a project's. It gives no
   authority and spends nothing past its policy's own spend per period.
   A configured policy is checked against the deployment's rules at
-  every start (`../protocol/configuration.md`, section 3), so the
+  every start (`../protocol/configuration-engine.md`, section 1), so the
   request never finds it above them.
 
 ### 8.5 Tool calls and reads

@@ -1,4 +1,4 @@
-//! Deployment, initial identities and connector numbers (configuration.md, 3).
+//! Deployment, initial identities and connector numbers (protocol/configuration-engine.md, 1).
 use crate::{CodecBound, Directories, Directory, Path, Problem, Problems, What, check, read};
 use alloc::boxed::Box;
 use jig_domain_people::{IdentityKey, InitialOwner};

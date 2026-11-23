@@ -1,4 +1,4 @@
-//! List patterns match whole names and drops win (jig/docs/design/protocol/configuration.md, 3).
+//! List patterns match whole names and drops win (jig/docs/design/protocol/configuration-engine.md, 1).
 use crate::settings::catalogue::{CatalogueModel, ModelSource, NEW_FOR, from_list, kept, matches, shape};
 use crate::settings::{Edit, Item, Setting, Value};
 use core::slice::from_ref;

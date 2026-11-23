@@ -240,7 +240,7 @@ credential.
 - **A key is pasted once, never kept.** Its field is a secret (skein's
   `ui/tree.md`, 1.2 and 1.4), and adding or replacing a key is a request
   carrying a value (jig's `client/domain/client/requests.md`; jig's
-  `protocol/client/README.md`, section 7): sent once under a name, never in
+  `protocol/client/small-store.md`, section 1): sent once under a name, never in
   the small store, never parked, never sent again by the client. The
   field is emptied as the request leaves, and the key is shown nowhere,
   then or after. Answered unsent or lost, the card says so and asks for
@@ -335,5 +335,5 @@ amendment`), and sends it, as `Amend` or `Propose`, as 1.6 says.
 - **What a page keeps across a restart:** where the client was, the
   composers' words and the form's values, as records of temper's own,
   which the terminal keeps beside `jig-client`'s small store, never in
-  it (jig's `protocol/client/README.md`, section 7). Default: none; the client
+  it (jig's `protocol/client/small-store.md`, section 1). Default: none; the client
   opens at the inbox.

@@ -10,7 +10,7 @@ Of this draft, sections 4.4, 6.1 and 6.2 are designed and built (milestone R2): 
 
 Sections 6.3 and 6.4 are designed, in `../domain/worker/checkouts.md`: stores kept across a restart and made once, blob-less, workspaces not kept, and preparations a few at a time, `checkout.preparations` of them, 1 by default.
 
-Section 8 is designed in jig's `protocol/client/README.md`, 6: a client
+Section 8 is designed in jig's `protocol/client/versions.md`, 1: a client
 wire's version is its schema's `family` line and moves with its layout,
 held by its layouts' list and two checks in `fabrig-boundary`; a client of
 another version is refused by name at the hello, and one that can't read
@@ -18,7 +18,7 @@ a record of jig's is out of date too, `unreadable` (jig's
 `client/domain/client/watches.md`, 2). A page out of date asks its
 person to reload (`../client/view.md`, 1), and the terminal says to run
 the engine's temper. The clients' wires keep no kept text and no bridge;
-temper's side of section 8 is `../protocol/wires.md`, section 9.
+temper's side of `redeploys.md`, section 8 is `../protocol/wires.md`, section 9.
 The rest remains below.
 
 Section 5 is designed (milestone R5). 5.1's restores, through the start's fit and link checks and naming the first record a start would refuse, are `../protocol/binaries.md`, section 2's and jig's `protocol/store/opening-rehearsal.md`, 1's. 5.1 in `../protocol/wires.md`, 10: the engine keeps each worker's last opening since its start (jig's `protocol/store/records.md`, 3, *The workers' openings*), and `upgrade --check` judges each configured worker by it, with the function the opening judges by (jig's `protocol/channel/wires.md`, 3), and the engine's own wires, `temper-host-tools`, by the stored wires. 5.2 in `../domain/root-restart.md`, 1.2 and jig's `domain/engine/restart.md`, 1, *Settling before the stop*: no run or job placed and no procedure stepped while the engine settles. 5.3 in `../protocol/configuration/README.md` (the workers' grace) and jig's `domain/engine/fleet.md` (the engine's grace above the stop bound). 5.4 is the workers' admission of preparations, `redeploys.md`, section 6.4's.

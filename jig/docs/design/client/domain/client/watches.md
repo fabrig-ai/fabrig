@@ -122,7 +122,7 @@
   application reads it when it has cause to, as at a deadline.
   `unreadable` says the link is out of date because the engine sent a
   record of jig's that this build can't read
-  (`../../../protocol/client/README.md`, section 6): a record on the
+  (`../../../protocol/client/versions.md`, section 1): a record on the
   stream (the hello, a delivery, a run's text, a watch's end) whose
   bytes, or whose translation, the link refuses as malformed or of
   another version, or an answer to a watch's opening or closing whose
@@ -144,7 +144,7 @@
   shows may be old reads it from its handles.
 - **Versions, per owner.** The stream's hello states the ranges the
   engine serves, jig's and each application owner's
-  (`../../../protocol/client/README.md`, section 6). The client speaks the one
+  (`../../../protocol/client/versions.md`, section 1). The client speaks the one
   version of each owner its build holds: jig's, its wire's own; and each
   family owner's, which the application declares as it makes the
   client, with its limits (`README.md`, section 11): each owner whose families it

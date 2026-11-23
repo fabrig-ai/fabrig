@@ -10,8 +10,8 @@ for a project's life, works in short sessions and answers to a person.
 It revises `README.md`, sections 3, 5 and 6, `lifecycle.md`, sections 2,
 6 and 9, `messages.md`, section 6, `../engine/executors.md`, section 4,
 `../engine/briefs.md`, sections 1 and 2, `../authority.md`, section 7,
-`../people/acts.md`, section 1, and `../../protocol/configuration.md`,
-section 3, which say where it differs. It takes up `../../draft/notes-memory.md`, section 4, for a
+`../people/acts.md`, section 1, and `../../protocol/configuration-engine.md`,
+section 1, which say where it differs. It takes up `../../draft/notes-memory.md`, section 4, for a
 standing task's Now alone.
 
 ## 1. In one page
@@ -47,7 +47,7 @@ standing task's Now alone.
   a conversation; untracked. Any other shape is refused as its ending's
   malformation, as a requester's or a closer's is, at a batch, a
   template's start and a restart alike. A run's tools take no
-  `ended_by` (`../../protocol/configuration.md`, 3.2), so only a party's
+  `ended_by` (`../../protocol/configuration-templates.md`, 2), so only a party's
   batch, or a template a party starts, makes one.
 - **It runs Open** (`../hosts/charters.md`, 1): granted the wait and never
   delivery, as a task its requester ends.
@@ -206,7 +206,7 @@ the session by its `first` and saying which end it was.
 - **The session's model** is its task's main model, from its LLM choice,
   or else its charter's first (`README.md`, section 3).
 - **The quiet span** is nine tenths of the model's prompt-cache life, its
-  `cache_life_ms` (`../../protocol/configuration.md`, 3): a little under
+  `cache_life_ms` (`../../protocol/configuration-engine.md`, 1): a little under
   it, so that a wake within the span finds the cache warm. A model that
   declares none, or 0, keeps no prompt cache: its span is zero, and each
   wake of its task starts a session.
@@ -311,7 +311,7 @@ while they are there.
   its Now, a required section of the core's after the task's, titled
   with the note's name, its revision and when it was written, or saying
   that none is written yet. It is placed whole within its own budget,
-  `brief_core_budgets.now` (`../../protocol/configuration.md`, 3); a
+  `brief_core_budgets.now` (`../../protocol/configuration-engine.md`, 1); a
   Now past it is cut there, the section saying its bytes and the bound
   so that the run shortens it, and it never fails the brief.
 - **Its period beside it:** the section says, under its title, what the

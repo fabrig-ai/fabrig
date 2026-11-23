@@ -105,14 +105,14 @@ inbox are the views child's (../engine/views.md).
 - **An identity is an identity provider and a subject.** An identity
   provider, a *provider* in this document and in the configuration's
   `providers`, is one of the application's ways of signing in, numbered
-  in its configuration (`../../protocol/configuration.md`, section 3): an
+  in its configuration (`../../protocol/configuration-engine.md`, section 1): an
   OAuth server, a company's directory, a chat platform's identity, or
   the deployment itself, for services' credentials. The subject is the
   provider's stable id for the party; a login and a name come with it,
   for display only.
 - **An LLM provider is no identity provider.** OpenAI, Anthropic or a
   local model's server is configured and numbered apart
-  (`../../protocol/configuration.md`, section 3), and signs nobody in to
+  (`../../protocol/configuration-engine.md`, section 1), and signs nobody in to
   jig. An LLM account's subject is the LLM provider's for the account,
   never a party's identity: signing an LLM account in changes no one's
   identity, and one person may hold several (../accounts.md, 3.1 and 3.3).
@@ -231,7 +231,7 @@ inbox are the views child's (../engine/views.md).
   comes from the application's server code, never from a client. It
   names a provider the configuration gives as the application's; one
   naming any other, the printed link's or the deployment's, is refused
-  (`../../protocol/configuration.md`, section 3; `../../protocol/client/sign-in.md`
+  (`../../protocol/configuration-engine.md`, section 1; `../../protocol/client/sign-in.md`
   ).
 - **The domain sees an authenticated identity,** and the kind of party it
   is, never how it was verified. jig is given no identity provider's
@@ -278,7 +278,7 @@ inbox are the views child's (../engine/views.md).
     reads it from the store, and seeds it into no store that lacks it
     (`../../protocol/configuration.md`, section 7).
   - *Project 0 is no project.* Configuration names none
-    (`../../protocol/configuration.md`, section 3), and a party's projects,
+    (`../../protocol/configuration-engine.md`, section 1), and a party's projects,
     in their frame, in `me` and in an account's readiness, leave it out:
     it is read only as the party's role in the deployment, `me`'s
     `deployment_role`.
@@ -475,7 +475,7 @@ entry naming the task or proposal it is and its project:
   in the application's configuration, which an application keeps,
   changes or drops. Filled in, it is a `Create` of one agent task, its
   spec the party's first words, flagged conversation and kept, with the
-  fields `../../protocol/configuration.md`, 3.1 gives template 1. Its
+  fields `../../protocol/configuration-templates.md`, 1 gives template 1. Its
   executor is an agent under the application's charter for chats, which
   a project's policy may override: its instructions for chats, its
   models, the tools it gives, and a wake policy that wakes it on its
@@ -484,7 +484,7 @@ entry naming the task or proposal it is and its project:
   template, as `me` serves it merged with the project's policy's
   overrides (../authority.md, section 6; `../../client/domain/contract/requests.md`,
   6), into an ordinary `Create`, which the engine checks as one
-  written by hand (`acts.md`, 1; `../../protocol/configuration.md`, 3.1). A client
+  written by hand (`acts.md`, 1; `../../protocol/configuration-templates.md`, 1). A client
   that ignores it makes only its own lists inconsistent.
 - **Permissions stay primitive.** A party may hold a chat when their role
   may create with the chat charter, within its spend and depth, and their

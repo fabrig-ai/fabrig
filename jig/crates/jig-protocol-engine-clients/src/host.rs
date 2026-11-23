@@ -1,4 +1,4 @@
-//! The clients' side of a service (jig/docs/design/protocol/service.md, 11.6).
+//! The clients' side of a service (jig/docs/design/protocol/service-parts.md, 1.6).
 use crate as kit;
 use alloc::boxed::Box;
 use jig_domain_core_vocabulary as domain;
@@ -12,7 +12,7 @@ enum Asked {
     Owner(kit::SecretOwner),
     Carry(Token),
 }
-/// The bridge between the component's secrets and the store's (protocol/service.md, 11.6).
+/// The bridge between the component's secrets and the store's (protocol/service-parts.md, 1.6).
 #[derive(Debug)]
 pub struct Bridge {
     owners: Map<Token, kit::SecretOwner>,

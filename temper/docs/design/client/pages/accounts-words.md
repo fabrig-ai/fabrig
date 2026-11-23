@@ -18,7 +18,7 @@ The words for each offered source are:
   words as their makers do: `openai` reads "OpenAI", its signed-in plan
   "ChatGPT"; `anthropic` reads "Anthropic", its program's plan "Claude".
   Any other provider's plan reads as its name. jig configures no plan's
-  display name yet (jig's `protocol/configuration.md`, section 3), so
+  display name yet (jig's `protocol/configuration-engine.md`, section 1), so
   the plan is branded by its provider until it does.
 - **The welcome's model sentence** names the plans v0.1.0 supports,
   "ChatGPT or Claude", in fixed words rather than the offered ways

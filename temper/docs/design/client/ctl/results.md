@@ -310,7 +310,7 @@ digest: task 7c1e09a2b44f0d13
   `adopt`), then its outcome as an act's prints, which names what it
   made or decided. No name and no key: a request's record keeps the
   engine's key, drawn or a name's digest, and the client's, the
-  runner's (jig's `protocol/client/README.md`, section 7), never the name,
+  runner's (jig's `protocol/client/small-store.md`, section 1), never the name,
   and neither key is of use to an agent.
 - **A restored proposal's `kept:` line** prints its identity alone,
   `kept: chat, proposed: t3/17`, with no recipient: jig keeps none with

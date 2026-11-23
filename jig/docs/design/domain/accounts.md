@@ -109,7 +109,7 @@ in a record of its own (3.7).
   showing, its endpoints and models, the sources it offers and what each
   needs (a sign-in's registration, a program), and the facts its terms
   ask an application to show, such as a manage-usage address
-  (providers.md, 2.6; `../protocol/configuration.md`, section 3). jig's
+  (providers.md, 2.6; `../protocol/configuration-engine.md`, section 1). jig's
   code names no LLM provider. It is not an identity provider
   (people/README.md, section 3), and the two are numbered apart.
 - **Accounts are made at runtime,** by a person's sign-in, a key added
@@ -153,7 +153,7 @@ in a record of its own (3.7).
   and its place among their accounts, its uses, signing it out,
   removing it, and moving it (section 6). For the deployment's
   accounts, its owners decide: the first owners its configuration names (people/README.md,
-  section 3; `../protocol/configuration.md`, section 3), and, in their
+  section 3; `../protocol/configuration-engine.md`, section 1), and, in their
   name, a connector the configuration grants the deployment's `AddKey`
   or `RemoveAccount` (people/acts.md, 3), where no client is there to ask.
 
@@ -200,7 +200,7 @@ in a record of its own (3.7).
 - **The source picks the endpoint.** A model whose endpoint names a
   program takes its provider's program sources on that endpoint, and its
   sign-ins, keys and *none* on its provider's `direct` endpoint where the
-  provider names one (`../protocol/configuration.md`, section 3),
+  provider names one (`../protocol/configuration-engine.md`, section 1),
   passing them over where it names none. A model whose endpoint names no
   program takes sign-ins, keys and *none* on that endpoint, and no
   program source. So one model is reached either way, and the order
@@ -439,7 +439,7 @@ Each LLM provider says what it lists, and an account's list says what it serves
 what its last read gave; what a read does to the catalogue is `engine/settings.md`, 12.
 
 - **Which accounts have one:** an account of a provider whose configuration gives
-  `keep` (`../protocol/configuration.md`, section 3), whose first source in its
+  `keep` (`../protocol/configuration-engine.md`, section 1), whose first source in its
   holder's order is a sign-in or a key. A program's source has none: Anthropic
   allows no other use of a subscription's credentials (providers.md, 3.1), and the
   order decides who pays, so an account that lists Claude Code first and a key
@@ -460,7 +460,7 @@ what its last read gave; what a read does to the catalogue is `engine/settings.m
   fleet (`engine/settings.md`, 12), and a worker reads it (`hosts/README.md`, 5.1). It is no
   run, and spends no budget and no slot. It goes to the provider's `direct`
   endpoint where the provider names one, else to its `endpoint`
-  (`../protocol/configuration.md`, section 3): a key's read is the direct way's,
+  (`../protocol/configuration-engine.md`, section 1): a key's read is the direct way's,
   never through a program's endpoint, so that an Anthropic key reads Anthropic's
   list directly.
 - **What the store keeps** on the account's record (`../protocol/store/keys.md`, 1.4):
@@ -824,7 +824,7 @@ among their own (`../client/domain/contract/README.md`, 5.1).
   Requests and their answers are committed and kept (engine/README.md, 5.4);
   a value is not. A client sends a request carrying a value once, and
   never keeps nor resends it
-  (`../protocol/client/README.md`, sections 3 and 7). A moved-out record goes
+  (`../protocol/client/README.md`, section 3, and `../protocol/client/small-store.md`, section 1). A moved-out record goes
   the other way once, with the answer to the client that asked, and is
   never in the answer kept (`accounts.md`, section 6): the request is sent once, and a
   second answer under its key, without the record, is *lost* to the

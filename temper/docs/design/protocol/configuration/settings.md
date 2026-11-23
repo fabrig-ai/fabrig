@@ -32,14 +32,14 @@ The pages a person meets it on are `../../client/pages/settings.md`, 2.
   (`engine.llm`) are jig's `provider` kind, and the playground's
   scripted provider the box's constant (`providers.md`). Of the stock's
   providers each has its `keep` and `drop` (jig's
-  `protocol/configuration.md`, section 3): OpenAI's keep `gpt-*` and drop `*audio*`,
+  `protocol/configuration-engine.md`, section 1): OpenAI's keep `gpt-*` and drop `*audio*`,
   `*image*`, `*realtime*`, `*search*`, `*transcribe*`, `*tts*` and the dated
   `*-20??-??-??`; Anthropic's keep `claude-*` and drop the dated `*-20??????`. The
   playground's scripted provider has neither, and no list. jig's
   `engine.projects`,
   the projects a first start seeds, stays jig's member; `temper-box init`'s
   is `[]` (../setup/init.md, 3), and a document's seeded project names its
-  policy as `policy: 1` (jig's `protocol/configuration.md`, section 3),
+  policy as `policy: 1` (jig's `protocol/configuration-engine.md`, section 1),
   so the seed copies the stock's policy 1 and no document carries a
   copy of it (5, step 1). Before opening the store, the copied seed is
   checked against the stock rules and configured authority bounds, its

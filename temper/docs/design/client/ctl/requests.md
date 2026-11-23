@@ -72,8 +72,8 @@ This document holds request delivery through ctl, split from [`README.md`](READM
   replace-key`'s (`areas.md`, area 5), and area 6's `forge connect` with a FILE
   and `forge replace`, is sent once and never kept: `jig-client` writes
   no record of it to DIRECTORY's store and never sends it again (jig's
-  `client/domain/client/requests.md`; jig's `protocol/client/README.md`,
-  sections 3 and 7), and the engine takes the value out as it decodes
+  `client/domain/client/requests.md`; jig's `protocol/client/README.md`, section 3, and `protocol/client/small-store.md`, section 1
+  ), and the engine takes the value out as it decodes
   the request, so no committed request or answer holds it (jig's
   `domain/accounts.md`, section 5). A forge's pasted value is kept by
   jig's clients' component in the secrets' store under temper's tag, at

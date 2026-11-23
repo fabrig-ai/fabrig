@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# The person-driven live layer (protocol/service.md, section 8): a fresh
+# The person-driven live layer (protocol/service-testing.md, section 1): a fresh
 # ChatGPT sign-in, a real model's answer and a confirmed sign-out.
 set -euo pipefail
 umask 077

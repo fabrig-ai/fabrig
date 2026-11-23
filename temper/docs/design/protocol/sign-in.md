@@ -83,7 +83,7 @@ its heartbeat (jig's `protocol/client/default-http.md`, 2).
 `application.clients.public`: `null`, or the HTTPS origin the people's
 browsers use (`configuration/engine.md`). With one:
 
-- **The Host allow-list** (jig's `protocol/browser/README.md`, 12.2) holds its
+- **The Host allow-list** (jig's `protocol/browser/serving.md`, 1.2) holds its
   host, with its port where it is not 443, beside the listener's own
   address: jig's `Settings { prefix: "/jig", public: Some(host) }`. With
   none, `public: None`, the listener's address alone.
@@ -266,7 +266,7 @@ headers.
 - **An identity is Google's provider and the member's address.**
   `application.sign_in.google.provider` names jig's provider of kind
   application that numbers Google's sign-in (jig's
-  `protocol/configuration.md`, section 3, `providers`). The subject
+  `protocol/configuration-engine.md`, section 1, `providers`). The subject
   temper gives jig is the member's address exactly as configured, not
   Google's `sub`, so that a member can be named before their first
   sign-in: jig's `owners` and a project seed's roles name them.

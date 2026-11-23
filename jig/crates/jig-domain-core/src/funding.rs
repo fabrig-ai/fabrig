@@ -1,5 +1,5 @@
 //! Project periods from the root and person allotments from policy
-//! (protocol/configuration.md, 3; domain/authority.md, 7).
+//! (protocol/configuration-engine.md, 1; domain/authority.md, 7).
 
 pub(crate) mod pools;
 

@@ -355,7 +355,7 @@ worker added later, 4.6's hung worker.
 - **TLS on the workers' listener, contained process trees, and workers
   on other hosts,** with hosts apart (`README.md`, section 11): a worker alone on
   another machine is the same document, its `engine` in TLS (jig's
-  `protocol/README.md`, section 10).
+  `protocol/needs.md`, section 1).
 - **An engine restarted under live workers,** with generations kept
   across starts (`README.md`, section 11).
 - **The cluster's workers of several slots,** as the case of

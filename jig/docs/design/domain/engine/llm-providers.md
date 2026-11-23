@@ -10,7 +10,7 @@ takes it, and what crosses the store and the client's wire. It is
 written from temper's `draft/config.md`, 6.2. What a provider offers its
 accounts is `../accounts.md`, 3.4; a provider's list is `settings.md`,
 12; the `llm` member a document gives is
-`../../protocol/configuration.md`, section 3.
+`../../protocol/configuration-engine.md`, section 1.
 
 ## 1. The kind
 
@@ -196,7 +196,7 @@ is the last item naming that model, or 0 when none does (the dispatch's
   `jig-protocol-config`'s: its reader, `llm::provider_setting`, and its
   writer, `llm::render_provider`, over `skein_json`. The form is one
   entry of the `llm` member's `providers`
-  (`../../protocol/configuration.md`, section 3), its `number` among its
+  (`../../protocol/configuration-engine.md`, section 1), its `number` among its
   members, with an `endpoints` list beside them, each one of the `llm`
   member's `endpoints` less its `provider`:
 

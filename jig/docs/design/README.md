@@ -135,9 +135,9 @@ systems   what the application's connectors drive
   protocol layers that speak jig's vocabularies: both sides of the
   workers' channel, the LLM accounts', the host tools' translation, the
   clients' component and the client's wire, and the store, which holds
-  jig's records and the application's (`protocol/README.md`, sections 5
-  and 9; `protocol/store/README.md`). In a client, the application holds jig's
-  client inside its own presentation (section 10).
+  jig's records and the application's (`protocol/components.md`, section 1, and `protocol/README.md`, section 9
+  ; `protocol/store/README.md`). In a client, the application holds jig's
+  client inside its own presentation (`README.md`, section 10).
 
 ## 4. The application owns the root
 
@@ -530,7 +530,7 @@ the engine     the application's root around jig's core, and jig's clients' comp
   CORS, the cookie's attributes, and a referrer policy on the printed
   link's route. The page's policy (its content security policy, frames)
   is the application's page's, of which jig's test application's server
-  sends an example (`protocol/browser/README.md`, 12.1). An application uses
+  sends an example (`protocol/browser/serving.md`, 1.1). An application uses
   the mapping as it is, wraps it, or writes its own; replacing it means
   taking over what it held. jig's test kit carries attack stories (a
   cross-site request, a rebound Host, a framed page) an application runs
@@ -588,7 +588,7 @@ the engine     the application's root around jig's core, and jig's clients' comp
   application's configuration's, jig's chat and goal among its defaults,
   which a project's policy may override; the engine keeps them and
   serves them merged in `me`, and never expands or checks one
-  (`protocol/configuration.md`, 3.1). Whatever must be atomic, whatever
+  (`protocol/configuration-templates.md`, 1). Whatever must be atomic, whatever
   only the engine can compute, and whatever the engine's own behaviour
   turns on, is plumbing, in general form and never shaped: so a goal, a
   tracked task with a priority, is plumbing, and a chat, a template, is
@@ -672,7 +672,7 @@ the engine     the application's root around jig's core, and jig's clients' comp
   show its facts (`client/domain/testing.md`, 6.2).
 - **The client's generic half** (keyed requests until durable,
   level-triggered watches, the link) is jig's while it has one user
-  (`protocol/README.md`, section 10).
+  (`protocol/needs.md`, section 1).
 
 ## 11. Building an application on jig
 
@@ -683,14 +683,14 @@ the engine     the application's root around jig's core, and jig's clients' comp
 | connectors: their domains, protocol layers and fakes | the application |
 | the journal | skein (skein-lib) |
 | the store's encoding: of jig's records / of the application's, and their composition | jig / the application (`protocol/README.md`, section 9) |
-| the protocol layers' components for jig's vocabularies: the workers' channel, accounts, host tools, configuration / its connectors' protocols, its parts' encodings | jig / the application (`protocol/README.md`, sections 5 and 6) |
-| the engine's protocol layer's routing, `iterate` and `main` | the application, copied from the reference, around jig's service parts (`protocol/service.md`, sections 7 and 11) |
+| the protocol layers' components for jig's vocabularies: the workers' channel, accounts, host tools, configuration / its connectors' protocols, its parts' encodings | jig / the application (`protocol/components.md`, section 1, and `protocol/README.md`, section 6) |
+| the engine's protocol layer's routing, `iterate` and `main` | the application, copied from the reference, around jig's service parts (`protocol/service.md`, section 7, and `protocol/service-parts.md`, section 1) |
 | agents' hosts: the hub, the charter's translation / the worker's root, kinds of workspace, `main` (none without agents) | jig / the application |
 | the agent and its capabilities, `smith-host-domain` and `smith-inline-agent` / its charters | smith / the application |
 | the UI kit: the tree and its vocabulary, the builder, the diff, the phrasebook's machinery, Markdown, scenes, the outline's rules; the text shell; the browser parts and their default mapping; the bundler; the fake person, its browser face and the harness | skein (`skein-ui`, `skein-ui-text`, `skein-ui-web`, `skein-ui-bundle`, `skein-fake-person`, `skein-fake-person-browser`: skein's `ui/README.md`, section 2) |
 | its presentation: its routes and URLs, its screens, words and look, its confirmations and drafts, its home and navigation; on skein's UI kit, on anything else, or on nothing | the application |
 | the client: `jig-client`, its domain, jig's wire and its link; jig's helpers, `shapes`, `facts`, `thread` and `words` / its families' wire, carried as bytes by the same client, and which helpers it uses | jig / the application (`client/domain/client/README.md`; `protocol/client/README.md`) |
-| the server: the clients' component, transport-agnostic, and credentials, minted, verified, expired and revoked; the printed link and services' credentials; the server part (`protocol/service.md`, 11.4) / the clients' listener on that part, its routes and URL space, its pages and bundle, the component mounted under a prefix of its choosing, its sign-in flows and every guard | jig / the application, copied from jig's test application's (`protocol/service.md`; `protocol/client/README.md`) |
+| the server: the clients' component, transport-agnostic, and credentials, minted, verified, expired and revoked; the printed link and services' credentials; the server part (`protocol/service-parts.md`, 1.4) / the clients' listener on that part, its routes and URL space, its pages and bundle, the component mounted under a prefix of its choosing, its sign-in flows and every guard | jig / the application, copied from jig's test application's (`protocol/service.md`; `protocol/client/README.md`) |
 | the transport: jig's default HTTP mapping at both ends, `jig-client-protocol-http` and `jig-protocol-engine-clients-http`, with its example guards, and attack stories in jig's test kit / the default mapping as it is, wrapped, or its own: HTTP, a local socket, or in-process | jig / the application (`protocol/client/default-http.md`; `protocol/browser/README.md`) |
 | the reference UI: pages, cards, the frame, the confirmation, drafts and the view, on skein's UI kit, over the native shell and jig's browser parts, and jig's test application's browser shell to copy / whether it takes it, whole or in part; its families' views beside it; its browser shell, `<application>-client-shell-web`, copied from jig's test application's, `jig-client-test-shell-web` | jig / the application (`client/domain/pages.md`; `client/domain/view.md`; `protocol/browser/README.md`) |
 | the request table | skein (skein-lib) |
@@ -739,6 +739,18 @@ application as its first user.
   `protocol/store/commits.md`, `protocol/store/growth.md`,
   `protocol/store/testing.md`, `protocol/store/opening-owners.md` and
   `protocol/store/opening-rehearsal.md`.
+  `protocol/components.md` covers composition, `protocol/needs.md` what jig
+  needs from skein and smith, and `protocol/decisions.md` the layer's decisions.
+  `protocol/service-parts.md` describes the service parts and
+  `protocol/service-testing.md` their tests and worlds.
+  `protocol/configuration-engine.md` gives jig's part of an engine's
+  configuration, and `protocol/configuration-templates.md` its templates.
+  The client's protocol includes `protocol/client/versions.md`,
+  `protocol/client/small-store.md`, `protocol/client/shells.md` and
+  `protocol/client/testing.md`.
+  The browser's layer includes `protocol/browser/application.md`,
+  `protocol/browser/loop.md`, `protocol/browser/sign-in.md` and
+  `protocol/browser/serving.md`.
 
 ## 13. Conventions
 
@@ -813,7 +825,7 @@ open (`domain/README.md`, section 5), and the client's on its own
 | Layer | Crates |
 |---|---|
 | a domain's step code | the core, `jig-domain-core`, and its children `jig-domain-accounts`, `-authority`, `-brief`, `-fleet`, `-notes`, `-people`, `-tasks`, `-views` (`domain/engine/README.md`, section 3); the hub, `jig-domain-host` (`domain/hosts/hub.md`); the engine's link between them, `jig-domain-hub-link` (`domain/hosts/hub.md`, 1); their shared link values, `jig-domain-link` (`domain/root.md`, section 2) |
-| the protocol layer's | `jig-protocol-charter`, `jig-protocol-transcript`, and the codecs, components and parsing `protocol/README.md`, section 5 lists; among them the clients' component, `jig-protocol-engine-clients` (`protocol/client/README.md`, section 2), and the default HTTP mapping's engine end, with its example guards, `jig-protocol-engine-clients-http` (`protocol/client/default-http.md`, 4; `protocol/browser/README.md`, 12.2) |
+| the protocol layer's | `jig-protocol-charter`, `jig-protocol-transcript`, and the codecs, components and parsing `protocol/components.md`, section 1 lists; among them the clients' component, `jig-protocol-engine-clients` (`protocol/client/README.md`, section 2), and the default HTTP mapping's engine end, with its example guards, `jig-protocol-engine-clients-http` (`protocol/client/default-http.md`, 4; `protocol/browser/serving.md`, 1.2) |
 
 - **jig's client crates,** with `ops`'s and an application's browser
   shell, and where each is designed:
@@ -828,17 +840,17 @@ open (`domain/README.md`, section 5), and the client's on its own
 | `jig-client-view` | the reference UI: pages, places, navigation, the confirmation, drafts, notices, cards and the view, on `jig-client` and skein's `skein-ui` | `client/domain/pages.md`; `client/domain/view.md` |
 | `jig-client-view-words` | the reference UI's words, below `jig-client-view`, which re-exports them under its paths: the phrasebook, each part's vocabulary, jig's owner, region names and style tokens | `client/domain/view-crates.md` |
 | `jig-client-view-codec` | the generated record code of the reference UI's records, below `jig-client-view`, which keeps their schema and translates them | `tools/crates/design.md`, 3.2 |
-| `jig-client-shell-native` | the native shell, over skein's HTTP client, with `jig-client-protocol-http` | `protocol/client/README.md`, section 9 |
-| `jig-client-shell-web` | jig's browser parts, over skein's `skein-ui-web`, each usable alone: the client's adapter over skein's fetch, the printed link's sign-in, jig's look | `protocol/browser/README.md`, section 2 and 5.1 |
-| `jig-client-test-shell-web` | jig's test application's browser shell, written to be copied | `protocol/browser/README.md`, 3.1 |
+| `jig-client-shell-native` | the native shell, over skein's HTTP client, with `jig-client-protocol-http` | `protocol/client/shells.md`, section 1 |
+| `jig-client-shell-web` | jig's browser parts, over skein's `skein-ui-web`, each usable alone: the client's adapter over skein's fetch, the printed link's sign-in, jig's look | `protocol/browser/README.md`, section 2, and `protocol/browser/loop.md`, section 1.1 |
+| `jig-client-test-shell-web` | jig's test application's browser shell, written to be copied | `protocol/browser/application.md`, 1.1 |
 | `jig-client-test-domain`, `jig-client-test-view`, `jig-client-test-kit`, `jig-client-test-records`, `jig-client-test-protocol-wire` | the client's test kits | `client/domain/testing.md` |
 | `jig-client-test-protocol-wire-codec` | the generated record code of the test application's client records, below `jig-client-test-protocol-wire`, which keeps their schema and translates them | `tools/crates/design.md`, 3.2 |
 | `jig-client-kit`, `jig-client-protocol-kit` | what the client's worlds share: the harness, fronts and stories; the protocol client | `domain/testing.md`, section 7 |
 | `jig-client-scripted-engine` | the engine as the client's worlds play it | `client/domain/testing.md`, section 4 |
 | `jig-client-fake-person-browser` | jig's stories for a browser shell and its attack stories, on skein's face and harness | `protocol/browser/testing.md` |
-| `jig-client-world`, `jig-client-protocol-world`, `jig-client-wire-world`, `jig-client-browser-world` | the client's worlds: through its surface; through bytes; its wire's records; the browser tier | `client/domain/testing.md`, section 4; `protocol/client/README.md`, section 11; `protocol/browser/testing.md` |
+| `jig-client-world`, `jig-client-protocol-world`, `jig-client-wire-world`, `jig-client-browser-world` | the client's worlds: through its surface; through bytes; its wire's records; the browser tier | `client/domain/testing.md`, section 4; `protocol/client/testing.md`, section 1; `protocol/browser/testing.md` |
 | `jig-ops-client-domain`, `jig-ops-client-protocol-wire`, `jig-ops-client-view`, `jig-ops-client-shell-web` | `ops`'s client crates, written to be copied: its client's domain, its families' wire, its presentation on the reference UI, its browser shell | `examples.md`, section 8; `protocol/client/README.md`, section 8 |
-| `<application>-client-shell-web` | an application's browser shell: its start and its loop, copied from `jig-client-test-shell-web` | `protocol/browser/README.md`, 3.1 |
+| `<application>-client-shell-web` | an application's browser shell: its start and its loop, copied from `jig-client-test-shell-web` | `protocol/browser/application.md`, 1.1 |
 
 - **Not client crates,** since they run in the engine's process: the
   clients' component, `jig-protocol-engine-clients`, and its world,

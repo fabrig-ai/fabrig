@@ -164,7 +164,7 @@ delegate from what it knows:
   would be refused.
 - **`llm`:** an LLM choice for each of the change's agents' roles, each
   in jig's form, its models and efforts by their configured names and no
-  account (jig's `protocol/configuration.md`, 3.1):
+  account (jig's `protocol/configuration-templates.md`, 1):
 
   ```
   {"words": "...", "landing": "goal", "producer": 6,

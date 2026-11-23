@@ -351,7 +351,7 @@ contract's reads, watches and requests, they take:
   section 3); and a request carrying a value, and one whose answer
   carries one (the moved record, `jig-client`'s `move_out`),
   sent once and never kept nor resent (jig's `client/domain/client/requests.md`
-  ; jig's `protocol/client/README.md`, section 7).
+  ; jig's `protocol/client/small-store.md`, section 1).
 - **For area 6,** temper's FORGE requests (`../engine.md`), each
   under a key as the others, through `jig-client` as the forge family's
   bytes; jig's request carrying a value (jig's `protocol/client/README.md`,

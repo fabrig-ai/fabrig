@@ -7,7 +7,7 @@ fields it replaces and the text it adds after the default's. Each start
 lays it over the binary's default again, so a release's new default
 reaches the deployment with the overlay in place. This document is the
 overlay's mechanics; the settings it is one value of are `settings.md`;
-a charter's members are `../../protocol/configuration.md`, section 3;
+a charter's members are `../../protocol/configuration-engine.md`, section 1;
 its parts, `../tasks/messages.md`, 6.
 
 ## 1. What an overlay is
@@ -152,7 +152,7 @@ its parts, `../tasks/messages.md`, 6.
   Schema changes use defaults, former names or a written job, not a
   version move (`../../protocol/store/layouts.md`, 4 and 6). The
   client's wire follows its own version rule
-  (`../../protocol/client/README.md`, 6).
+  (`../../protocol/client/versions.md`, 1).
 - **Bounds:** an overlay's instructions and each part are bounded as a
   charter's own; its record is priced as a charter's in the settings'
   bounds (`settings.md`, 8), never above it.

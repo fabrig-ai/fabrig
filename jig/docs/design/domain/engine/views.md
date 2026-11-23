@@ -135,7 +135,7 @@ Nothing the core decides depends on a view arriving.
   (`../../client/domain/contract/documents.md`, 1).
 - **Templates are served, never used.** The core keeps the
   current templates, the newest revision's (`settings.md`;
-  `../../protocol/configuration.md`, 3.1), and
+  `../../protocol/configuration-templates.md`, 1), and
   each project's policy's overrides of them (../authority.md, section 6)
   only to merge them, per project, into `me`. No decision reads one: the
   client fills a template into an ordinary request, which the core

@@ -402,7 +402,7 @@ request table's once (`requests.md`); jig's check is ../testing.md's, 6.2.
   bytes under its owner's number and version), and the wall time of its first
   sending; and the name of its stream, which the client that follows
   sends gone before it opens its own
-  (`../../../protocol/client/wire.md`, section 2, and `../../../protocol/client/README.md`, section 7). Nothing else of the
+  (`../../../protocol/client/wire.md`, section 2, and `../../../protocol/client/small-store.md`, section 1). Nothing else of the
   client's: everything shown is read again. A presentation's own records
   (the reference UI's drafts and its place) are the application's, which
   it keeps beside the client's (../root.md, section 8; ../view-state.md, 8).
@@ -423,7 +423,7 @@ request table's once (`requests.md`); jig's check is ../testing.md's, 6.2.
   again (`requests.md`).
 - **A record that can't be written is not kept.** A request whose record
   the link can't encode for the store (past a kept record's bounds,
-  `../../../protocol/client/README.md`, section 7) is retired as one
+  `../../../protocol/client/small-store.md`, section 1) is retired as one
   `NotStored` retires: unsent, answered *not kept* by its key, once, its
   erase leaving as any retired request's. It is never answered lost, so
   never sent again under its key, and the requests whose records were
@@ -468,11 +468,11 @@ request table's once (`requests.md`); jig's check is ../testing.md's, 6.2.
   once, and nothing of it is kept (`requests.md`).
 - **Versioned** with jig's store version, so a client updated since reads
   what an older one kept. A record of a version it does not read is
-  dropped, and the application told (`../../../protocol/client/README.md`, section
-  7). A family's request is kept in its owner's version: one whose
+  dropped, and the application told (`../../../protocol/client/small-store.md`, section
+  1). A family's request is kept in its owner's version: one whose
   owner the build does not declare, or whose version is not the one
   declared (`watches.md`, 2), is such a record. So is one past the records the
-  table holds (section 11). The client tells only how many, `Dropped {
+  table holds (`README.md`, section 11). The client tells only how many, `Dropped {
   count }`, once at start, under no asker: nothing of a record it
   does not read is read, its key's asker included. The client root
   gives the count to the presentation that says so (../root.md, section
@@ -691,7 +691,7 @@ Each is configured and bounds what enters or is retained:
   retention's margin;
 - the family owners the application declares, each once, with its
   version (`watches.md`, 2): no more than a hello's ranges hold beside jig's
-  (`../../../protocol/client/README.md`, section 6).
+  (`../../../protocol/client/versions.md`, section 1).
 
 `DomainLimits.turn_text` is one committed turn's shared text budget in the
 transcript, priced in this order: its calls' names; its texts, an opaque block's
@@ -756,7 +756,7 @@ the client's, and no configuration is refused for it.
   one of jig's documents is a reference (../root.md, section 6).
 - **Templates:** a template is the application's data, which `me` serves
   and a helper or the application fills into an ordinary `Create` or
-  `Propose` (../contract/requests.md, 6; `../../../protocol/configuration.md`, 3.1).
+  `Propose` (../contract/requests.md, 6; `../../../protocol/configuration-templates.md`, 1).
   The client sends what it is given.
 - **The engine's internals:** tasks by number, documents by subject and
   revision, outcomes and refusals as the contract gives them. Authority

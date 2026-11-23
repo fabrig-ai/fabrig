@@ -1,4 +1,4 @@
-//! Client heartbeat and local sign-in entrances (configuration.md, 3).
+//! Client heartbeat and local sign-in entrances (protocol/configuration-engine.md, 1).
 use crate::{Directories, Path, Problems, check, read};
 mod issuer;
 mod provider;
@@ -61,7 +61,7 @@ pub fn models(llm: &crate::Llm) -> Box<[jig_protocol_engine_clients::Model]> {
     jig_protocol_engine_clients::translate::llm::catalogue(&llm.models)
 }
 
-/// What an application adds to the clients' settings (protocol/service.md, 11.6).
+/// What an application adds to the clients' settings (protocol/service-parts.md, 1.6).
 #[derive(Debug)]
 pub struct Application {
     pub link: Option<jig_domain_people::Identity>,

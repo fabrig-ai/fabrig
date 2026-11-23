@@ -1,4 +1,4 @@
-//! Routing (protocol/channel/README.md, sections 2, 3 and 7); Debug (jig/docs/design/protocol/service.md, 11.3).
+//! Routing (protocol/channel/README.md, sections 2, 3 and 7); Debug (jig/docs/design/protocol/service-parts.md, 1.3).
 use alloc::boxed::Box;
 pub use jig_domain_core_vocabulary::settings::WorkerSetting as Worker;
 use jig_domain_host as host;

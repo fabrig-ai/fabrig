@@ -76,7 +76,7 @@ pub struct TaskFlags {
     pub retention: Retention,
     pub ended_by: EndedBy,
 }
-/// A connector's resource named after the task (protocol/configuration.md, 3.3).
+/// A connector's resource named after the task (protocol/configuration-templates.md, 3).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct Symbol {
     pub connector: u16,

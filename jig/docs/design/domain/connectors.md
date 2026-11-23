@@ -127,7 +127,7 @@ application root            routes between the core and every connector
 - **Symbols:** a connector may offer numbered symbols, each a resource
   it names after a task once the task has its number (a forge's *its own
   goal branch*), which a batch member or a template names
-  (`../protocol/configuration.md`, 3.3). The connector says, per symbol,
+  (`../protocol/configuration-templates.md`, 3). The connector says, per symbol,
   the name it resolves to and the hold it takes, and which tasks may name
   it (tracked ones only, say); it refuses a batch naming a symbol it does
   not offer that task, naming the symbol (tasks/holds.md, 2).
@@ -841,7 +841,7 @@ release the writer; Uncertain and Held retain it for connector recovery.
   a connector that projects goals, an adoption may name the resource
   the project's home there (model.md, 6.1). Configuration adopts
   nothing: a deployment's first start seeds projects without resources
-  (`../protocol/configuration.md`, section 3).
+  (`../protocol/configuration-engine.md`, section 1).
 - **The project document** gets each adopted resource from the connector
   with its project, stable name, adoption role and home flag
   (`Event::Adopted`). Live hold reports do not replace these facts.

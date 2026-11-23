@@ -63,7 +63,7 @@ without agents has none of this. What is still open is listed in section
 - **LLM providers are configuration,** one list from which the charter's
   endpoint names, smith's component's endpoints and skein's connections
   are all made, so the three never disagree. Configuration names no
-  account: accounts are made at runtime (`configuration.md`, section 3).
+  account: accounts are made at runtime (`configuration-engine.md`, section 1).
 - **The budget is smith's to hold** within each run: it reserves each
   completion's most before making it and winds down on its reserve, so a
   run never spends past its budget (smith's `domain/budget.md`).
@@ -152,7 +152,7 @@ engine's protocol layer
 
 - **An LLM provider** is configuration: its name, its endpoints and
   their models, the sources it offers, and the facts its terms ask an
-  application to show (`configuration.md`, section 3;
+  application to show (`configuration-engine.md`, section 1;
   `../domain/providers.md`). jig's code names no provider.
 - **An endpoint** is configuration: its name, its dialect, its address and
   transport (TLS with its server name and trusted roots, or plaintext to
@@ -354,7 +354,7 @@ engine's protocol layer
   program's login fills, and none is the driver's handed-in, access-only
   kind: a live test runs on a key, on a sign-in made as it starts, on a
   record moved in (5.6), or on a program's login on its host
-  (`service.md`, section 8). A moved record is this application's own,
+  (`service-testing.md`, section 1). A moved record is this application's own,
   moved by its holder: it enters as a kept record, refreshed once before
   it is lent.
 
@@ -543,7 +543,7 @@ Each within jig's suites' budgets.
   and no test triggers it: `skein/docs/foundation/programming-model.md`,
   10.4); the table's generations, schemes, expiry and pushing out.
 - **The engine's LLM path and accounts,** in the protocol world
-  (`service.md`, section 8): the root, `smith-inline-agent`, smith's
+  (`service-testing.md`, section 1): the root, `smith-inline-agent`, smith's
   component with the slots' contracts beside it, skein's connection
   component, the driver and the secrets' store, against skein's fake LLM
   peer and fake issuer (skein's `testing/fakes/llm.md`; skein's `oauth/README.md`,
@@ -577,13 +577,13 @@ Each within jig's suites' budgets.
   generation to every live attempt (`../domain/accounts.md`, 3.5;
   `../domain/engine/README.md`, section 6).
 - **What smith gives** serves as it is, beside what it is owed (below;
-  `README.md`, section 11).
+  `needs.md`, section 2).
 - **What jig asks of smith:** grants with a credential's scheme or a
   program source's name; limited, refused and unauthorized notices; the
   program backend and its host half's login checks and sign-out (smith's
   `protocol/channel.md`, section 6; smith's `protocol/programs.md`).
   Later: a completion asked while its LLM component closes refused as
-  closed (`README.md`, section 11).
+  closed (`needs.md`, section 2).
 - **skein owes** the driver's accounts added and removed while it runs,
   its sign-out with revocation, the issued client id kept with the
   record, the scopes granted and the subject on signing in, and the

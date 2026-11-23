@@ -113,8 +113,8 @@ skein-io                        files: the ring, or the simulator's disk
   its records' translation, and the core's vocabulary (its keys, records, ranges and reads). It
   depends on no application's crate, and links no smith crate: turns are
   bytes to it.
-- **On disk,** in the deployment's directory (`../configuration.md`,
-  section 3), which nothing else writes. The two maps live in numbered
+- **On disk,** in the deployment's directory (`../configuration-engine.md`,
+  section 1), which nothing else writes. The two maps live in numbered
   generations; `active` names the one a start opens, and an upgrade
   makes the next from the active one's files, linking the snapshot and
   the log segments skein-kv writes no more and copying the rest,

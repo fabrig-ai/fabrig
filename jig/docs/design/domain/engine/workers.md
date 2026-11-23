@@ -241,7 +241,7 @@ as every change's does (`settings.md`, 2).
   2).
 - **The engine's document:** `engine.hosts.workers` is refused by name,
   "workers are settings in the store", as `engine.charters` is
-  (`../../protocol/configuration.md`, section 3), and no digest file is
+  (`../../protocol/configuration-engine.md`, section 1), and no digest file is
   read.
 
 ## 8. Open questions

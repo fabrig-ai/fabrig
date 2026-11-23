@@ -242,7 +242,7 @@ forge's connector, which judges them (jig's `domain/engine/settings.md`, 5):
   (`../../draft/what-reaches-you.md`, section 2), and kinds 9 and 10, a
   setting's words (`../../draft/whole-story.execution.md`, P3e):
   - *its scope and numbers:* the deployment's, as templates are (jig's
-    `protocol/configuration.md`, 3.1); its number a template's, 1 to
+    `protocol/configuration-templates.md`, 1); its number a template's, 1 to
     64, the stock's 1 to 32 and a deployment's own 33 to 64 (jig's
     `domain/engine/settings.md`, 1); decided by the deployment's owners.
     Read at a number 1 to 64 where none is held, it answers "none kept",
@@ -275,7 +275,7 @@ forge's connector, which judges them (jig's `domain/engine/settings.md`, 5):
     `reference.md`'s: template 4's, design alone, since its goals close by temper's
     closer (`../../domain/forge/branches.md`, 2), whose close step settles what a
     close-out wrote. A template's closer is no part of this kind: it is
-    the template's `ended_by` (jig's `protocol/configuration.md`, 3.2),
+    the template's `ended_by` (jig's `protocol/configuration-templates.md`, 2),
     which every way of making a goal from the template carries, while
     this kind is read by no way that makes a task.
 - **A project's follows, kind 12** (`../../domain/forge/follows.md`,

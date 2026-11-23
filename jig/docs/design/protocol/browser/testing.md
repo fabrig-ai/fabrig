@@ -15,7 +15,7 @@ tested in skein, and in a browser on skein's UI example (skein's
   - the sign-in part's pure half: the secret read from the address, the
     address rewritten first, the credential's dialog's words;
   - the mapping's engine end, in `jig-protocol-engine-clients-http`'s
-    step tests: each guard of `README.md`, 12.2 refusing with nothing reaching the
+    step tests: each guard of `serving.md`, 1.2 refusing with nothing reaching the
     component (a `Host` off the list, the header missing beside the
     cookie, a POST of another content type, an `OPTIONS`); the public
     name admitted beside the listener's address; the cookie's
@@ -50,7 +50,7 @@ tested in skein, and in a browser on skein's UI example (skein's
   `skein-fake-person-browser` (skein's `ui/web/testing.md`, 2; skein's
   `ui/testing.md`, 1.1). jig's tier gives the harness the prefix of the line
   `jig-test` prints its link on, so the address it opens first is the
-  printed link, which signs the person in (`README.md`, section 11); the face opens
+  printed link, which signs the person in (`sign-in.md`, section 1); the face opens
   the paths the application's codec prints.
 - **skein's stories for a browser shell** (skein's `ui/web/testing.md`, 2):
   jig's tier calls them with jig's binary, bundle and codec.
@@ -88,7 +88,7 @@ tested in skein, and in a browser on skein's UI example (skein's
   printed link and sees their inbox, under the reference policy, with
   no trouble.
 - **jig's test application takes skein's bundler's page** (`README.md`, 4.3), and
-  two of `README.md`, 3.5's steps once each: a root file (step 5); a prefix on the
+  two of `application.md`, 1.5's steps once each: a root file (step 5); a prefix on the
   reference codec, in one story (step 3). An element override, a
   component and a JavaScript snippet are skein's example's (skein's
   `ui/web/testing.md`, 3); jig's test application carries no snippet by

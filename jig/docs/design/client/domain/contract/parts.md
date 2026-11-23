@@ -42,7 +42,7 @@ it would read otherwise. The engine's side is
   and a client shares a watch only where the queries are the same, parts
   and all (`../client/watches.md`, 1).
 - **Checked by the engine's clients' component**
-  (`../../../protocol/client/README.md`, section 6), as an envelope is: a
+  (`../../../protocol/client/versions.md`, section 1), as an envelope is: a
   part whose owner or version the engine does not serve is answered
   `not_served` on every row, naming the owner and the ranges it serves, as a
   read in a version not served is (`README.md`, section 6); a kind no

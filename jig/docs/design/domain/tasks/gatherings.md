@@ -54,7 +54,7 @@ section 4), and its requester ends it with `Conclude` (section 3).
   executor is chosen, whose ending is `Requester` and which is no
   conversation is a gathering's.
   The configuration checks its flags as a gathering's
-  (`../../protocol/configuration.md`, 3.1), and its creator fills the
+  (`../../protocol/configuration-templates.md`, 1), and its creator fills the
   gathering's executor, as temper's milestone template does
   (`temper/docs/design/domain/milestones.md`, section 2).
 - **The rest is any task's:** its words (what it is for), parameters

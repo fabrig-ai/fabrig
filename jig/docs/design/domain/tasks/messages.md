@@ -187,10 +187,10 @@ pause. So a run that parks without reading what wakes it never has one
 start assigned again without backoff (the user, 2026-11-19).
 
 Each charter brings a default policy, named with the charter in
-configuration (`../../protocol/configuration.md`, section 3) and kept with
+configuration (`../../protocol/configuration-engine.md`, section 1) and kept with
 it in the settings: an agent task made under the charter, by a batch
 entry that names no policy or from a template, which names none
-(`../../protocol/configuration.md`, 3.1), takes the charter's default as
+(`../../protocol/configuration-templates.md`, 1), takes the charter's default as
 the settings hold it when the task is made, and keeps it as its own;
 its creator narrows or widens it by naming a whole policy in the entry,
 and an amendment changes it as any policy. A chat's default wakes on

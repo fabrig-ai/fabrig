@@ -1,4 +1,4 @@
-//! Seed names are checked together (configuration.md, 3; domain/model.md, 6.1).
+//! Seed names are checked together (protocol/configuration-engine.md, 1; domain/model.md, 6.1).
 #![expect(
     clippy::disallowed_macros,
     clippy::disallowed_methods,

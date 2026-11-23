@@ -723,7 +723,7 @@ mechanical once the task's work is done (temper's `domain/forge/branches.md`,
 
 - **Named at its making:** `ended_by` `Closer { connector, code }`, a
   procedure executor (3), given by its batch entry or its template
-  (`../../protocol/configuration.md`, 3.2), and fixed: no amendment changes
+  (`../../protocol/configuration-templates.md`, 2), and fixed: no amendment changes
   it. Only an agent task that is no conversation takes one; any other
   shape is refused as `ended_by` is (`README.md`, section 4). Its making is refused,
   beyond authority, where the task's own delegation does not name the

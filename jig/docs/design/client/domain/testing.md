@@ -8,7 +8,7 @@ application's worlds run; and the reference UI, tested as any
 presentation on skein's UI kit is, with skein's fake person on its tree.
 It applies `testing-strategy.md` as `../../domain/testing.md` does for
 the engine; the tiers below the client are the client's protocol's
-(`../../protocol/client/README.md`, section 11; `../../protocol/browser/testing.md`
+(`../../protocol/client/testing.md`, section 1; `../../protocol/browser/testing.md`
 ). What is still open is listed in `testing.md`, section 10.
 
 ## 1. In one page
@@ -57,7 +57,7 @@ the engine; the tiers below the client are the client's protocol's
 | step tests | `jig-client`'s step and fire, by its events and its requests; its helpers, `shapes`, `facts`, `thread` and `words`; the reference UI's step and each of its view functions; its default arrangement's banner and `after_page`'s parts last, on each of jig's pages (pages.md, 12.3); jig's check; the reference UI's pages printed by skein's text shell, by golden text (view.md, 15.6); its test family's drawing code, by golden scenes (view.md, 17.5) | their events, by hand |
 | the client's world | `jig-client`, driven through its surface by a scripted application; or jig's test application, the reference UI and its view root in front of it, with the person | the engine, scripted; the transport, played by the world; the person |
 | the joint world | the same, in front of the engine's domain, root and all | the store, hosts and systems, as the engine's worlds fake them; the transport; the person |
-| the protocol world, the real loop | with the client's protocol layer and shells (`jig-client-protocol-http`, `jig-client-shell-native`), and the engine's clients' component with the default HTTP mapping's engine end; skein's text shell's terminal in front of the native one, on skein's simulated machine (`../../protocol/client/README.md`, section 11) | |
+| the protocol world, the real loop | with the client's protocol layer and shells (`jig-client-protocol-http`, `jig-client-shell-native`), and the engine's clients' component with the default HTTP mapping's engine end; skein's text shell's terminal in front of the native one, on skein's simulated machine (`../../protocol/client/testing.md`, section 1) | |
 | the browser tier | the application's binary and its bundle in Chromium, the person through skein's browser face and harness (section 3) | what the binary's configuration fakes |
 
 Every world runs on skein's world harness: one loop, one seed, the
@@ -99,7 +99,7 @@ its own, wherever a presentation builds on skein's UI kit.
   and jig's, so both kits' stories check its wiring: the order its loop
   keeps, and, where it drives fetch and the small store without skein's
   transport, the rule it then takes on itself (skein's `ui/web/README.md`, 4.3;
-  `../../protocol/browser/README.md`, 5.3).
+  `../../protocol/browser/loop.md`, 1.3).
 
 ## 4. The client's world
 
@@ -165,7 +165,7 @@ its own, wherever a presentation builds on skein's UI kit.
   token fencing and bounded event fan-out (client/README.md, sections 6, 9 and
   11).
   The protocol world is used only for an ordering the lower fixture
-  cannot express (`../../protocol/client/README.md`, section 11).
+  cannot express (`../../protocol/client/testing.md`, section 1).
 - **Internal orders under load** are checked by composed client and
   link step tests: link outputs precede the next domain request across
   a credential boundary with occupied exchanges, and held exchanges
@@ -214,7 +214,7 @@ one:
   way at a restart cancelled. The record's checks, the one refresh and
   the dead copy are the accounts' worlds' (`../../protocol/llm.md`,
   section 8), and two deployments against one issuer the end-to-end
-  tier's (`../../protocol/service.md`, section 8).
+  tier's (`../../protocol/service-testing.md`, section 1).
 
 ## 6. The referee
 

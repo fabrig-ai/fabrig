@@ -4,7 +4,7 @@
 
 - **`jig-client-protocol-wire`,** a codec crate generated from schemas
   (skein's `data/codec/README.md`), holds jig's records for both ends:
-  - the envelope of every message: its owner and its version (`README.md`, section 6
+  - the envelope of every message: its owner and its version (`versions.md`, section 1
     );
   - the operations of `../../client/domain/contract/requests.md`, 2, one record
     each, by their names: `Create`, `Delegate`, `Conclude`, `Propose`, `Withdraw`, `Message`,
@@ -22,7 +22,7 @@
   - the documents of 5.1: `me`, the task line, and the rest;
   - a run's text (7.3); the stream's hello, heartbeat and endings;
   - signing in and out (`sign-in.md`), and the small store's records
-    (`README.md`, section 7).
+    (`small-store.md`, section 1).
 - **In general form.** No record names a shape of work: a chat is a
   `Create` filled from a template; closing it, a compound request; a
   list of conversations or of goals, a task query whose rows are task
@@ -65,7 +65,7 @@
   dependencies, a role's holdings, a pattern's segments) takes at most
   32 items, so 32 is the most the client's `rows` may be, and with it
   the rows of its pages and windows. More changes the wire's schema,
-  and so moves its version (`README.md`, section 6). A client whose rows pass it is unusable: the link
+  and so moves its version (`versions.md`, section 1). A client whose rows pass it is unusable: the link
   refuses its limits at construction, and nothing is cut to fit.
 - **A document's nested collections cross as pieces.** The client bounds
   a document by its bytes in all, not each list by its count times its
@@ -90,7 +90,7 @@
   (`../../domain/tasks/lifecycle.md`, 7). With no saved kind it says unreadable
   result, for an adapter's decode or translation failure. Every other
   class omits it. This is the ended attempt's immutable fact, not the
-  task's current retry context. Wire 20 carries charter overlays under `README.md`, section 6.
+  task's current retry context. Wire 20 carries charter overlays under `versions.md`, section 1.
 - **Every result kind a task hears crosses.** A delegate's result reaches
   its requester as a word whose kind names the result
   (`../../domain/tasks/messages.md`, 1), and `WordResult` has a form for each
@@ -102,7 +102,7 @@
   translation of an activity line, a word or a question's answer refuses no
   kind the core records, and no line a task heard keeps its activity's page,
   or a question's answer, from being served. Wire 20 takes `job` in place,
-  before the first release (`README.md`, section 6).
+  before the first release (`versions.md`, section 1).
 - **No time crosses, only walls.** Documents carry wall times, which the
   store keeps (`../../client/domain/contract/documents.md`, 3); durations (a
   retention, a heartbeat, a grace, a deadline a request gives as a span,
@@ -175,7 +175,7 @@ template's own record being a setting's too; and in each project's `models`
 the offer alone, each `MeModel` with its `effort`, `shown`, `accounts` and
 `picker` (`../../client/domain/contract/documents.md`, 1). The schema, generated
 codecs, translations and served-version declarations carry those fields
-(`README.md`, sections 6 and 11). Tests build their values from schema text
+(`versions.md`, section 1, and `testing.md`, section 1). Tests build their values from schema text
 or with public fields, without golden files (skein's `data/codec/golden.md`, 1). The
 preview says what a run's check would take now for a task keeping no
 account (`../../domain/accounts.md`, 4.3), never task intent or a reservation;
@@ -202,7 +202,7 @@ the engine's messages to the client as they come.
 
 - **Exchanges.** Every one of jig's messages but the stream's crosses as
   an exchange: one record each way, answered once. Each carries its
-  credential (`sign-in.md`) and names its owner and its version (`README.md`, section 6
+  credential (`sign-in.md`) and names its owner and its version (`versions.md`, section 1
   ).
 - **A batch** is one exchange carrying many messages: reads, watches'
   openings and watches' closings, each the record its own exchange
@@ -247,7 +247,7 @@ the engine's messages to the client as they come.
 - **The hello alone,** `StreamEvent::Hello`, is what the engine sends a
   stream whose opening names no version, or one it doesn't serve: the
   stream's name, the ranges and the heartbeat, with no `me` and no watch
-  of it, encoded the same in every version (`README.md`, section 6). So
+  of it, encoded the same in every version (`versions.md`, section 1). So
   an earlier client, whose opening names none, reads the ranges and is
   refused by name. A client whose version the hello alone's ranges
   serve takes it as a record out of its order on the stream.
@@ -272,7 +272,7 @@ the engine's messages to the client as they come.
   end: seconds later for a page whose browser drains it, and later
   still for a connection cut half-open; so may this client's own
   stream that dropped. So the client keeps its stream's name in the
-  small store, saved at each hello (`README.md`, section 7), and each opening of
+  small store, saved at each hello (`small-store.md`, section 1), and each opening of
   its stream names the last stream it knew: at its first opening, the
   one its kept records name, if any; after, its own last hello's.
   The engine checks the opening's credential, then ends the named
@@ -489,8 +489,8 @@ none.
   sees (`sign-in.md`).
 - **The stream:** opened naming jig's version, the link's own; its
   hello judged against the client's versions
-  (`README.md`, section 6), and its `me` handed on as the first value of
-  the client's `me`, watch `0`'s deliveries its later ones (section 2);
+  (`versions.md`, section 1), and its `me` handed on as the first value of
+  the client's `me`, watch `0`'s deliveries its later ones (`wire.md`, section 2);
   each delivery and run's text routed to its watch by name;
   heartbeats keeping the watches alive; `StreamGone`, or silence past
   twice the heartbeat, dropping it; the stream refused signed out, a
@@ -504,4 +504,4 @@ none.
   each `OpenStream` naming the last stream the link knew, the name
   kept at start before the first hello, its own last hello's after
   (section 2). No stream gone is sent, and no opening waits for one.
-- **The small store's records** encoded and decoded (`README.md`, section 7).
+- **The small store's records** encoded and decoded (`small-store.md`, section 1).

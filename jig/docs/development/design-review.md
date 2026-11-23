@@ -66,7 +66,7 @@ from an offline store-copy design.
 `jig/docs/design/protocol/browser/README.md`, 15 still lists the bundle
 served compressed as Later. `skein/docs/design/ui/web/bundle.md`, 2
 already specifies default-on deterministic gzip forms, and
-`jig/docs/design/protocol/service.md`, 11.4 already supplies the bundle
+`jig/docs/design/protocol/service-parts.md`, 1.4 already supplies the bundle
 helper's compressed File and `compressed_of` alongside the server.
 **Owner:** `jig/docs/design/protocol/browser/README.md`, 15.
 **Suggest:** its designer remove the broad deferral or narrow it to a

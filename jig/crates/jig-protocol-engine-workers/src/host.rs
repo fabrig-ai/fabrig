@@ -1,5 +1,5 @@
 //! Accepted streams and the workers' component (jig/docs/design/protocol/channel/worker-link.md, 1.2).
-//! The owner's pull and listener lifecycle (jig/docs/design/protocol/service.md, 11.3).
+//! The owner's pull and listener lifecycle (jig/docs/design/protocol/service-parts.md, 1.3).
 use crate::{Component, Event, Limits, Loss, Request};
 use alloc::boxed::Box;
 use jig_domain_host as hub;

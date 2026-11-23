@@ -1,5 +1,5 @@
 //! The reference service's accounts: jig's host around its tokens, its root and its store
-//! (jig/docs/design/protocol/service.md, 11.1).
+//! (jig/docs/design/protocol/service-parts.md, 1.1).
 use crate::values::Values;
 use jig_domain_core as core;
 use jig_protocol_accounts::host::Output;

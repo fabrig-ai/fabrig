@@ -103,7 +103,7 @@ agent must name.
   `{"main": {"model": M, "effort": E}}` alone, its `account` none and
   its `subagents` empty; a template's `resources`, the symbols a task
   filled from it holds, is a list of `{"connector": C, "symbol": S}` as
-  jig's format has it (jig's `protocol/configuration.md`, 3.3), left
+  jig's format has it (jig's `protocol/configuration-templates.md`, 3), left
   out `[]`, so the reference's goal template names the forge's *its own
   goal branch* as `{"connector": F, "symbol": 1}`, F the forge's
   connector (`../../domain/forge/README.md`, section 2); a required
@@ -139,8 +139,8 @@ agent must name.
   `settings show template-goal N --json` prints it; a proposal card
   names it `template-goal N`.
 - **A charter's parts and a later choice** (`../../draft/per-wake.md`,
-  sections 3 and 5; jig's `protocol/configuration.md`, sections 3 and
-  3.1). A charter's `parts`, which `FIELDS` marks optional, left out
+  sections 3 and 5; jig's `protocol/configuration-engine.md`, section 1, and `protocol/configuration-templates.md`, section 1
+  ). A charter's `parts`, which `FIELDS` marks optional, left out
   `[]`, is a list, in order, of `{"on": [REASON, ...], "instructions":
   TEXT}`: each `on` a nonempty list of `first` and the kinds that
   choose parts, by jig's store names (jig's

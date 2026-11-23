@@ -1,5 +1,5 @@
 //! The accounts' host and its pass over store answers and effects
-//! (jig/docs/design/protocol/service.md, 11.1).
+//! (jig/docs/design/protocol/service-parts.md, 1.1).
 use crate::{
     Component,
     component::{Effect, Event, unkept},

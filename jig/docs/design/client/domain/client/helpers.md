@@ -7,7 +7,7 @@
   nothing, and any application may write its own instead.
 - **`shapes`:** functions composing plumbing requests from templates,
   the application's data that `me` serves (../contract/requests.md, 6;
-  `../../../protocol/configuration.md`, 3.1):
+  `../../../protocol/configuration-templates.md`, 1):
   - `shapes::chat(me, project, words)` fills the chat template into a
     `Create`, and `shapes::chat_from(me, project, template, words)`
     fills a chat's template named by its number the same way, for an

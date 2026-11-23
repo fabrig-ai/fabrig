@@ -11,8 +11,8 @@ owned-forge landing story and the ladder's rungs take when given one
 the key landing story hands to `temper ctl account add-key`, never read,
 printed or copied by the story (below).
 
-`bin/temper-box/tests/live.rs`, after jig's (jig's `protocol/service.md`,
-section 8; skein/docs/foundation/testing-strategy.md, 2.9).
+`bin/temper-box/tests/live.rs`, after jig's (jig's `protocol/service-testing.md`,
+section 1; skein/docs/foundation/testing-strategy.md, 2.9).
 
 - **What runs:** the process tier's binary, owned Forgejo, real git and
   person, with a real model: the live configuration, a configuration

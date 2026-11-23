@@ -64,8 +64,8 @@ section 5, is `../client/pages/milestone.md` and the pages it names.
   (jig's `domain/tasks/README.md`, section 6), and nowhere of temper's
   (section 10).
 - **Its policy:** a project's policy may override template 8's budget
-  and priority, as any template's (jig's `protocol/configuration.md`,
-  3.1); the flags, label and tracking are its identity.
+  and priority, as any template's (jig's `protocol/configuration-templates.md`,
+  1); the flags, label and tracking are its identity.
 
 ## 3. Its name, words and maker
 

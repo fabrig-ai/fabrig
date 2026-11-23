@@ -106,7 +106,7 @@ This document holds the configuration checks at a start, split from [`README.md`
     current one (jig's `domain/engine/README.md`, 5.4).
 - **Repositories are never configured.** A person adopts each at runtime
   through the client, by the forge's number, the owner and the name, and
-  the store keeps it (jig's `protocol/configuration.md`, section 3;
+  the store keeps it (jig's `protocol/configuration-engine.md`, section 1;
   `../../client/forge/family.md`).
 - **What a change reaches,** after its restart: `machine`'s places,
   the forges made after it; a kept forge keeps the place and git

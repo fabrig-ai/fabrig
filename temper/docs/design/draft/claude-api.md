@@ -87,10 +87,10 @@ What step 1 adds:
   agent's configuration alike, under the same name on both
   (`../protocol/llm.md`, section 3).
 - **The provider names both:** its endpoint stays Claude Code's, the one
-  its models take (jig's `protocol/configuration.md`, section 3), and it
+  its models take (jig's `protocol/configuration-engine.md`, section 1), and it
   names the direct one for keys. A provider with one way, as OpenAI,
   names one. A stored model keeps its form; a run's copy of it takes
-  the endpoint of the source chosen for it (section 4).
+  the endpoint of the source chosen for it (`claude-api.md`, section 4).
 - **No Claude Code for a key:** a deployment whose Claude accounts are
   keys never fetches Claude Code, which only a command that runs it
   fetches (`claude-provider.md`, section 3).

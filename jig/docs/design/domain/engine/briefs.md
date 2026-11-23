@@ -40,7 +40,7 @@ whom; its delegates, their states, and the
   the catalogue: each model its authority allows (../authority.md, section
   3), with its LLM provider, its window and output, its efforts, its
   prices, and what it is good at, a description its configuration gives
-  (`../../protocol/configuration.md`, section 3), and whether an account
+  (`../../protocol/configuration-engine.md`, section 1), and whether an account
   that serves the run's payer is usable now, limited and until when, or
   needs sign-in (../accounts.md, 3.5), so that a planning agent gives each
   task it delegates the LLM choice its work needs, by capability and

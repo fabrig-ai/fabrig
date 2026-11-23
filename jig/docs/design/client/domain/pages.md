@@ -238,7 +238,7 @@ activity, the conversation, comes first.
   ): its executor the template's charter, and its budget the merged
   template's (jig's default `AsAllowed`: as much as the person's role
   and pool allow, the answer saying what was given;
-  `../../protocol/configuration.md`, 3.1). The form says both and asks
+  `../../protocol/configuration-templates.md`, 1). The form says both and asks
   neither. A chat may also be started from what it is about (a task's
   page, a held task's card, a goal), with the thing named in its first
   words. Answered with the chat's number once durable, its page opens

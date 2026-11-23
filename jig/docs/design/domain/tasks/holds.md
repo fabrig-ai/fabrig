@@ -42,7 +42,7 @@ again. Words alone do not release it (../people/acts.md, 1).
 - **What a task holds is its connector's to name,** asked once the task
   has its number: from its executor and specification, and from the
   connectors' symbols its batch member names (../authority.md, section 4;
-  `../../protocol/configuration.md`, 3.3), each resolved to the name the
+  `../../protocol/configuration-templates.md`, 3), each resolved to the name the
   task holds, and whether the task is tracked. A symbol the connector
   does not offer that task refuses the batch, naming the symbol.
 - **Reported before it is taken.** For each resource a batch member

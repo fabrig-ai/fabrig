@@ -120,7 +120,7 @@ rule, including retained providers. Deployment-held logins restrict no run;
 a deployment with at most one person is unaffected. A program source is chosen
 only where its login is usable; the engine never takes one. A program source's
 run is granted its source's name and runs on smith's program backend, for the
-program its endpoint names (`../../protocol/configuration.md`, section 3).
+program its endpoint names (`../../protocol/configuration-engine.md`, section 1).
 
 ## 2. Transcripts
 
@@ -218,8 +218,8 @@ program its endpoint names (`../../protocol/configuration.md`, section 3).
   endpoint it ran on, program to direct or back alike. The endpoint
   names the backend too: a program source runs on its model's program
   endpoint, any other source on its provider's direct endpoint
-  (`Settings::model_endpoint`, `../../protocol/configuration.md`,
-  section 3). The run proof keeps the endpoint its claim chose for its
+  (`Settings::model_endpoint`, `../../protocol/configuration-engine.md`,
+  section 1). The run proof keeps the endpoint its claim chose for its
   main model, `RunProof.endpoint` (core-v6, an added field whose default
   is none). A claim whose main model's endpoint is another than its
   previous proof's resumes nothing: a task moved from a program login to
@@ -319,7 +319,7 @@ program its endpoint names (`../../protocol/configuration.md`, section 3).
   `fresh: option Fresh = none`, so a line written before it reads none,
   and crosses to clients as `ActivityRunBegan.fresh`, a `RunFresh`
   (`moved`, `closed`, `cut`, `limit`, `session`), which moves
-  `jig-client-wire` to 37 (`../../protocol/client/README.md`, 6). Its
+  `jig-client-wire` to 37 (`../../protocol/client/versions.md`, 1). Its
   words are its readers': temper's task page says `Run N began fresh:`
   and why (temper's `client/pages/task.md`, 2).
 - **A crossed claim is never adopted.** The stored proof's

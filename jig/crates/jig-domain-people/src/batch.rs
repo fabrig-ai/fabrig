@@ -30,7 +30,7 @@ pub(crate) fn invalid(limits: &crate::Limits, batch: &[Member]) -> crate::LimitK
 }
 
 /// A connector's symbol: a resource it names after the task once the task has its
-/// number (domain/authority.md, section 4; protocol/configuration.md, 3.3).
+/// number (domain/authority.md, section 4; protocol/configuration-templates.md, 3).
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub struct Symbol {
     pub connector: u16,

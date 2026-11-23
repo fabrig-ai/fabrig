@@ -55,7 +55,7 @@ the nearest thing, and says so in the draft's status.
 - **Design:** `../client/tui/README.md`, 1, and `../client/tui/directory.md`, 1, and `../client/tui/host.md`, 1;
   `../client/tui/pages/README.md`, 3; `../client/tui/pages/chat.md`, 1;
   `../client/tui/pages/sign-in.md`, 1 and 2; `../client/sign-in.md`, 1
-  and 1.1; jig's `protocol/client/README.md`, 9.
+  and 1.1; jig's `protocol/client/shells.md`, 1.
 - **Builds:** `temper https://NAME` and its refusals; jig's native shell
   over skein's TLS client with the machine's roots; the binary's
   resolving at start; the TUI's directory per origin and the move; the
@@ -81,7 +81,7 @@ the nearest thing, and says so in the draft's status.
   a browser*; jig's `protocol/client/default-http.md`, 3 and 4; jig's
   `protocol/client/wire.md`, 2.1 and 2.2; jig's
   `client/domain/client/README.md`, 4.1 and 9; jig's
-  `protocol/configuration.md`, 3 and 8; jig's `protocol/client/README.md`,
+  `protocol/configuration-engine.md`, 1, and `protocol/configuration.md`, 8; jig's `protocol/client/README.md`,
   10 and 12; `../protocol/sign-in.md`, 2.1 and 2.3;
   `../client/pages/shared-behaviour.md`, 1, *The approval page*;
   `../client/web/addresses.md`, 1.

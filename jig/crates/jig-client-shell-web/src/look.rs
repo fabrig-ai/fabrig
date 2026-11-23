@@ -1,4 +1,4 @@
-//! Jig's names, pictures and the browser parts' English phrases (protocol/browser/README.md, 3.3).
+//! Jig's names, pictures and the browser parts' English phrases (protocol/browser/application.md, 1.3).
 use jig_client_view_words::{Owner, regions::JigRegion};
 use skein_ui::look::Names;
 

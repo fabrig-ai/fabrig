@@ -280,7 +280,7 @@
   2 as temper's `draft/checkpoints.md`, 3.4 has it. An override is a
   number from 1 to 64; any other refuses the start, naming it.
 - **A template's grace** is within the tasks child's limit on a grace's
-  span, or the start is refused, naming the template (`configuration.md`, 3.1).
+  span, or the start is refused, naming the template (`configuration-templates.md`, 1).
 - **The deployment's message bound** holds every kind of message a
   task's inbox admits, as a run renders it with its sender's label: a
   party's words and questions by the people child's bound, which is at

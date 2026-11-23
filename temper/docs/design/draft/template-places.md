@@ -5,7 +5,7 @@ it to keep the idea, not to carry it out: nothing here is adopted, no
 plan takes it up until the user does, once the ways to start work are
 clearer, and nothing here is a part of v0.1.0 (`v0.1.0.md`). A
 project's ways to start work are its templates (jig's
-`protocol/configuration.md`, 3.1), as How work runs names them
+`protocol/configuration-templates.md`, 1), as How work runs names them
 (`../client/pages/settings.md`, 2): jig's chat and goal and temper's
 configuring chat in the stock (`../protocol/configuration/stock.md`),
 and perhaps many more. Today the client chooses by number which it
@@ -63,8 +63,8 @@ The look requests `new-menu` and `configure-chat-in-settings`
 - **Later, a context's places:** a goal's page, a change's, a draft's:
   "Review this change", "Start a goal from this draft". A start there
   carries its context into the task, which jig's templates name no
-  input for (jig's `protocol/configuration.md`, 3.1), so these wait on
-  jig (section 9).
+  input for (jig's `protocol/configuration-templates.md`, 1), so these wait on
+  jig (`template-places.md`, section 9).
 
 ## 4. The settings
 

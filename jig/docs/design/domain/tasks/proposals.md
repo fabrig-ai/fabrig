@@ -150,6 +150,6 @@ proposed, what an action needs, and what an acceptance funds.
   person's number alike, and the client's contract and words show it so
   (`../../client/domain/contract/documents.md`, 1). Showing its kind, a
   `Requester`'s `Task` or `Person`, moves the client wire's version
-  (`../../protocol/client/README.md`, 6) and records again the journeys
+  (`../../protocol/client/versions.md`, 1) and records again the journeys
   that show a task's chip; whether and when is a later move of the
   client wire's (B1's requester, 2026-11-18).

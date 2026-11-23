@@ -59,7 +59,7 @@ the triager first, are charters 14 to 16
   change it started ending is its business, and on news paced to 30
   minutes; its runs park as soon as they wait.
 - **Template 7, a standing role,** run by the charter its creator names:
-  `ended_by` `standing` (jig's `protocol/configuration.md`, 3.2), not a
+  `ended_by` `standing` (jig's `protocol/configuration-templates.md`, 2), not a
   conversation, listed, kept, untracked, labelled 3, its contract a
   report as template 1's, its budget the creator's, a period's amount,
   and no deadline. Its spec's words say how it works; what it owns is

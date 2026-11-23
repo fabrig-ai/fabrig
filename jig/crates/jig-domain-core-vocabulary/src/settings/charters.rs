@@ -26,7 +26,7 @@ pub struct CharterPart {
     pub instructions: Box<[u8]>,
 }
 /// One numbered charter offered by the deployment, with its documents
-/// (protocol/configuration.md, 3; domain/engine/settings.md, 9).
+/// (protocol/configuration-engine.md, 1; domain/engine/settings.md, 9).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Charter {
     pub rest: bool,

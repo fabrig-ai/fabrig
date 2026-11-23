@@ -58,7 +58,7 @@ pub enum Defaults {
     /// All defaults, including providers, passed by the application.
     PassedProviders,
 }
-/// The engine's protocol configuration (configuration.md, 3).
+/// The engine's protocol configuration (protocol/configuration-engine.md, 1).
 #[derive(Clone, Debug)]
 pub struct Engine {
     /// With `Passed`, the four settings fields are empty until `pass` gives them.

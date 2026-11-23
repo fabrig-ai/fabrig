@@ -606,9 +606,9 @@ pub struct Provider {
     /// Its name for showing.
     pub name: Box<[u8]>,
     pub number: u32,
-    /// The endpoint its added models take (configuration.md, 3).
+    /// The endpoint its added models take (protocol/configuration-engine.md, 1).
     pub endpoint: Option<Box<[u8]>>,
-    /// The program-free endpoint its sign-ins and keys take (configuration.md, 3).
+    /// The program-free endpoint its sign-ins and keys take (protocol/configuration-engine.md, 1).
     pub direct: Option<Box<[u8]>>,
     pub list: Option<ProviderList>,
     pub signed_in_plan: bool,

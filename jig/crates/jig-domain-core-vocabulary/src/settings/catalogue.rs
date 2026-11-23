@@ -162,7 +162,7 @@ pub fn valid_name(name: &[u8]) -> bool {
     true
 }
 
-/// Whole-name byte glob matching (jig/docs/design/protocol/configuration.md, 3).
+/// Whole-name byte glob matching (jig/docs/design/protocol/configuration-engine.md, 1).
 #[must_use]
 pub fn matches(pattern: &[u8], name: &[u8]) -> bool {
     let mut at = 0_usize;

@@ -19,7 +19,7 @@ pub struct Worker {
     pub limits: Option<Limits>,
     pub memory: Option<u64>,
 }
-/// Members an application fixes (protocol/configuration.md, 3.4).
+/// Members an application fixes (protocol/configuration-templates.md, 4).
 #[derive(Clone, Copy, Debug)]
 pub struct FixedWorker {
     pub graces: Option<Graces>,

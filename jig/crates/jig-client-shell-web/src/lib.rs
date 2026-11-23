@@ -1,4 +1,4 @@
-//! Jig's independent browser parts (protocol/browser/README.md, 5.1).
+//! Jig's independent browser parts (protocol/browser/loop.md, 1.1).
 #![forbid(unsafe_code)]
 pub mod adapter;
 pub mod look;

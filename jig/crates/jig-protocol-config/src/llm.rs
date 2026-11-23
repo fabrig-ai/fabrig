@@ -11,12 +11,12 @@ use skein_lib::List;
 /// (protocol/limits.md).
 pub(crate) const MODELS: u32 = 64;
 /// The engine's endpoints, providers and default catalogue
-/// (jig/docs/design/protocol/configuration.md, 3).
+/// (jig/docs/design/protocol/configuration-engine.md, 1).
 #[derive(Clone, Debug)]
 pub struct Llm {
     pub endpoints: Box<[Endpoint]>,
     pub models: Box<[CatalogueModel]>,
-    /// Every model belongs to one numbered provider (configuration.md, 3).
+    /// Every model belongs to one numbered provider (protocol/configuration-engine.md, 1).
     pub providers: Box<[Provider]>,
 }
 impl Llm {
@@ -140,7 +140,7 @@ pub(crate) fn parse(
     }
     Some(value)
 }
-/// A direct way speaks the program endpoint's dialect and accepts credentials (configuration.md, 3).
+/// A direct way speaks the program endpoint's dialect and accepts credentials (protocol/configuration-engine.md, 1).
 fn direct_binding(provider: &Provider, endpoints: &[Endpoint], path: &Path, problems: &mut Problems) {
     if !jig_domain_core_vocabulary::settings::providers::direct(provider, endpoints) {
         problems.push(path.member(b"direct"), What::Refers);
@@ -382,7 +382,7 @@ fn model(
     model.effort = effort;
     Some(ParsedModel { model, description, shown, picker })
 }
-/// The efforts a model takes, by name in order, none when absent (configuration.md, 3).
+/// The efforts a model takes, by name in order, none when absent (protocol/configuration-engine.md, 1).
 fn model_efforts(document: &Document, at: u32, path: &Path, problems: &mut Problems) -> Option<Box<[Box<[u8]>]>> {
     let items = match read::list(document, at, jig_domain_core_vocabulary::EFFORTS) {
         Ok(items) => items,

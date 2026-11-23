@@ -439,7 +439,7 @@ Moved to [`testing.md`](testing.md), section 1.
   answers, and the unread fence; activity typed; smith's payloads as the
   hand-out's bytes; and the accounts' notices, the sources, checks,
   logins and sign-outs in the hub's link vocabulary.
-- **What smith gives** (`../README.md`, section 11): smith's codecs, which
+- **What smith gives** (`../needs.md`, section 2): smith's codecs, which
   the hand-out calls, to decode a charter and a transcript against an
   agent configuration's endpoints, and a channel fact, and to encode a
   turn, a call's name and a result; its host domain's long operations
@@ -452,14 +452,14 @@ Moved to [`testing.md`](testing.md), section 1.
   (smith's `protocol/host.md`, section 2; the check's answers are smith's
   `protocol/programs.md`, section 3). No crate of this channel's links
   smith.
-- **What jig asks of smith** (`../README.md`, section 11): the ask in its
+- **What jig asks of smith** (`../needs.md`, section 2): the ask in its
   start, and a run's live content on its channel, at the ask, best
   effort, as pieces naming turn, retry, kind and offset, so that a worker
   whose agents are processes gives a run's text as a host of
   `smith-inline-agent` does (`owners.md`, 1.4). smith's host half and host domain hand
   the pieces up as they hand up facts, and this channel's fact record
   carries them. What stays for later: the LLM component's closed
-  refusal (`../README.md`, section 11).
+  refusal (`../needs.md`, section 2).
 - **skein owes** in-process addresses, for one process (skein's `runtime/io/sockets.md`,
   5), and, between hosts, TLS's server side with independent output,
   for the engine's listener (skein's `net/channel.md`, section 12; skein's

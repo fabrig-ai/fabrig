@@ -320,7 +320,7 @@ this environment) is the application's (`../../../domain/people/acts.md`, 1):
   numbered and never renumbered, in the application's configuration.
   What each carries, jig's two defaults (chat, template 1; goal,
   template 2), and what a project's policy may override, are
-  `../../../protocol/configuration.md`'s, 3.1, with their JSON in its
+  `../../../protocol/configuration-templates.md`'s, 1, with their JSON in its
   section 10.
 - **The engine never expands or checks one.** It keeps the
   configuration's templates and each policy's overrides only to serve
@@ -332,4 +332,4 @@ this environment) is the application's (`../../../domain/people/acts.md`, 1):
   limits still hold.
 - **Permissions stay primitive,** with no "may use template", and a
   task keeps the values it was made with
-  (`../../../protocol/configuration.md`, 3.1).
+  (`../../../protocol/configuration-templates.md`, 1).

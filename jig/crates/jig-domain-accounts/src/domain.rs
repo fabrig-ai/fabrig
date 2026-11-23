@@ -40,7 +40,7 @@ impl Account {
         self.uses.as_deref()
     }
     /// A source classified as a plan by configuration, or any program source, makes
-    /// this a plan's account (accounts.md, 3.2; configuration.md, 3).
+    /// this a plan's account (accounts.md, 3.2; protocol/configuration-engine.md, 1).
     #[must_use]
     pub const fn plan(&self) -> bool {
         self.plan

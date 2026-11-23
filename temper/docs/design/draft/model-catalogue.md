@@ -141,7 +141,7 @@ provider has an account usable now and serving its payer (jig's
   `protocol/agent.md`, section 4; `protocol/charter.md`, section 2).
 - **A charter names its first choices and "the rest":** every other model of
   the catalogue, in its order, so that a new model needs no charter's change
-  (jig's `protocol/configuration.md`, section 3).
+  (jig's `protocol/configuration-engine.md`, section 1).
 - **The bound** is the charter's, 64 models (`MODELS` in
   `jig/crates/jig-domain-tasks/src/llm.rs`). A list that would pass it keeps
   the provider's first, and Settings says how many it left out.

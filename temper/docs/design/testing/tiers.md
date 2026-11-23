@@ -152,7 +152,7 @@ in temper.
   log (../protocol/setup/testing.md, 2).
 - **The worker's link and the client's connection** have their protocol
   worlds in jig (jig's `protocol/channel/testing.md`, section 1; jig's
-  `protocol/client/README.md`, section 11), and an agent's channel and its LLM
+  `protocol/client/testing.md`, section 1), and an agent's channel and its LLM
   calls theirs in smith and skein. temper's parts and records cross them
   as bytes those worlds never read; the one-process world carries
   temper's through bytes (1.5).
@@ -171,8 +171,8 @@ behind the simulator (`README.md`, 3.2).
 
 ### 1.5 The one-process world
 
-`tests/one-process`, after jig's (jig's `protocol/service.md`, sections 8
-and 10). Its composition is `temper-playground`'s, the world the
+`tests/one-process`, after jig's (jig's `protocol/service-testing.md`, section 1, and `protocol/service.md`, section 10
+). Its composition is `temper-playground`'s, the world the
 playground runs in a browser (`../playground.md`, 3), which this world
 composes with its harness: the referee, the fake person and the
 terminal client, the captures and the faults.

@@ -1,5 +1,5 @@
 //! The browser's bundle, read whole at start, and its closed list of types (client/web/serving.md, 1; skein's
-//! ui/web/bundle.md, 3 and 4), composing jig's bundle helpers (jig/docs/design/protocol/service.md, 11.4).
+//! ui/web/bundle.md, 3 and 4), composing jig's bundle helpers (jig/docs/design/protocol/service-parts.md, 1.4).
 use super::{Clients, policy};
 use alloc::boxed::Box;
 use jig_protocol_engine_clients_http::bundle::{self, field, target};

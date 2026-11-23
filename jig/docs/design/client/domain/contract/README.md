@@ -119,7 +119,7 @@ it. Its messages and their bytes are `../../../protocol/client/README.md`'s.
   directory, a chat platform's identity), which verifies the identity
   and then asks the engine, from the server's side, to mint a credential
   for it: a `Mint`, refused unless the identity's provider is of kind
-  application (`../../../protocol/configuration.md`, section 3). The
+  application (`../../../protocol/configuration-engine.md`, section 1). The
   application decides how the credential travels to its client.
 - **jig adds no "acting for."** A program relaying a person's decision
   (a bot on a chat platform) holds that person's own credential, from
@@ -696,7 +696,7 @@ any watch's deliveries do (`../../../protocol/client/README.md`, section 5).
 
 - **Each owner's documents and requests are versioned,** jig's by jig and
   each application's by the application, and every message names its
-  owner and its version (`../../../protocol/client/README.md`, section 6).
+  owner and its version (`../../../protocol/client/versions.md`, section 1).
 - **The engine serves a range of each owner's versions,** which the hello
   of its stream states first, then `me`, at the version of jig's the
   stream's opening names (`../../../protocol/client/wire.md`, section 2);
@@ -760,7 +760,7 @@ What `../../domain/` owes this contract, each designed where named:
    effective executor refused at startup, policy change and restore, the
    store against the configuration (`../../../domain/engine/restart.md` and `../../../domain/engine/views.md`, section 1
    ;
-   `../../../protocol/configuration.md`, 3.1).
+   `../../../protocol/configuration-templates.md`, 1).
 8. **Credentials minted on the server's word:** a sign-in committed for
    an identity the application's server verified, its provider of kind
    application (section 2; `../../../domain/people/README.md`, section 3).
@@ -871,7 +871,7 @@ designs (`../../../protocol/client/README.md`):
   or past its count. Naming the part and its `on` member needs a refusal
   vocabulary beyond the charter-document paths. Default: the item's
   position and the existing shape or count refusal; configuration keeps
-  its own part paths (`../../../protocol/configuration.md`, section 3).
+  its own part paths (`../../../protocol/configuration-engine.md`, section 1).
 
 - **Decisions on replaced task proposals** (requests.md, 2, and README.md, 3): automatically
   replacing a task's pending settings proposal keeps no decision record.

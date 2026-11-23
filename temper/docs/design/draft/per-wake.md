@@ -99,7 +99,7 @@ doing. Every other kind chooses parts: `question`,
 - **Bounds.** A charter's stored policy, its parts with it, stays within the
   root's `root.journal.run_bytes`, as its instructions do today. So parts make a
   run read less, not the charter store less.
-- **The settings form** (jig's `protocol/configuration.md`, section 3, the
+- **The settings form** (jig's `protocol/configuration-engine.md`, section 1, the
   charters member) carries `"parts": [{"on": ["question"], "instructions":
   "..."}]`. An unknown kind, an always-offered kind, an empty `on` or a part
   past the limit refuses the change at its path. temper's settings form and `temper ctl
@@ -162,7 +162,7 @@ cut longer than a pending escalation's stall (jig's `domain/tasks/README.md`, se
   theirs. Every run whose reasons aren't `first` takes it. Without `later`,
   every run takes the one choice, as today.
 - **Who gives it:** the task's creator, or a template (jig's
-  `protocol/configuration.md`, 3.1). It takes no account of its own: a task's
+  `protocol/configuration-templates.md`, 1). It takes no account of its own: a task's
   account preference covers both choices. An amendment changes it as it changes
   the rest.
 - **Checked as the first choice is:** within the task's authority at its batch
@@ -250,7 +250,7 @@ KB every run reads today.
    messages only, an undecided entry's wake, and `later`, design first: jig's
    `domain/tasks/README.md`, section 3 and `domain/tasks/messages.md` and `domain/tasks/proposals.md`; jig's `domain/engine/executors.md`, 1, 2 and 4, and `domain/engine/briefs.md`, 1
    ; jig's `domain/hosts/hub.md`, 4; jig's
-   `protocol/configuration.md`, section 3 and `protocol/limits.md`; the tasks child's take; the
+   `protocol/configuration-engine.md`, section 1 and `protocol/limits.md`; the tasks child's take; the
    store's claim, charter and task records; the client's charter and task
    records.
 2. **temper:** its settings form and `temper ctl settings`, with section 8's

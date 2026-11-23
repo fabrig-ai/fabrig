@@ -354,8 +354,8 @@ table and the git component.
   section 1).
 - **Agents:** spawning the agent within a deadline, in a contained
   process tree, with proof that the tree is empty after it stops; where
-  skein gives no contained trees (jig's `protocol/README.md`,
-  section 10), each agent in a process group of its own, which a stop
+  skein gives no contained trees (jig's `protocol/needs.md`,
+  section 1), each agent in a process group of its own, which a stop
   signals whole. smith's channel over its pipes (smith's host half); an
   environment without forge credentials. smith's payloads (the charter,
   the transcript, turns, facts) are decoded and encoded by hand-out (jig's

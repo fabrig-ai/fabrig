@@ -316,7 +316,7 @@ Every task belongs to one project, which its delegates inherit.
 A project begins in one of two ways:
 
 - **Seeded** at the deployment's first start, from configuration
-  (`../protocol/configuration.md`, sections 3 and 7).
+  (`../protocol/configuration-engine.md`, section 1, and `../protocol/configuration.md`, section 7).
 - **Made** after it, by a party whose role in the deployment is owner
   (people/acts.md, 1): with the name its maker chose, a copy of a
   policy among the settings (`model.md`, section 13), and its
@@ -339,8 +339,8 @@ A project's name:
   and no white space at either end, and never decimal digits alone, so
   that a name is never mistaken for a number.
 - **Given, where none is chosen:** a project seeded with no name is
-  named "Project N", N its number (`../protocol/configuration.md`,
-  section 3). A seed's names, configured and given, are checked
+  named "Project N", N its number (`../protocol/configuration-engine.md`,
+  section 1). A seed's names, configured and given, are checked
   together, and a collision refuses the start. The store keeps the
   name with the project's policy (`../protocol/store/keys.md`, 1.4). A
   project made after the first start is never given one: its maker
@@ -387,8 +387,8 @@ its tree, itself included; its priority is the one that orders the
 task's waits.
 
 **A goal's defaults are a template.** What a goal is made with when a
-party sets one is jig's goal template (`../protocol/configuration.md`,
-3.1), which an application keeps, changes or drops. The engine's
+party sets one is jig's goal template (`../protocol/configuration-templates.md`,
+1), which an application keeps, changes or drops. The engine's
 behaviour above turns on the mark, never on the template.
 
 Any task may be tracked; most are not. A chat, a triage or a repair is
@@ -465,7 +465,7 @@ is sugar over the primitives (section 9), in three forms:
   words" into a complete batch (tasks/README.md, section 4). What each
   carries, and jig's two defaults, chat (template 1) and goal
   (template 2), which an application keeps, changes or drops, are
-  `../protocol/configuration.md`, 3.1; a project's policy overrides
+  `../protocol/configuration-templates.md`, 1; a project's policy overrides
   some of its fields (authority.md, section 6);
 - **a helper:** a function composing plumbing requests, such as one that
   fills a template into a `Create`, or one that closes a conversation as
@@ -718,7 +718,7 @@ Where these stop, above the API, the application holds:
 - **keeping a credential from use across sites,** as keeping it out of
   its logs is: its server's, with jig's default HTTP mapping's example
   guards and attack stories to use where they suit
-  (`../protocol/browser/README.md`, 12.2 and `../protocol/browser/testing.md`).
+  (`../protocol/browser/serving.md`, 1.2 and `../protocol/browser/testing.md`).
 
 ## 12. Open questions
 

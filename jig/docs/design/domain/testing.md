@@ -5,8 +5,8 @@ and how it tests an application's: the worlds of jig's own parts, the
 core's world, and the conformance world every application runs its
 domain on, with the referee that holds it to jig's promises. It applies
 testing-strategy.md to jig's domain layer; the tiers below the domain
-(protocol, simulated, the real loop) are `../protocol/service.md`'s,
-section 8. What is still open is listed in section 10.
+(protocol, simulated, the real loop) are `../protocol/service-testing.md`'s,
+section 1. What is still open is listed in `testing.md`, section 10.
 
 ## 1. In one page
 

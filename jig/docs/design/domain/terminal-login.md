@@ -166,7 +166,7 @@ for a name taken or reserved, `Limit` for the lifetime names spent).
 `LoginExit::NotStarted` is a client that could not start the command:
 a name it refused, a spawn that failed. The wire carries each new form
 as the client wire's other forms are carried, its schema's layout
-moving its version to 21 (`../protocol/client/README.md`, 6).
+moving its version to 21 (`../protocol/client/versions.md`, 1).
 
 ## 6. What a client owes
 

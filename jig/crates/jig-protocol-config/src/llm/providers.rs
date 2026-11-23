@@ -1,5 +1,5 @@
 //! LLM providers: each one's number, its name for showing, the configured models it serves and
-//! the sources it offers (configuration.md, 3 and 6; accounts.md, 3.4). No account, key or record.
+//! the sources it offers (protocol/configuration-engine.md, 1, and protocol/configuration.md, 6; accounts.md, 3.4). No account, key or record.
 use crate::{Directories, Path, Problems, What, check, read};
 use alloc::boxed::Box;
 use jig_domain_core_vocabulary::settings::CatalogueModel;
@@ -189,7 +189,7 @@ fn provider(
     Some(Parsed { value, served: served? })
 }
 
-/// Bounded whole-name patterns (jig/docs/design/protocol/configuration.md, 3).
+/// Bounded whole-name patterns (jig/docs/design/protocol/configuration-engine.md, 1).
 fn patterns(document: &Document, at: u32, path: &Path, problems: &mut Problems) -> Option<Box<[Box<[u8]>]>> {
     let items = match read::list(document, at, 16) {
         Ok(items) => items,

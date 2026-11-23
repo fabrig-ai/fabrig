@@ -165,7 +165,7 @@ it is live:
   its revision (../engine/settings.md, 3).
 - **Its LLM choice,** for an agent task, what its runs' LLMs are:
   - *main:* a configured model, and an effort among those the model
-    declares (`../../protocol/configuration.md`, section 3); its runs use
+    declares (`../../protocol/configuration-engine.md`, section 1); its runs use
     it, and their check holds its most costly completion (../authority.md,
     8.3);
   - *sub-agents:* the models its runs' sub-agents may use, each with an
@@ -183,12 +183,12 @@ it is live:
     whose charter has come to resume since takes the first choice.
 
   Its creator gives it, or a template does
-  (`../../protocol/configuration.md`, 3.1), each model within the task's
+  (`../../protocol/configuration-templates.md`, 1), each model within the task's
   authority (../authority.md, section 3). A task given none keeps none: each
   of its runs' checks takes its models from its charter, within its
   authority, the first it can use its main and the others its sub-agents'
   (../accounts.md, 4.3); each takes the effort its charter selects, or else
-  its model's default (`effort`, `../../protocol/configuration.md`, section 3),
+  its model's default (`effort`, `../../protocol/configuration-engine.md`, section 1),
   or none where it declares none, which leaves its LLM provider's default. Its document shows what its next run would take
   (`../../client/domain/contract/documents.md`, 1). A batch or an amendment that
   leaves such a task with an authority allowing none of its charter's
@@ -223,7 +223,7 @@ it is live:
   (`messages.md`, 4), has it projected (../connectors.md, section 8), and gives it a
   scope for notes (../engine/briefs.md, section 2).
 - **Its label:** an opaque 32-bit number the application gives, through
-  a template or by hand (`../../protocol/configuration.md`, 3.1). jig gives
+  a template or by hand (`../../protocol/configuration-templates.md`, 1). jig gives
   it no meaning, and no rule of the engine's keys on it: task queries
   filter on it, and the indexes of ended tasks are keyed by it
   (`../../protocol/store/keys.md`, 1.4).
@@ -364,7 +364,7 @@ dependencies among them.
     and its efforts among those its models declare, and each of its
     models, main and sub-agent, one its charter allows at the newest
     revision (section 3), as a template's and a move's are checked
-    (`../../protocol/configuration.md`, 3.1; ../engine/settings.md, 4). Whoever
+    (`../../protocol/configuration-templates.md`, 1; ../engine/settings.md, 4). Whoever
     makes the batch, a party, a run's delegation, a procedure's step,
     an accepted proposal or a recurrence, the check is the same. The
     tasks child answers it alone too, for a charter and an authority's

@@ -1,4 +1,4 @@
-//! Routing (protocol/channel/README.md, section 4, and protocol/channel/worker-link.md, section 1.2); Debug (jig/docs/design/protocol/service.md, 11.3).
+//! Routing (protocol/channel/README.md, section 4, and protocol/channel/worker-link.md, section 1.2); Debug (jig/docs/design/protocol/service-parts.md, 1.3).
 use crate::{
     Bound, Event, Limits, Loss, Request, Unsent, Worker,
     connection::{Connection, Ending, Phase},

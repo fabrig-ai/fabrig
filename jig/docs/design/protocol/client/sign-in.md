@@ -23,7 +23,7 @@
   platform's identity) runs that flow on its own routes, redirects
   included, in its own server, verifies the identity, and gives the
   component `Mint { exchange, identity }`: a provider's number, as its
-  configuration numbers it (`../configuration.md`, section 3, providers),
+  configuration numbers it (`../configuration-engine.md`, section 1, providers),
   the subject there, and a login and a name for display. The component
   makes a sign-in for it, as above, and answers `Minted` with its
   credential and the sign-in's expiry; or `MintRefused`, saying why: a
@@ -172,7 +172,7 @@
   - *Reuse extends nothing:* the kept sign-in's expiry, the cookie's
     `Max-Age` and the bearer's file stay as they were.
 
-  It is enabled by configuration (`../configuration.md`, section 3,
+  It is enabled by configuration (`../configuration-engine.md`, section 1,
   clients), and only where the application's clients' listener is on
   loopback, which its startup checks (`../service.md`, section 3).
 - **The asked link,** for the browser of a person signed in already:
@@ -409,7 +409,7 @@
     ```
 
   It is enabled by configuration apart from the printed link
-  (`../configuration.md`, section 3, clients, `approval`), and only where
+  (`../configuration-engine.md`, section 1, clients, `approval`), and only where
   the application's clients' listener is on loopback, which its startup
   checks as for the link (`../service.md`, section 3). An application at
   a public name has that listener behind its TLS proxy, so the same
@@ -462,7 +462,7 @@
       the reissue is the core's before it, since the component's events
       reach the core in the order sent, and the reissue ends it.
     - *Its records,* in `jig-client-protocol-wire`'s schema, from jig's
-      client wire 43, unbridged (`README.md`, section 6), each appended
+      client wire 43, unbridged (`versions.md`, section 1), each appended
       last: `record ReissueService { party: u64 }`, `Ask`'s
       `reissue_service: ReissueService`, and `Made`'s `reissued:
       MadeService`, the record a made service is answered with, since

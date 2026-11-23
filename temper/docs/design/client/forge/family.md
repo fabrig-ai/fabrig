@@ -232,7 +232,7 @@ the person to check existence and grant the repository to the App.
   a field or leaves the page. Adopted, the fields go back to their
   defaults (written by the domain, so the view writes them).
 - **Out of date:** when the engine does not serve this client's version
-  of the forge's records (jig's `protocol/client/README.md`, section 6), the
+  of the forge's records (jig's `protocol/client/versions.md`, section 1), the
   page says so in its shell's words: the terminal's "This temper is out
   of date for adopting repositories: run the temper the engine runs.",
   the browser's "This page is out of date for adopting repositories:

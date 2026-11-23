@@ -468,9 +468,9 @@ outcomes; the deployment's and installation's ids.
   served, and holds its requests unsent until it reloads (jig's
   `client/domain/client/watches.md`, 2).
 - **A kept request of another version is dropped,** and the person told
-  (jig's `protocol/client/README.md`, section 7). Its outcome may have been
+  (jig's `protocol/client/small-store.md`, section 1). Its outcome may have been
   committed before the stop, so the notice says it may have been made.
-  Patching them too is open (section 15).
+  Patching them too is open (`upgrades.md`, section 15).
 
 ### 7.5 What is lost
 

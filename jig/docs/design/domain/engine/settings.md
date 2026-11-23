@@ -16,8 +16,8 @@ section 17; the records are `../../protocol/store/keys.md`, 1.4.
 
   | Kind | Number | Value | Read |
   |---|---|---|---|
-  | charter | the charter's, 1 to 64, the defaults' 1 to 32 (below) | a charter whole: its instructions as text, its documents (9), its models, tool families, hosts, waiting, resume and default budget (`../../protocol/configuration.md`, section 3); or, over a default, an overlay: the fields it replaces and the text it adds after the default's (`overlays.md`) | at each run's preparation, from the run's revision (3), an overlay laid over its default |
-  | template | the template's, 1 to 64, the defaults' 1 to 32 (below) | a template whole (`../../protocol/configuration.md`, 3.1) | when `me` is served (`views.md`, 1): the newest |
+  | charter | the charter's, 1 to 64, the defaults' 1 to 32 (below) | a charter whole: its instructions as text, its documents (9), its models, tool families, hosts, waiting, resume and default budget (`../../protocol/configuration-engine.md`, section 1); or, over a default, an overlay: the fields it replaces and the text it adds after the default's (`overlays.md`) | at each run's preparation, from the run's revision (3), an overlay laid over its default |
+  | template | the template's, 1 to 64, the defaults' 1 to 32 (below) | a template whole (`../../protocol/configuration-templates.md`, 1) | when `me` is served (`views.md`, 1): the newest |
   | policy | the policy's, 1 to 64, the defaults' 1 to 32 (below) | a whole policy in a seed's format, a project made from it copying it (../model.md, 6.1) | at each `MakeProject`: the newest |
   | rules | none: one setting | the deployment's rules, whole (../authority.md, section 6) | at every decision: the newest |
   | limits | none: one setting | overrides of jig's limits, at most 256, each a limit's dotted name, a value and a reason of at most 120 bytes, ascending by name; none is the application's stock (`../../protocol/limits.md`, limits as settings) | by the application, at its start, never by the core |
@@ -30,7 +30,7 @@ section 17; the records are `../../protocol/store/keys.md`, 1.4.
   values when it builds the core (`Config`'s defaults): its models, charters,
   policies and rules, its templates, jig's chat and goal among them
   where it wants them, which jig gives as values made for the charter
-  they run (`../../protocol/configuration.md`, 3.1); its own kinds'
+  they run (`../../protocol/configuration-templates.md`, 1); its own kinds'
   defaults it gives the connectors that own them, never the core
   (5). An application that passes none has `jig-protocol-config`
   read them from the document (7).
@@ -82,7 +82,7 @@ section 17; the records are `../../protocol/store/keys.md`, 1.4.
     kinds numbered by a charter or a template bound their numbers in
     their connectors (5), as their owner designs.
 - **Checked whole, by one check.** The core checks settings as a start
-  has always checked the document (`../../protocol/configuration.md`, sections 3 and 3.1 and `../../protocol/limits.md`
+  has always checked the document (`../../protocol/configuration-engine.md`, section 1, and `../../protocol/configuration-templates.md`, section 1 and `../../protocol/limits.md`
   ): each value in its shape and within its bound
   (a charter's instructions within the journal's run bytes, its budgets
   above its reserve and holding one of its default model's costliest
@@ -197,8 +197,8 @@ section 17; the records are `../../protocol/store/keys.md`, 1.4.
   a project's policy the change itself sets. The
   next `MakeProject` copies the policy as changed; a project made before
   keeps its own copy (../people/acts.md, 2). Clients re-read `me`'s templates,
-  and a template removed leaves its number unused (`../../protocol/configuration.md`,
-  3.1). A task made after the change reads its
+  and a template removed leaves its number unused (`../../protocol/configuration-templates.md`,
+  1). A task made after the change reads its
   charter from the new revision; running work, 17.4.
 - **Asking is deciding.** A change is an owner's direct request,
   decided as it is admitted. One proposed by someone who may not make it
@@ -628,7 +628,7 @@ requires no additional limit or root-to-core allowance (decided 2026-11-03).
   so a first start and a second after a crash do the same.
 - **The document's members as defaults.** An application that passes
   no defaults gives the document's `llm` models, `charters`, `templates`, `policies`
-  and `rules` (`../../protocol/configuration.md`, section 3), and the
+  and `rules` (`../../protocol/configuration-engine.md`, section 1), and the
   store's changes lie over them as over any defaults. A deployment that
   restarts with the same document and no change behaves as it did; a
   document edited between starts gives the release's new defaults
@@ -855,7 +855,7 @@ models and a charter name.
   moves one.
 - **A charter's models are names, resolved.** A charter names its first
   choices, in order, and whether **the rest** follow
-  (`../../protocol/configuration.md`, section 3). Its resolution is each
+  (`../../protocol/configuration-engine.md`, section 1). Its resolution is each
   name's record in the catalogue, at the effort the charter selects for
   it where it selects one (`../tasks/README.md`, section 3), withdrawn ones dropped, the main the
   first left; then, with the rest, every other model in number order,
@@ -899,7 +899,7 @@ The core alone turns it into settings, as the one decider that's neither a party
 the release nor a first start. It moves no running work.
 
 - **Placing a read.** The core gives the fleet the account's grant and the
-  endpoint its provider names (`../../protocol/configuration.md`, section 3). The
+  endpoint its provider names (`../../protocol/configuration-engine.md`, section 1). The
   fleet holds it until a connected worker's bounds hold that endpoint, sends it to
   the one with the most free slots, one read in flight per worker, and holds it
   again if that worker's channel is lost before it answers. A renewal reaches a

@@ -84,7 +84,7 @@ use jig_domain_accounts::{self as accounts, Kind, Ways};
 use jig_domain_authority as authority;
 use jig_domain_people as people;
 
-/// Policy copied into a later project (configuration.md, 3; domain/model.md, 6.1).
+/// Policy copied into a later project (protocol/configuration-engine.md, 1; domain/model.md, 6.1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct ConfiguredPolicy {
     pub policy: authority::Policy,
@@ -92,7 +92,7 @@ pub struct ConfiguredPolicy {
     pub templates: Box<[people::TemplateOverride]>,
 }
 
-/// One first-start project seed (configuration.md, 3; domain/model.md, 6.1).
+/// One first-start project seed (protocol/configuration-engine.md, 1; domain/model.md, 6.1).
 #[derive(Clone, Hash, Debug)]
 pub struct SeedProject {
     pub number: u32,
@@ -101,7 +101,7 @@ pub struct SeedProject {
 }
 
 /// Application-supplied initial core state, in jig's vocabulary
-/// (`domain/engine/restart.md`; `configuration.md`, 3).
+/// (`domain/engine/restart.md`; `protocol/configuration-engine.md`, 1).
 #[derive(Clone, Debug)]
 pub struct Config {
     /// Identity committed with the first decision.
@@ -124,7 +124,7 @@ pub struct Config {
     pub kinds: Box<[settings::Kind]>,
     /// Deployment and run settings retained by the core.
     pub settings: Settings,
-    /// Projects used only by the first start (configuration.md, 3).
+    /// Projects used only by the first start (protocol/configuration-engine.md, 1).
     pub seed_projects: Box<[SeedProject]>,
     /// Numbered connectors the application routes for task lifecycle handoffs.
     pub connectors: Box<[u16]>,
@@ -162,7 +162,7 @@ pub struct Settings {
 }
 
 impl Settings {
-    /// The provider's credential endpoint, where configured (protocol/configuration.md, 3).
+    /// The provider's credential endpoint, where configured (protocol/configuration-engine.md, 1).
     #[must_use]
     #[expect(clippy::manual_find, reason = "the strict subset iterates without a closure")]
     pub fn direct_endpoint(&self, provider: u32) -> Option<&EndpointFacts> {
@@ -248,7 +248,7 @@ impl ToolFamilies {
 pub struct EndpointFacts {
     /// Providers that name this endpoint for added models (domain/engine/settings.md, 11).
     pub providers: Box<[u32]>,
-    /// Providers that name this endpoint as their direct way (protocol/configuration.md, 3).
+    /// Providers that name this endpoint as their direct way (protocol/configuration-engine.md, 1).
     pub direct: Box<[u32]>,
     pub number: u32,
     pub dialect: u32,

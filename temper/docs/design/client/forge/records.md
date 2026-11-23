@@ -25,10 +25,10 @@
   its schema and generated records, and moves its
   version by one, its layouts' list taking the new version's line;
   `PUBLIC_VERSION` does the same for the visitors' records (jig's
-  `protocol/client/README.md`, section 6).
-  The engine serves exactly one version (jig's `protocol/client/README.md`, section 6): a client of another
+  `protocol/client/versions.md`, section 1).
+  The engine serves exactly one version (jig's `protocol/client/versions.md`, section 1): a client of another
   is out of date for the forge (`family.md`, 4), and its kept adoption is dropped
-  as kept work at start (`../line.md`, 6; jig's `protocol/client/README.md`, section 7).
+  as kept work at start (`../line.md`, 6; jig's `protocol/client/small-store.md`, section 1).
 ## 2. Requests
 
 Moved to [`records-requests.md`](records-requests.md), section 1.

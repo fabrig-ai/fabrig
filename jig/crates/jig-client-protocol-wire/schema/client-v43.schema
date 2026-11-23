@@ -31,8 +31,8 @@ family jig-client-wire 43
 # Remaining documents and stream (protocol/client/wire.md, 1, and protocol/client/README.md, 5).
 # Account deadlines are optional wall times; absence supplies no deadline.
 # Account changes share the account documents' payer type and ACCOUNT_USES bound.
-# Kept.record: TableEntry's widest encoding (jig/docs/design/protocol/client/README.md, 7).
-# Small store (protocol/client/README.md, 7); TableEntry.request has Keyed.request's ceiling.
+# Kept.record: TableEntry's widest encoding (jig/docs/design/protocol/client/small-store.md, 1).
+# Small store (protocol/client/small-store.md, 1); TableEntry.request has Keyed.request's ceiling.
 # A read value preserves the contract variant as well as its existing document.
 # Chips.rows and Inbox.needs/updates/selection: jig_client_domain::Limits::document_bytes; each item is a length-prefixed piece.
 # A delivery preserves its contract variant and the whole document.

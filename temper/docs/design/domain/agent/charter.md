@@ -8,7 +8,7 @@ engine's routing encodes it (`../../protocol/llm.md`, section 5).
 ## 1. Instructions and brief
 
 - **Instructions:** the charter's, from the deployment's configuration
-  (jig's `protocol/configuration.md`, section 3): a chat's, a
+  (jig's `protocol/configuration-engine.md`, section 1): a chat's, a
   coordinator's, a reviewer's with a lens, a change's producer's; until
   an amendment gives a task its own (jig's `domain/tasks/changes.md`
   ), whole, where an empty text leaves it none, not its charter's. The

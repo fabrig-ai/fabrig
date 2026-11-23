@@ -186,7 +186,7 @@ This document holds the box's supervision, split from [`box.md`](box.md).
 
   **Where the box draws none.** It draws none, and gives none, where it
   cannot print a link that works: the document's printed link not enabled
-  (jig's `protocol/configuration.md`, section 3, clients), which prints no block at
+  (jig's `protocol/configuration-engine.md`, section 1, clients), which prints no block at
   all; a clients' listener at port 0, not held (`box.md`, 1), so with no port to
   print, whose block is written at serve's first link, in these same words;
   and a link step among the steps, whose line is given to it (`playground.md`), with no

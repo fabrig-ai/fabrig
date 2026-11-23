@@ -271,7 +271,7 @@ section 6, effective authority). An owner who wants work in flight
 stopped cancels it. The policy's overrides of the application's
 templates (../authority.md, section 6) reach only what clients create after
 them: a task keeps the values it was made with
-(`../../protocol/configuration.md`, 3.1).
+(`../../protocol/configuration-templates.md`, 1).
 
 Its owners change its policy part by part, or whole as an item of a
 change of settings (../engine/settings.md, 2), so that one decision sets the
@@ -435,7 +435,7 @@ deployment requests the tasks its configuration or a connector starts
 configuration's grant and the act's own subject are its whole check.
 
 - **Who may:** a connector the configuration grants that kind of act
-  (`../../protocol/configuration.md`, section 3), while the configuration
+  (`../../protocol/configuration-engine.md`, section 1), while the configuration
   names a first owner (`README.md`, section 3): the deployment's acts are its owners'
   decisions, made for them by a connector they configured. An act of a
   kind the configuration does not grant its connector is refused *not

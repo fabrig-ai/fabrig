@@ -25,7 +25,7 @@ Draft, 2026-11-21, from the user's words that day: support setting fast or ultra
 
 ## 3. A model's speeds
 
-- **`speeds`,** a new member of the `model` setting (jig's `protocol/configuration.md`, section 3; jig's `domain/engine/settings.md`, section 1): at most four, each with:
+- **`speeds`,** a new member of the `model` setting (jig's `protocol/configuration-engine.md`, section 1; jig's `domain/engine/settings.md`, section 1): at most four, each with:
   - its name, as its provider takes it (`fast`, `ultrafast`), sent as it is;
   - its prices, the same four as the model's (input, cached input, output, and cache writes where priced apart), in the model's price unit, each at least the model's own, since a faster speed never costs less;
   - `also`, optional: at most two other names the provider may report it served under, as `priority` for OpenAI's Fast.

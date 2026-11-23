@@ -9,7 +9,7 @@
 //!
 //! Model index `i` is catalogue setting `i + 1` and bit `i` of `Models`; a hole has no
 //! efforts and belongs to no charter. Effort `e` is the `e`th effort that row declares
-//! (domain/engine/settings.md, 11; `../protocol/configuration.md`, section 3).
+//! (domain/engine/settings.md, 11; `../../../docs/design/protocol/configuration-engine.md`, section 1).
 
 use alloc::boxed::Box;
 
@@ -18,7 +18,7 @@ use skein_lib::List;
 use crate::domain::Domain;
 use crate::{Authority, Executor, Models, Refusal};
 
-/// Most catalogue rows, the bits of `Models` (`../protocol/configuration.md`, section 3). A
+/// Most catalogue rows, the bits of `Models` (`../../../docs/design/protocol/configuration-engine.md`, section 1). A
 /// choice's sub-agents name at most this many.
 pub const MODELS: u32 = 64;
 
@@ -258,7 +258,7 @@ impl Domain {
                 continue;
             }
             // The first effort is the fallback; core applies each charter model's named
-            // default (configuration.md, 3) when it resolves a run's choice.
+            // default (protocol/configuration-engine.md, 1) when it resolves a run's choice.
             let chosen = ModelEffort { model: *model, effort: first_effort(self, *model) };
             match main {
                 None => main = Some(chosen),

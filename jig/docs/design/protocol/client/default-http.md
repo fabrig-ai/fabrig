@@ -39,7 +39,7 @@ prefix; jig's test application mounts it at `/jig`.
   its route `400`, and one past the route's bound `413`, each with
   nothing done; any other method or path under the prefix is `404`, but
   a `GET` of the link's route (below) and the public reads' (5). The guards' answers are the
-  example guards' (`../browser/README.md`, 12.2).
+  example guards' (`../browser/serving.md`, 1.2).
 - **The printed link's URL** is `<prefix>/v1/sign-in/link?secret=…` on
   the loopback address the application's server listens on, which the
   application's startup prints; where the application gives the mapping
@@ -51,7 +51,7 @@ prefix; jig's test application mounts it at `/jig`.
   application's page, which the server answers there, with
   `Referrer-Policy: no-referrer`; the shell takes the secret out of the
   address and `POST`s it, with the browser header, which signs in
-  (`../browser/README.md`, section 11). A native client sends the secret by the
+  (`../browser/sign-in.md`, section 1). A native client sends the secret by the
   same `POST`. An asked link's URL (`sign-in.md`) is the same, with its
   secret, on the address its client reaches the engine at: the mapping's
   client end makes it, byte for byte as the engine end makes the printed
@@ -65,7 +65,7 @@ prefix; jig's test application mounts it at `/jig`.
   with the link route's referrer policy, spending nothing. The secret is
   still spent by the link route's `POST`, as above. The client end takes
   a link in either form, as one link (4), and so does the browser's
-  sign-in part (`../browser/README.md`, section 11). Where the
+  sign-in part (`../browser/sign-in.md`, section 1). Where the
   application gives a page, each end makes the page's form, the printed
   link's (the engine end's) and an asked link's (the client end's), and
   where it gives none, the route's (4); the route's form stays taken,
@@ -150,9 +150,9 @@ prefix; jig's test application mounts it at `/jig`.
   `app.example.com`, as a browser sends it in `Host`. The
   application gives it the mapping when it mounts it, beside the
   prefix, or gives none; it is no member of jig's configuration, as
-  the listener is not (`../configuration.md`, section 3). The `Host`
+  the listener is not (`../configuration-engine.md`, section 1). The `Host`
   allow-list holds it beside the listener's own addresses
-  (`../browser/README.md`, 12.2), and each exchange is decided by its `Host`
+  (`../browser/serving.md`, 1.2), and each exchange is decided by its `Host`
   alone, byte for byte as the request sent it, with no case folded and
   no port normalised: one that came by the public name came through the
   proxy, over TLS, and its cookie is `Secure`; one that came by the
@@ -171,8 +171,8 @@ prefix; jig's test application mounts it at `/jig`.
 - **The browser header,** `Jig-Client: browser`, on every request a
   browser makes under the prefix, the stream's `GET` among them, added
   by the browser's transport: in jig's browser parts, the client's
-  adapter (`../browser/README.md`, 5.1 and section 11). The engine end checks it
-  (`../browser/README.md`, 12.2): an exchange carrying it is a browser's, its
+  adapter (`../browser/loop.md`, 1.1, and `../browser/sign-in.md`, 1). The engine end checks it
+  (`../browser/serving.md`, 1.2): an exchange carrying it is a browser's, its
   sign-in answered with the cookie; any other, with the credential in
   its answer's body.
 - **The credential's carrier, told to the component:** the engine end
@@ -213,7 +213,7 @@ prefix; jig's test application mounts it at `/jig`.
   come, each a `Part`, then `Done` or `Lost` (6); `OpenStream` as the
   stream's `GET`, naming the stream it replaces, its body cut
   into messages (2). The native shell and the reference's browser
-  client host use it (`../browser/README.md`, 3.2); an application's own shell
+  client host use it (`../browser/application.md`, 1.2); an application's own shell
   may.
 - **Its `Mapping`** is the application's: its prefix, and its link page
   where it gives one (1). `Mapping::new(prefix)` makes one with no page
@@ -319,7 +319,7 @@ prefix; jig's test application mounts it at `/jig`.
   bearer on these routes, and hands the component no credential, so the
   answer is the same for every visitor, signed in or not, and varies on
   nothing the request carries but its path. The guards that stand are
-  the `Host` allow-list (`../browser/README.md`, 12.2), checked first; a public
+  the `Host` allow-list (`../browser/serving.md`, 1.2), checked first; a public
   read changes nothing, as the printed link's `GET` does not
   (`../browser/README.md`, section 18), so it needs neither the browser header nor
   a content type. No guard of another route is relaxed.
@@ -334,7 +334,7 @@ prefix; jig's test application mounts it at `/jig`.
   - *busy:* `503`, no body, `Cache-Control: no-store` and `Retry-After`
     of one second; nothing waits;
   - *a version not served:* `200` with its record, as every version
-    reads it (`README.md`, section 6), and `Cache-Control: no-store`.
+    reads it (`versions.md`, section 1), and `Cache-Control: no-store`.
 
   Every answer, a malformed path's and a guard's among them, carries
   `X-Content-Type-Options: nosniff`, and none sets a cookie or carries
@@ -342,7 +342,7 @@ prefix; jig's test application mounts it at `/jig`.
   header. No answer allows stale serving: no `stale-while-revalidate`,
   no `stale-if-error`. The engine end gives these and no others; the
   application's server adds its page's policy to every answer of its
-  origin's, these among them (`../browser/README.md`, 12.1), as it would any
+  origin's, these among them (`../browser/serving.md`, 1.1), as it would any
   other: the same fields on every answer, varying on nothing the
   request carries, and its `Cross-Origin-Resource-Policy: same-origin`
   keeps another origin's page from loading the document at all.
@@ -417,7 +417,7 @@ Many of jig's messages in one exchange, each answered as it is ready
   piece of a batch's body to the client end as it arrives; the
   browser's shell through skein's fetch reading the exchange's body in
   pieces (skein's `ui/web/effects.md`, section 1), each read on after the step, as the
-  stream is (`../browser/README.md`, 5.2).
+  stream is (`../browser/loop.md`, 1.2).
 
 ## 7. Later
 

@@ -425,7 +425,7 @@ Nothing decides on a fact.
   client and the application see a run's text the same way from an agent
   process and from `smith-inline-agent`.
 - **What jig asks of smith, later:** the LLM component's abort and
-  closed terminal (`../../protocol/README.md`, section 11).
+  closed terminal (`../../protocol/needs.md`, section 2).
 - **A conversation's delegated tasks give no text.** Only the run of the
   conversation's own task is asked; a task it delegates streams nothing
   (`README.md`, section 10).
@@ -612,7 +612,7 @@ section 2):
     progress (`README.md`, 5.1).
 - **Who links smith:** `jig-protocol-charter` (`charters.md`), a worker's
   agents part, `jig-protocol-worker-agents`, which an application whose
-  workers run no agents leaves out (`../../protocol/service.md`, 11.2), a
+  workers run no agents leaves out (`../../protocol/service-parts.md`, 1.2), a
   client's decoding of turns (`../../client/domain/client/conversations.md`),
   and an application's roots that compose smith's agent capability, with
   their protocol layers' routing, which also runs smith's components

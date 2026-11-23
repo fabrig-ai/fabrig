@@ -122,8 +122,8 @@ configures work:
 - **A project's own policy** is in the store already, changed by its
   owners (jig's `domain/people/acts.md`, 2), and stays as it is.
 - **Only charters are read after a task is made.** A template's values
-  are copied into the task it fills (jig's `protocol/configuration.md`,
-  3.1), a project keeps a copy of the policy it was made from (jig's
+  are copied into the task it fills (jig's `protocol/configuration-templates.md`,
+  1), a project keeps a copy of the policy it was made from (jig's
   `domain/people/acts.md`, 2), and the rules are guards that every decision
   reads afresh. That is why only charters need revisions.
 - **What stays in the document:** the directories, the listeners, the

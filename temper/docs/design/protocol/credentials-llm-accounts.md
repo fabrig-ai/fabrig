@@ -12,8 +12,8 @@ sources in its holder's order. temper configures the LLM providers
 `temper-box program-login`, below.
 
 - **Made from the client, never configured.** Configuration names LLM
-  providers, never an account (jig's `protocol/configuration.md`, section
-  3). A fresh deployment has no account but a *none* source's, so no run
+  providers, never an account (jig's `protocol/configuration-engine.md`, section
+  1). A fresh deployment has no account but a *none* source's, so no run
   on another LLM provider starts until a person adds one, and the client
   says so (`../client/view.md`, 1).
 - **Kept by jig:** a signed-in record and a key in jig's secrets' store
