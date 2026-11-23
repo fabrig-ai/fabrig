@@ -379,7 +379,8 @@ def close_budgets(root, repository, env, runs):
     findings = []
     for key in sorted({key for key, _ in measured.values()}):
         before, after = base_layers[key], head[key]
-        allowance = counts['allowance'](before, credits.get(key, 0))
+        accepted = profile.get(key[0], {}).get(key[1], {}).get('accepted_instructions')
+        allowance = counts['allowance'](before, credits.get(key, 0), accepted)
         ceiling = ceilings.get(key)
         over = ceiling is not None and before <= ceiling < after
         increase = after - before

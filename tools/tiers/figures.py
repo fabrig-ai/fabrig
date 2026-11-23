@@ -73,7 +73,7 @@ def profile_figures(table, side, profile):
             figures = {key: number(row, key, f'{place}.{key}')
                        for key in ('cpu_s', 'reference_s', 'ideal_s')}
             figures.update({key: instructions(row, key, f'{place}.{key}')
-                            for key in ('instructions', 'ideal_instructions')})
+                            for key in ('instructions', 'ideal_instructions', 'accepted_instructions')})
             rows[group, layer] = figures
             normalized[group][layer] = {'cpu_s': figures['cpu_s'] or 0}
     moves = Counter()
@@ -117,7 +117,7 @@ def compare(base, head, layers, base_name, head_name):
 
     def raised(place, old, new, *, ceiling=False, added=False):
         before, after = (old or 0, new or 0) if ceiling else (old, new)
-        if before is None and after is not None and added:
+        if old is None and new is not None and added:
             findings.append((place, f'figure added: {place}: {text(new)}'))
         elif before is not None and (after is None or round(after, 3) > round(before, 3)):
             findings.append((place, f'figure raised: {place}: {text(old)} to {text(new)}'))
@@ -157,6 +157,9 @@ def compare(base, head, layers, base_name, head_name):
             for field, label in (('instructions', 'ceiling'), ('ideal_instructions', 'ideal')):
                 raised(f'{profile} {group} {layer} instruction {label}',
                        previous.get(field), row.get(field), added=True)
+            # Without an accepted level, the layer grows by its usual allowance alone (budgets.md, 8).
+            raised(f'{profile} {group} {layer} instruction accepted level',
+                   previous.get('accepted_instructions'), row.get('accepted_instructions'), ceiling=True, added=True)
         for (source, target, why), amounts in sorted(new['instruction_moves'].items()):
             remaining = Counter(old['instruction_moves'].get((source, target, why), ()))
             changed = []

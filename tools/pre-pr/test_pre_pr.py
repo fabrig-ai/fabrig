@@ -354,9 +354,9 @@ class CloseBudgets(unittest.TestCase):
         commit = self.git('commit-tree', tree, '-m', 'published counts')
         self.git('update-ref', 'refs/temper/counts', commit)
 
-    def budget_table(self, ceiling=200 * G, moves=''):
+    def budget_table(self, ceiling=200 * G, moves='', accepted=''):
         (self.tiers / 'budgets.toml').write_text(
-            f'[gate.default.skein.step]\ninstructions = {ceiling}\n'
+            f'[gate.default.skein.step]\ninstructions = {ceiling}\n{accepted}'
             f'[gate.default.skein.simulated]\ninstructions = {100 * self.G}\n' + moves)
 
     def process(self, instructions, *, binary=BINARY, kind='tests', tree='skein', layer='step'):
@@ -430,6 +430,16 @@ class CloseBudgets(unittest.TestCase):
         self.assertIn('100000000000 at base, 101000000000 at head, growth 1.00%, allowance 2000000000', error['log'])
         self.budget_table(99 * self.G)
         self.assertEqual(self.verdict(run), [])
+
+    def test_accepted_level_passes_growth_up_to_it(self):
+        self.publish()
+        self.budget_table(accepted=f'accepted_instructions = {105 * self.G}\n')
+        self.assertEqual(self.verdict(self.result(self.process(30 * self.G))), [])
+        error, = self.verdict(self.result(self.process(31 * self.G)))
+        self.assertIn('100000000000 at base, 106000000000 at head, growth 6.00%, allowance 5000000000', error['log'])
+        self.budget_table(103 * self.G, accepted=f'accepted_instructions = {105 * self.G}\n')
+        error, = self.verdict(self.result(self.process(29 * self.G)))
+        self.assertIn('over instruction ceiling 103000000000', error['log'])
 
     def test_credit_counts_only_new_moves_and_uses_the_base_binaries(self):
         run = self.result(self.process(28 * self.G))

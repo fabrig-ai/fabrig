@@ -119,6 +119,21 @@ class AllowanceTests(unittest.TestCase):
                     self.assertTrue(verdict('fixture', main + allowed + 1, main, None, state, [],
                                             move_credit=credit))
 
+    def test_accepted_level_raises_the_allowance_alone(self):
+        cpu = runpy.run_path(str(HERE / 'cpu.py'))
+        verdict = cpu['instruction_verdict']
+        state = dict(instructions_budget=10**15, instructions_ceiling=10**15,
+                     main_instructions_budget=10**15, main_instructions_lowest=None)
+        main = 100_000_000_000
+        for accepted, credit, limit in ((106_000_000_000, 0, 6_000_000_000), (106_000_000_000, 10, 6_000_000_000),
+                                        (101_000_000_000, 0, 2_000_000_000), (90_000_000_000, 10, 2_000_000_010)):
+            with self.subTest(accepted=accepted, credit=credit):
+                self.assertEqual(counts.allowance(main, credit, accepted), limit)
+                self.assertIsNone(verdict('fixture', main + limit, main, None, state, [],
+                                          move_credit=credit, accepted=accepted))
+                self.assertTrue(verdict('fixture', main + limit + 1, main, None, state, [],
+                                        move_credit=credit, accepted=accepted))
+
 
 if __name__ == '__main__':
     unittest.main()
