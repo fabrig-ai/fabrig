@@ -618,7 +618,7 @@ def close_budgets(root, repository, env, runs):
         if count > before:
             grew[key].append((count - before, binary))
 
-    findings, warnings = [], []
+    findings, warnings, figures = [], [], []
     for key in sorted({key for key, _ in measured.values()}):
         before, after = base_layers[key], head[key]
         accepted = profile.get(key[0], {}).get(key[1], {}).get('accepted_instructions')
@@ -640,6 +640,10 @@ def close_budgets(root, repository, env, runs):
         found.append(f'{key[0]} default {key[1]}: {reason}, {before} at base, {after} at head, '
                      f'growth {growth}, allowance {allowance} instructions')
         causes = sorted(grew[key], key=lambda cause: (-cause[0], cause[1]))
+        if sure:
+            figures.append(dict(tree=key[0], layer=key[1], base=before, head=after, allowance=allowance,
+                                limit=limit if over else None, margin=margin, base_commit=base,
+                                binaries=[dict(binary=binary, growth=grown) for grown, binary in causes[:10]]))
         found.extend(f'  {binary}: +{increase} instructions' for increase, binary in causes[:10])
         if len(causes) > 10:
             found.append(f'  {len(causes) - 10} more binaries')
@@ -652,7 +656,25 @@ def close_budgets(root, repository, env, runs):
     report = '\n'.join([*findings, cpu['REPAIR_LINE']])
     if len(report.encode()) >= 1536:
         print(report, flush=True)
-    return [failure('budgets', report)]
+    error = failure('budgets', report)
+    error['figures'] = figures
+    error['diagnostic'] = budget_line(figures[0]) + '\n'
+    return [error]
+
+
+def budget_line(figure):
+    """One refusing layer in the hold's 128 bytes: what grew, by how much, against what."""
+    head = f"budgets {figure['tree']} {figure['layer']}: "
+    if figure['limit'] is not None:
+        text = f"over {figure['limit'] / 1e9:.1f}e9 at {figure['head'] / 1e9:.1f}e9"
+    else:
+        base = figure['base'] or 1
+        text = (f"+{100 * (figure['head'] - figure['base']) / base:.2f}%, allowance "
+                f"{100 * figure['allowance'] / base:.2f}%")
+    text += f", {figure['base'] / 1e9:.1f}e9 to {figure['head'] / 1e9:.1f}e9"
+    if figure['binaries']:
+        text += f", most {figure['binaries'][0]['binary']}"
+    return (head + text).encode()[:127].decode(errors='ignore')
 
 
 def merge_tests(root, env):
@@ -1065,8 +1087,10 @@ def failure_file(tree_id, base_id, verdict, cached, errors, root, env, scope='fu
                 elif key and len(key) == 4 and error['name'].startswith('old-forms '):
                     structured = dict(zip(('kind', 'tree', 'form', 'count', 'baseline'), ('old-forms', *key)))
                 entry = {'class': kind, 'name': error['name'], 'key': structured}
-                if error['name'] == 'format':
+                if error['name'] in ('format', 'budgets'):
                     entry['detail'] = error['log'].strip()
+                if error.get('figures'):
+                    entry['figures'] = error['figures']
                 entries.append(entry)
         header = {'form': 'pre-pr-failures 1', 'tree': tree_id, 'base': base_id,
                   'cached': cached, 'verdict': 'refused' if verdict else 'passed',
@@ -1149,10 +1173,10 @@ def summary(base_id, lints, tests, errors, reason, failures_tail, starved=(), sc
     if refused and scope == 'close' and new:
         # The close job's hold keeps only the last 128 bytes of the check's stderr: name the first failure there.
         first = new[0]
-        # A failed case, a compiler error or a panic says most; else the log's last line, not its cut marker.
+        # A failed case, a compiler error or a panic says most; else the log's first line, not its cut marker.
         texts = [text.strip() for text in first['log'].splitlines() if text.strip() and not text.startswith('[… ')]
         telling = [text for text in texts if text.startswith(('FAIL', 'error', 'thread ')) or 'panicked' in text]
-        line = diagnostic.strip() or first['name'] + ': ' + (telling or texts or [''])[0 if telling else -1]
+        line = diagnostic.strip() or first['name'] + ': ' + (telling or texts or [''])[0]
         print(line.encode()[:127].decode(errors='ignore'), file=sys.stderr, flush=True)
     return int(refused)
 
