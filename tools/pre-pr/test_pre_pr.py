@@ -685,9 +685,14 @@ class CloseBudgets(unittest.TestCase):
         self.assertEqual(self.verdict(self.result(self.process(30 * self.G))), [])
         error, = self.verdict(self.result(self.process(31 * self.G)))
         self.assertIn('100000000000 at base, 106000000000 at head, growth 6.00%, allowance 5000000000', error['log'])
-        self.budget_table(103 * self.G, accepted=f'accepted_instructions = {105 * self.G}\n')
-        error, = self.verdict(self.result(self.process(29 * self.G)))
-        self.assertIn('over instruction ceiling 103000000000', error['log'])
+
+    def test_accepted_level_raises_the_close_limit_above_the_ceiling(self):
+        self.publish()
+        self.budget_table(100 * self.G + 1, accepted=f'accepted_instructions = {101 * self.G}\n')
+        self.assertEqual(self.verdict(self.result(self.process(25 * self.G + 2))), [])
+        self.assertEqual(self.verdict(self.result(self.process(26 * self.G))), [])
+        error, = self.verdict(self.result(self.process(26 * self.G + 1)))
+        self.assertIn('over accepted instruction level 101000000000', error['log'])
 
     def test_credit_counts_only_new_moves_and_uses_the_base_binaries(self):
         run = self.result(self.process(28 * self.G))
