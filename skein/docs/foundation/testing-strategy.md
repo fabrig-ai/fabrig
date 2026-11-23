@@ -786,8 +786,21 @@ strategy in full, as the red says; then it asks these questions, in order:
 2. **If it belongs, can it be made faster?** Find an inefficiency in the
    code under test or in the test: O(n) where O(1) would do, needless
    complication, or a missing cache at some level. Fix that cause.
+   Faster means the same checks for less. Checking less in any form is
+   raising the budget too, and stays forbidden: a lower sample, fewer
+   seeds, cases, commits or assertions, a shorter story, a test removed,
+   merged away or ignored. That is the third question's.
 3. **If neither, what does the user decide?** Take the measurements to
-   the user; the user decides.
+   the user; the user decides. No role decides it on the user's behalf,
+   neither the change, nor its goal, nor the milestone or party above
+   it.
+
+**Checking less is red too,** at the gate, beside the budgets: a test
+main ran that the change's run doesn't, or a kit's count of checks done
+below main's, unless a reason line says why
+(`tools/tiers/budgets.md`, 13). A test whose code is gone, a duplicate,
+a rename or a move to a layer the gate doesn't run is a reason the
+change may give itself. "To fit the budget" is the user's alone.
 
 ## 9. Where a failure is fixed
 
