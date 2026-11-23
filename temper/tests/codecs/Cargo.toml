@@ -14,6 +14,7 @@ doctest = false
 [dependencies]
 temper-protocol-reaches.workspace = true
 skein-lib.workspace = true
+skein-checks.workspace = true
 
 [dev-dependencies]
 sha2.workspace = true

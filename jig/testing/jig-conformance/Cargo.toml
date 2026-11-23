@@ -8,6 +8,7 @@ rust-version.workspace = true
 publish.workspace = true
 
 [dependencies]
+skein-checks.workspace = true
 skein-fork.workspace = true
 jig-domain-core-vocabulary.workspace = true
 jig-domain-authority.workspace = true

@@ -35,16 +35,16 @@ fn a_document_cut_and_delivered_at_random_decodes_whole() {
 
 #[test]
 fn neighbours_that_end_early_fail_or_close_at_any_moment_leave_a_consistent_run() {
+    let mut mutations = generate::MutationBatch::default();
     for seed in 0..60 {
         let mut rng = Rng::new(seed);
-        let mut document = document(seed);
-        if rng.chance(500) {
-            document = generate::mutate(&mut rng, &document);
-        }
+        let document = document(seed);
+        let document = if rng.chance(500) { generate::mutate(&mut rng, &document) } else { document.into() };
         let limits = world::limits(&mut rng);
-        let settings = Settings::chaotic(&mut rng, limits, document.len());
-        let _ = world::check(&document, &settings, seed);
+        let settings = Settings::chaotic(&mut rng, limits, document.input().len());
+        let _ = mutations.judge(document, |document| world::check(&document, &settings, seed));
     }
+    mutations.finish();
 }
 
 #[test]
@@ -144,13 +144,17 @@ fn a_user_that_stops_asking_stops_the_reading_and_the_stream_below_holds_the_res
 
 #[test]
 fn a_seed_replays_to_the_same_run() {
+    let mut mutations = generate::MutationBatch::default();
     for seed in 0..20 {
         let mut rng = Rng::new(seed);
         let document = generate::mutate(&mut rng, &document(seed));
         let limits = world::limits(&mut rng);
-        let settings = Settings::chaotic(&mut rng, limits, document.len());
-        assert_eq!(world::run(&document, &settings, seed), world::run(&document, &settings, seed), "seed {seed}");
+        let settings = Settings::chaotic(&mut rng, limits, document.input().len());
+        mutations.judge(document, |document| {
+            assert_eq!(world::run(&document, &settings, seed), world::run(&document, &settings, seed), "seed {seed}");
+        });
     }
+    mutations.finish();
 }
 
 #[test]

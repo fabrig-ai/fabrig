@@ -114,33 +114,41 @@ fn tree_prefix(reader: &mut Reader, at: &mut usize, length: u64, bytes: &[u8]) -
 #[test]
 fn a_mutated_frame_is_unreadable_or_its_records_one_encoding() {
     let limits = fixtures::limits();
+    let mut mutations = mutate::MutationBatch::default();
     for &seed in SEEDS {
         let mut rng = Rng::new(0x7EE0_1000 + seed);
         for record in generate::one_of_each(&mut rng, &limits) {
             let frame = check::write(&record, &limits);
             for changed in mutate::frames(&mut rng, &frame) {
-                if let Ok(read) = check::read(record.kind(), &changed, &limits) {
-                    assert_eq!(check::write(&read, &limits).as_ref(), changed, "seed {seed}");
-                }
+                mutations.judge(changed, |changed| {
+                    if let Ok(read) = check::read(record.kind(), &changed, &limits) {
+                        assert_eq!(check::write(&read, &limits).as_ref(), changed, "seed {seed}");
+                    }
+                });
             }
         }
     }
+    mutations.finish();
 }
 
 #[test]
 fn every_body_the_decoder_takes_the_encoder_writes_again_byte_for_byte() {
     let limits = fixtures::limits();
+    let mut mutations = mutate::MutationBatch::default();
     for &seed in SEEDS {
         let mut rng = Rng::new(0x7EE0_2000 + seed);
         for record in generate::one_of_each(&mut rng, &limits) {
             let bytes = check::write(&record, &limits);
-            for frame in std::iter::once(bytes.to_vec()).chain(mutate::frames(&mut rng, &bytes)) {
-                if let Ok(body) = frame::body(&frame, record.kind(), &limits) {
-                    check::canonical_body(body, &limits, seed);
-                }
+            for frame in std::iter::once(bytes.to_vec().into()).chain(mutate::frames(&mut rng, &bytes)) {
+                mutations.judge(frame, |frame| {
+                    if let Ok(body) = frame::body(&frame, record.kind(), &limits) {
+                        check::canonical_body(body, &limits, seed);
+                    }
+                });
             }
         }
     }
+    mutations.finish();
 }
 
 #[test]

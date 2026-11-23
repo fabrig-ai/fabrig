@@ -34,6 +34,7 @@ impl Story {
         }
         world.cut_passed();
         assert_eq!(world.forked, cuts, "{}: every reference boundary passed", self.name);
+        skein_checks::count("seed", 1);
     }
 }
 
