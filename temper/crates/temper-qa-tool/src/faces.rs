@@ -1,22 +1,32 @@
 //! The loop's world (qa/landings.md, 6; qa/triage.md, 5; testing/tools.md, 4.3).
 use crate::{Exit, Refusal, refused};
-use sha2::{Digest, Sha256};
+mod files;
+pub(crate) use files::private_directory;
+pub use files::{
+    DirectoryMode, FileEntry, FilesFace, LockMode, Mode, PathFacts, PathKind, RealFiles, RemoveMode, ResolveMode,
+    WriteMode, WriteOptions,
+};
 use std::{
     collections::BTreeMap,
     ffi::{OsStr, OsString},
     fs::{self, File, OpenOptions},
-    io::{BufRead, BufReader, Read, Write},
-    os::unix::{
-        ffi::OsStrExt,
-        fs::OpenOptionsExt,
-        process::{CommandExt, ExitStatusExt},
+    io::{self, BufRead, BufReader, Read, Seek, Write},
+    os::{
+        fd::OwnedFd,
+        unix::{
+            ffi::OsStrExt,
+            fs::OpenOptionsExt,
+            net::UnixStream,
+            process::{CommandExt, ExitStatusExt},
+        },
     },
     path::{Path, PathBuf},
     process::{Child, Command, Output, Stdio},
     time::Duration,
 };
 
-pub type Environment = Vec<(Box<[u8]>, Box<[u8]>)>;
+pub type EnvironmentEntry = (Box<[u8]>, Box<[u8]>);
+pub type Environment = Vec<EnvironmentEntry>;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Commit {
@@ -283,18 +293,76 @@ pub struct CommandAnswer {
     pub exit: Exit,
     pub last_stdout: Option<String>,
 }
+/// A command run with stdin closed and its streams captured or appended to a log.
+pub struct OutputCommand<'a> {
+    pub program: &'a OsStr,
+    pub arguments: &'a [OsString],
+    pub directory: Option<&'a Path>,
+    pub environment: &'a [EnvironmentEntry],
+    pub log: Option<&'a Path>,
+}
+#[derive(Debug)]
+pub struct ProcessOutput {
+    pub exit: Exit,
+    pub stdout: Vec<u8>,
+    pub stderr: Vec<u8>,
+}
+pub struct DriveProcess<C> {
+    pub process: u64,
+    pub input: C,
+    pub output: C,
+}
 pub trait Processes {
+    type Connection: Read + Write;
+
     /// Register the loop's event channel before starting children.
     fn wake_on_exit(&mut self, waker: crate::events::Waker);
     /// Run to exit with closed stdin, keeping both streams at `command.output`.
     fn run(&mut self, command: &ProcessCommand, seconds: u64) -> Result<CommandAnswer, Refusal>;
+    /// Start an agent or notification command in its own process group.
     fn start(&mut self, command: &ProcessCommand) -> Result<u64, Refusal>;
+    /// Read a child's exit if it has ended, without waiting.
     fn poll(&mut self, process: u64) -> Result<Option<Exit>, Refusal>;
+    /// Signal a child's process group.
     fn signal(&mut self, process: u64, signal: Signal) -> Result<(), Refusal>;
+    /// Run a program to its exit, stdin closed, with the given environment and directory.
+    /// Capture stdout and stderr or append both to a 0600 log; answer its exit and captured bytes.
+    fn output(&mut self, command: &OutputCommand<'_>) -> io::Result<ProcessOutput>;
+    /// Read an executable's first line of stdout for `--version` within 30 seconds,
+    /// stdin closed and stderr discarded, its exit unread.
+    fn version(
+        &mut self,
+        executable: &Path,
+        capture: &Path,
+        environment: &[EnvironmentEntry],
+    ) -> Result<String, Refusal>;
+    /// Start `temper-qa pass hold` (with `--ctl` where asked) from the running executable,
+    /// in its own process group, stdin closed and both streams to the place's `drive.log`.
+    /// Release the lock probe just before spawn; answer the process for `poll` and `signal`.
+    fn holder(
+        &mut self,
+        log: &Path,
+        ctl: bool,
+        environment: &[EnvironmentEntry],
+        release: impl FnOnce(),
+    ) -> Result<u64, Refusal>;
+    /// Start the drive session's command in its own process group, stderr inherited.
+    /// Answer its process and the connections for writing stdin and reading stdout without waiting.
+    fn drive(
+        &mut self,
+        program: &OsStr,
+        arguments: &[OsString],
+        environment: &[EnvironmentEntry],
+    ) -> Result<DriveProcess<Self::Connection>, Refusal>;
+    /// Connect to the place's holder at once (missing or refusing ends nothing),
+    /// then off the loop send `end`, drain its answer, wait for the drive lock, and wake the loop.
+    fn end_holder(&mut self, place: PathBuf, waker: crate::events::Waker);
 }
+
 #[derive(Default)]
 pub struct RealProcesses {
     children: BTreeMap<u64, std::sync::mpsc::Receiver<Result<Exit, Refusal>>>,
+    drive_children: BTreeMap<u64, Child>,
     waker: Option<crate::events::Waker>,
     pub environment: Environment,
 }
@@ -303,8 +371,15 @@ impl RealProcesses {
     pub fn new(environment: Environment) -> Self {
         Self { environment, ..Self::default() }
     }
+
+    // The holder and its clients still own their polling and waiting in this layer.
+    pub(crate) fn take_child(&mut self, process: u64) -> Child {
+        self.drive_children.remove(&process).expect("newly spawned holder or drive session")
+    }
 }
 impl Processes for RealProcesses {
+    type Connection = UnixStream;
+
     fn wake_on_exit(&mut self, waker: crate::events::Waker) {
         self.waker = Some(waker);
     }
@@ -399,6 +474,13 @@ impl Processes for RealProcesses {
         Ok(number)
     }
     fn poll(&mut self, process: u64) -> Result<Option<Exit>, Refusal> {
+        if let Some(child) = self.drive_children.get_mut(&process) {
+            let status = child.try_wait().map_err(|why| refused(format!("process {process}: {why}")))?;
+            if status.is_some() {
+                self.drive_children.remove(&process);
+            }
+            return Ok(status.map(exit));
+        }
         let ended = self.children.get(&process).ok_or_else(|| refused(format!("no process {process}")))?;
         match ended.try_recv() {
             Ok(result) => {
@@ -432,6 +514,172 @@ impl Processes for RealProcesses {
             .map_err(|why| refused(format!("kill: {why}")))?;
         Ok(())
     }
+
+    fn output(&mut self, request: &OutputCommand<'_>) -> io::Result<ProcessOutput> {
+        let mut command = Command::new(request.program);
+        captured(&mut command, request.environment);
+        command.args(request.arguments).stdin(Stdio::null());
+        if let Some(directory) = request.directory {
+            command.current_dir(directory);
+        }
+        if let Some(path) = request.log {
+            let log = RealFiles.open_write(path, WriteOptions::private(WriteMode::Append))?;
+            let error = log.try_clone()?;
+            let status = command.stdout(log).stderr(error).status()?;
+            Ok(ProcessOutput { exit: exit(status), stdout: Vec::new(), stderr: Vec::new() })
+        } else {
+            let Output { status, stdout, stderr } = command.output()?;
+            Ok(ProcessOutput { exit: exit(status), stdout, stderr })
+        }
+    }
+
+    // An unlinked capture file lets the one-threaded wait enforce the bound even
+    // when a program fills stdout or never closes it. No capture enters the build.
+    fn version(
+        &mut self,
+        executable: &Path,
+        capture: &Path,
+        environment: &[EnvironmentEntry],
+    ) -> Result<String, Refusal> {
+        let mut output =
+            path_io(capture, OpenOptions::new().read(true).write(true).create_new(true).mode(0o600).open(capture))?;
+        path_io(capture, fs::remove_file(capture))?;
+        let mut clock = RealClock::default();
+        let started = clock.monotonic();
+        let mut command = Command::new(executable);
+        captured(&mut command, environment);
+        let mut child = path_io(
+            executable,
+            command
+                .arg("--version")
+                .stdin(Stdio::null())
+                .stdout(path_io(capture, output.try_clone())?)
+                .stderr(Stdio::null())
+                .spawn(),
+        )?;
+        loop {
+            match child.try_wait() {
+                Ok(Some(_status)) => break,
+                Ok(None) => {}
+                Err(why) => {
+                    let _ = child.kill();
+                    let _ = child.wait();
+                    return Err(refused(format!("{}: {why}", executable.display())));
+                }
+            }
+            if clock.monotonic().saturating_sub(started) >= Duration::from_secs(30) {
+                let _ = child.kill();
+                path_io(executable, child.wait())?;
+                return Err(refused(format!("{}: --version did not answer in 30 seconds", executable.display())));
+            }
+            clock.sleep(Duration::from_millis(5));
+        }
+        path_io(capture, output.rewind())?;
+        let mut line = Vec::new();
+        path_io(capture, BufReader::new(output).read_until(b'\n', &mut line))?;
+        Ok(String::from_utf8_lossy(&line).lines().next().unwrap_or("").into())
+    }
+
+    fn holder(
+        &mut self,
+        log: &Path,
+        ctl: bool,
+        environment: &[EnvironmentEntry],
+        release: impl FnOnce(),
+    ) -> Result<u64, Refusal> {
+        let log = crate::private::file(log, &mut RealFiles, WriteMode::Replace, false)?;
+        let program = std::env::current_exe().map_err(|why| refused(format!("temper-qa: {why}")))?;
+        let mut command = Command::new(program);
+        command.args(["pass", "hold"]);
+        if ctl {
+            command.arg("--ctl");
+        }
+        captured(&mut command, environment);
+        // Release the probe before spawn: the child may take its lock before spawn returns.
+        release();
+        let child = command
+            .stdin(Stdio::null())
+            .stderr(log.try_clone().map_err(|why| refused(format!("drive.log: {why}")))?)
+            .stdout(log)
+            .process_group(0)
+            .spawn()
+            .map_err(|why| refused(format!("pass hold: {why}")))?;
+        let process = u64::from(child.id());
+        self.drive_children.insert(process, child);
+        Ok(process)
+    }
+
+    fn drive(
+        &mut self,
+        program: &OsStr,
+        arguments: &[OsString],
+        environment: &[EnvironmentEntry],
+    ) -> Result<DriveProcess<UnixStream>, Refusal> {
+        use crate::hold::io_refusal;
+        // Separate socket pairs let ending stdin remain independent of draining stdout.
+        let (input, child_input) = UnixStream::pair().map_err(io_refusal)?;
+        let (output, child_output) = UnixStream::pair().map_err(io_refusal)?;
+        input.set_nonblocking(true).map_err(io_refusal)?;
+        output.set_nonblocking(true).map_err(io_refusal)?;
+        let mut command = Command::new(program);
+        captured(&mut command, environment);
+        let child = command
+            .args(arguments)
+            .stdin(Stdio::from(OwnedFd::from(child_input)))
+            .stdout(Stdio::from(OwnedFd::from(child_output)))
+            .stderr(Stdio::inherit())
+            .process_group(0)
+            .spawn()
+            .map_err(io_refusal)?;
+        let process = u64::from(child.id());
+        self.drive_children.insert(process, child);
+        Ok(DriveProcess { process, input, output })
+    }
+
+    // Ending a holder may drain its drive for 70 seconds. Keep that work off the loop,
+    // and wake it again only after the holder releases the place's lock.
+    fn end_holder(&mut self, place: PathBuf, waker: crate::events::Waker) {
+        // Capture this holder's connection before the loop may reuse the place.
+        // A delayed connect could reach a later pass's holder at the same path.
+        let mut stream = match UnixStream::connect(place.join("drive.sock")) {
+            Ok(stream) => stream,
+            Err(why) if matches!(why.kind(), std::io::ErrorKind::NotFound | std::io::ErrorKind::ConnectionRefused) => {
+                return;
+            }
+            Err(why) => {
+                eprintln!("temper-qa: end holder: {why}");
+                return;
+            }
+        };
+        #[expect(
+            clippy::disallowed_methods,
+            reason = "blocking event waiter for the std QA tool (temper/docs/design/testing/qa/README.md, 4)"
+        )]
+        std::thread::spawn(move || {
+            let mut end = || -> Result<(), Refusal> {
+                stream.set_write_timeout(Some(crate::hold::STOP)).map_err(crate::hold::io_refusal)?;
+                stream.set_read_timeout(Some(crate::hold::STOP)).map_err(crate::hold::io_refusal)?;
+                stream.write_all(b"end\n").map_err(crate::hold::io_refusal)?;
+                let mut answer = Vec::new();
+                stream.read_to_end(&mut answer).map_err(crate::hold::io_refusal)?;
+                let lock = File::open(place.join("drive.lock")).map_err(crate::hold::io_refusal)?;
+                lock.lock().map_err(crate::hold::io_refusal)?;
+                Ok(())
+            };
+            if let Err(why) = end() {
+                eprintln!("temper-qa: end holder: {why}");
+            }
+            waker.poke();
+        });
+    }
+}
+
+fn exit(status: std::process::ExitStatus) -> Exit {
+    status.code().map_or_else(|| Exit::Signal(status.signal().unwrap_or(0)), Exit::Code)
+}
+
+fn path_io<T>(path: &Path, result: io::Result<T>) -> Result<T, Refusal> {
+    result.map_err(|why| refused(format!("{}: {why}", path.display())))
 }
 
 /// Each child has one blocking waiter; it publishes the result before waking the loop.
@@ -445,10 +693,7 @@ fn wait_for_child(
         reason = "blocking event waiter for the std QA tool (temper/docs/design/testing/qa/README.md, 4)"
     )]
     std::thread::spawn(move || {
-        let result = child
-            .wait()
-            .map(|status| status.code().map_or_else(|| Exit::Signal(status.signal().unwrap_or(0)), Exit::Code))
-            .map_err(|why| refused(format!("process {}: {why}", child.id())));
+        let result = child.wait().map(exit).map_err(|why| refused(format!("process {}: {why}", child.id())));
         let _ = sender.send(result);
         if let Some(waker) = waker {
             waker.poke();
@@ -463,7 +708,13 @@ pub struct Moment {
     pub monotonic: u64,
 }
 pub trait ClockFace {
+    /// Read the current wall and monotonic times in seconds.
     fn now(&self) -> Moment;
+    /// Read monotonic time finer than a second, for the holder's and clients' polls.
+    fn monotonic(&self) -> Duration;
+    /// Sleep for the given duration, for the holder's and clients' polls.
+    fn sleep(&mut self, duration: Duration);
+    /// Wait for an event or until the loop's timeout in seconds.
     fn wait(&mut self, events: &crate::events::Events, timeout: Option<u64>);
 }
 #[derive(Default)]
@@ -472,6 +723,12 @@ impl ClockFace for RealClock {
     fn now(&self) -> Moment {
         let now = self.0.now();
         Moment { wall: now.wall.as_secs(), monotonic: now.now.as_nanos() / 1_000_000_000 }
+    }
+    fn monotonic(&self) -> Duration {
+        Duration::from_nanos(self.0.now().now.as_nanos())
+    }
+    fn sleep(&mut self, duration: Duration) {
+        std::thread::sleep(duration);
     }
     fn wait(&mut self, events: &crate::events::Events, timeout: Option<u64>) {
         let _ = events.wait(timeout);
@@ -528,7 +785,7 @@ impl DriveFace for RealDrive {
     fn walk(&mut self, request: &RecipeWalk<'_>) -> Result<WalkOutput, Refusal> {
         use std::io::{BufRead, Seek};
         let place = request.place;
-        let mut log = crate::private::file(&place.walk_log, OpenOptions::new().create(true).append(true).read(true))?;
+        let mut log = crate::private::file(&place.walk_log, &mut RealFiles, WriteMode::Append, true)?;
         let start = log.seek(std::io::SeekFrom::End(0)).map_err(|why| refused(format!("walk.log: {why}")))?;
         let output = log.try_clone().map_err(|why| refused(format!("walk.log: {why}")))?;
         let error = log.try_clone().map_err(|why| refused(format!("walk.log: {why}")))?;
@@ -618,7 +875,7 @@ impl ArchiveFace for RealArchive {
                     Err(why) => return Err(refused(format!("{}: {why}", path.display()))),
                 }
                 if moved.is_empty() {
-                    crate::private::directory(&aside)?;
+                    crate::private::directory(&aside, &mut RealFiles)?;
                 }
                 let saved = aside.join(index.to_string());
                 fs::rename(&path, &saved).map_err(|why| refused(format!("{}: {why}", path.display())))?;
@@ -661,7 +918,7 @@ impl ArchiveFace for RealArchive {
     }
 }
 
-pub(crate) fn captured(command: &mut Command, environment: &Environment) {
+pub(crate) fn captured(command: &mut Command, environment: &[EnvironmentEntry]) {
     command.env_clear().envs(environment.iter().map(|(key, value)| (OsStr::from_bytes(key), OsStr::from_bytes(value))));
 }
 fn checked(output: Output, name: &str) -> Result<Vec<u8>, Refusal> {
@@ -669,57 +926,5 @@ fn checked(output: Output, name: &str) -> Result<Vec<u8>, Refusal> {
         Ok(output.stdout)
     } else {
         Err(refused(format!("{name}: {}: {}", output.status, String::from_utf8_lossy(&output.stderr).trim())))
-    }
-}
-
-/// Hashing kept builds and installing their files (qa/builds.md, 3–4; qa/places.md, 3).
-pub trait BuildFilesFace {
-    fn hash(&mut self, directory: &Path, files: &[PathBuf]) -> Result<Vec<u8>, Refusal>;
-    fn check(&mut self, directory: &Path, manifest: &Path) -> Result<(), Refusal>;
-    fn link(&mut self, source: &Path, destination: &Path) -> std::io::Result<()>;
-}
-pub struct RealBuildFiles;
-
-fn checksum(path: &Path) -> std::io::Result<String> {
-    let mut file = File::open(path)?;
-    let mut hash = Sha256::new();
-    let mut buffer = vec![0_u8; 65_536].into_boxed_slice();
-    loop {
-        let count = match file.read(&mut buffer) {
-            Ok(0) => break,
-            Ok(count) => count,
-            Err(why) if why.kind() == std::io::ErrorKind::Interrupted => continue,
-            Err(why) => return Err(why),
-        };
-        hash.update(&buffer[..count]);
-    }
-    Ok(format!("{:x}", hash.finalize()))
-}
-impl BuildFilesFace for RealBuildFiles {
-    fn hash(&mut self, directory: &Path, files: &[PathBuf]) -> Result<Vec<u8>, Refusal> {
-        let mut answer = Vec::new();
-        for path in files {
-            let hex = checksum(&directory.join(path))
-                .map_err(|why| refused(format!("checksum: {}: {why}", path.display())))?;
-            answer.extend_from_slice(&crate::manifest::line(&hex, path));
-        }
-        Ok(answer)
-    }
-    fn check(&mut self, directory: &Path, manifest: &Path) -> Result<(), Refusal> {
-        let bytes = fs::read(manifest).map_err(|why| refused(format!("{}: {why}", manifest.display())))?;
-        let rows = crate::manifest::rows(&bytes).map_err(|why| refused(format!("checksum check: {why}")))?;
-        let mut failures = Vec::new();
-        for (path, expected) in rows {
-            match checksum(&directory.join(&path)) {
-                Ok(hex) if hex == expected => {}
-                Ok(_) => failures.push(format!("{}: FAILED", path.display())),
-                Err(why) => failures.push(format!("{}: {why}", path.display())),
-            }
-        }
-        if failures.is_empty() { Ok(()) } else { Err(refused(format!("checksum check: {}", failures.join("; ")))) }
-    }
-
-    fn link(&mut self, source: &Path, destination: &Path) -> std::io::Result<()> {
-        fs::hard_link(source, destination)
     }
 }

@@ -1,11 +1,8 @@
 //! Coalesced socket and process wakes (temper/docs/design/testing/qa/README.md, 4).
-use crate::{Refusal, refused};
+use crate::{Refusal, faces::FilesFace, refused};
 use std::{
     fs,
-    os::unix::{
-        fs::PermissionsExt,
-        net::{UnixListener, UnixStream},
-    },
+    os::unix::{fs::PermissionsExt, net::UnixListener},
     path::Path,
     sync::mpsc::{self, Receiver, SyncSender},
     time::Duration,
@@ -69,12 +66,6 @@ pub fn accept(listener: &UnixListener, waker: &Waker) -> Result<(), Refusal> {
     Ok(())
 }
 
-pub fn poke(home: &Path) -> Result<(), Refusal> {
-    match UnixStream::connect(home.join("run.sock")) {
-        Ok(_) => Ok(()),
-        Err(why) if matches!(why.kind(), std::io::ErrorKind::NotFound | std::io::ErrorKind::ConnectionRefused) => {
-            Ok(())
-        }
-        Err(why) => Err(refused(format!("run.sock: {why}"))),
-    }
+pub fn poke(home: &Path, files: &mut impl FilesFace) -> Result<(), Refusal> {
+    files.connect(&home.join("run.sock")).map(|_| ()).map_err(|why| refused(format!("run.sock: {why}")))
 }

@@ -6,6 +6,7 @@ use std::{
     path::PathBuf,
     process::{Command, Output, Stdio},
 };
+use temper_qa_tool::faces::RealFiles;
 use temper_qa_tool::{CaseInput, Exit, Home};
 
 const FAKE: &str = r#"#!/bin/sh
@@ -50,8 +51,8 @@ pub(super) fn home_kind(kind: temper_qa_tool::Kind) -> (Scratch, Home, PathBuf) 
         config["places"] = serde_json::json!([{"directory":"places/1","kind":"deployment","ports":[31001,31002,31003,31004,31005,31006,31007,31008,31009]}]);
         fs::write(path, serde_json::to_vec(&config).expect("JSON")).expect("config");
     }
-    let home = Home::open(scratch.path()).expect("home");
-    home.transact(|ledger| {
+    let home = Home::open(scratch.path(), &mut RealFiles).expect("home");
+    home.transact(&mut RealFiles, |ledger, _| {
         ledger.record_landing("build", 10, None, "Start", 0);
         let pages = [("web".into(), vec!["work".into()]), ("ctl".into(), vec!["task".into()])].into();
         let triage = ledger.start_session(1, "low", pages, vec!["fresh".into(), "turn-landing".into()], if kind == temper_qa_tool::Kind::Deployment { vec!["turn-landing".into()] } else { Vec::new() }, 0).expect("triage");
@@ -226,7 +227,8 @@ fn open_refuses_missing_setup_unreadable_chains_and_ended_sessions() {
     answer(&run(&home, &["pass", "open"]), 0, "ready\n");
     answer(&run(&home, &["pass", "close"]), 0, "ended\nkept lines:\n");
     free(&place);
-    home.transact(|ledger| ledger.end_pass_session(2, Exit::Code(0), None, 5, "qa", &[])).expect("ended session");
+    home.transact(&mut RealFiles, |ledger, _| ledger.end_pass_session(2, Exit::Code(0), None, 5, "qa", &[]))
+        .expect("ended session");
     refusal(&run(&home, &["pass", "open"]), "session 2 is not running");
     refusal(&run(&home, &["pass", "line", "web look"]), "session 2 is not running");
     refusal(&run(&home, &["pass", "close"]), "session 2 is not running");

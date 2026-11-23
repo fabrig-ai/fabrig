@@ -6,6 +6,7 @@ use std::{
     path::{Path, PathBuf},
     process::{Command, Stdio},
 };
+use temper_qa_tool::faces::RealFiles;
 use temper_qa_tool::{
     Home, Refusal,
     faces::{ArchiveFace, RealArchive, RealDrive, copy_members},
@@ -142,9 +143,9 @@ impl World {
             config["places"][0]["kind"] = serde_json::json!("deployment");
         }
         fs::write(scratch.path().join("qa.json"), serde_json::to_vec(&config).expect("JSON")).expect("configuration");
-        let home = Home::open(scratch.path()).expect("home");
+        let home = Home::open(scratch.path(), &mut RealFiles).expect("home");
         let started = home
-            .transact(|ledger| {
+            .transact(&mut RealFiles, |ledger, _| {
                 if kind == temper_qa_tool::Kind::Box {
                     super::passes::queue(ledger, "work", "web");
                     super::passes::queue(ledger, "home", "web");
@@ -168,7 +169,7 @@ impl World {
             Archive { store: scratch.path().join("archive-face"), ..Archive::default() },
         )
         .expect("session place");
-        place.paths.ensure().expect("place layout");
+        place.paths.ensure(&mut RealFiles).expect("place layout");
         fs::create_dir_all(&place.setups).expect("pass setups");
         for (name, hash) in [("welcome", WELCOME), ("project-landing", PROJECT), ("chat-draft", CHAT), ("added", ADDED)]
         {
@@ -614,7 +615,9 @@ fn unknown_unread_and_nonpass_setups_refuse_before_touching_the_box() {
     assert!(PassPlace::for_session(&world.home, 1, RealDrive { environment: vec![] }, Archive::default()).is_err());
     world
         .home
-        .transact(|ledger| ledger.end_pass_session(world.session, temper_qa_tool::Exit::Bound, None, 9, "qa", &[]))
+        .transact(&mut RealFiles, |ledger, _| {
+            ledger.end_pass_session(world.session, temper_qa_tool::Exit::Bound, None, 9, "qa", &[])
+        })
         .expect("end session");
     assert!(
         PassPlace::for_session(&world.home, world.session, RealDrive { environment: vec![] }, Archive::default())
@@ -625,10 +628,10 @@ fn unknown_unread_and_nonpass_setups_refuse_before_touching_the_box() {
 #[test]
 fn another_holder_of_the_drive_lock_refuses_setup_and_recipe_and_probe_releases() {
     let mut world = World::new();
-    assert!(!place_busy(&world.place.paths).expect("free"));
+    assert!(!place_busy(&world.place.paths, &mut RealFiles).expect("free"));
     let holder = fs::OpenOptions::new().read(true).write(true).open(&world.place.paths.drive_lock).expect("holder");
     holder.try_lock().expect("holder takes lock");
-    assert!(place_busy(&world.place.paths).expect("busy"));
+    assert!(place_busy(&world.place.paths, &mut RealFiles).expect("busy"));
     let mut output = Vec::new();
     let expected = "the drive session is open at places/1; close it first: temper-qa pass close";
     assert_eq!(world.place.setup("fresh", &mut output).expect_err("busy").to_string(), expected);
@@ -636,7 +639,7 @@ fn another_holder_of_the_drive_lock_refuses_setup_and_recipe_and_probe_releases(
         RecipeInput::decode(br#"{"after":"fresh","lines":["web see \"Ready\""],"readme":"Ready."}"#).expect("recipe");
     assert_eq!(world.place.recipe("added", &input, &[], &mut output).expect_err("busy").to_string(), expected);
     drop(holder);
-    assert!(!place_busy(&world.place.paths).expect("free again"));
+    assert!(!place_busy(&world.place.paths, &mut RealFiles).expect("free again"));
     let lock = fs::OpenOptions::new().read(true).write(true).open(&world.place.paths.drive_lock).expect("lock");
     lock.try_lock().expect("probe did not keep it");
     assert_eq!(output.len(), 0);

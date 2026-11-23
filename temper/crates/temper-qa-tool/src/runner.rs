@@ -1,4 +1,5 @@
 //! A single-home service, with ordered saved steps per tick (qa/README.md, 4–5).
+use crate::faces::RealFiles;
 use crate::faces::{ClockFace, Environment, GitFace, Moment, ProcessCommand, Processes, Signal};
 use crate::{
     Exit, Home, Ledger, PassState, Refusal, SessionKind, brief::Inputs, pass_brief, pass_files, refused,
@@ -89,7 +90,7 @@ impl<G: GitFace, P: Processes, C: ClockFace> Run<G, P, C> {
         };
         let now = run.clock.now();
         let home = run.home.clone();
-        home.transact_loop(|ledger| {
+        home.transact_loop(&mut RealFiles, |ledger, _| {
             let numbers: Vec<_> = ledger.running_sessions().iter().map(|session| session.number).collect();
             for number in numbers {
                 let output = fs::read_to_string(home.session_directory(number).join("output")).unwrap_or_default();
@@ -111,32 +112,37 @@ impl<G: GitFace, P: Processes, C: ClockFace> Run<G, P, C> {
         if fetch {
             self.next_fetch = Some(now.monotonic.saturating_add(home.configuration.bounds.poll));
         }
-        let result = home
-            .transact_loop(|ledger| watch_with_fetch(&mut self.git, &home.configuration.git, ledger, now.wall, fetch));
+        let result = home.transact_loop(&mut RealFiles, |ledger, _| {
+            watch_with_fetch(&mut self.git, &home.configuration.git, ledger, now.wall, fetch)
+        });
         self.outcome("watch", result, now);
-        let result =
-            self.probe().and_then(|()| home.transact_loop(|ledger| Ok(self.triage(ledger))).and_then(|result| result));
+        let result = self.probe().and_then(|()| {
+            home.transact_loop(&mut RealFiles, |ledger, _| Ok(self.triage(ledger))).and_then(|result| result)
+        });
         self.outcome("triage", result, now);
         let result = self.passes();
         self.outcome("passes", result, now);
         let result = home
-            .transact_loop(|ledger| {
+            .transact_loop(&mut RealFiles, |ledger, _| {
                 Ok(crate::requests::step(&home, ledger, &mut self.processes, &self.environment, now.wall))
             })
             .and_then(|result| result);
         self.outcome("requests", result, now);
-        let result = home.transact_loop(|ledger| {
+        let result = home.transact_loop(&mut RealFiles, |ledger, _| {
             ledger.waiting_lines(home.configuration.bounds.build_wait, now.wall, &home.configuration.owner);
             Ok(())
         });
         self.outcome("waiting cases", result, now);
         // Files already removed and sessions already ended must stay recorded
         // even if a later effect in their step fails.
-        let result = home.transact_loop(|ledger| Ok(self.delete_builds(ledger, now.wall))).and_then(|result| result);
+        let result = home
+            .transact_loop(&mut RealFiles, |ledger, _| Ok(self.delete_builds(ledger, now.wall)))
+            .and_then(|result| result);
         self.outcome("builds", result, now);
-        let result = home.transact_loop(|ledger| Ok(self.give_lines(ledger))).and_then(|result| result);
+        let result =
+            home.transact_loop(&mut RealFiles, |ledger, _| Ok(self.give_lines(ledger))).and_then(|result| result);
         self.outcome("lines", result, now);
-        let result = home.read(|ledger| {
+        let result = home.read(&mut RealFiles, |ledger| {
             self.place_retry =
                 ledger.place_waits.last().filter(|wait| wait.to.is_none()).map(|_| now.monotonic.saturating_add(60));
             self.state_retry = (home.configuration.request.state.is_some()
@@ -209,7 +215,7 @@ impl<G: GitFace, P: Processes, C: ClockFace> Run<G, P, C> {
                 failure.retry_at.min(if failure.lined || line <= now.monotonic { u64::MAX } else { line })
             }))
             .min();
-        self.home.read(|ledger| {
+        self.home.read(&mut RealFiles, |ledger| {
             let build = ledger
                 .build_wait_deadline(self.home.configuration.bounds.build_wait)
                 .map(|wall| now.monotonic.saturating_add(wall.saturating_sub(now.wall)));
@@ -339,7 +345,7 @@ impl<G: GitFace, P: Processes, C: ClockFace> Run<G, P, C> {
     /// Keep pending effects until they succeed, including after an unstarted end.
     fn passes(&mut self) -> Result<(), Refusal> {
         let home = self.home.clone();
-        home.transact_loop(|ledger| {
+        home.transact_loop(&mut RealFiles, |ledger, _| {
             let ended: Vec<_> = self
                 .active
                 .iter()
@@ -370,12 +376,12 @@ impl<G: GitFace, P: Processes, C: ClockFace> Run<G, P, C> {
         for place in home.configuration.places.clone() {
             // An effect failure must not undo an earlier session's end, or an
             // unstarted rollback, in this step.
-            let result = home.transact_loop(|ledger| Ok(self.start_pass(ledger, &place)))?;
+            let result = home.transact_loop(&mut RealFiles, |ledger, _| Ok(self.start_pass(ledger, &place)))?;
             let cleanup = self.clean_passes();
             result?;
             cleanup?;
         }
-        home.transact_loop(|ledger| {
+        home.transact_loop(&mut RealFiles, |ledger, _| {
             let mut free = false;
             for place in &home.configuration.places {
                 if !ledger.passes.iter().any(|pass| pass.state == PassState::Running && &pass.place == place) {
@@ -444,7 +450,7 @@ impl<G: GitFace, P: Processes, C: ClockFace> Run<G, P, C> {
             &start.build,
             &directory,
             kind,
-            &mut crate::faces::RealBuildFiles,
+            &mut crate::faces::RealFiles,
         )?;
         pass_files::write_setups(&mut self.git, &start.build, &pass_files::setups(&self.home, start.pass))?;
         pass_files::prepare_files(&self.home, start.pass)?;
@@ -483,7 +489,7 @@ impl<G: GitFace, P: Processes, C: ClockFace> Run<G, P, C> {
 
     fn clean_passes(&mut self) -> Result<(), Refusal> {
         for place in std::mem::take(&mut self.holders) {
-            crate::hold::end_from_loop(place, self.waker());
+            self.processes.end_holder(place, self.waker());
         }
         while let Some(&number) = self.reports.first() {
             self.home.write_pass_report(number)?;
@@ -506,7 +512,7 @@ impl<G: GitFace, P: Processes, C: ClockFace> Run<G, P, C> {
 
     fn prepare_tree(&mut self, tree: &std::path::Path, commit: &str) -> Result<(), Refusal> {
         if let Some(parent) = tree.parent() {
-            crate::private::directory(parent)?;
+            crate::private::directory(parent, &mut crate::faces::RealFiles)?;
         }
         if tree.exists() {
             if self.git.move_tree(tree, commit).is_ok() {
@@ -591,7 +597,7 @@ impl<G: GitFace, P: Processes, C: ClockFace> Run<G, P, C> {
                 });
                 failure.retry_at = now.monotonic.saturating_add(60);
                 if !failure.lined && now.monotonic.saturating_sub(failure.since) >= 3600 {
-                    match self.home.transact_loop(|ledger| {
+                    match self.home.transact_loop(&mut RealFiles, |ledger, _| {
                         ledger.add_line(
                             &self.home.configuration.owner,
                             &format!("{step} has failed for an hour: {why}"),

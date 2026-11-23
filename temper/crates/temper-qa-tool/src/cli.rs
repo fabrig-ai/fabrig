@@ -492,7 +492,7 @@ fn drive_command_run(
         .and_then(|value| value.parse::<u64>().ok())
         .ok_or_else(|| refused("TEMPER_INTERNAL_QA_SESSION is not a session number"))?;
     let directory = HOME.value(environment).ok_or_else(|| refused("TEMPER_INTERNAL_QA_HOME is not set"))?;
-    let home = Home::open(Path::new(OsStr::from_bytes(directory)))?;
+    let home = Home::open(Path::new(OsStr::from_bytes(directory)), &mut crate::faces::RealFiles)?;
     let drive = crate::hold::Drive::for_session(&home, session)?
         .with_ctl(arguments.iter().any(|argument| argument.as_ref() == b"--ctl"));
     if command == &OPEN {
@@ -524,7 +524,7 @@ fn execute(command: &Command, arguments: &[Box<[u8]>], environment: &Environment
         .and_then(|value| value.parse::<u64>().ok())
         .ok_or_else(|| refused("TEMPER_INTERNAL_QA_SESSION is not a session number"))?;
     let directory = HOME.value(environment).ok_or_else(|| refused("TEMPER_INTERNAL_QA_HOME is not set"))?;
-    let home = Home::open(Path::new(OsStr::from_bytes(directory)))?;
+    let home = Home::open(Path::new(OsStr::from_bytes(directory)), &mut crate::faces::RealFiles)?;
     let mut place = PassPlace::for_session(
         &home,
         session,
@@ -560,7 +560,7 @@ fn execute(command: &Command, arguments: &[Box<[u8]>], environment: &Environment
     Ok((code, String::new()))
 }
 fn record(home: &Home, session: u64, command: &Command, arguments: &[Box<[u8]>]) -> Result<String, Refusal> {
-    home.transact(|ledger| {
+    home.transact(&mut crate::faces::RealFiles, |ledger, _| {
         ledger.pass_command_session(session)?;
         let now = skein_shell::Clock::new().now().wall.as_secs();
         if command == &NOTE {
@@ -626,7 +626,7 @@ fn run(command: &Command, arguments: &[Box<[u8]>], environment: &Environment) ->
     let directory = HOME.value(environment).ok_or_else(|| refused("TEMPER_INTERNAL_QA_HOME is not set"))?;
     let directory = Path::new(OsStr::from_bytes(directory));
     if command == &WAKE {
-        crate::events::poke(directory)?;
+        crate::events::poke(directory, &mut crate::faces::RealFiles)?;
         return Ok(String::new());
     }
     // Session commands run from another working directory, so the home placed
@@ -636,7 +636,7 @@ fn run(command: &Command, arguments: &[Box<[u8]>], environment: &Environment) ->
     } else {
         None
     };
-    let home = Home::open(absolute.as_deref().unwrap_or(directory))?;
+    let home = Home::open(absolute.as_deref().unwrap_or(directory), &mut crate::faces::RealFiles)?;
     if command == &RUN {
         let environment = environment.to_vec();
         let git = crate::faces::RealGit {
@@ -652,25 +652,25 @@ fn run(command: &Command, arguments: &[Box<[u8]>], environment: &Environment) ->
             .expect("checked UTF-8")
             .parse()
             .expect("checked pass number");
-        return home.read(|ledger| {
+        return home.read(&mut crate::faces::RealFiles, |ledger| {
             serde_json::to_string_pretty(&ledger.report(number)?)
                 .map(|text| format!("{text}\n"))
                 .map_err(|why| refused(format!("report: {why}")))
         });
     }
     if command == &GAPS {
-        return home.read(|ledger| Ok(ledger.gaps_text(!arguments.is_empty())));
+        return home.read(&mut crate::faces::RealFiles, |ledger| Ok(ledger.gaps_text(!arguments.is_empty())));
     }
     if command == &SHOW {
-        return home.read(|ledger| Ok(ledger.show()));
+        return home.read(&mut crate::faces::RealFiles, |ledger| Ok(ledger.show()));
     }
     if command == &TUNE {
         use crate::faces::ClockFace;
         let now = crate::faces::RealClock::default().now().wall;
-        return home.read(|ledger| Ok(ledger.tune(&home.configuration, now)));
+        return home.read(&mut crate::faces::RealFiles, |ledger| Ok(ledger.tune(&home.configuration, now)));
     }
     if command == &LINES {
-        return home.read(|ledger| Ok(ledger.lines_text()));
+        return home.read(&mut crate::faces::RealFiles, |ledger| Ok(ledger.lines_text()));
     }
     if command == &KEEP {
         let [commit, directory] = arguments else { unreachable!("checked keep arguments") };
@@ -689,7 +689,7 @@ fn run(command: &Command, arguments: &[Box<[u8]>], environment: &Environment) ->
         return record(&home, session, command, arguments);
     }
     let argument = arguments.first().expect("triage argument").as_ref();
-    home.transact(|ledger| {
+    home.transact(&mut crate::faces::RealFiles, |ledger, _| {
         ledger.command_session(session)?;
         if command == &NONE {
             let why = std::str::from_utf8(argument).map_err(|_| refused("no QA why must be UTF-8"))?;
@@ -738,7 +738,7 @@ fn record_gap(home: &Home, session: u64, command: &Command, arguments: &[Box<[u8
     let kind = std::str::from_utf8(kind).expect("checked kind");
     let why = std::str::from_utf8(why).expect("checked why");
     let owner = home.configuration.gap_owner(kind);
-    home.transact(|ledger| {
+    home.transact(&mut crate::faces::RealFiles, |ledger, _| {
         let now = skein_shell::Clock::new().now().wall.as_secs();
         let number = if let Some(case) = case {
             ledger.pass_gap(session, case, kind, why, owner, now)?

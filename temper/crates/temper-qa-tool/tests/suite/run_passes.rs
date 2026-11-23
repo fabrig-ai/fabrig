@@ -1,6 +1,7 @@
 //! The loop's pass step over commits, recorded agent actions and movable time (qa/passes.md, 9).
 use super::world::{Agent, Loop, World, baseline, id, land};
 use std::{fs, fs::File, os::unix::fs::PermissionsExt, path::Path};
+use temper_qa_tool::faces::RealFiles;
 use temper_qa_tool::{CaseState, Exit, PassState, faces::Signal};
 
 const SETUPS: &str = "temper/docs/development/qa/setups";
@@ -65,7 +66,7 @@ fn start_installs_the_newest_reached_build_and_writes_an_ordered_brief() {
     run.tick();
     world
         .home
-        .transact(|ledger| {
+        .transact(&mut RealFiles, |ledger, _| {
             let mut tui = super::case();
             tui.surface = "tui".into();
             tui.page = "chat".into();
@@ -185,7 +186,7 @@ fn pass_brief_explains_web_requests_on_start_and_resume() {
             run.tick();
             world
                 .home
-                .transact(|ledger| {
+                .transact(&mut RealFiles, |ledger, _| {
                     ledger.file_request(1, 1, Some(99), 1)?;
                     ledger.end_goal(99, 2)
                 })
@@ -209,7 +210,7 @@ fn a_pass_starts_with_empty_files_and_keeps_them_on_resume() {
     run.tick();
     world
         .home
-        .transact(|ledger| {
+        .transact(&mut RealFiles, |ledger, _| {
             ledger.file_request(1, 1, Some(99), 1)?;
             ledger.end_goal(99, 2)
         })
@@ -230,7 +231,7 @@ fn a_tui_pass_brief_explains_see_and_row_evidence() {
     run.tick();
     world
         .home
-        .transact(|ledger| {
+        .transact(&mut RealFiles, |ledger, _| {
             let mut tui = super::case();
             tui.surface = "tui".into();
             tui.page = "chat".into();
@@ -526,7 +527,7 @@ fn a_waiting_pass_resumes_before_a_start_on_a_later_build_with_findings_first() 
     let world = World::new();
     let mut run = ready(&world, Agent::Fail);
     run.tick();
-    world.home.transact(|ledger| ledger.file_request(1, 1, Some(99), 1)).expect("filed request");
+    world.home.transact(&mut RealFiles, |ledger, _| ledger.file_request(1, 1, Some(99), 1)).expect("filed request");
     land(&mut run, 4, 99);
     run.git.commit(5, &[4], "later than the goal's landing");
     recipe(&mut run, 5, "project", "An updated project.");
@@ -535,7 +536,7 @@ fn a_waiting_pass_resumes_before_a_start_on_a_later_build_with_findings_first() 
     run.tick();
     world
         .home
-        .transact(|ledger| {
+        .transact(&mut RealFiles, |ledger, _| {
             let mut case = super::case();
             case.page = "chat".into();
             ledger.add_case(3, &case, 1)?;
@@ -591,7 +592,7 @@ fn an_unstarted_resume_restores_the_waiting_build_and_retries_without_a_landing(
     run.tick();
     world
         .home
-        .transact(|ledger| {
+        .transact(&mut RealFiles, |ledger, _| {
             ledger.file_request(1, 1, Some(99), 1)?;
             ledger.end_goal(99, 2)
         })
@@ -698,7 +699,7 @@ fn pass_brief_lists_ctl_cases_first_and_opens_a_ctl_session() {
     run.tick();
     world
         .home
-        .transact(|ledger| {
+        .transact(&mut RealFiles, |ledger, _| {
             ledger.add_case(1, &super::case(), 0)?;
             let mut tui = super::case();
             tui.surface = "tui".into();
@@ -860,7 +861,7 @@ fn ctl_only_pass_brief_lists_the_same_walkable_chains_as_triage() {
     let triage = fs::read_to_string(&run.processes.commands[0].stdin).expect("triage brief");
     world
         .home
-        .transact(|ledger| {
+        .transact(&mut RealFiles, |ledger, _| {
             let mut case = super::case();
             case.surface = "ctl".into();
             case.page = "task".into();
@@ -890,7 +891,7 @@ fn a_deployment_pass_installs_its_scratch_and_briefs_only_its_kind() {
             .insert("places/1".into(), "31001,31002,31003,31004,31005,31006,31007,31008,31009".into());
         world
             .home
-            .transact(|ledger| {
+            .transact(&mut RealFiles, |ledger, _| {
                 super::passes::queue_kinds(ledger);
                 Ok(())
             })

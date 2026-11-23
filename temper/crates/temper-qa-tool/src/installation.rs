@@ -1,5 +1,11 @@
 //! Linked installs and checked cross-device copies (qa/places.md, 3).
-use crate::{Refusal, faces::BuildFilesFace, manifest, place::PlacePaths, private, refused};
+use crate::{
+    Refusal,
+    faces::{FilesFace, WriteMode, WriteOptions},
+    manifest,
+    place::PlacePaths,
+    private, refused,
+};
 use std::{
     collections::{BTreeMap, BTreeSet},
     fs::{self, OpenOptions},
@@ -13,9 +19,9 @@ pub fn install(
     commit: &str,
     place: &Path,
     kind: crate::Kind,
-    face: &mut impl BuildFilesFace,
+    face: &mut impl FilesFace,
 ) -> Result<(), Refusal> {
-    PlacePaths::new(place, kind).ensure()?;
+    PlacePaths::new(place, kind).ensure(face)?;
     let manifest_path = build.join("manifest");
     let bytes = io(&manifest_path, fs::read(&manifest_path))?;
     let manifest =
@@ -50,13 +56,13 @@ pub fn install(
                 checks.extend_from_slice(line);
             }
         }
-        write_private(&temporary, &checks)?;
+        write_private(&temporary, &checks, face)?;
         let result = face.check(place, &temporary);
         remove_file(&temporary)?;
         result?;
     }
     remove_file(&place.join("setup"))?;
-    write_private(&temporary, &bytes)?;
+    write_private(&temporary, &bytes, face)?;
     io(&receipt, fs::rename(&temporary, &receipt))
 }
 
@@ -69,7 +75,7 @@ fn install_tree(
     place: &Path,
     path: &Path,
     manifest: &BTreeMap<PathBuf, String>,
-    face: &mut impl BuildFilesFace,
+    face: &mut impl FilesFace,
     installed: &mut BTreeSet<PathBuf>,
     copied: &mut bool,
 ) -> Result<(), Refusal> {
@@ -77,7 +83,7 @@ fn install_tree(
     let destination = place.join(path);
     let metadata = io(&source, fs::symlink_metadata(&source))?;
     if metadata.is_dir() {
-        private::directory(&destination)?;
+        private::directory(&destination, face)?;
         for child in io(&source, fs::read_dir(&source))? {
             let child = io(&source, child)?;
             install_tree(build, place, &path.join(child.file_name()), manifest, face, installed, copied)?;
@@ -127,10 +133,8 @@ fn temporary(destination: &Path) -> Result<(PathBuf, fs::File), Refusal> {
     }
 }
 
-fn write_private(path: &Path, bytes: &[u8]) -> Result<(), Refusal> {
-    let mut file = private::file(path, OpenOptions::new().write(true).create(true).truncate(true))?;
-    io(path, file.write_all(bytes))?;
-    io(path, file.sync_all())
+fn write_private(path: &Path, bytes: &[u8], files: &mut impl FilesFace) -> Result<(), Refusal> {
+    io(path, files.write(path, bytes, WriteOptions::private(WriteMode::Replace), true))
 }
 fn remove_file(path: &Path) -> Result<(), Refusal> {
     match fs::remove_file(path) {

@@ -4,6 +4,7 @@ use std::{
     io::Write,
     process::{Command, Output, Stdio},
 };
+use temper_qa_tool::faces::RealFiles;
 use temper_qa_tool::{CaseInput, Exit, FindingInput, Home, Ledger};
 
 const CASE: &[u8] = br#"{"surface":"web","page":"work","setup":"fresh","steps":[{"do":"open Work","expect":"Drafts lists the draft"}]}"#;
@@ -14,8 +15,8 @@ pub(super) fn home() -> (Scratch, Home) {
         br#"{"owner":"qa","git":{"directory":"repo"},"agent":{"command":["agent"],"triage":"low","pass":"high"},"request":{"command":["file"]}}"#,
     )
     .expect("config");
-    let home = Home::open(scratch.path()).expect("home");
-    home.transact(|ledger| {
+    let home = Home::open(scratch.path(), &mut RealFiles).expect("home");
+    home.transact(&mut RealFiles, |ledger, _| {
         ledger.record_landing("0123456789abcdef0123456789abcdef01234567", 10, Some(20), "Work drafts", 0);
         let pages = [("web".into(), vec!["work".into(), "home".into()]), ("tui".into(), vec!["chat".into()])].into();
         ledger.start_session(1, "low", pages, vec!["fresh".into()], Vec::new(), 0)?;
@@ -92,7 +93,7 @@ fn a_case_from_file_and_stdin_records_at_once_and_refusals_leave_it_unchanged() 
 fn none_show_and_lines_print_the_persons_forms() {
     let (_scratch, home) = home();
     success(&run(&home, &["triage", "none", "no client change"], Some("1"), None), b"landing 1: no QA\n");
-    home.transact(|ledger| {
+    home.transact(&mut RealFiles, |ledger, _| {
         ledger.end_session(1, Exit::Code(0), Some(20), 60, "qa")?;
         ledger.keep_build("0123456789abcdef0123456789abcdef01234567", 60)?;
         ledger.set_build_holds("0123456789abcdef0123456789abcdef01234567", vec![1], 1)?;
@@ -118,7 +119,7 @@ fn q3_configuration_show_and_report_cross_the_binary_boundary() {
         "bounds":{"poll":1,"triage":2,"build_wait":3,"pass":4},"builds":"kept","places":["places/1"],"surfaces":["web","tui"],
         "areas":{"web":"frontend","tui":"terminal"},"request":{"command":["file"],"state":["state"],"area":"fixes"},"notify":["notify"]});
     std::fs::write(home.directory.join("qa.json"), serde_json::to_vec(&full).expect("config JSON")).expect("Q3 config");
-    home.transact(|ledger| {
+    home.transact(&mut RealFiles, |ledger, _| {
         ledger.add_case(1, &CaseInput::decode(CASE, "-")?, 1)?;
         ledger.end_session(1, Exit::Code(0), None, 2, "qa")?;
         ledger.keep_build("build", 3)?;

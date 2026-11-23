@@ -1,4 +1,5 @@
 //! Finding files and kept evidence (qa/findings.md, 2; qa/ledger.md, 4.11 and 5).
+use crate::faces::RealFiles;
 use crate::{FindingInput, Home, Refusal, document, refused};
 use serde_json::Value;
 use std::{
@@ -67,7 +68,7 @@ impl FindingInput {
 
 pub(crate) fn finding(home: &Home, session: u64, file: &[u8]) -> Result<String, Refusal> {
     let mut copied = None;
-    let result = home.transact(|ledger| {
+    let result = home.transact(&mut RealFiles, |ledger, _| {
         let pass = ledger.pass_command_session(session)?.pass.expect("pass session");
         let label = String::from_utf8_lossy(file);
         let bytes = if file == b"-" {

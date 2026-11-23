@@ -1,11 +1,10 @@
 //! Exclusive whole-document transactions (qa/ledger.md, 3).
-use crate::{Configuration, Ledger, Refusal, refused};
-use std::{
-    fs::{self, File, OpenOptions},
-    io::Write,
-    os::unix::fs::OpenOptionsExt,
-    path::{Path, PathBuf},
+use crate::{
+    Configuration, Ledger, Refusal,
+    faces::{FilesFace, LockMode, Mode, WriteMode, WriteOptions},
+    refused,
 };
+use std::path::{Path, PathBuf};
 
 #[derive(Clone, Debug)]
 pub struct Home {
@@ -19,8 +18,8 @@ pub struct Home {
 }
 impl Home {
     /// The deployment creates the home; opening never creates it.
-    pub fn open(directory: &Path) -> Result<Self, Refusal> {
-        let bytes = fs::read(directory.join("qa.json")).map_err(|why| refused(format!("qa.json: {why}")))?;
+    pub fn open(directory: &Path, files: &mut impl FilesFace) -> Result<Self, Refusal> {
+        let bytes = files.read(&directory.join("qa.json")).map_err(|why| refused(format!("qa.json: {why}")))?;
         let configuration = Configuration::decode(&bytes, directory)?;
         Ok(Self {
             directory: directory.into(),
@@ -51,56 +50,56 @@ impl Home {
     }
 
     /// The lock stays held until the read operation returns.
-    pub fn read<T>(&self, operation: impl FnOnce(&Ledger) -> Result<T, Refusal>) -> Result<T, Refusal> {
-        let lock = self.lock()?;
-        let result = operation(&self.load()?);
+    pub fn read<T>(
+        &self,
+        files: &mut impl FilesFace,
+        operation: impl FnOnce(&Ledger) -> Result<T, Refusal>,
+    ) -> Result<T, Refusal> {
+        let lock = self.lock(files)?;
+        let result = operation(&self.load(files)?);
         drop(lock);
         result
     }
 
     /// A refusal discards even local mutations, and never opens the temporary document.
-    pub fn transact<T>(&self, operation: impl FnOnce(&mut Ledger) -> Result<T, Refusal>) -> Result<T, Refusal> {
-        let result = self.transact_loop(operation)?;
+    pub fn transact<T, F: FilesFace>(
+        &self,
+        files: &mut F,
+        operation: impl FnOnce(&mut Ledger, &mut F) -> Result<T, Refusal>,
+    ) -> Result<T, Refusal> {
+        let result = self.transact_loop(files, operation)?;
         // A saved command remains successful even if its best-effort wake fails.
-        let _ = crate::events::poke(&self.directory);
+        let _ = crate::events::poke(&self.directory, files);
         Ok(result)
     }
 
     /// The loop already observes its own saves in the current tick.
-    pub(crate) fn transact_loop<T>(
+    pub(crate) fn transact_loop<T, F: FilesFace>(
         &self,
-        operation: impl FnOnce(&mut Ledger) -> Result<T, Refusal>,
+        files: &mut F,
+        operation: impl FnOnce(&mut Ledger, &mut F) -> Result<T, Refusal>,
     ) -> Result<T, Refusal> {
-        let lock = self.lock()?;
-        let mut ledger = self.load()?;
-        let result = operation(&mut ledger)?;
+        let lock = self.lock(files)?;
+        let mut ledger = self.load(files)?;
+        let result = operation(&mut ledger, files)?;
         let bytes = ledger.encode()?;
         let temporary = self.directory.join("ledger.tmp");
-        let write = || -> std::io::Result<()> {
-            let mut file = OpenOptions::new().write(true).create(true).truncate(true).mode(0o600).open(&temporary)?;
-            file.write_all(&bytes)?;
-            file.sync_all()?;
-            fs::rename(&temporary, &self.ledger)?;
-            Ok(())
-        };
-        write().map_err(|why| refused(format!("ledger.json: {why}")))?;
+        let options = WriteOptions { way: WriteMode::Replace, mode: Mode::Create(0o600), read: false };
+        files
+            .write(&temporary, &bytes, options, true)
+            .and_then(|()| files.rename(&temporary, &self.ledger))
+            .map_err(|why| refused(format!("ledger.json: {why}")))?;
         drop(lock);
         Ok(result)
     }
-    fn lock(&self) -> Result<File, Refusal> {
-        let file = OpenOptions::new()
-            .read(true)
-            .write(true)
-            .create(true)
-            .truncate(false)
-            .mode(0o600)
-            .open(&self.ledger_lock)
-            .map_err(|why| refused(format!("ledger.lock: {why}")))?;
-        file.lock().map_err(|why| refused(format!("ledger.lock: {why}")))?;
-        Ok(file)
+    fn lock<F: FilesFace>(&self, files: &mut F) -> Result<F::Lock, Refusal> {
+        files
+            .lock(&self.ledger_lock, LockMode::Wait, false)
+            .map_err(|why| refused(format!("ledger.lock: {why}")))
+            .map(|lock| lock.expect("waiting lock is held on success"))
     }
-    fn load(&self) -> Result<Ledger, Refusal> {
-        match fs::read(&self.ledger) {
+    fn load(&self, files: &mut impl FilesFace) -> Result<Ledger, Refusal> {
+        match files.read(&self.ledger) {
             Ok(bytes) => Ledger::decode(&bytes),
             Err(why) if why.kind() == std::io::ErrorKind::NotFound => Ok(Ledger::default()),
             Err(why) => Err(refused(format!("ledger.json: {why}"))),

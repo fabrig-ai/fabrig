@@ -3,16 +3,19 @@ use sha2::{Digest, Sha256};
 use skein_scratch::Scratch;
 use std::{
     collections::{BTreeMap, BTreeSet, VecDeque},
+    ffi::{OsStr, OsString},
     fmt::Write,
-    fs,
+    fs, io,
+    os::unix::net::UnixStream,
     path::{Path, PathBuf},
+    time::Duration,
 };
 pub use temper_qa_tool::testing::id;
 use temper_qa_tool::{
     Exit, Home, Ledger, Refusal,
     faces::{
-        Changed, ClockFace, CommandAnswer, Commit, Entry, Environment, GitFace, Moment, ProcessCommand, Processes,
-        RealProcesses, Signal,
+        Changed, ClockFace, CommandAnswer, Commit, DriveProcess, Entry, Environment, EnvironmentEntry, GitFace, Moment,
+        OutputCommand, ProcessCommand, ProcessOutput, Processes, RealFiles, RealProcesses, Signal,
     },
     runner::Run,
 };
@@ -263,6 +266,40 @@ impl Agents {
     }
 }
 impl Processes for Agents {
+    type Connection = UnixStream;
+
+    fn output(&mut self, command: &OutputCommand<'_>) -> io::Result<ProcessOutput> {
+        RealProcesses::default().output(command)
+    }
+    fn version(
+        &mut self,
+        executable: &Path,
+        capture: &Path,
+        environment: &[EnvironmentEntry],
+    ) -> Result<String, Refusal> {
+        RealProcesses::default().version(executable, capture, environment)
+    }
+    fn holder(
+        &mut self,
+        _log: &Path,
+        _ctl: bool,
+        _environment: &[EnvironmentEntry],
+        _release: impl FnOnce(),
+    ) -> Result<u64, Refusal> {
+        unreachable!("agents do not start holders")
+    }
+    fn drive(
+        &mut self,
+        _program: &OsStr,
+        _arguments: &[OsString],
+        _environment: &[EnvironmentEntry],
+    ) -> Result<DriveProcess<UnixStream>, Refusal> {
+        unreachable!("agents do not start drive sessions")
+    }
+    fn end_holder(&mut self, place: PathBuf, waker: temper_qa_tool::events::Waker) {
+        RealProcesses::default().end_holder(place, waker);
+    }
+
     fn wake_on_exit(&mut self, waker: temper_qa_tool::events::Waker) {
         self.waker = Some(waker);
     }
@@ -335,9 +372,10 @@ impl Processes for Agents {
                 .find(|(name, _)| name.as_ref() == key.as_bytes())
                 .map(|(_, value)| String::from_utf8(value.to_vec()).expect("env"))
         };
-        let home = Home::open(Path::new(&env("TEMPER_INTERNAL_QA_HOME").expect("home env"))).expect("agent's home");
+        let home = Home::open(Path::new(&env("TEMPER_INTERNAL_QA_HOME").expect("home env")), &mut RealFiles)
+            .expect("agent's home");
         let number = env("TEMPER_INTERNAL_QA_SESSION").expect("session env").parse().expect("number");
-        home.transact(|ledger| {
+        home.transact(&mut RealFiles, |ledger, _| {
             match process.agent {
                 Agent::None => {
                     ledger.answer_none(number, "internal refactor")?;
@@ -434,10 +472,19 @@ impl Processes for Agents {
 #[derive(Default)]
 pub struct Clock {
     pub time: u64,
+    subsecond: Duration,
 }
 impl ClockFace for Clock {
     fn now(&self) -> Moment {
         Moment { wall: self.time, monotonic: self.time }
+    }
+    fn monotonic(&self) -> Duration {
+        Duration::from_secs(self.time) + self.subsecond
+    }
+    fn sleep(&mut self, duration: Duration) {
+        let time = self.monotonic() + duration;
+        self.time = time.as_secs();
+        self.subsecond = Duration::from_nanos(u64::from(time.subsec_nanos()));
     }
     fn wait(&mut self, events: &temper_qa_tool::events::Events, timeout: Option<u64>) {
         if !events.take() {
@@ -454,7 +501,7 @@ impl World {
     pub fn new() -> Self {
         let scratch = Scratch::new("qa-run");
         fs::write(scratch.path().join("qa.json"), br#"{"owner":"qa","git":{"directory":"repo"},"agent":{"command":["agent","--effort={effort}"],"triage":"cheap","pass":"high"},"request":{"command":["file"]},"bounds":{"poll":60,"triage":30,"build_wait":90},"notify":["notify"]}"#).expect("config");
-        let home = Home::open(scratch.path()).expect("home");
+        let home = Home::open(scratch.path(), &mut RealFiles).expect("home");
         Self { scratch, home }
     }
     pub fn start(&self, git: Git, agents: &[Agent]) -> Loop {
@@ -465,7 +512,7 @@ impl World {
         Run::start(self.home.clone(), git, processes, Clock::default(), environment).expect("run")
     }
     pub fn ledger(&self) -> Ledger {
-        self.home.read(|ledger| Ok(ledger.clone())).expect("read")
+        self.home.read(&mut RealFiles, |ledger| Ok(ledger.clone())).expect("read")
     }
     pub fn installable_build(&self, commit: u64) -> PathBuf {
         use std::os::unix::fs::PermissionsExt;
@@ -493,7 +540,7 @@ impl World {
     pub fn build(&self, commit: u64) -> PathBuf {
         let directory = self.home.builds.join(id(commit));
         fs::create_dir_all(&directory).expect("build directory");
-        self.home.transact(|ledger| ledger.keep_build(&id(commit), 0)).expect("kept");
+        self.home.transact(&mut RealFiles, |ledger, _| ledger.keep_build(&id(commit), 0)).expect("kept");
         directory
     }
 }

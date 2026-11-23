@@ -1,8 +1,9 @@
 //! Pass preparation and changed recipes (qa/places.md, 2–3; qa/passes.md, 2 and 6).
+use crate::faces::{RealFiles, WriteMode};
 use crate::{Home, Refusal, faces::GitFace, place::PlacePaths, private, refused};
 use std::{
     ffi::OsString,
-    fs::{self, File, OpenOptions, TryLockError},
+    fs::{self, File, TryLockError},
     path::{Path, PathBuf},
 };
 
@@ -25,10 +26,10 @@ pub(crate) fn prepare_files(home: &Home, pass: u64) -> Result<(), Refusal> {
 pub(crate) fn free_lock(place: &Path, kind: crate::Kind) -> Result<Option<File>, Refusal> {
     let paths = PlacePaths::new(place, kind);
     for path in [&paths.directory, &paths.scratch, &paths.copies] {
-        private::directory(path)?;
+        private::directory(path, &mut RealFiles)?;
     }
     let path = place.join("drive.lock");
-    let file = private::file(&path, OpenOptions::new().read(true).write(true).create(true).truncate(false))?;
+    let file = private::file(&path, &mut RealFiles, WriteMode::OpenOrCreate, true)?;
     match file.try_lock() {
         Ok(()) => Ok(Some(file)),
         Err(TryLockError::WouldBlock) => Ok(None),

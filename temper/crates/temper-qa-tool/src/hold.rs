@@ -1,20 +1,25 @@
 //! A pass's drive session and its one-shot clients (qa/places.md, 5).
 mod server;
 
-use crate::{Home, Refusal, faces::Environment, place::PlacePaths, private, refused};
+use crate::{
+    Home, Refusal,
+    faces::{ClockFace, Environment, Processes, RealClock, RealFiles, RealProcesses, WriteMode},
+    place::PlacePaths,
+    private, refused,
+};
 pub use server::Holder;
 use std::{
-    fs::{self, File, OpenOptions},
+    ffi::OsString,
+    fs::{self, File},
     io::{Read, Write},
-    os::unix::{net::UnixStream, process::CommandExt},
+    os::unix::net::UnixStream,
     path::PathBuf,
-    process::{Command, Stdio},
     time::Duration,
 };
 
 pub const WATCH: Duration = Duration::from_secs(60);
 const START: Duration = Duration::from_mins(5);
-const STOP: Duration = Duration::from_secs(70);
+pub(crate) const STOP: Duration = Duration::from_secs(70);
 const TICK: Duration = Duration::from_millis(10);
 const REQUEST_LIMIT: usize = 64 * 1024;
 
@@ -41,7 +46,7 @@ pub struct Drive {
 }
 impl Drive {
     pub fn for_session(home: &Home, session: u64) -> Result<Self, Refusal> {
-        home.read(|ledger| {
+        home.read(&mut RealFiles, |ledger| {
             let number = ledger.pass_command_session(session)?.pass.expect("pass session");
             let pass = ledger.passes.iter().find(|pass| pass.number == number).expect("session's pass");
             let place = home.configuration.place_directory(&home.directory, &pass.place)?;
@@ -67,39 +72,29 @@ impl Drive {
         self
     }
 
-    fn holder_command(&self, program: &std::path::Path) -> Command {
-        let mut command = Command::new(program);
-        command.args(["pass", "hold"]);
-        if self.ctl {
-            command.arg("--ctl");
-        }
-        command
-    }
-
-    fn session_command(&self, chain: Option<&crate::kind::Chain>) -> Command {
-        let mut command = Command::new(self.place.bin.join("temper-client-journeys"));
-        command.arg("drive");
-        command.args(self.place.kind.drive_arguments(chain.map(|chain| chain.root.as_path())));
-        command.arg("--bin").arg(&self.place.bin);
-        command.arg("--bundle").arg(&self.place.bundle);
-        command.arg("--scratch").arg(&self.place.scratch);
+    fn session_arguments(&self, chain: Option<&crate::kind::Chain>) -> Vec<OsString> {
+        let mut arguments = vec!["drive".into()];
+        arguments.extend(self.place.kind.drive_arguments(chain.map(|chain| chain.root.as_path())));
+        arguments.extend(["--bin".into(), self.place.bin.as_os_str().into()]);
+        arguments.extend(["--bundle".into(), self.place.bundle.as_os_str().into()]);
+        arguments.extend(["--scratch".into(), self.place.scratch.as_os_str().into()]);
         if let Some(chain) = chain {
             for script in chain.members.iter().filter_map(|member| member.scripts.as_ref()) {
-                command.arg("--scripts").arg(script);
+                arguments.extend(["--scripts".into(), script.as_os_str().into()]);
             }
         }
-        command.arg("--strict").arg("--files").arg(&self.files);
+        arguments.extend(["--strict".into(), "--files".into(), self.files.as_os_str().into()]);
         if let Some(ports) = &self.place.ports {
-            command.args(["--ports", ports]);
+            arguments.extend(["--ports".into(), ports.into()]);
         }
         if self.ctl {
-            command.arg("--ctl");
+            arguments.push("--ctl".into());
         }
-        command
+        arguments
     }
 
     fn lock(&self) -> Result<File, Refusal> {
-        private::file(&self.place.drive_lock, OpenOptions::new().read(true).write(true).create(true).truncate(false))
+        private::file(&self.place.drive_lock, &mut RealFiles, WriteMode::OpenOrCreate, true)
     }
     fn busy(&self) -> Refusal {
         refused(format!(
@@ -111,33 +106,21 @@ impl Drive {
         refused(format!("no drive session is open at {}: temper-qa pass open first", self.place.directory.display()))
     }
     fn running(&self) -> Result<bool, Refusal> {
-        self.home.read(|ledger| Ok(ledger.pass_command_session(self.session).is_ok()))
+        self.home.read(&mut RealFiles, |ledger| Ok(ledger.pass_command_session(self.session).is_ok()))
     }
 
     pub fn open(&self, environment: &Environment) -> Result<Reply, Refusal> {
         // Check before starting a background process, so a refusal belongs to this command.
-        self.place.ensure()?;
+        self.place.ensure(&mut RealFiles)?;
         self.scripts()?;
         let lock = self.lock()?;
         lock.try_lock().map_err(|_| self.busy())?;
-        let log = private::file(
-            &self.place.directory.join("drive.log"),
-            OpenOptions::new().write(true).create(true).truncate(true),
-        )?;
-        let mut command =
-            self.holder_command(&std::env::current_exe().map_err(|why| refused(format!("temper-qa: {why}")))?);
-        crate::faces::captured(&mut command, environment);
-        // Release the probe before spawn: the child may take its lock before spawn returns.
-        drop(lock);
-        let mut child = command
-            .stdin(Stdio::null())
-            .stderr(log.try_clone().map_err(|why| refused(format!("drive.log: {why}")))?)
-            .stdout(log)
-            .process_group(0)
-            .spawn()
-            .map_err(|why| refused(format!("pass hold: {why}")))?;
-        let clock = skein_shell::Clock::new();
-        let started = now(&clock);
+        let mut processes = RealProcesses::default();
+        let process =
+            processes.holder(&self.place.directory.join("drive.log"), self.ctl, environment, || drop(lock))?;
+        let mut child = processes.take_child(process);
+        let mut clock = RealClock::default();
+        let started = clock.monotonic();
         let request = format!("start {}", child.id());
         loop {
             if let Some(status) = child.try_wait().map_err(|why| refused(format!("pass hold: {why}")))? {
@@ -147,7 +130,7 @@ impl Drive {
                 });
             }
             if let Ok(stream) = UnixStream::connect(self.place.directory.join("drive.sock")) {
-                let reply = exchange(stream, &request, Some((started, START)), &clock);
+                let reply = exchange(stream, &request, Some((started, START)), &mut clock);
                 if let Ok(reply) = reply {
                     if reply.status != 0 {
                         let _ = child.wait();
@@ -156,13 +139,13 @@ impl Drive {
                 }
                 // A stale socket is removed by the new holder; keep waiting for its start.
             }
-            if now(&clock).saturating_sub(started) >= START {
+            if clock.monotonic().saturating_sub(started) >= START {
                 // The holder bounds its start too and drains its drive group before exiting.
                 let _ = self.request("end", None);
                 let _ = child.wait();
                 return Ok(Reply { status: 4, text: "box failed: drive session start took past 300 seconds\n".into() });
             }
-            std::thread::sleep(TICK);
+            clock.sleep(TICK);
         }
     }
 
@@ -195,13 +178,13 @@ impl Drive {
         Ok(reply)
     }
     fn request(&self, request: &str, bound: Option<(Duration, Duration)>) -> Result<Reply, Refusal> {
-        self.place.ensure()?;
+        self.place.ensure(&mut RealFiles)?;
         let lock = self.lock().map_err(|_| self.absent())?;
         if lock.try_lock().is_ok() {
             return Err(self.absent());
         }
         let stream = UnixStream::connect(self.place.directory.join("drive.sock")).map_err(|_| self.absent())?;
-        exchange(stream, request, bound, &skein_shell::Clock::new())
+        exchange(stream, request, bound, &mut RealClock::default())
     }
 
     fn scripts(&self) -> Result<Option<crate::kind::Chain>, Refusal> {
@@ -232,51 +215,11 @@ impl Drive {
         crate::kind::read_chain(&self.setups, name, crate::kind::ChainUse::Holder).map(Some)
     }
 }
-/// Ending a holder may drain its drive for 70 seconds. Keep that work off the loop,
-/// and wake it again only after the holder releases the place's lock.
-pub(crate) fn end_from_loop(place: PathBuf, waker: crate::events::Waker) {
-    // Capture this holder's connection before the loop may reuse the place.
-    // A delayed connect could reach a later pass's holder at the same path.
-    let mut stream = match UnixStream::connect(place.join("drive.sock")) {
-        Ok(stream) => stream,
-        Err(why) if matches!(why.kind(), std::io::ErrorKind::NotFound | std::io::ErrorKind::ConnectionRefused) => {
-            return;
-        }
-        Err(why) => {
-            eprintln!("temper-qa: end holder: {why}");
-            return;
-        }
-    };
-    #[expect(
-        clippy::disallowed_methods,
-        reason = "blocking event waiter for the std QA tool (temper/docs/design/testing/qa/README.md, 4)"
-    )]
-    std::thread::spawn(move || {
-        let mut end = || -> Result<(), Refusal> {
-            stream.set_write_timeout(Some(STOP)).map_err(io_refusal)?;
-            stream.set_read_timeout(Some(STOP)).map_err(io_refusal)?;
-            stream.write_all(b"end\n").map_err(io_refusal)?;
-            let mut answer = Vec::new();
-            stream.read_to_end(&mut answer).map_err(io_refusal)?;
-            let lock = File::open(place.join("drive.lock")).map_err(io_refusal)?;
-            lock.lock().map_err(io_refusal)?;
-            Ok(())
-        };
-        if let Err(why) = end() {
-            eprintln!("temper-qa: end holder: {why}");
-        }
-        waker.poke();
-    });
-}
-
 fn recipe_name(name: &str) -> bool {
     !name.is_empty()
         && name.len() <= 64
         && name.as_bytes().first().is_some_and(u8::is_ascii_lowercase)
         && name.bytes().all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'-')
-}
-fn now(clock: &skein_shell::Clock) -> Duration {
-    Duration::from_nanos(clock.now().now.as_nanos())
 }
 fn tail(text: &str) -> String {
     let lines: Vec<_> = text.lines().collect();
@@ -291,14 +234,14 @@ fn exchange(
     mut stream: UnixStream,
     request: &str,
     bound: Option<(Duration, Duration)>,
-    clock: &skein_shell::Clock,
+    clock: &mut impl ClockFace,
 ) -> Result<Reply, Refusal> {
     stream.set_nonblocking(true).map_err(io_refusal)?;
     let packet = format!("{request}\n");
     let mut sent = 0;
     let mut bytes = Vec::new();
     loop {
-        if bound.is_some_and(|(start, limit)| now(clock).saturating_sub(start) >= limit) {
+        if bound.is_some_and(|(start, limit)| clock.monotonic().saturating_sub(start) >= limit) {
             return Err(refused("drive session start timed out"));
         }
         if sent < packet.len() {
@@ -313,7 +256,7 @@ fn exchange(
         match stream.read(&mut buffer) {
             Ok(0) => break,
             Ok(count) => bytes.extend_from_slice(buffer.get(..count).expect("read length")),
-            Err(why) if why.kind() == std::io::ErrorKind::WouldBlock => std::thread::sleep(TICK),
+            Err(why) if why.kind() == std::io::ErrorKind::WouldBlock => clock.sleep(TICK),
             Err(why) => return Err(io_refusal(why)),
         }
     }
@@ -322,6 +265,6 @@ fn exchange(
     Ok(Reply { status: status.parse().map_err(|_| refused("drive socket: invalid status"))?, text: text.into() })
 }
 #[expect(clippy::needless_pass_by_value, reason = "map_err consumes the IO error at this boundary")]
-fn io_refusal(why: std::io::Error) -> Refusal {
+pub(crate) fn io_refusal(why: std::io::Error) -> Refusal {
     refused(format!("drive session: {why}"))
 }

@@ -1,4 +1,5 @@
 //! The pass report, built only from records (qa/passes.md, 8).
+use crate::faces::RealFiles;
 use crate::{Home, Ledger, Refusal, refused};
 use serde_json::{Value, json};
 
@@ -46,7 +47,7 @@ impl Ledger {
 impl Home {
     /// Reads and writes under the ledger's read lock; the loop calls this after ending a session.
     pub fn write_pass_report(&self, number: u64) -> Result<(), Refusal> {
-        self.read(|ledger| {
+        self.read(&mut RealFiles, |ledger| {
             let report = ledger.report(number)?;
             let directory = self.directory.join("passes").join(number.to_string());
             let bytes = serde_json::to_vec_pretty(&report).map_err(|why| refused(format!("report: {why}")))?;

@@ -1,17 +1,17 @@
 //! The holder owns the lock, the socket and a separate drive process group (qa/places.md, 5).
-use super::{Drive, REQUEST_LIMIT, Reply, START, STOP, TICK, io_refusal, now, tail};
-use crate::{Refusal, faces::Environment, refused};
+use super::{Drive, REQUEST_LIMIT, Reply, START, STOP, TICK, io_refusal, tail};
+use crate::{
+    Refusal,
+    faces::{ClockFace, Environment, Processes, RealClock, RealFiles, RealProcesses},
+    refused,
+};
 use std::{
     collections::VecDeque,
     fs::{self, File},
     io::{Read, Write},
-    os::{
-        fd::OwnedFd,
-        unix::{
-            fs::PermissionsExt,
-            net::{UnixListener, UnixStream},
-            process::CommandExt,
-        },
+    os::unix::{
+        fs::PermissionsExt,
+        net::{UnixListener, UnixStream},
     },
     process::{Child, Command, Stdio},
     time::Duration,
@@ -37,7 +37,7 @@ pub struct Holder {
     lines: VecDeque<String>,
     exit: Option<u8>,
     environment: Environment,
-    clock: skein_shell::Clock,
+    clock: RealClock,
     started: Duration,
     watch_period: Duration,
     next_watch: Duration,
@@ -47,7 +47,7 @@ pub struct Holder {
 impl Holder {
     /// Production uses sixty seconds; focused tests can shorten the ledger watch.
     pub fn start(drive: Drive, environment: Environment, watch_period: Duration) -> Result<Self, Refusal> {
-        drive.place.ensure()?;
+        drive.place.ensure(&mut RealFiles)?;
         let lock = drive.lock()?;
         lock.try_lock().map_err(|_| drive.busy())?;
         let scripts = drive.scripts()?;
@@ -61,22 +61,11 @@ impl Holder {
         let start = || {
             fs::set_permissions(&socket, fs::Permissions::from_mode(0o600)).map_err(io_refusal)?;
             listener.set_nonblocking(true).map_err(io_refusal)?;
-            // Socket pairs provide piped stdin/stdout with safe std nonblocking handles.
-            // Separate pairs let ending stdin remain independent of draining stdout.
-            let (input, child_input) = UnixStream::pair().map_err(io_refusal)?;
-            let (output, child_output) = UnixStream::pair().map_err(io_refusal)?;
-            input.set_nonblocking(true).map_err(io_refusal)?;
-            output.set_nonblocking(true).map_err(io_refusal)?;
-            let mut command = drive.session_command(scripts.as_ref());
-            crate::faces::captured(&mut command, &environment);
-            let child = command
-                .stdin(Stdio::from(OwnedFd::from(child_input)))
-                .stdout(Stdio::from(OwnedFd::from(child_output)))
-                .stderr(Stdio::inherit())
-                .process_group(0)
-                .spawn()
-                .map_err(io_refusal)?;
-            Ok((input, output, child))
+            let mut processes = RealProcesses::default();
+            let program = drive.place.bin.join("temper-client-journeys");
+            let session =
+                processes.drive(program.as_os_str(), &drive.session_arguments(scripts.as_ref()), &environment)?;
+            Ok((session.input, session.output, processes.take_child(session.process)))
         };
         let (input, output, child) = match start() {
             Ok(parts) => parts,
@@ -85,8 +74,8 @@ impl Holder {
                 return Err(why);
             }
         };
-        let clock = skein_shell::Clock::new();
-        let started = now(&clock);
+        let clock = RealClock::default();
+        let started = clock.monotonic();
         Ok(Self {
             drive,
             lock,
@@ -140,11 +129,11 @@ impl Holder {
             if !self.starting && self.exit.is_some() {
                 return Ok(());
             }
-            std::thread::sleep(TICK);
+            self.clock.sleep(TICK);
         }
     }
     fn watch(&mut self) -> Result<bool, Refusal> {
-        let time = now(&self.clock);
+        let time = self.clock.monotonic();
         if time >= self.next_watch {
             self.next_watch = time.saturating_add(self.watch_period);
             return self.drive.running();
@@ -163,7 +152,7 @@ impl Holder {
             match stream.read(&mut buffer) {
                 Ok(0) => return Ok(false),
                 Ok(count) => bytes.extend_from_slice(buffer.get(..count).expect("read length")),
-                Err(why) if why.kind() == std::io::ErrorKind::WouldBlock => std::thread::sleep(TICK),
+                Err(why) if why.kind() == std::io::ErrorKind::WouldBlock => self.clock.sleep(TICK),
                 Err(_) => return Ok(false), // A disconnected client does not own the session.
             }
             if bytes.len() > REQUEST_LIMIT {
@@ -212,7 +201,7 @@ impl Holder {
                     self.end()?;
                     return Ok(true);
                 }
-                std::thread::sleep(TICK);
+                self.clock.sleep(TICK);
             }
         }
         Ok(end)
@@ -224,7 +213,7 @@ impl Holder {
     fn begin_end(&mut self) {
         if self.stop_at.is_none() && self.exit.is_none() {
             self.queue("end");
-            self.stop_at = Some(now(&self.clock).saturating_add(STOP));
+            self.stop_at = Some(self.clock.monotonic().saturating_add(STOP));
         }
     }
     fn end(&mut self) -> Result<Reply, Refusal> {
@@ -238,11 +227,11 @@ impl Holder {
             if !self.watch()? {
                 self.begin_end();
             }
-            if kind == Answer::Start && now(&self.clock).saturating_sub(self.started) >= START {
+            if kind == Answer::Start && self.clock.monotonic().saturating_sub(self.started) >= START {
                 start_expired = true;
                 self.begin_end();
             }
-            if self.stop_at.is_some_and(|deadline| now(&self.clock) >= deadline) {
+            if self.stop_at.is_some_and(|deadline| self.clock.monotonic() >= deadline) {
                 self.kill()?;
                 text.push_str("box failed: drive session did not stop within 70 seconds\n");
                 return Ok(Reply { status: 4, text: tail(&text) });
@@ -277,7 +266,7 @@ impl Holder {
                 };
                 return Ok(Reply { status, text: if kind == Answer::Start { tail(&text) } else { text } });
             }
-            std::thread::sleep(TICK);
+            self.clock.sleep(TICK);
         }
     }
     fn pump(&mut self) -> Result<(), Refusal> {

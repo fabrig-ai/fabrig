@@ -5,6 +5,7 @@ use super::{
 };
 use skein_scratch::Scratch;
 use std::{fs, os::unix::fs::PermissionsExt, time::Duration};
+use temper_qa_tool::faces::RealFiles;
 use temper_qa_tool::{
     Exit, Home,
     hold::{Drive, Holder},
@@ -17,9 +18,9 @@ fn open_tightens_the_place_and_privatizes_its_log_before_launch() {
     }
     let scratch = Scratch::new("qa-open-modes");
     fs::write(scratch.path().join("qa.json"), br#"{"owner":"qa","git":{"directory":"repo"},"agent":{"command":["agent"],"triage":"low","pass":"high"},"request":{"command":["file"]}}"#).expect("config");
-    let home = Home::open(scratch.path()).expect("home");
+    let home = Home::open(scratch.path(), &mut RealFiles).expect("home");
     let pass = home
-        .transact(|ledger| {
+        .transact(&mut RealFiles, |ledger, _| {
             passes::queue(ledger, "work", "web");
             passes::build(ledger, "A", &[1], 5);
             Ok(passes::start(ledger))
@@ -60,9 +61,9 @@ fn the_ledger_watch_ends_the_drive_and_releases_the_place() {
             config["places"] = serde_json::json!([{"directory":"places/1", "ports":[31001,31002,31003,31004,31005,31006,31007,31008,31009]}]);
         }
         fs::write(scratch.path().join("qa.json"), serde_json::to_vec(&config).expect("JSON")).expect("config");
-        let home = Home::open(scratch.path()).expect("home");
+        let home = Home::open(scratch.path(), &mut RealFiles).expect("home");
         let pass = home
-            .transact(|ledger| {
+            .transact(&mut RealFiles, |ledger, _| {
                 passes::queue(ledger, "work", "web");
                 passes::build(ledger, "A", &[1], 5);
                 Ok(passes::start(ledger))
@@ -94,8 +95,10 @@ fn the_ledger_watch_ends_the_drive_and_releases_the_place() {
         assert_mode(&place.join("drive.sock"), 0o600);
         let lock = fs::File::open(place.join("drive.lock")).expect("lock");
         assert!(lock.try_lock().is_err(), "the holder keeps the place busy before its start is requested");
-        home.transact(|ledger| ledger.end_pass_session(pass.session, Exit::Code(0), None, 6, "qa", &[]))
-            .expect("end pass operation");
+        home.transact(&mut RealFiles, |ledger, _| {
+            ledger.end_pass_session(pass.session, Exit::Code(0), None, 6, "qa", &[])
+        })
+        .expect("end pass operation");
         let clock = skein_shell::Clock::new();
         let before = clock.now().now.as_nanos();
         holder.serve().expect("holder ends on next watch without a client request");

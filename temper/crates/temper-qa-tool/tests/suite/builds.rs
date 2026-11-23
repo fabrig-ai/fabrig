@@ -7,6 +7,7 @@ use std::{
     os::unix::fs::PermissionsExt,
     path::{Path, PathBuf},
 };
+use temper_qa_tool::faces::RealFiles;
 use temper_qa_tool::{BuildState, Home, build::keep};
 
 const COMMIT: &str = "0123456789abcdef0123456789abcdef01234567";
@@ -29,7 +30,7 @@ fn stage() -> (Scratch, Home, PathBuf) {
         br#"{"owner":"qa","git":{"directory":"unused"},"agent":{"command":["unused"],"triage":"low","pass":"high"},"request":{"command":["file"]}}"#,
     )
     .expect("config");
-    let home = Home::open(scratch.path()).expect("home");
+    let home = Home::open(scratch.path(), &mut RealFiles).expect("home");
     let stage = scratch.path().join("stage");
     for directory in ["bin", "bundle"] {
         fs::create_dir_all(stage.join(directory)).expect("stage directory");
@@ -84,7 +85,7 @@ fn a_deployment_stage_keeps_the_coding_agent_version_and_checksums_all_eight_fil
     let kept = home.builds.join(COMMIT);
     assert_eq!(fs::read_to_string(kept.join("manifest")).expect("manifest"), expected);
     assert!(!kept.join("bundle-record").exists());
-    home.read(|ledger| {
+    home.read(&mut RealFiles, |ledger| {
         assert_eq!(ledger.builds.len(), 1);
         assert_eq!(ledger.builds[0].commit, COMMIT);
         assert_eq!(ledger.builds[0].state, BuildState::Kept);

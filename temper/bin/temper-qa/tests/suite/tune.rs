@@ -1,6 +1,6 @@
 //! Tuning is a locked read through the binary, over ledgers the test writes (qa/ledger.md, 6).
 use super::commands::{home, run, success};
-use temper_qa_tool::{CaseInput, Exit, SessionKind};
+use temper_qa_tool::{CaseInput, Exit, SessionKind, faces::RealFiles};
 
 #[test]
 fn tune_prints_all_four_figures_excludes_lost_and_unstarted_and_records_nothing() {
@@ -9,7 +9,7 @@ fn tune_prints_all_four_figures_excludes_lost_and_unstarted_and_records_nothing(
         serde_json::from_slice(&std::fs::read(home.directory.join("qa.json")).expect("config")).expect("JSON");
     config["bounds"] = serde_json::json!({"build_wait":800});
     std::fs::write(home.directory.join("qa.json"), serde_json::to_vec(&config).expect("JSON")).expect("config");
-    home.transact(|ledger| {
+    home.transact(&mut RealFiles, |ledger, _| {
         for (page, queued) in [("work", 100), ("home", 200)] {
             let case = CaseInput::decode(
                 format!(

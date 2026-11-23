@@ -3,6 +3,7 @@ use super::commands::{home, run, success};
 use serde_json::{Value, json};
 use skein_scratch::Scratch;
 use std::{fs, process::Output};
+use temper_qa_tool::faces::RealFiles;
 use temper_qa_tool::{CaseInput, Exit, Home, Ledger, OutcomeResult, PassState};
 
 const BUILD: &str = "0123456789abcdef0123456789abcdef01234567";
@@ -10,7 +11,7 @@ const FIX: &str = "1123456789abcdef0123456789abcdef01234567";
 
 fn pass_home() -> (Scratch, Home) {
     let (scratch, home) = home();
-    home.transact(|ledger| {
+    home.transact(&mut RealFiles, |ledger, _| {
         for (surface, page) in [("web", "work"), ("web", "home"), ("tui", "chat")] {
             let case = json!({"surface":surface,"page":page,"setup":"fresh","steps":[{"do":"open","expect":"ready"}]});
             ledger.add_case(1, &CaseInput::decode(&serde_json::to_vec(&case).expect("JSON"), "-")?, 1)?;
@@ -100,7 +101,7 @@ fn every_recording_command_checks_the_pass_session_before_reading_inputs() {
             refused(&home, arguments, session, None, words);
         }
     }
-    home.transact(|ledger| {
+    home.transact(&mut RealFiles, |ledger, _| {
         ledger.record_landing(FIX, 11, None, "More work", 5);
         assert_eq!(
             ledger.start_session(
@@ -119,7 +120,7 @@ fn every_recording_command_checks_the_pass_session_before_reading_inputs() {
     for arguments in &commands {
         refused(&home, arguments, Some("3"), None, "session 3 is a triage session");
     }
-    home.transact(|ledger| {
+    home.transact(&mut RealFiles, |ledger, _| {
         // A stale running session must not record against a non-running pass.
         ledger.passes[0].state = PassState::Waiting;
         Ok(())
@@ -308,7 +309,7 @@ fn checks_require_a_resumed_session_and_an_open_finding_and_print_the_build() {
         None,
         "check refused: pass 1's first session has no finding to check",
     );
-    home.transact(|ledger| {
+    home.transact(&mut RealFiles, |ledger, _| {
         ledger.record_outcome(2, 1, "failed", "", &[1], 5)?;
         ledger.record_outcome(2, 2, "passed", "", &[], 5)?;
         ledger.end_pass_session(2, Exit::Code(0), None, 6, "qa", &[])?;

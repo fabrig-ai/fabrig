@@ -7,6 +7,7 @@ use std::{
     path::Path,
     process::{Command, Output, Stdio},
 };
+use temper_qa_tool::faces::RealFiles;
 use temper_qa_tool::{CaseInput, Exit, Home, place::PlacePaths};
 
 const COMMIT: &str = "0123456789abcdef0123456789abcdef01234567";
@@ -41,9 +42,9 @@ fn run(home: &Home, arguments: &[&str], session: Option<u64>, input: Option<&[u8
 fn setup_and_recipe_preserve_walk_exits_and_use_the_pass_place_and_captured_processes() {
     let scratch = Scratch::new("qa-place-commands");
     fs::write(scratch.path().join("qa.json"), br#"{"owner":"qa","git":{"directory":"unused"},"agent":{"command":["unused"],"triage":"low","pass":"high"},"request":{"command":["unused"]}}"#).expect("configuration");
-    let home = Home::open(scratch.path()).expect("home");
+    let home = Home::open(scratch.path(), &mut RealFiles).expect("home");
     let started = home
-        .transact(|ledger| {
+        .transact(&mut RealFiles, |ledger, _| {
             ledger.record_landing(COMMIT, 10, None, "Work", 0);
             let triage = ledger.start_session(
                 1,
@@ -65,7 +66,7 @@ fn setup_and_recipe_preserve_walk_exits_and_use_the_pass_place_and_captured_proc
         })
         .expect("ledger operations");
     let place = PlacePaths::new(&home.directory.join("places/1"), temper_qa_tool::Kind::Box);
-    place.ensure().expect("place");
+    place.ensure(&mut RealFiles).expect("place");
     let welcome = home.directory.join("passes/1/setups/welcome");
     fs::create_dir_all(&welcome).expect("setups");
     fs::write(welcome.join("recipe"), "recipe 1\nweb see \"Welcome\"\n").expect("local recipe");

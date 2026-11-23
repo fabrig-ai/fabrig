@@ -1,21 +1,22 @@
 //! Publishing staged builds (temper/docs/design/testing/qa/builds.md, 3 and 4).
-use crate::{Home, Refusal, cli::Environment, ledger::short, refused};
+use crate::{
+    Home, Refusal,
+    cli::Environment,
+    faces::{FilesFace, Processes, RealFiles, RealProcesses},
+    ledger::short,
+    refused,
+};
 use std::{
     ffi::OsStr,
-    fs::{self, File, OpenOptions},
-    io::{BufRead, BufReader, Seek, Write},
-    os::unix::{
-        ffi::OsStrExt,
-        fs::{MetadataExt, OpenOptionsExt, PermissionsExt},
-    },
+    fs::{self, File},
+    io::Write,
+    os::unix::fs::{MetadataExt, PermissionsExt},
     path::{Path, PathBuf},
-    process::{Command, Stdio},
-    time::Duration,
 };
 
 /// Publish a staged build after checking its files and executable versions.
 pub fn keep(home: &Home, commit: &str, directory: &Path, environment: &Environment) -> Result<String, Refusal> {
-    keep_with(home, commit, directory, environment, &mut crate::faces::RealBuildFiles)
+    keep_with(home, commit, directory, environment, &mut RealFiles)
 }
 
 /// Publish using the build-file face (qa/builds.md, 3 and 4).
@@ -24,14 +25,14 @@ pub fn keep_with(
     commit: &str,
     directory: &Path,
     environment: &Environment,
-    face: &mut impl crate::faces::BuildFilesFace,
+    face: &mut impl FilesFace,
 ) -> Result<String, Refusal> {
     if !(commit.len() == 40 || commit.len() == 64)
         || !commit.bytes().all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
     {
         return Err(refused(format!("{commit} is no commit id")));
     }
-    home.transact(|ledger| {
+    home.transact(face, |ledger, face| {
         ledger.check_build_keep(commit)?;
         let files = check_files(directory)?;
         for path in &files {
@@ -147,54 +148,11 @@ fn check_version(
     if path.file_name() == Some(OsStr::new("fake-claude")) {
         return Ok(());
     }
-    let line = version(home, &executable, environment)?;
+    let line = RealProcesses::default().version(&executable, &home.directory.join("build-version.tmp"), environment)?;
     if !line.ends_with(&format!(" ({})", short(commit))) {
         return Err(refused(format!("{} prints {line}, not {}", path.display(), short(commit))));
     }
     Ok(())
-}
-
-// An unlinked capture file lets the one-threaded wait enforce the bound even
-// when a program fills stdout or never closes it. No capture enters the build.
-fn version(home: &Home, executable: &Path, environment: &Environment) -> Result<String, Refusal> {
-    let capture = home.directory.join("build-version.tmp");
-    let mut output =
-        io(&capture, OpenOptions::new().read(true).write(true).create_new(true).mode(0o600).open(&capture))?;
-    io(&capture, fs::remove_file(&capture))?;
-    let clock = skein_shell::Clock::new();
-    let started = clock.now().now;
-    let mut child = io(
-        executable,
-        Command::new(executable)
-            .arg("--version")
-            .env_clear()
-            .envs(environment.iter().map(|(key, value)| (OsStr::from_bytes(key), OsStr::from_bytes(value))))
-            .stdin(Stdio::null())
-            .stdout(io(&capture, output.try_clone())?)
-            .stderr(Stdio::null())
-            .spawn(),
-    )?;
-    loop {
-        match child.try_wait() {
-            Ok(Some(_status)) => break,
-            Ok(None) => {}
-            Err(why) => {
-                let _ = child.kill();
-                let _ = child.wait();
-                return Err(refused(format!("{}: {why}", executable.display())));
-            }
-        }
-        if clock.now().now.as_nanos().saturating_sub(started.as_nanos()) >= 30_000_000_000 {
-            let _ = child.kill();
-            io(executable, child.wait())?;
-            return Err(refused(format!("{}: --version did not answer in 30 seconds", executable.display())));
-        }
-        std::thread::sleep(Duration::from_millis(5));
-    }
-    io(&capture, output.rewind())?;
-    let mut line = Vec::new();
-    io(&capture, BufReader::new(output).read_until(b'\n', &mut line))?;
-    Ok(String::from_utf8_lossy(&line).lines().next().unwrap_or("").into())
 }
 
 fn io<T>(path: &Path, result: std::io::Result<T>) -> Result<T, Refusal> {

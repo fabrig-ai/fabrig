@@ -1,6 +1,7 @@
 //! What QA cannot judge is recorded and filed without a goal (qa/gaps.md, 8).
 use super::passes::{build, start};
 use super::{case, session};
+use temper_qa_tool::faces::RealFiles;
 use temper_qa_tool::{Answer, CaseState, Exit, Ledger};
 
 use super::world::{Agent, Git, Loop, World, id};
@@ -20,7 +21,7 @@ fn running_triage(world: &World) -> Loop {
 fn record_gaps(world: &World) {
     world
         .home
-        .transact(|ledger| {
+        .transact(&mut RealFiles, |ledger, _| {
             ledger.triage_gap(1, "ctl", "no runner tool", "tools", 1)?;
             ledger.add_case(1, &case(), 1)?;
             ledger.triage_gap(1, "fake", "no fake runner", "fakes", 2)?;
@@ -162,7 +163,10 @@ fn gap_closures_read_only_the_landing_side_of_either_parent_order() {
 fn closed_triage_gap_retriages_with_the_kept_build_and_earlier_gap() {
     let world = World::new();
     let mut run = running_triage(&world);
-    world.home.transact(|ledger| ledger.triage_gap(1, "ctl", "no runner tool", "tools", 1)).expect("gap");
+    world
+        .home
+        .transact(&mut RealFiles, |ledger, _| ledger.triage_gap(1, "ctl", "no runner tool", "tools", 1))
+        .expect("gap");
     answer(&mut run, Exit::Code(0));
     run.processes.finish(1, Agent::Empty);
     run.tick();
@@ -190,12 +194,12 @@ fn closed_triage_gap_retriages_with_the_kept_build_and_earlier_gap() {
 fn a_pass_gap_request_keeps_the_case_setup_and_steps() {
     let world = World::new();
     let mut run = running_triage(&world);
-    world.home.transact(|ledger| ledger.add_case(1, &case(), 1)).expect("case");
+    world.home.transact(&mut RealFiles, |ledger, _| ledger.add_case(1, &case(), 1)).expect("case");
     run.processes.finish(1, Agent::Empty);
     run.tick();
     world
         .home
-        .transact(|ledger| {
+        .transact(&mut RealFiles, |ledger, _| {
             build(ledger, &id(2), &[1], 1);
             let pass = start(ledger);
             ledger.pass_gap(pass.session, 1, "qa", "no pushed branch", "qa", 5)?;
@@ -223,7 +227,10 @@ fn a_pass_gap_request_keeps_the_case_setup_and_steps() {
 fn closing_a_triage_gap_preserves_the_running_later_triage() {
     let world = World::new();
     let mut run = running_triage(&world);
-    world.home.transact(|ledger| ledger.triage_gap(1, "ctl", "no runner tool", "tools", 1)).expect("gap");
+    world
+        .home
+        .transact(&mut RealFiles, |ledger, _| ledger.triage_gap(1, "ctl", "no runner tool", "tools", 1))
+        .expect("gap");
     answer(&mut run, Exit::Code(0));
     run.processes.finish(1, Agent::Empty);
     run.tick();

@@ -1,6 +1,7 @@
 //! Gap commands and their read-only views (qa/gaps.md, 8).
 use super::commands::{home, run, success};
 use std::fs;
+use temper_qa_tool::faces::RealFiles;
 use temper_qa_tool::{CaseInput, CaseState, Exit, GapClosed, GapState};
 
 #[test]
@@ -18,7 +19,7 @@ fn triage_gap_records_owners_and_lists_newest_first() {
         );
     }
     success(&run(&home, &["gaps"], None, None), b"3 qa qa open landing 1: cannot judge\n2 fake fakes open landing 1: cannot judge\n1 ctl tools open landing 1: cannot judge\n");
-    home.transact(|ledger| {
+    home.transact(&mut RealFiles, |ledger, _| {
         ledger.gaps[0].state = GapState::Closed;
         ledger.gaps[0].closed = Some(GapClosed { landing: 1, time: 2 });
         ledger.gaps[1].state = GapState::Filed;
@@ -57,7 +58,7 @@ fn gap_commands_refuse_bad_kind_empty_why_and_wrong_session() {
 }
 
 fn pass(home: &temper_qa_tool::Home) {
-    home.transact(|ledger| {
+    home.transact(&mut RealFiles, |ledger, _| {
         let input = CaseInput::decode(
             br#"{"surface":"web","page":"work","setup":"fresh","steps":[{"do":"open Work","expect":"Drafts"}]}"#,
             "-",
@@ -88,7 +89,7 @@ fn pass_gap_refuses_without_mutation_and_records_its_case() {
         assert_eq!(fs::read(&home.ledger).expect("after"), before);
     }
     success(&run(&home, &["pass", "gap", "1", "qa", "no setup reaches the branch"], Some("2"), None), b"gap 1\n");
-    home.read(|ledger| {
+    home.read(&mut RealFiles, |ledger| {
         assert_eq!(ledger.cases[0].state, CaseState::Gap);
         assert_eq!(ledger.gaps[0].case, Some(1));
         assert_eq!(ledger.gaps[0].owner, "qa");

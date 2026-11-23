@@ -6,6 +6,7 @@ use std::{
     path::Path,
     process::{Command, Output, Stdio},
 };
+use temper_qa_tool::faces::RealFiles;
 use temper_qa_tool::{BuildState, Home};
 
 const COMMIT: &str = "0123456789abcdef0123456789abcdef01234567";
@@ -14,7 +15,7 @@ const SHORT: &str = "0123456789ab";
 fn home() -> (Scratch, Home) {
     let scratch = Scratch::new("qa-builds");
     fs::write(scratch.path().join("qa.json"), br#"{"owner":"qa","git":{"directory":"unused"},"agent":{"command":["unused"],"triage":"low","pass":"high"},"request":{"command":["file"]},"builds":"published"}"#).expect("config");
-    let home = Home::open(scratch.path()).expect("home");
+    let home = Home::open(scratch.path(), &mut RealFiles).expect("home");
     (scratch, home)
 }
 fn stage(home: &Home, name: &str) -> std::path::PathBuf {
@@ -105,7 +106,7 @@ fn kept_build_moves_files_writes_sorted_sha256_manifest_and_records_time_without
     );
     assert!(rows.contains(&"87428fc522803d31065e7bce3cf03fe475096631e5e07bbd7a0fde60c4cf25c7  bundle/index.html"));
     assert!(rows.contains(&"\\87428fc522803d31065e7bce3cf03fe475096631e5e07bbd7a0fde60c4cf25c7  bundle/a\\\\b\\nc\\r"));
-    home.read(|ledger| {
+    home.read(&mut RealFiles, |ledger| {
         assert_eq!(ledger.builds.len(), 1);
         let build = &ledger.builds[0];
         assert_eq!(build.commit, COMMIT);
@@ -193,7 +194,7 @@ fn commit_form_refuses_before_build_checks_and_accepts_sha256_ids() {
 #[test]
 fn a_kept_commit_refuses_before_inspecting_the_stage() {
     let (_scratch, home) = home();
-    home.transact(|ledger| ledger.keep_build(COMMIT, 1)).expect("kept record");
+    home.transact(&mut RealFiles, |ledger, _| ledger.keep_build(COMMIT, 1)).expect("kept record");
     let stage = home.directory.join("empty");
     fs::create_dir(&stage).expect("empty stage");
     refusal(&home, COMMIT, &stage, &format!("build {SHORT} is kept already"));
@@ -253,7 +254,7 @@ fn every_executable_must_print_the_clean_commit_on_its_first_line() {
 #[test]
 fn a_deleted_build_is_kept_anew_and_an_abandoned_partial_is_removed() {
     let (_scratch, home) = home();
-    home.transact(|ledger| {
+    home.transact(&mut RealFiles, |ledger, _| {
         ledger.keep_build(COMMIT, 1)?;
         ledger.set_build_holds(COMMIT, vec![], 1)?;
         ledger.mark_build_deleted(COMMIT, 2)?;
@@ -268,7 +269,7 @@ fn a_deleted_build_is_kept_anew_and_an_abandoned_partial_is_removed() {
     assert!(!partial.exists());
     assert!(!home.builds.join(COMMIT).join("abandoned").exists());
     assert!(!stage.exists());
-    home.read(|ledger| {
+    home.read(&mut RealFiles, |ledger| {
         assert_eq!(ledger.builds.len(), 1);
         let build = &ledger.builds[0];
         assert_eq!(build.state, BuildState::Kept);

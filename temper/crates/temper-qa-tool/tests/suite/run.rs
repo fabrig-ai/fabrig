@@ -1,6 +1,7 @@
 //! The watcher and tick loop over the fake world, never real git or agents.
 use super::world::{Agent, Agents, Clock, Git, World, baseline, id, land};
 use std::fs;
+use temper_qa_tool::faces::RealFiles;
 use temper_qa_tool::{
     Answer, BuildState, Exit, Ledger,
     faces::{Changed, Signal},
@@ -9,7 +10,10 @@ use temper_qa_tool::{
 };
 
 fn read(git: &mut Git, world: &World) {
-    world.home.transact(|ledger| watch(git, &world.home.configuration.git, ledger, 1)).expect("watch");
+    world
+        .home
+        .transact(&mut RealFiles, |ledger, _| watch(git, &world.home.configuration.git, ledger, 1))
+        .expect("watch");
 }
 
 #[test]
@@ -37,9 +41,11 @@ fn watcher_sees_all_parents_once_across_rewinds_and_orders_two_landings() {
     git.head = id(0);
     read(&mut git, &world);
     // A restart from the stored, rewound head must not replay MA.
-    let reopened = temper_qa_tool::Home::open(world.scratch.path()).expect("restart");
+    let reopened = temper_qa_tool::Home::open(world.scratch.path(), &mut RealFiles).expect("restart");
     git.head = id(4);
-    reopened.transact(|ledger| watch(&mut git, &reopened.configuration.git, ledger, 2)).expect("restart watch");
+    reopened
+        .transact(&mut RealFiles, |ledger, _| watch(&mut git, &reopened.configuration.git, ledger, 2))
+        .expect("restart watch");
     assert_eq!(world.ledger().landings.len(), 1);
     git.commit(5, &[4], "one parent\n\nGoal: 88\n");
     git.merge(6, &[4, 5], 8);
@@ -51,7 +57,7 @@ fn watcher_sees_all_parents_once_across_rewinds_and_orders_two_landings() {
     let mut config = world.home.configuration.git.clone();
     config.fetch = Some("upstream".into());
     config.branch = "trunk".into();
-    world.home.transact(|ledger| watch(&mut git, &config, ledger, 3)).expect("fetch watch");
+    world.home.transact(&mut RealFiles, |ledger, _| watch(&mut git, &config, ledger, 3)).expect("fetch watch");
     assert_eq!(&git.calls[git.calls.len() - 2..], ["fetch upstream trunk", "head refs/temper-qa/trunk"]);
 }
 
@@ -99,7 +105,7 @@ fn check_landing_base(parents: &[u64], branch_parent: u64, main_parent: u64, pre
     }
     world
         .home
-        .transact(|ledger| {
+        .transact(&mut RealFiles, |ledger, _| {
             ledger.record_head(&id(if parents.contains(&4) { 4 } else { 2 }));
             if previous {
                 ledger.record_landing(&id(2), 7, None, "earlier landing", 0);
@@ -530,7 +536,7 @@ fn one_run_holds_the_home_and_restart_ends_every_running_session_lost_and_prunes
     let world = World::new();
     world
         .home
-        .transact(|ledger| {
+        .transact(&mut RealFiles, |ledger, _| {
             ledger.record_landing(&id(2), 7, None, "landed", 0);
             ledger.start_session(1, "cheap", super::pages(), vec!["fresh".into()], Vec::new(), 0)?;
             Ok(())
@@ -580,7 +586,7 @@ if read -r ignored; then exit 94; fi
 fn seed_request(world: &World, count: u64, time: u64, page: &str, commit: &str) -> u64 {
     let pass = world
         .home
-        .transact(|ledger| {
+        .transact(&mut RealFiles, |ledger, _| {
             let case = super::passes::queue(ledger, page, "web");
             let holds = ledger.landings.iter().map(|landing| landing.number).collect::<Vec<_>>();
             super::passes::build(ledger, commit, &holds, time);
@@ -822,7 +828,7 @@ printf 'ended\n' >&2
     );
     world
         .home
-        .transact(|ledger| {
+        .transact(&mut RealFiles, |ledger, _| {
             super::passes::build(ledger, &id(1), &[1], 100);
             let resumed = ledger
                 .resume_pass("places/1", temper_qa_tool::Kind::Box, &["web".into()], "high", 21)
@@ -842,7 +848,7 @@ fn a_second_request_names_the_earlier_goal_that_carried_the_finding() {
     run.tick();
     world
         .home
-        .transact(|ledger| {
+        .transact(&mut RealFiles, |ledger, _| {
             ledger.end_goal(41, 10)?;
             let resumed =
                 ledger.resume_pass("places/1", temper_qa_tool::Kind::Box, &["web".into()], "high", 11).expect("resume");
@@ -878,7 +884,7 @@ fn goal_state_failures_retry_but_unconfigured_or_landed_goals_are_not_polled() {
         assert_eq!(run.processes.bounded.len(), 3);
         world
             .home
-            .transact(|ledger| {
+            .transact(&mut RealFiles, |ledger, _| {
                 let landing = ledger.record_landing(&id(2), 41, None, "goal's landing", 3601).expect("new landing");
                 let session = super::session(ledger, landing);
                 ledger.answer_none(session, "fix landed")?;
@@ -932,7 +938,7 @@ fn request_answers(run: &mut super::world::Loop, answers: &[(Exit, Option<&str>)
 fn seed_open_gap(world: &World) {
     world
         .home
-        .transact(|ledger| {
+        .transact(&mut RealFiles, |ledger, _| {
             let landing = u64::try_from(ledger.landings.len()).expect("landing count") + 1;
             super::landing(ledger, landing);
             let session = super::session(ledger, landing);
@@ -1029,7 +1035,7 @@ fn every_request_failure_is_reported_while_waiting_goals_are_checked() {
     seed_request(&world, 2, 20, "home", &id(2));
     world
         .home
-        .transact(|ledger| {
+        .transact(&mut RealFiles, |ledger, _| {
             ledger.file_request(2, 1, Some(41), 0)?;
             ledger.file_request(3, 1, Some(42), 0)
         })

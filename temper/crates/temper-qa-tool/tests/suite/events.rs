@@ -1,6 +1,7 @@
 //! Event delivery uses a local fake peer, never a box or network (qa/README.md, 4 and 6).
 use super::world::{Agent, World, baseline, land};
 use std::{fs, io::Read, os::unix::fs::PermissionsExt};
+use temper_qa_tool::faces::RealFiles;
 use temper_qa_tool::{
     Refusal,
     events::{self, Events},
@@ -18,7 +19,7 @@ fn a_socket_poke_wakes_and_a_burst_runs_one_tick() {
     run.tick();
     run.git.calls.clear();
     for _ in 0..20 {
-        events::poke(&peer).expect("poke");
+        events::poke(&peer, &mut RealFiles).expect("poke");
         events::accept(&listener, &run.waker()).expect("accept wakes");
     }
     run.cycle();
@@ -34,7 +35,7 @@ fn saved_commands_poke_after_commit_and_refusals_never_poke() {
     listener.set_nonblocking(true).expect("fake accept");
     world
         .home
-        .transact(|ledger| {
+        .transact(&mut RealFiles, |ledger, _| {
             ledger.record_head("committed");
             Ok(())
         })
@@ -44,16 +45,16 @@ fn saved_commands_poke_after_commit_and_refusals_never_poke() {
     stream.read_to_end(&mut bytes).expect("command closes without waiting for a reply");
     assert_eq!(bytes.len(), 0);
     assert_eq!(world.ledger().head.as_deref(), Some("committed"));
-    let result = world.home.transact(|ledger| {
+    let result = world.home.transact(&mut RealFiles, |ledger, _| {
         ledger.record_head("refused");
         Err::<(), _>(Refusal("refuse".into()))
     });
     assert!(result.is_err());
     assert_eq!(listener.accept().expect_err("no refused poke").kind(), std::io::ErrorKind::WouldBlock);
     drop(listener);
-    world.home.transact(|_| Ok(())).expect("refused connection is no error");
+    world.home.transact(&mut RealFiles, |_, _| Ok(())).expect("refused connection is no error");
     fs::remove_file(world.home.directory.join("run.sock")).expect("remove stale socket");
-    world.home.transact(|_| Ok(())).expect("missing socket is no error");
+    world.home.transact(&mut RealFiles, |_, _| Ok(())).expect("missing socket is no error");
 }
 
 #[test]
