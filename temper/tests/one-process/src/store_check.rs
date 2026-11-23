@@ -181,12 +181,13 @@ impl State {
         });
         let given = self.given.as_ref().expect("live start's defaults");
         self.rehearsals += 1;
-        rehearsal::check(&copy, self.settings, inputs, given, self.opening_limits.as_ref()).map_err(|words| {
-            // The source is unchanged by the tool. Read it only to name a refusal:
-            // its newest frame can be ahead of the observation that kept it.
-            let number = newest(&mut copy.0.borrow_mut()).max(number);
-            finding(number, "upgrade rehearsal", &words)
-        })
+        StoreChecks::rehearse(|| rehearsal::check(&copy, self.settings, inputs, given, self.opening_limits.as_ref()))
+            .map_err(|words| {
+                // The source is unchanged by the tool. Read it only to name a refusal:
+                // its newest frame can be ahead of the observation that kept it.
+                let number = newest(&mut copy.0.borrow_mut()).max(number);
+                finding(number, "upgrade rehearsal", &words)
+            })
     }
 }
 

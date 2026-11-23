@@ -69,3 +69,20 @@ fn an_armed_timer_survives_a_fresh_director_run_and_its_helpers_cancellation() {
     assert_eq!(live(&driver, director.task).subscriptions.as_ref(), expected);
     assert!(!cancelled(&driver).contains(&(fresh.task, fresh.attempt)));
 }
+
+#[test]
+fn a_timers_returned_subscription_names_its_removal() {
+    let (mut driver, director) = batch_fixture();
+    let kind = tasks::SubscriptionKind::Timer { at: Wall::from_nanos(30_000_000_000), period: None };
+    tool_call(&mut driver, &director, 212, engine::Tool::Subscribe { kind });
+    let Some(engine::CallAnswer::Subscribed { subscription }) = driver.answered(212).cloned() else {
+        panic!("timer subscription answered after commit")
+    };
+    assert_eq!(
+        live(&driver, director.task).subscriptions.as_ref(),
+        [tasks::Subscription { number: subscription, kind }]
+    );
+    tool_call(&mut driver, &director, 213, engine::Tool::Unsubscribe { subscription });
+    assert_eq!(driver.answered(213), Some(&engine::CallAnswer::Unsubscribed));
+    assert!(live(&driver, director.task).subscriptions.is_empty());
+}

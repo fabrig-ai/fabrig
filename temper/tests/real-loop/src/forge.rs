@@ -11,13 +11,21 @@ pub const HOOK_SECRET: &[u8] = b"real-loop-hook-secret";
 #[derive(Clone, Copy)]
 pub struct Fixture {
     pub setup: fn() -> api::Setup,
+    /// Arrange branches on the fake before connecting the real clients.
+    pub prepare: fn(&mut domain::Domain, &Env<domain::Config>),
     pub manual_merges: api::ManualMerges,
     pub extra_setups: fn() -> Box<[api::Setup]>,
     pub configure: fn(&mut temper_playground::documents::Configuration, &mut serde_json::Value, SocketAddr),
 }
 #[must_use]
 pub fn fixture() -> Fixture {
-    Fixture { setup, manual_merges: api::ManualMerges::OFF, extra_setups: || Box::new([]), configure: |_, _, _| {} }
+    Fixture {
+        setup,
+        prepare: |_, _| {},
+        manual_merges: api::ManualMerges::OFF,
+        extra_setups: || Box::new([]),
+        configure: |_, _, _| {},
+    }
 }
 fn setup() -> api::Setup {
     api::Setup {
@@ -352,6 +360,7 @@ impl State {
             domain::manual_merges(&mut domain, &name, fixture.manual_merges);
             domain::grant(&mut domain, &name, 1, api::Permission::Write);
         }
+        (fixture.prepare)(&mut domain, &Env { now: now.now, wall: now.wall, limits: config.clone() });
         let handle = Rc::new(RefCell::new(Forge::new(domain, config)));
         crate::git::share(Some(temper_fake_git_hosted::Typed::new(handle.clone(), &table)));
         let peer = Peer::new(

@@ -204,8 +204,9 @@ class Merge(unittest.TestCase):
                          self.git('show', f'{base}:{path}').stdout)
         entry = self.git('ls-tree', base, '--', path).stdout.split()[0]
         self.assertEqual(self.git('ls-files', '--stage', '--', path).stdout.split()[0], entry)
-        self.assertEqual((self.repository / path).stat().st_mode & 0o111,
-                         0o111 if entry == b'100755' else 0)
+        # The owner's bit alone: git leaves the rest to the umask, 022 or 077.
+        self.assertEqual((self.repository / path).stat().st_mode & 0o100,
+                         0o100 if entry == b'100755' else 0)
 
     def test_journey_written_conflicts_take_base_bytes_and_mode_without_generation(self):
         paths = (JOURNEYS + 'x/01.html',

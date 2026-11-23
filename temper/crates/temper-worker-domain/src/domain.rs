@@ -17,7 +17,7 @@ use alloc::boxed::Box;
 use jig_domain_link::{Hosting, Phase};
 
 use jig_domain_host as host;
-use skein_lib::{Env, Id, Map, Queue, Slab, Time, Token};
+use skein_lib::{Env, Id, Map, Queue, Set, Slab, Time, Token};
 use smith_host_domain as agent;
 use temper_worker_domain_checkout as checkout;
 use temper_worker_domain_tooling as tooling;
@@ -56,6 +56,8 @@ pub struct Domain {
     /// The ends of agents that went with hand-outs still out, with their
     /// detail.
     pub(crate) gone: Map<Token, Box<[u8]>>,
+    /// Agents already reported gone whose hub attempts still await relays or workspace work.
+    pub(crate) ending_agents: Set<Token>,
     /// The workspaces the host asked for, until the checkout has released
     /// them.
     pub(crate) workspaces: Slab<Workspace>,
@@ -115,7 +117,7 @@ impl Domain {
     /// Answered attempts awaiting acknowledgement are parked, not live work.
     #[must_use]
     pub fn hosting(&self) -> skein_lib::List<Hosting> {
-        let mut owners = skein_lib::Set::with_capacity(self.host.hosted());
+        let mut owners = Set::with_capacity(self.host.hosted());
         for (owner, _) in &self.preparing {
             owners.insert(*owner).expect("one owner per hosted slot");
         }
@@ -131,8 +133,11 @@ impl Domain {
         for (owner, _) in &self.gone {
             owners.insert(*owner).expect("one owner per hosted slot");
         }
+        for owner in &self.ending_agents {
+            owners.insert(*owner).expect("one owner per hosted slot");
+        }
         let mut runs = skein_lib::List::with_capacity(self.host.unanswered());
-        let mut seen = skein_lib::Set::with_capacity(self.host.unanswered());
+        let mut seen = Set::with_capacity(self.host.unanswered());
         for owner in &owners {
             if let Some(hosting) = self.host.hosting(*owner)
                 && hosting.phase != Phase::Answered
@@ -145,7 +150,7 @@ impl Domain {
             // Once its agent and hand-outs are gone, an unanswered run can only
             // be finishing its workspace. Items retain its engine identity until
             // acknowledgement; answered slots are deliberately not obligations.
-            let mut answered = skein_lib::Set::with_capacity(self.host.kept_answers());
+            let mut answered = Set::with_capacity(self.host.kept_answers());
             for index in 0..self.host.kept_answers() {
                 let (run, attempt) = match self.host.answer_at(index) {
                     Some(host::LinkUp::Answer { run, attempt, .. } | host::LinkUp::JobAnswer { run, attempt, .. }) => {
@@ -210,6 +215,7 @@ impl Domain {
             calls: Map::with_capacity(agents.checked_mul(limits.agent.calls).expect("valid accepted the calls")),
             pending: Queue::uncapped(),
             gone: Map::with_capacity(agents),
+            ending_agents: Set::with_capacity(slots),
             workspaces: Slab::with_capacity(slots),
             items: Map::with_capacity(slots.saturating_add(1)),
             items_by_run: Map::with_capacity(slots.saturating_add(1)),
@@ -413,6 +419,7 @@ pub fn resume(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) 
 /// stopped once it has, then gathers the facts.
 fn settle(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     route::hand_off(domain, env, out);
+    crate::agents::forget_answered(domain);
     for _ in 0..env.limits.host.told {
         let Some(activity) = domain.host.pop_activity() else {
             break;

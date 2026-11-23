@@ -4,10 +4,8 @@ use serde_json::json;
 use skein_fake_llm_domain::api::{Finish, Line, Script, Turn};
 
 // Fresh deployment: chat T1, batch e1 T2 and a3 T3; e1's coding child follows.
-// The story checks these numbers against the client's final task documents.
 pub const E1: u64 = 2;
 pub const A3: u64 = 3;
-pub const AFTER_MET: &str = "After Met: the change landed; a3 is done.";
 
 #[must_use]
 pub fn fixture() -> crate::forge::Fixture {
@@ -76,7 +74,10 @@ pub fn scripts(forge: std::net::SocketAddr, repository: u64) -> Box<[Script]> {
     };
     scripts.push(Script {
         cue: b"@kept_a3".as_slice().into(),
-        turns: Box::new([call(b"finish", &json!({"form":"report","text":AFTER_MET,"fields":{}}))]),
+        turns: Box::new([call(
+            b"finish",
+            &json!({"form":"report","text":"After Met: the change landed; a3 is done.","fields":{}}),
+        )]),
     });
     scripts.into_boxed_slice()
 }
