@@ -348,20 +348,20 @@ repair: read skein/docs/foundation/testing-strategy.md in full first, then ask 8
   `[a-z][a-z0-9-]{0,31}` and its recorded total is a positive integer.
 - **The comparison.** With main's ledger, the gate and the full goal check
   compare binaries measured whole in the run's selected layers (section
-  4.1). An unlisted or cut-short binary is skipped, as is a listed binary
-  whose tests the run did none of (section 8). A binary absent from
-  `workspace` has zero tests and checks. A name in main's `tests` stays
+  4.1). An unlisted or cut-short binary is skipped. A listed binary
+  that ran no tests, or a binary absent from `workspace`, is judged
+  with zero tests and checks. A name in main's `tests` stays
   covered when the suite runs it in any binary. A test newly ignored can
   lose its name from the run. Each check kind's total at the head must at
   least equal its total at main, for that binary. An absent kind counts
   zero. Fixed seeds make the totals comparable without a tolerance.
 - **A move across modules.** When a name at main is absent from the run,
-  it stays covered if the run has a new test with the same final `::`
+  it can pair with a new test in the run that has the same final `::`
   segment. A test is new where main's ledger lacks its name in the binary
-  that ran it. The summary lists the source and destination of each such
-  move in `coverage_moves`, and prints one line per source binary with
-  the number of moves. Where several new tests match, it names the first
-  by binary ID and test name. A move gives no red or warning.
+  that ran it. For each segment, the summary pairs lost and new tests
+  one to one, sorting each side by test name and then binary ID. Remaining
+  losses need a reason. The summary lists both ends in `coverage_moves`
+  and prints one line per source binary with the number of moves.
 - **A reason** is a table of the profile's `coverage_reasons` array in
   `tools/tiers/budgets.toml`.
 

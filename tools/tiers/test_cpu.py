@@ -1049,6 +1049,32 @@ class OneProcessTests(unittest.TestCase):
         self.assertEqual([line for line in output.getvalue().splitlines() if line.startswith('coverage moves:')],
                          ['coverage moves: pkg::suite: 1'])
 
+    def test_coverage_move_pairs_each_new_test_once_in_name_order(self):
+        self.coverage_case(tests={'z_old::round_trip': [1]})
+        self.main['binaries']['source'] = self.ledger_entry(
+            [1], layer='step', tests={'a_old::round_trip': [1]})
+        names = ['z_new::round_trip']
+        self.results['processes'].append(self.process(names, binary_id='lower', layer='step'))
+        self.results['tests'].append(self.entry(names[0], binary_id='lower', process=1))
+        self.results['selected'] += 1
+        result = self.summary(self.limits, gate=True, ledger=self.main)
+        move, = result['coverage_moves']
+        self.assertEqual(move, {
+            'from': dict(binary_id='source', test_name='a_old::round_trip'),
+            'to': dict(binary_id='lower', test_name='z_new::round_trip')})
+        line, = result['over_budget']
+        self.assertIn('lost test: z_old::round_trip', line)
+        self.assertEqual(line.count('lost test: '), 1)
+
+        names.append('a_new::round_trip')
+        self.results['tests'].append(self.entry(names[1], binary_id='lower', process=1))
+        self.results['selected'] += 1
+        result = self.summary(self.limits, gate=True, ledger=self.main)
+        self.assertEqual(result['coverage_moves'], [
+            dict(move, to=dict(binary_id='lower', test_name='a_new::round_trip')),
+            {'from': dict(binary_id='pkg::suite', test_name='z_old::round_trip'), 'to': move['to']}])
+        self.assertEqual(result['over_budget'], [])
+
     def test_coverage_renames_need_a_reason_and_print_it_on_a_pass(self):
         self.coverage_case(tests={'before::old_a': [1], 'before::old_z': [1]})
         result = self.summary(self.limits, gate=True, ledger=self.main)
@@ -1079,14 +1105,16 @@ class OneProcessTests(unittest.TestCase):
         line, = self.summary(self.limits, gate=True, ledger=self.main)['over_budget']
         self.assertIn('lost test: newly_ignored', line)
 
-    def test_coverage_skips_listed_binary_without_suite_tests(self):
-        self.coverage_case(tests={'newly_ignored': [1]}, checks={'seed': 2})
+    def test_coverage_loses_every_test_when_a_listed_binary_is_entirely_ignored(self):
+        self.coverage_case(tests={'first_ignored': [1], 'second_ignored': [1]}, checks={'seed': 2})
         self.results.update(selected=0, tests=[])
-        for processes in ([], [self.process([], kind='tests'), self.process(['z'], kind='reference')]):
+        for processes in ([], [self.process([], kind='tests'), self.process(['first_ignored'], kind='reference')]):
             with self.subTest(processes=processes):
                 self.results['processes'] = processes
                 result = self.summary(self.limits, gate=True, ledger=self.main)
-                self.assertEqual(result['over_budget'], [])
+                line, = result['over_budget']
+                self.assertEqual(line.splitlines()[1:4], [
+                    '  lost test: first_ignored', '  lost test: second_ignored', '  seed: 2 at main, 0 at the head'])
 
     def test_coverage_check_totals_compare_exactly_and_ignore_diagnostics(self):
         self.coverage_case(checks={'store-check': 10})

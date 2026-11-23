@@ -733,10 +733,10 @@ def one_process_summary(directory, limits, pair, run, gate=False, ledger=None, b
         return isinstance(value, list) and all(isinstance(name, str) and name for name in value)
 
     def identity(item):
-        key = item['binary_id'], item['test_name']
-        if any(not isinstance(value, str) or not value for value in key):
+        binary, name = item['binary_id'], item['test_name']
+        if not isinstance(binary, str) or not binary or not isinstance(name, str) or not name:
             raise ValueError('invalid test identity')
-        return key
+        return binary, name
 
     if any(not isinstance(data[key], list) for key in ('processes', 'tests', 'unobserved')):
         raise ValueError('invalid one-process result lists')
@@ -764,7 +764,7 @@ def one_process_summary(directory, limits, pair, run, gate=False, ledger=None, b
         processes.append(process)
     tests, failures, warnings, seen = [], [], [], set()
     for item in sorted(data['tests'], key=identity):
-        key = identity(item)
+        key = item['binary_id'], item['test_name']
         if key in seen:
             raise ValueError('duplicate selected test')
         seen.add(key)
@@ -796,12 +796,12 @@ def one_process_summary(directory, limits, pair, run, gate=False, ledger=None, b
                     for item in processes if item['leaked'])
     unobserved = []
     single_process = False
-    crashed_binaries = {t['binary_id'] for t in data['tests'] if t['outcome'] == 'crashed'}
     if data['unobserved'] and data['cancelled'] is None:
         path = directory / 'plan.json'
         single_process = path.is_file() and json.loads(path.read_text()).get('single_process', False)
+        crashed_binaries = {t['binary_id'] for t in data['tests'] if t['outcome'] == 'crashed'}
     for item in sorted(data['unobserved'], key=identity):
-        key = identity(item)
+        key = item['binary_id'], item['test_name']
         if key in seen:
             raise ValueError('duplicate selected test')
         seen.add(key)
@@ -1137,19 +1137,27 @@ def head_binaries(processes, workspace, ledger, selected_layers=None):
     return head
 
 
-def coverage_move_targets(observed, main_binaries):
-    """Index new tests by their final name segment (tools/tiers/budgets.md, 13)."""
-    targets = {}
+def match_coverage_moves(lost_by_binary, observed, main_binaries):
+    """Pair lost and new tests once each (tools/tiers/budgets.md, 13)."""
+    lost = sorted((name, binary) for binary, names in lost_by_binary.items() for name in names)
+    targets = {name.rsplit('::', 1)[-1]: set() for name, _ in lost}
     for binary, tests in observed:
         at_main = main_binaries.get(binary, {}).get('tests', {})
         for name in tests:
             if name not in at_main:
-                segment = name.rsplit('::', 1)[-1]
-                target = binary, name
-                previous = targets.get(segment)
-                if previous is None or target < previous:
-                    targets[segment] = target
-    return targets
+                candidates = targets.get(name.rsplit('::', 1)[-1])
+                if candidates is not None:
+                    candidates.add((name, binary))
+    ordered_targets = {segment: sorted(candidates, reverse=True) for segment, candidates in targets.items()}
+    moves = []
+    for name, binary in lost:
+        candidates = ordered_targets[name.rsplit('::', 1)[-1]]
+        if candidates:
+            moved_name, moved_binary = candidates.pop()
+            moves.append({'from': dict(binary_id=binary, test_name=name),
+                          'to': dict(binary_id=moved_binary, test_name=moved_name)})
+            lost_by_binary[binary].remove(name)
+    return moves
 
 
 def coverage_verdict(data, head, processes, main_binaries, partial, reasons, over, warnings):
@@ -1159,35 +1167,26 @@ def coverage_verdict(data, head, processes, main_binaries, partial, reasons, ove
     observed = [(process['binary_id'], process['tests']) for process in processes if process['tests']]
     if data['cancelled'] is not None:
         observed.extend((test['binary_id'], [test['test_name']]) for test in data['tests'] if test['process'] is None)
-    ran, names = set(), set()
-    for binary, tests in observed:
-        ran.add(binary)
+    names = set()
+    for _, tests in observed:
         names.update(tests)
     by_binary = {}
     for index, reason in enumerate(reasons):
         by_binary.setdefault(reason['binary'], []).append((index, reason))
-    applied = {}
-    moves, targets = [], None
+    lost_by_binary = {}
     for binary, main in main_binaries.items():
         if binary in partial or not layer_selected(main['layer'], selected):
             continue
         current = workspace.get(binary)
-        if current is not None and (not current['listed'] or binary not in ran
-                                    or not layer_selected(current['layer'], selected)):
+        if current is not None and (not current['listed'] or not layer_selected(current['layer'], selected)):
             continue
+        lost_by_binary[binary] = main['tests'].keys() - names
+    moves = match_coverage_moves(lost_by_binary, observed, main_binaries) if any(lost_by_binary.values()) else []
+    applied = {}
+    for binary, lost in lost_by_binary.items():
+        main = main_binaries[binary]
         entry = head.get(binary)
         checks = entry['checks'] if entry is not None else {}
-        lost = main['tests'].keys() - names
-        if lost:
-            if targets is None:
-                targets = coverage_move_targets(observed, main_binaries)
-            for name in sorted(lost):
-                target = targets.get(name.rsplit('::', 1)[-1])
-                if target is not None:
-                    moved_binary, moved_name = target
-                    moves.append({'from': dict(binary_id=binary, test_name=name),
-                                  'to': dict(binary_id=moved_binary, test_name=moved_name)})
-                    lost.remove(name)
         fewer = {kind: (count, checks.get(kind, 0)) for kind, count in main.get('checks', {}).items()
                  if checks.get(kind, 0) < count}
         if not lost and not fewer:
@@ -1210,7 +1209,7 @@ def coverage_verdict(data, head, processes, main_binaries, partial, reasons, ove
         lost = sorted(lost - covered_tests)
         kinds = sorted(fewer.keys() - covered_checks)
         if lost or kinds:
-            placement = current if current is not None else main
+            placement = workspace.get(binary, main)
             lines = [f"layer coverage loss: {placement['tree']} {data['profile']} {placement['layer']}: {binary}"]
             lines.extend(f'  lost test: {name}' for name in lost[:10])
             if len(lost) > 10:
