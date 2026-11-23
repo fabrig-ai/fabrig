@@ -2,7 +2,7 @@
 //! Fresh and resumed runs share both the story program and concrete actions.
 use crate::{Testing, actions::World, scenarios::Continuation};
 use jig_conformance::scenarios::{Scenario, ScenarioApplication, Step, program};
-use jig_conformance::{Cut, Harness, Outcome, referee::Violation};
+use jig_conformance::{Cut, Harness, Outcome, referee::Violation, store_check::StoreChecks};
 use std::{cell::RefCell, rc::Rc};
 
 mod observations;
@@ -146,37 +146,33 @@ fn cuts_traced(
     );
     let position = Rc::new(RefCell::new(Position::default()));
     let hook_position = Rc::clone(&position);
-    let failure = Rc::new(RefCell::new(None));
-    let hook_failure = Rc::clone(&failure);
     let passed = Rc::new(RefCell::new(Vec::new()));
     let hook_passed = Rc::clone(&passed);
-    world.on_commit(move |world| {
-        if hook_failure.borrow().is_some() {
-            return;
-        }
+    world.on_cold_cut(move |world| {
         let cut = world.store.applied;
         if selected.as_ref().is_some_and(|cuts| !cuts.contains(&cut)) {
-            return;
+            return Ok(false);
         }
         if fork {
             match skein_fork::split() {
                 skein_fork::Split::Child => {}
                 skein_fork::Split::Parent(skein_fork::Exit::Code(0)) => {
                     hook_passed.borrow_mut().push(cut);
-                    return;
+                    return Ok(true);
                 }
                 skein_fork::Split::Parent(exit) => {
-                    hook_failure.replace(Some(Violation {
+                    return Err(Violation {
                         promise: jig_conformance::referee::Promise::Lost,
                         why: format!("snapshot cut {cut} failed: {exit:?}"),
-                    }));
-                    return;
+                    });
                 }
             }
         }
         let continuation = hook_position.borrow().clone();
         let result = world.cold_snapshot().and_then(World::from_snapshot).and_then(|mut replay| {
+            replay.store_checks(StoreChecks::none("the snapshot's cold restart checks its commit"));
             finish(&mut replay, scenario, seed, continuation, &RefCell::new(Position::default()))?;
+            replay.finish()?;
             visit(cut, replay);
             Ok(())
         });
@@ -186,15 +182,12 @@ fn cuts_traced(
             }
             skein_fork::passed();
         }
-        if let Err(error) = result {
-            hook_failure
-                .replace(Some(Violation { promise: error.promise, why: format!("snapshot cut {cut}: {}", error.why) }));
-        }
+        result
+            .map(|()| true)
+            .map_err(|error| Violation { promise: error.promise, why: format!("snapshot cut {cut}: {}", error.why) })
     });
     finish(&mut world, scenario, seed, Position::default(), &position)?;
-    if let Some(error) = failure.take() {
-        return Err(error);
-    }
+    world.finish()?;
     let mut outcome = world.outcome();
     outcome.forked = passed.take();
     Ok(outcome)
@@ -254,7 +247,7 @@ fn finish_fresh(world: &mut World, scenario: Scenario, seed: u64) -> Result<(), 
             }
         }
         Testing::check(world, scenario).map_err(|error| world.diagnostic(error))?;
-        Ok(())
+        world.finish()
     })
 }
 
@@ -305,8 +298,7 @@ outside_state!(world;
     held: std::collections::VecDeque<u64> = &world.store.held,
     referee: jig_conformance::referee::Referee = &world.referee,
     clock: u64 = &world.clock().now,
-    // Coverage belongs to the run: a sweep's preceding children checked more
-    // commits than a sampled snapshot prefix, without changing application state.
+    // Coverage belongs to the run, not to the application state being compared.
     outcome: Outcome = &Outcome { checked: 0, ..world.outcome() },
     trace: Vec<String> = &world.trace.to_vec(),
 );
