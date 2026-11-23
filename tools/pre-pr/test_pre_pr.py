@@ -764,10 +764,13 @@ class CloseBudgets(unittest.TestCase):
             return status, 'fixture\n'
 
         self.assertEqual(self.close(fake, completed_goal=False), [])
-        for status, name in ((100, 'focused tests'), (0, 'budgets')):
-            with self.subTest(status=status):
-                error, = self.close(fake)
-                self.assertEqual(error['name'], name)
+        status = 100
+        error, = self.close(fake)
+        self.assertEqual(error['name'], 'focused tests')
+        status = 0
+        self.assertEqual(self.close(fake), [])
+        self.assertIn('pre-pr: budgets at close, a warning: the landing gate judges them\n', self.log.getvalue())
+        self.assertIn('instruction growth over allowance', self.log.getvalue())
 
 
 class Gate(unittest.TestCase):
