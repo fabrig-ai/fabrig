@@ -562,21 +562,25 @@ fn input_turn(group: &[Box<[Rule]>], script: usize, messages: &[Message]) -> Opt
 ///
 /// Contract: docs/design/testing/fakes/llm.md, sections 2–5; programming-model.md, section 4.4.
 fn cued(scripts: &[Script], system: &[u8]) -> Option<usize> {
-    // One pass, from each place in the text on, the scripts in order at each.
-    // Bounded by the text: visit every byte suffix, including the empty one.
-    for offset in 0..=system.len() {
-        let text = system.get(offset..).expect("an offset through the text is a suffix");
-        for (index, script) in scripts.iter().enumerate() {
-            let leads = match script.cue.first() {
-                Some(first) => text.first() == Some(first),
+    let mut selected = None;
+    let mut earliest = None;
+    for (index, script) in scripts.iter().enumerate() {
+        if let Some(offset) = bytes::find(system, &script.cue) {
+            let earlier = match earliest {
+                Some(previous) => offset < previous,
                 None => true,
             };
-            if leads && text.starts_with(&script.cue) {
-                return Some(index);
+            if earlier {
+                selected = Some(index);
+                earliest = Some(offset);
+            }
+            // No later script can precede this one at the start of the text.
+            if offset == 0 {
+                break;
             }
         }
     }
-    None
+    selected
 }
 
 /// The scripted answer `turn`, its calls named afresh; cut short past the
@@ -878,7 +882,7 @@ mod tests {
     use alloc::boxed::Box;
 
     use skein_lib::bytes::copy_of;
-    use skein_lib::{Duration, Rng};
+    use skein_lib::{Duration, List, Rng};
 
     use super::{call_id, respond, valid};
     use crate::api::{Error, Finish, Line, Message, Part, Role, ToolSpec, Turn};
@@ -1100,6 +1104,26 @@ mod tests {
             let unknown = name == b"unknown";
             let broken = arguments == b"{";
             assert!(unknown != broken, "malformed one way: {name:?} {arguments:?}");
+        }
+    }
+
+    #[test]
+    fn cues_choose_the_earliest_position_then_the_first_script() {
+        type Case = (&'static [&'static [u8]], &'static [u8], Option<usize>);
+        let cases: &[Case] = &[
+            (&[b"late", b"early"], b"prefix early late", Some(1)),
+            (&[b"early", b"ear"], b"prefix early", Some(0)),
+            (&[b"ear", b"early"], b"prefix early", Some(0)),
+            (&[b"missing"], b"prefix", None),
+            (&[b"missing", b""], b"", Some(1)),
+            (&[], b"", None),
+        ];
+        for &(cues, text, expected) in cases {
+            let mut scripts = List::with_capacity(u32::try_from(cues.len()).expect("test cue count"));
+            for cue in cues {
+                scripts.push(script(cue, Box::new([]))).expect("room for every test cue");
+            }
+            assert_eq!(super::cued(scripts.as_slice(), text), expected, "cues {cues:?} in {text:?}");
         }
     }
 

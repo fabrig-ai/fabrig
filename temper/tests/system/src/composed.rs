@@ -468,14 +468,13 @@ impl World {
         config: fn(u64) -> engine::Config,
         limits: fn(&mut engine::Limits),
     ) -> Self {
-        let [(bootstrap, mut limits), (config, _)] = std::array::from_fn(|_| {
-            let (mut config, mut bounds) = configured_parts(config(seed), repository);
-            limits(&mut bounds);
-            for worker in &mut config.core.defaults.workers {
-                worker.places = bounds.fleet.slots;
-            }
-            (config, bounds)
-        });
+        let (mut config, mut bounds) = configured_parts(config(seed), repository);
+        limits(&mut bounds);
+        for worker in &mut config.core.defaults.workers {
+            worker.places = bounds.fleet.slots;
+        }
+        let bootstrap = temper_engine_domain_world::oracle::config::copy(&config);
+        let mut limits = bounds;
         let forge = repository_forge(seed);
         let mut worker_limits =
             if config.core.defaults.charters.len() > 1 { agreement::worker_limits(&limits) } else { worker_limits() };
