@@ -325,6 +325,8 @@ fn run(world: World<Owner, Judge, Disk>) -> skein_world::Outcome<Owner, Disk> {
     outcome
 }
 
+mod sweep;
+
 #[test]
 fn a_power_loss_at_any_store_operation_resumes_without_reusing_an_activation() {
     let baseline = run(world(70));
@@ -357,22 +359,9 @@ fn a_fresh_journal_resumes_its_reset_after_a_power_loss() {
     }
 }
 
-fn sweep(seed_base: u64, fresh: bool, initial: Initial) -> u32 {
-    let baseline = run(configured_mode(seed_base, fresh, initial, skein_sim::Config::calm()));
-    for before in 0..baseline.procs[0].submitted {
-        let seed = seed_base + u64::from(before);
-        let mut world = configured_mode(seed, fresh, initial, skein_sim::Config::calm());
-        world.cut(0, before, Cut::PowerLoss);
-        let outcome = run(world);
-        assert!(outcome.procs[0].reserved.is_some(), "{initial:?}, seed {seed}, cut {before}");
-        assert_eq!(outcome.machine.0.open_handles(), 0);
-    }
-    baseline.procs[0].submitted
-}
-
 #[test]
 fn interrupted_initial_marker_creation_resumes_without_adopting_old_records() {
-    sweep(7000, false, Initial::Empty);
+    sweep::cuts(7000, false, Initial::Empty);
 }
 
 fn disk_snapshot(files: &mut Files) -> Vec<(Box<[u8]>, skein_fake_machine::Facts, Vec<u8>)> {
@@ -425,14 +414,14 @@ fn extra_seed_713_store_power_loss_proof() {
         (FIRST_CREATE_BASE, false, Initial::Empty),
         (SECOND_CREATE_BASE, true, Initial::Empty),
     ] {
-        let operations = sweep(base, fresh, initial);
+        let operations = sweep::cuts(base, fresh, initial);
         println!("713 extra sweep: {initial:?}, fresh={fresh}, seed base {base}, cuts 0..{operations}");
     }
 }
 
 #[test]
 fn generated_whole_turn_loading_and_recovery_fit_the_shared_metered_store_bound() {
-    sweep(9000, false, Initial::Window);
+    sweep::cuts(9000, false, Initial::Window);
 }
 
 fn initial_window() -> smith_local_protocol::File {

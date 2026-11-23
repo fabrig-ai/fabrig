@@ -93,7 +93,6 @@ impl Walk {
         reason = "one mutation judgment keeps resolution and its expected decision together"
     )]
     fn judge(&mut self, row: &Relation, name: &str, changes: &[Override], decision: Decision, refusal: &Relation) {
-        self.count = self.count.checked_add(1).expect("mutation count");
         eprintln!(
             "mutation {name}: {} ({:?}; {}) -> {decision:?} {}",
             row.name,
@@ -197,6 +196,7 @@ impl Walk {
                 .push(format!("{name}: relation {} ({}): {failure}", row.name, row.design))
                 .expect("bounded failures");
         }
+        self.count = self.count.checked_add(1).expect("mutation count");
     }
     fn case(&mut self, rows: &List<Relation>, row: &Relation, name: &str, change: Override, decision: Decision) {
         if decision == Decision::Refused || decision == Decision::Explicit {
@@ -309,6 +309,9 @@ pub(super) fn walk(rows: &List<Relation>) {
                 walk.case(rows, row, &format!("{} one below what it holds", row.figure), change, decision);
             }
         }
+    }
+    if walk.count > 0 {
+        skein_checks::count("mutation", u64::from(walk.count));
     }
     for failure in &walk.failures {
         eprintln!("{failure}");
