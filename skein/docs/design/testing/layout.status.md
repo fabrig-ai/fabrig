@@ -2,9 +2,6 @@
 
 2026-11-24. Where the tree's code lags or departs from [layout.md](layout.md).
 
-- **Not yet:** 1: `tests/codec-patches` still stands, with the patch
-  command's tests. [in flight: change 16311]
-
 - **Departs:** 1: step tests belong in `src/tests.rs` and `src/tests/`, but
   `skein-shell/src/listener_calls.rs` loads sibling `listener_tests.rs`
   through `#[path]`, as other crates load `*_tests.rs`, and

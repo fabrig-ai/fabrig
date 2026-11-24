@@ -86,7 +86,6 @@ class Packages(unittest.TestCase):
         self.assertIn('default() & not (package(=fabrig-boundary)', expression)
         self.assertIn('test(=client_layout_changes_move_their_versions)', expression)
         self.assertNotIn('current_client_wire_layouts_match_the_schema', expression)
-        self.assertNotIn('generated_patch_modules_are_current', expression)
         self.assertEqual(PLAN.workspace_filter(['leaf']), [])
 
     def test_nested_test_helper_stays_with_its_owner(self):

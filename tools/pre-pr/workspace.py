@@ -9,7 +9,6 @@ LANDED_CASES = {
     'client_layouts': ('client_layout_changes_move_their_versions',),
     'layouts': ('client_wire_layouts_are_current_and_landed', 'landing_history_preserves_client_wire_layouts'),
     'host_tools': ('host_tool_contract_history_is_kept',),
-    'patches': ('stored_changes_have_patches', 'patch_modules_are_current'),
 }
 
 
