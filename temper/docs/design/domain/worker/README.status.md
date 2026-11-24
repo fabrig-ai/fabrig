@@ -2,7 +2,6 @@
 
 2026-11-24. Where temper's code lags or departs from [README.md](README.md).
 
-- **Not yet:** 2: a killed worker back as a new process keeps the workspaces its runs held, and each next attempt on it saves its workspace before its agent starts. [in flight: change 15509]
 - **Not yet:** 2: a start that fails is the engine still away: no story takes an engine through two failed starts to the adoption of the runs a worker hosts, and no dial is due at the grace's end less the handshake deadline.
 
 Section 3.1 has no known gap in reading the link: the worker reads it
