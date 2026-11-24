@@ -92,7 +92,7 @@ fn run(
     let directory = Directory::of(&settings);
     let source = super::source(&account, directory.as_ref()).map_err(|credential| credential.line(name))?;
     if logout {
-        return super::logout::run(&account, &source, &settings, clock, environment);
+        return super::logout::run(&account, source, &settings, clock, environment);
     }
     match source {
         Source::SignIn { file, .. } => {

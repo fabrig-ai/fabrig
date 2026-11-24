@@ -805,10 +805,13 @@ impl Print {
                     },
                     Err(error) => (error, true),
                 };
-                if let Some(expected) = self.expected_reply.take() {
-                    failed |= !text.contains(&expected);
-                }
                 let mut effects = Vec::new();
+                if let Some(expected) = self.expected_reply.take()
+                    && !text.contains(&expected)
+                {
+                    effects.push(Effect::Seen(Seen::ReplyMismatch { tool: pending.tool.clone() }));
+                    failed = true;
+                }
                 let text = match &pending.action {
                     ToolAction::Server => {
                         effects.push(Effect::Seen(Seen::Called { tool: pending.tool.clone(), error: failed }));
