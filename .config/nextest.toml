@@ -339,7 +339,6 @@ default-filter = """
   binary_id(=github-conformance::suite) |
   binary_id(=skein-browser-world::browser_facts) |
   binary_id(=skein-browser-world::browser_real) |
-  binary_id(=skein-codec-patches::suite) |
   binary_id(=skein-codegen::suite) |
   binary_id(=skein-conformance-real::suite) |
   binary_id(=skein-echo-shell::end_to_end) |
