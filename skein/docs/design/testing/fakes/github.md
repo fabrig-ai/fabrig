@@ -614,6 +614,28 @@ masking and refusal of leaked secrets are `throwaway.md`, section 2's.
   or writing its value.
 - **Calls are few.** A full live run stays under 400 requests and about
   ten minutes, most of it waiting for the probe workflow's 45 seconds.
+- **Its directories,** the output directory and the fixtures', are one
+  face's: the host's directory, as the tool's commands read and write it,
+  or a directory in skein's fake machine (../README.md, section 4), as its
+  tests lay it. Both take the same operations in the same order: the
+  journal made new and synced with its directory, each record appended and
+  synced before the request it intends, the facts and the cleanup report
+  replaced and synced, a case's transcripts replaced only after their scan,
+  and fixture admission reading each entry's kind and mode without
+  following a link. So the fake machine's crash keeps what the host's disk
+  keeps: every synced record, and at most a torn last one, which a resumed
+  cleanup cuts back to its last whole line before it reads. The host's
+  side is the calls the commands made before the face, with no decision of
+  its own, so no real-loop witness stays for it.
+- **Its tests replay,** at every gate, and none writes a real file. The
+  runner's, on the fake over the simulator with the output directory in
+  the fake machine, are a simulated world's, `github-conformance::suite`:
+  the fake GitHub is a process of skein's simulator, which the strategy's
+  table places there (../../../foundation/testing-strategy.md, 2). Those
+  that drive no runner, the fact names against ../../forge/github.md,
+  section 13, the leak refusal, fixture admission over laid entries, the
+  live guard's refusals and the journal through a crash, are the
+  library's own step tests.
 
 ## 3. What the two layers share
 

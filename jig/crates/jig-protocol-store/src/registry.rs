@@ -59,7 +59,7 @@ impl ReadWork {
                     | Misconverted::Bool
                     | Misconverted::Bound
                     | Misconverted::Trailing
-                    | Misconverted::Dropped(_),
+                    | Misconverted::Refused(_),
                 ) => return false,
             }
         }

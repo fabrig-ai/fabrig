@@ -1,7 +1,14 @@
 use super::*;
-use crate::fake::World;
+use crate::{
+    directory::{Directory, transcript},
+    fake::World,
+    journal::{Journal, Made},
+    live::Fixtures,
+};
+use skein_fake_machine::{How, Item, Machine};
 use skein_forge::github::{document as github_document, request::Method};
 use skein_forge_conformance::write::{self, SecretKind, Secrets};
+use std::collections::BTreeSet;
 
 #[test]
 fn github_conformance_close_delimited_waits_for_end_and_bounds_the_body() {
@@ -126,4 +133,185 @@ fn github_conformance_checks_logged_payload_signatures() {
     let mut secrets = Secrets::of(&[]);
     live::register(&mut secrets, SecretKind::HookSecret, "invented\nsecret");
     assert!(write::check("escaped", br#"{"unexpected":"invented\nsecret"}"#, b"", &secrets).is_err());
+}
+
+#[test]
+fn github_conformance_names_every_fact_of_forge_github_13() {
+    let doc = include_str!("../../../../docs/design/forge/github.md");
+    let section = doc.split("## 13.").nth(1).expect("section 13").split("## 14.").next().expect("section end");
+    let mut names: BTreeSet<_> = section.split('`').enumerate().filter(|(i, _)| i % 2 == 1).map(|(_, s)| s).collect();
+    names.remove("unchecked");
+    names.retain(|s| s.contains('-') && !s.contains('/'));
+    names.insert("installation-repository-removal-refusals");
+    assert_eq!(cases::NAMES.iter().copied().collect::<BTreeSet<_>>(), names);
+    assert_eq!(cases::NAMES.len(), names.len());
+}
+#[test]
+fn github_conformance_stops_on_a_leaked_secret() {
+    let mut machine = Machine::new();
+    let root = machine.lay(&[]);
+    let mut out = Directory::fake(machine, root, "");
+    for kind in
+        [SecretKind::AppKey, SecretKind::PersonToken, SecretKind::Jwt, SecretKind::MintedToken, SecretKind::HookSecret]
+    {
+        let secrets = Secrets::of(&[(kind, "invented-secret-value")]);
+        let mut m = mask::Mask::default();
+        let unexpected = m.body(br#"{"unexpected":"invented-secret-value"}"#, false);
+        let leak = transcript(&mut out, "unexpected-field", b"GET / HTTP/1.1\r\n", &unexpected, &secrets)
+            .expect_err("leak refused");
+        let error = leak.to_string();
+        assert!(error.contains("unexpected-field"));
+        assert!(error.contains(&format!("{kind:?}")));
+        assert!(!error.contains("invented-secret-value"));
+        assert!(!out.exists("transcripts"));
+    }
+}
+#[test]
+fn github_conformance_journal_keeps_synced_records_after_a_crash() {
+    const THIRD: &str = "make\t3\tmint\t1\t100\n";
+    let secrets = Secrets::of(&[]);
+    let mut saw_torn_tail = false;
+    for seed in 0..=7 {
+        let mut machine = Machine::new();
+        let root = machine.lay(&[]);
+        let mut out = Directory::fake(machine, root, "");
+        let mut journal = Journal::create(&mut out, false, &secrets).expect("new journal");
+        for installation in [1, 2] {
+            journal.before(&mut out, Made::Mint { installation, at: 100 }, &secrets).expect("synced intention");
+        }
+        let durable = out.read_text("made.txt").expect("synced bytes");
+        let Directory::Fake(tree) = &mut out else { panic!("fake directory") };
+        let file = tree.machine.open(tree.root, b"made.txt", How::Write).expect("open journal");
+        tree.machine.append(file, THIRD.as_bytes()).expect("unsynced third intention");
+        tree.machine.close(file);
+        tree.machine.crash(seed);
+        tree.root = tree.machine.reopen_root(0);
+
+        let survived = out.read_text("made.txt").expect("crashed journal");
+        let tail = survived.strip_prefix(&durable).unwrap_or_else(|| panic!("seed {seed}: lost a synced intention"));
+        let complete = tail == THIRD;
+        assert!(THIRD.starts_with(tail), "seed {seed}: only a prefix of the unsynced record can survive");
+        saw_torn_tail |= !complete && !tail.is_empty();
+        let (reloaded, live) = Journal::load(&mut out).expect("a torn tail is cut, not an error");
+        assert!(!live);
+        let ids: Vec<_> = reloaded.pending.iter().map(|(id, _)| *id).collect();
+        assert_eq!(ids, if complete { &[1, 2, 3][..] } else { &[1, 2][..] }, "seed {seed}");
+        assert_eq!(out.read_text("made.txt").expect("recovered journal"), if complete { survived } else { durable });
+    }
+    assert!(saw_torn_tail, "the seeds exercise a torn third record");
+}
+
+fn private_fixture(mode: u32, replaced: Option<(&str, &str)>, path: &str) -> Directory {
+    let mut items = vec![Item::directory(b"fixtures").mode(mode), Item::file(b"fixtures/ignored", b"unneeded")];
+    let fixtures = World::fixtures().expect("invented fixtures");
+    let app = br#"{"id":8,"slug":"example-app","name":"Example App","client_id":"invented-client","node_id":"invented-node","html_url":"https://example-app.invalid/","permissions":{"contents":"write"},"events":["push"],"created_at":"2026-01-01T00:00:00Z","owner":"acme","installations":[{"id":1,"account":"acme","repositories":["acme/widgets"]},{"id":2,"account":"globex","repositories":["globex/gadgets"]}],"spare_repository":"acme/spare","hook_url":"https://example-app.invalid/","api_version":"2026-03-10"}"#;
+    // Pin the invented document to the same dialect constant as the runner.
+    let app =
+        std::str::from_utf8(app).expect("metadata text").replace("2026-03-10", skein_forge::github::pin::API_VERSION);
+    for (name, bytes) in [
+        ("app.json", app.as_bytes()),
+        ("app.pem", fixtures.pem.as_bytes()),
+        ("webhook_secret", fixtures.webhook.as_bytes()),
+        ("person-acme.token", fixtures.people["acme"].as_bytes()),
+        ("person-globex.token", fixtures.people["globex"].as_bytes()),
+    ] {
+        let path = format!("fixtures/{name}");
+        let path = path.as_bytes();
+        match replaced {
+            Some((entry, "file")) if entry == name => items.push(Item::file(path, bytes).mode(0o644)),
+            Some((entry, "link")) if entry == name => {
+                items.push(Item::file(b"fixtures/invented-target", bytes).mode(0o600));
+                items.push(Item::link(path, b"invented-target"));
+            }
+            Some((entry, "non-file")) if entry == name => items.push(Item::directory(path)),
+            _ => items.push(Item::file(path, bytes).mode(0o600)),
+        }
+    }
+    items.push(Item::link(b"link", b"fixtures"));
+    let mut machine = Machine::new();
+    let root = machine.lay(&items);
+    Directory::fake(machine, root, path)
+}
+#[test]
+fn github_conformance_live_refuses_a_loose_directory_or_file() {
+    let mut valid = private_fixture(0o700, None, "fixtures");
+    assert!(Fixtures::load(&mut valid).is_ok(), "valid invented fixtures refused");
+    for name in ["app.json", "app.pem", "webhook_secret", "person-acme.token", "person-globex.token"] {
+        for kind in ["file", "link", "non-file"] {
+            let mut out = private_fixture(0o700, Some((name, kind)), "fixtures");
+            let attempted = Fixtures::load(&mut out).map(|_| -> () {
+                panic!("connector reached after insecure fixture");
+            });
+            assert!(attempted.is_err());
+        }
+    }
+    assert!(Fixtures::load(&mut private_fixture(0o755, None, "fixtures")).is_err());
+    assert!(Fixtures::load(&mut private_fixture(0o700, None, "link")).is_err());
+}
+#[test]
+fn github_conformance_live_refuses_targets_outside_the_fixtures() {
+    let fixtures = Fixtures::load(&mut private_fixture(0o700, None, "fixtures"))
+        .expect("invented private fixtures")
+        .guard_fixtures();
+    let delete =
+        br#"{"query":"mutation { deleteRepository(input: {repositoryId: \"invented\"}) { clientMutationId } }"}"#
+            .as_slice();
+    let mixed = br#"{"query":"mutation { enqueuePullRequest(input: {pullRequestId: \"invented\"}) { clientMutationId } deleteRepository(input: {repositoryId: \"invented\"}) { clientMutationId } }"}"#.as_slice();
+    for (method, verb, target, body) in [
+        (Method::Post, "POST", "/repos/acme/other/pulls", b"".as_slice()),
+        (Method::Get, "GET", "/repos/acme/other", b""),
+        (Method::Get, "GET", "/repos/other/widgets/pulls", b""),
+        (Method::Get, "GET", "/repos/Acme/widgets", b""),
+        (Method::Get, "GET", "/repos/acme/Widgets", b""),
+        (Method::Delete, "DELETE", "/repos/acme/widgets", b""),
+        (Method::Patch, "PATCH", "/repos/acme/widgets?ignored=1", b""),
+        (Method::Post, "POST", "/repos/acme/spare", b""),
+        (Method::Put, "PUT", "/repos/globex/gadgets", b""),
+        (Method::Delete, "DELETE", "/repos/acme/widgets/", b""),
+        (Method::Post, "POST", "/user/repos", b""),
+        (Method::Patch, "PATCH", "/user", b""),
+        (Method::Put, "PUT", "/user/installations/999/repositories/1", b""),
+        (Method::Delete, "DELETE", "/user/installations/999/repositories/1", b""),
+        (Method::Post, "POST", "/user/installations/1/repositories/1", b""),
+        (Method::Put, "PUT", "/user/installations/1/repositories/not-digits", b""),
+        (Method::Put, "PUT", "/user/installations/1/repositories/1/extra", b""),
+        (Method::Put, "PUT", "/user/installations/1/repositories/", b""),
+        (Method::Put, "PUT", "/user/installations//repositories/1", b""),
+        (Method::Put, "PUT", "/user/installations/18446744073709551616/repositories/1", b""),
+        (Method::Delete, "DELETE", "/users/acme", b""),
+        (Method::Patch, "PATCH", "/repositories/2", b""),
+        (Method::Post, "POST", "/graphql", delete),
+        (Method::Post, "POST", "/graphql", mixed),
+        (Method::Get, "GET", "/graphql", br#"{"query":"query { viewer { login databaseId } }"}"#),
+        (Method::Post, "POST", "/graphql", br#"{"query":"subscription { viewer { login } }"}"#),
+        (Method::Post, "POST", "/graphql", br#"{"query":"query { viewer { login } }"}"#),
+        (Method::Post, "POST", "/graphql", br#"{"query":"query { viewer { login databaseId } } "}"#),
+        (Method::Post, "POST", "/graphql", b"{}"),
+        (Method::Post, "POST", "/graphql", br#"{"query":42}"#),
+        (Method::Post, "POST", "/graphql", b"invalid JSON"),
+        (Method::Get, "GET", "/repos/acme/widgets%2F..", b""),
+        (Method::Get, "GET", "/repos/ac%6de/widgets", b""),
+        (Method::Get, "GET", "/repos/acme%2Fother/widgets", b""),
+        (Method::Get, "GET", "/repos//widgets", b""),
+        (Method::Get, "GET", "/repos/acme/", b""),
+        (Method::Get, "GET", "/repos/./widgets", b""),
+        (Method::Get, "GET", "/repos/../widgets", b""),
+        (Method::Get, "GET", "/repos/acme/.", b""),
+        (Method::Get, "GET", "/repos/acme/..", b""),
+        (Method::Get, "GET", "/repos/acme/widgets/../other", b""),
+        (Method::Get, "GET", "/repos/acme/widgets#ignored", b""),
+        (Method::Get, "GET", "/repos/acme/widgets\\other", b""),
+        (Method::Get, "GET", "/repos/acme", b""),
+        (Method::Get, "GET", "/user-other", b""),
+        (Method::Get, "GET", "/installation/token", b""),
+        (Method::Post, "POST", "/installation/repositories", b""),
+        (Method::Get, "GET", "/installation/repositories-other", b""),
+    ] {
+        let error = live::guarded(&fixtures, method, target, body, || {
+            panic!("connector called for a refused target");
+        })
+        .expect_err("target must be refused before the connector");
+        let path = target.split('?').next().expect("path");
+        assert_eq!(error.to_string(), format!("live target refuses {verb} {path} before the connector"));
+    }
 }

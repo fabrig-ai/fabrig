@@ -102,7 +102,10 @@ impl<T: Transport> Git<T> {
             }
             match &checked.command {
                 Command::UpdateIndex { .. } => unreachable!("private paging is not admitted by fake git"),
-                Command::Version | Command::CountObjects { .. } | Command::Repack { .. } => {}
+                Command::Version
+                | Command::CountObjects { .. }
+                | Command::Repack { .. }
+                | Command::MergeHistory { .. } => {}
                 Command::Origin { directory } | Command::Clone { directory, .. } | Command::Store { directory, .. } => {
                     jobs.push_back(Job::Scan(path(&checked.root, directory)));
                 }
@@ -199,6 +202,7 @@ impl<T: Transport> Git<T> {
             | Command::Format
             | Command::Remote { .. }
             | Command::SnapshotHead
+            | Command::MergeHistory { .. }
             | Command::SnapshotMerge { .. }
             | Command::IsAncestor { .. } => false,
             Command::UpdateRef { .. }

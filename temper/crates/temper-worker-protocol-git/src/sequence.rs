@@ -212,9 +212,9 @@ pub fn after(
             }
         }
         Command::CheckOut { .. } if code == 0 => return checked_out(op),
-        Command::Merge { .. } => match code {
+        Command::Merge { theirs } => match code {
             0 => return Next::End(git::Done::Merged),
-            1 => return Next::Run(Command::Unmerged),
+            1 => return Next::Run(Command::MergeHistory { theirs: *theirs }),
             _ => {}
         },
         Command::DiffPaths { .. } if code == 0 => {
@@ -223,7 +223,7 @@ pub fn after(
                 return Next::End(git::Done::Paths { files });
             }
         }
-        Command::UpdateIndex { .. } if code == 0 => return Next::Run(Command::Unmerged),
+        Command::MergeHistory { .. } | Command::UpdateIndex { .. } if code == 0 => return Next::Run(Command::Unmerged),
         Command::Unmerged if code == 0 => {
             if let Some(next) = unmerged(op, stdout, checkout) {
                 return next;
@@ -333,6 +333,7 @@ pub fn after(
         | Command::Fetch { .. }
         | Command::CheckOut { .. }
         | Command::Clean
+        | Command::MergeHistory { .. }
         | Command::DiffPaths { .. }
         | Command::Unmerged
         | Command::UpdateIndex { .. }
@@ -476,7 +477,8 @@ fn remote(command: &Command) -> bool {
         | Command::Create { .. }
         | Command::Push { .. }
         | Command::CheckOut { .. }
-        | Command::Merge { .. } => true,
+        | Command::Merge { .. }
+        | Command::MergeHistory { .. } => true,
         Command::Reds(_)
         | Command::CountObjects { .. }
         | Command::Repack { .. }
@@ -627,6 +629,7 @@ pub(crate) fn after_view(
         | Command::CheckOut { .. }
         | Command::Clean
         | Command::Merge { .. }
+        | Command::MergeHistory { .. }
         | Command::Unmerged
         | Command::UpdateIndex { .. }
         | Command::Add

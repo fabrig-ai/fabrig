@@ -98,7 +98,8 @@ pub fn answer(checked: &Checked, checkout: &mut Checkout, transport: &mut impl T
             b"count: 0\nsize: 0\nin-pack: 0\npacks: 0\nsize-pack: 0\nprune-packable: 0\ngarbage: 0\nsize-garbage: 0\n"
                 .to_vec(),
         ),
-        Command::Repack { .. } => Answer::success(Vec::new()),
+        // The fake has no missing blobs to fetch during the history comparison.
+        Command::Repack { .. } | Command::MergeHistory { .. } => Answer::success(Vec::new()),
         Command::Version => Answer::success(b"git version 2.47.3\n".to_vec()),
         Command::Origin { directory } => {
             let directory = path(&checked.root, directory);

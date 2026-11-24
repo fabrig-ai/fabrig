@@ -12,6 +12,17 @@
   agent's program surviving a forced stop also needs containment on one
   person's machine; git's configured helpers stay in its group (`git.md`,
   section 7; setup/README.md, section 9).
+- **A run's git and the contents no step fetched.** A run's git borrows
+  the worker's objects and the store's, and fetches nothing: its
+  directory names no promisor remote and no credential reaches it
+  (`git-operations.md`, 1.13; `git.md`, section 5). So it reads the files
+  its checkout checked out and merged, and after a conflict those its
+  sides' histories' comparison reads (`git-operations.md`, 1.6); a read of
+  another commit's file no step fetched, such as an agent's `git show` of
+  an old revision, fails `fatal: unable to read <object>`. Default: so,
+  since a fetch of its own would put the identity's token in the run's
+  reach; a worker's operation that brings named contents, if runs show the
+  need.
 - **A nested repository** in a work tree, a directory holding its own
   `.git`, is staged by `add --all` as git stages one, by the commit its
   HEAD names, which git reads without running anything it configures; a
