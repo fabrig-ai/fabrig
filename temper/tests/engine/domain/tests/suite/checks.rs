@@ -134,7 +134,7 @@ fn a_parked_producing_change_with_its_live_delegate_passes() {
 
 #[test]
 fn a_preparing_change_without_a_landing_waits_on_its_write() {
-    let (world, change) = super::forge_routes::reviews::preparing_review_repair();
+    let (world, change) = super::forge_routes::reviews::preparing_review_repair(None);
     let row = world.root.forge().change(change).expect("preparing change");
     assert_eq!(row.change.landing, None);
     assert_eq!(row.delegate, None);
@@ -157,12 +157,10 @@ fn a_preparing_change_without_a_landing_waits_on_its_write() {
 
 #[test]
 fn a_preparing_change_without_a_landing_or_live_write_is_found() {
-    let (mut world, source) = super::forge_routes::reviews::preparing_review_repair();
+    let change = 51;
+    let (mut world, source) = super::forge_routes::reviews::preparing_review_repair(Some(change));
     let mut row = world.root.forge().change(source).expect("preparing change").clone();
-    let tasks::Party::Task(change) = world.root.tasks().task(source).expect("change task").requester else {
-        panic!("change belongs to its requester")
-    };
-    // Seed an unstepped preparing row on a live task, with a stale write
+    // Seed an unstepped preparing row on a live procedure, with a stale write
     // reference. Unlike restoration, registration arms no recovery timer.
     assert!(world.root.forge().change(change).is_none());
     row.task = change;
@@ -1343,13 +1341,17 @@ fn an_unfinished_gate_past_its_bound_is_found_despite_a_dependency() {
 
 fn producer_wait(turn: bool) -> (World, u64, u64) {
     use super::forge_routes::merge_job::producer;
-    let (mut world, change, child) = if turn {
+    let (world, change, child) = if turn {
         let (world, change, child, _, _) = producer::turn_producer();
         (world, change, child.task)
     } else {
         let (world, change, child, _, _, _) = producer::displaced_producer();
         (world, change, child.task)
     };
+    wait_for_producer(world, change, child, turn)
+}
+
+fn wait_for_producer(mut world: World, change: u64, child: u64, turn: bool) -> (World, u64, u64) {
     for _ in 0..1000 {
         world.tick();
         let row = world.root.forge().change(change).expect("change");
@@ -1452,8 +1454,11 @@ fn a_conflict_wait_cannot_borrow_another_changes_pushing_child() {
     );
 }
 
-fn conflict_read() -> (World, u64, Time, Time) {
-    let (mut world, change, child) = producer_wait(false);
+fn conflict_read(room_waiter: Option<u64>) -> (World, u64, Time, Time) {
+    let (mut world, change, child) = match room_waiter {
+        Some(task) => conflict_with_room_waiter(task),
+        None => producer_wait(false),
+    };
     let row = world.root.forge().change(change).expect("change");
     let old_bound = Time::from_nanos(row.change.since.as_nanos())
         .saturating_add(world.root.forge().inspection_limits().change_policy.stall);
@@ -1495,17 +1500,34 @@ fn conflict_read() -> (World, u64, Time, Time) {
     panic!("a conflict's fresh gather after the producer's terminal");
 }
 
-fn room_read(own_read: bool) -> (World, u64) {
-    let (mut world, source, _, _) = conflict_read();
-    let mut row = world.root.forge().change(source).expect("reading change").clone();
-    let task = if own_read {
-        source
-    } else {
-        let tasks::Party::Task(requester) = world.root.tasks().task(source).expect("change task").requester else {
-            panic!("change requester")
-        };
-        requester
+fn conflict_with_room_waiter(task: u64) -> (World, u64, u64) {
+    use super::forge_routes::merge_job::producer;
+
+    let mut world = producer::displaced_producer_fixture();
+    super::panel_before_change::seed_change_procedure(&mut world.store, task, 0, None, None);
+    let key = engine::Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Live(task)));
+    let Some(engine::Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(row)))) =
+        world.store.rows.get(&key)
+    else {
+        panic!("live change procedure")
     };
+    let mut row = row.clone();
+    // Keep the second procedure live but not due when the broken room offer
+    // is injected. The first change is the only one with a gather in flight.
+    row.phase = tasks::Phase::Active(tasks::Active::BackingOff { until: skein_lib::Wall::from_nanos(u64::MAX) });
+    world
+        .store
+        .seed(Box::new([engine::Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(row)))]), Box::new([]));
+    let (world, change, child, _, _, _) = producer::displaced_producer_in(world);
+    wait_for_producer(world, change, child.task, false)
+}
+
+fn room_read(own_read: bool) -> (World, u64) {
+    const OTHER_CHANGE: u64 = 51;
+    let waiter = (!own_read).then_some(OTHER_CHANGE);
+    let (mut world, source, _, _) = conflict_read(waiter);
+    let mut row = world.root.forge().change(source).expect("reading change").clone();
+    let task = waiter.unwrap_or(source);
     // Freeze a room retry while its gather reads. The place stays on the row
     // until the fresh decision, even though its ask has reserved room. The
     // broken snapshot assigns that place to a task with no read of its own.
@@ -1522,6 +1544,10 @@ fn room_read(own_read: bool) -> (World, u64) {
     );
     engine::fire(&mut world.root, &world.env);
     assert!(world.root.forge().room_asked(task));
+    if !own_read {
+        assert!(world.root.forge().inspection_change_read_bound(source).is_some(), "the other change is reading");
+        assert!(world.root.tasks().procedure_due(task).is_none(), "the room waiter is not due");
+    }
     (world, task)
 }
 
@@ -1578,7 +1604,7 @@ fn a_room_wait_cannot_borrow_another_changes_read() {
 
 #[test]
 fn a_conflict_read_after_the_producers_end_uses_its_gather_bound() {
-    let (world, change, old_bound, bound) = conflict_read();
+    let (world, change, old_bound, bound) = conflict_read(None);
     let inspection = inspect(&world);
     let wait = inspection.waits().iter().find(|wait| wait.waiter == format!("task {change}")).expect("conflict wait");
     assert_eq!(wait.bound, Some(bound));
@@ -1590,7 +1616,7 @@ fn a_conflict_read_after_the_producers_end_uses_its_gather_bound() {
 
 #[test]
 fn a_conflict_read_past_its_gather_bound_is_found() {
-    let (world, change, _, bound) = conflict_read();
+    let (world, change, _, bound) = conflict_read(None);
     let mut checks = Checks::new(71);
     assert_eq!(checks.quiet(&world.root, bound, 1), Ok(()));
     let at = bound.saturating_add(Duration::from_nanos(1));
