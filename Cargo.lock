@@ -1960,14 +1960,12 @@ dependencies = [
  "jig-protocol-config-fixtures",
  "jig-protocol-store",
  "skein-codec",
- "skein-codegen",
  "skein-http",
  "skein-io",
  "skein-kv",
  "skein-lib",
  "skein-oauth",
  "skein-oauth-accounts",
- "skein-scratch",
  "skein-tls",
 ]
 
@@ -3961,12 +3959,10 @@ name = "skein-oauth"
 version = "0.0.0"
 dependencies = [
  "skein-codec",
- "skein-codegen",
  "skein-json",
  "skein-lib",
  "skein-oauth-codec",
  "skein-rows",
- "skein-scratch",
  "skein-tls",
 ]
 
@@ -8057,9 +8053,7 @@ name = "temper-protocol-records"
 version = "0.0.0"
 dependencies = [
  "skein-codec",
- "skein-codegen",
  "skein-lib",
- "skein-scratch",
 ]
 
 [[package]]

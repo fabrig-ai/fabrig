@@ -7,13 +7,12 @@ license.workspace = true
 rust-version.workspace = true
 publish.workspace = true
 
+[lib]
+test = false
+
 [dependencies]
 skein-codec.workspace = true
 skein-lib.workspace = true
 
 [lints]
 workspace = true
-
-[dev-dependencies]
-skein-codegen.workspace = true
-skein-scratch.workspace = true
