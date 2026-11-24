@@ -4,6 +4,7 @@ use super::{
     Build, DeclIx, Expected, FieldIx, Frame, Halt, Held, Node, Old, Open, OpenKind, Part, Path, Reason, RefusalIx,
     Shape, Source, State, Type, VariantIx, add, built, plan, ty,
 };
+use crate::layout::compare::Comparison;
 
 impl Build {
     fn expected(&self) -> Result<Expected, Halt> {
@@ -444,8 +445,7 @@ impl Build {
         match a {
             Source::Type(a) => match b {
                 Source::Type(b) => {
-                    plan::compared(self.current(), self.old_schema(), self.new_schema(), a, b)
-                        != plan::Comparison::Retype
+                    plan::compared(self.current(), self.old_schema(), self.new_schema(), a, b) != Comparison::Retype
                 }
                 Source::Declaration(b) => match ty(self.old_schema(), Source::Type(a)) {
                     Type::Named(a) => self.current().olds.get(b.index()) == Some(&Some(a)),
