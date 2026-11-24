@@ -1,5 +1,5 @@
 //! Smith settings render over the benchmark test tree, then enter the product's startup parser.
-//! See `smith/docs/design/benchmarks/contracts.md`, sections 2 and 3.
+//! See `smith/docs/design/benchmarks/README.md`, section 13.
 
 use skein_fake_machine::Item;
 use skein_lib::{Duration, Wall};
