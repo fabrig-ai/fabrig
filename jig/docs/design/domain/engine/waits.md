@@ -76,6 +76,16 @@ A closed set, so that every view, test and tool reads the same names.
 - **A task backing off between tries** is in an `account` wait, whose
   reset is its retry; **one whose worker is suspended** is in a `host`
   wait, whose reset is the suspension's end.
+- **A proposal waiting at a policy** (past its tree's root, or a
+  settings proposal at the deployment's) is a `party` wait at the role
+  that decides it, as the people's inbox shows it
+  (`../people/README.md`, 4 and 5): a settings proposal at the
+  deployment's `owner` role. One still pending when its policy names no
+  role that may decide its kind (`../tasks/proposals.md`, *Where they
+  wait*) waits at its project's `owner` role, the role that may change
+  that policy and so the only one that can move it; no inbox gains an
+  entry by it. Either is the project's last holder: *overdue* at its
+  stall (5).
 - **A task closing** (`../tasks/lifecycle-endings.md`) waits on its own
   ending's settlement, which its phase names: no wait of this record
   (section 9).
@@ -96,7 +106,11 @@ A closed set, so that every view, test and tool reads the same names.
     its connector has reported any (6), else `news`.
 
   A task is **working** while its run is live and not waiting: it has its
-  `party` and `question` waits alone. An ended task has none.
+  `party` and `question` waits, and, kept, its `dependency` waits, since
+  the keep refuses its effects that wait for dependencies while the run
+  finishes its turn (`../tasks/lifecycle-endings.md`, 1); none other. Its
+  line's first wait stays none and what it waits on stays *nothing*
+  (`views.md`, 3); its nearest bound counts them. An ended task has none.
 - **Their order:** as listed, each group oldest first by *since*, then by
   number. `task show` lists them so.
 - **A line's first wait** is the oldest entry waiting at a person or a

@@ -434,9 +434,13 @@ task's waits as the core computes them (`engine/waits.md`) and judges:
   delegate, `news` or its procedure's reported waits; `backing off`,
   `account`; `suspended`, `host`. A closing task's waits and a parked
   batch's have none (`engine/waits.md`, 9).
-- **Every record is whole:** its *since* no later than the moment and no
-  earlier than its kind's floor, and a bound after its *since* or one of
-  the reasons for none (`engine/waits.md`, 5).
+- **Every record is whole:** its *since* no later than the latest wall
+  time the world has given the core, across its corrections and
+  restarts (the moment, unless the wall stepped back since a later
+  reading), and no earlier than its kind's floor, and a bound after its
+  *since* or one of the reasons for none (`engine/waits.md`, 5). A wall
+  stepped back moves no *since* and no deadline: a *since* is a fact
+  the core keeps (`engine/waits.md`, 2).
 - **A record's bound is read, not enforced:** what happens at a bound,
   and the check that none passes silently, are the tasks' and the
   application's (the draft, 4.2), so no referee deadline is armed from

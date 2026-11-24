@@ -7,3 +7,4 @@
 - **Not yet:** 7: each kind's floor, stored once, and every *since* floored by it [in flight: change 15620].
 - **Not yet:** 6: a connector's report of its procedure task's waits, kept and listed by the core [in flight: change 15621].
 - **Not yet:** 4: a document's first wait and nearest bound, the same two its line carries [in flight: change 15726].
+- **Not yet:** 3: a proposal waiting at a policy as a `party` wait at its deciding role, or its project's `owner` role where the policy names none; 4: a working kept task's `dependency` waits [in flight: change 15645].
