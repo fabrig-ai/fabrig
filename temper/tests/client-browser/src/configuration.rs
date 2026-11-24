@@ -454,8 +454,8 @@ pub(crate) fn demo_asked(directory: &Path, cue: &str, turns: serde_json::Value) 
     crate::scripted::write(directory, &value);
 }
 
-/// Public reading's demo alone (temper/docs/design/protocol/sign-in.md, 2.4;
-/// jig/docs/design/domain/people/public-reading.md, 7). Its two-second freshness is the walk's subject.
+/// Public reading's demo and its admitted board bounds (temper/docs/design/protocol/sign-in.md, 2.4;
+/// jig/docs/design/domain/people/public-reading.md, 7).
 pub(crate) fn public_demo(directory: &Path, program: &Path, bundle: &Path) {
     demo(directory, program, bundle);
     let figures = [
@@ -466,7 +466,6 @@ pub(crate) fn public_demo(directory: &Path, program: &Path, bundle: &Path) {
         // The 20/20/50 board reserves 730,728 bytes; this tier's approved ceiling is 1 MiB.
         ("clients.public.answer_bytes", 1_048_576),
         ("clients.public.reads", 8),
-        ("clients.public.max_age", 2),
         ("clients_http.public_calls", 8),
         ("core.public.goals", 20),
         ("core.public.ended", 20),
@@ -474,26 +473,6 @@ pub(crate) fn public_demo(directory: &Path, program: &Path, bundle: &Path) {
         ("core.public.depth", 16),
     ];
     crate::scripted::limits(directory, &figures);
-    let mut value: serde_json::Value = serde_json::from_slice(temper_fake::demo::SCRIPTS).expect("embedded scripts");
-    let mut delegates = 0_u32;
-    for script in value["asked"].as_array_mut().expect("asked scripts") {
-        if script["cue"] != "Add CSV export to widget" {
-            continue;
-        }
-        for turn in script["turns"].as_array_mut().expect("CSV turns") {
-            for line in turn["lines"].as_array_mut().expect("CSV lines") {
-                if line["call"] == "delegate" {
-                    for member in line["arguments"]["batch"].as_array_mut().expect("delegate batch") {
-                        // delegate's host-tool spelling of tracked priority 1.
-                        member["tracked"] = serde_json::json!({"priority": 1});
-                        delegates = delegates.checked_add(1).expect("bounded script");
-                    }
-                }
-            }
-        }
-    }
-    assert_eq!(delegates, 1, "one CSV delegate becomes a public goal");
-    crate::scripted::write(directory, &value);
 }
 
 /// Derive the stock charters and their model bounds from the edited deployment.

@@ -720,7 +720,18 @@ Focused, with no browser, no box and no Chromium:
   scripts and lines root first, only the named journey's marks, no
   added resets, answers carrying file lines, stop at the first failure,
   session exits passed through, and refusal of a missing journey or
-  held scratch before a session starts.
+  held scratch before a session starts. Its page is one an ancestor's
+  press changes: the child's `see` and mark read the page that press
+  left, and the walk takes one screenshot, at the child's mark, at its
+  one width. A TUI journey's walk answers each line under its file
+  line, the launchpad's rows after an explicit approval, and keeps
+  `tui approve` but not `tui mark`, with no screenshot.
+- **Above them:** the browser tier's journey test
+  (story 17 of `web/testing.md`, 6) walks a scratch journey in Chromium on the
+  shipped bundle, its mark's screenshot a PNG on disk and its kept
+  lines the file's; in the same test, story 18 walks a scratch TUI
+  journey on the native TUI, its `tui approve` pressing Approve in the
+  session's Chromium, the one witness of that sign-in.
 - **A deployment's session:** `../testing/qa/deployment.md`, 9's;
   `--ctl --deployment` a ctl session, `--deployment` alone a full one
   needing Chromium, and `--bundle` optional there.

@@ -13,6 +13,12 @@ impl Tier {
         self.ctl_face(self.project_calls().into())
     }
 
+    /// Make a playground before the reader opens its page, without starting a chat.
+    #[must_use]
+    pub fn playground_face(&self) -> Script {
+        self.ctl_face(self.ctl(&["playground", "start", "--key", "history-playground"]).into())
+    }
+
     pub(crate) fn project_calls(&self) -> [Step; 2] {
         self.ctl(&["project", "make", "Project 1", "--key", "browser-project"])
     }
@@ -44,7 +50,13 @@ impl Tier {
 
     /// Sign ctl in, finish its calls, then open the spent link to print the reader's fresh link.
     #[must_use]
-    pub fn ctl_face(&self, calls: Vec<Step>) -> Script {
+    pub fn ctl_face(&self, mut calls: Vec<Step>) -> Script {
+        calls.extend([open_printed(), exited()]);
+        self.ctl_only(calls)
+    }
+
+    /// Use the printed link in ctl only, without opening it in the browser.
+    pub(crate) fn ctl_only(&self, calls: Vec<Step>) -> Script {
         crate::configuration::install(self.scratch.path(), &temper());
         let mut steps = vec![
             Step::Run(Command {
@@ -63,7 +75,6 @@ impl Tier {
             exited(),
         ];
         steps.extend(calls);
-        steps.extend([open_printed(), exited()]);
         Script::new(steps.into_boxed_slice())
     }
 

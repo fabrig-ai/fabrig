@@ -216,6 +216,41 @@ fn the_chosen_model_and_effort_are_pressed() {
     assert!(!states(b"low").contains(&skein_ui::State::Pressed));
 }
 #[test]
+fn a_model_press_then_an_effort_press_read_in_the_byline() {
+    const TASK: u64 = 9; // line_fixture's started chat.
+    let (mut root, me_watch, _, _) = line_fixture(None, List::with_capacity(0), None, None, None, true);
+    let mut me = d::pages::accounts::current_me(root.client()).unwrap().clone();
+    let second = me.projects.get_mut(0).unwrap().models.get_mut(1).unwrap();
+    second.effort = Some(model_text(b"high"));
+    second.efforts = List::from_boxed(Box::new([model_text(b"low"), model_text(b"high")]));
+    delivered(&mut root, me_watch, c::Delivery::Me(Box::new(me)));
+
+    for (button, byline, effort) in
+        [(b"second".as_slice(), "second · high", b"high".as_slice()), (b"low", "second · low", b"low")]
+    {
+        let mut view = fixtures::browser_page_view(&root);
+        let row = fixtures::find(view.tree(), Role::Button, button).expect("picker row");
+        let action = crate::act(&mut view, row, skein_ui::Act::Press).expect("picker row is bound");
+        let mut out = model_press(&mut root, action);
+        answer_model_press(
+            &mut root,
+            &mut out,
+            c::Answer::Done(c::Outcome::Document(c::DocumentOutcome::Amended { task: TASK })),
+        );
+        let view = fixtures::browser_page_view(&root);
+        assert_eq!(picker_line(&view), byline.as_bytes());
+        let buttons: Vec<_> = chooser_nodes(&view).iter().filter(|node| node.role == Role::Button).collect();
+        assert!(!buttons.iter().any(|node| node.name.as_deref().is_some_and(|name| name.starts_with(b"Apply"))));
+        let pressed: Vec<_> = buttons
+            .iter()
+            .filter(|node| node.states.as_slice().contains(&skein_ui::State::Pressed))
+            .map(|node| node.name.as_deref().expect("pressed row name"))
+            .collect();
+        assert_eq!(pressed, [b"second".as_slice(), effort]);
+    }
+}
+
+#[test]
 fn a_model_press_enables_start_with_its_default_effort() {
     let mut root = catalogue(b"needs-effort", &[b"high"]);
     edit(&mut root, d::pages::choice::Act::Model { index: 0, account: None });
@@ -947,13 +982,15 @@ fn the_terminal_prints_the_list_as_lines() {
 }
 
 fn start_model_press(root: &mut d::Domain) -> skein_lib::Queue<d::Request> {
+    model_press(root, d::Action::Pages(d::pages::Act::Choice(d::pages::choice::Act::Model { index: 1, account: None })))
+}
+
+fn model_press(root: &mut d::Domain, action: d::Action) -> skein_lib::Queue<d::Request> {
     let mut out = skein_lib::Queue::uncapped();
     d::step(
         root,
         &skein_lib::Env { now: skein_lib::Time::ZERO, wall: skein_lib::Wall::EPOCH, limits: fixtures::limits() },
-        d::Event::Act {
-            action: d::Action::Pages(d::pages::Act::Choice(d::pages::choice::Act::Model { index: 1, account: None })),
-        },
+        d::Event::Act { action },
         &mut out,
     );
     out

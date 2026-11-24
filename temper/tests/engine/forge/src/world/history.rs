@@ -5,6 +5,7 @@ use top::history::{HistoryRange, InLanding, Operation, Query, Reply, Step, What}
 
 impl World {
     pub(super) fn store_record(&mut self, record: top::Stored) {
+        self.changing_synthetic_entry(&record);
         if let top::Stored::HistoryChange(index) = &record {
             self.history_by_change.entry(index.change).or_default().insert((index.number, index.project));
         }
@@ -12,6 +13,9 @@ impl World {
     }
 
     pub(super) fn erase_record(&mut self, key: &top::Key) -> Option<top::Stored> {
+        if let top::Key::Entry(number) = key {
+            self.forget_synthetic_entry(*number);
+        }
         let removed = self.stored.remove(key);
         if let Some(top::Stored::HistoryChange(index)) = &removed {
             let indexes = self.history_by_change.get_mut(&index.change).expect("stored change index");

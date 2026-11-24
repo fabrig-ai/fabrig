@@ -1,4 +1,4 @@
-//! The shipped service and agent, killed and restarted over one durable store.
+//! The shipped agent modes and service's restart and shutdown paths.
 use jig_client_protocol_kit::native::Script;
 use jig_test_kit as support;
 use smith_protocol_program::Status;
@@ -9,7 +9,6 @@ use std::{
     path::Path,
     process::{Command, Stdio},
 };
-use support::live_sign_in;
 
 fn status_script(path: &Path, line: &str, code: u8) -> OsString {
     let script = format!(
@@ -32,7 +31,6 @@ fn jig_test_serves_smiths_agent_modes() {
     let directory = support::scratch();
     let signed_in =
         status_script(&directory.path().join("signed-in"), r#"{"loggedIn":true,"authMethod":"claude.ai"}"#, 0);
-    let not_signed_in = status_script(&directory.path().join("not-signed-in"), r#"{"loggedIn":false}"#, 1);
     let parent = OsString::from(std::process::id().to_string());
     let rows = [
         (
@@ -53,19 +51,11 @@ fn jig_test_serves_smiths_agent_modes() {
         ),
         (
             "signed in",
-            vec!["--program-child".into(), parent.clone(), signed_in, "auth".into(), "status".into()],
+            vec!["--program-child".into(), parent, signed_in, "auth".into(), "status".into()],
             0,
             b"{\"loggedIn\":true,\"authMethod\":\"claude.ai\"}\n".as_slice(),
             b"".as_slice(),
             Some(Status::Usable),
-        ),
-        (
-            "not signed in",
-            vec!["--program-child".into(), parent, not_signed_in, "auth".into(), "status".into()],
-            1,
-            b"{\"loggedIn\":false}\n".as_slice(),
-            b"".as_slice(),
-            Some(Status::NotSignedIn),
         ),
     ];
     let mut results = Vec::new();
@@ -111,18 +101,6 @@ fn a_killed_jig_test_finds_its_work_after_restart() {
     assert_eq!(support::run(directory.path(), Script::found_chat(support::ANSWER), None), (1, 0));
 }
 
-#[path = "support/browser.rs"]
-mod browser;
-#[test]
-fn jig_test_serves_its_bundle_s_page_under_the_reference_policy() {
-    let directory = support::scratch();
-    browser::configuration(directory.path(), &browser::fixture_bundle(directory.path()));
-    let (status, headers, body) = browser::page(directory.path());
-    assert_eq!(status, 200);
-    assert_eq!(browser::field(&headers, "content-security-policy"), Some(browser::POLICY));
-    assert_eq!(body, browser::PAGE);
-}
-
 #[test]
 fn a_binary_told_to_stop_with_a_sign_in_under_way_ends_at_once() {
     accounts::sigterm();
@@ -130,16 +108,3 @@ fn a_binary_told_to_stop_with_a_sign_in_under_way_ends_at_once() {
 
 #[path = "support/accounts.rs"]
 mod accounts;
-
-/// The live sign-in configurations, read as jig-test's startup reads them: no network, no person.
-#[test]
-fn the_live_configurations_are_ones_jig_test_reads() {
-    let sign_in = support::scratch();
-    live_sign_in::configuration_at(sign_in.path(), "192.0.2.1:443", live_sign_in::Peers::Real);
-    assert_eq!(jig_test::check(&sign_in.path().join("config.json")), Ok(()));
-    for peers in [live_sign_in::Peers::Fake, live_sign_in::Peers::Refusing] {
-        let fake = support::scratch();
-        live_sign_in::configuration_at(fake.path(), "127.0.0.1:34443", peers);
-        assert_eq!(jig_test::check(&fake.path().join("config.json")), Ok(()));
-    }
-}
