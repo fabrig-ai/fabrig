@@ -330,6 +330,14 @@ impl Rig {
     }
 
     pub fn run(&mut self) {
+        if let Err(report) = self.run_reporting_wait_failure() {
+            panic!("{report}");
+        }
+    }
+
+    /// Returns an unstarved browser wait's failure report after draining the rig.
+    /// A starved wait still ends the test as starved; other failures still panic.
+    pub fn run_reporting_wait_failure(&mut self) -> Result<(), String> {
         let mut deadline = Deadline::arm("the Chromium browser conversation", Duration::from_secs(60));
         for _ in 0..50_000_u32 {
             self.reap(Some(&mut deadline));
@@ -357,7 +365,7 @@ impl Rig {
                 let event = self.events.pop().expect("this browser stage's events");
                 self.observe_browser(event);
             }
-            self.check_browser_waits();
+            self.check_browser_waits()?;
             self.drain_browser_down();
             self.io_down();
             let until = if let Some(until) = self.close_until {
@@ -365,7 +373,7 @@ impl Rig {
                 self.close_until = Some(until);
                 let drained = self.stage == Stage::Complete && self.drained() && !self.answers_pending();
                 match cleanup::progress(self.clock.now().now, until, drained) {
-                    Progress::Drained => return,
+                    Progress::Drained => return Ok(()),
                     Progress::Drive => until,
                     Progress::Cutoff => {
                         let outstanding = self.outstanding();
@@ -377,7 +385,8 @@ impl Rig {
             } else {
                 if !self.answers_pending() && deadline.passed() {
                     let finding = End::Unanswered(String::from("Chromium smoke test timed out")).finding();
-                    self.expire(finding, deadline.expired());
+                    let report = self.expire(finding, deadline.expired());
+                    panic!("{report}");
                 }
                 deadline.until()
             };

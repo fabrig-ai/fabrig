@@ -1,8 +1,9 @@
-use super::{Decision, End, Finding};
+use super::super::{EXPECT, Stage};
+use super::{Decision, End, Finding, finish_expiry};
 use skein_browser::boundary::{Event, Refusal};
 use skein_io::kernel::Exit;
 use skein_lib::{Duration, List, Time, Token};
-use skein_world::Figures;
+use skein_world::{Expired, Figures};
 
 fn figures(patience: Duration) -> Figures {
     Figures {
@@ -32,6 +33,26 @@ fn only_an_unanswered_browser_wait_can_end_as_starved() {
         assert!(report.contains(wait), "{report}");
         assert!(report.ends_with(&figures.to_string()), "{report}");
     }
+}
+
+#[test]
+fn an_unstarved_expiry_returns_its_figures_after_ending() {
+    let missed = Event::Missed { op: EXPECT, seen: List::with_capacity(0), more: 0 };
+    let figures = Figures {
+        what: "a Chromium expectation",
+        elapsed: Duration::from_millis(501),
+        ..figures(Duration::from_millis(500))
+    };
+    let expected = figures.to_string();
+    let mut ended = false;
+    let report =
+        finish_expiry(End::Browser(&missed).finding(), Expired::Failed(figures), Stage::Expecting, "quiet", || {
+            ended = true;
+            Ok(())
+        });
+    assert!(ended, "the wait report must not bypass ending the rig");
+    assert!(report.contains(&expected), "{report}");
+    assert!(report.contains("a Chromium expectation: patience 500000000 ns"), "{report}");
 }
 
 #[test]

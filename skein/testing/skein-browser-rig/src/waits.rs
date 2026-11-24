@@ -1,6 +1,6 @@
 //! The real-browser referee's wait verdicts (skein/docs/design/testing/browser.md, 9).
 
-use super::{FIND, PAGE, Rig};
+use super::{FIND, PAGE, Rig, Stage};
 use skein_browser::boundary::{Event, Refusal, Request};
 use skein_io::kernel::Exit;
 use skein_lib::{Duration, Time, Token};
@@ -155,26 +155,27 @@ impl Rig {
     }
 
     // Give replies and exits already delivered to the rig their normal checks before a verdict.
-    pub(super) fn check_browser_waits(&mut self) {
+    pub(super) fn check_browser_waits(&mut self) -> Result<(), String> {
         if self.answers_pending() {
-            return;
+            return Ok(());
         }
         if self.expired_operations.front().is_some_and(|(deadline, _)| deadline.passed()) {
             let (deadline, finding) = self.expired_operations.pop_front().expect("the passed operation");
-            self.expire(finding, deadline.expired());
+            return Err(self.expire(finding, deadline.expired()));
         }
         let now = self.clock.now().now;
         if let Some(wait) = &mut self.tab_wait {
             let finding = End::Tabs { now, until: wait.deadline.until(), last: wait.last.as_deref() }.finding();
             if finding != Finding::Observe && wait.deadline.passed() {
                 let expired = wait.deadline.expired();
-                self.expire(finding, expired);
+                return Err(self.expire(finding, expired));
             }
             if wait.poll.is_some_and(|poll| poll <= now) {
                 wait.poll = None;
                 self.ask(Request::Tabs { page: PAGE, op: FIND });
             }
         }
+        Ok(())
     }
 
     pub(super) fn answers_pending(&self) -> bool {
@@ -185,31 +186,9 @@ impl Rig {
         self.tab_wait.as_ref().map(|wait| wait.poll.unwrap_or(wait.deadline.until()).min(wait.deadline.until()))
     }
 
-    pub(super) fn expire(&mut self, finding: Finding, expired: Expired) -> ! {
-        let figures = match &expired {
-            Expired::Failed(figures) => Some(figures),
-            Expired::Starved(_) => None,
-        };
-        let stage = self.stage;
+    pub(super) fn expire(&mut self, finding: Finding, expired: Expired) -> String {
         let stderr = String::from_utf8_lossy(&self.stderr).into_owned();
-        let decision = finding.decide(figures);
-        if let Err(cleanup) = self.end() {
-            let original = match &decision {
-                Decision::EndAndFail(report) => report.clone(),
-                _ => match &expired {
-                    Expired::Starved(starved) => starved.figures().to_string(),
-                    Expired::Failed(figures) => figures.to_string(),
-                },
-            };
-            panic!("browser cleanup failed at {stage:?}: {cleanup}; preceding wait: {original}; stderr: {stderr}");
-        }
-        match (decision, expired) {
-            (Decision::EndAndPass, Expired::Starved(starved)) => starved.pass(),
-            (Decision::EndAndFail(report), Expired::Failed(_)) => {
-                panic!("at {stage:?}: {report}; stderr: {stderr}")
-            }
-            _ => unreachable!("only unanswered waits are classified"),
-        }
+        finish_expiry(finding, expired, self.stage, &stderr, || self.end())
     }
 
     pub(super) fn fail_unexpected(&self, event: &Event) -> ! {
@@ -217,6 +196,35 @@ impl Rig {
             unreachable!("an unexpected event is a failure")
         };
         panic!("{report}; stderr: {}", String::from_utf8_lossy(&self.stderr));
+    }
+}
+
+fn finish_expiry(
+    finding: Finding,
+    expired: Expired,
+    stage: Stage,
+    stderr: &str,
+    end: impl FnOnce() -> Result<(), String>,
+) -> String {
+    let figures = match &expired {
+        Expired::Failed(figures) => Some(figures),
+        Expired::Starved(_) => None,
+    };
+    let decision = finding.decide(figures);
+    if let Err(cleanup) = end() {
+        let original = match &decision {
+            Decision::EndAndFail(report) => report.clone(),
+            _ => match &expired {
+                Expired::Starved(starved) => starved.figures().to_string(),
+                Expired::Failed(figures) => figures.to_string(),
+            },
+        };
+        panic!("browser cleanup failed at {stage:?}: {cleanup}; preceding wait: {original}; stderr: {stderr}");
+    }
+    match (decision, expired) {
+        (Decision::EndAndPass, Expired::Starved(starved)) => starved.pass(),
+        (Decision::EndAndFail(report), Expired::Failed(_)) => format!("at {stage:?}: {report}; stderr: {stderr}"),
+        _ => unreachable!("only unanswered waits are classified"),
     }
 }
 

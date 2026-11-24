@@ -27,10 +27,12 @@ fn chromium_opens_finds_and_presses_a_button() {
 }
 
 #[test]
-#[should_panic(expected = "a Chromium expectation: patience 500000000 ns")]
 fn a_heading_that_never_appears_fails_with_its_own_deadline_figures() {
     let profile = Profile::fresh();
-    Rig::new(&chromium(), &profile.0, Scenario::MissingHeading).run();
+    let mut rig = Rig::new(&chromium(), &profile.0, Scenario::MissingHeading);
+    let report = rig.run_reporting_wait_failure().expect_err("the absent heading must expire its wait");
+    assert!(report.contains("a Chromium expectation: patience 500000000 ns"), "{report}");
+    assert!(rig.root_closed && rig.child_closed);
 }
 
 #[test]
