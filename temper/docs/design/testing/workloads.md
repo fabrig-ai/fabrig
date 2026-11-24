@@ -276,9 +276,18 @@ pub const COMPOSED: Shape;
 - **The train:** where `train` allows one, the last goal outside the
   milestone, or the milestone's last where every goal is in it, is the
   train goal, its changes a count drawn in `train`, at least 2; every
-  other goal's changes are a count drawn in `changes`.
+  other goal's changes are a count drawn in `changes`. The train goal's
+  changes name none of one another in their `after`: they share one
+  repository, and a change after another in its own repository waits
+  until that one lands (`forge::joined_changes` joins only dependencies
+  across repositories, `temper/crates/temper-engine-domain-forge/src/landing.rs`),
+  so an `after` among them would land them one by one, never as one
+  train. Their coin is still drawn and its result set aside, so no other
+  draw of the seed moves. The train goal's first change keeps a
+  milestone's `after` on the earlier goal, which has landed before it
+  starts.
 - **Changes:** named `<goal>.c0` up; each after the change before it in
-  its goal with chance one half; one or two files at
+  its goal with chance one half, but in the train goal; one or two files at
   `<goal>/c<j>/f<k>.txt`, each text one line naming the change, the file
   and a drawn `u64` in hex, so no two changes write one path and the
   workload makes no conflict of its own: conflicts are the forge's and
