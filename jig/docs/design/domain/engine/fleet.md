@@ -91,12 +91,14 @@ The fleet child domain knows the hosts and the runs they host:
   pause. A host's view says each channel's pause (`workers.md`, 6).
 - **A mismatched worker leaves placement too.** A channel that answered
   an assignment refused for a version (`../../protocol/channel/wires.md`,
-  6) is marked mismatched: until it is lost, the fleet places nothing on
+  6), or whose engine could not send a running attempt what it holds
+  (`../../protocol/channel/layouts.md`, 5.2), is marked mismatched:
+  until it is lost, the fleet places nothing on
   it, neither a run nor a job, as on a draining one, while what it hosts
   goes on. The task refused claims again elsewhere, spending no try.
-- **A task its channel's versions cannot carry leaves that channel
+- **A task its worker's layouts cannot keep leaves that channel
   alone.** An assignment or a job the engine's component refuses as
-  *untranslated* (`../../protocol/channel/bridges.md`, 6.1) keeps its
+  *untranslated* (`../../protocol/channel/layouts.md`, 5.1) keeps its
   task off that channel until the channel is lost, while the channel
   takes every other run and job; the task claims again, spending no
   try, on any other host that may take it, or waits.

@@ -1,6 +1,7 @@
 # channel: status
 
-2026-11-12. Where skein's code lags or departs from [channel.md](channel.md).
+2026-11-24. Where skein's code lags or departs from [channel.md](channel.md).
+
 
 
 - **Departs:** 8.3: four cells of `skein-channel/src/machine.rs` break "its
