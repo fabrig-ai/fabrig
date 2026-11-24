@@ -969,7 +969,7 @@ struct SavedFile {
 }
 
 /// A private replace, serialized with later saves and drained before LEAVE.
-/// temper/docs/design/client/tui/journeys.md, 3.1; skein/docs/design/runtime/io/files.md, 3.
+/// temper/docs/design/client/tui/journeys.md, 3.1; skein/docs/design/runtime/io/files.md, 11.
 struct FileSave {
     io: io::file_layer::FileIo,
     env: Env<io::file_layer::Limits>,

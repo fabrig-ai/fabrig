@@ -195,7 +195,7 @@ Preparing a checkout is in [`checkouts-prepare.md`](checkouts-prepare.md); pushi
     its slot while its preparation is queued.
   - **So a forge meets a few clones at once,** one per worker by default,
     after a worker's restart or a burst of due work alike
-    (`../../draft/redeploys.md`, 6.4).
+    (`../../draft/archive/redeploys.md`, 6.4).
 
 ## 8. Prepare
 
@@ -274,7 +274,7 @@ Moved to [`checkouts-push.md`](checkouts-push.md), section 8.
 - **A workspace kept for its run.** A run a drain or a stop cut, whose
   answer is `Cancelled(Shutdown)` and whose save landed, leaves its
   workspace on the worker for that run's next attempt alone (temper's
-  `draft/worker-restarts.md`, section 4): its trees, their ignored files
+  `../../draft/archive/worker-restarts.md`, section 4): its trees, their ignored files
   and build outputs, each repository's `.git` with the checks' results
   directory in it, and the worker's git directories beside them.
   - **Marked when its save lands:** a mark beside the workspaces,
@@ -300,14 +300,14 @@ Moved to [`checkouts-push.md`](checkouts-push.md), section 8.
     A kept workspace is idle, so the cache's eviction takes it, oldest
     first, when a hold finds no room; another workstream never gets it
     as it is, since an eviction makes the workspace again from empty
-    (redeploys' concern, temper's `draft/redeploys.md`, 6.3, so never
+    (redeploys' concern, temper's `../../draft/archive/redeploys.md`, 6.3, so never
     arises).
   - **The checks' results directory** of each writable repository is
     `.git/smith-check` in its tree, which the worker names to smith in
     the start (smith's `domain/run-delivery.md`, 1.1): kept with the tree, and
     made again with it.
   - **Marked while its run holds it,** so that a crash takes the same
-    path (temper's `draft/worker-restarts.md`, section 7). A hold with a
+    path (temper's `../../draft/archive/worker-restarts.md`, section 7). A hold with a
     saved-work destination writes its workspace's mark, `held`, once its
     prepare has succeeded and before its run starts: its workstream, and
     for each repository its head, the commit its next save takes as

@@ -9,7 +9,7 @@ Provisional, 2026-11-13, revised 2026-11-15. How an engine and a worker of two b
 once each speaks a range of each wire's versions: what each side states
 and the engine states back, the terms at an older agreed version, what
 the channel's two components translate and how, and what cannot go
-down. It carries temper's `draft/redeploys.md`, sections 3.2's terms,
+down. It carries temper's `draft/archive/redeploys.md`, sections 3.2's terms,
 3.3, 4.1, 4.3 and 4.4's pieces, for jig's channel. The bridges
 themselves are skein's (`data/codec/bridges.md`); the statement and the
 check of each wire are `wires.md`'s; what an application puts through
@@ -338,7 +338,7 @@ them is its own (temper's `protocol/wires.md`).
 - **One that is not** closes the channel at once, logging `the engine
   speaks WIRE N, below what this worker sends whole: restart the engine
   first`, naming each such wire, and redials after its pause. So the
-  engine goes first (temper's `draft/redeploys.md`, 7.2).
+  engine goes first (temper's `draft/archive/redeploys.md`, 7.2).
 - **A worker capped at single versions** (3) has stated no range and is
   not checked. A send its link cannot take down is handled as a record
   that cannot encode on its side: a call answered `call refused` to its

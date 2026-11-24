@@ -7,7 +7,7 @@ use crate::contract::{
 use alloc::boxed::Box;
 use skein_lib::Wall;
 
-/// What a run that can't start waits for (client/domain/client/helpers.md, 1).
+/// What a run that can't start waits for (client/domain/client/helpers.md, 6).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum RunWaitKind {
     Account,

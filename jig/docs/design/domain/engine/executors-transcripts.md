@@ -84,7 +84,7 @@
   it:** a transcript the agent refuses or reports unusable, or a window
   whose load is unread. Any other failure, transient ones included (a
   preparation, a brief's gathering, a workspace another run holds), and
-  an interruption (`restart.md`, 1; ../hosts/hub.md, 6), leave the window open, and the
+  an interruption (`restart.md`, 5; ../hosts/hub.md, 6), leave the window open, and the
   next attempt resumes it within the resume limit, whatever tries the
   task spent before. If a closed window's tail is unread, preparation
   continues fresh without the tail and spends no transient try. An

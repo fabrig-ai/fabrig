@@ -7,7 +7,7 @@ to, in decoded ownership and in encoded bytes (2). This document says how
 the engine fits a brief to what the rest leaves, what a refusal names when
 the rest alone doesn't fit (3), and how a charter is checked before a run
 meets it (4). The tools themselves are `tools.md`'s; this is written from
-`../../draft/tools-by-role.md`, 6.
+`../../draft/archive/tools-by-role.md`, 6.
 
 ## 1. The host part's budget
 
@@ -225,7 +225,7 @@ allowance (2), in decoded ownership or in encoded bytes: the comparison
   its start, naming the field (3), and section 5 keeps it open.
 - **The brief's floor:** a fixed part that fits its allowance but leaves
   the brief less than its floor, on some wake and in either measure, is
-  refused the same way (`../../draft/tools-by-role.md`, 6). The floor is
+  refused the same way (`../../draft/archive/tools-by-role.md`, 6). The floor is
   what a goal's brief fills: its task, transcript tail, dependencies,
   attempts, plan and notes, each at its budget in the engine's profile
   (jig's `CoreBriefBudgets`), 13,312 bytes of body in the shipped

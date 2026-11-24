@@ -5,7 +5,7 @@ several versions at once: each patch's reverse, which takes a record
 down a version; the floor, the lowest version a build speaks; the
 breaking declaration, for a change no reverse carries; and the bridge,
 which takes a record from any version it reads to any it speaks. It
-carries temper's `draft/redeploys.md`, sections 3.3, 4.1 and 4.5, for
+carries temper's `draft/archive/redeploys.md`, sections 3.3, 4.1 and 4.5, for
 skein's part. What crosses which wire, and which side translates, is
 each application's (jig's `protocol/channel/wires.md`; temper's
 `protocol/wires.md`).
@@ -167,14 +167,14 @@ refuses unprintable "a title that is not UTF-8"   # refusal 0, of site 1
   `NAME FLOOR`: the build speaks versions `FLOOR` to the current;
   `NAME build`: a per-build wire, which speaks its current alone, needs
   no reverse and no breaking declaration when it moves (temper's
-  `draft/redeploys.md`, 4.4), its floor its current. A line that is
+  `draft/archive/redeploys.md`, 4.4), its floor its current. A line that is
   neither, or names no family of the crate, is the command's error
   (`Error::Wire`, as before).
 - **What it bounds:** a build speaks, negotiates and translates down to
   versions from the floor; it reads, and translates up from, every kept
   version, since kept texts and forward patches stay for good
   (`command.md`, section 7).
-- **How it moves** (temper's `draft/redeploys.md`, 3.3), each held by the
+- **How it moves** (temper's `draft/archive/redeploys.md`, 3.3), each held by the
   check (6):
   - **never down:** a branch's floor below the base's is refused;
   - **at most the current;**

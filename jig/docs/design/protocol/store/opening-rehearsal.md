@@ -59,7 +59,7 @@ deployment's lock as a start does (1, step 1).
     (2, step 2), but for `store/logs/` and every task log in it, which
     no row it reads names, so that a redeploy's stop, where it runs
     over the stop's checkpoint, makes links and small copies alone
-    (temper's `draft/checkpoints.md`, 6, step 3):
+    (temper's `draft/archive/checkpoints.md`, 6, step 3):
     - **linked:** `store/`'s `snapshot` and each of its segments but
       the newest, the newest found over every page first, by io's
       `HardLink`;

@@ -158,7 +158,7 @@ place.
 why appends `untooled`, `TaskWaitUntooled { worker: u32 }`, the worker
 setting's number whose login of that source started its program
 without its tools (`../../domain/engine/fleet.md`); the client wire
-moves its version for it, unbridged (temper's `draft/redeploys.md`,
+moves its version for it, unbridged (temper's `draft/archive/redeploys.md`,
 section 8). `TaskRunWaitRefused { value }` wraps the enum payload
 for the generator, an unversioned record that adds no tag or header
 bytes. Shared admission types precede their task-wait consumers in the

@@ -40,7 +40,7 @@ from the stock (`limits.md`, one stock).
   figures over it** (`../../draft/config.md`, 5.1). Its figures are
   dev.fabrig.ai's agent's of 2026-11-16, which is the reference's: the
   declared figures and endpoints that `temper-box init` writes in
-  `agent.json` (`../setup/init.md`, 3), with `tool_payload` 63,740 and
+  `agent.json` (`../setup/init.md`, 6), with `tool_payload` 63,740 and
   every endpoint's `output` 48,000 (`settings-output.md`, 1, the reference's
   room).
 - **Its payload is 63,740, not 64 KiB.** skein's rule between a call's

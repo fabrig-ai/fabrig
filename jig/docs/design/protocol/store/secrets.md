@@ -1,9 +1,12 @@
 # Secrets
 
 - **A second skein-kv store,** in `secrets/`, opened as a private
-  directory (skein's `runtime/io/files.md`, 3): the directory `0o700`, its files
+  directory (skein's `runtime/io/files.md`, 11): the directory `0o700`, its files
   `0o600`, owned by the engine's user. The store, its snapshots and its
   logs hold no secret.
+
+## 1. What it keeps
+
 - **What it keeps,** each under its owner's tag and the number the domain
   gives it:
   - minted credentials' digests, by their sign-in's number, with their
@@ -34,6 +37,9 @@
 
   A program source's login is not here: it is the program's own, on
   each host (`../llm.md`, 5.5).
+
+## 2. Row schemas
+
 - **Each row from a schema,** jig's family `secrets`
   (`schema/secrets-v1.schema`),
   versioned records whose key says which:
@@ -79,7 +85,10 @@
   (`opening-owners.md`, 1), for the rehearsal's decoding and the manifest's
   counts. The secrets' formats are outside the registry, fixed at their
   current versions; a change designs how the deployment's store reaches
-  it in that landing (temper's `draft/store-floor.md`, section 5).
+  it in that landing (temper's `draft/archive/store-floor.md`, section 5).
+
+## 3. Component writes and adoption
+
 - **Written by components alone,** through the protocol layer's routing.
   The domain names a secret by number, never holds one, and never sees
   the secrets' store's commits, which have numbers of their own.
@@ -145,6 +154,9 @@
   the file's bytes made from it live only in the protocol layer until
   the client takes them (`../llm.md`, 5.6). The row is erased when the
   move is written.
+
+## 4. Credential lookup and erasure
+
 - **A presented credential names its sign-in:** a credential is the
   sign-in's number and its random bytes, opaque to the transport that
   carries it. The component gets the digest by number, and the clients'
@@ -167,13 +179,16 @@
   erases nothing. A value orphaned by a crash
   before the core says used or unused remains there, including an LLM
   key not yet adopted; collecting those values is later work.
+
+## 5. Failure, startup and copies
+
 - **A failure stops the engine,** as the store's does (`commits.md`, section 1): what a
   failed commit of the secrets' store was keeping is never handed out.
 - **Read at start,** within its own limits and worst case: named sources
   by number, the sources' sweep in bounded pages.
 - **Copied with the store** (`opening.md`, 2), whole, to a private
   secrets' directory; its files are copied, never linked. Its formats
-  stay at their current versions (temper's `draft/store-floor.md`,
+  stay at their current versions (temper's `draft/archive/store-floor.md`,
   section 5): jig's digests and records, the application's records under
   its tag, and skein's OAuth records. No owner set schedules a secrets'
   patch, and a job's ranges are the public map's alone (`jobs.md`, 1).

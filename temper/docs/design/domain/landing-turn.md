@@ -32,7 +32,7 @@ This document holds the landing turn and its trains, split from [`landing.md`](l
   requirements hold).
   On GitHub, the landing advances the branch with a fast-forward-only
   `Write::UpdateRef`; temper’s App must always bypass a rule requiring
-  a pull request (`forge/adoption.md`, 4).
+  a pull request (`forge/adoption.md`, 8).
 - **Every member lands** when the branch's tip reads back as the
   candidate, or as a commit containing it. In stack order, the landing records each landed at its
   prefix, waits for its pull request's merge mark until one configured
@@ -89,7 +89,7 @@ This document holds the landing turn and its trains, split from [`landing.md`](l
 - **On GitHub,** which merges no pull request fast-forward, the turn
   would update the branch's ref to the candidate, fast-forward only
   (skein's `Write::UpdateRef`), under temper's App's `Always` bypass of
-  a rule requiring a pull request (`forge/adoption.md`, 4); GitHub
+  a rule requiring a pull request (`forge/adoption.md`, 8); GitHub
   marks the pull requests merged once the branch holds their heads.
 - **No turn without a fast-forward:** if temper cannot fast-forward
   to a candidate, the repository cannot land by turn. On GitHub, this

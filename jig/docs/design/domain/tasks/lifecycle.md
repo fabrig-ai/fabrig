@@ -75,7 +75,7 @@ waiting run holds its host's slot or parks is ../engine/executors.md, 4. A claim
 that no host reports after a restart, its attempt having committed no
 turn and no call, counts as not started: no try is spent on it. Nor is
 one on a host in the engine's own process when that engine stops
-(../engine/restart.md, 1): its attempt ends interrupted, as a recheck ends, with
+(../engine/restart.md, 5): its attempt ends interrupted, as a recheck ends, with
 no try spent and no backoff, keeping the turns and calls it committed,
 and the task is due again. Nor is a run its host cancelled for lost
 contact (../hosts/hub.md, 6), whose answer ends its attempt interrupted

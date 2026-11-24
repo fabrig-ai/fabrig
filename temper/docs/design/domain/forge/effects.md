@@ -173,7 +173,7 @@ is connected as the routing tells the root (`../../protocol/forge/engine.md`, 1,
 ); an ended forge stays ended, and each act its removal has not
 heard answered, its secrets erased or its group removed, is asked again
 (`adoption-connection.md`, 1); the adopted repositories of each managed or owned Forgejo are
-named to the routing for its reconcile (`adoption.md`, 2). Each `Names` row of a task
+named to the routing for its reconcile (`adoption.md`, 6). Each `Names` row of a task
 jig holds live is that task's names, and every other row a kept task's
 (`adoption-connection.md`, 1), whatever forges it names; a start with more live rows than
 `forge.tasks`, or more kept ones than `forge.repositories`, is refused

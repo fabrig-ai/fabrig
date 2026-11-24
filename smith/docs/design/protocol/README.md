@@ -383,7 +383,7 @@ to an older reader or writer. Each has one version at a time.
     both halves move together. Every layout change moves the version
     and keeps the previous schema text; no bridge or previous
     spoken version is needed. temper records this exemption in its wire
-    bridge inventory (`temper/docs/design/draft/redeploys.md`, 4.2 and
+    bridge inventory (`temper/docs/design/draft/archive/redeploys.md`, 4.2 and
     4.4). A consumer permitting independently upgraded agents needs a
     compatibility contract before using that shape (section 11).
   - **the charter** carries its own version, since the party that writes
@@ -493,9 +493,9 @@ it.
   (skein's `data/json.md` and `http.md`).
 - **io and the shell** (skein's `runtime/io/README.md` and `../shell/README.md`):
   - an append stream on a file, and standard output adopted as a stream,
-    for the event stream (`skein/docs/design/runtime/io/files.md`, 1);
+    for the event stream (`skein/docs/design/runtime/io/files.md`, 9);
   - durable replacement of a whole file, and private files for secrets
-    (`skein/docs/design/runtime/io/files.md`, 2 and 3);
+    (`skein/docs/design/runtime/io/files.md`, 10 and 11);
   - a lock on a directory, taken without waiting, for the credentials
     directory's records (`skein/docs/design/runtime/io/files.md`);
   - the loop's host interface and its drive, out of the testing crates

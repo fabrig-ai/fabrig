@@ -95,7 +95,7 @@ pub enum Op {
     StatEntry     { dir: Fd, name: Box<[u8]> },                  // the entry itself, never a link's target
     Rename        { from_dir: Fd, from: Box<[u8]>, to_dir: Fd, to: Box<[u8]>, no_replace: bool },
     Remove        { dir: Fd, name: Box<[u8]>, directory: bool },
-    MakeDirectory { dir: Fd, name: Box<[u8]>, mode: u32 },     // less the umask (io/files.md, 3)
+    MakeDirectory { dir: Fd, name: Box<[u8]>, mode: u32 },     // less the umask (io/files.md, 11)
     List          { fd: Fd, entries: Box<[Entry]>, names: Box<[u8]> },  // synchronous
     Lock          { fd: Fd },                                    // exclusive, without waiting; synchronous
     // a tree's metadata, by name in an open directory (section 6.4)

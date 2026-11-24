@@ -1,7 +1,7 @@
 # Findings and their goal
 
-Provisional, 2026-11-12, from `../../draft/landed-qa.md`, sections 7, 8
-and 9, milestone Q3 of `../../draft/landed-qa.execution.md`. What a pass
+Provisional, 2026-11-12, from `../../draft/archive/landed-qa.md`, sections 7, 8
+and 9, milestone Q3 of `../../draft/archive/landed-qa.execution.md`. What a pass
 finds against temper, and how it goes back: each finding with its setup
 and the lines that reproduce it, linked to an open one it matches, and a
 pass's open findings filed as one request, put on main by the
@@ -55,7 +55,7 @@ deployment's command, with one goal started on it.
 - **`evidence`,** optional, at most 16 paths, each a regular file of at
   most 16 MiB, relative to the command's working directory: a look's
   screenshot, the screen's text or the box's log where it matters
-  (`../../draft/landed-qa.md`, 7). Each is copied into `evidence/N/` in
+  (`../../draft/archive/landed-qa.md`, 7). Each is copied into `evidence/N/` in
   the home under its file name, N the finding's number, before the
   ledger records it; two of one name are refused.
 - **Recorded** as `ledger.md`, 4.11 has it, the case's surface, page and
@@ -96,7 +96,7 @@ setups it changed (`ledger.md`, 4.12 and 4.16); written when filed
   - a paragraph saying what it asks: each finding fixed, each fix with a
     test in the lowest world that reproduces it, starting from the
     finding's lines (`../../draft/v0.1.0.md`, 4); what the cases
-    expected and nothing past it (`../../draft/landed-qa.md`, 8);
+    expected and nothing past it (`../../draft/archive/landed-qa.md`, 8);
   - each finding, `## F. TITLE`, then its severity, surface and page,
     area, landings (each landing's goal and title), setup (its recipe's
     path), its reproduction as a fenced `text` block of its lines, what
@@ -106,7 +106,7 @@ setups it changed (`ledger.md`, 4.12 and 4.16); written when filed
 - **Each recipe it carries,** `temper/docs/development/qa/setups/NAME/`,
   the pass's directory for it whole (`passes.md`, 2), so the pass's new
   recipes and edits land with its request as documentation
-  (`../../draft/landed-qa.md`, 8).
+  (`../../draft/archive/landed-qa.md`, 8).
 - **A request with no finding** carries recipes alone, lands as
   documentation and starts no goal.
 
@@ -167,7 +167,7 @@ so its retry and its line after an hour say what failed:
   stopping the other waiting passes' checks. Without
   `request.state`, a pass waits until its goal lands.
 - **Then,** the pass resumes on the newest reached kept build and files
-  its findings again in its next request (`../../draft/landed-qa.md`,
+  its findings again in its next request (`../../draft/archive/landed-qa.md`,
   9), each goal counting towards the two that hand a finding on
   (`ledger.md`, 4.14).
 

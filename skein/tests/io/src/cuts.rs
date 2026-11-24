@@ -1,5 +1,5 @@
 //! Crash-cut file owners share the world's scheduler and memory accounting
-//! (runtime/io/files.md, 2 and 3; testing/simulator.md, 3.3). Recovery only reads the record.
+//! (runtime/io/files.md, 10 and 11; testing/simulator.md, 3.3). Recovery only reads the record.
 
 use skein_fake_machine::{How, Item, Machine as Files, Opened};
 use skein_io::file::{Event, Expect, Request};

@@ -5,5 +5,5 @@
 - **Departs:** the whole document: the fuzzy story-placement departure remains `checks.status.md`, 1.
 
 - **Departs:** the whole document: the case library's purpose is retired: the reference
-  case it was written from is replaced (`../draft/reference-case.md`), and
+  case it was written from is replaced (`../draft/archive/reference-case.md`), and
   its code awaits removal with its design.

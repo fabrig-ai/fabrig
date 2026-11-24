@@ -96,7 +96,7 @@ of domain/host.md, section 2.
   restarting the engine leaves the worker and its agents together;
   replacing the configured agent program cannot change a running
   worker's later spawns. This is the per-build exemption in temper's
-  bridge inventory (`temper/docs/design/draft/redeploys.md`, 4.2 and
+  bridge inventory (`temper/docs/design/draft/archive/redeploys.md`, 4.2 and
   4.4). A connected agent spanning builds needs a compatibility contract
   before that shape is supported (README.md, sections 4 and 11).
 - **The credential** is empty over a spawned agent's pipes. A connected
@@ -363,7 +363,7 @@ label, 1 to 32 printable ASCII bytes; its length, an optional
 reset, the provider's optional wall time in Unix seconds, as given, never
 a duration, so that two reports of one reset are equal; and its state,
 `UsageState`: open, warned or limited. The channel is per-build, so the
-version moves with no bridge (temper's `draft/redeploys.md`, 4.4).
+version moves with no bridge (temper's `draft/archive/redeploys.md`, 4.4).
 
 **How a run ended** (domain/run.md, section 9):
 

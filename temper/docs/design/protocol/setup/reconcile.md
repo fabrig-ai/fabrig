@@ -281,7 +281,7 @@ runs it or writes what it makes.
   which the request `managed-listener` left to keep to one task.
 
 - **An adopted row's kinds after the forge changes** (`reconcile.md`, 4;
-  `../../domain/forge/adoption.md`, 2): a row keeps the kinds its adoption read,
+  `../../domain/forge/adoption.md`, 6): a row keeps the kinds its adoption read,
   and only a capability refusal reads them afresh, which a row that may
   not push never meets. So a repository adopted while temper's user could
   only read stays so in its row until it is adopted again, whatever the

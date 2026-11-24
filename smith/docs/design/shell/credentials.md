@@ -77,7 +77,7 @@ whatever its source (../domain/host.md, section 7).
   settings, hooks and plugins for a program never load into a run
   (../protocol/programs.md, 4.2).
 - **Each file private,** read and written as skein's private files are,
-  each replaced whole by durable replace (skein's `runtime/io/files.md`, 2 and 3).
+  each replaced whole by durable replace (skein's `runtime/io/files.md`, 10 and 11).
   The programs directory is private; `smith login` makes each
   configuration directory in it, private, and only the program writes
   there.

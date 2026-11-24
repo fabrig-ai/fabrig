@@ -1,7 +1,7 @@
 # Driving the clients a line at a time
 
 Provisional, 2026-11-12, revised 2026-11-21. QA's hands on ctl, the web
-client and the TUI (`../draft/landed-qa.md`, 7 and 10):
+client and the TUI (`../draft/archive/landed-qa.md`, 7 and 10):
 `temper-client-journeys drive`, a session that starts a fake box, or a
 deployment's processes (`../testing/qa/deployment.md`), from a given
 build in a given scratch directory, then takes lines on standard input,
@@ -115,7 +115,7 @@ temper-client-journeys drive --bin DIR [--bundle DIR] --scratch DIR [--scripts F
 
 | Path | What | Kept |
 |---|---|---|
-| `config/`, `data/`, `cache/` | the box's three directories (`../protocol/configuration/directories.md`), given as `--config`, `--data` and `--cache` | across sessions: absent, the box prepares a new sandbox; present, it starts the one they hold, as a place's restored copy (`../draft/landed-qa.md`, 5) |
+| `config/`, `data/`, `cache/` | the box's three directories (`../protocol/configuration/directories.md`), given as `--config`, `--data` and `--cache` | across sessions: absent, the box prepares a new sandbox; present, it starts the one they hold, as a place's restored copy (`../draft/archive/landed-qa.md`, 5) |
 | `session/` | the session's own, removed and made again, 0o700, at its start | until the next session |
 | `session/home/`, `session/state/`, `session/tmp/` | `HOME`, `XDG_STATE_HOME` and `TMPDIR` of every program the session starts; `XDG_CONFIG_HOME`, `XDG_CACHE_HOME` and `XDG_DATA_HOME` under `home/` | |
 | `session/runtime/`, `session/tui-runtime/` | `XDG_RUNTIME_DIR` of the box and of the TUI, apart, as `tui/journeys.md`, 8.2 keeps them | |
@@ -160,7 +160,7 @@ In order, each within its bound; a failure is 2.5's.
    signed out. In a journey's session (2.7), it does not load `/`: its
    first line meets the page the fresh link opens. Otherwise the first
    line meets the root page. The browser holds the session's
-   sign-in; a copy holds none (`../draft/landed-qa.md`, 5).
+   sign-in; a copy holds none (`../draft/archive/landed-qa.md`, 5).
 4. **The TUI** starts at the session's first `tui` line (3.3), not
    before.
 5. **`ready`** on stdout, and the lines are read.
@@ -225,7 +225,7 @@ At a line `end`, or at stdin's end: the TUI ended, its process group
 killed; the browser closed; then the box stopped by
 `SIGTERM` and waited on, within 60 seconds, and its tree killed past
 them. After a clean stop the box's directories hold a stopped box,
-which a place copies (`../draft/landed-qa.md`, 5). The session's
+which a place copies (`../draft/archive/landed-qa.md`, 5). The session's
 directory stays until the next session. At a deployment the TUI and the
 browser end the same way, first; then the deployment's processes stop
 in their order (`../testing/qa/deployment.md`, 7).
@@ -240,14 +240,14 @@ in their order (`../testing/qa/deployment.md`, 7).
 | 1 | the session's own failure: a refused command line (2.1), a scratch directory it cannot make its own | `failed: WHY`, on stderr |
 
 A place makes a copy refused by its store again from its recipe
-(`../draft/landed-qa.md`, 5): status 3 is that signal. Status 4 on a
+(`../draft/archive/landed-qa.md`, 5): status 3 is that signal. Status 4 on a
 fresh box, or on a copy past its closing check, is a finding against
-temper (`../draft/landed-qa.md`, 7).
+temper (`../draft/archive/landed-qa.md`, 7).
 
 ### 2.6 A ctl session
 
 A session of ctl and forge lines alone, which starts no browser and no
-terminal and needs neither (`../draft/landed-qa.md`, 4 and 7): `--ctl`,
+terminal and needs neither (`../draft/archive/landed-qa.md`, 4 and 7): `--ctl`,
 on the box or at a deployment (`--ctl --deployment DIR`).
 
 - **Its start** is 2.3's first two steps, the box started, or the
@@ -457,7 +457,7 @@ names it (`../protocol/setup/box-backends.md`, 1), which the box writes to its
 stderr and the session to `session/box.log` (2.2), so a restored copy's
 box gives its own afresh. The kept line keeps the name (`drive.md`, section 4), so
 a recipe names no place's path, port or credential and walks the same
-at every place (`../draft/landed-qa.md`, 5).
+at every place (`../draft/archive/landed-qa.md`, 5).
 
 | Name | Its value | From the line |
 |---|---|---|
@@ -494,7 +494,7 @@ through the forge's API, as `../../development/acceptance.md`, 7 commits
 its gate, and the wait on that commit's checks. The forge is the box's
 fake Forgejo elsewhere (`../protocol/setup/box-backends.md`, 1), the person's at
 a QA place, keeping its state in the box's data, its CI decided by what
-a head holds (`../draft/landed-qa.md`, 6; `../testing/fakes.md`, 2).
+a head holds (`../draft/archive/landed-qa.md`, 6; `../testing/fakes.md`, 2).
 
 | Line | What the session does | Bound |
 |---|---|---|
@@ -512,7 +512,7 @@ a head holds (`../draft/landed-qa.md`, 6; `../testing/fakes.md`, 2).
   (2.1), or, on a recipe's walk, the recipe's own `files/` (`recipe.md`,
   2 and 5.1). No files directory, or a PATH missing there or past the
   bound, fails the line, naming it. So the line names what it commits,
-  and the recipe holds it (`../draft/landed-qa.md`, 5).
+  and the recipe holds it (`../draft/archive/landed-qa.md`, 5).
 - **The forge's hands** are the box's, read at each line from the
   newest of its opening lines in `session/box.log`
   (`../protocol/setup/box-backends.md`, 1): the API, `http://HOST:PORT/api/v1`,
@@ -526,7 +526,7 @@ a head holds (`../draft/landed-qa.md`, 6; `../testing/fakes.md`, 2).
   box's file at each request and never printed, kept, logged, written
   elsewhere or given as an argument; only the file's path is named. So
   no line, no recipe and no answer holds a credential
-  (`../draft/landed-qa.md`, 11).
+  (`../draft/archive/landed-qa.md`, 11).
 - **The commit:** the repository read (`GET /repos/OWNER/NAME`) for its
   default branch; each PATH read at that branch (`GET
   /repos/OWNER/NAME/contents/PATH?ref=BRANCH`), absent (404) making it a
@@ -573,7 +573,7 @@ restores the viewport (3.2). `tui mark` answers the frame's rows as
 ### 3.7 A failed line
 
 A failed line never ends the session: the next line is read
-(`../draft/landed-qa.md`, 7, a finding never stops a pass). A session
+(`../draft/archive/landed-qa.md`, 7, a finding never stops a pass). A session
 whose box has exited answers every later line `failed: the box
 exited`, and ends with status 4 (2.5).
 
@@ -598,7 +598,7 @@ deployment line`, and is not kept.
 - **Replayed,** they reach the same page: given to a new session on the
   same start, the same copy or a fresh box, they take the same steps.
   So a case's steps become a recipe's (`recipe.md`, 3) and a finding's
-  reproduction (`../draft/landed-qa.md`, 8).
+  reproduction (`../draft/archive/landed-qa.md`, 8).
 
 ## 5. Its code
 

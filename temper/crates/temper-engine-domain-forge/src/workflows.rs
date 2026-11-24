@@ -1,6 +1,6 @@
 //! CI workflow names at the landing branch's tip
-//! (temper/docs/design/domain/forge/adoption.md, 7).
-//! Landing targets use the adoption (temper/docs/design/domain/forge/adoption.md, 8).
+//! (temper/docs/design/domain/forge/adoption.md, 11).
+//! Landing targets use the adoption (temper/docs/design/domain/forge/adoption.md, 12).
 use alloc::boxed::Box;
 use skein_forge::api;
 use skein_lib::{Env, List, Map, Queue, Set, Token};

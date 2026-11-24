@@ -9,9 +9,9 @@
   frames' family its frames' root, number and texts, the generated
   modules' constants (skein's `data/codec/command.md`, 3), no function. A set
   carries no map patch, no older text of a map family, no fresh mark
-  and no effects in flight (temper's `draft/store-floor.md`, 4.1 and
+  and no effects in flight (temper's `draft/archive/store-floor.md`, 4.1 and
   4.2): no map record is rewritten but by a job or the seal, and a
-  format outside the registry is fixed (temper's `draft/store-floor.md`, section 5).
+  format outside the registry is fixed (temper's `draft/archive/store-floor.md`, section 5).
 
 ```rust
 // jig_protocol_store

@@ -383,7 +383,7 @@
   // makes one (draft draft/archive/first-run.md, 2.4), its place reads "No project yet".
   const seeded = () => world.seeded && shownProject() === world.seeded;
   const project = () => seeded()
-    ? variant('projectless', conf('engine.projects, its first, unnamed, so “Project 1” (protocol/setup/init.md, 3)', esc(world.seeded)), 'No project yet')
+    ? variant('projectless', conf('engine.projects, its first, unnamed, so “Project 1” (protocol/setup/init.md, 6)', esc(world.seeded)), 'No project yet')
     : fact('jig: the project', esc(params.get('project') || world.project || 'No project yet'));
   const noProject = () => !(params.get('project') || world.project);
   const PROJECT_NAV = ['board', 'changes', 'tasks', 'adopt'];

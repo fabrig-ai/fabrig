@@ -189,7 +189,7 @@ impl Membership {
 #[path = "tests.rs"]
 mod membership_tests;
 
-/// Maximum endpoint identities admitted in one host hello (domain/hosts/charters.md, 1).
+/// Maximum endpoint identities admitted in one host hello (domain/hosts/charters.md, 4).
 /// Independent of the number of model declarations.
 pub const PROGRAM_ENDPOINTS: u32 = 64;
 

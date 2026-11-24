@@ -96,7 +96,7 @@ otherwise teach.
   the proposals of settings waiting. The authorized inventory also names the caller project's
   readable adopted repositories, each with the canonical host, owner and name
   from its retained repository record, and the landing branch that record
-  keeps (`../forge/adoption.md`, 8). Other projects and ended forges are
+  keeps (`../forge/adoption.md`, 12). Other projects and ended forges are
   excluded. These identities are read context, not settings or credentials;
   setting, revision and history reads carry no repository context. A charter
   document holds that host unchanged, including its port, and OWNER/NAME,

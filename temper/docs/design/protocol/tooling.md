@@ -210,7 +210,7 @@ baseline recounted, a generated file made again), with no model.
 - **Deterministic by contract,** as `prepare`: the same head and base
   give the same tree and the same result.
 
-**A left file's record** (`../draft/merge-deletions.md`, 1) is a JSON
+**A left file's record** (`../draft/archive/merge-deletions.md`, 1) is a JSON
 object of these members, in this order, each present only where its
 kind has it. The head is the branch merged into, the index's stage 2,
 and the base the commit merged in, stage 3; stage 1 is their merge

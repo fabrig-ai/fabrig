@@ -10,7 +10,7 @@ Draft, 2026-11-18, on the user's word. On 11-18 at 00:38Z a deployment's engine 
   - yet the start's funding check refuses such a task (`jig/crates/jig-domain-tasks/src/funders.rs`, `link`);
   - and its end expects its ledger to be live (`funders.rs`, `end`, "source preserved"), so ending it after its ledger has closed panics.
 - **A task's rejection is recorded as a person's:** a hold's escalation can wait on the nearest live ancestor task (`EscalationHolder::Task`, `jig/crates/jig-domain-tasks/src/escalation.rs`). When that task rejects the escalation, its task number goes into `Escalation::Rejected`'s `by` (`jig/crates/jig-domain-core/src/routing/run/calls.rs`, `DecideEscalation`). The start's checks link `by` as a person (`jig/crates/jig-domain-core/src/start/links.rs`). No person has that number, so the start refuses.
-- **The check before a swap doesn't run the start's checks:** `upgrade --check` rehearses the store's registry changes and jobs over a copy (`temper/docs/design/draft/redeploys.md`, 5.1). A store that passes it can still fail a start.
+- **The check before a swap doesn't run the start's checks:** `upgrade --check` rehearses the store's registry changes and jobs over a copy (`temper/docs/design/draft/archive/redeploys.md`, 5.1). A store that passes it can still fail a start.
 - **The release line's hotfix** (branch `oob/hotfix-recurring-ledger`) works in three ways:
   - retire keeps a pool, recurring or period ledger open while any live task names it. That contradicts the core world's priced-effect case and reds six funding tests. One reason is that a task's end retires before its name leaves the live tasks (`jig/crates/jig-domain-tasks/src/closing.rs`, `end_task`);
   - a start moves an orphan that reserved nothing onto its source's newest open ledger, in memory only, so every start repeats the move;
@@ -27,7 +27,7 @@ Draft, 2026-11-18, on the user's word. On 11-18 at 00:38Z a deployment's engine 
 - **The start's checks stay whole:** none of the checks the hotfix softens is softened here. Each party a live task names is linked by its kind, and a start still refuses what it can't link.
 - **The check before a swap runs the start's checks:** `upgrade --check` also restores the copy as a start does, through the domain's link and fit checks, and names the first record a start would refuse.
 - **The client wire's version moves** if its hold escalation shows the rejecter.
-- Revise `jig/docs/design/protocol/store/README.md`, 10.1, `jig/docs/design/domain/tasks/holds.md`, and `redeploys.md`, 5.1, with their status files.
+- Revise `jig/docs/design/protocol/store/README.md`, 10.1, `jig/docs/design/domain/tasks/holds.md`, and `archive/redeploys.md`, 5.1, with their status files.
 
 ## 3. Out
 

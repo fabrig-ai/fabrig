@@ -226,7 +226,7 @@ is not understood, but a known recap prompt can have its own rule.
   no script answers takes "done" or the random answer, as 2.4 has it.
   On, it fails instead, so that a world or a QA box whose scripts miss a
   turn sees the turn fail rather than drift (temper's
-  `draft/landed-qa.md`, 6).
+  `draft/archive/landed-qa.md`, 6).
 - **What no script answers,** under the switch: a script that 2.4
   selects, by a system cue, a request cue or as `otherwise`, called past
   its last turn; and a call that nothing selects, no cue matching and
@@ -269,7 +269,7 @@ is not understood, but a known recap prompt can have its own rule.
 - **A turn may take a value from the conversation** it answers, so that
   a script made from one run replays on a deployment whose numbers and
   ids differ: a task's number, a pull request's, a commit's id (temper's
-  `draft/landed-qa.md`, 6 and 10). A take is a line,
+  `draft/archive/landed-qa.md`, 6 and 10). A take is a line,
   `Line::Take { name, before, after }`, that adds nothing to the reply:
   it binds `name`, for the lines after it in its turn, to the value the
   conversation holds between `before` and `after`.

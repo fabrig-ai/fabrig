@@ -1,4 +1,4 @@
-//! Forge 3's person (protocol/setup/init.md, 2).
+//! Forge 3's person (protocol/setup/init.md, 5).
 use crate::Person;
 use skein_lib::bytes;
 

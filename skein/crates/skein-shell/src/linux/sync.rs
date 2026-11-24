@@ -36,7 +36,7 @@ const NANOS_PER_SEC: u64 = 1_000_000_000;
 
 /// Finds an inherited output's kind at startup and enables `O_APPEND` on a
 /// regular file. Ownership stays with the caller until io adopts the descriptor.
-/// Pipes and terminals retain their flags (runtime/shell-startup.md, section 1; runtime/io/files.md, 1).
+/// Pipes and terminals retain their flags (runtime/shell-startup.md, section 1; runtime/io/files.md, 9).
 pub fn prepare_output(descriptor: Fd) -> Result<OutputKind, Error> {
     // SAFETY: stat is initialized, and remains writable throughout fstat.
     let mut stat: libc::stat = unsafe { mem::zeroed() };

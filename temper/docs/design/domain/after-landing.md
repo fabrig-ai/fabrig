@@ -601,7 +601,7 @@ with failing tests by id and uploading their artifacts:
 - **under queue and by turn,** the same stories; under `wait: cleared`,
   every story above but those of ending at landing and switching, as
   before.
-- **The reference case** (`../draft/reference-case.md`): these mechanics
+- **The reference case** (`../draft/archive/reference-case.md`): these mechanics
   open its steps 25 to 27, a red of main's tier triaged and repaired by
   a change that names it.
 

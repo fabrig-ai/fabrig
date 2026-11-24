@@ -78,7 +78,7 @@ What is there:
 What step 1 adds:
 
 - **The offer:** `anthropic` offers Claude Code's program alone
-  (`../protocol/setup/init.md`, section 3). It offers keys too, its
+  (`../protocol/setup/init.md`, section 6). It offers keys too, its
   sources `{"programs": ["claude_code"], "keys": true}`, everywhere init
   writes the provider (`claude-provider.md`, section 2).
 - **A direct endpoint:** beside Claude Code's, which names the program,

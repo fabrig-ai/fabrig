@@ -87,7 +87,7 @@ It covers:
   `protocol/client/shells.md`, 1). skein's TLS client, `skein-tls`, and
   the machine's roots, found by skein-shell's startup, are in the tree
   already, used by the engine's own calls out.
-- **A client of another build is refused** (`redeploys.md`, 8;
+- **A client of another build is refused** (`archive/redeploys.md`, 8;
   `layouts-both-ways.md`, 3), and the browser reloads to the engine's
   bundle. The TUI has no words for it.
 
@@ -371,7 +371,7 @@ code typed from the person's own terminal (5.2).
 
 - **The person keeps the laptop's build at the deployment's,** for this
   pass (the user, 2026-11-18).
-- **When the engine refuses the TUI's version** (`redeploys.md`, 8; the
+- **When the engine refuses the TUI's version** (`archive/redeploys.md`, 8; the
   owners `jig-client`'s link view names as not served), the TUI draws
   this in place of the sign-in screen or the launchpad, illustrative:
 

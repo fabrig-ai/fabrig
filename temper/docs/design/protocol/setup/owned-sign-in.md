@@ -5,7 +5,7 @@ This document holds signing in to an owned forge, split from [`owned.md`](owned.
 ## 1. Signing in through temper
 
 **A box's owned Forgejo needs none of this:** it makes its key at its first run
-(`init.md`, 2) and adds its own source (`box.md`, 1), with no secret and no command for the person
+(`init.md`, 5) and adds its own source (`box.md`, 1), with no secret and no command for the person
 (`../openid-provider.md`, 9). What follows is for every other arrangement.
 
 `temper-box forge sign-in [DIRECTORIES] FORGE`, for a Forgejo of
