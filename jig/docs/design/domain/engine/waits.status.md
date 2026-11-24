@@ -6,3 +6,4 @@
 - **Not yet:** 5: the `waits` table of figures in the core's limits, with its stock [in flight: change 15615].
 - **Not yet:** 7: each kind's floor, stored once, and every *since* floored by it [in flight: change 15620].
 - **Not yet:** 6: a connector's report of its procedure task's waits, kept and listed by the core [in flight: change 15621].
+- **Not yet:** 4: a document's first wait and nearest bound, the same two its line carries [in flight: change 15726].

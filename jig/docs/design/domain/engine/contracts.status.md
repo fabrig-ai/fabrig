@@ -6,3 +6,4 @@
 - **Not yet:** 1, 3: the record's types, `Core::waits` and `Waits`; 4: the core's lines' and documents' members [in flight: change 15616].
 - **Not yet:** 3: `Core::wait_floor` [in flight: change 15620].
 - **Not yet:** 4: the client contract's types and members [in flight: change 15643].
+- **Not yet:** 4: a task document's `wait` and `nearest`, in the core, on the client wire and in the contract [in flight: change 15726].

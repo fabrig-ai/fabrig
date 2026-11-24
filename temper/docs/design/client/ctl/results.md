@@ -99,7 +99,7 @@ digest: task 7c1e09a2b44f0d13
   `nothing` among them. Its `chip.phase` stays `due` and its `run_wait` as jig
   gives it, a wait's `phase:due` still holds, and `task list`'s lines, which
   carry no next-run wait, keep their word.
-  Where the task's line names a first wait (jig's
+  Where the task's document names a first wait, as its line does (jig's
   `domain/engine/waits.md`, 4), the line goes on, whatever it printed
   before, with ` · since WALL`, that wait's *since*, then ` · ` and its
   nearest bound: `holds at WALL`, `passes up at WALL`, `is overdue at

@@ -292,8 +292,9 @@ result and the desired cleanup state. Bounded diagnostics say when cut.
   its kind, its object, its *since*, its bound with what happens at it or
   the reason it has none, and who hears. A line carries its first wait,
   which may be a task's in its subtree, and its nearest bound with that
-  wait's kind; a task's document carries every wait of its own, in order,
-  within its lines, and how many it has (`../../../domain/engine/waits.md`, 4). What a task
+  wait's kind; a task's document carries the same two, then every wait of
+  its own, in order, within its lines, and how many it has; a tree's rows
+  are chips and carry none (`../../../domain/engine/waits.md`, 4). What a task
   waits on is their summary, as the engine computes it. A party's entry
   names its kind and its number: the question's, the proposal's, the
   escalation's revision or the person task's own.

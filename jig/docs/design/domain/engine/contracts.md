@@ -95,7 +95,10 @@ the floors' change and answers none before it.
 - The core's `TaskLine` (`documents/task_lines.rs`) gains
   `pub wait: Option<Wait>` and `pub nearest: Option<Nearest>`; its `Task`
   (`documents/task_tree.rs`) gains `pub waits: skein_lib::List<Wait>` and
-  `pub wait_count: u32`. Both keep `waits_on`.
+  `pub wait_count: u32`, and the line's two, `pub wait: Option<Wait>` and
+  `pub nearest: Option<Nearest>`, as `Waits::first` and `Waits::nearest`
+  give them, so that a task's read and watch print its first wait without
+  a line. Both keep `waits_on`. A tree's rows stay chips and carry none.
 - The client contract (`jig-client-domain`, `contract`) has the same
   types under the same names, its own: `Wait`, `WaitKind`, `WaitObject`,
   `Thing`, `Bound`, `AtBound`, `Unbounded`, `Nearest`, with its
@@ -104,4 +107,5 @@ the floors' change and answers none before it.
   question's, the proposal's, the escalation's revision or the person
   task's own), its `TaskRunWait` for the run, and the resource's name as
   the contract carries other names' text. Its `TaskLine` and `Task` gain
-  the same four members.
+  the same members, and the client wire's task line and task document
+  records mirror them, within the wire's one moved version.

@@ -18,7 +18,8 @@ gives every wait its bound and names what happens at it.
   computes, and a procedure's four, which its connector reports.
 - **Computed, never stored** (4): the core computes a task's waits as it
   makes a line or a document, from the facts it keeps, in one order. A
-  line carries the first and the nearest bound; a document every one.
+  line carries the first and the nearest bound; a document those two and
+  every one of its own.
 - **Every wait has a bound or a reason** (5): its own clock where it has
   one, else its kind's figure from the `waits` table of the core's
   limits, else one of four reasons for none.
@@ -105,8 +106,9 @@ A closed set, so that every view, test and tool reads the same names.
   first wait and its own waits, with that wait's kind and what happens at
   it. Both come from the walk the line's wait takes today, within tasks
   per tree.
-- **A document's waits** are every wait of the task's own, in order,
-  within the document's lines, and their count.
+- **A document's waits** are its line's first wait and nearest bound,
+  the same two its line carries, then every wait of the task's own, in
+  order, within the document's lines, and their count.
 - **What a task waits on** (`views.md`, 3) is a line's summary of these:
   its values are those that section gives, computed from the records,
   so the two never disagree.
