@@ -16,6 +16,7 @@ is still open is listed in `README.md`, section 12.
 
 - [`wire.md`](wire.md): jig's messages and their framing.
 - [`versions.md`](versions.md): versions of the client's wire and its records.
+- [`contracts.md`](contracts.md): the shapes shared while client layouts are built, until that goal lands.
 - [`small-store.md`](small-store.md): the small store's keys and encoding.
 - [`sign-in.md`](sign-in.md): sign-in flows and credentials.
 - [`openid.md`](openid.md): sign-in with OpenID.
@@ -230,7 +231,12 @@ recipient.
   (`jig/crates/jig-protocol-engine-clients/schema/cursor-v2.schema`),
   whose fixed-rule values are built from its schema text in tests
   (skein's `data/codec/golden.md`, 1), with a key inside one in the store's
-  codec. A cursor of another version does not decode, and its read is answered unknown (`../README.md`, section 7).
+  codec. A cursor names, after its head, the family's layout it was
+  written at, `Held { layout, form }`, its head and `layout` the same at
+  every layout (`versions.md`, section 1); one of another version or another
+  layout does not decode, and its read is answered unknown
+  (`../README.md`, section 7). The wire's bound on a cursor's bytes leaves its
+  `form` the room it had before it named its layout.
 - **Credential boundaries, on the client,** visibly end pending reads
   in the domain's `Page` forms: jig's `ReadNone::SignedOut` or
   a family's `None`, once each, on sign-out and unconditionally on

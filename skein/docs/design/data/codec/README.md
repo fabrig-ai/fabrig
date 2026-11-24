@@ -298,6 +298,12 @@ For each family:
 - **Its version.** `pub const VERSION: u16`, the schema's version, which
   its versioned records' encoding and decoding name; a hand-written
   constant that restates it is defined by it.
+- **Its layout.** `pub const LAYOUT: [u8; 32]`, the family's fingerprint
+  (`fingerprints.md`, section 1) of the text it was generated from, so that
+  a build names its own layout of the family without parsing its text,
+  and a peer or a kept record is judged by it (jig's
+  `protocol/client/versions.md`, section 1). A hand-written constant that
+  restates it is defined by it.
 - **Its limits by name.** `LIMIT_NAMES: &[&str]`, each limit's field
   name in the struct's order, and `Limits::values(&self)`, their values
   in the same order, read as a `&[u32]`, so that a kept version's bounds can be

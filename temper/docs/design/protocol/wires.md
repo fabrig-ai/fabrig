@@ -344,27 +344,33 @@ them.
 - **The families:** `jig-client-wire` and `jig-public-wire`
   (`jig/crates/jig-client-protocol-wire`), `jig-engine-cursor`
   (`jig/crates/jig-protocol-engine-clients`), `temper-client-wire` and
-  `temper-public-wire` (`temper/crates/temper-client-protocol-wire`).
-- **Their versions move with their layouts** (`../draft/redeploys.md`,
-  section 8), with no kept text, no patch and no bridge: a landing whose
-  text of a family has another family fingerprint than the base's text
-  of that family, at the same version, is refused by the gate, naming
-  the family and the fix, "move its version". The base is read as the
-  `patches` test reads it (`floor.md`, 6), the family found by its
+  `temper-public-wire` (`temper/crates/temper-client-protocol-wire`),
+  and the reference UI's `jig-client-view-records`
+  (`jig/crates/jig-client-view`).
+- **Their versions are frozen** (`../draft/layouts-both-ways.md`, 3),
+  with no kept text, no patch, no bridge and no list of layouts: a
+  layout is the family's fingerprint, and the gate refuses a landing
+  that moves one of their versions, naming the family. The base is read
+  as the `patches` test reads it (`floor.md`, 6), the family found by its
   header among the crate's `schema/*.schema`, a family of several files
-  read as its generated code reads them. A family the base lacks, or
-  one whose version moved, passes. A focused test in each crate holds
+  read as its generated code reads them; a family the base lacks
+  passes (jig's `protocol/client/versions.md`, section 1). A focused test in each crate holds
   the version constants equal to the header (`VERSION`,
   `PUBLIC_VERSION`, `CLIENT_VERSION`).
-- **An engine serves its one version of each,** and refuses another with
-  *version not served*, naming the ranges served (jig's
-  `protocol/README.md`, section 7).
+- **An engine serves its one version and layout of each,** and refuses
+  another version with *version not served*, naming the ranges served
+  (jig's `protocol/README.md`, section 7). temper declares its owner's
+  client layout beside its version, to the clients' component and to
+  each client it makes, and its public kinds' layout beside theirs: a
+  client at another layout of temper's owner finds that owner not
+  served at the hello, and a public read at another layout is answered
+  not served.
 - **A page refused reloads, once:** when the link turns out of date, or
   one of temper's owners is not served, the browser's page reloads
   itself to load the engine's bundle. A page that reloaded for it and is
   out of date again shows the column (`../client/view.md`, section 1)
   and reloads no more. `temper-client` and the TUI say to upgrade, as
-  they do. A kept request of another version is dropped with a notice
+  they do. A kept request of another layout is dropped with a notice
   (jig's `protocol/client/small-store.md`, section 1).
 
 ## 10. `versions`, the stored wires and the workers' openings
