@@ -3,6 +3,7 @@
 use jig_client_protocol_http::{PublicPath, public_target};
 use jig_protocol_engine_clients::PublicRead;
 use jig_protocol_engine_clients_http::public_path;
+use skein_checks::{MutationBatch, count, mutation};
 use skein_lib::{List, Rng};
 use std::fmt::{Arguments, Write as _};
 
@@ -25,14 +26,26 @@ fn path_of(read: &PublicRead) -> PublicPath {
     for id in &read.ids {
         ids.push(*id).expect("at most two ids");
     }
-    PublicPath { owner: read.owner, version: read.version, kind: read.kind, ids }
+    PublicPath { owner: read.owner, layout: read.layout.unwrap_or_default(), kind: read.kind, ids }
 }
 
 fn inspect(seed: u64, bytes: &[u8], canonical: bool, case: Arguments<'_>) -> Option<PublicRead> {
     eprintln!("seed {seed:#x}, {case}, input length {}", bytes.len());
     let read = public_path(bytes);
     if canonical && let Some(read) = &read {
-        assert_eq!(public_target(&path_of(read)).as_ref(), bytes, "accepted target prints byte for byte");
+        let path = path_of(read);
+        if read.layout.is_some() {
+            assert_eq!(public_target(&path).as_ref(), bytes, "accepted target prints byte for byte");
+        } else {
+            let version = std::str::from_utf8(bytes)
+                .expect("accepted legacy path is ASCII")
+                .split('/')
+                .nth(4)
+                .expect("legacy version segment")
+                .parse::<u16>()
+                .expect("legacy version is a u16");
+            assert_eq!(target(&path, Some(version)), bytes, "accepted legacy target uses canonical decimal");
+        }
     }
     read
 }
@@ -58,11 +71,23 @@ fn drawn(rng: &mut Rng, sample: u32) -> PublicPath {
         };
         ids.push(value).expect("at most two ids");
     }
-    PublicPath { owner: number(rng, sample, 0), version: number(rng, sample, 3), kind: number(rng, sample, 5), ids }
+    let mut layout = [0; 32];
+    for value in &mut layout {
+        *value = byte(rng);
+    }
+    PublicPath { owner: number(rng, sample, 0), layout, kind: number(rng, sample, 5), ids }
 }
 
-fn target(path: &PublicPath) -> Vec<u8> {
-    let mut text = format!("/v1/public/{}/{}/{}", path.owner, path.version, path.kind);
+fn target(path: &PublicPath, version: Option<u16>) -> Vec<u8> {
+    let mut text = format!("/v1/public/{}/", path.owner);
+    if let Some(version) = version {
+        write!(text, "{version}").expect("writing to a string");
+    } else {
+        for byte in path.layout {
+            write!(text, "{byte:02x}").expect("writing to a string");
+        }
+    }
+    write!(text, "/{}", path.kind).expect("writing to a string");
     for id in &path.ids {
         write!(text, "/{id:016x}").expect("writing to a string");
     }
@@ -75,23 +100,29 @@ fn printed(seed: u64, path: &PublicPath, bytes: &[u8], sample: u32) {
     let read = inspect(seed, bytes, true, format_args!("sample {sample}, original"))
         .unwrap_or_else(|| panic!("canonical refused, seed {seed:#x}, input {bytes:?}"));
     assert_eq!(read.owner, path.owner, "owner seed {seed:#x}, input {bytes:?}");
-    assert_eq!(read.version, path.version, "version seed {seed:#x}, input {bytes:?}");
+    assert_eq!(read.layout, Some(path.layout), "layout seed {seed:#x}, input {bytes:?}");
     assert_eq!(read.kind, path.kind, "kind seed {seed:#x}, input {bytes:?}");
     let ids: Vec<_> = path.ids.iter().copied().collect();
     assert_eq!(read.ids.as_ref(), ids, "ids seed {seed:#x}, input {bytes:?}");
 }
 
-fn mutations(seed: u64, rng: &mut Rng, bytes: &[u8], canonical: bool, sample: u32) {
+fn mutations(batch: &mut MutationBatch, seed: u64, rng: &mut Rng, bytes: &[u8], canonical: bool, sample: u32) {
     let position = index(rng, bytes.len());
     let mut changed = bytes.to_vec();
     *changed.get_mut(position).expect("canonical byte") ^= 1;
-    let _ = inspect(seed, &changed, canonical, format_args!("sample {sample}, flipped byte {position}"));
+    let _ = batch.judge(mutation(&changed), |input| {
+        inspect(seed, input, canonical, format_args!("sample {sample}, flipped byte {position}"))
+    });
     changed = bytes.to_vec();
     changed.insert(position, byte(rng));
-    let _ = inspect(seed, &changed, canonical, format_args!("sample {sample}, inserted byte {position}"));
+    let _ = batch.judge(mutation(&changed), |input| {
+        inspect(seed, input, canonical, format_args!("sample {sample}, inserted byte {position}"))
+    });
     changed = bytes.to_vec();
     changed.remove(position);
-    let _ = inspect(seed, &changed, canonical, format_args!("sample {sample}, removed byte {position}"));
+    let _ = batch.judge(mutation(&changed), |input| {
+        inspect(seed, input, canonical, format_args!("sample {sample}, removed byte {position}"))
+    });
 
     let text = std::str::from_utf8(bytes).expect("canonical ascii");
     let segments: Vec<_> = text.split('/').collect();
@@ -115,27 +146,30 @@ fn mutations(seed: u64, rng: &mut Rng, bytes: &[u8], canonical: bool, sample: u3
         {
             let mut changed = segments.clone();
             *changed.get_mut(position).expect("segment position") = &replacement;
-            let _ = inspect(
-                seed,
-                changed.join("/").as_bytes(),
-                canonical,
-                format_args!("sample {sample}, segment {position} replacement {replacement_index}"),
-            );
+            let changed = changed.join("/");
+            let variant = if changed == text { changed.as_bytes().into() } else { mutation(changed.as_bytes()) };
+            let _ = batch.judge(variant, |input| {
+                inspect(
+                    seed,
+                    input,
+                    canonical,
+                    format_args!("sample {sample}, segment {position} replacement {replacement_index}"),
+                )
+            });
         }
     }
     for (suffix_index, suffix) in
         ["?q=1", "#fragment", "/", "/0000000000000000/0000000000000000/0000000000000000"].into_iter().enumerate()
     {
-        let _ = inspect(
-            seed,
-            format!("{text}{suffix}").as_bytes(),
-            canonical,
-            format_args!("sample {sample}, suffix {suffix_index}"),
-        );
+        let changed = format!("{text}{suffix}");
+        let _ = batch.judge(mutation(changed.as_bytes()), |input| {
+            inspect(seed, input, canonical, format_args!("sample {sample}, suffix {suffix_index}"))
+        });
     }
 }
 
 fn sweep(canonical: bool) {
+    let mut batch = MutationBatch::default();
     for seed in FIRST_SEED..FIRST_SEED.checked_add(SEEDS).expect("seed range") {
         let mut rng = Rng::new(seed);
         let mut bytes = [0; 256];
@@ -149,15 +183,29 @@ fn sweep(canonical: bool) {
         }
         for sample in 0..CANONICAL {
             let path = drawn(&mut rng, sample);
-            let bytes = target(&path);
+            let bytes = target(&path, None);
             if canonical {
                 printed(seed, &path, &bytes, sample);
             } else {
                 let _ = inspect(seed, &bytes, false, format_args!("sample {sample}, original"));
             }
-            mutations(seed, &mut rng, &bytes, canonical, sample);
+            mutations(&mut batch, seed, &mut rng, &bytes, canonical, sample);
+            let legacy = target(&path, Some(number(&mut rng, sample, 3)));
+            let read = inspect(seed, &legacy, canonical, format_args!("sample {sample}, legacy decimal"));
+            if canonical {
+                let read = read.expect("canonical legacy target is routed");
+                let expected = PublicRead {
+                    owner: path.owner,
+                    layout: None,
+                    kind: path.kind,
+                    ids: Box::from(path.ids.as_slice()),
+                };
+                assert_eq!(read, expected, "legacy path names no layout, seed {seed:#x}, input {legacy:?}");
+            }
         }
     }
+    batch.finish();
+    count("seed", SEEDS);
 }
 
 #[test]

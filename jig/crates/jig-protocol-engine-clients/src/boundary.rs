@@ -408,7 +408,8 @@ pub struct ProviderAnswer {
 #[derive(Debug, PartialEq)]
 pub struct PublicRead {
     pub owner: u16,
-    pub version: u16,
+    /// A legacy decimal path names no layout.
+    pub layout: Option<[u8; 32]>,
     pub kind: u16,
     pub ids: Box<[u64]>,
 }
