@@ -13,3 +13,5 @@
    the owned-forge live landing pair remains `live-tier.status.md` (Not yet).
    the live held-record return's proof remains `live-tier.status.md` (Not yet).
    the fake shell subset remains `fakes.status.md`, 3.  the remaining settings-kind stories remain `checks.status.md`, 4.  the remaining client-page stories remain `checks.status.md`, 4.
+- **Not yet:** the whole document: the hosted agent starts with `programs: None`, so smith's shell refuses the worker's document, which always configures a program, and no step test holds the world's start to the shipped one [in flight: change 16313].
+- **Not yet:** the whole document: the terminal in `suite::sign_in` opens on the printed link that the story's `ctl` already spent, not on a fresh link of its own [in flight: change 16314].
