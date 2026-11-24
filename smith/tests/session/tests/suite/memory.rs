@@ -167,6 +167,7 @@ fn observe_fill(out: &mut Queue<Request>, observed: &mut [Seen]) -> Option<Asked
     let mut asked = None;
     while let Some(request) = out.pop() {
         match request {
+            Request::Part { .. } => panic!("parts not requested"),
             Request::JobsCancelled { .. }
             | Request::RateLimitWait { .. }
             | Request::RateLimitWaitDone { .. }
@@ -437,6 +438,7 @@ fn priced_opening(
         budget: 1,
         transcript,
         answered: Box::default(),
+        cut: None,
         withheld: None,
     })
 }
@@ -450,6 +452,7 @@ fn zero_opening(spec: Spec) -> Box<smith_domain_session::record::Opening> {
         budget: 1,
         transcript: None,
         answered: Box::default(),
+        cut: None,
         withheld: None,
     })
 }
@@ -457,6 +460,7 @@ fn zero_opening(spec: Spec) -> Box<smith_domain_session::record::Opening> {
 /// Caller-owned input with the same exact byte charge in every fill route.
 fn fill_spec(limits: &Limits) -> Spec {
     Spec {
+        tell_parts: false,
         backend: smith_domain_session::record::Backend::Direct,
         effort: None,
         final_turn: None,
@@ -547,6 +551,7 @@ fn recorded_delegated_turns_cut_results_and_hold_history_for_compaction() {
         let mut delegate = None;
         while let Some(request) = out.pop() {
             match request {
+                Request::Part { .. } => panic!("parts not requested"),
                 Request::Complete { owner, .. } => completion = Some(owner),
                 Request::Delegate { owner, .. } => delegate = Some(owner),
                 Request::Turn { turn, .. } => saved.push(turn),
@@ -833,6 +838,7 @@ fn memory_seen(out: &mut Queue<Request>) -> MemorySeen {
     let mut seen = MemorySeen::default();
     while let Some(request) = out.pop() {
         match request {
+            Request::Part { .. } => panic!("parts not requested"),
             Request::Complete { owner, .. } => assert!(seen.complete.replace(owner).is_none()),
             Request::Io { owner, .. } => {
                 seen.io[seen.io_count] = Some(owner);

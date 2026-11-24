@@ -8,7 +8,7 @@ fn a_real_model_answers_a_chat_and_pushes_a_small_change() {
     let started = clock.now().now;
     let scratch = support::Scratch::live();
     let forgejo = support::forgejo::Throwaway::start(&scratch);
-    support::configuration(scratch.path(), &forgejo.forge());
+    support::lay_configuration(scratch.path(), &forgejo.forge());
     let instructions = support::live::configure(scratch.path(), &forgejo);
     support::live::notice("TAG live-native; sitting=first; phase=chat-and-push; budget=2580s");
     let result = (|| -> Result<(), String> {

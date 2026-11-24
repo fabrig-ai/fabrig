@@ -30,6 +30,9 @@ pub fn down(link: &mut Link, value: core::Held) -> Result<(Token, host::LinkDown
         core::Held::Acknowledge { channel, run, attempt } if link.connected(channel) => {
             (channel, host::LinkDown::Acknowledge { run, attempt })
         }
+        core::Held::AcknowledgePart { channel, run, attempt, part } if link.connected(channel) => {
+            (channel, host::LinkDown::PartKept { run, attempt, part })
+        }
         core::Held::AcknowledgeTurn { channel, run, attempt, turn } if link.connected(channel) => {
             link.turn_backoffs.cancel((run, attempt, turn));
             (channel, host::LinkDown::TurnKept { run, attempt, turn })
@@ -77,6 +80,9 @@ pub fn down(link: &mut Link, value: core::Held) -> Result<(Token, host::LinkDown
         | core::Held::CallAnswer { .. }
         | core::Held::NeedArrived { .. }
         | core::Held::Result { .. }
+        | core::Held::TaskPartKept { .. }
+        | core::Held::AcknowledgePart { .. }
+        | core::Held::PartBusy { .. }
         | core::Held::TaskTurnKept { .. }
         | core::Held::TurnBusy { .. }
         | core::Held::StopRun { .. }
@@ -108,6 +114,7 @@ pub fn now(value: core::LinkNow) -> Event {
             Event::Relayed { channel, run, attempt, call, answer }
         }
         core::LinkNow::DropPayload { payload } => Event::DropPayload { payload },
+        core::LinkNow::PartPayload { run, attempt, part, body } => Event::PartPayload { run, attempt, part, body },
         core::LinkNow::TurnPayload { run, attempt, turn, body } => Event::TurnPayload { run, attempt, turn, body },
         core::LinkNow::AnswerPayload { run, attempt, payload, worker, window } => {
             Event::AnswerPayload { run, attempt, payload, worker, window }

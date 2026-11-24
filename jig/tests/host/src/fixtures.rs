@@ -15,7 +15,14 @@ pub fn assign(assignment: RunAssignment) -> Event {
 #[must_use]
 pub fn assign_with(assignment: RunAssignment, messages: Box<[jig_domain_host::StartMessage]>) -> Event {
     Event::Down(LinkDown::Assign {
-        assignment: Assignment { messages, assignment, turns: Box::new([]), answered: Box::new([]) },
+        assignment: Assignment {
+            parts: Box::new([]),
+            tell_parts: false,
+            messages,
+            assignment,
+            turns: Box::new([]),
+            answered: Box::new([]),
+        },
     })
 }
 

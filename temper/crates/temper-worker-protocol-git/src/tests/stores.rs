@@ -500,7 +500,9 @@ fn a_store_check_closes_its_directory_during_shutdown() {
     s.complete(Ok(Done::Fd(Fd::new(8))));
     assert_eq!(s.file_operation(), Op::Close { fd: Fd::new(8) });
     s.complete_ok();
-    for fd in [fixtures::MAKING, fixtures::STORES, fixtures::GITDIRS, fixtures::WORKSPACES, fixtures::TRASH] {
+    for fd in
+        [fixtures::KEPT, fixtures::MAKING, fixtures::STORES, fixtures::GITDIRS, fixtures::WORKSPACES, fixtures::TRASH]
+    {
         assert_eq!(s.file_operation(), Op::Close { fd });
         s.complete_ok();
     }

@@ -30,6 +30,7 @@ fn catalogue_reads_preserve_scripted_call_counts() {
             answers: vec![Ok(()); 2],
             lists,
             schemes: vec![Some(skein_llm::Scheme::Bearer); 2 + lists],
+            credential_indexes: vec![Some(0); 2 + lists],
         };
         assert_requests(&seen, 2, words, false);
     }

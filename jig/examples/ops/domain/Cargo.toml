@@ -30,6 +30,7 @@ jig-ops-domain-infrastructure.workspace = true
 smith-charter.workspace = true
 
 [dev-dependencies]
+jig-protocol-config.workspace = true
 jig-test-profile.workspace = true
 jig-test-domain.workspace = true
 

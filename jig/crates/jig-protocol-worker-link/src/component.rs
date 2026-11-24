@@ -56,6 +56,7 @@ pub struct Component {
     dropped: u64,
     relays: Relays,
     busy: Busy,
+    part_busy: Busy,
     grace: Grace,
     life: Life,
     facts: u64,
@@ -134,6 +135,7 @@ impl Component {
             dropped: 0,
             relays: Relays::new(limits),
             busy: Busy::new(limits, seed),
+            part_busy: Busy::new(limits, seed.wrapping_add(1)),
             grace: Grace::new(),
             life: Life::Active,
             facts: 0,
@@ -160,6 +162,7 @@ impl Component {
         self.limits = limits;
         self.backoff.retime(timers.backoff, timers.ceiling);
         self.busy.retime(timers.busy);
+        self.part_busy.retime(timers.busy);
         true
     }
     pub fn down(&mut self, now: Time, event: Event, out: &mut Queue<Request>) {
@@ -234,6 +237,9 @@ impl Component {
         if let Some((run, attempt, turn)) = self.busy.expire(now) {
             out.push(Request::Resend { run, attempt, turn });
         }
+        if let Some((run, attempt, part)) = self.part_busy.expire(now) {
+            out.push(Request::ResendPart { run, attempt, part });
+        }
         match self.phase {
             Phase::Idle { at } => {
                 if now >= at {
@@ -303,7 +309,10 @@ impl Component {
             Phase::Open { proved, ref connection, .. } => crate::connection::earlier(proved, connection.next()),
             Phase::Connecting => None,
         };
-        crate::connection::earlier(crate::connection::earlier(phase, self.busy.next()), self.grace.next())
+        crate::connection::earlier(
+            crate::connection::earlier(phase, crate::connection::earlier(self.busy.next(), self.part_busy.next())),
+            self.grace.next(),
+        )
     }
     #[must_use]
     pub fn dropped_facts(&self) -> u64 {
@@ -363,6 +372,7 @@ impl Component {
             Phase::Closing { retry, .. } => retry,
             Phase::Open { connection, .. } => {
                 self.busy.clear();
+                self.part_busy.clear();
                 self.grace.lost(now, connection.loss_wait(self.limits.grace));
                 out.push(Request::Lost);
                 out.push(Request::Fact { why: Loss::Closed(Closed::Stream) });
@@ -425,6 +435,24 @@ impl Component {
     fn up(&mut self, up: host::LinkUp, parts: &[wire::Part], out: &mut Queue<Request>) {
         let limits = sizes::limits(&self.limits.sizes).expect("checked sizes");
         let up = match up {
+            host::LinkUp::Part { run, attempt, part } => {
+                let Some(connection) = self.phase.connection() else { return };
+                if self
+                    .schema
+                    .version(connection.version)
+                    .expect("agreed version")
+                    .kind(wire::Kind::Part.number())
+                    .is_none()
+                {
+                    // A rehello on an older link cannot carry the retained part.
+                    out.push(Request::Down {
+                        down: host::LinkDown::PartKept { run, attempt, part: part.number },
+                        parts: Box::new([]),
+                    });
+                    return;
+                }
+                host::LinkUp::Part { run, attempt, part }
+            }
             host::LinkUp::Paused { state } => {
                 // Notices go only where the agreed version holds the kind (protocol/channel/pause.md, 4).
                 let Some(connection) = self.phase.connection() else { return };
@@ -717,7 +745,7 @@ impl Component {
         let kind = frame.kind();
         let body = frame.bytes().get(8..).expect("validated frame header");
         if kind == wire::Kind::Wires.number() {
-            let record = wire::v21::Agreed::decode(&limits, &mut skein_lib::Reader::new(body));
+            let record = wire::v22::Agreed::decode(&limits, &mut skein_lib::Reader::new(body));
             let agreed = match record {
                 Ok(record) => crate::wires::statement(&self.wires, &record),
                 Err(_) => None,
@@ -793,12 +821,21 @@ impl Component {
             }
             return;
         }
-        if kind == 0x0184 {
-            let record = wire::TurnBusy::decode(&limits, &mut skein_lib::Reader::new(body));
+        if kind == 0x0184 || kind == wire::Kind::PartBusy.number() {
+            let is_part = kind == wire::Kind::PartBusy.number();
+            let record = if is_part {
+                match wire::PartBusy::decode(&limits, &mut skein_lib::Reader::new(body)) {
+                    Ok(part) => Ok(wire::TurnBusy { task: part.task, attempt: part.attempt, number: part.number }),
+                    Err(error) => Err(error),
+                }
+            } else {
+                wire::TurnBusy::decode(&limits, &mut skein_lib::Reader::new(body))
+            };
             match record {
                 Ok(record) => {
                     self.admitted();
-                    if self.busy.add(now, Token::new(record.task), Token::new(record.attempt), record.number) {
+                    let busy = if is_part { &mut self.part_busy } else { &mut self.busy };
+                    if busy.add(now, Token::new(record.task), Token::new(record.attempt), record.number) {
                         self.command(channel::Request::Read);
                     } else {
                         self.lose(now, Loss::Busy, out);
@@ -813,16 +850,31 @@ impl Component {
         }
         let mut parts = Queue::uncapped();
         match translate::down(kind, body, &limits, now, &mut parts, &mut self.next_part, out) {
-            Some(down) => {
+            Some(mut down) => {
                 self.admitted();
-                let forward = match &down {
+                let forward = match &mut down {
+                    host::LinkDown::Assign { assignment } => {
+                        let version = self.phase.connection().expect("received on a channel").version;
+                        assignment.tell_parts = self
+                            .schema
+                            .version(version)
+                            .expect("agreed version")
+                            .kind(wire::Kind::Part.number())
+                            .is_some();
+                        true
+                    }
                     host::LinkDown::Relayed { run, attempt, call, .. } => self.relays.end(*run, *attempt, call),
+                    host::LinkDown::PartKept { run, attempt, part } => {
+                        self.part_busy.kept_through(*run, *attempt, *part);
+                        true
+                    }
                     host::LinkDown::TurnKept { run, attempt, turn } => {
                         self.busy.kept(*run, *attempt, *turn);
                         true
                     }
                     host::LinkDown::Acknowledge { run, attempt } => {
                         self.busy.acknowledged(*run, *attempt);
+                        self.part_busy.acknowledged(*run, *attempt);
                         true
                     }
                     host::LinkDown::Sources { .. } => {
@@ -835,7 +887,6 @@ impl Component {
                     | host::LinkDown::Check { .. }
                     | host::LinkDown::SignOut { .. }
                     | host::LinkDown::AssignJob { .. }
-                    | host::LinkDown::Assign { .. }
                     | host::LinkDown::Message { .. }
                     | host::LinkDown::Cancel { .. }
                     | host::LinkDown::Asked { .. }
@@ -902,6 +953,7 @@ impl Component {
         }
         self.life = if abort { Life::Aborting } else { Life::Stopping };
         self.busy.clear();
+        self.part_busy.clear();
         self.grace.clear();
         if let Some(connection) = self.phase.connection() {
             connection.quiet();
@@ -933,6 +985,7 @@ impl Component {
         self.life = Life::Closed;
         self.grace.clear();
         self.busy.clear();
+        self.part_busy.clear();
         out.push(Request::Closed);
     }
     fn lose(&mut self, now: Time, why: Loss, out: &mut Queue<Request>) {
@@ -952,6 +1005,7 @@ impl Component {
         self.phase = match phase {
             Phase::Open { mut connection, .. } => {
                 self.busy.clear();
+                self.part_busy.clear();
                 self.grace.lost(now, connection.loss_wait(self.limits.grace));
                 connection.quiet();
                 connection.stall = None;
@@ -992,7 +1046,7 @@ impl Component {
     fn translated(
         &mut self,
         frame: channel::Frame,
-        limits: &wire::v21::Limits,
+        limits: &wire::v22::Limits,
         out: &mut Queue<Request>,
     ) -> Option<channel::Frame> {
         let kind = frame.kind();

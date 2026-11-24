@@ -49,9 +49,10 @@ pub(crate) fn done_bytes(done: &crate::tools::Done) -> u64 {
             }
             held
         }
-        Done::Exited { head, tail, .. } | Done::Held { head, tail, .. } | Done::Job { head, tail, .. } => {
-            bytes(head).saturating_add(bytes(tail))
-        }
+        Done::CommandCancelled { head, tail, .. }
+        | Done::Exited { head, tail, .. }
+        | Done::Held { head, tail, .. }
+        | Done::Job { head, tail, .. } => bytes(head).saturating_add(bytes(tail)),
         Done::Found { hits, .. } => {
             let mut held = fixed(hits.len(), size_of::<crate::tools::Hit>());
             for hit in hits {

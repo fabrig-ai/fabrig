@@ -2,7 +2,7 @@
 use skein_fake_machine::{Item, Machine};
 use temper_config_shell::{Facts, File, Shape, TestGitHub, Transport};
 use temper_engine_service::stock::Given;
-use temper_one_process_world::testing::USER;
+use temper_one_process_world::testing::{Rehearsal, USER};
 use temper_shell::directories::Directories;
 
 fn settled() -> Machine {
@@ -77,8 +77,7 @@ fn given() -> Given {
     Given::Stock.with_providers(temper_agent_fixtures::providers::values(&stock), Box::new([]))
 }
 
-#[test]
-fn a_live_change_and_uncertain_write_reach_the_opening_without_network() {
+fn configuration() -> (Box<[u8]>, Directories) {
     let mut file = File {
         listen: Some("127.0.0.1:7100".parse().expect("clients listener")),
         workers: Some("127.0.0.1:7103".parse().expect("workers listener")),
@@ -101,10 +100,51 @@ fn a_live_change_and_uncertain_write_reach_the_opening_without_network() {
         cache: b"/cache".as_slice().into(),
         origins: [skein_shell::Origin::Flag; 3],
     };
+    (read.document, directories)
+}
+
+#[test]
+fn a_live_change_and_uncertain_write_reach_the_opening_without_network() {
+    let (document, directories) = configuration();
     temper_one_process_world::testing::a_live_change_and_uncertain_write_reach_the_opening_without_network(
         settled(),
-        &read.document,
+        &document,
         &directories,
         &given(),
     );
+}
+
+fn rehearsal() -> Rehearsal {
+    let (document, directories) = configuration();
+    Rehearsal::new(document, directories, given())
+}
+
+#[test]
+fn upgrade_tools_leave_an_empty_deployment_empty() {
+    rehearsal().empty();
+}
+
+#[test]
+fn a_refused_person_record_leaves_the_source_whole() {
+    rehearsal().person();
+}
+
+#[test]
+fn kept_and_moved_setting_numbers_both_restore_in_scratch() {
+    rehearsal().kept_and_moved();
+}
+
+#[test]
+fn a_charter_past_own_numbers_leaves_the_source_whole() {
+    rehearsal().past();
+}
+
+#[test]
+fn a_charter_taken_by_stock_leaves_the_source_whole() {
+    rehearsal().taken();
+}
+
+#[test]
+fn empty_limits_held_refuses_versions_above_the_stock() {
+    rehearsal().limits_held();
 }

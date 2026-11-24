@@ -32,18 +32,50 @@ pub fn fake_claude() -> PathBuf {
     fake_claude_beside(&skein_scratch::paths::binary("smith")).unwrap_or_else(|refusal| panic!("{refusal}"))
 }
 
-/// Find the executable sibling, naming the build command when it is absent.
-pub fn fake_claude_beside(smith: &Path) -> Result<PathBuf, String> {
-    let path = smith.parent().expect("smith binary has a parent directory").join("fake-claude");
-    let executable =
-        std::fs::metadata(&path).is_ok_and(|metadata| metadata.is_file() && metadata.permissions().mode() & 0o111 != 0);
-    if !executable {
-        return Err(format!(
-            "{}: missing or nonexecutable fake; run cargo build -p smith-fake-claude --bin fake-claude",
-            path.display()
-        ));
+/// The filesystem adapter's observation of the fake program's candidate path.
+#[derive(Clone, Copy)]
+pub enum FakeFile {
+    /// Metadata could not be read.
+    Absent,
+    /// A regular file and its Unix mode.
+    Regular { mode: u32 },
+    /// Metadata describes something other than a regular file.
+    Other,
+}
+
+/// The fake program's lookup beside the shipped binary (smith/docs/design/testing.md, 2.3).
+pub struct FakeLookup {
+    path: PathBuf,
+}
+
+impl FakeLookup {
+    /// Name the candidate relative to the shipped binary, without probing the filesystem.
+    #[must_use]
+    pub fn beside(smith: &Path) -> Self {
+        Self { path: smith.parent().expect("smith binary has a parent directory").join("fake-claude") }
     }
-    Ok(path)
+
+    /// Accept a regular executable or direct the caller to build the fake.
+    pub fn decide(self, file: FakeFile) -> Result<PathBuf, String> {
+        match file {
+            FakeFile::Regular { mode } if mode & 0o111 != 0 => Ok(self.path),
+            FakeFile::Absent | FakeFile::Regular { .. } | FakeFile::Other => Err(format!(
+                "{}: missing or nonexecutable fake; run cargo build -p smith-fake-claude --bin fake-claude",
+                self.path.display()
+            )),
+        }
+    }
+}
+
+/// Read the sibling's filesystem facts and decide whether to use it.
+pub fn fake_claude_beside(smith: &Path) -> Result<PathBuf, String> {
+    let lookup = FakeLookup::beside(smith);
+    let file = match std::fs::metadata(&lookup.path) {
+        Ok(metadata) if metadata.is_file() => FakeFile::Regular { mode: metadata.permissions().mode() },
+        Ok(_) => FakeFile::Other,
+        Err(_) => FakeFile::Absent,
+    };
+    lookup.decide(file)
 }
 
 /// A shipped binary or one of its scripted peers in the harness's loop.
@@ -281,8 +313,7 @@ fn check_fixture_access(directory: &Path) -> Result<Box<[u8]>, String> {
         .into())
 }
 
-#[must_use]
-pub fn settings(scratch: &Scratch, scenario: &Scenario) -> Box<[u8]> {
+fn settings(scratch: &Scratch, scenario: &Scenario) -> Box<[u8]> {
     let token = smith_local_process_world::world::login_at(Clock::new().now().wall, false);
     let login =
         serde_json::json!({"tokens":{"access_token":std::str::from_utf8(&token).expect("synthetic token text")}});
@@ -325,18 +356,10 @@ pub fn settings(scratch: &Scratch, scenario: &Scenario) -> Box<[u8]> {
 }
 
 #[must_use]
-pub fn run(scratch: &Scratch, scenario: Scenario) -> Seen {
-    run_with_provider(scratch, scenario, None)
-}
-
-pub fn run_with_provider(
-    scratch: &Scratch,
-    mut scenario: Scenario,
-    provider: Option<skein_fake_peers::llm::Peer>,
-) -> Seen {
+pub fn run(scratch: &Scratch, mut scenario: Scenario) -> Seen {
     assert_no_children();
     scenario.launch.tls = true;
-    let token = if provider.is_some() { fixture_access(scratch.path()) } else { settings(scratch, &scenario) };
+    let token = settings(scratch, &scenario);
     let path = trace_path(scratch.path());
     let old_trace = std::fs::read(&path).unwrap_or_default();
     let before = Before::new(scratch.path());
@@ -364,9 +387,7 @@ pub fn run_with_provider(
         Process::Script(Proc::Terminal(Box::new(Terminal::attached(stream, scenario.commands.clone()))))
     });
     world.spawn_with_fds(smith_real_world::listener_fds(34_443), || {
-        Process::Script(Proc::Peer(Box::new(
-            provider.unwrap_or_else(|| scenario.provider_with(skein_llm::Credential::bearer(token.clone()))),
-        )))
+        Process::Script(Proc::Peer(Box::new(scenario.provider_with(skein_llm::Credential::bearer(token.clone())))))
     });
     if scenario.launch.authenticated {
         world.spawn_with_fds(smith_real_world::listener_fds(34_444), || {
@@ -402,10 +423,6 @@ pub fn run_with_provider(
 #[must_use]
 pub fn read_trace(directory: &Path, prefix: &[u8]) -> Vec<smith_events::Record> {
     read_trace_resolved(&mut resolved_settings(directory), prefix)
-}
-
-fn check_trace(directory: &Path, prefix: &[u8]) -> Result<Vec<smith_events::Record>, String> {
-    check_trace_resolved(&mut check_resolved_settings(directory)?, prefix)
 }
 
 fn resolved_settings(directory: &Path) -> smith_local_shell::settings::resolve::Resolved {
@@ -490,14 +507,12 @@ fn check_trace_resolved(
 
 /// Shipped-process settlement and its outside-observation deadline.
 pub struct Settling {
-    finding: Option<String>,
     poll: Time,
     next_act: Option<Time>,
     terminal_sign_in: referee::SignIn,
     stderr_sign_in: referee::SignIn,
     visiting: bool,
     shutdown: bool,
-    foreign: Option<PathBuf>,
     deadline: Time,
     trace: Option<(PathBuf, bool)>,
 }
@@ -506,33 +521,20 @@ impl Settling {
     #[must_use]
     pub fn new(now: Time, deadline: Time) -> Self {
         Self {
-            finding: None,
             poll: now,
             next_act: None,
             terminal_sign_in: referee::SignIn::default(),
             stderr_sign_in: referee::SignIn::default(),
             visiting: false,
             shutdown: false,
-            foreign: None,
             deadline,
             trace: None,
         }
     }
+}
 
-    fn act_checked(&mut self, now: Time, procs: &mut [Process]) -> Result<(), String> {
-        if now >= self.poll
-            && let Some(runtime) = &self.foreign
-        {
-            for entry in std::fs::read_dir(runtime).into_iter().flatten() {
-                let entry = entry.map_err(|_| String::from("private fixture entry"))?;
-                if entry.file_name().as_encoded_bytes().starts_with(b".smith-exec-") {
-                    std::fs::write(entry.path().join("foreign.txt"), b"kept foreign content")
-                        .map_err(|_| String::from("foreign fixture file"))?;
-                    self.foreign = None;
-                    break;
-                }
-            }
-        }
+impl Referee<Process> for Settling {
+    fn act(&mut self, _now: Time, procs: &mut [Process]) {
         let exit = procs.iter().find_map(|p| if let Process::Binary(p) = p { p.exit_status() } else { None });
         self.next_act = None;
         let url = self.terminal_sign_in.url().or_else(|| self.stderr_sign_in.url());
@@ -562,20 +564,9 @@ impl Settling {
                 }
             }
         }
-        Ok(())
     }
-}
 
-impl Referee<Process> for Settling {
-    fn act(&mut self, now: Time, procs: &mut [Process]) {
-        if self.finding.is_none() {
-            self.finding = self.act_checked(now, procs).err();
-        }
-    }
     fn watch(&mut self, now: Time, procs: &[Process]) -> Result<(), String> {
-        if let Some(why) = &self.finding {
-            return Err(why.clone());
-        }
         for process in procs {
             match process {
                 Process::Binary(binary) => self.stderr_sign_in.check(binary.stderr())?,
@@ -627,17 +618,16 @@ impl Referee<Process> for Settling {
         Ok(())
     }
     fn next_deadline(&self) -> Option<Time> {
-        // Foreign runtime entries and trace appends have no ring completion here.
+        // Trace appends have no ring completion here.
         // Binary/terminal observations and exit already wake the loop.
-        let poll =
-            (self.foreign.is_some() || self.trace.as_ref().is_some_and(|(_, growing)| !growing)).then_some(self.poll);
+        let poll = self.trace.as_ref().is_some_and(|(_, growing)| !growing).then_some(self.poll);
         self.next_act.into_iter().chain(poll).chain([self.deadline]).min()
     }
     fn overdue(&self, now: Time) -> Option<String> {
         (now >= self.deadline).then(|| "startup refusal did not exit and drain".into())
     }
     fn passed(&self) -> bool {
-        self.finding.is_none() && (self.foreign.is_none() && self.trace.as_ref().is_none_or(|(_, growing)| *growing))
+        self.trace.as_ref().is_none_or(|(_, growing)| *growing)
     }
 }
 
@@ -777,9 +767,8 @@ pub fn smith_with_environment(
 
 mod exec;
 pub use exec::{
-    Reply, chat_modes, chat_resized, chat_signed_in, chat_waiting, exec_with_foreign_file, exec_with_provider,
-    exec_without_head, fake_provider_settings, key_chat, program_chat, program_interrupt, run as run_product,
-    run_scripted as run_product_scripted,
+    Reply, chat_modes, chat_resized, chat_waiting, exec_with_provider, fake_provider_settings, key_chat, program_chat,
+    run as run_product, run_scripted as run_product_scripted,
 };
 
 pub mod login;
@@ -789,8 +778,6 @@ pub mod sample_host;
 pub mod window;
 
 pub mod provider_login;
-
-mod program_interrupt;
 
 #[cfg(target_os = "linux")]
 pub mod lifetime;

@@ -13,6 +13,7 @@ use temper_worker_domain_checkout::{Landing, Prepared, git::Place};
 
 /// What a client does, from its prepare to its release.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[expect(clippy::struct_excessive_bools, reason = "independent scripted client actions")]
 pub struct Plan {
     /// The workstream it works on, by its place among the world's.
     pub workstream: u32,
@@ -22,6 +23,8 @@ pub struct Plan {
     pub pushes: u32,
     /// Whether it saves before it releases.
     pub save: bool,
+    /// The host releases this as a shutdown cut, preserving its successful save.
+    pub keep: bool,
     /// When it interrupts, after it sent its prepare, and how, if it does.
     pub interrupt: Option<(Duration, Interrupt)>,
     /// Whether its spec is beyond the limits.
@@ -40,6 +43,7 @@ impl Plan {
             start: Some(Pick::Base),
             pushes: 1,
             save: false,
+            keep: false,
             interrupt: None,
             invalid: false,
             twice: false,

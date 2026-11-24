@@ -12,6 +12,14 @@ mod held;
 pub use held::{HeldLayout, judge_held_layout};
 
 fn count(store: &Store, layouts: &Layouts, index: u32, id: u16) -> Option<u64> {
+    // Only this type's ranges can contribute to its count. Select them once,
+    // in key order, rather than searching all registry ranges per keyspace.
+    let mut ranges = List::uncapped();
+    for (from, range) in &layouts.ranges {
+        if range.ty == index {
+            ranges.push((from.as_ref(), range.to.as_ref())).expect("uncapped type ranges");
+        }
+    }
     let mut count = 0_u64;
     for space in store.stores.store.census().keyspaces() {
         if space.rows == 0 {
@@ -23,13 +31,16 @@ fn count(store: &Store, layouts: &Layouts, index: u32, id: u16) -> Option<u64> {
         let end = prefix_end(space.prefix())?;
         let mut relevant = false;
         let mut through = space.prefix();
-        for (from, range) in &layouts.ranges {
-            if range.ty != index || from.as_ref() >= end.as_ref() || range.to.as_ref() <= space.prefix() {
+        for &(from, to) in &ranges {
+            if from >= end.as_ref() {
+                break;
+            }
+            if to <= space.prefix() {
                 continue;
             }
             relevant = true;
-            if from.as_ref() <= through {
-                through = range.to.as_ref();
+            if from <= through {
+                through = to;
             }
         }
         if !relevant {

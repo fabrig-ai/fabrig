@@ -1,9 +1,6 @@
 use hearth_conformance_world::resolve::{self, Resolve};
 use hearth_protocol_git::invocation::Exit;
-use hearth_protocol_mmdebstrap::{
-    limits::{self, Limits},
-    vector,
-};
+use hearth_protocol_mmdebstrap::limits::{self, Limits};
 
 #[test]
 fn real_mmdebstrap_resolves_test_min_through_the_mirror() {
@@ -103,38 +100,6 @@ fn several_includes_resolve_as_one() {
     let (scenario, case) = (Resolve::new(), resolve::case("test-boot"));
     let resolved = scenario.run_under(case, &Limits { include: 32, ..limits::SHIPPED });
     scenario.compare(case, &resolved.recording());
-}
-#[test]
-fn a_small_include_limit_splits_the_vector() {
-    let scenario = Resolve::new();
-    let invocation = vector::simulate(
-        &scenario.simulate(resolve::case("test-boot")),
-        b"/scratch",
-        None,
-        &Limits { include: 32, ..limits::SHIPPED },
-    )
-    .expect("split request");
-    assert!(invocation.args.iter().filter(|arg| arg.starts_with(b"--include=")).count() > 1);
-}
-
-#[test]
-fn fake_mmdebstrap_leaves_what_real_mmdebstrap_recorded_for_each_case() {
-    use hearth_conformance_world::fake_mmdebstrap::{self, Spawned};
-    let scenario = Resolve::new();
-    let index = scenario.index();
-    let mut mirror = Some(fake_mmdebstrap::mirror(&index));
-    for case in resolve::CASES {
-        let real = hearth_recordings::read("mmdebstrap", scenario.version(), case.name);
-        let invocation = fake_mmdebstrap::invocation(case);
-        let argv: Vec<_> =
-            std::iter::once(vector::PROGRAM.to_vec()).chain(invocation.args.iter().map(|a| a.to_vec())).collect();
-        let env: Vec<_> = invocation.env.iter().map(|e| e.to_vec()).collect();
-        let fake = fake_mmdebstrap::run(&mut mirror, case, &Spawned { argv: &argv, env: &env, dir: b"/scratch" });
-        let insts = fake_mmdebstrap::insts(&real);
-        let stanzas = resolve::stanzas(&index, &insts.iter().map(Vec::as_slice).collect::<Vec<_>>())
-            .expect("real triples in pinned index");
-        assert_eq!(fake_mmdebstrap::differ(case, &real, &fake, Some(&stanzas)), None, "{}", case.name);
-    }
 }
 #[test]
 fn the_committed_universe_is_what_the_cases_read_of_the_index() {

@@ -567,6 +567,10 @@ impl Below {
                 buf[..n].copy_from_slice(&bytes[..n]);
                 Ok(Done::Count(u32::try_from(n).expect("small read")))
             }
+            Op::Sync { fd } => {
+                assert!(self.files.contains_key(fd));
+                Ok(Done::Nothing)
+            }
             Op::Close { fd } => {
                 assert!(self.files.remove(fd).is_some());
                 Ok(Done::Nothing)
@@ -617,7 +621,6 @@ impl Below {
             | Op::Shutdown { .. }
             | Op::Append { .. }
             | Op::Truncate { .. }
-            | Op::Sync { .. }
             | Op::Stat { .. }
             | Op::Spawn { .. }
             | Op::Wait { .. }

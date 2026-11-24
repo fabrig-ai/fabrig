@@ -41,6 +41,7 @@ pub struct Outcome {
     pub signals: u32,
     pub view_steps: u32,
     pub tree: BTreeMap<Vec<u8>, Node>,
+    pub kept: Box<[git::Kept]>,
 }
 impl Outcome {
     #[must_use]
@@ -108,6 +109,7 @@ pub struct World {
     draw: u64,
     now: Time,
     iteration: u64,
+    kept: Box<[git::Kept]>,
 }
 impl World {
     #[must_use]
@@ -124,7 +126,9 @@ impl World {
         while let Some(event) = below.out.events.pop() {
             assert!(matches!(event, Event::Unswept { .. }), "unexpected startup event: {event:?}");
         }
+        let kept = component.take_kept();
         Self {
+            kept,
             component,
             below,
             ledger: FaultLedger::new(),
@@ -245,6 +249,7 @@ impl World {
             signals: self.below.signals,
             view_steps: self.below.view_steps,
             tree: self.below.tree.clone(),
+            kept: self.kept.clone(),
         })
     }
 

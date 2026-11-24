@@ -64,6 +64,8 @@ mod asks_no_one;
 
 mod delegate_amendment;
 mod kept_delegate;
+#[path = "forge_routes/plan_restart.rs"]
+mod plan_restart;
 #[path = "forge_routes/producer_amendment.rs"]
 mod producer_amendment;
 mod producer_words;
@@ -3618,6 +3620,9 @@ fn an_explicit_forge_effect_proposal_is_retained_until_its_holder_accepts() {
     assert_eq!(issue_count(&mut world), 1);
     world.close();
 }
+
+#[path = "restarts.rs"]
+mod restart_faults;
 
 fn issue_effect_call(world: &mut World, assignment: &engine::Assignment) -> engine::Event {
     world.protocol.call(

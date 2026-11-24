@@ -122,10 +122,41 @@ fn prepare(path: &Path) -> Result<PathBuf, Failure> {
     if absolute.starts_with("/tmp") {
         return Err(refuse("scratch resolves under /tmp"));
     }
-    if fs::read_dir(&absolute)?.next().is_some() {
-        return Err(refuse("scratch is not empty"));
-    }
+    let occupied = fs::read_dir(&absolute)?.next().is_some();
+    // Inspect the resolved directory but name the caller's path on refusal.
+    require_empty_scratch(path, occupied)?;
     Ok(absolute)
+}
+
+fn require_empty_scratch(path: &Path, occupied: bool) -> Result<(), Failure> {
+    if occupied {
+        return Err(Failure::Scratch { path: path.into(), why: "scratch is not empty".into() });
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{Failure, Path, require_empty_scratch};
+
+    const SCRATCH: &str = "/scratch";
+
+    #[test]
+    fn an_occupied_scratch_is_refused_naming_its_path() {
+        let scratch = Path::new(SCRATCH);
+        match require_empty_scratch(scratch, true).expect_err("occupied scratch refused") {
+            Failure::Scratch { path, why } => {
+                assert_eq!(path, scratch);
+                assert_eq!(why, "scratch is not empty");
+            }
+            other => panic!("expected scratch refusal: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn an_empty_scratch_passes_the_occupancy_check() {
+        require_empty_scratch(Path::new(SCRATCH), false).expect("empty scratch accepted");
+    }
 }
 
 #[cfg(target_os = "linux")]

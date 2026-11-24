@@ -148,6 +148,23 @@ shell crates only choose a profile and the values a setting overrides.
 - **Front ends:** the interactive renderer and its plain mode (`commands.md`, 1); the
   headless one, which maps an answer to output and an exit code (`commands.md`, 2, 3
   ). Both read `smith-events` records.
+- **Opened natively, adopted as descriptors.** What `compose` finds of
+  the system before its loop it opens natively, as it does today: the
+  chat store's root, the private chat directory it makes for
+  `--ephemeral` beneath its parent, the directory of `-o`'s file and a
+  `program` account's directory. `Local` adopts each as a descriptor,
+  and everything after goes through its kernel: the result's durable
+  replace, the private chat's removals by name, every close, and the
+  cleanup of a start refused after the private directory was made. A
+  world that hosts `Local` (../testing.md, 4) hands it the fake
+  machine's descriptors through the same adoption, so the order of what
+  the finalizer writes and warns is the shipped one; there is no copy of
+  the finalizer and no filesystem trait.
+- **Facts in, decisions out.** A command's decision over what it found
+  (`smith check`'s report over each program's status, the source
+  `smith logout` acts on, a login's or logout's words over its typed
+  outcome) takes those facts as values, and its adapter finds them, so
+  that its step tests hand it facts.
 
 It owns no store and no loop: chats are kept by `smith-local-protocol`
 over skein io, sign-in records by skein's OAuth driver as private files
@@ -260,7 +277,13 @@ closure:
   or anything that links it.
 - **`smith-agent-document`,** ordinary Rust as the shell is, on the
   profile's crate: `config`, the document decoded from its bytes,
-  resolved and checked, and read from its file; `trace`, the trace's
+  resolved and checked, and read from its file. Resolving reads the
+  trust each endpoint names, its DER files, PEM bundles and the
+  machine's bundle, natively; or, for a caller's tests that replay,
+  takes those roots from the caller for each source the document names,
+  and is otherwise the same: jig's reference binary checks its
+  configurations so in its step tests
+  (`jig/docs/design/protocol/service-testing.md`, 1); `trace`, the trace's
   settings it names; `program`, a program's directory, source and
   sign-in (../protocol/programs.md), on Unix; `host_limits`, the profile
   crate's, re-exported. Its fixture, the standard product document, is

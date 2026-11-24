@@ -7,7 +7,6 @@ use temper_worker_domain_checkout::git;
 const FIRST: &[u8] = b"/fake/first";
 const SECOND: &[u8] = b"/fake/second";
 // The fresh layout retires and opens both checkout directory trees.
-const LAYOUT_STEPS: u8 = 15;
 const CURRENT: &[u8] = b"git version 2.41.0\n";
 const REMOTE: &[u8] = b"https://forge.example.test:8443/acme/app.git";
 
@@ -225,10 +224,7 @@ fn start(machine: bool) -> Started {
     .expect("valid");
     world.component.start(world.now, &mut world.below.out);
     assert!(world.below.out.io.is_empty(), "no start version spawn");
-    for _ in 0_u8..LAYOUT_STEPS {
-        world.file_operation();
-        world.complete_ok();
-    }
+    world.finish_layout();
     assert_eq!(world.below.out.events.pop(), Some(Event::Started));
     world.empty_sweep();
     world
@@ -292,10 +288,7 @@ fn a_look_without_a_program_ends_not_holding_the_clone() {
     )
     .expect("valid");
     started.component.start(started.now, &mut started.below.out);
-    for _ in 0..LAYOUT_STEPS {
-        started.file_operation();
-        started.complete_ok();
-    }
+    started.finish_layout();
     assert_eq!(started.below.out.events.pop(), Some(Event::Started));
     started.empty_sweep();
     started.down(Request::Io {

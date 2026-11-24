@@ -13,6 +13,10 @@ use std::collections::{BTreeMap, VecDeque};
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::process::ExitCode;
+
+#[cfg(test)]
+mod fan_out;
+
 const LISTENER: Token = Token::new(1);
 const CONNECTIONS: usize = 32;
 const QUEUE: u32 = 1024;

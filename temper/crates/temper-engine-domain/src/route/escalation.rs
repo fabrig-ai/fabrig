@@ -60,6 +60,7 @@ pub(crate) fn loaded(domain: &mut Domain, _env: &Env<Limits>, waiter: Token, row
             Record::Core(
                 jig_domain_core::Record::Core(
                     jig_domain_core::CoreRecord::Settings(_)
+                    | jig_domain_core::CoreRecord::Part(_)
                     | jig_domain_core::CoreRecord::Call(_)
                     | jig_domain_core::CoreRecord::Deployment(_)
                     | jig_domain_core::CoreRecord::Turn(_)

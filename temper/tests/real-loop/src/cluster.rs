@@ -94,6 +94,7 @@ impl Shape {
     pub(crate) fn graces(&self, agent: &serde_json::Value) -> jig_protocol_config::Graces {
         let (Self::Engine { grace, .. } | Self::Worker { grace, .. }) = self;
         jig_protocol_config::Graces {
+            drain_grace: jig_protocol_config::DEFAULT_DRAIN_GRACE,
             grace: *grace,
             drain: skein_lib::Duration::from_millis(10),
             agent_stop: agent_stop_bound(agent),

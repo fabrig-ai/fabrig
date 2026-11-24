@@ -16,6 +16,7 @@ mod push;
 mod ready_copies;
 mod replay;
 mod restart;
+mod restarts;
 mod story_a;
 mod tools;
 mod upgrade;
@@ -23,5 +24,6 @@ mod upgrade;
 mod fuzzy {
     mod one_process;
     mod program_landing;
+    mod restarts;
     mod upgrade;
 }

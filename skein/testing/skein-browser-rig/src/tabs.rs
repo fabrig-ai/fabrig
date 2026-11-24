@@ -1,5 +1,20 @@
 //! The browser's own facts about a press's tab and its opener.
-use super::{Duration, Event, FIND, PAGE, PRESS, Request, Rig, Stage, query};
+use super::{Duration, Event, FIND, PAGE, PRESS, Request, Rig, Stage, TabWait, query};
+use skein_browser::boundary::Tab;
+use skein_lib::List;
+
+const TAB_PATIENCE: Duration = Duration::from_secs(3);
+
+pub(super) fn observed(stage: Stage, tabs: &List<Tab>, more: u32) -> String {
+    format!(
+        "stage {stage:?}: {} tabs, more {more}, title {:?}, url {:?}, opener {:?}",
+        tabs.len(),
+        tabs.get(0).map(|tab| String::from_utf8_lossy(&tab.title)),
+        tabs.get(0).map(|tab| String::from_utf8_lossy(&tab.url)),
+        tabs.get(0).map(|tab| tab.opener)
+    )
+}
+
 impl Rig {
     pub fn tab_script(&mut self) {
         self.pages.pages.push(skein_fake_person_browser::origins::Page {
@@ -11,6 +26,18 @@ impl Rig {
             const unpressed=window.open('','_blank');heading.textContent=unpressed?'Allowed':'Blocked';".as_slice().into(),
             headers: vec![],
         });
+    }
+
+    pub(super) fn await_tabs(&mut self, what: &'static str) {
+        assert!(self.tab_wait.is_none(), "one tab wait at a time");
+        self.tab_wait = Some(TabWait { deadline: self.arm(what, TAB_PATIENCE), last: None, poll: None });
+        self.ask(Request::Tabs { page: PAGE, op: FIND });
+    }
+
+    pub(super) fn poll_tabs(&mut self, last: String) {
+        let wait = self.tab_wait.as_mut().expect("tab wait armed");
+        wait.last = Some(last);
+        wait.poll = Some(self.browser_env.now.saturating_add(self.browser_env.limits.poll));
     }
 
     pub(super) fn tabs_event(&mut self, event: Event) -> Result<(), Event> {
@@ -46,27 +73,20 @@ impl Rig {
             }
             Event::Done { op } => {
                 assert_eq!(op, PRESS);
-                self.tabs_until = Some(self.browser_env.now.saturating_add(Duration::from_secs(3)));
-                self.ask(Request::Tabs { page: PAGE, op: FIND });
+                self.await_tabs("Chromium's tabs after a press");
             }
             Event::Tabs { op, tabs, more } => {
+                assert_eq!(op, FIND);
                 let expected = self.stage == Stage::Pressing;
                 let settled = tabs.len() == 1
                     && more == 0
                     && tabs.get(0).is_some_and(|tab| tab.title.as_ref() == b"Opening" && tab.opener == expected);
-                if !settled && self.browser_env.now < self.tabs_until.expect("press's tab deadline") {
-                    self.tab_due = Some(self.browser_env.now.saturating_add(self.browser_env.limits.poll));
+                let observed = observed(self.stage, &tabs, more);
+                if !settled {
+                    self.poll_tabs(observed);
                     return Ok(());
                 }
-                self.tabs_until = None;
-                let observed = format!(
-                    "stage {:?}: {} tabs, more {more}, title {:?}, url {:?}, opener {:?}",
-                    self.stage,
-                    tabs.len(),
-                    tabs.get(0).map(|tab| String::from_utf8_lossy(&tab.title)),
-                    tabs.get(0).map(|tab| String::from_utf8_lossy(&tab.url)),
-                    tabs.get(0).map(|tab| tab.opener)
-                );
+                self.tab_wait = None;
                 assert_eq!((op, tabs.len(), more), (FIND, 1, 0), "{observed}");
                 let tab = tabs.get(0).expect("press's tab");
                 eprintln!(

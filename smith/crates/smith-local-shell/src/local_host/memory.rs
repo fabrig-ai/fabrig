@@ -10,7 +10,6 @@ pub(crate) struct Admission {
     pub handed: Option<crate::credentials::Prepared>,
     pub front: Option<crate::front::Front>,
     pub producer: Option<agent::Config>,
-    pub programs: Option<smith_protocol_program::Programs>,
 }
 
 /// Startup resource needs without any credential file locations.

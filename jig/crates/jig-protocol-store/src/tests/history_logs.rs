@@ -300,6 +300,7 @@ fn every_generated_family_routes_only_its_history_keys() {
     for number in 0_u32..8192 {
         for key in [
             Key::Core(fixtures::core_key(&mut rng)),
+            Key::Core(core::CoreKey::Part(core::PartKey { task: 7, attempt: 2, number })),
             Key::Tasks(fixtures::tasks_key(&mut rng)),
             Key::People(fixtures::people_key(&mut rng)),
             Key::Notes(fixtures::notes_key(&mut rng)),

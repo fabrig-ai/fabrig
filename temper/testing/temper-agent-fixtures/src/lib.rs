@@ -9,32 +9,21 @@ pub mod providers;
 pub fn stock(boxed: bool) -> Value {
     let mut document: Value = serde_json::from_slice(&temper_config_shell::init_document(boxed)).expect("init start");
     document["engine"]["clients"]["provider"] = Value::Null;
-    let mut agent = given_with(
+    let mut agent = given_values(
         &document,
         &temper_engine_service_stock::stock::agents(),
         std::path::Path::new("/fixture/data"),
         boxed,
+        &temper_engine_service_stock::providers(),
     );
     agent["programs"] = serde_json::json!({"claude_code":{"path":"/fixture/claude","directory":"/fixture/programs"}});
     agent
 }
 #[must_use]
 pub fn configuration(document: &Value) -> Value {
-    given(document, &temper_engine_service_stock::stock::agents(), std::path::Path::new("/fixture/data"))
-}
-fn given(document: &Value, agents: &temper_client_protocol_wire::v1::AgentFigures, data: &std::path::Path) -> Value {
-    given_with(document, agents, data, true)
-}
-fn given_with(
-    document: &Value,
-    agents: &temper_client_protocol_wire::v1::AgentFigures,
-    data: &std::path::Path,
-    boxed: bool,
-) -> Value {
-    let providers = document
-        .get("world_providers")
-        .map_or_else(|| crate::providers::values(&crate::providers::read(data)), crate::providers::values);
-    given_values(document, agents, data, boxed, &providers)
+    let providers =
+        document.get("world_providers").map_or_else(temper_engine_service_stock::providers, providers::values);
+    with_providers(document, &providers)
 }
 /// Compose prospective figures from a world's typed provider configuration.
 #[must_use]
@@ -46,6 +35,16 @@ pub fn with_providers(document: &Value, providers: &[jig_protocol_config::Provid
         true,
         providers,
     )
+}
+/// Compose Smith's document over explicit agents and providers, without reading startup copies.
+#[must_use]
+pub fn with_figures(
+    document: &Value,
+    agents: &temper_client_protocol_wire::v1::AgentFigures,
+    data: &std::path::Path,
+    providers: &[jig_protocol_config::ProviderSetting],
+) -> Value {
+    given_values(document, agents, data, true, providers)
 }
 fn given_values(
     document: &Value,
@@ -117,21 +116,36 @@ pub fn read(directory: &std::path::Path) -> Value {
 }
 #[must_use]
 pub fn at(document: &Value, directory: &std::path::Path) -> Value {
+    let agents = agent_figures(directory);
+    let providers = document
+        .get("world_providers")
+        .map_or_else(|| providers::values(&providers::read(directory)), providers::values);
+    with_figures(document, &agents, directory, &providers)
+}
+/// The native fixture's retained agents, or stock when no copy was laid.
+#[must_use]
+pub fn agent_figures(directory: &std::path::Path) -> temper_client_protocol_wire::v1::AgentFigures {
     use temper_client_protocol_wire::v1 as w;
-    let agents = std::fs::read(directory.join("agents.setting"))
+    std::fs::read(directory.join("agents.setting"))
         .ok()
         .and_then(|bytes| {
             let mut reader = skein_lib::Reader::new(&bytes);
             w::AgentFigures::decode(&w::CEILINGS, &mut reader).ok()
         })
-        .unwrap_or_else(temper_engine_service_stock::stock::agents);
-    given(document, &agents, directory)
+        .unwrap_or_else(temper_engine_service_stock::stock::agents)
 }
+
 /// The fixture's data directory, beside a split `config` directory or shared with it.
 #[must_use]
 pub fn data(config: &std::path::Path) -> std::path::PathBuf {
+    data_with(config, std::path::Path::is_dir)
+}
+
+/// Resolve a fixture's data root with its directory fact supplied.
+#[must_use]
+pub fn data_with(config: &std::path::Path, is_directory: impl FnOnce(&std::path::Path) -> bool) -> std::path::PathBuf {
     let sibling = config.parent().unwrap_or(config).join("data");
-    if config.ends_with("config") && sibling.is_dir() { sibling } else { config.into() }
+    if config.ends_with("config") && is_directory(&sibling) { sibling } else { config.into() }
 }
 fn configuration_file(directory: &std::path::Path) -> (temper_config_shell::Read, temper_config_shell::Shape) {
     use temper_config_shell::{Shape, read};
@@ -153,16 +167,45 @@ pub fn install(directory: &std::path::Path, agent: &Value) {
         .expect("fixture file");
 }
 /// Update a fixture already being edited, keeping the store copy beside its data.
-#[expect(
-    clippy::too_many_lines,
-    reason = "the fixture writes prospective figures and their typed kept providers together"
-)]
 pub fn apply(document: &mut Value, directory: &std::path::Path, agent: &Value) {
+    let providers = providers::take(document).unwrap_or_else(|| providers::values(&providers::read(directory)));
+    compose_setting(document, agent, &providers).lay(directory);
+}
+
+/// The agent's prospective setting and the corresponding providers, before either is written.
+pub struct Setting {
+    pub figures: temper_client_protocol_wire::v1::AgentFigures,
+    pub providers: Box<[jig_protocol_config::ProviderSetting]>,
+}
+impl Setting {
+    /// Encode the kind-21 `agents.setting` copy, whether or not a story lays it.
+    #[must_use]
+    pub fn bytes(&self) -> Box<[u8]> {
+        use temper_client_protocol_wire::v1::CEILINGS;
+        let mut bytes =
+            skein_lib::Writer::new(skein_lib::usize_of(self.figures.measure(&CEILINGS).expect("within ceilings")));
+        self.figures.write(&CEILINGS, &mut bytes).expect("setting bytes");
+        bytes.finish()
+    }
+
+    /// Retain the two copies that a fixture's native start reads.
+    pub fn lay(&self, directory: &std::path::Path) {
+        std::fs::write(directory.join("agents.setting"), self.bytes()).expect("fixture setting copy");
+        providers::remember(directory, &self.providers);
+    }
+}
+
+/// Compose the typed startup copies from an agent edit and the preceding providers.
+#[must_use]
+#[expect(clippy::too_many_lines, reason = "one agent edit supplies the figure and provider copies together")]
+pub fn compose_setting(
+    document: &mut Value,
+    agent: &Value,
+    providers: &[jig_protocol_config::ProviderSetting],
+) -> Setting {
     use skein_lib::List;
     use temper_client_protocol_wire::v1 as w;
-    crate::providers::keep(document, directory);
-    let providers = crate::providers::values(&crate::providers::read(directory));
-    let mut providers = crate::providers::without_scripted(&providers).into_vec();
+    let mut providers = providers::without_scripted(providers).into_vec();
     let mut endpoints = Vec::new();
     let mut limits = List::with_capacity(w::CEILINGS.agent_figures_endpoints);
     for endpoint in agent["endpoints"].as_array().expect("agent endpoints") {
@@ -226,16 +269,11 @@ pub fn apply(document: &mut Value, directory: &std::path::Path, agent: &Value) {
             }
         }
     }
-    let value = w::AgentFigures {
+    let figures = w::AgentFigures {
         profile,
         endpoints: limits,
         fallback: temper_engine_service_stock::stock::agents().fallback.clone(),
     };
-    let mut bytes = skein_lib::Writer::new(skein_lib::usize_of(
-        value.measure(&temper_client_protocol_wire::v1::CEILINGS).expect("within ceilings"),
-    ));
-    value.write(&temper_client_protocol_wire::v1::CEILINGS, &mut bytes).expect("setting bytes");
-    std::fs::write(directory.join("agents.setting"), bytes.finish()).expect("fixture setting copy");
     providers.retain(|provider| {
         endpoints.iter().any(|endpoint| {
             endpoint["provider"].as_str().is_some_and(|name| name.as_bytes() == provider.provider.name.as_ref())
@@ -277,8 +315,8 @@ pub fn apply(document: &mut Value, directory: &std::path::Path, agent: &Value) {
         )
         .expect("provider value");
     }
-    crate::providers::remember(directory, &providers);
     document["engine"].as_object_mut().expect("engine").remove("llm");
+    Setting { figures, providers: providers.into_boxed_slice() }
 }
 
 fn provider_json(provider: &jig_protocol_config::ProviderSetting) -> Value {

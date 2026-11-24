@@ -250,8 +250,19 @@ nothing is written.
   249 MB with what its tables hold while they grow (skein's `data/codec/patches.md`,
   7); a machine holds only what the largest record it has met needed
   (`README.md`, section 11).
-- **The formats are fixed** at the core's version 6 and smith's 7
+- **The formats are fixed** at the core's version 6 and smith's 8
   (temper's `draft/store-floor.md`, section 5). Their frame patcher and
   fixtures, `jig-test-patches-jig` and `jig-test-patches-smith`, stay.
   A change to a frame format designs how the deployment's store reaches
   it in that landing; no mark schedules a window-closing walk at open.
+  Smith's 8 (the `interrupted` outcome, smith's `protocol/transcript.md`,
+  section 12) reaches it by this patching: a turn at 7 is patched by
+  smith's machine each time it is read, and nothing is written.
+- **A frame's move is no level's.** Smith's level stays 0 (`opening.md`,
+  3; `records.md`, 3): a turn's version moves by its kept text and
+  patch, read here, never by a level, so a store written at smith's 7
+  opens at equal levels. The core's `TurnRecord` keeps its version 6
+  while the turn it holds moves: the body's own layout is judged with
+  its held turn at one version on both sides, and the held turn's move
+  by smith's kept texts and patches. temper's stored-layouts check
+  (`temper/tests/codecs`) holds both.

@@ -20,6 +20,8 @@ mod standing;
 
 #[path = "root_routes/budget.rs"]
 mod budget;
+#[path = "root_routes/cluster.rs"]
+mod cluster;
 #[path = "root_routes/stopped_worker.rs"]
 mod stopped_worker;
 
@@ -145,6 +147,7 @@ fn messages_to(driver: &Driver, run: &engine::Assignment) -> Vec<(u64, Box<[u8]>
             | host::LinkDown::Cancel { .. }
             | host::LinkDown::AssignJob { .. }
             | host::LinkDown::Asked { .. }
+            | host::LinkDown::PartKept { .. }
             | host::LinkDown::Grant { .. } => None,
         })
         .collect()

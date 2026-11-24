@@ -794,6 +794,7 @@ fn three_dirs_start_beside_the_working_directory() {
             workspace: resolved.local.workspace,
             transcript: None,
             resumed: false,
+            tell_parts: false,
         },
         &mut out,
     );

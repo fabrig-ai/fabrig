@@ -75,7 +75,9 @@ fn prepared() -> (fixtures::WorkerStand, AgentPeer, LinkPeer) {
 fn drain_run(stand: &mut fixtures::WorkerStand, peer: &mut AgentPeer) {
     stand.worker.drain();
     peer.settle(&mut stand.worker);
-    let Some(smith_protocol_channel::Heard::Drain) = peer.events.pop() else { panic!("the peer receives Drain") };
+    let Some(smith_protocol_channel::Heard::Drain { grace: None }) = peer.events.pop() else {
+        panic!("the peer receives Drain")
+    };
     assert!(peer.events.is_empty(), "not cancelled during its turn");
     let agent = fixtures::worker_agent();
     let body = fixtures::worker_peers::cancellation_turn(&agent);

@@ -5,6 +5,7 @@ use super::{
 };
 use skein_scratch::Scratch;
 use std::{fs, os::unix::fs::PermissionsExt, time::Duration};
+use temper_qa_tool::faces::{RealClock, RealFiles, RealProcesses};
 use temper_qa_tool::{
     Exit, Home,
     hold::{Drive, Holder},
@@ -17,9 +18,9 @@ fn open_tightens_the_place_and_privatizes_its_log_before_launch() {
     }
     let scratch = Scratch::new("qa-open-modes");
     fs::write(scratch.path().join("qa.json"), br#"{"owner":"qa","git":{"directory":"repo"},"agent":{"command":["agent"],"triage":"low","pass":"high"},"request":{"command":["file"]}}"#).expect("config");
-    let home = Home::open(scratch.path()).expect("home");
+    let home = Home::open(scratch.path(), &mut RealFiles).expect("home");
     let pass = home
-        .transact(|ledger| {
+        .transact(&mut RealFiles, |ledger, _| {
             passes::queue(ledger, "work", "web");
             passes::build(ledger, "A", &[1], 5);
             Ok(passes::start(ledger))
@@ -38,7 +39,13 @@ fn open_tightens_the_place_and_privatizes_its_log_before_launch() {
     }
     // Refuse the test executable's harness start, after open prepares its paths and log.
     let environment = vec![(Box::from(b"RUST_TEST_THREADS".as_slice()), Box::from(b"invalid".as_slice()))];
-    let reply = Drive::for_session(&home, pass.session).expect("drive").open(&environment).expect("launch refusal");
+    let mut files = RealFiles;
+    let mut clock = RealClock::default();
+    let mut processes = RealProcesses::default();
+    let reply = Drive::for_session(&home, pass.session, &mut files, &mut clock)
+        .expect("drive")
+        .open(&environment, &mut files, &mut processes, &mut clock)
+        .expect("launch refusal");
     assert_ne!(reply.status, 0);
     for path in [&place, &place.join("box"), &place.join("copies")] {
         assert_mode(path, 0o700);
@@ -60,9 +67,9 @@ fn the_ledger_watch_ends_the_drive_and_releases_the_place() {
             config["places"] = serde_json::json!([{"directory":"places/1", "ports":[31001,31002,31003,31004,31005,31006,31007,31008,31009]}]);
         }
         fs::write(scratch.path().join("qa.json"), serde_json::to_vec(&config).expect("JSON")).expect("config");
-        let home = Home::open(scratch.path()).expect("home");
+        let home = Home::open(scratch.path(), &mut RealFiles).expect("home");
         let pass = home
-            .transact(|ledger| {
+            .transact(&mut RealFiles, |ledger, _| {
                 passes::queue(ledger, "work", "web");
                 passes::build(ledger, "A", &[1], 5);
                 Ok(passes::start(ledger))
@@ -84,18 +91,27 @@ fn the_ledger_watch_ends_the_drive_and_releases_the_place() {
                 &format!("printf '%s\\n' \"$*\" > '{}'; printf 'ready", place.join("arguments").display()),
             );
         fs::write(fake, script).expect("output path");
+        let mut files = RealFiles;
+        let mut clock = RealClock::default();
+        let mut processes = RealProcesses::default();
         let holder = Holder::start(
-            Drive::for_session(&home, pass.session).expect("drive").with_ctl(fixed),
-            vec![],
+            Drive::for_session(&home, pass.session, &mut files, &mut clock).expect("drive").with_ctl(fixed),
+            &[],
             Duration::from_millis(1),
+            std::process::id(),
+            &mut files,
+            &mut processes,
+            &mut clock,
         )
         .expect("holder");
         assert_mode(&place.join("drive.lock"), 0o600);
         assert_mode(&place.join("drive.sock"), 0o600);
         let lock = fs::File::open(place.join("drive.lock")).expect("lock");
         assert!(lock.try_lock().is_err(), "the holder keeps the place busy before its start is requested");
-        home.transact(|ledger| ledger.end_pass_session(pass.session, Exit::Code(0), None, 6, "qa", &[]))
-            .expect("end pass operation");
+        home.transact(&mut RealFiles, |ledger, _| {
+            ledger.end_pass_session(pass.session, Exit::Code(0), None, 6, "qa", &[])
+        })
+        .expect("end pass operation");
         let clock = skein_shell::Clock::new();
         let before = clock.now().now.as_nanos();
         holder.serve().expect("holder ends on next watch without a client request");

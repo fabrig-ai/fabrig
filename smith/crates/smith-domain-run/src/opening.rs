@@ -50,6 +50,7 @@ pub(crate) fn main(
             .expect("admitted schema text aggregate");
     }
     Opening {
+        tell_parts: false,
         final_turn: None,
         generated_schema_bytes,
         identity,

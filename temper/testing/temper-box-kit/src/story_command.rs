@@ -6,20 +6,38 @@ use std::{
     fs,
     io::Write,
     os::unix::fs::PermissionsExt,
-    process::{Command, Output, Stdio},
+    process::{Command, ExitStatus, Output, Stdio},
 };
 
 /// These commands run in story callbacks; the enclosing world keeps the verdict.
 pub fn output(command: &mut Command, what: &'static str, within: Duration, input: Option<&[u8]>) -> Output {
-    capture(command, what, within, input, true)
+    capture(input, |input, stdout, stderr| complete(command, what, within, input, true, stdout, stderr))
 }
 
 /// A command before any world starts must end and report its own starvation.
 pub fn standalone(command: &mut Command, what: &'static str, within: Duration) -> Output {
-    capture(command, what, within, None, false)
+    capture(None, |input, stdout, stderr| complete(command, what, within, input, false, stdout, stderr))
 }
 
-fn capture(command: &mut Command, what: &'static str, within: Duration, input: Option<&[u8]>, defer: bool) -> Output {
+fn capture(
+    input: Option<&[u8]>,
+    complete: impl FnOnce(Option<&[u8]>, &mut Vec<u8>, &mut Vec<u8>) -> ExitStatus,
+) -> Output {
+    let mut stdout = Vec::new();
+    let mut stderr = Vec::new();
+    let status = complete(input, &mut stdout, &mut stderr);
+    Output { status, stdout, stderr }
+}
+
+fn complete(
+    command: &mut Command,
+    what: &'static str,
+    within: Duration,
+    input: Option<&[u8]>,
+    defer: bool,
+    captured_stdout: &mut Vec<u8>,
+    captured_stderr: &mut Vec<u8>,
+) -> ExitStatus {
     let base = skein_scratch::paths::target_tmp();
     fs::create_dir_all(&base).expect("story command scratch parent");
     let scratch = skein_scratch::Scratch::new_in(&base, "story-command");
@@ -59,27 +77,23 @@ fn capture(command: &mut Command, what: &'static str, within: Duration, input: O
         }
         std::thread::sleep(std::time::Duration::from_millis(5));
     };
-    let output = Output {
-        status,
-        stdout: fs::read(stdout).expect("command output"),
-        stderr: fs::read(stderr).expect("command errors"),
-    };
+    *captured_stdout = fs::read(stdout).expect("command output");
+    *captured_stderr = fs::read(stderr).expect("command errors");
     // The status has been reaped; no identity or pipe handle remains in the owner.
     drop(owner.child.take());
-    output
+    status
 }
 
 pub mod tests {
-    use super::{Duration, output};
-    use std::process::Command;
+    use super::capture;
+    use std::{os::unix::process::ExitStatusExt, process::ExitStatus};
 
     pub fn a_callback_command_captures_output_and_keeps_a_bad_exit() {
-        let output = output(
-            Command::new("/bin/sh").args(["-c", "cat; printf diagnostic >&2; exit 7"]),
-            "the callback command fixture",
-            Duration::from_secs(1),
-            Some(b"request"),
-        );
+        let output = capture(Some(b"request"), |input, stdout, stderr| {
+            stdout.extend_from_slice(input.expect("callback stdin"));
+            stderr.extend_from_slice(b"diagnostic");
+            ExitStatus::from_raw(7 << 8)
+        });
         assert_eq!(output.status.code(), Some(7));
         assert_eq!(output.stdout, b"request");
         assert_eq!(output.stderr, b"diagnostic");

@@ -47,6 +47,7 @@ fn deliver(scenario: &mut Scenario, unchecked: bool, saved: Option<u64>) -> git:
             Next::Results { .. }
             | Next::Reds { .. }
             | Next::Look { .. }
+            | Next::Keep
             | Next::Make
             | Next::Store
             | Next::InstallStore { .. }

@@ -160,6 +160,17 @@ fn render_owner(value: &mut Value, owner: &str) {
         Value::Null | Value::Bool(_) | Value::Number(_) | Value::String(_) => {}
     }
 }
+/// The GitHub engine template with explicit relay and listener facts.
+#[must_use]
+pub fn engine_document(root: &Path, bindings: &[(&str, &str)]) -> Value {
+    let path = skein_scratch::paths::tree()
+        .join("bin/temper-box/tests/fixtures/github/engine")
+        .join(temper_config_shell::FILE);
+    let mut bindings = bindings.to_vec();
+    bindings.push(("proc.llm.dir", root.to_str().expect("fixture path")));
+    super::configuration::engine_template(&path, true, &bindings)
+}
+
 /// Shape the live engine without reading inputs or constructing a relay.
 pub fn configure_engine(
     value: &mut temper_playground::documents::Configuration,

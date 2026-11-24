@@ -330,6 +330,7 @@ members = [
     "temper/testing/temper-process-guard",
     "temper/testing/temper-box-kit",
     "temper/testing/temper-fixtures",
+    "temper/testing/temper-faults",
     "temper/testing/temper-limits-fixtures",
     "temper/testing/temper-agent-fixtures",
     "temper/testing/temper-landing-fixtures",
@@ -491,6 +492,7 @@ skein-forge-connection = { path = "skein/crates/skein-forge-connection" }
 skein-throwaway-forgejo = { path = "skein/testing/skein-throwaway-forgejo" }
 skein-fake-person-browser = { path = "skein/testing/skein-fake-person-browser" }
 skein-ui-example-server = { path = "skein/examples/ui/server" }
+skein-ui-example-shell-web = { path = "skein/examples/ui/shell-web" }
 skein-ui-web = { path = "skein/crates/skein-ui-web" }
 wasm-bindgen = { version = "=0.2.126" }
 js-sys = { version = "=0.3.103" }
@@ -734,6 +736,7 @@ temper-process-guard = { path = "temper/testing/temper-process-guard" }
 temper-limits-fixtures = { path = "temper/testing/temper-limits-fixtures" }
 jig-protocol-config-fixtures = { path = "jig/testing/jig-protocol-config-fixtures" }
 temper-fixtures = { path = "temper/testing/temper-fixtures" }
+temper-faults = { path = "temper/testing/temper-faults" }
 temper-agent-fixtures = { path = "temper/testing/temper-agent-fixtures" }
 temper-landing-fixtures = { path = "temper/testing/temper-landing-fixtures" }
 temper-engine-inspect = { path = "temper/testing/temper-engine-inspect" }

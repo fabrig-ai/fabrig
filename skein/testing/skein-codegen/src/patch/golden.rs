@@ -1,14 +1,14 @@
 //! Fixed-rule values run through a kept patch into golden files (data/codec/command.md, 3).
 
 use alloc::collections::{BTreeMap, BTreeSet};
-use std::{fs, path::Path};
+use std::path::Path;
 
 use skein_codec::patch::{Build, Capacity, Halt, Old, Patcher, PlanIx, Site, Step};
 use skein_codec::schema::{self, DeclIx, FieldIx, Held, Shape, Type, TypeIx};
 use skein_codec::value::{Node, Value};
 
 use super::{
-    Error,
+    Error, Tree,
     files::{Crate, golden_path},
     module::read_patch,
     text::{Block, PatchText},
@@ -27,8 +27,9 @@ pub enum Mode {
 }
 
 /// Checks a patch's golden results, or writes them for review, as `mode` says.
-pub fn golden<C: Default>(owner: &Path, patch: u32, written: Written<C>, mode: Mode) -> Result<(), Error> {
-    run_goldens(&Crate::read(owner)?, patch, written, mode == Mode::Write)
+pub fn golden<C: Default>(tree: &mut Tree, patch: u32, written: Written<C>, mode: Mode) -> Result<(), Error> {
+    let krate = Crate::read(tree)?;
+    run_goldens(tree, &krate, patch, written, mode == Mode::Write)
 }
 
 /// [`golden`], writing when `SKEIN_PATCH_WRITE=1` and checking otherwise.
@@ -38,10 +39,11 @@ pub fn golden<C: Default>(owner: &Path, patch: u32, written: Written<C>, mode: M
 )]
 pub fn goldens<C: Default>(owner: &Path, patch: u32, written: Written<C>) -> Result<(), Error> {
     let write = std::env::var_os("SKEIN_PATCH_WRITE").is_some_and(|value| value == "1");
-    golden(owner, patch, written, if write { Mode::Write } else { Mode::Check })
+    golden(&mut Tree::disk(owner), patch, written, if write { Mode::Write } else { Mode::Check })
 }
 
 pub(crate) fn run_goldens<C: Default>(
+    tree: &mut Tree,
     krate: &Crate,
     number: u32,
     written: Written<C>,
@@ -54,11 +56,11 @@ pub(crate) fn run_goldens<C: Default>(
     let patch = read_patch(source, number).map_err(|error| Error::Golden(vec![format!("patch {number}: {error}")]))?;
     for block in &patch.blocks {
         let label = format!("patch {number}, {}", block.family);
-        if let Err(error) = family(krate, number, source, &patch, block, written, write, false, &mut failures) {
+        if let Err(error) = family(tree, krate, number, source, &patch, block, written, write, false, &mut failures) {
             failures.push(format!("{label}: {error}"));
         }
         if super::run::needs_reverse(krate, block).is_some()
-            && let Err(error) = family(krate, number, source, &patch, block, written, write, true, &mut failures)
+            && let Err(error) = family(tree, krate, number, source, &patch, block, written, write, true, &mut failures)
         {
             failures.push(format!("{label}/down: {error}"));
         }
@@ -262,6 +264,7 @@ impl Opened<'_> {
 
 #[expect(clippy::too_many_arguments, reason = "one family's run shares the patch text, dispatch and failure report")]
 fn family<C: Default>(
+    tree: &mut Tree,
     krate: &Crate,
     number: u32,
     source: &str,
@@ -305,7 +308,7 @@ fn family<C: Default>(
         forward
     };
     let target_version = patcher.versions(plan).to;
-    let directory = krate.root.join(golden_path(number)).join(&block.family);
+    let directory = golden_path(number).join(&block.family);
     let directory = if down { directory.join("down") } else { directory };
     open_fixed_values(&patcher, plan, &mut fixed_values, capacity.nodes)?;
     let mut decoded = Value::with_room(capacity.nodes);
@@ -316,7 +319,7 @@ fn family<C: Default>(
             continue;
         };
         let label = if down {
-            format!("{}/{}", directory.display(), fixed_value.name)
+            format!("{}/{}", tree.named(&directory).display(), fixed_value.name)
         } else {
             format!("patch {number}, {}/{}", block.family, fixed_value.name)
         };
@@ -368,7 +371,7 @@ fn family<C: Default>(
             }
         }
     }
-    compare(&directory, &results, &expected, write, failures);
+    compare(tree, &directory, &results, &expected, write, failures);
     Ok(())
 }
 
@@ -421,67 +424,68 @@ fn halt(error: Halt, patch: &PatchText, capacity: Capacity) -> String {
 }
 
 fn compare(
+    tree: &mut Tree,
     directory: &Path,
     results: &BTreeMap<String, Vec<u8>>,
     expected: &BTreeSet<String>,
     write: bool,
     failures: &mut Vec<String>,
 ) {
-    if write && let Err(error) = fs::create_dir_all(directory) {
-        failures.push(format!("{}: {error}", directory.display()));
+    if write && let Err(error) = tree.make_directory(directory) {
+        failures.push(format!("{}: {error}", tree.named(directory).display()));
         return;
     }
     for (name, bytes) in results {
         let path = directory.join(name);
         if write {
-            if let Err(error) = fs::write(&path, bytes) {
-                failures.push(format!("{}: {error}", path.display()));
+            if let Err(error) = tree.write_file(&path, bytes) {
+                failures.push(format!("{}: {error}", tree.named(&path).display()));
             }
         } else {
-            match fs::read(&path) {
+            match tree.read_file(&path) {
                 Ok(held) if held == *bytes => {}
-                Ok(_) => failures.push(format!("{}: differs", path.display())),
-                Err(error) => failures.push(format!("{}: {error}", path.display())),
+                Ok(_) => failures.push(format!("{}: differs", tree.named(&path).display())),
+                Err(error) => failures.push(format!("{}: {error}", tree.named(&path).display())),
             }
         }
     }
-    match fs::read_dir(directory) {
-        Ok(entries) => {
+    match tree.entries(directory) {
+        Ok(mut entries) => {
             let mut paths = Vec::new();
-            for entry in entries {
+            while let Some(entry) = entries.next(directory) {
                 match entry {
-                    Ok(entry) => paths.push(entry.path()),
-                    Err(error) => failures.push(format!("{}: {error}", directory.display())),
+                    Ok(path) => paths.push(path),
+                    Err(error) => failures.push(format!("{}: {error}", tree.named(directory).display())),
                 }
             }
             paths.sort();
             for path in paths {
-                if path.is_file()
+                if tree.is_file(&path)
                     && !path.file_name().and_then(|name| name.to_str()).is_some_and(|name| expected.contains(name))
                 {
                     if write {
-                        if let Err(error) = fs::remove_file(&path) {
-                            failures.push(format!("{}: {error}", path.display()));
+                        if let Err(error) = tree.remove_file(&path) {
+                            failures.push(format!("{}: {error}", tree.named(&path).display()));
                         }
                     } else {
-                        failures.push(format!("{}: stale", path.display()));
+                        failures.push(format!("{}: stale", tree.named(&path).display()));
                     }
                 }
             }
         }
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
-        Err(error) => failures.push(format!("{}: {error}", directory.display())),
+        Err(error) => failures.push(format!("{}: {error}", tree.named(directory).display())),
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{Written, run_goldens};
-    use crate::patch::{Error, files::Crate};
+    use super::{Mode, Written, golden};
+    use crate::patch::{Error, Tree};
     use skein_codec::patch::{Build, Halt, Old, RefusalIx, Site};
     use skein_codec::schema::VariantIx;
     use skein_codec::value::Node;
-    use std::{fs, path::PathBuf};
+    use std::path::{Path, PathBuf};
 
     const OLD: &str =
         "family small 1\nrecord Data { held: bytes 3 holds other Other }\nenum Shape { dot, line }\nrecord Drop {}\n";
@@ -500,17 +504,13 @@ mod tests {
         "record_data_smallest.bin",
     ];
 
-    fn fixture(name: &str) -> Crate {
-        let root = std::env::temp_dir().join(format!("skein-codegen-t2-golden-{name}-{}", std::process::id()));
-        fs::create_dir(&root).expect("unique scratch directory");
-        fs::create_dir_all(root.join("schema/kept")).expect("kept directory");
-        fs::create_dir_all(root.join("patches")).expect("patch directory");
-        for (path, text) in
-            [("schema/kept/small-v1.schema", OLD), ("schema/kept/small-v2.schema", NEW), ("patches/0001.patch", PATCH)]
-        {
-            fs::write(root.join(path), text).expect("fixture text");
-        }
-        Crate::read(&root).expect("fixture crate")
+    fn fixture(old: &str, new: &str, patch: &str) -> Tree {
+        Tree::new(
+            [("schema/kept/small-v1.schema", old), ("schema/kept/small-v2.schema", new), ("patches/0001.patch", patch)]
+                .into_iter()
+                .map(|(path, text)| (PathBuf::from(path), text.as_bytes().to_vec()))
+                .collect(),
+        )
     }
 
     fn answer(_site: Site, old: &Old, new: &mut Build, at: Node, _cx: &mut ()) -> Result<(), Halt> {
@@ -525,31 +525,39 @@ mod tests {
         if old.tag(at)? == VariantIx::new(0) { Err(new.refuse(RefusalIx::new(0))) } else { new.carry(old, at) }
     }
 
-    fn directory(krate: &Crate) -> PathBuf {
-        krate.root.join("patches/golden/0001/small")
+    const DIRECTORY: &str = "patches/golden/0001/small";
+
+    fn path(name: &str) -> PathBuf {
+        Path::new(DIRECTORY).join(name)
     }
 
-    fn written(name: &str, dispatch: Written<()>) -> Crate {
-        let krate = fixture(name);
-        run_goldens(&krate, 1, dispatch, true).expect("write goldens");
-        krate
+    fn read(tree: &Tree, name: &str) -> Vec<u8> {
+        tree.read(&path(name)).expect("read golden").expect("golden file")
+    }
+
+    fn written(dispatch: Written<()>) -> Tree {
+        let mut tree = fixture(OLD, NEW, PATCH);
+        golden(&mut tree, 1, dispatch, Mode::Write).expect("write goldens");
+        tree
+    }
+
+    fn names(tree: &Tree) -> Vec<String> {
+        tree.files()
+            .expect("files")
+            .into_keys()
+            .filter(|path| path.starts_with(DIRECTORY))
+            .map(|path| path.file_name().expect("file").to_str().expect("UTF-8").to_owned())
+            .collect()
     }
 
     #[test]
     fn opened_piece_goldens_convert_one_full_item_and_leave_copied_pieces_unchanged() {
         const OLD_PIECES: &str = "family small 1\nrecord Item { value: u8 }\nrecord Kept { value: u8 }\nrecord Open { data: bytes 32 pieces Item }\nrecord Copy { data: bytes 3 pieces Kept }\n";
         const NEW_PIECES: &str = "family small 2\nrecord Item { value: u8 added: u8 }\nrecord Kept { value: u8 }\nrecord Open { data: bytes 32 pieces Item }\nrecord Copy { data: bytes 3 pieces Kept }\n";
-        let fixture = fixture("pieces");
-        for (path, text) in [
-            ("schema/kept/small-v1.schema", OLD_PIECES),
-            ("schema/kept/small-v2.schema", NEW_PIECES),
-            ("patches/0001.patch", "patch 1\nowner sample 1\nfamily small 1 to 2\nadd Item.added u8 7\n"),
-        ] {
-            fs::write(fixture.root.join(path), text).expect("pieces fixture text");
-        }
-        let krate = Crate::read(&fixture.root).expect("pieces fixture crate");
-        run_goldens(&krate, 1, no_site, true).expect("opened pieces convert their full item");
-        let full = fs::read(directory(&krate).join("record_open_full.bin")).expect("opened full golden");
+        let mut tree =
+            fixture(OLD_PIECES, NEW_PIECES, "patch 1\nowner sample 1\nfamily small 1 to 2\nadd Item.added u8 7\n");
+        golden(&mut tree, 1, no_site, Mode::Write).expect("opened pieces convert their full item");
+        let full = read(&tree, "record_open_full.bin");
         let schema = skein_codec::schema::parse(NEW_PIECES.as_bytes()).expect("new schema");
         let root = schema.find(b"Open").expect("opened record");
         let skein_codec::schema::Shape::Record { first, .. } = schema.declaration(root).shape else {
@@ -569,13 +577,12 @@ mod tests {
             )
             .expect("piece decodes as the new item");
         assert_eq!(item.uint(item.field(at, skein_codec::schema::FieldIx::new(1)).unwrap()), Ok(7));
-        assert_eq!(fs::read(directory(&krate).join("record_open_smallest.bin")).unwrap(), [0; 4]);
+        assert_eq!(read(&tree, "record_open_smallest.bin"), [0; 4]);
         assert_eq!(
-            fs::read(directory(&krate).join("record_copy_full.bin")).unwrap(),
+            read(&tree, "record_copy_full.bin"),
             [0, 0, 0, 3, 0, 0x7f, 0xff],
             "copied pieces keep the fixed golden pattern"
         );
-        fs::remove_dir_all(krate.root).expect("remove fixture");
     }
 
     #[test]
@@ -598,84 +605,68 @@ mod tests {
 
     #[test]
     fn writes_goldens_carries_held_fields_and_checks_new_values() {
-        let krate = written("write", answer);
-        let mut names = fs::read_dir(directory(&krate))
-            .expect("goldens")
-            .map(|entry| entry.expect("file").file_name().to_str().expect("UTF-8").to_owned())
-            .collect::<Vec<_>>();
-        names.sort();
-        assert_eq!(names, NAMES);
-        assert_eq!(fs::read(directory(&krate).join("record_data_smallest.bin")).expect("smallest"), b"\0\0\0\0\x07");
-        assert_eq!(
-            fs::read(directory(&krate).join("record_data_full.bin")).expect("full"),
-            b"\0\0\0\x03\0\x7f\xff\x07"
-        );
-        assert_eq!(run_goldens(&krate, 1, answer, false), Ok(()));
-        fs::remove_dir_all(krate.root).expect("remove fixture");
+        let mut tree = written(answer);
+        assert_eq!(names(&tree), NAMES);
+        assert_eq!(read(&tree, "record_data_smallest.bin"), b"\0\0\0\0\x07");
+        assert_eq!(read(&tree, "record_data_full.bin"), b"\0\0\0\x03\0\x7f\xff\x07");
+        assert_eq!(golden(&mut tree, 1, answer, Mode::Check), Ok(()));
     }
 
     #[test]
     fn missing_changed_and_stale_goldens_are_all_named() {
         // One changed, one missing and one stale file.
         const DRIFTED_FILES: usize = 3;
-        let krate = written("drift", answer);
-        let directory = directory(&krate);
-        fs::write(directory.join("record_data_full.bin"), b"changed").expect("changed");
-        fs::remove_file(directory.join("record_data_smallest.bin")).expect("missing");
-        fs::write(directory.join("extra.bin"), b"stale").expect("stale");
-        let Error::Golden(failures) = run_goldens(&krate, 1, answer, false).expect_err("all drift fails") else {
+        let mut tree = written(answer);
+        tree.write(&path("record_data_full.bin"), b"changed").expect("changed");
+        tree.remove(&path("record_data_smallest.bin")).expect("missing");
+        tree.write(&path("extra.bin"), b"stale").expect("stale");
+        let Error::Golden(failures) = golden(&mut tree, 1, answer, Mode::Check).expect_err("all drift fails") else {
             unreachable!("golden failures")
         };
         assert_eq!(failures.len(), DRIFTED_FILES);
         for name in ["record_data_full.bin", "record_data_smallest.bin", "extra.bin"] {
             assert!(failures.iter().any(|failure| failure.contains(name)), "{name}: {failures:?}");
         }
-        fs::remove_dir_all(krate.root).expect("remove fixture");
     }
 
     #[test]
     fn write_removes_results_without_a_surviving_golden() {
-        let krate = written("stale", answer);
+        let mut tree = written(answer);
         for name in ["extra.bin", "record_drop_full.bin", "enum_shape_dot_full.bin.refused"] {
-            fs::write(directory(&krate).join(name), b"stale").expect("stale");
+            tree.write(&path(name), b"stale").expect("stale");
         }
-        run_goldens(&krate, 1, answer, true).expect("rewrite removes stale files");
-        assert_eq!(fs::read_dir(directory(&krate)).expect("goldens").count(), NAMES.len());
-        fs::remove_dir_all(krate.root).expect("remove fixture");
+        golden(&mut tree, 1, answer, Mode::Write).expect("rewrite removes stale files");
+        assert_eq!(names(&tree).len(), NAMES.len());
     }
 
     #[test]
     fn missing_written_functions_name_patch_site_and_target() {
-        let krate = fixture("no-site");
-        let Error::Golden(failures) = run_goldens(&krate, 1, no_site, false).expect_err("unanswered sites") else {
+        let mut tree = fixture(OLD, NEW, PATCH);
+        let Error::Golden(failures) = golden(&mut tree, 1, no_site, Mode::Check).expect_err("unanswered sites") else {
             unreachable!("golden failures")
         };
         let sites =
             failures.iter().filter(|failure| failure.contains("patch 1 site 0 (written Shape)")).collect::<Vec<_>>();
         assert_eq!(sites.len(), SHAPE_GOLDENS);
-        fs::remove_dir_all(krate.root).expect("remove fixture");
     }
 
     #[test]
     fn declared_refusals_are_written_and_checked_as_refused_files() {
-        let krate = written("refused", refuse);
+        let mut tree = written(refuse);
         for name in ["enum_shape_dot_full.bin.refused", "enum_shape_dot_smallest.bin.refused"] {
-            assert_eq!(fs::read_to_string(directory(&krate).join(name)).expect("refused golden"), "refuses no_dot\n");
+            assert_eq!(read(&tree, name), b"refuses no_dot\n");
         }
-        assert_eq!(run_goldens(&krate, 1, refuse, false), Ok(()));
-        run_goldens(&krate, 1, answer, true).expect("change refusal to success");
-        assert_eq!(fs::read_dir(directory(&krate)).expect("goldens").count(), NAMES.len());
-        fs::remove_dir_all(krate.root).expect("remove fixture");
+        assert_eq!(golden(&mut tree, 1, refuse, Mode::Check), Ok(()));
+        golden(&mut tree, 1, answer, Mode::Write).expect("change refusal to success");
+        assert_eq!(names(&tree).len(), NAMES.len());
     }
 
     #[test]
     fn planning_refusals_name_patch_family_line_and_reason() {
-        let mut krate = fixture("plan");
-        krate.patches.insert(1, "patch 1\nowner sample 1\nfamily small 1 to 2\nadd Data.score u8 ?\n".into());
-        let Error::Golden(failures) = run_goldens(&krate, 1, answer, false).expect_err("asked value") else {
+        let mut tree = fixture(OLD, NEW, "patch 1\nowner sample 1\nfamily small 1 to 2\nadd Data.score u8 ?\n");
+        let Error::Golden(failures) = golden(&mut tree, 1, answer, Mode::Check).expect_err("asked value") else {
             unreachable!("golden failures")
         };
         assert_eq!(failures, ["patch 1, small: line 4: Asked"]);
-        fs::remove_dir_all(krate.root).expect("remove fixture");
     }
 }

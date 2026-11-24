@@ -123,7 +123,7 @@ impl Protocol {
     }
     /// Long Actions CI, with optional signed webhook transport.
     #[must_use]
-    pub fn forgejo_ci(seed: u64, limits: &top::Limits, hearing: bool) -> Self {
+    pub fn forgejo_ci(seed: u64, limits: &top::Limits, hearing: bool, jobs: u32) -> Self {
         let mut config = fixtures::protocol_config();
         config.max_response_items = 32;
         let mut settings = fixtures::writer_settings();
@@ -142,7 +142,7 @@ impl Protocol {
             config.hooks = skein_forge_kit::fixtures::hooked_protocol_config().hooks;
         }
         let mut checks = joint::checks(1000);
-        checks.contexts = (0..30).map(|job| format!("job-{job}").into_bytes().into_boxed_slice()).collect();
+        checks.contexts = (0..jobs).map(|job| format!("job-{job}").into_bytes().into_boxed_slice()).collect();
         checks.latency_min = Duration::from_secs(600);
         checks.latency_max = Duration::from_secs(600);
         // The story supplies each end and its status separately, with no second

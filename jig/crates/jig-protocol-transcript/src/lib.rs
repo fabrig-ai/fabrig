@@ -20,7 +20,7 @@ use alloc::boxed::Box;
 pub use jig_client_domain::contract::{Block, Call, Speaker, Turn, TurnLimits};
 use jig_client_domain::contract::{Message, ModelEffort, Text, Usage};
 use skein_lib::{Decimal, List, Reader, length::len_u64};
-use smith_transcript::{Record, v7 as smith};
+use smith_transcript::{Record, v8 as smith};
 
 mod brief;
 mod summary;

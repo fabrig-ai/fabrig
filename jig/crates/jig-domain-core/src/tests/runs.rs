@@ -20,3 +20,5 @@ mod source_endpoint;
 pub(in crate::tests) mod spend;
 pub(in crate::tests) mod transcript_bytes;
 pub(in crate::tests) mod windows;
+
+mod kept_parts;

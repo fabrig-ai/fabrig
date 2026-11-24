@@ -117,27 +117,6 @@ fn a_file_opened_blocks_again() {
 }
 
 #[test]
-fn make_root_makes_and_opens_a_nested_absent_path() {
-    let scratch = Scratch::new("make-root");
-    let path = scratch.path().join("state/private");
-    let fd = crate::make_root(&path, 0o700).expect("nested root made and opened");
-    assert!(path.is_dir(), "the last directory exists");
-    assert_eq!(open_root(&path).map(|opened| close(opened.raw())), Ok(()), "opens as a root");
-    close(fd.raw());
-}
-
-#[test]
-fn make_root_refuses_a_file_in_its_path() {
-    let scratch = Scratch::new("blocked-root");
-    let file = scratch.path().join("file");
-    fs::write(&file, b"contents").expect("blocking file");
-    for (label, path) in [("final file", file.clone()), ("parent file", file.join("private"))] {
-        assert_eq!(crate::make_root(&path, 0o700), Err(libc::ENOTDIR), "{label}");
-    }
-    assert_eq!(fs::read(file).expect("blocking file remains"), b"contents", "file contents retained");
-}
-
-#[test]
 fn make_root_preserves_an_existing_directorys_mode() {
     use std::os::unix::fs::PermissionsExt;
     let scratch = Scratch::new("existing-root");

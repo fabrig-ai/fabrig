@@ -49,6 +49,19 @@ relies on.
   its late child stopped, or closed at once after a second termination,
   never readied, continued, recorded or restarted, and its late failure
   ending it as a stop's.
+- **A set up cut short, on the simulated host,** in temper-box-machine's
+  host tests over the simulator and the fake disk, the owned steps the
+  production ones with scripted executables: one table cuts an owned
+  set up at its fetch, its preparation, its Forgejo's run, and after its
+  `started` record before the engine hears it, the box's service
+  dropped with its children as a kill leaves them and started again on
+  the same disk. Each row reads the group and its records as the cut
+  leaves them, the next start leaving the group dormant or restoring it
+  as `box.md`, 1 says, and a removal answering removed and unlinking
+  `forge-N`, `box/groups/N` and `box/started/N`. A removal cut after its
+  answer ends whole at the next start. The engine's half, a forge whose
+  `started` it never heard kept unfinished across its restart with no
+  first repository, is the engine's.
 - **The box's lifetime:** in skein-shell, a `SIGHUP` read as `Hangup` when
   the service asks, and left alone when ignored at the start. In
   temper-box, a spawn's arguments with and without the box's id; a hangup
@@ -312,14 +325,15 @@ it checks of this document:
   binaries `TEMPER_TEST_FORGEJO` and `TEMPER_TEST_FORGEJO_RUNNER` name, and
   webhooks on. Its repository runs Actions, so its landing rule asks for
   CI.
-- **The hinted story:** the same story with the keep's `poll`,
-  `poll_max` and `slow` and the change's `stall` raised past the story's
-  budget (../configuration/limits.md; `../../domain/forge/change/repairs.md`), and its
-  CI's job outlasting `settle` from the change's push, so that it lands
-  within its budget only if the job's end is delivered and the reads
-  that follow it (`../../domain/forge/updates.md`, section 1, "Checked"); and with no conflict resolved,
-  since its changes never conflict. With no webhooks, the same story
-  misses its budget.
+- **The job's end, delivered:** on the owned Forgejo and its runner, a
+  push to `main` and the end of the CI job it started each reach a
+  receiver at the hook's address, signed with the secret reconcile drew
+  (`webhooks.md`, 1). That such a delivery, and no poll, lands a change
+  whose keep's `poll`, `poll_max` and `slow` and whose `stall` are past
+  its deadline (../configuration/limits.md; `../../domain/forge/change/repairs.md`) and
+  whose job outlasts `settle` is the protocol-forge world's
+  (`../../domain/forge/updates.md`, section 1, "Checked"); with no delivery, that
+  change has not landed at the deadline.
 - **`temper box`,** a test of its own on a scratch directory, with no
   `--echo`, its terminal the sign-in block alone and each step's lines in its
   log; a story that reads a step's lines runs it with `--echo steps`: the sign-in
@@ -362,23 +376,19 @@ it checks of this document:
   defaults. No first-run story takes a lock
   on the default ports: each box holds its own (`box.md`, 1), so the stories
   run beside each other as any others do.
-- **A set up cut short, started over,** a test of its own: under the
-  box, with Forgejo's binaries placed in the cache as below, the
-  owner's set up of an owned Forgejo is killed with the box at each of
-  its steps, its fetch, its preparation, its Forgejo's run, and after
-  its `started` record with the engine held before it hears it. That
-  started cut alone uses init's configuration without sign-in, since
-  its source step would need discovery from the held engine
-  (`../../testing/process-tier.md`). Sign-in is restored before the final
-  setup and removal cut. Each
-  next box finds the forge kept and its first repository not made, and
-  its removal, `temper ctl forge remove N`, answers removed and leaves
-  no `forge-N`, `box/groups/N` or `box/started/N`. A set up after the
-  four makes forge 5, since numbers are never reused, connects it and
-  makes its first repository; the cache's binaries are the ones placed,
-  unchanged (`owned-repositories.md`, 1). Then a removal the box's death cut, the box held
-  after the removal was answered and killed: the next box ends it whole
-  at its start, no forge listed and nothing of it left.
+- **A set up cut short, started over,**
+  `an_owned_setup_killed_at_its_run_is_kept_and_a_removal_cut_finishes_on_restart`:
+  under the box, with Forgejo's binaries placed in the cache as below, the
+  owner's set up of an owned Forgejo is killed with the box once its
+  Forgejo runs. The next box finds the forge kept and its first
+  repository not made; its removal, `temper ctl forge remove N`, is
+  answered and the box, held after the answer, is killed: the next box
+  ends the removal whole at its start, no forge listed and no
+  `forge-N`, `box/groups/N` or `box/started/N` left, and the cache's
+  binaries are the ones placed, unchanged (`owned-repositories.md`, 1).
+  The cuts at each of the set up's steps are the box host's simulated
+  tests (1, *A set up cut short, on the simulated host*); a set up after
+  a removal taking the next number is the engine's domain world's.
 - **GitHub gone on after a restart,** a test of its own, on `temper box
   --fake-backends`' fake GitHub (`box-backends.md`, 1): GitHub's set up stopped after
   its App's records are kept, the box restarted, and the forge found
@@ -421,10 +431,15 @@ it checks of this document:
   landed, its CI at its head unknown until a next step reads it
   (`../../domain/forge/change/panel.md`, 1).
 - **A Forgejo connected as its admin, on this host:** on a real Forgejo
-  with its API on loopback, each repository adopted has one hook at
-  `http://<listener>/hooks/<number>` (`reconcile.md`, 4), and has it again, with its
-  collaborator, after a restart with both removed by hand (reconcile's
-  step 6). Its delivery is not this story's. With a hook that delivers
+  with its API on loopback, connected by its admin's token and making
+  its first repository, that repository has one hook at
+  `http://<listener>/hooks/<number>` (`reconcile.md`, 4), and has it again after
+  one restart with it removed by hand (reconcile's step 6); the restart
+  takes no token, reads the same forge and repository, and reads the
+  provider's settings applied before it whole. A public and a private
+  repository adopted beside it, their collaborators and hooks removed
+  and made again on reopening, are the service's step tests
+  (`setup_admin.rs`). Its delivery is not this story's. With a hook that delivers
   nothing, a step test shows the forge staying connected with nothing
   ended, and the forge's world wakes a watched change on its pull's CI
   with no delivery heard, by polling (`webhooks.md`, section 1).

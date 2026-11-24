@@ -88,6 +88,13 @@ stop timeout are unchanged.
   cancels them (`../../domain/worker/README.md`, section 2). It may be
   absent, and is then 180,000, the draft's three minutes
   (`../../draft/redeploys.md`, 6.1); `temper-box init` writes none.
+- **The drain's grace** is jig's worker member `graces.drain_grace_ms`:
+  how long a drained run's calls in flight at its answer have to end
+  before its agent cuts them (jig's `domain/hosts/hub.md`, 7). It may be
+  absent, and is then 10,000, the draft's ten seconds
+  (`../../draft/worker-restarts.md`, section 3); `temper-box init` writes
+  none. It runs within the drain's bound, so the stop bound is
+  unchanged.
 - **It is ordered under the engine's grace.** The stop bound a worker
   states is the longer of its ping interval, its silence deadline and
   this grace together, and its drain's bound; then the longer of
@@ -184,6 +191,18 @@ stop timeout are unchanged.
   with its dimension's units; the same core configuration then checks the
   root. Admission policy stays in jig, including checks fitting within a
   modifying charter's reserve.
+
+### Local disk capacity
+
+A standalone worker may set `TEMPER_WORKER_DISK_BUDGET` to two decimal
+byte counts separated by a comma, a reserve and a positive allowance per
+occupied place. Before its first placement and every two seconds, it samples
+the data directory's filesystem. The number of places is the available bytes
+above the reserve divided by the allowance, rounded down and bounded by the
+configured slots. A failed sample offers zero places. This is admission
+headroom shared by runs and jobs. A process already running can still use
+more than its allowance. The worker journals capacity changes. Without the
+setting, configured slots govern admission.
 
 ## 3. Open questions
 

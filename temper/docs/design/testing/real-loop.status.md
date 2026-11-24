@@ -5,7 +5,6 @@
 
 - **Not yet:** the whole document:
   the twins' playground documents remain `reference-case.status.md` (Not yet, the whole document). the whole document: the B2 twin remains `reference-case.status.md` (Not yet, the whole document).
-   the ignored cluster process story remains `process-tier.status.md` (Not yet, the whole document).
    the playground/reset and restarted-GitHub stories remain `../protocol/setup/testing.status.md`, 4.
    the Forgejo web-connect and host proofs remain `process-tier.status.md` (Not yet, the whole document).
    the later live ladder rungs remain `live-tier.status.md` (Not yet).

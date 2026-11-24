@@ -512,6 +512,7 @@ impl Application {
         );
         component.workspace(&run::Workspace {
             directories: Box::new([run::Directory {
+                results: None,
                 host: Box::from(b"/host".as_slice()),
                 name: b"repo".as_slice().into(),
                 root,
@@ -896,6 +897,7 @@ impl Host for Application {
                     self.component.from_domain(
                         &self.machine_env,
                         FromDomain::Check {
+                            results: None,
                             owner,
                             program: run::Place { root: self.root, path: Box::from(b"check-hang".as_slice()) },
                             bound: Duration::from_secs(1),

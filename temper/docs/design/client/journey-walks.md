@@ -619,7 +619,8 @@ its own process.
 - **The binary's dependencies:** `fabrig-boundary` holds that
   `temper-client-walk`'s normal dependencies name no `skein-browser`,
   `skein-fake-person-browser` or `temper-client-journeys-tool`.
-- **The writer's run,** in the journeys tool's suite
+- **The writer's run,** in `temper-client-journeys-tool`'s library,
+  with shipped-script witnesses in `temper-client-journeys`'s suite
   (`journey-writer.md`, 7).
 - **No test walks main's journeys** or compares a page of main's
   (`../draft/archive/journey-walks.md`, 10). Each test sits in its layer within

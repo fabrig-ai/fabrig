@@ -1,6 +1,5 @@
 //! Native endpoint resolution and bounded trust loading before channel startup.
-//! Contract: smith/docs/design/shell/README.md, section 2; smith/docs/design/protocol/agent.md, section 4.
-#[cfg(unix)]
+//! Contract: smith/docs/design/shell/README.md, section 2.6; smith/docs/design/protocol/agent.md, section 4.
 use super::document::TrustDocument;
 use super::{
     ConfigurationRefusal,
@@ -51,15 +50,25 @@ pub(super) fn resolve(address: &str) -> Result<SocketAddr, ConfigurationRefusal>
     address.parse().map_err(|error| format!("endpoint address {address:?}: {error}; no name resolution").into())
 }
 
+#[cfg(unix)]
 pub(super) fn endpoints(
     endpoints: Box<[PreparedEndpoint]>,
     limits: &connection::Limits,
-    #[cfg_attr(not(unix), expect(unused_variables, reason = "only the cfg(unix) trust loading writes diagnostics"))]
     errors: &mut dyn Write,
+    #[cfg(unix)] mut roots: RootReader<'_>,
+) -> Result<Box<[llm::ConfiguredEndpoint]>, ConfigurationRefusal> {
+    endpoints_with(endpoints, limits, resolve, |der, trust| endpoint_trust(der, trust, errors, &mut roots))
+}
+
+pub(super) fn endpoints_with(
+    endpoints: Box<[PreparedEndpoint]>,
+    limits: &connection::Limits,
+    address: impl Fn(&str) -> Result<SocketAddr, ConfigurationRefusal>,
+    mut trust: impl FnMut(Option<&str>, Option<&TrustDocument>) -> Result<skein_tls::Config, ConfigurationRefusal>,
 ) -> Result<Box<[llm::ConfiguredEndpoint]>, ConfigurationRefusal> {
     let mut configured = Vec::with_capacity(endpoints.len());
     for endpoint in endpoints {
-        let address = resolve(&endpoint.address)?;
+        let address = address(&endpoint.address)?;
         let transport = match endpoint.transport {
             EndpointTransport::Plaintext => {
                 if !address.ip().is_loopback() {
@@ -67,13 +76,9 @@ pub(super) fn endpoints(
                 }
                 connection::Transport::Plaintext
             }
-            #[cfg(unix)]
-            EndpointTransport::Tls { server_name, trust_der, trust } => connection::Transport::Tls {
-                server_name,
-                trust: endpoint_trust(trust_der.as_deref(), trust.as_ref(), errors)?,
-            },
-            #[cfg(not(unix))]
-            EndpointTransport::Tls { .. } => return Err("TLS requires a native shell".into()),
+            EndpointTransport::Tls { server_name, trust_der, trust: roots } => {
+                connection::Transport::Tls { server_name, trust: trust(trust_der.as_deref(), roots.as_ref())? }
+            }
         };
         let mut destination = connection::Endpoint {
             address,
@@ -101,52 +106,98 @@ pub const TRUST_BYTES: u64 = 16_777_216;
 #[cfg(unix)]
 const CERTIFICATES: u32 = 512;
 
-/// Load the bounded startup trust roots used by agent and local endpoints.
 #[cfg(unix)]
-pub fn trust(der: Option<&str>) -> Result<tls::Config, String> {
-    trust_with(der, &mut std::io::stderr())
+type ReadRoots<'a> = dyn FnMut(&skein_shell::Trust, &skein_shell::RootBounds) -> Result<skein_shell::Roots, skein_shell::RootsRefusal>
+    + 'a;
+
+#[cfg(unix)]
+pub(super) enum RootReader<'a> {
+    Native,
+    Given(&'a mut ReadRoots<'a>),
 }
 
 #[cfg(unix)]
-fn trust_with(der: Option<&str>, errors: &mut dyn Write) -> Result<tls::Config, String> {
+impl RootReader<'_> {
+    fn machine(&self) -> skein_shell::Trust {
+        let ssl_cert_file = match self {
+            Self::Native => std::env::var_os("SSL_CERT_FILE").map(Into::into),
+            Self::Given(_) => None,
+        };
+        skein_shell::Trust::Machine { ssl_cert_file }
+    }
+
+    fn read(
+        &mut self,
+        source: &skein_shell::Trust,
+        bounds: &skein_shell::RootBounds,
+    ) -> Result<skein_shell::Roots, skein_shell::RootsRefusal> {
+        match self {
+            Self::Native => skein_shell::read_trust_roots(source, bounds),
+            Self::Given(read) => read(source, bounds),
+        }
+    }
+}
+
+/// Load the bounded startup trust roots used by agent and local endpoints.
+#[cfg(unix)]
+pub fn trust(der: Option<&str>) -> Result<tls::Config, String> {
+    trust_with(der, &mut std::io::stderr(), &mut RootReader::Native)
+}
+
+#[cfg(unix)]
+fn trust_with(der: Option<&str>, errors: &mut dyn Write, roots: &mut RootReader<'_>) -> Result<tls::Config, String> {
     let source = match der {
         Some(path) => skein_shell::Trust::Der(path.into()),
-        None => skein_shell::Trust::Machine { ssl_cert_file: std::env::var_os("SSL_CERT_FILE").map(Into::into) },
+        None => roots.machine(),
     };
-    trust_sources(std::slice::from_ref(&source), errors).map_err(ConfigurationRefusal::detail)
+    trust_sources(std::slice::from_ref(&source), errors, roots).map_err(ConfigurationRefusal::detail)
 }
 
 /// Load account trust arrays through the existing bounded root owner.
 #[cfg(unix)]
 pub fn configured_trust(sources: &[skein_shell::Trust]) -> Result<tls::Config, String> {
-    trust_sources(sources, &mut std::io::stderr()).map_err(ConfigurationRefusal::detail)
+    trust_sources(sources, &mut std::io::stderr(), &mut RootReader::Native).map_err(ConfigurationRefusal::detail)
 }
 
 #[cfg(all(test, unix))]
 pub(super) fn trust_source(source: &skein_shell::Trust) -> Result<tls::Config, String> {
-    trust_sources(std::slice::from_ref(source), &mut std::io::stderr()).map_err(ConfigurationRefusal::detail)
+    configured_trust(std::slice::from_ref(source))
 }
 
 #[cfg(unix)]
-fn endpoint_trust(
+pub(super) fn endpoint_trust(
     der: Option<&str>,
     document: Option<&TrustDocument>,
     errors: &mut dyn Write,
+    roots: &mut RootReader<'_>,
 ) -> Result<tls::Config, ConfigurationRefusal> {
     let Some(document) = document else {
-        return trust_with(der, errors).map_err(ConfigurationRefusal::Input);
+        return trust_with(der, errors, roots).map_err(ConfigurationRefusal::Input);
     };
     let mut sources = Vec::new();
     if document.system {
-        sources.push(skein_shell::Trust::Machine { ssl_cert_file: std::env::var_os("SSL_CERT_FILE").map(Into::into) });
+        sources.push(roots.machine());
     }
     sources.extend(document.der.iter().map(|path| skein_shell::Trust::Der(path.into())));
     sources.extend(document.pem.iter().map(|path| skein_shell::Trust::Machine { ssl_cert_file: Some(path.into()) }));
-    trust_sources(&sources, errors)
+    trust_sources(&sources, errors, roots)
+}
+
+#[cfg(not(unix))]
+pub(super) fn endpoint_trust(
+    _der: Option<&str>,
+    _document: Option<&TrustDocument>,
+    _errors: &mut dyn Write,
+) -> Result<skein_tls::Config, ConfigurationRefusal> {
+    Err("TLS requires a native shell".into())
 }
 
 #[cfg(unix)]
-fn trust_sources(sources: &[skein_shell::Trust], errors: &mut dyn Write) -> Result<tls::Config, ConfigurationRefusal> {
+fn trust_sources(
+    sources: &[skein_shell::Trust],
+    errors: &mut dyn Write,
+    reader: &mut RootReader<'_>,
+) -> Result<tls::Config, ConfigurationRefusal> {
     let mut certificates = Vec::new();
     let mut bytes = 0_u64;
     let mut malformed = 0_u32;
@@ -161,7 +212,7 @@ fn trust_sources(sources: &[skein_shell::Trust], errors: &mut dyn Write) -> Resu
                 skein_shell::Trust::Machine { .. } => 8192,
             },
         };
-        let roots = skein_shell::read_trust_roots(source, &bounds).map_err(|why| {
+        let roots = reader.read(source, &bounds).map_err(|why| {
             ConfigurationRefusal::Input(match why {
                 skein_shell::RootsRefusal::NoBundle => "machine trust roots: no certificate bundle found".into(),
                 skein_shell::RootsRefusal::Unread { path, why } => {

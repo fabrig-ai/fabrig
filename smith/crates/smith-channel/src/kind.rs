@@ -1,4 +1,4 @@
-//! Version-thirteen kind identities (smith/docs/design/protocol/channel.md, sections 3–4).
+//! Version-fourteen kind identities (smith/docs/design/protocol/channel.md, sections 3–4).
 
 use alloc::boxed::Box;
 
@@ -72,6 +72,12 @@ pub const RENEWALS: u16 = 0x0115;
 pub const USAGE: u16 = 0x0116;
 /// The `Signalled` body kind.
 pub const SIGNALLED: u16 = 0x0117;
+
+/// The `Part` body kind.
+pub const PART: u16 = 0x0118;
+
+/// The `PartKept` body kind.
+pub const PART_KEPT: u16 = 0x0119;
 
 /// The supported channel version.
 pub const VERSION: u16 = crate::wire::VERSION;

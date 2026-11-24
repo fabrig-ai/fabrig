@@ -92,7 +92,10 @@ parts its look (3.2), and changes what else it needs by 3.3's steps.
   what to show, send and keep is its state machine's; carrying a request
   safely is a part's (4.3).
 - **The reference shell,** `skein-ui-example-shell-web`, the UI
-  example's: about 200 lines (a guide), commented to be copied.
+  example's, builds for wasm32. Its duties conversion builds for the
+  host too, so the machine world tests the same conversion the browser
+  loop uses (`testing.md`, 3). About 200 lines (a guide), commented to
+  be copied.
 - **What the reference asks of the example's state machine:** *start,*
   from the seed, the path and query the page opened at, the small
   store's records, the person's offset and languages;

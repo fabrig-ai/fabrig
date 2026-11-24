@@ -47,6 +47,7 @@ impl World {
     }
     fn adopt(&mut self, run: Token, attempt: Token) {
         self.step(Event::Adopt {
+            kept_part: 0,
             worker: None,
             reply_to: ReplyTo::new(attempt),
             run,

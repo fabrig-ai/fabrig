@@ -39,6 +39,7 @@ fn admitted(selected: run::Charter, limits: &run::Limits) {
             workspace: None,
             transcript: None,
             resumed: false,
+            tell_parts: false,
         },
         &mut out,
     );

@@ -5,7 +5,7 @@
 
 use crate::{Answer, Ask, CallName, End, Fault, Grant, MessageRefusal, Reply, Start, Turn};
 use alloc::boxed::Box;
-use skein_lib::{Time, Token};
+use skein_lib::{Duration, Time, Token};
 
 /// A termination signal heard by the agent, left to its parent to decide.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
@@ -60,7 +60,9 @@ pub enum Event {
     /// Parent politely stops once; no deadline reset.
     Stop { agent: Token },
     /// From the parent: stop after the current turn, without a cancel grace.
-    Drain { agent: Token },
+    Drain { agent: Token, grace: Option<Duration> },
+    /// Parent committed exactly this forwarded part.
+    AcknowledgePart { agent: Token, number: u32 },
     /// Parent drops the run now, releasing held turns; Gone waits for all operation terminals.
     Drop { agent: Token },
 }
@@ -90,6 +92,8 @@ pub enum Request {
     Withdrawn { client: Token, call: Token },
     /// Parent takes owned payload; kit retains exact ACK metadata.
     Turn { client: Token, turn: Turn },
+    /// Parent takes a part in the order told, interleaved with turns.
+    Part { client: Token, part: crate::channel::ToldPart },
     /// Validated read fence; crossed queued message prevents pause.
     Waiting {
         client: Token,
@@ -97,7 +101,7 @@ pub enum Request {
         read: Option<Token>,
     },
     /// A bounded long operation began; the parent may show its notice.
-    Long { client: Token, operation: crate::Operation, span: skein_lib::Duration },
+    Long { client: Token, operation: crate::Operation, span: Duration },
     /// One prior long operation ended.
     LongDone { client: Token },
     /// Known-account credential rejection notice.
@@ -105,7 +109,7 @@ pub enum Request {
     /// One program allowance observation for the run's account.
     Usage { client: Token, account: u32, window: crate::UsageWindow },
     /// Known-account quota notice.
-    Limited { client: Token, account: u32, reset: Option<skein_lib::Duration> },
+    Limited { client: Token, account: u32, reset: Option<Duration> },
     /// The provider refused a known account, retaining its diagnostic fields.
     Refused { client: Token, account: u32, code: Box<[u8]>, reason: Box<[u8]> },
     /// Best-effort fact moved to parent.

@@ -229,6 +229,7 @@ impl Harness {
 /// completion's, a result a word.
 fn encode(value: &Encodable) -> Encoded {
     match value {
+        Encodable::Part(_) => panic!("parts use the whole worker's codec"),
         Encodable::Turn(turn) => Encoded::Turn(host::Turn {
             opens_window: turn.opens_window,
             refused: Box::new([]),

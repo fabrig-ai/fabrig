@@ -21,7 +21,7 @@ use crate::{agents, jobs, tooling, translate};
 
 /// What the host reads: this iteration's times, and its own limits.
 pub(crate) fn host_env(env: &Env<Limits>) -> Env<host::Limits> {
-    env.with(env.limits.host)
+    env.with(host::Limits { drain_grace: env.limits.drain_grace, ..env.limits.host })
 }
 
 /// What the checkout reads.
@@ -74,6 +74,11 @@ pub(crate) fn event(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &
             host_step(domain, env, opened);
         }
         Event::Lost => host_step(domain, env, host::Event::LinkLost),
+        Event::ResendPart { run, attempt, part } => {
+            if let Some(part) = domain.host.part(run, attempt, part) {
+                out.push(Request::Link(host::LinkUp::Part { run, attempt, part }));
+            }
+        }
         Event::GracePassed => {
             domain.past = true;
             crate::stopping::contact(domain, env);
@@ -315,6 +320,7 @@ fn from_host(domain: &mut Domain, env: &Env<Limits>, request: host::Request, out
                         | host::LinkUp::Usage { .. }
                         | host::LinkUp::Limited { .. }
                         | host::LinkUp::AccountRefused { .. }
+                        | host::LinkUp::Part { .. }
                         | host::LinkUp::Turn { .. }
                         | host::LinkUp::Ask { .. }
                         | host::LinkUp::Call { .. }) => out.push(Request::Link(up)),
@@ -390,6 +396,7 @@ fn note_git(domain: &Domain, hold: Token, op: &checkout::git::Op, out: &mut Queu
         Op::Pack { .. }
         | Op::Reset { .. }
         | Op::Reds { .. }
+        | Op::Keep { .. }
         | Op::Make { .. }
         | Op::Store { .. }
         | Op::Look { .. }

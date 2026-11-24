@@ -79,6 +79,8 @@ pub enum Seen {
     },
     /// The host sees a push request and snapshots exactly the checkout bytes.
     Pushing {
+        /// A save is the one unchecked snapshot operation.
+        checked: bool,
         /// Host-observed final Change metadata rather than the separate delivery grant's metadata.
         finishing: bool,
         /// Public durable transcript origin, separate from the live callback owner.
@@ -220,7 +222,7 @@ impl Expectations for Meeting {
                     self.passed.insert(owner, tree.unwrap_or_default());
                 }
             }
-            Seen::Pushing { owner, tree, name, finishing } => {
+            Seen::Pushing { owner, tree, name, finishing, checked } => {
                 judge.check(self.live_jobs.is_empty(), "jobs settle before delivery starts");
                 judge.check(
                     self.phase == Phase::Running
@@ -232,7 +234,7 @@ impl Expectations for Meeting {
                     "only a live change charter pushes",
                 );
                 judge.check(
-                    !self.checks || self.passed.remove(&owner).as_ref() == Some(&tree),
+                    !checked || !self.checks || self.passed.remove(&owner).as_ref() == Some(&tree),
                     "delivery is the exclusive checked snapshot",
                 );
                 judge.check(

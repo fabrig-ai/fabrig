@@ -1,7 +1,7 @@
 //! Committed turns use the engine's transcript codec (client/domain/contract/README.md, 8).
 use super::{List, bytes, c, problem, w};
 use smith_transcript::Record;
-use smith_transcript::v7 as t;
+use smith_transcript::v8 as t;
 
 pub(super) fn turn_bytes(value: &c::TurnRead, _limits: &w::Limits) -> Result<w::TurnBytes, w::Problem> {
     let bytes = match value {

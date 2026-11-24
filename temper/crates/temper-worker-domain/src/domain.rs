@@ -170,6 +170,7 @@ impl Domain {
                         | host::LinkUp::Usage { .. }
                         | host::LinkUp::Limited { .. }
                         | host::LinkUp::AccountRefused { .. }
+                        | host::LinkUp::Part { .. }
                         | host::LinkUp::Turn { .. }
                         | host::LinkUp::Ask { .. }
                         | host::LinkUp::Call { .. },
@@ -245,10 +246,21 @@ impl Domain {
         &self.host
     }
 
+    /// Apply the machine's capacity before checkout or program admission.
+    pub fn set_local_places(&mut self, places: u32, env: &Env<Limits>, out: &mut Queue<Request>) {
+        self.host.set_local_places(places, &mut self.host_out);
+        route::hand_off(self, env, out);
+    }
+
     /// The checkout child domain, for a world to look at.
     #[must_use]
     pub const fn checkout(&self) -> &checkout::Domain {
         &self.checkout
+    }
+
+    /// Restore the workspaces the protocol start kept for their runs.
+    pub fn restore_workspaces(&mut self, marks: Box<[checkout::git::Kept]>) {
+        self.checkout.restore_workspaces(marks);
     }
 
     /// Keep matching clones when an idle checkout workspace is evicted.

@@ -57,7 +57,7 @@ pub fn disk_snapshot(disk: &Checkout) -> BTreeMap<Vec<u8>, (Vec<u8>, u64)> {
 pub fn workspace(op: &Op) -> Option<Token> {
     match op {
         Op::Store { .. } => None,
-        Op::Make { workspace, .. } => Some(*workspace),
+        Op::Keep { workspace, .. } | Op::Make { workspace, .. } => Some(*workspace),
         Op::Clone { at, .. }
         | Op::Reds { at, .. }
         | Op::Reset { at, .. }
@@ -94,6 +94,7 @@ pub fn identity(op: &Op) -> Option<u32> {
         | Op::Pack { .. }
         | Op::Point { .. }
         | Op::Clone { .. }
+        | Op::Keep { .. }
         | Op::Make { .. }
         | Op::Look { .. }
         | Op::DiffPaths { .. }
@@ -117,6 +118,7 @@ pub fn remote(op: &Op) -> Option<&[u8]> {
         | Op::Pack { .. }
         | Op::Point { .. }
         | Op::Clone { .. }
+        | Op::Keep { .. }
         | Op::Make { .. }
         | Op::CheckOut { .. }
         | Op::Merge { .. }
@@ -136,6 +138,15 @@ pub fn perform(forge: &mut impl temper_fake_git::counts::Remote, disk: &mut Chec
 #[expect(clippy::too_many_lines, reason = "the world translates every checkout operation in one table")]
 fn perform_unchecked(forge: &mut impl temper_fake_git::counts::Remote, disk: &mut Checkout, op: Op) -> Done {
     match op {
+        Op::Keep { workspace, mark } => {
+            let path = format!("kept/{}", workspace.raw());
+            if let Some(mark) = mark {
+                disk.write(path.as_bytes(), format!("{mark:?}").as_bytes());
+            } else {
+                disk.remove(path.as_bytes());
+            }
+            Done::Succeeded
+        }
         Op::Reset { at, commit: head } => {
             assert_cloned(disk, &at);
             assert!(git::object_present(disk, &path(&at), fake(head)));

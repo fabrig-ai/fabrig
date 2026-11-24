@@ -57,6 +57,7 @@ fn a_stored_run_proof_without_an_endpoint_reads_with_none() {
 
 #[test]
 fn a_stored_run_proof_without_a_worker_reads_with_none() {
+    const ADDED_TAIL: usize = 1 + 4;
     let text = super::values::CORE;
     let (before, worker) = text.split_once(" worker:").expect("worker declaration");
     let (_, after) = worker.split_once(" }").expect("end of proof");
@@ -79,8 +80,9 @@ fn a_stored_run_proof_without_a_worker_reads_with_none() {
     let row = wire::Row::decode(&limits.core, &mut Reader::new(&bytes)).expect("wire row");
     let wire::Value::RunProof(record) = row.value else { panic!("run proof") };
     let bytes = record.encode(&limits.core).expect("wire record");
-    assert_eq!(bytes.last(), Some(&0), "absent worker is the last field");
-    let old_bytes = &bytes[..bytes.len() - 1];
+    // The earlier layout ends before the worker option and the later kept-part number.
+    assert_eq!(&bytes[bytes.len() - ADDED_TAIL..], &[0; ADDED_TAIL]);
+    let old_bytes = &bytes[..bytes.len() - ADDED_TAIL];
     let mut out = Buffer::with_capacity(256);
     let mut work = skein_codec::layout::Workspace::new();
     assert!(work.fit(&plan));

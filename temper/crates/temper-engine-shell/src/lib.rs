@@ -53,5 +53,9 @@ pub fn address(configured: &config::Address) -> Result<std::net::SocketAddr, Str
 }
 
 #[cfg(test)]
+#[path = "../../../testing/temper-box-kit/src/bundle_fixture.rs"]
+pub mod test_bundle_fixture;
+
+#[cfg(test)]
 #[path = "../../../testing/temper-box-kit/src/configuration.rs"]
 pub mod test_configuration;

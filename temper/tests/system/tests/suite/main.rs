@@ -8,6 +8,7 @@ mod fresh_run;
 mod parked;
 mod qa;
 mod question_answer;
+mod restarts;
 mod simulation;
 mod stopped_news;
 mod store_check;
@@ -18,6 +19,7 @@ mod fuzzy {
     mod composed;
     mod green_light;
     mod repair;
+    mod restarts;
     mod twin;
 }
 mod running_revision;

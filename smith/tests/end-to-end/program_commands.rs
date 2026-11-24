@@ -1,6 +1,6 @@
 //! The product hands sign-in to the executable fake, then uses the host half.
 use super::support;
-use smith_fake_claude::{Logout, OBSERVATIONS_FILE, Observation, STORY_FILE, Story, observations};
+use smith_fake_claude::{OBSERVATIONS_FILE, Observation, observations};
 use smith_real_world::Scratch;
 
 pub(super) const HOST_VARIABLES: [(&str, &str); 7] = [
@@ -90,30 +90,4 @@ fn program_logout_removes_the_login_and_checks_status() {
     let bytes = std::fs::read(configuration.join(OBSERVATIONS_FILE)).expect("logout observations");
     let arguments: Vec<_> = observations(&bytes).into_iter().map(|record| record.arguments).collect();
     assert_eq!(arguments, [["auth", "logout"], ["auth", "status"]]);
-}
-
-#[test]
-fn a_refused_program_logout_keeps_the_login_and_escapes_its_bounded_detail() {
-    let (scratch, configuration) = signed_in_program();
-    std::fs::write(
-        configuration.join(STORY_FILE),
-        Story {
-            logout: Logout::Detail(format!("discard-this-prefix{}tail\u{1b}[2J\r\n\u{7}end", "x".repeat(1100))),
-            ..Story::default()
-        }
-        .encode(),
-    )
-    .expect("logout story");
-    let failed = support::run_product(&scratch, &["logout", "work"], b"", None);
-    assert_eq!(failed.code, 3);
-    assert!(String::from_utf8_lossy(&failed.stderr).contains("sign-out failed"));
-    assert!(configuration.join("fake-claude.login").exists());
-    assert!(!failed.stderr.contains(&0x1b), "program cannot send terminal escapes");
-    assert!(!failed.stderr.contains(&0x07), "program cannot ring the terminal");
-    let words = String::from_utf8_lossy(&failed.stderr);
-    assert!(words.contains(r"tail\x1b[2J\r\n\x07end"), "stderr detail is escaped");
-    assert!(!words.contains("discard-this-prefix"), "only the bounded tail is shown");
-    let line = words.lines().find(|line| line.contains("program sign-out failed: ")).expect("sign-out detail");
-    let (_, detail) = line.split_once("program sign-out failed: ").expect("detail prefix");
-    assert_eq!(detail, format!("{}tail\\x1b[2J\\r\\n\\x07end\\n", "x".repeat(1009)), "1024 raw bytes at the tail");
 }

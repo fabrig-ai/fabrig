@@ -226,6 +226,11 @@ pub(super) fn render_unserved(
         }
         llm::Returned::Served { .. } => unreachable!("served results are consumed before the tail passes"),
         llm::Returned::Withdrawn => (b"withdrawn".as_slice().into(), true),
+        llm::Returned::Invalid { problem: problem @ llm::Problem::BadValue { field } }
+            if field.as_ref() == b"tools" =>
+        {
+            (smith_protocol_llm::render_call_problem(problem.clone(), limits.rendered_result).ok()?, true)
+        }
         llm::Returned::Invalid { .. } => (b"invalid tool input".as_slice().into(), true),
         llm::Returned::NotRun { why } => match why {
             llm::NotRun::OutsideChoice { choice } => (outside_choice(choice.as_deref(), limits.rendered_result)?, true),
