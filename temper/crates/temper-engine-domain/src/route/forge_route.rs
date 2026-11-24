@@ -3405,7 +3405,12 @@ fn review_failure_message(domain: &Domain, env: &Env<Limits>, task: u64) -> Opti
             break;
         }
     }
-    Some(jig_domain_core::StepMessage { target: requester, kind: tasks::MessageKind::Words, words: reason? })
+    Some(jig_domain_core::StepMessage {
+        notice: None,
+        target: requester,
+        kind: tasks::MessageKind::Words,
+        words: reason?,
+    })
 }
 
 fn authority_hold_message(
@@ -3418,7 +3423,12 @@ fn authority_hold_message(
     let tasks::Party::Task(target) = context.requester else { return None };
     let mut words = List::with_capacity(env.limits.tasks.message_bytes);
     append(&mut words, &forge_change::authority_words(cause));
-    Some(jig_domain_core::StepMessage { target, kind: tasks::MessageKind::Words, words: words.into_boxed() })
+    Some(jig_domain_core::StepMessage {
+        notice: None,
+        target,
+        kind: tasks::MessageKind::Words,
+        words: words.into_boxed(),
+    })
 }
 
 fn producer_failure_words(domain: &Domain, task: u64) -> Option<(tasks::Hold, Box<[u8]>)> {

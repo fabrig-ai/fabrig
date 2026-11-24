@@ -35,29 +35,39 @@ pub(crate) fn parts(
     step: &ProcedureStep,
 ) -> Result<tasks::ProcedureDecision, StepRefusal> {
     let amendments = amendments(core, env, task, &step.amendments)?;
-    let mut messages = List::with_capacity(env.limits.tasks.batch);
+    let mut messages = List::with_capacity(env.limits.tasks.batch.saturating_add(env.limits.tasks.inbox_messages));
+    let mut ordinary = 0_u32;
     let Some(row) = core.tasks.task(task) else { return Err(problem(task, tasks::Refusal::Unknown)) };
     for part in &step.messages {
-        if row.requester != tasks::Party::Task(part.target)
-            && !row.delegates.contains(&part.target)
-            && !row.references.contains(&part.target)
-        {
-            return Err(problem(part.target, tasks::Refusal::Reference));
+        if part.notice.is_none() {
+            if row.requester != tasks::Party::Task(part.target)
+                && !row.delegates.contains(&part.target)
+                && !row.references.contains(&part.target)
+            {
+                return Err(problem(part.target, tasks::Refusal::Reference));
+            }
+            ordinary = ordinary.saturating_add(1);
+            if ordinary > env.limits.tasks.batch {
+                return Err(problem(task, tasks::Refusal::Batch));
+            }
         }
         let Some(number) = crate::fresh(&mut core.counters, crate::Family::Message) else {
             return Err(problem(task, tasks::Refusal::Busy));
         };
         if messages
-            .push(tasks::Message {
-                task: part.target,
-                word: tasks::Word {
-                    number,
-                    from: tasks::Party::Task(task),
-                    kind: part.kind.clone(),
-                    words: part.words.clone(),
-                    at: env.wall,
-                    hits: 1,
-                    eligible: true,
+            .push(tasks::ProcedureMessage {
+                notice: part.notice,
+                message: tasks::Message {
+                    task: part.target,
+                    word: tasks::Word {
+                        number,
+                        from: tasks::Party::Task(task),
+                        kind: part.kind.clone(),
+                        words: part.words.clone(),
+                        at: env.wall,
+                        hits: 1,
+                        eligible: true,
+                    },
                 },
             })
             .is_err()

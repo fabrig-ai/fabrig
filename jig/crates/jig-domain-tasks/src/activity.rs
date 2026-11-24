@@ -188,7 +188,7 @@ pub fn line_bytes_limit(limits: &crate::Limits) -> Option<u64> {
     let caller = u64::from(crate::VERDICT_FIELDS.min(limits.result_bytes))
         .checked_mul(u64::try_from(size_of::<crate::ResultField>()).ok()?)?
         .checked_add(u64::from(limits.message_bytes.max(limits.result_bytes)))?;
-    let notice = len_u64(crate::run::NOTHING_AWAITED_WORDS.len());
+    let notice = len_u64(crate::ANSWER_NOTICE_BYTES);
     u64::try_from(size_of::<ActivityLine>())
         .ok()?
         .checked_add(caller.max(notice).max(u64::from(STOOD_WORDS)).max(u64::from(NOW_LINE)))

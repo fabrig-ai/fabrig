@@ -47,7 +47,7 @@ pub(super) fn apply(
             Form::Answer { question } => tasks::MessageKind::Answer { question },
         };
         messages
-            .push(StepMessage { target: message.target, kind, words: message.words })
+            .push(StepMessage { notice: None, target: message.target, kind, words: message.words })
             .expect("relay uses remaining message room");
     }
     row.relay = relayed.relay;

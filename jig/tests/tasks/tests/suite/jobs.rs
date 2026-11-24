@@ -218,7 +218,7 @@ fn words_questions_and_amendments_to_a_job_are_refused_as_its_executor() {
     let before = world.record(JOB).clone();
     for kind in [MessageKind::Words, MessageKind::Question, MessageKind::Answer { question: 1 }] {
         let decision = ProcedureDecision {
-            messages: Box::new([tasks::Message {
+            messages: Box::new([tasks::ProcedureMessage::ordinary(tasks::Message {
                 task: JOB,
                 word: Word {
                     number: 10,
@@ -229,7 +229,7 @@ fn words_questions_and_amendments_to_a_job_are_refused_as_its_executor() {
                     hits: 1,
                     eligible: true,
                 },
-            }]),
+            })]),
             ..ProcedureDecision::new(ProcedureEnd::Wait)
         };
         refused(step(&mut world, 2, decision), Refusal::Executor);

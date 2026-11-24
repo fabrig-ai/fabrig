@@ -445,8 +445,8 @@ fn payload_bound(value: &TaskRecord, word: &crate::Word, limits: &Limits) -> (Re
             RestoreBound::ReminderBytes,
             u32::try_from(crate::run::NOTHING_AWAITED_WORDS.len()).expect("fixed reminder"),
         ),
-        MessageKind::Words
-        | MessageKind::Question
+        MessageKind::Words => (RestoreBound::MessageBytes, limits.spoken_words_bytes()),
+        MessageKind::Question
         | MessageKind::Answer { .. }
         | MessageKind::Amendment { .. }
         | MessageKind::FinishRequested { .. }
@@ -476,11 +476,17 @@ fn messages(value: &TaskRecord, ordinary: usize, subscriptions: usize) -> Result
         .ok_or(RestoreCause::Accounting)?
         .checked_add(value.questions.len())
         .ok_or(RestoreCause::Accounting)?
-        .checked_add(crate::inbox::received_credits(value.requester, &value.question_lines, &value.questions))
+        .checked_add(notice_count(value)?)
         .ok_or(RestoreCause::Accounting)?
         .checked_add(usize::from(value.proposal.is_some()))
         .ok_or(RestoreCause::Accounting)?
         .checked_add(subscriptions)
+        .ok_or(RestoreCause::Accounting)
+}
+
+fn notice_count(value: &TaskRecord) -> Result<usize, RestoreCause> {
+    crate::inbox::received_credits(value.requester, &value.question_lines, &value.questions)
+        .checked_add(value.notice_credits.len())
         .ok_or(RestoreCause::Accounting)
 }
 
@@ -528,9 +534,7 @@ fn inbox(value: &TaskRecord, limits: &Limits) -> Result<(), RestoreCause> {
         .checked_mul(skein_lib::length::usize_of(limits.message_bytes))
         .ok_or(RestoreCause::Accounting)?;
     let proposal = if value.proposal.is_some() { skein_lib::length::usize_of(limits.message_bytes) } else { 0 };
-    let notices = crate::inbox::received_credits(value.requester, &value.question_lines, &value.questions)
-        .checked_mul(crate::questions::ANSWER_NOTICE_BYTES)
-        .ok_or(RestoreCause::Accounting)?;
+    let notices = notice_count(value)?.checked_mul(crate::ANSWER_NOTICE_BYTES).ok_or(RestoreCause::Accounting)?;
     let total = bytes
         .checked_add(notices)
         .ok_or(RestoreCause::Accounting)?

@@ -110,6 +110,7 @@ pub(crate) const EMPTY: wire::Limits = wire::Limits {
     task_interests_references: 0,
     task_interests_subscriptions: 0,
     task_interests_inbox: 0,
+    task_interests_notice_credits: 0,
     task_interests_saved: 0,
     before_talk_started_from: 0,
     live_hot_started_from: 0,
@@ -247,7 +248,7 @@ pub fn limits(domain: &domain::Limits) -> Option<wire::Limits> {
         approval_message_state: domain.result_bytes,
         verdict_message_fields: fields,
         word_words: domain.word_bytes(),
-        activity_words_words: domain.message_bytes,
+        activity_words_words: domain.spoken_words_bytes(),
         rejected_escalation_reason: domain.result_bytes,
         recurring_state_last_batch: domain.batch,
         saved_resource_path: u32::try_from(
@@ -283,6 +284,7 @@ pub fn limits(domain: &domain::Limits) -> Option<wire::Limits> {
         task_interests_references: domain.references,
         task_interests_subscriptions: domain.subscriptions.checked_add(1)?,
         task_interests_inbox: domain.inbox_messages.checked_add(2)?,
+        task_interests_notice_credits: domain.inbox_messages,
         task_interests_saved: domain.saved_resources,
     };
     wire::check_limits(&limits).ok()?;

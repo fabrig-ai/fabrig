@@ -398,6 +398,27 @@ fn task_definition(
     })
 }
 
+fn notice_credits(
+    source: &[domain::NoticeCredit],
+    limits: &wire::Limits,
+) -> Result<List<wire::NoticeCredit>, wire::Problem> {
+    let mut members = List::with_capacity(limits.task_interests_notice_credits);
+    for credit in source {
+        if members.push(mapped::notice_credit_to_record(credit)).is_err() {
+            return Err(problem(wire::paths::TASK_INTERESTS_NOTICE_CREDITS));
+        }
+    }
+    Ok(members)
+}
+
+fn read_notice_credits(source: List<wire::NoticeCredit>) -> Box<[domain::NoticeCredit]> {
+    let mut members = List::with_capacity(source.len());
+    for credit in source.into_boxed() {
+        members.push(mapped::notice_credit_to_domain(credit)).expect("same number of credits");
+    }
+    members.into_boxed()
+}
+
 fn task_interests(source: &domain::TaskRecord, limits: &wire::Limits) -> Result<wire::TaskInterests, wire::Problem> {
     Ok(wire::TaskInterests {
         holdings: holdings(&source.holdings, limits)?,
@@ -415,6 +436,7 @@ fn task_interests(source: &domain::TaskRecord, limits: &wire::Limits) -> Result<
         saved: saved(&source.saved, limits)?,
         ever_turned: wire::TranscriptState { ever_turned: source.ever_turned },
         made: source.made,
+        notice_credits: notice_credits(&source.notice_credits, limits)?,
     })
 }
 
@@ -542,6 +564,7 @@ pub fn read_before_talk(source: wire::BeforeTalk, limits: &wire::Limits) -> Resu
         result_followups: phase::read_references(interests.result_followups),
         references: phase::read_references(interests.references),
         questions,
+        notice_credits: read_notice_credits(interests.notice_credits),
         subscriptions: read_subscriptions(interests.subscriptions),
         wake: mapped::wake_policy_to_domain(interests.wake),
         turn: interests.turn,
@@ -742,6 +765,7 @@ pub fn live_hot(
         result_followups,
         references,
         questions,
+        notice_credits,
         subscriptions,
         wake,
         turn,
@@ -849,6 +873,7 @@ pub fn live_hot(
         saved: self::saved(saved, limits)?,
         ever_turned: wire::TranscriptState { ever_turned: *ever_turned },
         made: *made,
+        notice_credits: self::notice_credits(notice_credits, limits)?,
     };
     let outcome = wire::TaskOutcome {
         attempt: *attempt,

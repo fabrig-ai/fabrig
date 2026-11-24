@@ -119,6 +119,7 @@ pub fn task_record() -> jig_domain_tasks::TaskRecord {
         result_followups: Box::new([103]),
         references: Box::new([107]),
         questions: Box::new([task_credit()]),
+        notice_credits: Box::new([]),
         subscriptions: Box::new([task::Subscription {
             number: 109,
             kind: task::SubscriptionKind::Topic { connector: 2, topic: 113 },

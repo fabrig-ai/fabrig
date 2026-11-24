@@ -1757,6 +1757,7 @@ pub(crate) fn make_admitted(
             delegates: Box::new([]),
             references: Box::new([]),
             questions: Box::new([]),
+            notice_credits: Box::new([]),
             subscriptions: Box::new([]),
             wake: new.wake,
             turn: 0,

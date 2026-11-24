@@ -252,6 +252,7 @@ record PersonStallNotice { message: u64 at: u64 activity: u64 }
 record PersonWait { since: u64 stall: duration deadline: u64 notice: option PersonStallNotice }
 record RecurringState { template: RecurringTemplate last_batch: list 1024 Number last_period: u64 pending_period: option u64 }
 record QuestionCredit { number: u64 answerer: Party asked: Party line: u64 }
+record NoticeCredit { asker: u64 question: u64 }
 record TaskInterest { target: u64 held: bool result: bool }
 record TimerInterest { at: u64 period: option duration }
 record TopicInterest { connector: u16 topic: u64 }
@@ -352,6 +353,7 @@ record TaskInterests {
     saved: list 64 SavedResource
     ever_turned: TranscriptState
     made: u32
+    notice_credits: list 128 NoticeCredit = []
 }
 record RoomProject { project: u32 }
 enum LiveRoom { deployment, project: RoomProject }

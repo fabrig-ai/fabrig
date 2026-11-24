@@ -5,7 +5,7 @@ use alloc::boxed::Box;
 use skein_lib::{Decimal, Env, List, Map, Queue, ReplyTo, Writer};
 
 /// Maximum bytes of the answer carried by its requester's notice, including a cut marker.
-pub(crate) const ANSWER_NOTICE_BYTES: usize = 256;
+pub const ANSWER_NOTICE_BYTES: usize = 256;
 
 /// An unanswered received question whose asker still reserves an answer from this task.
 /// Words stay on the asker's activity line (domain/tasks/lifecycle-endings.md, 1).
@@ -199,7 +199,7 @@ pub(crate) fn person_answer(
     let (task, word) = crate::inbox::apply_message(
         domain,
         env,
-        crate::inbox::MessagePlan { number: asker, prepared, answer: Some(question), asked_by: None },
+        crate::inbox::MessagePlan { number: asker, prepared, answer: Some(question), asked_by: None, notice: None },
         out,
     );
     // The asked task retains the answer's location even when its sender is a
@@ -278,6 +278,7 @@ pub(crate) fn forget_received(domain: &mut Domain, env: &Env<Limits>, task: u64,
     }
     row.record.question_lines = lines.into_boxed();
     changed(domain, task);
+    crate::notice_room::forget(domain, &env.limits, task, question);
 }
 
 pub(crate) fn ended(

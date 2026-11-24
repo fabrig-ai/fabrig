@@ -103,6 +103,7 @@ pub(super) fn apply(domain: &mut Domain, env: &Env<Limits>, task: u64, mut decis
             change::RelayAct::Answer { asker, number, words } => {
                 messages
                     .push(StepMessage {
+                        notice: None,
                         target: *asker,
                         kind: tasks::MessageKind::Answer { question: *number },
                         words: super::forge::text::fit(
@@ -121,6 +122,7 @@ pub(super) fn apply(domain: &mut Domain, env: &Env<Limits>, task: u64, mut decis
                     find_question(&relayed.questions.open, *asker, *number).expect("an asked question stays open");
                 messages
                     .push(StepMessage {
+                        notice: None,
                         target,
                         kind: tasks::MessageKind::Question,
                         words: question_words(&question.words, reasons, env.limits.tasks.message_bytes),
@@ -133,6 +135,7 @@ pub(super) fn apply(domain: &mut Domain, env: &Env<Limits>, task: u64, mut decis
                 };
                 messages
                     .push(StepMessage {
+                        notice: None,
                         target,
                         kind: tasks::MessageKind::Words,
                         words: left_words(*asker, *number, line, *answered, env.limits.tasks.message_bytes),
@@ -444,7 +447,7 @@ fn take<'a>(
         } else {
             takes_no_messages(row.requester, questions.route, env.limits.tasks.message_bytes)
         };
-        messages.push(StepMessage { target, kind, words }).expect("reply room checked");
+        messages.push(StepMessage { notice: None, target, kind, words }).expect("reply room checked");
     }
     Inbox { messages, asked, answer, amended, words }
 }

@@ -476,6 +476,7 @@ fn relay(
         append(&mut words, &question.words);
         messages
             .push(StepMessage {
+                notice: None,
                 target: owner,
                 kind: tasks::MessageKind::Question,
                 words: forge::text::fit(
@@ -562,6 +563,7 @@ fn answer_questions(domain: &Domain, env: &Env<Limits>, row: &mut forge::FollowR
         {
             messages
                 .push(StepMessage {
+                    notice: None,
                     target: question.change,
                     kind: tasks::MessageKind::Answer { question: question.number },
                     words: forge::text::fit(words, skein_lib::usize_of(env.limits.tasks.message_bytes), "…".as_bytes()),

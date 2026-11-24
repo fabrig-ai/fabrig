@@ -68,6 +68,8 @@ pub struct StepCancel {
 
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub struct StepMessage {
+    /// A question whose answer this step takes, to spend its kept notice room.
+    pub notice: Option<u64>,
     pub target: u64,
     pub kind: tasks::MessageKind,
     pub words: Box<[u8]>,

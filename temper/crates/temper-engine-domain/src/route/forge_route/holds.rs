@@ -32,6 +32,7 @@ pub(super) fn decision_as(
         && let tasks::Party::Task(target) = row.requester
     {
         decision.messages = Box::new([jig_domain_core::StepMessage {
+            notice: None,
             target,
             kind: tasks::MessageKind::Words,
             words: forge::text::fit(

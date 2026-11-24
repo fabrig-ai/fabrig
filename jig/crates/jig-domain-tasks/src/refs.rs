@@ -73,7 +73,12 @@ pub(crate) fn introduce(
 }
 
 pub(crate) fn end(domain: &mut Domain, env: &Env<Limits>, ended: u64) {
-    let outgoing = record(domain, ended).expect("ending task still indexed").questions.clone();
+    let ending = record(domain, ended).expect("ending task still indexed");
+    let procedure = match ending.executor {
+        crate::Executor::Procedure { .. } => true,
+        crate::Executor::Agent { .. } | crate::Executor::Person(_) | crate::Executor::Job { .. } => false,
+    };
+    let outgoing = ending.questions.clone();
     for credit in outgoing {
         match credit.asked {
             Party::Task(asked) => {
@@ -83,9 +88,18 @@ pub(crate) fn end(domain: &mut Domain, env: &Env<Limits>, ended: u64) {
         }
     }
     let mut peers = List::with_capacity(env.limits.tasks);
+    let mut notices = List::with_capacity(env.limits.tasks);
     for (number, _) in &domain.names {
         if *number != ended {
             let row = record(domain, *number).expect("indexed task");
+            if procedure {
+                for credit in &row.notice_credits {
+                    if credit.asker == ended {
+                        notices.push(*number).expect("live task count bounded");
+                        break;
+                    }
+                }
+            }
             let mut owed = false;
             for credit in &row.questions {
                 if credit.asked == Party::Task(ended) {
@@ -96,6 +110,9 @@ pub(crate) fn end(domain: &mut Domain, env: &Env<Limits>, ended: u64) {
                 peers.push(*number).expect("live peer count bounded");
             }
         }
+    }
+    for target in notices.into_boxed() {
+        crate::notice_room::end_asker(domain, &env.limits, target, ended);
     }
     for number in peers.into_boxed() {
         let row = task_mut(domain, number).expect("live peer");

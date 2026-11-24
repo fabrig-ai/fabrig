@@ -116,17 +116,22 @@ pub struct Limits {
 }
 
 const _: () = assert!(
-    crate::questions::OWED_WORDS.len() < crate::run::NOTHING_AWAITED_WORDS.len(),
-    "the nothing-awaited notice must bound the question-owed notice's word bytes"
+    crate::questions::OWED_WORDS.len() < crate::ANSWER_NOTICE_BYTES
+        && crate::run::NOTHING_AWAITED_WORDS.len() < crate::ANSWER_NOTICE_BYTES,
+    "the answer notice bounds the fixed word lengths"
 );
 
 impl Limits {
     /// The largest retained word, including fixed notices (jig/docs/design/protocol/store/records.md, 1).
     #[must_use]
     pub fn word_bytes(&self) -> u32 {
-        self.message_bytes
-            .max(self.result_bytes)
-            .max(u32::try_from(crate::run::NOTHING_AWAITED_WORDS.len()).expect("fixed notice length"))
+        self.spoken_words_bytes().max(self.result_bytes)
+    }
+
+    /// The larger of the ordinary words limit and a kept procedure notice.
+    #[must_use]
+    pub fn spoken_words_bytes(&self) -> u32 {
+        self.message_bytes.max(u32::try_from(crate::ANSWER_NOTICE_BYTES).expect("fixed answer notice"))
     }
 }
 
@@ -208,11 +213,10 @@ mod tests {
 
     #[test]
     fn word_bytes_covers_fixed_notices_and_caller_limits() {
-        // Byte length of the durable notice in run.
-        const NOTICE: u32 = 97;
-        for (bound, expected) in [(NOTICE - 1, NOTICE), (NOTICE + 1, 98)] {
+        let notice = u32::try_from(crate::ANSWER_NOTICE_BYTES).expect("fixed notice bound");
+        for (bound, expected) in [(notice - 1, notice), (notice + 1, notice + 1)] {
             for (message, result, inbox, expected) in
-                [(bound, 0, 0, expected), (0, bound, 0, expected), (0, 0, bound, NOTICE)]
+                [(bound, 0, 0, expected), (0, bound, 0, expected), (0, 0, bound, notice)]
             {
                 let limits = Limits { message_bytes: message, result_bytes: result, inbox_bytes: inbox, ..LIMITS };
                 assert_eq!(limits.word_bytes(), expected, "{message}, {result}, {inbox}");

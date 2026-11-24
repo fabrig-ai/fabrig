@@ -34,6 +34,7 @@ pub fn word_message(act: &change::WordAct, requester: tasks::Party, route: chang
         }
         change::WordAct::Fallback { requester: target } => {
             return StepMessage {
+                notice: None,
                 target: *target,
                 kind: tasks::MessageKind::Words,
                 words: takes_no_messages(requester, route, bound),
@@ -45,6 +46,7 @@ pub fn word_message(act: &change::WordAct, requester: tasks::Party, route: chang
         }
     };
     StepMessage {
+        notice: None,
         target,
         kind: tasks::MessageKind::Words,
         words: forge::text::fit(words.as_slice(), usize::try_from(bound).expect("message bound"), "…".as_bytes()),

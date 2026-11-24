@@ -42,6 +42,7 @@ mod decision_reads;
 mod hold_origin;
 mod kept;
 mod keys;
+mod notice_room;
 mod refusals;
 pub(crate) mod revisions;
 mod summary;

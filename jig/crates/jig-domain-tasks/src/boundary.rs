@@ -389,11 +389,25 @@ pub struct ProcedureDecision {
     pub batch: Box<[New]>,
     pub amendments: Box<[crate::Amend]>,
     pub cancels: Box<[crate::Cancel]>,
-    pub messages: Box<[Message]>,
+    pub messages: Box<[ProcedureMessage]>,
     pub proposals: Box<[crate::Proposal]>,
     /// Dependencies the procedure's work started from (domain/connectors-procedures.md, 1.1).
     pub started_from: Box<[u64]>,
     pub end: ProcedureEnd,
+}
+
+/// A procedure word, optionally spending the room kept by a question it asked.
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct ProcedureMessage {
+    pub message: Message,
+    pub notice: Option<u64>,
+}
+
+impl ProcedureMessage {
+    #[must_use]
+    pub fn ordinary(message: Message) -> Self {
+        Self { message, notice: None }
+    }
 }
 
 /// One addressed word admitted to a task inbox (jig/docs/design/domain/tasks/messages.md, 2).
@@ -1287,6 +1301,8 @@ pub struct TaskRecord {
     pub references: Box<[u64]>,
     /// Open questions with one reserved answer slot apiece.
     pub questions: Box<[QuestionCredit]>,
+    /// Incoming procedure questions that still keep space for a notice.
+    pub notice_credits: Box<[crate::NoticeCredit]>,
     /// Standing interests that end with the task.
     pub subscriptions: Box<[Subscription]>,
     /// Current wake and batching policy.

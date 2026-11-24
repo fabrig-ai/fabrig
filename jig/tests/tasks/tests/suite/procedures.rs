@@ -135,7 +135,7 @@ fn a_step_amending_and_messaging_commits_as_one_decision() {
     let mut world = procedure_with_child();
     let decision = ProcedureDecision {
         amendments: Box::new([amendment()]),
-        messages: Box::new([message(b"hello")]),
+        messages: Box::new([tasks::ProcedureMessage::ordinary(message(b"hello"))]),
         ..ProcedureDecision::new(tasks::ProcedureEnd::Wait)
     };
     assert_eq!(step(&mut world, PROCEDURE, 2, decision), Reply::Done);
@@ -156,7 +156,7 @@ fn a_step_with_one_refused_part_changes_nothing() {
     let before = world.records.clone();
     let decision = ProcedureDecision {
         amendments: Box::new([amendment()]),
-        messages: Box::new([message(b"")]),
+        messages: Box::new([tasks::ProcedureMessage::ordinary(message(b""))]),
         ..ProcedureDecision::new(tasks::ProcedureEnd::Wait)
     };
     assert_eq!(
@@ -234,7 +234,7 @@ fn a_step_with_no_room_for_its_proposal_keeps_its_message_uncommitted() {
         };
         let before = world.records.clone();
         let decision = ProcedureDecision {
-            messages: Box::new([message(b"hello")]),
+            messages: Box::new([tasks::ProcedureMessage::ordinary(message(b"hello"))]),
             proposals: Box::new([proposal(&world, NEXT_PROPOSAL)]),
             ..ProcedureDecision::new(tasks::ProcedureEnd::Wait)
         };
@@ -303,7 +303,7 @@ fn a_step_refuses_words_made_stale_by_its_amendment_without_making_its_batch() {
         ProcedureDecision {
             batch: Box::new([new_child()]),
             amendments: Box::new([part]),
-            messages: Box::new([message(b"hello")]),
+            messages: Box::new([tasks::ProcedureMessage::ordinary(message(b"hello"))]),
             ..ProcedureDecision::new(tasks::ProcedureEnd::Wait)
         },
         tasks::Refusal::Read,
@@ -327,7 +327,7 @@ fn a_step_applies_its_batch_amendments_words_proposal_and_cancel_once() {
         ProcedureDecision {
             batch: Box::new([new_child()]),
             amendments: Box::new([amendment(), second]),
-            messages: Box::new([sent]),
+            messages: Box::new([tasks::ProcedureMessage::ordinary(sent)]),
             proposals: Box::new([offered.clone()]),
             cancels: Box::new([tasks::Cancel {
                 task: CHILD,
@@ -381,13 +381,27 @@ fn a_step_checks_duplicate_cancels_against_the_first_and_keeps_its_batch_unmade(
 fn a_step_counts_each_questions_reply_credit_before_its_next_message_or_proposal() {
     for proposing in [false, true] {
         let mut world = procedure_with_child();
-        world.env.limits.inbox_messages = 2;
+        // The child can hold both questions and their notices. Two words
+        // after the offer leave only one reply credit in the procedure's inbox.
+        world.env.limits.inbox_messages = 4;
+        world.env.limits.inbox_bytes = 1024;
+        for number in [MESSAGE - 2, MESSAGE - 1] {
+            let reply_to = world.to();
+            let mut late = message(b"late");
+            late.task = PROCEDURE;
+            late.word.from = Party::Task(ROOT);
+            late.word.number = number;
+            world.send(Event::Message { reply_to, project: 1, operation: late });
+        }
+        assert_eq!(world.record(PROCEDURE).inbox.len(), 2);
         let mut first = message(b"first?");
         first.word.kind = tasks::MessageKind::Question;
         let mut second = message(b"second?");
         second.word.kind = tasks::MessageKind::Question;
         second.word.number = MESSAGE + 1;
         let offered = proposal(&world, PROPOSAL);
+        let first = tasks::ProcedureMessage::ordinary(first);
+        let second = tasks::ProcedureMessage::ordinary(second);
         let messages = if proposing { vec![first] } else { vec![first, second] };
         let proposals = if proposing { vec![offered] } else { vec![] };
         refused_without_writes(
