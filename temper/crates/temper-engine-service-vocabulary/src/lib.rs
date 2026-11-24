@@ -10,6 +10,10 @@ pub mod family;
 pub mod figures;
 pub mod forge;
 pub mod forges;
+#[rustfmt::skip]
+mod generated {
+    pub(super) mod worker_wire;
+}
 pub mod limits;
 pub mod settings;
 pub mod startup;

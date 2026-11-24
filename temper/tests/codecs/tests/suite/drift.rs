@@ -49,6 +49,23 @@ fn worker_wire_schema_matches_generated_code() {
 }
 
 #[test]
+fn worker_wire_translations_match_generated_code() {
+    let schema = &values(temper_protocol_worker_wire::SCHEMA).schema;
+    let crates = skein_scratch::paths::tree().join("crates");
+    for (owner, maps) in [
+        (
+            "temper-engine-service-vocabulary",
+            include_str!("../../../../crates/temper-engine-service-vocabulary/schema/worker_wire.maps"),
+        ),
+        ("temper-worker-service", include_str!("../../../../crates/temper-worker-service/schema/worker_wire.maps")),
+    ] {
+        let translation = skein_codegen::translate(schema, maps).unwrap_or_else(|error| panic!("{owner}: {error:?}"));
+        let path = crates.join(owner).join("src/generated/worker_wire.rs");
+        check_text(&path, &translation, temper_test_env::rewrite());
+    }
+}
+
+#[test]
 fn client_wire_schema_matches_generated_code() {
     use temper_client_protocol_wire::{CLIENT_SCHEMA, v1 as codec};
     schema_matches(
