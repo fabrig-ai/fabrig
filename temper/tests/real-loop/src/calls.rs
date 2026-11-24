@@ -25,8 +25,6 @@ pub(crate) const TRIAL_TASK: u64 = 1;
 pub enum Arg {
     Lit(&'static str),
     Task(usize),
-    Delegate(usize),
-    Digest(usize),
     ActivityBefore(usize),
     Number(u64),
     GithubApp,
@@ -406,31 +404,10 @@ pub fn number(task: u64) -> Arg {
 pub fn task(call: usize) -> Arg {
     Arg::Task(call)
 }
-#[must_use]
-pub fn delegate(call: usize) -> Arg {
-    Arg::Delegate(call)
-}
-#[must_use]
-pub fn digest(call: usize) -> Arg {
-    Arg::Digest(call)
-}
 /// The previous page cursor supplied by a task's activity read.
 #[must_use]
 pub fn activity_before(call: usize) -> Arg {
     Arg::ActivityBefore(call)
-}
-fn delegate_number(stdout: &[u8]) -> u64 {
-    let value: serde_json::Value = serde_json::from_slice(stdout).expect("task tree JSON");
-    if let Some(children) = value.get("task").unwrap_or(&value).get("delegates").and_then(serde_json::Value::as_array) {
-        assert_eq!(children.len(), 1, "one child task");
-        return children[0]["chip"]["task"].as_u64().expect("child task number");
-    }
-    let tree = &value["tree"];
-    let root = tree["root"]["task"].as_u64().expect("tree root");
-    let mut children = tree["rows"].as_array().expect("tree rows").iter().filter(|node| node["parent"] == root);
-    let child = children.next().expect("one child task")["chip"]["task"].as_u64().expect("child task number");
-    assert!(children.next().is_none(), "one child task");
-    child
 }
 #[must_use]
 pub fn occurrences(bytes: &[u8], needle: &[u8]) -> usize {
@@ -596,7 +573,6 @@ impl Caller {
                 Arg::Lit(word) => word.parse().expect("chat task number"),
                 Arg::Number(number) => *number,
                 Arg::Task(call) => task_number(&self.calls[*call].stdout),
-                Arg::Delegate(call) => delegate_number(&self.calls[*call].stdout),
                 _ => panic!("chat task number"),
             };
             (engine.commit_position(), engine.live_text_revision(task))
@@ -724,24 +700,6 @@ impl Caller {
                     .and_then(|(_, tail)| tail.split(|c: char| !c.is_ascii_digit()).next())
                     .and_then(|number| number.parse::<u64>().ok())
                     .map_or_else(|| format!("<task from call {index}>"), |number| number.to_string()),
-                Arg::Delegate(index) => self
-                    .calls
-                    .get(*index)
-                    .and_then(|call| serde_json::from_slice::<serde_json::Value>(&call.stdout).ok())
-                    .and_then(|value| {
-                        let root = value.pointer("/tree/root/task")?.as_u64()?;
-                        value
-                            .pointer("/tree/rows")?
-                            .as_array()?
-                            .iter()
-                            .find(|row| row["parent"] == root)?
-                            .pointer("/chip/task")?
-                            .as_u64()
-                    })
-                    .map_or_else(|| format!("<delegate from call {index}>"), |task| task.to_string()),
-                Arg::Digest(index) => self
-                    .diagnostic_pointer(*index, &["/task/digest", "/digest"])
-                    .unwrap_or_else(|| format!("<digest from call {index}>")),
                 Arg::ActivityBefore(index) => self
                     .diagnostic_pointer(*index, &["/activity/before/value", "/before/value"])
                     .unwrap_or_else(|| format!("<activity cursor from call {index}>")),
@@ -1016,12 +974,6 @@ impl Caller {
             words.push(match arg {
                 Arg::Lit(word) => word.as_bytes().into(),
                 Arg::Task(call) => task_number(&self.calls[*call].stdout).to_string().into_bytes().into(),
-                Arg::Delegate(call) => delegate_number(&self.calls[*call].stdout).to_string().into_bytes().into(),
-                Arg::Digest(call) => {
-                    let value: serde_json::Value =
-                        serde_json::from_slice(&self.calls[*call].stdout).expect("task JSON");
-                    value["task"]["digest"].as_str().expect("task digest").as_bytes().into()
-                }
                 Arg::ActivityBefore(call) => activity_cursor(&self.calls[*call].stdout)
                     .unwrap_or_else(|| {
                         panic!(

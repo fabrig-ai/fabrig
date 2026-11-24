@@ -31,6 +31,7 @@ skein-sim-world.workspace = true
 skein-fake-forge-github.workspace = true
 temper-github-app.workspace = true
 temper-client-shell-cli.workspace = true
+temper-client-tools.workspace = true
 jig-client.workspace = true
 serde_json.workspace = true
 serde.workspace = true

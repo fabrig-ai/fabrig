@@ -1562,8 +1562,16 @@ impl ServiceObserver {
         codec: &jig_protocol_store::codec::View,
         families: &temper_protocol_store::Bounds,
     ) -> Self {
+        self.set_codec(codec, families);
+        self
+    }
+
+    pub(crate) fn set_codec(
+        &mut self,
+        codec: &jig_protocol_store::codec::View,
+        families: &temper_protocol_store::Bounds,
+    ) {
         self.codec = *codec;
         self.families = families.clone();
-        self
     }
 }

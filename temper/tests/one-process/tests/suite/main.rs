@@ -16,5 +16,6 @@ mod upgrade;
 
 mod fuzzy {
     mod one_process;
+    mod program_landing;
     mod upgrade;
 }

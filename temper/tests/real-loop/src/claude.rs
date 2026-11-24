@@ -8,29 +8,6 @@ use std::{os::unix::ffi::OsStrExt, path::Path};
 pub(crate) const RELAY: &[u8] = b"/real-loop/temper";
 pub(crate) const PROGRAM: &[u8] = b"/usr/bin/true";
 
-// Runtime provisioning creates the direct key account before a program is declared.
-pub const ACCOUNT: u64 = 2;
-pub const SOURCE: &str = "live";
-
-/// Sign in, declare the private source and join its worker-side verification.
-/// Account documents stay at calls 2 and 6 for the source's focused story.
-#[must_use]
-pub fn sign_in() -> Vec<crate::calls::Step> {
-    use crate::{
-        argv,
-        calls::{D1, call, number, sign_in},
-    };
-    vec![
-        sign_in(D1),
-        call(D1, argv!["account", "declare", "2", "claude_code", SOURCE, "--key", "declare-program"]),
-        call(D1, argv!["account", "list", "--json"]),
-        call(D1, argv!["account", "verify", number(ACCOUNT), "--source", "program", "--json"]),
-        call(D1, argv!["account", "list", "--until", "settled", "--json"]),
-        call(D1, argv!["account", "list", "--until", "usable", "--json"]),
-        call(D1, argv!["account", "list", "--json"]),
-    ]
-}
-
 pub(crate) fn program(path: &[u8]) -> HostedProgram<Proc> {
     let factory = smith_fake_claude::hosted(path);
     HostedProgram {
