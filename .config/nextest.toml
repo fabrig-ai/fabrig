@@ -487,7 +487,6 @@ default-filter = """
   binary_id(=temper-qa::suite) |
   binary_id(=temper-real-loop-world::live_text) |
   binary_id(=temper-real-loop-world::suite) |
-  binary_id(=temper-shell::real) |
   binary_id(=temper-stage-one::suite) |
   binary_id(=temper-twin::suite) |
   binary_id(=temper-worker-checkout-world::suite) |

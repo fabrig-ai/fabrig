@@ -227,7 +227,6 @@ layers = ["step", "domain", "system", "machine", "protocol", "io", "simulated", 
 "temper-real-loop-world::live_text" = "real-loop"
 "temper-real-loop-world::suite" = "real-loop"
 "temper-service::protocol_link" = "protocol" # Stock starts and keepalives across real engine/worker channel stacks.
-"temper-shell::real" = "real-loop" # Directory modes, private link files and executable metadata.
 "temper-stage-one::suite" = "end-to-end" # Shipped help, version, unknown command and collect's ctl launch refusal.
 "temper-system-world::suite" = "system"
 "temper-twin-tool::suite" = "domain" # Conversion checks and fake LLM replay; CLI unit tests are separate.

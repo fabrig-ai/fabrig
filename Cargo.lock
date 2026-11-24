@@ -8432,9 +8432,9 @@ dependencies = [
 name = "temper-shell"
 version = "0.0.0"
 dependencies = [
+ "skein-fake-machine",
  "skein-io",
  "skein-lib",
- "skein-scratch",
  "skein-shell",
  "temper-docs",
 ]
