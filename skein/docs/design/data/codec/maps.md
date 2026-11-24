@@ -407,7 +407,9 @@ written once against the family's text and moves with it.
   owner, since the context generated code passes on is shared and read
   only (4.1).
 - **Checked with its family:** the family's drift test checks each end's
-  module beside the records' (7), and each end's module has its own row
+  module beside the records' (7); an end in a tree the family's own tree
+  may not name (smith's families at jig's and temper's crates) is
+  checked by its own tree's drift world. Each end's module has its own row
   in `tools/merge/codecs.txt`: the family's schema texts in command
   order, then that end's maps file. No byte, bound, fingerprint or
   layout moves.

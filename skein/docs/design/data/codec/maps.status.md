@@ -3,5 +3,13 @@
 2026-11-24. Where the tree's code lags or departs from [maps.md](maps.md).
 
 - **Not yet:**
-  - 2, 4.1 and 6: the header's `direction`, a line's direction and a line per direction, and `slice` on `stands for`, with their refusals.
-  - 9: the wires' ends, each translating crate with its own maps file: jig's worker wire; temper's worker wire; smith's charter and turns; smith's channel; jig's client wire at the engine and at the client; jig's public wire, engine cursor and view records; temper's client and public wires at the engine and at the client.
+  - 9: jig's worker wire at the engine and the worker, by their maps files. [in flight: change 16711]
+  - 9: temper's worker wire at the engine and the worker, by their maps files. [in flight: change 16712]
+  - 9: smith's charter and turns, by `smith-protocol-translate`'s and `jig-protocol-charter`'s maps files. [in flight: change 16713]
+  - 9: smith's channel, by each translating crate's maps file. [in flight: change 16714]
+  - 9: jig's client wire at the engine, `jig-protocol-engine-clients`' maps file. [in flight: change 16720]
+  - 9: jig's client wire at the client, the link's and `jig-client-protocol-http`'s maps files. [in flight: change 16723]
+  - 9: jig's public wire at the engine, its engine cursor and its view records, by their maps files. [in flight: change 16740]
+  - 9: temper's client wire at `temper-engine-service-vocabulary`, by its maps file. [in flight: change 16742]
+  - 9: temper's client wire at the engine's other crates, and its public wire, by their maps files. [in flight: change 16745]
+  - 9: temper's client wire at the client, by each translating crate's maps file. [in flight: change 16746]
