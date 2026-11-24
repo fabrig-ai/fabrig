@@ -1601,10 +1601,10 @@ mod prepared_tests {
     }
 
     #[test]
+    #[expect(clippy::disallowed_macros, reason = "the test appends a newline to the owner's schema text")]
     fn a_prepared_worker_states_each_prepared_layout_and_text() {
-        const DISTINCT_TEXT: &str =
-            concat!(include_str!("../../temper-protocol-worker-wire/schema/worker-wire-v1.schema"), "\n");
         use jig_protocol_worker_wire as wire;
+        use temper_protocol_worker_wire::SCHEMA;
         let settings = fixtures::worker_settings();
         let agent = fixtures::worker_agent();
         let limits = fixtures::worker_limits();
@@ -1613,7 +1613,7 @@ mod prepared_tests {
         assert_eq!(prepared.wires.jig, wire::spoken());
         // A distinct equivalent text proves construction uses the prepared description, not a fresh one.
         let application = prepared.wires.application.spoken.get_mut(0).expect("application wire");
-        application.text = DISTINCT_TEXT;
+        application.text = format!("{SCHEMA}\n").leak();
         let application = application.clone();
         let expected = prepared.wires.jig.clone();
         let table = prepared.schema.clone();
