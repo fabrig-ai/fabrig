@@ -1344,7 +1344,8 @@ impl Referee {
         if self.views.borrow().query_submissions.is_none() && procs.iter().any(|proc| matches!(proc, Proc::Peer(peer) if smith_agent_process_world::fake::queries(peer).next().is_some())) {
             self.views.borrow_mut().query_submissions = procs.iter().find_map(|p| if let Proc::Engine(e) = p { Some(e.submitted) } else { None });
         }
-        for proc in procs {
+        let mut refuse_open = false;
+        for proc in &mut *procs {
             match proc {
                 Proc::Engine(host) => {
                     let mut store = self.store.borrow_mut();
@@ -1359,6 +1360,7 @@ impl Referee {
                             && host.failed_starts.ended == 0
                         {
                             host.failed_starts.arm();
+                            refuse_open = true;
                         }
                         store.crash();
                         self.period = false;
@@ -1421,6 +1423,13 @@ impl Referee {
                 | Proc::Agent { .. }
                 | Proc::Probe(_) => {}
             }
+        }
+        if refuse_open {
+            let worker = procs
+                .iter_mut()
+                .find_map(|proc| if let Proc::Worker(host) = proc { Some(host) } else { None })
+                .ok_or("worker for refused opening")?;
+            worker.failed_starts.arm();
         }
         self.stopped = self.passed;
 
