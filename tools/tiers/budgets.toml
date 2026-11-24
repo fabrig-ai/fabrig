@@ -206,6 +206,12 @@ to = "smith.simulated"
 cpu_s = 0.1
 why = "smith-machine-world's machine seams and fake-kernel stories left their real-loop binary for a simulated binary (tools/tiers/layers.md, 6.1)."
 
+[[gate.default.moves]]
+from = "smith.real-loop"
+to = "smith.simulated"
+cpu_s = 0.7
+why = "smith-local-protocol's 14 store cases left their real-loop suite for smith-local-process-world's fake disk, and the dump test left smith-real-world for smith-agent-process-world (temper/docs/design/draft/slow-tests-down.md, 5.2 and 5.3); sized by the user's rule of 2026-11-24 for a goal's own move down."
+
 [gate.default.jig]
 ideal_s = 30
 
