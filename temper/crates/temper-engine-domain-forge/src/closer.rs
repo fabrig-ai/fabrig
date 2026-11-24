@@ -94,6 +94,19 @@ impl Domain {
         self.closing.progress.get(&task)?.expired.as_deref()
     }
 
+    /// A delegate's end advances the closer before it next reads containment, even if its row is unchanged.
+    pub fn closer_delegate_ended(&mut self, task: u64, child: u64, at: Wall) {
+        let Some(row) = self.closer(task) else { return };
+        let running = match row.closer.running {
+            Some(running) => Some(running.change),
+            None => None,
+        };
+        if (running == Some(child) || row.closer.landing == Some(child)) && self.closing.progress.contains_key(&task) {
+            advance(self, task, at);
+            crate::waits::changed(self, task);
+        }
+    }
+
     /// A newly offered step after a release starts a fresh wait, even if its row is unchanged.
     pub fn release_closer_wait(&mut self, task: u64, since: Wall) {
         if self.closer(task).is_some() {

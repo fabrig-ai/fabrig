@@ -774,6 +774,60 @@ fn a_cancelled_stalled_landing_retries_without_holding_or_waking_its_goal() {
     world.close();
 }
 
+fn closer_step_wait(world: &mut World, task: u64) -> Option<jig_domain_core::Wait> {
+    use jig_domain_core::{WaitKind, documents, reads};
+    let reads::Answer::Document(document) = world.party_read(reads::Read::Task { task }) else {
+        panic!("live closer's document")
+    };
+    let documents::Document::Task(document) = *document else { panic!("task document") };
+    document.waits.as_slice().iter().find(|wait| wait.kind == WaitKind::Step).cloned()
+}
+
+#[test]
+fn a_closer_bounds_containment_only_after_its_landing_ends() {
+    use jig_domain_core::{AtBound, Bound, WaitObject};
+    use temper_client_protocol_wire::waits::CLOSER_LANDING;
+
+    let (mut world, goal, branch) = goal_world(4);
+    park_goal(&mut world, &goal);
+    let (closer, landing) = begin_closing(&mut world, goal.task, &branch);
+    let head = world.fake.branch(b"org/repo", &branch).expect("goal branch");
+    status(&mut world, head, raw::Check::Pending);
+    for _ in 0..STEPS {
+        if matches!(row(&world, landing).change.state, change::State::Checking { .. }) {
+            break;
+        }
+        world.tick();
+    }
+    super::stall_hold::execution_reads(&mut world, landing, skein_forge::api::RunState::Waiting);
+    let figure = world.env.limits.forge.waits.step;
+    world.jump(figure.saturating_add(Duration::from_secs(60)));
+    assert!(matches!(live_task(&world, landing).phase, tasks::Phase::Active(_)));
+    assert_eq!(live_task(&world, closer).revisions.hold, 0);
+    assert_eq!(closer_step_wait(&mut world, closer), None);
+
+    world.hold_ancestry_answers = true;
+    super::cancel_task(&mut world, landing);
+    let retry = ended(&world, landing).expect("cancelled landing").ended_at.expect("landing's end");
+    let wait = closer_step_wait(&mut world, closer).expect("the retry reads fresh containment");
+    assert!(matches!(wait.object, WaitObject::Procedure { step: CLOSER_LANDING, .. }));
+    assert_eq!(wait.since, retry);
+    let at = skein_lib::Wall::from_nanos(retry.as_nanos().saturating_add(figure.as_nanos()));
+    assert_eq!(wait.bound, Bound::At { at, then: AtBound::Hold });
+
+    world.hold_ancestry_answers = false;
+    world.events.extend(world.held_ancestry_answers.drain(..));
+    for _ in 0..STEPS {
+        if closer_row(&world, closer).expect("closer").landing_changes.len() == 2 {
+            break;
+        }
+        world.tick();
+    }
+    assert_ne!(wait_landing(&mut world, closer), landing);
+    assert_eq!(live_task(&world, closer).revisions.hold, 0);
+    world.close();
+}
+
 #[test]
 fn a_cancelled_landing_held_for_repairs_holds_below_the_attempt_bound() {
     let (mut world, run, _, closer, _, landing) = held_landing();

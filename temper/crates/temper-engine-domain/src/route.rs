@@ -474,6 +474,12 @@ fn route_core_with_job(
                 keep_produced_title(domain, &record);
                 dependencies_met(domain, env, decision, &record);
                 forge_route::close_saved(domain, &record);
+                if let core::Record::Tasks(tasks::Stored::Ended(child)) = &record
+                    && let tasks::Party::Task(requester) = child.requester
+                    && let Some(at) = child.ended_at
+                {
+                    domain.forge.closer_delegate_ended(requester, child.number, at);
+                }
                 forge_route::job_history::saved(domain, &record, job_answer);
                 if let core::Record::Core(core::CoreRecord::Call(row)) = &record {
                     let answer = forge_route::effect_answer(domain, row.key, &row.part);
