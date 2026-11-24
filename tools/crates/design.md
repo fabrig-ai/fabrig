@@ -206,10 +206,16 @@ covers no finding fails the check.
 - **The binaries keep their paths.** A binary that declared `mod support;` names the kit with
   `use <kit> as support;`, so its own code reads unchanged. What the binaries reached through their
   parent module becomes the kit's public interface.
-- **A kit's paths are its own,** from the running test, through `skein-scratch`'s `paths`. A
-  package's binary comes from `paths::binary`, read from the environment the test's runner gives
-  the running test binary: so the binary's path is passed in when the test runs, and no kit compiles
-  `env!("CARGO_BIN_EXE_...")`. Fixtures come from `paths::tree()` or `paths::workspace()`, never from
+- **A kit's paths are its own,** from the running test, through `skein-scratch`'s `paths`, found
+  when the test runs, since any package's test may call the kit. A binary comes from
+  `paths::built`, the nearest file of its name above the running test's executable, which the
+  binary's own package's tests and every other package's find alike, each tier building the
+  binaries its tests start first (`skein/docs/design/testing/layout.md`, 1); never from
+  `paths::binary`, which reads `CARGO_BIN_EXE_<name>`, set for the binary's own package's tests
+  alone, and never from a compiled `env!("CARGO_BIN_EXE_...")`. The boundary suite refuses a kit
+  under a tree's `testing/` that names `paths::binary`: `temper-box-kit` took `temper-box` from it,
+  and temper's browser world, which calls the kit, failed on `CARGO_BIN_EXE_temper-box is unset`
+  after landing (2026-11-24). Fixtures come from `paths::tree()` or `paths::workspace()`, never from
   `paths::package()`, which is the calling test's package. An `include_bytes!` or `include_str!`
   names its file from the kit's own place.
 - **What one binary alone compiles stays with that binary,** beside its root, even where it sat in
