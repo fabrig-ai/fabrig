@@ -54,13 +54,14 @@ impl Domain {
                 },
                 phase: phase(&row.phase),
                 hold: match row.phase {
-                    policy::Phase::Held { why, .. } => Some(match why {
-                        policy::Hold::Faults { .. } => w::PublicLandingHold::Faults,
-                        policy::Hold::Prepare => w::PublicLandingHold::Prepare,
-                        policy::Hold::Record { .. } => w::PublicLandingHold::Record,
-                        policy::Hold::Timeout { .. } => w::PublicLandingHold::Timeout,
-                        policy::Hold::Turn => w::PublicLandingHold::Turn,
-                    }),
+                    policy::Phase::Held { why, .. } => match why {
+                        policy::Hold::Faults { .. } => Some(w::PublicLandingHold::Faults),
+                        policy::Hold::Prepare => Some(w::PublicLandingHold::Prepare),
+                        policy::Hold::Record { .. } => Some(w::PublicLandingHold::Record),
+                        policy::Hold::Timeout { .. } => Some(w::PublicLandingHold::Timeout),
+                        policy::Hold::Turn => Some(w::PublicLandingHold::Turn),
+                        policy::Hold::Read => None,
+                    },
                     policy::Phase::Waiting
                     | policy::Phase::Preparing
                     | policy::Phase::Proving

@@ -421,7 +421,7 @@ fn forges_rows(numbers: &[u16], connection: &v1::Connection) -> v1::Forges {
 
 #[test]
 fn catching_up_round_trips_on_both_documents_at_version_46() {
-    assert_eq!(crate::CLIENT_VERSION, 46);
+    assert_eq!(crate::CLIENT_VERSION, 47);
     let progress =
         v1::CatchingUp { fresh: 3, gathers: 4, ci: 5, goal_files: 6, lost_writers: 7, goal_branches: 8, uncertain: 2 };
     for catching_up in [None, Some(progress)] {

@@ -21,7 +21,7 @@ mod admission;
 #[path = "catching_up.rs"]
 mod catching_up;
 mod ci_news;
-mod connection_wait;
+pub(crate) mod connection_wait;
 #[cfg(test)]
 mod frozen;
 #[path = "full.rs"]
@@ -37,7 +37,7 @@ mod limit_refusals;
 #[path = "make.rs"]
 pub(crate) mod make;
 #[path = "outage.rs"]
-mod outage;
+pub(crate) mod outage;
 pub(crate) mod read_line;
 pub(crate) mod read_session;
 mod rebase;
@@ -1253,6 +1253,7 @@ impl Domain {
         .chain(goal_branch::deadline(self))
         .chain(self.read_line.deadline())
         .chain(if self.stopping { None } else { outage::deadline(self) })
+        .chain(if self.stopping { None } else { crate::landing::read_deadline(self) })
         .chain(if self.stopping { None } else { retry_deadline(self) })
         .min()
     }
@@ -1987,6 +1988,7 @@ fn decide(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Reque
             d.connections.insert(forge, (state, failed)).expect("configured forge connections");
             if was_connected != connected {
                 read_session::connection(d, env, forge, connected);
+                crate::landing::read_connection(d, env, forge, connected);
             }
             match d.connection(forge) {
                 crate::Connection::Connected { .. } => connection_wait::connected(d, env, forge, out),
@@ -2606,6 +2608,7 @@ fn expire(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     ci_news::fire(d, env, out);
     admission::fire(d, env, out);
     outage::fire(d, env, out);
+    crate::landing::fire_reads(d, env, out);
     crate::tiers::fire(d, env, out);
     let mut goals = List::with_capacity(env.limits.issues);
     for (goal, when) in &d.projection_due {
@@ -2882,6 +2885,7 @@ fn drain(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
             }
             skein_forge_client::Request::Read { owner, result } => {
                 if outage::read_ended(d, env, owner, &result) {
+                    crate::landing::read_unavailable(d, owner);
                     continue;
                 }
                 if d.closing.selection_reads.contains_key(&owner) {

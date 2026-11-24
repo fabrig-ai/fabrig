@@ -4030,6 +4030,7 @@ pub(crate) fn outputs(
             forge::Request::HistoryPage { read, answer } => {
                 super::kinds::history_answer(domain, env, decision, read, answer);
             }
+            forge::Request::LandingRead(note) => super::diagnostics::emit(domain, crate::Fact::LandingRead(note)),
             forge::Request::LandingUnmade { task, repository, branch, changes } => {
                 super::diagnostics::emit(domain, crate::Fact::LandingUnmade { task, repository, branch, changes });
             }

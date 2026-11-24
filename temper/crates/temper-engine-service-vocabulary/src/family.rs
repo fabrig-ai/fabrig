@@ -1674,7 +1674,7 @@ pub fn document(value: forge::Document, forges: &crate::forges::Forges, limits: 
         }
         forge::Document::Landing(value) => {
             let search = if value.round.search.is_some() { Some(landing_views::search(&value, limits)?) } else { None };
-            let hold = landing_views::hold(&value.phase, limits);
+            let hold = landing_views::hold(&value.phase, value.read_hold, limits);
             let train = match value.train {
                 Some(train) => Some(landing_views::train(train, limits)?),
                 None => None,

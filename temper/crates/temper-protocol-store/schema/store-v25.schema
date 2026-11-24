@@ -302,7 +302,7 @@ enum LandingCombine { merge, squash }
 record LandingMember { round: option u16 change: u64 repository: Repository pull: u64 head: option fixed 32 base: option fixed 32 candidate: option fixed 32 gates: list 64 GateProof asked: option u16 landed: option fixed 32 left: option LandingLeave unit: u16 branch: bytes 4096 combined: option LandingCombine recorded: bool told: bool judging: bool leave_told: bool }
 enum LandingRoundEnd { stale, leave, conflict, cut }
 record LandingRecordHold { member: u16 }
-enum LandingOwnHold { prepare, record: LandingRecordHold, timeout: LandingTimeout, turn }
+enum LandingOwnHold { prepare, record: LandingRecordHold, timeout: LandingTimeout, turn, read }
 record FailingTest { test_id: bytes 1024 }
 record ShownTest { test_id: bytes 1024 }
 record ManyTests { tests: list 64 ShownTest more: u32 cut: bool }
@@ -334,7 +334,7 @@ record LandingWaitGate { member: u16 gate: u16 }
 enum LandingAwaited { release, ready: LandingWaitMember, turn, prepare, prefixes, open, close, delete: LandingWaitMember, post: LandingWaitGate, run: LandingWaitGate, receipt: LandingWaitGate, judgement: LandingWaitMember, merge, record: LandingWaitMember, ancestry: LandingWaitMember, read }
 record LandingFollow { entry: LandingEntry dispatch: option DispatchWrite start: option u64 since: option u64 wall: option u64 try_number: u16 failed: bool reruns: list 65536 JobAttempt }
 record LandingFollows { items: bytes 2097152 pieces LandingFollow }
-record LandingRow { last_event: option u64 = none turn_since: option u64 = none waiting: option LandingAwaited = none room: option u64 = none job: option HistoryJobRecord landing: LandingState asks: list 64 LandingAskSlot entries: list 65536 LandingEntry flake_reruns: list 65536 LandingFlakeRerun = [] follows: option LandingFollows = none }
+record LandingRow { read_hold: option bytes 256 = none last_event: option u64 = none turn_since: option u64 = none waiting: option LandingAwaited = none room: option u64 = none job: option HistoryJobRecord landing: LandingState asks: list 64 LandingAskSlot entries: list 65536 LandingEntry flake_reruns: list 65536 LandingFlakeRerun = [] follows: option LandingFollows = none }
 record ReceiptRun { id: u64 number: u64 url: bytes 2048 }
 # Families 28 and 29 (temper/docs/design/protocol/store.md, 2).
 record FailedTests { tests: list 1024 FailingTest }
