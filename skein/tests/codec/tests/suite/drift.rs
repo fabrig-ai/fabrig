@@ -87,18 +87,23 @@ mod tests {
         }
     }
 
+    fn text_drift(path: &Path, text: &str) -> Option<String> {
+        (fs::read_to_string(path).ok().as_deref() != Some(text))
+            .then(|| format!("{} drifted: {REGENERATE}", path.display()))
+    }
+
     fn check_text(path: &Path, text: &str, write: bool) {
         if write {
             let parent = path.parent().expect("generated file has a parent");
             fs::create_dir_all(parent).expect("create generated directory");
             fs::write(path, text).expect("write generated text");
         } else {
-            assert!(fs::read_to_string(path).ok().as_deref() == Some(text), "{} drifted: {REGENERATE}", path.display());
+            let drift = text_drift(path, text);
+            assert!(drift.is_none(), "{}", drift.unwrap_or_default());
         }
     }
 
     #[test]
-    #[should_panic(expected = "sample.bounds drifted: run SKEIN_CODEGEN_WRITE=1")]
     fn a_changed_bounds_line_fails_drift_check() {
         use skein_codec_tests::v1 as sample;
 
@@ -106,10 +111,12 @@ mod tests {
         let path = scratch.path().join("sample.bounds");
         let bounds = bounds_text(sample::DECLARATIONS, sample::CEILINGS.values().as_slice());
         check_text(&path, &bounds, true);
+        assert_eq!(text_drift(&path, &bounds), None);
 
         let (_, rest) = bounds.split_once('\n').expect("declaration line");
         fs::write(&path, ["changed declaration line\n", rest].concat()).expect("change one bounds line");
-        check_text(&path, &bounds, false);
+        let message = text_drift(&path, &bounds).expect("changed bounds report drift");
+        assert!(message.contains("sample.bounds drifted: run SKEIN_CODEGEN_WRITE=1"), "{message}");
     }
 
     #[test]

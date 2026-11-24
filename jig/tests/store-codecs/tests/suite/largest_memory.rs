@@ -5,6 +5,7 @@ use jig_protocol_store::tasks_v13::Record;
 
 const CAP: u64 = 64 * 1024 * 1024;
 
+#[expect(clippy::too_many_lines, reason = "one dispatch per schema root")]
 #[test]
 fn largest_roots_stay_within_decoded_bounds() {
     family!(
