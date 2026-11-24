@@ -2,13 +2,6 @@
 
 2026-11-24. Where the tree's code lags or departs from [testing.md](testing.md).
 
-- **Not yet:** 1: no host test cuts an owned set up at each of its steps
-  and starts the box again on its disk, nor cuts a removal after its
-  answer (*A set up cut short, on the simulated host*).
-  [in flight: change 15050]
-- **Not yet:** 4: the process tier does not yet use the single owned
-  setup and removal sequence named there.
-  [in flight: change 15052]
 
 - **Not yet:** 4: the file's secret on no log: the fresh box's story
   reads stdout, stderr and `box.log` for it, not `serve.log`, which

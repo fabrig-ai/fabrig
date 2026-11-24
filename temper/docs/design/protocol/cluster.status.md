@@ -3,14 +3,6 @@
 2026-11-24. Where the tree's code lags or departs from [cluster.md](cluster.md).
 
 
-- **Not yet:** 6: the engine's domain world holds no lost attempt's
-  journal beside its replacement's, no fenced attempt's late traffic
-  beside its worker's new work, no late worker's first placement and no
-  returning worker's new work at its position. [in flight: change 15047]
-- **Not yet:** 6: the process tier's stories still wait for a killed or
-  hung worker's replacement, still start a worker later and restart one
-  for its placement, and the ignored case 4.6 story and its adapter
-  stand. [in flight: change 15051]
 
 - **Departs:**  the group-file departure remains `forge/engine.status.md`, 2 and 8.  the source-name admission departure remains `service-routing.status.md`, 1 and 2. 5, 6: the cluster's description keeps the lab's format, cost label, file name, `{experiment}` binding and empty fields; its purpose, the lab, is retired, and the code awaits removal with this design.
 

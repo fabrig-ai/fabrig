@@ -37,17 +37,6 @@ maintainer-role acceptance. These are scripted worlds on fake Forgejo.
   late-handover tests are present; none is a recorded pass of the five
   stories.
 
-- **Not yet:** the whole document: the cluster's stories and its two
-  restarts on the fake forge still wait for a replacement, a landing or
-  a late or restarted worker's placement, and the ignored case 4.6
-  story stands, for what the lower worlds hold
-  (`../../development/slow-tests-moves-2026-11-24-temper-cluster.md`, 1
-  and 2). [in flight: change 15051]
-- **Not yet:** the whole document: the deployment at its place, the
-  folded checkpoint and restore, and the owned setup cut await their
-  shorter process stories
-  (`../../development/slow-tests-moves-2026-11-24-temper-cluster.md`, 3
-  to 5). [in flight: change 15052]
 
 `process-tier.md`'s *The fake box keeps two walks* has no known gap in its
 stories: the box keeps `here_key` and the browser tab, and each lower
