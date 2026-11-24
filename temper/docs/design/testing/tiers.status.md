@@ -38,13 +38,13 @@ that proof remains with the after-landing runs (11).
     process.
 
 - **Not yet:** `process-tier.md`, *Two drivers' offline proofs*: no pass in profile
-  `process-temper` is on record for B0's two
+  `process-temper` is on record for B0's twin walk
   (`bin/temper-box/tests/proof_live.rs`) or for `managed_ready_client`'s
   fake sitting, and no CPU figure against the tier's budgets
   (`tools/tiers/budgets.toml`). The repair `ignored-tiers/red-83`
   changed both since the plan compiled and listed them: B0's setup
   funds its project at the current policy or the rung's figures,
-  whichever is more, and checks it at least the rung's, and its twin
+  whichever is more, and its twin checks it at least the rung's and
   chooses the goal's turns from fresh inputs, so that a forge
   notification before the child's result waits for it
   (`testing/temper-box-kit/src/forge_land/rung.rs`); the sitting
