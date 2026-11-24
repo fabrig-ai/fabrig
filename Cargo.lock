@@ -5131,6 +5131,7 @@ dependencies = [
  "smith-domain",
  "smith-domain-session-fixtures",
  "smith-events",
+ "smith-fake-claude",
  "smith-host-protocol",
  "smith-host-protocol-fixtures",
  "smith-host-world",
@@ -5146,6 +5147,7 @@ dependencies = [
  "smith-protocol-events",
  "smith-protocol-llm",
  "smith-protocol-machine",
+ "smith-protocol-program",
  "smith-protocol-translate",
  "smith-transcript",
 ]

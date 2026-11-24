@@ -29,7 +29,7 @@ fn the_cli_reports_tasks_and_replacement_counts() {
     )
     .expect("reviewer frames");
     let out = scratch.path().join("out.json");
-    let result = Command::new(env!("CARGO_BIN_EXE_temper-twin"))
+    let result = Command::new(skein_scratch::paths::binary("temper-twin"))
         .arg("--data")
         .arg(scratch.path())
         .arg("--base")
@@ -51,7 +51,7 @@ fn from_writes_a_twin_with_replacements_takes_and_a_use_report() {
     let takes = scratch.path().join("takes.json");
     std::fs::write(&takes, br#"[{"name":"WORD","value":"new","before":"<","after":">"}]"#).expect("takes file");
     let out = scratch.path().join("out.json");
-    let result = Command::new(env!("CARGO_BIN_EXE_temper-twin"))
+    let result = Command::new(skein_scratch::paths::binary("temper-twin"))
         .arg("--from")
         .arg(source)
         .arg("--out")

@@ -7,6 +7,8 @@ use crate::fake;
 use smith_channel::Record;
 
 mod coding;
+
+pub use coding::{CODING_LINES, CODING_OUTPUT, large_coding_write};
 mod peer;
 mod setup;
 mod signals;
