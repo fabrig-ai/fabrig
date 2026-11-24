@@ -360,8 +360,8 @@ program backend sends none of these messages, keeping its own history
     or cancelled;
   - a request clamped to a ceiling, saying so and naming the ceiling;
   - a failure with its output;
-  - a command or a `job` wait a drain cut (domain/turn-parts.md,
-    section 4): `interrupted by a worker restart after N s`, N its whole
+  - a command or a `job` wait a drain or a crash cut (domain/turn-parts.md,
+    sections 3 and 4): `interrupted by a worker restart after N s`, N its whole
     seconds, or `interrupted by a worker restart after an unknown time`,
     then its output so far as a running command's is rendered, its head,
     what was dropped and its last bytes, and that it may be run again.

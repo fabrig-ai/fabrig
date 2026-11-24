@@ -1,7 +1,7 @@
 # A turn told in parts
 
 Provisional, 2026-11-21, from temper's `draft/worker-restarts.md`,
-sections 3 and 6. A turn is told whole once its last call has answered
+sections 3, 6 and 7 (a crash, 2026-11-24). A turn is told whole once its last call has answered
 (run.md, section 4, step 6). A host that keeps a run's place across its
 own restart needs more: the LLM's answer kept as soon as it arrives, and
 each call's answer as it ends, so that a drain need only wait for the
@@ -37,6 +37,12 @@ is `run-delivery.md`, 1.1's.
   (section 6), a call never started runs now. The model sees each
   answer as if the call had run once, and a command cut midway as
   interrupted, for it to judge.
+- **A crash takes the same path** (sections 3 and 5): a command and a
+  `job` wait tell a start as they start, an `interrupted` result with
+  no time and no output, which their end's result supersedes. A crash
+  tells nothing more, so the next activation finds each command it cut
+  interrupted, after an unknown time, and runs again only what never
+  started.
 
 ## 2. Parts
 
@@ -59,7 +65,8 @@ encoded:
 - **a result:** one user message holding one call's result block, as
   the whole turn will keep it: the call's provider id and what it
   returned (protocol/transcript.md, section 2), and the run's spend so
-  far;
+  far. A call may tell more than one: a command's start, then its
+  end's or a drain's (section 3); the last told stands;
 - **a window:** a sub-agent's window turn, which its compaction made
   (`session-context.md`, 1.2). Main's compactions are told as window turns, as
   before.
@@ -113,6 +120,20 @@ pub struct Start { /* as before */ pub tell_parts: bool, pub parts: Box<[record:
   domain wrote, invalid, not run or withdrawn. A call answered before
   its turn's answer was told, such as an invalid call, is told after
   the answer, in its block order.
+- **A start for a command or a `job` wait.** As a command, or a `job`
+  call that waits for a job's output, starts running, once the tools
+  have taken it rather than answered it at their entrance, the run
+  tells a result part for it: `interrupted`, its time absent and its
+  output empty (protocol/transcript.md, section 2). Its result when it
+  ends, `running` included, or a drain's `interrupted` (section 4), is
+  told after it and supersedes it. It goes up as any part, and the
+  command does not wait for its host to keep it: a crash before the
+  host has kept it leaves the call with no part, which section 5 runs
+  as never started. No other call tells a start: a check, a `save`, a
+  host call and a `sub_agent` call are run again or answered from the
+  host's record whether or not they started (section 5), and any other
+  workspace tool ends in moments, so one a crash cut with no part runs
+  again. A sub-agent's starts are told on its thread, as its results.
 - **Every conversation's.** A sub-agent's answers and results are
   told as main's, on its thread, though its whole turns are not; its
   last answer's result in main is the `sub_agent` call's, told on main's
@@ -191,13 +212,13 @@ before it asks any completion:
 
   | The call | Its result |
   |---|---|
-  | one with a result part | that result |
+  | one with a result part | its last, by activation then number; a command's start left last, as a crash leaves it, is `interrupted` after an unknown time with no output |
   | a host call, a delivery or a save that the start's answered calls hold (protocol/channel.md, section 3) | that answer, as the call's own result |
   | `deliver` or `finish` with a change, its delivery unanswered | its checks run again on the same tree, given the same results directory (`run-delivery.md`, 1.1), then its delivery asked anew; a `finish` is judged as ever |
   | a `save` or another host call, unanswered | asked anew, under this activation's name for it (run.md, 5.2) |
   | `sub_agent` | its conversation goes on (section 6), and its answer is the call's result |
   | `wait` | answered as a parked run's withheld `wait` is, with the messages that woke the run (run.md, section 6) |
-  | any other, with no part | run now: a drain tells a part for each it cut, so it never started |
+  | any other, with no part | run now: a drain tells a part for each command it cut and a command tells its start, so it never started, or it is a workspace tool a crash cut, run again |
 
   A host call is asked anew under this activation's name only when no
   host decided it, since a name carries its activation and no later one
@@ -266,13 +287,20 @@ before it asks any completion:
 - **A sub-agent resumed** from its parts asks no completion for an
   answer its parts hold, and its new parts carry the same call
   position.
+- **A crash:** a command's start is told after its answer and before
+  its result, which follows it, main's and a sub-agent's on its thread;
+  a call the tools answer at their entrance tells no start. Resumed from
+  the parts a first activation told before it stopped with no drain:
+  while its answer was in flight, none for the cut turn, which is
+  planned afresh; while a check ran, the answer alone, and the check
+  runs again with the same results directory; while a command ran, the
+  answer and the command's start, and the model reads it interrupted
+  after an unknown time, with no output, and it is not run again. A
+  drained command's resume reads its time, its drain's part told after
+  its start.
 
 ## 8. Open questions
 
-- **A crash** (temper's `draft/worker-restarts.md`, section 7) leaves
-  calls that started with no part, which section 5 would run as never
-  started. Telling a part when a command starts, so a resume knows to
-  report it interrupted, is that milestone's to decide.
 - **What a resumed turn's host calls made:** a host keys what a turn's
   calls made by their names in the turn's activation (jig's
   `domain/engine/executors.md`, 2); a call answered from an earlier
