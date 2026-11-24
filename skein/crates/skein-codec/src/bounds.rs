@@ -1,9 +1,9 @@
 //! Bounds as data, evaluated without recursion (data/codec/README.md, 4).
 //! Local edges point to earlier nodes. A bounded stack follows named edges,
-//! computing each reached declaration once and sharing its bound across callers.
+//! computing each reached declaration once per walk.
 
 use core::{cmp::Ordering, mem::size_of};
-use skein_lib::{List, Map, Stack};
+use skein_lib::{List, Stack};
 
 /// A named declaration and its postordered nodes, with the root last.
 #[derive(Clone, Copy, Debug)]
@@ -96,16 +96,16 @@ impl Node {
     }
 }
 
-fn find<'a>(mut declarations: &'a [Declaration], name: &str) -> Option<&'a Declaration> {
-    // Each comparison at least halves the remaining slice.
-    while !declarations.is_empty() {
-        let middle = declarations.len().checked_div(2)?;
-        let (before, rest) = declarations.split_at_checked(middle)?;
-        let (declaration, after) = rest.split_first()?;
-        match declaration.name.cmp(name) {
-            Ordering::Equal => return Some(declaration),
-            Ordering::Greater => declarations = before,
-            Ordering::Less => declarations = after,
+fn find(declarations: &[Declaration], name: &str) -> Option<u32> {
+    let mut low = 0_usize;
+    let mut high = declarations.len();
+    // Each comparison at least halves the remaining range.
+    while low < high {
+        let middle = low.checked_add(high.checked_sub(low)?.checked_div(2)?)?;
+        match declarations.get(middle)?.name.cmp(name) {
+            Ordering::Equal => return u32::try_from(middle).ok(),
+            Ordering::Greater => high = middle,
+            Ordering::Less => low = middle.checked_add(1)?,
         }
     }
     None
@@ -113,12 +113,14 @@ fn find<'a>(mut declarations: &'a [Declaration], name: &str) -> Option<&'a Decla
 
 #[derive(Debug)]
 struct Frame<'a> {
+    index: u32,
     declaration: &'a Declaration,
     local: List<Bounds>,
 }
 
 #[derive(Clone, Copy, Debug)]
 enum Visit {
+    Unseen,
     Pending,
     Done(Bounds),
 }
@@ -126,30 +128,32 @@ enum Visit {
 struct Walk<'a> {
     declarations: &'a [Declaration],
     limits: &'a [u32],
-    memo: Map<&'static str, Visit>,
+    // A slot per declaration, at the position the name search returns.
+    memo: List<Visit>,
     stack: Stack<Frame<'a>>,
     #[cfg(test)]
     starts: u32,
 }
 
 impl<'a> Walk<'a> {
+    #[expect(clippy::disallowed_macros, reason = "the memo slots are allocated and filled once at their final length")]
     fn new(declarations: &'a [Declaration], limits: &'a [u32]) -> Option<Self> {
         let count = u32::try_from(declarations.len()).ok()?;
         Some(Self {
             declarations,
             limits,
-            memo: Map::with_capacity(count),
+            memo: List::from_boxed(alloc::vec![Visit::Unseen; declarations.len()].into_boxed_slice()),
             stack: Stack::with_capacity(count),
             #[cfg(test)]
             starts: 0,
         })
     }
 
-    fn start(&mut self, name: &str) -> Option<()> {
-        let declaration = find(self.declarations, name)?;
+    fn start(&mut self, index: u32) -> Option<()> {
+        let declaration = self.declarations.get(usize::try_from(index).ok()?)?;
         let count = u32::try_from(declaration.nodes.len()).ok()?;
-        let _previous = self.memo.insert(declaration.name, Visit::Pending).ok()?;
-        self.stack.push(Frame { declaration, local: List::allocated(count) }).ok()?;
+        *self.memo.get_mut(index)? = Visit::Pending;
+        self.stack.push(Frame { index, declaration, local: List::allocated(count) }).ok()?;
         #[cfg(test)]
         {
             self.starts = self.starts.checked_add(1)?;
@@ -158,23 +162,27 @@ impl<'a> Walk<'a> {
     }
 
     fn evaluate(&mut self, name: &str) -> Option<Bounds> {
-        match self.memo.get(name) {
-            Some(Visit::Done(bound)) => return Some(*bound),
-            Some(Visit::Pending) => return None,
-            None => self.start(name)?,
+        let index = find(self.declarations, name)?;
+        match self.memo.get(index)? {
+            Visit::Done(bound) => return Some(*bound),
+            Visit::Pending => return None,
+            Visit::Unseen => self.start(index)?,
         }
         while let Some(frame) = self.stack.top_mut() {
             let at = usize::try_from(frame.local.len()).ok()?;
             if let Some(node) = frame.declaration.nodes.get(at) {
                 let bound = match *node {
-                    Node::Named(child) => match self.memo.get(child) {
-                        Some(Visit::Done(bound)) => *bound,
-                        Some(Visit::Pending) => return None,
-                        None => {
-                            self.start(child)?;
-                            continue;
+                    Node::Named(child) => {
+                        let index = find(self.declarations, child)?;
+                        match self.memo.get(index)? {
+                            Visit::Done(bound) => *bound,
+                            Visit::Pending => return None,
+                            Visit::Unseen => {
+                                self.start(index)?;
+                                continue;
+                            }
                         }
-                    },
+                    }
                     Node::Scalar(_)
                     | Node::Bytes { .. }
                     | Node::List { .. }
@@ -186,7 +194,7 @@ impl<'a> Walk<'a> {
                 frame.local.push(bound).ok()?;
             } else {
                 let bound = *frame.local.last()?;
-                *self.memo.get_mut(frame.declaration.name)? = Visit::Done(bound);
+                *self.memo.get_mut(frame.index)? = Visit::Done(bound);
                 self.stack.pop()?;
                 // The parent is waiting on this named edge. Finish it without
                 // looking up the freshly computed bound in the memo again.
@@ -218,6 +226,25 @@ pub fn declaration(declarations: &[Declaration], limits: &[u32], ceilings: &[u32
     Walk::new(declarations, limits)?.evaluate(name)
 }
 
+/// Bounds for several names in one sorted family, in request order. Checks
+/// limits once and shares the memo for all the requested declarations.
+/// Refuses on the same conditions as [`declaration`].
+#[must_use]
+pub fn batch<const N: usize>(
+    declarations: &[Declaration],
+    limits: &[u32],
+    ceilings: &[u32],
+    names: [&str; N],
+) -> Option<[Bounds; N]> {
+    valid(limits, ceilings)?;
+    let mut walk = Walk::new(declarations, limits)?;
+    let mut bounds = [Bounds::ZERO; N];
+    for (name, bound) in names.into_iter().zip(&mut bounds) {
+        *bound = walk.evaluate(name)?;
+    }
+    Some(bounds)
+}
+
 /// The maxima among the declarations (sorted by name), checking limits once.
 #[must_use]
 pub fn family(declarations: &[Declaration], limits: &[u32], ceilings: &[u32]) -> Option<Bounds> {
@@ -232,7 +259,7 @@ pub fn family(declarations: &[Declaration], limits: &[u32], ceilings: &[u32]) ->
 
 #[cfg(test)]
 mod tests {
-    use super::{Bounds, Declaration, Node, Walk};
+    use super::{Bounds, Declaration, Node, Walk, batch, declaration, family, size_of};
 
     #[test]
     fn a_repeated_named_child_is_only_computed_once() {
@@ -244,8 +271,25 @@ mod tests {
             },
         ];
         const REACHED: u32 = 2; // Parent and Child, despite both edges to Child.
+        const CHAIN: &[Declaration] = &[
+            Declaration {
+                name: "A",
+                nodes: &[Node::Named("B"), Node::Named("B"), Node::Record { prefix: 2, fields: &[0, 1] }],
+            },
+            Declaration { name: "B", nodes: &[Node::Named("C"), Node::List { limit: 0, item: 0, size: 8 }] },
+            Declaration { name: "C", nodes: &[Node::Bytes { limit: size_of::<u32>() }] },
+        ];
+        const LIMITS: &[u32] = &[2, 3]; // Two C items per B, three bytes per C.
+        // C is (4+3, 3), B is (4+2*7, 2*(8+3)), and A has two B fields and a two-byte prefix.
+        const A: Bounds = Bounds { encoded: 38, decoded: 44 };
+        const B: Bounds = Bounds { encoded: 18, decoded: 22 };
+        const C: Bounds = Bounds { encoded: 7, decoded: 3 };
+
         let mut walk = Walk::new(SHAPES, &[]).expect("two declarations");
         let bound = walk.evaluate("Parent");
         assert_eq!((bound, walk.starts), (Some(Bounds { encoded: 4, decoded: 0 }), REACHED));
+        assert_eq!(declaration(CHAIN, LIMITS, LIMITS, "A"), Some(A));
+        assert_eq!(family(CHAIN, LIMITS, LIMITS), Some(A));
+        assert_eq!(batch(CHAIN, LIMITS, LIMITS, ["B", "A", "C"]), Some([B, A, C]));
     }
 }

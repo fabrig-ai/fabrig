@@ -2,6 +2,7 @@
 //! Translation ownership: skein/docs/design/data/codec/maps.md, 4.2.
 use crate::core_v6::{self as wire, Record};
 use crate::generated::core as maps;
+use crate::tasks_v13 as task_wire;
 use alloc::boxed::Box;
 use jig_domain_authority as authority;
 use jig_domain_core_vocabulary as domain;
@@ -15,15 +16,21 @@ use super::View;
 
 pub(super) fn limits(
     domain: &domain::Limits,
-    tasks: &crate::tasks_v13::Limits,
+    tasks: &task_wire::Limits,
     notes: &crate::notes_v1::Limits,
 ) -> Option<wire::Limits> {
+    let [phase, change, end, problem] = skein_codec::bounds::batch(
+        task_wire::DECLARATIONS,
+        tasks.values().as_slice(),
+        task_wire::CEILINGS.values().as_slice(),
+        ["PhaseRecord", "ChangeRecord", "EndRecord", "TaskProblem"],
+    )?;
     let core = wire::Limits {
         settings_refusal_value: u32::try_from(crate::people_v17::Refusal::encoded_bound(&crate::people_v17::CEILINGS)?)
             .ok()?,
-        phase_bytes_value: u32::try_from(crate::tasks_v13::PhaseRecord::encoded_bound(tasks)?).ok()?,
-        change_bytes_value: u32::try_from(crate::tasks_v13::ChangeRecord::encoded_bound(tasks)?).ok()?,
-        end_bytes_value: u32::try_from(crate::tasks_v13::EndRecord::encoded_bound(tasks)?).ok()?,
+        phase_bytes_value: u32::try_from(phase.encoded).ok()?,
+        change_bytes_value: u32::try_from(change.encoded).ok()?,
+        end_bytes_value: u32::try_from(end.encoded).ok()?,
         projection_milestone_words: domain.tasks.message_bytes.max(domain.tasks.result_bytes),
         projection_goal_hot_pending: domain.connectors,
         projection_words_words: domain.tasks.spec_bytes,
@@ -45,7 +52,7 @@ pub(super) fn limits(
         call_part_words_recorded_recorded: domain.tasks.inbox_messages,
         call_part_words_recorded_unknown: domain.tasks.inbox_messages,
         call_part_note_recalled_entries: domain.notes.recalled,
-        task_bytes_value: u32::try_from(crate::tasks_v13::TaskProblem::encoded_bound(tasks)?).ok()?,
+        task_bytes_value: u32::try_from(problem.encoded).ok()?,
         note_bytes_value: u32::try_from(crate::notes_v1::Row::encoded_bound(notes)?).ok()?,
     };
     wire::check_limits(&core).ok()?;
