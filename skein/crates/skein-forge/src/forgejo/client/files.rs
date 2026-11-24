@@ -316,6 +316,8 @@ pub(super) struct Files {
     parents: skein_lib::List<ObjectId>,
     message: Box<[u8]>,
     parent: Option<ObjectId>,
+    skip_commits: u32,
+    commit_rows: u32,
 }
 impl Files {
     pub(super) fn new(root: FileKind, rows: u32) -> Self {
@@ -331,16 +333,30 @@ impl Files {
             file: file(),
             commit: ObjectId { format: ObjectFormat::Sha1, bytes: [0; 32] },
             compare: Compare { total_commits: 0 },
+            skip_commits: 0,
+            commit_rows: 0,
         }
     }
-    pub(super) fn step(&mut self, movement: Move, walk: &Walk) -> Step {
+    pub(super) fn keep_after(&mut self, after: u64) {
+        // The document byte bound is a u32: a larger offset skips the entire array.
+        self.skip_commits = u32::try_from(after).unwrap_or(u32::MAX);
+    }
+    pub(super) fn step(&mut self, movement: Move, walk: &mut Walk) -> Step {
         match movement {
-            Move::Demand(demand) => Step::Demand(demand),
+            Move::Demand(demand) => {
+                if self.skip_commits > 0 && walk.parent() == Some(Kind::File(FileKind::Messages)) {
+                    let skip = core::mem::replace(&mut self.skip_commits, 0);
+                    Step::Demand(walk.skip_rows(skip))
+                } else {
+                    Step::Demand(demand)
+                }
+            }
             Move::Scalar { kind, key, value } => match self.scalar(kind, key, value) {
                 Ok(()) => Step::Demand(skein_json::tokenizer::Request::Next),
                 Err(error) => Step::Malformed(error),
             },
             Move::End(Kind::File(FileKind::Message)) => {
+                self.commit_rows = self.commit_rows.saturating_add(1);
                 let parents = self.parents.as_slice().into();
                 self.parents.clear();
                 Step::Row(
@@ -403,7 +419,14 @@ impl Files {
             Move::Done => Step::Done(match self.root {
                 FileKind::Tree => Document::Tree { truncated: self.truncated },
                 FileKind::Entries | FileKind::TreeEntry => unreachable!("tree root selection"),
-                FileKind::Range | FileKind::Compare => Document::Compare(self.compare),
+                FileKind::Range => {
+                    let rows = u64::from(self.commit_rows).saturating_add(u64::from(walk.skipped()));
+                    if self.compare.total_commits != rows {
+                        return Step::Malformed(Malformed::Value { field: b"total_commits" });
+                    }
+                    Document::Compare(self.compare)
+                }
+                FileKind::Compare => Document::Compare(self.compare),
                 FileKind::DirectoryEntries | FileKind::Files => Document::Listed { skipped: walk.skipped() },
                 FileKind::Messages
                 | FileKind::Message
