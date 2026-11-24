@@ -211,7 +211,9 @@ impl Driver {
     }
 
     pub(super) fn settle_stops(&mut self) {
-        for run in self.world.assigned.clone() {
+        // This pass only needs identities, not the retained brief and charter.
+        for index in 0..self.world.assigned.len() {
+            let run = &self.world.assigned[index];
             if self.completed.contains(&(run.task, run.attempt)) {
                 continue;
             }
@@ -223,16 +225,11 @@ impl Driver {
                 _ => false,
             });
             if stopping {
-                let event = self.world.protocol.answer(
-                    CHANNEL,
-                    run.task,
-                    run.attempt,
-                    0,
-                    tasks::End::Parked,
-                    engine::Parts::none(),
-                );
+                let key = (run.task, run.attempt);
+                let event =
+                    self.world.protocol.answer(CHANNEL, key.0, key.1, 0, tasks::End::Parked, engine::Parts::none());
                 self.world.send(event);
-                self.completed.insert((run.task, run.attempt));
+                self.completed.insert(key);
             }
         }
     }

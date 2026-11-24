@@ -108,30 +108,43 @@ pub(crate) fn task(store: &Store, number: u64) -> Option<&tasks::TaskRecord> {
 }
 
 pub(crate) fn producers(store: &Store, change: u64) -> impl Iterator<Item = &tasks::TaskRecord> {
-    store.rows.values().filter_map(move |record| match record {
-        Record::Core(core::Record::Tasks(tasks::Stored::Live(row) | tasks::Stored::Ended(row)))
-            if row.requester == tasks::Party::Task(change)
-                && matches!(row.executor, tasks::Executor::Agent { .. })
-                && matches!(row.contract, tasks::Contract::Change { .. }) =>
-        {
-            Some(row.as_ref())
-        }
-        _ => None,
-    })
+    // The key ranges retain the store's live-then-ended order without walking
+    // every activity, attempt and connector record between observations.
+    let key = |key| temper_engine_domain::Key::Core(core::Key::Tasks(key));
+    store
+        .rows
+        .range(key(tasks::Key::Live(0))..=key(tasks::Key::Live(u64::MAX)))
+        .chain(store.rows.range(key(tasks::Key::Ended(0))..=key(tasks::Key::Ended(u64::MAX))))
+        .filter_map(move |(_, record)| match record {
+            Record::Core(core::Record::Tasks(tasks::Stored::Live(row) | tasks::Stored::Ended(row)))
+                if row.requester == tasks::Party::Task(change)
+                    && matches!(row.executor, tasks::Executor::Agent { .. })
+                    && matches!(row.contract, tasks::Contract::Change { .. }) =>
+            {
+                Some(row.as_ref())
+            }
+            _ => None,
+        })
 }
 
 pub(crate) fn landing(store: &Store, change: u64) -> Option<&forge::LandingRow> {
-    store.rows.values().find_map(|record| match record {
-        Record::Forge { row } => match row.as_ref() {
-            forge::Stored::Landing(row)
-                if row.landing.members.iter().any(|member| member.change == change)
-                    && task(store, row.landing.task)
-                        .is_some_and(|row| !matches!(row.phase, tasks::Phase::Ended(_))) =>
-            {
-                Some(row)
-            }
-            _ => None,
-        },
-        Record::Core(_) => None,
-    })
+    store
+        .rows
+        .range(
+            temper_engine_domain::Key::Forge(forge::Key::Landing(0))
+                ..=temper_engine_domain::Key::Forge(forge::Key::Landing(u64::MAX)),
+        )
+        .find_map(|(_, record)| match record {
+            Record::Forge { row } => match row.as_ref() {
+                forge::Stored::Landing(row)
+                    if row.landing.members.iter().any(|member| member.change == change)
+                        && task(store, row.landing.task)
+                            .is_some_and(|row| !matches!(row.phase, tasks::Phase::Ended(_))) =>
+                {
+                    Some(row)
+                }
+                _ => None,
+            },
+            Record::Core(_) => None,
+        })
 }

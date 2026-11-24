@@ -503,15 +503,10 @@ impl Driver {
     }
 
     fn finish_restarts(&mut self) -> Result<(), String> {
-        let Some(injector) = self.world.restarts.as_ref() else { return Ok(()) };
-        let before = injector.ledger.entries().len();
-        let armed = crate::outcome::Deadlines::armed(&self.world.root, &self.world.store, self.world.env.now);
+        if self.world.restarts.is_none() {
+            return Ok(());
+        }
         let restarts = self.world.finish_restarts();
-        self.world
-            .workload_deadlines
-            .as_mut()
-            .expect("workload observer")
-            .struck(&armed, &restarts.entries()[before..]);
         for fault in restarts.entries() {
             let entry = self.ledger.inject(fault.kind, fault.from, fault.struck.clone());
             if let Some(until) = fault.until {
@@ -612,10 +607,14 @@ impl Driver {
     }
 
     fn run_due_assignments(&mut self, sweep: &Sweep, step: u64) -> Result<(), String> {
-        let assignments = self.world.assigned.clone();
-        for run in assignments {
+        // Assignments only append. Keep this pass's horizon even when a script
+        // ticks the world and appends another run; copy a payload only when due.
+        for index in 0..self.world.assigned.len() {
+            let run = &self.world.assigned[index];
             if self.completed.contains(&(run.task, run.attempt))
-                || running(&self.world, run.task).is_none_or(|current| current.attempt != run.attempt)
+                || task(&self.world, run.task).is_none_or(|row| {
+                    row.phase != tasks::Phase::Active(tasks::Active::Running { attempt: run.attempt })
+                })
             {
                 continue;
             }
@@ -627,6 +626,7 @@ impl Driver {
                 continue;
             }
             *due = step + self.scheduling.between(1, 60);
+            let run = run.clone();
             if let Some(name) = self.names.logical(run.task).map(str::to_owned) {
                 self.coordinate(&name, &run, sweep)?;
             } else {
@@ -886,7 +886,11 @@ impl Driver {
     }
 
     fn latch_trains(&mut self) {
-        for goal in self.workload.goals.clone().into_iter().filter(|goal| goal.train) {
+        for index in 0..self.workload.goals.len() {
+            let goal = &self.workload.goals[index];
+            if !goal.train {
+                continue;
+            }
             let progress = &self.goals[&goal.name];
             if progress.latched || progress.changes != goal.changes.len() {
                 continue;
@@ -907,6 +911,7 @@ impl Driver {
                 continue;
             }
             let latch = progress.latch.expect("train latch");
+            let goal = goal.clone();
             for change in &goal.changes {
                 let number = self.names.task(&change.name).expect("opened member");
                 let row = task_row(&self.world, number).expect("train member");
@@ -943,7 +948,8 @@ impl Driver {
     }
 
     fn release_trains(&mut self) {
-        for goal in self.workload.goals.clone() {
+        for index in 0..self.workload.goals.len() {
+            let goal = &self.workload.goals[index];
             let progress = &self.goals[&goal.name];
             let Some(latch) = progress.latch else { continue };
             if progress.released || progress.changes != goal.changes.len() {
@@ -964,8 +970,10 @@ impl Driver {
             });
             if ready {
                 let revision = task(&self.world, latch).expect("latch").revisions.spec;
+                let name = goal.name.clone();
+                let party = goal.party;
                 let outcome = self.request(
-                    goal.party,
+                    party,
                     people::Ask::AnswerPerson {
                         project: 1,
                         task: latch,
@@ -974,7 +982,7 @@ impl Driver {
                     },
                 );
                 assert!(!matches!(outcome, people::Outcome::Refused(_)), "release train: {outcome:?}");
-                self.goals.get_mut(&goal.name).expect("train").released = true;
+                self.goals.get_mut(&name).expect("train").released = true;
             }
         }
     }

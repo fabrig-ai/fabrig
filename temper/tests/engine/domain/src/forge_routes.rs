@@ -3368,19 +3368,8 @@ impl World {
     pub fn try_tick(&mut self) -> Result<(), String> {
         // Do not move the large inline ledger on iterations with no injector.
         if self.restarts.is_some() {
-            let armed = self
-                .workload_deadlines
-                .as_ref()
-                .map(|_| crate::outcome::Deadlines::armed(&self.root, &self.store, self.env.now));
             let mut injector = self.restarts.take().expect("enabled restart injector");
-            let before = injector.ledger.entries().len();
             injector.tick(self);
-            if let Some(armed) = armed {
-                self.workload_deadlines
-                    .as_mut()
-                    .expect("workload observer")
-                    .struck(&armed, &injector.ledger.entries()[before..]);
-            }
             self.restarts = Some(injector);
         }
         if self.restart_calls.is_some() {

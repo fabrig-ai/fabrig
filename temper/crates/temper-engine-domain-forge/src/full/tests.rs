@@ -53,6 +53,83 @@ fn at(env: &mut Env<Limits>, seconds: u64) {
         crate::tests::env().wall.as_nanos().saturating_add(Duration::from_secs(seconds).as_nanos()),
     );
 }
+fn full_outbox() -> (Domain, Env<Limits>) {
+    // One retained entry fills the only outbox place; reads have spare room.
+    let (mut d, env) = setup(1, 4);
+    keep(&mut d, 7, 1);
+    update(&mut d, &env, &mut Queue::uncapped());
+    (d, env)
+}
+
+fn published_outbox() -> (Domain, Env<Limits>) {
+    let (mut d, mut env) = full_outbox();
+    at(&mut env, 30);
+    update(&mut d, &env, &mut Queue::uncapped());
+    (d, env)
+}
+
+#[test]
+fn a_full_table_stays_unpublished_before_its_report_bound() {
+    let (mut d, mut env) = full_outbox();
+    let mut out = Queue::uncapped();
+    at(&mut env, 29);
+    update(&mut d, &env, &mut out);
+    assert!(out.is_empty());
+    assert!(d.forges().full.is_empty());
+    assert_eq!(d.next_deadline(), Some(crate::tests::env().now.saturating_add(crate::WAIT_REPORT)));
+}
+
+#[test]
+fn a_full_table_reports_once_at_its_report_bound() {
+    let (mut d, mut env) = full_outbox();
+    let mut out = Queue::uncapped();
+    at(&mut env, 30);
+    update(&mut d, &env, &mut out);
+    assert_eq!(facts(&out), ["the forge's outbox full for 30 s: 1 of 1, held by entry 7 (task 1)"]);
+    assert_eq!(d.forges().full[0].words.as_ref(), b"1 of 1, held by entry 7 (task 1)");
+    out.clear();
+    update(&mut d, &env, &mut out);
+    assert!(out.is_empty(), "the same instant cannot report twice");
+}
+
+#[test]
+fn a_published_table_marks_only_changed_holders_between_reports() {
+    let (mut d, mut env) = published_outbox();
+    let mut out = Queue::uncapped();
+    at(&mut env, 31);
+    update(&mut d, &env, &mut out);
+    assert!(out.is_empty(), "unchanged holders need no new census");
+    d.entries.get_mut(&7).unwrap().entry.task = 2;
+    update(&mut d, &env, &mut out);
+    assert_eq!(out.len(), 1);
+    assert!(out.iter().any(|request| matches!(request, Request::MarkedForges)));
+    assert_eq!(d.forges().full[0].words.as_ref(), b"1 of 1, held by entry 7 (task 2)");
+}
+
+#[test]
+fn clearing_a_published_table_reports_room_again() {
+    let (mut d, mut env) = published_outbox();
+    let mut out = Queue::uncapped();
+    at(&mut env, 31);
+    d.entries.remove(&7);
+    update(&mut d, &env, &mut out);
+    assert_eq!(facts(&out), ["the forge's outbox has room again"]);
+    assert!(out.iter().any(|request| matches!(request, Request::MarkedForges)));
+    assert!(d.forges().full.is_empty());
+}
+
+#[test]
+fn clearing_an_unpublished_table_stays_silent() {
+    let (mut d, mut env) = full_outbox();
+    let mut out = Queue::uncapped();
+    at(&mut env, 29);
+    d.entries.remove(&7);
+    update(&mut d, &env, &mut out);
+    assert!(out.is_empty());
+    assert!(d.forges().full.is_empty());
+    assert_eq!(d.full.deadline(), None);
+}
+
 #[test]
 fn outbox_reports_bound_doublings_recovery_and_document_changes_without_inputs() {
     let (mut d, mut env) = setup(2, 4);
