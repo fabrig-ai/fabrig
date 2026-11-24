@@ -6,7 +6,7 @@ use smith_agent_service::Close;
 fn service_ending_waits_for_the_check_root() {
     let mut service = crate::Service::new(crate::tests::config(), 7).expect("bounded service");
     let mut sources = List::with_capacity(1);
-    sources.push((7, SourceName::new(b"work").expect("source"))).expect("source bound");
+    sources.push((7, SourceName::new(b"work").expect("source"), true)).expect("source bound");
     service
         .handed_programs(
             sources,

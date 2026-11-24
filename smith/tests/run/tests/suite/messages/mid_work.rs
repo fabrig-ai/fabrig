@@ -1,4 +1,5 @@
 //! Mid-work offers through the real run/session seam and the shared scripted provider.
+mod parts;
 use skein_fake_checkout::Exit;
 use skein_fake_llm_domain::api::{Line, Part, Script, Turn};
 use skein_lib::{Duration, Time, Token};
@@ -50,6 +51,7 @@ fn scripted_mode(
     fixture.checkout.program(b"cargo build", program(200, b"Finished\n", Exit::Code(0), &[]));
     let workspace = run::Workspace {
         directories: Box::new([run::Directory {
+            results: None,
             host: b"/work/temper".as_slice().into(),
             name: b"work".as_slice().into(),
             root: fixture.repos[0].root,

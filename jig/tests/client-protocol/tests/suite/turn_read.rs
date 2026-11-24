@@ -264,7 +264,7 @@ fn a_message_past_text_reads_back_whole_through_the_engine() {
 
 // The component's core peer supplies the carrier; the core world checks who gets each mark.
 fn private_turn() -> jig_domain_core::TurnRecord {
-    use smith_transcript::v7 as s;
+    use smith_transcript::v8 as s;
     let mut turn = smith_transcript::decode_archived(&s::CEILINGS, &fixtures::callable_turn()).expect("callable turn");
     turn.system = Some(Box::from(b"## Preferences\n\n1. A private preference\n\n## Work\nDo the work.\n".as_slice()));
     let turn = turn;

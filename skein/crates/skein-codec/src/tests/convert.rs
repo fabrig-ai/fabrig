@@ -9,17 +9,17 @@ use crate::{Reason, convert};
 fn scalar_pairs_preserve_every_raw_value() {
     for raw in [0, 1, u64::MAX] {
         let wall = Wall::from_nanos(raw);
-        assert_eq!(convert::wall_to_record(&wall), Ok(raw));
-        assert_eq!(convert::wall_to_domain(raw), Ok(wall));
+        assert_eq!(convert::wall_to_record(&wall), raw);
+        assert_eq!(convert::wall_to_domain(raw), wall);
         let time = Time::from_nanos(raw);
-        assert_eq!(convert::time_to_record(&time), Ok(raw));
-        assert_eq!(convert::time_to_domain(raw), Ok(time));
+        assert_eq!(convert::time_to_record(&time), raw);
+        assert_eq!(convert::time_to_domain(raw), time);
         let duration = Duration::from_nanos(raw);
-        assert_eq!(convert::duration_to_record(&duration), Ok(raw));
-        assert_eq!(convert::duration_to_domain(raw), Ok(duration));
+        assert_eq!(convert::duration_to_record(&duration), raw);
+        assert_eq!(convert::duration_to_domain(raw), duration);
         let token = Token::new(raw);
-        assert_eq!(convert::token_to_record(&token), Ok(raw));
-        assert_eq!(convert::token_to_domain(raw), Ok(token));
+        assert_eq!(convert::token_to_record(&token), raw);
+        assert_eq!(convert::token_to_domain(raw), token);
     }
 }
 
@@ -27,7 +27,7 @@ fn scalar_pairs_preserve_every_raw_value() {
 fn text_pair_preserves_utf8_and_refuses_other_bytes() {
     for text in ["", "maps", "é🦀"] {
         let text = Box::<str>::from(text);
-        let bytes = convert::text_to_record(&text).expect("text encodes");
+        let bytes = convert::text_to_record(&text);
         assert_eq!(bytes.as_ref(), text.as_bytes());
         assert_eq!(convert::text_to_domain(bytes), Ok(text));
     }

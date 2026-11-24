@@ -31,11 +31,8 @@ mod fuzzy {
 }
 
 mod drive;
-mod harness {
-    mod peers {
-        mod tests;
-    }
-}
+mod harness;
+mod nested;
 mod writer_pipe;
 
 mod end_to_end;

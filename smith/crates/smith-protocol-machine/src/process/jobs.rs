@@ -99,7 +99,10 @@ impl Process {
             }
             Response::Yield { at, head, tail } => {
                 if self.ready() {
-                    let (head, tail, dropped) = self.output.take(head, tail);
+                    let (head, tail, dropped) = match self.cancelled_output.take() {
+                        Some(output) => output,
+                        None => self.output.take(head, tail),
+                    };
                     let done = match self.job_end() {
                         tools::JobEnd::Ended(exit) => {
                             if self.failure.is_some() {
@@ -108,13 +111,16 @@ impl Process {
                                 tools::Done::Exited { head, tail, dropped, exit }
                             }
                         }
-                        tools::JobEnd::Cancelled => tools::Done::Cancelled,
+                        tools::JobEnd::Cancelled => tools::Done::CommandCancelled { head, tail, dropped },
                         tools::JobEnd::Stopped | tools::JobEnd::Running => unreachable!("yield has no job act"),
                     };
                     Advance::Answer { terminal: ToDomain::Done { owner, done }, retire: true }
                 } else if now >= at {
                     self.response = Response::Held { head, tail };
-                    let (head, tail, dropped) = self.output.take(head, tail);
+                    let (head, tail, dropped) = match self.cancelled_output.take() {
+                        Some(output) => output,
+                        None => self.output.take(head, tail),
+                    };
                     Advance::Answer {
                         terminal: ToDomain::Done { owner, done: tools::Done::Held { head, tail, dropped } },
                         retire: false,
@@ -129,7 +135,10 @@ impl Process {
                 if ended || now >= until {
                     let end = if ended { self.job_end() } else { tools::JobEnd::Running };
                     self.response = Response::Held { head, tail };
-                    let (head, tail, dropped) = self.output.take(head, tail);
+                    let (head, tail, dropped) = match self.cancelled_output.take() {
+                        Some(output) => output,
+                        None => self.output.take(head, tail),
+                    };
                     Advance::Answer {
                         terminal: ToDomain::Done { owner, done: tools::Done::Job { head, tail, dropped, end } },
                         retire: ended,

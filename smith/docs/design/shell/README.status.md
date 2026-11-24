@@ -1,6 +1,6 @@
 # shell: status
 
-2026-11-14. Where smith's code lags or departs from [README.md](README.md).
+2026-11-23. Where smith's code lags or departs from [README.md](README.md).
 
 Section 2.1, and 2.6 but for its entry below, have no known gap at main's `fdc26f71c6`:
 `smith-agent-profile` owns the values, derivation and checks beneath the
@@ -15,6 +15,10 @@ process ID on Linux and no parent on macOS; the child mode is Unix-only
 and absent from the portable face. macOS's direct launch and deferred
 crash lifetime are ../protocol/programs-claude-code.md, section 1.1, and ../protocol/programs.md, section 9's.
 
+- **Not yet:**
+  - 2.3: no adoption of `-o`'s directory and the private chat that a
+    world can call: `compose` alone hands them to `Local` [in flight:
+    change 13996]
 - **Departs:**
   - 2.5: in `smith/crates/smith-agent-document/src/config/`,
     `TrustDocument`'s fields, `EndpointTransport::Tls`'s and the

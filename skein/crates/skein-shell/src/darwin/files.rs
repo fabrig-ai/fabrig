@@ -12,7 +12,7 @@
 
 use super::{close, count, last_errno, retry, status, status_flags};
 pub(crate) use crate::posix::files::kind_of;
-use crate::posix::files::{kernel_error, private_error, read_opened};
+use crate::posix::files::{check_private, kernel_error, private_error, read_opened};
 use crate::posix::links::pass_links;
 use crate::{
     calls::file_error,
@@ -20,7 +20,7 @@ use crate::{
 };
 use skein_io::kernel::{Done, Error, Fd, Kind, Op, OpenHow, PERMISSIONS, Stat};
 use std::{
-    ffi::{CString, OsString},
+    ffi::{CStr, CString, OsString},
     mem,
     os::unix::ffi::{OsStrExt, OsStringExt},
     path::{Path, PathBuf},
@@ -240,10 +240,7 @@ pub fn prepare_output(descriptor: Fd) -> Result<OutputKind, Error> {
     status(unsafe { libc::fcntl(descriptor.raw(), libc::F_SETFL, flags | libc::O_APPEND) }).map_err(Error::Other)?;
     Ok(OutputKind::Append)
 }
-pub fn directory_access(path: &Path) -> DirectoryAccess {
-    let Ok(path) = path_name(path) else {
-        return DirectoryAccess::Denied(libc::EINVAL);
-    };
+pub(crate) fn directory_access(path: &CStr) -> DirectoryAccess {
     // SAFETY: stat is a C integer record valid at zero.
     let mut raw: libc::stat = unsafe { mem::zeroed() };
     // SAFETY: path is terminated and raw is exclusive local storage.
@@ -269,7 +266,6 @@ pub fn process_id() -> u32 {
 }
 
 use crate::startup::Unread;
-use skein_io::file::Unsafe;
 use skein_lib::Secret;
 pub(crate) fn read_private_file(path: &Path, max: u32, user: u32) -> Result<Secret, Unread> {
     let path = CString::new(path.as_os_str().as_bytes()).map_err(|_| Unread::Kernel(Error::InvalidArgument))?;
@@ -323,33 +319,6 @@ fn denied_private(path: &CString, user: u32) -> Unread {
     }
 }
 
-fn check_private(fd: i32, user: u32) -> Result<(), Unread> {
-    // SAFETY: zero is valid stat storage; fstat initializes this exclusive
-    // local during the call and retains no pointer.
-    let mut stat: libc::stat = unsafe { mem::zeroed() };
-    // SAFETY: stat remains exclusive and live across fstat.
-    if unsafe { libc::fstat(fd, ptr::from_mut(&mut stat)) } < 0 {
-        return Err(Unread::Kernel(kernel_error(last_errno())));
-    }
-    let found = if stat.st_uid != user {
-        Some(Unsafe::Owner { found: stat.st_uid, expected: user })
-    } else if kind_of(stat.st_mode) == Kind::Symlink {
-        Some(Unsafe::Link)
-    } else if kind_of(stat.st_mode) != Kind::File {
-        Some(Unsafe::Kind(kind_of(stat.st_mode)))
-    } else if stat.st_mode & 0o077 != 0 {
-        Some(Unsafe::Mode(u32::from(stat.st_mode & 0o077)))
-    } else if stat.st_nlink != 1 {
-        Some(Unsafe::Links(u32::from(stat.st_nlink)))
-    } else {
-        None
-    };
-    match found {
-        Some(found) => Err(Unread::Unsafe(found)),
-        None => Ok(()),
-    }
-}
-
 pub(crate) fn read_file(path: &Path, max: u32) -> Result<Box<[u8]>, Unread> {
     let path = CString::new(path.as_os_str().as_bytes()).map_err(|_| Unread::Kernel(Error::InvalidArgument))?;
     // SAFETY: the NUL-terminated path remains live across open.
@@ -361,64 +330,6 @@ pub(crate) fn read_file(path: &Path, max: u32) -> Result<Box<[u8]>, Unread> {
     let result = read_opened(fd, max);
     let _closed = close(Fd::new(fd));
     result
-}
-
-/// Makes absent directories along `path` durable, then opens it as a root
-/// (runtime/shell-startup.md, 1). Existing directories keep their modes; errors are errno.
-pub fn make_root(path: &Path, mode: u32) -> Result<Fd, i32> {
-    if mode & !PERMISSIONS != 0 {
-        return Err(libc::EINVAL);
-    }
-    if path.as_os_str().is_empty() {
-        return Err(libc::ENOENT);
-    }
-    let mut absent = Vec::new();
-    let mut parent = None;
-    for ancestor in path.ancestors() {
-        let ancestor = if ancestor.as_os_str().is_empty() { Path::new(".") } else { ancestor };
-        match open_root(ancestor) {
-            Ok(fd) => {
-                parent = Some(fd);
-                break;
-            }
-            Err(libc::ENOENT) => absent.push(ancestor),
-            Err(error) => return Err(error),
-        }
-    }
-    let mut parent = parent.ok_or(libc::ENOENT)?;
-    for directory in absent.into_iter().rev() {
-        let result = make_directory_root(parent, directory, mode);
-        let _closed = close(parent);
-        parent = result?;
-    }
-    Ok(parent)
-}
-
-fn make_directory_root(parent: Fd, path: &Path, mode: u32) -> Result<Fd, i32> {
-    let component = path.components().next_back().ok_or(libc::EINVAL)?;
-    let path_c = CString::new(component.as_os_str().as_bytes()).map_err(|_| libc::EINVAL)?;
-    // SAFETY: parent is held open, the leaf name is terminated and live,
-    // and mode holds permission bits.
-    let created = unsafe {
-        libc::mkdirat(parent.raw(), path_c.as_ptr(), libc::mode_t::try_from(mode).expect("permission bits fit mode_t"))
-    };
-    if created < 0 {
-        let error = last_errno();
-        if error != libc::EEXIST {
-            return Err(error);
-        }
-    } else {
-        // SAFETY: parent is an open directory owned by this startup call.
-        let synced = unsafe { libc::fcntl(parent.raw(), libc::F_FULLFSYNC) };
-        if synced < 0 {
-            return Err(last_errno());
-        }
-    }
-    // SAFETY: parent remains open and the terminated leaf name is live;
-    // these are open_root's directory and close-on-exec flags.
-    let fd =
-        unsafe { libc::openat(parent.raw(), path_c.as_ptr(), libc::O_RDONLY | libc::O_DIRECTORY | libc::O_CLOEXEC) };
-    if fd < 0 { Err(last_errno()) } else { Ok(Fd::new(fd)) }
 }
 
 pub(crate) mod testing {

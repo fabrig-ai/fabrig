@@ -150,11 +150,11 @@ fn forge_refused(reason: v1::ForgeReason) -> v1::Outcome {
     v1::Outcome::ForgeRefused(v1::ForgeRefused { reason })
 }
 
-pub fn pull(address_bytes: u32, _limits: &v1::Limits) -> v1::Pull {
+pub fn pull(address_bytes: u32) -> v1::Pull {
     v1::Pull { number: 23, address: field_bytes(address_bytes) }
 }
 
-pub fn queued(place: u32, count: u32, _limits: &v1::Limits) -> v1::Queued {
+pub fn queued(place: u32, count: u32) -> v1::Queued {
     let mut ahead = List::with_capacity(count);
     for task in 1..=count {
         ahead.push(u64::from(task)).expect("counted tasks");
@@ -208,7 +208,6 @@ pub fn panel_parts() -> v1::ChangePanel {
 
 pub fn panel_rows() -> List<v1::ChangePanel> {
     use v1::{Ci, Hold, Reason, Step};
-    let limits = limits();
     let gate = Reason::Gate(v1::GateReason { gate: 9 });
     let mut panels = List::uncapped();
     for (step, hold, ci, [head, pull, runs]) in [
@@ -222,7 +221,7 @@ pub fn panel_rows() -> List<v1::ChangePanel> {
         (Step::Reopening, Some(Hold::Resolutions), Ci::Failed, [false, false, true]),
         (Step::Checking, Some(Hold::Updates), Ci::Unknown, [true, true, false]),
         (Step::Gating, Some(Hold::Moved), Ci::Pending, [true, false, true]),
-        (Step::Queued(queued(1, 2, &limits)), Some(Hold::Missing), Ci::Passed, [false, true, true]),
+        (Step::Queued(queued(1, 2)), Some(Hold::Missing), Ci::Passed, [false, true, true]),
         (Step::First, Some(Hold::Closed), Ci::Failed, [true, true, true]),
         (Step::Updating, Some(Hold::Retargeted), Ci::Unknown, [true, true, true]),
         (Step::Resolving, Some(Hold::Failed), Ci::Pending, [true, true, true]),
@@ -279,7 +278,7 @@ pub fn panel_rows() -> List<v1::ChangePanel> {
             parts.head = Some([0x39; 32]);
         }
         if pull {
-            parts.pull = Some(self::pull(32, &limits));
+            parts.pull = Some(self::pull(32));
         }
         if runs {
             parts.runs = Some(29);

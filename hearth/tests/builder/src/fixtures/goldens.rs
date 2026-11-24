@@ -1,5 +1,5 @@
-//! Shared process and protocol checks for reviewed goldens.
-use super::{File, Laid, Rendered, Repository, Scenario};
+//! Protocol-world checks for reviewed goldens.
+use super::{File, Laid, Scenario};
 use hearth_test_render::golden::{self, Kind, Leaf};
 use skein_scratch::paths;
 use std::{fs, path::Path};
@@ -19,13 +19,6 @@ pub fn files_of(leaves: &[Leaf]) -> Vec<File> {
         .collect()
 }
 #[must_use]
-pub fn exit_code(rendered: &Rendered) -> Option<u8> {
-    match rendered.exit {
-        skein_io::kernel::Exit::Code(code) => Some(code),
-        skein_io::kernel::Exit::Signal(_) => None,
-    }
-}
-#[must_use]
 pub fn scenario_of<'a>(files: &'a [File], laid: &'a [Laid], fault: Option<super::Fault>) -> Scenario<'a> {
     Scenario { files, laid, fault, ..super::thin() }
 }
@@ -33,32 +26,21 @@ pub fn scenario_of<'a>(files: &'a [File], laid: &'a [Laid], fault: Option<super:
 pub fn text(run: &crate::protocol::Run) -> String {
     String::from_utf8(run.stdout.clone()).expect("client text")
 }
-/// The same expectation and witnesses apply at both integration boundaries.
-pub fn check_golden(name: &str, variant: &str, laid: &[Laid]) {
-    check_loaded_golden(&golden::load(name), variant, laid);
+#[must_use]
+pub fn check_golden(name: &str) -> String {
+    check_loaded_golden(&golden::load(name), "", &[])
 }
-/// Apply the same process and protocol checks to a repository loaded in place.
-pub fn check_loaded_golden(golden: &golden::Golden, variant: &str, laid: &[Laid]) {
+/// Check the whole output, exit and witnesses, returning the text for any fixture-specific checks.
+#[must_use]
+pub fn check_loaded_golden(golden: &golden::Golden, variant: &str, laid: &[Laid]) -> String {
     let files = files_of(&golden.tree);
-    let repository = repository_for(golden);
-    super::lay(&repository.scratch().path().join("store"), laid);
-    let out = super::render(&repository, &[], hearth::Form::Text);
-    let stdout = String::from_utf8_lossy(&out.stdout);
-    check_output(golden, variant, &stdout, exit_code(&out));
-    let joint = crate::protocol::run(&scenario_of(&files, laid, None), GOLDEN_SEED);
-    check_output(golden, variant, &text(&joint), joint.code);
+    let run = crate::protocol::run(&scenario_of(&files, laid, None), super::SIMULATION_SEED);
+    let stdout = text(&run);
+    check_output(golden, variant, &stdout, run.code);
+    stdout
 }
-/// The first deterministic protocol schedule; domain goldens sample four schedules.
-pub const GOLDEN_SEED: u64 = 0;
-#[must_use]
-pub fn golden_output(name: &str) -> String {
-    let repository = golden_repository(name);
-    String::from_utf8(super::render(&repository, &[], hearth::Form::Text).stdout).expect("client text")
-}
-#[must_use]
-pub fn golden_repository(name: &str) -> Repository {
-    repository_for(&golden::load(name))
-}
+/// Deterministic schedule for the tool and resolution fault cases.
+const PROTOCOL_ERROR_SEED: u64 = 0;
 /// A production-only hostname edit, leaving the shared carbon base intact.
 pub const CARBON_PRODUCTION_EDIT: File = File {
     path: "hosts/carbon/carbon-prod.json",
@@ -97,7 +79,7 @@ pub fn check_protocol_golden(name: &str, call: GoldenCall) {
         }
         GoldenCall::Resolve => super::resolving(&files),
     };
-    let run = crate::protocol::run(&scenario, GOLDEN_SEED);
+    let run = crate::protocol::run(&scenario, PROTOCOL_ERROR_SEED);
     // Resolution keeps only expected output here. Its repository is under testing/repos/test.
     let golden = golden::load_from(name, &root.join("resolution"));
     let verdict = golden.check("", &text(&run), run.code);
@@ -135,11 +117,6 @@ fn read_fixture_files(root: &Path, directory: &Path, modes: &[(&str, u32)], file
         };
         files.push(File { path: relative.to_owned().leak(), body: body.leak(), mode });
     }
-}
-
-#[must_use]
-fn repository_for(golden: &golden::Golden) -> Repository {
-    Repository::make(&golden.name.replace('/', "-"), &files_of(&golden.tree))
 }
 
 fn check_output(golden: &golden::Golden, variant: &str, stdout: &str, code: Option<u8>) {

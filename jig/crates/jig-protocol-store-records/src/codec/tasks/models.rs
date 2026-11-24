@@ -6,7 +6,6 @@ use skein_lib::List;
 pub(super) fn encode(
     row: &d::Stored,
     names: &[jig_domain_core_vocabulary::settings::ModelName],
-    _limits: &w::Limits,
 ) -> Result<(List<w::ModelName>, [u64; 64]), w::Problem> {
     let bits = referenced(row);
     let mut moved = [0; 64];

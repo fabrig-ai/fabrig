@@ -62,11 +62,15 @@ fn resolving_finds_rg_after_decoding_without_running_it() {
         .expect("decode without filesystem effects");
     let rg = Path::new("/fixture/bin/rg");
     let configuration = decoded
-        .resolve_with_rg(&mut Vec::new(), |path| {
-            crate::config::native::find_rg_with(path, |file| {
-                (file == rg).then_some(crate::config::native::FileFacts { is_file: true, mode: 0o700 })
-            })
-        })
+        .resolve_native(
+            &mut Vec::new(),
+            |path| {
+                crate::config::native::find_rg_with(path, |file| {
+                    (file == rg).then_some(crate::config::native::FileFacts { is_file: true, mode: 0o700 })
+                })
+            },
+            crate::config::native::RootReader::Native,
+        )
         .expect("configuration resolution");
     assert_eq!(configuration.service.rg.as_ref(), rg.as_os_str().as_encoded_bytes(), "startup's rg");
 }
@@ -210,6 +214,47 @@ fn decoding_keeps_unresolved_names_and_unread_trust_sources() {
     document["endpoints"][0]["trust_der"] = serde_json::json!(scratch.path().join("absent.der"));
     let bytes = serde_json::to_vec(&document).expect("configuration JSON");
     super::decode(&bytes).expect("decode neither resolves the name nor opens the absent trust source");
+}
+
+#[cfg(unix)]
+#[test]
+fn resolving_takes_supplied_roots_and_refusals() {
+    use skein_shell::{Roots, RootsRefusal, Trust, Unread};
+    use std::path::Path;
+
+    let path = Path::new("absent-fixture-root.der");
+    let mut document = shaped_document();
+    let endpoint = document.pointer_mut("/endpoints/0").expect("fixture endpoint");
+    endpoint["transport"] = serde_json::json!("tls");
+    endpoint["server_name"] = serde_json::json!("example.test");
+    endpoint["trust_der"] = serde_json::json!(path);
+    let bytes = serde_json::to_vec(&document).expect("configuration JSON");
+    let root = include_bytes!("../../../../../tests/protocol-llm/fixtures/root.der");
+    let mut errors = Vec::new();
+    let decode = || super::decode(&bytes).expect("pure decode");
+    let check_source = |source: &Trust| {
+        assert!(matches!(source, Trust::Der(at) if at == path), "named DER source: {source:?}");
+    };
+    decode()
+        .resolve_with_roots(&mut errors, |source, _bounds| {
+            check_source(source);
+            Ok(Roots {
+                certificates: Box::new([Box::from(root.as_slice())]),
+                path: path.into(),
+                other_blocks: 0,
+                malformed: 0,
+            })
+        })
+        .expect("supplied DER resolves without its file");
+    let refusal = decode()
+        .resolve_with_roots(&mut errors, |source, _bounds| {
+            check_source(source);
+            Err(RootsRefusal::Unread { path: path.into(), why: Unread::Absent })
+        })
+        .err()
+        .expect("supplied refusal refuses resolve");
+    assert_eq!(refusal.detail(), "trust certificate absent-fixture-root.der: Absent", "native read's refusal words");
+    assert!(errors.is_empty(), "neither the valid root nor the read refusal writes to the operator: {errors:?}");
 }
 
 #[test]

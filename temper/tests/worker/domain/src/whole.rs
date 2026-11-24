@@ -24,8 +24,10 @@ pub mod faults;
 pub mod jobs;
 pub mod merge;
 pub mod orders;
+pub mod parts;
 pub mod pause;
 pub mod prepare;
+pub mod restarts;
 
 const RUN: Token = Token::new(81);
 const ATTEMPT: Token = Token::new(13);
@@ -60,6 +62,7 @@ pub struct Report {
     pub drops: u32,
     pub io_cuts: u32,
     pub saves: u32,
+    pub kept: Vec<temper_worker_domain::checkout::git::Kept>,
     pub stop_bound: Duration,
     pub pauses: Vec<jig_domain_link::PauseState>,
 }
@@ -84,7 +87,9 @@ struct World {
     /// The channel to the engine is open: what goes up reaches it.
     up: bool,
     hold_push: bool,
+    restart_observer: Option<restarts::Observer>,
     held: Option<(Token, Op)>,
+    pushes: u32,
     deliveries: u32,
     delivery_reply: Option<agent::Delivery>,
     call: Option<Box<[u8]>>,
@@ -98,6 +103,10 @@ struct World {
     shutdown_notices: u32,
     busy: Vec<(Token, Token)>,
     report: Report,
+    opening: Option<Box<agent::Start>>,
+    parts: Vec<jig_domain_link::Part>,
+    part_acks: Vec<u32>,
+    turns: Vec<host::Turn>,
 }
 
 impl World {
@@ -136,7 +145,9 @@ impl World {
             reading: false,
             up: false,
             hold_push: false,
+            restart_observer: None,
             held: None,
+            pushes: 0,
             deliveries: 0,
             delivery_reply: None,
             call: None,
@@ -148,6 +159,10 @@ impl World {
             root_pauses: Vec::new(),
             shutdown_notices: 0,
             busy: Vec::new(),
+            opening: None,
+            parts: Vec::new(),
+            part_acks: Vec::new(),
+            turns: Vec::new(),
             report: Report {
                 tree: Tree::new(),
                 trace: Vec::new(),
@@ -157,6 +172,7 @@ impl World {
                 drops: 0,
                 io_cuts: 0,
                 saves: 0,
+                kept: Vec::new(),
                 stop_bound: Duration::ZERO,
                 pauses: Vec::new(),
             },
@@ -227,6 +243,9 @@ impl World {
                 panic!("this fixture declares no program sources: {request:?}")
             }
             Request::Hello(hello) => {
+                if let Some(observer) = &mut self.restart_observer {
+                    observer.hello(self.env.now, hello.hosting.len());
+                }
                 assert!(hello.hosting.len() <= 1);
                 self.report.stop_bound = hello.stop_bound;
                 self.workstreams = hello.workstreams;
@@ -269,10 +288,12 @@ impl World {
                 });
             }
             note @ Request::Git { .. } => self.report.notes.push(note),
-            Request::ResultsIgnored { .. }
-            | Request::AgentSignalled { .. }
-            | Request::AgentStopped { .. }
-            | Request::Unprepared { .. } => {}
+            note @ Request::AgentSignalled { .. } => {
+                if let Some(observer) = &mut self.restart_observer {
+                    observer.signals.push(note);
+                }
+            }
+            Request::ResultsIgnored { .. } | Request::AgentStopped { .. } | Request::Unprepared { .. } => {}
             Request::JobAnswer { .. } | Request::Job { .. } | Request::CancelRelay { .. } => {
                 panic!("unscripted request")
             }
@@ -284,7 +305,13 @@ impl World {
             host::LinkUp::Paused { state } => self.report.pauses.push(state),
             host::LinkUp::Draining => self.shutdown_notices += 1,
             host::LinkUp::Turn { run, attempt, turn } => {
-                assert_eq!((run, attempt, turn.turn), (self.run, self.attempt, 1));
+                assert_eq!((run, attempt), (self.run, self.attempt));
+                if let Some(observer) = &mut self.restart_observer {
+                    observer.turned(attempt, &turn);
+                } else {
+                    assert_eq!(turn.turn, 1);
+                }
+                self.turns.push(turn);
             }
             host::LinkUp::Activity { run, attempt, .. } => assert_eq!((run, attempt), (self.run, self.attempt)),
             host::LinkUp::Call { run, attempt, call, tool, writes, input, .. } => {
@@ -303,6 +330,10 @@ impl World {
                     number,
                     answer: host::AskAnswer::Refused,
                 }));
+            }
+            host::LinkUp::Part { run, attempt, part } => {
+                assert_eq!((run, attempt), (self.run, self.attempt));
+                self.parts.push(part);
             }
             host::LinkUp::UsageRead { .. }
             | host::LinkUp::ListRead { .. }
@@ -342,6 +373,9 @@ impl World {
                 "the note precedes every fetch and check out"
             );
         }
+        if let Op::Keep { mark: Some(mark), .. } = &op {
+            self.report.kept.push(mark.clone());
+        }
         if let Op::Make { workspace, .. } = &op {
             self.workspace = Some(*workspace);
         }
@@ -355,7 +389,9 @@ impl World {
                 assert_eq!(body.as_ref(), b"Worker story");
             }
         }
-        if self.hold_push && matches!(op, Op::Push { .. }) {
+        let push = matches!(op, Op::Push { .. });
+        self.pushes += u32::from(push);
+        if self.hold_push && push {
             assert!(self.held.replace((owner, op)).is_none());
         } else if let Some(done) =
             self.faults.perform(&mut self.forge, &mut self.disk, owner, op, self.env.now, deadline)
@@ -404,10 +440,15 @@ impl World {
     fn down(&mut self, message: agent::Down) -> bool {
         match message {
             agent::Down::Start { start, .. } => {
+                if let Some(observer) = &mut self.restart_observer {
+                    observer.started(self.attempt);
+                }
                 assert_eq!(start.activation, self.attempt.raw());
                 assert_eq!(start.directories.len(), 1);
                 assert_eq!(start.directories[0].name.as_ref(), b"app");
                 assert_eq!(start.workspace, Some(start.directories[0].root));
+                self.workspace = start.workspace;
+                self.opening = Some(Box::new(start));
             }
             agent::Down::Answer { call, reply } => {
                 assert_eq!(call, CALL);
@@ -442,9 +483,21 @@ impl World {
                 self.deliveries += 1;
             }
             agent::Down::Cancel => self.report.cancellations += 1,
-            agent::Down::Drain => self.report.drains += 1,
-            agent::Down::Renewals { .. } | agent::Down::Acknowledge { turn: 1 } => {}
-            agent::Down::Acknowledge { .. } | agent::Down::Grant { .. } | agent::Down::Message { .. } => {
+            agent::Down::Drain { grace } => {
+                assert_eq!(
+                    grace,
+                    self.opening.as_ref().expect("started").tell_parts.then_some(self.env.limits.drain_grace)
+                );
+                self.report.drains += 1;
+            }
+            agent::Down::PartKept { number } => self.part_acks.push(number),
+            agent::Down::Renewals { .. } => {}
+            agent::Down::Acknowledge { turn } => {
+                assert!(
+                    turn == 1 || self.restart_observer.as_ref().is_some_and(|observer| observer.acknowledges(turn))
+                );
+            }
+            agent::Down::Grant { .. } | agent::Down::Message { .. } => {
                 panic!("unscripted process record")
             }
         }
@@ -482,13 +535,32 @@ impl World {
     }
 
     fn assign_with(&mut self, start: wire::Start, save: bool) -> Result<(), String> {
+        self.assign_parts(start, save, false, Box::new([]))
+    }
+
+    fn assign_parts(
+        &mut self,
+        start: wire::Start,
+        save: bool,
+        tell_parts: bool,
+        parts: Box<[jig_domain_link::KeptPart]>,
+    ) -> Result<(), String> {
         let Event::Assign { mut assignment, items } = assignment(self.first, self.run, self.run.raw(), start) else {
             panic!("workspace assignment")
         };
         assignment.assignment.attempt = self.attempt;
         assignment.assignment.save = save;
+        assignment.tell_parts = tell_parts;
+        assignment.parts = parts;
         self.event(Event::Assign { assignment, items })?;
         Ok(())
+    }
+
+    fn release_push(&mut self) -> Result<(), String> {
+        self.hold_push = false;
+        let (owner, op) = self.held.take().expect("push held");
+        let done = translate::perform(&mut self.forge, &mut self.disk, op);
+        self.event(Event::Done { owner, done })
     }
 
     fn deliver(&mut self) -> Result<(), String> {
@@ -518,22 +590,19 @@ impl World {
         self.request_delivery(ask)?;
         let reply = self.delivery_reply.take().expect("finishing delivery answered");
         match &reply {
-            agent::Delivery::Delivered(_) => {
-                let declared = smith_domain_run::outcome::Declared::Change(change);
-                let outcome = agent::Declared::new(declared, u64::MAX).expect("bounded change result");
-                self.say(agent::Up::Answer {
-                    answer: agent::Answer {
-                        read: None,
-                        turns: 0,
-                        spent: 0,
-                        result: agent::RunResult::Accepted { outcome },
-                    },
-                })?;
-            }
+            agent::Delivery::Delivered(_) => self.accept_change(change, 0)?,
             agent::Delivery::Nothing => {} // smith refuses the finish and keeps the run live.
             reply => panic!("unexpected finishing delivery: {reply:?}"),
         }
         Ok(reply)
+    }
+
+    fn accept_change(&mut self, change: smith_domain_run::outcome::Change, turns: u32) -> Result<(), String> {
+        let declared = smith_domain_run::outcome::Declared::Change(change);
+        let outcome = agent::Declared::new(declared, u64::MAX).expect("bounded change result");
+        self.say(agent::Up::Answer {
+            answer: agent::Answer { read: None, turns, spent: 0, result: agent::RunResult::Accepted { outcome } },
+        })
     }
 
     fn park(&mut self) -> Result<(), String> {
@@ -605,14 +674,11 @@ impl World {
                 self.deliver()?;
                 assert!(self.held.is_some());
                 assert_eq!(self.forge.branch(REMOTE, b"topic"), Some(self.first));
-                self.event(Event::Link(host::LinkDown::Cancel { run: self.run, attempt: ATTEMPT }))?;
+                self.event(Event::Link(host::LinkDown::Cancel { run: self.run, attempt: self.attempt }))?;
                 assert_eq!(self.report.cancellations, 1);
                 self.gone()?;
                 assert!(self.answer.is_none());
-                self.hold_push = false;
-                let (owner, op) = self.held.take().expect("push held");
-                let done = translate::perform(&mut self.forge, &mut self.disk, op);
-                self.event(Event::Done { owner, done })?;
+                self.release_push()?;
             }
             Case::ContactWithin => {
                 self.up = false;
@@ -641,7 +707,17 @@ impl World {
 
     fn run(mut self, case: Case) -> Result<Report, String> {
         self.start()?;
+        self.play_and_complete(case)?;
+        Ok(self.report)
+    }
+
+    fn play_and_complete(&mut self, case: Case) -> Result<(), String> {
+        let kept_before = self.report.kept.len();
         self.story(case)?;
+        self.completed(case, kept_before)
+    }
+
+    fn completed(&mut self, case: Case, kept_before: usize) -> Result<(), String> {
         assert_eq!(self.domain.agent().agents(), 0);
         assert_eq!(self.domain.workspaces(), 0);
         let (answer, work, preparation) = self.answer.take().expect("a terminal answer");
@@ -681,6 +757,15 @@ impl World {
                 panic!("one saved head");
             };
             assert_eq!(*saved, translate::commit(commit).raw());
+            let new_marks = &self.report.kept[kept_before..];
+            if matches!(case, Case::Drained | Case::DrainExpired | Case::LinkDrained | Case::LinkDrainExpired) {
+                let [mark] = new_marks else {
+                    panic!("cut run keeps one workspace");
+                };
+                assert_eq!(mark.repositories[0].commit.raw(), *saved);
+            } else {
+                assert!(new_marks.is_empty(), "contact loss must not keep a workspace for this attempt");
+            }
         } else {
             assert_eq!(
                 work.landed.as_ref(),
@@ -690,11 +775,11 @@ impl World {
         self.report.tree = self.forge.tree(commit);
         assert_eq!(self.report.tree, [(PATH.to_vec(), b"edited\n".to_vec())].into(), "the entire edited tree landed");
         assert!(self.forge.is_ancestor(self.first, commit));
-        self.event(Event::Link(host::LinkDown::Acknowledge { run: self.run, attempt: ATTEMPT }))?;
+        self.event(Event::Link(host::LinkDown::Acknowledge { run: self.run, attempt: self.attempt }))?;
         assert_eq!(self.domain.kept_answers(), 0);
         if matches!(case, Case::Drained | Case::LinkDrained) {
             assert_eq!(self.stops, 0, "its last turn must be kept too");
-            self.event(Event::Link(host::LinkDown::TurnKept { run: self.run, attempt: ATTEMPT, turn: 1 }))?;
+            self.event(Event::Link(host::LinkDown::TurnKept { run: self.run, attempt: self.attempt, turn: 1 }))?;
         }
         if matches!(case, Case::LinkDrained | Case::LinkDrainExpired) {
             assert_eq!(
@@ -714,7 +799,7 @@ impl World {
             self.event(Event::Shutdown { drain: true })?;
         }
         assert_eq!(self.stops, 1, "a worker with nothing left stops, once");
-        Ok(self.report)
+        Ok(())
     }
 }
 
@@ -804,7 +889,7 @@ fn finish_host_run(world: &mut World) -> Result<(), String> {
     assert_eq!(preparation, None);
     assert_eq!(world.domain.agent().agents(), 0);
     assert_eq!(world.domain.workspaces(), 0);
-    world.event(Event::Link(host::LinkDown::Acknowledge { run: RUN, attempt: ATTEMPT }))?;
+    world.event(Event::Link(host::LinkDown::Acknowledge { run: world.run, attempt: world.attempt }))?;
     assert_eq!(world.domain.kept_answers(), 0);
     world.event(Event::Shutdown { drain: true })?;
     assert_eq!(world.stops, 1);
@@ -861,6 +946,8 @@ fn assignment(first: u64, run: Token, workstream: u64, start: wire::Start) -> Ev
         },
     };
     let assignment = host::Assignment {
+        parts: Box::new([]),
+        tell_parts: false,
         messages: Box::new([]),
         turns: Box::new([]),
         answered: Box::new([]),

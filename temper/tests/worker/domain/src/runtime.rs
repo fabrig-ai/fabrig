@@ -429,9 +429,10 @@ impl World {
                 }
             }
             agent::Down::Renewals { .. }
+            | agent::Down::PartKept { .. }
             | agent::Down::Acknowledge { .. }
             | agent::Down::Cancel
-            | agent::Down::Drain => {}
+            | agent::Down::Drain { .. } => {}
             agent::Down::Message { .. } | agent::Down::Grant { .. } => panic!("unscripted down record"),
         }
     }
@@ -443,6 +444,7 @@ impl World {
             | Op::Pack { .. }
             | Op::Point { .. }
             | Op::Store { .. }
+            | Op::Keep { .. }
             | Op::Make { .. }
             | Op::Clone { .. }
             | Op::Create { .. }
@@ -551,6 +553,8 @@ impl World {
             },
         };
         let assignment = host::Assignment {
+            parts: Box::new([]),
+            tell_parts: false,
             messages: Box::new([]),
             turns: Box::new([protocol::transcript_turn(1, crate::TURN_TEXT, true)]),
             answered: Box::new([]),

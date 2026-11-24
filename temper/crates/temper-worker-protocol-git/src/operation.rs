@@ -243,6 +243,7 @@ impl Operation {
             | Command::Create { .. }
             | Command::CheckOut { .. }
             | Command::Merge { .. }
+            | Command::MergeHistory { .. }
             | Command::Unmerged
             | Command::UpdateIndex { .. }
             | Command::Add
@@ -282,6 +283,7 @@ impl Operation {
             | Command::CheckOut { .. }
             | Command::Clean
             | Command::Merge { .. }
+            | Command::MergeHistory { .. }
             | Command::Unmerged
             | Command::Add
             | Command::DiffPaths { .. }
@@ -319,6 +321,7 @@ impl Operation {
             | Command::CheckOut { .. }
             | Command::Clean
             | Command::Merge { .. }
+            | Command::MergeHistory { .. }
             | Command::Unmerged
             | Command::Add
             | Command::DiffPaths { .. }
@@ -332,6 +335,7 @@ impl Operation {
                 Some(git::Op::Commit { title, body, .. }) if self.has_input() => invocation::message(title, body),
                 Some(
                     git::Op::Store { .. }
+                    | git::Op::Keep { .. }
                     | git::Op::Make { .. }
                     | git::Op::Clone { .. }
                     | git::Op::Reds { .. }
@@ -383,6 +387,7 @@ impl Operation {
                 | Next::Run(_)
                 | Next::Snapshot { .. }
                 | Next::Look { .. }
+                | Next::Keep
                 | Next::Make
                 | Next::Store
                 | Next::InstallStore { .. }
@@ -428,6 +433,7 @@ impl Operation {
                 Some(git::Op::Merge { .. } | git::Op::Commit { .. }) => true,
                 Some(
                     git::Op::Store { .. }
+                    | git::Op::Keep { .. }
                     | git::Op::Make { .. }
                     | git::Op::Look { .. }
                     | git::Op::Clone { .. }
@@ -447,7 +453,7 @@ impl Operation {
                 | None => false,
             };
         let progress = match self.command {
-            Command::Merge { .. } => true,
+            Command::Merge { .. } | Command::MergeHistory { .. } => true,
             Command::Reds(_)
             | Command::SnapshotHead
             | Command::SnapshotMerge { .. }
@@ -536,6 +542,7 @@ impl Operation {
             | Command::CheckOut { .. }
             | Command::Clean
             | Command::Merge { .. }
+            | Command::MergeHistory { .. }
             | Command::UpdateIndex { .. }
             | Command::Add
             | Command::DiffIndex { .. }

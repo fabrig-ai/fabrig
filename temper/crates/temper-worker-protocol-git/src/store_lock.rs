@@ -26,6 +26,7 @@ impl Access {
                 git::Op::Pack { .. }
                 | git::Op::Reset { .. }
                 | git::Op::Reds { .. }
+                | git::Op::Keep { .. }
                 | git::Op::Make { .. }
                 | git::Op::Store { .. }
                 | git::Op::Look { .. }
@@ -61,6 +62,7 @@ impl Access {
             | Command::CheckOut { .. }
             | Command::Clean
             | Command::Merge { .. }
+            | Command::MergeHistory { .. }
             | Command::Unmerged
             | Command::UpdateIndex { .. }
             | Command::Add

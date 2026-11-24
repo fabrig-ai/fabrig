@@ -1,9 +1,10 @@
 //! Deployed layouts, not generated-code drift (temper/docs/design/protocol/floor.md, 6).
-use jig_protocol_store::{self as store, JobLayout, KeptFamily, OwnerSets};
+use jig_protocol_store::{self as store, JobLayout, KeptFamily, OwnerSets, ValueType};
 use sha2::{Digest, Sha256};
 use skein_codec::{
+    layout::{Mode, Plan},
     patch::{Capacity, Patcher},
-    schema::{self, DeclIx, Schema},
+    schema::{self, DeclIx, FieldIx, Held, Root, Schema, Shape, Type, TypeIx},
 };
 use std::collections::BTreeMap;
 use temper_engine_service_vocabulary::store::OWNER_SETS;
@@ -80,14 +81,18 @@ fn held<'a>(texts: &'a BTreeMap<String, Schema>, family: &str) -> Vec<&'a Schema
     texts.iter().filter(|(name, _)| *name != family).map(|(_, schema)| schema).collect()
 }
 
+fn roots_at<'a>(
+    kept: &'a Schema,
+    types: &'static [ValueType],
+) -> impl Iterator<Item = (&'static ValueType, Root)> + 'a {
+    types.iter().filter_map(move |ty| Some((ty, kept.root(ty.root.as_bytes(), ty.variant.map(str::as_bytes))?)))
+}
+
 fn registered(build: &str, sets: &OwnerSets, family: &KeptFamily, texts: &BTreeMap<String, Schema>) -> Vec<String> {
     let Some(kept) = texts.get(family.name) else { return vec![] };
     let held = held(texts, family.name);
     let mut failures = Vec::new();
-    for ty in family.types {
-        if kept.root(ty.root.as_bytes(), ty.variant.map(str::as_bytes)).is_none() {
-            continue; // This value type was not written at this build.
-        }
+    for (ty, _) in roots_at(kept, family.types) {
         let layout = JobLayout {
             root: ty.root.into(),
             variant: ty.variant.map(Into::into),
@@ -195,6 +200,10 @@ fn outside(
     only: Option<&str>,
 ) -> Vec<String> {
     if old.version() == new.version() {
+        // A frame's body and held turn are judged independently: compare the
+        // body at one held version; the turn's own set must patch its move
+        // (jig/docs/design/protocol/store/transcripts.md, 6).
+        let new_held = if family.frames.is_some() { old_held } else { new_held };
         return unchanged(build, old, old_held, new, new_held, only);
     }
     let (texts, patches) = match family.frames {
@@ -266,10 +275,15 @@ fn guard(build: &str, sets: &OwnerSets, texts: &BTreeMap<String, Schema>, source
     failures
 }
 
-fn deployed(build: &str, directory: &str) {
+fn deployed_texts(build: &str, directory: &str) -> (Sources, BTreeMap<String, Schema>) {
     let deployed = DEPLOYED.iter().find(|fixture| fixture.directory == directory).expect("deployed build");
     let sources = sources(build, deployed.inventory);
     let texts = load(build, deployed, &sources);
+    (sources, texts)
+}
+
+fn deployed(build: &str, directory: &str) {
+    let (sources, texts) = deployed_texts(build, directory);
     let failures = guard(build, &OWNER_SETS, &texts, &sources);
     assert!(failures.is_empty(), "{}", failures.join("\n"));
 }
@@ -281,6 +295,73 @@ fn floor_bridge_layouts_open() {
 #[test]
 fn running_build_layouts_open() {
     deployed(RUNNING, "13efa77461");
+}
+
+fn held_family(schema: &Schema, mut ty: TypeIx) -> Option<&str> {
+    loop {
+        match schema.ty(ty) {
+            Type::Option(item) | Type::List { item, .. } => ty = item,
+            Type::Bytes { held: Held::Record { family, .. }, .. }
+            | Type::Secret { held: Held::Record { family, .. }, .. } => {
+                return Some(str::from_utf8(schema.spelled(family)).expect("ASCII family"));
+            }
+            _ => return None,
+        }
+    }
+}
+
+// The judge resolves the binary's held texts over the transitive reach of
+// each whole owner text, in discovery order (registry/texts.rs, Binary::held).
+fn binary_held<'a>(schema: &'a Schema, current: &'a BTreeMap<&str, Schema>) -> Vec<&'a Schema> {
+    let mut pending = vec![schema];
+    for index in 0..=current.len() {
+        let Some(&schema) = pending.get(index) else { break };
+        for decl in 0..schema.declarations() {
+            let Shape::Record { first, count, .. } = schema.declaration(DeclIx::new(decl)).shape else { continue };
+            for offset in 0..count {
+                let field = schema.field(FieldIx::new(first.index() + offset));
+                if let Some(held) = held_family(schema, field.ty).and_then(|name| current.get(name))
+                    && !pending.iter().any(|seen| std::ptr::eq(*seen, held))
+                {
+                    pending.push(held);
+                }
+            }
+        }
+    }
+    pending.remove(0);
+    pending
+}
+
+#[test]
+fn registered_deployed_plans_equal_non_refusing_read_plans() {
+    let families = OWNER_SETS.sets.iter().flat_map(|set| set.families);
+    let current: BTreeMap<_, _> = families.clone().map(|family| (family.name, parsed(family.current))).collect();
+    for (build, directory) in [(BRIDGE, "3d1c717d379e"), (RUNNING, "13efa77461")] {
+        let (_, texts) = deployed_texts(build, directory);
+        let mut compared = 0;
+        for family in families.clone().filter(|family| !family.types.is_empty()) {
+            let Some(old) = texts.get(family.name) else { continue };
+            let old_held = held(&texts, family.name);
+            let new = current.get(family.name).expect("binary family");
+            let new_held = binary_held(new, &current);
+            for (ty, old_root) in roots_at(old, family.types) {
+                let context = format!(
+                    "{build} {} value type {} root {} variant {:?}",
+                    family.name, ty.number, ty.root, ty.variant
+                );
+                let new_root = new
+                    .root(ty.root.as_bytes(), ty.variant.map(str::as_bytes))
+                    .unwrap_or_else(|| panic!("{context}: missing binary root"));
+                let Ok(strict) = Plan::derive(old, old_root, &old_held, new, new_root, &new_held) else { continue };
+                let read = Plan::between(Mode::Read, old, old_root, &old_held, new, new_root, &new_held)
+                    .unwrap_or_else(|why| panic!("{context}: Read underived where the store planned: {why:?}"));
+                assert!(!read.refuses(), "{context}: Read adds a refusal: {:?}", read.refusal(0));
+                assert_eq!(read, strict, "{context}: Read and store plans differ");
+                compared += 1;
+            }
+        }
+        assert!(compared > 0, "{build}: checked at least one derived plan");
+    }
 }
 
 // Test the defaults themselves, without pending conversion jobs masking a missing
@@ -499,6 +580,54 @@ fn held_layouts_use_the_builds_texts() {
     let texts = BTreeMap::from([(FAMILY.name.to_owned(), parsed(HOLDER)), ("fixture-held".to_owned(), parsed(HELD))]);
     refuses(&registered("mutation-build", &BAD, &HOLDER_FAMILY, &texts));
     assert_eq!(registered("mutation-build", &GOOD, &HOLDER_FAMILY, &texts), Vec::<String>::new());
+}
+
+#[test]
+fn a_frames_held_turn_moves_only_with_its_own_patch() {
+    const BODY: &str = "family fixture-body 1\nversioned record Frame { turn: bytes 64 holds fixture-turn Turn }";
+    const CHANGED_BODY: &str =
+        "family fixture-body 1\nversioned record Frame { turn: bytes 64 holds fixture-turn Turn added: u64 }";
+    const TURN: &str = "family fixture-turn 1\nversioned record Turn { count: u32 }";
+    const NEXT: &str = "family fixture-turn 2\nversioned record Turn { count: u32 extra: u32 }";
+    const PATCH: &str = "patch 1\nowner fixture 1\nfamily fixture-turn 1 to 2\nadd Turn.extra u32 0\n";
+    const BODY_FAMILY: KeptFamily = KeptFamily {
+        name: "fixture-body",
+        current: BODY,
+        types: &[],
+        frames: Some(store::Frames { root: "Frame", texts: &[BODY], patches: &[] }),
+        ..FAMILY
+    };
+    const TURN_FAMILY: KeptFamily = KeptFamily {
+        name: "fixture-turn",
+        current: NEXT,
+        types: &[],
+        frames: Some(store::Frames { root: "Turn", texts: &[TURN, NEXT], patches: &[PATCH] }),
+        ..FAMILY
+    };
+    let old = BTreeMap::from([("fixture-body".to_owned(), parsed(BODY)), ("fixture-turn".to_owned(), parsed(TURN))]);
+    for (body, texts, patches, refused) in [
+        (BODY, &[TURN, NEXT][..], &[PATCH][..], None),
+        (BODY, &[TURN, NEXT][..], &[][..], Some("fixture-turn")),
+        (BODY, &[NEXT][..], &[PATCH][..], Some("fixture-turn")),
+        (CHANGED_BODY, &[TURN, NEXT][..], &[PATCH][..], Some("fixture-body")),
+    ] {
+        let sets = OwnerSets {
+            sets: Box::leak(Box::new([store::OwnerSet {
+                families: Box::leak(Box::new([
+                    KeptFamily { current: body, ..BODY_FAMILY },
+                    KeptFamily { frames: Some(store::Frames { root: "Turn", texts, patches }), ..TURN_FAMILY },
+                ])),
+                ..SET
+            }])),
+        };
+        let failures = guard("mutation-build", &sets, &old, &BTreeMap::new());
+        if let Some(family) = refused {
+            assert_eq!(failures.len(), 1, "{failures:?}");
+            assert!(failures[0].contains(family), "{failures:?}");
+        } else {
+            assert!(failures.is_empty(), "{failures:?}");
+        }
+    }
 }
 
 #[test]

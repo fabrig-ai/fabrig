@@ -6,6 +6,7 @@ use smith_host_domain as smith;
 #[derive(Debug)]
 pub(crate) enum Pending {
     Turn { owner: Token },
+    Part { owner: Token },
     Call { owner: Token, call: Token },
     Result { owner: Token, turns: u32, spent: u64, read: Option<Token>, finish: Finish },
 }

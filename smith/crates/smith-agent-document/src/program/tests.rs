@@ -18,16 +18,18 @@ struct Disk {
 }
 
 struct Entry {
-    facts: Facts,
+    facts: Stat,
     bytes: &'static [u8],
 }
 
 impl Disk {
     fn lay(&self, path: &Path, kind: Kind, mode: u32, bytes: &'static [u8]) {
-        self.entries.borrow_mut().insert(path.into(), Entry { facts: Facts { kind, owner: USER, mode }, bytes });
+        let size = u64::try_from(bytes.len()).expect("fixture size");
+        let facts = Stat { kind, owner: USER, mode, size, links: 1 };
+        self.entries.borrow_mut().insert(path.into(), Entry { facts, bytes });
     }
 
-    fn inspect(&self, path: &Path) -> std::io::Result<Facts> {
+    fn inspect(&self, path: &Path) -> std::io::Result<Stat> {
         self.calls.borrow_mut().push(Call::Inspect(path.into()));
         self.entries.borrow().get(path).map(|entry| entry.facts).ok_or_else(|| ErrorKind::NotFound.into())
     }
@@ -36,7 +38,7 @@ impl Disk {
         prepare_with(
             programs,
             source,
-            || USER,
+            USER,
             |path| self.inspect(path),
             |path, parents, mode| {
                 self.calls.borrow_mut().push(Call::Make { path: path.into(), parents, mode });
@@ -73,7 +75,7 @@ fn preparing_makes_both_directories_private() {
     let programs = Path::new("/fixture/missing/programs");
     let configuration = programs.join("source-1");
     assert!(
-        !private_directory_with(programs, || USER, &mut |path| disk.inspect(path)).expect("absent directory"),
+        !private_directory_with(programs, USER, disk.inspect(programs)).expect("absent directory"),
         "programs directory starts absent"
     );
     disk.calls();
@@ -105,7 +107,7 @@ fn preparing_keeps_an_existing_private_directory() {
     let programs = Path::new("/fixture/programs");
     let configuration = disk.prepare(programs, "source").expect("prepare once");
     let kept = configuration.join("kept");
-    disk.lay(&kept, Kind::Other, 0o600, b"kept");
+    disk.lay(&kept, Kind::File, 0o600, b"kept");
     disk.calls();
     assert_eq!(disk.prepare(programs, "source").expect("prepare again"), configuration, "same source path");
     assert_eq!(
@@ -132,7 +134,7 @@ fn preparing_refuses_a_link() {
     let programs = Path::new("/fixture/programs");
     let target = Path::new("/fixture/target/source");
     disk.lay(target, Kind::Directory, 0o700, b"");
-    disk.lay(programs, Kind::Link, 0o777, target.as_os_str().as_bytes());
+    disk.lay(programs, Kind::Symlink, 0o777, target.as_os_str().as_bytes());
     for path in [programs, &programs.join(""), &programs.join(".")] {
         assert_unsafe(disk.prepare(path, "source"), path, Unsafe::Link);
         let calls = disk.calls();
@@ -148,7 +150,7 @@ fn preparing_refuses_a_link() {
 fn preparing_refuses_a_file() {
     let disk = Disk::default();
     let programs = Path::new("/fixture/programs");
-    disk.lay(programs, Kind::Other, 0o600, b"file");
+    disk.lay(programs, Kind::File, 0o600, b"file");
     assert_unsafe(disk.prepare(programs, "source"), programs, Unsafe::NotADirectory);
     assert_eq!(disk.calls(), [Call::Inspect(programs.into())], "nothing made after refusing a file");
     assert_eq!(disk.entries.borrow().get(programs).expect("untouched file").bytes, b"file", "bytes preserved");
@@ -160,7 +162,7 @@ fn preparing_checks_the_existing_source_directory() {
     let programs = Path::new("/fixture/programs");
     let configuration = disk.prepare(programs, "source").expect("source directory");
     disk.calls();
-    for (kind, mode, why) in [(Kind::Directory, 0o755, Unsafe::Mode(0o055)), (Kind::Link, 0o777, Unsafe::Link)] {
+    for (kind, mode, why) in [(Kind::Directory, 0o755, Unsafe::Mode(0o055)), (Kind::Symlink, 0o777, Unsafe::Link)] {
         disk.lay(&configuration, kind, mode, b"");
         assert_unsafe(disk.prepare(programs, "source"), &configuration, why);
         assert_eq!(
@@ -293,4 +295,22 @@ fn the_terminal_environment_has_no_hosted_spawn_bound() {
     base.push((OsString::from_vec(vec![b'N', 0xff]), OsString::from_vec(vec![0xfe])));
     let command = sign_in(Path::new("/claude"), Path::new("/programs/source"), base);
     assert_eq!(command.get_envs().count(), 103);
+}
+
+#[test]
+fn private_program_directories_are_decided_from_metadata_at_the_name() {
+    let path = Path::new("/fixture/programs");
+    let user = 1000;
+    let private = Stat { kind: Kind::Directory, mode: 0o700, owner: user, size: 0, links: 1 };
+    assert!(!private_directory_with(path, user, Err(ErrorKind::NotFound.into())).expect("absent"));
+    assert!(private_directory_with(path, user, Ok(private)).expect("private"));
+    for (metadata, reason) in [
+        (Stat { kind: Kind::Symlink, ..private }, "symbolic link"),
+        (Stat { mode: 0o750, ..private }, "nonprivate mode bits 0o50"),
+        (Stat { kind: Kind::File, ..private }, "not a directory"),
+        (Stat { owner: 1001, ..private }, "owned by user 1001"),
+    ] {
+        let why = private_directory_with(path, user, Ok(metadata)).expect_err("unsafe");
+        assert_eq!(why.to_string(), format!("{}: {reason}", path.display()));
+    }
 }

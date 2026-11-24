@@ -10,7 +10,9 @@ fn opening() -> record::Opening {
     let transcript = restored_transcript(affinity);
     record::Opening {
         window_llm: None,
+        cut: None,
         spec: session::Spec {
+            tell_parts: false,
             backend: record::Backend::Direct,
             // Both grants may belong to one billing account; smith sees source identities.
             account: Some(13),
@@ -70,7 +72,8 @@ fn a_source_grant_change_carries_plain_history_and_discards_replay() {
         match request {
             session::Request::Opened { session, .. } => opened = Some(session),
             session::Request::Complete { prompt: found, .. } => prompt = Some(found),
-            other @ (session::Request::JobsCancelled { .. }
+            other @ (session::Request::Part { .. }
+            | session::Request::JobsCancelled { .. }
             | session::Request::Turn { .. }
             | session::Request::Priced { .. }
             | session::Request::Yield { .. }

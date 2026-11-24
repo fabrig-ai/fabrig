@@ -486,9 +486,15 @@ impl Host for Agent {
 }
 
 #[cfg(unix)]
+fn read_decoded(path: &Path, errors: &mut dyn Write) -> Result<config::Decoded, String> {
+    config::read_decoded(path).inspect_err(|why| diagnostic(errors, why))
+}
+
+#[cfg(unix)]
 fn read_configuration(path: &Path, errors: &mut dyn Write) -> Result<config::Configuration, String> {
-    config::read_decoded(path)
-        .and_then(|decoded| decoded.resolve(errors).map_err(config::ConfigurationRefusal::detail))
+    read_decoded(path, errors)?
+        .resolve(errors)
+        .map_err(config::ConfigurationRefusal::detail)
         .inspect_err(|why| diagnostic(errors, why))
 }
 
@@ -551,10 +557,19 @@ pub(super) fn diagnostic(errors: &mut dyn Write, line: &str) {
     drop(writeln!(errors, "smith: {line}"));
 }
 
+/// Map an agent command's settled status or startup refusal to its process exit code.
+#[must_use]
+pub fn command_exit(result: &Result<Exit, String>) -> u8 {
+    match result {
+        Ok(Exit::Code(code)) => *code,
+        Ok(Exit::Signal(_)) | Err(_) => 1,
+    }
+}
+
 /// Run the shipped agent command with its kernel, clock and startup resources.
 #[cfg(unix)]
 pub fn run(path: &Path, mut errors: Box<dyn Write>) -> Result<Exit, String> {
-    let decoded = config::read_decoded(path).inspect_err(|why| diagnostic(errors.as_mut(), why))?;
+    let decoded = read_decoded(path, errors.as_mut())?;
     run_decoded(decoded, errors)
 }
 

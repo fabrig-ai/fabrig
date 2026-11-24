@@ -39,6 +39,7 @@ fn assignment(charter: &engine::Charter, ended_by: tasks::EndedBy) -> engine::As
         workstream: 1,
         workspace: engine::ForgeWorkspace { repositories: Box::new([]) },
         transcript: Box::new([]),
+        parts: Box::new([]),
         answered: Box::new([]),
         settled: Box::new([]),
         grants: Box::new([]),

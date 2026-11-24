@@ -10,19 +10,19 @@ fn pause(world: &mut World, channel: Token, mode: PauseMode) {
     world.down(Event::Down { channel, down: LinkDown::Pause { mode }, parts: Box::new([]), values: Box::new([]) });
     world.run();
 }
-fn peer(version: u16) -> skein_fake_channel::ScriptedPeer {
+pub(super) fn peer(version: u16) -> skein_fake_channel::ScriptedPeer {
     let mut schema = fixtures::schema();
     schema.versions.truncate(u32::from(version - wire::wire::FLOOR) + 1);
     fixtures::peer(schema, version, fixtures::WORKER_A, fixtures::SECRET_A, fixtures::APPLICATION_VERSION)
 }
-fn hello(version: u16) -> skein_channel::Frame {
+pub(super) fn hello(version: u16) -> skein_channel::Frame {
     let codec = wire::sizes::limits(&fixtures::limits().sizes).expect("codec");
     wire::translation::Translation::new(wire::Application::opaque(fixtures::application()))
         .expect("opaque application")
         .send(fixtures::hello_frame(), version, &[wire::Agreed { name: wire::wire::FAMILY, version }], &codec)
         .expect("hello at the agreed version")
 }
-fn channel(world: &World) -> Token {
+pub(super) fn channel(world: &World) -> Token {
     world
         .root()
         .iter()

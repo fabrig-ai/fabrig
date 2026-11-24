@@ -230,6 +230,7 @@ fn immediate(engine: &mut Engine, now: core::Now) {
         core::Now::Link(
             core::LinkNow::Asked { .. }
             | core::LinkNow::DropPayload { .. }
+            | core::LinkNow::PartPayload { .. }
             | core::LinkNow::TurnPayload { .. }
             | core::LinkNow::AnswerPayload { .. }
             | core::LinkNow::AcceptedTurn { .. }
@@ -244,6 +245,7 @@ fn immediate(engine: &mut Engine, now: core::Now) {
         | core::Now::RunPreparationFailed { .. }
         | core::Now::BriefFailed { .. }
         | core::Now::RunPrepared { .. }
+        | core::Now::PartBusy { .. }
         | core::Now::RestoreRefused => stop::invalid_restore(engine),
     }
 }
@@ -287,6 +289,15 @@ fn core_held(engine: &mut Engine, held: core::Held) {
         core::Held::MakeEffect { connector: number, entry } => {
             engine.events.push(root::Event::Connector { number, event: connector::Event::Make { entry } });
         }
+        core::Held::PartBusy { channel, run, attempt, part } => {
+            if let Some(workers) = &mut engine.workers {
+                workers.down(
+                    engine.env.now,
+                    jig_protocol_engine_workers::Event::PartBusy { channel, run, attempt, part },
+                    &mut engine.events,
+                );
+            }
+        }
         core::Held::TurnBusy { channel, run, attempt, turn } => {
             if let Some(workers) = &mut engine.workers {
                 workers.down(
@@ -320,6 +331,8 @@ fn core_held(engine: &mut Engine, held: core::Held) {
         | core::Held::Relay { .. }
         | core::Held::Acknowledge { .. }
         | core::Held::TaskTerminalAcknowledged { .. }
+        | core::Held::TaskPartKept { .. }
+        | core::Held::AcknowledgePart { .. }
         | core::Held::TaskTurnKept { .. }
         | core::Held::AcknowledgeTurn { .. }
         | core::Held::Cancel { .. }

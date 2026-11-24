@@ -1,5 +1,5 @@
 //! Failed Keep replies name their own step (skein/docs/design/ui/web/testing.md, 2).
-use super::{Play, Script, Step, expected_trouble, step_failure, trouble_report, trouble_step};
+use super::{Play, Script, Step, StepFailure, expected_trouble, step_failure, trouble_report, trouble_step};
 use crate::tests::face;
 use skein_browser::boundary::{Event, Key, Read, Refusal, Request, Trouble};
 use skein_lib::{Time, Token};
@@ -26,8 +26,8 @@ fn a_failed_keep_reports_its_own_step() {
             Err(why) => Event::Refused { op, why, detail: b"DOM.getAttributes: malformed reply".as_slice().into() },
         });
         assert_eq!(
-            step_failure(&mut script, &mut face, Time::ZERO),
-            Some((1, format!("keep selector #hidden attribute value: {why}"))),
+            step_failure(&mut script, &mut face, Time::ZERO, 1),
+            Some(StepFailure { step: 1, why: format!("keep selector #hidden attribute value: {why}"), bound: None }),
         );
     }
 }

@@ -252,15 +252,16 @@ fn a_released_goal_landing_uses_fresh_facts_once_including_after_restart() {
         let resolutions = row(&world, task).resolution_tasks.len();
         world.forge_reads = Some(Vec::new());
         release(&mut world, task, revision);
-        for _ in 0..STEPS {
+        // The release can start a fresh branch read before the store settles.
+        let drained = (0..STEPS).any(|_| {
             world.tick();
-            if row(&world, task).task_release.as_ref().is_some_and(|r| r.revision == revision)
+            row(&world, task).task_release.as_ref().is_some_and(|r| r.revision == revision)
                 && world.store.pending.is_empty()
-            {
-                break;
-            }
-        }
+                && world.pending.is_empty()
+                && world.events.is_empty()
+        });
         assert_eq!(row(&world, task).task_release.as_ref().map(|r| r.revision), Some(revision));
+        assert!(drained, "release replies settled before the cut");
         assert_ne!(
             row(&world, task).change.last_head,
             Some(translate::commit(fresh)),

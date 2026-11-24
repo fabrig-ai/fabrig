@@ -1,25 +1,19 @@
 //! Wire projections of owner outcome facts (client/domain/testing.md, 4).
 use super::super::{bytes, c, list, w};
 use super::{wire_created_given, wire_proposal_key, wire_revision, wire_seen_through};
-pub(in crate::codec) fn wire_proposal_choice(
-    value: &c::ProposalChoice,
-    _limits: &w::Limits,
-) -> Result<w::ProposalChoice, w::Problem> {
-    Ok::<_, w::Problem>(match value {
+pub(in crate::codec) fn wire_proposal_choice(value: &c::ProposalChoice) -> w::ProposalChoice {
+    match value {
         c::ProposalChoice::Accepted => w::ProposalChoice::Accepted,
         c::ProposalChoice::Rejected => w::ProposalChoice::Rejected,
         c::ProposalChoice::Passed => w::ProposalChoice::Passed,
         c::ProposalChoice::Withdrawn => w::ProposalChoice::Withdrawn,
         c::ProposalChoice::Stale => w::ProposalChoice::Stale,
-    })
+    }
 }
 
 #[expect(clippy::too_many_lines, reason = "the exhaustive owner outcome vocabulary is encoded together")]
-pub(in crate::codec) fn wire_document_outcome(
-    value: &c::DocumentOutcome,
-    limits: &w::Limits,
-) -> Result<w::DocumentOutcome, w::Problem> {
-    Ok::<_, w::Problem>(match value {
+pub(in crate::codec) fn wire_document_outcome(value: &c::DocumentOutcome) -> w::DocumentOutcome {
+    match value {
         c::DocumentOutcome::Concluded { task } => w::DocumentOutcome::Concluded(w::OutcomeConcluded { task: *task }),
 
         c::DocumentOutcome::Left { task } => w::DocumentOutcome::Left(w::OutcomeStopped { task: *task }),
@@ -32,7 +26,7 @@ pub(in crate::codec) fn wire_document_outcome(
         c::DocumentOutcome::Created { first, last, given } => w::DocumentOutcome::Created(w::OutcomeCreated {
             first: *(first),
             last: *(last),
-            given: (given).as_ref().map(|item| wire_created_given(item, limits)).transpose()?,
+            given: (given).as_ref().map(wire_created_given),
         }),
         c::DocumentOutcome::Compound { project, operations, first_message } => {
             w::DocumentOutcome::Compound(w::OutcomeCompound {
@@ -42,7 +36,7 @@ pub(in crate::codec) fn wire_document_outcome(
             })
         }
         c::DocumentOutcome::MarkedSeen { seen } => {
-            w::DocumentOutcome::MarkedSeen(w::OutcomeMarkedSeen { seen: wire_seen_through(seen, limits)? })
+            w::DocumentOutcome::MarkedSeen(w::OutcomeMarkedSeen { seen: wire_seen_through(seen) })
         }
         c::DocumentOutcome::NoteEdited { name } => {
             w::DocumentOutcome::NoteEdited(w::OutcomeNoteEdited { name: *(name) })
@@ -68,10 +62,10 @@ pub(in crate::codec) fn wire_document_outcome(
         c::DocumentOutcome::Moved { task } => w::DocumentOutcome::Moved(w::OutcomeMoved { task: *(task) }),
         c::DocumentOutcome::ProposalDecided { proposal, by, at, choice, repeated } => {
             w::DocumentOutcome::ProposalDecided(w::OutcomeProposalDecided {
-                proposal: wire_proposal_key(proposal, limits)?,
+                proposal: wire_proposal_key(proposal),
                 by: *(by),
                 at: (at).as_nanos(),
-                choice: wire_proposal_choice(choice, limits)?,
+                choice: wire_proposal_choice(choice),
                 repeated: *(repeated),
             })
         }
@@ -116,10 +110,10 @@ pub(in crate::codec) fn wire_document_outcome(
         c::DocumentOutcome::EscalationDecided { task, revision, by, at, choice } => {
             w::DocumentOutcome::EscalationDecided(w::OutcomeEscalationDecided {
                 task: *(task),
-                revision: wire_revision(revision, limits)?,
+                revision: wire_revision(revision),
                 by: *(by),
                 at: (at).as_nanos(),
-                choice: wire_escalation_choice(choice, limits)?,
+                choice: wire_escalation_choice(choice),
             })
         }
         c::DocumentOutcome::AccountKeyKept { source } => {
@@ -141,7 +135,7 @@ pub(in crate::codec) fn wire_document_outcome(
         c::DocumentOutcome::AccountRemoved { confirmed, failed_hosts } => {
             w::DocumentOutcome::AccountRemoved(w::OutcomeAccountRemoved {
                 confirmed: *(confirmed),
-                failed_hosts: list((failed_hosts).iter().map(|item| wire_account_host_failure(item, limits)))?,
+                failed_hosts: list((failed_hosts).iter().map(wire_account_host_failure)),
             })
         }
         c::DocumentOutcome::AccountSignInStarted { source, address } => {
@@ -153,37 +147,28 @@ pub(in crate::codec) fn wire_document_outcome(
         c::DocumentOutcome::AccountSignedOut { confirmed, failed_hosts } => {
             w::DocumentOutcome::AccountSignedOut(w::OutcomeAccountSignedOut {
                 confirmed: *(confirmed),
-                failed_hosts: list((failed_hosts).iter().map(|item| wire_account_host_failure(item, limits)))?,
+                failed_hosts: list((failed_hosts).iter().map(wire_account_host_failure)),
             })
         }
-    })
+    }
 }
 
-pub(in crate::codec) fn wire_escalation_choice(
-    value: &c::EscalationChoice,
-    _limits: &w::Limits,
-) -> Result<w::EscalationChoice, w::Problem> {
-    Ok::<_, w::Problem>(match value {
+pub(in crate::codec) fn wire_escalation_choice(value: &c::EscalationChoice) -> w::EscalationChoice {
+    match value {
         c::EscalationChoice::Released => w::EscalationChoice::Released,
         c::EscalationChoice::Rejected => w::EscalationChoice::Rejected,
         c::EscalationChoice::Passed => w::EscalationChoice::Passed,
-    })
+    }
 }
 
-pub(in crate::codec) fn wire_account_host_failure(
-    value: &c::AccountHostFailure,
-    limits: &w::Limits,
-) -> Result<w::AccountHostFailure, w::Problem> {
-    Ok(w::AccountHostFailure { name: bytes::copy_of(&value.name), why: wire_account_host_why(&value.why, limits)? })
+pub(in crate::codec) fn wire_account_host_failure(value: &c::AccountHostFailure) -> w::AccountHostFailure {
+    w::AccountHostFailure { name: bytes::copy_of(&value.name), why: wire_account_host_why(&value.why) }
 }
 
-pub(in crate::codec) fn wire_account_host_why(
-    value: &c::AccountHostWhy,
-    _limits: &w::Limits,
-) -> Result<w::AccountHostWhy, w::Problem> {
-    Ok::<_, w::Problem>(match value {
+pub(in crate::codec) fn wire_account_host_why(value: &c::AccountHostWhy) -> w::AccountHostWhy {
+    match value {
         c::AccountHostWhy::NotInContact => w::AccountHostWhy::NotInContact,
         c::AccountHostWhy::Lost => w::AccountHostWhy::Lost,
         c::AccountHostWhy::Failed => w::AccountHostWhy::Failed,
-    })
+    }
 }

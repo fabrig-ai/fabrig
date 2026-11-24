@@ -1,5 +1,6 @@
 //! The checkout child domain's state and its entry point (section 3).
 
+use alloc::boxed::Box;
 use skein_lib::{Env, Id, Queue, Slab, Token};
 
 use crate::boundary::{Event, Request};
@@ -63,6 +64,11 @@ impl Domain {
             queued: Queue::with_capacity(limits.workspaces),
             facts: Facts::with_capacity(limits.facts),
         }
+    }
+
+    /// Restore marks validated by the worker's start layout, before any prepare.
+    pub fn restore_workspaces(&mut self, marks: Box<[crate::git::Kept]>) {
+        self.cache.restore(marks);
     }
 
     /// Keep matching clones when an idle workspace is evicted.
@@ -132,6 +138,7 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
         Event::Save { hold, message } => hold::save(domain, env, hold, message, out),
         Event::Abort { hold } => hold::abort(domain, env, hold, out),
         Event::Cut { hold } => hold::cut(domain, env, hold, out),
+        Event::Keep { hold } => hold::keep(domain, env, hold, out),
         Event::Release { hold } => hold::release(domain, env, hold, out),
         Event::Done { owner, done } => hold::done(domain, env, owner, done, out),
     }

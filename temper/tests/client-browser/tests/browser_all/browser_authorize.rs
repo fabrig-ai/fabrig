@@ -37,7 +37,14 @@ impl Play for Authorization<'_> {
         assert!(origin.starts_with("http://localhost:"), "the forge is on the other loopback site");
         self.tier.authorize_callback(&format!("{origin}/callback"));
         self.configured = true;
-        self.after.next(face, now)
+        Next::Wait { until: None }
+    }
+    fn check_deadline(&mut self, face: &mut BrowserFace<'_>, now: Time) {
+        if self.configured {
+            self.after.check_deadline(face, now);
+        } else {
+            self.before.check_deadline(face, now);
+        }
     }
     fn server_action(&mut self) -> Option<ServerAction> {
         if self.configured { self.after.server_action() } else { self.before.server_action() }

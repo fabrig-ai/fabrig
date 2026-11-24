@@ -48,7 +48,9 @@ struct Mapping {
 struct Maps {
     records: String,
     hand: Option<String>,
-    context: String,
+    context: Option<(usize, String)>,
+    refuses: BTreeMap<String, usize>,
+    with_context: BTreeMap<String, usize>,
     aliases: BTreeMap<String, String>,
     declarations: Vec<Mapping>,
 }
@@ -97,5 +99,5 @@ fn error(schema: &Schema, line: usize, message: impl core::fmt::Display) -> Erro
 pub fn translate(schema: &Schema, source: &str) -> Result<String, Error> {
     let maps = parse::parse(schema, source)?;
     check::check(schema, &maps)?;
-    Ok(emit::generate(schema, &maps))
+    emit::generate(schema, &maps)
 }

@@ -10,6 +10,7 @@ pub type Problem = skein_codec::Problem<Limits>;
 pub const VERSION: u16 = 1;
 
 // Limits: the owner's values, checked once against ceilings.
+#[repr(C)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct Limits {
     pub infrastructure_service_environment: u32,
@@ -107,36 +108,71 @@ pub const LIMIT_NAMES: &[&str] = &[
 impl Limits {
     #[must_use]
     pub fn values(&self) -> List<u32> {
-        let mut values = List::with_capacity(u32::try_from(LIMIT_NAMES.len()).expect("schema limits fit u32"));
-        values.push(self.infrastructure_service_environment).expect("room for every named limit");
-        values.push(self.infrastructure_service_name).expect("room for every named limit");
-        values.push(self.infrastructure_environment_pool).expect("room for every named limit");
-        values.push(self.infrastructure_environment_name).expect("room for every named limit");
-        values.push(self.infrastructure_pool_value).expect("room for every named limit");
-        values.push(self.infrastructure_effect_rollback_from).expect("room for every named limit");
-        values.push(self.infrastructure_effect_rollback_to).expect("room for every named limit");
-        values.push(self.infrastructure_description_resources).expect("room for every named limit");
-        values.push(self.infrastructure_service_fact_version).expect("room for every named limit");
-        values.push(self.infrastructure_drift_account_by_some).expect("room for every named limit");
-        values.push(self.infrastructure_value_panel_resources).expect("room for every named limit");
-        values.push(self.infrastructure_value_panel_effects).expect("room for every named limit");
-        values.push(self.infrastructure_value_result_resources).expect("room for every named limit");
-        values.push(self.infrastructure_value_hold_resources).expect("room for every named limit");
-        values.push(self.infrastructure_value_hold_drift).expect("room for every named limit");
-        values.push(self.infrastructure_value_hold_effects).expect("room for every named limit");
-        values.push(self.infrastructure_value_project_resources).expect("room for every named limit");
-        values.push(self.infrastructure_value_project_environments).expect("room for every named limit");
-        values.push(self.infrastructure_value_deployment_effects).expect("room for every named limit");
-        values.push(self.observability_service_environment).expect("room for every named limit");
-        values.push(self.observability_service_name).expect("room for every named limit");
-        values.push(self.observability_fact_load).expect("room for every named limit");
-        values.push(self.observability_incident_alerts).expect("room for every named limit");
-        values.push(self.observability_incident_timeline).expect("room for every named limit");
-        values.push(self.observability_effect_rule).expect("room for every named limit");
-        values.push(self.observability_value_deployment_effects).expect("room for every named limit");
-        values.push(self.observability_value_project_services).expect("room for every named limit");
-        values.push(self.observability_value_project_incidents).expect("room for every named limit");
-        values
+        List::from_boxed([
+            self.infrastructure_service_environment,
+            self.infrastructure_service_name,
+            self.infrastructure_environment_pool,
+            self.infrastructure_environment_name,
+            self.infrastructure_pool_value,
+            self.infrastructure_effect_rollback_from,
+            self.infrastructure_effect_rollback_to,
+            self.infrastructure_description_resources,
+            self.infrastructure_service_fact_version,
+            self.infrastructure_drift_account_by_some,
+            self.infrastructure_value_panel_resources,
+            self.infrastructure_value_panel_effects,
+            self.infrastructure_value_result_resources,
+            self.infrastructure_value_hold_resources,
+            self.infrastructure_value_hold_drift,
+            self.infrastructure_value_hold_effects,
+            self.infrastructure_value_project_resources,
+            self.infrastructure_value_project_environments,
+            self.infrastructure_value_deployment_effects,
+            self.observability_service_environment,
+            self.observability_service_name,
+            self.observability_fact_load,
+            self.observability_incident_alerts,
+            self.observability_incident_timeline,
+            self.observability_effect_rule,
+            self.observability_value_deployment_effects,
+            self.observability_value_project_services,
+            self.observability_value_project_incidents,
+        ].into())
+    }
+
+    #[must_use]
+    pub fn at_most(&self, most: u32) -> Limits {
+        let _: u32 = most;
+        Limits {
+            infrastructure_service_environment: self.infrastructure_service_environment.min(most),
+            infrastructure_service_name: self.infrastructure_service_name.min(most),
+            infrastructure_environment_pool: self.infrastructure_environment_pool.min(most),
+            infrastructure_environment_name: self.infrastructure_environment_name.min(most),
+            infrastructure_pool_value: self.infrastructure_pool_value.min(most),
+            infrastructure_effect_rollback_from: self.infrastructure_effect_rollback_from.min(most),
+            infrastructure_effect_rollback_to: self.infrastructure_effect_rollback_to.min(most),
+            infrastructure_description_resources: self.infrastructure_description_resources.min(most),
+            infrastructure_service_fact_version: self.infrastructure_service_fact_version.min(most),
+            infrastructure_drift_account_by_some: self.infrastructure_drift_account_by_some.min(most),
+            infrastructure_value_panel_resources: self.infrastructure_value_panel_resources.min(most),
+            infrastructure_value_panel_effects: self.infrastructure_value_panel_effects.min(most),
+            infrastructure_value_result_resources: self.infrastructure_value_result_resources.min(most),
+            infrastructure_value_hold_resources: self.infrastructure_value_hold_resources.min(most),
+            infrastructure_value_hold_drift: self.infrastructure_value_hold_drift.min(most),
+            infrastructure_value_hold_effects: self.infrastructure_value_hold_effects.min(most),
+            infrastructure_value_project_resources: self.infrastructure_value_project_resources.min(most),
+            infrastructure_value_project_environments: self.infrastructure_value_project_environments.min(most),
+            infrastructure_value_deployment_effects: self.infrastructure_value_deployment_effects.min(most),
+            observability_service_environment: self.observability_service_environment.min(most),
+            observability_service_name: self.observability_service_name.min(most),
+            observability_fact_load: self.observability_fact_load.min(most),
+            observability_incident_alerts: self.observability_incident_alerts.min(most),
+            observability_incident_timeline: self.observability_incident_timeline.min(most),
+            observability_effect_rule: self.observability_effect_rule.min(most),
+            observability_value_deployment_effects: self.observability_value_deployment_effects.min(most),
+            observability_value_project_services: self.observability_value_project_services.min(most),
+            observability_value_project_incidents: self.observability_value_project_incidents.min(most),
+        }
     }
 }
 
@@ -180,1604 +216,397 @@ pub fn check_limits(limits: &Limits) -> Result<(), Problem> {
     Ok(())
 }
 
-// Paths: declaration and part positions, with one naming table.
+// Paths: names as the schema spells them.
 pub mod paths {
     use super::Path;
-    pub const DECISION_TASK_VALUE: Path = Path::new(0, 0);
-    pub const DECISION_TASK_TAIL: Path = Path::new(0, 1);
-    pub const DECISION_PARTY_VALUE: Path = Path::new(1, 0);
-    pub const DECISION_PARTY_TAIL: Path = Path::new(1, 1);
-    pub const DECISION_MAKER_TAG: Path = Path::new(2, 0);
-    pub const DECISION_KEY_MAKER: Path = Path::new(3, 0);
-    pub const DECISION_KEY_NUMBER: Path = Path::new(3, 1);
-    pub const DECISION_KEY_TAIL: Path = Path::new(3, 2);
-    pub const INFRASTRUCTURE_SCOPE_PROJECT_VALUE: Path = Path::new(4, 0);
-    pub const INFRASTRUCTURE_SCOPE_PROJECT_TAIL: Path = Path::new(4, 1);
-    pub const INFRASTRUCTURE_SCOPE_TAG: Path = Path::new(5, 0);
-    pub const INFRASTRUCTURE_KIND_PANEL_VALUE: Path = Path::new(6, 0);
-    pub const INFRASTRUCTURE_KIND_PANEL_TAIL: Path = Path::new(6, 1);
-    pub const INFRASTRUCTURE_KIND_RESULT_VALUE: Path = Path::new(7, 0);
-    pub const INFRASTRUCTURE_KIND_RESULT_TAIL: Path = Path::new(7, 1);
-    pub const INFRASTRUCTURE_KIND_EFFECT_VALUE: Path = Path::new(8, 0);
-    pub const INFRASTRUCTURE_KIND_EFFECT_TAIL: Path = Path::new(8, 1);
-    pub const INFRASTRUCTURE_KIND_OWNER_EFFECT_VALUE: Path = Path::new(9, 0);
-    pub const INFRASTRUCTURE_KIND_OWNER_EFFECT_TAIL: Path = Path::new(9, 1);
-    pub const INFRASTRUCTURE_KIND_OUTBOX_VALUE: Path = Path::new(10, 0);
-    pub const INFRASTRUCTURE_KIND_OUTBOX_TAIL: Path = Path::new(10, 1);
-    pub const INFRASTRUCTURE_KIND_HOLD_VALUE: Path = Path::new(11, 0);
-    pub const INFRASTRUCTURE_KIND_HOLD_TAIL: Path = Path::new(11, 1);
-    pub const INFRASTRUCTURE_KIND_PROJECT_VALUE: Path = Path::new(12, 0);
-    pub const INFRASTRUCTURE_KIND_PROJECT_TAIL: Path = Path::new(12, 1);
-    pub const INFRASTRUCTURE_REFUSAL_ROLE_HELD: Path = Path::new(13, 0);
-    pub const INFRASTRUCTURE_REFUSAL_ROLE_TAIL: Path = Path::new(13, 1);
-    pub const INFRASTRUCTURE_REFUSAL_TAG: Path = Path::new(14, 0);
-    pub const INFRASTRUCTURE_ANSWER_REFUSED_WHY: Path = Path::new(15, 0);
-    pub const INFRASTRUCTURE_ANSWER_REFUSED_TAIL: Path = Path::new(15, 1);
-    pub const INFRASTRUCTURE_SERVICE_ENVIRONMENT: Path = Path::new(16, 0);
-    pub const INFRASTRUCTURE_SERVICE_NAME: Path = Path::new(16, 1);
-    pub const INFRASTRUCTURE_SERVICE_TAIL: Path = Path::new(16, 2);
-    pub const INFRASTRUCTURE_ENVIRONMENT_POOL: Path = Path::new(17, 0);
-    pub const INFRASTRUCTURE_ENVIRONMENT_NAME: Path = Path::new(17, 1);
-    pub const INFRASTRUCTURE_ENVIRONMENT_TAIL: Path = Path::new(17, 2);
-    pub const INFRASTRUCTURE_POOL_VALUE: Path = Path::new(18, 0);
-    pub const INFRASTRUCTURE_POOL_TAIL: Path = Path::new(18, 1);
-    pub const INFRASTRUCTURE_RESOURCE_SERVICE_VALUE: Path = Path::new(19, 0);
-    pub const INFRASTRUCTURE_RESOURCE_SERVICE_TAIL: Path = Path::new(19, 1);
-    pub const INFRASTRUCTURE_RESOURCE_ENVIRONMENT_VALUE: Path = Path::new(20, 0);
-    pub const INFRASTRUCTURE_RESOURCE_ENVIRONMENT_TAIL: Path = Path::new(20, 1);
-    pub const INFRASTRUCTURE_RESOURCE_POOL_VALUE: Path = Path::new(21, 0);
-    pub const INFRASTRUCTURE_RESOURCE_POOL_TAIL: Path = Path::new(21, 1);
-    pub const INFRASTRUCTURE_RESOURCE_QUOTA_VALUE: Path = Path::new(22, 0);
-    pub const INFRASTRUCTURE_RESOURCE_QUOTA_TAIL: Path = Path::new(22, 1);
-    pub const INFRASTRUCTURE_RESOURCE_TAG: Path = Path::new(23, 0);
-    pub const INFRASTRUCTURE_HOLD_TAG: Path = Path::new(24, 0);
-    pub const INFRASTRUCTURE_RESOURCE_ROLE_TAG: Path = Path::new(25, 0);
-    pub const INFRASTRUCTURE_NAMED_RESOURCE: Path = Path::new(26, 0);
-    pub const INFRASTRUCTURE_NAMED_ROLE: Path = Path::new(26, 1);
-    pub const INFRASTRUCTURE_NAMED_HOLD: Path = Path::new(26, 2);
-    pub const INFRASTRUCTURE_NAMED_TAIL: Path = Path::new(26, 3);
-    pub const INFRASTRUCTURE_PURPOSE_CALL_ATTEMPT: Path = Path::new(27, 0);
-    pub const INFRASTRUCTURE_PURPOSE_CALL_COMPLETION: Path = Path::new(27, 1);
-    pub const INFRASTRUCTURE_PURPOSE_CALL_POSITION: Path = Path::new(27, 2);
-    pub const INFRASTRUCTURE_PURPOSE_CALL_TAIL: Path = Path::new(27, 3);
-    pub const INFRASTRUCTURE_PURPOSE_PROCEDURE_PURPOSE: Path = Path::new(28, 0);
-    pub const INFRASTRUCTURE_PURPOSE_PROCEDURE_TAIL: Path = Path::new(28, 1);
-    pub const INFRASTRUCTURE_PURPOSE_PROJECTION_PURPOSE: Path = Path::new(29, 0);
-    pub const INFRASTRUCTURE_PURPOSE_PROJECTION_TAIL: Path = Path::new(29, 1);
-    pub const INFRASTRUCTURE_PURPOSE_TAG: Path = Path::new(30, 0);
-    pub const INFRASTRUCTURE_KEY_DEPLOYMENT: Path = Path::new(31, 0);
-    pub const INFRASTRUCTURE_KEY_TASK: Path = Path::new(31, 1);
-    pub const INFRASTRUCTURE_KEY_ORIGIN: Path = Path::new(31, 2);
-    pub const INFRASTRUCTURE_KEY_PURPOSE: Path = Path::new(31, 3);
-    pub const INFRASTRUCTURE_KEY_TAIL: Path = Path::new(31, 4);
-    pub const INFRASTRUCTURE_BACKEND_TAG: Path = Path::new(32, 0);
-    pub const INFRASTRUCTURE_EFFECT_RESTART_SERVICE: Path = Path::new(33, 0);
-    pub const INFRASTRUCTURE_EFFECT_RESTART_OPERATION: Path = Path::new(33, 1);
-    pub const INFRASTRUCTURE_EFFECT_RESTART_TAIL: Path = Path::new(33, 2);
-    pub const INFRASTRUCTURE_EFFECT_SCALE_SERVICE: Path = Path::new(34, 0);
-    pub const INFRASTRUCTURE_EFFECT_SCALE_FROM: Path = Path::new(34, 1);
-    pub const INFRASTRUCTURE_EFFECT_SCALE_TO: Path = Path::new(34, 2);
-    pub const INFRASTRUCTURE_EFFECT_SCALE_TAIL: Path = Path::new(34, 3);
-    pub const INFRASTRUCTURE_EFFECT_ROLLBACK_SERVICE: Path = Path::new(35, 0);
-    pub const INFRASTRUCTURE_EFFECT_ROLLBACK_FROM: Path = Path::new(35, 1);
-    pub const INFRASTRUCTURE_EFFECT_ROLLBACK_TO: Path = Path::new(35, 2);
-    pub const INFRASTRUCTURE_EFFECT_ROLLBACK_TAIL: Path = Path::new(35, 3);
-    pub const INFRASTRUCTURE_EFFECT_CREATE_ENVIRONMENT_ENVIRONMENT: Path = Path::new(36, 0);
-    pub const INFRASTRUCTURE_EFFECT_CREATE_ENVIRONMENT_UNTIL: Path = Path::new(36, 1);
-    pub const INFRASTRUCTURE_EFFECT_CREATE_ENVIRONMENT_PRICE: Path = Path::new(36, 2);
-    pub const INFRASTRUCTURE_EFFECT_CREATE_ENVIRONMENT_TAIL: Path = Path::new(36, 3);
-    pub const INFRASTRUCTURE_EFFECT_TEAR_DOWN_ENVIRONMENT: Path = Path::new(37, 0);
-    pub const INFRASTRUCTURE_EFFECT_TEAR_DOWN_CREATED_BY: Path = Path::new(37, 1);
-    pub const INFRASTRUCTURE_EFFECT_TEAR_DOWN_TAIL: Path = Path::new(37, 2);
-    pub const INFRASTRUCTURE_EFFECT_TAG: Path = Path::new(38, 0);
-    pub const INFRASTRUCTURE_FORM_TAG: Path = Path::new(39, 0);
-    pub const INFRASTRUCTURE_RECOVERY_TAG: Path = Path::new(40, 0);
-    pub const INFRASTRUCTURE_DESCRIPTION_KIND: Path = Path::new(41, 0);
-    pub const INFRASTRUCTURE_DESCRIPTION_RESOURCES: Path = Path::new(41, 1);
-    pub const INFRASTRUCTURE_DESCRIPTION_CONDITION: Path = Path::new(41, 2);
-    pub const INFRASTRUCTURE_DESCRIPTION_FORM: Path = Path::new(41, 3);
-    pub const INFRASTRUCTURE_DESCRIPTION_RECOVERY: Path = Path::new(41, 4);
-    pub const INFRASTRUCTURE_DESCRIPTION_PRICE: Path = Path::new(41, 5);
-    pub const INFRASTRUCTURE_DESCRIPTION_STATE: Path = Path::new(41, 6);
-    pub const INFRASTRUCTURE_DESCRIPTION_TAIL: Path = Path::new(41, 7);
-    pub const INFRASTRUCTURE_PHASE_TAG: Path = Path::new(42, 0);
-    pub const INFRASTRUCTURE_ENTRY_PROJECT: Path = Path::new(43, 0);
-    pub const INFRASTRUCTURE_ENTRY_NUMBER: Path = Path::new(43, 1);
-    pub const INFRASTRUCTURE_ENTRY_KEY: Path = Path::new(43, 2);
-    pub const INFRASTRUCTURE_ENTRY_EFFECT: Path = Path::new(43, 3);
-    pub const INFRASTRUCTURE_ENTRY_ATTEMPT: Path = Path::new(43, 4);
-    pub const INFRASTRUCTURE_ENTRY_DEADLINE: Path = Path::new(43, 5);
-    pub const INFRASTRUCTURE_ENTRY_PHASE: Path = Path::new(43, 6);
-    pub const INFRASTRUCTURE_ENTRY_TAIL: Path = Path::new(43, 7);
-    pub const INFRASTRUCTURE_SERVICE_FACT_VERSION: Path = Path::new(44, 0);
-    pub const INFRASTRUCTURE_SERVICE_FACT_REPLICAS: Path = Path::new(44, 1);
-    pub const INFRASTRUCTURE_SERVICE_FACT_HEALTHY: Path = Path::new(44, 2);
-    pub const INFRASTRUCTURE_SERVICE_FACT_REVISION: Path = Path::new(44, 3);
-    pub const INFRASTRUCTURE_SERVICE_FACT_OBSERVED: Path = Path::new(44, 4);
-    pub const INFRASTRUCTURE_SERVICE_FACT_TAIL: Path = Path::new(44, 5);
-    pub const INFRASTRUCTURE_ENVIRONMENT_FACT_CREATED_BY: Path = Path::new(45, 0);
-    pub const INFRASTRUCTURE_ENVIRONMENT_FACT_READY_AT: Path = Path::new(45, 1);
-    pub const INFRASTRUCTURE_ENVIRONMENT_FACT_UNTIL: Path = Path::new(45, 2);
-    pub const INFRASTRUCTURE_ENVIRONMENT_FACT_PRICE: Path = Path::new(45, 3);
-    pub const INFRASTRUCTURE_ENVIRONMENT_FACT_TAIL: Path = Path::new(45, 4);
-    pub const INFRASTRUCTURE_PROCEDURE_REMEDIATE_SERVICE: Path = Path::new(46, 0);
-    pub const INFRASTRUCTURE_PROCEDURE_REMEDIATE_OPERATION: Path = Path::new(46, 1);
-    pub const INFRASTRUCTURE_PROCEDURE_REMEDIATE_DEADLINE: Path = Path::new(46, 2);
-    pub const INFRASTRUCTURE_PROCEDURE_REMEDIATE_TAIL: Path = Path::new(46, 3);
-    pub const INFRASTRUCTURE_PROCEDURE_SCALE_SERVICE: Path = Path::new(47, 0);
-    pub const INFRASTRUCTURE_PROCEDURE_SCALE_REPLICAS: Path = Path::new(47, 1);
-    pub const INFRASTRUCTURE_PROCEDURE_SCALE_DEADLINE: Path = Path::new(47, 2);
-    pub const INFRASTRUCTURE_PROCEDURE_SCALE_TAIL: Path = Path::new(47, 3);
-    pub const INFRASTRUCTURE_PROCEDURE_PROVISION_ENVIRONMENT: Path = Path::new(48, 0);
-    pub const INFRASTRUCTURE_PROCEDURE_PROVISION_UNTIL: Path = Path::new(48, 1);
-    pub const INFRASTRUCTURE_PROCEDURE_PROVISION_PRICE: Path = Path::new(48, 2);
-    pub const INFRASTRUCTURE_PROCEDURE_PROVISION_DEADLINE: Path = Path::new(48, 3);
-    pub const INFRASTRUCTURE_PROCEDURE_PROVISION_TAIL: Path = Path::new(48, 4);
-    pub const INFRASTRUCTURE_PROCEDURE_TEAR_DOWN_ENVIRONMENT: Path = Path::new(49, 0);
-    pub const INFRASTRUCTURE_PROCEDURE_TEAR_DOWN_CREATED_BY: Path = Path::new(49, 1);
-    pub const INFRASTRUCTURE_PROCEDURE_TEAR_DOWN_DEADLINE: Path = Path::new(49, 2);
-    pub const INFRASTRUCTURE_PROCEDURE_TEAR_DOWN_TAIL: Path = Path::new(49, 3);
-    pub const INFRASTRUCTURE_PROCEDURE_TAG: Path = Path::new(50, 0);
-    pub const INFRASTRUCTURE_PROCEDURE_PHASE_TAG: Path = Path::new(51, 0);
-    pub const INFRASTRUCTURE_PROCEDURE_STATE_TASK: Path = Path::new(52, 0);
-    pub const INFRASTRUCTURE_PROCEDURE_STATE_PROCEDURE: Path = Path::new(52, 1);
-    pub const INFRASTRUCTURE_PROCEDURE_STATE_PHASE: Path = Path::new(52, 2);
-    pub const INFRASTRUCTURE_PROCEDURE_STATE_TAIL: Path = Path::new(52, 3);
-    pub const INFRASTRUCTURE_DRIFT_KIND_TAG: Path = Path::new(53, 0);
-    pub const INFRASTRUCTURE_DRIFT_ACCOUNT_RESOURCE: Path = Path::new(54, 0);
-    pub const INFRASTRUCTURE_DRIFT_ACCOUNT_KIND: Path = Path::new(54, 1);
-    pub const INFRASTRUCTURE_DRIFT_ACCOUNT_AT: Path = Path::new(54, 2);
-    pub const INFRASTRUCTURE_DRIFT_ACCOUNT_BY: Path = Path::new(54, 3);
-    pub const INFRASTRUCTURE_DRIFT_ACCOUNT_TAIL: Path = Path::new(54, 4);
-    pub const INFRASTRUCTURE_ENVIRONMENT_END_REVISION: Path = Path::new(55, 0);
-    pub const INFRASTRUCTURE_ENVIRONMENT_END_UNTIL: Path = Path::new(55, 1);
-    pub const INFRASTRUCTURE_ENVIRONMENT_END_TAIL: Path = Path::new(55, 2);
-    pub const INFRASTRUCTURE_CLIENT_POOL_QUOTA: Path = Path::new(56, 0);
-    pub const INFRASTRUCTURE_CLIENT_POOL_USED: Path = Path::new(56, 1);
-    pub const INFRASTRUCTURE_CLIENT_POOL_TAIL: Path = Path::new(56, 2);
-    pub const INFRASTRUCTURE_RESOURCE_FACT_SERVICE_VALUE: Path = Path::new(57, 0);
-    pub const INFRASTRUCTURE_RESOURCE_FACT_SERVICE_TAIL: Path = Path::new(57, 1);
-    pub const INFRASTRUCTURE_RESOURCE_FACT_ENVIRONMENT_FACT: Path = Path::new(58, 0);
-    pub const INFRASTRUCTURE_RESOURCE_FACT_ENVIRONMENT_END: Path = Path::new(58, 1);
-    pub const INFRASTRUCTURE_RESOURCE_FACT_ENVIRONMENT_TAIL: Path = Path::new(58, 2);
-    pub const INFRASTRUCTURE_RESOURCE_FACT_POOL_VALUE: Path = Path::new(59, 0);
-    pub const INFRASTRUCTURE_RESOURCE_FACT_POOL_TAIL: Path = Path::new(59, 1);
-    pub const INFRASTRUCTURE_RESOURCE_FACT_QUOTA_VALUE: Path = Path::new(60, 0);
-    pub const INFRASTRUCTURE_RESOURCE_FACT_QUOTA_TAIL: Path = Path::new(60, 1);
-    pub const INFRASTRUCTURE_RESOURCE_FACT_TAG: Path = Path::new(61, 0);
-    pub const INFRASTRUCTURE_CLIENT_RESOURCE_NAMED: Path = Path::new(62, 0);
-    pub const INFRASTRUCTURE_CLIENT_RESOURCE_FACT: Path = Path::new(62, 1);
-    pub const INFRASTRUCTURE_CLIENT_RESOURCE_TAIL: Path = Path::new(62, 2);
-    pub const INFRASTRUCTURE_CLIENT_ENVIRONMENT_ENVIRONMENT: Path = Path::new(63, 0);
-    pub const INFRASTRUCTURE_CLIENT_ENVIRONMENT_FACT: Path = Path::new(63, 1);
-    pub const INFRASTRUCTURE_CLIENT_ENVIRONMENT_END: Path = Path::new(63, 2);
-    pub const INFRASTRUCTURE_CLIENT_ENVIRONMENT_POOL: Path = Path::new(63, 3);
-    pub const INFRASTRUCTURE_CLIENT_ENVIRONMENT_TAIL: Path = Path::new(63, 4);
-    pub const INFRASTRUCTURE_VALUE_ENVIRONMENT_ENVIRONMENT: Path = Path::new(64, 0);
-    pub const INFRASTRUCTURE_VALUE_ENVIRONMENT_END_REVISION: Path = Path::new(64, 1);
-    pub const INFRASTRUCTURE_VALUE_ENVIRONMENT_FACT: Path = Path::new(64, 2);
-    pub const INFRASTRUCTURE_VALUE_ENVIRONMENT_END: Path = Path::new(64, 3);
-    pub const INFRASTRUCTURE_VALUE_ENVIRONMENT_POOL: Path = Path::new(64, 4);
-    pub const INFRASTRUCTURE_VALUE_ENVIRONMENT_TAIL: Path = Path::new(64, 5);
-    pub const INFRASTRUCTURE_VALUE_PANEL_TASK: Path = Path::new(65, 0);
-    pub const INFRASTRUCTURE_VALUE_PANEL_STATE: Path = Path::new(65, 1);
-    pub const INFRASTRUCTURE_VALUE_PANEL_RESOURCES: Path = Path::new(65, 2);
-    pub const INFRASTRUCTURE_VALUE_PANEL_EFFECTS: Path = Path::new(65, 3);
-    pub const INFRASTRUCTURE_VALUE_PANEL_TAIL: Path = Path::new(65, 4);
-    pub const INFRASTRUCTURE_VALUE_RESULT_TASK: Path = Path::new(66, 0);
-    pub const INFRASTRUCTURE_VALUE_RESULT_STATE: Path = Path::new(66, 1);
-    pub const INFRASTRUCTURE_VALUE_RESULT_RESOURCES: Path = Path::new(66, 2);
-    pub const INFRASTRUCTURE_VALUE_RESULT_TAIL: Path = Path::new(66, 3);
-    pub const INFRASTRUCTURE_VALUE_EFFECT_PROPOSAL: Path = Path::new(67, 0);
-    pub const INFRASTRUCTURE_VALUE_EFFECT_TASK: Path = Path::new(67, 1);
-    pub const INFRASTRUCTURE_VALUE_EFFECT_EFFECT: Path = Path::new(67, 2);
-    pub const INFRASTRUCTURE_VALUE_EFFECT_DESCRIPTION: Path = Path::new(67, 3);
-    pub const INFRASTRUCTURE_VALUE_EFFECT_TAIL: Path = Path::new(67, 4);
-    pub const INFRASTRUCTURE_VALUE_OUTBOX_ENTRY: Path = Path::new(68, 0);
-    pub const INFRASTRUCTURE_VALUE_OUTBOX_DESCRIPTION: Path = Path::new(68, 1);
-    pub const INFRASTRUCTURE_VALUE_OUTBOX_TAIL: Path = Path::new(68, 2);
-    pub const INFRASTRUCTURE_VALUE_HOLD_TASK: Path = Path::new(69, 0);
-    pub const INFRASTRUCTURE_VALUE_HOLD_RESOURCES: Path = Path::new(69, 1);
-    pub const INFRASTRUCTURE_VALUE_HOLD_DRIFT: Path = Path::new(69, 2);
-    pub const INFRASTRUCTURE_VALUE_HOLD_EFFECTS: Path = Path::new(69, 3);
-    pub const INFRASTRUCTURE_VALUE_HOLD_TAIL: Path = Path::new(69, 4);
-    pub const INFRASTRUCTURE_VALUE_PROJECT_PROJECT: Path = Path::new(70, 0);
-    pub const INFRASTRUCTURE_VALUE_PROJECT_RESOURCES: Path = Path::new(70, 1);
-    pub const INFRASTRUCTURE_VALUE_PROJECT_ENVIRONMENTS: Path = Path::new(70, 2);
-    pub const INFRASTRUCTURE_VALUE_PROJECT_TAIL: Path = Path::new(70, 3);
-    pub const INFRASTRUCTURE_VALUE_DEPLOYMENT_BACKEND: Path = Path::new(71, 0);
-    pub const INFRASTRUCTURE_VALUE_DEPLOYMENT_EFFECTS: Path = Path::new(71, 1);
-    pub const INFRASTRUCTURE_VALUE_DEPLOYMENT_MADE: Path = Path::new(71, 2);
-    pub const INFRASTRUCTURE_VALUE_DEPLOYMENT_PROPOSAL_LIMIT: Path = Path::new(71, 3);
-    pub const INFRASTRUCTURE_VALUE_DEPLOYMENT_STAGED_LIMIT: Path = Path::new(71, 4);
-    pub const INFRASTRUCTURE_VALUE_DEPLOYMENT_TAIL: Path = Path::new(71, 5);
-    pub const INFRASTRUCTURE_VALUE_TAG: Path = Path::new(72, 0);
-    pub const OBSERVABILITY_SCOPE_PROJECT_VALUE: Path = Path::new(73, 0);
-    pub const OBSERVABILITY_SCOPE_PROJECT_TAIL: Path = Path::new(73, 1);
-    pub const OBSERVABILITY_SCOPE_TAG: Path = Path::new(74, 0);
-    pub const OBSERVABILITY_KIND_INCIDENTS_OPEN: Path = Path::new(75, 0);
-    pub const OBSERVABILITY_KIND_INCIDENTS_TAIL: Path = Path::new(75, 1);
-    pub const OBSERVABILITY_KIND_INCIDENT_VALUE: Path = Path::new(76, 0);
-    pub const OBSERVABILITY_KIND_INCIDENT_TAIL: Path = Path::new(76, 1);
-    pub const OBSERVABILITY_KIND_PANEL_VALUE: Path = Path::new(77, 0);
-    pub const OBSERVABILITY_KIND_PANEL_TAIL: Path = Path::new(77, 1);
-    pub const OBSERVABILITY_KIND_RESULT_VALUE: Path = Path::new(78, 0);
-    pub const OBSERVABILITY_KIND_RESULT_TAIL: Path = Path::new(78, 1);
-    pub const OBSERVABILITY_KIND_EFFECT_VALUE: Path = Path::new(79, 0);
-    pub const OBSERVABILITY_KIND_EFFECT_TAIL: Path = Path::new(79, 1);
-    pub const OBSERVABILITY_KIND_OUTBOX_VALUE: Path = Path::new(80, 0);
-    pub const OBSERVABILITY_KIND_OUTBOX_TAIL: Path = Path::new(80, 1);
-    pub const OBSERVABILITY_KIND_HOLD_VALUE: Path = Path::new(81, 0);
-    pub const OBSERVABILITY_KIND_HOLD_TAIL: Path = Path::new(81, 1);
-    pub const OBSERVABILITY_KIND_PROJECT_VALUE: Path = Path::new(82, 0);
-    pub const OBSERVABILITY_KIND_PROJECT_TAIL: Path = Path::new(82, 1);
-    pub const OBSERVABILITY_KIND_TAG: Path = Path::new(83, 0);
-    pub const OBSERVABILITY_SUBJECT_SCOPE: Path = Path::new(84, 0);
-    pub const OBSERVABILITY_SUBJECT_KIND: Path = Path::new(84, 1);
-    pub const OBSERVABILITY_SUBJECT_TAIL: Path = Path::new(84, 2);
-    pub const OBSERVABILITY_SERVICE_ENVIRONMENT: Path = Path::new(85, 0);
-    pub const OBSERVABILITY_SERVICE_NAME: Path = Path::new(85, 1);
-    pub const OBSERVABILITY_SERVICE_TAIL: Path = Path::new(85, 2);
-    pub const OBSERVABILITY_STATE_TAG: Path = Path::new(86, 0);
-    pub const OBSERVABILITY_LOAD_POINT_OBSERVED: Path = Path::new(87, 0);
-    pub const OBSERVABILITY_LOAD_POINT_LOAD_PERCENT: Path = Path::new(87, 1);
-    pub const OBSERVABILITY_LOAD_POINT_TAIL: Path = Path::new(87, 2);
-    pub const OBSERVABILITY_FACT_OBSERVED: Path = Path::new(88, 0);
-    pub const OBSERVABILITY_FACT_HEALTHY_REPLICAS: Path = Path::new(88, 1);
-    pub const OBSERVABILITY_FACT_ERRORS: Path = Path::new(88, 2);
-    pub const OBSERVABILITY_FACT_ERROR_RATE_PERCENT: Path = Path::new(88, 3);
-    pub const OBSERVABILITY_FACT_LOAD_PERCENT: Path = Path::new(88, 4);
-    pub const OBSERVABILITY_FACT_LOAD: Path = Path::new(88, 5);
-    pub const OBSERVABILITY_FACT_TAIL: Path = Path::new(88, 6);
-    pub const OBSERVABILITY_HEALTH_OBSERVED: Path = Path::new(89, 0);
-    pub const OBSERVABILITY_HEALTH_HEALTHY_REPLICAS: Path = Path::new(89, 1);
-    pub const OBSERVABILITY_HEALTH_ERRORS: Path = Path::new(89, 2);
-    pub const OBSERVABILITY_HEALTH_ERROR_RATE_PERCENT: Path = Path::new(89, 3);
-    pub const OBSERVABILITY_HEALTH_TAIL: Path = Path::new(89, 4);
-    pub const OBSERVABILITY_POINT_AT: Path = Path::new(90, 0);
-    pub const OBSERVABILITY_POINT_HEALTH: Path = Path::new(90, 1);
-    pub const OBSERVABILITY_POINT_TAIL: Path = Path::new(90, 2);
-    pub const OBSERVABILITY_INCIDENT_PROJECT: Path = Path::new(91, 0);
-    pub const OBSERVABILITY_INCIDENT_NUMBER: Path = Path::new(91, 1);
-    pub const OBSERVABILITY_INCIDENT_WATCH: Path = Path::new(91, 2);
-    pub const OBSERVABILITY_INCIDENT_LEAD: Path = Path::new(91, 3);
-    pub const OBSERVABILITY_INCIDENT_ALERTS: Path = Path::new(91, 4);
-    pub const OBSERVABILITY_INCIDENT_RAISED: Path = Path::new(91, 5);
-    pub const OBSERVABILITY_INCIDENT_SERVICE: Path = Path::new(91, 6);
-    pub const OBSERVABILITY_INCIDENT_SEVERITY: Path = Path::new(91, 7);
-    pub const OBSERVABILITY_INCIDENT_STATE: Path = Path::new(91, 8);
-    pub const OBSERVABILITY_INCIDENT_TIMELINE: Path = Path::new(91, 9);
-    pub const OBSERVABILITY_INCIDENT_CUT: Path = Path::new(91, 10);
-    pub const OBSERVABILITY_INCIDENT_TAIL: Path = Path::new(91, 11);
-    pub const OBSERVABILITY_SERVICE_STATE_SERVICE: Path = Path::new(92, 0);
-    pub const OBSERVABILITY_SERVICE_STATE_FACT: Path = Path::new(92, 1);
-    pub const OBSERVABILITY_SERVICE_STATE_TAIL: Path = Path::new(92, 2);
-    pub const OBSERVABILITY_ALERT_NUMBER: Path = Path::new(93, 0);
-    pub const OBSERVABILITY_ALERT_SERVICE: Path = Path::new(93, 1);
-    pub const OBSERVABILITY_ALERT_SEVERITY: Path = Path::new(93, 2);
-    pub const OBSERVABILITY_ALERT_TAIL: Path = Path::new(93, 3);
-    pub const OBSERVABILITY_PURPOSE_CALL_ATTEMPT: Path = Path::new(94, 0);
-    pub const OBSERVABILITY_PURPOSE_CALL_COMPLETION: Path = Path::new(94, 1);
-    pub const OBSERVABILITY_PURPOSE_CALL_POSITION: Path = Path::new(94, 2);
-    pub const OBSERVABILITY_PURPOSE_CALL_TAIL: Path = Path::new(94, 3);
-    pub const OBSERVABILITY_PURPOSE_PROCEDURE_PURPOSE: Path = Path::new(95, 0);
-    pub const OBSERVABILITY_PURPOSE_PROCEDURE_TAIL: Path = Path::new(95, 1);
-    pub const OBSERVABILITY_PURPOSE_PROJECTION_PURPOSE: Path = Path::new(96, 0);
-    pub const OBSERVABILITY_PURPOSE_PROJECTION_TAIL: Path = Path::new(96, 1);
-    pub const OBSERVABILITY_PURPOSE_TAG: Path = Path::new(97, 0);
-    pub const OBSERVABILITY_KEY_DEPLOYMENT: Path = Path::new(98, 0);
-    pub const OBSERVABILITY_KEY_TASK: Path = Path::new(98, 1);
-    pub const OBSERVABILITY_KEY_ORIGIN: Path = Path::new(98, 2);
-    pub const OBSERVABILITY_KEY_PURPOSE: Path = Path::new(98, 3);
-    pub const OBSERVABILITY_KEY_TAIL: Path = Path::new(98, 4);
-    pub const OBSERVABILITY_EFFECT_RULE: Path = Path::new(99, 0);
-    pub const OBSERVABILITY_EFFECT_UNTIL: Path = Path::new(99, 1);
-    pub const OBSERVABILITY_EFFECT_TAIL: Path = Path::new(99, 2);
-    pub const OBSERVABILITY_PHASE_TAG: Path = Path::new(100, 0);
-    pub const OBSERVABILITY_ENTRY_PROJECT: Path = Path::new(101, 0);
-    pub const OBSERVABILITY_ENTRY_NUMBER: Path = Path::new(101, 1);
-    pub const OBSERVABILITY_ENTRY_KEY: Path = Path::new(101, 2);
-    pub const OBSERVABILITY_ENTRY_EFFECT: Path = Path::new(101, 3);
-    pub const OBSERVABILITY_ENTRY_ATTEMPT: Path = Path::new(101, 4);
-    pub const OBSERVABILITY_ENTRY_DEADLINE: Path = Path::new(101, 5);
-    pub const OBSERVABILITY_ENTRY_PHASE: Path = Path::new(101, 6);
-    pub const OBSERVABILITY_ENTRY_TAIL: Path = Path::new(101, 7);
-    pub const OBSERVABILITY_VALUE_SERVICE_SERVICE: Path = Path::new(102, 0);
-    pub const OBSERVABILITY_VALUE_SERVICE_FACT: Path = Path::new(102, 1);
-    pub const OBSERVABILITY_VALUE_SERVICE_TAIL: Path = Path::new(102, 2);
-    pub const OBSERVABILITY_VALUE_ALERT_ALERT: Path = Path::new(103, 0);
-    pub const OBSERVABILITY_VALUE_ALERT_RAISED: Path = Path::new(103, 1);
-    pub const OBSERVABILITY_VALUE_ALERT_STATE: Path = Path::new(103, 2);
-    pub const OBSERVABILITY_VALUE_ALERT_FACT: Path = Path::new(103, 3);
-    pub const OBSERVABILITY_VALUE_ALERT_TAIL: Path = Path::new(103, 4);
-    pub const OBSERVABILITY_VALUE_OUTBOX_ENTRY: Path = Path::new(104, 0);
-    pub const OBSERVABILITY_VALUE_OUTBOX_TAIL: Path = Path::new(104, 1);
-    pub const OBSERVABILITY_VALUE_DEPLOYMENT_WATCHES: Path = Path::new(105, 0);
-    pub const OBSERVABILITY_VALUE_DEPLOYMENT_EFFECTS: Path = Path::new(105, 1);
-    pub const OBSERVABILITY_VALUE_DEPLOYMENT_READ_LIMIT: Path = Path::new(105, 2);
-    pub const OBSERVABILITY_VALUE_DEPLOYMENT_INCIDENT_LIMIT: Path = Path::new(105, 3);
-    pub const OBSERVABILITY_VALUE_DEPLOYMENT_TAIL: Path = Path::new(105, 4);
-    pub const OBSERVABILITY_VALUE_INCIDENT_INCIDENT: Path = Path::new(106, 0);
-    pub const OBSERVABILITY_VALUE_INCIDENT_FACT: Path = Path::new(106, 1);
-    pub const OBSERVABILITY_VALUE_INCIDENT_TAIL: Path = Path::new(106, 2);
-    pub const OBSERVABILITY_VALUE_PROJECT_PROJECT: Path = Path::new(107, 0);
-    pub const OBSERVABILITY_VALUE_PROJECT_SERVICES: Path = Path::new(107, 1);
-    pub const OBSERVABILITY_VALUE_PROJECT_INCIDENTS: Path = Path::new(107, 2);
-    pub const OBSERVABILITY_VALUE_PROJECT_TAIL: Path = Path::new(107, 3);
-    pub const OBSERVABILITY_VALUE_TAG: Path = Path::new(108, 0);
-    pub const OBSERVABILITY_DOCUMENT_DATA_SUBJECT: Path = Path::new(109, 0);
-    pub const OBSERVABILITY_DOCUMENT_DATA_VALUE: Path = Path::new(109, 1);
-    pub const OBSERVABILITY_DOCUMENT_DATA_TAIL: Path = Path::new(109, 2);
-    pub const OBSERVABILITY_SUBJECT_RECORD_VALUE: Path = Path::new(110, 0);
-    pub const OBSERVABILITY_SUBJECT_RECORD_VERSION: Path = Path::new(110, 1);
-    pub const OBSERVABILITY_SUBJECT_RECORD_TAIL: Path = Path::new(110, 2);
-    pub const INFRASTRUCTURE_KIND_ENVIRONMENT_VALUE: Path = Path::new(111, 0);
-    pub const INFRASTRUCTURE_KIND_ENVIRONMENT_TAIL: Path = Path::new(111, 1);
-    pub const INFRASTRUCTURE_KIND_ENVIRONMENTS_POOL: Path = Path::new(112, 0);
-    pub const INFRASTRUCTURE_KIND_ENVIRONMENTS_TAIL: Path = Path::new(112, 1);
-    pub const INFRASTRUCTURE_KIND_TAG: Path = Path::new(113, 0);
-    pub const INFRASTRUCTURE_SUBJECT_SCOPE: Path = Path::new(114, 0);
-    pub const INFRASTRUCTURE_SUBJECT_KIND: Path = Path::new(114, 1);
-    pub const INFRASTRUCTURE_SUBJECT_TAIL: Path = Path::new(114, 2);
-    pub const INFRASTRUCTURE_ASK_MOVE_END_OBJECT: Path = Path::new(115, 0);
-    pub const INFRASTRUCTURE_ASK_MOVE_END_PROJECT: Path = Path::new(115, 1);
-    pub const INFRASTRUCTURE_ASK_MOVE_END_ENVIRONMENT: Path = Path::new(115, 2);
-    pub const INFRASTRUCTURE_ASK_MOVE_END_REVISION: Path = Path::new(115, 3);
-    pub const INFRASTRUCTURE_ASK_MOVE_END_UNTIL: Path = Path::new(115, 4);
-    pub const INFRASTRUCTURE_ASK_MOVE_END_TAIL: Path = Path::new(115, 5);
-    pub const INFRASTRUCTURE_ASK_TAG: Path = Path::new(116, 0);
-    pub const INFRASTRUCTURE_ANSWER_MOVED_END_ENVIRONMENT: Path = Path::new(117, 0);
-    pub const INFRASTRUCTURE_ANSWER_MOVED_END_REVISION: Path = Path::new(117, 1);
-    pub const INFRASTRUCTURE_ANSWER_MOVED_END_UNTIL: Path = Path::new(117, 2);
-    pub const INFRASTRUCTURE_ANSWER_MOVED_END_TAIL: Path = Path::new(117, 3);
-    pub const INFRASTRUCTURE_ANSWER_MOVED_ENVIRONMENT: Path = Path::new(118, 0);
-    pub const INFRASTRUCTURE_ANSWER_MOVED_REVISION: Path = Path::new(118, 1);
-    pub const INFRASTRUCTURE_ANSWER_MOVED_UNTIL: Path = Path::new(118, 2);
-    pub const INFRASTRUCTURE_ANSWER_MOVED_TAIL: Path = Path::new(118, 3);
-    pub const INFRASTRUCTURE_ANSWER_TAG: Path = Path::new(119, 0);
-    pub const INFRASTRUCTURE_DOCUMENT_DATA_SUBJECT: Path = Path::new(120, 0);
-    pub const INFRASTRUCTURE_DOCUMENT_DATA_VALUE: Path = Path::new(120, 1);
-    pub const INFRASTRUCTURE_DOCUMENT_DATA_TAIL: Path = Path::new(120, 2);
-    pub const OBSERVABILITY_DOCUMENT_VALUE_VALUE: Path = Path::new(121, 0);
-    pub const OBSERVABILITY_DOCUMENT_VALUE_TAIL: Path = Path::new(121, 1);
-    pub const INFRASTRUCTURE_ASK_RECORD_VALUE: Path = Path::new(122, 0);
-    pub const INFRASTRUCTURE_ASK_RECORD_VERSION: Path = Path::new(122, 1);
-    pub const INFRASTRUCTURE_ASK_RECORD_TAIL: Path = Path::new(122, 2);
-    pub const INFRASTRUCTURE_ANSWER_RECORD_VALUE: Path = Path::new(123, 0);
-    pub const INFRASTRUCTURE_ANSWER_RECORD_VERSION: Path = Path::new(123, 1);
-    pub const INFRASTRUCTURE_ANSWER_RECORD_TAIL: Path = Path::new(123, 2);
-    pub const INFRASTRUCTURE_SUBJECT_RECORD_VALUE: Path = Path::new(124, 0);
-    pub const INFRASTRUCTURE_SUBJECT_RECORD_VERSION: Path = Path::new(124, 1);
-    pub const INFRASTRUCTURE_SUBJECT_RECORD_TAIL: Path = Path::new(124, 2);
-    pub const INFRASTRUCTURE_DOCUMENT_VALUE_VALUE: Path = Path::new(125, 0);
-    pub const INFRASTRUCTURE_DOCUMENT_VALUE_TAIL: Path = Path::new(125, 1);
-    pub const OBSERVABILITY_DOCUMENT_TAG: Path = Path::new(126, 0);
-    pub const OBSERVABILITY_DOCUMENT_RECORD_VALUE: Path = Path::new(127, 0);
-    pub const OBSERVABILITY_DOCUMENT_RECORD_VERSION: Path = Path::new(127, 1);
-    pub const OBSERVABILITY_DOCUMENT_RECORD_TAIL: Path = Path::new(127, 2);
-    pub const INFRASTRUCTURE_DOCUMENT_TAG: Path = Path::new(128, 0);
-    pub const INFRASTRUCTURE_DOCUMENT_RECORD_VALUE: Path = Path::new(129, 0);
-    pub const INFRASTRUCTURE_DOCUMENT_RECORD_VERSION: Path = Path::new(129, 1);
-    pub const INFRASTRUCTURE_DOCUMENT_RECORD_TAIL: Path = Path::new(129, 2);
-    pub const INFRASTRUCTURE_READ_VALUE_VALUE: Path = Path::new(130, 0);
-    pub const INFRASTRUCTURE_READ_VALUE_TAIL: Path = Path::new(130, 1);
-    pub const INFRASTRUCTURE_READ_RESULT_TAG: Path = Path::new(131, 0);
-    pub const INFRASTRUCTURE_READ_ANSWER_VALUE: Path = Path::new(132, 0);
-    pub const INFRASTRUCTURE_READ_ANSWER_VERSION: Path = Path::new(132, 1);
-    pub const INFRASTRUCTURE_READ_ANSWER_TAIL: Path = Path::new(132, 2);
-    pub const OBSERVABILITY_READ_VALUE_VALUE: Path = Path::new(133, 0);
-    pub const OBSERVABILITY_READ_VALUE_TAIL: Path = Path::new(133, 1);
-    pub const OBSERVABILITY_READ_RESULT_TAG: Path = Path::new(134, 0);
-    pub const OBSERVABILITY_READ_ANSWER_VALUE: Path = Path::new(135, 0);
-    pub const OBSERVABILITY_READ_ANSWER_VERSION: Path = Path::new(135, 1);
-    pub const OBSERVABILITY_READ_ANSWER_TAIL: Path = Path::new(135, 2);
-}
-
-const PATH_NAMES: &[&[&str]] = &[
-    &[
-        "DecisionTask.value",
-        "DecisionTask (tail)",
-    ],
-    &[
-        "DecisionParty.value",
-        "DecisionParty (tail)",
-    ],
-    &[
-        "DecisionMaker (tag)",
-    ],
-    &[
-        "DecisionKey.maker",
-        "DecisionKey.number",
-        "DecisionKey (tail)",
-    ],
-    &[
-        "InfrastructureScopeProject.value",
-        "InfrastructureScopeProject (tail)",
-    ],
-    &[
-        "InfrastructureScope (tag)",
-    ],
-    &[
-        "InfrastructureKindPanel.value",
-        "InfrastructureKindPanel (tail)",
-    ],
-    &[
-        "InfrastructureKindResult.value",
-        "InfrastructureKindResult (tail)",
-    ],
-    &[
-        "InfrastructureKindEffect.value",
-        "InfrastructureKindEffect (tail)",
-    ],
-    &[
-        "InfrastructureKindOwnerEffect.value",
-        "InfrastructureKindOwnerEffect (tail)",
-    ],
-    &[
-        "InfrastructureKindOutbox.value",
-        "InfrastructureKindOutbox (tail)",
-    ],
-    &[
-        "InfrastructureKindHold.value",
-        "InfrastructureKindHold (tail)",
-    ],
-    &[
-        "InfrastructureKindProject.value",
-        "InfrastructureKindProject (tail)",
-    ],
-    &[
-        "InfrastructureRefusalRole.held",
-        "InfrastructureRefusalRole (tail)",
-    ],
-    &[
-        "InfrastructureRefusal (tag)",
-    ],
-    &[
-        "InfrastructureAnswerRefused.why",
-        "InfrastructureAnswerRefused (tail)",
-    ],
-    &[
-        "InfrastructureService.environment",
-        "InfrastructureService.name",
-        "InfrastructureService (tail)",
-    ],
-    &[
-        "InfrastructureEnvironment.pool",
-        "InfrastructureEnvironment.name",
-        "InfrastructureEnvironment (tail)",
-    ],
-    &[
-        "InfrastructurePool.value",
-        "InfrastructurePool (tail)",
-    ],
-    &[
-        "InfrastructureResourceService.value",
-        "InfrastructureResourceService (tail)",
-    ],
-    &[
-        "InfrastructureResourceEnvironment.value",
-        "InfrastructureResourceEnvironment (tail)",
-    ],
-    &[
-        "InfrastructureResourcePool.value",
-        "InfrastructureResourcePool (tail)",
-    ],
-    &[
-        "InfrastructureResourceQuota.value",
-        "InfrastructureResourceQuota (tail)",
-    ],
-    &[
-        "InfrastructureResource (tag)",
-    ],
-    &[
-        "InfrastructureHold (tag)",
-    ],
-    &[
-        "InfrastructureResourceRole (tag)",
-    ],
-    &[
-        "InfrastructureNamed.resource",
-        "InfrastructureNamed.role",
-        "InfrastructureNamed.hold",
-        "InfrastructureNamed (tail)",
-    ],
-    &[
-        "InfrastructurePurposeCall.attempt",
-        "InfrastructurePurposeCall.completion",
-        "InfrastructurePurposeCall.position",
-        "InfrastructurePurposeCall (tail)",
-    ],
-    &[
-        "InfrastructurePurposeProcedure.purpose",
-        "InfrastructurePurposeProcedure (tail)",
-    ],
-    &[
-        "InfrastructurePurposeProjection.purpose",
-        "InfrastructurePurposeProjection (tail)",
-    ],
-    &[
-        "InfrastructurePurpose (tag)",
-    ],
-    &[
-        "InfrastructureKey.deployment",
-        "InfrastructureKey.task",
-        "InfrastructureKey.origin",
-        "InfrastructureKey.purpose",
-        "InfrastructureKey (tail)",
-    ],
-    &[
-        "InfrastructureBackend (tag)",
-    ],
-    &[
-        "InfrastructureEffectRestart.service",
-        "InfrastructureEffectRestart.operation",
-        "InfrastructureEffectRestart (tail)",
-    ],
-    &[
-        "InfrastructureEffectScale.service",
-        "InfrastructureEffectScale.from",
-        "InfrastructureEffectScale.to",
-        "InfrastructureEffectScale (tail)",
-    ],
-    &[
-        "InfrastructureEffectRollback.service",
-        "InfrastructureEffectRollback.from",
-        "InfrastructureEffectRollback.to",
-        "InfrastructureEffectRollback (tail)",
-    ],
-    &[
-        "InfrastructureEffectCreateEnvironment.environment",
-        "InfrastructureEffectCreateEnvironment.until",
-        "InfrastructureEffectCreateEnvironment.price",
-        "InfrastructureEffectCreateEnvironment (tail)",
-    ],
-    &[
-        "InfrastructureEffectTearDown.environment",
-        "InfrastructureEffectTearDown.created_by",
-        "InfrastructureEffectTearDown (tail)",
-    ],
-    &[
-        "InfrastructureEffect (tag)",
-    ],
-    &[
-        "InfrastructureForm (tag)",
-    ],
-    &[
-        "InfrastructureRecovery (tag)",
-    ],
-    &[
-        "InfrastructureDescription.kind",
-        "InfrastructureDescription.resources",
-        "InfrastructureDescription.condition",
-        "InfrastructureDescription.form",
-        "InfrastructureDescription.recovery",
-        "InfrastructureDescription.price",
-        "InfrastructureDescription.state",
-        "InfrastructureDescription (tail)",
-    ],
-    &[
-        "InfrastructurePhase (tag)",
-    ],
-    &[
-        "InfrastructureEntry.project",
-        "InfrastructureEntry.number",
-        "InfrastructureEntry.key",
-        "InfrastructureEntry.effect",
-        "InfrastructureEntry.attempt",
-        "InfrastructureEntry.deadline",
-        "InfrastructureEntry.phase",
-        "InfrastructureEntry (tail)",
-    ],
-    &[
-        "InfrastructureServiceFact.version",
-        "InfrastructureServiceFact.replicas",
-        "InfrastructureServiceFact.healthy",
-        "InfrastructureServiceFact.revision",
-        "InfrastructureServiceFact.observed",
-        "InfrastructureServiceFact (tail)",
-    ],
-    &[
-        "InfrastructureEnvironmentFact.created_by",
-        "InfrastructureEnvironmentFact.ready_at",
-        "InfrastructureEnvironmentFact.until",
-        "InfrastructureEnvironmentFact.price",
-        "InfrastructureEnvironmentFact (tail)",
-    ],
-    &[
-        "InfrastructureProcedureRemediate.service",
-        "InfrastructureProcedureRemediate.operation",
-        "InfrastructureProcedureRemediate.deadline",
-        "InfrastructureProcedureRemediate (tail)",
-    ],
-    &[
-        "InfrastructureProcedureScale.service",
-        "InfrastructureProcedureScale.replicas",
-        "InfrastructureProcedureScale.deadline",
-        "InfrastructureProcedureScale (tail)",
-    ],
-    &[
-        "InfrastructureProcedureProvision.environment",
-        "InfrastructureProcedureProvision.until",
-        "InfrastructureProcedureProvision.price",
-        "InfrastructureProcedureProvision.deadline",
-        "InfrastructureProcedureProvision (tail)",
-    ],
-    &[
-        "InfrastructureProcedureTearDown.environment",
-        "InfrastructureProcedureTearDown.created_by",
-        "InfrastructureProcedureTearDown.deadline",
-        "InfrastructureProcedureTearDown (tail)",
-    ],
-    &[
-        "InfrastructureProcedure (tag)",
-    ],
-    &[
-        "InfrastructureProcedurePhase (tag)",
-    ],
-    &[
-        "InfrastructureProcedureState.task",
-        "InfrastructureProcedureState.procedure",
-        "InfrastructureProcedureState.phase",
-        "InfrastructureProcedureState (tail)",
-    ],
-    &[
-        "InfrastructureDriftKind (tag)",
-    ],
-    &[
-        "InfrastructureDriftAccount.resource",
-        "InfrastructureDriftAccount.kind",
-        "InfrastructureDriftAccount.at",
-        "InfrastructureDriftAccount.by",
-        "InfrastructureDriftAccount (tail)",
-    ],
-    &[
-        "InfrastructureEnvironmentEnd.revision",
-        "InfrastructureEnvironmentEnd.until",
-        "InfrastructureEnvironmentEnd (tail)",
-    ],
-    &[
-        "InfrastructureClientPool.quota",
-        "InfrastructureClientPool.used",
-        "InfrastructureClientPool (tail)",
-    ],
-    &[
-        "InfrastructureResourceFactService.value",
-        "InfrastructureResourceFactService (tail)",
-    ],
-    &[
-        "InfrastructureResourceFactEnvironment.fact",
-        "InfrastructureResourceFactEnvironment.end",
-        "InfrastructureResourceFactEnvironment (tail)",
-    ],
-    &[
-        "InfrastructureResourceFactPool.value",
-        "InfrastructureResourceFactPool (tail)",
-    ],
-    &[
-        "InfrastructureResourceFactQuota.value",
-        "InfrastructureResourceFactQuota (tail)",
-    ],
-    &[
-        "InfrastructureResourceFact (tag)",
-    ],
-    &[
-        "InfrastructureClientResource.named",
-        "InfrastructureClientResource.fact",
-        "InfrastructureClientResource (tail)",
-    ],
-    &[
-        "InfrastructureClientEnvironment.environment",
-        "InfrastructureClientEnvironment.fact",
-        "InfrastructureClientEnvironment.end",
-        "InfrastructureClientEnvironment.pool",
-        "InfrastructureClientEnvironment (tail)",
-    ],
-    &[
-        "InfrastructureValueEnvironment.environment",
-        "InfrastructureValueEnvironment.end_revision",
-        "InfrastructureValueEnvironment.fact",
-        "InfrastructureValueEnvironment.end",
-        "InfrastructureValueEnvironment.pool",
-        "InfrastructureValueEnvironment (tail)",
-    ],
-    &[
-        "InfrastructureValuePanel.task",
-        "InfrastructureValuePanel.state",
-        "InfrastructureValuePanel.resources",
-        "InfrastructureValuePanel.effects",
-        "InfrastructureValuePanel (tail)",
-    ],
-    &[
-        "InfrastructureValueResult.task",
-        "InfrastructureValueResult.state",
-        "InfrastructureValueResult.resources",
-        "InfrastructureValueResult (tail)",
-    ],
-    &[
-        "InfrastructureValueEffect.proposal",
-        "InfrastructureValueEffect.task",
-        "InfrastructureValueEffect.effect",
-        "InfrastructureValueEffect.description",
-        "InfrastructureValueEffect (tail)",
-    ],
-    &[
-        "InfrastructureValueOutbox.entry",
-        "InfrastructureValueOutbox.description",
-        "InfrastructureValueOutbox (tail)",
-    ],
-    &[
-        "InfrastructureValueHold.task",
-        "InfrastructureValueHold.resources",
-        "InfrastructureValueHold.drift",
-        "InfrastructureValueHold.effects",
-        "InfrastructureValueHold (tail)",
-    ],
-    &[
-        "InfrastructureValueProject.project",
-        "InfrastructureValueProject.resources",
-        "InfrastructureValueProject.environments",
-        "InfrastructureValueProject (tail)",
-    ],
-    &[
-        "InfrastructureValueDeployment.backend",
-        "InfrastructureValueDeployment.effects",
-        "InfrastructureValueDeployment.made",
-        "InfrastructureValueDeployment.proposal_limit",
-        "InfrastructureValueDeployment.staged_limit",
-        "InfrastructureValueDeployment (tail)",
-    ],
-    &[
-        "InfrastructureValue (tag)",
-    ],
-    &[
-        "ObservabilityScopeProject.value",
-        "ObservabilityScopeProject (tail)",
-    ],
-    &[
-        "ObservabilityScope (tag)",
-    ],
-    &[
-        "ObservabilityKindIncidents.open",
-        "ObservabilityKindIncidents (tail)",
-    ],
-    &[
-        "ObservabilityKindIncident.value",
-        "ObservabilityKindIncident (tail)",
-    ],
-    &[
-        "ObservabilityKindPanel.value",
-        "ObservabilityKindPanel (tail)",
-    ],
-    &[
-        "ObservabilityKindResult.value",
-        "ObservabilityKindResult (tail)",
-    ],
-    &[
-        "ObservabilityKindEffect.value",
-        "ObservabilityKindEffect (tail)",
-    ],
-    &[
-        "ObservabilityKindOutbox.value",
-        "ObservabilityKindOutbox (tail)",
-    ],
-    &[
-        "ObservabilityKindHold.value",
-        "ObservabilityKindHold (tail)",
-    ],
-    &[
-        "ObservabilityKindProject.value",
-        "ObservabilityKindProject (tail)",
-    ],
-    &[
-        "ObservabilityKind (tag)",
-    ],
-    &[
-        "ObservabilitySubject.scope",
-        "ObservabilitySubject.kind",
-        "ObservabilitySubject (tail)",
-    ],
-    &[
-        "ObservabilityService.environment",
-        "ObservabilityService.name",
-        "ObservabilityService (tail)",
-    ],
-    &[
-        "ObservabilityState (tag)",
-    ],
-    &[
-        "ObservabilityLoadPoint.observed",
-        "ObservabilityLoadPoint.load_percent",
-        "ObservabilityLoadPoint (tail)",
-    ],
-    &[
-        "ObservabilityFact.observed",
-        "ObservabilityFact.healthy_replicas",
-        "ObservabilityFact.errors",
-        "ObservabilityFact.error_rate_percent",
-        "ObservabilityFact.load_percent",
-        "ObservabilityFact.load",
-        "ObservabilityFact (tail)",
-    ],
-    &[
-        "ObservabilityHealth.observed",
-        "ObservabilityHealth.healthy_replicas",
-        "ObservabilityHealth.errors",
-        "ObservabilityHealth.error_rate_percent",
-        "ObservabilityHealth (tail)",
-    ],
-    &[
-        "ObservabilityPoint.at",
-        "ObservabilityPoint.health",
-        "ObservabilityPoint (tail)",
-    ],
-    &[
-        "ObservabilityIncident.project",
-        "ObservabilityIncident.number",
-        "ObservabilityIncident.watch",
-        "ObservabilityIncident.lead",
-        "ObservabilityIncident.alerts",
-        "ObservabilityIncident.raised",
-        "ObservabilityIncident.service",
-        "ObservabilityIncident.severity",
-        "ObservabilityIncident.state",
-        "ObservabilityIncident.timeline",
-        "ObservabilityIncident.cut",
-        "ObservabilityIncident (tail)",
-    ],
-    &[
-        "ObservabilityServiceState.service",
-        "ObservabilityServiceState.fact",
-        "ObservabilityServiceState (tail)",
-    ],
-    &[
-        "ObservabilityAlert.number",
-        "ObservabilityAlert.service",
-        "ObservabilityAlert.severity",
-        "ObservabilityAlert (tail)",
-    ],
-    &[
-        "ObservabilityPurposeCall.attempt",
-        "ObservabilityPurposeCall.completion",
-        "ObservabilityPurposeCall.position",
-        "ObservabilityPurposeCall (tail)",
-    ],
-    &[
-        "ObservabilityPurposeProcedure.purpose",
-        "ObservabilityPurposeProcedure (tail)",
-    ],
-    &[
-        "ObservabilityPurposeProjection.purpose",
-        "ObservabilityPurposeProjection (tail)",
-    ],
-    &[
-        "ObservabilityPurpose (tag)",
-    ],
-    &[
-        "ObservabilityKey.deployment",
-        "ObservabilityKey.task",
-        "ObservabilityKey.origin",
-        "ObservabilityKey.purpose",
-        "ObservabilityKey (tail)",
-    ],
-    &[
-        "ObservabilityEffect.rule",
-        "ObservabilityEffect.until",
-        "ObservabilityEffect (tail)",
-    ],
-    &[
-        "ObservabilityPhase (tag)",
-    ],
-    &[
-        "ObservabilityEntry.project",
-        "ObservabilityEntry.number",
-        "ObservabilityEntry.key",
-        "ObservabilityEntry.effect",
-        "ObservabilityEntry.attempt",
-        "ObservabilityEntry.deadline",
-        "ObservabilityEntry.phase",
-        "ObservabilityEntry (tail)",
-    ],
-    &[
-        "ObservabilityValueService.service",
-        "ObservabilityValueService.fact",
-        "ObservabilityValueService (tail)",
-    ],
-    &[
-        "ObservabilityValueAlert.alert",
-        "ObservabilityValueAlert.raised",
-        "ObservabilityValueAlert.state",
-        "ObservabilityValueAlert.fact",
-        "ObservabilityValueAlert (tail)",
-    ],
-    &[
-        "ObservabilityValueOutbox.entry",
-        "ObservabilityValueOutbox (tail)",
-    ],
-    &[
-        "ObservabilityValueDeployment.watches",
-        "ObservabilityValueDeployment.effects",
-        "ObservabilityValueDeployment.read_limit",
-        "ObservabilityValueDeployment.incident_limit",
-        "ObservabilityValueDeployment (tail)",
-    ],
-    &[
-        "ObservabilityValueIncident.incident",
-        "ObservabilityValueIncident.fact",
-        "ObservabilityValueIncident (tail)",
-    ],
-    &[
-        "ObservabilityValueProject.project",
-        "ObservabilityValueProject.services",
-        "ObservabilityValueProject.incidents",
-        "ObservabilityValueProject (tail)",
-    ],
-    &[
-        "ObservabilityValue (tag)",
-    ],
-    &[
-        "ObservabilityDocumentData.subject",
-        "ObservabilityDocumentData.value",
-        "ObservabilityDocumentData (tail)",
-    ],
-    &[
-        "ObservabilitySubjectRecord.value",
-        "ObservabilitySubjectRecord (version)",
-        "ObservabilitySubjectRecord (tail)",
-    ],
-    &[
-        "InfrastructureKindEnvironment.value",
-        "InfrastructureKindEnvironment (tail)",
-    ],
-    &[
-        "InfrastructureKindEnvironments.pool",
-        "InfrastructureKindEnvironments (tail)",
-    ],
-    &[
-        "InfrastructureKind (tag)",
-    ],
-    &[
-        "InfrastructureSubject.scope",
-        "InfrastructureSubject.kind",
-        "InfrastructureSubject (tail)",
-    ],
-    &[
-        "InfrastructureAskMoveEnd.object",
-        "InfrastructureAskMoveEnd.project",
-        "InfrastructureAskMoveEnd.environment",
-        "InfrastructureAskMoveEnd.revision",
-        "InfrastructureAskMoveEnd.until",
-        "InfrastructureAskMoveEnd (tail)",
-    ],
-    &[
-        "InfrastructureAsk (tag)",
-    ],
-    &[
-        "InfrastructureAnswerMovedEnd.environment",
-        "InfrastructureAnswerMovedEnd.revision",
-        "InfrastructureAnswerMovedEnd.until",
-        "InfrastructureAnswerMovedEnd (tail)",
-    ],
-    &[
-        "InfrastructureAnswerMoved.environment",
-        "InfrastructureAnswerMoved.revision",
-        "InfrastructureAnswerMoved.until",
-        "InfrastructureAnswerMoved (tail)",
-    ],
-    &[
-        "InfrastructureAnswer (tag)",
-    ],
-    &[
-        "InfrastructureDocumentData.subject",
-        "InfrastructureDocumentData.value",
-        "InfrastructureDocumentData (tail)",
-    ],
-    &[
-        "ObservabilityDocumentValue.value",
-        "ObservabilityDocumentValue (tail)",
-    ],
-    &[
-        "InfrastructureAskRecord.value",
-        "InfrastructureAskRecord (version)",
-        "InfrastructureAskRecord (tail)",
-    ],
-    &[
-        "InfrastructureAnswerRecord.value",
-        "InfrastructureAnswerRecord (version)",
-        "InfrastructureAnswerRecord (tail)",
-    ],
-    &[
-        "InfrastructureSubjectRecord.value",
-        "InfrastructureSubjectRecord (version)",
-        "InfrastructureSubjectRecord (tail)",
-    ],
-    &[
-        "InfrastructureDocumentValue.value",
-        "InfrastructureDocumentValue (tail)",
-    ],
-    &[
-        "ObservabilityDocument (tag)",
-    ],
-    &[
-        "ObservabilityDocumentRecord.value",
-        "ObservabilityDocumentRecord (version)",
-        "ObservabilityDocumentRecord (tail)",
-    ],
-    &[
-        "InfrastructureDocument (tag)",
-    ],
-    &[
-        "InfrastructureDocumentRecord.value",
-        "InfrastructureDocumentRecord (version)",
-        "InfrastructureDocumentRecord (tail)",
-    ],
-    &[
-        "InfrastructureReadValue.value",
-        "InfrastructureReadValue (tail)",
-    ],
-    &[
-        "InfrastructureReadResult (tag)",
-    ],
-    &[
-        "InfrastructureReadAnswer.value",
-        "InfrastructureReadAnswer (version)",
-        "InfrastructureReadAnswer (tail)",
-    ],
-    &[
-        "ObservabilityReadValue.value",
-        "ObservabilityReadValue (tail)",
-    ],
-    &[
-        "ObservabilityReadResult (tag)",
-    ],
-    &[
-        "ObservabilityReadAnswer.value",
-        "ObservabilityReadAnswer (version)",
-        "ObservabilityReadAnswer (tail)",
-    ],
-];
-
-/// The path as the schema spells it, or None outside this family's table.
-#[must_use]
-pub fn name(path: Path) -> Option<&'static str> {
-    PATH_NAMES.get(usize::from(path.declaration))?.get(usize::from(path.part)).copied()
-}
-
-// Table: postordered shapes, with compiler-known heap slot sizes.
-static TABLE: &[skein_codec::bounds::Node] = &[
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[0] },
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[2] },
-    skein_codec::bounds::Node::Enum { variants: &[1, 3] },
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[4, 5] },
-    skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[7] },
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[8, 9] },
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[11] },
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[13] },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[6] },
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[16] },
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[18] },
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[20] },
-    skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[22] },
-    skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[24] },
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[25, 26, 27, 28, 29, 30, 31] },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[32] },
-    skein_codec::bounds::Node::Bytes { limit: 0 },
-    skein_codec::bounds::Node::Bytes { limit: 1 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[34, 35] },
-    skein_codec::bounds::Node::Bytes { limit: 2 },
-    skein_codec::bounds::Node::Bytes { limit: 3 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[37, 38] },
-    skein_codec::bounds::Node::Bytes { limit: 4 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[40] },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[36] },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[39] },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[41] },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[41] },
-    skein_codec::bounds::Node::Enum { variants: &[42, 43, 44, 45] },
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[47, 48, 49] },
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[51, 52, 53, 54] },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[46, 55, 50] },
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[57, 58, 59] },
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[61] },
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[63] },
-    skein_codec::bounds::Node::Enum { variants: &[60, 62, 64] },
-    skein_codec::bounds::Node::Scalar(16),
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[66, 67, 65, 68] },
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[70, 71] },
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[36, 73] },
-    skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[36, 75, 76] },
-    skein_codec::bounds::Node::Bytes { limit: 5 },
-    skein_codec::bounds::Node::Bytes { limit: 6 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[36, 78, 79] },
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[39, 81, 82] },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[39, 69] },
-    skein_codec::bounds::Node::Enum { variants: &[74, 77, 80, 83, 84] },
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[86, 87, 88] },
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[90, 91, 92] },
-    skein_codec::bounds::Node::Scalar(2),
-    skein_codec::bounds::Node::List { limit: 7, item: 46, size: size_of::<InfrastructureResource>() },
-    skein_codec::bounds::Node::Scalar(1),
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Option { item: 97 },
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[94, 95, 96, 89, 93, 98, 99] },
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[101, 102, 103, 104] },
-    skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Option { item: 106 },
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[107, 108, 69, 85, 109, 110, 105] },
-    skein_codec::bounds::Node::Bytes { limit: 8 },
-    skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Scalar(1),
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[112, 113, 114, 115, 116] },
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[69, 118, 119, 120] },
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[36, 122, 123] },
-    skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[36, 125, 126] },
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[39, 128, 129, 130] },
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[39, 69, 132] },
-    skein_codec::bounds::Node::Enum { variants: &[124, 127, 131, 133] },
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[135, 136, 137, 138, 139, 140, 141, 142] },
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[144, 134, 143] },
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[146, 147] },
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Bytes { limit: 9 },
-    skein_codec::bounds::Node::Option { item: 150 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[46, 148, 149, 151] },
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[153, 154] },
-    skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[156, 157] },
-    skein_codec::bounds::Node::Option { item: 117 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[159] },
-    skein_codec::bounds::Node::Option { item: 121 },
-    skein_codec::bounds::Node::Option { item: 155 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[161, 162] },
-    skein_codec::bounds::Node::Option { item: 158 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[164] },
-    skein_codec::bounds::Node::Option { item: 158 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[166] },
-    skein_codec::bounds::Node::Enum { variants: &[160, 163, 165, 167] },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[56, 168] },
-    skein_codec::bounds::Node::Option { item: 155 },
-    skein_codec::bounds::Node::Option { item: 158 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[39, 121, 170, 171] },
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Option { item: 155 },
-    skein_codec::bounds::Node::Option { item: 158 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[39, 173, 121, 174, 175] },
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::List { limit: 10, item: 169, size: size_of::<InfrastructureClientResource>() },
-    skein_codec::bounds::Node::List { limit: 11, item: 111, size: size_of::<InfrastructureEntry>() },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[177, 145, 178, 179] },
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::List { limit: 12, item: 169, size: size_of::<InfrastructureClientResource>() },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[181, 145, 182] },
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[184, 185, 85, 100] },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[111, 100] },
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::List { limit: 13, item: 169, size: size_of::<InfrastructureClientResource>() },
-    skein_codec::bounds::Node::List { limit: 14, item: 152, size: size_of::<InfrastructureDriftAccount>() },
-    skein_codec::bounds::Node::List { limit: 15, item: 111, size: size_of::<InfrastructureEntry>() },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[188, 189, 190, 191] },
-    skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::List { limit: 16, item: 169, size: size_of::<InfrastructureClientResource>() },
-    skein_codec::bounds::Node::List { limit: 17, item: 172, size: size_of::<InfrastructureClientEnvironment>() },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[193, 194, 195] },
-    skein_codec::bounds::Node::List { limit: 18, item: 111, size: size_of::<InfrastructureEntry>() },
-    skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[72, 197, 198, 199, 200] },
-    skein_codec::bounds::Node::Enum { variants: &[176, 180, 183, 186, 187, 192, 196, 201] },
-    skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[203] },
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[204, 205] },
-    skein_codec::bounds::Node::Scalar(1),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[207] },
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[209] },
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[211] },
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[213] },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[6] },
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[216] },
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[218] },
-    skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[220] },
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[208, 210, 212, 214, 215, 217, 219, 221, 222] },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[206, 223] },
-    skein_codec::bounds::Node::Bytes { limit: 19 },
-    skein_codec::bounds::Node::Bytes { limit: 20 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[225, 226] },
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[228, 229] },
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Scalar(1),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[231, 232] },
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Scalar(1),
-    skein_codec::bounds::Node::Scalar(1),
-    skein_codec::bounds::Node::List { limit: 21, item: 233, size: size_of::<ObservabilityLoadPoint>() },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[234, 235, 236, 237, 238, 239] },
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Scalar(1),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[241, 242, 243, 244] },
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Option { item: 245 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[246, 247] },
-    skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Option { item: 252 },
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::List { limit: 22, item: 254, size: size_of::<u64>() },
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Scalar(1),
-    skein_codec::bounds::Node::List { limit: 23, item: 248, size: size_of::<ObservabilityPoint>() },
-    skein_codec::bounds::Node::Scalar(1),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[249, 250, 251, 253, 255, 256, 227, 257, 230, 258, 259] },
-    skein_codec::bounds::Node::Option { item: 240 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[227, 261] },
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Scalar(1),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[263, 227, 264] },
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[266, 267, 268] },
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[270] },
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[272] },
-    skein_codec::bounds::Node::Enum { variants: &[269, 271, 273] },
-    skein_codec::bounds::Node::Scalar(16),
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[275, 276, 274, 277] },
-    skein_codec::bounds::Node::Bytes { limit: 24 },
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[279, 280] },
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[282, 283, 284, 285] },
-    skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Option { item: 287 },
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[288, 289, 278, 281, 290, 291, 286] },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[227, 240] },
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Option { item: 240 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[265, 294, 230, 295] },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[292] },
-    skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::List { limit: 25, item: 292, size: size_of::<ObservabilityEntry>() },
-    skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[298, 299, 300, 301] },
-    skein_codec::bounds::Node::Option { item: 240 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[260, 303] },
-    skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::List { limit: 26, item: 262, size: size_of::<ObservabilityServiceState>() },
-    skein_codec::bounds::Node::List { limit: 27, item: 260, size: size_of::<ObservabilityIncident>() },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[305, 306, 307] },
-    skein_codec::bounds::Node::Enum { variants: &[293, 296, 297, 302, 304, 308] },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[224, 309] },
-    skein_codec::bounds::Node::Record { prefix: 2, fields: &[223] },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[39] },
-    skein_codec::bounds::Node::Option { item: 41 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[313] },
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[312, 314, 12, 14, 15, 17, 19, 21, 23, 315] },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[10, 316] },
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[318, 319, 39, 320, 321] },
-    skein_codec::bounds::Node::Enum { variants: &[322] },
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[39, 324, 325] },
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[39, 327, 328] },
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[326, 329, 330, 33] },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[317, 202] },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[310] },
-    skein_codec::bounds::Node::Record { prefix: 2, fields: &[323] },
-    skein_codec::bounds::Node::Record { prefix: 2, fields: &[331] },
-    skein_codec::bounds::Node::Record { prefix: 2, fields: &[316] },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[332] },
-    skein_codec::bounds::Node::Enum { variants: &[333] },
-    skein_codec::bounds::Node::Record { prefix: 2, fields: &[338] },
-    skein_codec::bounds::Node::Enum { variants: &[337] },
-    skein_codec::bounds::Node::Record { prefix: 2, fields: &[340] },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[340] },
-    skein_codec::bounds::Node::Boxed { item: 342, size: size_of::<InfrastructureReadValue>() },
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[343, 344, 345] },
-    skein_codec::bounds::Node::Record { prefix: 2, fields: &[346] },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[338] },
-    skein_codec::bounds::Node::Boxed { item: 348, size: size_of::<ObservabilityReadValue>() },
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[349, 350, 351] },
-    skein_codec::bounds::Node::Record { prefix: 2, fields: &[352] },
-];
-
-const DECLARATIONS: &[u32] = &[
-    1,
-    3,
-    4,
-    6,
-    8,
-    10,
-    12,
-    14,
-    15,
-    17,
-    19,
-    21,
-    23,
-    25,
-    32,
-    33,
-    36,
-    39,
-    41,
-    42,
-    43,
-    44,
-    45,
-    46,
-    50,
-    55,
-    56,
-    60,
-    62,
-    64,
-    65,
-    69,
-    72,
-    74,
-    77,
-    80,
-    83,
-    84,
-    85,
-    89,
-    93,
-    100,
-    105,
-    111,
-    117,
-    121,
-    124,
-    127,
-    131,
-    133,
-    134,
-    143,
-    145,
-    148,
-    152,
-    155,
-    158,
-    160,
-    163,
-    165,
-    167,
-    168,
-    169,
-    172,
-    176,
-    180,
-    183,
-    186,
-    187,
-    192,
-    196,
-    201,
-    202,
-    204,
-    206,
-    208,
-    210,
-    212,
-    214,
-    215,
-    217,
-    219,
-    221,
-    223,
-    224,
-    227,
-    230,
-    233,
-    240,
-    245,
-    248,
-    260,
-    262,
-    265,
-    269,
-    271,
-    273,
-    274,
-    278,
-    281,
-    286,
-    292,
-    293,
-    296,
-    297,
-    302,
-    304,
-    308,
-    309,
-    310,
-    311,
-    312,
-    314,
-    316,
-    317,
-    322,
-    323,
-    326,
-    329,
-    331,
-    332,
-    333,
-    334,
-    335,
-    336,
-    337,
-    338,
-    339,
-    340,
-    341,
-    342,
-    346,
-    347,
-    348,
-    352,
-    353,
-];
-
-static CEILING_VALUES: &[u32] = &[
-    4_096,
-    4_096,
-    4_096,
-    4_096,
-    4_096,
-    4_096,
-    4_096,
-    128,
-    4_096,
-    4_096,
-    128,
-    128,
-    128,
-    128,
-    128,
-    128,
-    128,
-    128,
-    128,
-    4_096,
-    4_096,
-    128,
-    128,
-    128,
-    4_096,
-    128,
-    128,
-    128,
-];
-
-#[must_use]
-pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-    Some(skein_codec::bounds::family(TABLE, limits.values().as_slice(), CEILING_VALUES, DECLARATIONS)?.encoded)
-}
-
-#[must_use]
-pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-    Some(skein_codec::bounds::family(TABLE, limits.values().as_slice(), CEILING_VALUES, DECLARATIONS)?.decoded)
+    pub const DECISION_TASK_VALUE: Path = Path::new("DecisionTask.value");
+    pub const DECISION_TASK_TAIL: Path = Path::new("DecisionTask (tail)");
+    pub const DECISION_PARTY_VALUE: Path = Path::new("DecisionParty.value");
+    pub const DECISION_PARTY_TAIL: Path = Path::new("DecisionParty (tail)");
+    pub const DECISION_MAKER_TAG: Path = Path::new("DecisionMaker (tag)");
+    pub const DECISION_KEY_MAKER: Path = Path::new("DecisionKey.maker");
+    pub const DECISION_KEY_NUMBER: Path = Path::new("DecisionKey.number");
+    pub const DECISION_KEY_TAIL: Path = Path::new("DecisionKey (tail)");
+    pub const INFRASTRUCTURE_SCOPE_PROJECT_VALUE: Path = Path::new("InfrastructureScopeProject.value");
+    pub const INFRASTRUCTURE_SCOPE_PROJECT_TAIL: Path = Path::new("InfrastructureScopeProject (tail)");
+    pub const INFRASTRUCTURE_SCOPE_TAG: Path = Path::new("InfrastructureScope (tag)");
+    pub const INFRASTRUCTURE_KIND_PANEL_VALUE: Path = Path::new("InfrastructureKindPanel.value");
+    pub const INFRASTRUCTURE_KIND_PANEL_TAIL: Path = Path::new("InfrastructureKindPanel (tail)");
+    pub const INFRASTRUCTURE_KIND_RESULT_VALUE: Path = Path::new("InfrastructureKindResult.value");
+    pub const INFRASTRUCTURE_KIND_RESULT_TAIL: Path = Path::new("InfrastructureKindResult (tail)");
+    pub const INFRASTRUCTURE_KIND_EFFECT_VALUE: Path = Path::new("InfrastructureKindEffect.value");
+    pub const INFRASTRUCTURE_KIND_EFFECT_TAIL: Path = Path::new("InfrastructureKindEffect (tail)");
+    pub const INFRASTRUCTURE_KIND_OWNER_EFFECT_VALUE: Path = Path::new("InfrastructureKindOwnerEffect.value");
+    pub const INFRASTRUCTURE_KIND_OWNER_EFFECT_TAIL: Path = Path::new("InfrastructureKindOwnerEffect (tail)");
+    pub const INFRASTRUCTURE_KIND_OUTBOX_VALUE: Path = Path::new("InfrastructureKindOutbox.value");
+    pub const INFRASTRUCTURE_KIND_OUTBOX_TAIL: Path = Path::new("InfrastructureKindOutbox (tail)");
+    pub const INFRASTRUCTURE_KIND_HOLD_VALUE: Path = Path::new("InfrastructureKindHold.value");
+    pub const INFRASTRUCTURE_KIND_HOLD_TAIL: Path = Path::new("InfrastructureKindHold (tail)");
+    pub const INFRASTRUCTURE_KIND_PROJECT_VALUE: Path = Path::new("InfrastructureKindProject.value");
+    pub const INFRASTRUCTURE_KIND_PROJECT_TAIL: Path = Path::new("InfrastructureKindProject (tail)");
+    pub const INFRASTRUCTURE_REFUSAL_ROLE_HELD: Path = Path::new("InfrastructureRefusalRole.held");
+    pub const INFRASTRUCTURE_REFUSAL_ROLE_TAIL: Path = Path::new("InfrastructureRefusalRole (tail)");
+    pub const INFRASTRUCTURE_REFUSAL_TAG: Path = Path::new("InfrastructureRefusal (tag)");
+    pub const INFRASTRUCTURE_ANSWER_REFUSED_WHY: Path = Path::new("InfrastructureAnswerRefused.why");
+    pub const INFRASTRUCTURE_ANSWER_REFUSED_TAIL: Path = Path::new("InfrastructureAnswerRefused (tail)");
+    pub const INFRASTRUCTURE_SERVICE_ENVIRONMENT: Path = Path::new("InfrastructureService.environment");
+    pub const INFRASTRUCTURE_SERVICE_NAME: Path = Path::new("InfrastructureService.name");
+    pub const INFRASTRUCTURE_SERVICE_TAIL: Path = Path::new("InfrastructureService (tail)");
+    pub const INFRASTRUCTURE_ENVIRONMENT_POOL: Path = Path::new("InfrastructureEnvironment.pool");
+    pub const INFRASTRUCTURE_ENVIRONMENT_NAME: Path = Path::new("InfrastructureEnvironment.name");
+    pub const INFRASTRUCTURE_ENVIRONMENT_TAIL: Path = Path::new("InfrastructureEnvironment (tail)");
+    pub const INFRASTRUCTURE_POOL_VALUE: Path = Path::new("InfrastructurePool.value");
+    pub const INFRASTRUCTURE_POOL_TAIL: Path = Path::new("InfrastructurePool (tail)");
+    pub const INFRASTRUCTURE_RESOURCE_SERVICE_VALUE: Path = Path::new("InfrastructureResourceService.value");
+    pub const INFRASTRUCTURE_RESOURCE_SERVICE_TAIL: Path = Path::new("InfrastructureResourceService (tail)");
+    pub const INFRASTRUCTURE_RESOURCE_ENVIRONMENT_VALUE: Path = Path::new("InfrastructureResourceEnvironment.value");
+    pub const INFRASTRUCTURE_RESOURCE_ENVIRONMENT_TAIL: Path = Path::new("InfrastructureResourceEnvironment (tail)");
+    pub const INFRASTRUCTURE_RESOURCE_POOL_VALUE: Path = Path::new("InfrastructureResourcePool.value");
+    pub const INFRASTRUCTURE_RESOURCE_POOL_TAIL: Path = Path::new("InfrastructureResourcePool (tail)");
+    pub const INFRASTRUCTURE_RESOURCE_QUOTA_VALUE: Path = Path::new("InfrastructureResourceQuota.value");
+    pub const INFRASTRUCTURE_RESOURCE_QUOTA_TAIL: Path = Path::new("InfrastructureResourceQuota (tail)");
+    pub const INFRASTRUCTURE_RESOURCE_TAG: Path = Path::new("InfrastructureResource (tag)");
+    pub const INFRASTRUCTURE_HOLD_TAG: Path = Path::new("InfrastructureHold (tag)");
+    pub const INFRASTRUCTURE_RESOURCE_ROLE_TAG: Path = Path::new("InfrastructureResourceRole (tag)");
+    pub const INFRASTRUCTURE_NAMED_RESOURCE: Path = Path::new("InfrastructureNamed.resource");
+    pub const INFRASTRUCTURE_NAMED_ROLE: Path = Path::new("InfrastructureNamed.role");
+    pub const INFRASTRUCTURE_NAMED_HOLD: Path = Path::new("InfrastructureNamed.hold");
+    pub const INFRASTRUCTURE_NAMED_TAIL: Path = Path::new("InfrastructureNamed (tail)");
+    pub const INFRASTRUCTURE_PURPOSE_CALL_ATTEMPT: Path = Path::new("InfrastructurePurposeCall.attempt");
+    pub const INFRASTRUCTURE_PURPOSE_CALL_COMPLETION: Path = Path::new("InfrastructurePurposeCall.completion");
+    pub const INFRASTRUCTURE_PURPOSE_CALL_POSITION: Path = Path::new("InfrastructurePurposeCall.position");
+    pub const INFRASTRUCTURE_PURPOSE_CALL_TAIL: Path = Path::new("InfrastructurePurposeCall (tail)");
+    pub const INFRASTRUCTURE_PURPOSE_PROCEDURE_PURPOSE: Path = Path::new("InfrastructurePurposeProcedure.purpose");
+    pub const INFRASTRUCTURE_PURPOSE_PROCEDURE_TAIL: Path = Path::new("InfrastructurePurposeProcedure (tail)");
+    pub const INFRASTRUCTURE_PURPOSE_PROJECTION_PURPOSE: Path = Path::new("InfrastructurePurposeProjection.purpose");
+    pub const INFRASTRUCTURE_PURPOSE_PROJECTION_TAIL: Path = Path::new("InfrastructurePurposeProjection (tail)");
+    pub const INFRASTRUCTURE_PURPOSE_TAG: Path = Path::new("InfrastructurePurpose (tag)");
+    pub const INFRASTRUCTURE_KEY_DEPLOYMENT: Path = Path::new("InfrastructureKey.deployment");
+    pub const INFRASTRUCTURE_KEY_TASK: Path = Path::new("InfrastructureKey.task");
+    pub const INFRASTRUCTURE_KEY_ORIGIN: Path = Path::new("InfrastructureKey.origin");
+    pub const INFRASTRUCTURE_KEY_PURPOSE: Path = Path::new("InfrastructureKey.purpose");
+    pub const INFRASTRUCTURE_KEY_TAIL: Path = Path::new("InfrastructureKey (tail)");
+    pub const INFRASTRUCTURE_BACKEND_TAG: Path = Path::new("InfrastructureBackend (tag)");
+    pub const INFRASTRUCTURE_EFFECT_RESTART_SERVICE: Path = Path::new("InfrastructureEffectRestart.service");
+    pub const INFRASTRUCTURE_EFFECT_RESTART_OPERATION: Path = Path::new("InfrastructureEffectRestart.operation");
+    pub const INFRASTRUCTURE_EFFECT_RESTART_TAIL: Path = Path::new("InfrastructureEffectRestart (tail)");
+    pub const INFRASTRUCTURE_EFFECT_SCALE_SERVICE: Path = Path::new("InfrastructureEffectScale.service");
+    pub const INFRASTRUCTURE_EFFECT_SCALE_FROM: Path = Path::new("InfrastructureEffectScale.from");
+    pub const INFRASTRUCTURE_EFFECT_SCALE_TO: Path = Path::new("InfrastructureEffectScale.to");
+    pub const INFRASTRUCTURE_EFFECT_SCALE_TAIL: Path = Path::new("InfrastructureEffectScale (tail)");
+    pub const INFRASTRUCTURE_EFFECT_ROLLBACK_SERVICE: Path = Path::new("InfrastructureEffectRollback.service");
+    pub const INFRASTRUCTURE_EFFECT_ROLLBACK_FROM: Path = Path::new("InfrastructureEffectRollback.from");
+    pub const INFRASTRUCTURE_EFFECT_ROLLBACK_TO: Path = Path::new("InfrastructureEffectRollback.to");
+    pub const INFRASTRUCTURE_EFFECT_ROLLBACK_TAIL: Path = Path::new("InfrastructureEffectRollback (tail)");
+    pub const INFRASTRUCTURE_EFFECT_CREATE_ENVIRONMENT_ENVIRONMENT: Path = Path::new("InfrastructureEffectCreateEnvironment.environment");
+    pub const INFRASTRUCTURE_EFFECT_CREATE_ENVIRONMENT_UNTIL: Path = Path::new("InfrastructureEffectCreateEnvironment.until");
+    pub const INFRASTRUCTURE_EFFECT_CREATE_ENVIRONMENT_PRICE: Path = Path::new("InfrastructureEffectCreateEnvironment.price");
+    pub const INFRASTRUCTURE_EFFECT_CREATE_ENVIRONMENT_TAIL: Path = Path::new("InfrastructureEffectCreateEnvironment (tail)");
+    pub const INFRASTRUCTURE_EFFECT_TEAR_DOWN_ENVIRONMENT: Path = Path::new("InfrastructureEffectTearDown.environment");
+    pub const INFRASTRUCTURE_EFFECT_TEAR_DOWN_CREATED_BY: Path = Path::new("InfrastructureEffectTearDown.created_by");
+    pub const INFRASTRUCTURE_EFFECT_TEAR_DOWN_TAIL: Path = Path::new("InfrastructureEffectTearDown (tail)");
+    pub const INFRASTRUCTURE_EFFECT_TAG: Path = Path::new("InfrastructureEffect (tag)");
+    pub const INFRASTRUCTURE_FORM_TAG: Path = Path::new("InfrastructureForm (tag)");
+    pub const INFRASTRUCTURE_RECOVERY_TAG: Path = Path::new("InfrastructureRecovery (tag)");
+    pub const INFRASTRUCTURE_DESCRIPTION_KIND: Path = Path::new("InfrastructureDescription.kind");
+    pub const INFRASTRUCTURE_DESCRIPTION_RESOURCES: Path = Path::new("InfrastructureDescription.resources");
+    pub const INFRASTRUCTURE_DESCRIPTION_CONDITION: Path = Path::new("InfrastructureDescription.condition");
+    pub const INFRASTRUCTURE_DESCRIPTION_FORM: Path = Path::new("InfrastructureDescription.form");
+    pub const INFRASTRUCTURE_DESCRIPTION_RECOVERY: Path = Path::new("InfrastructureDescription.recovery");
+    pub const INFRASTRUCTURE_DESCRIPTION_PRICE: Path = Path::new("InfrastructureDescription.price");
+    pub const INFRASTRUCTURE_DESCRIPTION_STATE: Path = Path::new("InfrastructureDescription.state");
+    pub const INFRASTRUCTURE_DESCRIPTION_TAIL: Path = Path::new("InfrastructureDescription (tail)");
+    pub const INFRASTRUCTURE_PHASE_TAG: Path = Path::new("InfrastructurePhase (tag)");
+    pub const INFRASTRUCTURE_ENTRY_PROJECT: Path = Path::new("InfrastructureEntry.project");
+    pub const INFRASTRUCTURE_ENTRY_NUMBER: Path = Path::new("InfrastructureEntry.number");
+    pub const INFRASTRUCTURE_ENTRY_KEY: Path = Path::new("InfrastructureEntry.key");
+    pub const INFRASTRUCTURE_ENTRY_EFFECT: Path = Path::new("InfrastructureEntry.effect");
+    pub const INFRASTRUCTURE_ENTRY_ATTEMPT: Path = Path::new("InfrastructureEntry.attempt");
+    pub const INFRASTRUCTURE_ENTRY_DEADLINE: Path = Path::new("InfrastructureEntry.deadline");
+    pub const INFRASTRUCTURE_ENTRY_PHASE: Path = Path::new("InfrastructureEntry.phase");
+    pub const INFRASTRUCTURE_ENTRY_TAIL: Path = Path::new("InfrastructureEntry (tail)");
+    pub const INFRASTRUCTURE_SERVICE_FACT_VERSION: Path = Path::new("InfrastructureServiceFact.version");
+    pub const INFRASTRUCTURE_SERVICE_FACT_REPLICAS: Path = Path::new("InfrastructureServiceFact.replicas");
+    pub const INFRASTRUCTURE_SERVICE_FACT_HEALTHY: Path = Path::new("InfrastructureServiceFact.healthy");
+    pub const INFRASTRUCTURE_SERVICE_FACT_REVISION: Path = Path::new("InfrastructureServiceFact.revision");
+    pub const INFRASTRUCTURE_SERVICE_FACT_OBSERVED: Path = Path::new("InfrastructureServiceFact.observed");
+    pub const INFRASTRUCTURE_SERVICE_FACT_TAIL: Path = Path::new("InfrastructureServiceFact (tail)");
+    pub const INFRASTRUCTURE_ENVIRONMENT_FACT_CREATED_BY: Path = Path::new("InfrastructureEnvironmentFact.created_by");
+    pub const INFRASTRUCTURE_ENVIRONMENT_FACT_READY_AT: Path = Path::new("InfrastructureEnvironmentFact.ready_at");
+    pub const INFRASTRUCTURE_ENVIRONMENT_FACT_UNTIL: Path = Path::new("InfrastructureEnvironmentFact.until");
+    pub const INFRASTRUCTURE_ENVIRONMENT_FACT_PRICE: Path = Path::new("InfrastructureEnvironmentFact.price");
+    pub const INFRASTRUCTURE_ENVIRONMENT_FACT_TAIL: Path = Path::new("InfrastructureEnvironmentFact (tail)");
+    pub const INFRASTRUCTURE_PROCEDURE_REMEDIATE_SERVICE: Path = Path::new("InfrastructureProcedureRemediate.service");
+    pub const INFRASTRUCTURE_PROCEDURE_REMEDIATE_OPERATION: Path = Path::new("InfrastructureProcedureRemediate.operation");
+    pub const INFRASTRUCTURE_PROCEDURE_REMEDIATE_DEADLINE: Path = Path::new("InfrastructureProcedureRemediate.deadline");
+    pub const INFRASTRUCTURE_PROCEDURE_REMEDIATE_TAIL: Path = Path::new("InfrastructureProcedureRemediate (tail)");
+    pub const INFRASTRUCTURE_PROCEDURE_SCALE_SERVICE: Path = Path::new("InfrastructureProcedureScale.service");
+    pub const INFRASTRUCTURE_PROCEDURE_SCALE_REPLICAS: Path = Path::new("InfrastructureProcedureScale.replicas");
+    pub const INFRASTRUCTURE_PROCEDURE_SCALE_DEADLINE: Path = Path::new("InfrastructureProcedureScale.deadline");
+    pub const INFRASTRUCTURE_PROCEDURE_SCALE_TAIL: Path = Path::new("InfrastructureProcedureScale (tail)");
+    pub const INFRASTRUCTURE_PROCEDURE_PROVISION_ENVIRONMENT: Path = Path::new("InfrastructureProcedureProvision.environment");
+    pub const INFRASTRUCTURE_PROCEDURE_PROVISION_UNTIL: Path = Path::new("InfrastructureProcedureProvision.until");
+    pub const INFRASTRUCTURE_PROCEDURE_PROVISION_PRICE: Path = Path::new("InfrastructureProcedureProvision.price");
+    pub const INFRASTRUCTURE_PROCEDURE_PROVISION_DEADLINE: Path = Path::new("InfrastructureProcedureProvision.deadline");
+    pub const INFRASTRUCTURE_PROCEDURE_PROVISION_TAIL: Path = Path::new("InfrastructureProcedureProvision (tail)");
+    pub const INFRASTRUCTURE_PROCEDURE_TEAR_DOWN_ENVIRONMENT: Path = Path::new("InfrastructureProcedureTearDown.environment");
+    pub const INFRASTRUCTURE_PROCEDURE_TEAR_DOWN_CREATED_BY: Path = Path::new("InfrastructureProcedureTearDown.created_by");
+    pub const INFRASTRUCTURE_PROCEDURE_TEAR_DOWN_DEADLINE: Path = Path::new("InfrastructureProcedureTearDown.deadline");
+    pub const INFRASTRUCTURE_PROCEDURE_TEAR_DOWN_TAIL: Path = Path::new("InfrastructureProcedureTearDown (tail)");
+    pub const INFRASTRUCTURE_PROCEDURE_TAG: Path = Path::new("InfrastructureProcedure (tag)");
+    pub const INFRASTRUCTURE_PROCEDURE_PHASE_TAG: Path = Path::new("InfrastructureProcedurePhase (tag)");
+    pub const INFRASTRUCTURE_PROCEDURE_STATE_TASK: Path = Path::new("InfrastructureProcedureState.task");
+    pub const INFRASTRUCTURE_PROCEDURE_STATE_PROCEDURE: Path = Path::new("InfrastructureProcedureState.procedure");
+    pub const INFRASTRUCTURE_PROCEDURE_STATE_PHASE: Path = Path::new("InfrastructureProcedureState.phase");
+    pub const INFRASTRUCTURE_PROCEDURE_STATE_TAIL: Path = Path::new("InfrastructureProcedureState (tail)");
+    pub const INFRASTRUCTURE_DRIFT_KIND_TAG: Path = Path::new("InfrastructureDriftKind (tag)");
+    pub const INFRASTRUCTURE_DRIFT_ACCOUNT_RESOURCE: Path = Path::new("InfrastructureDriftAccount.resource");
+    pub const INFRASTRUCTURE_DRIFT_ACCOUNT_KIND: Path = Path::new("InfrastructureDriftAccount.kind");
+    pub const INFRASTRUCTURE_DRIFT_ACCOUNT_AT: Path = Path::new("InfrastructureDriftAccount.at");
+    pub const INFRASTRUCTURE_DRIFT_ACCOUNT_BY: Path = Path::new("InfrastructureDriftAccount.by");
+    pub const INFRASTRUCTURE_DRIFT_ACCOUNT_TAIL: Path = Path::new("InfrastructureDriftAccount (tail)");
+    pub const INFRASTRUCTURE_ENVIRONMENT_END_REVISION: Path = Path::new("InfrastructureEnvironmentEnd.revision");
+    pub const INFRASTRUCTURE_ENVIRONMENT_END_UNTIL: Path = Path::new("InfrastructureEnvironmentEnd.until");
+    pub const INFRASTRUCTURE_ENVIRONMENT_END_TAIL: Path = Path::new("InfrastructureEnvironmentEnd (tail)");
+    pub const INFRASTRUCTURE_CLIENT_POOL_QUOTA: Path = Path::new("InfrastructureClientPool.quota");
+    pub const INFRASTRUCTURE_CLIENT_POOL_USED: Path = Path::new("InfrastructureClientPool.used");
+    pub const INFRASTRUCTURE_CLIENT_POOL_TAIL: Path = Path::new("InfrastructureClientPool (tail)");
+    pub const INFRASTRUCTURE_RESOURCE_FACT_SERVICE_VALUE: Path = Path::new("InfrastructureResourceFactService.value");
+    pub const INFRASTRUCTURE_RESOURCE_FACT_SERVICE_TAIL: Path = Path::new("InfrastructureResourceFactService (tail)");
+    pub const INFRASTRUCTURE_RESOURCE_FACT_ENVIRONMENT_FACT: Path = Path::new("InfrastructureResourceFactEnvironment.fact");
+    pub const INFRASTRUCTURE_RESOURCE_FACT_ENVIRONMENT_END: Path = Path::new("InfrastructureResourceFactEnvironment.end");
+    pub const INFRASTRUCTURE_RESOURCE_FACT_ENVIRONMENT_TAIL: Path = Path::new("InfrastructureResourceFactEnvironment (tail)");
+    pub const INFRASTRUCTURE_RESOURCE_FACT_POOL_VALUE: Path = Path::new("InfrastructureResourceFactPool.value");
+    pub const INFRASTRUCTURE_RESOURCE_FACT_POOL_TAIL: Path = Path::new("InfrastructureResourceFactPool (tail)");
+    pub const INFRASTRUCTURE_RESOURCE_FACT_QUOTA_VALUE: Path = Path::new("InfrastructureResourceFactQuota.value");
+    pub const INFRASTRUCTURE_RESOURCE_FACT_QUOTA_TAIL: Path = Path::new("InfrastructureResourceFactQuota (tail)");
+    pub const INFRASTRUCTURE_RESOURCE_FACT_TAG: Path = Path::new("InfrastructureResourceFact (tag)");
+    pub const INFRASTRUCTURE_CLIENT_RESOURCE_NAMED: Path = Path::new("InfrastructureClientResource.named");
+    pub const INFRASTRUCTURE_CLIENT_RESOURCE_FACT: Path = Path::new("InfrastructureClientResource.fact");
+    pub const INFRASTRUCTURE_CLIENT_RESOURCE_TAIL: Path = Path::new("InfrastructureClientResource (tail)");
+    pub const INFRASTRUCTURE_CLIENT_ENVIRONMENT_ENVIRONMENT: Path = Path::new("InfrastructureClientEnvironment.environment");
+    pub const INFRASTRUCTURE_CLIENT_ENVIRONMENT_FACT: Path = Path::new("InfrastructureClientEnvironment.fact");
+    pub const INFRASTRUCTURE_CLIENT_ENVIRONMENT_END: Path = Path::new("InfrastructureClientEnvironment.end");
+    pub const INFRASTRUCTURE_CLIENT_ENVIRONMENT_POOL: Path = Path::new("InfrastructureClientEnvironment.pool");
+    pub const INFRASTRUCTURE_CLIENT_ENVIRONMENT_TAIL: Path = Path::new("InfrastructureClientEnvironment (tail)");
+    pub const INFRASTRUCTURE_VALUE_ENVIRONMENT_ENVIRONMENT: Path = Path::new("InfrastructureValueEnvironment.environment");
+    pub const INFRASTRUCTURE_VALUE_ENVIRONMENT_END_REVISION: Path = Path::new("InfrastructureValueEnvironment.end_revision");
+    pub const INFRASTRUCTURE_VALUE_ENVIRONMENT_FACT: Path = Path::new("InfrastructureValueEnvironment.fact");
+    pub const INFRASTRUCTURE_VALUE_ENVIRONMENT_END: Path = Path::new("InfrastructureValueEnvironment.end");
+    pub const INFRASTRUCTURE_VALUE_ENVIRONMENT_POOL: Path = Path::new("InfrastructureValueEnvironment.pool");
+    pub const INFRASTRUCTURE_VALUE_ENVIRONMENT_TAIL: Path = Path::new("InfrastructureValueEnvironment (tail)");
+    pub const INFRASTRUCTURE_VALUE_PANEL_TASK: Path = Path::new("InfrastructureValuePanel.task");
+    pub const INFRASTRUCTURE_VALUE_PANEL_STATE: Path = Path::new("InfrastructureValuePanel.state");
+    pub const INFRASTRUCTURE_VALUE_PANEL_RESOURCES: Path = Path::new("InfrastructureValuePanel.resources");
+    pub const INFRASTRUCTURE_VALUE_PANEL_EFFECTS: Path = Path::new("InfrastructureValuePanel.effects");
+    pub const INFRASTRUCTURE_VALUE_PANEL_TAIL: Path = Path::new("InfrastructureValuePanel (tail)");
+    pub const INFRASTRUCTURE_VALUE_RESULT_TASK: Path = Path::new("InfrastructureValueResult.task");
+    pub const INFRASTRUCTURE_VALUE_RESULT_STATE: Path = Path::new("InfrastructureValueResult.state");
+    pub const INFRASTRUCTURE_VALUE_RESULT_RESOURCES: Path = Path::new("InfrastructureValueResult.resources");
+    pub const INFRASTRUCTURE_VALUE_RESULT_TAIL: Path = Path::new("InfrastructureValueResult (tail)");
+    pub const INFRASTRUCTURE_VALUE_EFFECT_PROPOSAL: Path = Path::new("InfrastructureValueEffect.proposal");
+    pub const INFRASTRUCTURE_VALUE_EFFECT_TASK: Path = Path::new("InfrastructureValueEffect.task");
+    pub const INFRASTRUCTURE_VALUE_EFFECT_EFFECT: Path = Path::new("InfrastructureValueEffect.effect");
+    pub const INFRASTRUCTURE_VALUE_EFFECT_DESCRIPTION: Path = Path::new("InfrastructureValueEffect.description");
+    pub const INFRASTRUCTURE_VALUE_EFFECT_TAIL: Path = Path::new("InfrastructureValueEffect (tail)");
+    pub const INFRASTRUCTURE_VALUE_OUTBOX_ENTRY: Path = Path::new("InfrastructureValueOutbox.entry");
+    pub const INFRASTRUCTURE_VALUE_OUTBOX_DESCRIPTION: Path = Path::new("InfrastructureValueOutbox.description");
+    pub const INFRASTRUCTURE_VALUE_OUTBOX_TAIL: Path = Path::new("InfrastructureValueOutbox (tail)");
+    pub const INFRASTRUCTURE_VALUE_HOLD_TASK: Path = Path::new("InfrastructureValueHold.task");
+    pub const INFRASTRUCTURE_VALUE_HOLD_RESOURCES: Path = Path::new("InfrastructureValueHold.resources");
+    pub const INFRASTRUCTURE_VALUE_HOLD_DRIFT: Path = Path::new("InfrastructureValueHold.drift");
+    pub const INFRASTRUCTURE_VALUE_HOLD_EFFECTS: Path = Path::new("InfrastructureValueHold.effects");
+    pub const INFRASTRUCTURE_VALUE_HOLD_TAIL: Path = Path::new("InfrastructureValueHold (tail)");
+    pub const INFRASTRUCTURE_VALUE_PROJECT_PROJECT: Path = Path::new("InfrastructureValueProject.project");
+    pub const INFRASTRUCTURE_VALUE_PROJECT_RESOURCES: Path = Path::new("InfrastructureValueProject.resources");
+    pub const INFRASTRUCTURE_VALUE_PROJECT_ENVIRONMENTS: Path = Path::new("InfrastructureValueProject.environments");
+    pub const INFRASTRUCTURE_VALUE_PROJECT_TAIL: Path = Path::new("InfrastructureValueProject (tail)");
+    pub const INFRASTRUCTURE_VALUE_DEPLOYMENT_BACKEND: Path = Path::new("InfrastructureValueDeployment.backend");
+    pub const INFRASTRUCTURE_VALUE_DEPLOYMENT_EFFECTS: Path = Path::new("InfrastructureValueDeployment.effects");
+    pub const INFRASTRUCTURE_VALUE_DEPLOYMENT_MADE: Path = Path::new("InfrastructureValueDeployment.made");
+    pub const INFRASTRUCTURE_VALUE_DEPLOYMENT_PROPOSAL_LIMIT: Path = Path::new("InfrastructureValueDeployment.proposal_limit");
+    pub const INFRASTRUCTURE_VALUE_DEPLOYMENT_STAGED_LIMIT: Path = Path::new("InfrastructureValueDeployment.staged_limit");
+    pub const INFRASTRUCTURE_VALUE_DEPLOYMENT_TAIL: Path = Path::new("InfrastructureValueDeployment (tail)");
+    pub const INFRASTRUCTURE_VALUE_TAG: Path = Path::new("InfrastructureValue (tag)");
+    pub const OBSERVABILITY_SCOPE_PROJECT_VALUE: Path = Path::new("ObservabilityScopeProject.value");
+    pub const OBSERVABILITY_SCOPE_PROJECT_TAIL: Path = Path::new("ObservabilityScopeProject (tail)");
+    pub const OBSERVABILITY_SCOPE_TAG: Path = Path::new("ObservabilityScope (tag)");
+    pub const OBSERVABILITY_KIND_INCIDENTS_OPEN: Path = Path::new("ObservabilityKindIncidents.open");
+    pub const OBSERVABILITY_KIND_INCIDENTS_TAIL: Path = Path::new("ObservabilityKindIncidents (tail)");
+    pub const OBSERVABILITY_KIND_INCIDENT_VALUE: Path = Path::new("ObservabilityKindIncident.value");
+    pub const OBSERVABILITY_KIND_INCIDENT_TAIL: Path = Path::new("ObservabilityKindIncident (tail)");
+    pub const OBSERVABILITY_KIND_PANEL_VALUE: Path = Path::new("ObservabilityKindPanel.value");
+    pub const OBSERVABILITY_KIND_PANEL_TAIL: Path = Path::new("ObservabilityKindPanel (tail)");
+    pub const OBSERVABILITY_KIND_RESULT_VALUE: Path = Path::new("ObservabilityKindResult.value");
+    pub const OBSERVABILITY_KIND_RESULT_TAIL: Path = Path::new("ObservabilityKindResult (tail)");
+    pub const OBSERVABILITY_KIND_EFFECT_VALUE: Path = Path::new("ObservabilityKindEffect.value");
+    pub const OBSERVABILITY_KIND_EFFECT_TAIL: Path = Path::new("ObservabilityKindEffect (tail)");
+    pub const OBSERVABILITY_KIND_OUTBOX_VALUE: Path = Path::new("ObservabilityKindOutbox.value");
+    pub const OBSERVABILITY_KIND_OUTBOX_TAIL: Path = Path::new("ObservabilityKindOutbox (tail)");
+    pub const OBSERVABILITY_KIND_HOLD_VALUE: Path = Path::new("ObservabilityKindHold.value");
+    pub const OBSERVABILITY_KIND_HOLD_TAIL: Path = Path::new("ObservabilityKindHold (tail)");
+    pub const OBSERVABILITY_KIND_PROJECT_VALUE: Path = Path::new("ObservabilityKindProject.value");
+    pub const OBSERVABILITY_KIND_PROJECT_TAIL: Path = Path::new("ObservabilityKindProject (tail)");
+    pub const OBSERVABILITY_KIND_TAG: Path = Path::new("ObservabilityKind (tag)");
+    pub const OBSERVABILITY_SUBJECT_SCOPE: Path = Path::new("ObservabilitySubject.scope");
+    pub const OBSERVABILITY_SUBJECT_KIND: Path = Path::new("ObservabilitySubject.kind");
+    pub const OBSERVABILITY_SUBJECT_TAIL: Path = Path::new("ObservabilitySubject (tail)");
+    pub const OBSERVABILITY_SERVICE_ENVIRONMENT: Path = Path::new("ObservabilityService.environment");
+    pub const OBSERVABILITY_SERVICE_NAME: Path = Path::new("ObservabilityService.name");
+    pub const OBSERVABILITY_SERVICE_TAIL: Path = Path::new("ObservabilityService (tail)");
+    pub const OBSERVABILITY_STATE_TAG: Path = Path::new("ObservabilityState (tag)");
+    pub const OBSERVABILITY_LOAD_POINT_OBSERVED: Path = Path::new("ObservabilityLoadPoint.observed");
+    pub const OBSERVABILITY_LOAD_POINT_LOAD_PERCENT: Path = Path::new("ObservabilityLoadPoint.load_percent");
+    pub const OBSERVABILITY_LOAD_POINT_TAIL: Path = Path::new("ObservabilityLoadPoint (tail)");
+    pub const OBSERVABILITY_FACT_OBSERVED: Path = Path::new("ObservabilityFact.observed");
+    pub const OBSERVABILITY_FACT_HEALTHY_REPLICAS: Path = Path::new("ObservabilityFact.healthy_replicas");
+    pub const OBSERVABILITY_FACT_ERRORS: Path = Path::new("ObservabilityFact.errors");
+    pub const OBSERVABILITY_FACT_ERROR_RATE_PERCENT: Path = Path::new("ObservabilityFact.error_rate_percent");
+    pub const OBSERVABILITY_FACT_LOAD_PERCENT: Path = Path::new("ObservabilityFact.load_percent");
+    pub const OBSERVABILITY_FACT_LOAD: Path = Path::new("ObservabilityFact.load");
+    pub const OBSERVABILITY_FACT_TAIL: Path = Path::new("ObservabilityFact (tail)");
+    pub const OBSERVABILITY_HEALTH_OBSERVED: Path = Path::new("ObservabilityHealth.observed");
+    pub const OBSERVABILITY_HEALTH_HEALTHY_REPLICAS: Path = Path::new("ObservabilityHealth.healthy_replicas");
+    pub const OBSERVABILITY_HEALTH_ERRORS: Path = Path::new("ObservabilityHealth.errors");
+    pub const OBSERVABILITY_HEALTH_ERROR_RATE_PERCENT: Path = Path::new("ObservabilityHealth.error_rate_percent");
+    pub const OBSERVABILITY_HEALTH_TAIL: Path = Path::new("ObservabilityHealth (tail)");
+    pub const OBSERVABILITY_POINT_AT: Path = Path::new("ObservabilityPoint.at");
+    pub const OBSERVABILITY_POINT_HEALTH: Path = Path::new("ObservabilityPoint.health");
+    pub const OBSERVABILITY_POINT_TAIL: Path = Path::new("ObservabilityPoint (tail)");
+    pub const OBSERVABILITY_INCIDENT_PROJECT: Path = Path::new("ObservabilityIncident.project");
+    pub const OBSERVABILITY_INCIDENT_NUMBER: Path = Path::new("ObservabilityIncident.number");
+    pub const OBSERVABILITY_INCIDENT_WATCH: Path = Path::new("ObservabilityIncident.watch");
+    pub const OBSERVABILITY_INCIDENT_LEAD: Path = Path::new("ObservabilityIncident.lead");
+    pub const OBSERVABILITY_INCIDENT_ALERTS: Path = Path::new("ObservabilityIncident.alerts");
+    pub const OBSERVABILITY_INCIDENT_RAISED: Path = Path::new("ObservabilityIncident.raised");
+    pub const OBSERVABILITY_INCIDENT_SERVICE: Path = Path::new("ObservabilityIncident.service");
+    pub const OBSERVABILITY_INCIDENT_SEVERITY: Path = Path::new("ObservabilityIncident.severity");
+    pub const OBSERVABILITY_INCIDENT_STATE: Path = Path::new("ObservabilityIncident.state");
+    pub const OBSERVABILITY_INCIDENT_TIMELINE: Path = Path::new("ObservabilityIncident.timeline");
+    pub const OBSERVABILITY_INCIDENT_CUT: Path = Path::new("ObservabilityIncident.cut");
+    pub const OBSERVABILITY_INCIDENT_TAIL: Path = Path::new("ObservabilityIncident (tail)");
+    pub const OBSERVABILITY_SERVICE_STATE_SERVICE: Path = Path::new("ObservabilityServiceState.service");
+    pub const OBSERVABILITY_SERVICE_STATE_FACT: Path = Path::new("ObservabilityServiceState.fact");
+    pub const OBSERVABILITY_SERVICE_STATE_TAIL: Path = Path::new("ObservabilityServiceState (tail)");
+    pub const OBSERVABILITY_ALERT_NUMBER: Path = Path::new("ObservabilityAlert.number");
+    pub const OBSERVABILITY_ALERT_SERVICE: Path = Path::new("ObservabilityAlert.service");
+    pub const OBSERVABILITY_ALERT_SEVERITY: Path = Path::new("ObservabilityAlert.severity");
+    pub const OBSERVABILITY_ALERT_TAIL: Path = Path::new("ObservabilityAlert (tail)");
+    pub const OBSERVABILITY_PURPOSE_CALL_ATTEMPT: Path = Path::new("ObservabilityPurposeCall.attempt");
+    pub const OBSERVABILITY_PURPOSE_CALL_COMPLETION: Path = Path::new("ObservabilityPurposeCall.completion");
+    pub const OBSERVABILITY_PURPOSE_CALL_POSITION: Path = Path::new("ObservabilityPurposeCall.position");
+    pub const OBSERVABILITY_PURPOSE_CALL_TAIL: Path = Path::new("ObservabilityPurposeCall (tail)");
+    pub const OBSERVABILITY_PURPOSE_PROCEDURE_PURPOSE: Path = Path::new("ObservabilityPurposeProcedure.purpose");
+    pub const OBSERVABILITY_PURPOSE_PROCEDURE_TAIL: Path = Path::new("ObservabilityPurposeProcedure (tail)");
+    pub const OBSERVABILITY_PURPOSE_PROJECTION_PURPOSE: Path = Path::new("ObservabilityPurposeProjection.purpose");
+    pub const OBSERVABILITY_PURPOSE_PROJECTION_TAIL: Path = Path::new("ObservabilityPurposeProjection (tail)");
+    pub const OBSERVABILITY_PURPOSE_TAG: Path = Path::new("ObservabilityPurpose (tag)");
+    pub const OBSERVABILITY_KEY_DEPLOYMENT: Path = Path::new("ObservabilityKey.deployment");
+    pub const OBSERVABILITY_KEY_TASK: Path = Path::new("ObservabilityKey.task");
+    pub const OBSERVABILITY_KEY_ORIGIN: Path = Path::new("ObservabilityKey.origin");
+    pub const OBSERVABILITY_KEY_PURPOSE: Path = Path::new("ObservabilityKey.purpose");
+    pub const OBSERVABILITY_KEY_TAIL: Path = Path::new("ObservabilityKey (tail)");
+    pub const OBSERVABILITY_EFFECT_RULE: Path = Path::new("ObservabilityEffect.rule");
+    pub const OBSERVABILITY_EFFECT_UNTIL: Path = Path::new("ObservabilityEffect.until");
+    pub const OBSERVABILITY_EFFECT_TAIL: Path = Path::new("ObservabilityEffect (tail)");
+    pub const OBSERVABILITY_PHASE_TAG: Path = Path::new("ObservabilityPhase (tag)");
+    pub const OBSERVABILITY_ENTRY_PROJECT: Path = Path::new("ObservabilityEntry.project");
+    pub const OBSERVABILITY_ENTRY_NUMBER: Path = Path::new("ObservabilityEntry.number");
+    pub const OBSERVABILITY_ENTRY_KEY: Path = Path::new("ObservabilityEntry.key");
+    pub const OBSERVABILITY_ENTRY_EFFECT: Path = Path::new("ObservabilityEntry.effect");
+    pub const OBSERVABILITY_ENTRY_ATTEMPT: Path = Path::new("ObservabilityEntry.attempt");
+    pub const OBSERVABILITY_ENTRY_DEADLINE: Path = Path::new("ObservabilityEntry.deadline");
+    pub const OBSERVABILITY_ENTRY_PHASE: Path = Path::new("ObservabilityEntry.phase");
+    pub const OBSERVABILITY_ENTRY_TAIL: Path = Path::new("ObservabilityEntry (tail)");
+    pub const OBSERVABILITY_VALUE_SERVICE_SERVICE: Path = Path::new("ObservabilityValueService.service");
+    pub const OBSERVABILITY_VALUE_SERVICE_FACT: Path = Path::new("ObservabilityValueService.fact");
+    pub const OBSERVABILITY_VALUE_SERVICE_TAIL: Path = Path::new("ObservabilityValueService (tail)");
+    pub const OBSERVABILITY_VALUE_ALERT_ALERT: Path = Path::new("ObservabilityValueAlert.alert");
+    pub const OBSERVABILITY_VALUE_ALERT_RAISED: Path = Path::new("ObservabilityValueAlert.raised");
+    pub const OBSERVABILITY_VALUE_ALERT_STATE: Path = Path::new("ObservabilityValueAlert.state");
+    pub const OBSERVABILITY_VALUE_ALERT_FACT: Path = Path::new("ObservabilityValueAlert.fact");
+    pub const OBSERVABILITY_VALUE_ALERT_TAIL: Path = Path::new("ObservabilityValueAlert (tail)");
+    pub const OBSERVABILITY_VALUE_OUTBOX_ENTRY: Path = Path::new("ObservabilityValueOutbox.entry");
+    pub const OBSERVABILITY_VALUE_OUTBOX_TAIL: Path = Path::new("ObservabilityValueOutbox (tail)");
+    pub const OBSERVABILITY_VALUE_DEPLOYMENT_WATCHES: Path = Path::new("ObservabilityValueDeployment.watches");
+    pub const OBSERVABILITY_VALUE_DEPLOYMENT_EFFECTS: Path = Path::new("ObservabilityValueDeployment.effects");
+    pub const OBSERVABILITY_VALUE_DEPLOYMENT_READ_LIMIT: Path = Path::new("ObservabilityValueDeployment.read_limit");
+    pub const OBSERVABILITY_VALUE_DEPLOYMENT_INCIDENT_LIMIT: Path = Path::new("ObservabilityValueDeployment.incident_limit");
+    pub const OBSERVABILITY_VALUE_DEPLOYMENT_TAIL: Path = Path::new("ObservabilityValueDeployment (tail)");
+    pub const OBSERVABILITY_VALUE_INCIDENT_INCIDENT: Path = Path::new("ObservabilityValueIncident.incident");
+    pub const OBSERVABILITY_VALUE_INCIDENT_FACT: Path = Path::new("ObservabilityValueIncident.fact");
+    pub const OBSERVABILITY_VALUE_INCIDENT_TAIL: Path = Path::new("ObservabilityValueIncident (tail)");
+    pub const OBSERVABILITY_VALUE_PROJECT_PROJECT: Path = Path::new("ObservabilityValueProject.project");
+    pub const OBSERVABILITY_VALUE_PROJECT_SERVICES: Path = Path::new("ObservabilityValueProject.services");
+    pub const OBSERVABILITY_VALUE_PROJECT_INCIDENTS: Path = Path::new("ObservabilityValueProject.incidents");
+    pub const OBSERVABILITY_VALUE_PROJECT_TAIL: Path = Path::new("ObservabilityValueProject (tail)");
+    pub const OBSERVABILITY_VALUE_TAG: Path = Path::new("ObservabilityValue (tag)");
+    pub const OBSERVABILITY_DOCUMENT_DATA_SUBJECT: Path = Path::new("ObservabilityDocumentData.subject");
+    pub const OBSERVABILITY_DOCUMENT_DATA_VALUE: Path = Path::new("ObservabilityDocumentData.value");
+    pub const OBSERVABILITY_DOCUMENT_DATA_TAIL: Path = Path::new("ObservabilityDocumentData (tail)");
+    pub const OBSERVABILITY_SUBJECT_RECORD_VALUE: Path = Path::new("ObservabilitySubjectRecord.value");
+    pub const OBSERVABILITY_SUBJECT_RECORD_VERSION: Path = Path::new("ObservabilitySubjectRecord (version)");
+    pub const OBSERVABILITY_SUBJECT_RECORD_TAIL: Path = Path::new("ObservabilitySubjectRecord (tail)");
+    pub const INFRASTRUCTURE_KIND_ENVIRONMENT_VALUE: Path = Path::new("InfrastructureKindEnvironment.value");
+    pub const INFRASTRUCTURE_KIND_ENVIRONMENT_TAIL: Path = Path::new("InfrastructureKindEnvironment (tail)");
+    pub const INFRASTRUCTURE_KIND_ENVIRONMENTS_POOL: Path = Path::new("InfrastructureKindEnvironments.pool");
+    pub const INFRASTRUCTURE_KIND_ENVIRONMENTS_TAIL: Path = Path::new("InfrastructureKindEnvironments (tail)");
+    pub const INFRASTRUCTURE_KIND_TAG: Path = Path::new("InfrastructureKind (tag)");
+    pub const INFRASTRUCTURE_SUBJECT_SCOPE: Path = Path::new("InfrastructureSubject.scope");
+    pub const INFRASTRUCTURE_SUBJECT_KIND: Path = Path::new("InfrastructureSubject.kind");
+    pub const INFRASTRUCTURE_SUBJECT_TAIL: Path = Path::new("InfrastructureSubject (tail)");
+    pub const INFRASTRUCTURE_ASK_MOVE_END_OBJECT: Path = Path::new("InfrastructureAskMoveEnd.object");
+    pub const INFRASTRUCTURE_ASK_MOVE_END_PROJECT: Path = Path::new("InfrastructureAskMoveEnd.project");
+    pub const INFRASTRUCTURE_ASK_MOVE_END_ENVIRONMENT: Path = Path::new("InfrastructureAskMoveEnd.environment");
+    pub const INFRASTRUCTURE_ASK_MOVE_END_REVISION: Path = Path::new("InfrastructureAskMoveEnd.revision");
+    pub const INFRASTRUCTURE_ASK_MOVE_END_UNTIL: Path = Path::new("InfrastructureAskMoveEnd.until");
+    pub const INFRASTRUCTURE_ASK_MOVE_END_TAIL: Path = Path::new("InfrastructureAskMoveEnd (tail)");
+    pub const INFRASTRUCTURE_ASK_TAG: Path = Path::new("InfrastructureAsk (tag)");
+    pub const INFRASTRUCTURE_ANSWER_MOVED_END_ENVIRONMENT: Path = Path::new("InfrastructureAnswerMovedEnd.environment");
+    pub const INFRASTRUCTURE_ANSWER_MOVED_END_REVISION: Path = Path::new("InfrastructureAnswerMovedEnd.revision");
+    pub const INFRASTRUCTURE_ANSWER_MOVED_END_UNTIL: Path = Path::new("InfrastructureAnswerMovedEnd.until");
+    pub const INFRASTRUCTURE_ANSWER_MOVED_END_TAIL: Path = Path::new("InfrastructureAnswerMovedEnd (tail)");
+    pub const INFRASTRUCTURE_ANSWER_MOVED_ENVIRONMENT: Path = Path::new("InfrastructureAnswerMoved.environment");
+    pub const INFRASTRUCTURE_ANSWER_MOVED_REVISION: Path = Path::new("InfrastructureAnswerMoved.revision");
+    pub const INFRASTRUCTURE_ANSWER_MOVED_UNTIL: Path = Path::new("InfrastructureAnswerMoved.until");
+    pub const INFRASTRUCTURE_ANSWER_MOVED_TAIL: Path = Path::new("InfrastructureAnswerMoved (tail)");
+    pub const INFRASTRUCTURE_ANSWER_TAG: Path = Path::new("InfrastructureAnswer (tag)");
+    pub const INFRASTRUCTURE_DOCUMENT_DATA_SUBJECT: Path = Path::new("InfrastructureDocumentData.subject");
+    pub const INFRASTRUCTURE_DOCUMENT_DATA_VALUE: Path = Path::new("InfrastructureDocumentData.value");
+    pub const INFRASTRUCTURE_DOCUMENT_DATA_TAIL: Path = Path::new("InfrastructureDocumentData (tail)");
+    pub const OBSERVABILITY_DOCUMENT_VALUE_VALUE: Path = Path::new("ObservabilityDocumentValue.value");
+    pub const OBSERVABILITY_DOCUMENT_VALUE_TAIL: Path = Path::new("ObservabilityDocumentValue (tail)");
+    pub const INFRASTRUCTURE_ASK_RECORD_VALUE: Path = Path::new("InfrastructureAskRecord.value");
+    pub const INFRASTRUCTURE_ASK_RECORD_VERSION: Path = Path::new("InfrastructureAskRecord (version)");
+    pub const INFRASTRUCTURE_ASK_RECORD_TAIL: Path = Path::new("InfrastructureAskRecord (tail)");
+    pub const INFRASTRUCTURE_ANSWER_RECORD_VALUE: Path = Path::new("InfrastructureAnswerRecord.value");
+    pub const INFRASTRUCTURE_ANSWER_RECORD_VERSION: Path = Path::new("InfrastructureAnswerRecord (version)");
+    pub const INFRASTRUCTURE_ANSWER_RECORD_TAIL: Path = Path::new("InfrastructureAnswerRecord (tail)");
+    pub const INFRASTRUCTURE_SUBJECT_RECORD_VALUE: Path = Path::new("InfrastructureSubjectRecord.value");
+    pub const INFRASTRUCTURE_SUBJECT_RECORD_VERSION: Path = Path::new("InfrastructureSubjectRecord (version)");
+    pub const INFRASTRUCTURE_SUBJECT_RECORD_TAIL: Path = Path::new("InfrastructureSubjectRecord (tail)");
+    pub const INFRASTRUCTURE_DOCUMENT_VALUE_VALUE: Path = Path::new("InfrastructureDocumentValue.value");
+    pub const INFRASTRUCTURE_DOCUMENT_VALUE_TAIL: Path = Path::new("InfrastructureDocumentValue (tail)");
+    pub const OBSERVABILITY_DOCUMENT_TAG: Path = Path::new("ObservabilityDocument (tag)");
+    pub const OBSERVABILITY_DOCUMENT_RECORD_VALUE: Path = Path::new("ObservabilityDocumentRecord.value");
+    pub const OBSERVABILITY_DOCUMENT_RECORD_VERSION: Path = Path::new("ObservabilityDocumentRecord (version)");
+    pub const OBSERVABILITY_DOCUMENT_RECORD_TAIL: Path = Path::new("ObservabilityDocumentRecord (tail)");
+    pub const INFRASTRUCTURE_DOCUMENT_TAG: Path = Path::new("InfrastructureDocument (tag)");
+    pub const INFRASTRUCTURE_DOCUMENT_RECORD_VALUE: Path = Path::new("InfrastructureDocumentRecord.value");
+    pub const INFRASTRUCTURE_DOCUMENT_RECORD_VERSION: Path = Path::new("InfrastructureDocumentRecord (version)");
+    pub const INFRASTRUCTURE_DOCUMENT_RECORD_TAIL: Path = Path::new("InfrastructureDocumentRecord (tail)");
+    pub const INFRASTRUCTURE_READ_VALUE_VALUE: Path = Path::new("InfrastructureReadValue.value");
+    pub const INFRASTRUCTURE_READ_VALUE_TAIL: Path = Path::new("InfrastructureReadValue (tail)");
+    pub const INFRASTRUCTURE_READ_RESULT_TAG: Path = Path::new("InfrastructureReadResult (tag)");
+    pub const INFRASTRUCTURE_READ_ANSWER_VALUE: Path = Path::new("InfrastructureReadAnswer.value");
+    pub const INFRASTRUCTURE_READ_ANSWER_VERSION: Path = Path::new("InfrastructureReadAnswer (version)");
+    pub const INFRASTRUCTURE_READ_ANSWER_TAIL: Path = Path::new("InfrastructureReadAnswer (tail)");
+    pub const OBSERVABILITY_READ_VALUE_VALUE: Path = Path::new("ObservabilityReadValue.value");
+    pub const OBSERVABILITY_READ_VALUE_TAIL: Path = Path::new("ObservabilityReadValue (tail)");
+    pub const OBSERVABILITY_READ_RESULT_TAG: Path = Path::new("ObservabilityReadResult (tag)");
+    pub const OBSERVABILITY_READ_ANSWER_VALUE: Path = Path::new("ObservabilityReadAnswer.value");
+    pub const OBSERVABILITY_READ_ANSWER_VERSION: Path = Path::new("ObservabilityReadAnswer (version)");
+    pub const OBSERVABILITY_READ_ANSWER_TAIL: Path = Path::new("ObservabilityReadAnswer (tail)");
 }
 
 // Type: DecisionTask.
@@ -1788,6 +617,11 @@ pub struct DecisionTask {
 
 // Record: DecisionTask.
 impl DecisionTask {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 8;
 }
@@ -1797,11 +631,20 @@ impl Record for DecisionTask {
     const TAIL: Path = paths::DECISION_TASK_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "DecisionTask")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "DecisionTask")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -1824,6 +667,11 @@ pub struct DecisionParty {
 
 // Record: DecisionParty.
 impl DecisionParty {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 8;
 }
@@ -1833,11 +681,20 @@ impl Record for DecisionParty {
     const TAIL: Path = paths::DECISION_PARTY_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 3)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "DecisionParty")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 3)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "DecisionParty")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -1861,6 +718,12 @@ pub enum DecisionMaker {
 
 // Record: DecisionMaker.
 impl DecisionMaker {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("DecisionTask"),
+        skein_codec::bounds::Node::Named("DecisionParty"),
+        skein_codec::bounds::Node::Enum { variants: &[0, 1] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 9;
 }
@@ -1870,11 +733,20 @@ impl Record for DecisionMaker {
     const TAIL: Path = paths::DECISION_MAKER_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 4)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "DecisionMaker")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 4)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "DecisionMaker")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -1903,6 +775,12 @@ pub struct DecisionKey {
 
 // Record: DecisionKey.
 impl DecisionKey {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("DecisionMaker"),
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 17;
 }
@@ -1912,11 +790,20 @@ impl Record for DecisionKey {
     const TAIL: Path = paths::DECISION_KEY_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 6)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "DecisionKey")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 6)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "DecisionKey")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -1941,6 +828,11 @@ pub struct InfrastructureScopeProject {
 
 // Record: InfrastructureScopeProject.
 impl InfrastructureScopeProject {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(4),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 4;
 }
@@ -1950,11 +842,20 @@ impl Record for InfrastructureScopeProject {
     const TAIL: Path = paths::INFRASTRUCTURE_SCOPE_PROJECT_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 8)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureScopeProject")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 8)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureScopeProject")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -1978,6 +879,12 @@ pub enum InfrastructureScope {
 
 // Record: InfrastructureScope.
 impl InfrastructureScope {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("InfrastructureScopeProject"),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Enum { variants: &[0, 1] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 5;
 }
@@ -1987,11 +894,20 @@ impl Record for InfrastructureScope {
     const TAIL: Path = paths::INFRASTRUCTURE_SCOPE_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 10)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureScope")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 10)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureScope")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -2019,6 +935,11 @@ pub struct InfrastructureKindPanel {
 
 // Record: InfrastructureKindPanel.
 impl InfrastructureKindPanel {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 8;
 }
@@ -2028,11 +949,20 @@ impl Record for InfrastructureKindPanel {
     const TAIL: Path = paths::INFRASTRUCTURE_KIND_PANEL_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 12)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureKindPanel")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 12)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureKindPanel")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -2055,6 +985,11 @@ pub struct InfrastructureKindResult {
 
 // Record: InfrastructureKindResult.
 impl InfrastructureKindResult {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 8;
 }
@@ -2064,11 +999,20 @@ impl Record for InfrastructureKindResult {
     const TAIL: Path = paths::INFRASTRUCTURE_KIND_RESULT_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 14)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureKindResult")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 14)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureKindResult")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -2091,6 +1035,11 @@ pub struct InfrastructureKindEffect {
 
 // Record: InfrastructureKindEffect.
 impl InfrastructureKindEffect {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("DecisionKey"),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 17;
 }
@@ -2100,11 +1049,20 @@ impl Record for InfrastructureKindEffect {
     const TAIL: Path = paths::INFRASTRUCTURE_KIND_EFFECT_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 15)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureKindEffect")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 15)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureKindEffect")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -2127,6 +1085,11 @@ pub struct InfrastructureKindOwnerEffect {
 
 // Record: InfrastructureKindOwnerEffect.
 impl InfrastructureKindOwnerEffect {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 8;
 }
@@ -2136,11 +1099,20 @@ impl Record for InfrastructureKindOwnerEffect {
     const TAIL: Path = paths::INFRASTRUCTURE_KIND_OWNER_EFFECT_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 17)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureKindOwnerEffect")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 17)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureKindOwnerEffect")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -2163,6 +1135,11 @@ pub struct InfrastructureKindOutbox {
 
 // Record: InfrastructureKindOutbox.
 impl InfrastructureKindOutbox {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 8;
 }
@@ -2172,11 +1149,20 @@ impl Record for InfrastructureKindOutbox {
     const TAIL: Path = paths::INFRASTRUCTURE_KIND_OUTBOX_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 19)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureKindOutbox")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 19)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureKindOutbox")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -2199,6 +1185,11 @@ pub struct InfrastructureKindHold {
 
 // Record: InfrastructureKindHold.
 impl InfrastructureKindHold {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 8;
 }
@@ -2208,11 +1199,20 @@ impl Record for InfrastructureKindHold {
     const TAIL: Path = paths::INFRASTRUCTURE_KIND_HOLD_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 21)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureKindHold")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 21)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureKindHold")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -2235,6 +1235,11 @@ pub struct InfrastructureKindProject {
 
 // Record: InfrastructureKindProject.
 impl InfrastructureKindProject {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(4),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 4;
 }
@@ -2244,11 +1249,20 @@ impl Record for InfrastructureKindProject {
     const TAIL: Path = paths::INFRASTRUCTURE_KIND_PROJECT_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 23)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureKindProject")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 23)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureKindProject")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -2271,6 +1285,11 @@ pub struct InfrastructureRefusalRole {
 
 // Record: InfrastructureRefusalRole.
 impl InfrastructureRefusalRole {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(4),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 4;
 }
@@ -2280,11 +1299,20 @@ impl Record for InfrastructureRefusalRole {
     const TAIL: Path = paths::INFRASTRUCTURE_REFUSAL_ROLE_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 25)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureRefusalRole")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 25)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureRefusalRole")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -2313,6 +1341,17 @@ pub enum InfrastructureRefusal {
 
 // Record: InfrastructureRefusal.
 impl InfrastructureRefusal {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("InfrastructureRefusalRole"),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2, 3, 4, 5, 6] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 5;
 }
@@ -2322,11 +1361,20 @@ impl Record for InfrastructureRefusal {
     const TAIL: Path = paths::INFRASTRUCTURE_REFUSAL_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 32)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureRefusal")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 32)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureRefusal")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -2364,6 +1412,11 @@ pub struct InfrastructureAnswerRefused {
 
 // Record: InfrastructureAnswerRefused.
 impl InfrastructureAnswerRefused {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("InfrastructureRefusal"),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 5;
 }
@@ -2373,11 +1426,20 @@ impl Record for InfrastructureAnswerRefused {
     const TAIL: Path = paths::INFRASTRUCTURE_ANSWER_REFUSED_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 33)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureAnswerRefused")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 33)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureAnswerRefused")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -2401,6 +1463,12 @@ pub struct InfrastructureService {
 
 // Record: InfrastructureService.
 impl InfrastructureService {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, infrastructure_service_environment) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, infrastructure_service_name) },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 8;
 }
@@ -2410,11 +1478,20 @@ impl Record for InfrastructureService {
     const TAIL: Path = paths::INFRASTRUCTURE_SERVICE_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 36)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureService")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 36)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureService")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -2440,6 +1517,12 @@ pub struct InfrastructureEnvironment {
 
 // Record: InfrastructureEnvironment.
 impl InfrastructureEnvironment {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, infrastructure_environment_pool) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, infrastructure_environment_name) },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 8;
 }
@@ -2449,11 +1532,20 @@ impl Record for InfrastructureEnvironment {
     const TAIL: Path = paths::INFRASTRUCTURE_ENVIRONMENT_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 39)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureEnvironment")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 39)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureEnvironment")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -2478,6 +1570,11 @@ pub struct InfrastructurePool {
 
 // Record: InfrastructurePool.
 impl InfrastructurePool {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, infrastructure_pool_value) },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 4;
 }
@@ -2487,11 +1584,20 @@ impl Record for InfrastructurePool {
     const TAIL: Path = paths::INFRASTRUCTURE_POOL_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 41)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructurePool")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 41)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructurePool")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -2514,6 +1620,11 @@ pub struct InfrastructureResourceService {
 
 // Record: InfrastructureResourceService.
 impl InfrastructureResourceService {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("InfrastructureService"),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 8;
 }
@@ -2523,11 +1634,20 @@ impl Record for InfrastructureResourceService {
     const TAIL: Path = paths::INFRASTRUCTURE_RESOURCE_SERVICE_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 42)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureResourceService")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 42)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureResourceService")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -2550,6 +1670,11 @@ pub struct InfrastructureResourceEnvironment {
 
 // Record: InfrastructureResourceEnvironment.
 impl InfrastructureResourceEnvironment {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("InfrastructureEnvironment"),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 8;
 }
@@ -2559,11 +1684,20 @@ impl Record for InfrastructureResourceEnvironment {
     const TAIL: Path = paths::INFRASTRUCTURE_RESOURCE_ENVIRONMENT_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 43)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureResourceEnvironment")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 43)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureResourceEnvironment")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -2586,6 +1720,11 @@ pub struct InfrastructureResourcePool {
 
 // Record: InfrastructureResourcePool.
 impl InfrastructureResourcePool {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("InfrastructurePool"),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 4;
 }
@@ -2595,11 +1734,20 @@ impl Record for InfrastructureResourcePool {
     const TAIL: Path = paths::INFRASTRUCTURE_RESOURCE_POOL_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 44)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureResourcePool")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 44)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureResourcePool")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -2622,6 +1770,11 @@ pub struct InfrastructureResourceQuota {
 
 // Record: InfrastructureResourceQuota.
 impl InfrastructureResourceQuota {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("InfrastructurePool"),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 4;
 }
@@ -2631,11 +1784,20 @@ impl Record for InfrastructureResourceQuota {
     const TAIL: Path = paths::INFRASTRUCTURE_RESOURCE_QUOTA_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 45)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureResourceQuota")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 45)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureResourceQuota")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -2661,6 +1823,14 @@ pub enum InfrastructureResource {
 
 // Record: InfrastructureResource.
 impl InfrastructureResource {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("InfrastructureResourceService"),
+        skein_codec::bounds::Node::Named("InfrastructureResourceEnvironment"),
+        skein_codec::bounds::Node::Named("InfrastructureResourcePool"),
+        skein_codec::bounds::Node::Named("InfrastructureResourceQuota"),
+        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2, 3] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 9;
 }
@@ -2670,11 +1840,20 @@ impl Record for InfrastructureResource {
     const TAIL: Path = paths::INFRASTRUCTURE_RESOURCE_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 46)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureResource")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 46)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureResource")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -2708,6 +1887,13 @@ pub enum InfrastructureHold {
 
 // Record: InfrastructureHold.
 impl InfrastructureHold {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 1;
 }
@@ -2717,11 +1903,20 @@ impl Record for InfrastructureHold {
     const TAIL: Path = paths::INFRASTRUCTURE_HOLD_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 50)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureHold")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 50)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureHold")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, _limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -2754,6 +1949,14 @@ pub enum InfrastructureResourceRole {
 
 // Record: InfrastructureResourceRole.
 impl InfrastructureResourceRole {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2, 3] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 1;
 }
@@ -2763,11 +1966,20 @@ impl Record for InfrastructureResourceRole {
     const TAIL: Path = paths::INFRASTRUCTURE_RESOURCE_ROLE_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 55)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureResourceRole")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 55)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureResourceRole")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, _limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -2801,6 +2013,13 @@ pub struct InfrastructureNamed {
 
 // Record: InfrastructureNamed.
 impl InfrastructureNamed {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("InfrastructureResource"),
+        skein_codec::bounds::Node::Named("InfrastructureResourceRole"),
+        skein_codec::bounds::Node::Named("InfrastructureHold"),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 11;
 }
@@ -2810,11 +2029,20 @@ impl Record for InfrastructureNamed {
     const TAIL: Path = paths::INFRASTRUCTURE_NAMED_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 56)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureNamed")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 56)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureNamed")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -2843,6 +2071,13 @@ pub struct InfrastructurePurposeCall {
 
 // Record: InfrastructurePurposeCall.
 impl InfrastructurePurposeCall {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Scalar(4),
+        skein_codec::bounds::Node::Scalar(4),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 16;
 }
@@ -2852,11 +2087,20 @@ impl Record for InfrastructurePurposeCall {
     const TAIL: Path = paths::INFRASTRUCTURE_PURPOSE_CALL_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 60)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructurePurposeCall")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 60)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructurePurposeCall")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -2883,6 +2127,11 @@ pub struct InfrastructurePurposeProcedure {
 
 // Record: InfrastructurePurposeProcedure.
 impl InfrastructurePurposeProcedure {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 8;
 }
@@ -2892,11 +2141,20 @@ impl Record for InfrastructurePurposeProcedure {
     const TAIL: Path = paths::INFRASTRUCTURE_PURPOSE_PROCEDURE_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 62)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructurePurposeProcedure")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 62)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructurePurposeProcedure")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -2919,6 +2177,11 @@ pub struct InfrastructurePurposeProjection {
 
 // Record: InfrastructurePurposeProjection.
 impl InfrastructurePurposeProjection {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 8;
 }
@@ -2928,11 +2191,20 @@ impl Record for InfrastructurePurposeProjection {
     const TAIL: Path = paths::INFRASTRUCTURE_PURPOSE_PROJECTION_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 64)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructurePurposeProjection")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 64)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructurePurposeProjection")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -2957,6 +2229,13 @@ pub enum InfrastructurePurpose {
 
 // Record: InfrastructurePurpose.
 impl InfrastructurePurpose {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("InfrastructurePurposeCall"),
+        skein_codec::bounds::Node::Named("InfrastructurePurposeProcedure"),
+        skein_codec::bounds::Node::Named("InfrastructurePurposeProjection"),
+        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 17;
 }
@@ -2966,11 +2245,20 @@ impl Record for InfrastructurePurpose {
     const TAIL: Path = paths::INFRASTRUCTURE_PURPOSE_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 65)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructurePurpose")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 65)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructurePurpose")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -3003,6 +2291,14 @@ pub struct InfrastructureKey {
 
 // Record: InfrastructureKey.
 impl InfrastructureKey {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(16),
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Named("InfrastructurePurpose"),
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2, 3] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 49;
 }
@@ -3012,11 +2308,20 @@ impl Record for InfrastructureKey {
     const TAIL: Path = paths::INFRASTRUCTURE_KEY_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 69)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureKey")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 69)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureKey")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -3046,6 +2351,12 @@ pub enum InfrastructureBackend {
 
 // Record: InfrastructureBackend.
 impl InfrastructureBackend {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Enum { variants: &[0, 1] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 1;
 }
@@ -3055,11 +2366,20 @@ impl Record for InfrastructureBackend {
     const TAIL: Path = paths::INFRASTRUCTURE_BACKEND_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 72)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureBackend")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 72)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureBackend")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, _limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -3088,6 +2408,12 @@ pub struct InfrastructureEffectRestart {
 
 // Record: InfrastructureEffectRestart.
 impl InfrastructureEffectRestart {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("InfrastructureService"),
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 16;
 }
@@ -3097,11 +2423,20 @@ impl Record for InfrastructureEffectRestart {
     const TAIL: Path = paths::INFRASTRUCTURE_EFFECT_RESTART_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 74)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureEffectRestart")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 74)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureEffectRestart")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -3128,6 +2463,13 @@ pub struct InfrastructureEffectScale {
 
 // Record: InfrastructureEffectScale.
 impl InfrastructureEffectScale {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("InfrastructureService"),
+        skein_codec::bounds::Node::Scalar(4),
+        skein_codec::bounds::Node::Scalar(4),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 16;
 }
@@ -3137,11 +2479,20 @@ impl Record for InfrastructureEffectScale {
     const TAIL: Path = paths::INFRASTRUCTURE_EFFECT_SCALE_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 77)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureEffectScale")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 77)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureEffectScale")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -3170,6 +2521,13 @@ pub struct InfrastructureEffectRollback {
 
 // Record: InfrastructureEffectRollback.
 impl InfrastructureEffectRollback {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("InfrastructureService"),
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, infrastructure_effect_rollback_from) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, infrastructure_effect_rollback_to) },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 16;
 }
@@ -3179,11 +2537,20 @@ impl Record for InfrastructureEffectRollback {
     const TAIL: Path = paths::INFRASTRUCTURE_EFFECT_ROLLBACK_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 80)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureEffectRollback")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 80)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureEffectRollback")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -3212,6 +2579,13 @@ pub struct InfrastructureEffectCreateEnvironment {
 
 // Record: InfrastructureEffectCreateEnvironment.
 impl InfrastructureEffectCreateEnvironment {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("InfrastructureEnvironment"),
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 24;
 }
@@ -3221,11 +2595,20 @@ impl Record for InfrastructureEffectCreateEnvironment {
     const TAIL: Path = paths::INFRASTRUCTURE_EFFECT_CREATE_ENVIRONMENT_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 83)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureEffectCreateEnvironment")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 83)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureEffectCreateEnvironment")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -3253,6 +2636,12 @@ pub struct InfrastructureEffectTearDown {
 
 // Record: InfrastructureEffectTearDown.
 impl InfrastructureEffectTearDown {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("InfrastructureEnvironment"),
+        skein_codec::bounds::Node::Named("InfrastructureKey"),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 57;
 }
@@ -3262,11 +2651,20 @@ impl Record for InfrastructureEffectTearDown {
     const TAIL: Path = paths::INFRASTRUCTURE_EFFECT_TEAR_DOWN_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 84)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureEffectTearDown")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 84)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureEffectTearDown")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -3295,6 +2693,15 @@ pub enum InfrastructureEffect {
 
 // Record: InfrastructureEffect.
 impl InfrastructureEffect {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("InfrastructureEffectRestart"),
+        skein_codec::bounds::Node::Named("InfrastructureEffectScale"),
+        skein_codec::bounds::Node::Named("InfrastructureEffectRollback"),
+        skein_codec::bounds::Node::Named("InfrastructureEffectCreateEnvironment"),
+        skein_codec::bounds::Node::Named("InfrastructureEffectTearDown"),
+        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2, 3, 4] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 58;
 }
@@ -3304,11 +2711,20 @@ impl Record for InfrastructureEffect {
     const TAIL: Path = paths::INFRASTRUCTURE_EFFECT_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 85)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureEffect")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 85)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureEffect")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -3344,6 +2760,13 @@ pub enum InfrastructureForm {
 
 // Record: InfrastructureForm.
 impl InfrastructureForm {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 1;
 }
@@ -3353,11 +2776,20 @@ impl Record for InfrastructureForm {
     const TAIL: Path = paths::INFRASTRUCTURE_FORM_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 89)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureForm")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 89)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureForm")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, _limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -3389,6 +2821,13 @@ pub enum InfrastructureRecovery {
 
 // Record: InfrastructureRecovery.
 impl InfrastructureRecovery {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 1;
 }
@@ -3398,11 +2837,20 @@ impl Record for InfrastructureRecovery {
     const TAIL: Path = paths::INFRASTRUCTURE_RECOVERY_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 93)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureRecovery")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 93)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureRecovery")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, _limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -3438,6 +2886,19 @@ pub struct InfrastructureDescription {
 
 // Record: InfrastructureDescription.
 impl InfrastructureDescription {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(2),
+        skein_codec::bounds::Node::Named("InfrastructureResource"),
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, infrastructure_description_resources), item: 1, size: size_of::<InfrastructureResource>() },
+        skein_codec::bounds::Node::Scalar(1),
+        skein_codec::bounds::Node::Named("InfrastructureForm"),
+        skein_codec::bounds::Node::Named("InfrastructureRecovery"),
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Option { item: 6 },
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 2, 3, 4, 5, 7, 8] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 26;
 }
@@ -3447,11 +2908,20 @@ impl Record for InfrastructureDescription {
     const TAIL: Path = paths::INFRASTRUCTURE_DESCRIPTION_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 100)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureDescription")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 100)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureDescription")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -3489,6 +2959,14 @@ pub enum InfrastructurePhase {
 
 // Record: InfrastructurePhase.
 impl InfrastructurePhase {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2, 3] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 1;
 }
@@ -3498,11 +2976,20 @@ impl Record for InfrastructurePhase {
     const TAIL: Path = paths::INFRASTRUCTURE_PHASE_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 105)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructurePhase")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 105)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructurePhase")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, _limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -3540,6 +3027,18 @@ pub struct InfrastructureEntry {
 
 // Record: InfrastructureEntry.
 impl InfrastructureEntry {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(4),
+        skein_codec::bounds::Node::Option { item: 0 },
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Named("InfrastructureKey"),
+        skein_codec::bounds::Node::Named("InfrastructureEffect"),
+        skein_codec::bounds::Node::Scalar(4),
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Named("InfrastructurePhase"),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[1, 2, 3, 4, 5, 6, 7] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 133;
 }
@@ -3549,11 +3048,20 @@ impl Record for InfrastructureEntry {
     const TAIL: Path = paths::INFRASTRUCTURE_ENTRY_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 111)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureEntry")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 111)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureEntry")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -3592,6 +3100,15 @@ pub struct InfrastructureServiceFact {
 
 // Record: InfrastructureServiceFact.
 impl InfrastructureServiceFact {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, infrastructure_service_fact_version) },
+        skein_codec::bounds::Node::Scalar(4),
+        skein_codec::bounds::Node::Scalar(1),
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2, 3, 4] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 25;
 }
@@ -3601,11 +3118,20 @@ impl Record for InfrastructureServiceFact {
     const TAIL: Path = paths::INFRASTRUCTURE_SERVICE_FACT_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 117)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureServiceFact")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 117)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureServiceFact")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -3639,6 +3165,14 @@ pub struct InfrastructureEnvironmentFact {
 
 // Record: InfrastructureEnvironmentFact.
 impl InfrastructureEnvironmentFact {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("InfrastructureKey"),
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2, 3] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 73;
 }
@@ -3648,11 +3182,20 @@ impl Record for InfrastructureEnvironmentFact {
     const TAIL: Path = paths::INFRASTRUCTURE_ENVIRONMENT_FACT_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 121)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureEnvironmentFact")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 121)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureEnvironmentFact")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -3683,6 +3226,13 @@ pub struct InfrastructureProcedureRemediate {
 
 // Record: InfrastructureProcedureRemediate.
 impl InfrastructureProcedureRemediate {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("InfrastructureService"),
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 24;
 }
@@ -3692,11 +3242,20 @@ impl Record for InfrastructureProcedureRemediate {
     const TAIL: Path = paths::INFRASTRUCTURE_PROCEDURE_REMEDIATE_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 124)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureProcedureRemediate")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 124)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureProcedureRemediate")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -3725,6 +3284,13 @@ pub struct InfrastructureProcedureScale {
 
 // Record: InfrastructureProcedureScale.
 impl InfrastructureProcedureScale {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("InfrastructureService"),
+        skein_codec::bounds::Node::Scalar(4),
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 20;
 }
@@ -3734,11 +3300,20 @@ impl Record for InfrastructureProcedureScale {
     const TAIL: Path = paths::INFRASTRUCTURE_PROCEDURE_SCALE_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 127)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureProcedureScale")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 127)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureProcedureScale")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -3768,6 +3343,14 @@ pub struct InfrastructureProcedureProvision {
 
 // Record: InfrastructureProcedureProvision.
 impl InfrastructureProcedureProvision {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("InfrastructureEnvironment"),
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2, 3] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 32;
 }
@@ -3777,11 +3360,20 @@ impl Record for InfrastructureProcedureProvision {
     const TAIL: Path = paths::INFRASTRUCTURE_PROCEDURE_PROVISION_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 131)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureProcedureProvision")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 131)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureProcedureProvision")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -3812,6 +3404,13 @@ pub struct InfrastructureProcedureTearDown {
 
 // Record: InfrastructureProcedureTearDown.
 impl InfrastructureProcedureTearDown {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("InfrastructureEnvironment"),
+        skein_codec::bounds::Node::Named("InfrastructureKey"),
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 65;
 }
@@ -3821,11 +3420,20 @@ impl Record for InfrastructureProcedureTearDown {
     const TAIL: Path = paths::INFRASTRUCTURE_PROCEDURE_TEAR_DOWN_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 133)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureProcedureTearDown")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 133)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureProcedureTearDown")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -3855,6 +3463,14 @@ pub enum InfrastructureProcedure {
 
 // Record: InfrastructureProcedure.
 impl InfrastructureProcedure {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("InfrastructureProcedureRemediate"),
+        skein_codec::bounds::Node::Named("InfrastructureProcedureScale"),
+        skein_codec::bounds::Node::Named("InfrastructureProcedureProvision"),
+        skein_codec::bounds::Node::Named("InfrastructureProcedureTearDown"),
+        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2, 3] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 66;
 }
@@ -3864,11 +3480,20 @@ impl Record for InfrastructureProcedure {
     const TAIL: Path = paths::INFRASTRUCTURE_PROCEDURE_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 134)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureProcedure")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 134)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureProcedure")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -3907,6 +3532,18 @@ pub enum InfrastructureProcedurePhase {
 
 // Record: InfrastructureProcedurePhase.
 impl InfrastructureProcedurePhase {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2, 3, 4, 5, 6, 7] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 1;
 }
@@ -3916,11 +3553,20 @@ impl Record for InfrastructureProcedurePhase {
     const TAIL: Path = paths::INFRASTRUCTURE_PROCEDURE_PHASE_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 143)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureProcedurePhase")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 143)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureProcedurePhase")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, _limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -3962,6 +3608,13 @@ pub struct InfrastructureProcedureState {
 
 // Record: InfrastructureProcedureState.
 impl InfrastructureProcedureState {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Named("InfrastructureProcedure"),
+        skein_codec::bounds::Node::Named("InfrastructureProcedurePhase"),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 75;
 }
@@ -3971,11 +3624,20 @@ impl Record for InfrastructureProcedureState {
     const TAIL: Path = paths::INFRASTRUCTURE_PROCEDURE_STATE_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 145)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureProcedureState")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 145)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureProcedureState")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -4003,6 +3665,12 @@ pub enum InfrastructureDriftKind {
 
 // Record: InfrastructureDriftKind.
 impl InfrastructureDriftKind {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Enum { variants: &[0, 1] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 1;
 }
@@ -4012,11 +3680,20 @@ impl Record for InfrastructureDriftKind {
     const TAIL: Path = paths::INFRASTRUCTURE_DRIFT_KIND_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 148)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureDriftKind")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 148)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureDriftKind")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, _limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -4047,6 +3724,15 @@ pub struct InfrastructureDriftAccount {
 
 // Record: InfrastructureDriftAccount.
 impl InfrastructureDriftAccount {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("InfrastructureResource"),
+        skein_codec::bounds::Node::Named("InfrastructureDriftKind"),
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, infrastructure_drift_account_by_some) },
+        skein_codec::bounds::Node::Option { item: 3 },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2, 4] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 23;
 }
@@ -4056,11 +3742,20 @@ impl Record for InfrastructureDriftAccount {
     const TAIL: Path = paths::INFRASTRUCTURE_DRIFT_ACCOUNT_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 152)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureDriftAccount")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 152)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureDriftAccount")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -4090,6 +3785,12 @@ pub struct InfrastructureEnvironmentEnd {
 
 // Record: InfrastructureEnvironmentEnd.
 impl InfrastructureEnvironmentEnd {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 16;
 }
@@ -4099,11 +3800,20 @@ impl Record for InfrastructureEnvironmentEnd {
     const TAIL: Path = paths::INFRASTRUCTURE_ENVIRONMENT_END_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 155)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureEnvironmentEnd")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 155)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureEnvironmentEnd")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -4129,6 +3839,12 @@ pub struct InfrastructureClientPool {
 
 // Record: InfrastructureClientPool.
 impl InfrastructureClientPool {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(4),
+        skein_codec::bounds::Node::Scalar(4),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 8;
 }
@@ -4138,11 +3854,20 @@ impl Record for InfrastructureClientPool {
     const TAIL: Path = paths::INFRASTRUCTURE_CLIENT_POOL_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 158)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureClientPool")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 158)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureClientPool")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -4167,6 +3892,12 @@ pub struct InfrastructureResourceFactService {
 
 // Record: InfrastructureResourceFactService.
 impl InfrastructureResourceFactService {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("InfrastructureServiceFact"),
+        skein_codec::bounds::Node::Option { item: 0 },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[1] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 26;
 }
@@ -4176,11 +3907,20 @@ impl Record for InfrastructureResourceFactService {
     const TAIL: Path = paths::INFRASTRUCTURE_RESOURCE_FACT_SERVICE_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 160)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureResourceFactService")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 160)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureResourceFactService")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -4204,6 +3944,14 @@ pub struct InfrastructureResourceFactEnvironment {
 
 // Record: InfrastructureResourceFactEnvironment.
 impl InfrastructureResourceFactEnvironment {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("InfrastructureEnvironmentFact"),
+        skein_codec::bounds::Node::Option { item: 0 },
+        skein_codec::bounds::Node::Named("InfrastructureEnvironmentEnd"),
+        skein_codec::bounds::Node::Option { item: 2 },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[1, 3] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 91;
 }
@@ -4213,11 +3961,20 @@ impl Record for InfrastructureResourceFactEnvironment {
     const TAIL: Path = paths::INFRASTRUCTURE_RESOURCE_FACT_ENVIRONMENT_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 163)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureResourceFactEnvironment")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 163)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureResourceFactEnvironment")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -4242,6 +3999,12 @@ pub struct InfrastructureResourceFactPool {
 
 // Record: InfrastructureResourceFactPool.
 impl InfrastructureResourceFactPool {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("InfrastructureClientPool"),
+        skein_codec::bounds::Node::Option { item: 0 },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[1] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 9;
 }
@@ -4251,11 +4014,20 @@ impl Record for InfrastructureResourceFactPool {
     const TAIL: Path = paths::INFRASTRUCTURE_RESOURCE_FACT_POOL_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 165)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureResourceFactPool")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 165)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureResourceFactPool")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -4278,6 +4050,12 @@ pub struct InfrastructureResourceFactQuota {
 
 // Record: InfrastructureResourceFactQuota.
 impl InfrastructureResourceFactQuota {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("InfrastructureClientPool"),
+        skein_codec::bounds::Node::Option { item: 0 },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[1] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 9;
 }
@@ -4287,11 +4065,20 @@ impl Record for InfrastructureResourceFactQuota {
     const TAIL: Path = paths::INFRASTRUCTURE_RESOURCE_FACT_QUOTA_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 167)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureResourceFactQuota")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 167)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureResourceFactQuota")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -4317,6 +4104,14 @@ pub enum InfrastructureResourceFact {
 
 // Record: InfrastructureResourceFact.
 impl InfrastructureResourceFact {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("InfrastructureResourceFactService"),
+        skein_codec::bounds::Node::Named("InfrastructureResourceFactEnvironment"),
+        skein_codec::bounds::Node::Named("InfrastructureResourceFactPool"),
+        skein_codec::bounds::Node::Named("InfrastructureResourceFactQuota"),
+        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2, 3] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 92;
 }
@@ -4326,11 +4121,20 @@ impl Record for InfrastructureResourceFact {
     const TAIL: Path = paths::INFRASTRUCTURE_RESOURCE_FACT_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 168)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureResourceFact")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 168)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureResourceFact")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -4363,6 +4167,12 @@ pub struct InfrastructureClientResource {
 
 // Record: InfrastructureClientResource.
 impl InfrastructureClientResource {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("InfrastructureNamed"),
+        skein_codec::bounds::Node::Named("InfrastructureResourceFact"),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 103;
 }
@@ -4372,11 +4182,20 @@ impl Record for InfrastructureClientResource {
     const TAIL: Path = paths::INFRASTRUCTURE_CLIENT_RESOURCE_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 169)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureClientResource")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 169)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureClientResource")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -4404,6 +4223,16 @@ pub struct InfrastructureClientEnvironment {
 
 // Record: InfrastructureClientEnvironment.
 impl InfrastructureClientEnvironment {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("InfrastructureEnvironment"),
+        skein_codec::bounds::Node::Named("InfrastructureEnvironmentFact"),
+        skein_codec::bounds::Node::Named("InfrastructureEnvironmentEnd"),
+        skein_codec::bounds::Node::Option { item: 2 },
+        skein_codec::bounds::Node::Named("InfrastructureClientPool"),
+        skein_codec::bounds::Node::Option { item: 4 },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 3, 5] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 107;
 }
@@ -4413,11 +4242,20 @@ impl Record for InfrastructureClientEnvironment {
     const TAIL: Path = paths::INFRASTRUCTURE_CLIENT_ENVIRONMENT_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 172)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureClientEnvironment")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 172)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureClientEnvironment")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -4450,6 +4288,17 @@ pub struct InfrastructureValueEnvironment {
 
 // Record: InfrastructureValueEnvironment.
 impl InfrastructureValueEnvironment {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("InfrastructureEnvironment"),
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Named("InfrastructureEnvironmentFact"),
+        skein_codec::bounds::Node::Named("InfrastructureEnvironmentEnd"),
+        skein_codec::bounds::Node::Option { item: 3 },
+        skein_codec::bounds::Node::Named("InfrastructureClientPool"),
+        skein_codec::bounds::Node::Option { item: 5 },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2, 4, 6] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 115;
 }
@@ -4459,11 +4308,20 @@ impl Record for InfrastructureValueEnvironment {
     const TAIL: Path = paths::INFRASTRUCTURE_VALUE_ENVIRONMENT_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 176)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureValueEnvironment")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 176)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureValueEnvironment")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -4497,6 +4355,16 @@ pub struct InfrastructureValuePanel {
 
 // Record: InfrastructureValuePanel.
 impl InfrastructureValuePanel {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Named("InfrastructureProcedureState"),
+        skein_codec::bounds::Node::Named("InfrastructureClientResource"),
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, infrastructure_value_panel_resources), item: 2, size: size_of::<InfrastructureClientResource>() },
+        skein_codec::bounds::Node::Named("InfrastructureEntry"),
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, infrastructure_value_panel_effects), item: 4, size: size_of::<InfrastructureEntry>() },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 3, 5] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 91;
 }
@@ -4506,11 +4374,20 @@ impl Record for InfrastructureValuePanel {
     const TAIL: Path = paths::INFRASTRUCTURE_VALUE_PANEL_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 180)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureValuePanel")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 180)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureValuePanel")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -4541,6 +4418,14 @@ pub struct InfrastructureValueResult {
 
 // Record: InfrastructureValueResult.
 impl InfrastructureValueResult {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Named("InfrastructureProcedureState"),
+        skein_codec::bounds::Node::Named("InfrastructureClientResource"),
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, infrastructure_value_result_resources), item: 2, size: size_of::<InfrastructureClientResource>() },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 3] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 87;
 }
@@ -4550,11 +4435,20 @@ impl Record for InfrastructureValueResult {
     const TAIL: Path = paths::INFRASTRUCTURE_VALUE_RESULT_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 183)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureValueResult")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 183)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureValueResult")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -4584,6 +4478,14 @@ pub struct InfrastructureValueEffect {
 
 // Record: InfrastructureValueEffect.
 impl InfrastructureValueEffect {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Named("InfrastructureEffect"),
+        skein_codec::bounds::Node::Named("InfrastructureDescription"),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2, 3] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 100;
 }
@@ -4593,11 +4495,20 @@ impl Record for InfrastructureValueEffect {
     const TAIL: Path = paths::INFRASTRUCTURE_VALUE_EFFECT_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 186)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureValueEffect")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 186)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureValueEffect")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -4627,6 +4538,12 @@ pub struct InfrastructureValueOutbox {
 
 // Record: InfrastructureValueOutbox.
 impl InfrastructureValueOutbox {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("InfrastructureEntry"),
+        skein_codec::bounds::Node::Named("InfrastructureDescription"),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 159;
 }
@@ -4636,11 +4553,20 @@ impl Record for InfrastructureValueOutbox {
     const TAIL: Path = paths::INFRASTRUCTURE_VALUE_OUTBOX_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 187)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureValueOutbox")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 187)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureValueOutbox")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -4668,6 +4594,17 @@ pub struct InfrastructureValueHold {
 
 // Record: InfrastructureValueHold.
 impl InfrastructureValueHold {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Named("InfrastructureClientResource"),
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, infrastructure_value_hold_resources), item: 1, size: size_of::<InfrastructureClientResource>() },
+        skein_codec::bounds::Node::Named("InfrastructureDriftAccount"),
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, infrastructure_value_hold_drift), item: 3, size: size_of::<InfrastructureDriftAccount>() },
+        skein_codec::bounds::Node::Named("InfrastructureEntry"),
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, infrastructure_value_hold_effects), item: 5, size: size_of::<InfrastructureEntry>() },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 2, 4, 6] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 20;
 }
@@ -4677,11 +4614,20 @@ impl Record for InfrastructureValueHold {
     const TAIL: Path = paths::INFRASTRUCTURE_VALUE_HOLD_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 192)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureValueHold")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 192)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureValueHold")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -4712,6 +4658,15 @@ pub struct InfrastructureValueProject {
 
 // Record: InfrastructureValueProject.
 impl InfrastructureValueProject {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(4),
+        skein_codec::bounds::Node::Named("InfrastructureClientResource"),
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, infrastructure_value_project_resources), item: 1, size: size_of::<InfrastructureClientResource>() },
+        skein_codec::bounds::Node::Named("InfrastructureClientEnvironment"),
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, infrastructure_value_project_environments), item: 3, size: size_of::<InfrastructureClientEnvironment>() },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 2, 4] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 12;
 }
@@ -4721,11 +4676,20 @@ impl Record for InfrastructureValueProject {
     const TAIL: Path = paths::INFRASTRUCTURE_VALUE_PROJECT_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 196)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureValueProject")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 196)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureValueProject")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -4756,6 +4720,16 @@ pub struct InfrastructureValueDeployment {
 
 // Record: InfrastructureValueDeployment.
 impl InfrastructureValueDeployment {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("InfrastructureBackend"),
+        skein_codec::bounds::Node::Named("InfrastructureEntry"),
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, infrastructure_value_deployment_effects), item: 1, size: size_of::<InfrastructureEntry>() },
+        skein_codec::bounds::Node::Scalar(4),
+        skein_codec::bounds::Node::Scalar(4),
+        skein_codec::bounds::Node::Scalar(4),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 2, 3, 4, 5] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 17;
 }
@@ -4765,11 +4739,20 @@ impl Record for InfrastructureValueDeployment {
     const TAIL: Path = paths::INFRASTRUCTURE_VALUE_DEPLOYMENT_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 201)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureValueDeployment")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 201)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureValueDeployment")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -4807,6 +4790,18 @@ pub enum InfrastructureValue {
 
 // Record: InfrastructureValue.
 impl InfrastructureValue {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("InfrastructureValueEnvironment"),
+        skein_codec::bounds::Node::Named("InfrastructureValuePanel"),
+        skein_codec::bounds::Node::Named("InfrastructureValueResult"),
+        skein_codec::bounds::Node::Named("InfrastructureValueEffect"),
+        skein_codec::bounds::Node::Named("InfrastructureValueOutbox"),
+        skein_codec::bounds::Node::Named("InfrastructureValueHold"),
+        skein_codec::bounds::Node::Named("InfrastructureValueProject"),
+        skein_codec::bounds::Node::Named("InfrastructureValueDeployment"),
+        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2, 3, 4, 5, 6, 7] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 160;
 }
@@ -4816,11 +4811,20 @@ impl Record for InfrastructureValue {
     const TAIL: Path = paths::INFRASTRUCTURE_VALUE_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 202)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureValue")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 202)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureValue")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -4860,6 +4864,11 @@ pub struct ObservabilityScopeProject {
 
 // Record: ObservabilityScopeProject.
 impl ObservabilityScopeProject {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(4),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 4;
 }
@@ -4869,11 +4878,20 @@ impl Record for ObservabilityScopeProject {
     const TAIL: Path = paths::OBSERVABILITY_SCOPE_PROJECT_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 204)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "ObservabilityScopeProject")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 204)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "ObservabilityScopeProject")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -4897,6 +4915,12 @@ pub enum ObservabilityScope {
 
 // Record: ObservabilityScope.
 impl ObservabilityScope {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("ObservabilityScopeProject"),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Enum { variants: &[0, 1] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 5;
 }
@@ -4906,11 +4930,20 @@ impl Record for ObservabilityScope {
     const TAIL: Path = paths::OBSERVABILITY_SCOPE_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 206)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "ObservabilityScope")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 206)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "ObservabilityScope")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -4938,6 +4971,11 @@ pub struct ObservabilityKindIncidents {
 
 // Record: ObservabilityKindIncidents.
 impl ObservabilityKindIncidents {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(1),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 1;
 }
@@ -4947,11 +4985,20 @@ impl Record for ObservabilityKindIncidents {
     const TAIL: Path = paths::OBSERVABILITY_KIND_INCIDENTS_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 208)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "ObservabilityKindIncidents")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 208)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "ObservabilityKindIncidents")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -4974,6 +5021,11 @@ pub struct ObservabilityKindIncident {
 
 // Record: ObservabilityKindIncident.
 impl ObservabilityKindIncident {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 8;
 }
@@ -4983,11 +5035,20 @@ impl Record for ObservabilityKindIncident {
     const TAIL: Path = paths::OBSERVABILITY_KIND_INCIDENT_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 210)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "ObservabilityKindIncident")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 210)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "ObservabilityKindIncident")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -5010,6 +5071,11 @@ pub struct ObservabilityKindPanel {
 
 // Record: ObservabilityKindPanel.
 impl ObservabilityKindPanel {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 8;
 }
@@ -5019,11 +5085,20 @@ impl Record for ObservabilityKindPanel {
     const TAIL: Path = paths::OBSERVABILITY_KIND_PANEL_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 212)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "ObservabilityKindPanel")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 212)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "ObservabilityKindPanel")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -5046,6 +5121,11 @@ pub struct ObservabilityKindResult {
 
 // Record: ObservabilityKindResult.
 impl ObservabilityKindResult {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 8;
 }
@@ -5055,11 +5135,20 @@ impl Record for ObservabilityKindResult {
     const TAIL: Path = paths::OBSERVABILITY_KIND_RESULT_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 214)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "ObservabilityKindResult")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 214)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "ObservabilityKindResult")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -5082,6 +5171,11 @@ pub struct ObservabilityKindEffect {
 
 // Record: ObservabilityKindEffect.
 impl ObservabilityKindEffect {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("DecisionKey"),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 17;
 }
@@ -5091,11 +5185,20 @@ impl Record for ObservabilityKindEffect {
     const TAIL: Path = paths::OBSERVABILITY_KIND_EFFECT_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 215)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "ObservabilityKindEffect")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 215)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "ObservabilityKindEffect")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -5118,6 +5221,11 @@ pub struct ObservabilityKindOutbox {
 
 // Record: ObservabilityKindOutbox.
 impl ObservabilityKindOutbox {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 8;
 }
@@ -5127,11 +5235,20 @@ impl Record for ObservabilityKindOutbox {
     const TAIL: Path = paths::OBSERVABILITY_KIND_OUTBOX_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 217)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "ObservabilityKindOutbox")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 217)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "ObservabilityKindOutbox")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -5154,6 +5271,11 @@ pub struct ObservabilityKindHold {
 
 // Record: ObservabilityKindHold.
 impl ObservabilityKindHold {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 8;
 }
@@ -5163,11 +5285,20 @@ impl Record for ObservabilityKindHold {
     const TAIL: Path = paths::OBSERVABILITY_KIND_HOLD_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 219)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "ObservabilityKindHold")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 219)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "ObservabilityKindHold")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -5190,6 +5321,11 @@ pub struct ObservabilityKindProject {
 
 // Record: ObservabilityKindProject.
 impl ObservabilityKindProject {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(4),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 4;
 }
@@ -5199,11 +5335,20 @@ impl Record for ObservabilityKindProject {
     const TAIL: Path = paths::OBSERVABILITY_KIND_PROJECT_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 221)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "ObservabilityKindProject")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 221)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "ObservabilityKindProject")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -5234,6 +5379,19 @@ pub enum ObservabilityKind {
 
 // Record: ObservabilityKind.
 impl ObservabilityKind {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("ObservabilityKindIncidents"),
+        skein_codec::bounds::Node::Named("ObservabilityKindIncident"),
+        skein_codec::bounds::Node::Named("ObservabilityKindPanel"),
+        skein_codec::bounds::Node::Named("ObservabilityKindResult"),
+        skein_codec::bounds::Node::Named("ObservabilityKindEffect"),
+        skein_codec::bounds::Node::Named("ObservabilityKindOutbox"),
+        skein_codec::bounds::Node::Named("ObservabilityKindHold"),
+        skein_codec::bounds::Node::Named("ObservabilityKindProject"),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2, 3, 4, 5, 6, 7, 8] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 18;
 }
@@ -5243,11 +5401,20 @@ impl Record for ObservabilityKind {
     const TAIL: Path = paths::OBSERVABILITY_KIND_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 223)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "ObservabilityKind")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 223)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "ObservabilityKind")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -5290,6 +5457,12 @@ pub struct ObservabilitySubject {
 
 // Record: ObservabilitySubject.
 impl ObservabilitySubject {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("ObservabilityScope"),
+        skein_codec::bounds::Node::Named("ObservabilityKind"),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 23;
 }
@@ -5299,11 +5472,20 @@ impl Record for ObservabilitySubject {
     const TAIL: Path = paths::OBSERVABILITY_SUBJECT_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 224)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "ObservabilitySubject")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 224)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "ObservabilitySubject")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -5329,6 +5511,12 @@ pub struct ObservabilityService {
 
 // Record: ObservabilityService.
 impl ObservabilityService {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, observability_service_environment) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, observability_service_name) },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 8;
 }
@@ -5338,11 +5526,20 @@ impl Record for ObservabilityService {
     const TAIL: Path = paths::OBSERVABILITY_SERVICE_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 227)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "ObservabilityService")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 227)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "ObservabilityService")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -5368,6 +5565,12 @@ pub enum ObservabilityState {
 
 // Record: ObservabilityState.
 impl ObservabilityState {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Enum { variants: &[0, 1] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 1;
 }
@@ -5377,11 +5580,20 @@ impl Record for ObservabilityState {
     const TAIL: Path = paths::OBSERVABILITY_STATE_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 230)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "ObservabilityState")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 230)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "ObservabilityState")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, _limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -5410,6 +5622,12 @@ pub struct ObservabilityLoadPoint {
 
 // Record: ObservabilityLoadPoint.
 impl ObservabilityLoadPoint {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Scalar(1),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 9;
 }
@@ -5419,11 +5637,20 @@ impl Record for ObservabilityLoadPoint {
     const TAIL: Path = paths::OBSERVABILITY_LOAD_POINT_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 233)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "ObservabilityLoadPoint")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 233)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "ObservabilityLoadPoint")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -5453,6 +5680,17 @@ pub struct ObservabilityFact {
 
 // Record: ObservabilityFact.
 impl ObservabilityFact {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Scalar(4),
+        skein_codec::bounds::Node::Scalar(4),
+        skein_codec::bounds::Node::Scalar(1),
+        skein_codec::bounds::Node::Scalar(1),
+        skein_codec::bounds::Node::Named("ObservabilityLoadPoint"),
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, observability_fact_load), item: 5, size: size_of::<ObservabilityLoadPoint>() },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2, 3, 4, 6] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 22;
 }
@@ -5462,11 +5700,20 @@ impl Record for ObservabilityFact {
     const TAIL: Path = paths::OBSERVABILITY_FACT_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 240)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "ObservabilityFact")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 240)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "ObservabilityFact")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -5502,6 +5749,14 @@ pub struct ObservabilityHealth {
 
 // Record: ObservabilityHealth.
 impl ObservabilityHealth {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Scalar(4),
+        skein_codec::bounds::Node::Scalar(4),
+        skein_codec::bounds::Node::Scalar(1),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2, 3] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 17;
 }
@@ -5511,11 +5766,20 @@ impl Record for ObservabilityHealth {
     const TAIL: Path = paths::OBSERVABILITY_HEALTH_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 245)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "ObservabilityHealth")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 245)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "ObservabilityHealth")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -5545,6 +5809,13 @@ pub struct ObservabilityPoint {
 
 // Record: ObservabilityPoint.
 impl ObservabilityPoint {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Named("ObservabilityHealth"),
+        skein_codec::bounds::Node::Option { item: 1 },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 2] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 26;
 }
@@ -5554,11 +5825,20 @@ impl Record for ObservabilityPoint {
     const TAIL: Path = paths::OBSERVABILITY_POINT_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 248)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "ObservabilityPoint")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 248)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "ObservabilityPoint")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -5593,6 +5873,24 @@ pub struct ObservabilityIncident {
 
 // Record: ObservabilityIncident.
 impl ObservabilityIncident {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(4),
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Option { item: 3 },
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, observability_incident_alerts), item: 5, size: size_of::<u64>() },
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Named("ObservabilityService"),
+        skein_codec::bounds::Node::Scalar(1),
+        skein_codec::bounds::Node::Named("ObservabilityState"),
+        skein_codec::bounds::Node::Named("ObservabilityPoint"),
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, observability_incident_timeline), item: 11, size: size_of::<ObservabilityPoint>() },
+        skein_codec::bounds::Node::Scalar(1),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2, 4, 6, 7, 8, 9, 10, 12, 13] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 56;
 }
@@ -5602,11 +5900,20 @@ impl Record for ObservabilityIncident {
     const TAIL: Path = paths::OBSERVABILITY_INCIDENT_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 260)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "ObservabilityIncident")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 260)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "ObservabilityIncident")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -5650,6 +5957,13 @@ pub struct ObservabilityServiceState {
 
 // Record: ObservabilityServiceState.
 impl ObservabilityServiceState {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("ObservabilityService"),
+        skein_codec::bounds::Node::Named("ObservabilityFact"),
+        skein_codec::bounds::Node::Option { item: 1 },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 2] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 31;
 }
@@ -5659,11 +5973,20 @@ impl Record for ObservabilityServiceState {
     const TAIL: Path = paths::OBSERVABILITY_SERVICE_STATE_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 262)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "ObservabilityServiceState")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 262)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "ObservabilityServiceState")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -5690,6 +6013,13 @@ pub struct ObservabilityAlert {
 
 // Record: ObservabilityAlert.
 impl ObservabilityAlert {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Named("ObservabilityService"),
+        skein_codec::bounds::Node::Scalar(1),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 17;
 }
@@ -5699,11 +6029,20 @@ impl Record for ObservabilityAlert {
     const TAIL: Path = paths::OBSERVABILITY_ALERT_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 265)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "ObservabilityAlert")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 265)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "ObservabilityAlert")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -5732,6 +6071,13 @@ pub struct ObservabilityPurposeCall {
 
 // Record: ObservabilityPurposeCall.
 impl ObservabilityPurposeCall {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Scalar(4),
+        skein_codec::bounds::Node::Scalar(4),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 16;
 }
@@ -5741,11 +6087,20 @@ impl Record for ObservabilityPurposeCall {
     const TAIL: Path = paths::OBSERVABILITY_PURPOSE_CALL_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 269)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "ObservabilityPurposeCall")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 269)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "ObservabilityPurposeCall")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -5772,6 +6127,11 @@ pub struct ObservabilityPurposeProcedure {
 
 // Record: ObservabilityPurposeProcedure.
 impl ObservabilityPurposeProcedure {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 8;
 }
@@ -5781,11 +6141,20 @@ impl Record for ObservabilityPurposeProcedure {
     const TAIL: Path = paths::OBSERVABILITY_PURPOSE_PROCEDURE_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 271)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "ObservabilityPurposeProcedure")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 271)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "ObservabilityPurposeProcedure")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -5808,6 +6177,11 @@ pub struct ObservabilityPurposeProjection {
 
 // Record: ObservabilityPurposeProjection.
 impl ObservabilityPurposeProjection {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 8;
 }
@@ -5817,11 +6191,20 @@ impl Record for ObservabilityPurposeProjection {
     const TAIL: Path = paths::OBSERVABILITY_PURPOSE_PROJECTION_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 273)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "ObservabilityPurposeProjection")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 273)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "ObservabilityPurposeProjection")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -5846,6 +6229,13 @@ pub enum ObservabilityPurpose {
 
 // Record: ObservabilityPurpose.
 impl ObservabilityPurpose {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("ObservabilityPurposeCall"),
+        skein_codec::bounds::Node::Named("ObservabilityPurposeProcedure"),
+        skein_codec::bounds::Node::Named("ObservabilityPurposeProjection"),
+        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 17;
 }
@@ -5855,11 +6245,20 @@ impl Record for ObservabilityPurpose {
     const TAIL: Path = paths::OBSERVABILITY_PURPOSE_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 274)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "ObservabilityPurpose")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 274)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "ObservabilityPurpose")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -5892,6 +6291,14 @@ pub struct ObservabilityKey {
 
 // Record: ObservabilityKey.
 impl ObservabilityKey {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(16),
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Named("ObservabilityPurpose"),
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2, 3] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 49;
 }
@@ -5901,11 +6308,20 @@ impl Record for ObservabilityKey {
     const TAIL: Path = paths::OBSERVABILITY_KEY_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 278)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "ObservabilityKey")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 278)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "ObservabilityKey")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -5935,6 +6351,12 @@ pub struct ObservabilityEffect {
 
 // Record: ObservabilityEffect.
 impl ObservabilityEffect {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, observability_effect_rule) },
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 12;
 }
@@ -5944,11 +6366,20 @@ impl Record for ObservabilityEffect {
     const TAIL: Path = paths::OBSERVABILITY_EFFECT_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 281)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "ObservabilityEffect")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 281)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "ObservabilityEffect")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -5976,6 +6407,14 @@ pub enum ObservabilityPhase {
 
 // Record: ObservabilityPhase.
 impl ObservabilityPhase {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2, 3] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 1;
 }
@@ -5985,11 +6424,20 @@ impl Record for ObservabilityPhase {
     const TAIL: Path = paths::OBSERVABILITY_PHASE_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 286)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "ObservabilityPhase")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 286)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "ObservabilityPhase")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, _limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -6027,6 +6475,18 @@ pub struct ObservabilityEntry {
 
 // Record: ObservabilityEntry.
 impl ObservabilityEntry {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(4),
+        skein_codec::bounds::Node::Option { item: 0 },
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Named("ObservabilityKey"),
+        skein_codec::bounds::Node::Named("ObservabilityEffect"),
+        skein_codec::bounds::Node::Scalar(4),
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Named("ObservabilityPhase"),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[1, 2, 3, 4, 5, 6, 7] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 87;
 }
@@ -6036,11 +6496,20 @@ impl Record for ObservabilityEntry {
     const TAIL: Path = paths::OBSERVABILITY_ENTRY_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 292)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "ObservabilityEntry")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 292)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "ObservabilityEntry")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -6076,6 +6545,12 @@ pub struct ObservabilityValueService {
 
 // Record: ObservabilityValueService.
 impl ObservabilityValueService {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("ObservabilityService"),
+        skein_codec::bounds::Node::Named("ObservabilityFact"),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 30;
 }
@@ -6085,11 +6560,20 @@ impl Record for ObservabilityValueService {
     const TAIL: Path = paths::OBSERVABILITY_VALUE_SERVICE_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 293)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "ObservabilityValueService")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 293)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "ObservabilityValueService")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -6117,6 +6601,15 @@ pub struct ObservabilityValueAlert {
 
 // Record: ObservabilityValueAlert.
 impl ObservabilityValueAlert {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("ObservabilityAlert"),
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Named("ObservabilityState"),
+        skein_codec::bounds::Node::Named("ObservabilityFact"),
+        skein_codec::bounds::Node::Option { item: 3 },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2, 4] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 49;
 }
@@ -6126,11 +6619,20 @@ impl Record for ObservabilityValueAlert {
     const TAIL: Path = paths::OBSERVABILITY_VALUE_ALERT_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 296)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "ObservabilityValueAlert")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 296)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "ObservabilityValueAlert")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -6159,6 +6661,11 @@ pub struct ObservabilityValueOutbox {
 
 // Record: ObservabilityValueOutbox.
 impl ObservabilityValueOutbox {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("ObservabilityEntry"),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 87;
 }
@@ -6168,11 +6675,20 @@ impl Record for ObservabilityValueOutbox {
     const TAIL: Path = paths::OBSERVABILITY_VALUE_OUTBOX_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 297)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "ObservabilityValueOutbox")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 297)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "ObservabilityValueOutbox")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -6198,6 +6714,15 @@ pub struct ObservabilityValueDeployment {
 
 // Record: ObservabilityValueDeployment.
 impl ObservabilityValueDeployment {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(4),
+        skein_codec::bounds::Node::Named("ObservabilityEntry"),
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, observability_value_deployment_effects), item: 1, size: size_of::<ObservabilityEntry>() },
+        skein_codec::bounds::Node::Scalar(4),
+        skein_codec::bounds::Node::Scalar(4),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 2, 3, 4] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 16;
 }
@@ -6207,11 +6732,20 @@ impl Record for ObservabilityValueDeployment {
     const TAIL: Path = paths::OBSERVABILITY_VALUE_DEPLOYMENT_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 302)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "ObservabilityValueDeployment")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 302)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "ObservabilityValueDeployment")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -6241,6 +6775,13 @@ pub struct ObservabilityValueIncident {
 
 // Record: ObservabilityValueIncident.
 impl ObservabilityValueIncident {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("ObservabilityIncident"),
+        skein_codec::bounds::Node::Named("ObservabilityFact"),
+        skein_codec::bounds::Node::Option { item: 1 },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 2] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 79;
 }
@@ -6250,11 +6791,20 @@ impl Record for ObservabilityValueIncident {
     const TAIL: Path = paths::OBSERVABILITY_VALUE_INCIDENT_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 304)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "ObservabilityValueIncident")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 304)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "ObservabilityValueIncident")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -6281,6 +6831,15 @@ pub struct ObservabilityValueProject {
 
 // Record: ObservabilityValueProject.
 impl ObservabilityValueProject {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(4),
+        skein_codec::bounds::Node::Named("ObservabilityServiceState"),
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, observability_value_project_services), item: 1, size: size_of::<ObservabilityServiceState>() },
+        skein_codec::bounds::Node::Named("ObservabilityIncident"),
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, observability_value_project_incidents), item: 3, size: size_of::<ObservabilityIncident>() },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 2, 4] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 12;
 }
@@ -6290,11 +6849,20 @@ impl Record for ObservabilityValueProject {
     const TAIL: Path = paths::OBSERVABILITY_VALUE_PROJECT_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 308)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "ObservabilityValueProject")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 308)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "ObservabilityValueProject")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -6326,6 +6894,16 @@ pub enum ObservabilityValue {
 
 // Record: ObservabilityValue.
 impl ObservabilityValue {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("ObservabilityValueService"),
+        skein_codec::bounds::Node::Named("ObservabilityValueAlert"),
+        skein_codec::bounds::Node::Named("ObservabilityValueOutbox"),
+        skein_codec::bounds::Node::Named("ObservabilityValueDeployment"),
+        skein_codec::bounds::Node::Named("ObservabilityValueIncident"),
+        skein_codec::bounds::Node::Named("ObservabilityValueProject"),
+        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2, 3, 4, 5] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 88;
 }
@@ -6335,11 +6913,20 @@ impl Record for ObservabilityValue {
     const TAIL: Path = paths::OBSERVABILITY_VALUE_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 309)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "ObservabilityValue")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 309)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "ObservabilityValue")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -6376,6 +6963,12 @@ pub struct ObservabilityDocumentData {
 
 // Record: ObservabilityDocumentData.
 impl ObservabilityDocumentData {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("ObservabilitySubject"),
+        skein_codec::bounds::Node::Named("ObservabilityValue"),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 111;
 }
@@ -6385,11 +6978,20 @@ impl Record for ObservabilityDocumentData {
     const TAIL: Path = paths::OBSERVABILITY_DOCUMENT_DATA_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 310)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "ObservabilityDocumentData")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 310)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "ObservabilityDocumentData")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -6414,6 +7016,11 @@ pub struct ObservabilitySubjectRecord {
 
 // Record: ObservabilitySubjectRecord.
 impl ObservabilitySubjectRecord {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("ObservabilityKind"),
+        skein_codec::bounds::Node::Record { prefix: 2, fields: &[0] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 20;
 }
@@ -6423,11 +7030,11 @@ impl Record for ObservabilitySubjectRecord {
     const TAIL: Path = paths::OBSERVABILITY_SUBJECT_RECORD_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 311)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "ObservabilitySubjectRecord")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 311)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "ObservabilitySubjectRecord")?.decoded)
     }
 
     #[cfg(debug_assertions)]
@@ -6461,6 +7068,11 @@ pub struct InfrastructureKindEnvironment {
 
 // Record: InfrastructureKindEnvironment.
 impl InfrastructureKindEnvironment {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("InfrastructureEnvironment"),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 8;
 }
@@ -6470,11 +7082,20 @@ impl Record for InfrastructureKindEnvironment {
     const TAIL: Path = paths::INFRASTRUCTURE_KIND_ENVIRONMENT_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 312)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureKindEnvironment")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 312)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureKindEnvironment")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -6497,6 +7118,12 @@ pub struct InfrastructureKindEnvironments {
 
 // Record: InfrastructureKindEnvironments.
 impl InfrastructureKindEnvironments {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("InfrastructurePool"),
+        skein_codec::bounds::Node::Option { item: 0 },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[1] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 5;
 }
@@ -6506,11 +7133,20 @@ impl Record for InfrastructureKindEnvironments {
     const TAIL: Path = paths::INFRASTRUCTURE_KIND_ENVIRONMENTS_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 314)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureKindEnvironments")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 314)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureKindEnvironments")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -6542,6 +7178,20 @@ pub enum InfrastructureKind {
 
 // Record: InfrastructureKind.
 impl InfrastructureKind {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("InfrastructureKindEnvironment"),
+        skein_codec::bounds::Node::Named("InfrastructureKindEnvironments"),
+        skein_codec::bounds::Node::Named("InfrastructureKindPanel"),
+        skein_codec::bounds::Node::Named("InfrastructureKindResult"),
+        skein_codec::bounds::Node::Named("InfrastructureKindEffect"),
+        skein_codec::bounds::Node::Named("InfrastructureKindOwnerEffect"),
+        skein_codec::bounds::Node::Named("InfrastructureKindOutbox"),
+        skein_codec::bounds::Node::Named("InfrastructureKindHold"),
+        skein_codec::bounds::Node::Named("InfrastructureKindProject"),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2, 3, 4, 5, 6, 7, 8, 9] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 18;
 }
@@ -6551,11 +7201,20 @@ impl Record for InfrastructureKind {
     const TAIL: Path = paths::INFRASTRUCTURE_KIND_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 316)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureKind")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 316)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureKind")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -6600,6 +7259,12 @@ pub struct InfrastructureSubject {
 
 // Record: InfrastructureSubject.
 impl InfrastructureSubject {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("InfrastructureScope"),
+        skein_codec::bounds::Node::Named("InfrastructureKind"),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 23;
 }
@@ -6609,11 +7274,20 @@ impl Record for InfrastructureSubject {
     const TAIL: Path = paths::INFRASTRUCTURE_SUBJECT_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 317)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureSubject")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 317)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureSubject")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -6642,6 +7316,15 @@ pub struct InfrastructureAskMoveEnd {
 
 // Record: InfrastructureAskMoveEnd.
 impl InfrastructureAskMoveEnd {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Scalar(4),
+        skein_codec::bounds::Node::Named("InfrastructureEnvironment"),
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2, 3, 4] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 36;
 }
@@ -6651,11 +7334,20 @@ impl Record for InfrastructureAskMoveEnd {
     const TAIL: Path = paths::INFRASTRUCTURE_ASK_MOVE_END_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 322)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureAskMoveEnd")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 322)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureAskMoveEnd")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -6686,6 +7378,11 @@ pub enum InfrastructureAsk {
 
 // Record: InfrastructureAsk.
 impl InfrastructureAsk {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("InfrastructureAskMoveEnd"),
+        skein_codec::bounds::Node::Enum { variants: &[0] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 37;
 }
@@ -6695,11 +7392,20 @@ impl Record for InfrastructureAsk {
     const TAIL: Path = paths::INFRASTRUCTURE_ASK_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 323)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureAsk")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 323)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureAsk")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -6727,6 +7433,13 @@ pub struct InfrastructureAnswerMovedEnd {
 
 // Record: InfrastructureAnswerMovedEnd.
 impl InfrastructureAnswerMovedEnd {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("InfrastructureEnvironment"),
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 24;
 }
@@ -6736,11 +7449,20 @@ impl Record for InfrastructureAnswerMovedEnd {
     const TAIL: Path = paths::INFRASTRUCTURE_ANSWER_MOVED_END_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 326)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureAnswerMovedEnd")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 326)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureAnswerMovedEnd")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -6769,6 +7491,13 @@ pub struct InfrastructureAnswerMoved {
 
 // Record: InfrastructureAnswerMoved.
 impl InfrastructureAnswerMoved {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("InfrastructureEnvironment"),
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 24;
 }
@@ -6778,11 +7507,20 @@ impl Record for InfrastructureAnswerMoved {
     const TAIL: Path = paths::INFRASTRUCTURE_ANSWER_MOVED_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 329)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureAnswerMoved")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 329)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureAnswerMoved")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -6812,6 +7550,14 @@ pub enum InfrastructureAnswer {
 
 // Record: InfrastructureAnswer.
 impl InfrastructureAnswer {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("InfrastructureAnswerMovedEnd"),
+        skein_codec::bounds::Node::Named("InfrastructureAnswerMoved"),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Named("InfrastructureAnswerRefused"),
+        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2, 3] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 25;
 }
@@ -6821,11 +7567,20 @@ impl Record for InfrastructureAnswer {
     const TAIL: Path = paths::INFRASTRUCTURE_ANSWER_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 331)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureAnswer")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 331)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureAnswer")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -6858,6 +7613,12 @@ pub struct InfrastructureDocumentData {
 
 // Record: InfrastructureDocumentData.
 impl InfrastructureDocumentData {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("InfrastructureSubject"),
+        skein_codec::bounds::Node::Named("InfrastructureValue"),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 183;
 }
@@ -6867,11 +7628,20 @@ impl Record for InfrastructureDocumentData {
     const TAIL: Path = paths::INFRASTRUCTURE_DOCUMENT_DATA_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 332)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureDocumentData")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 332)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureDocumentData")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -6896,6 +7666,11 @@ pub struct ObservabilityDocumentValue {
 
 // Record: ObservabilityDocumentValue.
 impl ObservabilityDocumentValue {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("ObservabilityDocumentData"),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 111;
 }
@@ -6905,11 +7680,20 @@ impl Record for ObservabilityDocumentValue {
     const TAIL: Path = paths::OBSERVABILITY_DOCUMENT_VALUE_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 333)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "ObservabilityDocumentValue")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 333)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "ObservabilityDocumentValue")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -6932,6 +7716,11 @@ pub struct InfrastructureAskRecord {
 
 // Record: InfrastructureAskRecord.
 impl InfrastructureAskRecord {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("InfrastructureAsk"),
+        skein_codec::bounds::Node::Record { prefix: 2, fields: &[0] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 39;
 }
@@ -6941,11 +7730,11 @@ impl Record for InfrastructureAskRecord {
     const TAIL: Path = paths::INFRASTRUCTURE_ASK_RECORD_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 334)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureAskRecord")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 334)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureAskRecord")?.decoded)
     }
 
     #[cfg(debug_assertions)]
@@ -6979,6 +7768,11 @@ pub struct InfrastructureAnswerRecord {
 
 // Record: InfrastructureAnswerRecord.
 impl InfrastructureAnswerRecord {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("InfrastructureAnswer"),
+        skein_codec::bounds::Node::Record { prefix: 2, fields: &[0] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 27;
 }
@@ -6988,11 +7782,11 @@ impl Record for InfrastructureAnswerRecord {
     const TAIL: Path = paths::INFRASTRUCTURE_ANSWER_RECORD_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 335)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureAnswerRecord")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 335)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureAnswerRecord")?.decoded)
     }
 
     #[cfg(debug_assertions)]
@@ -7026,6 +7820,11 @@ pub struct InfrastructureSubjectRecord {
 
 // Record: InfrastructureSubjectRecord.
 impl InfrastructureSubjectRecord {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("InfrastructureKind"),
+        skein_codec::bounds::Node::Record { prefix: 2, fields: &[0] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 20;
 }
@@ -7035,11 +7834,11 @@ impl Record for InfrastructureSubjectRecord {
     const TAIL: Path = paths::INFRASTRUCTURE_SUBJECT_RECORD_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 336)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureSubjectRecord")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 336)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureSubjectRecord")?.decoded)
     }
 
     #[cfg(debug_assertions)]
@@ -7073,6 +7872,11 @@ pub struct InfrastructureDocumentValue {
 
 // Record: InfrastructureDocumentValue.
 impl InfrastructureDocumentValue {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("InfrastructureDocumentData"),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 183;
 }
@@ -7082,11 +7886,20 @@ impl Record for InfrastructureDocumentValue {
     const TAIL: Path = paths::INFRASTRUCTURE_DOCUMENT_VALUE_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 337)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureDocumentValue")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 337)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureDocumentValue")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -7109,6 +7922,11 @@ pub enum ObservabilityDocument {
 
 // Record: ObservabilityDocument.
 impl ObservabilityDocument {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("ObservabilityDocumentValue"),
+        skein_codec::bounds::Node::Enum { variants: &[0] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 112;
 }
@@ -7118,11 +7936,20 @@ impl Record for ObservabilityDocument {
     const TAIL: Path = paths::OBSERVABILITY_DOCUMENT_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 338)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "ObservabilityDocument")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 338)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "ObservabilityDocument")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -7148,6 +7975,11 @@ pub struct ObservabilityDocumentRecord {
 
 // Record: ObservabilityDocumentRecord.
 impl ObservabilityDocumentRecord {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("ObservabilityDocument"),
+        skein_codec::bounds::Node::Record { prefix: 2, fields: &[0] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 114;
 }
@@ -7157,11 +7989,11 @@ impl Record for ObservabilityDocumentRecord {
     const TAIL: Path = paths::OBSERVABILITY_DOCUMENT_RECORD_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 339)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "ObservabilityDocumentRecord")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 339)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "ObservabilityDocumentRecord")?.decoded)
     }
 
     #[cfg(debug_assertions)]
@@ -7195,6 +8027,11 @@ pub enum InfrastructureDocument {
 
 // Record: InfrastructureDocument.
 impl InfrastructureDocument {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("InfrastructureDocumentValue"),
+        skein_codec::bounds::Node::Enum { variants: &[0] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 184;
 }
@@ -7204,11 +8041,20 @@ impl Record for InfrastructureDocument {
     const TAIL: Path = paths::INFRASTRUCTURE_DOCUMENT_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 340)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureDocument")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 340)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureDocument")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -7234,6 +8080,11 @@ pub struct InfrastructureDocumentRecord {
 
 // Record: InfrastructureDocumentRecord.
 impl InfrastructureDocumentRecord {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("InfrastructureDocument"),
+        skein_codec::bounds::Node::Record { prefix: 2, fields: &[0] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 186;
 }
@@ -7243,11 +8094,11 @@ impl Record for InfrastructureDocumentRecord {
     const TAIL: Path = paths::INFRASTRUCTURE_DOCUMENT_RECORD_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 341)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureDocumentRecord")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 341)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureDocumentRecord")?.decoded)
     }
 
     #[cfg(debug_assertions)]
@@ -7281,6 +8132,11 @@ pub struct InfrastructureReadValue {
 
 // Record: InfrastructureReadValue.
 impl InfrastructureReadValue {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("InfrastructureDocument"),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 184;
 }
@@ -7290,11 +8146,20 @@ impl Record for InfrastructureReadValue {
     const TAIL: Path = paths::INFRASTRUCTURE_READ_VALUE_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 342)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureReadValue")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 342)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureReadValue")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -7319,6 +8184,14 @@ pub enum InfrastructureReadResult {
 
 // Record: InfrastructureReadResult.
 impl InfrastructureReadResult {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("InfrastructureReadValue"),
+        skein_codec::bounds::Node::Boxed { item: 0, size: size_of::<InfrastructureReadValue>() },
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Enum { variants: &[1, 2, 3] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 185;
 }
@@ -7328,11 +8201,20 @@ impl Record for InfrastructureReadResult {
     const TAIL: Path = paths::INFRASTRUCTURE_READ_RESULT_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 346)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureReadResult")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 346)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureReadResult")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -7362,6 +8244,11 @@ pub struct InfrastructureReadAnswer {
 
 // Record: InfrastructureReadAnswer.
 impl InfrastructureReadAnswer {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("InfrastructureReadResult"),
+        skein_codec::bounds::Node::Record { prefix: 2, fields: &[0] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 187;
 }
@@ -7371,11 +8258,11 @@ impl Record for InfrastructureReadAnswer {
     const TAIL: Path = paths::INFRASTRUCTURE_READ_ANSWER_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 347)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureReadAnswer")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 347)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "InfrastructureReadAnswer")?.decoded)
     }
 
     #[cfg(debug_assertions)]
@@ -7409,6 +8296,11 @@ pub struct ObservabilityReadValue {
 
 // Record: ObservabilityReadValue.
 impl ObservabilityReadValue {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("ObservabilityDocument"),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 112;
 }
@@ -7418,11 +8310,20 @@ impl Record for ObservabilityReadValue {
     const TAIL: Path = paths::OBSERVABILITY_READ_VALUE_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 348)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "ObservabilityReadValue")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 348)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "ObservabilityReadValue")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -7447,6 +8348,14 @@ pub enum ObservabilityReadResult {
 
 // Record: ObservabilityReadResult.
 impl ObservabilityReadResult {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("ObservabilityReadValue"),
+        skein_codec::bounds::Node::Boxed { item: 0, size: size_of::<ObservabilityReadValue>() },
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Enum { variants: &[1, 2, 3] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 113;
 }
@@ -7456,11 +8365,20 @@ impl Record for ObservabilityReadResult {
     const TAIL: Path = paths::OBSERVABILITY_READ_RESULT_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 352)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "ObservabilityReadResult")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 352)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "ObservabilityReadResult")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -7490,6 +8408,11 @@ pub struct ObservabilityReadAnswer {
 
 // Record: ObservabilityReadAnswer.
 impl ObservabilityReadAnswer {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("ObservabilityReadResult"),
+        skein_codec::bounds::Node::Record { prefix: 2, fields: &[0] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 115;
 }
@@ -7499,11 +8422,11 @@ impl Record for ObservabilityReadAnswer {
     const TAIL: Path = paths::OBSERVABILITY_READ_ANSWER_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 353)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "ObservabilityReadAnswer")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 353)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "ObservabilityReadAnswer")?.decoded)
     }
 
     #[cfg(debug_assertions)]
@@ -7529,3 +8452,183 @@ impl Record for ObservabilityReadAnswer {
     }
 }
 
+// Bounds: one postordered shape per declaration, sorted by name.
+pub static DECLARATIONS: &[skein_codec::bounds::Declaration] = &[
+    skein_codec::bounds::Declaration { name: "DecisionKey", nodes: DecisionKey::SHAPE },
+    skein_codec::bounds::Declaration { name: "DecisionMaker", nodes: DecisionMaker::SHAPE },
+    skein_codec::bounds::Declaration { name: "DecisionParty", nodes: DecisionParty::SHAPE },
+    skein_codec::bounds::Declaration { name: "DecisionTask", nodes: DecisionTask::SHAPE },
+    skein_codec::bounds::Declaration { name: "InfrastructureAnswer", nodes: InfrastructureAnswer::SHAPE },
+    skein_codec::bounds::Declaration { name: "InfrastructureAnswerMoved", nodes: InfrastructureAnswerMoved::SHAPE },
+    skein_codec::bounds::Declaration { name: "InfrastructureAnswerMovedEnd", nodes: InfrastructureAnswerMovedEnd::SHAPE },
+    skein_codec::bounds::Declaration { name: "InfrastructureAnswerRecord", nodes: InfrastructureAnswerRecord::SHAPE },
+    skein_codec::bounds::Declaration { name: "InfrastructureAnswerRefused", nodes: InfrastructureAnswerRefused::SHAPE },
+    skein_codec::bounds::Declaration { name: "InfrastructureAsk", nodes: InfrastructureAsk::SHAPE },
+    skein_codec::bounds::Declaration { name: "InfrastructureAskMoveEnd", nodes: InfrastructureAskMoveEnd::SHAPE },
+    skein_codec::bounds::Declaration { name: "InfrastructureAskRecord", nodes: InfrastructureAskRecord::SHAPE },
+    skein_codec::bounds::Declaration { name: "InfrastructureBackend", nodes: InfrastructureBackend::SHAPE },
+    skein_codec::bounds::Declaration { name: "InfrastructureClientEnvironment", nodes: InfrastructureClientEnvironment::SHAPE },
+    skein_codec::bounds::Declaration { name: "InfrastructureClientPool", nodes: InfrastructureClientPool::SHAPE },
+    skein_codec::bounds::Declaration { name: "InfrastructureClientResource", nodes: InfrastructureClientResource::SHAPE },
+    skein_codec::bounds::Declaration { name: "InfrastructureDescription", nodes: InfrastructureDescription::SHAPE },
+    skein_codec::bounds::Declaration { name: "InfrastructureDocument", nodes: InfrastructureDocument::SHAPE },
+    skein_codec::bounds::Declaration { name: "InfrastructureDocumentData", nodes: InfrastructureDocumentData::SHAPE },
+    skein_codec::bounds::Declaration { name: "InfrastructureDocumentRecord", nodes: InfrastructureDocumentRecord::SHAPE },
+    skein_codec::bounds::Declaration { name: "InfrastructureDocumentValue", nodes: InfrastructureDocumentValue::SHAPE },
+    skein_codec::bounds::Declaration { name: "InfrastructureDriftAccount", nodes: InfrastructureDriftAccount::SHAPE },
+    skein_codec::bounds::Declaration { name: "InfrastructureDriftKind", nodes: InfrastructureDriftKind::SHAPE },
+    skein_codec::bounds::Declaration { name: "InfrastructureEffect", nodes: InfrastructureEffect::SHAPE },
+    skein_codec::bounds::Declaration { name: "InfrastructureEffectCreateEnvironment", nodes: InfrastructureEffectCreateEnvironment::SHAPE },
+    skein_codec::bounds::Declaration { name: "InfrastructureEffectRestart", nodes: InfrastructureEffectRestart::SHAPE },
+    skein_codec::bounds::Declaration { name: "InfrastructureEffectRollback", nodes: InfrastructureEffectRollback::SHAPE },
+    skein_codec::bounds::Declaration { name: "InfrastructureEffectScale", nodes: InfrastructureEffectScale::SHAPE },
+    skein_codec::bounds::Declaration { name: "InfrastructureEffectTearDown", nodes: InfrastructureEffectTearDown::SHAPE },
+    skein_codec::bounds::Declaration { name: "InfrastructureEntry", nodes: InfrastructureEntry::SHAPE },
+    skein_codec::bounds::Declaration { name: "InfrastructureEnvironment", nodes: InfrastructureEnvironment::SHAPE },
+    skein_codec::bounds::Declaration { name: "InfrastructureEnvironmentEnd", nodes: InfrastructureEnvironmentEnd::SHAPE },
+    skein_codec::bounds::Declaration { name: "InfrastructureEnvironmentFact", nodes: InfrastructureEnvironmentFact::SHAPE },
+    skein_codec::bounds::Declaration { name: "InfrastructureForm", nodes: InfrastructureForm::SHAPE },
+    skein_codec::bounds::Declaration { name: "InfrastructureHold", nodes: InfrastructureHold::SHAPE },
+    skein_codec::bounds::Declaration { name: "InfrastructureKey", nodes: InfrastructureKey::SHAPE },
+    skein_codec::bounds::Declaration { name: "InfrastructureKind", nodes: InfrastructureKind::SHAPE },
+    skein_codec::bounds::Declaration { name: "InfrastructureKindEffect", nodes: InfrastructureKindEffect::SHAPE },
+    skein_codec::bounds::Declaration { name: "InfrastructureKindEnvironment", nodes: InfrastructureKindEnvironment::SHAPE },
+    skein_codec::bounds::Declaration { name: "InfrastructureKindEnvironments", nodes: InfrastructureKindEnvironments::SHAPE },
+    skein_codec::bounds::Declaration { name: "InfrastructureKindHold", nodes: InfrastructureKindHold::SHAPE },
+    skein_codec::bounds::Declaration { name: "InfrastructureKindOutbox", nodes: InfrastructureKindOutbox::SHAPE },
+    skein_codec::bounds::Declaration { name: "InfrastructureKindOwnerEffect", nodes: InfrastructureKindOwnerEffect::SHAPE },
+    skein_codec::bounds::Declaration { name: "InfrastructureKindPanel", nodes: InfrastructureKindPanel::SHAPE },
+    skein_codec::bounds::Declaration { name: "InfrastructureKindProject", nodes: InfrastructureKindProject::SHAPE },
+    skein_codec::bounds::Declaration { name: "InfrastructureKindResult", nodes: InfrastructureKindResult::SHAPE },
+    skein_codec::bounds::Declaration { name: "InfrastructureNamed", nodes: InfrastructureNamed::SHAPE },
+    skein_codec::bounds::Declaration { name: "InfrastructurePhase", nodes: InfrastructurePhase::SHAPE },
+    skein_codec::bounds::Declaration { name: "InfrastructurePool", nodes: InfrastructurePool::SHAPE },
+    skein_codec::bounds::Declaration { name: "InfrastructureProcedure", nodes: InfrastructureProcedure::SHAPE },
+    skein_codec::bounds::Declaration { name: "InfrastructureProcedurePhase", nodes: InfrastructureProcedurePhase::SHAPE },
+    skein_codec::bounds::Declaration { name: "InfrastructureProcedureProvision", nodes: InfrastructureProcedureProvision::SHAPE },
+    skein_codec::bounds::Declaration { name: "InfrastructureProcedureRemediate", nodes: InfrastructureProcedureRemediate::SHAPE },
+    skein_codec::bounds::Declaration { name: "InfrastructureProcedureScale", nodes: InfrastructureProcedureScale::SHAPE },
+    skein_codec::bounds::Declaration { name: "InfrastructureProcedureState", nodes: InfrastructureProcedureState::SHAPE },
+    skein_codec::bounds::Declaration { name: "InfrastructureProcedureTearDown", nodes: InfrastructureProcedureTearDown::SHAPE },
+    skein_codec::bounds::Declaration { name: "InfrastructurePurpose", nodes: InfrastructurePurpose::SHAPE },
+    skein_codec::bounds::Declaration { name: "InfrastructurePurposeCall", nodes: InfrastructurePurposeCall::SHAPE },
+    skein_codec::bounds::Declaration { name: "InfrastructurePurposeProcedure", nodes: InfrastructurePurposeProcedure::SHAPE },
+    skein_codec::bounds::Declaration { name: "InfrastructurePurposeProjection", nodes: InfrastructurePurposeProjection::SHAPE },
+    skein_codec::bounds::Declaration { name: "InfrastructureReadAnswer", nodes: InfrastructureReadAnswer::SHAPE },
+    skein_codec::bounds::Declaration { name: "InfrastructureReadResult", nodes: InfrastructureReadResult::SHAPE },
+    skein_codec::bounds::Declaration { name: "InfrastructureReadValue", nodes: InfrastructureReadValue::SHAPE },
+    skein_codec::bounds::Declaration { name: "InfrastructureRecovery", nodes: InfrastructureRecovery::SHAPE },
+    skein_codec::bounds::Declaration { name: "InfrastructureRefusal", nodes: InfrastructureRefusal::SHAPE },
+    skein_codec::bounds::Declaration { name: "InfrastructureRefusalRole", nodes: InfrastructureRefusalRole::SHAPE },
+    skein_codec::bounds::Declaration { name: "InfrastructureResource", nodes: InfrastructureResource::SHAPE },
+    skein_codec::bounds::Declaration { name: "InfrastructureResourceEnvironment", nodes: InfrastructureResourceEnvironment::SHAPE },
+    skein_codec::bounds::Declaration { name: "InfrastructureResourceFact", nodes: InfrastructureResourceFact::SHAPE },
+    skein_codec::bounds::Declaration { name: "InfrastructureResourceFactEnvironment", nodes: InfrastructureResourceFactEnvironment::SHAPE },
+    skein_codec::bounds::Declaration { name: "InfrastructureResourceFactPool", nodes: InfrastructureResourceFactPool::SHAPE },
+    skein_codec::bounds::Declaration { name: "InfrastructureResourceFactQuota", nodes: InfrastructureResourceFactQuota::SHAPE },
+    skein_codec::bounds::Declaration { name: "InfrastructureResourceFactService", nodes: InfrastructureResourceFactService::SHAPE },
+    skein_codec::bounds::Declaration { name: "InfrastructureResourcePool", nodes: InfrastructureResourcePool::SHAPE },
+    skein_codec::bounds::Declaration { name: "InfrastructureResourceQuota", nodes: InfrastructureResourceQuota::SHAPE },
+    skein_codec::bounds::Declaration { name: "InfrastructureResourceRole", nodes: InfrastructureResourceRole::SHAPE },
+    skein_codec::bounds::Declaration { name: "InfrastructureResourceService", nodes: InfrastructureResourceService::SHAPE },
+    skein_codec::bounds::Declaration { name: "InfrastructureScope", nodes: InfrastructureScope::SHAPE },
+    skein_codec::bounds::Declaration { name: "InfrastructureScopeProject", nodes: InfrastructureScopeProject::SHAPE },
+    skein_codec::bounds::Declaration { name: "InfrastructureService", nodes: InfrastructureService::SHAPE },
+    skein_codec::bounds::Declaration { name: "InfrastructureServiceFact", nodes: InfrastructureServiceFact::SHAPE },
+    skein_codec::bounds::Declaration { name: "InfrastructureSubject", nodes: InfrastructureSubject::SHAPE },
+    skein_codec::bounds::Declaration { name: "InfrastructureSubjectRecord", nodes: InfrastructureSubjectRecord::SHAPE },
+    skein_codec::bounds::Declaration { name: "InfrastructureValue", nodes: InfrastructureValue::SHAPE },
+    skein_codec::bounds::Declaration { name: "InfrastructureValueDeployment", nodes: InfrastructureValueDeployment::SHAPE },
+    skein_codec::bounds::Declaration { name: "InfrastructureValueEffect", nodes: InfrastructureValueEffect::SHAPE },
+    skein_codec::bounds::Declaration { name: "InfrastructureValueEnvironment", nodes: InfrastructureValueEnvironment::SHAPE },
+    skein_codec::bounds::Declaration { name: "InfrastructureValueHold", nodes: InfrastructureValueHold::SHAPE },
+    skein_codec::bounds::Declaration { name: "InfrastructureValueOutbox", nodes: InfrastructureValueOutbox::SHAPE },
+    skein_codec::bounds::Declaration { name: "InfrastructureValuePanel", nodes: InfrastructureValuePanel::SHAPE },
+    skein_codec::bounds::Declaration { name: "InfrastructureValueProject", nodes: InfrastructureValueProject::SHAPE },
+    skein_codec::bounds::Declaration { name: "InfrastructureValueResult", nodes: InfrastructureValueResult::SHAPE },
+    skein_codec::bounds::Declaration { name: "ObservabilityAlert", nodes: ObservabilityAlert::SHAPE },
+    skein_codec::bounds::Declaration { name: "ObservabilityDocument", nodes: ObservabilityDocument::SHAPE },
+    skein_codec::bounds::Declaration { name: "ObservabilityDocumentData", nodes: ObservabilityDocumentData::SHAPE },
+    skein_codec::bounds::Declaration { name: "ObservabilityDocumentRecord", nodes: ObservabilityDocumentRecord::SHAPE },
+    skein_codec::bounds::Declaration { name: "ObservabilityDocumentValue", nodes: ObservabilityDocumentValue::SHAPE },
+    skein_codec::bounds::Declaration { name: "ObservabilityEffect", nodes: ObservabilityEffect::SHAPE },
+    skein_codec::bounds::Declaration { name: "ObservabilityEntry", nodes: ObservabilityEntry::SHAPE },
+    skein_codec::bounds::Declaration { name: "ObservabilityFact", nodes: ObservabilityFact::SHAPE },
+    skein_codec::bounds::Declaration { name: "ObservabilityHealth", nodes: ObservabilityHealth::SHAPE },
+    skein_codec::bounds::Declaration { name: "ObservabilityIncident", nodes: ObservabilityIncident::SHAPE },
+    skein_codec::bounds::Declaration { name: "ObservabilityKey", nodes: ObservabilityKey::SHAPE },
+    skein_codec::bounds::Declaration { name: "ObservabilityKind", nodes: ObservabilityKind::SHAPE },
+    skein_codec::bounds::Declaration { name: "ObservabilityKindEffect", nodes: ObservabilityKindEffect::SHAPE },
+    skein_codec::bounds::Declaration { name: "ObservabilityKindHold", nodes: ObservabilityKindHold::SHAPE },
+    skein_codec::bounds::Declaration { name: "ObservabilityKindIncident", nodes: ObservabilityKindIncident::SHAPE },
+    skein_codec::bounds::Declaration { name: "ObservabilityKindIncidents", nodes: ObservabilityKindIncidents::SHAPE },
+    skein_codec::bounds::Declaration { name: "ObservabilityKindOutbox", nodes: ObservabilityKindOutbox::SHAPE },
+    skein_codec::bounds::Declaration { name: "ObservabilityKindPanel", nodes: ObservabilityKindPanel::SHAPE },
+    skein_codec::bounds::Declaration { name: "ObservabilityKindProject", nodes: ObservabilityKindProject::SHAPE },
+    skein_codec::bounds::Declaration { name: "ObservabilityKindResult", nodes: ObservabilityKindResult::SHAPE },
+    skein_codec::bounds::Declaration { name: "ObservabilityLoadPoint", nodes: ObservabilityLoadPoint::SHAPE },
+    skein_codec::bounds::Declaration { name: "ObservabilityPhase", nodes: ObservabilityPhase::SHAPE },
+    skein_codec::bounds::Declaration { name: "ObservabilityPoint", nodes: ObservabilityPoint::SHAPE },
+    skein_codec::bounds::Declaration { name: "ObservabilityPurpose", nodes: ObservabilityPurpose::SHAPE },
+    skein_codec::bounds::Declaration { name: "ObservabilityPurposeCall", nodes: ObservabilityPurposeCall::SHAPE },
+    skein_codec::bounds::Declaration { name: "ObservabilityPurposeProcedure", nodes: ObservabilityPurposeProcedure::SHAPE },
+    skein_codec::bounds::Declaration { name: "ObservabilityPurposeProjection", nodes: ObservabilityPurposeProjection::SHAPE },
+    skein_codec::bounds::Declaration { name: "ObservabilityReadAnswer", nodes: ObservabilityReadAnswer::SHAPE },
+    skein_codec::bounds::Declaration { name: "ObservabilityReadResult", nodes: ObservabilityReadResult::SHAPE },
+    skein_codec::bounds::Declaration { name: "ObservabilityReadValue", nodes: ObservabilityReadValue::SHAPE },
+    skein_codec::bounds::Declaration { name: "ObservabilityScope", nodes: ObservabilityScope::SHAPE },
+    skein_codec::bounds::Declaration { name: "ObservabilityScopeProject", nodes: ObservabilityScopeProject::SHAPE },
+    skein_codec::bounds::Declaration { name: "ObservabilityService", nodes: ObservabilityService::SHAPE },
+    skein_codec::bounds::Declaration { name: "ObservabilityServiceState", nodes: ObservabilityServiceState::SHAPE },
+    skein_codec::bounds::Declaration { name: "ObservabilityState", nodes: ObservabilityState::SHAPE },
+    skein_codec::bounds::Declaration { name: "ObservabilitySubject", nodes: ObservabilitySubject::SHAPE },
+    skein_codec::bounds::Declaration { name: "ObservabilitySubjectRecord", nodes: ObservabilitySubjectRecord::SHAPE },
+    skein_codec::bounds::Declaration { name: "ObservabilityValue", nodes: ObservabilityValue::SHAPE },
+    skein_codec::bounds::Declaration { name: "ObservabilityValueAlert", nodes: ObservabilityValueAlert::SHAPE },
+    skein_codec::bounds::Declaration { name: "ObservabilityValueDeployment", nodes: ObservabilityValueDeployment::SHAPE },
+    skein_codec::bounds::Declaration { name: "ObservabilityValueIncident", nodes: ObservabilityValueIncident::SHAPE },
+    skein_codec::bounds::Declaration { name: "ObservabilityValueOutbox", nodes: ObservabilityValueOutbox::SHAPE },
+    skein_codec::bounds::Declaration { name: "ObservabilityValueProject", nodes: ObservabilityValueProject::SHAPE },
+    skein_codec::bounds::Declaration { name: "ObservabilityValueService", nodes: ObservabilityValueService::SHAPE },
+];
+
+static CEILING_VALUES: &[u32] = &[
+    CEILINGS.infrastructure_service_environment,
+    CEILINGS.infrastructure_service_name,
+    CEILINGS.infrastructure_environment_pool,
+    CEILINGS.infrastructure_environment_name,
+    CEILINGS.infrastructure_pool_value,
+    CEILINGS.infrastructure_effect_rollback_from,
+    CEILINGS.infrastructure_effect_rollback_to,
+    CEILINGS.infrastructure_description_resources,
+    CEILINGS.infrastructure_service_fact_version,
+    CEILINGS.infrastructure_drift_account_by_some,
+    CEILINGS.infrastructure_value_panel_resources,
+    CEILINGS.infrastructure_value_panel_effects,
+    CEILINGS.infrastructure_value_result_resources,
+    CEILINGS.infrastructure_value_hold_resources,
+    CEILINGS.infrastructure_value_hold_drift,
+    CEILINGS.infrastructure_value_hold_effects,
+    CEILINGS.infrastructure_value_project_resources,
+    CEILINGS.infrastructure_value_project_environments,
+    CEILINGS.infrastructure_value_deployment_effects,
+    CEILINGS.observability_service_environment,
+    CEILINGS.observability_service_name,
+    CEILINGS.observability_fact_load,
+    CEILINGS.observability_incident_alerts,
+    CEILINGS.observability_incident_timeline,
+    CEILINGS.observability_effect_rule,
+    CEILINGS.observability_value_deployment_effects,
+    CEILINGS.observability_value_project_services,
+    CEILINGS.observability_value_project_incidents,
+];
+
+#[must_use]
+pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+    Some(skein_codec::bounds::family(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES)?.encoded)
+}
+
+#[must_use]
+pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+    Some(skein_codec::bounds::family(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES)?.decoded)
+}

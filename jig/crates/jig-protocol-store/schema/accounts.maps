@@ -2,6 +2,7 @@ records crate::accounts_v2
 use a = jig_domain_accounts
 use s = skein_codec::convert
 use c = crate::codec::convert
+refuses c::share_to_domain
 
 record Installation = crate::codec::accounts::Installation
 record Next

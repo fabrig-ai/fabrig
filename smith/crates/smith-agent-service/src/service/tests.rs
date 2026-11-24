@@ -147,6 +147,8 @@ fn diagnostic_parent(seed: u64, activation: u64) -> Service {
     enter(
         &mut agent,
         Input::Domain(domain::Event::Start(domain::Start {
+            parts: Box::default(),
+            tell_parts: false,
             reply_to: ReplyTo::new(Token::new(1)),
             host_run: Token::new(1),
             activation,
@@ -404,7 +406,25 @@ fn a_failed_write_after_a_signal_cancels_the_live_run() {
     );
     assert!(service.stages.domain_events.is_empty());
     channel_event(&mut service.stages, &mut service.frame, channel::Heard::WriteFailed);
-    assert_cancel(&mut service.stages.domain_events, Token::new(19));
+    let Some(domain::Event::Disconnected { run }) = service.stages.domain_events.pop() else {
+        panic!("failed output abandons durable credit")
+    };
+    assert_eq!(run, Token::new(19));
+}
+
+#[test]
+fn channel_loss_releases_an_admitted_runs_durable_credit_without_a_signal() {
+    let mut service = admitted(19);
+    channel_event(
+        &mut service.stages,
+        &mut service.frame,
+        channel::Heard::Ended { why: skein_channel::Closed::Stream },
+    );
+    let Some(domain::Event::Disconnected { run }) = service.stages.domain_events.pop() else {
+        panic!("lost input abandons durable credit")
+    };
+    assert_eq!(run, Token::new(19));
+    assert_eq!(failure(&service), Some(Failure::ChannelEnded));
 }
 
 #[test]
@@ -792,6 +812,7 @@ fn a_start_waits_at_the_watermark_before_attaching_its_roots() {
         &mut service,
         Input::Host(channel::Heard::Start {
             start: decoded_start(Box::new([smith_protocol_translate::Mount {
+                results: None,
                 name: Box::from(b"work".as_slice()),
                 path: Box::from(b"/work".as_slice()),
                 writable: false,

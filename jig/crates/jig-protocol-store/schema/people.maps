@@ -1,8 +1,44 @@
 records crate::people_v17
 use p = jig_domain_people
 use s = skein_codec::convert
-by hand crate::codec::people
+use h = crate::codec::people
+by hand h
 context crate::people_v17::Limits
+refuses h::action_to_domain
+refuses h::action_to_record
+refuses h::adoption_to_domain
+refuses h::adoption_to_record
+refuses h::amendment_to_domain
+refuses h::amendment_to_record
+refuses h::authority_to_domain
+refuses h::authority_to_record
+refuses h::digest_to_domain
+refuses h::member_to_domain
+refuses h::member_to_record
+refuses h::note_change_to_domain
+refuses h::note_change_to_record
+refuses h::pattern_to_domain
+refuses h::pattern_to_record
+refuses h::policy_change_to_domain
+refuses h::policy_change_to_record
+refuses h::program_name_to_domain
+refuses s::text_to_domain
+with context h::action_to_domain
+with context h::action_to_record
+with context h::adoption_to_domain
+with context h::adoption_to_record
+with context h::amendment_to_domain
+with context h::amendment_to_record
+with context h::authority_to_domain
+with context h::authority_to_record
+with context h::member_to_domain
+with context h::member_to_record
+with context h::note_change_to_domain
+with context h::note_change_to_record
+with context h::pattern_to_domain
+with context h::pattern_to_record
+with context h::policy_change_to_domain
+with context h::policy_change_to_record
 
 record MovedPlacedHold
 record HoldOwnerParty

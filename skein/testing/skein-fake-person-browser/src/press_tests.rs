@@ -77,6 +77,7 @@ fn a_press_keeps_its_deadline_across_repeated_replacements() {
     face.tick(Time::ZERO.saturating_add(limits.answer));
     assert!(!face.pending());
     assert_eq!(face.refusal(), Some(Refusal::Gone));
+    assert_eq!(face.expired(), Some(limits.answer));
     assert_eq!(face.failure().as_deref(), Some("browser refused act: Gone (press deadline passed)"));
     assert!(face.requests().next().is_none());
 }
@@ -88,6 +89,7 @@ fn a_press_keeps_other_refusals_and_a_missing_replacement() {
         face.event(&Event::Refused { op, why, detail: Box::default() });
         assert!(!face.pending());
         assert_eq!(face.refusal(), Some(why));
+        assert_eq!(face.expired(), None);
         assert!(face.failure().is_some());
         assert!(face.requests().next().is_none());
     }
@@ -99,6 +101,7 @@ fn a_press_keeps_other_refusals_and_a_missing_replacement() {
     face.tick(Time::ZERO.saturating_add(skein_browser::Limits::default().answer));
     assert!(!face.pending());
     assert_eq!(face.refusal(), Some(Refusal::Gone));
+    assert_eq!(face.expired(), Some(skein_browser::Limits::default().answer));
     assert!(face.failure().expect("missing control").contains("Gone"));
     assert!(face.requests().next().is_none());
     let (mut face, op) = pressing();

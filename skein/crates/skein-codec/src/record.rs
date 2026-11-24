@@ -10,12 +10,10 @@ use skein_lib::{Reader, Writer, usize_of};
 
 use crate::Reason;
 
-/// A declaration and one of its parts, in schema order.
+/// The schema name of a declaration's field, version, tail or tag.
 #[expect(clippy::disallowed_types, reason = "PhantomData ties a path to its family's limits without storing them")]
-#[expect(clippy::partial_pub_fields, reason = "positions are public; only the family's zero-sized marker is private")]
 pub struct Path<L> {
-    pub declaration: u16,
-    pub part: u16,
+    name: &'static str,
     family: PhantomData<fn() -> L>,
 }
 
@@ -26,10 +24,16 @@ pub struct Problem<L> {
 }
 
 impl<L> Path<L> {
-    /// Names a declaration and one of its parts in this family.
+    /// Names a part of a declaration as the schema spells it.
     #[must_use]
-    pub const fn new(declaration: u16, part: u16) -> Self {
-        Self { declaration, part, family: PhantomData }
+    pub const fn new(name: &'static str) -> Self {
+        Self { name, family: PhantomData }
+    }
+
+    /// The name of the part, independent of its position in the schema.
+    #[must_use]
+    pub const fn name(self) -> &'static str {
+        self.name
     }
 
     /// Adds the reason for a refusal at this path.
@@ -48,19 +52,18 @@ impl<L> Clone for Path<L> {
 impl<L> Copy for Path<L> {}
 impl<L> PartialEq for Path<L> {
     fn eq(&self, other: &Self) -> bool {
-        self.declaration == other.declaration && self.part == other.part
+        self.name == other.name
     }
 }
 impl<L> Eq for Path<L> {}
 impl<L> Hash for Path<L> {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        self.declaration.hash(state);
-        self.part.hash(state);
+        self.name.hash(state);
     }
 }
 impl<L> fmt::Debug for Path<L> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("Path").field("declaration", &self.declaration).field("part", &self.part).finish()
+        f.debug_struct("Path").field("name", &self.name).finish()
     }
 }
 

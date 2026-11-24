@@ -3,15 +3,11 @@ use skein_io::kernel::Error;
 use skein_lib::Token;
 use std::collections::BTreeMap;
 use temper_worker_domain_checkout::git;
-use temper_worker_protocol_git::{
-    invocation::{self, Command},
-    reds::CheckCommand,
-};
+use temper_worker_protocol_git::invocation;
 use temper_worker_protocol_git_world::{
     fixtures,
-    io::{Fault, Invocation, Node, Script},
+    io::{Invocation, Node, Script},
     referee::Expected,
-    transcripts::Transcript,
     world::{Scenario, Stop, World},
 };
 
@@ -57,20 +53,8 @@ impl Check {
         let op = git::Op::Reds { at: self.at.clone(), action };
         let mut script = Script::default();
         if !clear {
-            let mut argv = b"git\n".to_vec();
-            for arg in invocation::arguments_for(&op, &Command::Reds(CheckCommand::Pin)) {
-                argv.extend_from_slice(&arg);
-                argv.push(b'\n');
-            }
-            script.invocations.push_back(Invocation {
-                transcript: Transcript {
-                    argv: argv.into_boxed_slice(),
-                    exit: 0,
-                    stdout: [invocation::hex(fixtures::ONE).as_ref(), b"\n"].concat().into_boxed_slice(),
-                    stderr: Box::new([]),
-                },
-                fault: Fault::None,
-            });
+            let stdout = [invocation::hex(fixtures::ONE).as_ref(), b"\n"].concat();
+            script.invocations.push_back(Invocation::scripted(b"rev-parse", 0, &stdout, b""));
         }
         if fail_read {
             // The result reader opens the directory, removes reds, and opens check-results before reading.

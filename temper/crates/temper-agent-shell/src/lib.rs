@@ -125,6 +125,8 @@ fn configure(reached: Reached<'_>, version: &'static str, commit: &'static str) 
     }
 }
 
+const LIST_WORDS: &str = "temper-agent --list";
+
 /// Run one agent, prefixing failures with `words` (protocol/binaries.md, 3).
 pub fn run(
     words: &str,
@@ -132,28 +134,33 @@ pub fn run(
     environment: &[EnvironmentEntry],
     working: &Result<PathBuf, String>,
 ) -> Result<u8, String> {
-    decoded(configuration)
-        .inspect_err(|why| {
-            use std::io::Write;
-            drop(writeln!(std::io::stderr(), "smith: {why}"));
-        })
-        .and_then(|decoded| {
-            let directory = dump_directory(environment, working).unwrap_or_else(|why| {
-                use std::io::Write;
-                drop(writeln!(std::io::stderr(), "{words}: TEMPER_INTERNAL_DUMP_LLM: {why}"));
-                None
-            });
-            match directory {
-                Some(directory) => smith_agent_shell::run_dumping(
-                    decoded,
-                    smith_agent_shell::dump::Dumps::new(directory, DUMP_BOUND),
-                    Box::new(std::io::stderr()),
-                ),
-                None => smith_agent_shell::run_decoded(decoded, Box::new(std::io::stderr())),
-            }
-        })
-        .map(exit_code)
-        .map_err(|why| prefixed(words, &why))
+    let decoded = run_read(decoded(configuration), words, &mut std::io::stderr())?;
+    let directory = dump_directory(environment, working).unwrap_or_else(|why| {
+        use std::io::Write;
+        drop(writeln!(std::io::stderr(), "{words}: TEMPER_INTERNAL_DUMP_LLM: {why}"));
+        None
+    });
+    match directory {
+        Some(directory) => smith_agent_shell::run_dumping(
+            decoded,
+            smith_agent_shell::dump::Dumps::new(directory, DUMP_BOUND),
+            Box::new(std::io::stderr()),
+        ),
+        None => smith_agent_shell::run_decoded(decoded, Box::new(std::io::stderr())),
+    }
+    .map(exit_code)
+    .map_err(|why| prefixed(words, &why))
+}
+
+fn run_read(
+    decoded: Result<smith_agent_shell::config::Decoded, String>,
+    words: &str,
+    errors: &mut dyn std::io::Write,
+) -> Result<smith_agent_shell::config::Decoded, String> {
+    decoded.map_err(|why| {
+        drop(writeln!(errors, "smith: {why}"));
+        prefixed(words, &why)
+    })
 }
 
 /// Read one endpoint's model list, prefixing failures with `words`.

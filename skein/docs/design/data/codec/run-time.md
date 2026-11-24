@@ -26,7 +26,8 @@
 schema      = "family" family version declaration*
 declaration = ["versioned"] "record" name former* "{" field* "}"
             | "enum" name former* "{" variant* "}"
-field       = name former* ":" type ["=" default] [","]
+field       = ["droppable"] name former* ":" type ["=" default] [","]
+            | "dropped" name former* ":" type "=" default [","]   # a tombstone
 variant     = name former* [":" ["boxed"] name] [","]
 former      = "was" name
 default     = "none" | "some" default | "[" "]" | word | text
@@ -54,6 +55,10 @@ held        = "holds" family word | "pieces" word   ; after a bytes or a secret 
 - **A default** follows its field's type and its `=`: one word, one
   text, `[]`, or `none` or `some` and a default, so it ends where the
   next field's name starts.
+- **`dropped` and `droppable`** at a field's start begin a tombstone or
+  mark the field (`README.md`, section 3), unless a `:` or `was` follows
+  them: then they name the field, as `dropped: u64` does. A tombstone
+  without its `=` is `Expected(Default)` at the token after its type.
 - **Words:** a `name` starts with a letter or `_` and holds letters,
   digits and `_`; a `family` holds letters, digits, `_` and `-`; a
   `bound` is a decimal `u32` and a `version` a decimal `u16`.
@@ -97,7 +102,12 @@ Then, once every declaration is read, the names and defaults:
   `some` only under `option`, `[]` only for `list`, `0x` alone for
   `pieces`; none for a named record, a `secret` or a `bytes` that holds
   a record. Its encoding, as the type's decoder would read it, is kept
-  in the tables (1.3).
+  in the tables (1.3);
+- a tombstone's type and default checked as a field's, each name its
+  type reaches declared before its record; its name and former names
+  none of its record's fields' names or former names nor another
+  tombstone's (`DuplicateField` for a name, `Former` for a former
+  name). A tombstone counts toward no worst case.
 
 `pieces T` names a declaration declared before; `holds` names another
 family's type, which the schema cannot check.
@@ -176,6 +186,13 @@ a `bool`'s byte, a length or a count before its bytes (0 for `[]`), an
 option's presence byte before its value, a variant's tag. `default`
 answers that encoding for a field with `=`, `[0]` for an `option`
 without one, and `None` for any other field without one.
+
+A tombstone is a field of the table outside every record's range,
+after all the records' fields, so that `field`, `default` and `was`
+answer for it as for a field, and no code that walks a record's fields
+(the generator, the fingerprints, the diff, the patch machine) meets
+it; its record names its tombstones' range. A `droppable` mark is a
+table of its own, one entry per field.
 
 The plain types derive `Clone`, `Copy` where small, `Debug`, equality
 and `Hash`; `Schema` derives `Debug` and `Clone` alone: a copy is its
@@ -273,8 +290,8 @@ impl Value {
 }
 ```
 
-A `Path` names what the generated `Path` (`README.md`, section 4) names, by the
-same positions: `Report`'s field `title` (`paths::REPORT_TITLE`), the
+A `Path` names what the generated `Path` (`README.md`, section 4) names by
+its name, here by the text's positions: `Report`'s field `title` (`paths::REPORT_TITLE`), the
 tag of `Effect`, the bytes after `Field`, the version of `Report`. Reading a node as what it is not is a `Misread`, a value
 the caller handles, never a panic.
 

@@ -32,8 +32,10 @@ not signed in by smith's status check
 Section 1 has no known gap in orderly worker shutdown: serve cancels the
 runs and waits for every agent process, including a spawn in flight,
 before aborting the remaining worker resources. The real-loop held-turn
-test checks Claude's interrupt and end before serve ends drained. The
-live proof and forced-stop containment remain in `setup/README.md`, section 9.
+test checks Claude's interrupt and end before serve ends drained.
+`bin/temper-box/tests/cluster_turn/unit_stop.rs` holds the process
+boundary (`a_unit_stop_settles_a_workers_held_turn` in `temper-box::process`).
+The live proof and forced-stop containment remain in `setup/README.md`, section 9.
 
 Section 1 also has no known gap in the task's accounting and saved work
 at an orderly stop. The one-process drain table holds chat and coding

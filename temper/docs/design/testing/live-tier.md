@@ -193,7 +193,12 @@ section 1; skein/docs/foundation/testing-strategy.md, 2.9).
   - **Its configuration:** init's owned example as init writes it, both
     Anthropic endpoints and Claude Code's program included, but the
     `anthropic` provider without `keep` and `drop`, so that its accounts
-    read no list (jig's `domain/accounts-lists.md`, 1). A key's first read
+    read no list (jig's `domain/accounts-lists.md`, 1). The store keeps
+    the providers and `providers.setting` is only its copy
+    (`../protocol/configuration/providers.md`, 3), so a fresh store's
+    sitting changes provider 2 as a setting
+    (`../protocol/configuration/providers.md`, 6), and a start has taken
+    it before the key is added. A key's first read
     would add Anthropic's models at the catalogue's highest free numbers
     while the sitting adds Haiku there by name, and the two racing would
     stale the apply's revision or double the name. Its catalogue is the
@@ -203,7 +208,11 @@ section 1; skein/docs/foundation/testing-strategy.md, 2.9).
     name with `claude-fable-5-1`'s figures, `low` its default, then has
     charters 1 and 2 name it. The run takes the key's direct endpoint
     whatever endpoint the model's row names, since the endpoint is the
-    chosen source's (`../draft/claude-api.md`, section 4).
+    chosen source's (`../draft/claude-api.md`, section 4). A focused test
+    builds both files from the stock settings as a fresh deployment shows
+    them and has the settings' parse and check admit them in order, so
+    that a change of the model setting's shape reddens the gate, not the
+    live run.
   - **Its store** is `forge-land-claude-key` under
     `TEMPER_TEST_LIVE_STORE`.
 - **Its referee:** the process tier's, without the restart; and the
@@ -350,12 +359,12 @@ section 1; skein/docs/foundation/testing-strategy.md, 2.9).
   test in `bin/temper-box/tests/live.rs`, run by
   `scripts/proof-live.sh RUNG`, `rung-a` to `rung-b2`. Its driver, the
   same code, first walks the whole story offline on the rung's twin
-  (`real-loop.md`). B0's offline proofs need no person: its setup and its walk on
-  the twin are the process tier's (`process-tier.md`, *Two drivers' offline proofs*),
+  (`real-loop.md`). B0's offline proof needs no person: its walk on
+  the twin, its setup checked at the account's import, is the process tier's (`process-tier.md`, *Two drivers' offline proofs*),
   and its live configuration's admission is `suite`'s (`startup.rs`).
-  `scripts/proof-live.sh rung-b0-offline` runs the first two before the
+  `scripts/proof-live.sh rung-b0-offline` runs it before the
   live story, under profile `process-temper`, whose default filter
-  selects them; it admits no live account. A driver's own fault is met there, never
+  selects it; it admits no live account. A driver's own fault is met there, never
   by spending a held login.
   - **What runs:** a fresh box as the help makes one, its owned Forgejo
     set up through ctl with the playground's copy

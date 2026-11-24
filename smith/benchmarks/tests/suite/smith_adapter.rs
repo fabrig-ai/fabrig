@@ -26,7 +26,7 @@ fn a_terminal_peer_can_close_its_stdio_before_the_leader_exits_without_hangup() 
     let recording = directory.join("recording.jsonl");
     std::fs::write(&recording, common::events::bytes(&common::events::balanced())).expect("event recording");
     let command = Command {
-        program: env!("CARGO_BIN_EXE_test-peer").into(),
+        program: skein_scratch::paths::binary("test-peer"),
         arguments: vec!["terminal".into(), recording.into_os_string(), trace.clone().into_os_string()],
         environment: vec![("PATH".into(), "/usr/bin:/bin".into())],
         directory: directory.clone(),

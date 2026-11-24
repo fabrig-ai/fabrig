@@ -2,7 +2,11 @@
 use crate::{Assignment, BriefBody, BriefSection, Payload, Record, Write};
 
 pub(crate) fn turn_bytes(write: &Write) -> u64 {
-    if let Write::Save(Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Turn(turn)))) = write {
+    if let Write::Save(Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Part(part)))) = write {
+        skein_lib::len_u64(part.body.len())
+    } else if let Write::Save(Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Turn(turn)))) =
+        write
+    {
         skein_lib::len_u64(turn.transcript.len())
     } else {
         0
@@ -10,7 +14,11 @@ pub(crate) fn turn_bytes(write: &Write) -> u64 {
 }
 
 pub(crate) fn payload_bytes(payload: &Payload) -> u64 {
-    if let Payload::Turn { transcript, .. } = payload { skein_lib::len_u64(transcript.len()) } else { 0 }
+    match payload {
+        Payload::Turn { transcript, .. } => skein_lib::len_u64(transcript.len()),
+        Payload::Part(part) => skein_lib::len_u64(part.body.len()),
+        Payload::Busy | Payload::Answer { .. } | Payload::SettledCall(_) | Payload::InboxWord(_) => 0,
+    }
 }
 
 pub(crate) fn section_bytes(sections: &[BriefSection]) -> u64 {
@@ -28,6 +36,9 @@ pub(crate) fn section_bytes(sections: &[BriefSection]) -> u64 {
 
 pub(crate) fn assignment_bytes(assignment: &Assignment) -> u64 {
     let mut bytes = section_bytes(&assignment.sections);
+    for part in &assignment.parts {
+        bytes = bytes.checked_add(skein_lib::len_u64(part.body.len())).expect("assignment part bytes fit u64");
+    }
     for body in &assignment.transcript {
         bytes =
             bytes.checked_add(skein_lib::len_u64(body.len())).expect("assignment transcript and section bytes fit u64");

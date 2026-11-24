@@ -272,6 +272,7 @@ state on disk.
 
 ```
 git -c remote.origin.promisor=true merge --no-commit --no-ff -- <theirs>     with the identity's header (section 5)
+git -c remote.origin.promisor=true log --no-merges -M --diff-filter=R --format=%H HEAD...<theirs> --     only after exit 1, with the identity's header
 git diff-files --name-only -z --diff-filter=U          only after exit 1
 ```
 
@@ -280,6 +281,36 @@ git diff-files --name-only -z --diff-filter=U          only after exit 1
   (1.5), in batches, under the operation's remote deadline. A failure of
   that fetch ends the merge with an exit other than 0 and 1, classified by
   `git.md`, section 6's table.
+- **The contents its readers compare.** A conflict is left for a reader:
+  the merge job's command, which reads each side's history with rename
+  detection to say what each side did to a file it leaves
+  (`tooling.md`, 4.1), and a resolution's agent, told to read the same
+  history (its `read`). Rename detection reads the contents of the files a
+  commit removed and added, which the merge never read where a later
+  commit changed them again: an older copy of a file the other side still
+  holds. The run's git can fetch nothing: its directory names no promisor
+  remote and its environment holds no credential (1.13,
+  `../domain/worker/jobs.md`). So after exit 1 the merge's second
+  invocation makes that comparison itself: each commit of either side's
+  history (`HEAD...<theirs>`, the merge base's ancestors left out), but a
+  merge, against its parent, with rename detection, as `git diff-tree
+  -M <commit>^1 <commit>` makes it, git fetching what it lacks as 1.5's
+  fetch does, one batch for each commit whose detection reads contents,
+  into the worker's directory's objects, where the run's git finds them
+  through the view's alternates; none enters the store. It runs under the
+  operation's remote deadline, with the merge's settings and environment.
+  Its stdout, the commits that renamed a file, is drained and never
+  parsed, as the merge's is; the filter only keeps it short, since git
+  detects renames in every commit before it filters. Exit 0 goes on to
+  `diff-files`. Any other exit ends the merge, classified by `git.md`,
+  section 6's table, as the merge's own fetch is, and `Broken` where no
+  row names it: an object the forge can't give ends so, git's last lines
+  naming the object and the invocation named `log` (`git.md`, section 6).
+  A merge that ends `Merged` leaves no conflict, and runs none. (Real git
+  2.47.3, 2026-11-24: in a blob-less store's checkout, a run's `diff-tree
+  -M` of the base's commit that deleted a file another commit had changed
+  ended `fatal: unable to read <object>`, exit 128, before this
+  invocation, and listed the deletion after it.)
 - **Exit 0:** `Merged`, a commit already contained in HEAD ("Already up
   to date") included: the next commit still records both parents
   (section 1.7). A producer's start asks first, and runs no merge of a

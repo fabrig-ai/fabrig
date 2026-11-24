@@ -206,7 +206,7 @@ fn resolved_failures_round_trip_in_current_version_and_refuse_unnormalized_paths
             }]),
         }]);
         let bytes = crate::encode_turn(&turn, &smith_transcript::CEILINGS, &endpoints).expect("bounded turn");
-        assert_eq!(&bytes[..2], &[0, 7]);
+        assert_eq!(&bytes[..2], &[0, 8]);
         let decoded = crate::decode_turn(&bytes, 1, &smith_transcript::CEILINGS, &endpoints).expect("saved failure");
         assert_eq!(decoded.messages, turn.messages, "typed descriptors survive durable translation");
     }
@@ -460,7 +460,7 @@ fn an_endpoint_number_resolves_its_name_or_is_absent() {
 
 fn decode_saved_transcript(
     bodies: &[Box<[u8]>],
-    limits: &smith_transcript::v7::Limits,
+    limits: &smith_transcript::v8::Limits,
     endpoints: &crate::Endpoints,
 ) -> Result<Option<smith_domain_session::record::Transcript>, smith_domain_session::record::Refusal> {
     crate::decode_transcript(
@@ -699,6 +699,8 @@ fn grant_forms_keep_their_policy_at_start_and_refresh() {
         let mut grants = List::with_capacity(1);
         grants.push(grant).expect("one grant");
         let start = wire::Start {
+            parts: Box::default(),
+            tell_parts: false,
             identity: None,
             activation: 1,
             charter: Box::default(),

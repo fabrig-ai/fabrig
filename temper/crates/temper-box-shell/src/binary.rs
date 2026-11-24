@@ -35,17 +35,33 @@ pub fn main(version: &'static str, commit: &'static str) -> ExitCode {
 }
 
 fn dispatch(captured: &Capture, version: &'static str, commit: &'static str) -> Result<ExitCode, (u8, String)> {
+    dispatch_with(
+        captured,
+        version,
+        commit,
+        |line| print!("{line}"),
+        |command, working| crate::run(command, &captured.environment, working, &captured.run_as, version, commit),
+    )
+}
+
+fn dispatch_with(
+    captured: &Capture,
+    version: &'static str,
+    commit: &'static str,
+    stdout: impl FnOnce(&str),
+    run: impl FnOnce(Command, &[u8]) -> Result<u8, String>,
+) -> Result<ExitCode, (u8, String)> {
     let command = match TABLE.reach(&captured.run_as, &captured.arguments) {
         Reached::Help => {
-            print!("{}", TABLE.help());
+            stdout(&TABLE.help());
             return Ok(ExitCode::SUCCESS);
         }
         Reached::Version => {
-            print!("{}", Table { version, commit, ..TABLE }.version_line());
+            stdout(&Table { version, commit, ..TABLE }.version_line());
             return Ok(ExitCode::SUCCESS);
         }
         Reached::CommandHelp(command) => {
-            print!("{}", TABLE.command_help(command));
+            stdout(&TABLE.command_help(command));
             return Ok(ExitCode::SUCCESS);
         }
         Reached::Unknown(why) => return Err((2, why)),
@@ -54,13 +70,12 @@ fn dispatch(captured: &Capture, version: &'static str, commit: &'static str) -> 
                 if let [page] = arguments
                     && page.as_ref() == b"config"
                 {
-                    print!(
-                        "{}",
+                    stdout(
                         std::str::from_utf8(&temper_config_shell::help(temper_config_shell::Shape::Standalone))
-                            .expect("help UTF-8")
+                            .expect("help UTF-8"),
                     );
                 } else {
-                    print!("{}", temper_shell::table::help(&TABLE, arguments)?);
+                    stdout(&temper_shell::table::help(&TABLE, arguments)?);
                 }
                 return Ok(ExitCode::SUCCESS);
             }
@@ -68,9 +83,7 @@ fn dispatch(captured: &Capture, version: &'static str, commit: &'static str) -> 
                 let command =
                     crate::configure_command(command, arguments, &captured.arguments, &captured.environment, b"")
                         .map_err(|why| (2, why))?;
-                return crate::run(command, &captured.environment, b"", &captured.run_as, version, commit)
-                    .map(ExitCode::from)
-                    .map_err(|why| (1, why));
+                return run(command, b"").map(ExitCode::from).map_err(|why| (1, why));
             }
             let working = captured.working.as_ref().map_err(|why| (1, format!("temper-box: {why}\n")))?;
             crate::configure_command(
@@ -101,20 +114,129 @@ fn dispatch(captured: &Capture, version: &'static str, commit: &'static str) -> 
     {
         return Err((2, "temper-box --front: fd 3 and fd 4 are its parent's pipes\n".into()));
     }
-    crate::run(
-        command,
-        &captured.environment,
-        captured.working.as_ref().map_err(|why| (1, format!("temper-box: {why}\n")))?.as_os_str().as_bytes(),
-        &captured.run_as,
-        version,
-        commit,
-    )
-    .map(ExitCode::from)
-    .map_err(|why| (1, why))
+    run(command, captured.working.as_ref().map_err(|why| (1, format!("temper-box: {why}\n")))?.as_os_str().as_bytes())
+        .map(ExitCode::from)
+        .map_err(|why| (1, why))
 }
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn serve_and_bare_box_refuse_moved_limits_at_the_configuration_read() {
+        use crate::{Command, configure_with};
+        use temper_config_shell::{FILE, Facts, Shape};
+        use temper_service_shell::configuration::Read;
+
+        let read = |directories: &crate::Directories, shape| {
+            assert_eq!(directories.config.as_ref(), b"/fixture");
+            assert_eq!(shape, Shape::Standalone);
+            let facts = Facts { login: "ada".into(), hostname: "fixture".into(), provider_key: false };
+            temper_config_shell::parse(b"limits = {}\n", shape, &facts)
+                .map(|temper_config_shell::Read { file, document, keys }| Read { file, document, keys })
+                .map_err(|why| why.to_string())
+        };
+        for (words, prefix) in [(&["serve"][..], "temper serve"), (&[][..], "temper-box")] {
+            let arguments = words
+                .iter()
+                .copied()
+                .chain(["--config", "/fixture", "--data", "/fixture", "--cache", "/fixture"])
+                .map(|word| Box::from(word.as_bytes()))
+                .collect::<Vec<_>>();
+            let command = configure_with(&arguments, &[], b"/").expect("command arguments");
+            let result = if let Command::Serve { directories, boxed: false, record: false } = command {
+                crate::serve::prepare_in_with_read("temper", &[], b"/", &directories, read).map(|_| ())
+            } else {
+                let Command::Box { directories, echo, front, record } = command else {
+                    panic!("expected ordinary serve or bare box");
+                };
+                crate::box_status(crate::box_command::run_with_configuration(
+                    &directories,
+                    echo,
+                    front,
+                    record,
+                    &[],
+                    |directories, _| read(directories, Shape::Standalone).map(|read| (read, Vec::new(), None)),
+                ))
+                .map(|_| ())
+            };
+            assert_eq!(
+                result.expect_err("refused before preparation"),
+                format!(
+                    "{prefix}: {FILE}:1: limits: moved: limits are settings; ask temper, or use temper ctl settings apply\n"
+                ),
+                "{words:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn boxed_serve_reports_bad_pipes_before_stdin_or_configuration() {
+        use crate::{
+            Command,
+            serve::{
+                PipeKind::{Absent, Open, Other},
+                box_inputs_with,
+            },
+        };
+        use temper_service_shell::{read_start, serve_error};
+
+        let arguments =
+            ["internal", "serve", "--config", "/unused", "--data", "/unused", "--cache", "/unused", "--box"]
+                .map(|word| Box::from(word.as_bytes()));
+        let captured = super::Capture {
+            run_as: Box::from(b"temper-box".as_slice()),
+            arguments: Box::new(arguments),
+            environment: Box::new([]),
+            working: Ok("/".into()),
+        };
+        // Supply only the number of listeners already admitted, never the listener itself.
+        for (listeners, first) in [(0, 3), (1, 4)] {
+            for (name, facts, offset) in [
+                ("closed first", &[Absent][..], 0),
+                ("non-pipe first", &[Other][..], 0),
+                ("closed second", &[Open, Absent][..], 1),
+            ] {
+                let mut stdout = Vec::new();
+                let mut next_fd = first;
+                let mut facts = facts.iter().copied();
+                let (status, stderr) = super::dispatch_with(
+                    &captured,
+                    "test",
+                    "test",
+                    |line| stdout.extend_from_slice(line.as_bytes()),
+                    |command, _| {
+                        let Command::Serve { boxed: true, .. } = command else {
+                            panic!("expected boxed serve");
+                        };
+                        read_start(
+                            listeners,
+                            |count| {
+                                box_inputs_with(
+                                    true,
+                                    count,
+                                    Some(|fd| {
+                                        assert_eq!(fd, next_fd, "{name}, {listeners} listeners");
+                                        next_fd += 1;
+                                        facts.next().expect("no probe after the first bad pipe")
+                                    }),
+                                    || panic!("pipes are checked before stdin"),
+                                )
+                            },
+                            || panic!("pipes are checked before the configuration read"),
+                        )
+                        .map_err(|why| serve_error("temper-box", &why))?;
+                        panic!("no start with a bad pipe");
+                    },
+                )
+                .expect_err("pipe refusal");
+                assert!(facts.next().is_none(), "{name}, {listeners} listeners: every expected probe ran");
+                assert_eq!(status, 1, "{name}, {listeners} listeners");
+                assert_eq!(stdout.as_slice(), b"", "{name}, {listeners} listeners");
+                assert_eq!(stderr, format!("temper-box serve: --box: fd {} is not an open pipe\n", first + offset));
+            }
+        }
+    }
+
     #[test]
     fn box_commands_refuse_the_former_file_by_name() {
         use temper_config_shell::{FILE, FORMER};

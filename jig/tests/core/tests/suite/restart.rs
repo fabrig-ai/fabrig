@@ -99,7 +99,7 @@ fn an_uncertain_effect_across_restarts_is_made_before_its_retry_deadline_and_onc
 }
 
 #[test]
-fn decisions_and_due_runs_open_before_connectors_have_settled_their_outboxes() {
+fn decisions_open_but_a_due_run_waits_for_its_own_unsettled_effect() {
     let mut world = World::new(Setup { seed: 115, ..Setup::default() });
     applied_without_answer(&mut world);
     world.park_for_message(0);
@@ -119,7 +119,7 @@ fn decisions_and_due_runs_open_before_connectors_have_settled_their_outboxes() {
     assert_eq!(world.pending_lookups.len(), 1);
     hello(&mut world, Box::new([]));
     account(&mut world);
-    assert!(world.assigned.is_some(), "a due run starts while connector recovery waits");
+    assert!(world.assigned.is_none(), "a due run waits for its recorded effect's recovery");
     world.finish_lookups();
     assert!(world.domain.ready());
     assert!(world.assigned.is_some(), "the run remains assigned after settlement");

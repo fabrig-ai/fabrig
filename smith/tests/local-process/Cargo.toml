@@ -9,6 +9,8 @@ publish.workspace = true
 
 [dependencies]
 smith-agent-world.workspace = true
+smith-fake-claude.workspace = true
+smith-protocol-program.workspace = true
 skein-scratch.workspace = true
 smith-local-protocol.workspace = true
 skein-shell.workspace = true

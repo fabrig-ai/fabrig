@@ -15,6 +15,7 @@ pub struct Mount {
     pub writable: bool,
     pub git: bool,
     pub conflicts: Box<[Box<[u8]>]>,
+    pub results: Option<Box<[u8]>>,
 }
 
 /// One grant name and validity; the agent channel keeps its credential value.
@@ -37,6 +38,8 @@ pub struct DecodedStart {
     pub charter: run::Charter,
     pub mounts: Option<Box<[Mount]>>,
     pub transcript: Option<smith_domain_session::record::Transcript>,
+    pub tell_parts: bool,
+    pub parts: Box<[smith_domain_session::record::Resumed]>,
     pub answered: Box<[smith_domain::AnsweredCall]>,
     pub grants: Box<[Grant]>,
     pub window: smith_domain::Window,
@@ -59,6 +62,7 @@ pub fn start_context(
                     writable: directory.writable,
                     git: directory.git,
                     conflicts: directory.conflicts.to_boxed(),
+                    results: directory.results.clone(),
                 };
                 if mounts.push(mount).is_err() {
                     return Err(Error::Capacity);
@@ -105,6 +109,8 @@ pub fn start_context(
         charter,
         mounts,
         transcript,
+        tell_parts: parts.tell_parts,
+        parts: Box::default(),
         answered: saved_answers(parts.answered.as_slice())?,
         grants: grants.into_boxed(),
         window: smith_domain::Window { turns: parts.window.turns, bytes: parts.window.bytes },

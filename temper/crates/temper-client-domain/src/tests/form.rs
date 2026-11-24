@@ -330,7 +330,7 @@ fn a_family_the_engine_does_not_serve_marks_the_form_out_of_date() {
 }
 
 const NEXT_FORGE_VERSION: u32 = temper_client_protocol_wire::CLIENT_VERSION + 1;
-fn version_answer(_limits: &jig_client_protocol_link::Limits) -> Box<[u8]> {
+fn version_answer() -> Box<[u8]> {
     use jig_client_protocol_wire as w;
     let owner = w::Owner::Family(w::Family { number: fixtures::FORGE });
     let mut served = skein_lib::List::with_capacity(1);
@@ -367,7 +367,7 @@ fn version_refused() -> (crate::Domain, jig_client::Key) {
     link.step(skein_lib::Time::ZERO, link::Event::Send { attempt, key, ask, value }, &mut sent);
     link.settle(&mut sent);
     let Some(link::Request::Exchange { exchange, .. }) = sent.pop() else { panic!("keyed exchange") };
-    link.step(skein_lib::Time::ZERO, link::Event::Reply { exchange, message: version_answer(&bounds) }, &mut sent);
+    link.step(skein_lib::Time::ZERO, link::Event::Reply { exchange, message: version_answer() }, &mut sent);
     while let Some(request) = sent.pop() {
         let up = match request {
             link::Request::Hello { family: Some(family), versions } => {

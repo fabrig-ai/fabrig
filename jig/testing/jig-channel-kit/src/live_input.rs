@@ -100,7 +100,7 @@ impl Input {
                         ));
                     }
                 }
-                if !crate::world::turns(store).is_empty() {
+                if store.turns().next().is_some() {
                     return Err(String::from("input is visible before its durable turn"));
                 }
                 self.seen = true;

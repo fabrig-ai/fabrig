@@ -65,6 +65,7 @@ pub const LIMITS: Limits = Limits {
 /// change that passes its checks, a verdict, report or declared failure.
 pub(super) fn workspace() -> Workspace {
     let repository = Directory {
+        results: None,
         host: Box::from(b"/host".as_slice()),
         name: (*b"temper").into(),
         root: Token::new(1),

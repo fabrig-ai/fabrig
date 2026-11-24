@@ -189,6 +189,7 @@ fn perform(root: &Path, at: &git::Place, action: git::Reds, fail: bool) -> git::
             Next::End(done) => return done,
             Next::Snapshot { .. }
             | Next::Look { .. }
+            | Next::Keep
             | Next::Make
             | Next::Store
             | Next::InstallStore { .. }

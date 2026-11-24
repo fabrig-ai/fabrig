@@ -61,6 +61,7 @@ pub(crate) fn historical_loaded(domain: &mut Domain, waiter: Token, rows: Box<[s
             super::Record::Core(
                 jig_domain_core::Record::Core(
                     jig_domain_core::CoreRecord::Settings(_)
+                    | jig_domain_core::CoreRecord::Part(_)
                     | jig_domain_core::CoreRecord::Call(_)
                     | jig_domain_core::CoreRecord::Deployment(_)
                     | jig_domain_core::CoreRecord::Turn(_)

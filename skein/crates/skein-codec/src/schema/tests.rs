@@ -10,15 +10,17 @@ use super::{
 use core::fmt::Write;
 
 mod metadata;
+mod tombstones;
 
 const NAMED: &[u8] = b"family f 1 record R { a: text 64 b: list 4 text 16 }";
 const NESTED: &[u8] = b"family f 1 record HTTPValue { x: option list 3 option bytes 32 y: secret 64 } enum E { none value: HTTPValue } versioned record Top { e: E }";
-const CHAIN: &[u8] = b"family f 1\nversioned record A { a: u16 b: bytes 3 }\nenum E { a: A, empty }\nrecord R { chain: list 2 option list 3 A e: E fixed: fixed 5 }";
+const CHAIN: &str = "family f 1\nversioned record A { a: u16 b: bytes 3 }\nenum E { a: A, empty }\nrecord R { chain: list 2 option list 3 A e: E fixed: fixed 5 }";
 const SCALARS: &[u8] = b"family f 1 record R { a: u8 b: u16 c: u32 d: u64 e: bool f: duration g: fixed 7 h: bytes 9 i: secret 9 j: text 9 }";
 
 #[test]
 fn a_cloned_schema_preserves_its_tables_and_root_layout() {
-    let original = parse(CHAIN).expect("sample schema");
+    let text = alloc::format!("{CHAIN}\nrecord Annotated {{ droppable a: u32 dropped b was c: u16 = 7 }}");
+    let original = parse(text.as_bytes()).expect("sample schema");
     let copy = original.clone();
     assert_eq!(copy.text(), original.text());
     assert_eq!(copy.version(), original.version());
@@ -32,6 +34,11 @@ fn a_cloned_schema_preserves_its_tables_and_root_layout() {
     let digest = original.fingerprints().declaration(root).digest();
     drop(original);
     assert_eq!(copy.fingerprints().declaration(copied_root).digest(), digest);
+    let annotated = copy.find(b"Annotated").expect("copied annotated record");
+    let (tombstone, count) = copy.tombstones(annotated);
+    assert_eq!((tombstone, count), (FieldIx::new(6), 1)); // A: 2, R: 3, Annotated: 1 live fields.
+    assert_eq!(copy.default(tombstone), Some([0, 7].as_slice()));
+    assert!(copy.droppable(FieldIx::new(5)));
 }
 
 #[test]
@@ -50,7 +57,7 @@ fn one_pass_bounds_equal_each_prefix_with_named_limits() {
             &[Some(39), Some(40), Some(42)],
         ),
         (NESTED, &["h_t_t_p_value_y"], &[], &[None, None, None]),
-        (CHAIN, &[], &[], &[Some(11), Some(12), Some(97)]),
+        (CHAIN.as_bytes(), &[], &[], &[Some(11), Some(12), Some(97)]),
         (SCALARS, &[], &[], &[Some(70)]),
     ];
     for &(text, names, values, expected) in cases {
@@ -402,7 +409,7 @@ fn secret_pieces_refuse_a_later_declaration() {
 
 #[test]
 fn chains_are_outermost_first_and_sizes_are_hand_counted() {
-    let schema = parse(CHAIN).expect("small schema");
+    let schema = parse(CHAIN.as_bytes()).expect("small schema");
     assert_eq!(schema.most_bytes(DeclIx::new(0)), 11); // version 2 + integer 2 + length 4 + bytes 3
     assert_eq!(schema.most_bytes(DeclIx::new(1)), 12); // tag + A
     assert_eq!(schema.most_bytes(DeclIx::new(2)), 97); // 4 + 2*(1 + 4 + 3*11) + 12 + 5

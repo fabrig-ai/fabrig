@@ -99,7 +99,7 @@ fn note_scope(value: w::NoteScope) -> Option<notes::Scope> {
         }
     })
 }
-pub(crate) fn none(why: reads::Why, _limits: &w::Limits) -> w::ReadAnswer {
+pub(crate) fn none(why: reads::Why) -> w::ReadAnswer {
     let value = match why {
         reads::Why::TooLarge { bytes } => w::ReadNone::TooLarge(w::TurnTooLarge { bytes }),
         reads::Why::TooLinked { joins } => w::ReadNone::TooLinked(w::ReadTooLinked { joins }),
@@ -120,20 +120,20 @@ pub(crate) fn answer(
     limits: &w::Limits,
 ) -> Result<w::ReadAnswer, w::Problem> {
     let value = match answer {
-        reads::Answer::None(why) => return Ok(none(*why, limits)),
+        reads::Answer::None(why) => return Ok(none(*why)),
         reads::Answer::Setting(value) => {
             w::ReadValue::Setting(super::settings::setting_document(value, models, limits)?)
         }
         reads::Answer::Revision(value) => {
             w::ReadValue::Revision(w::ReadRevisionAnswer { value: super::settings::revision(value, models, limits)? })
         }
-        reads::Answer::Revisions(value) => w::ReadValue::Revisions(super::settings::revisions(value, limits)?),
-        reads::Answer::TaskText(value) => w::ReadValue::TaskText(task_text(value, limits)?),
+        reads::Answer::Revisions(value) => w::ReadValue::Revisions(super::settings::revisions(value)),
+        reads::Answer::TaskText(value) => w::ReadValue::TaskText(task_text(value)),
         reads::Answer::Tasks(page) => {
             let reads::Read::Tasks { query, .. } = read else {
                 return Err(super::problem(skein_codec::Reason::Tag));
             };
-            let slots = super::parts::plan(&query.parts, settings, limits);
+            let slots = super::parts::plan(&query.parts, settings);
             pages::tasks(page, query, &slots, limits)?
         }
         reads::Answer::Page(page) => pages::page(models, read, page, private, limits)?,
@@ -141,16 +141,10 @@ pub(crate) fn answer(
     };
     let mut out = Writer::new(skein_lib::length::usize_of(value.measure(limits)?));
     value.write(limits, &mut out).expect("measured value");
-    owned(w::Owner::Jig, jig_client_protocol_wire::VERSION, out.finish(), limits)
+    Ok(owned(w::Owner::Jig, jig_client_protocol_wire::VERSION, out.finish()))
 }
-#[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
-pub(crate) fn owned(
-    owner: w::Owner,
-    version: u32,
-    record: Box<[u8]>,
-    _limits: &w::Limits,
-) -> Result<w::ReadAnswer, w::Problem> {
-    Ok(w::ReadAnswer::Value(w::Owned { owner, version, record }))
+pub(crate) fn owned(owner: w::Owner, version: u32, record: Box<[u8]>) -> w::ReadAnswer {
+    w::ReadAnswer::Value(w::Owned { owner, version, record })
 }
 pub(crate) fn decode(bytes: &[u8], limits: &w::Limits) -> Option<reads::Read> {
     let mut reader = Reader::new(bytes);
@@ -169,9 +163,8 @@ fn decode_cursor(value: Option<w::Cursor>) -> Option<Option<reads::Cursor>> {
     }
 }
 
-#[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
-fn task_text(value: &reads::TaskText, _limits: &w::Limits) -> Result<w::TaskText, w::Problem> {
-    Ok(w::TaskText {
+fn task_text(value: &reads::TaskText) -> w::TaskText {
+    w::TaskText {
         task: value.task,
         field: match value.field {
             reads::TaskTextField::Specification => w::TaskTextField::Specification,
@@ -182,7 +175,7 @@ fn task_text(value: &reads::TaskText, _limits: &w::Limits) -> Result<w::TaskText
         total: value.total,
         next: value.next,
         words: skein_lib::bytes::copy_of(&value.bytes),
-    })
+    }
 }
 
 fn read_setting(value: w::ReadSetting) -> reads::Read {

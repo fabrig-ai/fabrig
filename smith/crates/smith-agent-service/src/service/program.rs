@@ -805,7 +805,8 @@ fn answer_head(service: &Stages) -> bool {
         Some(domain::Request::Answer { .. }) => true,
         Some(
             domain::Request::Lower(
-                smith_domain::Lower::Complete { .. }
+                smith_domain::Lower::Classify { .. }
+                | smith_domain::Lower::Complete { .. }
                 | smith_domain::Lower::Cancel { .. }
                 | smith_domain::Lower::Yield { .. }
                 | smith_domain::Lower::Close { .. }
@@ -819,6 +820,7 @@ fn answer_head(service: &Stages) -> bool {
             )
             | domain::Request::MessageRefused { .. }
             | domain::Request::Waiting { .. }
+            | domain::Request::Part { .. }
             | domain::Request::Turn { .. }
             | domain::Request::HostCall { .. }
             | domain::Request::WithdrawHost { .. }

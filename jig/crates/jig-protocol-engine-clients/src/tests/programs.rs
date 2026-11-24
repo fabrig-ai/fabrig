@@ -47,7 +47,7 @@ fn program_details_past_the_wire_bound_are_refused() {
         cut: false,
     };
     assert_eq!(
-        programs::login(&row, &w::CEILINGS).unwrap().encode(&w::CEILINGS).err(),
+        programs::login(&row).encode(&w::CEILINGS).err(),
         Some(w::Problem { path: w::paths::PROGRAM_FAILED_DETAIL, reason: skein_codec::Reason::Bound })
     );
 }
@@ -55,7 +55,7 @@ fn program_details_past_the_wire_bound_are_refused() {
 fn program_names_past_the_wire_bound_are_refused() {
     let row = d::ProgramLogin { name: Box::from([b'a'; 33]), state: None, sign_out: None, cleanup: false, cut: false };
     assert_eq!(
-        programs::login(&row, &w::CEILINGS).unwrap().encode(&w::CEILINGS).err(),
+        programs::login(&row).encode(&w::CEILINGS).err(),
         Some(w::Problem { path: w::paths::PROGRAM_LOGIN_NAME, reason: skein_codec::Reason::Bound })
     );
 }

@@ -27,6 +27,15 @@ fn chromium_opens_finds_and_presses_a_button() {
 }
 
 #[test]
+fn a_heading_that_never_appears_fails_with_its_own_deadline_figures() {
+    let profile = Profile::fresh();
+    let mut rig = Rig::new(&chromium(), &profile.0, Scenario::MissingHeading);
+    let report = rig.run_reporting_wait_failure().expect_err("the absent heading must expire its wait");
+    assert!(report.contains("a Chromium expectation: patience 500000000 ns"), "{report}");
+    assert!(rig.root_closed && rig.child_closed);
+}
+
+#[test]
 fn a_render_between_mouse_down_and_up_keeps_the_click_only_on_the_held_element() {
     for replace in [true, false] {
         let update =
@@ -74,13 +83,6 @@ fn chromium_reports_a_script_exception() {
     let chromium = chromium();
     let profile = Profile::fresh();
     Rig::new(&chromium, &profile.0, Scenario::Throw).run();
-}
-
-#[test]
-fn chromium_finds_a_sentence_by_a_few_of_its_words() {
-    let chromium = chromium();
-    let profile = Profile::fresh();
-    Rig::new(&chromium, &profile.0, Scenario::Words).run();
 }
 
 #[test]
@@ -141,23 +143,24 @@ fn chromium_refuses_a_scope_found_before_a_reload() {
 
 const ATTRIBUTE_PAGE: &[u8] =
     b"<!doctype html><input type=hidden value='first' data-note='named'><input type=hidden value='second'>";
-fn attribute_rig(selector: &'static [u8], name: &'static [u8], expected: Option<&'static [u8]>) {
+fn attribute_rig(
+    selector: &'static [u8],
+    name: &'static [u8],
+    expected: &'static [u8],
+    absent_selector: Option<&'static [u8]>,
+) {
     let profile = Profile::fresh();
-    let mut rig = Rig::new(&chromium(), &profile.0, Scenario::Attribute { selector, name, expected });
+    let mut rig = Rig::new(&chromium(), &profile.0, Scenario::Attribute { selector, name, expected, absent_selector });
     rig.fixed_page(ATTRIBUTE_PAGE.to_vec());
     rig.run();
 }
 #[test]
 fn chromium_reads_the_first_hidden_inputs_value_attribute() {
-    attribute_rig(b"input[type=hidden]", b"value", Some(b"first"));
+    attribute_rig(b"input[type=hidden]", b"value", b"first", Some(b".absent"));
 }
 #[test]
 fn chromium_reads_a_named_markup_attribute() {
-    attribute_rig(b"input", b"data-note", Some(b"named"));
-}
-#[test]
-fn chromium_reports_a_selector_without_an_element() {
-    attribute_rig(b".absent", b"value", None);
+    attribute_rig(b"input", b"data-note", b"named", None);
 }
 
 #[test]

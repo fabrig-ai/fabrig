@@ -57,7 +57,6 @@ const EXCEPTIONS: &[Exception] = &[
     Exception { what: "SMITH_BENCH_NONCE", until: "smith's round" },
     Exception { what: "SMITH_BENCH_PAIR_REQUEST", until: "smith's round" },
     Exception { what: "SMITH_BENCH_PAIR_ROOT", until: "smith's round" },
-    Exception { what: "SMITH_BOUNDS", until: "smith's round" },
     Exception { what: "SMITH_FIXTURE_TOKEN", until: "smith's round" },
     Exception { what: "SMITH_FIXTURE_WALL_MS", until: "smith's round" },
     Exception { what: "SMITH_HOST_ID_SERIAL", until: "smith's round" },

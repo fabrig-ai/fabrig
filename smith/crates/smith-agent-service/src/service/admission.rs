@@ -4,7 +4,7 @@
 //! Contract: smith/docs/design/protocol/agent.md, section 6.
 
 use super::Stages;
-use skein_lib::Token;
+use skein_lib::{Duration, Token};
 use smith_domain as domain;
 
 /// The domain's run handle and any drain or cancel waiting for it.
@@ -15,11 +15,11 @@ pub(super) enum Admission {
     /// A cancel came before the handle and waits for it.
     Cancelled,
     /// A drain came before the handle and waits for it.
-    Draining,
+    Draining { grace: Option<Duration> },
     /// The handle reached a waiting cancel; this pass delivers it.
     Owed { run: Token },
     /// The handle reached a waiting drain; this pass delivers it.
-    DrainOwed { run: Token },
+    DrainOwed { run: Token, grace: Option<Duration> },
     /// The domain named the run.
     Admitted { run: Token },
 }
@@ -27,8 +27,8 @@ pub(super) enum Admission {
 impl Admission {
     pub(super) const fn run(self) -> Option<Token> {
         match self {
-            Self::Waiting | Self::Cancelled | Self::Draining => None,
-            Self::Owed { run } | Self::DrainOwed { run } | Self::Admitted { run } => Some(run),
+            Self::Waiting | Self::Cancelled | Self::Draining { .. } => None,
+            Self::Owed { run } | Self::DrainOwed { run, .. } | Self::Admitted { run } => Some(run),
         }
     }
 
@@ -36,7 +36,7 @@ impl Admission {
         *self = match *self {
             Self::Waiting => Self::Admitted { run },
             Self::Cancelled => Self::Owed { run },
-            Self::Draining => Self::DrainOwed { run },
+            Self::Draining { grace } => Self::DrainOwed { run, grace },
             Self::Owed { .. } | Self::DrainOwed { .. } | Self::Admitted { .. } => {
                 unreachable!("one Admitted per Start")
             }
@@ -49,8 +49,8 @@ pub(super) fn cancel(service: &mut Stages) {
     service.host_word_closed = true;
     service.pending_signal = None;
     service.admission = match service.admission {
-        Admission::Waiting | Admission::Cancelled | Admission::Draining => Admission::Cancelled,
-        Admission::DrainOwed { run } => {
+        Admission::Waiting | Admission::Cancelled | Admission::Draining { .. } => Admission::Cancelled,
+        Admission::DrainOwed { run, .. } => {
             service.domain_events.push(domain::Event::Cancel { run });
             Admission::Admitted { run }
         }
@@ -62,14 +62,15 @@ pub(super) fn cancel(service: &mut Stages) {
 }
 
 /// Hold a drain until the run is named, as for cancellation.
-pub(super) fn drain(service: &mut Stages) {
+pub(super) fn drain(service: &mut Stages, grace: Option<Duration>) {
     service.admission = match service.admission {
-        Admission::Waiting => Admission::Draining,
-        state @ (Admission::Cancelled | Admission::Draining | Admission::Owed { .. } | Admission::DrainOwed { .. }) => {
-            state
-        }
+        Admission::Waiting => Admission::Draining { grace },
+        state @ (Admission::Cancelled
+        | Admission::Draining { .. }
+        | Admission::Owed { .. }
+        | Admission::DrainOwed { .. }) => state,
         state @ Admission::Admitted { run } => {
-            service.domain_events.push(domain::Event::Drain { run });
+            service.domain_events.push(domain::Event::Drain { run, grace });
             state
         }
     };
@@ -82,11 +83,14 @@ pub(super) fn follow(service: &mut Stages) {
             service.domain_events.push(domain::Event::Cancel { run });
             Admission::Admitted { run }
         }
-        Admission::DrainOwed { run } => {
-            service.domain_events.push(domain::Event::Drain { run });
+        Admission::DrainOwed { run, grace } => {
+            service.domain_events.push(domain::Event::Drain { run, grace });
             Admission::Admitted { run }
         }
-        state @ (Admission::Waiting | Admission::Cancelled | Admission::Draining | Admission::Admitted { .. }) => state,
+        state @ (Admission::Waiting
+        | Admission::Cancelled
+        | Admission::Draining { .. }
+        | Admission::Admitted { .. }) => state,
     };
 }
 

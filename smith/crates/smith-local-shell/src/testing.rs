@@ -1,6 +1,7 @@
-//! Native operations shared with the local shell's real-loop suite.
+//! Opened startup facts and native helpers shared with the local shell's test worlds.
 
 pub use crate::credentials::testing::{inspect_key, read_or_draw};
+pub use crate::local_host::{PrivateChat, ProductFiles, ResultDestination};
 
 /// Write a synthetic key fixture with the requested native file mode.
 #[must_use]

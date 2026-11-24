@@ -70,6 +70,8 @@ pub(crate) struct Process {
     producer: Option<Producer>,
     /// Pause Smith after the selected query, before consuming its response.
     pub(super) held_query: Option<usize>,
+    /// Pause the selected host call before it crosses the process channel.
+    pub(super) held_host_call: Option<usize>,
 }
 
 /// The process service's live producer, played here because smith's domain
@@ -177,6 +179,7 @@ impl Process {
             owner: None,
             producer: None,
             held_query: None,
+            held_host_call: None,
         }
     }
 
@@ -271,6 +274,11 @@ impl Process {
         !self.sent_calls.is_empty()
     }
 
+    pub(super) fn host_call_held(&self) -> bool {
+        self.held_host_call == Some(self.sent_calls.len())
+            && matches!(self.up.front(), Some(agent::Up::Call { ask: agent::Ask::Host { .. }, .. }))
+    }
+
     /// One of the worker's process requests, ended by the terminal smith's
     /// host domain names for it.
     pub(crate) fn request(&mut self, request: agent::process::Request, around: &mut Around<'_>) {
@@ -361,7 +369,7 @@ impl Process {
                 self.held_query = None;
                 self.agent.as_mut().expect("live agent").cancel_run();
             }
-            agent::Down::Drain => {
+            agent::Down::Drain { grace: _ } => {
                 let agent = self.agent.as_mut().expect("live agent");
                 agent.drain_at(agent.now());
             }
@@ -369,7 +377,7 @@ impl Process {
                 let agent = self.agent.as_mut().expect("live agent");
                 agent.renewals_at(agent.now(), held);
             }
-            agent::Down::Grant { .. } => {}
+            agent::Down::PartKept { .. } | agent::Down::Grant { .. } => {}
         }
     }
 
@@ -435,6 +443,8 @@ impl Process {
             provider.continue_provider(&mut previous);
         }
         let event = smith::Event::Start(smith::Start {
+            parts: Box::default(),
+            tell_parts: false,
             reply_to: ReplyTo::new(Token::new(402)),
             host_run: start.logical_run,
             activation: start.activation,
@@ -489,7 +499,10 @@ impl Process {
         self.drive(now, around);
         let held_turn = self.producer.as_ref().is_some_and(|producer| producer.holding)
             && matches!(self.up.front(), Some(agent::Up::Turn { .. }));
-        if !held_turn && let Some(owner) = self.reading.take() {
+        if !held_turn
+            && !self.host_call_held()
+            && let Some(owner) = self.reading.take()
+        {
             match self.up.pop_front() {
                 Some(message) => {
                     let event = agent::process::Event::Received { owner, message };
@@ -520,6 +533,9 @@ impl Process {
     }
 
     fn drive(&mut self, now: Time, around: &mut Around<'_>) {
+        if self.host_call_held() {
+            return;
+        }
         let Some(agent) = self.agent.as_mut() else { return };
         if self.settled
             || self.held_query.is_some_and(|query| agent.prompts().len() >= query)
@@ -690,6 +706,7 @@ fn mount(directories: &[agent::Directory], disk: &Checkout, mounted: &mut Disk) 
             }
         }
         mounts.push(run::Directory {
+            results: None,
             name: directory.name.clone(),
             host: [b"/".as_slice(), directory.name.as_ref()].concat().into_boxed_slice(),
             root: Token::new(mounted.root(&directory.name)),

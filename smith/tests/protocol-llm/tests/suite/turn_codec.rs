@@ -49,7 +49,7 @@ fn endpoints(turn: &record::Turn) -> smith_protocol_translate::Endpoints {
 fn an_oversized_model_is_reported_as_a_transcript_body_refusal() {
     let mut turn = scenario(30).turns[0].clone();
     let endpoints = endpoints(&turn);
-    let limits = smith_transcript::v7::Limits { turn_model: 1, ..smith_transcript::CEILINGS };
+    let limits = smith_transcript::v8::Limits { turn_model: 1, ..smith_transcript::CEILINGS };
     turn.model = bytes(b"too long");
     let smith_protocol_translate::Error::TranscriptBody(problem) =
         smith_protocol_translate::encode_turn(&turn, &limits, &endpoints).expect_err("model exceeds its limit")

@@ -1,4 +1,4 @@
-//! Derived byte passes between two layouts, strict or refusing dropped variants per value
+//! Derived byte passes between two layouts, in Read and Keep modes
 //! (skein/docs/design/data/codec/layouts.md, 1–5).
 
 use crate::schema::{Root, Schema, Span};
@@ -12,6 +12,13 @@ mod tests;
 
 /// The most nested levels admitted by a plan.
 pub const MAX_DEPTH: u32 = 64;
+
+/// Whether the target uses the value as its own or must preserve its meaning.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Mode {
+    Read,
+    Keep,
+}
 
 /// A refusal naming the new text, or the old text when `old` is true.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -36,6 +43,15 @@ pub enum Why {
     Deep,
 }
 
+/// Which part of a source value a plan could not convert.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Refused {
+    Variant,
+    Field,
+    Narrowed,
+    Absent,
+}
+
 /// Why a byte pass could not finish.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Misconverted {
@@ -45,16 +61,16 @@ pub enum Misconverted {
     Bound,
     Trailing,
     Room,
-    /// A refused variant's index in `Plan::dropped`.
-    Dropped(u16),
+    /// A refusal's index in `Plan::refusal`.
+    Refused(u16),
 }
 
 /// Owned tables, with no reference to either text.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Plan {
     nodes: List<Node>,
     reads: List<Read>,
-    dropped: List<Dropped>,
+    refusals: List<Refusal>,
     root: u32,
     depth: u32,
     fields: u32,
@@ -63,7 +79,7 @@ pub struct Plan {
     tag: Option<u8>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 struct Node {
     read: u32,
     kind: Kind,
@@ -72,58 +88,79 @@ struct Node {
     depth: u32,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 enum Kind {
     Pending,
     Copy,
-    Integer { old: u32, new: u32 },
+    Integer { old: u32, new: u32, refusal: Option<u16> },
     Named(u32),
     Wrap(u32),
+    Unwrap { child: u32, absent: Absent },
     Option(u32),
-    List { bound: u32, item: u32 },
-    Record { old_head: bool, head: Option<u16>, fields: List<Field>, in_place: bool },
+    List { bound: u32, item: u32, narrowed: Option<Narrowed> },
+    Record { old_head: bool, head: Option<u16>, fields: List<Field>, dropped: List<DropField>, in_place: bool },
     Enum(List<Option<Variant>>),
-    Content { bound: u32, inner: Inner },
+    Content { bound: u32, inner: Option<Inner>, narrowed: Option<Narrowed> },
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
+enum Absent {
+    Default(Box<[u8]>),
+    Refuse(u16),
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct Narrowed {
+    bound: u32,
+    refusal: u16,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Inner {
     Held(u32),
     Pieces(u32),
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 struct Field {
     source: Source,
     node: Option<u32>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 enum Source {
     Old(u32),
     Default(Box<[u8]>),
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct DropField {
+    offset: u32,
+    default: Option<Box<[u8]>>,
+    refusal: u16,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Variant {
     Kept { tag: u8, payload: Option<u32>, in_place: bool },
-    Dropped(u16),
+    Refuse(u16),
 }
 
-#[derive(Clone, Debug)]
-struct Dropped {
-    enumeration: Box<str>,
-    variant: Box<str>,
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct Refusal {
+    why: Refused,
+    decl: Box<str>,
+    part: Box<str>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 struct Read {
     kind: ReadKind,
     minimum: u32,
     depth: u32,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 enum ReadKind {
     Pending,
     Fixed(u32),
@@ -199,7 +236,7 @@ impl Workspace {
 }
 
 impl Plan {
-    /// Plans only the two roots' reach, resolving held families on each side.
+    /// Plans the two roots' reach in Read mode, rejecting conversions that can refuse a value.
     pub fn derive(
         old: &Schema,
         old_root: Root,
@@ -211,10 +248,9 @@ impl Plan {
         derive::plan(old, old_root, old_held, new, new_root, new_held, derive::Policy::Strict)
     }
 
-    /// Plans the reach with dropped variants refused per value
-    /// (skein/docs/design/data/codec/layouts.md, 2).
-    /// Refuses with `Why::Deep` past `schema::MAX_DECLARATIONS` dropped names.
-    pub fn derive_dropping(
+    /// Plans the two roots' reach, with refusals checked per value.
+    pub fn between(
+        mode: Mode,
         old: &Schema,
         old_root: Root,
         old_held: &[&Schema],
@@ -222,20 +258,20 @@ impl Plan {
         new_root: Root,
         new_held: &[&Schema],
     ) -> Result<Plan, Underived> {
-        derive::plan(old, old_root, old_held, new, new_root, new_held, derive::Policy::RefuseDrops)
+        derive::plan(old, old_root, old_held, new, new_root, new_held, derive::Policy::Between(mode))
     }
 
-    /// Whether the plan refuses at least one dropped variant.
+    /// Whether the plan can refuse a value.
     #[must_use]
-    pub fn drops(&self) -> bool {
-        !self.dropped.is_empty()
+    pub fn refuses(&self) -> bool {
+        !self.refusals.is_empty()
     }
 
-    /// A refused variant's enumeration and variant names in the old text.
+    /// The reason and names of the declaration and part in the source text.
     #[must_use]
-    pub fn dropped(&self, index: u16) -> Option<(&str, &str)> {
-        let names = self.dropped.get(u32::from(index))?;
-        Some((&names.enumeration, &names.variant))
+    pub fn refusal(&self, index: u16) -> Option<(Refused, &str, &str)> {
+        let refusal = self.refusals.get(u32::from(index))?;
+        Some((refusal.why, &refusal.decl, &refusal.part))
     }
 
     /// Every old value already has the new bytes, apart from its root head.

@@ -16,7 +16,7 @@ pub(super) fn clock(now: Time) -> Wall {
 }
 
 pub(super) fn turn() -> Box<[u8]> {
-    use smith_transcript::v7 as source;
+    use smith_transcript::v8 as source;
 
     let text = source::Text { text: b"abc".as_slice().into(), replay: None };
     let blocks = crate::test::list([source::Block::Text(text)]);
@@ -109,7 +109,7 @@ pub(super) fn seeded_world_with_receiving(
         clock(Time::ZERO),
     );
     let codec = jig_protocol_transcript::Limits {
-        smith: smith_transcript::v7::CEILINGS,
+        smith: smith_transcript::v8::CEILINGS,
         bytes: 1_048_576,
         turn: client::TurnLimits { messages: 2, blocks: 2, text: 32, outcome: 32 },
     };

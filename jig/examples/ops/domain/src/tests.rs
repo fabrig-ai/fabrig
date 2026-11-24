@@ -26,6 +26,7 @@ fn fixture_with_commits(commits: u32) -> (Domain, Env<Limits>) {
         infrastructure: fixtures::infrastructure_limits(),
         observability: fixtures::limits(),
         host: host::Limits {
+            drain_grace: jig_protocol_config::DEFAULT_DRAIN_GRACE,
             application_ask_bytes: 64,
             application_answer_bytes: 64,
             slots: 1,

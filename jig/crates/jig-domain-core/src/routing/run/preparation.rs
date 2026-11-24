@@ -238,6 +238,11 @@ pub(crate) fn workspace_prepared(
         None
     };
     proof.credentials = core.workspace_credentials.remove(&task).expect("prepared credentials");
+    let parts = if resume && transcript.last.is_some() {
+        core.resumed_parts(task, attempt, transcript.bytes)
+    } else {
+        Box::new([])
+    };
     let turns = if resume { core.resumed_turns(transcript) } else { Box::new([]) };
     let answered = answered_calls(core, task, attempt, env.limits.call_records);
     let mut policy = allowance.choice.policy;
@@ -300,6 +305,7 @@ pub(crate) fn workspace_prepared(
         messages,
         saved: context.saved,
         transcript: turns,
+        parts,
         answered,
         grants: grants.into_boxed(),
     })));
@@ -727,7 +733,7 @@ pub(crate) fn route_activate(
     if core.tasks.task(number).expect("current activation").phase != tasks::Phase::Active(tasks::Active::Due) {
         return out;
     }
-    if core.settling || !ready || !core.start_opened() || core.start_stopped() {
+    if core.settling || !ready || !core.start_opened() || core.start_stopped() || core.unsettled_effect(number) {
         remember_due(core, context);
     } else if core.tasks.recurring_template(number).is_none()
         && context.executor != (tasks::Executor::Procedure { connector: crate::RECURRING, code: crate::GATHERING })

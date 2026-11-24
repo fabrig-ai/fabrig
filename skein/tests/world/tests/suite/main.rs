@@ -2,10 +2,8 @@
 static HEAP: skein_heap::Counting = skein_heap::Counting;
 
 mod deadline;
-mod drive;
 mod end_to_end;
 mod interrupt;
-mod nested_real;
 mod real;
 mod real_conformance;
 #[cfg(target_os = "linux")]

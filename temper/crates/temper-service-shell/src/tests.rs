@@ -1,3 +1,9 @@
+use super::{read_files_with_asked_using, serve_error};
+use jig_protocol_config::{File, Path as Member, Segment};
+use skein_lib::Secret;
+use skein_shell::Unread;
+use std::{os::unix::ffi::OsStrExt, path::Path};
+
 fn scripted_serve<T>(
     binary: &str,
     shape: temper_config_shell::Shape,
@@ -73,6 +79,119 @@ fn toml_serve_passes_checked_programs_beside_the_document() {
         ),
         Err("temper-box serve: checked programs reached preparation\n".into())
     );
+}
+
+const USER: u32 = 1000;
+const PROVIDER_KEY: &str = "/fixture/provider.key";
+const CLIENT_SECRET: &str = "/fixture/provider-client.secret";
+// The provider file bounds in jig-protocol-config's file enumeration.
+const KEY_MAX: u32 = 8192;
+const CLIENT_SECRET_MAX: u32 = 256;
+
+fn provider_files() -> Box<[File]> {
+    let provider = Member::root().member(b"engine").member(b"clients").member(b"provider");
+    Box::new([
+        named_file(provider.member(b"key"), PROVIDER_KEY, KEY_MAX, true),
+        named_file(
+            provider.member(b"clients").child(Segment::Index(0)).member(b"secret"),
+            CLIENT_SECRET,
+            CLIENT_SECRET_MAX,
+            true,
+        ),
+    ])
+}
+
+fn named_file(at: Member, path: &str, max: u32, private: bool) -> File {
+    File { at, path: path.as_bytes().into(), max, private }
+}
+
+fn provider_refusal(key: Result<Secret, Unread>, secret: Result<Secret, Unread>) -> String {
+    let mut reads = [(PROVIDER_KEY, KEY_MAX, key), (CLIENT_SECRET, CLIENT_SECRET_MAX, secret)].into_iter();
+    let refused = read_files_with_asked_using(provider_files(), Box::new([]), USER, |path, max, private| {
+        let (expected, bound, read) = reads.next().expect("one read per provider file");
+        assert_eq!((path, max, private), (Path::new(expected), bound, true));
+        read
+    })
+    .expect_err("provider file read refused");
+    assert!(reads.next().is_none(), "both provider files were read");
+    refused
+}
+
+#[test]
+fn an_absent_provider_key_names_its_member_and_path() {
+    let secret = Secret::new(b"synthetic-provider-client-secret".as_slice().into());
+    assert_eq!(
+        provider_refusal(Err(Unread::Absent), Ok(secret)),
+        "engine.clients.provider.key: /fixture/provider.key: absent\n"
+    );
+}
+
+#[test]
+fn an_absent_provider_client_secret_names_its_member_and_path() {
+    // The public 3072-bit fixture used by jig's provider admission tests.
+    let key = include_bytes!("../../../../jig/crates/jig-protocol-config/src/tests/keys/rsa-3072-pkcs8.pem");
+    assert_eq!(
+        provider_refusal(Ok(Secret::new(key.as_slice().into())), Err(Unread::Absent)),
+        "engine.clients.provider.clients[0].secret: /fixture/provider-client.secret: absent\n"
+    );
+}
+
+#[test]
+fn an_unsafe_worker_secret_is_named_without_its_bytes() {
+    // The worker's 256-byte secret bound allows a final newline on disk.
+    const MAX: u32 = 257;
+    let at = Member::root().member(b"workers").child(Segment::Index(0)).member(b"secret");
+    let path = "/fixture/worker.secret";
+    let names = Box::new([named_file(at, path, MAX, true)]);
+    let why = read_files_with_asked_using(names, Box::new([]), USER, |resolved, max, private| {
+        assert_eq!((resolved, max, private), (Path::new(path), MAX, true));
+        Err(Unread::Unsafe(skein_io::file::Unsafe::Mode(0o044)))
+    })
+    .expect_err("start refused");
+    let refused = serve_error("temper", &why);
+    assert_eq!(
+        refused,
+        format!("temper serve: workers[0].secret: {path}: readable by others or reached through a link\n")
+    );
+    assert!(!refused.contains("forge-1-git-token-value"), "no secret in a diagnostic");
+}
+
+// A small bound for the asked file fixtures.
+const ASKED_MAX: u32 = 64;
+
+fn asked_files() -> Box<[File]> {
+    Box::new([
+        named_file(Member::root().member(b"optional"), "/fixture/optional", ASKED_MAX, false),
+        named_file(Member::root().member(b"ca"), "/fixture/ca", ASKED_MAX, false),
+    ])
+}
+
+#[test]
+fn absent_asked_files_are_skipped_and_successful_reads_kept() {
+    let files = read_files_with_asked_using(Box::new([]), asked_files(), USER, |path, max, private| {
+        match (path.as_os_str().as_bytes(), max, private) {
+            (b"/fixture/optional", ASKED_MAX, false) => Err(Unread::Absent),
+            (b"/fixture/ca", ASKED_MAX, false) => Ok(Secret::new(b"trust fixture".as_slice().into())),
+            _ => panic!("unexpected read: {}", path.display()),
+        }
+    })
+    .expect("an absent asked file is not a refusal");
+    assert_eq!(files.contents(b"/fixture/optional"), None);
+    assert_eq!(files.contents(b"/fixture/ca"), Some(b"trust fixture".as_slice()));
+}
+
+#[test]
+fn required_refusals_precede_asked_refusals_in_the_diagnostic() {
+    let names = Box::new([named_file(Member::root().member(b"key"), "/fixture/key", KEY_MAX, true)]);
+    let refused = read_files_with_asked_using(names, asked_files(), USER, |path, max, private| {
+        match (path.as_os_str().as_bytes(), max, private) {
+            (b"/fixture/key", KEY_MAX, true) | (b"/fixture/optional", ASKED_MAX, false) => Err(Unread::Absent),
+            (b"/fixture/ca", ASKED_MAX, false) => Err(Unread::TooLarge { max }),
+            _ => panic!("unexpected read: {}", path.display()),
+        }
+    })
+    .expect_err("required absence and an oversized asked file are refused");
+    assert_eq!(refused, "key: /fixture/key: absent\nca: /fixture/ca: past 64 bytes\n");
 }
 
 #[test]

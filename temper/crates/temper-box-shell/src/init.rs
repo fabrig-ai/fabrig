@@ -451,24 +451,47 @@ pub(crate) fn run(
     environment: &[crate::EnvironmentEntry],
 ) -> Result<u8, String> {
     let written = if boxed { core(directories, environment)? } else { bare(directories, environment)? };
+    Ok(finish_written(
+        directories,
+        boxed,
+        written,
+        crate::bundle::OWN.is_some(),
+        skein_shell::effective_user,
+        (&mut std::io::stdout(), &mut std::io::stderr()),
+        crate::close,
+    ))
+}
+
+fn finish_written(
+    directories: &Directories,
+    boxed: bool,
+    written: Written,
+    browser: bool,
+    user: impl FnOnce() -> u32,
+    (_stdout, stderr): (&mut impl std::io::Write, &mut impl std::io::Write),
+    close: impl FnOnce(Vec<Fd>),
+) -> u8 {
+    let mut print = |line: std::fmt::Arguments<'_>| writeln!(stderr, "{line}").expect("writing to stderr");
     for path in written.paths {
-        eprintln!("init: wrote {}", path.display());
+        print(format_args!("init: wrote {}", path.display()));
     }
-    if crate::bundle::OWN.is_none() {
-        eprintln!(
+    if !browser {
+        print(format_args!(
             "init: this temper has no browser (built with TEMPER_INTERNAL_BUNDLE=none): the browser is not served"
-        );
+        ));
     }
     if let Some(why) = &written.no_sign_in {
-        eprintln!("init: no sign-in through temper: {why}");
+        print(format_args!("init: no sign-in through temper: {why}"));
     }
     if written.missing_git {
-        eprintln!("init: no git on PATH: a real forge's repositories need git 2.41 or later, set as [programs] git");
+        print(format_args!(
+            "init: no git on PATH: a real forge's repositories need git 2.41 or later, set as [programs] git"
+        ));
     }
-    if let Some(line) = person_line(written.person, written.login.as_deref(), skein_shell::effective_user()) {
-        eprintln!("{line}");
+    if let Some(line) = person_line(written.person, written.login.as_deref(), user()) {
+        print(format_args!("{line}"));
     }
-    eprintln!("init: after starting, continue with ChatGPT or add an OpenAI API key from the accounts page");
+    print(format_args!("init: after starting, continue with ChatGPT or add an OpenAI API key from the accounts page"));
     let mut line =
         String::from(if boxed { "init: start it with temper box" } else { "init: start it with temper-box serve" });
     for (index, (name, value)) in
@@ -479,9 +502,9 @@ pub(crate) fn run(
             write!(line, " --{name} {}", path(value).display()).expect("string");
         }
     }
-    eprintln!("{line}");
-    crate::close(written.listeners.into_iter().map(|(fd, _)| fd).collect());
-    Ok(0)
+    print(format_args!("{line}"));
+    close(written.listeners.into_iter().map(|(fd, _)| fd).collect());
+    0
 }
 fn person_line(person: temper_init::Person, login: Option<&[u8]>, user: u32) -> Option<String> {
     match person {
@@ -495,5 +518,7 @@ fn person_line(person: temper_init::Person, login: Option<&[u8]>, user: u32) -> 
         }),
     }
 }
+#[cfg(test)]
+pub(crate) mod startup;
 #[cfg(test)]
 mod tests;

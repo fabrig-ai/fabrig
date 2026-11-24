@@ -15,9 +15,36 @@ pub(super) struct Parsed {
     pub(super) payloads: List<Option<Span>>,
 }
 
+impl Parsed {
+    fn push_field(&mut self, field: Field, former: Span, default: Option<Span>, droppable: bool) {
+        self.schema.fields.push(field).expect("each field consumed tokens");
+        self.schema.field_former.push(former).expect("one former range per field");
+        self.schema.defaults.push(default).expect("one default slot per field");
+        self.schema.encodings.push(None).expect("one encoding slot per field");
+        self.schema.droppable.push(droppable).expect("one mark slot per field");
+    }
+}
+
+#[derive(Debug)]
+struct Tombstone {
+    field: Field,
+    former: Span,
+    default: Span,
+}
+
+// `dropped name : type = value` consumes at least six tokens.
+fn tombstone_capacity(tokens: u32) -> u32 {
+    tokens.checked_div(6).expect("six tokens per tombstone")
+}
+
+pub(super) fn tombstone_bound(text: u32) -> Option<u64> {
+    List::<Tombstone>::price(tombstone_capacity(text))
+}
+
 #[derive(Debug)]
 pub(super) struct Parser {
     parsed: Parsed,
+    tombstones: List<Tombstone>,
     tokens: List<Token>,
     offset: u32,
     final_line: u32,
@@ -36,6 +63,8 @@ impl Parser {
                     version: 0,
                     declarations: List::with_capacity(declarations),
                     fields: List::with_capacity(count),
+                    tombstones: List::with_capacity(declarations),
+                    droppable: List::with_capacity(count),
                     variants: List::with_capacity(count),
                     types: List::with_capacity(count),
                     names: Map::with_capacity(declarations),
@@ -52,6 +81,7 @@ impl Parser {
                 references: List::with_capacity(count),
                 payloads: List::with_capacity(count),
             },
+            tombstones: List::with_capacity(tombstone_capacity(count)),
             tokens,
             offset: 0,
             final_line,
@@ -134,11 +164,14 @@ impl Parser {
         Ok(Span { start, end: self.parsed.schema.former.len() })
     }
 
-    fn default(&mut self) -> Result<Option<Span>, SchemaError> {
-        if self.peek() != Some(b"=") {
+    fn default(&mut self, required: bool) -> Result<Option<Span>, SchemaError> {
+        if !required && self.peek() != Some(b"=") {
             return Ok(None);
         }
-        self.take()?;
+        let equals = self.wanted(Expected::Default)?;
+        if self.parsed.schema.spelled(equals.at) != b"=" {
+            return Err(Self::error(equals, Wrong::Expected(Expected::Default)));
+        }
         let mut start = None;
         for _ in 0..self.tokens.len() {
             let token = self.wanted(Expected::Default)?;
@@ -281,6 +314,31 @@ impl Parser {
         unreachable!("a chain consumes a token on every round")
     }
 
+    fn field(&mut self) -> Result<(), SchemaError> {
+        let first = self.name()?;
+        let word = self.parsed.schema.spelled(first.at);
+        let next = self.peek();
+        let modifier = next != Some(b":") && next != Some(b"was");
+        let dropped = modifier && word == b"dropped";
+        let droppable = modifier && word == b"droppable";
+        let name = if dropped || droppable { self.name()? } else { first };
+        let former = self.former()?;
+        self.expect(b":", Expected::Colon)?;
+        let ty = self.ty()?;
+        let default = self.default(dropped)?;
+        let field = Field { name: name.at, line: name.line, ty };
+        if dropped {
+            let default = default.expect("tombstone grammar requires an explicit default");
+            self.tombstones.push(Tombstone { field, former, default }).expect("each tombstone consumes six tokens");
+        } else {
+            self.parsed.push_field(field, former, default, droppable);
+        }
+        if self.peek() == Some(b",") {
+            self.take()?;
+        }
+        Ok(())
+    }
+
     fn record(&mut self, versioned: bool) -> Result<Declaration, SchemaError> {
         let name = self.name()?;
         let former = self.former()?;
@@ -291,22 +349,7 @@ impl Parser {
             if self.peek() == Some(b"}") {
                 break;
             }
-            let name = self.name()?;
-            let former = self.former()?;
-            self.parsed.schema.field_former.push(former).expect("one former range per field");
-            self.expect(b":", Expected::Colon)?;
-            let ty = self.ty()?;
-            let default = self.default()?;
-            self.parsed.schema.defaults.push(default).expect("one default per field");
-            self.parsed.schema.encodings.push(None).expect("one encoding per field");
-            self.parsed
-                .schema
-                .fields
-                .push(Field { name: name.at, line: name.line, ty })
-                .expect("each field consumed tokens");
-            if self.peek() == Some(b",") {
-                self.take()?;
-            }
+            self.field()?;
         }
         self.expect(b"}", Expected::Open)?;
         let count = self.parsed.schema.fields.len().checked_sub(first).expect("fields appended after the first");
@@ -369,6 +412,7 @@ impl Parser {
             if self.parsed.schema.declarations.len() == MAX_DECLARATIONS {
                 return Err(Self::error(token, Wrong::Many));
             }
+            let first = self.tombstones.len();
             let declaration = match self.parsed.schema.spelled(token.at) {
                 b"record" => self.record(false)?,
                 b"enum" => self.enumeration()?,
@@ -379,6 +423,16 @@ impl Parser {
                 _ => return Err(Self::error(token, Wrong::Expected(Expected::Declaration))),
             };
             self.parsed.schema.declarations.push(declaration).expect("declaration count passed its ceiling");
+            let count = self.tombstones.len().checked_sub(first).expect("tombstones appended after the first");
+            self.parsed.schema.tombstones.push((FieldIx::new(first), count)).expect("one range per declaration");
+        }
+        // Live field indices do not depend on tombstones anywhere in the text.
+        let live = self.parsed.schema.fields.len();
+        for (first, _) in self.parsed.schema.tombstones.iter_mut() {
+            *first = FieldIx::new(add(live, first.index()));
+        }
+        for tombstone in &self.tombstones {
+            self.parsed.push_field(tombstone.field, tombstone.former, Some(tombstone.default), false);
         }
         Ok(self.parsed)
     }

@@ -36,7 +36,7 @@ macro_rules! lean_roots {
                         measured: value.measure(&codec::CEILINGS).expect("decoded value measures"),
                     },
                     Err(problem) => Decoded::Problem {
-                        path: codec::name(problem.path).expect("generated path").into(),
+                        path: problem.path.name().into(),
                         reason: problem.reason,
                     },
                 }

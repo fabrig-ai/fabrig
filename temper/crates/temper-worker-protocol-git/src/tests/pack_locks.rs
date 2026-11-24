@@ -19,16 +19,13 @@ fn started() -> Started {
     let mut limits = fixtures::limits();
     limits.operations = 4;
     let settings =
-        crate::Settings { serial: fixtures::SERIAL.checked_sub(4).expect("layout names"), ..fixtures::settings() };
+        crate::Settings { serial: fixtures::SERIAL.checked_sub(2).expect("layout names"), ..fixtures::settings() };
     s.component = Component::new(&limits, &fixtures::checkout(), settings).expect("four operations");
     s.component.start(s.now, &mut s.below.out);
     let version = spawn(&mut s, b"", b"version");
     finish(&mut s, &version, b"git version 2.47.3\n", 0);
     s.component.reclaim();
-    for _ in 0_u8..15 {
-        s.file_operation();
-        s.complete_ok();
-    }
+    s.finish_layout();
     assert_eq!(s.below.out.events.pop(), Some(crate::Event::Started));
     s.empty_sweep();
     s
@@ -392,7 +389,7 @@ fn shutdown_closes_its_directories_when_the_last_store_waiter_expires() {
     );
     done(&mut s, SECOND, git::Done::Failed { fault: git::Fault::TimedOut });
     assert!(!s.below.out.kernel.is_empty(), "shutdown must close directories after its last waiter ends");
-    for _ in 0_u8..5 {
+    for _ in 0_u8..6 {
         s.file_operation();
         s.complete_ok();
     }

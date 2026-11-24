@@ -274,6 +274,7 @@ fn opening(charter: run::Charter, limits: &run::Limits) -> run::Opening {
             workspace: None,
             transcript: None,
             resumed: false,
+            tell_parts: false,
         },
         &mut out,
     );

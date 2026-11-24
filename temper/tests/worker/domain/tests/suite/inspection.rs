@@ -27,6 +27,8 @@ fn root_inspection_names_the_hosted_attempt_and_slot_limit() {
                     grants: Box::new([]),
                 },
                 turns: Box::new([]),
+                parts: Box::new([]),
+                tell_parts: false,
                 answered: Box::new([]),
                 messages: Box::new([]),
             },

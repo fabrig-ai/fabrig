@@ -102,6 +102,9 @@ pub enum Command {
     Merge {
         theirs: git::Commit,
     },
+    MergeHistory {
+        theirs: git::Commit,
+    },
     Unmerged,
     UpdateIndex {
         paths: Box<[u8]>,
@@ -143,7 +146,7 @@ pub enum Command {
 /// The item's program is carried by every operation except Make.
 pub(crate) fn item_program(op: &git::Op) -> Option<&[u8]> {
     match op {
-        git::Op::Make { .. } => None,
+        git::Op::Keep { .. } | git::Op::Make { .. } => None,
         git::Op::Store { git, .. } => git.as_deref(),
         git::Op::Clone { at, .. }
         | git::Op::Reds { at, .. }
@@ -180,6 +183,7 @@ pub(crate) fn no_program(op: &git::Op, command: &Command) -> Box<[u8]> {
                 None
             }
             git::Op::Store { .. }
+            | git::Op::Keep { .. }
             | git::Op::Make { .. }
             | git::Op::Clone { .. }
             | git::Op::Reds { .. }
@@ -210,6 +214,7 @@ pub(crate) fn no_program(op: &git::Op, command: &Command) -> Box<[u8]> {
         | Command::CheckOut { .. }
         | Command::Clean
         | Command::Merge { .. }
+        | Command::MergeHistory { .. }
         | Command::Unmerged
         | Command::UpdateIndex { .. }
         | Command::Add
@@ -292,7 +297,7 @@ pub(crate) const fn word(command: &Command) -> &'static [u8] {
             crate::reds::CheckCommand::Pin | crate::reds::CheckCommand::Merge => b"rev-parse",
             crate::reds::CheckCommand::Base { .. } | crate::reds::CheckCommand::Ancestor { .. } => b"merge-base",
         },
-        Command::SnapshotHead => b"log",
+        Command::SnapshotHead | Command::MergeHistory { .. } => b"log",
         Command::SnapshotMerge { .. } | Command::Format => b"rev-parse",
         Command::SnapshotFetch { .. } | Command::Fetch { .. } | Command::FetchCounts { .. } => b"fetch",
         Command::SnapshotReachable { .. } => b"for-each-ref",
@@ -352,7 +357,7 @@ pub fn arguments_for(op: &git::Op, command: &Command) -> Box<[Box<[u8]>]> {
             }
             at
         }
-        git::Op::Store { .. } | git::Op::Make { .. } => return arguments(command),
+        git::Op::Store { .. } | git::Op::Keep { .. } | git::Op::Make { .. } => return arguments(command),
         git::Op::Reds { at, .. }
         | git::Op::Reset { at, .. }
         | git::Op::Pack { at, .. }
@@ -397,6 +402,7 @@ pub fn arguments_at(command: &Command, git_dir: Option<&[u8]>, work_tree: Option
         | Command::CheckOut { .. }
         | Command::Clean
         | Command::Merge { .. }
+        | Command::MergeHistory { .. }
         | Command::Unmerged
         | Command::UpdateIndex { .. }
         | Command::Add
@@ -412,7 +418,9 @@ pub fn arguments_at(command: &Command, git_dir: Option<&[u8]>, work_tree: Option
     for setting in SETTINGS {
         words(&mut out, &[b"-c", setting]);
     }
-    if let Command::CheckOut { .. } | Command::Merge { .. } | Command::Repack { .. } = command {
+    if let Command::CheckOut { .. } | Command::Merge { .. } | Command::MergeHistory { .. } | Command::Repack { .. } =
+        command
+    {
         words(&mut out, &[b"-c", b"remote.origin.promisor=true"]);
     }
     if let Some(directory) = git_dir {
@@ -508,6 +516,18 @@ pub fn arguments_at(command: &Command, git_dir: Option<&[u8]>, work_tree: Option
         Command::CheckOut { commit } => words(&mut out, &[b"checkout", b"--force", b"--detach", &hex(*commit)]),
         Command::Clean => words(&mut out, &[b"clean", b"-ffdxq"]),
         Command::Merge { theirs } => words(&mut out, &[b"merge", b"--no-commit", b"--no-ff", b"--", &hex(*theirs)]),
+        Command::MergeHistory { theirs } => words(
+            &mut out,
+            &[
+                b"log",
+                b"--no-merges",
+                b"-M",
+                b"--diff-filter=R",
+                b"--format=%H",
+                &joined(&[b"HEAD...", &hex(*theirs)]),
+                b"--",
+            ],
+        ),
         Command::DiffPaths { before, after } => words(
             &mut out,
             &[
@@ -596,6 +616,7 @@ pub(crate) fn environment_for(
             | git::Kind::DiffPaths
             | git::Kind::Brings
             | git::Kind::IsAncestor
+            | git::Kind::Keep
             | git::Kind::Make,
         ) => None,
     };
@@ -663,6 +684,7 @@ pub(crate) fn environment_for(
             | git::Kind::DiffPaths
             | git::Kind::Brings
             | git::Kind::IsAncestor
+            | git::Kind::Keep
             | git::Kind::Make,
         ) => {}
     }

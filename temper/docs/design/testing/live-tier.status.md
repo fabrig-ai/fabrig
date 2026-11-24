@@ -1,12 +1,10 @@
 # live-tier: status
 
-2026-11-14. Where the tree's code lags or departs from [live-tier.md](live-tier.md).
+2026-11-23. Where the tree's code lags or departs from [live-tier.md](live-tier.md).
 
 
 - **Not yet:**  the remaining GitHub real-loop stories remain `real-loop.status.md` (Not yet).
-  the twins' playground documents remain `reference-case.status.md` (Not yet, the whole document).
-   the ignored cluster process story remains `process-tier.status.md` (Not yet, the whole document).
-   the playground/reset and restarted-GitHub stories remain `../protocol/setup/testing.status.md`, 4.
+  the twins' playground documents remain `reference-case.status.md` (Not yet, the whole document).   the playground/reset and restarted-GitHub stories remain `../protocol/setup/testing.status.md`, 4.
    the Forgejo web-connect and host proofs remain `process-tier.status.md` (Not yet, the whole document).
   the whole document: the ladder's live stories but B0's: `scripts/proof-live.sh` takes
   `rung-b0` alone, on ChatGPT with an owned Forgejo, and
@@ -99,3 +97,9 @@
   teardown's, its Musts and secrets scan panic, and
   `scripts/proof-live-github.sh` stops no runner on a signal.
   [in flight: change 2875]
+  the whole document: the key landing story removes `anthropic`'s `keep`
+  and `drop` from `providers.setting` by hand, which a start overwrites
+  with the store's provider 2, so its key's account may read Anthropic's
+  list; its fresh sitting's model item was refused out of shape, and no
+  focused test builds the kit's settings files from the stock and has the
+  settings admit them. [in flight: change 15450]

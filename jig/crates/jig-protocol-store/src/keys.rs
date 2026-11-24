@@ -42,6 +42,7 @@ pub const KEYSPACES: &[(&[u8], &str)] = &[
     (&[1, 0, 7], "core.escalation-decisions"),
     (&[1, 0, 8], "core.settings"),
     (&[1, 0, 9], "core.settings-history"),
+    (&[1, 0, 10], "core.parts"),
     (&[1, 1, 0], "tasks.live"),
     (&[1, 1, 1], "tasks.stubs"),
     (&[1, 1, 2], "tasks.ledgers"),

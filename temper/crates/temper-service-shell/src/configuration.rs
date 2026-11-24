@@ -11,16 +11,28 @@ pub struct Read {
 
 /// Refuse the configuration before opening data or cache.
 pub fn read(directories: &Directories, shape: Shape) -> Result<Read, String> {
-    let read = read_only(directories, shape)?;
-    directories.open(skein_shell::effective_user())?;
-    Ok(read)
+    read_with(temper_config_shell::read(directories, shape), || directories.open(skein_shell::effective_user()))
+}
+
+/// Open data and cache only after a successful configuration read.
+pub fn read_with(
+    read: Result<temper_config_shell::Read, temper_config_shell::Refusal>,
+    open: impl FnOnce() -> Result<(), String>,
+) -> Result<Read, String> {
+    let read = read.map_err(|why| why.to_string())?;
+    open()?;
+    Ok(Read::from(read))
 }
 
 /// Offline readers do not create or open data directories.
 pub fn read_only(directories: &Directories, shape: Shape) -> Result<Read, String> {
-    let temper_config_shell::Read { file, document, keys } =
-        temper_config_shell::read(directories, shape).map_err(|why| why.to_string())?;
-    Ok(Read { file, document, keys })
+    temper_config_shell::read(directories, shape).map(Read::from).map_err(|why| why.to_string())
+}
+
+impl From<temper_config_shell::Read> for Read {
+    fn from(temper_config_shell::Read { file, document, keys }: temper_config_shell::Read) -> Self {
+        Self { file, document, keys }
+    }
 }
 
 /// Program-login prints file refusals one per line and other problems on one line.
@@ -42,7 +54,8 @@ impl Read {
         self.programs_with(temper_shell::lookup::is_executable)
     }
 
-    pub(crate) fn programs_with(
+    /// Check the configured program paths using the supplied executable lookup.
+    pub fn programs_with(
         &self,
         is_executable: impl Fn(&std::path::Path) -> bool,
     ) -> Result<temper_config_shell::Programs, String> {

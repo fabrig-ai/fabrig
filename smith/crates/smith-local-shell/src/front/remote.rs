@@ -144,7 +144,7 @@ impl Remote {
                                 | Block::Opaque { .. } => None,
                             }
                         });
-                    let verdict = result.map_or("not run", returned_verdict);
+                    let verdict = result.map_or_else(|| "not run".to_owned(), |result| returned_words(result, cap));
                     let line = format!("\ntool {}: {verdict}\n", String::from_utf8_lossy(smith_events::clip(name)));
                     let remaining = cap.saturating_sub(text.len());
                     let bytes = line.as_bytes();
@@ -214,6 +214,19 @@ fn floor_boundary(text: &str, mut end: usize) -> usize {
     end
 }
 
+fn returned_words(result: &Returned, maximum: u32) -> String {
+    if let Returned::Owned { outcome: outcome @ smith_domain::tools::Outcome::Interrupted { .. } } = result {
+        let (text, _) = smith_protocol_llm::render_outcome(
+            outcome,
+            &smith_domain::tools::Namespace::One,
+            maximum.max(smith_protocol_llm::CUT_MARKER_BYTES),
+        )
+        .expect("bounded interrupted result");
+        return String::from_utf8(text.into_vec()).expect("rendered text is UTF-8");
+    }
+    returned_verdict(result).to_owned()
+}
+
 fn returned_verdict(result: &Returned) -> &'static str {
     use smith_domain::tools::{Exit, JobEnd, Mismatch, Outcome};
     match result {
@@ -233,6 +246,7 @@ fn returned_verdict(result: &Returned) -> &'static str {
             Outcome::Exited { exit: Exit::TimedOut, .. } | Outcome::TimedOut => "timed out",
             Outcome::Exited { .. } => "exited",
             Outcome::Running { .. } => "running",
+            Outcome::Interrupted { .. } => "interrupted by a worker restart",
             Outcome::Job { end, .. } => match end {
                 JobEnd::Running => "running",
                 JobEnd::Ended(Exit::TimedOut) => "timed out",
@@ -272,6 +286,22 @@ mod tests {
         llm::{Message, Usage as TurnUsage},
         record::Kind,
     };
+
+    #[test]
+    fn interrupted_tool_words_match_the_llm() {
+        let result = Returned::Owned {
+            outcome: smith_domain::tools::Outcome::Interrupted {
+                ran: Some(Duration::from_millis(42_900)),
+                head: b"building\n".as_slice().into(),
+                last: b"error: x\n".as_slice().into(),
+                dropped: 10,
+            },
+        };
+        assert_eq!(
+            returned_words(&result, 1024),
+            "interrupted by a worker restart after 42 s\nbuilding\n\n... 10 bytes dropped ...\nerror: x\n\nThis call may be run again."
+        );
+    }
 
     fn piece(turn: u32, retry: u32, offset: u64, bytes: &[u8]) -> LivePiece {
         LivePiece { turn, retry, offset, bytes: bytes.into() }
