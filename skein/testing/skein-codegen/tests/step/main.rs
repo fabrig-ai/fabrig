@@ -8,4 +8,6 @@ mod parse;
 mod values;
 
 #[cfg(test)]
+mod layout;
+#[cfg(test)]
 mod maps;

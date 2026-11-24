@@ -56,7 +56,7 @@ computes for them is said below (1 to 5).
   awaiting its delivery or stream acknowledgement waits on its child;
   repeating its ending is not finishing work. Sign-in expiry reaches the
   core through the people's timer (../people/README.md, section 3); stopping still
-  completes watch endings and the drain notification (`restart.md`, section 1).
+  completes watch endings and the drain notification (`restart.md`, section 5).
 - **An ended task or tree opens as a finished read**
   (`../../client/domain/contract/watches.md`, 1.2). Construction uses a bounded
   task load (`decisions.md`, 1.3), held behind preceding commits. The core
@@ -310,7 +310,11 @@ section 3):
     dependencies, its holds, its closing), or it has ended.
 
   The core computes it as it makes a line or a document, by a walk of
-  the task's live subtree, within tasks per tree. An entry for a party
+  the task's live subtree, within tasks per tree. It is the summary of
+  the task's waits (`waits.md`): the same walk makes them, and this
+  value comes from them by the rule above, so the two never disagree.
+  A line carries its first wait and its nearest bound beside it, and a
+  document every wait of the task's own (`waits.md`, 4). An entry for a party
   made or ended, and a delegate made or ended, touch every task along
   its lineage, within the depth limit, so their watches are marked
   (`views.md`).

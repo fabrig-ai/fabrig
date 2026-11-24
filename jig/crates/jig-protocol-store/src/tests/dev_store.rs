@@ -22,11 +22,12 @@ use skein_lib::{Buffer, Queue, Reader, Token};
 
 // Verbatim from 13efa774615022299aea9ed57b2577df517494ad, under
 // jig/crates/jig-protocol-store/schema/ and smith/crates/smith-transcript/schema/.
+pub(super) const CORE_SCHEMA: &str = include_str!("fixtures/dev-core-v6.schema");
 const TEXTS: [(&str, &str); 10] = [
     ("jig-store-component", include_str!("fixtures/dev-component-v3.schema")),
     ("jig-store-openings", include_str!("fixtures/dev-openings-v1.schema")),
     ("jig-store-registry", include_str!("fixtures/dev-registry-v1.schema")),
-    ("jig-store-core", include_str!("fixtures/dev-core-v6.schema")),
+    ("jig-store-core", CORE_SCHEMA),
     ("jig-store-tasks", include_str!("fixtures/dev-tasks-v13.schema")),
     ("jig-store-people", include_str!("fixtures/dev-people-v17.schema")),
     ("jig-store-notes", include_str!("fixtures/dev-notes-v1.schema")),

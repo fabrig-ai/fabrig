@@ -151,7 +151,7 @@ again.
 This applies to any other store, a laptop's box or a test deployment
 left behind: upgrade through the named builds where they serve it, or
 start afresh. Staging is made again at dev's build for each drill
-(`../draft/store-floor.md`, 6).
+(`../draft/archive/store-floor.md`, 6).
 
 ## 5. The golden store at the floor
 
@@ -238,7 +238,7 @@ start afresh. Staging is made again at dev's build for each drill
   records (jig's `client/domain/view-state.md`), against the texts of
   each build whose layouts dev.fabrig.ai's store holds:
   - **The builds:** `3d1c717d379e`, the floor's bridge, at whose layouts
-    F0 settled every value (`../draft/store-floor.md`, 2), and
+    F0 settled every value (`../draft/archive/store-floor.md`, 2), and
     `13efa77461`, the build dev.fabrig.ai runs. Each build's texts are
     kept verbatim, as `git show` gives them at that commit, under
     `temper/tests/codecs/deployed/<build>/`, one file per family named
@@ -334,7 +334,7 @@ The floor's number moves only when a landing drops a whole older
 form. That landing also names the bridge build and designs how its
 upgrade writes the new floor row, replaces the golden floor fixture,
 and keeps the named refusals true. Another store left behind uses
-those builds or starts afresh (`../draft/store-floor.md`, 6).
+those builds or starts afresh (`../draft/archive/store-floor.md`, 6).
 
 ## 9. Open questions
 

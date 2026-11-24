@@ -230,6 +230,7 @@ impl Driver {
 
     #[expect(clippy::too_many_lines, reason = "the world routes each root request in its collection pass")]
     pub fn collect(&mut self) {
+        self.store.record_wall = self.store.record_wall.max(self.root.core().inspection_wall());
         self.collected += u64::from(self.out.len());
         for _ in 0..self.out.len() {
             let request = self.out.pop().expect("output count");
@@ -469,6 +470,7 @@ impl Driver {
     }
 
     pub(crate) fn check_quiet(&mut self) {
+        self.checks.observe_wall(self.store.record_wall);
         self.checks.quiet(&self.root, self.env.now, self.iteration).unwrap_or_else(|finding| panic!("{finding}"));
     }
 

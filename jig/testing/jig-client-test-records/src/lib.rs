@@ -11,10 +11,32 @@ pub use owner::*;
 /// The stream's first record, with its implicit me delivery (protocol/client/wire.md, 2).
 #[must_use]
 pub fn opened(hello: w::Hello, me: w::Me) -> w::StreamEvent {
+    opened_with_layouts(hello, me, &[])
+}
+
+#[must_use]
+pub fn opened_with_layouts(hello: w::Hello, me: w::Me, applications: &[w::Layout]) -> w::StreamEvent {
     let value = w::DeliveryValue::Me(me);
     let record = value.encode(&w::CEILINGS).expect("fixture me fits");
-    let me = w::Owned { owner: w::Owner::Jig, version: jig_client_protocol_wire::VERSION, record };
-    w::StreamEvent::Opened(w::Opened { hello, me })
+    let me = w::Owned { owner: w::Owner::Jig, version: w::VERSION, record };
+    w::StreamEvent::Opened(w::Opened { hello, layouts: layouts(applications), me })
+}
+
+#[must_use]
+pub fn layouts(applications: &[w::Layout]) -> List<w::Layout> {
+    let mut layouts = List::with_capacity(
+        u32::try_from(applications.len()).expect("bounded fixture").checked_add(1).expect("jig included"),
+    );
+    layouts.push(w::Layout { owner: w::Owner::Jig, layout: w::LAYOUT }).expect("jig layout");
+    for layout in applications {
+        layouts.push(layout.clone()).expect("fixture layouts");
+    }
+    layouts
+}
+
+#[must_use]
+pub const fn family_layout(number: u16, layout: [u8; 32]) -> w::Layout {
+    w::Layout { owner: w::Owner::Family(w::Family { number }), layout }
 }
 
 #[must_use]
@@ -41,7 +63,8 @@ pub fn limits() -> w::Limits {
         current_call_input: 32,
         current_call_tool: 32,
         call_identity_id: 32,
-        cursor_value: 64,
+        // Leave 64 bytes of room plus the cursor's 32-byte layout.
+        cursor_value: 96,
         inbox_selection_goals: 2,
         me_projects: 512,
         document_specification_parameters: 2,
@@ -127,6 +150,10 @@ pub fn task_record() -> w::Task {
         made: 7,
         tasks_left: 5,
         waits_on: w::WaitsOn::Nothing,
+        wait: None,
+        nearest: None,
+        waits: List::with_capacity(0),
+        wait_count: 0,
         chip: chip_record(),
         goal: None,
         priority: None,
@@ -313,3 +340,6 @@ pub use activity_reads::*;
 
 pub mod settings;
 pub mod settings_proposals;
+
+mod waits;
+pub use waits::structured_waits;

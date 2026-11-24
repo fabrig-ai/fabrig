@@ -81,7 +81,7 @@ impl engine::Engine {
                 .push((project.number, project.policy.period_spend))
                 .or(Err(start_problem(b"projects", What::Bound)))?;
         }
-        let mut clients = clients::Clients::new(
+        let mut clients = Box::new(clients::Clients::new(
             &settings.directories,
             &settings.jig,
             &settings.clients,
@@ -90,7 +90,7 @@ impl engine::Engine {
             settings.sign_in.as_ref(),
             None,
             settings.files.entries.as_slice(),
-        )?;
+        )?);
         clients.program_environment.clone_from(&settings.program_environment);
         clients.deployment = crate::family::Deployment {
             program_login,

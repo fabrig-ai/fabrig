@@ -348,6 +348,7 @@ pub struct Domain {
     scripted_project_releases: Option<Queue<(u16, u32)>>,
     scripted_workspaces: Option<Queue<core::Event>>,
     scripted_parts: Option<Queue<(u16, core::PartsAsk)>>,
+    scripted_wait_reports: Option<Queue<core::Event>>,
     scripted_brief_failure: Option<jig_domain_brief::GatherFailure>,
     scripted_holdings: Option<Queue<core::Event>>,
     brief_failures: Queue<(u64, jig_domain_brief::GatherFailure)>,
@@ -391,6 +392,25 @@ impl Domain {
 
     pub fn take_parts(&mut self) -> Option<(u16, core::PartsAsk)> {
         self.scripted_parts.as_mut()?.pop()
+    }
+
+    /// Hold the fake connector's wait reports to expose the view before delivery.
+    pub fn script_wait_reports(&mut self) {
+        self.scripted_wait_reports = Some(Queue::uncapped());
+    }
+
+    pub fn take_wait_report(&mut self) -> Option<core::Event> {
+        self.scripted_wait_reports.as_mut()?.pop()
+    }
+
+    /// The latest report refusal delivered to the selected fake connector.
+    #[must_use]
+    pub const fn wait_refusal(&self, number: u16) -> Option<(u64, &'static str)> {
+        match number {
+            1 => self.first.wait_refusal(),
+            2 => self.second.wait_refusal(),
+            _ => None,
+        }
     }
 
     /// Hold workspace completions for deterministic preparation interleavings.
@@ -554,6 +574,7 @@ impl Domain {
             scripted_project_releases: None,
             scripted_workspaces: None,
             scripted_parts: None,
+            scripted_wait_reports: None,
             scripted_brief_failure: None,
             scripted_holdings: None,
             brief_failures: Queue::uncapped(),
@@ -1345,6 +1366,7 @@ fn restore_connector(domain: &mut Domain, env: &Env<Limits>, number: u16, record
             | connector::Request::Closed { .. }
             | connector::Request::Verdict { .. }
             | connector::Request::Step { .. }
+            | connector::Request::Waits { .. }
             | connector::Request::Answer { .. }
             | connector::Request::Ready { .. }
             | connector::Request::Section { .. }

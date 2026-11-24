@@ -183,7 +183,7 @@ it is read, by plans from the registry's texts, as a map value is
   text at 7 and its current at 8 (smith's `protocol/transcript.md`, 12).
   Each such frame's heads then name rows as any frame's do. A
   frames' family's `texts` keep this seed until dev.fabrig.ai's store
-  holds the rows (temper's `draft/store-floor.md`).
+  holds the rows (temper's `draft/archive/store-floor.md`).
 - **Planned at open,** each row of a frames' value type to the binary's
   layout, as a log-held value type's (`layouts.md`, 5.3; `logs.md`, 8):
   every layout is held, since no census counts frames, so one with no

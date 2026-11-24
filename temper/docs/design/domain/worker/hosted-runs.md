@@ -189,8 +189,8 @@ jig's types (jig's `domain/hosts/hub.md`, 3), with temper's detail:
   longer allowance, its detail on the task's hold (jig's
   `domain/tasks/lifecycle-holds.md`, 1). The detail names the worker, the
   workspace, the repository, the step, git's command and fault, and the
-  operation's and the prepare's times (`checkouts.md`, 1), and the worker
-  logs a line for it (`checkouts.md`, 1.3).
+  operation's and the prepare's times (`checkouts-prepare.md`, 12), and the worker
+  logs a line for it (`checkouts-prepare.md`, 12.3).
 - **The run failed,** the **agent failed,** or the run was
   **cancelled,** as jig's say, each with bounded detail for operators
   that no LLM is shown.
@@ -211,7 +211,7 @@ an oversized charter, transcript, grants or messages, and an invalid start;
 the invalid start names its cause and carries its decoding words. A
 failed run's line prints the worker's bounded failure detail whole, which
 the wire bounds at 4,096 bytes; past them it keeps the first 4,096, where a
-failed preparation's fields are (`checkouts.md`, 1.4). A refusal's line
+failed preparation's fields are (`checkouts-prepare.md`, 12.4). A refusal's line
 includes the last at most 4,096 bytes of its start words. Newlines,
 control bytes and non-ASCII bytes are escaped,
 so the record is one line. Acceptance emits it once; resending a kept
@@ -237,7 +237,7 @@ the attempt concludes, which may be much later.
 <ms> ms`, the run's no-progress deadline as its host limits derive it
 (smith's `domain/host.md`, section 4). The line goes through the
 worker's notes (`worker_alone`'s `Note`), which its shell writes, as a
-failed preparation's does (`checkouts.md`, 1.3), once per attempt: a
+failed preparation's does (`checkouts-prepare.md`, 12.3), once per attempt: a
 kept answer sent again after a relink logs none.
 
 **Each fetch and check out** a hold asks is logged by the worker as the
@@ -361,7 +361,7 @@ stay the operator's.
 ## 2. Open questions
 
 - **A hold naming an agent run's last failure.** Settled for a model
-  call's failure (the user, 2026-11-13; `../../draft/run-provider-outage.md`,
+  call's failure (the user, 2026-11-13; `../../draft/archive/run-provider-outage.md`,
   2): its hold names the call from structured fields alone, the endpoint,
   model, kind, evidence and status (`hosted-runs.md`, 1.3; jig's `domain/hosts/hub.md`, 3),
   and no free text. For any other run failure the question stands: an agent task held

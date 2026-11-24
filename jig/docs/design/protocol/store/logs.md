@@ -130,7 +130,7 @@ key's first field after the family's tag:
   place per task it writes history of; its bounds count them
   (`Check(Capacity)`).
 - **Every commit routes so,** a job's pages' included: every store at
-  the floor (temper's `draft/store-floor.md`, section 3) keeps its
+  the floor (temper's `draft/archive/store-floor.md`, section 3) keeps its
   history in its tasks' logs, and an empty store's first commit is
   routed as any other.
 
@@ -230,7 +230,7 @@ task logs this read has fetched. The jobs' pages read the map alone
 ## 6. History at the floor
 
 Every store at the floor keeps its history in task logs (temper's
-`draft/store-floor.md`, section 3). No backfill job runs at open;
+`draft/archive/store-floor.md`, section 3). No backfill job runs at open;
 every commit routes as 3 says.
 
 ## 7. Generations

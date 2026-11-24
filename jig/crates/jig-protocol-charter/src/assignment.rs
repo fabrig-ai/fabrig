@@ -15,7 +15,7 @@ use skein_lib::{Decimal, List};
 pub const CONTRACT_TEXT_MAX: u32 = 1024;
 /// Delivery requires passing checks (jig/docs/design/domain/hosts/charters.md).
 pub const CONTRACT_CHECKS_MUST_PASS: bool = true;
-/// Every run can wait (jig/docs/design/domain/hosts/charters.md, 1).
+/// Every run can wait (jig/docs/design/domain/hosts/charters.md, 4).
 pub const WAIT_GRANTED: bool = true;
 
 /// Build the charter translated by [`crate::charter`]. Sources are the

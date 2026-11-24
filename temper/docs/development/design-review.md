@@ -166,7 +166,7 @@ Kind: answered question. Owner: `temper/docs/design/client/README.md`.
 
 Kind: answered question. Owner: `temper/docs/design/domain/worker/checkouts.md`.
 
-"A push's message" in `temper/docs/design/domain/worker/checkouts.md`, 2 asks how the pull request takes the run's title/body and whether a squash keeps them. `temper/docs/design/domain/forge/change/README.md`, 1 already specifies the producer result's explicit title, its cut/default, and the pull's body source separately from the spec. Suggest removing the answered pull-metadata part and leaving only the squash-message question if still undecided. The whole mixed item cannot be settled by moving it.
+"A push's message" in `temper/docs/design/domain/worker/checkouts.md`, 30 asks how the pull request takes the run's title/body and whether a squash keeps them. `temper/docs/design/domain/forge/change/README.md`, 1 already specifies the producer result's explicit title, its cut/default, and the pull's body source separately from the spec. Suggest removing the answered pull-metadata part and leaving only the squash-message question if still undecided. The whole mixed item cannot be settled by moving it.
 
 ### 2.18 A12: The reference project's main-only rule
 
@@ -338,31 +338,31 @@ Map item 25: `temper/docs/design/domain/agent/README.md`, 8 → `temper/docs/des
 
 ### 3.26 A workflow that runs on no pull request
 
-Map item 26: `temper/docs/design/domain/forge/README.md`, 11 → `temper/docs/design/domain/forge/adoption.md`, 10.
+Map item 26: `temper/docs/design/domain/forge/README.md`, 11 → `temper/docs/design/domain/forge/adoption.md`, 14.
 
 ### 3.27 What a refused copy leaves
 
-Map item 27: `temper/docs/design/domain/forge/README.md`, 11 → `temper/docs/design/domain/forge/adoption.md`, 10.
+Map item 27: `temper/docs/design/domain/forge/README.md`, 11 → `temper/docs/design/domain/forge/adoption.md`, 14.
 
 ### 3.28 A merge style per repository,
 
-Map item 28: `temper/docs/design/domain/forge/README.md`, 11 → `temper/docs/design/domain/forge/adoption.md`, 10.
+Map item 28: `temper/docs/design/domain/forge/README.md`, 11 → `temper/docs/design/domain/forge/adoption.md`, 14.
 
 ### 3.29 A change whose forge is not connected,
 
-Map item 29: `temper/docs/design/domain/forge/README.md`, 11 → `temper/docs/design/domain/forge/adoption.md`, 10.
+Map item 29: `temper/docs/design/domain/forge/README.md`, 11 → `temper/docs/design/domain/forge/adoption.md`, 14.
 
 ### 3.30 `Forbidden` and `Missing` taken as access lacking
 
-Map item 30: `temper/docs/design/domain/forge/README.md`, 11 → `temper/docs/design/domain/forge/adoption.md`, 10.
+Map item 30: `temper/docs/design/domain/forge/README.md`, 11 → `temper/docs/design/domain/forge/adoption.md`, 14.
 
 ### 3.31 Signed commits required
 
-Map item 31: `temper/docs/design/domain/forge/README.md`, 11 → `temper/docs/design/domain/forge/adoption.md`, 10.
+Map item 31: `temper/docs/design/domain/forge/README.md`, 11 → `temper/docs/design/domain/forge/adoption.md`, 14.
 
 ### 3.32 Connecting a forge as another user
 
-Map item 32: `temper/docs/design/domain/forge/README.md`, 11 → `temper/docs/design/domain/forge/adoption.md`, 10.
+Map item 32: `temper/docs/design/domain/forge/README.md`, 11 → `temper/docs/design/domain/forge/adoption.md`, 14.
 
 ### 3.33 Saved branches outside the task's saved set
 
@@ -470,23 +470,23 @@ Map item 58: `temper/docs/design/domain/forge/README.md`, 11 → `temper/docs/de
 
 ### 3.59 A landing branch with another name than `main`
 
-Map item 59: `temper/docs/design/protocol/configuration/README.md`, 9 → `temper/docs/design/protocol/configuration/stock.md`, 1.
+Map item 59: `temper/docs/design/protocol/configuration/README.md`, 9 → `temper/docs/design/protocol/configuration/stock.md`, 9.
 
 ### 3.60 A chat checking the forge before declaring a repository absent
 
-Map item 60: `temper/docs/design/protocol/configuration/README.md`, 9 → `temper/docs/design/protocol/configuration/stock.md`, 1.
+Map item 60: `temper/docs/design/protocol/configuration/README.md`, 9 → `temper/docs/design/protocol/configuration/stock.md`, 9.
 
 ### 3.61 The reference's later runs
 
-Map item 61: `temper/docs/design/protocol/configuration/README.md`, 9 → `temper/docs/design/protocol/configuration/reference.md`, 1.
+Map item 61: `temper/docs/design/protocol/configuration/README.md`, 9 → `temper/docs/design/protocol/configuration/reference.md`, 5.
 
 ### 3.62 The checks' deadline
 
-Map item 62: `temper/docs/design/protocol/configuration/README.md`, 9 → `temper/docs/design/protocol/configuration/reference.md`, 1.
+Map item 62: `temper/docs/design/protocol/configuration/README.md`, 9 → `temper/docs/design/protocol/configuration/reference.md`, 5.
 
 ### 3.63 Who writes the case's workflows
 
-Map item 63: `temper/docs/design/protocol/configuration/README.md`, 9 → `temper/docs/design/protocol/configuration/reference.md`, 1.
+Map item 63: `temper/docs/design/protocol/configuration/README.md`, 9 → `temper/docs/design/protocol/configuration/reference.md`, 5.
 
 ### 3.64 Settings refusal positions
 
@@ -578,15 +578,15 @@ Map item 85: `temper/docs/design/protocol/setup/README.md`, 10 → `temper/docs/
 
 ### 3.86 A start holding the engine's documents to temper's clients
 
-Map item 86: `temper/docs/design/protocol/setup/README.md`, 9 → `temper/docs/design/protocol/setup/init.md`, 4.
+Map item 86: `temper/docs/design/protocol/setup/README.md`, 9 → `temper/docs/design/protocol/setup/init.md`, 7.
 
 ### 3.87 The deployment's own UX
 
-Map item 87: `temper/docs/design/protocol/setup/README.md`, 9 → `temper/docs/design/protocol/setup/init.md`, 4.
+Map item 87: `temper/docs/design/protocol/setup/README.md`, 9 → `temper/docs/design/protocol/setup/init.md`, 7.
 
 ### 3.88 Flags of their own
 
-Map item 88: `temper/docs/design/protocol/setup/README.md`, 9 → `temper/docs/design/protocol/setup/init.md`, 4.
+Map item 88: `temper/docs/design/protocol/setup/README.md`, 9 → `temper/docs/design/protocol/setup/init.md`, 7.
 
 ### 3.89 An owned forge made managed
 
@@ -751,11 +751,11 @@ Map item 128: `temper/docs/design/domain/agent/README.md`, 8 → `temper/docs/de
 
 ### 3.129 A closer's stops on a goal's path
 
-Map item 129: `temper/docs/design/domain/forge/README.md`, 11 → `temper/docs/design/domain/forge/change/branch-path.md`, 1.
+Map item 129: `temper/docs/design/domain/forge/README.md`, 11 → `temper/docs/design/domain/forge/change/branch-path.md`, 8.
 
 ### 3.130 A close-out's own charter
 
-Map item 130: `temper/docs/design/domain/forge/README.md`, 11 → `temper/docs/design/domain/forge/change/branch-path.md`, 1.
+Map item 130: `temper/docs/design/domain/forge/README.md`, 11 → `temper/docs/design/domain/forge/change/branch-path.md`, 8.
 
 ### 3.131 Project-scoped rules on a real forge
 
@@ -779,7 +779,7 @@ Map item 135: `temper/docs/design/domain/forge/README.md`, 11 → `temper/docs/d
 
 ### 3.136 Ask temper's real-model walk
 
-Map item 136: `temper/docs/design/protocol/configuration/README.md`, 9 → `temper/docs/design/protocol/configuration/stock.md`, 1.
+Map item 136: `temper/docs/design/protocol/configuration/README.md`, 9 → `temper/docs/design/protocol/configuration/stock.md`, 9.
 
 ### 3.137 A page refused busy
 
@@ -791,23 +791,23 @@ Map item 138: `temper/docs/design/protocol/configuration/README.md`, 9 → `temp
 
 ### 3.139 Four agents on a laptop
 
-Map item 139: `temper/docs/design/protocol/setup/README.md`, 9 → `temper/docs/design/protocol/setup/init.md`, 4.
+Map item 139: `temper/docs/design/protocol/setup/README.md`, 9 → `temper/docs/design/protocol/setup/init.md`, 7.
 
 ### 3.140 Discovering models per account
 
-Map item 140: `temper/docs/design/protocol/setup/README.md`, 9 → `temper/docs/design/protocol/setup/init.md`, 4.
+Map item 140: `temper/docs/design/protocol/setup/README.md`, 9 → `temper/docs/design/protocol/setup/init.md`, 7.
 
 ### 3.141 The LLM providers out of the document,
 
-Map item 141: `temper/docs/design/protocol/setup/README.md`, 9 → `temper/docs/design/protocol/setup/init.md`, 4.
+Map item 141: `temper/docs/design/protocol/setup/README.md`, 9 → `temper/docs/design/protocol/setup/init.md`, 7.
 
 ### 3.142 Good defaults for a person's real work
 
-Map item 142: `temper/docs/design/protocol/setup/README.md`, 10 → `temper/docs/design/protocol/setup/init.md`, 4.
+Map item 142: `temper/docs/design/protocol/setup/README.md`, 10 → `temper/docs/design/protocol/setup/init.md`, 7.
 
 ### 3.143 A task's text past what the clients receive
 
-Map item 143: `temper/docs/design/protocol/setup/README.md`, 10 → `temper/docs/design/protocol/setup/init.md`, 4.
+Map item 143: `temper/docs/design/protocol/setup/README.md`, 10 → `temper/docs/design/protocol/setup/init.md`, 7.
 
 ### 3.144 A handover made by a Forgejo's own restart
 

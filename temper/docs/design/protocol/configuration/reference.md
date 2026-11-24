@@ -9,6 +9,8 @@ text (`../../draft/stock-charters.md`, 6), so that its runs read the
 stock's words and a release's new stock reaches it with the overlays in
 place (jig's `domain/engine/overlays.md`).
 
+## 1. Applying the reference settings
+
 - **A settings file,** `docs/examples/reference/settings.json`, in the
   form `temper ctl settings apply` reads (`../../client/ctl/tools-acts.md`, 1;
   `../../client/ctl/overlays.md`, 1). An owner applies it once, after the
@@ -27,7 +29,7 @@ place (jig's `domain/engine/overlays.md`).
     instructions and no parts: its runs read the stock's charter 5, the
     designer at its first run and the coordinator at each later wake, in
     parts, under the stock's wake policy (`stock.md`;
-    `../../draft/stock-charters.md`, 2, and `../../draft/stock-charters-texts.md`, 1);
+    `../../draft/stock-charters.md`, 2, and `../../draft/archive/stock-charters-texts.md`, 1);
   - *charter 2's overlay, the implementer's:* gpt-6.1-sol as the document
     configures it, with no alternatives; the same run, reserve and
     spend; smith's shell family (`shell` and `job`: smith's
@@ -53,6 +55,9 @@ place (jig's `domain/engine/overlays.md`).
   for the path to draw. The reference's own value, design and no
   close-out, was its own charter 5's, which delivered the shared design
   as a designer's change, and went with it.
+
+## 2. Policy, charters and landing rules
+
 - **The rules and policy 1** are changed on the box from their current
   values, which hold the deployment's own budgets (`stock.md`): read with
   `temper ctl settings show --json`, charter 5, the merge kind, job 3,
@@ -101,6 +106,9 @@ place (jig's `domain/engine/overlays.md`).
   `docs/examples/reference/landing.json` is the document's
   `application.landing` (`engine.md`), which the walk's document carries:
   project 1's `merge_job`, `.temper/merge`, and its tiers (below).
+
+## 3. Tiers and the limit profile
+
 - **The tiers,** in the same member, project 1's `gates` entry for its
   repository (`forge` and `repository` filled in as the rules' host and
   name are), with no gate and two tiers (`../../domain/after-landing-runs.md`,
@@ -193,6 +201,9 @@ place (jig's `domain/engine/overlays.md`).
   as `tasks.tree_tasks`, 32 deep as the stock's. A limit the start's
   checks ask to move with these moves with them, sized, and
   the reference's limit settings hold it.
+
+## 4. Repository files and checks
+
 - **What the repository carries:** the merge commit is its merge style
   on its forge, the repository's default on Forgejo
   (`../../domain/forge/adoption.md`), set where the repository is made;
@@ -252,7 +263,7 @@ place (jig's `domain/engine/overlays.md`).
   under the reference's fields, never an item's text
   (`../../draft/stock-charters.md`, 8).
 
-## 1. Open questions
+## 5. Open questions
 
 - **The reference's later runs** (`reference.md`; `../../draft/per-wake.md`,
   sections 10 and 11): compare high with medium after observing runs

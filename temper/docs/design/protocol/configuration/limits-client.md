@@ -26,7 +26,7 @@ This document holds the engine and client bounds, split from [`limits.md`](limit
   must be within what temper's client takes: its client takes
   `jig-client`'s limits from jig's small profile with the same
   `documents.` overrides the owned example's `engine.limits` names
-  (`../../client/README.md`, section 2; ../setup/init.md, 1). The engine cuts each
+  (`../../client/README.md`, section 2; ../setup/init.md, 4). The engine cuts each
   text to its bound and says so (jig's `client/domain/contract/documents.md`,
   3). It checks none of this at start: it serves whatever client the
   deployment lets in, whose limits are the client's. A test holds the
@@ -120,7 +120,7 @@ This document holds the engine and client bounds, split from [`limits.md`](limit
   takes an authority's entries, 16, apart from its rows (jig's
   `client/domain/client/README.md`, section 11): the most the process tier and
   the owned example admit in a list, their `authority.grants` and
-  `tasks.authority_grants` (../setup/init.md, 1). A long authority shows
+  `tasks.authority_grants` (../setup/init.md, 4). A long authority shows
   in part, with jig's mark (`temper/docs/design/client/view.md`, 4). The test above holds
   the engine's bounds on an authority's lists to temper's client's.
 

@@ -68,7 +68,7 @@ configuration/limits.md).
 |---|---|---|---|---|
 | 0 | `Call` | `Call(NamedCall)`: task, attempt, completion, position | the connector's part of a live named call | `named_calls` |
 | 1 | `ProposedEffect` | `ProposedEffect(u64)`: the proposal's number | an effect awaiting an authority holder's decision | `tasks` |
-| 2 | `Repository` | `Repository(Repository)`: forge, repository | an adopted repository: its project, role, kinds, protection, settings, CI workflows (`../domain/forge/adoption.md`, 7) and landing branch (`../domain/forge/adoption.md`, 8) | `repositories` |
+| 2 | `Repository` | `Repository(Repository)`: forge, repository | an adopted repository: its project, role, kinds, protection, settings, CI workflows (`../domain/forge/adoption.md`, 11) and landing branch (`../domain/forge/adoption.md`, 12) | `repositories` |
 | 3 | `Hold` | `Hold(Name)` | a held resource: its task, writers, drift and heads beside (`../domain/forge/branches.md`, 3) | `holds` |
 | 4 | `Names` | `Names(u64)`: the task | the resources one live task names; or a kept task's: the repositories its names lie in, kept from its release until jig erases the task (`../domain/forge/adoption-connection.md`, 1) | `tasks` live rows, and `repositories` kept ones |
 | 5 | `Subscription` | `Subscription { task, topic }` | one task's subscription to a topic | `subscriptions` |
@@ -81,7 +81,7 @@ configuration/limits.md).
 | 12 | `Change` | `Change(u64)`: the task | reserved (jig's `protocol/store/layouts.md`, 2): its byte lies outside `temper-store`'s keys and its value type's number is never given again; no row holds it and `Row` has no `change` variant (`store-versions.md`, section 1); it held a change's record whole, which families 47 and 48 hold in two parts (below); the record is a change procedure's state, with its last producer's failure words (`producer_failure`, fitted to the hold's account bytes and cut with `...`; a new delegate or a producer's success clears them), which become a producing hold's account (`../domain/forge/change/repairs.md`); and its questions: its route, those taken since its making or last release, and its open questions, each with its asker, number, words whole, first line and where it stands, an answer held with its words (`../domain/forge/change/questions.md`, 1); and `signed`, the sign-offs its last admitted merge counted, at most 8, each a person, a head and a wall time (`../domain/forge/change/gates.md`, 2, *Sign-offs kept at landing*) | `changes` |
 | 13 | `Issue` | `Issue(u64)`: the goal | a goal's issue projection | `issues` |
 | 14 | `Release` | `Release(u64)`: the task | a closing task's release | `tasks` |
-| 15 | `Application` | `Application(u64)`: the people child's token for the request | a keyed adoption's outcome, or a keyed outcome of the FORGE family, kept until its retention ends or erased earlier to make room for a newer request (`../domain/forge/adoption.md`, 9; jig's `domain/connectors-facts.md`, 1.5: a connector keeps its keyed requests' outcomes durably); an outcome carrying a link is kept in memory alone, until its state's life ends (`setup.state_life_ms` after `Done`; `../client/engine.md`) | `applications` |
+| 15 | `Application` | `Application(u64)`: the people child's token for the request | a keyed adoption's outcome, or a keyed outcome of the FORGE family, kept until its retention ends or erased earlier to make room for a newer request (`../domain/forge/adoption.md`, 13; jig's `domain/connectors-facts.md`, 1.5: a connector keeps its keyed requests' outcomes durably); an outcome carrying a link is kept in memory alone, until its state's life ends (`setup.state_life_ms` after `Done`; `../client/engine.md`) | `applications` |
 | 16 | `Writer` | `Writer(forge)`: the forge's number | the forge's writer, given at runtime from its connect's user (skein's `forge/client-effects.md`, 1.1; credentials.md, section 5), restored at start so that restored effects never meet `Forbidden`; erased in its forge's removal's decision (forge/engine.md, 3) | `forges`, the forges kept |
 | 17 | reserved | none | no row: the byte is never reused | none |
 | 18 | `Binding` | `Binding(address)`: a member's address, ASCII letters folded to lower case | the Google subject that first signed in with that member's address, `{ address, subject }`, the subject at most 255 bytes (`sign-in.md`, section 5). Written by the first sign-in alone, never erased. A family of the forge connector's though it is people's, as `Playground` is: `Stored` holds every family of temper's, restored in the one restart step and written in the root's decisions, so it takes no range of its own | `bindings`, the configured members |
@@ -114,7 +114,7 @@ configuration/limits.md).
   names no forge's user. Only the forge's `user_key` and `key_user` know this
   form. No migration rewrites other forms and no `STORE_VERSION` change
   accompanies this subject: no supported deployment requires compatibility.
-- **The repositories being made** (`../domain/forge/adoption.md`, 5), 35
+- **The repositories being made** (`../domain/forge/adoption.md`, 9), 35
   `Making`, keyed `Making { forge, org, name }`: one row per name a
   forge is making, holding what was asked (`from`, an address or
   nothing; `into`, the project, whether it is its home and the forge's

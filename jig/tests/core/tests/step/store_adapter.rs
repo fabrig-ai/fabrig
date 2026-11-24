@@ -26,6 +26,7 @@ fn header(commits: u64) -> root::Write {
         connector_rows: 0,
         projects: 0,
         restart_wait_ms: None,
+        wait_floors: None,
         applications: 0,
         commits,
     }))

@@ -13,7 +13,7 @@ This document holds the Model step, split from [`welcome.md`](welcome.md).
     (the user, 2026-11-04: a key is added from the accounts page),
     Claude's first and the default, outlined as the default, its act the
     step's one primary, now that its sign-in asks for nothing to be typed
-    (the user, 2026-11-12; `../../draft/claude-sign-in.md`, 2):
+    (the user, 2026-11-12; `../../draft/archive/claude-sign-in.md`, 2):
     "Claude", for `anthropic`, "Your Claude subscription, through a
     Claude Code temper keeps apart from your own."; then, in its two
     forms:
@@ -106,7 +106,7 @@ This document holds the Model step, split from [`welcome.md`](welcome.md).
     "Open the sign-in page", printed with the address (`../line.md`, 5). `ConnectModel`
     draws the same note, link and disclosure.
 
-    *Claude Code's sign-in* (`../../draft/claude-sign-in.md`, 2, pages 01
+    *Claude Code's sign-in* (`../../draft/archive/claude-sign-in.md`, 2, pages 01
     to 05 of `../web/claude-sign-in/`): "Sign in to Claude Code" sends
     jig's `LoginProgram { provider, name }` for `anthropic`, the holder the
     person, under NAME, the program's default name (`accounts-words.md`, 1), so

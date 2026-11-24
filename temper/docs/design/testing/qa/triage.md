@@ -1,8 +1,8 @@
 # Triage
 
 Provisional, 2026-11-12, revised 2026-11-18, from
-`../../draft/landed-qa.md`, section 4, milestones Q1 and Q6 of
-`../../draft/landed-qa.execution.md`. How each landing
+`../../draft/archive/landed-qa.md`, section 4, milestones Q1 and Q6 of
+`../../draft/archive/landed-qa.execution.md`. How each landing
 is judged for what a person now meets: an agent session per landing, in
 main's order, answering no QA, cases or gaps through the ledger's commands.
 
@@ -59,7 +59,7 @@ the loop's step's
 `brief`, given on the agent's stdin, written by code from these, in
 this order:
 
-- **What triage is,** from `../../draft/landed-qa.md`, 4: what a person
+- **What triage is,** from `../../draft/archive/landed-qa.md`, 4: what a person
   now sees or does through the configured surfaces alone
   (`README.md`, 3.2), named in the opening words: with `["ctl"]`,
   through ctl; with all three, through ctl, the web client or the TUI.
@@ -78,7 +78,7 @@ this order:
   tried; no QA, with a line why, when the landing changes nothing a
   person meets there; the fakes
   alone, the person's forge the box's fake Forgejo; what a person
-  meets that these cannot show is a gap (`../../draft/landed-qa.md`,
+  meets that these cannot show is a gap (`../../draft/archive/landed-qa.md`,
   6 and 12); reading alone, no box started, within its bound.
 - **The landing:** its number, goal, pull request, merge commit and
   title.
@@ -94,7 +94,7 @@ this order:
 - **Its stat,** written by the tool from the paths `git diff --numstat
   BASE MERGE` gives with their added and deleted lines, BASE the landing's
   base (`landings.md`, 4), so that a
-  landing of goldens stays cheap to read (`../../draft/landed-qa.md`, 4):
+  landing of goldens stays cheap to read (`../../draft/archive/landed-qa.md`, 4):
   - **a generated directory** is a path's leading part up to and
     including its first segment named `generated` or `golden`
     (`crates/X/src/generated/`, `crates/X/golden/`), or
@@ -129,11 +129,11 @@ this order:
 
   These names are the session's `pages`.
 - **The setups' catalogue,** a line each, with its kind
-  (`../../draft/landed-qa.md`, 4): `fresh (box)`, a fresh box at its
+  (`../../draft/archive/landed-qa.md`, 4): `fresh (box)`, a fresh box at its
   welcome with nothing set up; then each directory under
   `temper/docs/development/qa/setups/` at MERGE, its name, its kind in
   parentheses, `(box)` or `(deployment)`, and its `README.md`'s first
-  paragraph (`../../draft/landed-qa.md`, 5). A recipe's kind is its
+  paragraph (`../../draft/archive/landed-qa.md`, 5). A recipe's kind is its
   chain's root's (`../../client/recipe.md`, 2): the tool follows each
   `recipe`'s `after` line to the root, through at most eight parents,
   and the root holding `config/` is a deployment's; a chain it cannot
@@ -259,6 +259,6 @@ kept build holding the closing landing's (`ledger.md`, 4.18).
 ## 7. Later
 
 - **A security hole or lost data** seen in triage is a finding
-  wherever it is (`../../draft/landed-qa.md`, 4), once findings are
+  wherever it is (`../../draft/archive/landed-qa.md`, 4), once findings are
   recorded, in Q3.
 - **Sessions' directories** are kept; their retention waits for a need.

@@ -165,7 +165,7 @@ record Writable    { push: bytes  expected: option fixed 32  landing: option byt
   one that names a head is refused at the engine as untranslated, and
   waits for a worker that reads it (`wires.md`, section 5). Only an assignment
   carries it, never a message to a running attempt, so the change is not
-  breaking (`../draft/redeploys.md`, 4.3).
+  breaking (`../draft/archive/redeploys.md`, 4.3).
 - **A named pin.** `pin` is the commit prepare points
   `refs/temper/landing` at in place of the head the delivery replaces
   (`../domain/worker/checkouts.md`, *A named pin*). The engine's item
@@ -179,7 +179,7 @@ record Writable    { push: bytes  expected: option fixed 32  landing: option byt
   goes down as it was, and one that names a commit is refused at the
   engine as untranslated, and waits for a worker that reads it
   (`wires.md`, section 5). Only an assignment carries it, so the change
-  is not breaking (`../draft/redeploys.md`, 4.3).
+  is not breaking (`../draft/archive/redeploys.md`, 4.3).
 - **Saving.** The engine's routing sets jig's `save` from the typed
   `run.policy.resume`, including the first attempt before a transcript
   exists, and carries each repository's destination in its `save`

@@ -3,7 +3,7 @@
 Nothing is handed in: no input takes a record, no tool reads another
 program's login, and a ChatGPT account comes only from a sign-in
 (../protocol/credentials-llm-accounts.md, section 1), on the owned example's
-registration (../protocol/setup/init.md, 1). The one exception is a held
+registration (../protocol/setup/init.md, 4). The one exception is a held
 record, a person's signed-in ChatGPT account moved in by `temper ctl
 account import` and back by `account export`, never copied, which the
 owned-forge landing story and the ladder's rungs take when given one
@@ -14,10 +14,12 @@ printed or copied by the story (below).
 `bin/temper-box/tests/live.rs`, after jig's (jig's `protocol/service-testing.md`,
 section 1; skein/docs/foundation/testing-strategy.md, 2.9).
 
+## 1. Services and live accounts
+
 - **What runs:** the process tier's binary, owned Forgejo, real git and
   person, with a real model: the live configuration, a configuration
   directory (../protocol/configuration/directories.md), is the owned
-  example's (../protocol/setup/init.md, 1), its LLM providers'
+  example's (../protocol/setup/init.md, 4), its LLM providers'
   endpoints the providers' own and Claude Code's path the machine's
   `claude`. Each run is a fresh deployment, with no LLM account until
   the script adds one, in place of the process tier's key (`process-tier.md`, step
@@ -59,6 +61,9 @@ section 1; skein/docs/foundation/testing-strategy.md, 2.9).
   by the GitHub story below and by skein's opt-in conformance (skein's
   `testing/fakes/github.md`, section 2), each run by hand by the developer who
   holds the probe App's fixtures (`tiers.md`, section 1), never by an implementer.
+
+## 2. Landing stories on an owned forge
+
 - **The stories:** the process tier's chat, answered by the real model;
   and one small change, made by the model in a repository of the owned
   Forgejo, adopted as in `process-tier.md`, and pushed by real git. The story ends
@@ -122,8 +127,8 @@ section 1; skein/docs/foundation/testing-strategy.md, 2.9).
   - **A failure says why:** once a sitting has returned with a finding,
     before the test fails with it, the story prints each run the box's
     serve log records as failed or refused, serve's operator line
-    (`../domain/worker/hosted-runs.md`, 1.3; `../domain/worker/checkouts.md`,
-    1.4): its task, run, attempt and jig's failure, then its detail,
+    (`../domain/worker/hosted-runs.md`, 1.3; `../domain/worker/checkouts-prepare.md`,
+    12.4): its task, run, attempt and jig's failure, then its detail,
     the agent's last error. Each line goes out redacted as every notice
     is, and the redaction also masks an `x-api-key` header's value and
     an Anthropic key (`sk-ant-`). Task JSON alone can't say why: a run's
@@ -230,9 +235,12 @@ section 1; skein/docs/foundation/testing-strategy.md, 2.9).
   than 25. Each run's summary, a failed run's included, records its
   completions and its wall time. Nothing in the test catches a panic for
   it: a sitting's checks return their findings, and the test writes the
-  summary before it fails with one (`../draft/panics.md`, 4). A panic
+  summary before it fails with one (`../draft/archive/panics.md`, 4). A panic
   of our own code ends the test without it, and the launcher's lines
   say what it returned and stopped.
+
+## 3. GitHub landing and restart
+
 - **A chat's change lands on github.com, through a restart,** a test
   of its own, `bin/temper-box/tests/live_github.rs`, run by
   `scripts/proof-live-github.sh OWNER`, `OWNER` the org `fabrig-ai` and
@@ -326,7 +334,7 @@ section 1; skein/docs/foundation/testing-strategy.md, 2.9).
     teardown, and the teardown returns its own, a branch or a pull it
     could not remove or a token it could not revoke, after trying
     every one; the test fails with the story's finding first. Nothing
-    in the test catches a panic for it (`../draft/panics.md`, 5). The
+    in the test catches a panic for it (`../draft/archive/panics.md`, 5). The
     landed file stays on main, one a run. When the teardown did not
     finish, a panic of our own code or a signal having ended the test
     first, the script, once the test process has ended (on a signal it
@@ -353,6 +361,9 @@ section 1; skein/docs/foundation/testing-strategy.md, 2.9).
     (making the App, installing it) are the fixtures', made once by
     hand, and a failing or stalled check is the process tier's on
     fakes.
+
+## 4. The live ladder
+
 - **The ladder's rungs,** a live story of their own each once its
   acceptance story (`../../development/acceptance.md`) passes on real
   backends (`../draft/v0.1.0.md`, 3): the acceptance story's steps as a
@@ -390,6 +401,9 @@ section 1; skein/docs/foundation/testing-strategy.md, 2.9).
   - **Its other pairs** come as the rung's walks with GitHub and with
     Claude pass (`../draft/v0.1.0.md`, 2.2): the same story, its forge
     or its model named by the script's argument.
+
+## 5. After-landing runs and account return
+
 - **After every landing,** the owned-forge landing pair, needing no person:
   `a_person_asks_claude_on_an_api_key_to_land_a_change_on_the_owned_forge` on an
   Anthropic API key (`TEMPER_TEST_LIVE_ANTHROPIC_KEY`) and
@@ -423,7 +437,7 @@ section 1; skein/docs/foundation/testing-strategy.md, 2.9).
     pair. Never at the gate, and never run by an implementer.
 - **The held record's return,** for each story that moves a held record
   in, the ChatGPT landing story and B0's rung: the launcher's, once the
-  test process has ended, however it ended (`../draft/panics.md`, 5).
+  test process has ended, however it ended (`../draft/archive/panics.md`, 5).
   Each box of a story still returns the record before it stops, as its
   own act (above); this return is for whatever ends a sitting first, a
   panic, an abort, a failed return or a signal. Nothing in the test
@@ -465,6 +479,9 @@ section 1; skein/docs/foundation/testing-strategy.md, 2.9).
   launcher (`bin/temper-box/tests/proof_live.rs`). A held Claude Code login is used in place
   and has no return: the launcher checks it by `stat` once every process
   has stopped.
+
+## 6. Running tests with live inputs
+
 - **What needs a person,** seven tests, each ignored, its reason naming what
   only a person gives, and each run by its script. None runs on a scripted
   person alone: each needs a person's account, key or sign-in, or

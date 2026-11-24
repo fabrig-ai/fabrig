@@ -3,13 +3,13 @@ use crate::{Call, Mapping};
 use alloc::boxed::Box;
 #[expect(clippy::disallowed_types, reason = "the public HTTP boundary specifies kept headers as String pairs")]
 use alloc::string::String;
-use skein_lib::{Decimal, List, Writer};
+use skein_lib::{Decimal, List, Writer, bytes::hex_digit};
 
 pub const PUBLIC_KEEP: &[&str] = &["cache-control", "age", "retry-after"];
 #[derive(Debug, PartialEq, Eq)]
 pub struct PublicPath {
     pub owner: u16,
-    pub version: u16,
+    pub layout: [u8; 32],
     pub kind: u16,
     pub ids: List<u64>,
 }
@@ -22,33 +22,34 @@ pub fn public(mapping: &Mapping, path: &PublicPath) -> Call {
 #[must_use]
 pub fn public_target(path: &PublicPath) -> Box<[u8]> {
     assert!(path.ids.len() <= 2, "a public read has at most two identifiers");
-    let mut size = b"/v1/public".len();
-    for number in [path.owner, path.version, path.kind] {
-        size = size
-            .checked_add(1)
-            .expect("separator")
-            .checked_add(Decimal::of(u64::from(number)).as_bytes().len())
-            .expect("decimal");
-    }
-    size = size
+    let owner = Decimal::of(u64::from(path.owner));
+    let kind = Decimal::of(u64::from(path.kind));
+    let size = b"/v1/public///"
+        .len()
+        .checked_add(64)
+        .expect("layout")
+        .checked_add(owner.as_bytes().len())
+        .expect("owner")
+        .checked_add(kind.as_bytes().len())
+        .expect("kind")
         .checked_add(skein_lib::length::usize_of(path.ids.len()).checked_mul(17).expect("two identifiers"))
         .expect("public target");
     let mut target = Writer::new(size);
-    target.put(b"/v1/public").expect("public prefix");
-    for number in [path.owner, path.version, path.kind] {
-        target.put(b"/").expect("separator");
-        target.put(Decimal::of(u64::from(number)).as_bytes()).expect("decimal");
-    }
+    target.put(b"/v1/public/").expect("public prefix");
+    target.put(owner.as_bytes()).expect("owner");
+    hex_segment(&mut target, &path.layout);
+    target.put(b"/").expect("separator");
+    target.put(kind.as_bytes()).expect("kind");
     for id in &path.ids {
-        target.put(b"/").expect("separator");
-        for shift in (0..16_u32).rev() {
-            let shift = shift.checked_mul(4).expect("hex shift");
-            let digit = u8::try_from(id.checked_shr(shift).expect("hex shift") & 15).expect("hex digit");
-            let byte = if digit < 10 { b'0'.checked_add(digit) } else { b'a'.checked_add(digit.saturating_sub(10)) };
-            target.put(&[byte.expect("hex byte")]).expect("identifier");
-        }
+        hex_segment(&mut target, &id.to_be_bytes());
     }
     target.finish()
+}
+fn hex_segment(target: &mut Writer, bytes: &[u8]) {
+    target.put(b"/").expect("separator");
+    for byte in bytes {
+        target.put(&[hex_digit(*byte >> 4_u32), hex_digit(*byte)]).expect("hex byte");
+    }
 }
 #[derive(Debug, PartialEq, Eq)]
 pub struct Freshness {

@@ -157,7 +157,9 @@ condition on the facts, armed with a deadline past which it stalls.
 
 Each procedure declares its limits: remediations, retries, the stall of
 each wait. Past one, it holds its task, saying why, and its requester
-hears (tasks/lifecycle-holds.md, 1).
+hears (tasks/lifecycle-holds.md, 1). Its connector reports each wait its
+task is in to the core, as the record every task's wait is, with that
+stall as its bound (`engine/waits.md`, 6).
 
 ### 1.6 Standing procedures
 

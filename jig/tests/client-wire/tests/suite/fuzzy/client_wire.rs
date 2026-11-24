@@ -35,6 +35,7 @@ fn records_1(bytes: &[u8]) {
     check!(Owner, bytes);
     check!(Keyed, bytes);
     check!(Owned, bytes);
+    check!(Layout, bytes);
     check!(Opened, bytes);
     check!(StreamEvent, bytes);
     check!(KeyedAnswer, bytes);
@@ -712,10 +713,17 @@ fn mutation_seed(name: &str) -> bool {
             "record_authorize_",
             "enum_authorize_",
             "record_hello_",
+            "record_layout_",
             "record_opened_",
             "enum_stream_event_",
             "record_run_state_",
             "record_task_",
+            "record_wait_",
+            "record_thing_",
+            "record_nearest_",
+            "enum_wait_",
+            "enum_at_bound_",
+            "enum_unbounded_",
         ]
         .iter()
         .any(|prefix| name.starts_with(prefix))

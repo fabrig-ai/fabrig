@@ -3,7 +3,7 @@
 Provisional, 2026-11-17, from `../../draft/config.md`, 5.3, 6.1 and 6.6
 (`../../draft/config.execution.md`, N2), and its store sized for 100 live
 goals, 2026-11-19, from 5.2 and 5.3 (N9), and its live figures,
-2026-11-20, from `../../draft/worker-restarts.md`, 8. The limits leave the
+2026-11-20, from `../../draft/archive/worker-restarts.md`, 8. The limits leave the
 documents and become two kinds of settings, one jig's and one temper's,
 changed by an owner by asking temper, with `temper ctl` or from Needs
 you. A raise of the figures 5.1 lists is taken at once, a change of the
@@ -408,7 +408,7 @@ this document says how settings lie over it.
   live figure.
 - **Not live, though a time bound:** `link.ping_ms` and
   `link.silence_ms`, which make the stop bound a worker's hello states
-  and the engine checks against its grace (`../../draft/redeploys.md`,
+  and the engine checks against its grace (`../../draft/archive/redeploys.md`,
   5.3), and which both sides of a link run; and the engine's own time
   bounds, which its children copy at construction (section 11).
 

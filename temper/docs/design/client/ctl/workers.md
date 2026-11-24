@@ -5,7 +5,7 @@ shorthands for the workers as settings (jig's
 `domain/engine/workers.md`; `../../draft/config.md`, 6.7), each one read
 or one settings change, and three asks of a linked worker, to take no
 new work, to drain, or to take work again (jig's
-`domain/engine/workers.md`, 5; `../../draft/worker-restarts.md`,
+`domain/engine/workers.md`, 5; `../../draft/archive/worker-restarts.md`,
 section 2). They are rows of the one table (`tools.md`, 1), group `worker`, of
 area 3 as `deployment`'s are (`areas.md`), and the map lists the group
 under the deployment's noun (`../../protocol/documentation.md`, 2.4).

@@ -1,8 +1,8 @@
 # Restoring a checkpoint
 
 2026-11-17. Bringing a checkpoint back over a stopped deployment,
-crash-safe (temper's `draft/checkpoints.md`, section 5.3; milestone C2
-of `draft/checkpoints.execution.md`). The component first takes a
+crash-safe (temper's `draft/archive/checkpoints.md`, section 5.3; milestone C2
+of `temper/docs/design/draft/archive/checkpoints.execution.md`). The component first takes a
 safety checkpoint of the deployment as it stands. It then stages the
 next generation and a transcript tree from the checkpoint, writes a
 durable intent, and rolls forward: the transcript trees are swapped by
@@ -45,7 +45,7 @@ In the deployment's directory, beside `active` (`README.md`, section
 | `transcripts.staged/` | the staged transcript tree, laid out as `transcripts/` (`transcripts.md`, 1) | renamed into place at 4.7, step 2; a stray with no intent |
 | `transcripts.aside/` | the live tree, set aside at 4.7, step 1 | 4.7, step 5; a stray with no intent |
 | `restore` | the intent (2.2) | 4.7, step 4 |
-| `restore.skein-<16 hex>` | the temporary of the intent's durable replace (skein's `runtime/io/files.md`, 2) | swept with `active`'s temporaries (`opening.md`, 1.5) |
+| `restore.skein-<16 hex>` | the temporary of the intent's durable replace (skein's `runtime/io/files.md`, 10) | swept with `active`'s temporaries (`opening.md`, 1.5) |
 
 - **The tree's names are fixed,** not drawn. At most one restore runs,
   under the deployment's lock. An open removes whatever an unfinished
@@ -65,7 +65,7 @@ was (`checkpoints.md`, 2.3):
 ```
 versioned record RestoreIntent {
     generation: u64        # the staged generation, N + 1
-    active: fixed 32       # the digest of `active` as the restore read it (skein's runtime/io/files.md, 2)
+    active: fixed 32       # the digest of `active` as the restore read it (skein's runtime/io/files.md, 10)
     source: text 37        # the checkpoint restored, <20 digits>-<16 hex>
     safety: text 37        # the safety checkpoint
     made: u64              # env.wall as the intent is written, in Manifest.written's unit

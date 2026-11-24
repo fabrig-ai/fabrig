@@ -199,6 +199,7 @@ impl StoreHost {
                     None => jig_domain_core::Deployment {
                         id: [1; 16],
                         restart_wait_ms: None,
+                        wait_floors: None,
                         tasks: 0,
                         people: 0,
                         sign_ins: 0,

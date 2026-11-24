@@ -1,8 +1,8 @@
 # Landings
 
 Provisional, 2026-11-12, revised 2026-11-17, from
-`../../draft/landed-qa.md`, section 3, milestone Q1 of
-`../../draft/landed-qa.execution.md`. The watcher: how
+`../../draft/archive/landed-qa.md`, section 3, milestone Q1 of
+`../../draft/archive/landed-qa.execution.md`. The watcher: how
 landed QA sees a goal land on main, and how it learns which landings a
 kept build holds.
 

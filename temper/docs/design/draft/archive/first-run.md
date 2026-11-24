@@ -182,7 +182,7 @@ With the user, 2026-10-23. Amends 1, 2.2, 2.3 and 3.4. Mockups:
   with none. The default document configures one policy instead, jig's
   `engine.policies` 1, which each project made starts from, and its
   landing rule among the deployment's, so that every project takes it
-  (`../../protocol/setup/init.md`, 3).
+  (`../../protocol/setup/init.md`, 6).
 - **The playground's project, "Playground",** is made by the demo's
   start, when the person chooses "Try the playground"
   (`../../protocol/setup/playground.md`). It keeps the playground's chats, and
@@ -299,7 +299,7 @@ deployment that starts:
   kept: the box holds every step's listener from its start and gives
   each step its own, so that no port is free between init and the
   step, and a second first run beside the first chooses other ports
-  (../../protocol/setup/box.md, 1, and ../../protocol/setup/init.md, 2).
+  (../../protocol/setup/box.md, 1, and ../../protocol/setup/init.md, 5).
 - **Nothing else:** no account, no forge credential, no repository,
   which are runtime's.
 
@@ -311,7 +311,7 @@ says so; otherwise it never writes the document.
 The first default is a working minimum, for the mechanics and the
 experience; good defaults for a person's real work are open (section 8).
 
-- **LLM providers:** OpenAI's, as the owned example's (../../protocol/setup/init.md, 1),
+- **LLM providers:** OpenAI's, as the owned example's (../../protocol/setup/init.md, 4),
   with no account; and the demo model, an endpoint on loopback in
   plaintext, as the real loop's fake LLM peer is reached.
 - **Forges,** each by its stable number: 1 the demo forge, 2 GitHub, 3
@@ -380,7 +380,7 @@ experience; good defaults for a person's real work are open (section 8).
   and answers. Run without the box (../../protocol/setup/box.md, 4), the client names
   the commands to run instead.
 - **The engine takes the handover at runtime,** through the same
-  connect a pasted managed admin's token takes (`../github-forgejo.md`,
+  connect a pasted managed admin's token takes (`github-forgejo.md`,
   1.2), where today it takes it only at its start.
 
 ### 3.9 The box, changed

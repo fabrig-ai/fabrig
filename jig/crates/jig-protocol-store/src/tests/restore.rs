@@ -415,9 +415,12 @@ fn an_undecodable_restored_row_is_corrupt() {
 #[test]
 fn a_restore_page_keeps_the_prefix_within_the_decoded_bytes() {
     let mut store = live_store();
-    // The deployment fits 100 measured bytes; adding the person exceeds it.
-    let (rows, next) = page(live_page(&mut store, None, 2, 100));
-    assert_eq!(jig_rows(rows).as_ref(), &[fixtures::header_record(1)]);
+    let header = fixtures::header_record(1);
+    let value = crate::codec::encode(&header, &fixtures::codec_limits(), &[]).expect("deployment header fits");
+    // Decoded bytes count the header's value alone; adding the person exceeds this bound.
+    let header_bytes = skein_lib::length::len_u64(value.len());
+    let (rows, next) = page(live_page(&mut store, None, 2, header_bytes));
+    assert_eq!(jig_rows(rows).as_ref(), &[header]);
     let (rows, _) = page(live_page(&mut store, next, 2, 65_536));
     assert_eq!(jig_rows(rows).as_ref(), &[fixtures::person(ALICE), fixtures::live_task(LIVE)]);
 }

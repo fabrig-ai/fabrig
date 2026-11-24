@@ -112,7 +112,7 @@ fn past_the_room_the_rate_or_the_bytes_a_read_is_busy_and_nothing_is_handed_on()
     }
 }
 #[test]
-fn an_unknown_kind_a_wrong_id_count_and_an_unserved_version_reach_no_engine() {
+fn an_unknown_kind_a_wrong_id_count_and_an_unserved_layout_reach_no_engine() {
     let mut step = Step::new();
     for request in [
         read(0, &[]),
@@ -125,8 +125,8 @@ fn an_unknown_kind_a_wrong_id_count_and_an_unserved_version_reach_no_engine() {
         let exchange = step.send(request);
         assert_eq!(step.reply(exchange), PublicReply::Unknown);
     }
-    for version in [0, 2] {
-        let exchange = step.send(PublicRead { version, ..read(2, &[1]) });
+    for layout in [None, Some([0; 32])] {
+        let exchange = step.send(PublicRead { layout, ..read(2, &[1]) });
         let PublicReply::NotServed { record } = step.reply(exchange) else {
             panic!("not served");
         };
@@ -268,12 +268,12 @@ fn an_application_document_crosses_in_jigs_envelope() {
     let mut step = Step::new();
     let exchange = step.send(PublicRead {
         owner: 10,
-        version: 2,
+        layout: Some(APP_LAYOUT),
         kind: 1,
         ids: Box::new([names().project(PROJECT), names().task(TASK)]),
     });
     let (reply, mapped) = step.admitted();
-    assert_eq!(mapped.task, Some(TASK));
+    assert_eq!((mapped.version, mapped.task), (2, Some(TASK)));
     step.document(
         reply,
         c::PublicDocument::Application(c::PublicApplication {
@@ -366,9 +366,9 @@ fn jig_kinds_reserve_the_configured_index_in_public_version_one() {
     let bounds = wire::PublicIndexBounds { goals: 20, ended: 20, lines: 50, depth: 16, projects: 64 };
     let kinds = crate::jig_kinds(&bounds);
     for (kind, expected) in kinds.into_iter().zip([
-        crate::PublicKind { owner: 0, kind: 1, first: 1, last: 1, task: false, bound: 4_872 },
-        crate::PublicKind { owner: 0, kind: 2, first: 1, last: 1, task: false, bound: 716_448 },
-        crate::PublicKind { owner: 0, kind: 3, first: 1, last: 1, task: true, bound: 18_041 },
+        crate::PublicKind { owner: 0, kind: 1, version: 1, layout: wire::PUBLIC_LAYOUT, task: false, bound: 4_872 },
+        crate::PublicKind { owner: 0, kind: 2, version: 1, layout: wire::PUBLIC_LAYOUT, task: false, bound: 716_448 },
+        crate::PublicKind { owner: 0, kind: 3, version: 1, layout: wire::PUBLIC_LAYOUT, task: true, bound: 18_041 },
     ]) {
         assert_eq!(kind, expected);
     }

@@ -158,16 +158,7 @@ fn frame_layout(build: &str, sets: &OwnerSets, family: &KeptFamily, old: &Schema
 
 fn guard(build: &str, sets: &OwnerSets, texts: &BTreeMap<String, Schema>, sources: &Sources) -> Vec<String> {
     let mut current = BTreeMap::new();
-    let client = KeptFamily {
-        name: "jig-client-view-records",
-        current: jig_client_view_codec::SCHEMA,
-        map: store::KeptMap::Store,
-        keys: &[],
-        frames: None,
-        types: &[],
-        retired: &[],
-    };
-    let families: Vec<_> = sets.sets.iter().flat_map(|set| set.families).chain(std::iter::once(&client)).collect();
+    let families: Vec<_> = sets.sets.iter().flat_map(|set| set.families).collect();
     for family in &families {
         current.insert(family.name.to_owned(), parsed(family.current));
     }

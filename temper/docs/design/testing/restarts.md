@@ -5,7 +5,7 @@ worlds: each recorded in its run's fault ledger and drawn from the seed
 at any iteration (skein's `testing/sweeps.md`), so that a sweep can mix
 them with the rest of the failure worlds' faults. Written from
 `../draft/failure-worlds.md`, 4.8 and section 9, and the restart drafts
-(`../draft/reconciling-start.md`; `../draft/worker-restarts.md`). It
+(`../draft/reconciling-start.md`; `../draft/archive/worker-restarts.md`). It
 fixes nothing a restart breaks: that is the restart drafts' work (the
 failure-worlds draft, 9 and 10).
 
@@ -279,7 +279,7 @@ process boundary.
 - **Every process of a unit signalled** is the simulated tier's
   (section 8), where processes are the world's.
 - **What a drain or a crash keeps** of a run's work is the restart
-  drafts' (`../draft/worker-restarts.md`, sections 3, 4 and 7), asserted
+  drafts' (`../draft/archive/worker-restarts.md`, sections 3, 4 and 7), asserted
   by their milestones' focused tests, not by this world's sweep.
 
 ## 7. The engine restarted while a worker is mid-turn
@@ -307,7 +307,7 @@ as the world's programs (`tiers.md`, 1.5).
 - **A unit signalled mid-turn** (`UNIT_SIGNALLED`): at a drawn moment of
   a run's turn, the world delivers the termination signal to the service
   and to every program the machine runs for it at once, as a
-  control-group kill does (`../draft/worker-restarts.md`, 2). Each agent
+  control-group kill does (`../draft/archive/worker-restarts.md`, 2). Each agent
   gets its own copy, which its live host answers
   (`smith/docs/design/domain/host.md`), and the run's check and shell
   programs end. The service drains and stops, and the world starts it
@@ -326,7 +326,12 @@ as the world's programs (`tiers.md`, 1.5).
   an empty store at commit zero, so it watches only the runs that start
   fresh. A run from the image is checked by the golden reader's checks
   (census, history, preserved sources, forge) and the secrets' checks.
-  These are the world's checks as they stand (section 9).
+  These are the world's checks as they stand (section 9). Its waits are
+  checked too, at the upgrade's first quiet point: every live task's
+  waits, as jig's core computes them, read *since* that first start, its
+  kinds' floors, and none is past its bound
+  (`jig/docs/design/domain/engine/waits.md`, 7;
+  `../draft/bounded-waits.md`, 12).
 - **Why the older layout falls at a run's start:** a world runs one
   build, so the only store a previous release writes is one that release
   wrote before, kept as its image, and the upgrade is the first start

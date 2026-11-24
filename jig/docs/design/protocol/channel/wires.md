@@ -6,7 +6,7 @@ the wires each speaks, by layout, with the worker's schema texts; the
 engine's check of them before the hello; the kinds' table, kept in the
 schema; terms; and what an assignment refused for a version costs. It
 carries temper's `draft/layouts-both-ways.md`, sections 3 and 5, and
-`draft/redeploys.md`, 3.4, for jig's channel. How the engine then
+`temper/docs/design/draft/archive/redeploys.md`, 3.4, for jig's channel. How the engine then
 converts is `layouts.md`'s; an application names its own wires
 (temper's `protocol/wires.md`).
 
@@ -47,7 +47,7 @@ converts is `layouts.md`'s; an application names its own wires
   `Credential`, `Wire` and `Opening` alike, since the engine reads a
   worker's before it knows its layouts. A change to any of them is a
   change no plan carries, which restarts every part together at its
-  redeploy (temper's `draft/redeploys.md`, 7.3); a focused test holds
+  redeploy (temper's `draft/archive/redeploys.md`, 7.3); a focused test holds
   their layout to a fingerprint written in the test.
 - **Every text, every opening.** The worker cannot know before the
   engine answers which of its layouts differ, and the engine needs the
@@ -114,7 +114,7 @@ converts is `layouts.md`'s; an application names its own wires
   owner each refusal it sends at an opening, with its reason and text,
   and the worker's link hands its owner each refusal it hears, with its
   reason and text, before it redials.
-- **The statement handed up whole** (temper's `draft/redeploys.md`,
+- **The statement handed up whole** (temper's `draft/archive/redeploys.md`,
   5.1): with the channel accepted, the engine's side hands its owner
   what the worker stated, its wires as its credential gives them, in
   their order, its `io.output`, and its terms as its channel's ready

@@ -1,6 +1,7 @@
 //! The shared task line, constructed from a live or loaded ended owner row.
 
 use super::{BudgetLine, Chip, Count, PhaseCounts, WaitsOn};
+use crate::{Nearest, Wait};
 use jig_domain_tasks as tasks;
 use skein_lib::Wall;
 
@@ -25,6 +26,8 @@ pub struct TaskLine {
     pub ended_at: Option<Wall>,
     pub budget: BudgetLine,
     pub waits_on: WaitsOn,
+    pub wait: Option<Wait>,
+    pub nearest: Option<Nearest>,
     pub phases: PhaseCounts,
     /// Direct delegates ended done (jig/docs/design/client/domain/contract/documents.md, 1).
     pub delegates_done: u32,

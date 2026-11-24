@@ -1,5 +1,7 @@
 use super::fixtures::{document, path};
 use crate::{Limits, Problems, What, overrides};
+use jig_domain_core_vocabulary::Figures;
+use skein_lib::bytes;
 
 fn parse(bytes: &[u8]) -> Result<Limits, Problems> {
     let parsed = overrides::parse(&document(bytes), 0, &path(&[b"limits"]));
@@ -27,6 +29,53 @@ fn restart_wait_defaults_and_overrides_are_bounded_by_name() {
         &[b"limits", b"overrides", b"fleet.restart_wait_ms"],
         What::Override,
     );
+}
+
+type WaitFigure = (&'static str, fn(&mut Figures) -> &mut skein_lib::Duration, u64);
+
+// Stock durations from jig/docs/design/domain/engine/waits.md, 5.
+const WAIT_FIGURES: [WaitFigure; 8] = [
+    ("waits.question_ms", |figures| &mut figures.question, 7_200_000),
+    ("waits.party_ms", |figures| &mut figures.party, 28_800_000),
+    ("waits.news_ms", |figures| &mut figures.news, 86_400_000),
+    ("waits.host_ms", |figures| &mut figures.host, 7_200_000),
+    ("waits.account_ms", |figures| &mut figures.account, 7_200_000),
+    ("waits.step_ms", |figures| &mut figures.step, 1_800_000),
+    ("waits.room_ms", |figures| &mut figures.room, 1_800_000),
+    ("waits.sign_off_ms", |figures| &mut figures.sign_off, 86_400_000),
+];
+const MAX_DURATION_MS: u64 = u64::MAX / 1_000_000;
+
+fn wait_override(name: &str, value: u64) -> Box<[u8]> {
+    bytes::concat(&[br#"{"overrides":{""#, name.as_bytes(), b"\":", skein_lib::Decimal::of(value).as_bytes(), b"}}"])
+}
+
+#[test]
+fn stock_wait_figures_match_the_published_durations() {
+    let mut waits = crate::stock().core.waits;
+    for (name, figure, millis) in WAIT_FIGURES {
+        assert_eq!(*figure(&mut waits), skein_lib::Duration::from_millis(millis), "{name}");
+    }
+}
+
+#[test]
+fn each_wait_override_replaces_only_its_figure() {
+    for (name, figure, _) in WAIT_FIGURES {
+        for millis in [1, MAX_DURATION_MS] {
+            let mut expected = crate::stock();
+            *figure(&mut expected.core.waits) = skein_lib::Duration::from_millis(millis);
+            assert_eq!(parse(&wait_override(name, millis)), Ok(expected), "{name} = {millis}");
+        }
+    }
+}
+
+#[test]
+fn invalid_wait_figures_are_refused_by_name() {
+    for (name, _, _) in WAIT_FIGURES {
+        for millis in [0, MAX_DURATION_MS + 1] {
+            problem(&wait_override(name, millis), &[b"limits", b"overrides", name.as_bytes()], What::Override);
+        }
+    }
 }
 
 #[test]

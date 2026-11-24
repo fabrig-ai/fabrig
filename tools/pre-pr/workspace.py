@@ -3,11 +3,9 @@ from collections import defaultdict
 from pathlib import Path
 
 
-# Tests which read the repository's landed files. Some goal trees still carry
-# the combined current/landed tests. Other cases in each binary still run.
+# Tests which read the repository's landed files. Other cases in each binary still run.
 LANDED_CASES = {
-    'client_layouts': ('client_layout_changes_move_their_versions',),
-    'layouts': ('client_wire_layouts_are_current_and_landed', 'landing_history_preserves_client_wire_layouts'),
+    'client_layouts': ('client_versions_are_frozen',),
     'host_tools': ('host_tool_contract_history_is_kept',),
 }
 

@@ -1,5 +1,5 @@
 //! Smith's shipped-binary stories: the shared person, browser, peers and scratch
-//! over Skein's real loop (smith/docs/design/testing.md, sections 2.3 and 5). Only outside
+//! over Skein's real loop (smith/docs/design/testing-tiers.md, section 3, and smith/docs/design/testing.md, section 5). Only outside
 //! observations are kept; no local or agent state is available.
 
 use skein_io::kernel::Exit;
@@ -43,7 +43,7 @@ pub enum FakeFile {
     Other,
 }
 
-/// The fake program's lookup beside the shipped binary (smith/docs/design/testing.md, 2.3).
+/// The fake program's lookup beside the shipped binary (smith/docs/design/testing-tiers.md, 3).
 pub struct FakeLookup {
     path: PathBuf,
 }

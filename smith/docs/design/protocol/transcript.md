@@ -416,8 +416,8 @@ other.
   jig's store takes the constants into its `Smith` slot (jig's
   `protocol/store/opening-owners.md`, 1), handed by the host's shell.
   `SEED`'s older text goes once dev.fabrig.ai's store holds the rows
-  (temper's `draft/store-floor.md`); no other old text is kept, and none
-  is a wire's (temper's `protocol/wires.md`, 3.1).
+  (temper's `draft/archive/store-floor.md`); no other old text is kept,
+  and none is a wire's (temper's `protocol/wires.md`, 3.1).
 - **Frozen version.** `smith-transcript`'s version is frozen at 8, its
   layout its text's fingerprint: a variant appended, a bound widened or a
   declaration added is made in the current text alone and moves no

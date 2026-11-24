@@ -1,5 +1,6 @@
 //! The core's vocabulary toward its root (`domain/engine/vocabulary.md`, section 1).
 
+use crate::waits::Figures;
 use crate::{CallKey, CallPart, Delegate, EscalationDecisionRecord, Key, ProcedureStep, Record, RunCharter};
 use alloc::boxed::Box;
 use jig_domain_accounts as accounts;
@@ -100,6 +101,11 @@ pub enum Ask {
         task: u64,
         step: u64,
         why: StepRefusal,
+    },
+    /// The report was refused, independently of any procedure step.
+    WaitsRefused {
+        task: u64,
+        why: crate::ReportRefusal,
     },
 
     /// Discard the connector-owned binding of a refused application watch or read.
@@ -319,7 +325,7 @@ pub enum Held {
     },
     /// Every earlier commit is durable when the journal releases this terminal.
     Drained,
-    /// A settled stop has durably kept its restart word (domain/engine/restart.md, 1).
+    /// A settled stop has durably kept its restart word (domain/engine/restart.md, 5).
     Restarting {
         wait: skein_lib::Duration,
     },
@@ -889,6 +895,7 @@ pub enum Now {
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Limits {
     pub retention: RetentionLimits,
+    pub waits: Figures,
     pub public: PublicIndexLimits,
     /// The most hand-offs one core decision routes, sibling continuations included: the
     /// bound of every drain within a step (skein's programming-model.md, 3 "Bounded"; 4.5).
@@ -990,6 +997,13 @@ pub enum Event {
         connector: u16,
         tasks: List<u64>,
     },
+    /// Replace the live procedure's wait report. Empty clears it; at most four waits and
+    /// four things per wait (jig/docs/design/domain/engine/waits.md, 6).
+    Waits {
+        connector: u16,
+        task: u64,
+        waits: List<crate::Reported>,
+    },
     /// A connector's release of a deleted project's adoptions has committed
     /// (jig/docs/design/domain/people/acts.md, 2).
     ProjectReleased {
@@ -1038,9 +1052,9 @@ pub enum Event {
     },
     /// Last store report; refresh the deployment document (protocol/store/growth.md, 1.3).
     Census(Box<crate::documents::deployment::StoreCensus>),
-    /// Refuse new decisions while the service drains (domain/engine/restart.md, 1).
+    /// Refuse new decisions while the service drains (domain/engine/restart.md, 5).
     Stopping,
-    /// Place nothing while taking every commit (domain/engine/restart.md, 1).
+    /// Place nothing while taking every commit (domain/engine/restart.md, 5).
     Settling,
     /// A connector's state change names its opaque subjects in this decision.
     Marked {
@@ -1697,6 +1711,7 @@ impl Event {
             | Self::Stopping
             | Self::Parts { .. }
             | Self::PartsMarked { .. }
+            | Self::Waits { .. }
             | Self::Marked { .. }
             | Self::ReadLoaded { .. }
             | Self::PublicAnswered { .. }

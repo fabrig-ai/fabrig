@@ -3069,3 +3069,78 @@ fn a_settling_core_leaves_a_waiting_attempt_unplaced_after_a_slot_frees() {
             .any(|request| { if let fleet::Request::Assign { run, .. } = request { run.raw() == 2 } else { false } })
     );
 }
+
+#[test]
+fn account_wait_counts_from_the_later_source_reset_or_retry() {
+    use crate::{AtBound, Bound, Wait, WaitKind, WaitObject};
+    use tasks::EscalationHolder;
+    let (mut core, limits) = ready(false);
+    suspended_on_second(&mut core, &limits);
+    let mut row = core.tasks.task(TASK).unwrap().clone();
+    row.phase_since = Wall::from_nanos(10);
+    let reset = Wall::from_nanos(100);
+    let mut expected = Wait {
+        task: TASK,
+        kind: WaitKind::Account,
+        since: row.phase_since,
+        object: WaitObject::Run(TaskRunWait::Account {
+            account: Some(0),
+            source: Some(1),
+            why: TaskWaitWhy::Source(TaskSourceState::Limited { until: None }),
+        }),
+        bound: Bound::At { at: plus(row.phase_since, limits.waits.account), then: AtBound::Hold },
+        hears: Some(EscalationHolder::Person(1)),
+    };
+    account(&mut core, &limits, accounts::Event::Limited { account: 1, reset: None });
+    let projection = crate::runs::waits::read(&core, &limits, &row);
+    assert_eq!(projection.waits.first, Some(expected.clone()));
+    assert_eq!(projection.on, WaitsOn::Nothing);
+    // An indefinite hold deliberately outlasts a later reset, so use a fresh source.
+    let (mut core, limits) = ready(false);
+    suspended_on_second(&mut core, &limits);
+    account(
+        &mut core,
+        &limits,
+        accounts::Event::Limited { account: 1, reset: Some(Time::from_nanos(reset.as_nanos())) },
+    );
+    expected.object = WaitObject::Run(TaskRunWait::Account {
+        account: Some(0),
+        source: Some(1),
+        why: TaskWaitWhy::Source(TaskSourceState::Limited { until: Some(reset) }),
+    });
+    expected.bound = Bound::At { at: plus(reset, limits.waits.account), then: AtBound::Hold };
+    assert_eq!(crate::runs::waits::read(&core, &limits, &row).waits.first, Some(expected.clone()));
+    row.phase = tasks::Phase::Active(tasks::Active::BackingOff { until: reset });
+    row.kept_account = Some(0);
+    expected.object = WaitObject::Run(TaskRunWait::Account {
+        account: Some(0),
+        source: None,
+        why: TaskWaitWhy::Source(TaskSourceState::Later { until: Some(reset) }),
+    });
+    assert_eq!(crate::runs::waits::read(&core, &limits, &row).waits.first, Some(expected));
+}
+
+#[test]
+fn host_wait_counts_from_the_end_of_the_workers_suspension() {
+    use crate::{AtBound, Bound, Wait, WaitKind, WaitObject};
+    use tasks::EscalationHolder;
+    let (mut core, limits) = ready(false);
+    suspended_on_second(&mut core, &limits);
+    fleet_event(&mut core, &limits, Wall::EPOCH, fleet::Event::Lost { channel: SECOND });
+    core.fleet.reclaim();
+    let row = core.tasks.task(TASK).unwrap();
+    let expected = Wait {
+        task: TASK,
+        kind: WaitKind::Host,
+        since: row.phase_since,
+        object: WaitObject::Run(TaskRunWait::Worker { worker: 2, until: RESUME_UNTIL }),
+        bound: Bound::At { at: plus(RESUME_UNTIL, limits.waits.host), then: AtBound::Hold },
+        hears: Some(EscalationHolder::Person(1)),
+    };
+    assert_eq!(core.waits(TASK).first, Some(expected));
+    assert_eq!(core.waits_on(&limits, TASK), WaitsOn::Nothing);
+}
+
+fn plus(wall: Wall, duration: Duration) -> Wall {
+    Wall::from_nanos(wall.as_nanos().checked_add(duration.as_nanos()).unwrap())
+}

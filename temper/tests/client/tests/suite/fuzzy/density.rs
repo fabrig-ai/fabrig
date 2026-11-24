@@ -903,6 +903,7 @@ fn generate(seed: u64) -> World {
             event: jig_client::Event::Up {
                 up: Up::FamilyServed {
                     family: wire::FORGE,
+                    served: true,
                     versions: Some(c::VersionRange { first: wire::CLIENT_VERSION, last: wire::CLIENT_VERSION }),
                 },
             },
@@ -1265,6 +1266,10 @@ fn task_document(task: u64, project: u32) -> c::Task {
         last_activity: Wall::EPOCH,
         made: Wall::EPOCH,
         waits_on: c::WaitsOn::Nothing,
+        wait: None,
+        nearest: None,
+        waits: List::with_capacity(0),
+        wait_count: 0,
         chip: chip(task, project),
         goal: None,
         priority: None,

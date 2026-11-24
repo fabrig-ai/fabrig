@@ -9,6 +9,8 @@ after landing, in the real pairs (`tools/tiers/layers.md`, 9.2). Every
 behaviour, path and corner case a lower world can show is that world's,
 never here (`../draft/slow-tests-down.md`, 4).
 
+## 1. The assembled service and agent processes
+
 - **What runs:** `temper-service`'s system module, with the engine,
   store and one worker as standalone runs them; smith's agent hosts;
   the tools' root over jig's native client transport; and skein's fake
@@ -29,6 +31,31 @@ never here (`../draft/slow-tests-down.md`, 4).
   (`fakes.md`, 3); other external programs, such as sh, run as real child
   processes. Launching the `temper-box internal agent` executable, with its
   own loop and ring, is checked by the process tier (`process-tier.md`).
+- **The hosted agent starts as the shipped one.** It reads the
+  document the worker wrote as the shipped `temper-agent` reads it
+  (`../protocol/binaries.md`, 3), and hands smith's shell every resource
+  the shipped start hands it. Where the document configures a program,
+  as the worker's always does, those include the program's shell
+  resources (smith's `protocol/programs-claude-code.md`, 1.1): the relay
+  is the agent executable the worker spawned, since the shipped
+  process's relay is its own executable; its 32 bytes of entropy come
+  from the world's seed; and the programs directory is checked and
+  opened as the shipped start does it: opened when it is private,
+  absent when it is missing, and the start refused when it is unsafe.
+  The hosted agent is not a process of its own, so it names no parent
+  for the program's child mode. A program it started would start
+  directly, as where no parent-death signal exists, but no story
+  here runs one: a program's run is the one-process world's (below).
+  **A step test holds this start at the gate.** The world's library
+  starts its hosted agent on the document the shipped worker writes
+  for the tier's fixture, with no real file or descriptor, so smith's
+  shell refuses it just as it would refuse the real loop's. A resource
+  the shell starts to require then reddens the gate, not the real
+  pairs after landing. The shell's refusals of a start are smith's to
+  test (smith's `protocol/agent.md`, 8).
+
+## 2. Shared stories and lower-world coverage
+
 - **Reuse across worlds.** The host composition, fake state machines,
   scenario scripts and outside referee observations are shared with
   the one-process world wherever they apply. Backend setup supplies
@@ -126,6 +153,9 @@ never here (`../draft/slow-tests-down.md`, 4).
   - a chat made after its home's adoption, delivering to its own run
     branch: the system world, ignored until a chat's `deliver` before
     its end is built (`../domain/agent/tools.md`).
+
+## 3. Accounts and sign-in
+
 - **An account first,** with area 5's tools (../client/ctl/areas.md):
   a story whose agents run adds a key the fake LLM peer accepts, from
   the client, before its first task, and waits for its account to be
@@ -176,6 +206,9 @@ never here (`../draft/slow-tests-down.md`, 4).
     as unauthorized in jig's channel world (jig's `protocol/channel/testing.md`,
     section 1); `account verify` answered as each host reports:
     `tests/client` (../client/ctl/testing.md, 2).
+
+## 4. Iteration checks and shutdown
+
 - **Checks between iterations** are the strategy's for the real loop
   (skein/docs/foundation/testing-strategy.md, 2.8 and section 6), with the lower worlds'
   outside expectations; real deadlines bound waits, and the fake peers
@@ -214,6 +247,9 @@ never here (`../draft/slow-tests-down.md`, 4).
   a `Kill` step, and by a cancel the kill follows (the next item): every
   kill is a `Signal(9)`, and those no cancel accounts for number exactly
   the story's `Kill` steps.
+
+## 5. Cancellation and kill causes
+
 - **A cancel's kill is asked for.** git kills its child when a cancel
   wins the race with the child's end (`../protocol/git.md`, 7), and
   whether the child still runs then is timing; so a kill a story's
@@ -263,6 +299,9 @@ never here (`../draft/slow-tests-down.md`, 4).
   holds it: smith's supervision kills the agent, and the finding names
   the agent's program, the service root as its killer and `forced after
   its grace`.
+
+## 6. Forge, git and CI
+
 - **The forge and git:** skein's forge peer (skein's `testing/fakes/forge.md`,
   section 5), which the one-process world hosts too, serves the fake forge on a
   loopback listener, its git route among its routes, which the fake
@@ -277,6 +316,9 @@ never here (`../draft/slow-tests-down.md`, 4).
   listener (../protocol/forge/README.md, section 4), and polling stays the
   backstop, at paces the stories' configuration sets short (`poll`,
   `poll_max`, `slow` and `hinted`, the read a delivery re-arms).
+
+## 7. Terminal stories
+
 - **The person's terminal client.** The real loop also hosts temper's
   terminal client, in the loop as the service is: temper's client root
   and view under skein's text shell, over jig's native transport to the
@@ -294,13 +336,17 @@ never here (`../draft/slow-tests-down.md`, 4).
     a story waits on what the pages say, never on the interval. The
     shipped interval's pacing is skein's text shell's to test (skein's
     `ui/text.md`, section 8).
-  - **Signed in by the printed link,** as `temper-box open DIRECTORY LINK`
+  - **Signed in by a link no client has spent,** as `temper-box open DIRECTORY LINK`
     is (../client/line.md, 1), on a DIRECTORY of its own in the
     scratch directory, never one of `temper ctl`'s
     (../client/ctl/README.md, section 12). A story's key comes first
-    through `ctl`, as for the tier's other stories (above). Where `ctl`
-    spent the printed link first, the terminal's sign-in on the fresh
-    link the service prints is the one-process world's (above).
+    through `ctl`, as for the tier's other stories (above), and that
+    `ctl` spends the printed link. The terminal therefore opens on a
+    fresh link that the signed-in `ctl` asks for the same person
+    (`link --out FILE`, ../client/ctl/command-line.md, 1.1), a private
+    file in the scratch directory, never on the printed one. A terminal
+    refused on the spent link, then signed in on the fresh link the
+    service prints, is the one-process world's (above).
   - **The typist** stands where a person sits. It types whole commands
     to the shell's input, as the person would (../client/line.md,
     section 5): a control's number from the last printed page, found
@@ -324,6 +370,9 @@ never here (`../draft/slow-tests-down.md`, 4).
     tests stay smokes (`process-tier.md`), outside the gate. A chat
     read on its pages, from a reply's first held piece to its committed
     turn, is the client world's (above).
+
+## 8. Cluster and reference case stories
+
 - **The cluster's services** (../protocol/cluster.md, 6): an engine
   alone and workers alone, `temper-service` services in the one loop,
   each on three scratch directories of its own (../protocol/cluster.md,
@@ -352,6 +401,8 @@ never here (`../draft/slow-tests-down.md`, 4).
   the cluster story's link deadlines and grace, so no worker is lost in
   a story: a run under a worker that ends fails into a retry, and a lost
   worker and its grace stay the engine's domain world's.
+
+## 9. What belongs in this tier
 
 What only the real kernel shows is this tier's: a real child's `PATH`,
 a service drained by its termination, `temper ctl`'s lock between two

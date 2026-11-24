@@ -169,6 +169,134 @@ fn a_dead_hosts_runtime_observation_is_rebuilt() {
 }
 
 #[test]
+fn the_restart_oracle_compares_only_durable_wait_projections() {
+    use jig_core_world::{reads, stories::instructions::task_document};
+    use skein_lib::{Duration, Token};
+
+    let mut world = World::new(Setup { seed: 1915, ..Setup::default() });
+    let (task, attempt) = (world.task(), world.attempt());
+    world.send(root::Event::Core(core::Event::Fleet(jig_domain_fleet::Event::Limited {
+        channel: Token::new(7),
+        run: Token::new(task),
+        attempt: Token::new(attempt),
+        account: 1,
+        reset: Some(Duration::from_secs(30)),
+    })));
+    world.end(tasks::End::Failed(tasks::Class::Run), 0);
+    world.reads = Some(reads::Parties::new(world.store.applied));
+    let before = task_document(&mut world, task, 1);
+    let wait = before.wait.expect("the next run's wait is first");
+    assert_eq!(wait.kind, core::WaitKind::Account);
+    let core::Bound::At { at, then } = wait.bound else { panic!("account wait has a bound") };
+    assert_eq!(before.nearest, Some(core::Nearest { at, then, kind: wait.kind }));
+    world.finish().expect("the restart can rebuild the account wait");
+    let after = task_document(&mut world, task, 2);
+    assert_eq!(after.wait.expect("cold host wait").kind, core::WaitKind::Host);
+    assert_eq!(after.nearest.expect("cold host bound").kind, core::WaitKind::Host);
+
+    let mut world = World::new(Setup { seed: 1916, ..Setup::default() });
+    let (task, attempt) = (world.task(), world.attempt());
+    world.send(root::Event::Core(core::Event::Fleet(jig_domain_fleet::Event::Observe {
+        channel: Token::new(7),
+        run: Token::new(task),
+        attempt: Token::new(attempt),
+        report: jig_domain_fleet::Report::Activity(jig_domain_fleet::Activity::Waiting),
+    })));
+    world.reads = Some(reads::Parties::new(world.store.applied));
+    let before = task_document(&mut world, task, 1);
+    assert_eq!(before.wait.expect("observed park's first wait").kind, core::WaitKind::News);
+    world.finish().expect("a live observation does not survive restart");
+    let after = task_document(&mut world, task, 2);
+    assert!(after.wait.is_none());
+
+    let mut world = World::new(Setup { seed: 1917, ..Setup::default() });
+    world.park_for_message(0);
+    let mut row = jig_core_world::fixtures::live_row(&world, PARKED_TASK).clone();
+    assert_eq!(row.phase, tasks::Phase::Active(tasks::Active::Idle));
+    row.phase_since = skein_lib::Wall::from_nanos(row.phase_since.as_nanos() - 1);
+    world.seed(Box::new([root::Record::Core(core::Record::Tasks(tasks::Stored::Live(Box::new(row))))]));
+    let finding = world.finish().expect_err("the idle task's durable news wait changed");
+    assert!(finding.contains("restart oracle document Task 1 field wait ("), "{finding}");
+}
+
+#[test]
+fn the_restart_oracle_masks_only_reported_procedure_wait_projections() {
+    use core::{AtBound, Nearest, WaitKind, WaitObject};
+    use jig_core_world::{fixtures::live_row, reads, stories::instructions::task_document};
+    use jig_domain_people as people;
+    use jig_test_connector::ProcedureAction;
+    use jig_test_profile::fixtures::people_member;
+    use skein_lib::{Duration, List, Wall};
+
+    const DEADLINE: Wall = Wall::from_nanos(1_000_000_000);
+    const MOVED: Wall = Wall::from_nanos(DEADLINE.as_nanos() + 1);
+    const REPORT_BOUND: Wall = Wall::from_nanos(60_000_000_000);
+
+    let procedure = |seed, kept| {
+        let (mut configuration, mut limits) = jig_core_world::faults::plan_fixture(seed);
+        configuration.first.procedures[0].actions = if kept {
+            // The proposal is first, but its bound is later than the dependency's.
+            limits.core.tasks.proposal_stall = Duration::from_secs(2);
+            configuration.core.kept_starts = Box::new([tasks::KeptStart { connector: 1, code: 1 }]);
+            Box::new([ProcedureAction::Propose { spend: 5 }, ProcedureAction::Stall])
+        } else {
+            Box::new([ProcedureAction::Stall])
+        };
+        let mut world = World::new(Setup { seed, configuration: Some(configuration), limits, ..Setup::default() });
+        let mut member = people_member(b"procedure", 20);
+        member.executor = people::TaskExecutor::Procedure { connector: 1, code: 1 };
+        if kept {
+            member.dependencies = Box::new([people::Dependency::Existing(world.task())]);
+            member.authority.deadline = Some(DEADLINE);
+        }
+        crate::read_support::request(&mut world, 70, people::Ask::Create { project: 1, batch: Box::new([member]) });
+        let Some(people::Reply::Outcome(people::Outcome::Created { first: task, .. })) = world.people_answers.last()
+        else {
+            panic!("procedure not created: {:?}", world.people_answers.last());
+        };
+        let task = *task;
+        // This report is not part of the connector's script, so it is absent after restart.
+        world.send(root::Event::Core(core::Event::Waits {
+            connector: 1,
+            task,
+            waits: List::from_boxed(Box::new([core::Reported {
+                kind: WaitKind::Step,
+                object: WaitObject::Procedure { step: 0, things: List::with_capacity(0) },
+                since: world.clocks().1,
+                bound: core::ReportedBound::At { at: REPORT_BOUND, then: AtBound::Hold },
+            }])),
+        }));
+        world.reads = Some(reads::Parties::new(world.store.applied));
+        (world, task)
+    };
+
+    let (mut world, task) = procedure(1918, false);
+    let before = task_document(&mut world, task, 1);
+    assert_eq!(before.wait.expect("reported first wait").kind, WaitKind::Step);
+    assert_eq!(before.nearest.expect("reported nearest bound").kind, WaitKind::Step);
+    world.finish().expect("the procedure's report is not durable");
+    let after = task_document(&mut world, task, 2);
+    assert_eq!(after.wait.expect("fallback first wait").kind, WaitKind::News);
+    assert_eq!(after.nearest.expect("fallback nearest bound").kind, WaitKind::News);
+
+    let (mut world, task) = procedure(1919, true);
+    let before = task_document(&mut world, task, 1);
+    assert!(before.waits.iter().any(|wait| wait.kind == WaitKind::Step));
+    assert_eq!(before.wait.as_ref().expect("proposal first").kind, WaitKind::Party);
+    let nearest = |at| Some(Nearest { at, then: AtBound::Hold, kind: WaitKind::Dependency });
+    assert_eq!(before.nearest, nearest(DEADLINE));
+    // Model a writer changing the dependency's bound without changing the first wait.
+    let mut row = live_row(&world, task).clone();
+    row.authority.budget.deadline = Some(MOVED);
+    world.seed(Box::new([root::Record::Core(core::Record::Tasks(tasks::Stored::Live(Box::new(row))))]));
+    let finding = world.finish().expect_err("the durable nearest bound changed despite the report");
+    assert!(finding.contains(&format!("restart oracle document Task {task} field nearest (")), "{finding}");
+    let after = task_document(&mut world, task, 2);
+    assert_eq!(after.wait, before.wait);
+    assert_eq!(after.nearest, nearest(MOVED));
+}
+
+#[test]
 fn the_restart_sweep_erases_only_the_expired_sign_in() {
     use jig_domain_people as people;
     let mut world = World::new(Setup { seed: 1905, ..Setup::default() });

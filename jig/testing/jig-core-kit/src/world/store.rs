@@ -121,13 +121,23 @@ impl World {
         self.fixture_writes(vec![root::Write::Erase(key)]).unwrap_or_else(|finding| self.fail(&finding));
         prior
     }
-    fn fixture_writes(&mut self, mut writes: Vec<root::Write>) -> Result<(), String> {
-        let header_key = root::Key::Core(core::Key::Core(core::CoreKey::Deployment));
-        let root::Record::Core(core::Record::Core(core::CoreRecord::Deployment(mut header))) =
-            self.store.rows[&header_key].clone()
+    /// Model an upgrade from a build with no wait floors, leaving all wait facts intact.
+    pub fn clear_wait_floors_for_upgrade(&mut self) {
+        let header = core::Deployment { wait_floors: None, ..self.fixture_header() };
+        self.commit_fixture_writes(Vec::new(), header).unwrap_or_else(|finding| self.fail(&finding));
+    }
+
+    fn fixture_header(&self) -> core::Deployment {
+        let key = root::Key::Core(core::Key::Core(core::CoreKey::Deployment));
+        let root::Record::Core(core::Record::Core(core::CoreRecord::Deployment(header))) = &self.store.rows[&key]
         else {
             panic!("durable header");
         };
+        *header
+    }
+
+    fn fixture_writes(&mut self, writes: Vec<root::Write>) -> Result<(), String> {
+        let mut header = self.fixture_header();
         // Direct fixture policy seeds must carry the same high-water mark as a first start.
         for write in &writes {
             if let root::Write::Save(root::Record::Core(core::Record::People(jig_domain_people::Stored::Policy {
@@ -138,6 +148,14 @@ impl World {
                 header.projects = header.projects.max(u64::from(*project));
             }
         }
+        self.commit_fixture_writes(writes, header)
+    }
+
+    fn commit_fixture_writes(
+        &mut self,
+        mut writes: Vec<root::Write>,
+        mut header: core::Deployment,
+    ) -> Result<(), String> {
         header.commits = self.store.applied + 1;
         writes.push(root::Write::Save(root::Record::Core(core::Record::Core(core::CoreRecord::Deployment(header)))));
         self.store.submit(header.commits, writes.into_boxed_slice(), 0);
@@ -152,10 +170,7 @@ impl World {
         Ok(())
     }
     fn refresh_fixture_header(&mut self) {
-        let header = self.store.rows[&root::Key::Core(core::Key::Core(core::CoreKey::Deployment))].clone();
-        let root::Record::Core(core::Record::Core(core::CoreRecord::Deployment(header))) = header else {
-            unreachable!("fixture header is the deployment");
-        };
+        let header = self.fixture_header();
         self.domain.core_mut().counters = core::Counters::new(header);
         *self.domain.journal_mut() = skein_lib::Journal::uncapped(self.limits.journal.release, header.commits);
     }

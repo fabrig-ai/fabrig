@@ -66,7 +66,11 @@ fn ready() -> Domain {
             &mut root,
             Event::Client {
                 event: jig_client::Event::Up {
-                    up: jig_client::Up::FamilyServed { family, versions: Some(VersionRange { first: 2, last: 2 }) },
+                    up: jig_client::Up::FamilyServed {
+                        family,
+                        versions: Some(VersionRange { first: 2, last: 2 }),
+                        served: true,
+                    },
                 },
             },
         );
@@ -206,6 +210,10 @@ fn task() -> Task {
         last_activity: Wall::EPOCH,
         made: Wall::EPOCH,
         waits_on: WaitsOn::Nothing,
+        wait: None,
+        nearest: None,
+        waits: List::with_capacity(0),
+        wait_count: 0,
         chip: Chip {
             task: 9,
             title: DocumentText::complete(text(&[b't'; 32])),

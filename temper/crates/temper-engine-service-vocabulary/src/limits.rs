@@ -519,6 +519,7 @@ pub fn engine_candidate(jig: &jig_protocol_config::Limits, limits: &Limits) -> e
         public_reads: jig.clients.public.reads,
         public: jig.core.public,
         retention: jig.core.retention,
+        waits: jig.core.waits,
         journal: limits.root.journal,
         loads: limits.root.loads,
         brief: limits.root.brief,

@@ -4,13 +4,13 @@ Provisional, 2026-11-15. What fabrig's `.temper/pre-pr` runs when a run
 delivers: the project's checks (smith's `smith/docs/design/domain/run-delivery.md`,
 1.1; temper's `temper/docs/design/protocol/configuration/reference.md`), written
 from `temper/docs/design/draft/delivery-checks.md`, for the goal's reds,
-its flakes and its results, `temper/docs/design/draft/branch-reds.md`,
+its flakes and its results, `temper/docs/design/draft/archive/branch-reds.md`,
 for where its tests sit, `temper/docs/design/draft/archive/focused-pyramid.md`,
-for the failures file, `temper/docs/design/draft/pre-pr-failure-list.md`,
+for the failures file, `temper/docs/design/draft/archive/pre-pr-failure-list.md`,
 for the boundary packages and the fuzzy tests, the user's word of 2026-11-15,
 after a landing's gate caught three reds in tests no delivery had run, and,
 for the failures file's place in the tree and a prose-only delivery's check
-with no build, `temper/docs/design/draft/small-fixes-1116.md`, 1 and 3,
+with no build, `temper/docs/design/draft/archive/small-fixes-1116.md`, 1 and 3,
 and, for the budgets it holds where its builder keeps main's ledgers,
 `temper/docs/design/draft/test-budgets.md`, 3, and for the layers it
 runs, the same draft's 4.
@@ -486,7 +486,7 @@ failure, when observed, in the Git directory’s `temper/repair-trial-result.jso
    for each binary listed, in order, since nextest builds only the selected
    packages' own. A failed build is a build failure, and no test runs.
    `smith`'s end-to-end tests run `smith-fake-claude`'s `fake-claude`
-   (`smith/docs/design/testing.md`, 2.3); since they run after landing,
+   (`smith/docs/design/testing-tiers.md`, 3); since they run after landing,
    in `real-smith` (`tools/tiers/layers.md`, 9.2), the build serves none
    of the check's runs, and is kept while `[test-binaries]` names it.
 
@@ -501,7 +501,7 @@ failure, when observed, in the Git directory’s `temper/repair-trial-result.jso
    refuses. A `junit.xml`, `results.json` or `run.json` the check needs and
    cannot read is a failure of the check itself.
 
-   **A failing test's process again** (`temper/docs/design/draft/branch-reds.md`,
+   **A failing test's process again** (`temper/docs/design/draft/archive/branch-reds.md`,
    7). After the run and before the judgement, each test failure
    `temper/reds` names no entry for (section 5), a test
    `results.json` gives the `outcome` `failed` or `crashed`, runs once
@@ -823,7 +823,7 @@ cause.
     prints `pre-pr: reds: <N> entries (temper/reds)`.
   - **No cap of its own:** temper bounds the file (`forge.branch_reds`).
 - **No list in the tree:** the tree keeps no known reds of its own
-  (`temper/docs/design/draft/branch-reds.md`, 8). A file a branch still
+  (`temper/docs/design/draft/archive/branch-reds.md`, 8). A file a branch still
   carries from before, its lines of the entries' forms included, is not
   read, counts nothing and prints nothing: a failure only it names is the
   delivery's.
@@ -921,7 +921,7 @@ cause.
     part (`smith/crates/smith-protocol-machine/src/files.rs`, `check`),
     and smith keeps that guard: an exception naming this file would put
     the application's knowledge in the kit
-    (`temper/docs/design/draft/small-fixes-1116.md`, 1). It is written
+    (`temper/docs/design/draft/archive/small-fixes-1116.md`, 1). It is written
     through `target/temper/pre-pr-failures.json.tmp` renamed over it,
     `target/temper/` made where it is missing, so a reader sees one
     check's file whole. A file an earlier check left in the git
@@ -1043,7 +1043,7 @@ tree that passed here.
 - **A prose-only delivery builds nothing** (section 3): in a checkout
   with no `target/`, the boundary packages' tests were a cold compile,
   and a goal delivering only status files ran past the checks' deadline
-  three times (`temper/docs/design/draft/small-fixes-1116.md`, 3). It
+  three times (`temper/docs/design/draft/archive/small-fixes-1116.md`, 3). It
   costs citations and the outward text check, which reads each tracked
   file once, a few seconds on this repository and no cargo.
 - **What main's ledgers cost** a delivery whose builder keeps them: each

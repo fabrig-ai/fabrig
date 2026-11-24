@@ -84,8 +84,9 @@ class Packages(unittest.TestCase):
         flag, expression = PLAN.workspace_filter(['fabrig-boundary', 'leaf'])
         self.assertEqual(flag, '-E')
         self.assertIn('default() & not (package(=fabrig-boundary)', expression)
-        self.assertIn('test(=client_layout_changes_move_their_versions)', expression)
-        self.assertNotIn('current_client_wire_layouts_match_the_schema', expression)
+        self.assertIn('test(=client_versions_are_frozen)', expression)
+        self.assertNotIn('a_field_added_at_the_same_version_passes', expression)
+        self.assertNotIn('generated_patch_modules_are_current', expression)
         self.assertEqual(PLAN.workspace_filter(['leaf']), [])
 
     def test_nested_test_helper_stays_with_its_owner(self):

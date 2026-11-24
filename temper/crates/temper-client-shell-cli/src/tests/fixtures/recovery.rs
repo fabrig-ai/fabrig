@@ -6,7 +6,6 @@ const PARTY: u64 = 7;
 const PROJECT: u32 = 3;
 const BUDGET: u64 = 7; // Fits the shared authority's spend, exposing an admitted chat.
 const ONE: u32 = 1; // One template and one membership are sufficient to offer chat.
-use jig_client_domain::TABLE_VERSION;
 /// The engine's membership offer for recovery and project-setup stories.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum Offers {
@@ -105,7 +104,7 @@ pub(super) fn stored_request(party: u64, request: jig_client::Ask) -> jig_client
         &lim,
     )
     .expect("kept table");
-    let kept = w::Kept { store_version: TABLE_VERSION, record: encode!(table) };
+    let kept = w::Kept { layout: w::LAYOUT, record: encode!(table) };
     jig_client::Record { key: KEPT_KEY.into(), bytes: encode!(kept) }
 }
 pub fn small_store(records: &[jig_client::Record]) -> Box<[u8]> {

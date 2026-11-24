@@ -1,8 +1,8 @@
 # Kept builds
 
 Provisional, 2026-11-12, revised 2026-11-20, from
-`../../draft/landed-qa.md`, section 3, milestones Q1, Q3 and Q6 of
-`../../draft/landed-qa.execution.md`. The builds
+`../../draft/archive/landed-qa.md`, section 3, milestones Q1, Q3 and Q6 of
+`../../draft/archive/landed-qa.execution.md`. The builds
 a pass judges: made by the deployment at landed tips, published to
 landed QA with a manifest, held by the passes that judge them, and
 deleted once no pass can need them.

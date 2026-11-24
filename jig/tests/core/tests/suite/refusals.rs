@@ -197,4 +197,14 @@ fn a_proposal_pending_when_the_policy_narrows_still_waits() {
             ..
         }
     ));
+    let wait = world.domain.core().waits(task).first.expect("policy proposal waits on a role that can move it");
+    assert_eq!(wait.kind, core::WaitKind::Party);
+    assert_eq!(
+        wait.object,
+        core::WaitObject::Entry {
+            kind: people::EntryKind::Proposal { proposer: people::Proposer::Task(task), number: proposal },
+            at: tasks::EscalationHolder::Role { project: 1, role: people::Role::Owner.number() },
+        }
+    );
+    assert!(matches!(wait.bound, core::Bound::At { then: core::AtBound::Overdue, .. }));
 }

@@ -31,6 +31,7 @@ mod tests {
                     owners: &[jig_client::Spoken {
                         family: temper_client_protocol_wire::FORGE,
                         version: temper_client_protocol_wire::CLIENT_VERSION,
+                        layout: temper_client_protocol_wire::CLIENT_LAYOUT,
                     }],
                     requests,
                     ask_bytes: requests.bytes / u64::from(requests.requests),
@@ -268,6 +269,8 @@ mod tests {
             ended_at: Some(Wall::EPOCH),
             budget: task.budget,
             waits_on: c::WaitsOn::Nothing,
+            wait: None,
+            nearest: None,
             phases: c::PhaseCounts::ZERO,
             delegates_done: 0,
             delegates_total: 0,

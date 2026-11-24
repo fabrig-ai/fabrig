@@ -2,7 +2,7 @@
 //! whole rows: the parent saves them in the decision and only then sends
 //! `Committed` for a new outbox entry (jig's domain/connectors-effects.md, 1.2).
 use alloc::boxed::Box;
-use skein_lib::Token;
+use skein_lib::{List, Token};
 use temper_engine_domain_forge_change as change;
 use temper_engine_domain_forge_issues as issues;
 use temper_engine_domain_forge_landing as landing;
@@ -130,9 +130,9 @@ pub struct Repository {
     pub kinds: Kinds,
     pub protection: Protection,
     pub settings: skein_forge::api::Settings,
-    /// The landing branch the adoption names, never empty (temper/docs/design/domain/forge/adoption.md, 8).
+    /// The landing branch the adoption names, never empty (temper/docs/design/domain/forge/adoption.md, 12).
     pub landing: Box<[u8]>,
-    /// CI workflow file names (temper/docs/design/domain/forge/adoption.md, 7).
+    /// CI workflow file names (temper/docs/design/domain/forge/adoption.md, 11).
     pub workflows: Box<[Box<[u8]>]>,
 }
 impl Repository {
@@ -309,7 +309,7 @@ pub enum Answered {
     TriageFinding(crate::TriageFindingAnswer),
     SetDraft(crate::SetDraftAnswer),
 }
-/// Making admission (temper/docs/design/domain/forge/adoption.md, 5).
+/// Making admission (temper/docs/design/domain/forge/adoption.md, 9).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum MakeAnswer {
     Kept,
@@ -2850,6 +2850,11 @@ pub enum Event {
     },
     /// Read afresh and settle the restored outbox while the engine serves.
     CatchUp,
+    /// A wait report was not admitted; it did not decide a procedure step.
+    WaitsRefused {
+        task: u64,
+        why: jig_domain_core_vocabulary::ReportRefusal,
+    },
     /// A connected Forgejo's Check found the user its tokens answer as: the connector keeps its
     /// login as the record's bot (protocol/forge/engine.md, 2).
     BotLogin {
@@ -3091,6 +3096,11 @@ pub enum Request {
     /// A finding's blame changed a milestone's parts (domain/red-findings.md, 10).
     MilestoneMarked {
         task: u64,
+    },
+    /// Replace a procedure's current waits in the core.
+    Waits {
+        task: u64,
+        waits: List<jig_domain_core_vocabulary::Reported>,
     },
     /// Changed panel subjects, bounded by `MARKED` (domain/root.md, 9).
     Marked {

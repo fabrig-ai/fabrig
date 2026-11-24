@@ -81,6 +81,41 @@ pub(crate) fn ended_chat(phase: c::Phase) -> client::Latest {
 pub(crate) fn party_wait(whom: c::Whom, kind: c::WaitedFor) -> c::WaitsOn {
     c::WaitsOn::Party { whom, task: OTHER_TASK, kind, entries: ONE_NEED }
 }
+/// The descendant's question in client/ctl/results.md, 1.
+pub(crate) const QUESTION_TASK: u64 = 44;
+pub(crate) const QUESTION_SINCE: Wall = Wall::from_nanos(1_792_854_120_000_000_000);
+pub(crate) const QUESTION_BOUND: Wall = Wall::from_nanos(1_792_882_920_000_000_000);
+pub(crate) fn descendant_question() -> c::Wait {
+    c::Wait {
+        task: QUESTION_TASK,
+        kind: c::WaitKind::Party,
+        object: c::WaitObject::Entry {
+            kind: c::WaitedFor::Question,
+            number: 3,
+            at: c::EscalationHolder::Person(PARTY),
+        },
+        since: QUESTION_SINCE,
+        bound: c::waits::Bound::At { at: QUESTION_BOUND, then: c::AtBound::PassUp },
+        hears: Some(c::EscalationHolder::Person(PARTY)),
+    }
+}
+pub(crate) fn descendant_bound() -> c::Nearest {
+    c::Nearest { at: QUESTION_BOUND, then: c::AtBound::PassUp, kind: c::WaitKind::Party }
+}
+pub(crate) fn waiting_goal() -> c::Task {
+    let mut task = goal(
+        TASK,
+        c::WaitsOn::Party {
+            whom: c::Whom::Person(PARTY),
+            task: QUESTION_TASK,
+            kind: c::WaitedFor::Question,
+            entries: ONE_NEED,
+        },
+    );
+    task.wait = Some(descendant_question());
+    task.nearest = Some(descendant_bound());
+    task
+}
 pub(crate) fn inbox_counts(needs: u32, updates: u32) -> client::Latest {
     client::Latest::Jig(c::Delivery::Inbox(Box::new({
         let counts = c::Needs { questions: needs, proposals: 0, escalations: 0, person_tasks: 0 };

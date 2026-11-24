@@ -173,6 +173,7 @@ fn later_start() -> Service {
         connector_rows: 0,
         projects: 0,
         restart_wait_ms: None,
+        wait_floors: None,
         applications: 0,
         commits: 1,
     };

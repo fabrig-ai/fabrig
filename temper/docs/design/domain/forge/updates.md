@@ -53,7 +53,7 @@ instead (`../landing-prepare.md`, section 1).
   one of `updates` and up to `write_attempts` lifetimes. Past `updates`
   it holds, `Updates`, a person told why in the last write's account
   (`update pull request: forge timed out; ...`).
-- **Refused stale: a replan** (2026-11-16, `../../draft/landing-update-loop.md`).
+- **Refused stale: a replan** (2026-11-16, `../../draft/archive/landing-update-loop.md`).
   An update or a preparation the client's check refuses before any send
   of its own was never made: `Stale`, its pull request at another head,
   or `BaseMoved`, at another base commit (skein's `forge/client-effects.md`,

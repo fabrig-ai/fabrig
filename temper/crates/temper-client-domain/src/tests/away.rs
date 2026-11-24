@@ -47,6 +47,7 @@ fn opened() -> (Domain, Token, Token) {
         &mut root,
         Up::FamilyServed {
             family: wire::FORGE,
+            served: true,
             versions: Some(c::VersionRange { first: wire::CLIENT_VERSION, last: wire::CLIENT_VERSION }),
         },
     );
@@ -505,6 +506,8 @@ fn goal_line() -> c::TaskLine {
         ended_at: None,
         budget,
         waits_on: c::WaitsOn::Nothing,
+        wait: None,
+        nearest: None,
         phases: c::PhaseCounts::ZERO,
         delegates_done: 0,
         delegates_total: 0,

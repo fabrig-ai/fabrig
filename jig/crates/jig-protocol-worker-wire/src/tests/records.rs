@@ -188,7 +188,7 @@ fn append_hello_program_endpoint(hello: &Hello, bytes: &[u8], endpoint: u32) -> 
 
 #[test]
 fn a_hello_past_the_endpoint_ceiling_is_refused_at_its_bound() {
-    // domain/hosts/charters.md, 1: 64 distinct endpoint identities per hello.
+    // domain/hosts/charters.md, 4: 64 distinct endpoint identities per hello.
     const ENDPOINT_CAP: u32 = 64;
     let limits = crate::sizes::limits(&fixtures::SIZES_ONE_SLOT).expect("real one-slot codec limits");
     let mut hello = fixtures::hello_smallest();

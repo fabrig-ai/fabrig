@@ -20,7 +20,10 @@ pub(crate) const FULL_HELD: u32 = 4;
 pub(crate) const FULL_ROOM: Wall = Wall::from_nanos(120_000_000_000);
 pub(crate) fn limits() -> Limits {
     Limits {
-        owners: &[Spoken { family: 19, version: 1 }, Spoken { family: 1, version: 1 }],
+        owners: &[
+            Spoken { family: 19, version: 1, layout: [1; 32] },
+            Spoken { family: 1, version: 1, layout: [1; 32] },
+        ],
         // tests/client/src/test.rs:70-77, the concrete world's table profile.
         requests: skein_lib::RequestLimits {
             requests: 4,
@@ -176,13 +179,11 @@ fn document(number: u64) -> contract::Task {
         last_activity: Wall::from_nanos(0),
         made: Wall::from_nanos(0),
         waits_on: contract::WaitsOn::Nothing,
-        chip: contract::Chip {
-            task: number,
-            title: contract::DocumentText::complete(text()),
-            executor: contract::ChipExecutor::Agent { charter: 1 },
-            phase: contract::Phase::Waiting,
-            details: Box::new(chip_details(number)),
-        },
+        wait: None,
+        nearest: None,
+        waits: List::with_capacity(0),
+        wait_count: 0,
+        chip: document_chip(number),
         goal: None,
         priority: None,
         lineage_chips: List::with_capacity(0),
@@ -253,6 +254,16 @@ fn document(number: u64) -> contract::Task {
         delegates: List::with_capacity(0),
         context: None,
         llm: None,
+    }
+}
+
+fn document_chip(number: u64) -> contract::Chip {
+    contract::Chip {
+        task: number,
+        title: contract::DocumentText::complete(text()),
+        executor: contract::ChipExecutor::Agent { charter: 1 },
+        phase: contract::Phase::Waiting,
+        details: Box::new(chip_details(number)),
     }
 }
 

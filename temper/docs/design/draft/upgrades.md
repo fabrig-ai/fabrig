@@ -8,7 +8,7 @@ user that day, whose turns shaped it: the records before the formats on
 disk, and changes carried with the build, as an application migrates
 its database. It crosses skein, smith, jig and temper on purpose; an
 owner splits it. The oldest store a build opens is dev.fabrig.ai's,
-settled at the floor (`store-floor.md`, section 3; 4.1 below).
+settled at the floor (`archive/store-floor.md`, section 3; 4.1 below).
 Commands' spellings are placeholders.
 
 ## 1. In one page
@@ -42,7 +42,7 @@ Commands' spellings are placeholders.
 - **Transcripts are never rewritten** (section 7): their frames are
   patched as they are read. An agent resumes its conversation across
   a compatible change; a breaking change of the turns' wire follows
-  `redeploys.md`'s bridges and breaking declarations.
+  `archive/redeploys.md`'s bridges and breaking declarations.
 - **Every stop settles effects first** (section 8). Their identities,
   keyed outcomes and recovery survive the store's changes.
 - **The engine alone may be upgraded while workers keep their runs**
@@ -164,7 +164,7 @@ transcripts, the forge or the programs' logins. Online backups stay open
 ### 4.1 The floor
 
 The floor is dev.fabrig.ai's store as store-floor's F0 settled it
-(`store-floor.md`, section 3): the oldest store a build opens. The
+(`archive/store-floor.md`, section 3): the oldest store a build opens. The
 store's floor row carries its number and the build that wrote it;
 its first commit writes it, and a reopen leaves it alone (jig's
 `protocol/store/records.md`, 3). A store without that row or below the
@@ -178,7 +178,7 @@ floor. The floor moves only when a landing drops a whole older form;
 that landing designs how its upgrade writes the new floor and names
 its bridge. After dev.fabrig.ai runs a job, a small landing drops its
 code; its done row stays inert and its name is never reused
-(`store-floor.md`, section 6; jig's `protocol/store/jobs.md`, 1).
+(`archive/store-floor.md`, section 6; jig's `protocol/store/jobs.md`, 1).
 
 A store from before generations, with an older format, an undecodable
 component row or no levels is refused by name too. Its refusal names
@@ -189,9 +189,9 @@ an upgrade deleting it.
 
 The wires keep their own rule: a changed layout moves its version and
 brings its bridge, or is declared per-build in the bridge inventory
-(`redeploys.md`, sections 3 and 4.2). A format outside the registry
+(`archive/redeploys.md`, sections 3 and 4.2). A format outside the registry
 stays fixed at its version; a change designs and brings, in the same
-landing, how dev.fabrig.ai's store gets there (`store-floor.md`, 5).
+landing, how dev.fabrig.ai's store gets there (`archive/store-floor.md`, 5).
 
 ### 4.2 Levels
 
@@ -227,7 +227,7 @@ landing, how dev.fabrig.ai's store gets there (`store-floor.md`, 5).
 - **Wires:** operations over generic values (section 5), derived by
   the patch command or written where derivation cannot supply the
   meaning. They keep their texts, patches and bridges, not the store's
-  jobs (`redeploys.md`, 3 and 4).
+  jobs (`archive/redeploys.md`, 3 and 4).
 
 What every change keeps:
 
@@ -271,7 +271,7 @@ What every change keeps:
   (4.3). It keeps no schema history in the repository.
 - **For wires,** `cargo run -p skein-codegen -- patch <crate>` writes
   the forward patch and its tests and keeps the version's text; their
-  bridges follow `redeploys.md`, section 3. Formats outside the
+  bridges follow `archive/redeploys.md`, section 3. Formats outside the
   registry are fixed at their versions (4.1).
 - **The gate holds each rule** (section 12), not a pending map patch
   or a frozen registered text.
@@ -393,7 +393,7 @@ When a layout needs registering or a job is pending, from the active
 - **Copied whole,** in their own map (jig's `protocol/store/secrets.md`):
   jig's credentials' digests and LLM accounts' records, temper's forge
   records, and skein's OAuth records. These formats are outside the
-  registry, fixed at their current versions (`store-floor.md`, 5).
+  registry, fixed at their current versions (`archive/store-floor.md`, 5).
   A change brings how dev.fabrig.ai's store gets there in its landing,
   not a promise to read older stores.
 - **Their numbers kept:** sources', accounts' and the carried values'
@@ -425,7 +425,7 @@ The gate fingerprints them as it does every kept format (`upgrades.md`, section 
 a change is seen. Changing one needs an upgrade of its own, a tool of
 its owner's, as `pg_upgrade` is PostgreSQL's (section 15). The
 transcripts' frame patcher stays; no map patch or fresh-window mark
-is part of it (`store-floor.md`, 5).
+is part of it (`archive/store-floor.md`, 5).
 
 ## 7. What survives
 
@@ -486,7 +486,7 @@ outcomes; the deployment's and installation's ids.
 ## 8. Effects in flight
 
 - **Every stop settles first.** Told to stop, before it stops taking
-  commits (jig's `domain/engine/restart.md`, 1), the engine starts no effect,
+  commits (jig's `domain/engine/restart.md`, 5), the engine starts no effect,
   places no run and steps no procedure, answers busy a run's call that
   would start an effect, and commits the outcomes of the effects in
   flight within their deadlines. Then it stops as today. Past a bound, it
@@ -505,9 +505,9 @@ outcomes; the deployment's and installation's ids.
 
 ## 9. The engine alone
 
-Replaced by `redeploys.md` (the user, 2026-11-12): when the workers may
+Replaced by `archive/redeploys.md` (the user, 2026-11-12): when the workers may
 stay, judged by each wire's fingerprints and floor rather than its
-number (`redeploys.md`, 5.1); the settled stop and the window within
+number (`archive/redeploys.md`, 5.1); the settled stop and the window within
 the workers' grace (5.2, 5.3); and the workers following in turn
 (section 7). A breaking change of the turns' wire is declared there
 (4.5); it is not a pending store patch or a fresh-window mark in the
@@ -563,7 +563,7 @@ store.
     of a store without the floor (section 13);
   - the wires' kept texts, patches and bridges, by their own rule;
     the boundary's patches check covers wires and formats outside the
-    registry, not registered map families (`store-floor.md`, 4.4);
+    registry, not registered map families (`archive/store-floor.md`, 4.4);
   - the formats outside the registry, fixed at their current versions,
     and the formats on disk (6.5): a changed fingerprint fails unless
     its landing brings the designed way for dev's store to reach it.
@@ -571,7 +571,7 @@ store.
   layout: its review, its written job and a scenario hold it.
 - **The floor keeps the cost bounded:** there is no chain to squash,
   baseline to catch up or frozen store text to mutate. A job's code
-  goes after dev.fabrig.ai runs it (`store-floor.md`, 6); generic
+  goes after dev.fabrig.ai runs it (`archive/store-floor.md`, 6); generic
   conversion at read stays for the next change.
 
 ## 13. Proving it
@@ -588,7 +588,7 @@ the domains:
 - **A fixture at the floor,** which opens and serves, its identities,
   counters, policies, outcomes and turns kept. A store without the
   floor is refused by name, naming bridge build `3d1c717d379e`;
-  nothing upgrades it (`store-floor.md`, 4.4). No golden store below
+  nothing upgrades it (`archive/store-floor.md`, 4.4). No golden store below
   the floor is promised an upgrade.
 - **A story through an upgrade,** in the one-process world
   (`../testing/tiers.md`, 1.5): a project, a person and an account; a
@@ -623,7 +623,7 @@ the domains:
 | all | the floor's fixture and refusal; the story through a registry and job upgrade; power loss; the process drill; removal of jobs once dev.fabrig.ai runs them |
 
 The full upgrade and the engine alone share the store's mechanism;
-the wires and workers' lifecycle are `redeploys.md`'s.
+the wires and workers' lifecycle are `archive/redeploys.md`'s.
 
 ## 15. Open questions
 
@@ -638,4 +638,4 @@ the wires and workers' lifecycle are `redeploys.md`'s.
   owner's when one first changes, run before the records' upgrade, as
   `pg_upgrade` runs before an application migrates.
 - **Rolling upgrades,** an engine and workers of different wires:
-  `redeploys.md`, from 2026-11-12.
+  `archive/redeploys.md`, from 2026-11-12.

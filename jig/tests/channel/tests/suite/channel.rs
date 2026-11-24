@@ -1,5 +1,6 @@
 use jig_channel_world::{
     fixtures,
+    restarts::{CrashScope, Point},
     stories::{Opening, Story},
     world,
 };
@@ -295,8 +296,8 @@ fn parts_carried(outcome: &jig_channel_world::world::Outcome) {
     }
 }
 
-fn crashed(point: jig_channel_world::restarts::Point) -> jig_channel_world::world::Outcome {
-    let outcome = run(Story::Crash(point));
+fn crashed(point: Point, scope: CrashScope) -> world::Outcome {
+    let outcome = run(Story::Crash(point, scope));
     assert_eq!(outcome.verdict, Verdict::Passed);
     assert_eq!(outcome.agent_starts, 2);
     assert!(outcome.restart.suspended, "{:#?}", outcome.restart);
@@ -314,7 +315,7 @@ fn crashed(point: jig_channel_world::restarts::Point) -> jig_channel_world::worl
 
 #[test]
 fn a_worker_crashed_while_awaiting_an_answer_asks_its_turn_again() {
-    let outcome = crashed(jig_channel_world::restarts::Point::Answer);
+    let outcome = crashed(Point::Answer, CrashScope::Unit);
     assert_eq!(outcome.restart.kept, []);
     assert_eq!(outcome.restart.queries, 4, "the lost answer is planned again");
     assert_eq!(outcome.restart.checks, 1);
@@ -322,8 +323,25 @@ fn a_worker_crashed_while_awaiting_an_answer_asks_its_turn_again() {
 }
 
 #[test]
+fn a_worker_killed_alone_while_awaiting_an_answer_leaves_its_agent_to_end() {
+    let outcome = crashed(Point::Answer, CrashScope::Worker);
+    assert_eq!(outcome.restart.kept, []);
+    // The replacement asks again immediately. Waiting to release the hold until
+    // the orphan has cancelled its query takes two provider retries.
+    assert_eq!(outcome.restart.queries, 6);
+    assert_eq!(outcome.restart.checks, 1);
+    assert!(outcome.restart.delivered);
+
+    let orphan = outcome.restart.orphan_exit.expect("the first agent exited on its own");
+    assert_eq!(orphan.exit, skein_io::kernel::Exit::Code(1));
+    let elapsed = orphan.exited_at.saturating_since(orphan.cut_at);
+    assert!(elapsed <= orphan.bound, "orphan exited after {elapsed:?}, bound {0:?}", orphan.bound);
+    eprintln!("worker kill to orphan exit: {elapsed:?}; orphan_exit: {:?}", orphan.bound);
+}
+
+#[test]
 fn a_worker_crashed_during_a_check_runs_it_again_on_the_same_tree() {
-    let outcome = crashed(jig_channel_world::restarts::Point::Check);
+    let outcome = crashed(Point::Check, CrashScope::Unit);
     assert_eq!(outcome.restart.queries, 3, "the kept answer is not planned again");
     assert_eq!(outcome.restart.kept.len(), 1);
     assert_eq!(outcome.restart.kept[0].kind, jig_domain_link::PartKind::Answer);
@@ -337,7 +355,7 @@ fn a_worker_crashed_during_a_check_runs_it_again_on_the_same_tree() {
 #[test]
 fn a_worker_crashed_during_a_command_resumes_it_interrupted() {
     use smith_transcript::Record as _;
-    let outcome = crashed(jig_channel_world::restarts::Point::Command);
+    let outcome = crashed(Point::Command, CrashScope::Unit);
     assert_eq!(outcome.restart.queries, 3, "the kept answer is not planned again");
     assert_eq!(outcome.restart.commands, 1);
     assert_eq!(outcome.restart.kept.len(), 2);

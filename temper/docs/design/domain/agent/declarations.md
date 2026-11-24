@@ -7,13 +7,13 @@ declared (1), in what form (2), how large a declaration and a role's
 offer may be (3), how the declarations' contract moves (4), and what a
 charter loses where its `tools` doesn't name a family its runs used (5).
 What each tool does is `tools.md`'s. Written from
-`../../draft/tools-by-role.md`, sections 2 to 5.
+`../../draft/archive/tools-by-role.md`, sections 2 to 5.
 
 ## 1. The offer
 
 A run is offered the tools its role uses, by the families its charter's
 `tools` names (jig's `domain/engine/executors.md`, 1), the families the
-engine already decides each call by (`temper/crates/temper-engine-domain/src/translate.rs`,
+engine already decides each call by (`temper/crates/temper-engine-domain-translate/src/shape.rs`,
 `tool_kind`; jig's `domain/authority.md`, 3). No family is added.
 
 | Family | Its host tools |
@@ -33,7 +33,7 @@ engine already decides each call by (`temper/crates/temper-engine-domain/src/tra
 
 - **An asking charter keeps its own tools alone,** exactly as `tools.md`
   has it: one whose `tools` name the asking family and no family but it and
-  settings (`temper/crates/temper-engine-domain/src/boundary.rs`, `asking`;
+  settings (`temper/crates/temper-engine-domain-room/src/lib.rs`, `asking`;
   a mask of every family is not one). It is declared `see`, `document` and
   `remember` where its task's authority holds the asking family, and
   `propose_settings` in its asking form where its charter names settings
@@ -158,7 +158,7 @@ smith's `Grants.contract` (smith's `protocol/charter.md`, 2).
 - **It moves from version 9 to 10, its floor staying 1.** Versions 1 to 9
   keep their kept texts; every version from the floor is answered, not
   just the previous one (`../../protocol/wires.md`, 7;
-  `../../draft/redeploys.md`, 4.2). Version 4 refuses
+  `../../draft/archive/redeploys.md`, 4.2). Version 4 refuses
   zero-word reports to people or roles; version 5 adds the welcome
   setting; version 6 makes the forge's reads three tools, each taking a
   `what`; versions 7 to 9 move `settings` and `propose_settings`; version
@@ -235,7 +235,7 @@ declared its tools, where its task's authority held them:
 ## 6. Open questions
 
 - **A tighter per-tool bound.** 1,024 bytes is the user's figure to start
-  with, "tighter where no risk shows" (`../../draft/tools-by-role.md`, 10);
+  with, "tighter where no risk shows" (`../../draft/archive/tools-by-role.md`, 10);
   the forge's merged reads are its tight spot. Default: 1,024.
 - **A page per tool.** A run reaches a tool's whole form by searching
   `read_docs` for the tool's name, then reading the page from the offset

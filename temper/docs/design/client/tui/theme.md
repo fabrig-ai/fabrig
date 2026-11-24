@@ -5,6 +5,9 @@
   (skein's `ui/screen.md`, section 3), from the browser's chat terminal
   (`../web/look.md`, *A chat's terminal*) and the palette its
   stylesheet, `temper.css`, holds there.
+
+## 1. The terminal's own colours.
+
 - **The terminal's own colours.** The base is the terminal's defaults: a
   paint with no colour, which skein draws as SGR 39 and 49 (skein's
   `ui/screen.md`, sections 3 and 7), so that the terminal's ground and
@@ -27,6 +30,9 @@
   ground, moved (below). Beside the palette, the mark's three brand
   colours, the same in both themes: cyan `#00C4FE`, blue `#1B76FD` and
   violet `#8E2CF8` (`pages/README.md`, 3).
+
+## 2. Palette bands, regions and tokens
+
 - **The band,** `temper_client_tui::theme(scheme, background)`'s, from
   the user's request of 2026-11-08, since a fixed colour reads as black
   on a dark terminal whose ground is not the palette's:
@@ -99,6 +105,8 @@
   | `tui-picked` | accent, over the band where there is one | a band where the theme has one; the mark `❯`, accent | the launchpad's selected left-off chat |
   | `tui-rule-title` | none | aligned to the end | each part of a chat's title in the rule above the box |
 
+## 3. Focus, selection and glyphs
+
 - **Its glyphs, its focus and the active choice:** `❯` the focus mark,
   `•` the mask. The focus is shown by the mark and the accent, the
   focus's paint the accent's foreground with no background of its own,
@@ -116,6 +124,9 @@
   Descriptions stay plain; question choices keep their bold names. Reverse video is
   the fallback should the mark and the accent not show the focus
   (`../README.md`, section 5).
+
+## 4. Choosing the theme and colour depth
+
 - **The scheme,** the terminal's word, dark or light, found before
   `Start`, which carries it, or none (`host.md`, 1): from `COLORFGBG` where its
   last field, the background the

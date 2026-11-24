@@ -357,10 +357,11 @@ to an older reader or writer. Each has one version at a time.
   refuses a worker whose layout of it is not its own (jig's
   `protocol/channel/wires.md`, 3), so a change of its layout is met by
   draining the workers of the build before (temper's
-  `draft/redeploys.md`, 6.1). Its module `smith_channel::pieces::wire`
-  says what it speaks. A landing that changes the layout of any of
-  smith's wires makes the change in its current text alone and moves no
-  version. Each crate says what it speaks in a module `wire`: `FAMILY`,
+  `draft/archive/redeploys.md`, 6.1). Its module
+  `smith_channel::pieces::wire` says what it speaks. A landing that
+  changes the layout of any of smith's wires makes the change in its
+  current text alone and moves no version. Each crate says what it
+  speaks in a module `wire`: `FAMILY`,
   `VERSION` and `layout()`, its current text's family fingerprint. Every
   writer and reader that names a version names `wire::VERSION`:
   `Charter::FORMAT_VERSION`, `Turn::FORMAT_VERSION`,
@@ -377,7 +378,7 @@ to an older reader or writer. Each has one version at a time.
     and configuration for its lifetime and adopts no older agents, so
     both halves move together and share one layout. Its version is
     frozen like the others', and no bridge, plan or previous text is
-    needed (`temper/docs/design/draft/redeploys.md`, 4.4). A consumer
+    needed (`temper/docs/design/draft/archive/redeploys.md`, 4.4). A consumer
     permitting independently upgraded agents needs a
     compatibility contract before using that shape (section 11).
   - **the charter** carries its own version, since the party that writes
@@ -487,9 +488,9 @@ it.
   (skein's `data/json.md` and `http.md`).
 - **io and the shell** (skein's `runtime/io/README.md` and `../shell/README.md`):
   - an append stream on a file, and standard output adopted as a stream,
-    for the event stream (`skein/docs/design/runtime/io/files.md`, 1);
+    for the event stream (`skein/docs/design/runtime/io/files.md`, 9);
   - durable replacement of a whole file, and private files for secrets
-    (`skein/docs/design/runtime/io/files.md`, 2 and 3);
+    (`skein/docs/design/runtime/io/files.md`, 10 and 11);
   - a lock on a directory, taken without waiting, for the credentials
     directory's records (`skein/docs/design/runtime/io/files.md`);
   - the loop's host interface and its drive, out of the testing crates

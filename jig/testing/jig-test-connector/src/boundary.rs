@@ -355,12 +355,22 @@ pub enum ProcedureAction {
     Propose { spend: u64 },
     /// Wait for a named fact to reach the state, no longer than the configured stall.
     Wait { state: u64 },
+    /// The same fact wait, with a report to the task's core.
+    ReportWait { state: u64 },
     /// Remain stalled until the caller delivers another message.
     Stall,
     /// Hold the task with a connector-owned reason.
     Hold { reason: u16 },
     /// Finish in jig's terms or with a connector-owned result.
     Finish { result: ProcedureResult },
+}
+
+/// The fake's own clock for a procedure waiting for a fact.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct StepWait {
+    pub step: u32,
+    pub since: Wall,
+    pub at: Wall,
 }
 
 /// A result a procedure hands to its task.
@@ -562,7 +572,13 @@ pub enum SystemEvent {
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Event {
     /// Read the live resources and settle the restored outbox after opening.
-    CatchUp,
+    CatchUp {
+        procedures: Box<[u64]>,
+    },
+    WaitsRefused {
+        task: u64,
+        why: &'static str,
+    },
     /// Compare this start's defaults with the saved defaults.
     SettingsDefaults,
     /// Keep restored items as a proposal, checking their kinds' bounds.
@@ -981,6 +997,8 @@ pub enum Request {
     Verdict { token: Token, verdict: Verdict },
     /// One bounded procedure decision.
     Step { task: u64, decision: StepDecision },
+    /// Replace the task's report, or clear it when no fact wait remains.
+    Waits { task: u64, wait: Option<StepWait> },
     /// A read answer leaves the connector immediately.
     Answer { token: Token, bytes: Box<[u8]> },
     /// A staged section's current byte size.

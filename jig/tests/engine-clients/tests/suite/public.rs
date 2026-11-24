@@ -6,6 +6,7 @@ use jig_engine_clients_world::fixtures::{self, Peer};
 use jig_protocol_engine_clients::{PublicKind, PublicLimits, PublicRead, PublicReply, Settings, public::Names};
 use skein_http::{Header, Method};
 use skein_lib::{CryptoRng, List, Reader, ReplyTo, Secret, Time, Writer};
+use std::fmt::Write as _;
 // Each reservation is 8 KiB, enough for this world's two-project index.
 const BOUND: u32 = 8192;
 const INDEX: wire::PublicIndexBounds = wire::PublicIndexBounds { goals: 2, ended: 2, lines: 2, depth: 2, projects: 2 };
@@ -50,13 +51,21 @@ fn names() -> Names {
     Names::new(&Secret::new(Box::new(key)))
 }
 fn read(kind: u16, ids: &[u64]) -> PublicRead {
-    PublicRead { owner: 0, version: 1, kind, ids: Box::from(ids) }
+    PublicRead { owner: 0, layout: Some(wire::PUBLIC_LAYOUT), kind, ids: Box::from(ids) }
 }
 fn admitted(peer: &mut Peer) -> (ReplyTo, core::PublicRead) {
     let Some(core::Event::PublicRead { reply, read }) = peer.take_core() else {
         panic!("public read to engine");
     };
     (reply, read)
+}
+fn projects_target(layout: [u8; 32]) -> String {
+    let mut path = String::from("/jig/v1/public/0/");
+    for byte in layout {
+        write!(path, "{byte:02x}").expect("writes to a string");
+    }
+    path.push_str("/1");
+    path
 }
 fn signed_in_read() -> Box<[u8]> {
     let record = wire::Read::Me;
@@ -214,13 +223,14 @@ fn public_reads_with_no_credential_cookie_bearer_and_both_are_answered_alike() {
         wire::ReadAnswer::Value(_)
     ));
     let mut baseline = None;
+    let target = projects_target(wire::PUBLIC_LAYOUT);
     for (cookie, bearer) in [
         (None, None),
         (Some(cookie.as_slice()), None),
         (None, Some(bearer.as_ref())),
         (Some(cookie.as_slice()), Some(bearer.as_ref())),
     ] {
-        let socket = peer.http(Method::Get, b"/jig/v1/public/0/1/1", Box::new([]), headers(cookie, bearer));
+        let socket = peer.http(Method::Get, target.as_bytes(), Box::new([]), headers(cookie, bearer));
         let (reply, got) = admitted(&mut peer);
         assert_eq!(got, core::PublicRead { owner: 0, version: 1, kind: 1, project: None, task: None });
         peer.public_answer(reply, projects());
@@ -232,6 +242,30 @@ fn public_reads_with_no_credential_cookie_bearer_and_both_are_answered_alike() {
         } else {
             baseline = Some(bytes.to_vec());
         }
+    }
+}
+
+#[test]
+fn public_reads_at_no_served_layout_never_reach_the_core() {
+    let mut peer = peer(limits());
+    let other = projects_target([0; 32]);
+    for target in [other.as_bytes(), b"/jig/v1/public/0/1/1"] {
+        let socket = peer.http(Method::Get, target, Box::new([]), headers(None, None));
+        assert!(peer.take_core().is_none(), "unserved layout is not admitted");
+        let (status, body) = peer.response(socket);
+        assert_eq!(status, Some(200));
+        assert!(peer.response_headers(socket).iter().any(|header| {
+            header.name.eq_ignore_ascii_case(b"cache-control") && header.value.as_ref() == b"no-store"
+        }));
+        let mut reader = Reader::new(body);
+        let answer = wire::NotServed::decode(&wire::CEILINGS, &mut reader).expect("version not served");
+        assert_eq!(answer.owner, wire::Owner::Jig);
+        let version = u32::from(wire::PUBLIC_VERSION);
+        assert_eq!(
+            answer.served.as_slice(),
+            &[wire::Served { owner: wire::Owner::Jig, first: version, last: version }]
+        );
+        assert!(reader.is_empty());
     }
 }
 

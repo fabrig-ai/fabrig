@@ -122,7 +122,7 @@ read.
     branch: a live repair of the branch (`queues.md`), or a landing a tier
     still holds red (`../after-landing.md`, 5.3). False with no home;
   - `branch`, the home repository's landing branch, its record's
-    `landing` (`adoption.md`, 8); empty with no home.
+    `landing` (`adoption.md`, 12); empty with no home.
 
   It is marked wherever the subject `changes` is (a queue, a branch's
   red, a merge), and at a look, a brief and a run found unpaid. A look makes the document

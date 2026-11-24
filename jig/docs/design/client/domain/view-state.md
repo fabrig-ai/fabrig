@@ -343,9 +343,15 @@ read by the application: ui.sections(), ui.shown()
   the client's, so they are written before the step's exchanges leave:
   a composer cleared because its words were sent is never restored
   beside the kept request that carries them.
-- **Versioned** by the reference UI, so a client updated since reads
-  what an older one kept, and a record it cannot read is dropped, never
-  guessed: a draft lost, a place forgotten for the home.
+- **Named by its layout:** each record, `StoredRecord { layout, record }`,
+  names the layout of its family, `jig-client-view-records`, it was
+  written at, its head and `layout` the same at every layout
+  (`../../protocol/client/versions.md`, section 1). So a client updated since reads
+  what an older one kept at its own layout, and a record at another, or
+  one it cannot read, is dropped, never guessed: a draft lost, a place
+  forgotten for the home. The family's version is frozen; its
+  declarations are free to change, since no record at another layout is
+  read.
 - **Bounded:** the drafts kept, a draft's bytes and a place's are
   limits.
 

@@ -1,4 +1,4 @@
-//! A unit's mixed stop, sharing the cluster-turn setup (worker-restarts.md, 2 and 9).
+//! A unit's mixed stop, sharing the cluster-turn setup (draft/archive/worker-restarts.md, 2 and 9).
 use super::{
     Call, Cluster, Exit, Host, Judge, Path, Root, Time, Value, check_calls, committed_reply, fs, json, one, setup,
     support,

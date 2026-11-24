@@ -39,6 +39,11 @@ impl Core {
                     return Action::Refused(self.start_failure().expect("named project policy failure"));
                 }
                 self.counters.finish_restore();
+                // The first start commit (Wires at the latest) saves the header.
+                // Do not dirty it here: a loaded header is not a first-start seed.
+                for kind in crate::runs::waits::STARTUP_KINDS {
+                    let _kept = self.counters.deployment.set_wait_floor(kind, self.start.at);
+                }
                 if self.counters.dirty() && self.kinds.is_empty() {
                     super::first::start_seed(self, env, out);
                     self.start_collect_failure();

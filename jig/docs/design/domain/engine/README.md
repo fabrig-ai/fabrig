@@ -12,6 +12,7 @@ does with all of it is ../root.md. The mechanics are those of skein's
 `../foundation/programming-model.md`. What is still open is listed in section 10.
 
 - [`vocabulary.md`](vocabulary.md): what crosses between the core and the root.
+- [`waits.md`](waits.md): a task's waits, each a record with its kind, since and bound.
 - [`decisions.md`](decisions.md): decisions, commits and the store.
 - [`world.md`](world.md): the core's domain world and its stories.
 - [`executors-transcripts.md`](executors-transcripts.md): turns, transcripts and resumption.
@@ -141,7 +142,7 @@ Each directory is one concept of this document; a route lives under the kind of 
 `settings/`, and the parts of the other modules that cross the core's edge.
 
 The core's vocabulary is a crate of its own, below the core
-(`temper/docs/design/draft/crate-graph.md`, 5):
+(`temper/docs/design/draft/archive/crate-graph.md`, 5):
 
 - **It holds what crosses the core's edge:** every item a crate other than the core names (the
   events, requests, writes and limits of `vocabulary.md`, section 1; the records, keys and run proofs; the
@@ -152,7 +153,7 @@ The core's vocabulary is a crate of its own, below the core
 - **`jig-domain-core` keeps `Core`:** its state, its construction, its step, every method and
   function that reads or changes it, the helpers only they use, and the step tests that drive it.
   `Core` isn't cut, since every module adds methods to it
-  (`temper/docs/design/draft/crate-graph.md`, 5.2). So the core stays over the size bound
+  (`temper/docs/design/draft/archive/crate-graph.md`, 5.2). So the core stays over the size bound
   (`tools/crates/design.md`, 3.1) until its state is grouped into owned parts
   (`jig/docs/development/debt/D003-core-one-object.md`).
 - **The two share one module tree:** an item keeps its module path, so

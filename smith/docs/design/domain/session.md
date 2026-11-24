@@ -251,7 +251,7 @@ child domain `smith-domain-session`, whose own child is the tools domain
   retries. The others end the session as a failure of its model, naming
   the account.
 - **A completion waits for a grant that will come** (temper's
-  `draft/redeploys.md`, 5.3). While its host says its renewals are held
+  `draft/archive/redeploys.md`, 5.3). While its host says its renewals are held
   (host.md, section 7: its link to what grants them is lost, as when
   its engine is away), a completion whose account's grant has lapsed,
   or is missing, and is renewable (a bearer's or a program source's,

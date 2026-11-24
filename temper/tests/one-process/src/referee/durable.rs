@@ -2,6 +2,7 @@
 mod generations;
 mod history;
 mod layouts;
+pub(crate) use layouts::serving_row;
 pub(crate) mod snapshots;
 #[cfg(test)]
 mod tests;
@@ -29,7 +30,7 @@ pub struct Store {
     pub pending: VecDeque<Commit>,
     pub applied: u64,
     pub(crate) installation: Option<[u8; 16]>,
-    pub(crate) wires: Option<u64>,
+    pub(crate) synced_wires: bool,
     pub recovered: std::collections::BTreeSet<u64>,
     pub(crate) restored: Option<BTreeMap<root::Key, root::Record>>,
     restoring: bool,
@@ -199,6 +200,7 @@ impl Store {
         self.validated.clear();
         self.pending.clear();
         self.recovered.clear();
+        self.synced_wires = false;
         self.restored = None;
         self.restoring = true;
     }
@@ -260,13 +262,13 @@ impl Store {
                     if let Some(bytes) = self.files.get(&path) {
                         self.recovered.extend(frames(bytes, 0).0.into_iter().map(|(number, _)| number));
                     }
-                    committed.extend(self.durable(&path, limits, names, connector)?);
+                    committed.extend(self.durable(&path, limits, names, connector, false)?);
                 }
                 Observed::Snapshot(path) => {
                     committed.extend(self.snapshot(&path, limits, names, connector)?);
                 }
                 Observed::Sync(path) if is_log(&path) => {
-                    committed.extend(self.durable(&path, limits, names, connector)?);
+                    committed.extend(self.durable(&path, limits, names, connector, true)?);
                 }
                 Observed::Sync(path) if in_generation(&path) == Some(b"store/snapshot".as_slice()) => {
                     committed.extend(self.snapshot(&path, limits, names, connector)?);
@@ -296,6 +298,7 @@ impl Store {
         limits: &codec::View,
         names: &[core::settings::ModelName],
         connector: &temper_protocol_store::Bounds,
+        synced: bool,
     ) -> Result<Vec<Commit>, String> {
         let mut committed = Vec::new();
         let Some(bytes) = self.files.get(path) else { return Ok(committed) };
@@ -316,6 +319,8 @@ impl Store {
                 continue;
             }
             let commit = self.commit(number, ops, limits, names, connector)?;
+            // A replayed or copied Wires row does not mark this start's Wires commit.
+            self.synced_wires |= synced && commit.wires;
             self.apply(&commit, limits);
             self.pending.retain(|pending| pending.number > number);
             committed.push(commit);
@@ -325,9 +330,6 @@ impl Store {
     fn apply(&mut self, commit: &Commit, limits: &codec::View) {
         if let Some(installation) = commit.installation {
             self.installation = Some(installation);
-        }
-        if commit.wires {
-            self.wires = Some(commit.number);
         }
         for write in &commit.writes {
             match write {

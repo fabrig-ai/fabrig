@@ -1,4 +1,4 @@
-//! Two checkouts and a real link over scripted IO (worker-restarts.md, 9, test 7).
+//! Two checkouts and a real link over scripted IO (draft/archive/worker-restarts.md, 9, test 7).
 #![expect(
     clippy::disallowed_methods,
     reason = "ordinary worker integration tests inspect link frames, Git spawns and diagnostics"

@@ -32,7 +32,7 @@ const fn older(package: &'static str, file: &'static str) -> Exception {
         package,
         what: file,
         reason: "an older version's record file, keeping its test module until C2 removes it",
-        until: "milestone C2 of temper/docs/design/draft/gate-compile.execution.md removes the older version",
+        until: "milestone C2 of temper/docs/design/draft/archive/gate-compile.execution.md removes the older version",
     }
 }
 

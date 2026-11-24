@@ -241,11 +241,11 @@ the terminal. Reasons: `whole-story.md` and `notes.md`.
   changes", the settings' revisions.
 - **The path of a change,** the one drawing Ask temper's ways use
   (`../client/pages/chat/conversation.md`, 3): a column a step, the stops of the
-  project's derived path (`stock-ways.md`, section 4), a person's and an
+  project's derived path (`archive/stock-ways.md`, section 4), a person's and an
   agent's above the authority line and code's below it, each by its mark,
-  each opening its card (`stock-ways.md`, section 5); the line "no merge
+  each opening its card (`archive/stock-ways.md`, section 5); the line "no merge
   tool above", as fabrig.ai draws it. The ways stay its tabs, over the
-  drawing, with "Use this" and "Keep it" as `stock-ways.md`, section 5,
+  drawing, with "Use this" and "Keep it" as `archive/stock-ways.md`, section 5,
   has them, and "Yours", current, for a project that runs no stock way, as
   a project with rules by path does. What each stop does in full is its
   card's. A stop of a rule by path says so in its words, as "you, if
@@ -507,7 +507,7 @@ them, shows exactly its parts, and moving along it never flips a page.
   line's rise to it, from the signal colour to ink, in Ask temper's ways
   too. The terminal's frames are the dark theme's, 110 columns wide.
 - **Refined after they're built,** on their journeys, by look requests
-  (`look-requests.md`).
+  (`archive/look-requests.md`).
 
 ## 14. Its acceptance
 

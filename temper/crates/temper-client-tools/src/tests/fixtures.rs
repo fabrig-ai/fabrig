@@ -952,7 +952,7 @@ pub(crate) fn long_path() -> List<Box<[u8]>> {
 /// Start one read of the common waiting goal before its answer is supplied.
 pub(crate) fn task_read() -> (Harness, u32, c::Task) {
     let (root, call) = read_call(TASK_CALL);
-    (root, call, goal(TASK, waiting_on_me()))
+    (root, call, waiting_goal())
 }
 /// The same task is requested in JSON without repeating its command.
 pub(crate) const TASK_JSON_CALL: &[&str] = &[TASK_CALL[0], TASK_CALL[1], TASK_CALL[2], "--json"];

@@ -78,6 +78,7 @@ impl World {
                 | Request::RestoreRefused { .. }
                 | Request::Verdict { .. }
                 | Request::Step { .. }
+                | Request::Waits { .. }
                 | Request::Answer { .. }
                 | Request::Ready { .. }
                 | Request::Section { .. }
@@ -170,6 +171,7 @@ impl World {
                 | Request::RestoreRefused { .. }
                 | Request::Verdict { .. }
                 | Request::Step { .. }
+                | Request::Waits { .. }
                 | Request::Answer { .. }
                 | Request::Ready { .. }
                 | Request::Section { .. }
@@ -272,7 +274,7 @@ impl World {
     /// The scripted root asks for both halves only once its core has opened.
     pub fn begin_catch_up(&mut self) -> Vec<Request> {
         self.restore_for_restart();
-        self.event(Event::CatchUp)
+        self.event(Event::CatchUp { procedures: Box::new([]) })
     }
 
     /// Ask the connector to settle one more outbox step after fresh reads.

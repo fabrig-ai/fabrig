@@ -2503,6 +2503,8 @@ fn decide(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Reque
         Event::Client(event) => child(d, env, event, out),
         Event::Restore { record } => restore(d, env, record),
         Event::Restored { clock } => restored(d, env, clock, out),
+        // No forge procedure reports waits yet. A refusal does not step a procedure.
+        Event::WaitsRefused { .. } => {}
         Event::CatchUp => {
             d.catching_up_report = Some(crate::Report::new(env.now));
             read_afresh(d, env, out);

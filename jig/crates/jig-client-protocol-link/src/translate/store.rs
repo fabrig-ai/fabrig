@@ -206,17 +206,27 @@ pub(crate) fn restore_ask(value: w::Ask, limits: &Limits) -> Result<c::Ask, w::P
     })
 }
 
+fn family_layout(family: u16, version: u32, limits: &Limits) -> Result<[u8; 32], w::Problem> {
+    for owner in limits.client().owners {
+        if owner.family == family && owner.version == version {
+            return Ok(owner.layout);
+        }
+    }
+    Err(super::piece_problem(skein_codec::Reason::Version))
+}
+
 pub fn table(value: &RequestRecord<jig_client_domain::Held>, limits: &Limits) -> Result<w::TableEntry, w::Problem> {
-    let (owner, version, request) = match &value.request.request {
+    let (owner, version, layout, request) = match &value.request.request {
         Ask::Jig(value) => {
             let record = super::asks::ask(value, limits.wire())?;
             let mut writer = Writer::new(skein_lib::length::usize_of(record.measure(limits.wire())?));
             record.write(limits.wire(), &mut writer).expect("measured ask");
-            (w::Owner::Jig, w::VERSION, writer.finish())
+            (w::Owner::Jig, w::VERSION, w::LAYOUT, writer.finish())
         }
         Ask::Family { scope, record: value } => (
             w::Owner::Family(w::Family { number: value.family }),
             value.version,
+            family_layout(value.family, value.version, limits)?,
             super::envelope::request(*scope, value, limits.wire())?,
         ),
     };
@@ -232,6 +242,7 @@ pub fn table(value: &RequestRecord<jig_client_domain::Held>, limits: &Limits) ->
         first_sent,
         owner,
         version,
+        layout,
         request,
     })
 }
@@ -241,7 +252,7 @@ pub fn restore_table(
 ) -> Result<RequestRecord<jig_client_domain::Held>, w::Problem> {
     let request = match &value.owner {
         w::Owner::Jig => {
-            if value.version != w::VERSION {
+            if value.version != w::VERSION || value.layout != w::LAYOUT {
                 return Err(super::piece_problem(skein_codec::Reason::Version));
             }
             let mut reader = Reader::new(&value.request);
@@ -252,6 +263,9 @@ pub fn restore_table(
             Ask::Jig(Box::new(restore_ask(ask, limits)?))
         }
         w::Owner::Family(owner) => {
+            if value.layout != family_layout(owner.number, value.version, limits)? {
+                return Err(super::piece_problem(skein_codec::Reason::Version));
+            }
             let (scope, bytes) = super::envelope::restore(&value.request, limits.wire())?;
             Ask::Family { scope, record: Family { family: owner.number, version: value.version, bytes } }
         }

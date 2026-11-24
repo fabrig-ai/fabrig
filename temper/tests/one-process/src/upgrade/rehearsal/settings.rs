@@ -301,6 +301,7 @@ impl Rehearsal {
             Write::Save(Record::Core(CoreRecord::Deployment(Deployment {
                 id: self.seeds.deployment,
                 restart_wait_ms: None,
+                wait_floors: None,
                 tasks: 0,
                 people,
                 sign_ins: 0,

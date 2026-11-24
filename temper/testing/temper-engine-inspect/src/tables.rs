@@ -1,6 +1,7 @@
 use crate::{View, landing_ended, task_name};
 use skein_lib::Time;
 use skein_world::inspect::{Entry, Inspection, Refused, Release, Table};
+use std::fmt::Write as _;
 use temper_engine_domain_forge::{LimitSet, What};
 
 fn writes(view: &View<'_>) -> Table {
@@ -115,11 +116,11 @@ fn holds(view: &View<'_>) -> Table {
     let mut holds = Table {
         name: "branch holds",
         capacity: u64::from(forge.inspection_holds().capacity()),
-        entries: Vec::new(),
+        entries: Vec::with_capacity(skein_lib::usize_of(forge.inspection_holds().len())),
         refused: Vec::new(),
     };
     for (name, hold) in forge.inspection_holds() {
-        let prefix =
+        let mut key =
             match forge.repository(skein_forge::api::Repository { forge: name.forge, repository: name.repository }) {
                 Some(repository) => format!(
                     "forge/{}/{}/{}",
@@ -129,18 +130,26 @@ fn holds(view: &View<'_>) -> Table {
                 ),
                 None => format!("forge/{}/repository/{}", name.forge, name.repository),
             };
-        let resource = match &name.what {
-            What::Branch(parts) => format!(
-                "{prefix}/branch/{}",
-                parts.iter().map(|part| String::from_utf8_lossy(part)).collect::<Vec<_>>().join("/")
-            ),
-            What::Repository => prefix,
-            What::Pull(number) => format!("{prefix}/pull/{number}"),
-            What::Issue(number) => format!("{prefix}/issue/{number}"),
-        };
+        match &name.what {
+            What::Branch(parts) => {
+                key.push_str("/branch/");
+                let mut parts = parts.iter();
+                if let Some(first) = parts.next() {
+                    key.push_str(&String::from_utf8_lossy(first));
+                }
+                for part in parts {
+                    key.push('/');
+                    key.push_str(&String::from_utf8_lossy(part));
+                }
+            }
+            What::Repository => {}
+            What::Pull(number) => write!(key, "/pull/{number}").expect("write into a string"),
+            What::Issue(number) => write!(key, "/issue/{number}").expect("write into a string"),
+        }
+        write!(key, " (task {})", hold.task).expect("write into a string");
         let ended_forge = forge.forge_ended(name.forge);
         holds.entries.push(Entry {
-            key: format!("{resource} (task {})", hold.task),
+            key,
             rule: if ended_forge {
                 "the forge's return or a person's act"
             } else {

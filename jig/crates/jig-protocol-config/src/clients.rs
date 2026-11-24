@@ -234,7 +234,7 @@ pub(crate) fn check_settings(limits: &crate::Limits, problems: &mut Problems) {
         (b"notes.body_bytes".as_slice(), core.notes.body_bytes, wire.document_text_bytes),
         (b"people.words".as_slice(), core.people.words, wire.document_text_bytes),
         (b"documents.rows".as_slice(), core.documents.rows, wire.revisions_page_rows),
-        (b"documents.lines".as_slice(), core.documents.lines, wire.revision_row_items),
+        (b"documents.lines".as_slice(), core.documents.lines, wire.revision_row_items.min(wire.task_waits)),
     ] {
         if value > maximum {
             problems.push(path.member(name), crate::What::Bound);

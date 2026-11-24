@@ -9,4 +9,4 @@ unread: 2, oldest first; no run has recorded them
 acts:
   task stop 41 --key KEY
   task cancel 41 REASON --key KEY
-digest: task d9b34622bd053bdf
+digest: task e1360f20c6647c83

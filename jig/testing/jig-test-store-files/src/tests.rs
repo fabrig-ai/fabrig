@@ -90,6 +90,7 @@ fn a_kill_before_the_first_operation_loses_the_commit_and_past_the_last_keeps_it
     let header = jig_domain_core::Deployment {
         id: [0; 16],
         restart_wait_ms: None,
+        wait_floors: None,
         tasks: 1,
         people: 0,
         sign_ins: 0,

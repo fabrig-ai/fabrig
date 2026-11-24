@@ -39,7 +39,10 @@ pub(super) fn encode_task(value: &c::Task, out: &mut Encoder, cut: &mut Cut) {
     out.key(b"kept_account");
     number(value.kept_account, out);
     out.key(b"run_wait");
-    match value.run_wait {
+    encode_run_wait(value.run_wait, out);
+}
+pub(super) fn encode_run_wait(value: Option<c::TaskRunWait>, out: &mut Encoder) {
+    match value {
         None => out.null(),
         Some(c::TaskRunWait::Credential) => out.string(b"credential"),
         Some(c::TaskRunWait::Refused(value)) => refused(value, out),
@@ -172,37 +175,41 @@ pub(super) fn text_wait(task: &c::Task, limits: &crate::jig::Limits, out: &mut T
     out.put(b"\nnext run:");
     if !no_account(task) {
         out.put(b" ");
-        match value {
-            c::TaskRunWait::Credential => out.put(b"credential"),
-            c::TaskRunWait::Refused(value) => refused_text(value, out),
-            c::TaskRunWait::Host => out.put(b"host"),
-            c::TaskRunWait::Worker { worker, until } => {
-                out.put(b"waiting for worker ");
-                out.number(u64::from(worker));
-                out.put(b" to return, until ");
-                out.number(until.as_nanos());
-            }
-            c::TaskRunWait::Account { account, source, why } => {
-                out.put(b"account ");
-                optional_number(account, out);
-                out.put(b" source ");
-                optional_number(source, out);
-                out.put(b": ");
-                match why {
-                    c::TaskWaitWhy::Untooled { worker } => {
-                        out.put(b"untooled on worker ");
-                        out.number(u64::from(worker));
-                    }
-                    c::TaskWaitWhy::Refreshing => out.put(b"refreshing"),
-                    c::TaskWaitWhy::Host => out.put(b"host"),
-                    c::TaskWaitWhy::Empty => out.put(b"empty"),
-                    c::TaskWaitWhy::Invalid(why) => out.put(account_why(why)),
-                    c::TaskWaitWhy::Source(value) => source_text(value, out),
+        run_wait_text(value, out);
+    }
+    wait_explanation(task, value, limits, out);
+}
+
+pub(super) fn run_wait_text(value: c::TaskRunWait, out: &mut Text) {
+    match value {
+        c::TaskRunWait::Credential => out.put(b"credential"),
+        c::TaskRunWait::Refused(value) => refused_text(value, out),
+        c::TaskRunWait::Host => out.put(b"host"),
+        c::TaskRunWait::Worker { worker, until } => {
+            out.put(b"waiting for worker ");
+            out.number(u64::from(worker));
+            out.put(b" to return, until ");
+            out.number(until.as_nanos());
+        }
+        c::TaskRunWait::Account { account, source, why } => {
+            out.put(b"account ");
+            optional_number(account, out);
+            out.put(b" source ");
+            optional_number(source, out);
+            out.put(b": ");
+            match why {
+                c::TaskWaitWhy::Untooled { worker } => {
+                    out.put(b"untooled on worker ");
+                    out.number(u64::from(worker));
                 }
+                c::TaskWaitWhy::Refreshing => out.put(b"refreshing"),
+                c::TaskWaitWhy::Host => out.put(b"host"),
+                c::TaskWaitWhy::Empty => out.put(b"empty"),
+                c::TaskWaitWhy::Invalid(why) => out.put(account_why(why)),
+                c::TaskWaitWhy::Source(value) => source_text(value, out),
             }
         }
     }
-    wait_explanation(task, value, limits, out);
 }
 
 fn wait_explanation(task: &c::Task, wait: c::TaskRunWait, limits: &crate::jig::Limits, out: &mut Text) {

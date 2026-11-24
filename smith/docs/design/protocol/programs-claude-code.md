@@ -56,7 +56,7 @@
   remain as above.
 - **The run's own files for the program,** its instructions, its MCP
   configuration and its outcome's schema, are private files (skein's
-  `runtime/io/files.md`, 3) in a directory of the run's own outside its workspace,
+  `runtime/io/files.md`, 11) in a directory of the run's own outside its workspace,
   removed when the run ends.
 - **Each program's files are its own.** Main's program, its summary
   session's and each child's (1.10) keep their files in a directory of

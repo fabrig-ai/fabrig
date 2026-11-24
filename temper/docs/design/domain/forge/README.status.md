@@ -188,6 +188,6 @@ runs it on the fake forge.
   -  the issue milestones remain `issues.status.md` (Not yet, the whole document).
   -  the forge questions remain `issues.status.md`, 1.
   - 7: participating objects beyond their news; a landing waiting for
-    someone else's merge where temper may not merge (also `adoption.md`, section 4 and `queues.md`).
+    someone else's merge where temper may not merge (also `adoption.md`, section 8 and `queues.md`).
   - 8: upstream contributions.
   - 10: the rule-change gate stories remain `change/gates.status.md`, 3.

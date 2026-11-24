@@ -40,4 +40,4 @@ enum Cursor { live: LiveCursor, store: StoreCursor }
 record Tree { task: u64, window: u32, after: DocumentCursor }
 record Owner { cursor: Cursor }
 enum Form { owner: Owner, tree: Tree }
-versioned record Held { form: Form }
+versioned record Held { layout: fixed 32 form: Form }

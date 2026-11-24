@@ -141,7 +141,7 @@ fn saved_sign_in_keeps_real_walks_provable_and_typed_keys_intact() {
     let record = skein_ui_web::store::Record {
         key: jig_client::STREAM_KEY.into(),
         value: {
-            let kept = w::Kept { store_version: 1, record: vec![8; 16].into() };
+            let kept = w::Kept { layout: w::LAYOUT, record: vec![8; 16].into() };
             let mut writer = Writer::new(
                 usize::try_from(kept.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture"))
                     .expect("kept length"),

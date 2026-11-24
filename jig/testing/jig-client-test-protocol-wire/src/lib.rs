@@ -10,5 +10,6 @@ pub const SCHEMA: &str = include_str!("../schema/test-client-v2.schema");
 
 pub use jig_client_test_protocol_wire_codec::v2;
 pub const VERSION: u32 = 2;
+pub use v2::LAYOUT;
 
 pub mod codec;

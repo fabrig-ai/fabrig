@@ -23,13 +23,13 @@ agent's largest turn" (`temper-service`'s `startup/checks.rs`).
   codec's fixed bound; T is what smith measures for it,
   within smith's own ceiling of 33,554,432 bytes (smith's
   `protocol/limits.md`, 4, `turn-in-channel`), and init's document
-  holds it, written by the test's writer (`../setup/init.md`, 1). A box
+  holds it, written by the test's writer (`../setup/init.md`, 4). A box
   without the demo is measured from its own endpoints and must declare
   every carrier at least as large as that measurement.
   `docs/examples/owned/agent.json` takes init's figures but its
   endpoints and programs, with its own T in `docs/examples/owned.json`.
   Init keeps the demo, its window `gpt-6-luna`'s, so the host part is
-  that window's (`stock.md`; `../setup/init.md`, 3).
+  that window's (`stock.md`; `../setup/init.md`, 6).
 - **The store's ceiling:** jig's `standard` page holds a turn's frame of
   a transcript of up to 33,554,432 bytes, any turn smith admits, and the
   store's frame and the worker wire carry it (jig's

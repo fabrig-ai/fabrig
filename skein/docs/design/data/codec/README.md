@@ -106,7 +106,7 @@ records kept in files or stores.
   test (`golden.md`, section 1), and the translation between its records and a
   domain, with the domain's crates as its dependencies. So the generated
   code compiles beside the domains rather than after them, and only a
-  change of schema recompiles it (temper's `draft/crate-graph.md`, 4.1).
+  change of schema recompiles it (temper's `draft/archive/crate-graph.md`, 4.1).
   An owner's patches may name its domain's types, so they stay with it.
 - **A codec crate is named for its owner,** `<owner>-codec`, in a
   directory beside the owner's that takes the owner's directory name
@@ -298,6 +298,12 @@ For each family:
 - **Its version.** `pub const VERSION: u16`, the schema's version, which
   its versioned records' encoding and decoding name; a hand-written
   constant that restates it is defined by it.
+- **Its layout.** `pub const LAYOUT: [u8; 32]`, the family's fingerprint
+  (`fingerprints.md`, section 1) of the text it was generated from, so that
+  a build names its own layout of the family without parsing its text,
+  and a peer or a kept record is judged by it (jig's
+  `protocol/client/versions.md`, section 1). A hand-written constant that
+  restates it is defined by it.
 - **Its limits by name.** `LIMIT_NAMES: &[&str]`, each limit's field
   name in the struct's order, and `Limits::values(&self)`, their values
   in the same order, read as a `&[u32]`, so that a kept version's bounds can be
@@ -500,7 +506,7 @@ pub fn generate(schema: &Schema) -> Output;
 - **Formats outside the registry are fixed:** the component's own rows
   and the secrets' store. A change designs and brings, in its own
   landing, how the deployed store gets there (temper's
-  `draft/store-floor.md`, section 5). The transcripts' frames register
+  `draft/archive/store-floor.md`, section 5). The transcripts' frames register
   their layouts: a frame at another layout than the binary's is
   converted as it is read (jig's `protocol/store/transcripts.md`, 6).
 - **A writer writes its current version only.**
