@@ -14,6 +14,7 @@ pub(super) fn too_large(message: &Up, limits: &Limits) -> bool {
             Ask::Deliver { fields } => fields.owned_bytes() > limits.call_bytes,
         },
         Up::Turn { turn } => turn.body.owned_bytes() > limits.turn_bytes,
+        Up::Part { part } => part.body.owned_bytes() > limits.turn_bytes,
         Up::Fact { body } => !within(body, limits.fact_bytes),
         Up::Answer { answer } => match &answer.result {
             RunResult::Accepted { outcome } => outcome.owned_bytes() > limits.outcome_bytes,
@@ -33,6 +34,7 @@ pub(super) fn too_large(message: &Up, limits: &Limits) -> bool {
     }
 }
 
+#[expect(clippy::too_many_lines, reason = "exhaustive host record admission checks parts and turns together")]
 pub(super) fn valid_record(agent: &Agent, message: &Up, env: &Env<Limits>) -> bool {
     let limits = &env.limits;
     match message {
@@ -80,6 +82,7 @@ pub(super) fn valid_record(agent: &Agent, message: &Up, env: &Env<Limits>) -> bo
                     | Sent::Message
                     | Sent::Call(_)
                     | Sent::Ack(_)
+                    | Sent::PartKept(_)
                     | Sent::Renewals
                     | Sent::Grant
                     | Sent::Cancel
@@ -98,12 +101,24 @@ pub(super) fn valid_record(agent: &Agent, message: &Up, env: &Env<Limits>) -> bo
                 None => true,
             }
         }
+        Up::Part { part } => {
+            agent.word.admitted()
+                && agent.tell_parts
+                && agent.part_number.checked_add(1) == Some(part.number)
+                && agent.number.checked_add(1) == Some(part.turn)
+                && (part.kind != smith_domain::session::record::PartKind::Result || agent.answered_turn)
+                && agent.turns.len().checked_add(agent.parts.len()).expect("bounded held records") < limits.turns
+                && match agent.turn_bytes.checked_add(part.body.owned_bytes()) {
+                    Some(bytes) => bytes <= limits.unacknowledged_bytes,
+                    None => false,
+                }
+        }
         Up::Turn { turn } => {
             agent.word.admitted()
                 && agent.number.checked_add(1) == Some(turn.number)
                 && turn.spent >= agent.spent
                 && agent.unread.known(turn.read)
-                && agent.turns.len() < limits.turns
+                && agent.turns.len().checked_add(agent.parts.len()).expect("bounded held records") < limits.turns
                 && match agent.turn_bytes.checked_add(turn.body.owned_bytes()) {
                     Some(bytes) => bytes <= limits.unacknowledged_bytes,
                     None => false,

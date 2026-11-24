@@ -19,7 +19,7 @@ pub fn decode_transcript(
     piece: &[u8],
     resume_turns: u32,
     search_hits: u32,
-    limits: &wire::v7::Limits,
+    limits: &wire::v8::Limits,
     endpoints: &Endpoints,
 ) -> Result<Option<record::Transcript>, record::Refusal> {
     if piece.is_empty() {
@@ -61,7 +61,7 @@ pub fn decode_transcript(
         }
         let endpoint = saved_endpoint(endpoints, source.endpoint.as_ref());
         let dialect = source.dialect;
-        let turn = translate_turn(source, endpoint, dialect, limits, search_hits)?;
+        let turn = translate_turn(source, endpoint, dialect, limits, search_hits, false)?;
         if turns.is_empty() {
             match turn.kind {
                 record::Kind::First(_) | record::Kind::Window(_) => {}
@@ -112,7 +112,7 @@ pub fn transcript_piece(bodies: &[Box<[u8]>]) -> Option<Box<[u8]>> {
 pub fn decode_turn(
     bytes: &[u8],
     number: u32,
-    limits: &wire::v7::Limits,
+    limits: &wire::v8::Limits,
     endpoints: &Endpoints,
 ) -> Result<record::Turn, record::Refusal> {
     if number == 0 {
@@ -121,7 +121,19 @@ pub fn decode_turn(
     let source = saved_turn(bytes, Some(number), limits)?;
     let endpoint = saved_endpoint(endpoints, source.endpoint.as_ref());
     let dialect = source.dialect;
-    translate_turn(source, endpoint, dialect, limits, u32::MAX)
+    translate_turn(source, endpoint, dialect, limits, u32::MAX, false)
+}
+
+/// Decode a part's turn body without imposing a main-conversation sequence.
+pub fn decode_part(
+    bytes: &[u8],
+    limits: &wire::v8::Limits,
+    endpoints: &Endpoints,
+) -> Result<record::Turn, record::Refusal> {
+    let source = saved_turn(bytes, None, limits)?;
+    let endpoint = saved_endpoint(endpoints, source.endpoint.as_ref());
+    let dialect = source.dialect;
+    translate_turn(source, endpoint, dialect, limits, u32::MAX, true)
 }
 
 fn saved_endpoint(endpoints: &Endpoints, name: &[u8]) -> Option<llm::Endpoint> {
@@ -129,7 +141,7 @@ fn saved_endpoint(endpoints: &Endpoints, name: &[u8]) -> Option<llm::Endpoint> {
     Some(llm::Endpoint(endpoint.number))
 }
 
-fn saved_turn(bytes: &[u8], number: Option<u32>, limits: &wire::v7::Limits) -> Result<wire::Turn, record::Refusal> {
+fn saved_turn(bytes: &[u8], number: Option<u32>, limits: &wire::v8::Limits) -> Result<wire::Turn, record::Refusal> {
     if bytes.get(..2) != Some(wire::wire::VERSION.to_be_bytes().as_slice()) {
         return Err(record::Refusal::Version);
     }
@@ -150,10 +162,11 @@ fn translate_turn(
     source: wire::Turn,
     endpoint: Option<llm::Endpoint>,
     dialect: u32,
-    limits: &wire::v7::Limits,
+    limits: &wire::v8::Limits,
     search_hits: u32,
+    part: bool,
 ) -> Result<record::Turn, record::Refusal> {
-    let kind = decode_kind(&source)?;
+    let kind = decode_kind(&source, part)?;
     let messages = decode_messages(&source, dialect, limits, search_hits)?;
     Ok(record::Turn {
         version: record::VERSION,
@@ -179,7 +192,7 @@ fn translate_turn(
 fn decode_block(
     source: &wire::Block,
     dialect: u32,
-    limits: &wire::v7::Limits,
+    limits: &wire::v8::Limits,
     search_hits: u32,
 ) -> Result<llm::Block, record::Refusal> {
     let value = match source {
@@ -224,7 +237,7 @@ fn replay(source: Option<&wire::Replay>, dialect: u32) -> Result<Option<llm::Rep
 
 fn returned(
     source: &wire::Returned,
-    limits: &wire::v7::Limits,
+    limits: &wire::v8::Limits,
     search_hits: u32,
 ) -> Result<llm::Returned, record::Refusal> {
     let value = match source {
@@ -277,7 +290,7 @@ fn problem(source: &wire::CallProblem) -> llm::Problem {
 
 fn outcome(
     source: &wire::Outcome,
-    limits: &wire::v7::Limits,
+    limits: &wire::v8::Limits,
     search_hits: u32,
 ) -> Result<tools::Outcome, record::Refusal> {
     let value = match source {
@@ -341,6 +354,18 @@ fn outcome(
                 timeout: timeout_clamp(&command.timeout)?,
                 output: byte_clamp(&command.output)?,
                 after: timeout_clamp(&command.after)?,
+            }
+        }
+        wire::Outcome::Interrupted(command) => {
+            let ran = match command.ran_ms {
+                Some(ms) => Some(Duration::from_millis(ms)),
+                None => None,
+            };
+            tools::Outcome::Interrupted {
+                ran,
+                head: command.head.clone(),
+                last: command.last.clone(),
+                dropped: command.dropped,
             }
         }
         wire::Outcome::Job(read) => {
@@ -452,7 +477,7 @@ fn hit_length(bytes: &[u8]) -> Result<u32, record::Refusal> {
 
 fn found_piece(
     piece: &[u8],
-    limits: &wire::v7::Limits,
+    limits: &wire::v8::Limits,
     search_hits: u32,
 ) -> Result<Box<[tools::Hit]>, record::Refusal> {
     let mut reader = Reader::new(piece);
@@ -618,7 +643,7 @@ mod found_tests {
     }
 }
 
-fn decode_kind(source: &wire::Turn) -> Result<record::Kind, record::Refusal> {
+fn decode_kind(source: &wire::Turn, part: bool) -> Result<record::Kind, record::Refusal> {
     let opening = match &source.opening {
         Some(value) => {
             let affinity = llm::Affinity { key: value.affinity.key, thread: value.affinity.thread };
@@ -638,7 +663,7 @@ fn decode_kind(source: &wire::Turn) -> Result<record::Kind, record::Refusal> {
                 account,
                 backend,
             })),
-            None if source.place > 1 && source.system.is_none() => record::Kind::Ordinary,
+            None if (source.place > 1 || part) && source.system.is_none() => record::Kind::Ordinary,
             Some(_) | None => return Err(record::Refusal::Malformed),
         },
         wire::TurnKind::Window => match opening {
@@ -656,7 +681,7 @@ fn decode_kind(source: &wire::Turn) -> Result<record::Kind, record::Refusal> {
 fn decode_messages(
     source: &wire::Turn,
     dialect: u32,
-    limits: &wire::v7::Limits,
+    limits: &wire::v8::Limits,
     search_hits: u32,
 ) -> Result<List<llm::Message>, record::Refusal> {
     let mut messages = List::with_capacity(source.messages.len());

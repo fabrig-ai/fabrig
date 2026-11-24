@@ -26,7 +26,7 @@ pub fn encode_start(
     values: Values,
     limits: &wire::Limits,
     charter_limits: &smith_charter::v5::Limits,
-    transcript_limits: &smith_transcript::v7::Limits,
+    transcript_limits: &smith_transcript::v8::Limits,
     endpoints: &smith_protocol_translate::Endpoints,
 ) -> Result<Frame, Error> {
     if start.grants.len() != values.credentials.len() {
@@ -106,12 +106,45 @@ pub fn encode_start(
         charter,
         workspace,
         transcript,
+        tell_parts: start.tell_parts,
+        parts: encode_parts(start.parts, limits, transcript_limits, endpoints)?,
         answered,
         grants,
         window,
     };
     record.measure(limits)?;
     Ok(wire::frame(wire::Body::Start(record))?)
+}
+
+fn encode_parts(
+    parts: Box<[channel::KeptPart]>,
+    limits: &wire::Limits,
+    transcript: &smith_transcript::v8::Limits,
+    endpoints: &smith_protocol_translate::Endpoints,
+) -> Result<Box<[u8]>, Error> {
+    let mut bodies = List::with_capacity(u32::try_from(parts.len()).or(Err(Error::Value))?);
+    for part in parts {
+        let body =
+            smith_protocol_translate::encode_part(part.body.value(), transcript, endpoints).or(Err(Error::Value))?;
+        let kind = match part.kind {
+            smith_domain::session::record::PartKind::Answer => wire::PartKind::Answer,
+            smith_domain::session::record::PartKind::Result => wire::PartKind::Result,
+            smith_domain::session::record::PartKind::Window => wire::PartKind::Window,
+        };
+        let record = wire::KeptPart {
+            activation: part.activation,
+            turn: part.turn,
+            thread: part.thread,
+            call: part.call,
+            kind,
+            body,
+        };
+        let length = record.measure(limits)?;
+        let mut writer = skein_lib::Writer::new(usize::try_from(length).or(Err(Error::Value))?);
+        record.write(limits, &mut writer)?;
+        bodies.push(writer.finish()).or(Err(Error::Value))?;
+    }
+    smith_protocol_translate::transcript_piece(bodies.as_slice()).ok_or(Error::Value)
 }
 
 fn encode_workspace(
@@ -142,6 +175,7 @@ fn encode_workspace(
             writable: directory.writable,
             git: directory.git,
             conflicts,
+            results: directory.results.clone(),
         };
         if items.push(item).is_err() {
             return Err(Error::MissingValue);

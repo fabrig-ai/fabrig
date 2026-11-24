@@ -23,6 +23,7 @@ fn edit_world(document: serde_json::Value, replacement: &str) -> World {
     disk.write(b"work/docs/design.md", BEFORE.as_bytes());
     let workspace = run::Workspace {
         directories: Box::new([run::Directory {
+            results: None,
             host: b"/host".as_slice().into(),
             name: b"work".as_slice().into(),
             root: Token::new(disk.root(b"work")),

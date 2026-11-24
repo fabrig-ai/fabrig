@@ -29,6 +29,7 @@ fn saturated_searches_and_pipe_routes_stay_within_the_machine_bound() {
     };
     let workspace = run::Workspace {
         directories: Box::new([run::Directory {
+            results: None,
             host: Box::from(b"/host".as_slice()),
             name: Box::from(&b"repo"[..]),
             root: Token::new(1),
@@ -130,6 +131,7 @@ fn shared_harness_meters_file_child_and_flood_runs_through_drop() {
     });
     assert!(matches!(stored, ToDomain::Done { done: tools::Done::Stored { .. }, .. }));
     let checked = world.request(FromDomain::Check {
+        results: None,
         owner: Token::new(22),
         program: run::Place { root, path: b"check-hang".as_slice().into() },
         bound: skein_lib::Duration::from_nanos(10_000_000),
@@ -176,6 +178,7 @@ fn saturated_configured_environments_and_command_check_copies_fit_the_machine_bo
         };
         let workspace = run::Workspace {
             directories: Box::new([run::Directory {
+                results: None,
                 host: Box::from(b"/host".as_slice()),
                 name: b"repo".as_slice().into(),
                 root: Token::new(1),
@@ -200,6 +203,7 @@ fn saturated_configured_environments_and_command_check_copies_fit_the_machine_bo
             let owner = Token::new(if check { 12 } else { 11 });
             let request = if check {
                 FromDomain::Check {
+                    results: None,
                     owner,
                     program: run::Place { root: Token::new(1), path: b"check".as_slice().into() },
                     bound: skein_lib::Duration::from_nanos(100),

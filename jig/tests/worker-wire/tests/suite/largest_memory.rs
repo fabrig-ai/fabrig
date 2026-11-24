@@ -12,7 +12,7 @@ fn largest_roots_stay_within_decoded_bounds() {
     family!(
         CAP,
         jig_protocol_worker_wire::SCHEMA,
-        jig_protocol_worker_wire::v21,
+        jig_protocol_worker_wire::v22,
         limits [
             wire_name,
             wire_layouts,
@@ -105,11 +105,15 @@ fn largest_roots_stay_within_decoded_bounds() {
             agents_profile,
             agents_endpoints,
             figures_limits,
+            part_body,
+            kept_part_body,
+            assignment_parts,
         ],
         roots [
             Credential,
+            KeptPart,
             FromWorker => (288_227_333, 290_914_304),
-            FromEngine => (2_351_596_230, 2_351_680_512),
+            FromEngine => (2_485_813_962, 2_485_898_240),
         ]
     );
 }

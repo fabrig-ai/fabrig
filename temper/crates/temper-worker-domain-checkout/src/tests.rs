@@ -149,6 +149,7 @@ impl Harness {
                 | Op::Reset { .. }
                 | Op::Pack { .. }
                 | Op::Point { .. }
+                | Op::Keep { .. }
                 | Op::Counts { .. }
                 | Op::Make { .. }
                 | Op::Clone { .. }
@@ -359,7 +360,7 @@ fn refused(request: Request) -> Refusal {
 fn workspace_of(op: &Op) -> Token {
     match op {
         Op::Store { .. } => panic!("a store has no workspace"),
-        Op::Make { workspace, .. } => *workspace,
+        Op::Keep { workspace, .. } | Op::Make { workspace, .. } => *workspace,
         Op::Reds { at, .. }
         | Op::Clone { at, .. }
         | Op::Reset { at, .. }
@@ -1234,6 +1235,7 @@ fn pin_trace(h: &mut Harness, client: u64, repo: Repository, tip: Commit, counts
             | Op::Pack { .. }
             | Op::Point { .. }
             | Op::Store { .. }
+            | Op::Keep { .. }
             | Op::Make { .. }
             | Op::Look { .. }
             | Op::Clone { .. }
@@ -1368,6 +1370,7 @@ fn a_named_pin_reuses_a_fetched_start_or_push_commit() {
                 Op::Pack { .. }
                 | Op::Reset { .. }
                 | Op::Reds { .. }
+                | Op::Keep { .. }
                 | Op::Make { .. }
                 | Op::Store { .. }
                 | Op::Look { .. }
@@ -1410,6 +1413,7 @@ fn saved_and_resolution_starts_fetch_the_named_pin_before_checkout() {
                 Op::Pack { .. }
                 | Op::Reset { .. }
                 | Op::Reds { .. }
+                | Op::Keep { .. }
                 | Op::Make { .. }
                 | Op::Store { .. }
                 | Op::Look { .. }
@@ -1568,6 +1572,7 @@ fn pin_count(ops: &List<Op>) -> usize {
                 count = count.checked_add(1).expect("bounded prepare");
             }
             Op::Reds { .. }
+            | Op::Keep { .. }
             | Op::Make { .. }
             | Op::Store { .. }
             | Op::Look { .. }
@@ -1691,7 +1696,8 @@ fn landing_fetch_failures_fail_preparation_and_never_fall_back() {
                     other @ (Op::Reds { .. }
                     | Op::Reset { .. } | Op::Pack { .. } | Op::Point { .. }
                     | Op::Store { .. }
-                    | Op::Make { .. }
+                    | Op::Keep { .. }
+            | Op::Make { .. }
                     | Op::Look { .. }
                     | Op::Clone { .. }
                     | Op::Fetch { .. }
@@ -2438,6 +2444,7 @@ fn assert_account(op: Op, expected: Option<u64>, kind: Kind) {
         | Op::DiffPaths { .. }
         | Op::Brings { .. }
         | Op::IsAncestor { .. }
+        | Op::Keep { .. }
         | Op::Make { .. }
         | Op::CheckOut { .. }
         | Op::Merge { .. }
@@ -3338,6 +3345,7 @@ fn opposite_repository_orders_finish_with_one_store_per_remote() {
                 Op::Store { .. } => panic!("exactly one Store per remote"),
                 Op::Fetch { at, .. } => Done::Fetched { commit: start_of(at) },
                 Op::Reds { .. }
+                | Op::Keep { .. }
                 | Op::Make { .. }
                 | Op::Reset { .. }
                 | Op::Pack { .. }

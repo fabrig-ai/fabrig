@@ -1061,12 +1061,13 @@ impl Service {
                         Some(StartValues { paths: self.paths.clone(), credentials: credentials.into_boxed() });
                 }
                 host::Down::Message { .. }
+                | host::Down::PartKept { .. }
                 | host::Down::Acknowledge { .. }
                 | host::Down::Answer { .. }
                 | host::Down::Grant { .. }
                 | host::Down::Renewals { .. }
                 | host::Down::Cancel
-                | host::Down::Drain => {}
+                | host::Down::Drain { .. } => {}
             },
             host::process::Request::Spawn { .. }
             | host::process::Request::Read { .. }

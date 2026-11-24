@@ -78,14 +78,14 @@ pub use budget::{
 pub use charter::{Brief, Charter, Conventions, Mode, Section};
 pub use charter::{brief_room, charter_room};
 pub use domain::{
-    Domain, close_drained, completion_overflow, completion_permit, conversation_charter, fire, host_name, owner,
-    reserve, resume, settle_reservation, step,
+    Domain, close_drained, completion_overflow, completion_permit, completion_settled, conversation_charter, cutting,
+    fire, host_name, owner, part, reserve, resume, settle_reservation, step,
 };
 pub use identity::Identity;
 pub use inbox::rendered_bytes;
 pub use limits::{Derivation, Field, Limits, derive, valid};
 pub use prompt::{brief_bytes, fixed_prompt, fixed_prompt_bytes, role_host_bytes, summary_bytes};
-pub use run::{Most, offer_messages};
+pub use run::{Most, call_turn, offer_messages, recover_delivery, resume_answer, resume_position};
 pub use schema_costs::SchemaCosts;
 pub use workspace::{Directory, Workspace};
 

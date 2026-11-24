@@ -29,6 +29,7 @@ pub fn class(event: &Event) -> Class {
             | LinkDown::Message { .. } => Class::New,
             LinkDown::Asked { .. }
             | LinkDown::Relayed { .. }
+            | LinkDown::PartKept { .. }
             | LinkDown::TurnKept { .. }
             | LinkDown::Acknowledge { .. }
             | LinkDown::Pause { .. }
@@ -42,6 +43,7 @@ pub fn class(event: &Event) -> Class {
                 | Up::Admitted
                 | Up::MessageRefused { .. }
                 | Up::Answer { .. }
+                | Up::Part { .. }
                 | Up::Turn { .. }
                 | Up::Waiting { .. }
                 | Up::Long { .. }
@@ -71,11 +73,13 @@ pub fn class(event: &Event) -> Class {
         | Event::Source(_)
         | Event::GracePassed
         | Event::Resend { .. }
+        | Event::ResendPart { .. }
         | Event::RelayCancelled { .. }
         | Event::Live { .. }
         | Event::Decoded { .. }
         | Event::Encoded { .. }
         | Event::Activity { .. }
+        | Event::Drain
         | Event::Shutdown
         | Event::Timer => Class::Admitted,
     }
@@ -90,12 +94,14 @@ pub(crate) fn must_follow(domain: &Domain, held: &Event, event: &Event) -> bool 
             | Event::Source(_)
             | Event::GracePassed
             | Event::Resend { .. }
+            | Event::ResendPart { .. }
             | Event::RelayCancelled { .. }
             | Event::Process(_)
             | Event::Live { .. }
             | Event::Decoded { .. }
             | Event::Encoded { .. }
             | Event::Activity { .. }
+            | Event::Drain
             | Event::Shutdown
             | Event::Timer
             | Event::Checks => false,
@@ -109,12 +115,14 @@ pub(crate) fn must_follow(domain: &Domain, held: &Event, event: &Event) -> bool 
             | Event::Source(_)
             | Event::GracePassed
             | Event::Resend { .. }
+            | Event::ResendPart { .. }
             | Event::RelayCancelled { .. }
             | Event::Process(_)
             | Event::Live { .. }
             | Event::Decoded { .. }
             | Event::Encoded { .. }
             | Event::Activity { .. }
+            | Event::Drain
             | Event::Shutdown
             | Event::Timer
             | Event::Checks => false,
@@ -133,7 +141,9 @@ pub(crate) fn must_follow(domain: &Domain, held: &Event, event: &Event) -> bool 
                 | Event::Link(_)
                 | Event::GracePassed
                 | Event::Resend { .. }
+                | Event::ResendPart { .. }
                 | Event::RelayCancelled { .. }
+                | Event::Drain
                 | Event::Shutdown
                 | Event::Timer
                 | Event::Checks => None,
@@ -149,6 +159,7 @@ pub(crate) fn must_follow(domain: &Domain, held: &Event, event: &Event) -> bool 
             | LinkDown::Message { .. }
             | LinkDown::Asked { .. }
             | LinkDown::Relayed { .. }
+            | LinkDown::PartKept { .. }
             | LinkDown::TurnKept { .. }
             | LinkDown::Acknowledge { .. }
             | LinkDown::Pause { .. }
@@ -160,11 +171,13 @@ pub(crate) fn must_follow(domain: &Domain, held: &Event, event: &Event) -> bool 
         | Event::Source(_)
         | Event::GracePassed
         | Event::Resend { .. }
+        | Event::ResendPart { .. }
         | Event::RelayCancelled { .. }
         | Event::Live { .. }
         | Event::Decoded { .. }
         | Event::Encoded { .. }
         | Event::Activity { .. }
+        | Event::Drain
         | Event::Shutdown
         | Event::Timer
         | Event::Checks => false,
@@ -175,6 +188,7 @@ fn named_assignment(link: &LinkDown) -> Option<(Token, Token)> {
         LinkDown::Cancel { run, attempt }
         | LinkDown::Asked { run, attempt, .. }
         | LinkDown::Relayed { run, attempt, .. }
+        | LinkDown::PartKept { run, attempt, .. }
         | LinkDown::TurnKept { run, attempt, .. }
         | LinkDown::Acknowledge { run, attempt }
         | LinkDown::Grant { run, attempt, .. } => Some((*run, *attempt)),

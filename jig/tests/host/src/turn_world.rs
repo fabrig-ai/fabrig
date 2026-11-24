@@ -277,6 +277,8 @@ impl World {
         };
         self.send(Event::Down(LinkDown::Assign {
             assignment: Assignment {
+                parts: Box::new([]),
+                tell_parts: false,
                 messages: Box::new([]),
                 assignment,
                 turns: vec![Box::from(&b"prior turn"[..])].into_boxed_slice(),
@@ -311,7 +313,14 @@ impl World {
             grants: Box::new([]),
         };
         self.send(Event::Down(LinkDown::Assign {
-            assignment: Assignment { messages: Box::new([]), assignment, turns, answered },
+            assignment: Assignment {
+                parts: Box::new([]),
+                tell_parts: false,
+                messages: Box::new([]),
+                assignment,
+                turns,
+                answered,
+            },
         }));
         assert!(self.owner.is_some() && self.agent_live && self.reading);
     }
@@ -625,6 +634,8 @@ impl World {
     fn route(&mut self, request: Request) -> Result<(), String> {
         self.refusals.request(&request)?;
         match request {
+            Request::Agent(ToAgent::AcknowledgePart { .. }) => panic!("scripted agent sends no parts"),
+            Request::Up(LinkUp::Part { .. }) => panic!("parts are not relayed by this hub"),
             Request::Paused { .. } => {}
             Request::Asked { .. } | Request::Up(LinkUp::Ask { .. }) => {
                 unreachable!("the script does not make application asks")
@@ -702,7 +713,7 @@ impl World {
                 });
             }
 
-            Request::Agent(ToAgent::Drain { agent } | ToAgent::Cancel { agent }) => {
+            Request::Agent(ToAgent::Drain { agent, grace: _ } | ToAgent::Cancel { agent }) => {
                 assert_eq!(agent, AGENT);
                 self.stop_pending = true;
                 if !self.stop_waits {
@@ -779,7 +790,19 @@ impl World {
     }
 
     fn start(&mut self, owner: Token, start: host::Start) {
-        let host::Start { workspace, charter, activation, identity, turns, answered, messages, grants, live } = start;
+        let host::Start {
+            workspace,
+            charter,
+            activation,
+            identity,
+            turns,
+            answered,
+            messages,
+            grants,
+            live,
+            tell_parts: _,
+            parts: _,
+        } = start;
         assert_eq!(workspace, if self.space_live { Some(SPACE) } else { None });
         assert_eq!(&*charter, b"charter");
         for grant in &grants {

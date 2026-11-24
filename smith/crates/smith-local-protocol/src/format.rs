@@ -52,11 +52,11 @@ mod tests {
 
     #[test]
     #[expect(clippy::disallowed_macros, reason = "the fixture records the deployed build's marker bytes")]
-    fn the_deployed_marker_is_accepted_and_written_unchanged() {
+    fn the_deployed_marker_is_refused_as_an_older_transcript_layout() {
         let fixture = include_bytes!("../tests/fixtures/format").as_slice();
         let current = layouts();
-        assert_eq!(check(fixture, &current), Ok(()));
-        assert_eq!(file(&current).bytes.as_ref(), fixture);
+        assert_eq!(check(fixture, &current), Err(Older::Layout(StoreFamily::Transcript)));
+        assert_eq!(check(&file(&current).bytes, &current), Ok(()));
     }
 
     #[test]

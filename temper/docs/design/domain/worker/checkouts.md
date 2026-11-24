@@ -544,6 +544,41 @@ runs as contained processes and whose output it parses.
   `git status` shows none of them. A run that parks with a conflict marker
   left keeps none of that run's edits (`README.md`, section 10); what was saved before it
   stands.
+- **A workspace kept for its run.** A run a drain or a stop cut, whose
+  answer is `Cancelled(Shutdown)` and whose save landed, leaves its
+  workspace on the worker for that run's next attempt alone (temper's
+  `draft/worker-restarts.md`, section 4): its trees, their ignored files
+  and build outputs, each repository's `.git` with the checks' results
+  directory in it, and the worker's git directories beside them.
+  - **Marked when its save lands:** a mark beside the workspaces,
+    `kept/<token>`, names its workstream, the commit the save made for
+    each repository, and when it was kept. A save that lands nothing new
+    names the commit the run started from. A run with no save, or whose
+    save failed, leaves no mark, and its workspace is idle as any.
+  - **Kept across the worker's restart:** the start's layout keeps each
+    workspace and git directory a mark names, and moves every other to
+    the trash, as before; a mark whose workspace is missing goes. The
+    cache starts holding each kept workspace, idle, under its workstream's
+    key, oldest first.
+  - **Taken up by a saved start of its workstream** whose fetched saved
+    commit is, for every repository, the one its mark names: the hold
+    keeps the trees as they are, with no make, clone or checkout, its
+    start and head that commit and its pushed baseline fetched as a saved
+    start's is. Any other start of that workstream, or a saved commit
+    that differs, makes the workspace again from empty, as a saved start
+    does. The mark goes when the workspace is held again, either way: a
+    run cut again leaves a new one.
+  - **Gone when its run ends or the room is needed.** Once its run's
+    next attempt ends on the worker, the workspace is released as any.
+    A kept workspace is idle, so the cache's eviction takes it, oldest
+    first, when a hold finds no room; another workstream never gets it
+    as it is, since an eviction makes the workspace again from empty
+    (redeploys' concern, temper's `draft/redeploys.md`, 6.3, so never
+    arises).
+  - **The checks' results directory** of each writable repository is
+    `.git/smith-check` in its tree, which the worker names to smith in
+    the start (smith's `domain/run-delivery.md`, 1.1): kept with the tree, and
+    made again with it.
 - **No credentials on disk.** Every git operation that reaches the forge,
   or commits, names the repository's identity, which the protocol layer
   maps to credentials or an author for that invocation only, never into a

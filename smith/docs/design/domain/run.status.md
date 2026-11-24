@@ -1,6 +1,6 @@
 # run: status
 
-2026-11-19. Where smith's code lags or departs from [run.md](run.md).
+2026-11-21. Where smith's code lags or departs from [run.md](run.md).
 
 `run-start.md`, section 1.3 has no known gap in omitting the workspace tool instructions
 and Checkout section when no workspace is given. The remaining Checkout
@@ -46,3 +46,4 @@ a silent check still has no output to report (`run.md`, section 13).
   according to the retirement brief. Its landed run proposal read needs
   design coverage reconciliation against `jig/docs/design/domain/engine/executors-tools.md`,
   1; this is a design gap, not an absent implementation.
+

@@ -34,6 +34,9 @@ pub(crate) fn to_component(held: core::Held) -> Option<kit::Event> {
         | core::Held::Result { .. }
         | core::Held::Acknowledge { .. }
         | core::Held::TaskTerminalAcknowledged { .. }
+        | core::Held::TaskPartKept { .. }
+        | core::Held::AcknowledgePart { .. }
+        | core::Held::PartBusy { .. }
         | core::Held::TaskTurnKept { .. }
         | core::Held::AcknowledgeTurn { .. }
         | core::Held::Cancel { .. }
@@ -101,6 +104,7 @@ pub(crate) fn immediate(now: core::Now, admission: &mut Option<Token>) -> Option
         | core::Now::BriefFailed { .. }
         | core::Now::RunPrepared { .. }
         | core::Now::EndedEscalation { .. }
+        | core::Now::PartBusy { .. }
         | core::Now::RestoreRefused => None,
     }
 }
@@ -182,6 +186,7 @@ pub(crate) fn watcher(value: &core::Event) -> Option<Token> {
         | core::Event::TranscriptLoaded { .. }
         | core::Event::People(..)
         | core::Event::Fleet(..)
+        | core::Event::PartPayload { .. }
         | core::Event::TurnPayload { .. }
         | core::Event::AnswerPayload { .. }
         | core::Event::AcceptedTurn { .. }
@@ -267,6 +272,7 @@ pub(crate) fn starting(value: core::Event) -> Option<kit::Event> {
         | core::Event::TranscriptLoaded { .. }
         | core::Event::People(..)
         | core::Event::Fleet(..)
+        | core::Event::PartPayload { .. }
         | core::Event::TurnPayload { .. }
         | core::Event::AnswerPayload { .. }
         | core::Event::AcceptedTurn { .. }

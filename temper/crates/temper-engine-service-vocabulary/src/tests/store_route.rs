@@ -469,7 +469,7 @@ fn people_and_task_continuations_cross_into_jigs_later_interval() {
         (
             engine::CoreRange::Tasks,
             [core::Key::Tasks(Tasks::Live(1)), core::Key::Tasks(Tasks::PlacedHold(1))],
-            [1, 2], // Core's interval, then live tasks, then placed holds (tag 21).
+            [2, 3], // Core's projections and parts, then live tasks and placed holds (tag 21).
         ),
     ] {
         let mut routes = fixtures::routes();
@@ -527,7 +527,7 @@ fn a_task_page_keeps_projections_then_live_tasks_and_drops_calls() {
     else {
         panic!("task continuation")
     };
-    assert_eq!(cursor.interval, 1);
+    assert_eq!(cursor.interval, 2);
 }
 
 #[test]
@@ -800,7 +800,7 @@ fn unread_and_corrupt_window_pages_still_fail_the_load_once() {
 }
 
 fn assistant_turn(words: &[u8]) -> Box<[u8]> {
-    use smith_transcript::v7 as wire;
+    use smith_transcript::v8 as wire;
 
     let mut blocks = skein_lib::List::with_capacity(1);
     blocks.push(wire::Block::Text(wire::Text { text: words.into(), replay: None })).unwrap();
@@ -994,6 +994,7 @@ fn startup_calls_and_proofs_with_zero_identities_reach_the_root_unchanged() {
         settled: None,
     }));
     let proof = core::Record::Core(core::CoreRecord::RunProof(core::RunProof {
+        kept_part: 0,
         worker: None,
         task: 0,
         attempt: 0,

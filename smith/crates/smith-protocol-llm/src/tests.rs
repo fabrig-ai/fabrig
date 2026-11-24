@@ -739,6 +739,20 @@ fn a_running_command_names_the_job_to_read_next() {
 }
 
 #[test]
+fn interrupted_commands_keep_elapsed_time_output_and_permission_to_retry() {
+    for (ran, expected) in [
+        (Some(Duration::from_millis(42_900)), b"interrupted by a worker restart after 42 s\nbuilding\n\n... 10 bytes dropped ...\nerror: x\n\nThis call may be run again.".as_slice()),
+        (None, b"interrupted by a worker restart after an unknown time\nbuilding\n\n... 10 bytes dropped ...\nerror: x\n\nThis call may be run again.".as_slice()),
+    ] {
+        let outcome = tools::Outcome::Interrupted {
+            ran, head: b"building\n".as_slice().into(), last: b"error: x\n".as_slice().into(), dropped: 10,
+        };
+        assert_eq!(render_outcome(&outcome, &tools::Namespace::One, 1024).expect("interrupted result"),
+            (expected.into(), true));
+    }
+}
+
+#[test]
 fn a_running_jobs_answer_renders_only_its_unread_output() {
     assert_eq!(
         render_job(tools::JobEnd::Running),

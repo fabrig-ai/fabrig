@@ -67,6 +67,8 @@ impl Driver {
         for run in RUNS {
             driver.send(Event::Link(host::LinkDown::Assign {
                 assignment: host::Assignment {
+                    parts: Box::new([]),
+                    tell_parts: false,
                     assignment: host::RunAssignment {
                         identity: [7; 16],
                         live: host::LiveAsk::NONE,

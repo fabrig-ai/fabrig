@@ -479,6 +479,7 @@ pub fn watcher(event: &core::Event) -> Option<Token> {
         | core::Event::TranscriptLoaded { .. }
         | core::Event::People(_)
         | core::Event::Fleet(_)
+        | core::Event::PartPayload { .. }
         | core::Event::TurnPayload { .. }
         | core::Event::AnswerPayload { .. }
         | core::Event::AcceptedTurn { .. }

@@ -59,6 +59,8 @@ pub(super) fn preparation_detail(
             },
             Some(repository),
         ),
+        PrepareStep::Unkeep => (b"consume kept workspace", None),
+        PrepareStep::CompareKept { repository } => (b"compare saved workspace", Some(repository)),
         PrepareStep::Reds { .. } | PrepareStep::Pack { .. } => return Box::new([]),
         PrepareStep::Store { repository, .. } => (b"store", Some(repository)),
         PrepareStep::Look { repository, .. } => (b"look", Some(repository)),
@@ -90,7 +92,7 @@ pub(super) fn preparation_detail(
         PrepareStep::CommitMerge { repository, .. } => (b"commit merge", Some(repository)),
         PrepareStep::CheckOutMerged { repository, .. } => (b"check out merged", Some(repository)),
     };
-    let workspace = Decimal::of(holding.workspace.token().raw());
+    let workspace = Decimal::of(holding.disk.raw());
     let place = Decimal::of(u64::from(repository.unwrap_or(0)));
     let (place, space, name) = match repository {
         Some(repository) => {

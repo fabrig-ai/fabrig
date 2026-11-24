@@ -13,12 +13,14 @@ pub enum Event {
     Lost,
     GracePassed,
     Resend { run: Token, attempt: Token, turn: u32 },
+    ResendPart { run: Token, attempt: Token, part: u32 },
     RelayCancelled { run: Token, attempt: Token, call: Box<[u8]> },
     Process(Box<smith::process::Event>),
     Live { agent: Token, piece: host::Piece },
     Decoded { agent: Token, start: Result<Box<smith::Start>, host::Undecoded> },
     Encoded { owner: Token, encoded: Encoded },
     Activity { owner: Token, activity: Option<host::AgentActivity> },
+    Drain,
     Shutdown,
     Timer,
     Checks,
@@ -80,6 +82,7 @@ pub enum Request {
 #[derive(PartialEq, Eq, Debug)]
 pub enum Encodable {
     Turn(smith::Turn),
+    Part(smith::channel::ToldPart),
     CallName(smith::CallName),
     Result(smith::RunResult),
 }
@@ -87,6 +90,7 @@ pub enum Encodable {
 #[derive(PartialEq, Eq, Debug)]
 pub enum Encoded {
     Turn(host::Turn),
+    Part(jig_domain_link::Part),
     CallName(Box<[u8]>),
     Result(Box<[u8]>),
     Undecodable,

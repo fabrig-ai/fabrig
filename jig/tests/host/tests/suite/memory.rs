@@ -34,6 +34,7 @@ const LIMITS: Limits = Limits {
     told: 2,
     turns: 0,
     turn_queue_bytes: 0,
+    drain_grace: skein_lib::Duration::from_secs(10),
     piece_bytes: 4096,
 };
 
@@ -151,9 +152,10 @@ impl Measured {
                     | ToAgent::Cancel { .. }
                     | ToAgent::Renewals { .. }
                     | ToAgent::Grant { .. }
-                    | ToAgent::Acknowledge { .. },
+                    | ToAgent::AcknowledgePart { .. }
+                | ToAgent::Acknowledge { .. },
                 )
-                | Request::Up(LinkUp::Ask { .. } | LinkUp::JobAnswer { .. })
+                | Request::Up(LinkUp::Part { .. } | LinkUp::Ask { .. } | LinkUp::JobAnswer { .. })
                 | Request::Job(_)
                 | Request::DeliverJob { .. }
                 | Request::Release { .. } => Asked::Other,
@@ -337,6 +339,8 @@ fn paths(limits: Limits) {
     for run in 0..u64::from(limits.slots) {
         let [Asked::Prepare { owner }] = host.step(Event::Down(LinkDown::Assign {
             assignment: jig_domain_host::Assignment {
+                parts: Box::new([]),
+                tell_parts: false,
                 messages: Box::new([]),
                 assignment: assignment(run, &limits),
                 turns: Box::new([]),
@@ -417,7 +421,14 @@ fn transcripts_and_delivery_feedback_keep_their_order() {
         let assignment = assignment(run, &limits);
         let overhead = u64::try_from(size_of::<Box<[u8]>>()).expect("bounded");
         let turns = (0..16).map(|_| bytes(limits.turn_bytes - overhead)).collect::<Vec<_>>().into_boxed_slice();
-        let next = Assignment { messages: Box::new([]), assignment, turns, answered: Box::new([]) };
+        let next = Assignment {
+            parts: Box::new([]),
+            tell_parts: false,
+            messages: Box::new([]),
+            assignment,
+            turns,
+            answered: Box::new([]),
+        };
         let [Asked::Prepare { owner }] = host.step(Event::Down(LinkDown::Assign { assignment: next }))[..] else {
             panic!("prepare")
         };
@@ -524,6 +535,7 @@ fn source_replacement_at_capacity_completes_every_check() {
                     ToAgent::Message { .. }
                     | ToAgent::Answer { .. }
                     | ToAgent::Start { .. }
+                    | ToAgent::AcknowledgePart { .. }
                     | ToAgent::Acknowledge { .. }
                     | ToAgent::Drain { .. }
                     | ToAgent::Cancel { .. }
@@ -597,7 +609,8 @@ fn maximum_input_pieces_keep_their_payloads_and_order() {
             | LinkUp::Usage { .. }
             | LinkUp::Limited { .. }
             | LinkUp::AccountRefused { .. }
-            | LinkUp::Turn { .. }
+            | LinkUp::Part { .. }
+             | LinkUp::Turn { .. }
             | LinkUp::Call { .. }
             | LinkUp::JobAnswer { .. }
             | LinkUp::Ask { .. }

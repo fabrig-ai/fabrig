@@ -239,6 +239,7 @@ pub(super) const CORE: core::Limits = core::Limits {
     brief_core_budgets: BUDGETS,
 };
 pub(super) const HUB: host::Limits = host::Limits {
+    drain_grace: crate::DEFAULT_DRAIN_GRACE,
     charter_bytes: 262_144,
     outcome_bytes: 131_072,
     event_bytes: 135_168,

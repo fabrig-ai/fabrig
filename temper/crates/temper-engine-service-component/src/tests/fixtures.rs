@@ -986,6 +986,7 @@ pub fn assignment_with_settings(
         transcript: Box::new([]),
         answered: Box::new([]),
         settled: Box::new([]),
+        parts: Box::new([]),
         grants: Box::new([]),
     }
 }
@@ -1021,6 +1022,11 @@ pub fn encoding(settings: &settings::Engine) -> crate::assignment::Encoding {
         limits: wire_limits(),
         endpoints: smith_protocol_channel::Endpoints::new(entries),
         deployment: [7; 16],
+        reply_bytes: settings.jig.limits.core.call_answer_bytes,
+        forge_reads: temper_engine_smith::ForgeReadBounds {
+            rows: settings.limits.forge.client.rows,
+            answer_bytes: settings.limits.forge.client.answer_bytes,
+        },
         charter_bytes: crate::assignment::charter_bound(
             settings.jig.limits.hub.charter_bytes,
             settings.agent_charter_bytes,

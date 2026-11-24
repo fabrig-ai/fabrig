@@ -60,6 +60,7 @@ pub(super) fn cancelling(event: &root::Event) -> Option<crate::worker_alone::Not
             | hub::LinkDown::Assign { .. }
             | hub::LinkDown::Message { .. }
             | hub::LinkDown::Relayed { .. }
+            | hub::LinkDown::PartKept { .. }
             | hub::LinkDown::TurnKept { .. }
             | hub::LinkDown::Acknowledge { .. }
             | hub::LinkDown::Grant { .. } => None,
@@ -74,6 +75,7 @@ pub(super) fn cancelling(event: &root::Event) -> Option<crate::worker_alone::Not
         | root::Event::Ready
         | root::Event::Lost
         | root::Event::GracePassed
+        | root::Event::ResendPart { .. }
         | root::Event::Resend { .. }
         | root::Event::RelayCancelled { .. }
         | root::Event::Process(_)
@@ -104,6 +106,7 @@ fn event_tag(event: &root::Event) -> WorkerEvent {
             hub::LinkDown::AssignJob { .. } | hub::LinkDown::Assign { .. } => WorkerEvent::Link(LinkEvent::Assign),
             hub::LinkDown::Message { .. } => WorkerEvent::Link(LinkEvent::Message),
             hub::LinkDown::Relayed { .. } => WorkerEvent::Link(LinkEvent::Relayed),
+            hub::LinkDown::PartKept { .. } => WorkerEvent::Link(LinkEvent::PartKept),
             hub::LinkDown::TurnKept { .. } => WorkerEvent::Link(LinkEvent::TurnKept),
             hub::LinkDown::Acknowledge { .. } => WorkerEvent::Link(LinkEvent::Acknowledge),
             hub::LinkDown::Cancel { .. } => WorkerEvent::Link(LinkEvent::Cancel),
@@ -112,7 +115,7 @@ fn event_tag(event: &root::Event) -> WorkerEvent {
         root::Event::Ready => WorkerEvent::Ready,
         root::Event::Lost => WorkerEvent::Lost,
         root::Event::GracePassed => WorkerEvent::GracePassed,
-        root::Event::Resend { .. } => WorkerEvent::Resend,
+        root::Event::ResendPart { .. } | root::Event::Resend { .. } => WorkerEvent::Resend,
         root::Event::RelayCancelled { .. } => WorkerEvent::RelayCancelled,
         root::Event::Process(_) | root::Event::Job { .. } => WorkerEvent::Process,
         root::Event::Live { .. } => WorkerEvent::Live,

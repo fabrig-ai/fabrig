@@ -19,6 +19,7 @@ pub struct Limits {
     pub agent: smith::Limits,
     pub bounds: Bounds,
     pub stop_bound: Duration,
+    pub drain: Duration,
     pub workstreams: Box<[u64]>,
 }
 

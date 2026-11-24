@@ -35,6 +35,7 @@ impl Harness {
                 run,
                 attempt,
                 kept: 0,
+                kept_part: 0,
                 kind: HostKind::Worker,
                 worked: false,
                 holds: Box::new([GrantName { table: grant.form.table(), account: grant.account }]),

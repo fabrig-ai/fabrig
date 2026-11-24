@@ -17,7 +17,7 @@ fn fresh_agreement() -> skein_channel::Frame {
             .expect("four jig wires");
     }
     wires.push(wire::AgreedWire { name: b"test-worker-wire".as_slice().into(), version: 3 }).expect("application wire");
-    let record = wire::v21::Agreed { wires };
+    let record = wire::v22::Agreed { wires };
     let mut body = Writer::new(skein_lib::length::usize_of(
         record.measure(&jig_protocol_worker_wire::CEILINGS).expect("record within limits"),
     ));
@@ -34,6 +34,15 @@ fn fresh_agreement() -> skein_channel::Frame {
 fn schema_after_changed_terms() -> skein_channel::Schema {
     let _engine = fixtures::engine_with_terms(0x0101, 1);
     fixtures::schema()
+}
+
+#[test]
+fn a_prepared_schema_keeps_changed_part_bounds() {
+    let mut sizes = fixtures::SIZES;
+    sizes.turn += 1;
+    let codec = wire::sizes::limits(&sizes).expect("changed part bound");
+    assert_eq!(fixtures::schema_for_sizes(&sizes), wire::schema(&codec).expect("changed schema"));
+    assert_eq!(fixtures::schema_for_sizes(&fixtures::SIZES), fresh_schema());
 }
 
 #[test]

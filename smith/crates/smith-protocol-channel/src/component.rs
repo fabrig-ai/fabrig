@@ -10,8 +10,8 @@ use crate::facts;
 use crate::limits::{Error, Limits};
 use smith_domain::run;
 use smith_domain_session::record;
-use smith_protocol_translate::encode_turn;
 use smith_protocol_translate::{DecodedStart, Endpoints, answer_record};
+use smith_protocol_translate::{encode_part, encode_turn};
 
 mod cancellation;
 mod ending;
@@ -72,7 +72,9 @@ pub enum Heard {
     /// The host asked to stop politely; the service resolves or awaits the admitted run name.
     Cancel,
     /// The host asks for the current turn to finish before cancellation.
-    Drain,
+    Drain { grace: Option<Duration> },
+    /// The host kept this part and its prefix.
+    PartKept { number: u32 },
     /// Independent write failure; input and terminal rights may still continue.
     WriteFailed,
     /// The channel ended before or after opening.
@@ -89,7 +91,7 @@ pub struct Component {
     ending: Ending,
     bodies: smith_channel::Limits,
     charter: smith_charter::v5::Limits,
-    transcript: smith_transcript::v7::Limits,
+    transcript: smith_transcript::v8::Limits,
     endpoints: Endpoints,
     calls: Map<CallKey, CallRoute>,
     turn_capacity: u32,
@@ -407,6 +409,51 @@ impl Component {
             Err(problem) => return Err(Error::Frame(problem)),
         };
         self.state.turns_mut()?.keep(number, body_bytes)?;
+        self.state.active_mut()?.answered_turn = false;
+        self.machine.down(Request::Send { token, frame }, &mut self.events, below);
+        self.drain(to_service, below);
+        self.fire(to_service, below);
+        Ok(())
+    }
+
+    /// Tell the host a turn part, consuming the same credit as a turn.
+    pub fn send_part(
+        &mut self,
+        number: u32,
+        turn: u32,
+        part: &record::Part,
+        token: Token,
+        to_service: &mut Queue<Heard>,
+        below: &mut Queue<Lower>,
+    ) -> Result<(), Error> {
+        let active = self.state.active()?;
+        if !self.state.admitted()
+            || !active.tell_parts
+            || active.turns.next() != Some(turn)
+            || (part.kind == record::PartKind::Result && !active.answered_turn)
+        {
+            return Err(Error::Order);
+        }
+        let body = encode_part(&part.body, &self.transcript, &self.endpoints)?;
+        let bytes = part.body.owned_bytes().ok_or(Error::Window)?;
+        let kind = match part.kind {
+            record::PartKind::Answer => smith_channel::PartKind::Answer,
+            record::PartKind::Result => smith_channel::PartKind::Result,
+            record::PartKind::Window => smith_channel::PartKind::Window,
+        };
+        let value = smith_channel::Part { number, turn, thread: part.thread, call: part.call, kind, body };
+        if let Err(error) = value.measure(&self.bodies) {
+            return Err(Error::ChannelBody(error));
+        }
+        let frame = match smith_channel::frame(smith_channel::Body::Part(value)) {
+            Ok(frame) => frame,
+            Err(error) => return Err(Error::Frame(error)),
+        };
+        let active = self.state.active_mut()?;
+        active.turns.keep_part(number, bytes)?;
+        if part.thread == 0 && part.kind == record::PartKind::Answer {
+            active.answered_turn = true;
+        }
         self.machine.down(Request::Send { token, frame }, &mut self.events, below);
         self.drain(to_service, below);
         self.fire(to_service, below);

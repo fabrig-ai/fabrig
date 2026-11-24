@@ -14,6 +14,7 @@ fn proof(domain: &mut Domain, task: u64) {
         .insert(
             task,
             jig_domain_core::RunProof {
+                kept_part: 0,
                 worker: None,
                 task,
                 attempt: 1,

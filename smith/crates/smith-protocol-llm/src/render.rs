@@ -230,6 +230,19 @@ fn render(outcome: &Outcome, namespace: &tools::Namespace, output: &mut Sink) ->
             job_following(b"yield", *after, *kept, output)?;
             false
         }
+        Outcome::Interrupted { ran, head, last, dropped } => {
+            output.put(b"interrupted by a worker restart after ")?;
+            match ran {
+                Some(ran) => {
+                    output.number(ran.as_millis().checked_div(1000).expect("milliseconds per second"))?;
+                    output.put(b" s")?;
+                }
+                None => output.put(b"an unknown time")?,
+            }
+            command_output(head, last, *dropped, output)?;
+            output.put(b"\nThis call may be run again.")?;
+            true
+        }
         Outcome::Job { job, head, tail, dropped, wait, output: kept, end } => {
             job_number(*job, output)?;
             output.put(b" output since its last answer:")?;

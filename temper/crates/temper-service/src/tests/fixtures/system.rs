@@ -156,7 +156,8 @@ impl Kernel {
                             || path.as_ref() == b"workspaces"
                             || path.as_ref() == b"gitdirs"
                             || path.as_ref() == b"stores"
-                            || path.as_ref() == b"making",
+                            || path.as_ref() == b"making"
+                            || path.as_ref() == b"kept",
                         "layout opens {path:?}"
                     );
                     self.files = self.files.checked_add(1).unwrap();

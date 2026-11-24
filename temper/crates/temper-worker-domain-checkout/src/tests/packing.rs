@@ -88,6 +88,7 @@ fn prepare_and_release(h: &mut Harness, fetches: &mut u32, pin: bool, pack_end: 
             | Op::DiffPaths { .. }
             | Op::Merge { .. }
             | Op::Commit { .. }
+            | Op::Keep { .. }
             | Op::Push { .. }) => panic!("prepare reaches checkout before packing: {other:?}"),
         };
         op = h.next(hold, done);
