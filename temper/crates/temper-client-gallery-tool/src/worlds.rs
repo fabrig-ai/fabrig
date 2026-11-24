@@ -4317,6 +4317,8 @@ fn base_task(number: u64, title: &str) -> c::Task {
         last_activity: Wall::EPOCH,
         made: Wall::EPOCH,
         waits_on: c::WaitsOn::Nothing,
+        wait: None,
+        nearest: None,
         waits: List::with_capacity(0),
         wait_count: 0,
         goal: None,

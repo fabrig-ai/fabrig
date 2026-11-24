@@ -599,6 +599,28 @@ fn a_task_document_reads_every_wait_form_in_wire_order() {
 }
 
 #[test]
+fn a_task_document_reads_the_descendants_wait_and_the_separate_nearest() {
+    use skein_lib::Wall;
+    let limits = fixtures::limits();
+    let (wire, client) = jig_client_test_records::structured_waits();
+    let mut record = fixtures::task_record();
+    let mut wait = wire.get(0).unwrap().clone();
+    wait.task = 71;
+    record.wait = Some(wait);
+    record.nearest = Some(w::Nearest { at: 59, then: w::AtBound::Hold, kind: w::WaitKind::Resource });
+    let bytes = record.encode(limits.receiving()).unwrap();
+    let record = w::Task::decode(limits.receiving(), &mut Reader::new(&bytes)).unwrap();
+    let task = documents::task(record, &limits).unwrap();
+    let mut expected = client.get(0).unwrap().clone();
+    expected.task = 71;
+    assert_eq!(task.wait, Some(expected));
+    assert_eq!(
+        task.nearest,
+        Some(c::Nearest { at: Wall::from_nanos(59), then: c::AtBound::Hold, kind: c::WaitKind::Resource })
+    );
+}
+
+#[test]
 fn a_task_line_reads_the_descendants_wait_and_the_separate_nearest() {
     use skein_lib::Wall;
     let limits = fixtures::limits();

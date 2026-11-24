@@ -325,6 +325,31 @@ fn account_records(bytes: &[u8]) {
     check!(Deployment, bytes);
 }
 
+#[test]
+fn a_task_document_decodes_the_wait_and_nearest_independently() {
+    let (waits, _) = jig_client_test_records::structured_waits();
+    let mut rng = Rng::new(0x0c11_ea17);
+    for then in [None, Some(AtBound::Hold), Some(AtBound::PassUp), Some(AtBound::Overdue), Some(AtBound::GiveUp)] {
+        for first in core::iter::once(None).chain(waits.iter().map(Some)) {
+            let mut task = jig_client_test_records::task_record();
+            task.wait = first.cloned();
+            if let Some(wait) = &mut task.wait {
+                wait.task = rng.next_u64();
+                wait.since = rng.next_u64();
+            }
+            task.nearest = then.as_ref().map(|then| Nearest {
+                at: rng.next_u64(),
+                then: then.clone(),
+                kind: WaitKind::Dependency,
+            });
+            let bytes = task.encode(&CEILINGS).expect("bounded task document");
+            let decoded = Task::decode(&CEILINGS, &mut Reader::new(&bytes)).expect("valid task document");
+            assert_eq!(decoded.wait, task.wait);
+            assert_eq!(decoded.nearest, task.nearest);
+        }
+    }
+}
+
 fn wait_records(bytes: &[u8]) {
     check!(WaitKind, bytes);
     check!(WaitEntry, bytes);

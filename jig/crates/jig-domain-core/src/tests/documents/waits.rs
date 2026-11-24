@@ -11,6 +11,14 @@ fn pair() -> (Core, Limits) {
     (core, limits)
 }
 
+fn document_matching_line(core: &Core, limits: &Limits, row: &tasks::TaskRecord) -> Task {
+    let line = task_line(core, limits, 1, row, None).unwrap();
+    let document = task_from_row(core, limits, 1, row, SINCE).unwrap();
+    assert_eq!(document.wait, line.wait);
+    assert_eq!(document.nearest, line.nearest);
+    document
+}
+
 fn question(number: u64, at: u64) -> tasks::Word {
     tasks::Word {
         number,
@@ -55,12 +63,15 @@ fn an_askers_credit_keeps_question_words_while_it_closes() {
     assert_eq!(core.tasks.open_questions(1).as_slice(), [question]);
     core.prune_questions(2);
     assert_eq!(core.open_question_words(question), Some(b"Which form?".as_slice()));
+    document_matching_line(&core, &limits, core.tasks.task(1).unwrap());
+    document_matching_line(&core, &limits, core.tasks.task(2).unwrap());
 }
 
 #[test]
 fn a_task_with_live_delegates_and_no_entries_waits_on_its_delegates() {
     let (core, limits) = pair();
     assert_eq!(core.waits_on(&limits, 1), WaitsOn::Delegates);
+    document_matching_line(&core, &limits, core.tasks.task(1).unwrap());
 }
 
 #[test]
@@ -94,6 +105,7 @@ fn a_question_to_the_requester_names_that_party_and_one_entry() {
             kind: people::EntryKind::Question { message: 3 },
         }
     );
+    document_matching_line(&core, &limits, core.tasks.task(1).unwrap());
 }
 
 #[test]
@@ -136,6 +148,7 @@ fn the_oldest_of_two_waiting_entries_names_whom() {
             kind: people::EntryKind::Escalation { revision: 1 },
         }
     );
+    document_matching_line(&core, &limits, core.tasks.task(1).unwrap());
 }
 
 #[test]
@@ -163,6 +176,7 @@ fn a_proposal_below_says_the_party_is_waited_on_for_that_proposal() {
             kind: people::EntryKind::Proposal { proposer: Proposer::Task(2), number: 4 },
         }
     );
+    document_matching_line(&core, &limits, core.tasks.task(1).unwrap());
 }
 
 #[test]
@@ -187,6 +201,7 @@ fn a_person_task_below_names_its_role() {
             kind: people::EntryKind::PersonTask,
         }
     );
+    document_matching_line(&core, &limits, core.tasks.task(1).unwrap());
 }
 
 #[test]
@@ -196,6 +211,7 @@ fn an_idle_task_with_nothing_below_waits_on_news() {
     child.phase = tasks::Phase::Active(tasks::Active::Idle);
     restore(&mut core, &limits, Box::new([child]));
     assert_eq!(core.waits_on(&limits, 2), WaitsOn::News);
+    document_matching_line(&core, &limits, core.tasks.task(2).unwrap());
 }
 
 #[test]
@@ -208,6 +224,9 @@ fn a_working_task_with_live_delegates_waits_on_nothing() {
     let child = core.tasks.task(2).unwrap().clone();
     restore(&mut core, &limits, Box::new([parent, child]));
     assert_eq!(core.waits_on(&limits, 1), WaitsOn::Nothing);
+    let document = document_matching_line(&core, &limits, core.tasks.task(1).unwrap());
+    assert_eq!(document.wait, None);
+    assert_eq!(document.nearest, None);
 }
 
 #[test]
@@ -230,13 +249,13 @@ fn a_kept_idle_row_waits_on_dependencies_before_delegates_and_cuts_oldest_first(
     row.phase = tasks::Phase::Active(tasks::Active::Idle);
     row.dependencies = Box::new([2, 3]);
     row.waiting_on = Box::new([2, 3]);
-    let WaitsOn::Dependencies { pending, count } = crate::runs::waits::from_row(&core, &limits, &row) else {
+    let WaitsOn::Dependencies { pending, count } = document_matching_line(&core, &limits, &row).waits_on else {
         panic!("kept")
     };
     assert_eq!(pending.as_slice(), &[3]);
     assert_eq!(count, 2);
     row.phase = tasks::Phase::Active(tasks::Active::Running { attempt: 1 });
-    assert_eq!(crate::runs::waits::from_row(&core, &limits, &row), WaitsOn::Nothing);
+    assert_eq!(document_matching_line(&core, &limits, &row).waits_on, WaitsOn::Nothing);
 }
 
 fn own_credit(row: &tasks::TaskRecord, number: u64) -> tasks::QuestionCredit {
@@ -253,15 +272,15 @@ fn an_idle_task_waits_on_its_oldest_own_question_before_dependencies_and_delegat
     row.waiting_on = Box::new([1]);
     row.questions = Box::new([own_credit(&row, 9), own_credit(&row, 7)]);
     assert_eq!(tasks::own_question(&row), Some(7));
-    assert_eq!(crate::runs::waits::from_row(&core, &limits, &row), WaitsOn::Question { number: 7 });
+    assert_eq!(document_matching_line(&core, &limits, &row).waits_on, WaitsOn::Question { number: 7 });
     row.waiting_on = Box::new([]);
     row.delegates = Box::new([]);
-    assert_eq!(crate::runs::waits::from_row(&core, &limits, &row), WaitsOn::Question { number: 7 });
+    assert_eq!(document_matching_line(&core, &limits, &row).waits_on, WaitsOn::Question { number: 7 });
     row.phase = tasks::Phase::Active(tasks::Active::Running { attempt: 1 });
-    assert_eq!(crate::runs::waits::from_row(&core, &limits, &row), WaitsOn::Nothing);
+    assert_eq!(document_matching_line(&core, &limits, &row).waits_on, WaitsOn::Nothing);
     row.phase = tasks::Phase::Active(tasks::Active::Idle);
     row.questions = Box::new([]);
-    assert_eq!(crate::runs::waits::from_row(&core, &limits, &row), WaitsOn::News);
+    assert_eq!(document_matching_line(&core, &limits, &row).waits_on, WaitsOn::News);
 }
 
 #[test]
@@ -275,8 +294,7 @@ fn asking_and_answering_an_own_question_change_the_task_document_wait() {
     send_task(&mut core, &limits, tasks::Event::Restore { record: tasks::Stored::Ledger(ledger) });
     send_task(&mut core, &limits, tasks::Event::Check);
     send_task(&mut core, &limits, tasks::Event::Restored);
-    let document_wait =
-        |core: &Core| task_from_row(core, &limits, 1, core.tasks.task(2).unwrap(), Wall::EPOCH).unwrap().waits_on;
+    let document_wait = |core: &Core| document_matching_line(core, &limits, core.tasks.task(2).unwrap()).waits_on;
     assert_eq!(document_wait(&core), WaitsOn::News);
     let out = watch_outputs(
         &mut core,
@@ -359,9 +377,9 @@ fn party_question_uses_asking_time_and_distinguishes_pass_up_from_overdue() {
         bound: at(SINCE, limits.waits.party, AtBound::PassUp),
         hears: Some(REQUESTER),
     };
-    let read = crate::runs::waits::read(&core, &limits, &row);
-    assert_eq!(read.waits.own.get(0), Some(&expected));
-    row.project = 99; // No project policy or covering holder.
+    let document = document_matching_line(&core, &limits, &row);
+    assert_eq!(document.waits.get(0), Some(&expected));
+    row.project = 99; // No project policy, covering holder or readable document.
     expected.bound = at(SINCE, limits.waits.party, AtBound::Overdue);
     expected.hears = None;
     assert_eq!(crate::runs::waits::read(&core, &limits, &row).waits.first, Some(expected));
@@ -386,9 +404,9 @@ fn party_entries_keep_the_escalation_proposal_and_person_clocks() {
             since: SINCE,
         },
     }));
-    let read = crate::runs::waits::read(&core, &limits, &row);
+    let document = document_matching_line(&core, &limits, &row);
     assert_eq!(
-        read.waits.own.as_slice(),
+        document.waits.as_slice(),
         &[
             Wait {
                 task: 2,
@@ -417,9 +435,9 @@ fn party_entries_keep_the_escalation_proposal_and_person_clocks() {
     row.phase = tasks::Phase::Active(tasks::Active::Idle);
     row.person_wait =
         Some(tasks::PersonWait { since: SINCE, stall: limits.tasks.person_stall, deadline: SOON, notice: None });
-    let read = crate::runs::waits::read(&core, &limits, &row);
+    let document = document_matching_line(&core, &limits, &row);
     assert_eq!(
-        read.waits.first,
+        document.wait,
         Some(Wait {
             task: 2,
             kind: WaitKind::Party,
@@ -447,14 +465,14 @@ fn requester_question_precedes_pending_dependency_and_respects_the_deadline() {
         bound: at(SINCE, limits.waits.question, AtBound::PassUp),
         hears: Some(PARENT),
     };
-    let read = crate::runs::waits::read(&core, &limits, &row);
-    assert_eq!(read.waits.own.get(0), Some(&expected));
-    assert_eq!(read.waits.own.get(1).unwrap().kind, WaitKind::Dependency);
+    let document = document_matching_line(&core, &limits, &row);
+    assert_eq!(document.waits.get(0), Some(&expected));
+    assert_eq!(document.waits.get(1).unwrap().kind, WaitKind::Dependency);
     row.authority.budget.deadline = Some(SOON);
     expected.bound = Bound::At { at: SOON, then: AtBound::PassUp };
-    let read = crate::runs::waits::read(&core, &limits, &row);
-    assert_eq!(read.waits.first, Some(expected));
-    assert_eq!(read.waits.nearest, Some(Nearest { at: SOON, then: AtBound::PassUp, kind: WaitKind::Question }));
+    let document = document_matching_line(&core, &limits, &row);
+    assert_eq!(document.wait, Some(expected));
+    assert_eq!(document.nearest, Some(Nearest { at: SOON, then: AtBound::PassUp, kind: WaitKind::Question }));
 }
 
 #[test]
@@ -484,15 +502,15 @@ fn dependency_records_use_addition_time_and_keep_the_count_past_the_cap() {
             hears: Some(PARENT),
         },
     ];
-    let read = crate::runs::waits::read(&core, &limits, &row);
-    assert_eq!(read.waits.own.as_slice(), &expected);
-    assert_eq!(read.waits.nearest, None);
+    let document = document_matching_line(&core, &limits, &row);
+    assert_eq!(document.waits.as_slice(), &expected);
+    assert_eq!(document.nearest, None);
     row.authority.budget.deadline = Some(SOON);
     limits.documents.lines = 1;
     expected[0].bound = Bound::At { at: SOON, then: AtBound::Hold };
-    let read = crate::runs::waits::read(&core, &limits, &row);
-    assert_eq!(read.waits.count, 2);
-    assert_eq!(read.waits.own.as_slice(), &expected[..1]);
+    let document = document_matching_line(&core, &limits, &row);
+    assert_eq!(document.wait_count, 2);
+    assert_eq!(document.waits.as_slice(), &expected[..1]);
 }
 
 #[test]
@@ -523,10 +541,11 @@ fn resource_wait_names_the_holder_and_counts_from_the_latest_join() {
     };
     assert_eq!(core.waits(2).first, Some(expected.clone()));
     assert_eq!(core.waits_on(&limits, 2), WaitsOn::Nothing);
+    document_matching_line(&core, &limits, &row);
     row.hold_bound_since = Some(SOON);
     expected.since = SOON;
     expected.bound = at(SOON, limits.tasks.hold_wait, AtBound::Hold);
-    assert_eq!(crate::runs::waits::read(&core, &limits, &row).waits.first, Some(expected));
+    assert_eq!(document_matching_line(&core, &limits, &row).wait, Some(expected));
 }
 
 #[test]
@@ -555,14 +574,14 @@ fn delegates_use_their_making_time_and_replace_news() {
             hears: Some(REQUESTER),
         },
     ];
-    let read = crate::runs::waits::read(&core, &limits, &row);
-    assert_eq!(read.waits.own.as_slice(), &expected);
-    assert_eq!(read.waits.nearest, None);
+    let document = document_matching_line(&core, &limits, &row);
+    assert_eq!(document.waits.as_slice(), &expected);
+    assert_eq!(document.nearest, None);
     row.authority.budget.deadline = Some(SOON);
     for wait in &mut expected {
         wait.bound = Bound::At { at: SOON, then: AtBound::Hold };
     }
-    assert_eq!(crate::runs::waits::read(&core, &limits, &row).waits.own.as_slice(), &expected);
+    assert_eq!(document_matching_line(&core, &limits, &row).waits.as_slice(), &expected);
 }
 
 #[test]
@@ -587,17 +606,17 @@ fn parked_news_keeps_four_subscriptions_and_the_timer_but_standing_has_no_bound(
         object: WaitObject::News { subscriptions: List::from_boxed(Box::new([6, 7, 8, 9])), timer: Some(SOON) },
         bound: at(SINCE, limits.waits.news, AtBound::Hold),
     };
-    assert_eq!(crate::runs::waits::read(&core, &limits, &row).waits.first, Some(expected.clone()));
+    assert_eq!(document_matching_line(&core, &limits, &row).wait, Some(expected.clone()));
     expected.bound = Bound::None(Unbounded::Standing);
     row.flags.ended_by = tasks::EndedBy::Standing;
-    assert_eq!(crate::runs::waits::read(&core, &limits, &row).waits.first, Some(expected.clone()));
+    assert_eq!(document_matching_line(&core, &limits, &row).wait, Some(expected.clone()));
     row.flags.ended_by = tasks::EndedBy::Requester;
     row.flags.conversation = true;
-    assert_eq!(crate::runs::waits::read(&core, &limits, &row).waits.first, Some(expected));
+    assert_eq!(document_matching_line(&core, &limits, &row).wait, Some(expected));
 }
 
 #[test]
-fn a_goals_line_names_a_descendants_party_wait_but_its_own_nearer_bound() {
+fn a_goal_names_a_descendants_escalation_but_its_own_nearer_bound() {
     let (mut core, limits) = pair();
     let mut parent = core.tasks.task(1).unwrap().clone();
     parent.tracked = Some(1);
@@ -607,10 +626,48 @@ fn a_goals_line_names_a_descendants_party_wait_but_its_own_nearer_bound() {
     let mut child = core.tasks.task(2).unwrap().clone();
     child.escalation = tasks::Escalation::Waiting { holder: Holder::Person(1), revision: 1, entry: 7, since: SINCE };
     restore(&mut core, &limits, Box::new([child]));
-    let line = task_line(&core, &limits, 1, &parent, None).unwrap();
-    let first = line.wait.expect("party wait below the goal");
+    let document = document_matching_line(&core, &limits, &parent);
+    let first = document.wait.expect("party wait below the goal");
     assert_eq!((first.task, first.kind), (2, WaitKind::Party));
-    assert_eq!(line.nearest, Some(Nearest { at: SOON, then: AtBound::Hold, kind: WaitKind::Dependency }));
+    assert_eq!(document.nearest, Some(Nearest { at: SOON, then: AtBound::Hold, kind: WaitKind::Dependency }));
+}
+
+#[test]
+fn a_goal_keeps_its_descendants_question_and_the_earliest_bound() {
+    let (mut core, limits) = pair();
+    let mut goal = core.tasks.task(1).unwrap().clone();
+    goal.tracked = Some(1);
+    goal.phase = tasks::Phase::Active(tasks::Active::Idle);
+    goal.waiting_on = Box::new([2]);
+    let leaf = new_row(&core, 3, tasks::Funder::Period { project: 1, period: 1 }, None);
+    make_batch(&mut core, &limits, tasks::Party::Person(1), Box::new([leaf]));
+    let mut leaf = core.tasks.task(3).unwrap().clone();
+    leaf.question_lines = Box::new([tasks::QuestionLine { message: 7, line: leaf.activity, answer: None }]);
+    remember(&mut core, leaf.number, leaf.activity, 7);
+    let mut child = core.tasks.task(2).unwrap().clone();
+    // Supply the wait walk with a person-facing question below the direct delegate.
+    child.delegates = Box::new([3]);
+    restore(&mut core, &limits, Box::new([goal.clone(), child, leaf]));
+
+    let later = Wall::from_nanos(SINCE.as_nanos() + limits.waits.party.as_nanos());
+    let question = Wait {
+        task: 3,
+        kind: WaitKind::Party,
+        object: WaitObject::Entry { kind: people::EntryKind::Question { message: 7 }, at: REQUESTER },
+        since: SINCE,
+        bound: Bound::At { at: later, then: AtBound::PassUp },
+        hears: Some(REQUESTER),
+    };
+    for (deadline, nearest) in [
+        (SOON, Nearest { at: SOON, then: AtBound::Hold, kind: WaitKind::Dependency }),
+        (Wall::from_nanos(later.as_nanos() + 1), Nearest { at: later, then: AtBound::PassUp, kind: WaitKind::Party }),
+    ] {
+        goal.authority.budget.deadline = Some(deadline);
+        let document = document_matching_line(&core, &limits, &goal);
+        assert_eq!(document.wait.as_ref(), Some(&question));
+        assert_eq!(document.nearest, Some(nearest));
+        assert_eq!(document.waits.get(0).unwrap().kind, WaitKind::Dependency);
+    }
 }
 
 #[test]
@@ -630,10 +687,9 @@ fn working_line_has_no_first_but_its_document_lists_party_and_question_waits() {
         state: tasks::ProposalState::Pending { holder: tasks::ProposalHolder::Task(1), since: SINCE },
     }));
     remember(&mut core, row.number, row.activity, 7);
-    let line = task_line(&core, &limits, 1, &row, None).unwrap();
-    let doc = task_from_row(&core, &limits, 1, &row, SINCE).unwrap();
-    assert_eq!(line.wait, None);
-    assert_eq!(line.waits_on, WaitsOn::Nothing);
+    let doc = document_matching_line(&core, &limits, &row);
+    assert_eq!(doc.wait, None);
+    assert_eq!(doc.waits_on, WaitsOn::Nothing);
     assert_eq!(doc.wait_count, 2);
     assert_eq!(doc.waits.get(0).unwrap().kind, WaitKind::Party);
     assert_eq!(doc.waits.get(1).unwrap().kind, WaitKind::Question);

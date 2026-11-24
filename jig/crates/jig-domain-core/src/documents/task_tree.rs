@@ -381,6 +381,8 @@ fn task_with_lineage(
             tasks::Executor::Procedure { .. } | tasks::Executor::Person(_) | tasks::Executor::Job { .. } => None,
         },
         waits_on: projection.on,
+        wait: projection.waits.first,
+        nearest: projection.waits.nearest,
         waits: projection.waits.own,
         wait_count: projection.waits.count,
         label: row.label,

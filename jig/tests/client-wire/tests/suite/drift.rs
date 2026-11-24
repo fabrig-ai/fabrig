@@ -5,8 +5,9 @@ mod families;
 
 #[test]
 fn codec_families_match_their_schemas() {
-    families::check();
+    // Refresh this version's line before the shared check, which only appends new versions.
     current_client_layout();
+    families::check();
 }
 
 #[expect(clippy::disallowed_methods, reason = "jig's drift write mode refreshes the current layout")]
