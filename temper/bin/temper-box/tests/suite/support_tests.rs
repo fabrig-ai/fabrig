@@ -365,51 +365,6 @@ fn elsewhere_settings_follow_the_connected_project() {
 }
 
 #[test]
-fn story_command_a_callback_command_captures_output_and_keeps_a_bad_exit() {
-    support::story_command::tests::a_callback_command_captures_output_and_keeps_a_bad_exit();
-}
-
-#[test]
-fn story_socket_bounded_reads_preserve_the_next_bytes_and_eof_is_an_error() {
-    support::story_socket::tests::bounded_reads_preserve_the_next_bytes_and_eof_is_an_error();
-}
-
-#[test]
-fn patience_starvation_disarms_the_inner_wait_without_passing_the_world() {
-    support::patience::tests::starvation_disarms_the_inner_wait_without_passing_the_world();
-}
-
-#[test]
-fn patience_a_failed_wait_keeps_its_figures_and_deadline() {
-    support::patience::tests::a_failed_wait_keeps_its_figures_and_deadline();
-}
-
-#[test]
-fn patience_socket_waits_round_up_and_refusals_never_classify_as_starvation() {
-    support::patience::tests::socket_waits_round_up_and_refusals_never_classify_as_starvation();
-}
-
-#[test]
-fn patience_an_interrupted_socket_retries_with_the_same_deadline() {
-    support::patience::tests::an_interrupted_socket_retries_with_the_same_deadline();
-}
-
-#[test]
-fn cluster_passed_accepts_only_a_successful_settled_verdict() {
-    support::cluster::verdict_tests::passed_accepts_only_a_successful_settled_verdict();
-}
-
-#[test]
-fn cluster_stop_bounds_read_the_printed_seconds_and_need_a_complete_line() {
-    support::cluster::deadline_tests::stop_bounds_read_the_printed_seconds_and_need_a_complete_line();
-}
-
-#[test]
-fn cluster_a_member_wait_can_defer_only_to_a_longer_world() {
-    support::cluster::deadline_tests::a_member_wait_can_defer_only_to_a_longer_world();
-}
-
-#[test]
 fn fixture_limits_are_applied_before_the_subprocess_restart() {
     let scratch = support::Scratch::startup("small-limits-settings");
     let mut configuration = support::lay_configuration(scratch.path(), &support::Forge::Unreached);
@@ -463,19 +418,4 @@ fn ctl_a_failed_ctl_check_reaches_the_world_after_cleanup() {
 #[test]
 fn ctl_a_returned_visit_drains_without_another_process_or_a_poll() {
     support::ctl::read_condition_tests::a_returned_visit_drains_without_another_process_or_a_poll();
-}
-
-#[test]
-fn forge_land_rung_an_expired_rung_phase_starts_no_further_command() {
-    support::forge_land::rung::tests::an_expired_rung_phase_starts_no_further_command();
-}
-
-#[test]
-fn forge_land_rung_rung_phases_keep_the_request_deadlines_when_selected_again() {
-    support::forge_land::rung::tests::rung_phases_keep_the_request_deadlines_when_selected_again();
-}
-
-#[test]
-fn github_file_scan_excludes_only_jigs_generation_secrets_store() {
-    support::github::file_scan_excludes_only_jigs_generation_secrets_store();
 }

@@ -787,7 +787,10 @@ enum MemberWait {
 }
 impl MemberWait {
     fn arm(what: &'static str, now: Time, within: Duration, world: Duration) -> Self {
-        if world > within { Self::World(Patience::arm(what, within)) } else { Self::Bound(now.saturating_add(within)) }
+        Self::arm_with(now, within, world, || Patience::arm(what, within))
+    }
+    fn arm_with(now: Time, within: Duration, world: Duration, arm: impl FnOnce() -> Patience) -> Self {
+        if world > within { Self::World(arm()) } else { Self::Bound(now.saturating_add(within)) }
     }
     fn watching(what: &'static str, now: Time, within: Duration, world: Duration, binary: &Binary) -> Self {
         let mut wait = Self::arm(what, now, within, world);
@@ -1326,8 +1329,9 @@ pub mod verdict_tests {
 }
 
 pub mod deadline_tests {
-    use super::{MemberWait, stop_bounds};
+    use super::{MemberWait, Patience, stop_bounds};
     use skein_lib::{Duration, Time};
+    use skein_world::testing::deadline::at;
 
     pub fn stop_bounds_read_the_printed_seconds_and_need_a_complete_line() {
         assert_eq!(
@@ -1340,9 +1344,13 @@ pub mod deadline_tests {
     pub fn a_member_wait_can_defer_only_to_a_longer_world() {
         let within = Duration::from_secs(20);
         for (world, can_defer) in [(19, false), (20, false), (21, true)] {
-            let wait = MemberWait::arm("the member's answer", Time::ZERO, within, Duration::from_secs(world));
+            let wait = MemberWait::arm_with(Time::ZERO, within, Duration::from_secs(world), || {
+                assert!(can_defer, "a bounded row does not arm a world deadline");
+                Patience::from_deadline(at("the member's answer", within, Time::ZERO))
+            });
             assert_eq!(matches!(wait, MemberWait::World(_)), can_defer, "world={world}");
-            if let MemberWait::Bound(until) = wait {
+            if !can_defer {
+                let MemberWait::Bound(until) = wait else { panic!("a bounded member wait") };
                 assert_eq!(until, Time::ZERO.saturating_add(within));
             }
         }

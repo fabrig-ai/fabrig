@@ -950,15 +950,24 @@ impl Calls {
         self.action = Some(Action::TaskExists(call.clone(), task));
         self.start(call, false);
     }
-    #[expect(clippy::too_many_lines, reason = "Keeps ctl's step dispatch together.")]
     fn advance(&mut self, now: Time) {
+        self.advance_with(now, &super::boxed::serve_listening, &Patience::arm);
+    }
+
+    #[expect(clippy::too_many_lines, reason = "Keeps ctl's step dispatch together.")]
+    fn advance_with(
+        &mut self,
+        now: Time,
+        listening: &impl Fn(&Path) -> bool,
+        arm: &impl Fn(&'static str, Duration) -> Patience,
+    ) {
         // A box that exits before printing its link must be diagnosed by
         // its referee, rather than panicking while constructing sign-in stdin.
         if matches!(
             self.steps.front(),
             Some(Step::Run(Call { stdin: Stdin::Link, .. }) | Step::Start(Call { stdin: Stdin::Link, .. }))
         ) && (super::printed_link(&self.link).is_none()
-            || self.serve_data.as_deref().is_some_and(|data| !super::boxed::serve_listening(data)))
+            || self.serve_data.as_deref().is_some_and(|data| !listening(data)))
         {
             self.retry = Some(now.saturating_add(PACE));
             return;
@@ -978,14 +987,14 @@ impl Calls {
             && !matches!(self.steps.front(), Some(Step::Mark(_)))
         {
             self.began = Some(self.wall);
-            self.deadline = Some(Patience::arm("the measured ctl step", within));
+            self.deadline = Some(arm("the measured ctl step", within));
         }
         match self.steps.pop_front() {
             Some(Step::Mark(name)) => {
                 if let Some(began) = self.phase.replace(now) {
                     eprintln!("{name}: {} ms", now.saturating_since(began).as_nanos() / 1_000_000);
                 }
-                self.advance(now);
+                self.advance_with(now, listening, arm);
             }
             Some(Step::RestartEngine) => self.await_box(Action::RestartEngine),
             Some(Step::Stderr(bytes)) => self.await_box(Action::Stderr(bytes)),
@@ -995,7 +1004,7 @@ impl Calls {
                 self.action = Some(Action::NextLink);
                 self.bound(now);
                 if self.action.is_none() {
-                    self.advance(now);
+                    self.advance_with(now, listening, arm);
                 }
             }
             Some(Step::Member { scratch, directory }) => self.make_member(&scratch, directory),
@@ -1795,25 +1804,52 @@ pub mod read_condition_tests {
 }
 
 pub mod serve_gate_tests {
-    use super::{Call, Calls, Fd, Host, PACE, Step, Time, WITHIN};
+    use super::{Call, Calls, Fd, Host, Op, PACE, Patience, Step, Time, WITHIN};
+    use skein_world::testing::deadline::at;
+    use std::{cell::RefCell, path::Path};
 
     pub fn link_sign_in_waits_for_serve_before_starting_its_bound() {
-        let scratch = super::super::Scratch::new("ctl-serve-gate");
-        let mut calls =
-            Calls::new(Fd::new(0), vec![Step::Run(Call::sign_in())], None, None).with_serve_data(scratch.path());
+        let data = Path::new("box-data");
+        let call = Call::sign_in().by(Path::new("temper-box"));
+        let mut calls = Calls::new(Fd::new(0), vec![Step::Run(call)], None, None).with_serve_data(data);
         calls.link = b"http://127.0.0.1:8367/sign-in?secret=fixture\n".to_vec();
         calls.within = Some(WITHIN);
-        calls.advance(Time::ZERO);
+        let arms = RefCell::new(Vec::new());
+        let arm_at = |now| {
+            let arms = &arms;
+            move |what, within| {
+                arms.borrow_mut().push((what, within, now));
+                Patience::from_deadline(at(what, within, now))
+            }
+        };
+        calls.advance_with(
+            Time::ZERO,
+            &|path| {
+                assert_eq!(path, data);
+                false
+            },
+            &arm_at(Time::ZERO),
+        );
         assert!(calls.child.is_none(), "an early link starts no sign-in");
+        assert!(calls.submit.is_empty(), "an early link queues no child");
         assert!(calls.deadline.is_none(), "serve startup spends none of the sign-in bound");
+        assert!(arms.borrow().is_empty(), "there was no arm before listening");
         assert!(calls.next_policy_deadline().is_some(), "the log is checked again without pipe output");
-        std::fs::create_dir_all(scratch.path().join("box/logs")).expect("logs");
-        std::fs::write(scratch.path().join("box/logs/serve.log"), b"listening clients 127.0.0.1:8367\n")
-            .expect("listening");
-        calls.advance(Time::from_nanos(PACE.as_nanos()));
+
+        let now = Time::ZERO.saturating_add(PACE);
+        assert_eq!(calls.next_policy_deadline(), Some(now));
+        calls.advance_with(
+            now,
+            &|path| {
+                assert_eq!(path, data);
+                true
+            },
+            &arm_at(now),
+        );
         assert!(calls.child.is_some(), "listening admits sign-in");
-        assert!(calls.deadline.is_some(), "sign-in owns its full bound");
+        assert!(matches!(calls.submit.pop().map(|submit| submit.kind), Some(Op::Spawn { .. })), "sign-in was queued");
+        assert_eq!(arms.into_inner(), [("the measured ctl step", WITHIN, now)]);
+        assert_eq!(calls.deadline.as_ref().and_then(Patience::until), Some(now.saturating_add(WITHIN)));
         assert!(calls.retry.is_none(), "listening clears the log poll");
-        scratch.remove();
     }
 }

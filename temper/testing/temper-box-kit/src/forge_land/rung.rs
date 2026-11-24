@@ -201,14 +201,23 @@ struct Driver {
     forge: u64,
 }
 
+struct Transcript<F> {
+    stdout: (PathBuf, F),
+    stderr: (PathBuf, F),
+}
+
 impl Driver {
     fn new(store: &Path, client: &Path) -> Self {
+        Self::new_at(store, client, skein_scratch::paths::binary("temper-box"), now())
+    }
+
+    fn new_at(store: &Path, client: &Path, binary: PathBuf, now: Time) -> Self {
         Self {
-            binary: skein_scratch::paths::binary("temper-box"),
+            binary,
             store: store.into(),
             client: client.into(),
             sequence: 0,
-            until: now().saturating_add(Duration::from_secs(300)),
+            until: now.saturating_add(Duration::from_secs(300)),
             deadline: None,
             phases: Vec::new(),
             active: None,
@@ -231,8 +240,11 @@ impl Driver {
     }
 
     fn arm(&mut self, phase: &'static str, within: Duration) {
+        self.arm_deadline(phase, Deadline::arm(phase, within));
+    }
+
+    fn arm_deadline(&mut self, phase: &'static str, deadline: Deadline) {
         self.phase = phase;
-        let deadline = Deadline::arm(phase, within);
         self.until = deadline.until();
         self.deadline = Some(deadline);
         self.active = None;
@@ -246,11 +258,15 @@ impl Driver {
     }
 
     fn check_wait(&mut self) -> Result<(), String> {
-        if now() < self.until {
+        self.check_wait_at(now(), Deadline::expired)
+    }
+
+    fn check_wait_at(&mut self, now: Time, expire: impl FnOnce(&Deadline) -> Expired) -> Result<(), String> {
+        if now < self.until {
             return Ok(());
         }
         let message = format!("phase {} exceeded its bound", self.phase);
-        match self.deadline().map(|deadline| deadline.expired()) {
+        match self.deadline().map(|deadline| expire(deadline)) {
             Some(Expired::Starved(starved)) => {
                 let message = format!("{message}: {}", starved.figures());
                 self.starved = Some(starved);
@@ -263,7 +279,11 @@ impl Driver {
     }
 
     fn request(&mut self) {
-        self.requested = Some(now());
+        self.request_at(now(), Deadline::arm);
+    }
+
+    fn request_at(&mut self, now: Time, mut arm: impl FnMut(&'static str, Duration) -> Deadline) {
+        self.requested = Some(now);
         self.phases = [
             ("inbox question", 40_480),
             ("person's answer sent", 186_660),
@@ -277,7 +297,7 @@ impl Driver {
             ("chat's last word and whole", WHOLE),
         ]
         .into_iter()
-        .map(|(phase, milliseconds)| (phase, Deadline::arm(phase, Duration::from_millis(milliseconds))))
+        .map(|(phase, milliseconds)| (phase, arm(phase, Duration::from_millis(milliseconds))))
         .collect();
     }
 
@@ -287,21 +307,51 @@ impl Driver {
 
     fn execute_within(
         &mut self,
+        command: Command,
+        input: Option<&str>,
+        keep: bool,
+        within: Option<Duration>,
+    ) -> Result<Vec<u8>, String> {
+        self.execute_with(
+            now(),
+            Deadline::expired,
+            |path| fs::File::create(path).map_err(|e| e.to_string()),
+            |driver, number, transcript| driver.run_call(number, transcript, command, input, keep, within),
+        )
+    }
+
+    fn execute_with<F>(
+        &mut self,
+        now: Time,
+        expire: impl FnOnce(&Deadline) -> Expired,
+        mut open: impl FnMut(&Path) -> Result<F, String>,
+        run: impl FnOnce(&mut Self, usize, Transcript<F>) -> Result<Vec<u8>, String>,
+    ) -> Result<Vec<u8>, String> {
+        self.check_wait_at(now, expire)?;
+        let number = self.sequence;
+        self.sequence += 1;
+        let stdout = self.store.join(format!("call-{number}.out"));
+        let stderr = self.store.join(format!("call-{number}.err"));
+        let out = open(&stdout)?;
+        let err = open(&stderr)?;
+        run(self, number, Transcript { stdout: (stdout, out), stderr: (stderr, err) })
+    }
+
+    fn run_call(
+        &mut self,
+        number: usize,
+        transcript: Transcript<fs::File>,
         mut command: Command,
         input: Option<&str>,
         keep: bool,
         within: Option<Duration>,
     ) -> Result<Vec<u8>, String> {
-        self.check_wait()?;
-        let number = self.sequence;
-        self.sequence += 1;
-        let stdout = self.store.join(format!("call-{number}.out"));
-        let stderr = self.store.join(format!("call-{number}.err"));
+        let Transcript { stdout: (stdout, out), stderr: (stderr, err) } = transcript;
         command
             .current_dir(&self.store)
             .stdin(if input.is_some() { Stdio::piped() } else { Stdio::null() })
-            .stdout(fs::File::create(&stdout).map_err(|e| e.to_string())?)
-            .stderr(fs::File::create(&stderr).map_err(|e| e.to_string())?);
+            .stdout(out)
+            .stderr(err);
         let mut request_wait =
             within.filter(|_| !self.in_world).map(|within| Deadline::arm("the rung's forge request", within));
         let mut world_request =
@@ -1343,23 +1393,60 @@ fn landing(driver: &mut Driver, chat: &str, goal_text: &str, change: &str) -> Re
 }
 
 pub mod tests {
-    use super::Driver;
-    use std::path::Path;
+    use super::{Driver, Duration, Time};
+    use skein_world::{Expired, Figures, testing::deadline::at};
+    use std::path::{Path, PathBuf};
+
+    fn driver(start: Time) -> Driver {
+        Driver::new_at(Path::new("transcript"), Path::new("client"), PathBuf::from("temper-box"), start)
+    }
 
     pub fn an_expired_rung_phase_starts_no_further_command() {
-        let scratch = skein_scratch::Scratch::new("rung-expired-phase");
-        let mut driver = Driver::owned(scratch.path(), &scratch.path().join("client"));
-        driver.arm("the expired rung phase", skein_lib::Duration::ZERO);
-        let command = std::process::Command::new("/bin/true");
-        assert!(driver.execute(command, None, true).is_err());
+        let phase = "the expired rung phase";
+        let mut driver = driver(Time::ZERO);
+        driver.arm_deadline(phase, at(phase, Duration::ZERO, Time::ZERO));
+        let mut opened = Vec::new();
+        let mut started = false;
+        let result = driver.execute_with(
+            Time::ZERO,
+            |deadline| {
+                assert_eq!(deadline.until(), Time::ZERO);
+                Expired::Failed(Figures {
+                    what: phase,
+                    patience: Duration::ZERO,
+                    elapsed: Duration::ZERO,
+                    thread_waited: None,
+                    thread_cpu: None,
+                    tree_waited: None,
+                })
+            },
+            |path| {
+                opened.push(path.to_path_buf());
+                Ok(())
+            },
+            |_, _, _| {
+                started = true;
+                Ok(Vec::new())
+            },
+        );
+        assert!(result.expect_err("the phase expired").starts_with("phase the expired rung phase exceeded its bound"));
         assert_eq!(driver.sequence, 0, "the expired phase did not start its command");
-        assert!(!scratch.path().join("call-0.out").exists());
+        assert!(opened.is_empty(), "not even call-0.out was opened: {opened:?}");
+        assert!(!started);
     }
 
     pub fn rung_phases_keep_the_request_deadlines_when_selected_again() {
-        let mut driver = Driver::owned(Path::new("."), Path::new("client"));
-        driver.request();
+        let start = Time::from_nanos(17);
+        let mut driver = driver(start);
+        let mut armed = Vec::new();
+        driver.request_at(start, |phase, within| {
+            let deadline = at(phase, within, start);
+            armed.push((phase, deadline.until()));
+            deadline
+        });
+        assert_eq!(driver.requested, Some(start));
         assert_eq!(driver.phases.len(), 10);
+        assert_eq!(armed.len(), 10);
         let question = driver.phases[0].1.until();
         let answer = driver.phases[1].1.until();
         assert!(question < answer);
@@ -1367,6 +1454,10 @@ pub mod tests {
         assert_eq!(driver.until, question);
         driver.phase("person's answer sent");
         assert_eq!(driver.until, answer);
+        for (phase, until) in armed.iter().rev().chain(&armed) {
+            driver.phase(phase);
+            assert_eq!(driver.until, *until, "{phase} keeps its request deadline");
+        }
         driver.phase("person's answer sent");
         assert_eq!(driver.until, answer);
     }

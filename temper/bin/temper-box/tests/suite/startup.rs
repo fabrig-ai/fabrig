@@ -1601,26 +1601,3 @@ fn a_fetched_program_runs_through_its_launcher() {
     assert!(!file.with_extension("lock").exists(), "a cache hit opens no lock");
     scratch.remove();
 }
-
-#[test]
-fn serve_listening_requires_the_clients_listener_in_this_runs_log() {
-    let scratch = support::Scratch::startup("serve-listening");
-    assert!(!support::boxed::serve_listening(scratch.path()), "an absent log is not listening");
-    fs::create_dir_all(scratch.path().join("box/logs")).expect("logs");
-    let log = scratch.path().join("box/logs/serve.log");
-    fs::write(&log, b"listening workers 127.0.0.1:9000\n").expect("workers listen");
-    assert!(!support::boxed::serve_listening(scratch.path()), "another listener is not clients");
-    fs::write(&log, b"2026-11-06T00:00:00Z listening clients 127.0.0.1:8367\n").expect("clients listen");
-    assert!(support::boxed::serve_listening(scratch.path()), "clients have listened");
-    scratch.remove();
-}
-
-#[test]
-fn ctl_link_sign_in_waits_for_serve_before_starting_its_bound() {
-    support::ctl::serve_gate_tests::link_sign_in_waits_for_serve_before_starting_its_bound();
-}
-
-#[test]
-fn native_sign_in_keeps_its_start_bound_until_serve_listens() {
-    support::person::serve_gate_tests::native_sign_in_keeps_its_start_bound_until_serve_listens();
-}
