@@ -401,7 +401,7 @@ pub enum PageTurn {
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum PageRow {
     /// The common task line.
-    Line(documents::TaskLine),
+    Line(Box<documents::TaskLine>),
     /// An ended delegate's status and outcome.
     EndedDelegate(documents::EndedDelegate),
     /// A semantic task change.

@@ -30,6 +30,19 @@ impl Maps {
         disk.close(root);
         Self { active, store, secrets }
     }
+    pub fn deployment(&self) -> Result<jig_domain_core::Deployment, String> {
+        use jig_domain_core::{CoreKey, CoreRecord, Key};
+        use jig_protocol_store::{codec, keys};
+        let key = keys::encode(&Key::Core(CoreKey::Deployment), 64).expect("deployment key");
+        let bytes = durable::serving_row(&self.store, &key)?;
+        let limits = crate::stories::playground::codec();
+        match codec::core::decode(&bytes, &limits) {
+            Ok(CoreRecord::Deployment(header)) => Ok(header),
+            Ok(_) => Err("header is not a deployment record".into()),
+            Err(problem) => Err(format!("header codec: {problem:?}")),
+        }
+    }
+
     pub fn format(&self) -> jig_protocol_store::codec::component::Format {
         let key = jig_protocol_store::keys::encode_own(&jig_protocol_store::keys::Own::Format, 64).expect("format key");
         jig_protocol_store::codec::component::Format::decode(self.store.get(key.as_ref()).expect("format row"))

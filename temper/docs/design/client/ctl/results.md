@@ -31,7 +31,7 @@ task 41 · goal · Running · shop · priority 2
 asked: Add a /health endpoint that reports the store's state
 requester: you · spent 1.20 of 5.00 · deadline 2026-10-24 17:00 UTC
 instructions: Answer on port 8080 unless the store's file names another one, and keep the /hea… (412 bytes; --json prints them whole)
-waiting on: you: question 3 of task 44 · 1 waiting
+waiting on: you: question 3 of task 44 · 1 waiting · since 2026-10-24 15:02 UTC · passes up at 2026-10-24 23:02 UTC
 plan: 4 live (2 running, 1 waiting, 1 held below)
 acts:
   task answer 44 3 TEXT
@@ -99,6 +99,41 @@ digest: task 7c1e09a2b44f0d13
   `nothing` among them. Its `chip.phase` stays `due` and its `run_wait` as jig
   gives it, a wait's `phase:due` still holds, and `task list`'s lines, which
   carry no next-run wait, keep their word.
+  Where the task's document names a first wait, as its line does (jig's
+  `domain/engine/waits.md`, 4), the line goes on, whatever it printed
+  before, with ` · since WALL`, that wait's *since*, then ` · ` and its
+  nearest bound: `holds at WALL`, `passes up at WALL`, `is overdue at
+  WALL` or `gives up at WALL`, led by that wait's kind where the nearest
+  bound is another wait's than the first, `· news holds at WALL`. Where
+  none of its waits has a bound, the line ends with the *since*. Walls
+  are in the text's form; the draft's sample prints them shorter
+  (`../../draft/bounded-waits.md`, 9), and ctl keeps one form for every
+  wall it prints.
+- **`waits:`** follows `waiting on:` and its `unread:` lines where the
+  task's document lists waits of its own, and is left out where it lists
+  none: `waits: N`, how many it has, then one line each, in the
+  document's order, indented two spaces: `KIND OBJECT · since WALL ·
+  BOUND`, and ` · hears HOLDER` where a holder would hear. KIND is the
+  wait's kind as jig names it (`party`, `question`, `dependency`,
+  `resource`, `account`, `host`, `delegate`, `news`, `step`, `room`,
+  `turn`, `sign-off`). OBJECT is, by kind: an entry's kind, its number
+  (the question's, the proposal's, the escalation's revision or the
+  person task's own) and `at` its holder, `question 3 at you`; `question N
+  to task R`; `task N`; `resource NAME`, with `held by task T` where one
+  holds it; the next run's wait as `next run:` prints it; `subscriptions
+  S, T` and `timer at WALL`, or `nothing armed`; a procedure's `step S`,
+  each thing it names by its connector's words and number, with `of
+  task O` where one owns it. BOUND is as the line's, or `no bound: no
+  deadline`, `no bound: standing`, `no bound: behind task N` or `no
+  bound: an operator's hold`. A holder prints as `requester:` prints a
+  party, a role as `role R in project P`, a task as `task T`. A document
+  that cut its waits to its lines ends them with `  … K more`:
+
+  ```
+  waits: 2
+    question 228316 to task 34 · since 2026-11-24 06:07 UTC · passes up at 2026-11-24 08:07 UTC · hears task 34
+    dependency task 17 · since 2026-11-24 05:50 UTC · no bound: no deadline · hears task 34
+  ```
 - **`unread:`** follows `waiting on:` where the task's document lists
   unread words (jig's `client/domain/contract/documents.md`, section 1),
   and is left out where it lists none: words a person, or a requesting
@@ -348,6 +383,16 @@ may change with them.
   first, empty for none, each object `message`, `by` (the requester as
   `requester` prints it), `at` (a wall in nanoseconds), `seen`, `head`
   and `bytes` (1, *`unread:`*).
+- **A task's waits** print as jig gives them (jig's `domain/engine/waits.md`,
+  2): a task line, and a task's document, `wait`, `null` or one wait,
+  and `nearest`, `null` or `at`, `then` and `kind`; a task's document,
+  `waits`, an array in order, and `wait_count`. A wait is `task`, `kind`
+  (as the text prints it), `object` (an object named for its kind, as
+  `waits_on` is), `since` (a wall in nanoseconds), `bound` (`{"at": …,
+  "then": …}`, `then` one of `hold`, `pass_up`, `overdue` and `give_up`,
+  or `{"none": …}`, one of `no_deadline`, `standing`, `operator_hold` and
+  `{"behind": N}`) and `hears` (`null` or the holder). `waits_on` stays
+  as jig gives it (1).
 - **`deployment census`** prints one object, `{"census": …}`: `null`
   before the store's first report, else the census whole, its fields
   named as jig's document names them (`commit`, `since`, `keyspaces`,

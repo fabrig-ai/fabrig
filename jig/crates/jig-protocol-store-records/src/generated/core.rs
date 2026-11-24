@@ -1445,8 +1445,44 @@ pub fn part_record_to_domain(record: crate::core_v6::PartRecord) -> jig_domain_c
 }
 
 #[must_use]
+pub fn wait_kind_to_record(value: &jig_domain_core_vocabulary::waits::WaitKind) -> crate::core_v6::WaitKind {
+    match value {
+        jig_domain_core_vocabulary::waits::WaitKind::Party => crate::core_v6::WaitKind::Party,
+        jig_domain_core_vocabulary::waits::WaitKind::Question => crate::core_v6::WaitKind::Question,
+        jig_domain_core_vocabulary::waits::WaitKind::Dependency => crate::core_v6::WaitKind::Dependency,
+        jig_domain_core_vocabulary::waits::WaitKind::Resource => crate::core_v6::WaitKind::Resource,
+        jig_domain_core_vocabulary::waits::WaitKind::Account => crate::core_v6::WaitKind::Account,
+        jig_domain_core_vocabulary::waits::WaitKind::Host => crate::core_v6::WaitKind::Host,
+        jig_domain_core_vocabulary::waits::WaitKind::Delegate => crate::core_v6::WaitKind::Delegate,
+        jig_domain_core_vocabulary::waits::WaitKind::News => crate::core_v6::WaitKind::News,
+        jig_domain_core_vocabulary::waits::WaitKind::Step => crate::core_v6::WaitKind::Step,
+        jig_domain_core_vocabulary::waits::WaitKind::Room => crate::core_v6::WaitKind::Room,
+        jig_domain_core_vocabulary::waits::WaitKind::Turn => crate::core_v6::WaitKind::Turn,
+        jig_domain_core_vocabulary::waits::WaitKind::SignOff => crate::core_v6::WaitKind::SignOff,
+    }
+}
+
+#[must_use]
+pub fn wait_kind_to_domain(record: crate::core_v6::WaitKind) -> jig_domain_core_vocabulary::waits::WaitKind {
+    match record {
+        crate::core_v6::WaitKind::Party => jig_domain_core_vocabulary::waits::WaitKind::Party,
+        crate::core_v6::WaitKind::Question => jig_domain_core_vocabulary::waits::WaitKind::Question,
+        crate::core_v6::WaitKind::Dependency => jig_domain_core_vocabulary::waits::WaitKind::Dependency,
+        crate::core_v6::WaitKind::Resource => jig_domain_core_vocabulary::waits::WaitKind::Resource,
+        crate::core_v6::WaitKind::Account => jig_domain_core_vocabulary::waits::WaitKind::Account,
+        crate::core_v6::WaitKind::Host => jig_domain_core_vocabulary::waits::WaitKind::Host,
+        crate::core_v6::WaitKind::Delegate => jig_domain_core_vocabulary::waits::WaitKind::Delegate,
+        crate::core_v6::WaitKind::News => jig_domain_core_vocabulary::waits::WaitKind::News,
+        crate::core_v6::WaitKind::Step => jig_domain_core_vocabulary::waits::WaitKind::Step,
+        crate::core_v6::WaitKind::Room => jig_domain_core_vocabulary::waits::WaitKind::Room,
+        crate::core_v6::WaitKind::Turn => jig_domain_core_vocabulary::waits::WaitKind::Turn,
+        crate::core_v6::WaitKind::SignOff => jig_domain_core_vocabulary::waits::WaitKind::SignOff,
+    }
+}
+
+#[must_use]
 pub fn deployment_to_record(value: &jig_domain_core_vocabulary::Deployment) -> crate::core_v6::Deployment {
-    let jig_domain_core_vocabulary::Deployment { id: field_000000, tasks: field_000001, people: field_000002, sign_ins: field_000003, messages: field_000004, runs: field_000005, calls: field_000006, connector_rows: field_000007, applications: field_000008, commits: field_000009, projects: field_000010, restart_wait_ms: field_000011 } = value;
+    let jig_domain_core_vocabulary::Deployment { id: field_000000, tasks: field_000001, people: field_000002, sign_ins: field_000003, messages: field_000004, runs: field_000005, calls: field_000006, connector_rows: field_000007, applications: field_000008, commits: field_000009, projects: field_000010, restart_wait_ms: field_000011, wait_floors: field_000012 } = value;
     crate::core_v6::Deployment {
         id: *field_000000,
         tasks: *field_000001,
@@ -1465,14 +1501,20 @@ pub fn deployment_to_record(value: &jig_domain_core_vocabulary::Deployment) -> c
                 Some(converted)
             }
             None => None,
+        },
+        wait_floors: match field_000012 {
+            Some(item) => {
+                let converted = crate::codec::core::wait_floors_to_record(item);
+                Some(converted)
+            }
+            None => None,
         }
     }
 }
 
-#[must_use]
-pub fn deployment_to_domain(record: crate::core_v6::Deployment) -> jig_domain_core_vocabulary::Deployment {
-    let crate::core_v6::Deployment { id: field_000000, tasks: field_000001, people: field_000002, sign_ins: field_000003, messages: field_000004, runs: field_000005, calls: field_000006, connector_rows: field_000007, applications: field_000008, commits: field_000009, projects: field_000010, restart_wait_ms: field_000011 } = record;
-    jig_domain_core_vocabulary::Deployment {
+pub fn deployment_to_domain(record: crate::core_v6::Deployment) -> Result<jig_domain_core_vocabulary::Deployment, crate::core_v6::Problem> {
+    let crate::core_v6::Deployment { id: field_000000, tasks: field_000001, people: field_000002, sign_ins: field_000003, messages: field_000004, runs: field_000005, calls: field_000006, connector_rows: field_000007, applications: field_000008, commits: field_000009, projects: field_000010, restart_wait_ms: field_000011, wait_floors: field_000012 } = record;
+    Ok(jig_domain_core_vocabulary::Deployment {
         id: field_000000,
         tasks: field_000001,
         people: field_000002,
@@ -1490,8 +1532,15 @@ pub fn deployment_to_domain(record: crate::core_v6::Deployment) -> jig_domain_co
                 Some(converted)
             }
             None => None,
+        },
+        wait_floors: match field_000012 {
+            Some(item) => {
+                let converted = crate::codec::core::wait_floors_to_domain(item)?;
+                Some(converted)
+            }
+            None => None,
         }
-    }
+    })
 }
 
 #[must_use]

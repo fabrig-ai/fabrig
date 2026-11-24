@@ -510,27 +510,35 @@ impl Domain {
     /// into the root or retained after this call's decision.
     #[must_use]
     pub fn delegation(&self, task: u64) -> Option<crate::DelegationContext> {
-        let record = record(self, task)?;
-        let made_below = record.made.checked_sub(1)?;
-        let tasks_left = record.authority.delegation.tasks.checked_sub(made_below)?;
+        let (record, deciding, tasks_left) = self.delegation_row(task)?;
         Some(crate::DelegationContext {
             project: record.project,
             requester: record.requester,
-            deciding: !crate::run::ends::pending(&[], record.flags.ended_by).open
-                && !crate::run::ends::kept(self, task).blocks_claims()
-                && match record.phase {
-                    Phase::Waiting | Phase::Active(_) => match record.executor {
-                        crate::Executor::Agent { .. } => true,
-                        crate::Executor::Procedure { .. }
-                        | crate::Executor::Person(_)
-                        | crate::Executor::Job { .. } => false,
-                    },
-                    Phase::Closing(_) | Phase::Held { .. } | Phase::Ended(_) => false,
-                },
+            deciding,
             authority: record.authority.clone(),
             numbers: record.numbers,
             tasks_left,
         })
+    }
+
+    /// Borrow the same row and read its decision standing and remaining task room.
+    #[must_use]
+    pub fn delegation_row(&self, task: u64) -> Option<(&TaskRecord, bool, u32)> {
+        let record = record(self, task)?;
+        let made_below = record.made.checked_sub(1)?;
+        let tasks_left = record.authority.delegation.tasks.checked_sub(made_below)?;
+        let deciding = !crate::run::ends::pending(&[], record.flags.ended_by).open
+            && !crate::run::ends::kept(self, task).blocks_claims()
+            && match record.phase {
+                Phase::Waiting | Phase::Active(_) => match record.executor {
+                    crate::Executor::Agent { .. } => true,
+                    crate::Executor::Procedure { .. } | crate::Executor::Person(_) | crate::Executor::Job { .. } => {
+                        false
+                    }
+                },
+                Phase::Closing(_) | Phase::Held { .. } | Phase::Ended(_) => false,
+            };
+        Some((record, deciding, tasks_left))
     }
 
     /// Clone one bounded current proposal for a root authority and holder decision.

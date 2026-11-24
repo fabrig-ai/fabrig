@@ -749,6 +749,7 @@ fn core_ask(
             | core::Ask::Workers(_)
             | core::Ask::Catalogue { .. }
             | core::Ask::StepMade { first: None, .. }
+            | core::Ask::WaitsRefused { .. }
             | core::Ask::ForgetProjection { .. }
             | core::Ask::Adopt { .. }
             | core::Ask::Hold { .. }

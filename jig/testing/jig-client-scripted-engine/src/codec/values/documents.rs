@@ -3,11 +3,11 @@ use super::super::{bytes, c, empty_pieces, facts, list, pieces, problem, try_lis
 use super::{
     wire_active_run, wire_activity_line, wire_authority_document, wire_bounds_create, wire_budget, wire_chip_executor,
     wire_chip_hold, wire_chip_phase, wire_closing_stage, wire_dependency, wire_document_text, wire_effect,
-    wire_executor, wire_funder, wire_grant, wire_kind_implication, wire_llm_choice, wire_new_deadline, wire_note_scope,
-    wire_part, wire_party, wire_phase, wire_proposal_key, wire_recurring_overlap, wire_refusal, wire_requester,
-    wire_resource_line, wire_result_details, wire_revision, wire_specification_document, wire_subscriptions,
-    wire_task_contract_document, wire_task_flags, wire_task_line, wire_task_link, wire_task_result, wire_task_run_wait,
-    wire_turn_name, wire_waits_on, wire_wake_policy,
+    wire_executor, wire_funder, wire_grant, wire_kind_implication, wire_llm_choice, wire_nearest, wire_new_deadline,
+    wire_note_scope, wire_part, wire_party, wire_phase, wire_proposal_key, wire_recurring_overlap, wire_refusal,
+    wire_requester, wire_resource_line, wire_result_details, wire_revision, wire_specification_document,
+    wire_subscriptions, wire_task_contract_document, wire_task_flags, wire_task_line, wire_task_link, wire_task_result,
+    wire_task_run_wait, wire_turn_name, wire_wait, wire_waits_on, wire_wake_policy,
 };
 pub(in crate::codec) fn wire_field_rule(value: &c::FieldRule) -> w::FieldRule {
     w::FieldRule { name: bytes::copy_of(&value.name), max: value.max }
@@ -173,6 +173,10 @@ pub(in crate::codec) fn wire_task(value: &c::Task, limits: &w::Limits) -> Result
         last_activity: value.last_activity.as_nanos(),
         made: value.made.as_nanos(),
         waits_on: wire_waits_on(&value.waits_on),
+        wait: value.wait.as_ref().map(wire_wait),
+        nearest: value.nearest.as_ref().map(wire_nearest),
+        waits: list(value.waits.iter().map(wire_wait)),
+        wait_count: value.wait_count,
         chip: facts::chip(&value.chip, limits)?,
         goal: value.goal,
         priority: value.priority,

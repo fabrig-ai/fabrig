@@ -75,8 +75,8 @@
     narrows a delegate it makes beneath the task, a party's `Delegate`
     (`requests.md`, 2), to what fits; its fields
     (`requests.md`, 2): tracked and priority, label, flags, when it was made
-    (`made`, its record's `created_at`), last activity, and what it
-    waits on; the LLM choice its next run takes, what it was given or, given
+    (`made`, its record's `created_at`), last activity, what it
+    waits on, and its waits with their count; the LLM choice its next run takes, what it was given or, given
     none, what its check would take now (`../../../domain/accounts-uses.md`, 1.3):
     its `later`, when present, as the choice's main and sub-agents with
     `later` none, once the task's reasons hold no `first` and its charter's
@@ -147,7 +147,8 @@
   - *a task line:* one record for every list of tasks (`reads.md`, 1.1): the task's
     chip; its project and its requester; tracked and priority, label
     and flags; when it last changed, its last activity, and when it
-    ended, if it has; its deadline; what it waits on; its budget spent
+    ended, if it has; its deadline; what it waits on, its first wait and
+    its nearest bound; its budget spent
     and left; its live subtree counted by phase class, with how many are
     held below; its direct delegates counted, those done and all of them,
     cancelled ones left out, true however many they are and whichever
@@ -286,6 +287,17 @@ result and the desired cleanup state. Bounded diagnostics say when cut.
   task: the pending ones, the oldest first, and how many; its
   delegates; news; or nothing (`../../../domain/tasks/README.md`,
   section 3; `../../../domain/engine/views.md`, 3).
+- **Its waits** are the engine's records, carried as it computes them
+  (`../../../domain/engine/waits.md`, 2 to 5): each the task it waits at,
+  its kind, its object, its *since*, its bound with what happens at it or
+  the reason it has none, and who hears. A line carries its first wait,
+  which may be a task's in its subtree, and its nearest bound with that
+  wait's kind; a task's document carries the same two, then every wait of
+  its own, in order, within its lines, and how many it has; a tree's rows
+  are chips and carry none (`../../../domain/engine/waits.md`, 4). What a task
+  waits on is their summary, as the engine computes it. A party's entry
+  names its kind and its number: the question's, the proposal's, the
+  escalation's revision or the person task's own.
 - **Its last activity** is when it last heard words, replied, or had a
   delegate end: a wall time, kept on every task, by which lists order.
 

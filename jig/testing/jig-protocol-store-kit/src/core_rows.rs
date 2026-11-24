@@ -18,6 +18,7 @@ pub fn deployment() -> core::Deployment {
         connector_rows: 17,
         projects: 20,
         restart_wait_ms: None,
+        wait_floors: None,
         applications: 18,
         commits: 19,
     }

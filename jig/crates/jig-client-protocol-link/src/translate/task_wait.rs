@@ -4,7 +4,11 @@ use jig_client_protocol_wire as w;
 
 #[must_use]
 pub fn waiting(value: Option<&w::TaskRunWait>) -> Option<c::TaskRunWait> {
-    Some(match value? {
+    Some(run(value?))
+}
+
+pub(super) fn run(value: &w::TaskRunWait) -> c::TaskRunWait {
+    match value {
         w::TaskRunWait::Credential => c::TaskRunWait::Credential,
         w::TaskRunWait::Host => c::TaskRunWait::Host,
         w::TaskRunWait::Worker(row) => {
@@ -43,7 +47,7 @@ pub fn waiting(value: Option<&w::TaskRunWait>) -> Option<c::TaskRunWait> {
                 w::TaskWaitWhy::Source(row) => c::TaskWaitWhy::Source(source_state(&row.state)),
             },
         },
-    })
+    }
 }
 fn source_state(value: &w::TaskSourceState) -> c::TaskSourceState {
     match value {

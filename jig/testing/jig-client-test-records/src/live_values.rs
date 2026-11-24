@@ -97,6 +97,8 @@ pub fn task_line_record() -> w::TaskLine {
         ended_at: None,
         budget: live_budget_record(),
         waits_on: w::WaitsOn::Nothing,
+        wait: None,
+        nearest: None,
         phases: phases_record(),
         delegates_done: 9,
         delegates_total: 11,

@@ -125,6 +125,12 @@ fn encode_part_resource(
     out.object_start();
     out.key(b"resource");
     out.object_start();
+    encode_resource_name(connector, path, out);
+    out.object_end();
+    out.object_end();
+}
+
+pub(super) fn encode_resource_name(connector: u16, path: &skein_lib::List<Box<[u8]>>, out: &mut Encoder) {
     out.key(b"connector");
     out.unsigned(u64::from(connector));
     out.key(b"path");
@@ -133,8 +139,6 @@ fn encode_part_resource(
         super::hex(item_1, out);
     }
     out.array_end();
-    out.object_end();
-    out.object_end();
 }
 
 fn encode_part_kind(connector: u16, kind: u16, out: &mut Encoder, _budget: &mut super::Cut) {

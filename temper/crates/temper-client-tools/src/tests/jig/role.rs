@@ -90,6 +90,39 @@ fn role_talk_waits_then_prints_only_the_new_turns_across_pages() {
 }
 
 #[test]
+fn role_talk_prints_its_reply_with_a_pending_settings_proposal() {
+    const DEPLOYMENT_OWNER: c::Whom = c::Whom::Role { project: 0, role: 0 };
+    // The words, second run's start and its park in settings_conversation.
+    const MESSAGE: u64 = 24;
+    const STARTED: u64 = 25;
+    const PARKED: u64 = 27;
+    let mut root = f::signed_in(f::PARTY);
+    let mut role = f::parked_task();
+    role.flags.ended_by = c::EndedBy::Standing;
+    role.flags.conversation = false;
+    let call = root.submit(TALK);
+    root.serve(call, f::task_result(role.clone()));
+    root.done(call, c::Outcome::Document(c::DocumentOutcome::Said { task: f::TASK, message: MESSAGE }));
+
+    let mut writing = f::chat_at(f::TASK, c::RunStage::Running { attempt: 2 }, Some(c::ChipWork::Writing));
+    let running = f::task_in(&mut writing);
+    running.flags = role.flags;
+    running.activity = STARTED;
+    running.waits_on =
+        c::WaitsOn::Party { whom: DEPLOYMENT_OWNER, task: f::TASK, kind: c::WaitedFor::Proposal, entries: f::ONE_NEED };
+    role.waits_on = running.waits_on.clone();
+    role.activity = PARKED;
+
+    root.final_delivery(call, running.clone());
+    assert!(!root.reads.contains_key(&call), "a pending proposal does not finish a writing role's talk turn");
+    root.final_delivery(call, role);
+    root.serve(call, f::settings_conversation(false));
+    let printed = root.answer(call).expect("parked role replied");
+    assert_eq!(printed.status, 0, "{printed:?}");
+    assert_eq!(printed.stdout.as_ref(), b"Proposal 2 is ready for review.\n");
+}
+
+#[test]
 fn role_talk_and_leave_name_their_refusals_and_leave_success() {
     for (leave, refusal, expected) in [
         (false, Some(c::Refusal::NotOffered), b"not a standing role\n".as_slice()),

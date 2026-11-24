@@ -420,8 +420,43 @@ table's words, its rule the table's:
   never evicted (`people/acts.md`, 1); the draft's eviction is a
   connector's own.
 
+**Records** (`temper/docs/design/draft/bounded-waits.md`, 12): beside
+the waits above, jig's own check, `jig_inspect::records`, reads each live
+task's waits as the core computes them (`engine/waits.md`) and judges:
+
+- **Every wait the table finds has its record,** of the kind it maps
+  to: `on its dependencies`, a `dependency` for each pending one; `in a
+  resource's queue`, `resource`; `on its delegates` while it isn't
+  closing, a `delegate` for each live one; `on its requester`,
+  `question`; `on a person's answer`, `on its proposal's decision`, and
+  `held: <hold>` while its escalation waits at a holder, `party`; `on a
+  watch`, `on a timer`, `on its party` and `paced`, with no live
+  delegate, `news` or its procedure's reported waits; `backing off`,
+  `account`; `suspended`, `host`. A closing task's waits and a parked
+  batch's have none (`engine/waits.md`, 9).
+- **Every record is whole:** its *since* no later than the latest wall
+  time the world has given the core, across its corrections and
+  restarts (the moment, unless the wall stepped back since a later
+  reading), and no earlier than its kind's floor, and a bound after its
+  *since* or one of the reasons for none (`engine/waits.md`, 5). A wall
+  stepped back moves no *since* and no deadline: a *since* is a fact
+  the core keeps (`engine/waits.md`, 2).
+- **A record's bound is read, not enforced:** what happens at a bound,
+  and the check that none passes silently, are the tasks' and the
+  application's (the draft, 4.2), so no referee deadline is armed from
+  it.
+
+A finding names the task, the wait and what is missing, in the shared
+checks' form, and fails the driver as theirs do.
+
 ### 1.2 Where the checks run
 
+- **The record check runs with them:** wherever a driver calls the shared
+  checks over the core, it calls `jig_inspect::records` over the same
+  core, with the same moment, after them; an application's world over
+  jig's core calls it as it calls them
+  (`temper/docs/design/testing/engine-checks.md`, 3.1). The engine-clients
+  peer holds no core, and calls it not.
 - **The core kit's `World`** (`jig_core_kit::world::World`) calls both
   shared checks (`skein/docs/design/testing/inspection.md`, 4) over
   `jig_inspect::core` at its driver's quiet point: where its loop returns

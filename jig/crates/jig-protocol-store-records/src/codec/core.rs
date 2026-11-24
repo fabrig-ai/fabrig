@@ -5,12 +5,15 @@ use crate::generated::core as maps;
 use crate::tasks_v13 as task_wire;
 use alloc::boxed::Box;
 use jig_domain_authority as authority;
-use jig_domain_core_vocabulary as domain;
+use jig_domain_core_vocabulary::{
+    self as domain,
+    waits::{WaitFloors, WaitKind},
+};
 use jig_domain_fleet as fleet;
 use jig_domain_notes as notes;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
-use skein_lib::{List, Reader};
+use skein_lib::{List, Reader, Wall};
 pub(crate) mod projections;
 use super::View;
 
@@ -38,6 +41,7 @@ pub(super) fn limits(
         run_proof_credentials: domain.accounts.credentials,
         run_proof_outstanding: domain.tasks.run_inbox,
         turn_record_transcript: wire::CEILINGS.turn_record_transcript,
+        wait_floors_entries: wire::CEILINGS.wait_floors_entries,
         part_record_body: wire::CEILINGS.part_record_body,
 
         escalation_decision_reject_reason: domain.escalation_reason_bytes.max(domain.people.words),
@@ -95,7 +99,7 @@ pub(crate) fn value_to_domain(value: wire::Value, limits: &View) -> Result<domai
     Ok(match value {
         wire::Value::Call(value) => domain::CoreRecord::Call(maps::call_record_to_domain(value, limits)?),
         wire::Value::Part(value) => domain::CoreRecord::Part(maps::part_record_to_domain(value)),
-        wire::Value::Deployment(value) => domain::CoreRecord::Deployment(maps::deployment_to_domain(value)),
+        wire::Value::Deployment(value) => domain::CoreRecord::Deployment(maps::deployment_to_domain(value)?),
         wire::Value::Projection(value) => {
             domain::CoreRecord::Projection(projection_record_to_domain(value.value, limits)?)
         }
@@ -285,6 +289,28 @@ pub(crate) fn task_bytes_to_record(value: &tasks::Problem, limits: &View) -> Res
     };
     Ok(wire::TaskBytes { value })
 }
+pub(crate) fn wait_floors_to_record(value: &WaitFloors) -> wire::WaitFloors {
+    let mut entries = List::with_capacity(value.count());
+    for kind in WaitKind::ALL {
+        if let Some(at) = value.floor(kind) {
+            entries
+                .push(wire::WaitFloor { kind: maps::wait_kind_to_record(&kind), at: at.as_nanos() })
+                .expect("one entry per floor");
+        }
+    }
+    wire::WaitFloors { entries }
+}
+
+pub(crate) fn wait_floors_to_domain(value: wire::WaitFloors) -> Result<WaitFloors, wire::Problem> {
+    let mut floors = WaitFloors::EMPTY;
+    for entry in value.entries.into_boxed() {
+        if !floors.set_once(maps::wait_kind_to_domain(entry.kind), Wall::from_nanos(entry.at)) {
+            return Err(wire::paths::WAIT_FLOORS_ENTRIES.problem(skein_codec::Reason::Malformed));
+        }
+    }
+    Ok(floors)
+}
+
 pub(crate) fn task_bytes_to_domain(value: wire::TaskBytes, limits: &View) -> Result<tasks::Problem, wire::Problem> {
     match crate::codec::tasks::carried::read_problem(&value.value, &limits.tasks) {
         Ok(value) => Ok(value),

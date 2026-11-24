@@ -60,6 +60,7 @@ mod person_reads;
 mod person_task;
 mod placed_holds;
 mod procedure_steps;
+mod procedure_waits;
 mod projections;
 mod projects;
 mod provider_accounts_open;

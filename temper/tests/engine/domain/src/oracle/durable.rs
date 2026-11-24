@@ -1,30 +1,52 @@
 //! Each restart-rebuilt document field is declared here (jig jig/docs/design/domain/engine/world.md, 1).
-use jig_domain_core::{documents as docs, reads::Answer};
+use jig_domain_core::{WaitKind, documents as docs, reads::Answer};
+use jig_domain_tasks::Active;
 
-pub(super) fn answer(mut answer: Answer) -> Answer {
-    if let Answer::Document(document) = &mut answer {
-        match document.as_mut() {
-            docs::Document::Frame(frame) => durable_frame(frame),
-            docs::Document::Task(task) => durable_task(task),
-            docs::Document::Chips(_)
-            | docs::Document::Run(_)
-            | docs::Document::Tree(_)
-            | docs::Document::Lines(_)
-            | docs::Document::Proposal(_)
-            | docs::Document::Escalation(_)
-            | docs::Document::Question(_)
-            | docs::Document::PersonTask(_)
-            | docs::Document::Result(_)
-            | docs::Document::Project(_)
-            | docs::Document::Note(_)
-            | docs::Document::Inbox(_)
-            | docs::Document::Terminal { .. }
-            | docs::Document::Accounts(_)
-            | docs::Document::Deployment(_)
-            | docs::Document::Settings(_) => {}
+pub(super) fn answers(before: &mut Answer, after: &mut Answer) {
+    if let (Answer::Document(left), Answer::Document(right)) = (&mut *before, &mut *after)
+        && let (docs::Document::Task(left), docs::Document::Task(right)) = (left.as_mut(), right.as_mut())
+    {
+        let (left_wait, left_bound) = durable_waits(left);
+        let (right_wait, right_bound) = durable_waits(right);
+        // A discarded winner can expose a different wait on the other side. The
+        // retained wait lines still compare; only the affected projection is masked.
+        if left_wait || right_wait {
+            left.wait = None;
+            right.wait = None;
+        }
+        if left_bound || right_bound {
+            left.nearest = None;
+            right.nearest = None;
         }
     }
-    answer
+    for answer in [before, after] {
+        if let Answer::Document(document) = answer {
+            durable(document);
+        }
+    }
+}
+
+fn durable(document: &mut docs::Document) {
+    match document {
+        docs::Document::Frame(frame) => durable_frame(frame),
+        docs::Document::Task(task) => durable_task(task),
+        docs::Document::Chips(_)
+        | docs::Document::Run(_)
+        | docs::Document::Tree(_)
+        | docs::Document::Lines(_)
+        | docs::Document::Proposal(_)
+        | docs::Document::Escalation(_)
+        | docs::Document::Question(_)
+        | docs::Document::PersonTask(_)
+        | docs::Document::Result(_)
+        | docs::Document::Project(_)
+        | docs::Document::Note(_)
+        | docs::Document::Inbox(_)
+        | docs::Document::Terminal { .. }
+        | docs::Document::Accounts(_)
+        | docs::Document::Deployment(_)
+        | docs::Document::Settings(_) => {}
+    }
 }
 
 fn durable_frame(frame: &mut docs::Frame) {
@@ -47,10 +69,44 @@ fn durable_task(task: &mut docs::Task) {
     // task_wait::waiting joins the current fleet and credential availability;
     // those peers have no live connection after a cold restart.
     task.run_wait = None;
+    // An omitted choice is also inferred from current accounts and hosts.
+    // The retained inventory compares every stored choice, including named ones.
+    task.llm = None;
     durable_chip(&mut task.chip);
     for i in 0..task.lineage.len() {
         durable_chip(task.lineage.get_mut(i).expect("lineage index"));
     }
+}
+
+/// Keep durable wait episodes and report whether first or nearest projected a
+/// volatile one (jig/docs/design/domain/engine/waits.md, 4).
+fn durable_waits(task: &mut docs::Task) -> (bool, bool) {
+    use docs::{ChipWork, PhaseLine, WaitsOn};
+    let volatile: fn(WaitKind) -> bool = match task.chip.phase {
+        PhaseLine::Active(Active::Due) if task.run_wait.is_some() => {
+            |kind| matches!(kind, WaitKind::Account | WaitKind::Host)
+        }
+        PhaseLine::Active(Active::Claimed { .. } | Active::Running { .. })
+            if task.chip.details.live_delegates == 0
+                && task.chip.details.observation.as_ref().is_some_and(|value| value.work == ChipWork::Waiting) =>
+        {
+            |kind| kind == WaitKind::News
+        }
+        _ => return (false, false),
+    };
+    let mut durable = skein_lib::List::with_capacity(task.waits.capacity());
+    for wait in &task.waits {
+        if !volatile(wait.kind) {
+            durable.push(wait.clone()).expect("durable waits are a subset of the document lines");
+        }
+    }
+    task.waits = durable;
+    if task.waits_on == WaitsOn::News && volatile(WaitKind::News) {
+        task.waits_on = WaitsOn::Nothing;
+    }
+    // Each branch contributes one volatile episode, even if its line is cut.
+    task.wait_count = task.wait_count.saturating_sub(1);
+    (task.wait.as_ref().is_some_and(|wait| volatile(wait.kind)), task.nearest.is_some_and(|bound| volatile(bound.kind)))
 }
 
 fn durable_chip(chip: &mut docs::Chip) {

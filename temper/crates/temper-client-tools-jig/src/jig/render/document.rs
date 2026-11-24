@@ -9,6 +9,7 @@ mod projects;
 mod projects_json;
 mod proposal;
 mod unread;
+mod waits;
 mod workers;
 pub(super) use proposal::projects_text;
 pub(super) mod question;
@@ -17,7 +18,7 @@ use super::{Text, acts};
 use crate::jig::{Limits, runner::Printed};
 use alloc::boxed::Box;
 use jig_client::{
-    contract::{HeldRole, Me, Recipient, Requester, Task, WaitedFor, WaitsOn, Whom},
+    contract::{HeldRole, Me, Recipient, Requester, Task, WaitsOn, Whom},
     words::{self, WaitingWord, Word},
 };
 use skein_json::writer::Encoder;
@@ -342,6 +343,7 @@ fn task_with_specification(
     waiting(task, me, book, out);
     out.put(b"\n");
     unread::text(task, me, out);
+    waits::text(task, me, vocabulary, out);
     task_details(task, me, book, vocabulary, out);
 }
 fn task_details(
@@ -410,7 +412,7 @@ fn project(number: u32, me: Option<&Me>, out: &mut Text) {
 }
 fn waiting(task: &Task, me: Option<&Me>, book: &Phrasebook, out: &mut Text) {
     match &task.waits_on {
-        WaitsOn::Party { whom, task, kind, entries } => {
+        WaitsOn::Party { whom, task: at_task, kind, entries } => {
             match whom {
                 Whom::Person(party) => acts::party(*party, me, out),
                 Whom::Role { project, role } => {
@@ -418,14 +420,17 @@ fn waiting(task: &Task, me: Option<&Me>, book: &Phrasebook, out: &mut Text) {
                 }
             }
             out.put(b": ");
-            match kind {
-                WaitedFor::Question => out.put(b"question"),
-                WaitedFor::Proposal => out.put(b"proposal"),
-                WaitedFor::Escalation => out.put(b"escalation"),
-                WaitedFor::PersonTask => out.put(b"person task"),
+            out.put(waits::entry_kind(*kind));
+            if let Some(jig_client::contract::Wait {
+                object: jig_client::contract::WaitObject::Entry { number, .. },
+                ..
+            }) = &task.wait
+            {
+                out.put(b" ");
+                out.number(*number);
             }
             out.put(b" of task ");
-            out.number(*task);
+            out.number(*at_task);
             out.put(b" \xc2\xb7 ");
             out.number(u64::from(*entries));
             out.put(b" waiting");
@@ -450,6 +455,7 @@ fn waiting(task: &Task, me: Option<&Me>, book: &Phrasebook, out: &mut Text) {
             out.put(&book.say(0, word.id(), &[]).expect("waiting phrase").text);
         }
     }
+    waits::summary(task.wait.as_ref(), task.nearest, out);
 }
 pub(super) fn utc(wall: skein_lib::Wall, out: &mut Text) {
     let minute = wall.as_secs() / 60;

@@ -41,6 +41,7 @@ pub struct Limits {
     pub public: jig_domain_core::PublicIndexLimits,
     /// Retention horizons forwarded from the engine's jig limits (jig/docs/design/protocol/store/retention.md, 2).
     pub retention: jig_domain_core::RetentionLimits,
+    pub waits: jig_domain_core::Figures,
     /// The byte budget for transcripts and turns (domain/root.md, 4.1).
     /// Past it, a due task’s activation waits: pacing, as the watermark is in entries.
     pub transcript_memory: u64,
@@ -165,6 +166,7 @@ pub const fn views_for(streams: u32) -> views::Limits {
 pub fn core_limits(limits: &Limits) -> jig_domain_core::Limits {
     jig_domain_core::Limits {
         retention: limits.retention,
+        waits: limits.waits,
         public: limits.public,
         routes: limits.routes,
         fill_mark: FILL_MARK,

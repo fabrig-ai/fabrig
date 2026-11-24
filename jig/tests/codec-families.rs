@@ -50,7 +50,7 @@ pub const FAMILIES: &[Family] = &[
         root: "crates/jig-client-protocol-wire",
         codec_root: "crates/jig-client-protocol-wire",
         generated: &["src/generated/client.rs"],
-        bounds: compiled_bounds!(jig_client_protocol_wire::v43),
+        bounds: compiled_bounds!(jig_client_protocol_wire::v44),
         maps: None,
         translation: None,
     },

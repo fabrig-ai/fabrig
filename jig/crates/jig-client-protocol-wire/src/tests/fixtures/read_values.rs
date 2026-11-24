@@ -1,6 +1,12 @@
 //! Every contract read variant, including a task's non-zero remaining delegation.
+use super::TASK_ZERO_BYTES;
 use crate::*;
 use skein_lib::{List, Reader};
+
+// Task key (9), ended value tag (1), result document (15), and two absent option tags (2).
+const ENDED_ZERO_BYTES: u32 = TASK_ZERO_BYTES + 27;
+// The empty acts byte string contributes only its four-byte length prefix.
+const ESCALATION_ZERO_BYTES: u32 = TASK_ZERO_BYTES + 4;
 
 macro_rules! value {
     ($rows:expr, $limits:expr, $variant:ident, $record:ident, $length:expr, $wrap:path) => {{
@@ -16,12 +22,12 @@ macro_rules! value {
 pub fn read_values(limits: &Limits) -> List<(&'static str, ReadValue)> {
     let mut values = List::with_capacity(26);
     value!(values, limits, Project, Project, 116);
-    value!(values, limits, Ended, Ended, 308, Box::new);
+    value!(values, limits, Ended, Ended, ENDED_ZERO_BYTES, Box::new);
     value!(values, limits, Me, Me, 91);
     value!(values, limits, Turn, ArchivedTurn, 42);
     values.push(("Task", ReadValue::Task(super::task(limits)))).expect("26 read variants");
     value!(values, limits, Proposal, Proposal, 61);
-    value!(values, limits, Escalation, Escalation, 285);
+    value!(values, limits, Escalation, Escalation, ESCALATION_ZERO_BYTES);
     value!(values, limits, Question, Question, 31);
     value!(values, limits, PersonTask, PersonTask, 71);
     value!(values, limits, Result, ResultDocument, 15);

@@ -285,7 +285,7 @@ pub(super) fn live_page(core: &Core, limits: &Limits, party: u64, read: &Read, d
         }
         Document::Lines(value) => {
             for row in value.lines.into_boxed() {
-                rows.push(PageRow::Line(row)).expect("live query lines fit");
+                rows.push(PageRow::Line(Box::new(row))).expect("live query lines fit");
             }
             let next = match value.next {
                 Some(after) => {

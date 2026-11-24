@@ -8,6 +8,24 @@ fn a_list_prints_its_rows_then_its_continuation() {
     fixtures::check_golden("tasks_next", &root.answer(call).expect("page answered").stdout);
 }
 #[test]
+fn a_list_json_row_carries_the_first_wait_and_nearest_bound() {
+    let argv = fixtures::extended(fixtures::TASKS_CALL, &["--json"]);
+    let answer = fixtures::read_answer(argv.as_slice(), fixtures::task_page_with_cursor());
+    assert_eq!(answer.status, 0);
+    fixtures::unique_keys(&answer.stdout).expect("valid list JSON");
+    assert!(
+        fixtures::has(
+            &answer,
+            br#""waits_on":{"party":{"whom":{"person":73},"entries":1,"task":44,"kind":"question"}}"#
+        ),
+        "{answer:?}"
+    );
+    assert!(fixtures::has(&answer, super::task_waits::DESCENDANT_JSON));
+    assert!(fixtures::has(&answer, br#""nearest":{"at":1792882920000000000,"then":"pass_up","kind":"party"}"#));
+    assert!(!fixtures::has(&answer, br#""waits":"#));
+    assert!(!fixtures::has(&answer, br#""wait_count":"#));
+}
+#[test]
 fn ended_tasks_use_only_the_ended_group() {
     let (root, call) = fixtures::read_call(fixtures::ENDED_CALL);
     assert_eq!(

@@ -222,6 +222,7 @@ fn watching(wait: &Wait) -> bool {
     }
 }
 fn changed(runner: &mut Runner, client: &Client, env: &Env<Limits>, number: u32, out: &mut Queue<Out>) {
+    let me = runner.me();
     let Some(wait) = runner.waits.get_mut(&number) else { return };
     if !watching(wait) {
         return;
@@ -251,10 +252,12 @@ fn changed(runner: &mut Runner, client: &Client, env: &Env<Limits>, number: u32,
     };
     let holds = match &wait.until {
         Some(Condition::Changed) => Some(wait.first.is_some() && met(wait.since, wait.first, digest, None)),
-        Some(until) => conditions::holds(
-            until,
-            &Facts { subject: latest, me: live_me(client, Handle { asker: runner.asker, number: 0 }) },
-        ),
+        Some(Condition::Replied) if wait.talk.is_some() => {
+            let c::Delivery::Task(task) = delivery else { return };
+            // A task's waits can name a proposal while the role is still composing its reply.
+            conditions::replied(task, &c::WaitsOn::Nothing, live_me(client, me))
+        }
+        Some(until) => conditions::holds(until, &Facts { subject: latest, me: live_me(client, me) }),
         None => None,
     };
     if wait.talk.is_some()

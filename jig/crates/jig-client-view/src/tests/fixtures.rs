@@ -211,6 +211,8 @@ pub(crate) fn task_line(
             deadline: None,
         },
         waits_on: c::WaitsOn::Nothing,
+        wait: None,
+        nearest: None,
         phases: c::PhaseCounts {
             waiting: 0,
             idle: 0,

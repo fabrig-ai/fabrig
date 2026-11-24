@@ -510,6 +510,8 @@ mod tests {
             ended_at: Some(Wall::EPOCH),
             budget: task.budget,
             waits_on: c::WaitsOn::Nothing,
+            wait: None,
+            nearest: None,
             phases: c::PhaseCounts::ZERO,
             delegates_done: 0,
             delegates_total: 0,

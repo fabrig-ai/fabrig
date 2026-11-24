@@ -30,7 +30,7 @@ pub struct Name {
 }
 
 /// Every name the engine and worker override parser takes, owner by owner in parser order.
-pub static NAMES: [Name; 250] = [
+pub static NAMES: [Name; 258] = [
     Name {
         name: "store.checkpoints.keep",
         unit: Unit::Count,
@@ -1542,6 +1542,62 @@ pub static NAMES: [Name; 250] = [
         applies: Applies::NextStart,
         line: "Bounds how long ended tasks keep their summaries.",
         value: |limits| limits.core.retention.summaries.as_millis(),
+    },
+    Name {
+        name: "waits.question_ms",
+        unit: Unit::Milliseconds,
+        applies: Applies::NextStart,
+        line: "Bounds a task waiting for its requester to answer a question.",
+        value: |limits| limits.core.waits.question.as_millis(),
+    },
+    Name {
+        name: "waits.party_ms",
+        unit: Unit::Milliseconds,
+        applies: Applies::NextStart,
+        line: "Bounds a question waiting at a person or role when it has no stall of its own.",
+        value: |limits| limits.core.waits.party.as_millis(),
+    },
+    Name {
+        name: "waits.news_ms",
+        unit: Unit::Milliseconds,
+        applies: Applies::NextStart,
+        line: "Bounds a task waiting for news unless the wait is standing.",
+        value: |limits| limits.core.waits.news.as_millis(),
+    },
+    Name {
+        name: "waits.host_ms",
+        unit: Unit::Milliseconds,
+        applies: Applies::NextStart,
+        line: "Bounds a task waiting for a host, counted from a known later reset.",
+        value: |limits| limits.core.waits.host.as_millis(),
+    },
+    Name {
+        name: "waits.account_ms",
+        unit: Unit::Milliseconds,
+        applies: Applies::NextStart,
+        line: "Bounds a task waiting for an account, counted from a known later reset.",
+        value: |limits| limits.core.waits.account.as_millis(),
+    },
+    Name {
+        name: "waits.step_ms",
+        unit: Unit::Milliseconds,
+        applies: Applies::NextStart,
+        line: "Bounds a procedure waiting on a step with no clock of its own.",
+        value: |limits| limits.core.waits.step.as_millis(),
+    },
+    Name {
+        name: "waits.room_ms",
+        unit: Unit::Milliseconds,
+        applies: Applies::NextStart,
+        line: "Bounds a procedure waiting for room when no other clock bounds the wait.",
+        value: |limits| limits.core.waits.room.as_millis(),
+    },
+    Name {
+        name: "waits.sign_off_ms",
+        unit: Unit::Milliseconds,
+        applies: Applies::NextStart,
+        line: "Bounds a wait for sign-off before it becomes overdue.",
+        value: |limits| limits.core.waits.sign_off.as_millis(),
     },
     Name {
         name: "link.chunk",

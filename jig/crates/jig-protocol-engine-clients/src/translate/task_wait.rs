@@ -5,8 +5,11 @@ use jig_domain_core_vocabulary::documents as d;
 /// Translate a core-derived next-run wait at the current jig wire version.
 #[must_use]
 pub fn waiting(value: Option<d::TaskRunWait>) -> Option<w::TaskRunWait> {
-    let value = value?;
-    Some(match value {
+    Some(run(value?))
+}
+
+pub(super) fn run(value: d::TaskRunWait) -> w::TaskRunWait {
+    match value {
         d::TaskRunWait::Credential => w::TaskRunWait::Credential,
         d::TaskRunWait::Host => w::TaskRunWait::Host,
         d::TaskRunWait::Worker { worker, until } => {
@@ -51,7 +54,7 @@ pub fn waiting(value: Option<d::TaskRunWait>) -> Option<w::TaskRunWait> {
                 }
             },
         }),
-    })
+    }
 }
 fn source_state(value: d::TaskSourceState) -> w::TaskSourceState {
     use jig_domain_accounts::{Place, Unread};

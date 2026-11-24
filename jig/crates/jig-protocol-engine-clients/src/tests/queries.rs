@@ -205,3 +205,39 @@ fn a_task_document_carries_its_label_flags_activity_and_oldest_waiting_entry() {
     assert_eq!((whom.project, whom.role), (QUERY_PROJECT, WAITING_ROLE));
     assert_eq!((wait.entries, wait.task, (&wait.kind)), (3, QUERY_ROOT, &w::WaitedFor::Question));
 }
+
+#[test]
+fn a_task_line_carries_the_first_wait_and_the_independent_nearest_bound() {
+    use jig_domain_core_vocabulary::{AtBound, Bound, Nearest, Wait, WaitKind, WaitObject};
+    use jig_domain_people::EntryKind;
+    use skein_lib::Wall;
+
+    let mut source = fixtures::tasks_document();
+    let line = source.lines.get_mut(0).unwrap();
+    line.wait = Some(Wait {
+        task: 71,
+        kind: WaitKind::Party,
+        object: WaitObject::Entry { kind: EntryKind::PersonTask, at: t::EscalationHolder::Person(29) },
+        since: Wall::from_nanos(31),
+        bound: Bound::At { at: Wall::from_nanos(101), then: AtBound::PassUp },
+        hears: Some(t::EscalationHolder::Task(73)),
+    });
+    line.nearest = Some(Nearest { at: Wall::from_nanos(59), then: AtBound::Hold, kind: WaitKind::Resource });
+    let record = crate::translate::queries::line(line, &fixtures::wire_limits()).unwrap();
+    assert_eq!(
+        record.wait,
+        Some(w::Wait {
+            task: 71,
+            kind: w::WaitKind::Party,
+            object: w::WaitObject::Entry(w::WaitEntry {
+                kind: w::WaitedFor::PersonTask,
+                number: 71,
+                at: w::EscalationHolder::Person(w::EscalationHolderPerson { value: 29 }),
+            }),
+            since: 31,
+            bound: w::WaitBound::At(w::WaitAtBound { at: 101, then: w::AtBound::PassUp }),
+            hears: Some(w::EscalationHolder::Task(w::EscalationHolderTask { value: 73 })),
+        })
+    );
+    assert_eq!(record.nearest, Some(w::Nearest { at: 59, then: w::AtBound::Hold, kind: w::WaitKind::Resource }));
+}

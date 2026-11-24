@@ -38,6 +38,7 @@ fn open(disk: &mut Disk) -> Store {
         Event::Got { row: None, .. } => Deployment {
             id: seeds.deployment,
             restart_wait_ms: None,
+            wait_floors: None,
             tasks: 0,
             people: 0,
             sign_ins: 0,

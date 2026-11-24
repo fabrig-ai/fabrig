@@ -175,7 +175,6 @@ impl Store {
         self.recovered.clear();
         self.agent_records.clear();
         self.installation = None;
-        self.wires = None;
         self.applied = 0;
         self.restored = None;
         self.restoring = true;

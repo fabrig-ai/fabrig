@@ -9,6 +9,7 @@ mod model_sets;
 mod operations;
 pub(crate) mod programs;
 mod task_wait;
+mod waits;
 use crate::Limits;
 use alloc::boxed::Box;
 use jig_client_protocol_wire as w;

@@ -185,6 +185,17 @@ impl Layouts {
     }
 }
 
+/// Read a row from a recovered map through that generation's registry.
+pub(crate) fn serving_row(rows: &BTreeMap<Vec<u8>, Vec<u8>>, key: &[u8]) -> Result<Box<[u8]>, String> {
+    let value = rows.get(key).ok_or("stored row present")?;
+    let registry = rows
+        .iter()
+        .filter(|(key, _)| matches!(keys::decode_own(key), Some(keys::Own::Layout { .. } | keys::Own::Text(_))))
+        .map(|(key, value)| (key.clone(), value.as_slice().into()))
+        .collect();
+    Layouts { rows: Rc::new(registry), ..Layouts::default() }.serving(key, value.as_slice().into())
+}
+
 fn resolve(key: &[u8]) -> Option<(&'static KeptFamily, &'static ValueType)> {
     for set in temper_engine_service::store::OWNER_SETS.sets {
         let relative = match set.owner {

@@ -84,12 +84,7 @@ pub(super) fn waits(value: &w::WaitsOn) -> c::WaitsOn {
             },
             entries: v.entries,
             task: v.task,
-            kind: match &v.kind {
-                w::WaitedFor::Question => c::WaitedFor::Question,
-                w::WaitedFor::Proposal => c::WaitedFor::Proposal,
-                w::WaitedFor::Escalation => c::WaitedFor::Escalation,
-                w::WaitedFor::PersonTask => c::WaitedFor::PersonTask,
-            },
+            kind: waited_for(&v.kind),
         },
         w::WaitsOn::Dependencies(value) => {
             c::WaitsOn::Dependencies { pending: value.pending.clone(), count: value.count }
@@ -100,6 +95,15 @@ pub(super) fn waits(value: &w::WaitsOn) -> c::WaitsOn {
         w::WaitsOn::Nothing => c::WaitsOn::Nothing,
     }
 }
+pub(super) fn waited_for(kind: &w::WaitedFor) -> c::WaitedFor {
+    match kind {
+        w::WaitedFor::Question => c::WaitedFor::Question,
+        w::WaitedFor::Proposal => c::WaitedFor::Proposal,
+        w::WaitedFor::Escalation => c::WaitedFor::Escalation,
+        w::WaitedFor::PersonTask => c::WaitedFor::PersonTask,
+    }
+}
+
 pub fn line(value: &w::TaskLine, limits: &Limits) -> Result<c::TaskLine, w::Problem> {
     Ok(c::TaskLine {
         parts: row_parts(&value.parts)?,
@@ -117,6 +121,8 @@ pub fn line(value: &w::TaskLine, limits: &Limits) -> Result<c::TaskLine, w::Prob
         },
         budget: facts::budget(&value.budget),
         waits_on: waits(&value.waits_on),
+        wait: super::waits::first(value.wait.as_ref(), limits)?,
+        nearest: super::waits::nearest(value.nearest.as_ref()),
         phases: documents::phase_counts_fields(&value.phases),
         delegates_done: value.delegates_done,
         delegates_total: value.delegates_total,

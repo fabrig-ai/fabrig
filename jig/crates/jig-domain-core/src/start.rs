@@ -90,6 +90,10 @@ impl Core {
         false
     }
 
+    pub(crate) fn start_floor_time(&self) -> Option<Wall> {
+        if self.start.phase.is_some() { Some(self.start.at) } else { None }
+    }
+
     /// Begin the start once, capturing the expiry instant before loading.
     pub fn start_begin(&mut self, pending: bool, at: Wall) -> Action {
         assert!(!self.start.consumed, "the start begins before input once");

@@ -261,6 +261,10 @@ fn task() -> Task {
         last_activity: Wall::EPOCH,
         made: Wall::EPOCH,
         waits_on: WaitsOn::Nothing,
+        wait: None,
+        nearest: None,
+        waits: List::with_capacity(0),
+        wait_count: 0,
         chip: Chip {
             task: 8,
             title: DocumentText::complete(text(b"chat")),

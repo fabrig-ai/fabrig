@@ -21,7 +21,7 @@ const WIRES: &[Wire] = &[
     Wire {
         name: "jig-client-wire",
         owner: "jig/crates/jig-client-protocol-wire",
-        schemas: &["client-v43.schema", "client-v43-part1.schema"],
+        schemas: &["client-v44.schema", "client-v44-part1.schema"],
     },
     Wire { name: "jig-public-wire", owner: "jig/crates/jig-client-protocol-wire", schemas: &["public-v1.schema"] },
     Wire {

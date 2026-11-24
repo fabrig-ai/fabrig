@@ -535,6 +535,7 @@ impl World {
             self.apply_store();
             return;
         }
+        self.store.record_wall = self.store.record_wall.max(self.environment.wall);
         crate::poll(&mut self.domain, &self.environment, &mut self.out);
         self.observe();
         if self.frozen_cut.is_some() {
