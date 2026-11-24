@@ -573,7 +573,6 @@ rustls = { version = "=0.23.41", default-features = false, features = ["ring", "
 # rustls with std, named in native tables alone (skein/docs/foundation/cli.md, 3).
 rustls-std = { package = "rustls", version = "=0.23.41", default-features = false, features = ["ring", "tls12", "std"] }
 rustls-pki-types = { version = "1.15", features = ["web"] }
-smith-transcript-patches = { path = "smith/tests/transcript-patches" }
 smith-fake-claude = { path = "smith/tests/fake-claude" }
 smith-host-domain = { path = "smith/crates/smith-host-domain" }
 smith-host-domain-fixtures = { path = "smith/testing/smith-host-domain-fixtures" }

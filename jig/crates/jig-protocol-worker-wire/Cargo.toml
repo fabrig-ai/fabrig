@@ -16,9 +16,7 @@ smith-charter.workspace = true
 smith-transcript.workspace = true
 
 [dev-dependencies]
-skein-codegen.workspace = true
 skein-heap.workspace = true
-skein-scratch.workspace = true
 
 [lints]
 workspace = true

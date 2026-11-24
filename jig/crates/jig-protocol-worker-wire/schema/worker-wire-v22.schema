@@ -226,8 +226,6 @@ record ReadUsage { read: u64 source: text 32 }
 # A shutting worker leaves placement (jig/docs/design/protocol/channel/records.md, 1).
 record Draining {}
 
-# The engine states the agreed wires (protocol/channel/bridges.md, 3).
-
 # Application reads (domain/hosts/hub.md, 10).
 record Ask { run: u64 attempt: u64 number: u64 bytes: bytes 1048576 }
 record AskBytes { bytes: bytes 1048576 }

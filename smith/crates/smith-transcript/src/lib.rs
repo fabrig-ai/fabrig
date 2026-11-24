@@ -45,10 +45,10 @@ impl Turn {
     };
 }
 
-/// The owner of smith's patches, as their headers spell it (smith/docs/design/protocol/transcript.md, 12).
+/// The owner of the store's transcript frames (smith/docs/design/protocol/transcript.md, 12).
 pub const OWNER: &str = "smith";
 
-/// The turn's family, as its kept texts spell it.
+/// The turn's family, as its schema header spells it.
 pub const FAMILY: &str = wire::FAMILY;
 
 /// The declaration a kept turn is, where a host's machine starts.
@@ -57,9 +57,6 @@ pub const ROOT: &str = "Turn";
 /// The mark of a smith patch across which a host closes each live window
 /// and starts the next run afresh from its brief (smith/docs/design/protocol/transcript.md, 12).
 pub const FRESH_WINDOWS: &str = "fresh-windows";
-
-#[path = "../patches/mod.rs"]
-pub mod patches;
 
 /// Decode an archived version-6 or current turn; version 6 has no supplied system context.
 /// Resuming readers use the current codec directly.
@@ -83,9 +80,6 @@ pub mod wire {
     /// The version named by the current schema's header.
     pub const VERSION: u16 = crate::v8::VERSION;
 
-    /// The lowest version this build speaks.
-    pub const FLOOR: u16 = crate::patches::kept::smith_transcript::FLOOR;
-
     /// The embedded current schema text.
     pub const TEXT: &str = crate::SCHEMA;
 
@@ -101,7 +95,7 @@ pub mod wire {
 
     #[cfg(test)]
     mod tests {
-        use super::{FAMILY, FLOOR, TEXT, VERSION, layout};
+        use super::{FAMILY, TEXT, VERSION, layout};
 
         #[test]
         fn identity_tracks_schema() {
@@ -109,8 +103,6 @@ pub mod wire {
             assert_eq!(FAMILY.as_bytes(), schema.spelled(schema.family()));
             assert_eq!(VERSION, schema.version());
             assert_eq!(VERSION, 8);
-            assert_eq!(FLOOR, crate::patches::kept::smith_transcript::FLOOR);
-            assert_eq!(FLOOR, 7);
             assert_eq!(layout(), schema.fingerprints().family().digest());
 
             let changed = TEXT.replacen("input: option u64", "input: option u32", 1);
