@@ -75,7 +75,7 @@ impl Journey {
                     .unwrap_or_else(|why| panic!("{story}: read look: {why}"))
                     .file_name()
                     .into_string()
-                    .unwrap_or_else(|name| panic!("{story}: non-UTF-8 look name: {name:?}"))
+                    .unwrap_or_else(|name| panic!("{story}: non-UTF-8 look name: {}", name.as_bytes().escape_ascii()))
             })
             .collect();
         names.sort();
