@@ -276,7 +276,12 @@ pub const COMPOSED: Shape;
 - **The train:** where `train` allows one, the last goal outside the
   milestone, or the milestone's last where every goal is in it, is the
   train goal, its changes a count drawn in `train`, at least 2; every
-  other goal's changes are a count drawn in `changes`. The train goal's
+  other goal's changes are a count drawn in `changes`. The train goal
+  has no branch of its own and no closer: its changes land into main,
+  the one train that takes the project's batch, where a train into any
+  other branch takes one unit (`temper/docs/design/domain/landing-turn.md`,
+  2; `Forge::train_batch`), so on a goal's branch they would land one by
+  one. Every other goal keeps its branch and closer. The train goal's
   changes name none of one another in their `after`: they share one
   repository, and a change after another in its own repository waits
   until that one lands (`forge::joined_changes` joins only dependencies
@@ -468,15 +473,18 @@ by hand.
   `Tool::Delegate` carries no branch symbol, its `symbolic_grants` being
   ordinary grants. A milestone's goals are delegated by the same route
   beneath a gathering milestone, each after the one before
-  (`forge_routes/milestones.rs`). The product's `goal` and delegation
-  routes are left as they are. Each goal's changes by its
+  (`forge_routes/milestones.rs`). The train goal, branchless (3.1), is
+  started by the chat's `goal` call where it is independent, and in a
+  milestone by the same delegate beneath the gathering milestone with
+  its dependency but no branch's symbol or closer. The product's `goal`
+  and delegation routes are left as they are. Each goal's changes by its
   coordinator's `change` calls with their `after`; the train goal's
-  changes landing together, gathered by a latch as section 5 gathers
+  changes landing together into main, gathered by a latch as section 5 gathers
   them (`forge_routes/landing_trains.rs`, and `forge_routes/landing.rs`'
   `a_train_forms_after_its_due_readiness_steps_settle`); each
   producer writing its files and delivering, asking its question first
   where `asks`, its first gate red where `red_once` and repaired; each
-  goal's closer landing its branch; and the tier following main
+  other goal's closer landing its branch; and the tier following main
   (`temper/tests/engine/domain/src/tier_runs.rs`,
   `forge_routes/goal_tier.rs`). Each goal's party answers its questions
   at once unless an act says otherwise.
@@ -585,8 +593,8 @@ system world (`tiers.md`, 1.1) running `COMPOSED`'s draw.
   dependency; a goal needing no branch of its own by the chat's `goal`
   call), the
   milestone's later goal after the earlier one's landing, the train goal's
-  changes landing as one train, every goal's closer landing its branch,
-  and the tier following main. The train is the world's to gather, never
+  changes landing as one train into main (3.1), every other goal's
+  closer landing its branch, and the tier following main. The train is the world's to gather, never
   the engine's, by the readiness the product ships: a change kept by a
   dependency is not ready (`temper/docs/design/domain/landing.md`, 3),
   and a train forms once its due readiness steps settle. The train
