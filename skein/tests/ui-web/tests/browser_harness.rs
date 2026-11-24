@@ -96,7 +96,7 @@ fn a_framed_page_s_refusal_is_awaited_as_trouble() {
     assert_eq!(skein_ui_web_tests::fixture_harness_with(&bundle, vec![origin]).run(&mut [&mut person]), Outcome::Done);
 }
 
-fn command(mode: &[&str], opens: bool) -> harness::Command {
+fn command(mode: &[&str]) -> harness::Command {
     let mut args = vec!["command".into()];
     args.extend(mode.iter().map(std::ffi::OsString::from));
     harness::Command {
@@ -104,7 +104,7 @@ fn command(mode: &[&str], opens: bool) -> harness::Command {
         args,
         env: vec![],
         stdin: harness::Stdin::Closed,
-        opens: opens.then(|| harness::Opens {
+        opens: Some(harness::Opens {
             prefix: b"http://".as_slice().into(),
             on: harness::Output::Stdout,
             keep: b"link".as_slice().into(),
@@ -112,11 +112,11 @@ fn command(mode: &[&str], opens: bool) -> harness::Command {
         within: skein_ui_web_tests::SECOND,
     }
 }
-fn exited(code: i32) -> harness::Step {
-    harness::Step::Exited { code, within: skein_ui_web_tests::SECOND }
-}
 fn command_story(command: harness::Command) -> Script {
-    Script::new(Box::new([harness::Step::Run(command), exited(0)]))
+    Script::new(Box::new([
+        harness::Step::Run(command),
+        harness::Step::Exited { code: 0, within: skein_ui_web_tests::SECOND },
+    ]))
 }
 fn command_harness(sent: harness::Sent) -> harness::Harness {
     harness::Harness::new(harness::Setup {
@@ -138,7 +138,7 @@ fn command_harness(sent: harness::Sent) -> harness::Harness {
 #[test]
 fn a_command_receives_the_held_line_and_eof_without_a_page_visit() {
     let mut harness = command_harness(harness::Sent::Command);
-    let mut cmd = command(&["stdin"], true);
+    let mut cmd = command(&["stdin"]);
     cmd.stdin = harness::Stdin::Printed;
     let mut person = command_story(cmd);
     assert_eq!(harness.run(&mut [&mut person]), Outcome::Done);
@@ -147,7 +147,7 @@ fn a_command_receives_the_held_line_and_eof_without_a_page_visit() {
 #[test]
 fn an_exited_commands_printed_link_is_opened_and_kept_whole() {
     let mut harness = command_harness(harness::Sent::Page);
-    let mut person = command_story(command(&["link", "http://{address}/opened?kept=whole"], true));
+    let mut person = command_story(command(&["link", "http://{address}/opened?kept=whole"]));
     assert_eq!(harness.run(&mut [&mut person]), Outcome::Done);
     assert_eq!(harness.kept()[0].person, 0);
     assert_eq!(harness.kept()[0].name.as_ref(), b"link");
@@ -156,7 +156,7 @@ fn an_exited_commands_printed_link_is_opened_and_kept_whole() {
 }
 #[test]
 fn a_command_waits_for_the_browsers_loopback_signal_before_exiting() {
-    let mut person = command_story(command(&["wait", "{address}"], true));
+    let mut person = command_story(command(&["wait", "{address}"]));
     assert_eq!(command_harness(harness::Sent::Page).run(&mut [&mut person]), Outcome::Done);
 }
 

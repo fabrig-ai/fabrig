@@ -1,4 +1,4 @@
-//! Browser harness stories on simulated processes (skein/docs/design/ui/web/contracts.md, 2).
+//! Browser harness stories on simulated processes (skein/docs/design/ui/web/testing.md, 2).
 use skein_fake_person_browser::{
     Harness, Lent, Outcome, Play,
     harness::{Hosted, Scripted},

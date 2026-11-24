@@ -45,7 +45,7 @@ fn server(held: bool) {
             visits += 1;
             format!("held visit {visits}")
         } else {
-            "<!doctype html><h1>Ready</h1><input type=hidden value='fixture value'>".to_owned()
+            "<!doctype html><h1>Ready</h1>".to_owned()
         };
         write!(
             stream,
@@ -71,9 +71,8 @@ fn command(args: &[String]) {
         "link" => println!("{}", args[1]),
         "wait" => {
             let listener = TcpListener::bind((Ipv4Addr::LOCALHOST, 0)).expect("command signal listener");
-            if let Some(address) = args.get(1) {
-                println!("http://{address}/signal/{}", listener.local_addr().expect("signal address").port());
-            }
+            let address = &args[1];
+            println!("http://{address}/signal/{}", listener.local_addr().expect("signal address").port());
             std::io::stdout().flush().expect("ready link");
             let (mut socket, _) = listener.accept().expect("loopback signal");
             let mut byte = [0];
