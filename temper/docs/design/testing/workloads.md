@@ -292,7 +292,12 @@ pub const COMPOSED: Shape;
   and a drawn `u64` in hex, so no two changes write one path and the
   workload makes no conflict of its own: conflicts are the forge's and
   the stale family's to make. `asks` with chance one third; `red_once`
-  with chance one quarter.
+  with chance one quarter, but in the train goal, where its coin is still
+  drawn and its result set aside: no CI runs on a pushed head, so a
+  train member's first gate is its train's, at the top
+  (`temper/docs/design/domain/landing.md`, 3), and a member red there
+  leaves the train and lands alone after its repair. A red within a
+  train is the faults' to make, never the workload's.
 - **The tier:** `tier` as the shape says; its runs are green.
 - **The shapes:** `ENGINE` is 2 to 4 goals, 1 to 3 changes, a milestone
   of 0 to 2, a train of 2 to 3, a tier. `COMPOSED` is 3 goals, 1 to 2
@@ -466,7 +471,9 @@ by hand.
   (`forge_routes/milestones.rs`). The product's `goal` and delegation
   routes are left as they are. Each goal's changes by its
   coordinator's `change` calls with their `after`; the train goal's
-  changes landing together (`forge_routes/landing_trains.rs`); each
+  changes landing together, gathered by a latch as section 5 gathers
+  them (`forge_routes/landing_trains.rs`, and `forge_routes/landing.rs`'
+  `a_train_forms_after_its_due_readiness_steps_settle`); each
   producer writing its files and delivering, asking its question first
   where `asks`, its first gate red where `red_once` and repaired; each
   goal's closer landing its branch; and the tier following main
@@ -580,11 +587,21 @@ system world (`tiers.md`, 1.1) running `COMPOSED`'s draw.
   milestone's later goal after the earlier one's landing, the train goal's
   changes landing as one train, every goal's closer landing its branch,
   and the tier following main. The train is the world's to gather, never
-  the engine's: the world holds each train producer's finish at the
-  boundary between the worker and the engine until every member's producer
-  has delivered, then lets them through together, so their changes are
-  ready for one landing; the engine's landings, holds and batching run as
-  they ship. smith's activations take turns on the one
+  the engine's, by the readiness the product ships: a change kept by a
+  dependency is not ready (`temper/docs/design/domain/landing.md`, 3),
+  and a train forms once its due readiness steps settle. The train
+  goal's coordinator delegates one report task, the latch, to its
+  party's person before its `change` call, and each member's
+  dependencies name it (by the member's `after` where the call admits
+  it, else by amending the member as
+  `forge_routes/landing.rs`' `a_train_forms_after_its_due_readiness_steps_settle`
+  does); the party reports on the latch once every member is gating with
+  no procedure step due, so every member becomes ready in one settling
+  and the train forms with them all. Holding producers' finishes is not
+  enough: members opened at different times are ready at different
+  times, and a train forms as soon as it frees. The engine's landings,
+  holds and batching run as they ship; a train goal's member is never
+  `red_once` (3.1). smith's activations take turns on the one
   agent world, as the system world runs them; the goals are live at once
   in the engine.
 - **Cued by names and trees:** each activation's script is chosen by the
