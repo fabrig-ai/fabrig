@@ -159,23 +159,30 @@ given twice: its rendered room (4.2) and its fixed part (4.3).
   makes over the charter's current default (jig's
   `domain/engine/overlays.md`, 1).
 - **Start.** The start's check runs over the defaults, both checks, and
-  again once the stored settings are restored, the rendered room alone. It
+  again once the stored settings are restored, both checks again. It
   judges each overlaid charter as its runs read it, so that a release whose
   new default leaves an overlaid charter too little room stops the start,
   naming the charter.
-- **A restored charter's fixed part isn't checked at start.** A stored
-  charter is changed only through the running engine's entrances, so a
-  start stopped for it would leave no way to change it; its runs are
-  refused at their start instead, naming what didn't fit (3).
+- **A restored charter is checked as a configured one** (2026-11-24,
+  `../../draft/bounded-waits.md`, 7). A stored charter,
+  current or overlaid, whose fixed part no longer fits its allowance (4.3)
+  stops the start before any run meets it, rather than refusing its runs
+  at their start (3). Its way out is a refused rendered room's: a
+  configuration whose allowance holds it, or the previous build, starts,
+  and the charter is changed through an entrance. Stored templates and the
+  other stored settings are judged at their restore against their own
+  bounds (`../root.md`, 9), so a charter's fixed part was the one stored
+  value whose room the start left unchecked.
 - **What isn't checked again.** A stored proposal's acceptance, a restore
   and a reset carry values that passed an entrance or the start, and the
   bounds do not move while the engine runs.
 - **A refusal.** A party's direct change or proposal is refused as a
   judged charter item, naming its item index; a run's proposal receives a
   host error with the refusal's words and its run continues. On restart, a
-  stored current charter that fails the rendered check ends startup with
-  `temper-box serve: restart refused: ` and the same diagnostic
-  (2026-11-04).
+  stored current charter that fails either check ends startup with
+  `temper-box serve: restart refused: ` and that check's words (4.5): the
+  rendered room's (2026-11-04), or the fixed part's, naming the charter,
+  its wake, its figure and its allowance.
 
 ### 4.2 The rendered room
 

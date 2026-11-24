@@ -33,9 +33,10 @@ engine's in full.
   in steps; and after every restart the engine opens within a bound.
 - **Open problems** (section 5): a scenario for each of twelve rows,
   named as the draft's section 7 names them, each ignored with the work
-  that fixes it, and an exclusion for each that every engine sweep
-  drawing its fault takes; a scenario whose handling holds already runs
-  active with none (P90, S7, P120). P124's first scenario is its fix's own
+  that fixes it until that work lands, and an exclusion for each that
+  every engine sweep drawing its fault takes; a scenario whose handling
+  holds already, or whose work has landed, runs active with none (P90,
+  S7, P120; P63's residual). P124's first scenario is its fix's own
   active test, not one of them.
 - **Out:** jig's, the worker's and smith's adapters and checks; the fault
   families (the draft, section 4); the settings tests and the store check
@@ -474,7 +475,6 @@ wants of that symptom.
 | P120 | `the_newest_ruling_reaches_the_resolution` | `temper-engine-domain-world` | holds already: active |
 | P85 | `a_held_answer_tells_its_requester` | `temper-engine-domain-world` | bounded waits |
 | P113 | `a_change_waits_on_another_goal` | `temper-engine-domain-world` | bounded waits |
-| P63 residual | `a_stored_charter_is_checked_at_start` | `temper-engine-domain-world` | bounded waits |
 
 - **P124's first scenario,** `cancelled_landing_frees_its_write_entries`
   (a landing cancelled while its gate's dispatch is in flight withdraws
@@ -509,6 +509,10 @@ wants of that symptom.
   holds: it runs, not ignored, with no exclusion, and its row is
   reported for the catalog (the draft, 6, *A problem fixed before this
   draft lands*).
+- **A scenario its work has fixed** runs the same way, active with no
+  exclusion, in the file its row named: P63's residual,
+  `a_stored_charter_is_checked_at_start`, by the bounded waits' start
+  check (`../domain/agent/room.md`, 4.1), whose words it pins.
 
 ### 5.2 Their exclusions
 
@@ -540,7 +544,6 @@ own change.
 | `a_repair_whose_tests_pass_regates_by_itself` | `runs` / `a repair finds its tests passing` | `a landing's gate red` |
 | `a_held_answer_tells_its_requester` | `temper_faults::people::ANSWERS_LATE`, and `ANSWERS_TWICE`, each the sweep configures | `a dependency holds the answer` |
 | `a_change_waits_on_another_goal` | `temper_faults::parks::A_CHANGE_WAITS_ON_ANOTHER_GOAL` | `its requester parked` |
-| `a_stored_charter_is_checked_at_start` | `temper_faults::restarts::ENGINE_CRASH` | `a stored charter past its room` |
 | `a_goal_cancelled_while_its_branch_is_being_made_ends_cancelled` | `temper_faults::people::CANCELS_A_GOAL` | `a goal branch making in flight` |
 
 - **The sweeps that draw these combinations** are the workloads'
