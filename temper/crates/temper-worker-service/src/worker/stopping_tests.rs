@@ -80,7 +80,7 @@ fn drain_run(stand: &mut fixtures::WorkerStand, peer: &mut AgentPeer) {
     };
     assert!(peer.events.is_empty(), "not cancelled during its turn");
     let agent = fixtures::worker_agent();
-    let body = fixtures::worker_peers::cancellation_turn(&agent);
+    let body = fixtures::worker_peers::cancellation_turn();
     let turn = smith_protocol_channel::decode_turn(&body, 1, &agent.limits.transcript, &agent.endpoints).unwrap();
     peer.component
         .send_turn(1, None, smith_domain_run::Spend::ZERO, true, &turn, peer.owner, &mut peer.events, &mut peer.out)

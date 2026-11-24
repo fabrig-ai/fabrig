@@ -3,16 +3,16 @@ use skein_forge::api as d;
 use skein_lib::List;
 
 fn encode_verdict(value: d::Verdict) -> w::Verdict {
-    crate::generated::store::verdict_to_record(&value, &super::Context::UNBOUNDED).expect(FITS)
+    crate::generated::store::verdict_to_record(&value)
 }
 fn decode_verdict(value: w::Verdict) -> d::Verdict {
-    crate::generated::store::verdict_to_domain(value, &super::Context::UNBOUNDED).expect(FITS)
+    crate::generated::store::verdict_to_domain(value)
 }
 fn encode_check(value: d::Check) -> w::Check {
-    crate::generated::store::check_to_record(&value, &super::Context::UNBOUNDED).expect(FITS)
+    crate::generated::store::check_to_record(&value)
 }
 fn decode_check(value: w::Check) -> d::Check {
-    crate::generated::store::check_to_domain(value, &super::Context::UNBOUNDED).expect(FITS)
+    crate::generated::store::check_to_domain(value)
 }
 pub(super) fn encode_write(value: &d::Write) -> w::Write {
     match value {
@@ -242,7 +242,7 @@ pub(super) fn encode_summary(value: &d::Summary) -> w::Summary {
     w::Summary {
         labels: super::names::encode_piece(labels),
         number: *number,
-        kind: crate::generated::store::kind_to_record(kind, &super::Context::UNBOUNDED).expect(FITS),
+        kind: crate::generated::store::kind_to_record(kind),
         state: super::topics::encode_state(*state),
         author: *author,
         key: key.clone(),
@@ -256,7 +256,7 @@ pub(super) fn decode_summary(value: w::Summary, bounds: &super::Bounds) -> Resul
     Ok(d::Summary {
         labels: super::names::decode_contexts(&labels, bounds)?,
         number,
-        kind: crate::generated::store::kind_to_domain(kind, &super::Context::UNBOUNDED).expect(FITS),
+        kind: crate::generated::store::kind_to_domain(kind),
         state: super::topics::decode_state(state),
         author,
         key,
@@ -266,63 +266,68 @@ pub(super) fn decode_summary(value: w::Summary, bounds: &super::Bounds) -> Resul
     })
 }
 pub(super) fn encode_comment(value: &d::Comment) -> w::Comment {
-    crate::generated::store::comment_to_record(value, &super::Context::UNBOUNDED).expect(FITS)
+    crate::generated::store::comment_to_record(value)
 }
 pub(super) fn decode_comment(value: w::Comment) -> d::Comment {
-    crate::generated::store::comment_to_domain(value, &super::Context::UNBOUNDED).expect(FITS)
+    crate::generated::store::comment_to_domain(value)
 }
 pub(super) fn encode_review(value: &d::Review) -> w::Review {
-    crate::generated::store::review_to_record(value, &super::Context::UNBOUNDED).expect(FITS)
+    crate::generated::store::review_to_record(value)
 }
 pub(super) fn decode_review(value: w::Review) -> d::Review {
-    crate::generated::store::review_to_domain(value, &super::Context::UNBOUNDED).expect(FITS)
+    crate::generated::store::review_to_domain(value)
 }
 
 pub(super) fn encode_status(value: &d::Status) -> w::Status {
-    crate::generated::store::status_to_record(value, &super::Context::UNBOUNDED).expect(FITS)
+    crate::generated::store::status_to_record(value)
 }
 pub(super) fn decode_status(value: w::Status) -> d::Status {
-    crate::generated::store::status_to_domain(value, &super::Context::UNBOUNDED).expect(FITS)
+    crate::generated::store::status_to_domain(value)
 }
 pub(super) fn encode_remark(value: &d::Remark) -> w::Remark {
-    crate::generated::store::remark_to_record(value, &super::Context::UNBOUNDED).expect(FITS)
+    crate::generated::store::remark_to_record(value)
 }
 pub(super) fn decode_remark(value: w::Remark) -> d::Remark {
-    crate::generated::store::remark_to_domain(value, &super::Context::UNBOUNDED).expect(FITS)
+    crate::generated::store::remark_to_domain(value)
 }
 pub(super) fn encode_file(value: &d::File) -> w::File {
-    crate::generated::store::file_to_record(value, &super::Context::UNBOUNDED).expect(FITS)
+    crate::generated::store::file_to_record(value)
 }
 pub(super) fn decode_file(value: w::File) -> d::File {
-    crate::generated::store::file_to_domain(value, &super::Context::UNBOUNDED).expect(FITS)
+    crate::generated::store::file_to_domain(value)
 }
 pub(super) fn encode_collaborator(value: &d::Collaborator) -> w::Collaborator {
-    crate::generated::store::collaborator_to_record(value, &super::Context::UNBOUNDED).expect(FITS)
+    crate::generated::store::collaborator_to_record(value)
 }
 pub(super) fn decode_collaborator(value: w::Collaborator) -> d::Collaborator {
-    crate::generated::store::collaborator_to_domain(value, &super::Context::UNBOUNDED).expect(FITS)
+    crate::generated::store::collaborator_to_domain(value)
 }
 
 /// Owner-shaped `Summary` (skein/docs/design/data/codec/maps.md, 3.3).
-pub fn summary_to_record(value: &d::Summary, _context: &super::Context) -> Result<w::Summary, w::Problem> {
-    Ok(encode_summary(value))
+#[must_use]
+pub fn summary_to_record(value: &d::Summary) -> w::Summary {
+    encode_summary(value)
 }
 pub fn summary_to_domain(value: w::Summary, context: &super::Context) -> Result<d::Summary, w::Problem> {
     decode_summary(value, context.bounds()).or(Err(w::paths::SUMMARY_LABELS.problem(skein_codec::Reason::Malformed)))
 }
 
 /// Owner-shaped `Error` (skein/docs/design/data/codec/maps.md, 3.3).
-pub fn error_to_record(value: &d::Error, _context: &super::Context) -> Result<w::Error, w::Problem> {
-    Ok(encode_error(*value))
+#[must_use]
+pub fn error_to_record(value: &d::Error) -> w::Error {
+    encode_error(*value)
 }
-pub fn error_to_domain(value: w::Error, _context: &super::Context) -> Result<d::Error, w::Problem> {
-    Ok(decode_error(value))
+#[must_use]
+pub fn error_to_domain(value: w::Error) -> d::Error {
+    decode_error(value)
 }
 
 /// Owner-shaped `Write` (skein/docs/design/data/codec/maps.md, 3.3).
-pub fn write_to_record(value: &d::Write, _context: &super::Context) -> Result<w::Write, w::Problem> {
-    Ok(encode_write(value))
+#[must_use]
+pub fn write_to_record(value: &d::Write) -> w::Write {
+    encode_write(value)
 }
-pub fn write_to_domain(value: w::Write, _context: &super::Context) -> Result<d::Write, w::Problem> {
-    Ok(decode_write(value))
+#[must_use]
+pub fn write_to_domain(value: w::Write) -> d::Write {
+    decode_write(value)
 }

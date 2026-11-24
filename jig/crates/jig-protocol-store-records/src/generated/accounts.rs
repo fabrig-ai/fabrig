@@ -3,438 +3,499 @@
 
 use alloc::boxed::Box;
 
-// Maps line 6: Installation.
-pub fn installation_to_record(value: &crate::codec::accounts::Installation, _context: &()) -> Result<crate::accounts_v2::Installation, crate::accounts_v2::Problem> {
+#[must_use]
+pub fn installation_to_record(value: &crate::codec::accounts::Installation) -> crate::accounts_v2::Installation {
     let crate::codec::accounts::Installation { id: field_000000 } = value;
-    Ok(crate::accounts_v2::Installation {
+    crate::accounts_v2::Installation {
         id: *field_000000
-    })
+    }
 }
 
-// Maps line 6: Installation.
-pub fn installation_to_domain(record: crate::accounts_v2::Installation, _context: &()) -> Result<crate::codec::accounts::Installation, crate::accounts_v2::Problem> {
+#[must_use]
+pub fn installation_to_domain(record: crate::accounts_v2::Installation) -> crate::codec::accounts::Installation {
     let crate::accounts_v2::Installation { id: field_000000 } = record;
-    Ok(crate::codec::accounts::Installation {
+    crate::codec::accounts::Installation {
         id: field_000000
-    })
-}
-
-// Maps line 9: Holder.
-pub fn holder_to_record(value: &jig_domain_accounts::Holder, _context: &()) -> Result<crate::accounts_v2::Holder, crate::accounts_v2::Problem> {
-    match value {
-        jig_domain_accounts::Holder::Deployment => Ok(crate::accounts_v2::Holder::Deployment),
-        jig_domain_accounts::Holder::Party(held) => Ok(crate::accounts_v2::Holder::Party(crate::accounts_v2::Party { party: *held })),
     }
 }
 
-// Maps line 9: Holder.
-pub fn holder_to_domain(record: crate::accounts_v2::Holder, _context: &()) -> Result<jig_domain_accounts::Holder, crate::accounts_v2::Problem> {
+#[must_use]
+pub fn holder_to_record(value: &jig_domain_accounts::Holder) -> crate::accounts_v2::Holder {
+    match value {
+        jig_domain_accounts::Holder::Deployment => crate::accounts_v2::Holder::Deployment,
+        jig_domain_accounts::Holder::Party(held) => crate::accounts_v2::Holder::Party(crate::accounts_v2::Party { party: *held }),
+    }
+}
+
+#[must_use]
+pub fn holder_to_domain(record: crate::accounts_v2::Holder) -> jig_domain_accounts::Holder {
     match record {
-        crate::accounts_v2::Holder::Deployment => Ok(jig_domain_accounts::Holder::Deployment),
-        crate::accounts_v2::Holder::Party(held) => Ok(jig_domain_accounts::Holder::Party({
+        crate::accounts_v2::Holder::Deployment => jig_domain_accounts::Holder::Deployment,
+        crate::accounts_v2::Holder::Party(held) => jig_domain_accounts::Holder::Party({
             let crate::accounts_v2::Party { party: held } = held;
             held
-        })),
+        }),
     }
 }
 
-// Maps line 11: Use.
-pub fn use_to_record(value: &jig_domain_accounts::Use, _context: &()) -> Result<crate::accounts_v2::Use, crate::accounts_v2::Problem> {
+#[must_use]
+pub fn use_to_record(value: &jig_domain_accounts::Use) -> crate::accounts_v2::Use {
     match value {
-        jig_domain_accounts::Use::Party(held) => Ok(crate::accounts_v2::Use::Party(crate::accounts_v2::Party { party: *held })),
-        jig_domain_accounts::Use::Project(held) => Ok(crate::accounts_v2::Use::Project(crate::accounts_v2::Project { project: *held })),
+        jig_domain_accounts::Use::Party(held) => crate::accounts_v2::Use::Party(crate::accounts_v2::Party { party: *held }),
+        jig_domain_accounts::Use::Project(held) => crate::accounts_v2::Use::Project(crate::accounts_v2::Project { project: *held }),
     }
 }
 
-// Maps line 11: Use.
-pub fn use_to_domain(record: crate::accounts_v2::Use, _context: &()) -> Result<jig_domain_accounts::Use, crate::accounts_v2::Problem> {
+#[must_use]
+pub fn use_to_domain(record: crate::accounts_v2::Use) -> jig_domain_accounts::Use {
     match record {
-        crate::accounts_v2::Use::Party(held) => Ok(jig_domain_accounts::Use::Party({
+        crate::accounts_v2::Use::Party(held) => jig_domain_accounts::Use::Party({
             let crate::accounts_v2::Party { party: held } = held;
             held
-        })),
-        crate::accounts_v2::Use::Project(held) => Ok(jig_domain_accounts::Use::Project({
+        }),
+        crate::accounts_v2::Use::Project(held) => jig_domain_accounts::Use::Project({
             let crate::accounts_v2::Project { project: held } = held;
             held
-        })),
+        }),
     }
 }
 
-// Maps line 13: ReadFailure.
-pub fn read_failure_to_record(value: &jig_domain_accounts::ReadFailure, _context: &()) -> Result<crate::accounts_v2::ReadFailure, crate::accounts_v2::Problem> {
+#[must_use]
+pub fn read_failure_to_record(value: &jig_domain_accounts::ReadFailure) -> crate::accounts_v2::ReadFailure {
     match value {
-        jig_domain_accounts::ReadFailure::Refused { status: field_000000 } => Ok(crate::accounts_v2::ReadFailure::Refused(crate::accounts_v2::Refused {
+        jig_domain_accounts::ReadFailure::Refused { status: field_000000 } => crate::accounts_v2::ReadFailure::Refused(crate::accounts_v2::Refused {
             status: *field_000000
-        })),
-        jig_domain_accounts::ReadFailure::Unreachable => Ok(crate::accounts_v2::ReadFailure::Unreachable),
-        jig_domain_accounts::ReadFailure::Unreadable => Ok(crate::accounts_v2::ReadFailure::Unreadable),
-        jig_domain_accounts::ReadFailure::Deadline => Ok(crate::accounts_v2::ReadFailure::Deadline),
-        jig_domain_accounts::ReadFailure::Agent => Ok(crate::accounts_v2::ReadFailure::Agent),
-        jig_domain_accounts::ReadFailure::Room => Ok(crate::accounts_v2::ReadFailure::Room),
+        }),
+        jig_domain_accounts::ReadFailure::Unreachable => crate::accounts_v2::ReadFailure::Unreachable,
+        jig_domain_accounts::ReadFailure::Unreadable => crate::accounts_v2::ReadFailure::Unreadable,
+        jig_domain_accounts::ReadFailure::Deadline => crate::accounts_v2::ReadFailure::Deadline,
+        jig_domain_accounts::ReadFailure::Agent => crate::accounts_v2::ReadFailure::Agent,
+        jig_domain_accounts::ReadFailure::Room => crate::accounts_v2::ReadFailure::Room,
     }
 }
 
-// Maps line 13: ReadFailure.
-pub fn read_failure_to_domain(record: crate::accounts_v2::ReadFailure, _context: &()) -> Result<jig_domain_accounts::ReadFailure, crate::accounts_v2::Problem> {
+#[must_use]
+pub fn read_failure_to_domain(record: crate::accounts_v2::ReadFailure) -> jig_domain_accounts::ReadFailure {
     match record {
         crate::accounts_v2::ReadFailure::Refused(held) => {
             let crate::accounts_v2::Refused { status: field_000000 } = held;
-            Ok(jig_domain_accounts::ReadFailure::Refused {
+            jig_domain_accounts::ReadFailure::Refused {
                 status: field_000000
-            })
+            }
         },
-        crate::accounts_v2::ReadFailure::Unreachable => Ok(jig_domain_accounts::ReadFailure::Unreachable),
-        crate::accounts_v2::ReadFailure::Unreadable => Ok(jig_domain_accounts::ReadFailure::Unreadable),
-        crate::accounts_v2::ReadFailure::Deadline => Ok(jig_domain_accounts::ReadFailure::Deadline),
-        crate::accounts_v2::ReadFailure::Agent => Ok(jig_domain_accounts::ReadFailure::Agent),
-        crate::accounts_v2::ReadFailure::Room => Ok(jig_domain_accounts::ReadFailure::Room),
+        crate::accounts_v2::ReadFailure::Unreachable => jig_domain_accounts::ReadFailure::Unreachable,
+        crate::accounts_v2::ReadFailure::Unreadable => jig_domain_accounts::ReadFailure::Unreadable,
+        crate::accounts_v2::ReadFailure::Deadline => jig_domain_accounts::ReadFailure::Deadline,
+        crate::accounts_v2::ReadFailure::Agent => jig_domain_accounts::ReadFailure::Agent,
+        crate::accounts_v2::ReadFailure::Room => jig_domain_accounts::ReadFailure::Room,
     }
 }
 
-// Maps line 14: ListRecord.
-pub fn list_record_to_record(value: &jig_domain_accounts::ListRecord, context: &()) -> Result<crate::accounts_v2::ListRecord, crate::accounts_v2::Problem> {
+#[must_use]
+pub fn list_record_to_record(value: &jig_domain_accounts::ListRecord) -> crate::accounts_v2::ListRecord {
     let jig_domain_accounts::ListRecord { names: field_000000, read: field_000001, tried: field_000002, failure: field_000003, left_out: field_000004 } = value;
-    Ok(crate::accounts_v2::ListRecord {
+    crate::accounts_v2::ListRecord {
         names: *field_000000,
         read: match field_000001 {
-            Some(item) => Some(match skein_codec::convert::wall_to_record(item) { Ok(value) => value, Err(reason) => return Err(crate::accounts_v2::paths::LIST_RECORD_READ.problem(reason)) }),
+            Some(item) => {
+                let converted = skein_codec::convert::wall_to_record(item);
+                Some(converted)
+            }
             None => None,
         },
         tried: match field_000002 {
-            Some(item) => Some(match skein_codec::convert::wall_to_record(item) { Ok(value) => value, Err(reason) => return Err(crate::accounts_v2::paths::LIST_RECORD_TRIED.problem(reason)) }),
+            Some(item) => {
+                let converted = skein_codec::convert::wall_to_record(item);
+                Some(converted)
+            }
             None => None,
         },
         failure: match field_000003 {
-            Some(item) => Some(read_failure_to_record(item, context)?),
+            Some(item) => {
+                let converted = read_failure_to_record(item);
+                Some(converted)
+            }
             None => None,
         },
         left_out: *field_000004
-    })
+    }
 }
 
-// Maps line 14: ListRecord.
-pub fn list_record_to_domain(record: crate::accounts_v2::ListRecord, context: &()) -> Result<jig_domain_accounts::ListRecord, crate::accounts_v2::Problem> {
+#[must_use]
+pub fn list_record_to_domain(record: crate::accounts_v2::ListRecord) -> jig_domain_accounts::ListRecord {
     let crate::accounts_v2::ListRecord { names: field_000000, read: field_000001, tried: field_000002, failure: field_000003, left_out: field_000004 } = record;
-    Ok(jig_domain_accounts::ListRecord {
+    jig_domain_accounts::ListRecord {
         names: field_000000,
         read: match field_000001 {
-            Some(item) => Some(match skein_codec::convert::wall_to_domain(item) { Ok(value) => value, Err(reason) => return Err(crate::accounts_v2::paths::LIST_RECORD_READ.problem(reason)) }),
+            Some(item) => {
+                let converted = skein_codec::convert::wall_to_domain(item);
+                Some(converted)
+            }
             None => None,
         },
         tried: match field_000002 {
-            Some(item) => Some(match skein_codec::convert::wall_to_domain(item) { Ok(value) => value, Err(reason) => return Err(crate::accounts_v2::paths::LIST_RECORD_TRIED.problem(reason)) }),
+            Some(item) => {
+                let converted = skein_codec::convert::wall_to_domain(item);
+                Some(converted)
+            }
             None => None,
         },
         failure: match field_000003 {
-            Some(item) => Some(read_failure_to_domain(item, context)?),
+            Some(item) => {
+                let converted = read_failure_to_domain(item);
+                Some(converted)
+            }
             None => None,
         },
         left_out: field_000004
-    })
-}
-
-// Maps line 16: Kind.
-pub fn kind_to_record(value: &jig_domain_accounts::Kind, _context: &()) -> Result<crate::accounts_v2::Kind, crate::accounts_v2::Problem> {
-    match value {
-        jig_domain_accounts::Kind::SignIn => Ok(crate::accounts_v2::Kind::SignIn),
-        jig_domain_accounts::Kind::Key => Ok(crate::accounts_v2::Kind::Key),
-        jig_domain_accounts::Kind::Program => Ok(crate::accounts_v2::Kind::Program),
-        jig_domain_accounts::Kind::None => Ok(crate::accounts_v2::Kind::None),
     }
 }
 
-// Maps line 16: Kind.
-pub fn kind_to_domain(record: crate::accounts_v2::Kind, _context: &()) -> Result<jig_domain_accounts::Kind, crate::accounts_v2::Problem> {
+#[must_use]
+pub fn kind_to_record(value: &jig_domain_accounts::Kind) -> crate::accounts_v2::Kind {
+    match value {
+        jig_domain_accounts::Kind::SignIn => crate::accounts_v2::Kind::SignIn,
+        jig_domain_accounts::Kind::Key => crate::accounts_v2::Kind::Key,
+        jig_domain_accounts::Kind::Program => crate::accounts_v2::Kind::Program,
+        jig_domain_accounts::Kind::None => crate::accounts_v2::Kind::None,
+    }
+}
+
+#[must_use]
+pub fn kind_to_domain(record: crate::accounts_v2::Kind) -> jig_domain_accounts::Kind {
     match record {
-        crate::accounts_v2::Kind::SignIn => Ok(jig_domain_accounts::Kind::SignIn),
-        crate::accounts_v2::Kind::Key => Ok(jig_domain_accounts::Kind::Key),
-        crate::accounts_v2::Kind::Program => Ok(jig_domain_accounts::Kind::Program),
-        crate::accounts_v2::Kind::None => Ok(jig_domain_accounts::Kind::None),
+        crate::accounts_v2::Kind::SignIn => jig_domain_accounts::Kind::SignIn,
+        crate::accounts_v2::Kind::Key => jig_domain_accounts::Kind::Key,
+        crate::accounts_v2::Kind::Program => jig_domain_accounts::Kind::Program,
+        crate::accounts_v2::Kind::None => jig_domain_accounts::Kind::None,
     }
 }
 
-// Maps line 18: Held.
-pub fn held_to_record(value: &jig_domain_accounts::Held, _context: &()) -> Result<crate::accounts_v2::Held, crate::accounts_v2::Problem> {
+#[must_use]
+pub fn held_to_record(value: &jig_domain_accounts::Held) -> crate::accounts_v2::Held {
     match value {
-        jig_domain_accounts::Held::Limited { reset: field_000000 } => Ok(crate::accounts_v2::Held::Limited(crate::accounts_v2::Limited {
+        jig_domain_accounts::Held::Limited { reset: field_000000 } => crate::accounts_v2::Held::Limited(crate::accounts_v2::Limited {
             reset: match field_000000 {
-                Some(item) => Some(match skein_codec::convert::wall_to_record(item) { Ok(value) => value, Err(reason) => return Err(crate::accounts_v2::paths::LIMITED_RESET.problem(reason)) }),
+                Some(item) => {
+                    let converted = skein_codec::convert::wall_to_record(item);
+                    Some(converted)
+                }
                 None => None,
             }
-        })),
-        jig_domain_accounts::Held::Refused => Ok(crate::accounts_v2::Held::Refused),
-        jig_domain_accounts::Held::Moving => Ok(crate::accounts_v2::Held::Moving),
+        }),
+        jig_domain_accounts::Held::Refused => crate::accounts_v2::Held::Refused,
+        jig_domain_accounts::Held::Moving => crate::accounts_v2::Held::Moving,
     }
 }
 
-// Maps line 18: Held.
-pub fn held_to_domain(record: crate::accounts_v2::Held, _context: &()) -> Result<jig_domain_accounts::Held, crate::accounts_v2::Problem> {
+#[must_use]
+pub fn held_to_domain(record: crate::accounts_v2::Held) -> jig_domain_accounts::Held {
     match record {
         crate::accounts_v2::Held::Limited(held) => {
             let crate::accounts_v2::Limited { reset: field_000000 } = held;
-            Ok(jig_domain_accounts::Held::Limited {
+            jig_domain_accounts::Held::Limited {
                 reset: match field_000000 {
-                    Some(item) => Some(match skein_codec::convert::wall_to_domain(item) { Ok(value) => value, Err(reason) => return Err(crate::accounts_v2::paths::LIMITED_RESET.problem(reason)) }),
+                    Some(item) => {
+                        let converted = skein_codec::convert::wall_to_domain(item);
+                        Some(converted)
+                    }
                     None => None,
                 }
-            })
+            }
         },
-        crate::accounts_v2::Held::Refused => Ok(jig_domain_accounts::Held::Refused),
-        crate::accounts_v2::Held::Moving => Ok(jig_domain_accounts::Held::Moving),
+        crate::accounts_v2::Held::Refused => jig_domain_accounts::Held::Refused,
+        crate::accounts_v2::Held::Moving => jig_domain_accounts::Held::Moving,
     }
 }
 
-// Maps line 26: FactWindow.
-pub fn fact_window_to_record(value: &jig_domain_accounts::FactWindow, _context: &()) -> Result<crate::accounts_v2::FactWindow, crate::accounts_v2::Problem> {
+#[must_use]
+pub fn fact_window_to_record(value: &jig_domain_accounts::FactWindow) -> crate::accounts_v2::FactWindow {
     let jig_domain_accounts::FactWindow { length: field_000000, used: field_000001, resets: field_000002, state: field_000003 } = value;
-    Ok(crate::accounts_v2::FactWindow {
+    crate::accounts_v2::FactWindow {
         length: match field_000000 {
-            Some(item) => Some(match skein_codec::convert::duration_to_record(item) { Ok(value) => value, Err(reason) => return Err(crate::accounts_v2::paths::FACT_WINDOW_LENGTH.problem(reason)) }),
+            Some(item) => {
+                let converted = skein_codec::convert::duration_to_record(item);
+                Some(converted)
+            }
             None => None,
         },
         used: match field_000001 {
-            Some(item) => Some(match crate::codec::convert::share_to_record(item) { Ok(value) => value, Err(reason) => return Err(crate::accounts_v2::paths::FACT_WINDOW_USED.problem(reason)) }),
+            Some(item) => {
+                let converted = crate::codec::convert::share_to_record(item);
+                Some(converted)
+            }
             None => None,
         },
         resets: match field_000002 {
-            Some(item) => Some(match skein_codec::convert::wall_to_record(item) { Ok(value) => value, Err(reason) => return Err(crate::accounts_v2::paths::FACT_WINDOW_RESETS.problem(reason)) }),
+            Some(item) => {
+                let converted = skein_codec::convert::wall_to_record(item);
+                Some(converted)
+            }
             None => None,
         },
         state: *field_000003
-    })
+    }
 }
 
-// Maps line 26: FactWindow.
-pub fn fact_window_to_domain(record: crate::accounts_v2::FactWindow, _context: &()) -> Result<jig_domain_accounts::FactWindow, crate::accounts_v2::Problem> {
+pub fn fact_window_to_domain(record: crate::accounts_v2::FactWindow) -> Result<jig_domain_accounts::FactWindow, crate::accounts_v2::Problem> {
     let crate::accounts_v2::FactWindow { length: field_000000, used: field_000001, resets: field_000002, state: field_000003 } = record;
     Ok(jig_domain_accounts::FactWindow {
         length: match field_000000 {
-            Some(item) => Some(match skein_codec::convert::duration_to_domain(item) { Ok(value) => value, Err(reason) => return Err(crate::accounts_v2::paths::FACT_WINDOW_LENGTH.problem(reason)) }),
+            Some(item) => {
+                let converted = skein_codec::convert::duration_to_domain(item);
+                Some(converted)
+            }
             None => None,
         },
         used: match field_000001 {
-            Some(item) => Some(match crate::codec::convert::share_to_domain(item) { Ok(value) => value, Err(reason) => return Err(crate::accounts_v2::paths::FACT_WINDOW_USED.problem(reason)) }),
+            Some(item) => {
+                let converted = match crate::codec::convert::share_to_domain(item) { Ok(value) => value, Err(reason) => return Err(crate::accounts_v2::paths::FACT_WINDOW_USED.problem(reason)) };
+                Some(converted)
+            }
             None => None,
         },
         resets: match field_000002 {
-            Some(item) => Some(match skein_codec::convert::wall_to_domain(item) { Ok(value) => value, Err(reason) => return Err(crate::accounts_v2::paths::FACT_WINDOW_RESETS.problem(reason)) }),
+            Some(item) => {
+                let converted = skein_codec::convert::wall_to_domain(item);
+                Some(converted)
+            }
             None => None,
         },
         state: field_000003
     })
 }
 
-// Maps line 31: FactValue.
-pub fn fact_value_to_record(value: &jig_domain_accounts::FactValue, context: &()) -> Result<crate::accounts_v2::FactValue, crate::accounts_v2::Problem> {
+#[must_use]
+pub fn fact_value_to_record(value: &jig_domain_accounts::FactValue) -> crate::accounts_v2::FactValue {
     match value {
-        jig_domain_accounts::FactValue::Text(held) => Ok(crate::accounts_v2::FactValue::Text(crate::accounts_v2::FactText { text: held.clone() })),
-        jig_domain_accounts::FactValue::Count(held) => Ok(crate::accounts_v2::FactValue::Count(crate::accounts_v2::FactCount { count: *held })),
-        jig_domain_accounts::FactValue::Instant(held) => Ok(crate::accounts_v2::FactValue::Instant(crate::accounts_v2::FactInstant { at: match skein_codec::convert::wall_to_record(held) { Ok(value) => value, Err(reason) => return Err(crate::accounts_v2::paths::FACT_INSTANT_AT.problem(reason)) } })),
-        jig_domain_accounts::FactValue::Span(held) => Ok(crate::accounts_v2::FactValue::Span(crate::accounts_v2::FactSpan { nanos: match skein_codec::convert::duration_to_record(held) { Ok(value) => value, Err(reason) => return Err(crate::accounts_v2::paths::FACT_SPAN_NANOS.problem(reason)) } })),
-        jig_domain_accounts::FactValue::Share(held) => Ok(crate::accounts_v2::FactValue::Share(crate::accounts_v2::FactShare { basis: match crate::codec::convert::share_to_record(held) { Ok(value) => value, Err(reason) => return Err(crate::accounts_v2::paths::FACT_SHARE_BASIS.problem(reason)) } })),
-        jig_domain_accounts::FactValue::Window(held) => Ok(crate::accounts_v2::FactValue::Window(fact_window_to_record(held, context)?)),
+        jig_domain_accounts::FactValue::Text(held) => crate::accounts_v2::FactValue::Text(crate::accounts_v2::FactText { text: held.clone() }),
+        jig_domain_accounts::FactValue::Count(held) => crate::accounts_v2::FactValue::Count(crate::accounts_v2::FactCount { count: *held }),
+        jig_domain_accounts::FactValue::Instant(held) => crate::accounts_v2::FactValue::Instant(crate::accounts_v2::FactInstant { at: skein_codec::convert::wall_to_record(held) }),
+        jig_domain_accounts::FactValue::Span(held) => crate::accounts_v2::FactValue::Span(crate::accounts_v2::FactSpan { nanos: skein_codec::convert::duration_to_record(held) }),
+        jig_domain_accounts::FactValue::Share(held) => crate::accounts_v2::FactValue::Share(crate::accounts_v2::FactShare { basis: crate::codec::convert::share_to_record(held) }),
+        jig_domain_accounts::FactValue::Window(held) => crate::accounts_v2::FactValue::Window(fact_window_to_record(held)),
     }
 }
 
-// Maps line 31: FactValue.
-pub fn fact_value_to_domain(record: crate::accounts_v2::FactValue, context: &()) -> Result<jig_domain_accounts::FactValue, crate::accounts_v2::Problem> {
-    match record {
-        crate::accounts_v2::FactValue::Text(held) => Ok(jig_domain_accounts::FactValue::Text({
+pub fn fact_value_to_domain(record: crate::accounts_v2::FactValue) -> Result<jig_domain_accounts::FactValue, crate::accounts_v2::Problem> {
+    Ok(match record {
+        crate::accounts_v2::FactValue::Text(held) => jig_domain_accounts::FactValue::Text({
             let crate::accounts_v2::FactText { text: held } = held;
             held
-        })),
-        crate::accounts_v2::FactValue::Count(held) => Ok(jig_domain_accounts::FactValue::Count({
+        }),
+        crate::accounts_v2::FactValue::Count(held) => jig_domain_accounts::FactValue::Count({
             let crate::accounts_v2::FactCount { count: held } = held;
             held
-        })),
-        crate::accounts_v2::FactValue::Instant(held) => Ok(jig_domain_accounts::FactValue::Instant({
+        }),
+        crate::accounts_v2::FactValue::Instant(held) => jig_domain_accounts::FactValue::Instant({
             let crate::accounts_v2::FactInstant { at: held } = held;
-            match skein_codec::convert::wall_to_domain(held) { Ok(value) => value, Err(reason) => return Err(crate::accounts_v2::paths::FACT_INSTANT_AT.problem(reason)) }
-        })),
-        crate::accounts_v2::FactValue::Span(held) => Ok(jig_domain_accounts::FactValue::Span({
+            skein_codec::convert::wall_to_domain(held)
+        }),
+        crate::accounts_v2::FactValue::Span(held) => jig_domain_accounts::FactValue::Span({
             let crate::accounts_v2::FactSpan { nanos: held } = held;
-            match skein_codec::convert::duration_to_domain(held) { Ok(value) => value, Err(reason) => return Err(crate::accounts_v2::paths::FACT_SPAN_NANOS.problem(reason)) }
-        })),
-        crate::accounts_v2::FactValue::Share(held) => Ok(jig_domain_accounts::FactValue::Share({
+            skein_codec::convert::duration_to_domain(held)
+        }),
+        crate::accounts_v2::FactValue::Share(held) => jig_domain_accounts::FactValue::Share({
             let crate::accounts_v2::FactShare { basis: held } = held;
             match crate::codec::convert::share_to_domain(held) { Ok(value) => value, Err(reason) => return Err(crate::accounts_v2::paths::FACT_SHARE_BASIS.problem(reason)) }
-        })),
-        crate::accounts_v2::FactValue::Window(held) => Ok(jig_domain_accounts::FactValue::Window(fact_window_to_domain(held, context)?)),
-    }
-}
-
-// Maps line 39: Fact.
-pub fn fact_to_record(value: &jig_domain_accounts::AccountFact, context: &()) -> Result<crate::accounts_v2::Fact, crate::accounts_v2::Problem> {
-    let jig_domain_accounts::AccountFact { kind: field_000000, label: field_000001, value: field_000002, seen: field_000003, source: field_000004, origin: field_000005 } = value;
-    Ok(crate::accounts_v2::Fact {
-        kind: *field_000000,
-        label: field_000001.clone(),
-        value: fact_value_to_record(field_000002, context)?,
-        seen: match skein_codec::convert::wall_to_record(field_000003) { Ok(value) => value, Err(reason) => return Err(crate::accounts_v2::paths::FACT_SEEN.problem(reason)) },
-        source: match field_000004 {
-            Some(item) => Some(*item),
-            None => None,
-        },
-        origin: *field_000005
+        }),
+        crate::accounts_v2::FactValue::Window(held) => jig_domain_accounts::FactValue::Window(fact_window_to_domain(held)?),
     })
 }
 
-// Maps line 39: Fact.
-pub fn fact_to_domain(record: crate::accounts_v2::Fact, context: &()) -> Result<jig_domain_accounts::AccountFact, crate::accounts_v2::Problem> {
+#[must_use]
+pub fn fact_to_record(value: &jig_domain_accounts::AccountFact) -> crate::accounts_v2::Fact {
+    let jig_domain_accounts::AccountFact { kind: field_000000, label: field_000001, value: field_000002, seen: field_000003, source: field_000004, origin: field_000005 } = value;
+    crate::accounts_v2::Fact {
+        kind: *field_000000,
+        label: field_000001.clone(),
+        value: fact_value_to_record(field_000002),
+        seen: skein_codec::convert::wall_to_record(field_000003),
+        source: match field_000004 {
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
+            None => None,
+        },
+        origin: *field_000005
+    }
+}
+
+pub fn fact_to_domain(record: crate::accounts_v2::Fact) -> Result<jig_domain_accounts::AccountFact, crate::accounts_v2::Problem> {
     let crate::accounts_v2::Fact { kind: field_000000, label: field_000001, value: field_000002, seen: field_000003, source: field_000004, origin: field_000005 } = record;
     Ok(jig_domain_accounts::AccountFact {
         kind: field_000000,
         label: field_000001,
-        value: fact_value_to_domain(field_000002, context)?,
-        seen: match skein_codec::convert::wall_to_domain(field_000003) { Ok(value) => value, Err(reason) => return Err(crate::accounts_v2::paths::FACT_SEEN.problem(reason)) },
+        value: fact_value_to_domain(field_000002)?,
+        seen: skein_codec::convert::wall_to_domain(field_000003),
         source: match field_000004 {
-            Some(item) => Some(item),
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
             None => None,
         },
         origin: field_000005
     })
 }
 
-// Maps line 41: Value.
-pub fn value_to_record(value: &jig_domain_accounts::Stored, context: &()) -> Result<crate::accounts_v2::Value, crate::accounts_v2::Problem> {
-    match value {
-        jig_domain_accounts::Stored::Next { number: field_000000 } => Ok(crate::accounts_v2::Value::Next(crate::accounts_v2::Next {
+pub fn value_to_record(value: &jig_domain_accounts::Stored) -> Result<crate::accounts_v2::Value, crate::accounts_v2::Problem> {
+    Ok(match value {
+        jig_domain_accounts::Stored::Next { number: field_000000 } => crate::accounts_v2::Value::Next(crate::accounts_v2::Next {
             number: *field_000000
-        })),
-        jig_domain_accounts::Stored::Account { number: field_000000, provider: field_000001, holder: field_000002, place: field_000003, uses: field_000004, subject: field_000005, display: field_000006, list: field_000007 } => Ok(crate::accounts_v2::Value::Account(crate::accounts_v2::Account {
+        }),
+        jig_domain_accounts::Stored::Account { number: field_000000, provider: field_000001, holder: field_000002, place: field_000003, uses: field_000004, subject: field_000005, display: field_000006, list: field_000007 } => crate::accounts_v2::Value::Account(crate::accounts_v2::Account {
             number: *field_000000,
             provider: *field_000001,
-            holder: holder_to_record(field_000002, context)?,
+            holder: holder_to_record(field_000002),
             place: *field_000003,
             uses: match field_000004 {
-                Some(item) => Some({
-                    let source = item;
-                    let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(crate::accounts_v2::paths::ACCOUNT_USES.problem(skein_codec::Reason::Bound)) };
-                    let mut translated = skein_lib::List::with_capacity(count);
-                    for item in source.as_ref() {
-                        let converted = use_to_record(item, context)?;
-                        if translated.push(converted).is_err() { return Err(crate::accounts_v2::paths::ACCOUNT_USES.problem(skein_codec::Reason::Bound)); }
-                    }
-                    translated
-                }),
+                Some(item) => {
+                    let converted = {
+                        let source = item;
+                        let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(crate::accounts_v2::paths::ACCOUNT_USES.problem(skein_codec::Reason::Bound)) };
+                        let mut translated = skein_lib::List::with_capacity(count);
+                        for item in source.as_ref() {
+                            let converted = use_to_record(item);
+                            assert!(translated.push(converted).is_ok(), "one output per source item");
+                        }
+                        translated
+                    };
+                    Some(converted)
+                }
                 None => None,
             },
             subject: field_000005.clone(),
             display: field_000006.clone(),
             list: match field_000007 {
-                Some(item) => Some(list_record_to_record(item, context)?),
+                Some(item) => {
+                    let converted = list_record_to_record(item);
+                    Some(converted)
+                }
                 None => None,
             }
-        })),
-        jig_domain_accounts::Stored::Source { account: field_000000, number: field_000001, place: field_000002, kind: field_000003, name: field_000004, held: field_000005 } => Ok(crate::accounts_v2::Value::Source(crate::accounts_v2::Source {
+        }),
+        jig_domain_accounts::Stored::Source { account: field_000000, number: field_000001, place: field_000002, kind: field_000003, name: field_000004, held: field_000005 } => crate::accounts_v2::Value::Source(crate::accounts_v2::Source {
             account: *field_000000,
             number: *field_000001,
             place: *field_000002,
-            kind: kind_to_record(field_000003, context)?,
+            kind: kind_to_record(field_000003),
             name: field_000004.clone(),
             held: match field_000005 {
-                Some(item) => Some(held_to_record(item, context)?),
+                Some(item) => {
+                    let converted = held_to_record(item);
+                    Some(converted)
+                }
                 None => None,
             }
-        })),
-        jig_domain_accounts::Stored::Issued { number: field_000000, holder: field_000001, name: field_000002, signed_out: field_000003 } => Ok(crate::accounts_v2::Value::Issued(crate::accounts_v2::Issued {
+        }),
+        jig_domain_accounts::Stored::Issued { number: field_000000, holder: field_000001, name: field_000002, signed_out: field_000003 } => crate::accounts_v2::Value::Issued(crate::accounts_v2::Issued {
             number: *field_000000,
-            holder: holder_to_record(field_000001, context)?,
+            holder: holder_to_record(field_000001),
             name: field_000002.clone(),
             signed_out: *field_000003
-        })),
-        jig_domain_accounts::Stored::Facts { account: field_000000, facts: field_000001 } => Ok(crate::accounts_v2::Value::Facts(crate::accounts_v2::Facts {
+        }),
+        jig_domain_accounts::Stored::Facts { account: field_000000, facts: field_000001 } => crate::accounts_v2::Value::Facts(crate::accounts_v2::Facts {
             account: *field_000000,
             facts: {
                 let source = field_000001;
                 let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(crate::accounts_v2::paths::FACTS_FACTS.problem(skein_codec::Reason::Bound)) };
                 let mut translated = skein_lib::List::with_capacity(count);
                 for item in source.as_ref() {
-                    let converted = fact_to_record(item, context)?;
-                    if translated.push(converted).is_err() { return Err(crate::accounts_v2::paths::FACTS_FACTS.problem(skein_codec::Reason::Bound)); }
+                    let converted = fact_to_record(item);
+                    assert!(translated.push(converted).is_ok(), "one output per source item");
                 }
                 translated
             }
-        })),
-    }
+        }),
+    })
 }
 
-// Maps line 41: Value.
-pub fn value_to_domain(record: crate::accounts_v2::Value, context: &()) -> Result<jig_domain_accounts::Stored, crate::accounts_v2::Problem> {
-    match record {
+pub fn value_to_domain(record: crate::accounts_v2::Value) -> Result<jig_domain_accounts::Stored, crate::accounts_v2::Problem> {
+    Ok(match record {
         crate::accounts_v2::Value::Next(held) => {
             let crate::accounts_v2::Next { number: field_000000 } = held;
-            Ok(jig_domain_accounts::Stored::Next {
+            jig_domain_accounts::Stored::Next {
                 number: field_000000
-            })
+            }
         },
         crate::accounts_v2::Value::Account(held) => {
             let crate::accounts_v2::Account { number: field_000000, provider: field_000001, holder: field_000002, place: field_000003, uses: field_000004, subject: field_000005, display: field_000006, list: field_000007 } = held;
-            Ok(jig_domain_accounts::Stored::Account {
+            jig_domain_accounts::Stored::Account {
                 number: field_000000,
                 provider: field_000001,
-                holder: holder_to_domain(field_000002, context)?,
+                holder: holder_to_domain(field_000002),
                 place: field_000003,
                 uses: match field_000004 {
-                    Some(item) => Some({
-                        let source = item;
-                        let count = source.len();
-                        let mut translated = skein_lib::List::with_capacity(count);
-                        for item in source.into_boxed() {
-                            let converted = use_to_domain(item, context)?;
-                            if translated.push(converted).is_err() { return Err(crate::accounts_v2::paths::ACCOUNT_USES.problem(skein_codec::Reason::Bound)); }
-                        }
-                        Box::from(translated)
-                    }),
+                    Some(item) => {
+                        let converted = {
+                            let source = item;
+                            let count = source.len();
+                            let mut translated = skein_lib::List::with_capacity(count);
+                            for item in source.into_boxed() {
+                                let converted = use_to_domain(item);
+                                assert!(translated.push(converted).is_ok(), "one output per source item");
+                            }
+                            Box::from(translated)
+                        };
+                        Some(converted)
+                    }
                     None => None,
                 },
                 subject: field_000005,
                 display: field_000006,
                 list: match field_000007 {
-                    Some(item) => Some(list_record_to_domain(item, context)?),
+                    Some(item) => {
+                        let converted = list_record_to_domain(item);
+                        Some(converted)
+                    }
                     None => None,
                 }
-            })
+            }
         },
         crate::accounts_v2::Value::Source(held) => {
             let crate::accounts_v2::Source { account: field_000000, number: field_000001, place: field_000002, kind: field_000003, name: field_000004, held: field_000005 } = held;
-            Ok(jig_domain_accounts::Stored::Source {
+            jig_domain_accounts::Stored::Source {
                 account: field_000000,
                 number: field_000001,
                 place: field_000002,
-                kind: kind_to_domain(field_000003, context)?,
+                kind: kind_to_domain(field_000003),
                 name: field_000004,
                 held: match field_000005 {
-                    Some(item) => Some(held_to_domain(item, context)?),
+                    Some(item) => {
+                        let converted = held_to_domain(item);
+                        Some(converted)
+                    }
                     None => None,
                 }
-            })
+            }
         },
         crate::accounts_v2::Value::Issued(held) => {
             let crate::accounts_v2::Issued { number: field_000000, holder: field_000001, name: field_000002, signed_out: field_000003 } = held;
-            Ok(jig_domain_accounts::Stored::Issued {
+            jig_domain_accounts::Stored::Issued {
                 number: field_000000,
-                holder: holder_to_domain(field_000001, context)?,
+                holder: holder_to_domain(field_000001),
                 name: field_000002,
                 signed_out: field_000003
-            })
+            }
         },
         crate::accounts_v2::Value::Facts(held) => {
             let crate::accounts_v2::Facts { account: field_000000, facts: field_000001 } = held;
-            Ok(jig_domain_accounts::Stored::Facts {
+            jig_domain_accounts::Stored::Facts {
                 account: field_000000,
                 facts: {
                     let source = field_000001;
                     let count = source.len();
                     let mut translated = skein_lib::List::with_capacity(count);
                     for item in source.into_boxed() {
-                        let converted = fact_to_domain(item, context)?;
-                        if translated.push(converted).is_err() { return Err(crate::accounts_v2::paths::FACTS_FACTS.problem(skein_codec::Reason::Bound)); }
+                        let converted = fact_to_domain(item)?;
+                        assert!(translated.push(converted).is_ok(), "one output per source item");
                     }
                     Box::from(translated)
                 }
-            })
+            }
         },
-    }
+    })
 }
 

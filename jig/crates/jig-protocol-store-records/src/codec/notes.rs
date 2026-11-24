@@ -51,12 +51,12 @@ pub(crate) fn pattern_to_record(
     if bytes > skein_lib::length::usize_of(limits.segment_bytes) {
         return Err(pattern_problem());
     }
-    Ok(wire::Pattern { segments: members, last: maps::last_to_record(last, limits)? })
+    Ok(wire::Pattern { segments: members, last: maps::last_to_record(last) })
 }
 
 pub(crate) fn pattern_to_domain(value: wire::Pattern, limits: &wire::Limits) -> Result<domain::Pattern, wire::Problem> {
     let wire::Pattern { segments, last } = value;
-    let last = maps::last_to_domain(last, limits)?;
+    let last = maps::last_to_domain(last);
     let mut bytes = match &last {
         domain::Last::Exact(bytes) | domain::Last::Open(bytes) => bytes.len(),
     };

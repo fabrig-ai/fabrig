@@ -1,4 +1,7 @@
-//! The family's generated code cannot drift (data/codec/golden.md, 1).
+//! The family's generated code and bounds cannot drift (data/codec/golden.md, 1).
+
+use crate::records::{CEILINGS, DECLARATIONS};
+
 #[test]
 #[expect(clippy::disallowed_methods, reason = "skein's round: reads SKEIN_CODEGEN_WRITE, the codegen rewrite switch")]
 fn records_match_their_generated_code() {
@@ -10,6 +13,8 @@ fn records_match_their_generated_code() {
     let write = std::env::var_os("SKEIN_CODEGEN_WRITE").as_deref() == Some(std::ffi::OsStr::new("1"));
     let codec = root.join("../view-codec");
     check(&codec.join("src/generated/notes.rs"), output.records.as_bytes(), write);
+    let bounds = skein_codegen::bounds_text(DECLARATIONS, CEILINGS.values().as_slice());
+    check(&root.join("bounds/notes.bounds"), bounds.as_bytes(), write);
 }
 
 fn check(path: &std::path::Path, bytes: &[u8], write: bool) {
@@ -19,7 +24,7 @@ fn check(path: &std::path::Path, bytes: &[u8], write: bool) {
     } else {
         assert!(
             std::fs::read(path).ok().as_deref() == Some(bytes),
-            "{} drifted; regenerate notes family with SKEIN_CODEGEN_WRITE=1",
+            "{} drifted: run SKEIN_CODEGEN_WRITE=1 cargo nextest run -p skein-ui-example-view --lib -E 'test(=tests::drift::records_match_their_generated_code)'",
             path.display()
         );
     }

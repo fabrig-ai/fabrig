@@ -9,6 +9,7 @@ pub type Problem = skein_codec::Problem<Limits>;
 pub const VERSION: u16 = 4;
 
 // Limits: the owner's values, checked once against ceilings.
+#[repr(C)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct Limits {
     pub public_change_gates: u32,
@@ -49,17 +50,33 @@ pub const LIMIT_NAMES: &[&str] = &[
 impl Limits {
     #[must_use]
     pub fn values(&self) -> List<u32> {
-        let mut values = List::with_capacity(u32::try_from(LIMIT_NAMES.len()).expect("schema limits fit u32"));
-        values.push(self.public_change_gates).expect("room for every named limit");
-        values.push(self.public_landing_line_members).expect("room for every named limit");
-        values.push(self.public_landing_line_landed).expect("room for every named limit");
-        values.push(self.public_queue_changes).expect("room for every named limit");
-        values.push(self.public_landings_landings).expect("room for every named limit");
-        values.push(self.public_landings_queues).expect("room for every named limit");
-        values.push(self.public_judgement_gates).expect("room for every named limit");
-        values.push(self.public_member_gates).expect("room for every named limit");
-        values.push(self.public_landing_members).expect("room for every named limit");
-        values
+        List::from_boxed([
+            self.public_change_gates,
+            self.public_landing_line_members,
+            self.public_landing_line_landed,
+            self.public_queue_changes,
+            self.public_landings_landings,
+            self.public_landings_queues,
+            self.public_judgement_gates,
+            self.public_member_gates,
+            self.public_landing_members,
+        ].into())
+    }
+
+    #[must_use]
+    pub fn at_most(&self, most: u32) -> Limits {
+        let _: u32 = most;
+        Limits {
+            public_change_gates: self.public_change_gates.min(most),
+            public_landing_line_members: self.public_landing_line_members.min(most),
+            public_landing_line_landed: self.public_landing_line_landed.min(most),
+            public_queue_changes: self.public_queue_changes.min(most),
+            public_landings_landings: self.public_landings_landings.min(most),
+            public_landings_queues: self.public_landings_queues.min(most),
+            public_judgement_gates: self.public_judgement_gates.min(most),
+            public_member_gates: self.public_member_gates.min(most),
+            public_landing_members: self.public_landing_members.min(most),
+        }
     }
 }
 
@@ -84,495 +101,104 @@ pub fn check_limits(limits: &Limits) -> Result<(), Problem> {
     Ok(())
 }
 
-// Paths: declaration and part positions, with one naming table.
+// Paths: names as the schema spells them.
 pub mod paths {
     use super::Path;
-    pub const PUBLIC_STEP_TAG: Path = Path::new(0, 0);
-    pub const PUBLIC_GATE_NUMBER_GATE: Path = Path::new(1, 0);
-    pub const PUBLIC_GATE_NUMBER_TAIL: Path = Path::new(1, 1);
-    pub const PUBLIC_BLAMED_GATE: Path = Path::new(2, 0);
-    pub const PUBLIC_BLAMED_RED: Path = Path::new(2, 1);
-    pub const PUBLIC_BLAMED_GREEN: Path = Path::new(2, 2);
-    pub const PUBLIC_BLAMED_TAIL: Path = Path::new(2, 3);
-    pub const PUBLIC_SEARCH_BOUND_MEMBER: Path = Path::new(3, 0);
-    pub const PUBLIC_SEARCH_BOUND_PREFIX: Path = Path::new(3, 1);
-    pub const PUBLIC_SEARCH_BOUND_TAIL: Path = Path::new(3, 2);
-    pub const PUBLIC_SEARCH_GREEN: Path = Path::new(4, 0);
-    pub const PUBLIC_SEARCH_RED: Path = Path::new(4, 1);
-    pub const PUBLIC_SEARCH_PROBE: Path = Path::new(4, 2);
-    pub const PUBLIC_SEARCH_TAIL: Path = Path::new(4, 3);
-    pub const PUBLIC_REPAIR_TAG: Path = Path::new(5, 0);
-    pub const PUBLIC_HOLD_TAG: Path = Path::new(6, 0);
-    pub const PUBLIC_CI_TAG: Path = Path::new(7, 0);
-    pub const PUBLIC_GATE_KIND_TAG: Path = Path::new(8, 0);
-    pub const PUBLIC_VERDICT_TAG: Path = Path::new(9, 0);
-    pub const PUBLIC_GATE_NUMBER: Path = Path::new(10, 0);
-    pub const PUBLIC_GATE_KIND: Path = Path::new(10, 1);
-    pub const PUBLIC_GATE_BLOCKS: Path = Path::new(10, 2);
-    pub const PUBLIC_GATE_VERDICT: Path = Path::new(10, 3);
-    pub const PUBLIC_GATE_TAIL: Path = Path::new(10, 4);
-    pub const PUBLIC_USED_USED: Path = Path::new(11, 0);
-    pub const PUBLIC_USED_LIMIT: Path = Path::new(11, 1);
-    pub const PUBLIC_USED_TAIL: Path = Path::new(11, 2);
-    pub const PUBLIC_WAY_TAG: Path = Path::new(12, 0);
-    pub const PUBLIC_CHANGE_TASK: Path = Path::new(13, 0);
-    pub const PUBLIC_CHANGE_HEAD: Path = Path::new(13, 1);
-    pub const PUBLIC_CHANGE_STEP: Path = Path::new(13, 2);
-    pub const PUBLIC_CHANGE_REPAIR: Path = Path::new(13, 3);
-    pub const PUBLIC_CHANGE_MERGE: Path = Path::new(13, 4);
-    pub const PUBLIC_CHANGE_TIERS: Path = Path::new(13, 5);
-    pub const PUBLIC_CHANGE_HOLD: Path = Path::new(13, 6);
-    pub const PUBLIC_CHANGE_CI: Path = Path::new(13, 7);
-    pub const PUBLIC_CHANGE_GATES: Path = Path::new(13, 8);
-    pub const PUBLIC_CHANGE_REPAIRS: Path = Path::new(13, 9);
-    pub const PUBLIC_CHANGE_RESOLUTIONS: Path = Path::new(13, 10);
-    pub const PUBLIC_CHANGE_UPDATES: Path = Path::new(13, 11);
-    pub const PUBLIC_CHANGE_WAY: Path = Path::new(13, 12);
-    pub const PUBLIC_CHANGE_IN_LANDING: Path = Path::new(13, 13);
-    pub const PUBLIC_CHANGE_VERSION: Path = Path::new(13, 14);
-    pub const PUBLIC_CHANGE_TAIL: Path = Path::new(13, 15);
-    pub const PUBLIC_LANDING_PHASE_TAG: Path = Path::new(14, 0);
-    pub const PUBLIC_LANDING_LINE_MEMBERS: Path = Path::new(15, 0);
-    pub const PUBLIC_LANDING_LINE_PHASE: Path = Path::new(15, 1);
-    pub const PUBLIC_LANDING_LINE_LANDED: Path = Path::new(15, 2);
-    pub const PUBLIC_LANDING_LINE_TAIL: Path = Path::new(15, 3);
-    pub const PUBLIC_QUEUED_TASK: Path = Path::new(16, 0);
-    pub const PUBLIC_QUEUED_GOAL: Path = Path::new(16, 1);
-    pub const PUBLIC_QUEUED_READY_SINCE: Path = Path::new(16, 2);
-    pub const PUBLIC_QUEUED_TAIL: Path = Path::new(16, 3);
-    pub const PUBLIC_QUEUE_CHANGES: Path = Path::new(17, 0);
-    pub const PUBLIC_QUEUE_TAIL: Path = Path::new(17, 1);
-    pub const PUBLIC_LANDINGS_TURN: Path = Path::new(18, 0);
-    pub const PUBLIC_LANDINGS_LANDINGS: Path = Path::new(18, 1);
-    pub const PUBLIC_LANDINGS_QUEUES: Path = Path::new(18, 2);
-    pub const PUBLIC_LANDINGS_VERSION: Path = Path::new(18, 3);
-    pub const PUBLIC_LANDINGS_TAIL: Path = Path::new(18, 4);
-    pub const PUBLIC_LANDING_HOLD_TAG: Path = Path::new(19, 0);
-    pub const PUBLIC_COMBINED_TAG: Path = Path::new(20, 0);
-    pub const PUBLIC_LANDING_STEP_TAG: Path = Path::new(21, 0);
-    pub const PUBLIC_LEAVE_TAG: Path = Path::new(22, 0);
-    pub const PUBLIC_JUDGEMENT_PREFIX: Path = Path::new(23, 0);
-    pub const PUBLIC_JUDGEMENT_VERDICT: Path = Path::new(23, 1);
-    pub const PUBLIC_JUDGEMENT_GATES: Path = Path::new(23, 2);
-    pub const PUBLIC_JUDGEMENT_TAIL: Path = Path::new(23, 3);
-    pub const PUBLIC_PROOF_TAG: Path = Path::new(24, 0);
-    pub const PUBLIC_GATE_PROOF_NUMBER: Path = Path::new(25, 0);
-    pub const PUBLIC_GATE_PROOF_KIND: Path = Path::new(25, 1);
-    pub const PUBLIC_GATE_PROOF_BLOCKS: Path = Path::new(25, 2);
-    pub const PUBLIC_GATE_PROOF_PROOF: Path = Path::new(25, 3);
-    pub const PUBLIC_GATE_PROOF_FAULTS: Path = Path::new(25, 4);
-    pub const PUBLIC_GATE_PROOF_TAIL: Path = Path::new(25, 5);
-    pub const PUBLIC_MEMBER_TASK: Path = Path::new(26, 0);
-    pub const PUBLIC_MEMBER_BASE: Path = Path::new(26, 1);
-    pub const PUBLIC_MEMBER_CANDIDATE: Path = Path::new(26, 2);
-    pub const PUBLIC_MEMBER_LANDED: Path = Path::new(26, 3);
-    pub const PUBLIC_MEMBER_GATES: Path = Path::new(26, 4);
-    pub const PUBLIC_MEMBER_HEAD: Path = Path::new(26, 5);
-    pub const PUBLIC_MEMBER_LEFT: Path = Path::new(26, 6);
-    pub const PUBLIC_MEMBER_JUDGEMENT: Path = Path::new(26, 7);
-    pub const PUBLIC_MEMBER_TAIL: Path = Path::new(26, 8);
-    pub const PUBLIC_LANDING_PHASE: Path = Path::new(27, 0);
-    pub const PUBLIC_LANDING_HOLD: Path = Path::new(27, 1);
-    pub const PUBLIC_LANDING_PREPARATION: Path = Path::new(27, 2);
-    pub const PUBLIC_LANDING_MEMBERS: Path = Path::new(27, 3);
-    pub const PUBLIC_LANDING_STALE_PROOFS: Path = Path::new(27, 4);
-    pub const PUBLIC_LANDING_HOLDS_TURN: Path = Path::new(27, 5);
-    pub const PUBLIC_LANDING_COMBINED: Path = Path::new(27, 6);
-    pub const PUBLIC_LANDING_STEP: Path = Path::new(27, 7);
-    pub const PUBLIC_LANDING_SEARCH: Path = Path::new(27, 8);
-    pub const PUBLIC_LANDING_VERSION: Path = Path::new(27, 9);
-    pub const PUBLIC_LANDING_TAIL: Path = Path::new(27, 10);
-}
-
-const PATH_NAMES: &[&[&str]] = &[
-    &[
-        "PublicStep (tag)",
-    ],
-    &[
-        "PublicGateNumber.gate",
-        "PublicGateNumber (tail)",
-    ],
-    &[
-        "PublicBlamed.gate",
-        "PublicBlamed.red",
-        "PublicBlamed.green",
-        "PublicBlamed (tail)",
-    ],
-    &[
-        "PublicSearchBound.member",
-        "PublicSearchBound.prefix",
-        "PublicSearchBound (tail)",
-    ],
-    &[
-        "PublicSearch.green",
-        "PublicSearch.red",
-        "PublicSearch.probe",
-        "PublicSearch (tail)",
-    ],
-    &[
-        "PublicRepair (tag)",
-    ],
-    &[
-        "PublicHold (tag)",
-    ],
-    &[
-        "PublicCi (tag)",
-    ],
-    &[
-        "PublicGateKind (tag)",
-    ],
-    &[
-        "PublicVerdict (tag)",
-    ],
-    &[
-        "PublicGate.number",
-        "PublicGate.kind",
-        "PublicGate.blocks",
-        "PublicGate.verdict",
-        "PublicGate (tail)",
-    ],
-    &[
-        "PublicUsed.used",
-        "PublicUsed.limit",
-        "PublicUsed (tail)",
-    ],
-    &[
-        "PublicWay (tag)",
-    ],
-    &[
-        "PublicChange.task",
-        "PublicChange.head",
-        "PublicChange.step",
-        "PublicChange.repair",
-        "PublicChange.merge",
-        "PublicChange.tiers",
-        "PublicChange.hold",
-        "PublicChange.ci",
-        "PublicChange.gates",
-        "PublicChange.repairs",
-        "PublicChange.resolutions",
-        "PublicChange.updates",
-        "PublicChange.way",
-        "PublicChange.in_landing",
-        "PublicChange (version)",
-        "PublicChange (tail)",
-    ],
-    &[
-        "PublicLandingPhase (tag)",
-    ],
-    &[
-        "PublicLandingLine.members",
-        "PublicLandingLine.phase",
-        "PublicLandingLine.landed",
-        "PublicLandingLine (tail)",
-    ],
-    &[
-        "PublicQueued.task",
-        "PublicQueued.goal",
-        "PublicQueued.ready_since",
-        "PublicQueued (tail)",
-    ],
-    &[
-        "PublicQueue.changes",
-        "PublicQueue (tail)",
-    ],
-    &[
-        "PublicLandings.turn",
-        "PublicLandings.landings",
-        "PublicLandings.queues",
-        "PublicLandings (version)",
-        "PublicLandings (tail)",
-    ],
-    &[
-        "PublicLandingHold (tag)",
-    ],
-    &[
-        "PublicCombined (tag)",
-    ],
-    &[
-        "PublicLandingStep (tag)",
-    ],
-    &[
-        "PublicLeave (tag)",
-    ],
-    &[
-        "PublicJudgement.prefix",
-        "PublicJudgement.verdict",
-        "PublicJudgement.gates",
-        "PublicJudgement (tail)",
-    ],
-    &[
-        "PublicProof (tag)",
-    ],
-    &[
-        "PublicGateProof.number",
-        "PublicGateProof.kind",
-        "PublicGateProof.blocks",
-        "PublicGateProof.proof",
-        "PublicGateProof.faults",
-        "PublicGateProof (tail)",
-    ],
-    &[
-        "PublicMember.task",
-        "PublicMember.base",
-        "PublicMember.candidate",
-        "PublicMember.landed",
-        "PublicMember.gates",
-        "PublicMember.head",
-        "PublicMember.left",
-        "PublicMember.judgement",
-        "PublicMember (tail)",
-    ],
-    &[
-        "PublicLanding.phase",
-        "PublicLanding.hold",
-        "PublicLanding.preparation",
-        "PublicLanding.members",
-        "PublicLanding.stale_proofs",
-        "PublicLanding.holds_turn",
-        "PublicLanding.combined",
-        "PublicLanding.step",
-        "PublicLanding.search",
-        "PublicLanding (version)",
-        "PublicLanding (tail)",
-    ],
-];
-
-/// The path as the schema spells it, or None outside this family's table.
-#[must_use]
-pub fn name(path: Path) -> Option<&'static str> {
-    PATH_NAMES.get(usize::from(path.declaration))?.get(usize::from(path.part)).copied()
-}
-
-// Table: postordered shapes, with compiler-known heap slot sizes.
-static TABLE: &[skein_codec::bounds::Node] = &[
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18] },
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[20] },
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Scalar(32),
-    skein_codec::bounds::Node::Scalar(32),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[22, 23, 24] },
-    skein_codec::bounds::Node::Scalar(2),
-    skein_codec::bounds::Node::Scalar(32),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[26, 27] },
-    skein_codec::bounds::Node::Scalar(32),
-    skein_codec::bounds::Node::Option { item: 29 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[28, 28, 30] },
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[32, 21, 33, 21, 34] },
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49] },
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[51, 52, 53, 54] },
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[56, 57, 58] },
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[60, 61, 62, 63] },
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Scalar(1),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[65, 59, 66, 64] },
-    skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[68, 69] },
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[71, 72] },
-    skein_codec::bounds::Node::Scalar(2),
-    skein_codec::bounds::Node::Scalar(32),
-    skein_codec::bounds::Node::Option { item: 75 },
-    skein_codec::bounds::Node::Option { item: 35 },
-    skein_codec::bounds::Node::Scalar(32),
-    skein_codec::bounds::Node::Option { item: 78 },
-    skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Option { item: 50 },
-    skein_codec::bounds::Node::List { limit: 0, item: 67, size: size_of::<PublicGate>() },
-    skein_codec::bounds::Node::Scalar(1),
-    skein_codec::bounds::Node::Record { prefix: 2, fields: &[74, 76, 19, 77, 79, 80, 81, 55, 82, 70, 70, 70, 73, 83] },
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[85, 86, 87, 88, 89, 90, 91, 92] },
-    skein_codec::bounds::Node::Scalar(2),
-    skein_codec::bounds::Node::List { limit: 1, item: 94, size: size_of::<u16>() },
-    skein_codec::bounds::Node::Scalar(32),
-    skein_codec::bounds::Node::List { limit: 2, item: 96, size: size_of::<[u8; 32]>() },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[95, 93, 97] },
-    skein_codec::bounds::Node::Scalar(2),
-    skein_codec::bounds::Node::Scalar(2),
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[99, 100, 101] },
-    skein_codec::bounds::Node::List { limit: 3, item: 102, size: size_of::<PublicQueued>() },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[103] },
-    skein_codec::bounds::Node::Scalar(2),
-    skein_codec::bounds::Node::Option { item: 105 },
-    skein_codec::bounds::Node::List { limit: 4, item: 98, size: size_of::<PublicLandingLine>() },
-    skein_codec::bounds::Node::List { limit: 5, item: 104, size: size_of::<PublicQueue>() },
-    skein_codec::bounds::Node::Record { prefix: 2, fields: &[106, 107, 108] },
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[110, 111, 112, 113, 114] },
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[116, 117] },
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131] },
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[133, 134, 135, 136, 21, 21, 25] },
-    skein_codec::bounds::Node::Scalar(32),
-    skein_codec::bounds::Node::List { limit: 6, item: 67, size: size_of::<PublicGate>() },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[138, 55, 139] },
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[141, 142, 143, 144, 145, 146] },
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Scalar(1),
-    skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[148, 59, 149, 147, 150] },
-    skein_codec::bounds::Node::Scalar(2),
-    skein_codec::bounds::Node::Scalar(32),
-    skein_codec::bounds::Node::Option { item: 153 },
-    skein_codec::bounds::Node::Scalar(32),
-    skein_codec::bounds::Node::Option { item: 155 },
-    skein_codec::bounds::Node::Scalar(32),
-    skein_codec::bounds::Node::Option { item: 157 },
-    skein_codec::bounds::Node::List { limit: 7, item: 151, size: size_of::<PublicGateProof>() },
-    skein_codec::bounds::Node::Scalar(32),
-    skein_codec::bounds::Node::Option { item: 160 },
-    skein_codec::bounds::Node::Option { item: 137 },
-    skein_codec::bounds::Node::Option { item: 140 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[152, 154, 156, 158, 159, 161, 162, 163] },
-    skein_codec::bounds::Node::Option { item: 115 },
-    skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::List { limit: 8, item: 164, size: size_of::<PublicMember>() },
-    skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Scalar(1),
-    skein_codec::bounds::Node::Option { item: 118 },
-    skein_codec::bounds::Node::Option { item: 132 },
-    skein_codec::bounds::Node::Option { item: 31 },
-    skein_codec::bounds::Node::Record { prefix: 2, fields: &[93, 165, 166, 167, 168, 169, 170, 171, 172] },
-];
-
-const DECLARATIONS: &[u32] = &[
-    19,
-    21,
-    25,
-    28,
-    31,
-    35,
-    50,
-    55,
-    59,
-    64,
-    67,
-    70,
-    73,
-    84,
-    93,
-    98,
-    102,
-    104,
-    109,
-    115,
-    118,
-    132,
-    137,
-    140,
-    147,
-    151,
-    164,
-    173,
-];
-
-static CEILING_VALUES: &[u32] = &[
-    64,
-    8,
-    8,
-    64,
-    64,
-    64,
-    64,
-    8,
-    8,
-];
-
-#[must_use]
-pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-    Some(skein_codec::bounds::family(TABLE, limits.values().as_slice(), CEILING_VALUES, DECLARATIONS)?.encoded)
-}
-
-#[must_use]
-pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-    Some(skein_codec::bounds::family(TABLE, limits.values().as_slice(), CEILING_VALUES, DECLARATIONS)?.decoded)
+    pub const PUBLIC_STEP_TAG: Path = Path::new("PublicStep (tag)");
+    pub const PUBLIC_GATE_NUMBER_GATE: Path = Path::new("PublicGateNumber.gate");
+    pub const PUBLIC_GATE_NUMBER_TAIL: Path = Path::new("PublicGateNumber (tail)");
+    pub const PUBLIC_BLAMED_GATE: Path = Path::new("PublicBlamed.gate");
+    pub const PUBLIC_BLAMED_RED: Path = Path::new("PublicBlamed.red");
+    pub const PUBLIC_BLAMED_GREEN: Path = Path::new("PublicBlamed.green");
+    pub const PUBLIC_BLAMED_TAIL: Path = Path::new("PublicBlamed (tail)");
+    pub const PUBLIC_SEARCH_BOUND_MEMBER: Path = Path::new("PublicSearchBound.member");
+    pub const PUBLIC_SEARCH_BOUND_PREFIX: Path = Path::new("PublicSearchBound.prefix");
+    pub const PUBLIC_SEARCH_BOUND_TAIL: Path = Path::new("PublicSearchBound (tail)");
+    pub const PUBLIC_SEARCH_GREEN: Path = Path::new("PublicSearch.green");
+    pub const PUBLIC_SEARCH_RED: Path = Path::new("PublicSearch.red");
+    pub const PUBLIC_SEARCH_PROBE: Path = Path::new("PublicSearch.probe");
+    pub const PUBLIC_SEARCH_TAIL: Path = Path::new("PublicSearch (tail)");
+    pub const PUBLIC_REPAIR_TAG: Path = Path::new("PublicRepair (tag)");
+    pub const PUBLIC_HOLD_TAG: Path = Path::new("PublicHold (tag)");
+    pub const PUBLIC_CI_TAG: Path = Path::new("PublicCi (tag)");
+    pub const PUBLIC_GATE_KIND_TAG: Path = Path::new("PublicGateKind (tag)");
+    pub const PUBLIC_VERDICT_TAG: Path = Path::new("PublicVerdict (tag)");
+    pub const PUBLIC_GATE_NUMBER: Path = Path::new("PublicGate.number");
+    pub const PUBLIC_GATE_KIND: Path = Path::new("PublicGate.kind");
+    pub const PUBLIC_GATE_BLOCKS: Path = Path::new("PublicGate.blocks");
+    pub const PUBLIC_GATE_VERDICT: Path = Path::new("PublicGate.verdict");
+    pub const PUBLIC_GATE_TAIL: Path = Path::new("PublicGate (tail)");
+    pub const PUBLIC_USED_USED: Path = Path::new("PublicUsed.used");
+    pub const PUBLIC_USED_LIMIT: Path = Path::new("PublicUsed.limit");
+    pub const PUBLIC_USED_TAIL: Path = Path::new("PublicUsed (tail)");
+    pub const PUBLIC_WAY_TAG: Path = Path::new("PublicWay (tag)");
+    pub const PUBLIC_CHANGE_TASK: Path = Path::new("PublicChange.task");
+    pub const PUBLIC_CHANGE_HEAD: Path = Path::new("PublicChange.head");
+    pub const PUBLIC_CHANGE_STEP: Path = Path::new("PublicChange.step");
+    pub const PUBLIC_CHANGE_REPAIR: Path = Path::new("PublicChange.repair");
+    pub const PUBLIC_CHANGE_MERGE: Path = Path::new("PublicChange.merge");
+    pub const PUBLIC_CHANGE_TIERS: Path = Path::new("PublicChange.tiers");
+    pub const PUBLIC_CHANGE_HOLD: Path = Path::new("PublicChange.hold");
+    pub const PUBLIC_CHANGE_CI: Path = Path::new("PublicChange.ci");
+    pub const PUBLIC_CHANGE_GATES: Path = Path::new("PublicChange.gates");
+    pub const PUBLIC_CHANGE_REPAIRS: Path = Path::new("PublicChange.repairs");
+    pub const PUBLIC_CHANGE_RESOLUTIONS: Path = Path::new("PublicChange.resolutions");
+    pub const PUBLIC_CHANGE_UPDATES: Path = Path::new("PublicChange.updates");
+    pub const PUBLIC_CHANGE_WAY: Path = Path::new("PublicChange.way");
+    pub const PUBLIC_CHANGE_IN_LANDING: Path = Path::new("PublicChange.in_landing");
+    pub const PUBLIC_CHANGE_VERSION: Path = Path::new("PublicChange (version)");
+    pub const PUBLIC_CHANGE_TAIL: Path = Path::new("PublicChange (tail)");
+    pub const PUBLIC_LANDING_PHASE_TAG: Path = Path::new("PublicLandingPhase (tag)");
+    pub const PUBLIC_LANDING_LINE_MEMBERS: Path = Path::new("PublicLandingLine.members");
+    pub const PUBLIC_LANDING_LINE_PHASE: Path = Path::new("PublicLandingLine.phase");
+    pub const PUBLIC_LANDING_LINE_LANDED: Path = Path::new("PublicLandingLine.landed");
+    pub const PUBLIC_LANDING_LINE_TAIL: Path = Path::new("PublicLandingLine (tail)");
+    pub const PUBLIC_QUEUED_TASK: Path = Path::new("PublicQueued.task");
+    pub const PUBLIC_QUEUED_GOAL: Path = Path::new("PublicQueued.goal");
+    pub const PUBLIC_QUEUED_READY_SINCE: Path = Path::new("PublicQueued.ready_since");
+    pub const PUBLIC_QUEUED_TAIL: Path = Path::new("PublicQueued (tail)");
+    pub const PUBLIC_QUEUE_CHANGES: Path = Path::new("PublicQueue.changes");
+    pub const PUBLIC_QUEUE_TAIL: Path = Path::new("PublicQueue (tail)");
+    pub const PUBLIC_LANDINGS_TURN: Path = Path::new("PublicLandings.turn");
+    pub const PUBLIC_LANDINGS_LANDINGS: Path = Path::new("PublicLandings.landings");
+    pub const PUBLIC_LANDINGS_QUEUES: Path = Path::new("PublicLandings.queues");
+    pub const PUBLIC_LANDINGS_VERSION: Path = Path::new("PublicLandings (version)");
+    pub const PUBLIC_LANDINGS_TAIL: Path = Path::new("PublicLandings (tail)");
+    pub const PUBLIC_LANDING_HOLD_TAG: Path = Path::new("PublicLandingHold (tag)");
+    pub const PUBLIC_COMBINED_TAG: Path = Path::new("PublicCombined (tag)");
+    pub const PUBLIC_LANDING_STEP_TAG: Path = Path::new("PublicLandingStep (tag)");
+    pub const PUBLIC_LEAVE_TAG: Path = Path::new("PublicLeave (tag)");
+    pub const PUBLIC_JUDGEMENT_PREFIX: Path = Path::new("PublicJudgement.prefix");
+    pub const PUBLIC_JUDGEMENT_VERDICT: Path = Path::new("PublicJudgement.verdict");
+    pub const PUBLIC_JUDGEMENT_GATES: Path = Path::new("PublicJudgement.gates");
+    pub const PUBLIC_JUDGEMENT_TAIL: Path = Path::new("PublicJudgement (tail)");
+    pub const PUBLIC_PROOF_TAG: Path = Path::new("PublicProof (tag)");
+    pub const PUBLIC_GATE_PROOF_NUMBER: Path = Path::new("PublicGateProof.number");
+    pub const PUBLIC_GATE_PROOF_KIND: Path = Path::new("PublicGateProof.kind");
+    pub const PUBLIC_GATE_PROOF_BLOCKS: Path = Path::new("PublicGateProof.blocks");
+    pub const PUBLIC_GATE_PROOF_PROOF: Path = Path::new("PublicGateProof.proof");
+    pub const PUBLIC_GATE_PROOF_FAULTS: Path = Path::new("PublicGateProof.faults");
+    pub const PUBLIC_GATE_PROOF_TAIL: Path = Path::new("PublicGateProof (tail)");
+    pub const PUBLIC_MEMBER_TASK: Path = Path::new("PublicMember.task");
+    pub const PUBLIC_MEMBER_BASE: Path = Path::new("PublicMember.base");
+    pub const PUBLIC_MEMBER_CANDIDATE: Path = Path::new("PublicMember.candidate");
+    pub const PUBLIC_MEMBER_LANDED: Path = Path::new("PublicMember.landed");
+    pub const PUBLIC_MEMBER_GATES: Path = Path::new("PublicMember.gates");
+    pub const PUBLIC_MEMBER_HEAD: Path = Path::new("PublicMember.head");
+    pub const PUBLIC_MEMBER_LEFT: Path = Path::new("PublicMember.left");
+    pub const PUBLIC_MEMBER_JUDGEMENT: Path = Path::new("PublicMember.judgement");
+    pub const PUBLIC_MEMBER_TAIL: Path = Path::new("PublicMember (tail)");
+    pub const PUBLIC_LANDING_PHASE: Path = Path::new("PublicLanding.phase");
+    pub const PUBLIC_LANDING_HOLD: Path = Path::new("PublicLanding.hold");
+    pub const PUBLIC_LANDING_PREPARATION: Path = Path::new("PublicLanding.preparation");
+    pub const PUBLIC_LANDING_MEMBERS: Path = Path::new("PublicLanding.members");
+    pub const PUBLIC_LANDING_STALE_PROOFS: Path = Path::new("PublicLanding.stale_proofs");
+    pub const PUBLIC_LANDING_HOLDS_TURN: Path = Path::new("PublicLanding.holds_turn");
+    pub const PUBLIC_LANDING_COMBINED: Path = Path::new("PublicLanding.combined");
+    pub const PUBLIC_LANDING_STEP: Path = Path::new("PublicLanding.step");
+    pub const PUBLIC_LANDING_SEARCH: Path = Path::new("PublicLanding.search");
+    pub const PUBLIC_LANDING_VERSION: Path = Path::new("PublicLanding (version)");
+    pub const PUBLIC_LANDING_TAIL: Path = Path::new("PublicLanding (tail)");
 }
 
 // Type: PublicStep.
@@ -601,6 +227,29 @@ pub enum PublicStep {
 
 // Record: PublicStep.
 impl PublicStep {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 1;
 }
@@ -610,11 +259,20 @@ impl Record for PublicStep {
     const TAIL: Path = paths::PUBLIC_STEP_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 19)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "PublicStep")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 19)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "PublicStep")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, _limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -676,6 +334,11 @@ pub struct PublicGateNumber {
 
 // Record: PublicGateNumber.
 impl PublicGateNumber {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 8;
 }
@@ -685,11 +348,20 @@ impl Record for PublicGateNumber {
     const TAIL: Path = paths::PUBLIC_GATE_NUMBER_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 21)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "PublicGateNumber")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 21)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "PublicGateNumber")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -714,6 +386,13 @@ pub struct PublicBlamed {
 
 // Record: PublicBlamed.
 impl PublicBlamed {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Scalar(32),
+        skein_codec::bounds::Node::Scalar(32),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 72;
 }
@@ -723,11 +402,20 @@ impl Record for PublicBlamed {
     const TAIL: Path = paths::PUBLIC_BLAMED_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 25)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "PublicBlamed")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 25)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "PublicBlamed")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -755,6 +443,12 @@ pub struct PublicSearchBound {
 
 // Record: PublicSearchBound.
 impl PublicSearchBound {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(2),
+        skein_codec::bounds::Node::Scalar(32),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 34;
 }
@@ -764,11 +458,20 @@ impl Record for PublicSearchBound {
     const TAIL: Path = paths::PUBLIC_SEARCH_BOUND_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 28)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "PublicSearchBound")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 28)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "PublicSearchBound")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -795,6 +498,14 @@ pub struct PublicSearch {
 
 // Record: PublicSearch.
 impl PublicSearch {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("PublicSearchBound"),
+        skein_codec::bounds::Node::Named("PublicSearchBound"),
+        skein_codec::bounds::Node::Scalar(32),
+        skein_codec::bounds::Node::Option { item: 2 },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 3] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 101;
 }
@@ -804,11 +515,20 @@ impl Record for PublicSearch {
     const TAIL: Path = paths::PUBLIC_SEARCH_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 31)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "PublicSearch")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 31)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "PublicSearch")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -839,6 +559,15 @@ pub enum PublicRepair {
 
 // Record: PublicRepair.
 impl PublicRepair {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Named("PublicGateNumber"),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Named("PublicGateNumber"),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2, 3, 4] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 9;
 }
@@ -848,11 +577,20 @@ impl Record for PublicRepair {
     const TAIL: Path = paths::PUBLIC_REPAIR_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 35)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "PublicRepair")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 35)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "PublicRepair")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -899,6 +637,24 @@ pub enum PublicHold {
 
 // Record: PublicHold.
 impl PublicHold {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 1;
 }
@@ -908,11 +664,20 @@ impl Record for PublicHold {
     const TAIL: Path = paths::PUBLIC_HOLD_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 50)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "PublicHold")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 50)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "PublicHold")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, _limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -967,6 +732,14 @@ pub enum PublicCi {
 
 // Record: PublicCi.
 impl PublicCi {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2, 3] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 1;
 }
@@ -976,11 +749,20 @@ impl Record for PublicCi {
     const TAIL: Path = paths::PUBLIC_CI_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 55)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "PublicCi")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 55)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "PublicCi")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, _limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -1014,6 +796,13 @@ pub enum PublicGateKind {
 
 // Record: PublicGateKind.
 impl PublicGateKind {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 1;
 }
@@ -1023,11 +812,20 @@ impl Record for PublicGateKind {
     const TAIL: Path = paths::PUBLIC_GATE_KIND_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 59)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "PublicGateKind")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 59)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "PublicGateKind")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, _limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -1060,6 +858,14 @@ pub enum PublicVerdict {
 
 // Record: PublicVerdict.
 impl PublicVerdict {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2, 3] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 1;
 }
@@ -1069,11 +875,20 @@ impl Record for PublicVerdict {
     const TAIL: Path = paths::PUBLIC_VERDICT_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 64)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "PublicVerdict")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 64)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "PublicVerdict")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, _limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -1108,6 +923,14 @@ pub struct PublicGate {
 
 // Record: PublicGate.
 impl PublicGate {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Named("PublicGateKind"),
+        skein_codec::bounds::Node::Scalar(1),
+        skein_codec::bounds::Node::Named("PublicVerdict"),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2, 3] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 11;
 }
@@ -1117,11 +940,20 @@ impl Record for PublicGate {
     const TAIL: Path = paths::PUBLIC_GATE_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 67)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "PublicGate")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 67)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "PublicGate")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -1151,6 +983,12 @@ pub struct PublicUsed {
 
 // Record: PublicUsed.
 impl PublicUsed {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(4),
+        skein_codec::bounds::Node::Scalar(4),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 8;
 }
@@ -1160,11 +998,20 @@ impl Record for PublicUsed {
     const TAIL: Path = paths::PUBLIC_USED_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 70)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "PublicUsed")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 70)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "PublicUsed")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -1190,6 +1037,12 @@ pub enum PublicWay {
 
 // Record: PublicWay.
 impl PublicWay {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Enum { variants: &[0, 1] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 1;
 }
@@ -1199,11 +1052,20 @@ impl Record for PublicWay {
     const TAIL: Path = paths::PUBLIC_WAY_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 73)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "PublicWay")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 73)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "PublicWay")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, _limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -1244,6 +1106,29 @@ pub struct PublicChange {
 
 // Record: PublicChange.
 impl PublicChange {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(2),
+        skein_codec::bounds::Node::Scalar(32),
+        skein_codec::bounds::Node::Option { item: 1 },
+        skein_codec::bounds::Node::Named("PublicStep"),
+        skein_codec::bounds::Node::Named("PublicRepair"),
+        skein_codec::bounds::Node::Option { item: 4 },
+        skein_codec::bounds::Node::Scalar(32),
+        skein_codec::bounds::Node::Option { item: 6 },
+        skein_codec::bounds::Node::Scalar(4),
+        skein_codec::bounds::Node::Named("PublicHold"),
+        skein_codec::bounds::Node::Option { item: 9 },
+        skein_codec::bounds::Node::Named("PublicCi"),
+        skein_codec::bounds::Node::Named("PublicGate"),
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, public_change_gates), item: 12, size: size_of::<PublicGate>() },
+        skein_codec::bounds::Node::Named("PublicUsed"),
+        skein_codec::bounds::Node::Named("PublicUsed"),
+        skein_codec::bounds::Node::Named("PublicUsed"),
+        skein_codec::bounds::Node::Named("PublicWay"),
+        skein_codec::bounds::Node::Scalar(1),
+        skein_codec::bounds::Node::Record { prefix: 2, fields: &[0, 2, 3, 5, 7, 8, 10, 11, 13, 14, 15, 16, 17, 18] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 118;
 }
@@ -1253,11 +1138,11 @@ impl Record for PublicChange {
     const TAIL: Path = paths::PUBLIC_CHANGE_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 84)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "PublicChange")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 84)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "PublicChange")?.decoded)
     }
 
     #[cfg(debug_assertions)]
@@ -1324,6 +1209,18 @@ pub enum PublicLandingPhase {
 
 // Record: PublicLandingPhase.
 impl PublicLandingPhase {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2, 3, 4, 5, 6, 7] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 1;
 }
@@ -1333,11 +1230,20 @@ impl Record for PublicLandingPhase {
     const TAIL: Path = paths::PUBLIC_LANDING_PHASE_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 93)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "PublicLandingPhase")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 93)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "PublicLandingPhase")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, _limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -1379,6 +1285,15 @@ pub struct PublicLandingLine {
 
 // Record: PublicLandingLine.
 impl PublicLandingLine {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(2),
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, public_landing_line_members), item: 0, size: size_of::<u16>() },
+        skein_codec::bounds::Node::Named("PublicLandingPhase"),
+        skein_codec::bounds::Node::Scalar(32),
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, public_landing_line_landed), item: 3, size: size_of::<[u8; 32]>() },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[1, 2, 4] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 9;
 }
@@ -1388,11 +1303,20 @@ impl Record for PublicLandingLine {
     const TAIL: Path = paths::PUBLIC_LANDING_LINE_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 98)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "PublicLandingLine")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 98)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "PublicLandingLine")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -1421,6 +1345,13 @@ pub struct PublicQueued {
 
 // Record: PublicQueued.
 impl PublicQueued {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(2),
+        skein_codec::bounds::Node::Scalar(2),
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 12;
 }
@@ -1430,11 +1361,20 @@ impl Record for PublicQueued {
     const TAIL: Path = paths::PUBLIC_QUEUED_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 102)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "PublicQueued")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 102)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "PublicQueued")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -1461,6 +1401,12 @@ pub struct PublicQueue {
 
 // Record: PublicQueue.
 impl PublicQueue {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("PublicQueued"),
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, public_queue_changes), item: 0, size: size_of::<PublicQueued>() },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[1] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 4;
 }
@@ -1470,11 +1416,20 @@ impl Record for PublicQueue {
     const TAIL: Path = paths::PUBLIC_QUEUE_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 104)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "PublicQueue")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 104)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "PublicQueue")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -1499,6 +1454,16 @@ pub struct PublicLandings {
 
 // Record: PublicLandings.
 impl PublicLandings {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(2),
+        skein_codec::bounds::Node::Option { item: 0 },
+        skein_codec::bounds::Node::Named("PublicLandingLine"),
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, public_landings_landings), item: 2, size: size_of::<PublicLandingLine>() },
+        skein_codec::bounds::Node::Named("PublicQueue"),
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, public_landings_queues), item: 4, size: size_of::<PublicQueue>() },
+        skein_codec::bounds::Node::Record { prefix: 2, fields: &[1, 3, 5] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 13;
 }
@@ -1508,11 +1473,11 @@ impl Record for PublicLandings {
     const TAIL: Path = paths::PUBLIC_LANDINGS_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 109)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "PublicLandings")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 109)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "PublicLandings")?.decoded)
     }
 
     #[cfg(debug_assertions)]
@@ -1554,6 +1519,15 @@ pub enum PublicLandingHold {
 
 // Record: PublicLandingHold.
 impl PublicLandingHold {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2, 3, 4] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 1;
 }
@@ -1563,11 +1537,20 @@ impl Record for PublicLandingHold {
     const TAIL: Path = paths::PUBLIC_LANDING_HOLD_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 115)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "PublicLandingHold")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 115)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "PublicLandingHold")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, _limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -1602,6 +1585,12 @@ pub enum PublicCombined {
 
 // Record: PublicCombined.
 impl PublicCombined {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Enum { variants: &[0, 1] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 1;
 }
@@ -1611,11 +1600,20 @@ impl Record for PublicCombined {
     const TAIL: Path = paths::PUBLIC_COMBINED_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 118)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "PublicCombined")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 118)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "PublicCombined")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, _limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -1655,6 +1653,23 @@ pub enum PublicLandingStep {
 
 // Record: PublicLandingStep.
 impl PublicLandingStep {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 1;
 }
@@ -1664,11 +1679,20 @@ impl Record for PublicLandingStep {
     const TAIL: Path = paths::PUBLIC_LANDING_STEP_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 132)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "PublicLandingStep")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 132)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "PublicLandingStep")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, _limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -1724,6 +1748,17 @@ pub enum PublicLeave {
 
 // Record: PublicLeave.
 impl PublicLeave {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Named("PublicGateNumber"),
+        skein_codec::bounds::Node::Named("PublicGateNumber"),
+        skein_codec::bounds::Node::Named("PublicBlamed"),
+        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2, 3, 4, 5, 6] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 73;
 }
@@ -1733,11 +1768,20 @@ impl Record for PublicLeave {
     const TAIL: Path = paths::PUBLIC_LEAVE_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 137)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "PublicLeave")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 137)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "PublicLeave")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -1777,6 +1821,14 @@ pub struct PublicJudgement {
 
 // Record: PublicJudgement.
 impl PublicJudgement {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(32),
+        skein_codec::bounds::Node::Named("PublicCi"),
+        skein_codec::bounds::Node::Named("PublicGate"),
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, public_judgement_gates), item: 2, size: size_of::<PublicGate>() },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 3] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 37;
 }
@@ -1786,11 +1838,20 @@ impl Record for PublicJudgement {
     const TAIL: Path = paths::PUBLIC_JUDGEMENT_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 140)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "PublicJudgement")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 140)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "PublicJudgement")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -1822,6 +1883,16 @@ pub enum PublicProof {
 
 // Record: PublicProof.
 impl PublicProof {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2, 3, 4, 5] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 1;
 }
@@ -1831,11 +1902,20 @@ impl Record for PublicProof {
     const TAIL: Path = paths::PUBLIC_PROOF_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 147)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "PublicProof")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 147)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "PublicProof")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, _limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -1875,6 +1955,15 @@ pub struct PublicGateProof {
 
 // Record: PublicGateProof.
 impl PublicGateProof {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Named("PublicGateKind"),
+        skein_codec::bounds::Node::Scalar(1),
+        skein_codec::bounds::Node::Named("PublicProof"),
+        skein_codec::bounds::Node::Scalar(4),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2, 3, 4] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 15;
 }
@@ -1884,11 +1973,20 @@ impl Record for PublicGateProof {
     const TAIL: Path = paths::PUBLIC_GATE_PROOF_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 151)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "PublicGateProof")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 151)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "PublicGateProof")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -1926,6 +2024,25 @@ pub struct PublicMember {
 
 // Record: PublicMember.
 impl PublicMember {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(2),
+        skein_codec::bounds::Node::Scalar(32),
+        skein_codec::bounds::Node::Option { item: 1 },
+        skein_codec::bounds::Node::Scalar(32),
+        skein_codec::bounds::Node::Option { item: 3 },
+        skein_codec::bounds::Node::Scalar(32),
+        skein_codec::bounds::Node::Option { item: 5 },
+        skein_codec::bounds::Node::Named("PublicGateProof"),
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, public_member_gates), item: 7, size: size_of::<PublicGateProof>() },
+        skein_codec::bounds::Node::Scalar(32),
+        skein_codec::bounds::Node::Option { item: 9 },
+        skein_codec::bounds::Node::Named("PublicLeave"),
+        skein_codec::bounds::Node::Option { item: 11 },
+        skein_codec::bounds::Node::Named("PublicJudgement"),
+        skein_codec::bounds::Node::Option { item: 13 },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 2, 4, 6, 8, 10, 12, 14] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 250;
 }
@@ -1935,11 +2052,20 @@ impl Record for PublicMember {
     const TAIL: Path = paths::PUBLIC_MEMBER_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 164)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "PublicMember")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 164)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "PublicMember")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -1984,6 +2110,24 @@ pub struct PublicLanding {
 
 // Record: PublicLanding.
 impl PublicLanding {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("PublicLandingPhase"),
+        skein_codec::bounds::Node::Named("PublicLandingHold"),
+        skein_codec::bounds::Node::Option { item: 1 },
+        skein_codec::bounds::Node::Scalar(4),
+        skein_codec::bounds::Node::Named("PublicMember"),
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, public_landing_members), item: 4, size: size_of::<PublicMember>() },
+        skein_codec::bounds::Node::Scalar(4),
+        skein_codec::bounds::Node::Scalar(1),
+        skein_codec::bounds::Node::Named("PublicCombined"),
+        skein_codec::bounds::Node::Option { item: 8 },
+        skein_codec::bounds::Node::Named("PublicLandingStep"),
+        skein_codec::bounds::Node::Option { item: 10 },
+        skein_codec::bounds::Node::Named("PublicSearch"),
+        skein_codec::bounds::Node::Option { item: 12 },
+        skein_codec::bounds::Node::Record { prefix: 2, fields: &[0, 2, 3, 5, 6, 7, 9, 11, 13] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 124;
 }
@@ -1993,11 +2137,11 @@ impl Record for PublicLanding {
     const TAIL: Path = paths::PUBLIC_LANDING_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 173)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "PublicLanding")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 173)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "PublicLanding")?.decoded)
     }
 
     #[cfg(debug_assertions)]
@@ -2039,3 +2183,56 @@ impl Record for PublicLanding {
     }
 }
 
+// Bounds: one postordered shape per declaration, sorted by name.
+pub static DECLARATIONS: &[skein_codec::bounds::Declaration] = &[
+    skein_codec::bounds::Declaration { name: "PublicBlamed", nodes: PublicBlamed::SHAPE },
+    skein_codec::bounds::Declaration { name: "PublicChange", nodes: PublicChange::SHAPE },
+    skein_codec::bounds::Declaration { name: "PublicCi", nodes: PublicCi::SHAPE },
+    skein_codec::bounds::Declaration { name: "PublicCombined", nodes: PublicCombined::SHAPE },
+    skein_codec::bounds::Declaration { name: "PublicGate", nodes: PublicGate::SHAPE },
+    skein_codec::bounds::Declaration { name: "PublicGateKind", nodes: PublicGateKind::SHAPE },
+    skein_codec::bounds::Declaration { name: "PublicGateNumber", nodes: PublicGateNumber::SHAPE },
+    skein_codec::bounds::Declaration { name: "PublicGateProof", nodes: PublicGateProof::SHAPE },
+    skein_codec::bounds::Declaration { name: "PublicHold", nodes: PublicHold::SHAPE },
+    skein_codec::bounds::Declaration { name: "PublicJudgement", nodes: PublicJudgement::SHAPE },
+    skein_codec::bounds::Declaration { name: "PublicLanding", nodes: PublicLanding::SHAPE },
+    skein_codec::bounds::Declaration { name: "PublicLandingHold", nodes: PublicLandingHold::SHAPE },
+    skein_codec::bounds::Declaration { name: "PublicLandingLine", nodes: PublicLandingLine::SHAPE },
+    skein_codec::bounds::Declaration { name: "PublicLandingPhase", nodes: PublicLandingPhase::SHAPE },
+    skein_codec::bounds::Declaration { name: "PublicLandingStep", nodes: PublicLandingStep::SHAPE },
+    skein_codec::bounds::Declaration { name: "PublicLandings", nodes: PublicLandings::SHAPE },
+    skein_codec::bounds::Declaration { name: "PublicLeave", nodes: PublicLeave::SHAPE },
+    skein_codec::bounds::Declaration { name: "PublicMember", nodes: PublicMember::SHAPE },
+    skein_codec::bounds::Declaration { name: "PublicProof", nodes: PublicProof::SHAPE },
+    skein_codec::bounds::Declaration { name: "PublicQueue", nodes: PublicQueue::SHAPE },
+    skein_codec::bounds::Declaration { name: "PublicQueued", nodes: PublicQueued::SHAPE },
+    skein_codec::bounds::Declaration { name: "PublicRepair", nodes: PublicRepair::SHAPE },
+    skein_codec::bounds::Declaration { name: "PublicSearch", nodes: PublicSearch::SHAPE },
+    skein_codec::bounds::Declaration { name: "PublicSearchBound", nodes: PublicSearchBound::SHAPE },
+    skein_codec::bounds::Declaration { name: "PublicStep", nodes: PublicStep::SHAPE },
+    skein_codec::bounds::Declaration { name: "PublicUsed", nodes: PublicUsed::SHAPE },
+    skein_codec::bounds::Declaration { name: "PublicVerdict", nodes: PublicVerdict::SHAPE },
+    skein_codec::bounds::Declaration { name: "PublicWay", nodes: PublicWay::SHAPE },
+];
+
+static CEILING_VALUES: &[u32] = &[
+    CEILINGS.public_change_gates,
+    CEILINGS.public_landing_line_members,
+    CEILINGS.public_landing_line_landed,
+    CEILINGS.public_queue_changes,
+    CEILINGS.public_landings_landings,
+    CEILINGS.public_landings_queues,
+    CEILINGS.public_judgement_gates,
+    CEILINGS.public_member_gates,
+    CEILINGS.public_landing_members,
+];
+
+#[must_use]
+pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+    Some(skein_codec::bounds::family(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES)?.encoded)
+}
+
+#[must_use]
+pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+    Some(skein_codec::bounds::family(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES)?.decoded)
+}

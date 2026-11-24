@@ -127,8 +127,8 @@ fn job_results_cross_word_lines_and_question_answers_without_bytes() {
             t::Line::Notified { recipient: t::Party::Task(7), word },
         ] {
             let source = t::ActivityLine { task: 7, position: 2, at: Wall::from_nanos(29), line };
-            let answer = crate::translate::objects::question_answer::answer(&source, &limits).unwrap();
-            assert_eq!(crate::translate::activity::line(&source, &limits).unwrap(), answer);
+            let answer = crate::translate::objects::question_answer::answer(&source).unwrap();
+            assert_eq!(crate::translate::activity::line(&source).unwrap(), answer);
             let mut out = Writer::new(
                 usize::try_from(answer.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
             );
@@ -408,7 +408,7 @@ fn a_line_at_the_largest_profile_bound_encodes() {
         t::Line::Notified { recipient: t::Party::Person(3), word },
     ] {
         let line = t::ActivityLine { task: 7, position: 1, at: Wall::from_nanos(5), line };
-        let record = crate::translate::activity::line(&line, &w::CEILINGS).unwrap();
+        let record = crate::translate::activity::line(&line).unwrap();
         let mut encoded = Writer::new(
             usize::try_from(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
         );
@@ -493,7 +493,7 @@ fn standing_activity_crosses_both_client_translations_at_its_words_bound() {
         line: t::Line::Stood { attempt: 3, words: Box::from([b'w'; 513]) },
     };
     assert_eq!(
-        crate::translate::activity::line(&line, &limits).unwrap().encode(&limits).unwrap_err().path,
+        crate::translate::activity::line(&line).unwrap().encode(&limits).unwrap_err().path,
         w::paths::ACTIVITY_STOOD_WORDS
     );
     let line = t::ActivityLine {
@@ -502,7 +502,7 @@ fn standing_activity_crosses_both_client_translations_at_its_words_bound() {
         at: Wall::EPOCH,
         line: t::Line::Stood { attempt: 3, words: Box::from([b'w'; 512]) },
     };
-    let record = crate::translate::activity::line(&line, &limits).unwrap();
+    let record = crate::translate::activity::line(&line).unwrap();
     let narrower = w::Limits { activity_stood_words: t::STOOD_WORDS - 1, ..limits };
     let mut out = Writer::new(
         usize::try_from(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
@@ -592,7 +592,7 @@ fn now_written_crosses_the_client_wire_at_its_line_bound() {
         }
     );
     assert!(actual.decoded.is_none());
-    let record = crate::translate::activity::line(&line, &limits).unwrap();
+    let record = crate::translate::activity::line(&line).unwrap();
     let mut bytes = Writer::new(
         usize::try_from(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
     );
@@ -604,7 +604,7 @@ fn now_written_crosses_the_client_wire_at_its_line_bound() {
     );
     let line = t::ActivityLine { line: t::Line::NowWritten { attempt: 3, line: Box::from([b'n'; 513]) }, ..line };
     assert_eq!(
-        crate::translate::activity::line(&line, &limits).unwrap().encode(&limits).unwrap_err().path,
+        crate::translate::activity::line(&line).unwrap().encode(&limits).unwrap_err().path,
         w::paths::ACTIVITY_NOW_WRITTEN_LINE
     );
 }

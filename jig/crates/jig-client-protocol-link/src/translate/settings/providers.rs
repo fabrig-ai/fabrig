@@ -56,7 +56,7 @@ fn encode_provider_registration(
     let token = value.token.clone();
     let revocation = value.revocation.clone();
     let keys = value.keys.clone();
-    let endpoint_transport = encode_provider_transport(&value.endpoint_transport, limits)?;
+    let endpoint_transport = encode_provider_transport(&value.endpoint_transport);
     let mut must_grant = List::with_capacity(limits.provider_registration_must_grant);
     for item in &value.must_grant {
         let item = wire::ProviderText { bytes: item.clone() };
@@ -172,11 +172,10 @@ fn decode_provider(value: &wire::Provider) -> p::Provider {
     let programs = programs.into_boxed();
     p::Provider { name, number, endpoint, direct, list, signed_in_plan, manage_usage, sign_in, keys, programs }
 }
-#[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
-fn encode_provider_header(value: &p::Header, _limits: &wire::Limits) -> Result<wire::ProviderHeader, wire::Problem> {
+fn encode_provider_header(value: &p::Header) -> wire::ProviderHeader {
     let name = value.name.clone();
     let value = value.value.clone();
-    Ok(wire::ProviderHeader { name, value })
+    wire::ProviderHeader { name, value }
 }
 fn decode_provider_header(value: &wire::ProviderHeader) -> p::Header {
     let name = Box::from(value.name.as_ref());
@@ -192,11 +191,11 @@ fn encode_provider_endpoint(
     let dialect = value.dialect;
     let provider = value.provider.clone();
     let program = value.program.clone();
-    let address = encode_provider_address(&value.address, limits)?;
-    let transport = encode_provider_transport(&value.transport, limits)?;
+    let address = encode_provider_address(&value.address);
+    let transport = encode_provider_transport(&value.transport);
     let mut headers = List::with_capacity(limits.provider_endpoint_headers);
     for item in &value.headers {
-        let item = encode_provider_header(item, limits)?;
+        let item = encode_provider_header(item);
         if headers.push(item).is_err() {
             return Err(problem(skein_codec::Reason::Bound));
         }
@@ -235,17 +234,13 @@ fn decode_provider_endpoint(value: &wire::ProviderEndpoint) -> p::Endpoint {
     p::Endpoint { name, number, dialect, provider, program, address, transport, headers, connect, handshake }
 }
 
-#[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
-fn encode_provider_transport(
-    value: &p::Transport,
-    _limits: &wire::Limits,
-) -> Result<wire::ProviderTransport, wire::Problem> {
-    Ok(match value {
+fn encode_provider_transport(value: &p::Transport) -> wire::ProviderTransport {
+    match value {
         p::Transport::Plaintext => wire::ProviderTransport::Plaintext,
         p::Transport::Tls { server_name, trust } => {
             wire::ProviderTransport::Tls(wire::ProviderTls { server_name: server_name.clone(), trust: trust.clone() })
         }
-    })
+    }
 }
 fn decode_provider_transport(value: &wire::ProviderTransport) -> p::Transport {
     match value {
@@ -255,12 +250,8 @@ fn decode_provider_transport(value: &wire::ProviderTransport) -> p::Transport {
         }
     }
 }
-#[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
-fn encode_provider_address(
-    value: &p::EndpointAddress,
-    _limits: &wire::Limits,
-) -> Result<wire::ProviderAddress, wire::Problem> {
-    Ok(match value {
+fn encode_provider_address(value: &p::EndpointAddress) -> wire::ProviderAddress {
+    match value {
         p::EndpointAddress::Host { name, port } => {
             wire::ProviderAddress::Host(wire::ProviderHost { name: name.clone(), port: *port })
         }
@@ -275,7 +266,7 @@ fn encode_provider_address(
                 scope_id: value.scope_id(),
             })
         }
-    })
+    }
 }
 fn decode_provider_address(value: &wire::ProviderAddress) -> p::EndpointAddress {
     match value {

@@ -47,7 +47,6 @@ fn application_reviews_keep_the_sizes_and_edits_they_carry() {
 
 #[test]
 fn a_withdrawn_party_proposal_keeps_its_reason_and_heads() {
-    let limits = Limits::standard();
     let key = w::ProposalKey { proposer: w::Proposer::Party(w::ProposerParty { value: 7 }), number: 3 };
     let mut items = List::with_capacity(3);
     for (number, edit) in
@@ -74,7 +73,7 @@ fn a_withdrawn_party_proposal_keeps_its_reason_and_heads() {
         at: None,
         by: None,
     };
-    assert_eq!(ended_proposal_text(&ended, &limits).unwrap().as_ref(), b"proposal p7/3 of settings, withdrawn\nreason:\n  Explain work\n  Keep it readable\nitems:\n  charter 1: set\n  charter 2: removed\n  charter 3: reset\n");
+    assert_eq!(ended_proposal_text(&ended).unwrap().as_ref(), b"proposal p7/3 of settings, withdrawn\nreason:\n  Explain work\n  Keep it readable\nitems:\n  charter 1: set\n  charter 2: removed\n  charter 3: reset\n");
 }
 
 #[test]

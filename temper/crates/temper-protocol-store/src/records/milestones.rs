@@ -2,9 +2,9 @@
 use super::{d, w};
 
 pub(super) fn encode(row: &d::MilestoneRow) -> w::MilestoneRow {
-    crate::generated::store::milestone_row_to_record(row, &super::Context::UNBOUNDED).expect(super::FITS)
+    crate::generated::store::milestone_row_to_record(row)
 }
 
 pub(super) fn decode(row: w::MilestoneRow) -> d::MilestoneRow {
-    crate::generated::store::milestone_row_to_domain(row, &super::Context::UNBOUNDED).expect(super::FITS)
+    crate::generated::store::milestone_row_to_domain(row)
 }

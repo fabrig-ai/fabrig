@@ -63,7 +63,6 @@ pub struct Component {
     public: public::State,
 }
 impl Component {
-    #[expect(clippy::too_many_lines, reason = "keep startup validation and construction together")]
     pub fn new(mut settings: Settings, env: &Env<Limits>, out: &mut Queue<Request>) -> Result<Self, Unusable> {
         let given = settings.link_secret.take();
         let local_given = settings.local_secret.take();
@@ -82,9 +81,7 @@ impl Component {
         {
             return Err(Unusable::Limits);
         }
-        let Ok(hello) = crate::translate::watches::hello([0; 16], &settings, &env.limits.wire) else {
-            return Err(Unusable::Limits);
-        };
+        let hello = crate::translate::watches::hello([0; 16], &settings);
         if hello.measure(&env.limits.wire).unwrap_or(u32::MAX) > env.limits.queued_bytes {
             return Err(Unusable::Limits);
         }
@@ -286,7 +283,7 @@ impl Component {
                 self.unused(exchange, out);
                 self.response(exchange, crate::Reply::NotARecord);
             }
-            Event::SignInEnded { sign_in } => self.ended(env, sign_in, out),
+            Event::SignInEnded { sign_in } => self.ended(sign_in, out),
             Event::Application(crate::FromApplication::Answered { to, family, record }) => {
                 self.application(env, to.into_token(), family, record);
             }
@@ -304,8 +301,8 @@ impl Component {
             Event::Application(crate::FromApplication::Read { reply, family, record }) => {
                 self.application_read(env, reply.into_token(), family, record);
             }
-            Event::Admitted { watcher } => self.watch_answer(env, watcher, None),
-            Event::WatchRefused { watcher, why } => self.watch_answer(env, watcher, Some(why)),
+            Event::Admitted { watcher } => self.watch_answer(watcher, None),
+            Event::WatchRefused { watcher, why } => self.watch_answer(watcher, Some(why)),
             Event::Delivery { watcher, document } => {
                 if let Some(frame) = public_me::frame(&document) {
                     self.named_delivery(env, watcher, frame, out);
@@ -326,7 +323,7 @@ impl Component {
                 self.application_delivery(env, watcher, family, record, out);
             }
             Event::ProviderClient { reply, change } => {
-                let result = self.provider_client(env, change);
+                let result = self.provider_client(change);
                 out.push(Request::Application(crate::ToApplication::ProviderClientChanged { reply, result }));
             }
             Event::Redeem { exchange, authorization, content_type, body } => {
@@ -362,7 +359,7 @@ impl Component {
                 self.mint_refused(name, crate::MintRefusal::NotReady, out);
                 return true;
             }
-            if self.stream_up(env, out) {
+            if self.stream_up(out) {
                 return true;
             }
             if let Some((owner, _)) = self.connections.first() {
@@ -455,7 +452,7 @@ impl Component {
             }
         }
         let Some(owner) = selected else {
-            if self.stream_up(env, out) {
+            if self.stream_up(out) {
                 return true;
             }
             if !self.public.settled() {
@@ -664,7 +661,7 @@ impl Component {
             | Route::Gone
             | Route::Stream => {
                 let Some((sign_in, digest)) = sign_in::credential(credential.as_ref()) else {
-                    let answer = routes::unauthenticated(route, &env.limits.wire);
+                    let answer = routes::unauthenticated(route);
                     if route == Route::Batch {
                         self.batch_denied(exchange);
                     } else if route == Route::Stream {
@@ -713,7 +710,7 @@ impl Component {
                         .insert(exchange, Waiting::SignOut { sign_in, committed })
                         .expect("same sign-out slot");
                     if !committed {
-                        self.ended(env, sign_in, out);
+                        self.ended(sign_in, out);
                     }
                 }
                 people::Reply::Again(people::Again::NotReady) => {
@@ -853,13 +850,8 @@ impl Component {
         };
         match waiting {
             Waiting::Ask { family: Some(number), version, .. } if number == family => {
-                let answer = match Ok(w::Family { number }) {
-                    Ok(value) => {
-                        crate::translate::answers::owned(w::Owner::Family(value), version, record, &env.limits.wire)
-                    }
-                    Err(problem) => Err(problem),
-                };
-                self.answer(exchange, answer, &env.limits.wire);
+                let answer = crate::translate::answers::owned(w::Owner::Family(w::Family { number }), version, record);
+                self.answer(exchange, Ok(answer), &env.limits.wire);
             }
             Waiting::LinkAskWhose { .. }
             | Waiting::AskedWhose { .. }
@@ -920,7 +912,7 @@ impl Component {
     fn respond(&mut self, exchange: Token, body: Box<[u8]>) {
         self.response(exchange, crate::Reply::Record(body));
     }
-    fn denied(&mut self, env: &Env<Limits>, exchange: Token, route: Route) {
+    fn denied(&mut self, exchange: Token, route: Route) {
         if route == Route::Batch {
             self.batch_denied(exchange);
             return;
@@ -930,7 +922,7 @@ impl Component {
             if route == Route::Stream {
                 connection.ended = Some(crate::Ended::SignedOut);
             } else {
-                connection.respond(crate::Reply::Record(routes::unauthenticated(route, &env.limits.wire)));
+                connection.respond(crate::Reply::Record(routes::unauthenticated(route)));
             }
         }
     }

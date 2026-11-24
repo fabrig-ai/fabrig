@@ -55,9 +55,9 @@ fn settings_contract_fixtures_keep_the_ask_answers_documents_and_selectors() {
         c::Read::Revision(c::ReadRevision { number: 6 }),
         c::Read::Revisions(c::ReadRevisions { before: Some(8) }),
     ] {
-        translate::reads::read(&read, t).expect("read fixture");
+        drop(translate::reads::read(&read));
     }
-    assert_eq!(translate::watches::subject(&c::Subject::Settings, t).expect("settings watch"), w::Subject::Settings);
+    assert_eq!(translate::watches::subject(&c::Subject::Settings), w::Subject::Settings);
     let changed = w::Outcome::SettingsChanged(w::OutcomeSettingsChanged { revision: 6 });
     assert_eq!(outcome(&changed, &limits), Ok(c::Outcome::SettingsChanged(c::OutcomeSettingsChanged { revision: 6 })));
     let stale = w::Refusal::Stale(w::RefusalStale { newest: 9 });
@@ -81,14 +81,14 @@ fn settings_contract_fixtures_keep_the_ask_answers_documents_and_selectors() {
         let why = c::MalformedSettings { setting: c::Setting::Rules, fault, detail: None };
         let wire = w::Refusal::Malformed(w::RefusalMalformed {
             at: 0,
-            why: w::Malformed::Settings(wire::wire_malformed_settings(&why, t).expect("fault")),
+            why: w::Malformed::Settings(wire::wire_malformed_settings(&why)),
         });
         assert_eq!(refusal(&wire, &limits), Ok(c::Refusal::Malformed { at: 0, why: c::Malformed::Settings(why) }));
     }
     let unchanged = w::Refusal::Malformed(w::RefusalMalformed { at: 0, why: w::Malformed::SettingsUnchanged });
     assert_eq!(refusal(&unchanged, &limits), Ok(c::Refusal::Malformed { at: 0, why: c::Malformed::SettingsUnchanged }));
     let document = values::settings_document();
-    let settings = wire::wire_settings_document(&document, t).expect("settings");
+    let settings = wire::wire_settings_document(&document);
     let bytes = encoded!(&w::ReadValue::Settings(settings.clone()));
     assert_eq!(translate::reads::value(&bytes, &limits), Ok(c::ReadValue::Settings(Box::new(document))));
     let bytes = encoded!(&w::DeliveryValue::Settings(settings));
@@ -118,7 +118,7 @@ fn settings_contract_fixtures_keep_the_ask_answers_documents_and_selectors() {
         assert_eq!(translate::reads::value(&bytes, &limits), Ok(c::ReadValue::Revision(Box::new(answer))));
     }
     let page = values::settings_page();
-    let bytes = encoded!(&w::ReadValue::Revisions(wire::wire_revisions_page(&page, t).expect("page")));
+    let bytes = encoded!(&w::ReadValue::Revisions(wire::wire_revisions_page(&page)));
     assert_eq!(translate::reads::value(&bytes, &limits), Ok(c::ReadValue::Revisions(Box::new(page))));
 }
 
@@ -149,7 +149,7 @@ fn engine_settings_reads_and_deliveries_decode_at_the_client_end() {
     let mut holding = List::with_capacity(1);
     holding.push(d::HeldRevision { head: head.clone(), holders: 2 }).expect("held newest");
     let source = d::Settings { newest: 6, settings, held: holding, pending: List::with_capacity(0) };
-    let wire = engine::document(&source, t).expect("engine inventory");
+    let wire = engine::document(&source).expect("engine inventory");
     let bytes = encoded!(&w::ReadValue::Settings(wire.clone()));
     let c::ReadValue::Settings(document) = translate::reads::value(&bytes, &limits).expect("client inventory") else {
         panic!("settings inventory")
@@ -194,7 +194,7 @@ fn engine_settings_reads_and_deliveries_decode_at_the_client_end() {
     let mut rows = List::with_capacity(1);
     rows.push(reads::RevisionRow { head, items: List::with_capacity(0), more: 3 }).expect("revision row");
     let page = reads::RevisionsPage { rows, next: Some(6), forgotten: false };
-    let bytes = encoded!(&w::ReadValue::Revisions(engine::revisions(&page, t).expect("engine page")));
+    let bytes = encoded!(&w::ReadValue::Revisions(engine::revisions(&page)));
     let c::ReadValue::Revisions(page) = translate::reads::value(&bytes, &limits).expect("client page") else {
         panic!("revisions page")
     };

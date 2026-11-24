@@ -16,23 +16,23 @@ pub fn stream_limits() -> Limits {
     limits
 }
 
-pub fn wire_family(_limits: &Limits) -> Owner {
+pub fn wire_family() -> Owner {
     Owner::Family(Family { number: u16::MAX })
 }
 
-pub fn served(_limits: &Limits, owner: Owner) -> Served {
+pub fn served(owner: Owner) -> Served {
     Served { owner, first: u32::MAX, last: u32::MAX }
 }
 
-pub fn hello(limits: &Limits) -> Hello {
+pub fn hello() -> Hello {
     let mut owners = List::with_capacity(2);
-    owners.push(served(limits, Owner::Jig)).expect("first owner");
-    owners.push(served(limits, wire_family(limits))).expect("second owner");
+    owners.push(served(Owner::Jig)).expect("first owner");
+    owners.push(served(wire_family())).expect("second owner");
     Hello { stream: [255; 16], served: owners, heartbeat: skein_lib::Duration::from_nanos(u64::MAX) }
 }
 
 pub fn stream_owned(limits: &Limits) -> Owned {
-    Owned { owner: wire_family(limits), version: u32::MAX, record: bytes(limits.owned_record) }
+    Owned { owner: wire_family(), version: u32::MAX, record: bytes(limits.owned_record) }
 }
 
 pub fn current_call(limits: &Limits) -> CurrentCall {
@@ -86,37 +86,37 @@ pub fn run_text(limits: &Limits, call: LiveCall) -> RunText {
     }
 }
 
-pub fn ended(_limits: &Limits, why: WatchEnd) -> WatchEnded {
+pub fn ended(why: WatchEnd) -> WatchEnded {
     WatchEnded { watch: u64::MAX, why }
 }
 
 pub fn stream_events(limits: &Limits) -> [StreamEvent; 5] {
     let delivery = Delivery { watch: u64::MAX, document: stream_owned(limits) };
     [
-        StreamEvent::Hello(hello(limits)),
+        StreamEvent::Hello(hello()),
         StreamEvent::Delivery(delivery),
         StreamEvent::Text(stream_text(limits, raw_live_call(limits))),
         StreamEvent::Text(stream_text(limits, decoded_live_call(limits))),
-        StreamEvent::Ended(ended(limits, WatchEnd::SubjectEnded)),
+        StreamEvent::Ended(ended(WatchEnd::SubjectEnded)),
     ]
 }
 
-pub fn tree_subject(_limits: &Limits) -> Subject {
+pub fn tree_subject() -> Subject {
     Subject::Tree(SubjectTree { task: u64::MAX, window: u32::MAX })
 }
 
-pub fn open_tree(limits: &Limits) -> Open {
-    let subject = tree_subject(limits);
+pub fn open_tree() -> Open {
+    let subject = tree_subject();
     let record = encoded(&subject);
     let subject = Owned { owner: Owner::Jig, version: VERSION, record };
     Open { stream: [7; 16], watch: u64::MAX, subject }
 }
 
-pub fn waiting_account_state(_limits: &Limits, until: Option<u64>) -> AccountState {
+pub fn waiting_account_state(until: Option<u64>) -> AccountState {
     AccountState::Later(AccountStateLater { until })
 }
 
-pub fn account(_limits: &Limits, state: AccountState) -> Account {
+pub fn account(state: AccountState) -> Account {
     Account {
         list: None,
         facts: List::with_capacity(0),
@@ -142,7 +142,7 @@ pub fn account(_limits: &Limits, state: AccountState) -> Account {
     }
 }
 
-pub fn ended_goal_holding(_limits: &Limits) -> GoalHolding {
+pub fn ended_goal_holding() -> GoalHolding {
     let mut path = List::with_capacity(2);
     path.push(Box::from(b"one/two".as_slice())).expect("first literal segment");
     path.push(Box::from([255, 0])).expect("second opaque segment");

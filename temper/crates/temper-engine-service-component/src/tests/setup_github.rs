@@ -244,7 +244,7 @@ fn http_owner() -> (Box<crate::Service>, Box<[u8]>) {
     let mut service = owner_service();
     let link = service.links().pop().unwrap();
     let engine = service.engine.as_mut().unwrap();
-    let body = fixtures::http::link_body(engine, &link);
+    let body = fixtures::http::link_body(&link);
     let mut peer = fixtures::http::Peer::new(engine, b"POST", b"/jig/v1/sign-in/link", &body, None);
     peer.pump(engine, true);
     let j::SignInAnswer::SignedIn(answer) = peer.sign_in_answer(engine) else { panic!("owner sign in") };

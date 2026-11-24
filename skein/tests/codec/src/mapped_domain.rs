@@ -190,18 +190,20 @@ pub fn checked_to_domain(record: r::Checked, context: &Context) -> Result<Checke
     Ok(Checked(record.code))
 }
 
-pub fn hand_choice_to_record(value: &HandChoice, _context: &Context) -> Result<r::HandChoice, r::Problem> {
-    Ok(match value {
+#[must_use]
+pub fn hand_choice_to_record(value: &HandChoice) -> r::HandChoice {
+    match value {
         HandChoice::None => r::HandChoice::None,
         HandChoice::Some => r::HandChoice::Some,
-    })
+    }
 }
 
-pub fn hand_choice_to_domain(record: r::HandChoice, _context: &Context) -> Result<HandChoice, r::Problem> {
-    Ok(match record {
+#[must_use]
+pub fn hand_choice_to_domain(record: r::HandChoice) -> HandChoice {
+    match record {
         r::HandChoice::None => HandChoice::None,
         r::HandChoice::Some => HandChoice::Some,
-    })
+    }
 }
 
 /// The owner's root calls the generated pair, then the family's codec.

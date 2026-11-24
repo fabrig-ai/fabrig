@@ -209,18 +209,18 @@ fn named(model: &[u8], why: w::LlmWhy) -> w::Refusal {
 fn a_choice_naming_a_model_or_an_effort_configuration_lacks_is_refused_by_its_name() {
     let l = fixtures::wire();
     let models = fixtures::models();
-    let unknown = create(fixtures::llm_choice(&l, b"careless", None, b"quick"));
+    let unknown = create(fixtures::llm_choice(b"careless", None, b"quick"));
     assert_eq!(refused(&unknown), (None, named(b"careless", w::LlmWhy::Unconfigured)));
-    let effort = w::Ask::Amend(amend(fixtures::llm_choice(&l, b"careful", Some(b"medium"), b"quick")));
+    let effort = w::Ask::Amend(amend(fixtures::llm_choice(b"careful", Some(b"medium"), b"quick")));
     assert_eq!(refused(&effort), (None, named(b"careful", w::LlmWhy::Effort)));
     let message = w::Message { project: fixtures::PROJECT, task: 8, words: b"words".as_slice().into() };
     let operations = [
         w::Operation::Message(message),
-        w::Operation::Amend(amend(fixtures::llm_choice(&l, b"careful", Some(b"high"), b"hasty"))),
+        w::Operation::Amend(amend(fixtures::llm_choice(b"careful", Some(b"high"), b"hasty"))),
     ];
     let compound = fixtures::compound(fixtures::PROJECT, &operations);
     assert_eq!(refused(&compound), (Some(1), named(b"hasty", w::LlmWhy::Unconfigured)));
-    let configured = create(fixtures::careful_and_quick(&l));
+    let configured = create(fixtures::careful_and_quick());
     assert!(translate::llm::refused(&configured, &models, &l).unwrap().is_none());
 }
 
@@ -328,7 +328,7 @@ fn every_settings_model_and_effort_is_refused_by_its_name() {
 #[test]
 fn an_amended_choice_reaches_the_people_child_in_configuration_s_order() {
     let l = fixtures::wire();
-    let ask = w::Ask::Amend(amend(fixtures::careful_and_quick(&l)));
+    let ask = w::Ask::Amend(amend(fixtures::careful_and_quick()));
     let Ok(p::Ask::Amend { amendment, .. }) = translate::asks::ask(ask, &fixtures::models(), &l) else {
         panic!("amendment")
     };
@@ -388,7 +388,7 @@ fn original_selector_names_are_canonical_and_unknowns_reach_retained_key_lookup(
 #[test]
 fn an_explicit_account_reaches_the_people_child() {
     let l = fixtures::wire();
-    let mut choice = fixtures::careful_and_quick(&l);
+    let mut choice = fixtures::careful_and_quick();
     choice.account = Some(42);
     let ask = w::Ask::Amend(amend(choice));
     let Ok(p::Ask::Amend { amendment, .. }) = translate::asks::ask(ask, &fixtures::models(), &l) else {
@@ -425,10 +425,9 @@ fn task_documents_keep_the_claimed_account_separate_from_the_preference() {
 #[test]
 fn an_untooled_wait_keeps_its_account_source_and_worker() {
     use jig_domain_core_vocabulary::documents as d;
-    let limits = fixtures::wire();
     let wait =
         d::TaskRunWait::Account { account: Some(4), source: Some(7), why: d::TaskWaitWhy::Untooled { worker: 2 } };
-    let wire = translate::task_wait::waiting(Some(wait), &limits).unwrap().unwrap();
+    let wire = translate::task_wait::waiting(Some(wait)).unwrap();
     assert_eq!(w::VERSION, 43);
     let w::TaskRunWait::Account(row) = wire else { panic!("account wait") };
     assert_eq!((row.account, row.source), (Some(4), Some(7)));
