@@ -254,7 +254,13 @@ second, which is why it is skein's (../../foundation/testing-strategy.md, 7).
   after arming counts from zero only when its process provably began
   after arming. Unreadable or vanished threads contribute nothing.
   `passed`, `remaining` and `until` let the loop wait; `expired` classifies
-  an unanswered wait once it passes. The largest single runnable wait
+  an unanswered wait once it passes. `expired_for(what, bound)` classifies
+  one of the waits an account armed for several covers, as a browser
+  story's step account does (../ui/web/testing.md, 2): a wait of `bound`
+  that passed now, its patience the longer of `bound` and the time since
+  arming, so that an account armed before the wait began measures it as
+  a wait from the arming, and one armed after it never judges a bound by
+  a shorter span. The largest single runnable wait
   decides, never the sum of waits from separate sources. At least half
   the patience spent runnable is starved; absent accounting cannot prove
   starvation. `Figures` records the patience, elapsed time, CPU time and

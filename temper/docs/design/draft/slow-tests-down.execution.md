@@ -8,7 +8,7 @@ Eighteen goals, started on 2026-11-23 on the user's approval, each on its own ra
 
 | Goal | Draft parts | Trees | Needs | State |
 |---|---|---|---|---|
-| D1, the browser's deadlines: every browser step's expiry through the starvation rule, and a red story's wall bounded | 7 | skein, jig, temper | none | started, task 13857 |
+| D1, the browser's deadlines: every browser step's expiry through the starvation rule, and a red story's wall bounded | 7 | skein, jig, temper | none | landed, task 13857 |
 | D2, temper's real Forgejo paths and repeated command paths shortened to their boundary, in `temper-box::process` and `proof_live` | 5.1 | temper | none | landed, task 13858 |
 | D3, temper's public board, history, reading, workers and journeys stories: their data to the client and domain worlds, their geometry left in Chromium | 5.1 | temper | none | landed, task 13859 |
 | D4, skein's browser kit's bookkeeping, patch shapes and refused writes below the browser | 5.1 | skein | D1 | started, task 13870 |

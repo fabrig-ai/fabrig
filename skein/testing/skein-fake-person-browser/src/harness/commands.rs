@@ -341,6 +341,13 @@ pub(super) enum Progress {
     TimedOut(&'static str),
 }
 
+pub(super) struct CommandExpiry {
+    pub person: usize,
+    pub step: u32,
+    pub report: String,
+    pub deadline: Deadline,
+}
+
 impl super::Runtime {
     pub(super) fn command_event(&self, event: &io::Event) -> bool {
         super::event_owner(event).is_some_and(|owner| self.commands.iter().flatten().any(|command| command.owns(owner)))
@@ -385,7 +392,7 @@ impl super::Runtime {
             super::CommandAction::Exit { code, within } => {
                 if let Some(command) = &mut self.commands[index] {
                     let mut deadline = Deadline::arm("the scenario command's expected exit", within);
-                    if let Some(pid) = command.pid {
+                    for pid in [self.server_pid, self.browser_pid, command.pid].into_iter().flatten() {
                         deadline.watch_process(pid);
                     }
                     command.wait = Some((deadline, WaitFor::Exit { code }));
@@ -403,7 +410,8 @@ impl super::Runtime {
         now: Time,
         page_query: &[u8],
         page_addresses: fn(&[u8]) -> bool,
-    ) {
+    ) -> Option<CommandExpiry> {
+        let mut expiry = None;
         for (index, face) in faces.iter_mut().enumerate() {
             if !self.closing.active()
                 && self.commands[index].as_ref().is_some_and(|previous| previous.settled)
@@ -436,13 +444,19 @@ impl super::Runtime {
                 Progress::TimedOut(report) => {
                     let (deadline, _) = command.wait.take().expect("an unanswered command wait");
                     face.command_complete();
-                    self.expire(index, people[index].at(), &format!("command {name}: {report}"), deadline.expired());
+                    expiry.get_or_insert(CommandExpiry {
+                        person: index,
+                        step: people[index].at(),
+                        report: format!("command {name}: {report}"),
+                        deadline,
+                    });
                 }
             }
             for request in face.requests() {
                 self.ask(request);
             }
         }
+        expiry
     }
 }
 
