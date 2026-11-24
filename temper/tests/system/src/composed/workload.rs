@@ -10,6 +10,7 @@ use temper_workload::{
     names::Names,
 };
 
+mod comparison;
 pub mod faults;
 mod questions;
 mod scripts;
@@ -37,6 +38,7 @@ pub(super) struct Story {
     latch: Option<u64>,
     latched: BTreeSet<u64>,
     linked: BTreeSet<u64>,
+    comparison: Option<comparison::Run>,
 }
 
 impl World {
@@ -47,6 +49,10 @@ impl World {
     }
 
     fn workload_with_faults(seed: u64, kinds: &[skein_world::faults::Kind]) -> Self {
+        Self::workload_with_restart(seed, kinds, None)
+    }
+
+    fn workload_with_restart(seed: u64, kinds: &[skein_world::faults::Kind], points: Option<(usize, usize)>) -> Self {
         let streams = Streams::new(seed);
         let workload = Workload::draw(&streams, &COMPOSED);
         let scheduling = streams.seed_of(Stream::Scheduling, "system");
@@ -56,8 +62,10 @@ impl World {
         world.account_case.take().expect("two people");
         world.party = setup::party(1);
         let other = setup::party(2);
+        let comparison = Some(comparison::Run::new(seed, &workload, points));
         world.workload = Some(Story {
             workload,
+            comparison,
             names: Names::new(),
             other,
             replies: BTreeMap::new(),
@@ -73,8 +81,9 @@ impl World {
             linked: BTreeSet::new(),
         });
         setup::forge(&mut world);
+        // Both comparison sides use the same worker hello/admission path.
+        world.absence.enabled = true;
         if !kinds.is_empty() {
-            world.absence.enabled = true;
             world.workload_faults = Some(faults::Faults::new(seed, world.workload(), kinds));
         }
         world.start_workload();
@@ -211,6 +220,7 @@ impl World {
         self.prepare_workload_questions();
         self.answer_workload_questions();
         self.latch_workload();
+        self.workload_comparison_tick();
     }
 
     fn discover_workload_names(&mut self) {
@@ -272,6 +282,7 @@ impl World {
             }
             self.workload.as_mut().expect("workload").assignments.push(assignment.clone());
             self.workload_fault_assignment(assignment);
+            self.workload_comparison_assignment(assignment);
             return true;
         } else if let Some(mut parked) = self.parked.remove(&assignment.task) {
             if !parked.prepared() {
@@ -293,6 +304,7 @@ impl World {
         }
         self.workload.as_mut().expect("workload").assignments.push(assignment.clone());
         self.workload_fault_assignment(assignment);
+        self.workload_comparison_assignment(assignment);
         true
     }
 

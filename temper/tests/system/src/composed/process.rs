@@ -292,6 +292,11 @@ impl Process {
         self.agent.as_ref().expect("spawned Smith process")
     }
 
+    /// Model queries and host calls reached by this activation.
+    pub(super) fn mid_turn_points(&self) -> (usize, usize) {
+        (self.agent().prompts().len(), self.sent_calls.len())
+    }
+
     /// Whether smith has received a host call.
     pub(crate) fn called(&self) -> bool {
         !self.sent_calls.is_empty()

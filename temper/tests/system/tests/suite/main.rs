@@ -13,6 +13,7 @@ mod simulation;
 mod stopped_news;
 mod store_check;
 mod text;
+mod workload;
 
 mod fuzzy {
     mod accounts;

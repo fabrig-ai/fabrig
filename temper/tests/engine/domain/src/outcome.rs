@@ -147,10 +147,11 @@ fn branch_landed(store: &Store, goal: u64) -> bool {
 
 /// Deadlines observed while armed, including procedure bounds from the world's adapter.
 #[derive(Default)]
-pub(crate) struct Deadlines(BTreeSet<u64>);
+pub struct Deadlines(BTreeSet<u64>);
 
 impl Deadlines {
-    pub(crate) fn armed(root: &temper_engine_domain::Domain, store: &Store, now: Time) -> BTreeSet<(u64, Time)> {
+    #[must_use]
+    pub fn armed(root: &temper_engine_domain::Domain, store: &Store, now: Time) -> BTreeSet<(u64, Time)> {
         let mut armed = BTreeSet::new();
         for record in store.rows.values() {
             if let Record::Core(core::Record::Tasks(tasks::Stored::Live(row))) = record
@@ -173,18 +174,14 @@ impl Deadlines {
         armed
     }
 
-    pub(crate) fn struck(&mut self, armed: &BTreeSet<(u64, Time)>, faults: &[skein_world::faults::Injected]) {
+    pub fn struck(&mut self, armed: &BTreeSet<(u64, Time)>, faults: &[skein_world::faults::Injected]) {
         self.0.extend(
             armed.iter().filter(|(_, at)| faults.iter().any(|fault| fault.in_force(*at))).map(|(task, _)| *task),
         );
     }
 
-    pub(crate) fn left(
-        &self,
-        store: &Store,
-        names: &Names,
-        workload: &Workload,
-    ) -> Vec<temper_workload::outcome::Left> {
+    #[must_use]
+    pub fn left(&self, store: &Store, names: &Names, workload: &Workload) -> Vec<temper_workload::outcome::Left> {
         workload
             .goals
             .iter()

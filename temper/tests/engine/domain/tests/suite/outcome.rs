@@ -9,6 +9,7 @@ use skein_world::{
 };
 use temper_engine_domain::{Key, Record};
 use temper_engine_domain_world::{outcome, workload};
+use temper_faults::restarts::{ENGINE_CRASH, ENGINE_CRASH_MID_TURN, ENGINE_RESTART_MID_TURN, SETTLED_STOP};
 use temper_workload::{
     draw::{Change, File, Goal, Party, Workload},
     outcome::End,
@@ -85,13 +86,18 @@ fn outcome_normalizes_only_lost_tries_inside_a_crash() {
             Record::Core(core::Record::Tasks(tasks::Stored::Attempt(row))),
         );
     }
+    for (crash_kind, stop_kind) in [(ENGINE_CRASH, SETTLED_STOP), (ENGINE_CRASH_MID_TURN, ENGINE_RESTART_MID_TURN)] {
+        let mut ledger = FaultLedger::new();
+        let crash = ledger.inject(crash_kind, Time::from_nanos(10), Struck::default());
+        ledger.stop(crash, Time::from_nanos(15)).expect("closed interval");
+        let stop = ledger.inject(stop_kind, Time::from_nanos(20), Struck::default());
+        ledger.stop(stop, Time::from_nanos(25)).expect("closed interval");
+        let read = outcome::read(&run.world.store, &run.main, &run.names, &run.workload, &ledger);
+        assert_eq!(read.goals["g0"].tries, 4, "only the lost attempt within {crash_kind:?} is discounted");
+    }
     let mut ledger = FaultLedger::new();
-    let crash = ledger.inject(temper_faults::restarts::ENGINE_CRASH, Time::from_nanos(10), Struck::default());
+    let crash = ledger.inject(ENGINE_CRASH, Time::from_nanos(10), Struck::default());
     ledger.stop(crash, Time::from_nanos(15)).expect("closed interval");
-    let stop = ledger.inject(temper_faults::restarts::SETTLED_STOP, Time::from_nanos(20), Struck::default());
-    ledger.stop(stop, Time::from_nanos(25)).expect("closed interval");
-    let read = outcome::read(&run.world.store, &run.main, &run.names, &run.workload, &ledger);
-    assert_eq!(read.goals["g0"].tries, 4, "only the lost attempt within the crash is discounted");
     let Record::Core(core::Record::Tasks(tasks::Stored::Ended(row))) =
         run.world.store.rows.get_mut(&key).expect("ended")
     else {

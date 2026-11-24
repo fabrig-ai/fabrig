@@ -1,4 +1,4 @@
-//! One complete composed draw; restart comparison grows here (workloads.md, 5 and 7).
+//! Complete composed draws and restart comparisons (workloads.md, 5 and 7).
 use skein_world::{
     faults::Kind,
     sweep::{Sweep, each_seed},
@@ -7,14 +7,32 @@ use temper_faults::{forge, restarts, stale};
 use temper_system_world::composed::World;
 
 #[test]
-fn the_composed_workload_ends_within_its_bounds() {
-    for seed in [17, 29] {
+fn a_restart_changes_no_composed_outcome() {
+    let mut sweep = Sweep::new("a_restart_changes_no_composed_outcome");
+    for kind in restarts::MID_TURN {
+        sweep.configure(kind);
+    }
+    // Two seeds, as in the clean draw: a settled host-call stop and a model-query crash.
+    for seed in [0, 29] {
         eprintln!("seed {seed}");
         let mut world = World::composed_workload(seed);
         eprintln!("workload {:?}", world.workload());
         world.run_workload();
         world.assert_workload();
+        let before = world.workload_outcome();
+        let points = world.workload_restart_points();
+        eprintln!("seed {seed}: restart points (queries, host calls) {points:?}");
+        drop(world);
+        let mut restarted = World::restarted_workload(seed, points);
+        restarted.run_workload();
+        restarted.assert_workload();
+        let after = restarted.workload_outcome();
+        let left = restarted.workload_restart_left();
+        eprintln!("seed {seed}: left {left:?}; fell {:?}", restarted.workload_restart_ledger().fell());
+        before.compare(&after, &left).unwrap_or_else(|finding| panic!("seed {seed}: {finding}"));
+        sweep.ran(restarted.workload_restart_ledger());
     }
+    sweep.check_fell().expect("both MID_TURN kinds fell");
 }
 
 #[test]

@@ -1052,6 +1052,18 @@ impl World {
                 }
             }
             engine::Request::Drained => self.absence.drained = true,
+            engine::Request::Busy(event) => {
+                // The drain returns an undecided forge reply to its owner. This
+                // fake has no connection queue: the reopened root reads again.
+                assert!(self.absence.enabled, "a scripted engine drain");
+                assert!(
+                    matches!(
+                        *event,
+                        temper_engine_domain_forge::Event::Client(skein_forge_client::Event::Answered { .. })
+                    ),
+                    "only the fake forge's replies can be returned"
+                );
+            }
             engine::Request::Worker(engine::WorkerRequest::Settings(_))
             | engine::Request::Party(engine::PartyRequest::Catalogue { .. }) => {}
             engine::Request::ToChild(released) => self.root_events.push_back(engine::Event::Released(released)),
@@ -1111,7 +1123,6 @@ impl World {
             | engine::Request::SetUp { .. }
             | engine::Request::Bound { .. }
             | engine::Request::Setup { .. }
-            | engine::Request::Busy(_)
             | engine::Request::Unsettled(_)) => panic!("unscripted engine output: {other:?}"),
         }
     }
