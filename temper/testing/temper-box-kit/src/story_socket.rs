@@ -26,7 +26,15 @@ impl Bound {
             Scope::Owned => Self::Owned(Deadline::arm(what, within)),
         }
     }
+}
 
+trait Wait<S> {
+    fn timeout(&self) -> Option<std::time::Duration>;
+    fn check(&mut self, stream: &mut Option<S>) -> io::Result<()>;
+    fn retry(&mut self, error: io::Error, stream: &mut Option<S>) -> io::Result<()>;
+}
+
+impl Wait<TcpStream> for Bound {
     fn timeout(&self) -> Option<std::time::Duration> {
         match self {
             Self::World(patience) => patience.socket_timeout(),
@@ -91,13 +99,13 @@ pub fn finish(error: io::Error) -> ! {
 
 /// Partial reads and writes survive a world-owned wait's starvation deferral.
 pub struct Socket {
-    stream: Option<TcpStream>,
+    framed: Framed<TcpStream>,
     scope: Scope,
 }
 impl Socket {
     #[must_use]
     pub fn new(stream: TcpStream, scope: Scope) -> Self {
-        Self { stream: Some(stream), scope }
+        Self { framed: Framed { stream: Some(stream) }, scope }
     }
 
     pub fn connect(what: &'static str, within: Duration, address: SocketAddr, scope: Scope) -> io::Result<Self> {
@@ -115,11 +123,51 @@ impl Socket {
     }
 
     pub fn stream(&mut self) -> &mut TcpStream {
+        self.framed.stream()
+    }
+
+    pub fn write_all(&mut self, what: &'static str, within: Duration, bytes: &[u8]) -> io::Result<()> {
+        self.framed.write_all(&mut Bound::arm(what, within, self.scope), bytes)
+    }
+
+    pub fn read_to_end(&mut self, what: &'static str, within: Duration, limit: usize) -> io::Result<Vec<u8>> {
+        self.framed.read_to_end(&mut Bound::arm(what, within, self.scope), limit)
+    }
+
+    pub fn read_exact(&mut self, what: &'static str, within: Duration, bytes: &mut [u8]) -> io::Result<()> {
+        self.framed.read_exact(&mut Bound::arm(what, within, self.scope), bytes)
+    }
+
+    pub fn head(&mut self, what: &'static str, within: Duration) -> io::Result<Vec<u8>> {
+        self.framed.head(&mut Bound::arm(what, within, self.scope))
+    }
+}
+
+trait Stream: Read + Write {
+    fn set_read_timeout(&mut self, timeout: Option<std::time::Duration>) -> io::Result<()>;
+    fn set_write_timeout(&mut self, timeout: Option<std::time::Duration>) -> io::Result<()>;
+}
+
+impl Stream for TcpStream {
+    fn set_read_timeout(&mut self, timeout: Option<std::time::Duration>) -> io::Result<()> {
+        TcpStream::set_read_timeout(self, timeout)
+    }
+
+    fn set_write_timeout(&mut self, timeout: Option<std::time::Duration>) -> io::Result<()> {
+        TcpStream::set_write_timeout(self, timeout)
+    }
+}
+
+struct Framed<S> {
+    stream: Option<S>,
+}
+
+impl<S: Stream> Framed<S> {
+    fn stream(&mut self) -> &mut S {
         self.stream.as_mut().expect("open story socket")
     }
 
-    pub fn write_all(&mut self, what: &'static str, within: Duration, mut bytes: &[u8]) -> io::Result<()> {
-        let mut bound = Bound::arm(what, within, self.scope);
+    fn write_all(&mut self, bound: &mut impl Wait<S>, mut bytes: &[u8]) -> io::Result<()> {
         while !bytes.is_empty() {
             self.stream().set_write_timeout(bound.timeout())?;
             match self.stream().write(bytes) {
@@ -135,8 +183,7 @@ impl Socket {
         Ok(())
     }
 
-    pub fn read_to_end(&mut self, what: &'static str, within: Duration, limit: usize) -> io::Result<Vec<u8>> {
-        let mut bound = Bound::arm(what, within, self.scope);
+    fn read_to_end(&mut self, bound: &mut impl Wait<S>, limit: usize) -> io::Result<Vec<u8>> {
         let mut bytes = Vec::new();
         let mut buffer = [0; 8192];
         while bytes.len() < limit {
@@ -155,8 +202,7 @@ impl Socket {
         Ok(bytes)
     }
 
-    pub fn read_exact(&mut self, what: &'static str, within: Duration, mut bytes: &mut [u8]) -> io::Result<()> {
-        let mut bound = Bound::arm(what, within, self.scope);
+    fn read_exact(&mut self, bound: &mut impl Wait<S>, mut bytes: &mut [u8]) -> io::Result<()> {
         while !bytes.is_empty() {
             self.stream().set_read_timeout(bound.timeout())?;
             match self.stream().read(bytes) {
@@ -172,8 +218,7 @@ impl Socket {
         Ok(())
     }
 
-    pub fn head(&mut self, what: &'static str, within: Duration) -> io::Result<Vec<u8>> {
-        let mut bound = Bound::arm(what, within, self.scope);
+    fn head(&mut self, bound: &mut impl Wait<S>) -> io::Result<Vec<u8>> {
         let mut bytes = Vec::new();
         while !bytes.ends_with(b"\r\n\r\n") {
             self.stream().set_read_timeout(bound.timeout())?;
@@ -194,31 +239,86 @@ impl Socket {
 }
 
 pub mod tests {
-    use super::{Scope, Socket};
-    use skein_lib::Duration;
+    use super::{Framed, Stream, Wait};
     use std::{
         io::{self, Read, Write},
-        net::{TcpListener, TcpStream},
+        time::Duration,
     };
 
+    struct Script {
+        incoming: &'static [u8],
+        outgoing: Vec<u8>,
+        read_timeout: Option<Duration>,
+        write_timeout: Option<Duration>,
+    }
+
+    const TIMEOUT: Duration = Duration::from_secs(1);
+
+    impl Read for Script {
+        fn read(&mut self, bytes: &mut [u8]) -> io::Result<usize> {
+            assert_eq!(self.read_timeout, Some(TIMEOUT));
+            let length = bytes.len().min(3);
+            self.incoming.read(&mut bytes[..length])
+        }
+    }
+
+    impl Write for Script {
+        fn write(&mut self, bytes: &[u8]) -> io::Result<usize> {
+            assert_eq!(self.write_timeout, Some(TIMEOUT));
+            let length = bytes.len().min(3);
+            self.outgoing.extend_from_slice(&bytes[..length]);
+            Ok(length)
+        }
+
+        fn flush(&mut self) -> io::Result<()> {
+            Ok(())
+        }
+    }
+
+    impl Stream for Script {
+        fn set_read_timeout(&mut self, timeout: Option<Duration>) -> io::Result<()> {
+            self.read_timeout = timeout;
+            Ok(())
+        }
+
+        fn set_write_timeout(&mut self, timeout: Option<Duration>) -> io::Result<()> {
+            self.write_timeout = timeout;
+            Ok(())
+        }
+    }
+
+    struct Pending;
+    impl Wait<Script> for Pending {
+        fn timeout(&self) -> Option<Duration> {
+            Some(TIMEOUT)
+        }
+
+        fn check(&mut self, _: &mut Option<Script>) -> io::Result<()> {
+            Ok(())
+        }
+
+        fn retry(&mut self, error: io::Error, _: &mut Option<Script>) -> io::Result<()> {
+            Err(error)
+        }
+    }
+
     pub fn bounded_reads_preserve_the_next_bytes_and_eof_is_an_error() {
-        let listener = TcpListener::bind("127.0.0.1:0").expect("local fixture listener");
-        let client = TcpStream::connect(listener.local_addr().expect("address")).expect("fixture connection");
-        let (mut peer, _) = listener.accept().expect("fixture peer");
-        let mut socket = Socket::new(client, Scope::World);
-        let within = Duration::from_secs(1);
-        socket.write_all("the socket fixture's request", within, b"request").expect("request");
-        let mut request = [0; 7];
-        peer.read_exact(&mut request).expect("request bytes");
-        assert_eq!(&request, b"request");
-        peer.write_all(b"head\r\n\r\nbodytail").expect("fixture reply");
-        assert_eq!(socket.head("the socket fixture's head", within).expect("head"), b"head\r\n\r\n");
-        assert_eq!(socket.read_to_end("the socket fixture's body", within, 4).expect("body"), b"body");
+        let mut socket = Framed {
+            stream: Some(Script {
+                incoming: b"head\r\n\r\nbodytail",
+                outgoing: Vec::new(),
+                read_timeout: None,
+                write_timeout: None,
+            }),
+        };
+        socket.write_all(&mut Pending, b"request").expect("request");
+        assert_eq!(socket.stream().outgoing, b"request");
+        assert_eq!(socket.head(&mut Pending).expect("head"), b"head\r\n\r\n");
+        assert_eq!(socket.read_to_end(&mut Pending, 4).expect("body"), b"body");
         let mut tail = [0; 4];
-        socket.read_exact("the socket fixture's tail", within, &mut tail).expect("tail");
+        socket.read_exact(&mut Pending, &mut tail).expect("tail");
         assert_eq!(&tail, b"tail");
-        drop(peer);
-        let error = socket.read_exact("the socket fixture's EOF", within, &mut tail).expect_err("EOF fails");
+        let error = socket.read_exact(&mut Pending, &mut tail).expect_err("EOF fails");
         assert_eq!(error.kind(), io::ErrorKind::UnexpectedEof);
     }
 }

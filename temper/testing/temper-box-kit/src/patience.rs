@@ -17,7 +17,11 @@ enum Verdict {
 impl Patience {
     #[must_use]
     pub fn arm(what: &'static str, within: Duration) -> Self {
-        Self { deadline: Some(Deadline::arm(what, within)), watched: false }
+        Self::from_deadline(Deadline::arm(what, within))
+    }
+
+    pub(crate) fn from_deadline(deadline: Deadline) -> Self {
+        Self { deadline: Some(deadline), watched: false }
     }
 
     #[must_use]
@@ -59,7 +63,11 @@ impl Patience {
     }
 
     pub fn socket_timeout(&self) -> Option<std::time::Duration> {
-        self.deadline.as_ref().map(socket_timeout)
+        self.socket_timeout_with(Deadline::remaining)
+    }
+
+    fn socket_timeout_with(&self, remaining: impl FnOnce(&Deadline) -> Duration) -> Option<std::time::Duration> {
+        self.deadline.as_ref().map(|deadline| round_socket_timeout(remaining(deadline)))
     }
 
     /// A probe can run in a referee; its caller's world owns the final verdict.
@@ -106,25 +114,34 @@ impl Patience {
 /// Socket APIs reject zero and round their waits to the kernel's clock granularity.
 #[must_use]
 pub fn socket_timeout(deadline: &Deadline) -> std::time::Duration {
-    std::time::Duration::from_nanos(deadline.remaining().as_nanos()).max(std::time::Duration::from_millis(1))
+    round_socket_timeout(deadline.remaining())
+}
+
+fn round_socket_timeout(remaining: Duration) -> std::time::Duration {
+    std::time::Duration::from_nanos(remaining.as_nanos()).max(std::time::Duration::from_millis(1))
 }
 
 pub mod tests {
-    use super::{Patience, Verdict, socket_timeout};
-    use skein_lib::Duration;
-    use skein_world::{Deadline, Figures};
+    use super::{Patience, Verdict};
+    use skein_lib::{Duration, Time};
+    use skein_world::{Figures, testing::deadline::at};
+
+    fn patience(what: &'static str, within: Duration) -> Patience {
+        Patience::from_deadline(at(what, within, Time::ZERO))
+    }
 
     pub fn starvation_disarms_the_inner_wait_without_passing_the_world() {
-        let mut patience = Patience::arm("the helper's answer", Duration::ZERO);
+        let mut patience = patience("the helper's answer", Duration::ZERO);
         assert!(patience.until().is_some());
         assert!(patience.handle(Verdict::Starved).is_none());
         assert!(patience.until().is_none());
-        assert!(patience.socket_timeout().is_none());
+        assert!(patience.socket_timeout_with(|_| panic!("disarmed deadline has no remaining time")).is_none());
         assert!(patience.failed().is_none());
     }
 
     pub fn a_failed_wait_keeps_its_figures_and_deadline() {
-        let mut patience = Patience::arm("the helper's answer", Duration::ZERO);
+        let mut patience = patience("the helper's answer", Duration::ZERO);
+        let until = patience.until();
         let figures = Figures {
             what: "the helper's answer",
             patience: Duration::from_secs(1),
@@ -137,18 +154,23 @@ pub mod tests {
         assert_eq!(failed.elapsed, Duration::from_secs(2));
         assert_eq!(failed.what, "the helper's answer");
         assert!(patience.until().is_some());
+        assert_eq!(patience.until(), until);
     }
 
     pub fn socket_waits_round_up_and_refusals_never_classify_as_starvation() {
-        let deadline = Deadline::arm("the socket's answer", Duration::ZERO);
-        assert_eq!(socket_timeout(&deadline), std::time::Duration::from_millis(1));
-        let mut patience = Patience::arm("the socket's answer", Duration::ZERO);
-        let error = patience.socket_retry(std::io::ErrorKind::ConnectionRefused.into()).expect_err("a refusal fails");
+        let mut patience = patience("the socket's answer", Duration::ZERO);
+        assert_eq!(
+            patience.socket_timeout_with(|deadline| deadline.until().saturating_since(Time::ZERO)),
+            Some(std::time::Duration::from_millis(1)),
+        );
+        let refusal = std::io::Error::new(std::io::ErrorKind::ConnectionRefused, "fixture refusal");
+        let error = patience.socket_retry(refusal).expect_err("a refusal fails");
         assert_eq!(error.kind(), std::io::ErrorKind::ConnectionRefused);
+        assert_eq!(error.to_string(), "fixture refusal");
     }
 
     pub fn an_interrupted_socket_retries_with_the_same_deadline() {
-        let mut patience = Patience::arm("the socket's answer", Duration::from_secs(2));
+        let mut patience = patience("the socket's answer", Duration::from_secs(2));
         let until = patience.until();
         patience.socket_retry(std::io::ErrorKind::Interrupted.into()).expect("retry the interrupted operation");
         assert_eq!(patience.until(), until);

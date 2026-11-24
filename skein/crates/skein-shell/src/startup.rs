@@ -73,6 +73,28 @@ pub fn read_file(path: &Path, max: u32) -> Result<Box<[u8]>, Unread> {
     crate::system::read_file(path, max)
 }
 
+/// Read metadata at the final name without following a symbolic link.
+pub fn symlink_stat(path: &Path) -> std::io::Result<kernel::Stat> {
+    use std::os::unix::fs::MetadataExt;
+    let metadata = std::fs::symlink_metadata(path)?;
+    let kind = if metadata.is_symlink() {
+        kernel::Kind::Symlink
+    } else if metadata.is_dir() {
+        kernel::Kind::Directory
+    } else if metadata.is_file() {
+        kernel::Kind::File
+    } else {
+        kernel::Kind::Other
+    };
+    Ok(kernel::Stat {
+        kind,
+        size: metadata.len(),
+        mode: metadata.mode() & kernel::PERMISSIONS,
+        owner: metadata.uid(),
+        links: u32::try_from(metadata.nlink()).unwrap_or(u32::MAX),
+    })
+}
+
 /// Reads a secret within `max` bytes after io's private-file checks,
 /// using the expected owner supplied by startup (runtime/shell-startup.md, 1.1).
 pub fn read_private_file(path: &Path, max: u32, user: u32) -> Result<Secret, Unread> {

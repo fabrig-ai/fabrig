@@ -8,12 +8,10 @@ use jig_domain_people as people;
 use skein_lib::{Env, Reader, Time, Wall, Writer};
 
 fn cluster_engine(name: &str) -> jig_protocol_config::Engine {
-    let scratch = crate::support::Scratch::startup(name);
-    let cluster = super::cluster_documents(scratch.path());
+    let root = std::path::PathBuf::from(format!("/fixture/{name}"));
+    let cluster = super::cluster_documents(&root);
     let value = temper_playground::documents::Configuration::from_jig(super::cluster_document(&cluster, "engine"));
-    let engine = configured_engine(&value);
-    scratch.remove();
-    engine
+    configured_engine(&value)
 }
 
 fn configured_engine(value: &temper_playground::documents::Configuration) -> jig_protocol_config::Engine {
@@ -138,24 +136,13 @@ fn the_browser_receives_a_complete_stock_me_offer() {
 
 #[test]
 fn the_forgejo_fixture_offers_every_stock_charter_but_the_trial() {
-    use crate::support::{self, Forge};
-    let scratch = support::Scratch::startup("forgejo-creating");
-    let forge = Forge::Throwaway {
-        forgejo: std::path::Path::new("/fixture/forgejo"),
-        api: "127.0.0.1:3000".parse().expect("fixture address"),
-        git: "http://127.0.0.1:3000/".into(),
-    };
-    support::configuration(scratch.path(), &forge);
-    let bytes =
-        support::read_start(&scratch.path().join(temper_config_shell::FILE), temper_config_shell::Shape::Standalone)
-            .document;
-    let value =
-        temper_playground::documents::Configuration::from_jig(serde_json::from_slice(&bytes).expect("deployment JSON"));
+    use crate::support;
+    let recipe = support::recipe(std::path::Path::new("/fixture/forgejo-creating"), &super::fixture_forgejo());
+    let value = temper_playground::documents::Configuration::from_jig(recipe.start_document());
     let engine = configured_engine(&value);
     assert_eq!(engine.charters.len(), 12);
     let mut expected: Vec<_> =
         engine.charters.iter().filter(|charter| charter.number != 10).map(|charter| charter.number).collect();
     expected.sort_unstable();
     assert_eq!(offered(&stock_frame(&engine)), expected);
-    scratch.remove();
 }

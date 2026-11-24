@@ -22,6 +22,7 @@ mod document;
 mod endpoints;
 use endpoints::{PreparedEndpoints, build_endpoints, build_limits};
 mod native;
+pub use document::TrustDocument;
 #[cfg(test)]
 use document::Variable;
 use document::{DeclaredOverrides, Document, Endpoint, PolicyOverrides, ProfileDocument, TraceDocument};
@@ -265,7 +266,7 @@ impl Decoded {
         let lookup = find_rg;
         #[cfg(not(unix))]
         let lookup = |_: Option<&[u8]>| None;
-        self.resolve_with(
+        self.resolve_native(
             errors,
             lookup,
             #[cfg(unix)]
@@ -285,14 +286,36 @@ impl Decoded {
             &skein_shell::RootBounds,
         ) -> Result<skein_shell::Roots, skein_shell::RootsRefusal>,
     ) -> Result<Configuration, ConfigurationRefusal> {
-        self.resolve_with(errors, find_rg, native::RootReader::Given(&mut read_roots))
+        self.resolve_native(errors, find_rg, native::RootReader::Given(&mut read_roots))
     }
 
-    fn resolve_with(
+    fn resolve_native(
         self,
         errors: &mut dyn std::io::Write,
         lookup: impl FnOnce(Option<&[u8]>) -> Option<std::path::PathBuf>,
-        #[cfg(unix)] roots: native::RootReader<'_>,
+        #[cfg(unix)] mut roots: native::RootReader<'_>,
+    ) -> Result<Configuration, ConfigurationRefusal> {
+        self.resolve_with(
+            native::resolve,
+            |der, trust| {
+                native::endpoint_trust(
+                    der,
+                    trust,
+                    errors,
+                    #[cfg(unix)]
+                    &mut roots,
+                )
+            },
+            lookup,
+        )
+    }
+
+    /// Resolve using supplied addresses, endpoint trust and command lookup, without native lookups.
+    pub fn resolve_with(
+        self,
+        address: impl Fn(&str) -> Result<std::net::SocketAddr, ConfigurationRefusal>,
+        trust: impl FnMut(Option<&str>, Option<&TrustDocument>) -> Result<skein_tls::Config, ConfigurationRefusal>,
+        lookup: impl FnOnce(Option<&[u8]>) -> Option<std::path::PathBuf>,
     ) -> Result<Configuration, ConfigurationRefusal> {
         let Self {
             program,
@@ -311,13 +334,7 @@ impl Decoded {
             |path| path.into_os_string().into_encoded_bytes().into(),
         );
         let llm_endpoints = llm::Endpoints::new(
-            native::endpoints(
-                endpoints.llm,
-                &limits.llm.connection,
-                errors,
-                #[cfg(unix)]
-                roots,
-            )?,
+            native::endpoints_with(endpoints.llm, &limits.llm.connection, address, trust)?,
             ENDPOINTS,
         )
         .map_err(|error| format!("LLM endpoints: {error:?}"))?;
