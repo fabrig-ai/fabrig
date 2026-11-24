@@ -1,6 +1,10 @@
 # questions: status
 
-2026-11-17. Where the tree's code lags or departs from [questions.md](questions.md).
+2026-11-24. Where the tree's code lags or departs from [questions.md](questions.md).
+
+- **Not yet:** 1, *Its requester's words and amendments*: a party's words to a change are refused as not offered whatever its producer, and `task message` names no amendment [in flight: change 16476].
+- **Not yet:** 1, *Words never answer*: an answer that matches no open question gets jig's reference refusal or the fallback feedback, naming no question [in flight: change 16480].
+- **Not yet:** 1, *Held for a dependency it did not start from*, *Held for message room* and *On its record and its panel*: a held answer tells its sender nothing and its record keeps no blocker [in flight: change 16482].
 
 
 - **Not yet:** 1, *Its requester's words and amendments*: a change

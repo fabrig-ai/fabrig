@@ -1,6 +1,8 @@
 # README: status
 
-2026-11-19. Where the tree's code lags or departs from [README.md](README.md).
+2026-11-24. Where the tree's code lags or departs from [README.md](README.md).
+
+- **Not yet:** 1: a party's words to a change are refused as not offered whatever its producer [in flight: change 16476].
 
 
 - **Not yet:** 4, *A pull request already closed counts as closed*: the

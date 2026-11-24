@@ -118,8 +118,14 @@ delegate from what it knows:
   unique in it, which another change of the same call names in its
   `after`; it names nothing once the call is decided.
 - **`after`:** the change's dependencies (jig's `domain/tasks/README.md`,
-  section 4): a task number, one of the run's task's live delegates, or
-  the `name` of an earlier change in the same call. The change waits on
+  section 4): a task number, of one of the run's task's live delegates,
+  a task it references, or any task of its project that the party who
+  requested its tree can read, another goal's among them, which jig's
+  admission checks as the edge is made (`../../draft/bounded-waits.md`,
+  6.3); or the `name` of an earlier change in the same call. So a change
+  waits on another goal's task by its `after` alone, with no question
+  held open to keep its run alive. The schema describes it `Task
+  IDs/earlier names.` The change waits on
   them as any task does, so it starts once each has ended done; a name
   the call does not give before it, or a task jig refuses, refuses the
   call, naming it. Its producer, and every other task it delegates to, may
