@@ -2,7 +2,12 @@
 
 use std::{fs, path::Path};
 
-use skein_codegen::{generate, values};
+use skein_codec::bounds::Declaration;
+use skein_codegen::{bounds_text, generate, values};
+use smith_channel::v13 as channel;
+use smith_charter::v5 as charter;
+use smith_local_protocol::local_store_v1 as local_store;
+use smith_transcript::v7 as transcript;
 
 const REGENERATE: &str =
     "run SKEIN_CODEGEN_WRITE=1 cargo nextest run -p smith-codecs-world --test suite -E 'test(/^drift::/)'";
@@ -10,16 +15,19 @@ const REGENERATE: &str =
 #[test]
 fn charter_schema_matches_generated_code() {
     assert_family("charter", 5, smith_charter::SCHEMA);
+    check_bounds("charter", charter::DECLARATIONS, charter::CEILINGS.values().as_slice());
 }
 
 #[test]
 fn transcript_schema_matches_generated_code() {
     assert_family("transcript", 7, smith_transcript::SCHEMA);
+    check_bounds("transcript", transcript::DECLARATIONS, transcript::CEILINGS.values().as_slice());
 }
 
 #[test]
 fn channel_schema_matches_generated_code() {
     assert_family("channel", smith_channel::wire::VERSION, smith_channel::CHANNEL_SCHEMA);
+    check_bounds("channel", channel::DECLARATIONS, channel::CEILINGS.values().as_slice());
 }
 
 fn assert_family(family: &str, version: u16, source: &'static str) {
@@ -70,12 +78,18 @@ fn local_store_schema_matches_generated_code() {
     let crates = skein_scratch::paths::tree().join("crates");
     let source = smith_local_protocol::SCHEMA;
     check_records(&crates.join("smith-local-protocol-codec"), "local_store", source);
+    check_bounds("local_store", local_store::DECLARATIONS, local_store::CEILINGS.values().as_slice());
 }
 
 fn check_records(root: &Path, file: &str, source: &'static str) {
     let schema = &values(source).schema;
     let output = generate(schema);
     check_artifact(&root.join(format!("src/generated/{file}.rs")), output.records.as_bytes());
+}
+
+fn check_bounds(stem: &str, declarations: &[Declaration], ceilings: &[u32]) {
+    let path = skein_scratch::paths::package().join(format!("bounds/{stem}.bounds"));
+    check_artifact(&path, bounds_text(declarations, ceilings).as_bytes());
 }
 
 fn check_artifact(path: &Path, expected: &[u8]) {

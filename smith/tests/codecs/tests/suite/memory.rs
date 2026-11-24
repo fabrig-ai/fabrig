@@ -10,76 +10,22 @@ use smith_transcript::v7 as transcript;
 
 fn charter_limits() -> charter::Limits {
     charter::Limits {
-        section_title: 0,
-        section_body: 0,
-        host_tool_name: 0,
-        host_tool_description: 0,
-        host_tool_input: 0,
-        field_rule_name: 0,
-        text_rule_fields: 0,
-        item_kind_kind: 0,
-        item_kind_fields: 0,
-        verdict_rule_label: 0,
-        verdict_rule_fields: 0,
-        verdict_rule_kinds: 0,
-        change_rule_fields: 0,
-        contract_verdicts: 0,
-        tools_host: 0,
-        conventions_guide: 0,
-        conventions_checks: 0,
-        llm_endpoint: 0,
+        charter_instructions: charter::CEILINGS.charter_instructions,
         llm_effort_some: 32,
-        llm_model: 0,
-        charter_brief: 0,
-        charter_models: 0,
-        field_name: 0,
-        field_text: 0,
-        item_kind: 0,
-        item_fields: 0,
-        run_result_label_some: 0,
-        run_result_text: 0,
-        run_result_fields: 0,
-        run_result_items: 0,
-        ..charter::CEILINGS
+        ..charter::CEILINGS.at_most(0)
     }
 }
 
 fn transcript_limits() -> transcript::Limits {
     transcript::Limits {
-        replay_bytes: 0,
-        opaque_bytes: 0,
-        call_id: 0,
-        call_name: 0,
-        call_name_name: 0,
-        allowed_calls_names: 0,
-        call_input: 0,
-        entry_name: 0,
-        hit_path: 0,
-        hit_text: 0,
-        read_content: 0,
-        listed_entries: 0,
-        found_hits: 0,
-        command_end_head: 0,
-        command_end_last: 0,
-        command_running_head: 0,
-        command_running_last: 0,
-        job_read_head: 0,
-        job_read_last: 0,
-        ambiguous_lines: 0,
-        working_path_path: 0,
-        other_path_directory: 0,
-        other_path_path: 0,
-        outside_path_path: 0,
-        field_problem_field: 0,
-        said_text: 0,
-        tool_result_id: 0,
+        text_text: transcript::CEILINGS.text_text,
+        turn_system_some: transcript::CEILINGS.turn_system_some,
         message_blocks: 1,
         turn_model: 128,
         turn_effort_some: 32,
-        turn_endpoint: 0,
         program_name: 32,
         turn_messages: 1,
-        ..transcript::CEILINGS
+        ..transcript::CEILINGS.at_most(0)
     }
 }
 
