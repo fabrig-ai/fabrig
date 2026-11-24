@@ -217,14 +217,12 @@ section 9.
   `forge.red_key_bytes` and the head 20 or 32 bytes, in key order. An
   ask the engine refuses, or answers with bytes that don't decode, is a
   read that failed (5.3).
-- **Its versions:** `jig-worker-wire` and `temper-worker-wire` each move
-  by one, with their kept texts and bridges (jig's
-  `protocol/channel/bridges.md`). A worker of the previous versions
-  never asks, so its checks have no reds file, and judge every lint or
-  test failure as the delivery's (`../../draft/branch-reds.md`, 10). A worker of these
-  versions meeting an engine of the previous ones can't send `ask` down,
-  so it closes its channel at the statement and the engine goes first
-  (jig's `protocol/channel/bridges.md`, 6.3).
+- **Across layouts:** `ask` and `asked` are kinds of `jig-worker-wire`
+  and the ask's bytes temper's, converted by the engine between its
+  layouts and a worker's (jig's `protocol/channel/layouts.md`, 2.1). A
+  worker whose engine's terms lack `ask` never asks, so its checks have
+  no reds file, and judge every lint or test failure as the delivery's
+  (`../../draft/branch-reds.md`, 10).
 - **The worker's figures:** an ask of reds is a few bytes; an answer at
   most `forge.branch_reds` reds of `forge.red_key_bytes`, which temper
   gives jig as the application's largest answer (jig's
@@ -306,13 +304,10 @@ with the check. The reference's check writes it as
   Nothing is kept for the ask itself (jig's `domain/hosts/hub.md`, 10):
   a report lost with an engine's restart is lost. A worker sends each
   check's report once, so the engine decides on each identity once.
-- **Its versions:** `temper-worker-wire` moves by one, with its kept
-  text and bridge. A worker of the previous version reports nothing:
-  its checks write files no one reads. A worker of this version meeting
-  an engine of the previous one can't send `results` down, so it closes
-  at the statement, `Ask` counted among the parts a worker sends whole
-  (jig's `protocol/channel/bridges.md`, 6.3), and the engine goes first,
-  as for B1.
+- **Across layouts:** the report is temper's bytes in an ask, converted
+  by the engine from a worker's layout to its own (jig's
+  `protocol/channel/layouts.md`, 2.1); one its layout cannot read is a
+  part that does not decode (5.3 there), and the engine goes first.
 - **The worker's figures:** the application's largest ask is a report's
   worst case at the schema's ceilings, on both sides, within jig's
   ceiling for an ask's bytes (`../../protocol/channel.md`, 8): the
