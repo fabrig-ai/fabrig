@@ -79,9 +79,7 @@ proof is not established by the supplied inventory (`../protocol/setup/box.statu
 after-landing execution (`../protocol/openid-provider.status.md`, 9).
 
 - **Not yet:**  the remaining GitHub real-loop stories remain `real-loop.status.md` (Not yet).
-  the twins' playground documents remain `reference-case.status.md` (Not yet, the whole document).
-   the ignored cluster process story remains `process-tier.status.md` (Not yet, the whole document).
-   the playground/reset and restarted-GitHub stories remain `../protocol/setup/testing.status.md`, 4.
+  the twins' playground documents remain `reference-case.status.md` (Not yet, the whole document).   the playground/reset and restarted-GitHub stories remain `../protocol/setup/testing.status.md`, 4.
    the Forgejo web-connect and host proofs remain `process-tier.status.md` (Not yet, the whole document).
    the later live ladder rungs remain `live-tier.status.md` (Not yet).
    the live GitHub pull-read proof remains `live-tier.status.md` (Not yet).

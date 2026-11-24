@@ -214,8 +214,9 @@ scripts/proof-live.sh               the live tier
 - **What the real loop leaves out:** the real-git bridge (above),
   CI that runs a workflow's steps in the shell subset (how much sh,
   below), and faults in the loop. Several workers in one world are the
-  cluster's services (`real-loop.md`); the cluster's faults, a worker lost or hung,
-  are the process tier's (`process-tier.md`).
+  cluster's services (`real-loop.md`); the native stop and kill witnesses
+  are the process tier's (`process-tier.md`, *The cluster*), while loss
+  and fencing policy are the engine's domain world's (`../protocol/cluster.md`, 6).
 - **How much sh:** which commands and syntax the subset takes. It stays a
   subset of POSIX, so that real sh agrees.
 - **Where the shell's interpreter lives,** so that the machine and the

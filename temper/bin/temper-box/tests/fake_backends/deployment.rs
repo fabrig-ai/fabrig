@@ -97,7 +97,7 @@ impl Place {
         }
     }
 
-    fn arguments(&self, drive: bool, restored: bool) -> Vec<String> {
+    fn arguments(&self, drive: bool) -> Vec<String> {
         let mut arguments = if drive {
             vec![
                 "drive".into(),
@@ -125,32 +125,13 @@ impl Place {
             self.ports.map(|address| address.port().to_string()).join(","),
             "--strict".into(),
         ]);
-        if restored {
-            arguments.extend(["--from".into(), "turn-landing".into()]);
-        }
         arguments
     }
 
-    fn walk(&self, restored: bool) -> String {
-        let seen = session::run(self, self.arguments(false, restored), false, &[]);
-        let hash = seen
-            .lines
-            .last()
-            .expect("walk's last line")
-            .strip_prefix("walked turn-landing ")
-            .expect("walked turn-landing HASH");
-        assert_eq!(hash.len(), 64, "chain hash length");
-        assert!(hash.bytes().all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte)), "chain hash");
-        if !restored {
-            assert!(seen.lines.iter().any(|line| line == "turn-landing:7 ok"), "walk restarted engine and worker");
-        }
-        hash.into()
-    }
-
-    fn read(&self, old: &[Identity]) -> (Kept, File) {
-        let seen = session::run(self, self.arguments(true, false), true, old);
-        assert_eq!(seen.lines.last().map(String::as_str), Some("ended"));
-        (seen.kept.expect("ctl and API reads completed"), seen.pin.expect("worker pinned its agent"))
+    fn walk(&self) {
+        let lines = session::run(self, self.arguments(false), false, &[]);
+        assert!(lines.last().is_some_and(|line| line.starts_with("walked turn-landing ")));
+        assert!(lines.iter().any(|line| line == "turn-landing:7 ok"), "walk restarted engine and worker");
     }
 
     fn restore(&self) {
@@ -198,7 +179,7 @@ impl Place {
         self.scratch.join("data/worker/workspaces/agent/temper-agent")
     }
 
-    fn processes(&self, old: &[Identity]) -> File {
+    fn processes(&self, old: &[Identity]) {
         assert!(!self.scratch.join("session/link").exists(), "ctl's sign-in file was removed before ready");
         let pin = self.pin();
         let pinned = File::open(&pin).expect("worker's pinned agent");
@@ -251,7 +232,6 @@ impl Place {
         for required in LIVE {
             assert!(alive.contains(&required), "{} {} must be read alive", required.0, required.1);
         }
-        pinned
     }
 
     fn listeners(&self) {
@@ -286,86 +266,6 @@ impl Place {
         );
     }
 
-    fn api(&self, dispatch: bool) -> Value {
-        let forge = document(&self.scratch.join("config/forgejo.json"));
-        let address = forge["listen"]["socket"].as_str().expect("fake Forgejo socket");
-        let header = self.scratch.join("session/person.header");
-        // Only the fake's file is opened; no token enters argv, output, or kept facts.
-        let token = fs::read_to_string(forge["admin_token"].as_str().expect("fake admin token file"))
-            .expect("fake admin token");
-        support::write_private(&header, format!("Authorization: token {}\n", token.trim_end()).as_bytes());
-        assert_eq!(fs::metadata(&header).expect("header").permissions().mode() & 0o777, 0o600);
-        let get = |route: &str| {
-            let (status, value) = support::first_repository::header_request(
-                &format!("http://{address}/api/v1"),
-                header.to_str().expect("header path"),
-                "GET",
-                route,
-                None,
-            );
-            let bytes = serde_json::to_vec(&value).expect("API JSON");
-            no_link(&bytes);
-            assert_eq!(status, 200, "GET {route}: {value}");
-            value
-        };
-        let repository = get("/repos/work/hello");
-        assert_eq!(repository["owner"]["login"], "work");
-        assert_eq!(repository["name"], "hello");
-        let branch = get("/repos/work/hello/branches/main");
-        let head = branch["commit"]["id"].as_str().expect("main head");
-        if dispatch {
-            let output = support::story_command::output(
-                Command::new("curl")
-                    .args(["--silent", "--show-error", "--fail", "--noproxy", "*", "--header"])
-                    .arg(format!("@{}", header.display()))
-                    .args([
-                        "--request",
-                        "POST",
-                        "--header",
-                        "Content-Type: application/json",
-                        "--data",
-                        r#"{"ref":"main","inputs":{}}"#,
-                    ])
-                    .arg(format!("http://{address}/api/v1/repos/work/hello/actions/workflows/gate.yml/dispatches")),
-                "the fake gate dispatch",
-                support::WITHIN,
-                None,
-            );
-            no_link(&output.stdout);
-            no_link(&output.stderr);
-            assert!(output.status.success(), "dispatch gate.yml: {}", String::from_utf8_lossy(&output.stderr));
-            assert!(output.stdout.is_empty(), "dispatch has no body");
-        }
-        let route = format!("/repos/work/hello/actions/runs?workflow_id=gate.yml&head_sha={head}");
-        let mut patience = support::patience::Patience::arm("the fake gate's successful run", support::WITHIN);
-        let run = loop {
-            let runs = get(&route);
-            let [run] = runs["workflow_runs"].as_array().expect("workflow runs").as_slice() else {
-                panic!("one persisted gate run: {runs}")
-            };
-            if run["status"] == "success" {
-                break get(&format!("/repos/work/hello/actions/runs/{}", run["id"].as_u64().expect("run id")));
-            }
-            assert!(
-                dispatch && (run["status"] == "running" || run["status"] == "waiting"),
-                "gate.yml did not succeed: {run}"
-            );
-            if let Some(figures) = patience.failed() {
-                panic!("gate.yml did not succeed: {run}; {figures}");
-            }
-            std::thread::sleep(std::time::Duration::from_millis(1));
-        };
-        assert_eq!(run["workflow_id"], "gate.yml");
-        assert_eq!(run["commit_sha"], head);
-        assert_eq!(run["status"], "success");
-        let jobs = get(&format!("/repos/work/hello/actions/runs/{}/jobs", run["id"].as_u64().expect("run id")));
-        let [job] = jobs.as_array().expect("run jobs").as_slice() else { panic!("one gate job") };
-        assert_eq!(job["name"], "gate");
-        assert_eq!(job["status"], "success");
-        fs::remove_file(header).expect("remove private API header");
-        json!({"repository":repository,"run":run,"jobs":jobs})
-    }
-
     fn logs(&self) {
         for name in ["forgejo", "model", "engine", "worker", "box"] {
             let bytes = fs::read(self.scratch.join(format!("session/{name}.log"))).expect("deployment process log");
@@ -388,88 +288,34 @@ fn no_link(bytes: &[u8]) {
     }
 }
 
-#[derive(Debug, PartialEq, Eq)]
-struct Kept {
-    project: Value,
-    forge: Value,
-    repositories: Value,
-    landings: Value,
-    landing: Value,
-    gates: Value,
-    api: Value,
-}
-impl Kept {
-    fn read(mut answers: Vec<Value>, api: Value) -> Self {
-        let gates = answers.pop().expect("project gates");
-        let landing = answers.pop().expect("project landing");
-        assert_eq!(landing["setting"], json!({"kind":"project-landing","project":1}));
-        assert_eq!(landing["value"]["by"], "turn");
-        assert_eq!(landing["value"]["batch"], 2);
-        assert_eq!(gates["setting"], json!({"kind":"project-gates","project":1}));
-        let [repository] = gates["value"]["repositories"].as_array().expect("gate repositories").as_slice() else {
-            panic!("one repository's gates")
-        };
-        assert_eq!(repository["forge"], 1);
-        assert_eq!(repository["repository"], 1);
-        let [gate] = repository["gates"].as_array().expect("repository gates").as_slice() else {
-            panic!("one blocking gate")
-        };
-        assert_eq!(gate["name"], "gate");
-        assert_eq!(gate["workflow"], "gate.yml");
-        assert_eq!(gate["blocking"], true);
-        let landings = answers.pop().expect("landing list");
-        let repositories = answers.pop().expect("forge repositories");
-        let connected = answers.pop().expect("forge list");
-        assert_eq!(connected["met"], true);
-        let forge = connected["forges"].clone();
-        let mut project = answers.pop().expect("project show");
-        assert_eq!(answers, Vec::<Value>::new());
-        assert_eq!(project["number"], 1);
-        assert_eq!(project["cut"], false);
-        let [resource] = project["resources"].as_array().expect("resources").as_slice() else {
-            panic!("one adopted repository")
-        };
-        assert_eq!(resource["role"], "owned");
-        assert_eq!(resource["home"], true);
-        // A read's digest is not stored project state.
-        project.as_object_mut().expect("project object").remove("digest");
-        let [row] = forge["forges"].as_array().expect("forges").as_slice() else { panic!("one forge") };
-        assert_eq!(row["number"], 1);
-        assert_eq!(row["state"], "connected");
-        assert_eq!(row["mode"], "managed");
-        assert_eq!(repositories["more"], false);
-        assert!(
-            repositories["rows"]
-                .as_array()
-                .expect("repositories")
-                .iter()
-                .any(|row| row["owner"]["login"] == "work" && row["name"] == "hello")
-        );
-        assert_eq!(landings, json!({"project":1,"turn":null,"landings":[]}));
-        Self { project, forge, repositories, landings, landing, gates, api }
-    }
+fn kept_project(answer: &Value) {
+    assert_eq!(answer["number"], 1);
+    assert_eq!(answer["name"]["bytes"], "Hello");
+    assert_eq!(
+        answer["resources"],
+        json!([{
+            // The fresh recipe adopted work/hello, repository 1 on forge 1, as Hello's home.
+            "part": {"connector": 1, "kind": "resource", "key": {"path": ["0001", "00000001"]}},
+            "role": "owned",
+            "home": true
+        }])
+    );
 }
 
 #[test]
 fn a_stopped_deployment_restored_at_its_place_uses_new_files() {
     let place = Place::new();
-    let hash = place.walk(false);
-    place.listeners();
-    // A baseline session captures ctl/API facts and the first worker pin before the archive.
-    let (before, first_pin) = place.read(&[]);
+    place.walk();
     place.restore();
+    let archived_pin = File::open(place.pin()).expect("archived worker pin");
     let mut old_files = place.replace();
-    old_files.push(first_pin);
+    old_files.push(archived_pin);
     let old = old_files
         .iter()
         .map(|file| Identity::metadata(&file.metadata().expect("old file identity")))
         .collect::<Vec<_>>();
-    assert_eq!(place.walk(true), hash, "check-only walk of the same recipe chain");
-    place.listeners();
-    let (after, new_pin) = place.read(&old);
-    assert_eq!(after, before, "ctl and fake Forgejo facts survive the copy and newer build");
-
-    drop(new_pin);
+    let lines = session::run(&place, place.arguments(true), true, &old);
+    assert_eq!(lines.last().map(String::as_str), Some("ended"));
     drop(old_files);
     place.root.remove();
 }

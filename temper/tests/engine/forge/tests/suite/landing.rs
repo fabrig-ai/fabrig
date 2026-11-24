@@ -149,6 +149,64 @@ fn a_documentation_landing_lands_on_its_receipt_with_no_run() {
     );
 }
 
+fn assert_landed_after_restart(world: &World, dispatched: &raw::Run) {
+    let landed = world.landing(LANDING);
+    let [member] = landed.landing.members.as_ref() else { panic!("one landing member") };
+    let main = world.branch(b"main");
+    let candidate = translate::commit(dispatched.commit);
+    assert_eq!(translate::commit(main), candidate);
+    assert_eq!(member.candidate, Some(candidate));
+    assert_eq!(member.landed, Some(candidate));
+    assert_eq!(landed.landing.preparation, 1);
+    assert_eq!(landed.landing.stale_proofs, 0);
+    assert!(matches!(world.change(CHANGE).change.state, change::State::Landed { merge, .. } if merge == candidate));
+
+    let top::Document::Landings(ended) =
+        world.document(landings::PROJECT, top::landings_subject(landings::PROJECT, true)).expect("ended landings")
+    else {
+        panic!("landings document")
+    };
+    let [row] = ended.landings.as_ref() else { panic!("one ended landing") };
+    assert_eq!((row.task, &row.phase), (LANDING, &landing::Phase::Landed));
+
+    let round = landed.landing.round.pull.expect("round pull");
+    assert_ne!(round, member.pull);
+    for number in [member.pull, round] {
+        let raw::Answer::Pull(pull) = world.inspect(&raw::Read::Pull { number }) else { panic!("merged pull") };
+        assert_eq!(pull.number, number);
+        assert_eq!(pull.merged, Some(main));
+    }
+    let raw::Answer::Items { items: pulls, more: false, .. } = world.inspect(&raw::Read::Items {
+        state: None,
+        kind: Some(raw::Kind::Pull),
+        labels: Box::new([]),
+        author: None,
+        order: raw::Order::LeastUpdated,
+        since: skein_lib::Time::ZERO,
+        page: 1,
+        limit: 3, // The fixture's two pulls plus room to detect an extra.
+    }) else {
+        panic!("repository pulls")
+    };
+    let [_, _] = pulls.as_ref() else { panic!("only the member and round pulls: {pulls:?}") };
+
+    let finished = runs(world);
+    let [run] = finished.as_ref() else { panic!("one workflow run") };
+    assert_eq!((run.id, run.commit, run.event), (dispatched.id, main, raw::RunEvent::Dispatch));
+    assert_eq!(run.state, raw::RunState::Completed);
+    assert_eq!(run.conclusion, Some(raw::Conclusion::Success));
+    let raw::Answer::Jobs(jobs) = world.inspect(&raw::Read::Jobs { run: run.id }) else { panic!("proof jobs") };
+    let [job] = jobs.as_ref() else { panic!("one proof job") };
+    assert_eq!(job.name.as_ref(), b"test", "the turn world's configured workflow job");
+    assert_eq!(job.state, raw::RunState::Completed);
+    assert_eq!(job.conclusion, Some(raw::Conclusion::Success));
+    let raw::Answer::File(file) = world.inspect(&raw::Read::File { commit: main, path: b"file".as_slice().into() })
+    else {
+        panic!("change file on main")
+    };
+    assert_eq!(file.as_ref(), b"change", "the bytes pushed by World::produce");
+}
+
 #[test]
 fn a_restart_finds_the_dispatched_run_without_dispatching_again() {
     const BEFORE_DISPATCH_STEPS: u64 = 20;
@@ -177,12 +235,15 @@ fn a_restart_finds_the_dispatched_run_without_dispatching_again() {
         }
     }
     assert!(dispatched);
+    let before_restart = runs(&world);
+    let [dispatched] = before_restart.as_ref() else { panic!("one run dispatched before the restart") };
     world.restart();
     world.run_for(1);
     landings::drive_landing(&mut world, LANDING);
     assert_eq!(runs(&world).len(), 1);
     assert_eq!(world.landing(LANDING).landing.phase, landing::Phase::Landed);
     world.run_for(1);
+    assert_landed_after_restart(&world, dispatched);
     let landing = world.landing(LANDING).clone();
     let before = documents(&world);
     let saved = (receipt(&world).0.clone(), receipt(&world).1.clone());
