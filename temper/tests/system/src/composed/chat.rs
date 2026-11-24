@@ -345,7 +345,7 @@ pub fn assert_committed_landing_reply() {
     for _ in 0..super::STEPS {
         world.tick();
         let assigned = world.assignment();
-        if assigned.task == CHAT && !world.process.prepared() {
+        if assigned.task == CHAT && !world.lanes[0].process.prepared() {
             if let Some(engine::Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Ended(row)))) =
                 world.store.rows.get(&ended)
             {
