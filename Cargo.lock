@@ -7865,6 +7865,7 @@ dependencies = [
  "temper-shell",
  "temper-test-env",
  "temper-worker-checkout-world",
+ "temper-worker-service",
 ]
 
 [[package]]

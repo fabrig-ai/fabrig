@@ -1155,19 +1155,6 @@ fn github_cues(
     Ok(())
 }
 
-pub(crate) fn run_cluster(
-    workers: &[&'static str],
-    grace: skein_lib::Duration,
-    scratch: &[skein_scratch::Scratch],
-    recipe: impl FnOnce() -> llm::Recipe,
-    steps: impl FnOnce() -> Vec<crate::calls::Step>,
-) -> CheckedOutcome<Proc> {
-    let patience = crate::PATIENCE;
-    let mut world = World::new_controlled_checked(|controls| cluster_judge(controls, workers, None, patience));
-    cluster_roots(&mut world, workers, &[], grace, scratch, recipe, None, steps);
-    world.run(&skein_shell::Clock::new(), patience)
-}
-
 pub(crate) fn run_cluster_forge(
     workers: &[&'static str],
     late: &[&str],

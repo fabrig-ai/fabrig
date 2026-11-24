@@ -154,7 +154,7 @@ impl World {
         let mut world = Self::configured_with(seed, goal.clone(), true, config);
         world.goal_branch = true;
         world.forge.advance(REMOTE, b"main", b".temper/merge", COMMAND);
-        let count = if row == Row::PastTheBound { world.worker_env.limits.checkout.conflicts + 1 } else { 1 };
+        let count = if row == Row::PastTheBound { world.lanes[0].worker_env.limits.checkout.conflicts + 1 } else { 1 };
         let files: Vec<_> = (0..count)
             .map(|index| if index == 0 { b"FILE".to_vec() } else { format!("FILE{index}").into_bytes() })
             .collect();
@@ -183,9 +183,9 @@ impl World {
     pub fn run_merge_job(&mut self) -> MergeJobReport {
         let (branch, head, base) = self.reach_merge_job();
         for _ in 0..STEPS {
-            if self.process.answered.is_some()
+            if self.lanes[0].process.answered.is_some()
                 && self.root_events.is_empty()
-                && self.worker_events.is_empty()
+                && self.lanes[0].worker_events.is_empty()
                 && !self.committing()
             {
                 self.jump(Duration::from_secs(1));
@@ -235,7 +235,7 @@ impl World {
             marked: spawn.marked,
             conflicts: spawn.conflicts.clone(),
             staged: spawn.staged.clone(),
-            conflict_bound: self.worker_env.limits.checkout.conflicts,
+            conflict_bound: self.lanes[0].worker_env.limits.checkout.conflicts,
             catch_up: self.merge_change().catch_up,
             head_tree: self.forge.tree(head),
             base_tree: self.forge.tree(base),
@@ -288,7 +288,7 @@ impl World {
             let head = self.forge.branch(REMOTE, &branch).expect("producer delivered");
             if self.merge_story().row == Row::OtherBranch {
                 let suffix = format!("/.git/objects/{head}");
-                let repository = self
+                let repository = self.lanes[0]
                     .disk
                     .tree(b"ws")
                     .keys()
@@ -418,7 +418,7 @@ impl World {
         assert_eq!(job.kind.0, 3);
         assert_eq!(job.deadline, Duration::from_secs(600));
         let mut own = temper_service_core::limits::stock();
-        let checkout = &self.worker_env.limits.checkout;
+        let checkout = &self.lanes[0].worker_env.limits.checkout;
         own.checkout.repositories = checkout.repositories;
         own.checkout.name_bytes = checkout.name_bytes;
         own.checkout.conflicts = checkout.conflicts;
@@ -431,10 +431,13 @@ impl World {
         story.job = Some(job.run.raw());
         if let Some(repository) = &story.cached_repository {
             let base = story.base.expect("base made after producer's clone");
-            story.base_present_before =
-                Some(self.disk.exists(&[repository.as_slice(), format!("/.git/objects/{base}").as_bytes()].concat()));
+            story.base_present_before = Some(
+                self.lanes[0]
+                    .disk
+                    .exists(&[repository.as_slice(), format!("/.git/objects/{base}").as_bytes()].concat()),
+            );
         }
-        self.worker_events.push_back(link::job(job, workspace, &limits));
+        self.lanes[0].worker_events.push_back(link::job(job, workspace, &limits));
     }
 
     pub(super) fn observe_merge_fetch(&mut self, op: &worker::checkout::git::Op) {
@@ -451,7 +454,9 @@ impl World {
             if temper_worker_checkout_world::translate::fake(*commit) == base {
                 let repository = temper_worker_checkout_world::translate::path(at);
                 story.base_present_at_fetch = Some(
-                    self.disk.exists(&[repository.as_slice(), format!("/.git/objects/{base}").as_bytes()].concat()),
+                    self.lanes[0]
+                        .disk
+                        .exists(&[repository.as_slice(), format!("/.git/objects/{base}").as_bytes()].concat()),
                 );
                 story.base_fetch_repository = Some(repository);
             }
@@ -462,7 +467,7 @@ impl World {
         let event = match op {
             tooling::Request::Write { owner: inner, path, bytes } => {
                 assert_eq!(owner, inner);
-                self.disk.write(&disk_path(&path), &bytes);
+                self.lanes[0].disk.write(&disk_path(&path), &bytes);
                 tooling::Event::Written { owner, written: true }
             }
             tooling::Request::Spawn { owner: inner, program, args, dir, .. } => {
@@ -472,7 +477,7 @@ impl World {
             }
             tooling::Request::Read { owner: inner, path, most } => {
                 assert_eq!(owner, inner);
-                let bytes = self
+                let bytes = self.lanes[0]
                     .disk
                     .content(&disk_path(&path))
                     .filter(|bytes| bytes.len() <= usize::try_from(most).expect("result bound"))
@@ -481,7 +486,7 @@ impl World {
             }
             tooling::Request::Kill { owner: inner } => {
                 assert_eq!(owner, inner);
-                self.worker_events.push_back(worker::Event::Job {
+                self.lanes[0].worker_events.push_back(worker::Event::Job {
                     owner,
                     event: tooling::Event::Exited { owner, exit: tooling::Exit::Signal, tail: Box::new([]) },
                 });
@@ -489,38 +494,40 @@ impl World {
             }
             other => panic!("root routes job IO only: {other:?}"),
         };
-        self.worker_events.push_back(worker::Event::Job { owner, event });
+        self.lanes[0].worker_events.push_back(worker::Event::Job { owner, event });
     }
 
     fn play_merge_command(&mut self, owner: Token, program: &[u8], args: &[Box<[u8]>], directory: &[u8]) {
-        let found = self.disk.content(&disk_path(program)) == Some(COMMAND);
+        let found = self.lanes[0].disk.content(&disk_path(program)) == Some(COMMAND);
         let dir = disk_path(directory);
         let repository = [dir.as_slice(), b"/repo"].concat();
         // The fake's temper-conflicts entries stand for the unmerged index,
         // independent of the bounded list returned to the checkout domain.
-        let conflicts = self.disk.tree(&[repository.as_slice(), b"/.git/temper-conflicts"].concat());
+        let conflicts = self.lanes[0].disk.tree(&[repository.as_slice(), b"/.git/temper-conflicts"].concat());
         let unmerged: Vec<_> = conflicts.values().cloned().collect();
         let marked = !unmerged.is_empty()
             && unmerged.iter().all(|path| {
-                self.disk.content(&[repository.as_slice(), b"/", path].concat()).is_some_and(|bytes| {
+                self.lanes[0].disk.content(&[repository.as_slice(), b"/", path].concat()).is_some_and(|bytes| {
                     bytes.starts_with(b"<<<<<<<")
                         && bytes.windows(b"head\n".len()).any(|part| part == b"head\n")
                         && bytes.windows(b"base\n".len()).any(|part| part == b"base\n")
                 })
             });
-        let merge_head = self.disk.content(&[repository.as_slice(), b"/.git/MERGE_HEAD"].concat()).map(<[u8]>::to_vec);
-        let request = args.get(2).and_then(|path| self.disk.content(&disk_path(path))).unwrap_or_default().to_vec();
+        let merge_head =
+            self.lanes[0].disk.content(&[repository.as_slice(), b"/.git/MERGE_HEAD"].concat()).map(<[u8]>::to_vec);
+        let request =
+            args.get(2).and_then(|path| self.lanes[0].disk.content(&disk_path(path))).unwrap_or_default().to_vec();
         let story = self.merge_job.as_mut().expect("merge story");
         let mut staged = Vec::new();
         if found && story.row != Row::Left {
             for (entry, path) in &conflicts {
-                self.disk.write(&[repository.as_slice(), b"/", path].concat(), b"settled\n");
+                self.lanes[0].disk.write(&[repository.as_slice(), b"/", path].concat(), b"settled\n");
                 staged.extend_from_slice(path);
                 staged.extend_from_slice(b"\0settled\n");
-                self.disk.remove(&[repository.as_slice(), b"/.git/temper-conflicts/", entry].concat());
+                self.lanes[0].disk.remove(&[repository.as_slice(), b"/.git/temper-conflicts/", entry].concat());
             }
             if !staged.is_empty() {
-                self.disk.write(&[repository.as_slice(), b"/.git/index"].concat(), &staged);
+                self.lanes[0].disk.write(&[repository.as_slice(), b"/.git/index"].concat(), &staged);
             }
         }
         story.spawn = Some(Spawn {
@@ -531,7 +538,11 @@ impl World {
             command_found: found,
             marked,
             conflicts: unmerged.clone(),
-            staged: self.disk.content(&[repository.as_slice(), b"/.git/index"].concat()).unwrap_or_default().to_vec(),
+            staged: self.lanes[0]
+                .disk
+                .content(&[repository.as_slice(), b"/.git/index"].concat())
+                .unwrap_or_default()
+                .to_vec(),
             merge_head,
         });
         if found {
@@ -542,14 +553,17 @@ impl World {
             } else {
                 format!("{{\"settled\":{}}}", serde_json::to_string(&paths).expect("settled paths JSON")).into_bytes()
             };
-            self.disk.write(&[dir.as_slice(), b"/result.json"].concat(), &result);
-            self.worker_events.push_back(worker::Event::Job { owner, event: tooling::Event::Spawned { owner } });
+            self.lanes[0].disk.write(&[dir.as_slice(), b"/result.json"].concat(), &result);
+            self.lanes[0]
+                .worker_events
+                .push_back(worker::Event::Job { owner, event: tooling::Event::Spawned { owner } });
         }
         let exit =
             if found { tooling::Exit::Code(if story.row == Row::Left { 3 } else { 0 }) } else { tooling::Exit::Signal };
-        self.worker_events
+        self.lanes[0]
+            .worker_events
             .push_back(worker::Event::Job { owner, event: tooling::Event::Exited { owner, exit, tail: Box::new([]) } });
-        self.worker_events.push_back(worker::Event::Job { owner, event: tooling::Event::Gone { owner } });
+        self.lanes[0].worker_events.push_back(worker::Event::Job { owner, event: tooling::Event::Gone { owner } });
     }
 }
 

@@ -60,7 +60,7 @@ impl World {
     pub fn absence_chat(seed: u64, script: Script, words: &[u8], query: usize) -> Self {
         let mut world = Self::open_chat(seed, script);
         world.absence.enabled = true;
-        world.process.held_query = Some(query);
+        world.lanes[0].process.held_query = Some(query);
         world.party = super::signed_in_party(words);
         world
     }
@@ -70,11 +70,12 @@ impl World {
     pub fn absence_chat_with_grace(seed: u64, script: Script, words: &[u8], query: usize, grace: Duration) -> Self {
         let mut world = Self::absence_chat(seed, script, words, query);
         world.absence.grace = grace;
-        world.worker_env.limits.stop_bound = grace.saturating_add(Duration::from_secs(26));
-        world.worker_env.limits.agent.no_progress = world.env.limits.fleet.restart_wait;
-        world.env.limits.fleet.grace = world.worker_env.limits.stop_bound.saturating_add(Duration::from_secs(1));
+        world.lanes[0].worker_env.limits.stop_bound = grace.saturating_add(Duration::from_secs(26));
+        world.lanes[0].worker_env.limits.agent.no_progress = world.env.limits.fleet.restart_wait;
+        world.env.limits.fleet.grace =
+            world.lanes[0].worker_env.limits.stop_bound.saturating_add(Duration::from_secs(1));
         world.env.limits.people.sign_in_lifetime = Duration::from_secs(3600);
-        world.worker = worker::Domain::new(&world.worker_env.limits, Box::new([]));
+        world.lanes[0].worker = worker::Domain::new(&world.lanes[0].worker_env.limits, Box::new([]));
         world.replace_root(open_config(seed));
         world
     }
@@ -83,14 +84,11 @@ impl World {
     pub fn until_model_held(&mut self) {
         for _ in 0..10000 {
             self.tick();
-            if self.process.held_query.is_some_and(|query| {
-                !self.process.prepared()
-                    && self.agent().prompts().len() == query
-                    && self.agent().turns().len() + 1 == query
-                    && self.worker.retained_turns() == 0
-            }) && self.store.idle()
+            if self.lanes[0].process.model_held()
+                && self.lanes[0].worker.retained_turns() == 0
+                && self.store.idle()
                 && self.root_events.is_empty()
-                && self.worker_events.is_empty()
+                && self.lanes[0].worker_events.is_empty()
             {
                 return;
             }
@@ -100,7 +98,7 @@ impl World {
 
     /// Ask the process face to send the held response as one live reply, then its turn.
     pub fn watch_absence_reply(&mut self) {
-        self.process.in_pieces(1);
+        self.lanes[0].process.in_pieces(1);
         self.run_watch = Some(RunWatch::default());
         self.watch_absence_run();
     }
@@ -119,12 +117,12 @@ impl World {
 
     /// Continue to a later model query, holding its response.
     pub fn continue_until_model(&mut self, query: usize) {
-        assert!(self.process.held_query.is_some(), "a held model response");
-        self.process.held_query = Some(query);
+        assert!(self.lanes[0].process.held_query.is_some(), "a held model response");
+        self.lanes[0].process.held_query = Some(query);
     }
 
     pub fn release_model(&mut self) {
-        assert!(self.process.held_query.take().is_some(), "a held model response");
+        self.lanes[0].process.release_model();
     }
 
     /// Both roots hear the loss; undelivered link records no longer reach the peer.
@@ -134,7 +132,7 @@ impl World {
             channel: super::CHANNEL,
             link: engine::Link::Lost,
         }));
-        self.worker_events.push_back(worker::Event::Lost);
+        self.lanes[0].worker_events.push_back(worker::Event::Lost);
         self.absence.link_joined = false;
         self.absence.hello_pending = false;
         self.absence.outbound.clear();
@@ -146,7 +144,7 @@ impl World {
     pub fn join_link(&mut self) {
         assert!(self.absence.engine_running && self.absence.worker_running);
         self.absence.link_joined = true;
-        self.worker_events.push_back(worker::Event::Ready);
+        self.lanes[0].worker_events.push_back(worker::Event::Ready);
         let before = self.absence.admissions;
         for _ in 0..10000 {
             self.tick();
@@ -222,13 +220,13 @@ impl World {
 
     /// Cancel for shutdown, then wait for every run, answer and acknowledgement before exit.
     pub fn stop_worker(&mut self) {
-        self.worker_events.push_back(worker::Event::Shutdown { drain: false });
+        self.lanes[0].worker_events.push_back(worker::Event::Shutdown { drain: false });
         for _ in 0..10000 {
             self.tick();
             if !self.absence.worker_running {
                 self.cut_link();
-                self.worker_events.clear();
-                self.worker_out.clear();
+                self.lanes[0].worker_events.clear();
+                self.lanes[0].worker_out.clear();
                 return;
             }
         }
@@ -238,7 +236,7 @@ impl World {
     /// Start one worker at its position over the same checkout directories.
     pub fn start_worker(&mut self) {
         assert!(!self.absence.worker_running);
-        self.worker = worker::Domain::new(&self.worker_env.limits, Box::new([]));
+        self.lanes[0].worker = worker::Domain::new(&self.lanes[0].worker_env.limits, Box::new([]));
         self.absence.worker_running = true;
         self.join_link();
     }
@@ -247,7 +245,7 @@ impl World {
     pub fn until_worker_keeps_answer(&mut self) {
         for _ in 0..10000 {
             self.tick();
-            if self.worker.kept_answers() == 1 && self.observed.gone == 1 {
+            if self.lanes[0].worker.kept_answers() == 1 && self.observed.gone == 1 {
                 return;
             }
         }
@@ -257,13 +255,17 @@ impl World {
     /// Close through the authenticated party and await the durable task ending.
     pub fn close_absence_chat(&mut self) {
         self.act(parties::Ask::Cancel { task: parties::Task::Last, grace: None }, [42; 16]);
-        let ended = super::Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Ended(self.assignment().task)));
+        self.await_chat_end(self.assignment().task);
+    }
+
+    pub(super) fn await_chat_end(&mut self, task: u64) {
+        let ended = super::Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Ended(task)));
         for _ in 0..10000 {
             self.tick();
             if self.store.rows.contains_key(&ended)
                 && self.party.quiescent()
                 && self.root.quiescent()
-                && self.worker_events.is_empty()
+                && self.lanes.iter().all(|lane| lane.worker_events.is_empty())
                 && self.root_events.is_empty()
                 && self.store.idle()
             {
@@ -342,7 +344,7 @@ impl World {
             })
         {
             self.absence.lost = None;
-            self.worker_events.push_back(worker::Event::GracePassed);
+            self.lanes[0].worker_events.push_back(worker::Event::GracePassed);
         }
     }
 
@@ -362,17 +364,17 @@ impl World {
         if !self.absence.enabled {
             return;
         }
-        if self.assignment.is_some() {
-            self.absence.prompts.extend_from_slice(self.process.agent().prompts());
-            let script = self.process.script.clone();
+        if self.lanes[0].assignment.is_some() {
+            self.absence.prompts.extend_from_slice(self.lanes[0].process.agent().prompts());
+            let script = self.lanes[0].process.script.clone();
             if self.agent().turns().is_empty() {
-                self.process = super::Process::new(self.seed, script);
+                self.lanes[0].process = super::Process::new(self.seed, script);
             } else {
-                self.process.resume(Script { cue: Box::default(), turns: Box::default() });
-                self.process.fresh = Some(script);
+                self.lanes[0].process.resume(Script { cue: Box::default(), turns: Box::default() });
+                self.lanes[0].process.fresh = Some(script);
             }
-            self.process.held_query = Some(1);
-            self.process.in_pieces(1);
+            self.lanes[0].process.held_query = Some(1);
+            self.lanes[0].process.in_pieces(1);
         }
         self.absence.assignments.push(assignment.clone());
     }

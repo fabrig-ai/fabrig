@@ -309,6 +309,12 @@ impl Domain {
         &self.core.tasks
     }
 
+    /// The run channel admitted at this worker's configured position.
+    #[must_use]
+    pub fn worker_channel(&self, position: u32) -> Option<Token> {
+        self.core.fleet.worker_channel(position)
+    }
+
     /// Tasks whose prepared assignment has not yet been handed to a worker.
     #[must_use]
     pub fn pending_assignments(&self) -> List<u64> {

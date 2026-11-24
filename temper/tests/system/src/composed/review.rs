@@ -74,7 +74,7 @@ impl World {
     #[must_use]
     pub fn review_charter(&self, task: u64) -> smith_domain_run::Charter {
         let process = if self.assignment().task == task {
-            &self.process
+            &self.lanes[0].process
         } else {
             self.parked.get(&task).expect("review process")
         };
@@ -160,7 +160,7 @@ impl World {
     pub fn until_review_or_terminal(&mut self, after: u64) {
         for _ in 0..10000 {
             self.tick();
-            if self.assignment.as_ref().is_some_and(|assignment| {
+            if self.lanes[0].assignment.as_ref().is_some_and(|assignment| {
                 assignment.task > after && matches!(assignment.run.contract, tasks::Contract::Verdict { .. })
             }) {
                 return;

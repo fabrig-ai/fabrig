@@ -63,7 +63,6 @@ pub struct ServiceHost {
     pub(crate) service: Option<Driven>,
     fetch: Option<temper_worker_service::fetch::Fetch>,
     figures: Option<jig_protocol_worker_wire::Figures>,
-    figures_lines: Vec<String>,
     pub(crate) address: Option<SocketAddr>,
     pub(crate) link: Vec<u8>,
     watch: watch::Watch,
@@ -233,7 +232,6 @@ impl ServiceHost {
             service: None,
             fetch: None,
             figures: None,
-            figures_lines: Vec::new(),
             address: None,
             link: Vec::new(),
             watch: watch::Watch::default(),
@@ -604,11 +602,6 @@ impl ServiceHost {
     pub fn assignments(&self) -> &[jig_protocol_worker_wire::Assignment] {
         &self.runs.assignments
     }
-    /// Worker openings retained from the shipped service's diagnostics.
-    #[must_use]
-    pub fn figures_lines(&self) -> &[String] {
-        &self.figures_lines
-    }
     #[must_use]
     pub fn linked(&self) -> usize {
         self.linked
@@ -821,13 +814,6 @@ impl Host for ServiceHost {
             }
             if fetch.is_empty() {
                 let figures = fetch.take().expect("fetch took figures");
-                let Some(crate::cluster::Shape::Worker { engine: Some(engine), .. }) = self.cluster else {
-                    panic!("worker engine")
-                };
-                self.figures_lines.push(temper_worker_shell::worker::figures_line(
-                    &jig_protocol_config::Address::Addr(skein_io::Addr::Ip(engine)),
-                    &figures,
-                ));
                 self.figures = Some(figures);
                 self.fetch = None;
             }

@@ -149,9 +149,9 @@ pub(super) fn answered(to: Token, reply: &people::Reply) -> bool {
 impl World {
     /// Select the next task's script or restore its parked concrete history.
     pub(super) fn select_process(&mut self, task: u64) {
-        if self.assignment.as_ref().is_some_and(|previous| previous.task == task) {
-            if self.process.answered.is_some() {
-                self.process.resume(Script { cue: Box::default(), turns: Box::default() });
+        if self.lanes[0].assignment.as_ref().is_some_and(|previous| previous.task == task) {
+            if self.lanes[0].process.answered.is_some() {
+                self.lanes[0].process.resume(Script { cue: Box::default(), turns: Box::default() });
             }
             return;
         }
@@ -166,8 +166,8 @@ impl World {
         } else {
             return;
         };
-        let previous = core::mem::replace(&mut self.process, next);
-        if let Some(assignment) = &self.assignment {
+        let previous = core::mem::replace(&mut self.lanes[0].process, next);
+        if let Some(assignment) = &self.lanes[0].assignment {
             assert!(
                 previous.answered.is_some() || previous.prepared(),
                 "one live process per slot: previous {}, next {task}",
@@ -188,7 +188,7 @@ impl World {
         };
         let question = row.questions[0].number;
         let tasks::Party::Task(requester) = row.questions[0].asked else { panic!("question to the chat") };
-        self.process.resume(script);
+        self.lanes[0].process.resume(script);
         self.root_events.push_back(engine::Event::Party(engine::PartyInput::Ask {
             models: Box::default(),
             reply_to: ReplyTo::new(ANSWER),
@@ -238,9 +238,9 @@ impl World {
     pub fn finish_goal(&mut self) {
         let key = Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Ended(2)));
         for _ in 0..10000 {
-            if self.process.answered.is_some()
+            if self.lanes[0].process.answered.is_some()
                 && self.root_events.is_empty()
-                && self.worker_events.is_empty()
+                && self.lanes[0].worker_events.is_empty()
                 && !self.committing()
             {
                 self.jump(Duration::from_secs(1));

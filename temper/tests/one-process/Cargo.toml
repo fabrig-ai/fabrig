@@ -37,6 +37,7 @@ serde_json.workspace = true
 serde.workspace = true
 temper-test-env.workspace = true
 temper-service.workspace = true
+temper-worker-service.workspace = true
 temper-engine-service.workspace = true
 temper-engine-shell.workspace = true
 temper-forge-setup.workspace = true

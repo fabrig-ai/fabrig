@@ -493,3 +493,47 @@ fn git_counts_words_name_the_repository() {
     };
     assert_eq!(worker_note_words("temper", note), "temper worker: run 81 attempt 2 counts app\\n\n");
 }
+
+#[test]
+fn startup_figures_line_names_engine_places_limits_and_endpoints() {
+    use jig_protocol_worker_wire::{AgentEndpoint, Agents, EndpointLimits, Figures, Limit, Oversized, Transport};
+    use skein_lib::{Duration, List};
+
+    const PORT: u16 = 7100;
+    const PLACES: u32 = 2;
+    const LIMITS: [(&[u8], u64); 3] = [(b"hub.slots", 2), (b"hub.inbox", 8), (b"hub.turns", 4)];
+    let engine = jig_protocol_config::Address::Addr(skein_io::Addr::Ip(([127, 0, 0, 1], PORT).into()));
+    let mut limits = List::with_capacity(3);
+    for (name, value) in LIMITS {
+        limits.push(Limit { name: name.into(), value }).expect("one named limit");
+    }
+    let mut endpoints = List::with_capacity(1);
+    endpoints
+        .push(AgentEndpoint {
+            name: b"model".as_slice().into(),
+            number: 1,
+            dialect: 3,
+            provider: b"fixture".as_slice().into(),
+            program: None,
+            host: b"127.0.0.1".as_slice().into(),
+            port: PORT,
+            transport: Transport::Plaintext,
+            headers: List::with_capacity(0),
+            connect: Duration::from_secs(1),
+            handshake: Duration::from_secs(1),
+            limits: EndpointLimits {
+                window: 1024,
+                output: 512,
+                reasoning_item: 2048,
+                head: Duration::from_secs(1),
+                idle: Duration::from_secs(1),
+                oversized: Oversized::Fail,
+            },
+        })
+        .expect("one endpoint");
+    let figures = Figures { places: PLACES, limits, agents: Agents { profile: List::with_capacity(0), endpoints } };
+    assert_eq!(
+        crate::worker::figures_line(&engine, &figures),
+        "figures taken from 127.0.0.1:7100: 2 places, 3 limits, 1 endpoints\n"
+    );
+}

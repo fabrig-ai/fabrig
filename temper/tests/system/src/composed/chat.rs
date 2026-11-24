@@ -232,8 +232,8 @@ fn a_stock_chats_delegate_reports_the_landed_pull_and_merge_without_invented_che
 
 fn landing_report(world: &mut World) -> String {
     for _ in 0..10000 {
-        if world.process.answered.is_some()
-            && world.worker_events.is_empty()
+        if world.lanes[0].process.answered.is_some()
+            && world.lanes[0].worker_events.is_empty()
             && world.root_events.is_empty()
             && !world.committing()
         {

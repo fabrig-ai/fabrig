@@ -70,6 +70,7 @@ pub(crate) struct Process {
     producer: Option<Producer>,
     /// Pause Smith after the selected query, before consuming its response.
     pub(super) held_query: Option<usize>,
+    pub(super) starts: Option<Vec<(u64, u64)>>,
 }
 
 /// The process service's live producer, played here because smith's domain
@@ -177,6 +178,7 @@ impl Process {
             owner: None,
             producer: None,
             held_query: None,
+            starts: None,
         }
     }
 
@@ -244,6 +246,16 @@ impl Process {
         self.previous_provider = previous_provider;
         self.tool_payload = tool_payload;
         self.configure_settings = configure_settings;
+    }
+
+    pub(super) fn model_held(&self) -> bool {
+        self.held_query.is_some_and(|query| {
+            self.agent.as_ref().is_some_and(|agent| agent.prompts().len() == query && agent.turns().len() + 1 == query)
+        })
+    }
+
+    pub(super) fn release_model(&mut self) {
+        assert!(self.held_query.take().is_some(), "a held model response");
     }
 
     /// Whether the next activation is waiting to spawn its process.
@@ -377,6 +389,9 @@ impl Process {
     /// prepared, at the path the spawned process would see them.
     fn start(&mut self, mut start: agent::Start, window: agent::Window, around: &Around<'_>) {
         self.check_start(&start, window, around);
+        if let Some(starts) = &mut self.starts {
+            starts.push((start.logical_run.raw(), start.activation));
+        }
         let assignment = around.assignment.expect("committed assignment");
         let receiving = receiving(self.tool_payload);
         for directory in &mut start.directories {
