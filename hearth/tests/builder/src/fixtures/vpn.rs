@@ -1,4 +1,4 @@
-use super::{File, Form, Rendered, Repository, thin_with};
+use super::File;
 pub const VPN: &[File] = &[
     File { path: "envs/lab.json", body: b"{}", mode: 0o644 },
     File { path: "tasks/vpn/task.json", mode: 0o644, body: br#"{"settings":{"address":{"type":"string","doc":"Address."},"endpoint":{"type":"string","optional":true,"doc":"Endpoint."},"mtu":{"type":"int","default":1420,"doc":"MTU."}},"reads":{"vpn":{"exports":true}},"exports":{"address":{"type":"string","value":"{{ settings.address }}","doc":"Address."},"endpoint":{"type":"string","optional":true,"value":"{{ settings.endpoint }}","doc":"Endpoint."}}}"# },
@@ -31,12 +31,3 @@ pub const VPN_NO_ENDPOINT: File = File {
     mode: 0o644,
     body: br#"{"placement":{"kind":"vm","firmware":"bios","hardware":"provider-b"}}"#,
 };
-#[must_use]
-pub fn vpn_diff(file: File, form: Form) -> Rendered {
-    let repository = Repository::make("vpn-diff", &thin_with(VPN));
-    let from = repository.head();
-    let to = repository.next(&[file], &[]);
-    let mut asked = super::Asked::new(&from, &to);
-    asked.form = form;
-    super::diff(&repository, &asked)
-}

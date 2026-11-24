@@ -1,4 +1,4 @@
-use super::{File, Repository, thin_with};
+use super::{File, thin_with};
 pub const PACKAGES: &[File] = &[
     File {
         path: "tasks/base/task.json",
@@ -23,10 +23,6 @@ pub fn packages_files(enabled: bool) -> Vec<File> {
         }
     }
     files
-}
-#[must_use]
-pub fn packages_repository(name: &str, enabled: bool) -> Repository {
-    Repository::make(name, &packages_files(enabled))
 }
 pub const PRESEEDED: &[File] = &[
     File { path: "tasks/base/task.json", body: br#"{"packages": {"curl": {}, "tzdata": {}}, "preseeds": {"tzdata/Areas": {"type": "select", "value": "Europe"}}, "initramfs": {"btrfs": {}, "nvme": {}}}"#, mode: 0o644 },

@@ -13,15 +13,10 @@ use std::{
 pub struct Rendered {
     pub exit: Exit,
     pub stdout: Vec<u8>,
-    pub stderr: Vec<u8>,
 }
 #[must_use]
 pub fn render(repository: &Repository, targets: &[&[u8]], form: Form) -> Rendered {
-    render_at(repository, "HEAD", targets, form)
-}
-#[must_use]
-pub fn render_at(repository: &Repository, at: &str, targets: &[&[u8]], form: Form) -> Rendered {
-    let call = call_at(repository, at, targets, false);
+    let call = render_request(repository, targets, false);
     run(repository, call, form, None)
 }
 fn run(repository: &Repository, call: Call, form: Form, store: Option<&Path>) -> Rendered {
@@ -29,10 +24,8 @@ fn run(repository: &Repository, call: Call, form: Form, store: Option<&Path>) ->
         .rendered
 }
 
-pub use hearth_test_repository::{
-    DEBIAN, Ended, File, Laid, MOTD, Repository, THIN, THIN_TEXT, binary, git, git_output, laid_files, lay,
-    lines_starting,
-};
+pub use hearth_test_repository::{File, Laid, MOTD, Repository, THIN, THIN_TEXT, lines_starting};
+use hearth_test_repository::{git, laid_files};
 /// Overrides THIN by path and appends the new files.
 #[must_use]
 pub fn thin_with(files: &[File]) -> Vec<File> {
@@ -72,35 +65,6 @@ pub const LAYERS: &[File] = &[
     File { path: "tasks/issue/task.json", body: b"{}", mode: 0o644 },
     File { path: "tasks/issue/tree/etc/issue", body: b"An issue\n", mode: 0o644 },
 ];
-#[derive(Debug)]
-pub struct Asked<'a> {
-    pub from: &'a str,
-    pub to: &'a str,
-    pub targets: &'a [&'a [u8]],
-    pub form: Form,
-    pub store: Option<&'a Path>,
-}
-impl<'a> Asked<'a> {
-    #[must_use]
-    pub const fn new(from: &'a str, to: &'a str) -> Self {
-        Self { from, to, targets: &[], form: Form::Text, store: None }
-    }
-}
-#[must_use]
-pub fn diff(repository: &Repository, asked: &Asked<'_>) -> Rendered {
-    run(
-        repository,
-        Call::Diff {
-            resolve: false,
-            repository: repository.work_tree().join(".git").as_os_str().as_bytes().into(),
-            from: asked.from.as_bytes().into(),
-            to: asked.to.as_bytes().into(),
-            targets: asked.targets.iter().map(|target| Box::<[u8]>::from(*target)).collect(),
-        },
-        asked.form,
-        asked.store,
-    )
-}
 pub const BAD_WEST_LAB: File = File { path: "hosts/west/west-lab.json", body: b"not JSON", mode: 0o644 };
 pub const BAD_X1_LAB: File = File { path: "hosts/x1/x1-lab.json", body: b"not JSON", mode: 0o644 };
 pub const FIXED_X1_LAB: File = File { path: "hosts/x1/x1-lab.json", body: reserved::METAL_EFI, mode: 0o644 };
@@ -111,11 +75,10 @@ pub fn with_store(store: hearth_domain_store::limits::Limits) -> hearth::Limits 
 }
 #[must_use]
 pub fn render_with(repository: &Repository, limits: &hearth::Limits) -> Rendered {
-    render_call(repository, "HEAD", &[], Form::Text, limits, Release::After(skein_lib::Duration::ZERO)).rendered
+    render_holding(repository, limits, Release::After(skein_lib::Duration::ZERO)).rendered
 }
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Release {
-    OnNotice,
     After(skein_lib::Duration),
 }
 #[derive(Debug)]
@@ -125,19 +88,8 @@ pub struct Held {
 }
 #[must_use]
 pub fn render_holding(repository: &Repository, limits: &hearth::Limits, release: Release) -> Held {
-    render_call(repository, "HEAD", &[], Form::Text, limits, release)
-}
-
-fn render_call(
-    repository: &Repository,
-    at: &str,
-    targets: &[&[u8]],
-    form: Form,
-    limits: &hearth::Limits,
-    release: Release,
-) -> Held {
-    let call = call_at(repository, at, targets, false);
-    run_holding(repository, call, form, None, limits, release, None)
+    let call = render_request(repository, &[], false);
+    run_holding(repository, call, Form::Text, None, limits, release, None)
 }
 fn run_holding(
     repository: &Repository,
@@ -177,11 +129,7 @@ fn run_holding(
     let mut kernel = Kernel::open(Config { operations: held.operations() }).expect("io_uring is required");
     let exit = skein_shell::drive(&mut kernel, &Clock::new(), &mut held);
     Held {
-        rendered: Rendered {
-            exit,
-            stdout: fs::read(output).expect("printed output"),
-            stderr: fs::read(error).expect("printed error"),
-        },
+        rendered: Rendered { exit, stdout: fs::read(output).expect("printed output") },
         printed_while_held: held.printed,
     }
 }
@@ -199,11 +147,8 @@ struct Holding {
 impl Host for Holding {
     fn iterate(&mut self, now: skein_lib::Time, wall: skein_lib::Wall) {
         let first = *self.first.get_or_insert(now);
-        let release = match self.release {
-            Release::After(span) => now >= first.saturating_add(span),
-            Release::OnNotice => !fs::read(&self.error).expect("notice output").is_empty(),
-        };
-        if self.lock.is_some() && release {
+        let Release::After(span) = self.release;
+        if self.lock.is_some() && now >= first.saturating_add(span) {
             self.printed = fs::read(&self.output).expect("output while lock held");
             self.lock = None;
         }
@@ -267,18 +212,8 @@ pub const D1: hearth::service::domain::render::vocabulary::Digest =
 pub const D3: hearth::service::domain::render::vocabulary::Digest =
     hearth::service::domain::render::vocabulary::Digest([3; 32]);
 
-#[must_use]
-pub fn names(directory: &Path) -> Vec<String> {
-    let mut names: Vec<_> = fs::read_dir(directory)
-        .expect("directory")
-        .map(|entry| entry.expect("entry").file_name().into_string().expect("name"))
-        .collect();
-    names.sort();
-    names
-}
-
 /// A containing work tree whose configuration must not affect diff's cache files.
-pub fn work_tree(at: &Path, config: &[(&str, &str)]) {
+fn work_tree(at: &Path, config: &[(&str, &str)]) {
     fs::create_dir(at).expect("containing work tree");
     let path = reserved::git_path();
     git(at, &path, &["init", "--quiet", "--initial-branch=main"]);
@@ -302,7 +237,18 @@ pub fn diff_beneath_work_tree(label: &str, attributes: bool) -> Rendered {
         git(&containing, &path, &["commit", "-q", "-m", "attributes"]);
     }
     let store = containing.join("store");
-    diff(&repository, &Asked { store: Some(&store), targets: &[b"x1-prod"], ..Asked::new(&from, &to) })
+    run(
+        &repository,
+        Call::Diff {
+            resolve: false,
+            repository: repository.work_tree().join(".git").as_os_str().as_bytes().into(),
+            from: from.into_bytes().into(),
+            to: to.into_bytes().into(),
+            targets: Box::new([b"x1-prod".as_slice().into()]),
+        },
+        Form::Text,
+        Some(&store),
+    )
 }
 
 /// THIN and independently broken environments, including environments with no target.
