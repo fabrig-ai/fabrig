@@ -25,7 +25,10 @@ are `../tasks/lifecycle-holds.md`, 1 to 3, `../tasks/messages.md`, 2,
   for any cause it classifies.
 - **Every store and wire that carries `Hold`** carries `Waited`, and its
   category in the client's wire, `HoldCategory::Waited`, with the words on
-  the chip's existing `words`: no new member carries them.
+  the chip's existing `words`: no new member carries them. In each
+  schema, `waited` and `wait` come last in their enums (after `exceeded`
+  and after `preparation`), so that every tag before them keeps its
+  number.
 
 ## 2. The core's bound alarm
 
@@ -43,4 +46,8 @@ are `../tasks/lifecycle-holds.md`, 1 to 3, `../tasks/messages.md`, 2,
   to 45, in the change that adds `HoldCategory::Waited`. The changes after
   it that change the client's wire (a stop's reason, a question's
   refusal naming who answered) change version 45's schema in place,
-  moving no version again.
+  moving no version again. The public wire's `PublicHold` gains `waited`
+  in the same change, which moves the public wire's version as its layout
+  says (`../../protocol/client/versions.md`, 1).
+- **Until a hold's words are made** (`../tasks/lifecycle-holds.md`, 3), a
+  `Wait` source's words reach the chip's `words` as a preparation's do.
