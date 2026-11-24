@@ -1,0 +1,16 @@
+Author: ceilings encoded=17 decoded=0; at_most(3) encoded=17 decoded=0
+Entry: ceilings encoded=17944643 decoded=17993728; at_most(3) encoded=121 decoded=90
+Goal: ceilings encoded=12 decoded=0; at_most(3) encoded=12 decoded=0
+Last: ceilings encoded=4101 decoded=4096; at_most(3) encoded=8 decoded=3
+Line: ceilings encoded=16863264 decoded=16912384; at_most(3) encoded=59 decoded=63
+Party: ceilings encoded=8 decoded=0; at_most(3) encoded=8 decoded=0
+Pattern: ceilings encoded=16797705 decoded=16846848; at_most(3) encoded=33 decoded=60
+Project: ceilings encoded=4 decoded=0; at_most(3) encoded=4 decoded=0
+Reference: ceilings encoded=8 decoded=0; at_most(3) encoded=8 decoded=0
+Resources: ceilings encoded=16797711 decoded=16846848; at_most(3) encoded=39 decoded=60
+Row: ceilings encoded=17944646 decoded=17993728; at_most(3) encoded=124 decoded=90
+Scope: ceilings encoded=16797712 decoded=16846848; at_most(3) encoded=40 decoded=60
+Segment: ceilings encoded=4100 decoded=4096; at_most(3) encoded=7 decoded=3
+Task: ceilings encoded=16 decoded=0; at_most(3) encoded=16 decoded=0
+Value: ceilings encoded=17944644 decoded=17993728; at_most(3) encoded=122 decoded=90
+family: ceilings encoded=17944646 decoded=17993728; at_most(3) encoded=124 decoded=90

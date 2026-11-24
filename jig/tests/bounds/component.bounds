@@ -1,0 +1,16 @@
+Attempt: ceilings encoded=10 decoded=0; at_most(3) encoded=10 decoded=0
+Checkpoint: ceilings encoded=1179846 decoded=1572992; at_most(3) encoded=127 decoded=75
+CheckpointFile: ceilings encoded=18 decoded=0; at_most(3) encoded=18 decoded=0
+Count: ceilings encoded=84 decoded=64; at_most(3) encoded=23 decoded=3
+Floor: ceilings encoded=74 decoded=64; at_most(3) encoded=13 decoded=3
+Format: ceilings encoded=56 decoded=0; at_most(3) encoded=56 decoded=0
+HistoryLog: ceilings encoded=11 decoded=0; at_most(3) encoded=11 decoded=0
+Levels: ceilings encoded=20 decoded=0; at_most(3) encoded=20 decoded=0
+LogAttempt: ceilings encoded=10 decoded=0; at_most(3) encoded=10 decoded=0
+Manifest: ceilings encoded=5464 decoded=6144; at_most(3) encoded=157 decoded=105
+RestoreIntent: ceilings encoded=132 decoded=74; at_most(3) encoded=64 decoded=6
+Transcript: ceilings encoded=18 decoded=0; at_most(3) encoded=18 decoded=0
+TurnLog: ceilings encoded=11 decoded=0; at_most(3) encoded=11 decoded=0
+Wire: ceilings encoded=40 decoded=32; at_most(3) encoded=11 decoded=3
+Wires: ceilings encoded=646 decoded=896; at_most(3) encoded=39 decoded=81
+family: ceilings encoded=1179846 decoded=1572992; at_most(3) encoded=157 decoded=105

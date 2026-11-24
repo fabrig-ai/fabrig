@@ -129,7 +129,7 @@ fn accounts_deliver_whole_with_every_terminal_outcome() {
     for (end, expected) in ends().into_iter().zip(jig_client_test_records::account_end_records()) {
         let source = d::Document::Accounts(Box::new(document(Some(end))));
         assert_eq!(
-            watches::delivery(&source, 0, 2, &[], &List::with_capacity(0), &limits),
+            watches::delivery(&source, 2, &[], &List::with_capacity(0), &limits),
             Ok(w::DeliveryValue::Accounts(jig_client_test_records::accounts_record(Some(expected))))
         );
     }
@@ -218,7 +218,6 @@ fn account_line_terms_reach_the_wire() {
 
 #[test]
 fn account_capacity_actions_reach_the_wire() {
-    let limits = jig_client_test_records::limits();
     let source = fixtures::deployment_document();
     for (action, expected) in [
         (A::AccountSignIn, w::PersonCapacityAction::AccountSignIn),
@@ -227,7 +226,7 @@ fn account_capacity_actions_reach_the_wire() {
     ] {
         let mut refusal = *source.person_room_refusals.get(0).unwrap();
         refusal.action = action;
-        assert_eq!((&crate::translate::deployment::person_refusal(&refusal, &limits).unwrap().action), &expected);
+        assert_eq!((&crate::translate::deployment::person_refusal(&refusal).action), &expected);
     }
 }
 
@@ -318,7 +317,7 @@ fn accounts_documents_preserve_lending_facts() {
     assert_eq!(ended.number, 9);
     let w::LoginEnd::Refused(why) = &ended.end else { unreachable!("refused end") };
     assert_eq!((&why.refusal), &w::AccountRefusal::ProgramNameReserved);
-    let terminal = accounts::terminal(doc.lending.as_ref(), &fixtures::wire()).expect("terminal document");
+    let terminal = accounts::terminal(doc.lending.as_ref());
     assert_eq!((&terminal.login), (&wire.lending));
 }
 #[test]

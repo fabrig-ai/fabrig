@@ -141,7 +141,7 @@ impl Component {
                     if !self.streams.contains_key(&replaced) {
                         break;
                     }
-                    self.stream_step(env, replaced, out);
+                    self.stream_step(replaced, out);
                 }
             }
         } else if !body.is_empty() {
@@ -160,11 +160,7 @@ impl Component {
         }
         let mut name = [0; 16];
         self.rng.fill(&mut name);
-        let hello = translate::hello(name, &self.settings, &env.limits.wire);
-        let Ok(hello) = hello else {
-            self.connections.get_mut(&owner).expect("stream owner").respond(crate::Reply::NotARecord);
-            return;
-        };
+        let hello = translate::hello(name, &self.settings);
         let mut stream = Stream::new(name, sign_in, expires, env);
         let version = self.connections.get(&owner).expect("stream owner").version;
         let served = match version {
@@ -201,7 +197,7 @@ impl Component {
     ) {
         let Some(owner) = self.stream_owner(&open.stream, sign_in) else {
             if let Some(exchange) = exchange {
-                self.respond(exchange, routes::open_answer(Some(core::WatchRefusal::Unknown), &env.limits.wire));
+                self.respond(exchange, routes::open_answer(Some(core::WatchRefusal::Unknown)));
             }
             return;
         };
@@ -223,7 +219,7 @@ impl Component {
             || self.member_count(sign_in, true) >= env.limits.openings_per_client
         {
             if let Some(exchange) = exchange {
-                self.respond(exchange, routes::open_answer(Some(core::WatchRefusal::Busy), &env.limits.wire));
+                self.respond(exchange, routes::open_answer(Some(core::WatchRefusal::Busy)));
             } else {
                 let stream = self.streams.get_mut(&owner).expect("stream watch");
                 stream.phase = stream::Phase::Closing;
@@ -237,8 +233,7 @@ impl Component {
             w::Owner::Family(value) => Some(value.number),
         };
         if !self.serves(family, subject.version) {
-            let answer =
-                w::OpenAnswer::NotServed(crate::served::not_served(&self.settings, subject.owner, &env.limits.wire));
+            let answer = w::OpenAnswer::NotServed(crate::served::not_served(&self.settings, subject.owner));
             if let Some(exchange) = exchange {
                 self.respond(exchange, routes::encoded_open(&answer));
             }
@@ -250,7 +245,7 @@ impl Component {
             crate::served::watch(subject, watcher, sign_in, self.settings.rows, &env.limits.wire, &self.settings)
         else {
             if let Some(exchange) = exchange {
-                self.respond(exchange, routes::open_answer(Some(core::WatchRefusal::Unknown), &env.limits.wire));
+                self.respond(exchange, routes::open_answer(Some(core::WatchRefusal::Unknown)));
             }
             return;
         };
@@ -264,7 +259,6 @@ impl Component {
                     name: open.watch,
                     family,
                     version,
-                    project: opening.project,
                     rows: opening.rows,
                     parts: opening.parts,
                     opening: exchange,
@@ -300,7 +294,7 @@ impl Component {
         if self.stopping() {
             self.streams.get_mut(&owner).expect("watch stream").watches.get_mut(&watcher).expect("new watch").unwatch =
                 true;
-            self.watch_answer(env, watcher, None);
+            self.watch_answer(watcher, None);
             self.watch_ended(env, watcher, jig_domain_views::End::Stopping, out);
         } else {
             out.push(request);
@@ -339,7 +333,7 @@ impl Component {
         }
         count
     }
-    pub(super) fn watch_answer(&mut self, env: &Env<Limits>, watcher: Token, why: Option<core::WatchRefusal>) {
+    pub(super) fn watch_answer(&mut self, watcher: Token, why: Option<core::WatchRefusal>) {
         let Some(owner) = self.watcher_owner(watcher) else {
             return;
         };
@@ -363,7 +357,7 @@ impl Component {
             && *wanted == watcher
         {
             self.pending.exchanges.remove(&exchange);
-            self.respond(exchange, routes::open_answer(why, &env.limits.wire));
+            self.respond(exchange, routes::open_answer(why));
         }
         if why.is_some() {
             self.streams.get_mut(&owner).expect("watch stream").watches.remove(&watcher);
@@ -441,7 +435,6 @@ impl Component {
         watch.delivery_pending = true;
         let value = translate::document_packet(
             document,
-            watch.project,
             watch.rows,
             watch.name,
             watch.version,
@@ -471,8 +464,8 @@ impl Component {
             return;
         }
         watch.delivery_pending = true;
-        let value = translate::application_packet(family, watch.version, record, watch.name, &env.limits.wire);
-        self.queue_packet(env, watcher, value, Taken::Delivery(watcher), out);
+        let value = translate::application_packet(family, watch.version, record, watch.name);
+        self.queue_packet(env, watcher, Ok(value), Taken::Delivery(watcher), out);
     }
     pub(super) fn run_text(
         &mut self,
@@ -493,7 +486,7 @@ impl Component {
             return;
         }
         watch.text_pending = true;
-        let value = translate::text_packet(&writing, watch.name, &env.limits.wire);
+        let value = translate::text_packet(&writing, watch.name);
         self.queue_packet(env, watcher, value, Taken::Text(watcher), out);
     }
     pub(super) fn watch_ended(
@@ -534,7 +527,7 @@ impl Component {
         self.queue_packet(
             env,
             watcher,
-            translate::end_packet(why, name, &env.limits.wire),
+            Ok(translate::end_packet(why, name)),
             Taken::Ended { watcher, signed_out: why == jig_domain_views::End::SignedOut },
             out,
         );
@@ -556,7 +549,7 @@ impl Component {
             stream.ending = if sign_in.is_some() { crate::Ended::SignedOut } else { crate::Ended::Stopping };
         }
     }
-    pub(super) fn stream_up(&mut self, env: &Env<Limits>, out: &mut Queue<Request>) -> bool {
+    pub(super) fn stream_up(&mut self, out: &mut Queue<Request>) -> bool {
         let mut selected = None;
         for (owner, stream) in &self.streams {
             if stream.ready() || self.aborting() {
@@ -567,10 +560,10 @@ impl Component {
         let Some(owner) = selected else {
             return false;
         };
-        self.stream_step(env, owner, out);
+        self.stream_step(owner, out);
         true
     }
-    fn stream_step(&mut self, env: &Env<Limits>, owner: Token, out: &mut Queue<Request>) {
+    fn stream_step(&mut self, owner: Token, out: &mut Queue<Request>) {
         let mut stream = self.streams.remove(&owner).expect("selected stream");
         if stream.closing() {
             if !stream.closed_connection {
@@ -604,10 +597,7 @@ impl Component {
                     }
                     if let Some(exchange) = watch.opening {
                         self.pending.exchanges.remove(&exchange);
-                        self.respond(
-                            exchange,
-                            routes::open_answer(Some(core::WatchRefusal::Unknown), &env.limits.wire),
-                        );
+                        self.respond(exchange, routes::open_answer(Some(core::WatchRefusal::Unknown)));
                     }
                 }
             } else if stream.watches.is_empty() {

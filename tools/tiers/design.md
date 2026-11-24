@@ -822,7 +822,8 @@ change to the build command a caller wraps changes none of them.
 - `python3 -I -B tools/tiers/figures.py --base BASE [--head HEAD]`: refuses,
   exit 1, a change from BASE to HEAD that raises a figure of
   `tools/tiers/budgets.toml` or adds a reason's line, naming each, unless it
-  changes that file alone; 0 where it passes, 2 for a usage or git failure
+  changes that file alone, each member of a batched HEAD judged by its own
+  change; 0 where it passes, 2 for a usage or git failure
   (`tools/tiers/budgets.md`, 10.1).
 
 ### 10.2 `cpu.py`

@@ -62,6 +62,7 @@ impl Access {
             | Command::CheckOut { .. }
             | Command::Clean
             | Command::Merge { .. }
+            | Command::MergeHistory { .. }
             | Command::Unmerged
             | Command::UpdateIndex { .. }
             | Command::Add

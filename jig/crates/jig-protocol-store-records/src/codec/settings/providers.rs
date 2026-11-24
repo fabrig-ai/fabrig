@@ -1,12 +1,8 @@
 //! Socket and host addresses at the settings boundary (jig/docs/design/domain/engine/llm-providers.md, 6).
 use crate::settings_v3 as wire;
 use jig_domain_core_vocabulary::settings::providers as p;
-#[expect(clippy::unnecessary_wraps, reason = "by-hand maps pairs share the generated fallible signature")]
-pub(crate) fn provider_address_to_record(
-    value: &p::EndpointAddress,
-    _limits: &wire::Limits,
-) -> Result<wire::ProviderAddress, wire::Problem> {
-    Ok(match value {
+pub(crate) fn provider_address_to_record(value: &p::EndpointAddress) -> wire::ProviderAddress {
+    match value {
         p::EndpointAddress::Host { name, port } => {
             wire::ProviderAddress::Host(wire::ProviderHost { name: name.clone(), port: *port })
         }
@@ -21,14 +17,10 @@ pub(crate) fn provider_address_to_record(
                 scope_id: value.scope_id(),
             })
         }
-    })
+    }
 }
-#[expect(clippy::unnecessary_wraps, reason = "by-hand maps pairs share the generated fallible signature")]
-pub(crate) fn provider_address_to_domain(
-    value: wire::ProviderAddress,
-    _limits: &wire::Limits,
-) -> Result<p::EndpointAddress, wire::Problem> {
-    Ok(match value {
+pub(crate) fn provider_address_to_domain(value: wire::ProviderAddress) -> p::EndpointAddress {
+    match value {
         wire::ProviderAddress::Host(value) => p::EndpointAddress::Host { name: value.name, port: value.port },
         wire::ProviderAddress::Ipv4(value) => p::EndpointAddress::Socket(core::net::SocketAddr::V4(
             core::net::SocketAddrV4::new(core::net::Ipv4Addr::from(value.ip), value.port),
@@ -41,5 +33,5 @@ pub(crate) fn provider_address_to_domain(
                 value.scope_id,
             )))
         }
-    })
+    }
 }

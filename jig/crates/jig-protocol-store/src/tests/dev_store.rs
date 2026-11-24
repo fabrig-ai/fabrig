@@ -14,7 +14,7 @@ use jig_domain_core_vocabulary::{self as core, Record, RestoreRange};
 use jig_domain_tasks as tasks;
 use skein_codec::{
     Record as _,
-    layout::{Plan, Workspace},
+    layout::{Mode, Plan, Workspace},
     schema,
     value::Value,
 };
@@ -98,7 +98,8 @@ fn at_dev(family: &crate::KeptFamily, ty: &crate::ValueType, value: &[u8]) -> Bo
     let binary_held: Vec<_> = held.clone().map(|held| parse(held.current)).collect();
     let old_held: Vec<_> = held.map(|held| parse(dev(held.name))).collect();
     let variant = ty.variant.map(str::as_bytes);
-    let plan = Plan::derive_dropping(
+    let plan = Plan::between(
+        Mode::Read,
         &binary,
         binary.root(ty.root.as_bytes(), variant).unwrap(),
         &binary_held.iter().collect::<Vec<_>>(),

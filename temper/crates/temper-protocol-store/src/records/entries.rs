@@ -4,10 +4,10 @@ use alloc::boxed::Box;
 use temper_engine_domain_forge_vocabulary as top;
 
 fn encode_entry(value: &skein_forge_client::Entry) -> w::Entry {
-    crate::generated::store::entry_to_record(value, &super::Context::UNBOUNDED).expect(super::FITS)
+    crate::generated::store::entry_to_record(value)
 }
 fn decode_entry(value: w::Entry) -> skein_forge_client::Entry {
-    crate::generated::store::entry_to_domain(value, &super::Context::UNBOUNDED).expect(super::FITS)
+    crate::generated::store::entry_to_domain(value)
 }
 
 pub(super) fn encode_entry_row(entry: &skein_forge_client::Entry, held: bool) -> w::EntryRow {
@@ -18,7 +18,7 @@ pub(super) fn decode_entry_row(value: w::EntryRow) -> top::Stored {
     top::Stored::Entry { entry: decode_entry(entry), held }
 }
 pub(super) fn encode_proposed(value: &top::ProposedEffect) -> w::ProposedEffect {
-    crate::generated::store::proposed_effect_to_record(value, &super::Context::UNBOUNDED).expect(super::FITS)
+    crate::generated::store::proposed_effect_to_record(value)
 }
 pub(super) fn decode_proposed(value: w::ProposedEffect, bounds: &Bounds) -> Result<top::ProposedEffect, Undecodable> {
     crate::generated::store::proposed_effect_to_domain(value, &super::Context::bounded(bounds))
@@ -26,27 +26,25 @@ pub(super) fn decode_proposed(value: w::ProposedEffect, bounds: &Bounds) -> Resu
 }
 
 fn encode_payload(value: &top::CallPayload) -> w::CallPayload {
-    crate::generated::store::call_payload_to_record(value, &super::Context::UNBOUNDED).expect(super::FITS)
+    crate::generated::store::call_payload_to_record(value).expect(super::FITS)
 }
 fn decode_payload(value: w::CallPayload, bounds: &Bounds) -> Result<top::CallPayload, Undecodable> {
     crate::generated::store::call_payload_to_domain(value, &super::Context::bounded(bounds))
         .or(Err(Undecodable::Malformed))
 }
 pub(super) fn encode_call(key: &top::NamedCall, answer: &top::CallPayload) -> w::Call {
-    let key = crate::generated::store::named_call_to_record(key, &super::Context::UNBOUNDED).expect(super::FITS);
+    let key = crate::generated::store::named_call_to_record(key);
     w::Call { key, answer: encode_payload(answer) }
 }
 pub(super) fn decode_call(value: w::Call, bounds: &Bounds) -> Result<top::Stored, Undecodable> {
     let w::Call { key, answer } = value;
-    let key = crate::generated::store::named_call_to_domain(key, &super::Context::UNBOUNDED)
-        .or(Err(Undecodable::Malformed))?;
+    let key = crate::generated::store::named_call_to_domain(key);
     Ok(top::Stored::Call { key, answer: decode_payload(answer, bounds)? })
 }
 
 /// Owner-shaped `ReadResult` (skein/docs/design/data/codec/maps.md, 3.3).
 pub fn read_result_to_record(
     value: &Result<skein_forge::api::Answer, skein_forge::api::Error>,
-    _context: &super::Context,
 ) -> Result<w::ReadResult, w::Problem> {
     Ok(match value {
         Ok(value) => w::ReadResult::Answer(Box::new(w::AnswerValue { answer: super::answers::encode(value) })),

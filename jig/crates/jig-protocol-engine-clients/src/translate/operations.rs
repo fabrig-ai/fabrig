@@ -250,7 +250,7 @@ fn encoded_refusal(
     let answer = w::Final::Refused(w::Refused { refusal, at });
     let mut out = skein_lib::Writer::new(skein_lib::length::usize_of(answer.measure(limits)?));
     answer.write(limits, &mut out).expect("measured answer");
-    Ok(Some(super::answers::owned(w::Owner::Jig, jig_client_protocol_wire::VERSION, out.finish(), limits)?))
+    Ok(Some(super::answers::owned(w::Owner::Jig, jig_client_protocol_wire::VERSION, out.finish())))
 }
 
 fn wire_piece(reader: &mut skein_lib::Reader<'_>) -> Result<Option<Box<[u8]>>, w::Problem> {

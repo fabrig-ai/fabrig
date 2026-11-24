@@ -5,8 +5,9 @@ use jig_client_protocol_wire::Record as _;
 use jig_domain_core_vocabulary::documents as d;
 use jig_domain_views as views;
 use skein_lib::{List, Writer, bytes};
-pub fn current_call(value: &views::Call, _limits: &w::Limits) -> Result<w::CurrentCall, w::Problem> {
-    Ok(w::CurrentCall {
+#[must_use]
+pub fn current_call(value: &views::Call) -> w::CurrentCall {
+    w::CurrentCall {
         identity: w::CallIdentity {
             owner: value.identity.owner.raw(),
             sequence: value.identity.sequence,
@@ -20,12 +21,12 @@ pub fn current_call(value: &views::Call, _limits: &w::Limits) -> Result<w::Curre
             Some(item) => Some(item.as_nanos()),
             None => None,
         },
-    })
+    }
 }
-pub fn writing(value: &views::Writing, limits: &w::Limits) -> Result<w::RunText, w::Problem> {
+pub fn writing(value: &views::Writing) -> Result<w::RunText, w::Problem> {
     Ok(w::RunText {
         writing: match &value.writing {
-            Some(call) => writing_call(call, limits)?,
+            Some(call) => writing_call(call)?,
             None => None,
         },
         attempt: value.turn.attempt,
@@ -36,7 +37,7 @@ pub fn writing(value: &views::Writing, limits: &w::Limits) -> Result<w::RunText,
         text: bytes::copy_of(&value.text),
         cut: value.cut,
         call: match &value.call {
-            Some(call) => Some(w::LiveCall::Raw(w::LiveCallRaw { value: current_call(call, limits)? })),
+            Some(call) => Some(w::LiveCall::Raw(w::LiveCallRaw { value: current_call(call) })),
             None => None,
         },
     })
@@ -45,7 +46,7 @@ pub fn writing(value: &views::Writing, limits: &w::Limits) -> Result<w::RunText,
     clippy::disallowed_methods,
     reason = "protocol/client/README.md 5: this protocol owner validates retained input UTF-8"
 )]
-pub fn writing_call(value: &views::WritingCall, _limits: &w::Limits) -> Result<Option<w::WritingCall>, w::Problem> {
+pub fn writing_call(value: &views::WritingCall) -> Result<Option<w::WritingCall>, w::Problem> {
     let mut skip: usize = 0;
     if value.from != 0 {
         for byte in &value.input {
@@ -79,30 +80,32 @@ pub fn writing_call(value: &views::WritingCall, _limits: &w::Limits) -> Result<O
     }))
 }
 
-pub fn run(value: &d::Run, limits: &w::Limits) -> Result<w::RunState, w::Problem> {
+pub fn run(value: &d::Run) -> Result<w::RunState, w::Problem> {
     Ok(w::RunState {
         task: value.task,
         attempt: value.attempt,
         committed_turn: value.committed_turn,
         writing: match &value.writing {
-            Some(item) => Some(writing(item, limits)?),
+            Some(item) => Some(writing(item)?),
             None => None,
         },
         call: match &value.call {
-            Some(item) => Some(current_call(item, limits)?),
+            Some(item) => Some(current_call(item)),
             None => None,
         },
     })
 }
-pub fn count(value: d::Count, _limits: &w::Limits) -> Result<w::Count, w::Problem> {
+#[must_use]
+pub fn count(value: d::Count) -> w::Count {
     let (number, limited) = match value {
         d::Count::Known(n) => (n, false),
         d::Count::AtLeast(n) => (n, true),
     };
-    Ok(w::Count { value: number, limited })
+    w::Count { value: number, limited }
 }
-pub fn phases(value: d::PhaseCounts, _limits: &w::Limits) -> Result<w::PhaseCounts, w::Problem> {
-    Ok(w::PhaseCounts {
+#[must_use]
+pub fn phases(value: d::PhaseCounts) -> w::PhaseCounts {
+    w::PhaseCounts {
         waiting: value.waiting,
         idle: value.idle,
         starting: value.starting,
@@ -113,13 +116,13 @@ pub fn phases(value: d::PhaseCounts, _limits: &w::Limits) -> Result<w::PhaseCoun
         done: value.done,
         failed: value.failed,
         cancelled: value.cancelled,
-    })
+    }
 }
 
 pub fn tree_row(value: &d::TreeRow, limits: &w::Limits) -> Result<w::TreeRow, w::Problem> {
     let mut proposals = List::with_capacity(value.proposals.len());
     for row in &value.proposals {
-        proposals.push(task::proposal(row, limits)?).expect("supplied proposals fit");
+        proposals.push(task::proposal(row)).expect("supplied proposals fit");
     }
     let mut dependencies = List::with_capacity(value.dependencies.len());
     for row in &value.dependencies {
@@ -146,7 +149,7 @@ pub fn tree(value: &d::Tree, next: Option<w::Cursor>, limits: &w::Limits) -> Res
     let mut folded = List::with_capacity(value.folded.len());
     for row in &value.folded {
         folded
-            .push(w::TreeFold { parent: row.parent, phases: phases(row.phases, limits)?, held_below: row.held_below })
+            .push(w::TreeFold { parent: row.parent, phases: phases(row.phases), held_below: row.held_below })
             .expect("supplied folds fit");
     }
     Ok(w::Tree { root: chips::chip(&value.root, limits)?, rows, folded, held_below: value.held_below, next })
@@ -185,15 +188,15 @@ mod tests {
     }
     #[test]
     fn an_incomplete_character_waits_until_the_next_piece_completes_it() {
-        let first = writing_call(&call(0, b"\xc3"), &w::CEILINGS).expect("wire").expect("identity");
+        let first = writing_call(&call(0, b"\xc3")).expect("wire").expect("identity");
         assert_eq!((first.from, first.through, first.input.as_ref()), (0, 0, b"".as_slice()));
-        let second = writing_call(&call(0, b"\xc3\xa9"), &w::CEILINGS).expect("wire").expect("whole character");
+        let second = writing_call(&call(0, b"\xc3\xa9")).expect("wire").expect("whole character");
         assert_eq!((second.from, second.through, second.input.as_ref()), (0, 2, "é".as_bytes()));
     }
     #[test]
     fn a_trim_skips_continuation_bytes_and_invalid_utf8_omits_writing() {
-        let value = writing_call(&call(1, b"\xa9x"), &w::CEILINGS).expect("wire").expect("suffix");
+        let value = writing_call(&call(1, b"\xa9x")).expect("wire").expect("suffix");
         assert_eq!((value.from, value.through, value.input.as_ref(), value.cut), (2, 3, b"x".as_slice(), true));
-        assert!(writing_call(&call(0, b"\xff"), &w::CEILINGS).expect("wire").is_none());
+        assert!(writing_call(&call(0, b"\xff")).expect("wire").is_none());
     }
 }

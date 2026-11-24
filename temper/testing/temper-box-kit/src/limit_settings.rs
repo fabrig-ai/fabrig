@@ -112,24 +112,35 @@ pub fn install(directory: &Path) {
 }
 
 pub fn install_paths(paths: &[std::path::PathBuf; 3]) {
+    install_paths_with(paths, Vec::new());
+}
+
+/// Install a fresh fixture's additional owner settings before the bootstrap drains.
+pub(crate) fn install_paths_with(paths: &[std::path::PathBuf; 3], extra: Vec<super::ctl::Step>) {
     use std::os::unix::ffi::OsStrExt;
     let mut directories = super::configuration::directories(&paths[0]);
     directories.data = paths[1].as_os_str().as_bytes().into();
     directories.cache = paths[2].as_os_str().as_bytes().into();
-    install_at(&directories);
+    install_at_with(&directories, extra);
 }
 
 pub fn install_at(directories: &temper_box_shell::directories::Directories) {
+    install_at_with(directories, Vec::new());
+}
+
+fn install_at_with(directories: &temper_box_shell::directories::Directories, extra: Vec<super::ctl::Step>) {
     use std::os::unix::ffi::OsStrExt;
     let directory = Path::new(std::ffi::OsStr::from_bytes(&directories.config));
     let data = Path::new(std::ffi::OsStr::from_bytes(&directories.data));
     let pending = directory.join("fixture-limits.json");
     if !pending.exists() {
+        assert!(extra.is_empty(), "additional bootstrap settings require fixture limits");
         return;
     }
     let bytes = fs::read(&pending).expect("fixture limits");
     let applied = data.join("fixture-limits-applied.json");
     if fs::read(&applied).ok().as_deref() == Some(bytes.as_slice()) {
+        assert!(extra.is_empty(), "additional bootstrap settings require a fresh fixture");
         return;
     }
     let mut value = configuration(directory);
@@ -189,7 +200,12 @@ pub fn install_at(directories: &temper_box_shell::directories::Directories) {
             temper_service::limits::apply(&mut value.limits, name.as_bytes(), least).expect("carrier floor");
         }
     }
-    remember(directory, &value);
+    if extra.is_empty() {
+        remember(directory, &value);
+    } else {
+        // These owner edits, not fixture copies, supply any provider changes.
+        remember_figures(directory, &value);
+    }
     let figures: Value =
         serde_json::from_slice(&fs::read(&pending).expect("normalized figures")).expect("figures JSON");
     let mut overrides = Vec::new();
@@ -199,7 +215,7 @@ pub fn install_at(directories: &temper_box_shell::directories::Directories) {
             overrides.push((kind, name, item["value"].as_u64().expect("figure"), "subprocess fixture"));
         }
     }
-    apply(directories, &overrides);
+    apply_with(directories, &overrides, extra);
     super::write_private(&applied, &fs::read(pending).expect("applied figures"));
 }
 
@@ -221,16 +237,20 @@ pub fn held_text(overrides: &[(&str, &str, u64, &str)]) -> String {
 
 /// Bootstrap a fresh sitting with limits-held, apply the same figures as
 /// settings, drain, and remove the file. The next serve takes the settings.
-pub fn apply(directories: &temper_box_shell::directories::Directories, overrides: &[(&str, &str, u64, &str)]) {
+fn apply_with(
+    directories: &temper_box_shell::directories::Directories,
+    overrides: &[(&str, &str, u64, &str)],
+    extra: Vec<super::ctl::Step>,
+) {
     use super::ctl::{Call, Step, Story};
     use std::os::unix::ffi::{OsStrExt, OsStringExt};
     let directory = Path::new(std::ffi::OsStr::from_bytes(&directories.data));
     hold(directory, overrides);
     let mut steps = vec![Step::Run(Call::sign_in().in_directory("limit-owner"))];
-    steps.extend(super::ctl::limit_settings(directory, overrides).into_iter().map(|step| match step {
+    steps.extend(super::ctl::limit_settings(directory, overrides).into_iter().chain(extra).map(|step| match step {
         Step::Run(call) => Step::Run(call.in_directory("limit-owner")),
         Step::Then(next) => Step::Then(Box::new(move |calls| next(calls).in_directory("limit-owner"))),
-        _ => unreachable!("limit steps are calls"),
+        _ => unreachable!("bootstrap settings steps are calls"),
     }));
     steps.push(Step::Run(Call::new(&["sign-out"]).in_directory("limit-owner")));
     let command = skein_world::end_to_end::Command {
@@ -257,7 +277,7 @@ pub fn apply(directories: &temper_box_shell::directories::Directories, overrides
         assert_eq!(
             call.exit,
             Some(skein_io::kernel::Exit::Code(0)),
-            "limit settings: {}",
+            "bootstrap settings: {}",
             String::from_utf8_lossy(&call.stderr)
         );
     }

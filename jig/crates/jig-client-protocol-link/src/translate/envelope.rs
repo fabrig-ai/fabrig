@@ -4,13 +4,12 @@ use jig_client_domain::{Family, contract as c};
 use jig_client_protocol_wire as w;
 use jig_client_protocol_wire::Record as _;
 use skein_lib::{Reader, Writer, bytes};
-#[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
-pub(crate) fn scope(value: c::Scope, _limits: &w::Limits) -> Result<w::Scope, w::Problem> {
-    Ok(match value {
+pub(crate) fn scope(value: c::Scope) -> w::Scope {
+    match value {
         c::Scope::Project(value) => w::Scope::Project(w::ScopeProject { value }),
         c::Scope::Deployment => w::Scope::Deployment,
         c::Scope::Own => w::Scope::Own,
-    })
+    }
 }
 pub(crate) fn read_scope(value: &w::Scope) -> c::Scope {
     match value {
@@ -20,7 +19,7 @@ pub(crate) fn read_scope(value: &w::Scope) -> c::Scope {
     }
 }
 pub(crate) fn request(scope_value: c::Scope, record: &Family, limits: &w::Limits) -> Result<Box<[u8]>, w::Problem> {
-    let value = w::FamilyRequest { scope: scope(scope_value, limits)?, record: bytes::copy_of(&record.bytes) };
+    let value = w::FamilyRequest { scope: scope(scope_value), record: bytes::copy_of(&record.bytes) };
     let mut writer = Writer::new(skein_lib::length::usize_of(value.measure(limits)?));
     value.write(limits, &mut writer).expect("measured family request");
     Ok(writer.finish())
@@ -36,7 +35,7 @@ pub(crate) fn record(
         None => None,
     };
     let window = w::Window { rows: window.rows, after };
-    let value = w::FamilyRecord { scope: scope(scope_value, limits)?, window, record: record.bytes };
+    let value = w::FamilyRecord { scope: scope(scope_value), window, record: record.bytes };
     let mut writer = Writer::new(skein_lib::length::usize_of(value.measure(limits)?));
     value.write(limits, &mut writer).expect("measured family record");
     Ok(writer.finish())

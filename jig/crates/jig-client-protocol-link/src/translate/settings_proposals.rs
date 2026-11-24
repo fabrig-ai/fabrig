@@ -9,8 +9,9 @@ use jig_client_domain::contract as c;
 use jig_client_protocol_wire as w;
 use jig_client_protocol_wire::Record as _;
 use skein_lib::{List, Reader, Writer};
-pub fn restore_origin_revision(value: &w::OriginRevision) -> Result<c::OriginRevision, w::Problem> {
-    Ok(c::OriginRevision { revision: value.revision })
+#[must_use]
+pub fn restore_origin_revision(value: &w::OriginRevision) -> c::OriginRevision {
+    c::OriginRevision { revision: value.revision }
 }
 pub fn wire_propose_settings(value: &c::ProposeSettings, limits: &w::Limits) -> Result<w::ProposeSettings, w::Problem> {
     Ok(w::ProposeSettings { against: value.against, items: encode_setting_pieces(&value.items, limits)? })
@@ -20,10 +21,10 @@ pub fn restore_propose_settings(value: &w::ProposeSettings, limits: &Limits) -> 
 }
 pub fn restore_review_item(value: &w::ReviewItem, limits: &Limits) -> Result<c::ReviewItem, w::Problem> {
     Ok(c::ReviewItem {
-        setting: restore_setting(&value.setting)?,
-        edit: restore_revision_item_edit(&value.edit)?,
+        setting: restore_setting(&value.setting),
+        edit: restore_revision_item_edit(&value.edit),
         now: restore_review_value(&value.now, limits)?,
-        origin: restore_setting_origin(&value.origin)?,
+        origin: restore_setting_origin(&value.origin),
         would_be: restore_review_value(&value.would_be, limits)?,
         application: match &value.application {
             Some(v) => Some(c::ApplicationReview {
@@ -70,17 +71,18 @@ pub fn restore_owner_retained_action_settings(
         made: value.made,
     })
 }
-pub fn restore_setting_origin(value: &w::SettingOrigin) -> Result<c::SettingOrigin, w::Problem> {
-    Ok(match value {
-        w::SettingOrigin::Default(item) => c::SettingOrigin::Default(restore_origin_revision(item)?),
-        w::SettingOrigin::Change(item) => c::SettingOrigin::Change(restore_origin_revision(item)?),
+#[must_use]
+pub fn restore_setting_origin(value: &w::SettingOrigin) -> c::SettingOrigin {
+    match value {
+        w::SettingOrigin::Default(item) => c::SettingOrigin::Default(restore_origin_revision(item)),
+        w::SettingOrigin::Change(item) => c::SettingOrigin::Change(restore_origin_revision(item)),
         w::SettingOrigin::NotOffered => c::SettingOrigin::NotOffered,
-    })
+    }
 }
 pub fn restore_review_value(value: &w::ReviewValue, limits: &Limits) -> Result<c::ReviewValue, w::Problem> {
     Ok(match value {
         w::ReviewValue::Value(item) => c::ReviewValue::Value(restore_setting_set(item, limits)?),
-        w::ReviewValue::TooLarge(item) => c::ReviewValue::TooLarge(restore_size(item)?),
+        w::ReviewValue::TooLarge(item) => c::ReviewValue::TooLarge(restore_size(item)),
         w::ReviewValue::None => c::ReviewValue::None,
     })
 }
@@ -90,7 +92,7 @@ fn decode_heads(values: &List<w::RevisionItemHead>, bound: u32) -> Result<List<c
     }
     let mut rows = List::with_capacity(values.len());
     for value in values {
-        rows.push(restore_revision_item_head(value)?).expect("same capacity");
+        rows.push(restore_revision_item_head(value)).expect("same capacity");
     }
     Ok(rows)
 }

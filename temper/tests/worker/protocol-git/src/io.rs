@@ -11,16 +11,28 @@ pub enum Fault {
     Spawn,
     Signal,
 }
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Invocation {
-    pub transcript: Transcript,
+    word: Box<[u8]>,
+    pub exit: u8,
+    pub stdout: Box<[u8]>,
+    pub stderr: Box<[u8]>,
     pub fault: Fault,
 }
 impl Invocation {
     #[must_use]
     pub fn captured(case: &str) -> Self {
-        Self { transcript: transcripts::read(case), fault: Fault::None }
+        let Transcript { argv, exit, stdout, stderr } = transcripts::read(case);
+        let word = argv.split(|byte| *byte == b'\n').skip(27).find(|word| is_command(word)).expect("captured command");
+        Self { word: word.into(), exit, stdout, stderr, fault: Fault::None }
     }
+    #[must_use]
+    pub fn scripted(word: &[u8], exit: u8, stdout: &[u8], stderr: &[u8]) -> Self {
+        Self { word: word.into(), exit, stdout: stdout.into(), stderr: stderr.into(), fault: Fault::None }
+    }
+}
+fn is_command(word: &[u8]) -> bool {
+    !word.starts_with(b"-") && word != b"remote.origin.promisor=true"
 }
 #[derive(Debug, Default)]
 pub struct Script {
@@ -263,19 +275,8 @@ impl Below {
     fn spawn(&mut self, owner: Token, spawn: kernel::Spawn) {
         self.spawns += 1;
         let invocation = self.script.invocations.pop_front().expect("script supplies each invocation");
-        let captured: Vec<&[u8]> = invocation.transcript.argv.split(|byte| *byte == b'\n').collect();
-        let word = spawn
-            .args
-            .iter()
-            .skip(26)
-            .map(AsRef::as_ref)
-            .find(|word| !word.starts_with(b"-") && *word != b"remote.origin.promisor=true");
-        let recorded = captured
-            .iter()
-            .skip(27)
-            .copied()
-            .find(|word| !word.starts_with(b"-") && *word != b"remote.origin.promisor=true");
-        assert_eq!(word, recorded, "command agrees with the real capture");
+        let word = spawn.args.iter().skip(26).map(AsRef::as_ref).find(|word| is_command(word));
+        assert_eq!(word, Some(invocation.word.as_ref()), "command agrees with the script");
         assert!(spawn.dir.is_empty(), "every worker invocation runs at its root");
         for argument in &spawn.args {
             assert!(!argument.windows(11).any(|part| part == b"secret-git!"));
@@ -288,7 +289,7 @@ impl Below {
             self.event(records::Event::Closed { owner });
             return;
         }
-        if invocation.transcript.exit == 0 && init {
+        if invocation.exit == 0 && init {
             let path = self.arguments.last().expect("init argv").last().expect("init path").clone();
             let bare = self.arguments.last().expect("init argv").iter().any(|arg| arg.as_ref() == b"--bare");
             if !bare {
@@ -305,8 +306,8 @@ impl Below {
             let token = self.token();
             let bytes = match spec.child {
                 0 => Box::from([]),
-                1 => invocation.transcript.stdout.clone(),
-                2 => invocation.transcript.stderr.clone(),
+                1 => invocation.stdout.clone(),
+                2 => invocation.stderr.clone(),
                 _ => panic!("standard pipe"),
             };
             self.pipes.insert(token, Pipe { bytes, at: 0, ended: false, input: spec.child == 0, closed: false });
@@ -315,7 +316,7 @@ impl Below {
         let exit = if invocation.fault == Fault::Signal {
             kernel::Exit::Signal(9)
         } else {
-            kernel::Exit::Code(invocation.transcript.exit)
+            kernel::Exit::Code(invocation.exit)
         };
         self.children.insert(child, Child { owner, pipes: pipes.clone(), exit, exited: false, closing: false });
         self.event(records::Event::Spawned { owner, child, pipes: pipes.into_boxed_slice() });

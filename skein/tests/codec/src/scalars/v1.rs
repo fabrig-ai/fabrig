@@ -9,6 +9,7 @@ pub type Problem = skein_codec::Problem<Limits>;
 pub const VERSION: u16 = 1;
 
 // Limits: the owner's values, checked once against ceilings.
+#[repr(C)]
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Limits {
 }
@@ -22,7 +23,15 @@ pub const LIMIT_NAMES: &[&str] = &[
 impl Limits {
     #[must_use]
     pub fn values(&self) -> List<u32> {
-        List::with_capacity(0)
+        List::from_boxed([
+        ].into())
+    }
+
+    #[must_use]
+    pub fn at_most(&self, most: u32) -> Limits {
+        let _: u32 = most;
+        Limits {
+        }
     }
 }
 
@@ -38,81 +47,20 @@ pub fn check_limits(limits: &Limits) -> Result<(), Problem> {
     Ok(())
 }
 
-// Paths: declaration and part positions, with one naming table.
+// Paths: names as the schema spells them.
 pub mod paths {
     use super::Path;
-    pub const EMPTY_TAIL: Path = Path::new(0, 0);
-    pub const FLAG_TAG: Path = Path::new(1, 0);
-    pub const SCALARS_A: Path = Path::new(2, 0);
-    pub const SCALARS_B: Path = Path::new(2, 1);
-    pub const SCALARS_C: Path = Path::new(2, 2);
-    pub const SCALARS_D: Path = Path::new(2, 3);
-    pub const SCALARS_E: Path = Path::new(2, 4);
-    pub const SCALARS_F: Path = Path::new(2, 5);
-    pub const SCALARS_G: Path = Path::new(2, 6);
-    pub const SCALARS_H: Path = Path::new(2, 7);
-    pub const SCALARS_TAIL: Path = Path::new(2, 8);
-}
-
-const PATH_NAMES: &[&[&str]] = &[
-    &[
-        "Empty (tail)",
-    ],
-    &[
-        "Flag (tag)",
-    ],
-    &[
-        "Scalars.a",
-        "Scalars.b",
-        "Scalars.c",
-        "Scalars.d",
-        "Scalars.e",
-        "Scalars.f",
-        "Scalars.g",
-        "Scalars.h",
-        "Scalars (tail)",
-    ],
-];
-
-/// The path as the schema spells it, or None outside this family's table.
-#[must_use]
-pub fn name(path: Path) -> Option<&'static str> {
-    PATH_NAMES.get(usize::from(path.declaration))?.get(usize::from(path.part)).copied()
-}
-
-// Table: postordered shapes, with compiler-known heap slot sizes.
-static TABLE: &[skein_codec::bounds::Node] = &[
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[] },
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[1, 2] },
-    skein_codec::bounds::Node::Scalar(1),
-    skein_codec::bounds::Node::Scalar(2),
-    skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Scalar(1),
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Scalar(2),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[4, 5, 6, 7, 8, 9, 10, 3] },
-];
-
-const DECLARATIONS: &[u32] = &[
-    0,
-    3,
-    11,
-];
-
-static CEILING_VALUES: &[u32] = &[
-];
-
-#[must_use]
-pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-    Some(skein_codec::bounds::family(TABLE, limits.values().as_slice(), CEILING_VALUES, DECLARATIONS)?.encoded)
-}
-
-#[must_use]
-pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-    Some(skein_codec::bounds::family(TABLE, limits.values().as_slice(), CEILING_VALUES, DECLARATIONS)?.decoded)
+    pub const EMPTY_TAIL: Path = Path::new("Empty (tail)");
+    pub const FLAG_TAG: Path = Path::new("Flag (tag)");
+    pub const SCALARS_A: Path = Path::new("Scalars.a");
+    pub const SCALARS_B: Path = Path::new("Scalars.b");
+    pub const SCALARS_C: Path = Path::new("Scalars.c");
+    pub const SCALARS_D: Path = Path::new("Scalars.d");
+    pub const SCALARS_E: Path = Path::new("Scalars.e");
+    pub const SCALARS_F: Path = Path::new("Scalars.f");
+    pub const SCALARS_G: Path = Path::new("Scalars.g");
+    pub const SCALARS_H: Path = Path::new("Scalars.h");
+    pub const SCALARS_TAIL: Path = Path::new("Scalars (tail)");
 }
 
 // Type: Empty.
@@ -122,6 +70,10 @@ pub struct Empty {
 
 // Record: Empty.
 impl Empty {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 0;
 }
@@ -131,11 +83,11 @@ impl Record for Empty {
     const TAIL: Path = paths::EMPTY_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 0)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Empty")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 0)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Empty")?.decoded)
     }
 
     #[cfg(debug_assertions)]
@@ -166,6 +118,12 @@ pub enum Flag {
 
 // Record: Flag.
 impl Flag {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Enum { variants: &[0, 1] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 1;
 }
@@ -175,11 +133,20 @@ impl Record for Flag {
     const TAIL: Path = paths::FLAG_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 3)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Flag")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 3)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Flag")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, _limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -214,6 +181,18 @@ pub struct Scalars {
 
 // Record: Scalars.
 impl Scalars {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(1),
+        skein_codec::bounds::Node::Scalar(2),
+        skein_codec::bounds::Node::Scalar(4),
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Scalar(1),
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Scalar(2),
+        skein_codec::bounds::Node::Named("Flag"),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2, 3, 4, 5, 6, 7] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 27;
 }
@@ -223,11 +202,11 @@ impl Record for Scalars {
     const TAIL: Path = paths::SCALARS_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 11)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Scalars")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 11)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Scalars")?.decoded)
     }
 
     #[cfg(debug_assertions)]
@@ -265,3 +244,22 @@ impl Record for Scalars {
     }
 }
 
+// Bounds: one postordered shape per declaration, sorted by name.
+pub static DECLARATIONS: &[skein_codec::bounds::Declaration] = &[
+    skein_codec::bounds::Declaration { name: "Empty", nodes: Empty::SHAPE },
+    skein_codec::bounds::Declaration { name: "Flag", nodes: Flag::SHAPE },
+    skein_codec::bounds::Declaration { name: "Scalars", nodes: Scalars::SHAPE },
+];
+
+static CEILING_VALUES: &[u32] = &[
+];
+
+#[must_use]
+pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+    Some(skein_codec::bounds::family(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES)?.encoded)
+}
+
+#[must_use]
+pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+    Some(skein_codec::bounds::family(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES)?.decoded)
+}

@@ -120,6 +120,7 @@ pub(crate) fn after(op: &git::Op, command: &Command, code: u8, stdout: &[u8]) ->
         | Command::CheckOut { .. }
         | Command::Clean
         | Command::Merge { .. }
+        | Command::MergeHistory { .. }
         | Command::Unmerged
         | Command::UpdateIndex { .. }
         | Command::Add

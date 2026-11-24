@@ -4,68 +4,66 @@ use alloc::boxed::Box;
 use jig_client_protocol_wire as w;
 use jig_client_protocol_wire::Record as _;
 use skein_lib::{List, Reader, Wall, Writer, bytes};
-pub fn restore_revisions_page(value: &w::RevisionsPage, limits: &Limits) -> Result<c::RevisionsPage, w::Problem> {
+#[must_use]
+pub fn restore_revisions_page(value: &w::RevisionsPage) -> c::RevisionsPage {
     let mut rows = List::with_capacity(value.rows.len());
     for item in &value.rows {
-        rows.push(settings_restore_revision_row(item, limits)).expect("same capacity");
+        rows.push(settings_restore_revision_row(item)).expect("same capacity");
     }
-    Ok(c::RevisionsPage { rows, next: value.next, forgotten: value.forgotten })
+    c::RevisionsPage { rows, next: value.next, forgotten: value.forgotten }
 }
 
-pub(crate) fn settings_restore_revision_row(value: &w::RevisionRow, limits: &Limits) -> c::RevisionRow {
+pub(crate) fn settings_restore_revision_row(value: &w::RevisionRow) -> c::RevisionRow {
     let mut items = List::with_capacity(value.items.len());
     for item in &value.items {
-        items.push(settings_restore_revision_item_head(item, limits)).expect("same capacity");
+        items.push(settings_restore_revision_item_head(item)).expect("same capacity");
     }
-    c::RevisionRow { head: settings_restore_revision_head(&value.head, limits), items, more: value.more }
+    c::RevisionRow { head: settings_restore_revision_head(&value.head), items, more: value.more }
 }
 
-pub(crate) fn settings_restore_revision_head(value: &w::RevisionHead, limits: &Limits) -> c::RevisionHead {
+pub(crate) fn settings_restore_revision_head(value: &w::RevisionHead) -> c::RevisionHead {
     c::RevisionHead {
         number: value.number,
         against: value.against,
         at: Wall::from_nanos(value.at),
-        by: settings_restore_revision_decider(&value.by, limits),
-        proposal: optional_proposal(value.proposal.as_ref(), limits),
+        by: settings_restore_revision_decider(&value.by),
+        proposal: optional_proposal(value.proposal.as_ref()),
         moved: value.moved,
     }
 }
 
-pub(crate) fn answers_proposal_key(value: &w::ProposalKey, limits: &Limits) -> c::ProposalKey {
-    c::ProposalKey { proposer: answers_proposer(&value.proposer, limits), number: value.number }
+pub(crate) fn answers_proposal_key(value: &w::ProposalKey) -> c::ProposalKey {
+    c::ProposalKey { proposer: answers_proposer(&value.proposer), number: value.number }
 }
 
-pub(crate) fn answers_proposer(value: &w::Proposer, _limits: &Limits) -> c::Proposer {
+pub(crate) fn answers_proposer(value: &w::Proposer) -> c::Proposer {
     match value {
         w::Proposer::Task(row) => c::Proposer::Task(row.value),
         w::Proposer::Party(row) => c::Proposer::Party(row.value),
     }
 }
 
-pub(crate) fn settings_restore_revision_decider(value: &w::RevisionDecider, limits: &Limits) -> c::RevisionDecider {
+pub(crate) fn settings_restore_revision_decider(value: &w::RevisionDecider) -> c::RevisionDecider {
     match value {
         w::RevisionDecider::FirstStart => c::RevisionDecider::FirstStart,
         w::RevisionDecider::Release => c::RevisionDecider::Release,
         w::RevisionDecider::List(item) => c::RevisionDecider::List { provider: item.provider },
-        w::RevisionDecider::Party(item) => c::RevisionDecider::Party(settings_restore_revision_party(item, limits)),
+        w::RevisionDecider::Party(item) => c::RevisionDecider::Party(settings_restore_revision_party(item)),
     }
 }
 
-pub(crate) fn settings_restore_revision_party(value: &w::RevisionParty, _limits: &Limits) -> c::RevisionParty {
+pub(crate) fn settings_restore_revision_party(value: &w::RevisionParty) -> c::RevisionParty {
     c::RevisionParty { number: value.number }
 }
 
-pub(crate) fn settings_restore_revision_item_head(value: &w::RevisionItemHead, limits: &Limits) -> c::RevisionItemHead {
+pub(crate) fn settings_restore_revision_item_head(value: &w::RevisionItemHead) -> c::RevisionItemHead {
     c::RevisionItemHead {
-        setting: settings_restore_setting(&value.setting, limits),
-        edit: settings_restore_revision_item_edit(&value.edit, limits),
+        setting: settings_restore_setting(&value.setting),
+        edit: settings_restore_revision_item_edit(&value.edit),
     }
 }
 
-pub(crate) fn settings_restore_revision_item_edit(
-    value: &w::RevisionItemEdit,
-    _limits: &Limits,
-) -> c::RevisionItemEdit {
+pub(crate) fn settings_restore_revision_item_edit(value: &w::RevisionItemEdit) -> c::RevisionItemEdit {
     match value {
         w::RevisionItemEdit::Set => c::RevisionItemEdit::Set,
         w::RevisionItemEdit::Removed => c::RevisionItemEdit::Removed,
@@ -73,22 +71,22 @@ pub(crate) fn settings_restore_revision_item_edit(
     }
 }
 
-pub(crate) fn settings_restore_setting(value: &w::Setting, limits: &Limits) -> c::Setting {
+pub(crate) fn settings_restore_setting(value: &w::Setting) -> c::Setting {
     match value {
-        w::Setting::Charter(item) => c::Setting::Charter(settings_restore_setting_number(item, limits)),
-        w::Setting::Template(item) => c::Setting::Template(settings_restore_setting_number(item, limits)),
+        w::Setting::Charter(item) => c::Setting::Charter(settings_restore_setting_number(item)),
+        w::Setting::Template(item) => c::Setting::Template(settings_restore_setting_number(item)),
         w::Setting::ProjectPolicy(item) => c::Setting::ProjectPolicy { project: item.project },
-        w::Setting::Policy(item) => c::Setting::Policy(settings_restore_setting_number(item, limits)),
+        w::Setting::Policy(item) => c::Setting::Policy(settings_restore_setting_number(item)),
         w::Setting::Application(v) => c::Setting::Application { kind: v.kind, scope: v.scope, number: v.number },
         w::Setting::Rules => c::Setting::Rules,
         w::Setting::Limits => c::Setting::Limits,
-        w::Setting::Model(item) => c::Setting::Model(settings_restore_setting_number(item, limits)),
-        w::Setting::Worker(item) => c::Setting::Worker(settings_restore_setting_number(item, limits)),
-        w::Setting::Provider(item) => c::Setting::Provider(settings_restore_setting_number(item, limits)),
+        w::Setting::Model(item) => c::Setting::Model(settings_restore_setting_number(item)),
+        w::Setting::Worker(item) => c::Setting::Worker(settings_restore_setting_number(item)),
+        w::Setting::Provider(item) => c::Setting::Provider(settings_restore_setting_number(item)),
     }
 }
 
-pub(crate) fn settings_restore_setting_number(value: &w::SettingNumber, _limits: &Limits) -> c::SettingNumber {
+pub(crate) fn settings_restore_setting_number(value: &w::SettingNumber) -> c::SettingNumber {
     c::SettingNumber { number: value.number }
 }
 
@@ -97,17 +95,12 @@ pub fn restore_revision_answer(value: &w::RevisionAnswer, limits: &Limits) -> Re
         w::RevisionAnswer::Revision(item) => {
             c::RevisionAnswer::Revision(settings_restore_revision_document(item, limits)?)
         }
-        w::RevisionAnswer::Forgotten(item) => {
-            c::RevisionAnswer::Forgotten(settings_restore_revision_forgotten(item, limits))
-        }
+        w::RevisionAnswer::Forgotten(item) => c::RevisionAnswer::Forgotten(settings_restore_revision_forgotten(item)),
         w::RevisionAnswer::Unknown => c::RevisionAnswer::Unknown,
     })
 }
 
-pub(crate) fn settings_restore_revision_forgotten(
-    value: &w::RevisionForgotten,
-    _limits: &Limits,
-) -> c::RevisionForgotten {
+pub(crate) fn settings_restore_revision_forgotten(value: &w::RevisionForgotten) -> c::RevisionForgotten {
     c::RevisionForgotten { oldest: value.oldest }
 }
 
@@ -116,7 +109,7 @@ pub(crate) fn settings_restore_revision_document(
     limits: &Limits,
 ) -> Result<c::RevisionDocument, w::Problem> {
     Ok(c::RevisionDocument {
-        head: settings_restore_revision_head(&value.head, limits),
+        head: settings_restore_revision_head(&value.head),
         items: settings_decode_revision_item_pieces(value.items.as_ref(), limits)?,
     })
 }
@@ -156,7 +149,7 @@ pub(crate) fn settings_restore_revision_item(
     limits: &Limits,
 ) -> Result<c::RevisionItem, w::Problem> {
     Ok(c::RevisionItem {
-        setting: settings_restore_setting(&value.setting, limits),
+        setting: settings_restore_setting(&value.setting),
         edit: settings_restore_revision_edit(&value.edit, limits)?,
         replaced: settings_restore_revision_replaced(&value.replaced, limits)?,
     })
@@ -168,7 +161,7 @@ pub(crate) fn settings_restore_revision_replaced(
 ) -> Result<c::RevisionReplaced, w::Problem> {
     Ok(match value {
         w::RevisionReplaced::Value(item) => c::RevisionReplaced::Value(settings_restore_setting_set(item, limits)?),
-        w::RevisionReplaced::TooLarge(item) => c::RevisionReplaced::TooLarge(settings_restore_size(item, limits)),
+        w::RevisionReplaced::TooLarge(item) => c::RevisionReplaced::TooLarge(settings_restore_size(item)),
         w::RevisionReplaced::Application(item) => c::RevisionReplaced::Application { size: item.size },
         w::RevisionReplaced::Default => c::RevisionReplaced::Default,
         w::RevisionReplaced::Removed => c::RevisionReplaced::Removed,
@@ -182,14 +175,14 @@ pub(crate) fn settings_restore_revision_edit(
 ) -> Result<c::RevisionEdit, w::Problem> {
     Ok(match value {
         w::RevisionEdit::Set(item) => c::RevisionEdit::Set(settings_restore_setting_set(item, limits)?),
-        w::RevisionEdit::TooLarge(item) => c::RevisionEdit::TooLarge(settings_restore_size(item, limits)),
+        w::RevisionEdit::TooLarge(item) => c::RevisionEdit::TooLarge(settings_restore_size(item)),
         w::RevisionEdit::Removed => c::RevisionEdit::Removed,
         w::RevisionEdit::Application(v) => c::RevisionEdit::Application(restore_sized_edit(&v.edit)),
         w::RevisionEdit::Reset => c::RevisionEdit::Reset,
     })
 }
 
-pub(crate) fn settings_restore_size(value: &w::Size, _limits: &Limits) -> c::Size {
+pub(crate) fn settings_restore_size(value: &w::Size) -> c::Size {
     c::Size { bytes: value.bytes }
 }
 
@@ -206,8 +199,8 @@ pub(crate) fn settings_restore_setting_value(
 ) -> Result<c::SettingValue, w::Problem> {
     Ok(match value {
         w::SettingValue::Provider(item) => c::SettingValue::Provider(Box::new(providers::decode(item))),
-        w::SettingValue::Overlay(item) => c::SettingValue::Overlay(Box::new(restore_overlay(item, limits)?)),
-        w::SettingValue::Charter(item) => c::SettingValue::Charter(Box::new(settings_restore_charter(item, limits)?)),
+        w::SettingValue::Overlay(item) => c::SettingValue::Overlay(Box::new(restore_overlay(item)?)),
+        w::SettingValue::Charter(item) => c::SettingValue::Charter(Box::new(settings_restore_charter(item)?)),
         w::SettingValue::Template(item) => c::SettingValue::Template(Box::new(documents_me_template(item, limits)?)),
         w::SettingValue::Policy(item) => {
             c::SettingValue::Policy(Box::new(settings_restore_setting_policy(item, limits)?))
@@ -220,7 +213,7 @@ pub(crate) fn settings_restore_setting_value(
             digest: item.digest,
             withdrawn: item.withdrawn,
         })),
-        w::SettingValue::Model(item) => c::SettingValue::Model(Box::new(restore_catalogue(item, limits)?)),
+        w::SettingValue::Model(item) => c::SettingValue::Model(Box::new(restore_catalogue(item)?)),
         w::SettingValue::Limits(value) => {
             let mut overrides = List::with_capacity(value.overrides.len());
             for item in &value.overrides {
@@ -247,7 +240,7 @@ pub(crate) fn settings_restore_rules(value: &w::Rules, limits: &Limits) -> Resul
     }
     let mut requirements = List::with_capacity(value.requirements.len());
     for item in &value.requirements {
-        requirements.push(documents_policy_requirement_fields(item, limits)).expect("same capacity");
+        requirements.push(documents_policy_requirement_fields(item)).expect("same capacity");
     }
     Ok(c::Rules {
         ceiling: documents_owner_authority_fields(&value.ceiling, limits)?,
@@ -301,7 +294,7 @@ pub(crate) fn documents_owner_resource_scope_piece(
             return Err(root_too_large());
         }
         let row = w::ResourceScope::decode(&limits.settings, &mut Reader::new(&item))?;
-        let row = documents_owner_resource_scope_fields(&row, limits);
+        let row = documents_owner_resource_scope_fields(&row);
         if rows.push(row).is_err() {
             return Err(root_too_large());
         }
@@ -309,19 +302,19 @@ pub(crate) fn documents_owner_resource_scope_piece(
     Err(root_too_large())
 }
 
-pub(crate) fn documents_owner_resource_scope_fields(value: &w::ResourceScope, limits: &Limits) -> c::ResourceScope {
-    c::ResourceScope { connector: value.connector, pattern: answers_owner_pattern(&value.pattern, limits) }
+pub(crate) fn documents_owner_resource_scope_fields(value: &w::ResourceScope) -> c::ResourceScope {
+    c::ResourceScope { connector: value.connector, pattern: answers_owner_pattern(&value.pattern) }
 }
 
-pub(crate) fn answers_owner_pattern(value: &w::Pattern, limits: &Limits) -> c::Pattern {
+pub(crate) fn answers_owner_pattern(value: &w::Pattern) -> c::Pattern {
     let mut list0 = List::with_capacity(value.segments.len());
     for item in &value.segments {
         list0.push(bytes::copy_of(item)).expect("reserved supplied list");
     }
-    c::Pattern { segments: list0, last: answers_owner_pattern_end(&value.last, limits) }
+    c::Pattern { segments: list0, last: answers_owner_pattern_end(&value.last) }
 }
 
-pub(crate) fn answers_owner_pattern_end(value: &w::PatternEnd, _limits: &Limits) -> c::PatternEnd {
+pub(crate) fn answers_owner_pattern_end(value: &w::PatternEnd) -> c::PatternEnd {
     match value {
         w::PatternEnd::Exact(row) => c::PatternEnd::Exact(bytes::copy_of(row.value.as_ref())),
         w::PatternEnd::Open(row) => c::PatternEnd::Open(bytes::copy_of(row.value.as_ref())),
@@ -341,15 +334,12 @@ pub(crate) fn documents_owner_delegation_fields(
     }
     let mut list0 = List::with_capacity(value.kinds.len());
     for item in &value.kinds {
-        list0.push(documents_owner_authority_executor_fields(item, limits)).expect("reserved supplied list");
+        list0.push(documents_owner_authority_executor_fields(item)).expect("reserved supplied list");
     }
     Ok(c::Delegation { kinds: list0, tasks: value.tasks, depth: value.depth })
 }
 
-pub(crate) fn documents_owner_authority_executor_fields(
-    value: &w::AuthorityExecutor,
-    _limits: &Limits,
-) -> c::AuthorityExecutor {
+pub(crate) fn documents_owner_authority_executor_fields(value: &w::AuthorityExecutor) -> c::AuthorityExecutor {
     match value {
         w::AuthorityExecutor::Job(row) => c::AuthorityExecutor::Job(row.value),
         w::AuthorityExecutor::Charter(row) => c::AuthorityExecutor::Charter(row.value),
@@ -383,7 +373,7 @@ pub(crate) fn documents_owner_grant_piece(
             return Err(root_too_large());
         }
         let row = w::Grant::decode(&limits.settings, &mut Reader::new(&item))?;
-        let row = documents_owner_grant_fields(&row, limits);
+        let row = documents_owner_grant_fields(&row);
         if rows.push(row).is_err() {
             return Err(root_too_large());
         }
@@ -391,8 +381,8 @@ pub(crate) fn documents_owner_grant_piece(
     Err(root_too_large())
 }
 
-pub(crate) fn documents_owner_grant_fields(value: &w::Grant, limits: &Limits) -> c::Grant {
-    c::Grant { connector: value.connector, kind: value.kind, pattern: answers_owner_pattern(&value.pattern, limits) }
+pub(crate) fn documents_owner_grant_fields(value: &w::Grant) -> c::Grant {
+    c::Grant { connector: value.connector, kind: value.kind, pattern: answers_owner_pattern(&value.pattern) }
 }
 
 pub(crate) fn model_sets_decode(value: Option<&w::ModelSet>) -> Result<Option<c::AuthorityModels>, w::Problem> {
@@ -427,28 +417,25 @@ pub(crate) fn model_sets_validate(names: &List<Box<[u8]>>) -> Result<(), w::Prob
     Ok(())
 }
 
-pub(crate) fn documents_policy_requirement_fields(
-    value: &w::PolicyRequirement,
-    limits: &Limits,
-) -> c::PolicyRequirement {
+pub(crate) fn documents_policy_requirement_fields(value: &w::PolicyRequirement) -> c::PolicyRequirement {
     c::PolicyRequirement {
         connector: value.connector,
         kind: value.kind,
-        pattern: answers_owner_pattern(&value.pattern, limits),
-        judge: documents_policy_judge_fields(&value.judge, limits),
-        guard: documents_policy_guard_fields(&value.guard, limits),
+        pattern: answers_owner_pattern(&value.pattern),
+        judge: documents_policy_judge_fields(&value.judge),
+        guard: documents_policy_guard_fields(&value.guard),
         must_be_guarded: value.must_be_guarded,
     }
 }
 
-pub(crate) fn documents_policy_guard_fields(value: &w::PolicyGuard, _limits: &Limits) -> c::PolicyGuard {
+pub(crate) fn documents_policy_guard_fields(value: &w::PolicyGuard) -> c::PolicyGuard {
     match value {
         w::PolicyGuard::Guarded => c::PolicyGuard::Guarded,
         w::PolicyGuard::Observed(row) => c::PolicyGuard::Observed { freshness: row.freshness },
     }
 }
 
-pub(crate) fn documents_policy_judge_fields(value: &w::PolicyJudge, _limits: &Limits) -> c::PolicyJudge {
+pub(crate) fn documents_policy_judge_fields(value: &w::PolicyJudge) -> c::PolicyJudge {
     c::PolicyJudge { connector: value.connector, requirement: value.requirement, parameters: value.parameters }
 }
 
@@ -458,7 +445,7 @@ pub(crate) fn settings_restore_setting_policy(
 ) -> Result<c::SettingPolicy, w::Problem> {
     let mut projections = List::with_capacity(value.projections.len());
     for item in &value.projections {
-        projections.push(documents_owner_grant_fields(item, limits)).expect("same capacity");
+        projections.push(documents_owner_grant_fields(item)).expect("same capacity");
     }
     let mut roles = List::with_capacity(value.roles.len());
     for item in &value.roles {
@@ -466,11 +453,11 @@ pub(crate) fn settings_restore_setting_policy(
     }
     let mut requirements = List::with_capacity(value.requirements.len());
     for item in &value.requirements {
-        requirements.push(documents_policy_requirement_fields(item, limits)).expect("same capacity");
+        requirements.push(documents_policy_requirement_fields(item)).expect("same capacity");
     }
     let mut permissions = List::with_capacity(value.permissions.len());
     for item in &value.permissions {
-        permissions.push(documents_policy_permission_fields(item, limits)).expect("same capacity");
+        permissions.push(documents_policy_permission_fields(item)).expect("same capacity");
     }
     let mut templates = List::with_capacity(value.templates.len());
     for item in &value.templates {
@@ -521,7 +508,7 @@ pub(crate) fn operations_restore_executor(value: &w::TemplateExecutor) -> c::Tem
     }
 }
 
-pub(crate) fn documents_policy_permission_fields(value: &w::PolicyPermission, _limits: &Limits) -> c::PolicyPermission {
+pub(crate) fn documents_policy_permission_fields(value: &w::PolicyPermission) -> c::PolicyPermission {
     c::PolicyPermission { connector: value.connector, permission: value.permission, role: value.role }
 }
 
@@ -621,7 +608,7 @@ pub(crate) fn documents_task_contract_document_fields(
         w::TaskContractDocument::Job(row) => c::TaskContractDocument::Job { bytes: row.bytes },
         w::TaskContractDocument::Approval(row) => c::TaskContractDocument::Approval {
             state: documents_raw(row.state.as_ref(), limits)?,
-            part: facts_owner_part(&row.part, limits),
+            part: facts_owner_part(&row.part),
         },
         w::TaskContractDocument::Report(row) => c::TaskContractDocument::Report { words: row.words },
         w::TaskContractDocument::Verdict(row) => c::TaskContractDocument::Verdict {
@@ -692,15 +679,15 @@ pub(crate) fn documents_raw(value: &[u8], limits: &Limits) -> Result<Box<[u8]>, 
     Ok(bytes::copy_of(value))
 }
 
-pub(crate) fn facts_owner_part(value: &w::Part, limits: &Limits) -> c::Part {
+pub(crate) fn facts_owner_part(value: &w::Part) -> c::Part {
     c::Part {
         connector: value.connector,
-        kind: facts_owner_part_kind(&value.kind, limits),
-        key: facts_owner_part_key(&value.key, limits),
+        kind: facts_owner_part_kind(&value.kind),
+        key: facts_owner_part_key(&value.key),
     }
 }
 
-pub(crate) fn facts_owner_part_key(value: &w::PartKey, _limits: &Limits) -> c::PartKey {
+pub(crate) fn facts_owner_part_key(value: &w::PartKey) -> c::PartKey {
     match value {
         w::PartKey::Path(row) => {
             let mut list0 = List::with_capacity(row.value.len());
@@ -713,7 +700,7 @@ pub(crate) fn facts_owner_part_key(value: &w::PartKey, _limits: &Limits) -> c::P
     }
 }
 
-pub(crate) fn facts_owner_part_kind(value: &w::PartKind, _limits: &Limits) -> c::PartKind {
+pub(crate) fn facts_owner_part_kind(value: &w::PartKind) -> c::PartKind {
     match value {
         w::PartKind::Resource => c::PartKind::Resource,
         w::PartKind::Pool => c::PartKind::Pool,
@@ -729,17 +716,13 @@ pub(crate) fn facts_document_text(value: &w::DocumentText, limits: &Limits) -> R
     Ok(c::DocumentText {
         bytes: match c::Text::new(bytes::copy_of(value.bytes.as_ref()), limits.text) {
             Ok(value) => value,
-            Err(problem) => return Err(root_text_problem(problem)),
+            Err(_) => return Err(root_too_large()),
         },
         cut: value.cut,
     })
 }
 
-pub(crate) fn root_text_problem(_: Box<[u8]>) -> w::Problem {
-    root_too_large()
-}
-
-pub fn restore_overlay(value: &w::Overlay, limits: &Limits) -> Result<c::Overlay, w::Problem> {
+pub fn restore_overlay(value: &w::Overlay) -> Result<c::Overlay, w::Problem> {
     let mut parts = List::with_capacity(value.parts.len());
     for item in &value.parts {
         parts
@@ -755,14 +738,14 @@ pub fn restore_overlay(value: &w::Overlay, limits: &Limits) -> Result<c::Overlay
         instructions: settings_text(value.instructions.as_ref(), w::CEILINGS.charter_instructions)?,
         rest: value.rest,
         model: match &value.model {
-            Some(v) => Some(settings_restore_setting_model(v, limits)?),
+            Some(v) => Some(settings_restore_setting_model(v)?),
             None => None,
         },
         alternatives: match &value.alternatives {
             Some(v) => {
                 let mut out = List::with_capacity(v.len());
                 for item in v {
-                    out.push(settings_restore_setting_model(item, limits)?).expect("same count");
+                    out.push(settings_restore_setting_model(item)?).expect("same count");
                 }
                 Some(out)
             }
@@ -774,7 +757,7 @@ pub fn restore_overlay(value: &w::Overlay, limits: &Limits) -> Result<c::Overlay
         agents: value.agents,
         tools: value.tools,
         hosts: match &value.hosts {
-            Some(v) => Some(settings_restore_setting_hosts(v, limits)),
+            Some(v) => Some(settings_restore_setting_hosts(v)),
             None => None,
         },
         waiting: value.waiting,
@@ -803,26 +786,27 @@ pub fn restore_overlay(value: &w::Overlay, limits: &Limits) -> Result<c::Overlay
         },
     })
 }
-pub fn wire_overlay(value: &c::Overlay, limits: &w::Limits) -> Result<w::Overlay, w::Problem> {
+#[must_use]
+pub fn wire_overlay(value: &c::Overlay) -> w::Overlay {
     let mut parts = List::with_capacity(value.parts.len());
     for item in &value.parts {
         parts
             .push(w::CharterPart { on: item.on, instructions: bytes::copy_of(item.instructions.bytes()) })
             .expect("same count");
     }
-    Ok(w::Overlay {
+    w::Overlay {
         parts,
         instructions: bytes::copy_of(value.instructions.bytes()),
         rest: value.rest,
         model: match &value.model {
-            Some(v) => Some(settings_wire_setting_model(v, limits)?),
+            Some(v) => Some(settings_wire_setting_model(v)),
             None => None,
         },
         alternatives: match &value.alternatives {
             Some(v) => {
                 let mut out = List::with_capacity(v.len());
                 for item in v {
-                    out.push(settings_wire_setting_model(item, limits)?).expect("same count");
+                    out.push(settings_wire_setting_model(item)).expect("same count");
                 }
                 Some(out)
             }
@@ -834,7 +818,7 @@ pub fn wire_overlay(value: &c::Overlay, limits: &w::Limits) -> Result<w::Overlay
         agents: value.agents,
         tools: value.tools,
         hosts: match &value.hosts {
-            Some(v) => Some(settings_wire_setting_hosts(v, limits)),
+            Some(v) => Some(settings_wire_setting_hosts(v)),
             None => None,
         },
         waiting: value.waiting,
@@ -861,12 +845,12 @@ pub fn wire_overlay(value: &c::Overlay, limits: &w::Limits) -> Result<w::Overlay
             }
             None => None,
         },
-    })
+    }
 }
-pub(crate) fn settings_restore_charter(value: &w::Charter, limits: &Limits) -> Result<c::Charter, w::Problem> {
+pub(crate) fn settings_restore_charter(value: &w::Charter) -> Result<c::Charter, w::Problem> {
     let mut alternatives = List::with_capacity(value.alternatives.len());
     for item in &value.alternatives {
-        alternatives.push(settings_restore_setting_model(item, limits)?).expect("same capacity");
+        alternatives.push(settings_restore_setting_model(item)?).expect("same capacity");
     }
     let mut documents = List::with_capacity(value.documents.len());
     for item in &value.documents {
@@ -900,17 +884,17 @@ pub(crate) fn settings_restore_charter(value: &w::Charter, limits: &Limits) -> R
         time: value.time,
         reserve_turns: value.reserve_turns,
         reserve_time: value.reserve_time,
-        model: settings_restore_setting_model(&value.model, limits)?,
+        model: settings_restore_setting_model(&value.model)?,
         alternatives,
         call_timeout: value.call_timeout,
         tools: value.tools,
-        hosts: settings_restore_setting_hosts(&value.hosts, limits),
+        hosts: settings_restore_setting_hosts(&value.hosts),
         spend: value.spend,
         wake: settings_restore_wake(&value.wake),
     })
 }
 
-pub(crate) fn settings_restore_setting_hosts(value: &w::SettingHosts, _limits: &Limits) -> c::SettingHosts {
+pub(crate) fn settings_restore_setting_hosts(value: &w::SettingHosts) -> c::SettingHosts {
     match value {
         w::SettingHosts::Workers => c::SettingHosts::Workers,
         w::SettingHosts::Engine => c::SettingHosts::Engine,
@@ -918,10 +902,7 @@ pub(crate) fn settings_restore_setting_hosts(value: &w::SettingHosts, _limits: &
     }
 }
 
-pub(crate) fn settings_restore_setting_model(
-    value: &w::SettingModel,
-    _limits: &Limits,
-) -> Result<c::SettingModel, w::Problem> {
+pub(crate) fn settings_restore_setting_model(value: &w::SettingModel) -> Result<c::SettingModel, w::Problem> {
     let mut efforts = List::with_capacity(value.efforts.len());
     for item in &value.efforts {
         efforts.push(settings_text(item, 32)?).expect("same capacity");
@@ -977,10 +958,10 @@ pub(crate) fn settings_item_count(values: &[u8], limits: &Limits) -> Result<u32,
 pub fn restore_setting_document(value: &w::SettingDocument, limits: &Limits) -> Result<c::SettingDocument, w::Problem> {
     Ok(c::SettingDocument {
         overlay: match &value.overlay {
-            Some(v) => Some(Box::new(restore_overlay(v, limits)?)),
+            Some(v) => Some(Box::new(restore_overlay(v)?)),
             None => None,
         },
-        setting: settings_restore_setting(&value.setting, limits),
+        setting: settings_restore_setting(&value.setting),
         revision: value.revision,
         value: match &value.value {
             Some(v) => Some(settings_restore_setting_value(v, limits)?),
@@ -1007,21 +988,21 @@ pub fn restore_settings_document(
     }
     let mut held = List::with_capacity(value.held.len());
     for item in &value.held {
-        held.push(settings_restore_held_revision(item, limits)).expect("same capacity");
+        held.push(settings_restore_held_revision(item)).expect("same capacity");
     }
     let mut pending = List::with_capacity(value.pending.len());
     for item in &value.pending {
-        pending.push(settings_restore_settings_proposal(item, limits)).expect("same capacity");
+        pending.push(settings_restore_settings_proposal(item)).expect("same capacity");
     }
     Ok(c::SettingsDocument { newest: value.newest, settings, held, pending })
 }
 
-pub(crate) fn settings_restore_settings_proposal(value: &w::SettingsProposal, limits: &Limits) -> c::SettingsProposal {
-    c::SettingsProposal { proposer: answers_proposer(&value.proposer, limits), number: value.number }
+pub(crate) fn settings_restore_settings_proposal(value: &w::SettingsProposal) -> c::SettingsProposal {
+    c::SettingsProposal { proposer: answers_proposer(&value.proposer), number: value.number }
 }
 
-pub(crate) fn settings_restore_held_revision(value: &w::HeldRevision, limits: &Limits) -> c::HeldRevision {
-    c::HeldRevision { head: settings_restore_revision_head(&value.head, limits), holders: value.holders }
+pub(crate) fn settings_restore_held_revision(value: &w::HeldRevision) -> c::HeldRevision {
+    c::HeldRevision { head: settings_restore_revision_head(&value.head), holders: value.holders }
 }
 
 pub(crate) fn settings_restore_setting_line(
@@ -1029,12 +1010,12 @@ pub(crate) fn settings_restore_setting_line(
     limits: &Limits,
 ) -> Result<c::SettingLine, w::Problem> {
     Ok(c::SettingLine {
-        setting: settings_restore_setting(&value.setting, limits),
+        setting: settings_restore_setting(&value.setting),
         name: match &value.name {
             Some(item) => Some(facts_document_text(item, limits)?),
             None => None,
         },
-        follows: settings_restore_setting_follows(&value.follows, limits),
+        follows: settings_restore_setting_follows(&value.follows),
         last: value.last,
         application: match &value.application {
             Some(v) => Some(restore_application_state(v)),
@@ -1043,7 +1024,7 @@ pub(crate) fn settings_restore_setting_line(
     })
 }
 
-pub(crate) fn settings_restore_setting_follows(value: &w::SettingFollows, _limits: &Limits) -> c::SettingFollows {
+pub(crate) fn settings_restore_setting_follows(value: &w::SettingFollows) -> c::SettingFollows {
     match value {
         w::SettingFollows::Overlay => c::SettingFollows::Overlay,
         w::SettingFollows::Default => c::SettingFollows::Default,
@@ -1055,11 +1036,11 @@ pub fn wire_change_settings(value: &c::ChangeSettings, limits: &w::Limits) -> Re
     Ok(w::ChangeSettings {
         against: value.against,
         items: settings_encode_setting_item_pieces(&value.items, limits)?,
-        running: settings_wire_running(&value.running, limits),
+        running: settings_wire_running(&value.running),
     })
 }
 
-pub(crate) fn settings_wire_running(value: &c::Running, _limits: &w::Limits) -> w::Running {
+pub(crate) fn settings_wire_running(value: &c::Running) -> w::Running {
     match value {
         c::Running::Stays => w::Running::Stays,
         c::Running::Moves => w::Running::Moves,
@@ -1096,7 +1077,7 @@ pub(crate) fn settings_wire_setting_item(
     limits: &w::Limits,
 ) -> Result<w::SettingItem, w::Problem> {
     Ok(w::SettingItem {
-        setting: settings_wire_setting(value.setting, limits)?,
+        setting: settings_wire_setting(value.setting),
         edit: settings_wire_setting_edit(&value.edit, limits)?,
     })
 }
@@ -1124,8 +1105,8 @@ pub(crate) fn settings_wire_setting_value(
     limits: &w::Limits,
 ) -> Result<w::SettingValue, w::Problem> {
     Ok(match value {
-        c::SettingValue::Overlay(item) => w::SettingValue::Overlay(Box::new(wire_overlay(item, limits)?)),
-        c::SettingValue::Charter(item) => w::SettingValue::Charter(Box::new(settings_wire_charter(item, limits)?)),
+        c::SettingValue::Overlay(item) => w::SettingValue::Overlay(Box::new(wire_overlay(item))),
+        c::SettingValue::Charter(item) => w::SettingValue::Charter(Box::new(settings_wire_charter(item))),
         c::SettingValue::Template(item) => w::SettingValue::Template(Box::new(settings_wire_template(item, limits)?)),
         c::SettingValue::Policy(item) => w::SettingValue::Policy(Box::new(settings_wire_setting_policy(item, limits)?)),
         c::SettingValue::Application(v) => w::SettingValue::Application(w::ApplicationValue { bytes: v.clone() }),
@@ -1137,7 +1118,7 @@ pub(crate) fn settings_wire_setting_value(
             digest: item.digest,
             withdrawn: item.withdrawn,
         })),
-        c::SettingValue::Model(item) => w::SettingValue::Model(Box::new(wire_catalogue(item, limits)?)),
+        c::SettingValue::Model(item) => w::SettingValue::Model(Box::new(wire_catalogue(item))),
         c::SettingValue::Limits(values) => {
             let mut overrides = List::with_capacity(u32::try_from(values.len()).expect("bounded overrides"));
             for item in values {
@@ -1160,7 +1141,7 @@ pub(crate) fn settings_wire_rules(value: &c::Rules, limits: &w::Limits) -> Resul
     }
     let mut requirements = List::with_capacity(value.requirements.len());
     for item in &value.requirements {
-        requirements.push(asks_wire_policy_requirement(item, limits)?).expect("same capacity");
+        requirements.push(asks_wire_policy_requirement(item)).expect("same capacity");
     }
     Ok(w::Rules {
         ceiling: asks_wire_owner_authority(&value.ceiling, limits)?,
@@ -1175,18 +1156,18 @@ pub(crate) fn settings_wire_rules(value: &c::Rules, limits: &w::Limits) -> Resul
 pub(crate) fn asks_wire_owner_authority(value: &c::Authority, limits: &w::Limits) -> Result<w::Authority, w::Problem> {
     let mut list0 = List::with_capacity(value.grants.len());
     for item in &value.grants {
-        list0.push(asks_wire_owner_grant(item, limits)?).expect("reserved supplied list");
+        list0.push(asks_wire_owner_grant(item)).expect("reserved supplied list");
     }
     let opt1 = optional_nanos(value.deadline);
     let mut list2 = List::with_capacity(value.note_resources.len());
     for item in &value.note_resources {
-        list2.push(asks_wire_owner_resource_scope(item, limits)?).expect("reserved supplied list");
+        list2.push(asks_wire_owner_resource_scope(item)).expect("reserved supplied list");
     }
     Ok(w::Authority {
-        models: model_sets_encode(value.models.as_ref(), limits)?,
+        models: model_sets_encode(value.models.as_ref())?,
         tools: value.tools,
         grants: asks_wire_owner_grant_piece(&list0, limits)?,
-        delegation: asks_wire_owner_delegation(&value.delegation, limits)?,
+        delegation: asks_wire_owner_delegation(&value.delegation),
         spend: value.spend,
         deadline: opt1,
         notes: value.notes,
@@ -1216,30 +1197,23 @@ pub(crate) fn asks_wire_owner_resource_scope_piece(
     Ok(writer.finish())
 }
 
-pub(crate) fn asks_wire_owner_delegation(
-    value: &c::Delegation,
-    limits: &w::Limits,
-) -> Result<w::Delegation, w::Problem> {
+pub(crate) fn asks_wire_owner_delegation(value: &c::Delegation) -> w::Delegation {
     let mut list0 = List::with_capacity(value.kinds.len());
     for item in &value.kinds {
-        list0.push(asks_wire_owner_authority_executor(*item, limits)?).expect("reserved supplied list");
+        list0.push(asks_wire_owner_authority_executor(*item)).expect("reserved supplied list");
     }
-    Ok(w::Delegation { kinds: list0, tasks: value.tasks, depth: value.depth })
+    w::Delegation { kinds: list0, tasks: value.tasks, depth: value.depth }
 }
 
-#[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
-pub(crate) fn asks_wire_owner_authority_executor(
-    value: c::AuthorityExecutor,
-    _limits: &w::Limits,
-) -> Result<w::AuthorityExecutor, w::Problem> {
-    Ok(match value {
+pub(crate) fn asks_wire_owner_authority_executor(value: c::AuthorityExecutor) -> w::AuthorityExecutor {
+    match value {
         c::AuthorityExecutor::Job(value) => w::AuthorityExecutor::Job(w::AuthorityExecutorJob { value }),
         c::AuthorityExecutor::Charter(value) => w::AuthorityExecutor::Charter(w::AuthorityExecutorCharter { value }),
         c::AuthorityExecutor::Procedure(value) => {
             w::AuthorityExecutor::Procedure(w::AuthorityExecutorProcedure { value })
         }
         c::AuthorityExecutor::Role(value) => w::AuthorityExecutor::Role(w::AuthorityExecutorRole { value }),
-    })
+    }
 }
 
 pub(crate) fn asks_wire_owner_grant_piece(rows: &List<w::Grant>, limits: &w::Limits) -> Result<Box<[u8]>, w::Problem> {
@@ -1261,10 +1235,7 @@ pub(crate) fn asks_wire_owner_grant_piece(rows: &List<w::Grant>, limits: &w::Lim
     Ok(writer.finish())
 }
 
-pub(crate) fn model_sets_encode(
-    value: Option<&c::AuthorityModels>,
-    _limits: &w::Limits,
-) -> Result<Option<w::ModelSet>, w::Problem> {
+pub(crate) fn model_sets_encode(value: Option<&c::AuthorityModels>) -> Result<Option<w::ModelSet>, w::Problem> {
     Ok(match value {
         None => None,
         Some(c::AuthorityModels::All) => Some(w::ModelSet::All),
@@ -1275,70 +1246,51 @@ pub(crate) fn model_sets_encode(
     })
 }
 
-pub(crate) fn asks_wire_owner_resource_scope(
-    value: &c::ResourceScope,
-    limits: &w::Limits,
-) -> Result<w::ResourceScope, w::Problem> {
-    Ok(w::ResourceScope { connector: value.connector, pattern: asks_wire_owner_pattern(&value.pattern, limits)? })
+pub(crate) fn asks_wire_owner_resource_scope(value: &c::ResourceScope) -> w::ResourceScope {
+    w::ResourceScope { connector: value.connector, pattern: asks_wire_owner_pattern(&value.pattern) }
 }
 
-pub(crate) fn asks_wire_owner_pattern(value: &c::Pattern, limits: &w::Limits) -> Result<w::Pattern, w::Problem> {
+pub(crate) fn asks_wire_owner_pattern(value: &c::Pattern) -> w::Pattern {
     let mut list0 = List::with_capacity(value.segments.len());
     for item in &value.segments {
         list0.push(bytes::copy_of(item)).expect("reserved supplied list");
     }
-    Ok(w::Pattern { segments: list0, last: asks_wire_owner_pattern_end(&value.last, limits)? })
+    w::Pattern { segments: list0, last: asks_wire_owner_pattern_end(&value.last) }
 }
 
-#[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
-pub(crate) fn asks_wire_owner_pattern_end(
-    value: &c::PatternEnd,
-    _limits: &w::Limits,
-) -> Result<w::PatternEnd, w::Problem> {
-    Ok(match value {
+pub(crate) fn asks_wire_owner_pattern_end(value: &c::PatternEnd) -> w::PatternEnd {
+    match value {
         c::PatternEnd::Exact(value) => w::PatternEnd::Exact(w::PatternEndExact { value: bytes::copy_of(value) }),
         c::PatternEnd::Open(value) => w::PatternEnd::Open(w::PatternEndOpen { value: bytes::copy_of(value) }),
-    })
+    }
 }
 
-pub(crate) fn asks_wire_owner_grant(value: &c::Grant, limits: &w::Limits) -> Result<w::Grant, w::Problem> {
-    Ok(w::Grant {
-        connector: value.connector,
-        kind: value.kind,
-        pattern: asks_wire_owner_pattern(&value.pattern, limits)?,
-    })
+pub(crate) fn asks_wire_owner_grant(value: &c::Grant) -> w::Grant {
+    w::Grant { connector: value.connector, kind: value.kind, pattern: asks_wire_owner_pattern(&value.pattern) }
 }
 
-pub(crate) fn asks_wire_policy_requirement(
-    value: &c::PolicyRequirement,
-    limits: &w::Limits,
-) -> Result<w::PolicyRequirement, w::Problem> {
-    Ok(w::PolicyRequirement {
+pub(crate) fn asks_wire_policy_requirement(value: &c::PolicyRequirement) -> w::PolicyRequirement {
+    w::PolicyRequirement {
         connector: value.connector,
         kind: value.kind,
-        pattern: asks_wire_owner_pattern(&value.pattern, limits)?,
-        judge: asks_wire_policy_judge(value.judge, limits)?,
-        guard: asks_wire_policy_guard(&value.guard, limits)?,
+        pattern: asks_wire_owner_pattern(&value.pattern),
+        judge: asks_wire_policy_judge(value.judge),
+        guard: asks_wire_policy_guard(&value.guard),
         must_be_guarded: value.must_be_guarded,
-    })
+    }
 }
 
-#[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
-pub(crate) fn asks_wire_policy_guard(
-    value: &c::PolicyGuard,
-    _limits: &w::Limits,
-) -> Result<w::PolicyGuard, w::Problem> {
-    Ok(match value {
+pub(crate) fn asks_wire_policy_guard(value: &c::PolicyGuard) -> w::PolicyGuard {
+    match value {
         c::PolicyGuard::Guarded => w::PolicyGuard::Guarded,
         c::PolicyGuard::Observed { freshness } => {
             w::PolicyGuard::Observed(w::PolicyGuardObserved { freshness: *freshness })
         }
-    })
+    }
 }
 
-#[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
-pub(crate) fn asks_wire_policy_judge(value: c::PolicyJudge, _limits: &w::Limits) -> Result<w::PolicyJudge, w::Problem> {
-    Ok(w::PolicyJudge { connector: value.connector, requirement: value.requirement, parameters: value.parameters })
+pub(crate) fn asks_wire_policy_judge(value: c::PolicyJudge) -> w::PolicyJudge {
+    w::PolicyJudge { connector: value.connector, requirement: value.requirement, parameters: value.parameters }
 }
 
 pub(crate) fn settings_wire_setting_policy(
@@ -1347,7 +1299,7 @@ pub(crate) fn settings_wire_setting_policy(
 ) -> Result<w::SettingPolicy, w::Problem> {
     let mut projections = List::with_capacity(value.projections.len());
     for item in &value.projections {
-        projections.push(asks_wire_owner_grant(item, limits)?).expect("same capacity");
+        projections.push(asks_wire_owner_grant(item)).expect("same capacity");
     }
     let mut roles = List::with_capacity(value.roles.len());
     for item in &value.roles {
@@ -1355,15 +1307,15 @@ pub(crate) fn settings_wire_setting_policy(
     }
     let mut requirements = List::with_capacity(value.requirements.len());
     for item in &value.requirements {
-        requirements.push(asks_wire_policy_requirement(item, limits)?).expect("same capacity");
+        requirements.push(asks_wire_policy_requirement(item)).expect("same capacity");
     }
     let mut permissions = List::with_capacity(value.permissions.len());
     for item in &value.permissions {
-        permissions.push(asks_wire_policy_permission(*item, limits)?).expect("same capacity");
+        permissions.push(asks_wire_policy_permission(*item)).expect("same capacity");
     }
     let mut templates = List::with_capacity(value.templates.len());
     for item in &value.templates {
-        templates.push(settings_wire_template_override(item, limits)?).expect("same capacity");
+        templates.push(settings_wire_template_override(item)).expect("same capacity");
     }
     Ok(w::SettingPolicy {
         escalation_role: value.escalation_role,
@@ -1377,69 +1329,50 @@ pub(crate) fn settings_wire_setting_policy(
     })
 }
 
-pub(crate) fn settings_wire_template_override(
-    value: &c::TemplateOverride,
-    limits: &w::Limits,
-) -> Result<w::TemplateOverride, w::Problem> {
-    Ok(w::TemplateOverride {
+pub(crate) fn settings_wire_template_override(value: &c::TemplateOverride) -> w::TemplateOverride {
+    w::TemplateOverride {
         template: value.template,
         executor: match value.executor {
-            Some(value) => Some(operations_executor(value, limits)?),
+            Some(value) => Some(operations_executor(value)),
             None => None,
         },
         budget: match value.budget {
-            Some(value) => Some(operations_budget(value, limits)?),
+            Some(value) => Some(operations_budget(value)),
             None => None,
         },
         deadline: match value.deadline {
-            Some(value) => Some(operations_deadline(value, limits)?),
+            Some(value) => Some(operations_deadline(value)),
             None => None,
         },
         priority: value.priority,
-    })
+    }
 }
 
-#[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
-pub(crate) fn operations_deadline(
-    value: c::TemplateDeadline,
-    _limits: &w::Limits,
-) -> Result<w::TemplateDeadline, w::Problem> {
-    Ok(match value {
+pub(crate) fn operations_deadline(value: c::TemplateDeadline) -> w::TemplateDeadline {
+    match value {
         c::TemplateDeadline::None => w::TemplateDeadline::None,
         c::TemplateDeadline::Span(value) => w::TemplateDeadline::Span(w::TemplateSpan { value }),
         c::TemplateDeadline::Given => w::TemplateDeadline::Given,
-    })
+    }
 }
 
-#[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
-pub(crate) fn operations_budget(
-    value: c::TemplateBudget,
-    _limits: &w::Limits,
-) -> Result<w::TemplateBudget, w::Problem> {
-    Ok(match value {
+pub(crate) fn operations_budget(value: c::TemplateBudget) -> w::TemplateBudget {
+    match value {
         c::TemplateBudget::Amount(value) => w::TemplateBudget::Amount(w::TemplateAmount { value }),
         c::TemplateBudget::AsAllowed { cap } => w::TemplateBudget::AsAllowed(w::TemplateAsAllowed { cap }),
         c::TemplateBudget::Given => w::TemplateBudget::Given,
-    })
+    }
 }
 
-#[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
-pub(crate) fn operations_executor(
-    value: c::TemplateExecutor,
-    _limits: &w::Limits,
-) -> Result<w::TemplateExecutor, w::Problem> {
-    Ok(match value {
+pub(crate) fn operations_executor(value: c::TemplateExecutor) -> w::TemplateExecutor {
+    match value {
         c::TemplateExecutor::Charter(value) => w::TemplateExecutor::Charter(w::TemplateCharter { value }),
         c::TemplateExecutor::Chosen => w::TemplateExecutor::Chosen,
-    })
+    }
 }
 
-#[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
-pub(crate) fn asks_wire_policy_permission(
-    value: c::PolicyPermission,
-    _limits: &w::Limits,
-) -> Result<w::PolicyPermission, w::Problem> {
-    Ok(w::PolicyPermission { connector: value.connector, permission: value.permission, role: value.role })
+pub(crate) fn asks_wire_policy_permission(value: c::PolicyPermission) -> w::PolicyPermission {
+    w::PolicyPermission { connector: value.connector, permission: value.permission, role: value.role }
 }
 
 pub(crate) fn asks_wire_policy_edit_role(
@@ -1463,12 +1396,12 @@ pub(crate) fn settings_wire_template(value: &c::Template, limits: &w::Limits) ->
     Ok(w::Template {
         resources,
         number: value.number,
-        name: settings_wire_document_text(&value.name, limits)?,
-        executor: operations_executor(value.executor, limits)?,
+        name: settings_wire_document_text(&value.name),
+        executor: operations_executor(value.executor),
         contract: settings_wire_task_contract(&value.contract, limits)?,
         shallower: value.shallower,
-        budget: operations_budget(value.budget, limits)?,
-        deadline: operations_deadline(value.deadline, limits)?,
+        budget: operations_budget(value.budget),
+        deadline: operations_deadline(value.deadline),
         tracked: value.tracked,
         flags: w::TaskFlags {
             ended_by: match value.flags.ended_by {
@@ -1488,41 +1421,37 @@ pub(crate) fn settings_wire_template(value: &c::Template, limits: &w::Limits) ->
         },
         label: value.label,
         grace: value.grace,
-        llm: llm_wire_choice(value.llm.as_ref(), limits)?,
+        llm: match &value.llm {
+            Some(choice) => Some(llm_wire_choice(choice)),
+            None => None,
+        },
     })
 }
 
-pub(crate) fn llm_wire_choice(
-    value: Option<&c::LlmChoice>,
-    limits: &w::Limits,
-) -> Result<Option<w::LlmChoice>, w::Problem> {
-    let Some(value) = value else {
-        return Ok(None);
-    };
+pub(crate) fn llm_wire_choice(value: &c::LlmChoice) -> w::LlmChoice {
     let mut subagents = List::with_capacity(value.subagents.len());
     for item in &value.subagents {
-        subagents.push(llm_wire_model_effort(item, limits)?).expect("same capacity");
+        subagents.push(llm_wire_model_effort(item)).expect("same capacity");
     }
-    Ok(Some(w::LlmChoice {
+    w::LlmChoice {
         later: match &value.later {
             Some(later) => {
                 let mut subagents = List::with_capacity(later.subagents.len());
                 for item in &later.subagents {
-                    subagents.push(llm_wire_model_effort(item, limits)?).expect("same capacity");
+                    subagents.push(llm_wire_model_effort(item)).expect("same capacity");
                 }
-                Some(w::LlmLater { main: llm_wire_model_effort(&later.main, limits)?, subagents })
+                Some(w::LlmLater { main: llm_wire_model_effort(&later.main), subagents })
             }
             None => None,
         },
         account: value.account,
-        main: llm_wire_model_effort(&value.main, limits)?,
+        main: llm_wire_model_effort(&value.main),
         subagents,
-    }))
+    }
 }
 
-#[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
-pub(crate) fn llm_wire_model_effort(value: &c::ModelEffort, _limits: &w::Limits) -> Result<w::ModelEffort, w::Problem> {
-    Ok(w::ModelEffort { model: bytes::copy_of(value.model.bytes()), effort: optional_text(value.effort.as_ref()) })
+pub(crate) fn llm_wire_model_effort(value: &c::ModelEffort) -> w::ModelEffort {
+    w::ModelEffort { model: bytes::copy_of(value.model.bytes()), effort: optional_text(value.effort.as_ref()) }
 }
 
 pub(crate) fn settings_wire_task_contract(
@@ -1536,7 +1465,7 @@ pub(crate) fn settings_wire_task_contract(
         c::TaskContractDocument::Approval { state, part } => {
             w::TaskContractDocument::Approval(w::TaskContractDocumentApproval {
                 state: bytes::copy_of(state),
-                part: settings_wire_owner_part(part, limits)?,
+                part: settings_wire_owner_part(part),
             })
         }
         c::TaskContractDocument::Report { words } => {
@@ -1581,8 +1510,7 @@ pub(crate) fn settings_wire_task_contract(
     })
 }
 
-#[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
-pub(crate) fn settings_wire_owner_part(value: &c::Part, _limits: &w::Limits) -> Result<w::Part, w::Problem> {
+pub(crate) fn settings_wire_owner_part(value: &c::Part) -> w::Part {
     let kind = match value.kind {
         c::PartKind::Resource => w::PartKind::Resource,
         c::PartKind::Pool => w::PartKind::Pool,
@@ -1602,21 +1530,17 @@ pub(crate) fn settings_wire_owner_part(value: &c::Part, _limits: &w::Limits) -> 
             w::PartKey::Path(w::PartKeyPath { value: rows })
         }
     };
-    Ok(w::Part { connector: value.connector, kind, key })
+    w::Part { connector: value.connector, kind, key }
 }
 
-#[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
-pub(crate) fn settings_wire_document_text(
-    value: &c::DocumentText,
-    _limits: &w::Limits,
-) -> Result<w::DocumentText, w::Problem> {
-    Ok(w::DocumentText { bytes: bytes::copy_of(value.bytes()), cut: value.cut })
+pub(crate) fn settings_wire_document_text(value: &c::DocumentText) -> w::DocumentText {
+    w::DocumentText { bytes: bytes::copy_of(value.bytes()), cut: value.cut }
 }
 
-pub(crate) fn settings_wire_charter(value: &c::Charter, limits: &w::Limits) -> Result<w::Charter, w::Problem> {
+pub(crate) fn settings_wire_charter(value: &c::Charter) -> w::Charter {
     let mut alternatives = List::with_capacity(value.alternatives.len());
     for item in &value.alternatives {
-        alternatives.push(settings_wire_setting_model(item, limits)?).expect("same capacity");
+        alternatives.push(settings_wire_setting_model(item)).expect("same capacity");
     }
     let mut documents = List::with_capacity(value.documents.len());
     for item in &value.documents {
@@ -1635,7 +1559,7 @@ pub(crate) fn settings_wire_charter(value: &c::Charter, limits: &w::Limits) -> R
             .push(w::CharterPart { on: item.on, instructions: bytes::copy_of(item.instructions.bytes()) })
             .expect("same capacity");
     }
-    Ok(w::Charter {
+    w::Charter {
         parts,
         documents,
         rest: value.rest,
@@ -1651,17 +1575,17 @@ pub(crate) fn settings_wire_charter(value: &c::Charter, limits: &w::Limits) -> R
         time: value.time,
         reserve_turns: value.reserve_turns,
         reserve_time: value.reserve_time,
-        model: settings_wire_setting_model(&value.model, limits)?,
+        model: settings_wire_setting_model(&value.model),
         alternatives,
         call_timeout: value.call_timeout,
         tools: value.tools,
-        hosts: settings_wire_setting_hosts(&value.hosts, limits),
+        hosts: settings_wire_setting_hosts(&value.hosts),
         spend: value.spend,
-        wake: settings_wire_wake(value.wake, limits)?,
-    })
+        wake: settings_wire_wake(value.wake),
+    }
 }
 
-pub(crate) fn settings_wire_setting_hosts(value: &c::SettingHosts, _limits: &w::Limits) -> w::SettingHosts {
+pub(crate) fn settings_wire_setting_hosts(value: &c::SettingHosts) -> w::SettingHosts {
     match value {
         c::SettingHosts::Workers => w::SettingHosts::Workers,
         c::SettingHosts::Engine => w::SettingHosts::Engine,
@@ -1669,16 +1593,12 @@ pub(crate) fn settings_wire_setting_hosts(value: &c::SettingHosts, _limits: &w::
     }
 }
 
-#[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
-pub(crate) fn settings_wire_setting_model(
-    value: &c::SettingModel,
-    _limits: &w::Limits,
-) -> Result<w::SettingModel, w::Problem> {
+pub(crate) fn settings_wire_setting_model(value: &c::SettingModel) -> w::SettingModel {
     let mut efforts = List::with_capacity(value.efforts.len());
     for item in &value.efforts {
         efforts.push(bytes::copy_of(item.bytes())).expect("same capacity");
     }
-    Ok(w::SettingModel {
+    w::SettingModel {
         provider: value.provider,
         dialect: value.dialect,
         endpoint: value.endpoint,
@@ -1693,37 +1613,33 @@ pub(crate) fn settings_wire_setting_model(
         price_unit: value.price_unit,
         efforts,
         effort: optional_text(value.effort.as_ref()),
-    })
+    }
 }
 
-pub(crate) fn settings_wire_setting(value: c::Setting, limits: &w::Limits) -> Result<w::Setting, w::Problem> {
-    Ok(match value {
-        c::Setting::Charter(item) => w::Setting::Charter(settings_wire_setting_number(item, limits)?),
-        c::Setting::Template(item) => w::Setting::Template(settings_wire_setting_number(item, limits)?),
-        c::Setting::Policy(item) => w::Setting::Policy(settings_wire_setting_number(item, limits)?),
+pub(crate) fn settings_wire_setting(value: c::Setting) -> w::Setting {
+    match value {
+        c::Setting::Charter(item) => w::Setting::Charter(settings_wire_setting_number(item)),
+        c::Setting::Template(item) => w::Setting::Template(settings_wire_setting_number(item)),
+        c::Setting::Policy(item) => w::Setting::Policy(settings_wire_setting_number(item)),
         c::Setting::Application { kind, scope, number } => {
             w::Setting::Application(w::ApplicationSetting { kind, scope, number })
         }
         c::Setting::Rules => w::Setting::Rules,
         c::Setting::Limits => w::Setting::Limits,
-        c::Setting::Model(item) => w::Setting::Model(settings_wire_setting_number(item, limits)?),
-        c::Setting::Worker(item) => w::Setting::Worker(settings_wire_setting_number(item, limits)?),
-        c::Setting::Provider(item) => w::Setting::Provider(settings_wire_setting_number(item, limits)?),
+        c::Setting::Model(item) => w::Setting::Model(settings_wire_setting_number(item)),
+        c::Setting::Worker(item) => w::Setting::Worker(settings_wire_setting_number(item)),
+        c::Setting::Provider(item) => w::Setting::Provider(settings_wire_setting_number(item)),
         c::Setting::ProjectPolicy { project } => w::Setting::ProjectPolicy(w::ProjectPolicySetting { project }),
-    })
+    }
 }
 
-#[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
-pub(crate) fn settings_wire_setting_number(
-    value: c::SettingNumber,
-    _limits: &w::Limits,
-) -> Result<w::SettingNumber, w::Problem> {
-    Ok(w::SettingNumber { number: value.number })
+pub(crate) fn settings_wire_setting_number(value: c::SettingNumber) -> w::SettingNumber {
+    w::SettingNumber { number: value.number }
 }
 
-fn optional_proposal(value: Option<&w::ProposalKey>, limits: &Limits) -> Option<c::ProposalKey> {
+fn optional_proposal(value: Option<&w::ProposalKey>) -> Option<c::ProposalKey> {
     let value = value?;
-    Some(answers_proposal_key(value, limits))
+    Some(answers_proposal_key(value))
 }
 fn optional_wall(value: Option<&u64>) -> Option<Wall> {
     let value = value?;
@@ -1750,11 +1666,11 @@ fn optional_text(value: Option<&c::Text>) -> Option<Box<[u8]>> {
     Some(bytes::copy_of(value.bytes()))
 }
 
-fn settings_wire_wake(value: c::WakePolicy, limits: &w::Limits) -> Result<w::WakePolicy, w::Problem> {
-    Ok(w::WakePolicy {
-        words: settings_wire_wake_rule(value.words, limits)?,
-        notices: settings_wire_wake_rule(value.notices, limits)?,
-        news: settings_wire_wake_rule(value.news, limits)?,
+fn settings_wire_wake(value: c::WakePolicy) -> w::WakePolicy {
+    w::WakePolicy {
+        words: settings_wire_wake_rule(value.words),
+        notices: settings_wire_wake_rule(value.notices),
+        news: settings_wire_wake_rule(value.news),
         results: match value.results {
             c::ResultsWake::Never => w::ResultsWake::Never,
             c::ResultsWake::Each => w::ResultsWake::Each,
@@ -1763,16 +1679,15 @@ fn settings_wire_wake(value: c::WakePolicy, limits: &w::Limits) -> Result<w::Wak
         questions: value.questions,
         answers: value.answers,
         timers: value.timers,
-    })
+    }
 }
-#[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
-fn settings_wire_wake_rule(value: c::WakeRule, _limits: &w::Limits) -> Result<w::WakeRule, w::Problem> {
-    Ok(match value {
+fn settings_wire_wake_rule(value: c::WakeRule) -> w::WakeRule {
+    match value {
         c::WakeRule::Never => w::WakeRule::Never,
         c::WakeRule::Immediate => w::WakeRule::Immediate,
         c::WakeRule::Batch { count, age } => w::WakeRule::Batch(w::WakeRuleBatch { count, age }),
         c::WakeRule::Paced { span } => w::WakeRule::Paced(w::WakeRulePaced { span }),
-    })
+    }
 }
 
 fn settings_restore_wake(value: &w::WakePolicy) -> c::WakePolicy {
@@ -1817,10 +1732,10 @@ fn restore_application_state(v: &w::ApplicationState) -> c::ApplicationState {
         charters: v.charters.clone(),
     }
 }
-fn wire_catalogue(value: &c::CatalogueEntry, limits: &w::Limits) -> Result<w::CatalogueEntry, w::Problem> {
-    Ok(w::CatalogueEntry {
+fn wire_catalogue(value: &c::CatalogueEntry) -> w::CatalogueEntry {
+    w::CatalogueEntry {
         number: value.number,
-        model: settings_wire_setting_model(&value.model, limits)?,
+        model: settings_wire_setting_model(&value.model),
         shown: match &value.shown {
             Some(value) => Some(bytes::copy_of(value.bytes())),
             None => None,
@@ -1837,12 +1752,12 @@ fn wire_catalogue(value: &c::CatalogueEntry, limits: &w::Limits) -> Result<w::Ca
             c::ModelSource::List => w::ModelSource::List,
             c::ModelSource::Person => w::ModelSource::Person,
         },
-    })
+    }
 }
-fn restore_catalogue(value: &w::CatalogueEntry, limits: &Limits) -> Result<c::CatalogueEntry, w::Problem> {
+fn restore_catalogue(value: &w::CatalogueEntry) -> Result<c::CatalogueEntry, w::Problem> {
     Ok(c::CatalogueEntry {
         number: value.number,
-        model: settings_restore_setting_model(&value.model, limits)?,
+        model: settings_restore_setting_model(&value.model)?,
         shown: match &value.shown {
             Some(value) => Some(settings_text(value, 4096)?),
             None => None,

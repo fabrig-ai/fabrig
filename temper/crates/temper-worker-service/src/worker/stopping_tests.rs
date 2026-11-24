@@ -30,14 +30,14 @@ fn prepared() -> (fixtures::WorkerStand, AgentPeer, LinkPeer) {
     ] {
         let mut invocation = Invocation::captured(capture);
         if capture == "fetch-branch" {
-            invocation.transcript.stdout = b"* 0000000000000000000000000000000000000000 0000000000000000000000000000000000000001 refs/temper/0/fetched\n".as_slice().into();
+            invocation.stdout = b"* 0000000000000000000000000000000000000000 0000000000000000000000000000000000000001 refs/temper/0/fetched\n".as_slice().into();
         }
         stand.below.script.invocations.push_back(invocation);
     }
     // The scripted clone leaves a git directory for the check-file operations.
     stand.below.tree.insert(b"workspaces/0/app/.git".to_vec(), temper_worker_protocol_git_world::io::Node::Directory);
     let mut query = Invocation::captured("object-format");
-    query.transcript.stdout = b"0000000000000000000000000000000000000001\n".as_slice().into();
+    query.stdout = b"0000000000000000000000000000000000000001\n".as_slice().into();
     stand.below.script.invocations.push_back(query);
     stand.worker.link(fixtures::NOW, fixtures::repository_assignment());
     let root::Event::Assign { assignment, items: Ok(mut items) } = stand.worker.engine.pop().unwrap() else {
@@ -80,7 +80,7 @@ fn drain_run(stand: &mut fixtures::WorkerStand, peer: &mut AgentPeer) {
     };
     assert!(peer.events.is_empty(), "not cancelled during its turn");
     let agent = fixtures::worker_agent();
-    let body = fixtures::worker_peers::cancellation_turn(&agent);
+    let body = fixtures::worker_peers::cancellation_turn();
     let turn = smith_protocol_channel::decode_turn(&body, 1, &agent.limits.transcript, &agent.endpoints).unwrap();
     peer.component
         .send_turn(1, None, smith_domain_run::Spend::ZERO, true, &turn, peer.owner, &mut peer.events, &mut peer.out)
@@ -134,7 +134,7 @@ fn a_drained_runs_save_and_push_complete_while_the_worker_stops() {
     let (mut stand, mut peer, mut link) = prepared();
     drain_run(&mut stand, &mut peer);
     let mut push = Invocation::captured("push-new-branch");
-    push.transcript.stdout = b"To http://forge.example/app.git\n*\t0000000000000000000000000000000000000006:refs/heads/temper/saved-7\t[new branch]\nDone\n".as_slice().into();
+    push.stdout = b"To http://forge.example/app.git\n*\t0000000000000000000000000000000000000006:refs/heads/temper/saved-7\t[new branch]\nDone\n".as_slice().into();
     stand.below.script.invocations.push_back(push);
     let mut answer = None;
     for _ in 0_u32..2000 {

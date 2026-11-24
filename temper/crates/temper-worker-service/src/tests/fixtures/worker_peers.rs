@@ -589,17 +589,16 @@ pub(crate) fn decoded_chat_start(agent: &crate::settings::Agent) -> Box<smith_ho
     .unwrap()
 }
 
-pub(crate) fn cancellation_turn(agent: &crate::settings::Agent) -> Box<[u8]> {
-    turn_body(agent, 1)
+pub(crate) fn cancellation_turn() -> Box<[u8]> {
+    turn_body(1)
 }
-pub(crate) fn turn_body(agent: &crate::settings::Agent, number: u32) -> Box<[u8]> {
-    text_turn(agent, number, b"last text")
+pub(crate) fn turn_body(number: u32) -> Box<[u8]> {
+    text_turn(number, b"last text")
 }
 
 /// Encode a concrete saved assistant turn, with the supplied text.
-pub(crate) fn text_turn(agent: &crate::settings::Agent, number: u32, text: &[u8]) -> Box<[u8]> {
+pub(crate) fn text_turn(number: u32, text: &[u8]) -> Box<[u8]> {
     use smith_transcript::v8 as transcript;
-    let limits = &agent.limits.transcript;
     let mut blocks = List::with_capacity(1);
     blocks.push(transcript::Block::Text(transcript::Text { text: text.into(), replay: None })).unwrap();
     let mut messages = List::with_capacity(1);
@@ -607,7 +606,7 @@ pub(crate) fn text_turn(agent: &crate::settings::Agent, number: u32, text: &[u8]
     let turn = transcript::Turn {
         system: None,
         kind: transcript::TurnKind::Ordinary,
-        opening: turn_opening(limits, number),
+        opening: turn_opening(number),
         endpoint: b"fake".as_slice().into(),
         model: b"small".as_slice().into(),
         effort: None,
@@ -637,7 +636,7 @@ fn agent_spawn(worker: &mut crate::Worker) -> Token {
     panic!("assigned process spawn");
 }
 
-fn turn_opening(_limits: &smith_transcript::v8::Limits, number: u32) -> Option<smith_transcript::v8::Opening> {
+fn turn_opening(number: u32) -> Option<smith_transcript::v8::Opening> {
     use smith_transcript::v8 as t;
     if number != 1 {
         return None;

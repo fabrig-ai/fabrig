@@ -172,6 +172,25 @@ task: no policy may keep a decision from whoever must make it. One a run
 was offered under a part that covered it and left undecided wakes the
 task again only when it changes (6).
 
+**An escalation waiting for a task makes every message wake it.** While
+an escalation waits for a task's decision, from its arrival until it is
+decided, ends with its hold or waits elsewhere, every message the task's
+inbox admits wakes the task at once, whatever its policy says of the
+message's kind: a result that would ride along under `last_or_failure`
+or `never`, news a pace or a batch holds or its connector keeps, and a
+question, an answer, a notice or a timer the policy doesn't wake on.
+Each is the change the escalation waits for (6). It is judged so
+wherever the policy is read: its kind is among the reasons of the run it
+wakes, a live run is relayed each result as one its policy lets wake it,
+and a message a run leaves unread or isn't offered is judged so again
+when the run ends, the park so left due waiting a pause first (below). Once no
+escalation waits for the task, the policy judges as before, and a message
+a batch or a pace holds wakes by its timer. A proposal waiting for its
+decision changes no policy (`proposals.md`, Open questions). So a task
+that parks leaving an escalation undecided, as a goal parks on its
+repair, runs again on the next thing it hears, the repair's result among
+them (decided 2026-11-24).
+
 A message a run refused, left unread or wasn't offered (2 and 6) is
 judged again when the run ends, as if it arrived then: it wakes the task
 if its kind does, and otherwise waits for the next activation.
@@ -282,7 +301,8 @@ those parts are for.
   or of an entry waiting for its decision (`proposals.md`), that its wake policy
   lets wake it when it is activated (3). A kind that rides along without
   waking it is no reason: a non-last result under `last_or_failure`, or
-  news a pace holds, gives none.
+  news a pace holds, gives none, unless an escalation waits for the task,
+  when every message wakes it (3).
 - **An open question is a reason.** While a question asked of the task
   is open (2), `question` is among the reasons of each of its runs,
   whatever woke it and whatever its policy, as an entry waiting for its
@@ -332,10 +352,12 @@ those parts are for.
   takes what waits: under `each`, every result; under `last_or_failure`, a
   failure or a cancel, and the result that leaves the task no live
   delegate, for a task its closer ends too, since a live run is no idle
-  task and makes no closer (`lifecycle-endings.md`, 3). Such a result chooses no part of the
-  live run, which keeps the instructions it started with; one the run
-  leaves unread is judged again when the run ends (3), where, for a task
-  its closer ends, a last success wakes nothing (`lifecycle-endings.md`, 3).
+  task and makes no closer (`lifecycle-endings.md`, 3); and under any
+  policy, every result while an escalation waits for the task (3). Such a
+  result chooses no part of the live run, which keeps the instructions it
+  started with; one the run leaves unread is judged again when the run
+  ends (3), where, for a task its closer ends, a last success wakes
+  nothing (`lifecycle-endings.md`, 3) unless an escalation waits for it.
 - **Every reason waiting at its claim.** A message or an entry that
   arrives between a run's preparation and its claim, and whose kind would
   join its reasons (one its wake policy lets wake it, of a kind that
@@ -359,9 +381,13 @@ those parts are for.
     again by itself. It is offered to the task's next run, whatever wakes
     it, its kind among that run's reasons (3), and it wakes the task
     when it changes: a new hold of its held task or a new holder makes a
-    new entry, which wakes as an entry's arrival does (`proposals.md`), and a
-    message about it, such as its person delegate's result or a notice of
-    its held task, wakes by its own kind.
+    new entry, which wakes as an entry's arrival does (`proposals.md`).
+    For an escalation, every message the task's inbox admits while it
+    waits is such a change and wakes the task, whatever its policy says
+    of the kind (3): a delegate's result that would ride along, its
+    person delegate's among them, news, or a notice of its held task.
+    For a proposal, a message about it, such as a notice, wakes by its
+    own kind.
   - *not covered:* no part the run read names the kind, as a cut whose
     part is for `first` alone names no escalation. The task is woken
     again for the entry's kind, as an unread message would wake it, and

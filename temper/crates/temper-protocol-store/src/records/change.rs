@@ -4,19 +4,16 @@ use skein_lib::{List, Wall};
 use temper_engine_domain_forge_change as d;
 use temper_engine_domain_forge_vocabulary as top;
 fn encode_hold(value: d::Hold) -> w::ChangeHold {
-    crate::generated::store::change_hold_to_record(&value, &super::Context::UNBOUNDED).expect(FITS)
+    crate::generated::store::change_hold_to_record(&value)
 }
 fn decode_hold(value: w::ChangeHold) -> d::Hold {
-    crate::generated::store::change_hold_to_domain(value, &super::Context::UNBOUNDED)
-        .expect("infallible store translation")
+    crate::generated::store::change_hold_to_domain(value)
 }
 pub(super) fn encode_below(below: Option<d::Below>) -> Option<w::LandingBelow> {
     let below = below?;
     let mut changes = List::with_capacity(4);
     for landed in below.changes.into_iter().flatten() {
-        changes
-            .push(crate::generated::store::landed_below_to_record(&landed, &super::Context::UNBOUNDED).expect(FITS))
-            .expect(FITS);
+        changes.push(crate::generated::store::landed_below_to_record(&landed)).expect(FITS);
     }
     Some(w::LandingBelow { green: below.green, changes, by_test: below.by_test, top: below.top })
 }
@@ -25,18 +22,16 @@ pub(super) fn decode_below(below: Option<w::LandingBelow>) -> Option<d::Below> {
     let w::LandingBelow { green, changes, by_test, top } = below?;
     let mut below = d::Below { green, changes: [None; 4], by_test, top };
     for (slot, landed) in below.changes.iter_mut().zip(&changes) {
-        *slot = Some(
-            crate::generated::store::landed_below_to_domain(landed.clone(), &super::Context::UNBOUNDED).expect(FITS),
-        );
+        *slot = Some(crate::generated::store::landed_below_to_domain(landed.clone()));
     }
     Some(below)
 }
 
 fn encode_repair(value: d::Repair) -> w::Repair {
-    crate::generated::store::repair_to_record(&value, &super::Context::UNBOUNDED).expect(FITS)
+    crate::generated::store::repair_to_record(&value)
 }
 fn decode_repair(value: w::Repair) -> d::Repair {
-    crate::generated::store::repair_to_domain(value, &super::Context::UNBOUNDED).expect("infallible store translation")
+    crate::generated::store::repair_to_domain(value)
 }
 fn encode_live(value: &d::State) -> w::ChangeLive {
     match value {
@@ -274,10 +269,10 @@ fn decode_change_state(value: w::ChangeState) -> (d::State, Option<d::Hold>) {
     (state, None)
 }
 pub(super) fn encode_gate(value: &d::Gate) -> w::Gate {
-    crate::generated::store::gate_to_record(value, &super::Context::UNBOUNDED).expect(FITS)
+    crate::generated::store::gate_to_record(value)
 }
 pub(super) fn decode_gate(value: w::Gate) -> d::Gate {
-    crate::generated::store::gate_to_domain(value, &super::Context::UNBOUNDED).expect("infallible store translation")
+    crate::generated::store::gate_to_domain(value)
 }
 fn encode_early(value: &d::Early) -> w::Early {
     let heads = match value {
@@ -286,9 +281,7 @@ fn encode_early(value: &d::Early) -> w::Early {
     };
     let mut encoded = List::with_capacity(u32::try_from(heads.len()).expect(FITS));
     for head in heads {
-        encoded
-            .push(crate::generated::store::started_from_to_record(head, &super::Context::UNBOUNDED).expect(FITS))
-            .expect(FITS);
+        encoded.push(crate::generated::store::started_from_to_record(head)).expect(FITS);
     }
     let heads = w::EarlyHeads { heads: encoded };
     match value {
@@ -307,26 +300,19 @@ fn decode_early(value: w::Early) -> d::Early {
     let heads = heads.heads;
     let mut decoded = List::with_capacity(heads.len());
     for head in &heads {
-        decoded
-            .push(
-                crate::generated::store::started_from_to_domain(head.clone(), &super::Context::UNBOUNDED).expect(FITS),
-            )
-            .expect(FITS);
+        decoded.push(crate::generated::store::started_from_to_domain(head.clone())).expect(FITS);
     }
     if spent { d::Early::Spent(decoded.into_boxed()) } else { d::Early::Started(decoded.into_boxed()) }
 }
 
 pub(super) fn encode_clock(clock: Option<d::Clock>) -> Option<w::ExecutionClock> {
     let clock = clock?;
-    Some(crate::generated::store::execution_clock_to_record(&clock, &super::Context::UNBOUNDED).expect(FITS))
+    Some(crate::generated::store::execution_clock_to_record(&clock))
 }
 
 pub(super) fn decode_clock(clock: Option<w::ExecutionClock>) -> Option<d::Clock> {
     let clock = clock?;
-    Some(
-        crate::generated::store::execution_clock_to_domain(clock, &super::Context::UNBOUNDED)
-            .expect("infallible store translation"),
-    )
+    Some(crate::generated::store::execution_clock_to_domain(clock))
 }
 
 pub(super) fn encode_change(value: &d::Change) -> w::Change {
@@ -384,7 +370,7 @@ pub(super) fn encode_change(value: &d::Change) -> w::Change {
             Some(why) => Some(encode_hold(*why)),
             None => None,
         },
-        way: crate::generated::store::way_to_record(way, &super::Context::UNBOUNDED).expect(FITS),
+        way: crate::generated::store::way_to_record(way),
         landing: *landing,
         landing_ask: match landing_ask {
             Some(ask) => Some(super::landing::encode_ask(ask.as_ref().clone())),
@@ -448,7 +434,7 @@ pub(super) fn decode_change(value: w::Change) -> d::Change {
             Some(why) => Some(decode_hold(why)),
             None => None,
         },
-        way: crate::generated::store::way_to_domain(way, &super::Context::UNBOUNDED).expect(FITS),
+        way: crate::generated::store::way_to_domain(way),
         landing,
         landing_ask: match landing_ask {
             Some(ask) => Some(Box::new(super::landing::decode_ask(ask))),
@@ -457,18 +443,16 @@ pub(super) fn decode_change(value: w::Change) -> d::Change {
     }
 }
 pub(super) fn encode_change_cold(value: &top::ChangeCold) -> w::ChangeCold {
-    crate::generated::store::change_cold_to_record(value, &super::Context::UNBOUNDED).expect(FITS)
+    crate::generated::store::change_cold_to_record(value).expect(FITS)
 }
 pub(super) fn decode_change_cold(value: w::ChangeCold) -> top::ChangeCold {
-    crate::generated::store::change_cold_to_domain(value, &super::Context::UNBOUNDED)
-        .expect("infallible store translation")
+    crate::generated::store::change_cold_to_domain(value)
 }
 pub(super) fn encode_change_hot(value: &top::ChangeHot) -> w::ChangeHot {
-    crate::generated::store::change_hot_to_record(value, &super::Context::UNBOUNDED).expect(FITS)
+    crate::generated::store::change_hot_to_record(value).expect(FITS)
 }
 pub(super) fn decode_change_hot(value: w::ChangeHot) -> Result<top::ChangeHot, super::Undecodable> {
-    crate::generated::store::change_hot_to_domain(value, &super::Context::UNBOUNDED)
-        .or(Err(super::Undecodable::Malformed))
+    crate::generated::store::change_hot_to_domain(value).or(Err(super::Undecodable::Malformed))
 }
 fn encode_numbers(values: &[u64]) -> List<u64> {
     let mut result = List::with_capacity(u32::try_from(values.len()).expect("admitted count"));
@@ -513,28 +497,23 @@ fn decode_gates(values: List<w::Gate>) -> Box<[d::Gate]> {
 fn encode_gate_failures(values: &[d::GateFailure]) -> List<w::GateFailure> {
     let mut result = List::with_capacity(u32::try_from(values.len()).expect("admitted count"));
     for value in values {
-        result
-            .push(crate::generated::store::gate_failure_to_record(value, &super::Context::UNBOUNDED).expect(FITS))
-            .expect("same count");
+        result.push(crate::generated::store::gate_failure_to_record(value)).expect("same count");
     }
     result
 }
 fn decode_gate_failures(values: List<w::GateFailure>) -> Box<[d::GateFailure]> {
     let mut result = List::with_capacity(values.len());
     for value in values.into_boxed() {
-        result
-            .push(crate::generated::store::gate_failure_to_domain(value, &super::Context::UNBOUNDED).expect(FITS))
-            .expect("same count");
+        result.push(crate::generated::store::gate_failure_to_domain(value)).expect("same count");
     }
     result.into_boxed()
 }
 
 fn encode_model_effort(value: jig_domain_tasks::ModelEffort) -> w::ModelEffort {
-    crate::generated::store::model_effort_to_record(&value, &super::Context::UNBOUNDED).expect(FITS)
+    crate::generated::store::model_effort_to_record(&value)
 }
 fn decode_model_effort(value: w::ModelEffort) -> jig_domain_tasks::ModelEffort {
-    crate::generated::store::model_effort_to_domain(value, &super::Context::UNBOUNDED)
-        .expect("infallible store translation")
+    crate::generated::store::model_effort_to_domain(value)
 }
 pub(super) fn encode_llm(value: Option<&jig_domain_tasks::LlmChoice>) -> Option<w::LlmChoice> {
     let jig_domain_tasks::LlmChoice { main, subagents, account, .. } = value?;
@@ -559,91 +538,83 @@ pub(super) fn decode_llm(value: Option<w::LlmChoice>) -> Option<jig_domain_tasks
 }
 
 pub(super) fn encode_judgement(value: &d::Judgement) -> w::Judgement {
-    crate::generated::store::judgement_to_record(value, &super::Context::UNBOUNDED).expect(FITS)
+    crate::generated::store::judgement_to_record(value)
 }
 pub(super) fn decode_judgement(value: w::Judgement) -> d::Judgement {
-    crate::generated::store::judgement_to_domain(value, &super::Context::UNBOUNDED)
-        .expect("infallible store translation")
+    crate::generated::store::judgement_to_domain(value)
 }
-pub fn authority_hold_to_record(
-    value: &d::AuthorityHold,
-    context: &super::Context,
-) -> Result<w::AuthorityHold, w::Problem> {
-    Ok(w::AuthorityHold {
-        lack: crate::generated::store::authority_lack_to_record(&value.lack, context)?,
+#[must_use]
+pub fn authority_hold_to_record(value: &d::AuthorityHold) -> w::AuthorityHold {
+    w::AuthorityHold {
+        lack: crate::generated::store::authority_lack_to_record(&value.lack),
         had: value.had,
         released: value.released,
         task: value.recovery.task,
         spec: value.recovery.spec,
         hold: value.recovery.hold,
         tasks: value.recovery.tasks,
-    })
+    }
 }
 
-pub fn authority_hold_to_domain(
-    value: w::AuthorityHold,
-    context: &super::Context,
-) -> Result<d::AuthorityHold, w::Problem> {
-    Ok(d::AuthorityHold {
-        lack: crate::generated::store::authority_lack_to_domain(value.lack, context)?,
+#[must_use]
+pub fn authority_hold_to_domain(value: w::AuthorityHold) -> d::AuthorityHold {
+    d::AuthorityHold {
+        lack: crate::generated::store::authority_lack_to_domain(value.lack),
         had: value.had,
         released: value.released,
         recovery: d::AuthorityRecovery { task: value.task, spec: value.spec, hold: value.hold, tasks: value.tasks },
-    })
+    }
 }
 
-pub fn landing_below_to_record(value: &d::Below, _context: &super::Context) -> Result<w::LandingBelow, w::Problem> {
-    Ok(encode_below(Some(*value)).expect("present below"))
+#[must_use]
+pub fn landing_below_to_record(value: &d::Below) -> w::LandingBelow {
+    encode_below(Some(*value)).expect("present below")
 }
 
-pub fn landing_below_to_domain(value: w::LandingBelow, _context: &super::Context) -> Result<d::Below, w::Problem> {
-    Ok(decode_below(Some(value)).expect("present below"))
+#[must_use]
+pub fn landing_below_to_domain(value: w::LandingBelow) -> d::Below {
+    decode_below(Some(value)).expect("present below")
 }
 
-pub fn change_to_record(value: &d::Change, _context: &super::Context) -> Result<w::Change, w::Problem> {
-    Ok(encode_change(value))
+#[must_use]
+pub fn change_to_record(value: &d::Change) -> w::Change {
+    encode_change(value)
 }
 
-pub fn change_to_domain(value: w::Change, _context: &super::Context) -> Result<d::Change, w::Problem> {
-    Ok(decode_change(value))
+#[must_use]
+pub fn change_to_domain(value: w::Change) -> d::Change {
+    decode_change(value)
 }
 
-pub fn llm_choice_to_record(
-    value: &jig_domain_tasks::LlmChoice,
-    _context: &super::Context,
-) -> Result<w::LlmChoice, w::Problem> {
-    Ok(encode_llm(Some(value)).expect("present choice"))
+#[must_use]
+pub fn llm_choice_to_record(value: &jig_domain_tasks::LlmChoice) -> w::LlmChoice {
+    encode_llm(Some(value)).expect("present choice")
 }
 
-pub fn llm_choice_to_domain(
-    value: w::LlmChoice,
-    _context: &super::Context,
-) -> Result<jig_domain_tasks::LlmChoice, w::Problem> {
-    Ok(decode_llm(Some(value)).expect("present choice"))
+#[must_use]
+pub fn llm_choice_to_domain(value: w::LlmChoice) -> jig_domain_tasks::LlmChoice {
+    decode_llm(Some(value)).expect("present choice")
 }
 
-pub fn delegate_ref_to_record(
-    value: &(u64, d::Delegate),
-    context: &super::Context,
-) -> Result<w::DelegateRef, w::Problem> {
-    Ok(w::DelegateRef { task: value.0, request: crate::generated::store::delegate_to_record(&value.1, context)? })
+#[must_use]
+pub fn delegate_ref_to_record(value: &(u64, d::Delegate)) -> w::DelegateRef {
+    w::DelegateRef { task: value.0, request: crate::generated::store::delegate_to_record(&value.1) }
 }
 
-pub fn delegate_ref_to_domain(
-    value: w::DelegateRef,
-    context: &super::Context,
-) -> Result<(u64, d::Delegate), w::Problem> {
-    Ok((value.task, crate::generated::store::delegate_to_domain(value.request, context)?))
+#[must_use]
+pub fn delegate_ref_to_domain(value: w::DelegateRef) -> (u64, d::Delegate) {
+    (value.task, crate::generated::store::delegate_to_domain(value.request))
 }
 
-pub fn route_to_record(value: &d::Route, _context: &super::Context) -> Result<w::Route, w::Problem> {
-    Ok(match value {
+#[must_use]
+pub fn route_to_record(value: &d::Route) -> w::Route {
+    match value {
         d::Route::None => w::Route::None,
         d::Route::Up => w::Route::Up,
-    })
+    }
 }
 
-pub fn route_to_domain(value: w::Route, _context: &super::Context) -> Result<d::Route, w::Problem> {
+pub fn route_to_domain(value: w::Route) -> Result<d::Route, w::Problem> {
     match value {
         w::Route::None => Ok(d::Route::None),
         w::Route::Up => Ok(d::Route::Up),
@@ -651,15 +622,16 @@ pub fn route_to_domain(value: w::Route, _context: &super::Context) -> Result<d::
     }
 }
 
-pub fn stands_to_record(value: &d::Stands, _context: &super::Context) -> Result<w::Stands, w::Problem> {
-    Ok(match value {
+#[must_use]
+pub fn stands_to_record(value: &d::Stands) -> w::Stands {
+    match value {
         d::Stands::Taken => w::Stands::Taken,
         d::Stands::Asked => w::Stands::Asked,
         d::Stands::Held { answer } => w::Stands::Held(w::Held { answer: answer.clone() }),
-    })
+    }
 }
 
-pub fn stands_to_domain(value: w::Stands, _context: &super::Context) -> Result<d::Stands, w::Problem> {
+pub fn stands_to_domain(value: w::Stands) -> Result<d::Stands, w::Problem> {
     match value {
         w::Stands::Taken => Ok(d::Stands::Taken),
         w::Stands::Asked => Ok(d::Stands::Asked),

@@ -5,55 +5,56 @@ use jig_client_protocol_wire::Record as _;
 use jig_domain_core_vocabulary::documents as d;
 use jig_domain_tasks as t;
 use skein_lib::{List, Wall, bytes};
-pub fn text(value: &d::Text, _limits: &w::Limits) -> Result<w::DocumentText, w::Problem> {
-    Ok(w::DocumentText { bytes: bytes::copy_of(&value.bytes), cut: value.cut })
+#[must_use]
+pub fn text(value: &d::Text) -> w::DocumentText {
+    w::DocumentText { bytes: bytes::copy_of(&value.bytes), cut: value.cut }
 }
-pub fn held_role(value: jig_domain_people::Role, _limits: &w::Limits) -> Result<w::HeldRole, w::Problem> {
-    Ok(match value {
+#[must_use]
+pub fn held_role(value: jig_domain_people::Role) -> w::HeldRole {
+    match value {
         jig_domain_people::Role::Owner => w::HeldRole::Owner,
         jig_domain_people::Role::Maintainer => w::HeldRole::Maintainer,
         jig_domain_people::Role::Member => w::HeldRole::Member,
         jig_domain_people::Role::Observer => w::HeldRole::Observer,
         jig_domain_people::Role::Policy { role } => w::HeldRole::Policy(w::HeldRolePolicy { role }),
-    })
+    }
 }
-pub fn funder(value: t::Funder, _limits: &w::Limits) -> Result<w::Funder, w::Problem> {
-    Ok(match value {
+#[must_use]
+pub fn funder(value: t::Funder) -> w::Funder {
+    match value {
         t::Funder::Task(number) => w::Funder::Task(w::FunderTask { value: number }),
         t::Funder::Pool { project, person, period } => w::Funder::Pool(w::FunderPool { project, person, period }),
         t::Funder::Recurring { project, task, period } => {
             w::Funder::Recurring(w::FunderRecurring { project, task, period })
         }
         t::Funder::Period { project, period } => w::Funder::Period(w::FunderPeriod { project, period }),
-    })
+    }
 }
-pub fn numbers(value: t::Numbers, _limits: &w::Limits) -> Result<w::Numbers, w::Problem> {
-    Ok(w::Numbers {
-        budget: value.budget,
-        spent: value.spent,
-        spent_below: value.spent_below,
-        reserved: value.reserved,
-    })
+#[must_use]
+pub fn numbers(value: t::Numbers) -> w::Numbers {
+    w::Numbers { budget: value.budget, spent: value.spent, spent_below: value.spent_below, reserved: value.reserved }
 }
-pub fn budget(value: &d::BudgetLine, limits: &w::Limits) -> Result<w::Budget, w::Problem> {
-    Ok(w::Budget {
-        numbers: numbers(value.numbers, limits)?,
+#[must_use]
+pub fn budget(value: &d::BudgetLine) -> w::Budget {
+    w::Budget {
+        numbers: numbers(value.numbers),
         left: value.left,
-        funder: funder(value.funder, limits)?,
+        funder: funder(value.funder),
         deadline: match value.deadline {
             Some(item) => Some(item.as_nanos()),
             None => None,
         },
-    })
+    }
 }
-pub fn ledger(value: &d::Ledger, limits: &w::Limits) -> Result<w::PoolLedger, w::Problem> {
-    Ok(w::PoolLedger {
-        source: funder(value.source, limits)?,
+#[must_use]
+pub fn ledger(value: &d::Ledger) -> w::PoolLedger {
+    w::PoolLedger {
+        source: funder(value.source),
         parent: match value.parent {
-            Some(item) => Some(funder(item, limits)?),
+            Some(item) => Some(funder(item)),
             None => None,
         },
-        numbers: numbers(value.numbers, limits)?,
+        numbers: numbers(value.numbers),
         left: value.left,
         closed: value.closed,
         began: match value.began {
@@ -64,38 +65,42 @@ pub fn ledger(value: &d::Ledger, limits: &w::Limits) -> Result<w::PoolLedger, w:
             Some(item) => Some(item.as_nanos()),
             None => None,
         },
-    })
+    }
 }
-pub fn executor(value: t::Executor, limits: &w::Limits) -> Result<w::Executor, w::Problem> {
-    Ok(match value {
+#[must_use]
+pub fn executor(value: t::Executor) -> w::Executor {
+    match value {
         t::Executor::Job { kind } => w::Executor::Job(w::ExecutorJob { kind }),
         t::Executor::Agent { charter } => w::Executor::Agent(w::ExecutorAgent { charter }),
         t::Executor::Procedure { connector, code } => w::Executor::Procedure(w::ExecutorProcedure { connector, code }),
         t::Executor::Person(address) => {
-            w::Executor::Person(w::ExecutorPerson { value: super::chips::address(address, limits)? })
+            w::Executor::Person(w::ExecutorPerson { value: super::chips::address(address) })
         }
-    })
+    }
 }
-pub fn requester(value: t::Party, _limits: &w::Limits) -> Result<w::Requester, w::Problem> {
-    Ok(match value {
+#[must_use]
+pub fn requester(value: t::Party) -> w::Requester {
+    match value {
         t::Party::Task(number) => w::Requester::Task(w::RequesterTask { value: number }),
         t::Party::Person(number) => w::Requester::Person(w::RequesterPerson { value: number }),
         t::Party::Deployment { project } => w::Requester::Deployment(w::RequesterDeployment { project }),
-    })
+    }
 }
-pub fn wake_rule(value: t::WakeRule, _limits: &w::Limits) -> Result<w::WakeRule, w::Problem> {
-    Ok(match value {
+#[must_use]
+pub fn wake_rule(value: t::WakeRule) -> w::WakeRule {
+    match value {
         t::WakeRule::Never => w::WakeRule::Never,
         t::WakeRule::Immediate => w::WakeRule::Immediate,
         t::WakeRule::Batch { count, age } => w::WakeRule::Batch(w::WakeRuleBatch { count, age }),
         t::WakeRule::Paced { span } => w::WakeRule::Paced(w::WakeRulePaced { span }),
-    })
+    }
 }
-pub fn wake(value: t::WakePolicy, limits: &w::Limits) -> Result<w::WakePolicy, w::Problem> {
-    Ok(w::WakePolicy {
-        words: wake_rule(value.words, limits)?,
-        notices: wake_rule(value.notices, limits)?,
-        news: wake_rule(value.news, limits)?,
+#[must_use]
+pub fn wake(value: t::WakePolicy) -> w::WakePolicy {
+    w::WakePolicy {
+        words: wake_rule(value.words),
+        notices: wake_rule(value.notices),
+        news: wake_rule(value.news),
         results: match value.results {
             t::ResultsWake::Never => w::ResultsWake::Never,
             t::ResultsWake::Each => w::ResultsWake::Each,
@@ -104,7 +109,7 @@ pub fn wake(value: t::WakePolicy, limits: &w::Limits) -> Result<w::WakePolicy, w
         questions: value.questions,
         answers: value.answers,
         timers: value.timers,
-    })
+    }
 }
 fn project(
     value: &d::FrameProjectRole,
@@ -114,7 +119,7 @@ fn project(
 ) -> Result<w::MeProject, w::Problem> {
     let mut defaults = List::with_capacity(value.defaults.len());
     for (template, choice) in &value.defaults {
-        let choice = super::llm::choice(Some(choice), models, limits)?.expect("present preview");
+        let choice = super::llm::choice(Some(choice), models)?.expect("present preview");
         defaults.push(w::MeDefault { template: *template, choice }).expect("same preview count");
     }
     Ok(w::MeProject {
@@ -124,10 +129,10 @@ fn project(
             Some(_) | None => None,
         },
         project: value.project,
-        name: text(&value.name, limits)?,
-        role: held_role(value.role, limits)?,
+        name: text(&value.name),
+        role: held_role(value.role),
         pool: match &value.pool {
-            Some(item) => Some(ledger(item, limits)?),
+            Some(item) => Some(ledger(item)),
             None => None,
         },
         templates: super::me::templates(&value.templates, models, limits)?,
@@ -135,7 +140,7 @@ fn project(
             Some(value) => Some(super::me::creating(models, value, limits)?),
             None => None,
         },
-        models: super::llm::models(value.offer.as_slice(), models, limits)?,
+        models: super::llm::models(value.offer.as_slice(), models)?,
         defaults,
     })
 }
@@ -176,8 +181,8 @@ pub(crate) fn frame_named(
                 jig_domain_people::Kind::Person => w::PartyKind::Person,
                 jig_domain_people::Kind::Service => w::PartyKind::Service,
             },
-            login: text(&value.login, limits)?,
-            name: text(&value.name, limits)?,
+            login: text(&value.login),
+            name: text(&value.name),
         },
         projects: me_projects_pieces(&projects, limits.me_projects, w::paths::ME_PROJECTS, limits)?,
         needs: w::Needs {
@@ -192,14 +197,15 @@ pub(crate) fn frame_named(
         cut: value.cut,
         retention: value.retention,
         deployment_role: match value.deployment_role {
-            Some(item) => Some(held_role(item, limits)?),
+            Some(item) => Some(held_role(item)),
             None => None,
         },
     })
 }
 
-pub fn part_kind(value: t::PartKind) -> Result<w::PartKind, w::Problem> {
-    Ok(match value {
+#[must_use]
+pub fn part_kind(value: t::PartKind) -> w::PartKind {
+    match value {
         t::PartKind::Resource => w::PartKind::Resource,
         t::PartKind::Pool => w::PartKind::Pool,
         t::PartKind::Result => w::PartKind::Result,
@@ -207,32 +213,27 @@ pub fn part_kind(value: t::PartKind) -> Result<w::PartKind, w::Problem> {
         t::PartKind::Effect => w::PartKind::Effect,
         t::PartKind::Outbox => w::PartKind::Outbox,
         t::PartKind::Hold => w::PartKind::Hold,
-    })
+    }
 }
-pub fn part(value: &t::Part, _limits: &w::Limits) -> Result<w::Part, w::Problem> {
+#[must_use]
+pub fn part(value: &t::Part) -> w::Part {
     let key = match &value.key {
         t::PartKey::Number(number) => w::PartKey::Number(w::PartKeyNumber { value: *number }),
         t::PartKey::Path(value) => w::PartKey::Path(w::PartKeyPath { value: value.clone() }),
     };
-    Ok(w::Part { connector: value.connector, kind: part_kind(value.kind)?, key })
+    w::Part { connector: value.connector, kind: part_kind(value.kind), key }
 }
-pub fn pattern(
-    segments: &List<Box<[u8]>>,
-    last: &d::PatternEnd,
-    _limits: &w::Limits,
-) -> Result<w::Pattern, w::Problem> {
+#[must_use]
+pub fn pattern(segments: &List<Box<[u8]>>, last: &d::PatternEnd) -> w::Pattern {
     let last = match last {
         d::PatternEnd::Exact(value) => w::PatternEnd::Exact(w::PatternEndExact { value: bytes::copy_of(value) }),
         d::PatternEnd::Open(value) => w::PatternEnd::Open(w::PatternEndOpen { value: bytes::copy_of(value) }),
     };
-    Ok(w::Pattern { segments: segments.clone(), last })
+    w::Pattern { segments: segments.clone(), last }
 }
-pub fn grant(value: &d::GrantLine, limits: &w::Limits) -> Result<w::Grant, w::Problem> {
-    Ok(w::Grant {
-        connector: value.connector,
-        kind: value.kind,
-        pattern: pattern(&value.segments, &value.last, limits)?,
-    })
+#[must_use]
+pub fn grant(value: &d::GrantLine) -> w::Grant {
+    w::Grant { connector: value.connector, kind: value.kind, pattern: pattern(&value.segments, &value.last) }
 }
 pub fn authority(
     models: &[crate::Model],
@@ -241,7 +242,7 @@ pub fn authority(
 ) -> Result<w::AuthorityDocument, w::Problem> {
     let mut grants = List::with_capacity(value.grants.len());
     for item in &value.grants {
-        grants.push(grant(item, limits)?).expect("supplied grants");
+        grants.push(grant(item)).expect("supplied grants");
     }
     let grants = grants_pieces(
         &grants,
@@ -252,7 +253,7 @@ pub fn authority(
     let mut scopes = List::with_capacity(value.note_resources.len());
     for item in &value.note_resources {
         scopes
-            .push(w::ResourceScope { connector: item.connector, pattern: pattern(&item.segments, &item.last, limits)? })
+            .push(w::ResourceScope { connector: item.connector, pattern: pattern(&item.segments, &item.last) })
             .expect("supplied scopes");
     }
     let note_resources = scopes_pieces(
@@ -263,7 +264,7 @@ pub fn authority(
     )?;
     let mut kinds = List::with_capacity(value.executors.len());
     for item in &value.executors {
-        kinds.push(authority_executor(*item, limits)?).expect("supplied executors");
+        kinds.push(authority_executor(*item)).expect("supplied executors");
     }
     Ok(w::AuthorityDocument {
         cut: false,
@@ -271,8 +272,7 @@ pub fn authority(
             models: super::llm::authority(
                 jig_domain_authority::Models::from_parts(value.models.bits(), value.models.is_all()),
                 models,
-                limits,
-            )?,
+            ),
             tools: value.tools.0,
             grants,
             delegation: w::Delegation { kinds, tasks: value.tasks, depth: value.depth },
@@ -287,11 +287,9 @@ pub fn authority(
     })
 }
 
-pub fn authority_executor(
-    value: t::AuthorityExecutor,
-    _limits: &w::Limits,
-) -> Result<w::AuthorityExecutor, w::Problem> {
-    Ok(match value {
+#[must_use]
+pub fn authority_executor(value: t::AuthorityExecutor) -> w::AuthorityExecutor {
+    match value {
         t::AuthorityExecutor::Job(value) => w::AuthorityExecutor::Job(w::AuthorityExecutorJob { value }),
         t::AuthorityExecutor::Charter(number) => {
             w::AuthorityExecutor::Charter(w::AuthorityExecutorCharter { value: number })
@@ -300,7 +298,7 @@ pub fn authority_executor(
             w::AuthorityExecutor::Procedure(w::AuthorityExecutorProcedure { value: number })
         }
         t::AuthorityExecutor::Role(number) => w::AuthorityExecutor::Role(w::AuthorityExecutorRole { value: number }),
-    })
+    }
 }
 pub fn grants_pieces(
     rows: &List<w::Grant>,
@@ -336,28 +334,28 @@ pub fn scopes_pieces(
     }
     pieces(&encoded, bound, path)
 }
-pub fn specification(value: &d::SpecLine, limits: &w::Limits) -> Result<w::SpecificationDocument, w::Problem> {
+pub fn specification(value: &d::SpecLine) -> Result<w::SpecificationDocument, w::Problem> {
     let mut parameters = List::with_capacity(value.parameters.capacity());
     for item in &value.parameters {
-        parameters.push(parameter(item, limits)?).expect("supplied parameters");
+        parameters.push(parameter(item)?).expect("supplied parameters");
     }
     Ok(w::SpecificationDocument {
         specification: w::DocumentSpecification {
             asks: value.asks,
-            words: text(&value.words, limits)?,
+            words: text(&value.words),
             parameters,
             inputs: value.inputs.clone(),
         },
         cut: value.cut,
     })
 }
-fn parameter(value: &d::Parameter, limits: &w::Limits) -> Result<w::ParameterDocument, w::Problem> {
+fn parameter(value: &d::Parameter) -> Result<w::ParameterDocument, w::Problem> {
     Ok(match value {
         d::Parameter::Number { name, value } => {
             w::ParameterDocument::Number(w::ParameterDocumentNumber { name: *name, value: *value })
         }
         d::Parameter::Bytes { name, value } => {
-            w::ParameterDocument::Bytes(w::ParameterDocumentBytes { name: *name, value: text(value, limits)? })
+            w::ParameterDocument::Bytes(w::ParameterDocumentBytes { name: *name, value: text(value) })
         }
         d::Parameter::Resource { name, part } => {
             if part.kind != t::PartKind::Resource {
@@ -375,16 +373,18 @@ fn parameter(value: &d::Parameter, limits: &w::Limits) -> Result<w::ParameterDoc
         }
     })
 }
-pub fn subscriptions(value: &List<t::Subscription>, limits: &w::Limits) -> Result<w::Subscriptions, w::Problem> {
+#[must_use]
+pub fn subscriptions(value: &List<t::Subscription>) -> w::Subscriptions {
     let mut entries = List::with_capacity(value.capacity());
     for item in value {
-        entries.push(subscription(*item, limits)?).expect("supplied subscriptions");
+        entries.push(subscription(*item)).expect("supplied subscriptions");
     }
-    Ok(w::Subscriptions { entries })
+    w::Subscriptions { entries }
 }
 
-pub fn subscription_kind(value: t::SubscriptionKind, _limits: &w::Limits) -> Result<w::SubscriptionKind, w::Problem> {
-    Ok(match value {
+#[must_use]
+pub fn subscription_kind(value: t::SubscriptionKind) -> w::SubscriptionKind {
+    match value {
         t::SubscriptionKind::Task { target, held, result } => {
             w::SubscriptionKind::Task(w::SubscriptionKindTask { target, held, result })
         }
@@ -394,10 +394,11 @@ pub fn subscription_kind(value: t::SubscriptionKind, _limits: &w::Limits) -> Res
         t::SubscriptionKind::Topic { connector, topic } => {
             w::SubscriptionKind::Topic(w::SubscriptionKindTopic { connector, topic })
         }
-    })
+    }
 }
-pub fn subscription(value: t::Subscription, limits: &w::Limits) -> Result<w::Subscription, w::Problem> {
-    Ok(w::Subscription { number: value.number, kind: subscription_kind(value.kind, limits)? })
+#[must_use]
+pub fn subscription(value: t::Subscription) -> w::Subscription {
+    w::Subscription { number: value.number, kind: subscription_kind(value.kind) }
 }
 pub fn contract(value: &d::ContractLine, limits: &w::Limits) -> Result<w::TaskContractDocument, w::Problem> {
     Ok(match value {
@@ -405,7 +406,7 @@ pub fn contract(value: &d::ContractLine, limits: &w::Limits) -> Result<w::TaskCo
         d::ContractLine::Approval { state, part: value } => {
             w::TaskContractDocument::Approval(w::TaskContractDocumentApproval {
                 state: bytes::copy_of(state),
-                part: part(value, limits)?,
+                part: part(value),
             })
         }
         d::ContractLine::Report { words } => {
