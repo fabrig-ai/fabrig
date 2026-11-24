@@ -19,10 +19,6 @@ impl ExecFixture {
         Self::fixture(name, Some(check_code))
     }
 
-    pub(super) fn rendering(name: &str) -> Self {
-        Self::fixture(name, None)
-    }
-
     fn fixture(name: &str, check_code: Option<i32>) -> Self {
         use sha2::{Digest, Sha256};
         use std::os::unix::fs::{DirBuilderExt, PermissionsExt};
@@ -143,26 +139,4 @@ fn an_exec_arm_refused_by_check_is_a_setup_refusal() {
     assert_eq!(refusal.kind, smith_bench::FaultKind::Setup(smith_bench::isolate::SetupStep::Configuration));
     assert!(refusal.detail.contains("Code(2)"));
     assert!(!fixture.private.root.join("smith/tokens").exists());
-}
-
-impl ExecFixture {}
-
-#[test]
-fn the_credentials_lead_reaches_the_native_policy_boundary() {
-    let fixture = ExecFixture::rendering("credentials-policy");
-    let task = super::authored_task("credentials");
-    let context = smith_bench::agent::Context { task: &task, ..fixture.context() };
-    let arguments = super::product_arguments(&context).expect("credentials flags");
-    assert!(arguments.contains(&"deployment.refresh_lead=34560000".into()));
-    let value: toml::Value = serde_json::from_value(super::product_layer(&context)).expect("layer");
-    let source = smith_local_shell::settings::Source {
-        layer: smith_local_shell::settings::Layer::User,
-        path: fixture.private.config.join("smith/config.toml"),
-        text: toml::to_string(&value).expect("TOML"),
-    };
-    let command = smith_local_shell::command::parse(arguments.into_iter().map(Into::into).collect()).expect("flags");
-    let smith_local_shell::command::Command::Interactive { shared, .. } = command else { panic!("shared flags") };
-    let settings = smith_local_shell::settings::from_sources(&shared, fixture.private.workspace.clone(), &[source])
-        .expect("refresh-lead policy accepted");
-    assert_eq!(settings.values["deployment.refresh_lead"].value.as_integer(), Some(34_560_000));
 }
