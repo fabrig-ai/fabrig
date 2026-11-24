@@ -374,6 +374,7 @@ fn release_rows(d: &mut Domain, repository: Repository, groups: &mut Queue<Box<[
             Some((_, Some(name))) => owns(name, repository),
             Some((_, None)) | None => false,
         } {
+            d.release_reads.remove(&key);
             erase(groups, Key::Release(key));
         } else {
             d.releases.insert(key, row).expect("retained releases");

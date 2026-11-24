@@ -10,7 +10,7 @@ use super::{
 use alloc::boxed::Box;
 use skein_forge::api::{Answer, Error, Read, Write};
 use skein_forge_client::{Condition, Effect, Entry, Outcome};
-use skein_lib::{Duration, List, Queue, Time, Token};
+use skein_lib::{Duration, List, Queue, Time, Token, Wall};
 
 #[derive(Hash, Debug)]
 pub(crate) struct Making {
@@ -20,6 +20,8 @@ pub(crate) struct Making {
     default: bool,
     state: LostReadState,
     retry_at: Option<Time>,
+    since: Wall,
+    last_answer: Option<Error>,
     backoff: Duration,
     pub(crate) outbox_wait: Option<RoomWait>,
 }
@@ -171,6 +173,10 @@ pub(super) fn accept_release(d: &mut Domain, env: &Env<Limits>, task: u64, out: 
 }
 
 pub(super) fn start(d: &mut Domain, env: &Env<Limits>, name: Name, entry: Option<u64>, out: &mut Queue<Request>) {
+    start_at(d, env, name, entry, env.wall, out);
+}
+
+fn start_at(d: &mut Domain, env: &Env<Limits>, name: Name, entry: Option<u64>, since: Wall, out: &mut Queue<Request>) {
     if !is_goal(d, &name)
         || reading(d, &name)
         || (entry.is_some() && waiting(d, &name))
@@ -201,6 +207,8 @@ pub(super) fn start(d: &mut Domain, env: &Env<Limits>, name: Name, entry: Option
         default: false,
         state: LostReadState::Asked,
         retry_at: None,
+        since,
+        last_answer: None,
         backoff: env.limits.client.backoff,
         outbox_wait: None,
     };
@@ -227,6 +235,7 @@ pub(super) fn answered(
     if d.stopping || !held(d, &pending) {
         return;
     }
+    pending.last_answer = result.as_ref().err().copied();
     if let Err(Error::Unavailable | Error::Timeout) = result {
         pending.state = LostReadState::WaitingForRetry;
         pending.retry_at = Some(env.now.saturating_add(pending.backoff));
@@ -342,6 +351,8 @@ fn missing(d: &mut Domain, env: &Env<Limits>, owner: Token, mut pending: Making,
     let repository = d.repositories.get(&resource.repository).expect("held repository");
     let branch = repository.landing.clone();
     pending.default = true;
+    pending.since = env.wall;
+    pending.last_answer = None;
     pending.state = LostReadState::Asked;
     d.makings.insert(owner, pending).expect("replaces making read");
     child(
@@ -515,37 +526,93 @@ pub(super) fn retry_task(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut
     }
 }
 
-pub(super) fn deadline(d: &Domain) -> Option<Time> {
-    let mut next: Option<Time> = None;
+pub(crate) fn last_answer(d: &Domain, name: &Name) -> Option<Error> {
     for (_, pending) in &d.makings {
-        if let Some(at) = pending.retry_at {
-            next = Some(match next {
-                Some(previous) => previous.min(at),
-                None => at,
-            });
+        if &pending.name == name {
+            return pending.last_answer;
         }
+    }
+    None
+}
+
+fn read_bound(d: &Domain, pending: &Making) -> Option<Wall> {
+    if pending.state == LostReadState::WaitingForOutbox || !held(d, pending) {
+        return None;
+    }
+    // This includes restart and uncertain-outcome readbacks: a creation
+    // already kept in the outbox is never failed by the read clock.
+    for (_, row) in &d.entries {
+        if makes(&row.entry, &pending.name) {
+            return None;
+        }
+    }
+    Some(crate::waits::step_bound(pending.since, d.landing.limits.waits.step))
+}
+
+pub(super) fn deadline(d: &Domain) -> Option<Time> {
+    let mut next = None;
+    for (_, pending) in &d.makings {
+        next = skein_lib::earliest(next, pending.retry_at);
     }
     next
 }
 
-pub(super) fn fire(d: &mut Domain, now: Time, out: &mut Queue<Request>) {
+pub(super) fn read_deadline(d: &Domain) -> Option<Wall> {
+    let mut first: Option<Wall> = None;
+    for (_, pending) in &d.makings {
+        if let Some(at) = read_bound(d, pending) {
+            first = Some(match first {
+                Some(first) => first.min(at),
+                None => at,
+            });
+        }
+    }
+    first
+}
+
+pub(super) fn fire(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
+    let mut expired = List::with_capacity(d.makings.len());
     let mut due = skein_lib::Map::with_capacity(d.makings.len());
     for (owner, pending) in &d.makings {
-        if let Some(at) = pending.retry_at
-            && at <= now
+        if let Some(at) = read_bound(d, pending)
+            && at <= env.wall
+        {
+            expired.push(*owner).expect("one bound per making");
+        } else if let Some(at) = pending.retry_at
+            && at <= env.now
         {
             due.insert((at, *owner), ()).expect("bounded making reads");
         }
+    }
+    for owner in expired.into_boxed() {
+        fail_read_wait(d, env, owner, out);
     }
     for ((_, owner), ()) in &due {
         let pending = d.makings.get_mut(owner).expect("due making read");
         pending.retry_at = None;
         pending.state = LostReadState::WaitingForRoom;
-        read_line::join(d, Waiter::Making(*owner), now, out);
+        read_line::join(d, Waiter::Making(*owner), env.now, out);
     }
     if !due.is_empty() {
         d.read_line.wake();
     }
+}
+
+fn fail_read_wait(d: &mut Domain, env: &Env<Limits>, owner: Token, out: &mut Queue<Request>) {
+    let pending = d.makings.remove(&owner).expect("expired making read");
+    d.read_line.leave(Waiter::Making(owner));
+    d.read_line.wake();
+    super::outage::forget_read(d, owner);
+    crate::room::leave(d, crate::room::Waiter::Making(owner));
+    let what = match branch_read(d, &env.limits, &pending) {
+        Some((_, branch)) => skein_lib::bytes::concat(&[b"branch ", &branch]),
+        None => Box::from(b"the branch tip".as_slice()),
+    };
+    let last = crate::waits::read_answer(pending.last_answer);
+    let reason = crate::waits::stalled_words(b"making", env.limits.waits.step, &what, Some(&last));
+    wake(d, &pending.name, out);
+    failed(pending.task, pending.name, &reason, out);
+    released(d, pending.task, out);
 }
 
 pub(super) fn outcome(d: &mut Domain, number: u64, outcome: Outcome, out: &mut Queue<Request>) {
@@ -598,7 +665,7 @@ fn wake(d: &mut Domain, name: &Name, out: &mut Queue<Request>) {
         }
     }
     for task in &closers {
-        d.closing.branch_waits.remove(task);
+        crate::closer::set_idle(d, *task);
         super::wake_once(out, *task);
     }
 }
@@ -611,7 +678,7 @@ fn released(d: &Domain, task: u64, out: &mut Queue<Request>) {
     }
 }
 
-pub(super) fn restart(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
+pub(super) fn restart(d: &mut Domain, env: &Env<Limits>, since: Wall, out: &mut Queue<Request>) {
     let mut names = List::with_capacity(env.limits.holds);
     for (name, hold) in &d.holds {
         // A design writer's confirmed branch keeps its drift baseline until
@@ -621,7 +688,7 @@ pub(super) fn restart(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request
         }
     }
     for name in names.into_boxed() {
-        start(d, env, name, None, out);
+        start_at(d, env, name, None, since, out);
     }
 }
 

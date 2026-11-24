@@ -197,6 +197,7 @@ fn lost_read_at_capacity_still_completes_the_report() {
                 comparison: None,
                 baseline: None,
                 state: LostReadState::Asked,
+                last_answer: None,
                 kind: LostWriterKind::Slot,
             },
         )
@@ -356,6 +357,7 @@ fn a_sweep_keeps_unsettled_branch_writes_and_pending_lost_reads() {
                     comparison: None,
                     baseline: None,
                     state: LostReadState::Asked,
+                    last_answer: None,
                     kind: LostWriterKind::Slot,
                 },
             )

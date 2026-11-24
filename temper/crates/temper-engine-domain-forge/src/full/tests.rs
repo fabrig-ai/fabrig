@@ -519,6 +519,7 @@ fn read_admission_reports_oldest_holders_doublings_and_room_after_reclaim() {
                 comparison: None,
                 baseline: None,
                 state: super::super::LostReadState::Asked,
+                last_answer: None,
                 kind: super::super::LostWriterKind::Written,
             },
         )

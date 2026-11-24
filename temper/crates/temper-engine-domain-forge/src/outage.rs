@@ -148,6 +148,12 @@ pub(super) fn recommitted(d: &Domain, entry: u64) -> bool {
         None => false,
     }
 }
+pub(crate) fn forget_read(d: &mut Domain, owner: Token) {
+    if let Some(active) = &mut d.outage {
+        active.reads.remove(&owner);
+    }
+}
+
 pub(super) fn forget_entry(d: &mut Domain, entry: u64) {
     if let Some(state) = &mut d.outage {
         state.forget_entry(entry);
@@ -175,6 +181,7 @@ fn riding(d: &Domain, owner: Token) -> bool {
         || d.pending_ci.contains_key(&owner)
         || d.landing.pending.contains_key(&owner)
         || d.tier_ops.reads.contains_key(&owner)
+        || d.closing.selection_reads.contains_key(&owner)
         || d.rebase_fresh.contains_key(&owner)
 }
 /// Remember the exact fresh read, not a reconstruction from facts that may move.

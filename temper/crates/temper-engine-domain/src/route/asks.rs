@@ -582,6 +582,11 @@ pub(crate) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
             } else if connector == domain.config.forge_connector && code == forge_route::LANDING_CODE {
                 forge_route::start_landing_step(domain, env, &context);
             } else if connector == domain.config.forge_connector && code == forge_route::GOAL_CLOSER_CODE {
+                if let Some(row) = domain.core.tasks.task(task)
+                    && row.due_reason == tasks::Why::Released
+                {
+                    domain.forge.release_closer_wait(task, env.wall);
+                }
                 forge_route::start_closer_step(domain, env, &context);
             } else if connector == domain.config.forge_connector && code == forge_route::STATUS_CODE {
                 forge_route::start_status_step(domain, env, &context);

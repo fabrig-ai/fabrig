@@ -2738,6 +2738,11 @@ pub enum Event {
         task: u64,
         relay: temper_engine_domain_forge_closer::relay::Relay,
     },
+    /// Park without a closer read.
+    ParkCloser {
+        task: u64,
+        wait: crate::closer::CloserPark,
+    },
     /// Read the next pending CI selection for the closer report.
     ReadCloserSelection {
         task: u64,
@@ -3264,10 +3269,11 @@ pub enum Request {
         root: u64,
         resource: Name,
     },
-    /// A cleanup effect failed and the closing task needs a person's decision.
+    /// Cleanup failed and the closing task needs a person's decision.
     ReleaseFailed {
         task: u64,
         account: Option<EffectAccount>,
+        reason: Option<Box<[u8]>>,
     },
     /// A connector-described projection candidate, awaiting core admission.
     ProjectionEffect {

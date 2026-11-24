@@ -1,5 +1,6 @@
 //! The forge's replacement wait reports (temper/docs/design/domain/forge/waits.md, 2).
 use crate::{Domain, Limits, Request, room};
+use alloc::boxed::Box;
 use jig_domain_core_vocabulary::waits::{ReportRefusal, Reported};
 use skein_lib::{Env, List, Map, Queue, Set, Wall};
 
@@ -174,5 +175,36 @@ fn publish(d: &mut Domain, env: &Env<Limits>, task: u64, force: bool, out: &mut 
             d.wait_reports.last.insert(task, waits.clone()).expect("one report per task");
         }
         out.push(Request::Waits { task, waits });
+    }
+}
+
+/// The bound's figure, not the amount the clock happened to overshoot it.
+pub(crate) fn stalled_words(step: &[u8], figure: skein_lib::Duration, what: &[u8], last: Option<&[u8]>) -> Box<[u8]> {
+    let minutes =
+        skein_lib::Decimal::of(figure.as_nanos().checked_div(60_000_000_000).expect("nanoseconds per minute"));
+    let (separator, answer) = match last {
+        Some(answer) => (b"; the last answer: ".as_slice(), answer),
+        None => (b"".as_slice(), b"".as_slice()),
+    };
+    skein_lib::bytes::concat(&[
+        b"no progress at ",
+        step,
+        b" for ",
+        minutes.as_bytes(),
+        b" minutes: waiting for ",
+        what,
+        separator,
+        answer,
+    ])
+}
+
+pub(crate) fn step_bound(since: Wall, figure: skein_lib::Duration) -> Wall {
+    Wall::from_nanos(since.as_nanos().saturating_add(figure.as_nanos()))
+}
+
+pub(crate) fn read_answer(last: Option<skein_forge::api::Error>) -> Box<[u8]> {
+    match last {
+        Some(error) => crate::effect_words::error_words(error),
+        None => Box::from(b"no answer".as_slice()),
     }
 }

@@ -56,6 +56,7 @@ fn compare(d: &mut Domain, env: &Env<Limits>, name: &Name, task: u64, out: &mut 
                 baseline: Some(beside.head),
                 comparison: Some((write, beside.head)),
                 state: LostReadState::Asked,
+                last_answer: None,
                 kind: LostWriterKind::Written,
             },
         )
@@ -107,7 +108,7 @@ pub(super) fn answered(
     save_hold(out, hold.clone());
     let taken = branch_written(d, &pending.name, None);
     child(d, env, skein_forge_client::Event::Writer { resource, taken }, out);
-    lost_release(d, &pending.name, pending.task, false, out);
+    lost_release(d, Some(env), &pending.name, pending.task, out);
 }
 
 pub(super) fn cleanup(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {

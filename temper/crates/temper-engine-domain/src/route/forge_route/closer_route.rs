@@ -53,14 +53,28 @@ pub(crate) fn start_closer_step(domain: &mut Domain, env: &Env<Limits>, context:
     // Its creation answer owns the pending change. A wake before that answer
     // must not delegate the same close or landing step again.
     if row.making.is_some() {
-        submit(domain, env, row, ProcedureStep::new(StepEnd::Wait));
+        submit(domain, env, row, ProcedureStep::new(StepEnd::Wait), None);
         return;
     }
     let Some((_, _, procedure_step)) = domain.core.tasks.procedure_due(task) else { return };
+    if let Some(words) = domain.forge.closer_stall_words(task) {
+        let words = forge::text::fit(words, skein_lib::usize_of(tasks::HOLD_ACCOUNT_BYTES), b"...");
+        let decision = ProcedureStep::new(StepEnd::HoldFrom {
+            why: tasks::Hold::Procedure,
+            source: Box::new(super::holds::source(domain, None, words)),
+        });
+        submit(domain, env, row, decision, None);
+        return;
+    }
     let branch = match goal_branch(domain, env, goal, &repository) {
         Some((branch, name)) => {
-            if domain.forge.park_closer_for_goal_branch(task, &name) {
-                submit(domain, env, row, ProcedureStep::new(StepEnd::Wait));
+            if domain.forge.goal_branch_waiting(&name) {
+                let wait = if live_delegate(domain, &row) {
+                    forge::CloserPark::DelegateOrHeld
+                } else {
+                    forge::CloserPark::Making(name)
+                };
+                submit(domain, env, row, ProcedureStep::new(StepEnd::Wait), Some(wait));
                 return;
             }
             Some(branch)
@@ -70,14 +84,14 @@ pub(crate) fn start_closer_step(domain: &mut Domain, env: &Env<Limits>, context:
     let base_holds = match domain.forge.closer_checked(task, procedure_step) {
         Some(Ok(contains)) => Some(contains),
         Some(Err(_)) => {
-            submit(domain, env, row, ProcedureStep::new(StepEnd::Wait));
+            submit(domain, env, row, ProcedureStep::new(StepEnd::Wait), None);
             return;
         }
         None => None,
     };
     let facts = facts(domain, &row, branch.as_deref(), base_holds);
     let stepped = c::step(&row.closer, &facts);
-    let decision = match stepped.decision {
+    let (decision, wait) = match stepped.decision {
         c::Decision::Check => {
             row.closer = stepped.closer;
             domain.work.push(Work::Forge(forge::Event::Closer { row }));
@@ -92,7 +106,7 @@ pub(crate) fn start_closer_step(domain: &mut Domain, env: &Env<Limits>, context:
         }
         c::Decision::Make(kind) => {
             if kind == c::Step::Land && domain.forge.landing_held() {
-                submit(domain, env, row, ProcedureStep::new(StepEnd::Wait));
+                submit(domain, env, row, ProcedureStep::new(StepEnd::Wait), Some(forge::CloserPark::OperatorHold));
                 return;
             }
             let branch = branch.expect("only a held goal branch makes a step");
@@ -106,7 +120,7 @@ pub(crate) fn start_closer_step(domain: &mut Domain, env: &Env<Limits>, context:
                     } else {
                         super::holds::decision(domain, env, task, short_words(short))
                     };
-                    submit(domain, env, row, decision);
+                    submit(domain, env, row, decision, Some(forge::CloserPark::DelegateOrHeld));
                     return;
                 }
             };
@@ -117,18 +131,19 @@ pub(crate) fn start_closer_step(domain: &mut Domain, env: &Env<Limits>, context:
             }
             let mut decision = ProcedureStep::new(StepEnd::Wait);
             decision.batch = Box::new([delegate]);
-            decision
+            (decision, None)
         }
         c::Decision::Hold(hold) => {
             row.closer = stepped.closer;
-            ProcedureStep::new(StepEnd::HoldFrom {
+            let decision = ProcedureStep::new(StepEnd::HoldFrom {
                 why: tasks::Hold::Procedure,
                 source: Box::new(super::holds::source(domain, None, hold_words(domain, &row, hold))),
-            })
+            });
+            (decision, Some(forge::CloserPark::DelegateOrHeld))
         }
         c::Decision::Wait => {
             row.closer = stepped.closer;
-            ProcedureStep::new(StepEnd::Wait)
+            (ProcedureStep::new(StepEnd::Wait), Some(forge::CloserPark::DelegateOrHeld))
         }
         c::Decision::Report => {
             row.closer = stepped.closer;
@@ -143,10 +158,23 @@ pub(crate) fn start_closer_step(domain: &mut Domain, env: &Env<Limits>, context:
             }
             report.selections = settled_selections(&row.closer);
             row.done = true;
-            ProcedureStep::new(StepEnd::Result(tasks::TaskResult::Report { words: c::words(&report, bound) }))
+            (ProcedureStep::new(StepEnd::Result(tasks::TaskResult::Report { words: c::words(&report, bound) })), None)
         }
     };
-    submit(domain, env, row, decision);
+    submit(domain, env, row, decision, wait);
+}
+
+fn live_delegate(domain: &Domain, row: &forge::CloserRow) -> bool {
+    let running = match row.closer.running {
+        Some(running) => Some(running.change),
+        None => None,
+    };
+    for task in [running, row.closer.landing].into_iter().flatten() {
+        if child(domain, task) == c::Child::Pending {
+            return true;
+        }
+    }
+    false
 }
 
 fn facts(domain: &Domain, row: &forge::CloserRow, branch: Option<&[u8]>, base_holds: Option<bool>) -> c::Facts {
@@ -185,7 +213,13 @@ fn facts(domain: &Domain, row: &forge::CloserRow, branch: Option<&[u8]>, base_ho
     }
 }
 
-fn submit(domain: &mut Domain, env: &Env<Limits>, mut row: forge::CloserRow, mut decision: ProcedureStep) {
+fn submit(
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    mut row: forge::CloserRow,
+    mut decision: ProcedureStep,
+    wait: Option<forge::CloserPark>,
+) {
     let task = row.task;
     let Some((connector, code, step)) = domain.core.tasks.procedure_due(task) else { return };
     let previous = row.relay.clone();
@@ -194,6 +228,9 @@ fn submit(domain: &mut Domain, env: &Env<Limits>, mut row: forge::CloserRow, mut
     // Step progress keeps its creation marker; only the relay waits for admission.
     if domain.forge.closer(task) != Some(&row) {
         domain.work.push(Work::Forge(forge::Event::Closer { row }));
+    }
+    if let Some(wait) = wait {
+        domain.work.push(Work::Forge(forge::Event::ParkCloser { task, wait }));
     }
     domain.closer_steps.insert((task, step), Pending { relay, asked, more }).expect("one pending step per closer");
     domain.work.push(Work::Core(jig_domain_core::Event::ProcedureStep { task, step, connector, code, decision }));

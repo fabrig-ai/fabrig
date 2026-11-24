@@ -4124,7 +4124,9 @@ pub(crate) fn outputs(
             }
             forge::Request::StepDependents { task } => step_dependents(domain, env, task),
             forge::Request::CloserChecked { task } => {
-                if let Some(context) = domain.core.tasks.run_context(task) {
+                if domain.forge.closer_stall_words(task).is_some() && domain.core.tasks.procedure_due(task).is_none() {
+                    domain.work.push(Work::Tasks(tasks::Event::WakeProcedure { task }));
+                } else if let Some(context) = domain.core.tasks.run_context(task) {
                     start_closer_step(domain, env, &context);
                 }
             }
@@ -4603,7 +4605,7 @@ pub(crate) fn outputs(
                     },
                 )));
             }
-            forge::Request::ReleaseFailed { task, account } => {
+            forge::Request::ReleaseFailed { task, account, reason } => {
                 if let Some(account) = account {
                     domain.work.push(Work::Tasks(tasks::Event::HoldFrom {
                         task,
@@ -4615,7 +4617,7 @@ pub(crate) fn outputs(
                         domain,
                         task,
                         tasks::Hold::EffectFailed,
-                        b"forge could not release this task's resources",
+                        reason.as_deref().unwrap_or(b"forge could not release this task's resources"),
                     );
                 }
             }

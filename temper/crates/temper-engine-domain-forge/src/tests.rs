@@ -396,12 +396,30 @@ pub(crate) fn outputs(d: &mut Domain, event: Event) -> Box<[Request]> {
     }
     let mut out = Queue::uncapped();
     step(d, &env(), event, &mut out);
+    requests(out)
+}
+
+fn requests(mut out: Queue<Request>) -> Box<[Request]> {
     let mut values = skein_lib::List::with_capacity(out.len());
     for _ in 0..out.len() {
         values.push(out.pop().expect("counted output")).expect("sized from queue");
     }
     values.into_boxed()
 }
+fn at_wall(clock: &Env<Limits>, wall: Wall) -> Env<Limits> {
+    Env { wall, ..*clock }
+}
+
+fn advanced_wall(wall: Wall, span: Duration) -> Wall {
+    Wall::from_nanos(wall.as_nanos().saturating_add(span.as_nanos()))
+}
+
+fn fire_at(d: &mut Domain, clock: &Env<Limits>, wall: Wall) -> Box<[Request]> {
+    let mut out = Queue::uncapped();
+    fire(d, &at_wall(clock, wall), &mut out);
+    requests(out)
+}
+
 fn wait_report(requests: &[Request], task: u64) -> Option<&[jig_domain_core_vocabulary::waits::Reported]> {
     let mut report = None;
     for request in requests {
