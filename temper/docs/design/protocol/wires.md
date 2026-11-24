@@ -395,7 +395,15 @@ changes its exit code.
    `wire NAME: kept V, this binary speaks L..H` or `wire NAME is not
    kept by the copy`, and no worker may stay. A kept wire the table
    lacks is passed over.
-3. **Each worker the configuration names,** in its order, by its kept
+3. **The copy's current workers,** read without a restore: temper's
+   default workers (`Defaults.workers`, the box's `local` where it
+   passes one: `cluster.md`, 1) with the copy's stored worker settings
+   over them (jig's `protocol/store/opening-rehearsal.md`, 1, *The
+   workers kept*), the withdrawn ones left out, in number order. Where
+   a stored worker setting does not decode: `workers may stay: unknown;
+   the copy's workers cannot be read`, and nothing more of this step or
+   the next.
+4. **Each worker the copy names,** in number order, by its kept
    opening, judged by `jig_protocol_engine_workers::judge` (jig's
    `protocol/channel/wires.md`, 3) with this binary's worker wires and
    roots, and the room and limits its engine's workers component would
@@ -411,9 +419,9 @@ changes its exit code.
    - with no opening kept: `worker NAME unknown: no opening kept since
      the engine's last start`, and it may not stay.
 
-   A kept opening of a name the configuration no longer names is not
-   judged.
-4. **The verdict:** `workers may stay: yes` when step 2 passed and every
+   A kept opening of a name the copy no longer names (withdrawn, or
+   never a setting) is passed over.
+5. **The verdict:** `workers may stay: yes` when step 2 passed and every
    worker named may stay, with none named too; else `workers may stay:
    no`.
 
