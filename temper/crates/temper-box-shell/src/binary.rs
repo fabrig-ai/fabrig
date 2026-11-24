@@ -120,6 +120,23 @@ fn dispatch_with(
 }
 
 #[cfg(test)]
+pub(crate) fn dispatch_fixture<'a>(
+    words: impl IntoIterator<Item = &'a str>,
+    environment: Box<[crate::EnvironmentEntry]>,
+    working: PathBuf,
+    stdout: impl FnOnce(&str),
+    run: impl FnOnce(Command, &[u8]) -> Result<u8, String>,
+) -> Result<ExitCode, (u8, String)> {
+    let capture = Capture {
+        run_as: b"temper-box".as_slice().into(),
+        arguments: words.into_iter().map(|word| word.as_bytes().into()).collect(),
+        environment,
+        working: Ok(working),
+    };
+    dispatch_with(&capture, "fixture", "fixture", stdout, run)
+}
+
+#[cfg(test)]
 mod tests {
     #[test]
     fn serve_and_bare_box_refuse_moved_limits_at_the_configuration_read() {

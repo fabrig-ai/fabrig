@@ -5,6 +5,8 @@ pub(crate) mod check;
 mod control;
 pub(crate) mod created;
 use created::Created;
+mod disk;
+use disk::{Disk, Native};
 pub mod git;
 mod state;
 use skein_fake_peers::{forge as forge_peer, llm as llm_peer, oauth as oauth_peer};
@@ -320,20 +322,7 @@ fn check_command(
 /// back only what this invocation created; a running peer leaves every file.
 pub fn run(arguments: &Arguments) -> Result<u8, String> {
     let command = arguments.kind.command();
-    let mut created = Created::default();
-    let opened = start(arguments, &mut created);
-    let (mut host, mut kernel) = match opened {
-        Ok(opened) => opened,
-        Err(why) => {
-            created.rollback();
-            let command = if arguments.kind == Kind::Forge && why.starts_with("state ") {
-                "temper-box fake forge"
-            } else {
-                command
-            };
-            return Err(super::prefixed(command, &why));
-        }
-    };
+    let (mut host, mut kernel) = start(arguments)?;
     let clock = skein_shell::Clock::new();
     let exit = skein_shell::drive(&mut kernel, &clock, &mut host);
     if exit == Exit::Code(0)
@@ -342,43 +331,74 @@ pub fn run(arguments: &Arguments) -> Result<u8, String> {
         && let Some(path) = &arguments.state
     {
         let Peer::Forge(peer) = &host.peer else { unreachable!("only a forge keeps state") };
-        state::store(path, peer).map_err(|why| super::prefixed(command, &why))?;
+        state::store(&mut Native, path, peer, temper_forge_setup_shell::process::id())
+            .map_err(|why| super::prefixed(command, &why))?;
     }
     Ok(match exit {
         Exit::Code(code) => code,
         Exit::Signal(_) => 1,
     })
 }
-fn read_document(path: &Path, bound: u32) -> Result<Box<[u8]>, String> {
-    skein_shell::read_file(path, bound).map_err(|why| format!("{}: {}", path.display(), super::unread(why)))
+trait Inputs: Disk {
+    fn document(&mut self, path: &Path, bound: u32) -> Result<Box<[u8]>, skein_shell::Unread>;
+    fn private_file(&mut self, path: &Path, bound: u32) -> Result<skein_lib::Secret, skein_shell::Unread>;
+    fn forge_entry(
+        &mut self,
+        directories: &super::Directories,
+        forge: u16,
+    ) -> Result<temper_forge_setup::setup::Entry, String>;
+}
+impl Inputs for Native {
+    fn document(&mut self, path: &Path, bound: u32) -> Result<Box<[u8]>, skein_shell::Unread> {
+        skein_shell::read_file(path, bound)
+    }
+    fn private_file(&mut self, path: &Path, bound: u32) -> Result<skein_lib::Secret, skein_shell::Unread> {
+        skein_shell::read_private_file(path, bound, self.user())
+    }
+    fn forge_entry(
+        &mut self,
+        directories: &super::Directories,
+        forge: u16,
+    ) -> Result<temper_forge_setup::setup::Entry, String> {
+        forge_entry(directories, forge)
+    }
+}
+
+fn read_document(inputs: &mut impl Inputs, path: &Path, bound: u32) -> Result<Box<[u8]>, String> {
+    inputs.document(path, bound).map_err(|why| format!("{}: {}", path.display(), super::unread(why)))
 }
 /// The box's group selects its machine kind (temper/docs/design/protocol/setup/box.md, 1).
 fn forge_entry(directories: &super::Directories, forge: u16) -> Result<temper_forge_setup::setup::Entry, String> {
     super::forge::entry(directories, forge)
 }
-fn forge_document(source: &Source, seed: u64, created: &mut Created) -> Result<(forge::Document, [u8; 40]), String> {
+fn forge_document(
+    inputs: &mut impl Inputs,
+    source: &Source,
+    seed: u64,
+    created: &mut Created,
+) -> Result<(forge::Document, [u8; 40]), String> {
     match source {
         Source::Demo { .. } => unreachable!("forge has document and setup forms"),
         Source::Document(path) => {
-            let bytes = read_document(path, temper_fake::DOCUMENT_BYTES)?;
+            let bytes = read_document(inputs, path, temper_fake::DOCUMENT_BYTES)?;
             let document =
                 forge::Document::decode(&bytes).map_err(|why| String::from_utf8_lossy(&why.line()).into_owned())?;
             let token = credential(seed, credential::ADMIN_TOKEN);
             let path = super::path(document.admin_token());
-            created.directory(path.parent().expect("absolute token file"))?;
-            created.output(path, &token)?;
+            created.directory(inputs, path.parent().expect("absolute token file"))?;
+            created.output_with(inputs, path, &token)?;
             Ok((document, token))
         }
         Source::Setup { directories, forge } => {
-            let entry = forge_entry(directories, *forge)?;
+            let entry = inputs.forge_entry(directories, *forge)?;
             let fake = match &entry.mode {
                 temper_forge_setup::setup::Mode::Fake(fake) => fake,
                 temper_forge_setup::setup::Mode::Owned(_) => return Err("it is owned, not fake".into()),
                 temper_forge_setup::setup::Mode::Managed { .. } => return Err("it is managed, not fake".into()),
             };
             let path = super::path(&entry.directory).join("admin_token");
-            let bytes = skein_shell::read_private_file(&path, 40, skein_shell::effective_user())
-                .map_err(|why| format!("{}: {}", path.display(), super::unread(why)))?;
+            let bytes =
+                inputs.private_file(&path, 40).map_err(|why| format!("{}: {}", path.display(), super::unread(why)))?;
             let token: [u8; 40] = bytes
                 .expose()
                 .try_into()
@@ -392,9 +412,10 @@ fn forge_document(source: &Source, seed: u64, created: &mut Created) -> Result<(
 
 #[cfg(test)]
 fn llm_configuration(arguments: &Arguments, created: &mut Created) -> Result<llm::Configuration, String> {
-    llm_configuration_at(arguments, created, crate::scripted::PREFERRED)
+    llm_configuration_at(&mut Native, arguments, created, crate::scripted::PREFERRED)
 }
 fn llm_configuration_at(
+    inputs: &mut impl Inputs,
     arguments: &Arguments,
     created: &mut Created,
     address: std::net::SocketAddr,
@@ -402,20 +423,23 @@ fn llm_configuration_at(
     let seed = arguments.seed;
     Ok(match &arguments.source {
         Source::Document(path) => {
-            let bytes = read_document(path, temper_fake::DOCUMENT_BYTES)?;
-            let scripts =
-                arguments.scripts.as_ref().map(|path| read_document(path, temper_fake::DOCUMENT_BYTES)).transpose()?;
+            let bytes = read_document(inputs, path, temper_fake::DOCUMENT_BYTES)?;
+            let scripts = arguments
+                .scripts
+                .as_ref()
+                .map(|path| read_document(inputs, path, temper_fake::DOCUMENT_BYTES))
+                .transpose()?;
             let document = llm::Document::decode_with_scripts(&bytes, scripts.as_deref())
                 .map_err(|why| String::from_utf8_lossy(&why.line()).into_owned())?
                 .with_strict(arguments.strict);
             let key = credential(seed, credential::KEY);
-            created.output(super::path(document.key()), &key)?;
+            created.output_with(inputs, super::path(document.key()), &key)?;
             for (i, path) in document.added_keys().iter().enumerate() {
                 let stream = credential::added_key(u32::try_from(i).expect("fifteen added keys"));
-                created.output(super::path(path), &credential(seed, stream))?;
+                created.output_with(inputs, super::path(path), &credential(seed, stream))?;
             }
             if let Some(root) = document.root() {
-                created.output(super::path(root), skein_fake_peers::transport::ROOT)?;
+                created.output_with(inputs, super::path(root), skein_fake_peers::transport::ROOT)?;
             }
             llm::configuration(&document, &key, seed)
         }
@@ -432,7 +456,8 @@ fn llm_configuration_at(
                 .map_err(|why| String::from_utf8_lossy(&why.line()).into_owned())?
                 .expect("the box's scripted provider");
             let path = super::path(demo.llm().key());
-            let file = skein_shell::read_private_file(path, demo::KEY_FILE_BYTES, skein_shell::effective_user())
+            let file = inputs
+                .private_file(path, demo::KEY_FILE_BYTES)
                 .map_err(|why| format!("{}: {}", path.display(), super::unread(why)))?;
             let key = demo::key(file.expose()).map_err(|why| format!("{}: {}", path.display(), why.reason()))?;
             llm::configuration(&demo.llm().clone().with_strict(arguments.strict), key, seed)
@@ -441,18 +466,65 @@ fn llm_configuration_at(
     })
 }
 
-fn start(arguments: &Arguments, created: &mut Created) -> Result<(Host, skein_shell::Kernel), String> {
-    let listeners = skein_shell::inherited_listeners().map_err(super::listeners_refusal)?;
-    let mut control_address = None;
-    let (mut peer, shared, observations, writer, buffer) = match arguments.kind {
-        Kind::Llm => {
+fn start(arguments: &Arguments) -> Result<(Host, skein_shell::Kernel), String> {
+    start_with(
+        arguments,
+        &mut Native,
+        skein_shell::inherited_listeners().map_err(super::listeners_refusal),
+        |admitted, listeners| open_host(arguments, admitted, &listeners),
+    )
+}
+
+type Listeners = Box<[(Fd, std::net::SocketAddr)]>;
+
+/// A refused start rolls back its own outputs, even when host opening refuses them.
+fn start_with<D: Inputs, T>(
+    arguments: &Arguments,
+    inputs: &mut D,
+    listeners: Result<Listeners, String>,
+    finish: impl FnOnce(Admitted<D::File>, Listeners) -> Result<T, String>,
+) -> Result<T, String> {
+    let mut created = Created::default();
+    listeners
+        .and_then(|listeners| {
             let address = listeners.first().map_or(crate::scripted::PREFERRED, |(_, address)| *address);
-            let configuration = llm_configuration_at(arguments, created, address)?;
+            let admitted = admit(arguments, inputs, &mut created, address)?;
+            finish(admitted, listeners)
+        })
+        .map_err(|why| {
+            created.rollback_with(inputs);
+            let command = if arguments.kind == Kind::Forge && why.starts_with("state ") {
+                "temper-box fake forge"
+            } else {
+                arguments.kind.command()
+            };
+            super::prefixed(command, &why)
+        })
+}
+
+struct Admitted<F> {
+    peer: Peer,
+    control_address: Option<std::net::SocketAddr>,
+    shared: Option<Rc<RefCell<forge_peer::Forge>>>,
+    observations: Option<F>,
+    writer: Option<skein_fake_forge_forgejo::observations::Writer>,
+    buffer: List<u8>,
+}
+fn admit<D: Inputs>(
+    arguments: &Arguments,
+    inputs: &mut D,
+    created: &mut Created,
+    address: std::net::SocketAddr,
+) -> Result<Admitted<D::File>, String> {
+    let mut control_address = None;
+    let (peer, shared, observations, writer, buffer) = match arguments.kind {
+        Kind::Llm => {
+            let configuration = llm_configuration_at(inputs, arguments, created, address)?;
             control_address = configuration.control;
             let observations = arguments
                 .observations
                 .as_ref()
-                .map(|path| created.file(path, b"{\"observations_lost\":0}\n"))
+                .map(|path| created.file_with(inputs, path, b"{\"observations_lost\":0}\n"))
                 .transpose()?;
             let peer =
                 if observations.is_some() { llm::recording_peer(configuration) } else { llm::peer(configuration) }
@@ -463,11 +535,11 @@ fn start(arguments: &Arguments, created: &mut Created) -> Result<(Host, skein_sh
             (Peer::Llm(peer), None, observations, writer, buffer)
         }
         Kind::Forge => {
-            let (document, token) = forge_document(&arguments.source, arguments.seed, created)?;
+            let (document, token) = forge_document(inputs, &arguments.source, arguments.seed, created)?;
             let (mut peer, shared) =
                 forge::peer(&document, &token, arguments.seed).map_err(|why| format!("peer: {why:?}"))?;
             if let Some(path) = &arguments.state {
-                state::restore(path, &mut peer)?;
+                state::restore(inputs, path, &mut peer)?;
             }
             let mut buffer =
                 List::with_capacity(if arguments.observations.is_some() { limits::OBSERVATION_BYTES } else { 0 });
@@ -477,7 +549,7 @@ fn start(arguments: &Arguments, created: &mut Created) -> Result<(Host, skein_sh
                     writer
                         .stop(&mut shared.borrow_mut().domain, &mut buffer)
                         .map_err(|why| format!("first checkpoint: {why:?}"))?;
-                    let file = created.file(path, buffer.as_slice())?;
+                    let file = created.file_with(inputs, path, buffer.as_slice())?;
                     buffer.clear();
                     (Some(file), Some(writer))
                 }
@@ -489,14 +561,22 @@ fn start(arguments: &Arguments, created: &mut Created) -> Result<(Host, skein_sh
             let Source::Document(path) = &arguments.source else {
                 unreachable!("OAuth requires a document when configured")
             };
-            let bytes = read_document(path, oauth::DOCUMENT_BYTES)?;
+            let bytes = read_document(inputs, path, oauth::DOCUMENT_BYTES)?;
             let document =
                 oauth::Document::decode(&bytes).map_err(|why| String::from_utf8_lossy(&why.line()).into_owned())?;
             let peer = document.peer(arguments.seed).map_err(|why| format!("peer: {why:?}"))?;
             (Peer::Oauth(peer), None, None, None, List::with_capacity(0))
         }
     };
-    for (fd, addr) in listeners {
+    Ok(Admitted { peer, control_address, shared, observations, writer, buffer })
+}
+
+fn open_host(
+    arguments: &Arguments,
+    Admitted { mut peer, control_address, shared, observations, writer, buffer }: Admitted<File>,
+    listeners: &[(Fd, std::net::SocketAddr)],
+) -> Result<(Host, skein_shell::Kernel), String> {
+    for &(fd, addr) in listeners {
         let adopted = match &mut peer {
             Peer::Llm(peer) => peer.adopt_listener(fd, addr),
             Peer::Forge(peer) => peer.adopt_listener(fd, addr),

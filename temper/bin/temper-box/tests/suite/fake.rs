@@ -305,136 +305,25 @@ fn private_hex(path: &Path, expected: &[u8]) {
     assert_eq!(fs::metadata(path).expect("valid fixture").permissions().mode() & 0o777, 0o600);
 }
 #[test]
-#[expect(clippy::too_many_lines, reason = "one table covers refused startup and rollback for every output")]
 fn refused_start() {
-    struct Row {
-        name: &'static str,
-        kind: &'static str,
-        document: Option<Value>,
-        files: &'static [&'static str],
-        directories: &'static [(&'static str, u32)],
-        observations: Option<&'static str>,
-        path: Option<&'static str>,
-        reason: &'static str,
-    }
     let scratch = support::Scratch::new("fake_refused");
-    let llm = |name| Some(llm_document(&scratch.path().join(name), true));
-    let forge = |name| Some(forge_document(&scratch.path().join(name)));
-    let rows = [
-        Row {
-            name: "key",
-            kind: "llm",
-            document: llm("key"),
-            files: &["key"],
-            directories: &[],
-            observations: None,
-            path: Some("key"),
-            reason: "retained output differs from expected seeded bytes",
-        },
-        Row {
-            name: "added_key",
-            kind: "llm",
-            document: {
-                let mut doc = llm_document(&scratch.path().join("added_key"), true);
-                doc["added_keys"] = json!([scratch.path().join("added_key/second.key")]);
-                Some(doc)
-            },
-            files: &["second.key"],
-            directories: &[],
-            observations: None,
-            path: Some("second.key"),
-            reason: "retained output differs from expected seeded bytes",
-        },
-        Row {
-            name: "admin_token",
-            kind: "forge",
-            document: forge("admin_token"),
-            files: &["forge/admin_token"],
-            directories: &[("forge", 0o700)],
-            observations: None,
-            path: Some("forge/admin_token"),
-            reason: "retained output differs from expected seeded bytes",
-        },
-        Row {
-            name: "root",
-            kind: "llm",
-            document: llm("root"),
-            files: &["root.der"],
-            directories: &[],
-            observations: None,
-            path: Some("root.der"),
-            reason: "retained output differs from expected seeded bytes",
-        },
-        Row {
-            name: "observations",
-            kind: "forge",
-            document: forge("observations"),
-            files: &["observations"],
-            directories: &[],
-            observations: Some("observations"),
-            path: Some("observations"),
-            reason: "File exists (os error 17)",
-        },
-        Row {
-            name: "directory",
-            kind: "forge",
-            document: forge("directory"),
-            files: &[],
-            directories: &[("forge", 0o755)],
-            observations: None,
-            path: Some("forge"),
-            reason: "must be a private directory of this user's, not reached through a link",
-        },
-        Row {
-            name: "missing",
-            kind: "llm",
-            document: None,
-            files: &[],
-            directories: &[],
-            observations: None,
-            path: Some("document.json"),
-            reason: "absent",
-        },
-        Row {
-            name: "refused",
-            kind: "llm",
-            document: Some(json!({})),
-            files: &[],
-            directories: &[],
-            observations: None,
-            path: None,
-            reason: "listen: missing",
-        },
-    ];
-    for row in rows {
-        let dir = scratch.path().join(row.name);
-        fs::create_dir(&dir).expect("case directory");
-        let doc = dir.join("document.json");
-        if let Some(value) = row.document {
-            document(&doc, &value);
-        }
-        for (name, mode) in row.directories {
-            fs::create_dir(dir.join(name)).expect("existing directory");
-            fs::set_permissions(dir.join(name), fs::Permissions::from_mode(*mode)).expect("directory mode");
-        }
-        for name in row.files {
-            fs::write(dir.join(name), b"existing").expect("existing output");
-            fs::set_permissions(dir.join(name), fs::Permissions::from_mode(0o600)).expect("private retained output");
-        }
-        let mut command = command(row.kind, &doc);
-        if let Some(path) = row.observations {
-            command.arg("--observations").arg(dir.join(path));
-        }
-        let before = snapshot(&dir);
-        let output = command.output().expect("refused fake");
-        assert_eq!(output.status.code(), Some(1));
-        assert_eq!((output.stdout).len(), 0);
-        let location = row.path.map_or_else(String::new, |path| format!("{}: ", dir.join(path).display()));
-        let expected = format!("temper fake {}: {location}{}\n", row.kind, row.reason);
-        assert_eq!(String::from_utf8(output.stderr).expect("UTF-8 refusal"), expected, "{}", row.name);
-        assert_eq!(snapshot(&dir), before, "{}: refused startup restores the files", row.name);
-    }
-    refused_deployment_start(scratch.path());
+    let dir = scratch.path();
+    let doc = dir.join("document.json");
+    let added_key = dir.join("second.key");
+    let mut value = llm_document(dir, true);
+    value["added_keys"] = json!([added_key]);
+    document(&doc, &value);
+    support::write_private(&added_key, b"existing");
+    let before = snapshot(dir);
+    let output = command("llm", &doc).output().expect("refused fake");
+    assert_eq!(output.status.code(), Some(1));
+    assert!(output.stdout.is_empty());
+    assert_eq!(
+        output.stderr,
+        format!("temper fake llm: {}: retained output differs from expected seeded bytes\n", added_key.display())
+            .as_bytes(),
+    );
+    assert_eq!(snapshot(dir), before, "refused startup restores the files");
     scratch.remove();
 }
 
@@ -457,143 +346,6 @@ fn forge_setup(directory: &Path, listen: &str) -> Value {
     support::write_private(&directory.join("box/groups/1"), b"fake\n");
     config
 }
-#[expect(clippy::too_many_lines, reason = "deployment forms refuse before creating files")]
-fn refused_deployment_start(root: &Path) {
-    const TOKEN: &[u8] = b"0123456789abcdef0123456789abcdef01234567";
-    let directory = root.join("deployment");
-    fs::create_dir(&directory).expect("deployment cases");
-    for (name, number, mode, token, own_document, observations, reason, names_file) in [
-        ("absent", "1", "fake", None, false, false, "absent", true),
-        ("short", "1", "fake", Some(&TOKEN[..39]), false, false, "expected 40 lowercase hexadecimal digits", true),
-        (
-            "uppercase",
-            "1",
-            "fake",
-            Some(b"A123456789abcdef0123456789abcdef01234567".as_slice()),
-            false,
-            false,
-            "expected 40 lowercase hexadecimal digits",
-            true,
-        ),
-        (
-            "long",
-            "1",
-            "fake",
-            Some(b"0123456789abcdef0123456789abcdef01234567890".as_slice()),
-            false,
-            false,
-            "past 40 bytes",
-            true,
-        ),
-        ("both", "1", "fake", None, true, false, "invalid arguments", false),
-        ("observations", "1", "fake", Some(TOKEN), false, true, "File exists (os error 17)", true),
-    ] {
-        let dir = directory.join(name);
-        fs::create_dir(&dir).expect("case directory");
-        fs::set_permissions(&dir, fs::Permissions::from_mode(0o700)).expect("private");
-        forge_setup(&dir, "127.0.0.1:9");
-        match mode {
-            "owned" => support::owned::setup(
-                &dir,
-                &support::owned::Names {
-                    forgejo: Path::new("/usr/bin/false"),
-                    runner: None,
-                    port: 9,
-                    bot: "temper",
-                    person: "ada",
-                },
-            ),
-            "fake" => {}
-            _ => unreachable!("fixture mode"),
-        }
-        support::write_file(
-            &dir.join(temper_config_shell::FILE),
-            &support::configuration::file(),
-            temper_config_shell::Shape::Standalone,
-        );
-        if let Some(token) = token {
-            fs::create_dir_all(dir.join("playground-1")).expect("token directory");
-            fs::set_permissions(dir.join("playground-1"), fs::Permissions::from_mode(0o700)).expect("private");
-            support::write_private(&dir.join("playground-1/admin_token"), token);
-        }
-        let mut command = deployment_command("forge", &dir);
-        command.arg(number);
-        if own_document {
-            command.args(["--document", "unused.json"]);
-        }
-        if observations {
-            fs::write(dir.join("observations"), b"existing").expect("existing observations");
-            command.arg("--observations").arg(dir.join("observations"));
-        }
-        let before = snapshot(&dir);
-        let output = command.output().expect("refused fake");
-        assert_eq!(output.status.code(), Some(if own_document { 2 } else { 1 }), "{name}");
-        assert_eq!((output.stdout).len(), 0);
-        let file = if observations { "observations" } else { "playground-1/admin_token" };
-        let location = if names_file { format!("{}: ", dir.join(file).display()) } else { String::new() };
-        assert_eq!(
-            String::from_utf8(output.stderr).expect("refusal"),
-            if own_document {
-                "temper-box fake forge: invalid arguments\nusage: temper-box fake forge [DIRECTORIES] FORGE [--ready PREFIX] [--seed N] [--observations FILE] [--state STATE]\nusage: temper-box fake forge --document FILE [--ready PREFIX] [--seed N] [--observations FILE] [--state STATE]\n".into()
-            } else {
-                format!("temper fake forge: {location}{reason}\n")
-            },
-            "{name}"
-        );
-        assert_eq!(snapshot(&dir), before, "{name}: refused startup leaves directories unchanged");
-    }
-    let bound = usize::try_from(temper_fake::demo::KEY_FILE_BYTES).expect("key file bound");
-    for (name, kind, has_document, file, mode, extra, reason, names_file) in [
-        ("llm_no_document", "llm", false, None, 0o600, false, "absent".to_owned(), true),
-        ("llm_absent", "llm", true, None, 0o600, false, "absent".to_owned(), true),
-        (
-            "llm_public",
-            "llm",
-            true,
-            Some(TOKEN.to_vec()),
-            0o644,
-            false,
-            "readable by others or reached through a link".to_owned(),
-            true,
-        ),
-        ("llm_empty", "llm", true, Some(b"\n".to_vec()), 0o600, false, "holds no key".to_owned(), true),
-        ("llm_long", "llm", true, Some(vec![b'k'; bound + 1]), 0o600, false, format!("past {bound} bytes"), true),
-        ("llm_word", "llm", true, None, 0o600, true, "invalid arguments".to_owned(), false),
-    ] {
-        let dir = directory.join(name);
-        fs::create_dir(&dir).expect("case directory");
-        if has_document {
-            support::write_file(
-                &dir.join(temper_config_shell::FILE),
-                &support::configuration::file(),
-                temper_config_shell::Shape::Standalone,
-            );
-        }
-        let path = dir.join("demo/llm.key");
-        if let Some(file) = file {
-            fs::create_dir(dir.join("demo")).expect("key directory");
-            support::write_private(&path, &file);
-            fs::set_permissions(&path, fs::Permissions::from_mode(mode)).expect("key mode");
-        }
-        let mut command = deployment_command(kind, &dir);
-        if extra {
-            command.arg("extra");
-        }
-        let before = snapshot(&dir);
-        let output = command.output().expect("refused demo");
-        assert_eq!(output.status.code(), Some(if extra { 2 } else { 1 }), "{name}");
-        assert!(output.stdout.is_empty(), "{name}");
-        let location = if names_file { format!("{}: ", path.display()) } else { String::new() };
-        let expected = if extra {
-            "temper-box fake llm: invalid arguments\nusage: temper-box fake llm [DIRECTORIES] [--ready PREFIX] [--seed N] [--observations FILE] [--strict]\nusage: temper-box fake llm --document FILE [--ready PREFIX] [--seed N] [--observations FILE] [--scripts SCRIPTS] [--strict]\n".into()
-        } else {
-            format!("temper fake {kind}: {location}{reason}\n")
-        };
-        assert_eq!(output.stderr, expected.as_bytes(), "{name}");
-        assert_eq!(snapshot(&dir), before, "{name}: refused startup leaves directories unchanged");
-    }
-}
-
 fn snapshot(root: &Path) -> std::collections::BTreeMap<std::path::PathBuf, (u32, Option<Vec<u8>>)> {
     let mut found = std::collections::BTreeMap::new();
     let mut directories = vec![root.to_path_buf()];
@@ -801,41 +553,19 @@ fn forge_state_refusal_is_one_line_and_leaves_the_file_unchanged() {
     let doc = scratch.path().join("forge.json");
     let state = scratch.path().join("forge.state");
     document(&doc, &forge_document(scratch.path()));
-    for kind in ["bytes", "public", "linked", "symlink", "directory"] {
-        let original = b"not an image";
-        fs::write(&state, original).expect("bad image");
-        fs::set_permissions(&state, fs::Permissions::from_mode(0o600)).expect("private state");
-        let extra = scratch.path().join("extra");
-        match kind {
-            "public" => fs::set_permissions(&state, fs::Permissions::from_mode(0o644)).expect("public state"),
-            "linked" => fs::hard_link(&state, &extra).expect("second link"),
-            "symlink" => {
-                fs::rename(&state, &extra).expect("target");
-                symlink(&extra, &state).expect("link");
-            }
-            "directory" => {
-                fs::remove_file(&state).expect("remove file");
-                fs::create_dir(&state).expect("directory");
-            }
-            "bytes" => {}
-            _ => unreachable!(),
-        }
-        let output = command("forge", &doc).arg("--state").arg(&state).output().expect("fake");
-        assert_eq!(output.status.code(), Some(1));
-        assert_eq!((output.stdout).len(), 0);
-        let stderr = String::from_utf8(output.stderr).expect("stderr");
-        assert_eq!(stderr.lines().count(), 1, "{stderr}");
-        assert!(stderr.starts_with(&format!("temper-box fake forge: state {} refused: ", state.display())), "{stderr}");
-        if kind == "directory" {
-            fs::remove_dir(&state).expect("unchanged directory");
-        } else {
-            assert_eq!(fs::read(&state).expect("unchanged bad image"), original);
-            fs::remove_file(&state).expect("remove fixture");
-        }
-        if extra.exists() {
-            fs::remove_file(extra).expect("remove extra");
-        }
-    }
+    let target = scratch.path().join("extra");
+    let original = b"not an image";
+    support::write_private(&target, original);
+    symlink(&target, &state).expect("link");
+    let output = command("forge", &doc).arg("--state").arg(&state).output().expect("fake");
+    assert_eq!(output.status.code(), Some(1));
+    assert!(output.stdout.is_empty());
+    let stderr = String::from_utf8(output.stderr).expect("stderr");
+    assert_eq!(stderr.lines().count(), 1, "{stderr}");
+    assert!(stderr.starts_with(&format!("temper-box fake forge: state {} refused: ", state.display())), "{stderr}");
+    assert_eq!(fs::read_link(&state).expect("unchanged link"), target);
+    assert_eq!(fs::read(&state).expect("unchanged bad image"), original);
+    scratch.remove();
 }
 #[test]
 #[expect(clippy::too_many_lines, reason = "both forge forms serve the same requests and retain their files")]
@@ -1258,21 +988,6 @@ fn llm_holds_a_piece_until_control_releases_it() {
     run.stop();
     scratch.remove();
 }
-#[test]
-fn llm_refuses_a_hold_without_control() {
-    let scratch = support::Scratch::new("fake_llm_hold_refused");
-    let doc = scratch.path().join("llm.json");
-    let mut value = llm_document(scratch.path(), false);
-    value["otherwise"] = json!([{"lines":[{"pieces":[{"text":"held","hold":"gate"}]}],"finish":"stop","tokens":1}]);
-    document(&doc, &value);
-    let output = command("llm", &doc).output().expect("run fake");
-    assert_eq!(output.status.code(), Some(1));
-    assert_eq!(output.stderr, b"temper fake llm: control: required when a piece has a hold\n");
-    assert_eq!((output.stdout).len(), 0);
-    assert!(!scratch.path().join("key").exists(), "refusal creates no outputs");
-    scratch.remove();
-}
-
 #[test]
 fn llm_fails_a_credential_its_line_names_and_accepts_the_added_key() {
     use temper_fake::credential::{KEY, added_key, credential};
