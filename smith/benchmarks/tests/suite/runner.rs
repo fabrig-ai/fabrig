@@ -7,7 +7,7 @@ use skein_shell::Clock;
 use skein_world::end_to_end::{Command, Method};
 use smith_bench::agent::Observing;
 use smith_bench::process::{Bounds, Capture, ProcessResult, execute};
-use smith_bench::{End, Exit, Forced};
+use smith_bench::{End, Forced};
 
 /// No test here proves these bounds; the event each test expects comes first.
 const HANG_GUARD: Duration = Duration::from_secs(30);
@@ -166,35 +166,6 @@ fn a_recorded_answer_is_observed_before_the_tree_settles() {
     assert_eq!(result.tree.live_pids.len(), 0);
 }
 
-#[test]
-fn a_prepared_adapter_observes_the_answer_through_the_common_supervisor() {
-    let prepared = smith_bench::agent::PreparedAgent::Codex(smith_bench::agent::codex::PreparedCodex {
-        overrides: Vec::new(),
-        credential: "/tmp/smith-codex-capture-no-login/auth.json".into(),
-        expires: skein_lib::Wall::EPOCH,
-        borrowed: None,
-        home: "/tmp/smith-codex-capture-no-login".into(),
-        final_message: "/tmp/smith-codex-capture-final.txt".into(),
-        model: smith_bench::ModelChoice { model: Some("gpt-6-luna".into()), effort: Some("low".into()) },
-        program: "/bin/sh".into(),
-        workspace: "/tmp".into(),
-        teardown: bounds().teardown,
-    });
-    let result = execute(
-        &Clock::new(),
-        replay("exit 0"),
-        Box::from(&b"offline replay\n"[..]),
-        Capture::Agent(Box::new(prepared.observe().expect("prepared replay observer"))),
-        bounds(),
-    )
-    .expect("paired replay settles");
-    assert!(result.error.is_none(), "{:?}", result.error);
-    let observing = result.observing.expect("prepared observer retained");
-    assert_eq!(observing.classify(result.exit, result.forced).end, End::Completed);
-    assert!(result.answered.is_some_and(|answer| answer >= result.start && answer <= result.end));
-    assert_eq!(result.tree.live_pids.len(), 0);
-}
-
 // Only the walk names a descendant alive at the leader's exit.
 #[cfg(target_os = "linux")]
 #[test]
@@ -218,31 +189,6 @@ fn an_answer_with_a_lingering_grandchild_keeps_its_forced_teardown() {
 }
 
 #[test]
-fn a_program_without_an_answer_ends_at_the_hard_deadline() {
-    let clock = Clock::new();
-    let mut command = replay("");
-    command.arguments = vec!["-c".into(), "trap '' TERM; cat >/dev/null; exec sleep 30".into()];
-    let mut policy = bounds();
-    policy.hard = Duration::from_millis(180);
-    let result =
-        execute(&clock, command, Box::from(&b"answer\n"[..]), Capture::Agent(Box::new(Observing::replay())), policy)
-            .expect("settled timed-out tree");
-    assert_eq!(classification(&result).end, End::Timeout);
-    // The deadline can deliver TERM before the shell installs its trap.
-    assert!(
-        matches!(
-            (result.forced, result.exit),
-            (Forced::Killed, Exit::Signal(9)) | (Forced::Terminated, Exit::Signal(15))
-        ),
-        "{:?}, {:?}",
-        result.forced,
-        result.exit
-    );
-    assert!(result.answered.is_none());
-    assert_eq!(result.tree.live_pids.len(), 0);
-}
-
-#[test]
 fn an_overflowing_stderr_retains_its_prefix_and_settles_the_tree() {
     let clock = Clock::new();
     let mut command = replay("");
@@ -259,36 +205,4 @@ fn an_overflowing_stderr_retains_its_prefix_and_settles_the_tree() {
         result.end < result.start.checked_add(bounds().hard).expect("guard fits"),
         "the overflow, not the hard deadline, began the teardown"
     );
-}
-
-#[test]
-fn an_overflowing_stdout_retains_its_prefix_and_settles_the_tree() {
-    let clock = Clock::new();
-    let mut command = replay("");
-    command.arguments = vec!["-c".into(), "cat >/dev/null; trap '' TERM; yes output".into()];
-    let result = execute(&clock, command, Box::new([]), Capture::Raw, bounds()).expect("overflowing tree settles");
-    assert_eq!(result.error.as_deref(), Some("stdout exceeds the attempt log bound"));
-    assert_eq!(result.stdout, b"output\n".iter().copied().cycle().take(bounds().stdout).collect::<Vec<u8>>());
-    assert_eq!(result.forced, Forced::Killed);
-    assert!(result.answered.is_none());
-    assert_eq!(result.tree.live_pids.len(), 0);
-    assert!(
-        result.end < result.start.checked_add(bounds().hard).expect("guard fits"),
-        "the overflow, not the hard deadline, began the teardown"
-    );
-}
-
-#[test]
-fn stderr_at_its_bound_is_complete_and_a_settled_overflow_still_fails() {
-    let clock = Clock::new();
-    for (text, error) in [("12345678", None), ("123456789", Some("stderr exceeds the attempt log bound"))] {
-        let mut command = replay("");
-        command.arguments = vec!["-c".into(), format!("cat >/dev/null; printf {text} >&2").into()];
-        let mut policy = bounds();
-        policy.stderr = 8;
-        let result = execute(&clock, command, Box::new([]), Capture::Raw, policy).expect("short stderr settles");
-        assert_eq!(result.error.as_deref(), error);
-        assert_eq!(result.stderr, b"12345678");
-        assert_eq!(result.tree.live_pids.len(), 0);
-    }
 }

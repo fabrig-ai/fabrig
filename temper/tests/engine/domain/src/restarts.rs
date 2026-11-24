@@ -84,11 +84,25 @@ impl Injector {
     }
 
     fn fall(&mut self, world: &mut World) {
+        // Only an injection can strike an armed deadline. Snapshot just before
+        // it changes the world, including a draw deferred until the last tick.
+        let armed = world
+            .workload_deadlines
+            .as_ref()
+            .map(|_| crate::outcome::Deadlines::armed(&world.root, &world.store, world.env.now));
+        let before = self.ledger.entries().len();
         self.fired = true;
         eprintln!("inject {:?} at tick {} ({:?})", self.kind, self.ticks, world.env.now);
         self.inject(world);
         if self.recovery_clock {
             world.finish_restart_hold();
+        }
+        if let Some(armed) = armed {
+            world
+                .workload_deadlines
+                .as_mut()
+                .expect("workload observer")
+                .struck(&armed, &self.ledger.entries()[before..]);
         }
     }
 

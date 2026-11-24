@@ -29,6 +29,7 @@ pub enum Story {
     BeyondGrace,
     Shutdown,
     Resume(crate::restarts::Point),
+    Crash(crate::restarts::Point),
     Drain,
     Refusals(MessageRefusal),
     Opening(Opening),
@@ -71,6 +72,7 @@ fn script(story: Story) -> crate::world::Script {
             | Story::Drain
             | Story::Shutdown
             | Story::Resume(_)
+            | Story::Crash(_)
             | Story::Providers
             | Story::Progress
             | Story::Call
@@ -102,7 +104,7 @@ fn script(story: Story) -> crate::world::Script {
         script.leading_turns = 0;
         script.latency = Duration::ZERO;
     }
-    if matches!(story, Story::Resume(_)) {
+    if matches!(story, Story::Resume(_) | Story::Crash(_)) {
         script.latency = Duration::from_millis(100);
     }
     if matches!(story, Story::BeyondGrace) {

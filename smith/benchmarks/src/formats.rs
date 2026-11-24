@@ -6,12 +6,19 @@ use std::path::Path;
 use serde::de::DeserializeOwned;
 
 use crate::Refusal;
+use crate::files::{Files, Native};
 
 pub(crate) fn read_document<T: DeserializeOwned>(file: &Path) -> Result<T, Refusal> {
-    let text = std::fs::read_to_string(file).map_err(|error| Refusal::new(file, "document", error.to_string()))?;
+    read_document_with(&Native, file)
+}
+
+/// Read a strict TOML document from the supplied filesystem in a step test.
+pub fn read_document_with<T: DeserializeOwned>(files: &dyn Files, file: &Path) -> Result<T, Refusal> {
+    let text = files.read_to_string(file).map_err(|error| Refusal::new(file, "document", error.to_string()))?;
     parse_document(file, &text)
 }
 
+/// Parse a strict TOML document, naming the key in a refusal.
 pub fn parse_document<T: DeserializeOwned>(file: &Path, text: &str) -> Result<T, Refusal> {
     let deserializer =
         toml::de::Deserializer::parse(text).map_err(|error| Refusal::new(file, "document", error.to_string()))?;

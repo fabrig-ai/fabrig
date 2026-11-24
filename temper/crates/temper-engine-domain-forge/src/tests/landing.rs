@@ -305,6 +305,7 @@ pub(super) fn landing_fixture_with(mut d: Domain) -> Domain {
 }
 fn landing_row(task: u64, phase: policy::Phase) -> LandingRow {
     LandingRow {
+        read_hold: None,
         last_event: None,
         turn_since: None,
         waiting: None,

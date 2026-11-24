@@ -425,14 +425,16 @@ versioned record Floor { number: u32 build: text 64 }
   5.1; temper's `protocol/wires.md`, 10.2):
 
   ```
-  record OpenedWire { name: text 32 lowest: u16 layouts: list 16 fixed 32 }
+  record OpenedWire { name: text 32 layout: fixed 32 text: bytes 65536 }
   record OpenedTerm { kind: u16 largest: u32 }
-  versioned record WorkerOpening { worker: text 256 wires: list 16 OpenedWire output: u32 terms: list 64 OpenedTerm at: u64 }
+  versioned record WorkerOpening { worker: text 256 wires: list 8 OpenedWire output: u32 terms: list 64 OpenedTerm at: u64 }
   ```
 
   `at` is the wall time the engine accepted the opening, in nanoseconds
   since the Unix epoch (skein's `Wall`). The terms' bound is the most
-  skein's opening admits, if that is fewer.
+  skein's opening admits, if that is fewer. Each wire's `layout` and
+  `text` are the worker's credential's (`../channel/wires.md`, 2), so a
+  later build derives from them the plans its own opening would.
   - **Written** by the root, in a decision of its own, at each opening
     accepted (`Write::Opening`), replacing that worker's row; an opening
     heard before the start's wires are durable is written after them.
@@ -442,8 +444,13 @@ versioned record Floor { number: u32 build: text 64 }
   - **Read** by the rehearsal alone (`opening-rehearsal.md`, 1), from `A` before
     the plan, by the family's current text. A start loads none.
 
-  The family is at version 1, outside the registry; the component's
-  version and its other rows are independent of it.
+  The family is at version 2, outside the registry; the component's
+  version and its other rows are independent of it. A row of version 1,
+  which a build before layouts wrote, is never decoded: the rehearsal
+  reads its head alone and answers that worker's opening as of an
+  earlier build (temper's `protocol/wires.md`, 10.2), and the next
+  start's wires clear it with the rest, so dev.fabrig.ai's store holds
+  none once it has started on a build that writes version 2.
 - **No layouts' row.** The store keeps no family's fingerprint: a
   build computes one from the schema text it embeds where it needs it
   (skein's `data/codec/fingerprints.md`, section 1), and the levels and

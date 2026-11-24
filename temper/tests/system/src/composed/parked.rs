@@ -67,7 +67,7 @@ impl World {
                 if self.assignment().task == PRODUCER
                     && self.assignment().attempt > attempt
                     && self.observed.spawns > spawns
-                    && !self.process.prepared()
+                    && !self.lanes[0].process.prepared()
                 {
                     break;
                 }

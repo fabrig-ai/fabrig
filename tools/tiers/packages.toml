@@ -42,7 +42,6 @@ process-temper = [
 ]
 
 real-skein = [
-    "github-conformance",
     "skein-codegen",
     "skein-conformance-real",
     "skein-echo-shell",
@@ -87,7 +86,6 @@ real-temper = [
     "temper-client-gallery",
     "temper-client-journeys",
     "temper-client-journeys-tool",
-    "temper-client-shell-tui",
     "temper-client-walk",
     "temper-config-shell",
     "temper-engine",
@@ -102,8 +100,6 @@ real-temper = [
     "temper-qa",
     "temper-qa-tool",
     "temper-real-loop-world",
-    "temper-service-shell",
-    "temper-shell",
     "temper-stage-one",
     "temper-twin",
     "temper-worker",

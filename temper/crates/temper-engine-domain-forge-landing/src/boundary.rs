@@ -82,6 +82,7 @@ pub enum Phase {
 pub enum Hold {
     Faults { member: u16, gate: u16 },
     Prepare,
+    Read,
     Record { member: u16 },
     Timeout { member: u16, gate: u16, run: u64 },
     Turn,

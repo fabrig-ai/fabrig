@@ -247,7 +247,7 @@ pub fn step(decoder: &mut Decoder, limits: &Limits, event: &tokenizer::Event) ->
             DecoderState::Orgs(state) => state.step(movement),
             DecoderState::Setup(state) => state.step(movement, limits, &decoder.walk),
             DecoderState::Error(state) => state.step(movement),
-            DecoderState::Files(state) => state.step(movement, &decoder.walk),
+            DecoderState::Files(state) => state.step(movement, &mut decoder.walk),
             DecoderState::Actions(state) => state.step(movement, &decoder.walk),
             DecoderState::Reachable(state) => state.step(movement, limits),
             DecoderState::CreatedRepository(state) => state.step(movement),
@@ -259,16 +259,16 @@ pub fn step(decoder: &mut Decoder, limits: &Limits, event: &tokenizer::Event) ->
         },
     }
 }
-/// Skips earlier comments, including their bodies, before the first step.
+/// Sets the lower comment id or the number of newer commits to skip, before the first step.
 pub fn keep_after(decoder: &mut Decoder, after: u64) {
     match &mut decoder.state {
         DecoderState::Items(state) => state.keep_after(after),
+        DecoderState::Files(state) => state.keep_after(after),
         DecoderState::Reachable(_)
         | DecoderState::Hooks(_)
         | DecoderState::Orgs(_)
         | DecoderState::Setup(_)
         | DecoderState::Error(_)
-        | DecoderState::Files(_)
         | DecoderState::Actions(_)
         | DecoderState::CreatedFile(_)
         | DecoderState::CreatedRepository(_)
@@ -277,7 +277,7 @@ pub fn keep_after(decoder: &mut Decoder, after: u64) {
         | DecoderState::Branches(_) => {}
     }
 }
-/// Stops emitting rows from an items page or unpaged thread and counts the rest.
+/// Stops emitting listing rows and counts the rest.
 pub fn cut(decoder: &mut Decoder) -> tokenizer::Request {
     decoder.walk.cut()
 }

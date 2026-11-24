@@ -11,19 +11,28 @@ use std::{
 };
 
 pub(crate) fn locate(configured: Option<&str>, path: Option<&OsStr>) -> Result<PathBuf, ()> {
-    locate_with(configured, path, executable)
+    locate_with(configured, path, file_facts)
 }
 
-pub(super) fn executable(path: &Path) -> bool {
-    std::fs::metadata(path).is_ok_and(|metadata| metadata.is_file() && metadata.permissions().mode() & 0o111 != 0)
+#[derive(Clone, Copy)]
+pub(in crate::settings) struct FileFacts {
+    pub(in crate::settings) is_file: bool,
+    pub(in crate::settings) mode: u32,
+}
+
+pub(super) fn file_facts(path: &Path) -> Option<FileFacts> {
+    std::fs::metadata(path)
+        .ok()
+        .map(|metadata| FileFacts { is_file: metadata.is_file(), mode: metadata.permissions().mode() })
 }
 
 pub(in crate::settings) fn locate_with(
     configured: Option<&str>,
     path: Option<&OsStr>,
-    is_executable: impl Fn(&Path) -> bool,
+    mut facts: impl FnMut(&Path) -> Option<FileFacts>,
 ) -> Result<PathBuf, ()> {
-    let executable = |path: &PathBuf| path.is_absolute() && is_executable(path);
+    let mut executable =
+        |path: &PathBuf| path.is_absolute() && facts(path).is_some_and(|file| file.is_file && file.mode & 0o111 != 0);
     match configured {
         Some(value) => {
             let path = PathBuf::from(value);
@@ -66,7 +75,7 @@ pub(super) fn check_sources(settings: &Settings) -> Result<(), Refusal> {
 pub(super) fn document(
     settings: &Settings,
     endpoints: &[Value],
-    is_executable: impl Fn(&Path) -> bool,
+    facts: impl FnMut(&Path) -> Option<FileFacts>,
 ) -> Result<Option<Value>, Refusal> {
     if !endpoints.iter().any(|endpoint| endpoint.get("program").is_some()) {
         return Ok(None);
@@ -75,7 +84,7 @@ pub(super) fn document(
         input::refuse(settings, "credentials", "a program requires an absolute credentials directory")
     })?;
     let configured = settings.values.get("programs.claude_code").and_then(|field| field.value.as_str());
-    let program = locate_with(configured, settings.paths.path.as_deref(), is_executable).map_err(|()| {
+    let program = locate_with(configured, settings.paths.path.as_deref(), facts).map_err(|()| {
         input::refuse(settings, "programs.claude_code", "expected an absolute executable file, or claude on PATH")
     })?;
     let path =
@@ -83,13 +92,4 @@ pub(super) fn document(
     let programs = directory.programs();
     let directory = programs.to_str().ok_or_else(|| input::refuse(settings, "credentials", "expected a UTF-8 path"))?;
     Ok(Some(json!({"claude_code":{"path":path,"directory":directory}})))
-}
-
-pub(crate) mod testing {
-    use std::{ffi::OsStr, path::PathBuf};
-
-    #[expect(clippy::result_unit_err, reason = "the real-loop test checks the refusal from the native locator")]
-    pub fn locate(configured: Option<&str>, path: Option<&OsStr>) -> Result<PathBuf, ()> {
-        super::locate(configured, path)
-    }
 }

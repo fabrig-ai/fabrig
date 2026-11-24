@@ -98,7 +98,7 @@ impl World {
         let mut turns = script.turns.into_vec();
         turns.extend(super::text_script(b"Survey kept.").turns);
         script.turns = turns.into_boxed_slice();
-        self.process.resume(script);
+        self.lanes[0].process.resume(script);
         self.act(
             parties::Ask::Say {
                 task: parties::Task::Number(1),
@@ -143,8 +143,8 @@ impl World {
     pub fn resume_requester(&mut self, script: Script, delegate: Script) {
         // A model change recaps the two committed assistant turns before opening
         // its new window. The replacement script supplies that summary and result.
-        self.process.script = delegate.clone();
-        self.process.fresh = Some(delegate);
+        self.lanes[0].process.script = delegate.clone();
+        self.lanes[0].process.fresh = Some(delegate);
         self.parked.get_mut(&1).expect("parked requester").resume(script);
         self.act(
             parties::Ask::Say {

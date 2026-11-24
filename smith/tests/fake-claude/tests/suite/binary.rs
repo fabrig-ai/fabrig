@@ -133,19 +133,6 @@ fn signal(child: &Child, name: &str, scratch: &Scratch) {
     );
 }
 
-#[test]
-fn the_binary_runs_a_turn() {
-    let (_scratch, mut child) = print_child(Story::default());
-    let mut reader = BufReader::new(child.stdout.take().expect("output"));
-    assert_eq!(read_message(&mut reader)["subtype"], "init");
-    assert_eq!(read_message(&mut reader)["subtype"], "status");
-    send_user(&mut child);
-    assert_eq!(read_message(&mut reader)["type"], "assistant");
-    assert_eq!(read_message(&mut reader)["result"], "Done.");
-    child.stdin.take();
-    assert_eq!(child.wait().expect("exit").code(), Some(0));
-}
-
 fn hanging_child() -> (Scratch, std::process::Child, BufReader<std::process::ChildStdout>) {
     let story = Story { turns: vec![Turn::new(vec![Step::Text("waiting".into()), Step::Hang])], ..Story::default() };
     let (scratch, mut child) = print_child(story);

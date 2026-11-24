@@ -60,6 +60,7 @@ jig-domain-tasks.workspace = true
 temper-test-env.workspace = true
 skein-scratch.workspace = true
 skein-fake-machine.workspace = true
+skein-sim.workspace = true
 temper-client-protocol-wire.workspace = true
 serde_json.workspace = true
 jig-channel-kit.workspace = true

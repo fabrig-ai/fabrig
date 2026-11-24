@@ -1,5 +1,5 @@
 //! Explicit span-reader and conversion stacks (data/codec/layouts.md, 3).
-use super::{Absent, Inner, Kind, Misconverted, Narrowed, Plan, ReadKind, Source, Variant, Workspace, add};
+use super::{Absent, Inner, Kind, Misconverted, Narrowed, Plan, ReadKind, Source, Workspace, add};
 use crate::schema::Span;
 use skein_lib::{Buffer, usize_of};
 
@@ -115,8 +115,36 @@ pub(super) fn convert(plan: &Plan, old: &[u8], out: &mut Buffer, work: &mut Work
         }
         return put(out, bytes(old, Span { start: pos, end })?);
     }
+    pass(plan, plan.root, old, end, out, work)
+}
+
+pub(super) fn convert_payload(
+    plan: &Plan,
+    node: Option<u32>,
+    old: &[u8],
+    out: &mut Buffer,
+    work: &mut Workspace,
+) -> Result<(), Misconverted> {
+    let Ok(end) = u32::try_from(old.len()) else { return Err(Misconverted::Room) };
+    if plan.keeps() {
+        return put(out, old);
+    }
+    match node {
+        Some(node) => pass(plan, node, old, end, out, work),
+        None => check_end(0, end),
+    }
+}
+
+fn pass(
+    plan: &Plan,
+    node: u32,
+    old: &[u8],
+    end: u32,
+    out: &mut Buffer,
+    work: &mut Workspace,
+) -> Result<(), Misconverted> {
     let mut depth = 0;
-    push(work, &mut depth, Frame::Enter { node: plan.root, span: Span { start: 0, end } });
+    push(work, &mut depth, Frame::Enter { node, span: Span { start: 0, end } });
     for _ in 0..turns(end, out.capacity(), plan.nodes.len()) {
         if depth == 0 {
             return Ok(());
@@ -276,11 +304,7 @@ fn enter(
         Kind::Enum(variants) => {
             let mut pos = span.start;
             let tag = byte(old, &mut pos, span.end)?;
-            let variant = variants.get(u32::from(tag)).copied().flatten().ok_or(Misconverted::Tag)?;
-            let (tag, payload) = match variant {
-                Variant::Refuse(index) => return Err(Misconverted::Refused(index)),
-                Variant::Kept { tag, payload, .. } => (tag, payload),
-            };
+            let (tag, payload) = super::variant(variants, tag)?;
             put(out, &[tag])?;
             if let Some(payload) = payload {
                 push(work, depth, Frame::Enter { node: payload, span: Span { start: pos, end: span.end } });

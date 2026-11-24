@@ -1,10 +1,5 @@
 use super::{Candidate, Event, Failed, Path, PathBuf, Request};
 
-#[must_use]
-pub fn absent() -> Candidate {
-    super::absent()
-}
-
 pub fn cached(file: &Path) -> Result<Event, Failed> {
     super::cached(file)
 }

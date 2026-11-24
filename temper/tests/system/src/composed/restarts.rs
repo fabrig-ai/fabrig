@@ -64,7 +64,7 @@ impl World {
                 assert!(call > 0, "host calls are numbered from one");
                 let mut world = Self::absence_chat(seed, script, words, usize::MAX);
                 world.release_model();
-                world.process.held_host_call = Some(call);
+                world.lanes[0].process.held_host_call = Some(call);
                 world
             }
         }
@@ -76,10 +76,10 @@ impl World {
             Point::HostCall(_) => {
                 for _ in 0..10000 {
                     self.tick();
-                    if self.process.host_call_held()
+                    if self.lanes[0].process.host_call_held()
                         && self.store.idle()
                         && self.root_events.is_empty()
-                        && self.worker_events.is_empty()
+                        && self.lanes[0].worker_events.is_empty()
                     {
                         return;
                     }
@@ -93,8 +93,8 @@ impl World {
         match point {
             Point::Model(_) => self.release_model(),
             Point::HostCall(_) => {
-                assert!(self.process.host_call_held(), "the selected host call is held");
-                self.process.held_host_call = None;
+                assert!(self.lanes[0].process.host_call_held(), "the selected host call is held");
+                self.lanes[0].process.held_host_call = None;
             }
         }
     }
@@ -102,7 +102,7 @@ impl World {
     /// Continue past the injected point, holding a later model response for observation.
     pub fn model_after_mid_turn(&mut self, point: Point, query: usize) {
         self.release_mid_turn(point);
-        self.process.held_query = Some(query);
+        self.lanes[0].process.held_query = Some(query);
         self.until_model_held();
     }
 

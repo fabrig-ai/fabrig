@@ -113,7 +113,10 @@ A versioned record. Every turn starts with its version.
       drain cut midway, `interrupted`: how long it ran, in
       milliseconds, absent when not known, and its output read before
       the cut as `running` keeps it, its head, its last bytes and the
-      bytes dropped between (domain/turn-parts.md, section 4));
+      bytes dropped between (domain/turn-parts.md, section 4); the same
+      outcome, its time absent and its output empty, is a command's
+      start, told as it starts so that a crash leaves it interrupted
+      (domain/turn-parts.md, section 3));
     - text the domain wrote, as a result or an error: a served tool's, or a
       host tool's answer;
     - invalid, with the problem found in the call (domain/tools.md,

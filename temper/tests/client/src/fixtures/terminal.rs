@@ -1,5 +1,5 @@
 //! Terminal roots beside the browser reading root (client/testing.md, joint-world stories).
-use super::{PARTY, chat_page, phrasebooks, view_bounds, world_with};
+use super::{PARTY, chat_page, chats_page, phrasebooks, view_bounds, world_with};
 use crate::{
     app::{Root, Temper, View},
     front::Joint,
@@ -31,6 +31,17 @@ pub fn world(seed: u64) -> World<Temper, Joint> {
 #[must_use]
 pub fn reading_world(seed: u64) -> World<Temper, Joint> {
     world_with(seed, Joint::with_reading_pages(seed, &reading_limits()))
+}
+
+#[must_use]
+pub fn open_chats_world(seed: u64) -> World<Temper, Joint> {
+    world_with(seed, Joint::open_chats(seed, limits()))
+}
+
+pub fn chats_client(world: &mut World<Temper, Joint>) -> ClientId {
+    let limits = limits();
+    world.front().next_client_limits(limits);
+    world.client_with(PARTY, chats_page(), limits, root)
 }
 
 pub fn client(world: &mut World<Temper, Joint>, task: u64) -> ClientId {

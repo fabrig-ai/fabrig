@@ -20,6 +20,7 @@ mod public_http;
 
 mod fuzzy {
     mod cursor;
+    mod sign_ins;
     mod source;
 }
 

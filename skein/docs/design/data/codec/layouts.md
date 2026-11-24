@@ -230,6 +230,9 @@ impl Plan {
     pub fn keeps(&self) -> bool;                       // the root keeps: its head alone moves
     pub fn convert(&self, old: &[u8], out: &mut Buffer, work: &mut Workspace)
         -> Result<(), Misconverted>;                   // lib's Buffer, cleared first; Room if `work` does not fit
+    pub fn variant_tag(&self, old: u8) -> Result<u8, Misconverted>; // a whole enumeration's: a source tag's target tag
+    pub fn convert_variant(&self, old: u8, payload: &[u8], out: &mut Buffer, work: &mut Workspace)
+        -> Result<u8, Misconverted>;                   // a whole enumeration's: the payload alone into `out`, its target tag returned
     pub fn workspace_bound(&self) -> Option<u64>;      // its stack's tables, in bytes
 }
 
@@ -258,6 +261,16 @@ impl Workspace {
   value (`Room` past it): its caller gives the most bytes it admits for
   a value, so a converted value past its store's bound is refused, not
   written past it.
+- **A whole enumeration's tag apart from its payload:** for a plan whose
+  roots are whole enumerations (`Root { decl, variant: None }`), where a
+  frame carries the tag as its kind and the payload as its body,
+  `variant_tag` maps a source tag as `convert` would: `Tag` for one the
+  source text lacks, `Refused(index)` for a variant the target lacks.
+  `convert_variant` is the same pass as `convert` over the tag followed
+  by the payload, its tag returned rather than written: `out` holds what
+  `convert` writes after the tag, bounded by `out`'s capacity alone, and
+  the errors are the same. A plan whose root is no whole enumeration
+  answers `Tag` to both.
 - The types derive `Clone` and `Debug`, and equality besides; `Mode`,
   `Why` and `Refused` are `Copy`. A plan with the same two layouts on
   both sides is the identity, keeps, and converts by the head alone.

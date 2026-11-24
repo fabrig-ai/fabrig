@@ -107,6 +107,7 @@ pub fn github_runtime(
 }
 pub(crate) mod limits;
 pub(crate) use limits::held_failure;
+pub(crate) use limits::limits_hold_with;
 pub use limits::{Held, Opening, close_limits_store, limits_hold, open_limits, rehearse_limits};
 
 pub fn prepare(

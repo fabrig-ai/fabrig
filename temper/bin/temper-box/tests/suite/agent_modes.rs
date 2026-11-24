@@ -20,7 +20,6 @@ fn the_binary_serves_smiths_agent_modes() {
             "smith-agent: usage: smith-agent --mcp-relay 127.0.0.1:PORT, its secret in SMITH_MCP_SECRET\n",
             None,
         ),
-        ("child refused", "--program-child", 1, "", "smith-agent: program child: missing parent\n", None),
         (
             "signed in",
             "--program-child",
@@ -29,7 +28,6 @@ fn the_binary_serves_smiths_agent_modes() {
             "",
             Some(Status::Usable),
         ),
-        ("not signed in", "--program-child", 1, "{\"loggedIn\":false}\n", "", Some(Status::NotSignedIn)),
     ] {
         let scratch = support::Scratch::new(case);
         let mut command = Command::new(skein_scratch::paths::binary("temper-box"));

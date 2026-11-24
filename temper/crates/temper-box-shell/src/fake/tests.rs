@@ -1,3 +1,5 @@
+mod admission;
+
 use super::*;
 use crate::Command;
 use skein_world::{Deadline, Expired};
@@ -382,7 +384,7 @@ fn github_installation_records_end_at_the_pass_checkpoint() {
         seed: 23,
         observations: Some(path.clone()),
     };
-    let (mut host, mut kernel) = start(&arguments, &mut Created::default()).expect("fixture");
+    let (mut host, mut kernel) = start(&arguments).expect("fixture");
     // The seeded installation changes only the GitHub layer, without a domain observation.
     host.observations();
     let bytes = fs::read(&path).expect("records");
@@ -501,7 +503,7 @@ fn observation_write_failure_drains_the_peer_and_keeps_its_outputs() {
             seed: 23,
             observations: Some(path.clone()),
         };
-        let (mut host, mut kernel) = start(&arguments, &mut Created::default()).expect("valid fixture");
+        let (mut host, mut kernel) = start(&arguments).expect("valid fixture");
         if checkpoint {
             advance(&host, b"before");
             host.observations();
@@ -595,7 +597,7 @@ fn llm_records_full_counts_connections_without_queries() {
         seed: 23,
         observations: Some(path.clone()),
     };
-    let (mut host, mut kernel) = start(&arguments, &mut Created::default()).expect("fixture");
+    let (mut host, mut kernel) = start(&arguments).expect("fixture");
     let clock = skein_shell::Clock::new();
     let mut connected = false;
     let mut seen = 0;

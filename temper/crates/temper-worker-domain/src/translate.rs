@@ -15,7 +15,7 @@ use smith_host_domain as agent;
 use temper_worker_domain_checkout::{self as checkout, git};
 
 /// The title of the commit that saves a run's unfinished work.
-pub(crate) const SAVED: &[u8] = b"Save unfinished work";
+pub(crate) const SAVED: &[u8] = checkout::SAVED;
 
 /// The checkout's spec for a run's workspace: keyed by the workstream, the
 /// holding task's number in eight big-endian bytes; the same repositories, in

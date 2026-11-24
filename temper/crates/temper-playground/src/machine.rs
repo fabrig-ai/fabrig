@@ -117,6 +117,7 @@ pub struct Rooted<H> {
     binding: Option<u64>,
     input: Option<Fd>,
     frame: Vec<u8>,
+    hosted_workspace_program: Option<&'static [u8]>,
 }
 impl<H> Rooted<H> {
     pub fn new(host: H, inherited: &skein_sim_world::Inherited) -> Self {
@@ -130,7 +131,15 @@ impl<H> Rooted<H> {
             binding,
             input: binding.map(|_| inherited.pipes.iter().find(|(child, _)| *child == 0).expect("agent input").1),
             frame: Vec::new(),
+            hosted_workspace_program: None,
         }
+    }
+    /// Give a hosted program the path for a descriptor-relative workspace cwd.
+    /// The path is absolute within the worker's fake disk, not on the host.
+    #[must_use]
+    pub fn with_hosted_workspace(mut self, program: &'static [u8]) -> Self {
+        self.hosted_workspace_program = Some(program);
+        self
     }
     fn start(&mut self, complete: &Complete) {
         let Some(input) = self.input else {
@@ -189,14 +198,23 @@ impl<H: Host> Host for Rooted<H> {
         if let Some(number) = self.binding {
             for _ in 0..self.host.submissions().len() {
                 let mut submit = self.host.submissions().pop().expect("submission count");
-                if let Op::Spawn { spawn } = &mut submit.kind
-                    && spawn.program.as_ref() == b"/bin/sh"
-                {
-                    ROOTS.with(|roots| {
-                        let roots = roots.borrow();
-                        let path = roots.bindings[&number].path.as_ref().expect("bound shell workspace");
-                        spawn.dir = [path.as_ref(), b"/", spawn.dir.as_ref()].concat().into();
-                    });
+                if let Op::Spawn { spawn } = &mut submit.kind {
+                    let shell = spawn.program.as_ref() == b"/bin/sh";
+                    let hosted_workspace = self.hosted_workspace_program == Some(spawn.program.as_ref())
+                        && spawn.dir.is_empty()
+                        && spawn.args.first().is_some_and(|argument| argument.as_ref() == b"-p");
+                    if shell || hosted_workspace {
+                        ROOTS.with(|roots| {
+                            let roots = roots.borrow();
+                            let path = roots.bindings[&number].path.as_ref().expect("bound workspace");
+                            spawn.dir = if hosted_workspace {
+                                assert_ne!(path.as_ref(), b".", "print's root comes from Start's workspace");
+                                [b"/", path.as_ref()].concat().into()
+                            } else {
+                                [path.as_ref(), b"/", spawn.dir.as_ref()].concat().into()
+                            };
+                        });
+                    }
                 }
                 self.host.submissions().push(submit);
             }

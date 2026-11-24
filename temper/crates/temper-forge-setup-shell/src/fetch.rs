@@ -1,5 +1,5 @@
 //! Forgejo's fetch host with its bottle extraction (protocol/setup/owned.md, 6).
-pub use temper_fetch_shell::fetch::Failed;
+pub use temper_fetch_shell::fetch::{Failed, run_with};
 
 /// Runs the machine with Forgejo's bounded bottle extraction.
 pub fn run(

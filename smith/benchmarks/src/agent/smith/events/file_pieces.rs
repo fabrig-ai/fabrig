@@ -15,6 +15,7 @@ use std::path::Path;
 
 use smith_events::{Block, Event, Verdict};
 
+use crate::files::Files;
 use crate::{CheckVerdict, Fault, Measure};
 
 use super::{Observer, Session};
@@ -72,26 +73,23 @@ fn complete(observer: &Observer) -> bool {
         && !observer.sessions.iter().any(|session| session.unknown || super::usage::incomplete(session).is_some())
 }
 
-pub(super) fn check(observer: &Observer, path: &Path, above: u64, maximum: u64, workspace: &Path) -> CheckVerdict {
-    let mut evidence = Vec::new();
-    let passed = evaluate(observer, path, above, maximum, None, workspace, &mut evidence);
-    CheckVerdict { check: "file-pieces".into(), passed, evidence }
-}
-
-pub(super) fn check_protocol(
+pub(super) fn check(
+    files: &dyn Files,
     observer: &Observer,
     path: &Path,
     above: u64,
     maximum: u64,
-    protocol_bound: u64,
+    protocol_bound: Option<u64>,
     workspace: &Path,
 ) -> CheckVerdict {
     let mut evidence = Vec::new();
-    let passed = evaluate(observer, path, above, maximum, Some(protocol_bound), workspace, &mut evidence);
+    let passed = evaluate(files, observer, path, above, maximum, protocol_bound, workspace, &mut evidence);
     CheckVerdict { check: "file-pieces".into(), passed, evidence }
 }
 
+#[expect(clippy::too_many_arguments, reason = "The file check retains its independent bounds and evidence output.")]
 fn evaluate(
+    files: &dyn Files,
     observer: &Observer,
     path: &Path,
     above: u64,
@@ -146,7 +144,7 @@ fn evaluate(
     if edits == 0 || skein_lib::len_u64(content.len()) <= above {
         return measured(false);
     }
-    match crate::grade::file(workspace, path).and_then(|file| std::fs::read(file).map_err(Fault::from)) {
+    match crate::grade::file_with(files, workspace, path).and_then(|file| files.read(&file).map_err(Fault::from)) {
         Ok(bytes) => {
             evidence.push(format!(
                 "successful_edits={edits}; replay_bytes={}; saved_equals_call_pieces={}",

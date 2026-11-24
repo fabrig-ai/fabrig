@@ -467,6 +467,18 @@ impl Protocol {
         self.joint.domain.branch(self.fixture.path, branch).expect("fixture branch")
     }
 
+    /// The fake forge's refs for the fixture repository, independent of the connector's cache.
+    #[must_use]
+    pub fn branches(&self) -> &Map<Box<[u8]>, u64> {
+        self.joint.domain.branches(self.fixture.path)
+    }
+
+    /// File bytes at the observed commit in the independent fake forge.
+    #[must_use]
+    pub fn file(&self, commit: u64, path: &[u8]) -> Option<&[u8]> {
+        self.joint.domain.object(commit)?.tree.get(path).map(AsRef::as_ref)
+    }
+
     /// Old calls reach their accounting terminal without delivering an outcome to the new top.
     pub fn restart(&mut self) {
         self.finish();
@@ -708,6 +720,7 @@ impl Protocol {
                 | top::Request::PlaygroundActs { .. }
                 | top::Request::ResetAct { .. }
                 | top::Request::LandingUnmade { .. }
+                | top::Request::LandingRead(_)
                 | top::Request::HoldDropped { .. }
                 | top::Request::LinkNoted { .. }
                 | top::Request::ForgeKept(_)

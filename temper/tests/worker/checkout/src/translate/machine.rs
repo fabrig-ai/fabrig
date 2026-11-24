@@ -34,7 +34,9 @@ pub fn perform_with_capacity(
     perform_unchecked(forge, disk, op)
 }
 
-fn writes(op: &Op) -> bool {
+/// Whether admission of this operation needs free space in the fake disk.
+#[must_use]
+pub fn writes(op: &Op) -> bool {
     matches!(
         op,
         Op::Store { .. }

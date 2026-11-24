@@ -1,4 +1,4 @@
-use super::prepare_hint;
+use super::words::prepare_hint;
 use temper_shell::directories;
 
 #[test]
@@ -113,4 +113,98 @@ fn forge_run_reports_bad_listener_counts_before_any_lookup_or_read() {
         assert!(diagnostic.contains("LISTEN_FDS") && diagnostic.contains("fd 3"), "{which} {count}: {diagnostic}");
         assert!(!diagnostic.contains("no-document"), "refuses before document read: {diagnostic}");
     }
+}
+
+#[test]
+fn prepare_flags_rows() {
+    use super::{Command, PREPARE, SetupFacts, configure, setup_file_with};
+    use std::{
+        cell::{Cell, RefCell},
+        collections::BTreeMap,
+        ffi::OsString,
+        io,
+        path::{Path, PathBuf},
+    };
+    use temper_forge_setup::{
+        machine::{self, BoxKind},
+        setup_file::{self, SetupFile},
+    };
+    use temper_forge_setup_shell::setup_file as files;
+    use temper_service_shell::jig_directories;
+
+    let flags = ["--config", "/config", "--data", "/data", "--cache", "/cache"].map(|word| word.as_bytes().into());
+    let (dirs, _) = directories::resolve(&flags, &[], b"/").unwrap();
+    let jig = jig_directories(&dirs);
+    let owned_path = Path::new("/data/forge-1/setup");
+    let fake_path = Path::new("/data/playground-7/setup");
+    let fake = setup_file::chosen(BoxKind::Fake, 3007, b"ada", false, &jig).unwrap();
+    let bytes = RefCell::new(BTreeMap::from([(fake_path.to_path_buf(), setup_file::encode(&fake))]));
+    let writes = Cell::new(0);
+    let facts = SetupFacts {
+        group_read: &|path, bound| {
+            assert_eq!(bound, 16);
+            if path == Path::new("/data/box/groups/7") {
+                Ok(machine::group_file(BoxKind::Fake))
+            } else {
+                Err(skein_shell::Unread::Absent)
+            }
+        },
+        group_stat: &|_| Err(io::ErrorKind::NotFound.into()),
+        setup_present: &|path| Ok(bytes.borrow().contains_key(path)),
+        setup_read: &|dirs, number, kind| {
+            files::read_with(dirs, number, kind, |path, bound| {
+                assert_eq!(bound, 65536);
+                let bytes = bytes.borrow();
+                Ok(skein_lib::Secret::new(bytes.get(path).ok_or(skein_shell::Unread::Absent)?.clone()))
+            })
+        },
+        setup_write: &|dirs, number, setup| {
+            let path: PathBuf = files::path(dirs, number, setup.kind());
+            assert!(bytes.borrow_mut().insert(path, setup_file::encode(setup)).is_none(), "write once");
+            writes.set(writes.get() + 1);
+            Ok(())
+        },
+    };
+    let prepare = |number, verb, words: &[&str]| {
+        let arguments = words.iter().copied().map(OsString::from).collect::<Vec<_>>();
+        setup_file_with(&dirs, number, verb, &arguments, &facts)
+    };
+    let flags =
+        ["--listen", "127.0.0.1:3000", "--person", "ada", "ada@example.invalid", "--runner-label", "temper-host:host"];
+    let file = prepare(1, "prepare", &flags).expect("first prepare writes its file");
+    let SetupFile::Owned(owned) = &file else { panic!("prepare makes owned") };
+    assert_eq!(owned.remote.as_ref(), b"http://127.0.0.1:3000");
+    assert!(owned.fetch.forgejo && owned.fetch.runner);
+    let runner = owned.runner.as_ref().unwrap();
+    assert_eq!(runner.capacity, 1);
+    assert_eq!(runner.path.as_ref(), b"/usr/local/bin:/usr/bin:/bin");
+    let kept = bytes.borrow()[owned_path].clone();
+    assert_eq!(writes.get(), 1);
+    for words in [&flags[..], &[]] {
+        assert_eq!(prepare(1, "prepare", words).unwrap(), file);
+    }
+    assert_eq!(
+        prepare(1, "prepare", &["--listen", "127.0.0.1:3001"]).unwrap_err(),
+        "setup differs at listen: the file has 127.0.0.1:3000, the flag 127.0.0.1:3001"
+    );
+    assert_eq!(bytes.borrow()[owned_path], kept);
+    assert_eq!(writes.get(), 1, "repeat and differing flags must not write");
+
+    let local = ["--listen", "127.0.0.1:3002", "--person", "ada", "ada@example.invalid", "--forgejo", "bin/forgejo"];
+    let resolved = prepare(2, "prepare", &local).unwrap();
+    assert_eq!(prepare(2, "prepare", &local).expect("the same relative path compares resolved"), resolved);
+    assert!(prepare(3, "run", &[]).unwrap_err().contains("forge-3/setup"));
+    bytes.borrow_mut().insert(owned_path.to_owned(), Box::from(b"{\"version\":2,\"kind\":\"owned\"}".as_slice()));
+    let why = prepare(1, "prepare", &[]).unwrap_err();
+    assert!(why.contains("forge-1/setup") && why.contains("Version(2)"), "{why}");
+    assert_eq!(prepare(7, "run", &[]).unwrap(), fake);
+    assert_eq!(writes.get(), 2, "only the two initial preparations write");
+
+    let mut arguments = dirs.flags().into_vec();
+    arguments.push(b"1".as_slice().into());
+    arguments.extend(flags.map(|flag| flag.as_bytes().into()));
+    let command = configure(&PREPARE, &arguments, &[], b"/").expect("prepare accepts its setup flags");
+    let Command::Forge { directories, arguments, .. } = command else { panic!("forge prepare command") };
+    assert_eq!(directories, dirs);
+    assert_eq!(arguments, ["prepare", "1"].into_iter().chain(flags).map(OsString::from).collect::<Vec<_>>());
 }

@@ -329,6 +329,7 @@ members = [
     "temper/testing/temper-box-kit",
     "temper/testing/temper-fixtures",
     "temper/testing/temper-faults",
+    "temper/testing/temper-workload",
     "temper/testing/temper-limits-fixtures",
     "temper/testing/temper-agent-fixtures",
     "temper/testing/temper-landing-fixtures",
@@ -733,6 +734,7 @@ temper-limits-fixtures = { path = "temper/testing/temper-limits-fixtures" }
 jig-protocol-config-fixtures = { path = "jig/testing/jig-protocol-config-fixtures" }
 temper-fixtures = { path = "temper/testing/temper-fixtures" }
 temper-faults = { path = "temper/testing/temper-faults" }
+temper-workload = { path = "temper/testing/temper-workload" }
 temper-agent-fixtures = { path = "temper/testing/temper-agent-fixtures" }
 temper-landing-fixtures = { path = "temper/testing/temper-landing-fixtures" }
 temper-engine-inspect = { path = "temper/testing/temper-engine-inspect" }

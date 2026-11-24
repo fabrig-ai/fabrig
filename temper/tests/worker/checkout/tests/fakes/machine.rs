@@ -1,10 +1,11 @@
 //! The domain-face disk faults, one translated operation at a time.
 use skein_lib::Token;
-use std::collections::BTreeMap;
 use temper_fake_checkout::{Checkout, git};
 use temper_worker_checkout_world::{
     forge::Forge,
-    translate::{commit, cut, perform, perform_with_capacity, used},
+    translate::{
+        commit, cut, disk_snapshot as snapshot, perform, perform_with_capacity, perform_within_capacity, used,
+    },
 };
 use temper_worker_domain_checkout::git::{Done, Fault, Into, Op, Place, Reds, Want};
 
@@ -78,12 +79,6 @@ fn advanced(forge: &mut Forge) -> u64 {
     forge.advance(b"forge/r", b"main", b"a", b"new a");
     forge.advance(b"forge/r", b"main", b"b", b"new b");
     forge.advance(b"forge/r", b"main", b"c", b"new c")
-}
-fn snapshot(disk: &Checkout) -> BTreeMap<Vec<u8>, (Vec<u8>, u64)> {
-    disk.files()
-        .into_iter()
-        .map(|(path, bytes)| (path.to_vec(), (bytes.to_vec(), disk.version(path).expect("file"))))
-        .collect()
 }
 fn pack_count(disk: &Checkout, directory: &[u8]) -> usize {
     disk.tree(&[directory, b"/objects/pack"].concat()).len()
@@ -232,6 +227,25 @@ fn capacity_refuses_writes_atomically_and_allows_them_below_the_bound() {
             assert_eq!(snapshot(&disk), snapshot(&ordinary_disk));
         }
     }
+}
+
+#[test]
+fn a_capacity_limited_merge_keeps_the_conflict_bound() {
+    let (mut forge, mut disk, base) = fixture();
+    disk.write(b"ws/3/r/a", b"our a");
+    disk.write(b"ws/3/r/b", b"our b");
+    git::commit(&mut forge, &mut disk, b"ws/3/r", base, b"ours").expect("parent").expect("changed");
+    let theirs = advanced(&mut forge);
+    perform(&mut forge, &mut disk, fetch(Into::Fetched));
+    let before = snapshot(&disk);
+    let capacity = used(&disk);
+    let refused = perform_within_capacity(&mut forge, &mut disk, merge(theirs), 1, Some(capacity));
+    assert!(matches!(refused, Done::FailedWithOutput { fault: Fault::Broken, .. }));
+    assert_eq!(snapshot(&disk), before, "full disk refuses before writing conflict markers");
+    let merged = perform_within_capacity(&mut forge, &mut disk, merge(theirs), 1, Some(capacity + 1));
+    let Done::Conflicted { files, cut } = merged else { panic!("conflicting merge: {merged:?}") };
+    assert_eq!(files.len(), 1, "the composed caller's conflict limit is retained");
+    assert!(cut, "the second conflict is reported as cut");
 }
 
 #[test]

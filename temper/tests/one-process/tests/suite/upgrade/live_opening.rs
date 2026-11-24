@@ -5,7 +5,7 @@ use temper_engine_service::stock::Given;
 use temper_one_process_world::testing::{Rehearsal, USER};
 use temper_shell::directories::Directories;
 
-fn settled() -> Machine {
+pub(super) fn settled(in_data: bool) -> Machine {
     macro_rules! files {
         ($($path:literal),+ $(,)?) => { [$(($path, include_bytes!(concat!("../../../golden/settled/state/", $path)).as_slice())),+] };
     }
@@ -28,14 +28,18 @@ fn settled() -> Machine {
     ];
     let mut files = std::collections::BTreeMap::from(files);
     let mut items = Vec::new();
+    if in_data {
+        items.push(Item::directory(b"state").mode(0o700));
+    }
     for line in include_str!("../../../golden/settled/modes.txt").lines() {
         let (facts, path) = line.rsplit_once(' ').expect("manifest path");
-        let Some(path) = path.strip_prefix("state/") else { continue };
+        let Some(relative) = path.strip_prefix("state/") else { continue };
+        let name = if in_data { path } else { relative };
         let item = if facts.starts_with("d ") {
-            Item::directory(path.as_bytes()).mode(0o700)
+            Item::directory(name.as_bytes()).mode(0o700)
         } else {
-            let bytes = files.remove(path).expect("settled deployment file");
-            Item::file(path.as_bytes(), bytes).mode(0o600)
+            let bytes = files.remove(relative).expect("settled deployment file");
+            Item::file(name.as_bytes(), bytes).mode(0o600)
         };
         items.push(item);
     }
@@ -107,14 +111,14 @@ fn configuration() -> (Box<[u8]>, Directories) {
 fn a_live_change_and_uncertain_write_reach_the_opening_without_network() {
     let (document, directories) = configuration();
     temper_one_process_world::testing::a_live_change_and_uncertain_write_reach_the_opening_without_network(
-        settled(),
+        settled(false),
         &document,
         &directories,
         &given(),
     );
 }
 
-fn rehearsal() -> Rehearsal {
+pub(super) fn rehearsal() -> Rehearsal {
     let (document, directories) = configuration();
     Rehearsal::new(document, directories, given())
 }

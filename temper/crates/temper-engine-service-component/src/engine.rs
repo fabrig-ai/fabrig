@@ -365,6 +365,7 @@ impl Engine {
                         ]),
                     });
                 }
+                root::Fact::LandingRead(note) => self.notes.push(crate::Note::LandingRead(note)),
                 root::Fact::LandingUnmade { task, repository, branch, changes } => {
                     self.notes.push(crate::Note::LandingUnmade { task, repository, branch, changes });
                 }

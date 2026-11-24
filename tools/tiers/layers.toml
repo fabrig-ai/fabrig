@@ -3,7 +3,7 @@
 layers = ["step", "domain", "system", "machine", "protocol", "io", "simulated", "real-loop", "end-to-end"]
 
 [skein]
-"github-conformance::suite" = "real-loop" # Real journal and transcript files over a simulated network.
+"github-conformance::suite" = "simulated" # Hosted fake over the simulator, with directories in the fake machine.
 "skein-browser-world::browser_facts" = "end-to-end" # Real Chromium and the browser face.
 "skein-browser-world::browser_real" = "end-to-end" # Native Chromium CDP: accessibility, DOM reads, layout, input and page events.
 "skein-browser-world::suite" = "machine"
@@ -77,30 +77,30 @@ layers = ["step", "domain", "system", "machine", "protocol", "io", "simulated", 
 "smith-agent-shell::suite" = "step"
 "smith-agent-world::suite" = "domain" # step + domain: referee controls and agent stories.
 "smith-bench::real" = "real-loop" # Native locks, git, FIFO and grader children, directory modes.
-"smith-bench::step" = "step" # Offline harness checks and recorded parsers.
-"smith-bench::suite" = "end-to-end" # Scratch files, real clocks, git and replay command processes.
+"smith-bench::step" = "step" # Offline harness checks, recorded parsers and the harness over a test tree.
+"smith-bench::suite" = "end-to-end" # Real git and archives, checkout history selecting the face, login shells, a write outside, answer timing and descendant teardown, pipe overflow, terminal hangup and final-record drain, and the shipped attempt, probe and suite commands.
 "smith-channel-world::live" = "protocol"
 "smith-channel-world::suite" = "protocol" # step + protocol: referee controls and both channel halves.
 "smith-codecs-world::suite" = "step"
 "smith-fake-claude::simulated" = "simulated" # step + simulated: encodings and the hosted fake.
-"smith-fake-claude::suite" = "end-to-end" # The fake executables, real files and signals.
+"smith-fake-claude::suite" = "end-to-end" # The fake executable's sign-in and status, startup refusal, sign-out without a configuration directory, server print and real signals.
 "smith-host-world::suite" = "domain" # step + domain: parent-referee controls and host stories.
 "smith-hosts-world::suite" = "simulated" # step + simulated: referee controls and host spawning an agent.
 "smith-local-process-world::suite" = "simulated" # step + simulated: configuration controls and whole local service.
-"smith-local-protocol::suite" = "real-loop" # Store/FileIo over a real directory and kernel, scripted owner.
-"smith-local-shell::real" = "real-loop" # Host identity across processes, private files, executable modes.
+"smith-local-protocol::suite" = "real-loop" # One fresh-journal recovery on the real file adapter and kernel.
+"smith-local-shell::real" = "real-loop" # Two processes racing for one host ID, and refusal of a real key file with a non-private mode.
 "smith-local-shell::suite" = "simulated" # Local library over simulated io and a fake provider.
 "smith-local-world::suite" = "system" # step + system: referee controls and local host with real agent domains.
 "smith-machine-world::simulated" = "simulated" # step + simulated: machine seams and fake-kernel stories.
-"smith-machine-world::suite" = "real-loop" # Real file io, jobs and synchronous rg children.
+"smith-machine-world::suite" = "real-loop" # Real rg children and a held job's teardown.
 "smith-protocol-llm-world::suite" = "protocol" # step + protocol: codec/referee controls and composed LLM peers.
-"smith-real-world::suite" = "real-loop"
+"smith-real-world::suite" = "real-loop" # One real TLS change story with git, rg and sh, and the held LLM and OAuth listeners.
 "smith-run-world::suite" = "domain" # step + domain: direct memory fixtures and run stories.
 "smith-session-world::suite" = "domain" # step + domain: prefix-referee controls and session stories.
 "smith-tools-world::suite" = "domain" # step + domain: direct memory fixtures and tools stories.
 "smith::end_to_end" = "end-to-end" # One path per command and exit through main: a pseudo-terminal, signals, the shipped binaries and their children (smith/docs/design/testing.md, 2.3).
 "smith::live" = "end-to-end"
-"smith::live_configuration" = "end-to-end" # Real credential-file controls and the shipped smith check.
+"smith::live_configuration" = "end-to-end" # The product adapter's user layer through the shipped smith check.
 "smith::step" = "step" # Offline configuration controls.
 
 [jig]
@@ -161,18 +161,21 @@ layers = ["step", "domain", "system", "machine", "protocol", "io", "simulated", 
 "temper-blame::step" = "step" # Gate judgement over hand-built ledgers and observations.
 "temper-box-kit::screen" = "step" # Terminal cell reader on renderer output, without io.
 "temper-box-machine::real_loop" = "real-loop" # Box service and hosted children on one real ring.
-"temper-box-shell::real" = "real-loop" # Native sockets, descriptors, terminals, locks, file metadata and child programs.
-# Step and domain: profiles composed in memory and the start's admission decisions over them,
-# the kit's own checks over supplied facts, scripted openings and client-tool reads.
+"temper-box-shell::real" = "real-loop" # Native port contention, held and transferred descriptors, locks, file modes and rename, terminals, native key validation, the effective user and a real shell.
+"temper-box-shell::simulated" = "simulated" # Fake forge and LLM hosts on the simulated kernel.
+# Step and domain: composed profiles and their admission, the kit's checks over supplied facts,
+# scripted openings, relay framing and routing, the landing kit's decisions and client-tool reads.
 "temper-box::domain" = "domain"
 "temper-box::live" = "end-to-end"
 "temper-box::live_github" = "end-to-end"
 "temper-box::live_github_managed" = "end-to-end"
 "temper-box::process" = "end-to-end"
 "temper-box::proof_live" = "end-to-end"
-# Native stories and wiring witnesses: fresh init and start, inherited listeners and pipes, the forge child,
-# the held-login lock and hooks, a fetched program's run, parent identities, and the kit's real-loop checks.
+# Native witnesses: fresh init and serve, command dispatch, listeners, pipes and ports; forge setup,
+# exec, signals and locks; program login and launch; fakes (TLS, images and restart), relay shutdown;
+# landing launcher, held-login hooks and kept data; parent identities and the kit's real-loop checks.
 "temper-box::suite" = "end-to-end"
+"temper-box::system" = "system" # A fresh sitting's settings on the client world joined to the engine.
 "temper-charter-set::assembly" = "step" # Assembly functions on fixture texts.
 "temper-client-browser-world::browser_all" = "end-to-end" # Chromium on the shipped bundle and service.
 "temper-client-bundle::steps" = "step" # Build decisions on sample paths, files and commands.
@@ -183,7 +186,6 @@ layers = ["step", "domain", "system", "machine", "protocol", "io", "simulated", 
 "temper-client-journeys::suite" = "end-to-end" # Shipped binary: help, version, no command, one print through its report and destination, and journey-pages.sh and look-refresh.sh on real git. Writer and refresh decisions and print admission are library steps.
 "temper-client-redaction::boundary" = "step" # Redaction and scanning of one fixture field.
 "temper-client-shell-terminal::suite" = "machine"
-"temper-client-shell-tui::real" = "real-loop" # Directory modes and symlink refusal.
 "temper-client-shell-tui::suite" = "simulated" # TUI Run on the simulator and fake files/processes.
 "temper-client-shell-web::suite" = "machine" # step and machine: asset checks and host on scripted platform reports/bytes.
 "temper-client-view::suite" = "domain" # Client root and view; engine deliveries scripted.
@@ -199,16 +201,17 @@ layers = ["step", "domain", "system", "machine", "protocol", "io", "simulated", 
 "temper-engine-domain-ways::suite" = "step"
 "temper-engine-domain-world::suite" = "domain"
 "temper-engine-forge-world::suite" = "domain"
+"temper-engine-inspect::read_admission" = "domain" # A landing's read admission as a live wake, on the forge's domain world.
 "temper-engine-protocol-forge-world::suite" = "protocol"
 "temper-engine-service-component::real" = "real-loop" # Engine store directory and file modes on the real kernel.
 "temper-engine-service-vocabulary::figures" = "step" # Named application limits round trips.
-"temper-engine-shell::suite" = "real-loop" # Stopped checkpoint, restore and upgrade commands over real files and locks.
+"temper-engine-shell::suite" = "real-loop" # Stopped checkpoint and restore, checkpoint and scratch locks, native private setup and keys, and a real shell.
 "temper-engine::suite" = "end-to-end" # Shipped engine's help, identity, no command, versions, serve and fetch dispatch, checkpoint usage, and one successful upgrade check that preserves the source.
 "temper-fake-git-hosted::suite" = "simulated" # step and simulated: argument checks and hosted git iterate on fake io.
-"temper-fetch-shell::real" = "real-loop" # Child execution, cache locks and file modes.
+"temper-fetch-shell::real" = "real-loop" # A real candidate's run and native cache lock and publication.
 "temper-fixtures::real" = "real-loop" # TCP bind contention and the kernel's ephemeral port range.
-"temper-forge-setup-shell::step" = "step" # Process-boundary checks over source files and sample calls.
-"temper-forge-setup-shell::suite" = "real-loop" # Scratch files, locks, real commands and TLS peers.
+"temper-forge-setup-shell::step" = "step" # Source checks, preparation, files, locks and command capture over supplied facts.
+"temper-forge-setup-shell::suite" = "real-loop" # TLS fetches, a lock held by a child, a real child's status and streams, and deadline teardown.
 "temper-git-transcripts::suite" = "end-to-end" # Shipped recorder's command-line boundary.
 "temper-one-process-world::memory" = "simulated"
 "temper-one-process-world::suite" = "simulated"
@@ -222,11 +225,8 @@ layers = ["step", "domain", "system", "machine", "protocol", "io", "simulated", 
 "temper-qa-tool::step" = "step" # Ledger, configuration and parser values (including seeded sequences), the command table's answers and tune's figures.
 "temper-qa-tool::suite" = "real-loop" # Non-UTF-8 file name; staged executables; run.sock poke, mode and stale path; child exit wake; holder modes, ledger watch and socket; umasks; system tar; process group killed at its bound.
 "temper-qa::suite" = "end-to-end" # Shipped QA tool's command-line boundary.
-"temper-real-loop-world::live_text" = "real-loop"
-"temper-real-loop-world::suite" = "real-loop"
-"temper-service-shell::real" = "real-loop" # Private file modes and provider-copy inode checks.
+"temper-real-loop-world::suite" = "real-loop" # Kernel-assigned listeners, native children, signals and locks; failure-worlds F7 stories.
 "temper-service::protocol_link" = "protocol" # Stock starts and keepalives across real engine/worker channel stacks.
-"temper-shell::real" = "real-loop" # Directory modes, private link files and executable metadata.
 "temper-stage-one::suite" = "end-to-end" # Shipped help, version, unknown command and collect's ctl launch refusal.
 "temper-system-world::suite" = "system"
 "temper-twin-tool::suite" = "domain" # Conversion checks and fake LLM replay; CLI unit tests are separate.

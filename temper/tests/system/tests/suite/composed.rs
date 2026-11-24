@@ -784,3 +784,8 @@ fn assert_forge_read_feedback(world: &World, refused: bool) {
         assert!(!output.contains("Family numbers"));
     }
 }
+
+#[test]
+fn a_chat_commits_its_reply_after_hearing_the_landed_result() {
+    temper_system_world::composed::assert_committed_landing_reply();
+}

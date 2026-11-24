@@ -4,7 +4,7 @@
 //! channel ready or lost, the grace passed. The referee reads remote trees
 //! and records crossing boundaries.
 use smith_channel::Record;
-use std::collections::VecDeque;
+use std::collections::{BTreeMap, VecDeque};
 use std::fmt::Write;
 
 use skein_lib::{Duration, Env, Queue, Reader, Time, Token, Wall};
@@ -28,6 +28,7 @@ pub mod parts;
 pub mod pause;
 pub mod prepare;
 pub mod restarts;
+pub mod workload;
 
 const RUN: Token = Token::new(81);
 const ATTEMPT: Token = Token::new(13);
@@ -80,6 +81,8 @@ struct World {
     owed: VecDeque<Event>,
     forge: Forge,
     disk: Checkout,
+    /// Last successful Keep per workspace, the typed side of the fake disk's marks.
+    marks: BTreeMap<Token, temper_worker_domain::checkout::git::Kept>,
     first: u64,
     workspace: Option<Token>,
     process: Option<Token>,
@@ -139,6 +142,7 @@ impl World {
             owed: VecDeque::new(),
             forge,
             disk: Checkout::new(),
+            marks: BTreeMap::new(),
             first,
             workspace: None,
             process: None,
@@ -219,6 +223,7 @@ impl World {
         )
     }
 
+    #[track_caller]
     fn say(&mut self, message: agent::Up) -> Result<(), String> {
         assert!(self.reading, "one terminal for the granted read");
         self.reading = false;
@@ -373,9 +378,7 @@ impl World {
                 "the note precedes every fetch and check out"
             );
         }
-        if let Op::Keep { mark: Some(mark), .. } = &op {
-            self.report.kept.push(mark.clone());
-        }
+        let keep = if let Op::Keep { workspace, mark } = &op { Some((*workspace, mark.clone())) } else { None };
         if let Op::Make { workspace, .. } = &op {
             self.workspace = Some(*workspace);
         }
@@ -396,6 +399,18 @@ impl World {
         } else if let Some(done) =
             self.faults.perform(&mut self.forge, &mut self.disk, owner, op, self.env.now, deadline)
         {
+            if done == temper_worker_domain::checkout::git::Done::Succeeded
+                && let Some((workspace, mark)) = keep
+            {
+                if let Some(mark) = mark {
+                    if mark.state == temper_worker_domain::checkout::git::KeptState::Kept {
+                        self.report.kept.push(mark.clone());
+                    }
+                    self.marks.insert(workspace, mark);
+                } else {
+                    self.marks.remove(&workspace);
+                }
+            }
             self.owed.push_back(Event::Done { owner, done });
         }
     }

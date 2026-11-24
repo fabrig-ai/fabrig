@@ -116,6 +116,7 @@ fn follows_document_keeps_the_setting_queue_skips_parity_and_task() {
 
 fn row(task: u64, phase: policy::Phase) -> LandingRow {
     LandingRow {
+        read_hold: None,
         last_event: None,
         turn_since: None,
         waiting: None,

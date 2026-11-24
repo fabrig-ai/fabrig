@@ -24,6 +24,7 @@ skein-http.workspace = true
 
 [dev-dependencies]
 serde_json.workspace = true
+smith-transcript.workspace = true
 temper-client-protocol-wire.workspace = true
 jig-client-test-records.workspace = true
 

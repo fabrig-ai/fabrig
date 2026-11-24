@@ -179,6 +179,41 @@ impl FaultLedger {
             .collect()
     }
 
+    /// Records each named table's bound as a fault while any component is full
+    /// or refuses a newcomer. Capacity `u64::MAX` is unbounded.
+    /// Returns a refusal from stopping a fault, including a time before its start.
+    pub fn saturation(
+        &mut self,
+        bounds: &[Kind],
+        inspections: &[&crate::inspect::Inspection],
+        at: Time,
+    ) -> Result<(), String> {
+        for kind in bounds {
+            let at_bound = inspections.iter().flat_map(|inspection| inspection.tables()).any(|table| {
+                table.name == kind.name
+                    && table.capacity != u64::MAX
+                    && (!table.refused.is_empty()
+                        || u64::try_from(table.entries.len()).map_or(true, |held| held >= table.capacity))
+            });
+            let active = self
+                .entries
+                .iter()
+                .enumerate()
+                .rev()
+                .find(|(_, entry)| entry.kind == *kind)
+                .filter(|(_, entry)| entry.until.is_none())
+                .map(|(index, _)| Injection(index));
+            match (at_bound, active) {
+                (true, None) => {
+                    self.inject(*kind, at, Struck::default());
+                }
+                (false, Some(entry)) => self.stop(entry, at)?,
+                (true, Some(_)) | (false, None) => {}
+            }
+        }
+        Ok(())
+    }
+
     /// The kinds that fell, each once, whether or not still in force.
     #[must_use]
     pub fn fell(&self) -> BTreeSet<Kind> {

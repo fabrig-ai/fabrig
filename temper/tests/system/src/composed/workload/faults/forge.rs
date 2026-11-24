@@ -1,0 +1,338 @@
+//! Forge faults travel through the shared fake, never fabricated client replies.
+use super::{Faults, World, forge_faults as kinds, stale};
+use crate::composed::{engine, people, tasks};
+use skein_fake_forge_domain::{self as fake, api as raw};
+use skein_forge::api;
+use skein_lib::Duration;
+use skein_world::faults::{Kind, Struck};
+use temper_blame::{Observed, Reaction};
+
+const REMOTE: &[u8] = b"org/repo";
+
+fn hex(commit: u64) -> String {
+    String::from_utf8(
+        temper_engine_domain_forge::commit_text(&temper_engine_forge_world::translate::commit(commit)).into(),
+    )
+    .expect("hex")
+}
+
+impl World {
+    fn task_goal(&self, mut task: u64) -> Option<&str> {
+        for _ in 0..32 {
+            for goal in &self.workload().goals {
+                if self.workload_names().task(&goal.name) == Some(task)
+                    || goal.changes.iter().any(|change| self.workload_names().task(&change.name) == Some(task))
+                {
+                    return Some(&goal.name);
+                }
+            }
+            let row = self.root.tasks().task(task)?;
+            let tasks::Party::Task(parent) = row.requester else { return None };
+            task = parent;
+        }
+        None
+    }
+
+    fn pull_goal(&self, number: u64) -> Option<&str> {
+        for (task, row) in self.root.forge().inspection_changes() {
+            if row.pull == Some(number) {
+                return self.task_goal(*task);
+            }
+        }
+        for (_, row) in self.root.forge().inspection_landings() {
+            if row.landing.round.pull == Some(number) {
+                return row.landing.members.first().and_then(|member| self.task_goal(member.change));
+            }
+        }
+        None
+    }
+
+    fn branch_goal(&self, branch: &[u8]) -> Option<&str> {
+        for (_, row) in self.root.forge().inspection_landings() {
+            if row.landing.round.branch.as_ref() == branch
+                || row.landing.members.iter().any(|m| m.branch.as_ref() == branch)
+            {
+                return row.landing.members.first().and_then(|member| self.task_goal(member.change));
+            }
+        }
+        None
+    }
+
+    fn candidate_goal(&self, commit: u64) -> Option<&str> {
+        let commit = temper_engine_forge_world::translate::commit(commit);
+        for (_, row) in self.root.forge().inspection_landings() {
+            if let Some(member) = row.landing.members.iter().find(|m| m.candidate == Some(commit)) {
+                return self.task_goal(member.change);
+            }
+        }
+        None
+    }
+
+    #[expect(
+        clippy::too_many_lines,
+        reason = "the configured forge families share one call's configuration and ledger boundary"
+    )]
+    pub(in crate::composed) fn workload_forge_call(&mut self, op: &api::Op) -> fake::Config {
+        let mut config = self.forge.config();
+        let Some(mut f) = self.workload_faults.take() else { return config };
+        if f.due(kinds::TIMED_OUT)
+            && let api::Op::Read(api::Read::Pull { number, .. }) = op
+            && self.pull_goal(*number) == f.target(kinds::TIMED_OUT)
+        {
+            f.fire(kinds::TIMED_OUT);
+            config.timeouts = 1000;
+        }
+        if f.due(temper_blame::LOST)
+            && let api::Op::Write(api::Write::Dispatch { branch, .. }) = op
+            && self.branch_goal(branch) == f.target(temper_blame::LOST)
+        {
+            f.fire(temper_blame::LOST);
+            // Dispatch schedules the job; the fake chooses its fault when it completes.
+            config.lost = 1000;
+        } else if f.plans.iter().any(|p| p.kind == temper_blame::LOST && p.fired)
+            && !f.ledger.fell().contains(&temper_blame::LOST)
+        {
+            config.lost = 1000;
+        }
+        if f.due(stale::MOVED_BASE)
+            && let api::Op::Write(api::Write::Merge { number, .. }) = op
+            && self.pull_goal(*number) == f.target(stale::MOVED_BASE)
+            && let Ok(raw::Answer::Pull(pull)) = self.forge.inspect(REMOTE, &raw::Read::Pull { number: *number })
+            && pull.base.as_ref() == b"main"
+        {
+            let goal = f.fire(stale::MOVED_BASE);
+            let entry = f.ledger.inject(
+                stale::MOVED_BASE,
+                self.env.now,
+                Struck { candidate: Some(hex(pull.commit)), request: Some(goal), ..Struck::default() },
+            );
+            // A legitimate, non-conflicting push after the engine read the base.
+            self.forge.advance(REMOTE, &pull.base, b"outside/base-moved", b"a concurrent base write\n");
+            f.ledger.stop(entry, self.env.now).expect("outside push");
+            f.stopped(self.env.now);
+            f.stale_release = self.store.rows.values().find_map(|row| match row {
+                engine::Record::Forge { row } => match row.as_ref() {
+                    temper_engine_domain_forge::Stored::Landing(landing)
+                        if landing.landing.round.pull == Some(*number) =>
+                    {
+                        Some(landing.landing.task)
+                    }
+                    _ => None,
+                },
+                engine::Record::Core(_) => None,
+            });
+        }
+        if f.due(kinds::CLOSED_BY_ANOTHER)
+            && let api::Op::Read(api::Read::Pull { number, .. }) = op
+            && self.pull_goal(*number) == f.target(kinds::CLOSED_BY_ANOTHER)
+            && let Ok(raw::Answer::Pull(pull)) = self.forge.inspect(REMOTE, &raw::Read::Pull { number: *number })
+            && pull.state == raw::State::Open
+        {
+            f.fire(kinds::CLOSED_BY_ANOTHER);
+            let entry = f.ledger.inject(
+                kinds::CLOSED_BY_ANOTHER,
+                self.env.now,
+                Struck { candidate: Some(hex(pull.commit)), request: Some(number.to_string()), ..Struck::default() },
+            );
+            assert_eq!(
+                self.forge.api(REMOTE, 2, raw::Op::Write(raw::Write::Close { number: *number })),
+                Ok(raw::Answer::Done)
+            );
+            f.closed = Some((*number, entry, self.env.now.saturating_add(Duration::from_secs(2))));
+        }
+        if f.due(kinds::JOB_LOG)
+            && let api::Op::Read(api::Read::Job { attempt, max_bytes, .. }) = op
+            && let Ok(raw::Answer::Run(run)) = self.forge.inspect(REMOTE, &raw::Read::Run { run: attempt.run })
+            && self.candidate_goal(run.commit) == f.target(kinds::JOB_LOG)
+            && let Ok(raw::Answer::Job { steps, .. }) = self.forge.inspect(REMOTE, &raw::Read::Job { job: attempt.job })
+            && let Some(step) = steps.iter().find(|step| step.status == raw::StepStatus::Failure)
+        {
+            // The fake's selected job log exceeds the client's bounded tail read.
+            let mut log = vec![b'x'; usize::try_from(*max_bytes).expect("log cap") + 1];
+            log.extend_from_slice(&step.log);
+            fake::set_job_log(self.forge.domain_mut(), REMOTE, attempt.job, step.number, &log)
+                .expect("bounded log prefix");
+            let Ok(raw::Answer::Job { steps: enlarged, .. }) =
+                self.forge.inspect(REMOTE, &raw::Read::Job { job: attempt.job })
+            else {
+                panic!("enlarged job")
+            };
+            let enlarged = &enlarged.iter().find(|found| found.number == step.number).expect("selected step").log;
+            assert!(
+                enlarged.len() > usize::try_from(*max_bytes).expect("log cap"),
+                "the selected log exceeds the request, not another job"
+            );
+            assert!(enlarged.ends_with(&step.log), "the failed step's evidence stays in the tail");
+            let goal = f.fire(kinds::JOB_LOG);
+            let entry = f.ledger.inject(
+                kinds::JOB_LOG,
+                self.env.now,
+                Struck {
+                    request: Some(goal),
+                    gate_run: Some(attempt.run.to_string()),
+                    candidate: Some(hex(run.commit)),
+                    ..Struck::default()
+                },
+            );
+            f.log_restore = Some((attempt.job, step.number, step.log.clone(), entry));
+        }
+        // This injector configures head lag, not a late merge record. The
+        // fake's one lag switch covers both, so merges run with it disabled.
+        if matches!(op, api::Op::Write(api::Write::Merge { .. })) {
+            fake::lag(self.forge.domain_mut(), fake::Lag { chance: 0, min: Duration::ZERO, max: Duration::ZERO });
+        }
+        self.observe_gate_call(&mut f, op);
+        self.workload_faults = Some(f);
+        config
+    }
+
+    pub(in crate::composed) fn workload_forge_answer(&mut self, _op: &api::Op) {
+        let Some(mut f) = self.workload_faults.take() else { return };
+        self.copy_workload_forge_faults(&mut f);
+        self.record_workload_reds(&mut f);
+        if let Some((job, step, log, entry)) = f.log_restore.take() {
+            fake::set_job_log(self.forge.domain_mut(), REMOTE, job, step, &log).expect("restore the bounded log");
+            f.ledger.stop(entry, self.env.now).expect("bounded read answered");
+            f.stopped(self.env.now);
+        }
+        if f.lag_until.is_some() {
+            fake::lag(
+                self.forge.domain_mut(),
+                fake::Lag { chance: 1000, min: Duration::from_millis(100), max: Duration::from_secs(1) },
+            );
+        }
+        self.workload_faults = Some(f);
+    }
+
+    pub(super) fn copy_workload_forge_faults(&mut self, f: &mut Faults) {
+        assert_eq!(self.forge.domain_mut().fell_lost(), 0, "fake forge lost fault records");
+        while let Some(fell) = self.forge.domain_mut().pop_fell() {
+            let kind = Kind { family: fell.fault.family(), name: fell.fault.name() };
+            let entry = f.ledger.inject(
+                kind,
+                fell.at,
+                Struck {
+                    request: fell.reply_to.map(|token| token.raw().to_string()),
+                    gate_run: fell.run.map(|run| run.to_string()),
+                    runner: fell.runner.map(|runner| runner.to_string()),
+                    candidate: fell.commit.map(hex),
+                    ..Struck::default()
+                },
+            );
+            let until = fell.until.unwrap_or(fell.at);
+            f.ledger.stop(entry, until).expect("fake forge interval");
+            f.stopped(until);
+        }
+    }
+
+    pub(super) fn workload_forge_tick(&mut self, f: &mut Faults) {
+        if f.due(kinds::HEAD_BEHIND) {
+            f.fire(kinds::HEAD_BEHIND);
+            fake::lag(
+                self.forge.domain_mut(),
+                fake::Lag { chance: 1000, min: Duration::from_millis(100), max: Duration::from_secs(1) },
+            );
+            f.lag_until = Some(self.env.now.saturating_add(Duration::from_secs(1200)));
+        }
+        if f.lag_until.is_some_and(|until| self.env.now >= until || f.ledger.fell().contains(&kinds::HEAD_BEHIND)) {
+            fake::lag(self.forge.domain_mut(), fake::Lag { chance: 0, min: Duration::ZERO, max: Duration::ZERO });
+            f.lag_until = None;
+            f.stopped(self.env.now);
+        }
+        if let Some((number, entry, until)) = f.closed
+            && self.env.now >= until
+        {
+            assert_eq!(self.forge.api(REMOTE, 2, raw::Op::Write(raw::Write::Reopen { number })), Ok(raw::Answer::Done));
+            f.ledger.stop(entry, self.env.now).expect("other user reopens");
+            f.stopped(self.env.now);
+            f.closed = None;
+            f.restored = Some(number);
+        }
+        if let Some(task) = f.stale_release
+            && let Some(row) = self.root.tasks().task(task)
+            && matches!(row.phase, tasks::Phase::Held { .. })
+        {
+            let revision = row.revisions.hold;
+            self.workload_enqueue(
+                temper_workload::draw::Party::First,
+                people::Ask::Release { project: 1, task, revision, again: None },
+            );
+            f.stale_release = None;
+        }
+        if let Some(number) = f.restored {
+            let held = self.store.rows.values().find_map(|record| {
+                let engine::Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(row))) = record else { return None };
+                if !matches!(row.phase, tasks::Phase::Held { .. }) { return None; }
+                let affected = self.store.change(row.number).is_some_and(|change| change.pull == Some(number))
+                    || self.store.rows.values().any(|r| matches!(r, engine::Record::Forge { row: forge }
+                        if matches!(forge.as_ref(), temper_engine_domain_forge::Stored::Landing(landing)
+                        if landing.landing.task == row.number && landing.landing.members.iter().any(|m| m.pull == number))));
+                affected.then_some((row.number, row.revisions.hold))
+            });
+            if let Some((task, revision)) = held {
+                // Only release the hold whose other-user close this run restored.
+                self.workload_enqueue(
+                    temper_workload::draw::Party::First,
+                    people::Ask::Release { project: 1, task, revision, again: None },
+                );
+                f.restored = None;
+            }
+        }
+    }
+
+    pub(super) fn gate_runs(&self) -> Vec<raw::Run> {
+        let mut result = Vec::new();
+        for page in 1.. {
+            let Ok(raw::Answer::Runs(runs)) = self
+                .forge
+                .inspect(REMOTE, &raw::Read::Runs { workflow: None, commit: None, number: None, page, limit: 64 })
+            else {
+                panic!("runs")
+            };
+            let done = runs.len() < 64;
+            result.extend(runs);
+            if done {
+                return result;
+            }
+        }
+        unreachable!()
+    }
+
+    fn observe_gate_call(&self, f: &mut Faults, op: &api::Op) {
+        let runs = self.gate_runs();
+        let retry = match op {
+            api::Op::Write(api::Write::Rerun { attempt }) => {
+                if !f.retries.insert((attempt.run, attempt.job, attempt.attempt)) {
+                    return;
+                }
+                runs.iter().find(|run| run.id == attempt.run)
+            }
+            api::Op::Write(api::Write::Dispatch { inputs, .. }) => runs
+                .iter()
+                .filter(|run| {
+                    run.inputs.iter().any(|old| {
+                        old.0.as_ref() == b"temper_key"
+                            && inputs.iter().any(|input| input.name == old.0 && input.value == old.1)
+                    })
+                })
+                .filter(|run| {
+                    f.ledger.entries().iter().any(|fault| {
+                        fault.kind == temper_blame::LOST && fault.struck.gate_run == Some(run.id.to_string())
+                    })
+                })
+                .max_by_key(|run| run.id),
+            _ => None,
+        };
+        if let Some(run) = retry {
+            let key = run.inputs.iter().find(|input| input.0.as_ref() == b"temper_key").expect("gate key");
+            f.reactions.push(Observed {
+                at: self.env.now,
+                reaction: Reaction::GateRetry {
+                    gate: String::from_utf8_lossy(&key.1).into_owned(),
+                    run: run.id.to_string(),
+                    bound: u64::from(self.root.forge().landing_settings(1).expect("project settings").gate_retries),
+                },
+            });
+        }
+    }
+}

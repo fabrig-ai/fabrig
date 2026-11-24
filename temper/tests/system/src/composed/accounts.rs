@@ -59,8 +59,8 @@ impl World {
             Self::configured_limits(seed, director.clone(), false, configuration, |limits| limits.tasks.depth = 3);
         world.scripts = VecDeque::from([director, child]);
         world.account_generation = Some(1);
-        world.worker_env.limits.reply_bytes = 8192;
-        world.worker = worker::Domain::new(&world.worker_env.limits, Box::new([]));
+        world.lanes[0].worker_env.limits.reply_bytes = 8192;
+        world.lanes[0].worker = worker::Domain::new(&world.lanes[0].worker_env.limits, Box::new([]));
         world
     }
 
@@ -243,7 +243,7 @@ impl World {
     /// Two independently funded parties, each with its own key account.
     #[must_use]
     pub fn two_accounts(seed: u64) -> Self {
-        let mut world = Self::configured_limits(seed, script(), false, config, |limits| {
+        let world = Self::configured_limits(seed, script(), false, config, |limits| {
             limits.accounts.accounts = ACCOUNT_COUNT;
             limits.accounts.holder_accounts = ACCOUNT_COUNT;
             limits.accounts.sign_ins = ACCOUNT_COUNT;
@@ -251,6 +251,11 @@ impl World {
             // Each account may contribute its binding and its credential.
             limits.fleet.grants = ACCOUNT_COUNT * 2;
         });
+        Self::with_two_accounts(world)
+    }
+
+    /// The same people and key accounts on a differently configured composed world.
+    pub(super) fn with_two_accounts(mut world: Self) -> Self {
         let erases = world
             .store
             .rows
@@ -402,16 +407,16 @@ impl World {
         let Some(story) = self.account_case.as_mut() else {
             return false;
         };
-        if self.process.prepared() {
-            self.process = Process::new(self.seed, script());
+        if self.lanes[0].process.prepared() {
+            self.lanes[0].process = Process::new(self.seed, script());
         } else {
-            assert!(self.process.answered.is_some(), "the previous process ended");
+            assert!(self.lanes[0].process.answered.is_some(), "the previous process ended");
             self.parked.insert(
-                self.assignment.as_ref().expect("previous assignment").task,
-                core::mem::replace(&mut self.process, Process::new(self.seed, script())),
+                self.lanes[0].assignment.as_ref().expect("previous assignment").task,
+                core::mem::replace(&mut self.lanes[0].process, Process::new(self.seed, script())),
             );
         }
-        self.process.configure_settings = Some(|settings| {
+        self.lanes[0].process.configure_settings = Some(|settings| {
             settings.provider.accounts = ACCOUNT_COUNT;
             settings.provider.unserved = 1;
             // Both prompts fit inside the shortest drawn window; only the
@@ -424,9 +429,9 @@ impl World {
             && fault.struck_at.is_some()
             && !fault.cleared
         {
-            self.process.strikes.push((credential(fault.account), fault.strike.clone()));
+            self.lanes[0].process.strikes.push((credential(fault.account), fault.strike.clone()));
         }
-        self.process.clocked = true;
+        self.lanes[0].process.clocked = true;
         story.runs.started(self.env.now, &run_name(assignment), &account(assignment).to_string());
         story.assignments.push(assignment.clone());
         story.seen = 0;
@@ -437,16 +442,16 @@ impl World {
     }
 
     pub(super) fn account_observe(&mut self) {
-        if self.process.prepared() {
+        if self.lanes[0].process.prepared() {
             return;
         }
         let Some(story) = &mut self.account_case else {
             return;
         };
-        let assignment = self.assignment.as_ref().expect("assigned process");
+        let assignment = self.lanes[0].assignment.as_ref().expect("assigned process");
         let task = assignment.task;
         let epoch = *story.epoch.get_or_insert(self.env.now);
-        for fact in &self.process.agent().facts()[story.facts..] {
+        for fact in &self.lanes[0].process.agent().facts()[story.facts..] {
             if let smith_domain::Fact::Session { fact } = fact
                 && let smith_domain_session::FactKind::CompletionStarted { opener, attempt, .. } = fact.kind
                 && attempt > 0
@@ -465,11 +470,11 @@ impl World {
                 );
             }
         }
-        story.facts = self.process.agent().facts().len();
+        story.facts = self.lanes[0].process.agent().facts().len();
         if let Some(Fault { strike: Strike::Window { length, .. }, .. }) = &story.fault
-            && let Some(start) = self.process.struck_at
+            && let Some(start) = self.lanes[0].process.struck_at
         {
-            for (index, completion) in self.process.agent().completions().iter().enumerate() {
+            for (index, completion) in self.lanes[0].process.agent().completions().iter().enumerate() {
                 if matches!(completion.terminal, Some((_, smith_agent_world::CompletionTerminal::Failed)))
                     && story.windows.insert((assignment.task, assignment.attempt, index))
                 {
@@ -485,20 +490,20 @@ impl World {
                 }
             }
         }
-        if self.process.answered.is_some() && !story.ended {
-            let end = smith_faults::ended(self.process.agent().answer());
+        if self.lanes[0].process.answered.is_some() && !story.ended {
+            let end = smith_faults::ended(self.lanes[0].process.agent().answer());
             story.runs.ended(self.env.now, &run_name(assignment), &account(assignment).to_string(), end);
             story.ended = true;
         }
-        for query in &self.process.agent().prompts()[story.seen..] {
+        for query in &self.lanes[0].process.agent().prompts()[story.seen..] {
             story.queries.push((task, query.clone()));
         }
-        story.seen = self.process.agent().prompts().len();
+        story.seen = self.lanes[0].process.agent().prompts().len();
         if let Some(fault) = &mut story.fault
             && fault.struck_at.is_some()
             && account(assignment) == fault.account
             && matches!(fault.strike, Strike::Window { .. })
-            && !self.process.agent().completions().is_empty()
+            && !self.lanes[0].process.agent().completions().is_empty()
         {
             fault.hit.get_or_insert(story.steps);
         }
@@ -671,14 +676,14 @@ impl World {
         }
         let goal = if fault.account == FIRST_ACCOUNT { self.party.last_task } else { story.other.last_task };
         let calls = story.queries.iter().filter(|(task, _)| Some(*task) == goal).count();
-        if fault.struck_at.is_none() && self.assignment.is_some() && calls >= fault.at_call {
+        if fault.struck_at.is_none() && self.lanes[0].assignment.is_some() && calls >= fault.at_call {
             let struck = Struck { account: Some(fault.account.to_string()), ..Struck::default() };
             fault.struck_at = Some(self.env.now);
             if !matches!(fault.strike, Strike::Window { .. }) {
                 fault.injection =
                     Some(story.ledger.inject(skein_llm_kit::faults::struck(&fault.strike), self.env.now, struck));
             }
-            self.process.strike(credential(fault.account), fault.strike.clone());
+            self.lanes[0].process.strike(credential(fault.account), fault.strike.clone());
         }
         if let (Some(_), Some(hit), Some(after)) = (fault.struck_at, fault.hit, fault.clear_after)
             && !fault.cleared
@@ -690,7 +695,7 @@ impl World {
                 story.ledger.stop(injection, self.env.now).expect("one clear after the strike");
             }
             let account = fault.account;
-            self.process.clear(credential(account), &fault.strike);
+            self.lanes[0].process.clear(credential(account), &fault.strike);
             for process in self.parked.values_mut() {
                 process.clear(credential(account), &fault.strike);
             }
@@ -802,15 +807,18 @@ impl World {
     }
 
     fn account_step(&mut self) {
-        if !self.process.prepared()
+        if !self.lanes[0].process.prepared()
             && self.store.idle()
             && self.root_events.is_empty()
-            && self.worker_events.is_empty()
-            && let Some(next) =
-                [self.process.wake_at(), self.root.next_deadline(&self.env), self.worker.next_deadline()]
-                    .into_iter()
-                    .flatten()
-                    .min()
+            && self.lanes[0].worker_events.is_empty()
+            && let Some(next) = [
+                self.lanes[0].process.wake_at(),
+                self.root.next_deadline(&self.env),
+                self.lanes[0].worker.next_deadline(),
+            ]
+            .into_iter()
+            .flatten()
+            .min()
         {
             let clearing = self
                 .account_case
@@ -837,18 +845,7 @@ impl World {
     /// Account failures attributed to their causal interval and smith's run table.
     pub fn judge_account_runs(&mut self) -> Result<(), String> {
         let story = self.account_case.as_mut().expect("two accounts");
-        story.runs.judge(&mut story.ledger)?;
-        for fault in story.ledger.entries() {
-            if fault.count(Counter::TaskTries) != 0 {
-                return Err(format!(
-                    "{}/{} spent {} task tries",
-                    fault.kind.family,
-                    fault.kind.name,
-                    fault.count(Counter::TaskTries)
-                ));
-            }
-        }
-        Ok(())
+        judge_account_runs(&mut story.ledger, &mut story.runs)
     }
 
     #[must_use]
@@ -894,6 +891,22 @@ impl World {
         }
         panic!("two account goals did not end: {:?}", self.observed);
     }
+}
+
+/// The same run-table judge for the account case and composed fault workload.
+pub(super) fn judge_account_runs(ledger: &mut FaultLedger, runs: &mut Runs) -> Result<(), String> {
+    runs.judge(ledger)?;
+    for fault in ledger.entries().iter().filter(|fault| fault.kind.family == "provider") {
+        if fault.count(Counter::TaskTries) != 0 {
+            return Err(format!(
+                "{}/{} spent {} task tries",
+                fault.kind.family,
+                fault.kind.name,
+                fault.count(Counter::TaskTries)
+            ));
+        }
+    }
+    Ok(())
 }
 
 fn account(assignment: &engine::Assignment) -> u32 {

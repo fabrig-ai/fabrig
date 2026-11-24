@@ -27,17 +27,17 @@ pub(crate) struct Replay {
     calls: Vec<api::Op>,
     histories: Vec<Vec<top::history::Event>>,
 }
-struct Workload {
-    rng: Rng,
-    count: u64,
-    squash: bool,
-    red: bool,
-    conflict: Option<u64>,
-    moving: Option<u64>,
-    red_member: u64,
+pub(crate) struct Workload {
+    pub rng: Rng,
+    pub count: u64,
+    pub squash: bool,
+    pub red: bool,
+    pub conflict: Option<u64>,
+    pub moving: Option<u64>,
+    pub red_member: u64,
 }
 impl Workload {
-    fn new(seed: u64) -> Self {
+    pub fn new(seed: u64) -> Self {
         let mut rng = Rng::new(seed);
         let count = 2 + rng.below(3);
         let squash = rng.below(2) == 0;
@@ -65,36 +65,15 @@ pub(crate) fn run_repairing_in(world: World, seed: u64, horizon: u64) -> (World,
     run_workload(world, seed, horizon, Workload { red: true, ..Workload::new(seed) })
 }
 
-#[expect(clippy::too_many_lines, reason = "batch effects and search invariants share one bounded replay loop")]
 fn run_workload(world: World, seed: u64, horizon: u64, workload: Workload) -> (World, Replay) {
     let Workload { mut rng, count, squash, red, conflict, moving, red_member } = workload;
-    let mut world = landings::turn_in(world);
-    world.batch(u16::try_from(count).expect("small batch"));
-    world.push_file(b"main", b"file", b"fixed");
-    for index in 0..count {
-        let branch = format!("temper/c{}", 51 + index);
-        world.external(
-            raw::Op::Git(raw::Git::Create { branch: branch.as_bytes().into(), commit: world.branch(b"main") }),
-            2,
-        );
-        let path = format!("member{}", if conflict == Some(index) { 0 } else { index });
-        world.push_file(branch.as_bytes(), path.as_bytes(), &index.to_be_bytes());
-        if red && index == red_member {
-            world.push_wrong_tree(branch.as_bytes(), b"file", b"broken");
-        }
-        landings::ready_change(&mut world, 51 + index, branch.as_bytes());
-    }
+    let mut world = setup(world, count, red, conflict, red_member);
     Trains::default().judge(&mut world);
     let mut reported = false;
     let mut inject = moving;
     let mut pending = None;
     let mut finished = false;
-    let mut probed = Vec::new();
-    let mut search_round = 0;
-    let mut max_probes = 0;
-    // A timed-out call can move main in a later step. Each issued, proved
-    // candidate may explain exactly one move; no other engine move is allowed.
-    let mut issued = Vec::new();
+    let mut checks = BatchChecks::default();
     let restart = rng.below(4);
     for step in 0..horizon {
         if step == restart {
@@ -108,70 +87,7 @@ fn run_workload(world: World, seed: u64, horizon: u64, workload: Workload) -> (W
         let mut news = pending.take().unwrap_or_else(|| heard(landing::Preparation::Idle, b""));
         news.released = world.release_restored_fault(LANDING);
         let decision = landings::step_landing_heard(&mut world, LANDING, 10_000 + step, news);
-        let next = &world.landing(LANDING).landing;
-        if let Some(search) = &next.round.search {
-            if prior.round.search.is_none() {
-                probed.clear();
-                search_round = next.preparation;
-                let n = prior
-                    .members
-                    .iter()
-                    .filter(|m| m.left.is_none() && m.landed.is_none() && m.candidate.is_some())
-                    .count();
-                max_probes = usize::BITS - n.saturating_sub(1).leading_zeros();
-            }
-            if let Some(member) = landing::probe(next) {
-                let prefix = next.members[usize::from(member)].candidate.expect("probed prefix");
-                if !probed.contains(&prefix) {
-                    probed.push(prefix);
-                }
-            }
-            assert_eq!(search_round, next.preparation);
-            assert!(
-                probed.len() <= usize::try_from(max_probes).expect("probe count"),
-                "seed {seed}: logarithmic probes"
-            );
-            for (index, (old, new)) in prior.members.iter().zip(&next.members).enumerate() {
-                if old.landed.is_none() && new.landed.is_some() {
-                    assert!(index < usize::from(search.red), "seed {seed}: no red suffix lands");
-                }
-                if matches!(new.left, Some(landing::Leave::Blamed { .. })) && old.left.is_none() {
-                    let first = prior
-                        .members
-                        .iter()
-                        .skip(usize::from(search.green))
-                        .find(|m| m.left.is_none() && m.landed.is_none() && m.candidate.is_some())
-                        .expect("unit above green");
-                    assert_eq!(new.unit, first.unit, "seed {seed}: unit above green blamed");
-                }
-            }
-        }
-        if let landing::Decision::Merge { member, candidate } = decision {
-            let green = prior.members[usize::from(member)]
-                .gates
-                .iter()
-                .all(|gate| matches!(gate.proof, landing::Proof::Passed { .. }));
-            issued.push((member, candidate, before, green));
-        }
-        let others = world.take_other_merges();
-        let after = world.branch(b"main");
-        if after != before {
-            let matching: Vec<_> = issued
-                .iter()
-                .enumerate()
-                .filter(|(_, (_, candidate, _, _))| number(*candidate) == after)
-                .map(|(index, _)| index)
-                .collect();
-            let external: Vec<_> = others.iter().filter(|(_, from, to)| *from == before && *to == after).collect();
-            assert_eq!(matching.len() + external.len(), 1, "seed {seed}: main moved outside the turn");
-            if let Some(index) = matching.first() {
-                let (_, candidate, base, green) = issued.remove(*index);
-                assert!(green, "seed {seed}: proof before turn");
-                assert!(contains(&world, number(candidate), translate::commit(base)), "seed {seed}: fast-forward only");
-            } else {
-                assert_eq!(external.len(), 1, "seed {seed}: only the world's recorded other user may move main");
-            }
-        }
+        checks.step(&mut world, seed, LANDING, &prior, before, decision);
         if matches!(decision, landing::Decision::Prepare { .. }) {
             let selected: Vec<_> = (0..usize::try_from(count).expect("members"))
                 .filter(|index| conflict != Some(u64::try_from(*index).expect("index")))
@@ -202,17 +118,7 @@ fn run_workload(world: World, seed: u64, horizon: u64, workload: Workload) -> (W
     assert!(finished, "seed {seed}: every batch terminates: {:?}", world.landing(LANDING));
     let row = world.landing(LANDING).landing.clone();
     let main = world.branch(b"main");
-    for member in &row.members {
-        if let Some(prefix) = member.landed {
-            assert!(member.left.is_none(), "seed {seed}");
-            assert!(contains(&world, main, prefix), "seed {seed}: prefix in main");
-            if member.combined == Some(landing::Combine::Merge) {
-                assert!(contains(&world, main, member.head.expect("head")), "seed {seed}: merged head in main");
-            }
-        } else {
-            assert!(member.left.is_some(), "seed {seed}: unlanded member has a cause");
-        }
-    }
+    check_members(&world, seed, &row);
     landings::close_landing(&mut world, LANDING);
     for member in &row.members {
         assert!(!world.has_branch(&member.branch), "seed {seed}: prefix released");
@@ -231,5 +137,127 @@ fn run_workload(world: World, seed: u64, horizon: u64, workload: Workload) -> (W
 fn seeded_batches_keep_the_fast_forward_prefix_and_cleanup_invariants() {
     for seed in 1..65 {
         assert_eq!(run(seed), run(seed), "seed {seed} replays");
+    }
+}
+
+/// The same workload preparation for fault and party sweeps.
+pub(super) fn setup(mut world: World, count: u64, red: bool, conflict: Option<u64>, red_member: u64) -> World {
+    world = landings::turn_in(world);
+    world.batch(u16::try_from(count).expect("small batch"));
+    world.push_file(b"main", b"file", b"fixed");
+    for index in 0..count {
+        let branch = format!("temper/c{}", 51 + index);
+        world.external(
+            raw::Op::Git(raw::Git::Create { branch: branch.as_bytes().into(), commit: world.branch(b"main") }),
+            2,
+        );
+        let path = format!("member{}", if conflict == Some(index) { 0 } else { index });
+        world.push_file(branch.as_bytes(), path.as_bytes(), &index.to_be_bytes());
+        if red && index == red_member {
+            world.push_wrong_tree(branch.as_bytes(), b"file", b"broken");
+        }
+        landings::ready_change(&mut world, 51 + index, branch.as_bytes());
+    }
+    world
+}
+
+#[derive(Default)]
+pub(super) struct BatchChecks {
+    probed: Vec<api::Commit>,
+    search_round: u16,
+    max_probes: u32,
+    // Each proved candidate may explain one main move, including a late timed-out call.
+    issued: Vec<(u16, api::Commit, u64, bool)>,
+}
+impl BatchChecks {
+    pub fn step(
+        &mut self,
+        world: &mut World,
+        seed: u64,
+        task: u64,
+        prior: &landing::Landing,
+        before: u64,
+        decision: landing::Decision,
+    ) {
+        let next = &world.landing(task).landing;
+        if let Some(search) = &next.round.search {
+            if prior.round.search.is_none() {
+                self.probed.clear();
+                self.search_round = next.preparation;
+                let n = prior
+                    .members
+                    .iter()
+                    .filter(|m| m.left.is_none() && m.landed.is_none() && m.candidate.is_some())
+                    .count();
+                self.max_probes = usize::BITS - n.saturating_sub(1).leading_zeros();
+            }
+            if let Some(member) = landing::probe(next) {
+                let prefix = next.members[usize::from(member)].candidate.expect("probed prefix");
+                if !self.probed.contains(&prefix) {
+                    self.probed.push(prefix);
+                }
+            }
+            assert_eq!(self.search_round, next.preparation);
+            assert!(
+                self.probed.len() <= usize::try_from(self.max_probes).expect("probe count"),
+                "seed {seed}: logarithmic probes"
+            );
+            for (index, (old, new)) in prior.members.iter().zip(&next.members).enumerate() {
+                if old.landed.is_none() && new.landed.is_some() {
+                    assert!(index < usize::from(search.red), "seed {seed}: no red suffix lands");
+                }
+                if matches!(new.left, Some(landing::Leave::Blamed { .. })) && old.left.is_none() {
+                    let first = prior
+                        .members
+                        .iter()
+                        .skip(usize::from(search.green))
+                        .find(|m| m.left.is_none() && m.landed.is_none() && m.candidate.is_some())
+                        .expect("unit above green");
+                    assert_eq!(new.unit, first.unit, "seed {seed}: unit above green blamed");
+                }
+            }
+        }
+        if let landing::Decision::Merge { member, candidate } = decision {
+            let green = prior.members[usize::from(member)]
+                .gates
+                .iter()
+                .all(|gate| matches!(gate.proof, landing::Proof::Passed { .. }));
+            self.issued.push((member, candidate, before, green));
+        }
+        let others = world.take_other_merges();
+        let after = world.branch(b"main");
+        if after != before {
+            let matching: Vec<_> = self
+                .issued
+                .iter()
+                .enumerate()
+                .filter(|(_, (_, candidate, _, _))| number(*candidate) == after)
+                .map(|(index, _)| index)
+                .collect();
+            let external: Vec<_> = others.iter().filter(|(_, from, to)| *from == before && *to == after).collect();
+            assert_eq!(matching.len() + external.len(), 1, "seed {seed}: main moved outside the turn");
+            if let Some(index) = matching.first() {
+                let (_, candidate, base, green) = self.issued.remove(*index);
+                assert!(green, "seed {seed}: proof before turn");
+                assert!(contains(world, number(candidate), translate::commit(base)), "seed {seed}: fast-forward only");
+            } else {
+                assert_eq!(external.len(), 1, "seed {seed}: only the world's recorded other user may move main");
+            }
+        }
+    }
+}
+
+pub(super) fn check_members(world: &World, seed: u64, row: &landing::Landing) {
+    let main = world.branch(b"main");
+    for member in &row.members {
+        if let Some(prefix) = member.landed {
+            assert!(member.left.is_none(), "seed {seed}");
+            assert!(contains(world, main, prefix), "seed {seed}: prefix in main");
+            if member.combined == Some(landing::Combine::Merge) {
+                assert!(contains(world, main, member.head.expect("head")), "seed {seed}: merged head in main");
+            }
+        } else {
+            assert!(member.left.is_some(), "seed {seed}: unlanded member has a cause");
+        }
     }
 }

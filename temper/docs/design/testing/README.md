@@ -9,7 +9,8 @@ fakes (`README.md`, section 3 and `fakes.md`), its scenarios, referee and its ca
 (`scenarios.md`, section 1), what its worlds check beyond the strategy (`checks.md`; the
 engine's, `engine-checks.md`; blame and tries for gates, `blame.md`; the worker's
 waits, disk and faults, `worker.md`), where the box's own checks run
-(`box/README.md`), the restarts and stops they inject (`restarts.md`), the
+(`box/README.md`) and the shells' (`shells.md`), the restarts and stops they inject (`restarts.md`),
+the workloads they draw from the seed and the sweeps that mix every failure (`workloads.md`), the
 shipped settings checked against themselves (`settings-tests.md`), every commit's store
 checked against a start (`store-check.md`), its
 layout (`README.md`, section 5), its tools and fixtures as binaries (`tools.md`), what
@@ -115,9 +116,11 @@ Moved to [`scenarios.md`](scenarios.md), section 1.
 ```
 crates/*/src/tests.rs               step tests
 tests/codecs                        temper-codecs-world: the generated codecs and the foreign documents' decoders
-bin/temper-box/tests/domain          step and domain checks over values: profiles composed in memory and admitted, the kit's harness checks, scripted openings and client-tool reads (box/README.md, 2)
+bin/temper-box/tests/domain          step and domain checks over values: profiles composed in memory and admitted, the kit's harness checks, the relay's framing, the landing kit's decisions, scripted openings and client-tool reads (box/README.md, 2)
+bin/temper-box/tests/system          the live profiles' settings through the client's world joined to the engine (box/README.md, 2.7)
 bin/temper-box/tests/suite           what only real files, sockets, locks, children and shipped wiring show (box/README.md, 4)
-crates/temper-forge-setup-shell/tests/step  process-boundary checks over committed source and sample calls; suite keeps real files, locks, commands and TLS peers
+crates/temper-box-shell/tests/simulated  temper-box fake's hosts on skein's simulated kernel with their real peers (box/README.md, 2.4)
+crates/temper-forge-setup-shell/tests/step  process-boundary checks over committed source and sample calls, and preparation, private files, locks and commands' captures over supplied facts (shells.md, 2.1); suite keeps TLS fetch, a child's lock, a real child and its deadline (shells.md, 4)
 bin/temper-box/tests/process.rs      owned Forgejo integration and OS process boundaries (2.6); nextest profile process-temper
 bin/temper-box/tests/proof_live.rs   B0's offline driver proof, its twin's walk (2.6, 2.7), nextest profile process-temper; scripts/proof-live.sh rung-b0-offline runs it
 testing/temper-box-kit              what temper-box's test binaries share, compiled once for them all (tools/crates/design.md, 3.2): the stories' processes, forges, people and fixtures
@@ -141,6 +144,8 @@ testing/temper-agent-fixtures       the agents' configuration as the worker's wr
 testing/temper-landing-fixtures     a project's landing settings, typed, for the engine's and client's worlds
 testing/temper-engine-inspect       the engine's inspection adapter, read by its worlds alone (engine-checks.md, 2)
 testing/temper-blame                the check of blame and tries for gates, over a world's fault ledger (blame.md)
+testing/temper-faults               the fault vocabularies every world and sweep names (restarts.md, 2; workloads.md, 2)
+testing/temper-workload             the workload drawn from the seed, the parties' acts and a run's outcome (workloads.md, 3)
 tests/<component>/<child>           a child domain's world, temper-<component>-<child>-world
 tests/<component>/domain            a component's world: the engine's, the worker's
 tests/engine/forge                  the forge connector's world

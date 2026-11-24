@@ -180,6 +180,7 @@ GoalReport: ceilings encoded=524 decoded=512; at_most(3) encoded=15 decoded=3
 GroupFailed: ceilings encoded=260 decoded=256; at_most(3) encoded=7 decoded=3
 HandFinding: ceilings encoded=248 decoded=232; at_most(3) encoded=22 decoded=6
 HeldFaults: ceilings encoded=4 decoded=0; at_most(3) encoded=4 decoded=0
+HeldRead: ceilings encoded=260 decoded=256; at_most(3) encoded=7 decoded=3
 HeldRecord: ceilings encoded=2 decoded=0; at_most(3) encoded=2 decoded=0
 HeldTimeout: ceilings encoded=12 decoded=0; at_most(3) encoded=12 decoded=0
 HistoryAfter: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
@@ -265,12 +266,12 @@ Kinds: ceilings encoded=9 decoded=0; at_most(3) encoded=9 decoded=0
 Landed: ceilings encoded=32 decoded=0; at_most(3) encoded=32 decoded=0
 LandedDraft: ceilings encoded=4421 decoded=4360; at_most(3) encoded=79 decoded=18
 LandingExact: ceilings encoded=4100 decoded=4096; at_most(3) encoded=7 decoded=3
-LandingHold: ceilings encoded=13 decoded=0; at_most(3) encoded=13 decoded=0
+LandingHold: ceilings encoded=261 decoded=256; at_most(3) encoded=13 decoded=3
 LandingLast: ceilings encoded=4101 decoded=4096; at_most(3) encoded=8 decoded=3
 LandingLeave: ceilings encoded=75 decoded=0; at_most(3) encoded=75 decoded=0
 LandingLine: ceilings encoded=19859 decoded=19904; at_most(3) encoded=201 decoded=186
 LandingOpen: ceilings encoded=4100 decoded=4096; at_most(3) encoded=7 decoded=3
-LandingPanel: ceilings encoded=304808 decoded=312448; at_most(3) encoded=2183 decoded=2949
+LandingPanel: ceilings encoded=305056 decoded=312704; at_most(3) encoded=2183 decoded=2952
 LandingPattern: ceilings encoded=69705 decoded=69888; at_most(3) encoded=33 decoded=60
 LandingPhase: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
 LandingRound: ceilings encoded=107642 decoded=109120; at_most(3) encoded=446 decoded=558

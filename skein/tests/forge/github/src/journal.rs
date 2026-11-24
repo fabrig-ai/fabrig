@@ -1,11 +1,7 @@
 //! Write-ahead intentions contain identifiers and times, never token values.
-use crate::Result;
+use crate::{Result, directory::Directory};
 use skein_forge_conformance::write::{self, Secrets};
-use std::{
-    fs::{self, OpenOptions},
-    io::{Read, Write},
-    path::{Path, PathBuf},
-};
+const NAME: &str = "made.txt";
 #[derive(Clone)]
 pub enum Made {
     Branch { repo: String, name: String },
@@ -30,68 +26,56 @@ impl Made {
     }
 }
 pub struct Journal {
-    path: PathBuf,
     pub pending: Vec<(usize, Made)>,
     next: usize,
     pub numbers: std::collections::BTreeMap<usize, u64>,
 }
 impl Journal {
-    pub fn create(out: &Path, live: bool, secrets: &Secrets) -> Result<Self> {
-        fs::create_dir_all(out)?;
-        let path = out.join("made.txt");
+    pub fn create(out: &mut Directory, live: bool, secrets: &Secrets) -> Result<Self> {
+        out.create_dir_all("")?;
         let bytes = if live { b"github-conformance-v1\tlive\n".as_slice() } else { b"github-conformance-v1\tfake\n" };
         write::check("journal", bytes, b"", secrets)?;
-        let mut file = OpenOptions::new().write(true).create_new(true).open(&path)?;
-        file.write_all(bytes)?;
-        file.sync_all()?;
-        fs::File::open(out)?.sync_all()?;
-        Ok(Self { path, pending: vec![], next: 0, numbers: std::collections::BTreeMap::new() })
+        out.create_synced(NAME, bytes)?;
+        Ok(Self { pending: vec![], next: 0, numbers: std::collections::BTreeMap::new() })
     }
-    fn append(&self, line: &str, secrets: &Secrets) -> Result<()> {
+    fn append(out: &mut Directory, line: &str, secrets: &Secrets) -> Result<()> {
         write::check("journal", line.as_bytes(), b"", secrets)?;
-        let mut file = OpenOptions::new().append(true).open(&self.path)?;
-        writeln!(file, "{line}")?;
-        file.sync_all()?;
-        Ok(())
+        out.append_synced(NAME, line)
     }
-    pub fn before(&mut self, made: Made, secrets: &Secrets) -> Result<usize> {
+    pub fn before(&mut self, out: &mut Directory, made: Made, secrets: &Secrets) -> Result<usize> {
         let row = made.line();
         if row.contains(['\r', '\n']) {
             return Err("invalid journal field".into());
         }
         self.next += 1;
-        self.append(&format!("make\t{}\t{row}", self.next), secrets)?;
+        Self::append(out, &format!("make\t{}\t{row}", self.next), secrets)?;
         self.pending.push((self.next, made));
         Ok(self.next)
     }
-    pub(crate) fn created(&mut self, id: usize, number: u64, secrets: &Secrets) -> Result<()> {
-        self.append(&format!("number\t{id}\t{number}"), secrets)?;
+    pub(crate) fn created(&mut self, out: &mut Directory, id: usize, number: u64, secrets: &Secrets) -> Result<()> {
+        Self::append(out, &format!("number\t{id}\t{number}"), secrets)?;
         self.numbers.insert(id, number);
         Ok(())
     }
-    pub(crate) fn cancel(&mut self, id: usize, secrets: &Secrets) -> Result<()> {
-        self.append(&format!("cancel\t{id}"), secrets)?;
+    pub(crate) fn cancel(&mut self, out: &mut Directory, id: usize, secrets: &Secrets) -> Result<()> {
+        Self::append(out, &format!("cancel\t{id}"), secrets)?;
         self.pending.retain(|(key, _)| *key != id);
         Ok(())
     }
-    pub(crate) fn done(&mut self, id: usize, secrets: &Secrets) -> Result<()> {
-        self.append(&format!("done\t{id}"), secrets)?;
+    pub(crate) fn done(&mut self, out: &mut Directory, id: usize, secrets: &Secrets) -> Result<()> {
+        Self::append(out, &format!("done\t{id}"), secrets)?;
         self.pending.retain(|(key, _)| *key != id);
         Ok(())
     }
-    pub fn load(out: &Path) -> Result<(Self, bool)> {
-        let path = out.join("made.txt");
-        let mut data = vec![];
-        fs::File::open(&path)?.take(1_048_577).read_to_end(&mut data)?;
+    pub fn load(out: &mut Directory) -> Result<(Self, bool)> {
+        let data = out.read_bounded(NAME, 1_048_577)?;
         if data.len() > 1_048_576 {
             return Err("journal exceeds its bound".into());
         }
         // Only complete, synced intentions can have caused an external change.
         let complete = data.iter().rposition(|byte| *byte == b'\n').ok_or("journal header incomplete")? + 1;
         if complete < data.len() {
-            let file = OpenOptions::new().write(true).open(&path)?;
-            file.set_len(u64::try_from(complete)?)?;
-            file.sync_all()?;
+            out.truncate_synced(NAME, u64::try_from(complete)?)?;
         }
         let text = std::str::from_utf8(&data[..complete])?;
         let mut lines = text.lines();
@@ -100,7 +84,7 @@ impl Journal {
             Some("github-conformance-v1\tfake") => false,
             _ => return Err("unknown journal format".into()),
         };
-        let mut result = Self { path, pending: vec![], next: 0, numbers: std::collections::BTreeMap::new() };
+        let mut result = Self { pending: vec![], next: 0, numbers: std::collections::BTreeMap::new() };
         for line in lines {
             let parts: Vec<_> = line.split('\t').collect();
             match parts.as_slice() {

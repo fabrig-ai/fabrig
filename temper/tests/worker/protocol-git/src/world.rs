@@ -195,7 +195,7 @@ impl World {
             self.mark_trash(scenario);
             referee.check(&self.below);
             if let Some(event) = self.below.out.events.pop() {
-                referee.observe(event, &self.below, fixtures::OWNER);
+                referee.observe(event, &self.below, fixtures::OWNER, &scenario.expected);
             }
             if !stopped
                 && match scenario.stop {
@@ -239,7 +239,7 @@ impl World {
         self.below.drain();
         referee.check(&self.below);
         if let Some(event) = self.below.out.events.pop() {
-            referee.observe(event, &self.below, fixtures::OWNER);
+            referee.observe(event, &self.below, fixtures::OWNER, &scenario.expected);
         }
         self.check_trash()?;
         Ok(Outcome {

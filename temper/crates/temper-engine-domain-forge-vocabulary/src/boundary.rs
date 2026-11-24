@@ -1577,9 +1577,24 @@ pub enum LandingRefusal {
     Repository,
     Way,
 }
+/// Engine log for a run of fresh-read waits (domain/landing-waits.md, 4).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct LandingReadNote {
+    pub task: u64,
+    pub round: u16,
+    pub reading: Box<[u8]>,
+    pub kind: LandingReadNoteKind,
+}
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum LandingReadNoteKind {
+    Started { why: Box<[u8]> },
+    Read { elapsed: skein_lib::Duration },
+    Held { elapsed: skein_lib::Duration, why: Box<[u8]> },
+}
 /// Family 23, committed together with its task's decision (domain/landing.md, 12).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct LandingRow {
+    pub read_hold: Option<Box<[u8]>>,
     pub last_event: Option<skein_lib::Wall>,
     pub turn_since: Option<skein_lib::Wall>,
     pub waiting: Option<landing::Awaited>,
@@ -3310,6 +3325,7 @@ pub enum Request {
         request: Token,
         carried: jig_domain_core_vocabulary::Carried,
     },
+    LandingRead(LandingReadNote),
     /// A taskless landing ended in Link (domain/landing-forming.md, 4).
     LandingUnmade {
         task: u64,

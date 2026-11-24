@@ -17,6 +17,28 @@ fn read_configuration(startup: &RefCell<Startup>, dirs: &crate::Directories) -> 
 }
 
 #[test]
+fn the_box_reads_its_stdout_and_term() {
+    use temper_box_machine::terminal::LinkForm::{Bare, Osc8};
+
+    for (row, terminal, entries, expected) in [
+        ("terminal", true, &["TERM=xterm-256color"][..], Osc8),
+        ("no TERM", true, &["HOME=/h", "TERMCAP=dumb"], Osc8),
+        ("dumb terminal", true, &["TERM=dumb"], Bare),
+        ("file", false, &["TERM=xterm-256color"], Bare),
+        ("/dev/null", false, &["TERM=xterm-256color"], Bare),
+    ] {
+        let environment: Vec<_> = entries
+            .iter()
+            .map(|entry| {
+                let (name, value) = entry.split_once('=').expect("environment pair");
+                (Box::from(name.as_bytes()), Box::from(value.as_bytes()))
+            })
+            .collect();
+        assert_eq!(link_form_with(terminal, &environment), expected, "{row}");
+    }
+}
+
+#[test]
 fn absent_or_empty_configuration_is_initialized_and_then_kept() {
     let root = Path::new("/fixture");
     let dirs = directories(root);
@@ -97,4 +119,35 @@ fn a_failed_reread_closes_the_listeners_held_by_init() {
         configuration_read_with(config, Ok(None), || startup.init(true, None), || Err(why.into()), |fds| closed = fds);
     assert_eq!(result.err().as_deref(), Some(why));
     assert_eq!(closed, [11, 12].map(Fd::new));
+}
+
+#[test]
+fn first_configuration_without_openssl_admits_serve_and_supplies_one_warning() {
+    let dirs = directories(Path::new("/fixture"));
+    // No executable on the fixture PATH; its key maker panics if reached.
+    let startup = RefCell::new(Startup::new(&[], true));
+    let exit = run_with(read_configuration(&startup, &dirs), |bytes, _, opening| {
+        let (steps, _) = configuration_steps(&dirs, bytes, Box::new([]))?;
+        assert!(steps.always.iter().any(|step| step.name() == b"serve"), "serve is admitted");
+        let expected = format!(
+            "First run: no sign-in through temper: openssl is not on PATH\nFirst run: wrote the configuration, /fixture/config/{}\n",
+            temper_config_shell::FILE
+        );
+        assert_eq!(opening.log_lines.as_ref(), [expected.into_bytes().into_boxed_slice()]);
+        Ok(Exit::Code(0))
+    });
+    assert_eq!(exit, Ok(Exit::Code(0)));
+}
+
+#[test]
+fn front_refuses_a_fixed_link_member_before_starting_steps() {
+    let dirs = directories(Path::new("/fixture"));
+    let mut document: serde_json::Value =
+        serde_json::from_slice(&temper_config_shell::init_document(false)).expect("init's start document");
+    document["engine"]["clients"]["link"] = false.into();
+    let bytes = serde_json::to_vec(&document).expect("start JSON");
+    assert_eq!(
+        configuration_steps(&dirs, &bytes, Box::new([])).expect_err("no steps built"),
+        "engine.clients.link: moved: temper fixes the clients' heartbeat, printed link and approval\n"
+    );
 }

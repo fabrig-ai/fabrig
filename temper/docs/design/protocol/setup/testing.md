@@ -75,23 +75,25 @@ relies on.
   and digests: each pin's URL and digest for each architecture, and
   another architecture refused; another status or a redirect refused;
   a body past `setup.fetch_bytes` refused, and one past its size; the
-  lines in order for an answer with a size and for one without. With
-  its host, temper-fetch-shell's, in temper-forge-setup-shell's tests,
-  which hold its local file server over TLS, its root skein's test root named
-  by `SSL_CERT_FILE`: a wrong
-  digest, its part file removed and its refusal naming the URL and both
-  digests; the right one, made 0o755 and renamed; a file already there
-  hashed, nothing asked when it matches, and a mismatch refused, naming
-  its path, the file left; a part file left by a fetch cut short
-  written again; the lines reaching the host's writer in order, with a
-  size and without, none for a file already there.
+  lines in order for an answer with a size and for one without. Its
+  host, temper-fetch-shell's, in that crate's step tests over the
+  cache's effects and scripted answers (`../../testing/shells.md`, 3.4):
+  a wrong digest, its part file removed and its refusal naming the URL
+  and both digests; the right one, made 0o755 and renamed; a file
+  already there hashed, nothing asked when it matches, and a mismatch
+  refused, naming its path, the file left; a part file left by a fetch
+  cut short written again; the lines reaching the host's writer in
+  order, with a size and without, none for a file already there; each
+  request's head. temper-forge-setup-shell's suite keeps its local file
+  server over TLS, its root skein's test root named by `SSL_CERT_FILE`:
+  the right digest, a refused root, and a bottle's two hops with the
+  token on the first alone (`../../testing/shells.md`, 4).
 - **Claude Code's pin and fetch** (`owned.md`, 6): in temper-fetch, each
   platform's digest and size against `owned.md`, 6's table, and each pin's URL. At
-  its host, temper-fetch-shell's, in the same suite on the same file
-  server: a missing build
+  its host, temper-fetch-shell's, in the same step tests: a missing build
   fetched once, then found with no request; a wrong digest refused and nothing left; a file
-  of another size refused and left; two commands at once making one
-  request. No test reaches `downloads.claude.ai` (`README.md`, section 9).
+  of another size refused and left. Two commands at once making one
+  request stay on the TLS file server. No test reaches `downloads.claude.ai` (`README.md`, section 9).
 - **Claude Code's offer and launcher** (`owned.md`, 6, `init.md`, 2, 3), on the shipped
   binary with an empty environment, in `bin/temper-box/tests/suite/startup.rs`:
   a fresh box's Model step reads ChatGPT's and Claude's cards, its

@@ -914,6 +914,34 @@ fn start_refusals_name_every_phase_and_the_refused_project() {
 }
 
 #[test]
+fn a_landings_read_run_names_its_start_end_and_hold() {
+    use temper_engine_domain_forge::{LandingReadNote, LandingReadNoteKind as Kind};
+    use temper_engine_service::Note;
+    const READING: &str = "commits after 0404040404040404040404040404040404040404 up to 0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b, page 2, for change 51";
+    const WHY: &str = "past forge.client.rows (8): at least 9 rows";
+    let elapsed = skein_lib::Duration::from_secs(37 * 60 + 12);
+    for (kind, expected) in [
+        (
+            Kind::Started { why: WHY.as_bytes().into() },
+            format!("temper-box serve: landing 7 round 2 waits for a fresh read: {READING}: {WHY}\n"),
+        ),
+        (
+            Kind::Read { elapsed },
+            format!("temper-box serve: landing 7 round 2 has its fresh read after 37m 12s: {READING}\n"),
+        ),
+        (
+            Kind::Held { elapsed, why: WHY.as_bytes().into() },
+            format!(
+                "temper-box serve: warning: landing 7 round 2 held after 37m 12s waiting for a fresh read: {READING}: {WHY}\n"
+            ),
+        ),
+    ] {
+        let note = LandingReadNote { task: 7, round: 2, reading: READING.as_bytes().into(), kind };
+        assert_eq!(note_line("temper-box", Note::LandingRead(note)), expected);
+    }
+}
+
+#[test]
 fn unmade_landing_and_dropped_hold_warnings_name_the_repaired_rows() {
     use temper_engine_service::Note;
     assert_eq!(

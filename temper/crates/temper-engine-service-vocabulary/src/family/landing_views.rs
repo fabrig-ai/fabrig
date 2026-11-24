@@ -1,5 +1,6 @@
 //! Landing view records (temper/docs/design/domain/landing.md, 14).
 use super::{forge, w};
+use alloc::boxed::Box;
 use skein_lib::List;
 use temper_client_protocol_wire::v1::Record;
 use temper_engine_domain_forge_change::Status;
@@ -162,7 +163,11 @@ fn status(value: Status) -> w::Ci {
         Status::Failed => w::Ci::Failed,
     }
 }
-pub(super) fn hold(value: &forge::LandingPhase, limits: &w::Limits) -> Option<w::LandingHold> {
+pub(super) fn hold(
+    value: &forge::LandingPhase,
+    read_hold: Option<Box<[u8]>>,
+    limits: &w::Limits,
+) -> Option<w::LandingHold> {
     let value = {
         let forge::LandingPhase::Held { why, .. } = value else { return None };
         Some(match *why {
@@ -173,6 +178,7 @@ pub(super) fn hold(value: &forge::LandingPhase, limits: &w::Limits) -> Option<w:
                 w::LandingHold::Timeout(w::HeldTimeout { member, gate, run })
             }
             forge::LandingHold::Turn => w::LandingHold::Turn,
+            forge::LandingHold::Read => w::LandingHold::Read(w::HeldRead { reason: read_hold? }),
         })
     }?;
     value.measure(limits).ok()?;
