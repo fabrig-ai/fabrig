@@ -86,6 +86,14 @@ impl Mmdebstrap {
             exited: false,
         }
     }
+    /// Replay a captured failure over the child's pipes without changing the files apt left.
+    #[must_use]
+    pub fn with_recorded_failure(mut self, printed: Printed) -> Self {
+        assert_ne!(printed.exit, 0, "a captured failure");
+        assert_eq!(self.printed.exit, printed.exit, "the fake also failed");
+        self.printed = printed;
+        self
+    }
     fn exit(&mut self, machine: &mut Machine, exit: Exit) -> Progress {
         machine.call(self.child, Op::Exit { exit }).expect("child exits");
         self.exited = true;
