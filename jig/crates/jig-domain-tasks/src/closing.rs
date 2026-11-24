@@ -350,6 +350,7 @@ fn end_task(domain: &mut Domain, env: &Env<Limits>, number: u64, ending: Ending,
     ended.questions = Box::new([]);
     ended.unrecorded = Box::new([]);
     let id = domain.names.remove(&number).expect("ending name exists");
+    crate::escalation::forget_holder(domain, env, &ended);
     crate::holds::release(domain, number);
     match ended.executor {
         Executor::Agent { .. } => domain.live_agents = domain.live_agents.checked_sub(1).expect("live agent removed"),

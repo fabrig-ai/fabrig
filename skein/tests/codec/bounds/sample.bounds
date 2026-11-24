@@ -1,0 +1,6 @@
+Choice: ceilings encoded=64 decoded=88; at_most(3) encoded=55 decoded=79
+Effect: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
+Field: ceilings encoded=16 decoded=8; at_most(3) encoded=14 decoded=6
+Marker: ceilings encoded=0 decoded=0; at_most(3) encoded=0 decoded=0
+Report: ceilings encoded=63 decoded=88; at_most(3) encoded=54 decoded=79
+family: ceilings encoded=64 decoded=88; at_most(3) encoded=55 decoded=79

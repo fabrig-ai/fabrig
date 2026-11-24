@@ -67,7 +67,7 @@ pub mod wire {
 
         #[test]
         fn host_tool_input_path_names_the_schema_field() {
-            let name = crate::v5::name(crate::v5::paths::HOST_TOOL_INPUT).expect("host tool input path");
+            let name = crate::v5::paths::HOST_TOOL_INPUT.name();
             assert_eq!(name, "HostTool.input");
         }
 

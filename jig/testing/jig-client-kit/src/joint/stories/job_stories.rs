@@ -16,8 +16,7 @@ fn result(id: &[u8], value: source::Outcome) -> source::Block {
 }
 
 fn turn() -> Box<[u8]> {
-    let limits = source::CEILINGS;
-    let (ended, running) = job_outcomes(&limits);
+    let (ended, running) = job_outcomes();
     let messages = crate::test::list([
         source::Message {
             role: source::Role::Assistant,
@@ -90,7 +89,7 @@ fn a_job_reads_as_its_calls_outcome() {
     assert!(outcome.judged.0 > 0);
 }
 
-fn job_outcomes(_limits: &source::Limits) -> (source::Outcome, source::Outcome) {
+fn job_outcomes() -> (source::Outcome, source::Outcome) {
     let exit = source::Exit::Code(source::ExitCode { code: 0 });
     let end = source::JobEnd::Ended(source::JobExit { exit });
     let ended = source::Outcome::Job(source::JobRead {

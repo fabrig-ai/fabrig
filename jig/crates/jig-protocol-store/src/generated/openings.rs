@@ -3,11 +3,10 @@
 
 use alloc::boxed::Box;
 
-// Maps line 4: OpenedWire.
-pub fn opened_wire_to_record(value: &crate::OpenedWire, _context: &()) -> Result<crate::openings_v1::OpenedWire, crate::openings_v1::Problem> {
+pub fn opened_wire_to_record(value: &crate::OpenedWire) -> Result<crate::openings_v1::OpenedWire, crate::openings_v1::Problem> {
     let crate::OpenedWire { name: field_000000, lowest: field_000001, layouts: field_000002 } = value;
     Ok(crate::openings_v1::OpenedWire {
-        name: match skein_codec::convert::text_to_record(field_000000) { Ok(value) => value, Err(reason) => return Err(crate::openings_v1::paths::OPENED_WIRE_NAME.problem(reason)) },
+        name: skein_codec::convert::text_to_record(field_000000),
         lowest: *field_000001,
         layouts: {
             let source = field_000002;
@@ -15,15 +14,14 @@ pub fn opened_wire_to_record(value: &crate::OpenedWire, _context: &()) -> Result
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.as_ref() {
                 let converted = *item;
-                if translated.push(converted).is_err() { return Err(crate::openings_v1::paths::OPENED_WIRE_LAYOUTS.problem(skein_codec::Reason::Bound)); }
+                assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             translated
         }
     })
 }
 
-// Maps line 4: OpenedWire.
-pub fn opened_wire_to_domain(record: crate::openings_v1::OpenedWire, _context: &()) -> Result<crate::OpenedWire, crate::openings_v1::Problem> {
+pub fn opened_wire_to_domain(record: crate::openings_v1::OpenedWire) -> Result<crate::OpenedWire, crate::openings_v1::Problem> {
     let crate::openings_v1::OpenedWire { name: field_000000, lowest: field_000001, layouts: field_000002 } = record;
     Ok(crate::OpenedWire {
         name: match skein_codec::convert::text_to_domain(field_000000) { Ok(value) => value, Err(reason) => return Err(crate::openings_v1::paths::OPENED_WIRE_NAME.problem(reason)) },
@@ -34,43 +32,42 @@ pub fn opened_wire_to_domain(record: crate::openings_v1::OpenedWire, _context: &
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.into_boxed() {
                 let converted = item;
-                if translated.push(converted).is_err() { return Err(crate::openings_v1::paths::OPENED_WIRE_LAYOUTS.problem(skein_codec::Reason::Bound)); }
+                assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             Box::from(translated)
         }
     })
 }
 
-// Maps line 5: OpenedTerm.
-pub fn opened_term_to_record(value: &crate::OpenedTerm, _context: &()) -> Result<crate::openings_v1::OpenedTerm, crate::openings_v1::Problem> {
+#[must_use]
+pub fn opened_term_to_record(value: &crate::OpenedTerm) -> crate::openings_v1::OpenedTerm {
     let crate::OpenedTerm { kind: field_000000, largest: field_000001 } = value;
-    Ok(crate::openings_v1::OpenedTerm {
+    crate::openings_v1::OpenedTerm {
         kind: *field_000000,
         largest: *field_000001
-    })
+    }
 }
 
-// Maps line 5: OpenedTerm.
-pub fn opened_term_to_domain(record: crate::openings_v1::OpenedTerm, _context: &()) -> Result<crate::OpenedTerm, crate::openings_v1::Problem> {
+#[must_use]
+pub fn opened_term_to_domain(record: crate::openings_v1::OpenedTerm) -> crate::OpenedTerm {
     let crate::openings_v1::OpenedTerm { kind: field_000000, largest: field_000001 } = record;
-    Ok(crate::OpenedTerm {
+    crate::OpenedTerm {
         kind: field_000000,
         largest: field_000001
-    })
+    }
 }
 
-// Maps line 6: WorkerOpening.
-pub fn worker_opening_to_record(value: &crate::WorkerOpening, context: &()) -> Result<crate::openings_v1::WorkerOpening, crate::openings_v1::Problem> {
+pub fn worker_opening_to_record(value: &crate::WorkerOpening) -> Result<crate::openings_v1::WorkerOpening, crate::openings_v1::Problem> {
     let crate::WorkerOpening { worker: field_000000, wires: field_000001, output: field_000002, terms: field_000003, at: field_000004 } = value;
     Ok(crate::openings_v1::WorkerOpening {
-        worker: match skein_codec::convert::text_to_record(field_000000) { Ok(value) => value, Err(reason) => return Err(crate::openings_v1::paths::WORKER_OPENING_WORKER.problem(reason)) },
+        worker: skein_codec::convert::text_to_record(field_000000),
         wires: {
             let source = field_000001;
             let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(crate::openings_v1::paths::WORKER_OPENING_WIRES.problem(skein_codec::Reason::Bound)) };
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.as_ref() {
-                let converted = opened_wire_to_record(item, context)?;
-                if translated.push(converted).is_err() { return Err(crate::openings_v1::paths::WORKER_OPENING_WIRES.problem(skein_codec::Reason::Bound)); }
+                let converted = opened_wire_to_record(item)?;
+                assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             translated
         },
@@ -80,17 +77,16 @@ pub fn worker_opening_to_record(value: &crate::WorkerOpening, context: &()) -> R
             let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(crate::openings_v1::paths::WORKER_OPENING_TERMS.problem(skein_codec::Reason::Bound)) };
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.as_ref() {
-                let converted = opened_term_to_record(item, context)?;
-                if translated.push(converted).is_err() { return Err(crate::openings_v1::paths::WORKER_OPENING_TERMS.problem(skein_codec::Reason::Bound)); }
+                let converted = opened_term_to_record(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             translated
         },
-        at: match skein_codec::convert::wall_to_record(field_000004) { Ok(value) => value, Err(reason) => return Err(crate::openings_v1::paths::WORKER_OPENING_AT.problem(reason)) }
+        at: skein_codec::convert::wall_to_record(field_000004)
     })
 }
 
-// Maps line 6: WorkerOpening.
-pub fn worker_opening_to_domain(record: crate::openings_v1::WorkerOpening, context: &()) -> Result<crate::WorkerOpening, crate::openings_v1::Problem> {
+pub fn worker_opening_to_domain(record: crate::openings_v1::WorkerOpening) -> Result<crate::WorkerOpening, crate::openings_v1::Problem> {
     let crate::openings_v1::WorkerOpening { worker: field_000000, wires: field_000001, output: field_000002, terms: field_000003, at: field_000004 } = record;
     Ok(crate::WorkerOpening {
         worker: match skein_codec::convert::text_to_domain(field_000000) { Ok(value) => value, Err(reason) => return Err(crate::openings_v1::paths::WORKER_OPENING_WORKER.problem(reason)) },
@@ -99,8 +95,8 @@ pub fn worker_opening_to_domain(record: crate::openings_v1::WorkerOpening, conte
             let count = source.len();
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.into_boxed() {
-                let converted = opened_wire_to_domain(item, context)?;
-                if translated.push(converted).is_err() { return Err(crate::openings_v1::paths::WORKER_OPENING_WIRES.problem(skein_codec::Reason::Bound)); }
+                let converted = opened_wire_to_domain(item)?;
+                assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             Box::from(translated)
         },
@@ -110,12 +106,12 @@ pub fn worker_opening_to_domain(record: crate::openings_v1::WorkerOpening, conte
             let count = source.len();
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.into_boxed() {
-                let converted = opened_term_to_domain(item, context)?;
-                if translated.push(converted).is_err() { return Err(crate::openings_v1::paths::WORKER_OPENING_TERMS.problem(skein_codec::Reason::Bound)); }
+                let converted = opened_term_to_domain(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             Box::from(translated)
         },
-        at: match skein_codec::convert::wall_to_domain(field_000004) { Ok(value) => value, Err(reason) => return Err(crate::openings_v1::paths::WORKER_OPENING_AT.problem(reason)) }
+        at: skein_codec::convert::wall_to_domain(field_000004)
     })
 }
 

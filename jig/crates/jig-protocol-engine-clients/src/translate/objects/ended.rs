@@ -24,17 +24,17 @@ pub fn retained_amendment(
         addressed: match value.addressed {
             Some(item) => Some(w::AddressChange {
                 revision: w::Revision { value: item.revision },
-                address: chips::address(item.address, limits)?,
+                address: chips::address(item.address),
             }),
             None => None,
         },
         instructions: match &value.instructions {
-            Some(item) => Some(owner::text(item, limits)?),
+            Some(item) => Some(owner::text(item)),
             None => None,
         },
         release: value.release,
         spec: match &value.spec {
-            Some(item) => Some(owner::specification(item, limits)?),
+            Some(item) => Some(owner::specification(item)?),
             None => None,
         },
         authority: match &value.authority {
@@ -42,11 +42,11 @@ pub fn retained_amendment(
             None => None,
         },
         wake: match value.wake {
-            Some(item) => Some(owner::wake(item, limits)?),
+            Some(item) => Some(owner::wake(item)),
             None => None,
         },
         dependencies,
-        reason: owner::text(&value.reason, limits)?,
+        reason: owner::text(&value.reason),
         cut: value.cut,
     })
 }
@@ -60,7 +60,7 @@ pub fn retained_action(
             w::RetainedAction::Settings(w::RetainedActionSettings {
                 projects: projects.clone(),
                 against: *against,
-                items: super::super::settings::item_heads(items, limits)?,
+                items: super::super::settings::item_heads(items),
                 made: *made,
             })
         }
@@ -79,7 +79,7 @@ pub fn retained_action(
         }
         d::RetainedAction::Effect { part, authority, attempt, completion, position, purpose } => {
             w::RetainedAction::Effect(w::RetainedActionEffect {
-                part: owner::part(part, limits)?,
+                part: owner::part(part),
                 authority: owner::authority(models, authority, limits)?,
                 attempt: *attempt,
                 completion: *completion,
@@ -89,7 +89,7 @@ pub fn retained_action(
         }
         d::RetainedAction::ProcedureEffect { part, authority, step, purpose } => {
             w::RetainedAction::ProcedureEffect(w::RetainedActionProcedureEffect {
-                part: owner::part(part, limits)?,
+                part: owner::part(part),
                 authority: owner::authority(models, authority, limits)?,
                 step: *step,
                 purpose: *purpose,
@@ -112,7 +112,7 @@ pub fn proposal_history(
     limits: &w::Limits,
 ) -> Result<w::ProposalHistory, w::Problem> {
     Ok(w::ProposalHistory {
-        reason: owner::text(&value.reason, limits)?,
+        reason: owner::text(&value.reason),
         action: retained_action(models, &value.action, limits)?,
         number: value.number,
         proposer: value.proposer,
@@ -120,19 +120,17 @@ pub fn proposal_history(
         state: match &value.state {
             d::ProposalHistoryState::Pending(value) => {
                 w::ProposalHistoryState::Pending(w::ProposalHistoryStatePending {
-                    holder: super::proposals::holder(value.holder, limits)?,
+                    holder: super::proposals::holder(value.holder),
                     since: value.since.as_nanos(),
                 })
             }
             d::ProposalHistoryState::Accepted { by } => {
-                w::ProposalHistoryState::Accepted(w::ProposalHistoryStateAccepted {
-                    by: owner::requester(*by, limits)?,
-                })
+                w::ProposalHistoryState::Accepted(w::ProposalHistoryStateAccepted { by: owner::requester(*by) })
             }
             d::ProposalHistoryState::Rejected { by, reason } => {
                 w::ProposalHistoryState::Rejected(w::ProposalHistoryStateRejected {
-                    by: owner::requester(*by, limits)?,
-                    reason: owner::text(reason, limits)?,
+                    by: owner::requester(*by),
+                    reason: owner::text(reason),
                 })
             }
             d::ProposalHistoryState::Withdrawn => w::ProposalHistoryState::Withdrawn,
@@ -140,8 +138,8 @@ pub fn proposal_history(
     })
 }
 /// Retained lifecycle facts (client/domain/contract/reads.md, 1).
-pub fn attempt(value: &d::AttemptLine, limits: &w::Limits) -> Result<w::AttemptLine, w::Problem> {
-    Ok(w::AttemptLine {
+pub fn attempt(value: &d::AttemptLine) -> w::AttemptLine {
+    w::AttemptLine {
         task: value.task,
         attempt: value.attempt,
         claimed: match value.claimed {
@@ -157,21 +155,21 @@ pub fn attempt(value: &d::AttemptLine, limits: &w::Limits) -> Result<w::AttemptL
             None => None,
         },
         end: match value.end {
-            Some(end) => Some(super::super::activity::end(end, limits)?),
+            Some(end) => Some(super::super::activity::end(end)),
             None => None,
         },
         phases: value.phases,
-    })
+    }
 }
 pub fn hold(value: &d::HoldLine, limits: &w::Limits) -> Result<w::HoldLine, w::Problem> {
     Ok(w::HoldLine {
         task: value.task,
         position: value.position,
         at: value.at.as_nanos(),
-        before: chips::prior(value.before, limits)?,
-        why: chips::hold(value.why, limits)?,
+        before: chips::prior(value.before),
+        why: chips::hold(value.why),
         source: match &value.source {
-            Some(item) => Some(owner::part(item, limits)?),
+            Some(item) => Some(owner::part(item)),
             None => None,
         },
         ending: match &value.ending {
@@ -180,12 +178,10 @@ pub fn hold(value: &d::HoldLine, limits: &w::Limits) -> Result<w::HoldLine, w::P
         },
     })
 }
-#[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
 pub fn escalation_decision(
     value: &jig_domain_core_vocabulary::EscalationDecisionRecord,
-    _limits: &w::Limits,
-) -> Result<w::EscalationDecisionRecord, w::Problem> {
-    Ok(w::EscalationDecisionRecord {
+) -> w::EscalationDecisionRecord {
+    w::EscalationDecisionRecord {
         project: value.project,
         requester: value.requester,
         task: value.task,
@@ -199,16 +195,12 @@ pub fn escalation_decision(
                 w::EscalationDecision::Reject(w::EscalationDecisionReject { reason: bytes::copy_of(reason) })
             }
         },
-    })
+    }
 }
-pub fn proposal_decision(
-    value: jig_domain_core_vocabulary::ProposalDecisionRecord,
-    limits: &w::Limits,
-) -> Result<w::ProposalDecision, w::Problem> {
-    Ok(w::ProposalDecision {
+pub fn proposal_decision(value: jig_domain_core_vocabulary::ProposalDecisionRecord) -> w::ProposalDecision {
+    w::ProposalDecision {
         project: value.project,
-        proposer: task::proposal(&d::ProposalRef { proposer: value.proposer, number: value.proposal }, limits)?
-            .proposer,
+        proposer: task::proposal(&d::ProposalRef { proposer: value.proposer, number: value.proposal }).proposer,
         proposal: value.proposal,
         kind: super::proposals::kind(value.kind),
         by: value.by,
@@ -224,7 +216,7 @@ pub fn proposal_decision(
             Some(item) => Some(w::ProposalDecisionCreated { first: item.0, last: item.1 }),
             None => None,
         },
-    })
+    }
 }
 pub fn person_proposal(
     models: &[crate::Model],
@@ -245,11 +237,11 @@ pub fn person_proposal(
                 w::PersonProposalState::Pending(w::PersonProposalStatePending { since: since.as_nanos() })
             }
             t::PersonProposalState::Accepted { by } | t::PersonProposalState::SettingsAccepted { by, .. } => {
-                w::PersonProposalState::Accepted(w::PersonProposalStateAccepted { by: owner::requester(*by, limits)? })
+                w::PersonProposalState::Accepted(w::PersonProposalStateAccepted { by: owner::requester(*by) })
             }
             t::PersonProposalState::Rejected { by, reason, message, at } => {
                 w::PersonProposalState::Rejected(w::PersonProposalStateRejected {
-                    by: owner::requester(*by, limits)?,
+                    by: owner::requester(*by),
                     reason: bytes::copy_of(reason),
                     message: *message,
                     at: at.as_nanos(),

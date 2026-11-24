@@ -4,7 +4,7 @@ fn a_refused_git_start_stops_and_aborts_the_workers_service() {
     let mut service = super::worker::alone_service();
     let mut stand = fixtures::WorkerStand::new();
     stand.worker = service.worker;
-    stand.below.script.invocations.front_mut().unwrap().transcript.stdout = b"git version 2.40.0\n".as_slice().into();
+    stand.below.script.invocations.front_mut().unwrap().stdout = b"git version 2.40.0\n".as_slice().into();
     for _ in 0_u16..1000 {
         if !stand.turn() {
             break;

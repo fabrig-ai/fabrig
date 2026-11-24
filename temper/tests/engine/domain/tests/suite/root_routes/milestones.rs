@@ -222,7 +222,7 @@ fn milestone_parts_join_live_and_ended_goals_and_keep_their_totals() {
     );
     assert_eq!(before.more, 0);
     let totals = read(&mut driver, 1, 1).expect("milestone part fixture");
-    assert_eq!(&before.totals, &forge::parts::totals(&totals, &w::CEILINGS).expect("milestone part fixture"));
+    assert_eq!(&before.totals, &forge::parts::totals(&totals));
     let loads = driver.loads.len();
     assert_eq!(part(&mut driver), before);
     assert_eq!(driver.loads.len(), loads);
@@ -241,11 +241,7 @@ fn milestone_parts_join_live_and_ended_goals_and_keep_their_totals() {
     finish(&mut driver, 4, 1, tasks::TaskResult::Report { words: b"last".as_slice().into() });
     let ended = part(&mut driver);
     assert_eq!(ended.whole, Some(concluded.as_nanos()));
-    assert_eq!(
-        &ended.totals,
-        &forge::parts::totals(&read(&mut driver, 1, 1).expect("milestone part fixture"), &w::CEILINGS)
-            .expect("milestone part fixture")
-    );
+    assert_eq!(&ended.totals, &forge::parts::totals(&read(&mut driver, 1, 1).expect("milestone part fixture")));
     let mut query = super::parts::query(wire::MILESTONE_PART);
     query.requester = None;
     query.parent = Some(1);

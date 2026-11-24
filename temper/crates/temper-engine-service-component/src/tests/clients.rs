@@ -94,7 +94,7 @@ fn before_start_with_secrets(local_secret: Option<skein_lib::Secret>) -> crate::
 }
 
 fn link_post(engine: &mut crate::engine::Engine, link: &[u8]) -> peer::Peer {
-    let body = peer::link_body(engine, link);
+    let body = peer::link_body(link);
     peer::Peer::new(engine, b"POST", b"/jig/v1/sign-in/link", &body, None)
 }
 
@@ -276,7 +276,7 @@ fn a_link_printed_on_the_first_clock_tick_is_live() {
         &mut engine.accounts,
     );
     let link = engine.clients.links.pop().expect("printed link");
-    let body = peer::link_body(engine, &link);
+    let body = peer::link_body(&link);
     let mut peer = peer::Peer::new(engine, b"POST", b"/jig/v1/sign-in/link", &body, None);
     peer.pump_at(engine, false, PROCESS_UPTIME, skein_lib::Wall::EPOCH);
     assert_eq!(engine.clients.early.len(), 1, "the printed link reaches the root");
@@ -511,7 +511,7 @@ fn the_next_clients_stream_opens_once_a_peer_ends_its_own() {
     const CLIENTS: u32 = 3;
     let mut service = super::fixtures::ready();
     let link = service.links().pop().unwrap();
-    let body = peer::link_body(service.engine.as_ref().expect("engine"), &link);
+    let body = peer::link_body(&link);
     let mut sign_in =
         peer::Peer::new(service.engine.as_mut().expect("engine"), b"POST", b"/jig/v1/sign-in/link", &body, None);
     sign_in.pump(service.engine.as_mut().expect("engine"), true);
@@ -565,7 +565,7 @@ fn getting_the_printed_links_page_leaves_its_secret_for_the_links_post() {
 fn a_link_sign_in_reaches_the_root_and_answers_a_token() {
     let mut service = super::fixtures::ready();
     let link = service.links().pop().unwrap();
-    let body = peer::link_body(service.engine.as_ref().expect("engine"), &link);
+    let body = peer::link_body(&link);
     let mut peer =
         peer::Peer::new(service.engine.as_mut().expect("engine"), b"POST", b"/jig/v1/sign-in/link", &body, None);
     peer.pump(service.engine.as_mut().expect("engine"), true);
@@ -791,7 +791,7 @@ fn a_moved_file_at_its_forms_bound_passes_and_one_byte_past_is_refused() {
     let mut service = super::fixtures::ready();
     let link = service.links().pop().expect("sign-in link");
     let engine = service.engine.as_mut().expect("engine");
-    let body = peer::link_body(engine, &link);
+    let body = peer::link_body(&link);
     let mut login = peer::Peer::new(engine, b"POST", b"/jig/v1/sign-in/link", &body, None);
     login.pump(engine, true);
     let w::SignInAnswer::SignedIn(answer) = login.sign_in_answer(engine) else { panic!("signed in") };

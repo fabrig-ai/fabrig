@@ -15,7 +15,7 @@ fn policy() -> c::SettingSet {
 fn a_project_policy_setting_round_trips_in_items_reviews_and_refusals() {
     let limits = limits();
     let setting = c::Setting::ProjectPolicy { project: 7 };
-    assert_eq!(t::restore_setting(&t::wire_setting(&setting, limits.wire()).unwrap()).unwrap(), setting);
+    assert_eq!(t::restore_setting(&t::wire_setting(&setting)), setting);
     let item = c::SettingItem { setting, edit: c::SettingEdit::Set(policy()) };
     assert_eq!(t::restore_setting_item(&t::wire_setting_item(&item, limits.wire()).unwrap(), &limits).unwrap(), item);
     let mut would_be = policy();
@@ -37,7 +37,7 @@ fn a_project_policy_setting_round_trips_in_items_reviews_and_refusals() {
     let refusal = w::Refusal::Malformed(w::RefusalMalformed {
         at: 2,
         why: w::Malformed::Settings(w::MalformedSettings {
-            setting: t::wire_setting(&setting, limits.wire()).unwrap(),
+            setting: t::wire_setting(&setting),
             fault: w::SettingFault::Shape,
             detail: None,
         }),
@@ -109,7 +109,7 @@ fn restored_outcomes_and_forgotten_refusals_reach_the_contract() {
     let mut left_out = List::with_capacity(2);
     left_out.push(c::Setting::ProjectPolicy { project: 7 }).unwrap();
     left_out.push(c::Setting::Application { kind: 2, scope: 7, number: 9 }).unwrap();
-    let wire = e::wire_outcome_restored(41, 3, &left_out, limits.wire()).unwrap();
+    let wire = e::wire_outcome_restored(41, 3, &left_out);
     let wire = w::Outcome::Restored(wire);
     let mut bytes = Writer::new(
         usize::try_from(wire.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
@@ -117,7 +117,7 @@ fn restored_outcomes_and_forgotten_refusals_reach_the_contract() {
     wire.write(&jig_client_protocol_wire::CEILINGS, &mut bytes).unwrap();
     let wire = w::Outcome::decode(limits.wire(), &mut Reader::new(&bytes.finish())).unwrap();
     assert_eq!(answers::outcome(&wire, &limits).unwrap(), c::Outcome::Restored { proposal: 41, to: 3, left_out });
-    let wire = e::wire_refusal_forgotten(4, limits.wire()).unwrap();
+    let wire = e::wire_refusal_forgotten(4);
     assert_eq!(answers::restore_refusal_forgotten(&wire), c::Refusal::Forgotten { oldest: 4 });
     assert_eq!(answers::refusal(&w::Refusal::Forgotten(wire), &limits).unwrap(), c::Refusal::Forgotten { oldest: 4 });
 }

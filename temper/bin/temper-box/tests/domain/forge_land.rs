@@ -377,6 +377,260 @@ fn a_fresh_sitting_selects_its_model_in_every_charter() {
     }
 }
 
+type SettingsWorld =
+    jig_client_kit::harness::World<temper_client_world::app::Temper, temper_client_world::front::Joint>;
+
+fn live_settings_world() -> (SettingsWorld, jig_client_kit::harness::ClientId) {
+    use jig_client_kit::harness::{Settings, World};
+    use temper_client_world::{fixtures, front};
+    use temper_engine_domain_world::{store::Store, walking};
+
+    let init = temper_config_shell::init_document(false);
+    let document = jig_protocol_config::document(&init, &support::configuration_fixture::DOCUMENT).expect("init JSON");
+    let at = jig_protocol_config::read::Object::new(&document, 0)
+        .expect("init object")
+        .member(&document, b"engine")
+        .expect("init engine");
+    let given = temper_service::stock::Given::Stock.with_providers(
+        temper_service::stock::providers(),
+        Box::new([temper_service::stock::scripted(([127, 0, 0, 1], 8370).into())]),
+    );
+    let engine =
+        temper_service::startup::engine_with(&document, at, &jig_protocol_config::Directories::working(), &given)
+            .expect("stock engine");
+    let mut limits = front::engine_limits();
+    limits.people.initial_owners = 2;
+    limits.accounts.accounts = 3;
+    limits.accounts.holder_accounts = 3;
+    limits.accounts.credentials = 3;
+    limits.authority.accounts = 3;
+    limits.fleet.grants = limits.accounts.credentials + limits.accounts.accounts;
+    // Each extra grant reserves room in the fleet's four routing cohorts.
+    limits.journal.writes += (limits.fleet.grants - 2) * 4;
+    limits.fleet.reads = limits.accounts.accounts;
+    limits.tasks.charters = 2;
+    limits.templates = 3;
+    limits.documents.text_bytes = 8192;
+    limits.journal.run_bytes = engine.limits.core.run_bytes;
+    let page_bytes = u32::try_from(engine.limits.core.load_bytes).expect("stock settings page fits u32");
+    limits.loads.bytes = page_bytes;
+    limits.loads.reply_bytes = page_bytes;
+    limits.loads.transcript_bytes = page_bytes;
+    let configs = std::array::from_fn(|_| {
+        let mut config = walking::config(fixtures::SEED);
+        config.core.owners = Box::new([
+            config.core.owners[0].clone(),
+            jig_domain_people::InitialOwner { project: 0, identity: config.core.owners[0].identity.clone() },
+        ]);
+        let core = jig_protocol_config::core(&engine, config.core.deployment, fixtures::SEED);
+        config.core.defaults.models = core.defaults.models;
+        config.core.defaults.charters = core.defaults.charters.into_vec().into_iter().take(2).collect();
+        config.core.defaults.providers = core.defaults.providers;
+        config.core.fixed_providers = core.fixed_providers;
+        config.core.settings.models = core.settings.models;
+        config.core.settings.endpoints = core.settings.endpoints;
+        config.core.settings.llm_providers = core.settings.llm_providers;
+        for template in &mut config.core.defaults.templates {
+            template.llm = None;
+        }
+        config
+    });
+    let front = front::Joint::with_engine(
+        fixtures::SEED,
+        &fixtures::domain_limits(),
+        Store::with_limits(&limits),
+        configs,
+        &limits,
+        1,
+    );
+    let mut world = World::new(
+        Settings { seed: fixtures::SEED, words: fixtures::decision_words(), iterations: 4096, ..Settings::default() },
+        front,
+    );
+    world.randomness(2, 0, 0);
+    let agent = fixtures::agent(&mut world);
+    (world, agent)
+}
+
+fn settings_read(world: &mut SettingsWorld, agent: jig_client_kit::harness::ClientId, words: &[&[u8]]) -> Value {
+    use temper_client_world::fixtures;
+    let call = fixtures::give(world, agent, words);
+    let printed = fixtures::answered(world, agent, call);
+    assert_eq!(printed.status, 0, "{printed:?}");
+    assert!(printed.stderr.is_empty(), "{printed:?}");
+    serde_json::from_slice(&printed.stdout).expect("settings show JSON")
+}
+
+fn settings_apply(
+    world: &mut SettingsWorld,
+    agent: jig_client_kit::harness::ClientId,
+    change: &support::forge_land::LiveChange,
+    at: usize,
+    newest: u64,
+) -> temper_client_tools::jig::Printed {
+    use temper_client_world::fixtures;
+    let file = format!("{}.json", change.key);
+    let argv = support::forge_land::live_apply(change, at, newest, &file);
+    let argv: Vec<_> = argv.iter().map(String::as_bytes).collect();
+    let bytes = serde_json::to_vec(&change.file).expect("live settings bytes");
+    let call = fixtures::give_with_file(world, agent, &argv, &bytes);
+    fixtures::answered(world, agent, call)
+}
+
+fn settings_fixture(
+    world: &mut SettingsWorld,
+    agent: jig_client_kit::harness::ClientId,
+    model: support::forge_land::LiveModel<'_>,
+) -> (u64, [Value; 2], Value, Vec<support::forge_land::LiveChange>) {
+    let inventory = settings_read(world, agent, &[b"settings", b"show", b"--json"]);
+    let charters = [b"1".as_slice(), b"2"]
+        .map(|number| settings_read(world, agent, &[b"settings", b"show", b"charter", number, b"--json"]));
+    let row = settings_read(world, agent, &[b"settings", b"show", b"model", b"3", b"--json"]);
+    let changes = support::forge_land::live_settings(model, &inventory, [&charters[0], &charters[1]], &row)
+        .expect("live model settings");
+    (inventory["newest"].as_u64().expect("newest"), charters, row, changes)
+}
+
+#[test]
+fn claude_and_key_model_settings_are_admitted_on_stock() {
+    use std::path::Path;
+    use support::forge_land::LiveModel;
+    for model in [
+        LiveModel::AnthropicKey { key: Path::new("/private/synthetic-key") },
+        LiveModel::ClaudeCode { login: Path::new("/held/claude-login") },
+    ] {
+        let (mut world, agent) = live_settings_world();
+        let (newest, charters, row, changes) = settings_fixture(&mut world, agent, model);
+        let [add, select] = changes.as_slice() else { panic!("model then charters: {changes:?}") };
+        assert_eq!((add.key, select.key), ("live-model", "live-settings"));
+        let mut haiku = row["value"]["model"].clone();
+        haiku["name"] = "claude-haiku-5-5".into();
+        haiku["effort"] = "low".into();
+        let value = json!({"number":64,"model":haiku,"shown":null,"description":null,
+            "picker":true,"withdrawn":false,"source":"person","estimated":true});
+        assert_eq!(add.file, json!({"items":[{"setting":{"kind":"model","number":64},"set":value}]}));
+        let items = charters.map(|charter| {
+            let mut selected = charter["value"].clone();
+            selected["model"] = haiku.clone();
+            selected["alternatives"] = json!([]);
+            selected["rest"] = false.into();
+            json!({"setting":charter["setting"],"set":selected})
+        });
+        assert_eq!(select.file, json!({"items":items}));
+        for (at, change) in changes.iter().enumerate() {
+            let applied = settings_apply(&mut world, agent, change, at, newest);
+            assert_eq!(applied.status, 0, "{}: {applied:?}", change.key);
+            assert!(applied.stderr.is_empty(), "{applied:?}");
+        }
+        let inventory = settings_read(&mut world, agent, &[b"settings", b"show", b"--json"]);
+        assert_eq!(inventory["newest"], newest + 2);
+        let row = settings_read(&mut world, agent, &[b"settings", b"show", b"model", b"64", b"--json"]);
+        assert_eq!(row["value"], value);
+        for number in [b"1".as_slice(), b"2"] {
+            let charter = settings_read(&mut world, agent, &[b"settings", b"show", b"charter", number, b"--json"]);
+            assert_eq!(charter["value"]["model"], haiku);
+            assert_eq!(charter["value"]["alternatives"], json!([]));
+            assert_eq!(charter["value"]["rest"], false);
+        }
+    }
+}
+
+#[test]
+fn a_live_model_file_reusing_the_stock_name_is_refused() {
+    let (mut world, agent) = live_settings_world();
+    let model = support::forge_land::LiveModel::AnthropicKey { key: std::path::Path::new("/private/synthetic-key") };
+    let (newest, _, _, mut changes) = settings_fixture(&mut world, agent, model);
+    changes[0].file["items"][0]["set"]["model"]["name"] = "claude-fable-5-1".into();
+    let applied = settings_apply(&mut world, agent, &changes[0], 0, newest);
+    assert_eq!(applied.status, 2);
+    assert_eq!(applied.stderr.as_ref(), b"settings apply: out of shape; item 0; model 64: shape\n");
+    let inventory = settings_read(&mut world, agent, &[b"settings", b"show", b"--json"]);
+    assert_eq!(inventory["newest"], newest);
+}
+
+#[test]
+fn an_anthropic_list_can_make_haiku_the_duplicate_at_model_63() {
+    use jig_domain_accounts::{Change, Event, Holder};
+    use jig_domain_link::{EndpointBound, ListOutcome, ListedModel};
+    use support::forge_land::LiveModel;
+    use temper_client_world::fixtures;
+    use temper_engine_domain_world::protocol;
+
+    let (mut world, agent) = live_settings_world();
+    let before = settings_read(&mut world, agent, &[b"settings", b"show", b"--json"]);
+    // The model catalogue describes the program endpoint; a key's list needs the direct endpoint.
+    let channel = fixtures::QUESTION_WORKER;
+    let engine = &mut world.front().engine;
+    engine.send(protocol::lost(channel));
+    engine.settle();
+    let bounds = jig_domain_link::Bounds {
+        endpoints: Box::new([EndpointBound { endpoint: 4, window: 1_048_576, output: 8192 }]),
+        turns: 1024,
+        spend: 1_000_000_000,
+        time: skein_lib::Duration::from_secs(86_400),
+        waiting: skein_lib::Duration::from_secs(86_400),
+        message_bytes: engine.env.limits.tasks.message_bytes,
+        inbox: 128,
+        ..protocol::bounds()
+    };
+    engine.send(protocol::hello_with(skein_lib::Token::new(2001), 0, 1, bounds, Box::new([])));
+    engine.settle();
+    // Read the world's bootstrap key's list explicitly; restored keys do not read at startup.
+    engine.send(temper_engine_domain::Event::Account(Event::Change {
+        request: skein_lib::Token::new(2000),
+        holder: Holder::Deployment,
+        change: Change::ReadLists { provider: 2 },
+    }));
+    engine.settle();
+    assert_eq!(
+        engine.protocol.list_reads.len(),
+        1,
+        "a usable key reads the stock list: {:?}",
+        engine.protocol.accounts
+    );
+    let rows = [b"claude-another-model".as_slice(), b"claude-haiku-5-5"].map(|name| ListedModel {
+        name: name.into(),
+        shown: None,
+        window: None,
+        output: None,
+        efforts: Box::new([]),
+    });
+    world.front().answer_read(ListOutcome::Listed(Box::new(rows)));
+    let occupied = settings_read(&mut world, agent, &[b"settings", b"show", b"model", b"63", b"--json"]);
+    assert_eq!(occupied["value"]["source"], "list");
+    assert_eq!(occupied["value"]["model"]["name"], "claude-haiku-5-5");
+    let model = LiveModel::AnthropicKey { key: std::path::Path::new("/private/synthetic-key") };
+    let (newest, _, _, changes) = settings_fixture(&mut world, agent, model);
+    assert_eq!(newest, before["newest"].as_u64().expect("newest") + 1);
+    assert_eq!(changes[0].file["items"][0]["setting"]["number"], 62);
+    let applied = settings_apply(&mut world, agent, &changes[0], 0, newest);
+    // The whole-set check blames the later of the duplicates, not the offered item.
+    assert_eq!(applied.status, 2);
+    assert_eq!(applied.stderr.as_ref(), b"settings apply: out of shape; item 0; model 63: shape\n");
+}
+
+#[test]
+fn the_key_bootstrap_admits_only_the_anthropic_list_policy_change() {
+    let (mut world, agent) = live_settings_world();
+    let inventory = settings_read(&mut world, agent, &[b"settings", b"show", b"--json"]);
+    let newest = inventory["newest"].as_u64().expect("newest");
+    let provider = &[b"settings".as_slice(), b"show", b"provider", b"2", b"--json"];
+    let row = settings_read(&mut world, agent, provider);
+    let mut expected = row["value"].clone();
+    let value = expected.as_object_mut().expect("stock provider");
+    assert_eq!(value.remove("keep"), Some(json!(["claude-*"])));
+    assert_eq!(value.remove("drop"), Some(json!(["*-20??????"])));
+    let change = support::forge_land::key_provider_change(&row).expect("provider 2 change");
+    assert_eq!(change.key, "live-key-provider");
+    assert_eq!(change.file, json!({"items":[{"setting":{"kind":"provider","number":2},"set":expected}]}));
+    let applied = settings_apply(&mut world, agent, &change, 0, newest);
+    assert_eq!(applied.status, 0, "{applied:?}");
+    assert!(applied.stderr.is_empty(), "{applied:?}");
+    let inventory = settings_read(&mut world, agent, &[b"settings", b"show", b"--json"]);
+    assert_eq!(inventory["newest"], newest + 1);
+    assert_eq!(settings_read(&mut world, agent, provider)["value"], expected);
+}
+
 fn program_accounts() -> Value {
     json!({"accounts":{
         "party":[{"number":7, "provider":2, "sources":[{"kind":"program", "name":"claude-login", "usable":true}]}],
@@ -1477,7 +1731,7 @@ fn stock_charters_keep_seven_models_and_choose_the_boxs_scripted_default() {
 }
 
 #[test]
-fn a_key_configuration_changes_only_anthropics_list_policy() {
+fn a_key_configuration_leaves_the_startup_copies_unchanged() {
     use std::path::Path;
     use support::forge_land::{LiveModel, LiveProfile};
     use temper_agent_fixtures::providers;
@@ -1486,18 +1740,7 @@ fn a_key_configuration_changes_only_anthropics_list_policy() {
     let init = LiveProfile::compose(data, LiveModel::ChatGpt { account: None }, Path::new(""));
     let key =
         LiveProfile::compose(data, LiveModel::AnthropicKey { key: Path::new("/private/synthetic-key") }, Path::new(""));
-    let mut expected_providers = providers::flat(&init.providers);
-    let provider = expected_providers["providers"]
-        .as_array_mut()
-        .expect("providers")
-        .iter_mut()
-        .find(|provider| provider["name"] == "anthropic")
-        .expect("Anthropic")
-        .as_object_mut()
-        .expect("provider");
-    assert!(provider.remove("keep").is_some());
-    assert!(provider.remove("drop").is_some());
-    assert_eq!(providers::flat(&key.providers), expected_providers, "only Anthropic's list changes");
+    assert_eq!(providers::flat(&key.providers), providers::flat(&init.providers), "the store owns the provider edit");
     assert_eq!(key.document, init.document, "the startup document is unchanged");
     assert_eq!(key.agent, init.agent, "Claude Code's program stays as init writes it");
 }

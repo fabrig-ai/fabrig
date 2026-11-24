@@ -130,10 +130,10 @@ pub(super) fn decode_ending(value: w::Ending) -> p::Ending {
         w::Ending::Deleted => p::Ending::Deleted,
     }
 }
-pub(super) fn encode_lack(value: &p::Lack, l: &w::Limits) -> w::Lack {
+pub(super) fn encode_lack(value: &p::Lack) -> w::Lack {
     match value {
         p::Lack::Ceiling { holder, dimension, value, asked } => w::Lack::Ceiling(w::LackCeiling {
-            holder: encode_ceiling_holder(*holder, l),
+            holder: encode_ceiling_holder(*holder),
             dimension: encode_ceiling_dimension(*dimension),
             value: *value,
             asked: *asked,
@@ -151,7 +151,7 @@ pub(super) fn encode_lack(value: &p::Lack, l: &w::Limits) -> w::Lack {
         p::Lack::Funding => w::Lack::Funding,
         p::Lack::TaskKind { executor } => w::Lack::TaskKind(w::LackTaskKind {
             executor: match executor {
-                Some(executor) => Some(encode_executor(*executor, l)),
+                Some(executor) => Some(encode_executor(*executor)),
                 None => None,
             },
         }),
@@ -388,7 +388,7 @@ pub(super) fn encode_refusal(value: &p::Refusal, l: &w::Limits) -> Result<w::Ref
                 },
             }),
         p::Refusal::Authority { lacking, proposable } => w::Refusal::Authority(w::RefusalAuthority {
-                lacking: encode_lack(lacking, l),
+                lacking: encode_lack(lacking),
                 proposable: match proposable {
                     None => None,
                     Some(p::Accepter::Nobody) => Some(w::Accepter::Nobody),
@@ -566,14 +566,14 @@ fn decode_role(v: w::Role) -> p::Role {
     }
 }
 
-fn encode_executor(value: p::TaskExecutor, limits: &w::Limits) -> w::TaskExecutor {
+fn encode_executor(value: p::TaskExecutor) -> w::TaskExecutor {
     match value {
         p::TaskExecutor::Agent { charter } => w::TaskExecutor::Agent(w::TaskExecutorAgent { charter }),
         p::TaskExecutor::Procedure { connector, code } => {
             w::TaskExecutor::Procedure(w::TaskExecutorProcedure { connector, code })
         }
         p::TaskExecutor::Person(address) => {
-            w::TaskExecutor::Person(w::TaskExecutorPerson { address: encode_person_address(&address, limits) })
+            w::TaskExecutor::Person(w::TaskExecutorPerson { address: encode_person_address(&address) })
         }
     }
 }
@@ -588,7 +588,7 @@ fn decode_executor(value: w::TaskExecutor) -> p::TaskExecutor {
     }
 }
 
-fn encode_person_address(value: &p::PersonAddress, _limits: &w::Limits) -> w::PersonAddress {
+fn encode_person_address(value: &p::PersonAddress) -> w::PersonAddress {
     match value {
         p::PersonAddress::Person(value) => w::PersonAddress::Person(w::PersonAddressPerson { value: *value }),
         p::PersonAddress::Role(value) => w::PersonAddress::Role(w::PersonAddressRole { value: *value }),
@@ -669,7 +669,7 @@ const fn decode_bound(value: w::Bound) -> p::Bound {
     }
 }
 
-fn encode_ceiling_holder(value: p::CeilingHolder, _limits: &w::Limits) -> w::CeilingHolder {
+fn encode_ceiling_holder(value: p::CeilingHolder) -> w::CeilingHolder {
     match value {
         p::CeilingHolder::Rules => w::CeilingHolder::Rules,
         p::CeilingHolder::Policy => w::CeilingHolder::Policy,

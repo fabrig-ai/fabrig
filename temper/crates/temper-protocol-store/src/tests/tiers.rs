@@ -575,7 +575,8 @@ fn rows_before_the_unreported_arm_keep_their_encoding_and_decode_unchanged() {
     let old = skein_codec::schema::parse(old_text.as_bytes()).unwrap();
     let new = skein_codec::schema::parse(text.as_bytes()).unwrap();
     let root = b"TierRow";
-    let before = skein_codec::layout::Plan::derive_dropping(
+    let before = skein_codec::layout::Plan::between(
+        skein_codec::layout::Mode::Read,
         &new,
         new.root(root, None).unwrap(),
         &[],

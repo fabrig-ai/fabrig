@@ -5,28 +5,25 @@ use jig_client_protocol_wire::Record as _;
 use jig_domain_core_vocabulary::acts;
 use jig_domain_people as p;
 use skein_lib::{List, bytes};
-#[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
-fn executor(value: p::TemplateExecutor, _limits: &w::Limits) -> Result<w::TemplateExecutor, w::Problem> {
-    Ok(match value {
+fn executor(value: p::TemplateExecutor) -> w::TemplateExecutor {
+    match value {
         p::TemplateExecutor::Charter(value) => w::TemplateExecutor::Charter(w::TemplateCharter { value }),
         p::TemplateExecutor::Chosen => w::TemplateExecutor::Chosen,
-    })
+    }
 }
-#[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
-fn budget(value: p::TemplateBudget, _limits: &w::Limits) -> Result<w::TemplateBudget, w::Problem> {
-    Ok(match value {
+fn budget(value: p::TemplateBudget) -> w::TemplateBudget {
+    match value {
         p::TemplateBudget::Amount(value) => w::TemplateBudget::Amount(w::TemplateAmount { value }),
         p::TemplateBudget::AsAllowed { cap } => w::TemplateBudget::AsAllowed(w::TemplateAsAllowed { cap }),
         p::TemplateBudget::Given => w::TemplateBudget::Given,
-    })
+    }
 }
-#[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
-fn deadline(value: p::TemplateDeadline, _limits: &w::Limits) -> Result<w::TemplateDeadline, w::Problem> {
-    Ok(match value {
+fn deadline(value: p::TemplateDeadline) -> w::TemplateDeadline {
+    match value {
         p::TemplateDeadline::None => w::TemplateDeadline::None,
         p::TemplateDeadline::Span(value) => w::TemplateDeadline::Span(w::TemplateSpan { value }),
         p::TemplateDeadline::Given => w::TemplateDeadline::Given,
-    })
+    }
 }
 
 pub fn templates(
@@ -49,9 +46,8 @@ pub fn templates(
     pieces(&encoded, limits.me_project_templates, w::paths::ME_PROJECT_TEMPLATES)
 }
 
-#[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
-pub(super) fn flags(value: jig_domain_tasks::Flags, _limits: &w::Limits) -> Result<w::TaskFlags, w::Problem> {
-    Ok(w::TaskFlags {
+pub(super) fn flags(value: jig_domain_tasks::Flags) -> w::TaskFlags {
+    w::TaskFlags {
         ended_by: match value.ended_by {
             jig_domain_tasks::EndedBy::Result => w::EndedBy::Result,
             jig_domain_tasks::EndedBy::Requester => w::EndedBy::Requester,
@@ -66,7 +62,7 @@ pub(super) fn flags(value: jig_domain_tasks::Flags, _limits: &w::Limits) -> Resu
             jig_domain_tasks::Retention::Kept => w::Retention::Kept,
             jig_domain_tasks::Retention::ForgottenOnceRead => w::Retention::ForgottenOnceRead,
         },
-    })
+    }
 }
 pub fn creating(
     models: &[crate::Model],
@@ -78,38 +74,35 @@ pub fn creating(
         w::Bounds::Amend(_) => unreachable!("creating has creating bounds"),
     };
     let beyond = match &value.beyond {
-        acts::Beyond::Proposed { to } => w::Beyond::Proposed(w::BeyondProposed { to: task::recipient(to, limits)? }),
+        acts::Beyond::Proposed { to } => w::Beyond::Proposed(w::BeyondProposed { to: task::recipient(to) }),
         acts::Beyond::Refused(why) => {
             w::Beyond::Refused(w::BeyondRefused { value: super::refusals::refusal(why.clone(), limits)? })
         }
     };
     Ok(w::CreatingBounds { within, beyond })
 }
-pub fn overrides(
-    values: &List<p::TemplateOverride>,
-    limits: &w::Limits,
-) -> Result<List<w::TemplateOverride>, w::Problem> {
+pub fn overrides(values: &List<p::TemplateOverride>) -> List<w::TemplateOverride> {
     let mut rows = List::with_capacity(values.len());
     for value in values {
         rows.push(w::TemplateOverride {
             template: value.template,
             executor: match value.executor {
-                Some(v) => Some(executor(v, limits)?),
+                Some(v) => Some(executor(v)),
                 None => None,
             },
             budget: match value.budget {
-                Some(v) => Some(budget(v, limits)?),
+                Some(v) => Some(budget(v)),
                 None => None,
             },
             deadline: match value.deadline {
-                Some(v) => Some(deadline(v, limits)?),
+                Some(v) => Some(deadline(v)),
                 None => None,
             },
             priority: value.priority,
         })
         .expect("same capacity");
     }
-    Ok(rows)
+    rows
 }
 
 pub(super) fn template(
@@ -125,15 +118,15 @@ pub(super) fn template(
         resources,
         number: value.number,
         name: w::DocumentText { bytes: bytes::copy_of(&value.name), cut: false },
-        executor: executor(value.executor, limits)?,
+        executor: executor(value.executor),
         contract: objects::goal::contract(&value.contract, limits)?,
         shallower: value.shallower,
-        budget: budget(value.budget, limits)?,
-        deadline: deadline(value.deadline, limits)?,
+        budget: budget(value.budget),
+        deadline: deadline(value.deadline),
         tracked: value.tracked,
-        flags: flags(value.flags, limits)?,
+        flags: flags(value.flags),
         label: value.label,
         grace: value.grace,
-        llm: super::llm::choice(value.llm.as_ref(), models, limits)?,
+        llm: super::llm::choice(value.llm.as_ref(), models)?,
     })
 }

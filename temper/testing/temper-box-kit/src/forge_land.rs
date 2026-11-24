@@ -673,12 +673,13 @@ pub fn live_deployment(paths: &[PathBuf; 3], model: LiveModel<'_>) {
             .expect("Claude Code must be installed on PATH");
         configure_live_model(&paths[0], model, &executable);
     }
-    if let LiveModel::AnthropicKey { .. } = model {
-        configure_live_model(&paths[0], model, std::path::Path::new(""));
-    }
     let mut value = super::limit_settings::configuration(&paths[0]);
     live_limits(&mut value);
-    super::limit_settings::remember(&paths[0], &value);
+    if let LiveModel::AnthropicKey { .. } = model {
+        super::limit_settings::remember_figures(&paths[0], &value);
+    } else {
+        super::limit_settings::remember(&paths[0], &value);
+    }
 }
 
 fn live_limits(value: &mut temper_playground::documents::Configuration) {
@@ -1211,21 +1212,13 @@ pub fn retain_live_model(path: &std::path::Path, name: &str) {
 pub fn configure_live_model(config: &std::path::Path, model: LiveModel<'_>, executable: &std::path::Path) {
     use temper_agent_fixtures::providers;
 
-    match model {
-        LiveModel::ChatGpt { .. } => {}
-        LiveModel::AnthropicKey { .. } => {
-            let data = temper_agent_fixtures::data(config);
-            providers::remember(&data, &key_providers(providers::read(&data)));
-        }
-        LiveModel::ClaudeCode { login } => {
-            let data = temper_agent_fixtures::data(config);
-            let mut routes = providers::read(&data);
-            let mut agent = temper_agent_fixtures::read(config);
-            claude_overlay(&mut routes, &mut agent, login, executable);
-            providers::write(&data, &routes);
-            temper_agent_fixtures::install(config, &agent);
-        }
-    }
+    let LiveModel::ClaudeCode { login } = model else { return };
+    let data = temper_agent_fixtures::data(config);
+    let mut routes = providers::read(&data);
+    let mut agent = temper_agent_fixtures::read(config);
+    claude_overlay(&mut routes, &mut agent, login, executable);
+    providers::write(&data, &routes);
+    temper_agent_fixtures::install(config, &agent);
 }
 
 /// The start and its prospective worker and provider copies, before any native writes.
@@ -1244,17 +1237,12 @@ impl LiveProfile {
         let mut document = serde_json::from_slice(&temper_config_shell::init_document(true)).expect("init start");
         let mut agents = temper_service::stock::agents();
         let mut providers = temper_service::stock::providers();
-        match model {
-            LiveModel::ChatGpt { .. } => {}
-            LiveModel::AnthropicKey { .. } => providers = key_providers(providers::flat(&providers)),
-            LiveModel::ClaudeCode { login } => {
-                let mut agent = with_figures(&document, &agents, data, &providers);
-                let mut routes = providers::flat(&providers);
-                claude_overlay(&mut routes, &mut agent, login, executable);
-                let setting =
-                    temper_agent_fixtures::compose_setting(&mut document, &agent, &providers::values(&routes));
-                (agents, providers) = (setting.figures, setting.providers);
-            }
+        if let LiveModel::ClaudeCode { login } = model {
+            let mut agent = with_figures(&document, &agents, data, &providers);
+            let mut routes = providers::flat(&providers);
+            claude_overlay(&mut routes, &mut agent, login, executable);
+            let setting = temper_agent_fixtures::compose_setting(&mut document, &agent, &providers::values(&routes));
+            (agents, providers) = (setting.figures, setting.providers);
         }
         let agent = with_figures(&document, &agents, data, &providers);
         Self { document, providers, agent }
@@ -1272,20 +1260,6 @@ impl LiveProfile {
         let engine = temper_service::startup::engine_with(&document, 0, &directories, &given).expect("engine schema");
         (engine, given)
     }
-}
-
-fn key_providers(mut providers: serde_json::Value) -> Box<[jig_protocol_config::ProviderSetting]> {
-    let provider = providers["providers"]
-        .as_array_mut()
-        .expect("providers")
-        .iter_mut()
-        .find(|provider| provider["name"] == "anthropic")
-        .expect("init Anthropic provider")
-        .as_object_mut()
-        .expect("provider");
-    provider.remove("keep");
-    provider.remove("drop");
-    temper_agent_fixtures::providers::values(&providers)
 }
 
 fn claude_overlay(
@@ -1347,6 +1321,40 @@ fn claude_overlay(
 pub struct LiveChange {
     pub key: &'static str,
     pub file: serde_json::Value,
+}
+
+/// The key story disables catalogue discovery in the store, not in its startup copy
+/// (temper/docs/design/testing/live-tier.md, the key story's configuration).
+pub fn key_provider_change(row: &serde_json::Value) -> Result<LiveChange, String> {
+    require(
+        row["setting"] == serde_json::json!({"kind":"provider","number":2})
+            && row["value"]["number"] == 2
+            && row["value"]["name"] == "anthropic",
+        "the stock Anthropic provider 2",
+    )?;
+    let mut value = row["value"].clone();
+    let provider = value.as_object_mut().ok_or("Anthropic provider value missing")?;
+    provider.remove("keep");
+    provider.remove("drop");
+    Ok(LiveChange {
+        key: "live-key-provider",
+        file: serde_json::json!({"items":[{"setting":row["setting"], "set":value}]}),
+    })
+}
+
+fn key_provider_steps(data: &std::path::Path) -> Vec<super::ctl::Step> {
+    use super::ctl::{Call, Step, json, settings_change};
+    let file = data.join("live-key-provider.json");
+    vec![
+        Step::Run(Call::new(&["settings", "show", "--json"])),
+        Step::Run(Call::new(&["settings", "show", "provider", "2", "--json"])),
+        Step::Then(Box::new(move |calls| {
+            let reads = &calls[calls.len() - 2..];
+            let change = key_provider_change(&json(&reads[1])).expect("key story's provider setting");
+            super::write_private(&file, &serde_json::to_vec(&change.file).expect("provider settings JSON"));
+            settings_change(&reads[0], &file, change.key)
+        })),
+    ]
 }
 
 /// The settings changes a fresh sitting applies, in order (testing/live-tier.md):
@@ -2518,7 +2526,21 @@ pub fn run_live_counted(
     if let Face::Fake { peer, .. } = &face {
         peer.configure(&plan.paths[0]);
     }
-    super::limit_settings::install_paths(plan.paths);
+    if plan.first && !plan.kept && matches!(plan.model, LiveModel::AnthropicKey { .. }) {
+        super::limit_settings::install_paths_with(plan.paths, key_provider_steps(&plan.paths[1]));
+        // Serve has drained. The next start reads the shell's copy before it can add the key.
+        let providers = temper_service_shell::providers::read(
+            &plan.paths[1].join("providers.setting"),
+            temper_service::stock::providers(),
+            &mut Vec::new(),
+        );
+        require(
+            providers.iter().any(|value| value.provider.number == 2 && value.provider.list.is_none()),
+            "bootstrap did not keep Anthropic provider 2 without a list policy",
+        )?;
+    } else {
+        super::limit_settings::install_paths(plan.paths);
+    }
     plan.install_return_hook(&skein_scratch::paths::binary("temper-box"))?;
     let clock = Clock::new();
     let mut binary = Binary::start_with_tree(

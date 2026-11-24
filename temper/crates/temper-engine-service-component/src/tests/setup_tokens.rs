@@ -137,7 +137,7 @@ pub(super) fn owner() -> (crate::Service, Box<[u8]>) {
     assert!(service.engine.as_ref().unwrap().domain.forges().rows.is_empty());
     let link = service.links().pop().unwrap();
     let engine = service.engine.as_mut().unwrap();
-    let body = fixtures::http::link_body(engine, &link);
+    let body = fixtures::http::link_body(&link);
     let mut peer = fixtures::http::Peer::new(engine, b"POST", b"/jig/v1/sign-in/link", &body, None);
     peer.pump(engine, true);
     let j::SignInAnswer::SignedIn(answer) = peer.sign_in_answer(engine) else { panic!("owner sign in") };

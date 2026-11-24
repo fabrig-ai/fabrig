@@ -69,10 +69,13 @@ The fake also checks stray installation removal and setting the hook address;
 these App mutations are unchecked live. Whole logged payloads are checked against
 the webhook secret before their signatures and payloads enter masked transcripts.
 
-The focused tests run every named fact on the fake, check the design's name
-list, masking and leak refusal, fixture permissions, the pre-connector App
-and fixture boundary, replay of the fake's requests through the guard, request
-exhaustion, token expiry, interrupted cleanup and revocation on failed cases.
+The focused suite runs every named fact on the fake over the simulator,
+with journals, facts and transcripts in the fake machine. It checks request
+replay through the live guard, request exhaustion, token expiry, interrupted
+cleanup and revocation on failed cases. The library's step tests check the
+design's fact names, masking and leak refusal, fixture permissions and the
+pre-connector boundary, and journal recovery after a simulated crash. The
+commands still use the host filesystem; the tests never write to it.
 Required signatures remain unchecked because the fake has no
 signature enforcement. Live alone leaves the two manifest/hook facts unchecked
 because it changes nothing of the App.

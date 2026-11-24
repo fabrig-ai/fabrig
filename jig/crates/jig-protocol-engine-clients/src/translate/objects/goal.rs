@@ -4,7 +4,7 @@ use alloc::boxed::Box;
 use jig_client_protocol_wire::Record as _;
 use jig_domain_tasks as t;
 use skein_lib::{List, Writer, bytes};
-pub fn pattern(value: &t::Pattern, _limits: &w::Limits) -> Result<w::Pattern, w::Problem> {
+pub fn pattern(value: &t::Pattern) -> Result<w::Pattern, w::Problem> {
     let mut segments = List::with_capacity(super::super::count(value.segments.len())?);
     for row in &value.segments {
         segments.push(bytes::copy_of(row)).expect("supplied rows fit");
@@ -26,18 +26,18 @@ pub fn authority(
     let mut grants = List::with_capacity(super::super::count(value.grants.len())?);
     for row in &value.grants {
         grants
-            .push(w::Grant { connector: row.connector, kind: row.kind, pattern: pattern(&row.pattern, limits)? })
+            .push(w::Grant { connector: row.connector, kind: row.kind, pattern: pattern(&row.pattern)? })
             .expect("supplied rows fit");
     }
     let grants = owner::grants_pieces(&grants, limits.authority_grants, w::paths::AUTHORITY_GRANTS, limits)?;
     let mut kinds = List::with_capacity(super::super::count(value.delegation.kinds.len())?);
     for row in &value.delegation.kinds {
-        kinds.push(owner::authority_executor(*row, limits)?).expect("supplied rows fit");
+        kinds.push(owner::authority_executor(*row)).expect("supplied rows fit");
     }
     let mut scopes = List::with_capacity(super::super::count(value.note_resources.len())?);
     for row in &value.note_resources {
         scopes
-            .push(w::ResourceScope { connector: row.connector, pattern: pattern(&row.pattern, limits)? })
+            .push(w::ResourceScope { connector: row.connector, pattern: pattern(&row.pattern)? })
             .expect("supplied rows fit");
     }
     let scopes =
@@ -47,8 +47,7 @@ pub fn authority(
         models: super::super::llm::authority(
             jig_domain_authority::Models::from_parts(value.models.bits(), value.models.is_all()),
             models,
-            limits,
-        )?,
+        ),
         tools: value.tools.0,
         grants,
         delegation: w::Delegation { kinds, tasks: value.delegation.tasks, depth: value.delegation.depth },
@@ -61,7 +60,7 @@ pub fn authority(
         note_resources: scopes,
     })
 }
-pub fn spec(value: &t::Spec, _limits: &w::Limits) -> Result<w::Specification, w::Problem> {
+pub fn spec(value: &t::Spec) -> Result<w::Specification, w::Problem> {
     let mut parameters = List::with_capacity(super::super::count(value.parameters.len())?);
     for row in &value.parameters {
         parameters
@@ -92,7 +91,7 @@ pub fn contract(value: &t::Contract, limits: &w::Limits) -> Result<w::TaskContra
         t::Contract::Job { bytes } => w::TaskContractDocument::Job(w::TaskContractDocumentJob { bytes: *bytes }),
         t::Contract::Approval { state, part } => w::TaskContractDocument::Approval(w::TaskContractDocumentApproval {
             state: bytes::copy_of(state),
-            part: owner::part(part, limits)?,
+            part: owner::part(part),
         }),
         t::Contract::Report { words } => {
             w::TaskContractDocument::Report(w::TaskContractDocumentReport { words: *words })
@@ -168,15 +167,15 @@ pub fn goal(models: &[crate::Model], value: &t::New, limits: &w::Limits) -> Resu
     Ok(w::PersonProposalGoal {
         number: value.number,
         project: value.project,
-        executor: owner::executor(value.executor, limits)?,
-        spec: spec(&value.spec, limits)?,
+        executor: owner::executor(value.executor),
+        spec: spec(&value.spec)?,
         contract: contract(&value.contract, limits)?,
         authority: authority(models, &value.authority, limits)?,
-        numbers: owner::numbers(value.numbers, limits)?,
-        funder: owner::funder(value.funder, limits)?,
+        numbers: owner::numbers(value.numbers),
+        funder: owner::funder(value.funder),
         dependencies,
         holdings,
-        wake: owner::wake(value.wake, limits)?,
+        wake: owner::wake(value.wake),
         tracked: value.tracked,
     })
 }

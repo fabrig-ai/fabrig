@@ -3,67 +3,67 @@
 
 use alloc::boxed::Box;
 
-// Maps line 12: Party.
-pub fn party_to_record(value: &jig_domain_tasks::Party, _context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::Party, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn party_to_record(value: &jig_domain_tasks::Party) -> crate::tasks_v13::Party {
     match value {
-        jig_domain_tasks::Party::Task(held) => Ok(crate::tasks_v13::Party::Task(crate::tasks_v13::Number { value: *held })),
-        jig_domain_tasks::Party::Person(held) => Ok(crate::tasks_v13::Party::Person(crate::tasks_v13::Person { person: *held })),
-        jig_domain_tasks::Party::Deployment { project: field_000000 } => Ok(crate::tasks_v13::Party::Deployment(crate::tasks_v13::Project {
+        jig_domain_tasks::Party::Task(held) => crate::tasks_v13::Party::Task(crate::tasks_v13::Number { value: *held }),
+        jig_domain_tasks::Party::Person(held) => crate::tasks_v13::Party::Person(crate::tasks_v13::Person { person: *held }),
+        jig_domain_tasks::Party::Deployment { project: field_000000 } => crate::tasks_v13::Party::Deployment(crate::tasks_v13::Project {
             project: *field_000000
-        })),
+        }),
     }
 }
 
-// Maps line 12: Party.
-pub fn party_to_domain(record: crate::tasks_v13::Party, _context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::Party, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn party_to_domain(record: crate::tasks_v13::Party) -> jig_domain_tasks::Party {
     match record {
-        crate::tasks_v13::Party::Task(held) => Ok(jig_domain_tasks::Party::Task({
+        crate::tasks_v13::Party::Task(held) => jig_domain_tasks::Party::Task({
             let crate::tasks_v13::Number { value: held } = held;
             held
-        })),
-        crate::tasks_v13::Party::Person(held) => Ok(jig_domain_tasks::Party::Person({
+        }),
+        crate::tasks_v13::Party::Person(held) => jig_domain_tasks::Party::Person({
             let crate::tasks_v13::Person { person: held } = held;
             held
-        })),
+        }),
         crate::tasks_v13::Party::Deployment(held) => {
             let crate::tasks_v13::Project { project: field_000000 } = held;
-            Ok(jig_domain_tasks::Party::Deployment {
+            jig_domain_tasks::Party::Deployment {
                 project: field_000000
-            })
+            }
         },
     }
 }
 
-// Maps line 13: Class.
-pub fn class_to_record(value: &jig_domain_tasks::Class, _context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::Class, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn class_to_record(value: &jig_domain_tasks::Class) -> crate::tasks_v13::Class {
     match value {
-        jig_domain_tasks::Class::Transient => Ok(crate::tasks_v13::Class::Transient),
-        jig_domain_tasks::Class::Permanent => Ok(crate::tasks_v13::Class::Permanent),
-        jig_domain_tasks::Class::Run => Ok(crate::tasks_v13::Class::Run),
-        jig_domain_tasks::Class::Agent => Ok(crate::tasks_v13::Class::Agent),
-        jig_domain_tasks::Class::Lost => Ok(crate::tasks_v13::Class::Lost),
-        jig_domain_tasks::Class::Invalid => Ok(crate::tasks_v13::Class::Invalid),
-        jig_domain_tasks::Class::Infrastructure => Ok(crate::tasks_v13::Class::Infrastructure),
+        jig_domain_tasks::Class::Transient => crate::tasks_v13::Class::Transient,
+        jig_domain_tasks::Class::Permanent => crate::tasks_v13::Class::Permanent,
+        jig_domain_tasks::Class::Run => crate::tasks_v13::Class::Run,
+        jig_domain_tasks::Class::Agent => crate::tasks_v13::Class::Agent,
+        jig_domain_tasks::Class::Lost => crate::tasks_v13::Class::Lost,
+        jig_domain_tasks::Class::Invalid => crate::tasks_v13::Class::Invalid,
+        jig_domain_tasks::Class::Infrastructure => crate::tasks_v13::Class::Infrastructure,
     }
 }
 
-// Maps line 13: Class.
-pub fn class_to_domain(record: crate::tasks_v13::Class, _context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::Class, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn class_to_domain(record: crate::tasks_v13::Class) -> jig_domain_tasks::Class {
     match record {
-        crate::tasks_v13::Class::Transient => Ok(jig_domain_tasks::Class::Transient),
-        crate::tasks_v13::Class::Permanent => Ok(jig_domain_tasks::Class::Permanent),
-        crate::tasks_v13::Class::Run => Ok(jig_domain_tasks::Class::Run),
-        crate::tasks_v13::Class::Agent => Ok(jig_domain_tasks::Class::Agent),
-        crate::tasks_v13::Class::Lost => Ok(jig_domain_tasks::Class::Lost),
-        crate::tasks_v13::Class::Invalid => Ok(jig_domain_tasks::Class::Invalid),
-        crate::tasks_v13::Class::Infrastructure => Ok(jig_domain_tasks::Class::Infrastructure),
+        crate::tasks_v13::Class::Transient => jig_domain_tasks::Class::Transient,
+        crate::tasks_v13::Class::Permanent => jig_domain_tasks::Class::Permanent,
+        crate::tasks_v13::Class::Run => jig_domain_tasks::Class::Run,
+        crate::tasks_v13::Class::Agent => jig_domain_tasks::Class::Agent,
+        crate::tasks_v13::Class::Lost => jig_domain_tasks::Class::Lost,
+        crate::tasks_v13::Class::Invalid => jig_domain_tasks::Class::Invalid,
+        crate::tasks_v13::Class::Infrastructure => jig_domain_tasks::Class::Infrastructure,
     }
 }
 
-// Maps line 14: Tries.
-pub fn tries_to_record(value: &jig_domain_tasks::Tries, _context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::Tries, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn tries_to_record(value: &jig_domain_tasks::Tries) -> crate::tasks_v13::Tries {
     let jig_domain_tasks::Tries { transient: field_000000, permanent: field_000001, run: field_000002, agent: field_000003, lost: field_000004, invalid: field_000005, infrastructure: field_000006 } = value;
-    Ok(crate::tasks_v13::Tries {
+    crate::tasks_v13::Tries {
         transient: *field_000000,
         permanent: *field_000001,
         run: *field_000002,
@@ -71,13 +71,13 @@ pub fn tries_to_record(value: &jig_domain_tasks::Tries, _context: &crate::codec:
         lost: *field_000004,
         invalid: *field_000005,
         infrastructure: *field_000006
-    })
+    }
 }
 
-// Maps line 14: Tries.
-pub fn tries_to_domain(record: crate::tasks_v13::Tries, _context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::Tries, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn tries_to_domain(record: crate::tasks_v13::Tries) -> jig_domain_tasks::Tries {
     let crate::tasks_v13::Tries { transient: field_000000, permanent: field_000001, run: field_000002, agent: field_000003, lost: field_000004, invalid: field_000005, infrastructure: field_000006 } = record;
-    Ok(jig_domain_tasks::Tries {
+    jig_domain_tasks::Tries {
         transient: field_000000,
         permanent: field_000001,
         run: field_000002,
@@ -85,361 +85,372 @@ pub fn tries_to_domain(record: crate::tasks_v13::Tries, _context: &crate::codec:
         lost: field_000004,
         invalid: field_000005,
         infrastructure: field_000006
-    })
-}
-
-// Maps line 17: PersonAddress.
-pub fn person_address_to_record(value: &jig_domain_tasks::PersonAddress, _context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::PersonAddress, crate::tasks_v13::Problem> {
-    match value {
-        jig_domain_tasks::PersonAddress::Person(held) => Ok(crate::tasks_v13::PersonAddress::Person(crate::tasks_v13::Person { person: *held })),
-        jig_domain_tasks::PersonAddress::Role(held) => Ok(crate::tasks_v13::PersonAddress::Role(crate::tasks_v13::Role { role: *held })),
     }
 }
 
-// Maps line 17: PersonAddress.
-pub fn person_address_to_domain(record: crate::tasks_v13::PersonAddress, _context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::PersonAddress, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn person_address_to_record(value: &jig_domain_tasks::PersonAddress) -> crate::tasks_v13::PersonAddress {
+    match value {
+        jig_domain_tasks::PersonAddress::Person(held) => crate::tasks_v13::PersonAddress::Person(crate::tasks_v13::Person { person: *held }),
+        jig_domain_tasks::PersonAddress::Role(held) => crate::tasks_v13::PersonAddress::Role(crate::tasks_v13::Role { role: *held }),
+    }
+}
+
+#[must_use]
+pub fn person_address_to_domain(record: crate::tasks_v13::PersonAddress) -> jig_domain_tasks::PersonAddress {
     match record {
-        crate::tasks_v13::PersonAddress::Person(held) => Ok(jig_domain_tasks::PersonAddress::Person({
+        crate::tasks_v13::PersonAddress::Person(held) => jig_domain_tasks::PersonAddress::Person({
             let crate::tasks_v13::Person { person: held } = held;
             held
-        })),
-        crate::tasks_v13::PersonAddress::Role(held) => Ok(jig_domain_tasks::PersonAddress::Role({
+        }),
+        crate::tasks_v13::PersonAddress::Role(held) => jig_domain_tasks::PersonAddress::Role({
             let crate::tasks_v13::Role { role: held } = held;
             held
-        })),
+        }),
     }
 }
 
-// Maps line 22: Executor.
-pub fn executor_to_record(value: &jig_domain_tasks::Executor, context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::Executor, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn executor_to_record(value: &jig_domain_tasks::Executor) -> crate::tasks_v13::Executor {
     match value {
-        jig_domain_tasks::Executor::Agent { charter: field_000000 } => Ok(crate::tasks_v13::Executor::Agent(crate::tasks_v13::Agent {
+        jig_domain_tasks::Executor::Agent { charter: field_000000 } => crate::tasks_v13::Executor::Agent(crate::tasks_v13::Agent {
             charter: *field_000000
-        })),
-        jig_domain_tasks::Executor::Procedure { connector: field_000000, code: field_000001 } => Ok(crate::tasks_v13::Executor::Procedure(crate::tasks_v13::Procedure {
+        }),
+        jig_domain_tasks::Executor::Procedure { connector: field_000000, code: field_000001 } => crate::tasks_v13::Executor::Procedure(crate::tasks_v13::Procedure {
             connector: *field_000000,
             code: *field_000001
-        })),
-        jig_domain_tasks::Executor::Person(held) => Ok(crate::tasks_v13::Executor::Person(crate::tasks_v13::PersonExecutor { address: person_address_to_record(held, context)? })),
-        jig_domain_tasks::Executor::Job { kind: field_000000 } => Ok(crate::tasks_v13::Executor::Job(crate::tasks_v13::JobExecutor {
+        }),
+        jig_domain_tasks::Executor::Person(held) => crate::tasks_v13::Executor::Person(crate::tasks_v13::PersonExecutor { address: person_address_to_record(held) }),
+        jig_domain_tasks::Executor::Job { kind: field_000000 } => crate::tasks_v13::Executor::Job(crate::tasks_v13::JobExecutor {
             kind: *field_000000
-        })),
+        }),
     }
 }
 
-// Maps line 22: Executor.
-pub fn executor_to_domain(record: crate::tasks_v13::Executor, context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::Executor, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn executor_to_domain(record: crate::tasks_v13::Executor) -> jig_domain_tasks::Executor {
     match record {
         crate::tasks_v13::Executor::Agent(held) => {
             let crate::tasks_v13::Agent { charter: field_000000 } = held;
-            Ok(jig_domain_tasks::Executor::Agent {
+            jig_domain_tasks::Executor::Agent {
                 charter: field_000000
-            })
+            }
         },
         crate::tasks_v13::Executor::Procedure(held) => {
             let crate::tasks_v13::Procedure { connector: field_000000, code: field_000001 } = held;
-            Ok(jig_domain_tasks::Executor::Procedure {
+            jig_domain_tasks::Executor::Procedure {
                 connector: field_000000,
                 code: field_000001
-            })
+            }
         },
-        crate::tasks_v13::Executor::Person(held) => Ok(jig_domain_tasks::Executor::Person({
+        crate::tasks_v13::Executor::Person(held) => jig_domain_tasks::Executor::Person({
             let crate::tasks_v13::PersonExecutor { address: held } = held;
-            person_address_to_domain(held, context)?
-        })),
+            person_address_to_domain(held)
+        }),
         crate::tasks_v13::Executor::Job(held) => {
             let crate::tasks_v13::JobExecutor { kind: field_000000 } = held;
-            Ok(jig_domain_tasks::Executor::Job {
+            jig_domain_tasks::Executor::Job {
                 kind: field_000000
-            })
+            }
         },
     }
 }
 
-// Maps line 26: Parameter.
-pub fn parameter_to_record(value: &jig_domain_tasks::Parameter, _context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::Parameter, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn parameter_to_record(value: &jig_domain_tasks::Parameter) -> crate::tasks_v13::Parameter {
     match value {
-        jig_domain_tasks::Parameter::Number { name: field_000000, value: field_000001 } => Ok(crate::tasks_v13::Parameter::Number(crate::tasks_v13::NumericParameter {
+        jig_domain_tasks::Parameter::Number { name: field_000000, value: field_000001 } => crate::tasks_v13::Parameter::Number(crate::tasks_v13::NumericParameter {
             name: *field_000000,
             value: *field_000001
-        })),
-        jig_domain_tasks::Parameter::Bytes { name: field_000000, value: field_000001 } => Ok(crate::tasks_v13::Parameter::Bytes(crate::tasks_v13::BytesParameter {
+        }),
+        jig_domain_tasks::Parameter::Bytes { name: field_000000, value: field_000001 } => crate::tasks_v13::Parameter::Bytes(crate::tasks_v13::BytesParameter {
             name: *field_000000,
             value: field_000001.clone()
-        })),
-        jig_domain_tasks::Parameter::Resource { name: field_000000, connector: field_000001, resource: field_000002 } => Ok(crate::tasks_v13::Parameter::Resource(crate::tasks_v13::ResourceParameter {
+        }),
+        jig_domain_tasks::Parameter::Resource { name: field_000000, connector: field_000001, resource: field_000002 } => crate::tasks_v13::Parameter::Resource(crate::tasks_v13::ResourceParameter {
             name: *field_000000,
             connector: *field_000001,
             resource: *field_000002
-        })),
+        }),
     }
 }
 
-// Maps line 26: Parameter.
-pub fn parameter_to_domain(record: crate::tasks_v13::Parameter, _context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::Parameter, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn parameter_to_domain(record: crate::tasks_v13::Parameter) -> jig_domain_tasks::Parameter {
     match record {
         crate::tasks_v13::Parameter::Number(held) => {
             let crate::tasks_v13::NumericParameter { name: field_000000, value: field_000001 } = held;
-            Ok(jig_domain_tasks::Parameter::Number {
+            jig_domain_tasks::Parameter::Number {
                 name: field_000000,
                 value: field_000001
-            })
+            }
         },
         crate::tasks_v13::Parameter::Bytes(held) => {
             let crate::tasks_v13::BytesParameter { name: field_000000, value: field_000001 } = held;
-            Ok(jig_domain_tasks::Parameter::Bytes {
+            jig_domain_tasks::Parameter::Bytes {
                 name: field_000000,
                 value: field_000001
-            })
+            }
         },
         crate::tasks_v13::Parameter::Resource(held) => {
             let crate::tasks_v13::ResourceParameter { name: field_000000, connector: field_000001, resource: field_000002 } = held;
-            Ok(jig_domain_tasks::Parameter::Resource {
+            jig_domain_tasks::Parameter::Resource {
                 name: field_000000,
                 connector: field_000001,
                 resource: field_000002
-            })
+            }
         },
     }
 }
 
-// Maps line 27: JobSpec.
-pub fn job_spec_to_record(value: &jig_domain_tasks::JobSpec, _context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::JobSpec, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn job_spec_to_record(value: &jig_domain_tasks::JobSpec) -> crate::tasks_v13::JobSpec {
     let jig_domain_tasks::JobSpec { bytes: field_000000, deadline: field_000001 } = value;
-    Ok(crate::tasks_v13::JobSpec {
+    crate::tasks_v13::JobSpec {
         bytes: field_000000.clone(),
         deadline: *field_000001
-    })
+    }
 }
 
-// Maps line 27: JobSpec.
-pub fn job_spec_to_domain(record: crate::tasks_v13::JobSpec, _context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::JobSpec, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn job_spec_to_domain(record: crate::tasks_v13::JobSpec) -> jig_domain_tasks::JobSpec {
     let crate::tasks_v13::JobSpec { bytes: field_000000, deadline: field_000001 } = record;
-    Ok(jig_domain_tasks::JobSpec {
+    jig_domain_tasks::JobSpec {
         bytes: field_000000,
         deadline: field_000001
+    }
+}
+
+#[must_use]
+pub fn part_kind_to_record(value: &jig_domain_tasks::PartKind) -> crate::tasks_v13::PartKind {
+    match value {
+        jig_domain_tasks::PartKind::Resource => crate::tasks_v13::PartKind::Resource,
+        jig_domain_tasks::PartKind::Pool => crate::tasks_v13::PartKind::Pool,
+        jig_domain_tasks::PartKind::Result => crate::tasks_v13::PartKind::Result,
+        jig_domain_tasks::PartKind::Procedure => crate::tasks_v13::PartKind::Procedure,
+        jig_domain_tasks::PartKind::Effect => crate::tasks_v13::PartKind::Effect,
+        jig_domain_tasks::PartKind::Outbox => crate::tasks_v13::PartKind::Outbox,
+        jig_domain_tasks::PartKind::Hold => crate::tasks_v13::PartKind::Hold,
+    }
+}
+
+#[must_use]
+pub fn part_kind_to_domain(record: crate::tasks_v13::PartKind) -> jig_domain_tasks::PartKind {
+    match record {
+        crate::tasks_v13::PartKind::Resource => jig_domain_tasks::PartKind::Resource,
+        crate::tasks_v13::PartKind::Pool => jig_domain_tasks::PartKind::Pool,
+        crate::tasks_v13::PartKind::Result => jig_domain_tasks::PartKind::Result,
+        crate::tasks_v13::PartKind::Procedure => jig_domain_tasks::PartKind::Procedure,
+        crate::tasks_v13::PartKind::Effect => jig_domain_tasks::PartKind::Effect,
+        crate::tasks_v13::PartKind::Outbox => jig_domain_tasks::PartKind::Outbox,
+        crate::tasks_v13::PartKind::Hold => jig_domain_tasks::PartKind::Hold,
+    }
+}
+
+pub fn part_key_to_record(value: &jig_domain_tasks::PartKey, context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::PartKey, crate::tasks_v13::Problem> {
+    Ok(match value {
+        jig_domain_tasks::PartKey::Path(held) => crate::tasks_v13::PartKey::Path(crate::codec::tasks::part_path_to_record(held, context)?),
+        jig_domain_tasks::PartKey::Number(held) => crate::tasks_v13::PartKey::Number(crate::tasks_v13::Number { value: *held }),
     })
 }
 
-// Maps line 31: PartKind.
-pub fn part_kind_to_record(value: &jig_domain_tasks::PartKind, _context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::PartKind, crate::tasks_v13::Problem> {
-    match value {
-        jig_domain_tasks::PartKind::Resource => Ok(crate::tasks_v13::PartKind::Resource),
-        jig_domain_tasks::PartKind::Pool => Ok(crate::tasks_v13::PartKind::Pool),
-        jig_domain_tasks::PartKind::Result => Ok(crate::tasks_v13::PartKind::Result),
-        jig_domain_tasks::PartKind::Procedure => Ok(crate::tasks_v13::PartKind::Procedure),
-        jig_domain_tasks::PartKind::Effect => Ok(crate::tasks_v13::PartKind::Effect),
-        jig_domain_tasks::PartKind::Outbox => Ok(crate::tasks_v13::PartKind::Outbox),
-        jig_domain_tasks::PartKind::Hold => Ok(crate::tasks_v13::PartKind::Hold),
-    }
-}
-
-// Maps line 31: PartKind.
-pub fn part_kind_to_domain(record: crate::tasks_v13::PartKind, _context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::PartKind, crate::tasks_v13::Problem> {
-    match record {
-        crate::tasks_v13::PartKind::Resource => Ok(jig_domain_tasks::PartKind::Resource),
-        crate::tasks_v13::PartKind::Pool => Ok(jig_domain_tasks::PartKind::Pool),
-        crate::tasks_v13::PartKind::Result => Ok(jig_domain_tasks::PartKind::Result),
-        crate::tasks_v13::PartKind::Procedure => Ok(jig_domain_tasks::PartKind::Procedure),
-        crate::tasks_v13::PartKind::Effect => Ok(jig_domain_tasks::PartKind::Effect),
-        crate::tasks_v13::PartKind::Outbox => Ok(jig_domain_tasks::PartKind::Outbox),
-        crate::tasks_v13::PartKind::Hold => Ok(jig_domain_tasks::PartKind::Hold),
-    }
-}
-
-// Maps line 34: PartKey.
-pub fn part_key_to_record(value: &jig_domain_tasks::PartKey, context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::PartKey, crate::tasks_v13::Problem> {
-    match value {
-        jig_domain_tasks::PartKey::Path(held) => Ok(crate::tasks_v13::PartKey::Path(crate::codec::tasks::part_path_to_record(held, context)?)),
-        jig_domain_tasks::PartKey::Number(held) => Ok(crate::tasks_v13::PartKey::Number(crate::tasks_v13::Number { value: *held })),
-    }
-}
-
-// Maps line 34: PartKey.
 pub fn part_key_to_domain(record: crate::tasks_v13::PartKey, context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::PartKey, crate::tasks_v13::Problem> {
-    match record {
-        crate::tasks_v13::PartKey::Path(held) => Ok(jig_domain_tasks::PartKey::Path(crate::codec::tasks::part_path_to_domain(held, context)?)),
-        crate::tasks_v13::PartKey::Number(held) => Ok(jig_domain_tasks::PartKey::Number({
+    Ok(match record {
+        crate::tasks_v13::PartKey::Path(held) => jig_domain_tasks::PartKey::Path(crate::codec::tasks::part_path_to_domain(held, context)?),
+        crate::tasks_v13::PartKey::Number(held) => jig_domain_tasks::PartKey::Number({
             let crate::tasks_v13::Number { value: held } = held;
             held
-        })),
-    }
+        }),
+    })
 }
 
-// Maps line 35: Part.
 pub fn part_to_record(value: &jig_domain_tasks::Part, context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::Part, crate::tasks_v13::Problem> {
     let jig_domain_tasks::Part { connector: field_000000, kind: field_000001, key: field_000002 } = value;
     Ok(crate::tasks_v13::Part {
         connector: *field_000000,
-        kind: part_kind_to_record(field_000001, context)?,
+        kind: part_kind_to_record(field_000001),
         key: part_key_to_record(field_000002, context)?
     })
 }
 
-// Maps line 35: Part.
 pub fn part_to_domain(record: crate::tasks_v13::Part, context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::Part, crate::tasks_v13::Problem> {
     let crate::tasks_v13::Part { connector: field_000000, kind: field_000001, key: field_000002 } = record;
     Ok(jig_domain_tasks::Part {
         connector: field_000000,
-        kind: part_kind_to_domain(field_000001, context)?,
+        kind: part_kind_to_domain(field_000001),
         key: part_key_to_domain(field_000002, context)?
     })
 }
 
-// Maps line 36: FieldRule.
-pub fn field_rule_to_record(value: &jig_domain_tasks::FieldRule, _context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::FieldRule, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn field_rule_to_record(value: &jig_domain_tasks::FieldRule) -> crate::tasks_v13::FieldRule {
     let jig_domain_tasks::FieldRule { name: field_000000, max: field_000001 } = value;
-    Ok(crate::tasks_v13::FieldRule {
+    crate::tasks_v13::FieldRule {
         name: field_000000.clone(),
         max: *field_000001
-    })
+    }
 }
 
-// Maps line 36: FieldRule.
-pub fn field_rule_to_domain(record: crate::tasks_v13::FieldRule, _context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::FieldRule, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn field_rule_to_domain(record: crate::tasks_v13::FieldRule) -> jig_domain_tasks::FieldRule {
     let crate::tasks_v13::FieldRule { name: field_000000, max: field_000001 } = record;
-    Ok(jig_domain_tasks::FieldRule {
+    jig_domain_tasks::FieldRule {
         name: field_000000,
         max: field_000001
-    })
+    }
 }
 
-// Maps line 45: ModelEffort.
-pub fn model_effort_to_record(value: &jig_domain_tasks::ModelEffort, _context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::ModelEffort, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn model_effort_to_record(value: &jig_domain_tasks::ModelEffort) -> crate::tasks_v13::ModelEffort {
     let jig_domain_tasks::ModelEffort { model: field_000000, effort: field_000001 } = value;
-    Ok(crate::tasks_v13::ModelEffort {
+    crate::tasks_v13::ModelEffort {
         model: *field_000000,
         effort: match field_000001 {
-            Some(item) => Some(*item),
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
             None => None,
         }
-    })
+    }
 }
 
-// Maps line 45: ModelEffort.
-pub fn model_effort_to_domain(record: crate::tasks_v13::ModelEffort, _context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::ModelEffort, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn model_effort_to_domain(record: crate::tasks_v13::ModelEffort) -> jig_domain_tasks::ModelEffort {
     let crate::tasks_v13::ModelEffort { model: field_000000, effort: field_000001 } = record;
-    Ok(jig_domain_tasks::ModelEffort {
+    jig_domain_tasks::ModelEffort {
         model: field_000000,
         effort: match field_000001 {
-            Some(item) => Some(item),
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
             None => None,
         }
-    })
+    }
 }
 
-// Maps line 46: LlmLater.
-pub fn llm_later_to_record(value: &jig_domain_tasks::LlmLater, context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::LlmLater, crate::tasks_v13::Problem> {
+pub fn llm_later_to_record(value: &jig_domain_tasks::LlmLater) -> Result<crate::tasks_v13::LlmLater, crate::tasks_v13::Problem> {
     let jig_domain_tasks::LlmLater { main: field_000000, subagents: field_000001 } = value;
     Ok(crate::tasks_v13::LlmLater {
-        main: model_effort_to_record(field_000000, context)?,
+        main: model_effort_to_record(field_000000),
         subagents: {
             let source = field_000001;
             let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(crate::tasks_v13::paths::LLM_LATER_SUBAGENTS.problem(skein_codec::Reason::Bound)) };
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.as_ref() {
-                let converted = model_effort_to_record(item, context)?;
-                if translated.push(converted).is_err() { return Err(crate::tasks_v13::paths::LLM_LATER_SUBAGENTS.problem(skein_codec::Reason::Bound)); }
+                let converted = model_effort_to_record(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             translated
         }
     })
 }
 
-// Maps line 46: LlmLater.
-pub fn llm_later_to_domain(record: crate::tasks_v13::LlmLater, context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::LlmLater, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn llm_later_to_domain(record: crate::tasks_v13::LlmLater) -> jig_domain_tasks::LlmLater {
     let crate::tasks_v13::LlmLater { main: field_000000, subagents: field_000001 } = record;
-    Ok(jig_domain_tasks::LlmLater {
-        main: model_effort_to_domain(field_000000, context)?,
+    jig_domain_tasks::LlmLater {
+        main: model_effort_to_domain(field_000000),
         subagents: {
             let source = field_000001;
             let count = source.len();
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.into_boxed() {
-                let converted = model_effort_to_domain(item, context)?;
-                if translated.push(converted).is_err() { return Err(crate::tasks_v13::paths::LLM_LATER_SUBAGENTS.problem(skein_codec::Reason::Bound)); }
+                let converted = model_effort_to_domain(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             Box::from(translated)
         }
-    })
+    }
 }
 
-// Maps line 47: LlmChoice.
-pub fn llm_choice_to_record(value: &jig_domain_tasks::LlmChoice, context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::LlmChoice, crate::tasks_v13::Problem> {
+pub fn llm_choice_to_record(value: &jig_domain_tasks::LlmChoice) -> Result<crate::tasks_v13::LlmChoice, crate::tasks_v13::Problem> {
     let jig_domain_tasks::LlmChoice { main: field_000000, subagents: field_000001, later: field_000002, account: field_000003 } = value;
     Ok(crate::tasks_v13::LlmChoice {
-        main: model_effort_to_record(field_000000, context)?,
+        main: model_effort_to_record(field_000000),
         subagents: {
             let source = field_000001;
             let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(crate::tasks_v13::paths::LLM_CHOICE_SUBAGENTS.problem(skein_codec::Reason::Bound)) };
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.as_ref() {
-                let converted = model_effort_to_record(item, context)?;
-                if translated.push(converted).is_err() { return Err(crate::tasks_v13::paths::LLM_CHOICE_SUBAGENTS.problem(skein_codec::Reason::Bound)); }
+                let converted = model_effort_to_record(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             translated
         },
         later: match field_000002 {
-            Some(item) => Some(llm_later_to_record(item, context)?),
+            Some(item) => {
+                let converted = llm_later_to_record(item)?;
+                Some(converted)
+            }
             None => None,
         },
         account: match field_000003 {
-            Some(item) => Some(*item),
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
             None => None,
         }
     })
 }
 
-// Maps line 47: LlmChoice.
-pub fn llm_choice_to_domain(record: crate::tasks_v13::LlmChoice, context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::LlmChoice, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn llm_choice_to_domain(record: crate::tasks_v13::LlmChoice) -> jig_domain_tasks::LlmChoice {
     let crate::tasks_v13::LlmChoice { main: field_000000, subagents: field_000001, later: field_000002, account: field_000003 } = record;
-    Ok(jig_domain_tasks::LlmChoice {
-        main: model_effort_to_domain(field_000000, context)?,
+    jig_domain_tasks::LlmChoice {
+        main: model_effort_to_domain(field_000000),
         subagents: {
             let source = field_000001;
             let count = source.len();
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.into_boxed() {
-                let converted = model_effort_to_domain(item, context)?;
-                if translated.push(converted).is_err() { return Err(crate::tasks_v13::paths::LLM_CHOICE_SUBAGENTS.problem(skein_codec::Reason::Bound)); }
+                let converted = model_effort_to_domain(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             Box::from(translated)
         },
         later: match field_000002 {
-            Some(item) => Some(llm_later_to_domain(item, context)?),
+            Some(item) => {
+                let converted = llm_later_to_domain(item);
+                Some(converted)
+            }
             None => None,
         },
         account: match field_000003 {
-            Some(item) => Some(item),
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
             None => None,
         }
-    })
+    }
 }
 
-// Maps line 50: Last.
-pub fn last_to_record(value: &jig_domain_tasks::Last, _context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::Last, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn last_to_record(value: &jig_domain_tasks::Last) -> crate::tasks_v13::Last {
     match value {
-        jig_domain_tasks::Last::Exact(held) => Ok(crate::tasks_v13::Last::Exact(crate::tasks_v13::AuthoritySegment { bytes: held.clone() })),
-        jig_domain_tasks::Last::Open(held) => Ok(crate::tasks_v13::Last::Open(crate::tasks_v13::AuthoritySegment { bytes: held.clone() })),
+        jig_domain_tasks::Last::Exact(held) => crate::tasks_v13::Last::Exact(crate::tasks_v13::AuthoritySegment { bytes: held.clone() }),
+        jig_domain_tasks::Last::Open(held) => crate::tasks_v13::Last::Open(crate::tasks_v13::AuthoritySegment { bytes: held.clone() }),
     }
 }
 
-// Maps line 50: Last.
-pub fn last_to_domain(record: crate::tasks_v13::Last, _context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::Last, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn last_to_domain(record: crate::tasks_v13::Last) -> jig_domain_tasks::Last {
     match record {
-        crate::tasks_v13::Last::Exact(held) => Ok(jig_domain_tasks::Last::Exact({
+        crate::tasks_v13::Last::Exact(held) => jig_domain_tasks::Last::Exact({
             let crate::tasks_v13::AuthoritySegment { bytes: held } = held;
             held
-        })),
-        crate::tasks_v13::Last::Open(held) => Ok(jig_domain_tasks::Last::Open({
+        }),
+        crate::tasks_v13::Last::Open(held) => jig_domain_tasks::Last::Open({
             let crate::tasks_v13::AuthoritySegment { bytes: held } = held;
             held
-        })),
+        }),
     }
 }
 
-// Maps line 51: Pattern.
-pub fn pattern_to_record(value: &jig_domain_tasks::Pattern, context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::Pattern, crate::tasks_v13::Problem> {
+pub fn pattern_to_record(value: &jig_domain_tasks::Pattern) -> Result<crate::tasks_v13::Pattern, crate::tasks_v13::Problem> {
     let jig_domain_tasks::Pattern { segments: field_000000, last: field_000001 } = value;
     Ok(crate::tasks_v13::Pattern {
         segments: {
@@ -448,18 +459,18 @@ pub fn pattern_to_record(value: &jig_domain_tasks::Pattern, context: &crate::cod
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.as_ref() {
                 let converted = crate::tasks_v13::AuthoritySegment { bytes: item.clone() };
-                if translated.push(converted).is_err() { return Err(crate::tasks_v13::paths::PATTERN_SEGMENTS.problem(skein_codec::Reason::Bound)); }
+                assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             translated
         },
-        last: last_to_record(field_000001, context)?
+        last: last_to_record(field_000001)
     })
 }
 
-// Maps line 51: Pattern.
-pub fn pattern_to_domain(record: crate::tasks_v13::Pattern, context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::Pattern, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn pattern_to_domain(record: crate::tasks_v13::Pattern) -> jig_domain_tasks::Pattern {
     let crate::tasks_v13::Pattern { segments: field_000000, last: field_000001 } = record;
-    Ok(jig_domain_tasks::Pattern {
+    jig_domain_tasks::Pattern {
         segments: {
             let source = field_000000;
             let count = source.len();
@@ -469,86 +480,83 @@ pub fn pattern_to_domain(record: crate::tasks_v13::Pattern, context: &crate::cod
                     let crate::tasks_v13::AuthoritySegment { bytes: held } = item;
                     held
                 };
-                if translated.push(converted).is_err() { return Err(crate::tasks_v13::paths::PATTERN_SEGMENTS.problem(skein_codec::Reason::Bound)); }
+                assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             Box::from(translated)
         },
-        last: last_to_domain(field_000001, context)?
-    })
+        last: last_to_domain(field_000001)
+    }
 }
 
-// Maps line 52: Grant.
-pub fn grant_to_record(value: &jig_domain_tasks::Grant, context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::Grant, crate::tasks_v13::Problem> {
+pub fn grant_to_record(value: &jig_domain_tasks::Grant) -> Result<crate::tasks_v13::Grant, crate::tasks_v13::Problem> {
     let jig_domain_tasks::Grant { connector: field_000000, kind: field_000001, pattern: field_000002 } = value;
     Ok(crate::tasks_v13::Grant {
         connector: *field_000000,
         kind: *field_000001,
-        pattern: pattern_to_record(field_000002, context)?
+        pattern: pattern_to_record(field_000002)?
     })
 }
 
-// Maps line 52: Grant.
-pub fn grant_to_domain(record: crate::tasks_v13::Grant, context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::Grant, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn grant_to_domain(record: crate::tasks_v13::Grant) -> jig_domain_tasks::Grant {
     let crate::tasks_v13::Grant { connector: field_000000, kind: field_000001, pattern: field_000002 } = record;
-    Ok(jig_domain_tasks::Grant {
+    jig_domain_tasks::Grant {
         connector: field_000000,
         kind: field_000001,
-        pattern: pattern_to_domain(field_000002, context)?
-    })
+        pattern: pattern_to_domain(field_000002)
+    }
 }
 
-// Maps line 53: ResourceScope.
-pub fn resource_scope_to_record(value: &jig_domain_tasks::ResourceScope, context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::ResourceScope, crate::tasks_v13::Problem> {
+pub fn resource_scope_to_record(value: &jig_domain_tasks::ResourceScope) -> Result<crate::tasks_v13::ResourceScope, crate::tasks_v13::Problem> {
     let jig_domain_tasks::ResourceScope { connector: field_000000, pattern: field_000001 } = value;
     Ok(crate::tasks_v13::ResourceScope {
         connector: *field_000000,
-        pattern: pattern_to_record(field_000001, context)?
+        pattern: pattern_to_record(field_000001)?
     })
 }
 
-// Maps line 53: ResourceScope.
-pub fn resource_scope_to_domain(record: crate::tasks_v13::ResourceScope, context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::ResourceScope, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn resource_scope_to_domain(record: crate::tasks_v13::ResourceScope) -> jig_domain_tasks::ResourceScope {
     let crate::tasks_v13::ResourceScope { connector: field_000000, pattern: field_000001 } = record;
-    Ok(jig_domain_tasks::ResourceScope {
+    jig_domain_tasks::ResourceScope {
         connector: field_000000,
-        pattern: pattern_to_domain(field_000001, context)?
-    })
-}
-
-// Maps line 57: AuthorityExecutor.
-pub fn authority_executor_to_record(value: &jig_domain_tasks::AuthorityExecutor, _context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::AuthorityExecutor, crate::tasks_v13::Problem> {
-    match value {
-        jig_domain_tasks::AuthorityExecutor::Charter(held) => Ok(crate::tasks_v13::AuthorityExecutor::Charter(crate::tasks_v13::Charter { charter: *held })),
-        jig_domain_tasks::AuthorityExecutor::Procedure(held) => Ok(crate::tasks_v13::AuthorityExecutor::Procedure(crate::tasks_v13::Code { code: *held })),
-        jig_domain_tasks::AuthorityExecutor::Role(held) => Ok(crate::tasks_v13::AuthorityExecutor::Role(crate::tasks_v13::Role { role: *held })),
-        jig_domain_tasks::AuthorityExecutor::Job(held) => Ok(crate::tasks_v13::AuthorityExecutor::Job(crate::tasks_v13::AuthorityJob { kind: *held })),
+        pattern: pattern_to_domain(field_000001)
     }
 }
 
-// Maps line 57: AuthorityExecutor.
-pub fn authority_executor_to_domain(record: crate::tasks_v13::AuthorityExecutor, _context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::AuthorityExecutor, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn authority_executor_to_record(value: &jig_domain_tasks::AuthorityExecutor) -> crate::tasks_v13::AuthorityExecutor {
+    match value {
+        jig_domain_tasks::AuthorityExecutor::Charter(held) => crate::tasks_v13::AuthorityExecutor::Charter(crate::tasks_v13::Charter { charter: *held }),
+        jig_domain_tasks::AuthorityExecutor::Procedure(held) => crate::tasks_v13::AuthorityExecutor::Procedure(crate::tasks_v13::Code { code: *held }),
+        jig_domain_tasks::AuthorityExecutor::Role(held) => crate::tasks_v13::AuthorityExecutor::Role(crate::tasks_v13::Role { role: *held }),
+        jig_domain_tasks::AuthorityExecutor::Job(held) => crate::tasks_v13::AuthorityExecutor::Job(crate::tasks_v13::AuthorityJob { kind: *held }),
+    }
+}
+
+#[must_use]
+pub fn authority_executor_to_domain(record: crate::tasks_v13::AuthorityExecutor) -> jig_domain_tasks::AuthorityExecutor {
     match record {
-        crate::tasks_v13::AuthorityExecutor::Charter(held) => Ok(jig_domain_tasks::AuthorityExecutor::Charter({
+        crate::tasks_v13::AuthorityExecutor::Charter(held) => jig_domain_tasks::AuthorityExecutor::Charter({
             let crate::tasks_v13::Charter { charter: held } = held;
             held
-        })),
-        crate::tasks_v13::AuthorityExecutor::Procedure(held) => Ok(jig_domain_tasks::AuthorityExecutor::Procedure({
+        }),
+        crate::tasks_v13::AuthorityExecutor::Procedure(held) => jig_domain_tasks::AuthorityExecutor::Procedure({
             let crate::tasks_v13::Code { code: held } = held;
             held
-        })),
-        crate::tasks_v13::AuthorityExecutor::Role(held) => Ok(jig_domain_tasks::AuthorityExecutor::Role({
+        }),
+        crate::tasks_v13::AuthorityExecutor::Role(held) => jig_domain_tasks::AuthorityExecutor::Role({
             let crate::tasks_v13::Role { role: held } = held;
             held
-        })),
-        crate::tasks_v13::AuthorityExecutor::Job(held) => Ok(jig_domain_tasks::AuthorityExecutor::Job({
+        }),
+        crate::tasks_v13::AuthorityExecutor::Job(held) => jig_domain_tasks::AuthorityExecutor::Job({
             let crate::tasks_v13::AuthorityJob { kind: held } = held;
             held
-        })),
+        }),
     }
 }
 
-// Maps line 58: Delegation.
-pub fn delegation_to_record(value: &jig_domain_tasks::Delegation, context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::Delegation, crate::tasks_v13::Problem> {
+pub fn delegation_to_record(value: &jig_domain_tasks::Delegation) -> Result<crate::tasks_v13::Delegation, crate::tasks_v13::Problem> {
     let jig_domain_tasks::Delegation { kinds: field_000000, tasks: field_000001, depth: field_000002 } = value;
     Ok(crate::tasks_v13::Delegation {
         kinds: {
@@ -556,8 +564,8 @@ pub fn delegation_to_record(value: &jig_domain_tasks::Delegation, context: &crat
             let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(crate::tasks_v13::paths::DELEGATION_KINDS.problem(skein_codec::Reason::Bound)) };
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.as_ref() {
-                let converted = authority_executor_to_record(item, context)?;
-                if translated.push(converted).is_err() { return Err(crate::tasks_v13::paths::DELEGATION_KINDS.problem(skein_codec::Reason::Bound)); }
+                let converted = authority_executor_to_record(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             translated
         },
@@ -566,242 +574,263 @@ pub fn delegation_to_record(value: &jig_domain_tasks::Delegation, context: &crat
     })
 }
 
-// Maps line 58: Delegation.
-pub fn delegation_to_domain(record: crate::tasks_v13::Delegation, context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::Delegation, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn delegation_to_domain(record: crate::tasks_v13::Delegation) -> jig_domain_tasks::Delegation {
     let crate::tasks_v13::Delegation { kinds: field_000000, tasks: field_000001, depth: field_000002 } = record;
-    Ok(jig_domain_tasks::Delegation {
+    jig_domain_tasks::Delegation {
         kinds: {
             let source = field_000000;
             let count = source.len();
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.into_boxed() {
-                let converted = authority_executor_to_domain(item, context)?;
-                if translated.push(converted).is_err() { return Err(crate::tasks_v13::paths::DELEGATION_KINDS.problem(skein_codec::Reason::Bound)); }
+                let converted = authority_executor_to_domain(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             Box::from(translated)
         },
         tasks: field_000001,
         depth: field_000002
-    })
+    }
 }
 
-// Maps line 59: Budget.
-pub fn budget_to_record(value: &jig_domain_tasks::Budget, _context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::Budget, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn budget_to_record(value: &jig_domain_tasks::Budget) -> crate::tasks_v13::Budget {
     let jig_domain_tasks::Budget { spend: field_000000, deadline: field_000001 } = value;
-    Ok(crate::tasks_v13::Budget {
+    crate::tasks_v13::Budget {
         spend: *field_000000,
         deadline: match field_000001 {
-            Some(item) => Some(match skein_codec::convert::wall_to_record(item) { Ok(value) => value, Err(reason) => return Err(crate::tasks_v13::paths::BUDGET_DEADLINE.problem(reason)) }),
+            Some(item) => {
+                let converted = skein_codec::convert::wall_to_record(item);
+                Some(converted)
+            }
             None => None,
         }
-    })
+    }
 }
 
-// Maps line 59: Budget.
-pub fn budget_to_domain(record: crate::tasks_v13::Budget, _context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::Budget, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn budget_to_domain(record: crate::tasks_v13::Budget) -> jig_domain_tasks::Budget {
     let crate::tasks_v13::Budget { spend: field_000000, deadline: field_000001 } = record;
-    Ok(jig_domain_tasks::Budget {
+    jig_domain_tasks::Budget {
         spend: field_000000,
         deadline: match field_000001 {
-            Some(item) => Some(match skein_codec::convert::wall_to_domain(item) { Ok(value) => value, Err(reason) => return Err(crate::tasks_v13::paths::BUDGET_DEADLINE.problem(reason)) }),
+            Some(item) => {
+                let converted = skein_codec::convert::wall_to_domain(item);
+                Some(converted)
+            }
             None => None,
         }
-    })
+    }
 }
 
-// Maps line 65: Funder.
-pub fn funder_to_record(value: &jig_domain_tasks::Funder, _context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::Funder, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn funder_to_record(value: &jig_domain_tasks::Funder) -> crate::tasks_v13::Funder {
     match value {
-        jig_domain_tasks::Funder::Task(held) => Ok(crate::tasks_v13::Funder::Task(crate::tasks_v13::Task { task: *held })),
-        jig_domain_tasks::Funder::Pool { project: field_000000, person: field_000001, period: field_000002 } => Ok(crate::tasks_v13::Funder::Pool(crate::tasks_v13::Pool {
+        jig_domain_tasks::Funder::Task(held) => crate::tasks_v13::Funder::Task(crate::tasks_v13::Task { task: *held }),
+        jig_domain_tasks::Funder::Pool { project: field_000000, person: field_000001, period: field_000002 } => crate::tasks_v13::Funder::Pool(crate::tasks_v13::Pool {
             project: *field_000000,
             person: *field_000001,
             period: *field_000002
-        })),
-        jig_domain_tasks::Funder::Recurring { project: field_000000, task: field_000001, period: field_000002 } => Ok(crate::tasks_v13::Funder::Recurring(crate::tasks_v13::Recurring {
+        }),
+        jig_domain_tasks::Funder::Recurring { project: field_000000, task: field_000001, period: field_000002 } => crate::tasks_v13::Funder::Recurring(crate::tasks_v13::Recurring {
             project: *field_000000,
             task: *field_000001,
             period: *field_000002
-        })),
-        jig_domain_tasks::Funder::Period { project: field_000000, period: field_000001 } => Ok(crate::tasks_v13::Funder::Period(crate::tasks_v13::Period {
+        }),
+        jig_domain_tasks::Funder::Period { project: field_000000, period: field_000001 } => crate::tasks_v13::Funder::Period(crate::tasks_v13::Period {
             project: *field_000000,
             period: *field_000001
-        })),
+        }),
     }
 }
 
-// Maps line 65: Funder.
-pub fn funder_to_domain(record: crate::tasks_v13::Funder, _context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::Funder, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn funder_to_domain(record: crate::tasks_v13::Funder) -> jig_domain_tasks::Funder {
     match record {
-        crate::tasks_v13::Funder::Task(held) => Ok(jig_domain_tasks::Funder::Task({
+        crate::tasks_v13::Funder::Task(held) => jig_domain_tasks::Funder::Task({
             let crate::tasks_v13::Task { task: held } = held;
             held
-        })),
+        }),
         crate::tasks_v13::Funder::Pool(held) => {
             let crate::tasks_v13::Pool { project: field_000000, person: field_000001, period: field_000002 } = held;
-            Ok(jig_domain_tasks::Funder::Pool {
+            jig_domain_tasks::Funder::Pool {
                 project: field_000000,
                 person: field_000001,
                 period: field_000002
-            })
+            }
         },
         crate::tasks_v13::Funder::Recurring(held) => {
             let crate::tasks_v13::Recurring { project: field_000000, task: field_000001, period: field_000002 } = held;
-            Ok(jig_domain_tasks::Funder::Recurring {
+            jig_domain_tasks::Funder::Recurring {
                 project: field_000000,
                 task: field_000001,
                 period: field_000002
-            })
+            }
         },
         crate::tasks_v13::Funder::Period(held) => {
             let crate::tasks_v13::Period { project: field_000000, period: field_000001 } = held;
-            Ok(jig_domain_tasks::Funder::Period {
+            jig_domain_tasks::Funder::Period {
                 project: field_000000,
                 period: field_000001
-            })
+            }
         },
     }
 }
 
-// Maps line 66: Numbers.
-pub fn numbers_to_record(value: &jig_domain_tasks::Numbers, _context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::Numbers, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn numbers_to_record(value: &jig_domain_tasks::Numbers) -> crate::tasks_v13::Numbers {
     let jig_domain_tasks::Numbers { budget: field_000000, spent: field_000001, spent_below: field_000002, reserved: field_000003 } = value;
-    Ok(crate::tasks_v13::Numbers {
+    crate::tasks_v13::Numbers {
         budget: *field_000000,
         spent: *field_000001,
         spent_below: *field_000002,
         reserved: *field_000003
-    })
+    }
 }
 
-// Maps line 66: Numbers.
-pub fn numbers_to_domain(record: crate::tasks_v13::Numbers, _context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::Numbers, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn numbers_to_domain(record: crate::tasks_v13::Numbers) -> jig_domain_tasks::Numbers {
     let crate::tasks_v13::Numbers { budget: field_000000, spent: field_000001, spent_below: field_000002, reserved: field_000003 } = record;
-    Ok(jig_domain_tasks::Numbers {
+    jig_domain_tasks::Numbers {
         budget: field_000000,
         spent: field_000001,
         spent_below: field_000002,
         reserved: field_000003
-    })
-}
-
-// Maps line 67: PeriodTimes.
-pub fn period_times_to_record(value: &jig_domain_tasks::PeriodTimes, _context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::PeriodTimes, crate::tasks_v13::Problem> {
-    let jig_domain_tasks::PeriodTimes { began: field_000000, next: field_000001 } = value;
-    Ok(crate::tasks_v13::PeriodTimes {
-        began: match skein_codec::convert::wall_to_record(field_000000) { Ok(value) => value, Err(reason) => return Err(crate::tasks_v13::paths::PERIOD_TIMES_BEGAN.problem(reason)) },
-        next: match field_000001 {
-            Some(item) => Some(match skein_codec::convert::wall_to_record(item) { Ok(value) => value, Err(reason) => return Err(crate::tasks_v13::paths::PERIOD_TIMES_NEXT.problem(reason)) }),
-            None => None,
-        }
-    })
-}
-
-// Maps line 67: PeriodTimes.
-pub fn period_times_to_domain(record: crate::tasks_v13::PeriodTimes, _context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::PeriodTimes, crate::tasks_v13::Problem> {
-    let crate::tasks_v13::PeriodTimes { began: field_000000, next: field_000001 } = record;
-    Ok(jig_domain_tasks::PeriodTimes {
-        began: match skein_codec::convert::wall_to_domain(field_000000) { Ok(value) => value, Err(reason) => return Err(crate::tasks_v13::paths::PERIOD_TIMES_BEGAN.problem(reason)) },
-        next: match field_000001 {
-            Some(item) => Some(match skein_codec::convert::wall_to_domain(item) { Ok(value) => value, Err(reason) => return Err(crate::tasks_v13::paths::PERIOD_TIMES_NEXT.problem(reason)) }),
-            None => None,
-        }
-    })
-}
-
-// Maps line 68: FundingRecord.
-pub fn funding_record_to_record(value: &jig_domain_tasks::FundingRecord, context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::FundingRecord, crate::tasks_v13::Problem> {
-    let jig_domain_tasks::FundingRecord { period: field_000000, funder: field_000001, parent: field_000002, numbers: field_000003, made: field_000004, closed: field_000005 } = value;
-    Ok(crate::tasks_v13::FundingRecord {
-        period: match field_000000 {
-            Some(item) => Some(period_times_to_record(item, context)?),
-            None => None,
-        },
-        funder: funder_to_record(field_000001, context)?,
-        parent: match field_000002 {
-            Some(item) => Some(funder_to_record(item, context)?),
-            None => None,
-        },
-        numbers: numbers_to_record(field_000003, context)?,
-        made: *field_000004,
-        closed: *field_000005
-    })
-}
-
-// Maps line 68: FundingRecord.
-pub fn funding_record_to_domain(record: crate::tasks_v13::FundingRecord, context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::FundingRecord, crate::tasks_v13::Problem> {
-    let crate::tasks_v13::FundingRecord { period: field_000000, funder: field_000001, parent: field_000002, numbers: field_000003, made: field_000004, closed: field_000005 } = record;
-    Ok(jig_domain_tasks::FundingRecord {
-        period: match field_000000 {
-            Some(item) => Some(period_times_to_domain(item, context)?),
-            None => None,
-        },
-        funder: funder_to_domain(field_000001, context)?,
-        parent: match field_000002 {
-            Some(item) => Some(funder_to_domain(item, context)?),
-            None => None,
-        },
-        numbers: numbers_to_domain(field_000003, context)?,
-        made: field_000004,
-        closed: field_000005
-    })
-}
-
-// Maps line 73: Writer.
-pub fn writer_to_record(value: &jig_domain_tasks::Writer, _context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::Writer, crate::tasks_v13::Problem> {
-    match value {
-        jig_domain_tasks::Writer::Run { task: field_000000, attempt: field_000001 } => Ok(crate::tasks_v13::Writer::Run(crate::tasks_v13::Run {
-            task: *field_000000,
-            attempt: *field_000001
-        })),
-        jig_domain_tasks::Writer::Effect { entry: field_000000 } => Ok(crate::tasks_v13::Writer::Effect(crate::tasks_v13::Effect {
-            entry: *field_000000
-        })),
     }
 }
 
-// Maps line 73: Writer.
-pub fn writer_to_domain(record: crate::tasks_v13::Writer, _context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::Writer, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn period_times_to_record(value: &jig_domain_tasks::PeriodTimes) -> crate::tasks_v13::PeriodTimes {
+    let jig_domain_tasks::PeriodTimes { began: field_000000, next: field_000001 } = value;
+    crate::tasks_v13::PeriodTimes {
+        began: skein_codec::convert::wall_to_record(field_000000),
+        next: match field_000001 {
+            Some(item) => {
+                let converted = skein_codec::convert::wall_to_record(item);
+                Some(converted)
+            }
+            None => None,
+        }
+    }
+}
+
+#[must_use]
+pub fn period_times_to_domain(record: crate::tasks_v13::PeriodTimes) -> jig_domain_tasks::PeriodTimes {
+    let crate::tasks_v13::PeriodTimes { began: field_000000, next: field_000001 } = record;
+    jig_domain_tasks::PeriodTimes {
+        began: skein_codec::convert::wall_to_domain(field_000000),
+        next: match field_000001 {
+            Some(item) => {
+                let converted = skein_codec::convert::wall_to_domain(item);
+                Some(converted)
+            }
+            None => None,
+        }
+    }
+}
+
+#[must_use]
+pub fn funding_record_to_record(value: &jig_domain_tasks::FundingRecord) -> crate::tasks_v13::FundingRecord {
+    let jig_domain_tasks::FundingRecord { period: field_000000, funder: field_000001, parent: field_000002, numbers: field_000003, made: field_000004, closed: field_000005 } = value;
+    crate::tasks_v13::FundingRecord {
+        period: match field_000000 {
+            Some(item) => {
+                let converted = period_times_to_record(item);
+                Some(converted)
+            }
+            None => None,
+        },
+        funder: funder_to_record(field_000001),
+        parent: match field_000002 {
+            Some(item) => {
+                let converted = funder_to_record(item);
+                Some(converted)
+            }
+            None => None,
+        },
+        numbers: numbers_to_record(field_000003),
+        made: *field_000004,
+        closed: *field_000005
+    }
+}
+
+#[must_use]
+pub fn funding_record_to_domain(record: crate::tasks_v13::FundingRecord) -> jig_domain_tasks::FundingRecord {
+    let crate::tasks_v13::FundingRecord { period: field_000000, funder: field_000001, parent: field_000002, numbers: field_000003, made: field_000004, closed: field_000005 } = record;
+    jig_domain_tasks::FundingRecord {
+        period: match field_000000 {
+            Some(item) => {
+                let converted = period_times_to_domain(item);
+                Some(converted)
+            }
+            None => None,
+        },
+        funder: funder_to_domain(field_000001),
+        parent: match field_000002 {
+            Some(item) => {
+                let converted = funder_to_domain(item);
+                Some(converted)
+            }
+            None => None,
+        },
+        numbers: numbers_to_domain(field_000003),
+        made: field_000004,
+        closed: field_000005
+    }
+}
+
+#[must_use]
+pub fn writer_to_record(value: &jig_domain_tasks::Writer) -> crate::tasks_v13::Writer {
+    match value {
+        jig_domain_tasks::Writer::Run { task: field_000000, attempt: field_000001 } => crate::tasks_v13::Writer::Run(crate::tasks_v13::Run {
+            task: *field_000000,
+            attempt: *field_000001
+        }),
+        jig_domain_tasks::Writer::Effect { entry: field_000000 } => crate::tasks_v13::Writer::Effect(crate::tasks_v13::Effect {
+            entry: *field_000000
+        }),
+    }
+}
+
+#[must_use]
+pub fn writer_to_domain(record: crate::tasks_v13::Writer) -> jig_domain_tasks::Writer {
     match record {
         crate::tasks_v13::Writer::Run(held) => {
             let crate::tasks_v13::Run { task: field_000000, attempt: field_000001 } = held;
-            Ok(jig_domain_tasks::Writer::Run {
+            jig_domain_tasks::Writer::Run {
                 task: field_000000,
                 attempt: field_000001
-            })
+            }
         },
         crate::tasks_v13::Writer::Effect(held) => {
             let crate::tasks_v13::Effect { entry: field_000000 } = held;
-            Ok(jig_domain_tasks::Writer::Effect {
+            jig_domain_tasks::Writer::Effect {
                 entry: field_000000
-            })
+            }
         },
     }
 }
 
-// Maps line 74: WriterSlot.
 pub fn writer_slot_to_record(value: &jig_domain_tasks::WriterSlot, context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::WriterSlot, crate::tasks_v13::Problem> {
     let jig_domain_tasks::WriterSlot { number: field_000000, resource: field_000001, writer: field_000002, lost: field_000003 } = value;
     Ok(crate::tasks_v13::WriterSlot {
         number: *field_000000,
         resource: crate::codec::tasks::name_to_record(field_000001, context)?,
-        writer: writer_to_record(field_000002, context)?,
+        writer: writer_to_record(field_000002),
         lost: *field_000003
     })
 }
 
-// Maps line 74: WriterSlot.
 pub fn writer_slot_to_domain(record: crate::tasks_v13::WriterSlot, context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::WriterSlot, crate::tasks_v13::Problem> {
     let crate::tasks_v13::WriterSlot { number: field_000000, resource: field_000001, writer: field_000002, lost: field_000003 } = record;
     Ok(jig_domain_tasks::WriterSlot {
         number: field_000000,
         resource: crate::codec::tasks::name_to_domain(field_000001, context)?,
-        writer: writer_to_domain(field_000002, context)?,
+        writer: writer_to_domain(field_000002),
         lost: field_000003
     })
 }
 
-// Maps line 75: PoolSlots.
 pub fn pool_slots_to_record(value: &jig_domain_tasks::PoolSlots, context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::PoolSlots, crate::tasks_v13::Problem> {
     let jig_domain_tasks::PoolSlots { number: field_000000, pool: field_000001, slots: field_000002 } = value;
     Ok(crate::tasks_v13::PoolSlots {
@@ -811,7 +840,6 @@ pub fn pool_slots_to_record(value: &jig_domain_tasks::PoolSlots, context: &crate
     })
 }
 
-// Maps line 75: PoolSlots.
 pub fn pool_slots_to_domain(record: crate::tasks_v13::PoolSlots, context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::PoolSlots, crate::tasks_v13::Problem> {
     let crate::tasks_v13::PoolSlots { number: field_000000, pool: field_000001, slots: field_000002 } = record;
     Ok(jig_domain_tasks::PoolSlots {
@@ -821,536 +849,533 @@ pub fn pool_slots_to_domain(record: crate::tasks_v13::PoolSlots, context: &crate
     })
 }
 
-// Maps line 78: Holding.
 pub fn holding_to_record(value: &jig_domain_tasks::Holding, context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::Holding, crate::tasks_v13::Problem> {
-    match value {
-        jig_domain_tasks::Holding::Write { resource: field_000000, kind: field_000001 } => Ok(crate::tasks_v13::Holding::Write(crate::tasks_v13::WriteHolding {
+    Ok(match value {
+        jig_domain_tasks::Holding::Write { resource: field_000000, kind: field_000001 } => crate::tasks_v13::Holding::Write(crate::tasks_v13::WriteHolding {
             resource: crate::codec::tasks::name_to_record(field_000000, context)?,
             kind: *field_000001
-        })),
-        jig_domain_tasks::Holding::Slot { pool: field_000000, kind: field_000001 } => Ok(crate::tasks_v13::Holding::Slot(crate::tasks_v13::SlotHolding {
+        }),
+        jig_domain_tasks::Holding::Slot { pool: field_000000, kind: field_000001 } => crate::tasks_v13::Holding::Slot(crate::tasks_v13::SlotHolding {
             pool: crate::codec::tasks::name_to_record(field_000000, context)?,
             kind: *field_000001
-        })),
-    }
+        }),
+    })
 }
 
-// Maps line 78: Holding.
 pub fn holding_to_domain(record: crate::tasks_v13::Holding, context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::Holding, crate::tasks_v13::Problem> {
-    match record {
+    Ok(match record {
         crate::tasks_v13::Holding::Write(held) => {
             let crate::tasks_v13::WriteHolding { resource: field_000000, kind: field_000001 } = held;
-            Ok(jig_domain_tasks::Holding::Write {
+            jig_domain_tasks::Holding::Write {
                 resource: crate::codec::tasks::name_to_domain(field_000000, context)?,
                 kind: field_000001
-            })
+            }
         },
         crate::tasks_v13::Holding::Slot(held) => {
             let crate::tasks_v13::SlotHolding { pool: field_000000, kind: field_000001 } = held;
-            Ok(jig_domain_tasks::Holding::Slot {
+            jig_domain_tasks::Holding::Slot {
                 pool: crate::codec::tasks::name_to_domain(field_000000, context)?,
                 kind: field_000001
-            })
+            }
         },
-    }
+    })
 }
 
-// Maps line 81: WakeRule.
-pub fn wake_rule_to_record(value: &jig_domain_tasks::WakeRule, _context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::WakeRule, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn wake_rule_to_record(value: &jig_domain_tasks::WakeRule) -> crate::tasks_v13::WakeRule {
     match value {
-        jig_domain_tasks::WakeRule::Never => Ok(crate::tasks_v13::WakeRule::Never),
-        jig_domain_tasks::WakeRule::Immediate => Ok(crate::tasks_v13::WakeRule::Immediate),
-        jig_domain_tasks::WakeRule::Batch { count: field_000000, age: field_000001 } => Ok(crate::tasks_v13::WakeRule::Batch(crate::tasks_v13::WakeBatch {
+        jig_domain_tasks::WakeRule::Never => crate::tasks_v13::WakeRule::Never,
+        jig_domain_tasks::WakeRule::Immediate => crate::tasks_v13::WakeRule::Immediate,
+        jig_domain_tasks::WakeRule::Batch { count: field_000000, age: field_000001 } => crate::tasks_v13::WakeRule::Batch(crate::tasks_v13::WakeBatch {
             count: *field_000000,
             age: *field_000001
-        })),
-        jig_domain_tasks::WakeRule::Paced { span: field_000000 } => Ok(crate::tasks_v13::WakeRule::Paced(crate::tasks_v13::WakePace {
+        }),
+        jig_domain_tasks::WakeRule::Paced { span: field_000000 } => crate::tasks_v13::WakeRule::Paced(crate::tasks_v13::WakePace {
             span: *field_000000
-        })),
+        }),
     }
 }
 
-// Maps line 81: WakeRule.
-pub fn wake_rule_to_domain(record: crate::tasks_v13::WakeRule, _context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::WakeRule, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn wake_rule_to_domain(record: crate::tasks_v13::WakeRule) -> jig_domain_tasks::WakeRule {
     match record {
-        crate::tasks_v13::WakeRule::Never => Ok(jig_domain_tasks::WakeRule::Never),
-        crate::tasks_v13::WakeRule::Immediate => Ok(jig_domain_tasks::WakeRule::Immediate),
+        crate::tasks_v13::WakeRule::Never => jig_domain_tasks::WakeRule::Never,
+        crate::tasks_v13::WakeRule::Immediate => jig_domain_tasks::WakeRule::Immediate,
         crate::tasks_v13::WakeRule::Batch(held) => {
             let crate::tasks_v13::WakeBatch { count: field_000000, age: field_000001 } = held;
-            Ok(jig_domain_tasks::WakeRule::Batch {
+            jig_domain_tasks::WakeRule::Batch {
                 count: field_000000,
                 age: field_000001
-            })
+            }
         },
         crate::tasks_v13::WakeRule::Paced(held) => {
             let crate::tasks_v13::WakePace { span: field_000000 } = held;
-            Ok(jig_domain_tasks::WakeRule::Paced {
+            jig_domain_tasks::WakeRule::Paced {
                 span: field_000000
-            })
+            }
         },
     }
 }
 
-// Maps line 82: ResultsWake.
-pub fn results_wake_to_record(value: &jig_domain_tasks::ResultsWake, _context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::ResultsWake, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn results_wake_to_record(value: &jig_domain_tasks::ResultsWake) -> crate::tasks_v13::ResultsWake {
     match value {
-        jig_domain_tasks::ResultsWake::Never => Ok(crate::tasks_v13::ResultsWake::Never),
-        jig_domain_tasks::ResultsWake::Each => Ok(crate::tasks_v13::ResultsWake::Each),
-        jig_domain_tasks::ResultsWake::LastOrFailure => Ok(crate::tasks_v13::ResultsWake::LastOrFailure),
+        jig_domain_tasks::ResultsWake::Never => crate::tasks_v13::ResultsWake::Never,
+        jig_domain_tasks::ResultsWake::Each => crate::tasks_v13::ResultsWake::Each,
+        jig_domain_tasks::ResultsWake::LastOrFailure => crate::tasks_v13::ResultsWake::LastOrFailure,
     }
 }
 
-// Maps line 82: ResultsWake.
-pub fn results_wake_to_domain(record: crate::tasks_v13::ResultsWake, _context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::ResultsWake, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn results_wake_to_domain(record: crate::tasks_v13::ResultsWake) -> jig_domain_tasks::ResultsWake {
     match record {
-        crate::tasks_v13::ResultsWake::Never => Ok(jig_domain_tasks::ResultsWake::Never),
-        crate::tasks_v13::ResultsWake::Each => Ok(jig_domain_tasks::ResultsWake::Each),
-        crate::tasks_v13::ResultsWake::LastOrFailure => Ok(jig_domain_tasks::ResultsWake::LastOrFailure),
+        crate::tasks_v13::ResultsWake::Never => jig_domain_tasks::ResultsWake::Never,
+        crate::tasks_v13::ResultsWake::Each => jig_domain_tasks::ResultsWake::Each,
+        crate::tasks_v13::ResultsWake::LastOrFailure => jig_domain_tasks::ResultsWake::LastOrFailure,
     }
 }
 
-// Maps line 83: WakePolicy.
-pub fn wake_policy_to_record(value: &jig_domain_tasks::WakePolicy, context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::WakePolicy, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn wake_policy_to_record(value: &jig_domain_tasks::WakePolicy) -> crate::tasks_v13::WakePolicy {
     let jig_domain_tasks::WakePolicy { words: field_000000, notices: field_000001, news: field_000002, results: field_000003, questions: field_000004, answers: field_000005, timers: field_000006 } = value;
-    Ok(crate::tasks_v13::WakePolicy {
-        words: wake_rule_to_record(field_000000, context)?,
-        notices: wake_rule_to_record(field_000001, context)?,
-        news: wake_rule_to_record(field_000002, context)?,
-        results: results_wake_to_record(field_000003, context)?,
+    crate::tasks_v13::WakePolicy {
+        words: wake_rule_to_record(field_000000),
+        notices: wake_rule_to_record(field_000001),
+        news: wake_rule_to_record(field_000002),
+        results: results_wake_to_record(field_000003),
         questions: *field_000004,
         answers: *field_000005,
         timers: *field_000006
-    })
+    }
 }
 
-// Maps line 83: WakePolicy.
-pub fn wake_policy_to_domain(record: crate::tasks_v13::WakePolicy, context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::WakePolicy, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn wake_policy_to_domain(record: crate::tasks_v13::WakePolicy) -> jig_domain_tasks::WakePolicy {
     let crate::tasks_v13::WakePolicy { words: field_000000, notices: field_000001, news: field_000002, results: field_000003, questions: field_000004, answers: field_000005, timers: field_000006 } = record;
-    Ok(jig_domain_tasks::WakePolicy {
-        words: wake_rule_to_domain(field_000000, context)?,
-        notices: wake_rule_to_domain(field_000001, context)?,
-        news: wake_rule_to_domain(field_000002, context)?,
-        results: results_wake_to_domain(field_000003, context)?,
+    jig_domain_tasks::WakePolicy {
+        words: wake_rule_to_domain(field_000000),
+        notices: wake_rule_to_domain(field_000001),
+        news: wake_rule_to_domain(field_000002),
+        results: results_wake_to_domain(field_000003),
         questions: field_000004,
         answers: field_000005,
         timers: field_000006
-    })
+    }
 }
 
-// Maps line 84: RecurringOverlap.
-pub fn recurring_overlap_to_record(value: &jig_domain_tasks::RecurringOverlap, _context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::RecurringOverlap, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn recurring_overlap_to_record(value: &jig_domain_tasks::RecurringOverlap) -> crate::tasks_v13::RecurringOverlap {
     match value {
-        jig_domain_tasks::RecurringOverlap::Skip => Ok(crate::tasks_v13::RecurringOverlap::Skip),
-        jig_domain_tasks::RecurringOverlap::Wait => Ok(crate::tasks_v13::RecurringOverlap::Wait),
+        jig_domain_tasks::RecurringOverlap::Skip => crate::tasks_v13::RecurringOverlap::Skip,
+        jig_domain_tasks::RecurringOverlap::Wait => crate::tasks_v13::RecurringOverlap::Wait,
     }
 }
 
-// Maps line 84: RecurringOverlap.
-pub fn recurring_overlap_to_domain(record: crate::tasks_v13::RecurringOverlap, _context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::RecurringOverlap, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn recurring_overlap_to_domain(record: crate::tasks_v13::RecurringOverlap) -> jig_domain_tasks::RecurringOverlap {
     match record {
-        crate::tasks_v13::RecurringOverlap::Skip => Ok(jig_domain_tasks::RecurringOverlap::Skip),
-        crate::tasks_v13::RecurringOverlap::Wait => Ok(jig_domain_tasks::RecurringOverlap::Wait),
+        crate::tasks_v13::RecurringOverlap::Skip => jig_domain_tasks::RecurringOverlap::Skip,
+        crate::tasks_v13::RecurringOverlap::Wait => jig_domain_tasks::RecurringOverlap::Wait,
     }
 }
 
-// Maps line 85: Retention.
-pub fn retention_to_record(value: &jig_domain_tasks::Retention, _context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::Retention, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn retention_to_record(value: &jig_domain_tasks::Retention) -> crate::tasks_v13::Retention {
     match value {
-        jig_domain_tasks::Retention::Kept => Ok(crate::tasks_v13::Retention::Kept),
-        jig_domain_tasks::Retention::ForgottenOnceRead => Ok(crate::tasks_v13::Retention::ForgottenOnceRead),
+        jig_domain_tasks::Retention::Kept => crate::tasks_v13::Retention::Kept,
+        jig_domain_tasks::Retention::ForgottenOnceRead => crate::tasks_v13::Retention::ForgottenOnceRead,
     }
 }
 
-// Maps line 85: Retention.
-pub fn retention_to_domain(record: crate::tasks_v13::Retention, _context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::Retention, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn retention_to_domain(record: crate::tasks_v13::Retention) -> jig_domain_tasks::Retention {
     match record {
-        crate::tasks_v13::Retention::Kept => Ok(jig_domain_tasks::Retention::Kept),
-        crate::tasks_v13::Retention::ForgottenOnceRead => Ok(jig_domain_tasks::Retention::ForgottenOnceRead),
+        crate::tasks_v13::Retention::Kept => jig_domain_tasks::Retention::Kept,
+        crate::tasks_v13::Retention::ForgottenOnceRead => jig_domain_tasks::Retention::ForgottenOnceRead,
     }
 }
 
-// Maps line 86: Closer.
-pub fn closer_to_record(value: &jig_domain_tasks::Closer, _context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::Closer, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn closer_to_record(value: &jig_domain_tasks::Closer) -> crate::tasks_v13::Closer {
     let jig_domain_tasks::Closer { connector: field_000000, code: field_000001 } = value;
-    Ok(crate::tasks_v13::Closer {
+    crate::tasks_v13::Closer {
         connector: *field_000000,
         code: *field_000001
-    })
+    }
 }
 
-// Maps line 86: Closer.
-pub fn closer_to_domain(record: crate::tasks_v13::Closer, _context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::Closer, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn closer_to_domain(record: crate::tasks_v13::Closer) -> jig_domain_tasks::Closer {
     let crate::tasks_v13::Closer { connector: field_000000, code: field_000001 } = record;
-    Ok(jig_domain_tasks::Closer {
+    jig_domain_tasks::Closer {
         connector: field_000000,
         code: field_000001
-    })
+    }
 }
 
-// Maps line 87: EndedBy.
-pub fn ended_by_to_record(value: &jig_domain_tasks::EndedBy, context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::EndedBy, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn ended_by_to_record(value: &jig_domain_tasks::EndedBy) -> crate::tasks_v13::EndedBy {
     match value {
-        jig_domain_tasks::EndedBy::Result => Ok(crate::tasks_v13::EndedBy::Result),
-        jig_domain_tasks::EndedBy::Requester => Ok(crate::tasks_v13::EndedBy::Requester),
-        jig_domain_tasks::EndedBy::Closer(held) => Ok(crate::tasks_v13::EndedBy::Closer(closer_to_record(held, context)?)),
-        jig_domain_tasks::EndedBy::Standing => Ok(crate::tasks_v13::EndedBy::Standing),
+        jig_domain_tasks::EndedBy::Result => crate::tasks_v13::EndedBy::Result,
+        jig_domain_tasks::EndedBy::Requester => crate::tasks_v13::EndedBy::Requester,
+        jig_domain_tasks::EndedBy::Closer(held) => crate::tasks_v13::EndedBy::Closer(closer_to_record(held)),
+        jig_domain_tasks::EndedBy::Standing => crate::tasks_v13::EndedBy::Standing,
     }
 }
 
-// Maps line 87: EndedBy.
-pub fn ended_by_to_domain(record: crate::tasks_v13::EndedBy, context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::EndedBy, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn ended_by_to_domain(record: crate::tasks_v13::EndedBy) -> jig_domain_tasks::EndedBy {
     match record {
-        crate::tasks_v13::EndedBy::Result => Ok(jig_domain_tasks::EndedBy::Result),
-        crate::tasks_v13::EndedBy::Requester => Ok(jig_domain_tasks::EndedBy::Requester),
-        crate::tasks_v13::EndedBy::Closer(held) => Ok(jig_domain_tasks::EndedBy::Closer(closer_to_domain(held, context)?)),
-        crate::tasks_v13::EndedBy::Standing => Ok(jig_domain_tasks::EndedBy::Standing),
+        crate::tasks_v13::EndedBy::Result => jig_domain_tasks::EndedBy::Result,
+        crate::tasks_v13::EndedBy::Requester => jig_domain_tasks::EndedBy::Requester,
+        crate::tasks_v13::EndedBy::Closer(held) => jig_domain_tasks::EndedBy::Closer(closer_to_domain(held)),
+        crate::tasks_v13::EndedBy::Standing => jig_domain_tasks::EndedBy::Standing,
     }
 }
 
-// Maps line 88: Flags.
-pub fn flags_to_record(value: &jig_domain_tasks::Flags, context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::Flags, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn flags_to_record(value: &jig_domain_tasks::Flags) -> crate::tasks_v13::Flags {
     let jig_domain_tasks::Flags { conversation: field_000000, listed: field_000001, retention: field_000002, ended_by: field_000003 } = value;
-    Ok(crate::tasks_v13::Flags {
+    crate::tasks_v13::Flags {
         conversation: *field_000000,
         listed: *field_000001,
-        retention: retention_to_record(field_000002, context)?,
-        ended_by: ended_by_to_record(field_000003, context)?
-    })
+        retention: retention_to_record(field_000002),
+        ended_by: ended_by_to_record(field_000003)
+    }
 }
 
-// Maps line 88: Flags.
-pub fn flags_to_domain(record: crate::tasks_v13::Flags, context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::Flags, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn flags_to_domain(record: crate::tasks_v13::Flags) -> jig_domain_tasks::Flags {
     let crate::tasks_v13::Flags { conversation: field_000000, listed: field_000001, retention: field_000002, ended_by: field_000003 } = record;
-    Ok(jig_domain_tasks::Flags {
+    jig_domain_tasks::Flags {
         conversation: field_000000,
         listed: field_000001,
-        retention: retention_to_domain(field_000002, context)?,
-        ended_by: ended_by_to_domain(field_000003, context)?
-    })
-}
-
-// Maps line 90: Deadline.
-pub fn deadline_to_record(value: &jig_domain_tasks::Deadline, _context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::Deadline, crate::tasks_v13::Problem> {
-    match value {
-        jig_domain_tasks::Deadline::Named => Ok(crate::tasks_v13::Deadline::Named),
-        jig_domain_tasks::Deadline::Span(held) => Ok(crate::tasks_v13::Deadline::Span(crate::tasks_v13::DeadlineSpan { value: *held })),
+        retention: retention_to_domain(field_000002),
+        ended_by: ended_by_to_domain(field_000003)
     }
 }
 
-// Maps line 90: Deadline.
-pub fn deadline_to_domain(record: crate::tasks_v13::Deadline, _context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::Deadline, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn deadline_to_record(value: &jig_domain_tasks::Deadline) -> crate::tasks_v13::Deadline {
+    match value {
+        jig_domain_tasks::Deadline::Named => crate::tasks_v13::Deadline::Named,
+        jig_domain_tasks::Deadline::Span(held) => crate::tasks_v13::Deadline::Span(crate::tasks_v13::DeadlineSpan { value: *held }),
+    }
+}
+
+#[must_use]
+pub fn deadline_to_domain(record: crate::tasks_v13::Deadline) -> jig_domain_tasks::Deadline {
     match record {
-        crate::tasks_v13::Deadline::Named => Ok(jig_domain_tasks::Deadline::Named),
-        crate::tasks_v13::Deadline::Span(held) => Ok(jig_domain_tasks::Deadline::Span({
+        crate::tasks_v13::Deadline::Named => jig_domain_tasks::Deadline::Named,
+        crate::tasks_v13::Deadline::Span(held) => jig_domain_tasks::Deadline::Span({
             let crate::tasks_v13::DeadlineSpan { value: held } = held;
             held
-        })),
+        }),
     }
 }
 
-// Maps line 94: ResultField.
-pub fn result_field_to_record(value: &jig_domain_tasks::ResultField, _context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::ResultField, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn result_field_to_record(value: &jig_domain_tasks::ResultField) -> crate::tasks_v13::ResultField {
     let jig_domain_tasks::ResultField { name: field_000000, value: field_000001 } = value;
-    Ok(crate::tasks_v13::ResultField {
+    crate::tasks_v13::ResultField {
         name: field_000000.clone(),
         value: field_000001.clone()
-    })
-}
-
-// Maps line 94: ResultField.
-pub fn result_field_to_domain(record: crate::tasks_v13::ResultField, _context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::ResultField, crate::tasks_v13::Problem> {
-    let crate::tasks_v13::ResultField { name: field_000000, value: field_000001 } = record;
-    Ok(jig_domain_tasks::ResultField {
-        name: field_000000,
-        value: field_000001
-    })
-}
-
-// Maps line 103: Ending.
-pub fn ending_to_record(value: &jig_domain_tasks::Ending, context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::Ending, crate::tasks_v13::Problem> {
-    match value {
-        jig_domain_tasks::Ending::Done(held) => Ok(crate::tasks_v13::Ending::Done(crate::tasks_v13::Done { result: crate::codec::tasks::task_result_to_record(held, context)? })),
-        jig_domain_tasks::Ending::Failed { reason: field_000000 } => Ok(crate::tasks_v13::Ending::Failed(crate::tasks_v13::FailureResult {
-            reason: field_000000.clone()
-        })),
-        jig_domain_tasks::Ending::Cancelled { by: field_000000, at: field_000001, reason: field_000002, result: field_000003 } => Ok(crate::tasks_v13::Ending::Cancelled(crate::tasks_v13::Cancelled {
-            by: party_to_record(field_000000, context)?,
-            at: match skein_codec::convert::wall_to_record(field_000001) { Ok(value) => value, Err(reason) => return Err(crate::tasks_v13::paths::CANCELLED_AT.problem(reason)) },
-            reason: field_000002.clone(),
-            result: match field_000003 {
-                Some(item) => Some(crate::codec::tasks::task_result_to_record(item, context)?),
-                None => None,
-            }
-        })),
     }
 }
 
-// Maps line 103: Ending.
+#[must_use]
+pub fn result_field_to_domain(record: crate::tasks_v13::ResultField) -> jig_domain_tasks::ResultField {
+    let crate::tasks_v13::ResultField { name: field_000000, value: field_000001 } = record;
+    jig_domain_tasks::ResultField {
+        name: field_000000,
+        value: field_000001
+    }
+}
+
+pub fn ending_to_record(value: &jig_domain_tasks::Ending, context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::Ending, crate::tasks_v13::Problem> {
+    Ok(match value {
+        jig_domain_tasks::Ending::Done(held) => crate::tasks_v13::Ending::Done(crate::tasks_v13::Done { result: crate::codec::tasks::task_result_to_record(held, context)? }),
+        jig_domain_tasks::Ending::Failed { reason: field_000000 } => crate::tasks_v13::Ending::Failed(crate::tasks_v13::FailureResult {
+            reason: field_000000.clone()
+        }),
+        jig_domain_tasks::Ending::Cancelled { by: field_000000, at: field_000001, reason: field_000002, result: field_000003 } => crate::tasks_v13::Ending::Cancelled(crate::tasks_v13::Cancelled {
+            by: party_to_record(field_000000),
+            at: skein_codec::convert::wall_to_record(field_000001),
+            reason: field_000002.clone(),
+            result: match field_000003 {
+                Some(item) => {
+                    let converted = crate::codec::tasks::task_result_to_record(item, context)?;
+                    Some(converted)
+                }
+                None => None,
+            }
+        }),
+    })
+}
+
 pub fn ending_to_domain(record: crate::tasks_v13::Ending, context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::Ending, crate::tasks_v13::Problem> {
-    match record {
-        crate::tasks_v13::Ending::Done(held) => Ok(jig_domain_tasks::Ending::Done({
+    Ok(match record {
+        crate::tasks_v13::Ending::Done(held) => jig_domain_tasks::Ending::Done({
             let crate::tasks_v13::Done { result: held } = held;
             crate::codec::tasks::task_result_to_domain(held, context)?
-        })),
+        }),
         crate::tasks_v13::Ending::Failed(held) => {
             let crate::tasks_v13::FailureResult { reason: field_000000 } = held;
-            Ok(jig_domain_tasks::Ending::Failed {
+            jig_domain_tasks::Ending::Failed {
                 reason: field_000000
-            })
+            }
         },
         crate::tasks_v13::Ending::Cancelled(held) => {
             let crate::tasks_v13::Cancelled { by: field_000000, at: field_000001, reason: field_000002, result: field_000003 } = held;
-            Ok(jig_domain_tasks::Ending::Cancelled {
-                by: party_to_domain(field_000000, context)?,
-                at: match skein_codec::convert::wall_to_domain(field_000001) { Ok(value) => value, Err(reason) => return Err(crate::tasks_v13::paths::CANCELLED_AT.problem(reason)) },
+            jig_domain_tasks::Ending::Cancelled {
+                by: party_to_domain(field_000000),
+                at: skein_codec::convert::wall_to_domain(field_000001),
                 reason: field_000002,
                 result: match field_000003 {
-                    Some(item) => Some(crate::codec::tasks::task_result_to_domain(item, context)?),
+                    Some(item) => {
+                        let converted = crate::codec::tasks::task_result_to_domain(item, context)?;
+                        Some(converted)
+                    }
                     None => None,
                 }
-            })
+            }
         },
-    }
+    })
 }
 
-// Maps line 105: Bound.
-pub fn bound_to_record(value: &jig_domain_tasks::Bound, _context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::Bound, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn bound_to_record(value: &jig_domain_tasks::Bound) -> crate::tasks_v13::Bound {
     match value {
-        jig_domain_tasks::Bound::Reasoning => Ok(crate::tasks_v13::Bound::Reasoning),
-        jig_domain_tasks::Bound::Metadata => Ok(crate::tasks_v13::Bound::Metadata),
-        jig_domain_tasks::Bound::Items => Ok(crate::tasks_v13::Bound::Items),
-        jig_domain_tasks::Bound::Answer => Ok(crate::tasks_v13::Bound::Answer),
-        jig_domain_tasks::Bound::Tools => Ok(crate::tasks_v13::Bound::Tools),
-        jig_domain_tasks::Bound::HistoryItems => Ok(crate::tasks_v13::Bound::HistoryItems),
-        jig_domain_tasks::Bound::History => Ok(crate::tasks_v13::Bound::History),
-        jig_domain_tasks::Bound::Window => Ok(crate::tasks_v13::Bound::Window),
-        jig_domain_tasks::Bound::Output => Ok(crate::tasks_v13::Bound::Output),
+        jig_domain_tasks::Bound::Reasoning => crate::tasks_v13::Bound::Reasoning,
+        jig_domain_tasks::Bound::Metadata => crate::tasks_v13::Bound::Metadata,
+        jig_domain_tasks::Bound::Items => crate::tasks_v13::Bound::Items,
+        jig_domain_tasks::Bound::Answer => crate::tasks_v13::Bound::Answer,
+        jig_domain_tasks::Bound::Tools => crate::tasks_v13::Bound::Tools,
+        jig_domain_tasks::Bound::HistoryItems => crate::tasks_v13::Bound::HistoryItems,
+        jig_domain_tasks::Bound::History => crate::tasks_v13::Bound::History,
+        jig_domain_tasks::Bound::Window => crate::tasks_v13::Bound::Window,
+        jig_domain_tasks::Bound::Output => crate::tasks_v13::Bound::Output,
     }
 }
 
-// Maps line 105: Bound.
-pub fn bound_to_domain(record: crate::tasks_v13::Bound, _context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::Bound, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn bound_to_domain(record: crate::tasks_v13::Bound) -> jig_domain_tasks::Bound {
     match record {
-        crate::tasks_v13::Bound::Reasoning => Ok(jig_domain_tasks::Bound::Reasoning),
-        crate::tasks_v13::Bound::Metadata => Ok(jig_domain_tasks::Bound::Metadata),
-        crate::tasks_v13::Bound::Items => Ok(jig_domain_tasks::Bound::Items),
-        crate::tasks_v13::Bound::Answer => Ok(jig_domain_tasks::Bound::Answer),
-        crate::tasks_v13::Bound::Tools => Ok(jig_domain_tasks::Bound::Tools),
-        crate::tasks_v13::Bound::HistoryItems => Ok(jig_domain_tasks::Bound::HistoryItems),
-        crate::tasks_v13::Bound::History => Ok(jig_domain_tasks::Bound::History),
-        crate::tasks_v13::Bound::Window => Ok(jig_domain_tasks::Bound::Window),
-        crate::tasks_v13::Bound::Output => Ok(jig_domain_tasks::Bound::Output),
+        crate::tasks_v13::Bound::Reasoning => jig_domain_tasks::Bound::Reasoning,
+        crate::tasks_v13::Bound::Metadata => jig_domain_tasks::Bound::Metadata,
+        crate::tasks_v13::Bound::Items => jig_domain_tasks::Bound::Items,
+        crate::tasks_v13::Bound::Answer => jig_domain_tasks::Bound::Answer,
+        crate::tasks_v13::Bound::Tools => jig_domain_tasks::Bound::Tools,
+        crate::tasks_v13::Bound::HistoryItems => jig_domain_tasks::Bound::HistoryItems,
+        crate::tasks_v13::Bound::History => jig_domain_tasks::Bound::History,
+        crate::tasks_v13::Bound::Window => jig_domain_tasks::Bound::Window,
+        crate::tasks_v13::Bound::Output => jig_domain_tasks::Bound::Output,
     }
 }
 
-// Maps line 106: Exceeded.
-pub fn exceeded_to_record(value: &jig_domain_tasks::Exceeded, context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::Exceeded, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn exceeded_to_record(value: &jig_domain_tasks::Exceeded) -> crate::tasks_v13::Exceeded {
     let jig_domain_tasks::Exceeded { bound: field_000000, value: field_000001 } = value;
-    Ok(crate::tasks_v13::Exceeded {
-        bound: bound_to_record(field_000000, context)?,
+    crate::tasks_v13::Exceeded {
+        bound: bound_to_record(field_000000),
         value: *field_000001
-    })
-}
-
-// Maps line 106: Exceeded.
-pub fn exceeded_to_domain(record: crate::tasks_v13::Exceeded, context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::Exceeded, crate::tasks_v13::Problem> {
-    let crate::tasks_v13::Exceeded { bound: field_000000, value: field_000001 } = record;
-    Ok(jig_domain_tasks::Exceeded {
-        bound: bound_to_domain(field_000000, context)?,
-        value: field_000001
-    })
-}
-
-// Maps line 107: Hold.
-pub fn hold_to_record(value: &jig_domain_tasks::Hold, context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::Hold, crate::tasks_v13::Problem> {
-    match value {
-        jig_domain_tasks::Hold::Failures(held) => Ok(crate::tasks_v13::Hold::Failures(crate::tasks_v13::FailedClass { class: class_to_record(held, context)? })),
-        jig_domain_tasks::Hold::Stalled => Ok(crate::tasks_v13::Hold::Stalled),
-        jig_domain_tasks::Hold::Dependency(held) => Ok(crate::tasks_v13::Hold::Dependency(crate::tasks_v13::Number { value: *held })),
-        jig_domain_tasks::Hold::Stopped => Ok(crate::tasks_v13::Hold::Stopped),
-        jig_domain_tasks::Hold::Placed { hold: field_000000 } => Ok(crate::tasks_v13::Hold::Placed(crate::tasks_v13::Number {
-            value: *field_000000
-        })),
-        jig_domain_tasks::Hold::Drift => Ok(crate::tasks_v13::Hold::Drift),
-        jig_domain_tasks::Hold::Effects => Ok(crate::tasks_v13::Hold::Effects),
-        jig_domain_tasks::Hold::EffectFailed => Ok(crate::tasks_v13::Hold::EffectFailed),
-        jig_domain_tasks::Hold::Uncertain { entry: field_000000 } => Ok(crate::tasks_v13::Hold::Uncertain(crate::tasks_v13::Effect {
-            entry: *field_000000
-        })),
-        jig_domain_tasks::Hold::Budget => Ok(crate::tasks_v13::Hold::Budget),
-        jig_domain_tasks::Hold::Deadline => Ok(crate::tasks_v13::Hold::Deadline),
-        jig_domain_tasks::Hold::HoldsWaited => Ok(crate::tasks_v13::Hold::HoldsWaited),
-        jig_domain_tasks::Hold::ResourceUnavailable => Ok(crate::tasks_v13::Hold::ResourceUnavailable),
-        jig_domain_tasks::Hold::ResourceAccess => Ok(crate::tasks_v13::Hold::ResourceAccess),
-        jig_domain_tasks::Hold::PoolLost { pool: field_000000 } => Ok(crate::tasks_v13::Hold::PoolLost(crate::tasks_v13::Number {
-            value: *field_000000
-        })),
-        jig_domain_tasks::Hold::Procedure => Ok(crate::tasks_v13::Hold::Procedure),
-        jig_domain_tasks::Hold::Circle => Ok(crate::tasks_v13::Hold::Circle),
-        jig_domain_tasks::Hold::Exceeded(held) => Ok(crate::tasks_v13::Hold::Exceeded(exceeded_to_record(held, context)?)),
     }
 }
 
-// Maps line 107: Hold.
-pub fn hold_to_domain(record: crate::tasks_v13::Hold, context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::Hold, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn exceeded_to_domain(record: crate::tasks_v13::Exceeded) -> jig_domain_tasks::Exceeded {
+    let crate::tasks_v13::Exceeded { bound: field_000000, value: field_000001 } = record;
+    jig_domain_tasks::Exceeded {
+        bound: bound_to_domain(field_000000),
+        value: field_000001
+    }
+}
+
+#[must_use]
+pub fn hold_to_record(value: &jig_domain_tasks::Hold) -> crate::tasks_v13::Hold {
+    match value {
+        jig_domain_tasks::Hold::Failures(held) => crate::tasks_v13::Hold::Failures(crate::tasks_v13::FailedClass { class: class_to_record(held) }),
+        jig_domain_tasks::Hold::Stalled => crate::tasks_v13::Hold::Stalled,
+        jig_domain_tasks::Hold::Dependency(held) => crate::tasks_v13::Hold::Dependency(crate::tasks_v13::Number { value: *held }),
+        jig_domain_tasks::Hold::Stopped => crate::tasks_v13::Hold::Stopped,
+        jig_domain_tasks::Hold::Placed { hold: field_000000 } => crate::tasks_v13::Hold::Placed(crate::tasks_v13::Number {
+            value: *field_000000
+        }),
+        jig_domain_tasks::Hold::Drift => crate::tasks_v13::Hold::Drift,
+        jig_domain_tasks::Hold::Effects => crate::tasks_v13::Hold::Effects,
+        jig_domain_tasks::Hold::EffectFailed => crate::tasks_v13::Hold::EffectFailed,
+        jig_domain_tasks::Hold::Uncertain { entry: field_000000 } => crate::tasks_v13::Hold::Uncertain(crate::tasks_v13::Effect {
+            entry: *field_000000
+        }),
+        jig_domain_tasks::Hold::Budget => crate::tasks_v13::Hold::Budget,
+        jig_domain_tasks::Hold::Deadline => crate::tasks_v13::Hold::Deadline,
+        jig_domain_tasks::Hold::HoldsWaited => crate::tasks_v13::Hold::HoldsWaited,
+        jig_domain_tasks::Hold::ResourceUnavailable => crate::tasks_v13::Hold::ResourceUnavailable,
+        jig_domain_tasks::Hold::ResourceAccess => crate::tasks_v13::Hold::ResourceAccess,
+        jig_domain_tasks::Hold::PoolLost { pool: field_000000 } => crate::tasks_v13::Hold::PoolLost(crate::tasks_v13::Number {
+            value: *field_000000
+        }),
+        jig_domain_tasks::Hold::Procedure => crate::tasks_v13::Hold::Procedure,
+        jig_domain_tasks::Hold::Circle => crate::tasks_v13::Hold::Circle,
+        jig_domain_tasks::Hold::Exceeded(held) => crate::tasks_v13::Hold::Exceeded(exceeded_to_record(held)),
+    }
+}
+
+#[must_use]
+pub fn hold_to_domain(record: crate::tasks_v13::Hold) -> jig_domain_tasks::Hold {
     match record {
-        crate::tasks_v13::Hold::Failures(held) => Ok(jig_domain_tasks::Hold::Failures({
+        crate::tasks_v13::Hold::Failures(held) => jig_domain_tasks::Hold::Failures({
             let crate::tasks_v13::FailedClass { class: held } = held;
-            class_to_domain(held, context)?
-        })),
-        crate::tasks_v13::Hold::Stalled => Ok(jig_domain_tasks::Hold::Stalled),
-        crate::tasks_v13::Hold::Dependency(held) => Ok(jig_domain_tasks::Hold::Dependency({
+            class_to_domain(held)
+        }),
+        crate::tasks_v13::Hold::Stalled => jig_domain_tasks::Hold::Stalled,
+        crate::tasks_v13::Hold::Dependency(held) => jig_domain_tasks::Hold::Dependency({
             let crate::tasks_v13::Number { value: held } = held;
             held
-        })),
-        crate::tasks_v13::Hold::Stopped => Ok(jig_domain_tasks::Hold::Stopped),
+        }),
+        crate::tasks_v13::Hold::Stopped => jig_domain_tasks::Hold::Stopped,
         crate::tasks_v13::Hold::Placed(held) => {
             let crate::tasks_v13::Number { value: field_000000 } = held;
-            Ok(jig_domain_tasks::Hold::Placed {
+            jig_domain_tasks::Hold::Placed {
                 hold: field_000000
-            })
+            }
         },
-        crate::tasks_v13::Hold::Drift => Ok(jig_domain_tasks::Hold::Drift),
-        crate::tasks_v13::Hold::Effects => Ok(jig_domain_tasks::Hold::Effects),
-        crate::tasks_v13::Hold::EffectFailed => Ok(jig_domain_tasks::Hold::EffectFailed),
+        crate::tasks_v13::Hold::Drift => jig_domain_tasks::Hold::Drift,
+        crate::tasks_v13::Hold::Effects => jig_domain_tasks::Hold::Effects,
+        crate::tasks_v13::Hold::EffectFailed => jig_domain_tasks::Hold::EffectFailed,
         crate::tasks_v13::Hold::Uncertain(held) => {
             let crate::tasks_v13::Effect { entry: field_000000 } = held;
-            Ok(jig_domain_tasks::Hold::Uncertain {
+            jig_domain_tasks::Hold::Uncertain {
                 entry: field_000000
-            })
+            }
         },
-        crate::tasks_v13::Hold::Budget => Ok(jig_domain_tasks::Hold::Budget),
-        crate::tasks_v13::Hold::Deadline => Ok(jig_domain_tasks::Hold::Deadline),
-        crate::tasks_v13::Hold::HoldsWaited => Ok(jig_domain_tasks::Hold::HoldsWaited),
-        crate::tasks_v13::Hold::ResourceUnavailable => Ok(jig_domain_tasks::Hold::ResourceUnavailable),
-        crate::tasks_v13::Hold::ResourceAccess => Ok(jig_domain_tasks::Hold::ResourceAccess),
+        crate::tasks_v13::Hold::Budget => jig_domain_tasks::Hold::Budget,
+        crate::tasks_v13::Hold::Deadline => jig_domain_tasks::Hold::Deadline,
+        crate::tasks_v13::Hold::HoldsWaited => jig_domain_tasks::Hold::HoldsWaited,
+        crate::tasks_v13::Hold::ResourceUnavailable => jig_domain_tasks::Hold::ResourceUnavailable,
+        crate::tasks_v13::Hold::ResourceAccess => jig_domain_tasks::Hold::ResourceAccess,
         crate::tasks_v13::Hold::PoolLost(held) => {
             let crate::tasks_v13::Number { value: field_000000 } = held;
-            Ok(jig_domain_tasks::Hold::PoolLost {
+            jig_domain_tasks::Hold::PoolLost {
                 pool: field_000000
-            })
+            }
         },
-        crate::tasks_v13::Hold::Procedure => Ok(jig_domain_tasks::Hold::Procedure),
-        crate::tasks_v13::Hold::Circle => Ok(jig_domain_tasks::Hold::Circle),
-        crate::tasks_v13::Hold::Exceeded(held) => Ok(jig_domain_tasks::Hold::Exceeded(exceeded_to_domain(held, context)?)),
+        crate::tasks_v13::Hold::Procedure => jig_domain_tasks::Hold::Procedure,
+        crate::tasks_v13::Hold::Circle => jig_domain_tasks::Hold::Circle,
+        crate::tasks_v13::Hold::Exceeded(held) => jig_domain_tasks::Hold::Exceeded(exceeded_to_domain(held)),
     }
 }
 
-// Maps line 114: Active.
-pub fn active_to_record(value: &jig_domain_tasks::Active, _context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::Active, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn active_to_record(value: &jig_domain_tasks::Active) -> crate::tasks_v13::Active {
     match value {
-        jig_domain_tasks::Active::Idle => Ok(crate::tasks_v13::Active::Idle),
-        jig_domain_tasks::Active::Due => Ok(crate::tasks_v13::Active::Due),
-        jig_domain_tasks::Active::Preparing => Ok(crate::tasks_v13::Active::Preparing),
-        jig_domain_tasks::Active::Claimed { attempt: field_000000 } => Ok(crate::tasks_v13::Active::Claimed(crate::tasks_v13::Number {
+        jig_domain_tasks::Active::Idle => crate::tasks_v13::Active::Idle,
+        jig_domain_tasks::Active::Due => crate::tasks_v13::Active::Due,
+        jig_domain_tasks::Active::Preparing => crate::tasks_v13::Active::Preparing,
+        jig_domain_tasks::Active::Claimed { attempt: field_000000 } => crate::tasks_v13::Active::Claimed(crate::tasks_v13::Number {
             value: *field_000000
-        })),
-        jig_domain_tasks::Active::Running { attempt: field_000000 } => Ok(crate::tasks_v13::Active::Running(crate::tasks_v13::Number {
+        }),
+        jig_domain_tasks::Active::Running { attempt: field_000000 } => crate::tasks_v13::Active::Running(crate::tasks_v13::Number {
             value: *field_000000
-        })),
-        jig_domain_tasks::Active::BackingOff { until: field_000000 } => Ok(crate::tasks_v13::Active::BackingOff(crate::tasks_v13::Number {
-            value: match skein_codec::convert::wall_to_record(field_000000) { Ok(value) => value, Err(reason) => return Err(crate::tasks_v13::paths::NUMBER_VALUE.problem(reason)) }
-        })),
+        }),
+        jig_domain_tasks::Active::BackingOff { until: field_000000 } => crate::tasks_v13::Active::BackingOff(crate::tasks_v13::Number {
+            value: skein_codec::convert::wall_to_record(field_000000)
+        }),
     }
 }
 
-// Maps line 114: Active.
-pub fn active_to_domain(record: crate::tasks_v13::Active, _context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::Active, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn active_to_domain(record: crate::tasks_v13::Active) -> jig_domain_tasks::Active {
     match record {
-        crate::tasks_v13::Active::Idle => Ok(jig_domain_tasks::Active::Idle),
-        crate::tasks_v13::Active::Due => Ok(jig_domain_tasks::Active::Due),
-        crate::tasks_v13::Active::Preparing => Ok(jig_domain_tasks::Active::Preparing),
+        crate::tasks_v13::Active::Idle => jig_domain_tasks::Active::Idle,
+        crate::tasks_v13::Active::Due => jig_domain_tasks::Active::Due,
+        crate::tasks_v13::Active::Preparing => jig_domain_tasks::Active::Preparing,
         crate::tasks_v13::Active::Claimed(held) => {
             let crate::tasks_v13::Number { value: field_000000 } = held;
-            Ok(jig_domain_tasks::Active::Claimed {
+            jig_domain_tasks::Active::Claimed {
                 attempt: field_000000
-            })
+            }
         },
         crate::tasks_v13::Active::Running(held) => {
             let crate::tasks_v13::Number { value: field_000000 } = held;
-            Ok(jig_domain_tasks::Active::Running {
+            jig_domain_tasks::Active::Running {
                 attempt: field_000000
-            })
+            }
         },
         crate::tasks_v13::Active::BackingOff(held) => {
             let crate::tasks_v13::Number { value: field_000000 } = held;
-            Ok(jig_domain_tasks::Active::BackingOff {
-                until: match skein_codec::convert::wall_to_domain(field_000000) { Ok(value) => value, Err(reason) => return Err(crate::tasks_v13::paths::NUMBER_VALUE.problem(reason)) }
-            })
+            jig_domain_tasks::Active::BackingOff {
+                until: skein_codec::convert::wall_to_domain(field_000000)
+            }
         },
     }
 }
 
-// Maps line 119: Stage.
-pub fn stage_to_record(value: &jig_domain_tasks::Stage, _context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::Stage, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn stage_to_record(value: &jig_domain_tasks::Stage) -> crate::tasks_v13::Stage {
     match value {
-        jig_domain_tasks::Stage::Run { attempt: field_000000 } => Ok(crate::tasks_v13::Stage::Run(crate::tasks_v13::Number {
+        jig_domain_tasks::Stage::Run { attempt: field_000000 } => crate::tasks_v13::Stage::Run(crate::tasks_v13::Number {
             value: *field_000000
-        })),
-        jig_domain_tasks::Stage::Delegates => Ok(crate::tasks_v13::Stage::Delegates),
-        jig_domain_tasks::Stage::Effects => Ok(crate::tasks_v13::Stage::Effects),
-        jig_domain_tasks::Stage::Releases => Ok(crate::tasks_v13::Stage::Releases),
-        jig_domain_tasks::Stage::Settled => Ok(crate::tasks_v13::Stage::Settled),
+        }),
+        jig_domain_tasks::Stage::Delegates => crate::tasks_v13::Stage::Delegates,
+        jig_domain_tasks::Stage::Effects => crate::tasks_v13::Stage::Effects,
+        jig_domain_tasks::Stage::Releases => crate::tasks_v13::Stage::Releases,
+        jig_domain_tasks::Stage::Settled => crate::tasks_v13::Stage::Settled,
     }
 }
 
-// Maps line 119: Stage.
-pub fn stage_to_domain(record: crate::tasks_v13::Stage, _context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::Stage, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn stage_to_domain(record: crate::tasks_v13::Stage) -> jig_domain_tasks::Stage {
     match record {
         crate::tasks_v13::Stage::Run(held) => {
             let crate::tasks_v13::Number { value: field_000000 } = held;
-            Ok(jig_domain_tasks::Stage::Run {
+            jig_domain_tasks::Stage::Run {
                 attempt: field_000000
-            })
+            }
         },
-        crate::tasks_v13::Stage::Delegates => Ok(jig_domain_tasks::Stage::Delegates),
-        crate::tasks_v13::Stage::Effects => Ok(jig_domain_tasks::Stage::Effects),
-        crate::tasks_v13::Stage::Releases => Ok(jig_domain_tasks::Stage::Releases),
-        crate::tasks_v13::Stage::Settled => Ok(jig_domain_tasks::Stage::Settled),
+        crate::tasks_v13::Stage::Delegates => jig_domain_tasks::Stage::Delegates,
+        crate::tasks_v13::Stage::Effects => jig_domain_tasks::Stage::Effects,
+        crate::tasks_v13::Stage::Releases => jig_domain_tasks::Stage::Releases,
+        crate::tasks_v13::Stage::Settled => jig_domain_tasks::Stage::Settled,
     }
 }
 
-// Maps line 120: Closing.
 pub fn closing_to_record(value: &jig_domain_tasks::Closing, context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::Closing, crate::tasks_v13::Problem> {
     let jig_domain_tasks::Closing { stage: field_000000, ending: field_000001 } = value;
     Ok(crate::tasks_v13::Closing {
-        stage: stage_to_record(field_000000, context)?,
+        stage: stage_to_record(field_000000),
         ending: ending_to_record(field_000001, context)?
     })
 }
 
-// Maps line 120: Closing.
 pub fn closing_to_domain(record: crate::tasks_v13::Closing, context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::Closing, crate::tasks_v13::Problem> {
     let crate::tasks_v13::Closing { stage: field_000000, ending: field_000001 } = record;
     Ok(jig_domain_tasks::Closing {
-        stage: stage_to_domain(field_000000, context)?,
+        stage: stage_to_domain(field_000000),
         ending: ending_to_domain(field_000001, context)?
     })
 }
 
-// Maps line 122: Was.
 pub fn was_to_record(value: &jig_domain_tasks::Was, context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::Was, crate::tasks_v13::Problem> {
-    match value {
-        jig_domain_tasks::Was::Waiting => Ok(crate::tasks_v13::Was::Waiting),
-        jig_domain_tasks::Was::Active(held) => Ok(crate::tasks_v13::Was::Active(crate::tasks_v13::Activation { value: active_to_record(held, context)? })),
-        jig_domain_tasks::Was::Closing(held) => Ok(crate::tasks_v13::Was::Closing(closing_to_record(held, context)?)),
-    }
+    Ok(match value {
+        jig_domain_tasks::Was::Waiting => crate::tasks_v13::Was::Waiting,
+        jig_domain_tasks::Was::Active(held) => crate::tasks_v13::Was::Active(crate::tasks_v13::Activation { value: active_to_record(held) }),
+        jig_domain_tasks::Was::Closing(held) => crate::tasks_v13::Was::Closing(closing_to_record(held, context)?),
+    })
 }
 
-// Maps line 122: Was.
 pub fn was_to_domain(record: crate::tasks_v13::Was, context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::Was, crate::tasks_v13::Problem> {
-    match record {
-        crate::tasks_v13::Was::Waiting => Ok(jig_domain_tasks::Was::Waiting),
-        crate::tasks_v13::Was::Active(held) => Ok(jig_domain_tasks::Was::Active({
+    Ok(match record {
+        crate::tasks_v13::Was::Waiting => jig_domain_tasks::Was::Waiting,
+        crate::tasks_v13::Was::Active(held) => jig_domain_tasks::Was::Active({
             let crate::tasks_v13::Activation { value: held } = held;
-            active_to_domain(held, context)?
-        })),
-        crate::tasks_v13::Was::Closing(held) => Ok(jig_domain_tasks::Was::Closing(closing_to_domain(held, context)?)),
-    }
+            active_to_domain(held)
+        }),
+        crate::tasks_v13::Was::Closing(held) => jig_domain_tasks::Was::Closing(closing_to_domain(held, context)?),
+    })
 }
 
-// Maps line 124: Circle.
-pub fn circle_to_record(value: &jig_domain_tasks::Circle, _context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::Circle, crate::tasks_v13::Problem> {
+pub fn circle_to_record(value: &jig_domain_tasks::Circle) -> Result<crate::tasks_v13::Circle, crate::tasks_v13::Problem> {
     let jig_domain_tasks::Circle { tasks: field_000000, cut: field_000001 } = value;
     Ok(crate::tasks_v13::Circle {
         tasks: {
@@ -1359,7 +1384,7 @@ pub fn circle_to_record(value: &jig_domain_tasks::Circle, _context: &crate::code
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.as_ref() {
                 let converted = crate::tasks_v13::Number { value: *item };
-                if translated.push(converted).is_err() { return Err(crate::tasks_v13::paths::CIRCLE_TASKS.problem(skein_codec::Reason::Bound)); }
+                assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             translated
         },
@@ -1367,10 +1392,10 @@ pub fn circle_to_record(value: &jig_domain_tasks::Circle, _context: &crate::code
     })
 }
 
-// Maps line 124: Circle.
-pub fn circle_to_domain(record: crate::tasks_v13::Circle, _context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::Circle, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn circle_to_domain(record: crate::tasks_v13::Circle) -> jig_domain_tasks::Circle {
     let crate::tasks_v13::Circle { tasks: field_000000, cut: field_000001 } = record;
-    Ok(jig_domain_tasks::Circle {
+    jig_domain_tasks::Circle {
         tasks: {
             let source = field_000000;
             let count = source.len();
@@ -1380,475 +1405,538 @@ pub fn circle_to_domain(record: crate::tasks_v13::Circle, _context: &crate::code
                     let crate::tasks_v13::Number { value: held } = item;
                     held
                 };
-                if translated.push(converted).is_err() { return Err(crate::tasks_v13::paths::CIRCLE_TASKS.problem(skein_codec::Reason::Bound)); }
+                assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             Box::from(translated)
         },
         cut: field_000001
-    })
+    }
 }
 
-// Maps line 127: HoldSource.
 pub fn hold_source_to_record(value: &jig_domain_tasks::HoldSource, context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::HoldSource, crate::tasks_v13::Problem> {
-    match value {
-        jig_domain_tasks::HoldSource::Resource(held) => Ok(crate::tasks_v13::HoldSource::Resource(crate::codec::tasks::name_to_record(held, context)?)),
-        jig_domain_tasks::HoldSource::Effect { connector: field_000000, entry: field_000001 } => Ok(crate::tasks_v13::HoldSource::Effect(crate::tasks_v13::HoldEffect {
+    Ok(match value {
+        jig_domain_tasks::HoldSource::Resource(held) => crate::tasks_v13::HoldSource::Resource(crate::codec::tasks::name_to_record(held, context)?),
+        jig_domain_tasks::HoldSource::Effect { connector: field_000000, entry: field_000001 } => crate::tasks_v13::HoldSource::Effect(crate::tasks_v13::HoldEffect {
             connector: *field_000000,
             entry: *field_000001
-        })),
-        jig_domain_tasks::HoldSource::Circle(held) => Ok(crate::tasks_v13::HoldSource::Circle(circle_to_record(held, context)?)),
-        jig_domain_tasks::HoldSource::Account { connector: field_000000, entry: field_000001, words: field_000002 } => Ok(crate::tasks_v13::HoldSource::Account(crate::tasks_v13::HoldAccount {
+        }),
+        jig_domain_tasks::HoldSource::Circle(held) => crate::tasks_v13::HoldSource::Circle(circle_to_record(held)?),
+        jig_domain_tasks::HoldSource::Account { connector: field_000000, entry: field_000001, words: field_000002 } => crate::tasks_v13::HoldSource::Account(crate::tasks_v13::HoldAccount {
             connector: *field_000000,
             entry: match field_000001 {
-                Some(item) => Some(*item),
+                Some(item) => {
+                    let converted = *item;
+                    Some(converted)
+                }
                 None => None,
             },
             words: field_000002.clone()
-        })),
-        jig_domain_tasks::HoldSource::Preparation { words: field_000000 } => Ok(crate::tasks_v13::HoldSource::Preparation(crate::tasks_v13::HoldPreparation {
+        }),
+        jig_domain_tasks::HoldSource::Preparation { words: field_000000 } => crate::tasks_v13::HoldSource::Preparation(crate::tasks_v13::HoldPreparation {
             words: field_000000.clone()
-        })),
-    }
+        }),
+    })
 }
 
-// Maps line 127: HoldSource.
 pub fn hold_source_to_domain(record: crate::tasks_v13::HoldSource, context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::HoldSource, crate::tasks_v13::Problem> {
-    match record {
-        crate::tasks_v13::HoldSource::Resource(held) => Ok(jig_domain_tasks::HoldSource::Resource(crate::codec::tasks::name_to_domain(held, context)?)),
+    Ok(match record {
+        crate::tasks_v13::HoldSource::Resource(held) => jig_domain_tasks::HoldSource::Resource(crate::codec::tasks::name_to_domain(held, context)?),
         crate::tasks_v13::HoldSource::Effect(held) => {
             let crate::tasks_v13::HoldEffect { connector: field_000000, entry: field_000001 } = held;
-            Ok(jig_domain_tasks::HoldSource::Effect {
+            jig_domain_tasks::HoldSource::Effect {
                 connector: field_000000,
                 entry: field_000001
-            })
+            }
         },
-        crate::tasks_v13::HoldSource::Circle(held) => Ok(jig_domain_tasks::HoldSource::Circle(circle_to_domain(held, context)?)),
+        crate::tasks_v13::HoldSource::Circle(held) => jig_domain_tasks::HoldSource::Circle(circle_to_domain(held)),
         crate::tasks_v13::HoldSource::Account(held) => {
             let crate::tasks_v13::HoldAccount { connector: field_000000, entry: field_000001, words: field_000002 } = held;
-            Ok(jig_domain_tasks::HoldSource::Account {
+            jig_domain_tasks::HoldSource::Account {
                 connector: field_000000,
                 entry: match field_000001 {
-                    Some(item) => Some(item),
+                    Some(item) => {
+                        let converted = item;
+                        Some(converted)
+                    }
                     None => None,
                 },
                 words: field_000002
-            })
+            }
         },
         crate::tasks_v13::HoldSource::Preparation(held) => {
             let crate::tasks_v13::HoldPreparation { words: field_000000 } = held;
-            Ok(jig_domain_tasks::HoldSource::Preparation {
+            jig_domain_tasks::HoldSource::Preparation {
                 words: field_000000
-            })
+            }
         },
-    }
+    })
 }
 
-// Maps line 128: Held.
 pub fn held_to_record(value: &jig_domain_tasks::Held, context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::Held, crate::tasks_v13::Problem> {
     let jig_domain_tasks::Held { was: field_000000, why: field_000001, source: field_000002 } = value;
     Ok(crate::tasks_v13::Held {
         was: was_to_record(field_000000, context)?,
-        why: hold_to_record(field_000001, context)?,
+        why: hold_to_record(field_000001),
         source: match field_000002 {
-            Some(item) => Some(hold_source_to_record(item, context)?),
+            Some(item) => {
+                let converted = hold_source_to_record(item, context)?;
+                Some(converted)
+            }
             None => None,
         }
     })
 }
 
-// Maps line 128: Held.
 pub fn held_to_domain(record: crate::tasks_v13::Held, context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::Held, crate::tasks_v13::Problem> {
     let crate::tasks_v13::Held { was: field_000000, why: field_000001, source: field_000002 } = record;
     Ok(jig_domain_tasks::Held {
         was: was_to_domain(field_000000, context)?,
-        why: hold_to_domain(field_000001, context)?,
+        why: hold_to_domain(field_000001),
         source: match field_000002 {
-            Some(item) => Some(Box::new(hold_source_to_domain(item, context)?)),
+            Some(item) => {
+                let converted = Box::new(hold_source_to_domain(item, context)?);
+                Some(converted)
+            }
             None => None,
         }
     })
 }
 
-// Maps line 130: Phase.
 pub fn phase_to_record(value: &jig_domain_tasks::Phase, context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::Phase, crate::tasks_v13::Problem> {
-    match value {
-        jig_domain_tasks::Phase::Waiting => Ok(crate::tasks_v13::Phase::Waiting),
-        jig_domain_tasks::Phase::Active(held) => Ok(crate::tasks_v13::Phase::Active(crate::tasks_v13::Activation { value: active_to_record(held, context)? })),
-        jig_domain_tasks::Phase::Closing(held) => Ok(crate::tasks_v13::Phase::Closing(closing_to_record(held, context)?)),
-        jig_domain_tasks::Phase::Held { was: field_000000, why: field_000001, source: field_000002 } => Ok(crate::tasks_v13::Phase::Held(crate::tasks_v13::Held {
+    Ok(match value {
+        jig_domain_tasks::Phase::Waiting => crate::tasks_v13::Phase::Waiting,
+        jig_domain_tasks::Phase::Active(held) => crate::tasks_v13::Phase::Active(crate::tasks_v13::Activation { value: active_to_record(held) }),
+        jig_domain_tasks::Phase::Closing(held) => crate::tasks_v13::Phase::Closing(closing_to_record(held, context)?),
+        jig_domain_tasks::Phase::Held { was: field_000000, why: field_000001, source: field_000002 } => crate::tasks_v13::Phase::Held(crate::tasks_v13::Held {
             was: was_to_record(field_000000, context)?,
-            why: hold_to_record(field_000001, context)?,
+            why: hold_to_record(field_000001),
             source: match field_000002 {
-                Some(item) => Some(hold_source_to_record(item, context)?),
+                Some(item) => {
+                    let converted = hold_source_to_record(item, context)?;
+                    Some(converted)
+                }
                 None => None,
             }
-        })),
-        jig_domain_tasks::Phase::Ended(held) => Ok(crate::tasks_v13::Phase::Ended(crate::tasks_v13::Final { ending: ending_to_record(held, context)? })),
-    }
+        }),
+        jig_domain_tasks::Phase::Ended(held) => crate::tasks_v13::Phase::Ended(crate::tasks_v13::Final { ending: ending_to_record(held, context)? }),
+    })
 }
 
-// Maps line 130: Phase.
 pub fn phase_to_domain(record: crate::tasks_v13::Phase, context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::Phase, crate::tasks_v13::Problem> {
-    match record {
-        crate::tasks_v13::Phase::Waiting => Ok(jig_domain_tasks::Phase::Waiting),
-        crate::tasks_v13::Phase::Active(held) => Ok(jig_domain_tasks::Phase::Active({
+    Ok(match record {
+        crate::tasks_v13::Phase::Waiting => jig_domain_tasks::Phase::Waiting,
+        crate::tasks_v13::Phase::Active(held) => jig_domain_tasks::Phase::Active({
             let crate::tasks_v13::Activation { value: held } = held;
-            active_to_domain(held, context)?
-        })),
-        crate::tasks_v13::Phase::Closing(held) => Ok(jig_domain_tasks::Phase::Closing(closing_to_domain(held, context)?)),
+            active_to_domain(held)
+        }),
+        crate::tasks_v13::Phase::Closing(held) => jig_domain_tasks::Phase::Closing(closing_to_domain(held, context)?),
         crate::tasks_v13::Phase::Held(held) => {
             let crate::tasks_v13::Held { was: field_000000, why: field_000001, source: field_000002 } = held;
-            Ok(jig_domain_tasks::Phase::Held {
+            jig_domain_tasks::Phase::Held {
                 was: was_to_domain(field_000000, context)?,
-                why: hold_to_domain(field_000001, context)?,
+                why: hold_to_domain(field_000001),
                 source: match field_000002 {
-                    Some(item) => Some(Box::new(hold_source_to_domain(item, context)?)),
+                    Some(item) => {
+                        let converted = Box::new(hold_source_to_domain(item, context)?);
+                        Some(converted)
+                    }
                     None => None,
                 }
-            })
+            }
         },
-        crate::tasks_v13::Phase::Ended(held) => Ok(jig_domain_tasks::Phase::Ended({
+        crate::tasks_v13::Phase::Ended(held) => jig_domain_tasks::Phase::Ended({
             let crate::tasks_v13::Final { ending: held } = held;
             ending_to_domain(held, context)?
-        })),
-    }
+        }),
+    })
 }
 
-// Maps line 131: ProposalKind.
-pub fn proposal_kind_to_record(value: &jig_domain_tasks::ProposalKind, _context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::ProposalKind, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn proposal_kind_to_record(value: &jig_domain_tasks::ProposalKind) -> crate::tasks_v13::ProposalKind {
     match value {
-        jig_domain_tasks::ProposalKind::Batch => Ok(crate::tasks_v13::ProposalKind::Batch),
-        jig_domain_tasks::ProposalKind::Effect => Ok(crate::tasks_v13::ProposalKind::Effect),
-        jig_domain_tasks::ProposalKind::Amend => Ok(crate::tasks_v13::ProposalKind::Amend),
-        jig_domain_tasks::ProposalKind::Widen => Ok(crate::tasks_v13::ProposalKind::Widen),
-        jig_domain_tasks::ProposalKind::Release => Ok(crate::tasks_v13::ProposalKind::Release),
-        jig_domain_tasks::ProposalKind::Settings => Ok(crate::tasks_v13::ProposalKind::Settings),
+        jig_domain_tasks::ProposalKind::Batch => crate::tasks_v13::ProposalKind::Batch,
+        jig_domain_tasks::ProposalKind::Effect => crate::tasks_v13::ProposalKind::Effect,
+        jig_domain_tasks::ProposalKind::Amend => crate::tasks_v13::ProposalKind::Amend,
+        jig_domain_tasks::ProposalKind::Widen => crate::tasks_v13::ProposalKind::Widen,
+        jig_domain_tasks::ProposalKind::Release => crate::tasks_v13::ProposalKind::Release,
+        jig_domain_tasks::ProposalKind::Settings => crate::tasks_v13::ProposalKind::Settings,
     }
 }
 
-// Maps line 131: ProposalKind.
-pub fn proposal_kind_to_domain(record: crate::tasks_v13::ProposalKind, _context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::ProposalKind, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn proposal_kind_to_domain(record: crate::tasks_v13::ProposalKind) -> jig_domain_tasks::ProposalKind {
     match record {
-        crate::tasks_v13::ProposalKind::Batch => Ok(jig_domain_tasks::ProposalKind::Batch),
-        crate::tasks_v13::ProposalKind::Effect => Ok(jig_domain_tasks::ProposalKind::Effect),
-        crate::tasks_v13::ProposalKind::Amend => Ok(jig_domain_tasks::ProposalKind::Amend),
-        crate::tasks_v13::ProposalKind::Widen => Ok(jig_domain_tasks::ProposalKind::Widen),
-        crate::tasks_v13::ProposalKind::Release => Ok(jig_domain_tasks::ProposalKind::Release),
-        crate::tasks_v13::ProposalKind::Settings => Ok(jig_domain_tasks::ProposalKind::Settings),
+        crate::tasks_v13::ProposalKind::Batch => jig_domain_tasks::ProposalKind::Batch,
+        crate::tasks_v13::ProposalKind::Effect => jig_domain_tasks::ProposalKind::Effect,
+        crate::tasks_v13::ProposalKind::Amend => jig_domain_tasks::ProposalKind::Amend,
+        crate::tasks_v13::ProposalKind::Widen => jig_domain_tasks::ProposalKind::Widen,
+        crate::tasks_v13::ProposalKind::Release => jig_domain_tasks::ProposalKind::Release,
+        crate::tasks_v13::ProposalKind::Settings => jig_domain_tasks::ProposalKind::Settings,
     }
 }
 
-// Maps line 133: ProposalHolder.
-pub fn proposal_holder_to_record(value: &jig_domain_tasks::ProposalHolder, context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::ProposalHolder, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn proposal_holder_to_record(value: &jig_domain_tasks::ProposalHolder) -> crate::tasks_v13::ProposalHolder {
     match value {
-        jig_domain_tasks::ProposalHolder::Task(held) => Ok(crate::tasks_v13::ProposalHolder::Task(crate::tasks_v13::Task { task: *held })),
-        jig_domain_tasks::ProposalHolder::Person(held) => Ok(crate::tasks_v13::ProposalHolder::Person(crate::tasks_v13::Person { person: *held })),
-        jig_domain_tasks::ProposalHolder::Policy { project: field_000000, kind: field_000001 } => Ok(crate::tasks_v13::ProposalHolder::Policy(crate::tasks_v13::PolicyHolder {
+        jig_domain_tasks::ProposalHolder::Task(held) => crate::tasks_v13::ProposalHolder::Task(crate::tasks_v13::Task { task: *held }),
+        jig_domain_tasks::ProposalHolder::Person(held) => crate::tasks_v13::ProposalHolder::Person(crate::tasks_v13::Person { person: *held }),
+        jig_domain_tasks::ProposalHolder::Policy { project: field_000000, kind: field_000001 } => crate::tasks_v13::ProposalHolder::Policy(crate::tasks_v13::PolicyHolder {
             project: *field_000000,
-            kind: proposal_kind_to_record(field_000001, context)?
-        })),
+            kind: proposal_kind_to_record(field_000001)
+        }),
     }
 }
 
-// Maps line 133: ProposalHolder.
-pub fn proposal_holder_to_domain(record: crate::tasks_v13::ProposalHolder, context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::ProposalHolder, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn proposal_holder_to_domain(record: crate::tasks_v13::ProposalHolder) -> jig_domain_tasks::ProposalHolder {
     match record {
-        crate::tasks_v13::ProposalHolder::Task(held) => Ok(jig_domain_tasks::ProposalHolder::Task({
+        crate::tasks_v13::ProposalHolder::Task(held) => jig_domain_tasks::ProposalHolder::Task({
             let crate::tasks_v13::Task { task: held } = held;
             held
-        })),
-        crate::tasks_v13::ProposalHolder::Person(held) => Ok(jig_domain_tasks::ProposalHolder::Person({
+        }),
+        crate::tasks_v13::ProposalHolder::Person(held) => jig_domain_tasks::ProposalHolder::Person({
             let crate::tasks_v13::Person { person: held } = held;
             held
-        })),
+        }),
         crate::tasks_v13::ProposalHolder::Policy(held) => {
             let crate::tasks_v13::PolicyHolder { project: field_000000, kind: field_000001 } = held;
-            Ok(jig_domain_tasks::ProposalHolder::Policy {
+            jig_domain_tasks::ProposalHolder::Policy {
                 project: field_000000,
-                kind: proposal_kind_to_domain(field_000001, context)?
-            })
+                kind: proposal_kind_to_domain(field_000001)
+            }
         },
     }
 }
 
-// Maps line 137: ProposalState.
-pub fn proposal_state_to_record(value: &jig_domain_tasks::ProposalState, context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::ProposalState, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn proposal_state_to_record(value: &jig_domain_tasks::ProposalState) -> crate::tasks_v13::ProposalState {
     match value {
-        jig_domain_tasks::ProposalState::Pending { holder: field_000000, since: field_000001 } => Ok(crate::tasks_v13::ProposalState::Pending(crate::tasks_v13::PendingProposal {
-            holder: proposal_holder_to_record(field_000000, context)?,
-            since: match skein_codec::convert::wall_to_record(field_000001) { Ok(value) => value, Err(reason) => return Err(crate::tasks_v13::paths::PENDING_PROPOSAL_SINCE.problem(reason)) }
-        })),
-        jig_domain_tasks::ProposalState::Accepted { by: field_000000 } => Ok(crate::tasks_v13::ProposalState::Accepted(crate::tasks_v13::AcceptedProposal {
-            by: party_to_record(field_000000, context)?
-        })),
-        jig_domain_tasks::ProposalState::Rejected { by: field_000000, reason: field_000001 } => Ok(crate::tasks_v13::ProposalState::Rejected(crate::tasks_v13::RejectedProposal {
-            by: party_to_record(field_000000, context)?,
+        jig_domain_tasks::ProposalState::Pending { holder: field_000000, since: field_000001 } => crate::tasks_v13::ProposalState::Pending(crate::tasks_v13::PendingProposal {
+            holder: proposal_holder_to_record(field_000000),
+            since: skein_codec::convert::wall_to_record(field_000001)
+        }),
+        jig_domain_tasks::ProposalState::Accepted { by: field_000000 } => crate::tasks_v13::ProposalState::Accepted(crate::tasks_v13::AcceptedProposal {
+            by: party_to_record(field_000000)
+        }),
+        jig_domain_tasks::ProposalState::Rejected { by: field_000000, reason: field_000001 } => crate::tasks_v13::ProposalState::Rejected(crate::tasks_v13::RejectedProposal {
+            by: party_to_record(field_000000),
             reason: field_000001.clone()
-        })),
-        jig_domain_tasks::ProposalState::Withdrawn => Ok(crate::tasks_v13::ProposalState::Withdrawn),
+        }),
+        jig_domain_tasks::ProposalState::Withdrawn => crate::tasks_v13::ProposalState::Withdrawn,
     }
 }
 
-// Maps line 137: ProposalState.
-pub fn proposal_state_to_domain(record: crate::tasks_v13::ProposalState, context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::ProposalState, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn proposal_state_to_domain(record: crate::tasks_v13::ProposalState) -> jig_domain_tasks::ProposalState {
     match record {
         crate::tasks_v13::ProposalState::Pending(held) => {
             let crate::tasks_v13::PendingProposal { holder: field_000000, since: field_000001 } = held;
-            Ok(jig_domain_tasks::ProposalState::Pending {
-                holder: proposal_holder_to_domain(field_000000, context)?,
-                since: match skein_codec::convert::wall_to_domain(field_000001) { Ok(value) => value, Err(reason) => return Err(crate::tasks_v13::paths::PENDING_PROPOSAL_SINCE.problem(reason)) }
-            })
+            jig_domain_tasks::ProposalState::Pending {
+                holder: proposal_holder_to_domain(field_000000),
+                since: skein_codec::convert::wall_to_domain(field_000001)
+            }
         },
         crate::tasks_v13::ProposalState::Accepted(held) => {
             let crate::tasks_v13::AcceptedProposal { by: field_000000 } = held;
-            Ok(jig_domain_tasks::ProposalState::Accepted {
-                by: party_to_domain(field_000000, context)?
-            })
+            jig_domain_tasks::ProposalState::Accepted {
+                by: party_to_domain(field_000000)
+            }
         },
         crate::tasks_v13::ProposalState::Rejected(held) => {
             let crate::tasks_v13::RejectedProposal { by: field_000000, reason: field_000001 } = held;
-            Ok(jig_domain_tasks::ProposalState::Rejected {
-                by: party_to_domain(field_000000, context)?,
+            jig_domain_tasks::ProposalState::Rejected {
+                by: party_to_domain(field_000000),
                 reason: field_000001
-            })
+            }
         },
-        crate::tasks_v13::ProposalState::Withdrawn => Ok(jig_domain_tasks::ProposalState::Withdrawn),
+        crate::tasks_v13::ProposalState::Withdrawn => jig_domain_tasks::ProposalState::Withdrawn,
     }
 }
 
-// Maps line 138: AddressChange.
-pub fn address_change_to_record(value: &jig_domain_tasks::AddressChange, context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::AddressChange, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn address_change_to_record(value: &jig_domain_tasks::AddressChange) -> crate::tasks_v13::AddressChange {
     let jig_domain_tasks::AddressChange { revision: field_000000, address: field_000001 } = value;
-    Ok(crate::tasks_v13::AddressChange {
+    crate::tasks_v13::AddressChange {
         revision: *field_000000,
-        address: person_address_to_record(field_000001, context)?
-    })
-}
-
-// Maps line 138: AddressChange.
-pub fn address_change_to_domain(record: crate::tasks_v13::AddressChange, context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::AddressChange, crate::tasks_v13::Problem> {
-    let crate::tasks_v13::AddressChange { revision: field_000000, address: field_000001 } = record;
-    Ok(jig_domain_tasks::AddressChange {
-        revision: field_000000,
-        address: person_address_to_domain(field_000001, context)?
-    })
-}
-
-// Maps line 140: Tracking.
-pub fn tracking_to_record(value: &jig_domain_tasks::Tracking, _context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::Tracking, crate::tasks_v13::Problem> {
-    match value {
-        jig_domain_tasks::Tracking::Tracked { priority: field_000000 } => Ok(crate::tasks_v13::Tracking::Tracked(crate::tasks_v13::Tracked {
-            priority: *field_000000
-        })),
-        jig_domain_tasks::Tracking::Untracked => Ok(crate::tasks_v13::Tracking::Untracked),
+        address: person_address_to_record(field_000001)
     }
 }
 
-// Maps line 140: Tracking.
-pub fn tracking_to_domain(record: crate::tasks_v13::Tracking, _context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::Tracking, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn address_change_to_domain(record: crate::tasks_v13::AddressChange) -> jig_domain_tasks::AddressChange {
+    let crate::tasks_v13::AddressChange { revision: field_000000, address: field_000001 } = record;
+    jig_domain_tasks::AddressChange {
+        revision: field_000000,
+        address: person_address_to_domain(field_000001)
+    }
+}
+
+#[must_use]
+pub fn tracking_to_record(value: &jig_domain_tasks::Tracking) -> crate::tasks_v13::Tracking {
+    match value {
+        jig_domain_tasks::Tracking::Tracked { priority: field_000000 } => crate::tasks_v13::Tracking::Tracked(crate::tasks_v13::Tracked {
+            priority: *field_000000
+        }),
+        jig_domain_tasks::Tracking::Untracked => crate::tasks_v13::Tracking::Untracked,
+    }
+}
+
+#[must_use]
+pub fn tracking_to_domain(record: crate::tasks_v13::Tracking) -> jig_domain_tasks::Tracking {
     match record {
         crate::tasks_v13::Tracking::Tracked(held) => {
             let crate::tasks_v13::Tracked { priority: field_000000 } = held;
-            Ok(jig_domain_tasks::Tracking::Tracked {
+            jig_domain_tasks::Tracking::Tracked {
                 priority: field_000000
-            })
+            }
         },
-        crate::tasks_v13::Tracking::Untracked => Ok(jig_domain_tasks::Tracking::Untracked),
+        crate::tasks_v13::Tracking::Untracked => jig_domain_tasks::Tracking::Untracked,
     }
 }
 
-// Maps line 141: Amendment.
 pub fn amendment_to_record(value: &jig_domain_tasks::Amendment, context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::Amendment, crate::tasks_v13::Problem> {
     let jig_domain_tasks::Amendment { tracked: field_000000, addressed: field_000001, instructions: field_000002, release: field_000003, spec: field_000004, wake: field_000005, dependencies: field_000006, authority: field_000007, llm: field_000008, reason: field_000009 } = value;
     Ok(crate::tasks_v13::Amendment {
         tracked: match field_000000 {
-            Some(item) => Some(tracking_to_record(item, context)?),
+            Some(item) => {
+                let converted = tracking_to_record(item);
+                Some(converted)
+            }
             None => None,
         },
         addressed: match field_000001 {
-            Some(item) => Some(address_change_to_record(item, context)?),
+            Some(item) => {
+                let converted = address_change_to_record(item);
+                Some(converted)
+            }
             None => None,
         },
         instructions: match field_000002 {
-            Some(item) => Some(item.clone()),
+            Some(item) => {
+                let converted = item.clone();
+                Some(converted)
+            }
             None => None,
         },
         release: match field_000003 {
-            Some(item) => Some(*item),
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
             None => None,
         },
         spec: match field_000004 {
-            Some(item) => Some(crate::codec::tasks::spec_to_record(item, context)?),
+            Some(item) => {
+                let converted = crate::codec::tasks::spec_to_record(item, context)?;
+                Some(converted)
+            }
             None => None,
         },
         wake: match field_000005 {
-            Some(item) => Some(wake_policy_to_record(item, context)?),
+            Some(item) => {
+                let converted = wake_policy_to_record(item);
+                Some(converted)
+            }
             None => None,
         },
         dependencies: match field_000006 {
-            Some(item) => Some({
-                let source = item;
-                let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(crate::tasks_v13::paths::AMENDMENT_DEPENDENCIES.problem(skein_codec::Reason::Bound)) };
-                let mut translated = skein_lib::List::with_capacity(count);
-                for item in source.as_ref() {
-                    let converted = crate::tasks_v13::Number { value: *item };
-                    if translated.push(converted).is_err() { return Err(crate::tasks_v13::paths::AMENDMENT_DEPENDENCIES.problem(skein_codec::Reason::Bound)); }
-                }
-                translated
-            }),
+            Some(item) => {
+                let converted = {
+                    let source = item;
+                    let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(crate::tasks_v13::paths::AMENDMENT_DEPENDENCIES.problem(skein_codec::Reason::Bound)) };
+                    let mut translated = skein_lib::List::with_capacity(count);
+                    for item in source.as_ref() {
+                        let converted = crate::tasks_v13::Number { value: *item };
+                        assert!(translated.push(converted).is_ok(), "one output per source item");
+                    }
+                    translated
+                };
+                Some(converted)
+            }
             None => None,
         },
         authority: match field_000007 {
-            Some(item) => Some(crate::codec::tasks::authority_to_record(item, context)?),
+            Some(item) => {
+                let converted = crate::codec::tasks::authority_to_record(item, context)?;
+                Some(converted)
+            }
             None => None,
         },
         llm: match field_000008 {
-            Some(item) => Some(llm_choice_to_record(item, context)?),
+            Some(item) => {
+                let converted = llm_choice_to_record(item)?;
+                Some(converted)
+            }
             None => None,
         },
         reason: field_000009.clone()
     })
 }
 
-// Maps line 141: Amendment.
 pub fn amendment_to_domain(record: crate::tasks_v13::Amendment, context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::Amendment, crate::tasks_v13::Problem> {
     let crate::tasks_v13::Amendment { tracked: field_000000, addressed: field_000001, instructions: field_000002, release: field_000003, spec: field_000004, wake: field_000005, dependencies: field_000006, authority: field_000007, llm: field_000008, reason: field_000009 } = record;
     Ok(jig_domain_tasks::Amendment {
         tracked: match field_000000 {
-            Some(item) => Some(tracking_to_domain(item, context)?),
+            Some(item) => {
+                let converted = tracking_to_domain(item);
+                Some(converted)
+            }
             None => None,
         },
         addressed: match field_000001 {
-            Some(item) => Some(address_change_to_domain(item, context)?),
+            Some(item) => {
+                let converted = address_change_to_domain(item);
+                Some(converted)
+            }
             None => None,
         },
         instructions: match field_000002 {
-            Some(item) => Some(item),
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
             None => None,
         },
         release: match field_000003 {
-            Some(item) => Some(item),
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
             None => None,
         },
         spec: match field_000004 {
-            Some(item) => Some(crate::codec::tasks::spec_to_domain(item, context)?),
+            Some(item) => {
+                let converted = crate::codec::tasks::spec_to_domain(item, context)?;
+                Some(converted)
+            }
             None => None,
         },
         wake: match field_000005 {
-            Some(item) => Some(wake_policy_to_domain(item, context)?),
+            Some(item) => {
+                let converted = wake_policy_to_domain(item);
+                Some(converted)
+            }
             None => None,
         },
         dependencies: match field_000006 {
-            Some(item) => Some({
-                let source = item;
-                let count = source.len();
-                let mut translated = skein_lib::List::with_capacity(count);
-                for item in source.into_boxed() {
-                    let converted = {
-                        let crate::tasks_v13::Number { value: held } = item;
-                        held
-                    };
-                    if translated.push(converted).is_err() { return Err(crate::tasks_v13::paths::AMENDMENT_DEPENDENCIES.problem(skein_codec::Reason::Bound)); }
-                }
-                Box::from(translated)
-            }),
+            Some(item) => {
+                let converted = {
+                    let source = item;
+                    let count = source.len();
+                    let mut translated = skein_lib::List::with_capacity(count);
+                    for item in source.into_boxed() {
+                        let converted = {
+                            let crate::tasks_v13::Number { value: held } = item;
+                            held
+                        };
+                        assert!(translated.push(converted).is_ok(), "one output per source item");
+                    }
+                    Box::from(translated)
+                };
+                Some(converted)
+            }
             None => None,
         },
         authority: match field_000007 {
-            Some(item) => Some(crate::codec::tasks::authority_to_domain(item, context)?),
+            Some(item) => {
+                let converted = crate::codec::tasks::authority_to_domain(item, context)?;
+                Some(converted)
+            }
             None => None,
         },
         llm: match field_000008 {
-            Some(item) => Some(llm_choice_to_domain(item, context)?),
+            Some(item) => {
+                let converted = llm_choice_to_domain(item);
+                Some(converted)
+            }
             None => None,
         },
         reason: field_000009
     })
 }
 
-// Maps line 149: Setting.
-pub fn setting_to_record(value: &jig_domain_tasks::Setting, _context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::Setting, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn setting_to_record(value: &jig_domain_tasks::Setting) -> crate::tasks_v13::Setting {
     match value {
-        jig_domain_tasks::Setting::Charter(held) => Ok(crate::tasks_v13::Setting::Charter(crate::tasks_v13::SettingNumber { number: *held })),
-        jig_domain_tasks::Setting::Template(held) => Ok(crate::tasks_v13::Setting::Template(crate::tasks_v13::SettingNumber { number: *held })),
-        jig_domain_tasks::Setting::Policy(held) => Ok(crate::tasks_v13::Setting::Policy(crate::tasks_v13::SettingNumber { number: *held })),
-        jig_domain_tasks::Setting::Rules => Ok(crate::tasks_v13::Setting::Rules),
-        jig_domain_tasks::Setting::Model(held) => Ok(crate::tasks_v13::Setting::Model(crate::tasks_v13::SettingNumber { number: *held })),
-        jig_domain_tasks::Setting::Worker(held) => Ok(crate::tasks_v13::Setting::Worker(crate::tasks_v13::SettingNumber { number: *held })),
-        jig_domain_tasks::Setting::Provider(held) => Ok(crate::tasks_v13::Setting::Provider(crate::tasks_v13::SettingNumber { number: *held })),
-        jig_domain_tasks::Setting::Limits => Ok(crate::tasks_v13::Setting::Limits),
+        jig_domain_tasks::Setting::Charter(held) => crate::tasks_v13::Setting::Charter(crate::tasks_v13::SettingNumber { number: *held }),
+        jig_domain_tasks::Setting::Template(held) => crate::tasks_v13::Setting::Template(crate::tasks_v13::SettingNumber { number: *held }),
+        jig_domain_tasks::Setting::Policy(held) => crate::tasks_v13::Setting::Policy(crate::tasks_v13::SettingNumber { number: *held }),
+        jig_domain_tasks::Setting::Rules => crate::tasks_v13::Setting::Rules,
+        jig_domain_tasks::Setting::Model(held) => crate::tasks_v13::Setting::Model(crate::tasks_v13::SettingNumber { number: *held }),
+        jig_domain_tasks::Setting::Worker(held) => crate::tasks_v13::Setting::Worker(crate::tasks_v13::SettingNumber { number: *held }),
+        jig_domain_tasks::Setting::Provider(held) => crate::tasks_v13::Setting::Provider(crate::tasks_v13::SettingNumber { number: *held }),
+        jig_domain_tasks::Setting::Limits => crate::tasks_v13::Setting::Limits,
     }
 }
 
-// Maps line 149: Setting.
-pub fn setting_to_domain(record: crate::tasks_v13::Setting, _context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::Setting, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn setting_to_domain(record: crate::tasks_v13::Setting) -> jig_domain_tasks::Setting {
     match record {
-        crate::tasks_v13::Setting::Charter(held) => Ok(jig_domain_tasks::Setting::Charter({
+        crate::tasks_v13::Setting::Charter(held) => jig_domain_tasks::Setting::Charter({
             let crate::tasks_v13::SettingNumber { number: held } = held;
             held
-        })),
-        crate::tasks_v13::Setting::Template(held) => Ok(jig_domain_tasks::Setting::Template({
+        }),
+        crate::tasks_v13::Setting::Template(held) => jig_domain_tasks::Setting::Template({
             let crate::tasks_v13::SettingNumber { number: held } = held;
             held
-        })),
-        crate::tasks_v13::Setting::Policy(held) => Ok(jig_domain_tasks::Setting::Policy({
+        }),
+        crate::tasks_v13::Setting::Policy(held) => jig_domain_tasks::Setting::Policy({
             let crate::tasks_v13::SettingNumber { number: held } = held;
             held
-        })),
-        crate::tasks_v13::Setting::Rules => Ok(jig_domain_tasks::Setting::Rules),
-        crate::tasks_v13::Setting::Model(held) => Ok(jig_domain_tasks::Setting::Model({
+        }),
+        crate::tasks_v13::Setting::Rules => jig_domain_tasks::Setting::Rules,
+        crate::tasks_v13::Setting::Model(held) => jig_domain_tasks::Setting::Model({
             let crate::tasks_v13::SettingNumber { number: held } = held;
             held
-        })),
-        crate::tasks_v13::Setting::Worker(held) => Ok(jig_domain_tasks::Setting::Worker({
+        }),
+        crate::tasks_v13::Setting::Worker(held) => jig_domain_tasks::Setting::Worker({
             let crate::tasks_v13::SettingNumber { number: held } = held;
             held
-        })),
-        crate::tasks_v13::Setting::Provider(held) => Ok(jig_domain_tasks::Setting::Provider({
+        }),
+        crate::tasks_v13::Setting::Provider(held) => jig_domain_tasks::Setting::Provider({
             let crate::tasks_v13::SettingNumber { number: held } = held;
             held
-        })),
-        crate::tasks_v13::Setting::Limits => Ok(jig_domain_tasks::Setting::Limits),
+        }),
+        crate::tasks_v13::Setting::Limits => jig_domain_tasks::Setting::Limits,
     }
 }
 
-// Maps line 150: SettingEdit.
-pub fn setting_edit_to_record(value: &jig_domain_tasks::SettingEdit, _context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::SettingEdit, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn setting_edit_to_record(value: &jig_domain_tasks::SettingEdit) -> crate::tasks_v13::SettingEdit {
     match value {
-        jig_domain_tasks::SettingEdit::Set => Ok(crate::tasks_v13::SettingEdit::Set),
-        jig_domain_tasks::SettingEdit::Removed => Ok(crate::tasks_v13::SettingEdit::Removed),
-        jig_domain_tasks::SettingEdit::Reset => Ok(crate::tasks_v13::SettingEdit::Reset),
+        jig_domain_tasks::SettingEdit::Set => crate::tasks_v13::SettingEdit::Set,
+        jig_domain_tasks::SettingEdit::Removed => crate::tasks_v13::SettingEdit::Removed,
+        jig_domain_tasks::SettingEdit::Reset => crate::tasks_v13::SettingEdit::Reset,
     }
 }
 
-// Maps line 150: SettingEdit.
-pub fn setting_edit_to_domain(record: crate::tasks_v13::SettingEdit, _context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::SettingEdit, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn setting_edit_to_domain(record: crate::tasks_v13::SettingEdit) -> jig_domain_tasks::SettingEdit {
     match record {
-        crate::tasks_v13::SettingEdit::Set => Ok(jig_domain_tasks::SettingEdit::Set),
-        crate::tasks_v13::SettingEdit::Removed => Ok(jig_domain_tasks::SettingEdit::Removed),
-        crate::tasks_v13::SettingEdit::Reset => Ok(jig_domain_tasks::SettingEdit::Reset),
+        crate::tasks_v13::SettingEdit::Set => jig_domain_tasks::SettingEdit::Set,
+        crate::tasks_v13::SettingEdit::Removed => jig_domain_tasks::SettingEdit::Removed,
+        crate::tasks_v13::SettingEdit::Reset => jig_domain_tasks::SettingEdit::Reset,
     }
 }
 
-// Maps line 151: SettingHead.
-pub fn setting_head_to_record(value: &jig_domain_tasks::SettingHead, context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::SettingHead, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn setting_head_to_record(value: &jig_domain_tasks::SettingHead) -> crate::tasks_v13::SettingHead {
     let jig_domain_tasks::SettingHead { setting: field_000000, edit: field_000001 } = value;
-    Ok(crate::tasks_v13::SettingHead {
-        setting: setting_to_record(field_000000, context)?,
-        edit: setting_edit_to_record(field_000001, context)?
-    })
+    crate::tasks_v13::SettingHead {
+        setting: setting_to_record(field_000000),
+        edit: setting_edit_to_record(field_000001)
+    }
 }
 
-// Maps line 151: SettingHead.
-pub fn setting_head_to_domain(record: crate::tasks_v13::SettingHead, context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::SettingHead, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn setting_head_to_domain(record: crate::tasks_v13::SettingHead) -> jig_domain_tasks::SettingHead {
     let crate::tasks_v13::SettingHead { setting: field_000000, edit: field_000001 } = record;
-    Ok(jig_domain_tasks::SettingHead {
-        setting: setting_to_domain(field_000000, context)?,
-        edit: setting_edit_to_domain(field_000001, context)?
-    })
+    jig_domain_tasks::SettingHead {
+        setting: setting_to_domain(field_000000),
+        edit: setting_edit_to_domain(field_000001)
+    }
 }
 
-// Maps line 154: Proposal.
 pub fn proposal_to_record(value: &jig_domain_tasks::Proposal, context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::Proposal, crate::tasks_v13::Problem> {
     let jig_domain_tasks::Proposal { number: field_000000, proposer: field_000001, project: field_000002, action: field_000003, reason: field_000004, as_holder: field_000005, state: field_000006 } = value;
     Ok(crate::tasks_v13::Proposal {
@@ -1858,11 +1946,10 @@ pub fn proposal_to_record(value: &jig_domain_tasks::Proposal, context: &crate::c
         action: crate::codec::tasks::proposal_action_to_record(field_000003, context)?,
         reason: field_000004.clone(),
         as_holder: *field_000005,
-        state: proposal_state_to_record(field_000006, context)?
+        state: proposal_state_to_record(field_000006)
     })
 }
 
-// Maps line 154: Proposal.
 pub fn proposal_to_domain(record: crate::tasks_v13::Proposal, context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::Proposal, crate::tasks_v13::Problem> {
     let crate::tasks_v13::Proposal { number: field_000000, proposer: field_000001, project: field_000002, action: field_000003, reason: field_000004, as_holder: field_000005, state: field_000006 } = record;
     Ok(jig_domain_tasks::Proposal {
@@ -1872,106 +1959,131 @@ pub fn proposal_to_domain(record: crate::tasks_v13::Proposal, context: &crate::c
         action: crate::codec::tasks::proposal_action_to_domain(field_000003, context)?,
         reason: field_000004,
         as_holder: field_000005,
-        state: proposal_state_to_domain(field_000006, context)?
+        state: proposal_state_to_domain(field_000006)
     })
 }
 
-// Maps line 155: Change.
-pub fn change_to_record(value: &jig_domain_tasks::Change, _context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::Change, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn change_to_record(value: &jig_domain_tasks::Change) -> crate::tasks_v13::Change {
     match value {
-        jig_domain_tasks::Change::Cancelled => Ok(crate::tasks_v13::Change::Cancelled),
-        jig_domain_tasks::Change::Released => Ok(crate::tasks_v13::Change::Released),
-        jig_domain_tasks::Change::Amended => Ok(crate::tasks_v13::Change::Amended),
-        jig_domain_tasks::Change::Moved => Ok(crate::tasks_v13::Change::Moved),
-        jig_domain_tasks::Change::Proposed => Ok(crate::tasks_v13::Change::Proposed),
-        jig_domain_tasks::Change::ProposalPassed => Ok(crate::tasks_v13::Change::ProposalPassed),
-        jig_domain_tasks::Change::ProposalAccepted => Ok(crate::tasks_v13::Change::ProposalAccepted),
-        jig_domain_tasks::Change::ProposalRejected => Ok(crate::tasks_v13::Change::ProposalRejected),
-        jig_domain_tasks::Change::ProposalWithdrawn => Ok(crate::tasks_v13::Change::ProposalWithdrawn),
-        jig_domain_tasks::Change::Concluded => Ok(crate::tasks_v13::Change::Concluded),
-        jig_domain_tasks::Change::Made => Ok(crate::tasks_v13::Change::Made),
+        jig_domain_tasks::Change::Cancelled => crate::tasks_v13::Change::Cancelled,
+        jig_domain_tasks::Change::Released => crate::tasks_v13::Change::Released,
+        jig_domain_tasks::Change::Amended => crate::tasks_v13::Change::Amended,
+        jig_domain_tasks::Change::Moved => crate::tasks_v13::Change::Moved,
+        jig_domain_tasks::Change::Proposed => crate::tasks_v13::Change::Proposed,
+        jig_domain_tasks::Change::ProposalPassed => crate::tasks_v13::Change::ProposalPassed,
+        jig_domain_tasks::Change::ProposalAccepted => crate::tasks_v13::Change::ProposalAccepted,
+        jig_domain_tasks::Change::ProposalRejected => crate::tasks_v13::Change::ProposalRejected,
+        jig_domain_tasks::Change::ProposalWithdrawn => crate::tasks_v13::Change::ProposalWithdrawn,
+        jig_domain_tasks::Change::Concluded => crate::tasks_v13::Change::Concluded,
+        jig_domain_tasks::Change::Made => crate::tasks_v13::Change::Made,
     }
 }
 
-// Maps line 155: Change.
-pub fn change_to_domain(record: crate::tasks_v13::Change, _context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::Change, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn change_to_domain(record: crate::tasks_v13::Change) -> jig_domain_tasks::Change {
     match record {
-        crate::tasks_v13::Change::Cancelled => Ok(jig_domain_tasks::Change::Cancelled),
-        crate::tasks_v13::Change::Released => Ok(jig_domain_tasks::Change::Released),
-        crate::tasks_v13::Change::Amended => Ok(jig_domain_tasks::Change::Amended),
-        crate::tasks_v13::Change::Moved => Ok(jig_domain_tasks::Change::Moved),
-        crate::tasks_v13::Change::Proposed => Ok(jig_domain_tasks::Change::Proposed),
-        crate::tasks_v13::Change::ProposalPassed => Ok(jig_domain_tasks::Change::ProposalPassed),
-        crate::tasks_v13::Change::ProposalAccepted => Ok(jig_domain_tasks::Change::ProposalAccepted),
-        crate::tasks_v13::Change::ProposalRejected => Ok(jig_domain_tasks::Change::ProposalRejected),
-        crate::tasks_v13::Change::ProposalWithdrawn => Ok(jig_domain_tasks::Change::ProposalWithdrawn),
-        crate::tasks_v13::Change::Concluded => Ok(jig_domain_tasks::Change::Concluded),
-        crate::tasks_v13::Change::Made => Ok(jig_domain_tasks::Change::Made),
+        crate::tasks_v13::Change::Cancelled => jig_domain_tasks::Change::Cancelled,
+        crate::tasks_v13::Change::Released => jig_domain_tasks::Change::Released,
+        crate::tasks_v13::Change::Amended => jig_domain_tasks::Change::Amended,
+        crate::tasks_v13::Change::Moved => jig_domain_tasks::Change::Moved,
+        crate::tasks_v13::Change::Proposed => jig_domain_tasks::Change::Proposed,
+        crate::tasks_v13::Change::ProposalPassed => jig_domain_tasks::Change::ProposalPassed,
+        crate::tasks_v13::Change::ProposalAccepted => jig_domain_tasks::Change::ProposalAccepted,
+        crate::tasks_v13::Change::ProposalRejected => jig_domain_tasks::Change::ProposalRejected,
+        crate::tasks_v13::Change::ProposalWithdrawn => jig_domain_tasks::Change::ProposalWithdrawn,
+        crate::tasks_v13::Change::Concluded => jig_domain_tasks::Change::Concluded,
+        crate::tasks_v13::Change::Made => jig_domain_tasks::Change::Made,
     }
 }
 
-// Maps line 156: Settings.
 pub fn settings_to_record(value: &jig_domain_tasks::Settings, context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::Settings, crate::tasks_v13::Problem> {
     let jig_domain_tasks::Settings { tracked: field_000000, addressed: field_000001, taken_by: field_000002, instructions: field_000003, spec: field_000004, wake: field_000005, dependencies: field_000006, authority: field_000007, llm: field_000008 } = value;
     Ok(crate::tasks_v13::Settings {
         tracked: match field_000000 {
-            Some(item) => Some(*item),
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
             None => None,
         },
         addressed: match field_000001 {
-            Some(item) => Some(person_address_to_record(item, context)?),
+            Some(item) => {
+                let converted = person_address_to_record(item);
+                Some(converted)
+            }
             None => None,
         },
         taken_by: match field_000002 {
-            Some(item) => Some(*item),
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
             None => None,
         },
         instructions: match field_000003 {
-            Some(item) => Some(item.clone()),
+            Some(item) => {
+                let converted = item.clone();
+                Some(converted)
+            }
             None => None,
         },
         spec: crate::codec::tasks::spec_to_record(field_000004, context)?,
-        wake: wake_policy_to_record(field_000005, context)?,
+        wake: wake_policy_to_record(field_000005),
         dependencies: {
             let source = field_000006;
             let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(crate::tasks_v13::paths::SETTINGS_DEPENDENCIES.problem(skein_codec::Reason::Bound)) };
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.as_ref() {
                 let converted = crate::tasks_v13::Number { value: *item };
-                if translated.push(converted).is_err() { return Err(crate::tasks_v13::paths::SETTINGS_DEPENDENCIES.problem(skein_codec::Reason::Bound)); }
+                assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             translated
         },
         authority: crate::codec::tasks::authority_to_record(field_000007, context)?,
         llm: match field_000008 {
-            Some(item) => Some(llm_choice_to_record(item, context)?),
+            Some(item) => {
+                let converted = llm_choice_to_record(item)?;
+                Some(converted)
+            }
             None => None,
         }
     })
 }
 
-// Maps line 156: Settings.
 pub fn settings_to_domain(record: crate::tasks_v13::Settings, context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::Settings, crate::tasks_v13::Problem> {
     let crate::tasks_v13::Settings { tracked: field_000000, addressed: field_000001, taken_by: field_000002, instructions: field_000003, spec: field_000004, wake: field_000005, dependencies: field_000006, authority: field_000007, llm: field_000008 } = record;
     Ok(jig_domain_tasks::Settings {
         tracked: match field_000000 {
-            Some(item) => Some(item),
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
             None => None,
         },
         addressed: match field_000001 {
-            Some(item) => Some(person_address_to_domain(item, context)?),
+            Some(item) => {
+                let converted = person_address_to_domain(item);
+                Some(converted)
+            }
             None => None,
         },
         taken_by: match field_000002 {
-            Some(item) => Some(item),
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
             None => None,
         },
         instructions: match field_000003 {
-            Some(item) => Some(item),
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
             None => None,
         },
         spec: crate::codec::tasks::spec_to_domain(field_000004, context)?,
-        wake: wake_policy_to_domain(field_000005, context)?,
+        wake: wake_policy_to_domain(field_000005),
         dependencies: {
             let source = field_000006;
             let count = source.len();
@@ -1981,19 +2093,21 @@ pub fn settings_to_domain(record: crate::tasks_v13::Settings, context: &crate::c
                     let crate::tasks_v13::Number { value: held } = item;
                     held
                 };
-                if translated.push(converted).is_err() { return Err(crate::tasks_v13::paths::SETTINGS_DEPENDENCIES.problem(skein_codec::Reason::Bound)); }
+                assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             Box::from(translated)
         },
         authority: crate::codec::tasks::authority_to_domain(field_000007, context)?,
         llm: match field_000008 {
-            Some(item) => Some(llm_choice_to_domain(item, context)?),
+            Some(item) => {
+                let converted = llm_choice_to_domain(item);
+                Some(converted)
+            }
             None => None,
         }
     })
 }
 
-// Maps line 157: AmendmentHistory.
 pub fn amendment_history_to_record(value: &jig_domain_tasks::AmendmentHistory, context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::AmendmentHistory, crate::tasks_v13::Problem> {
     let jig_domain_tasks::AmendmentHistory { before: field_000000, after: field_000001 } = value;
     Ok(crate::tasks_v13::AmendmentHistory {
@@ -2002,7 +2116,6 @@ pub fn amendment_history_to_record(value: &jig_domain_tasks::AmendmentHistory, c
     })
 }
 
-// Maps line 157: AmendmentHistory.
 pub fn amendment_history_to_domain(record: crate::tasks_v13::AmendmentHistory, context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::AmendmentHistory, crate::tasks_v13::Problem> {
     let crate::tasks_v13::AmendmentHistory { before: field_000000, after: field_000001 } = record;
     Ok(jig_domain_tasks::AmendmentHistory {
@@ -2011,114 +2124,123 @@ pub fn amendment_history_to_domain(record: crate::tasks_v13::AmendmentHistory, c
     })
 }
 
-// Maps line 158: History.
 pub fn history_to_record(value: &jig_domain_tasks::History, context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::History, crate::tasks_v13::Problem> {
     let jig_domain_tasks::History { task: field_000000, revision: field_000001, by: field_000002, change: field_000003, reason: field_000004, proposal: field_000005, at: field_000006, amendment: field_000007 } = value;
     Ok(crate::tasks_v13::History {
         task: *field_000000,
         revision: *field_000001,
-        by: party_to_record(field_000002, context)?,
-        change: change_to_record(field_000003, context)?,
+        by: party_to_record(field_000002),
+        change: change_to_record(field_000003),
         reason: field_000004.clone(),
         proposal: match field_000005 {
-            Some(item) => Some(proposal_to_record(item, context)?),
+            Some(item) => {
+                let converted = proposal_to_record(item, context)?;
+                Some(converted)
+            }
             None => None,
         },
-        at: match skein_codec::convert::wall_to_record(field_000006) { Ok(value) => value, Err(reason) => return Err(crate::tasks_v13::paths::HISTORY_AT.problem(reason)) },
+        at: skein_codec::convert::wall_to_record(field_000006),
         amendment: match field_000007 {
-            Some(item) => Some(amendment_history_to_record(item, context)?),
+            Some(item) => {
+                let converted = amendment_history_to_record(item, context)?;
+                Some(converted)
+            }
             None => None,
         }
     })
 }
 
-// Maps line 158: History.
 pub fn history_to_domain(record: crate::tasks_v13::History, context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::History, crate::tasks_v13::Problem> {
     let crate::tasks_v13::History { task: field_000000, revision: field_000001, by: field_000002, change: field_000003, reason: field_000004, proposal: field_000005, at: field_000006, amendment: field_000007 } = record;
     Ok(jig_domain_tasks::History {
         task: field_000000,
         revision: field_000001,
-        by: party_to_domain(field_000002, context)?,
-        change: change_to_domain(field_000003, context)?,
+        by: party_to_domain(field_000002),
+        change: change_to_domain(field_000003),
         reason: field_000004,
         proposal: match field_000005 {
-            Some(item) => Some(Box::new(proposal_to_domain(item, context)?)),
+            Some(item) => {
+                let converted = Box::new(proposal_to_domain(item, context)?);
+                Some(converted)
+            }
             None => None,
         },
-        at: match skein_codec::convert::wall_to_domain(field_000006) { Ok(value) => value, Err(reason) => return Err(crate::tasks_v13::paths::HISTORY_AT.problem(reason)) },
+        at: skein_codec::convert::wall_to_domain(field_000006),
         amendment: match field_000007 {
-            Some(item) => Some(Box::new(amendment_history_to_domain(item, context)?)),
+            Some(item) => {
+                let converted = Box::new(amendment_history_to_domain(item, context)?);
+                Some(converted)
+            }
             None => None,
         }
     })
 }
 
-// Maps line 163: PersonProposalState.
-pub fn person_proposal_state_to_record(value: &jig_domain_tasks::PersonProposalState, context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::PersonProposalState, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn person_proposal_state_to_record(value: &jig_domain_tasks::PersonProposalState) -> crate::tasks_v13::PersonProposalState {
     match value {
-        jig_domain_tasks::PersonProposalState::Pending { since: field_000000 } => Ok(crate::tasks_v13::PersonProposalState::Pending(crate::tasks_v13::PendingPersonProposal {
-            since: match skein_codec::convert::wall_to_record(field_000000) { Ok(value) => value, Err(reason) => return Err(crate::tasks_v13::paths::PENDING_PERSON_PROPOSAL_SINCE.problem(reason)) }
-        })),
-        jig_domain_tasks::PersonProposalState::Accepted { by: field_000000 } => Ok(crate::tasks_v13::PersonProposalState::Accepted(crate::tasks_v13::AcceptedProposal {
-            by: party_to_record(field_000000, context)?
-        })),
-        jig_domain_tasks::PersonProposalState::Rejected { by: field_000000, reason: field_000001, message: field_000002, at: field_000003 } => Ok(crate::tasks_v13::PersonProposalState::Rejected(crate::tasks_v13::RejectedPersonProposal {
-            by: party_to_record(field_000000, context)?,
+        jig_domain_tasks::PersonProposalState::Pending { since: field_000000 } => crate::tasks_v13::PersonProposalState::Pending(crate::tasks_v13::PendingPersonProposal {
+            since: skein_codec::convert::wall_to_record(field_000000)
+        }),
+        jig_domain_tasks::PersonProposalState::Accepted { by: field_000000 } => crate::tasks_v13::PersonProposalState::Accepted(crate::tasks_v13::AcceptedProposal {
+            by: party_to_record(field_000000)
+        }),
+        jig_domain_tasks::PersonProposalState::Rejected { by: field_000000, reason: field_000001, message: field_000002, at: field_000003 } => crate::tasks_v13::PersonProposalState::Rejected(crate::tasks_v13::RejectedPersonProposal {
+            by: party_to_record(field_000000),
             reason: field_000001.clone(),
             message: *field_000002,
-            at: match skein_codec::convert::wall_to_record(field_000003) { Ok(value) => value, Err(reason) => return Err(crate::tasks_v13::paths::REJECTED_PERSON_PROPOSAL_AT.problem(reason)) }
-        })),
-        jig_domain_tasks::PersonProposalState::Withdrawn { at: field_000000 } => Ok(crate::tasks_v13::PersonProposalState::Withdrawn(crate::tasks_v13::WithdrawnPersonProposal {
-            at: match skein_codec::convert::wall_to_record(field_000000) { Ok(value) => value, Err(reason) => return Err(crate::tasks_v13::paths::WITHDRAWN_PERSON_PROPOSAL_AT.problem(reason)) }
-        })),
-        jig_domain_tasks::PersonProposalState::SettingsAccepted { by: field_000000, revision: field_000001 } => Ok(crate::tasks_v13::PersonProposalState::SettingsAccepted(crate::tasks_v13::SettingsAccepted {
-            by: party_to_record(field_000000, context)?,
+            at: skein_codec::convert::wall_to_record(field_000003)
+        }),
+        jig_domain_tasks::PersonProposalState::Withdrawn { at: field_000000 } => crate::tasks_v13::PersonProposalState::Withdrawn(crate::tasks_v13::WithdrawnPersonProposal {
+            at: skein_codec::convert::wall_to_record(field_000000)
+        }),
+        jig_domain_tasks::PersonProposalState::SettingsAccepted { by: field_000000, revision: field_000001 } => crate::tasks_v13::PersonProposalState::SettingsAccepted(crate::tasks_v13::SettingsAccepted {
+            by: party_to_record(field_000000),
             revision: *field_000001
-        })),
+        }),
     }
 }
 
-// Maps line 163: PersonProposalState.
-pub fn person_proposal_state_to_domain(record: crate::tasks_v13::PersonProposalState, context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::PersonProposalState, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn person_proposal_state_to_domain(record: crate::tasks_v13::PersonProposalState) -> jig_domain_tasks::PersonProposalState {
     match record {
         crate::tasks_v13::PersonProposalState::Pending(held) => {
             let crate::tasks_v13::PendingPersonProposal { since: field_000000 } = held;
-            Ok(jig_domain_tasks::PersonProposalState::Pending {
-                since: match skein_codec::convert::wall_to_domain(field_000000) { Ok(value) => value, Err(reason) => return Err(crate::tasks_v13::paths::PENDING_PERSON_PROPOSAL_SINCE.problem(reason)) }
-            })
+            jig_domain_tasks::PersonProposalState::Pending {
+                since: skein_codec::convert::wall_to_domain(field_000000)
+            }
         },
         crate::tasks_v13::PersonProposalState::Accepted(held) => {
             let crate::tasks_v13::AcceptedProposal { by: field_000000 } = held;
-            Ok(jig_domain_tasks::PersonProposalState::Accepted {
-                by: party_to_domain(field_000000, context)?
-            })
+            jig_domain_tasks::PersonProposalState::Accepted {
+                by: party_to_domain(field_000000)
+            }
         },
         crate::tasks_v13::PersonProposalState::Rejected(held) => {
             let crate::tasks_v13::RejectedPersonProposal { by: field_000000, reason: field_000001, message: field_000002, at: field_000003 } = held;
-            Ok(jig_domain_tasks::PersonProposalState::Rejected {
-                by: party_to_domain(field_000000, context)?,
+            jig_domain_tasks::PersonProposalState::Rejected {
+                by: party_to_domain(field_000000),
                 reason: field_000001,
                 message: field_000002,
-                at: match skein_codec::convert::wall_to_domain(field_000003) { Ok(value) => value, Err(reason) => return Err(crate::tasks_v13::paths::REJECTED_PERSON_PROPOSAL_AT.problem(reason)) }
-            })
+                at: skein_codec::convert::wall_to_domain(field_000003)
+            }
         },
         crate::tasks_v13::PersonProposalState::Withdrawn(held) => {
             let crate::tasks_v13::WithdrawnPersonProposal { at: field_000000 } = held;
-            Ok(jig_domain_tasks::PersonProposalState::Withdrawn {
-                at: match skein_codec::convert::wall_to_domain(field_000000) { Ok(value) => value, Err(reason) => return Err(crate::tasks_v13::paths::WITHDRAWN_PERSON_PROPOSAL_AT.problem(reason)) }
-            })
+            jig_domain_tasks::PersonProposalState::Withdrawn {
+                at: skein_codec::convert::wall_to_domain(field_000000)
+            }
         },
         crate::tasks_v13::PersonProposalState::SettingsAccepted(held) => {
             let crate::tasks_v13::SettingsAccepted { by: field_000000, revision: field_000001 } = held;
-            Ok(jig_domain_tasks::PersonProposalState::SettingsAccepted {
-                by: party_to_domain(field_000000, context)?,
+            jig_domain_tasks::PersonProposalState::SettingsAccepted {
+                by: party_to_domain(field_000000),
                 revision: field_000001
-            })
+            }
         },
     }
 }
 
-// Maps line 165: PersonProposal.
 pub fn person_proposal_to_record(value: &jig_domain_tasks::PersonProposal, context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::PersonProposal, crate::tasks_v13::Problem> {
     let jig_domain_tasks::PersonProposal { number: field_000000, proposer: field_000001, project: field_000002, action: field_000003, reason: field_000004, state: field_000005 } = value;
     Ok(crate::tasks_v13::PersonProposal {
@@ -2127,11 +2249,10 @@ pub fn person_proposal_to_record(value: &jig_domain_tasks::PersonProposal, conte
         project: *field_000002,
         action: crate::codec::tasks::person_action_to_record(field_000003, context)?,
         reason: field_000004.clone(),
-        state: person_proposal_state_to_record(field_000005, context)?
+        state: person_proposal_state_to_record(field_000005)
     })
 }
 
-// Maps line 165: PersonProposal.
 pub fn person_proposal_to_domain(record: crate::tasks_v13::PersonProposal, context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::PersonProposal, crate::tasks_v13::Problem> {
     let crate::tasks_v13::PersonProposal { number: field_000000, proposer: field_000001, project: field_000002, action: field_000003, reason: field_000004, state: field_000005 } = record;
     Ok(jig_domain_tasks::PersonProposal {
@@ -2140,754 +2261,828 @@ pub fn person_proposal_to_domain(record: crate::tasks_v13::PersonProposal, conte
         project: field_000002,
         action: crate::codec::tasks::person_action_to_domain(field_000003, context)?,
         reason: field_000004,
-        state: person_proposal_state_to_domain(field_000005, context)?
+        state: person_proposal_state_to_domain(field_000005)
     })
 }
 
-// Maps line 166: HoldRow.
 pub fn hold_row_to_record(value: &jig_domain_tasks::HoldRow, context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::HoldRow, crate::tasks_v13::Problem> {
     let jig_domain_tasks::HoldRow { task: field_000000, position: field_000001, held: field_000002, at: field_000003 } = value;
     Ok(crate::tasks_v13::HoldRow {
         task: *field_000000,
         position: *field_000001,
         held: held_to_record(field_000002, context)?,
-        at: match skein_codec::convert::wall_to_record(field_000003) { Ok(value) => value, Err(reason) => return Err(crate::tasks_v13::paths::HOLD_ROW_AT.problem(reason)) }
+        at: skein_codec::convert::wall_to_record(field_000003)
     })
 }
 
-// Maps line 166: HoldRow.
 pub fn hold_row_to_domain(record: crate::tasks_v13::HoldRow, context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::HoldRow, crate::tasks_v13::Problem> {
     let crate::tasks_v13::HoldRow { task: field_000000, position: field_000001, held: field_000002, at: field_000003 } = record;
     Ok(jig_domain_tasks::HoldRow {
         task: field_000000,
         position: field_000001,
         held: held_to_domain(field_000002, context)?,
-        at: match skein_codec::convert::wall_to_domain(field_000003) { Ok(value) => value, Err(reason) => return Err(crate::tasks_v13::paths::HOLD_ROW_AT.problem(reason)) }
+        at: skein_codec::convert::wall_to_domain(field_000003)
     })
 }
 
-// Maps line 167: Grace.
-pub fn grace_to_record(value: &jig_domain_tasks::Grace, context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::Grace, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn grace_to_record(value: &jig_domain_tasks::Grace) -> crate::tasks_v13::Grace {
     let jig_domain_tasks::Grace { by: field_000000, until: field_000001, reason: field_000002, message: field_000003 } = value;
-    Ok(crate::tasks_v13::Grace {
-        by: party_to_record(field_000000, context)?,
-        until: match skein_codec::convert::wall_to_record(field_000001) { Ok(value) => value, Err(reason) => return Err(crate::tasks_v13::paths::GRACE_UNTIL.problem(reason)) },
+    crate::tasks_v13::Grace {
+        by: party_to_record(field_000000),
+        until: skein_codec::convert::wall_to_record(field_000001),
         reason: field_000002.clone(),
         message: *field_000003
-    })
+    }
 }
 
-// Maps line 167: Grace.
-pub fn grace_to_domain(record: crate::tasks_v13::Grace, context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::Grace, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn grace_to_domain(record: crate::tasks_v13::Grace) -> jig_domain_tasks::Grace {
     let crate::tasks_v13::Grace { by: field_000000, until: field_000001, reason: field_000002, message: field_000003 } = record;
-    Ok(jig_domain_tasks::Grace {
-        by: party_to_domain(field_000000, context)?,
-        until: match skein_codec::convert::wall_to_domain(field_000001) { Ok(value) => value, Err(reason) => return Err(crate::tasks_v13::paths::GRACE_UNTIL.problem(reason)) },
+    jig_domain_tasks::Grace {
+        by: party_to_domain(field_000000),
+        until: skein_codec::convert::wall_to_domain(field_000001),
         reason: field_000002,
         message: field_000003
-    })
+    }
 }
 
-// Maps line 168: SettingsRevision.
-pub fn settings_revision_to_record(value: &jig_domain_tasks::SettingsRevision, _context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::SettingsRevision, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn settings_revision_to_record(value: &jig_domain_tasks::SettingsRevision) -> crate::tasks_v13::SettingsRevision {
     let jig_domain_tasks::SettingsRevision { task: field_000000, run: field_000001 } = value;
-    Ok(crate::tasks_v13::SettingsRevision {
+    crate::tasks_v13::SettingsRevision {
         task: *field_000000,
         run: match field_000001 {
-            Some(item) => Some(*item),
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
             None => None,
         }
-    })
+    }
 }
 
-// Maps line 168: SettingsRevision.
-pub fn settings_revision_to_domain(record: crate::tasks_v13::SettingsRevision, _context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::SettingsRevision, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn settings_revision_to_domain(record: crate::tasks_v13::SettingsRevision) -> jig_domain_tasks::SettingsRevision {
     let crate::tasks_v13::SettingsRevision { task: field_000000, run: field_000001 } = record;
-    Ok(jig_domain_tasks::SettingsRevision {
+    jig_domain_tasks::SettingsRevision {
         task: field_000000,
         run: match field_000001 {
-            Some(item) => Some(item),
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
             None => None,
         }
-    })
+    }
 }
 
-// Maps line 169: Revisions.
-pub fn revisions_to_record(value: &jig_domain_tasks::Revisions, _context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::Revisions, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn revisions_to_record(value: &jig_domain_tasks::Revisions) -> crate::tasks_v13::Revisions {
     let jig_domain_tasks::Revisions { hold: field_000000, spec: field_000001, person: field_000002 } = value;
-    Ok(crate::tasks_v13::Revisions {
+    crate::tasks_v13::Revisions {
         hold: *field_000000,
         spec: *field_000001,
         person: *field_000002
-    })
+    }
 }
 
-// Maps line 169: Revisions.
-pub fn revisions_to_domain(record: crate::tasks_v13::Revisions, _context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::Revisions, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn revisions_to_domain(record: crate::tasks_v13::Revisions) -> jig_domain_tasks::Revisions {
     let crate::tasks_v13::Revisions { hold: field_000000, spec: field_000001, person: field_000002 } = record;
-    Ok(jig_domain_tasks::Revisions {
+    jig_domain_tasks::Revisions {
         hold: field_000000,
         spec: field_000001,
         person: field_000002
-    })
+    }
 }
 
-// Maps line 172: RetryNotice.
-pub fn retry_notice_to_record(value: &jig_domain_tasks::RetryNotice, context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::RetryNotice, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn retry_notice_to_record(value: &jig_domain_tasks::RetryNotice) -> crate::tasks_v13::RetryNotice {
     match value {
-        jig_domain_tasks::RetryNotice::Failed { class: field_000000, count: field_000001, allowance: field_000002, reason: field_000003 } => Ok(crate::tasks_v13::RetryNotice::Failed(crate::tasks_v13::FailedRetry {
-            class: class_to_record(field_000000, context)?,
+        jig_domain_tasks::RetryNotice::Failed { class: field_000000, count: field_000001, allowance: field_000002, reason: field_000003 } => crate::tasks_v13::RetryNotice::Failed(crate::tasks_v13::FailedRetry {
+            class: class_to_record(field_000000),
             count: *field_000001,
             allowance: *field_000002,
             reason: match field_000003 {
-                Some(item) => Some(item.clone()),
+                Some(item) => {
+                    let converted = item.clone();
+                    Some(converted)
+                }
                 None => None,
             }
-        })),
-        jig_domain_tasks::RetryNotice::Refused { count: field_000000, reason: field_000001 } => Ok(crate::tasks_v13::RetryNotice::Refused(crate::tasks_v13::RefusedRetry {
+        }),
+        jig_domain_tasks::RetryNotice::Refused { count: field_000000, reason: field_000001 } => crate::tasks_v13::RetryNotice::Refused(crate::tasks_v13::RefusedRetry {
             count: *field_000000,
             reason: match field_000001 {
-                Some(item) => Some(item.clone()),
+                Some(item) => {
+                    let converted = item.clone();
+                    Some(converted)
+                }
                 None => None,
             }
-        })),
+        }),
     }
 }
 
-// Maps line 172: RetryNotice.
-pub fn retry_notice_to_domain(record: crate::tasks_v13::RetryNotice, context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::RetryNotice, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn retry_notice_to_domain(record: crate::tasks_v13::RetryNotice) -> jig_domain_tasks::RetryNotice {
     match record {
         crate::tasks_v13::RetryNotice::Failed(held) => {
             let crate::tasks_v13::FailedRetry { class: field_000000, count: field_000001, allowance: field_000002, reason: field_000003 } = held;
-            Ok(jig_domain_tasks::RetryNotice::Failed {
-                class: class_to_domain(field_000000, context)?,
+            jig_domain_tasks::RetryNotice::Failed {
+                class: class_to_domain(field_000000),
                 count: field_000001,
                 allowance: field_000002,
                 reason: match field_000003 {
-                    Some(item) => Some(item),
+                    Some(item) => {
+                        let converted = item;
+                        Some(converted)
+                    }
                     None => None,
                 }
-            })
+            }
         },
         crate::tasks_v13::RetryNotice::Refused(held) => {
             let crate::tasks_v13::RefusedRetry { count: field_000000, reason: field_000001 } = held;
-            Ok(jig_domain_tasks::RetryNotice::Refused {
+            jig_domain_tasks::RetryNotice::Refused {
                 count: field_000000,
                 reason: match field_000001 {
-                    Some(item) => Some(item),
+                    Some(item) => {
+                        let converted = item;
+                        Some(converted)
+                    }
                     None => None,
                 }
-            })
+            }
         },
     }
 }
 
-// Maps line 174: NoticeState.
-pub fn notice_state_to_record(value: &jig_domain_tasks::NoticeState, _context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::NoticeState, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn notice_state_to_record(value: &jig_domain_tasks::NoticeState) -> crate::tasks_v13::NoticeState {
     match value {
-        jig_domain_tasks::NoticeState::Held { revision: field_000000 } => Ok(crate::tasks_v13::NoticeState::Held(crate::tasks_v13::NoticeHeld {
+        jig_domain_tasks::NoticeState::Held { revision: field_000000 } => crate::tasks_v13::NoticeState::Held(crate::tasks_v13::NoticeHeld {
             revision: *field_000000
-        })),
-        jig_domain_tasks::NoticeState::Done => Ok(crate::tasks_v13::NoticeState::Done),
-        jig_domain_tasks::NoticeState::Failed => Ok(crate::tasks_v13::NoticeState::Failed),
-        jig_domain_tasks::NoticeState::Cancelled => Ok(crate::tasks_v13::NoticeState::Cancelled),
+        }),
+        jig_domain_tasks::NoticeState::Done => crate::tasks_v13::NoticeState::Done,
+        jig_domain_tasks::NoticeState::Failed => crate::tasks_v13::NoticeState::Failed,
+        jig_domain_tasks::NoticeState::Cancelled => crate::tasks_v13::NoticeState::Cancelled,
     }
 }
 
-// Maps line 174: NoticeState.
-pub fn notice_state_to_domain(record: crate::tasks_v13::NoticeState, _context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::NoticeState, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn notice_state_to_domain(record: crate::tasks_v13::NoticeState) -> jig_domain_tasks::NoticeState {
     match record {
         crate::tasks_v13::NoticeState::Held(held) => {
             let crate::tasks_v13::NoticeHeld { revision: field_000000 } = held;
-            Ok(jig_domain_tasks::NoticeState::Held {
+            jig_domain_tasks::NoticeState::Held {
                 revision: field_000000
-            })
+            }
         },
-        crate::tasks_v13::NoticeState::Done => Ok(jig_domain_tasks::NoticeState::Done),
-        crate::tasks_v13::NoticeState::Failed => Ok(jig_domain_tasks::NoticeState::Failed),
-        crate::tasks_v13::NoticeState::Cancelled => Ok(jig_domain_tasks::NoticeState::Cancelled),
+        crate::tasks_v13::NoticeState::Done => jig_domain_tasks::NoticeState::Done,
+        crate::tasks_v13::NoticeState::Failed => jig_domain_tasks::NoticeState::Failed,
+        crate::tasks_v13::NoticeState::Cancelled => jig_domain_tasks::NoticeState::Cancelled,
     }
 }
 
-// Maps line 175: NewsClass.
-pub fn news_class_to_record(value: &jig_domain_tasks::NewsClass, _context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::NewsClass, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn news_class_to_record(value: &jig_domain_tasks::NewsClass) -> crate::tasks_v13::NewsClass {
     match value {
-        jig_domain_tasks::NewsClass::Wakes => Ok(crate::tasks_v13::NewsClass::Wakes),
-        jig_domain_tasks::NewsClass::Kept => Ok(crate::tasks_v13::NewsClass::Kept),
-        jig_domain_tasks::NewsClass::Dropped => Ok(crate::tasks_v13::NewsClass::Dropped),
+        jig_domain_tasks::NewsClass::Wakes => crate::tasks_v13::NewsClass::Wakes,
+        jig_domain_tasks::NewsClass::Kept => crate::tasks_v13::NewsClass::Kept,
+        jig_domain_tasks::NewsClass::Dropped => crate::tasks_v13::NewsClass::Dropped,
     }
 }
 
-// Maps line 175: NewsClass.
-pub fn news_class_to_domain(record: crate::tasks_v13::NewsClass, _context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::NewsClass, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn news_class_to_domain(record: crate::tasks_v13::NewsClass) -> jig_domain_tasks::NewsClass {
     match record {
-        crate::tasks_v13::NewsClass::Wakes => Ok(jig_domain_tasks::NewsClass::Wakes),
-        crate::tasks_v13::NewsClass::Kept => Ok(jig_domain_tasks::NewsClass::Kept),
-        crate::tasks_v13::NewsClass::Dropped => Ok(jig_domain_tasks::NewsClass::Dropped),
+        crate::tasks_v13::NewsClass::Wakes => jig_domain_tasks::NewsClass::Wakes,
+        crate::tasks_v13::NewsClass::Kept => jig_domain_tasks::NewsClass::Kept,
+        crate::tasks_v13::NewsClass::Dropped => jig_domain_tasks::NewsClass::Dropped,
     }
 }
 
-// Maps line 186: SettingsOutcome.
-pub fn settings_outcome_to_record(value: &jig_domain_tasks::SettingsOutcome, _context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::SettingsOutcome, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn settings_outcome_to_record(value: &jig_domain_tasks::SettingsOutcome) -> crate::tasks_v13::SettingsOutcome {
     match value {
-        jig_domain_tasks::SettingsOutcome::Accepted { revision: field_000000 } => Ok(crate::tasks_v13::SettingsOutcome::Accepted(crate::tasks_v13::SettingsAcceptedRevision {
+        jig_domain_tasks::SettingsOutcome::Accepted { revision: field_000000 } => crate::tasks_v13::SettingsOutcome::Accepted(crate::tasks_v13::SettingsAcceptedRevision {
             revision: *field_000000
-        })),
-        jig_domain_tasks::SettingsOutcome::Rejected => Ok(crate::tasks_v13::SettingsOutcome::Rejected),
-        jig_domain_tasks::SettingsOutcome::Stale { newest: field_000000 } => Ok(crate::tasks_v13::SettingsOutcome::Stale(crate::tasks_v13::SettingsStaleRevision {
+        }),
+        jig_domain_tasks::SettingsOutcome::Rejected => crate::tasks_v13::SettingsOutcome::Rejected,
+        jig_domain_tasks::SettingsOutcome::Stale { newest: field_000000 } => crate::tasks_v13::SettingsOutcome::Stale(crate::tasks_v13::SettingsStaleRevision {
             newest: *field_000000
-        })),
+        }),
     }
 }
 
-// Maps line 186: SettingsOutcome.
-pub fn settings_outcome_to_domain(record: crate::tasks_v13::SettingsOutcome, _context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::SettingsOutcome, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn settings_outcome_to_domain(record: crate::tasks_v13::SettingsOutcome) -> jig_domain_tasks::SettingsOutcome {
     match record {
         crate::tasks_v13::SettingsOutcome::Accepted(held) => {
             let crate::tasks_v13::SettingsAcceptedRevision { revision: field_000000 } = held;
-            Ok(jig_domain_tasks::SettingsOutcome::Accepted {
+            jig_domain_tasks::SettingsOutcome::Accepted {
                 revision: field_000000
-            })
+            }
         },
-        crate::tasks_v13::SettingsOutcome::Rejected => Ok(jig_domain_tasks::SettingsOutcome::Rejected),
+        crate::tasks_v13::SettingsOutcome::Rejected => jig_domain_tasks::SettingsOutcome::Rejected,
         crate::tasks_v13::SettingsOutcome::Stale(held) => {
             let crate::tasks_v13::SettingsStaleRevision { newest: field_000000 } = held;
-            Ok(jig_domain_tasks::SettingsOutcome::Stale {
+            jig_domain_tasks::SettingsOutcome::Stale {
                 newest: field_000000
-            })
+            }
         },
     }
 }
 
-// Maps line 196: MessageKind.
 pub fn message_kind_to_record(value: &jig_domain_tasks::MessageKind, context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::MessageKind, crate::tasks_v13::Problem> {
-    match value {
-        jig_domain_tasks::MessageKind::Escalation { task: field_000000, revision: field_000001 } => Ok(crate::tasks_v13::MessageKind::Escalation(crate::tasks_v13::EscalationMessage {
+    Ok(match value {
+        jig_domain_tasks::MessageKind::Escalation { task: field_000000, revision: field_000001 } => crate::tasks_v13::MessageKind::Escalation(crate::tasks_v13::EscalationMessage {
             task: *field_000000,
             revision: *field_000001
-        })),
-        jig_domain_tasks::MessageKind::Proposal { proposer: field_000000, proposal: field_000001, kind: field_000002 } => Ok(crate::tasks_v13::MessageKind::Proposal(crate::tasks_v13::ProposalMessage {
+        }),
+        jig_domain_tasks::MessageKind::Proposal { proposer: field_000000, proposal: field_000001, kind: field_000002 } => crate::tasks_v13::MessageKind::Proposal(crate::tasks_v13::ProposalMessage {
             proposer: *field_000000,
             proposal: *field_000001,
-            kind: proposal_kind_to_record(field_000002, context)?
-        })),
-        jig_domain_tasks::MessageKind::PersonStalled { task: field_000000 } => Ok(crate::tasks_v13::MessageKind::PersonStalled(crate::tasks_v13::StalledMessage {
+            kind: proposal_kind_to_record(field_000002)
+        }),
+        jig_domain_tasks::MessageKind::PersonStalled { task: field_000000 } => crate::tasks_v13::MessageKind::PersonStalled(crate::tasks_v13::StalledMessage {
             task: *field_000000
-        })),
-        jig_domain_tasks::MessageKind::ProposalDecision { proposal: field_000000, accepted: field_000001 } => Ok(crate::tasks_v13::MessageKind::ProposalDecision(crate::tasks_v13::DecisionMessage {
+        }),
+        jig_domain_tasks::MessageKind::ProposalDecision { proposal: field_000000, accepted: field_000001 } => crate::tasks_v13::MessageKind::ProposalDecision(crate::tasks_v13::DecisionMessage {
             proposal: *field_000000,
             accepted: *field_000001
-        })),
-        jig_domain_tasks::MessageKind::Words => Ok(crate::tasks_v13::MessageKind::Words),
-        jig_domain_tasks::MessageKind::EffectNotMade { entry: field_000000 } => Ok(crate::tasks_v13::MessageKind::EffectNotMade(crate::tasks_v13::EffectMessage {
+        }),
+        jig_domain_tasks::MessageKind::Words => crate::tasks_v13::MessageKind::Words,
+        jig_domain_tasks::MessageKind::EffectNotMade { entry: field_000000 } => crate::tasks_v13::MessageKind::EffectNotMade(crate::tasks_v13::EffectMessage {
             entry: *field_000000
-        })),
-        jig_domain_tasks::MessageKind::Amendment { revision: field_000000 } => Ok(crate::tasks_v13::MessageKind::Amendment(crate::tasks_v13::AmendmentMessage {
+        }),
+        jig_domain_tasks::MessageKind::Amendment { revision: field_000000 } => crate::tasks_v13::MessageKind::Amendment(crate::tasks_v13::AmendmentMessage {
             revision: *field_000000
-        })),
-        jig_domain_tasks::MessageKind::Question => Ok(crate::tasks_v13::MessageKind::Question),
-        jig_domain_tasks::MessageKind::Answer { question: field_000000 } => Ok(crate::tasks_v13::MessageKind::Answer(crate::tasks_v13::AnswerMessage {
+        }),
+        jig_domain_tasks::MessageKind::Question => crate::tasks_v13::MessageKind::Question,
+        jig_domain_tasks::MessageKind::Answer { question: field_000000 } => crate::tasks_v13::MessageKind::Answer(crate::tasks_v13::AnswerMessage {
             question: *field_000000
-        })),
-        jig_domain_tasks::MessageKind::Notice { subscription: field_000000, target: field_000001, state: field_000002 } => Ok(crate::tasks_v13::MessageKind::Notice(crate::tasks_v13::NoticeMessage {
+        }),
+        jig_domain_tasks::MessageKind::Notice { subscription: field_000000, target: field_000001, state: field_000002 } => crate::tasks_v13::MessageKind::Notice(crate::tasks_v13::NoticeMessage {
             subscription: *field_000000,
             target: *field_000001,
-            state: notice_state_to_record(field_000002, context)?
-        })),
-        jig_domain_tasks::MessageKind::Timer { subscription: field_000000 } => Ok(crate::tasks_v13::MessageKind::Timer(crate::tasks_v13::TimerMessage {
+            state: notice_state_to_record(field_000002)
+        }),
+        jig_domain_tasks::MessageKind::Timer { subscription: field_000000 } => crate::tasks_v13::MessageKind::Timer(crate::tasks_v13::TimerMessage {
             subscription: *field_000000
-        })),
-        jig_domain_tasks::MessageKind::News { subscription: field_000000, class: field_000001 } => Ok(crate::tasks_v13::MessageKind::News(crate::tasks_v13::NewsMessage {
+        }),
+        jig_domain_tasks::MessageKind::News { subscription: field_000000, class: field_000001 } => crate::tasks_v13::MessageKind::News(crate::tasks_v13::NewsMessage {
             subscription: *field_000000,
-            class: news_class_to_record(field_000001, context)?
-        })),
-        jig_domain_tasks::MessageKind::Result(held) => Ok(crate::tasks_v13::MessageKind::Result(crate::tasks_v13::ResultMessage { kind: crate::codec::tasks::result_kind_to_record(held, context)? })),
-        jig_domain_tasks::MessageKind::Met { dependency: field_000000, removed: field_000001 } => Ok(crate::tasks_v13::MessageKind::Met(crate::tasks_v13::MetMessage {
+            class: news_class_to_record(field_000001)
+        }),
+        jig_domain_tasks::MessageKind::Result(held) => crate::tasks_v13::MessageKind::Result(crate::tasks_v13::ResultMessage { kind: crate::codec::tasks::result_kind_to_record(held, context)? }),
+        jig_domain_tasks::MessageKind::Met { dependency: field_000000, removed: field_000001 } => crate::tasks_v13::MessageKind::Met(crate::tasks_v13::MetMessage {
             dependency: *field_000000,
             removed: *field_000001
-        })),
-        jig_domain_tasks::MessageKind::FinishRequested { revision: field_000000 } => Ok(crate::tasks_v13::MessageKind::FinishRequested(crate::tasks_v13::AmendmentMessage {
+        }),
+        jig_domain_tasks::MessageKind::FinishRequested { revision: field_000000 } => crate::tasks_v13::MessageKind::FinishRequested(crate::tasks_v13::AmendmentMessage {
             revision: *field_000000
-        })),
-        jig_domain_tasks::MessageKind::SettingsDecision { proposal: field_000000, outcome: field_000001 } => Ok(crate::tasks_v13::MessageKind::SettingsDecision(crate::tasks_v13::SettingsDecisionMessage {
+        }),
+        jig_domain_tasks::MessageKind::SettingsDecision { proposal: field_000000, outcome: field_000001 } => crate::tasks_v13::MessageKind::SettingsDecision(crate::tasks_v13::SettingsDecisionMessage {
             proposal: *field_000000,
-            outcome: settings_outcome_to_record(field_000001, context)?
-        })),
-        jig_domain_tasks::MessageKind::QuestionEnded { question: field_000000 } => Ok(crate::tasks_v13::MessageKind::QuestionEnded(crate::tasks_v13::AnswerMessage {
+            outcome: settings_outcome_to_record(field_000001)
+        }),
+        jig_domain_tasks::MessageKind::QuestionEnded { question: field_000000 } => crate::tasks_v13::MessageKind::QuestionEnded(crate::tasks_v13::AnswerMessage {
             question: *field_000000
-        })),
-        jig_domain_tasks::MessageKind::QuestionAnswered { question: field_000000 } => Ok(crate::tasks_v13::MessageKind::QuestionAnswered(crate::tasks_v13::AnswerMessage {
+        }),
+        jig_domain_tasks::MessageKind::QuestionAnswered { question: field_000000 } => crate::tasks_v13::MessageKind::QuestionAnswered(crate::tasks_v13::AnswerMessage {
             question: *field_000000
-        })),
-        jig_domain_tasks::MessageKind::QuestionOwed => Ok(crate::tasks_v13::MessageKind::QuestionOwed),
-        jig_domain_tasks::MessageKind::NothingAwaited => Ok(crate::tasks_v13::MessageKind::NothingAwaited),
-    }
+        }),
+        jig_domain_tasks::MessageKind::QuestionOwed => crate::tasks_v13::MessageKind::QuestionOwed,
+        jig_domain_tasks::MessageKind::NothingAwaited => crate::tasks_v13::MessageKind::NothingAwaited,
+    })
 }
 
-// Maps line 196: MessageKind.
 #[expect(clippy::too_many_lines, reason = "one translation step per field or variant (data/codec/maps.md, 4.1)")]
 pub fn message_kind_to_domain(record: crate::tasks_v13::MessageKind, context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::MessageKind, crate::tasks_v13::Problem> {
-    match record {
+    Ok(match record {
         crate::tasks_v13::MessageKind::Escalation(held) => {
             let crate::tasks_v13::EscalationMessage { task: field_000000, revision: field_000001 } = held;
-            Ok(jig_domain_tasks::MessageKind::Escalation {
+            jig_domain_tasks::MessageKind::Escalation {
                 task: field_000000,
                 revision: field_000001
-            })
+            }
         },
         crate::tasks_v13::MessageKind::Proposal(held) => {
             let crate::tasks_v13::ProposalMessage { proposer: field_000000, proposal: field_000001, kind: field_000002 } = held;
-            Ok(jig_domain_tasks::MessageKind::Proposal {
+            jig_domain_tasks::MessageKind::Proposal {
                 proposer: field_000000,
                 proposal: field_000001,
-                kind: proposal_kind_to_domain(field_000002, context)?
-            })
+                kind: proposal_kind_to_domain(field_000002)
+            }
         },
         crate::tasks_v13::MessageKind::PersonStalled(held) => {
             let crate::tasks_v13::StalledMessage { task: field_000000 } = held;
-            Ok(jig_domain_tasks::MessageKind::PersonStalled {
+            jig_domain_tasks::MessageKind::PersonStalled {
                 task: field_000000
-            })
+            }
         },
         crate::tasks_v13::MessageKind::ProposalDecision(held) => {
             let crate::tasks_v13::DecisionMessage { proposal: field_000000, accepted: field_000001 } = held;
-            Ok(jig_domain_tasks::MessageKind::ProposalDecision {
+            jig_domain_tasks::MessageKind::ProposalDecision {
                 proposal: field_000000,
                 accepted: field_000001
-            })
+            }
         },
-        crate::tasks_v13::MessageKind::Words => Ok(jig_domain_tasks::MessageKind::Words),
+        crate::tasks_v13::MessageKind::Words => jig_domain_tasks::MessageKind::Words,
         crate::tasks_v13::MessageKind::EffectNotMade(held) => {
             let crate::tasks_v13::EffectMessage { entry: field_000000 } = held;
-            Ok(jig_domain_tasks::MessageKind::EffectNotMade {
+            jig_domain_tasks::MessageKind::EffectNotMade {
                 entry: field_000000
-            })
+            }
         },
         crate::tasks_v13::MessageKind::Amendment(held) => {
             let crate::tasks_v13::AmendmentMessage { revision: field_000000 } = held;
-            Ok(jig_domain_tasks::MessageKind::Amendment {
+            jig_domain_tasks::MessageKind::Amendment {
                 revision: field_000000
-            })
+            }
         },
-        crate::tasks_v13::MessageKind::Question => Ok(jig_domain_tasks::MessageKind::Question),
+        crate::tasks_v13::MessageKind::Question => jig_domain_tasks::MessageKind::Question,
         crate::tasks_v13::MessageKind::Answer(held) => {
             let crate::tasks_v13::AnswerMessage { question: field_000000 } = held;
-            Ok(jig_domain_tasks::MessageKind::Answer {
+            jig_domain_tasks::MessageKind::Answer {
                 question: field_000000
-            })
+            }
         },
         crate::tasks_v13::MessageKind::Notice(held) => {
             let crate::tasks_v13::NoticeMessage { subscription: field_000000, target: field_000001, state: field_000002 } = held;
-            Ok(jig_domain_tasks::MessageKind::Notice {
+            jig_domain_tasks::MessageKind::Notice {
                 subscription: field_000000,
                 target: field_000001,
-                state: notice_state_to_domain(field_000002, context)?
-            })
+                state: notice_state_to_domain(field_000002)
+            }
         },
         crate::tasks_v13::MessageKind::Timer(held) => {
             let crate::tasks_v13::TimerMessage { subscription: field_000000 } = held;
-            Ok(jig_domain_tasks::MessageKind::Timer {
+            jig_domain_tasks::MessageKind::Timer {
                 subscription: field_000000
-            })
+            }
         },
         crate::tasks_v13::MessageKind::News(held) => {
             let crate::tasks_v13::NewsMessage { subscription: field_000000, class: field_000001 } = held;
-            Ok(jig_domain_tasks::MessageKind::News {
+            jig_domain_tasks::MessageKind::News {
                 subscription: field_000000,
-                class: news_class_to_domain(field_000001, context)?
-            })
+                class: news_class_to_domain(field_000001)
+            }
         },
-        crate::tasks_v13::MessageKind::Result(held) => Ok(jig_domain_tasks::MessageKind::Result({
+        crate::tasks_v13::MessageKind::Result(held) => jig_domain_tasks::MessageKind::Result({
             let crate::tasks_v13::ResultMessage { kind: held } = held;
             crate::codec::tasks::result_kind_to_domain(held, context)?
-        })),
+        }),
         crate::tasks_v13::MessageKind::Met(held) => {
             let crate::tasks_v13::MetMessage { dependency: field_000000, removed: field_000001 } = held;
-            Ok(jig_domain_tasks::MessageKind::Met {
+            jig_domain_tasks::MessageKind::Met {
                 dependency: field_000000,
                 removed: field_000001
-            })
+            }
         },
         crate::tasks_v13::MessageKind::FinishRequested(held) => {
             let crate::tasks_v13::AmendmentMessage { revision: field_000000 } = held;
-            Ok(jig_domain_tasks::MessageKind::FinishRequested {
+            jig_domain_tasks::MessageKind::FinishRequested {
                 revision: field_000000
-            })
+            }
         },
         crate::tasks_v13::MessageKind::SettingsDecision(held) => {
             let crate::tasks_v13::SettingsDecisionMessage { proposal: field_000000, outcome: field_000001 } = held;
-            Ok(jig_domain_tasks::MessageKind::SettingsDecision {
+            jig_domain_tasks::MessageKind::SettingsDecision {
                 proposal: field_000000,
-                outcome: settings_outcome_to_domain(field_000001, context)?
-            })
+                outcome: settings_outcome_to_domain(field_000001)
+            }
         },
         crate::tasks_v13::MessageKind::QuestionEnded(held) => {
             let crate::tasks_v13::AnswerMessage { question: field_000000 } = held;
-            Ok(jig_domain_tasks::MessageKind::QuestionEnded {
+            jig_domain_tasks::MessageKind::QuestionEnded {
                 question: field_000000
-            })
+            }
         },
         crate::tasks_v13::MessageKind::QuestionAnswered(held) => {
             let crate::tasks_v13::AnswerMessage { question: field_000000 } = held;
-            Ok(jig_domain_tasks::MessageKind::QuestionAnswered {
+            jig_domain_tasks::MessageKind::QuestionAnswered {
                 question: field_000000
-            })
+            }
         },
-        crate::tasks_v13::MessageKind::QuestionOwed => Ok(jig_domain_tasks::MessageKind::QuestionOwed),
-        crate::tasks_v13::MessageKind::NothingAwaited => Ok(jig_domain_tasks::MessageKind::NothingAwaited),
-    }
+        crate::tasks_v13::MessageKind::QuestionOwed => jig_domain_tasks::MessageKind::QuestionOwed,
+        crate::tasks_v13::MessageKind::NothingAwaited => jig_domain_tasks::MessageKind::NothingAwaited,
+    })
 }
 
-// Maps line 197: Word.
 pub fn word_to_record(value: &jig_domain_tasks::Word, context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::Word, crate::tasks_v13::Problem> {
     let jig_domain_tasks::Word { number: field_000000, from: field_000001, kind: field_000002, words: field_000003, at: field_000004, hits: field_000005, eligible: field_000006 } = value;
     Ok(crate::tasks_v13::Word {
         number: *field_000000,
-        from: party_to_record(field_000001, context)?,
+        from: party_to_record(field_000001),
         kind: message_kind_to_record(field_000002, context)?,
         words: field_000003.clone(),
-        at: match skein_codec::convert::wall_to_record(field_000004) { Ok(value) => value, Err(reason) => return Err(crate::tasks_v13::paths::WORD_AT.problem(reason)) },
+        at: skein_codec::convert::wall_to_record(field_000004),
         hits: *field_000005,
         eligible: *field_000006
     })
 }
 
-// Maps line 197: Word.
 pub fn word_to_domain(record: crate::tasks_v13::Word, context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::Word, crate::tasks_v13::Problem> {
     let crate::tasks_v13::Word { number: field_000000, from: field_000001, kind: field_000002, words: field_000003, at: field_000004, hits: field_000005, eligible: field_000006 } = record;
     Ok(jig_domain_tasks::Word {
         number: field_000000,
-        from: party_to_domain(field_000001, context)?,
+        from: party_to_domain(field_000001),
         kind: message_kind_to_domain(field_000002, context)?,
         words: field_000003,
-        at: match skein_codec::convert::wall_to_domain(field_000004) { Ok(value) => value, Err(reason) => return Err(crate::tasks_v13::paths::WORD_AT.problem(reason)) },
+        at: skein_codec::convert::wall_to_domain(field_000004),
         hits: field_000005,
         eligible: field_000006
     })
 }
 
-// Maps line 198: InvalidResult.
-pub fn invalid_result_to_record(value: &jig_domain_tasks::InvalidResult, _context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::InvalidResult, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn invalid_result_to_record(value: &jig_domain_tasks::InvalidResult) -> crate::tasks_v13::InvalidResult {
     match value {
-        jig_domain_tasks::InvalidResult::Form => Ok(crate::tasks_v13::InvalidResult::Form),
-        jig_domain_tasks::InvalidResult::Verdict => Ok(crate::tasks_v13::InvalidResult::Verdict),
-        jig_domain_tasks::InvalidResult::Words => Ok(crate::tasks_v13::InvalidResult::Words),
-        jig_domain_tasks::InvalidResult::Change => Ok(crate::tasks_v13::InvalidResult::Change),
-        jig_domain_tasks::InvalidResult::Followups => Ok(crate::tasks_v13::InvalidResult::Followups),
+        jig_domain_tasks::InvalidResult::Form => crate::tasks_v13::InvalidResult::Form,
+        jig_domain_tasks::InvalidResult::Verdict => crate::tasks_v13::InvalidResult::Verdict,
+        jig_domain_tasks::InvalidResult::Words => crate::tasks_v13::InvalidResult::Words,
+        jig_domain_tasks::InvalidResult::Change => crate::tasks_v13::InvalidResult::Change,
+        jig_domain_tasks::InvalidResult::Followups => crate::tasks_v13::InvalidResult::Followups,
     }
 }
 
-// Maps line 198: InvalidResult.
-pub fn invalid_result_to_domain(record: crate::tasks_v13::InvalidResult, _context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::InvalidResult, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn invalid_result_to_domain(record: crate::tasks_v13::InvalidResult) -> jig_domain_tasks::InvalidResult {
     match record {
-        crate::tasks_v13::InvalidResult::Form => Ok(jig_domain_tasks::InvalidResult::Form),
-        crate::tasks_v13::InvalidResult::Verdict => Ok(jig_domain_tasks::InvalidResult::Verdict),
-        crate::tasks_v13::InvalidResult::Words => Ok(jig_domain_tasks::InvalidResult::Words),
-        crate::tasks_v13::InvalidResult::Change => Ok(jig_domain_tasks::InvalidResult::Change),
-        crate::tasks_v13::InvalidResult::Followups => Ok(jig_domain_tasks::InvalidResult::Followups),
+        crate::tasks_v13::InvalidResult::Form => jig_domain_tasks::InvalidResult::Form,
+        crate::tasks_v13::InvalidResult::Verdict => jig_domain_tasks::InvalidResult::Verdict,
+        crate::tasks_v13::InvalidResult::Words => jig_domain_tasks::InvalidResult::Words,
+        crate::tasks_v13::InvalidResult::Change => jig_domain_tasks::InvalidResult::Change,
+        crate::tasks_v13::InvalidResult::Followups => jig_domain_tasks::InvalidResult::Followups,
     }
 }
 
-// Maps line 200: SuspendWhy.
-pub fn suspend_why_to_record(value: &jig_domain_tasks::SuspendWhy, _context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::SuspendWhy, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn suspend_why_to_record(value: &jig_domain_tasks::SuspendWhy) -> crate::tasks_v13::SuspendWhy {
     match value {
-        jig_domain_tasks::SuspendWhy::Stopped => Ok(crate::tasks_v13::SuspendWhy::Stopped),
-        jig_domain_tasks::SuspendWhy::Restarted => Ok(crate::tasks_v13::SuspendWhy::Restarted),
+        jig_domain_tasks::SuspendWhy::Stopped => crate::tasks_v13::SuspendWhy::Stopped,
+        jig_domain_tasks::SuspendWhy::Restarted => crate::tasks_v13::SuspendWhy::Restarted,
     }
 }
 
-// Maps line 200: SuspendWhy.
-pub fn suspend_why_to_domain(record: crate::tasks_v13::SuspendWhy, _context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::SuspendWhy, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn suspend_why_to_domain(record: crate::tasks_v13::SuspendWhy) -> jig_domain_tasks::SuspendWhy {
     match record {
-        crate::tasks_v13::SuspendWhy::Stopped => Ok(jig_domain_tasks::SuspendWhy::Stopped),
-        crate::tasks_v13::SuspendWhy::Restarted => Ok(jig_domain_tasks::SuspendWhy::Restarted),
+        crate::tasks_v13::SuspendWhy::Stopped => jig_domain_tasks::SuspendWhy::Stopped,
+        crate::tasks_v13::SuspendWhy::Restarted => jig_domain_tasks::SuspendWhy::Restarted,
     }
 }
 
-// Maps line 202: EndKind.
-pub fn end_kind_to_record(value: &jig_domain_tasks::EndKind, context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::EndKind, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn end_kind_to_record(value: &jig_domain_tasks::EndKind) -> crate::tasks_v13::EndKind {
     match value {
-        jig_domain_tasks::EndKind::Parked => Ok(crate::tasks_v13::EndKind::Parked),
-        jig_domain_tasks::EndKind::Finished => Ok(crate::tasks_v13::EndKind::Finished),
-        jig_domain_tasks::EndKind::Cancelled => Ok(crate::tasks_v13::EndKind::Cancelled),
-        jig_domain_tasks::EndKind::Failed { class: field_000000, invalid_result: field_000001 } => Ok(crate::tasks_v13::EndKind::Failed(crate::tasks_v13::FailedEnd {
-            class: class_to_record(field_000000, context)?,
+        jig_domain_tasks::EndKind::Parked => crate::tasks_v13::EndKind::Parked,
+        jig_domain_tasks::EndKind::Finished => crate::tasks_v13::EndKind::Finished,
+        jig_domain_tasks::EndKind::Cancelled => crate::tasks_v13::EndKind::Cancelled,
+        jig_domain_tasks::EndKind::Failed { class: field_000000, invalid_result: field_000001 } => crate::tasks_v13::EndKind::Failed(crate::tasks_v13::FailedEnd {
+            class: class_to_record(field_000000),
             invalid_result: match field_000001 {
-                Some(item) => Some(invalid_result_to_record(item, context)?),
+                Some(item) => {
+                    let converted = invalid_result_to_record(item);
+                    Some(converted)
+                }
                 None => None,
             }
-        })),
-        jig_domain_tasks::EndKind::Refused => Ok(crate::tasks_v13::EndKind::Refused),
-        jig_domain_tasks::EndKind::Suspended { worker: field_000000, why: field_000001 } => Ok(crate::tasks_v13::EndKind::Suspended(crate::tasks_v13::SuspendedEnd {
+        }),
+        jig_domain_tasks::EndKind::Refused => crate::tasks_v13::EndKind::Refused,
+        jig_domain_tasks::EndKind::Suspended { worker: field_000000, why: field_000001 } => crate::tasks_v13::EndKind::Suspended(crate::tasks_v13::SuspendedEnd {
             worker: *field_000000,
-            why: suspend_why_to_record(field_000001, context)?
-        })),
+            why: suspend_why_to_record(field_000001)
+        }),
     }
 }
 
-// Maps line 202: EndKind.
-pub fn end_kind_to_domain(record: crate::tasks_v13::EndKind, context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::EndKind, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn end_kind_to_domain(record: crate::tasks_v13::EndKind) -> jig_domain_tasks::EndKind {
     match record {
-        crate::tasks_v13::EndKind::Parked => Ok(jig_domain_tasks::EndKind::Parked),
-        crate::tasks_v13::EndKind::Finished => Ok(jig_domain_tasks::EndKind::Finished),
-        crate::tasks_v13::EndKind::Cancelled => Ok(jig_domain_tasks::EndKind::Cancelled),
+        crate::tasks_v13::EndKind::Parked => jig_domain_tasks::EndKind::Parked,
+        crate::tasks_v13::EndKind::Finished => jig_domain_tasks::EndKind::Finished,
+        crate::tasks_v13::EndKind::Cancelled => jig_domain_tasks::EndKind::Cancelled,
         crate::tasks_v13::EndKind::Failed(held) => {
             let crate::tasks_v13::FailedEnd { class: field_000000, invalid_result: field_000001 } = held;
-            Ok(jig_domain_tasks::EndKind::Failed {
-                class: class_to_domain(field_000000, context)?,
+            jig_domain_tasks::EndKind::Failed {
+                class: class_to_domain(field_000000),
                 invalid_result: match field_000001 {
-                    Some(item) => Some(invalid_result_to_domain(item, context)?),
+                    Some(item) => {
+                        let converted = invalid_result_to_domain(item);
+                        Some(converted)
+                    }
                     None => None,
                 }
-            })
+            }
         },
-        crate::tasks_v13::EndKind::Refused => Ok(jig_domain_tasks::EndKind::Refused),
+        crate::tasks_v13::EndKind::Refused => jig_domain_tasks::EndKind::Refused,
         crate::tasks_v13::EndKind::Suspended(held) => {
             let crate::tasks_v13::SuspendedEnd { worker: field_000000, why: field_000001 } = held;
-            Ok(jig_domain_tasks::EndKind::Suspended {
+            jig_domain_tasks::EndKind::Suspended {
                 worker: field_000000,
-                why: suspend_why_to_domain(field_000001, context)?
-            })
+                why: suspend_why_to_domain(field_000001)
+            }
         },
     }
 }
 
-// Maps line 203: Suspension.
-pub fn suspension_to_record(value: &jig_domain_tasks::Suspension, _context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::Suspension, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn suspension_to_record(value: &jig_domain_tasks::Suspension) -> crate::tasks_v13::Suspension {
     let jig_domain_tasks::Suspension { worker: field_000000, since: field_000001, until: field_000002 } = value;
-    Ok(crate::tasks_v13::Suspension {
+    crate::tasks_v13::Suspension {
         worker: *field_000000,
-        since: match skein_codec::convert::wall_to_record(field_000001) { Ok(value) => value, Err(reason) => return Err(crate::tasks_v13::paths::SUSPENSION_SINCE.problem(reason)) },
-        until: match skein_codec::convert::wall_to_record(field_000002) { Ok(value) => value, Err(reason) => return Err(crate::tasks_v13::paths::SUSPENSION_UNTIL.problem(reason)) }
-    })
+        since: skein_codec::convert::wall_to_record(field_000001),
+        until: skein_codec::convert::wall_to_record(field_000002)
+    }
 }
 
-// Maps line 203: Suspension.
-pub fn suspension_to_domain(record: crate::tasks_v13::Suspension, _context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::Suspension, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn suspension_to_domain(record: crate::tasks_v13::Suspension) -> jig_domain_tasks::Suspension {
     let crate::tasks_v13::Suspension { worker: field_000000, since: field_000001, until: field_000002 } = record;
-    Ok(jig_domain_tasks::Suspension {
+    jig_domain_tasks::Suspension {
         worker: field_000000,
-        since: match skein_codec::convert::wall_to_domain(field_000001) { Ok(value) => value, Err(reason) => return Err(crate::tasks_v13::paths::SUSPENSION_SINCE.problem(reason)) },
-        until: match skein_codec::convert::wall_to_domain(field_000002) { Ok(value) => value, Err(reason) => return Err(crate::tasks_v13::paths::SUSPENSION_UNTIL.problem(reason)) }
-    })
+        since: skein_codec::convert::wall_to_domain(field_000001),
+        until: skein_codec::convert::wall_to_domain(field_000002)
+    }
 }
 
-// Maps line 204: AttemptRow.
-pub fn attempt_row_to_record(value: &jig_domain_tasks::AttemptRow, context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::AttemptRow, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn attempt_row_to_record(value: &jig_domain_tasks::AttemptRow) -> crate::tasks_v13::AttemptRow {
     let jig_domain_tasks::AttemptRow { task: field_000000, attempt: field_000001, claimed: field_000002, started: field_000003, ended: field_000004, end: field_000005, phases: field_000006 } = value;
-    Ok(crate::tasks_v13::AttemptRow {
+    crate::tasks_v13::AttemptRow {
         task: *field_000000,
         attempt: *field_000001,
         claimed: match field_000002 {
-            Some(item) => Some(match skein_codec::convert::wall_to_record(item) { Ok(value) => value, Err(reason) => return Err(crate::tasks_v13::paths::ATTEMPT_ROW_CLAIMED.problem(reason)) }),
+            Some(item) => {
+                let converted = skein_codec::convert::wall_to_record(item);
+                Some(converted)
+            }
             None => None,
         },
         started: match field_000003 {
-            Some(item) => Some(match skein_codec::convert::wall_to_record(item) { Ok(value) => value, Err(reason) => return Err(crate::tasks_v13::paths::ATTEMPT_ROW_STARTED.problem(reason)) }),
+            Some(item) => {
+                let converted = skein_codec::convert::wall_to_record(item);
+                Some(converted)
+            }
             None => None,
         },
         ended: match field_000004 {
-            Some(item) => Some(match skein_codec::convert::wall_to_record(item) { Ok(value) => value, Err(reason) => return Err(crate::tasks_v13::paths::ATTEMPT_ROW_ENDED.problem(reason)) }),
+            Some(item) => {
+                let converted = skein_codec::convert::wall_to_record(item);
+                Some(converted)
+            }
             None => None,
         },
         end: match field_000005 {
-            Some(item) => Some(end_kind_to_record(item, context)?),
+            Some(item) => {
+                let converted = end_kind_to_record(item);
+                Some(converted)
+            }
             None => None,
         },
         phases: match field_000006 {
-            Some(item) => Some(*item),
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
             None => None,
         }
-    })
+    }
 }
 
-// Maps line 204: AttemptRow.
-pub fn attempt_row_to_domain(record: crate::tasks_v13::AttemptRow, context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::AttemptRow, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn attempt_row_to_domain(record: crate::tasks_v13::AttemptRow) -> jig_domain_tasks::AttemptRow {
     let crate::tasks_v13::AttemptRow { task: field_000000, attempt: field_000001, claimed: field_000002, started: field_000003, ended: field_000004, end: field_000005, phases: field_000006 } = record;
-    Ok(jig_domain_tasks::AttemptRow {
+    jig_domain_tasks::AttemptRow {
         task: field_000000,
         attempt: field_000001,
         claimed: match field_000002 {
-            Some(item) => Some(match skein_codec::convert::wall_to_domain(item) { Ok(value) => value, Err(reason) => return Err(crate::tasks_v13::paths::ATTEMPT_ROW_CLAIMED.problem(reason)) }),
+            Some(item) => {
+                let converted = skein_codec::convert::wall_to_domain(item);
+                Some(converted)
+            }
             None => None,
         },
         started: match field_000003 {
-            Some(item) => Some(match skein_codec::convert::wall_to_domain(item) { Ok(value) => value, Err(reason) => return Err(crate::tasks_v13::paths::ATTEMPT_ROW_STARTED.problem(reason)) }),
+            Some(item) => {
+                let converted = skein_codec::convert::wall_to_domain(item);
+                Some(converted)
+            }
             None => None,
         },
         ended: match field_000004 {
-            Some(item) => Some(match skein_codec::convert::wall_to_domain(item) { Ok(value) => value, Err(reason) => return Err(crate::tasks_v13::paths::ATTEMPT_ROW_ENDED.problem(reason)) }),
+            Some(item) => {
+                let converted = skein_codec::convert::wall_to_domain(item);
+                Some(converted)
+            }
             None => None,
         },
         end: match field_000005 {
-            Some(item) => Some(end_kind_to_domain(item, context)?),
+            Some(item) => {
+                let converted = end_kind_to_domain(item);
+                Some(converted)
+            }
             None => None,
         },
         phases: match field_000006 {
-            Some(item) => Some(item),
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
             None => None,
         }
-    })
+    }
 }
 
-// Maps line 205: OpenAttempt.
-pub fn open_attempt_to_record(value: &jig_domain_tasks::OpenAttempt, context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::OpenAttempt, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn open_attempt_to_record(value: &jig_domain_tasks::OpenAttempt) -> crate::tasks_v13::OpenAttempt {
     let jig_domain_tasks::OpenAttempt { attempt: field_000000, claimed: field_000001, started: field_000002, from: field_000003, end: field_000004 } = value;
-    Ok(crate::tasks_v13::OpenAttempt {
+    crate::tasks_v13::OpenAttempt {
         attempt: *field_000000,
         claimed: match field_000001 {
-            Some(item) => Some(match skein_codec::convert::wall_to_record(item) { Ok(value) => value, Err(reason) => return Err(crate::tasks_v13::paths::OPEN_ATTEMPT_CLAIMED.problem(reason)) }),
+            Some(item) => {
+                let converted = skein_codec::convert::wall_to_record(item);
+                Some(converted)
+            }
             None => None,
         },
         started: match field_000002 {
-            Some(item) => Some(match skein_codec::convert::wall_to_record(item) { Ok(value) => value, Err(reason) => return Err(crate::tasks_v13::paths::OPEN_ATTEMPT_STARTED.problem(reason)) }),
+            Some(item) => {
+                let converted = skein_codec::convert::wall_to_record(item);
+                Some(converted)
+            }
             None => None,
         },
         from: *field_000003,
         end: match field_000004 {
-            Some(item) => Some(end_kind_to_record(item, context)?),
+            Some(item) => {
+                let converted = end_kind_to_record(item);
+                Some(converted)
+            }
             None => None,
         }
-    })
+    }
 }
 
-// Maps line 205: OpenAttempt.
-pub fn open_attempt_to_domain(record: crate::tasks_v13::OpenAttempt, context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::OpenAttempt, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn open_attempt_to_domain(record: crate::tasks_v13::OpenAttempt) -> jig_domain_tasks::OpenAttempt {
     let crate::tasks_v13::OpenAttempt { attempt: field_000000, claimed: field_000001, started: field_000002, from: field_000003, end: field_000004 } = record;
-    Ok(jig_domain_tasks::OpenAttempt {
+    jig_domain_tasks::OpenAttempt {
         attempt: field_000000,
         claimed: match field_000001 {
-            Some(item) => Some(match skein_codec::convert::wall_to_domain(item) { Ok(value) => value, Err(reason) => return Err(crate::tasks_v13::paths::OPEN_ATTEMPT_CLAIMED.problem(reason)) }),
+            Some(item) => {
+                let converted = skein_codec::convert::wall_to_domain(item);
+                Some(converted)
+            }
             None => None,
         },
         started: match field_000002 {
-            Some(item) => Some(match skein_codec::convert::wall_to_domain(item) { Ok(value) => value, Err(reason) => return Err(crate::tasks_v13::paths::OPEN_ATTEMPT_STARTED.problem(reason)) }),
+            Some(item) => {
+                let converted = skein_codec::convert::wall_to_domain(item);
+                Some(converted)
+            }
             None => None,
         },
         from: field_000003,
         end: match field_000004 {
-            Some(item) => Some(end_kind_to_domain(item, context)?),
+            Some(item) => {
+                let converted = end_kind_to_domain(item);
+                Some(converted)
+            }
             None => None,
         }
-    })
+    }
 }
 
-// Maps line 209: Fresh.
-pub fn fresh_to_record(value: &jig_domain_tasks::Fresh, _context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::Fresh, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn fresh_to_record(value: &jig_domain_tasks::Fresh) -> crate::tasks_v13::Fresh {
     match value {
-        jig_domain_tasks::Fresh::Moved => Ok(crate::tasks_v13::Fresh::Moved),
-        jig_domain_tasks::Fresh::Closed => Ok(crate::tasks_v13::Fresh::Closed),
-        jig_domain_tasks::Fresh::Cut => Ok(crate::tasks_v13::Fresh::Cut),
-        jig_domain_tasks::Fresh::Limit => Ok(crate::tasks_v13::Fresh::Limit),
-        jig_domain_tasks::Fresh::Session => Ok(crate::tasks_v13::Fresh::Session),
+        jig_domain_tasks::Fresh::Moved => crate::tasks_v13::Fresh::Moved,
+        jig_domain_tasks::Fresh::Closed => crate::tasks_v13::Fresh::Closed,
+        jig_domain_tasks::Fresh::Cut => crate::tasks_v13::Fresh::Cut,
+        jig_domain_tasks::Fresh::Limit => crate::tasks_v13::Fresh::Limit,
+        jig_domain_tasks::Fresh::Session => crate::tasks_v13::Fresh::Session,
     }
 }
 
-// Maps line 209: Fresh.
-pub fn fresh_to_domain(record: crate::tasks_v13::Fresh, _context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::Fresh, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn fresh_to_domain(record: crate::tasks_v13::Fresh) -> jig_domain_tasks::Fresh {
     match record {
-        crate::tasks_v13::Fresh::Moved => Ok(jig_domain_tasks::Fresh::Moved),
-        crate::tasks_v13::Fresh::Closed => Ok(jig_domain_tasks::Fresh::Closed),
-        crate::tasks_v13::Fresh::Cut => Ok(jig_domain_tasks::Fresh::Cut),
-        crate::tasks_v13::Fresh::Limit => Ok(jig_domain_tasks::Fresh::Limit),
-        crate::tasks_v13::Fresh::Session => Ok(jig_domain_tasks::Fresh::Session),
+        crate::tasks_v13::Fresh::Moved => jig_domain_tasks::Fresh::Moved,
+        crate::tasks_v13::Fresh::Closed => jig_domain_tasks::Fresh::Closed,
+        crate::tasks_v13::Fresh::Cut => jig_domain_tasks::Fresh::Cut,
+        crate::tasks_v13::Fresh::Limit => jig_domain_tasks::Fresh::Limit,
+        crate::tasks_v13::Fresh::Session => jig_domain_tasks::Fresh::Session,
     }
 }
 
-// Maps line 213: DecidedProposal.
-pub fn decided_proposal_to_record(value: &jig_domain_tasks::DecidedProposal, _context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::DecidedProposal, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn decided_proposal_to_record(value: &jig_domain_tasks::DecidedProposal) -> crate::tasks_v13::DecidedProposal {
     let jig_domain_tasks::DecidedProposal { number: field_000000, made: field_000001 } = value;
-    Ok(crate::tasks_v13::DecidedProposal {
+    crate::tasks_v13::DecidedProposal {
         number: *field_000000,
         made: *field_000001
-    })
+    }
 }
 
-// Maps line 213: DecidedProposal.
-pub fn decided_proposal_to_domain(record: crate::tasks_v13::DecidedProposal, _context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::DecidedProposal, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn decided_proposal_to_domain(record: crate::tasks_v13::DecidedProposal) -> jig_domain_tasks::DecidedProposal {
     let crate::tasks_v13::DecidedProposal { number: field_000000, made: field_000001 } = record;
-    Ok(jig_domain_tasks::DecidedProposal {
+    jig_domain_tasks::DecidedProposal {
         number: field_000000,
         made: field_000001
-    })
-}
-
-// Maps line 219: SessionEnd.
-pub fn session_end_to_record(value: &jig_domain_tasks::SessionEnd, _context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::SessionEnd, crate::tasks_v13::Problem> {
-    match value {
-        jig_domain_tasks::SessionEnd::Quiet => Ok(crate::tasks_v13::SessionEnd::Quiet),
-        jig_domain_tasks::SessionEnd::Bound => Ok(crate::tasks_v13::SessionEnd::Bound),
-        jig_domain_tasks::SessionEnd::Unoffered => Ok(crate::tasks_v13::SessionEnd::Unoffered),
-        jig_domain_tasks::SessionEnd::Fresh => Ok(crate::tasks_v13::SessionEnd::Fresh),
-        jig_domain_tasks::SessionEnd::Closed => Ok(crate::tasks_v13::SessionEnd::Closed),
-        jig_domain_tasks::SessionEnd::Rules => Ok(crate::tasks_v13::SessionEnd::Rules),
-        jig_domain_tasks::SessionEnd::Talk => Ok(crate::tasks_v13::SessionEnd::Talk),
-        jig_domain_tasks::SessionEnd::Left => Ok(crate::tasks_v13::SessionEnd::Left),
     }
 }
 
-// Maps line 219: SessionEnd.
-pub fn session_end_to_domain(record: crate::tasks_v13::SessionEnd, _context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::SessionEnd, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn session_end_to_record(value: &jig_domain_tasks::SessionEnd) -> crate::tasks_v13::SessionEnd {
+    match value {
+        jig_domain_tasks::SessionEnd::Quiet => crate::tasks_v13::SessionEnd::Quiet,
+        jig_domain_tasks::SessionEnd::Bound => crate::tasks_v13::SessionEnd::Bound,
+        jig_domain_tasks::SessionEnd::Unoffered => crate::tasks_v13::SessionEnd::Unoffered,
+        jig_domain_tasks::SessionEnd::Fresh => crate::tasks_v13::SessionEnd::Fresh,
+        jig_domain_tasks::SessionEnd::Closed => crate::tasks_v13::SessionEnd::Closed,
+        jig_domain_tasks::SessionEnd::Rules => crate::tasks_v13::SessionEnd::Rules,
+        jig_domain_tasks::SessionEnd::Talk => crate::tasks_v13::SessionEnd::Talk,
+        jig_domain_tasks::SessionEnd::Left => crate::tasks_v13::SessionEnd::Left,
+    }
+}
+
+#[must_use]
+pub fn session_end_to_domain(record: crate::tasks_v13::SessionEnd) -> jig_domain_tasks::SessionEnd {
     match record {
-        crate::tasks_v13::SessionEnd::Quiet => Ok(jig_domain_tasks::SessionEnd::Quiet),
-        crate::tasks_v13::SessionEnd::Bound => Ok(jig_domain_tasks::SessionEnd::Bound),
-        crate::tasks_v13::SessionEnd::Unoffered => Ok(jig_domain_tasks::SessionEnd::Unoffered),
-        crate::tasks_v13::SessionEnd::Fresh => Ok(jig_domain_tasks::SessionEnd::Fresh),
-        crate::tasks_v13::SessionEnd::Closed => Ok(jig_domain_tasks::SessionEnd::Closed),
-        crate::tasks_v13::SessionEnd::Rules => Ok(jig_domain_tasks::SessionEnd::Rules),
-        crate::tasks_v13::SessionEnd::Talk => Ok(jig_domain_tasks::SessionEnd::Talk),
-        crate::tasks_v13::SessionEnd::Left => Ok(jig_domain_tasks::SessionEnd::Left),
+        crate::tasks_v13::SessionEnd::Quiet => jig_domain_tasks::SessionEnd::Quiet,
+        crate::tasks_v13::SessionEnd::Bound => jig_domain_tasks::SessionEnd::Bound,
+        crate::tasks_v13::SessionEnd::Unoffered => jig_domain_tasks::SessionEnd::Unoffered,
+        crate::tasks_v13::SessionEnd::Fresh => jig_domain_tasks::SessionEnd::Fresh,
+        crate::tasks_v13::SessionEnd::Closed => jig_domain_tasks::SessionEnd::Closed,
+        crate::tasks_v13::SessionEnd::Rules => jig_domain_tasks::SessionEnd::Rules,
+        crate::tasks_v13::SessionEnd::Talk => jig_domain_tasks::SessionEnd::Talk,
+        crate::tasks_v13::SessionEnd::Left => jig_domain_tasks::SessionEnd::Left,
     }
 }
 
-// Maps line 223: Line.
 pub fn line_to_record(value: &jig_domain_tasks::Line, context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::Line, crate::tasks_v13::Problem> {
-    match value {
-        jig_domain_tasks::Line::Words { message: field_000000, by: field_000001, kind: field_000002, words: field_000003 } => Ok(crate::tasks_v13::Line::Words(crate::tasks_v13::ActivityWords {
+    Ok(match value {
+        jig_domain_tasks::Line::Words { message: field_000000, by: field_000001, kind: field_000002, words: field_000003 } => crate::tasks_v13::Line::Words(crate::tasks_v13::ActivityWords {
             message: *field_000000,
-            by: party_to_record(field_000001, context)?,
+            by: party_to_record(field_000001),
             kind: message_kind_to_record(field_000002, context)?,
             words: field_000003.clone()
-        })),
-        jig_domain_tasks::Line::Heard(held) => Ok(crate::tasks_v13::Line::Heard(crate::tasks_v13::HeardMessage { word: word_to_record(held, context)? })),
-        jig_domain_tasks::Line::Notified { recipient: field_000000, word: field_000001 } => Ok(crate::tasks_v13::Line::Notified(crate::tasks_v13::NotifiedMessage {
-            recipient: party_to_record(field_000000, context)?,
+        }),
+        jig_domain_tasks::Line::Heard(held) => crate::tasks_v13::Line::Heard(crate::tasks_v13::HeardMessage { word: word_to_record(held, context)? }),
+        jig_domain_tasks::Line::Notified { recipient: field_000000, word: field_000001 } => crate::tasks_v13::Line::Notified(crate::tasks_v13::NotifiedMessage {
+            recipient: party_to_record(field_000000),
             word: word_to_record(field_000001, context)?
-        })),
-        jig_domain_tasks::Line::RunBegan { attempt: field_000000, why: field_000001, resumed: field_000002, fresh: field_000003 } => Ok(crate::tasks_v13::Line::RunBegan(crate::tasks_v13::BeganLine {
+        }),
+        jig_domain_tasks::Line::RunBegan { attempt: field_000000, why: field_000001, resumed: field_000002, fresh: field_000003 } => crate::tasks_v13::Line::RunBegan(crate::tasks_v13::BeganLine {
             attempt: *field_000000,
-            why: crate::codec::tasks::why_to_record(field_000001, context)?,
+            why: crate::codec::tasks::why_to_record(field_000001),
             resumed: *field_000002,
             fresh: match field_000003 {
-                Some(item) => Some(fresh_to_record(item, context)?),
+                Some(item) => {
+                    let converted = fresh_to_record(item);
+                    Some(converted)
+                }
                 None => None,
             }
-        })),
-        jig_domain_tasks::Line::RunEnded { attempt: field_000000, end: field_000001, spent: field_000002 } => Ok(crate::tasks_v13::Line::RunEnded(crate::tasks_v13::EndedLine {
+        }),
+        jig_domain_tasks::Line::RunEnded { attempt: field_000000, end: field_000001, spent: field_000002 } => crate::tasks_v13::Line::RunEnded(crate::tasks_v13::EndedLine {
             attempt: *field_000000,
-            end: end_kind_to_record(field_000001, context)?,
+            end: end_kind_to_record(field_000001),
             spent: *field_000002
-        })),
-        jig_domain_tasks::Line::Turn { reply: field_000000, attempt: field_000001, turn: field_000002, read: field_000003 } => Ok(crate::tasks_v13::Line::Turn(crate::tasks_v13::TurnLine {
+        }),
+        jig_domain_tasks::Line::Turn { reply: field_000000, attempt: field_000001, turn: field_000002, read: field_000003 } => crate::tasks_v13::Line::Turn(crate::tasks_v13::TurnLine {
             reply: *field_000000,
             attempt: *field_000001,
             turn: *field_000002,
             read: match field_000003 {
-                Some(item) => Some(*item),
+                Some(item) => {
+                    let converted = *item;
+                    Some(converted)
+                }
                 None => None,
             }
-        })),
-        jig_domain_tasks::Line::Decided { revision: field_000000, proposal: field_000001 } => Ok(crate::tasks_v13::Line::Decided(crate::tasks_v13::DecidedLine {
+        }),
+        jig_domain_tasks::Line::Decided { revision: field_000000, proposal: field_000001 } => crate::tasks_v13::Line::Decided(crate::tasks_v13::DecidedLine {
             revision: *field_000000,
             proposal: match field_000001 {
-                Some(item) => Some(decided_proposal_to_record(item, context)?),
+                Some(item) => {
+                    let converted = decided_proposal_to_record(item);
+                    Some(converted)
+                }
                 None => None,
             }
-        })),
-        jig_domain_tasks::Line::Milestone { position: field_000000 } => Ok(crate::tasks_v13::Line::Milestone(crate::tasks_v13::MilestoneLine {
+        }),
+        jig_domain_tasks::Line::Milestone { position: field_000000 } => crate::tasks_v13::Line::Milestone(crate::tasks_v13::MilestoneLine {
             position: *field_000000
-        })),
-        jig_domain_tasks::Line::Kept { attempt: field_000000, pending: field_000001, question: field_000002 } => Ok(crate::tasks_v13::Line::Kept(crate::tasks_v13::KeptLine {
+        }),
+        jig_domain_tasks::Line::Kept { attempt: field_000000, pending: field_000001, question: field_000002 } => crate::tasks_v13::Line::Kept(crate::tasks_v13::KeptLine {
             attempt: *field_000000,
             pending: {
                 let source = field_000001;
@@ -2895,112 +3090,123 @@ pub fn line_to_record(value: &jig_domain_tasks::Line, context: &crate::codec::ta
                 let mut translated = skein_lib::List::with_capacity(count);
                 for item in source.as_ref() {
                     let converted = crate::tasks_v13::Number { value: *item };
-                    if translated.push(converted).is_err() { return Err(crate::tasks_v13::paths::KEPT_LINE_PENDING.problem(skein_codec::Reason::Bound)); }
+                    assert!(translated.push(converted).is_ok(), "one output per source item");
                 }
                 translated
             },
             question: match field_000002 {
-                Some(item) => Some(*item),
+                Some(item) => {
+                    let converted = *item;
+                    Some(converted)
+                }
                 None => None,
             }
-        })),
-        jig_domain_tasks::Line::Stood { attempt: field_000000, words: field_000001 } => Ok(crate::tasks_v13::Line::Stood(crate::tasks_v13::StoodLine {
+        }),
+        jig_domain_tasks::Line::Stood { attempt: field_000000, words: field_000001 } => crate::tasks_v13::Line::Stood(crate::tasks_v13::StoodLine {
             attempt: *field_000000,
             words: field_000001.clone()
-        })),
-        jig_domain_tasks::Line::SessionEnded { attempt: field_000000, end: field_000001 } => Ok(crate::tasks_v13::Line::SessionEnded(crate::tasks_v13::SessionEndedLine {
+        }),
+        jig_domain_tasks::Line::SessionEnded { attempt: field_000000, end: field_000001 } => crate::tasks_v13::Line::SessionEnded(crate::tasks_v13::SessionEndedLine {
             attempt: *field_000000,
-            end: session_end_to_record(field_000001, context)?
-        })),
-        jig_domain_tasks::Line::TalkOpened { party: field_000000 } => Ok(crate::tasks_v13::Line::TalkOpened(crate::tasks_v13::TalkOpenedLine {
+            end: session_end_to_record(field_000001)
+        }),
+        jig_domain_tasks::Line::TalkOpened { party: field_000000 } => crate::tasks_v13::Line::TalkOpened(crate::tasks_v13::TalkOpenedLine {
             party: *field_000000
-        })),
-        jig_domain_tasks::Line::TalkEnded { party: field_000000, lapsed: field_000001 } => Ok(crate::tasks_v13::Line::TalkEnded(crate::tasks_v13::TalkEndedLine {
+        }),
+        jig_domain_tasks::Line::TalkEnded { party: field_000000, lapsed: field_000001 } => crate::tasks_v13::Line::TalkEnded(crate::tasks_v13::TalkEndedLine {
             party: *field_000000,
             lapsed: *field_000001
-        })),
-        jig_domain_tasks::Line::NowWritten { attempt: field_000000, line: field_000001 } => Ok(crate::tasks_v13::Line::NowWritten(crate::tasks_v13::NowWrittenLine {
+        }),
+        jig_domain_tasks::Line::NowWritten { attempt: field_000000, line: field_000001 } => crate::tasks_v13::Line::NowWritten(crate::tasks_v13::NowWrittenLine {
             attempt: *field_000000,
             line: field_000001.clone()
-        })),
-    }
+        }),
+    })
 }
 
-// Maps line 223: Line.
 #[expect(clippy::too_many_lines, reason = "one translation step per field or variant (data/codec/maps.md, 4.1)")]
 pub fn line_to_domain(record: crate::tasks_v13::Line, context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::Line, crate::tasks_v13::Problem> {
-    match record {
+    Ok(match record {
         crate::tasks_v13::Line::Words(held) => {
             let crate::tasks_v13::ActivityWords { message: field_000000, by: field_000001, kind: field_000002, words: field_000003 } = held;
-            Ok(jig_domain_tasks::Line::Words {
+            jig_domain_tasks::Line::Words {
                 message: field_000000,
-                by: party_to_domain(field_000001, context)?,
+                by: party_to_domain(field_000001),
                 kind: message_kind_to_domain(field_000002, context)?,
                 words: field_000003
-            })
+            }
         },
-        crate::tasks_v13::Line::Heard(held) => Ok(jig_domain_tasks::Line::Heard({
+        crate::tasks_v13::Line::Heard(held) => jig_domain_tasks::Line::Heard({
             let crate::tasks_v13::HeardMessage { word: held } = held;
             word_to_domain(held, context)?
-        })),
+        }),
         crate::tasks_v13::Line::Notified(held) => {
             let crate::tasks_v13::NotifiedMessage { recipient: field_000000, word: field_000001 } = held;
-            Ok(jig_domain_tasks::Line::Notified {
-                recipient: party_to_domain(field_000000, context)?,
+            jig_domain_tasks::Line::Notified {
+                recipient: party_to_domain(field_000000),
                 word: word_to_domain(field_000001, context)?
-            })
+            }
         },
         crate::tasks_v13::Line::RunBegan(held) => {
             let crate::tasks_v13::BeganLine { attempt: field_000000, why: field_000001, resumed: field_000002, fresh: field_000003 } = held;
-            Ok(jig_domain_tasks::Line::RunBegan {
+            jig_domain_tasks::Line::RunBegan {
                 attempt: field_000000,
-                why: crate::codec::tasks::why_to_domain(field_000001, context)?,
+                why: crate::codec::tasks::why_to_domain(field_000001),
                 resumed: field_000002,
                 fresh: match field_000003 {
-                    Some(item) => Some(fresh_to_domain(item, context)?),
+                    Some(item) => {
+                        let converted = fresh_to_domain(item);
+                        Some(converted)
+                    }
                     None => None,
                 }
-            })
+            }
         },
         crate::tasks_v13::Line::RunEnded(held) => {
             let crate::tasks_v13::EndedLine { attempt: field_000000, end: field_000001, spent: field_000002 } = held;
-            Ok(jig_domain_tasks::Line::RunEnded {
+            jig_domain_tasks::Line::RunEnded {
                 attempt: field_000000,
-                end: end_kind_to_domain(field_000001, context)?,
+                end: end_kind_to_domain(field_000001),
                 spent: field_000002
-            })
+            }
         },
         crate::tasks_v13::Line::Turn(held) => {
             let crate::tasks_v13::TurnLine { reply: field_000000, attempt: field_000001, turn: field_000002, read: field_000003 } = held;
-            Ok(jig_domain_tasks::Line::Turn {
+            jig_domain_tasks::Line::Turn {
                 reply: field_000000,
                 attempt: field_000001,
                 turn: field_000002,
                 read: match field_000003 {
-                    Some(item) => Some(item),
+                    Some(item) => {
+                        let converted = item;
+                        Some(converted)
+                    }
                     None => None,
                 }
-            })
+            }
         },
         crate::tasks_v13::Line::Decided(held) => {
             let crate::tasks_v13::DecidedLine { revision: field_000000, proposal: field_000001 } = held;
-            Ok(jig_domain_tasks::Line::Decided {
+            jig_domain_tasks::Line::Decided {
                 revision: field_000000,
                 proposal: match field_000001 {
-                    Some(item) => Some(decided_proposal_to_domain(item, context)?),
+                    Some(item) => {
+                        let converted = decided_proposal_to_domain(item);
+                        Some(converted)
+                    }
                     None => None,
                 }
-            })
+            }
         },
         crate::tasks_v13::Line::Milestone(held) => {
             let crate::tasks_v13::MilestoneLine { position: field_000000 } = held;
-            Ok(jig_domain_tasks::Line::Milestone {
+            jig_domain_tasks::Line::Milestone {
                 position: field_000000
-            })
+            }
         },
         crate::tasks_v13::Line::Kept(held) => {
             let crate::tasks_v13::KeptLine { attempt: field_000000, pending: field_000001, question: field_000002 } = held;
-            Ok(jig_domain_tasks::Line::Kept {
+            jig_domain_tasks::Line::Kept {
                 attempt: field_000000,
                 pending: {
                     let source = field_000001;
@@ -3011,237 +3217,243 @@ pub fn line_to_domain(record: crate::tasks_v13::Line, context: &crate::codec::ta
                             let crate::tasks_v13::Number { value: held } = item;
                             held
                         };
-                        if translated.push(converted).is_err() { return Err(crate::tasks_v13::paths::KEPT_LINE_PENDING.problem(skein_codec::Reason::Bound)); }
+                        assert!(translated.push(converted).is_ok(), "one output per source item");
                     }
                     Box::from(translated)
                 },
                 question: match field_000002 {
-                    Some(item) => Some(item),
+                    Some(item) => {
+                        let converted = item;
+                        Some(converted)
+                    }
                     None => None,
                 }
-            })
+            }
         },
         crate::tasks_v13::Line::Stood(held) => {
             let crate::tasks_v13::StoodLine { attempt: field_000000, words: field_000001 } = held;
-            Ok(jig_domain_tasks::Line::Stood {
+            jig_domain_tasks::Line::Stood {
                 attempt: field_000000,
                 words: field_000001
-            })
+            }
         },
         crate::tasks_v13::Line::SessionEnded(held) => {
             let crate::tasks_v13::SessionEndedLine { attempt: field_000000, end: field_000001 } = held;
-            Ok(jig_domain_tasks::Line::SessionEnded {
+            jig_domain_tasks::Line::SessionEnded {
                 attempt: field_000000,
-                end: session_end_to_domain(field_000001, context)?
-            })
+                end: session_end_to_domain(field_000001)
+            }
         },
         crate::tasks_v13::Line::TalkOpened(held) => {
             let crate::tasks_v13::TalkOpenedLine { party: field_000000 } = held;
-            Ok(jig_domain_tasks::Line::TalkOpened {
+            jig_domain_tasks::Line::TalkOpened {
                 party: field_000000
-            })
+            }
         },
         crate::tasks_v13::Line::TalkEnded(held) => {
             let crate::tasks_v13::TalkEndedLine { party: field_000000, lapsed: field_000001 } = held;
-            Ok(jig_domain_tasks::Line::TalkEnded {
+            jig_domain_tasks::Line::TalkEnded {
                 party: field_000000,
                 lapsed: field_000001
-            })
+            }
         },
         crate::tasks_v13::Line::NowWritten(held) => {
             let crate::tasks_v13::NowWrittenLine { attempt: field_000000, line: field_000001 } = held;
-            Ok(jig_domain_tasks::Line::NowWritten {
+            jig_domain_tasks::Line::NowWritten {
                 attempt: field_000000,
                 line: field_000001
-            })
+            }
         },
-    }
+    })
 }
 
-// Maps line 224: ActivityLine.
 pub fn activity_line_to_record(value: &jig_domain_tasks::ActivityLine, context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::ActivityLine, crate::tasks_v13::Problem> {
     let jig_domain_tasks::ActivityLine { task: field_000000, position: field_000001, at: field_000002, line: field_000003 } = value;
     Ok(crate::tasks_v13::ActivityLine {
         task: *field_000000,
         position: *field_000001,
-        at: match skein_codec::convert::wall_to_record(field_000002) { Ok(value) => value, Err(reason) => return Err(crate::tasks_v13::paths::ACTIVITY_LINE_AT.problem(reason)) },
+        at: skein_codec::convert::wall_to_record(field_000002),
         line: line_to_record(field_000003, context)?
     })
 }
 
-// Maps line 224: ActivityLine.
 pub fn activity_line_to_domain(record: crate::tasks_v13::ActivityLine, context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::ActivityLine, crate::tasks_v13::Problem> {
     let crate::tasks_v13::ActivityLine { task: field_000000, position: field_000001, at: field_000002, line: field_000003 } = record;
     Ok(jig_domain_tasks::ActivityLine {
         task: field_000000,
         position: field_000001,
-        at: match skein_codec::convert::wall_to_domain(field_000002) { Ok(value) => value, Err(reason) => return Err(crate::tasks_v13::paths::ACTIVITY_LINE_AT.problem(reason)) },
+        at: skein_codec::convert::wall_to_domain(field_000002),
         line: line_to_domain(field_000003, context)?
     })
 }
 
-// Maps line 225: Status.
-pub fn status_to_record(value: &jig_domain_tasks::Status, _context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::Status, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn status_to_record(value: &jig_domain_tasks::Status) -> crate::tasks_v13::Status {
     match value {
-        jig_domain_tasks::Status::Done => Ok(crate::tasks_v13::Status::Done),
-        jig_domain_tasks::Status::Failed => Ok(crate::tasks_v13::Status::Failed),
-        jig_domain_tasks::Status::Cancelled => Ok(crate::tasks_v13::Status::Cancelled),
+        jig_domain_tasks::Status::Done => crate::tasks_v13::Status::Done,
+        jig_domain_tasks::Status::Failed => crate::tasks_v13::Status::Failed,
+        jig_domain_tasks::Status::Cancelled => crate::tasks_v13::Status::Cancelled,
     }
 }
 
-// Maps line 225: Status.
-pub fn status_to_domain(record: crate::tasks_v13::Status, _context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::Status, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn status_to_domain(record: crate::tasks_v13::Status) -> jig_domain_tasks::Status {
     match record {
-        crate::tasks_v13::Status::Done => Ok(jig_domain_tasks::Status::Done),
-        crate::tasks_v13::Status::Failed => Ok(jig_domain_tasks::Status::Failed),
-        crate::tasks_v13::Status::Cancelled => Ok(jig_domain_tasks::Status::Cancelled),
+        crate::tasks_v13::Status::Done => jig_domain_tasks::Status::Done,
+        crate::tasks_v13::Status::Failed => jig_domain_tasks::Status::Failed,
+        crate::tasks_v13::Status::Cancelled => jig_domain_tasks::Status::Cancelled,
     }
 }
 
-// Maps line 226: Stub.
-pub fn stub_to_record(value: &jig_domain_tasks::Stub, context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::Stub, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn stub_to_record(value: &jig_domain_tasks::Stub) -> crate::tasks_v13::Stub {
     let jig_domain_tasks::Stub { task: field_000000, phase: field_000001, result: field_000002 } = value;
-    Ok(crate::tasks_v13::Stub {
+    crate::tasks_v13::Stub {
         task: *field_000000,
-        phase: status_to_record(field_000001, context)?,
-        result: match skein_codec::convert::token_to_record(field_000002) { Ok(value) => value, Err(reason) => return Err(crate::tasks_v13::paths::STUB_RESULT.problem(reason)) }
-    })
+        phase: status_to_record(field_000001),
+        result: skein_codec::convert::token_to_record(field_000002)
+    }
 }
 
-// Maps line 226: Stub.
-pub fn stub_to_domain(record: crate::tasks_v13::Stub, context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::Stub, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn stub_to_domain(record: crate::tasks_v13::Stub) -> jig_domain_tasks::Stub {
     let crate::tasks_v13::Stub { task: field_000000, phase: field_000001, result: field_000002 } = record;
-    Ok(jig_domain_tasks::Stub {
+    jig_domain_tasks::Stub {
         task: field_000000,
-        phase: status_to_domain(field_000001, context)?,
-        result: match skein_codec::convert::token_to_domain(field_000002) { Ok(value) => value, Err(reason) => return Err(crate::tasks_v13::paths::STUB_RESULT.problem(reason)) }
-    })
+        phase: status_to_domain(field_000001),
+        result: skein_codec::convert::token_to_domain(field_000002)
+    }
 }
 
-// Maps line 227: ReplyHint.
-pub fn reply_hint_to_record(value: &jig_domain_tasks::ReplyHint, _context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::ReplyHint, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn reply_hint_to_record(value: &jig_domain_tasks::ReplyHint) -> crate::tasks_v13::ReplyHint {
     let jig_domain_tasks::ReplyHint { number: field_000000, activity: field_000001, attempt: field_000002, turn: field_000003, at: field_000004 } = value;
-    Ok(crate::tasks_v13::ReplyHint {
+    crate::tasks_v13::ReplyHint {
         number: *field_000000,
         activity: *field_000001,
         attempt: *field_000002,
         turn: *field_000003,
-        at: match skein_codec::convert::wall_to_record(field_000004) { Ok(value) => value, Err(reason) => return Err(crate::tasks_v13::paths::REPLY_HINT_AT.problem(reason)) }
-    })
+        at: skein_codec::convert::wall_to_record(field_000004)
+    }
 }
 
-// Maps line 227: ReplyHint.
-pub fn reply_hint_to_domain(record: crate::tasks_v13::ReplyHint, _context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::ReplyHint, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn reply_hint_to_domain(record: crate::tasks_v13::ReplyHint) -> jig_domain_tasks::ReplyHint {
     let crate::tasks_v13::ReplyHint { number: field_000000, activity: field_000001, attempt: field_000002, turn: field_000003, at: field_000004 } = record;
-    Ok(jig_domain_tasks::ReplyHint {
+    jig_domain_tasks::ReplyHint {
         number: field_000000,
         activity: field_000001,
         attempt: field_000002,
         turn: field_000003,
-        at: match skein_codec::convert::wall_to_domain(field_000004) { Ok(value) => value, Err(reason) => return Err(crate::tasks_v13::paths::REPLY_HINT_AT.problem(reason)) }
-    })
-}
-
-// Maps line 231: EscalationHolder.
-pub fn escalation_holder_to_record(value: &jig_domain_tasks::EscalationHolder, _context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::EscalationHolder, crate::tasks_v13::Problem> {
-    match value {
-        jig_domain_tasks::EscalationHolder::Task(held) => Ok(crate::tasks_v13::EscalationHolder::Task(crate::tasks_v13::EscalationTask { task: *held })),
-        jig_domain_tasks::EscalationHolder::Person(held) => Ok(crate::tasks_v13::EscalationHolder::Person(crate::tasks_v13::EscalationPerson { person: *held })),
-        jig_domain_tasks::EscalationHolder::Role { project: field_000000, role: field_000001 } => Ok(crate::tasks_v13::EscalationHolder::Role(crate::tasks_v13::EscalationRole {
-            project: *field_000000,
-            role: *field_000001
-        })),
+        at: skein_codec::convert::wall_to_domain(field_000004)
     }
 }
 
-// Maps line 231: EscalationHolder.
-pub fn escalation_holder_to_domain(record: crate::tasks_v13::EscalationHolder, _context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::EscalationHolder, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn escalation_holder_to_record(value: &jig_domain_tasks::EscalationHolder) -> crate::tasks_v13::EscalationHolder {
+    match value {
+        jig_domain_tasks::EscalationHolder::Task(held) => crate::tasks_v13::EscalationHolder::Task(crate::tasks_v13::EscalationTask { task: *held }),
+        jig_domain_tasks::EscalationHolder::Person(held) => crate::tasks_v13::EscalationHolder::Person(crate::tasks_v13::EscalationPerson { person: *held }),
+        jig_domain_tasks::EscalationHolder::Role { project: field_000000, role: field_000001 } => crate::tasks_v13::EscalationHolder::Role(crate::tasks_v13::EscalationRole {
+            project: *field_000000,
+            role: *field_000001
+        }),
+    }
+}
+
+#[must_use]
+pub fn escalation_holder_to_domain(record: crate::tasks_v13::EscalationHolder) -> jig_domain_tasks::EscalationHolder {
     match record {
-        crate::tasks_v13::EscalationHolder::Task(held) => Ok(jig_domain_tasks::EscalationHolder::Task({
+        crate::tasks_v13::EscalationHolder::Task(held) => jig_domain_tasks::EscalationHolder::Task({
             let crate::tasks_v13::EscalationTask { task: held } = held;
             held
-        })),
-        crate::tasks_v13::EscalationHolder::Person(held) => Ok(jig_domain_tasks::EscalationHolder::Person({
+        }),
+        crate::tasks_v13::EscalationHolder::Person(held) => jig_domain_tasks::EscalationHolder::Person({
             let crate::tasks_v13::EscalationPerson { person: held } = held;
             held
-        })),
+        }),
         crate::tasks_v13::EscalationHolder::Role(held) => {
             let crate::tasks_v13::EscalationRole { project: field_000000, role: field_000001 } = held;
-            Ok(jig_domain_tasks::EscalationHolder::Role {
+            jig_domain_tasks::EscalationHolder::Role {
                 project: field_000000,
                 role: field_000001
-            })
+            }
         },
     }
 }
 
-// Maps line 238: PersonAnswer.
-pub fn person_answer_to_record(value: &jig_domain_tasks::PersonAnswer, _context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::PersonAnswer, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn person_answer_to_record(value: &jig_domain_tasks::PersonAnswer) -> crate::tasks_v13::PersonAnswer {
     let jig_domain_tasks::PersonAnswer { by: field_000000, at: field_000001 } = value;
-    Ok(crate::tasks_v13::PersonAnswer {
+    crate::tasks_v13::PersonAnswer {
         by: *field_000000,
-        at: match skein_codec::convert::wall_to_record(field_000001) { Ok(value) => value, Err(reason) => return Err(crate::tasks_v13::paths::PERSON_ANSWER_AT.problem(reason)) }
-    })
+        at: skein_codec::convert::wall_to_record(field_000001)
+    }
 }
 
-// Maps line 238: PersonAnswer.
-pub fn person_answer_to_domain(record: crate::tasks_v13::PersonAnswer, _context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::PersonAnswer, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn person_answer_to_domain(record: crate::tasks_v13::PersonAnswer) -> jig_domain_tasks::PersonAnswer {
     let crate::tasks_v13::PersonAnswer { by: field_000000, at: field_000001 } = record;
-    Ok(jig_domain_tasks::PersonAnswer {
+    jig_domain_tasks::PersonAnswer {
         by: field_000000,
-        at: match skein_codec::convert::wall_to_domain(field_000001) { Ok(value) => value, Err(reason) => return Err(crate::tasks_v13::paths::PERSON_ANSWER_AT.problem(reason)) }
-    })
+        at: skein_codec::convert::wall_to_domain(field_000001)
+    }
 }
 
-// Maps line 239: PersonStallNotice.
-pub fn person_stall_notice_to_record(value: &jig_domain_tasks::PersonStallNotice, _context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::PersonStallNotice, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn person_stall_notice_to_record(value: &jig_domain_tasks::PersonStallNotice) -> crate::tasks_v13::PersonStallNotice {
     let jig_domain_tasks::PersonStallNotice { message: field_000000, at: field_000001, activity: field_000002 } = value;
-    Ok(crate::tasks_v13::PersonStallNotice {
+    crate::tasks_v13::PersonStallNotice {
         message: *field_000000,
-        at: match skein_codec::convert::wall_to_record(field_000001) { Ok(value) => value, Err(reason) => return Err(crate::tasks_v13::paths::PERSON_STALL_NOTICE_AT.problem(reason)) },
+        at: skein_codec::convert::wall_to_record(field_000001),
         activity: *field_000002
-    })
+    }
 }
 
-// Maps line 239: PersonStallNotice.
-pub fn person_stall_notice_to_domain(record: crate::tasks_v13::PersonStallNotice, _context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::PersonStallNotice, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn person_stall_notice_to_domain(record: crate::tasks_v13::PersonStallNotice) -> jig_domain_tasks::PersonStallNotice {
     let crate::tasks_v13::PersonStallNotice { message: field_000000, at: field_000001, activity: field_000002 } = record;
-    Ok(jig_domain_tasks::PersonStallNotice {
+    jig_domain_tasks::PersonStallNotice {
         message: field_000000,
-        at: match skein_codec::convert::wall_to_domain(field_000001) { Ok(value) => value, Err(reason) => return Err(crate::tasks_v13::paths::PERSON_STALL_NOTICE_AT.problem(reason)) },
+        at: skein_codec::convert::wall_to_domain(field_000001),
         activity: field_000002
-    })
+    }
 }
 
-// Maps line 240: PersonWait.
-pub fn person_wait_to_record(value: &jig_domain_tasks::PersonWait, context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::PersonWait, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn person_wait_to_record(value: &jig_domain_tasks::PersonWait) -> crate::tasks_v13::PersonWait {
     let jig_domain_tasks::PersonWait { since: field_000000, stall: field_000001, deadline: field_000002, notice: field_000003 } = value;
-    Ok(crate::tasks_v13::PersonWait {
-        since: match skein_codec::convert::wall_to_record(field_000000) { Ok(value) => value, Err(reason) => return Err(crate::tasks_v13::paths::PERSON_WAIT_SINCE.problem(reason)) },
+    crate::tasks_v13::PersonWait {
+        since: skein_codec::convert::wall_to_record(field_000000),
         stall: *field_000001,
-        deadline: match skein_codec::convert::wall_to_record(field_000002) { Ok(value) => value, Err(reason) => return Err(crate::tasks_v13::paths::PERSON_WAIT_DEADLINE.problem(reason)) },
+        deadline: skein_codec::convert::wall_to_record(field_000002),
         notice: match field_000003 {
-            Some(item) => Some(person_stall_notice_to_record(item, context)?),
+            Some(item) => {
+                let converted = person_stall_notice_to_record(item);
+                Some(converted)
+            }
             None => None,
         }
-    })
+    }
 }
 
-// Maps line 240: PersonWait.
-pub fn person_wait_to_domain(record: crate::tasks_v13::PersonWait, context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::PersonWait, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn person_wait_to_domain(record: crate::tasks_v13::PersonWait) -> jig_domain_tasks::PersonWait {
     let crate::tasks_v13::PersonWait { since: field_000000, stall: field_000001, deadline: field_000002, notice: field_000003 } = record;
-    Ok(jig_domain_tasks::PersonWait {
-        since: match skein_codec::convert::wall_to_domain(field_000000) { Ok(value) => value, Err(reason) => return Err(crate::tasks_v13::paths::PERSON_WAIT_SINCE.problem(reason)) },
+    jig_domain_tasks::PersonWait {
+        since: skein_codec::convert::wall_to_domain(field_000000),
         stall: field_000001,
-        deadline: match skein_codec::convert::wall_to_domain(field_000002) { Ok(value) => value, Err(reason) => return Err(crate::tasks_v13::paths::PERSON_WAIT_DEADLINE.problem(reason)) },
+        deadline: skein_codec::convert::wall_to_domain(field_000002),
         notice: match field_000003 {
-            Some(item) => Some(person_stall_notice_to_domain(item, context)?),
+            Some(item) => {
+                let converted = person_stall_notice_to_domain(item);
+                Some(converted)
+            }
             None => None,
         }
-    })
+    }
 }
 
-// Maps line 241: RecurringState.
 pub fn recurring_state_to_record(value: &jig_domain_tasks::RecurringState, context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::RecurringState, crate::tasks_v13::Problem> {
     let jig_domain_tasks::RecurringState { template: field_000000, last_batch: field_000001, last_period: field_000002, pending_period: field_000003 } = value;
     Ok(crate::tasks_v13::RecurringState {
@@ -3252,19 +3464,21 @@ pub fn recurring_state_to_record(value: &jig_domain_tasks::RecurringState, conte
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.as_ref() {
                 let converted = crate::tasks_v13::Number { value: *item };
-                if translated.push(converted).is_err() { return Err(crate::tasks_v13::paths::RECURRING_STATE_LAST_BATCH.problem(skein_codec::Reason::Bound)); }
+                assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             translated
         },
         last_period: *field_000002,
         pending_period: match field_000003 {
-            Some(item) => Some(*item),
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
             None => None,
         }
     })
 }
 
-// Maps line 241: RecurringState.
 pub fn recurring_state_to_domain(record: crate::tasks_v13::RecurringState, context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::RecurringState, crate::tasks_v13::Problem> {
     let crate::tasks_v13::RecurringState { template: field_000000, last_batch: field_000001, last_period: field_000002, pending_period: field_000003 } = record;
     Ok(jig_domain_tasks::RecurringState {
@@ -3278,524 +3492,537 @@ pub fn recurring_state_to_domain(record: crate::tasks_v13::RecurringState, conte
                     let crate::tasks_v13::Number { value: held } = item;
                     held
                 };
-                if translated.push(converted).is_err() { return Err(crate::tasks_v13::paths::RECURRING_STATE_LAST_BATCH.problem(skein_codec::Reason::Bound)); }
+                assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             Box::from(translated)
         },
         last_period: field_000002,
         pending_period: match field_000003 {
-            Some(item) => Some(item),
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
             None => None,
         }
     })
 }
 
-// Maps line 242: QuestionCredit.
-pub fn question_credit_to_record(value: &jig_domain_tasks::QuestionCredit, context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::QuestionCredit, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn question_credit_to_record(value: &jig_domain_tasks::QuestionCredit) -> crate::tasks_v13::QuestionCredit {
     let jig_domain_tasks::QuestionCredit { number: field_000000, answerer: field_000001, asked: field_000002, line: field_000003 } = value;
-    Ok(crate::tasks_v13::QuestionCredit {
+    crate::tasks_v13::QuestionCredit {
         number: *field_000000,
-        answerer: party_to_record(field_000001, context)?,
-        asked: party_to_record(field_000002, context)?,
+        answerer: party_to_record(field_000001),
+        asked: party_to_record(field_000002),
         line: *field_000003
-    })
+    }
 }
 
-// Maps line 242: QuestionCredit.
-pub fn question_credit_to_domain(record: crate::tasks_v13::QuestionCredit, context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::QuestionCredit, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn question_credit_to_domain(record: crate::tasks_v13::QuestionCredit) -> jig_domain_tasks::QuestionCredit {
     let crate::tasks_v13::QuestionCredit { number: field_000000, answerer: field_000001, asked: field_000002, line: field_000003 } = record;
-    Ok(jig_domain_tasks::QuestionCredit {
+    jig_domain_tasks::QuestionCredit {
         number: field_000000,
-        answerer: party_to_domain(field_000001, context)?,
-        asked: party_to_domain(field_000002, context)?,
+        answerer: party_to_domain(field_000001),
+        asked: party_to_domain(field_000002),
         line: field_000003
-    })
+    }
 }
 
-// Maps line 246: SubscriptionKind.
-pub fn subscription_kind_to_record(value: &jig_domain_tasks::SubscriptionKind, _context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::SubscriptionKind, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn subscription_kind_to_record(value: &jig_domain_tasks::SubscriptionKind) -> crate::tasks_v13::SubscriptionKind {
     match value {
-        jig_domain_tasks::SubscriptionKind::Task { target: field_000000, held: field_000001, result: field_000002 } => Ok(crate::tasks_v13::SubscriptionKind::Task(crate::tasks_v13::TaskInterest {
+        jig_domain_tasks::SubscriptionKind::Task { target: field_000000, held: field_000001, result: field_000002 } => crate::tasks_v13::SubscriptionKind::Task(crate::tasks_v13::TaskInterest {
             target: *field_000000,
             held: *field_000001,
             result: *field_000002
-        })),
-        jig_domain_tasks::SubscriptionKind::Timer { at: field_000000, period: field_000001 } => Ok(crate::tasks_v13::SubscriptionKind::Timer(crate::tasks_v13::TimerInterest {
-            at: match skein_codec::convert::wall_to_record(field_000000) { Ok(value) => value, Err(reason) => return Err(crate::tasks_v13::paths::TIMER_INTEREST_AT.problem(reason)) },
+        }),
+        jig_domain_tasks::SubscriptionKind::Timer { at: field_000000, period: field_000001 } => crate::tasks_v13::SubscriptionKind::Timer(crate::tasks_v13::TimerInterest {
+            at: skein_codec::convert::wall_to_record(field_000000),
             period: match field_000001 {
-                Some(item) => Some(*item),
+                Some(item) => {
+                    let converted = *item;
+                    Some(converted)
+                }
                 None => None,
             }
-        })),
-        jig_domain_tasks::SubscriptionKind::Topic { connector: field_000000, topic: field_000001 } => Ok(crate::tasks_v13::SubscriptionKind::Topic(crate::tasks_v13::TopicInterest {
+        }),
+        jig_domain_tasks::SubscriptionKind::Topic { connector: field_000000, topic: field_000001 } => crate::tasks_v13::SubscriptionKind::Topic(crate::tasks_v13::TopicInterest {
             connector: *field_000000,
             topic: *field_000001
-        })),
+        }),
     }
 }
 
-// Maps line 246: SubscriptionKind.
-pub fn subscription_kind_to_domain(record: crate::tasks_v13::SubscriptionKind, _context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::SubscriptionKind, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn subscription_kind_to_domain(record: crate::tasks_v13::SubscriptionKind) -> jig_domain_tasks::SubscriptionKind {
     match record {
         crate::tasks_v13::SubscriptionKind::Task(held) => {
             let crate::tasks_v13::TaskInterest { target: field_000000, held: field_000001, result: field_000002 } = held;
-            Ok(jig_domain_tasks::SubscriptionKind::Task {
+            jig_domain_tasks::SubscriptionKind::Task {
                 target: field_000000,
                 held: field_000001,
                 result: field_000002
-            })
+            }
         },
         crate::tasks_v13::SubscriptionKind::Timer(held) => {
             let crate::tasks_v13::TimerInterest { at: field_000000, period: field_000001 } = held;
-            Ok(jig_domain_tasks::SubscriptionKind::Timer {
-                at: match skein_codec::convert::wall_to_domain(field_000000) { Ok(value) => value, Err(reason) => return Err(crate::tasks_v13::paths::TIMER_INTEREST_AT.problem(reason)) },
+            jig_domain_tasks::SubscriptionKind::Timer {
+                at: skein_codec::convert::wall_to_domain(field_000000),
                 period: match field_000001 {
-                    Some(item) => Some(item),
+                    Some(item) => {
+                        let converted = item;
+                        Some(converted)
+                    }
                     None => None,
                 }
-            })
+            }
         },
         crate::tasks_v13::SubscriptionKind::Topic(held) => {
             let crate::tasks_v13::TopicInterest { connector: field_000000, topic: field_000001 } = held;
-            Ok(jig_domain_tasks::SubscriptionKind::Topic {
+            jig_domain_tasks::SubscriptionKind::Topic {
                 connector: field_000000,
                 topic: field_000001
-            })
+            }
         },
     }
 }
 
-// Maps line 247: Subscription.
-pub fn subscription_to_record(value: &jig_domain_tasks::Subscription, context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::Subscription, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn subscription_to_record(value: &jig_domain_tasks::Subscription) -> crate::tasks_v13::Subscription {
     let jig_domain_tasks::Subscription { number: field_000000, kind: field_000001 } = value;
-    Ok(crate::tasks_v13::Subscription {
+    crate::tasks_v13::Subscription {
         number: *field_000000,
-        kind: subscription_kind_to_record(field_000001, context)?
-    })
+        kind: subscription_kind_to_record(field_000001)
+    }
 }
 
-// Maps line 247: Subscription.
-pub fn subscription_to_domain(record: crate::tasks_v13::Subscription, context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::Subscription, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn subscription_to_domain(record: crate::tasks_v13::Subscription) -> jig_domain_tasks::Subscription {
     let crate::tasks_v13::Subscription { number: field_000000, kind: field_000001 } = record;
-    Ok(jig_domain_tasks::Subscription {
+    jig_domain_tasks::Subscription {
         number: field_000000,
-        kind: subscription_kind_to_domain(field_000001, context)?
-    })
+        kind: subscription_kind_to_domain(field_000001)
+    }
 }
 
-// Maps line 249: AnswerLine.
-pub fn answer_line_to_record(value: &jig_domain_tasks::AnswerLine, _context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::AnswerLine, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn answer_line_to_record(value: &jig_domain_tasks::AnswerLine) -> crate::tasks_v13::AnswerLine {
     let jig_domain_tasks::AnswerLine { task: field_000000, position: field_000001 } = value;
-    Ok(crate::tasks_v13::AnswerLine {
+    crate::tasks_v13::AnswerLine {
         task: *field_000000,
         position: *field_000001
-    })
+    }
 }
 
-// Maps line 249: AnswerLine.
-pub fn answer_line_to_domain(record: crate::tasks_v13::AnswerLine, _context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::AnswerLine, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn answer_line_to_domain(record: crate::tasks_v13::AnswerLine) -> jig_domain_tasks::AnswerLine {
     let crate::tasks_v13::AnswerLine { task: field_000000, position: field_000001 } = record;
-    Ok(jig_domain_tasks::AnswerLine {
+    jig_domain_tasks::AnswerLine {
         task: field_000000,
         position: field_000001
-    })
+    }
 }
 
-// Maps line 250: QuestionLine.
-pub fn question_line_to_record(value: &jig_domain_tasks::QuestionLine, context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::QuestionLine, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn question_line_to_record(value: &jig_domain_tasks::QuestionLine) -> crate::tasks_v13::QuestionLine {
     let jig_domain_tasks::QuestionLine { message: field_000000, line: field_000001, answer: field_000002 } = value;
-    Ok(crate::tasks_v13::QuestionLine {
+    crate::tasks_v13::QuestionLine {
         message: *field_000000,
         line: *field_000001,
         answer: match field_000002 {
-            Some(item) => Some(answer_line_to_record(item, context)?),
+            Some(item) => {
+                let converted = answer_line_to_record(item);
+                Some(converted)
+            }
             None => None,
         }
-    })
+    }
 }
 
-// Maps line 250: QuestionLine.
-pub fn question_line_to_domain(record: crate::tasks_v13::QuestionLine, context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::QuestionLine, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn question_line_to_domain(record: crate::tasks_v13::QuestionLine) -> jig_domain_tasks::QuestionLine {
     let crate::tasks_v13::QuestionLine { message: field_000000, line: field_000001, answer: field_000002 } = record;
-    Ok(jig_domain_tasks::QuestionLine {
+    jig_domain_tasks::QuestionLine {
         message: field_000000,
         line: field_000001,
         answer: match field_000002 {
-            Some(item) => Some(answer_line_to_domain(item, context)?),
+            Some(item) => {
+                let converted = answer_line_to_domain(item);
+                Some(converted)
+            }
             None => None,
         }
-    })
+    }
 }
 
-// Maps line 251: ProposalRow.
-pub fn proposal_row_to_record(value: &jig_domain_tasks::ProposalRow, _context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::ProposalRow, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn proposal_row_to_record(value: &jig_domain_tasks::ProposalRow) -> crate::tasks_v13::ProposalRow {
     let jig_domain_tasks::ProposalRow { proposal: field_000000, revision: field_000001 } = value;
-    Ok(crate::tasks_v13::ProposalRow {
+    crate::tasks_v13::ProposalRow {
         proposal: *field_000000,
         revision: *field_000001
-    })
+    }
 }
 
-// Maps line 251: ProposalRow.
-pub fn proposal_row_to_domain(record: crate::tasks_v13::ProposalRow, _context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::ProposalRow, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn proposal_row_to_domain(record: crate::tasks_v13::ProposalRow) -> jig_domain_tasks::ProposalRow {
     let crate::tasks_v13::ProposalRow { proposal: field_000000, revision: field_000001 } = record;
-    Ok(jig_domain_tasks::ProposalRow {
+    jig_domain_tasks::ProposalRow {
         proposal: field_000000,
         revision: field_000001
-    })
+    }
 }
 
-// Maps line 252: Endings.
-pub fn endings_to_record(value: &jig_domain_tasks::Endings, _context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::Endings, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn endings_to_record(value: &jig_domain_tasks::Endings) -> crate::tasks_v13::Endings {
     let jig_domain_tasks::Endings { done: field_000000, failed: field_000001, cancelled: field_000002 } = value;
-    Ok(crate::tasks_v13::Endings {
+    crate::tasks_v13::Endings {
         done: *field_000000,
         failed: *field_000001,
         cancelled: *field_000002
-    })
+    }
 }
 
-// Maps line 252: Endings.
-pub fn endings_to_domain(record: crate::tasks_v13::Endings, _context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::Endings, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn endings_to_domain(record: crate::tasks_v13::Endings) -> jig_domain_tasks::Endings {
     let crate::tasks_v13::Endings { done: field_000000, failed: field_000001, cancelled: field_000002 } = record;
-    Ok(jig_domain_tasks::Endings {
+    jig_domain_tasks::Endings {
         done: field_000000,
         failed: field_000001,
         cancelled: field_000002
-    })
-}
-
-// Maps line 255: UpdateObject.
-pub fn update_object_to_record(value: &jig_domain_tasks::UpdateObject, _context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::UpdateObject, crate::tasks_v13::Problem> {
-    match value {
-        jig_domain_tasks::UpdateObject::Result => Ok(crate::tasks_v13::UpdateObject::Result),
-        jig_domain_tasks::UpdateObject::Reply { message: field_000000, activity: field_000001 } => Ok(crate::tasks_v13::UpdateObject::Reply(crate::tasks_v13::ReplyObject {
-            message: match crate::codec::tasks::newest_to_record(field_000000) { Ok(value) => value, Err(reason) => return Err(crate::tasks_v13::paths::REPLY_OBJECT_MESSAGE.problem(reason)) },
-            activity: match crate::codec::tasks::newest_to_record(field_000001) { Ok(value) => value, Err(reason) => return Err(crate::tasks_v13::paths::REPLY_OBJECT_ACTIVITY.problem(reason)) }
-        })),
-        jig_domain_tasks::UpdateObject::Proposal { proposal: field_000000 } => Ok(crate::tasks_v13::UpdateObject::Proposal(crate::tasks_v13::ProposalUpdate {
-            proposal: match crate::codec::tasks::newest_to_record(field_000000) { Ok(value) => value, Err(reason) => return Err(crate::tasks_v13::paths::PROPOSAL_UPDATE_PROPOSAL.problem(reason)) }
-        })),
     }
 }
 
-// Maps line 255: UpdateObject.
-pub fn update_object_to_domain(record: crate::tasks_v13::UpdateObject, _context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::UpdateObject, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn update_object_to_record(value: &jig_domain_tasks::UpdateObject) -> crate::tasks_v13::UpdateObject {
+    match value {
+        jig_domain_tasks::UpdateObject::Result => crate::tasks_v13::UpdateObject::Result,
+        jig_domain_tasks::UpdateObject::Reply { message: field_000000, activity: field_000001 } => crate::tasks_v13::UpdateObject::Reply(crate::tasks_v13::ReplyObject {
+            message: crate::codec::tasks::newest_to_record(field_000000),
+            activity: crate::codec::tasks::newest_to_record(field_000001)
+        }),
+        jig_domain_tasks::UpdateObject::Proposal { proposal: field_000000 } => crate::tasks_v13::UpdateObject::Proposal(crate::tasks_v13::ProposalUpdate {
+            proposal: crate::codec::tasks::newest_to_record(field_000000)
+        }),
+    }
+}
+
+#[must_use]
+pub fn update_object_to_domain(record: crate::tasks_v13::UpdateObject) -> jig_domain_tasks::UpdateObject {
     match record {
-        crate::tasks_v13::UpdateObject::Result => Ok(jig_domain_tasks::UpdateObject::Result),
+        crate::tasks_v13::UpdateObject::Result => jig_domain_tasks::UpdateObject::Result,
         crate::tasks_v13::UpdateObject::Reply(held) => {
             let crate::tasks_v13::ReplyObject { message: field_000000, activity: field_000001 } = held;
-            Ok(jig_domain_tasks::UpdateObject::Reply {
-                message: match crate::codec::tasks::newest_to_domain(field_000000) { Ok(value) => value, Err(reason) => return Err(crate::tasks_v13::paths::REPLY_OBJECT_MESSAGE.problem(reason)) },
-                activity: match crate::codec::tasks::newest_to_domain(field_000001) { Ok(value) => value, Err(reason) => return Err(crate::tasks_v13::paths::REPLY_OBJECT_ACTIVITY.problem(reason)) }
-            })
+            jig_domain_tasks::UpdateObject::Reply {
+                message: crate::codec::tasks::newest_to_domain(field_000000),
+                activity: crate::codec::tasks::newest_to_domain(field_000001)
+            }
         },
         crate::tasks_v13::UpdateObject::Proposal(held) => {
             let crate::tasks_v13::ProposalUpdate { proposal: field_000000 } = held;
-            Ok(jig_domain_tasks::UpdateObject::Proposal {
-                proposal: match crate::codec::tasks::newest_to_domain(field_000000) { Ok(value) => value, Err(reason) => return Err(crate::tasks_v13::paths::PROPOSAL_UPDATE_PROPOSAL.problem(reason)) }
-            })
+            jig_domain_tasks::UpdateObject::Proposal {
+                proposal: crate::codec::tasks::newest_to_domain(field_000000)
+            }
         },
     }
 }
 
-// Maps line 256: Update.
-pub fn update_to_record(value: &jig_domain_tasks::Update, context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::Update, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn update_to_record(value: &jig_domain_tasks::Update) -> crate::tasks_v13::Update {
     let jig_domain_tasks::Update { party: field_000000, at: field_000001, task: field_000002, object: field_000003 } = value;
-    Ok(crate::tasks_v13::Update {
+    crate::tasks_v13::Update {
         party: *field_000000,
-        at: match skein_codec::convert::wall_to_record(field_000001) { Ok(value) => value, Err(reason) => return Err(crate::tasks_v13::paths::UPDATE_AT.problem(reason)) },
+        at: skein_codec::convert::wall_to_record(field_000001),
         task: *field_000002,
-        object: update_object_to_record(field_000003, context)?
-    })
+        object: update_object_to_record(field_000003)
+    }
 }
 
-// Maps line 256: Update.
-pub fn update_to_domain(record: crate::tasks_v13::Update, context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::Update, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn update_to_domain(record: crate::tasks_v13::Update) -> jig_domain_tasks::Update {
     let crate::tasks_v13::Update { party: field_000000, at: field_000001, task: field_000002, object: field_000003 } = record;
-    Ok(jig_domain_tasks::Update {
+    jig_domain_tasks::Update {
         party: field_000000,
-        at: match skein_codec::convert::wall_to_domain(field_000001) { Ok(value) => value, Err(reason) => return Err(crate::tasks_v13::paths::UPDATE_AT.problem(reason)) },
+        at: skein_codec::convert::wall_to_domain(field_000001),
         task: field_000002,
-        object: update_object_to_domain(field_000003, context)?
-    })
+        object: update_object_to_domain(field_000003)
+    }
 }
 
-// Maps line 257: ResultRow.
-pub fn result_row_to_record(value: &jig_domain_tasks::ResultRow, _context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::ResultRow, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn result_row_to_record(value: &jig_domain_tasks::ResultRow) -> crate::tasks_v13::ResultRow {
     let jig_domain_tasks::ResultRow { party: field_000000, position: field_000001, task: field_000002 } = value;
-    Ok(crate::tasks_v13::ResultRow {
+    crate::tasks_v13::ResultRow {
         party: *field_000000,
         position: *field_000001,
         task: *field_000002
-    })
+    }
 }
 
-// Maps line 257: ResultRow.
-pub fn result_row_to_domain(record: crate::tasks_v13::ResultRow, _context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::ResultRow, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn result_row_to_domain(record: crate::tasks_v13::ResultRow) -> jig_domain_tasks::ResultRow {
     let crate::tasks_v13::ResultRow { party: field_000000, position: field_000001, task: field_000002 } = record;
-    Ok(jig_domain_tasks::ResultRow {
+    jig_domain_tasks::ResultRow {
         party: field_000000,
         position: field_000001,
         task: field_000002
-    })
+    }
 }
 
-// Maps line 258: Edge.
-pub fn edge_to_record(value: &jig_domain_tasks::Edge, _context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::Edge, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn edge_to_record(value: &jig_domain_tasks::Edge) -> crate::tasks_v13::Edge {
     let jig_domain_tasks::Edge { requester: field_000000, task: field_000001 } = value;
-    Ok(crate::tasks_v13::Edge {
+    crate::tasks_v13::Edge {
         requester: *field_000000,
         task: *field_000001
-    })
+    }
 }
 
-// Maps line 258: Edge.
-pub fn edge_to_domain(record: crate::tasks_v13::Edge, _context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::Edge, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn edge_to_domain(record: crate::tasks_v13::Edge) -> jig_domain_tasks::Edge {
     let crate::tasks_v13::Edge { requester: field_000000, task: field_000001 } = record;
-    Ok(jig_domain_tasks::Edge {
+    jig_domain_tasks::Edge {
         requester: field_000000,
         task: field_000001
-    })
-}
-
-// Maps line 262: Added.
-pub fn added_to_record(value: &jig_domain_tasks::Added, context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::Added, crate::tasks_v13::Problem> {
-    let jig_domain_tasks::Added { task: field_000000, at: field_000001, by: field_000002 } = value;
-    Ok(crate::tasks_v13::Added {
-        task: *field_000000,
-        at: match skein_codec::convert::wall_to_record(field_000001) { Ok(value) => value, Err(reason) => return Err(crate::tasks_v13::paths::ADDED_AT.problem(reason)) },
-        by: party_to_record(field_000002, context)?
-    })
-}
-
-// Maps line 262: Added.
-pub fn added_to_domain(record: crate::tasks_v13::Added, context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::Added, crate::tasks_v13::Problem> {
-    let crate::tasks_v13::Added { task: field_000000, at: field_000001, by: field_000002 } = record;
-    Ok(jig_domain_tasks::Added {
-        task: field_000000,
-        at: match skein_codec::convert::wall_to_domain(field_000001) { Ok(value) => value, Err(reason) => return Err(crate::tasks_v13::paths::ADDED_AT.problem(reason)) },
-        by: party_to_domain(field_000002, context)?
-    })
-}
-
-// Maps line 267: LiveRoom.
-pub fn live_room_to_record(value: &jig_domain_tasks::LiveRoom, _context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::LiveRoom, crate::tasks_v13::Problem> {
-    match value {
-        jig_domain_tasks::LiveRoom::Deployment => Ok(crate::tasks_v13::LiveRoom::Deployment),
-        jig_domain_tasks::LiveRoom::Project(held) => Ok(crate::tasks_v13::LiveRoom::Project(crate::tasks_v13::RoomProject { project: *held })),
     }
 }
 
-// Maps line 267: LiveRoom.
-pub fn live_room_to_domain(record: crate::tasks_v13::LiveRoom, _context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::LiveRoom, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn added_to_record(value: &jig_domain_tasks::Added) -> crate::tasks_v13::Added {
+    let jig_domain_tasks::Added { task: field_000000, at: field_000001, by: field_000002 } = value;
+    crate::tasks_v13::Added {
+        task: *field_000000,
+        at: skein_codec::convert::wall_to_record(field_000001),
+        by: party_to_record(field_000002)
+    }
+}
+
+#[must_use]
+pub fn added_to_domain(record: crate::tasks_v13::Added) -> jig_domain_tasks::Added {
+    let crate::tasks_v13::Added { task: field_000000, at: field_000001, by: field_000002 } = record;
+    jig_domain_tasks::Added {
+        task: field_000000,
+        at: skein_codec::convert::wall_to_domain(field_000001),
+        by: party_to_domain(field_000002)
+    }
+}
+
+#[must_use]
+pub fn live_room_to_record(value: &jig_domain_tasks::LiveRoom) -> crate::tasks_v13::LiveRoom {
+    match value {
+        jig_domain_tasks::LiveRoom::Deployment => crate::tasks_v13::LiveRoom::Deployment,
+        jig_domain_tasks::LiveRoom::Project(held) => crate::tasks_v13::LiveRoom::Project(crate::tasks_v13::RoomProject { project: *held }),
+    }
+}
+
+#[must_use]
+pub fn live_room_to_domain(record: crate::tasks_v13::LiveRoom) -> jig_domain_tasks::LiveRoom {
     match record {
-        crate::tasks_v13::LiveRoom::Deployment => Ok(jig_domain_tasks::LiveRoom::Deployment),
-        crate::tasks_v13::LiveRoom::Project(held) => Ok(jig_domain_tasks::LiveRoom::Project({
+        crate::tasks_v13::LiveRoom::Deployment => jig_domain_tasks::LiveRoom::Deployment,
+        crate::tasks_v13::LiveRoom::Project(held) => jig_domain_tasks::LiveRoom::Project({
             let crate::tasks_v13::RoomProject { project: held } = held;
             held
-        })),
+        }),
     }
 }
 
-// Maps line 268: RoomWait.
-pub fn room_wait_to_record(value: &jig_domain_tasks::RoomWait, context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::RoomWait, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn room_wait_to_record(value: &jig_domain_tasks::RoomWait) -> crate::tasks_v13::RoomWait {
     let jig_domain_tasks::RoomWait { room: field_000000, order: field_000001 } = value;
-    Ok(crate::tasks_v13::RoomWait {
-        room: live_room_to_record(field_000000, context)?,
+    crate::tasks_v13::RoomWait {
+        room: live_room_to_record(field_000000),
         order: *field_000001
-    })
+    }
 }
 
-// Maps line 268: RoomWait.
-pub fn room_wait_to_domain(record: crate::tasks_v13::RoomWait, context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::RoomWait, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn room_wait_to_domain(record: crate::tasks_v13::RoomWait) -> jig_domain_tasks::RoomWait {
     let crate::tasks_v13::RoomWait { room: field_000000, order: field_000001 } = record;
-    Ok(jig_domain_tasks::RoomWait {
-        room: live_room_to_domain(field_000000, context)?,
+    jig_domain_tasks::RoomWait {
+        room: live_room_to_domain(field_000000),
         order: field_000001
-    })
+    }
 }
 
-// Maps line 270: Talk.
-pub fn talk_to_record(value: &jig_domain_tasks::Talk, _context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::Talk, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn talk_to_record(value: &jig_domain_tasks::Talk) -> crate::tasks_v13::Talk {
     let jig_domain_tasks::Talk { party: field_000000, opened: field_000001, last: field_000002 } = value;
-    Ok(crate::tasks_v13::Talk {
+    crate::tasks_v13::Talk {
         party: *field_000000,
-        opened: match skein_codec::convert::wall_to_record(field_000001) { Ok(value) => value, Err(reason) => return Err(crate::tasks_v13::paths::TALK_OPENED.problem(reason)) },
-        last: match skein_codec::convert::wall_to_record(field_000002) { Ok(value) => value, Err(reason) => return Err(crate::tasks_v13::paths::TALK_LAST.problem(reason)) }
-    })
+        opened: skein_codec::convert::wall_to_record(field_000001),
+        last: skein_codec::convert::wall_to_record(field_000002)
+    }
 }
 
-// Maps line 270: Talk.
-pub fn talk_to_domain(record: crate::tasks_v13::Talk, _context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::Talk, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn talk_to_domain(record: crate::tasks_v13::Talk) -> jig_domain_tasks::Talk {
     let crate::tasks_v13::Talk { party: field_000000, opened: field_000001, last: field_000002 } = record;
-    Ok(jig_domain_tasks::Talk {
+    jig_domain_tasks::Talk {
         party: field_000000,
-        opened: match skein_codec::convert::wall_to_domain(field_000001) { Ok(value) => value, Err(reason) => return Err(crate::tasks_v13::paths::TALK_OPENED.problem(reason)) },
-        last: match skein_codec::convert::wall_to_domain(field_000002) { Ok(value) => value, Err(reason) => return Err(crate::tasks_v13::paths::TALK_LAST.problem(reason)) }
-    })
+        opened: skein_codec::convert::wall_to_domain(field_000001),
+        last: skein_codec::convert::wall_to_domain(field_000002)
+    }
 }
 
-// Maps line 271: Session.
-pub fn session_to_record(value: &jig_domain_tasks::Session, _context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::Session, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn session_to_record(value: &jig_domain_tasks::Session) -> crate::tasks_v13::Session {
     let jig_domain_tasks::Session { first: field_000000, reasons: field_000001, last: field_000002 } = value;
-    Ok(crate::tasks_v13::Session {
+    crate::tasks_v13::Session {
         first: *field_000000,
-        reasons: match crate::codec::tasks::reasons_to_record(field_000001) { Ok(value) => value, Err(reason) => return Err(crate::tasks_v13::paths::SESSION_REASONS.problem(reason)) },
-        last: match skein_codec::convert::wall_to_record(field_000002) { Ok(value) => value, Err(reason) => return Err(crate::tasks_v13::paths::SESSION_LAST.problem(reason)) }
-    })
+        reasons: crate::codec::tasks::reasons_to_record(field_000001),
+        last: skein_codec::convert::wall_to_record(field_000002)
+    }
 }
 
-// Maps line 271: Session.
-pub fn session_to_domain(record: crate::tasks_v13::Session, _context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::Session, crate::tasks_v13::Problem> {
+pub fn session_to_domain(record: crate::tasks_v13::Session) -> Result<jig_domain_tasks::Session, crate::tasks_v13::Problem> {
     let crate::tasks_v13::Session { first: field_000000, reasons: field_000001, last: field_000002 } = record;
     Ok(jig_domain_tasks::Session {
         first: field_000000,
         reasons: match crate::codec::tasks::reasons_to_domain(field_000001) { Ok(value) => value, Err(reason) => return Err(crate::tasks_v13::paths::SESSION_REASONS.problem(reason)) },
-        last: match skein_codec::convert::wall_to_domain(field_000002) { Ok(value) => value, Err(reason) => return Err(crate::tasks_v13::paths::SESSION_LAST.problem(reason)) }
+        last: skein_codec::convert::wall_to_domain(field_000002)
     })
 }
 
-// Maps line 273: Concluded.
-pub fn concluded_to_record(value: &jig_domain_tasks::Concluded, _context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::Concluded, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn concluded_to_record(value: &jig_domain_tasks::Concluded) -> crate::tasks_v13::Concluded {
     let jig_domain_tasks::Concluded { by: field_000000, at: field_000001 } = value;
-    Ok(crate::tasks_v13::Concluded {
+    crate::tasks_v13::Concluded {
         by: *field_000000,
-        at: match skein_codec::convert::wall_to_record(field_000001) { Ok(value) => value, Err(reason) => return Err(crate::tasks_v13::paths::CONCLUDED_AT.problem(reason)) }
-    })
-}
-
-// Maps line 273: Concluded.
-pub fn concluded_to_domain(record: crate::tasks_v13::Concluded, _context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::Concluded, crate::tasks_v13::Problem> {
-    let crate::tasks_v13::Concluded { by: field_000000, at: field_000001 } = record;
-    Ok(jig_domain_tasks::Concluded {
-        by: field_000000,
-        at: match skein_codec::convert::wall_to_domain(field_000001) { Ok(value) => value, Err(reason) => return Err(crate::tasks_v13::paths::CONCLUDED_AT.problem(reason)) }
-    })
-}
-
-// Maps line 279: EndedByParty.
-pub fn ended_by_party_to_record(value: &jig_domain_tasks::EndedByParty, _context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::EndedByParty, crate::tasks_v13::Problem> {
-    let jig_domain_tasks::EndedByParty { party: field_000000, label: field_000001, ended_at: field_000002, task: field_000003 } = value;
-    Ok(crate::tasks_v13::EndedByParty {
-        party: *field_000000,
-        label: *field_000001,
-        ended_at: match skein_codec::convert::wall_to_record(field_000002) { Ok(value) => value, Err(reason) => return Err(crate::tasks_v13::paths::ENDED_BY_PARTY_ENDED_AT.problem(reason)) },
-        task: *field_000003
-    })
-}
-
-// Maps line 279: EndedByParty.
-pub fn ended_by_party_to_domain(record: crate::tasks_v13::EndedByParty, _context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::EndedByParty, crate::tasks_v13::Problem> {
-    let crate::tasks_v13::EndedByParty { party: field_000000, label: field_000001, ended_at: field_000002, task: field_000003 } = record;
-    Ok(jig_domain_tasks::EndedByParty {
-        party: field_000000,
-        label: field_000001,
-        ended_at: match skein_codec::convert::wall_to_domain(field_000002) { Ok(value) => value, Err(reason) => return Err(crate::tasks_v13::paths::ENDED_BY_PARTY_ENDED_AT.problem(reason)) },
-        task: field_000003
-    })
-}
-
-// Maps line 280: EndedByProject.
-pub fn ended_by_project_to_record(value: &jig_domain_tasks::EndedByProject, _context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::EndedByProject, crate::tasks_v13::Problem> {
-    let jig_domain_tasks::EndedByProject { project: field_000000, label: field_000001, ended_at: field_000002, task: field_000003 } = value;
-    Ok(crate::tasks_v13::EndedByProject {
-        project: *field_000000,
-        label: *field_000001,
-        ended_at: match skein_codec::convert::wall_to_record(field_000002) { Ok(value) => value, Err(reason) => return Err(crate::tasks_v13::paths::ENDED_BY_PROJECT_ENDED_AT.problem(reason)) },
-        task: *field_000003
-    })
-}
-
-// Maps line 280: EndedByProject.
-pub fn ended_by_project_to_domain(record: crate::tasks_v13::EndedByProject, _context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::EndedByProject, crate::tasks_v13::Problem> {
-    let crate::tasks_v13::EndedByProject { project: field_000000, label: field_000001, ended_at: field_000002, task: field_000003 } = record;
-    Ok(jig_domain_tasks::EndedByProject {
-        project: field_000000,
-        label: field_000001,
-        ended_at: match skein_codec::convert::wall_to_domain(field_000002) { Ok(value) => value, Err(reason) => return Err(crate::tasks_v13::paths::ENDED_BY_PROJECT_ENDED_AT.problem(reason)) },
-        task: field_000003
-    })
-}
-
-// Maps line 281: HoldOwner.
-pub fn hold_owner_to_record(value: &jig_domain_tasks::Owner, _context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::HoldOwner, crate::tasks_v13::Problem> {
-    match value {
-        jig_domain_tasks::Owner::Party { person: field_000000 } => Ok(crate::tasks_v13::HoldOwner::Party(crate::tasks_v13::Person {
-            person: *field_000000
-        })),
-        jig_domain_tasks::Owner::Task { task: field_000000 } => Ok(crate::tasks_v13::HoldOwner::Task(crate::tasks_v13::Number {
-            value: *field_000000
-        })),
+        at: skein_codec::convert::wall_to_record(field_000001)
     }
 }
 
-// Maps line 281: HoldOwner.
-pub fn hold_owner_to_domain(record: crate::tasks_v13::HoldOwner, _context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::Owner, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn concluded_to_domain(record: crate::tasks_v13::Concluded) -> jig_domain_tasks::Concluded {
+    let crate::tasks_v13::Concluded { by: field_000000, at: field_000001 } = record;
+    jig_domain_tasks::Concluded {
+        by: field_000000,
+        at: skein_codec::convert::wall_to_domain(field_000001)
+    }
+}
+
+#[must_use]
+pub fn ended_by_party_to_record(value: &jig_domain_tasks::EndedByParty) -> crate::tasks_v13::EndedByParty {
+    let jig_domain_tasks::EndedByParty { party: field_000000, label: field_000001, ended_at: field_000002, task: field_000003 } = value;
+    crate::tasks_v13::EndedByParty {
+        party: *field_000000,
+        label: *field_000001,
+        ended_at: skein_codec::convert::wall_to_record(field_000002),
+        task: *field_000003
+    }
+}
+
+#[must_use]
+pub fn ended_by_party_to_domain(record: crate::tasks_v13::EndedByParty) -> jig_domain_tasks::EndedByParty {
+    let crate::tasks_v13::EndedByParty { party: field_000000, label: field_000001, ended_at: field_000002, task: field_000003 } = record;
+    jig_domain_tasks::EndedByParty {
+        party: field_000000,
+        label: field_000001,
+        ended_at: skein_codec::convert::wall_to_domain(field_000002),
+        task: field_000003
+    }
+}
+
+#[must_use]
+pub fn ended_by_project_to_record(value: &jig_domain_tasks::EndedByProject) -> crate::tasks_v13::EndedByProject {
+    let jig_domain_tasks::EndedByProject { project: field_000000, label: field_000001, ended_at: field_000002, task: field_000003 } = value;
+    crate::tasks_v13::EndedByProject {
+        project: *field_000000,
+        label: *field_000001,
+        ended_at: skein_codec::convert::wall_to_record(field_000002),
+        task: *field_000003
+    }
+}
+
+#[must_use]
+pub fn ended_by_project_to_domain(record: crate::tasks_v13::EndedByProject) -> jig_domain_tasks::EndedByProject {
+    let crate::tasks_v13::EndedByProject { project: field_000000, label: field_000001, ended_at: field_000002, task: field_000003 } = record;
+    jig_domain_tasks::EndedByProject {
+        project: field_000000,
+        label: field_000001,
+        ended_at: skein_codec::convert::wall_to_domain(field_000002),
+        task: field_000003
+    }
+}
+
+#[must_use]
+pub fn hold_owner_to_record(value: &jig_domain_tasks::Owner) -> crate::tasks_v13::HoldOwner {
+    match value {
+        jig_domain_tasks::Owner::Party { person: field_000000 } => crate::tasks_v13::HoldOwner::Party(crate::tasks_v13::Person {
+            person: *field_000000
+        }),
+        jig_domain_tasks::Owner::Task { task: field_000000 } => crate::tasks_v13::HoldOwner::Task(crate::tasks_v13::Number {
+            value: *field_000000
+        }),
+    }
+}
+
+#[must_use]
+pub fn hold_owner_to_domain(record: crate::tasks_v13::HoldOwner) -> jig_domain_tasks::Owner {
     match record {
         crate::tasks_v13::HoldOwner::Party(held) => {
             let crate::tasks_v13::Person { person: field_000000 } = held;
-            Ok(jig_domain_tasks::Owner::Party {
+            jig_domain_tasks::Owner::Party {
                 person: field_000000
-            })
+            }
         },
         crate::tasks_v13::HoldOwner::Task(held) => {
             let crate::tasks_v13::Number { value: field_000000 } = held;
-            Ok(jig_domain_tasks::Owner::Task {
+            jig_domain_tasks::Owner::Task {
                 task: field_000000
-            })
+            }
         },
     }
 }
 
-// Maps line 282: HoldMode.
-pub fn hold_mode_to_record(value: &jig_domain_tasks::Mode, _context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::HoldMode, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn hold_mode_to_record(value: &jig_domain_tasks::Mode) -> crate::tasks_v13::HoldMode {
     match value {
-        jig_domain_tasks::Mode::Stop => Ok(crate::tasks_v13::HoldMode::Stop),
-        jig_domain_tasks::Mode::Drain => Ok(crate::tasks_v13::HoldMode::Drain),
+        jig_domain_tasks::Mode::Stop => crate::tasks_v13::HoldMode::Stop,
+        jig_domain_tasks::Mode::Drain => crate::tasks_v13::HoldMode::Drain,
     }
 }
 
-// Maps line 282: HoldMode.
-pub fn hold_mode_to_domain(record: crate::tasks_v13::HoldMode, _context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::Mode, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn hold_mode_to_domain(record: crate::tasks_v13::HoldMode) -> jig_domain_tasks::Mode {
     match record {
-        crate::tasks_v13::HoldMode::Stop => Ok(jig_domain_tasks::Mode::Stop),
-        crate::tasks_v13::HoldMode::Drain => Ok(jig_domain_tasks::Mode::Drain),
+        crate::tasks_v13::HoldMode::Stop => jig_domain_tasks::Mode::Stop,
+        crate::tasks_v13::HoldMode::Drain => jig_domain_tasks::Mode::Drain,
     }
 }
 
-// Maps line 284: HoldScope.
-pub fn hold_scope_to_record(value: &jig_domain_tasks::Scope, _context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::HoldScope, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn hold_scope_to_record(value: &jig_domain_tasks::Scope) -> crate::tasks_v13::HoldScope {
     match value {
-        jig_domain_tasks::Scope::Subtree { task: field_000000 } => Ok(crate::tasks_v13::HoldScope::Subtree(crate::tasks_v13::SubtreeScope {
+        jig_domain_tasks::Scope::Subtree { task: field_000000 } => crate::tasks_v13::HoldScope::Subtree(crate::tasks_v13::SubtreeScope {
             task: *field_000000
-        })),
-        jig_domain_tasks::Scope::Project => Ok(crate::tasks_v13::HoldScope::Project),
+        }),
+        jig_domain_tasks::Scope::Project => crate::tasks_v13::HoldScope::Project,
     }
 }
 
-// Maps line 284: HoldScope.
-pub fn hold_scope_to_domain(record: crate::tasks_v13::HoldScope, _context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::Scope, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn hold_scope_to_domain(record: crate::tasks_v13::HoldScope) -> jig_domain_tasks::Scope {
     match record {
         crate::tasks_v13::HoldScope::Subtree(held) => {
             let crate::tasks_v13::SubtreeScope { task: field_000000 } = held;
-            Ok(jig_domain_tasks::Scope::Subtree {
+            jig_domain_tasks::Scope::Subtree {
                 task: field_000000
-            })
+            }
         },
-        crate::tasks_v13::HoldScope::Project => Ok(jig_domain_tasks::Scope::Project),
+        crate::tasks_v13::HoldScope::Project => jig_domain_tasks::Scope::Project,
     }
 }
 
-// Maps line 285: PlacedHold.
-pub fn placed_hold_to_record(value: &jig_domain_tasks::PlacedHold, context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::PlacedHold, crate::tasks_v13::Problem> {
+pub fn placed_hold_to_record(value: &jig_domain_tasks::PlacedHold) -> Result<crate::tasks_v13::PlacedHold, crate::tasks_v13::Problem> {
     let jig_domain_tasks::PlacedHold { number: field_000000, project: field_000001, owner: field_000002, mode: field_000003, scope: field_000004, reason: field_000005, placed_at: field_000006, revision: field_000007, exempt: field_000008, lifted: field_000009 } = value;
     Ok(crate::tasks_v13::PlacedHold {
         number: *field_000000,
         project: *field_000001,
-        owner: hold_owner_to_record(field_000002, context)?,
-        mode: hold_mode_to_record(field_000003, context)?,
-        scope: hold_scope_to_record(field_000004, context)?,
+        owner: hold_owner_to_record(field_000002),
+        mode: hold_mode_to_record(field_000003),
+        scope: hold_scope_to_record(field_000004),
         reason: field_000005.clone(),
         placed_at: *field_000006,
         revision: *field_000007,
@@ -3805,7 +4032,7 @@ pub fn placed_hold_to_record(value: &jig_domain_tasks::PlacedHold, context: &cra
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.as_ref() {
                 let converted = *item;
-                if translated.push(converted).is_err() { return Err(crate::tasks_v13::paths::PLACED_HOLD_EXEMPT.problem(skein_codec::Reason::Bound)); }
+                assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             translated
         },
@@ -3813,15 +4040,15 @@ pub fn placed_hold_to_record(value: &jig_domain_tasks::PlacedHold, context: &cra
     })
 }
 
-// Maps line 285: PlacedHold.
-pub fn placed_hold_to_domain(record: crate::tasks_v13::PlacedHold, context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::PlacedHold, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn placed_hold_to_domain(record: crate::tasks_v13::PlacedHold) -> jig_domain_tasks::PlacedHold {
     let crate::tasks_v13::PlacedHold { number: field_000000, project: field_000001, owner: field_000002, mode: field_000003, scope: field_000004, reason: field_000005, placed_at: field_000006, revision: field_000007, exempt: field_000008, lifted: field_000009 } = record;
-    Ok(jig_domain_tasks::PlacedHold {
+    jig_domain_tasks::PlacedHold {
         number: field_000000,
         project: field_000001,
-        owner: hold_owner_to_domain(field_000002, context)?,
-        mode: hold_mode_to_domain(field_000003, context)?,
-        scope: hold_scope_to_domain(field_000004, context)?,
+        owner: hold_owner_to_domain(field_000002),
+        mode: hold_mode_to_domain(field_000003),
+        scope: hold_scope_to_domain(field_000004),
         reason: field_000005,
         placed_at: field_000006,
         revision: field_000007,
@@ -3831,879 +4058,904 @@ pub fn placed_hold_to_domain(record: crate::tasks_v13::PlacedHold, context: &cra
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.into_boxed() {
                 let converted = item;
-                if translated.push(converted).is_err() { return Err(crate::tasks_v13::paths::PLACED_HOLD_EXEMPT.problem(skein_codec::Reason::Bound)); }
+                assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             Box::from(translated)
         },
         lifted: field_000009
-    })
-}
-
-// Maps line 287: SummaryEnding.
-pub fn summary_ending_to_record(value: &jig_domain_tasks::SummaryEnding, context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::SummaryEnding, crate::tasks_v13::Problem> {
-    match value {
-        jig_domain_tasks::SummaryEnding::Done => Ok(crate::tasks_v13::SummaryEnding::Done),
-        jig_domain_tasks::SummaryEnding::Failed => Ok(crate::tasks_v13::SummaryEnding::Failed),
-        jig_domain_tasks::SummaryEnding::Cancelled { by: field_000000, at: field_000001 } => Ok(crate::tasks_v13::SummaryEnding::Cancelled(crate::tasks_v13::SummaryCancelled {
-            by: party_to_record(field_000000, context)?,
-            at: match skein_codec::convert::wall_to_record(field_000001) { Ok(value) => value, Err(reason) => return Err(crate::tasks_v13::paths::SUMMARY_CANCELLED_AT.problem(reason)) }
-        })),
     }
 }
 
-// Maps line 287: SummaryEnding.
-pub fn summary_ending_to_domain(record: crate::tasks_v13::SummaryEnding, context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::SummaryEnding, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn summary_ending_to_record(value: &jig_domain_tasks::SummaryEnding) -> crate::tasks_v13::SummaryEnding {
+    match value {
+        jig_domain_tasks::SummaryEnding::Done => crate::tasks_v13::SummaryEnding::Done,
+        jig_domain_tasks::SummaryEnding::Failed => crate::tasks_v13::SummaryEnding::Failed,
+        jig_domain_tasks::SummaryEnding::Cancelled { by: field_000000, at: field_000001 } => crate::tasks_v13::SummaryEnding::Cancelled(crate::tasks_v13::SummaryCancelled {
+            by: party_to_record(field_000000),
+            at: skein_codec::convert::wall_to_record(field_000001)
+        }),
+    }
+}
+
+#[must_use]
+pub fn summary_ending_to_domain(record: crate::tasks_v13::SummaryEnding) -> jig_domain_tasks::SummaryEnding {
     match record {
-        crate::tasks_v13::SummaryEnding::Done => Ok(jig_domain_tasks::SummaryEnding::Done),
-        crate::tasks_v13::SummaryEnding::Failed => Ok(jig_domain_tasks::SummaryEnding::Failed),
+        crate::tasks_v13::SummaryEnding::Done => jig_domain_tasks::SummaryEnding::Done,
+        crate::tasks_v13::SummaryEnding::Failed => jig_domain_tasks::SummaryEnding::Failed,
         crate::tasks_v13::SummaryEnding::Cancelled(held) => {
             let crate::tasks_v13::SummaryCancelled { by: field_000000, at: field_000001 } = held;
-            Ok(jig_domain_tasks::SummaryEnding::Cancelled {
-                by: party_to_domain(field_000000, context)?,
-                at: match skein_codec::convert::wall_to_domain(field_000001) { Ok(value) => value, Err(reason) => return Err(crate::tasks_v13::paths::SUMMARY_CANCELLED_AT.problem(reason)) }
-            })
+            jig_domain_tasks::SummaryEnding::Cancelled {
+                by: party_to_domain(field_000000),
+                at: skein_codec::convert::wall_to_domain(field_000001)
+            }
         },
     }
 }
 
-// Maps line 290: SummaryResultKind.
-pub fn summary_result_kind_to_record(value: &jig_domain_tasks::SummaryResultKind, _context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::SummaryResultKind, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn summary_result_kind_to_record(value: &jig_domain_tasks::SummaryResultKind) -> crate::tasks_v13::SummaryResultKind {
     match value {
-        jig_domain_tasks::SummaryResultKind::Job => Ok(crate::tasks_v13::SummaryResultKind::Job),
-        jig_domain_tasks::SummaryResultKind::Approved => Ok(crate::tasks_v13::SummaryResultKind::Approved),
-        jig_domain_tasks::SummaryResultKind::Report => Ok(crate::tasks_v13::SummaryResultKind::Report),
-        jig_domain_tasks::SummaryResultKind::Verdict { code: field_000000 } => Ok(crate::tasks_v13::SummaryResultKind::Verdict(crate::tasks_v13::SummaryVerdict {
+        jig_domain_tasks::SummaryResultKind::Job => crate::tasks_v13::SummaryResultKind::Job,
+        jig_domain_tasks::SummaryResultKind::Approved => crate::tasks_v13::SummaryResultKind::Approved,
+        jig_domain_tasks::SummaryResultKind::Report => crate::tasks_v13::SummaryResultKind::Report,
+        jig_domain_tasks::SummaryResultKind::Verdict { code: field_000000 } => crate::tasks_v13::SummaryResultKind::Verdict(crate::tasks_v13::SummaryVerdict {
             code: *field_000000
-        })),
-        jig_domain_tasks::SummaryResultKind::Change { connector: field_000000, kind: field_000001, resource: field_000002 } => Ok(crate::tasks_v13::SummaryResultKind::Change(crate::tasks_v13::SummaryChange {
+        }),
+        jig_domain_tasks::SummaryResultKind::Change { connector: field_000000, kind: field_000001, resource: field_000002 } => crate::tasks_v13::SummaryResultKind::Change(crate::tasks_v13::SummaryChange {
             connector: *field_000000,
             kind: *field_000001,
             resource: *field_000002
-        })),
-        jig_domain_tasks::SummaryResultKind::NoChange => Ok(crate::tasks_v13::SummaryResultKind::NoChange),
-        jig_domain_tasks::SummaryResultKind::Failed => Ok(crate::tasks_v13::SummaryResultKind::Failed),
+        }),
+        jig_domain_tasks::SummaryResultKind::NoChange => crate::tasks_v13::SummaryResultKind::NoChange,
+        jig_domain_tasks::SummaryResultKind::Failed => crate::tasks_v13::SummaryResultKind::Failed,
     }
 }
 
-// Maps line 290: SummaryResultKind.
-pub fn summary_result_kind_to_domain(record: crate::tasks_v13::SummaryResultKind, _context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::SummaryResultKind, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn summary_result_kind_to_domain(record: crate::tasks_v13::SummaryResultKind) -> jig_domain_tasks::SummaryResultKind {
     match record {
-        crate::tasks_v13::SummaryResultKind::Job => Ok(jig_domain_tasks::SummaryResultKind::Job),
-        crate::tasks_v13::SummaryResultKind::Approved => Ok(jig_domain_tasks::SummaryResultKind::Approved),
-        crate::tasks_v13::SummaryResultKind::Report => Ok(jig_domain_tasks::SummaryResultKind::Report),
+        crate::tasks_v13::SummaryResultKind::Job => jig_domain_tasks::SummaryResultKind::Job,
+        crate::tasks_v13::SummaryResultKind::Approved => jig_domain_tasks::SummaryResultKind::Approved,
+        crate::tasks_v13::SummaryResultKind::Report => jig_domain_tasks::SummaryResultKind::Report,
         crate::tasks_v13::SummaryResultKind::Verdict(held) => {
             let crate::tasks_v13::SummaryVerdict { code: field_000000 } = held;
-            Ok(jig_domain_tasks::SummaryResultKind::Verdict {
+            jig_domain_tasks::SummaryResultKind::Verdict {
                 code: field_000000
-            })
+            }
         },
         crate::tasks_v13::SummaryResultKind::Change(held) => {
             let crate::tasks_v13::SummaryChange { connector: field_000000, kind: field_000001, resource: field_000002 } = held;
-            Ok(jig_domain_tasks::SummaryResultKind::Change {
+            jig_domain_tasks::SummaryResultKind::Change {
                 connector: field_000000,
                 kind: field_000001,
                 resource: field_000002
-            })
+            }
         },
-        crate::tasks_v13::SummaryResultKind::NoChange => Ok(jig_domain_tasks::SummaryResultKind::NoChange),
-        crate::tasks_v13::SummaryResultKind::Failed => Ok(jig_domain_tasks::SummaryResultKind::Failed),
+        crate::tasks_v13::SummaryResultKind::NoChange => jig_domain_tasks::SummaryResultKind::NoChange,
+        crate::tasks_v13::SummaryResultKind::Failed => jig_domain_tasks::SummaryResultKind::Failed,
     }
 }
 
-// Maps line 292: SummaryEndings.
-pub fn summary_endings_to_record(value: &jig_domain_tasks::SummaryEndings, _context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::SummaryEndings, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn summary_endings_to_record(value: &jig_domain_tasks::SummaryEndings) -> crate::tasks_v13::SummaryEndings {
     let jig_domain_tasks::SummaryEndings { done: field_000000, failed: field_000001 } = value;
-    Ok(crate::tasks_v13::SummaryEndings {
+    crate::tasks_v13::SummaryEndings {
         done: *field_000000,
         failed: *field_000001
-    })
+    }
 }
 
-// Maps line 292: SummaryEndings.
-pub fn summary_endings_to_domain(record: crate::tasks_v13::SummaryEndings, _context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::SummaryEndings, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn summary_endings_to_domain(record: crate::tasks_v13::SummaryEndings) -> jig_domain_tasks::SummaryEndings {
     let crate::tasks_v13::SummaryEndings { done: field_000000, failed: field_000001 } = record;
-    Ok(jig_domain_tasks::SummaryEndings {
+    jig_domain_tasks::SummaryEndings {
         done: field_000000,
         failed: field_000001
-    })
-}
-
-// Maps line 294: RetentionStage.
-pub fn retention_stage_to_record(value: &jig_domain_tasks::RetentionStage, _context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::RetentionStage, crate::tasks_v13::Problem> {
-    match value {
-        jig_domain_tasks::RetentionStage::Turns => Ok(crate::tasks_v13::RetentionStage::Turns),
-        jig_domain_tasks::RetentionStage::Record => Ok(crate::tasks_v13::RetentionStage::Record),
-        jig_domain_tasks::RetentionStage::Summary => Ok(crate::tasks_v13::RetentionStage::Summary),
-        jig_domain_tasks::RetentionStage::Forgotten => Ok(crate::tasks_v13::RetentionStage::Forgotten),
-        jig_domain_tasks::RetentionStage::Proposal => Ok(crate::tasks_v13::RetentionStage::Proposal),
     }
 }
 
-// Maps line 294: RetentionStage.
-pub fn retention_stage_to_domain(record: crate::tasks_v13::RetentionStage, _context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::RetentionStage, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn retention_stage_to_record(value: &jig_domain_tasks::RetentionStage) -> crate::tasks_v13::RetentionStage {
+    match value {
+        jig_domain_tasks::RetentionStage::Turns => crate::tasks_v13::RetentionStage::Turns,
+        jig_domain_tasks::RetentionStage::Record => crate::tasks_v13::RetentionStage::Record,
+        jig_domain_tasks::RetentionStage::Summary => crate::tasks_v13::RetentionStage::Summary,
+        jig_domain_tasks::RetentionStage::Forgotten => crate::tasks_v13::RetentionStage::Forgotten,
+        jig_domain_tasks::RetentionStage::Proposal => crate::tasks_v13::RetentionStage::Proposal,
+    }
+}
+
+#[must_use]
+pub fn retention_stage_to_domain(record: crate::tasks_v13::RetentionStage) -> jig_domain_tasks::RetentionStage {
     match record {
-        crate::tasks_v13::RetentionStage::Turns => Ok(jig_domain_tasks::RetentionStage::Turns),
-        crate::tasks_v13::RetentionStage::Record => Ok(jig_domain_tasks::RetentionStage::Record),
-        crate::tasks_v13::RetentionStage::Summary => Ok(jig_domain_tasks::RetentionStage::Summary),
-        crate::tasks_v13::RetentionStage::Forgotten => Ok(jig_domain_tasks::RetentionStage::Forgotten),
-        crate::tasks_v13::RetentionStage::Proposal => Ok(jig_domain_tasks::RetentionStage::Proposal),
+        crate::tasks_v13::RetentionStage::Turns => jig_domain_tasks::RetentionStage::Turns,
+        crate::tasks_v13::RetentionStage::Record => jig_domain_tasks::RetentionStage::Record,
+        crate::tasks_v13::RetentionStage::Summary => jig_domain_tasks::RetentionStage::Summary,
+        crate::tasks_v13::RetentionStage::Forgotten => jig_domain_tasks::RetentionStage::Forgotten,
+        crate::tasks_v13::RetentionStage::Proposal => jig_domain_tasks::RetentionStage::Proposal,
     }
 }
 
-// Maps line 295: RetentionRow.
-pub fn retention_row_to_record(value: &jig_domain_tasks::RetentionRow, context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::RetentionRow, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn retention_row_to_record(value: &jig_domain_tasks::RetentionRow) -> crate::tasks_v13::RetentionRow {
     let jig_domain_tasks::RetentionRow { stage: field_000000, since: field_000001, number: field_000002 } = value;
-    Ok(crate::tasks_v13::RetentionRow {
-        stage: retention_stage_to_record(field_000000, context)?,
-        since: match skein_codec::convert::wall_to_record(field_000001) { Ok(value) => value, Err(reason) => return Err(crate::tasks_v13::paths::RETENTION_ROW_SINCE.problem(reason)) },
+    crate::tasks_v13::RetentionRow {
+        stage: retention_stage_to_record(field_000000),
+        since: skein_codec::convert::wall_to_record(field_000001),
         number: *field_000002
-    })
+    }
 }
 
-// Maps line 295: RetentionRow.
-pub fn retention_row_to_domain(record: crate::tasks_v13::RetentionRow, context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::RetentionRow, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn retention_row_to_domain(record: crate::tasks_v13::RetentionRow) -> jig_domain_tasks::RetentionRow {
     let crate::tasks_v13::RetentionRow { stage: field_000000, since: field_000001, number: field_000002 } = record;
-    Ok(jig_domain_tasks::RetentionRow {
-        stage: retention_stage_to_domain(field_000000, context)?,
-        since: match skein_codec::convert::wall_to_domain(field_000001) { Ok(value) => value, Err(reason) => return Err(crate::tasks_v13::paths::RETENTION_ROW_SINCE.problem(reason)) },
+    jig_domain_tasks::RetentionRow {
+        stage: retention_stage_to_domain(field_000000),
+        since: skein_codec::convert::wall_to_domain(field_000001),
         number: field_000002
-    })
+    }
 }
 
-// Maps line 309: CapacityAction.
-pub fn capacity_action_to_record(value: &jig_domain_tasks::CapacityAction, context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::CapacityAction, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn capacity_action_to_record(value: &jig_domain_tasks::CapacityAction) -> crate::tasks_v13::CapacityAction {
     match value {
-        jig_domain_tasks::CapacityAction::Batch { first: field_000000, members: field_000001 } => Ok(crate::tasks_v13::CapacityAction::Batch(crate::tasks_v13::CapacityActionBatch {
+        jig_domain_tasks::CapacityAction::Batch { first: field_000000, members: field_000001 } => crate::tasks_v13::CapacityAction::Batch(crate::tasks_v13::CapacityActionBatch {
             first: match field_000000 {
-                Some(item) => Some(*item),
+                Some(item) => {
+                    let converted = *item;
+                    Some(converted)
+                }
                 None => None,
             },
             members: *field_000001
-        })),
-        jig_domain_tasks::CapacityAction::Proposal { number: field_000000 } => Ok(crate::tasks_v13::CapacityAction::Proposal(crate::tasks_v13::CapacityActionProposal {
+        }),
+        jig_domain_tasks::CapacityAction::Proposal { number: field_000000 } => crate::tasks_v13::CapacityAction::Proposal(crate::tasks_v13::CapacityActionProposal {
             number: *field_000000
-        })),
-        jig_domain_tasks::CapacityAction::PersonProposal { number: field_000000 } => Ok(crate::tasks_v13::CapacityAction::PersonProposal(crate::tasks_v13::CapacityActionPersonProposal {
+        }),
+        jig_domain_tasks::CapacityAction::PersonProposal { number: field_000000 } => crate::tasks_v13::CapacityAction::PersonProposal(crate::tasks_v13::CapacityActionPersonProposal {
             number: *field_000000
-        })),
-        jig_domain_tasks::CapacityAction::Message { task: field_000000, number: field_000001 } => Ok(crate::tasks_v13::CapacityAction::Message(crate::tasks_v13::CapacityActionMessage {
+        }),
+        jig_domain_tasks::CapacityAction::Message { task: field_000000, number: field_000001 } => crate::tasks_v13::CapacityAction::Message(crate::tasks_v13::CapacityActionMessage {
             task: *field_000000,
             number: *field_000001
-        })),
-        jig_domain_tasks::CapacityAction::Source { funder: field_000000 } => Ok(crate::tasks_v13::CapacityAction::Source(crate::tasks_v13::CapacityActionSource {
-            funder: funder_to_record(field_000000, context)?
-        })),
-        jig_domain_tasks::CapacityAction::Introduce { left: field_000000, right: field_000001 } => Ok(crate::tasks_v13::CapacityAction::Introduce(crate::tasks_v13::CapacityActionIntroduce {
+        }),
+        jig_domain_tasks::CapacityAction::Source { funder: field_000000 } => crate::tasks_v13::CapacityAction::Source(crate::tasks_v13::CapacityActionSource {
+            funder: funder_to_record(field_000000)
+        }),
+        jig_domain_tasks::CapacityAction::Introduce { left: field_000000, right: field_000001 } => crate::tasks_v13::CapacityAction::Introduce(crate::tasks_v13::CapacityActionIntroduce {
             left: *field_000000,
             right: *field_000001
-        })),
-        jig_domain_tasks::CapacityAction::Subscription { number: field_000000 } => Ok(crate::tasks_v13::CapacityAction::Subscription(crate::tasks_v13::CapacityActionSubscription {
+        }),
+        jig_domain_tasks::CapacityAction::Subscription { number: field_000000 } => crate::tasks_v13::CapacityAction::Subscription(crate::tasks_v13::CapacityActionSubscription {
             number: *field_000000
-        })),
-        jig_domain_tasks::CapacityAction::Effect { entry: field_000000 } => Ok(crate::tasks_v13::CapacityAction::Effect(crate::tasks_v13::CapacityActionEffect {
+        }),
+        jig_domain_tasks::CapacityAction::Effect { entry: field_000000 } => crate::tasks_v13::CapacityAction::Effect(crate::tasks_v13::CapacityActionEffect {
             entry: *field_000000
-        })),
-        jig_domain_tasks::CapacityAction::Claim { attempt: field_000000 } => Ok(crate::tasks_v13::CapacityAction::Claim(crate::tasks_v13::CapacityActionClaim {
+        }),
+        jig_domain_tasks::CapacityAction::Claim { attempt: field_000000 } => crate::tasks_v13::CapacityAction::Claim(crate::tasks_v13::CapacityActionClaim {
             attempt: *field_000000
-        })),
-        jig_domain_tasks::CapacityAction::Release => Ok(crate::tasks_v13::CapacityAction::Release),
-        jig_domain_tasks::CapacityAction::Move => Ok(crate::tasks_v13::CapacityAction::MoveTask),
-        jig_domain_tasks::CapacityAction::Place { hold: field_000000 } => Ok(crate::tasks_v13::CapacityAction::Place(crate::tasks_v13::CapacityActionPlace {
+        }),
+        jig_domain_tasks::CapacityAction::Release => crate::tasks_v13::CapacityAction::Release,
+        jig_domain_tasks::CapacityAction::Move => crate::tasks_v13::CapacityAction::MoveTask,
+        jig_domain_tasks::CapacityAction::Place { hold: field_000000 } => crate::tasks_v13::CapacityAction::Place(crate::tasks_v13::CapacityActionPlace {
             hold: *field_000000
-        })),
+        }),
     }
 }
 
-// Maps line 309: CapacityAction.
-pub fn capacity_action_to_domain(record: crate::tasks_v13::CapacityAction, context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::CapacityAction, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn capacity_action_to_domain(record: crate::tasks_v13::CapacityAction) -> jig_domain_tasks::CapacityAction {
     match record {
         crate::tasks_v13::CapacityAction::Batch(held) => {
             let crate::tasks_v13::CapacityActionBatch { first: field_000000, members: field_000001 } = held;
-            Ok(jig_domain_tasks::CapacityAction::Batch {
+            jig_domain_tasks::CapacityAction::Batch {
                 first: match field_000000 {
-                    Some(item) => Some(item),
+                    Some(item) => {
+                        let converted = item;
+                        Some(converted)
+                    }
                     None => None,
                 },
                 members: field_000001
-            })
+            }
         },
         crate::tasks_v13::CapacityAction::Proposal(held) => {
             let crate::tasks_v13::CapacityActionProposal { number: field_000000 } = held;
-            Ok(jig_domain_tasks::CapacityAction::Proposal {
+            jig_domain_tasks::CapacityAction::Proposal {
                 number: field_000000
-            })
+            }
         },
         crate::tasks_v13::CapacityAction::PersonProposal(held) => {
             let crate::tasks_v13::CapacityActionPersonProposal { number: field_000000 } = held;
-            Ok(jig_domain_tasks::CapacityAction::PersonProposal {
+            jig_domain_tasks::CapacityAction::PersonProposal {
                 number: field_000000
-            })
+            }
         },
         crate::tasks_v13::CapacityAction::Message(held) => {
             let crate::tasks_v13::CapacityActionMessage { task: field_000000, number: field_000001 } = held;
-            Ok(jig_domain_tasks::CapacityAction::Message {
+            jig_domain_tasks::CapacityAction::Message {
                 task: field_000000,
                 number: field_000001
-            })
+            }
         },
         crate::tasks_v13::CapacityAction::Source(held) => {
             let crate::tasks_v13::CapacityActionSource { funder: field_000000 } = held;
-            Ok(jig_domain_tasks::CapacityAction::Source {
-                funder: funder_to_domain(field_000000, context)?
-            })
+            jig_domain_tasks::CapacityAction::Source {
+                funder: funder_to_domain(field_000000)
+            }
         },
         crate::tasks_v13::CapacityAction::Introduce(held) => {
             let crate::tasks_v13::CapacityActionIntroduce { left: field_000000, right: field_000001 } = held;
-            Ok(jig_domain_tasks::CapacityAction::Introduce {
+            jig_domain_tasks::CapacityAction::Introduce {
                 left: field_000000,
                 right: field_000001
-            })
+            }
         },
         crate::tasks_v13::CapacityAction::Subscription(held) => {
             let crate::tasks_v13::CapacityActionSubscription { number: field_000000 } = held;
-            Ok(jig_domain_tasks::CapacityAction::Subscription {
+            jig_domain_tasks::CapacityAction::Subscription {
                 number: field_000000
-            })
+            }
         },
         crate::tasks_v13::CapacityAction::Effect(held) => {
             let crate::tasks_v13::CapacityActionEffect { entry: field_000000 } = held;
-            Ok(jig_domain_tasks::CapacityAction::Effect {
+            jig_domain_tasks::CapacityAction::Effect {
                 entry: field_000000
-            })
+            }
         },
         crate::tasks_v13::CapacityAction::Claim(held) => {
             let crate::tasks_v13::CapacityActionClaim { attempt: field_000000 } = held;
-            Ok(jig_domain_tasks::CapacityAction::Claim {
+            jig_domain_tasks::CapacityAction::Claim {
                 attempt: field_000000
-            })
+            }
         },
-        crate::tasks_v13::CapacityAction::Release => Ok(jig_domain_tasks::CapacityAction::Release),
-        crate::tasks_v13::CapacityAction::MoveTask => Ok(jig_domain_tasks::CapacityAction::Move),
+        crate::tasks_v13::CapacityAction::Release => jig_domain_tasks::CapacityAction::Release,
+        crate::tasks_v13::CapacityAction::MoveTask => jig_domain_tasks::CapacityAction::Move,
         crate::tasks_v13::CapacityAction::Place(held) => {
             let crate::tasks_v13::CapacityActionPlace { hold: field_000000 } = held;
-            Ok(jig_domain_tasks::CapacityAction::Place {
+            jig_domain_tasks::CapacityAction::Place {
                 hold: field_000000
-            })
+            }
         },
     }
 }
 
-// Maps line 328: CapacityCause.
-pub fn capacity_cause_to_record(value: &jig_domain_tasks::CapacityCause, _context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::CapacityCause, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn capacity_cause_to_record(value: &jig_domain_tasks::CapacityCause) -> crate::tasks_v13::CapacityCause {
     match value {
-        jig_domain_tasks::CapacityCause::Tasks { limit: field_000000 } => Ok(crate::tasks_v13::CapacityCause::Tasks(crate::tasks_v13::CapacityCauseTasks {
+        jig_domain_tasks::CapacityCause::Tasks { limit: field_000000 } => crate::tasks_v13::CapacityCause::Tasks(crate::tasks_v13::CapacityCauseTasks {
             limit: *field_000000
-        })),
-        jig_domain_tasks::CapacityCause::CreationFlights { limit: field_000000 } => Ok(crate::tasks_v13::CapacityCause::CreationFlights(crate::tasks_v13::CapacityCauseCreationFlights {
+        }),
+        jig_domain_tasks::CapacityCause::CreationFlights { limit: field_000000 } => crate::tasks_v13::CapacityCause::CreationFlights(crate::tasks_v13::CapacityCauseCreationFlights {
             limit: *field_000000
-        })),
-        jig_domain_tasks::CapacityCause::ResourceReports { limit: field_000000 } => Ok(crate::tasks_v13::CapacityCause::ResourceReports(crate::tasks_v13::CapacityCauseResourceReports {
+        }),
+        jig_domain_tasks::CapacityCause::ResourceReports { limit: field_000000 } => crate::tasks_v13::CapacityCause::ResourceReports(crate::tasks_v13::CapacityCauseResourceReports {
             limit: *field_000000
-        })),
-        jig_domain_tasks::CapacityCause::ProjectTasks { limit: field_000000 } => Ok(crate::tasks_v13::CapacityCause::ProjectTasks(crate::tasks_v13::CapacityCauseProjectTasks {
+        }),
+        jig_domain_tasks::CapacityCause::ProjectTasks { limit: field_000000 } => crate::tasks_v13::CapacityCause::ProjectTasks(crate::tasks_v13::CapacityCauseProjectTasks {
             limit: *field_000000
-        })),
-        jig_domain_tasks::CapacityCause::Tree { limit: field_000000 } => Ok(crate::tasks_v13::CapacityCause::Tree(crate::tasks_v13::CapacityCauseTree {
+        }),
+        jig_domain_tasks::CapacityCause::Tree { limit: field_000000 } => crate::tasks_v13::CapacityCause::Tree(crate::tasks_v13::CapacityCauseTree {
             limit: *field_000000
-        })),
-        jig_domain_tasks::CapacityCause::Delegates { limit: field_000000 } => Ok(crate::tasks_v13::CapacityCause::Delegates(crate::tasks_v13::CapacityCauseDelegates {
+        }),
+        jig_domain_tasks::CapacityCause::Delegates { limit: field_000000 } => crate::tasks_v13::CapacityCause::Delegates(crate::tasks_v13::CapacityCauseDelegates {
             limit: *field_000000
-        })),
-        jig_domain_tasks::CapacityCause::Inbox { task: field_000000, messages: field_000001, bytes: field_000002 } => Ok(crate::tasks_v13::CapacityCause::Inbox(crate::tasks_v13::CapacityCauseInbox {
+        }),
+        jig_domain_tasks::CapacityCause::Inbox { task: field_000000, messages: field_000001, bytes: field_000002 } => crate::tasks_v13::CapacityCause::Inbox(crate::tasks_v13::CapacityCauseInbox {
             task: *field_000000,
             messages: *field_000001,
             bytes: *field_000002
-        })),
-        jig_domain_tasks::CapacityCause::Holdings { limit: field_000000 } => Ok(crate::tasks_v13::CapacityCause::Holdings(crate::tasks_v13::CapacityCauseHoldings {
+        }),
+        jig_domain_tasks::CapacityCause::Holdings { limit: field_000000 } => crate::tasks_v13::CapacityCause::Holdings(crate::tasks_v13::CapacityCauseHoldings {
             limit: *field_000000
-        })),
-        jig_domain_tasks::CapacityCause::HoldWaiters { limit: field_000000 } => Ok(crate::tasks_v13::CapacityCause::HoldWaiters(crate::tasks_v13::CapacityCauseHoldWaiters {
+        }),
+        jig_domain_tasks::CapacityCause::HoldWaiters { limit: field_000000 } => crate::tasks_v13::CapacityCause::HoldWaiters(crate::tasks_v13::CapacityCauseHoldWaiters {
             limit: *field_000000
-        })),
-        jig_domain_tasks::CapacityCause::Proposals { limit: field_000000 } => Ok(crate::tasks_v13::CapacityCause::Proposals(crate::tasks_v13::CapacityCauseProposals {
+        }),
+        jig_domain_tasks::CapacityCause::Proposals { limit: field_000000 } => crate::tasks_v13::CapacityCause::Proposals(crate::tasks_v13::CapacityCauseProposals {
             limit: *field_000000
-        })),
-        jig_domain_tasks::CapacityCause::References { limit: field_000000 } => Ok(crate::tasks_v13::CapacityCause::References(crate::tasks_v13::CapacityCauseReferences {
+        }),
+        jig_domain_tasks::CapacityCause::References { limit: field_000000 } => crate::tasks_v13::CapacityCause::References(crate::tasks_v13::CapacityCauseReferences {
             limit: *field_000000
-        })),
-        jig_domain_tasks::CapacityCause::Subscriptions { limit: field_000000 } => Ok(crate::tasks_v13::CapacityCause::Subscriptions(crate::tasks_v13::CapacityCauseSubscriptions {
+        }),
+        jig_domain_tasks::CapacityCause::Subscriptions { limit: field_000000 } => crate::tasks_v13::CapacityCause::Subscriptions(crate::tasks_v13::CapacityCauseSubscriptions {
             limit: *field_000000
-        })),
-        jig_domain_tasks::CapacityCause::Funders { limit: field_000000 } => Ok(crate::tasks_v13::CapacityCause::Funders(crate::tasks_v13::CapacityCauseFunders {
+        }),
+        jig_domain_tasks::CapacityCause::Funders { limit: field_000000 } => crate::tasks_v13::CapacityCause::Funders(crate::tasks_v13::CapacityCauseFunders {
             limit: *field_000000
-        })),
-        jig_domain_tasks::CapacityCause::Writers { limit: field_000000 } => Ok(crate::tasks_v13::CapacityCause::Writers(crate::tasks_v13::CapacityCauseWriters {
+        }),
+        jig_domain_tasks::CapacityCause::Writers { limit: field_000000 } => crate::tasks_v13::CapacityCause::Writers(crate::tasks_v13::CapacityCauseWriters {
             limit: *field_000000
-        })),
-        jig_domain_tasks::CapacityCause::PlacedHolds { limit: field_000000 } => Ok(crate::tasks_v13::CapacityCause::PlacedHolds(crate::tasks_v13::CapacityCausePlacedHolds {
+        }),
+        jig_domain_tasks::CapacityCause::PlacedHolds { limit: field_000000 } => crate::tasks_v13::CapacityCause::PlacedHolds(crate::tasks_v13::CapacityCausePlacedHolds {
             limit: *field_000000
-        })),
-        jig_domain_tasks::CapacityCause::ProjectPlacedHolds { limit: field_000000 } => Ok(crate::tasks_v13::CapacityCause::ProjectPlacedHolds(crate::tasks_v13::CapacityCauseProjectPlacedHolds {
+        }),
+        jig_domain_tasks::CapacityCause::ProjectPlacedHolds { limit: field_000000 } => crate::tasks_v13::CapacityCause::ProjectPlacedHolds(crate::tasks_v13::CapacityCauseProjectPlacedHolds {
             limit: *field_000000
-        })),
-        jig_domain_tasks::CapacityCause::PartyPlacedHolds { limit: field_000000 } => Ok(crate::tasks_v13::CapacityCause::PartyPlacedHolds(crate::tasks_v13::CapacityCausePartyPlacedHolds {
+        }),
+        jig_domain_tasks::CapacityCause::PartyPlacedHolds { limit: field_000000 } => crate::tasks_v13::CapacityCause::PartyPlacedHolds(crate::tasks_v13::CapacityCausePartyPlacedHolds {
             limit: *field_000000
-        })),
-        jig_domain_tasks::CapacityCause::Exemptions { limit: field_000000 } => Ok(crate::tasks_v13::CapacityCause::Exemptions(crate::tasks_v13::CapacityCauseExemptions {
+        }),
+        jig_domain_tasks::CapacityCause::Exemptions { limit: field_000000 } => crate::tasks_v13::CapacityCause::Exemptions(crate::tasks_v13::CapacityCauseExemptions {
             limit: *field_000000
-        })),
+        }),
     }
 }
 
-// Maps line 328: CapacityCause.
 #[expect(clippy::too_many_lines, reason = "one translation step per field or variant (data/codec/maps.md, 4.1)")]
-pub fn capacity_cause_to_domain(record: crate::tasks_v13::CapacityCause, _context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::CapacityCause, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn capacity_cause_to_domain(record: crate::tasks_v13::CapacityCause) -> jig_domain_tasks::CapacityCause {
     match record {
         crate::tasks_v13::CapacityCause::Tasks(held) => {
             let crate::tasks_v13::CapacityCauseTasks { limit: field_000000 } = held;
-            Ok(jig_domain_tasks::CapacityCause::Tasks {
+            jig_domain_tasks::CapacityCause::Tasks {
                 limit: field_000000
-            })
+            }
         },
         crate::tasks_v13::CapacityCause::CreationFlights(held) => {
             let crate::tasks_v13::CapacityCauseCreationFlights { limit: field_000000 } = held;
-            Ok(jig_domain_tasks::CapacityCause::CreationFlights {
+            jig_domain_tasks::CapacityCause::CreationFlights {
                 limit: field_000000
-            })
+            }
         },
         crate::tasks_v13::CapacityCause::ResourceReports(held) => {
             let crate::tasks_v13::CapacityCauseResourceReports { limit: field_000000 } = held;
-            Ok(jig_domain_tasks::CapacityCause::ResourceReports {
+            jig_domain_tasks::CapacityCause::ResourceReports {
                 limit: field_000000
-            })
+            }
         },
         crate::tasks_v13::CapacityCause::ProjectTasks(held) => {
             let crate::tasks_v13::CapacityCauseProjectTasks { limit: field_000000 } = held;
-            Ok(jig_domain_tasks::CapacityCause::ProjectTasks {
+            jig_domain_tasks::CapacityCause::ProjectTasks {
                 limit: field_000000
-            })
+            }
         },
         crate::tasks_v13::CapacityCause::Tree(held) => {
             let crate::tasks_v13::CapacityCauseTree { limit: field_000000 } = held;
-            Ok(jig_domain_tasks::CapacityCause::Tree {
+            jig_domain_tasks::CapacityCause::Tree {
                 limit: field_000000
-            })
+            }
         },
         crate::tasks_v13::CapacityCause::Delegates(held) => {
             let crate::tasks_v13::CapacityCauseDelegates { limit: field_000000 } = held;
-            Ok(jig_domain_tasks::CapacityCause::Delegates {
+            jig_domain_tasks::CapacityCause::Delegates {
                 limit: field_000000
-            })
+            }
         },
         crate::tasks_v13::CapacityCause::Inbox(held) => {
             let crate::tasks_v13::CapacityCauseInbox { task: field_000000, messages: field_000001, bytes: field_000002 } = held;
-            Ok(jig_domain_tasks::CapacityCause::Inbox {
+            jig_domain_tasks::CapacityCause::Inbox {
                 task: field_000000,
                 messages: field_000001,
                 bytes: field_000002
-            })
+            }
         },
         crate::tasks_v13::CapacityCause::Holdings(held) => {
             let crate::tasks_v13::CapacityCauseHoldings { limit: field_000000 } = held;
-            Ok(jig_domain_tasks::CapacityCause::Holdings {
+            jig_domain_tasks::CapacityCause::Holdings {
                 limit: field_000000
-            })
+            }
         },
         crate::tasks_v13::CapacityCause::HoldWaiters(held) => {
             let crate::tasks_v13::CapacityCauseHoldWaiters { limit: field_000000 } = held;
-            Ok(jig_domain_tasks::CapacityCause::HoldWaiters {
+            jig_domain_tasks::CapacityCause::HoldWaiters {
                 limit: field_000000
-            })
+            }
         },
         crate::tasks_v13::CapacityCause::Proposals(held) => {
             let crate::tasks_v13::CapacityCauseProposals { limit: field_000000 } = held;
-            Ok(jig_domain_tasks::CapacityCause::Proposals {
+            jig_domain_tasks::CapacityCause::Proposals {
                 limit: field_000000
-            })
+            }
         },
         crate::tasks_v13::CapacityCause::References(held) => {
             let crate::tasks_v13::CapacityCauseReferences { limit: field_000000 } = held;
-            Ok(jig_domain_tasks::CapacityCause::References {
+            jig_domain_tasks::CapacityCause::References {
                 limit: field_000000
-            })
+            }
         },
         crate::tasks_v13::CapacityCause::Subscriptions(held) => {
             let crate::tasks_v13::CapacityCauseSubscriptions { limit: field_000000 } = held;
-            Ok(jig_domain_tasks::CapacityCause::Subscriptions {
+            jig_domain_tasks::CapacityCause::Subscriptions {
                 limit: field_000000
-            })
+            }
         },
         crate::tasks_v13::CapacityCause::Funders(held) => {
             let crate::tasks_v13::CapacityCauseFunders { limit: field_000000 } = held;
-            Ok(jig_domain_tasks::CapacityCause::Funders {
+            jig_domain_tasks::CapacityCause::Funders {
                 limit: field_000000
-            })
+            }
         },
         crate::tasks_v13::CapacityCause::Writers(held) => {
             let crate::tasks_v13::CapacityCauseWriters { limit: field_000000 } = held;
-            Ok(jig_domain_tasks::CapacityCause::Writers {
+            jig_domain_tasks::CapacityCause::Writers {
                 limit: field_000000
-            })
+            }
         },
         crate::tasks_v13::CapacityCause::PlacedHolds(held) => {
             let crate::tasks_v13::CapacityCausePlacedHolds { limit: field_000000 } = held;
-            Ok(jig_domain_tasks::CapacityCause::PlacedHolds {
+            jig_domain_tasks::CapacityCause::PlacedHolds {
                 limit: field_000000
-            })
+            }
         },
         crate::tasks_v13::CapacityCause::ProjectPlacedHolds(held) => {
             let crate::tasks_v13::CapacityCauseProjectPlacedHolds { limit: field_000000 } = held;
-            Ok(jig_domain_tasks::CapacityCause::ProjectPlacedHolds {
+            jig_domain_tasks::CapacityCause::ProjectPlacedHolds {
                 limit: field_000000
-            })
+            }
         },
         crate::tasks_v13::CapacityCause::PartyPlacedHolds(held) => {
             let crate::tasks_v13::CapacityCausePartyPlacedHolds { limit: field_000000 } = held;
-            Ok(jig_domain_tasks::CapacityCause::PartyPlacedHolds {
+            jig_domain_tasks::CapacityCause::PartyPlacedHolds {
                 limit: field_000000
-            })
+            }
         },
         crate::tasks_v13::CapacityCause::Exemptions(held) => {
             let crate::tasks_v13::CapacityCauseExemptions { limit: field_000000 } = held;
-            Ok(jig_domain_tasks::CapacityCause::Exemptions {
+            jig_domain_tasks::CapacityCause::Exemptions {
                 limit: field_000000
-            })
+            }
         },
     }
 }
 
-// Maps line 329: Capacity.
-pub fn capacity_to_record(value: &jig_domain_tasks::Capacity, context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::Capacity, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn capacity_to_record(value: &jig_domain_tasks::Capacity) -> crate::tasks_v13::Capacity {
     let jig_domain_tasks::Capacity { project: field_000000, by: field_000001, action: field_000002, cause: field_000003 } = value;
-    Ok(crate::tasks_v13::Capacity {
+    crate::tasks_v13::Capacity {
         project: match field_000000 {
-            Some(item) => Some(*item),
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
             None => None,
         },
-        by: party_to_record(field_000001, context)?,
-        action: capacity_action_to_record(field_000002, context)?,
-        cause: capacity_cause_to_record(field_000003, context)?
-    })
+        by: party_to_record(field_000001),
+        action: capacity_action_to_record(field_000002),
+        cause: capacity_cause_to_record(field_000003)
+    }
 }
 
-// Maps line 329: Capacity.
-pub fn capacity_to_domain(record: crate::tasks_v13::Capacity, context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::Capacity, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn capacity_to_domain(record: crate::tasks_v13::Capacity) -> jig_domain_tasks::Capacity {
     let crate::tasks_v13::Capacity { project: field_000000, by: field_000001, action: field_000002, cause: field_000003 } = record;
-    Ok(jig_domain_tasks::Capacity {
+    jig_domain_tasks::Capacity {
         project: match field_000000 {
-            Some(item) => Some(item),
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
             None => None,
         },
-        by: party_to_domain(field_000001, context)?,
-        action: capacity_action_to_domain(field_000002, context)?,
-        cause: capacity_cause_to_domain(field_000003, context)?
-    })
-}
-
-// Maps line 331: LlmFault.
-pub fn llm_fault_to_record(value: &jig_domain_tasks::LlmFault, _context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::LlmFault, crate::tasks_v13::Problem> {
-    match value {
-        jig_domain_tasks::LlmFault::Unconfigured => Ok(crate::tasks_v13::LlmFault::Unconfigured),
-        jig_domain_tasks::LlmFault::Effort => Ok(crate::tasks_v13::LlmFault::Effort),
-        jig_domain_tasks::LlmFault::Charter => Ok(crate::tasks_v13::LlmFault::Charter),
-        jig_domain_tasks::LlmFault::Authority => Ok(crate::tasks_v13::LlmFault::Authority),
-        jig_domain_tasks::LlmFault::Procedure => Ok(crate::tasks_v13::LlmFault::Procedure),
-        jig_domain_tasks::LlmFault::Repeated => Ok(crate::tasks_v13::LlmFault::Repeated),
+        by: party_to_domain(field_000001),
+        action: capacity_action_to_domain(field_000002),
+        cause: capacity_cause_to_domain(field_000003)
     }
 }
 
-// Maps line 331: LlmFault.
-pub fn llm_fault_to_domain(record: crate::tasks_v13::LlmFault, _context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::LlmFault, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn llm_fault_to_record(value: &jig_domain_tasks::LlmFault) -> crate::tasks_v13::LlmFault {
+    match value {
+        jig_domain_tasks::LlmFault::Unconfigured => crate::tasks_v13::LlmFault::Unconfigured,
+        jig_domain_tasks::LlmFault::Effort => crate::tasks_v13::LlmFault::Effort,
+        jig_domain_tasks::LlmFault::Charter => crate::tasks_v13::LlmFault::Charter,
+        jig_domain_tasks::LlmFault::Authority => crate::tasks_v13::LlmFault::Authority,
+        jig_domain_tasks::LlmFault::Procedure => crate::tasks_v13::LlmFault::Procedure,
+        jig_domain_tasks::LlmFault::Repeated => crate::tasks_v13::LlmFault::Repeated,
+    }
+}
+
+#[must_use]
+pub fn llm_fault_to_domain(record: crate::tasks_v13::LlmFault) -> jig_domain_tasks::LlmFault {
     match record {
-        crate::tasks_v13::LlmFault::Unconfigured => Ok(jig_domain_tasks::LlmFault::Unconfigured),
-        crate::tasks_v13::LlmFault::Effort => Ok(jig_domain_tasks::LlmFault::Effort),
-        crate::tasks_v13::LlmFault::Charter => Ok(jig_domain_tasks::LlmFault::Charter),
-        crate::tasks_v13::LlmFault::Authority => Ok(jig_domain_tasks::LlmFault::Authority),
-        crate::tasks_v13::LlmFault::Procedure => Ok(jig_domain_tasks::LlmFault::Procedure),
-        crate::tasks_v13::LlmFault::Repeated => Ok(jig_domain_tasks::LlmFault::Repeated),
+        crate::tasks_v13::LlmFault::Unconfigured => jig_domain_tasks::LlmFault::Unconfigured,
+        crate::tasks_v13::LlmFault::Effort => jig_domain_tasks::LlmFault::Effort,
+        crate::tasks_v13::LlmFault::Charter => jig_domain_tasks::LlmFault::Charter,
+        crate::tasks_v13::LlmFault::Authority => jig_domain_tasks::LlmFault::Authority,
+        crate::tasks_v13::LlmFault::Procedure => jig_domain_tasks::LlmFault::Procedure,
+        crate::tasks_v13::LlmFault::Repeated => jig_domain_tasks::LlmFault::Repeated,
     }
 }
 
-// Maps line 333: AccountWhy.
-pub fn account_why_to_record(value: &jig_domain_tasks::AccountWhy, _context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::AccountWhy, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn account_why_to_record(value: &jig_domain_tasks::AccountWhy) -> crate::tasks_v13::AccountWhy {
     match value {
-        jig_domain_tasks::AccountWhy::Unknown => Ok(crate::tasks_v13::AccountWhy::Unknown),
-        jig_domain_tasks::AccountWhy::Provider => Ok(crate::tasks_v13::AccountWhy::Provider),
-        jig_domain_tasks::AccountWhy::Uses => Ok(crate::tasks_v13::AccountWhy::Uses),
-        jig_domain_tasks::AccountWhy::Limited => Ok(crate::tasks_v13::AccountWhy::Limited),
+        jig_domain_tasks::AccountWhy::Unknown => crate::tasks_v13::AccountWhy::Unknown,
+        jig_domain_tasks::AccountWhy::Provider => crate::tasks_v13::AccountWhy::Provider,
+        jig_domain_tasks::AccountWhy::Uses => crate::tasks_v13::AccountWhy::Uses,
+        jig_domain_tasks::AccountWhy::Limited => crate::tasks_v13::AccountWhy::Limited,
     }
 }
 
-// Maps line 333: AccountWhy.
-pub fn account_why_to_domain(record: crate::tasks_v13::AccountWhy, _context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::AccountWhy, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn account_why_to_domain(record: crate::tasks_v13::AccountWhy) -> jig_domain_tasks::AccountWhy {
     match record {
-        crate::tasks_v13::AccountWhy::Unknown => Ok(jig_domain_tasks::AccountWhy::Unknown),
-        crate::tasks_v13::AccountWhy::Provider => Ok(jig_domain_tasks::AccountWhy::Provider),
-        crate::tasks_v13::AccountWhy::Uses => Ok(jig_domain_tasks::AccountWhy::Uses),
-        crate::tasks_v13::AccountWhy::Limited => Ok(jig_domain_tasks::AccountWhy::Limited),
+        crate::tasks_v13::AccountWhy::Unknown => jig_domain_tasks::AccountWhy::Unknown,
+        crate::tasks_v13::AccountWhy::Provider => jig_domain_tasks::AccountWhy::Provider,
+        crate::tasks_v13::AccountWhy::Uses => jig_domain_tasks::AccountWhy::Uses,
+        crate::tasks_v13::AccountWhy::Limited => jig_domain_tasks::AccountWhy::Limited,
     }
 }
 
-// Maps line 342: Refusal.
-pub fn refusal_to_record(value: &jig_domain_tasks::Refusal, context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::Refusal, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn refusal_to_record(value: &jig_domain_tasks::Refusal) -> crate::tasks_v13::Refusal {
     match value {
-        jig_domain_tasks::Refusal::Goals => Ok(crate::tasks_v13::Refusal::Goals),
-        jig_domain_tasks::Refusal::Grace => Ok(crate::tasks_v13::Refusal::Grace),
-        jig_domain_tasks::Refusal::Unproposable => Ok(crate::tasks_v13::Refusal::Unproposable),
-        jig_domain_tasks::Refusal::PersonRevision { revision: field_000000 } => Ok(crate::tasks_v13::Refusal::PersonRevision(crate::tasks_v13::RefusalPersonRevision {
+        jig_domain_tasks::Refusal::Goals => crate::tasks_v13::Refusal::Goals,
+        jig_domain_tasks::Refusal::Grace => crate::tasks_v13::Refusal::Grace,
+        jig_domain_tasks::Refusal::Unproposable => crate::tasks_v13::Refusal::Unproposable,
+        jig_domain_tasks::Refusal::PersonRevision { revision: field_000000 } => crate::tasks_v13::Refusal::PersonRevision(crate::tasks_v13::RefusalPersonRevision {
             revision: *field_000000
-        })),
-        jig_domain_tasks::Refusal::ResourceUnavailable => Ok(crate::tasks_v13::Refusal::ResourceUnavailable),
-        jig_domain_tasks::Refusal::NotReady => Ok(crate::tasks_v13::Refusal::NotReady),
-        jig_domain_tasks::Refusal::Unknown => Ok(crate::tasks_v13::Refusal::Unknown),
-        jig_domain_tasks::Refusal::Busy => Ok(crate::tasks_v13::Refusal::Busy),
-        jig_domain_tasks::Refusal::Duplicate => Ok(crate::tasks_v13::Refusal::Duplicate),
-        jig_domain_tasks::Refusal::Empty => Ok(crate::tasks_v13::Refusal::Empty),
-        jig_domain_tasks::Refusal::Batch => Ok(crate::tasks_v13::Refusal::Batch),
-        jig_domain_tasks::Refusal::Live => Ok(crate::tasks_v13::Refusal::Live),
-        jig_domain_tasks::Refusal::Project => Ok(crate::tasks_v13::Refusal::Project),
-        jig_domain_tasks::Refusal::Tree => Ok(crate::tasks_v13::Refusal::Tree),
-        jig_domain_tasks::Refusal::Depth => Ok(crate::tasks_v13::Refusal::Depth),
-        jig_domain_tasks::Refusal::Delegates => Ok(crate::tasks_v13::Refusal::Delegates),
-        jig_domain_tasks::Refusal::Reference => Ok(crate::tasks_v13::Refusal::Reference),
-        jig_domain_tasks::Refusal::Subscription => Ok(crate::tasks_v13::Refusal::Subscription),
-        jig_domain_tasks::Refusal::Dependencies => Ok(crate::tasks_v13::Refusal::Dependencies),
-        jig_domain_tasks::Refusal::Circle { cut: field_000000 } => Ok(crate::tasks_v13::Refusal::Circle(crate::tasks_v13::RefusalCircle {
+        }),
+        jig_domain_tasks::Refusal::ResourceUnavailable => crate::tasks_v13::Refusal::ResourceUnavailable,
+        jig_domain_tasks::Refusal::NotReady => crate::tasks_v13::Refusal::NotReady,
+        jig_domain_tasks::Refusal::Unknown => crate::tasks_v13::Refusal::Unknown,
+        jig_domain_tasks::Refusal::Busy => crate::tasks_v13::Refusal::Busy,
+        jig_domain_tasks::Refusal::Duplicate => crate::tasks_v13::Refusal::Duplicate,
+        jig_domain_tasks::Refusal::Empty => crate::tasks_v13::Refusal::Empty,
+        jig_domain_tasks::Refusal::Batch => crate::tasks_v13::Refusal::Batch,
+        jig_domain_tasks::Refusal::Live => crate::tasks_v13::Refusal::Live,
+        jig_domain_tasks::Refusal::Project => crate::tasks_v13::Refusal::Project,
+        jig_domain_tasks::Refusal::Tree => crate::tasks_v13::Refusal::Tree,
+        jig_domain_tasks::Refusal::Depth => crate::tasks_v13::Refusal::Depth,
+        jig_domain_tasks::Refusal::Delegates => crate::tasks_v13::Refusal::Delegates,
+        jig_domain_tasks::Refusal::Reference => crate::tasks_v13::Refusal::Reference,
+        jig_domain_tasks::Refusal::Subscription => crate::tasks_v13::Refusal::Subscription,
+        jig_domain_tasks::Refusal::Dependencies => crate::tasks_v13::Refusal::Dependencies,
+        jig_domain_tasks::Refusal::Circle { cut: field_000000 } => crate::tasks_v13::Refusal::Circle(crate::tasks_v13::RefusalCircle {
             cut: *field_000000
-        })),
-        jig_domain_tasks::Refusal::Executor => Ok(crate::tasks_v13::Refusal::Executor),
-        jig_domain_tasks::Refusal::Spec => Ok(crate::tasks_v13::Refusal::Spec),
-        jig_domain_tasks::Refusal::Contract => Ok(crate::tasks_v13::Refusal::Contract),
-        jig_domain_tasks::Refusal::AuthorityShape => Ok(crate::tasks_v13::Refusal::AuthorityShape),
-        jig_domain_tasks::Refusal::Inputs => Ok(crate::tasks_v13::Refusal::Inputs),
-        jig_domain_tasks::Refusal::State => Ok(crate::tasks_v13::Refusal::State),
-        jig_domain_tasks::Refusal::Attempt => Ok(crate::tasks_v13::Refusal::Attempt),
-        jig_domain_tasks::Refusal::LiveDelegates => Ok(crate::tasks_v13::Refusal::LiveDelegates),
-        jig_domain_tasks::Refusal::Restore => Ok(crate::tasks_v13::Refusal::Restore),
-        jig_domain_tasks::Refusal::Read => Ok(crate::tasks_v13::Refusal::Read),
-        jig_domain_tasks::Refusal::Turn => Ok(crate::tasks_v13::Refusal::Turn),
-        jig_domain_tasks::Refusal::Funding => Ok(crate::tasks_v13::Refusal::Funding),
-        jig_domain_tasks::Refusal::HoldKind => Ok(crate::tasks_v13::Refusal::HoldKind),
-        jig_domain_tasks::Refusal::HoldTaken => Ok(crate::tasks_v13::Refusal::HoldTaken),
-        jig_domain_tasks::Refusal::Holds => Ok(crate::tasks_v13::Refusal::Holds),
-        jig_domain_tasks::Refusal::Llm { model: field_000000, why: field_000001 } => Ok(crate::tasks_v13::Refusal::Llm(crate::tasks_v13::RefusalLlm {
+        }),
+        jig_domain_tasks::Refusal::Executor => crate::tasks_v13::Refusal::Executor,
+        jig_domain_tasks::Refusal::Spec => crate::tasks_v13::Refusal::Spec,
+        jig_domain_tasks::Refusal::Contract => crate::tasks_v13::Refusal::Contract,
+        jig_domain_tasks::Refusal::AuthorityShape => crate::tasks_v13::Refusal::AuthorityShape,
+        jig_domain_tasks::Refusal::Inputs => crate::tasks_v13::Refusal::Inputs,
+        jig_domain_tasks::Refusal::State => crate::tasks_v13::Refusal::State,
+        jig_domain_tasks::Refusal::Attempt => crate::tasks_v13::Refusal::Attempt,
+        jig_domain_tasks::Refusal::LiveDelegates => crate::tasks_v13::Refusal::LiveDelegates,
+        jig_domain_tasks::Refusal::Restore => crate::tasks_v13::Refusal::Restore,
+        jig_domain_tasks::Refusal::Read => crate::tasks_v13::Refusal::Read,
+        jig_domain_tasks::Refusal::Turn => crate::tasks_v13::Refusal::Turn,
+        jig_domain_tasks::Refusal::Funding => crate::tasks_v13::Refusal::Funding,
+        jig_domain_tasks::Refusal::HoldKind => crate::tasks_v13::Refusal::HoldKind,
+        jig_domain_tasks::Refusal::HoldTaken => crate::tasks_v13::Refusal::HoldTaken,
+        jig_domain_tasks::Refusal::Holds => crate::tasks_v13::Refusal::Holds,
+        jig_domain_tasks::Refusal::Llm { model: field_000000, why: field_000001 } => crate::tasks_v13::Refusal::Llm(crate::tasks_v13::RefusalLlm {
             model: *field_000000,
-            why: llm_fault_to_record(field_000001, context)?
-        })),
-        jig_domain_tasks::Refusal::Account { account: field_000000, why: field_000001 } => Ok(crate::tasks_v13::Refusal::Account(crate::tasks_v13::RefusalAccount {
+            why: llm_fault_to_record(field_000001)
+        }),
+        jig_domain_tasks::Refusal::Account { account: field_000000, why: field_000001 } => crate::tasks_v13::Refusal::Account(crate::tasks_v13::RefusalAccount {
             account: *field_000000,
-            why: account_why_to_record(field_000001, context)?
-        })),
-        jig_domain_tasks::Refusal::DependencyEnded { how: field_000000 } => Ok(crate::tasks_v13::Refusal::DependencyEnded(crate::tasks_v13::RefusalDependencyEnded {
-            how: status_to_record(field_000000, context)?
-        })),
-        jig_domain_tasks::Refusal::Kept => Ok(crate::tasks_v13::Refusal::Kept),
-        jig_domain_tasks::Refusal::Placed { hold: field_000000 } => Ok(crate::tasks_v13::Refusal::Placed(crate::tasks_v13::RefusalPlaced {
+            why: account_why_to_record(field_000001)
+        }),
+        jig_domain_tasks::Refusal::DependencyEnded { how: field_000000 } => crate::tasks_v13::Refusal::DependencyEnded(crate::tasks_v13::RefusalDependencyEnded {
+            how: status_to_record(field_000000)
+        }),
+        jig_domain_tasks::Refusal::Kept => crate::tasks_v13::Refusal::Kept,
+        jig_domain_tasks::Refusal::Placed { hold: field_000000 } => crate::tasks_v13::Refusal::Placed(crate::tasks_v13::RefusalPlaced {
             hold: *field_000000
-        })),
-        jig_domain_tasks::Refusal::HoldOwner { hold: field_000000 } => Ok(crate::tasks_v13::Refusal::HoldOwner(crate::tasks_v13::RefusalHoldOwner {
+        }),
+        jig_domain_tasks::Refusal::HoldOwner { hold: field_000000 } => crate::tasks_v13::Refusal::HoldOwner(crate::tasks_v13::RefusalHoldOwner {
             hold: *field_000000
-        })),
-        jig_domain_tasks::Refusal::HoldRevision { revision: field_000000 } => Ok(crate::tasks_v13::Refusal::HoldRevision(crate::tasks_v13::RefusalHoldRevision {
+        }),
+        jig_domain_tasks::Refusal::HoldRevision { revision: field_000000 } => crate::tasks_v13::Refusal::HoldRevision(crate::tasks_v13::RefusalHoldRevision {
             revision: *field_000000
-        })),
-        jig_domain_tasks::Refusal::KeptQuestion { question: field_000000 } => Ok(crate::tasks_v13::Refusal::KeptQuestion(crate::tasks_v13::AnswerMessage {
+        }),
+        jig_domain_tasks::Refusal::KeptQuestion { question: field_000000 } => crate::tasks_v13::Refusal::KeptQuestion(crate::tasks_v13::AnswerMessage {
             question: *field_000000
-        })),
-        jig_domain_tasks::Refusal::PersonAnswers { question: field_000000 } => Ok(crate::tasks_v13::Refusal::PersonAnswers(crate::tasks_v13::AnswerMessage {
+        }),
+        jig_domain_tasks::Refusal::PersonAnswers { question: field_000000 } => crate::tasks_v13::Refusal::PersonAnswers(crate::tasks_v13::AnswerMessage {
             question: *field_000000
-        })),
-        jig_domain_tasks::Refusal::NotStanding => Ok(crate::tasks_v13::Refusal::NotStanding),
-        jig_domain_tasks::Refusal::TalkOpen { party: field_000000 } => Ok(crate::tasks_v13::Refusal::TalkOpen(crate::tasks_v13::TalkOpen {
+        }),
+        jig_domain_tasks::Refusal::NotStanding => crate::tasks_v13::Refusal::NotStanding,
+        jig_domain_tasks::Refusal::TalkOpen { party: field_000000 } => crate::tasks_v13::Refusal::TalkOpen(crate::tasks_v13::TalkOpen {
             party: *field_000000
-        })),
-        jig_domain_tasks::Refusal::NoTalk => Ok(crate::tasks_v13::Refusal::NoTalk),
-        jig_domain_tasks::Refusal::Concluded { at: field_000000 } => Ok(crate::tasks_v13::Refusal::Concluded(crate::tasks_v13::RefusalConcluded {
-            at: match skein_codec::convert::wall_to_record(field_000000) { Ok(value) => value, Err(reason) => return Err(crate::tasks_v13::paths::REFUSAL_CONCLUDED_AT.problem(reason)) }
-        })),
-        jig_domain_tasks::Refusal::Unreported => Ok(crate::tasks_v13::Refusal::Unreported),
+        }),
+        jig_domain_tasks::Refusal::NoTalk => crate::tasks_v13::Refusal::NoTalk,
+        jig_domain_tasks::Refusal::Concluded { at: field_000000 } => crate::tasks_v13::Refusal::Concluded(crate::tasks_v13::RefusalConcluded {
+            at: skein_codec::convert::wall_to_record(field_000000)
+        }),
+        jig_domain_tasks::Refusal::Unreported => crate::tasks_v13::Refusal::Unreported,
     }
 }
 
-// Maps line 342: Refusal.
 #[expect(clippy::too_many_lines, reason = "one translation step per field or variant (data/codec/maps.md, 4.1)")]
-pub fn refusal_to_domain(record: crate::tasks_v13::Refusal, context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::Refusal, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn refusal_to_domain(record: crate::tasks_v13::Refusal) -> jig_domain_tasks::Refusal {
     match record {
-        crate::tasks_v13::Refusal::Goals => Ok(jig_domain_tasks::Refusal::Goals),
-        crate::tasks_v13::Refusal::Grace => Ok(jig_domain_tasks::Refusal::Grace),
-        crate::tasks_v13::Refusal::Unproposable => Ok(jig_domain_tasks::Refusal::Unproposable),
+        crate::tasks_v13::Refusal::Goals => jig_domain_tasks::Refusal::Goals,
+        crate::tasks_v13::Refusal::Grace => jig_domain_tasks::Refusal::Grace,
+        crate::tasks_v13::Refusal::Unproposable => jig_domain_tasks::Refusal::Unproposable,
         crate::tasks_v13::Refusal::PersonRevision(held) => {
             let crate::tasks_v13::RefusalPersonRevision { revision: field_000000 } = held;
-            Ok(jig_domain_tasks::Refusal::PersonRevision {
+            jig_domain_tasks::Refusal::PersonRevision {
                 revision: field_000000
-            })
+            }
         },
-        crate::tasks_v13::Refusal::ResourceUnavailable => Ok(jig_domain_tasks::Refusal::ResourceUnavailable),
-        crate::tasks_v13::Refusal::NotReady => Ok(jig_domain_tasks::Refusal::NotReady),
-        crate::tasks_v13::Refusal::Unknown => Ok(jig_domain_tasks::Refusal::Unknown),
-        crate::tasks_v13::Refusal::Busy => Ok(jig_domain_tasks::Refusal::Busy),
-        crate::tasks_v13::Refusal::Duplicate => Ok(jig_domain_tasks::Refusal::Duplicate),
-        crate::tasks_v13::Refusal::Empty => Ok(jig_domain_tasks::Refusal::Empty),
-        crate::tasks_v13::Refusal::Batch => Ok(jig_domain_tasks::Refusal::Batch),
-        crate::tasks_v13::Refusal::Live => Ok(jig_domain_tasks::Refusal::Live),
-        crate::tasks_v13::Refusal::Project => Ok(jig_domain_tasks::Refusal::Project),
-        crate::tasks_v13::Refusal::Tree => Ok(jig_domain_tasks::Refusal::Tree),
-        crate::tasks_v13::Refusal::Depth => Ok(jig_domain_tasks::Refusal::Depth),
-        crate::tasks_v13::Refusal::Delegates => Ok(jig_domain_tasks::Refusal::Delegates),
-        crate::tasks_v13::Refusal::Reference => Ok(jig_domain_tasks::Refusal::Reference),
-        crate::tasks_v13::Refusal::Subscription => Ok(jig_domain_tasks::Refusal::Subscription),
-        crate::tasks_v13::Refusal::Dependencies => Ok(jig_domain_tasks::Refusal::Dependencies),
+        crate::tasks_v13::Refusal::ResourceUnavailable => jig_domain_tasks::Refusal::ResourceUnavailable,
+        crate::tasks_v13::Refusal::NotReady => jig_domain_tasks::Refusal::NotReady,
+        crate::tasks_v13::Refusal::Unknown => jig_domain_tasks::Refusal::Unknown,
+        crate::tasks_v13::Refusal::Busy => jig_domain_tasks::Refusal::Busy,
+        crate::tasks_v13::Refusal::Duplicate => jig_domain_tasks::Refusal::Duplicate,
+        crate::tasks_v13::Refusal::Empty => jig_domain_tasks::Refusal::Empty,
+        crate::tasks_v13::Refusal::Batch => jig_domain_tasks::Refusal::Batch,
+        crate::tasks_v13::Refusal::Live => jig_domain_tasks::Refusal::Live,
+        crate::tasks_v13::Refusal::Project => jig_domain_tasks::Refusal::Project,
+        crate::tasks_v13::Refusal::Tree => jig_domain_tasks::Refusal::Tree,
+        crate::tasks_v13::Refusal::Depth => jig_domain_tasks::Refusal::Depth,
+        crate::tasks_v13::Refusal::Delegates => jig_domain_tasks::Refusal::Delegates,
+        crate::tasks_v13::Refusal::Reference => jig_domain_tasks::Refusal::Reference,
+        crate::tasks_v13::Refusal::Subscription => jig_domain_tasks::Refusal::Subscription,
+        crate::tasks_v13::Refusal::Dependencies => jig_domain_tasks::Refusal::Dependencies,
         crate::tasks_v13::Refusal::Circle(held) => {
             let crate::tasks_v13::RefusalCircle { cut: field_000000 } = held;
-            Ok(jig_domain_tasks::Refusal::Circle {
+            jig_domain_tasks::Refusal::Circle {
                 cut: field_000000
-            })
+            }
         },
-        crate::tasks_v13::Refusal::Executor => Ok(jig_domain_tasks::Refusal::Executor),
-        crate::tasks_v13::Refusal::Spec => Ok(jig_domain_tasks::Refusal::Spec),
-        crate::tasks_v13::Refusal::Contract => Ok(jig_domain_tasks::Refusal::Contract),
-        crate::tasks_v13::Refusal::AuthorityShape => Ok(jig_domain_tasks::Refusal::AuthorityShape),
-        crate::tasks_v13::Refusal::Inputs => Ok(jig_domain_tasks::Refusal::Inputs),
-        crate::tasks_v13::Refusal::State => Ok(jig_domain_tasks::Refusal::State),
-        crate::tasks_v13::Refusal::Attempt => Ok(jig_domain_tasks::Refusal::Attempt),
-        crate::tasks_v13::Refusal::LiveDelegates => Ok(jig_domain_tasks::Refusal::LiveDelegates),
-        crate::tasks_v13::Refusal::Restore => Ok(jig_domain_tasks::Refusal::Restore),
-        crate::tasks_v13::Refusal::Read => Ok(jig_domain_tasks::Refusal::Read),
-        crate::tasks_v13::Refusal::Turn => Ok(jig_domain_tasks::Refusal::Turn),
-        crate::tasks_v13::Refusal::Funding => Ok(jig_domain_tasks::Refusal::Funding),
-        crate::tasks_v13::Refusal::HoldKind => Ok(jig_domain_tasks::Refusal::HoldKind),
-        crate::tasks_v13::Refusal::HoldTaken => Ok(jig_domain_tasks::Refusal::HoldTaken),
-        crate::tasks_v13::Refusal::Holds => Ok(jig_domain_tasks::Refusal::Holds),
+        crate::tasks_v13::Refusal::Executor => jig_domain_tasks::Refusal::Executor,
+        crate::tasks_v13::Refusal::Spec => jig_domain_tasks::Refusal::Spec,
+        crate::tasks_v13::Refusal::Contract => jig_domain_tasks::Refusal::Contract,
+        crate::tasks_v13::Refusal::AuthorityShape => jig_domain_tasks::Refusal::AuthorityShape,
+        crate::tasks_v13::Refusal::Inputs => jig_domain_tasks::Refusal::Inputs,
+        crate::tasks_v13::Refusal::State => jig_domain_tasks::Refusal::State,
+        crate::tasks_v13::Refusal::Attempt => jig_domain_tasks::Refusal::Attempt,
+        crate::tasks_v13::Refusal::LiveDelegates => jig_domain_tasks::Refusal::LiveDelegates,
+        crate::tasks_v13::Refusal::Restore => jig_domain_tasks::Refusal::Restore,
+        crate::tasks_v13::Refusal::Read => jig_domain_tasks::Refusal::Read,
+        crate::tasks_v13::Refusal::Turn => jig_domain_tasks::Refusal::Turn,
+        crate::tasks_v13::Refusal::Funding => jig_domain_tasks::Refusal::Funding,
+        crate::tasks_v13::Refusal::HoldKind => jig_domain_tasks::Refusal::HoldKind,
+        crate::tasks_v13::Refusal::HoldTaken => jig_domain_tasks::Refusal::HoldTaken,
+        crate::tasks_v13::Refusal::Holds => jig_domain_tasks::Refusal::Holds,
         crate::tasks_v13::Refusal::Llm(held) => {
             let crate::tasks_v13::RefusalLlm { model: field_000000, why: field_000001 } = held;
-            Ok(jig_domain_tasks::Refusal::Llm {
+            jig_domain_tasks::Refusal::Llm {
                 model: field_000000,
-                why: llm_fault_to_domain(field_000001, context)?
-            })
+                why: llm_fault_to_domain(field_000001)
+            }
         },
         crate::tasks_v13::Refusal::Account(held) => {
             let crate::tasks_v13::RefusalAccount { account: field_000000, why: field_000001 } = held;
-            Ok(jig_domain_tasks::Refusal::Account {
+            jig_domain_tasks::Refusal::Account {
                 account: field_000000,
-                why: account_why_to_domain(field_000001, context)?
-            })
+                why: account_why_to_domain(field_000001)
+            }
         },
         crate::tasks_v13::Refusal::DependencyEnded(held) => {
             let crate::tasks_v13::RefusalDependencyEnded { how: field_000000 } = held;
-            Ok(jig_domain_tasks::Refusal::DependencyEnded {
-                how: status_to_domain(field_000000, context)?
-            })
+            jig_domain_tasks::Refusal::DependencyEnded {
+                how: status_to_domain(field_000000)
+            }
         },
-        crate::tasks_v13::Refusal::Kept => Ok(jig_domain_tasks::Refusal::Kept),
+        crate::tasks_v13::Refusal::Kept => jig_domain_tasks::Refusal::Kept,
         crate::tasks_v13::Refusal::Placed(held) => {
             let crate::tasks_v13::RefusalPlaced { hold: field_000000 } = held;
-            Ok(jig_domain_tasks::Refusal::Placed {
+            jig_domain_tasks::Refusal::Placed {
                 hold: field_000000
-            })
+            }
         },
         crate::tasks_v13::Refusal::HoldOwner(held) => {
             let crate::tasks_v13::RefusalHoldOwner { hold: field_000000 } = held;
-            Ok(jig_domain_tasks::Refusal::HoldOwner {
+            jig_domain_tasks::Refusal::HoldOwner {
                 hold: field_000000
-            })
+            }
         },
         crate::tasks_v13::Refusal::HoldRevision(held) => {
             let crate::tasks_v13::RefusalHoldRevision { revision: field_000000 } = held;
-            Ok(jig_domain_tasks::Refusal::HoldRevision {
+            jig_domain_tasks::Refusal::HoldRevision {
                 revision: field_000000
-            })
+            }
         },
         crate::tasks_v13::Refusal::KeptQuestion(held) => {
             let crate::tasks_v13::AnswerMessage { question: field_000000 } = held;
-            Ok(jig_domain_tasks::Refusal::KeptQuestion {
+            jig_domain_tasks::Refusal::KeptQuestion {
                 question: field_000000
-            })
+            }
         },
         crate::tasks_v13::Refusal::PersonAnswers(held) => {
             let crate::tasks_v13::AnswerMessage { question: field_000000 } = held;
-            Ok(jig_domain_tasks::Refusal::PersonAnswers {
+            jig_domain_tasks::Refusal::PersonAnswers {
                 question: field_000000
-            })
+            }
         },
-        crate::tasks_v13::Refusal::NotStanding => Ok(jig_domain_tasks::Refusal::NotStanding),
+        crate::tasks_v13::Refusal::NotStanding => jig_domain_tasks::Refusal::NotStanding,
         crate::tasks_v13::Refusal::TalkOpen(held) => {
             let crate::tasks_v13::TalkOpen { party: field_000000 } = held;
-            Ok(jig_domain_tasks::Refusal::TalkOpen {
+            jig_domain_tasks::Refusal::TalkOpen {
                 party: field_000000
-            })
+            }
         },
-        crate::tasks_v13::Refusal::NoTalk => Ok(jig_domain_tasks::Refusal::NoTalk),
+        crate::tasks_v13::Refusal::NoTalk => jig_domain_tasks::Refusal::NoTalk,
         crate::tasks_v13::Refusal::Concluded(held) => {
             let crate::tasks_v13::RefusalConcluded { at: field_000000 } = held;
-            Ok(jig_domain_tasks::Refusal::Concluded {
-                at: match skein_codec::convert::wall_to_domain(field_000000) { Ok(value) => value, Err(reason) => return Err(crate::tasks_v13::paths::REFUSAL_CONCLUDED_AT.problem(reason)) }
-            })
+            jig_domain_tasks::Refusal::Concluded {
+                at: skein_codec::convert::wall_to_domain(field_000000)
+            }
         },
-        crate::tasks_v13::Refusal::Unreported => Ok(jig_domain_tasks::Refusal::Unreported),
+        crate::tasks_v13::Refusal::Unreported => jig_domain_tasks::Refusal::Unreported,
     }
 }
 
-// Maps line 343: TaskProblem.
-pub fn task_problem_to_record(value: &jig_domain_tasks::Problem, context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::TaskProblem, crate::tasks_v13::Problem> {
+pub fn task_problem_to_record(value: &jig_domain_tasks::Problem) -> Result<crate::tasks_v13::TaskProblem, crate::tasks_v13::Problem> {
     let jig_domain_tasks::Problem { task: field_000000, why: field_000001, blocked_by: field_000002, capacity: field_000003 } = value;
     Ok(crate::tasks_v13::TaskProblem {
         task: match field_000000 {
-            Some(item) => Some(*item),
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
             None => None,
         },
-        why: refusal_to_record(field_000001, context)?,
+        why: refusal_to_record(field_000001),
         blocked_by: match field_000002 {
-            Some(item) => Some({
-                let source = item;
-                let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(crate::tasks_v13::paths::TASK_PROBLEM_BLOCKED_BY.problem(skein_codec::Reason::Bound)) };
-                let mut translated = skein_lib::List::with_capacity(count);
-                for item in source.as_ref() {
-                    let converted = crate::tasks_v13::Number { value: *item };
-                    if translated.push(converted).is_err() { return Err(crate::tasks_v13::paths::TASK_PROBLEM_BLOCKED_BY.problem(skein_codec::Reason::Bound)); }
-                }
-                translated
-            }),
+            Some(item) => {
+                let converted = {
+                    let source = item;
+                    let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(crate::tasks_v13::paths::TASK_PROBLEM_BLOCKED_BY.problem(skein_codec::Reason::Bound)) };
+                    let mut translated = skein_lib::List::with_capacity(count);
+                    for item in source.as_ref() {
+                        let converted = crate::tasks_v13::Number { value: *item };
+                        assert!(translated.push(converted).is_ok(), "one output per source item");
+                    }
+                    translated
+                };
+                Some(converted)
+            }
             None => None,
         },
         capacity: match field_000003 {
-            Some(item) => Some(capacity_to_record(item, context)?),
+            Some(item) => {
+                let converted = capacity_to_record(item);
+                Some(converted)
+            }
             None => None,
         }
     })
 }
 
-// Maps line 343: TaskProblem.
-pub fn task_problem_to_domain(record: crate::tasks_v13::TaskProblem, context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::Problem, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn task_problem_to_domain(record: crate::tasks_v13::TaskProblem) -> jig_domain_tasks::Problem {
     let crate::tasks_v13::TaskProblem { task: field_000000, why: field_000001, blocked_by: field_000002, capacity: field_000003 } = record;
-    Ok(jig_domain_tasks::Problem {
+    jig_domain_tasks::Problem {
         task: match field_000000 {
-            Some(item) => Some(item),
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
             None => None,
         },
-        why: refusal_to_domain(field_000001, context)?,
+        why: refusal_to_domain(field_000001),
         blocked_by: match field_000002 {
-            Some(item) => Some({
-                let source = item;
-                let count = source.len();
-                let mut translated = skein_lib::List::with_capacity(count);
-                for item in source.into_boxed() {
-                    let converted = {
-                        let crate::tasks_v13::Number { value: held } = item;
-                        held
-                    };
-                    if translated.push(converted).is_err() { return Err(crate::tasks_v13::paths::TASK_PROBLEM_BLOCKED_BY.problem(skein_codec::Reason::Bound)); }
-                }
-                Box::from(translated)
-            }),
+            Some(item) => {
+                let converted = {
+                    let source = item;
+                    let count = source.len();
+                    let mut translated = skein_lib::List::with_capacity(count);
+                    for item in source.into_boxed() {
+                        let converted = {
+                            let crate::tasks_v13::Number { value: held } = item;
+                            held
+                        };
+                        assert!(translated.push(converted).is_ok(), "one output per source item");
+                    }
+                    Box::from(translated)
+                };
+                Some(converted)
+            }
             None => None,
         },
         capacity: match field_000003 {
-            Some(item) => Some(capacity_to_domain(item, context)?),
+            Some(item) => {
+                let converted = capacity_to_domain(item);
+                Some(converted)
+            }
             None => None,
         }
-    })
-}
-
-// Maps line 346: ResultFollowups.
-pub fn result_followups_to_record(value: &jig_domain_tasks::ResultFollowups, context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::ResultFollowups, crate::tasks_v13::Problem> {
-    match value {
-        jig_domain_tasks::ResultFollowups::Delegates(held) => Ok(crate::tasks_v13::ResultFollowups::Delegates(crate::codec::tasks::result_followups_delegates_to_record(held, context)?)),
-        jig_domain_tasks::ResultFollowups::Proposal(held) => Ok(crate::tasks_v13::ResultFollowups::Proposal(Box::new(crate::tasks_v13::ResultFollowupsProposal { value: proposal_to_record(held, context)? }))),
     }
 }
 
-// Maps line 346: ResultFollowups.
+pub fn result_followups_to_record(value: &jig_domain_tasks::ResultFollowups, context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::ResultFollowups, crate::tasks_v13::Problem> {
+    Ok(match value {
+        jig_domain_tasks::ResultFollowups::Delegates(held) => crate::tasks_v13::ResultFollowups::Delegates(crate::codec::tasks::result_followups_delegates_to_record(held, context)?),
+        jig_domain_tasks::ResultFollowups::Proposal(held) => crate::tasks_v13::ResultFollowups::Proposal(Box::new(crate::tasks_v13::ResultFollowupsProposal { value: proposal_to_record(held, context)? })),
+    })
+}
+
 pub fn result_followups_to_domain(record: crate::tasks_v13::ResultFollowups, context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::ResultFollowups, crate::tasks_v13::Problem> {
-    match record {
-        crate::tasks_v13::ResultFollowups::Delegates(held) => Ok(jig_domain_tasks::ResultFollowups::Delegates(crate::codec::tasks::result_followups_delegates_to_domain(held, context)?)),
-        crate::tasks_v13::ResultFollowups::Proposal(held) => Ok(jig_domain_tasks::ResultFollowups::Proposal(Box::new({
+    Ok(match record {
+        crate::tasks_v13::ResultFollowups::Delegates(held) => jig_domain_tasks::ResultFollowups::Delegates(crate::codec::tasks::result_followups_delegates_to_domain(held, context)?),
+        crate::tasks_v13::ResultFollowups::Proposal(held) => jig_domain_tasks::ResultFollowups::Proposal(Box::new({
             let crate::tasks_v13::ResultFollowupsProposal { value: held } = *held;
             proposal_to_domain(held, context)?
-        }))),
+        })),
+    })
+}
+
+#[must_use]
+pub fn suspended_to_record(value: &jig_domain_tasks::Suspended) -> crate::tasks_v13::Suspended {
+    let jig_domain_tasks::Suspended { worker: field_000000, why: field_000001, window: field_000002 } = value;
+    crate::tasks_v13::Suspended {
+        worker: *field_000000,
+        why: suspend_why_to_record(field_000001),
+        window: *field_000002
     }
 }
 
-// Maps line 352: Suspended.
-pub fn suspended_to_record(value: &jig_domain_tasks::Suspended, context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::Suspended, crate::tasks_v13::Problem> {
-    let jig_domain_tasks::Suspended { worker: field_000000, why: field_000001, window: field_000002 } = value;
-    Ok(crate::tasks_v13::Suspended {
-        worker: *field_000000,
-        why: suspend_why_to_record(field_000001, context)?,
-        window: *field_000002
-    })
-}
-
-// Maps line 352: Suspended.
-pub fn suspended_to_domain(record: crate::tasks_v13::Suspended, context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::Suspended, crate::tasks_v13::Problem> {
+#[must_use]
+pub fn suspended_to_domain(record: crate::tasks_v13::Suspended) -> jig_domain_tasks::Suspended {
     let crate::tasks_v13::Suspended { worker: field_000000, why: field_000001, window: field_000002 } = record;
-    Ok(jig_domain_tasks::Suspended {
+    jig_domain_tasks::Suspended {
         worker: field_000000,
-        why: suspend_why_to_domain(field_000001, context)?,
+        why: suspend_why_to_domain(field_000001),
         window: field_000002
-    })
+    }
 }
 
-// Maps line 353: End.
 pub fn end_to_record(value: &jig_domain_tasks::End, context: &crate::codec::tasks::Context) -> Result<crate::tasks_v13::End, crate::tasks_v13::Problem> {
-    match value {
-        jig_domain_tasks::End::Finished { result: field_000000, cancel_delegates: field_000001 } => Ok(crate::tasks_v13::End::Finished(crate::tasks_v13::EndFinished {
+    Ok(match value {
+        jig_domain_tasks::End::Finished { result: field_000000, cancel_delegates: field_000001 } => crate::tasks_v13::End::Finished(crate::tasks_v13::EndFinished {
             result: crate::codec::tasks::task_result_to_record(field_000000, context)?,
             cancel_delegates: *field_000001
-        })),
-        jig_domain_tasks::End::FinishedWithFollowups { result: field_000000, followups: field_000001 } => Ok(crate::tasks_v13::End::FinishedWithFollowups(Box::new(crate::tasks_v13::EndFinishedWithFollowups {
+        }),
+        jig_domain_tasks::End::FinishedWithFollowups { result: field_000000, followups: field_000001 } => crate::tasks_v13::End::FinishedWithFollowups(Box::new(crate::tasks_v13::EndFinishedWithFollowups {
             result: crate::codec::tasks::task_result_to_record(field_000000, context)?,
             followups: result_followups_to_record(field_000001, context)?
-        }))),
-        jig_domain_tasks::End::Parked => Ok(crate::tasks_v13::End::Parked),
-        jig_domain_tasks::End::Failed(held) => Ok(crate::tasks_v13::End::Failed(crate::tasks_v13::EndFailed { value: class_to_record(held, context)? })),
-        jig_domain_tasks::End::Refused => Ok(crate::tasks_v13::End::Refused),
-        jig_domain_tasks::End::Recheck => Ok(crate::tasks_v13::End::Recheck),
-        jig_domain_tasks::End::Exceeded(held) => Ok(crate::tasks_v13::End::Exceeded(exceeded_to_record(held, context)?)),
-        jig_domain_tasks::End::FailedWithReason { class: field_000000, reason: field_000001 } => Ok(crate::tasks_v13::End::FailedWithReason(crate::tasks_v13::EndFailedWithReason {
-            class: class_to_record(field_000000, context)?,
+        })),
+        jig_domain_tasks::End::Parked => crate::tasks_v13::End::Parked,
+        jig_domain_tasks::End::Failed(held) => crate::tasks_v13::End::Failed(crate::tasks_v13::EndFailed { value: class_to_record(held) }),
+        jig_domain_tasks::End::Refused => crate::tasks_v13::End::Refused,
+        jig_domain_tasks::End::Recheck => crate::tasks_v13::End::Recheck,
+        jig_domain_tasks::End::Exceeded(held) => crate::tasks_v13::End::Exceeded(exceeded_to_record(held)),
+        jig_domain_tasks::End::FailedWithReason { class: field_000000, reason: field_000001 } => crate::tasks_v13::End::FailedWithReason(crate::tasks_v13::EndFailedWithReason {
+            class: class_to_record(field_000000),
             reason: field_000001.clone()
-        })),
-        jig_domain_tasks::End::RefusedWithReason { reason: field_000000 } => Ok(crate::tasks_v13::End::RefusedWithReason(crate::tasks_v13::EndRefusedWithReason {
+        }),
+        jig_domain_tasks::End::RefusedWithReason { reason: field_000000 } => crate::tasks_v13::End::RefusedWithReason(crate::tasks_v13::EndRefusedWithReason {
             reason: field_000000.clone()
-        })),
-        jig_domain_tasks::End::Suspended(held) => Ok(crate::tasks_v13::End::Suspended(suspended_to_record(held, context)?)),
-    }
+        }),
+        jig_domain_tasks::End::Suspended(held) => crate::tasks_v13::End::Suspended(suspended_to_record(held)),
+    })
 }
 
-// Maps line 353: End.
 pub fn end_to_domain(record: crate::tasks_v13::End, context: &crate::codec::tasks::Context) -> Result<jig_domain_tasks::End, crate::tasks_v13::Problem> {
-    match record {
+    Ok(match record {
         crate::tasks_v13::End::Finished(held) => {
             let crate::tasks_v13::EndFinished { result: field_000000, cancel_delegates: field_000001 } = held;
-            Ok(jig_domain_tasks::End::Finished {
+            jig_domain_tasks::End::Finished {
                 result: crate::codec::tasks::task_result_to_domain(field_000000, context)?,
                 cancel_delegates: field_000001
-            })
+            }
         },
         crate::tasks_v13::End::FinishedWithFollowups(held) => {
             let crate::tasks_v13::EndFinishedWithFollowups { result: field_000000, followups: field_000001 } = *held;
-            Ok(jig_domain_tasks::End::FinishedWithFollowups {
+            jig_domain_tasks::End::FinishedWithFollowups {
                 result: crate::codec::tasks::task_result_to_domain(field_000000, context)?,
                 followups: result_followups_to_domain(field_000001, context)?
-            })
+            }
         },
-        crate::tasks_v13::End::Parked => Ok(jig_domain_tasks::End::Parked),
-        crate::tasks_v13::End::Failed(held) => Ok(jig_domain_tasks::End::Failed({
+        crate::tasks_v13::End::Parked => jig_domain_tasks::End::Parked,
+        crate::tasks_v13::End::Failed(held) => jig_domain_tasks::End::Failed({
             let crate::tasks_v13::EndFailed { value: held } = held;
-            class_to_domain(held, context)?
-        })),
-        crate::tasks_v13::End::Refused => Ok(jig_domain_tasks::End::Refused),
-        crate::tasks_v13::End::Recheck => Ok(jig_domain_tasks::End::Recheck),
-        crate::tasks_v13::End::Exceeded(held) => Ok(jig_domain_tasks::End::Exceeded(exceeded_to_domain(held, context)?)),
+            class_to_domain(held)
+        }),
+        crate::tasks_v13::End::Refused => jig_domain_tasks::End::Refused,
+        crate::tasks_v13::End::Recheck => jig_domain_tasks::End::Recheck,
+        crate::tasks_v13::End::Exceeded(held) => jig_domain_tasks::End::Exceeded(exceeded_to_domain(held)),
         crate::tasks_v13::End::FailedWithReason(held) => {
             let crate::tasks_v13::EndFailedWithReason { class: field_000000, reason: field_000001 } = held;
-            Ok(jig_domain_tasks::End::FailedWithReason {
-                class: class_to_domain(field_000000, context)?,
+            jig_domain_tasks::End::FailedWithReason {
+                class: class_to_domain(field_000000),
                 reason: field_000001
-            })
+            }
         },
         crate::tasks_v13::End::RefusedWithReason(held) => {
             let crate::tasks_v13::EndRefusedWithReason { reason: field_000000 } = held;
-            Ok(jig_domain_tasks::End::RefusedWithReason {
+            jig_domain_tasks::End::RefusedWithReason {
                 reason: field_000000
-            })
+            }
         },
-        crate::tasks_v13::End::Suspended(held) => Ok(jig_domain_tasks::End::Suspended(suspended_to_domain(held, context)?)),
-    }
+        crate::tasks_v13::End::Suspended(held) => jig_domain_tasks::End::Suspended(suspended_to_domain(held)),
+    })
 }
 

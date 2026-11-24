@@ -215,7 +215,7 @@ pub(crate) fn party_kind(value: &w::PartyKind) -> c::PartyKind {
 pub(crate) fn outcome(value: &w::Outcome, limits: &Limits) -> Result<c::Outcome, w::Problem> {
     Ok(match value {
         w::Outcome::WorkerPauseAsked(value) => c::Outcome::WorkerPauseAsked { worker: value.worker },
-        w::Outcome::Restored(value) => restore_outcome_restored(value)?,
+        w::Outcome::Restored(value) => restore_outcome_restored(value),
         w::Outcome::Account(value) => c::Outcome::Account(match &value.answer {
             w::AccountAnswer::Reading(row) => c::AccountAnswer::Reading { count: row.count },
         }),
@@ -227,7 +227,7 @@ pub(crate) fn outcome(value: &w::Outcome, limits: &Limits) -> Result<c::Outcome,
             stayed: value.stayed,
         }),
         w::Outcome::SettingsChanged(value) => {
-            c::Outcome::SettingsChanged(super::settings::restore_outcome_settings_changed(value)?)
+            c::Outcome::SettingsChanged(super::settings::restore_outcome_settings_changed(value))
         }
     })
 }
@@ -515,8 +515,8 @@ pub(crate) fn refusal(value: &w::Refusal, limits: &Limits) -> Result<c::Refusal,
             },
         },
         w::Refusal::Forgotten(value) => restore_refusal_forgotten(value),
-        w::Refusal::Stale(value) => c::Refusal::Stale(super::settings::restore_refusal_stale(value)?),
-        w::Refusal::Full(value) => c::Refusal::Full(super::settings::restore_refusal_full(value)?),
+        w::Refusal::Stale(value) => c::Refusal::Stale(super::settings::restore_refusal_stale(value)),
+        w::Refusal::Full(value) => c::Refusal::Full(super::settings::restore_refusal_full(value)),
         w::Refusal::NotWaiting => c::Refusal::NotWaiting,
         w::Refusal::NoFurther => c::Refusal::NoFurther,
         w::Refusal::Authority(row) => {
@@ -533,7 +533,7 @@ pub(crate) fn refusal(value: &w::Refusal, limits: &Limits) -> Result<c::Refusal,
             at: row.at,
             why: match &row.why {
                 w::Malformed::Settings(value) => {
-                    c::Malformed::Settings(super::settings::restore_malformed_settings(value)?)
+                    c::Malformed::Settings(super::settings::restore_malformed_settings(value))
                 }
                 w::Malformed::Running => c::Malformed::Running,
                 w::Malformed::SettingsUnchanged => c::Malformed::SettingsUnchanged,
@@ -585,7 +585,7 @@ pub(crate) fn refusal(value: &w::Refusal, limits: &Limits) -> Result<c::Refusal,
         w::Refusal::Llm(row) => super::llm::refusal(row, limits)?,
         w::Refusal::Judged(row) => c::Refusal::Judged {
             at: row.at,
-            setting: super::settings::restore_setting(&row.setting)?,
+            setting: super::settings::restore_setting(&row.setting),
             why: match c::Text::new(bytes::copy_of(&row.why), limits.client().text) {
                 Ok(v) => v,
                 Err(_) => return Err(super::too_large()),
@@ -673,12 +673,13 @@ fn ceiling_dimension(value: &w::CeilingDimension) -> c::CeilingDimension {
     }
 }
 
-pub fn restore_outcome_restored(value: &w::OutcomeRestored) -> Result<c::Outcome, w::Problem> {
+#[must_use]
+pub fn restore_outcome_restored(value: &w::OutcomeRestored) -> c::Outcome {
     let mut left_out = List::with_capacity(value.left_out.len());
     for setting in &value.left_out {
-        left_out.push(super::settings::restore_setting(setting)?).expect("same capacity");
+        left_out.push(super::settings::restore_setting(setting)).expect("same capacity");
     }
-    Ok(c::Outcome::Restored { proposal: value.proposal, to: value.to, left_out })
+    c::Outcome::Restored { proposal: value.proposal, to: value.to, left_out }
 }
 #[must_use]
 pub fn restore_refusal_forgotten(value: &w::RefusalForgotten) -> c::Refusal {

@@ -88,7 +88,12 @@ proposed, what an action needs, and what an acceptance funds.
   to that task's live run as messages are, whatever the run's parts (`messages.md`, 6),
   and is in the brief of its next run (../engine/briefs.md, section 1). Left
   undecided when that run ends, it wakes the task again for its kind
-  unless that run was offered its kind, when it waits for a change (`messages.md`, 6). For a party,
+  unless that run was offered its kind, when it waits for a change (`messages.md`, 6).
+  An escalation's change is any message reaching its task: while one
+  waits for a task, every message the task hears wakes it, whatever its
+  policy says of the kind, a delegate's result that would ride along
+  included (`messages.md`, 3); a proposal's is a new entry or a message
+  about it, waking by its own kind. For a party,
   it appears in their inbox at once. Waiting for a person neither decides
   the escalation nor resets its stall time.
 - **Deciding.** A holder accepts, rejects with a reason, or passes it up
@@ -153,3 +158,8 @@ proposed, what an action needs, and what an acceptance funds.
   (`../../protocol/client/versions.md`, 1) and records again the journeys
   that show a task's chip; whether and when is a later move of the
   client wire's (B1's requester, 2026-11-18).
+- **A proposal waiting for a change.** An escalation waiting for a task
+  makes every message wake it (`messages.md`, 3); a proposal its holder's
+  run left undecided still waits for a new entry or a message about it.
+  Whether a proposal should make every message wake its holder too is
+  undecided: the fix of 2026-11-24 was asked for escalations alone.

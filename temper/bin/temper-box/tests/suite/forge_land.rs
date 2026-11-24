@@ -794,18 +794,10 @@ fn an_anthropic_key_is_admitted_by_metadata_without_naming_its_path() {
     scratch.remove();
 }
 
-fn configure_key(paths: &[std::path::PathBuf; 3]) {
-    use std::path::Path;
-    support::forge_land::configure_live_model(
-        &paths[0],
-        support::forge_land::LiveModel::AnthropicKey { key: Path::new("/private/synthetic-key") },
-        Path::new(""),
-    );
-}
-
 #[test]
-fn a_key_configuration_changes_only_anthropics_list_policy_and_starts() {
-    assert_live_startup("live-key-startup", configure_key);
+fn a_key_configuration_starts_as_init_writes_it() {
+    // Provider 2's owner edit belongs to the limits bootstrap, not the init files.
+    assert_live_startup("live-key-startup", |_| {});
 }
 
 #[test]

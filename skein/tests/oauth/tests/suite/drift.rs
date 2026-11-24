@@ -1,4 +1,4 @@
-//! The kept record's schema and generated code (data/codec/golden.md, 1).
+//! The kept record's schema, generated code and bounds (data/codec/golden.md, 1).
 
 use std::fs;
 use std::path::Path;
@@ -30,4 +30,7 @@ fn the_saved_token_schema_has_no_drift() {
     let write = std::env::var_os("SKEIN_CODEGEN_WRITE").is_some_and(|value| value == "1");
     let codec = skein_scratch::paths::tree().join("crates/skein-oauth-codec");
     check(&codec.join("src/generated/oauth.rs"), output.records.as_bytes(), write);
+    let bounds =
+        skein_codegen::bounds_text(skein_oauth::v3::DECLARATIONS, skein_oauth::v3::CEILINGS.values().as_slice());
+    check(Path::new("bounds/oauth.bounds"), bounds.as_bytes(), write);
 }

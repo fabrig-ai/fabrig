@@ -12,7 +12,7 @@ pub(in crate::codec) fn wire_task_contract_document(
         c::TaskContractDocument::Approval { state, part } => {
             w::TaskContractDocument::Approval(w::TaskContractDocumentApproval {
                 state: bytes::copy_of(state),
-                part: wire_part(part, limits)?,
+                part: wire_part(part),
             })
         }
         c::TaskContractDocument::Report { words } => {
@@ -20,7 +20,7 @@ pub(in crate::codec) fn wire_task_contract_document(
         }
         c::TaskContractDocument::Verdict { choices, cut } => {
             w::TaskContractDocument::Verdict(w::TaskContractDocumentVerdict {
-                choices: pieces((choices).iter().map(|item| wire_verdict_choice(item, limits)), limits)?,
+                choices: pieces((choices).iter().map(wire_verdict_choice), limits)?,
                 cut: *(cut),
             })
         }
@@ -34,20 +34,17 @@ pub(in crate::codec) fn wire_task_contract_document(
     })
 }
 
-pub(in crate::codec) fn wire_verdict_choice(
-    value: &c::VerdictChoice,
-    limits: &w::Limits,
-) -> Result<w::VerdictChoice, w::Problem> {
-    Ok(w::VerdictChoice {
+pub(in crate::codec) fn wire_verdict_choice(value: &c::VerdictChoice) -> w::VerdictChoice {
+    w::VerdictChoice {
         code: value.code,
         words: value.words,
         followups: value.followups,
-        fields: list(value.fields.iter().map(|item| wire_field_rule(item, limits)))?,
-    })
+        fields: list(value.fields.iter().map(wire_field_rule)),
+    }
 }
 
-pub(in crate::codec) fn wire_funder(value: &c::Funder, _limits: &w::Limits) -> Result<w::Funder, w::Problem> {
-    Ok::<_, w::Problem>(match value {
+pub(in crate::codec) fn wire_funder(value: &c::Funder) -> w::Funder {
+    match value {
         c::Funder::Task(value) => w::Funder::Task(w::FunderTask { value: *(value) }),
         c::Funder::Pool { project, person, period } => {
             w::Funder::Pool(w::FunderPool { project: *(project), person: *(person), period: *(period) })
@@ -58,5 +55,5 @@ pub(in crate::codec) fn wire_funder(value: &c::Funder, _limits: &w::Limits) -> R
         c::Funder::Period { project, period } => {
             w::Funder::Period(w::FunderPeriod { project: *(project), period: *(period) })
         }
-    })
+    }
 }

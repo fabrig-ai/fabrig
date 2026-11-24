@@ -279,16 +279,16 @@ fn a_finish_grace_reads_back() {
         reason: b"finish".as_slice().into(),
         message: 1,
     };
-    let encoded = phase::grace(&source, &tasks_limits()).expect("fixed-width fields fit");
+    let encoded = phase::grace(&source);
     let encoded = saved_wire(encoded);
-    assert_eq!(phase::read_grace(encoded), Ok(source));
+    assert_eq!(phase::read_grace(encoded), source);
 }
 fn a_revision_set_reads_back() {
     use crate::codec::tasks::phase;
     let source = jig_domain_tasks::Revisions { hold: 3, spec: 5, person: 7 };
-    let encoded = phase::revisions(&source, &tasks_limits()).expect("fixed-width fields fit");
+    let encoded = phase::revisions(&source);
     let encoded = saved_wire(encoded);
-    assert_eq!(phase::read_revisions(encoded), Ok(source));
+    assert_eq!(phase::read_revisions(encoded), source);
 }
 fn each_retry_notice_reads_back() {
     use crate::codec::tasks::phase;
@@ -301,9 +301,9 @@ fn each_retry_notice_reads_back() {
         },
         jig_domain_tasks::RetryNotice::Refused { count: 7, reason: None },
     ] {
-        let encoded = phase::retry_notice(&source, &tasks_limits()).expect("fixed-width fields fit");
+        let encoded = phase::retry_notice(&source);
         let encoded = saved_wire(encoded);
-        assert_eq!(phase::read_retry_notice(encoded), Ok(source));
+        assert_eq!(phase::read_retry_notice(encoded), source);
     }
 }
 
@@ -443,8 +443,8 @@ fn preparation_hold_and_retry_reasons_survive_the_store() {
         RetryNotice::Failed { class: Class::Permanent, count: 3, allowance: 2, reason: Some(words.clone()) },
         RetryNotice::Refused { count: 7, reason: Some(words) },
     ] {
-        let encoded = phase::retry_notice(&notice, &tasks_limits()).expect("bounded reason");
+        let encoded = phase::retry_notice(&notice);
         let encoded = saved_wire(encoded);
-        assert_eq!(phase::read_retry_notice(encoded), Ok(notice));
+        assert_eq!(phase::read_retry_notice(encoded), notice);
     }
 }

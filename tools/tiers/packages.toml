@@ -42,7 +42,6 @@ process-temper = [
 ]
 
 real-skein = [
-    "github-conformance",
     "skein-codegen",
     "skein-conformance-real",
     "skein-echo-shell",

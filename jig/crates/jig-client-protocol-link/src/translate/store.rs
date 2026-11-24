@@ -114,7 +114,7 @@ pub(crate) fn restore_ask(value: w::Ask, limits: &Limits) -> Result<c::Ask, w::P
             on: match &value.on {
                 w::DecideOn::Proposal(v) => c::DecideOn::Proposal {
                     running: match &v.running {
-                        Some(value) => Some(super::settings::restore_running(value)?),
+                        Some(value) => Some(super::settings::restore_running(value)),
                         None => None,
                     },
                     proposal: answers::proposal_key(&v.proposal),

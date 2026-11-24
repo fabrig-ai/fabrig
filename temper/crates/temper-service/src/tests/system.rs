@@ -451,7 +451,7 @@ fn box_sign_in(stand: &mut fixtures::system::SystemStand) -> Box<[u8]> {
     use fixtures::http as peer;
     let link = stand.service.links().pop().expect("sign-in link");
     let engine = stand.service.engine.as_mut().unwrap();
-    let body = peer::link_body(engine, &link);
+    let body = peer::link_body(&link);
     let mut sign_in = peer::Peer::new(engine, b"POST", b"/jig/v1/sign-in/link", &body, None);
     sign_in.pump(engine, true);
     let jig_client_protocol_wire::SignInAnswer::SignedIn(answer) = sign_in.sign_in_answer(engine) else {

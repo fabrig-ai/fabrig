@@ -104,8 +104,8 @@ pub(super) fn note_pieces(
     }
     pieces(&encoded, bound, path)
 }
-pub(super) fn funding(value: &t::FundingRecord, limits: &w::Limits) -> Result<w::FundingRecord, w::Problem> {
-    Ok(w::FundingRecord {
+pub(super) fn funding(value: &t::FundingRecord) -> w::FundingRecord {
+    w::FundingRecord {
         period: match value.period {
             Some(value) => Some(w::PeriodTimes {
                 began: value.began.as_nanos(),
@@ -116,15 +116,15 @@ pub(super) fn funding(value: &t::FundingRecord, limits: &w::Limits) -> Result<w:
             }),
             None => None,
         },
-        funder: owner::funder(value.funder, limits)?,
+        funder: owner::funder(value.funder),
         parent: match value.parent {
-            Some(value) => Some(owner::funder(value, limits)?),
+            Some(value) => Some(owner::funder(value)),
             None => None,
         },
-        numbers: owner::numbers(value.numbers, limits)?,
+        numbers: owner::numbers(value.numbers),
         made: value.made,
         closed: value.closed,
-    })
+    }
 }
 pub(super) fn note(models: &[crate::Model], value: &d::Note, limits: &w::Limits) -> Result<w::Note, w::Problem> {
     let scope = match &value.scope {
@@ -137,7 +137,7 @@ pub(super) fn note(models: &[crate::Model], value: &d::Note, limits: &w::Limits)
         d::NoteLocation::Resources { project, scope } => w::NoteScope::Resource(w::NoteScopeResource {
             project: *project,
             connector: scope.connector,
-            pattern: owner::pattern(&scope.segments, &scope.last, limits)?,
+            pattern: owner::pattern(&scope.segments, &scope.last),
         }),
     };
     let writer = match value.writer {
@@ -155,8 +155,8 @@ pub(super) fn note(models: &[crate::Model], value: &d::Note, limits: &w::Limits)
         number: value.number,
         revision: w::Revision { value: u64::from(value.revision) },
         scope,
-        description: owner::text(&value.description, limits)?,
-        body: owner::text(&value.body, limits)?,
+        description: owner::text(&value.description),
+        body: owner::text(&value.body),
         writer,
         tasks,
         changed: match value.changed {

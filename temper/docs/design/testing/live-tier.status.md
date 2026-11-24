@@ -97,3 +97,9 @@
   teardown's, its Musts and secrets scan panic, and
   `scripts/proof-live-github.sh` stops no runner on a signal.
   [in flight: change 2875]
+  the whole document: the key landing story removes `anthropic`'s `keep`
+  and `drop` from `providers.setting` by hand, which a start overwrites
+  with the store's provider 2, so its key's account may read Anthropic's
+  list; its fresh sitting's model item was refused out of shape, and no
+  focused test builds the kit's settings files from the stock and has the
+  settings admit them. [in flight: change 15450]

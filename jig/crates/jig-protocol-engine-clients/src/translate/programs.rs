@@ -16,9 +16,8 @@ fn failure(value: SourceFailure) -> w::ProgramFailure {
         SourceFailure::Closed => w::ProgramFailure::Closed,
     }
 }
-#[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
-fn state(value: &LoginState, _limits: &w::Limits) -> Result<w::ProgramState, w::Problem> {
-    Ok(match value {
+fn state(value: &LoginState) -> w::ProgramState {
+    match value {
         LoginState::Usable => w::ProgramState::Usable,
         LoginState::NotSignedIn => w::ProgramState::NotSignedIn,
         LoginState::SignedInOtherwise(method) => w::ProgramState::SignedInOtherwise(w::ProgramOtherwise {
@@ -27,11 +26,12 @@ fn state(value: &LoginState, _limits: &w::Limits) -> Result<w::ProgramState, w::
         LoginState::Failed { reason, detail } => {
             w::ProgramState::Failed(w::ProgramFailed { reason: failure(*reason), detail: detail.clone() })
         }
-    })
+    }
 }
-pub fn login(value: &d::ProgramLogin, limits: &w::Limits) -> Result<w::ProgramLogin, w::Problem> {
+#[must_use]
+pub fn login(value: &d::ProgramLogin) -> w::ProgramLogin {
     let state = match &value.state {
-        Some(value) => Some(state(value, limits)?),
+        Some(value) => Some(state(value)),
         None => None,
     };
     let sign_out = match &value.sign_out {
@@ -41,7 +41,7 @@ pub fn login(value: &d::ProgramLogin, limits: &w::Limits) -> Result<w::ProgramLo
         }
         None => None,
     };
-    Ok(w::ProgramLogin { name: value.name.clone(), state, sign_out, cleanup: value.cleanup, cut: value.cut })
+    w::ProgramLogin { name: value.name.clone(), state, sign_out, cleanup: value.cleanup, cut: value.cut }
 }
 pub fn logins(
     value: &List<d::ProgramLogin>,
@@ -51,7 +51,7 @@ pub fn logins(
 ) -> Result<Box<[u8]>, w::Problem> {
     let mut rows = List::with_capacity(value.len());
     for row in value {
-        let row = login(row, limits)?;
+        let row = login(row);
         let mut out = Writer::new(skein_lib::length::usize_of(row.measure(limits)?));
         row.write(limits, &mut out).expect("measured login row");
         rows.push(out.finish()).expect("one piece per supplied row");
