@@ -168,7 +168,7 @@ fn compose(
     let Opened { mut resolved, invocation, seed, wall, input_closed, interactive, document } = opened;
     let interactive =
         interactive.map(|plain| plain || skein_shell::terminal_modes(skein_io::kernel::Fd::new(0)).is_err());
-    files.prepare_output(seed)?;
+    files.prepare_output()?;
     files.create_temporary()?;
     if interactive.is_none()
         && let Some(chat) = invocation_chat(&invocation.shared, seed)
@@ -213,7 +213,7 @@ fn compose(
         files.teardown_bound()?,
         interactive.is_some(),
     )?;
-    let front = prepare_front(interactive, input_closed, invocation.json, &resolved.agent, &limits, files)?;
+    let front = prepare_front(interactive, input_closed, invocation.json, &resolved.agent, &limits)?;
     let environment = resolved.agent.service.environment.command_entries();
     let launch = spawned::Startup {
         document,
@@ -249,9 +249,7 @@ fn compose(
         crate::local_host::Admission { handed: Some(prepared), front: Some(front), producer, programs: rechecks },
     )
     .map_err(Refused::Local)?;
-    files.attach_private(&mut local)?;
     start_stream(&mut local, trace, header, now)?;
-    local.result_file(files.output.take());
     files.composed();
     Ok(local)
 }
@@ -294,7 +292,7 @@ fn startup_resources(
     seed: u64,
 ) -> Result<crate::Resources, Refused> {
     Ok(crate::Resources {
-        state_root: files.store_root(if interactive.is_some() {
+        files: files.opened(if interactive.is_some() {
             chat_path.parent().expect("workspace chats parent")
         } else {
             chat_path
@@ -335,7 +333,6 @@ fn prepare_front(
     json: bool,
     agent: &smith_agent_shell::config::Configuration,
     limits: &smith_local_service::Limits,
-    files: &Files,
 ) -> Result<crate::front::Front, Refused> {
     if let Some(plain) = interactive {
         let front = crate::front::interactive::Interactive::new(plain, &agent.service.limits)
@@ -349,7 +346,6 @@ fn prepare_front(
         limits.local.show_bytes,
     );
     front.input_closed = input_closed;
-    front.result_file = files.has_output();
     Ok(crate::front::Front::Headless(front))
 }
 
@@ -360,12 +356,7 @@ fn start_stream(
     now: skein_lib::Time,
 ) -> Result<(), Refused> {
     if let Some(trace) = trace {
-        let parent = trace.path.parent().filter(|parent| !parent.as_os_str().is_empty()).unwrap_or(Path::new("."));
-        let name =
-            trace.path.file_name().ok_or_else(|| Refused::Usage(Usage("the trace requires a file name".into())))?;
-        let descriptor = root(parent)?;
-        let fd = skein_shell::open_append(descriptor, name.as_encoded_bytes(), 0o600)
-            .map_err(|why| Refused::Local(startup::Failure::Host { detail: format!("trace append: {why:?}") }))?;
+        let (descriptor, fd) = open_trace(&trace.path)?;
         local
             .adopt_trace(fd, Some(descriptor), now, header.take().expect("configured header"), trace.delivery)
             .map_err(|why| {
@@ -377,6 +368,15 @@ fn start_stream(
         local.start_session(now, header);
     }
     Ok(())
+}
+
+fn open_trace(path: &Path) -> Result<(skein_io::kernel::Fd, skein_io::kernel::Fd), Refused> {
+    let parent = path.parent().filter(|parent| !parent.as_os_str().is_empty()).unwrap_or(Path::new("."));
+    let name = path.file_name().ok_or_else(|| Refused::Usage(Usage("the trace requires a file name".into())))?;
+    let descriptor = root(parent)?;
+    let fd = skein_shell::open_append(descriptor, name.as_encoded_bytes(), 0o600)
+        .map_err(|why| Refused::Local(startup::Failure::Host { detail: format!("trace append: {why:?}") }))?;
+    Ok((descriptor, fd))
 }
 
 struct WorkspaceRoots {
@@ -592,14 +592,15 @@ fn run_opened(
     clock: &Clock,
     kind: &AgentKind,
 ) -> Result<u8, Refused> {
-    let mut files = Files::prepare(&opened.invocation, &opened.resolved, opened.seed)?;
+    let seed = opened.seed;
+    let mut files = Files::prepare(&opened.invocation, &opened.resolved, seed)?;
     let result = compose(opened, kind, at.now, &mut files, &mut kernel, clock).map(|mut started| {
         match skein_shell::drive(&mut kernel, clock, &mut started) {
             skein_io::kernel::Exit::Code(code) => code,
             skein_io::kernel::Exit::Signal(_) => 130,
         }
     });
-    files.close_startup(&mut kernel, clock);
+    files.close_startup(&mut kernel, clock, seed);
     result
 }
 

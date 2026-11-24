@@ -19,6 +19,7 @@ use smith_local_domain as local;
 use smith_local_service as service;
 use smith_local_shell::credentials::token_limits;
 use smith_local_shell::local_host::{Local, Resources};
+use smith_local_shell::testing::{PrivateChat, ProductFiles, ResultDestination};
 use std::{os::unix::ffi::OsStrExt, path::PathBuf};
 
 mod agent_process;
@@ -68,6 +69,9 @@ pub struct Launch {
     pub read_report: bool,
     /// Start one unattended run from the fixture's retained prompt.
     pub headless: bool,
+    /// Headless product destinations preopened by the fake machine.
+    #[serde(default)]
+    pub finalizer: Option<Finalizer>,
     /// Select the product's line-mode front on the same local composition.
     pub interactive: bool,
     /// Compose the alternate model and model-owned efforts for local-choice stories.
@@ -84,6 +88,15 @@ pub struct Launch {
     pub state_directory: PathBuf,
     pub token_directory: PathBuf,
     pub root_path: PathBuf,
+}
+
+/// A headless product story's chat and optional file destinations.
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct Finalizer {
+    pub json: bool,
+    pub chat: String,
+    pub result: Option<PathBuf>,
+    pub private: Option<PathBuf>,
 }
 
 /// One selected non-git workspace root for composed tool stories.
@@ -490,10 +503,18 @@ pub fn local_roots(spawn: &kernel::Spawn) -> Vec<StartupRoot> {
     let launch = Launch::read(spawn);
     let path = launch.root_path.as_os_str().as_encoded_bytes();
     let mut roots = vec![StartupRoot { name: b"launch".as_slice().into(), path: path.into() }];
-    roots.push(StartupRoot {
-        name: b"state".as_slice().into(),
-        path: launch.state_directory.as_os_str().as_encoded_bytes().into(),
-    });
+    let mut store = &launch.state_directory;
+    if let Some(files) = &launch.finalizer {
+        if let Some(private) = &files.private {
+            store = private;
+            roots.push(startup_root(b"private-parent", private.parent().expect("runtime base")));
+        }
+        if let Some(result) = &files.result {
+            let parent = result.parent().filter(|parent| !parent.as_os_str().is_empty());
+            roots.push(startup_root(b"result-parent", parent.unwrap_or(&launch.root_path)));
+        }
+    }
+    roots.push(startup_root(b"state", store));
     if launch.authenticated {
         roots.push(StartupRoot { name: b"credential".as_slice().into(), path: path.into() });
     }
@@ -521,6 +542,10 @@ pub fn local_roots(spawn: &kernel::Spawn) -> Vec<StartupRoot> {
     }
     roots
 }
+fn startup_root(name: &[u8], path: &std::path::Path) -> StartupRoot {
+    StartupRoot { name: name.into(), path: path.as_os_str().as_encoded_bytes().into() }
+}
+
 fn configure_choices(config: &mut service::Config, lower: &mut agent::Config) {
     let mut names = skein_lib::List::with_capacity(1);
     names.push(smith_protocol_translate::Endpoint { name: b"main".as_slice().into(), number: 0, dialect: 3 }).unwrap();
@@ -557,6 +582,9 @@ pub fn make_local(spawn: &kernel::Spawn, inherited: &Inherited) -> Proc {
     if launch.headless {
         config.local.mode = local::Mode::Headless { prompt: b"hello".as_slice().into() };
     }
+    if let Some(files) = &launch.finalizer {
+        config.local.chat = files.chat.as_bytes().into();
+    }
     if launch.budget_failure {
         config.local.budget.turns = 3;
     }
@@ -582,7 +610,8 @@ pub fn make_local(spawn: &kernel::Spawn, inherited: &Inherited) -> Proc {
             .expect("trace limits"),
         );
     }
-    let (lower, header) = if launch.traced || launch.interactive {
+    let json = launch.finalizer.as_ref().is_some_and(|files| files.json);
+    let (lower, header) = if launch.traced || launch.interactive || json {
         let (lower, header) = product_header(&mut config, lower, &launch, parsed);
         (lower, Some(header))
     } else {
@@ -590,11 +619,15 @@ pub fn make_local(spawn: &kernel::Spawn, inherited: &Inherited) -> Proc {
     };
     let fd = inherited.pipes.iter().find(|(child, _)| *child == 2).expect("stderr").1;
     let (writer, capture) = skein_world::PipeWriter::new(fd, 4096);
-    let interactive = launch.interactive.then(|| {
-        smith_local_shell::front::Front::Interactive(
-            smith_local_shell::front::interactive::Interactive::new(true, &lower.limits).expect("bounded screen"),
-        )
-    });
+    use smith_local_shell::front::{Front, headless::Headless, interactive::Interactive};
+    let front = if launch.interactive {
+        Some(Front::Interactive(Interactive::new(true, &lower.limits).expect("bounded screen")))
+    } else if launch.finalizer.is_some() {
+        Some(Front::Headless(Headless::new(json, skein_shell::OutputKind::Pipe, config.limits.local.show_bytes)))
+    } else {
+        None
+    };
+    let files = product_files(&launch, inherited, &config.limits, lower.limits.file_timeout);
     let (lower, spawned) =
         if launch.placement == crate::Placement::InProcess { (Some(lower), None) } else { (None, Some(lower)) };
     let mut handed = lending_accounts(&launch, spawn, config.limits.process.io).unwrap_or_else(|| {
@@ -613,7 +646,7 @@ pub fn make_local(spawn: &kernel::Spawn, inherited: &Inherited) -> Proc {
         config,
         lower,
         Resources {
-            state_root: root(inherited, b"state"),
+            files,
             input: inherited.pipes.iter().find(|(child, _)| *child == 0).expect("stdin").1,
             output: inherited.pipes.iter().find(|(child, _)| *child == 1).expect("stdout").1,
             signals: inherited.signal,
@@ -639,7 +672,7 @@ pub fn make_local(spawn: &kernel::Spawn, inherited: &Inherited) -> Proc {
         },
         Box::new(writer),
         Some(handed),
-        interactive,
+        front,
     )
     .expect("shared local shell");
     if let Some(configuration) = &spawned
@@ -656,6 +689,25 @@ pub fn make_local(spawn: &kernel::Spawn, inherited: &Inherited) -> Proc {
         local.start_session(Time::ZERO, header);
     }
     Proc::Local(Box::new(LocalProcess::new(capture.host(local), launch.keep_facts)))
+}
+
+fn product_files(launch: &Launch, inherited: &Inherited, limits: &service::Limits, timeout: Duration) -> ProductFiles {
+    let mut adopted = ProductFiles::store(root(inherited, b"state"));
+    if let Some(files) = &launch.finalizer {
+        adopted.private = files
+            .private
+            .as_ref()
+            .map(|path| PrivateChat { parent: root(inherited, b"private-parent"), path: path.clone() });
+        adopted.result = files.result.as_ref().map(|path| ResultDestination {
+            parent: root(inherited, b"result-parent"),
+            path: path.clone(),
+            maximum: u32::try_from(limits.local.smith.run.outcome_bytes)
+                .expect("fixture outcome bound")
+                .max(limits.local.show_bytes),
+            timeout,
+        });
+    }
+    adopted
 }
 
 fn product_header(
@@ -691,16 +743,23 @@ fn product_header(
         capture: smith_protocol_events::sinks::Capture::Everything,
         delivery: smith_protocol_events::sinks::Delivery::Complete,
     };
-    let header = Local::trace_header(
+    let result = launch.finalizer.as_ref().is_some_and(|files| files.result.is_some());
+    let timeout = configuration.service.limits.file_timeout;
+    let result_time =
+        if result { timeout.checked_add(timeout).expect("result write and close") } else { Duration::ZERO };
+    let mut header = Local::trace_header(
         &mut configuration,
         &mut config.limits,
         &trace,
-        b"main".as_slice().into(),
+        config.local.chat.clone(),
         101,
         smith_local_shell::local_host::View { destinations: 1, front: launch.interactive },
-        skein_lib::Duration::ZERO,
+        result_time,
     )
     .expect("product effective header");
+    if launch.finalizer.is_some() {
+        header.mode = smith_events::Mode::Exec;
+    }
     (configuration.service, header)
 }
 /// The agent's declared workspace directories, each owned by this child.

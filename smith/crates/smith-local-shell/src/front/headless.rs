@@ -69,7 +69,6 @@ pub struct Headless {
     pub json: bool,
     pub output_kind: skein_shell::OutputKind,
     pub input_closed: bool,
-    pub(crate) result_file: bool,
     text: skein_lib::List<u8>,
 }
 
@@ -77,7 +76,7 @@ impl Headless {
     /// Prepare a bounded last response before resource adoption.
     #[must_use]
     pub fn new(json: bool, output_kind: skein_shell::OutputKind, cap: u32) -> Self {
-        Self { json, output_kind, input_closed: false, result_file: false, text: skein_lib::List::with_capacity(cap) }
+        Self { json, output_kind, input_closed: false, text: skein_lib::List::with_capacity(cap) }
     }
 
     /// Show tool status and keep the latest told text, with names clipped for the operator.

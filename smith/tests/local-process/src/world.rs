@@ -3,14 +3,14 @@
 //! and git face, never process routing (testing.md, sections 2.1, 3.2 and 5).
 use crate::credential_fixture;
 use crate::{
-    process::{self, Launch, Proc},
+    process::{self, Finalizer, Launch, Proc},
     referee::{CheckoutRead, Ending, Run},
     terminal::{Action, Terminal},
 };
 use skein_fake_checkout::git::{Remote, Tree};
 use skein_fake_checkout::{Checkout, git};
 use skein_fake_llm_domain::api;
-use skein_fake_machine::{How, Machine as Filesystem, Opened};
+use skein_fake_machine::{How, Is, Machine as Filesystem, Opened};
 use skein_io::kernel;
 use skein_lib::{Duration, Queue, Wall};
 use skein_world::{HostedProgram, Memory, Outcome};
@@ -155,6 +155,17 @@ fn waiting_scripts() -> Box<[api::Script]> {
     }])
 }
 
+fn filtered_scripts() -> Box<[api::Script]> {
+    Box::new([api::Script {
+        cue: b"@local-shell".as_slice().into(),
+        turns: Box::new([api::Turn {
+            lines: Box::new([api::Line::Text { text: b"Filtered".as_slice().into() }]),
+            finish: api::Finish::ContentFilter,
+            tokens: 1,
+        }]),
+    }])
+}
+
 fn change_scripts() -> Box<[api::Script]> {
     let turns = [
         ("write", "{\"path\":\"result.txt\",\"content\":\"new\\n\"}"),
@@ -244,6 +255,7 @@ pub struct Machine {
     checkout: CheckoutView,
     commands: Vec<Box<[Box<[u8]>]>>,
     chat_path: PathBuf,
+    foreign_on_turn: Option<(PathBuf, Box<[u8]>)>,
     head_unreadable: bool,
     checked_change: bool,
 }
@@ -387,6 +399,17 @@ impl skein_world::Machine for Machine {
             }
         }
         self.files.close(root);
+        // The first saved turn is a live store operation, after initial layout admission.
+        if matches!(&call.ask, skein_sim::Ask::Rename { to, .. } if to.as_ref() == b"0000000001.turn")
+            && let Some((path, bytes)) = self.foreign_on_turn.take()
+        {
+            let file = self
+                .files
+                .open(self.master, path.as_os_str().as_encoded_bytes(), How::Create { mode: 0o600 })
+                .expect("foreign file in live private store");
+            self.files.write(file, 0, &bytes).expect("foreign bytes");
+            self.files.close(file);
+        }
         if self.checked_change && checked::command(&mut self.files, &call, answers) {
             return;
         }
@@ -413,6 +436,14 @@ struct Behaviour {
     discard_facts: bool,
     change: bool,
     checked: bool,
+}
+
+/// The provider's answer in a headless product story.
+#[derive(Clone, Copy)]
+pub enum HeadlessReply {
+    Accept,
+    Wait,
+    Filter,
 }
 
 /// A reusable story and its immutable hosted-launch settings.
@@ -480,6 +511,82 @@ impl World {
         )
     }
 
+    /// Run one headless product invocation over preopened fake-machine directories.
+    #[must_use]
+    pub fn headless(seed: u64, files: &Files, destinations: Finalizer, reply: HeadlessReply, exit: u8) -> Self {
+        let mut world = Self::configured(
+            seed,
+            files,
+            Placement::InProcess,
+            vec![Action::Eof],
+            Ending::Headless { exit },
+            Behaviour::default(),
+        );
+        if let Some(path) = &destinations.private {
+            let machine = world.machine.as_mut().expect("before invocation");
+            let base = path.parent().expect("runtime base").as_os_str().as_encoded_bytes();
+            machine.files.make_directory(machine.master, base, 0o700).expect("runtime base");
+            let parent = machine.files.open(machine.master, base, How::Directory).expect("runtime parent");
+            let name = path.file_name().expect("private leaf").as_encoded_bytes();
+            machine.files.make_directory(parent, name, 0o700).expect("private startup directory");
+            machine.files.close(parent);
+        }
+        world.scenario.launch.headless = true;
+        world.scenario.launch.finalizer = Some(destinations);
+        world.scenario.scripts = Some(match reply {
+            HeadlessReply::Accept => scripts(),
+            HeadlessReply::Wait => waiting_scripts(),
+            HeadlessReply::Filter => filtered_scripts(),
+        });
+        world
+    }
+
+    /// Put a foreign file into the private store at its first saved turn.
+    pub fn foreign_on_turn(&mut self, name: &str, bytes: &[u8]) {
+        let path = self
+            .scenario
+            .launch
+            .finalizer
+            .as_ref()
+            .and_then(|files| files.private.as_ref())
+            .expect("private chat configured")
+            .join(name);
+        self.machine.as_mut().expect("before invocation").foreign_on_turn = Some((path, bytes.into()));
+    }
+
+    /// Seed a directory at a result file's destination before the invocation.
+    pub fn make_directory(&mut self, path: &[u8]) {
+        let machine = self.machine.as_mut().expect("before invocation");
+        machine.files.make_directory(machine.master, path, 0o700).expect("fixture directory");
+    }
+
+    /// Seed the bytes of a result before the invocation.
+    pub fn write_file(&mut self, path: &[u8], bytes: &[u8]) {
+        let machine = self.machine.as_mut().expect("before invocation");
+        let file = machine.files.open(machine.master, path, How::Create { mode: 0o600 }).expect("fixture file");
+        machine.files.write(file, 0, bytes).expect("fixture bytes");
+        machine.files.close(file);
+    }
+
+    /// Observe the entries and their kinds from the settled fake disk.
+    pub fn directory_entries(&mut self, path: &[u8]) -> Vec<(Is, Box<[u8]>)> {
+        let machine = &mut self.outcome.as_mut().expect("settled world").machine;
+        let directory = machine.files.open(machine.master, path, How::Directory).expect("observed directory");
+        let entries = machine.files.list(directory, 16384, 1 << 20).expect("directory entries");
+        machine.files.close(directory);
+        entries
+    }
+
+    /// Observe a file's complete contents from the settled fake disk.
+    pub fn file_bytes(&mut self, path: &[u8]) -> Vec<u8> {
+        let machine = &mut self.outcome.as_mut().expect("settled world").machine;
+        let file = machine.files.open(machine.master, path, How::Read).expect("observed file");
+        let size = u32::try_from(machine.files.stat(file).size).expect("finite fixture file size");
+        let bytes = machine.files.read(file, 0, size).expect("file contents");
+        machine.files.close(file);
+        bytes
+    }
+
     /// Keep provider reasoning before the opening report's finish call for replay.
     #[must_use]
     pub fn reasoning(seed: u64, files: &Files, placement: Placement, answer: &[u8], reasoning: &[u8]) -> Self {
@@ -534,23 +641,13 @@ impl World {
     }
 
     fn trace_records(&mut self, path: &[u8]) -> Vec<smith_events::Record> {
-        let machine = &mut self.outcome.as_mut().expect("settled world").machine;
-        let trace = machine.files.open(machine.master, path, How::Read).expect("trace file");
-        let size = u32::try_from(machine.files.stat(trace).size).expect("finite trace size");
-        let bytes = machine.files.read(trace, 0, size).expect("trace bytes");
-        machine.files.close(trace);
-        let lower = process::lower_configuration();
-        let mut events = smith_agent_service::event_limits(
-            &lower.limits,
-            smith_protocol_events::sinks::Capture::Everything,
-            1,
-            0,
-            &[],
-            Duration::from_secs(1),
-        )
-        .expect("trace limits");
-        events.sinks.records.items = events.sinks.records.items.max(size);
-        smith_agent_process_world::events::read(&bytes, &events)
+        decode_records(&self.file_bytes(path))
+    }
+
+    /// Decode the headless product's JSON stdout independently of the local service.
+    #[must_use]
+    pub fn output_records(&self) -> Vec<smith_events::Record> {
+        decode_records(self.shown())
     }
 
     #[must_use]
@@ -768,6 +865,7 @@ impl World {
                     refresh_lead_ms: None,
                     read_report: false,
                     headless: false,
+                    finalizer: None,
                     interactive: false,
                     choices: false,
                     budget_failure: false,
@@ -798,6 +896,7 @@ impl World {
                 checkout: checkout.clone(),
                 commands: Vec::new(),
                 chat_path: files.path().join("chat"),
+                foreign_on_turn: None,
                 head_unreadable: false,
                 checked_change: checked,
             }),
@@ -1222,6 +1321,22 @@ impl CheckoutRead for World {
         self.checkout.files(commit)
     }
 }
+fn decode_records(bytes: &[u8]) -> Vec<smith_events::Record> {
+    let lower = process::lower_configuration();
+    let mut events = smith_agent_service::event_limits(
+        &lower.limits,
+        smith_protocol_events::sinks::Capture::Everything,
+        1,
+        0,
+        &[],
+        Duration::from_secs(1),
+    )
+    .expect("trace limits");
+    let size = u32::try_from(bytes.len()).expect("finite event stream size");
+    events.sinks.records.items = events.sinks.records.items.max(size);
+    smith_agent_process_world::events::read(bytes, &events)
+}
+
 impl Scenario {
     /// Token requests this scenario expects its issuer to observe.
     #[must_use]

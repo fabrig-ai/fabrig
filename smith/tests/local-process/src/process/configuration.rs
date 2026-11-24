@@ -359,6 +359,7 @@ fn fixture_launch(tls: bool) -> Launch {
         refresh_lead_ms: None,
         read_report: false,
         headless: false,
+        finalizer: None,
         interactive: false,
         choices: false,
         budget_failure: false,

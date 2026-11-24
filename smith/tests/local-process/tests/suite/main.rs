@@ -5,6 +5,7 @@ mod authentication;
 mod composition;
 mod configuration;
 mod events;
+mod finalizer;
 mod lending;
 mod live_referee;
 mod memory;

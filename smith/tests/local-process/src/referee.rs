@@ -59,6 +59,10 @@ pub enum Ending {
     Cancelled,
     /// A headless answer failed because its turn budget ran out.
     Budget,
+    /// A headless run whose terminal text and records are judged by its scenario.
+    Headless {
+        exit: u8,
+    },
     /// The second interrupt ends the invocation before any answer.
     Dropped,
     /// The spawned child exits before answering or contacting the provider.
@@ -172,6 +176,7 @@ impl Meeting {
             Ending::Report(text) | Ending::ReadReport(text) => text.as_slice(),
             Ending::Cancelled => b"interrupted: the run was cancelled",
             Ending::Budget => b"run failed: out of turns",
+            Ending::Headless { .. } => b"", // The scenario judges its own stdout and stderr.
             Ending::Dropped => b"not delivered",
             Ending::AgentEnded => b"run failed: the agent ended without answering",
             Ending::Change { .. } => b"Change delivered",
@@ -193,6 +198,7 @@ impl Meeting {
             Ending::HostFailure | Ending::HostFailureBeforeAnswer | Ending::AgentEnded | Ending::OlderStore => 1,
             Ending::Dropped => 130,
             Ending::Budget => 4,
+            Ending::Headless { exit } => exit,
             Ending::UnreadableHead => 2,
             _ => 0,
         };
@@ -207,6 +213,20 @@ impl Meeting {
                 queries > 0
             },
             "provider work matches account availability",
+        );
+        if self.require_facts
+            && !matches!(self.ending, Ending::Unavailable | Ending::OlderStore | Ending::UnreadableHead)
+        {
+            let met = judge.meet(&"terminal");
+            judge.check(met, "terminal settles the activation");
+        }
+        if matches!(self.ending, Ending::Headless { .. }) {
+            return;
+        }
+        let private = borrowed_text.and_then(|line| shown.strip_suffix(line)).unwrap_or(&shown);
+        judge.check(
+            !contains(private, b"refresh") && !contains(private, b"token"),
+            "terminal never reveals credentials",
         );
         let start = b"smith: local host started\n";
         let older = format!(
@@ -291,17 +311,6 @@ impl Meeting {
                         ))),
             "expected terminal text",
         );
-        let private = borrowed_text.and_then(|line| shown.strip_suffix(line)).unwrap_or(&shown);
-        judge.check(
-            !contains(private, b"refresh") && !contains(private, b"token"),
-            "terminal never reveals credentials",
-        );
-        if self.require_facts
-            && !matches!(self.ending, Ending::Unavailable | Ending::OlderStore | Ending::UnreadableHead)
-        {
-            let met = judge.meet(&"terminal");
-            judge.check(met, "terminal settles the activation");
-        }
     }
 
     fn peer(&self, queries: Vec<Query>, oauth: Option<OAuthSeen>, judge: &mut Judge<&'static str, ()>) {

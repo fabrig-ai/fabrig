@@ -479,14 +479,12 @@ fn check_trace_resolved(
 
 /// Shipped-process settlement and its outside-observation deadline.
 pub struct Settling {
-    finding: Option<String>,
     poll: Time,
     next_act: Option<Time>,
     terminal_sign_in: referee::SignIn,
     stderr_sign_in: referee::SignIn,
     visiting: bool,
     shutdown: bool,
-    foreign: Option<PathBuf>,
     deadline: Time,
     trace: Option<(PathBuf, bool)>,
 }
@@ -495,33 +493,20 @@ impl Settling {
     #[must_use]
     pub fn new(now: Time, deadline: Time) -> Self {
         Self {
-            finding: None,
             poll: now,
             next_act: None,
             terminal_sign_in: referee::SignIn::default(),
             stderr_sign_in: referee::SignIn::default(),
             visiting: false,
             shutdown: false,
-            foreign: None,
             deadline,
             trace: None,
         }
     }
+}
 
-    fn act_checked(&mut self, now: Time, procs: &mut [Process]) -> Result<(), String> {
-        if now >= self.poll
-            && let Some(runtime) = &self.foreign
-        {
-            for entry in std::fs::read_dir(runtime).into_iter().flatten() {
-                let entry = entry.map_err(|_| String::from("private fixture entry"))?;
-                if entry.file_name().as_encoded_bytes().starts_with(b".smith-exec-") {
-                    std::fs::write(entry.path().join("foreign.txt"), b"kept foreign content")
-                        .map_err(|_| String::from("foreign fixture file"))?;
-                    self.foreign = None;
-                    break;
-                }
-            }
-        }
+impl Referee<Process> for Settling {
+    fn act(&mut self, _now: Time, procs: &mut [Process]) {
         let exit = procs.iter().find_map(|p| if let Process::Binary(p) = p { p.exit_status() } else { None });
         self.next_act = None;
         let url = self.terminal_sign_in.url().or_else(|| self.stderr_sign_in.url());
@@ -551,20 +536,9 @@ impl Settling {
                 }
             }
         }
-        Ok(())
     }
-}
 
-impl Referee<Process> for Settling {
-    fn act(&mut self, now: Time, procs: &mut [Process]) {
-        if self.finding.is_none() {
-            self.finding = self.act_checked(now, procs).err();
-        }
-    }
     fn watch(&mut self, now: Time, procs: &[Process]) -> Result<(), String> {
-        if let Some(why) = &self.finding {
-            return Err(why.clone());
-        }
         for process in procs {
             match process {
                 Process::Binary(binary) => self.stderr_sign_in.check(binary.stderr())?,
@@ -616,17 +590,16 @@ impl Referee<Process> for Settling {
         Ok(())
     }
     fn next_deadline(&self) -> Option<Time> {
-        // Foreign runtime entries and trace appends have no ring completion here.
+        // Trace appends have no ring completion here.
         // Binary/terminal observations and exit already wake the loop.
-        let poll =
-            (self.foreign.is_some() || self.trace.as_ref().is_some_and(|(_, growing)| !growing)).then_some(self.poll);
+        let poll = self.trace.as_ref().is_some_and(|(_, growing)| !growing).then_some(self.poll);
         self.next_act.into_iter().chain(poll).chain([self.deadline]).min()
     }
     fn overdue(&self, now: Time) -> Option<String> {
         (now >= self.deadline).then(|| "startup refusal did not exit and drain".into())
     }
     fn passed(&self) -> bool {
-        self.finding.is_none() && (self.foreign.is_none() && self.trace.as_ref().is_none_or(|(_, growing)| *growing))
+        self.trace.as_ref().is_none_or(|(_, growing)| *growing)
     }
 }
 
@@ -766,8 +739,8 @@ pub fn smith_with_environment(
 
 mod exec;
 pub use exec::{
-    Reply, chat_modes, chat_resized, chat_waiting, exec_with_foreign_file, exec_with_provider, fake_provider_settings,
-    key_chat, program_chat, program_interrupt, run as run_product, run_scripted as run_product_scripted,
+    Reply, chat_modes, chat_resized, chat_waiting, exec_with_provider, fake_provider_settings, key_chat, program_chat,
+    program_interrupt, run as run_product, run_scripted as run_product_scripted,
 };
 
 pub mod login;

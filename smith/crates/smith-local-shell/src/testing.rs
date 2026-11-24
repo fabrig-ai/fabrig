@@ -1,6 +1,7 @@
-//! Native operations shared with the local shell's real-loop suite.
+//! Opened startup facts and native helpers shared with the local shell's test worlds.
 
 pub use crate::credentials::testing::{inspect_key, keep_key, logout, raw_key, read_or_draw};
+pub use crate::local_host::{PrivateChat, ProductFiles, ResultDestination};
 
 pub mod resolve {
     pub mod programs {

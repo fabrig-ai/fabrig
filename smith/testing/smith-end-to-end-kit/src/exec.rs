@@ -1,7 +1,6 @@
 //! Headless product stories reuse the shipped binary, person and provider hosts.
 use super::{Process, Ran, Settling, window};
 use skein_io::kernel::Exit;
-use skein_lib::Duration;
 use skein_shell::{Clock, Host};
 use skein_world::{
     end_to_end::{Binary, Command, Mode, Streams},
@@ -18,7 +17,6 @@ use smith_real_world::{Scratch, settled::assert_no_children};
 pub enum Reply {
     Wait,
     Accepted,
-    Filtered,
 }
 
 #[must_use]
@@ -37,21 +35,6 @@ pub fn exec_with_provider(scratch: &Scratch, arguments: &[&str], input: &[u8], r
 }
 
 #[must_use]
-pub fn exec_with_foreign_file(scratch: &Scratch, arguments: &[&str], input: &[u8]) -> Ran {
-    run_fixture(
-        scratch,
-        arguments,
-        Options {
-            provider: Some(provider(scratch, Reply::Accepted)),
-            foreign: true,
-            person: person(input),
-            ..Options::default()
-        },
-    )
-    .0
-}
-
-#[must_use]
 pub fn chat_modes(scratch: &Scratch, commands: Vec<Action>) -> (Ran, Vec<skein_fake_llm_domain::api::Query>) {
     run_fixture(
         scratch,
@@ -60,7 +43,6 @@ pub fn chat_modes(scratch: &Scratch, commands: Vec<Action>) -> (Ran, Vec<skein_f
             provider: Some(provider(scratch, Reply::Accepted)),
             person: (Mode::Terminal, commands),
             watching: window::Story::Modes,
-            ..Options::default()
         },
     )
 }
@@ -74,7 +56,6 @@ pub fn chat_resized(scratch: &Scratch, commands: Vec<Action>) -> (Ran, Vec<skein
             provider: Some(provider(scratch, Reply::Accepted)),
             person: (Mode::Terminal, commands),
             watching: window::Story::Resize,
-            ..Options::default()
         },
     )
 }
@@ -112,19 +93,6 @@ fn provider(scratch: &Scratch, reply: Reply) -> skein_fake_peers::llm::Peer {
     match reply {
         Reply::Wait => world::headless_provider(true, credential),
         Reply::Accepted => world::headless_provider(false, credential),
-        Reply::Filtered => smith_agent_process_world::fake::configured_openai(
-            Box::new([skein_fake_llm_domain::api::Script {
-                cue: b"@local-shell".as_slice().into(),
-                turns: Box::new([skein_fake_llm_domain::api::Turn {
-                    lines: Box::new([skein_fake_llm_domain::api::Line::Text { text: b"Filtered".as_slice().into() }]),
-                    finish: skein_fake_llm_domain::api::Finish::ContentFilter,
-                    tokens: 1,
-                }]),
-            }]),
-            credential,
-            Duration::ZERO,
-            skein_fake_peers::Transport::Tls,
-        ),
     }
 }
 
@@ -176,14 +144,13 @@ fn person(input: &[u8]) -> (Mode, Vec<Action>) {
 
 struct Options {
     provider: Option<skein_fake_peers::llm::Peer>,
-    foreign: bool,
     person: (Mode, Vec<Action>),
     watching: window::Story,
 }
 
 impl Default for Options {
     fn default() -> Self {
-        Self { provider: None, foreign: false, person: person(b""), watching: window::Story::None }
+        Self { provider: None, person: person(b""), watching: window::Story::None }
     }
 }
 
@@ -192,7 +159,7 @@ fn run_fixture(
     arguments: &[&str],
     options: Options,
 ) -> (Ran, Vec<skein_fake_llm_domain::api::Query>) {
-    let Options { provider, foreign, person, watching } = options;
+    let Options { provider, person, watching } = options;
     assert_no_children();
     let mut command_arguments: Vec<std::ffi::OsString> = arguments.iter().map(std::ffi::OsString::from).collect();
     let smith = skein_scratch::paths::binary("smith");
@@ -239,7 +206,6 @@ fn run_fixture(
     };
     let mut world = real::World::new(window::Judge::new(
         Settling {
-            foreign: foreign.then(|| scratch.path().join("runtime")),
             trace: arguments
                 .windows(2)
                 .find(|pair| pair.first().is_some_and(|flag| *flag == "--trace"))
