@@ -275,7 +275,7 @@ use skein_lib::{Duration, Queue, Time, Token, Wall};
 use skein_shell::{Clock, Delegate, Host};
 use skein_world::{
     Referee,
-    end_to_end::{Binary, Command, Expectation, Mode, Streams},
+    end_to_end::{Binary, Command, Mode, Streams},
     real,
 };
 
@@ -694,7 +694,6 @@ pub struct Seen {
 enum Ending {
     Stop,
     Box,
-    Crash,
 }
 enum ChatPhase {
     SettingUp,
@@ -705,7 +704,6 @@ enum ChatPhase {
 struct ChatJudge<'a> {
     failed: Option<String>,
     phase: ChatPhase,
-    ending: Ending,
     deadline: patience::Patience,
     forge: Option<&'a forgejo::Throwaway>,
     poll: Time,
@@ -756,10 +754,7 @@ impl Referee<Process> for ChatJudge<'_> {
                 let Process::Binary(binary) = &mut procs[0] else {
                     return Err(String::from("binary"));
                 };
-                match self.ending {
-                    Ending::Stop | Ending::Box => binary.signal(Signal::Terminate),
-                    Ending::Crash => binary.signal_tree(Signal::Kill),
-                }
+                binary.signal(Signal::Terminate);
                 for proc in procs {
                     if let Process::Peer(peer) = proc {
                         peer.shutdown();
@@ -815,20 +810,8 @@ impl Referee<Process> for ChatJudge<'_> {
         if binary.exit_status().is_some() && !self.stopping() {
             return Err(format!("temper serve failed: {}", String::from_utf8_lossy(binary.stderr())));
         }
-        match self.ending {
-            Ending::Stop | Ending::Box => {
-                if !binary.exit_status().is_none_or(|exit| exit == Exit::Code(0)) {
-                    return Err(format!(
-                        "temper serve did not stop cleanly: {}",
-                        String::from_utf8_lossy(binary.stderr())
-                    ));
-                }
-            }
-            Ending::Crash => {
-                if binary.stderr_overflowed() {
-                    return Err(String::from("crashed temper serve overflowed stderr"));
-                }
-            }
+        if !binary.exit_status().is_none_or(|exit| exit == Exit::Code(0)) {
+            return Err(format!("temper serve did not stop cleanly: {}", String::from_utf8_lossy(binary.stderr())));
         }
         if !matches!(self.phase, ChatPhase::Settled)
             && let Some(figures) = self.deadline.failed()
@@ -856,48 +839,15 @@ impl Referee<Process> for ChatJudge<'_> {
 }
 #[must_use]
 pub fn run(directory: &Path, script: person::Script, peer: Option<llm::Listening>, deadline: Duration) -> Seen {
-    run_story(directory, script, peer, deadline, None, Ending::Stop)
+    run_story(directory, script, peer, deadline, Ending::Stop)
 }
 /// Run the native person's script on the initialized box, including its demo setup.
 #[must_use]
 pub fn run_box(directory: &Path, script: person::Script, deadline: Duration) -> Seen {
-    run_story(directory, script, None, deadline, None, Ending::Box)
+    run_story(directory, script, None, deadline, Ending::Box)
 }
 /// testing/process-tier.md bounds each landing story at 360 seconds.
 pub const LANDING: Duration = Duration::from_secs(360);
-/// Past `LANDING`: poll, `poll_max` and slow ship at 5, 30 and 40 s; stall ships at 30 min.
-/// This sets the paces and stall to 600 s: above `LANDING`, but below the shipped 1800 s stall.
-pub const RAISED_MS: u64 = 600_000;
-const _: () = assert!(Duration::from_millis(RAISED_MS).as_nanos() > LANDING.as_nanos());
-// The hinted job's 5 s sleep outlasts settle (protocol/setup/webhooks.md, 1, protocol/setup/testing.md, 4).
-const HINTED_SETTLE_MS: u64 = 3000;
-
-/// Raises the three keep paces, lowers checking's bounds in proportion to a 600 s stall,
-/// and shortens the hinted story's settle.
-pub fn raise_paces(directory: &Path) {
-    let mut value = limit_settings::configuration(directory);
-    for name in [
-        "forge.client.poll_ms",
-        "forge.client.poll_max_ms",
-        "forge.client.slow_ms",
-        "forge.change_policy.stall_ms",
-        "forge.change_policy.unknown_grace_ms",
-    ] {
-        value.temper_over(name, RAISED_MS);
-    }
-    value.temper_over("forge.change_policy.runner_wait_ms", RAISED_MS.saturating_mul(8));
-    value.temper_over("forge.client.settle_ms", HINTED_SETTLE_MS);
-    limit_settings::remember(directory, &value);
-}
-#[must_use]
-pub fn run_until_landed(
-    directory: &Path,
-    script: person::Script,
-    peer: llm::Listening,
-    forge: &forgejo::Throwaway,
-) -> Seen {
-    run_story(directory, script, Some(peer), LANDING, Some(forge), Ending::Crash)
-}
 // Sign-in, inventory, whole template read, then one owner settings change.
 const NATIVE_SETUP_CALLS: usize = 4;
 fn native_settings_setup(directory: &Path, agents: Option<serde_json::Value>) -> Vec<ctl::Step> {
@@ -964,7 +914,6 @@ fn run_story(
     script: person::Script,
     peer: Option<llm::Listening>,
     deadline: Duration,
-    forge: Option<&forgejo::Throwaway>,
     ending: Ending,
 ) -> Seen {
     let clock = Clock::new();
@@ -980,10 +929,6 @@ fn run_story(
     let mut binary = match ending {
         Ending::Stop => serve(directory),
         Ending::Box => sign_in::start(directory),
-        Ending::Crash => {
-            Binary::start_with_tree(serve_command(directory), Mode::Pipes, 65_536, Expectation::Supervise, false)
-                .expect("temper serve starts for a whole-tree crash")
-        }
     };
     let streams = binary.take_streams().expect("binary pipes");
     let mut fds = streams.descriptors();
@@ -995,8 +940,7 @@ fn run_story(
     let mut world = real::World::new(ChatJudge {
         failed: None,
         phase: if setting_up { ChatPhase::SettingUp } else { ChatPhase::Running },
-        ending,
-        forge,
+        forge: None,
         poll: clock.now().now,
         merged: false,
         deadline: patience::Patience::watching(
@@ -1032,17 +976,12 @@ fn run_story(
     let Process::Binary(binary) = &outcome.procs[0] else {
         panic!("binary");
     };
-    if !matches!(ending, Ending::Crash) {
-        assert_eq!(
-            binary.exit_status(),
-            Some(Exit::Code(0)),
-            "native story drained: {}",
-            String::from_utf8_lossy(binary.stderr())
-        );
-    }
-    if matches!(ending, Ending::Crash) {
-        assert!(binary.counts().is_some(), "the crashed temper serve tree settled before the restart");
-    }
+    assert_eq!(
+        binary.exit_status(),
+        Some(Exit::Code(0)),
+        "native story drained: {}",
+        String::from_utf8_lossy(binary.stderr())
+    );
     let Process::Person(person) = &outcome.procs[1] else {
         panic!("native person");
     };
