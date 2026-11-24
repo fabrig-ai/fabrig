@@ -1145,7 +1145,7 @@ pub(crate) fn amendment(words: &[u8]) -> people::Amendment {
 fn a_release_naming_an_old_hold_is_refused_as_moved_saying_what_holds_it_now() {
     let mut world = World::new(Setup { seed: 150, ..Setup::default() });
     let task = world.call_key(1).task;
-    ask(&mut world, 50, people::Ask::Stop { project: 1, task });
+    ask(&mut world, 50, people::Ask::Stop { project: 1, task, reason: Box::from(b"Parking the task".as_slice()) });
     let revision = live_row(&world, task).revisions.hold;
     world.send(root::Event::Core(core::Event::Tasks(tasks::Event::Hold { task, why: tasks::Hold::Budget })));
     ask(&mut world, 51, people::Ask::Release { project: 1, task, revision, again: None });
@@ -1224,7 +1224,7 @@ fn an_amendment_and_a_release_are_one_decision() {
     let (configuration, limits) = amendment_world_fixture(152);
     let mut world = World::new(Setup { seed: 152, configuration: Some(configuration), limits, ..Setup::default() });
     let task = world.call_key(1).task;
-    ask(&mut world, 54, people::Ask::Stop { project: 1, task });
+    ask(&mut world, 54, people::Ask::Stop { project: 1, task, reason: Box::from(b"Parking the task".as_slice()) });
     world.end(tasks::End::Parked, 0);
     let hold = live_row(&world, task).revisions.hold;
     let revision = live_row(&world, task).revisions.spec;

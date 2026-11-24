@@ -11,7 +11,7 @@ pub enum Operation {
     Amend { task: u64, revision: u64, amendment: Box<Amendment>, release: Option<u64> },
     Release { task: u64, revision: u64, again: Option<bool> },
     Message { task: u64, words: Box<[u8]> },
-    Stop { task: u64 },
+    Stop { task: u64, reason: Box<[u8]> },
 }
 impl Operation {
     /// The standalone vocabulary, with its enclosing project's number.
@@ -25,7 +25,7 @@ impl Operation {
             }
             Self::Release { task, revision, again } => Ask::Release { project, task, revision, again },
             Self::Message { task, words } => Ask::Say { project, task, words },
-            Self::Stop { task } => Ask::Stop { project, task },
+            Self::Stop { task, reason } => Ask::Stop { project, task, reason },
         }
     }
 }
@@ -36,14 +36,14 @@ pub(crate) fn refusal(limits: &Limits, operations: &List<Operation>) -> Option<R
     for operation in operations {
         // Bound the temporary standalone ask before copying any of its owned payload.
         let (bytes, maximum, which) = match operation {
-            Operation::Cancel { reason, .. } | Operation::Move { reason, .. } => {
+            Operation::Cancel { reason, .. } | Operation::Move { reason, .. } | Operation::Stop { reason, .. } => {
                 (Some(len_u64(reason.len())), limits.words, LimitKind::Words)
             }
             Operation::Message { words, .. } => (Some(len_u64(words.len())), limits.words, LimitKind::Words),
             Operation::Amend { amendment, .. } => {
                 (crate::amendment_bytes(amendment), limits.amendment_bytes, LimitKind::Spec)
             }
-            Operation::Release { .. } | Operation::Stop { .. } => (Some(0), 0, LimitKind::Words),
+            Operation::Release { .. } => (Some(0), 0, LimitKind::Words),
         };
         let Some(bytes) = bytes else { return Some(Refusal::Limit { which }) };
         if bytes > u64::from(maximum) {

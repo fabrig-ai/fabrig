@@ -50,7 +50,11 @@ fn an_unstopped_sibling_finishes_without_a_hold_or_decision() {
         Box::new([report_delegate(b"A", Box::new([])), report_delegate(b"B", Box::new([]))]),
     );
     let a = assigned_task(&driver, children[0]);
-    person(&mut driver, 81, people::Ask::Stop { project: 1, task: children[1] });
+    person(
+        &mut driver,
+        81,
+        people::Ask::Stop { project: 1, task: children[1], reason: Box::from(b"Parking the task".as_slice()) },
+    );
     report(&mut driver, &a, b"A remained free and finished.");
     let row = ended(&driver, a.task);
     assert_eq!(
@@ -121,7 +125,11 @@ fn a_stopped_owner_hears_both_delegates_only_after_release() {
     let children =
         call_batch(&mut driver, &owner, 950, Box::new([report_delegate(b"implementer", Box::new([])), change]));
     let runs = children.iter().map(|task| assigned_task(&driver, *task)).collect::<Vec<_>>();
-    person(&mut driver, 81, people::Ask::Stop { project: 1, task: owner.task });
+    person(
+        &mut driver,
+        81,
+        people::Ask::Stop { project: 1, task: owner.task, reason: Box::from(b"Parking the task".as_slice()) },
+    );
     for run in std::iter::once(&owner).chain(runs.iter()) {
         driver.answer(Token::new(7), run.task, run.attempt, 0, tasks::End::Parked, engine::Parts::none());
         driver.settle();

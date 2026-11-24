@@ -164,6 +164,7 @@ fn wire(client: &jig_client_domain::Limits) -> Option<w::Limits> {
             &mut wire.word_words,
             &mut wire.activity_words_words,
             &mut wire.message_words,
+            &mut wire.stop_reason,
             &mut wire.answer_question_words,
         ],
     );

@@ -170,7 +170,7 @@ fn request(act: &super::Act, current: &tasks::TaskRecord, world: &World) -> Resu
             grace: None,
         })
     } else if act.kind == people::HOLDS_A_TASK {
-        Some(requests::Ask::Stop { project: 1, task: number })
+        Some(requests::Ask::Stop { project: 1, task: number, reason: Box::from(b"Parking the task".as_slice()) })
     } else if act.kind == people::RELEASES_A_TASK {
         Some(requests::Ask::Release { project: 1, task: number, revision: current.revisions.hold, again: None })
     } else if act.kind == people::NEVER_ANSWERS {

@@ -29,7 +29,12 @@ fn send(domain: &mut Fixture, key: ObjectKey) -> Token {
         &mut domain.ui,
         key,
         ActKind::Stop,
-        Box::new(Ask::Stop { project: 1, task: 8 }),
+        Box::new(Ask::Stop {
+            project: 1,
+            task: 8,
+            reason: Text::new(Box::from(b"Stopped from the task card".as_slice()), u32::MAX)
+                .expect("fixture reason fits"),
+        }),
         &mut out,
         &domain.client,
     )
@@ -199,7 +204,12 @@ fn full_requests_refuse_without_queueing_and_hidden_answers_and_unknowns_have_no
             .ask(
                 7,
                 crate::state::intents::Origin::Card { object: ObjectKey::Task(u64::from(number)), act: ActKind::Stop },
-                Box::new(Ask::Stop { project: 1, task: 8 }),
+                Box::new(Ask::Stop {
+                    project: 1,
+                    task: 8,
+                    reason: Text::new(Box::from(b"Stopped from the task card".as_slice()), u32::MAX)
+                        .expect("fixture reason fits"),
+                }),
                 &mut out,
             )
             .unwrap();
@@ -210,7 +220,12 @@ fn full_requests_refuse_without_queueing_and_hidden_answers_and_unknowns_have_no
             &mut domain.ui,
             ObjectKey::Task(8),
             ActKind::Stop,
-            Box::new(Ask::Stop { project: 1, task: 8 }),
+            Box::new(Ask::Stop {
+                project: 1,
+                task: 8,
+                reason: Text::new(Box::from(b"Stopped from the task card".as_slice()), u32::MAX)
+                    .expect("fixture reason fits")
+            }),
             &mut out,
             &domain.client
         )

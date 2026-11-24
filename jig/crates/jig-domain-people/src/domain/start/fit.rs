@@ -157,14 +157,16 @@ pub(super) fn ask(key: &Key, limits: &Limits, value: &Ask) -> Result<(), Restore
             measured(RestoreBound::Operations, u64::from(operations.len()), limits.operations)?;
             for operation in operations {
                 let fits = match operation {
-                    crate::Operation::Cancel { reason, .. } | crate::Operation::Move { reason, .. } => {
+                    crate::Operation::Cancel { reason, .. }
+                    | crate::Operation::Move { reason, .. }
+                    | crate::Operation::Stop { reason, .. } => {
                         within(key, RestoreBound::Words, reason.len(), limits.words)
                     }
                     crate::Operation::Message { words, .. } => {
                         within(key, RestoreBound::Words, words.len(), limits.words)
                     }
                     crate::Operation::Amend { amendment: value, .. } => amendment(key, limits, value),
-                    crate::Operation::Release { .. } | crate::Operation::Stop { .. } => Ok(()),
+                    crate::Operation::Release { .. } => Ok(()),
                 };
                 fits?;
             }
@@ -183,7 +185,7 @@ pub(super) fn ask(key: &Key, limits: &Limits, value: &Ask) -> Result<(), Restore
         Ask::Talk { words, .. } | Ask::Say { words, .. } | Ask::AnswerQuestion { words, .. } => {
             within(key, RestoreBound::Words, words.len(), limits.words)
         }
-        Ask::Move { reason, .. } | Ask::Cancel { reason, .. } => {
+        Ask::Move { reason, .. } | Ask::Cancel { reason, .. } | Ask::Stop { reason, .. } => {
             within(key, RestoreBound::Words, reason.len(), limits.words)
         }
         Ask::AnswerPerson { result, .. } => person_result(key, limits, result),
@@ -233,7 +235,6 @@ pub(super) fn ask(key: &Key, limits: &Limits, value: &Ask) -> Result<(), Restore
         | Ask::TakePerson { .. }
         | Ask::HandBackPerson { .. }
         | Ask::Conclude { .. }
-        | Ask::Stop { .. }
         | Ask::Leave { .. }
         | Ask::Release { .. } => Ok(()),
     }

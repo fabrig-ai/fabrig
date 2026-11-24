@@ -82,5 +82,5 @@ fn small_template_pages_keep_every_activity_and_live_delegate() {
         }
     }
     assert_eq!(delegates, [4, 5, 6]);
-    call(&mut world, agent, &[b"task", b"stop", b"1", b"--key", b"paging-stop"]);
+    call(&mut world, agent, &[b"task", b"stop", b"1", b"Parked", b"--key", b"paging-stop"]);
 }

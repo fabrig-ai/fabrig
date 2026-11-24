@@ -56,7 +56,11 @@ pub fn task() -> Watchable {
     Watchable::Jig(contract::Subject::Task { task: SUBJECT_TASK })
 }
 pub fn stop() -> Ask {
-    Ask::Jig(Box::new(contract::Ask::Stop { project: PROJECT, task: SUBJECT_TASK }))
+    Ask::Jig(Box::new(contract::Ask::Stop {
+        project: PROJECT,
+        task: SUBJECT_TASK,
+        reason: contract::Text::new(Box::from(b"Parking the task".as_slice()), u32::MAX).expect("fixture reason fits"),
+    }))
 }
 pub fn seen() -> Ask {
     Ask::Jig(Box::new(contract::Ask::Seen {

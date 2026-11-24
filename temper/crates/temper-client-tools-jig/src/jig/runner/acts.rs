@@ -568,7 +568,7 @@ fn build(
             revision: c::Revision { value: number(call, 1).expect("hold") },
             again: if value(call, 2).is_some() { Some(true) } else { None },
         },
-        rows::STOP_AT => c::Ask::Stop { project, task },
+        rows::STOP_AT => c::Ask::Stop { project, task, reason: words(call, 1, limits)? },
         rows::CANCEL_AT => c::Ask::Cancel {
             project,
             task,

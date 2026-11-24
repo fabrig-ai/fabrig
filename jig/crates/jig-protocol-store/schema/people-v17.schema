@@ -127,7 +127,7 @@ record OperationMove { task: u64 reason: bytes 8192 }
 record OperationAmend { task: u64 revision: u64 amendment: Amendment release: option u64 }
 record OperationRelease { task: u64 revision: u64 again: option bool }
 record OperationMessage { task: u64 words: bytes 8192 }
-record OperationStop { task: u64 }
+record OperationStop { task: u64 reason: bytes 8192 = 0x }
 enum Operation { cancel: OperationCancel, move_task: OperationMove, amend: boxed OperationAmend, release: OperationRelease, message: OperationMessage, stop: OperationStop }
 record AskCompound { project: u32 operations: list 1024 Operation }
 record AskCreate { project: u32 batch: list 8 Member }
@@ -145,7 +145,7 @@ record ActionSettings { against: u32 digest: fixed 32 }
 enum Action { batch: ActionBatch, amend: boxed ActionAmend, settings: ActionSettings }
 record AskPropose { project: u32 action: Action reason: bytes 8192 }
 record AskWithdraw { project: u32 proposal: u64 }
-record AskStop { project: u32 task: u64 }
+record AskStop { project: u32 task: u64 reason: bytes 8192 = 0x }
 record AskCancel { project: u32 task: u64 reason: bytes 8192 grace: option u64 }
 record AskRelease { project: u32 task: u64 revision: u64 again: option bool }
 record AskTakePerson { project: u32 task: u64 }

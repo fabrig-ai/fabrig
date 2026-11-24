@@ -158,7 +158,7 @@ fn call(task: &Task, act: ActKind, out: &mut Text) {
             match act {
                 ActKind::Message => out.put(b" TEXT"),
                 ActKind::Answer => out.put(b" QUESTION TEXT"),
-                ActKind::Cancel => out.put(b" REASON"),
+                ActKind::Stop | ActKind::Cancel => out.put(b" REASON"),
                 ActKind::Release => hold(task, out),
                 ActKind::Talk
                 | ActKind::Leave
@@ -169,7 +169,6 @@ fn call(task: &Task, act: ActKind, out: &mut Text) {
                 | ActKind::PassUp
                 | ActKind::LeaveHeld
                 | ActKind::Amend
-                | ActKind::Stop
                 | ActKind::Move
                 | ActKind::Reorder
                 | ActKind::Seen

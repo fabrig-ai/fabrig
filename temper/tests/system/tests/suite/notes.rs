@@ -213,7 +213,10 @@ fn reply(record: &TurnRecord, expected: &str) {
 }
 
 fn follow_up(world: &mut World) {
-    let stopped = world.notes_act(people::Ask::Stop { project: 1, task: 1 }, [70; 16]);
+    let stopped = world.notes_act(
+        people::Ask::Stop { project: 1, task: 1, reason: Box::from(b"Parking the task".as_slice()) },
+        [70; 16],
+    );
     assert_eq!(stopped, people::Reply::Outcome(people::Outcome::Stopped { task: 1 }));
     world.run();
     let held = task(world);
@@ -304,7 +307,10 @@ fn a_long_document_is_built_in_parts_and_revised_by_a_fresh_run() {
     reply(&activity[9], REVISED);
     pane(&mut world, TITLE, 6, &revised_body);
     eprintln!("note body: {} bytes; fresh revision: {} bytes", body.len(), revised_body.len());
-    let stopped = world.notes_act(people::Ask::Stop { project: 1, task: 1 }, [73; 16]);
+    let stopped = world.notes_act(
+        people::Ask::Stop { project: 1, task: 1, reason: Box::from(b"Parking the task".as_slice()) },
+        [73; 16],
+    );
     assert_eq!(stopped, people::Reply::Outcome(people::Outcome::Stopped { task: 1 }));
     world.run();
 }

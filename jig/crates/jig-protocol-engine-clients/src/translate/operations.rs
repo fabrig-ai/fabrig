@@ -152,7 +152,7 @@ fn operation_to_people(
         },
         w::Operation::Cancel(v) => p::Operation::Cancel { task: v.task, reason: v.reason, grace: v.grace },
         w::Operation::Release(v) => p::Operation::Release { task: v.task, revision: v.revision.value, again: v.again },
-        w::Operation::Stop(v) => p::Operation::Stop { task: v.task },
+        w::Operation::Stop(v) => p::Operation::Stop { task: v.task, reason: v.reason },
         w::Operation::MoveTask(v) => p::Operation::Move { task: v.task, reason: v.reason },
     })
 }

@@ -236,7 +236,15 @@ mod tests {
         use jig_client_kit::test::list;
         let words = c::Text::new(b"continue".as_slice().into(), 32).expect("fixture text");
         let asks = [
-            (c::Ask::Stop { project: PROJECT, task: WIRE_TASK }, None),
+            (
+                c::Ask::Stop {
+                    project: PROJECT,
+                    task: WIRE_TASK,
+                    reason: jig_client::contract::Text::new(Box::from(b"Parking the task".as_slice()), u32::MAX)
+                        .expect("fixture reason fits"),
+                },
+                None,
+            ),
             (c::Ask::Take { project: PROJECT, task: WIRE_TASK }, None),
             (
                 c::Ask::Message { project: PROJECT, task: WIRE_TASK, words: words.clone() },
@@ -246,7 +254,15 @@ mod tests {
                 c::Ask::Compound {
                     project: PROJECT,
                     operations: list([
-                        c::Operation::Stop { project: PROJECT, task: WIRE_TASK },
+                        c::Operation::Stop {
+                            project: PROJECT,
+                            task: WIRE_TASK,
+                            reason: jig_client::contract::Text::new(
+                                Box::from(b"Parking the task".as_slice()),
+                                u32::MAX,
+                            )
+                            .expect("fixture reason fits"),
+                        },
                         c::Operation::Message { project: PROJECT, task: WIRE_TASK, words: words.clone() },
                     ]),
                 },
@@ -257,7 +273,15 @@ mod tests {
                     project: PROJECT,
                     operations: list([
                         c::Operation::Message { project: PROJECT, task: WIRE_TASK, words },
-                        c::Operation::Stop { project: PROJECT, task: WIRE_TASK },
+                        c::Operation::Stop {
+                            project: PROJECT,
+                            task: WIRE_TASK,
+                            reason: jig_client::contract::Text::new(
+                                Box::from(b"Parking the task".as_slice()),
+                                u32::MAX,
+                            )
+                            .expect("fixture reason fits"),
+                        },
                     ]),
                 },
                 Some((WIRE_TASK, b"continue".to_vec())),

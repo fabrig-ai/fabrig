@@ -5,6 +5,6 @@ instructions: Answer on port 8080 unless the store's file names another one, and
 settings: revision 1
 waiting on: you: question of task 42 · 1 waiting
 acts:
-  task stop 41 --key KEY
+  task stop 41 REASON --key KEY
   task cancel 41 REASON --key KEY
 digest: task 5b2d9be495c1a719

@@ -49,10 +49,18 @@ fn a_landing_without_its_prepare_task_moves() {
     let (child, _) = start_prepare(&mut world, landing);
     // Stop the landing only during removal, so the fixture cannot replace the
     // child before the person's hold on its member arrives.
-    person(&mut world, 95, people::Ask::Stop { project: 1, task: landing });
+    person(
+        &mut world,
+        95,
+        people::Ask::Stop { project: 1, task: landing, reason: Box::from(b"Parking the task".as_slice()) },
+    );
     world.advance_ticks(20);
     cancel_prepare(&mut world, child);
-    person(&mut world, 98, people::Ask::Stop { project: 1, task: member });
+    person(
+        &mut world,
+        98,
+        people::Ask::Stop { project: 1, task: member, reason: Box::from(b"Parking the task".as_slice()) },
+    );
     world.advance_ticks(20);
     assert!(matches!(task_row(&world, member).expect("member").phase, tasks::Phase::Held { .. }));
     let revision = task_row(&world, landing).expect("landing").revisions.hold;

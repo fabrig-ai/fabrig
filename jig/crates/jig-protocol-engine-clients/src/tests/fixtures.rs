@@ -326,7 +326,10 @@ fn release_case() -> (w::Ask, people::Ask) {
 }
 fn stop_case() -> (w::Ask, people::Ask) {
     use jig_domain_people as p;
-    (w::Ask::Stop(w::Stop { project: 3, task: 8 }), p::Ask::Stop { project: 3, task: 8 })
+    (
+        w::Ask::Stop(w::Stop { project: 3, task: 8, reason: Box::from(b"Parking the task".as_slice()) }),
+        p::Ask::Stop { project: 3, task: 8, reason: Box::from(b"Parking the task".as_slice()) },
+    )
 }
 fn cancel_case() -> (w::Ask, people::Ask) {
     use jig_domain_people as p;

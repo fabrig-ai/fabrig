@@ -127,7 +127,7 @@ fn decode(
         }
         w::Ask::Stop(value) => {
             let v = value;
-            p::Ask::Stop { project: v.project, task: v.task }
+            p::Ask::Stop { project: v.project, task: v.task, reason: v.reason }
         }
         w::Ask::Conclude(value) => p::Ask::Conclude { project: value.project, task: value.task },
         w::Ask::Cancel(value) => {

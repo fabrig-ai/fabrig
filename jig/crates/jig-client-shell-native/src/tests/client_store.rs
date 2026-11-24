@@ -64,7 +64,16 @@ fn stream(machine: &mut client::Client, record: &w::StreamEvent, out: &mut Queue
     machine.settle(Time::ZERO, Wall::EPOCH, out);
 }
 fn send(key: Key) -> Event {
-    Event::Send { key, name: None, request: Ask::Jig(Box::new(contract::Ask::Stop { project: PROJECT, task: TASK })) }
+    Event::Send {
+        key,
+        name: None,
+        request: Ask::Jig(Box::new(contract::Ask::Stop {
+            project: PROJECT,
+            task: TASK,
+            reason: jig_client::contract::Text::new(Box::from(b"Parking the task".as_slice()), u32::MAX)
+                .expect("fixture reason fits"),
+        })),
+    }
 }
 fn discard(out: &mut Queue<Request>) {
     while out.pop().is_some() {}

@@ -145,7 +145,12 @@ fn send(number: u8) -> Event {
     Event::Send {
         attempt: Token::new(u64::from(number)),
         key: [number; 16],
-        ask: Ask::Jig(Box::new(contract::Ask::Stop { project: PROJECT, task: u64::from(number) })),
+        ask: Ask::Jig(Box::new(contract::Ask::Stop {
+            project: PROJECT,
+            task: u64::from(number),
+            reason: jig_client::contract::Text::new(Box::from(b"Parking the task".as_slice()), u32::MAX)
+                .expect("fixture reason fits"),
+        })),
         value: None,
     }
 }

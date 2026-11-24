@@ -983,6 +983,9 @@ pub fn record_bytes(record: &Record) -> Option<u64> {
                         action: jig_domain_people::Action::Batch(batch), reason, ..
                     } => people_bytes::batch(batch)?.checked_add(skein_lib::len_u64(reason.len())),
                     jig_domain_people::Ask::Restore { reason, .. }
+                    | jig_domain_people::Ask::Move { reason, .. }
+                    | jig_domain_people::Ask::Cancel { reason, .. }
+                    | jig_domain_people::Ask::Stop { reason, .. }
                     | jig_domain_people::Ask::Propose {
                         action: jig_domain_people::Action::Settings { .. },
                         reason,
@@ -1037,9 +1040,6 @@ pub fn record_bytes(record: &Record) -> Option<u64> {
                     jig_domain_people::Ask::Talk { words, .. }
                     | jig_domain_people::Ask::Say { words, .. }
                     | jig_domain_people::Ask::AnswerQuestion { words, .. } => Some(skein_lib::len_u64(words.len())),
-                    jig_domain_people::Ask::Move { reason, .. } | jig_domain_people::Ask::Cancel { reason, .. } => {
-                        Some(skein_lib::len_u64(reason.len()))
-                    }
                     jig_domain_people::Ask::Leave { .. }
                     | jig_domain_people::Ask::RemoveProject { .. }
                     | jig_domain_people::Ask::SetVisibility { .. }
@@ -1054,7 +1054,6 @@ pub fn record_bytes(record: &Record) -> Option<u64> {
                     | jig_domain_people::Ask::SetPool { .. }
                     | jig_domain_people::Ask::HandBackPerson { .. }
                     | jig_domain_people::Ask::Conclude { .. }
-                    | jig_domain_people::Ask::Stop { .. }
                     | jig_domain_people::Ask::Lift { .. }
                     | jig_domain_people::Ask::Release { .. }
                     | jig_domain_people::Ask::AccountSignIn { .. }

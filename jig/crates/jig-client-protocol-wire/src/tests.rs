@@ -593,3 +593,20 @@ fn lent_login_names_are_bounded_at_32_bytes() {
         assert_eq!(change.is_ok(), length == 32);
     }
 }
+
+#[test]
+fn a_stop_reason_is_bounded_and_utf8() {
+    let stop = Stop { project: 3, task: 8, reason: Box::from(b"hold".as_slice()) };
+    let bytes = stop.encode(&CEILINGS).expect("valid reason");
+    let limits = Limits { stop_reason: 3, ..CEILINGS };
+    let bound = Err(paths::STOP_REASON.problem(skein_codec::Reason::Bound));
+    assert_eq!(Stop::decode(&limits, &mut Reader::new(&bytes)), bound);
+    assert_eq!(stop.encode(&limits).err(), bound.err());
+
+    let mut invalid = bytes;
+    *invalid.last_mut().expect("reason's last byte") = 0xff;
+    assert_eq!(
+        Stop::decode(&CEILINGS, &mut Reader::new(&invalid)),
+        Err(paths::STOP_REASON.problem(skein_codec::Reason::Utf8)),
+    );
+}

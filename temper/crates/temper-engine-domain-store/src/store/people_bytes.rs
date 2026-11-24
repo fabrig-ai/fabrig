@@ -14,14 +14,14 @@ pub(super) fn compound(operations: &List<people::Operation>) -> Option<u64> {
     let mut bytes = u64::from(operations.len()).checked_mul(u64::try_from(size_of::<people::Operation>()).ok()?)?;
     for operation in operations {
         let owned = match operation {
-            people::Operation::Cancel { reason, .. } | people::Operation::Move { reason, .. } => {
-                skein_lib::len_u64(reason.len())
-            }
+            people::Operation::Cancel { reason, .. }
+            | people::Operation::Move { reason, .. }
+            | people::Operation::Stop { reason, .. } => skein_lib::len_u64(reason.len()),
             people::Operation::Message { words, .. } => skein_lib::len_u64(words.len()),
             people::Operation::Amend { amendment, .. } => {
                 u64::try_from(size_of::<people::Amendment>()).ok()?.checked_add(people::amendment_bytes(amendment)?)?
             }
-            people::Operation::Release { .. } | people::Operation::Stop { .. } => 0,
+            people::Operation::Release { .. } => 0,
         };
         bytes = bytes.checked_add(owned)?;
     }

@@ -922,7 +922,12 @@ fn child_key(record: &root::store::Record) -> root::store::Key {
 }
 
 pub fn stop() -> client::Ask {
-    client::Ask::Jig(Box::new(c::Ask::Stop { project: super::PROJECT, task: super::TASK }))
+    client::Ask::Jig(Box::new(c::Ask::Stop {
+        project: super::PROJECT,
+        task: super::TASK,
+        reason: jig_client::contract::Text::new(Box::from(b"Parking the task".as_slice()), u32::MAX)
+            .expect("fixture reason fits"),
+    }))
 }
 
 /// The list's object demands finish routing inside the report, before the shell settles.

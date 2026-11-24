@@ -3,7 +3,7 @@ use jig_client_protocol_wire::Record as _;
 /// The shared message's task, words and name establish the engine-key mapping.
 pub(crate) const MESSAGE_CALL: &[&str] = &["task", "message", "41", "Use port 8080", "--key", "port-answer"];
 /// Optional names can be omitted on stop, unlike a message's required name.
-pub(crate) const STOP_CALL: &[&str] = &["task", "stop", "41"];
+pub(crate) const STOP_CALL: &[&str] = &["task", "stop", "41", "Parking", "the task"];
 /// Kept operations from another party must stay parked while this party is live.
 pub(crate) const OTHER_PARTY: u64 = PARTY + 1;
 pub(crate) fn offered(acts: &[c::ActKind]) -> c::Task {
@@ -116,7 +116,7 @@ pub(crate) const ACT_CALLS: &[&[&str]] = &[
     DECIDE_TASK_CALL,
     DECIDE_ESCALATION_CALL,
     &["task", "release", "41", "--hold", "2", "--again", "--key", "act-name"],
-    &["task", "stop", "41", "--key", "act-name"],
+    &["task", "stop", "41", "Parking", "the task", "--key", "act-name"],
     &["task", "cancel", "41", "finished", "--key", "act-name"],
     &["hold", "lift", "12", "--rev", "1", "--with-tasks", "--key", "lift-name"],
 ];

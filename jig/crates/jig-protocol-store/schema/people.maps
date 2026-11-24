@@ -4,47 +4,30 @@ use s = skein_codec::convert
 use h = crate::codec::people
 by hand h
 context crate::people_v17::Limits
-refuses h::action_to_domain
-refuses h::action_to_record
 refuses h::adoption_to_domain
 refuses h::adoption_to_record
+refuses s::text_to_domain
 refuses h::amendment_to_domain
 refuses h::amendment_to_record
 refuses h::authority_to_domain
 refuses h::authority_to_record
 refuses h::digest_to_domain
-refuses h::member_to_domain
-refuses h::member_to_record
-refuses h::note_change_to_domain
-refuses h::note_change_to_record
 refuses h::pattern_to_domain
 refuses h::pattern_to_record
-refuses h::policy_change_to_domain
-refuses h::policy_change_to_record
 refuses h::program_name_to_domain
-refuses s::text_to_domain
-with context h::action_to_domain
-with context h::action_to_record
 with context h::adoption_to_domain
 with context h::adoption_to_record
 with context h::amendment_to_domain
 with context h::amendment_to_record
 with context h::authority_to_domain
 with context h::authority_to_record
-with context h::member_to_domain
-with context h::member_to_record
-with context h::note_change_to_domain
-with context h::note_change_to_record
 with context h::pattern_to_domain
 with context h::pattern_to_record
-with context h::policy_change_to_domain
-with context h::policy_change_to_record
 
 record MovedPlacedHold
 record HoldOwnerParty
 record HoldOwnerTask
 enum HoldOwner = p::HoldOwner
-record AskLift
 record OutcomeLifted
 record LackHoldOwner
 record Segment stands for bytes
@@ -186,39 +169,14 @@ record OperationRelease
 record OperationMessage
 record OperationStop
 enum Operation = p::Operation { move_task = Move }
-record AskCompound
-record AskCreate { batch slice }
-record AskDelegate { batch slice }
-record AskMarkSeen
 record ScopeProject stands for project
 enum ApplicationScope = p::ApplicationScope { project tuple }
-record AskApplication
-record AskEditNote { scope boxed, change boxed }
-record AskMakeService
-record AskAdopt
 record ActionBatch
 record ActionAmend { amendment boxed }
 record ActionSettings
 # The batch tuple holds a boxed slice; stands-for has no slice mark.
 enum Action by hand
-record AskPropose
-record AskWithdraw
-record AskStop
-record AskCancel { grace via s::duration }
-record AskRelease
-record AskTakePerson
-record AskHandBackPerson
-record AskAnswerPerson
-record AskMove
 enum Running = p::Running
-record AskDecideProposal
-record AskSay
-record AskAnswerQuestion
-record AskAmend
-record AskSetRoles { holdings slice }
-record AskRename { name via s::text }
-record AskRestore
-record AskChangeSettings { projects slice }
 record SettingNumber stands for number
 record ApplicationSetting
 record ProjectPolicySetting
@@ -232,13 +190,7 @@ record MalformedSettings
 record RefusalStale
 record RefusalFull { tasks slice }
 record OutcomeSettingsChanged
-record AskMakeProject { name via s::text }
-record AskChangePolicy
-record AskSetPool
-record AskDecideEscalation
 enum AccountHolder = p::AccountHolder
-record AskAccountSignIn
-record AskAccountSignOut
 record AccountUseParty stands for number
 record AccountUseProject stands for number
 enum AccountUse = p::Use { party tuple, project tuple }
@@ -264,17 +216,11 @@ record AccountChangeLoginProgram
 record AccountChangeCancelLogin
 record AccountChangeLoginEnded
 enum AccountChange = p::AccountChange
-record AskAccountChange
-record AskMoveToNewest
-record AskRemoveProject { grace via s::duration }
-record AskSetVisibility
-record AskConclude
 enum WorkerPauseMode = jig_domain_link::PauseMode
-record AskPauseWorker
 record OutcomeWorkerPauseAsked
 record RefusalUnlinked
 record ServiceParty
-enum Ask = p::Ask { move_task = Move }
+enum Ask by hand
 record StoredPerson
 record StoredReadResults
 record StoredReadConversation

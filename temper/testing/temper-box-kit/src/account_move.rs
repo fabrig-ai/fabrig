@@ -533,7 +533,7 @@ pub fn run(directory: &Path) {
                 ])),
                 ctl::Step::Run(ctl::Call::new(&["task", "show", "1", "--until", "replied", "--json"])),
                 // Stop holds the parked chat immediately, without a closing grace turn.
-                ctl::Step::Run(ctl::Call::new(&["task", "stop", "1", "--json"])),
+                ctl::Step::Run(ctl::Call::new(&["task", "stop", "1", "Parked", "--json"])),
                 ctl::Step::Run(ctl::Call::new(&["task", "show", "1", "--until", "held", "--json"])),
             ],
         ));

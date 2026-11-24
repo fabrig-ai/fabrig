@@ -259,7 +259,7 @@ fn a_persons_wait_starts_after_dependencies_and_notifies_its_requester_once_acro
             owner: tasks::Owner::Party { person: PERSON },
             mode: tasks::Mode::Stop,
             scope: tasks::Scope::Subtree { task: 2 },
-            reason: Box::new([]),
+            reason: Box::from(b"Parked".as_slice()),
             placed_at: 0,
             revision: 1,
             exempt: Box::new([]),

@@ -226,7 +226,18 @@ fn a_client_reads_a_stopped_goals_hold_and_only_its_owner_lifts_it() {
     world.turn(1, 0, None, b"delegate turn");
     let mut owner_client = Party::new(&mut world, owner_sign_in, owner);
     let mut maintainer_client = Party::new(&mut world, maintainer_sign_in, maintainer);
-    assert!(matches!(owner_client.ask(&mut world, c::Ask::Stop { project: 1, task: goal }), c::Answer::Done(_)));
+    let stop =
+        |reason: &[u8]| c::Ask::Stop { project: 1, task: goal, reason: c::Text::new(reason.into(), u32::MAX).unwrap() };
+    let before = owner_client.task(&mut world, goal).hold;
+    assert_eq!(
+        owner_client.ask(&mut world, stop(b"")),
+        c::Answer::Refused {
+            refusal: c::Refusal::Limit { which: c::Limit::Admission { which: c::AdmissionLimit::Empty } },
+            at: None
+        },
+    );
+    assert_eq!(owner_client.task(&mut world, goal).hold, before);
+    assert!(matches!(owner_client.ask(&mut world, stop(b"Parking the task")), c::Answer::Done(_)));
     let document = owner_client.task(&mut world, goal);
     let hold = document.hold.as_ref().expect("held");
     let placed = hold.placed().expect("placed hold details");
@@ -237,7 +248,7 @@ fn a_client_reads_a_stopped_goals_hold_and_only_its_owner_lifts_it() {
     assert_eq!(placed.revision, c::Revision { value: 1 });
     assert!(placed.may_lift);
     assert!(!placed.lifted);
-    assert!(placed.reason.is_empty());
+    assert_eq!(placed.reason.as_ref(), b"Parking the task");
     assert!(placed.placed_at > Wall::EPOCH);
     assert_eq!(hold.reason, c::HoldCategory::Placed { hold: number });
     assert!(

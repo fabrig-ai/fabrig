@@ -92,7 +92,7 @@ pub fn store_asks() -> List<c::Ask> {
             change: Box::new(amendment()),
             reason: store_text(),
         },
-        c::Ask::Stop { project: 7, task: u64::MAX },
+        c::Ask::Stop { project: 7, task: u64::MAX, reason: store_text() },
         c::Ask::Cancel { project: 7, task: u64::MAX, reason: store_text(), grace: None },
         c::Ask::Move { project: 7, task: u64::MAX, reason: store_text() },
         c::Ask::Seen { through: c::SeenThrough::Conversation { task: u64::MAX, through: u64::MAX } },
@@ -301,7 +301,7 @@ fn compound_ask(revision: c::Revision) -> c::Ask {
             c::Operation::Release { project: 7, task: u64::MAX, revision, again: Some(true) },
             c::Operation::Cancel { project: 7, task: u64::MAX, reason: store_text(), grace: None },
             c::Operation::Move { project: 7, task: u64::MAX, reason: store_text() },
-            c::Operation::Stop { project: 7, task: u64::MAX },
+            c::Operation::Stop { project: 7, task: u64::MAX, reason: store_text() },
         ]),
     }
 }

@@ -805,6 +805,7 @@ fn people_bound(
     if path == paths::OPERATION_CANCEL_REASON { return b!(b"people.words", b"OperationCancel.reason", operation_cancel_reason); }
     if path == paths::OPERATION_MOVE_REASON { return b!(b"people.words", b"OperationMove.reason", operation_move_reason); }
     if path == paths::OPERATION_MESSAGE_WORDS { return b!(b"people.words", b"OperationMessage.words", operation_message_words); }
+    if path == paths::OPERATION_STOP_REASON { return b!(b"people.words", b"OperationStop.reason", operation_stop_reason); }
     if path == paths::ASK_COMPOUND_OPERATIONS { return b!(b"people.operations", b"AskCompound.operations", ask_compound_operations); }
     if path == paths::ASK_CREATE_BATCH { return b!(b"people.batch", b"AskCreate.batch", ask_create_batch); }
     if path == paths::ASK_MAKE_SERVICE_NAME { return b!(b"people.words", b"AskMakeService.name", ask_make_service_name); }
@@ -812,6 +813,7 @@ fn people_bound(
     if path == paths::ASK_RESTORE_REASON { return b!(b"people.words", b"AskRestore.reason", ask_restore_reason); }
     if path == paths::OUTCOME_RESTORED_LEFT_OUT { return b!(b"tasks.SETTINGS_ITEMS + 1", b"OutcomeRestored.left_out", outcome_restored_left_out); }
     if path == paths::ASK_PROPOSE_REASON { return b!(b"people.words", b"AskPropose.reason", ask_propose_reason); }
+    if path == paths::ASK_STOP_REASON { return b!(b"people.words", b"AskStop.reason", ask_stop_reason); }
     if path == paths::ASK_CANCEL_REASON { return b!(b"people.words", b"AskCancel.reason", ask_cancel_reason); }
     if path == paths::ASK_MOVE_REASON { return b!(b"people.words", b"AskMove.reason", ask_move_reason); }
     if path == paths::ASK_SAY_WORDS { return b!(b"people.words", b"AskSay.words", ask_say_words); }

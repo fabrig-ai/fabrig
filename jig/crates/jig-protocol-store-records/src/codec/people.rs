@@ -12,7 +12,7 @@ mod batch;
 mod compound;
 pub(in crate::codec) mod pieces;
 pub(crate) mod policy;
-pub use asks::{decode_ask, encode_ask};
+pub use asks::{ask_to_domain as decode_ask, ask_to_record as encode_ask};
 use pieces::{
     decode_authority_note_resources, decode_delegation_kinds, decode_grant_piece, decode_numbers, decode_permissions,
     decode_requirement_piece, decode_segments, decode_spec_parameters, encode_authority_note_resources,
@@ -70,6 +70,7 @@ pub fn derived_limits(domain: &core::Limits) -> Option<wire::Limits> {
         operation_cancel_reason: people.words,
         operation_move_reason: people.words,
         operation_message_words: people.words,
+        operation_stop_reason: people.words,
         ask_create_batch: people.batch,
         ask_delegate_batch: people.batch,
         action_batch_members: people.batch,
@@ -123,6 +124,7 @@ pub fn derived_limits(domain: &core::Limits) -> Option<wire::Limits> {
         amendment_dependencies_some: 0,
         amendment_reason: people.words,
         ask_make_service_name: people.words,
+        ask_stop_reason: people.words,
         ask_cancel_reason: people.words,
         ask_move_reason: people.words,
         ask_say_words: people.words,
@@ -542,7 +544,7 @@ pub(crate) fn program_name_to_domain(value: Box<[u8]>) -> Result<Box<[u8]>, skei
 
 pub(crate) use batch::{action_to_domain, action_to_record, member_to_domain, member_to_record};
 
-pub(crate) use asks::{adoption_to_domain, adoption_to_record, note_change_to_domain, note_change_to_record};
+pub(crate) use asks::{adoption_to_domain, adoption_to_record};
 pub(crate) use policy::{
     authority_to_domain, authority_to_record, decode_amendment as amendment_to_domain,
     decode_pattern as pattern_to_domain, encode_amendment as amendment_to_record, encode_pattern as pattern_to_record,

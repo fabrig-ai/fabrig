@@ -101,7 +101,14 @@ fn a_compound_makes_its_operations_in_order_in_one_step() {
 fn an_operation_on_a_task_an_earlier_cancel_closed_is_refused() {
     let mut test = chat::cohort();
     let before = test.stored.clone();
-    let out = compound(&mut test, vec![cancel(ROOT), Operation::Stop { task: FIRST, hold: 100 + FIRST }], 1_000);
+    let out = compound(
+        &mut test,
+        vec![
+            cancel(ROOT),
+            Operation::Stop { task: FIRST, hold: 100 + FIRST, reason: Box::from(b"Parking the task".as_slice()) },
+        ],
+        1_000,
+    );
     refused(out, 1, FIRST, Refusal::State);
     assert_eq!(test.stored, before);
 }
@@ -195,7 +202,10 @@ fn an_operation_on_another_projects_task_is_refused_at_its_place() {
     let before = test.stored.clone();
     let out = compound(
         &mut test,
-        vec![Operation::Stop { task: ROOT, hold: 100 + ROOT }, Operation::Stop { task: SECOND, hold: 100 + SECOND }],
+        vec![
+            Operation::Stop { task: ROOT, hold: 100 + ROOT, reason: Box::from(b"Parking the task".as_slice()) },
+            Operation::Stop { task: SECOND, hold: 100 + SECOND, reason: Box::from(b"Parking the task".as_slice()) },
+        ],
         1_000,
     );
     refused(out, 1, SECOND, Refusal::Project);
@@ -253,7 +263,7 @@ fn a_stop_after_a_move_uses_the_moved_tree() {
         &mut test,
         vec![
             Operation::Move(crate::Move { task: FIRST, reason: Box::new([]) }),
-            Operation::Stop { task: ROOT, hold: 91 },
+            Operation::Stop { task: ROOT, hold: 91, reason: Box::from(b"Parking the task".as_slice()) },
         ],
         1_000,
     );
@@ -273,7 +283,7 @@ fn moving_a_held_delegate_cannot_escape_a_standing_scope() {
     let out = compound(
         &mut test,
         vec![
-            Operation::Stop { task: ROOT, hold: 91 },
+            Operation::Stop { task: ROOT, hold: 91, reason: Box::from(b"Parking the task".as_slice()) },
             Operation::Move(crate::Move { task: FIRST, reason: Box::new([]) }),
         ],
         1_000,
@@ -288,7 +298,7 @@ fn moving_a_stopped_scope_root_preserves_its_hold() {
     let out = compound(
         &mut test,
         vec![
-            Operation::Stop { task: FIRST, hold: 91 },
+            Operation::Stop { task: FIRST, hold: 91, reason: Box::from(b"Parking the task".as_slice()) },
             Operation::Move(crate::Move { task: FIRST, reason: Box::new([]) }),
         ],
         1_000,
@@ -308,7 +318,7 @@ fn a_compound_that_changes_a_tasks_placed_hold_twice_is_refused_naming_the_secon
     let out = compound(
         &mut test,
         vec![
-            Operation::Stop { task: ROOT, hold: 100 },
+            Operation::Stop { task: ROOT, hold: 100, reason: Box::from(b"Parking the task".as_slice()) },
             Operation::Release(Release { task: ROOT, again: None, message: None }),
         ],
         1_000,
@@ -321,7 +331,7 @@ fn a_compound_that_changes_a_tasks_placed_hold_twice_is_refused_naming_the_secon
     let out = compound(
         &mut test,
         vec![
-            Operation::Stop { task: ROOT, hold: 100 },
+            Operation::Stop { task: ROOT, hold: 100, reason: Box::from(b"Parking the task".as_slice()) },
             Operation::Release(Release { task: 7, again: None, message: None }),
         ],
         1_000,
@@ -332,6 +342,7 @@ fn a_compound_that_changes_a_tasks_placed_hold_twice_is_refused_naming_the_secon
     }));
     assert_eq!(test.domain.task(ROOT).unwrap().placed, Some(100));
     assert_eq!(test.domain.task(7).unwrap().placed, None);
+    assert_eq!(test.domain.placed_hold(100).unwrap().reason.as_ref(), b"Parking the task");
 }
 
 #[test]
@@ -341,7 +352,10 @@ fn repeated_subtree_placement_names_the_earlier_hold_before_capacity() {
     let before = test.stored.clone();
     let out = compound(
         &mut test,
-        vec![Operation::Stop { task: ROOT, hold: 100 }, Operation::Stop { task: FIRST, hold: 101 }],
+        vec![
+            Operation::Stop { task: ROOT, hold: 100, reason: Box::from(b"Parking the task".as_slice()) },
+            Operation::Stop { task: FIRST, hold: 101, reason: Box::from(b"Parking the task".as_slice()) },
+        ],
         1_000,
     );
     refused(out, 1, FIRST, Refusal::Placed { hold: 100 });

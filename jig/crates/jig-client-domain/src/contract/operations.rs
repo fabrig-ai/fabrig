@@ -9,7 +9,7 @@ pub enum Operation {
     Amend { project: u32, task: u64, revision: Option<Revision>, change: Box<Amendment>, reason: Text },
     Cancel { project: u32, task: u64, reason: Text, grace: Option<Duration> },
     Release { project: u32, task: u64, revision: Revision, again: Option<bool> },
-    Stop { project: u32, task: u64 },
+    Stop { project: u32, task: u64, reason: Text },
     Move { project: u32, task: u64, reason: Text },
 }
 /// Why the request is malformed; its refusal names the place.

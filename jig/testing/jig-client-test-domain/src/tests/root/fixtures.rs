@@ -208,7 +208,12 @@ pub(super) fn ask(root: &mut Domain, asked: Token) -> Vec<Request> {
             event: jig_client::Event::Send {
                 name: None,
                 key: jig_client::Key { asker: jig_client::Asker::JIG, number: asked.raw() },
-                request: jig_client::Ask::Jig(Box::new(contract::Ask::Stop { project: 1, task: 9 })),
+                request: jig_client::Ask::Jig(Box::new(contract::Ask::Stop {
+                    project: 1,
+                    task: 9,
+                    reason: contract::Text::new(Box::from(b"Parking the task".as_slice()), u32::MAX)
+                        .expect("fixture reason fits"),
+                })),
             },
         },
     )

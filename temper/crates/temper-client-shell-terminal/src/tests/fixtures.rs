@@ -18,7 +18,12 @@ pub fn table_record() -> RequestRecord<jig_client::Held> {
         first_sent: None,
         request: jig_client::Held {
             key: jig_client::Key { asker: jig_client::Asker::JIG, number: ATTEMPT.raw() },
-            request: jig_client::Ask::Jig(Box::new(contract::Ask::Stop { project: 1, task: 9 })),
+            request: jig_client::Ask::Jig(Box::new(contract::Ask::Stop {
+                project: 1,
+                task: 9,
+                reason: jig_client::contract::Text::new(Box::from(b"Parking the task".as_slice()), u32::MAX)
+                    .expect("fixture reason fits"),
+            })),
         },
     }
 }

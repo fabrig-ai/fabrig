@@ -34,7 +34,7 @@ pub struct PlacedHold {
     pub owner: Owner,
     pub mode: Mode,
     pub scope: Scope,
-    /// Its reason in words, at most `Limits::message_bytes`; a party's Stop gives none.
+    /// Its reason in words, at most `Limits::message_bytes`; required for a new placement.
     pub reason: Box<[u8]>,
     /// When it was placed, the root's wall clock in milliseconds.
     pub placed_at: u64,
@@ -217,6 +217,9 @@ pub(crate) fn check_place(
 ) -> Result<Placement, Box<Problem>> {
     if !domain.ready() {
         return Err(Box::new(Problem::new(None, Refusal::NotReady)));
+    }
+    if hold.reason.is_empty() {
+        return Err(Box::new(Problem::new(subtree(hold.scope), Refusal::Empty)));
     }
     if !shaped(&hold, limits) || hold.revision != 1 || hold.lifted || !hold.exempt.is_empty() {
         return Err(Box::new(Problem::new(None, Refusal::AuthorityShape)));

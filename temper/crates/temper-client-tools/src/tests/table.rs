@@ -161,7 +161,7 @@ const ACTS: &[&[&str]] = &[
     &["proposal", "decide", "p3/17", "reject"],
     &["task", "decide", "41", "leave", "later", "--hold", "2"],
     &["task", "release", "41", "--hold", "2", "--again"],
-    &["task", "stop", "41", "--key", "stop"],
+    &["task", "stop", "41", "Parking", "the task", "--key", "stop"],
     &["task", "cancel", "41", "finished", "--grace", "60"],
 ];
 #[test]
@@ -192,7 +192,10 @@ fn a_keyed_act_without_its_key_is_a_usage_error() {
             "{key}"
         );
     }
-    assert_eq!(fixtures::parse(&["task", "stop", "41", "--key", "one", "--key", "two"]), Err(Usage::Key));
+    assert_eq!(
+        fixtures::parse(&["task", "stop", "41", "Parking", "the task", "--key", "one", "--key", "two"]),
+        Err(Usage::Key)
+    );
 }
 const KEY_NEVER: &[(&[&str], u16)] = &[
     (&["me", "--key", "key"], 0),

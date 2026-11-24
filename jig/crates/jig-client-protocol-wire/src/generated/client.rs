@@ -98,6 +98,7 @@ pub struct Limits {
     pub message_words: u32,
     pub answer_question_words: u32,
     pub amend_reason: u32,
+    pub stop_reason: u32,
     pub cancel_reason: u32,
     pub move_reason: u32,
     pub edit_note_description: u32,
@@ -489,6 +490,7 @@ pub const CEILINGS: Limits = Limits {
     message_words: 65_536,
     answer_question_words: 65_536,
     amend_reason: 65_536,
+    stop_reason: 65_536,
     cancel_reason: 65_536,
     move_reason: 65_536,
     edit_note_description: 65_536,
@@ -880,6 +882,7 @@ pub const LIMIT_NAMES: &[&str] = &[
     "message_words",
     "answer_question_words",
     "amend_reason",
+    "stop_reason",
     "cancel_reason",
     "move_reason",
     "edit_note_description",
@@ -1275,6 +1278,7 @@ impl Limits {
             self.message_words,
             self.answer_question_words,
             self.amend_reason,
+            self.stop_reason,
             self.cancel_reason,
             self.move_reason,
             self.edit_note_description,
@@ -1671,6 +1675,7 @@ impl Limits {
             message_words: self.message_words.min(most),
             answer_question_words: self.answer_question_words.min(most),
             amend_reason: self.amend_reason.min(most),
+            stop_reason: self.stop_reason.min(most),
             cancel_reason: self.cancel_reason.min(most),
             move_reason: self.move_reason.min(most),
             edit_note_description: self.edit_note_description.min(most),
@@ -2064,6 +2069,7 @@ const LIMIT_PATHS: &[Path] = &[
     paths::MESSAGE_WORDS,
     paths::ANSWER_QUESTION_WORDS,
     paths::AMEND_REASON,
+    paths::STOP_REASON,
     paths::CANCEL_REASON,
     paths::MOVE_REASON,
     paths::EDIT_NOTE_DESCRIPTION,
@@ -3161,7 +3167,11 @@ pub mod paths {
     pub const AMEND_TAIL: Path = Path::new("Amend (tail)");
     pub const STOP_PROJECT: Path = Path::new("Stop.project");
     pub const STOP_TASK: Path = Path::new("Stop.task");
+    pub const STOP_REASON: Path = Path::new("Stop.reason");
     pub const STOP_TAIL: Path = Path::new("Stop (tail)");
+    pub const LEAVE_PROJECT: Path = Path::new("Leave.project");
+    pub const LEAVE_TASK: Path = Path::new("Leave.task");
+    pub const LEAVE_TAIL: Path = Path::new("Leave (tail)");
     pub const CONCLUDE_PROJECT: Path = Path::new("Conclude.project");
     pub const CONCLUDE_TASK: Path = Path::new("Conclude.task");
     pub const CONCLUDE_TAIL: Path = Path::new("Conclude (tail)");
@@ -22507,6 +22517,7 @@ impl Record for Amend {
 pub struct Stop {
     pub project: u32,
     pub task: u64,
+    pub reason: Box<[u8]>,
 }
 
 // Record: Stop.
@@ -22514,11 +22525,12 @@ impl Stop {
     const SHAPE: &'static [skein_codec::bounds::Node] = &[
         skein_codec::bounds::Node::Scalar(4),
         skein_codec::bounds::Node::Scalar(8),
-        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1] },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, stop_reason) },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 12;
+    pub const ENCODED_AT_ZERO: u64 = 16;
 }
 
 impl Record for Stop {
@@ -22545,6 +22557,7 @@ impl Record for Stop {
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
         field::write(field::U32, &self.project, limits, out, paths::STOP_PROJECT)?;
         field::write(field::U64, &self.task, limits, out, paths::STOP_TASK)?;
+        field::write(field::Text { limit: limits.stop_reason.min(CEILINGS.stop_reason) }, &self.reason, limits, out, paths::STOP_REASON)?;
         Ok(())
     }
 
@@ -22552,6 +22565,61 @@ impl Record for Stop {
         Ok(Self {
             project: field::read(field::U32, limits, reader, paths::STOP_PROJECT)?,
             task: field::read(field::U64, limits, reader, paths::STOP_TASK)?,
+            reason: field::read(field::Text { limit: limits.stop_reason.min(CEILINGS.stop_reason) }, limits, reader, paths::STOP_REASON)?,
+        })
+    }
+}
+
+// Type: Leave.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct Leave {
+    pub project: u32,
+    pub task: u64,
+}
+
+// Record: Leave.
+impl Leave {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(4),
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 12;
+}
+
+impl Record for Leave {
+    type Limits = Limits;
+    const TAIL: Path = paths::LEAVE_TAIL;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Leave")?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Leave")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
+    fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        field::write(field::U32, &self.project, limits, out, paths::LEAVE_PROJECT)?;
+        field::write(field::U64, &self.task, limits, out, paths::LEAVE_TASK)?;
+        Ok(())
+    }
+
+    fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        Ok(Self {
+            project: field::read(field::U32, limits, reader, paths::LEAVE_PROJECT)?,
+            task: field::read(field::U64, limits, reader, paths::LEAVE_TASK)?,
         })
     }
 }
@@ -72252,7 +72320,7 @@ pub enum Ask {
     ChangeModel(ChangeModel),
     ReadLists(ReadLists),
     Talk(Message),
-    Leave(Stop),
+    Leave(Leave),
     Conclude(Conclude),
     Delegate(Delegate),
     PauseWorker(PauseWorker),
@@ -72298,7 +72366,7 @@ impl Ask {
         skein_codec::bounds::Node::Named("ChangeModel"),
         skein_codec::bounds::Node::Named("ReadLists"),
         skein_codec::bounds::Node::Named("Message"),
-        skein_codec::bounds::Node::Named("Stop"),
+        skein_codec::bounds::Node::Named("Leave"),
         skein_codec::bounds::Node::Named("Conclude"),
         skein_codec::bounds::Node::Named("Delegate"),
         skein_codec::bounds::Node::Named("PauseWorker"),
@@ -72414,7 +72482,7 @@ impl Record for Ask {
             32 => Ok(Self::ChangeModel(ChangeModel::read(limits, reader)?)),
             33 => Ok(Self::ReadLists(ReadLists::read(limits, reader)?)),
             34 => Ok(Self::Talk(Message::read(limits, reader)?)),
-            35 => Ok(Self::Leave(Stop::read(limits, reader)?)),
+            35 => Ok(Self::Leave(Leave::read(limits, reader)?)),
             36 => Ok(Self::Conclude(Conclude::read(limits, reader)?)),
             37 => Ok(Self::Delegate(Delegate::read(limits, reader)?)),
             38 => Ok(Self::PauseWorker(PauseWorker::read(limits, reader)?)),
@@ -73391,6 +73459,7 @@ pub static DECLARATIONS: &[skein_codec::bounds::Declaration] = &[
     skein_codec::bounds::Declaration { name: "LackingTaskKind", nodes: LackingTaskKind::SHAPE },
     skein_codec::bounds::Declaration { name: "LackingTasks", nodes: LackingTasks::SHAPE },
     skein_codec::bounds::Declaration { name: "LackingUnguarded", nodes: LackingUnguarded::SHAPE },
+    skein_codec::bounds::Declaration { name: "Leave", nodes: Leave::SHAPE },
     skein_codec::bounds::Declaration { name: "Lift", nodes: Lift::SHAPE },
     skein_codec::bounds::Declaration { name: "Limit", nodes: Limit::SHAPE },
     skein_codec::bounds::Declaration { name: "LimitAdmission", nodes: LimitAdmission::SHAPE },
@@ -74163,6 +74232,7 @@ static CEILING_VALUES: &[u32] = &[
     CEILINGS.message_words,
     CEILINGS.answer_question_words,
     CEILINGS.amend_reason,
+    CEILINGS.stop_reason,
     CEILINGS.cancel_reason,
     CEILINGS.move_reason,
     CEILINGS.edit_note_description,

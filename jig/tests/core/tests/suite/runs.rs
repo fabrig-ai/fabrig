@@ -1174,7 +1174,11 @@ pub(super) fn funding_wait(world: &mut World, task: u64) -> Option<core::documen
 
 fn release_funding_task(world: &mut World, task: u64) {
     use jig_domain_people::Ask;
-    crate::read_support::request(world, 165, Ask::Stop { project: 1, task });
+    crate::read_support::request(
+        world,
+        165,
+        Ask::Stop { project: 1, task, reason: Box::from(b"Parking the task".as_slice()) },
+    );
     let revision = jig_core_world::fixtures::live_row(world, task).revisions.hold;
     crate::read_support::request(world, 166, Ask::Release { project: 1, task, revision, again: None });
     assert!(matches!(

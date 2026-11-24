@@ -421,6 +421,7 @@ LackingRequired: ceilings encoded=4 decoded=0; at_most(3) encoded=4 decoded=0
 LackingTaskKind: ceilings encoded=10 decoded=0; at_most(3) encoded=10 decoded=0
 LackingTasks: ceilings encoded=9 decoded=0; at_most(3) encoded=9 decoded=0
 LackingUnguarded: ceilings encoded=4 decoded=0; at_most(3) encoded=4 decoded=0
+Leave: ceilings encoded=12 decoded=0; at_most(3) encoded=12 decoded=0
 Lift: ceilings encoded=17 decoded=0; at_most(3) encoded=17 decoded=0
 Limit: ceilings encoded=13 decoded=0; at_most(3) encoded=13 decoded=0
 LimitAdmission: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
@@ -934,7 +935,7 @@ Specification: ceilings encoded=2228781 decoded=2229504; at_most(3) encoded=85 d
 SpecificationDocument: ceilings encoded=2163279 decoded=2163968; at_most(3) encoded=87 decoded=132
 SpendLine: ceilings encoded=25 decoded=0; at_most(3) encoded=25 decoded=0
 SpendPage: ceilings encoded=5199 decoded=6144; at_most(3) encoded=315 decoded=390
-Stop: ceilings encoded=12 decoded=0; at_most(3) encoded=12 decoded=0
+Stop: ceilings encoded=65552 decoded=65536; at_most(3) encoded=19 decoded=3
 StoreCensus: ceilings encoded=26336 decoded=38184; at_most(3) encoded=317 decoded=498
 StoreFill: ceilings encoded=16 decoded=0; at_most(3) encoded=16 decoded=0
 StreamBound: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0

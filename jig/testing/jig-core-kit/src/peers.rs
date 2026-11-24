@@ -137,7 +137,9 @@ impl Peers {
                         reason: b"cancelled".as_slice().into(),
                         grace,
                     },
-                    parties::Ask::Stop { task } => people::Ask::Stop { project, task: task_number(task) },
+                    parties::Ask::Stop { task, reason } => {
+                        people::Ask::Stop { project, task: task_number(task), reason }
+                    }
                     parties::Ask::Release { task, revision, again } => {
                         people::Ask::Release { project, task: task_number(task), revision, again }
                     }

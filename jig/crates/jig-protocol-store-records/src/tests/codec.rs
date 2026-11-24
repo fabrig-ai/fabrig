@@ -1970,3 +1970,21 @@ fn lent_login_requests_answers_and_refusals_read_back() {
         people_round_trip(fixtures::people_outcomes::answered(outcome));
     }
 }
+
+#[test]
+fn a_stored_leave_has_no_reason_but_a_stored_stop_keeps_its_words() {
+    use jig_domain_people as people;
+    let stop = people::Ask::Stop { project: 3, task: 8, reason: b"Paused".as_slice().into() };
+    let mut operations = skein_lib::List::with_capacity(1);
+    operations.push(people::Operation::Stop { task: 8, reason: b"Paused".as_slice().into() }).unwrap();
+    ask_round_trip(stop);
+    ask_round_trip(people::Ask::Compound { project: 3, operations });
+
+    let leave = people::Ask::Leave { project: 3, task: 8 };
+    let limits = people_limits();
+    let Ok(crate::people_v17::Ask::Leave(value)) = crate::codec::people::encode_ask(&leave, &limits) else {
+        panic!("stored Leave");
+    };
+    assert!(value.reason.is_empty());
+    ask_round_trip(leave);
+}
