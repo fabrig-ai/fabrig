@@ -35,10 +35,19 @@ pub(crate) fn address(environment: &[crate::EnvironmentEntry]) -> Result<SocketA
     choose()?.local_addr().map_err(|why| why.to_string())
 }
 pub(crate) fn given(directories: &crate::Directories, given: &Given, address: SocketAddr) -> Given {
-    let providers = temper_service_shell::providers::read(
-        &crate::path(&directories.data).join("providers.setting"),
-        given.running(),
-        &mut std::io::stderr(),
-    );
+    given_with(directories, given, address, |path, defaults| {
+        temper_service_shell::providers::read(path, defaults, &mut std::io::stderr())
+    })
+}
+pub(crate) fn given_with(
+    directories: &crate::Directories,
+    given: &Given,
+    address: SocketAddr,
+    read: impl FnOnce(
+        &std::path::Path,
+        Box<[jig_protocol_config::ProviderSetting]>,
+    ) -> Box<[jig_protocol_config::ProviderSetting]>,
+) -> Given {
+    let providers = read(&crate::path(&directories.data).join("providers.setting"), given.running());
     given.with_providers(providers, Box::new([temper_service::stock::scripted(address)]))
 }

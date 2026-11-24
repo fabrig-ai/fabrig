@@ -11,6 +11,7 @@ Run the same test without the variable to check deterministic bytes.
 Never edit the image by hand. Rewriting replaces the whole directory.
 
 - `state/`, `worker/`, `client/`, `setup/`: the four machine roots.
+- `worker/kept/` holds the held mark of the one-process stop, which cancels without a drain and so leaves it as a crash does.
 - `modes.txt`: every node's kind, mode, owner and machine path, including
   empty directories. Host `dot-git` components stand for machine `.git`.
 - `configuration.json`: the story's startup configuration.

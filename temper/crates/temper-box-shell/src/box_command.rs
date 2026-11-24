@@ -15,8 +15,12 @@ pub(crate) fn link_form(
     stdout: &impl std::io::IsTerminal,
     environment: &[super::EnvironmentEntry],
 ) -> temper_box_machine::terminal::LinkForm {
+    link_form_with(stdout.is_terminal(), environment)
+}
+
+fn link_form_with(terminal: bool, environment: &[super::EnvironmentEntry]) -> temper_box_machine::terminal::LinkForm {
     let term = temper_shell::environment::TERM.value(environment);
-    temper_box_machine::terminal::LinkForm::of(stdout.is_terminal(), term)
+    temper_box_machine::terminal::LinkForm::of(terminal, term)
 }
 
 pub(crate) const ECHO_SETTINGS: skein_shell::Settings = skein_shell::Settings {

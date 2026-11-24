@@ -19,6 +19,7 @@ jig-protocol-config.workspace = true
 skein-json.workspace = true
 
 [dev-dependencies]
+skein-fake-machine.workspace = true
 skein-scratch.workspace = true
 [lints.rust] # binary: tools/lints/design.md, 2.2
 unsafe_code = "forbid"

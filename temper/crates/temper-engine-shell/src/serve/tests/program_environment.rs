@@ -99,3 +99,20 @@ fn a_binary_word_past_the_answer_bound_gives_way_to_temper() {
         assert_eq!(words, program_environment(&dirs, &environment, WORKING, b"temper"));
     }
 }
+#[test]
+fn the_widest_directories_fit_the_wire() {
+    use temper_client_protocol_wire::{self as wire, v1 as w};
+    // protocol/configuration/directories.md: each directory holds at most 4096 bytes.
+    const PATH_BYTES: usize = 4096;
+    // Three quoted apostrophe paths: 3 * (4 * 4096 + 2), 39 name bytes, three spaces, and temper.
+    const WORD_BYTES: usize = 49206;
+    let path = vec![b'\''; PATH_BYTES].into_boxed_slice();
+    let dirs = Directories { config: path.clone(), data: path.clone(), cache: path, origins: [Origin::Flag; 3] };
+    let words = program_environment(&dirs, &[], WORKING, b"temper");
+    assert_eq!(words.len(), WORD_BYTES);
+    let record = w::ProgramEnvironmentAnswer { environment: words };
+    assert_eq!(
+        wire::decode_program_environment_answer(&wire::program_environment_answer(&record), &w::CEILINGS),
+        Some(record)
+    );
+}

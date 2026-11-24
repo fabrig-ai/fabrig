@@ -808,6 +808,12 @@ impl<B: Backend> World<B> {
         std::mem::take(&mut self.disk)
     }
 
+    /// Take the checkout at a crash, without draining any in-flight work.
+    /// The abandoned activation must not be driven again.
+    pub fn take_crashed_checkout(&mut self) -> Checkout {
+        std::mem::take(&mut self.disk)
+    }
+
     /// A scripted check writes a persistent marker under `SMITH_CHECK_RESULTS`.
     pub fn check_marker(&mut self, name: &[u8]) {
         self.check_marker = Some(name.into());

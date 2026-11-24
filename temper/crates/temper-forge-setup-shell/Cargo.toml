@@ -20,6 +20,7 @@ skein-shell.workspace = true
 
 [dev-dependencies]
 jig-protocol-config-fixtures.workspace = true
+skein-fake-machine.workspace = true
 skein-world.workspace = true
 skein-scratch.workspace = true
 skein-tls-kit.workspace = true

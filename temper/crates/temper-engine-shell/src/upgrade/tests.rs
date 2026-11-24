@@ -117,37 +117,71 @@ fn an_unremovable_scratch_is_named_and_the_rehearsal_goes_on() {
 const LEFTOVER: &[u8] = b"upgrade-00000000000000aa";
 const STAGING: &[u8] = b"upgrade-00000000000000aa.new";
 const FILE: &[u8] = b"upgrade-00000000000000aa/file";
+const BUSY: &[u8] = b"upgrade-00000000000000bb";
+const REGULAR: &[u8] = b"upgrade-00000000000000cc";
+const LINK: &[u8] = b"upgrade-00000000000000dd";
+const OTHER: [&[u8]; 4] = [b"upgrade-x", b"other", b"upgrade-00000000000000aA", b"upgrade-00000000000000aaa"];
+const OUTSIDE: &[u8] = b"outside";
+const BYTES: &[u8] = b"checkpoint bytes";
 const OLD: Duration = Duration::from_secs(7200);
+
+#[derive(Debug, PartialEq, Eq)]
+enum Effect {
+    Metadata(Vec<u8>),
+    Open(Vec<u8>),
+    Lock(Vec<u8>, Result<(), Refusal>),
+    Remove(Vec<u8>),
+    Release(Opened),
+}
 
 struct Cache {
     machine: Machine,
     root: Opened,
+    effects: Vec<Effect>,
 }
 
 impl Cache {
     fn new(items: &[Item]) -> Self {
         let mut machine = Machine::for_user(1000);
         let root = machine.lay(items);
-        Self { machine, root }
+        Self { machine, root, effects: Vec::new() }
+    }
+
+    fn names(&mut self) -> Vec<Box<[u8]>> {
+        let listing = self.machine.open(self.root, b".", How::Directory).unwrap();
+        let entries = self.machine.list(listing, 16, 512).unwrap();
+        self.machine.close(listing);
+        entries.into_iter().map(|(_, name)| name).collect()
     }
 
     fn sweep(&mut self, now: SystemTime, modified: SystemTime) -> Vec<String> {
-        let listing = self.machine.open(self.root, b".", How::Directory).unwrap();
-        let entries = self.machine.list(listing, 8, 256).unwrap();
-        self.machine.close(listing);
+        let entries = self.names();
         super::scratch::sweep_with(
             "temper-engine",
-            entries.into_iter().map(|(kind, name)| (std::ffi::OsString::from_vec(name.to_vec()), (kind, name))),
+            entries.into_iter().map(|name| (std::ffi::OsString::from_vec(name.to_vec()), name)),
             now,
-            |(kind, _)| Ok((*kind == Is::Directory).then_some(modified)),
-            |(_, name)| {
-                let held = self.open(name, How::Directory).map_err(cache_error)?;
-                let result = match self.machine.lock(held) {
-                    Ok(()) => self.remove_contents(name, held),
-                    Err(Refusal::Held) => Ok(()),
-                    Err(why) => Err(cache_error(why)),
-                };
-                self.machine.close(held);
+            self,
+            |cache, name| {
+                cache.effects.push(Effect::Metadata(name.to_vec()));
+                Ok((cache.kind(name) == Some(Is::Directory)).then_some(modified))
+            },
+            |cache, name| {
+                cache.effects.push(Effect::Open(name.to_vec()));
+                let held = cache.open(name, How::Directory).map_err(cache_error)?;
+                let result = cache.machine.lock(held);
+                cache.effects.push(Effect::Lock(name.to_vec(), result));
+                match result {
+                    Ok(()) => Ok(Some(held)),
+                    Err(why) => {
+                        cache.machine.close(held);
+                        if why == Refusal::Held { Ok(None) } else { Err(cache_error(why)) }
+                    }
+                }
+            },
+            |cache, name, held| {
+                cache.effects.push(Effect::Remove(name.to_vec()));
+                let result = cache.remove_contents(name, held);
+                cache.machine.close(held);
                 result
             },
         )
@@ -170,16 +204,155 @@ impl Cache {
     }
 
     fn remove_contents(&mut self, name: &[u8], held: Opened) -> std::io::Result<()> {
-        for (_, file) in self.machine.list(held, 8, 256).map_err(cache_error)? {
-            self.machine.remove(held, &file, false).map_err(cache_error)?;
+        self.remove_tree(self.root, name, held)
+    }
+
+    fn remove_tree(&mut self, parent: Opened, name: &[u8], dir: Opened) -> std::io::Result<()> {
+        for (kind, child) in self.machine.list(dir, 16, 512).map_err(cache_error)? {
+            if kind == Is::Directory {
+                let nested = self.machine.open(dir, &child, How::Directory).map_err(cache_error)?;
+                let result = self.remove_tree(dir, &child, nested);
+                self.machine.close(nested);
+                result?;
+            } else {
+                self.machine.remove(dir, &child, false).map_err(cache_error)?;
+            }
         }
-        self.machine.remove(self.root, name, true).map_err(cache_error)
+        self.machine.remove(parent, name, true).map_err(cache_error)
+    }
+
+    fn own_scratch(&mut self, name: &[u8], held: Opened) -> Option<String> {
+        super::scratch::remove_with(
+            "temper-engine",
+            crate::path(name),
+            held,
+            self,
+            |cache, path| {
+                let name = path.as_os_str().as_bytes();
+                cache.effects.push(Effect::Remove(name.to_vec()));
+                let dir = cache.open(name, How::Directory).map_err(cache_error)?;
+                let result = cache.remove_contents(name, dir);
+                cache.machine.close(dir);
+                result
+            },
+            |cache, held| {
+                cache.effects.push(Effect::Release(held));
+                cache.machine.close(held);
+            },
+        )
+    }
+
+    fn bytes(&mut self, name: &[u8]) -> (Vec<u8>, u32) {
+        let file = self.open(name, How::Read).expect("kept file");
+        let facts = self.machine.stat(file);
+        let bytes = self.machine.read(file, 0, u32::try_from(facts.size).expect("fixture bytes")).unwrap();
+        self.machine.close(file);
+        (bytes, facts.links)
     }
 }
 
 fn cache_error(why: Refusal) -> std::io::Error {
     assert_eq!(why, Refusal::Permission, "the fixture scripts permission failures");
     std::io::Error::from_raw_os_error(13)
+}
+
+fn scratch_with_outside_link() -> [Item; 5] {
+    [
+        Item::file(OUTSIDE, BYTES),
+        Item::directory(LEFTOVER),
+        Item::directory(b"upgrade-00000000000000aa/nested"),
+        Item::file(FILE, b"stale"),
+        Item::hard_link(b"upgrade-00000000000000aa/nested/linked", OUTSIDE),
+    ]
+}
+
+#[test]
+fn a_rehearsals_sweep_takes_only_stale_unlocked_scratch() {
+    const BUSY_FILE: &[u8] = b"upgrade-00000000000000bb/file";
+    let mut items = Vec::from(scratch_with_outside_link());
+    items.extend([
+        Item::directory(BUSY),
+        Item::file(BUSY_FILE, b"in use"),
+        Item::file(REGULAR, b"regular file"),
+        Item::link(LINK, BUSY),
+    ]);
+    items.extend(OTHER.map(Item::directory));
+    let mut cache = Cache::new(&items);
+    let mut remaining = cache.names();
+    remaining.retain(|name| name.as_ref() != LEFTOVER);
+    let held = cache.open(BUSY, How::Directory).expect("busy scratch");
+    cache.machine.lock(held).expect("hold busy scratch");
+    assert_eq!(cache.bytes(OUTSIDE), (BYTES.to_vec(), 2));
+    let now = SystemTime::UNIX_EPOCH + OLD;
+    assert_eq!(cache.sweep(now, now - OLD), Vec::<String>::new());
+    assert_eq!(
+        cache.effects,
+        [
+            Effect::Metadata(LEFTOVER.to_vec()),
+            Effect::Open(LEFTOVER.to_vec()),
+            Effect::Lock(LEFTOVER.to_vec(), Ok(())),
+            Effect::Remove(LEFTOVER.to_vec()),
+            Effect::Metadata(BUSY.to_vec()),
+            Effect::Open(BUSY.to_vec()),
+            Effect::Lock(BUSY.to_vec(), Err(Refusal::Held)),
+            Effect::Metadata(REGULAR.to_vec()),
+            Effect::Metadata(LINK.to_vec()),
+        ]
+    );
+    assert_eq!(cache.names(), remaining, "only the stale scratch is gone");
+    assert_eq!(cache.bytes(OUTSIDE), (BYTES.to_vec(), 1));
+    assert_eq!(cache.bytes(BUSY_FILE).0, b"in use");
+    assert_eq!(cache.bytes(REGULAR).0, b"regular file");
+    assert_eq!(cache.kind(LINK), Some(Is::Link), "the sweep does not follow the link");
+    for name in OTHER {
+        assert_eq!(cache.kind(name), Some(Is::Directory));
+    }
+    cache.machine.close(held);
+}
+
+#[test]
+fn a_rehearsals_end_removes_its_own_scratch() {
+    use std::cell::RefCell;
+    const SOURCE: &[u8] = b"/state";
+    let report_error = Err("drive: kernel unavailable".to_owned());
+    for (open, report, expected, actions) in [
+        (Ok(()), Ok(0), Ok(0), &["open", "make", "report", "remove"][..]),
+        (Ok(()), Ok(1), Ok(1), &["open", "make", "report", "remove"][..]),
+        (Ok(()), report_error.clone(), report_error, &["open", "make", "error", "remove"][..]),
+        (Err(2), Ok(0), Err("/state: no readable deployment directory: errno 2".into()), &["open"][..]),
+    ] {
+        let effects = RefCell::new(Vec::new());
+        let result = super::finish_with(
+            |made| {
+                super::source_with(SOURCE, |path| {
+                    assert_eq!(path, crate::path(SOURCE));
+                    effects.borrow_mut().push("open");
+                    open
+                })?;
+                *made = Some(LEFTOVER);
+                effects.borrow_mut().push("make");
+                effects.borrow_mut().push(if report.is_ok() { "report" } else { "error" });
+                report
+            },
+            |scratch| {
+                assert_eq!(scratch, LEFTOVER, "remove only this run's scratch");
+                effects.borrow_mut().push("remove");
+            },
+        );
+        assert_eq!(result, expected);
+        assert_eq!(effects.into_inner(), actions);
+    }
+}
+
+#[test]
+fn own_scratch_removal_releases_all_contents_and_outside_links() {
+    let mut cache = Cache::new(&scratch_with_outside_link());
+    let held = cache.open(LEFTOVER, How::Directory).expect("own scratch");
+    cache.machine.lock(held).expect("own lock");
+    assert_eq!(cache.own_scratch(LEFTOVER, held), None);
+    assert_eq!(cache.effects, [Effect::Remove(LEFTOVER.to_vec()), Effect::Release(held)]);
+    assert_eq!(cache.kind(LEFTOVER), None, "own scratch is removed whole");
+    assert_eq!(cache.bytes(OUTSIDE), (BYTES.to_vec(), 1));
 }
 
 #[test]
@@ -218,10 +391,7 @@ fn own_scratch_removal_failure_names_the_path_and_cause() {
     let mut cache = Cache::new(&[Item::directory(LEFTOVER).mode(0o500), Item::file(FILE, b"left behind")]);
     let held = cache.open(LEFTOVER, How::Directory).expect("own directory");
     cache.machine.lock(held).expect("own lock");
-    let line = super::scratch::remove_with("temper-engine", crate::path(LEFTOVER), held, |path| {
-        cache.remove_contents(path.as_os_str().as_bytes(), held)
-    });
-    cache.machine.close(held);
+    let line = cache.own_scratch(LEFTOVER, held);
     assert_eq!(line.as_deref(), Some("temper-engine upgrade: scratch not removed: upgrade-00000000000000aa: errno 13"));
 }
 

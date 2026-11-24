@@ -146,11 +146,19 @@ pub enum Op {
     },
 }
 
+/// Whether a workspace was saved by a drain or was held when its worker stopped.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum KeptState {
+    Kept,
+    Held,
+}
+
 /// The mark beside a workspace, private to this worker, versioned by its file.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Kept {
     pub workspace: Token,
     pub key: Box<[u8]>,
+    pub state: KeptState,
     pub repositories: Box<[KeptRepository]>,
     pub when: u64,
 }
@@ -160,6 +168,8 @@ pub struct KeptRepository {
     pub name: Box<[u8]>,
     pub remote: Box<[u8]>,
     pub commit: Commit,
+    pub merging: Option<Commit>,
+    pub unchecked: bool,
 }
 
 /// Check files resolved by git rev-parse --git-path (domain/forge/reds.md, 5.2).

@@ -321,6 +321,7 @@ reference_s = 1
 [gate.default.temper.simulated]
 cpu_s = 470
 instructions = 2_321_400_000_000
+accepted_instructions = 896_000_000_000
 ideal_s = 15
 ideal_instructions = 74_100_000_000
 reference_s = 2

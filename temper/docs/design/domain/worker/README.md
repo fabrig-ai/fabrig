@@ -214,11 +214,17 @@ agent    smith: LLM work, one run per agent process, reporting to the worker
 - **A worker's restart loses no work.** Stopped, it cancels each run for
   shutdown, saving its work first, and answers `Cancelled(Shutdown)`, an
   interruption as above, before it gives up its link (jig's
-  `domain/hosts/hub.md`, 7). Killed, it saves nothing more: the engine
-  holds its runs for its grace, then ends them lost, and each next
-  attempt resumes from its committed transcript and its last saved work
-  (`checkouts.md`). Either way the next attempt may be on this worker once it
-  is back, or on another. A run's start messages leave its task's inbox
+  `domain/hosts/hub.md`, 7). Killed, it takes the same path without the
+  settle: back as a new process, it keeps each workspace a run held at
+  the kill, its hello names their workstreams, and the engine ends
+  each attempt it no longer lists suspended at once (jig's
+  `domain/engine/executors.md`, 6.5). Each next attempt on this worker
+  saves its workspace before its agent starts and resumes from its
+  committed answers and calls (`checkouts.md`, *A workspace kept for
+  its run*; smith's `domain/turn-parts.md`, section 5); one on another
+  worker, or back after the window, resumes from its committed
+  transcript and its last saved work, as before. Either way the next
+  attempt may be on this worker once it is back, or on another. A run's start messages leave its task's inbox
   only through a committed turn's read fence (jig's `domain/tasks/messages.md`,
   2), so a run lost before its first turn hands them all to the next.
 
