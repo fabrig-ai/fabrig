@@ -31,7 +31,16 @@ fn a_child_answer_in_flight_delays_the_grace_and_its_cut_has_no_main_result() {
     fixture.checkout.program(b"child command", program(20_000, b"child step\n", Exit::Code(0), &[]));
     let mut world = scripted_in(
         &settings(),
-        Box::new([call(b"sub_agent", br#"{"brief":"@cut-child","tools":["shell"]}"#)]),
+        Box::new([smith_agent_world::fixture::calls(
+            Box::new([
+                Line::Text { text: b"delegate".as_slice().into() },
+                Line::Call {
+                    name: b"sub_agent".as_slice().into(),
+                    arguments: br#"{"brief":"@cut-child","tools":["shell"]}"#.as_slice().into(),
+                },
+            ]),
+            1,
+        )]),
         vec![Script {
             cue: b"@cut-child".as_slice().into(),
             turns: Box::new([call(b"shell", br#"{"command":"child command"}"#)]),
@@ -44,10 +53,11 @@ fn a_child_answer_in_flight_delays_the_grace_and_its_cut_has_no_main_result() {
     world.run(10_000);
     assert_eq!(world.completions().len(), 2);
     assert_eq!(
-        world.parts().iter().map(|(_, _, _, p)| (p.thread, p.kind)).collect::<Vec<_>>(),
-        [(0, PartKind::Answer), (1, PartKind::Answer), (1, PartKind::Result)]
+        world.parts().iter().map(|(_, _, _, p)| (p.thread, p.call, p.kind)).collect::<Vec<_>>(),
+        [(0, 0, PartKind::Answer), (1, 1, PartKind::Answer), (1, 1, PartKind::Result), (1, 1, PartKind::Result)]
     );
-    let last = &world.parts()[2];
+    assert_start(&world.parts()[2].3);
+    let last = &world.parts()[3];
     assert_eq!(last.0, Time::from_nanos(10_200_000_000));
     assert!(
         matches!(result(&last.3).1, Returned::Owned { outcome: tools::Outcome::Interrupted { ran: Some(ran), .. } } if *ran == GRACE)
@@ -81,9 +91,10 @@ fn calls_never_started_at_the_cut_tell_nothing() {
     world.tell_parts();
     world.drain_with_grace_at(Time::from_nanos(50_000_000), Some(GRACE));
     world.run(10_000);
-    assert_eq!(world.parts().len(), 3);
+    assert_eq!(world.parts().len(), 4);
     assert!(matches!(result(&world.parts()[1].3).1, Returned::Owned { outcome: tools::Outcome::Read { .. } }));
-    assert!(matches!(result(&world.parts()[2].3).1, Returned::Owned { outcome: tools::Outcome::Interrupted { .. } }));
+    assert_start(&world.parts()[2].3);
+    assert!(matches!(result(&world.parts()[3].3).1, Returned::Owned { outcome: tools::Outcome::Interrupted { .. } }));
     assert!(world.boundaries().iter().all(|(_, b)| !matches!(b, Boundary::Io { op: tools::Op::List { .. } })));
     assert_eq!(world.turns(), []);
 }
@@ -135,12 +146,110 @@ fn a_cut_job_wait_tells_unread_output_and_its_elapsed_wait() {
     );
 }
 
+fn assert_start(part: &Told) {
+    assert!(matches!(result(part).1,
+        Returned::Owned { outcome: tools::Outcome::Interrupted { ran: None, head, last, dropped: 0 } }
+        if head.is_empty() && last.is_empty()));
+}
+
 fn result(part: &Told) -> (&[u8], &Returned) {
     assert_eq!(part.kind, PartKind::Result);
     let [message] = part.body.messages.as_ref() else { panic!("one result message") };
     assert_eq!(message.role, Role::User);
     let [Block::ToolResult { id, result }] = message.content.as_ref() else { panic!("one result block") };
     (id, result)
+}
+
+#[test]
+fn commands_tell_a_start_then_their_exit_only_when_parts_are_enabled() {
+    for enabled in [false, true] {
+        let mut world = scripted(
+            &settings(),
+            Box::new([
+                call(b"shell", br#"{"command":"cargo build"}"#),
+                call(b"finish", br#"{"report":"Done.","source":"workspace"}"#),
+            ]),
+            vec![],
+        );
+        if enabled {
+            world.tell_parts();
+        }
+        world.run(10_000);
+        if !enabled {
+            assert_eq!(world.parts(), []);
+            continue;
+        }
+        let parts = world.parts();
+        assert_eq!(parts.len(), 5);
+        assert_eq!(parts[0].3.kind, PartKind::Answer);
+        assert_eq!((parts[0].1, parts[1].1, parts[2].1), (1, 2, 3));
+        assert_start(&parts[1].3);
+        assert!(matches!(result(&parts[2].3).1, Returned::Owned { outcome: tools::Outcome::Exited { .. } }));
+        assert_eq!(result(&parts[1].3).0, result(&parts[2].3).0);
+        assert!(parts[1].0 < parts[2].0);
+        assert_ne!(parts[1].3.body, parts[2].3.body);
+    }
+}
+
+#[test]
+fn a_job_wait_tells_a_start_but_a_stop_and_an_unknown_job_do_not() {
+    for stop in [false, true] {
+        let mut fixture = Fixture::new();
+        fixture.checkout.program(b"held", program(1000, b"finished", Exit::Code(0), &[]));
+        let job =
+            if stop { br#"{"job":1,"stop":true}"#.as_slice() } else { br#"{"job":1,"wait_seconds":30}"#.as_slice() };
+        let mut world = scripted_in(
+            &settings(),
+            Box::new([
+                call(b"shell", br#"{"command":"held","yield_seconds":0}"#),
+                call(b"job", job),
+                call(b"job", br#"{"job":99}"#),
+                call(b"finish", br#"{"report":"Done.","source":"workspace"}"#),
+            ]),
+            vec![],
+            fixture,
+        );
+        world.tell_parts();
+        world.run(10_000);
+        let job_parts: Vec<_> = world.parts().iter().filter(|(_, _, turn, _)| *turn == 2).collect();
+        assert_eq!(job_parts[0].3.kind, PartKind::Answer);
+        if stop {
+            assert_eq!(job_parts.len(), 2);
+        } else {
+            assert_eq!(job_parts.len(), 3);
+            assert_start(&job_parts[1].3);
+            assert_eq!(result(&job_parts[1].3).0, result(&job_parts[2].3).0);
+        }
+        assert!(!matches!(
+            result(&job_parts.last().expect("job end").3).1,
+            Returned::Owned { outcome: tools::Outcome::Interrupted { .. } }
+        ));
+        assert_eq!(world.parts().iter().filter(|(_, _, turn, _)| *turn == 3).count(), 2);
+    }
+}
+
+#[test]
+fn an_ungranted_child_command_tells_no_start() {
+    let mut world = scripted(
+        &settings(),
+        Box::new([
+            call(b"sub_agent", br#"{"brief":"@ungranted","tools":["inspect"]}"#),
+            call(b"finish", br#"{"report":"Done.","source":"workspace"}"#),
+        ]),
+        vec![Script {
+            cue: b"@ungranted".as_slice().into(),
+            turns: Box::new([
+                call(b"shell", br#"{"command":"cargo build"}"#),
+                smith_agent_world::fixture::says(Box::new([Line::Text { text: b"done".as_slice().into() }]), 1),
+            ]),
+        }],
+    );
+    world.tell_parts();
+    world.run(10_000);
+    let child: Vec<_> = world.parts().iter().filter(|(_, _, _, part)| part.thread == 1).collect();
+    assert_eq!(child.len(), 3);
+    assert!(matches!(result(&child[1].3).1, Returned::Invalid { .. }));
+    assert!(world.boundaries().iter().all(|(_, b)| !matches!(b, Boundary::Io { op: tools::Op::Spawn { .. } })));
 }
 
 #[test]
@@ -282,10 +391,12 @@ fn drain_waits_for_the_answer_then_cuts_a_command_at_the_grace() {
     world.drain_with_grace_at(Time::from_nanos(50_000_000), Some(GRACE));
     world.run(10_000);
     assert_eq!(world.completions().len(), 1);
-    assert_eq!(world.parts().len(), 2);
+    assert_eq!(world.parts().len(), 3);
     assert_eq!(world.parts()[0].0, Time::from_nanos(100_000_000));
-    assert_eq!(world.parts()[1].0, Time::from_nanos(10_100_000_000));
-    assert!(matches!(result(&world.parts()[1].3).1,
+    assert_eq!(world.parts()[1].0, Time::from_nanos(100_000_000));
+    assert_start(&world.parts()[1].3);
+    assert_eq!(world.parts()[2].0, Time::from_nanos(10_100_000_000));
+    assert!(matches!(result(&world.parts()[2].3).1,
         Returned::Owned { outcome: tools::Outcome::Interrupted { ran: Some(ran), head, last, dropped: 0 } }
         if *ran == GRACE && head.as_ref() == b"step 1\n" && last.is_empty()));
     assert_eq!(world.turns(), []);
@@ -334,10 +445,11 @@ fn cancel_after_an_answer_drain_cuts_immediately_without_more_parts() {
     while world.parts().is_empty() {
         assert!(!world.drive(1));
     }
-    assert_eq!(world.parts().len(), 1);
+    assert_eq!(world.parts().len(), 2);
+    assert_start(&world.parts()[1].3);
     world.cancel_run();
     world.run(10_000);
-    assert_eq!(world.parts().len(), 1);
+    assert_eq!(world.parts().len(), 2);
     assert_eq!(world.turns(), []);
     assert!(world.answered_at() < Time::from_nanos(10_100_000_000));
 }

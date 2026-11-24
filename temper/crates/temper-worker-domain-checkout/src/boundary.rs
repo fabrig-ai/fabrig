@@ -193,6 +193,9 @@ pub struct CandidateMember {
     pub squash_message: Message,
 }
 
+/// The title shared by a drain's save and a crashed workspace's take-up.
+pub const SAVED: &[u8] = b"Save unfinished work";
+
 /// A commit's message.
 #[derive(PartialEq, Eq, Debug)]
 pub struct Message {
@@ -206,6 +209,8 @@ pub enum Prepared {
     /// The workspace is ready, in the directory io names `workspace`: each
     /// repository at its starting point.
     Ready { workspace: Token, conflicts: Box<[Conflicts]> },
+    /// A crashed hold was saved before preparing this workspace as a saved start.
+    Recovered { workspace: Token, conflicts: Box<[Conflicts]>, saved: Box<[crate::git::KeptRepository]> },
     /// The members' prefixes and conflicts, prepared without a process.
     Candidate { workspace: Token, outcome: Candidate },
     /// Refused at the entrance: nothing is held.

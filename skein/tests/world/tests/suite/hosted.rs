@@ -355,6 +355,99 @@ fn a_referees_observed_cut_restarts_before_the_next_turn_retaining_completed_wri
     assert!(outcome.procs[0].is_empty(), "the restarted root drains");
 }
 
+#[derive(Debug, Default)]
+struct UnitMachine {
+    opened: u64,
+    cut_handles: Vec<Handle>,
+}
+
+impl Machine for UnitMachine {
+    fn open_root(&mut self, _path: &[u8]) -> Result<Handle, Error> {
+        self.opened += 1;
+        Ok(Handle::new(self.opened))
+    }
+    fn close_root(&mut self, _root: Handle) {}
+    fn cut(&mut self, cut: Cut, held: &[Handle], _seed: u64) {
+        assert_eq!(cut, Cut::Kill);
+        self.cut_handles.extend_from_slice(held);
+    }
+    fn step(&mut self, call: skein_sim::Call, answers: &mut Queue<skein_sim::Answer>) {
+        RootMachine.step(call, answers);
+    }
+}
+
+struct UnitJudge {
+    controls: skein_world::Controls,
+    killed: bool,
+    replaced: bool,
+}
+
+impl Referee<CuttingScript> for UnitJudge {
+    fn act(&mut self, _now: Time, procs: &mut [CuttingScript]) {
+        if !self.killed && procs.len() == 2 {
+            self.controls.kill_unit(0);
+            self.killed = true;
+        }
+    }
+    fn watch(&mut self, _now: Time, procs: &[CuttingScript]) -> Result<(), String> {
+        if self.killed && !self.replaced {
+            assert_eq!(procs.len(), 1, "the child is removed with its parent");
+            assert_eq!(procs[0].script.iterations, 1, "the replacement starts from its first step");
+            self.replaced = true;
+        }
+        Ok(())
+    }
+    fn passed(&self) -> bool {
+        self.replaced
+    }
+}
+
+#[test]
+fn a_unit_kill_removes_its_hosted_child_without_another_step() {
+    let mut world = World::new_controlled(7, Config::calm(), Memory::Checked, |controls| UnitJudge {
+        controls,
+        killed: false,
+        replaced: false,
+    })
+    .with_machine(UnitMachine::default());
+    world.host_roots(
+        HostedProgram { program: b"hosted".as_slice().into(), make: cutting_child, instances: 1, operations: 8 },
+        |_| vec![StartupRoot { name: b"child".as_slice().into(), path: b"child".as_slice().into() }],
+    );
+    world.spawn_restartable(
+        vec![StartupRoot { name: b"launch".as_slice().into(), path: b"launch".as_slice().into() }],
+        cutting_parent,
+    );
+    let mut original = None;
+    let mut replacement = None;
+    let outcome = world.run_with_inputs(|_, pids, _| {
+        if pids.len() == 2 && original.is_none() {
+            original = Some([pids[0], pids[1]]);
+        }
+        if let Some(old) = original
+            && pids[0] != old[0]
+        {
+            replacement = Some(pids[0]);
+        }
+    });
+    let original = original.expect("a live parent and child at the kill");
+    let replacement = replacement.expect("the root restarts");
+    let first_new = outcome.trace.iter().position(|entry| entry.pid == replacement).expect("replacement steps");
+    assert!(
+        outcome.trace[first_new..].iter().all(|entry| !original.contains(&entry.pid)),
+        "neither killed process submits or reaps another operation"
+    );
+    assert_eq!(
+        outcome.machine.cut_handles,
+        [Handle::new(1), Handle::new(2)],
+        "both processes' startup descriptors close at the cut"
+    );
+    assert_eq!(outcome.killed.len(), 1);
+    assert_eq!(outcome.killed[0].pid, original[1]);
+    assert_eq!(outcome.killed[0].exit, Exit::Signal(9));
+    assert!(outcome.procs.iter().all(Host::is_empty), "the replacement and its new child settle");
+}
+
 #[test]
 fn a_power_loss_drops_hosted_children_and_restarts_the_roots() {
     let mut world = cutting_world();

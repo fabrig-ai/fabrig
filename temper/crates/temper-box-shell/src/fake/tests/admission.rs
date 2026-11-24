@@ -1,5 +1,5 @@
 //! Startup refusals over named-file facts (temper/docs/design/testing/box/README.md, 3.9–3.10).
-use super::super::{Inputs, start_with};
+use super::super::{Created, Inputs, start_with};
 use crate::{Command, Directories, binary};
 use skein_io::{
     file::Unsafe,
@@ -46,11 +46,13 @@ const LLM_USAGE: &str = concat!(
 #[derive(Clone, Debug, PartialEq, Eq)]
 struct Node {
     stat: Stat,
+    identity: u64,
     bytes: Vec<u8>,
 }
 fn node(kind: Kind, mode: u32, bytes: &[u8]) -> Node {
     Node {
         stat: Stat { kind, mode, owner: USER, links: 1, size: skein_lib::len_u64(bytes.len()) },
+        identity: 0,
         bytes: bytes.into(),
     }
 }
@@ -74,13 +76,31 @@ struct Facts {
     tree: Inventory,
     effects: Vec<Effect>,
     opened: Vec<PathBuf>,
+    next_identity: u64,
+    output_reads: Vec<(PathBuf, u64)>,
+    oversized_read: bool,
     reads: Vec<(PathBuf, u32, bool)>,
 }
 impl Facts {
     fn new<'a>(entries: impl IntoIterator<Item = (&'a str, Node)>) -> Self {
-        let tree =
-            [(ROOT, directory(0o700))].into_iter().chain(entries).map(|(name, node)| (name.into(), node)).collect();
-        Self { tree, effects: Vec::new(), opened: Vec::new(), reads: Vec::new() }
+        let mut facts = Self {
+            tree: Inventory::new(),
+            effects: Vec::new(),
+            opened: Vec::new(),
+            reads: Vec::new(),
+            next_identity: 1,
+            output_reads: Vec::new(),
+            oversized_read: false,
+        };
+        for (path, node) in [(ROOT, directory(0o700))].into_iter().chain(entries) {
+            facts.insert(path.into(), node);
+        }
+        facts
+    }
+    fn insert(&mut self, path: PathBuf, mut node: Node) {
+        node.identity = self.next_identity;
+        self.next_identity = self.next_identity.checked_add(1).expect("fixture identity");
+        assert!(self.tree.insert(path, node).is_none());
     }
     fn get(&self, path: &Path) -> io::Result<&Node> {
         self.tree.get(path).ok_or_else(|| io::Error::from_raw_os_error(2))
@@ -92,7 +112,8 @@ impl Disk for Facts {
         USER
     }
     fn metadata(&mut self, path: &Path) -> io::Result<Metadata> {
-        Ok(Metadata { stat: self.get(path)?.stat, identity: (1, 2) })
+        let node = self.get(path)?;
+        Ok(Metadata { stat: node.stat, identity: (1, node.identity) })
     }
     fn open(&mut self, path: &Path) -> io::Result<PathBuf> {
         self.opened.push(path.into());
@@ -103,19 +124,19 @@ impl Disk for Facts {
         self.metadata(path)
     }
     fn read(&mut self, path: PathBuf, bound: u64) -> io::Result<Box<[u8]>> {
+        self.output_reads.push((path.clone(), bound));
         let bytes = &self.get(&path)?.bytes;
+        let bound = if self.oversized_read { bound.checked_add(1).expect("oversize fixture") } else { bound };
         Ok(bytes[..bytes.len().min(usize::try_from(bound).expect("bounded fixture read"))].into())
     }
     fn create(&mut self, path: &Path, mode: u32) -> io::Result<PathBuf> {
         self.effects.push(Effect::Create(path.into(), mode));
         self.get(path.parent().expect("output parent"))?;
-        match self.tree.entry(path.into()) {
-            std::collections::btree_map::Entry::Occupied(_) => Err(io::Error::from_raw_os_error(17)),
-            std::collections::btree_map::Entry::Vacant(entry) => {
-                entry.insert(node(Kind::File, mode, b""));
-                Ok(path.into())
-            }
+        if self.tree.contains_key(path) {
+            return Err(io::Error::from_raw_os_error(17));
         }
+        self.insert(path.into(), node(Kind::File, mode, b""));
+        Ok(path.into())
     }
     fn write(&mut self, path: &mut PathBuf, bytes: &[u8]) -> io::Result<()> {
         self.effects.push(Effect::Write(path.clone()));
@@ -134,7 +155,7 @@ impl Disk for Facts {
         let missing: Vec<_> = path.ancestors().take_while(|path| !self.tree.contains_key(*path)).collect();
         for path in missing.into_iter().rev() {
             self.effects.push(Effect::MakeDirectory(path.into(), mode));
-            self.tree.insert(path.into(), directory(mode));
+            self.insert(path.into(), directory(mode));
         }
         Ok(())
     }
@@ -413,4 +434,69 @@ fn llm_refuses_a_hold_without_control() {
         expected("llm", None, "control: required when a piece has a hold"),
     );
     assert!(facts.effects.is_empty(), "refusal creates no key");
+}
+
+#[test]
+fn retained_seed_outputs_survive_later_refusal_and_rollback() {
+    let retained = Path::new(KEY);
+    let new = Path::new(ADDED_KEY);
+    let observations = Path::new(OBSERVATIONS);
+    let mut disk = Facts::new([]);
+    let mut first = Created::default();
+    first.output_with(&mut disk, retained, b"seeded bytes").expect("first seed output");
+    first.file_with(&mut disk, observations, b"observation bytes").expect("first observations");
+    assert_eq!(disk.get(retained).unwrap().bytes, b"seeded bytes");
+    assert_eq!(disk.get(observations).unwrap().bytes, b"observation bytes");
+    let before = disk.tree.clone();
+    let mut second = Created::default();
+    second.output_with(&mut disk, retained, b"seeded bytes").expect("matching retained output");
+    second.output_with(&mut disk, new, b"new bytes").expect("new seed output");
+    assert_eq!(disk.get(new).unwrap().stat.mode, 0o600);
+    assert_ne!(disk.get(new).unwrap().identity, disk.get(retained).unwrap().identity);
+    let why = second.file_with(&mut disk, observations, b"replacement").expect_err("exclusive observations");
+    assert_eq!(why, format!("{OBSERVATIONS}: {EXISTS}"));
+    second.rollback_with(&mut disk);
+    assert_eq!(disk.tree, before, "retained nodes and bytes survive rollback");
+    assert_eq!(
+        disk.effects,
+        [
+            Effect::Create(retained.into(), 0o600),
+            Effect::Write(retained.into()),
+            Effect::Create(observations.into(), 0o600),
+            Effect::Write(observations.into()),
+            Effect::Create(new.into(), 0o600),
+            Effect::Write(new.into()),
+            Effect::Create(observations.into(), 0o600),
+            Effect::RemoveFile(new.into()),
+        ]
+    );
+}
+
+#[test]
+fn unsafe_or_different_retained_seed_outputs_are_named_and_refused() {
+    let path = Path::new(KEY);
+    let mut hardlink = file(b"seed");
+    hardlink.stat.links = 2;
+    for (row, output, opened) in [
+        ("bytes", file(b"other"), true),
+        ("symlink", node(Kind::Symlink, 0o777, ADDED_KEY.as_bytes()), false),
+        ("hardlink", hardlink, false),
+        ("mode", node(Kind::File, 0o644, b"seed"), false),
+        ("oversize", file(b"seed!!"), true),
+        ("directory", directory(0o700), false),
+    ] {
+        let mut disk = Facts::new([(KEY, output), (ADDED_KEY, file(b"seed"))]);
+        disk.oversized_read = row == "oversize";
+        let before = disk.tree.clone();
+        let mut created = Created::default();
+        let why = created.output_with(&mut disk, path, b"seed").expect_err("retained output refused");
+        let reason = if opened { DIFFERENT } else { super::super::disk::UNSAFE_OUTPUT };
+        assert_eq!(why, format!("{KEY}: {reason}"), "{row}");
+        assert!(created.files.is_empty(), "{row}: nothing owned");
+        created.rollback_with(&mut disk);
+        assert_eq!(disk.opened, if opened { vec![path.to_path_buf()] } else { vec![] }, "{row}");
+        assert_eq!(disk.output_reads, if opened { vec![(path.into(), 5)] } else { vec![] }, "{row}");
+        assert!(disk.effects.is_empty(), "{row}: no writes or removals");
+        assert_eq!(disk.tree, before, "{row}");
+    }
 }

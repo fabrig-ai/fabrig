@@ -5,7 +5,7 @@ pub(crate) mod check;
 mod control;
 pub(crate) mod created;
 use created::Created;
-mod disk;
+pub(super) mod disk;
 use disk::Native;
 pub use disk::{Disk, Metadata};
 pub mod git;

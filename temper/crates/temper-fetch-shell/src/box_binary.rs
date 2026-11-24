@@ -56,51 +56,67 @@ fn platform() -> String {
         (os, arch) => format!("{os}-{arch}"),
     }
 }
+fn candidate_metadata(file: &Path) -> Option<(bool, u32)> {
+    fs::metadata(file).ok().map(|meta| (meta.is_file(), meta.permissions().mode()))
+}
 fn executable(file: &Path) -> bool {
-    match fs::metadata(file) {
-        Ok(meta) => meta.is_file() && meta.permissions().mode() & 0o111 != 0,
-        Err(_) => false,
-    }
+    executable_with(candidate_metadata(file))
+}
+fn executable_with(metadata: Option<(bool, u32)>) -> bool {
+    metadata.is_some_and(|(regular, mode)| regular && mode & 0o111 != 0)
 }
 fn absent() -> Candidate {
     Candidate { line: Box::new([]), success: false }
 }
-/// A nonblocking stdout socket bounds both output and time without a reader thread.
+
+const IDENTITY_BYTES: usize = 256;
+
 fn identity(file: &Path) -> Candidate {
+    identity_with(file, candidate_metadata(file), run_candidate)
+}
+fn identity_with(
+    file: &Path,
+    metadata: Option<(bool, u32)>,
+    run: impl FnOnce(&Path) -> Option<(Vec<u8>, bool)>,
+) -> Candidate {
+    if !executable_with(metadata) {
+        return absent();
+    }
+    let Some((mut line, exited_zero)) = run(file) else { return absent() };
+    let success = exited_zero && line.len() <= IDENTITY_BYTES;
+    line.truncate(IDENTITY_BYTES);
+    Candidate { line: line.into_boxed_slice(), success }
+}
+
+/// A nonblocking stdout socket bounds both output and time without a reader thread.
+fn run_candidate(file: &Path) -> Option<(Vec<u8>, bool)> {
     use std::process::{Command, Stdio};
     use std::time::Duration;
-    if !executable(file) {
-        return absent();
-    }
-    let Ok((mut read, write)) = UnixStream::pair() else { return absent() };
-    if read.set_nonblocking(true).is_err() {
-        return absent();
-    }
+    let (mut read, write) = UnixStream::pair().ok()?;
+    read.set_nonblocking(true).ok()?;
     let stdout: std::os::fd::OwnedFd = write.into();
     let clock = skein_shell::Clock::new();
     let started = clock.now().now.as_nanos();
-    let Ok(mut child) = Command::new(file)
+    let mut child = Command::new(file)
         .arg("--version")
         .env_clear()
         .stdin(Stdio::null())
         .stderr(Stdio::null())
         .stdout(Stdio::from(stdout))
         .spawn()
-    else {
-        return absent();
-    };
+        .ok()?;
     let mut line = Vec::new();
     let mut eof = false;
     let mut status = None;
     let success = loop {
-        let mut bytes = [0; 257];
-        match read.read(&mut bytes[..257 - line.len()]) {
+        let mut bytes = [0; IDENTITY_BYTES + 1];
+        match read.read(&mut bytes[..IDENTITY_BYTES + 1 - line.len()]) {
             Ok(0) => eof = true,
             Ok(n) => line.extend_from_slice(&bytes[..n]),
             Err(why) if why.kind() == io::ErrorKind::WouldBlock => {}
             Err(_) => break false,
         }
-        if line.len() > 256 {
+        if line.len() > IDENTITY_BYTES {
             break false;
         }
         match child.try_wait() {
@@ -124,8 +140,7 @@ fn identity(file: &Path) -> Candidate {
     match child.wait() {
         Ok(_) | Err(_) => {}
     }
-    line.truncate(256);
-    Candidate { line: line.into_boxed_slice(), success }
+    Some((line, success))
 }
 fn remove(file: &Path) -> Result<(), Failed> {
     match fs::remove_file(file) {

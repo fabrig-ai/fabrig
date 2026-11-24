@@ -71,6 +71,16 @@ fn configured_accounts_rehearsal_starts_only_the_store_and_reaches_its_report() 
 }
 
 #[test]
+fn a_held_source_refuses_a_rehearsal_after_its_scratch_is_made() {
+    live_opening::rehearsal().held_source(live_opening::settled(true));
+}
+
+#[test]
+fn a_configured_floor_goes_back_to_no_previous_generation() {
+    live_opening::rehearsal().no_previous(live_opening::settled(true));
+}
+
+#[test]
 fn every_golden_key_has_exactly_one_patch_family_or_a_reserved_component_row() {
     temper_one_process_world::upgrade::golden_ranges(
         &std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("golden/floor"),

@@ -1,7 +1,7 @@
 //! One bounded command on one skein-io kernel, including termination.
 use skein_io::{
     Event, Io, Limits, Request,
-    kernel::{Complete, Exit, Pipe, Spawn, Submit, Way},
+    kernel::{Complete, Exit, Fd, Pipe, Spawn, Submit, Way},
 };
 use skein_lib::{
     Env, Queue, Secret, Time, Token, Wall,
@@ -50,52 +50,90 @@ fn run(limits: &Limits, spec: &Spec, deadline: Option<Time>) -> Result<Ran, Erro
             return Err(Error::Kernel(format!("root: errno {n}")));
         }
     };
-    let mut io = Io::new(limits);
-    let signal = io.adopt_signals(signals).expect("room for the signal descriptor");
-    let spawn = Spawn {
-        reach: None,
-        program: spec.program.clone(),
-        args: spec.arguments.clone(),
-        env: spec.environment.clone(),
-        root,
-        dir: spec.directory.strip_prefix(b"/").expect("absolute command directory").into(),
-        pipes: Box::new([
-            Pipe { child: 1, way: Way::Out, parent: None },
-            Pipe { child: 2, way: Way::Out, parent: None },
-        ]),
-    };
-    let mut host = Running {
-        io,
-        limits: *limits,
-        operations,
-        signal: Some(signal),
-        spawn: Some(spawn),
-        child: None,
-        pipes: [None, None],
-        bytes: [
-            Vec::with_capacity(usize::try_from(spec.output).expect("output bound")),
-            Vec::with_capacity(usize::try_from(spec.output).expect("output bound")),
-        ],
-        bound: usize::try_from(spec.output).expect("output bound"),
-        exit: None,
-        failure: None,
-        deadline,
-        complete: Queue::with_capacity(operations),
-        subs: Queue::with_capacity(operations),
-        events: Queue::uncapped(),
-    };
-    skein_shell::drive(&mut kernel, &Clock::new(), &mut host);
-    skein_shell::close_startup_fd(root);
-    if let Some(why) = host.failure {
-        return Err(why);
-    }
-    let exit = match host.exit.expect("a completed command's exit") {
-        Exit::Code(n) => prepare::Exit::Code(n),
-        Exit::Signal(n) => prepare::Exit::Signal(u8::try_from(n).expect("Unix signal fits")),
-    };
-    let [stdout, stderr] = host.bytes;
-    Ok(Ran { exit, stdout: Secret::new(stdout.into_boxed_slice()), stderr: Secret::new(stderr.into_boxed_slice()) })
+    capture_with(limits, spec, operations, root, signals, deadline, |host| {
+        skein_shell::drive(&mut kernel, &Clock::new(), host);
+        skein_shell::close_startup_fd(root);
+    })
 }
+
+/// Captures one command over supplied kernel and clock turns without opening startup descriptors.
+#[doc(hidden)]
+pub fn run_with(
+    turns: &mut impl skein_shell::Turns,
+    limits: &Limits,
+    spec: &Spec,
+    root: Fd,
+    signals: Fd,
+) -> Result<Ran, Error> {
+    let operations = skein_io::operations(limits).expect("usable io limits");
+    capture_with(limits, spec, operations, root, signals, None, |host| {
+        skein_shell::drive_with(turns, host);
+    })
+}
+
+fn capture_with(
+    limits: &Limits,
+    spec: &Spec,
+    operations: u32,
+    root: Fd,
+    signals: Fd,
+    deadline: Option<Time>,
+    drive: impl FnOnce(&mut Running),
+) -> Result<Ran, Error> {
+    let mut host = Running::new(limits, spec, operations, root, signals, deadline);
+    drive(&mut host);
+    host.answer()
+}
+
+impl Running {
+    fn new(limits: &Limits, spec: &Spec, operations: u32, root: Fd, signals: Fd, deadline: Option<Time>) -> Self {
+        let mut io = Io::new(limits);
+        let signal = io.adopt_signals(signals).expect("room for the signal descriptor");
+        let spawn = Spawn {
+            reach: None,
+            program: spec.program.clone(),
+            args: spec.arguments.clone(),
+            env: spec.environment.clone(),
+            root,
+            dir: spec.directory.strip_prefix(b"/").expect("absolute command directory").into(),
+            pipes: Box::new([
+                Pipe { child: 1, way: Way::Out, parent: None },
+                Pipe { child: 2, way: Way::Out, parent: None },
+            ]),
+        };
+        let bound = usize::try_from(spec.output).expect("output bound");
+        Self {
+            io,
+            limits: *limits,
+            operations,
+            signal: Some(signal),
+            spawn: Some(spawn),
+            child: None,
+            pipes: [None, None],
+            bytes: [Vec::with_capacity(bound), Vec::with_capacity(bound)],
+            bound,
+            exit: None,
+            failure: None,
+            deadline,
+            complete: Queue::with_capacity(operations),
+            subs: Queue::with_capacity(operations),
+            events: Queue::uncapped(),
+        }
+    }
+
+    fn answer(self) -> Result<Ran, Error> {
+        if let Some(why) = self.failure {
+            return Err(why);
+        }
+        let exit = match self.exit.expect("a completed command's exit") {
+            Exit::Code(n) => prepare::Exit::Code(n),
+            Exit::Signal(n) => prepare::Exit::Signal(u8::try_from(n).expect("Unix signal fits")),
+        };
+        let [stdout, stderr] = self.bytes;
+        Ok(Ran { exit, stdout: Secret::new(stdout.into_boxed_slice()), stderr: Secret::new(stderr.into_boxed_slice()) })
+    }
+}
+
 struct Running {
     io: Io,
     limits: Limits,
