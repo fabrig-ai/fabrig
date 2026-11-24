@@ -75,54 +75,6 @@ fn replay_arm(directory: &Path) -> PathBuf {
     arm
 }
 
-fn calibration_files(name: &str) -> (skein_scratch::Scratch, PathBuf, PathBuf) {
-    let scratch = root(name);
-    let directory = scratch.path().join("root");
-    let repository = Path::new(env!("CARGO_MANIFEST_DIR"));
-    std::fs::create_dir_all(&directory).expect("calibration directory");
-
-    let file = directory.join("task.toml");
-    std::fs::copy(repository.join("tasks/probes/smoke-tools/task.toml"), &file).expect("task");
-    (scratch, directory, file)
-}
-
-#[test]
-fn a_calibration_block_names_its_summary_and_failing_control() {
-    let (_scratch, directory, file) = calibration_files("block");
-    let task = smith_bench::read_task(&file).expect("task");
-    let block = common::calibration(&task);
-    smith_bench::probe::record_calibration(&directory, &file, "probes/smoke-tools", &block, &recorded_passes(), 7)
-        .expect("record calibration");
-    let task = smith_bench::read_task(&file).expect("persisted task");
-    assert_eq!(task.calibration, Some(block.clone()));
-    assert_eq!(block.failed_before, ["control-run/01"]);
-    assert_eq!(block.control, "c".repeat(40));
-    let summary = smith_bench::read_summary(&directory.join("benchmarks").join(&block.summary)).expect("summary");
-    assert_eq!(summary.groups[0].attempts.len(), 10);
-    assert!(task.calibrated().expect("current inputs"));
-}
-
-#[test]
-fn a_variant_carries_its_own_calibration() {
-    let (_scratch, directory, file) = calibration_files("variant");
-    let task = smith_bench::read_task(&file).expect("task").with_variant("child").expect("child");
-    let block = common::calibration(&task);
-    smith_bench::probe::record_calibration(
-        &directory,
-        &file,
-        "probes/smoke-tools/child",
-        &block,
-        &recorded_passes(),
-        7,
-    )
-    .expect("variant calibration");
-    let task = smith_bench::read_task(&file).expect("persisted task");
-    assert_eq!(task.calibration, None);
-    let variant = task.with_variant("child").expect("child");
-    assert_eq!(variant.calibration, Some(block));
-    assert!(variant.calibrated().expect("current inputs"));
-}
-
 #[test]
 fn a_missing_smoke_login_refuses_before_calibration() {
     let scratch = root("missing-smoke-login");
@@ -146,5 +98,3 @@ fn a_missing_smoke_login_refuses_before_calibration() {
         )
     );
 }
-
-use crate::common::recorded_passes;

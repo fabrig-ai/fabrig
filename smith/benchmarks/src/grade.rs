@@ -84,11 +84,7 @@ fn walk(files: &dyn Files, root: &Path, directory: &Path, entries: &mut Snapshot
     Ok(())
 }
 
-pub(crate) fn file(root: &Path, relative: &Path) -> Result<PathBuf, Fault> {
-    file_with(&Native, root, relative)
-}
-
-fn file_with(files: &dyn Files, root: &Path, relative: &Path) -> Result<PathBuf, Fault> {
+pub(crate) fn file_with(files: &dyn Files, root: &Path, relative: &Path) -> Result<PathBuf, Fault> {
     if relative.is_absolute() || relative.components().any(|part| !matches!(part, Component::Normal(_))) {
         return Err(input("check path must be relative without traversal"));
     }
