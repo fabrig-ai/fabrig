@@ -7,7 +7,7 @@ use skein_world::inspect::{Moment, check_tables, check_waits};
 use skein_world::streams::Streams;
 use temper_fake_checkout::Checkout;
 use temper_fake_checkout::git::{Created, Remote, Tree};
-use temper_worker_domain_checkout::git::{Done, Fault, Kind, Missing, Op, Want};
+use temper_worker_domain_checkout::git::{Done, Fault, Kept, KeptState, Kind, Missing, Op, Want};
 use temper_worker_domain_checkout::{
     Cached, Domain, Event, Fact, Failure, Landing, Limits, Message, Outcome, Prepared, Refusal, Repository, Request,
     Spec, Start, valid,
@@ -1270,6 +1270,8 @@ impl World {
                 assert_eq!(attempt.verified, Verified::Not, "a push is verified once");
                 Some(remote.to_vec())
             }
+            // A hold's updated head is marked even while its client pushes or saves.
+            Op::Keep { mark: Some(Kept { state: KeptState::Held, .. }), .. } | Op::Commit { .. } => None,
             Op::Store { .. }
             | Op::Reds { .. }
             | Op::Reset { .. }
@@ -1289,7 +1291,6 @@ impl World {
             | Op::Merge { .. } => {
                 panic!("a push or a save commits, pushes and verifies, nothing else: {op:?}")
             }
-            Op::Commit { .. } => None,
         }
     }
 

@@ -1489,9 +1489,18 @@ pub fn dependency_wait_interrupted() {
             })
         );
         if stop == 1 {
+            let Some(Request::Io { owner, op: op @ Op::Keep { mark: None, .. }, deadline }) = world.out.pop() else {
+                panic!("release removes the held mark before reporting Released")
+            };
+            assert_eq!(Some(owner), world.hold);
+            assert_eq!(deadline, world.env.now.saturating_add(world.env.limits.local_timeout));
+            assert!(world.out.is_empty(), "only one held-mark removal, no git operation or cancellation");
+            let done = translate::perform_within(&mut world.forge, &mut world.disk, op, world.env.limits.conflicts);
+            step(&mut world.domain, &world.env, Event::Done { owner, done }, &mut world.out);
             assert_eq!(world.out.pop(), Some(Request::Released { client: Token::new(9) }));
+            world.hold = None;
         }
-        assert!(world.out.is_empty(), "no operation or cancellation while waiting");
+        assert!(world.out.is_empty(), "no git operation or cancellation while waiting");
         step(&mut world.domain, &world.env, Event::DependencyLanded { hold, landed: true }, &mut world.out);
         assert!(world.out.is_empty(), "the interrupted answer is dropped too");
         assert_eq!(checkout_head(&world, &at), head);
