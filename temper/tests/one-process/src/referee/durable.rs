@@ -2,6 +2,7 @@
 mod generations;
 mod history;
 mod layouts;
+pub(crate) use layouts::serving_row;
 pub(crate) mod snapshots;
 #[cfg(test)]
 mod tests;

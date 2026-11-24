@@ -89,6 +89,7 @@ struct State {
     users: Vec<(u64, Box<[u8]>)>,
     kept_answer: Vec<u8>,
     stopped_wall: Option<Wall>,
+    upgrade_started: Option<Wall>,
     points: cuts::Points,
     epoch: u32,
     epoch_floor: Option<u64>,
@@ -186,6 +187,8 @@ impl Observe for Observer {
                 state.stopped_wall = Some(wall);
             }
             if state.upgrade && !state.checked {
+                // Keep the first start's wall across a power-loss restart.
+                let started = *state.upgrade_started.get_or_insert(wall);
                 let wires = STORE.with(|s| s.borrow().as_ref().expect("store").borrow().wires);
                 if state.epoch_floor.is_none() {
                     state.epoch_floor = STORE.with(|s| {
@@ -209,7 +212,11 @@ impl Observe for Observer {
                         &mut state.disk.as_ref().expect("disk").borrow_mut(),
                         before.active,
                     );
-                    history(before, &after);
+                    assert!(
+                        started >= state.stopped_wall.expect("wall at stop"),
+                        "the upgrade does not turn back time"
+                    );
+                    history(before, &after, started);
                     state.points.wires.get_or_insert(self.inner.submitted);
                     state.checked = true;
                 }
