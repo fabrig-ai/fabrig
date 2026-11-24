@@ -8,7 +8,7 @@ use jig_domain_tasks as tasks;
 use skein_fake_forge_domain::{self as fake, api as raw};
 use skein_lib::{Duration, ReplyTo, Token};
 use skein_world::{
-    faults::FaultLedger,
+    faults::{FaultLedger, Kind},
     streams::{Stream, Streams},
     sweep::Sweep,
 };
@@ -43,6 +43,14 @@ pub struct Run {
     pub left: Vec<temper_workload::outcome::Left>,
 }
 
+/// The engine adapter's four bounded tables (workloads.md, 2.4).
+const TABLE_BOUNDS: [Kind; 4] = [
+    temper_faults::bounds::FORGE_WRITE_ENTRIES,
+    temper_faults::bounds::FORGE_READ_ADMISSIONS,
+    temper_faults::bounds::BRANCH_HOLDS,
+    temper_faults::bounds::LANDING_ROWS,
+];
+
 /// Run the engine shape without faults (`temper/docs/design/testing/workloads.md`, 9).
 pub fn without_acts(streams: &Streams) -> Result<Run, String> {
     let workload = Workload::draw(streams, &ENGINE);
@@ -64,7 +72,20 @@ pub fn run_actions(
     sweep: &Sweep,
     mut inject: impl FnMut(&mut World, &Names, &mut FaultLedger, u64),
 ) -> Result<Run, String> {
-    run_injected(*streams, workload, actions, sweep, None, &mut inject)
+    run_injected(*streams, workload, actions, sweep, None, None, &mut inject)
+}
+
+/// Observe the tables over the unchanged workload, with no parties' acts drawn.
+pub fn run_bounds(streams: &Streams, sweep: &Sweep, limits: &engine::Limits) -> Result<Run, String> {
+    run_injected(
+        *streams,
+        Workload::draw(streams, &ENGINE),
+        Vec::new(),
+        sweep,
+        Some(limits),
+        None,
+        &mut |_, _, _, _| {},
+    )
 }
 
 /// Replay the same workload and acts, optionally enabling the engine restart family.
@@ -75,7 +96,7 @@ pub fn with_restarts(
     sweep: &Sweep,
     injector: Option<crate::forge_routes::restarts::Injector>,
 ) -> Result<Run, String> {
-    run_injected(*streams, workload, actions, sweep, injector, &mut |_, _, _, _| {})
+    run_injected(*streams, workload, actions, sweep, None, injector, &mut |_, _, _, _| {})
 }
 
 fn run_injected(
@@ -83,13 +104,15 @@ fn run_injected(
     workload: Workload,
     actions: Vec<Action>,
     sweep: &Sweep,
+    bounds: Option<&engine::Limits>,
     injector: Option<crate::forge_routes::restarts::Injector>,
     inject: &mut impl FnMut(&mut World, &Names, &mut FaultLedger, u64),
 ) -> Result<Run, String> {
     skein_checks::count("workload-seeds", 1);
-    let mut driver = Driver::new(streams, workload, actions, sweep, injector)
+    let mut driver = Driver::new(streams, workload, actions, sweep, bounds, injector)
         .map_err(|finding| format!("workload seed {}: {finding}", streams.seed()))?;
     driver.run(sweep, inject).map_err(|finding| format!("workload seed {}: {finding}", streams.seed()))?;
+    let ledger = driver.world.bounds.take().map_or(driver.ledger, |(_, ledger)| ledger);
     driver.world.check_workload_store()?;
     let tip = driver.world.fake.branch(b"org/repo", b"main").expect("main");
     let main = driver
@@ -111,7 +134,7 @@ fn run_injected(
         .workload_deadlines
         .as_ref()
         .map_or_else(Vec::new, |deadlines| deadlines.left(&driver.world.store, &driver.names, &driver.workload));
-    Ok(Run { world: driver.world, workload: driver.workload, names: driver.names, ledger: driver.ledger, main, left })
+    Ok(Run { world: driver.world, workload: driver.workload, names: driver.names, ledger, main, left })
 }
 
 struct Driver {
@@ -137,13 +160,15 @@ struct Driver {
     observations: Vec<(u64, u64, String)>,
     jobs_at: BTreeMap<u64, u64>,
     resume_after_answer: BTreeSet<u64>,
+    excluded_loads: BTreeSet<(String, Kind)>,
     seed: u64,
 }
 
 #[derive(Default)]
 struct Goal {
     changes: usize,
-    closer: bool,
+    closer_task: Option<u64>,
+    reserved_changes: u32,
     latch: Option<u64>,
     released: bool,
     latched: bool,
@@ -158,9 +183,10 @@ impl Driver {
         workload: Workload,
         actions: Vec<Action>,
         sweep: &Sweep,
+        bounds: Option<&engine::Limits>,
         injector: Option<crate::forge_routes::restarts::Injector>,
     ) -> Result<Self, String> {
-        let mut world = setup(streams, &workload);
+        let mut world = setup(streams, &workload, bounds);
         if let Some(injector) = injector {
             world.workload_deadlines = Some(crate::outcome::Deadlines::default());
             world.inject_restarts(injector);
@@ -255,9 +281,10 @@ impl Driver {
             observations: Vec::new(),
             jobs_at: BTreeMap::new(),
             resume_after_answer: BTreeSet::new(),
+            excluded_loads: BTreeSet::new(),
             seed: streams.seed(),
         };
-        driver.start_goals()?;
+        driver.start_goals(sweep)?;
         Ok(driver)
     }
 
@@ -294,7 +321,7 @@ impl Driver {
         self.world.scripted_call(run, self.next_call, tool)
     }
 
-    fn start_goals(&mut self) -> Result<(), String> {
+    fn start_goals(&mut self, sweep: &Sweep) -> Result<(), String> {
         let mut chats = BTreeMap::new();
         for party in [Party::First, Party::Second] {
             let mut ask = self.world.chat(1, b"Run the workload");
@@ -319,6 +346,17 @@ impl Driver {
             None
         };
         for goal in self.workload.goals.clone() {
+            let mut admitted = false;
+            for _ in 0..BOUND.steps {
+                if self.load_allowed(sweep, 0, &goal.name) {
+                    admitted = true;
+                    break;
+                }
+                self.world.tick();
+            }
+            if !admitted {
+                return Err("goal load remained excluded through the workload bound".into());
+            }
             let chat = &chats[&goal.party];
             let in_chain = goal.after.is_some()
                 || self.workload.goals.iter().any(|later| later.after.as_deref() == Some(&goal.name));
@@ -512,7 +550,10 @@ impl Driver {
                             None
                         })
                         .collect::<Vec<_>>(),
-                    self.goals.iter().map(|(name, goal)| (name, goal.changes, goal.closer)).collect::<Vec<_>>(),
+                    self.goals
+                        .iter()
+                        .map(|(name, goal)| (name, goal.changes, goal.closer_task.is_some()))
+                        .collect::<Vec<_>>(),
                     self.world.assigned.iter().map(|run| (run.task, run.attempt)).collect::<Vec<_>>(),
                     self.workload
                         .goals
@@ -549,7 +590,7 @@ impl Driver {
                 }
                 *due = step + self.scheduling.between(1, 60);
                 if let Some(name) = self.names.logical(run.task).map(str::to_owned) {
-                    self.coordinate(&name, &run)?;
+                    self.coordinate(&name, &run, sweep)?;
                 } else {
                     self.produce(&run);
                 }
@@ -590,7 +631,11 @@ impl Driver {
         ))
     }
 
-    fn coordinate(&mut self, name: &str, run: &engine::Assignment) -> Result<(), String> {
+    #[expect(
+        clippy::too_many_lines,
+        reason = "the scripted coordinator keeps each phase and its load admission together"
+    )]
+    fn coordinate(&mut self, name: &str, run: &engine::Assignment, sweep: &Sweep) -> Result<(), String> {
         let Some(goal) = self.workload.goal(name).cloned() else {
             return Ok(());
         };
@@ -608,6 +653,11 @@ impl Driver {
         let progress = &self.goals[name];
         if progress.changes < goal.changes.len() {
             let next = &goal.changes[progress.changes];
+            let remaining = u32::try_from(goal.changes.len() - progress.changes).expect("bounded train");
+            let demand = if goal.train { if progress.changes == 0 { 2 * remaining } else { 0 } } else { 2 };
+            if !self.load_allowed(sweep, demand, &next.name) {
+                return Ok(());
+            }
             if next.after.iter().filter_map(|name| self.names.task(name)).any(|number| {
                 task(&self.world, number).is_some_and(|row| {
                     matches!(
@@ -627,7 +677,10 @@ impl Driver {
                 let after = next
                     .after
                     .iter()
-                    .filter(|name| self.workload.change(name).is_some_and(|(owner, _)| owner.name == goal.name))
+                    .filter(|name| {
+                        self.workload.change(name).is_some_and(|(owner, _)| owner.name == goal.name)
+                            && self.names.task(name).is_some_and(|number| !ended(&self.world, number))
+                    })
                     .map(|name| engine::ChangeAfter::Task(self.names.task(name).expect("earlier change named")))
                     .collect();
                 let mut change = engine::ChangeCall::words(next.name.as_bytes().into(), None);
@@ -635,8 +688,12 @@ impl Driver {
                 change.questions = Some(engine::ChangeQuestions::Up);
                 let task = delegated(self.call(run, engine::Tool::Change { changes: Box::new([change]) }))?;
                 self.names.name(&next.name, task)?;
-                self.cross_goal_after(&goal, next, task);
-                self.goals.get_mut(name).expect("goal").changes += 1;
+                self.amend_after(&goal, next, task);
+                let progress = self.goals.get_mut(name).expect("goal");
+                progress.changes += 1;
+                if goal.train {
+                    progress.reserved_changes = remaining - 1;
+                }
                 return Ok(());
             }
         }
@@ -674,42 +731,110 @@ impl Driver {
             self.finish(run, tasks::TaskResult::Report { words: b"Train landed".as_slice().into() });
             return Ok(());
         }
-        if !progress.closer
+        if progress.closer_task.is_none()
             && progress.changes == goal.changes.len()
             && goal
                 .changes
                 .iter()
                 .all(|change| self.names.task(&change.name).is_some_and(|task| ended(&self.world, task)))
         {
+            if !self.load_allowed(sweep, 1, &format!("{name}.closer")) {
+                return Ok(());
+            }
             let mut closer = self.delegate(run, b"Close the workload goal");
             closer.executor = tasks::Executor::Procedure { connector: 1, code: 6 };
             closer.authority.budget.spend = task(&self.world, run.task).expect("goal").numbers.budget / 2;
-            delegated(self.call(run, engine::Tool::Delegate { batch: Box::new([closer]) }))?;
-            self.goals.get_mut(name).expect("goal").closer = true;
+            let closer = delegated(self.call(run, engine::Tool::Delegate { batch: Box::new([closer]) }))?;
+            let progress = self.goals.get_mut(name).expect("goal");
+            progress.closer_task = Some(closer);
         }
-        if self.goals[name].closer {
+        if self.goals[name].closer_task.is_some() {
             self.park(run);
         }
         Ok(())
     }
 
-    fn cross_goal_after(
-        &mut self,
-        goal: &temper_workload::draw::Goal,
-        change: &temper_workload::draw::Change,
-        number: u64,
-    ) {
+    // Exclusions act before adding load, not after an inspection reports a finding.
+    // A left-out attempt may try again after the existing room wait clears.
+    fn load_allowed(&mut self, sweep: &Sweep, added: u32, load: &str) -> bool {
+        let stalled = self.world.root.forge().inspection_changes().iter().any(|(number, row)| {
+            row.room.is_some()
+                && !self.world.root.forge().room_asked(*number)
+                && self.world.env.wall.as_nanos().saturating_sub(row.change.since.as_nanos())
+                    > self.world.env.limits.forge.change_policy.stall.as_nanos()
+        });
+        let forge = self.world.root.forge();
+        let holds = forge.inspection_holds();
+        // prepare_workspace reserves one prefix per not-yet-prepared member;
+        // each newly created change also needs its own branch's hold.
+        let pending: u32 = forge
+            .inspection_changes()
+            .iter()
+            .map(|(number, row)| {
+                if ended(&self.world, *number) {
+                    return 0;
+                }
+                let branch = u32::from(!branch_held(forge, &row.branch));
+                let prepared = row.change.landing.and_then(|landing| forge.landing(landing)).is_some_and(|landing| {
+                    landing.landing.members.iter().any(|member| {
+                        member.change == *number && (member.candidate.is_some() || branch_held(forge, &member.branch))
+                    })
+                });
+                branch + u32::from(!prepared)
+            })
+            .sum();
+        // A started closer's change reuses the goal branch; reserve its one
+        // prepare prefix until that change appears in the adapter's rows.
+        let closers = self
+            .goals
+            .values()
+            .filter_map(|goal| goal.closer_task)
+            .filter(|closer| {
+                !ended(&self.world, *closer)
+                    && !forge.inspection_changes().iter().any(|(number, _)| {
+                        task(&self.world, *number).is_some_and(|row| row.requester == tasks::Party::Task(*closer))
+                    })
+            })
+            .count();
+        let reserved = self.goals.values().map(|goal| 2 * goal.reserved_changes).sum::<u32>();
+        let lacks_room = added > 0
+            && holds.len() + pending + reserved + u32::try_from(closers).expect("bounded closers") + added
+                > holds.capacity();
+        let mut holding = Vec::new();
+        if stalled {
+            holding.push("a change waiting for room past its stall");
+        }
+        if lacks_room {
+            holding.push("the holds and pending prepares, including the new change or train, exceed capacity");
+        }
+        for kind in [temper_faults::bounds::FORGE_WRITE_ENTRIES, temper_faults::bounds::BRANCH_HOLDS] {
+            if let Some(exclusion) = sweep.leaves_out(kind, &holding) {
+                let ledger = self.world.bounds.as_mut().map_or(&mut self.ledger, |(_, ledger)| ledger);
+                if self.excluded_loads.insert((load.to_owned(), kind)) {
+                    ledger.leave_out(exclusion.scenario, kind, self.world.env.now);
+                }
+                return false;
+            }
+        }
+        true
+    }
+
+    fn amend_after(&mut self, goal: &temper_workload::draw::Goal, change: &temper_workload::draw::Change, number: u64) {
         let foreign: Vec<_> = change
             .after
             .iter()
-            .filter(|name| self.workload.change(name).is_some_and(|(owner, _)| owner.name != goal.name))
+            .filter(|name| {
+                self.workload.change(name).is_some_and(|(owner, _)| owner.name != goal.name)
+                    || self.names.task(name).is_some_and(|number| ended(&self.world, number))
+            })
             .map(|name| self.names.task(name).expect("earlier milestone change named"))
             .collect();
         if foreign.is_empty() {
             return;
         }
-        // The coordinator references its own delegates. The owner can name the
-        // earlier milestone's change through the authenticated amendment route.
+        // The coordinator references its retained delegates. The owner can name
+        // another goal's change or an ended delegate already evicted from that
+        // cache through the authenticated amendment route.
         let row = task(&self.world, number).expect("new change");
         let revision = row.revisions.spec;
         let mut dependencies = row.dependencies.to_vec();
@@ -730,7 +855,7 @@ impl Driver {
                     dependencies: Some(dependencies.into()),
                     authority: None,
                     llm: None,
-                    reason: b"Keep the earlier milestone's change dependency".as_slice().into(),
+                    reason: b"Keep the drawn change dependency".as_slice().into(),
                 },
             },
         );
@@ -968,8 +1093,8 @@ impl Driver {
     }
 }
 
-fn setup(streams: Streams, workload: &Workload) -> World {
-    let limits = crate::forge_routes::box_limits();
+fn setup(streams: Streams, workload: &Workload, bounds: Option<&engine::Limits>) -> World {
+    let limits = bounds.copied().unwrap_or_else(crate::forge_routes::box_limits);
     let model = crate::walking::charter().policy.model;
     let mut defaults = temper_engine_service_stock::stock::with_models(
         Box::new([core::settings::CatalogueModel {
@@ -1052,6 +1177,9 @@ fn setup(streams: Streams, workload: &Workload) -> World {
         gates: Box::new([engine::Gate { number: 1, blocking: true, freshness: engine::Freshness::Clean }]),
         approvals: Box::new([]),
     }]));
+    if bounds.is_some() {
+        world.bounds = Some((TABLE_BOUNDS.to_vec(), FaultLedger::new()));
+    }
     world.manual_prepare_jobs();
     world.fake_env.limits.latency_min = Duration::from_millis(1);
     world.fake_env.limits.latency_max = Duration::from_millis(5);
@@ -1071,6 +1199,13 @@ fn task_row(world: &World, number: u64) -> Option<&tasks::TaskRecord> {
     }
     None
 }
+fn branch_held(forge: &forge::Domain, branch: &[u8]) -> bool {
+    forge.inspection_holds().iter().any(|(name, _)| match &name.what {
+        forge::What::Branch(parts) => parts.iter().map(AsRef::as_ref).eq(branch.split(|byte| *byte == b'/')),
+        _ => false,
+    })
+}
+
 fn ended(world: &World, number: u64) -> bool {
     task(world, number).is_some_and(|row| matches!(row.phase, tasks::Phase::Ended(_)))
 }

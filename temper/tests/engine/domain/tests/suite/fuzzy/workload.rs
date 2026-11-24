@@ -4,6 +4,7 @@ use skein_world::{
     sweep::{Exclusion, Sweep},
 };
 use temper_engine_domain_world::{acts, workload};
+use temper_faults::bounds;
 use temper_workload::parties::Act;
 
 const ACTS: [Act; 11] = [
@@ -55,6 +56,38 @@ fn people_act_on_goals_at_any_step() {
         sweep.ran(&run.ledger);
     }
     sweep.check_fell().expect("every configured act fell");
+}
+
+#[test]
+fn the_engines_tables_reach_their_bounds() {
+    let mut sweep = Sweep::new("the_engines_tables_reach_their_bounds");
+    let kinds =
+        [bounds::FORGE_WRITE_ENTRIES, bounds::FORGE_READ_ADMISSIONS, bounds::BRANCH_HOLDS, bounds::LANDING_ROWS];
+    for kind in kinds {
+        sweep.configure(kind);
+    }
+    // A milestone starts its later goal only after its predecessor ends, so
+    // A_CHANGE_WAITS_ON_ANOTHER_GOAL cannot fall (workloads.md, 8.1).
+    temper_engine_forge_world::open::exclude(&mut sweep, &kinds).expect("engine exclusions");
+    let mut limits = temper_engine_domain_world::forge_routes::box_limits();
+    // Seed 4's branch goal and three-member train reach these capacities.
+    // Larger values left these four tables below their bounds at quiet points.
+    limits.forge.entries = 3;
+    limits.forge.client.pending = 2;
+    limits.forge.holds = 9;
+    limits.forge.landings = 3;
+    {
+        // One seed fills all four tables: no smaller nonempty seed set exists.
+        let seed = 4;
+        eprintln!("the_engines_tables_reach_their_bounds seed {seed}");
+        let run =
+            workload::run_bounds(&Streams::new(seed), &sweep, &limits).expect("world checks and Ends for every goal");
+        eprintln!("seed {seed}: tables reached {:?}", run.ledger.fell());
+        sweep.ran(&run.ledger);
+    }
+    eprintln!("holds left out {}", sweep.left_out("a_prepare_is_admitted_when_branch_holds_are_released"));
+    eprintln!("P124 left out {}", sweep.left_out("a_change_waiting_for_room_has_a_bound"));
+    sweep.check_fell().expect("every configured table reached its bound");
 }
 
 #[test]

@@ -142,6 +142,11 @@ change's due step.
   applies while a room waiter's place remains on its row: once asked,
   it reads afresh before its decision keeps an entry or leaves the line
   (`../domain/forge/room.md`, 3).
+- **An offered room reservation:** another task's reservation names that
+  task as a waiter. The reservation's own task, once its procedure is due
+  in the root, names `Party("root")`: the line has already offered that
+  step, even before its fresh read is in flight. A reservation without a
+  due step or a live read gives its own task no fallback wake.
 - **A task waiting for restart freshness:** the forge's parked step or explicit
   freshness wait names the repositories it awaits (`../domain/forge/catching-up.md`,
   2 and 4). Each resource the client still owes in those repositories names
@@ -518,6 +523,7 @@ own change.
 | Scenario | Fault | When |
 |---|---|---|
 | `a_change_waiting_for_room_has_a_bound` | `temper_faults::bounds::FORGE_WRITE_ENTRIES` | `a change waiting for room past its stall` |
+| `a_prepare_is_admitted_when_branch_holds_are_released` | `temper_faults::bounds::BRANCH_HOLDS` | `the holds and pending prepares, including the new change or train, exceed capacity` |
 | `a_refused_release_is_accounted` | `forge` / `a write refused` | `a task's release under way` |
 | `a_no_change_landing_repair_regates_once` | `runs` / `a repair ends with no change` | `a landing's gate red` |
 | `a_starved_gate_is_the_runners` | `temper_blame::STARVED` | `a landing's gate` |
@@ -532,6 +538,14 @@ own change.
   (`workloads.md`, 8), and each takes them through `exclude`. A sweep
   that draws one, and whose checks find it, configures the fault it
   draws, takes `exclude`, and asks `leaves_out` before the draw.
+- **The branch-holds exclusion** is read before the workload starts a
+  change or its closer. It adds the current holds, each live change's
+  still-unclaimed branch and prepare prefix, a started closer's pending
+  prefix, and the new load's demand. The first member admits a train as
+  one load: all its members' branches and prefixes are reserved until
+  each starts, so a partial train cannot consume its own remaining room.
+  A total equal to capacity is admitted. A left-out load records one
+  `leave_out`, and may start once the demand fits.
 - **P124's first combination** (`temper_faults::people::CANCELS_A_LANDING`,
   while a gate's dispatch is in flight) has no exclusion: its fix landed
   before the workloads' sweeps, and its scenario is active (5.1).

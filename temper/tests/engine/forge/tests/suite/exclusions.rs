@@ -13,6 +13,13 @@ const CASES: &[(Kind, &str, &str, &str, &str)] = &[
         "a change waiting for room past its stall",
     ),
     (
+        temper_faults::bounds::BRANCH_HOLDS,
+        "the engine's own bounds/branch holds",
+        "a_prepare_is_admitted_when_branch_holds_are_released",
+        "failure worlds: repaired as a red",
+        "the holds and pending prepares, including the new change or train, exceed capacity",
+    ),
+    (
         A_WRITE_REFUSED,
         "forge/a write refused",
         "a_refused_release_is_accounted",

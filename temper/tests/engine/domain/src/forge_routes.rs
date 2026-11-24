@@ -103,6 +103,8 @@ pub struct World {
     pub(crate) workload_worker: Option<(jig_domain_link::Bounds, Box<[jig_domain_link::JobBound]>, u32)>,
     restart_calls: Option<Vec<(fake::Event, fake::Config)>>,
     checks: crate::checks::Checks,
+    /// Optional bounds sweep, sampled at every checked quiet point.
+    pub(crate) bounds: Option<(Vec<skein_world::faults::Kind>, skein_world::faults::FaultLedger)>,
     iteration: u64,
     pub ends: crate::ends::Ends,
     idle_revision: Option<(u64, Option<Time>)>,
@@ -1731,6 +1733,7 @@ impl World {
             workload_worker: None,
             restart_calls: None,
             checks,
+            bounds: None,
             iteration: 0,
             ends,
             restart_config: crate::oracle::config::copy(&config),
@@ -3275,6 +3278,11 @@ impl World {
     fn check_quiet(&mut self) {
         if self.quiet() {
             self.checks.quiet(&self.root, self.env.now, self.iteration).unwrap_or_else(|finding| panic!("{finding}"));
+            if let Some((kinds, ledger)) = &mut self.bounds {
+                let mut inspection = skein_world::inspect::Inspection::new("engine", temper_engine_inspect::KINDS);
+                temper_engine_inspect::inspect(&self.root, &mut inspection);
+                ledger.saturation(kinds, &[&inspection], self.env.now).expect("monotonic quiet points");
+            }
         }
     }
 

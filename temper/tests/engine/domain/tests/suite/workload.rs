@@ -66,3 +66,29 @@ fn an_engine_workload_without_acts_ends_every_goal() {
         }
     }
 }
+
+#[test]
+fn a_deferred_change_keeps_its_ended_dependency() {
+    let mut limits = temper_engine_domain_world::forge_routes::box_limits();
+    // This seed's hold admission defers a change until its earlier delegate
+    // has ended and left the coordinator's live reference cache.
+    limits.forge.holds = 16;
+    let mut sweep = skein_world::sweep::Sweep::new("deferred change dependency");
+    let kind = temper_faults::bounds::BRANCH_HOLDS;
+    sweep.configure(kind);
+    temper_engine_forge_world::open::exclude(&mut sweep, &[kind]).expect("hold admission exclusion");
+    let run = workload::run_bounds(&Streams::new(8), &sweep, &limits).expect("deferred changes reach Ends");
+    sweep.ran(&run.ledger);
+    assert!(sweep.left_out("a_prepare_is_admitted_when_branch_holds_are_released") > 0);
+    for change in run.workload.goals.iter().flat_map(|goal| &goal.changes) {
+        let number = run.names.task(&change.name).expect("named change");
+        let Some(Record::Core(core::Record::Tasks(tasks::Stored::Ended(row)))) =
+            run.world.store.rows.get(&Key::Core(core::Key::Tasks(tasks::Key::Ended(number))))
+        else {
+            panic!("{} ended", change.name)
+        };
+        for after in &change.after {
+            assert!(row.dependencies.contains(&run.names.task(after).expect("named dependency")));
+        }
+    }
+}

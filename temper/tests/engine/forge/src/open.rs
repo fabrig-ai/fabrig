@@ -18,6 +18,14 @@ pub fn exclude(sweep: &mut Sweep, configured: &[Kind]) -> Result<(), String> {
             &["a change waiting for room past its stall"],
         ))?;
     }
+    if configured.contains(&temper_faults::bounds::BRANCH_HOLDS) {
+        sweep.exclude(Exclusion::new(
+            "a_prepare_is_admitted_when_branch_holds_are_released",
+            "failure worlds: repaired as a red",
+            temper_faults::bounds::BRANCH_HOLDS,
+            &["the holds and pending prepares, including the new change or train, exceed capacity"],
+        ))?;
+    }
     if configured.contains(&A_WRITE_REFUSED) {
         sweep.exclude(Exclusion::new(
             "a_refused_release_is_accounted",

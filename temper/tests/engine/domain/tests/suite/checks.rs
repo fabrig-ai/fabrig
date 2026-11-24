@@ -1533,6 +1533,16 @@ fn a_room_wait_keeps_its_in_flight_read_wake() {
 }
 
 #[test]
+fn a_reserved_room_wait_keeps_its_due_procedure_wake() {
+    let (world, task) = room_read(true);
+    assert!(world.root.tasks().procedure_due(task).is_some(), "reserved procedure is due");
+    let inspection = inspect(&world);
+    let wait = inspection.waits().iter().find(|wait| wait.waiter == format!("task {task}")).expect("room wait");
+    assert!(wait.wakes.contains(&Wake::Party("root".into())), "the reserved step wakes its owner");
+    assert_eq!(Checks::new(71).quiet(&world.root, world.env.now, 1), Ok(()));
+}
+
+#[test]
 fn a_room_wait_cannot_borrow_another_changes_read() {
     let (world, task) = room_read(false);
     let inspection = inspect(&world);
