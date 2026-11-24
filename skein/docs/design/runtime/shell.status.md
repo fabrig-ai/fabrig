@@ -1,6 +1,6 @@
 # shell: status
 
-2026-11-19. Where skein's code lags or departs from [shell.md](shell.md).
+2026-11-23. Where skein's code lags or departs from [shell.md](shell.md).
 
 `shell-startup.md`, section 1 has no known gap in closing a panic report with its thread's
 `panicked at` line and message after one forced backtrace. The fail-stop
@@ -37,3 +37,10 @@ are milestones C3 and C5 of `temper/docs/design/draft/cli.execution.md`.
   (`temper/docs/design/testing/tiers.md`, 1.8), and no macOS runner runs
   skein's suites. Whether that workflow's compile step has run is unknown;
   a cross-target build does not prove the Darwin runtime.
+- **Not yet:** 8: *The Darwin check* runs nowhere before landing:
+  `rust-toolchain.toml` installs only the `wasm32-unknown-unknown`
+  target, so clippy for `aarch64-apple-darwin` fails on our Linux
+  machines for want of the target's `std` and `core` (E0463), and no
+  gate step runs it. Darwin's adapters, among them startup's file reads
+  and `make_root`'s walk over the shared decisions, are first compiled
+  on the macOS runner.

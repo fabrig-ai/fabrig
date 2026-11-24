@@ -27,10 +27,7 @@ impl Forgejo {
         let mut cmd = Command::new(&binary);
         environment(&mut cmd, binary.parent().expect("absolute binary has a parent"));
         let output = cmd.arg("--version").output().map_err(fail)?;
-        let version = String::from_utf8_lossy(&output.stdout).lines().next().unwrap_or_default().to_owned();
-        if !output.status.success() || !names_forgejo(&version) {
-            return Err(Refusal::Version { path: binary, printed: version });
-        }
+        let version = admit_version(&binary, output.status.success(), &output.stdout)?;
         let mut sha256 = String::new();
         for byte in skein_lib::sha256::digest(&bytes) {
             write!(sha256, "{byte:02x}").expect("string write");
@@ -57,6 +54,14 @@ impl Forgejo {
         Instance::start(self, scratch, settings)
     }
 }
+fn admit_version(binary: &Path, succeeded: bool, stdout: &[u8]) -> Result<String, Refusal> {
+    let printed = String::from_utf8_lossy(stdout).lines().next().unwrap_or_default().to_owned();
+    if !succeeded || !names_forgejo(&printed) {
+        return Err(Refusal::Version { path: binary.to_owned(), printed });
+    }
+    Ok(printed)
+}
+
 pub(crate) fn environment(cmd: &mut Command, scratch: &Path) {
     cmd.env_clear()
         .env("HOME", scratch.join("home"))
@@ -65,4 +70,18 @@ pub(crate) fn environment(cmd: &mut Command, scratch: &Path) {
         .env("TZ", "Asia/Kolkata")
         .env("GIT_CONFIG_NOSYSTEM", "1")
         .env("GIT_CONFIG_GLOBAL", scratch.join("gitconfig"));
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{Path, Refusal, admit_version};
+
+    #[test]
+    fn a_binary_printing_another_version_is_refused_naming_it() {
+        let binary = Path::new("/scratch/forgejo");
+        assert_eq!(
+            admit_version(binary, true, b"forgejo version 15.0.0+gitea-1.22.0\n").expect_err("refused"),
+            Refusal::Version { path: binary.into(), printed: "forgejo version 15.0.0+gitea-1.22.0".into() }
+        );
+    }
 }

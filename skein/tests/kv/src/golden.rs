@@ -1,6 +1,6 @@
 //! skein-kv's on-disk format's golden bytes (data/kv.md, 9): a snapshot and
-//! the segments from its start. This test never writes the kept files;
-//! a deliberate change copies the files its failure names over `golden/`.
+//! the segments from its start. The tests compare bytes on the simulated
+//! disk and report differences without writing any host files.
 
 use std::collections::BTreeMap;
 
