@@ -3,19 +3,22 @@ use super::{forge, maps, w};
 use alloc::boxed::Box;
 use temper_client_protocol_wire::v1::Record;
 
-pub(super) fn train(value: forge::LandingTrain, limits: &w::Limits) -> Option<w::Train> {
-    {
-        let value = w::Train {
-            forge: value.repository.forge,
-            repository: value.repository.repository,
-            owner: value.owner,
-            name: value.name,
-            branch: value.branch,
-        };
-        value.measure(limits).ok()?;
-        Some(value)
+pub(super) fn train(value: &forge::LandingTrain, limits: &w::Limits) -> Option<w::Train> {
+    let record = train_to_record(value);
+    record.measure(limits).ok()?;
+    Some(record)
+}
+
+pub(crate) fn train_to_record(value: &forge::LandingTrain) -> w::Train {
+    w::Train {
+        forge: value.repository.forge,
+        repository: value.repository.repository,
+        owner: value.owner.clone(),
+        name: value.name.clone(),
+        branch: value.branch.clone(),
     }
 }
+
 pub(super) fn left(value: forge::LandingLeave, limits: &w::Limits) -> Option<w::LandingLeave> {
     let value = {
         Some(match value {

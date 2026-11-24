@@ -4,6 +4,16 @@
 use alloc::boxed::Box;
 
 #[must_use]
+pub fn role_to_record(value: &temper_engine_domain_forge::Role) -> temper_client_protocol_wire::v1::Role {
+    match value {
+        temper_engine_domain_forge::Role::Owned => temper_client_protocol_wire::v1::Role::Owned,
+        temper_engine_domain_forge::Role::Adopted => temper_client_protocol_wire::v1::Role::Adopted,
+        temper_engine_domain_forge::Role::Fork => temper_client_protocol_wire::v1::Role::Fork,
+        temper_engine_domain_forge::Role::Context => temper_client_protocol_wire::v1::Role::Context,
+    }
+}
+
+#[must_use]
 pub fn role_to_domain(record: temper_client_protocol_wire::v1::Role) -> temper_engine_domain_forge::Role {
     match record {
         temper_client_protocol_wire::v1::Role::Owned => temper_engine_domain_forge::Role::Owned,
@@ -37,6 +47,116 @@ pub fn first_ask_to_domain(record: temper_client_protocol_wire::v1::FirstAsk) ->
 }
 
 #[must_use]
+pub fn trial_step_to_record(value: &temper_engine_domain_trials::Step) -> temper_client_protocol_wire::v1::TrialStep {
+    match value {
+        temper_engine_domain_trials::Step::Starts => temper_client_protocol_wire::v1::TrialStep::Starts,
+        temper_engine_domain_trials::Step::Answers => temper_client_protocol_wire::v1::TrialStep::Answers,
+    }
+}
+
+#[must_use]
+pub fn trial_class_to_record(value: &temper_engine_domain_trials::Class) -> temper_client_protocol_wire::v1::TrialClass {
+    match value {
+        temper_engine_domain_trials::Class::Transient => temper_client_protocol_wire::v1::TrialClass::Transient,
+        temper_engine_domain_trials::Class::Permanent => temper_client_protocol_wire::v1::TrialClass::Permanent,
+        temper_engine_domain_trials::Class::Run => temper_client_protocol_wire::v1::TrialClass::Run,
+        temper_engine_domain_trials::Class::Agent => temper_client_protocol_wire::v1::TrialClass::Agent,
+        temper_engine_domain_trials::Class::Lost => temper_client_protocol_wire::v1::TrialClass::Lost,
+        temper_engine_domain_trials::Class::Invalid => temper_client_protocol_wire::v1::TrialClass::Invalid,
+        temper_engine_domain_trials::Class::Refused => temper_client_protocol_wire::v1::TrialClass::Refused,
+        temper_engine_domain_trials::Class::Infrastructure => temper_client_protocol_wire::v1::TrialClass::Infrastructure,
+    }
+}
+
+#[must_use]
+pub fn trial_why_to_record(value: &temper_engine_domain_trials::Why) -> temper_client_protocol_wire::v1::TrialWhy {
+    match value {
+        temper_engine_domain_trials::Why::Ended { class: field_000000 } => temper_client_protocol_wire::v1::TrialWhy::Ended(temper_client_protocol_wire::v1::TrialEnded {
+            class: trial_class_to_record(field_000000)
+        }),
+        temper_engine_domain_trials::Why::Refused => temper_client_protocol_wire::v1::TrialWhy::Refused,
+        temper_engine_domain_trials::Why::Waited => temper_client_protocol_wire::v1::TrialWhy::Waited,
+    }
+}
+
+#[must_use]
+pub fn trial_state_to_record(value: &temper_engine_domain_trials::State) -> temper_client_protocol_wire::v1::TrialState {
+    match value {
+        temper_engine_domain_trials::State::Running => temper_client_protocol_wire::v1::TrialState::Running,
+        temper_engine_domain_trials::State::Answered { seconds: field_000000 } => temper_client_protocol_wire::v1::TrialState::Answered(temper_client_protocol_wire::v1::TrialAnswered {
+            seconds: *field_000000
+        }),
+        temper_engine_domain_trials::State::Failed { why: field_000000 } => temper_client_protocol_wire::v1::TrialState::Failed(temper_client_protocol_wire::v1::TrialFailed {
+            why: trial_why_to_record(field_000000)
+        }),
+    }
+}
+
+#[must_use]
+pub fn kind_to_record(value: &temper_engine_domain_forge::Kind) -> temper_client_protocol_wire::v1::Kind {
+    match value {
+        temper_engine_domain_forge::Kind::Forgejo => temper_client_protocol_wire::v1::Kind::Forgejo,
+        temper_engine_domain_forge::Kind::GitHub => temper_client_protocol_wire::v1::Kind::Github,
+    }
+}
+
+#[must_use]
+pub fn approval_yours_to_record(value: &temper_engine_domain::YourReview) -> temper_client_protocol_wire::v1::ApprovalYours {
+    match value {
+        temper_engine_domain::YourReview::Counts => temper_client_protocol_wire::v1::ApprovalYours::Counts,
+        temper_engine_domain::YourReview::NoAccount => temper_client_protocol_wire::v1::ApprovalYours::NoAccount,
+        temper_engine_domain::YourReview::TooFew => temper_client_protocol_wire::v1::ApprovalYours::TooFew,
+        temper_engine_domain::YourReview::OtherRole => temper_client_protocol_wire::v1::ApprovalYours::OtherRole,
+    }
+}
+
+#[must_use]
+pub fn approval_set_to_record(value: &temper_engine_domain::ApprovalSet) -> temper_client_protocol_wire::v1::ApprovalSet {
+    let temper_engine_domain::ApprovalSet { number: field_000000, name: field_000001 } = value;
+    temper_client_protocol_wire::v1::ApprovalSet {
+        number: *field_000000,
+        name: field_000001.clone()
+    }
+}
+
+#[must_use]
+pub fn approval_person_to_record(value: &temper_engine_domain::ApprovalPerson) -> temper_client_protocol_wire::v1::ApprovalPerson {
+    let temper_engine_domain::ApprovalPerson { person: field_000000, name: field_000001 } = value;
+    temper_client_protocol_wire::v1::ApprovalPerson {
+        person: *field_000000,
+        name: field_000001.clone()
+    }
+}
+
+#[must_use]
+pub fn approval_size_to_record(value: &temper_engine_domain::ApprovalSize) -> temper_client_protocol_wire::v1::ApprovalSize {
+    let temper_engine_domain::ApprovalSize { files: field_000000, additions: field_000001, deletions: field_000002, cut: field_000003 } = value;
+    temper_client_protocol_wire::v1::ApprovalSize {
+        files: *field_000000,
+        additions: *field_000001,
+        deletions: *field_000002,
+        cut: *field_000003
+    }
+}
+
+#[must_use]
+pub fn reach_kind_to_record(value: &temper_protocol_reaches::Kind) -> temper_client_protocol_wire::v1::ReachKind {
+    match value {
+        temper_protocol_reaches::Kind::Wording => temper_client_protocol_wire::v1::ReachKind::Wording,
+        temper_protocol_reaches::Kind::Retry => temper_client_protocol_wire::v1::ReachKind::Retry,
+        temper_protocol_reaches::Kind::Implementation => temper_client_protocol_wire::v1::ReachKind::Implementation,
+        temper_protocol_reaches::Kind::Tests => temper_client_protocol_wire::v1::ReachKind::Tests,
+        temper_protocol_reaches::Kind::Dependency => temper_client_protocol_wire::v1::ReachKind::Dependency,
+        temper_protocol_reaches::Kind::Departure => temper_client_protocol_wire::v1::ReachKind::Departure,
+        temper_protocol_reaches::Kind::Money => temper_client_protocol_wire::v1::ReachKind::Money,
+        temper_protocol_reaches::Kind::Irreversible => temper_client_protocol_wire::v1::ReachKind::Irreversible,
+        temper_protocol_reaches::Kind::Rules => temper_client_protocol_wire::v1::ReachKind::Rules,
+        temper_protocol_reaches::Kind::Other => temper_client_protocol_wire::v1::ReachKind::Other,
+        temper_protocol_reaches::Kind::Findings => temper_client_protocol_wire::v1::ReachKind::Findings,
+    }
+}
+
+#[must_use]
 pub fn reach_kind_to_domain(record: temper_client_protocol_wire::v1::ReachKind) -> temper_protocol_reaches::Kind {
     match record {
         temper_client_protocol_wire::v1::ReachKind::Wording => temper_protocol_reaches::Kind::Wording,
@@ -54,6 +174,24 @@ pub fn reach_kind_to_domain(record: temper_client_protocol_wire::v1::ReachKind) 
 }
 
 #[must_use]
+pub fn reach_class_to_record(value: &temper_protocol_reaches::Class) -> temper_client_protocol_wire::v1::ReachClass {
+    match value {
+        temper_protocol_reaches::Class::Decide => temper_client_protocol_wire::v1::ReachClass::Decide,
+        temper_protocol_reaches::Class::Ask => temper_client_protocol_wire::v1::ReachClass::Ask,
+        temper_protocol_reaches::Class::AskAway => temper_client_protocol_wire::v1::ReachClass::AskAway,
+        temper_protocol_reaches::Class::Wait => temper_client_protocol_wire::v1::ReachClass::Wait,
+    }
+}
+
+#[must_use]
+pub fn class_subject_to_record(value: &temper_protocol_reaches::Subject) -> temper_client_protocol_wire::v1::ClassSubject {
+    match value {
+        temper_protocol_reaches::Subject::Kind(held) => temper_client_protocol_wire::v1::ClassSubject::Kind(temper_client_protocol_wire::v1::ReachKindOf { kind: reach_kind_to_record(held) }),
+        temper_protocol_reaches::Subject::Set(held) => temper_client_protocol_wire::v1::ClassSubject::Set(temper_client_protocol_wire::v1::ReachSet { number: *held }),
+    }
+}
+
+#[must_use]
 pub fn class_subject_to_domain(record: temper_client_protocol_wire::v1::ClassSubject) -> temper_protocol_reaches::Subject {
     match record {
         temper_client_protocol_wire::v1::ClassSubject::Kind(held) => temper_protocol_reaches::Subject::Kind({
@@ -63,6 +201,26 @@ pub fn class_subject_to_domain(record: temper_client_protocol_wire::v1::ClassSub
         temper_client_protocol_wire::v1::ClassSubject::Set(held) => temper_protocol_reaches::Subject::Set({
             let temper_client_protocol_wire::v1::ReachSet { number: held } = held;
             held
+        }),
+    }
+}
+
+#[must_use]
+pub fn person_fact_to_record(value: &temper_engine_domain_forge::PersonFact) -> temper_client_protocol_wire::v1::PersonFact {
+    match value {
+        temper_engine_domain_forge::PersonFact::ToBegin { project: field_000000 } => temper_client_protocol_wire::v1::PersonFact::ToBegin(temper_client_protocol_wire::v1::ToBegin {
+            project: *field_000000
+        }),
+        temper_engine_domain_forge::PersonFact::GoalFrom { project: field_000000, chat: field_000001, goal: field_000002, at: field_000003 } => temper_client_protocol_wire::v1::PersonFact::GoalFrom(temper_client_protocol_wire::v1::GoalFrom {
+            project: *field_000000,
+            chat: *field_000001,
+            goal: *field_000002,
+            at: *field_000003
+        }),
+        temper_engine_domain_forge::PersonFact::KeepAsking { project: field_000000, subject: field_000001, at: field_000002 } => temper_client_protocol_wire::v1::PersonFact::KeepAsking(temper_client_protocol_wire::v1::KeepAsking {
+            project: *field_000000,
+            subject: class_subject_to_record(field_000001),
+            at: *field_000002
         }),
     }
 }
@@ -93,6 +251,118 @@ pub fn person_fact_to_domain(record: temper_client_protocol_wire::v1::PersonFact
                 at: field_000002
             }
         },
+    }
+}
+
+#[must_use]
+pub fn reach_reason_to_record(value: &temper_protocol_reaches::Reason) -> temper_client_protocol_wire::v1::ReachReason {
+    match value {
+        temper_protocol_reaches::Reason::Kind => temper_client_protocol_wire::v1::ReachReason::Kind,
+        temper_protocol_reaches::Reason::Set(held) => temper_client_protocol_wire::v1::ReachReason::Set(temper_client_protocol_wire::v1::ReachSet { number: *held }),
+        temper_protocol_reaches::Reason::Always => temper_client_protocol_wire::v1::ReachReason::Always,
+    }
+}
+
+#[must_use]
+pub fn reach_to_record(value: &temper_protocol_reaches::Reach) -> temper_client_protocol_wire::v1::Reach {
+    let temper_protocol_reaches::Reach { kind: field_000000, class: field_000001, reason: field_000002, under: field_000003, sets: field_000004, matched: field_000005, away: field_000006 } = value;
+    temper_client_protocol_wire::v1::Reach {
+        kind: reach_kind_to_record(field_000000),
+        class: reach_class_to_record(field_000001),
+        reason: reach_reason_to_record(field_000002),
+        under: *field_000003,
+        sets: *field_000004,
+        matched: *field_000005,
+        away: *field_000006
+    }
+}
+
+pub fn aways_to_record(value: &temper_engine_domain_forge::AwaysView) -> Result<temper_client_protocol_wire::v1::Aways, temper_client_protocol_wire::v1::Problem> {
+    let temper_engine_domain_forge::AwaysView { rows: field_000000 } = value;
+    Ok(temper_client_protocol_wire::v1::Aways {
+        rows: {
+            let source = field_000000;
+            let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(temper_client_protocol_wire::v1::paths::AWAYS_ROWS.problem(skein_codec::Reason::Bound)) };
+            let mut translated = skein_lib::List::with_capacity(count);
+            for item in source.as_ref() {
+                let converted = crate::family::away_row_to_record(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
+            }
+            translated
+        }
+    })
+}
+
+#[must_use]
+pub fn decision_to_record(value: &temper_engine_domain_forge::DecisionView) -> temper_client_protocol_wire::v1::Decision {
+    let temper_engine_domain_forge::DecisionView { number: field_000000, task: field_000001, at: field_000002, question: field_000003, took: field_000004, why: field_000005, overturned: field_000006, reach: field_000007 } = value;
+    temper_client_protocol_wire::v1::Decision {
+        number: *field_000000,
+        task: *field_000001,
+        at: skein_codec::convert::wall_to_record(field_000002),
+        question: field_000003.clone(),
+        took: field_000004.clone(),
+        why: field_000005.clone(),
+        overturned: *field_000006,
+        reach: reach_to_record(field_000007)
+    }
+}
+
+#[must_use]
+pub fn asked_to_record(value: &temper_engine_domain_forge::AskedView) -> temper_client_protocol_wire::v1::Asked {
+    let temper_engine_domain_forge::AskedView { number: field_000000, task: field_000001, at: field_000002, reach: field_000003 } = value;
+    temper_client_protocol_wire::v1::Asked {
+        number: *field_000000,
+        task: *field_000001,
+        at: skein_codec::convert::wall_to_record(field_000002),
+        reach: reach_to_record(field_000003)
+    }
+}
+
+pub fn decisions_to_record(value: &temper_engine_domain_forge::DecisionsView) -> Result<temper_client_protocol_wire::v1::Decisions, temper_client_protocol_wire::v1::Problem> {
+    let temper_engine_domain_forge::DecisionsView { project: field_000000, rows: field_000001, asked: field_000002, cut: field_000003 } = value;
+    Ok(temper_client_protocol_wire::v1::Decisions {
+        project: *field_000000,
+        rows: {
+            let source = field_000001;
+            let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(temper_client_protocol_wire::v1::paths::DECISIONS_ROWS.problem(skein_codec::Reason::Bound)) };
+            let mut translated = skein_lib::List::with_capacity(count);
+            for item in source.as_ref() {
+                let converted = decision_to_record(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
+            }
+            translated
+        },
+        asked: {
+            let source = field_000002;
+            let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(temper_client_protocol_wire::v1::paths::DECISIONS_ASKED.problem(skein_codec::Reason::Bound)) };
+            let mut translated = skein_lib::List::with_capacity(count);
+            for item in source.as_ref() {
+                let converted = asked_to_record(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
+            }
+            translated
+        },
+        cut: *field_000003
+    })
+}
+
+#[must_use]
+pub fn make_from_to_record(value: &temper_engine_domain_forge::MakeFrom) -> temper_client_protocol_wire::v1::MakeFrom {
+    match value {
+        temper_engine_domain_forge::MakeFrom::Empty => temper_client_protocol_wire::v1::MakeFrom::Empty,
+        temper_engine_domain_forge::MakeFrom::Copy { address: field_000000 } => temper_client_protocol_wire::v1::MakeFrom::Copy(temper_client_protocol_wire::v1::MakeCopy {
+            address: field_000000.clone()
+        }),
+    }
+}
+
+#[must_use]
+pub fn draft_repository_to_record(value: &temper_engine_domain_forge::DraftRepository) -> temper_client_protocol_wire::v1::DraftRepository {
+    let temper_engine_domain_forge::DraftRepository { owner: field_000000, name: field_000001 } = value;
+    temper_client_protocol_wire::v1::DraftRepository {
+        owner: field_000000.clone(),
+        name: field_000001.clone()
     }
 }
 
@@ -159,6 +429,19 @@ pub fn set_draft_to_domain(record: temper_client_protocol_wire::v1::SetDraft) ->
 }
 
 #[must_use]
+pub fn draft_refusal_to_record(value: &temper_engine_domain_forge::DraftRefusal) -> temper_client_protocol_wire::v1::DraftRefusal {
+    match value {
+        temper_engine_domain_forge::DraftRefusal::NoRepository => temper_client_protocol_wire::v1::DraftRefusal::NoRepository,
+        temper_engine_domain_forge::DraftRefusal::Path => temper_client_protocol_wire::v1::DraftRefusal::Path,
+        temper_engine_domain_forge::DraftRefusal::Missing => temper_client_protocol_wire::v1::DraftRefusal::Missing,
+        temper_engine_domain_forge::DraftRefusal::NotAFile => temper_client_protocol_wire::v1::DraftRefusal::NotAFile,
+        temper_engine_domain_forge::DraftRefusal::Unreachable => temper_client_protocol_wire::v1::DraftRefusal::Unreachable,
+        temper_engine_domain_forge::DraftRefusal::Unknown => temper_client_protocol_wire::v1::DraftRefusal::Unknown,
+        temper_engine_domain_forge::DraftRefusal::Full => temper_client_protocol_wire::v1::DraftRefusal::Full,
+    }
+}
+
+#[must_use]
 pub fn follow_act_to_domain(record: temper_client_protocol_wire::v1::FollowAct) -> temper_engine_domain_forge::follows::FollowAct {
     match record {
         temper_client_protocol_wire::v1::FollowAct::Start(held) => {
@@ -208,6 +491,45 @@ pub fn add_device_to_domain(record: temper_client_protocol_wire::v1::AddDevice) 
         auth: field_000002,
         label: field_000003
     }
+}
+
+#[must_use]
+pub fn device_refusal_to_record(value: &temper_engine_domain_forge::DeviceRefusal) -> temper_client_protocol_wire::v1::DeviceRefusal {
+    match value {
+        temper_engine_domain_forge::DeviceRefusal::Person => temper_client_protocol_wire::v1::DeviceRefusal::Person,
+        temper_engine_domain_forge::DeviceRefusal::Off => temper_client_protocol_wire::v1::DeviceRefusal::Off,
+        temper_engine_domain_forge::DeviceRefusal::Service => temper_client_protocol_wire::v1::DeviceRefusal::Service,
+        temper_engine_domain_forge::DeviceRefusal::Malformed => temper_client_protocol_wire::v1::DeviceRefusal::Malformed,
+        temper_engine_domain_forge::DeviceRefusal::TooMany => temper_client_protocol_wire::v1::DeviceRefusal::TooMany,
+        temper_engine_domain_forge::DeviceRefusal::Unknown => temper_client_protocol_wire::v1::DeviceRefusal::Unknown,
+    }
+}
+
+#[must_use]
+pub fn device_row_to_record(value: &temper_engine_domain_forge::DeviceView) -> temper_client_protocol_wire::v1::DeviceRow {
+    let temper_engine_domain_forge::DeviceView { number: field_000000, label: field_000001, at: field_000002, endpoint: field_000003 } = value;
+    temper_client_protocol_wire::v1::DeviceRow {
+        number: *field_000000,
+        label: field_000001.clone(),
+        at: skein_codec::convert::wall_to_record(field_000002),
+        endpoint: field_000003.clone()
+    }
+}
+
+pub fn devices_to_record(value: &temper_engine_domain_forge::DevicesView) -> Result<temper_client_protocol_wire::v1::Devices, temper_client_protocol_wire::v1::Problem> {
+    let temper_engine_domain_forge::DevicesView { rows: field_000000 } = value;
+    Ok(temper_client_protocol_wire::v1::Devices {
+        rows: {
+            let source = field_000000;
+            let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(temper_client_protocol_wire::v1::paths::DEVICES_ROWS.problem(skein_codec::Reason::Bound)) };
+            let mut translated = skein_lib::List::with_capacity(count);
+            for item in source.as_ref() {
+                let converted = device_row_to_record(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
+            }
+            translated
+        }
+    })
 }
 
 #[must_use]
@@ -558,6 +880,20 @@ pub fn tier_act_request_to_domain(record: temper_client_protocol_wire::v1::TierA
 }
 
 #[must_use]
+pub fn tier_refusal_to_record(value: &temper_engine_domain_forge::TierRefusal) -> temper_client_protocol_wire::v1::TierRefusal {
+    match value {
+        temper_engine_domain_forge::TierRefusal::NoRepository => temper_client_protocol_wire::v1::TierRefusal::NoRepository,
+        temper_engine_domain_forge::TierRefusal::NoTier => temper_client_protocol_wire::v1::TierRefusal::NoTier,
+        temper_engine_domain_forge::TierRefusal::Held { party: field_000000, reason: field_000001 } => temper_client_protocol_wire::v1::TierRefusal::Held(temper_client_protocol_wire::v1::TierHeldBy {
+            party: *field_000000,
+            reason: field_000001.clone()
+        }),
+        temper_engine_domain_forge::TierRefusal::NotHeld => temper_client_protocol_wire::v1::TierRefusal::NotHeld,
+        temper_engine_domain_forge::TierRefusal::Words => temper_client_protocol_wire::v1::TierRefusal::Words,
+    }
+}
+
+#[must_use]
 pub fn open_budget_to_domain(record: temper_client_protocol_wire::v1::OpenBudget) -> temper_engine_domain_forge::OpenBudget {
     match record {
         temper_client_protocol_wire::v1::OpenBudget::Amount(held) => temper_engine_domain_forge::OpenBudget::Amount({
@@ -604,6 +940,317 @@ pub fn open_change_to_domain(record: temper_client_protocol_wire::v1::OpenChange
             None => None,
         },
         budget: open_budget_to_domain(field_000007)
+    }
+}
+
+pub fn open_refusal_to_record(value: &temper_engine_domain_forge::OpenRefusal) -> Result<temper_client_protocol_wire::v1::OpenRefusal, temper_client_protocol_wire::v1::Problem> {
+    Ok(match value {
+        temper_engine_domain_forge::OpenRefusal::Several(held) => temper_client_protocol_wire::v1::OpenRefusal::Several(temper_client_protocol_wire::v1::SeveralRepositories { repositories: {
+                let source = held;
+                let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(temper_client_protocol_wire::v1::paths::SEVERAL_REPOSITORIES_REPOSITORIES.problem(skein_codec::Reason::Bound)) };
+                let mut translated = skein_lib::List::with_capacity(count);
+                for item in source.as_ref() {
+                    let converted = draft_repository_to_record(item);
+                    assert!(translated.push(converted).is_ok(), "one output per source item");
+                }
+                translated
+            } }),
+        temper_engine_domain_forge::OpenRefusal::NoRepository => temper_client_protocol_wire::v1::OpenRefusal::NoRepository,
+        temper_engine_domain_forge::OpenRefusal::NotARepository => temper_client_protocol_wire::v1::OpenRefusal::NotARepository,
+        temper_engine_domain_forge::OpenRefusal::UnderPrefix { owner: field_000000, name: field_000001, prefix: field_000002 } => temper_client_protocol_wire::v1::OpenRefusal::UnderPrefix(temper_client_protocol_wire::v1::UnderPrefix {
+            owner: field_000000.clone(),
+            name: field_000001.clone(),
+            prefix: field_000002.clone()
+        }),
+        temper_engine_domain_forge::OpenRefusal::NamePast { bound: field_000000 } => temper_client_protocol_wire::v1::OpenRefusal::NamePast(temper_client_protocol_wire::v1::NamePast {
+            bound: *field_000000
+        }),
+    })
+}
+
+#[must_use]
+pub fn set_up_refusal_to_record(value: &temper_engine_domain_forge::SetUpRefusal) -> temper_client_protocol_wire::v1::SetUpRefusal {
+    match value {
+        temper_engine_domain_forge::SetUpRefusal::NotOffered => temper_client_protocol_wire::v1::SetUpRefusal::NotOffered,
+        temper_engine_domain_forge::SetUpRefusal::NotUnderTheBox => temper_client_protocol_wire::v1::SetUpRefusal::NotUnderTheBox,
+        temper_engine_domain_forge::SetUpRefusal::Busy => temper_client_protocol_wire::v1::SetUpRefusal::Busy,
+        temper_engine_domain_forge::SetUpRefusal::Invalid => temper_client_protocol_wire::v1::SetUpRefusal::Invalid,
+    }
+}
+
+#[must_use]
+pub fn start_failure_to_record(value: &temper_engine_domain_forge::StartFailure) -> temper_client_protocol_wire::v1::StartFailure {
+    match value {
+        temper_engine_domain_forge::StartFailure::Group { why: field_000000 } => temper_client_protocol_wire::v1::StartFailure::Group(temper_client_protocol_wire::v1::GroupFailed {
+            why: field_000000.clone()
+        }),
+        temper_engine_domain_forge::StartFailure::Account => temper_client_protocol_wire::v1::StartFailure::Account,
+        temper_engine_domain_forge::StartFailure::Adoption => temper_client_protocol_wire::v1::StartFailure::Adoption,
+        temper_engine_domain_forge::StartFailure::NotConnected => temper_client_protocol_wire::v1::StartFailure::NotConnected,
+    }
+}
+
+#[must_use]
+pub fn mode_to_record(value: &temper_engine_domain_forge::Mode) -> temper_client_protocol_wire::v1::Mode {
+    match value {
+        temper_engine_domain_forge::Mode::Connected => temper_client_protocol_wire::v1::Mode::Connected,
+        temper_engine_domain_forge::Mode::Managed => temper_client_protocol_wire::v1::Mode::Managed,
+        temper_engine_domain_forge::Mode::Owned => temper_client_protocol_wire::v1::Mode::Owned,
+        temper_engine_domain_forge::Mode::Fake => temper_client_protocol_wire::v1::Mode::Fake,
+    }
+}
+
+#[must_use]
+pub fn set_up_step_to_record(value: &temper_engine_domain_forge::SetUpStep) -> temper_client_protocol_wire::v1::SetUpStep {
+    match value {
+        temper_engine_domain_forge::SetUpStep::Fetch => temper_client_protocol_wire::v1::SetUpStep::Fetch,
+        temper_engine_domain_forge::SetUpStep::Prepare => temper_client_protocol_wire::v1::SetUpStep::Prepare,
+        temper_engine_domain_forge::SetUpStep::Run => temper_client_protocol_wire::v1::SetUpStep::Run,
+        temper_engine_domain_forge::SetUpStep::Source => temper_client_protocol_wire::v1::SetUpStep::Source,
+    }
+}
+
+#[must_use]
+pub fn set_up_binary_to_record(value: &temper_engine_domain_forge::SetUpBinary) -> temper_client_protocol_wire::v1::SetUpBinary {
+    match value {
+        temper_engine_domain_forge::SetUpBinary::Forgejo => temper_client_protocol_wire::v1::SetUpBinary::Forgejo,
+        temper_engine_domain_forge::SetUpBinary::Runner => temper_client_protocol_wire::v1::SetUpBinary::Runner,
+    }
+}
+
+#[must_use]
+pub fn set_up_fetched_to_record(value: &temper_engine_domain_forge::SetUpFetched) -> temper_client_protocol_wire::v1::SetUpFetched {
+    let temper_engine_domain_forge::SetUpFetched { binary: field_000000, done: field_000001, total: field_000002 } = value;
+    temper_client_protocol_wire::v1::SetUpFetched {
+        binary: set_up_binary_to_record(field_000000),
+        done: *field_000001,
+        total: match field_000002 {
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
+            None => None,
+        }
+    }
+}
+
+#[must_use]
+pub fn failed_step_to_record(value: &temper_engine_domain_forge::FailedStep) -> temper_client_protocol_wire::v1::FailedStep {
+    match value {
+        temper_engine_domain_forge::FailedStep::Fetch => temper_client_protocol_wire::v1::FailedStep::Fetch,
+        temper_engine_domain_forge::FailedStep::Prepare => temper_client_protocol_wire::v1::FailedStep::Prepare,
+        temper_engine_domain_forge::FailedStep::Run => temper_client_protocol_wire::v1::FailedStep::Run,
+        temper_engine_domain_forge::FailedStep::Connect => temper_client_protocol_wire::v1::FailedStep::Connect,
+    }
+}
+
+#[must_use]
+pub fn offer_to_record(value: &temper_engine_domain_forge::Offer) -> temper_client_protocol_wire::v1::Offer {
+    match value {
+        temper_engine_domain_forge::Offer::NotOffered => temper_client_protocol_wire::v1::Offer::NotOffered,
+        temper_engine_domain_forge::Offer::NotUnderTheBox => temper_client_protocol_wire::v1::Offer::NotUnderTheBox,
+        temper_engine_domain_forge::Offer::Offered => temper_client_protocol_wire::v1::Offer::Offered,
+    }
+}
+
+#[must_use]
+pub fn create_step_to_record(value: &temper_engine_domain_forge::CreateStep) -> temper_client_protocol_wire::v1::CreateStep {
+    match value {
+        temper_engine_domain_forge::CreateStep::Admin => temper_client_protocol_wire::v1::CreateStep::Admin,
+        temper_engine_domain_forge::CreateStep::Org => temper_client_protocol_wire::v1::CreateStep::Org,
+        temper_engine_domain_forge::CreateStep::Repository => temper_client_protocol_wire::v1::CreateStep::Repository,
+        temper_engine_domain_forge::CreateStep::File => temper_client_protocol_wire::v1::CreateStep::File,
+    }
+}
+
+#[must_use]
+pub fn first_state_to_record(value: &temper_engine_domain_forge::FirstState) -> temper_client_protocol_wire::v1::FirstState {
+    match value {
+        temper_engine_domain_forge::FirstState::Making => temper_client_protocol_wire::v1::FirstState::Making,
+        temper_engine_domain_forge::FirstState::Made { id: field_000000 } => temper_client_protocol_wire::v1::FirstState::Made(temper_client_protocol_wire::v1::Made {
+            id: *field_000000
+        }),
+        temper_engine_domain_forge::FirstState::Failed { step: field_000000 } => temper_client_protocol_wire::v1::FirstState::Failed(temper_client_protocol_wire::v1::CreateFailed {
+            step: create_step_to_record(field_000000)
+        }),
+    }
+}
+
+#[must_use]
+pub fn first_repository_to_record(value: &temper_engine_domain_forge::First) -> temper_client_protocol_wire::v1::FirstRepository {
+    let temper_engine_domain_forge::First { org: field_000000, repository: field_000001, state: field_000002, label: field_000003, playground: field_000004, sample: field_000005 } = value;
+    temper_client_protocol_wire::v1::FirstRepository {
+        org: field_000000.clone(),
+        repository: field_000001.clone(),
+        state: first_state_to_record(field_000002),
+        label: field_000003.clone(),
+        playground: *field_000004,
+        sample: *field_000005
+    }
+}
+
+#[must_use]
+pub fn setup_stage_to_record(value: &temper_engine_domain_forge::SetupStage) -> temper_client_protocol_wire::v1::SetupStage {
+    match value {
+        temper_engine_domain_forge::SetupStage::Admin => temper_client_protocol_wire::v1::SetupStage::Admin,
+        temper_engine_domain_forge::SetupStage::Bot => temper_client_protocol_wire::v1::SetupStage::Bot,
+        temper_engine_domain_forge::SetupStage::Token => temper_client_protocol_wire::v1::SetupStage::Token,
+        temper_engine_domain_forge::SetupStage::Org => temper_client_protocol_wire::v1::SetupStage::Org,
+        temper_engine_domain_forge::SetupStage::Repository => temper_client_protocol_wire::v1::SetupStage::Repository,
+        temper_engine_domain_forge::SetupStage::File => temper_client_protocol_wire::v1::SetupStage::File,
+        temper_engine_domain_forge::SetupStage::App => temper_client_protocol_wire::v1::SetupStage::App,
+        temper_engine_domain_forge::SetupStage::Installation => temper_client_protocol_wire::v1::SetupStage::Installation,
+        temper_engine_domain_forge::SetupStage::State => temper_client_protocol_wire::v1::SetupStage::State,
+    }
+}
+
+#[must_use]
+pub fn admin_stop_to_record(value: &temper_engine_domain_forge::AdminStop) -> temper_client_protocol_wire::v1::AdminStop {
+    match value {
+        temper_engine_domain_forge::AdminStop::NotAdmin => temper_client_protocol_wire::v1::AdminStop::NotAdmin,
+        temper_engine_domain_forge::AdminStop::Refused { status: field_000000, stage: field_000001 } => temper_client_protocol_wire::v1::AdminStop::Refused(temper_client_protocol_wire::v1::AdminRefused {
+            status: *field_000000,
+            stage: setup_stage_to_record(field_000001)
+        }),
+        temper_engine_domain_forge::AdminStop::Unmarked => temper_client_protocol_wire::v1::AdminStop::Unmarked,
+        temper_engine_domain_forge::AdminStop::Other => temper_client_protocol_wire::v1::AdminStop::Other,
+    }
+}
+
+#[must_use]
+pub fn app_way_to_record(value: &temper_engine_domain_forge::AppWay) -> temper_client_protocol_wire::v1::AppWay {
+    match value {
+        temper_engine_domain_forge::AppWay::Manifest => temper_client_protocol_wire::v1::AppWay::Manifest,
+        temper_engine_domain_forge::AppWay::Pasted => temper_client_protocol_wire::v1::AppWay::Pasted,
+    }
+}
+
+#[must_use]
+pub fn adoption_to_record(value: &temper_engine_domain_forge::AdoptedRow) -> temper_client_protocol_wire::v1::Adoption {
+    let temper_engine_domain_forge::AdoptedRow { owner: field_000000, name: field_000001, project: field_000002 } = value;
+    temper_client_protocol_wire::v1::Adoption {
+        owner: field_000000.clone(),
+        name: field_000001.clone(),
+        project: *field_000002
+    }
+}
+
+#[must_use]
+pub fn owned_forge_to_record(value: &temper_engine_domain_forge::Owned) -> temper_client_protocol_wire::v1::OwnedForge {
+    let temper_engine_domain_forge::Owned { forgejo: field_000000, runner: field_000001, password: field_000002 } = value;
+    temper_client_protocol_wire::v1::OwnedForge {
+        forgejo: field_000000.clone(),
+        runner: match field_000001 {
+            Some(item) => {
+                let converted = item.clone();
+                Some(converted)
+            }
+            None => None,
+        },
+        password: field_000002.clone()
+    }
+}
+
+#[must_use]
+pub fn make_step_to_record(value: &temper_engine_domain_forge::MakeStep) -> temper_client_protocol_wire::v1::MakeStep {
+    match value {
+        temper_engine_domain_forge::MakeStep::Admin => temper_client_protocol_wire::v1::MakeStep::Admin,
+        temper_engine_domain_forge::MakeStep::Org => temper_client_protocol_wire::v1::MakeStep::Org,
+        temper_engine_domain_forge::MakeStep::Repository => temper_client_protocol_wire::v1::MakeStep::Repository,
+        temper_engine_domain_forge::MakeStep::File => temper_client_protocol_wire::v1::MakeStep::File,
+        temper_engine_domain_forge::MakeStep::Adoption => temper_client_protocol_wire::v1::MakeStep::Adoption,
+    }
+}
+
+#[must_use]
+pub fn make_failure_to_record(value: &temper_engine_domain_forge::MakeFailure) -> temper_client_protocol_wire::v1::MakeFailure {
+    match value {
+        temper_engine_domain_forge::MakeFailure::Taken => temper_client_protocol_wire::v1::MakeFailure::Taken,
+        temper_engine_domain_forge::MakeFailure::Empty => temper_client_protocol_wire::v1::MakeFailure::Empty,
+        temper_engine_domain_forge::MakeFailure::TimedOut => temper_client_protocol_wire::v1::MakeFailure::TimedOut,
+        temper_engine_domain_forge::MakeFailure::Refused { status: field_000000 } => temper_client_protocol_wire::v1::MakeFailure::Refused(temper_client_protocol_wire::v1::Refused {
+            status: *field_000000
+        }),
+        temper_engine_domain_forge::MakeFailure::NotAllowed => temper_client_protocol_wire::v1::MakeFailure::NotAllowed,
+        temper_engine_domain_forge::MakeFailure::Other => temper_client_protocol_wire::v1::MakeFailure::Other,
+    }
+}
+
+#[must_use]
+pub fn making_failed_to_record(value: &temper_engine_domain_forge::MakingFailed) -> temper_client_protocol_wire::v1::MakingFailed {
+    let temper_engine_domain_forge::MakingFailed { step: field_000000, reason: field_000001, words: field_000002 } = value;
+    temper_client_protocol_wire::v1::MakingFailed {
+        step: make_step_to_record(field_000000),
+        reason: make_failure_to_record(field_000001),
+        words: field_000002.clone()
+    }
+}
+
+#[must_use]
+pub fn making_state_to_record(value: &temper_engine_domain_forge::MakingState) -> temper_client_protocol_wire::v1::MakingState {
+    match value {
+        temper_engine_domain_forge::MakingState::Waiting => temper_client_protocol_wire::v1::MakingState::Waiting,
+        temper_engine_domain_forge::MakingState::Making => temper_client_protocol_wire::v1::MakingState::Making,
+        temper_engine_domain_forge::MakingState::Made { id: field_000000, branch: field_000001 } => temper_client_protocol_wire::v1::MakingState::Made(temper_client_protocol_wire::v1::MakingMade {
+            id: *field_000000,
+            branch: field_000001.clone()
+        }),
+        temper_engine_domain_forge::MakingState::Adopting { id: field_000000, branch: field_000001 } => temper_client_protocol_wire::v1::MakingState::Adopting(temper_client_protocol_wire::v1::MakingMade {
+            id: *field_000000,
+            branch: field_000001.clone()
+        }),
+        temper_engine_domain_forge::MakingState::Failed(held) => temper_client_protocol_wire::v1::MakingState::Failed(making_failed_to_record(held)),
+    }
+}
+
+pub fn starts_with_to_record(value: &temper_engine_domain_forge::StartsWith) -> Result<temper_client_protocol_wire::v1::StartsWith, temper_client_protocol_wire::v1::Problem> {
+    Ok(match value {
+        temper_engine_domain_forge::StartsWith::Repository => temper_client_protocol_wire::v1::StartsWith::Repository,
+        temper_engine_domain_forge::StartsWith::Copies { addresses: field_000000 } => temper_client_protocol_wire::v1::StartsWith::Copies(temper_client_protocol_wire::v1::CopyAddresses {
+            addresses: {
+                let source = field_000000;
+                let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(temper_client_protocol_wire::v1::paths::COPY_ADDRESSES_ADDRESSES.problem(skein_codec::Reason::Bound)) };
+                let mut translated = skein_lib::List::with_capacity(count);
+                for item in source.as_ref() {
+                    let converted = item.clone();
+                    assert!(translated.push(converted).is_ok(), "one output per source item");
+                }
+                translated
+            }
+        }),
+        temper_engine_domain_forge::StartsWith::Nothing => temper_client_protocol_wire::v1::StartsWith::Nothing,
+    })
+}
+
+#[must_use]
+pub fn catching_up_to_record(value: &temper_engine_domain_forge::CatchingUp) -> temper_client_protocol_wire::v1::CatchingUp {
+    let temper_engine_domain_forge::CatchingUp { fresh: field_000000, gathers: field_000001, ci: field_000002, goal_files: field_000003, lost_writers: field_000004, goal_branches: field_000005, uncertain: field_000006 } = value;
+    temper_client_protocol_wire::v1::CatchingUp {
+        fresh: *field_000000,
+        gathers: *field_000001,
+        ci: *field_000002,
+        goal_files: *field_000003,
+        lost_writers: *field_000004,
+        goal_branches: *field_000005,
+        uncertain: *field_000006
+    }
+}
+
+#[must_use]
+pub fn full_kind_to_record(value: &temper_engine_domain_forge::FullKind) -> temper_client_protocol_wire::v1::FullKind {
+    match value {
+        temper_engine_domain_forge::FullKind::Outbox => temper_client_protocol_wire::v1::FullKind::Outbox,
+        temper_engine_domain_forge::FullKind::ReadAdmission => temper_client_protocol_wire::v1::FullKind::ReadAdmission,
+    }
+}
+
+#[must_use]
+pub fn full_table_to_record(value: &temper_engine_domain_forge::FullTable) -> temper_client_protocol_wire::v1::FullTable {
+    let temper_engine_domain_forge::FullTable { table: field_000000, since: field_000001, words: field_000002 } = value;
+    temper_client_protocol_wire::v1::FullTable {
+        table: full_kind_to_record(field_000000),
+        since: *field_000001,
+        words: field_000002.clone()
     }
 }
 
@@ -918,6 +1565,35 @@ pub fn history_of_to_domain(record: temper_client_protocol_wire::v1::HistoryOf) 
             held
         }),
     }
+}
+
+pub fn history_read_to_domain(record: temper_client_protocol_wire::v1::HistoryRead) -> Result<temper_engine_domain_forge::history::Query, temper_client_protocol_wire::v1::Problem> {
+    let temper_client_protocol_wire::v1::HistoryRead { project: field_000000, of: field_000001, since: field_000002, until: field_000003, after: field_000004 } = record;
+    Ok(temper_engine_domain_forge::history::Query {
+        project: field_000000,
+        of: history_of_to_domain(field_000001),
+        since: match field_000002 {
+            Some(item) => {
+                let converted = skein_codec::convert::wall_to_domain(item);
+                Some(converted)
+            }
+            None => None,
+        },
+        until: match field_000003 {
+            Some(item) => {
+                let converted = skein_codec::convert::wall_to_domain(item);
+                Some(converted)
+            }
+            None => None,
+        },
+        after: match field_000004 {
+            Some(item) => {
+                let converted = match crate::family::history_cursor_to_domain(item) { Ok(value) => value, Err(reason) => return Err(temper_client_protocol_wire::v1::paths::HISTORY_READ_AFTER.problem(reason)) };
+                Some(converted)
+            }
+            None => None,
+        }
+    })
 }
 
 #[must_use]
@@ -1362,6 +2038,49 @@ pub fn history_event_to_record(value: &temper_engine_domain_forge::history::Even
     })
 }
 
+pub fn history_reply_to_record(value: &temper_engine_domain_forge::history::Reply) -> Result<temper_client_protocol_wire::v1::HistoryReply, temper_client_protocol_wire::v1::Problem> {
+    Ok(match value {
+        temper_engine_domain_forge::history::Reply::Page { events: field_000000, after: field_000001, upper: field_000002, whole_since: field_000003 } => temper_client_protocol_wire::v1::HistoryReply::Page(temper_client_protocol_wire::v1::HistoryPage {
+            events: {
+                let source = field_000000;
+                let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(temper_client_protocol_wire::v1::paths::HISTORY_PAGE_EVENTS.problem(skein_codec::Reason::Bound)) };
+                let mut translated = skein_lib::List::with_capacity(count);
+                for item in source.as_ref() {
+                    let converted = history_event_to_record(item)?;
+                    assert!(translated.push(converted).is_ok(), "one output per source item");
+                }
+                translated
+            },
+            after: match field_000001 {
+                Some(item) => {
+                    let converted = crate::family::history_cursor_to_record(item);
+                    Some(converted)
+                }
+                None => None,
+            },
+            upper: *field_000002,
+            whole_since: match field_000003 {
+                Some(item) => {
+                    let converted = skein_codec::convert::wall_to_record(item);
+                    Some(converted)
+                }
+                None => None,
+            }
+        }),
+        temper_engine_domain_forge::history::Reply::Gone { from: field_000000, first: field_000001 } => temper_client_protocol_wire::v1::HistoryReply::Gone(temper_client_protocol_wire::v1::HistoryGone {
+            from: *field_000000,
+            first: match field_000001 {
+                Some(item) => {
+                    let converted = *item;
+                    Some(converted)
+                }
+                None => None,
+            }
+        }),
+        temper_engine_domain_forge::history::Reply::Busy => temper_client_protocol_wire::v1::HistoryReply::Busy,
+    })
+}
+
 #[must_use]
 pub fn deployment_answer_to_record(value: &crate::family::Deployment) -> temper_client_protocol_wire::v1::DeploymentAnswer {
     let crate::family::Deployment { welcome: field_000000, owned: field_000001, program_login: field_000002, push: field_000003 } = value;
@@ -1386,12 +2105,69 @@ pub fn deployment_answer_to_record(value: &crate::family::Deployment) -> temper_
 }
 
 #[must_use]
+pub fn receipted_to_record(value: &temper_engine_domain_forge::ReceiptRun) -> temper_client_protocol_wire::v1::Receipted {
+    let temper_engine_domain_forge::ReceiptRun { id: field_000000, number: field_000001, url: field_000002 } = value;
+    temper_client_protocol_wire::v1::Receipted {
+        run: *field_000000,
+        number: *field_000001,
+        address: field_000002.clone()
+    }
+}
+
+#[must_use]
+pub fn proof_to_record(value: &temper_engine_domain_forge::GateProof) -> temper_client_protocol_wire::v1::Proof {
+    match value {
+        temper_engine_domain_forge::GateProof::Unkeyed => temper_client_protocol_wire::v1::Proof::Unkeyed,
+        temper_engine_domain_forge::GateProof::Keyed => temper_client_protocol_wire::v1::Proof::Keyed,
+        temper_engine_domain_forge::GateProof::Dispatched { attempt: field_000000, run: field_000001 } => temper_client_protocol_wire::v1::Proof::Dispatched(temper_client_protocol_wire::v1::Dispatched {
+            attempt: *field_000000,
+            run: match field_000001 {
+                Some(item) => {
+                    let converted = *item;
+                    Some(converted)
+                }
+                None => None,
+            }
+        }),
+        temper_engine_domain_forge::GateProof::Waiting => temper_client_protocol_wire::v1::Proof::Waiting,
+        temper_engine_domain_forge::GateProof::Passed(held) => temper_client_protocol_wire::v1::Proof::Passed(receipted_to_record(held)),
+        temper_engine_domain_forge::GateProof::Failed(held) => temper_client_protocol_wire::v1::Proof::Failed(receipted_to_record(held)),
+    }
+}
+
+#[must_use]
+pub fn gate_proof_to_record(value: &temper_engine_domain_forge::LandingGate) -> temper_client_protocol_wire::v1::GateProof {
+    let temper_engine_domain_forge::LandingGate { name: field_000000, blocking: field_000001, key: field_000002, proof: field_000003, faults: field_000004 } = value;
+    temper_client_protocol_wire::v1::GateProof {
+        name: field_000000.clone(),
+        blocking: *field_000001,
+        key: match field_000002 {
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
+            None => None,
+        },
+        proof: proof_to_record(field_000003),
+        faults: *field_000004
+    }
+}
+
+#[must_use]
 pub fn ci_to_record(value: &temper_engine_domain_forge_change::Status) -> temper_client_protocol_wire::v1::Ci {
     match value {
         temper_engine_domain_forge_change::Status::Unknown => temper_client_protocol_wire::v1::Ci::Unknown,
         temper_engine_domain_forge_change::Status::Pending => temper_client_protocol_wire::v1::Ci::Pending,
         temper_engine_domain_forge_change::Status::Passed => temper_client_protocol_wire::v1::Ci::Passed,
         temper_engine_domain_forge_change::Status::Failed => temper_client_protocol_wire::v1::Ci::Failed,
+    }
+}
+
+#[must_use]
+pub fn way_to_record(value: &temper_engine_domain_forge_change::Way) -> temper_client_protocol_wire::v1::Way {
+    match value {
+        temper_engine_domain_forge_change::Way::Queue => temper_client_protocol_wire::v1::Way::Queue,
+        temper_engine_domain_forge_change::Way::Turn => temper_client_protocol_wire::v1::Way::Turn,
     }
 }
 
@@ -1502,6 +2278,56 @@ pub fn prefix_judgement_to_record(value: &temper_engine_domain_forge::PrefixJudg
 }
 
 #[must_use]
+pub fn change_from_to_record(value: &temper_engine_domain_forge::ChangeFrom) -> temper_client_protocol_wire::v1::ChangeFrom {
+    let temper_engine_domain_forge::ChangeFrom { task: field_000000, title: field_000001 } = value;
+    temper_client_protocol_wire::v1::ChangeFrom {
+        task: *field_000000,
+        title: field_000001.clone()
+    }
+}
+
+#[must_use]
+pub fn train_landing_to_record(value: &temper_engine_domain_forge::TrainLanding) -> temper_client_protocol_wire::v1::TrainLanding {
+    let temper_engine_domain_forge::TrainLanding { task: field_000000, member: field_000001, round: field_000002, step: field_000003, title: field_000004, ready_since: field_000005, probe: field_000006, goal: field_000007, chat: field_000008, milestone: field_000009 } = value;
+    temper_client_protocol_wire::v1::TrainLanding {
+        task: *field_000000,
+        member: *field_000001,
+        round: *field_000002,
+        step: landing_step_to_record(field_000003),
+        title: field_000004.clone(),
+        ready_since: skein_codec::convert::wall_to_record(field_000005),
+        probe: match field_000006 {
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
+            None => None,
+        },
+        goal: match field_000007 {
+            Some(item) => {
+                let converted = change_from_to_record(item);
+                Some(converted)
+            }
+            None => None,
+        },
+        chat: match field_000008 {
+            Some(item) => {
+                let converted = change_from_to_record(item);
+                Some(converted)
+            }
+            None => None,
+        },
+        milestone: match field_000009 {
+            Some(item) => {
+                let converted = change_from_to_record(item);
+                Some(converted)
+            }
+            None => None,
+        }
+    }
+}
+
+#[must_use]
 pub fn landing_wait_for_to_record(value: &temper_engine_domain_forge::LandingWaitFor) -> temper_client_protocol_wire::v1::LandingWaitFor {
     match value {
         temper_engine_domain_forge::LandingWaitFor::Nothing => temper_client_protocol_wire::v1::LandingWaitFor::Nothing,
@@ -1561,6 +2387,616 @@ pub fn landing_wait_to_record(value: &temper_engine_domain_forge::LandingWait) -
     }
 }
 
+pub fn landing_line_to_record(value: &temper_engine_domain_forge::LandingLine) -> Result<temper_client_protocol_wire::v1::LandingLine, temper_client_protocol_wire::v1::Problem> {
+    let temper_engine_domain_forge::LandingLine { step: field_000000, last_event: field_000001, task: field_000002, phase: field_000003, changes: field_000004, repositories: field_000005, landed: field_000006, train: field_000007 } = value;
+    Ok(temper_client_protocol_wire::v1::LandingLine {
+        step: match field_000000 {
+            Some(item) => {
+                let converted = landing_step_to_record(item);
+                Some(converted)
+            }
+            None => None,
+        },
+        last_event: match field_000001 {
+            Some(item) => {
+                let converted = skein_codec::convert::wall_to_record(item);
+                Some(converted)
+            }
+            None => None,
+        },
+        task: *field_000002,
+        phase: crate::family::landing_phase_to_record(field_000003),
+        changes: {
+            let source = field_000004;
+            let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(temper_client_protocol_wire::v1::paths::LANDING_LINE_CHANGES.problem(skein_codec::Reason::Bound)) };
+            let mut translated = skein_lib::List::with_capacity(count);
+            for item in source.as_ref() {
+                let converted = *item;
+                assert!(translated.push(converted).is_ok(), "one output per source item");
+            }
+            translated
+        },
+        repositories: {
+            let source = field_000005;
+            let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(temper_client_protocol_wire::v1::paths::LANDING_LINE_REPOSITORIES.problem(skein_codec::Reason::Bound)) };
+            let mut translated = skein_lib::List::with_capacity(count);
+            for item in source.as_ref() {
+                let converted = item.clone();
+                assert!(translated.push(converted).is_ok(), "one output per source item");
+            }
+            translated
+        },
+        landed: {
+            let source = field_000006;
+            let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(temper_client_protocol_wire::v1::paths::LANDING_LINE_LANDED.problem(skein_codec::Reason::Bound)) };
+            let mut translated = skein_lib::List::with_capacity(count);
+            for item in source.as_ref() {
+                let converted = *item;
+                assert!(translated.push(converted).is_ok(), "one output per source item");
+            }
+            translated
+        },
+        train: match field_000007 {
+            Some(item) => {
+                let converted = crate::family::train_to_record(item);
+                Some(converted)
+            }
+            None => None,
+        }
+    })
+}
+
+pub fn landings_panel_to_record(value: &temper_engine_domain_forge::LandingsView) -> Result<temper_client_protocol_wire::v1::LandingsPanel, temper_client_protocol_wire::v1::Problem> {
+    let temper_engine_domain_forge::LandingsView { now: field_000000, turn_since: field_000001, project: field_000002, turn: field_000003, landings: field_000004 } = value;
+    Ok(temper_client_protocol_wire::v1::LandingsPanel {
+        now: skein_codec::convert::wall_to_record(field_000000),
+        turn_since: match field_000001 {
+            Some(item) => {
+                let converted = skein_codec::convert::wall_to_record(item);
+                Some(converted)
+            }
+            None => None,
+        },
+        project: *field_000002,
+        turn: match field_000003 {
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
+            None => None,
+        },
+        landings: {
+            let source = field_000004;
+            let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(temper_client_protocol_wire::v1::paths::LANDINGS_PANEL_LANDINGS.problem(skein_codec::Reason::Bound)) };
+            let mut translated = skein_lib::List::with_capacity(count);
+            for item in source.as_ref() {
+                let converted = landing_line_to_record(item)?;
+                assert!(translated.push(converted).is_ok(), "one output per source item");
+            }
+            translated
+        }
+    })
+}
+
+#[must_use]
+pub fn changes_queued_to_record(value: &temper_engine_domain_forge::ChangesQueued) -> temper_client_protocol_wire::v1::ChangesQueued {
+    let temper_engine_domain_forge::ChangesQueued { task: field_000000, title: field_000001, ready_since: field_000002, checks_since: field_000003, goal: field_000004, chat: field_000005, milestone: field_000006 } = value;
+    temper_client_protocol_wire::v1::ChangesQueued {
+        task: *field_000000,
+        title: field_000001.clone(),
+        ready_since: skein_codec::convert::wall_to_record(field_000002),
+        checks_since: match field_000003 {
+            Some(item) => {
+                let converted = skein_codec::convert::wall_to_record(item);
+                Some(converted)
+            }
+            None => None,
+        },
+        goal: match field_000004 {
+            Some(item) => {
+                let converted = change_from_to_record(item);
+                Some(converted)
+            }
+            None => None,
+        },
+        chat: match field_000005 {
+            Some(item) => {
+                let converted = change_from_to_record(item);
+                Some(converted)
+            }
+            None => None,
+        },
+        milestone: match field_000006 {
+            Some(item) => {
+                let converted = change_from_to_record(item);
+                Some(converted)
+            }
+            None => None,
+        }
+    }
+}
+
+pub fn changes_queue_to_record(value: &temper_engine_domain_forge::ChangesQueue) -> Result<temper_client_protocol_wire::v1::ChangesQueue, temper_client_protocol_wire::v1::Problem> {
+    let temper_engine_domain_forge::ChangesQueue { repository: field_000000, branch: field_000001, red: field_000002, changes: field_000003, way: field_000004, in_flight: field_000005 } = value;
+    Ok(temper_client_protocol_wire::v1::ChangesQueue {
+        repository: field_000000.clone(),
+        branch: field_000001.clone(),
+        red: *field_000002,
+        changes: {
+            let source = field_000003;
+            let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(temper_client_protocol_wire::v1::paths::CHANGES_QUEUE_CHANGES.problem(skein_codec::Reason::Bound)) };
+            let mut translated = skein_lib::List::with_capacity(count);
+            for item in source.as_ref() {
+                let converted = changes_queued_to_record(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
+            }
+            translated
+        },
+        way: way_to_record(field_000004),
+        in_flight: match field_000005 {
+            Some(item) => {
+                let converted = train_landing_to_record(item);
+                Some(converted)
+            }
+            None => None,
+        }
+    })
+}
+
+#[must_use]
+pub fn changes_signed_to_record(value: &temper_engine_domain_forge::ChangesSigned) -> temper_client_protocol_wire::v1::ChangesSigned {
+    let temper_engine_domain_forge::ChangesSigned { person: field_000000, head: field_000001, at: field_000002, name: field_000003 } = value;
+    temper_client_protocol_wire::v1::ChangesSigned {
+        party: *field_000000,
+        head: *field_000001,
+        at: skein_codec::convert::wall_to_record(field_000002),
+        name: match field_000003 {
+            Some(item) => {
+                let converted = item.clone();
+                Some(converted)
+            }
+            None => None,
+        }
+    }
+}
+
+pub fn changes_landed_to_record(value: &temper_engine_domain_forge::ChangesLanded) -> Result<temper_client_protocol_wire::v1::ChangesLanded, temper_client_protocol_wire::v1::Problem> {
+    let temper_engine_domain_forge::ChangesLanded { signed: field_000000, task: field_000001, title: field_000002, at: field_000003, commit: field_000004, default_branch: field_000005, goal: field_000006, chat: field_000007, milestone: field_000008 } = value;
+    Ok(temper_client_protocol_wire::v1::ChangesLanded {
+        signed: {
+            let source = field_000000;
+            let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(temper_client_protocol_wire::v1::paths::CHANGES_LANDED_SIGNED.problem(skein_codec::Reason::Bound)) };
+            let mut translated = skein_lib::List::with_capacity(count);
+            for item in source.as_ref() {
+                let converted = changes_signed_to_record(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
+            }
+            translated
+        },
+        task: *field_000001,
+        title: field_000002.clone(),
+        at: skein_codec::convert::wall_to_record(field_000003),
+        commit: *field_000004,
+        default_branch: *field_000005,
+        goal: match field_000006 {
+            Some(item) => {
+                let converted = change_from_to_record(item);
+                Some(converted)
+            }
+            None => None,
+        },
+        chat: match field_000007 {
+            Some(item) => {
+                let converted = change_from_to_record(item);
+                Some(converted)
+            }
+            None => None,
+        },
+        milestone: match field_000008 {
+            Some(item) => {
+                let converted = change_from_to_record(item);
+                Some(converted)
+            }
+            None => None,
+        }
+    })
+}
+
+pub fn changes_panel_to_record(value: &temper_engine_domain_forge::ChangesView) -> Result<temper_client_protocol_wire::v1::ChangesPanel, temper_client_protocol_wire::v1::Problem> {
+    let temper_engine_domain_forge::ChangesView { project: field_000000, landing: field_000001, queues: field_000002, more: field_000003, landed: field_000004, landed_more: field_000005, landed_default: field_000006, landed_default_more: field_000007, catching_up: field_000008 } = value;
+    Ok(temper_client_protocol_wire::v1::ChangesPanel {
+        project: *field_000000,
+        landing: field_000001.clone(),
+        queues: {
+            let source = field_000002;
+            let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(temper_client_protocol_wire::v1::paths::CHANGES_PANEL_QUEUES.problem(skein_codec::Reason::Bound)) };
+            let mut translated = skein_lib::List::with_capacity(count);
+            for item in source.as_ref() {
+                let converted = changes_queue_to_record(item)?;
+                assert!(translated.push(converted).is_ok(), "one output per source item");
+            }
+            translated
+        },
+        more: *field_000003,
+        landed: {
+            let source = field_000004;
+            let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(temper_client_protocol_wire::v1::paths::CHANGES_PANEL_LANDED.problem(skein_codec::Reason::Bound)) };
+            let mut translated = skein_lib::List::with_capacity(count);
+            for item in source.as_ref() {
+                let converted = changes_landed_to_record(item)?;
+                assert!(translated.push(converted).is_ok(), "one output per source item");
+            }
+            translated
+        },
+        landed_more: *field_000005,
+        landed_default: {
+            let source = field_000006;
+            let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(temper_client_protocol_wire::v1::paths::CHANGES_PANEL_LANDED_DEFAULT.problem(skein_codec::Reason::Bound)) };
+            let mut translated = skein_lib::List::with_capacity(count);
+            for item in source.as_ref() {
+                let converted = changes_landed_to_record(item)?;
+                assert!(translated.push(converted).is_ok(), "one output per source item");
+            }
+            translated
+        },
+        landed_default_more: *field_000007,
+        catching_up: match field_000008 {
+            Some(item) => {
+                let converted = catching_up_to_record(item);
+                Some(converted)
+            }
+            None => None,
+        }
+    })
+}
+
+#[must_use]
+pub fn project_status_to_record(value: &temper_engine_domain_forge::StatusView) -> temper_client_protocol_wire::v1::ProjectStatus {
+    let temper_engine_domain_forge::StatusView { project: field_000000, landed: field_000001, last_landed: field_000002, brief: field_000003, previous: field_000004, seen: field_000005, queued: field_000006, red: field_000007, branch: field_000008, unpaid: field_000009 } = value;
+    temper_client_protocol_wire::v1::ProjectStatus {
+        project: *field_000000,
+        landed: *field_000001,
+        last_landed: match field_000002 {
+            Some(item) => {
+                let converted = skein_codec::convert::wall_to_record(item);
+                Some(converted)
+            }
+            None => None,
+        },
+        brief: match field_000003 {
+            Some(item) => {
+                let converted = crate::family::status_brief_to_record(item);
+                Some(converted)
+            }
+            None => None,
+        },
+        previous: match field_000004 {
+            Some(item) => {
+                let converted = skein_codec::convert::wall_to_record(item);
+                Some(converted)
+            }
+            None => None,
+        },
+        seen: *field_000005,
+        queued: *field_000006,
+        red: *field_000007,
+        branch: field_000008.clone(),
+        unpaid: *field_000009
+    }
+}
+
+pub fn step_to_record(value: &temper_engine_domain_forge::PanelStep) -> Result<temper_client_protocol_wire::v1::Step, temper_client_protocol_wire::v1::Problem> {
+    Ok(match value {
+        temper_engine_domain_forge::PanelStep::Producing => temper_client_protocol_wire::v1::Step::Producing,
+        temper_engine_domain_forge::PanelStep::Opening => temper_client_protocol_wire::v1::Step::Opening,
+        temper_engine_domain_forge::PanelStep::Recreating => temper_client_protocol_wire::v1::Step::Recreating,
+        temper_engine_domain_forge::PanelStep::Reopening => temper_client_protocol_wire::v1::Step::Reopening,
+        temper_engine_domain_forge::PanelStep::Checking => temper_client_protocol_wire::v1::Step::Checking,
+        temper_engine_domain_forge::PanelStep::Gating => temper_client_protocol_wire::v1::Step::Gating,
+        temper_engine_domain_forge::PanelStep::Queued { place: field_000000, ahead: field_000001 } => temper_client_protocol_wire::v1::Step::Queued(temper_client_protocol_wire::v1::Queued {
+            place: *field_000000,
+            ahead: {
+                let source = field_000001;
+                let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(temper_client_protocol_wire::v1::paths::QUEUED_AHEAD.problem(skein_codec::Reason::Bound)) };
+                let mut translated = skein_lib::List::with_capacity(count);
+                for item in source.as_ref() {
+                    let converted = *item;
+                    assert!(translated.push(converted).is_ok(), "one output per source item");
+                }
+                translated
+            }
+        }),
+        temper_engine_domain_forge::PanelStep::First => temper_client_protocol_wire::v1::Step::First,
+        temper_engine_domain_forge::PanelStep::Updating => temper_client_protocol_wire::v1::Step::Updating,
+        temper_engine_domain_forge::PanelStep::Resolving => temper_client_protocol_wire::v1::Step::Resolving,
+        temper_engine_domain_forge::PanelStep::Repairing(held) => temper_client_protocol_wire::v1::Step::Repairing(temper_client_protocol_wire::v1::Repairing { reason: crate::family::reason_to_record(held) }),
+        temper_engine_domain_forge::PanelStep::Landing => temper_client_protocol_wire::v1::Step::Landing,
+        temper_engine_domain_forge::PanelStep::Landed { merge: field_000000 } => temper_client_protocol_wire::v1::Step::Landed(temper_client_protocol_wire::v1::Landed {
+            merge: *field_000000
+        }),
+        temper_engine_domain_forge::PanelStep::Ended => temper_client_protocol_wire::v1::Step::Ended,
+        temper_engine_domain_forge::PanelStep::Ready { landing: field_000000 } => temper_client_protocol_wire::v1::Step::Ready(temper_client_protocol_wire::v1::InLanding {
+            landing: match field_000000 {
+                Some(item) => {
+                    let converted = *item;
+                    Some(converted)
+                }
+                None => None,
+            }
+        }),
+        temper_engine_domain_forge::PanelStep::Preparing { landing: field_000000 } => temper_client_protocol_wire::v1::Step::Preparing(temper_client_protocol_wire::v1::InLanding {
+            landing: match field_000000 {
+                Some(item) => {
+                    let converted = *item;
+                    Some(converted)
+                }
+                None => None,
+            }
+        }),
+        temper_engine_domain_forge::PanelStep::Verifying { merge: field_000000, tiers: field_000001 } => temper_client_protocol_wire::v1::Step::Verifying(temper_client_protocol_wire::v1::Verifying {
+            merge: *field_000000,
+            tiers: {
+                let source = field_000001;
+                let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(temper_client_protocol_wire::v1::paths::VERIFYING_TIERS.problem(skein_codec::Reason::Bound)) };
+                let mut translated = skein_lib::List::with_capacity(count);
+                for item in source.as_ref() {
+                    let converted = item.clone();
+                    assert!(translated.push(converted).is_ok(), "one output per source item");
+                }
+                translated
+            }
+        }),
+        temper_engine_domain_forge::PanelStep::Red { merge: field_000000, tiers: field_000001 } => temper_client_protocol_wire::v1::Step::Red(temper_client_protocol_wire::v1::Red {
+            merge: *field_000000,
+            tiers: {
+                let source = field_000001;
+                let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(temper_client_protocol_wire::v1::paths::RED_TIERS.problem(skein_codec::Reason::Bound)) };
+                let mut translated = skein_lib::List::with_capacity(count);
+                for item in source.as_ref() {
+                    let converted = item.clone();
+                    assert!(translated.push(converted).is_ok(), "one output per source item");
+                }
+                translated
+            }
+        }),
+        temper_engine_domain_forge::PanelStep::Cleared { merge: field_000000, tiers: field_000001, uncleared: field_000002 } => temper_client_protocol_wire::v1::Step::Cleared(temper_client_protocol_wire::v1::Cleared {
+            merge: *field_000000,
+            tiers: {
+                let source = field_000001;
+                let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(temper_client_protocol_wire::v1::paths::CLEARED_TIERS.problem(skein_codec::Reason::Bound)) };
+                let mut translated = skein_lib::List::with_capacity(count);
+                for item in source.as_ref() {
+                    let converted = item.clone();
+                    assert!(translated.push(converted).is_ok(), "one output per source item");
+                }
+                translated
+            },
+            uncleared: *field_000002
+        }),
+        temper_engine_domain_forge::PanelStep::Taking => temper_client_protocol_wire::v1::Step::Taking,
+    })
+}
+
+#[must_use]
+pub fn change_wait_to_record(value: &temper_engine_domain_forge::PanelWait) -> temper_client_protocol_wire::v1::ChangeWait {
+    match value {
+        temper_engine_domain_forge::PanelWait::OutboxRoom => temper_client_protocol_wire::v1::ChangeWait::OutboxRoom,
+    }
+}
+
+#[must_use]
+pub fn verdict_to_record(value: &temper_engine_domain_forge_change::Status) -> temper_client_protocol_wire::v1::Verdict {
+    match value {
+        temper_engine_domain_forge_change::Status::Unknown => temper_client_protocol_wire::v1::Verdict::None,
+        temper_engine_domain_forge_change::Status::Pending => temper_client_protocol_wire::v1::Verdict::Pending,
+        temper_engine_domain_forge_change::Status::Passed => temper_client_protocol_wire::v1::Verdict::Approved,
+        temper_engine_domain_forge_change::Status::Failed => temper_client_protocol_wire::v1::Verdict::Changes,
+    }
+}
+
+#[must_use]
+pub fn gate_to_record(value: &temper_engine_domain_forge::PanelGate) -> temper_client_protocol_wire::v1::Gate {
+    let temper_engine_domain_forge::PanelGate { number: field_000000, kind: field_000001, blocking: field_000002, verdict: field_000003 } = value;
+    temper_client_protocol_wire::v1::Gate {
+        number: *field_000000,
+        kind: crate::family::gate_kind_to_record(field_000001),
+        blocks: *field_000002,
+        verdict: verdict_to_record(field_000003)
+    }
+}
+
+#[must_use]
+pub fn used_to_record(value: &temper_engine_domain_forge::PanelUsed) -> temper_client_protocol_wire::v1::Used {
+    let temper_engine_domain_forge::PanelUsed { used: field_000000, limit: field_000001 } = value;
+    temper_client_protocol_wire::v1::Used {
+        used: *field_000000,
+        limit: *field_000001
+    }
+}
+
+#[must_use]
+pub fn route_to_record(value: &temper_engine_domain_forge_change::Route) -> temper_client_protocol_wire::v1::Route {
+    match value {
+        temper_engine_domain_forge_change::Route::None => temper_client_protocol_wire::v1::Route::None,
+        temper_engine_domain_forge_change::Route::Up => temper_client_protocol_wire::v1::Route::Up,
+    }
+}
+
+#[must_use]
+pub fn stands_to_record(value: &temper_engine_domain_forge::PanelStands) -> temper_client_protocol_wire::v1::Stands {
+    match value {
+        temper_engine_domain_forge::PanelStands::Taken => temper_client_protocol_wire::v1::Stands::Taken,
+        temper_engine_domain_forge::PanelStands::Asked => temper_client_protocol_wire::v1::Stands::Asked,
+        temper_engine_domain_forge::PanelStands::Held => temper_client_protocol_wire::v1::Stands::Held,
+    }
+}
+
+#[must_use]
+pub fn question_to_record(value: &temper_engine_domain_forge::PanelQuestion) -> temper_client_protocol_wire::v1::Question {
+    let temper_engine_domain_forge::PanelQuestion { asker: field_000000, number: field_000001, line: field_000002, stands: field_000003 } = value;
+    temper_client_protocol_wire::v1::Question {
+        asker: *field_000000,
+        number: *field_000001,
+        line: field_000002.clone(),
+        stands: stands_to_record(field_000003)
+    }
+}
+
+pub fn questions_to_record(value: &temper_engine_domain_forge::PanelQuestions) -> Result<temper_client_protocol_wire::v1::Questions, temper_client_protocol_wire::v1::Problem> {
+    let temper_engine_domain_forge::PanelQuestions { route: field_000000, taken: field_000001, open: field_000002 } = value;
+    Ok(temper_client_protocol_wire::v1::Questions {
+        route: route_to_record(field_000000),
+        taken: used_to_record(field_000001),
+        open: {
+            let source = field_000002;
+            let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(temper_client_protocol_wire::v1::paths::QUESTIONS_OPEN.problem(skein_codec::Reason::Bound)) };
+            let mut translated = skein_lib::List::with_capacity(count);
+            for item in source.as_ref() {
+                let converted = question_to_record(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
+            }
+            translated
+        }
+    })
+}
+
+#[must_use]
+pub fn rule_freshness_to_record(value: &temper_engine_domain_forge::JudgeFreshness) -> temper_client_protocol_wire::v1::RuleFreshness {
+    match value {
+        temper_engine_domain_forge::JudgeFreshness::Exact => temper_client_protocol_wire::v1::RuleFreshness::Exact,
+        temper_engine_domain_forge::JudgeFreshness::Clean => temper_client_protocol_wire::v1::RuleFreshness::Clean,
+    }
+}
+
+#[must_use]
+pub fn review_read_to_record(value: &temper_engine_domain_forge::ReviewRead) -> temper_client_protocol_wire::v1::ReviewRead {
+    match value {
+        temper_engine_domain_forge::ReviewRead::Unread => temper_client_protocol_wire::v1::ReviewRead::Unread,
+        temper_engine_domain_forge::ReviewRead::Incomplete => temper_client_protocol_wire::v1::ReviewRead::Incomplete,
+        temper_engine_domain_forge::ReviewRead::Complete => temper_client_protocol_wire::v1::ReviewRead::Complete,
+    }
+}
+
+pub fn approval_to_record(value: &temper_engine_domain_forge::PanelApproval) -> Result<temper_client_protocol_wire::v1::Approval, temper_client_protocol_wire::v1::Problem> {
+    let temper_engine_domain_forge::PanelApproval { scope: field_000000, rule: field_000001, role: field_000002, freshness: field_000003, required: field_000004, read: field_000005, counted: field_000006, remaining: field_000007, refused: field_000008 } = value;
+    Ok(temper_client_protocol_wire::v1::Approval {
+        scope: *field_000000,
+        number: *field_000001,
+        role: *field_000002,
+        freshness: rule_freshness_to_record(field_000003),
+        required: *field_000004,
+        read: review_read_to_record(field_000005),
+        counted: {
+            let source = field_000006;
+            let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(temper_client_protocol_wire::v1::paths::APPROVAL_COUNTED.problem(skein_codec::Reason::Bound)) };
+            let mut translated = skein_lib::List::with_capacity(count);
+            for item in source.as_ref() {
+                let converted = crate::family::counted_review_to_record(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
+            }
+            translated
+        },
+        remaining: match field_000007 {
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
+            None => None,
+        },
+        refused: *field_000008
+    })
+}
+
+#[must_use]
+pub fn panel_source_to_record(value: &temper_engine_domain_forge::PanelSource) -> temper_client_protocol_wire::v1::PanelSource {
+    let temper_engine_domain_forge::PanelSource { branch: field_000000, at: field_000001, kept: field_000002 } = value;
+    temper_client_protocol_wire::v1::PanelSource {
+        branch: field_000000.clone(),
+        at: match field_000001 {
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
+            None => None,
+        },
+        kept: match field_000002 {
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
+            None => None,
+        }
+    }
+}
+
+#[must_use]
+pub fn kinds_to_record(value: &temper_engine_domain_forge::Kinds) -> temper_client_protocol_wire::v1::Kinds {
+    let temper_engine_domain_forge::Kinds { read: field_000000, push: field_000001, open: field_000002, land: field_000003, review: field_000004, status: field_000005, comment: field_000006, issue: field_000007, branch: field_000008 } = value;
+    temper_client_protocol_wire::v1::Kinds {
+        read: *field_000000,
+        push: *field_000001,
+        open: *field_000002,
+        land: *field_000003,
+        review: *field_000004,
+        status: *field_000005,
+        comment: *field_000006,
+        issue: *field_000007,
+        branch: *field_000008
+    }
+}
+
+pub fn protection_to_record(value: &temper_engine_domain_forge::Protection, context: &crate::family::Context<'_>) -> Result<temper_client_protocol_wire::v1::Protection, temper_client_protocol_wire::v1::Problem> {
+    Ok(match value {
+        temper_engine_domain_forge::Protection::Unknown => temper_client_protocol_wire::v1::Protection::Unknown,
+        temper_engine_domain_forge::Protection::Absent => temper_client_protocol_wire::v1::Protection::Absent,
+        temper_engine_domain_forge::Protection::Rule(held) => temper_client_protocol_wire::v1::Protection::Rule(crate::family::rule_to_record(held, context)?),
+    })
+}
+
+#[must_use]
+pub fn forge_refusal_to_record(value: &temper_engine_domain_forge::ForgeRefusal) -> temper_client_protocol_wire::v1::ForgeRefusal {
+    match value {
+        temper_engine_domain_forge::ForgeRefusal::Role => temper_client_protocol_wire::v1::ForgeRefusal::Role,
+        temper_engine_domain_forge::ForgeRefusal::NoSuchForge => temper_client_protocol_wire::v1::ForgeRefusal::NoSuchForge,
+        temper_engine_domain_forge::ForgeRefusal::NotTaken => temper_client_protocol_wire::v1::ForgeRefusal::NotTaken,
+        temper_engine_domain_forge::ForgeRefusal::Connected => temper_client_protocol_wire::v1::ForgeRefusal::Connected,
+        temper_engine_domain_forge::ForgeRefusal::NotConnected => temper_client_protocol_wire::v1::ForgeRefusal::NotConnected,
+        temper_engine_domain_forge::ForgeRefusal::Busy => temper_client_protocol_wire::v1::ForgeRefusal::Busy,
+        temper_engine_domain_forge::ForgeRefusal::NoKey => temper_client_protocol_wire::v1::ForgeRefusal::NoKey,
+        temper_engine_domain_forge::ForgeRefusal::FirstIsBot => temper_client_protocol_wire::v1::ForgeRefusal::FirstIsBot,
+    }
+}
+
+pub fn page_to_record(value: &temper_engine_domain_forge::Page) -> Result<temper_client_protocol_wire::v1::Page, temper_client_protocol_wire::v1::Problem> {
+    let temper_engine_domain_forge::Page { rows: field_000000, more: field_000001 } = value;
+    Ok(temper_client_protocol_wire::v1::Page {
+        rows: {
+            let source = field_000000;
+            let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(temper_client_protocol_wire::v1::paths::PAGE_ROWS.problem(skein_codec::Reason::Bound)) };
+            let mut translated = skein_lib::List::with_capacity(count);
+            for item in source.as_ref() {
+                let converted = crate::family::reached_to_record(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
+            }
+            translated
+        },
+        more: *field_000001
+    })
+}
+
+#[must_use]
+pub fn make_refusal_to_record(value: &temper_engine_domain_forge::MakeRefusal) -> temper_client_protocol_wire::v1::MakeRefusal {
+    match value {
+        temper_engine_domain_forge::MakeRefusal::NoSuchForge => temper_client_protocol_wire::v1::MakeRefusal::NoSuchForge,
+        temper_engine_domain_forge::MakeRefusal::NotOffered => temper_client_protocol_wire::v1::MakeRefusal::NotOffered,
+        temper_engine_domain_forge::MakeRefusal::NotOwner => temper_client_protocol_wire::v1::MakeRefusal::NotOwner,
+        temper_engine_domain_forge::MakeRefusal::Invalid => temper_client_protocol_wire::v1::MakeRefusal::Invalid,
+        temper_engine_domain_forge::MakeRefusal::HomeHeld => temper_client_protocol_wire::v1::MakeRefusal::HomeHeld,
+        temper_engine_domain_forge::MakeRefusal::Full => temper_client_protocol_wire::v1::MakeRefusal::Full,
+        temper_engine_domain_forge::MakeRefusal::NotFailed => temper_client_protocol_wire::v1::MakeRefusal::NotFailed,
+    }
+}
+
 #[must_use]
 pub fn checkpointed_to_record(value: &temper_engine_domain::Checkpointed) -> temper_client_protocol_wire::v1::Checkpointed {
     let temper_engine_domain::Checkpointed { name: field_000000, store: field_000001, secrets: field_000002, linked: field_000003, copied: field_000004, bytes: field_000005, paused: field_000006, took: field_000007, held: field_000008, removed: field_000009, skipped: field_000010 } = value;
@@ -1597,6 +3033,259 @@ pub fn checkpoint_why_to_record(value: &temper_engine_domain::CheckpointWhy) -> 
             error: skein_codec::convert::text_to_record(field_000001)
         }),
     }
+}
+
+pub fn drafts_panel_to_record(value: &temper_engine_domain_forge::DraftsView) -> Result<temper_client_protocol_wire::v1::DraftsPanel, temper_client_protocol_wire::v1::Problem> {
+    let temper_engine_domain_forge::DraftsView { project: field_000000, rows: field_000001 } = value;
+    Ok(temper_client_protocol_wire::v1::DraftsPanel {
+        project: *field_000000,
+        drafts: {
+            let source = field_000001;
+            let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(temper_client_protocol_wire::v1::paths::DRAFTS_PANEL_DRAFTS.problem(skein_codec::Reason::Bound)) };
+            let mut translated = skein_lib::List::with_capacity(count);
+            for item in source.as_ref() {
+                let converted = crate::family::landed_draft_to_record(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
+            }
+            translated
+        }
+    })
+}
+
+#[must_use]
+pub fn dependency_view_to_record(value: &temper_engine_domain_forge::DependencyView) -> temper_client_protocol_wire::v1::DependencyView {
+    let temper_engine_domain_forge::DependencyView { number: field_000000, project: field_000001 } = value;
+    temper_client_protocol_wire::v1::DependencyView {
+        number: *field_000000,
+        project: *field_000001
+    }
+}
+
+#[must_use]
+pub fn follow_repository_to_record(value: &skein_forge::api::Repository) -> temper_client_protocol_wire::v1::FollowRepository {
+    let skein_forge::api::Repository { forge: field_000000, repository: field_000001 } = value;
+    temper_client_protocol_wire::v1::FollowRepository {
+        forge: *field_000000,
+        repository: *field_000001
+    }
+}
+
+pub fn follow_source_to_record(value: &temper_engine_domain_forge::settings::FollowSource) -> Result<temper_client_protocol_wire::v1::FollowSource, temper_client_protocol_wire::v1::Problem> {
+    let temper_engine_domain_forge::settings::FollowSource { repository: field_000000, branch: field_000001, paths: field_000002 } = value;
+    Ok(temper_client_protocol_wire::v1::FollowSource {
+        repository: follow_repository_to_record(field_000000),
+        branch: field_000001.clone(),
+        paths: {
+            let source = field_000002;
+            let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(temper_client_protocol_wire::v1::paths::FOLLOW_SOURCE_PATHS.problem(skein_codec::Reason::Bound)) };
+            let mut translated = skein_lib::List::with_capacity(count);
+            for item in source.as_ref() {
+                let converted = item.clone();
+                assert!(translated.push(converted).is_ok(), "one output per source item");
+            }
+            translated
+        }
+    })
+}
+
+#[must_use]
+pub fn follow_target_to_record(value: &temper_engine_domain_forge::settings::FollowTarget) -> temper_client_protocol_wire::v1::FollowTarget {
+    let temper_engine_domain_forge::settings::FollowTarget { repository: field_000000, branch: field_000001 } = value;
+    temper_client_protocol_wire::v1::FollowTarget {
+        repository: follow_repository_to_record(field_000000),
+        branch: field_000001.clone()
+    }
+}
+
+#[must_use]
+pub fn follow_skip_to_record(value: &temper_engine_domain_forge::FollowSkip) -> temper_client_protocol_wire::v1::FollowSkip {
+    let temper_engine_domain_forge::FollowSkip { after: field_000000, reason: field_000001 } = value;
+    temper_client_protocol_wire::v1::FollowSkip {
+        after: *field_000000,
+        reason: field_000001.clone()
+    }
+}
+
+#[must_use]
+pub fn follow_owner_to_record(value: &temper_engine_domain_forge::settings::FollowOwner) -> temper_client_protocol_wire::v1::FollowOwner {
+    match value {
+        temper_engine_domain_forge::settings::FollowOwner::Person(held) => temper_client_protocol_wire::v1::FollowOwner::Person(temper_client_protocol_wire::v1::FollowPerson { person: *held }),
+        temper_engine_domain_forge::settings::FollowOwner::Task(held) => temper_client_protocol_wire::v1::FollowOwner::Task(temper_client_protocol_wire::v1::FollowOwnerTask { task: *held }),
+    }
+}
+
+#[must_use]
+pub fn follow_start_to_record(value: &temper_engine_domain_forge::settings::FollowStart) -> temper_client_protocol_wire::v1::FollowStart {
+    match value {
+        temper_engine_domain_forge::settings::FollowStart::Owner => temper_client_protocol_wire::v1::FollowStart::Owner,
+        temper_engine_domain_forge::settings::FollowStart::Code => temper_client_protocol_wire::v1::FollowStart::Code,
+    }
+}
+
+#[must_use]
+pub fn follow_format_to_record(value: &temper_engine_domain_forge_tiers::Format) -> temper_client_protocol_wire::v1::FollowFormat {
+    match value {
+        temper_engine_domain_forge_tiers::Format::Junit => temper_client_protocol_wire::v1::FollowFormat::Junit,
+        temper_engine_domain_forge_tiers::Format::Lines => temper_client_protocol_wire::v1::FollowFormat::Lines,
+    }
+}
+
+#[must_use]
+pub fn follow_check_to_record(value: &temper_engine_domain_forge::settings::FollowCheck) -> temper_client_protocol_wire::v1::FollowCheck {
+    let temper_engine_domain_forge::settings::FollowCheck { workflow: field_000000, artifact: field_000001, format: field_000002 } = value;
+    temper_client_protocol_wire::v1::FollowCheck {
+        workflow: field_000000.clone(),
+        artifact: field_000001.clone(),
+        format: follow_format_to_record(field_000002)
+    }
+}
+
+pub fn follow_to_record(value: &temper_engine_domain_forge::settings::Follow) -> Result<temper_client_protocol_wire::v1::Follow, temper_client_protocol_wire::v1::Problem> {
+    let temper_engine_domain_forge::settings::Follow { source: field_000000, target: field_000001, owner: field_000002, start: field_000003, producer: field_000004, check: field_000005 } = value;
+    Ok(temper_client_protocol_wire::v1::Follow {
+        source: follow_source_to_record(field_000000)?,
+        target: follow_target_to_record(field_000001),
+        owner: follow_owner_to_record(field_000002),
+        start: follow_start_to_record(field_000003),
+        producer: match field_000004 {
+            Some(item) => {
+                let converted = item.clone();
+                Some(converted)
+            }
+            None => None,
+        },
+        verification: follow_check_to_record(field_000005)
+    })
+}
+
+#[must_use]
+pub fn follow_state_to_record(value: &temper_engine_domain_forge::FollowState) -> temper_client_protocol_wire::v1::FollowState {
+    match value {
+        temper_engine_domain_forge::FollowState::NotMade => temper_client_protocol_wire::v1::FollowState::NotMade,
+        temper_engine_domain_forge::FollowState::WaitsWord => temper_client_protocol_wire::v1::FollowState::WaitsWord,
+        temper_engine_domain_forge::FollowState::HeldByOwner(held) => temper_client_protocol_wire::v1::FollowState::HeldByOwner(temper_client_protocol_wire::v1::FollowWords { words: held.clone() }),
+        temper_engine_domain_forge::FollowState::WaitsFor(held) => temper_client_protocol_wire::v1::FollowState::WaitsFor(temper_client_protocol_wire::v1::FollowWait { change: *held }),
+        temper_engine_domain_forge::FollowState::Producing => temper_client_protocol_wire::v1::FollowState::Producing,
+        temper_engine_domain_forge::FollowState::Held(held) => temper_client_protocol_wire::v1::FollowState::Held(temper_client_protocol_wire::v1::FollowWords { words: held.clone() }),
+        temper_engine_domain_forge::FollowState::Ended(held) => temper_client_protocol_wire::v1::FollowState::Ended(temper_client_protocol_wire::v1::FollowWords { words: held.clone() }),
+    }
+}
+
+#[must_use]
+pub fn follow_entry_to_record(value: &temper_engine_domain_forge::FollowLagEntry) -> temper_client_protocol_wire::v1::FollowEntry {
+    let temper_engine_domain_forge::FollowLagEntry { after: field_000000, change: field_000001, state: field_000002 } = value;
+    temper_client_protocol_wire::v1::FollowEntry {
+        after: *field_000000,
+        change: match field_000001 {
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
+            None => None,
+        },
+        state: follow_state_to_record(field_000002)
+    }
+}
+
+#[must_use]
+pub fn follow_verdict_to_record(value: &temper_engine_domain_forge::FollowVerdict) -> temper_client_protocol_wire::v1::FollowVerdict {
+    match value {
+        temper_engine_domain_forge::FollowVerdict::Passed => temper_client_protocol_wire::v1::FollowVerdict::Passed,
+        temper_engine_domain_forge::FollowVerdict::Failing(held) => temper_client_protocol_wire::v1::FollowVerdict::Failing(temper_client_protocol_wire::v1::FollowFailing { count: *held }),
+        temper_engine_domain_forge::FollowVerdict::Many => temper_client_protocol_wire::v1::FollowVerdict::Many,
+    }
+}
+
+#[must_use]
+pub fn follow_parity_to_record(value: &temper_engine_domain_forge::FollowParity) -> temper_client_protocol_wire::v1::FollowParity {
+    let temper_engine_domain_forge::FollowParity { source: field_000000, head: field_000001, verdict: field_000002, run: field_000003 } = value;
+    temper_client_protocol_wire::v1::FollowParity {
+        source: *field_000000,
+        head: *field_000001,
+        verdict: follow_verdict_to_record(field_000002),
+        run: field_000003.clone()
+    }
+}
+
+pub fn follow_view_to_record(value: &temper_engine_domain_forge::FollowView) -> Result<temper_client_protocol_wire::v1::FollowView, temper_client_protocol_wire::v1::Problem> {
+    let temper_engine_domain_forge::FollowView { number: field_000000, setting: field_000001, source: field_000002, source_branch: field_000003, target: field_000004, target_branch: field_000005, task: field_000006, stopped: field_000007, lag: field_000008, entries: field_000009, skips: field_000010, parity: field_000011 } = value;
+    Ok(temper_client_protocol_wire::v1::FollowView {
+        number: *field_000000,
+        setting: follow_to_record(field_000001)?,
+        source: field_000002.clone(),
+        source_branch: field_000003.clone(),
+        target: field_000004.clone(),
+        target_branch: field_000005.clone(),
+        task: match field_000006 {
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
+            None => None,
+        },
+        stopped: match field_000007 {
+            Some(item) => {
+                let converted = item.clone();
+                Some(converted)
+            }
+            None => None,
+        },
+        lag: *field_000008,
+        entries: {
+            let source = field_000009;
+            let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(temper_client_protocol_wire::v1::paths::FOLLOW_VIEW_ENTRIES.problem(skein_codec::Reason::Bound)) };
+            let mut translated = skein_lib::List::with_capacity(count);
+            for item in source.as_ref() {
+                let converted = follow_entry_to_record(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
+            }
+            translated
+        },
+        skips: {
+            let source = field_000010;
+            let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(temper_client_protocol_wire::v1::paths::FOLLOW_VIEW_SKIPS.problem(skein_codec::Reason::Bound)) };
+            let mut translated = skein_lib::List::with_capacity(count);
+            for item in source.as_ref() {
+                let converted = follow_skip_to_record(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
+            }
+            translated
+        },
+        parity: match field_000011 {
+            Some(item) => {
+                let converted = follow_parity_to_record(item);
+                Some(converted)
+            }
+            None => None,
+        }
+    })
+}
+
+pub fn follows_panel_to_record(value: &temper_engine_domain_forge::FollowsView) -> Result<temper_client_protocol_wire::v1::FollowsPanel, temper_client_protocol_wire::v1::Problem> {
+    let temper_engine_domain_forge::FollowsView { project: field_000000, follows: field_000001, dependencies: field_000002 } = value;
+    Ok(temper_client_protocol_wire::v1::FollowsPanel {
+        project: *field_000000,
+        follows: {
+            let source = field_000001;
+            let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(temper_client_protocol_wire::v1::paths::FOLLOWS_PANEL_FOLLOWS.problem(skein_codec::Reason::Bound)) };
+            let mut translated = skein_lib::List::with_capacity(count);
+            for item in source.as_ref() {
+                let converted = follow_view_to_record(item)?;
+                assert!(translated.push(converted).is_ok(), "one output per source item");
+            }
+            translated
+        },
+        dependencies: {
+            let source = field_000002;
+            let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(temper_client_protocol_wire::v1::paths::FOLLOWS_PANEL_DEPENDENCIES.problem(skein_codec::Reason::Bound)) };
+            let mut translated = skein_lib::List::with_capacity(count);
+            for item in source.as_ref() {
+                let converted = dependency_view_to_record(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
+            }
+            translated
+        }
+    })
 }
 
 #[must_use]
