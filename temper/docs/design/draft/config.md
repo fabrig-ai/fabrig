@@ -97,7 +97,7 @@ listen = "127.0.0.1:7100"   # where the client connects
 - **`listen`** is written because `init` chose it, a free port on loopback. The webhooks' listener is the next port on the same host unless the file says otherwise.
 - **The worker is in the box,** with 4 places, its root `workspaces` in the data directory, its `git` and `claude` found on `PATH` at each start, and its agent temper's own binary. A box that wants more places asks temper, as for any worker (6.7).
 - **The owned Forgejo and the playground's fake forge** take their places when they're set up, each on a free port that its record then keeps (6.4).
-- **The first owner** is the box's user, by the login `init` reads, as today (`../protocol/setup/init.md`, section 2), so the file names none.
+- **The first owner** is the box's user, by the login `init` reads, as today (`../protocol/setup/init.md`, section 5), so the file names none.
 - **The welcome** shows on a deployment made by `init --box`, as today. It's a setting from the first start on (6.5).
 
 ### 4.3 An engine's and a worker's

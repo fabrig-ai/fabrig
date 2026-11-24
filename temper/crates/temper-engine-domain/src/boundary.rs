@@ -683,7 +683,7 @@ pub enum Request {
         kind: forge::BoxKind,
         login: Box<[u8]>,
     },
-    /// A making's copy mark has crossed the root (temper/docs/design/domain/forge/adoption.md, 5).
+    /// A making's copy mark has crossed the root (temper/docs/design/domain/forge/adoption.md, 9).
     MakingCopied {
         key: forge::MakingKey,
     },

@@ -411,7 +411,7 @@ its documents is held here and not first at a walk: its
 `application.limits` carry `forge.judge_projects` 8, jig's
 `authority.projects` in `standard`, and `forge.client.op_bytes` the
 engine's `tasks.result_bytes`, 4,096, the bound the root holds it to,
-as init's document does (`../../protocol/setup/init.md`, 1); its
+as init's document does (`../../protocol/setup/init.md`, 4); its
 forge document declares the gate and the manual merges; its patch file
 sets `turn`, `batch` 2 and the gate; its `scripts.json` reads in the
 fake model's `--scripts` form and equals its real-loop fixture's. In the real loop's world, those scripts carry two goals' changes to ready together behind the person's latch, released by one answer, and a member holding `.fake-forge/gate` reading `fail` turns the dispatched top red (`../../draft/archive/landed-qa.md`, 11); two goals' changes landing in one landing of two by `turn` at `batch` 2, the gate green at the top, are the engine's domain world's (`../../domain/landing.md`, 16), and the setup's green landing on these scripts is its walk's (`../real-loop.md`, *The turn-landing setup's stories*). `turn-landing-clients` reads and

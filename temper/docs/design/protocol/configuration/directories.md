@@ -13,7 +13,7 @@ variable, else its default.
 - **The document is `temper.json` in the configuration directory,**
   always: no command takes a document's path. A command that finds none
   there is refused, naming the path, and `temper-box init`, which writes one
-  (../setup/init.md, 2); `temper box` alone, on an empty configuration
+  (../setup/init.md, 5); `temper box` alone, on an empty configuration
   directory, runs `temper-box init --box` first (../setup/box.md, 1).
 - **Resolved once, at start,** before the document is read: each
   directory, from its flag, variable or default, is made absolute
@@ -184,7 +184,7 @@ in the private effective-config file `fake-claude.path`, outside the
 deployment's fixed worker members. Serve and program-login read this bounded
 file, check it against their binary's sibling, and use it instead of discovering
 Claude on PATH. Source import does not carry an adapter or login state.
-Init writes Anthropic's provider, number 2 (../setup/init.md, 3), so the rewrite
+Init writes Anthropic's provider, number 2 (../setup/init.md, 6), so the rewrite
 finds it written and swaps in its own: the provider's one model, the model
 and the endpoint, each found by Anthropic's name and replaced where it stands,
 not doubled, so that one model, `fake-claude`, the fake model serves through

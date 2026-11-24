@@ -47,7 +47,7 @@ sources in its holder's order. temper configures the LLM providers
     prints the address and opens no browser (`../client/pages/README.md` and `../client/line.md`, 5
     ). temper detects no browser on another machine
     (`../client/README.md`, section 5).
-    ChatGPT's registration fixes `127.0.0.1:1455` (setup/init.md, 1): a
+    ChatGPT's registration fixes `127.0.0.1:1455` (setup/init.md, 4): a
     person whose browser is on another machine finishes the sign-in by
     pasting the address that browser was sent to, where nothing
     answers, into the page it started from, which hands it to the

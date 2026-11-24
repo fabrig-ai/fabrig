@@ -387,11 +387,11 @@ skein-io socket
   - `Deleted`: the `Accepted` row is rewritten without it and kept, then
     `Request::Installations`. The git identity's value loses that
     account's token (5). Every adoption on the account is marked
-    (`../../domain/forge/adoption.md`, 3).
+    (`../../domain/forge/adoption.md`, 7).
   - `Repositories` and `Renamed`: to the root. No names come with them:
     the connector lists that installation again, through the setup's
     host's `Reachable` plan (6), and marks each adoption whose
-    repository left the installation (`../../domain/forge/adoption.md`, 3). Each
+    repository left the installation (`../../domain/forge/adoption.md`, 7). Each
     `Connected` lists again every accepted installation that holds an
     adoption, so a change made while temper was away is found. The marks
     are held in memory, never stored.
@@ -478,7 +478,7 @@ entrance limits and settings before it builds it, with room for
 |---|---|---|
 | `Reconcile { forge, adopted }` | each start of a managed or owned Forgejo; a managed connect; the box's `started`, after its `TakeOver` (2) | converges the forge on what the deployment needs (../setup/reconcile.md), then the forge connects |
 | `TakeOver { forge, admin_token }` | an owned or fake forge's start, or the box's `started`, whenever the handover file is present, even with a kept `AdminToken` (../setup/owned.md, 5) | keeps the handover's admin token; only after its `Done` and the record kept is the file removed, before reconcile |
-| `Adopt { forge, repository }` | a managed or owned forge's adoption, before its reads | gives the bot access to the repository (`../../domain/forge/adoption.md`, 2) |
+| `Adopt { forge, repository }` | a managed or owned forge's adoption, before its reads | gives the bot access to the repository (`../../domain/forge/adoption.md`, 6) |
 | `Create { forge, org, repository, files }` | an owned or managed forge's first repository, at its set up (../setup/owned-repositories.md, 1) | the repository made in its organization, the bot given access, the owner's files put on its main (skein's `forge/setup/forgejo.md`, 1.9) |
 | `Check { forge }` | a connected Forgejo's `Connect` with its pasted tokens, and each `Replace` of them | both tokens answer as one user, not a site admin, and as the kept `User` when there is one, else it writes `User`; it ends `Done(Identity { id, login })`, the login kept as the record's bot's (2) |
 | `Manifest { forge, target }` | GitHub's Connect, always for `Personal`: the App is the person's, public, and installs on any account GitHub offers them (../setup/github.md, 2) | a fresh state, the form's target and the manifest; it ends `Done(Manifest { state, target, manifest })`, from which temper renders the manifest's page (../../client/forge/served.md, 1) |
@@ -487,7 +487,7 @@ entrance limits and settings before it builds it, with room for
 | `Accept { forge, installation, state? }` | the setup URL's visit, with its state; the owner's accept of a stray, with none (`../setup/github.md`, 4) | the installation checked, and added to `Accepted` |
 | `Paste { forge, app }` | a pasted App's Connect; Replace on GitHub, with the kept id | the pasted key (skein's `Pasted`, read once, never written) decoded to DER, `GET /app` matching the id, the bot user found, the App's hook set to `https://<slug>.invalid/`, the permissions and events checked as reconcile checks them; it writes `AppId`, `AppSlug`, `AppKey` and `User` |
 | `Reconcile { forge }` | after each GitHub `Connected` | the App's permissions, events, installations and key checked; it repairs only its hook's address (`README.md`, 4.1) |
-| `Reachable { forge, installation?, page }` | the picker, on every kind | the repositories the picker lists, paged by number from 1, at most `reachable` rows (temper's `picker.page`), `more` set when the page is full: on GitHub one accepted installation's, `installation` its id; on a connected Forgejo what the API token can push to; on a managed or owned Forgejo every repository the admin's token sees, by id ascending, refused `Missing` or `NotAdmin` as reconcile's first step; an `installation` not in `Accepted` stops `Installation` (`Missing`), and one given for a Forgejo stops `Installation` (`Unexpected`); it ends `Done(Reachable { rows, more })`, each row the repository's id, its owner's `{ id, login }`, its name and whether it is private; it writes nothing (`../../domain/forge/adoption.md`, 3) |
+| `Reachable { forge, installation?, page }` | the picker, on every kind | the repositories the picker lists, paged by number from 1, at most `reachable` rows (temper's `picker.page`), `more` set when the page is full: on GitHub one accepted installation's, `installation` its id; on a connected Forgejo what the API token can push to; on a managed or owned Forgejo every repository the admin's token sees, by id ascending, refused `Missing` or `NotAdmin` as reconcile's first step; an `installation` not in `Accepted` stops `Installation` (`Missing`), and one given for a Forgejo stops `Installation` (`Unexpected`); it ends `Done(Reachable { rows, more })`, each row the repository's id, its owner's `{ id, login }`, its name and whether it is private; it writes nothing (`../../domain/forge/adoption.md`, 7) |
 
 - **`Reachable`** is skein's (`forge/setup/forgejo.md`, 1.8). On a managed or
   owned Forgejo it runs on the admin's token, which stays the setup

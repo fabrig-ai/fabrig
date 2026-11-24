@@ -122,7 +122,7 @@ default; the document is `temper.json` in the configuration directory
     RECORD links missing LINKED`.
 - **`temper-box init`:** writes a deployment that starts, the default
   document among it, into the three directories, refusing when the
-  configuration directory holds a document (setup/init.md, 2).
+  configuration directory holds a document (setup/init.md, 5).
 - **`temper-box internal agent AGENT.json`:** smith's agent shell,
   `smith_agent_shell::run_decoded`, on smith's agent configuration as
   temper reads it, a `"fetched"` program naming its launcher

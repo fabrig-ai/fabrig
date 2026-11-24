@@ -39,7 +39,7 @@ are `../../../client/forge/records.md`'s:
   person means, as 40 or 64 lowercase hexadecimal digits, none for its
   head when the change takes it;
 - `into`, the landing branch, none for the repository's landing branch
-  (`../adoption.md`, 8);
+  (`../adoption.md`, 12);
 - `title`; `body`, none or more words;
 - `budget`: an amount, or as allowed.
 
@@ -53,7 +53,7 @@ The root resolves it before anything is made. Each refusal is
   at all, refused (`no_repository`, a case the draft leaves unsaid); a
   named one not among them, refused (`not_a_repository`).
 - **The landing branch:** `into`, or the repository's landing branch,
-  the one its adoption names (`../adoption.md`, 8). A
+  the one its adoption names (`../adoption.md`, 12). A
   branch under the repository's prefix, temper's own (`../branches.md`),
   is refused naming the repository and the prefix (`under_prefix`): a
   goal's branch as the target is section 8's. A branch the repository
@@ -68,11 +68,11 @@ Its outcomes: `opened`, the change's task; `open_refused`, one of the
 above; the family's `core_refused`, jig's refusal facts whole (3); or
 unknown, no longer held. A replay under the same key answers the first,
 as every keyed request is answered (jig's `domain/people/acts.md`, 1),
-while the forge keeps it (`../adoption.md`, 9).
+while the forge keeps it (`../adoption.md`, 13).
 
 - **Never refused for the answers kept:** an open takes a place in the
   forge's table of kept answers, where the oldest answered makes room
-  for it (`../adoption.md`, 9), so any number of opens within a day are
+  for it (`../adoption.md`, 13), so any number of opens within a day are
   decided. It is answered busy only while `forge.adoptions` requests
   are pending, which passes as they are answered.
 - **Sent again once its answer made room:** jig's people child keeps the

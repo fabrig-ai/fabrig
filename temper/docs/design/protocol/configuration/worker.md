@@ -22,7 +22,7 @@ is as the members' were:
 | Member | Type | Bounds | Feeds |
 |---|---|---|---|
 | `root` | a directory, a data path | made private (0o700) if absent; an existing one must be the process's user's, private, and not reached through a link | the worker's workspace directory: every checkout's workspace is made under it (../git.md, section 2; `../../domain/worker/checkouts.md`) |
-| `git` | string, or `null` | an absolute path to an executable file, checked at start, whose `git version` is at least the one ../git.md, section 3 names; `null` for none, as `temper-box init` writes it on a machine with no git (../setup/init.md, 2) | the program the git component runs for each invocation in a repository whose record names none (../channel.md, section 4), in the environment ../git.md, section 5 gives it; with `null`, each such invocation fails, naming its forge's host, and the row of each connected forge but a fake one warns (../git.md, section 3; `../../client/forge/deployment.md`). A forge whose record names a git program runs that instead: the playground's fake forge the machine's fake `git` (`engine.md`; ../setup/init.md, 2) |
+| `git` | string, or `null` | an absolute path to an executable file, checked at start, whose `git version` is at least the one ../git.md, section 3 names; `null` for none, as `temper-box init` writes it on a machine with no git (../setup/init.md, 5) | the program the git component runs for each invocation in a repository whose record names none (../channel.md, section 4), in the environment ../git.md, section 5 gives it; with `null`, each such invocation fails, naming its forge's host, and the row of each connected forge but a fake one warns (../git.md, section 3; `../../client/forge/deployment.md`). A forge whose record names a git program runs that instead: the playground's fake forge the machine's fake `git` (`engine.md`; ../setup/init.md, 5) |
 
 **The agents' environment** is `application.environment`, in the
 standalone and worker-alone shapes; an engine alone, which runs no
@@ -160,7 +160,7 @@ stop timeout are unchanged.
   from it, so the allowance and the hub's bounds go together: the start
   refuses a document whose bounds do not hold that turn (`limits.md`).
   temper's documents give a plan's model an allowance its reasoning
-  does not reach in ordinary use (../setup/init.md, 1), a default a person
+  does not reach in ordinary use (../setup/init.md, 4), a default a person
   may lower, with the bounds it derives.
 - **`programs`** (smith's `protocol/agent.md`, section 4): each program
   the agent may run as a backend, by its adapter, with the program's
@@ -172,7 +172,7 @@ stop timeout are unchanged.
   document (../setup/owned.md, 6); the
   programs directory `temper-box init` writes is `programs` in the data
   directory (`directories.md`). The owned example's agent configures
-  Claude Code's (../setup/init.md, 1). A programs directory need not exist
+  Claude Code's (../setup/init.md, 4). A programs directory need not exist
   until `temper-box program-login` makes it; one that exists must be a
   directory of the user's own with no group or other bits, not reached
   through a link at its name, or the start is refused, naming it

@@ -1,7 +1,7 @@
 //! Checkout items (jig's domain/connectors.md, section 10). The connector
 //! selects starts and write destinations from its adopted and procedure facts.
 //! Items are returned whole with their byte size; no copy is retained here.
-//! Landing targets use the adoption (temper/docs/design/domain/forge/adoption.md, 8).
+//! Landing targets use the adoption (temper/docs/design/domain/forge/adoption.md, 12).
 use crate::{Domain, Role};
 use alloc::boxed::Box;
 use skein_forge::api;

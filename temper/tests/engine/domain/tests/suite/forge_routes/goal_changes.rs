@@ -194,7 +194,7 @@ fn assert_landed(world: &mut World, goal: u64, change: u64, base: u64, head: u64
     assert_eq!(
         commit.parents.as_ref(),
         &[base],
-        "skein/docs/design/testing/fakes/forge.md, 2.2; temper/docs/design/domain/forge/adoption.md, 4: the repository's style squashes onto the base's tip"
+        "skein/docs/design/testing/fakes/forge.md, 2.2; temper/docs/design/domain/forge/adoption.md, 8: the repository's style squashes onto the base's tip"
     );
     let Ok(raw::Answer::Tree(landed_tree)) =
         world.fake.inspect(&world.fake_env.limits, b"org/repo", &raw::Read::Tree { commit: merge })

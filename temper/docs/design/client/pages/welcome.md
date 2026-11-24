@@ -445,7 +445,7 @@ repository, and the cues the playground's, copied in from its read:
   one model, so the line names no other. In the playground's project,
   the one that allows it, a new chat's line is the scripted model's; a
   chat the scripted model ran keeps its line after it, since it keeps
-  its account (jig's `domain/accounts-uses.md`, 1.3; `../../protocol/setup/init.md`, 3).
+  its account (jig's `domain/accounts-uses.md`, 1.3; `../../protocol/setup/init.md`, 6).
 - **Its names:** the phrasebook names the playground's provider and
   model "Scripted model" and its forge "Playground forge", from the
   read's numbers, whatever names the records hold

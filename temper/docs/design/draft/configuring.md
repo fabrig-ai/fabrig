@@ -138,7 +138,7 @@ configures work:
 
 - **The binary holds the defaults:** jig's chat and goal templates,
   temper's stock charters (today `temper init` embeds a chat's and a
-  coding agent's, `../protocol/setup/init.md`, 2), the stock policy and the
+  coding agent's, `../protocol/setup/init.md`, 5), the stock policy and the
   stock landing rule. The store holds what was changed, setting by
   setting, each by its number.
 - **The current settings are the defaults with the stored changes over

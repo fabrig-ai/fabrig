@@ -227,7 +227,7 @@
 
   The first run reaches its ways on the welcome's Model step (`welcome.md`, 1),
   and its "Continue with ChatGPT" signs in with the default document's
-  OpenAI (`../../protocol/setup/init.md`, 3).
+  OpenAI (`../../protocol/setup/init.md`, 6).
 
 ## 2. LLM accounts' words
 

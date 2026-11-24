@@ -102,7 +102,7 @@ to the forge; a timer to the child that armed it. What temper adds:
   read holds its words, at
   most that room and no more than the source has left, and its metadata, from
   jig's answer until it is rendered; `fleet.calls` bounds the reads held at once.
-  At `temper-box init`'s figures (`../protocol/setup/init.md`, 1) one read holds at most
+  At `temper-box init`'s figures (`../protocol/setup/init.md`, 4) one read holds at most
   10,662 bytes of words, 4,576 of metadata (16 dependencies at 8 bytes, 82 question
   credits at 48, a hold's account of 512) and a carrier of about 200: about 15.4 KB,
   and about 4 MB at `fleet.calls`' 256, which a box's runs share.

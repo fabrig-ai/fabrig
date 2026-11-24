@@ -8,6 +8,9 @@
   belongs to one project; others may adopt it as context, and each such
   adoption is kept for its project beside the writer's, so that the
   project's lookups, runs and follows read it (`follows.md`, section 8).
+
+## 1. Repository identity and adoption requests
+
 - **A repository is named by its owner and name, and kept by the forge's
   id for it.** The adoption names the forge, the repository's owner and
   its name; the connector first locates it, a read whose answer is the
@@ -28,20 +31,23 @@
 - **The adoption request is the forge's own,** keyed as any party's
   request (`../../client/forge/family.md`, 4): the root takes it from the protocol
   layer typed, and the connector refuses a forge the deployment does not
-  keep, and an ended one as not connected (1); then locates the
+  keep, and an ended one as not connected (5); then locates the
   repository (`Read::Locate { owner, name }`, answered
   `Answer::Located { repository }`); then the root makes jig's
   adoption request on the person's behalf (jig's `domain/people/acts.md`,
   1), in which the connector reads what temper may do there (below)
   before the core commits the adoption (jig's `domain/connectors.md`,
-  12). A forge not connected refuses it first, as such (1); a managed
-  or owned Forgejo's access is asked for before the reads (2). Its
+  12). A forge not connected refuses it first, as such (5); a managed
+  or owned Forgejo's access is asked for before the reads (6). Its
   outcome is the adoption's: adopted, refused by the core with jig's
   reasons, or refused by the forge with the connector's. The
   connector keeps it under the people child's token, to give again when
   the request is sent again, until its retention ends or it makes room
-  for a newer request (section 9; jig's `domain/connectors-facts.md`, 1.5;
+  for a newer request (section 13; jig's `domain/connectors-facts.md`, 1.5;
   `../../protocol/store.md`, section 2).
+
+## 2. Forge address and permissions
+
 - **The forge's host** in a repository's resource path, and in what a
   person reads of it, is the forge's as its record has it: the host of
   its `git` base, with `:port` when it names one
@@ -59,10 +65,10 @@
   protection as unknown, never as absent, and its words say why
   (`../../client/forge/family.md`, 6). On GitHub temper's user is
   its App's bot, its permission the installation's on that repository,
-  and protection the rules GitHub applies to the branch (4). A write
+  and protection the rules GitHub applies to the branch (8). A write
   the forge refuses narrows what temper may do there, for every later
   decision (jig's `domain/connectors.md`, 12).
-- **Its CI workflows are read once it is adopted** (7): the names of
+- **Its CI workflows are read once it is adopted** (11): the names of
   the workflows on its landing branch, kept on its record and current
   with its landings, which CI's card names (`change/branch-path.md`).
 - **The project's ceiling follows** (jig's `domain/authority.md`,
@@ -84,12 +90,15 @@
   A prefix whose branches' names would pass the authority's segments
   (`authority.segments`, counting forge, host, owner, repository and
   `branch` before the branch's own parts) is refused as too large.
+
+## 3. People and repository access
+
 - **People the forge knows.** Adoption reads the repository's
   collaborators, each with its permission (read, write or admin), and
   gives the human collaborators to the core as parties known by their forge
   account: provider 0, with the subject of the repository's forge and the
   collaborator's user (`../../protocol/store.md`, section 2). temper's own writer
-  is excluded, and so is the user the forge's link names (6): the link's
+  is excluded, and so is the user the forge's link names (10): the link's
   person is known there already. The
   project's configuration maps each permission to a role, given to those
   with no role in the project yet (jig's `domain/people/README.md`, section 4):
@@ -102,7 +111,7 @@
   means nothing without its forge: GitHub's user 3 isn't Forgejo's, and anyone
   may post a review on a public repository's pull request. The root's
   `forge_person` answers the link's person when the forge's link names that
-  user (6), else the party whose key is provider 0's subject for that
+  user (10), else the party whose key is provider 0's subject for that
   pair, with their role in the project, else unknown. A party seeded for
   the link's user before the link was made stays, role and all, but is
   never answered on that forge: nothing merges. Every reader of a
@@ -119,20 +128,23 @@
   owned Forgejo, the adoption asks for it first: temper's user made a
   collaborator with write, and the repository's hook made when the
   deployment has a webhooks' listener; a refusal refuses the adoption,
-  named (2). On a connected Forgejo a person gives temper's user its
+  named (6). On a connected Forgejo a person gives temper's user its
   access, as a collaborator or through a team, and adds its hook or
   leaves the repository to poll. On GitHub the App's installation on the
   repository's account grants it, and its hints come from the App's
   delivery log, with no hook per repository (`../../protocol/forge/README.md`,
   4.1). The adoption then reads what it was given as any other.
+
+## 4. Branch, workflow and provisioning choices
+
 - **The adoption names, per repository:** its landing branch, kept on
-  its record and read wherever temper lands (8); temper's
+  its record and read wherever temper lands (12); temper's
   branch prefix, `temper/` by default, which protection can reserve to
   temper's user; whether it is the project's home, where its goals'
   issues are kept (`issues.md`), one per project and never a context
   repository; and whether it runs CI, and if not, the checks its changes
   are gated on (`change/gates.md`, 1). The merge style is the forge's for the repository,
-  and the adoption shows it (4).
+  and the adoption shows it (8).
 - **Nothing is required:**
   - no webhook: polling is the backstop, webhooks only cut the latency,
     and the client shows a repository whose hints never arrive;
@@ -146,14 +158,14 @@
   is an optional set of effects a person may ask for, never a step of
   adoption (jig's `domain/connectors.md`, 12). The access a managed or
   owned Forgejo's adoption asks for is the setup host's run, not an
-  effect of the connector's (2), and so are the labels a project's
+  effect of the connector's (6), and so are the labels a project's
   findings use (`../findings.md`, section 2).
 
-## 1. Connected or not, ended and removed
+## 5. Connected or not, ended and removed
 
 Moved to [`adoption-connection.md`](adoption-connection.md), section 1.
 
-## 2. Access at adoption
+## 6. Access at adoption
 
 - **On a managed or owned Forgejo** the connector asks for access
   before the adoption's reads: `Adopt { forge, repository }`, through
@@ -168,18 +180,18 @@ Moved to [`adoption-connection.md`](adoption-connection.md), section 1.
   (`../../protocol/setup/reconcile.md`, 4).
 - **The connector never holds the admin's token,** and the forge
   component never does: the setup's host alone uses it, for reconcile,
-  for access at adoption and for the picker's reads (3)
+  for access at adoption and for the picker's reads (7)
   (`../../protocol/credentials.md`, least power).
 - **At each start** the repositories adopted on a managed or owned
   Forgejo are named to the routing for its reconcile, which checks and
   repairs each one's collaborator and hook (`../../protocol/forge/engine.md`,
   1).
 - **Elsewhere there is nothing to ask:** on a connected Forgejo a person
-  gives the access, and on GitHub the App's installation does (3). A
+  gives the access, and on GitHub the App's installation does (7). A
   repository this leaves temper's user only able to read is still
   adopted, and its answer says so (`../../client/forge/family.md`, 6).
 
-## 3. What the picker offers
+## 7. What the picker offers
 
 The adoption form lists, per connected forge, the repositories temper
 can reach, a page at a time, by number (`../../client/forge/family.md`, 4; the
@@ -204,7 +216,7 @@ reads the picker:
 - **A connected Forgejo:** the repositories temper's API token can push
   to, read on that token (skein's `forge/setup/forgejo.md`, 1.6).
 - **A managed or owned Forgejo:** every repository the admin can see, by
-  id ascending, since adoption gives temper's user its access (2). The
+  id ascending, since adoption gives temper's user its access (6). The
   admin's token stays the setup host's. Forgetting it makes the forge
   connected, and its picker with it.
 - **"Not listed":** any repository by owner and name, located as any
@@ -235,10 +247,10 @@ suspended marks them until it is unsuspended. The marks are held in
 memory, never stored. A marked repository is shown with what would make
 it reachable again (`../../client/forge/README.md`, a repository's health). Its
 calls meet `Missing`, `NotInstalled` or `Forbidden`, which the connector
-takes there as access lacking, as `NotConnected` is (1): nothing is
+takes there as access lacking, as `NotConnected` is (5): nothing is
 narrowed, and its changes wait.
 
-## 4. What adoption says of the branch's rules
+## 8. What adoption says of the branch's rules
 
 - **The rules on the landing branch** are read at adoption and said in
   words, each with what it means for landing, and the one setting that
@@ -279,7 +291,7 @@ narrowed, and its changes wait.
   adoption says, for each landing branch, whether its bypass is
   `Always`, which the turn needs (`../landing-turn.md`, 1).
 
-## 5. A repository made or copied
+## 9. A repository made or copied
 
 `MakeRepository` (`../../client/forge/records.md`) asks the connector for a
 repository on an owned or managed Forgejo, empty or copied from a
@@ -326,7 +338,7 @@ public address, adopted into a project when `into` names one
   an adoption as any made one does. With `into` it is `Adopting`.
 - **The adoption is the connector's own act,** jig's `Act::Adopt` under
   `engine.acts` (jig's `domain/people/acts.md`, 3, as the
-  playground's reset acts; `../../protocol/setup/init.md`, 3), not a party's
+  playground's reset acts; `../../protocol/setup/init.md`, 6), not a party's
   request, so that a sign-in that ended during a long copy, or a restart,
   cannot lose it. It names the repository by the id the plan gave, so
   nothing locates it: owned, landing on the branch the plan gave, with
@@ -341,16 +353,16 @@ public address, adopted into a project when `into` names one
   is asked again runs its plan, which finds its copy finished, and
   adopts it.
 - **Adopted,** the row is erased in the decision that hears jig's answer.
-- **A forge removed** erases its rows in its removal's decision (1),
+- **A forge removed** erases its rows in its removal's decision (5),
   and its live run ends with the forge's runs (skein's `forge/setup/README.md`, 4.3).
 - **A project deleted** while a row names it: the act is refused, and the
   row says so.
 
-## 6. A box's person on its forges
+## 10. A box's person on its forges
 
 Moved to [`adoption-person.md`](adoption-person.md), section 1.
 
-## 7. Its CI workflows
+## 11. Its CI workflows
 
 Neither forge's API lists the workflows a repository runs, so the forge
 reads the directory each forge runs them from, and keeps on the
@@ -358,7 +370,7 @@ repository's record what it found there, which CI's card names (`change/branch-p
 *CI's card*).
 
 - **The read** is the workflows' directory at a tip of the landing
-  branch, the record's `landing` (8): its immediate entries,
+  branch, the record's `landing` (12): its immediate entries,
   one `Read::File` (skein's `forge/vocabulary.md`, 1.2) answered as a directory's,
   `skein_forge::api::Answer::Directory`, within the client's
   `answer_bytes`, as a charter document's read is
@@ -383,9 +395,9 @@ repository's record what it found there, which CI's card names (`change/branch-p
   and the record keeps its last list.
 - **When it is read,** at the landing branch's tip each time:
   - once an adoption saves the repository's record (`adoption.md`; the act
-    of 5 alike), and once a refusal's refresh of what temper may do
+    of 9 alike), and once a refusal's refresh of what temper may do
     there saves it (jig's `domain/connectors.md`, 12), which keeps the
-    record's landing (8). It is a read of its own, after the
+    record's landing (12). It is a read of its own, after the
     adoption's: the adoption's answer waits for none of it, and its
     failure refuses nothing. A context adoption that leaves another
     project's record as it is (`adoption.md`) reads nothing;
@@ -410,7 +422,7 @@ repository's record what it found there, which CI's card names (`change/branch-p
   card leaves out those the repository's test gates and tiers dispatch
   (`change/branch-path.md`), since those settings change apart from the record.
 
-## 8. Its landing branch
+## 12. Its landing branch
 
 A repository has two branches that may differ: the forge's default
 branch, its settings' `default_branch`, and the landing branch its
@@ -424,16 +436,16 @@ apart.
   `landing: Box<[u8]>`, the adoption's landing branch: the form's
   (`../../client/forge/family.md`, 4), `repository adopt --landing
   BRANCH`'s, or, for a repository made or copied, the branch its plan
-  gave (5). It is never empty: the adoption refuses an empty landing as
+  gave (9). It is never empty: the adoption refuses an empty landing as
   past its bounds. `settings.default_branch` stays the forge's own, as
   read.
-  - **The protection read** is that branch's (4), at adoption and at a
+  - **The protection read** is that branch's (8), at adoption and at a
     refusal's refresh of what temper may do (jig's
     `domain/connectors.md`, 12). The refresh reads the forge's settings
     again and keeps them whole; a default branch it finds moved moves
     no landing.
   - **A re-adoption** names the landing again, as it names the prefix,
-    and the record takes it (9).
+    and the record takes it (13).
   - **A context adoption** that leaves another project's record as it
     is (the opening) keeps that record's landing, the writer's; one
     that makes the record keeps its own.
@@ -465,7 +477,7 @@ apart.
   - the landing queue: a train's batch cap and the project's landing
     gates and their proofs, a held goal branch's upstream, and a
     landing request's commit message and combining (`../landing.md`);
-  - the CI workflows' read, at the landing branch's tips (7);
+  - the CI workflows' read, at the landing branch's tips (11);
   - verification and tiers that follow the landing
     (`../after-landing.md`);
   - a follow whose source or target names no branch (`follows.md`);
@@ -502,13 +514,13 @@ apart.
 - **Where the landing branch is the default branch,** every reader
   reads the same name as before, and nothing behaves otherwise.
 
-## 9. Kept answers
+## 13. Kept answers
 
 The answers to the forge's keyed requests, each kept under the people
 child's token and given again when its request is sent again (jig's
 `domain/connectors-facts.md`, 1.5): an adoption's (the opening's bullets), an
 opening's (`change/opened.md`, 2), a repository's making and its
-dismissal (5), and a follow's act (`follows.md`). One table holds them
+dismissal (9), and a follow's act (`follows.md`). One table holds them
 all.
 
 - **Its places:** at most `forge.applications`, each an answer kept or
@@ -541,14 +553,14 @@ all.
   census` and the Limits page (`../../client/ctl/results.md`;
   `../../client/pages/settings.md`, 1). Its `temper.applications` row,
   the store's family 15, counts the kept answers as its rows. The
-  requests pending are not shown (10).
+  requests pending are not shown (14).
 - **The figures stay:** `forge.applications` 32, `forge.adoptions` 2,
   and the request retention a day (`people.request_retention_ms`), in
   the standard profile (`../../protocol/configuration/limits.md`).
 
-## 10. Open questions
+## 14. Open questions
 
-- **A workflow that runs on no pull request** (`adoption.md`, 7; `change/branch-path.md`, *CI's card*):
+- **A workflow that runs on no pull request** (`adoption.md`, 11; `change/branch-path.md`, *CI's card*):
   CI's card names every workflow file on the landing branch but those
   the repository's test gates and tiers dispatch, so a release's or a
   schedule's workflow is named though it reports nothing at a change's
@@ -557,30 +569,30 @@ all.
   workflow at each change of the directory. Default: by file, every one
   but the dispatched.
 
-- **What a refused copy leaves** (`adoption.md`, 5; skein's `forge/setup/README.md`,
+- **What a refused copy leaves** (`adoption.md`, 9; skein's `forge/setup/README.md`,
   section 6): Forgejo keeps an empty repository at the name of a source
   it could not clone, and only the same address asked again takes it
   away: asked from another, the row holds no `copying` and stops at
   `Taken`. Default: so, and the person deletes it on the forge.
 
 - **A merge style per repository,** named by the project rather than the
-  forge's (`adoption.md`, 4). Default: on Forgejo the repository's default (skein's
+  forge's (`adoption.md`, 8). Default: on Forgejo the repository's default (skein's
   `forge/README.md`, section 10); on GitHub the first the repository allows of
   merge, squash and rebase; either shown at adoption.
 
 
 - **`Forbidden` and `Missing` taken as access lacking** on a repository
-  an installation suspended or stopped selecting (`adoption.md`, 3), rather than as
+  an installation suspended or stopped selecting (`adoption.md`, 7), rather than as
   facts that narrow what temper may do there. Default: access lacking,
   while the installation's events say so; any other refusal narrows, as
   ever.
 
-- **Signed commits required** on a landing branch (`adoption.md`, 4): temper's
+- **Signed commits required** on a landing branch (`adoption.md`, 8): temper's
   workers do not sign. Default: landing there is a wait for someone
   else's merge, said at adoption; signing is later.
 
 
-- **Another landing branch after adoption** (`adoption.md`, 8): a
+- **Another landing branch after adoption** (`adoption.md`, 12): a
   re-adoption naming another landing branch is taken, as a prefix is,
   and the goal branches made from the former one land into the new one
   at their closers. Changing a live adoption's landing on purpose, and
@@ -588,7 +600,7 @@ all.
   Default: so.
 
 - **The pending requests where the store's tables are read** (`adoption.md`,
-  9): the census shows `temper.applications`' kept answers as its rows,
+  13): the census shows `temper.applications`' kept answers as its rows,
   but not the requests pending beside them, which take places in the
   same table. Showing them gives jig's census row a count its owner
   sets as the report is handed on, and moves jig's client wire

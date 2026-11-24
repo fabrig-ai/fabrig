@@ -171,7 +171,7 @@ and a person never does. It holds every mode in which `temper-box` runs
 smith's agent, run by the same code, and nothing else of `temper-box`'s.
 `temper-box` keeps those modes, as `temper-box internal agent` and by the same
 flags, until a worker names `temper-agent` as its agent's program
-(setup/init.md, 2, as `../draft/deployment-binaries.execution.md`'s M3
+(setup/init.md, 5, as `../draft/deployment-binaries.execution.md`'s M3
 makes it), so the box and its tests don't change. Its table is
 skein's, `AGENT` (`../cli/README.md`, 7.3):
 

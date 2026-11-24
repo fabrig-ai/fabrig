@@ -2,7 +2,9 @@
 
 The binary holds them, and gives them to jig's builder as `Config`'s
 defaults at each start (jig's `domain/engine/settings.md`, 1); `temper-box
-init`'s document carries none of them (`../setup/init.md`, 3).
+init`'s document carries none of them (`../setup/init.md`, 6).
+
+## 1. Settings and their defaults
 
 | Setting | Its value |
 |---|---|
@@ -34,6 +36,8 @@ init`'s document carries none of them (`../setup/init.md`, 3).
 | kind 7 | for every project: `drafts` true; `goals` and `changes` false; `way` 0, so that a fresh project shows Home, Needs you and Chats and its chats can write drafts, which it can turn off |
 | kind 8 | for every project: Agents review's table (`../../domain/forge/attention.md`, 6): `wording`, `retry` and `tests` decided and listed, `implementation`, `dependency`, `departure` and `findings` asking, which Away may decide; no path set |
 | a period's span | 7 days, from each project's first period, renewed by the calendar (`../../domain/routing.md`, 7), so policy 1's period spend of 1,944K is a week's. A constant of the stock until `settings.md`, 5's second step, which makes it a setting of temper's, the deployment's |
+
+## 2. Stock charters and project settings
 
 - **Kind 9, each stock charter's words,** given to the forge at each start
   beside kind 3's, each a line in the person's terms, as How work runs'
@@ -73,6 +77,8 @@ init`'s document carries none of them (`../setup/init.md`, 3).
   run's `settings` read alike; the root takes it where jig knows no
   setting of that number, as it takes kinds 6 and 7's.
 
+## 3. Charter tools and wake policies
+
 - **Each charter's host families** (its `tools`, jig's
   `domain/engine/executors.md`, 1): charter 1, a chat's, names every host
   family but settings; charter 5, the goal's agent's, names the same
@@ -100,7 +106,7 @@ init`'s document carries none of them (`../setup/init.md`, 3).
   smith's host part counts a run's brief beside its tools, so a brief
   is rendered within the room its charter leaves. At `temper-box init`'s
   models the host part's bound is that of their smallest window, which
-  init's scripted model sets at `gpt-6-luna`'s (`../setup/init.md`, 3): it
+  init's scripted model sets at `gpt-6-luna`'s (`../setup/init.md`, 6): it
   holds the largest stock charter's non-brief host part, charter 5
   with its Report contract, instructions and all four parts,
   and the control family's plan form of `change`
@@ -135,6 +141,9 @@ init`'s document carries none of them (`../setup/init.md`, 3).
   stock's standing roles, take charter 13's policy, its models, hosts,
   run and tools, so that they differ by their instructions alone; the
   rules' and policy 1's delegation reach them as they reach charter 13.
+
+## 4. Ask temper and its template
+
 - **Ask temper is a setting** like any other: template 5 starts it, from
   `chat start --template 5` (`../../client/ctl/tools-acts.md`, 1) and from the
   client's Ask temper, in the rail and the tab bar, which To begin's
@@ -152,6 +161,9 @@ init`'s document carries none of them (`../setup/init.md`, 3).
   section 4, "plan" in the stock's). So Draft first's path over the stock
   draws "plan" and no close-out, as the look request's does. No other
   stock template has a value of kind 11.
+
+## 5. Budgets and accounting
+
 - **Built at each start** by `temper-service`'s `stock` module, as
   typed values, the instructions held in the binary, charters 5 and
   2's compiled in from `temper/docs/charters/stock/` and assembled by
@@ -203,9 +215,12 @@ init`'s document carries none of them (`../setup/init.md`, 3).
   unit, so `temper-box init` states its models' prices in thousandths of a
   dollar per 1,000,000 tokens, that floor costing a run nothing it
   needs; C, and so every budget above, scales with it.
+
+## 6. Models and prices
+
 - **The stock's models,** the binary's, as read from the providers' pages on
   2026-11-06, numbered in this order and for good, the scripted model last, 8,
-  its prices its own (`../setup/init.md`, 3). The seven of OpenAI and Anthropic
+  its prices its own (`../setup/init.md`, 6). The seven of OpenAI and Anthropic
   are every deployment's defaults, the stock's providers being every
   deployment's, and the scripted model is the box's, beside its scripted
   provider (`providers.md`, 2 and 4). Each has a window of 1,048,576 and an
@@ -247,7 +262,10 @@ init`'s document carries none of them (`../setup/init.md`, 3).
   worst-case completion, and so C and every budget below, and the
   agent's largest turn (`settings-output.md`, 1), for a cut no run has shown; the
   walk on a real key after `claude-api.md`'s step 1 shows whether a
-  delegated change at the stock's efforts is cut (`stock.md`, section 1).
+  delegated change at the stock's efforts is cut (`stock.md`, section 9).
+
+## 7. Limits and floors
+
 - **The box's limits for that work.** `temper-box init`'s document, and
   `docs/examples/owned.json`, name the `standard` profiles, jig's and
   temper's (`limits.md`; jig's `protocol/limits.md`),
@@ -292,10 +310,10 @@ init`'s document carries none of them (`../setup/init.md`, 3).
   place for these figures, before the first release (jig's
   `protocol/store/records.md`, 1 and 3). The document's overrides say only
   what differs from the profiles: temper's client's documents
-  (`documents.rows` 2, `documents.text_bytes` 512; `../setup/init.md`, 1), the agent's carriers
-  (`settings-output.md`, 1; `../setup/init.md`, 1) with the bounds that follow its message
-  (`../setup/init.md`, 1), the forge's repositories and output (`../setup/init.md`,
-  3), and the machine's
+  (`documents.rows` 2, `documents.text_bytes` 512; `../setup/init.md`, 4), the agent's carriers
+  (`settings-output.md`, 1; `../setup/init.md`, 4) with the bounds that follow its message
+  (`../setup/init.md`, 4), the forge's repositories and output (`../setup/init.md`,
+  6), and the machine's
   concurrency, which is the machine's to size: the worker's 4 slots, so
   that two chats and a goal's agents run side by side, which the hubs'
   and the fleet's slots in `standard` already hold, with
@@ -340,6 +358,9 @@ init`'s document carries none of them (`../setup/init.md`, 3).
   brief less of the host part, and `standard`'s
   `root.brief.brief_bytes` follows that room by the rule above. A start's
   problem about a stock setting names it as ctl does, `charter 1.hosts`.
+
+## 8. Model selection and releases
+
 - **The stock charters' models are their first choices and the rest:** a
   stock charter names its first choices, those among the defaults, then
   "the rest", so that a model the catalogue gains needs no charter's change
@@ -370,7 +391,7 @@ init`'s document carries none of them (`../setup/init.md`, 3).
   removes the stored change, as a change of its own, and the setting
   follows the default again.
 
-## 1. Open questions
+## 9. Open questions
 
 - **A landing branch with another name than `main`** (`settings.md`, 8;
   `../../draft/archive/stock-ways.md`, section 2): Draft first's rule 1 names

@@ -21,7 +21,7 @@ into the effective sandbox. Box startup performs no build or fetch.
 
 Without the test override below, a sandbox written by init takes the
 kernel's ports, a bind of port 0 for each of its five, never the 8367 to
-8371 a person's box prefers (`init.md`, 2). So a
+8371 a person's box prefers (`init.md`, 5). So a
 fake box leaves those to the box a person starts after it. A kernel-chosen
 port lost between bind and listen is closed and chosen again, within 32
 attempts; the fake peers' reservations likewise retry address-in-use,

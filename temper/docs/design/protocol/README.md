@@ -407,7 +407,7 @@ Each document keeps its own; these cross them:
 - **Names while running.** io connects to addresses, resolved at
   startup, while a forge's address may move behind its CDN, and a name
   that does not resolve at the start leaves its forge unreachable for
-  that run, not the start refused (setup/init.md, 3). GitHub's names
+  that run, not the start refused (setup/init.md, 6). GitHub's names
   alone are resolved once serving, when a forge first needs them, and
   each holds its pass for one lookup (`forge/README.md`, 2.6). Default:
   a restart resolves names again; skein's DNS client, or

@@ -1,4 +1,4 @@
-//! Workflow read and invalidation rows (temper/docs/design/domain/forge/adoption.md, 7).
+//! Workflow read and invalidation rows (temper/docs/design/domain/forge/adoption.md, 11).
 #![expect(
     clippy::disallowed_types,
     clippy::disallowed_methods,

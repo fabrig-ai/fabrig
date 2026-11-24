@@ -67,8 +67,8 @@ makes each call to a forge and hears its deliveries, is
 - **Adoption picks from what temper can reach:** a GitHub App's
   installations, what a connected Forgejo's API token can push to, or
   any repository of a managed or owned Forgejo, where adoption first
-  gives temper's user its access (`adoption.md`, 2, 3). What it reads of the landing
-  branch's rules, and the merge style, it says in words (`adoption.md`, 4).
+  gives temper's user its access (`adoption.md`, 6, 7). What it reads of the landing
+  branch's rules, and the merge style, it says in words (`adoption.md`, 8).
 - **Updates are lazy and mechanical.** A change takes its base when it
   is first in line, about to get a run, or at its check with its head
   already behind (`change/README.md`, 2, step 3), through the forge's own update; an LLM
@@ -432,11 +432,11 @@ whole.
 
 ## 11. Open questions
 
-- A workflow that runs on no pull request: `adoption.md`, section 10.
+- A workflow that runs on no pull request: `adoption.md`, section 14.
 
-- A closer's stops on a goal's path: `change/branch-path.md`, section 1.
+- A closer's stops on a goal's path: `change/branch-path.md`, section 8.
 
-- A close-out's own charter: `change/branch-path.md`, section 1.
+- A close-out's own charter: `change/branch-path.md`, section 8.
 
 - Project-scoped rules on a real forge: `change/gates.md`, section 4.
 
@@ -456,7 +456,7 @@ whole.
 - A stock project's room, shared: `attention.md`, section 7.
 
 - What lands on a goal's branch and then on main: `attention.md`, section 7.
-- What a refused copy leaves: `adoption.md`, section 10.
+- What a refused copy leaves: `adoption.md`, section 14.
 - A queue's throughput: `queues.md`, section 2.
 
 - **Checks without an LLM:** a repository's checks run as agents' tasks
@@ -486,15 +486,15 @@ whole.
 
 - **Intake:** issues others open as a source of goals.
 - A resource refused as forbidden: `keeping-up.md`, section 6.
-- A merge style per repository,: `adoption.md`, section 10.
-- A change whose forge is not connected,: `adoption.md`, section 10.
-- `Forbidden` and `Missing` taken as access lacking: `adoption.md`, section 10.
+- A merge style per repository,: `adoption.md`, section 14.
+- A change whose forge is not connected,: `adoption.md`, section 14.
+- `Forbidden` and `Missing` taken as access lacking: `adoption.md`, section 14.
 - Several changes in a forge's merge queue: `queues.md`, section 2.
 - The update before entering a forge's merge queue: `queues.md`, section 2.
 - What failed on a queue's group: `change/repairs-later.md`.
 - Taking a change out of a forge's merge queue: `queues.md`, section 2.
-- Signed commits required: `adoption.md`, section 10.
-- Connecting a forge as another user: `adoption.md`, section 10.
+- Signed commits required: `adoption.md`, section 14.
+- Connecting a forge as another user: `adoption.md`, section 14.
 - Which checks are CI on GitHub, without required checks: `keeping-up.md`, section 6.
 - What ends the Away switch: `attention.md`, section 7.
 - The classes per person: `attention.md`, section 7.

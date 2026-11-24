@@ -491,7 +491,7 @@ its own for any other host.
   archive at the same `/v2/homebrew/core/…/blobs/sha256:DIGEST` path,
   under the same digests and the same one redirect, and is sent no
   token.
-- **Claude Code,** a `programs.claude_code.path` of `"fetched"` (`init.md`, 2):
+- **Claude Code,** a `programs.claude_code.path` of `"fetched"` (`init.md`, 5):
   temper's pinned build, by this section's machine and host, in what
   follows only where it differs from Forgejo's binaries. No step of the
   box and no `temper-box forge fetch` runs it: the first command of its
@@ -613,7 +613,7 @@ Moved to [`owned-repositories.md`](owned-repositories.md), section 2.
   temper hosts is GPL code it distributes, its source to keep beside it
   (`../../draft/macos.md`, section 7).
 
-- **The person's `claude` installed after init** (`owned.md`, 6, `init.md`, 2): taken in
+- **The person's `claude` installed after init** (`owned.md`, 6, `init.md`, 5): taken in
   place of the fetched build, or not; for now init's choice holds until
   the box is made again (`../../draft/claude-provider.md`, 6).
 

@@ -214,7 +214,7 @@ G's runs read: a checkout of g, inspect only, no delivery (`../domain/agent/tool
 
 **A spec** is a change's words (`../domain/forge/change/README.md`, 1): what to make, citing
 the design in g by path and section (`temper/docs/design/domain/forge/adoption.md,
-2`) and the status entries it closes; what it owns and must leave
+6`) and the status entries it closes; what it owns and must leave
 alone; its checks; its report. It is short: the design holds the
 detail, and the producer's checkout holds the design. Its parameters
 carry the rest: g as its landing branch, its dependencies, an LLM choice

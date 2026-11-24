@@ -130,9 +130,9 @@ pub struct Repository {
     pub kinds: Kinds,
     pub protection: Protection,
     pub settings: skein_forge::api::Settings,
-    /// The landing branch the adoption names, never empty (temper/docs/design/domain/forge/adoption.md, 8).
+    /// The landing branch the adoption names, never empty (temper/docs/design/domain/forge/adoption.md, 12).
     pub landing: Box<[u8]>,
-    /// CI workflow file names (temper/docs/design/domain/forge/adoption.md, 7).
+    /// CI workflow file names (temper/docs/design/domain/forge/adoption.md, 11).
     pub workflows: Box<[Box<[u8]>]>,
 }
 impl Repository {
@@ -309,7 +309,7 @@ pub enum Answered {
     TriageFinding(crate::TriageFindingAnswer),
     SetDraft(crate::SetDraftAnswer),
 }
-/// Making admission (temper/docs/design/domain/forge/adoption.md, 5).
+/// Making admission (temper/docs/design/domain/forge/adoption.md, 9).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum MakeAnswer {
     Kept,

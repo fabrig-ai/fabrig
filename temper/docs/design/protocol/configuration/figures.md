@@ -258,7 +258,7 @@ filled so:
   providers' endpoints. `fallback` is the limits of an endpoint the value
   doesn't name.
 - **Its default is today's stock agent configuration:** the figures
-  `temper-box init` writes in `agent.json` (`../setup/init.md`, 3). That
+  `temper-box init` writes in `agent.json` (`../setup/init.md`, 6). That
   is the profile's eleven, the four endpoints' limits (`openai`,
   `anthropic`, `anthropic-api` and `demo`), and `openai`'s limits as
   the fallback.
@@ -367,7 +367,7 @@ written as JSON by the worker's start:
   No `application.workers` entry is written.
 
 - **`temper-box init`** writes neither the worker's `limits` and
-  `agent` nor `agent.json` (`../setup/init.md`, 2 and 3).
+  `agent` nor `agent.json` (`../setup/init.md`, 5 and 6).
 
 ## 8. Upgrades
 

@@ -92,7 +92,7 @@ This document holds the agent's forge reads, split from [`tools.md`](tools.md).
   - **A branch left out is the default branch.** `read_forge`'s
     `branch`, `protection` and `file` take `branch` left out, or empty,
     as the repository's default branch: the one its adoption keeps as the
-    forge's own, as last read (`../forge/adoption.md`, 8), which Ask
+    forge's own, as last read (`../forge/adoption.md`, 12), which Ask
     temper's `file` reads at too (`ask-temper.md`, 1). smith decodes it
     as an empty name, and the root, resolving the repository's name,
     puts the default branch's name in its place, as it puts the

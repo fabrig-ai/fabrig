@@ -105,7 +105,7 @@ Help lists these.
 | `listen` | S E | a socket address on loopback | `"127.0.0.1:7100"` | the clients' listener |
 | `public` | S E | an origin, as `application.clients.public` takes it (`engine.md`) | none: the listener's origin | the address people reach, through a proxy that holds its TLS |
 | `webhooks` | S E | a socket address on loopback | `listen`'s address, its port plus 1; port 0 where `listen`'s is 0; none where `listen`'s is 65535, refused as `temper.toml: webhooks (its default): listen uses port 65535; give webhooks explicitly` | the forge's webhooks' listener |
-| `owner` | S E | an address, 3 to 254 visible ASCII bytes with one `@` | the process's user's login at `localhost`, as `init` derives it (`../setup/init.md`, 2) | the first owner, read at the first start alone; later owners are the store's |
+| `owner` | S E | an address, 3 to 254 visible ASCII bytes with one `@` | the process's user's login at `localhost`, as `init` derives it (`../setup/init.md`, 5) | the first owner, read at the first start alone; later owners are the store's |
 | `workers` | E | a socket address on loopback | none: required | the workers' listener |
 | `engine` | W | a socket address on loopback | none: required | its engine's workers' listener |
 | `name` | W | 1 to `link.name` bytes (32 in the stock) | the host's name, as the kernel gives it | the name its setting has (jig's `domain/engine/workers.md`, 2) |
@@ -192,7 +192,7 @@ constant of `moved.md`, section 2 is passed as there.
   it passes.
 - **The secret's file** is the data directory's: a box's
   `worker.secret`, as `temper-box init` writes it (`../setup/init.md`,
-  2), and a worker alone's `secrets/worker.secret`, whose digest its
+  5), and a worker alone's `secrets/worker.secret`, whose digest its
   setting holds (`../../draft/config.md`, 6.7).
 - **`[programs]` gives no member:** the start's lookups take it
   (`figures.md`, section 6; `../setup/place.md`, 2) from the values the
@@ -305,7 +305,7 @@ commands that read it, `upgrade`, `checkpoint` and `restore`;
   `temper-engine`'s and `temper-worker`'s
   (`../../draft/deployment-binaries.md`, section 4).
 - **`init`'s refusal** names `temper.toml` or `temper.json`, whichever
-  the configuration directory holds (`../setup/init.md`, 2).
+  the configuration directory holds (`../setup/init.md`, 5).
 
 ## 7. Rendered from the table
 
@@ -323,7 +323,7 @@ commands that read it, `upgrade`, `checkpoint` and `restore`;
   members, or `moved.md`, section 3's words; then `The merge command`,
   as today. It replaces the pages `configuration` and
   `configuration-engine`, and `configuration-engine` goes.
-- **`init`** (`../setup/init.md`, 2 and 3) writes `render` of a `File`
+- **`init`** (`../setup/init.md`, 5 and 6) writes `render` of a `File`
   holding `listen`, the port it chose, and `webhooks` only where the
   next port isn't free. `listen` is the one default `init` writes, since
   its port is the machine's choice. The box's file:

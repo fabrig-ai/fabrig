@@ -38,7 +38,7 @@ The pages a person meets it on are `../../client/pages/settings.md`, 2.
   playground's scripted provider has neither, and no list. jig's
   `engine.projects`,
   the projects a first start seeds, stays jig's member; `temper-box init`'s
-  is `[]` (../setup/init.md, 3), and a document's seeded project names its
+  is `[]` (../setup/init.md, 6), and a document's seeded project names its
   policy as `policy: 1` (jig's `protocol/configuration-engine.md`, section 1),
   so the seed copies the stock's policy 1 and no document carries a
   copy of it (5, step 1). Before opening the store, the copied seed is
@@ -143,7 +143,7 @@ Moved to [`settings-kinds.md`](settings-kinds.md), section 1.
   from 5's first step, which needs nothing new of jig's settings;
   its second needs jig's application settings.
 - **Their writers name none of them:** `temper-box init`'s document and
-  files (`../setup/init.md`, 2 and 3); the box, which has no document of
+  files (`../setup/init.md`, 5 and 6); the box, which has no document of
   its own but `temper-box init`'s (`../setup/box.md`);
   `docs/examples/owned.json` and its instructions; the cluster
   fixture's engine documents, whose stories apply their own values as a
@@ -194,7 +194,7 @@ side never waits on the part of jig it does not use:
    all, its first owners the deployment's alone, as jig's seed allows,
    holding no escalation role until a project's policy gives them one;
    `temper-box init`'s seeds none, its projects made at runtime on policy 1
-   (../setup/init.md, 3); a world or a person that needs a wider project
+   (../setup/init.md, 6); a world or a person that needs a wider project
    raises the rules and policy 1 with one change of settings, then makes
    it, or widens an existing project's ceiling within the new rules
    (jig's `domain/authority.md`, section 6). A deployment whose document carried

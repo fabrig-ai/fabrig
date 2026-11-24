@@ -359,7 +359,7 @@ through the registry at 64; the raise moves no version and brings no patch.
 A repository's stored CI workflows, the record's `workflows`, are a list
 with a ceiling of 16 names, each of at most 255 bytes: its bounds are the
 forge's constants `WORKFLOWS` and `WORKFLOW_BYTES` (`../domain/forge/adoption.md`,
-7), not configured, and the schema's ceilings equal them.
+11), not configured, and the schema's ceilings equal them.
 
 A repository's stored landing branch, the record's `landing`, has a
 ceiling of 4,096 bytes and the runtime bound `forge.name_bytes`, as the
@@ -367,7 +367,7 @@ adoption's `landing` has; added with the default `0x`, it reads empty in
 a record written before it, and the decoder takes that record's
 `settings.default_branch` for it. An adoption's kept outcome,
 `ApplicationAdopted`, carries the same `landing`, empty in an outcome
-kept before it (`../domain/forge/adoption.md`, 8).
+kept before it (`../domain/forge/adoption.md`, 12).
 
 A named call's comparison answer is names and counts (skein's `forge/vocabulary.md`, 1.3): `CompareAnswer` holds `before`, `after`, `ahead`, `behind`, `files`, a list of at most `forge.client.rows` paths, and `changed`.
 

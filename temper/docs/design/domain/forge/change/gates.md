@@ -163,7 +163,7 @@
   such as `temper/review/memory-safety`, which protection can require
   independently of temper. On GitHub, temper's App has `statuses: read`
   and no more, so temper writes none: `status` is false in the kinds
-  there (`../adoption.md`, 4), the post, `Write::Status`, is refused at the connector,
+  there (`../adoption.md`, 8), the post, `Write::Status`, is refused at the connector,
   and nothing waits for it (skein's `forge/github-operations.md`, 1.2). Every
   adoption there says so, and the verdict stays temper's own; the App
   asks for no more (`../../../protocol/setup/github.md`, 1). Where an installation

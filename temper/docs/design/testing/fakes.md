@@ -578,7 +578,7 @@ its own:
   `argv[0]`'s last component is `git`, before it reads a command of its
   own: a link named `git` to the binary, the fake setup entry's `git`,
   which the worker spawns by the absolute path each of the forge's
-  repositories' records names (../protocol/setup/init.md, 2;
+  repositories' records names (../protocol/setup/init.md, 5;
   ../protocol/channel.md, section 4), with git's command line as it is.
   A person can run the same program as `temper-box fake git ARGS...`.
 - **Its crates:** the core, `crates/temper-fake-git`, ordinary Rust

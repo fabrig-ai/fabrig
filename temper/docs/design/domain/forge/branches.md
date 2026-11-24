@@ -116,7 +116,7 @@ own, never a change's:
   choice is made with the goal.
 - **Held by its goal for its whole life,** an exclusive hold that
   refuses, and made at the tip of the home's landing branch, the one its
-  adoption names (`adoption.md`, 8), as the hold is taken, as the taking's effect. A making that fails for good holds the
+  adoption names (`adoption.md`, 12), as the hold is taken, as the taking's effect. A making that fails for good holds the
   goal, its words naming the branch and what the forge answered.
   A making waits for the outbox's room and never fails for it: with the
   outbox full (`forge.entries`), it holds nothing and polls nothing, as a
@@ -141,7 +141,7 @@ own, never a change's:
   adopted, `the repository is not adopted`; one adopted to be read,
   `the repository is adopted to be read, not written`; one whose
   adoption takes no branch writes, `the repository's adoption takes no
-  branch writes` (`adoption.md`, 2); and an entry number already in the
+  branch writes` (`adoption.md`, 6); and an entry number already in the
   outbox, `its outbox entry N is already in use`, N that number. Access
   is judged first, so a full outbox never hides a making that could
   never be sent.
@@ -257,7 +257,7 @@ section 6).
      branch into its base, as the goal's `"branch": "mine"` would make
      it (`change/README.md`, 1), made by the closer on the goal's behalf: its branch the
      goal's, held by the goal and not by the closer or the change; its
-     landing branch the repository's (`adoption.md`, 8); its words the
+     landing branch the repository's (`adoption.md`, 12); its words the
      goal's title, the first line of the goal's words, then a blank
      line and `Draft: PATH`, where the goal's words hold a line
      `Draft: PATH`, as a goal started from a draft's do, and nothing
