@@ -536,7 +536,9 @@ runs as contained processes and whose output it parses.
   push against that baseline, which later finishes reuse. Saving still
   compares with the checkout's start. A fresh start resets and cleans
   the checkout.
-  Work done since the last save is lost if the worker dies. A merge start
+  Work done since the last save is lost if the worker dies, unless the
+  run's next attempt takes its workspace up on the same worker
+  (*A workspace kept for its run*). A merge start
   whose branch is the repository's saved-work branch started from saved work:
   a later save of it that lands nothing (nothing new, markers left, a failed
   push) leaves that saved work standing, and the next run starts from it. A
@@ -579,6 +581,46 @@ runs as contained processes and whose output it parses.
     `.git/smith-check` in its tree, which the worker names to smith in
     the start (smith's `domain/run-delivery.md`, 1.1): kept with the tree, and
     made again with it.
+  - **Marked while its run holds it,** so that a crash takes the same
+    path (temper's `draft/worker-restarts.md`, section 7). A hold with a
+    saved-work destination writes its workspace's mark, `held`, once its
+    prepare has succeeded and before its run starts: its workstream, and
+    for each repository its head, the commit its next save takes as
+    parent (its start, or its last save or delivery that landed), the
+    merge it holds, if any, and whether its next save commits though
+    unchanged (`unchecked`). It writes the mark again whenever one of
+    these changes, and removes it when the hold is released. The drain's
+    keep replaces it with the `kept` mark above. A hold with no
+    saved-work destination writes none.
+  - **Found at the next start.** The start's layout keeps each workspace
+    a `held` mark names as it keeps a `kept` one, a crash's leftover,
+    and removes from each kept workspace's repositories the lock files
+    a killed git leaves (`index.lock`, `HEAD.lock`, and any name ending
+    `.lock` under `refs/`), in its `.git` and its worker's git
+    directory, since no git of the previous process lives. The cache
+    holds it, idle, under its workstream's key, so the hello names that
+    workstream and the engine sends the run's next attempt back at once
+    (jig's `domain/engine/executors.md`, 6.5).
+  - **Saved at its take-up,** as the drain would have saved it. The
+    next start of its workstream on this worker whose repositories are
+    the mark's, by name and remote, first saves the trees, before its
+    run's agent starts: each writable repository's tree committed on the
+    mark's head, with the merge it names and refusing conflict markers,
+    then pushed to this assignment's saved-work destination with this
+    assignment's identity. Its save landed, or with nothing new to save,
+    the hold keeps the trees as a kept workspace's take-up does, its
+    start and head that save's commit (or the mark's head), and goes on
+    as a saved start of it; the run's answer names that save as its
+    saved work. A save that fails, a mark whose repositories differ, or
+    any other start makes the workspace again from empty, and the crash
+    costs what its last save left out, as before. The save waits for an
+    assignment because the worker holds no identity until one grants it
+    (`../../protocol/credentials-git-identities.md`, section 1).
+  - **The mark's form,** `kept/<token>`, is `temper-kept 2`: version 1's
+    fields, then its state, `kept` or `held`, and each repository's merge
+    and `unchecked`. A version 1 mark reads as `kept`, with no merge and
+    `unchecked` false; an older build meeting a version 2 mark removes
+    it and moves its workspace to the trash.
 - **No credentials on disk.** Every git operation that reaches the forge,
   or commits, names the repository's identity, which the protocol layer
   maps to credentials or an author for that invocation only, never into a
