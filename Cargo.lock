@@ -7446,6 +7446,7 @@ dependencies = [
  "skein-oauth-accounts",
  "skein-scratch",
  "skein-shell",
+ "skein-sim",
  "skein-tls",
  "skein-tls-kit",
  "temper-agent-fixtures",
