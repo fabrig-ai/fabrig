@@ -64,7 +64,7 @@ layers = ["step", "domain", "system", "machine", "protocol", "io", "simulated", 
 "skein-ui-web-tests::browser_stories" = "end-to-end" # Browser shell stories on real Chromium.
 "skein-ui-web-tests::machine" = "machine" # step and machine: page mapping and HTTP content-type functions.
 "skein-ui-web-tests::suite" = "real-loop" # Bundle writes and startup reads on the real filesystem.
-"skein-world-tests::simulated" = "simulated" # step, domain and simulated: harness controls, supplied referee state and scripted hosts.
+"skein-world-tests::simulated" = "simulated" # Harness controls, supplied referee state, scripted hosts and browser harness bookkeeping.
 "skein-world-tests::suite" = "real-loop" # Real rings, sockets, clocks, signals and fixture children.
 "skein-world::stream" = "step" # Seeded wire's empty-write transition.
 

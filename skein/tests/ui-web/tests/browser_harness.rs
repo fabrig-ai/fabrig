@@ -95,22 +95,6 @@ fn a_framed_page_s_refusal_is_awaited_as_trouble() {
     ]));
     assert_eq!(skein_ui_web_tests::fixture_harness_with(&bundle, vec![origin]).run(&mut [&mut person]), Outcome::Done);
 }
-#[test]
-fn a_request_with_another_host_has_its_status_awaited() {
-    let scratch = Scratch::new("harness-host");
-    let bundle = fixture_bundle(&scratch, READY);
-    let mut person = Script::new(Box::new([harness::Step::Request {
-        method: skein_http::Method::Get,
-        path: b"/".as_slice().into(),
-        host: b"other.test".as_slice().into(),
-        headers: vec![],
-        body: Box::new([]),
-        status: 200,
-        within: skein_ui_web_tests::SECOND,
-    }]));
-    assert_eq!(fixture_harness(&bundle).run(&mut [&mut person]), Outcome::Done);
-}
-
 fn ready_person() -> Script {
     Script::new(Box::new([harness::Step::Person(Step::See {
         find: Find::exactly_named(Role::Heading { level: 1 }, b"Ready"),
@@ -167,94 +151,8 @@ fn repeated_peer_arguments_each_reach_the_server() {
     assert_eq!(peer.handle.get(), 2);
 }
 
-const KEEP_PAGE: &[u8] =
-    b"<!doctype html><input type=hidden value=first data-note=named data-empty=''><input type=hidden value=second>";
 fn keep(selector: &[u8], attribute: Option<&[u8]>, name: &[u8]) -> harness::Step {
     harness::Step::Keep { selector: selector.into(), attribute: attribute.map(Box::from), name: name.into() }
-}
-fn keep_harness() -> harness::Harness {
-    skein_ui_web_tests::lending_harness(
-        &[],
-        vec![harness::Origin {
-            host: b"localhost".as_slice().into(),
-            pages: vec![skein_ui_web_tests::page(b"/", KEEP_PAGE)],
-        }],
-    )
-}
-fn keep_script(steps: Vec<harness::Step>) -> Script {
-    let mut all = vec![harness::Step::Visit { origin: 0, path: b"/".as_slice().into() }];
-    all.extend(steps);
-    Script::new(all.into())
-}
-#[test]
-fn keeps_read_values_named_and_empty_attributes_in_one_run() {
-    type KeepRow<'a> = (&'a [u8], Option<&'a [u8]>, &'a [u8]);
-    let rows: &[KeepRow<'_>] = &[
-        (b"input[type=hidden]", None, b"first"),
-        (b"input", Some(b"data-note"), b"named"),
-        (b"input", Some(b"data-empty"), b""),
-        (b"input", None, b"first"),
-    ];
-    let mut harness = keep_harness();
-    let mut person =
-        keep_script(rows.iter().map(|(selector, attribute, _)| keep(selector, *attribute, b"read")).collect());
-    assert_eq!(harness.run(&mut [&mut person]), Outcome::Done);
-    assert_eq!(harness.kept().len(), rows.len());
-    for (kept, (selector, attribute, expected)) in harness.kept().iter().zip(rows) {
-        assert_eq!(kept.name.as_ref(), b"read");
-        assert_eq!(kept.value.as_ref(), *expected, "{selector:?} {attribute:?}");
-    }
-}
-#[test]
-fn a_keep_without_an_element_fails_its_step() {
-    let mut harness = keep_harness();
-    let mut person = keep_script(vec![keep(b"#missing", None, b"read")]);
-    let Outcome::Failed { person: 0, step: 1, report } = harness.run(&mut [&mut person]) else {
-        panic!("missing selector fails keep")
-    };
-    assert!(report.contains("keep selector #missing attribute value: no element"), "{report}");
-}
-#[test]
-fn a_keep_without_an_attribute_fails_its_step() {
-    let mut harness = keep_harness();
-    let mut person = keep_script(vec![keep(b"input", Some(b"absent"), b"read")]);
-    let Outcome::Failed { person: 0, step: 1, report } = harness.run(&mut [&mut person]) else {
-        panic!("missing attribute fails keep")
-    };
-    assert!(report.contains("keep selector input attribute absent: no attribute"), "{report}");
-}
-#[test]
-fn keeps_append_duplicate_names_in_completion_order_with_their_person() {
-    let mut harness = keep_harness();
-    let mut first = keep_script(vec![keep(b"input", None, b"same"), keep(b"input", Some(b"data-note"), b"same")]);
-    let mut second = keep_script(vec![keep(b"input", Some(b"data-empty"), b"other")]);
-    assert_eq!(harness.run(&mut [&mut first, &mut second]), Outcome::Done);
-    let entries: Vec<_> = harness.kept().iter().map(|k| (k.person, k.name.as_ref(), k.value.as_ref())).collect();
-    assert_eq!(
-        entries,
-        vec![
-            (0, b"same".as_slice(), b"first".as_slice()),
-            (0, b"same".as_slice(), b"named".as_slice()),
-            (1, b"other".as_slice(), b"".as_slice())
-        ]
-    );
-}
-#[test]
-fn a_new_run_clears_the_preceding_keeps() {
-    let mut harness = keep_harness();
-    let mut first = keep_script(vec![keep(b"input", None, b"old")]);
-    assert_eq!(harness.run(&mut [&mut first]), Outcome::Done);
-    let mut second = keep_script(vec![keep(b"input", Some(b"data-empty"), b"new")]);
-    assert_eq!(harness.run(&mut [&mut second]), Outcome::Done);
-    assert_eq!(harness.kept(), &[harness::Kept { person: 0, name: b"new".as_slice().into(), value: Box::new([]) }]);
-}
-#[test]
-fn a_failed_run_retains_completed_keeps() {
-    let mut harness = keep_harness();
-    let mut person = keep_script(vec![keep(b"input", None, b"read"), keep(b"#missing", None, b"absent")]);
-    assert!(matches!(harness.run(&mut [&mut person]), Outcome::Failed { step: 2, .. }));
-    assert_eq!(harness.kept().len(), 1);
-    assert_eq!(harness.kept()[0].value.as_ref(), b"first");
 }
 
 fn command(mode: &[&str], opens: bool) -> harness::Command {

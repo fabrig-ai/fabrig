@@ -34,6 +34,13 @@ name.
 
 | Slow test (`browser_harness`) | Held by |
 |---|---|
+| `keeps_read_values_named_and_empty_attributes_in_one_run` | `skein-world-tests::simulated`, `harness::keeps::keeps_read_values_named_and_empty_attributes_in_one_run` |
+| `a_keep_without_an_element_fails_its_step` | `skein-world-tests::simulated`, `harness::keeps::a_keep_without_an_element_fails_its_step` |
+| `a_keep_without_an_attribute_fails_its_step` | `skein-world-tests::simulated`, `harness::keeps::a_keep_without_an_attribute_fails_its_step` |
+| `keeps_append_duplicate_names_in_completion_order_with_their_person` | `skein-world-tests::simulated`, `harness::keeps::keeps_append_duplicate_names_in_completion_order_with_their_person` |
+| `a_new_run_clears_the_preceding_keeps` | `skein-world-tests::simulated`, `harness::keeps::a_new_run_clears_the_preceding_keeps` |
+| `a_failed_run_retains_completed_keeps` | `skein-world-tests::simulated`, `harness::keeps::a_failed_run_retains_completed_keeps` |
+| `a_request_with_another_host_has_its_status_awaited` | `skein-world-tests::simulated`, `harness::keeps::a_request_with_another_host_has_its_status_awaited`; the scripted server also checks the request's `Host` line. |
 
 ### 2.2 Commands and their deadlines
 

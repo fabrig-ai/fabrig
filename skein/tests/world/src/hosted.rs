@@ -6,6 +6,8 @@ use skein_io::kernel::{Complete, Done, Exit, Fd, Op, OpenHow, Pipe, Reason, Sign
 use skein_lib::{Duration, Queue, Time, Token, Wall};
 use skein_world::{Host, Inherited, Machine};
 
+mod server;
+
 /// One sequential kernel operation in a parent or child script.
 #[derive(Clone, Copy, Debug)]
 pub enum Act {
@@ -51,6 +53,10 @@ pub enum Act {
     Pause(Time),
     /// The script pauses from the iteration that starts this act.
     PauseFor(Duration),
+    /// Listens on loopback and prints prefix, bound address, suffix and newline to the named pipe index.
+    ListenAndPrint { output: usize, prefix: &'static str, suffix: &'static str },
+    /// Answers HTTP requests until a termination signal; requires `ListenAndPrint` first.
+    AnswerRequests(u16),
 }
 
 /// A script runs kernel operations and closes all its descriptors at the end.
@@ -71,6 +77,8 @@ pub struct Script {
     completions: Queue<Complete>,
     submissions: Queue<Submit>,
     pub received: Vec<u8>,
+    pub request_heads: Vec<Box<[u8]>>,
+    server: Option<Box<server::Server>>,
     pub modes: Vec<skein_shell::Modes>,
     pub results: Vec<Result<Done, skein_io::kernel::Error>>,
     pub signals: Vec<skein_io::kernel::ServiceSignal>,
@@ -102,6 +110,8 @@ impl Script {
             completions: Queue::with_capacity(8),
             submissions: Queue::with_capacity(8),
             received: Vec::new(),
+            request_heads: Vec::new(),
+            server: None,
             modes: Vec::new(),
             results: Vec::new(),
             signals: Vec::new(),
@@ -238,6 +248,17 @@ impl Script {
                 self.pause = Some(now.saturating_add(duration));
                 return;
             }
+            Act::ListenAndPrint { output, prefix, suffix } => {
+                assert!(self.server.is_none(), "one listener per scripted server");
+                self.server = Some(Box::new(server::Server::announce(self, self.fds[output], prefix, suffix)));
+                return;
+            }
+            Act::AnswerRequests(status) => {
+                let mut server = self.server.take().expect("listen before serving");
+                server.serve(self, status);
+                self.server = Some(server);
+                return;
+            }
         };
         self.submit(kind);
     }
@@ -255,6 +276,12 @@ impl Host for Script {
         if self.hog > 0 {
             self.held = vec![0; self.hog].into_boxed_slice();
             self.hog = 0;
+        }
+        if self.server.as_deref().is_some_and(server::Server::active) {
+            let mut server = self.server.take().expect("active server");
+            server.iterate(self);
+            self.server = Some(server);
+            return;
         }
         while let Some(complete) = self.completions.pop() {
             self.waiting = false;
@@ -329,23 +356,24 @@ impl Host for Script {
     }
     fn work_pending(&self, now: Time) -> bool {
         !self.completions.is_empty()
-            || (!self.waiting && !self.done && self.awaiting.is_none() && self.pause.is_none_or(|at| now >= at))
+            || (!self.server.as_deref().is_some_and(server::Server::active)
+                && !self.waiting
+                && !self.done
+                && self.awaiting.is_none()
+                && self.pause.is_none_or(|at| now >= at))
     }
     fn next_mechanism_deadline(&self) -> Option<Time> {
         None
     }
-
     fn next_policy_deadline(&self) -> Option<Time> {
         self.pause
     }
-
     fn is_empty(&self) -> bool {
         self.done && self.completions.is_empty() && self.submissions.is_empty()
     }
     fn exit(&self) -> Option<Exit> {
         if self.is_empty() { self.terminal } else { None }
     }
-
     fn operations(&self) -> u32 {
         8
     }
