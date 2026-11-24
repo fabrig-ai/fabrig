@@ -25,7 +25,6 @@ const ADDED_KEY: &str = "/fixture/second.key";
 const ROOT_DER: &str = "/fixture/root.der";
 const OBSERVATIONS: &str = "/fixture/observations";
 const DEMO_KEY: &str = "/fixture/demo/llm.key";
-const CONFIG: &str = "/fixture/temper.toml";
 const STATE: &str = "/fixture/forge.state";
 const EXISTING: &[u8] = b"existing";
 const ADMIN: &[u8; 40] = b"0123456789abcdef0123456789abcdef01234567";
@@ -78,7 +77,7 @@ struct Facts {
     reads: Vec<(PathBuf, u32, bool)>,
 }
 impl Facts {
-    fn new(entries: impl IntoIterator<Item = (&'static str, Node)>) -> Self {
+    fn new<'a>(entries: impl IntoIterator<Item = (&'a str, Node)>) -> Self {
         let tree =
             [(ROOT, directory(0o700))].into_iter().chain(entries).map(|(name, node)| (name.into(), node)).collect();
         Self { tree, effects: Vec::new(), opened: Vec::new(), reads: Vec::new() }
@@ -342,6 +341,7 @@ fn refused_setup() {
     }
 }
 fn refused_demo() {
+    let config_path = format!("{ROOT}/{}", temper_config_shell::FILE);
     let bound = temper_fake::demo::KEY_FILE_BYTES;
     let long_key = vec![b'k'; skein_lib::usize_of(bound) + 1];
     for (name, has_document, key, words, expected) in [
@@ -358,7 +358,7 @@ fn refused_demo() {
         ("llm_long", true, Some(file(&long_key)), &[], expected("llm", Some(DEMO_KEY), &format!("past {bound} bytes"))),
         ("llm_word", true, None, &["extra"], (2, LLM_USAGE.into())),
     ] {
-        let config = has_document.then(|| (CONFIG, file(b"listen = \"127.0.0.1:0\"\n")));
+        let config = has_document.then(|| (config_path.as_str(), file(b"listen = \"127.0.0.1:0\"\n")));
         let mut facts = Facts::new(config.into_iter().chain(key.map(|key| (DEMO_KEY, key))));
         let usage = expected.0 == 2;
         assert_eq!(refusal(&mut facts, "llm", words, usage), expected, "{name}");

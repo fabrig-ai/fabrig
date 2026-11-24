@@ -12,7 +12,9 @@ use std::{
     path::{Path, PathBuf},
     process::ExitStatus,
 };
-use temper_config_shell::{File, ForgeSignIn, Member, OpenId, OpenIdClient, Shape, SignIn, TestGoogle, Transport};
+use temper_config_shell::{
+    FILE, File, ForgeSignIn, Member, OpenId, OpenIdClient, Shape, SignIn, TestGoogle, Transport,
+};
 use temper_forge_setup::{
     machine::BoxKind,
     sign_in::{self, FirstSignIn},
@@ -197,10 +199,11 @@ fn instructions(discovery: &[u8], policy: FirstSignIn) -> Vec<u8> {
 fn sign_in_refusal_rows() {
     use CredentialEffect::{Draw, Mkdir, Open, OpenSsl, Remove, Stat};
     let setup = setup_bytes(false, false);
+    let no_provider = format!("{FILE}:20: sign_in.forges[0].client: must agree with engine.clients.provider");
     for (row, reason) in [
         ("openssl", "openssl genpkey failed; openssl must be on PATH"),
         ("unnamed", "it is not named by application.sign_in.forges"),
-        ("no-provider", "temper.toml:20: sign_in.forges[0].client: must agree with engine.clients.provider"),
+        ("no-provider", no_provider.as_str()),
     ] {
         let mut file = configuration(false);
         match row {
