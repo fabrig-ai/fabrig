@@ -308,8 +308,9 @@ keeps of a goal's work in its own files.
 - **Its directory** holds one repository, the one the job writes, under
   its own name (`<name>/`): checked out at the goal's branch's tip, on
   the close change's own branch made there, clean, nothing staged. That
-  repository is writable on every attempt, a released job's too
-  (`../domain/forge/change/repairs.md`); a checkout with none or several
+  repository is writable on every attempt, a fresh job's on its
+  change's release too (`../domain/forge/change/repairs-releases.md`,
+  1); a checkout with none or several
   writable fails the job, naming each repository it saw and whether it
   could write it (`../domain/worker/jobs.md`).
 - **`request.json`:** `{"version": 1, "goal": G, "changes": [{"task": N,

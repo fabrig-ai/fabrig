@@ -419,6 +419,12 @@ section 6).
   - A release makes one attempt more, past the bound too, and its end
     counts as any. A `landing_attempts` of 1 holds on every ended
     change.
+  - A close step's change the closer superseded for new work (*New
+    work waits for, and reopens, the steps*, below) is no attempt: the
+    closer keeps the changes it superseded with its row, as `Closer`'s
+    `superseded`, a field of the store's registered family that
+    defaults to none, so no version moves, and leaves them out of the
+    count, and, as its own, out of the goal's changes.
   - The hold's words name why, after the change's ending:
     `, held for its branch: WHAT`, WHAT `repairs`, `conflict
     resolutions`, `a rejection`, `its pull request closed` or `its
@@ -472,6 +478,24 @@ section 6).
   a landing whose result is in while the goal's branch
   has moved past what it landed makes the land step again; then it
   reports.
+  - *A close step's change that runs no close job,* held on its job's
+    failure or released and waiting (`change/repairs-releases.md`, 1),
+    makes none while the work is pending, whoever releases it. Once the
+    work has ended, where a change of the goal landed into the goal's
+    branch since that close step, the closer supersedes it: it cancels
+    it, its reason `superseded by the goal's new work: changes N, M
+    landed into its branch`, N and M those changes' task numbers,
+    ascending, and makes the close step again at once, its request
+    naming them. Where none landed, it wakes one that waits, which
+    decides afresh, and leaves one held for its goal's release, the
+    escalation the goal already holds.
+  - *Why* (2026-11-24): a goal that makes a repair or a catch-up and
+    then releases its held close, as its charter says, or leaves it
+    held, has its close made once, after the work has landed, with a
+    request that names it. A held close step counted as pending before,
+    so nothing reopened it once the repair landed, and a release made a
+    fresh job at once with the old request, at a branch the repair had
+    not reached.
 - **Never a catch-up:** the closer makes none; a goal it ends makes
   one only for a change that needs it (1).
 - **Whether the base holds the goal's tip** is read afresh before a land
