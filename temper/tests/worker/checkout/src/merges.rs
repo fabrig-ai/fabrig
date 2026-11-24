@@ -659,7 +659,7 @@ pub fn refuse_past_the_bound() {
     assert_eq!(world.push_attempts, 0);
     assert_eq!(world.forge.moves(), []);
     assert_eq!(world.forge.branch(remote, topic), Some(world.ours));
-    let hold = world.hold.take().expect("refused delivery still holds the checkout");
+    let hold = world.hold.expect("refused delivery still holds the checkout");
     assert!(matches!(world.finish(Event::Release { hold }, false), Request::Released { client: CLIENT }));
     assert_eq!(world.domain.holds(), 0);
 }
