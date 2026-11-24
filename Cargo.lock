@@ -7635,6 +7635,7 @@ name = "temper-fetch-shell"
 version = "0.0.0"
 dependencies = [
  "flate2",
+ "skein-fake-machine",
  "skein-http",
  "skein-io",
  "skein-lib",

@@ -112,8 +112,6 @@ pub fn login_id() -> Result<Box<[u8]>, String> {
 
 /// Streams one archive member into a preopened part file, bounded and hashed.
 pub fn extract(archive: &[u8], member: &[u8], file: &mut fs::File, bound: u64) -> Extraction {
-    use std::io::{Read as _, Write as _};
-    const CHUNK: usize = 16_384;
     let Ok(mut child) = Command::new("/usr/bin/tar")
         .arg("-xzOf")
         .arg(crate::path(archive))
@@ -127,7 +125,22 @@ pub fn extract(archive: &[u8], member: &[u8], file: &mut fs::File, bound: u64) -
         return Extraction::Failed;
     };
     let mut output = child.stdout.take().expect("tar stdout piped");
-    let mut buffer = [0; CHUNK];
+    extract_with(&mut output, file, bound, &mut child, std::process::Child::kill, |child| {
+        child.wait().map(|status| status.success())
+    })
+}
+
+const EXTRACT_CHUNK: usize = 16_384;
+
+fn extract_with<C>(
+    output: &mut impl io::Read,
+    file: &mut dyn io::Write,
+    bound: u64,
+    child: &mut C,
+    kill: impl FnOnce(&mut C) -> io::Result<()>,
+    wait: impl FnOnce(&mut C) -> io::Result<bool>,
+) -> Extraction {
+    let mut buffer = [0; EXTRACT_CHUNK];
     let mut total = 0_u64;
     let mut hash = Sha256::new();
     let refusal = loop {
@@ -148,12 +161,15 @@ pub fn extract(archive: &[u8], member: &[u8], file: &mut fs::File, bound: u64) -
         }
     };
     if let Some(refusal) = refusal {
-        drop(child.kill());
-        drop(child.wait());
+        drop(kill(child));
+        drop(wait(child));
         return refusal;
     }
-    match child.wait() {
-        Ok(status) if status.success() && total != 0 => Extraction::Digest(hash.finish()),
+    match wait(child) {
+        Ok(true) if total != 0 => Extraction::Digest(hash.finish()),
         Ok(_) | Err(_) => Extraction::Failed,
     }
 }
+
+#[cfg(test)]
+mod tests;
