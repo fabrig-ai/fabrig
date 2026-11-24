@@ -139,7 +139,7 @@ impl<S> skein_shell::Host for Host<S> {
         self.exit_with(|lines| print!("{lines}"), |lines| eprint!("{lines}"))
     }
     fn drain(&mut self) {
-        self.drain_with(&mut io::stderr());
+        self.drain_with(&mut io::stderr(), Self::keep_link);
     }
 }
 
@@ -162,7 +162,7 @@ impl<S> Host<S> {
         Some(Exit::Code(code))
     }
 
-    fn drain_with(&mut self, diagnostics: &mut dyn Write) {
+    fn drain_with(&mut self, diagnostics: &mut dyn Write, mut keep: impl FnMut(&Self, &[u8])) {
         (self.served.handover)(&mut self.service);
         while let Some((lines, clients)) = (self.served.listening)(&mut self.service, &self.binary) {
             diagnostics.write_all(lines.as_bytes()).expect("printing to stderr failed");
@@ -192,7 +192,7 @@ impl<S> Host<S> {
             }
         }
         while let Some(link) = (self.served.local_link)(&mut self.service) {
-            self.keep_link(&link);
+            keep(self, &link);
         }
         if self.wait_check {
             (self.served.check_wait_boundary)(&self.service, self.now);
@@ -258,6 +258,7 @@ pub(super) mod adapter_tests {
         completions: Queue<Complete>,
         submissions: Queue<Submit>,
         links: Queue<Box<[u8]>>,
+        local_links: Queue<Box<[u8]>>,
         notes: Queue<&'static str>,
     }
     impl OneStage {
@@ -269,6 +270,7 @@ pub(super) mod adapter_tests {
                 completions: Queue::uncapped(),
                 submissions: Queue::uncapped(),
                 links: Queue::uncapped(),
+                local_links: Queue::uncapped(),
                 notes: Queue::uncapped(),
             }
         }
@@ -301,7 +303,7 @@ pub(super) mod adapter_tests {
         listening: |_, _| None,
         note: |service, binary| service.notes.pop().map(|note| format!("{binary} serve: {note}\n")),
         link: |service| service.links.pop(),
-        local_link: |_| None,
+        local_link: |service| service.local_links.pop(),
         check_wait_boundary: |service, _| assert_eq!(service.stages, 1),
         adopt_listener: |_, _, _| Ok(()),
         adopt_signals: |_, _| Ok(()),
@@ -371,9 +373,40 @@ pub(super) mod adapter_tests {
         let now = host.clock.now().now;
         host.iterate(now, Wall::EPOCH);
         let mut diagnostics = Vec::new();
-        host.drain_with(&mut diagnostics);
+        host.drain_with(&mut diagnostics, Host::keep_link);
         assert_eq!(diagnostics, b"own-service serve: first fixed line\nown-service serve: second fixed line\n");
         assert!(host.service.notes.is_empty());
+    }
+
+    #[derive(Clone, Default)]
+    struct RecordedOutput(std::rc::Rc<std::cell::RefCell<Vec<u8>>>);
+    impl Write for RecordedOutput {
+        fn write(&mut self, bytes: &[u8]) -> io::Result<usize> {
+            self.0.borrow_mut().write(bytes)
+        }
+        fn flush(&mut self) -> io::Result<()> {
+            Ok(())
+        }
+    }
+
+    #[test]
+    fn only_a_local_link_event_rewrites_the_kept_link() {
+        const LOCAL: &[u8] = b"http://local/kept";
+        const FRESH: &[u8] = b"http://local/fresh";
+        let mut host = host();
+        let stdout = RecordedOutput::default();
+        host.output = Box::new(stdout.clone());
+        host.iterate(Time::ZERO, Wall::EPOCH);
+        let mut kept = Vec::new();
+        host.service.local_links.push(LOCAL.into());
+        host.drain_with(&mut io::sink(), |_, link| kept.push(Box::<[u8]>::from(link)));
+        let expected = [Box::<[u8]>::from(LOCAL)];
+        assert_eq!(kept, expected);
+
+        host.service.links.push(FRESH.into());
+        host.drain_with(&mut io::sink(), |_, link| kept.push(Box::<[u8]>::from(link)));
+        assert_eq!(stdout.0.borrow().as_slice(), b"http://local/fresh\n");
+        assert_eq!(kept, expected, "the printed refresh never reaches the local writer");
     }
 
     struct BrokenOutput;

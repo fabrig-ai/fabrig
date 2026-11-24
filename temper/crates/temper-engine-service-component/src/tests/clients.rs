@@ -68,6 +68,12 @@ fn with_given_secrets() -> crate::Service {
 }
 
 fn with_secrets(local_secret: Option<skein_lib::Secret>) -> crate::Service {
+    let mut service = before_start_with_secrets(local_secret);
+    super::fixtures::restart(&mut service);
+    service
+}
+
+fn before_start_with_secrets(local_secret: Option<skein_lib::Secret>) -> crate::Service {
     let mut service = super::fixtures::started();
     let settings = super::fixtures::engine();
     let mut seeds = super::fixtures::seeds();
@@ -84,13 +90,16 @@ fn with_secrets(local_secret: Option<skein_lib::Secret>) -> crate::Service {
         &[],
     )
     .expect("clients with a given secret");
-    super::fixtures::restart(&mut service);
     service
 }
 
-fn sign_in_with_link(engine: &mut crate::engine::Engine, link: &[u8]) -> jig_client_protocol_wire::SignInAnswer {
+fn link_post(engine: &mut crate::engine::Engine, link: &[u8]) -> peer::Peer {
     let body = peer::link_body(engine, link);
-    let mut peer = peer::Peer::new(engine, b"POST", b"/jig/v1/sign-in/link", &body, None);
+    peer::Peer::new(engine, b"POST", b"/jig/v1/sign-in/link", &body, None)
+}
+
+fn sign_in_with_link(engine: &mut crate::engine::Engine, link: &[u8]) -> jig_client_protocol_wire::SignInAnswer {
+    let mut peer = link_post(engine, link);
     peer.pump(engine, true);
     peer.sign_in_answer(engine)
 }
@@ -167,8 +176,13 @@ fn a_spent_given_secret_prints_a_fresh_link() {
     let engine = service.engine.as_mut().expect("engine");
     let link = given_link();
     let _signed_in = sign_in_with_link(engine, &link);
-    let answer = sign_in_with_link(engine, &link);
+    let mut spent = link_post(engine, &link);
+    spent.pump(engine, true);
+    let mut body = spent.sign_in_body();
+    let answer = jig_client_protocol_wire::SignInAnswer::read(&engine.clients.env.limits.wire, &mut body)
+        .expect("a sign-in answer");
     assert!(answer == jig_client_protocol_wire::SignInAnswer::LinkUsed, "a spent secret is used");
+    assert_eq!(body.remaining(), 0, "LinkUsed consumes the whole response body");
     super::fixtures::turn(&mut service);
     let fresh = service.links().pop().expect("a fresh link is printed");
     assert!(local != link && local != fresh, "the file never holds a printed link");
@@ -577,10 +591,7 @@ fn a_link_sign_in_reaches_the_root_and_answers_a_token() {
     assert!(stream.streaming(), "the issued bearer authenticates through the stored digest");
     assert_eq!(engine.end, None);
 }
-#[test]
-fn a_request_before_decisions_open_is_answered_not_ready() {
-    let mut service = super::fixtures::started();
-    let engine = service.engine.as_mut().expect("engine");
+fn listen_before_decisions_open(engine: &mut crate::engine::Engine) {
     engine.clients.iterate(
         skein_lib::Time::ZERO,
         skein_lib::Wall::EPOCH,
@@ -599,16 +610,50 @@ fn a_request_before_decisions_open_is_answered_not_ready() {
         engine.demo.as_ref(),
         &mut engine.accounts,
     );
-    let link = engine.clients.links.pop().unwrap();
-    let body = peer::link_body(engine, &link);
-    let mut peer = peer::Peer::new(engine, b"POST", b"/jig/v1/sign-in/link", &body, None);
-    peer.pump(engine, false);
+}
+
+fn early_link_post(engine: &mut crate::engine::Engine, link: &[u8]) -> jig_client_protocol_wire::SignInAnswer {
+    let mut peer = link_post(engine, link);
+    peer.handoff(engine);
     assert_eq!(engine.clients.early.len(), 1, "request staged during restoration");
     crate::engine::iterate(engine, skein_lib::Time::ZERO, skein_lib::Wall::EPOCH);
     peer.pump(engine, false);
-    assert_eq!(peer.sign_in_answer(engine), jig_client_protocol_wire::SignInAnswer::NotReady);
+    let answer = peer.sign_in_answer(engine);
+    if !peer.is_closed() {
+        peer.close(engine);
+    }
+    answer
+}
+
+#[test]
+fn a_request_before_decisions_open_is_answered_not_ready() {
+    let mut service = super::fixtures::started();
+    let engine = service.engine.as_mut().expect("engine");
+    listen_before_decisions_open(engine);
+    let link = engine.clients.links.pop().unwrap();
+    assert_eq!(early_link_post(engine, &link), jig_client_protocol_wire::SignInAnswer::NotReady);
     assert!(!engine.domain.ready());
 }
+
+#[test]
+fn a_box_given_link_signs_in_after_early_not_ready() {
+    use jig_client_protocol_wire::SignInAnswer;
+    let mut service = before_start_with_secrets(None);
+    let engine = service.engine.as_mut().expect("engine");
+    listen_before_decisions_open(engine);
+    let link = given_link();
+    assert_eq!(early_link_post(engine, &link), SignInAnswer::NotReady);
+    assert!(!engine.domain.ready(), "the first answer precedes decisions opening");
+
+    super::fixtures::restart(&mut service);
+    let engine = service.engine.as_mut().expect("engine");
+    let SignInAnswer::SignedIn(answer) = sign_in_with_link(engine, &link) else {
+        panic!("the same given link signs in after startup");
+    };
+    assert_eq!(answer.party, OWNER_PARTY, "the given link signs in the owner");
+    assert!(answer.token.is_some(), "the sign-in returns a credential");
+}
+
 #[test]
 fn a_clients_listener_failure_stops_the_engine() {
     let mut service = super::fixtures::started();
