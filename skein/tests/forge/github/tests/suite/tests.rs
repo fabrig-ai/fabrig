@@ -1,43 +1,51 @@
 use github_conformance::suite_support::{
-    Fixtures, Runner, Target, cases,
+    Directory, Runner, Target, cases, clean_in,
     fake::{self, World},
     journal::{Journal, Made},
+    run_fake_in,
 };
 use github_conformance::*;
+use skein_fake_machine::{How, Is, Listed, Machine};
 use skein_forge::{
     api,
     github::{document as github_document, request::Method},
 };
 use skein_forge_conformance::{
     facts::Outcome,
-    write::{self, SecretKind, Secrets},
+    write::{self, Secrets},
 };
-use skein_scratch::Scratch;
-use std::{
-    collections::BTreeSet,
-    fs,
-    io::Write as _,
-    os::unix::fs::{PermissionsExt, symlink},
-    path::Path,
-};
-fn runner(out: &Path) -> Runner<'_> {
+use std::collections::BTreeSet;
+
+fn output() -> Directory {
+    let mut machine = Machine::new();
+    let root = machine.lay(&[]);
+    Directory::fake(machine, root, "")
+}
+
+fn runner() -> Runner {
     let mut w = World::new().expect("hosted fixture");
     w.record_wire = true;
     let fixtures = World::fixtures().expect("invented fixtures");
-    Runner::new(Target::Fake(w), fixtures, out).expect("runner").for_suite()
+    Runner::new(Target::Fake(w), fixtures, output()).expect("runner").for_suite()
 }
-fn shutdown(r: &mut Runner<'_>) {
+fn shutdown(r: &mut Runner) {
     if let Target::Fake(w) = &mut r.target {
         w.shutdown().expect("quiescent simulator");
     }
 }
-fn scan(dir: &Path, secrets: &Secrets) {
-    for entry in fs::read_dir(dir).expect("output directory") {
-        let path = entry.expect("entry").path();
-        if path.is_dir() {
-            scan(&path, secrets);
+fn entries(out: &mut Directory, dir: &str) -> Vec<Listed> {
+    let Directory::Fake(tree) = out else { panic!("fake directory") };
+    tree.entries(dir).expect("output directory")
+}
+
+fn scan(out: &mut Directory, dir: &str, secrets: &Secrets) {
+    for (kind, name) in entries(out, dir) {
+        let name = std::str::from_utf8(&name).expect("entry name");
+        let path = if dir.is_empty() { name.to_owned() } else { format!("{dir}/{name}") };
+        if kind == Is::Directory {
+            scan(out, &path, secrets);
         } else {
-            let bytes = fs::read(path).expect("output file");
+            let bytes = out.read_bounded(&path, u64::from(u32::MAX)).expect("output file");
             assert!(write::check("all output", &bytes, b"", secrets).is_ok(), "output contains a registered secret");
         }
     }
@@ -47,8 +55,7 @@ fn github_conformance_holds_every_fact_on_the_fake() {
     // Live omits fourteen fake-only bootstrap, manifest, rename-log and
     // lifecycle requests from the full fake run.
     const FAKE_ONLY_REQUESTS: usize = 14;
-    let out = Scratch::new("whole");
-    let report = run_fake(out.path()).expect("whole hosted fake run");
+    let (report, mut out) = run_fake_in(output()).expect("whole hosted fake run");
     assert_eq!(report.facts.len(), cases::NAMES.len());
     for fact in report.facts {
         match fact.outcome {
@@ -61,7 +68,7 @@ fn github_conformance_holds_every_fact_on_the_fake() {
     // Fake commit creation uses the domain directly. Live creates each recorded
     // commit with four HTTP calls; four head advances also create a temporary
     // branch, patch the head and later delete that temporary branch (six each).
-    let journal = fs::read_to_string(out.path().join("made.txt")).expect("invented journal");
+    let journal = out.read_text("made.txt").expect("invented journal");
     let commits = journal
         .lines()
         .filter(|line| {
@@ -75,7 +82,7 @@ fn github_conformance_holds_every_fact_on_the_fake() {
     let extra_polls = 2 * 2 * 3 + 2 * 7 + 7 + 2 * 2 + 12;
     let projected_live_requests = report.requests + 4 * commits + 6 * 4 + extra_polls - FAKE_ONLY_REQUESTS;
     assert!(projected_live_requests <= 400, "live request upper bound: {projected_live_requests}");
-    let facts = fs::read_to_string(out.path().join("facts.txt")).expect("recorded facts");
+    let facts = out.read_text("facts.txt").expect("recorded facts");
     assert!(facts.lines().any(|line| line == "# queue-dequeued-delivered group branch reads 1"));
     assert!(facts.lines().any(|line| line == "# issues-since-epoch-empty listing reads 1"));
     assert_eq!(report.leftover_mints.len(), 0);
@@ -83,8 +90,7 @@ fn github_conformance_holds_every_fact_on_the_fake() {
 #[test]
 fn github_conformance_renews_the_app_jwt_at_half_life() {
     for (seconds, renewed) in [(299, false), (300, true), (601, true)] {
-        let out = Scratch::new(&format!("jwt-age-{seconds}"));
-        let mut r = runner(out.path());
+        let mut r = runner();
         r.start().expect("start fake run");
         let old = r.jwt.clone();
         r.wait(seconds);
@@ -98,7 +104,7 @@ fn github_conformance_renews_the_app_jwt_at_half_life() {
             assert!(expired.is(401, "Bad credentials"), "fake refuses the expired JWT");
         }
         r.finish().expect("cleanup");
-        scan(out.path(), &r.secrets);
+        scan(&mut r.out, "", &r.secrets);
         shutdown(&mut r);
     }
 }
@@ -114,8 +120,7 @@ fn epoch_response(status: u16, body: &str) -> Vec<u8> {
 }
 #[test]
 fn github_conformance_faults_fail_only_their_facts_and_the_run_continues() {
-    let out = Scratch::new("faults");
-    let mut r = runner(out.path());
+    let mut r = runner();
     let Target::Fake(w) = &mut r.target else { panic!("fake target") };
     w.null_next_merged_pull_commit = true;
     r.start().expect("start fake run");
@@ -150,11 +155,11 @@ fn github_conformance_faults_fail_only_their_facts_and_the_run_continues() {
         assert_eq!(fact.outcome, Outcome::Holds, "{name}");
     }
     let fact = r.facts.iter().find(|fact| fact.name == "merge-repeat-idempotent").expect("repeat merge fact");
-    let facts = fs::read_to_string(out.path().join("facts.txt")).expect("recorded facts");
+    let facts = r.out.read_text("facts.txt").expect("recorded facts");
     assert!(facts.contains(&fact.line()));
     assert!(r.cleanup && r.journal.pending.is_empty());
     assert!(r.tokens.is_empty() && r.leftover_mints.is_empty());
-    scan(out.path(), &r.secrets);
+    scan(&mut r.out, "", &r.secrets);
     shutdown(&mut r);
 }
 #[test]
@@ -172,8 +177,7 @@ fn github_conformance_response_framing_records_the_exchange_and_continues() {
         ),
     ];
     for (name, response, outcome) in rows {
-        let out = Scratch::new(name);
-        let mut r = runner(out.path());
+        let mut r = runner();
         r.start().expect("start fake run");
         r.response_overrides =
             vec![("log-lists-failed-deliveries", "/app/hook/deliveries?per_page=100", response.to_vec())];
@@ -188,9 +192,9 @@ fn github_conformance_response_framing_records_the_exchange_and_continues() {
                 assert_eq!(fact.outcome, Outcome::Holds, "later and earlier fact {}", fact.name);
             }
         }
-        let dir = out.path().join("transcripts/log-lists-failed-deliveries");
-        let request = fs::read_to_string(dir.join("request")).expect("failed request transcript");
-        let response = fs::read_to_string(dir.join("response")).expect("failed response transcript");
+        let dir = "transcripts/log-lists-failed-deliveries";
+        let request = r.out.read_text(&format!("{dir}/request")).expect("failed request transcript");
+        let response = r.out.read_text(&format!("{dir}/response")).expect("failed response transcript");
         assert!(request.starts_with("GET /app/hook/deliveries?per_page=100 HTTP/1.1\r\n"));
         assert!(response.starts_with("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\n"));
         if name == "invalid-length" {
@@ -200,20 +204,19 @@ fn github_conformance_response_framing_records_the_exchange_and_continues() {
             assert!(!response.contains("Set-Cookie:"));
         } else {
             assert!(response.contains("[{\"status_code\":500}]"), "case read the close-delimited body");
-            let facts = fs::read_to_string(out.path().join("facts.txt")).expect("recorded facts");
+            let facts = r.out.read_text("facts.txt").expect("recorded facts");
             assert!(facts.lines().any(|line| line == "# log-lists-failed-deliveries close-delimited response 200"));
         }
         assert!(r.cleanup && r.journal.pending.is_empty());
         assert!(r.tokens.is_empty() && r.leftover_mints.is_empty());
-        scan(out.path(), &r.secrets);
+        scan(&mut r.out, "", &r.secrets);
         shutdown(&mut r);
     }
 }
 #[test]
 fn github_conformance_epoch_refusals_and_non_json_fail_only_the_fact() {
     for (status, body) in [(503, "[]"), (503, "not json"), (200, "not json")] {
-        let out = Scratch::new(&format!("epoch-{status}-{}", body.len()));
-        let mut r = runner(out.path());
+        let mut r = runner();
         r.start().expect("start fake run");
         r.response_overrides = vec![("issues-since-epoch-empty", EPOCH_LISTING, epoch_response(status, body))];
         let run = cases::issues_since_epoch(&mut r);
@@ -261,11 +264,10 @@ fn github_conformance_queue_refusals_fail_one_fact() {
         "queue-merged-no-merge-commit-sha",
         "queue-dequeued-delivered",
     ];
-    for (index, rows) in groups.into_iter().enumerate() {
+    for rows in groups {
         let group =
             rows.iter().map(|(case, kind, skip, _)| format!("{case}/{kind}/{skip}")).collect::<Vec<_>>().join(", ");
-        let out = Scratch::new(&format!("queue-refusals-{index}"));
-        let mut r = runner(out.path());
+        let mut r = runner();
         r.start().unwrap_or_else(|_| panic!("{group}: start fake run"));
         for &(case, kind, skip, _) in &rows {
             if kind == "raw enqueue" {
@@ -309,161 +311,8 @@ fn github_conformance_queue_refusals_fail_one_fact() {
     }
 }
 #[test]
-fn github_conformance_names_every_fact_of_forge_github_13() {
-    let root = skein_scratch::paths::tree().join("docs/design/forge/github.md");
-    let doc = fs::read_to_string(root).expect("design contract");
-    let section = doc.split("## 13.").nth(1).expect("section 13").split("## 14.").next().expect("section end");
-    let mut names: BTreeSet<_> = section.split('`').enumerate().filter(|(i, _)| i % 2 == 1).map(|(_, s)| s).collect();
-    names.remove("unchecked");
-    names.retain(|s| s.contains('-') && !s.contains('/'));
-    names.insert("installation-repository-removal-refusals");
-    assert_eq!(cases::NAMES.iter().copied().collect::<BTreeSet<_>>(), names);
-    assert_eq!(cases::NAMES.len(), names.len());
-}
-#[test]
-fn github_conformance_stops_on_a_leaked_secret() {
-    let out = Scratch::new("leak");
-    for kind in
-        [SecretKind::AppKey, SecretKind::PersonToken, SecretKind::Jwt, SecretKind::MintedToken, SecretKind::HookSecret]
-    {
-        let secrets = Secrets::of(&[(kind, "invented-secret-value")]);
-        let mut m = mask::Mask::default();
-        let unexpected = m.body(br#"{"unexpected":"invented-secret-value"}"#, false);
-        let leak = write::case(out.path(), "unexpected-field", b"GET / HTTP/1.1\r\n", &unexpected, &secrets)
-            .expect_err("leak refused");
-        let error = leak.to_string();
-        assert!(error.contains("unexpected-field"));
-        assert!(error.contains(&format!("{kind:?}")));
-        assert!(!error.contains("invented-secret-value"));
-        assert!(!out.path().join("transcripts").exists());
-    }
-}
-fn private_fixture(dir: &Path) {
-    fs::set_permissions(dir, fs::Permissions::from_mode(0o700)).expect("private directory");
-    let fixtures = World::fixtures().expect("invented fixtures");
-    let app = br#"{"id":8,"slug":"example-app","name":"Example App","client_id":"invented-client","node_id":"invented-node","html_url":"https://example-app.invalid/","permissions":{"contents":"write"},"events":["push"],"created_at":"2026-01-01T00:00:00Z","owner":"acme","installations":[{"id":1,"account":"acme","repositories":["acme/widgets"]},{"id":2,"account":"globex","repositories":["globex/gadgets"]}],"spare_repository":"acme/spare","hook_url":"https://example-app.invalid/","api_version":"2026-03-10"}"#;
-    // Pin the invented document to the same dialect constant as the runner.
-    let app =
-        std::str::from_utf8(app).expect("metadata text").replace("2026-03-10", skein_forge::github::pin::API_VERSION);
-    for (name, bytes) in [
-        ("app.json", app.as_bytes()),
-        ("app.pem", fixtures.pem.as_bytes()),
-        ("webhook_secret", fixtures.webhook.as_bytes()),
-        ("person-acme.token", fixtures.people["acme"].as_bytes()),
-        ("person-globex.token", fixtures.people["globex"].as_bytes()),
-    ] {
-        fs::write(dir.join(name), bytes).expect("invented fixture file");
-        fs::set_permissions(dir.join(name), fs::Permissions::from_mode(0o600)).expect("private file");
-    }
-}
-#[test]
-fn github_conformance_live_refuses_a_loose_directory_or_file() {
-    let valid = Scratch::new("valid-fixture");
-    private_fixture(valid.path());
-    fs::write(valid.path().join("ignored"), b"unneeded").expect("ignored loose file");
-    assert!(Fixtures::load(valid.path()).is_ok(), "valid invented fixtures refused");
-    for name in ["app.json", "app.pem", "webhook_secret", "person-acme.token", "person-globex.token"] {
-        for kind in ["file", "link", "non-file"] {
-            let out = Scratch::new(&format!("{kind}-{name}"));
-            private_fixture(out.path());
-            let path = out.path().join(name);
-            match kind {
-                "file" => fs::set_permissions(&path, fs::Permissions::from_mode(0o644)).expect("loose file"),
-                "link" => {
-                    let target = out.path().join("invented-target");
-                    fs::rename(&path, &target).expect("move invented file");
-                    symlink(&target, &path).expect("file link");
-                }
-                "non-file" => {
-                    fs::remove_file(&path).expect("remove invented file");
-                    fs::create_dir(&path).expect("directory in file slot");
-                }
-                _ => unreachable!(),
-            }
-            let attempted = Fixtures::load(out.path()).map(|_| -> () {
-                panic!("connector reached after insecure fixture");
-            });
-            assert!(attempted.is_err());
-        }
-    }
-    fs::set_permissions(valid.path(), fs::Permissions::from_mode(0o755)).expect("loose directory");
-    assert!(Fixtures::load(valid.path()).is_err());
-    fs::set_permissions(valid.path(), fs::Permissions::from_mode(0o700)).expect("private directory");
-    let link = Scratch::new("directory-link");
-    symlink(valid.path(), link.path().join("link")).expect("directory link");
-    assert!(Fixtures::load(&link.path().join("link")).is_err());
-}
-#[test]
-fn github_conformance_live_refuses_targets_outside_the_fixtures() {
-    let dir = Scratch::new("guard-fixtures");
-    private_fixture(dir.path());
-    let fixtures = Fixtures::load(dir.path()).expect("invented private fixtures").guard_fixtures();
-    let delete =
-        br#"{"query":"mutation { deleteRepository(input: {repositoryId: \"invented\"}) { clientMutationId } }"}"#
-            .as_slice();
-    let mixed = br#"{"query":"mutation { enqueuePullRequest(input: {pullRequestId: \"invented\"}) { clientMutationId } deleteRepository(input: {repositoryId: \"invented\"}) { clientMutationId } }"}"#.as_slice();
-    for (method, verb, target, body) in [
-        (Method::Post, "POST", "/repos/acme/other/pulls", b"".as_slice()),
-        (Method::Get, "GET", "/repos/acme/other", b""),
-        (Method::Get, "GET", "/repos/other/widgets/pulls", b""),
-        (Method::Get, "GET", "/repos/Acme/widgets", b""),
-        (Method::Get, "GET", "/repos/acme/Widgets", b""),
-        (Method::Delete, "DELETE", "/repos/acme/widgets", b""),
-        (Method::Patch, "PATCH", "/repos/acme/widgets?ignored=1", b""),
-        (Method::Post, "POST", "/repos/acme/spare", b""),
-        (Method::Put, "PUT", "/repos/globex/gadgets", b""),
-        (Method::Delete, "DELETE", "/repos/acme/widgets/", b""),
-        (Method::Post, "POST", "/user/repos", b""),
-        (Method::Patch, "PATCH", "/user", b""),
-        (Method::Put, "PUT", "/user/installations/999/repositories/1", b""),
-        (Method::Delete, "DELETE", "/user/installations/999/repositories/1", b""),
-        (Method::Post, "POST", "/user/installations/1/repositories/1", b""),
-        (Method::Put, "PUT", "/user/installations/1/repositories/not-digits", b""),
-        (Method::Put, "PUT", "/user/installations/1/repositories/1/extra", b""),
-        (Method::Put, "PUT", "/user/installations/1/repositories/", b""),
-        (Method::Put, "PUT", "/user/installations//repositories/1", b""),
-        (Method::Put, "PUT", "/user/installations/18446744073709551616/repositories/1", b""),
-        (Method::Delete, "DELETE", "/users/acme", b""),
-        (Method::Patch, "PATCH", "/repositories/2", b""),
-        (Method::Post, "POST", "/graphql", delete),
-        (Method::Post, "POST", "/graphql", mixed),
-        (Method::Get, "GET", "/graphql", br#"{"query":"query { viewer { login databaseId } }"}"#),
-        (Method::Post, "POST", "/graphql", br#"{"query":"subscription { viewer { login } }"}"#),
-        (Method::Post, "POST", "/graphql", br#"{"query":"query { viewer { login } }"}"#),
-        (Method::Post, "POST", "/graphql", br#"{"query":"query { viewer { login databaseId } } "}"#),
-        (Method::Post, "POST", "/graphql", b"{}"),
-        (Method::Post, "POST", "/graphql", br#"{"query":42}"#),
-        (Method::Post, "POST", "/graphql", b"invalid JSON"),
-        (Method::Get, "GET", "/repos/acme/widgets%2F..", b""),
-        (Method::Get, "GET", "/repos/ac%6de/widgets", b""),
-        (Method::Get, "GET", "/repos/acme%2Fother/widgets", b""),
-        (Method::Get, "GET", "/repos//widgets", b""),
-        (Method::Get, "GET", "/repos/acme/", b""),
-        (Method::Get, "GET", "/repos/./widgets", b""),
-        (Method::Get, "GET", "/repos/../widgets", b""),
-        (Method::Get, "GET", "/repos/acme/.", b""),
-        (Method::Get, "GET", "/repos/acme/..", b""),
-        (Method::Get, "GET", "/repos/acme/widgets/../other", b""),
-        (Method::Get, "GET", "/repos/acme/widgets#ignored", b""),
-        (Method::Get, "GET", "/repos/acme/widgets\\other", b""),
-        (Method::Get, "GET", "/repos/acme", b""),
-        (Method::Get, "GET", "/user-other", b""),
-        (Method::Get, "GET", "/installation/token", b""),
-        (Method::Post, "POST", "/installation/repositories", b""),
-        (Method::Get, "GET", "/installation/repositories-other", b""),
-    ] {
-        let error = live::guarded(&fixtures, method, target, body, || {
-            panic!("connector called for a refused target");
-        })
-        .expect_err("target must be refused before the connector");
-        let path = target.split('?').next().expect("path");
-        assert_eq!(error.to_string(), format!("live target refuses {verb} {path} before the connector"));
-    }
-}
-#[test]
 fn github_conformance_fake_requests_replay_through_the_live_guard() {
-    let out = Scratch::new("guard-replay");
-    let mut r = runner(out.path());
+    let mut r = runner();
     let fixtures = r.fixtures.guard_fixtures();
     r.start().expect("start fake run");
     let run = cases::run(&mut r);
@@ -509,20 +358,18 @@ fn github_conformance_fake_requests_replay_through_the_live_guard() {
 }
 #[test]
 fn github_conformance_names_a_token_expiring_within_30_days() {
-    let out = Scratch::new("expiry");
-    let mut r = runner(out.path());
+    let mut r = runner();
     r.start().expect("start");
     assert!(r.provenance.iter().any(|p| p == "# person-acme.token expires within 30 days"));
     assert!(!r.provenance.iter().any(|p| p.contains("person-globex.token expires")));
     r.finish().expect("cleanup");
     r.report().expect("report");
-    scan(out.path(), &r.secrets);
+    scan(&mut r.out, "", &r.secrets);
     shutdown(&mut r);
 }
 #[test]
 fn github_conformance_stays_within_its_request_budget() {
-    let out = Scratch::new("budget");
-    let mut r = runner(out.path());
+    let mut r = runner();
     r.start().expect("start");
     let token = r.token(0).expect("memory token");
     r.case_limit = r.requests;
@@ -539,8 +386,7 @@ fn github_conformance_stays_within_its_request_budget() {
 #[test]
 fn github_conformance_failed_case_revokes_its_tokens() {
     for stop in ["case", "leak"] {
-        let out = Scratch::new(stop);
-        let mut r = runner(out.path());
+        let mut r = runner();
         r.start().expect("start");
         let token = r.token(0).expect("memory token");
         let stopped: Result<()> = if stop == "leak" {
@@ -557,14 +403,13 @@ fn github_conformance_failed_case_revokes_its_tokens() {
                 .status,
             401
         );
-        scan(out.path(), &r.secrets);
+        scan(&mut r.out, "", &r.secrets);
         shutdown(&mut r);
     }
 }
 #[test]
 fn github_conformance_clean_finishes_a_run_stopped_partway() {
-    let out = Scratch::new("stopped");
-    let mut r = runner(out.path());
+    let mut r = runner();
     r.start().expect("start");
     let initial = r.base(0).expect("base");
     let base = r.copy_branch(0, &initial).expect("owned base");
@@ -596,7 +441,7 @@ fn github_conformance_clean_finishes_a_run_stopped_partway() {
     assert!(r.raw(Method::Get, "/app", &person, b"").is_err());
     r.tokens.clear(); // Model a killed process: none of the token values reaches cleanup.
     let oracle = r.secrets;
-    let mut r = Runner::resume(r.target, r.fixtures, out.path())
+    let mut r = Runner::resume(r.target, r.fixtures, r.out)
         .expect("fresh cleanup runner with retained hosted state")
         .for_suite();
     r.finish().expect("resumed cleanup");
@@ -604,12 +449,17 @@ fn github_conformance_clean_finishes_a_run_stopped_partway() {
     assert!(r.journal.pending.is_empty());
     assert_eq!(r.leftover_mints.len(), 3);
     assert!(r.leftover_mints.iter().all(|p| p.contains("not revoked, expires by")));
-    let journal_text = fs::read_to_string(out.path().join("made.txt")).expect("journal");
+    let journal_text = r.out.read_text("made.txt").expect("journal");
     assert!(!journal_text.contains("not revoked"));
-    for entry in fs::read_dir(out.path().join("transcripts")).expect("transcripts") {
-        let dir = entry.expect("case").path();
+    for (_, case) in entries(&mut r.out, "transcripts") {
+        let case = std::str::from_utf8(&case).expect("case");
         for name in ["request", "response"] {
-            assert!(!fs::read_to_string(dir.join(name)).expect("masked transcript").contains("not revoked"));
+            assert!(
+                !r.out
+                    .read_text(&format!("transcripts/{case}/{name}"))
+                    .expect("masked transcript")
+                    .contains("not revoked")
+            );
         }
     }
     assert_eq!(
@@ -641,37 +491,38 @@ fn github_conformance_clean_finishes_a_run_stopped_partway() {
         .expect("protection plan");
     assert!(matches!(protection, Ok(api::Answer::Protection(None))));
     assert_eq!(r.raw(Method::Get, "/repos/acme/spare", &minted, b"").expect("restored grant").status, 404);
-    scan(out.path(), &oracle);
+    scan(&mut r.out, "", &oracle);
     shutdown(&mut r);
 }
 
 #[test]
 fn github_conformance_clean_preserves_facts_and_ignores_an_incomplete_journal_tail() {
-    let out = Scratch::new("clean-file");
+    let mut out = output();
     let secrets = Secrets::of(&[]);
-    let mut journal = Journal::create(out.path(), false, &secrets).expect("journal");
-    journal.before(Made::Mint { installation: 123, at: 100 }, &secrets).expect("mint intention");
+    let mut journal = Journal::create(&mut out, false, &secrets).expect("journal");
+    journal.before(&mut out, Made::Mint { installation: 123, at: 100 }, &secrets).expect("mint intention");
     journal
-        .before(Made::Branch { repo: "acme/widgets".into(), name: "conformance-owned".into() }, &secrets)
+        .before(&mut out, Made::Branch { repo: "acme/widgets".into(), name: "conformance-owned".into() }, &secrets)
         .expect("branch intention");
-    let mut file = fs::OpenOptions::new().append(true).open(out.path().join("made.txt")).expect("journal file");
-    file.write_all(b"make\t3\tmint\t").expect("partial interrupted write");
-    fs::write(out.path().join("facts.txt"), "# target fake\nholds retained-fact\n").expect("prior facts");
-    clean(out.path(), None).expect("fresh fake cleanup");
-    let facts = fs::read_to_string(out.path().join("facts.txt")).expect("facts");
+    let Directory::Fake(tree) = &mut out else { panic!("fake directory") };
+    let file = tree.machine.open(tree.root, b"made.txt", How::Write).expect("journal file");
+    tree.machine.append(file, b"make\t3\tmint\t").expect("partial interrupted write");
+    tree.machine.close(file);
+    out.write("facts.txt", b"# target fake\nholds retained-fact\n").expect("prior facts");
+    let mut out = clean_in(out, None).expect("fresh fake cleanup");
+    let facts = out.read_text("facts.txt").expect("facts");
     assert!(facts.contains("holds retained-fact"));
     assert!(facts.contains("minted token for installation 123: not revoked, expires by 3700"));
-    assert!(!fs::read_to_string(out.path().join("made.txt")).expect("journal").contains("not revoked"));
-    assert!(Journal::load(out.path()).expect("reloaded").0.pending.is_empty());
-    clean(out.path(), None).expect("idempotent cleanup");
-    assert_eq!(fs::read_to_string(out.path().join("facts.txt")).expect("facts"), facts);
+    assert!(!out.read_text("made.txt").expect("journal").contains("not revoked"));
+    assert!(Journal::load(&mut out).expect("reloaded").0.pending.is_empty());
+    let mut out = clean_in(out, None).expect("idempotent cleanup");
+    assert_eq!(out.read_text("facts.txt").expect("facts"), facts);
 }
 
 #[test]
 fn github_conformance_cleanup_finds_an_issue_after_more_than_one_page() {
     for (known_number, resume) in [(false, false), (false, true), (true, false), (true, true)] {
-        let out = Scratch::new(&format!("issue-cleanup-number-{known_number}-resume-{resume}"));
-        let mut r = runner(out.path());
+        let mut r = runner();
         r.start().expect("start");
         let repo = r.repo(0).expect("repository");
         let Target::Fake(w) = &mut r.target else { unreachable!() };
@@ -689,7 +540,7 @@ fn github_conformance_cleanup_finds_an_issue_after_more_than_one_page() {
         }
         let number = if known_number {
             let number = r.issue(0).expect("made issue");
-            assert!(Journal::load(out.path()).expect("durable journal").0.numbers.values().any(|n| *n == number));
+            assert!(Journal::load(&mut r.out).expect("durable journal").0.numbers.values().any(|n| *n == number));
             number
         } else {
             let title = "conformance-killed-issue";
@@ -721,7 +572,7 @@ fn github_conformance_cleanup_finds_an_issue_after_more_than_one_page() {
         );
         let mut r = if resume {
             r.flush().expect("partial run transcripts");
-            Runner::resume(r.target, r.fixtures, out.path())
+            Runner::resume(r.target, r.fixtures, r.out)
                 .expect("resumed cleanup without token values or JWT")
                 .for_suite()
         } else {
@@ -747,20 +598,18 @@ fn github_conformance_cleanup_finds_an_issue_after_more_than_one_page() {
 
 #[test]
 fn github_conformance_cleanup_retains_an_unfound_issue() {
-    let out = Scratch::new("missing-cleanup");
-    let mut r = runner(out.path());
+    let mut r = runner();
     r.start().expect("start");
     r.before(Made::Issue { repo: "acme/widgets".into(), title: "conformance-no-reply".into() }).expect("intention");
     assert!(r.finish().is_err());
     assert_eq!(r.journal.pending.len(), 1);
-    assert_eq!(Journal::load(out.path()).expect("durable pending intention").0.pending.len(), 1);
+    assert_eq!(Journal::load(&mut r.out).expect("durable pending intention").0.pending.len(), 1);
     shutdown(&mut r);
 }
 
 #[test]
 fn github_conformance_transcripts_put_every_status_and_headers_on_their_own_lines() {
-    let out = Scratch::new("all-statuses");
-    let mut r = runner(out.path());
+    let mut r = runner();
     r.start().expect("start");
     r.next("many-responses").expect("case");
     let person = r.person(0).expect("person");
@@ -768,9 +617,9 @@ fn github_conformance_transcripts_put_every_status_and_headers_on_their_own_line
         r.raw(Method::Get, "/repos/acme/widgets", &person, b"").expect("response");
     }
     r.flush().expect("transcript");
-    let dir = out.path().join("transcripts/many-responses");
-    let response = fs::read_to_string(dir.join("response")).expect("responses");
-    let request = fs::read_to_string(dir.join("request")).expect("requests");
+    let dir = "transcripts/many-responses";
+    let response = r.out.read_text(&format!("{dir}/response")).expect("responses");
+    let request = r.out.read_text(&format!("{dir}/request")).expect("requests");
     assert_eq!(response.lines().filter(|line| line.starts_with("HTTP/1.1 200")).count(), 3);
     assert_eq!(
         response.lines().filter(|line| line.to_ascii_lowercase().starts_with("x-ratelimit-remaining:")).count(),
@@ -783,8 +632,7 @@ fn github_conformance_transcripts_put_every_status_and_headers_on_their_own_line
 
 #[test]
 fn github_conformance_raw_sends_the_supplied_narrowed_token() {
-    let out = Scratch::new("raw-narrowed");
-    let mut r = runner(out.path());
+    let mut r = runner();
     r.start().expect("start");
     let full = r.token(0).expect("full token");
     let narrowed = r.mint(0, true).expect("narrowed token");
@@ -805,8 +653,7 @@ fn github_conformance_raw_sends_the_supplied_narrowed_token() {
 
 #[test]
 fn github_conformance_discovers_the_organization_before_minting() {
-    let out = Scratch::new("organization");
-    let mut r = runner(out.path());
+    let mut r = runner();
     r.start().expect("organization discovered");
     assert_eq!(r.queue_installation, Some(1));
     assert_eq!(r.repo(r.queue_installation.expect("organization index")).expect("probe"), "globex/gadgets");
@@ -825,9 +672,8 @@ fn github_conformance_discovers_the_organization_before_minting() {
 }
 #[test]
 fn github_conformance_stops_without_an_organization_before_any_write() {
-    let out = Scratch::new("no-organization");
     let world = World::with_organization(false).expect("user-owned repositories");
-    let mut r = Runner::new(Target::Fake(world), World::fixtures().expect("fixtures"), out.path()).expect("runner");
+    let mut r = Runner::new(Target::Fake(world), World::fixtures().expect("fixtures"), output()).expect("runner");
     let error = r.start().expect_err("queue requires an organization");
     assert_eq!(error.to_string(), "no organization installation for the merge-queue cases");
     assert!(r.replay.iter().all(|(_, request)| request.method == Method::Get));
@@ -837,8 +683,7 @@ fn github_conformance_stops_without_an_organization_before_any_write() {
 
 #[test]
 fn github_conformance_bot_permission_is_not_a_role() {
-    let out = Scratch::new("bot-permission");
-    let mut r = runner(out.path());
+    let mut r = runner();
     r.start().expect("start");
     cases::bot_permission_is_not_a_role(&mut r).expect("bot permission fact");
     assert_eq!(r.facts.len(), 1);

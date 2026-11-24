@@ -17,7 +17,7 @@ Eighteen goals, started on 2026-11-23 on the user's approval, each on its own ra
 | D7, `temper-box::suite`'s admission, configuration, startup and support checks | 5.2 | temper | none | landed, task 13862 |
 | D8, `temper-box::suite`'s fake backends, relay, forge setup, landing launcher and listeners | 5.2 | temper | D7 | started, task 13871 |
 | D9, `skein-codegen::suite`'s tables to its step tests, with an in-memory tree for the patch commands | 5.2 | skein | none | landed, task 13856 |
-| D10, `github-conformance::suite` to step and protocol tests on the fake, with a supplied file tree for its journal | 5.2 | skein | none | started, task 13863 |
+| D10, `github-conformance::suite` to step and protocol tests on the fake, with a supplied file tree for its journal | 5.2 | skein | none | landed, task 13863 |
 | D11, temper's QA tool and CLI policy to a QA domain world and command-table steps | 5.2 | temper | none | landed, task 13864 |
 | D12, `smith-bench::suite`, smith's store and native setup | 5.2, 5.3 | smith, skein | none | built by goal 13865 (`smith/docs/design/testing.md`, 2.5, 6.1 and 7; `smith/docs/design/benchmarks/README.md`, 13; `skein/docs/design/testing/README.md`, 4) |
 | D13, smith's shipped CLI, with a file-operation seam around its finalizer | 5.3 | smith | none | done, by goal 13866 (`../../../../smith/docs/design/testing.md`, 2.3 and 2.5; `../../../../smith/docs/design/shell/README.md`, 2.3; each test's holder in `../../../../smith/docs/development/cli-tests-down-2026-11-23.md`) |
