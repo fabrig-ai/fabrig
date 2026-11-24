@@ -85,7 +85,6 @@ impl Bridge {
             | Event::OpenRefused { .. }
             | Event::Job { .. }
             | Event::Ran { .. }
-            | Event::Site { .. }
             | Event::Decoded { .. }
             | Event::Undecodable { .. }
             | Event::Rehearsing { .. }

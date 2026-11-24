@@ -2,7 +2,7 @@
 use crate::frame_reads;
 use frame_reads::{SETS, closed, decode, open, turn};
 use jig_protocol_store::OwnerSets;
-use jig_test_patches_jig::frames;
+use jig_test_layouts::frames;
 const TURN_ONLY: OwnerSets = OwnerSets { sets: &[SETS.sets[1]] };
 
 #[test]

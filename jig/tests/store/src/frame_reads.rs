@@ -2,7 +2,7 @@
 //! Shared by the fuzzy model and the isolated heap test; step tests exercise real file drivers.
 use crate::root;
 use jig_protocol_store::{self as store, Event, OwnerSets, Request, Root, TranscriptRead, codec, keys};
-use jig_test_patches_jig::frames;
+use jig_test_layouts::frames;
 use skein_io::{file, kernel::Fd};
 use skein_lib::{Env, Queue, Time, Token, Wall, length::len_u64};
 
@@ -162,7 +162,6 @@ pub fn decode(component: &mut store::Store, env: &Env<store::Limits>, raw: &[u8]
                 | Event::BackRefused { .. }
                 | Event::Closed { .. }
                 | Event::Job { .. }
-                | Event::Site { .. }
                 | Event::Ran { .. }) => panic!("decode event {other:?}"),
             }
         }

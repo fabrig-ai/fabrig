@@ -1,5 +1,0 @@
-patch 1
-owner fixture-jig 1
-
-family fixture-note 1 to 2
-add Note.pinned bool false

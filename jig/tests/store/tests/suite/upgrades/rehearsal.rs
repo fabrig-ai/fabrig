@@ -455,7 +455,7 @@ fn back_durable_replace_cuts_open_one_whole_generation() {
 #[test]
 fn rehearsal_names_a_malformed_held_turn_at_its_stored_offset() {
     use jig_store_world::frame_reads;
-    use jig_test_patches_jig::frames;
+    use jig_test_layouts::frames;
     for file in [false, true] {
         let tasks = if file { &[frames::TASK][..] } else { &[] };
         let mut world = crate::map_held::world_with_sets(SEED, &patches::limits(), tasks, patches::FRAME_LEGACY);

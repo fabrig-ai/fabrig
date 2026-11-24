@@ -36,9 +36,9 @@ fn patched_frame_charge_holds_at_bound_and_refuses_one_below() {
     world.owner_sets(patches::FRAME_JOBS);
     world.open_switched().expect("job copy opens");
     let patched = patches::fixture_turn(2, patches::FRAME_SAID, &[], 0);
-    let size = len_u64(jig_test_patches_jig::frames::body(6, &patched).len() + FRAMING_BYTES);
+    let size = len_u64(jig_test_layouts::frames::body(6, &patched).len() + FRAMING_BYTES);
     for (bytes, expected) in [(size, 1), (size - 1, 0)] {
-        let events = world.answered(Request::Transcript {
+        let events = world.request(Request::Transcript {
             owner: Token::new(719),
             read: TranscriptRead::Window { task: root::LIVE, attempt: 1, turn: 1, after: None },
             rows: 1,

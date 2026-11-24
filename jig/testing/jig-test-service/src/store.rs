@@ -243,7 +243,6 @@ pub(super) fn answer(engine: &mut crate::Engine) {
             | protocol::Event::Page { .. }
             | protocol::Event::Job { .. }
             | protocol::Event::Ran { .. }
-            | protocol::Event::Site { .. }
             | protocol::Event::Committed { .. }
             | protocol::Event::Failed { .. }
             | protocol::Event::FrameTooLarge { .. }

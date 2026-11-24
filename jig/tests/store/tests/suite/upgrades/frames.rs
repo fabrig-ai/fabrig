@@ -5,12 +5,10 @@ use jig_protocol_store::{
     self as store, Event, KeptFamily, Owner, OwnerSet, OwnerSets, Request, TranscriptRead, Write,
 };
 use jig_store_world::{World, patches, root};
-use jig_test_patches_jig::frames;
-use skein_codec::patch::Halt;
+use jig_test_layouts::frames;
 use skein_lib::{Token, length::len_u64};
 
 const READER: Token = Token::new(712);
-const OTHER: Token = Token::new(713);
 const READ_BYTES: u64 = 256; // The world's core resume bound (root::CORE_LIMITS).
 const BODY: KeptFamily = frame_reads::SETS.sets[0].families[0];
 const TURN: KeptFamily = frame_reads::SETS.sets[1].families[0];
@@ -448,11 +446,6 @@ fn a_converted_read_cut_at_its_first_and_last_file_operation_preserves_all_files
     }
 }
 
-fn stray(owner: Token) -> Request {
-    let capacity = skein_codec::patch::Capacity { versions: 0, patches: 0, text: 0, bytes: 0, nodes: 0 };
-    Request::Site { owner, patcher: Box::new(skein_codec::patch::Patcher::new(capacity)), result: Err(Halt::Order) }
-}
-
 fn baseline(sets: OwnerSets) -> World {
     let mut world = World::unopened_observed(41, patches::limits(), None);
     world.owner_sets(sets);
@@ -460,41 +453,6 @@ fn baseline(sets: OwnerSets) -> World {
     assert_eq!(world.commit(Box::new([Write::Save(root::header(1))])), Some(1));
     world.crash(42);
     world
-}
-
-#[test]
-fn a_stray_site_is_unread_during_upgrades_and_serving() {
-    // Suspend before the copy's first directory creation.
-    let mut complete = baseline(patches::FRAME_BASE);
-    complete.owner_sets(patches::FRAME_JOBS);
-    complete.trace_writes();
-    assert_eq!(complete.open_switched(), Some(3));
-    let copy = complete
-        .changes()
-        .iter()
-        .find(|(_, change)| *change == jig_store_world::world::Change::Make)
-        .expect("copy directory")
-        .0;
-    let mut patching = baseline(patches::FRAME_BASE);
-    patching.owner_sets(patches::FRAME_JOBS);
-    patching.trace_writes();
-    patching.cut_at(copy);
-    assert_eq!(patching.open_switched(), None);
-    let before = patching.contents();
-    let reference = patching.request(stray(OTHER));
-    assert!(matches!(reference.as_slice(), [Event::Unread { owner: OTHER }]), "{reference:?}");
-    assert_eq!(patching.contents(), before);
-    let mut idle = fixture(frame_reads::SETS, &frame_reads::turn(1, b"said", b"replay", 0));
-    assert_eq!(format!("{:?}", idle.request(stray(OTHER))), format!("{reference:?}"));
-    let mut world = fixture(frame_reads::SETS, &frame_reads::turn(1, b"said", b"replay", 0));
-    let before = world.contents();
-    world.trace_writes();
-    let refused = world.request(stray(OTHER));
-    assert_eq!(format!("{refused:?}"), format!("{reference:?}"));
-    let read = world.request(ask(selected(), READ_BYTES));
-    assert!(matches!(read.as_slice(), [Event::Turns { .. }]));
-    assert_eq!(world.contents(), before);
-    assert_eq!((world.changes()).len(), 0);
 }
 
 #[test]

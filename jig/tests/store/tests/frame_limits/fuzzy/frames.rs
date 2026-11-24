@@ -1,7 +1,7 @@
 //! Public decode against fixture bytes, using the fuzzy profile's binary filter.
 use crate::frame_reads;
 use frame_reads::{decode, turn};
-use jig_test_patches_jig::frames;
+use jig_test_layouts::frames;
 use skein_lib::{Rng, length::len_u64};
 const CASES: u32 = 512;
 const SEED: u64 = 0x0003_5a17_2026;

@@ -71,10 +71,6 @@ const VERSION_ALLOWED: &[VersionAllowance] = &[
         package: "skein-codec-patches",
         reason: "skein's patch fixtures: its label and shelf families move as their stories need",
     },
-    VersionAllowance {
-        package: "jig-test-patches-jig",
-        reason: "jig's patch fixtures over jig's own patches: fixture-note at two versions",
-    },
 ];
 
 #[derive(Debug)]

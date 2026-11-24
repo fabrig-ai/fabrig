@@ -900,8 +900,8 @@ pub(crate) fn answer(engine: &mut Engine) {
                     .try_push(crate::Note::Ran { of, job, rows, commits, counts })
                     .expect("job progress note room");
             }
-            event @ (jig_protocol_store::Event::Site { .. } | jig_protocol_store::Event::Job { .. }) => {
-                crate::store::route::site(
+            event @ jig_protocol_store::Event::Job { .. } => {
+                crate::store::route::job(
                     &mut engine.store.routes,
                     &mut engine.store.host.component,
                     event,

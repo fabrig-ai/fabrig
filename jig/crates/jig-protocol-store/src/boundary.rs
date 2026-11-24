@@ -58,8 +58,6 @@ pub enum Request {
     Transcript { owner: Token, read: TranscriptRead, rows: u32, bytes: u64 },
     /// The secrets' store (protocol/store/secrets.md).
     Secrets { owner: Token, request: Secrets },
-    /// A written site's answer (protocol/store/opening-owners.md 1), with its machine handed back.
-    Site { owner: Token, patcher: Box<skein_codec::patch::Patcher>, result: Result<(), skein_codec::patch::Halt> },
 }
 
 /// Whether open may upgrade or make a deployment (protocol/store/checkpoints.md, 5).
@@ -853,16 +851,6 @@ pub enum Event {
     /// stops (protocol/store/loads.md 1).
     Corrupt {
         owner: Token,
-    },
-    /// Kept for callers' exhaustiveness; serving reads do not emit sites
-    /// (protocol/store/transcripts.md, 6).
-    Site {
-        owner: Token,
-        of: crate::Owner,
-        key: Box<[u8]>,
-        site: skein_codec::patch::Site,
-        at: skein_codec::value::Node,
-        patcher: Box<skein_codec::patch::Patcher>,
     },
     /// A job page, routed to its owner (protocol/store/jobs.md, 3).
     Job {

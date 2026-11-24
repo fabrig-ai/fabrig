@@ -20,7 +20,7 @@ const SAID: &[u8] = b"same visible text";
 const REPLAY: &[u8] = b"old replay bytes";
 // Fixture v6 body: version(2), window(1), task(8), attempt(8), turn(4),
 // spend(8), absent read(1), time(8), transcript length(4); framing adds 12.
-// jig-test-patches-jig's public frames::body/wrap give 44 + 12 = 56.
+// The fixture frames::body/wrap give 44 + 12 = 56.
 // The clarified direct-read contract charges this plus the transcript for
 // Window/Page reads, whether or not a machine is made.
 const FRAME_OVERHEAD: u64 = 56;
@@ -51,7 +51,7 @@ fn starts() -> [TranscriptRead; 3] {
 }
 
 fn page(world: &mut World, read: TranscriptRead, rows: u32, bytes: u64) -> Vec<Event> {
-    world.answered(Request::Transcript { owner: OWNER, read, rows, bytes })
+    world.request(Request::Transcript { owner: OWNER, read, rows, bytes })
 }
 
 fn continued(read: TranscriptRead, offset: u64) -> TranscriptRead {

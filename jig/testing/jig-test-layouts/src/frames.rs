@@ -1,5 +1,9 @@
 //! Raw fixture frames, at either kept layout, shared by step and fuzz tests.
 use alloc::{boxed::Box, vec::Vec};
+
+pub const BODY_ROOT: &str = "TurnRecord";
+pub const TURN_ROOT: &str = "Turn";
+
 pub const TASK: u64 = 21;
 pub const ATTEMPT: u64 = 1;
 pub const TURN: u32 = 1;

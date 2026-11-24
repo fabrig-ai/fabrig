@@ -4,8 +4,7 @@ use super::fixtures::{self, ALICE, disk::Disk};
 use crate::{Event, KeptFamily, KeptMap, Owner, OwnerSet, OwnerSets, Request, Store, TranscriptRead, codec, keys};
 use jig_domain_core_vocabulary::{self as domain, reads};
 use jig_domain_tasks as tasks;
-use jig_test_layouts::layouts;
-use jig_test_patches_jig::frames;
+use jig_test_layouts::{self as fixture, frames, layouts};
 use skein_codec::schema::Schema;
 use skein_fake_machine::Item;
 use skein_lib::{Token, Wall, length::len_u64};
@@ -15,7 +14,7 @@ pub(super) const SETS: OwnerSets = OwnerSets {
         OwnerSet {
             jobs: &[],
             owner: Owner::Jig,
-            name: jig_test_patches_jig::NAME,
+            name: fixture::JIG_OWNER,
             level: Some(2),
             families: &[KeptFamily {
                 retired: &[],
@@ -25,7 +24,7 @@ pub(super) const SETS: OwnerSets = OwnerSets {
                 map: KeptMap::Store,
                 keys: &[],
                 frames: Some(crate::Frames {
-                    root: jig_test_patches_jig::FRAME_ROOT,
+                    root: frames::BODY_ROOT,
                     texts: &[layouts::FRAME_BODY_KEPT, layouts::FRAME_BODY],
                     number: 0,
                 }),
@@ -34,7 +33,7 @@ pub(super) const SETS: OwnerSets = OwnerSets {
         OwnerSet {
             jobs: &[],
             owner: Owner::Smith,
-            name: jig_test_patches_smith::NAME,
+            name: fixture::SMITH_OWNER,
             level: Some(1),
             families: &[KeptFamily {
                 retired: &[],
@@ -44,7 +43,7 @@ pub(super) const SETS: OwnerSets = OwnerSets {
                 map: KeptMap::Store,
                 keys: &[],
                 frames: Some(crate::Frames {
-                    root: jig_test_patches_smith::ROOT,
+                    root: frames::TURN_ROOT,
                     texts: &[layouts::FRAME_TURN_KEPT, layouts::FRAME_TURN],
                     number: 0,
                 }),
@@ -510,21 +509,6 @@ fn serving_opens_refuse_bad_frames_sets_without_io() {
 }
 
 #[test]
-fn stray_serving_sites_are_unread_without_stopping_the_store() {
-    let mut store = fixtures::opened();
-    let patcher = Box::new(skein_codec::patch::Patcher::new(skein_codec::patch::Capacity {
-        versions: 0,
-        patches: 0,
-        text: 0,
-        bytes: 0,
-        nodes: 0,
-    }));
-    let events = fixtures::run(&mut store, Request::Site { owner: OWNER, patcher, result: Ok(()) });
-    let [Event::Unread { owner: OWNER }] = &*events else { panic!("{events:?}") };
-    let crate::Phase::Ready { .. } = store.phase else { panic!("store remains ready") };
-}
-
-#[test]
 fn party_and_activity_bounds_charge_the_converted_frame() {
     const CONVERTED_FRAME: u64 = 71; // v6 body 44 + v2 turn 15 + framing 12.
     const PAYLOAD: u64 = 15;
@@ -566,16 +550,6 @@ fn party_and_activity_bounds_charge_the_converted_frame() {
             }
         }
     }
-}
-
-#[test]
-fn a_site_before_any_open_is_unread_without_opening_the_store() {
-    let mut store = fixtures::over(fixtures::stores());
-    let capacity = skein_codec::patch::Capacity { versions: 0, patches: 0, text: 0, bytes: 0, nodes: 0 };
-    let patcher = Box::new(skein_codec::patch::Patcher::new(capacity));
-    let events = fixtures::run(&mut store, Request::Site { owner: OWNER, patcher, result: Ok(()) });
-    let [Event::Unread { owner: OWNER }] = &*events else { panic!("{events:?}") };
-    assert_eq!(store.phase, crate::Phase::Closed);
 }
 
 fn carries_turn(row: &reads::Row) -> bool {

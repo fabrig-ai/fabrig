@@ -1,13 +1,12 @@
 //! Equal-level fixture binaries and their independent record model (protocol/store/testing.md 1).
 use crate::{World, root, world::Change};
 use jig_protocol_store::{Event, KeptFamily, KeptMap, Keys, Owner, OwnerSet, OwnerSets, SecretOwner, Secrets, Write};
-use jig_test_layouts::{self as fixture, records as app};
-use jig_test_patches_jig::{self as upstream, patches as jig};
+use jig_test_layouts::{self as fixture, frames, layouts, records};
 use skein_lib::Secret;
 use std::collections::BTreeMap;
 const LABEL: KeptFamily = KeptFamily {
     retired: &[],
-    current: app::LABEL,
+    current: records::LABEL,
     types: &[jig_protocol_store::ValueType {
         number: 0,
         root: "Label",
@@ -21,7 +20,7 @@ const LABEL: KeptFamily = KeptFamily {
 };
 const SHELF: KeptFamily = KeptFamily {
     retired: &[],
-    current: app::SHELF,
+    current: records::SHELF,
     types: &[jig_protocol_store::ValueType {
         number: 0,
         root: "Shelf",
@@ -39,7 +38,7 @@ const SHELF: KeptFamily = KeptFamily {
 };
 const TOKEN: KeptFamily = KeptFamily {
     retired: &[],
-    current: app::TOKEN,
+    current: records::TOKEN,
     types: &[],
     frames: None,
     name: "fixture-token",
@@ -48,17 +47,17 @@ const TOKEN: KeptFamily = KeptFamily {
 };
 const NOTE: KeptFamily = KeptFamily {
     retired: &[],
-    current: jig::kept::fixture_note::TEXTS[0],
+    current: records::NOTE,
     types: &[jig_protocol_store::ValueType {
         number: 0,
         root: "Note",
         variant: None,
-        keys: &[jig_protocol_store::KeyRange { from: upstream::keys::NOTES_FROM, to: upstream::keys::NOTES_TO }],
+        keys: &[jig_protocol_store::KeyRange { from: fixture::keys::NOTES_FROM, to: fixture::keys::NOTES_TO }],
     }],
     frames: None,
     name: "fixture-note",
     map: KeptMap::Store,
-    keys: &[Keys { from: upstream::keys::NOTES_FROM, to: upstream::keys::NOTES_TO, root: upstream::keys::NOTES_ROOT }],
+    keys: &[Keys { from: fixture::keys::NOTES_FROM, to: fixture::keys::NOTES_TO, root: fixture::keys::NOTES_ROOT }],
 };
 const APPLICATION: OwnerSet = OwnerSet {
     jobs: &[],
@@ -68,7 +67,7 @@ const APPLICATION: OwnerSet = OwnerSet {
     level: Some(0),
 };
 const JIG: OwnerSet =
-    OwnerSet { jobs: &[], owner: Owner::Jig, name: upstream::NAME, families: &[NOTE], level: Some(0) };
+    OwnerSet { jobs: &[], owner: Owner::Jig, name: fixture::JIG_OWNER, families: &[NOTE], level: Some(0) };
 /// A read-only fixture job makes an upgrade without changing any layout or level
 /// (protocol/store/jobs.md, 1–3). Each test's source omits its done row.
 pub const JOB: jig_protocol_store::Job = jig_protocol_store::Job {
@@ -242,7 +241,7 @@ impl Records {
     /// Decode by each family's kept text as well as compare every modeled byte.
     pub fn check(&self, world: &mut World, context: &dyn std::fmt::Debug) {
         world.mark_if_needed();
-        let schema = skein_codec::schema::parse(app::TOKEN.as_bytes()).expect("token schema");
+        let schema = skein_codec::schema::parse(records::TOKEN.as_bytes()).expect("token schema");
         let root = schema.find(b"Token").expect("token root");
         for (number, bytes) in &self.tokens {
             let events = world.secret(Secrets::Get { owner: SecretOwner::Application, number: *number });
@@ -262,9 +261,9 @@ impl Records {
     pub fn check_public(&self, world: &mut World, context: &dyn std::fmt::Debug) {
         let rows = world.application(false);
         assert_eq!(rows, self.rows(), "all fixture records are preserved: {context:?}");
-        let label = skein_codec::schema::parse(app::LABEL.as_bytes()).expect("label schema");
-        let shelves = skein_codec::schema::parse(app::SHELF.as_bytes()).expect("shelf schema");
-        let note = skein_codec::schema::parse(jig::kept::fixture_note::TEXTS[0].as_bytes()).expect("note schema");
+        let label = skein_codec::schema::parse(records::LABEL.as_bytes()).expect("label schema");
+        let shelves = skein_codec::schema::parse(records::SHELF.as_bytes()).expect("shelf schema");
+        let note = skein_codec::schema::parse(records::NOTE.as_bytes()).expect("note schema");
         for (key, bytes) in rows {
             let (schema, root) = match key[0] {
                 b'l' => (&label, "Label"),
@@ -378,18 +377,18 @@ pub const FRAME_SETS: OwnerSets = OwnerSets {
         OwnerSet {
             jobs: &[],
             owner: Owner::Jig,
-            name: jig_test_patches_jig::NAME,
+            name: fixture::JIG_OWNER,
             level: Some(2),
             families: &[KeptFamily {
                 retired: &[],
-                current: jig_test_layouts::layouts::FRAME_BODY,
+                current: layouts::FRAME_BODY,
                 types: &[],
                 name: "fixture-frame",
                 map: KeptMap::Store,
                 keys: &[],
                 frames: Some(jig_protocol_store::Frames {
-                    root: jig_test_patches_jig::FRAME_ROOT,
-                    texts: &[jig_test_layouts::layouts::FRAME_BODY_KEPT, jig_test_layouts::layouts::FRAME_BODY],
+                    root: frames::BODY_ROOT,
+                    texts: &[layouts::FRAME_BODY_KEPT, layouts::FRAME_BODY],
                     number: 0,
                 }),
             }],
@@ -397,18 +396,18 @@ pub const FRAME_SETS: OwnerSets = OwnerSets {
         OwnerSet {
             jobs: &[],
             owner: Owner::Smith,
-            name: jig_test_patches_smith::NAME,
+            name: fixture::SMITH_OWNER,
             level: Some(1),
             families: &[KeptFamily {
                 retired: &[],
-                current: jig_test_layouts::layouts::FRAME_TURN,
+                current: layouts::FRAME_TURN,
                 types: &[],
                 name: "fixture-turn",
                 map: KeptMap::Store,
                 keys: &[],
                 frames: Some(jig_protocol_store::Frames {
-                    root: jig_test_patches_smith::ROOT,
-                    texts: &[jig_test_layouts::layouts::FRAME_TURN_KEPT, jig_test_layouts::layouts::FRAME_TURN],
+                    root: frames::TURN_ROOT,
+                    texts: &[layouts::FRAME_TURN_KEPT, layouts::FRAME_TURN],
                     number: 0,
                 }),
             }],

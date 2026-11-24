@@ -474,7 +474,7 @@ impl Store {
     }
 }
 
-/// A bounded page read while a patch is stopped at a written site (protocol/store/opening-owners.md, 1).
+/// A bounded page of stored inputs read while a job page is outstanding (protocol/store/opening-owners.md, 1).
 #[derive(Debug)]
 pub struct PatchPage {
     pub rows: Box<[skein_kv::Row]>,
@@ -612,9 +612,6 @@ fn down_inner(store: &mut Store, env: &Env<Limits>, request: Request, above: &mu
         Request::Switch { owner } => upgrade::switch::ask(store, env, owner, above, below),
         Request::Open { owner, root, installation, purpose } => {
             directory::open(store, owner, root, installation, purpose, above, below);
-        }
-        Request::Site { owner, patcher: _, result: _ } => {
-            above.push(Event::Unread { owner });
         }
         Request::Job { owner, answer } => upgrade::phase::job(store, env, owner, answer, above, below),
         Request::Commit { number, writes } => view::commit(store, env, number, writes, above, below),

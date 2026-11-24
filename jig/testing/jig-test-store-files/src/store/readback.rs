@@ -4,7 +4,7 @@ use jig_domain_core as core;
 use jig_protocol_store::core_v6::Record as _;
 use protocol::{Event, Get, Request, codec, keys};
 use skein_lib::{Queue, Reader, Token};
-use std::collections::{BTreeMap, VecDeque};
+use std::collections::BTreeMap;
 
 const READER: Token = Token::new(0);
 
@@ -95,7 +95,7 @@ impl Store {
 
     pub(super) fn readback_query(&mut self, request: Request) -> Result<Event, ReadbackFinding> {
         self.readback_boundary()?;
-        let mut requests = VecDeque::from([request]);
+        let mut request = Some(request);
         let mut above = Queue::uncapped();
         let mut below = protocol::Below {
             store: Queue::uncapped(),
@@ -113,16 +113,10 @@ impl Store {
                 disk.drive(self.component.as_mut().expect("component"), &env, &mut above);
             }
             if let Some(event) = above.pop() {
-                if matches!(event, Event::Site { .. }) {
-                    // Sites need no registered flight; the fixture route
-                    // answers NoSite just as it does during ordinary reads.
-                    self.route(event, &mut requests);
-                } else {
-                    assert!(captured.replace(event).is_none(), "one helper query terminal");
-                }
+                assert!(captured.replace(event).is_none(), "one helper query terminal");
                 continue;
             }
-            if let Some(request) = requests.pop_front() {
+            if let Some(request) = request.take() {
                 if let Some(disk) = &mut self.disk {
                     disk.request(self.component.as_mut().expect("component"), &env, request, &mut above);
                 } else {

@@ -691,25 +691,6 @@ impl World {
         answers(&mut self.above)
     }
 
-    /// A request whose serving sites the shell answers at once, each by its
-    /// owner's fixture with a fresh context (protocol/store/transcripts.md 6); `request` hands
-    /// them up instead.
-    pub fn answered(&mut self, request: Request) -> Vec<Event> {
-        let mut events = Vec::new();
-        for event in self.request(request) {
-            if !jig_protocol_store::sizes::is_patching(&self.store)
-                && let Event::Site { owner, of, key, site, at, patcher } = event
-            {
-                let mut contexts = Contexts::default();
-                let request = answer_site(owner, of, key, site, at, patcher, &mut contexts);
-                events.extend(self.answered(request));
-            } else {
-                events.push(event);
-            }
-        }
-        events
-    }
-
     /// Open and switch directly for store-only stories without an engine root.
     pub fn open_switched(&mut self) -> Option<u64> {
         let last = self.open()?;
@@ -740,7 +721,7 @@ impl World {
         self.store.wires(wires)
     }
 
-    /// A start request for stories that inspect its events without answering frame sites or jobs.
+    /// A start request for stories that inspect its events without answering jobs.
     #[must_use]
     pub fn open_request(&self) -> Request {
         Request::Open {
@@ -759,7 +740,6 @@ impl World {
     }
 
     pub fn open(&mut self) -> Option<u64> {
-        let mut contexts = Contexts::default();
         let mut events = self.begin_open();
         for _ in 0..10_000 {
             let mut answer = None;
@@ -774,9 +754,6 @@ impl World {
                     Event::Job { owner, of, job, page } => {
                         let result = answer_job(of, &job, &page, &mut self.store);
                         answer = Some(Request::Job { owner, answer: result });
-                    }
-                    Event::Site { owner, of, key, site, at, patcher } => {
-                        answer = Some(answer_site(owner, of, key, site, at, patcher, &mut contexts));
                     }
                     Event::Opened { last, installation, pending, .. } => {
                         self.pending = pending;
@@ -829,7 +806,7 @@ impl World {
                     return None;
                 }
                 // Patching may have ready in-memory work between file asks.
-                // Keep firing until its next site, file ask or terminal.
+                // Keep firing until its next job page, file ask or terminal.
                 self.drive();
                 events = answers(&mut self.above);
             }
@@ -872,19 +849,16 @@ impl World {
         }
     }
 
-    /// Answer fixture jobs and frame sites, retaining the rehearsal's ordered events.
+    /// Answer fixture jobs, retaining the rehearsal's ordered events.
     pub fn rehearse(&mut self) -> Vec<Event> {
         let request = self.rehearsal_request();
         let mut events = self.request(request);
-        let mut contexts = Contexts::default();
         let mut result = Vec::new();
         for _ in 0..10_000 {
             let mut answer = None;
             let mut terminal = false;
             for event in events {
-                if let Event::Site { owner, of, key, site, at, patcher } = event {
-                    answer = Some(answer_site(owner, of, key, site, at, patcher, &mut contexts));
-                } else if let Event::Job { owner, of, job, page } = event {
+                if let Event::Job { owner, of, job, page } = event {
                     let result = answer_job(of, &job, &page, &mut self.store);
                     answer = Some(Request::Job { owner, answer: result });
                 } else {
@@ -1271,7 +1245,7 @@ impl World {
     pub fn transcript(&mut self, mut read: TranscriptRead) -> Vec<core::TurnRecord> {
         let mut result = Vec::new();
         loop {
-            let events = self.answered(Request::Transcript {
+            let events = self.request(Request::Transcript {
                 owner: OWNER,
                 read,
                 rows: 2,
@@ -1388,35 +1362,6 @@ fn tree(machine: &mut Machine, root: skein_fake_machine::Opened, path: &[u8], pa
         }
     }
     machine.close(directory);
-}
-
-// Patching retains each owner's context for the open (protocol/store/opening-owners.md 1).
-// Serving makes a new set of defaults at each site (protocol/store/transcripts.md 6).
-#[derive(Default)]
-struct Contexts {
-    smith: jig_test_patches_smith::patches::Context,
-    jig: jig_test_patches_jig::patches::Context,
-}
-fn answer_site(
-    owner: Token,
-    of: Owner,
-    key: Box<[u8]>,
-    site: skein_codec::patch::Site,
-    at: skein_codec::value::Node,
-    mut patcher: Box<skein_codec::patch::Patcher>,
-    contexts: &mut Contexts,
-) -> Request {
-    let (old, new) = patcher.parts();
-    let result = match of {
-        Owner::Application => panic!("no application frame site"),
-        Owner::Smith => {
-            contexts.smith.key = key;
-            jig_test_patches_smith::patches::written(site, old, new, at, &mut contexts.smith)
-        }
-        Owner::Jig => jig_test_patches_jig::patches::written(site, old, new, at, &mut contexts.jig),
-        Owner::Skein => panic!("no skein fixture site"),
-    };
-    Request::Site { owner, patcher, result }
 }
 
 fn answer_job(

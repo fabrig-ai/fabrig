@@ -1,2 +1,0 @@
-family fixture-note 1
-versioned record Note { text: text 32 }

@@ -322,9 +322,6 @@ pub fn up(routes: &mut Routes, event: store::Event, into: &mut Queue<Up>) {
         store::Event::Job { owner, of, job, page } => {
             into.push(Up::Ask(job_answer(owner, of, &job, &page, &routes.families)));
         }
-        store::Event::Site { owner, of, site, at, patcher, key: _ } => {
-            into.push(Up::Ask(dispatch(owner, of, site, at, patcher)));
-        }
         store::Event::Switched { .. } => root(into, engine::StoreInput::Switched),
         store::Event::OpenRefused { .. } => stop(routes, RouteStop::Open, into),
         store::Event::SecretsNotReady { .. } => stop(routes, RouteStop::Secrets, into),
@@ -645,29 +642,8 @@ fn job_answer(
     store::Request::Job { owner, answer }
 }
 
-/// Route each written site to its owner with the deployment's admitted inputs.
-fn dispatch(
-    owner: Token,
-    of: store::Owner,
-    site: skein_codec::patch::Site,
-    at: skein_codec::value::Node,
-    mut patcher: Box<skein_codec::patch::Patcher>,
-) -> store::Request {
-    let (old, new) = patcher.parts();
-    let result = match of {
-        store::Owner::Smith => {
-            let mut context = smith_transcript::patches::Context::default();
-            smith_transcript::patches::written(site, old, new, at, &mut context)
-        }
-        store::Owner::Skein | store::Owner::Jig | store::Owner::Application => {
-            Err(skein_codec::patch::Halt::NoSite(site))
-        }
-    };
-    store::Request::Site { owner, patcher, result }
-}
-
 /// Read a job page's stored facts; later pages inherit no input.
-pub fn site(routes: &mut Routes, component: &mut store::Store, event: store::Event, into: &mut Queue<Up>) {
+pub fn job(routes: &mut Routes, component: &mut store::Store, event: store::Event, into: &mut Queue<Up>) {
     if let store::Event::Job { owner, of: store::Owner::Jig, job, page } = &event {
         let answer = store::jobs::page(job, page, component);
         into.push(Up::Ask(store::Request::Job { owner: *owner, answer }));
