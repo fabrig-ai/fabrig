@@ -1,4 +1,5 @@
-//! Machine requests and answers for the journeys' runs (temper/docs/design/client/contracts.md, 1).
+//! Machine requests and answers for the writer and look-refresh runs
+//! (temper/docs/design/client/journey-writer.md, 4, 6 and 7).
 
 use std::path::PathBuf;
 
