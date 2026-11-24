@@ -4275,10 +4275,12 @@ name = "skein-ui-example-server"
 version = "0.0.0"
 dependencies = [
  "skein-fail-stop",
+ "skein-fake-person",
  "skein-http",
  "skein-io",
  "skein-lib",
  "skein-shell",
+ "skein-ui",
  "skein-ui-example-view",
 ]
 

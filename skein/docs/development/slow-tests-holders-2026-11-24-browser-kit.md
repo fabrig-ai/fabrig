@@ -73,6 +73,7 @@ and Chromium's accessibility tree in the same revisions.
 
 | Slow test (`browser_example`) | Held by |
 |---|---|
+| `a_note_added_in_one_page_shows_in_another` | `skein-ui-example-server::bin/skein-ui-example` `fan_out::one_add_and_its_retry_reach_both_readers_once` (the server's two streams and the link in each view); `skein-ui-example-view` `tests::stream::a_stream_note_crosses_browser_pieces` and `tests::stream::live_from_the_lists_answer_until_the_stream_ends` (piece boundaries and Live); `skein-ui-web-tests::browser_stories` `typing_in_the_title_survives_a_note_arriving` (the Chromium witness). |
 
 ## 4. The kit's sentence and selector facts
 
