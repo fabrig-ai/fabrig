@@ -486,7 +486,7 @@ outcomes; the deployment's and installation's ids.
 ## 8. Effects in flight
 
 - **Every stop settles first.** Told to stop, before it stops taking
-  commits (jig's `domain/engine/restart.md`, 1), the engine starts no effect,
+  commits (jig's `domain/engine/restart.md`, 5), the engine starts no effect,
   places no run and steps no procedure, answers busy a run's call that
   would start an effect, and commits the outcomes of the effects in
   flight within their deadlines. Then it stops as today. Past a bound, it

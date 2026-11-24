@@ -5,7 +5,7 @@ it restarts, and how a worker that heard it keeps its runs through the
 wait it was told rather than through its grace alone. It carries
 temper's `draft/archive/redeploys.md`, 5.2 and 5.3, for the channel. The
 engine's side of the stop, keeping the word and then saying it, is
-`../../domain/engine/restart.md`, 1, *Saying it restarts*; the hold over
+`../../domain/engine/restart.md`, 5, *Saying it restarts*; the hold over
 the runs the next start restores is `../../domain/engine/fleet.md`, *A
 restart said holds its runs*.
 
@@ -48,7 +48,7 @@ record Restarting { wait_ms: u64 }
   `Event::Restarting { wait }`, `wait` a `Duration`, through
   `host::Workers::restarting(wait)`. The owner asks once per stop, after
   the word is durable and before it closes the workers' part
-  (`../../domain/engine/restart.md`, 1, *Saying it restarts*), so the
+  (`../../domain/engine/restart.md`, 5, *Saying it restarts*), so the
   record is queued before the close's finish and drains with the rest
   (`worker-link.md`, 1.2).
 - **Each channel open with its hello heard,** and not closing: where its

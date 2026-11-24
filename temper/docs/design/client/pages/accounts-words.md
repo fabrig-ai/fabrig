@@ -245,7 +245,7 @@ The words for each offered source are:
     shortfall of the checks timeout does: "See temper help settings for
     held revisions."
 
-  A wait about to end (jig's `client/domain/client/helpers.md`, 1) stays
+  A wait about to end (jig's `client/domain/client/helpers.md`, 6) stays
   "Starting". A Chats row holds no wait, and says "Starting".
 - **The composer's line** names the account and model the work's next
   run takes, just above its field on an agent's task's page, with the picker

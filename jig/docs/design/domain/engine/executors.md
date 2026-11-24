@@ -284,7 +284,7 @@ attempt ends; its task goes on, due, or idle where it is kept
 - **Nothing else.** A run its worker cancels for lost contact,
   `Cancelled(Contact)`, ends interrupted as before
   (../tasks/lifecycle.md, 2), and so do the engine's own slots at its
-  stop (`restart.md`, 1); a claim no host reports after a restart, with
+  stop (`restart.md`, 5); a claim no host reports after a restart, with
   nothing committed, counts as not started.
 - **The worker** is the one whose channel answered, or whose hello
   omitted the claim: the fleet names it to the core with the answer

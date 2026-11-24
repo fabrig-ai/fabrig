@@ -578,7 +578,7 @@ done once the engine has every turn and answer. A worker gives up what
 it keeps, counted, once no run is left and the engine is still out of
 reach past the grace, or at its stop bound (6). A worker's root drains;
 the engine's own hub has no drain, since the engine's stop settles its
-claims at once (../engine/restart.md, 1).
+claims at once (../engine/restart.md, 5).
 
 **Paused over the link.** Beside its shutdown, a worker's hub takes the
 engine's ask to pause, to drain or to take work again,

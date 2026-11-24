@@ -76,7 +76,7 @@ goes on as before.
 ### 1.2 Stopping
 
 A stop settles first (`../draft/upgrades.md`, section 8), then the core
-drains as jig's `domain/engine/restart.md`, 1 says.
+drains as jig's `domain/engine/restart.md`, 5 says.
 
 - **In every step of the start** (1.1) a stop is heard: the service
   routes the root's stop as soon as it is told, opened or not, before
@@ -86,7 +86,7 @@ drains as jig's `domain/engine/restart.md`, 1 says.
   - **Before the mark,** the start ends at once. The root tells the core
     `Stopping` alone and the forge nothing, since nothing has been read
     or written to settle; the core says it has drained once the start's
-    commits in flight are answered (jig's `domain/engine/restart.md`, 1,
+    commits in flight are answered (jig's `domain/engine/restart.md`, 5,
     *A stop during the start*). The service makes none of the components
     that wait for the mark and closes each at once as closed (jig's
     `protocol/service.md`, 5, step 4), the store last, and the engine
@@ -108,7 +108,7 @@ drains as jig's `domain/engine/restart.md`, 1 says.
 
   A second signal aborts in every one of them, as below.
 - **Settling.** Told to stop, the root tells the core it settles
-  (jig's `domain/engine/restart.md`, 1, *Settling before the stop*),
+  (jig's `domain/engine/restart.md`, 5, *Settling before the stop*),
   then tells the forge to settle (forge/effects.md, section 1), and holds
   the core's stop until the forge says it has. The service routes the
   root's stop before anything else it would hand the root once told, so
@@ -143,7 +143,7 @@ drains as jig's `domain/engine/restart.md`, 1 says.
   the stock limits; `temper-engine versions` prints it, and a unit takes
   its stop timeout from it (`../protocol/configuration/derived.md`,
   5.6).
-- **Then it says it restarts** (jig's `domain/engine/restart.md`, 1,
+- **Then it says it restarts** (jig's `domain/engine/restart.md`, 5,
   *Saying it restarts*; `../draft/archive/redeploys.md`, 5.2). Settled or past
   its bound, the root tells the core it stops; the core keeps the word
   in its stop's decision and, once durable, asks `Held::Restarting {

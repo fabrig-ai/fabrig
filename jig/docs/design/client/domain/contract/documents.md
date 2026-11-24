@@ -111,7 +111,7 @@
     `Message`, `Inbox` and `Unacknowledged` are the deployment's, with
     none. An Open task runs
     on a program source as any task does, so no run waits for its program
-    (`../../../domain/hosts/charters.md`, 1). The client uses its own `HostKind` and
+    (`../../../domain/hosts/charters.md`, 4). The client uses its own `HostKind` and
     `HelloRefusal` vocabulary; the canonical deployment translation keeps
     the shortfall context limits. These are derived document facts, never
     a new hold or stored state. A task line carries no run wait. Its hold

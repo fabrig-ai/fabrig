@@ -134,7 +134,7 @@ From main at `ee03a1159c` and dev.fabrig.ai's redeploys of 2026-11-11 and 11-12,
 
 ### 5.2 The stop settles and says so
 
-- **Told to stop, the engine settles first** (`../upgrades.md`, section 8; jig's `domain/engine/restart.md`, 1): its effects in flight on the forge settle, and no run is placed meanwhile.
+- **Told to stop, the engine settles first** (`../upgrades.md`, section 8; jig's `domain/engine/restart.md`, 5): its effects in flight on the forge settle, and no run is placed meanwhile.
 - **Then it says it restarts.** Once settled, the engine keeps in its store that it restarts and how long it asks its workers to wait, its restart wait; then, before it closes their links, it tells each worker so. It says it only on a link whose agreed version of the workers' wire carries the word: at an older version the word is not sent, which is no mismatch and raises no floor (4.3), and that worker keeps its grace. Without the word, a clean close, a reset and a silence look alike to a worker, and each meets the same grace.
 - **The workers keep their runs.** Their links stay up while the engine settles, and their wait starts when the link drops.
 

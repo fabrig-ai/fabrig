@@ -141,7 +141,7 @@ pub enum Event {
         channel: Token,
         source: crate::SourceName,
     },
-    /// The kept word supplied before the start adopts its claims (domain/engine/restart.md, 1).
+    /// The kept word supplied before the start adopts its claims (domain/engine/restart.md, 5).
     Restarting {
         wait: Duration,
     },
@@ -308,7 +308,7 @@ pub enum Event {
         attempt: Token,
     },
     /// The engine stops and settles this attempt as interrupted: forget it,
-    /// telling its host nothing (jig/docs/design/domain/engine/restart.md, 1).
+    /// telling its host nothing (jig/docs/design/domain/engine/restart.md, 5).
     Interrupt {
         run: Token,
         attempt: Token,

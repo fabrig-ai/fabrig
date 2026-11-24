@@ -161,7 +161,7 @@ impl Core {
 
     /// Retain alternatives with compatible grants and check their host support.
     /// Selection and claim rebuild the same model/grant view for every task
-    /// (domain/hosts/charters.md, 1).
+    /// (domain/hosts/charters.md, 4).
     fn compatible_models(
         &self,
         task: u64,

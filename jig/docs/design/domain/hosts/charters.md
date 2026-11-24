@@ -9,9 +9,11 @@ engine's protocol layer calls for every run, on workers and in the
 engine alike, and which reads every run's result back by the path of
 host tools' calls (`hub.md`, 8).
 
+## 1. Assignment and delivery
+
 Its `assignment` assembles that charter from the core's run charter, the brief and the run's sources, with the contract's policy, which is jig's, not an application's: a contract's text at most 1024 bytes and a change's `body` at most the contract's words, so a report is a setting of the application's, with the agent's outcome, which holds its title, its body and their framing together (smith's `protocol/limits-derivation.md`, 1.10), and the hub's `outcome_bytes` beside it, its checks required to pass, and the workspace tools the run's policy grants. Its `charter` translates what `assignment` assembled, decides `deliver`, and grants `modify` only to a run that can deliver: what a run writes leaves its workspace only by a delivery, so a run with no `deliver` inspects alone, whatever its policy says (a rail, not an instruction). A root calls them and decides none of it.
 
-A Finite run takes `deliver` in one of two ways; an Open run never does (1):
+A Finite run takes `deliver` in one of two ways; an Open run never does (4):
 
 - **A change among its outcomes:** with that change's fields and checks, as above. Its `finish` offers the change, the successful `no_change`, a verdict for each of the change contract's choices, named by its code as a verdict contract's are (`../tasks/README.md`, section 3), and a failure.
 - **No change among them:** its outcomes hold a report, its policy's `modify` is set, and its root says its workspace delivers. The assembled charter's `delivers` carries that, as `conventions` carries its paths: a fact of the connectors' items (`../connectors.md`, section 10), false unless a root sets it, which grants nothing by itself. Its `deliver` takes a `title` of at most 1024 bytes and a `body` of at most the contract's words or 1024 bytes, whichever is larger, with its checks required to pass. Delivering isn't finishing: its `finish` offers its contract's forms alone, a report and a failure, and a delivery is no part of its result (smith's `domain/run-delivery.md`, 1.4).
@@ -21,6 +23,8 @@ Every other run has no `deliver`: a verdict's run, and a report's run whose poli
 A run granted `deliver` by a change among its outcomes is also granted smith's `save` (smith's `domain/run-delivery.md`, 1.5), so that it can keep its work in progress, unchecked, before it asks a question; a run whose `deliver` its root's `delivers` gave, and every other, is not. Like `deliver`, it is jig's decision, in `charter`.
 
 Its `hosted` puts a run's whole hand-over together from what the hub link kept (the core's `Assignment`), and so reads the brief's placed parts: the brief's sections with their titles, the charter, the start's messages with their senders and words, and the answered calls by their names. What a root gives it is its own: its tools, its endpoints, its deployment and its bounds. A place in the brief that an application offers no section for refuses the assignment. Its `message` puts together, the same way, a task's message to a run under way, with its sender and words. So a root that calls them renders no words, titles or a call's name, and the hub receives the same assignment from each. An application with a tool vocabulary of its own, as temper is (`temper/docs/design/protocol/components.md`), puts its hand-over together itself.
+
+## 2. Instructions, tools and contracts
 
 - **Instructions and brief:** the charter's instructions, and the brief's
   sections rendered as smith's titled sections, in order, the
@@ -80,6 +84,9 @@ Its `hosted` puts a run's whole hand-over together from what the hub link kept (
   task's distinct successful `NoChange` result, with no resource.
   The core judges a result again as it commits it
   (../tasks/lifecycle.md, 7).
+
+## 3. Budget, models, waiting
+
 - **Budget, models, waiting:** the run's budget, its turns, spend and
   time, its spend reserved from its task at its claim, in the
   deployment's unit, and its reserve of turns and time for finishing
@@ -124,7 +131,7 @@ Its `hosted` puts a run's whole hand-over together from what the hub link kept (
   all the same fails its
   attempt as invalid, naming why (`hub.md`, 3).
 
-## 1. Open compatibility
+## 4. Open compatibility
 
 A task's ending (../tasks/lifecycle-endings.md, 2) is smith's mode for its run: a task its
 result ends runs `Finite`, and one its requester ends runs `Open`. An

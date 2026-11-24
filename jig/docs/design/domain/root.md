@@ -170,7 +170,7 @@ iterate, after the step:
   timers at the supplied clocks. A due timer, including one refused
   admission, forbids omission. `quiescent` includes this same finishing
   derivation and its broader idle fences; false does not promise
-  that finishing can advance (engine/restart.md, 1 and engine/views.md; people/README.md, 3).
+  that finishing can advance (engine/restart.md, 5 and engine/views.md; people/README.md, 3).
 - **A task that comes due asks its root once.** In the decision that
   makes a task due, the core asks its root with `Now::Activate`, so an
   activation runs in that decision. The root answers with

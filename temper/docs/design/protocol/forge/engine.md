@@ -80,7 +80,7 @@ skein-io socket
 - **Room, and the drain,** as the component keeps them (skein's
   `forge/connection.md`, section 2) and as jig's components keep them
   (jig's `protocol/service.md`, section 2; jig's `domain/engine/restart.md`,
-  1): an answer or a hint the root cannot take yet is held and offered
+  5): an answer or a hint the root cannot take yet is held and offered
   again, at most one per call and one per webhook connection, and
   nothing more is read off its connection meanwhile. One the root
   returns during its drain (its `Request::Busy`) is never offered
