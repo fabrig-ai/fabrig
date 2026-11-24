@@ -226,22 +226,6 @@ esac
     scratch.remove();
 }
 
-#[test]
-fn a_worker_root_reached_through_a_link_is_refused() {
-    let scratch = support::Scratch::startup("linked-root");
-    let directory = scratch.path();
-    support::lay_configuration(directory, &support::Forge::Unreached);
-    fs::create_dir(directory.join("real-root")).expect("root directory");
-    symlink(directory.join("real-root"), directory.join("workspaces")).expect("linked root");
-    assert_eq!(
-        temper_box_shell::prepare_in(&[], b"/", &support::configuration::directories(directory))
-            .err()
-            .expect("refused"),
-        "temper serve: application.workers[0].root: must be a private directory of this user's, not reached through a link\n"
-    );
-    scratch.remove();
-}
-
 fn typed_prepare(
     directory: &Path,
     figures: &temper_playground::documents::Configuration,
@@ -704,165 +688,45 @@ fn a_bundle_with_a_forge_sign_in_entry_starts_before_any_forge_is_kept() {
 
 #[test]
 fn programs_directories_are_checked_at_the_name_before_startup_effects() {
-    for row in ["missing", "private", "link", "mode", "file"] {
-        let scratch = support::Scratch::startup(&format!("programs-{row}"));
-        let directory = scratch.path();
-        support::lay_configuration(directory, &support::Forge::Unreached);
-        let target = directory.join("programs");
-        if row != "missing" {
-            if row == "file" {
-                fs::write(&target, b"not a directory").expect("file");
-            } else {
-                fs::create_dir(&target).expect("programs directory");
-                fs::set_permissions(&target, fs::Permissions::from_mode(if row == "mode" { 0o750 } else { 0o700 }))
-                    .expect("directory mode");
-            }
-        }
-        if row == "link" {
-            let real = directory.join("real-programs");
-            fs::rename(&target, &real).expect("move private program directory");
-            symlink(&real, &target).expect("leaf link");
-        }
-        let path = target.clone();
-        let mut agent = temper_agent_fixtures::read(directory);
-        agent["programs"] = serde_json::json!({"claude_code":{"path":"/usr/bin/true", "directory":path}});
-        temper_agent_fixtures::install(directory, &agent);
-        // A later missing secret proves that the preflight neither creates nor inspects a login.
-        fs::remove_file(directory.join("worker.secret")).expect("absent peer");
-        let refused = temper_box_shell::prepare_in(&[], b"/", &support::configuration::directories(directory))
-            .err()
-            .expect("refused");
-        if ["missing", "private"].contains(&row) {
-            assert!(refused.contains("workers[0].secret"), "{row}: {refused}");
-            assert!(!refused.contains("programs.claude_code.directory"), "{row}: {refused}");
-        } else {
-            let reason = match row {
-                "link" => "symbolic link",
-                "mode" => "nonprivate mode bits 0o50",
-                "file" => "not a directory",
-                _ => unreachable!(),
-            };
-            assert_eq!(
-                refused,
-                format!("temper serve: programs.claude_code.directory: {}: {reason}\n", path.display())
-            );
-        }
-        assert!(!directory.join("workspaces").exists(), "{row}: no worker root");
-        assert!(!target.exists() || row != "missing", "missing programs stay missing");
-        scratch.remove();
-    }
-}
-
-#[test]
-fn program_login_refuses_invalid_input_before_creation() {
-    use support::program_login::{configuration, no_deployment_resources, refused};
-    for row in ["malformed", "wrong-type", "oversized", "bad-name"] {
-        let scratch = support::Scratch::startup(&format!("login-{row}"));
-        let directory = scratch.path();
-        let programs = directory.join("programs");
-        configuration(
-            directory,
-            (row != "no-program").then_some(programs.as_path()),
-            std::path::Path::new("/usr/bin/true"),
-        );
-        match row {
-            "malformed" => fs::write(directory.join(temper_config_shell::FILE), b"[").expect("malformed TOML"),
-            "wrong-type" => fs::write(directory.join(temper_config_shell::FILE), b"owner = 42\n").expect("wrong type"),
-            "oversized" => fs::File::create(directory.join(temper_config_shell::FILE))
-                .expect("configuration")
-                .set_len(1_048_577)
-                .expect("past bound"),
-            "bad-agent" => fs::write(directory.join("agent.json"), b"{}").expect("bad agent"),
-            _ => {}
-        }
-        let why = refused(directory, if row == "bad-name" { "../escape" } else { "source" }.as_ref());
-        assert!(why.starts_with("temper-box program-login: "), "{row}: {why}");
-        assert_eq!(why.lines().count(), 1, "{row}: {why}");
-        assert!(!why.contains("exec:"), "{row}: {why}");
-        if row == "no-program" {
-            assert!(why.contains("programs.claude_code: not configured"), "{why}");
-        }
-        if row == "oversized" {
-            assert!(why.contains("past 1048576 bytes"), "{why}");
-        }
-        if row == "bad-name" {
-            assert!(why.contains("source name must be"), "{why}");
-        }
-        assert!(!programs.exists());
-        no_deployment_resources(directory);
-        scratch.remove();
-    }
-}
-
-#[test]
-fn program_login_checks_both_directory_names_before_creating_anything() {
-    use support::program_login::{configuration, no_deployment_resources, refused};
-    for row in
-        ["program-link", "program-mode", "program-file", "source-link", "source-mode", "source-file", "source-dangling"]
-    {
-        let scratch = support::Scratch::startup(&format!("login-{row}"));
-        let directory = scratch.path();
-        let programs = directory.join("programs");
-        let source = programs.join("source");
-        if row.starts_with("source-") {
-            fs::create_dir(&programs).expect("programs");
-            fs::set_permissions(&programs, fs::Permissions::from_mode(0o700)).expect("private");
-        }
-        let target = if row.starts_with("source-") { &source } else { &programs };
-        let expected = if row.ends_with("link") || row.ends_with("dangling") {
-            symlink(directory.join("missing"), target).expect("linked leaf");
-            "symbolic link"
-        } else if row.ends_with("mode") {
-            fs::create_dir(target).expect("directory");
-            fs::set_permissions(target, fs::Permissions::from_mode(0o750)).expect("unsafe mode");
-            "nonprivate mode bits 0o50"
-        } else {
-            fs::write(target, b"file").expect("wrong kind");
-            "not a directory"
-        };
-        configuration(directory, Some(&programs), std::path::Path::new("/usr/bin/true"));
-        let why = refused(directory, "source".as_ref());
-        assert!(why.contains(expected), "{row}: {why}");
-        assert!(why.contains(&target.display().to_string()), "{row}: {why}");
-        assert!(!directory.join("missing").exists(), "linked peer stays absent");
-        if row.starts_with("program-") {
-            assert!(fs::symlink_metadata(&source).is_err(), "missing source stays absent");
-        }
-        no_deployment_resources(directory);
-        scratch.remove();
-    }
+    let scratch = support::Scratch::startup("programs-link");
+    let directory = scratch.path();
+    support::lay_configuration(directory, &support::Forge::Unreached);
+    let target = directory.join("programs");
+    let real = directory.join("real-programs");
+    fs::create_dir(&real).expect("programs directory");
+    fs::set_permissions(&real, fs::Permissions::from_mode(0o700)).expect("directory mode");
+    symlink(&real, &target).expect("leaf link");
+    let mut agent = temper_agent_fixtures::read(directory);
+    agent["programs"] = serde_json::json!({"claude_code":{"path":"/usr/bin/true", "directory":target}});
+    temper_agent_fixtures::install(directory, &agent);
+    // The link refusal precedes the missing secret.
+    fs::remove_file(directory.join("worker.secret")).expect("absent peer");
+    let refused = temper_box_shell::prepare_in(&[], b"/", &support::configuration::directories(directory))
+        .err()
+        .expect("refused");
+    assert_eq!(refused, format!("temper serve: programs.claude_code.directory: {}: symbolic link\n", target.display()));
+    assert!(!directory.join("workspaces").exists(), "no worker root");
+    scratch.remove();
 }
 
 #[test]
 fn program_login_prepares_private_directories_through_each_supported_parent() {
     use support::program_login::{configuration, no_deployment_resources, refused};
-    for row in ["missing", "private"] {
-        let scratch = support::Scratch::startup(&format!("login-create-{row}"));
-        let directory = scratch.path();
-        let programs = directory.join("programs");
-        if row == "private" {
-            fs::create_dir(&programs).expect("programs");
-            fs::set_permissions(&programs, fs::Permissions::from_mode(0o700)).expect("private");
-        }
-        let configured = if row == "linked-parent" {
-            symlink(directory, directory.join("parent")).expect("linked parent");
-            directory.join("parent/programs")
-        } else {
-            programs.clone()
-        };
-        let program = directory.join("claude");
-        fs::write(&program, b"#!/nonexistent/interpreter\n").expect("unlaunchable executable");
-        fs::set_permissions(&program, fs::Permissions::from_mode(0o700)).expect("executable mode");
-        configuration(directory, Some(&configured), &program);
-        let why = refused(directory, "source".as_ref());
-        assert!(why.starts_with("temper-box program-login: exec: "), "{row}: {why}");
-        assert_eq!(why.lines().count(), 1);
-        for path in [&programs, &programs.join("source")] {
-            assert_eq!(fs::metadata(path).expect("created directory").permissions().mode() & 0o777, 0o700);
-        }
-        no_deployment_resources(directory);
-        scratch.remove();
+    let scratch = support::Scratch::startup("login-create-missing");
+    let directory = scratch.path();
+    let programs = directory.join("programs");
+    let program = directory.join("claude");
+    fs::write(&program, b"#!/nonexistent/interpreter\n").expect("unlaunchable executable");
+    fs::set_permissions(&program, fs::Permissions::from_mode(0o700)).expect("executable mode");
+    configuration(directory, Some(&programs), &program);
+    let why = refused(directory, "source".as_ref());
+    assert!(why.starts_with("temper-box program-login: exec: "), "{why}");
+    assert_eq!(why.lines().count(), 1);
+    for path in [&programs, &programs.join("source")] {
+        assert_eq!(fs::metadata(path).expect("created directory").permissions().mode() & 0o777, 0o700);
     }
+    no_deployment_resources(directory);
+    scratch.remove();
 }
 
 #[test]

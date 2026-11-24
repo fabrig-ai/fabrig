@@ -1,6 +1,7 @@
 mod box_kinds;
 mod commands;
 mod configuration_file;
+pub(crate) mod directory_facts;
 mod figures;
 mod help;
 mod init_clients;

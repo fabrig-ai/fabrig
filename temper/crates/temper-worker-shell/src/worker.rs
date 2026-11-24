@@ -1,5 +1,6 @@
 //! A worker's start: a worker alone's whole, and what a standalone start's worker takes (protocol/binaries.md, 5, and protocol/cluster.md, 1).
 use crate::{agent, path};
+use skein_io::kernel::{Fd, Stat};
 use std::{
     fs,
     io::Write,
@@ -10,7 +11,7 @@ use std::{
     path::Path,
 };
 use temper_service_shell::jig_directories;
-use temper_shell::directories::{Directories, EnvironmentEntry, private_root};
+use temper_shell::directories::{Directories, EnvironmentEntry, private_root_with};
 use temper_worker_service as service;
 /// Prepare a worker's own directories and program sources, with no deployment.
 pub fn alone(
@@ -142,14 +143,27 @@ pub fn root(
     user: u32,
     owned: &mut Vec<skein_io::kernel::Fd>,
 ) -> Result<service::WorkerRuntime, String> {
+    root_with(worker, configuration, user, owned, skein_shell::symlink_stat, skein_shell::make_root, pin)
+}
+
+fn root_with(
+    worker: &service::startup::NamedWorker,
+    configuration: &[u8],
+    user: u32,
+    owned: &mut Vec<Fd>,
+    mut inspect: impl FnMut(&Path) -> std::io::Result<Stat>,
+    make: impl FnOnce(&Path, u32) -> Result<Fd, i32>,
+    pin: impl FnOnce(&Path, &jig_protocol_config::Agent, &[u8]) -> Result<jig_protocol_config::Agent, String>,
+) -> Result<service::WorkerRuntime, String> {
     let root_path = path(&worker.root);
-    if std::fs::symlink_metadata(root_path).is_ok() {
-        private_root(root_path, user).map_err(|why| format!("application.workers[0].root: {why}"))?;
+    let check =
+        |metadata| private_root_with(user, metadata).map_err(|why| format!("application.workers[0].root: {why}"));
+    if inspect(root_path).is_ok() {
+        check(inspect(root_path))?;
     }
-    let root = skein_shell::make_root(root_path, 0o700)
-        .map_err(|errno| format!("application.workers[0].root: errno {errno}"))?;
+    let root = make(root_path, 0o700).map_err(|errno| format!("application.workers[0].root: errno {errno}"))?;
     owned.push(root);
-    private_root(root_path, user).map_err(|why| format!("application.workers[0].root: {why}"))?;
+    check(inspect(root_path))?;
     let agent = pin(
         root_path,
         &jig_protocol_config::Agent {
@@ -386,6 +400,9 @@ pub fn stop_line(stop_bound: skein_lib::Duration, drain: skein_lib::Duration) ->
     let drain = drain.as_nanos().div_ceil(1_000_000_000);
     format!("stop bound {stop} s, drain {drain} s\n")
 }
+
+#[cfg(test)]
+mod root_tests;
 
 #[cfg(test)]
 #[path = "worker_sources_tests.rs"]

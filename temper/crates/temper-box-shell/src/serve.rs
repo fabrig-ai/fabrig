@@ -105,59 +105,61 @@ pub fn prepare_with_limits(
         None => service::startup::box_worker(bytes, &jig_directories(directories), given, &agents, places, environment),
     }
     .map_err(|why| String::from_utf8_lossy(&service::startup::lines(&why)).into_owned())?;
-    let agent = part
-        .as_mut()
-        .map(|part| -> Result<_, String> {
-            let prepared = prepare_agent(part, directories, environment, programs)?;
-            let declaration = prepared.agent.declaration();
-            *part = match limits {
-                Some(limits) => service::startup::box_worker_with_limits(
-                    bytes,
-                    &jig_directories(directories),
-                    given,
-                    &agents,
-                    places,
-                    environment,
-                    Some(&declaration),
-                    limits,
-                ),
-                None => service::startup::box_worker_with_agent(
-                    bytes,
-                    &jig_directories(directories),
-                    given,
-                    &agents,
-                    places,
-                    environment,
-                    &declaration,
-                ),
-            }
-            .map_err(|why| String::from_utf8_lossy(&service::startup::lines(&why)).into_owned())?
-            .expect("box worker already read");
-            box_inputs_worker(part, directories)?;
-            if let Some(program) = program {
-                part.named.program = program.as_os_str().as_encoded_bytes().into();
-                part.worker.jig.agent.as_mut().expect("derived agent").program.clone_from(&part.named.program);
-            }
-            let named = named.worker.as_mut().expect("box worker named");
-            named.program.clone_from(&part.named.program);
-            named.arguments.clone_from(&part.named.arguments);
-            Ok(prepared)
-        })
-        .transpose()?;
-    let engine::Inputs { files, google, bundle } = engine::before_root(
-        &mut named.files,
-        &mut named.asked_files,
-        named.sign_in.as_ref(),
-        named.bundle.as_deref(),
-        named.bundle_limits,
-        user,
-        record,
+    let (agent, engine::Inputs { files, google, bundle }, runtime) = before_worker_root(
+        &mut named.worker,
+        |worker| {
+            part.as_mut()
+                .map(|part| -> Result<_, String> {
+                    let prepared = prepare_agent(part, directories, environment, programs)?;
+                    let declaration = prepared.agent.declaration();
+                    *part = match limits {
+                        Some(limits) => service::startup::box_worker_with_limits(
+                            bytes,
+                            &jig_directories(directories),
+                            given,
+                            &agents,
+                            places,
+                            environment,
+                            Some(&declaration),
+                            limits,
+                        ),
+                        None => service::startup::box_worker_with_agent(
+                            bytes,
+                            &jig_directories(directories),
+                            given,
+                            &agents,
+                            places,
+                            environment,
+                            &declaration,
+                        ),
+                    }
+                    .map_err(|why| String::from_utf8_lossy(&service::startup::lines(&why)).into_owned())?
+                    .expect("box worker already read");
+                    box_inputs_worker(part, directories)?;
+                    if let Some(program) = program {
+                        part.named.program = program.as_os_str().as_encoded_bytes().into();
+                        part.worker.jig.agent.as_mut().expect("derived agent").program.clone_from(&part.named.program);
+                    }
+                    let named = worker.as_mut().expect("box worker named");
+                    named.program.clone_from(&part.named.program);
+                    named.arguments.clone_from(&part.named.arguments);
+                    Ok(prepared)
+                })
+                .transpose()
+        },
+        || {
+            engine::before_root(
+                &mut named.files,
+                &mut named.asked_files,
+                named.sign_in.as_ref(),
+                named.bundle.as_deref(),
+                named.bundle_limits,
+                user,
+                record,
+            )
+        },
+        |worker, bytes| worker::root(worker, bytes, user, owned),
     )?;
-    let runtime = named
-        .worker
-        .as_ref()
-        .map(|worker| worker::root(worker, &agent.as_ref().expect("local agent checked").bytes, user, owned))
-        .transpose()?;
     let program_login = if named.worker.is_some() {
         program_login::line(directories, &printed::running_word(environment), skein_shell::HOME.value(environment))
             .map(|line| line.into_bytes().into_boxed_slice())
@@ -308,6 +310,19 @@ pub fn prepare_with_limits(
     }
     Ok((service, named.deployment, box_limits.line_bytes))
 }
+fn before_worker_root(
+    worker: &mut Option<service::startup::NamedWorker>,
+    prepare: impl FnOnce(&mut Option<service::startup::NamedWorker>) -> Result<Option<agent::Prepared>, String>,
+    inputs: impl FnOnce() -> Result<engine::Inputs, String>,
+    root: impl FnOnce(&service::startup::NamedWorker, &[u8]) -> Result<service::WorkerRuntime, String>,
+) -> Result<(Option<agent::Prepared>, engine::Inputs, Option<service::WorkerRuntime>), String> {
+    let agent = prepare(worker)?;
+    let inputs = inputs()?;
+    let runtime =
+        worker.as_ref().map(|worker| root(worker, &agent.as_ref().expect("local agent checked").bytes)).transpose()?;
+    Ok((agent, inputs, runtime))
+}
+
 pub(super) fn git_program(
     programs: &temper_config_shell::Programs,
     find: impl FnOnce() -> Option<std::path::PathBuf>,
@@ -901,3 +916,6 @@ mod input_tests {
         assert_eq!(oversized.position(), 65);
     }
 }
+
+#[cfg(test)]
+mod directory_tests;

@@ -405,8 +405,7 @@ pub fn run(
             return temper_agent_shell::list("temper internal agent-list", &configuration);
         }
         Command::ProgramLogin { directories, name } => {
-            return program_login::run(&directories, &name, environment)
-                .map_err(|why| temper_service_shell::configuration::login_problems("temper-box program-login", &why));
+            return program_login::run(&directories, &name, environment);
         }
         Command::Fake { arguments } => return fake::run(&arguments),
         Command::FakeCheck { directories, check } => return Ok(fake::check::run(&directories, &check)),

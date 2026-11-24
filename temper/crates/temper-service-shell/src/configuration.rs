@@ -54,7 +54,8 @@ impl Read {
         self.programs_with(temper_shell::lookup::is_executable)
     }
 
-    pub(crate) fn programs_with(
+    /// Check the configured program paths using the supplied executable lookup.
+    pub fn programs_with(
         &self,
         is_executable: impl Fn(&std::path::Path) -> bool,
     ) -> Result<temper_config_shell::Programs, String> {

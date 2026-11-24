@@ -121,7 +121,8 @@ fn place_launcher_with(
     Ok(())
 }
 
-pub(crate) fn from_machine_with(
+/// Build a sign-in command with supplied executable lookups and source preparation.
+pub fn from_machine_with(
     part: &WorkerPart,
     directories: &directories::Directories,
     name: &str,
@@ -147,9 +148,17 @@ pub(crate) fn from_machine_with(
 }
 /// Take the terminal immediately before replacing the caller with its prepared command.
 pub fn run_command(command: std::process::Command) -> Result<u8, String> {
-    run_command_with(command, std::io::stdin().is_terminal(), skein_shell::take_foreground, |mut command| {
-        Err(format!("exec: {}", command.exec()))
+    run_command_with(command, std::io::stdin().is_terminal(), skein_shell::take_foreground, |command| {
+        exec_with(command, |mut command| command.exec())
     })
+}
+
+/// Attempt the replacement and render the error if it returns.
+pub fn exec_with(
+    command: std::process::Command,
+    exec: impl FnOnce(std::process::Command) -> std::io::Error,
+) -> Result<u8, String> {
+    Err(format!("exec: {}", exec(command)))
 }
 
 fn run_command_with(

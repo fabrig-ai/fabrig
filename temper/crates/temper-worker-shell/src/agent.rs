@@ -96,10 +96,13 @@ fn prepare(path: &Path) -> Result<Prepared, String> {
 }
 pub fn prepare_bytes(bytes: Box<[u8]>) -> Result<Prepared, String> {
     prepare_bytes_with(bytes, &mut std::io::stderr(), |directory| {
-        smith_agent_document::program::private_directory(directory)
-            .map(|_| ())
-            .map_err(|why| format!("programs.claude_code.directory: {why}"))
+        check_program_directory(smith_agent_document::program::private_directory(directory))
     })
+}
+
+/// Render an agent's program-directory verdict for serve, without requiring a login.
+pub fn check_program_directory(verdict: Result<bool, smith_agent_document::program::Refusal>) -> Result<(), String> {
+    verdict.map(|_| ()).map_err(|why| format!("programs.claude_code.directory: {why}"))
 }
 
 /// Prepare an agent over bytes and a supplied programs-directory check.

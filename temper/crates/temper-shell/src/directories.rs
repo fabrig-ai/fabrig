@@ -1,11 +1,7 @@
 //! The binary's three directories (protocol/configuration/directories.md).
-use skein_io::kernel::Error;
+use skein_io::kernel::{Error, Kind, Stat};
 use skein_shell::{self as settings, Base, Fallback, Origin, Setting, Settings};
-use std::{
-    fmt,
-    os::unix::fs::{DirBuilderExt, MetadataExt},
-    path::Path,
-};
+use std::{fmt, os::unix::fs::DirBuilderExt, path::Path};
 
 pub const SETTINGS: Settings = Settings {
     tool: "temper",
@@ -122,9 +118,13 @@ impl Directories {
     }
 }
 pub fn private_root(path: &Path, user: u32) -> Result<(), String> {
-    let metadata = std::fs::symlink_metadata(path).map_err(|why| why.to_string())?;
-    if !metadata.is_dir() || metadata.file_type().is_symlink() || metadata.uid() != user || metadata.mode() & 0o077 != 0
-    {
+    private_root_with(user, skein_shell::symlink_stat(path))
+}
+
+/// Check a root using metadata from its name, not from a link target.
+pub fn private_root_with(user: u32, metadata: std::io::Result<Stat>) -> Result<(), String> {
+    let metadata = metadata.map_err(|why| why.to_string())?;
+    if metadata.kind != Kind::Directory || metadata.owner != user || metadata.mode & 0o077 != 0 {
         return Err("must be a private directory of this user's, not reached through a link".into());
     }
     Ok(())

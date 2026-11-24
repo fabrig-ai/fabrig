@@ -14,6 +14,8 @@ pub fn read(directories: &Directories, shape: Shape) -> Result<Read, Refusal> {
 }
 
 /// Discover and read the configuration over supplied file and machine facts.
+///
+/// Check the former name first, then read the current file within its byte bound.
 pub fn read_with(
     shape: Shape,
     former: impl FnOnce() -> std::io::Result<()>,
