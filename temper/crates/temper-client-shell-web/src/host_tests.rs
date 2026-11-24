@@ -116,25 +116,6 @@ fn node(host: &Host, role: Role, name: &[u8]) -> NodeId {
         .expect("account control")
         .id
 }
-fn openings(path: &[u8], body: &[u8]) -> Vec<w::Open> {
-    if path == b"/jig/v1/watch" {
-        return vec![w::Open::decode(&w::CEILINGS, &mut Reader::new(body)).expect("opening")];
-    }
-    if path == b"/jig/v1/batch" {
-        return w::Batch::decode(&w::CEILINGS, &mut Reader::new(body))
-            .expect("batch")
-            .members
-            .into_boxed()
-            .into_vec()
-            .into_iter()
-            .filter_map(|member| match member {
-                w::Member::Open(open) => Some(open),
-                w::Member::Read(_) | w::Member::Close(_) => None,
-            })
-            .collect();
-    }
-    vec![]
-}
 fn batch_admitted(host: &mut Host, exchange: u32, body: &[u8]) {
     let batch = w::Batch::decode(&w::CEILINGS, &mut Reader::new(body)).expect("batch");
     host.heard(Heard::Begun { exchange, status: 200 });
@@ -401,6 +382,7 @@ fn the_first_task_activity_answer_survives_transport_sign_in() {
     use jig_client_protocol_wire as w;
     use jig_client_protocol_wire::VERSION;
     use skein_lib::{Duration, Reader};
+    use temper_client_protocol_wire as wire;
     // task_record's chip is task 7; the answer carries one committed run marker.
     const TASK_PATH: &[u8] = b"/tasks/7";
     const RUN: u64 = 44;
@@ -408,43 +390,53 @@ fn the_first_task_activity_answer_survives_transport_sign_in() {
     let mut host =
         Host::new(crate::limits::client(), 11, Time::ZERO, Wall::EPOCH, 0, temper_client_view::sign_in::Ways::NONE);
     host.start(TASK_PATH, Vec::new(), None);
-    let activity = host
-        .requests()
-        .into_iter()
-        .find_map(|request| match request {
-            Asked::Exchange { id, call, .. } if call.path.as_ref() == b"/jig/v1/read" => Some(id),
-            Asked::Exchange { .. }
-            | Asked::OpenStream { .. }
-            | Asked::CloseStream
-            | Asked::Save { .. }
-            | Asked::Erase { .. } => None,
-        })
-        .expect("first activity read left the host");
+    assert!(host.requests().iter().any(|request| matches!(request, Asked::OpenStream { .. })));
     host.heard(Heard::StreamOpened);
-    let mut served = List::with_capacity(1);
-    served.push(w::Served { owner: w::Owner::Jig, first: VERSION, last: VERSION }).expect("one served family");
+    let served = List::from_boxed(Box::new([
+        w::Served { owner: w::Owner::Jig, first: VERSION, last: VERSION },
+        w::Served {
+            owner: w::Owner::Family(w::Family { number: wire::FORGE }),
+            first: wire::CLIENT_VERSION,
+            last: wire::CLIENT_VERSION,
+        },
+    ]));
     streamed(
         &mut host,
-        &jig_client_test_records::opened(
+        &jig_client_test_records::opened_with_layouts(
             w::Hello { stream: [7; 16], served, heartbeat: Duration::from_secs(30) },
             jig_client_test_records::frame_record(),
+            &[jig_client_test_records::family_layout(wire::FORGE, wire::CLIENT_LAYOUT)],
         ),
     );
+    let mut activity = None;
     let mut watch = None;
     let me = 0;
     for request in host.requests() {
-        let Asked::Exchange { call, .. } = request else { continue };
-        for open in openings(&call.path, &call.body) {
-            if open.subject.owner != w::Owner::Jig {
-                continue;
-            }
-            let subject =
-                w::Subject::decode(&w::CEILINGS, &mut Reader::new(open.subject.record.as_ref())).expect("subject");
-            if matches!(subject, w::Subject::Task(_)) {
-                watch = Some(open.watch);
+        let Asked::Exchange { id, call, .. } = request else { continue };
+        if call.path.as_ref() != b"/jig/v1/batch" {
+            continue;
+        }
+        let batch = w::Batch::decode(&w::CEILINGS, &mut Reader::new(&call.body)).expect("startup batch");
+        for (place, member) in batch.members.into_boxed().into_iter().enumerate() {
+            match member {
+                w::Member::Read(read) if read.owner == w::Owner::Jig => {
+                    let read = w::Read::decode(&w::CEILINGS, &mut Reader::new(&read.record)).expect("read");
+                    if matches!(read, w::Read::Activity(_)) {
+                        activity = Some((id, place));
+                    }
+                }
+                w::Member::Open(open) if open.subject.owner == w::Owner::Jig => {
+                    let subject =
+                        w::Subject::decode(&w::CEILINGS, &mut Reader::new(&open.subject.record)).expect("subject");
+                    if matches!(subject, w::Subject::Task(_)) {
+                        watch = Some(open.watch);
+                    }
+                }
+                w::Member::Read(_) | w::Member::Open(_) | w::Member::Close(_) => {}
             }
         }
     }
+    let (exchange, place) = activity.expect("first activity read left the host");
     let watch = watch.expect("task watch");
     let mut task = jig_client_test_records::task_record();
     task.chip = jig_client_test_records::owner_waiting_chip_record();
@@ -465,12 +457,8 @@ fn the_first_task_activity_answer_survives_transport_sign_in() {
     let answer = w::ReadAnswer::Value(owned(
         value.encode(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture encoding"),
     ));
-    host.heard(Heard::Answered {
-        exchange: activity,
-        status: 200,
-        body: answer.encode(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture encoding"),
-        headers: Vec::new(),
-    });
+    host.heard(Heard::Begun { exchange, status: 200 });
+    host.heard(batch_part(exchange, place, answer.encode(&w::CEILINGS).expect("bounded fixture encoding")));
     let document = w::DeliveryValue::Me(jig_client_test_records::frame_two_projects_record());
     streamed(
         &mut host,
