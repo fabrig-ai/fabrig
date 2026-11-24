@@ -70,6 +70,8 @@ pub struct World<P, M = NoMachine, H = Bare> {
     startup: Vec<Startup>,
     pending_startup: BTreeMap<(Pid, skein_lib::Token), PreparedStartup>,
     hosted: Vec<Option<usize>>,
+    /// The root whose unit a hosted process belongs to, across nested spawns.
+    units: BTreeMap<Pid, Pid>,
     finished: Vec<bool>,
     restart: Vec<Option<Restart<P>>>,
     submissions: Vec<u32>,
@@ -125,6 +127,7 @@ impl<P: Host> World<P> {
             startup: Vec::new(),
             pending_startup: BTreeMap::new(),
             hosted: Vec::new(),
+            units: BTreeMap::new(),
             finished: Vec::new(),
             restart: Vec::new(),
             submissions: Vec::new(),
@@ -155,6 +158,7 @@ impl<P: Host, H: Meter> World<P, NoMachine, H> {
             startup: self.startup,
             pending_startup: self.pending_startup,
             hosted: self.hosted,
+            units: self.units,
             finished: self.finished,
             restart: self.restart,
             submissions: self.submissions,
@@ -187,6 +191,7 @@ impl<P: Host, M: Machine, H: Meter> World<P, M, H> {
             startup: self.startup,
             pending_startup: self.pending_startup,
             hosted: self.hosted,
+            units: self.units,
             finished: self.finished,
             restart: self.restart,
             submissions: self.submissions,
@@ -254,6 +259,20 @@ impl<P: Host, M: Machine, H: Meter> World<P, M, H> {
         self.cut(host, before, cut);
         let planned = self.cuts.len().checked_sub(1).expect("the cut just added");
         self.perform_cut(planned);
+    }
+
+    /// Kills a restartable root and every process it hosts, including nested
+    /// spawns. Only the root starts again; no killed process takes another turn.
+    pub fn kill_unit(&mut self, host: usize) {
+        assert!(self.restart.get(host).is_some_and(Option::is_some), "a unit kill needs a root restart factory");
+        let root = *self.pids.get(host).expect("a pid per process");
+        let affected = self
+            .pids
+            .iter()
+            .enumerate()
+            .filter_map(|(at, pid)| (*pid == root || self.units.get(pid) == Some(&root)).then_some(at))
+            .collect();
+        self.cut_processes(affected, Cut::Kill, true);
     }
 
     /// Adds a process with an append file the scenario's machine opened at startup.
@@ -463,6 +482,8 @@ impl<P: Host, M: Machine, H: Meter> World<P, M, H> {
                         roots.roots.into_iter().map(|(name, handle)| (name, self.sim.root(child, handle))).collect();
                     let inherited = Inherited { pipes, roots, appends, signal: self.sim.open_signal_source(child) };
                     self.signals.insert(self.next_host, (child, inherited.signal));
+                    let unit = self.units.get(&pid).copied().unwrap_or(pid);
+                    self.units.insert(child, unit);
                     let child_at = self.admit(child, Some(program_at), || make(spawn, &inherited));
                     assert!(
                         self.procs.get(child_at).expect("newly admitted child").operations() <= operations,
@@ -543,6 +564,7 @@ impl<P: Host, M: Machine, H: Meter> World<P, M, H> {
         }
         let proc = self.procs.remove(at);
         let peak = self.meter.release(at, proc);
+        self.units.remove(&pid);
         self.pids.remove(at);
         self.hosted.remove(at);
         self.finished.remove(at);
@@ -576,6 +598,10 @@ impl<P: Host, M: Machine, H: Meter> World<P, M, H> {
                 (0..self.procs.len()).collect()
             }
         };
+        self.cut_processes(affected, cut.cut, false);
+    }
+
+    fn cut_processes(&mut self, affected: Vec<usize>, cut: Cut, record_kills: bool) {
         let mut handles = Vec::new();
         for at in &affected {
             let pid = *self.pids.get(*at).expect("a pid per process");
@@ -590,12 +616,19 @@ impl<P: Host, M: Machine, H: Meter> World<P, M, H> {
             self.sim.assert_quiescent(pid);
             self.sim.assert_no_open_fds(pid);
         }
-        self.machine.cut(cut.cut, &handles, self.seed);
+        self.machine.cut(cut, &handles, self.seed);
         for at in affected.into_iter().rev() {
             let old_pid = *self.pids.get(at).expect("a pid per process");
             if self.hosted.get(at).expect("a status per process").is_some() {
                 let proc = self.procs.remove(at);
-                self.meter.release(at, proc);
+                let peak = self.meter.release(at, proc);
+                if record_kills {
+                    if self.sim.service_running(old_pid) {
+                        self.sim.finish_service(old_pid, Exit::Signal(9));
+                    }
+                    self.killed.push(Killed { pid: old_pid, exit: Exit::Signal(9), peak });
+                }
+                self.units.remove(&old_pid);
                 self.pids.remove(at);
                 self.hosted.remove(at);
                 self.finished.remove(at);

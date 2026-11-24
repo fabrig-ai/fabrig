@@ -1012,7 +1012,7 @@ impl<P: Host, R: Referee<P>> Running<P, R> {
             let Some(control) = self.world.controls.pending.borrow_mut().pop() else { break };
             let (host, signal) = match control {
                 Control::Signal { host, signal } => (host, signal),
-                Control::Cut { .. } => crate::fail("referee cuts need a simulated world"),
+                Control::Cut { .. } | Control::KillUnit { .. } => crate::fail("referee cuts need a simulated world"),
             };
             assert!(
                 self.processes.get(host).expect("a signal names an admitted host").exit.is_none(),
