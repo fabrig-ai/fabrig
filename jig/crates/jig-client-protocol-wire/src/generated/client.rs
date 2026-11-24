@@ -4488,6 +4488,8 @@ pub mod paths {
     pub const TASK_LAST_ACTIVITY: Path = Path::new("Task.last_activity");
     pub const TASK_MADE: Path = Path::new("Task.made");
     pub const TASK_WAITS_ON: Path = Path::new("Task.waits_on");
+    pub const TASK_WAIT: Path = Path::new("Task.wait");
+    pub const TASK_NEAREST: Path = Path::new("Task.nearest");
     pub const TASK_WAITS: Path = Path::new("Task.waits");
     pub const TASK_WAIT_COUNT: Path = Path::new("Task.wait_count");
     pub const TASK_CHIP: Path = Path::new("Task.chip");
@@ -48884,6 +48886,8 @@ pub struct Task {
     pub last_activity: u64,
     pub made: u64,
     pub waits_on: WaitsOn,
+    pub wait: Option<Wait>,
+    pub nearest: Option<Nearest>,
     pub waits: List<Wait>,
     pub wait_count: u32,
     pub chip: Chip,
@@ -48941,27 +48945,31 @@ impl Task {
         skein_codec::bounds::Node::Scalar(8),
         skein_codec::bounds::Node::Named("WaitsOn"),
         skein_codec::bounds::Node::Named("Wait"),
-        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, task_waits), item: 13, size: size_of::<Wait>() },
+        skein_codec::bounds::Node::Option { item: 13 },
+        skein_codec::bounds::Node::Named("Nearest"),
+        skein_codec::bounds::Node::Option { item: 15 },
+        skein_codec::bounds::Node::Named("Wait"),
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, task_waits), item: 17, size: size_of::<Wait>() },
         skein_codec::bounds::Node::Scalar(4),
         skein_codec::bounds::Node::Named("Chip"),
         skein_codec::bounds::Node::Scalar(8),
-        skein_codec::bounds::Node::Option { item: 17 },
+        skein_codec::bounds::Node::Option { item: 21 },
         skein_codec::bounds::Node::Scalar(4),
-        skein_codec::bounds::Node::Option { item: 19 },
+        skein_codec::bounds::Node::Option { item: 23 },
         skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, task_lineage_chips) },
         skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, task_inputs) },
         skein_codec::bounds::Node::Scalar(4),
         skein_codec::bounds::Node::Named("Requester"),
         skein_codec::bounds::Node::Scalar(8),
-        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, task_lineage), item: 25, size: size_of::<u64>() },
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, task_lineage), item: 29, size: size_of::<u64>() },
         skein_codec::bounds::Node::Named("SpecificationDocument"),
         skein_codec::bounds::Node::Named("Revision"),
         skein_codec::bounds::Node::Named("Revision"),
-        skein_codec::bounds::Node::Option { item: 29 },
-        skein_codec::bounds::Node::Scalar(8),
-        skein_codec::bounds::Node::Option { item: 31 },
-        skein_codec::bounds::Node::Named("DocumentText"),
         skein_codec::bounds::Node::Option { item: 33 },
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Option { item: 35 },
+        skein_codec::bounds::Node::Named("DocumentText"),
+        skein_codec::bounds::Node::Option { item: 37 },
         skein_codec::bounds::Node::Named("WakePolicy"),
         skein_codec::bounds::Node::Named("Subscriptions"),
         skein_codec::bounds::Node::Named("TaskContractDocument"),
@@ -48973,32 +48981,32 @@ impl Task {
         skein_codec::bounds::Node::Named("AuthorityDocument"),
         skein_codec::bounds::Node::Scalar(4),
         skein_codec::bounds::Node::Named("ChipHold"),
-        skein_codec::bounds::Node::Option { item: 45 },
+        skein_codec::bounds::Node::Option { item: 49 },
         skein_codec::bounds::Node::Named("ProposalKey"),
-        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, task_proposals), item: 47, size: size_of::<ProposalKey>() },
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, task_proposals), item: 51, size: size_of::<ProposalKey>() },
         skein_codec::bounds::Node::Scalar(8),
         skein_codec::bounds::Node::Scalar(8),
         skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, task_acts) },
         skein_codec::bounds::Node::Named("TaskResult"),
-        skein_codec::bounds::Node::Option { item: 52 },
+        skein_codec::bounds::Node::Option { item: 56 },
         skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, task_delegates) },
         skein_codec::bounds::Node::Named("TaskContext"),
-        skein_codec::bounds::Node::Option { item: 55 },
-        skein_codec::bounds::Node::Named("LlmChoice"),
-        skein_codec::bounds::Node::Option { item: 57 },
-        skein_codec::bounds::Node::Scalar(4),
         skein_codec::bounds::Node::Option { item: 59 },
-        skein_codec::bounds::Node::Named("TaskRunWait"),
+        skein_codec::bounds::Node::Named("LlmChoice"),
         skein_codec::bounds::Node::Option { item: 61 },
+        skein_codec::bounds::Node::Scalar(4),
+        skein_codec::bounds::Node::Option { item: 63 },
+        skein_codec::bounds::Node::Named("TaskRunWait"),
+        skein_codec::bounds::Node::Option { item: 65 },
         skein_codec::bounds::Node::Named("Dependency"),
-        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, task_dependency_facts), item: 63, size: size_of::<Dependency>() },
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, task_dependency_facts), item: 67, size: size_of::<Dependency>() },
         skein_codec::bounds::Node::Named("UnreadWords"),
-        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, task_unread), item: 65, size: size_of::<UnreadWords>() },
-        skein_codec::bounds::Node::Record { prefix: 0, fields: &[1, 3, 5, 7, 8, 9, 10, 11, 12, 14, 15, 16, 18, 20, 21, 22, 23, 24, 26, 27, 28, 30, 32, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 46, 48, 49, 50, 51, 53, 54, 56, 58, 60, 62, 64, 66] },
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, task_unread), item: 69, size: size_of::<UnreadWords>() },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[1, 3, 5, 7, 8, 9, 10, 11, 12, 14, 16, 18, 19, 20, 22, 24, 25, 26, 27, 28, 30, 31, 32, 34, 36, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 50, 52, 53, 54, 55, 57, 58, 60, 62, 64, 66, 68, 70] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 993;
+    pub const ENCODED_AT_ZERO: u64 = 1081;
 }
 
 impl Record for Task {
@@ -49032,6 +49040,8 @@ impl Record for Task {
         field::write(field::U64, &self.last_activity, limits, out, paths::TASK_LAST_ACTIVITY)?;
         field::write(field::U64, &self.made, limits, out, paths::TASK_MADE)?;
         field::write(field::Nested, &self.waits_on, limits, out, paths::TASK_WAITS_ON)?;
+        field::write(field::Optional { item: field::Nested }, &self.wait, limits, out, paths::TASK_WAIT)?;
+        field::write(field::Optional { item: field::Nested }, &self.nearest, limits, out, paths::TASK_NEAREST)?;
         field::write(field::Sequence { limit: limits.task_waits.min(CEILINGS.task_waits), minimum: 22, item: field::Nested }, &self.waits, limits, out, paths::TASK_WAITS)?;
         field::write(field::U32, &self.wait_count, limits, out, paths::TASK_WAIT_COUNT)?;
         field::write(field::Nested, &self.chip, limits, out, paths::TASK_CHIP)?;
@@ -49084,6 +49094,8 @@ impl Record for Task {
             last_activity: field::read(field::U64, limits, reader, paths::TASK_LAST_ACTIVITY)?,
             made: field::read(field::U64, limits, reader, paths::TASK_MADE)?,
             waits_on: field::read(field::Nested, limits, reader, paths::TASK_WAITS_ON)?,
+            wait: field::read(field::Optional { item: field::Nested }, limits, reader, paths::TASK_WAIT)?,
+            nearest: field::read(field::Optional { item: field::Nested }, limits, reader, paths::TASK_NEAREST)?,
             waits: field::read(field::Sequence { limit: limits.task_waits.min(CEILINGS.task_waits), minimum: 22, item: field::Nested }, limits, reader, paths::TASK_WAITS)?,
             wait_count: field::read(field::U32, limits, reader, paths::TASK_WAIT_COUNT)?,
             chip: field::read(field::Nested, limits, reader, paths::TASK_CHIP)?,
@@ -50791,7 +50803,7 @@ impl Escalation {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 997;
+    pub const ENCODED_AT_ZERO: u64 = 1085;
 }
 
 impl Record for Escalation {
@@ -51920,7 +51932,7 @@ impl EndedValueTask {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 1093;
+    pub const ENCODED_AT_ZERO: u64 = 1181;
 }
 
 impl Record for EndedValueTask {
@@ -52960,7 +52972,7 @@ impl EndedValueEscalation {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 1105;
+    pub const ENCODED_AT_ZERO: u64 = 1193;
 }
 
 impl Record for EndedValueEscalation {
@@ -53138,7 +53150,7 @@ impl EndedValue {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 1106;
+    pub const ENCODED_AT_ZERO: u64 = 1194;
 }
 
 impl Record for EndedValue {
@@ -53209,7 +53221,7 @@ impl Ended {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 1143;
+    pub const ENCODED_AT_ZERO: u64 = 1231;
 }
 
 impl Record for Ended {
@@ -72467,7 +72479,7 @@ impl ReadValue {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 1144;
+    pub const ENCODED_AT_ZERO: u64 = 1232;
 }
 
 impl Record for ReadValue {
@@ -72589,7 +72601,7 @@ impl DeliveryValue {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 994;
+    pub const ENCODED_AT_ZERO: u64 = 1082;
 }
 
 impl Record for DeliveryValue {

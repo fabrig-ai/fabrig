@@ -636,6 +636,55 @@ fn structured_waits_reach_the_client_in_order_with_the_full_count() {
     assert_eq!(decoded.wait_count, 13);
 }
 
+#[test]
+fn task_documents_keep_the_first_wait_and_each_nearest_outcome_through_the_wire() {
+    use jig_client_domain::contract as c;
+    use jig_domain_core_vocabulary::{AtBound, Nearest, WaitKind};
+    use skein_lib::{Reader, Wall};
+
+    let limits = fixtures::wire_limits();
+    let client_limits = fixtures::client_limits();
+    let mut source = fixtures::task_with_hold();
+    let (wire, client) = jig_client_test_records::structured_waits();
+    let mut first = core_waits().get(0).unwrap().clone();
+    let mut wire_first = wire.get(0).unwrap().clone();
+    let mut client_first = client.get(0).unwrap().clone();
+    first.task = 71;
+    wire_first.task = 71;
+    client_first.task = 71;
+    let at = Wall::from_nanos(59);
+    let cases = [
+        None,
+        Some((AtBound::Hold, w::AtBound::Hold, c::AtBound::Hold)),
+        Some((AtBound::PassUp, w::AtBound::PassUp, c::AtBound::PassUp)),
+        Some((AtBound::Overdue, w::AtBound::Overdue, c::AtBound::Overdue)),
+        Some((AtBound::GiveUp, w::AtBound::GiveUp, c::AtBound::GiveUp)),
+    ];
+    for case in cases {
+        let (wait, wire_wait, client_wait, nearest, wire_nearest, client_nearest) = match case {
+            Some((then, wire_then, client_then)) => (
+                Some(first.clone()),
+                Some(&wire_first),
+                Some(&client_first),
+                Some(Nearest { at, then, kind: WaitKind::Host }),
+                Some(w::Nearest { at: at.as_nanos(), then: wire_then, kind: w::WaitKind::Host }),
+                Some(c::Nearest { at, then: client_then, kind: c::WaitKind::Host }),
+            ),
+            None => (None, None, None, None, None, None),
+        };
+        source.wait = wait;
+        source.nearest = nearest;
+        let record = translate::task::document(&source, &[], &limits).unwrap();
+        assert_eq!(record.wait.as_ref(), wire_wait);
+        assert_eq!(record.nearest, wire_nearest);
+        let bytes = record.encode(&limits).unwrap();
+        let record = w::Task::decode(&limits, &mut Reader::new(&bytes)).unwrap();
+        let decoded = jig_client_protocol_link::translate::documents::task(record, &client_limits).unwrap();
+        assert_eq!(decoded.wait.as_ref(), client_wait);
+        assert_eq!(decoded.nearest, client_nearest);
+    }
+}
+
 fn core_waits() -> List<jig_domain_core_vocabulary::Wait> {
     use jig_domain_core_vocabulary::documents::TaskRunWait;
     use jig_domain_core_vocabulary::{AtBound, Bound, Thing, Unbounded as U, Wait, WaitKind as K, WaitObject as O};

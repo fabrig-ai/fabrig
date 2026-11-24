@@ -79,6 +79,10 @@ pub struct Task {
     /// When the task was made: its record's `created_at` (jig/docs/design/client/domain/contract/documents.md, 1).
     pub made: Wall,
     pub waits_on: super::WaitsOn,
+    /// The line's first wait, which may be a descendant's.
+    pub wait: Option<super::Wait>,
+    /// The earliest bound among the first wait and the task's own waits.
+    pub nearest: Option<super::Nearest>,
     /// The task's own waits, in engine order, within the document's line limit.
     pub waits: List<super::Wait>,
     /// All of the task's waits, including those beyond the line limit.

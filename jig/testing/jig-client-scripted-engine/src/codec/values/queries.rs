@@ -137,7 +137,7 @@ fn wire_wait_object(value: &c::WaitObject) -> w::WaitObject {
     }
 }
 
-fn wire_nearest(value: &c::Nearest) -> w::Nearest {
+pub(in crate::codec) fn wire_nearest(value: &c::Nearest) -> w::Nearest {
     w::Nearest { at: value.at.as_nanos(), then: wire_at_bound(value.then), kind: wire_wait_kind(value.kind) }
 }
 

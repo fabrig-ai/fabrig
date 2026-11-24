@@ -294,6 +294,8 @@ fn task() -> d::Task {
         session: None,
         settings: None,
         waits_on: d::WaitsOn::Nothing,
+        wait: None,
+        nearest: None,
         waits: List::with_capacity(0),
         wait_count: 0,
         label: 2,
