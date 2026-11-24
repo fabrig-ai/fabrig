@@ -312,14 +312,15 @@ it checks of this document:
   binaries `TEMPER_TEST_FORGEJO` and `TEMPER_TEST_FORGEJO_RUNNER` name, and
   webhooks on. Its repository runs Actions, so its landing rule asks for
   CI.
-- **The hinted story:** the same story with the keep's `poll`,
-  `poll_max` and `slow` and the change's `stall` raised past the story's
-  budget (../configuration/limits.md; `../../domain/forge/change/repairs.md`), and its
-  CI's job outlasting `settle` from the change's push, so that it lands
-  within its budget only if the job's end is delivered and the reads
-  that follow it (`../../domain/forge/updates.md`, section 1, "Checked"); and with no conflict resolved,
-  since its changes never conflict. With no webhooks, the same story
-  misses its budget.
+- **The job's end, delivered:** on the owned Forgejo and its runner, a
+  push to `main` and the end of the CI job it started each reach a
+  receiver at the hook's address, signed with the secret reconcile drew
+  (`webhooks.md`, 1). That such a delivery, and no poll, lands a change
+  whose keep's `poll`, `poll_max` and `slow` and whose `stall` are past
+  its deadline (../configuration/limits.md; `../../domain/forge/change/repairs.md`) and
+  whose job outlasts `settle` is the protocol-forge world's
+  (`../../domain/forge/updates.md`, section 1, "Checked"); with no delivery, that
+  change has not landed at the deadline.
 - **`temper box`,** a test of its own on a scratch directory, with no
   `--echo`, its terminal the sign-in block alone and each step's lines in its
   log; a story that reads a step's lines runs it with `--echo steps`: the sign-in
@@ -421,10 +422,15 @@ it checks of this document:
   landed, its CI at its head unknown until a next step reads it
   (`../../domain/forge/change/panel.md`, 1).
 - **A Forgejo connected as its admin, on this host:** on a real Forgejo
-  with its API on loopback, each repository adopted has one hook at
-  `http://<listener>/hooks/<number>` (`reconcile.md`, 4), and has it again, with its
-  collaborator, after a restart with both removed by hand (reconcile's
-  step 6). Its delivery is not this story's. With a hook that delivers
+  with its API on loopback, connected by its admin's token and making
+  its first repository, that repository has one hook at
+  `http://<listener>/hooks/<number>` (`reconcile.md`, 4), and has it again after
+  one restart with it removed by hand (reconcile's step 6); the restart
+  takes no token, reads the same forge and repository, and reads the
+  provider's settings applied before it whole. A public and a private
+  repository adopted beside it, their collaborators and hooks removed
+  and made again on reopening, are the service's step tests
+  (`setup_admin.rs`). Its delivery is not this story's. With a hook that delivers
   nothing, a step test shows the forge staying connected with nothing
   ended, and the forge's world wakes a watched change on its pull's CI
   with no delivery heard, by polling (`webhooks.md`, section 1).

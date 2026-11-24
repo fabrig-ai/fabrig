@@ -86,27 +86,15 @@ pub fn patch_configuration(directory: &Path) -> oauth::Peer {
     issuer(listener, &registration, redirect.as_bytes())
 }
 
-/// Recreate the fake issuer on its recorded address without changing the deployment.
-#[must_use]
-pub fn restart_issuer(directory: &Path) -> oauth::Peer {
-    restarted_issuer(directory, false)
-}
-
 /// Recreate a provider that already issued the fixture's client registration.
 /// A restarted fake otherwise forgets it and rejects a moved account's refresh.
 #[must_use]
 pub fn restart_issued_issuer(directory: &Path) -> oauth::Peer {
-    restarted_issuer(directory, true)
-}
-
-fn restarted_issuer(directory: &Path, issued: bool) -> oauth::Peer {
     let mut registration = temper_agent_fixtures::providers::read(&temper_agent_fixtures::data(directory))["providers"]
         [0]["sources"]["sign_in"]
         .clone();
-    if issued {
-        // Known fixture identity, never a credential read from a deployment.
-        registration["client"] = "issued-client".into();
-    }
+    // Known fixture identity, never a credential read from a deployment.
+    registration["client"] = "issued-client".into();
     let address = registration["issuer"]
         .as_str()
         .expect("patched issuer")
