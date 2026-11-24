@@ -219,12 +219,12 @@ fn the_focus_step_checks_the_found_nodes_focus() {
     }
 }
 
-fn keeping() -> (Script, BrowserFace<'static>) {
-    let mut script = Script::new(Box::new([Step::Keep {
-        selector: b"#hidden".as_slice().into(),
-        attribute: None,
-        name: b"read".as_slice().into(),
-    }]));
+fn keep(selector: &[u8]) -> Step {
+    Step::Keep { selector: selector.into(), attribute: None, name: b"read".as_slice().into() }
+}
+
+fn keeping(selector: &[u8]) -> (Script, BrowserFace<'static>) {
+    let mut script = Script::new(Box::new([keep(selector)]));
     let mut face = face();
     script.next(&mut face, Time::ZERO);
     assert_eq!(
@@ -232,15 +232,46 @@ fn keeping() -> (Script, BrowserFace<'static>) {
         vec![Request::Attribute {
             page: Token::new(7),
             op: ADDRESS_OP,
-            selector: b"#hidden".as_slice().into(),
+            selector: selector.into(),
             name: b"value".as_slice().into()
         }]
     );
     (script, face)
 }
 #[test]
+#[should_panic(expected = "keep selector details:has(> summary:not(:has(> [role=group] + span))) nests :has()")]
+fn a_keep_cannot_nest_has_through_not() {
+    let _ = Script::new(Box::new([keep(b"details:has(> summary:not(:has(> [role=group] + span)))")]));
+}
+
+#[test]
+#[should_panic(expected = "keep selector a:has(b:is(c:has(d))) nests :has()")]
+fn a_keep_cannot_nest_has_through_is() {
+    let _ = Script::new(Box::new([keep(b"a:has(b:is(c:has(d)))")]));
+}
+
+#[test]
+#[should_panic(expected = "keep selector a:HaS(b:where(c:HAS(d))) nests :has()")]
+fn a_keep_cannot_nest_has_in_mixed_case() {
+    let _ = Script::new(Box::new([keep(b"a:HaS(b:where(c:HAS(d)))")]));
+}
+
+#[test]
+fn a_keep_requests_unnested_selectors_unchanged() {
+    for selector in [
+        b"[role=tree]:has(> x):not(:has(y))".as_slice(),
+        b"main:not(:has(input, label, form))",
+        b"x:has([title=':has(y)'])",
+        br#"x:has([title="\":has(y)"])"#,
+        b"x:has(/* :has(y) */ z)",
+    ] {
+        let _ = keeping(selector);
+    }
+}
+
+#[test]
 fn a_keep_waits_for_its_terminal_before_advancing() {
-    let (mut script, mut face) = keeping();
+    let (mut script, mut face) = keeping(b"#hidden");
     script.next(&mut face, Time::ZERO);
     assert_eq!(script.at(), 0);
     assert!(face.pending());
@@ -254,7 +285,7 @@ fn a_keep_waits_for_its_terminal_before_advancing() {
 }
 #[test]
 fn a_refused_keep_names_the_selector_and_attribute() {
-    let (mut script, mut face) = keeping();
+    let (mut script, mut face) = keeping(b"#hidden");
     face.event(&Event::Refused {
         op: ADDRESS_OP,
         why: skein_browser::boundary::Refusal::Protocol,
@@ -270,7 +301,7 @@ fn a_refused_keep_names_the_selector_and_attribute() {
 }
 #[test]
 fn another_operations_attribute_does_not_complete_a_keep() {
-    let (script, mut face) = keeping();
+    let (script, mut face) = keeping(b"#hidden");
     face.event(&Event::Attribute { op: Token::new(8), read: skein_browser::boundary::Read::NoElement });
     assert!(face.pending());
     assert_eq!(script.at(), 0);

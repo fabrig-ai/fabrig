@@ -110,6 +110,48 @@ enum Awaited {
     Trouble(Box<[u8]>),
     Status(u16),
 }
+// A lexical check for the forbidden nesting alone; Chromium parses the selector at the step.
+fn nests_has(mut selector: &[u8]) -> bool {
+    let mut depth = 0; // Parentheses still open since the first :has(.
+    let mut quote = None;
+    while let [byte, rest @ ..] = selector {
+        let tail = selector;
+        selector = rest;
+        if *byte == b'\\' {
+            selector = rest.get(1..).unwrap_or_default();
+        } else if let Some(end) = quote {
+            if *byte == end {
+                quote = None;
+            }
+        } else if let [b'/', b'*', comment @ ..] = tail {
+            selector = match comment.windows(2).position(|pair| pair == b"*/") {
+                Some(end) => &comment[end + 2..],
+                None => &[],
+            };
+        } else {
+            match byte {
+                b'\'' | b'"' => quote = Some(*byte),
+                b':' => {
+                    if let Some((name, after)) = rest.split_at_checked(4)
+                        && name.eq_ignore_ascii_case(b"has(")
+                    {
+                        if depth != 0 {
+                            return true;
+                        }
+                        depth = 1;
+                        selector = after;
+                    }
+                }
+                b'(' if depth != 0 => depth += 1,
+                b')' if depth != 0 => depth -= 1,
+                _ => {}
+            }
+        }
+    }
+    false
+}
+
+/// A browser story with keep selectors checked at construction (skein/docs/design/ui/web/testing.md, 2).
 pub struct Script {
     steps: VecDeque<Step>,
     person: Option<Person<Box<[u8]>>>,
@@ -131,8 +173,16 @@ pub struct Script {
     text: Option<(skein_fake_person::Find, Box<[u8]>, bool)>,
 }
 impl Script {
+    /// Make a script, refusing nested `:has()` in keep selectors.
     #[must_use]
     pub fn new(steps: Box<[Step]>) -> Self {
+        for step in &steps {
+            if let Step::Keep { selector, .. } = step
+                && nests_has(selector)
+            {
+                panic!("keep selector {} nests :has()", String::from_utf8_lossy(selector));
+            }
+        }
         Self {
             steps: steps.into_vec().into(),
             person: None,
