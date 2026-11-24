@@ -1,6 +1,6 @@
 //! The TUI's in-memory proof and print (temper/docs/design/client/tui/journeys.md, 5 to 7).
-use crate::{Build, Printed, Refusal, io_refusal, write_assets};
-use std::{ffi::OsStr, fs, path::Path};
+use crate::{Admitted, Build, Client, Printed, Refusal};
+use std::ffi::OsStr;
 use temper_client_shell_tui::journey::{self, Line, Stale};
 
 pub use temper_client_walk_lines::tui_print::{SCRIPT, beside, pages, stylesheet};
@@ -17,14 +17,13 @@ fn kind(bytes: &[u8]) -> &[u8] {
     bytes.split(u8::is_ascii_whitespace).next().unwrap_or_default()
 }
 
-pub(crate) fn print(
-    out: &Path,
+pub(crate) fn admit(
     name: &str,
     file: &OsStr,
     recording: &[u8],
     given: &[Box<[u8]>],
     build: &Build,
-) -> Result<Printed, Refusal> {
+) -> Result<Admitted, Refusal> {
     let lines = journey::lines(recording).map_err(|why| proof_refusal(name, journey::Refusal::Unreadable(why)))?;
     if let Some(version) =
         lines.iter().find_map(|line| if let Line::Version(version) = line { Some(version) } else { None })
@@ -77,10 +76,7 @@ pub(crate) fn print(
         bearer: redacted.originals.count(journey::Kind::Bearer),
         places: redacted.places,
     };
-    let directory = out.join(temper_client_walk_lines::layout::TUI).join(name);
-    write_files(&directory, files)?;
-    write_assets(out, temper_client_walk_lines::walk::Client::Tui)?;
-    Ok(printed)
+    Ok(Admitted { client: Client::Tui, printed, pages: files })
 }
 
 pub(crate) fn printed(name: &str, recording: &[u8]) -> Result<Result<Vec<crate::print::Printed>, Stale>, Refusal> {
@@ -100,27 +96,4 @@ pub(crate) fn printed(name: &str, recording: &[u8]) -> Result<Result<Vec<crate::
         }
     }
     Ok(Ok(pages(name, temper_client_tui::theme::ThemeChoice::Auto.scheme(scheme), &marks)))
-}
-
-pub(crate) fn printed_file(path: &Path) -> bool {
-    path.file_name()
-        .and_then(|name| name.to_str())
-        .and_then(|name| name.strip_suffix(".html").or_else(|| name.strip_suffix(".txt")))
-        .is_some_and(|number| number.len() >= 2 && number.bytes().all(|byte| byte.is_ascii_digit()))
-}
-
-fn write_files(out: &Path, files: Vec<crate::print::Printed>) -> Result<(), Refusal> {
-    fs::create_dir_all(out).map_err(|_| io_refusal(out))?;
-    for entry in fs::read_dir(out).map_err(|_| io_refusal(out))? {
-        let entry = entry.map_err(|_| io_refusal(out))?;
-        let path = entry.path();
-        if printed_file(&path) && entry.file_type().map_err(|_| io_refusal(&path))?.is_file() {
-            fs::remove_file(&path).map_err(|_| io_refusal(&path))?;
-        }
-    }
-    for file in files {
-        let path = out.join(file.name);
-        fs::write(&path, file.document).map_err(|_| io_refusal(&path))?;
-    }
-    Ok(())
 }

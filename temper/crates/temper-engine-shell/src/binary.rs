@@ -5,7 +5,7 @@ use skein_shell::{Command, Reach, Reached, Table};
 use std::{os::unix::ffi::OsStrExt, path::PathBuf, process::ExitCode};
 use temper_shell::{
     commands::Row,
-    directories::{self, EnvironmentEntry},
+    directories::{self, Directories, EnvironmentEntry},
     table,
 };
 
@@ -32,7 +32,11 @@ fn capture() -> Capture {
 pub fn main(version: &'static str, commit: &'static str) -> ExitCode {
     let captured = capture();
     match run(&captured, version, commit) {
-        Ok(code) => ExitCode::from(code),
+        Ok(Reply::Print(text)) => {
+            print!("{text}");
+            ExitCode::SUCCESS
+        }
+        Ok(Reply::Exit(code)) => ExitCode::from(code),
         Err((code, why)) => {
             eprint!("{why}");
             ExitCode::from(code)
@@ -40,22 +44,42 @@ pub fn main(version: &'static str, commit: &'static str) -> ExitCode {
     }
 }
 
-fn run(captured: &Capture, version: &'static str, commit: &'static str) -> Result<u8, (u8, String)> {
-    match ENGINE.reach(&captured.run_as, &captured.arguments) {
-        Reached::Help => {
-            print!("{}", ENGINE.help());
-            Ok(0)
-        }
-        Reached::Version => {
-            print!("{}", Table { version, commit, ..ENGINE }.version_line());
-            Ok(0)
-        }
-        Reached::CommandHelp(command) => {
-            print!("{}", ENGINE.command_help(command));
-            Ok(0)
-        }
-        Reached::Unknown(why) => Err((2, why)),
-        Reached::Command(command, arguments) => dispatch(command, arguments, captured, commit),
+#[derive(Debug, PartialEq, Eq)]
+enum Reply {
+    Print(String),
+    Exit(u8),
+}
+
+fn run(captured: &Capture, version: &'static str, commit: &'static str) -> Result<Reply, (u8, String)> {
+    let text = match ENGINE.reach(&captured.run_as, &captured.arguments) {
+        Reached::Help => ENGINE.help(),
+        Reached::Version => Table { version, commit, ..ENGINE }.version_line(),
+        Reached::CommandHelp(command) => ENGINE.command_help(command),
+        Reached::Unknown(why) => return Err((2, why)),
+        Reached::Command(command, arguments) => match command.reach {
+            Reach::Words(["help"]) => help(arguments)?,
+            Reach::Words(["versions"]) => {
+                if !arguments.is_empty() {
+                    return Err((2, table::refused(&ENGINE, command, "invalid arguments")));
+                }
+                versions()
+            }
+            Reach::Words(_) | Reach::RunAs(_) => {
+                return dispatch(command, arguments, captured, commit).map(Reply::Exit);
+            }
+        },
+    };
+    Ok(Reply::Print(text))
+}
+
+fn help(arguments: &[Box<[u8]>]) -> Result<String, (u8, String)> {
+    if let [page] = arguments
+        && page.as_ref() == b"config"
+    {
+        Ok(String::from_utf8(temper_config_shell::help(temper_config_shell::Shape::EngineAlone).into_vec())
+            .expect("help UTF-8"))
+    } else {
+        table::help(&ENGINE, arguments)
     }
 }
 
@@ -67,27 +91,6 @@ fn dispatch(
 ) -> Result<u8, (u8, String)> {
     let refused = |why: &str| (2, table::refused(&ENGINE, command, why));
     match command.reach {
-        Reach::Words(["help"]) => {
-            if let [page] = arguments
-                && page.as_ref() == b"config"
-            {
-                print!(
-                    "{}",
-                    std::str::from_utf8(&temper_config_shell::help(temper_config_shell::Shape::EngineAlone))
-                        .expect("help UTF-8")
-                );
-            } else {
-                print!("{}", table::help(&ENGINE, arguments)?);
-            }
-            Ok(0)
-        }
-        Reach::Words(["versions"]) => {
-            if !arguments.is_empty() {
-                return Err(refused("invalid arguments"));
-            }
-            print!("{}", versions());
-            Ok(0)
-        }
         Reach::Words(["upgrade", mode @ ("--check" | "--workers" | "--back")]) => {
             let working = captured.working.as_ref().map_err(|why| (1, format!("temper-engine upgrade: {why}\n")))?;
             let (directories, request) =
@@ -111,28 +114,9 @@ fn dispatch(
                     .map_err(|why| refused(&why))?;
             crate::restore::run(ENGINE.binary, &directories, name, commit).map_err(|why| (1, why))
         }
-        Reach::Words(["serve"]) => {
-            let working = captured.working.as_ref().map_err(|why| (1, format!("temper-engine serve: {why}\n")))?;
-            let (directories, rest) =
-                directories::resolve(arguments, &captured.environment, working.as_os_str().as_bytes())
-                    .map_err(|why| refused(&why.to_string()))?;
-            let record = recording(&rest).ok_or_else(|| refused("invalid arguments"))?;
-            Ok(
-                match serve::run(
-                    ENGINE.binary,
-                    &captured.environment,
-                    working.as_os_str().as_bytes(),
-                    &directories,
-                    record,
-                    commit,
-                )
-                .map_err(|why| (1, why))?
-                {
-                    Exit::Code(code) => code,
-                    Exit::Signal(_) => 1,
-                },
-            )
-        }
+        Reach::Words(["serve"]) => serve_command(command, arguments, captured, |directories, working, record| {
+            serve::run(ENGINE.binary, &captured.environment, working, directories, record, commit)
+        }),
         Reach::Words(words) => {
             let row = match words {
                 ["forge", "fetch"] => &forge::FETCH,
@@ -148,6 +132,24 @@ fn dispatch(
         }
         Reach::RunAs(_) => Err(refused("invalid arguments")),
     }
+}
+
+fn serve_command(
+    command: &Command,
+    arguments: &[Box<[u8]>],
+    captured: &Capture,
+    serve: impl FnOnce(&Directories, &[u8], bool) -> Result<Exit, String>,
+) -> Result<u8, (u8, String)> {
+    let refused = |why: &str| (2, table::refused(&ENGINE, command, why));
+    let working = captured.working.as_ref().map_err(|why| (1, format!("temper-engine serve: {why}\n")))?;
+    let working = working.as_os_str().as_bytes();
+    let (directories, rest) =
+        directories::resolve(arguments, &captured.environment, working).map_err(|why| refused(&why.to_string()))?;
+    let record = recording(&rest).ok_or_else(|| refused("invalid arguments"))?;
+    Ok(match serve(&directories, working, record).map_err(|why| (1, why))? {
+        Exit::Code(code) => code,
+        Exit::Signal(_) => 1,
+    })
 }
 
 fn run_forge(command: &Command, row: &Row, arguments: &[Box<[u8]>], captured: &Capture) -> Result<u8, (u8, String)> {
@@ -215,115 +217,6 @@ fn recording(arguments: &[Box<[u8]>]) -> Option<bool> {
 }
 
 #[cfg(test)]
-mod tests {
-    #[test]
-    fn engine_commands_refuse_the_former_file_by_name() {
-        use temper_config_shell::{FILE, FORMER};
-        let scratch = skein_scratch::Scratch::new("engine-former-file");
-        let arguments = [
-            b"--config".as_slice(),
-            std::os::unix::ffi::OsStrExt::as_bytes(scratch.path().as_os_str()),
-            b"--data",
-            std::os::unix::ffi::OsStrExt::as_bytes(scratch.path().as_os_str()),
-            b"--cache",
-            std::os::unix::ffi::OsStrExt::as_bytes(scratch.path().as_os_str()),
-        ]
-        .map(Box::from);
-        let (directories, _) = temper_shell::directories::resolve(&arguments, &[], b"/").expect("directories");
-        std::fs::create_dir(scratch.path().join(FORMER)).expect("former directory");
-        for present in [false, true] {
-            if present {
-                std::fs::write(scratch.path().join(FILE), b"invalid TOML").expect("current file");
-            }
-            for (words, command) in [
-                (&["serve"][..], "serve"),
-                (&["upgrade", "--check", "/unused"][..], "upgrade"),
-                (&["upgrade", "--workers", "/unused"][..], "upgrade"),
-                (&["upgrade", "--back"][..], "upgrade"),
-                (&["checkpoint"][..], "checkpoint"),
-                (&["restore", "00000000000000000012-00000000000000ff"][..], "restore"),
-            ] {
-                let mut arguments: Vec<_> = words.iter().map(|word| Box::from(word.as_bytes())).collect();
-                arguments.extend(directories.flags());
-                let capture = super::Capture {
-                    run_as: b"temper-engine".as_slice().into(),
-                    arguments: arguments.into(),
-                    environment: Box::new([]),
-                    working: Ok(scratch.path().into()),
-                };
-                assert_eq!(
-                    super::run(&capture, "test", "test"),
-                    Err((
-                        1,
-                        format!(
-                            "temper-engine {command}: {FORMER}: moved: the configuration is {FILE}; write it from temper-engine help config, then remove {FORMER}\n"
-                        )
-                    ))
-                );
-            }
-        }
-    }
-
-    #[test]
-    fn versions_print_each_wire_range_then_its_layout() {
-        use std::fmt::Write;
-        let text = super::versions();
-        eprintln!("{text}");
-        let mut lines = text.lines().skip_while(|line| !line.starts_with("wire "));
-        let wires = temper_engine_service::wires();
-        for wire in &wires {
-            let (name, lowest, highest) = (wire.name, wire.lowest, wire.highest());
-            assert_eq!(lines.next(), Some(format!("wire {name} {lowest} {highest}").as_str()));
-            for version in lowest..=highest {
-                let layout = lines.next().expect("one layout follows for each spoken version");
-                let fingerprint =
-                    layout.strip_prefix(&format!("layout {name} {version} ")).expect("layout name and version");
-                let mut expected = String::new();
-                for byte in wire.layout(version).expect("kept layout") {
-                    write!(expected, "{byte:02x}").expect("writing into a string");
-                }
-                assert_eq!(fingerprint, expected);
-            }
-        }
-        assert_eq!(lines.next(), Some("bound stop 602"));
-        assert_eq!(lines.next(), Some("bound report 30"));
-        assert_eq!(lines.next(), None);
-    }
-
-    #[test]
-    fn restore_bad_names_are_usage_errors_before_reading_configuration() {
-        for arguments in [vec!["restore"], vec!["restore", "12-ff"]] {
-            let capture = super::Capture {
-                run_as: b"temper-engine".as_slice().into(),
-                arguments: arguments.iter().map(|word| Box::from(word.as_bytes())).collect(),
-                environment: Box::new([(Box::from(b"HOME".as_slice()), Box::from(b"/unused".as_slice()))]),
-                working: Ok("/unused".into()),
-            };
-            assert_eq!(
-                super::run(&capture, "test", "test"),
-                Err((
-                    2,
-                    "temper-engine restore: invalid arguments\nusage: temper-engine restore NAME [DIRECTORIES]\n"
-                        .into()
-                ))
-            );
-        }
-    }
-
-    #[test]
-    fn engine_serve_accepts_record_once_only() {
-        for (words, expected) in [
-            (&[][..], Some(false)),
-            (&["--record"][..], Some(true)),
-            (&["--record", "--record"][..], None),
-            (&["--other"][..], None),
-        ] {
-            let arguments: Vec<_> = words.iter().map(|word| Box::from(word.as_bytes())).collect();
-            assert_eq!(super::recording(&arguments), expected);
-        }
-        let switch =
-            crate::commands::SERVE.switches.iter().find(|switch| switch.name == "record").expect("public switch");
-        assert_eq!(switch.set, skein_shell::Set::Public);
-        assert_eq!(switch.line, "Have every page served record a journey in its browser, saved by Alt+Shift+S.");
-    }
-}
+mod tests;
+#[cfg(test)]
+pub(crate) use tests::refusal;

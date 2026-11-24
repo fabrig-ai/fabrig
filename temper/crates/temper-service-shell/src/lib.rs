@@ -230,7 +230,9 @@ fn run_inner<S, B, A>(
     Ok(exit)
 }
 
-fn serve_error(binary: &str, why: &str) -> String {
+/// Prefix each line of a serve startup refusal with the binary and command.
+#[must_use]
+pub fn serve_error(binary: &str, why: &str) -> String {
     prefixed(&format!("{binary} serve"), why)
 }
 
