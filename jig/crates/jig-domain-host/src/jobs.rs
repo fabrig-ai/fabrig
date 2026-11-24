@@ -83,7 +83,10 @@ pub(crate) fn assign(domain: &mut Hub, env: &Env<Limits>, job: JobAssignment, ou
         refuse(job.run, job.attempt, JobRefusal::Invalid(invalid), out);
         return;
     }
-    if domain.shut || domain.pause != jig_domain_link::PauseState::Taking || domain.hosted.len() >= env.limits.slots {
+    if domain.shut
+        || domain.pause != jig_domain_link::PauseState::Taking
+        || domain.hosted.len() >= env.limits.slots.min(domain.local_places)
+    {
         refuse(job.run, job.attempt, JobRefusal::Busy, out);
         return;
     }
