@@ -7410,6 +7410,7 @@ dependencies = [
  "jig-domain-people",
  "jig-domain-tasks",
  "jig-protocol-config",
+ "jig-protocol-config-fixtures",
  "jig-protocol-engine-workers",
  "jig-protocol-store",
  "jig-protocol-worker-wire",
@@ -7428,6 +7429,7 @@ dependencies = [
  "skein-scratch",
  "skein-shell",
  "skein-tls",
+ "skein-tls-kit",
  "temper-agent-fixtures",
  "temper-box-machine",
  "temper-client-bundle",
@@ -7450,6 +7452,7 @@ dependencies = [
  "temper-service-shell",
  "temper-shell",
  "temper-test-env",
+ "temper-worker-shell",
 ]
 
 [[package]]

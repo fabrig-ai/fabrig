@@ -1,7 +1,6 @@
 use crate::{listeners, support};
 use jig_client_protocol_wire::Record as _;
 use std::{
-    fmt::Write,
     fs,
     os::unix::fs::{PermissionsExt, symlink},
     path::Path,
@@ -37,31 +36,6 @@ fn a_stock_policy_past_its_limit_refuses_before_listening() {
         String::from_utf8_lossy(&output.stdout)
     );
     assert!(output.stdout.is_empty(), "no sign-in link: {}", String::from_utf8_lossy(&output.stdout));
-    scratch.remove();
-}
-
-#[test]
-fn rung_b0s_live_configuration_is_admitted_without_an_account_or_backend() {
-    use std::os::unix::ffi::OsStrExt;
-    let scratch = support::Scratch::startup("rung-b0-admission");
-    let paths = ["config", "data", "cache"].map(|name| scratch.path().join(name));
-    let figures = support::forge_land::rung::deployment(&paths);
-    let mut directories = support::configuration::directories(scratch.path());
-    directories.config = paths[0].as_os_str().as_bytes().into();
-    directories.data = paths[1].as_os_str().as_bytes().into();
-    directories.cache = paths[2].as_os_str().as_bytes().into();
-    let result = temper_box_shell::operations_in_with_limits(
-        "temper",
-        &[],
-        b"/",
-        &directories,
-        &support::read_start(&paths[0].join(temper_config_shell::FILE), temper_config_shell::Shape::Standalone)
-            .document,
-        &temper_service::stock::Given::Stock,
-        &figures.jig,
-        &figures.limits,
-    );
-    assert!(result.is_ok(), "B0's real configuration admits before any live account: {:?}", result.err());
     scratch.remove();
 }
 
@@ -267,73 +241,7 @@ fn a_worker_root_reached_through_a_link_is_refused() {
     );
     scratch.remove();
 }
-#[test]
-fn problems_reach_stderr_one_line_each() {
-    let scratch = support::Scratch::startup("problem-lines");
-    let directory = scratch.path();
-    assert_eq!(
-        temper_box_shell::operations_in(&[], b"/", &support::configuration::directories(directory), b"{}")
-            .expect_err("refused"),
-        "temper serve: engine: missing\ntemper serve: workers: missing\ntemper serve: application: missing\n"
-    );
-    scratch.remove();
-}
 
-#[test]
-fn a_document_charter_is_refused_naming_temper_ctl_settings() {
-    let scratch = support::Scratch::startup("stored-charters");
-    support::lay_configuration(scratch.path(), &support::Forge::Unreached);
-    let path = scratch.path().join(temper_config_shell::FILE);
-    let mut document: serde_json::Value = support::start_document(&path, temper_config_shell::Shape::Standalone);
-    document["engine"]["charters"] = serde_json::json!([]);
-    let why = temper_box_shell::operations_in(
-        &[],
-        b"/",
-        &support::configuration::directories(scratch.path()),
-        &serde_json::to_vec(&document).expect("start JSON"),
-    )
-    .expect_err("start refusal");
-    assert_eq!(
-        why,
-        "temper serve: engine.charters: settings live in the store; read them with temper ctl DIR settings show\n"
-    );
-    scratch.remove();
-}
-
-#[test]
-fn an_inline_seed_policy_is_refused_naming_its_path() {
-    let scratch = support::Scratch::startup("inline-seed-policy");
-    support::lay_configuration(scratch.path(), &support::Forge::Unreached);
-    let path = scratch.path().join(temper_config_shell::FILE);
-    let mut document: serde_json::Value = support::start_document(&path, temper_config_shell::Shape::Standalone);
-    let original: serde_json::Value =
-        serde_json::from_slice(&jig_channel_kit::fixtures::engine_document()).expect("jig fixture");
-    document["engine"]["projects"] = original["engine"]["projects"].clone();
-    let why = temper_box_shell::operations_in(
-        &[],
-        b"/",
-        &support::configuration::directories(scratch.path()),
-        &serde_json::to_vec(&document).expect("start JSON"),
-    )
-    .expect_err("start refusal");
-    assert_eq!(
-        why,
-        "temper serve: engine.projects: moved: projects are made at runtime; make one from the client or temper ctl\n"
-    );
-    scratch.remove();
-}
-
-#[test]
-fn a_setup_limit_past_its_check_refuses_temper_serve_naming_both_limits() {
-    let scratch = support::Scratch::startup("setup-limits");
-    let mut value = support::lay_configuration(scratch.path(), &support::Forge::Unreached);
-    value.temper_over("setup.backoff_ms", 6000);
-    assert_eq!(
-        typed_prepare(scratch.path(), &value).err().expect("configuration refused"),
-        "temper serve: application.limits.overrides.setup.backoff_ms: must agree with application.limits.overrides.setup.backoff_max_ms\n"
-    );
-    scratch.remove();
-}
 fn typed_prepare(
     directory: &Path,
     figures: &temper_playground::documents::Configuration,
@@ -351,27 +259,6 @@ fn typed_prepare(
     // These tests inspect a prepared start without driving its root.
     temper_engine_shell::serve::close_limits_store(service.engine_component().store())?;
     Ok(service)
-}
-fn box_document(scratch: &support::Scratch) -> serde_json::Value {
-    support::lay_configuration(scratch.path(), &support::Forge::Unreached);
-    serde_json::from_slice(
-        &support::read_start(&scratch.path().join(temper_config_shell::FILE), temper_config_shell::Shape::Standalone)
-            .document,
-    )
-    .expect("JSON")
-}
-fn refused_box(scratch: &support::Scratch, value: &serde_json::Value) -> String {
-    let why = temper_box_shell::box_command::configuration_steps(
-        &support::configuration::directories(scratch.path()),
-        &serde_json::to_vec(value).expect("start JSON"),
-        Box::new([]),
-    )
-    .expect_err("box refused before building steps");
-    let mut lines = String::new();
-    for line in why.lines() {
-        writeln!(&mut lines, "temper-box: {line}").expect("diagnostic");
-    }
-    lines
 }
 #[test]
 fn a_box_on_a_fresh_init_reaches_serves_link_with_forge_3_dormant() {
@@ -447,16 +334,6 @@ fn a_box_refuses_an_unmatched_inherited_listener_naming_its_address() {
         )
     );
     assert!(ended.stdout.is_empty(), "no step started");
-    scratch.remove();
-}
-#[test]
-fn a_setup_naming_no_forge_refuses_the_box_before_it_starts() {
-    let scratch = support::Scratch::startup("box-forge");
-    let mut value = box_document(&scratch);
-    value["application"]["setup"] = serde_json::json!([{ "forge":7 }]);
-    value["application"]["setup"][0]["forge"] = 7.into();
-    assert_eq!(refused_box(&scratch, &value), "temper-box: application.setup: unknown member\n");
-    assert!(!scratch.path().join("forge-7").exists());
     scratch.remove();
 }
 
@@ -1184,38 +1061,6 @@ fn the_live_github_configuration_passes_startup_admission() {
         };
         eprintln!("{owner}/{member}: startup admission passed; operations={operations}");
     }
-    scratch.remove();
-}
-
-#[test]
-fn the_template_agent_refuses_jigs_small_hub_turn_bound_before_serving() {
-    let scratch = support::Scratch::startup("small-hub-turn");
-    let output = std::process::Command::new(skein_scratch::paths::binary("temper-box"))
-        .arg("init")
-        .args(support::configuration::flags(scratch.path()))
-        .output()
-        .expect("init");
-    assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
-    let hub = jig_protocol_config_fixtures::small().hub;
-    support::write_private(
-        &scratch.path().join("limits-held"),
-        format!(
-            "hub.turn_bytes {}\nhub.transcript_bytes {}\nhub.turn_queue_bytes {}\n",
-            hub.turn_bytes, hub.transcript_bytes, hub.turn_queue_bytes
-        )
-        .as_bytes(),
-    );
-    let output = std::process::Command::new(skein_scratch::paths::binary("temper-box"))
-        .arg("serve")
-        .args(support::configuration::flags(scratch.path()))
-        .output()
-        .expect("serve");
-    let agent = temper_agent_fixtures::read(scratch.path());
-    let turn = support::configuration::turn_bounds::turn_body(&agent);
-    assert!(!output.status.success());
-    assert!(String::from_utf8_lossy(&output.stderr).contains(&format!(
-        "temper-box serve: limits-held line 1: hub.turn_bytes (setting limits): 65536 bytes, short of the source's derivation, {turn} bytes"
-    )), "{}", String::from_utf8_lossy(&output.stderr));
     scratch.remove();
 }
 

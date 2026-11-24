@@ -138,7 +138,7 @@ pub enum Command {
     },
 }
 fn dispatch_box(exit: Result<Exit, String>) -> Result<Exit, String> {
-    exit.map_err(|why| prefixed("temper-box", &why))
+    exit.map_err(|why| box_error(&why))
 }
 
 fn prefixed(command: &str, why: &str) -> String {
@@ -147,6 +147,9 @@ fn prefixed(command: &str, why: &str) -> String {
         writeln!(lines, "{command}: {line}").expect("writing into a string");
     }
     lines
+}
+fn box_error(why: &str) -> String {
+    prefixed("temper-box", why)
 }
 type EnvironmentEntry = (Box<[u8]>, Box<[u8]>);
 pub fn configure_with(

@@ -25,6 +25,10 @@ pub fn limits_hold(data: &std::path::Path) -> Result<Option<Held>, String> {
         Err(why) if why.kind() == std::io::ErrorKind::NotFound => return Ok(None),
         Err(why) => return Err(format!("{}: {why}", path.display())),
     };
+    limits_hold_over(&path, &text).map(Some)
+}
+
+fn limits_hold_over(path: &std::path::Path, text: &str) -> Result<Held, String> {
     let mut jig = Vec::new();
     let mut temper = Vec::new();
     let mut lines: Vec<(Box<[u8]>, usize)> = Vec::new();
@@ -53,7 +57,7 @@ pub fn limits_hold(data: &std::path::Path) -> Result<Option<Held>, String> {
     }
     jig.sort_by(|left, right| left.name.cmp(&right.name));
     temper.sort_by(|left, right| left.name.cmp(&right.name));
-    Ok(Some(Held {
+    Ok(Held {
         jig: jig.into_boxed_slice(),
         temper: temper.into_boxed_slice(),
         lines,
@@ -61,7 +65,7 @@ pub fn limits_hold(data: &std::path::Path) -> Result<Option<Held>, String> {
             "limits held: {}; the limit settings are not taken; remove it and restart to take them",
             path.display()
         ),
-    }))
+    })
 }
 pub(crate) fn held_failure(why: &str, held: &Held) -> String {
     let mut lines = String::new();
@@ -163,15 +167,21 @@ fn resolved(
     let state = match store.resolve_settings(inputs, over) {
         Ok(state) => state,
         Err(why) => {
-            let why = text(&why);
             closed(store, kernel, clock);
-            return Err(held.map_or_else(|| why.clone(), |held| held_failure(&why, held)));
+            return Err(limit_failure(&why, held));
         }
     };
     for left in &state.in_force.left_out {
         eprintln!("{}", left_out_line(left));
     }
     Ok(state)
+}
+fn limit_failure(why: &service::startup::Problems, held: Option<&Held>) -> String {
+    let why = text(why);
+    match held {
+        Some(held) => held_failure(&why, held),
+        None => why,
+    }
 }
 fn left_out_line(left: &service::startup::LeftOut) -> String {
     format!(
@@ -316,6 +326,7 @@ fn closed(store: &mut Store, kernel: &mut skein_shell::Kernel, clock: &skein_she
 
 #[cfg(test)]
 mod tests {
+    mod startup;
     use super::*;
     #[test]
     fn limits_held_is_presence_based_and_remembers_line_numbers() {

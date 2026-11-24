@@ -1,7 +1,7 @@
 //! The standalone start, composed from the engine and worker shells (protocol/services.md, 7).
 #[cfg(test)]
 mod tests;
-use crate::{Service, path, prefixed, program_login, setup};
+use crate::{Service, path, program_login, setup};
 use skein_io::kernel::{Exit, Fd};
 use skein_lib::{List, Secret};
 use std::os::unix::ffi::OsStrExt;
@@ -9,7 +9,7 @@ use std::os::unix::fs::FileTypeExt;
 use temper_client_protocol_wire::v1::Record;
 use temper_engine_shell::serve::{self as engine, printed};
 use temper_service as service;
-use temper_service_shell::{close, jig_directories};
+use temper_service_shell::{close, jig_directories, serve_error};
 use temper_shell::directories::{Directories, EnvironmentEntry};
 use temper_worker_shell::{agent, worker};
 pub fn prepare(
@@ -365,22 +365,15 @@ pub(crate) fn agents_setting(
     path: &std::path::Path,
     log: &mut impl std::io::Write,
 ) -> Option<temper_client_protocol_wire::v1::AgentFigures> {
-    use std::io::Read;
+    agents_setting_over(read_agents_setting(path), log)
+}
+
+pub fn agents_setting_over(
+    read: std::io::Result<Option<Box<[u8]>>>,
+    log: &mut impl std::io::Write,
+) -> Option<temper_client_protocol_wire::v1::AgentFigures> {
     use temper_client_protocol_wire::v1::{AgentFigures, CEILINGS};
-    let bound = AgentFigures::encoded_bound(&CEILINGS).expect("agents codec bound");
-    let file = match std::fs::File::open(path) {
-        Ok(file) => file,
-        Err(why) if why.kind() == std::io::ErrorKind::NotFound => return None,
-        Err(why) => {
-            let _ = writeln!(log, "agents.setting: {why}; using the default");
-            return None;
-        }
-    };
-    let mut bytes = Vec::new();
-    if let Err(why) = file.take(bound.checked_add(1).expect("bounded codec")).read_to_end(&mut bytes) {
-        let _ = writeln!(log, "agents.setting: {why}; using the default");
-        return None;
-    }
+    let bytes = setting_bytes(read, "agents.setting", log)?;
     let mut reader = skein_lib::Reader::new(&bytes);
     match AgentFigures::decode(&CEILINGS, &mut reader) {
         Ok(value) if reader.is_empty() => Some(value),
@@ -395,22 +388,15 @@ pub(crate) fn local_setting(
     path: &std::path::Path,
     log: &mut impl std::io::Write,
 ) -> Option<jig_client_protocol_wire::WorkerSetting> {
+    local_setting_over(read_local_setting(path), log)
+}
+
+pub fn local_setting_over(
+    read: std::io::Result<Option<Box<[u8]>>>,
+    log: &mut impl std::io::Write,
+) -> Option<jig_client_protocol_wire::WorkerSetting> {
     use jig_client_protocol_wire::{CEILINGS, WorkerSetting};
-    use std::io::Read;
-    let bound = WorkerSetting::encoded_bound(&CEILINGS).expect("worker codec bound");
-    let file = match std::fs::File::open(path) {
-        Ok(file) => file,
-        Err(why) if why.kind() == std::io::ErrorKind::NotFound => return None,
-        Err(why) => {
-            let _ = writeln!(log, "local.setting: {why}; using the default");
-            return None;
-        }
-    };
-    let mut bytes = Vec::new();
-    if let Err(why) = file.take(bound.checked_add(1).expect("bounded codec")).read_to_end(&mut bytes) {
-        let _ = writeln!(log, "local.setting: {why}; using the default");
-        return None;
-    }
+    let bytes = setting_bytes(read, "local.setting", log)?;
     let mut reader = skein_lib::Reader::new(&bytes);
     match WorkerSetting::decode(&CEILINGS, &mut reader) {
         Ok(value)
@@ -429,6 +415,42 @@ pub(crate) fn local_setting(
         }
     }
 }
+fn read_agents_setting(path: &std::path::Path) -> std::io::Result<Option<Box<[u8]>>> {
+    use temper_client_protocol_wire::v1::{AgentFigures, CEILINGS};
+    read_setting(path, AgentFigures::encoded_bound(&CEILINGS).expect("agents codec bound"))
+}
+
+fn read_local_setting(path: &std::path::Path) -> std::io::Result<Option<Box<[u8]>>> {
+    use jig_client_protocol_wire::{CEILINGS, WorkerSetting};
+    read_setting(path, WorkerSetting::encoded_bound(&CEILINGS).expect("worker codec bound"))
+}
+
+fn read_setting(path: &std::path::Path, bound: u64) -> std::io::Result<Option<Box<[u8]>>> {
+    use std::io::Read;
+    let file = match std::fs::File::open(path) {
+        Ok(file) => file,
+        Err(why) if why.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+        Err(why) => return Err(why),
+    };
+    let mut bytes = Vec::new();
+    file.take(bound.checked_add(1).expect("bounded codec")).read_to_end(&mut bytes)?;
+    Ok(Some(bytes.into_boxed_slice()))
+}
+
+fn setting_bytes(
+    read: std::io::Result<Option<Box<[u8]>>>,
+    name: &str,
+    log: &mut impl std::io::Write,
+) -> Option<Box<[u8]>> {
+    match read {
+        Ok(copy) => copy,
+        Err(why) => {
+            let _ = writeln!(log, "{name}: {why}; using the default");
+            None
+        }
+    }
+}
+
 pub(crate) fn box_inputs_worker(
     part: &mut service::startup::WorkerPart,
     directories: &Directories,
@@ -517,8 +539,8 @@ fn prepare_in_read<T>(
     read: Result<temper_service_shell::configuration::Read, String>,
     prepare: impl FnOnce(&temper_service_shell::configuration::Read) -> Result<T, String>,
 ) -> Result<T, String> {
-    let read = read.map_err(|why| temper_service_shell::serve_error(binary, &why))?;
-    prepare(&read).map_err(|why| temper_service_shell::serve_error(binary, &read.problems(&why)))
+    let read = read.map_err(|why| serve_error(binary, &why))?;
+    prepare(&read).map_err(|why| serve_error(binary, &read.problems(&why)))
 }
 /// Prepare an in-process world's service with the supplied defaults.
 pub fn prepare_in_with(
@@ -597,9 +619,9 @@ pub fn prepare_in_with_inputs_and_limits(
     limits: Option<(&jig_protocol_config::Limits, &service::limits::Limits)>,
 ) -> Result<Service, String> {
     let read = temper_service_shell::configuration::read(directories, temper_config_shell::Shape::Standalone)
-        .map_err(|why| prefixed(&format!("{binary} serve"), &why))?;
+        .map_err(|why| serve_error(binary, &why))?;
     let bytes = &read.document;
-    let programs = read.programs().map_err(|why| prefixed(&format!("{binary} serve"), &why))?;
+    let programs = read.programs().map_err(|why| serve_error(binary, &why))?;
     let mut owned = Vec::new();
     let result = prepare_with_limits(
         binary,
@@ -623,7 +645,7 @@ pub fn prepare_in_with_inputs_and_limits(
     if result.is_err() {
         close(owned);
     }
-    result.map_err(|why| prefixed(&format!("{binary} serve"), &read.problems(&why)))
+    result.map_err(|why| serve_error(binary, &read.problems(&why)))
 }
 /// The same for an in-process world's service, with the supplied defaults.
 pub fn operations_in_with(
@@ -657,13 +679,34 @@ fn operations_over(
     given: &service::stock::Given,
     limits: Option<(&jig_protocol_config::Limits, &service::limits::Limits)>,
 ) -> Result<u32, String> {
+    let data = path(&directories.data);
+    operations_with_copies(
+        binary,
+        directories,
+        config,
+        given,
+        limits,
+        read_local_setting(&data.join("local.setting")),
+        read_agents_setting(&data.join("agents.setting")),
+    )
+}
+
+/// The sizing path over the two bounded reads, before retaining any descriptors.
+pub fn operations_with_copies(
+    binary: &str,
+    directories: &Directories,
+    config: &[u8],
+    given: &service::stock::Given,
+    limits: Option<(&jig_protocol_config::Limits, &service::limits::Limits)>,
+    local: std::io::Result<Option<Box<[u8]>>>,
+    agents: std::io::Result<Option<Box<[u8]>>>,
+) -> Result<u32, String> {
     let dirs = jig_directories(directories);
-    let convert = |why| prefixed(&format!("{binary} serve"), &String::from_utf8_lossy(&service::startup::lines(&why)));
+    let convert = |why| serve_error(binary, &String::from_utf8_lossy(&service::startup::lines(&why)));
     // Startup reports bad copies once; reserving the ring uses the same fallback silently.
-    let local = local_setting(&path(&directories.data).join("local.setting"), &mut std::io::sink());
+    let local = local_setting_over(local, &mut std::io::sink());
     let places = local.as_ref().map_or(4, |value| value.places);
-    let agents = agents_setting(&path(&directories.data).join("agents.setting"), &mut std::io::sink())
-        .unwrap_or_else(service::stock::agents);
+    let agents = agents_setting_over(agents, &mut std::io::sink()).unwrap_or_else(service::stock::agents);
     let part = match limits {
         Some(limits) => {
             service::startup::box_worker_with_limits(config, &dirs, given, &agents, places, &[], None, limits)
@@ -804,6 +847,9 @@ fn given_secret(input: &mut impl std::io::Read) -> Result<(Option<Secret>, Optio
         Err("--box: stdin: expected the first link's secret".into())
     }
 }
+
+#[cfg(test)]
+mod startup_tests;
 
 #[cfg(test)]
 mod input_tests {

@@ -166,7 +166,7 @@ pub struct Setting {
     pub providers: Box<[jig_protocol_config::ProviderSetting]>,
 }
 impl Setting {
-    /// The encoded kind-21 startup copy, before it is laid.
+    /// Encode the kind-21 `agents.setting` copy, whether or not a story lays it.
     #[must_use]
     pub fn bytes(&self) -> Box<[u8]> {
         use temper_client_protocol_wire::v1::CEILINGS;

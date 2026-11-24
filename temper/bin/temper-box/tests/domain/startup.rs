@@ -336,3 +336,20 @@ fn the_base_recipe_passes_startup_admission() {
     )
     .expect("base recipe admission");
 }
+
+#[test]
+fn rung_b0s_live_configuration_is_admitted_without_an_account_or_backend() {
+    let root = Path::new("/fixture/rung-b0-admission");
+    let paths = ["config", "data", "cache"].map(|name| root.join(name));
+    let profile = support::forge_land::rung::deployment_profile(&paths);
+    let result = temper_box_shell::testing::serve::operations_with_copies(
+        "temper",
+        &profile.directories,
+        &profile.document,
+        &temper_service::stock::Given::Stock,
+        Some((&profile.configuration.jig, &profile.configuration.limits)),
+        Ok(None), // Init writes no local.setting on a fresh deployment.
+        Ok(Some(profile.agents)),
+    );
+    assert!(result.is_ok(), "B0's real configuration admits before any live account: {:?}", result.err());
+}

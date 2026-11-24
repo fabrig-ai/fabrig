@@ -127,8 +127,60 @@ pub fn task_digest(value: &Value) -> Result<&str, String> {
 pub fn deployment(paths: &[PathBuf; 3]) -> temper_playground::documents::Configuration {
     super::live_deployment(paths, super::LiveModel::ChatGpt { account: None });
     let config = paths[0].join(temper_config_shell::FILE);
-    let mut value = crate::limit_settings::configuration(&paths[0]);
-    let mut worker = temper_agent_fixtures::read(&paths[0]);
+    let value = crate::limit_settings::configuration(&paths[0]);
+    let worker = temper_agent_fixtures::read(&paths[0]);
+    let (value, setting) = compose_deployment(value, worker);
+    setting.lay(&paths[1]);
+    crate::limit_settings::remember(&paths[0], &value);
+    temper_box_shell::operations_in_with_limits(
+        "temper",
+        &[],
+        b"/",
+        &deployment_directories(paths),
+        &crate::read_start(&config, temper_config_shell::Shape::Standalone).document,
+        &temper_service::stock::Given::Stock,
+        &value.jig,
+        &value.limits,
+    )
+    .unwrap_or_else(|message| panic!("B0 setup refused: {message}"));
+    value
+}
+
+/// B0's sizing inputs at first start, before any account, store or backend.
+pub struct DeploymentProfile {
+    pub directories: temper_box_shell::directories::Directories,
+    pub document: Box<[u8]>,
+    pub configuration: temper_playground::documents::Configuration,
+    pub agents: Box<[u8]>,
+}
+
+/// Compose the same init and B0 edits with fixed listener addresses instead of drawing ports.
+#[must_use]
+pub fn deployment_profile(paths: &[PathBuf; 3]) -> DeploymentProfile {
+    // Native box init can create the local provider key; sizing needs only its presence.
+    let document = temper_config_shell::init_document(true);
+    let start = serde_json::from_slice(&document).expect("init start");
+    let providers = temper_service::stock::providers();
+    let worker = temper_agent_fixtures::with_figures(&start, &temper_service::stock::agents(), &paths[1], &providers);
+    let mut value = temper_playground::documents::Configuration::from_jig(start);
+    value["world_providers"] = temper_agent_fixtures::providers::flat(&providers);
+    super::live_limits(&mut value);
+    let (configuration, setting) = compose_deployment(value, worker);
+    DeploymentProfile { directories: deployment_directories(paths), document, configuration, agents: setting.bytes() }
+}
+
+fn deployment_directories(paths: &[PathBuf; 3]) -> temper_box_shell::directories::Directories {
+    let mut directories = super::super::configuration::directories(paths[0].parent().expect("deployment root"));
+    directories.config = paths[0].as_os_str().as_bytes().into();
+    directories.data = paths[1].as_os_str().as_bytes().into();
+    directories.cache = paths[2].as_os_str().as_bytes().into();
+    directories
+}
+
+fn compose_deployment(
+    mut value: temper_playground::documents::Configuration,
+    mut worker: Value,
+) -> (temper_playground::documents::Configuration, temper_agent_fixtures::Setting) {
     for table in ["providers", "endpoints"] {
         temper_agent_fixtures::providers::input(&mut value)[table]
             .as_array_mut()
@@ -153,26 +205,10 @@ pub fn deployment(paths: &[PathBuf; 3]) -> temper_playground::documents::Configu
     assert_eq!(value.limits.root.loads.loads, 32);
     assert_eq!(worker["endpoints"][0]["limits"]["output"], 48_000);
     assert_eq!(worker["endpoints"][0]["limits"]["reasoning_item"], 32_768);
-    crate::limit_settings::remember(&paths[0], &value);
-    temper_agent_fixtures::apply(&mut value, &paths[1], &worker);
+    let providers = temper_agent_fixtures::providers::take(&mut value).expect("deployment providers");
+    let setting = temper_agent_fixtures::compose_setting(&mut value, &worker, &providers);
     value.jig_over("hub.run_calls", 1);
-    crate::limit_settings::remember(&paths[0], &value);
-    let mut directories = super::super::configuration::directories(paths[0].parent().expect("deployment root"));
-    directories.config = paths[0].as_os_str().as_bytes().into();
-    directories.data = paths[1].as_os_str().as_bytes().into();
-    directories.cache = paths[2].as_os_str().as_bytes().into();
-    temper_box_shell::operations_in_with_limits(
-        "temper",
-        &[],
-        b"/",
-        &directories,
-        &crate::read_start(&config, temper_config_shell::Shape::Standalone).document,
-        &temper_service::stock::Given::Stock,
-        &value.jig,
-        &value.limits,
-    )
-    .unwrap_or_else(|message| panic!("B0 setup refused: {message}"));
-    value
+    (value, setting)
 }
 
 fn turn_limits(value: &mut temper_playground::documents::Configuration, turn: u32) {

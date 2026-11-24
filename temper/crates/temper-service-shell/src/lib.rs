@@ -245,7 +245,7 @@ pub fn read_start<B>(
     Ok((input, configuration()?))
 }
 
-/// Prefix each startup refusal line with its serve command.
+/// Speak each startup problem on its own line, with the serving binary's name.
 #[must_use]
 pub fn serve_error(binary: &str, why: &str) -> String {
     prefixed(&format!("{binary} serve"), why)
