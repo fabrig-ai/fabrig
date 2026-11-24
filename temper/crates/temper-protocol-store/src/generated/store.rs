@@ -7427,14 +7427,39 @@ pub fn closing_selection_to_domain(record: crate::v25::ClosingSelection) -> temp
 }
 
 #[must_use]
+pub fn closing_held_to_record(value: &temper_engine_domain_forge_closer::relay::Held) -> crate::v25::ClosingHeld {
+    let temper_engine_domain_forge_closer::relay::Held { since: field_000000, notified: field_000001 } = value;
+    crate::v25::ClosingHeld {
+        since: skein_codec::convert::wall_to_record(field_000000),
+        notified: *field_000001
+    }
+}
+
+#[must_use]
+pub fn closing_held_to_domain(record: crate::v25::ClosingHeld) -> temper_engine_domain_forge_closer::relay::Held {
+    let crate::v25::ClosingHeld { since: field_000000, notified: field_000001 } = record;
+    temper_engine_domain_forge_closer::relay::Held {
+        since: skein_codec::convert::wall_to_domain(field_000000),
+        notified: field_000001
+    }
+}
+
+#[must_use]
 pub fn closing_stands_to_record(value: &temper_engine_domain_forge_closer::relay::Stands) -> crate::v25::ClosingStands {
     match value {
         temper_engine_domain_forge_closer::relay::Stands::Taken => crate::v25::ClosingStands::Taken,
-        temper_engine_domain_forge_closer::relay::Stands::Asked { question: field_000000, answer: field_000001 } => crate::v25::ClosingStands::Asked(crate::v25::ClosingAsked {
+        temper_engine_domain_forge_closer::relay::Stands::Asked { question: field_000000, answer: field_000001, held: field_000002 } => crate::v25::ClosingStands::Asked(crate::v25::ClosingAsked {
             question: *field_000000,
             answer: match field_000001 {
                 Some(item) => {
                     let converted = item.clone();
+                    Some(converted)
+                }
+                None => None,
+            },
+            held: match field_000002 {
+                Some(item) => {
+                    let converted = closing_held_to_record(item);
                     Some(converted)
                 }
                 None => None,
@@ -7448,12 +7473,19 @@ pub fn closing_stands_to_domain(record: crate::v25::ClosingStands) -> temper_eng
     match record {
         crate::v25::ClosingStands::Taken => temper_engine_domain_forge_closer::relay::Stands::Taken,
         crate::v25::ClosingStands::Asked(held) => {
-            let crate::v25::ClosingAsked { question: field_000000, answer: field_000001 } = held;
+            let crate::v25::ClosingAsked { question: field_000000, answer: field_000001, held: field_000002 } = held;
             temper_engine_domain_forge_closer::relay::Stands::Asked {
                 question: field_000000,
                 answer: match field_000001 {
                     Some(item) => {
                         let converted = item;
+                        Some(converted)
+                    }
+                    None => None,
+                },
+                held: match field_000002 {
+                    Some(item) => {
+                        let converted = closing_held_to_domain(item);
                         Some(converted)
                     }
                     None => None,

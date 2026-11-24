@@ -488,6 +488,7 @@ record ClosingJobs { attempts slice }
 record ClosingLine
 enum ClosingSelectionProgress = o::SelectionProgress
 record ClosingSelection = o::PullSelection
+record ClosingHeld = o::relay::Held { since via s::wall }
 record ClosingAsked
 enum ClosingStands = o::relay::Stands
 record ClosingQuestion = o::relay::Question

@@ -3209,12 +3209,17 @@ fn standing_question(
 
 #[test]
 fn a_closers_question_round_trips_with_its_owned_bytes() {
-    use temper_engine_domain_forge_closer::relay::Stands;
+    use skein_lib::Wall;
+    use temper_engine_domain_forge_closer::relay::{Held, Stands};
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture limits");
     for stands in [
         Stands::Taken,
-        Stands::Asked { question: GOAL_QUESTION, answer: None },
-        Stands::Asked { question: GOAL_QUESTION, answer: Some(b"Use known reds.".as_slice().into()) },
+        Stands::Asked { question: GOAL_QUESTION, answer: None, held: None },
+        Stands::Asked {
+            question: GOAL_QUESTION,
+            answer: Some(b"Use known reds.".as_slice().into()),
+            held: Some(Held { since: Wall::from_nanos(123), notified: true }),
+        },
     ] {
         let mut relay = standing_question(stands);
         relay.waiting = waiting_questions();
@@ -3234,9 +3239,54 @@ fn an_older_closer_defaults_its_waiting_questions_to_empty() {
     use super::dev_layouts::Dev;
     use temper_engine_domain_forge_closer::relay::Stands;
     let mut dev = Dev::new();
-    let expected = closer_relay_row(standing_question(Stands::Asked { question: GOAL_QUESTION, answer: None }));
+    let expected =
+        closer_relay_row(standing_question(Stands::Asked { question: GOAL_QUESTION, answer: None, held: None }));
     let stored = dev.row(&expected, "closer");
     assert_eq!(dev.read(&stored, "closer"), expected);
+}
+
+#[test]
+fn an_older_closers_held_answer_gets_a_since_but_no_notices() {
+    use super::dev_layouts::Dev;
+    use skein_lib::Wall;
+    use temper_engine_domain_forge_closer::relay::{self, Form, Held, Message, Room, Stands};
+    const SINCE: Wall = Wall::from_nanos(3_000_000_000);
+    const ANSWER: &[u8] = b"Use known reds.";
+    const BOUND: u32 = 512;
+    let legacy = Stands::Asked { question: GOAL_QUESTION, answer: Some(ANSWER.into()), held: None };
+    let mut dev = Dev::new();
+    let mut relay = standing_question(legacy.clone());
+    relay.replies = Box::new([]);
+    let stored = dev.row(&closer_relay_row(relay), "closer");
+    let forge::Stored::Closer(restored) = dev.read(&stored, "closer") else { panic!("closer row") };
+    assert_eq!(restored.relay.open.as_ref().expect("held legacy answer").stands, legacy);
+
+    let held = relay::relay(&restored.relay, CLOSER_GOAL, false, Room { left: 0, batch: 1 }, BOUND, SINCE, false);
+    assert!(held.notice.is_none());
+    assert!(held.messages.is_empty());
+    assert!(held.more);
+    assert_eq!(
+        held.relay.open.as_ref().expect("backfilled hold").stands,
+        Stands::Asked {
+            question: GOAL_QUESTION,
+            answer: Some(ANSWER.into()),
+            held: Some(Held { since: SINCE, notified: false }),
+        }
+    );
+
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture limits");
+    let row = closer_relay_row(held.relay);
+    let persisted = records::decode(&records::encode(&row), &bounds).expect("current row reads");
+    assert_eq!(persisted, row);
+    let forge::Stored::Closer(persisted) = persisted else { panic!("closer row") };
+    let next =
+        relay::relay(&persisted.relay, CLOSER_GOAL, false, Room { left: 1, batch: 1 }, BOUND, Wall::EPOCH, false);
+    assert!(next.notice.is_none());
+    assert_eq!(
+        next.messages.as_ref(),
+        &[Message { target: CLOSER_LANDING, form: Form::Answer { question: LANDING_QUESTION }, words: ANSWER.into() },]
+    );
+    assert!(next.relay.open.is_none());
 }
 
 #[test]

@@ -3788,8 +3788,12 @@ pub mod paths {
     pub const CLOSING_SELECTION_HEAD: Path = Path::new("ClosingSelection.head");
     pub const CLOSING_SELECTION_PROGRESS: Path = Path::new("ClosingSelection.progress");
     pub const CLOSING_SELECTION_TAIL: Path = Path::new("ClosingSelection (tail)");
+    pub const CLOSING_HELD_SINCE: Path = Path::new("ClosingHeld.since");
+    pub const CLOSING_HELD_NOTIFIED: Path = Path::new("ClosingHeld.notified");
+    pub const CLOSING_HELD_TAIL: Path = Path::new("ClosingHeld (tail)");
     pub const CLOSING_ASKED_QUESTION: Path = Path::new("ClosingAsked.question");
     pub const CLOSING_ASKED_ANSWER: Path = Path::new("ClosingAsked.answer");
+    pub const CLOSING_ASKED_HELD: Path = Path::new("ClosingAsked.held");
     pub const CLOSING_ASKED_TAIL: Path = Path::new("ClosingAsked (tail)");
     pub const CLOSING_STANDS_TAG: Path = Path::new("ClosingStands (tag)");
     pub const CLOSING_QUESTION_ASKER: Path = Path::new("ClosingQuestion.asker");
@@ -31263,11 +31267,66 @@ impl Record for ClosingSelection {
     }
 }
 
+// Type: ClosingHeld.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct ClosingHeld {
+    pub since: u64,
+    pub notified: bool,
+}
+
+// Record: ClosingHeld.
+impl ClosingHeld {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Scalar(1),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1] },
+    ];
+
+    /// The record's encoded bound with every limit it reaches set to zero.
+    pub const ENCODED_AT_ZERO: u64 = 9;
+}
+
+impl Record for ClosingHeld {
+    type Limits = Limits;
+    const TAIL: Path = paths::CLOSING_HELD_TAIL;
+
+    fn encoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "ClosingHeld")?.encoded)
+    }
+
+    fn decoded_bound(limits: &Limits) -> Option<u64> {
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "ClosingHeld")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
+    }
+
+    fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        field::write(field::U64, &self.since, limits, out, paths::CLOSING_HELD_SINCE)?;
+        field::write(field::Boolean, &self.notified, limits, out, paths::CLOSING_HELD_NOTIFIED)?;
+        Ok(())
+    }
+
+    fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        Ok(Self {
+            since: field::read(field::U64, limits, reader, paths::CLOSING_HELD_SINCE)?,
+            notified: field::read(field::Boolean, limits, reader, paths::CLOSING_HELD_NOTIFIED)?,
+        })
+    }
+}
+
 // Type: ClosingAsked.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct ClosingAsked {
     pub question: u64,
     pub answer: Option<Box<[u8]>>,
+    pub held: Option<ClosingHeld>,
 }
 
 // Record: ClosingAsked.
@@ -31276,11 +31335,13 @@ impl ClosingAsked {
         skein_codec::bounds::Node::Scalar(8),
         skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, closing_asked_answer_some) },
         skein_codec::bounds::Node::Option { item: 1 },
-        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 2] },
+        skein_codec::bounds::Node::Named("ClosingHeld"),
+        skein_codec::bounds::Node::Option { item: 3 },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 2, 4] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 13;
+    pub const ENCODED_AT_ZERO: u64 = 23;
 }
 
 impl Record for ClosingAsked {
@@ -31307,6 +31368,7 @@ impl Record for ClosingAsked {
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
         field::write(field::U64, &self.question, limits, out, paths::CLOSING_ASKED_QUESTION)?;
         field::write(field::Optional { item: field::Bytes { limit: limits.closing_asked_answer_some.min(CEILINGS.closing_asked_answer_some) } }, &self.answer, limits, out, paths::CLOSING_ASKED_ANSWER)?;
+        field::write(field::Optional { item: field::Nested }, &self.held, limits, out, paths::CLOSING_ASKED_HELD)?;
         Ok(())
     }
 
@@ -31314,6 +31376,7 @@ impl Record for ClosingAsked {
         Ok(Self {
             question: field::read(field::U64, limits, reader, paths::CLOSING_ASKED_QUESTION)?,
             answer: field::read(field::Optional { item: field::Bytes { limit: limits.closing_asked_answer_some.min(CEILINGS.closing_asked_answer_some) } }, limits, reader, paths::CLOSING_ASKED_ANSWER)?,
+            held: field::read(field::Optional { item: field::Nested }, limits, reader, paths::CLOSING_ASKED_HELD)?,
         })
     }
 }
@@ -31334,7 +31397,7 @@ impl ClosingStands {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 14;
+    pub const ENCODED_AT_ZERO: u64 = 24;
 }
 
 impl Record for ClosingStands {
@@ -31397,7 +31460,7 @@ impl ClosingQuestion {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 35;
+    pub const ENCODED_AT_ZERO: u64 = 45;
 }
 
 impl Record for ClosingQuestion {
@@ -31581,7 +31644,7 @@ impl ClosingRelay {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 44;
+    pub const ENCODED_AT_ZERO: u64 = 54;
 }
 
 impl Record for ClosingRelay {
@@ -31669,7 +31732,7 @@ impl Closer {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 112;
+    pub const ENCODED_AT_ZERO: u64 = 122;
 }
 
 impl Record for Closer {
@@ -40817,6 +40880,7 @@ pub static DECLARATIONS: &[skein_codec::bounds::Declaration] = &[
     skein_codec::bounds::Declaration { name: "Closer", nodes: Closer::SHAPE },
     skein_codec::bounds::Declaration { name: "ClosingAsked", nodes: ClosingAsked::SHAPE },
     skein_codec::bounds::Declaration { name: "ClosingForm", nodes: ClosingForm::SHAPE },
+    skein_codec::bounds::Declaration { name: "ClosingHeld", nodes: ClosingHeld::SHAPE },
     skein_codec::bounds::Declaration { name: "ClosingJobs", nodes: ClosingJobs::SHAPE },
     skein_codec::bounds::Declaration { name: "ClosingLine", nodes: ClosingLine::SHAPE },
     skein_codec::bounds::Declaration { name: "ClosingMessage", nodes: ClosingMessage::SHAPE },

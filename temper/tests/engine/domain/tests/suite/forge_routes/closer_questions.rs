@@ -1,6 +1,6 @@
 //! The goal answers its closer's live change (temper/docs/design/domain/forge/branches.md, 2).
 use super::*;
-use temper_engine_domain_forge_closer::relay::{FALLBACK, Stands};
+use temper_engine_domain_forge_closer::relay::{FALLBACK, Held, Stands};
 const QUESTION: &[u8] = b"Two reds remain: known reds, or change the golden test's policy?";
 const ANSWER: &[u8] = b"Use known reds.";
 
@@ -72,7 +72,7 @@ fn ask(world: &mut World, goal: u64, closer: u64, landing: u64, agent: &engine::
     let up = passed_up(world, goal, closer, landing);
     assert_eq!(
         closer_row(world, closer).expect("closer record").relay.open.as_ref().expect("open closer question").stands,
-        Stands::Asked { question: up, answer: None }
+        Stands::Asked { question: up, answer: None, held: None }
     );
     (number, up)
 }
@@ -102,12 +102,114 @@ fn repair_asks(restart: bool) {
     world.goal_answer(&goal, 111, closer, up, ANSWER);
     let repair = resumed(&mut world, &repair, number);
     assert!(closer_row(&world, closer).expect("closer record").relay.open.is_none());
+    assert!(!live_task(&world, goal.task).inbox.iter().any(|word| {
+        word.from == tasks::Party::Task(closer) && word.words.starts_with(b"Your answer to question ")
+    }));
     finish_repair(&mut world, &branch, &repair, raw::Check::Passed);
     wait_ended(&mut world, landing);
     assert!(matches!(row(&world, landing).change.state, change::State::Landed { .. }));
     wait_ended(&mut world, closer);
     world.close();
 }
+#[test]
+fn a_closer_tells_its_goal_once_when_it_holds_an_answer_across_a_restart() {
+    let (mut world, goal, _, closer, landing, repair) = repairing_landing();
+    let (_, up) = ask(&mut world, goal.task, closer, landing, &repair);
+    let batch = world.env.limits.tasks.batch;
+    world.drain_cut();
+    world.env.limits.tasks.batch = 1;
+    restore_answer_with_earlier_words(&mut world, goal.task, closer, up, landing);
+    world.restart_same();
+    for _ in 0..STEPS {
+        world.tick();
+        if held_answer(&world, closer).is_some() {
+            break;
+        }
+    }
+    let held = held_answer(&world, closer).expect("the first step retains the answer");
+    assert!(held.notified);
+    let utc = held.since.utc_second();
+    let time = core::str::from_utf8(&utc).expect("UTC second");
+    let held_words =
+        format!("Your answer to question {up} is held until this closer has message room; held since {time}.");
+    let delivered_words = format!("Your answer to question {up}, held since {time}, is delivered to task {landing}.");
+    let notices = answer_notices(&world, goal.task, closer);
+    let [notice] = notices.as_slice() else { panic!("one held notice: {notices:?}") };
+    assert_eq!(notice.words.as_ref(), held_words.as_bytes());
+    assert_eq!((notice.at, &notice.kind), (held.since, &tasks::MessageKind::Words));
+    assert!(live_task(&world, goal.task).notice_credits.is_empty(), "the held notice spends its kept room");
+
+    world.env.limits.tasks.batch = batch;
+    world.crash_restart(1);
+    for _ in 0..STEPS {
+        world.tick();
+        if answer_notices(&world, goal.task, closer).len() >= 2 {
+            break;
+        }
+    }
+    let notices = answer_notices(&world, goal.task, closer);
+    let [first, last] = notices.as_slice() else { panic!("held and delivered once each: {notices:?}") };
+    assert_eq!(first.words.as_ref(), held_words.as_bytes());
+    assert_eq!(last.words.as_ref(), delivered_words.as_bytes());
+    assert_eq!(last.kind, tasks::MessageKind::Words);
+    let answer = live_task(&world, landing)
+        .inbox
+        .iter()
+        .find(|word| word.from == tasks::Party::Task(closer))
+        .expect("the answer and delivery words commit together");
+    assert_eq!(answer.words.as_ref(), ANSWER);
+    assert!(matches!(answer.kind, tasks::MessageKind::Answer { .. }));
+    assert_eq!(answer.at, last.at);
+    assert!(closer_row(&world, closer).expect("closer record").relay.open.is_none());
+    world.close();
+}
+
+fn held_answer(world: &World, closer: u64) -> Option<Held> {
+    let Stands::Asked { held, .. } = closer_row(world, closer)?.relay.open.as_ref()?.stands else { return None };
+    held
+}
+
+fn answer_notices(world: &World, goal: u64, closer: u64) -> Vec<&tasks::Word> {
+    super::super::questions::replies(world, goal, closer)
+        .into_iter()
+        .filter(|word| word.words.starts_with(b"Your answer to question "))
+        .collect()
+}
+
+fn restore_answer_with_earlier_words(world: &mut World, goal: u64, closer: u64, question: u64, landing: u64) {
+    // The closer takes this whole prefix in one step. The earlier words spend
+    // the batch's only slot; jig has spent the answer credit but kept the notice room.
+    let mut task = Box::new(live_task(world, closer).clone());
+    let mut header = world.store.header();
+    let mut inbox = task.inbox.into_vec();
+    for (from, kind, words) in [
+        (landing, tasks::MessageKind::Words, b"Earlier words from the landing.".as_slice()),
+        (goal, tasks::MessageKind::Answer { question }, ANSWER),
+    ] {
+        header.messages += 1;
+        inbox.push(tasks::Word {
+            number: header.messages,
+            from: tasks::Party::Task(from),
+            kind,
+            words: words.into(),
+            at: world.env.wall,
+            hits: 1,
+            eligible: true,
+        });
+    }
+    task.inbox = inbox.into_boxed_slice();
+    task.last_message = header.messages;
+    task.questions = Box::new([]);
+    task.phase = tasks::Phase::Active(tasks::Active::Due);
+    world.store.seed(
+        Box::new([
+            Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(task))),
+            Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Deployment(header))),
+        ]),
+        Box::new([]),
+    );
+}
+
 #[test]
 fn a_closers_landing_amends_its_live_ci_repair_without_a_producer() {
     use super::super::delegate_amendment;
@@ -240,7 +342,7 @@ fn the_closer_refuses_answers_that_do_not_name_its_question() {
     assert_eq!(world.answers.len(), sent);
     assert_eq!(
         closer_row(&world, closer).unwrap().relay.open.as_ref().unwrap().stands,
-        Stands::Asked { question: up, answer: None }
+        Stands::Asked { question: up, answer: None, held: None }
     );
     world.goal_answer(&goal, 112, closer, up, ANSWER);
     resumed(&mut world, &repair, number);
