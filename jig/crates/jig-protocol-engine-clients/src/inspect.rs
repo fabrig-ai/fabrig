@@ -30,15 +30,16 @@ impl Component {
             | Waiting::Moving { sign_in, .. }
             | Waiting::Read { sign_in, .. }
             | Waiting::ApplicationRead { sign_in, .. }
-            | Waiting::Ask { sign_in, .. }
-            | Waiting::Carry { sign_in, .. }
             | Waiting::Checked { sign_in, .. } => Some(*sign_in),
+            Waiting::Ask { sign_in, .. } | Waiting::Carry { sign_in, .. } => {
+                self.keyed_caller(*exchange, Some(*sign_in))
+            }
             Waiting::Get { owner, .. } => match owner {
                 super::services::GetOwner::SignIn(sign_in) => Some(*sign_in),
                 super::services::GetOwner::Service(_) | super::services::GetOwner::LinkAskService(_) => None,
             },
             Waiting::Core { held } => *held,
-            Waiting::Reissue { sign_in, .. } => *sign_in,
+            Waiting::Reissue { sign_in, .. } => self.keyed_caller(*exchange, *sign_in),
             Waiting::AskedWhose { .. } | Waiting::ApprovalWhose { .. } | Waiting::ApprovalCore { .. } => None,
         };
         Some((*exchange, sign_in))

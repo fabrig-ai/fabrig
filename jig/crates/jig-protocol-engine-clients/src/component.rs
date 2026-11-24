@@ -897,6 +897,13 @@ impl Component {
             self.respond(exchange, routes::refused());
         }
     }
+    // A keyed act can keep its pending slot after losing its caller. Only
+    // a caller still waiting holds one of the sign-in's exchanges.
+    fn keyed_caller(&self, exchange: Token, sign_in: Option<u64>) -> Option<u64> {
+        let sign_in = sign_in?;
+        self.owner(exchange)?;
+        Some(sign_in)
+    }
     fn owner(&self, exchange: Token) -> Option<Token> {
         let exchange = match self.members.get(&exchange) {
             Some(member) => member.batch,
