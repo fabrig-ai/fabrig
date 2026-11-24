@@ -44,10 +44,3 @@ are milestones C3 and C5 of `temper/docs/design/draft/cli.execution.md`.
   gate step runs it. Darwin's adapters, among them startup's file reads
   and `make_root`'s walk over the shared decisions, are first compiled
   on the macOS runner.
-- **Not yet:** 8, 11: `drive` takes its kernel and clock directly, and its
-  own tests run in the real loop, not yet over a scripted face of them.
-  [in flight: change 13904]
-- **Not yet:** 8: startup's bounded and private reads, its trust roots'
-  DER and bundle bound, a path's NUL and `make_root`'s walk are checked on
-  the real kernel, not yet over handed facts in the shell's own tests.
-  [in flight: change 13908]
