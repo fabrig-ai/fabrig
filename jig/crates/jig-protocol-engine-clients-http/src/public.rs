@@ -22,7 +22,7 @@ pub fn public_path(path: &[u8]) -> Option<kit::PublicRead> {
                 if segment.len() == 64 {
                     read.layout = Some(layout(segment)?);
                 } else {
-                    // A canonical legacy u16 version names no layout.
+                    // A canonical decimal u16 version names no layout.
                     decimal(segment)?;
                 }
             }

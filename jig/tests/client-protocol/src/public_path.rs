@@ -34,13 +34,13 @@ fn inspect(seed: u64, bytes: &[u8], canonical: bool, case: Arguments<'_>) -> Opt
             assert_eq!(public_target(&path).as_ref(), bytes, "accepted target prints byte for byte");
         } else {
             let version = std::str::from_utf8(bytes)
-                .expect("accepted legacy path is ASCII")
+                .expect("accepted decimal path is ASCII")
                 .split('/')
                 .nth(4)
-                .expect("legacy version segment")
+                .expect("decimal version segment")
                 .parse::<u16>()
-                .expect("legacy version is a u16");
-            assert_eq!(target(&path, Some(version)), bytes, "accepted legacy target uses canonical decimal");
+                .expect("decimal version is a u16");
+            assert_eq!(target(&path, Some(version)), bytes, "accepted target uses canonical decimal version");
         }
     }
     read
@@ -187,17 +187,17 @@ pub fn sweep(first_seed: u64, seeds: u64, arbitrary: u32, canonical_samples: u32
                 let _ = inspect(seed, &bytes, false, format_args!("sample {sample}, original"));
             }
             mutations(&mut batch, seed, &mut rng, &bytes, canonical, sample);
-            let legacy = target(&path, Some(number(&mut rng, sample, 3)));
-            let read = inspect(seed, &legacy, canonical, format_args!("sample {sample}, legacy decimal"));
+            let decimal_target = target(&path, Some(number(&mut rng, sample, 3)));
+            let read = inspect(seed, &decimal_target, canonical, format_args!("sample {sample}, decimal version"));
             if canonical {
-                let read = read.expect("canonical legacy target is routed");
+                let read = read.expect("canonical decimal target is routed");
                 let expected = PublicRead {
                     owner: path.owner,
                     layout: None,
                     kind: path.kind,
                     ids: Box::from(path.ids.as_slice()),
                 };
-                assert_eq!(read, expected, "legacy path names no layout, seed {seed:#x}, input {legacy:?}");
+                assert_eq!(read, expected, "decimal path names no layout, seed {seed:#x}, input {decimal_target:?}");
             }
         }
     }

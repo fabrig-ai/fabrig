@@ -7,7 +7,7 @@ use skein_lib::{Time, Token};
 
 const LAYOUT: &str = "abababababababababababababababababababababababababababababababab";
 const PATH: &[u8] = b"/jig/v1/public/0/abababababababababababababababababababababababababababababababab/1";
-const LEGACY_PATH: &[u8] = b"/jig/v1/public/0/1/1";
+const DECIMAL_PATH: &[u8] = b"/jig/v1/public/0/1/1";
 const NO_STORE: &[(&str, &str)] = &[("cache-control", "no-store"), ("x-content-type-options", "nosniff")];
 const BUSY: &[(&str, &str)] =
     &[("cache-control", "no-store"), ("retry-after", "1"), ("x-content-type-options", "nosniff")];
@@ -35,7 +35,7 @@ fn admitted(messages: &[FromTransport], layout: Option<[u8; 32]>) -> Token {
 }
 fn answer(peer: &mut Peer, reply: PublicReply, now: Time) -> Token {
     let (target, layout) = match reply {
-        PublicReply::NotServed { .. } => (LEGACY_PATH, None),
+        PublicReply::NotServed { .. } => (DECIMAL_PATH, None),
         _ => (PATH, Some([0xab; 32])),
     };
     let (socket, messages) = peer.public_http(Method::Get, target, headers(&[]));

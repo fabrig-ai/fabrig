@@ -1,7 +1,7 @@
 //! Public HTTP step tests (jig/docs/design/protocol/client/default-http.md, 5 and jig/docs/design/protocol/client/public-reads.md).
 use super::{fixtures as f, *};
 const PATH: &[u8] = b"/jig/v1/public/0/000123456789abcdefff00000000000000000000000000000000000000000001/1";
-const LEGACY_PATH: &[u8] = b"/jig/v1/public/0/1/1";
+const DECIMAL_PATH: &[u8] = b"/jig/v1/public/0/1/1";
 const LAYOUT: [u8; 32] = [
     0x00, 0x01, 0x23, 0x45, 0x67, 0x89, 0xab, 0xcd, 0xef, 0xff, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 1,
@@ -88,7 +88,7 @@ fn answer(reply: kit::PublicReply, now: Time) -> (u16, Box<[u8]>, Box<[skein_htt
     let mut mount = mount();
     let mut out = Queue::with_capacity(32);
     let (path, read) = match reply {
-        kit::PublicReply::NotServed { .. } => (LEGACY_PATH, kit::PublicRead { layout: None, ..read() }),
+        kit::PublicReply::NotServed { .. } => (DECIMAL_PATH, kit::PublicRead { layout: None, ..read() }),
         kit::PublicReply::Document { .. } | kit::PublicReply::Unknown | kit::PublicReply::Busy => (PATH, read()),
     };
     f::call(&mut mount, &mut out, Method::Get, path, &[], b"");
