@@ -160,6 +160,7 @@ use crate::git::{Commit, Done, Fault, Into, Missing, Op, Place, Want};
 use crate::limits::Limits;
 
 #[derive(Debug)]
+#[expect(clippy::struct_excessive_bools, reason = "cut, lane progress, release and mark presence are independent")]
 pub struct Hold {
     holding: Holding,
     state: State,
@@ -170,7 +171,15 @@ pub struct Hold {
     marking: bool,
     pending: Queue<(Op, bool)>,
     releasing: bool,
-    marked: Option<crate::git::Kept>,
+    /// The last queued held mark describes `holding`; only a completion changes its tips.
+    marked: bool,
+}
+
+#[derive(Debug)]
+struct MarkedTip {
+    head: Commit,
+    merging: Option<Commit>,
+    unchecked: bool,
 }
 
 impl Hold {
@@ -233,12 +242,12 @@ struct Holding {
     workspace: Id<Workspace>,
     disk: Token,
     key: Box<[u8]>,
-    kept: Option<crate::git::Kept>,
+    kept: Option<Box<crate::git::Kept>>,
     saved: Option<Box<[crate::git::KeptRepository]>>,
     preserve: bool,
     recovering: bool,
     recovered: bool,
-    original_starts: List<(u32, Start)>,
+    original_starts: Box<[(u32, Start)]>,
     arrived: Time,
     admitted: Time,
     stores: Box<[crate::cache::Borrowed]>,
@@ -559,6 +568,7 @@ enum Next {
 // cell's handler, then tell what happened and follow the new state
 // ([`conclude`]).
 
+#[expect(clippy::manual_map, reason = "the step subset boxes the optional recovery mark without a closure")]
 pub(crate) fn prepare(domain: &mut Domain, env: &Env<Limits>, client: Token, spec: Spec, out: &mut Queue<Request>) {
     let mark = out.len();
     if !fits(&spec, &env.limits) {
@@ -583,12 +593,15 @@ pub(crate) fn prepare(domain: &mut Domain, env: &Env<Limits>, client: Token, spe
         workspace,
         disk,
         key,
-        kept,
+        kept: match kept {
+            Some(mark) => Some(Box::new(mark)),
+            None => None,
+        },
         saved: None,
         preserve: false,
         recovering: false,
         recovered: false,
-        original_starts: List::uncapped(),
+        original_starts: Box::new([]),
         arrived: env.now,
         admitted: env.now,
         stores,
@@ -606,7 +619,7 @@ pub(crate) fn prepare(domain: &mut Domain, env: &Env<Limits>, client: Token, spe
         marking: false,
         pending: Queue::uncapped(),
         releasing: false,
-        marked: None,
+        marked: false,
     };
     let id = domain.holds.insert(hold).expect("room for a hold for each workspace, and as many released");
     out.push(Request::Held { client, hold: id.token() });
@@ -889,6 +902,7 @@ pub(crate) fn done(domain: &mut Domain, env: &Env<Limits>, owner: Token, done: D
         conclude(domain, env, id, was_active, out, mark);
         return;
     }
+    let previous = if hold.marked { Some(held_tips(&hold.holding)) } else { None };
     let told = ending(&done);
     domain.facts.push(Fact::Ended { client: hold.holding.client, done: told });
     if !optional(&hold.state) && damages(&done) {
@@ -914,7 +928,7 @@ pub(crate) fn done(domain: &mut Domain, env: &Env<Limits>, owner: Token, done: D
         State::Keeping { mark } => {
             if done == Done::Succeeded {
                 domain.cache.keep(holding.workspace, mark);
-                hold.marked = None;
+                hold.marked = false;
             }
             released(holding.client, out)
         }
@@ -1008,6 +1022,7 @@ pub(crate) fn done(domain: &mut Domain, env: &Env<Limits>, owner: Token, done: D
         hold.state =
             prepare_next(&mut hold.holding, &mut domain.cache, id, next, Box::new([]), recovery_asked, env, out);
     }
+    rewrite_mark(hold, previous, id, env, out);
     conclude(domain, env, id, was_active, out, mark);
     for _ in 0..waiters.len() {
         let waiter = waiters.pop().expect("the waiters to resume");
@@ -1062,16 +1077,8 @@ fn conclude(
     mark: u32,
 ) {
     let hold = domain.holds.get_mut(id).expect("a hold lives until it is retired");
-    if let Some(previous) = &hold.marked
-        && let Some(current) = held_mark(&hold.holding, env)
-        && previous.repositories != current.repositories
-        && !hold.holding.recovering
-    {
-        hold.marked = Some(current.clone());
-        io(id, Op::Keep { workspace: current.workspace, mark: Some(current) }, env, out);
-    }
-    if matches_closed(&hold.state) && hold.marked.is_some() {
-        hold.marked = None;
+    if matches_closed(&hold.state) && hold.marked {
+        hold.marked = false;
         io(id, Op::Keep { workspace: hold.holding.disk, mark: None }, env, out);
     }
     schedule(hold, id, env, out, mark);
@@ -1348,7 +1355,7 @@ fn prepared(holding: &mut Holding, cache: &mut Cache, step: PrepareStep, done: D
                 Next::Step(PrepareStep::CompareKept { repository: after(repository) })
             } else {
                 holding.preserve = true;
-                holding.original_starts = List::uncapped();
+                holding.original_starts = Box::new([]);
                 holding.kept = None;
                 let commit = fetched(holding, 0, &start_want(&nth(holding, 0).start)).expect("compared every start");
                 fetched_start(holding, 0, commit)
@@ -2290,7 +2297,7 @@ fn prepare_next(
                     return prepare_step(holding, cache, id, step, env, out);
                 }
                 holding.fetched = List::uncapped();
-                if held_mark(holding, env).is_some() {
+                if can_mark(holding) {
                     prepare_step(holding, cache, id, PrepareStep::Mark, env, out)
                 } else {
                     ready(holding, out)
@@ -3461,6 +3468,7 @@ fn matches_ready(state: &State) -> bool {
 /// One IO lane per held workspace keeps rewrites, subsequent git operations and
 /// removal in order. Only the first mark participates in preparation.
 fn schedule(hold: &mut Hold, id: Id<Hold>, env: &Env<Limits>, out: &mut Queue<Request>, mark: u32) {
+    let mut next = if hold.operation.is_none() { hold.pending.pop() } else { None };
     let mut produced = Queue::uncapped();
     let length = out.len();
     for index in 0..length {
@@ -3473,8 +3481,8 @@ fn schedule(hold: &mut Hold, id: Id<Hold>, env: &Env<Limits>, out: &mut Queue<Re
             Request::Io { owner, op, deadline: _ } if owner == id.token() => {
                 let background = if let Op::Keep { mark, .. } = &op {
                     match mark {
-                        Some(mark) if mark.state == crate::git::KeptState::Held => hold.marked = Some(mark.clone()),
-                        None => hold.marked = None,
+                        Some(mark) if mark.state == crate::git::KeptState::Held => hold.marked = true,
+                        None => hold.marked = false,
                         Some(_) => {}
                     }
                     match hold.state {
@@ -3492,7 +3500,11 @@ fn schedule(hold: &mut Hold, id: Id<Hold>, env: &Env<Limits>, out: &mut Queue<Re
                 } else {
                     false
                 };
-                hold.pending.push((op, background));
+                if hold.operation.is_none() && next.is_none() {
+                    next = Some((op, background));
+                } else {
+                    hold.pending.push((op, background));
+                }
             }
             Request::Released { client } if client == hold.holding.client => hold.releasing = true,
             other @ (Request::Io { .. }
@@ -3507,9 +3519,11 @@ fn schedule(hold: &mut Hold, id: Id<Hold>, env: &Env<Limits>, out: &mut Queue<Re
             | Request::ResultsEnd { .. }) => produced.push(other),
         }
     }
-    if hold.operation.is_none()
-        && let Some((op, background)) = hold.pending.pop()
-    {
+    if hold.pending.is_empty() {
+        // An idle lane need not retain capacity for full git operations.
+        hold.pending = Queue::uncapped();
+    }
+    if let Some((op, background)) = next {
         let timeout = operation_timeout(&op, &env.limits);
         let deadline = env.now.saturating_add(timeout);
         if let State::Preparing { timing, .. } = &mut hold.state {
@@ -3540,12 +3554,57 @@ fn matches_closed(state: &State) -> bool {
     }
 }
 
-fn held_mark(holding: &Holding, env: &Env<Limits>) -> Option<crate::git::Kept> {
+fn can_mark(holding: &Holding) -> bool {
     let mut saving = false;
     for spec in &holding.repositories {
         saving |= spec.push.is_some() && spec.save.is_some();
     }
-    if holding.tips.len() != count(holding.repositories.len()) || !saving {
+    holding.tips.len() == count(holding.repositories.len()) && saving
+}
+
+/// Keep the comparison only while a completion can change the tips, not for the
+/// hold's lifetime. Names, remotes and repository order do not change while marked.
+fn held_tips(holding: &Holding) -> Box<[MarkedTip]> {
+    let mut tips = List::with_capacity(holding.tips.len());
+    for current in holding.tips.as_slice() {
+        tips.push(MarkedTip { head: current.head, merging: current.merging, unchecked: current.unchecked })
+            .expect("one tip per marked repository");
+    }
+    tips.into_boxed()
+}
+
+fn rewrite_mark(
+    hold: &Hold,
+    previous: Option<Box<[MarkedTip]>>,
+    id: Id<Hold>,
+    env: &Env<Limits>,
+    out: &mut Queue<Request>,
+) {
+    let changed = match previous {
+        Some(previous) => !mark_matches(&hold.holding, &previous),
+        None => false,
+    };
+    if hold.marked && changed && !hold.holding.recovering && can_mark(&hold.holding) {
+        let current = held_mark(&hold.holding, env).expect("a complete saving hold has a mark");
+        io(id, Op::Keep { workspace: current.workspace, mark: Some(current) }, env, out);
+    }
+}
+
+/// Compare only the changing fields, in the hold's fixed repository order.
+fn mark_matches(holding: &Holding, marked: &[MarkedTip]) -> bool {
+    if marked.len() != holding.repositories.len() {
+        return false;
+    }
+    for (tips, saved) in holding.tips.as_slice().iter().zip(marked.iter()) {
+        if tips.head != saved.head || tips.merging != saved.merging || tips.unchecked != saved.unchecked {
+            return false;
+        }
+    }
+    true
+}
+
+fn held_mark(holding: &Holding, env: &Env<Limits>) -> Option<crate::git::Kept> {
+    if !can_mark(holding) {
         return None;
     }
     let mut repositories = List::with_capacity(holding.tips.len());
@@ -3590,13 +3649,15 @@ fn recovered(holding: &mut Holding) -> Next {
         holding.kept = None;
         return Next::Stores { from: 0, look: false };
     };
+    let mut original_starts = List::uncapped();
     for (index, spec) in holding.repositories.iter_mut().enumerate() {
         if spec.push.is_some() {
             let start = Start::Saved { branch: spec.save.clone().expect("matched save destination") };
             let original = mem::replace(&mut spec.start, start);
-            holding.original_starts.push((count(index), original)).expect("writable repository");
+            original_starts.push((count(index), original)).expect("writable repository");
         }
     }
+    holding.original_starts = original_starts.into_boxed();
     let mark = holding.kept.as_mut().expect("recovering a held mark");
     mark.state = crate::git::KeptState::Kept;
     mark.repositories = repositories;
@@ -3605,8 +3666,8 @@ fn recovered(holding: &mut Holding) -> Next {
 }
 
 fn restore_assignment(holding: &mut Holding) {
-    let originals = mem::replace(&mut holding.original_starts, List::uncapped());
-    for (index, start) in originals.into_boxed() {
+    let originals = mem::replace(&mut holding.original_starts, Box::new([]));
+    for (index, start) in originals {
         holding
             .repositories
             .get_mut(usize::try_from(index).expect("repository index"))

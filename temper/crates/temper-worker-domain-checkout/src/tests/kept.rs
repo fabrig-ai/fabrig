@@ -71,6 +71,48 @@ fn a_run_marks_its_start_save_delivery_and_release() {
 }
 
 #[test]
+fn a_held_mark_tracks_the_second_repository_without_rewriting_unchanged_tips() {
+    let mut h = Harness::new(LIMITS);
+    h.observe_marks = true;
+    let hold = h.ready(
+        1,
+        Spec { key: bytes(b"run"), repositories: Box::new([repository(b"a", true), repository(b"b", true)]) },
+    );
+    assert_eq!(io(h.one(Event::Save { hold, message: message() }), hold).kind(), Kind::Commit);
+    assert_eq!(h.next(hold, Done::Unchanged).kind(), Kind::Commit);
+    let Request::Saved { .. } = h.one(Event::Done { owner: hold, done: Done::Unchanged }) else {
+        panic!("unchanged tips do not rewrite the mark")
+    };
+    let Op::Commit { at, .. } = io(h.one(Event::Save { hold, message: message() }), hold) else {
+        panic!("save the first repository")
+    };
+    assert_eq!(at.repository.as_ref(), b"a");
+    let Op::Commit { at, .. } = h.next(hold, Done::Unchanged) else { panic!("save the second repository") };
+    assert_eq!(at.repository.as_ref(), b"b");
+    assert_eq!(h.next(hold, Done::Committed { commit: commit(7) }).kind(), Kind::Push);
+    let requests = h.step(Event::Done { owner: hold, done: Done::Succeeded });
+    let [Request::Saved { .. }, Request::Io { op: Op::Keep { mark: Some(mark), .. }, .. }] = requests.as_slice() else {
+        panic!("the changed second repository rewrites the mark: {requests:?}")
+    };
+    assert_eq!(mark.state, KeptState::Held);
+    assert_eq!(mark.key.as_ref(), b"run");
+    let [first, second] = mark.repositories.as_ref() else { panic!("both repositories remain in order") };
+    assert_eq!(
+        (first.name.as_ref(), first.remote.as_ref(), first.commit),
+        (b"a".as_slice(), b"forge:a".as_slice(), commit(1))
+    );
+    assert_eq!(
+        (second.name.as_ref(), second.remote.as_ref(), second.commit),
+        (b"b".as_slice(), b"forge:b".as_slice(), commit(7))
+    );
+    assert_eq!((first.merging, second.merging), (None, None));
+    assert!(!first.unchecked && !second.unchecked);
+    h.none(Event::Done { owner: hold, done: Done::Succeeded });
+    let Op::Keep { mark: None, .. } = io(h.one(Event::Release { hold }), hold) else { panic!("remove the held mark") };
+    assert_eq!(h.one(Event::Done { owner: hold, done: Done::Succeeded }), Request::Released { client: Token::new(1) });
+}
+
+#[test]
 fn a_drain_replaces_the_held_mark_with_the_saved_commits() {
     let (mut h, hold, _) = marked();
     finish_mark(&mut h, hold, Done::Succeeded);
