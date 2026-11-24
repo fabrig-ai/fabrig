@@ -119,7 +119,7 @@ fn the_binary_answers_its_table_and_refuses_other_shapes() {
     let mut failures = Vec::new();
     let mut help_page = None;
     for (arguments, code, stdout, stderr) in ROWS {
-        let output = Command::new(env!("CARGO_BIN_EXE_temper-stage-one"))
+        let output = Command::new(skein_scratch::paths::binary("temper-stage-one"))
             .args(*arguments)
             .env_clear()
             .current_dir(scratch.path())
