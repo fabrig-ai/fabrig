@@ -182,7 +182,8 @@ pub fn remove_owned_tree(guard: &Guard, root: &Path) -> Result<(), Fault> {
     remove_owned_tree_with(&Native, guard, root)
 }
 
-pub(crate) fn remove_owned_tree_with(files: &dyn Files, guard: &Guard, root: &Path) -> Result<(), Fault> {
+/// Restore owner access and remove a settled owned tree on the supplied filesystem.
+pub fn remove_owned_tree_with(files: &dyn Files, guard: &Guard, root: &Path) -> Result<(), Fault> {
     fn writable(files: &dyn Files, guard: &Guard, directory: &Path) -> Result<(), Fault> {
         let metadata = files.symlink_metadata(directory)?;
         if metadata.kind != Kind::Directory {
@@ -398,7 +399,8 @@ pub fn create_directory(guard: &Guard, path: &Path) -> Result<PathBuf, Fault> {
     create_directory_with(&Native, guard, path)
 }
 
-pub(crate) fn create_directory_with(files: &dyn Files, guard: &Guard, path: &Path) -> Result<PathBuf, Fault> {
+/// Create a guarded private directory on the supplied filesystem.
+pub fn create_directory_with(files: &dyn Files, guard: &Guard, path: &Path) -> Result<PathBuf, Fault> {
     let path = guard.write_path_with(files, path)?;
     directory(files, guard, &path)?;
     Ok(path)

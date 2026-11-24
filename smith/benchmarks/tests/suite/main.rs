@@ -3,7 +3,6 @@ static HEAP: skein_world::domain::heap::Counting = skein_world::domain::heap::Co
 
 pub mod common;
 
-mod codex_adapter;
 mod pipeline;
 mod probe_command;
 mod runner;

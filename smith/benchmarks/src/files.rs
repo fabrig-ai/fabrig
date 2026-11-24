@@ -96,6 +96,26 @@ impl Child {
     }
 }
 
+/// Where a bounded delimiter read failed, preserving the underlying I/O error.
+#[derive(Debug)]
+pub enum ReadUntilError {
+    /// Opening the file failed.
+    Open(io::Error),
+    /// Reading the opened file failed.
+    Read(io::Error),
+}
+
+/// Where creating and inspecting a synced file failed.
+#[derive(Debug)]
+pub enum CreateNewError {
+    /// Exclusive open failed; no new file is available to clean up.
+    Open(io::Error),
+    /// Writing or syncing failed after creating the file.
+    Write(io::Error),
+    /// Inspecting the written file failed.
+    Metadata(io::Error),
+}
+
 /// File operations used by native harness runs and supplied by offline tests.
 pub trait Files {
     /// Inspect an entry itself, not a final link's target.
@@ -123,7 +143,14 @@ pub trait Files {
     fn read_bounded(&self, path: &Path, limit: u64) -> io::Result<Vec<u8>>;
 
     /// Read at most `limit` bytes from the start, stopping after the first `delimiter` (included).
-    fn read_until(&self, path: &Path, delimiter: u8, limit: u64) -> io::Result<Vec<u8>>;
+    fn read_until(&self, path: &Path, delimiter: u8, limit: u64) -> io::Result<Vec<u8>> {
+        self.read_until_staged(path, delimiter, limit).map_err(|error| match error {
+            ReadUntilError::Open(error) | ReadUntilError::Read(error) => error,
+        })
+    }
+
+    /// Read through a delimiter with a byte limit, distinguishing open and read failures.
+    fn read_until_staged(&self, path: &Path, delimiter: u8, limit: u64) -> Result<Vec<u8>, ReadUntilError>;
 
     /// Check whether a path has a target, distinguishing absence from failed lookups.
     fn try_exists(&self, path: &Path) -> io::Result<bool>;
@@ -139,6 +166,9 @@ pub trait Files {
 
     /// Create a file exclusively with the requested bits, write all bytes, and sync if requested.
     fn create_new(&self, path: &Path, mode: u32, bytes: &[u8], sync: bool) -> io::Result<()>;
+
+    /// Create exclusively, write, sync, and inspect the same opened file without resolving the path again.
+    fn create_new_with_metadata(&self, path: &Path, mode: u32, bytes: &[u8]) -> Result<Facts, CreateNewError>;
 
     /// Replace a file's bytes, creating it with the default file mode if absent.
     fn write(&self, path: &Path, bytes: &[u8]) -> io::Result<()>;
@@ -198,9 +228,10 @@ impl Files for Native {
         Ok(bytes)
     }
 
-    fn read_until(&self, path: &Path, delimiter: u8, limit: u64) -> io::Result<Vec<u8>> {
+    fn read_until_staged(&self, path: &Path, delimiter: u8, limit: u64) -> Result<Vec<u8>, ReadUntilError> {
+        let file = fs::File::open(path).map_err(ReadUntilError::Open)?;
         let mut bytes = Vec::new();
-        BufReader::new(fs::File::open(path)?.take(limit)).read_until(delimiter, &mut bytes)?;
+        BufReader::new(file.take(limit)).read_until(delimiter, &mut bytes).map_err(ReadUntilError::Read)?;
         Ok(bytes)
     }
 
@@ -237,6 +268,13 @@ impl Files for Native {
             file.sync_all()?;
         }
         Ok(())
+    }
+
+    fn create_new_with_metadata(&self, path: &Path, mode: u32, bytes: &[u8]) -> Result<Facts, CreateNewError> {
+        let mut file =
+            fs::OpenOptions::new().write(true).create_new(true).mode(mode).open(path).map_err(CreateNewError::Open)?;
+        file.write_all(bytes).and_then(|()| file.sync_all()).map_err(CreateNewError::Write)?;
+        file.metadata().map(Facts::from).map_err(CreateNewError::Metadata)
     }
 
     fn write(&self, path: &Path, bytes: &[u8]) -> io::Result<()> {

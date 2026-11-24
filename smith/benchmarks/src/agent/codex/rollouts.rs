@@ -4,11 +4,11 @@
 //! an unavailable child scope (../../../../docs/design/benchmarks/agents.md, section 1, and ../../../../docs/design/benchmarks/results.md, section 1.2, and ../../../../docs/design/benchmarks/isolation.md, section 1, and ../../../../docs/design/benchmarks/README.md, section 13).
 
 use std::collections::{BTreeMap, BTreeSet};
-use std::io::Read;
 use std::path::Path;
 
 use serde::Deserialize;
 
+use crate::files::{Files, Native};
 use crate::{Convention, Fault, ScopeKind, TokenLedger, TokenRecord, Usage, mismatch};
 
 use super::ParseError;
@@ -202,17 +202,14 @@ pub fn parse_rollout(bytes: &[u8], thread: &str) -> Result<(Link, Vec<ResponseUs
     ))
 }
 
-fn read_file(home: &Path, file: &Path, remaining: &mut usize) -> Result<Vec<u8>, ParseError> {
-    let resolved = file.canonicalize().map_err(|error| bad("rollout", "file", error.to_string()))?;
-    let home = home.canonicalize().map_err(|error| bad("rollout", "home", error.to_string()))?;
+fn read_file(files: &dyn Files, home: &Path, file: &Path, remaining: &mut usize) -> Result<Vec<u8>, ParseError> {
+    let resolved = files.canonicalize(file).map_err(|error| bad("rollout", "file", error.to_string()))?;
+    let home = files.canonicalize(home).map_err(|error| bad("rollout", "home", error.to_string()))?;
     if !resolved.starts_with(home.join("sessions")) && !resolved.starts_with(home.join("archived_sessions")) {
         return Err(bad("rollout", "file", "named rollout is outside Codex's session directories"));
     }
-    let mut bytes = Vec::new();
-    std::fs::File::open(resolved)
-        .map_err(|error| bad("rollout", "file", error.to_string()))?
-        .take(u64::try_from(*remaining).expect("bounded bytes") + 1)
-        .read_to_end(&mut bytes)
+    let bytes = files
+        .read_bounded(&resolved, u64::try_from(*remaining).expect("bounded bytes") + 1)
         .map_err(|error| bad("rollout", "file", error.to_string()))?;
     *remaining =
         remaining.checked_sub(bytes.len()).ok_or_else(|| bad("rollout", "bytes", "attempt rollout bound exceeded"))?;
@@ -221,12 +218,18 @@ fn read_file(home: &Path, file: &Path, remaining: &mut usize) -> Result<Vec<u8>,
 
 /// Read only the named root and descendants from the attempt's rollout tree.
 pub fn collect_rollouts(home: &Path, thread: &str) -> Result<Rollouts, ParseError> {
+    collect_rollouts_with(&Native, home, thread)
+}
+
+/// Read named rollouts from the supplied filesystem.
+pub fn collect_rollouts_with(files: &dyn Files, home: &Path, thread: &str) -> Result<Rollouts, ParseError> {
     let mut result = Rollouts { responses: Vec::new(), children: Vec::new(), files: Vec::new() };
-    collect_named(home, thread, &[], &mut result)?;
+    collect_named(files, home, thread, &[], &mut result)?;
     Ok(result)
 }
 
 pub(super) fn collect_named(
+    files: &dyn Files,
     home: &Path,
     thread: &str,
     known_children: &[String],
@@ -240,7 +243,7 @@ pub(super) fn collect_named(
     if ids.len() > MAX_THREADS {
         return Err(bad("rollout", "children", "thread bound exceeded"));
     }
-    let candidates = discovery::discover(home, discovery::BOUNDS)?;
+    let candidates = discovery::discover(files, home, discovery::BOUNDS)?;
     loop {
         let previous = ids.len();
         for (id, candidate) in &candidates {
@@ -259,7 +262,7 @@ pub(super) fn collect_named(
     for id in &ids {
         let (mut link, responses) = match candidates.get(id) {
             Some(candidate) => {
-                let bytes = read_file(home, &candidate.path, &mut remaining)?;
+                let bytes = read_file(files, home, &candidate.path, &mut remaining)?;
                 result.files.push(RolloutFile { thread: id.clone(), bytes });
                 parse_rollout(&result.files.last().expect("raw file retained").bytes, id)
                     .map_err(|error| bad("rollout", "file", format!("thread {id}: {error}")))?

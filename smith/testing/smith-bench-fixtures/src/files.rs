@@ -12,7 +12,7 @@ use std::path::{Path, PathBuf};
 
 use sha2::{Digest, Sha256};
 use skein_fake_machine::{How, Is, Item, Listed, Machine, Opened, Refusal};
-use smith_bench::files::{Child, Facts, Files, Kind};
+use smith_bench::files::{Child, CreateNewError, Facts, Files, Kind, ReadUntilError};
 
 /// A face operation that can be observed or refused at a named path.
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
@@ -231,12 +231,19 @@ impl Files for Tree {
         self.bytes(Operation::ReadBounded, path, limit)
     }
 
-    fn read_until(&self, path: &Path, delimiter: u8, limit: u64) -> io::Result<Vec<u8>> {
-        let mut bytes = self.bytes(Operation::ReadUntil, path, limit)?;
-        if let Some(end) = bytes.iter().position(|byte| *byte == delimiter) {
-            bytes.truncate(end + 1);
-        }
-        Ok(bytes)
+    fn read_until_staged(&self, path: &Path, delimiter: u8, limit: u64) -> Result<Vec<u8>, ReadUntilError> {
+        let mut disk = self.disk.borrow_mut();
+        let resolved = self.resolve_read(&mut disk, Operation::ReadUntil, path, true).map_err(ReadUntilError::Open)?;
+        disk.open(&resolved.path, How::Read, |machine, file| {
+            Ok(read_opened(machine, file, limit).map(|mut bytes| {
+                if let Some(end) = bytes.iter().position(|byte| *byte == delimiter) {
+                    bytes.truncate(end + 1);
+                }
+                bytes
+            }))
+        })
+        .map_err(ReadUntilError::Open)?
+        .map_err(ReadUntilError::Read)
     }
 
     fn try_exists(&self, path: &Path) -> io::Result<bool> {
@@ -272,6 +279,20 @@ impl Files for Tree {
             }
             Ok(())
         })
+    }
+
+    fn create_new_with_metadata(&self, path: &Path, mode: u32, bytes: &[u8]) -> Result<Facts, CreateNewError> {
+        self.writing(Operation::CreateNew, path, None).map_err(CreateNewError::Open)?;
+        let mut disk = self.disk.borrow_mut();
+        let resolved = disk.resolve(path, false, true).map_err(CreateNewError::Open)?;
+        disk.open(&resolved.path, How::Create { mode: mode & 0o7777 }, |machine, file| {
+            Ok(machine.write(file, 0, bytes).map_err(io_error).map(|()| {
+                machine.sync(file);
+                file_facts(machine.stat(file))
+            }))
+        })
+        .map_err(CreateNewError::Open)?
+        .map_err(CreateNewError::Write)
     }
 
     fn write(&self, path: &Path, bytes: &[u8]) -> io::Result<()> {
@@ -430,12 +451,7 @@ impl Disk {
     }
 
     fn read(&mut self, path: &Path, limit: u64) -> io::Result<Vec<u8>> {
-        self.open(path, How::Read, |machine, file| {
-            if limit == 0 {
-                return Ok(Vec::new());
-            }
-            machine.read(file, 0, u32::try_from(limit).unwrap_or(u32::MAX)).map_err(io_error)
-        })
+        self.open(path, How::Read, |machine, file| read_opened(machine, file, limit))
     }
 
     fn replace(&mut self, path: &Path, bytes: &[u8], mode: u32, copy_mode: bool) -> io::Result<()> {
@@ -561,6 +577,13 @@ fn with_open<T>(
     let result = use_file(machine, file);
     machine.close(file);
     result
+}
+
+fn read_opened(machine: &Machine, file: Opened, limit: u64) -> io::Result<Vec<u8>> {
+    if limit == 0 {
+        return Ok(Vec::new());
+    }
+    machine.read(file, 0, u32::try_from(limit).unwrap_or(u32::MAX)).map_err(io_error)
 }
 
 fn list(machine: &mut Machine, dir: Opened) -> io::Result<Vec<Listed>> {
