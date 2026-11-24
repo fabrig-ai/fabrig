@@ -11,6 +11,7 @@ mod edges;
 mod prepared;
 mod restoring;
 mod retired;
+mod settling;
 mod unplanned;
 
 const FAMILY: KeptFamily = KeptFamily {

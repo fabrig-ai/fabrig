@@ -1073,6 +1073,7 @@ pub(crate) fn events_up(
                     store.mark.committed(number);
                     store.registry.activate();
                     store.registry.settle();
+                    store.registry.committed(number);
                     above.push(Event::Committed { number, fill: store.stores.store.used() });
                     crate::census::due(store, above);
                 } else {

@@ -12,7 +12,7 @@ mod held;
 pub(super) mod later;
 pub use held::{HeldLayout, judge_held_layout};
 
-fn count(store: &Store, layouts: &Layouts, index: u32, id: u16) -> Option<u64> {
+pub(super) fn count(store: &Store, layouts: &Layouts, index: u32, id: u16) -> Option<u64> {
     // Only this type's ranges can contribute to its count. Select them once,
     // in key order, rather than searching all registry ranges per keyspace.
     let mut ranges = List::uncapped();
