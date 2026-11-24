@@ -3,8 +3,6 @@
 2026-11-23. Where the tree's code lags or departs from [testing.md](testing.md).
 
 
-- **Not yet:** 4, *The job's end, delivered*: the process tier's hinted story still lands a change with raised paces, and no process test hears a real job's end delivered. [in flight: change 13992]
-- **Not yet:** 4, *A Forgejo connected as its admin, on this host*: the story still lands a chat's change and repairs two more repositories' access, and reads no provider's settings after its restart. [in flight: change 14035]
 - **Not yet:** 4: the file's secret on no log: the fresh box's story
   reads stdout, stderr and `box.log` for it, not `serve.log`, which
   holds serve's stderr. By reading, serve writes none there: its host
