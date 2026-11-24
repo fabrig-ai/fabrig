@@ -761,6 +761,7 @@ impl World {
             | Event::QuestionParked { .. }
             | Event::CancelQuestion { .. }
             | Event::PersonStallNotice { .. }
+            | Event::ReadingLost { .. }
             | Event::Turn { .. } => {}
         }
     }

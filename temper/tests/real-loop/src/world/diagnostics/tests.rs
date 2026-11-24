@@ -153,7 +153,14 @@ fn review_tree() -> (tasks_domain::Domain, Env<tasks_domain::Limits>) {
         step(
             &mut tree,
             &env,
-            Event::Make { maker: None, places: Box::new([]), reply_to: reply_to(), creator, batch: Box::new([task]) },
+            Event::Make {
+                reads_project: false,
+                maker: None,
+                places: Box::new([]),
+                reply_to: reply_to(),
+                creator,
+                batch: Box::new([task]),
+            },
             &mut out,
         );
         assert!(tree.task(number).is_some(), "could not make task {number}: {out:?}");
@@ -182,6 +189,7 @@ fn finish_review(tree: &mut tasks_domain::Domain, env: &Env<tasks_domain::Limits
             session_end: None,
         },
         Event::Activation {
+            reads_project: false,
             reply_to: reply_to(),
             task,
             attempt: 1,
