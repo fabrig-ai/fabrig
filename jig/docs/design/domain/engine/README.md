@@ -13,7 +13,6 @@ does with all of it is ../root.md. The mechanics are those of skein's
 
 - [`vocabulary.md`](vocabulary.md): what crosses between the core and the root.
 - [`waits.md`](waits.md): a task's waits, each a record with its kind, since and bound.
-- [`contracts.md`](contracts.md): the shapes bounded waits' jig changes share while they run; it goes once they land.
 - [`decisions.md`](decisions.md): decisions, commits and the store.
 - [`world.md`](world.md): the core's domain world and its stories.
 - [`executors-transcripts.md`](executors-transcripts.md): turns, transcripts and resumption.

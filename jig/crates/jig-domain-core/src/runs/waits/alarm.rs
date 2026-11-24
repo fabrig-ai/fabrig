@@ -1,4 +1,4 @@
-//! Taking the outcomes of a task's waits (jig/docs/design/domain/engine/contracts.md, 2).
+//! Taking the outcomes of a task's waits (jig/docs/design/domain/engine/waits.md, 5).
 
 mod words;
 
@@ -298,7 +298,7 @@ fn is_question(wait: &Wait) -> bool {
 }
 
 /// What this alarm takes; resource queues, stalls and procedures' clocks
-/// have other owners (jig/docs/design/domain/engine/contracts.md, 2).
+/// have other owners (jig/docs/design/domain/engine/waits.md, 5).
 fn dispatch(wait: &Wait, figures: Figures, moving: Option<Wall>, may_hold: bool) -> Option<Outcome> {
     let (at, action) = match (wait.kind, &wait.object, wait.bound) {
         (WaitKind::News | WaitKind::Host | WaitKind::Account, _, Bound::At { at, then: AtBound::Hold }) if may_hold => {

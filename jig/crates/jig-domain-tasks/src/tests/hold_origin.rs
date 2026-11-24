@@ -146,7 +146,7 @@ const WAITER: u64 = 7;
 const INPUT: u64 = 6;
 const HOLDER: u64 = 9;
 const ESCALATION: u64 = 1;
-const WORDS_AT_BOUND: usize = 512; // engine/contracts.md, 1
+const WORDS_AT_BOUND: usize = 512; // jig/docs/design/domain/tasks/lifecycle-holds.md, 1
 const WORDS: &[u8] = b"Waited 24 h for news since 2026-11-24T06:07Z: subscriptions 3 and 5.";
 
 #[test]
