@@ -66,9 +66,6 @@ pub mod wire {
     /// The version named by the current schema's header.
     pub const VERSION: u16 = crate::v14::VERSION;
 
-    /// The lowest version this build speaks.
-    pub const FLOOR: u16 = crate::patches::kept::smith_channel::FLOOR;
-
     /// The embedded current schema text.
     pub const TEXT: &str = crate::CHANNEL_SCHEMA;
 
@@ -84,7 +81,7 @@ pub mod wire {
 
     #[cfg(test)]
     mod tests {
-        use super::{FAMILY, FLOOR, TEXT, VERSION, layout};
+        use super::{FAMILY, TEXT, VERSION, layout};
 
         #[test]
         fn identity_tracks_schema() {
@@ -92,8 +89,6 @@ pub mod wire {
             assert_eq!(FAMILY.as_bytes(), schema.spelled(schema.family()));
             assert_eq!(VERSION, schema.version());
             assert_eq!(VERSION, 14);
-            assert_eq!(FLOOR, crate::patches::kept::smith_channel::FLOOR);
-            assert_eq!(FLOOR, VERSION);
             assert_eq!(layout(), schema.fingerprints().family().digest());
 
             let changed = TEXT.replacen("completion: u32", "completion: u64", 1);
@@ -103,6 +98,3 @@ pub mod wire {
         }
     }
 }
-
-#[path = "../patches/mod.rs"]
-pub mod patches;

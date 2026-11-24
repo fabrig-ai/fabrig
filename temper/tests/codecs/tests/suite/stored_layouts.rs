@@ -3,7 +3,6 @@ use jig_protocol_store::{self as store, JobLayout, KeptFamily, OwnerSets, ValueT
 use sha2::{Digest, Sha256};
 use skein_codec::{
     layout::{Mode, Plan},
-    patch::{Capacity, Patcher},
     schema::{self, DeclIx, FieldIx, Held, Root, Schema, Shape, Type, TypeIx},
 };
 use std::collections::BTreeMap;
@@ -18,12 +17,6 @@ struct Deployed {
     directory: &'static str,
     inventory: &'static str,
     texts: &'static [(&'static str, &'static str)],
-}
-
-struct History {
-    current: &'static [&'static str],
-    kept: &'static [&'static str],
-    patches: &'static [&'static str],
 }
 
 include!(concat!(env!("OUT_DIR"), "/stored_layout_fixtures.rs"));
@@ -109,113 +102,31 @@ fn registered(build: &str, sets: &OwnerSets, family: &KeptFamily, texts: &BTreeM
     failures
 }
 
-fn unchanged(
-    build: &str,
-    old: &Schema,
-    old_held: &[&Schema],
-    new: &Schema,
-    new_held: &[&Schema],
-    only: Option<&str>,
-) -> Vec<String> {
+fn outside(build: &str, old: &Schema, old_held: &[&Schema], new: &Schema, new_held: &[&Schema]) -> Vec<String> {
+    if old.version() != new.version() {
+        return vec![format!(
+            "{build} {}: version changed outside the registry from {} to {}; provide an upgrade path",
+            name(old),
+            old.version(),
+            new.version()
+        )];
+    }
     let mut failures = Vec::new();
     for index in 0..old.declarations() {
         let declaration = old.declaration(DeclIx::new(index));
         let name = old.spelled(declaration.name);
-        if only.is_some_and(|root| root.as_bytes() != name) {
-            continue;
-        }
         let Some(new_root) = new.root(name, None) else { continue };
         let old_root = old.root(name, None).expect("declaration root");
         let before = old.layout(old_root, old_held);
         let after = new.layout(new_root, new_held);
         if before.is_err() || after.is_err() || before != after {
             failures.push(format!(
-                "{build} {}: declaration {}: layout changed outside the registry at version {}; move the version and keep its text and patch",
+                "{build} {}: declaration {}: layout changed outside the registry at version {}; provide an upgrade path",
                 self::name(old), String::from_utf8_lossy(name), old.version(),
             ));
         }
     }
     failures
-}
-
-// Non-frame families keep their histories beside the crate's current schema.
-fn history(family: &str) -> (&'static [&'static str], &'static [&'static str]) {
-    for owner in CURRENT {
-        if owner.current.iter().any(|text| name(&parsed(text)) == family) {
-            return (owner.kept, owner.patches);
-        }
-    }
-    (&[], &[])
-}
-
-fn patched(old: &Schema, new: &Schema, texts: &[String], patches: &[String]) -> bool {
-    // Runtime patch planning validates the history, not merely a file name.
-    let count = u32::try_from(texts.len()).expect("history length").checked_add(1).expect("current text");
-    let mut planner = Patcher::new(Capacity {
-        versions: count,
-        patches: u32::try_from(patches.len()).expect("patch count"),
-        text: schema::MAX_TEXT,
-        bytes: 0,
-        nodes: 0,
-    });
-    let mut kept = false;
-    for text in texts {
-        let schema = parsed(text);
-        if name(&schema) != name(old) {
-            continue;
-        }
-        if schema.version() == old.version() {
-            kept = schema.text() == old.text();
-        }
-        if schema.version() != new.version() && planner.keep(text.as_bytes()).is_err() {
-            return false;
-        }
-    }
-    if !kept || planner.keep(new.text()).is_err() {
-        return false;
-    }
-    for patch in patches {
-        if planner.plan(patch.as_bytes()).is_err() {
-            return false;
-        }
-    }
-    let mut version = old.version();
-    for _ in 0..patches.len() {
-        let Some(plan) = planner.plan_from(version) else { return false };
-        version = planner.versions(plan).to;
-        if version == new.version() {
-            return true;
-        }
-    }
-    false
-}
-
-fn outside(
-    build: &str,
-    family: &KeptFamily,
-    old: &Schema,
-    old_held: &[&Schema],
-    new: &Schema,
-    new_held: &[&Schema],
-    only: Option<&str>,
-) -> Vec<String> {
-    if old.version() == new.version() {
-        return unchanged(build, old, old_held, new, new_held, only);
-    }
-    let (texts, patches) = history(family.name);
-    let texts: Vec<_> = texts.iter().map(|text| (*text).to_owned()).collect();
-    let patches: Vec<_> = patches.iter().map(|text| (*text).to_owned()).collect();
-    if patched(old, new, &texts, &patches) {
-        vec![]
-    } else {
-        vec![format!(
-            "{build} {}: declaration {}: version {} -> {} needs the kept version's text and patch",
-            family.name,
-            only.unwrap_or("every"),
-            old.version(),
-            new.version()
-        )]
-    }
 }
 
 fn frame_layout(build: &str, sets: &OwnerSets, family: &KeptFamily, old: &Schema, new: &Schema) -> Vec<String> {
@@ -266,15 +177,7 @@ fn guard(build: &str, sets: &OwnerSets, texts: &BTreeMap<String, Schema>, source
             failures.extend(frame_layout(build, sets, family, old, new));
         }
         if family.types.is_empty() && family.frames.is_none() {
-            failures.extend(outside(
-                build,
-                family,
-                old,
-                &held(texts, family.name),
-                new,
-                &held(&current, family.name),
-                None,
-            ));
+            failures.extend(outside(build, old, &held(texts, family.name), new, &held(&current, family.name)));
         } else {
             failures.extend(registered(build, sets, family, texts));
         }
@@ -491,18 +394,18 @@ fn registered_renames_need_was() {
 fn outside_layouts_are_fixed_but_names_are_not() {
     let old = parsed(KEPT);
     let changed = parsed(&KEPT.replace("u32", "u64"));
-    let failures = unchanged("mutation-build", &old, &[], &changed, &[], None);
+    let failures = outside("mutation-build", &old, &[], &changed, &[]);
     assert_eq!(failures.len(), 1);
     assert!(failures.first().expect("failure").contains("declaration Value"));
-    assert!(failures.first().expect("failure").contains("move the version"));
+    assert!(failures.first().expect("failure").contains("provide an upgrade path"));
     let renamed = parsed(&KEPT.replace("count", "renamed"));
-    assert_eq!(unchanged("mutation-build", &old, &[], &renamed, &[], None), Vec::<String>::new());
+    assert_eq!(outside("mutation-build", &old, &[], &renamed, &[]), Vec::<String>::new());
     let nested = parsed("family fixture-map 1\nrecord Piece { count: u32 }\nversioned record Value { piece: Piece }");
     let renamed =
         parsed("family fixture-map 1\nrecord Renamed { count: u32 }\nversioned record Value { piece: Renamed }");
-    assert_eq!(unchanged("mutation-build", &nested, &[], &renamed, &[], None), Vec::<String>::new());
+    assert_eq!(outside("mutation-build", &nested, &[], &renamed, &[]), Vec::<String>::new());
     let gone = parsed("family fixture-map 1\nrecord Other { other: bool }");
-    assert_eq!(unchanged("mutation-build", &old, &[], &gone, &[], None), Vec::<String>::new());
+    assert_eq!(outside("mutation-build", &old, &[], &gone, &[]), Vec::<String>::new());
 }
 // OwnerSets is a static shell contract. These tiny, test-owned sets live for
 // the test process, like the upgrade fixtures in one-process/src/upgrade.rs.
@@ -640,18 +543,12 @@ fn frame_body_and_turn_must_each_derive_independently() {
 }
 
 #[test]
-fn moved_versions_need_the_kept_text_and_patch() {
+fn moving_the_version_does_not_bypass_the_floor_guard() {
     let old = parsed(KEPT);
-    let new = parsed(&ADD.replace("fixture-map 1", "fixture-map 2"));
-    let texts = [KEPT.to_owned()];
-    let patches = ["patch 1\nowner fixture 1\nfamily fixture-map 1 to 2\nadd Value.extra u32 0\n".to_owned()];
-    let unrelated = [patches.first().expect("patch").replace("fixture-map", "another-family")];
-    assert!(!patched(&old, &new, &texts, &unrelated));
-    assert!(!patched(&old, &new, &texts, &[]));
-    assert!(!patched(&old, &new, &[], &patches));
-    assert!(patched(&old, &new, &texts, &patches));
-    let edited = [KEPT.replace("count", "renamed")];
-    assert!(!patched(&old, &new, &edited, &patches));
+    let new = parsed(&KEPT.replace("fixture-map 1", "fixture-map 2"));
+    let failures = outside("mutation-build", &old, &[], &new, &[]);
+    assert_eq!(failures.len(), 1);
+    assert!(failures[0].contains("fixture-map: version changed outside the registry from 1 to 2"));
 }
 
 #[test]

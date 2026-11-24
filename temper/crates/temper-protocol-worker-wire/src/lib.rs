@@ -204,9 +204,6 @@ pub mod wire {
     /// The version named by the current schema's header.
     pub const VERSION: u16 = crate::v1::VERSION;
 
-    /// The oldest version this build speaks.
-    pub const FLOOR: u16 = crate::patches::kept::temper_worker_wire::FLOOR;
-
     /// The embedded current schema text.
     pub const TEXT: &str = crate::SCHEMA;
 
@@ -222,7 +219,7 @@ pub mod wire {
 
     #[cfg(test)]
     mod tests {
-        use super::{FAMILY, FLOOR, TEXT, VERSION, layout};
+        use super::{FAMILY, TEXT, VERSION, layout};
 
         #[test]
         fn identity_tracks_schema() {
@@ -230,7 +227,6 @@ pub mod wire {
             assert_eq!(FAMILY.as_bytes(), schema.spelled(schema.family()));
             assert_eq!(VERSION, schema.version());
             assert_eq!(VERSION, 12);
-            assert_eq!(FLOOR, crate::patches::kept::temper_worker_wire::FLOOR);
             assert_eq!(layout(), schema.fingerprints().family().digest());
 
             let changed = TEXT.replacen("tag: u64", "tag: u32", 1);
@@ -240,6 +236,3 @@ pub mod wire {
         }
     }
 }
-
-#[path = "../patches/mod.rs"]
-pub mod patches;

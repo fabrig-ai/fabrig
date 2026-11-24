@@ -23,8 +23,6 @@ mod spoken;
 pub use application::{Application, Carried, Root};
 pub use spoken::{Spoken, spoken};
 mod loss;
-#[path = "../patches/mod.rs"]
-pub mod patches;
 pub use loss::Loss;
 pub mod sizes;
 
@@ -131,9 +129,6 @@ pub mod wire {
 
     /// The version named by the current schema's header.
     pub const VERSION: u16 = crate::v22::VERSION;
-
-    /// The lowest version this build speaks.
-    pub const FLOOR: u16 = crate::patches::kept::jig_worker_wire::FLOOR;
 
     /// The embedded current schema text.
     pub const TEXT: &str = crate::SCHEMA;

@@ -1,4 +1,4 @@
-//! Check report bounds and the v8/v9 bridge (domain/forge/reds.md, 5.6).
+//! Check report bounds (domain/forge/reds.md, 5.6).
 use super::fixtures;
 use crate::v1::{self, Record};
 use skein_lib::{List, Reader, Writer};

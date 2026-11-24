@@ -2312,7 +2312,6 @@ dependencies = [
  "jig-domain-host",
  "jig-domain-link",
  "jig-protocol-charter",
- "skein-codec",
  "skein-io",
  "skein-lib",
  "smith-agent-profile",
@@ -2348,10 +2347,8 @@ version = "0.0.0"
 dependencies = [
  "skein-channel",
  "skein-codec",
- "skein-codegen",
  "skein-heap",
  "skein-lib",
- "skein-scratch",
  "smith-channel",
  "smith-charter",
  "smith-transcript",
@@ -4732,9 +4729,7 @@ version = "0.0.0"
 dependencies = [
  "skein-channel",
  "skein-codec",
- "skein-codegen",
  "skein-lib",
- "skein-scratch",
 ]
 
 [[package]]
@@ -4770,9 +4765,7 @@ name = "smith-charter"
 version = "0.0.0"
 dependencies = [
  "skein-codec",
- "skein-codegen",
  "skein-lib",
- "skein-scratch",
 ]
 
 [[package]]
@@ -4780,7 +4773,6 @@ name = "smith-codecs-world"
 version = "0.0.0"
 dependencies = [
  "skein-channel",
- "skein-checks",
  "skein-codec",
  "skein-codegen",
  "skein-heap",
@@ -4797,7 +4789,6 @@ dependencies = [
  "smith-protocol-llm",
  "smith-protocol-translate",
  "smith-transcript",
- "smith-transcript-patches",
 ]
 
 [[package]]
@@ -5574,9 +5565,7 @@ name = "smith-transcript"
 version = "0.0.0"
 dependencies = [
  "skein-codec",
- "skein-codegen",
  "skein-lib",
- "skein-scratch",
 ]
 
 [[package]]
@@ -8121,9 +8110,7 @@ version = "0.0.0"
 dependencies = [
  "jig-protocol-worker-wire",
  "skein-codec",
- "skein-codegen",
  "skein-lib",
- "skein-scratch",
 ]
 
 [[package]]
