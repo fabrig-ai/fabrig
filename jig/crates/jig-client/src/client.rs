@@ -791,7 +791,7 @@ impl Client {
             link::Request::Approval(answer) => out.push(Request::Approval(answer)),
             link::Request::Authorized(answer) => out.push(Request::Authorized(answer)),
             link::Request::Signing { signing } => self.signing(env, signing),
-            link::Request::Kept { record: link::Saved { record, .. } } => {
+            link::Request::Kept { record } => {
                 let mut kept = List::with_capacity(1);
                 kept.push(record).expect("one restored record");
                 self.domain.restore_record(env, kept, &mut self.domain_out);
@@ -820,7 +820,7 @@ impl Client {
 }
 fn down_event(down: Down) -> link::Event {
     match down {
-        Down::Save { record } => link::Event::Save { record: link::Saved { version: domain::TABLE_VERSION, record } },
+        Down::Save { record } => link::Event::Save { record },
         Down::Erase { key } => link::Event::Erase { key },
         Down::Send { attempt, key, request, value } => link::Event::Send { attempt, key, ask: request, value },
         Down::Open { watch, subject } => link::Event::Open { watch, subject },

@@ -546,7 +546,7 @@ fn kept_key(record: &jig_client::Record, limits: &link::Limits) -> Option<jig_cl
     use jig_client_protocol_wire as w;
     let mut reader = skein_lib::Reader::new(&record.bytes);
     let kept = w::Kept::decode(limits.wire(), &mut reader).ok()?;
-    if !reader.is_empty() {
+    if !reader.is_empty() || kept.layout != w::LAYOUT {
         return None;
     }
     let mut reader = skein_lib::Reader::new(kept.record.as_ref());

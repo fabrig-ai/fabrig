@@ -152,14 +152,11 @@ fn send(number: u8) -> Event {
 
 fn saved(number: u8) -> Saved {
     let Event::Send { key, ask, .. } = send(number) else { unreachable!("send fixture") };
-    Saved {
-        version: jig_client_domain::TABLE_VERSION,
-        record: RequestRecord {
-            key,
-            scope: u64::from(PROJECT),
-            first_sent: None,
-            request: Held { key: Key { asker: Asker::JIG, number: u64::from(number) }, request: ask },
-        },
+    RequestRecord {
+        key,
+        scope: u64::from(PROJECT),
+        first_sent: None,
+        request: Held { key: Key { asker: Asker::JIG, number: u64::from(number) }, request: ask },
     }
 }
 

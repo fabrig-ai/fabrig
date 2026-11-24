@@ -43,6 +43,7 @@ impl Referee {
     }
     fn stored(&mut self, record: &client::Record) {
         let kept = w::Kept::decode(&w::CEILINGS, &mut Reader::new(&record.bytes)).expect("client's kept record");
+        assert_eq!(kept.layout, w::LAYOUT);
         let entry = w::TableEntry::decode(&w::CEILINGS, &mut Reader::new(kept.record.as_ref())).expect("table record");
         self.stored.insert(entry.key, entry.scope);
     }
