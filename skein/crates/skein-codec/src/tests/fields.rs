@@ -24,7 +24,7 @@ fn families_have_distinct_problem_types() {
 
 #[test]
 #[expect(clippy::disallowed_macros, reason = "the test formats Debug without requiring traits from Limits")]
-fn positions_and_refusals_need_no_limits_traits_or_storage() {
+fn names_and_refusals_need_no_limits_traits_or_storage() {
     use core::{
         fmt::Debug,
         hash::{Hash, Hasher},
@@ -33,7 +33,7 @@ fn positions_and_refusals_need_no_limits_traits_or_storage() {
     use std::hash::DefaultHasher;
 
     struct Limits;
-    const PATH: Path<Limits> = Path::new(9, 2);
+    const PATH: Path<Limits> = Path::new("Words.words");
     const PROBLEM: Problem<Limits> = PATH.problem(Reason::Trailing);
     fn traits<T: Clone + Copy + Debug + Eq + Hash>(value: T) -> T {
         value
@@ -46,19 +46,21 @@ fn positions_and_refusals_need_no_limits_traits_or_storage() {
 
     let path = traits(PATH);
     let problem = traits(PROBLEM);
-    assert_eq!((path.declaration, path.part), (9, 2));
-    assert_eq!(size_of::<Path<Limits>>(), size_of::<(u16, u16)>());
+    assert_eq!(path.name(), "Words.words");
+    assert_eq!(size_of::<Path<Limits>>(), size_of::<&str>());
     assert_eq!(size_of::<Problem<Limits>>(), size_of::<Problem<()>>());
-    assert_eq!(path, PATH);
-    assert_ne!(path, Path::new(8, 2));
-    assert_ne!(path, Path::new(9, 1));
+    assert_eq!(size_of::<fixture::Problem>(), size_of::<(&str, Reason)>());
+    let same_name = "Words.words (fixture)".strip_suffix(" (fixture)").expect("same name in another string");
+    assert_eq!(path, Path::new(same_name));
+    assert_ne!(path, Path::new("Other.words"));
+    assert_ne!(path, Path::new("Words.other"));
     assert_eq!(problem, PROBLEM);
-    assert_ne!(problem, Path::new(8, 2).problem(Reason::Trailing));
+    assert_ne!(problem, Path::new("Other.words").problem(Reason::Trailing));
     assert_ne!(problem, PATH.problem(Reason::Short));
-    assert_eq!(hash(&path), hash(&(9_u16, 2_u16)));
-    assert_eq!(hash(&problem), hash(&(9_u16, 2_u16, Reason::Trailing)));
-    assert_eq!(format!("{path:?}"), "Path { declaration: 9, part: 2 }");
-    assert_eq!(format!("{problem:?}"), "Problem { path: Path { declaration: 9, part: 2 }, reason: Trailing }");
+    assert_eq!(hash(&path), hash(&"Words.words"));
+    assert_eq!(hash(&problem), hash(&("Words.words", Reason::Trailing)));
+    assert_eq!(format!("{path:?}"), "Path { name: \"Words.words\" }");
+    assert_eq!(format!("{problem:?}"), "Problem { path: Path { name: \"Words.words\" }, reason: Trailing }");
 }
 
 #[test]
@@ -78,14 +80,13 @@ fn limits_refuse_the_first_excess_at_its_path() {
     assert_eq!(check_limits(&limits), Err(paths::WORDS_WORDS.problem(Reason::Bound)));
 }
 
-const PATH: Path<()> = Path::new(9, 2);
+const PATH: Path<()> = Path::new("Test.field");
 
 #[test]
 fn generated_constants_match_every_fixture_bound_at_zero() {
-    use fixture::{Choice, Empty, Limits, Nested, Row, Words};
+    use fixture::{CEILINGS, Choice, Empty, Nested, Row, Words};
 
-    let zero =
-        Limits { words_words: 0, nested_words: 0, nested_words_item_some: 0, nested_maybe_some: 0, nested_records: 0 };
+    let zero = CEILINGS.at_most(0);
     for (name, bound, constant) in [
         ("Empty", Empty::encoded_bound(&zero), Empty::ENCODED_AT_ZERO),
         ("Words", Words::encoded_bound(&zero), Words::ENCODED_AT_ZERO),
@@ -212,7 +213,7 @@ fn record_round_trip<T: Record<Limits = fixture::Limits> + core::fmt::Debug + Pa
     value: T,
     bytes: &[u8],
 ) {
-    let path = fixture::Path::new(9, 2);
+    let path = fixture::Path::new("Test.nested");
     assert_eq!(value.measure(&fixture::CEILINGS), Ok(u32::try_from(bytes.len()).expect("small")));
     assert_eq!(value.encode(&fixture::CEILINGS).expect("encode").as_ref(), bytes);
     assert_eq!(T::decode(&fixture::CEILINGS, &mut Reader::new(bytes)), Ok(value.clone()));
@@ -286,9 +287,10 @@ fn records_enumerations_versions_and_nested_paths() {
         Row::decode(&fixture::CEILINGS, &mut Reader::new(&[0, 7, 2, 0, 0, 0, 4])),
         Err(paths::WORDS_WORDS.problem(Reason::Bound))
     );
-    assert_eq!(fixture::name(paths::WORDS_WORDS), Some("Words.words"));
-    assert_eq!(fixture::name(fixture::Path::new(u16::MAX, 0)), None);
-    assert_eq!(fixture::name(fixture::Path::new(1, u16::MAX)), None);
+    assert_eq!(paths::WORDS_WORDS.name(), "Words.words");
+    assert_eq!(paths::ROW_VERSION.name(), "Row (version)");
+    assert_eq!(paths::ROW_TAIL.name(), "Row (tail)");
+    assert_eq!(paths::CHOICE_TAG.name(), "Choice (tag)");
     let mut limits = fixture::CEILINGS;
     limits.words_words = 1;
     assert_eq!(Words { words: Box::from(&b"ab"[..]) }.measure(&limits), Err(paths::WORDS_WORDS.problem(Reason::Bound)));

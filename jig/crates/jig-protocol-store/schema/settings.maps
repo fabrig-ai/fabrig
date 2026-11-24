@@ -10,6 +10,19 @@ use s = skein_codec::convert
 use own = crate::codec::settings
 by hand crate::codec::settings
 context crate::settings_v3::Limits
+refuses own::charter_reasons_to_domain
+refuses own::contract_to_domain
+refuses own::contract_to_record
+refuses own::document_to_domain
+refuses own::document_to_record
+refuses own::value_to_domain
+refuses own::value_to_record
+with context own::contract_to_domain
+with context own::contract_to_record
+with context own::document_to_domain
+with context own::document_to_record
+with context own::value_to_domain
+with context own::value_to_record
 
 record Text stands for bytes
 record ModelName = v::ModelName { efforts slice }

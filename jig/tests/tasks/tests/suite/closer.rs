@@ -441,6 +441,8 @@ fn an_idle_task_gives_what_it_has_left_to_its_closer() {
         parent.spent + parent.spent_below + world.record(closer).numbers.budget + world.record(work).numbers.budget,
         parent.budget
     );
+    // End the escalation wait so the work's report does not wake the parent.
+    release_hold(&mut world, closer);
     world.finish_task(work);
     let parent = world.record(TASK).numbers;
     assert_eq!(parent.budget - parent.spent - parent.spent_below - parent.reserved, 0);

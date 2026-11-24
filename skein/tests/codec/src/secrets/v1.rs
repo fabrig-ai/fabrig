@@ -10,6 +10,7 @@ pub type Problem = skein_codec::Problem<Limits>;
 pub const VERSION: u16 = 1;
 
 // Limits: the owner's values, checked once against ceilings.
+#[repr(C)]
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Limits {
     pub credential_name: u32,
@@ -29,10 +30,19 @@ pub const LIMIT_NAMES: &[&str] = &[
 impl Limits {
     #[must_use]
     pub fn values(&self) -> List<u32> {
-        let mut values = List::with_capacity(u32::try_from(LIMIT_NAMES.len()).expect("schema limits fit u32"));
-        values.push(self.credential_name).expect("room for every named limit");
-        values.push(self.credential_value).expect("room for every named limit");
-        values
+        List::from_boxed([
+            self.credential_name,
+            self.credential_value,
+        ].into())
+    }
+
+    #[must_use]
+    pub fn at_most(&self, most: u32) -> Limits {
+        let _: u32 = most;
+        Limits {
+            credential_name: self.credential_name.min(most),
+            credential_value: self.credential_value.min(most),
+        }
     }
 }
 
@@ -50,52 +60,12 @@ pub fn check_limits(limits: &Limits) -> Result<(), Problem> {
     Ok(())
 }
 
-// Paths: declaration and part positions, with one naming table.
+// Paths: names as the schema spells them.
 pub mod paths {
     use super::Path;
-    pub const CREDENTIAL_NAME: Path = Path::new(0, 0);
-    pub const CREDENTIAL_VALUE: Path = Path::new(0, 1);
-    pub const CREDENTIAL_TAIL: Path = Path::new(0, 2);
-}
-
-const PATH_NAMES: &[&[&str]] = &[
-    &[
-        "Credential.name",
-        "Credential.value",
-        "Credential (tail)",
-    ],
-];
-
-/// The path as the schema spells it, or None outside this family's table.
-#[must_use]
-pub fn name(path: Path) -> Option<&'static str> {
-    PATH_NAMES.get(usize::from(path.declaration))?.get(usize::from(path.part)).copied()
-}
-
-// Table: postordered shapes, with compiler-known heap slot sizes.
-static TABLE: &[skein_codec::bounds::Node] = &[
-    skein_codec::bounds::Node::Bytes { limit: 0 },
-    skein_codec::bounds::Node::Bytes { limit: 1 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1] },
-];
-
-const DECLARATIONS: &[u32] = &[
-    2,
-];
-
-static CEILING_VALUES: &[u32] = &[
-    64,
-    64,
-];
-
-#[must_use]
-pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-    Some(skein_codec::bounds::family(TABLE, limits.values().as_slice(), CEILING_VALUES, DECLARATIONS)?.encoded)
-}
-
-#[must_use]
-pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-    Some(skein_codec::bounds::family(TABLE, limits.values().as_slice(), CEILING_VALUES, DECLARATIONS)?.decoded)
+    pub const CREDENTIAL_NAME: Path = Path::new("Credential.name");
+    pub const CREDENTIAL_VALUE: Path = Path::new("Credential.value");
+    pub const CREDENTIAL_TAIL: Path = Path::new("Credential (tail)");
 }
 
 // Type: Credential.
@@ -107,6 +77,12 @@ pub struct Credential {
 
 // Record: Credential.
 impl Credential {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, credential_name) },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, credential_value) },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 8;
 }
@@ -116,11 +92,11 @@ impl Record for Credential {
     const TAIL: Path = paths::CREDENTIAL_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Credential")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 2)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Credential")?.decoded)
     }
 
     #[cfg(debug_assertions)]
@@ -146,3 +122,22 @@ impl Record for Credential {
     }
 }
 
+// Bounds: one postordered shape per declaration, sorted by name.
+pub static DECLARATIONS: &[skein_codec::bounds::Declaration] = &[
+    skein_codec::bounds::Declaration { name: "Credential", nodes: Credential::SHAPE },
+];
+
+static CEILING_VALUES: &[u32] = &[
+    CEILINGS.credential_name,
+    CEILINGS.credential_value,
+];
+
+#[must_use]
+pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+    Some(skein_codec::bounds::family(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES)?.encoded)
+}
+
+#[must_use]
+pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+    Some(skein_codec::bounds::family(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES)?.decoded)
+}

@@ -886,7 +886,7 @@ fn assignment_record(
 }
 pub(crate) fn problem(problem: wire::v22::Problem) -> crate::Unencoded {
     crate::Unencoded {
-        field: wire::v22::name(problem.path).expect("generated problem path"),
+        field: problem.path.name(),
         reason: Some(problem.reason),
         figure: None,
         bound: None,

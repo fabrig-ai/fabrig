@@ -4,7 +4,6 @@ use super::{amendment_setup, final_answer, keyed, member_setup, owner_authority,
 use jig_client_protocol_wire::Record as _;
 use jig_core_kit::fixtures::live_row;
 use jig_domain_tasks as tasks;
-use jig_engine_clients_world::fixtures;
 use skein_lib::{List, Writer};
 
 /// A choice by name: a main model and effort, then each sub-agent's model and effort.
@@ -104,7 +103,6 @@ fn a_create_naming_a_model_and_its_effort_keeps_them_by_configuration_s_indices(
 
     // Both translations meet at the core boundary; the core owns retaining a party's choice.
     let models = super::real_core_settings().models;
-    let limits = fixtures::limits().wire;
     for (key, named, later) in [
         ([66; 16], first.clone(), None),
         (
@@ -118,8 +116,7 @@ fn a_create_naming_a_model_and_its_effort_keeps_them_by_configuration_s_indices(
     ] {
         let expected = tasks::LlmChoice { later, ..expected.clone() };
         assert_eq!(
-            jig_protocol_engine_clients::translate::llm::choice(Some(&expected), &models, &limits)
-                .expect("named choice"),
+            jig_protocol_engine_clients::translate::llm::choice(Some(&expected), &models).expect("named choice"),
             Some(named.clone())
         );
         peer.post(b"/jig/v1/request", keyed(key, &create(named)), Some(&bearer));

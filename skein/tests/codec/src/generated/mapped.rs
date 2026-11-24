@@ -10,6 +10,7 @@ pub type Problem = skein_codec::Problem<Limits>;
 pub const VERSION: u16 = 1;
 
 // Limits: the owner's values, checked once against ceilings.
+#[repr(C)]
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct Limits {
     pub label_text: u32,
@@ -53,18 +54,35 @@ pub const LIMIT_NAMES: &[&str] = &[
 impl Limits {
     #[must_use]
     pub fn values(&self) -> List<u32> {
-        let mut values = List::with_capacity(u32::try_from(LIMIT_NAMES.len()).expect("schema limits fit u32"));
-        values.push(self.label_text).expect("room for every named limit");
-        values.push(self.packet_caption).expect("room for every named limit");
-        values.push(self.packet_times).expect("room for every named limit");
-        values.push(self.packet_references).expect("room for every named limit");
-        values.push(self.packet_labels).expect("room for every named limit");
-        values.push(self.packet_items).expect("room for every named limit");
-        values.push(self.packet_counts).expect("room for every named limit");
-        values.push(self.packet_padding).expect("room for every named limit");
-        values.push(self.packet_optional_items_some).expect("room for every named limit");
-        values.push(self.packet_events).expect("room for every named limit");
-        values
+        List::from_boxed([
+            self.label_text,
+            self.packet_caption,
+            self.packet_times,
+            self.packet_references,
+            self.packet_labels,
+            self.packet_items,
+            self.packet_counts,
+            self.packet_padding,
+            self.packet_optional_items_some,
+            self.packet_events,
+        ].into())
+    }
+
+    #[must_use]
+    pub fn at_most(&self, most: u32) -> Limits {
+        let _: u32 = most;
+        Limits {
+            label_text: self.label_text.min(most),
+            packet_caption: self.packet_caption.min(most),
+            packet_times: self.packet_times.min(most),
+            packet_references: self.packet_references.min(most),
+            packet_labels: self.packet_labels.min(most),
+            packet_items: self.packet_items.min(most),
+            packet_counts: self.packet_counts.min(most),
+            packet_padding: self.packet_padding.min(most),
+            packet_optional_items_some: self.packet_optional_items_some.min(most),
+            packet_events: self.packet_events.min(most),
+        }
     }
 }
 
@@ -90,291 +108,44 @@ pub fn check_limits(limits: &Limits) -> Result<(), Problem> {
     Ok(())
 }
 
-// Paths: declaration and part positions, with one naming table.
+// Paths: names as the schema spells them.
 pub mod paths {
     use super::Path;
-    pub const REFERENCE_ID: Path = Path::new(0, 0);
-    pub const REFERENCE_TAIL: Path = Path::new(0, 1);
-    pub const LABEL_TEXT: Path = Path::new(1, 0);
-    pub const LABEL_TAIL: Path = Path::new(1, 1);
-    pub const ITEM_CODE: Path = Path::new(2, 0);
-    pub const ITEM_TAIL: Path = Path::new(2, 1);
-    pub const EMPTY_TAIL: Path = Path::new(3, 0);
-    pub const SHARED_COUNT: Path = Path::new(4, 0);
-    pub const SHARED_TAIL: Path = Path::new(4, 1);
-    pub const CHECKED_CODE: Path = Path::new(5, 0);
-    pub const CHECKED_TAIL: Path = Path::new(5, 1);
-    pub const HAND_CHOICE_TAG: Path = Path::new(6, 0);
-    pub const EVENT_TAG: Path = Path::new(7, 0);
-    pub const PACKET_WHEN: Path = Path::new(8, 0);
-    pub const PACKET_CAPTION: Path = Path::new(8, 1);
-    pub const PACKET_MAYBE: Path = Path::new(8, 2);
-    pub const PACKET_TIMES: Path = Path::new(8, 3);
-    pub const PACKET_REFERENCES: Path = Path::new(8, 4);
-    pub const PACKET_LABELS: Path = Path::new(8, 5);
-    pub const PACKET_ITEMS: Path = Path::new(8, 6);
-    pub const PACKET_COUNTS: Path = Path::new(8, 7);
-    pub const PACKET_PADDING: Path = Path::new(8, 8);
-    pub const PACKET_PRIMARY: Path = Path::new(8, 9);
-    pub const PACKET_OPTIONAL_ITEMS: Path = Path::new(8, 10);
-    pub const PACKET_OPTIONAL_PRIMARY: Path = Path::new(8, 11);
-    pub const PACKET_EVENTS: Path = Path::new(8, 12);
-    pub const PACKET_CHECKED: Path = Path::new(8, 13);
-    pub const PACKET_CHOICE: Path = Path::new(8, 14);
-    pub const PACKET_ENABLED: Path = Path::new(8, 15);
-    pub const PACKET_NONCE: Path = Path::new(8, 16);
-    pub const PACKET_AGE: Path = Path::new(8, 17);
-    pub const PACKET_TAIL: Path = Path::new(8, 18);
-    pub const ROOT_PACKET: Path = Path::new(9, 0);
-    pub const ROOT_TAIL: Path = Path::new(9, 1);
-    pub const LONG_CHOICE_TAG: Path = Path::new(10, 0);
-}
-
-const PATH_NAMES: &[&[&str]] = &[
-    &[
-        "Reference.id",
-        "Reference (tail)",
-    ],
-    &[
-        "Label.text",
-        "Label (tail)",
-    ],
-    &[
-        "Item.code",
-        "Item (tail)",
-    ],
-    &[
-        "Empty (tail)",
-    ],
-    &[
-        "Shared.count",
-        "Shared (tail)",
-    ],
-    &[
-        "Checked.code",
-        "Checked (tail)",
-    ],
-    &[
-        "HandChoice (tag)",
-    ],
-    &[
-        "Event (tag)",
-    ],
-    &[
-        "Packet.when",
-        "Packet.caption",
-        "Packet.maybe",
-        "Packet.times",
-        "Packet.references",
-        "Packet.labels",
-        "Packet.items",
-        "Packet.counts",
-        "Packet.padding",
-        "Packet.primary",
-        "Packet.optional_items",
-        "Packet.optional_primary",
-        "Packet.events",
-        "Packet.checked",
-        "Packet.choice",
-        "Packet.enabled",
-        "Packet.nonce",
-        "Packet.age",
-        "Packet (tail)",
-    ],
-    &[
-        "Root.packet",
-        "Root (tail)",
-    ],
-    &[
-        "LongChoice (tag)",
-    ],
-];
-
-/// The path as the schema spells it, or None outside this family's table.
-#[must_use]
-pub fn name(path: Path) -> Option<&'static str> {
-    PATH_NAMES.get(usize::from(path.declaration))?.get(usize::from(path.part)).copied()
-}
-
-// Table: postordered shapes, with compiler-known heap slot sizes.
-static TABLE: &[skein_codec::bounds::Node] = &[
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[0] },
-    skein_codec::bounds::Node::Bytes { limit: 0 },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[2] },
-    skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[4] },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[] },
-    skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[7] },
-    skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[9] },
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[11, 12] },
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Boxed { item: 5, size: size_of::<Item>() },
-    skein_codec::bounds::Node::Boxed { item: 5, size: size_of::<Item>() },
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[14, 8, 8, 15, 16, 3, 17, 10] },
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Bytes { limit: 1 },
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Option { item: 21 },
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::List { limit: 2, item: 23, size: size_of::<u64>() },
-    skein_codec::bounds::Node::List { limit: 3, item: 1, size: size_of::<Reference>() },
-    skein_codec::bounds::Node::List { limit: 4, item: 3, size: size_of::<Label>() },
-    skein_codec::bounds::Node::List { limit: 5, item: 5, size: size_of::<Item>() },
-    skein_codec::bounds::Node::Scalar(4),
-    skein_codec::bounds::Node::List { limit: 6, item: 28, size: size_of::<u32>() },
-    skein_codec::bounds::Node::List { limit: 7, item: 6, size: size_of::<Empty>() },
-    skein_codec::bounds::Node::List { limit: 8, item: 5, size: size_of::<Item>() },
-    skein_codec::bounds::Node::Option { item: 31 },
-    skein_codec::bounds::Node::Option { item: 5 },
-    skein_codec::bounds::Node::List { limit: 9, item: 18, size: size_of::<Event>() },
-    skein_codec::bounds::Node::Scalar(1),
-    skein_codec::bounds::Node::Scalar(2),
-    skein_codec::bounds::Node::Scalar(8),
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[19, 20, 22, 24, 25, 26, 27, 29, 30, 5, 32, 33, 34, 10, 13, 35, 36, 37] },
-    skein_codec::bounds::Node::Record { prefix: 0, fields: &[38] },
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Scalar(0),
-    skein_codec::bounds::Node::Enum { variants: &[40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 132, 133, 134, 135, 136, 137, 138] },
-];
-
-const DECLARATIONS: &[u32] = &[
-    1,
-    3,
-    5,
-    6,
-    8,
-    10,
-    13,
-    18,
-    38,
-    39,
-    139,
-];
-
-static CEILING_VALUES: &[u32] = &[
-    16,
-    16,
-    4,
-    4,
-    4,
-    4,
-    4,
-    4,
-    4,
-    8,
-];
-
-#[must_use]
-pub fn encoded_bound(limits: &Limits) -> Option<u64> {
-    Some(skein_codec::bounds::family(TABLE, limits.values().as_slice(), CEILING_VALUES, DECLARATIONS)?.encoded)
-}
-
-#[must_use]
-pub fn decoded_bound(limits: &Limits) -> Option<u64> {
-    Some(skein_codec::bounds::family(TABLE, limits.values().as_slice(), CEILING_VALUES, DECLARATIONS)?.decoded)
+    pub const REFERENCE_ID: Path = Path::new("Reference.id");
+    pub const REFERENCE_TAIL: Path = Path::new("Reference (tail)");
+    pub const LABEL_TEXT: Path = Path::new("Label.text");
+    pub const LABEL_TAIL: Path = Path::new("Label (tail)");
+    pub const ITEM_CODE: Path = Path::new("Item.code");
+    pub const ITEM_TAIL: Path = Path::new("Item (tail)");
+    pub const EMPTY_TAIL: Path = Path::new("Empty (tail)");
+    pub const SHARED_COUNT: Path = Path::new("Shared.count");
+    pub const SHARED_TAIL: Path = Path::new("Shared (tail)");
+    pub const CHECKED_CODE: Path = Path::new("Checked.code");
+    pub const CHECKED_TAIL: Path = Path::new("Checked (tail)");
+    pub const HAND_CHOICE_TAG: Path = Path::new("HandChoice (tag)");
+    pub const EVENT_TAG: Path = Path::new("Event (tag)");
+    pub const PACKET_WHEN: Path = Path::new("Packet.when");
+    pub const PACKET_CAPTION: Path = Path::new("Packet.caption");
+    pub const PACKET_MAYBE: Path = Path::new("Packet.maybe");
+    pub const PACKET_TIMES: Path = Path::new("Packet.times");
+    pub const PACKET_REFERENCES: Path = Path::new("Packet.references");
+    pub const PACKET_LABELS: Path = Path::new("Packet.labels");
+    pub const PACKET_ITEMS: Path = Path::new("Packet.items");
+    pub const PACKET_COUNTS: Path = Path::new("Packet.counts");
+    pub const PACKET_PADDING: Path = Path::new("Packet.padding");
+    pub const PACKET_PRIMARY: Path = Path::new("Packet.primary");
+    pub const PACKET_OPTIONAL_ITEMS: Path = Path::new("Packet.optional_items");
+    pub const PACKET_OPTIONAL_PRIMARY: Path = Path::new("Packet.optional_primary");
+    pub const PACKET_EVENTS: Path = Path::new("Packet.events");
+    pub const PACKET_CHECKED: Path = Path::new("Packet.checked");
+    pub const PACKET_CHOICE: Path = Path::new("Packet.choice");
+    pub const PACKET_ENABLED: Path = Path::new("Packet.enabled");
+    pub const PACKET_NONCE: Path = Path::new("Packet.nonce");
+    pub const PACKET_AGE: Path = Path::new("Packet.age");
+    pub const PACKET_TAIL: Path = Path::new("Packet (tail)");
+    pub const ROOT_PACKET: Path = Path::new("Root.packet");
+    pub const ROOT_TAIL: Path = Path::new("Root (tail)");
+    pub const LONG_CHOICE_TAG: Path = Path::new("LongChoice (tag)");
 }
 
 // Type: Reference.
@@ -385,6 +156,11 @@ pub struct Reference {
 
 // Record: Reference.
 impl Reference {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 8;
 }
@@ -394,11 +170,20 @@ impl Record for Reference {
     const TAIL: Path = paths::REFERENCE_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Reference")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 1)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Reference")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -421,6 +206,11 @@ pub struct Label {
 
 // Record: Label.
 impl Label {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, label_text) },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 4;
 }
@@ -430,11 +220,20 @@ impl Record for Label {
     const TAIL: Path = paths::LABEL_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 3)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Label")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 3)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Label")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -457,6 +256,11 @@ pub struct Item {
 
 // Record: Item.
 impl Item {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(4),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 4;
 }
@@ -466,11 +270,20 @@ impl Record for Item {
     const TAIL: Path = paths::ITEM_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 5)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Item")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 5)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Item")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -492,6 +305,10 @@ pub struct Empty {
 
 // Record: Empty.
 impl Empty {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 0;
 }
@@ -501,11 +318,20 @@ impl Record for Empty {
     const TAIL: Path = paths::EMPTY_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 6)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Empty")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 6)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Empty")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, _limits: &Limits, _out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -526,6 +352,11 @@ pub struct Shared {
 
 // Record: Shared.
 impl Shared {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(4),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 4;
 }
@@ -535,11 +366,20 @@ impl Record for Shared {
     const TAIL: Path = paths::SHARED_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 8)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Shared")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 8)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Shared")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -562,6 +402,11 @@ pub struct Checked {
 
 // Record: Checked.
 impl Checked {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(4),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 4;
 }
@@ -571,11 +416,20 @@ impl Record for Checked {
     const TAIL: Path = paths::CHECKED_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 10)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Checked")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 10)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Checked")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -599,6 +453,12 @@ pub enum HandChoice {
 
 // Record: HandChoice.
 impl HandChoice {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Enum { variants: &[0, 1] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 1;
 }
@@ -608,11 +468,20 @@ impl Record for HandChoice {
     const TAIL: Path = paths::HAND_CHOICE_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 13)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "HandChoice")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 13)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "HandChoice")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, _limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -647,6 +516,20 @@ pub enum Event {
 
 // Record: Event.
 impl Event {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Named("Shared"),
+        skein_codec::bounds::Node::Named("Shared"),
+        skein_codec::bounds::Node::Named("Item"),
+        skein_codec::bounds::Node::Boxed { item: 3, size: size_of::<Item>() },
+        skein_codec::bounds::Node::Named("Item"),
+        skein_codec::bounds::Node::Boxed { item: 5, size: size_of::<Item>() },
+        skein_codec::bounds::Node::Named("Label"),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Named("Checked"),
+        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2, 4, 6, 7, 8, 9] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 5;
 }
@@ -656,11 +539,20 @@ impl Record for Event {
     const TAIL: Path = paths::EVENT_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 18)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Event")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 18)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Event")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -717,6 +609,39 @@ pub struct Packet {
 
 // Record: Packet.
 impl Packet {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, packet_caption) },
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Option { item: 2 },
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, packet_times), item: 4, size: size_of::<u64>() },
+        skein_codec::bounds::Node::Named("Reference"),
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, packet_references), item: 6, size: size_of::<Reference>() },
+        skein_codec::bounds::Node::Named("Label"),
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, packet_labels), item: 8, size: size_of::<Label>() },
+        skein_codec::bounds::Node::Named("Item"),
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, packet_items), item: 10, size: size_of::<Item>() },
+        skein_codec::bounds::Node::Scalar(4),
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, packet_counts), item: 12, size: size_of::<u32>() },
+        skein_codec::bounds::Node::Named("Empty"),
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, packet_padding), item: 14, size: size_of::<Empty>() },
+        skein_codec::bounds::Node::Named("Item"),
+        skein_codec::bounds::Node::Named("Item"),
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, packet_optional_items_some), item: 17, size: size_of::<Item>() },
+        skein_codec::bounds::Node::Option { item: 18 },
+        skein_codec::bounds::Node::Named("Item"),
+        skein_codec::bounds::Node::Option { item: 20 },
+        skein_codec::bounds::Node::Named("Event"),
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, packet_events), item: 22, size: size_of::<Event>() },
+        skein_codec::bounds::Node::Named("Checked"),
+        skein_codec::bounds::Node::Named("HandChoice"),
+        skein_codec::bounds::Node::Scalar(1),
+        skein_codec::bounds::Node::Scalar(2),
+        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 3, 5, 7, 9, 11, 13, 15, 16, 19, 21, 23, 24, 25, 26, 27, 28] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 79;
 }
@@ -726,11 +651,20 @@ impl Record for Packet {
     const TAIL: Path = paths::PACKET_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 38)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Packet")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 38)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Packet")?.decoded)
+    }
+
+    #[cfg(debug_assertions)]
+    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
+        let value = Self::read(limits, reader)?;
+        if !reader.is_empty() {
+            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
+        }
+        Ok(value)
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
@@ -787,6 +721,11 @@ pub struct Root {
 
 // Record: Root.
 impl Root {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Named("Packet"),
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 79;
 }
@@ -796,11 +735,11 @@ impl Record for Root {
     const TAIL: Path = paths::ROOT_TAIL;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 39)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Root")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 39)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Root")?.decoded)
     }
 
     #[cfg(debug_assertions)]
@@ -930,6 +869,109 @@ pub enum LongChoice {
 
 // Record: LongChoice.
 impl LongChoice {
+    const SHAPE: &'static [skein_codec::bounds::Node] = &[
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98] },
+    ];
+
     /// The record's encoded bound with every limit it reaches set to zero.
     pub const ENCODED_AT_ZERO: u64 = 1;
 }
@@ -939,11 +981,11 @@ impl Record for LongChoice {
     const TAIL: Path = paths::LONG_CHOICE_TAG;
 
     fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 139)?.encoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "LongChoice")?.encoded)
     }
 
     fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, 139)?.decoded)
+        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "LongChoice")?.decoded)
     }
 
     #[cfg(debug_assertions)]
@@ -1168,3 +1210,40 @@ impl Record for LongChoice {
     }
 }
 
+// Bounds: one postordered shape per declaration, sorted by name.
+pub static DECLARATIONS: &[skein_codec::bounds::Declaration] = &[
+    skein_codec::bounds::Declaration { name: "Checked", nodes: Checked::SHAPE },
+    skein_codec::bounds::Declaration { name: "Empty", nodes: Empty::SHAPE },
+    skein_codec::bounds::Declaration { name: "Event", nodes: Event::SHAPE },
+    skein_codec::bounds::Declaration { name: "HandChoice", nodes: HandChoice::SHAPE },
+    skein_codec::bounds::Declaration { name: "Item", nodes: Item::SHAPE },
+    skein_codec::bounds::Declaration { name: "Label", nodes: Label::SHAPE },
+    skein_codec::bounds::Declaration { name: "LongChoice", nodes: LongChoice::SHAPE },
+    skein_codec::bounds::Declaration { name: "Packet", nodes: Packet::SHAPE },
+    skein_codec::bounds::Declaration { name: "Reference", nodes: Reference::SHAPE },
+    skein_codec::bounds::Declaration { name: "Root", nodes: Root::SHAPE },
+    skein_codec::bounds::Declaration { name: "Shared", nodes: Shared::SHAPE },
+];
+
+static CEILING_VALUES: &[u32] = &[
+    CEILINGS.label_text,
+    CEILINGS.packet_caption,
+    CEILINGS.packet_times,
+    CEILINGS.packet_references,
+    CEILINGS.packet_labels,
+    CEILINGS.packet_items,
+    CEILINGS.packet_counts,
+    CEILINGS.packet_padding,
+    CEILINGS.packet_optional_items_some,
+    CEILINGS.packet_events,
+];
+
+#[must_use]
+pub fn encoded_bound(limits: &Limits) -> Option<u64> {
+    Some(skein_codec::bounds::family(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES)?.encoded)
+}
+
+#[must_use]
+pub fn decoded_bound(limits: &Limits) -> Option<u64> {
+    Some(skein_codec::bounds::family(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES)?.decoded)
+}

@@ -8,13 +8,13 @@ pub(in crate::codec) fn wire_amendment_state(
     limits: &w::Limits,
 ) -> Result<w::AmendmentState, w::Problem> {
     Ok(w::AmendmentState {
-        addressed: value.addressed.as_ref().map(|item| wire_person_address(item, limits)).transpose()?,
-        taken_by: value.taken_by.as_ref().map(|item| Ok::<_, w::Problem>(*(item))).transpose()?,
-        instructions: value.instructions.as_ref().map(|item| wire_document_text(item, limits)).transpose()?,
-        spec: wire_specification_document(&value.spec, limits)?,
+        addressed: value.addressed.as_ref().map(wire_person_address),
+        taken_by: value.taken_by,
+        instructions: value.instructions.as_ref().map(wire_document_text),
+        spec: wire_specification_document(&value.spec),
         authority: wire_authority_document(&value.authority, limits)?,
-        wake: wire_wake_policy(&value.wake, limits)?,
-        dependencies: list(value.dependencies.iter().map(|item| Ok::<_, w::Problem>(*(item))))?,
+        wake: wire_wake_policy(&value.wake),
+        dependencies: list(value.dependencies.iter().copied()),
         cut: value.cut,
     })
 }

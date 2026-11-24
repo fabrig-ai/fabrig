@@ -6,6 +6,7 @@
 extern crate alloc;
 
 mod analysis;
+mod bounds_text;
 mod check;
 mod constructs;
 pub mod diff;
@@ -19,6 +20,7 @@ mod parse;
 pub mod patch;
 mod values;
 
+pub use bounds_text::bounds_text;
 pub use constructs::{CONSTRUCTS, Construct, Kind, constructs, missing};
 pub use emit_limits::{pascal, snake};
 pub use largest::{largest, largest_variants, roots};

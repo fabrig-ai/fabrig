@@ -160,7 +160,7 @@ fn tokens(source: &str) -> Vec<Token> {
 pub(super) fn parse(schema: &Schema, source: &str) -> Result<Maps, Error> {
     let mut parser = Parser { schema, tokens: tokens(source), at: 0 };
     let mut maps = Maps::default();
-    let mut context_seen = false;
+    let mut marks = Vec::new();
     parser.separators();
     while !matches!(parser.peek(), "" | "record" | "enum") {
         let token = parser.take()?;
@@ -178,7 +178,7 @@ pub(super) fn parse(schema: &Schema, source: &str) -> Result<Maps, Error> {
                 parser.expect("hand")?;
                 maps.hand = Some(parser.word()?);
             }
-            "context" if !context_seen => {
+            "context" if maps.context.is_none() => {
                 let mut words = Vec::new();
                 while !matches!(parser.peek(), "" | "\n") {
                     words.push(parser.take()?.text);
@@ -186,8 +186,14 @@ pub(super) fn parse(schema: &Schema, source: &str) -> Result<Maps, Error> {
                 if words.is_empty() {
                     return Err(error(schema, token.line, "expected context type"));
                 }
-                maps.context = words.join(" ");
-                context_seen = true;
+                maps.context = Some((token.line, words.join(" ")));
+            }
+            "refuses" | "with" => {
+                let context = token.text == "with";
+                if context {
+                    parser.expect("context")?;
+                }
+                marks.push((context, token.line, parser.word()?));
             }
             _ => return Err(error(schema, token.line, "unknown or repeated header")),
         }
@@ -197,8 +203,24 @@ pub(super) fn parse(schema: &Schema, source: &str) -> Result<Maps, Error> {
     if maps.records.is_empty() {
         return Err(error(schema, parser.line(), "header requires records"));
     }
-    if !context_seen {
-        maps.context = "()".into();
+    for (context, line, path) in marks {
+        let path = maps.path(&path);
+        let marked = if context {
+            if maps.context.is_none() {
+                return Err(error(schema, line, "with context requires a context line"));
+            }
+            &mut maps.with_context
+        } else {
+            &mut maps.refuses
+        };
+        if marked.insert(path.clone(), line).is_some() {
+            return Err(error(schema, line, format!("{path} marked twice")));
+        }
+    }
+    if let Some((line, _)) = &maps.context
+        && maps.with_context.is_empty()
+    {
+        return Err(error(schema, *line, "context requires a function marked with context"));
     }
     while parser.peek() != "" {
         if !matches!(parser.peek(), "record" | "enum") {

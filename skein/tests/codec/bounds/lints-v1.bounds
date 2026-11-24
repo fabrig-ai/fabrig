@@ -1,0 +1,12 @@
+Boundless: ceilings encoded=4 decoded=0; at_most(3) encoded=4 decoded=0
+BoxedChoice: ceilings encoded=10 decoded=20; at_most(3) encoded=9 decoded=19
+FixedWidthItems: ceilings encoded=56 decoded=48; at_most(3) encoded=44 decoded=36
+HostTool: ceilings encoded=10012 decoded=10000; at_most(3) encoded=15 decoded=3
+InlineChoice: ceilings encoded=10 decoded=4; at_most(3) encoded=9 decoded=3
+LongRecord: ceilings encoded=800 decoded=400; at_most(3) encoded=700 decoded=300
+OneByteItems: ceilings encoded=40 decoded=112; at_most(3) encoded=28 decoded=81
+OptionalPayload: ceilings encoded=9 decoded=4; at_most(3) encoded=8 decoded=3
+OtherPayload: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
+Payload: ceilings encoded=8 decoded=4; at_most(3) encoded=7 decoded=3
+Shared: ceilings encoded=9 decoded=4; at_most(3) encoded=8 decoded=3
+family: ceilings encoded=10012 decoded=10000; at_most(3) encoded=700 decoded=300

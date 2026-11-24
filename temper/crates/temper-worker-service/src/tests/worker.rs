@@ -490,7 +490,7 @@ fn the_worker_demands_each_cancellation_record_and_end() {
     assert!(peer.worker_read.is_none(), "Live spends exactly one demand");
 
     let agent = fixtures::worker_agent();
-    let body = cancellation_turn(&agent);
+    let body = cancellation_turn();
     let turn = smith_protocol_channel::decode_turn(&body, 1, &agent.limits.transcript, &agent.endpoints).unwrap();
     peer.component
         .send_turn(1, None, run::Spend::ZERO, true, &turn, AGENT_OWNER, &mut peer.events, &mut peer.out)

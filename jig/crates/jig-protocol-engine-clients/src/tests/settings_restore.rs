@@ -125,7 +125,7 @@ fn a_project_policy_item_enters_the_core_from_a_change_and_a_proposal() {
     let policy = values().into_iter().nth(2).unwrap();
     let expected = s::Item { setting: s::Setting::ProjectPolicy { project: 7 }, edit: s::Edit::Set(policy.clone()) };
     let row = w::SettingItem {
-        setting: settings::name(expected.setting, &limits).unwrap(),
+        setting: settings::name(expected.setting),
         edit: w::SettingEdit::Set(w::SettingSet { value: settings::value(&policy, &f::models(), &limits).unwrap() }),
     };
     let mut bytes = Writer::new(

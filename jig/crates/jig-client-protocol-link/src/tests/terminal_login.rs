@@ -82,11 +82,10 @@ fn login_changes_and_the_asked_answer_translate() {
 }
 #[test]
 fn terminal_and_accounts_documents_preserve_login_facts() {
-    let limits = fixtures::limits();
     for terminal in [0, u64::MAX] {
         assert_eq!(
-            translate::watches::subject(&c::Subject::Terminal { terminal }, limits.wire()),
-            Ok(w::Subject::Terminal(w::SubjectTerminal { terminal }))
+            translate::watches::subject(&c::Subject::Terminal { terminal }),
+            w::Subject::Terminal(w::SubjectTerminal { terminal })
         );
     }
     for cancelled in [false, true] {

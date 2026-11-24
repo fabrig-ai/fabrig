@@ -1,4 +1,7 @@
-//! Derived layout passes against fixture patches (data/codec/layouts.md, 6).
+//! Fuzzy layout passes (data/codec/layouts.md, 6).
+#[cfg(test)]
+mod round_trips;
+
 #[cfg(test)]
 mod tests {
     use crate::{generic_support, support::generated};
@@ -95,7 +98,7 @@ mod tests {
         fixtures
     }
 
-    fn roots(schema: &Schema, decl: DeclIx) -> Vec<Root> {
+    pub(super) fn roots(schema: &Schema, decl: DeclIx) -> Vec<Root> {
         if let Some(root) = schema.root(schema.spelled(schema.declaration(decl).name), None) {
             return vec![root];
         }
@@ -125,7 +128,7 @@ mod tests {
             })
             .collect()
     }
-    fn accepts_root(schema: &Schema, root: Root, bytes: &[u8]) -> bool {
+    pub(super) fn accepts_root(schema: &Schema, root: Root, bytes: &[u8]) -> bool {
         let Some(variant) = root.variant else { return true };
         let offset = match schema.declaration(root.decl).shape {
             Shape::Record { versioned: true, .. } => 2,

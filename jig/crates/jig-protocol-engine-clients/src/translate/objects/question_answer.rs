@@ -3,7 +3,7 @@ use super::super::{owner, w};
 use alloc::boxed::Box;
 use jig_domain_tasks as t;
 use skein_lib::{List, bytes};
-pub fn message_kind(value: &t::MessageKind, limits: &w::Limits) -> Result<w::MessageKind, w::Problem> {
+pub fn message_kind(value: &t::MessageKind) -> Result<w::MessageKind, w::Problem> {
     Ok(match value {
         t::MessageKind::Met { dependency, removed } => {
             w::MessageKind::Met(w::MessageKindMet { dependency: *dependency, removed: *removed })
@@ -11,7 +11,7 @@ pub fn message_kind(value: &t::MessageKind, limits: &w::Limits) -> Result<w::Mes
         t::MessageKind::SettingsDecision { proposal, outcome } => {
             w::MessageKind::SettingsDecision(w::MessageKindSettingsDecision {
                 proposal: *proposal,
-                outcome: settings_outcome(*outcome, limits)?,
+                outcome: settings_outcome(*outcome),
             })
         }
         t::MessageKind::QuestionAnswered { question } => {
@@ -69,12 +69,10 @@ pub fn message_kind(value: &t::MessageKind, limits: &w::Limits) -> Result<w::Mes
                 t::NewsClass::Dropped => w::NewsClass::Dropped,
             },
         }),
-        t::MessageKind::Result(value) => {
-            w::MessageKind::Result(w::MessageKindResult { value: word_result(value, limits)? })
-        }
+        t::MessageKind::Result(value) => w::MessageKind::Result(w::MessageKindResult { value: word_result(value)? }),
     })
 }
-pub fn word_result(value: &t::ResultKind, _limits: &w::Limits) -> Result<w::WordResult, w::Problem> {
+pub fn word_result(value: &t::ResultKind) -> Result<w::WordResult, w::Problem> {
     Ok(match value {
         t::ResultKind::Job => w::WordResult::Job,
         t::ResultKind::NoChange | t::ResultKind::Report => w::WordResult::Report,
@@ -101,30 +99,29 @@ pub fn word_result(value: &t::ResultKind, _limits: &w::Limits) -> Result<w::Word
 fn crossing_words(kind: &t::MessageKind, words: &[u8]) -> Box<[u8]> {
     if let t::MessageKind::Result(t::ResultKind::Job) = kind { Box::new([]) } else { bytes::copy_of(words) }
 }
-pub fn word(value: &t::Word, limits: &w::Limits) -> Result<w::Word, w::Problem> {
+pub fn word(value: &t::Word) -> Result<w::Word, w::Problem> {
     Ok(w::Word {
         number: value.number,
-        from: owner::requester(value.from, limits)?,
-        kind: message_kind(&value.kind, limits)?,
+        from: owner::requester(value.from),
+        kind: message_kind(&value.kind)?,
         words: crossing_words(&value.kind, &value.words),
         at: value.at.as_nanos(),
         hits: value.hits,
         eligible: value.eligible,
     })
 }
-pub fn answer(value: &t::ActivityLine, limits: &w::Limits) -> Result<w::ActivityLine, w::Problem> {
+pub fn answer(value: &t::ActivityLine) -> Result<w::ActivityLine, w::Problem> {
     let line = match &value.line {
         t::Line::Words { message, by, kind, words } => w::Activity::Words(w::ActivityWords {
             message: *message,
-            by: owner::requester(*by, limits)?,
-            kind: message_kind(kind, limits)?,
+            by: owner::requester(*by),
+            kind: message_kind(kind)?,
             words: crossing_words(kind, words),
         }),
-        t::Line::Heard(value) => w::Activity::Heard(w::ActivityHeard { value: word(value, limits)? }),
-        t::Line::Notified { recipient, word: value } => w::Activity::Notified(w::ActivityNotified {
-            recipient: owner::requester(*recipient, limits)?,
-            word: word(value, limits)?,
-        }),
+        t::Line::Heard(value) => w::Activity::Heard(w::ActivityHeard { value: word(value)? }),
+        t::Line::Notified { recipient, word: value } => {
+            w::Activity::Notified(w::ActivityNotified { recipient: owner::requester(*recipient), word: word(value)? })
+        }
         t::Line::RunBegan { .. }
         | t::Line::RunEnded { .. }
         | t::Line::Turn { .. }
@@ -142,11 +139,10 @@ pub fn answer(value: &t::ActivityLine, limits: &w::Limits) -> Result<w::Activity
     Ok(w::ActivityLine { task: value.task, position: value.position, at: value.at.as_nanos(), line })
 }
 
-#[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
-fn settings_outcome(value: t::SettingsOutcome, _limits: &w::Limits) -> Result<w::SettingsOutcome, w::Problem> {
-    Ok(match value {
+fn settings_outcome(value: t::SettingsOutcome) -> w::SettingsOutcome {
+    match value {
         t::SettingsOutcome::Accepted { revision } => w::SettingsOutcome::Accepted(w::SettingsAccepted { revision }),
         t::SettingsOutcome::Rejected => w::SettingsOutcome::Rejected,
         t::SettingsOutcome::Stale { newest } => w::SettingsOutcome::Stale(w::SettingsStale { newest }),
-    })
+    }
 }

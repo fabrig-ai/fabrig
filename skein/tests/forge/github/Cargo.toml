@@ -13,6 +13,7 @@ skein-forge-conformance.workspace = true
 skein-forge.workspace = true
 skein-fake-forge-domain.workspace = true
 skein-fake-forge-github.workspace = true
+skein-fake-machine.workspace = true
 skein-fake-peers.workspace = true
 skein-sim.workspace = true
 skein-shell.workspace = true
@@ -39,9 +40,6 @@ allow_attributes_without_reason = "deny"
 disallowed_types = "deny"
 disallowed_macros = "deny"
 disallowed_methods = "deny"
-
-[dev-dependencies]
-skein-scratch.workspace = true
 
 [[test]]
 name = "suite"

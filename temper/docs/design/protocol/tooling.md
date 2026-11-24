@@ -256,7 +256,9 @@ So a file the base deleted, which the head appended to, is
 the commit the base's history removed it in. The command reads all of
 this with git commands that write neither the index nor the tree
 (`ls-files`, `log`, `diff-tree`), so each file it leaves stays as the
-merge left it. It settles no file one side deleted or renamed: whether
+merge left it. The contents its rename detection reads are in the
+checkout, brought by the merge that left the conflict
+(`git-operations.md`, 1.6), so it reaches no forge. It settles no file one side deleted or renamed: whether
 the change still needs it is the resolution's judgement
 (`../domain/forge/change/repairs.md`).
 

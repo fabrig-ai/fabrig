@@ -63,27 +63,21 @@ fn decode_shown(tests: List<w::ShownTest>) -> Result<Box<[Box<[u8]>]>, Undecodab
 fn encode_landings(landings: &[p::Landing]) -> List<w::TierLanding> {
     let mut values = List::with_capacity(u32::try_from(landings.len()).expect(FITS));
     for landing in landings {
-        values
-            .push(crate::generated::store::tier_landing_to_record(landing, &super::Context::UNBOUNDED).expect(FITS))
-            .expect(FITS);
+        values.push(crate::generated::store::tier_landing_to_record(landing)).expect(FITS);
     }
     values
 }
 fn decode_landings(landings: List<w::TierLanding>) -> Box<[p::Landing]> {
     let mut values = List::with_capacity(landings.len());
     for landing in landings.into_boxed() {
-        values
-            .push(crate::generated::store::tier_landing_to_domain(landing, &super::Context::UNBOUNDED).expect(FITS))
-            .expect(FITS);
+        values.push(crate::generated::store::tier_landing_to_domain(landing)).expect(FITS);
     }
     values.into_boxed()
 }
 fn encode_finding(finding: &p::Finding) -> w::TierFinding {
     let mut blamed = List::with_capacity(u32::try_from(finding.blamed.len()).expect(FITS));
     for blame in &finding.blamed {
-        blamed
-            .push(crate::generated::store::blame_to_record(blame, &super::Context::UNBOUNDED).expect(FITS))
-            .expect(FITS);
+        blamed.push(crate::generated::store::blame_to_record(blame)).expect(FITS);
     }
     w::TierFinding {
         failing: verification::encode_failures(&finding.failing),
@@ -95,12 +89,7 @@ fn decode_finding(finding: w::TierFinding) -> Result<p::Finding, Undecodable> {
     let w::TierFinding { failing, flakes, blamed } = finding;
     let mut values = List::with_capacity(blamed.len());
     for blame in blamed.into_boxed() {
-        values
-            .push(
-                crate::generated::store::blame_to_domain(blame, &super::Context::UNBOUNDED)
-                    .or(Err(Undecodable::Malformed))?,
-            )
-            .expect(FITS);
+        values.push(crate::generated::store::blame_to_domain(blame).or(Err(Undecodable::Malformed))?).expect(FITS);
     }
     Ok(p::Finding {
         failing: verification::decode_failures(failing)?,
@@ -123,9 +112,7 @@ fn decode_selection(tests: w::TierSelection) -> Result<p::Selection, Undecodable
 fn encode_groups(groups: &[p::Group]) -> List<w::TierGroup> {
     let mut values = List::with_capacity(u32::try_from(groups.len()).expect(FITS));
     for group in groups {
-        values
-            .push(crate::generated::store::tier_group_to_record(group, &super::Context::UNBOUNDED).expect(FITS))
-            .expect(FITS);
+        values.push(crate::generated::store::tier_group_to_record(group).expect(FITS)).expect(FITS);
     }
     values
 }
@@ -152,15 +139,7 @@ fn decode_groups(
             }
             previous = Some(*place);
         }
-        values
-            .push(
-                crate::generated::store::tier_group_to_domain(
-                    w::TierGroup { low, high, tests },
-                    &super::Context::UNBOUNDED,
-                )
-                .expect(FITS),
-            )
-            .expect(FITS);
+        values.push(crate::generated::store::tier_group_to_domain(w::TierGroup { low, high, tests })).expect(FITS);
     }
     Ok(values.into_boxed())
 }
@@ -247,9 +226,7 @@ pub(super) fn encode(row: &d::TierRow) -> w::TierRow {
             None => None,
         },
         hold: match &row.hold {
-            Some(hold) => {
-                Some(crate::generated::store::tier_hold_to_record(hold, &super::Context::UNBOUNDED).expect(FITS))
-            }
+            Some(hold) => Some(crate::generated::store::tier_hold_to_record(hold)),
             None => None,
         },
         held: match row.held {
@@ -341,9 +318,7 @@ pub(super) fn decode(row: w::TierRow) -> Result<d::TierRow, Undecodable> {
             None => None,
         },
         hold: match hold {
-            Some(hold) => {
-                Some(crate::generated::store::tier_hold_to_domain(hold, &super::Context::UNBOUNDED).expect(FITS))
-            }
+            Some(hold) => Some(crate::generated::store::tier_hold_to_domain(hold)),
             None => None,
         },
         held: if runner_wait {
@@ -384,11 +359,10 @@ fn decode_many(many: Option<w::ManyTests>) -> Result<Option<p::ManyTests>, Undec
 }
 
 fn encode_tip(tip: d::TierLanding) -> w::TierPending {
-    crate::generated::store::tier_pending_to_record(&tip, &super::Context::UNBOUNDED).expect(FITS)
+    crate::generated::store::tier_pending_to_record(&tip)
 }
 fn decode_tip(tip: w::TierPending) -> d::TierLanding {
-    crate::generated::store::tier_pending_to_domain(tip, &super::Context::UNBOUNDED)
-        .expect("infallible store translation")
+    crate::generated::store::tier_pending_to_domain(tip)
 }
 fn encode_pending(tips: &[d::TierLanding]) -> List<w::TierPending> {
     let mut values = List::with_capacity(u32::try_from(tips.len()).expect(FITS));
@@ -405,26 +379,23 @@ fn decode_pending(tips: List<w::TierPending>) -> Box<[d::TierLanding]> {
     values.into_boxed()
 }
 fn encode_fault(fault: temper_engine_domain_forge_landing::Fault) -> w::TierFault {
-    crate::generated::store::tier_fault_to_record(&fault, &super::Context::UNBOUNDED).expect(FITS)
+    crate::generated::store::tier_fault_to_record(&fault)
 }
 fn decode_fault(fault: w::TierFault) -> temper_engine_domain_forge_landing::Fault {
-    crate::generated::store::tier_fault_to_domain(fault, &super::Context::UNBOUNDED)
-        .expect("infallible store translation")
+    crate::generated::store::tier_fault_to_domain(fault)
 }
 pub(super) fn encode_flight(flight: &d::TierFlight) -> w::TierFlight {
-    crate::generated::store::tier_flight_to_record(flight, &super::Context::UNBOUNDED).expect(FITS)
+    crate::generated::store::tier_flight_to_record(flight).expect(FITS)
 }
 pub(super) fn decode_flight(flight: w::TierFlight) -> d::TierFlight {
-    crate::generated::store::tier_flight_to_domain(flight, &super::Context::UNBOUNDED)
-        .expect("infallible store translation")
+    crate::generated::store::tier_flight_to_domain(flight)
 }
 
 fn encode_branch(branch: d::TierBranch) -> w::TierBranch {
-    crate::generated::store::tier_branch_to_record(&branch, &super::Context::UNBOUNDED).expect(FITS)
+    crate::generated::store::tier_branch_to_record(&branch)
 }
 fn decode_branch(branch: w::TierBranch) -> d::TierBranch {
-    crate::generated::store::tier_branch_to_domain(branch, &super::Context::UNBOUNDED)
-        .expect("infallible store translation")
+    crate::generated::store::tier_branch_to_domain(branch)
 }
 
 fn decode_probe(
@@ -448,12 +419,10 @@ fn decode_probe(
 fn encode_record(record: &p::Record) -> w::TierRecord {
     let mut flakes = List::with_capacity(u32::try_from(record.flakes.len()).expect(FITS));
     for flake in &record.flakes {
-        flakes
-            .push(crate::generated::store::tier_flake_to_record(flake, &super::Context::UNBOUNDED).expect(FITS))
-            .expect(FITS);
+        flakes.push(crate::generated::store::tier_flake_to_record(flake)).expect(FITS);
     }
     let judged = match record.judged {
-        Some(j) => Some(crate::generated::store::tier_judged_to_record(&j, &super::Context::UNBOUNDED).expect(FITS)),
+        Some(j) => Some(crate::generated::store::tier_judged_to_record(&j)),
         None => None,
     };
     let run = match &record.run {
@@ -473,7 +442,7 @@ fn encode_record(record: &p::Record) -> w::TierRecord {
 fn decode_record(record: w::TierRecord) -> Result<p::Record, Undecodable> {
     let w::TierRecord { sequence, judged, failing, flakes, run, last_run } = record;
     let judged = match judged {
-        Some(j) => Some(crate::generated::store::tier_judged_to_domain(j, &super::Context::UNBOUNDED).expect(FITS)),
+        Some(j) => Some(crate::generated::store::tier_judged_to_domain(j)),
         None => None,
     };
     let run = match run {
@@ -489,12 +458,7 @@ fn decode_record(record: w::TierRecord) -> Result<p::Record, Undecodable> {
                 return Err(Undecodable::Malformed);
             }
         }
-        values
-            .push(
-                crate::generated::store::tier_flake_to_domain(w::TierFlake { test, count }, &super::Context::UNBOUNDED)
-                    .expect(FITS),
-            )
-            .expect(FITS);
+        values.push(crate::generated::store::tier_flake_to_domain(w::TierFlake { test, count })).expect(FITS);
     }
     Ok(p::Record {
         sequence,
@@ -509,9 +473,7 @@ fn decode_record(record: w::TierRecord) -> Result<p::Record, Undecodable> {
 fn encode_goals(goals: &[d::TierGoal]) -> List<w::TierGoal> {
     let mut values = List::with_capacity(u32::try_from(goals.len()).expect(FITS));
     for goal in goals {
-        values
-            .push(crate::generated::store::tier_goal_to_record(goal, &super::Context::UNBOUNDED).expect(FITS))
-            .expect(FITS);
+        values.push(crate::generated::store::tier_goal_to_record(goal)).expect(FITS);
     }
     values
 }
@@ -527,20 +489,16 @@ fn decode_goals(goals: List<w::TierGoal>) -> Result<Box<[d::TierGoal]>, Undecoda
                 return Err(Undecodable::Malformed);
             }
         }
-        values
-            .push(
-                crate::generated::store::tier_goal_to_domain(goal, &super::Context::UNBOUNDED)
-                    .or(Err(Undecodable::Malformed))?,
-            )
-            .expect(FITS);
+        values.push(crate::generated::store::tier_goal_to_domain(goal).or(Err(Undecodable::Malformed))?).expect(FITS);
     }
     Ok(values.into_boxed())
 }
 
-pub fn failures_to_record(value: &p::Failures, _context: &super::Context) -> Result<w::Failures, w::Problem> {
-    Ok(verification::encode_failures(value))
+#[must_use]
+pub fn failures_to_record(value: &p::Failures) -> w::Failures {
+    verification::encode_failures(value)
 }
 
-pub fn failures_to_domain(value: w::Failures, _context: &super::Context) -> Result<p::Failures, w::Problem> {
+pub fn failures_to_domain(value: w::Failures) -> Result<p::Failures, w::Problem> {
     verification::decode_failures(value).or(Err(w::paths::FAILURES_TAG.problem(skein_codec::Reason::Malformed)))
 }

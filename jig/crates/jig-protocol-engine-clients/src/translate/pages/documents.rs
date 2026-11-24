@@ -57,7 +57,7 @@ pub(super) fn history(
     for row in &page.rows {
         rows.push(match row {
             reads::PageRow::Attempt(value) if subtree || value.task == task => {
-                w::HistoryRow::Attempt(w::HistoryRowAttempt { value: objects::ended::attempt(value, limits)? })
+                w::HistoryRow::Attempt(w::HistoryRowAttempt { value: objects::ended::attempt(value) })
             }
             reads::PageRow::History(value) if subtree || value.task == task => {
                 w::HistoryRow::Change(Box::new(w::HistoryRowChange { value: history::line(models, value, limits)? }))
@@ -210,7 +210,7 @@ pub(super) fn spend(
         if !same_project {
             return Err(invalid);
         }
-        rows.push(rows::funding(value, limits)?).expect("selected rows fit");
+        rows.push(rows::funding(value)).expect("selected rows fit");
     }
     Ok(w::ReadValue::Spend(w::SpendPage { cut: page.cut, rows, before, after }))
 }

@@ -4,21 +4,21 @@ use jig_domain_core_vocabulary::reads;
 use jig_domain_tasks as t;
 use skein_lib::bytes;
 
-pub fn line(value: &t::ActivityLine, limits: &w::Limits) -> Result<w::ActivityLine, w::Problem> {
+pub fn line(value: &t::ActivityLine) -> Result<w::ActivityLine, w::Problem> {
     let line = match &value.line {
         t::Line::Words { .. } | t::Line::Heard(_) | t::Line::Notified { .. } => {
-            return question_answer::answer(value, limits);
+            return question_answer::answer(value);
         }
         t::Line::RunBegan { attempt, why: value, resumed, fresh: cause } => {
             w::Activity::RunBegan(w::ActivityRunBegan {
                 attempt: *attempt,
-                why: why(*value, limits)?,
+                why: why(*value),
                 resumed: *resumed,
                 fresh: fresh(*cause),
             })
         }
         t::Line::RunEnded { attempt, end: value, spent } => {
-            w::Activity::RunEnded(w::ActivityRunEnded { attempt: *attempt, end: end(*value, limits)?, spent: *spent })
+            w::Activity::RunEnded(w::ActivityRunEnded { attempt: *attempt, end: end(*value), spent: *spent })
         }
         t::Line::Turn { reply, attempt, turn, read } => {
             w::Activity::Turn(w::ActivityTurn { reply: *reply, attempt: *attempt, turn: *turn, read: *read })
@@ -66,24 +66,24 @@ fn session_end(value: t::SessionEnd) -> w::SessionEnd {
     }
 }
 
-fn why(value: t::Why, limits: &w::Limits) -> Result<w::RunWhy, w::Problem> {
-    Ok(match value {
+fn why(value: t::Why) -> w::RunWhy {
+    match value {
         t::Why::Made => w::RunWhy::Made,
         t::Why::Ready => w::RunWhy::Ready,
         t::Why::Message { message } => w::RunWhy::Message(w::RunWhyMessage { message }),
         t::Why::Released => w::RunWhy::Released,
-        t::Why::Retry { tries } => w::RunWhy::Retry(w::RunWhyRetry { tries: chips::tries(tries, limits)? }),
+        t::Why::Retry { tries } => w::RunWhy::Retry(w::RunWhyRetry { tries: chips::tries(tries) }),
         t::Why::Narrowed => w::RunWhy::Narrowed,
         t::Why::Changed => w::RunWhy::Changed,
-    })
+    }
 }
-pub(super) fn end(value: t::EndKind, _limits: &w::Limits) -> Result<w::RunEnd, w::Problem> {
-    Ok(match value {
+pub(super) fn end(value: t::EndKind) -> w::RunEnd {
+    match value {
         t::EndKind::Parked => w::RunEnd::Parked,
         t::EndKind::Finished => w::RunEnd::Finished,
         t::EndKind::Cancelled => w::RunEnd::Cancelled,
         t::EndKind::Failed { class, invalid_result } => w::RunEnd::Failed(w::RunEndFailed {
-            class: chips::class(class)?,
+            class: chips::class(class),
             invalid_reason: invalid_reason(class, invalid_result),
         }),
         t::EndKind::Refused => w::RunEnd::Refused,
@@ -94,7 +94,7 @@ pub(super) fn end(value: t::EndKind, _limits: &w::Limits) -> Result<w::RunEnd, w
                 t::SuspendWhy::Restarted => w::SuspendWhy::Restarted,
             },
         }),
-    })
+    }
 }
 
 fn invalid_reason(class: t::Class, reason: Option<t::InvalidResult>) -> Option<w::InvalidReason> {
@@ -172,7 +172,7 @@ pub fn page_turn(
             None
         }
     };
-    Ok(w::DecodedActivityLine { source: line(value, limits)?, decoded })
+    Ok(w::DecodedActivityLine { source: line(value)?, decoded })
 }
 
 /// The same immutable archive serves a page and a single-turn read.

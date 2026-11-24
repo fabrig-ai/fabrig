@@ -82,11 +82,9 @@ fn a_batch_round_trips_its_read_open_and_close() {
     let limits = fixtures::stream_limits();
     let close = WatchClose { stream: [7; 16], watch: 23 };
     let mut members = skein_lib::List::with_capacity(3);
-    for member in [
-        Member::Read(fixtures::stream_owned(&limits)),
-        Member::Open(fixtures::open_tree(&limits)),
-        Member::Close(close),
-    ] {
+    for member in
+        [Member::Read(fixtures::stream_owned(&limits)), Member::Open(fixtures::open_tree()), Member::Close(close)]
+    {
         members.push(member).expect("three members");
     }
     let batch = Batch { members };
@@ -205,7 +203,7 @@ fn an_activity_line_carries_its_turn_bytes_unchanged() {
 fn a_page_whose_rows_do_not_split_to_its_end_is_refused_as_malformed() {
     let limits = fixtures::limits_with_activity_bytes(4096);
     for rows in fixtures::malformed_activity_pieces() {
-        let page = fixtures::activity_page(&limits, rows);
+        let page = fixtures::activity_page(rows);
         let bytes = fixtures::encoded(&page);
         assert_eq!(
             fixtures::decode_activity_page(&limits, &bytes, 8),
@@ -219,7 +217,7 @@ fn a_page_of_many_small_rows_and_one_of_a_few_large_rows_fit_one_bound() {
     let limits = fixtures::limits_with_activity_bytes(4096);
     for (count, width) in [(4, 16), (2, 512)] {
         let rows = fixtures::activity_rows(count, width);
-        let bytes = fixtures::encoded_activity_page(&limits, &rows);
+        let bytes = fixtures::encoded_activity_page(&rows);
         assert_eq!(fixtures::decode_activity_page(&limits, &bytes, 8), Ok(rows));
     }
 }
@@ -244,16 +242,16 @@ fn a_task_one_byte_past_its_text_bound_is_refused() {
 
 fn a_run_state_without_writing_or_call_round_trips() {
     let limits = fixtures::document_limits();
-    let run = fixtures::run_state(&limits);
+    let run = fixtures::run_state();
     let bytes = fixtures::encoded(&run);
     assert_eq!(RunState::decode(&limits, &mut Reader::new(&bytes)), Ok(run));
 }
 
 fn a_chip_with_each_phase_round_trips_unchanged() {
     let limits = fixtures::document_limits();
-    for phase in fixtures::chip_phases(&limits) {
+    for phase in fixtures::chip_phases() {
         let rows = fixtures::chip_facts(&limits, phase);
-        let chip = fixtures::chip(&limits, &rows);
+        let chip = fixtures::chip(&rows);
         let bytes = fixtures::encoded(&chip);
         assert_eq!(fixtures::decode_chip_facts(&limits, &bytes), rows);
     }
@@ -261,7 +259,7 @@ fn a_chip_with_each_phase_round_trips_unchanged() {
 
 fn a_hello_naming_two_owners_round_trips_unchanged() {
     let limits = fixtures::stream_limits();
-    let hello = fixtures::hello(&limits);
+    let hello = fixtures::hello();
     let bytes = fixtures::encoded(&hello);
     assert_eq!(Hello::decode(&limits, &mut Reader::new(&bytes)), Ok(hello));
 }
@@ -277,12 +275,12 @@ fn a_stream_event_at_its_ceiling_round_trips_unchanged() {
 #[test]
 fn an_open_for_a_tree_carries_its_window() {
     let limits = fixtures::stream_limits();
-    let open = fixtures::open_tree(&limits);
+    let open = fixtures::open_tree();
     let bytes = fixtures::encoded(&open);
     let decoded = Open::decode(&limits, &mut Reader::new(&bytes)).expect("whole open exchange");
     assert_eq!(
         Subject::decode(&limits, &mut Reader::new(decoded.subject.record.as_ref())),
-        Ok(fixtures::tree_subject(&limits))
+        Ok(fixtures::tree_subject())
     );
     assert_eq!(decoded, open);
 }
@@ -298,7 +296,7 @@ fn each_watch_end_but_dropped_round_trips() {
         WatchEnd::SignedOut,
         WatchEnd::Stopping,
     ] {
-        let ended = fixtures::ended(&limits, why);
+        let ended = fixtures::ended(why);
         let bytes = fixtures::encoded(&ended);
         assert_eq!(WatchEnded::decode(&limits, &mut Reader::new(&bytes)), Ok(ended));
     }
@@ -308,8 +306,8 @@ fn each_watch_end_but_dropped_round_trips() {
 fn an_account_waiting_to_ask_again_carries_the_wall_it_asks_at() {
     let limits = fixtures::stream_limits();
     for until in [None, Some(0), Some(u64::MAX)] {
-        let state = fixtures::waiting_account_state(&limits, until);
-        let account = fixtures::account(&limits, state.clone());
+        let state = fixtures::waiting_account_state(until);
+        let account = fixtures::account(state.clone());
         let bytes = fixtures::encoded(&account);
         let decoded = Account::decode(&limits, &mut Reader::new(&bytes)).expect("whole account document");
         assert_eq!((&decoded.state), &state);
@@ -320,12 +318,12 @@ fn an_account_waiting_to_ask_again_carries_the_wall_it_asks_at() {
 #[test]
 fn a_ended_goal_holding_keeps_its_opaque_segments() {
     let limits = fixtures::stream_limits();
-    let holding = fixtures::ended_goal_holding(&limits);
+    let holding = fixtures::ended_goal_holding();
     let bytes = fixtures::encoded(&holding);
     assert_eq!(GoalHolding::decode(&limits, &mut Reader::new(&bytes)), Ok(holding));
 }
 
-fn small_store_family(_limits: &Limits) -> Family {
+fn small_store_family() -> Family {
     Family { number: u16::MAX }
 }
 
@@ -344,7 +342,7 @@ fn a_kept_record_of_another_family_version_is_refused() {
 
 fn a_table_entry_never_sent_round_trips_with_no_wall() {
     let limits = fixtures::limits();
-    let family = small_store_family(&limits);
+    let family = small_store_family();
     let entry = TableEntry {
         asker: 65536,
         number: 1,
