@@ -109,6 +109,8 @@ The first row that holds, in this order:
 | is at producing with a pending dependency | `step` | producing; each pending dependency, a task | the stall's origin | none: behind the first pending dependency |
 | is short of a sign-off at its head (`change/branch-path.md`, step 5) | `sign-off` | its step; the rule, then each role that can still sign, at most three | the change's readiness (`Change.ready_since`) | the sign-off figure, *overdue* |
 | waits to land while the operator holds every landing (`../landing-settings.md`, 1.3) | `step` | its step | the stall's origin | none: an operator's hold |
+| waits quietly for its turn, with no read of its own and no stall counting: queued behind the queue's first (`queues.md`), or ready under turn in no landing while its train's live landing holds it (`../landing-turn.md`, 2) | `step` | its step; that first change, or that landing, a task | the stall's origin | none: behind that task, whose own waits bound it |
+| waits quietly with no task to name: ready under turn with no room for its train's landing (`../landing-turn.md`, 2, *Bounded*), or red, waiting for a repair's verdict (`../after-landing.md`, 6) | `step` | its step | the stall's origin | none: no deadline |
 | any other step | `step` | its step; what it waits on: its pending write's entry, its pull request, its CI's newest run where it knows one | the stall's origin, `Change.since`; where its reads' own count runs (`change/stalls.md`, 1), that count's start | the instant at which the change would be held if nothing moved: the stall, or at checking with a reading the earlier of the execution clock's bounds as the clock stands (`change/stalls.md`, 2.3), or its reads' count's end; *hold* |
 
 - **At the bound** the change is held as its stall holds it, with its
@@ -119,7 +121,14 @@ The first row that holds, in this order:
   bound, is the overdue entry the views show (the draft, 9). A change
   short of a sign-off has no stall (`change/branch-path.md`, step 5).
 - **A landed change** waiting on its verification reports that wait with
-  the bound its design gives it (`../after-landing.md`, 6).
+  the bound its design gives it (`../after-landing.md`, 6): its
+  verification bound, *give up*, while no verdict has come; none, with no
+  deadline, once red (row above), since only a repair's landing ends it.
+- **A quiet wait is still reported** (2026-11-24): where the change's
+  policy waits with no instant of its own, its record says what it waits
+  behind or that nothing bounds it, so its age shows; it invents no hold.
+  A read the step makes still counts its reads' own bound first (last
+  row).
 
 ## 5. A landing's waits
 
@@ -247,3 +256,10 @@ its bound in the top alone, from its last step that advanced, unstored:
 - **Unstored clocks:** a restart starts a landing's, a closer's, a
   release's and a room wait's clock again. Default: so; a stored one
   would let a bound outlive restarts, at the price of a stored field each.
+- **Unbounded quiet waits:** a red change waiting for its repair, and a
+  ready change under turn waiting for room for its train's landing,
+  report no deadline, though the draft bounds every wait it names
+  (`../../draft/bounded-waits.md`, 4.1). Default: so; a red change's
+  repair is its goal's work, after-landing's waits are not this
+  milestone's fourth goal's, and the landings' room has no owner to be
+  behind.
