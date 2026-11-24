@@ -46,13 +46,13 @@ document and its status.
   change that writes it names them here.
 - **The acts:** each scripted program is `src/hosted.rs`'s `Script` of
   `Act`s. Each change appends the acts its programs need at the end of
-  `Act` and leaves the others' as they are: the hosted run's change the
-  server's (listen and print, answer a request); the commands' change
-  a command's (read its input to its end, print a line on an output,
-  exit with a code, await a connection's byte); the peers' change a
-  connection to an address read from an argument or an environment
-  value, a request sent and its answer kept. A merge keeps both sides'
-  variants and arms.
+  `Act` and leaves the others' as they are: the hosted run's change
+  (15119) the server's (listen and print, answer a request); the
+  commands' change (15136) a command's (read its input to its end,
+  print a line on an output, exit with a code, await a connection's
+  byte); the peers' change (15137) a connection to an address read
+  from an argument or an environment value, a request sent and its
+  answer kept. A merge keeps both sides' variants and arms.
 - **The modules:** under `tests/simulated/harness/`, the hosted run's
   change writes `keeps.rs`; the commands' change `commands.rs`; the
   peers' change `peers/lending.rs`, beside `peers/tests.rs`.

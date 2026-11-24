@@ -4,12 +4,12 @@
 
 - **Not yet:**
   - 2: the harness's run hosted in the simulated world with a scripted
-    browser, its keeps and its own requests held there.
-  - 2: its commands and their deadlines held in the simulated world.
+    browser, its keeps and its own requests held there. [in flight: change 15119]
+  - 2: its commands and their deadlines held in the simulated world. [in flight: change 15136]
   - 2: its lent peers and the addresses it substitutes held in the
-    simulated world.
+    simulated world. [in flight: change 15137]
   - 3: the live tree's cases built by host code, their revisions held
-    on the host, and one Chromium walk of every case.
+    on the host, and one Chromium walk of every case. [in flight: change 15127]
   - 3: the refused add held on the host, its bound chosen by a host
-    function of the view's.
-  - 3: a note's fan-out to two readers held on the host.
+    function of the view's. [in flight: change 15128]
+  - 3: a note's fan-out to two readers held on the host. [in flight: change 15129]
