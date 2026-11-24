@@ -362,6 +362,10 @@ the routing in the step that routes the record:
   it reads, with no wildcard, so a variant added on either side fails to
   build until it is translated. No function reads io, keeps state or
   decides: what the domain does with a part is the domain's.
+- **Generated where the sides match:** each side's crate keeps its maps
+  file for temper's worker wire (skein's `data/codec/maps.md`, 9), and
+  the table's functions call the generated ones for the records that
+  copy.
 - **Bytes only through the generated codecs.** A part's record is
   encoded measured (skein's `data/codec/README.md`) and decoded against the side's
   limits.
