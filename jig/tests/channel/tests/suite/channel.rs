@@ -271,6 +271,12 @@ fn resumed(point: jig_channel_world::restarts::Point) -> jig_channel_world::worl
     assert_eq!(outcome.resumed_turns, Some(1));
     assert_eq!(outcome.parts_received, outcome.parts_acknowledged);
     assert_eq!(outcome.restart.acknowledged_parts, outcome.parts_received);
+    parts_carried(&outcome);
+    assert_eq!(outcome.restart.queries, 3, "the cut answer is never planned again");
+    outcome
+}
+
+fn parts_carried(outcome: &jig_channel_world::world::Outcome) {
     assert_eq!(outcome.restart.kept.len(), outcome.restart.resumed.len());
     for (kept, resumed) in outcome.restart.kept.iter().zip(&outcome.restart.resumed) {
         assert_eq!(
@@ -287,8 +293,74 @@ fn resumed(point: jig_channel_world::restarts::Point) -> jig_channel_world::worl
             }
         );
     }
-    assert_eq!(outcome.restart.queries, 3, "the cut answer is never planned again");
+}
+
+fn crashed(point: jig_channel_world::restarts::Point) -> jig_channel_world::world::Outcome {
+    let outcome = run(Story::Crash(point));
+    assert_eq!(outcome.verdict, Verdict::Passed);
+    assert_eq!(outcome.agent_starts, 2);
+    assert!(outcome.restart.suspended, "{:#?}", outcome.restart);
+    assert_eq!(outcome.restart.suspension_cause, Some(jig_domain_tasks::SuspendWhy::Restarted));
+    assert!(outcome.restart.fresh_hello_at.is_some(), "the new process says fresh");
+    assert_eq!(outcome.restart.suspended_at, outcome.restart.fresh_hello_at, "no grace after the hello");
+    assert_eq!(outcome.resumed_tries, Some(jig_domain_tasks::Tries::NONE));
+    assert!(outcome.restart.same_worker);
+    assert_eq!(outcome.resumed_turns, Some(1));
+    assert_eq!(outcome.parts_received, outcome.parts_acknowledged);
+    assert_eq!(outcome.restart.acknowledged_parts, outcome.parts_received);
+    parts_carried(&outcome);
     outcome
+}
+
+#[test]
+fn a_worker_crashed_while_awaiting_an_answer_asks_its_turn_again() {
+    let outcome = crashed(jig_channel_world::restarts::Point::Answer);
+    assert_eq!(outcome.restart.kept, []);
+    assert_eq!(outcome.restart.queries, 4, "the lost answer is planned again");
+    assert_eq!(outcome.restart.checks, 1);
+    assert!(outcome.restart.delivered);
+}
+
+#[test]
+fn a_worker_crashed_during_a_check_runs_it_again_on_the_same_tree() {
+    let outcome = crashed(jig_channel_world::restarts::Point::Check);
+    assert_eq!(outcome.restart.queries, 3, "the kept answer is not planned again");
+    assert_eq!(outcome.restart.kept.len(), 1);
+    assert_eq!(outcome.restart.kept[0].kind, jig_domain_link::PartKind::Answer);
+    assert_eq!(outcome.restart.checks, 2);
+    assert!(outcome.restart.same_tree);
+    assert!(outcome.restart.delivered);
+    assert!(outcome.restart.retired_at_turn);
+    assert!(outcome.restart.committed_at_answer);
+}
+
+#[test]
+fn a_worker_crashed_during_a_command_resumes_it_interrupted() {
+    use smith_transcript::Record as _;
+    let outcome = crashed(jig_channel_world::restarts::Point::Command);
+    assert_eq!(outcome.restart.queries, 3, "the kept answer is not planned again");
+    assert_eq!(outcome.restart.commands, 1);
+    assert_eq!(outcome.restart.kept.len(), 2);
+    assert_eq!(outcome.restart.kept[0].kind, jig_domain_link::PartKind::Answer);
+    let start = &outcome.restart.kept[1];
+    assert_eq!(start.kind, jig_domain_link::PartKind::Result);
+    let turn = smith_transcript::Turn::decode(&smith_transcript::CEILINGS, &mut skein_lib::Reader::new(&start.body))
+        .expect("command start");
+    let results: Vec<_> = turn
+        .messages
+        .iter()
+        .flat_map(|message| &message.blocks)
+        .filter_map(
+            |block| if let smith_transcript::Block::Result(result) = block { Some(&result.returned) } else { None },
+        )
+        .collect();
+    assert!(
+        matches!(results.as_slice(), [smith_transcript::Returned::Outcome(smith_transcript::OwnedOutcome { value: smith_transcript::Outcome::Interrupted(value) })]
+        if value.ran_ms.is_none() && value.head.is_empty() && value.last.is_empty() && value.dropped == 0)
+    );
+    assert!(outcome.restart.unknown_time, "{:?}", outcome.restart.outputs);
+    assert!(outcome.restart.retired_at_turn);
+    assert!(outcome.restart.committed_at_answer);
 }
 
 #[test]
