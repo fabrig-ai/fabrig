@@ -263,13 +263,20 @@ pub(crate) const JOURNEY_WALK: Command = Command {
     ..BASE
 };
 
+pub(crate) const LOOK_REFRESH: Command = Command {
+    reach: Reach::Words(&["look-refresh"]),
+    line: "Rebase the checked-out look-requests or tui-requests branch on origin/main and push with its saved lease.",
+    notes: "Takes no arguments. Fetches main alone and drops requests covered by main's last valid print. Exit 0: pushed; 1: git failed or a rebase stopped for you to resolve; 2: refused; 3: the remote branch moved beyond the lease.",
+    ..BASE
+};
+
 /// The internal journeys binary's table (temper/docs/design/testing/tools.md, 4.1).
 pub const TABLE: Table = Table {
     binary: "temper-client-journeys",
     line: "recorded walks, replayed through the shipped hosts and printed.",
     version: "",
     commit: "",
-    commands: &[PRINT, DRIVE, JOURNEY_WALK, RECIPE_WALK, RECIPE_HASH, RECIPE_LIST],
+    commands: &[PRINT, DRIVE, JOURNEY_WALK, RECIPE_WALK, RECIPE_HASH, RECIPE_LIST, LOOK_REFRESH],
     settings: &[],
     variables: &[&CHROMIUM, &PATH],
     more: "temper-client-journeys COMMAND --help prints a command; read temper/docs/design/client/web/journeys.md, section 5.1.",

@@ -7,8 +7,9 @@ use std::{
 use temper_client_shell_web::journey::{self, Stale};
 use temper_client_walk_lines::walk::Client;
 
-#[expect(dead_code, reason = "the writer and look-refresh commands will dispatch through this host")]
+#[expect(dead_code, reason = "the writer command will use the rest of this host")]
 mod host;
+mod look_refresh;
 mod output;
 mod run;
 mod table;
