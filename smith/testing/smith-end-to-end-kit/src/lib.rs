@@ -32,18 +32,50 @@ pub fn fake_claude() -> PathBuf {
     fake_claude_beside(&skein_scratch::paths::binary("smith")).unwrap_or_else(|refusal| panic!("{refusal}"))
 }
 
-/// Find the executable sibling, naming the build command when it is absent.
-pub fn fake_claude_beside(smith: &Path) -> Result<PathBuf, String> {
-    let path = smith.parent().expect("smith binary has a parent directory").join("fake-claude");
-    let executable =
-        std::fs::metadata(&path).is_ok_and(|metadata| metadata.is_file() && metadata.permissions().mode() & 0o111 != 0);
-    if !executable {
-        return Err(format!(
-            "{}: missing or nonexecutable fake; run cargo build -p smith-fake-claude --bin fake-claude",
-            path.display()
-        ));
+/// The filesystem adapter's observation of the fake program's candidate path.
+#[derive(Clone, Copy)]
+pub enum FakeFile {
+    /// Metadata could not be read.
+    Absent,
+    /// A regular file and its Unix mode.
+    Regular { mode: u32 },
+    /// Metadata describes something other than a regular file.
+    Other,
+}
+
+/// The fake program's lookup beside the shipped binary (smith/docs/design/testing.md, 2.3).
+pub struct FakeLookup {
+    path: PathBuf,
+}
+
+impl FakeLookup {
+    /// Name the candidate relative to the shipped binary, without probing the filesystem.
+    #[must_use]
+    pub fn beside(smith: &Path) -> Self {
+        Self { path: smith.parent().expect("smith binary has a parent directory").join("fake-claude") }
     }
-    Ok(path)
+
+    /// Accept a regular executable or direct the caller to build the fake.
+    pub fn decide(self, file: FakeFile) -> Result<PathBuf, String> {
+        match file {
+            FakeFile::Regular { mode } if mode & 0o111 != 0 => Ok(self.path),
+            FakeFile::Absent | FakeFile::Regular { .. } | FakeFile::Other => Err(format!(
+                "{}: missing or nonexecutable fake; run cargo build -p smith-fake-claude --bin fake-claude",
+                self.path.display()
+            )),
+        }
+    }
+}
+
+/// Read the sibling's filesystem facts and decide whether to use it.
+pub fn fake_claude_beside(smith: &Path) -> Result<PathBuf, String> {
+    let lookup = FakeLookup::beside(smith);
+    let file = match std::fs::metadata(&lookup.path) {
+        Ok(metadata) if metadata.is_file() => FakeFile::Regular { mode: metadata.permissions().mode() },
+        Ok(_) => FakeFile::Other,
+        Err(_) => FakeFile::Absent,
+    };
+    lookup.decide(file)
 }
 
 /// A shipped binary or one of its scripted peers in the harness's loop.
@@ -391,10 +423,6 @@ pub fn run(scratch: &Scratch, mut scenario: Scenario) -> Seen {
 #[must_use]
 pub fn read_trace(directory: &Path, prefix: &[u8]) -> Vec<smith_events::Record> {
     read_trace_resolved(&mut resolved_settings(directory), prefix)
-}
-
-fn check_trace(directory: &Path, prefix: &[u8]) -> Result<Vec<smith_events::Record>, String> {
-    check_trace_resolved(&mut check_resolved_settings(directory)?, prefix)
 }
 
 fn resolved_settings(directory: &Path) -> smith_local_shell::settings::resolve::Resolved {

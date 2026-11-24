@@ -1,4 +1,4 @@
-//! Offline controls for live configuration and the credential-directory guard.
+//! Offline controls for the shipped-binary story kit and live configuration.
 pub use support::{live, live_report};
 
 #[test]
@@ -144,6 +144,7 @@ fn the_live_arguments_carry_private_program_homes() {
     }
 }
 
+mod fake_lookup;
 mod live_tests;
 mod program_contract;
 

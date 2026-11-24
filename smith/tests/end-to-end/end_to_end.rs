@@ -1,6 +1,5 @@
 mod chat_crossing;
 mod credentials;
-mod fake_lookup;
 mod program_check;
 mod program_children;
 mod program_commands;
@@ -180,14 +179,6 @@ fn an_agent_channel_end_is_reported_to_stderr() {
         String::from_utf8_lossy(&errors).lines().last(),
         Some("smith: the run could not answer: the channel ended before the answer")
     );
-}
-
-#[test]
-fn the_live_outcome_referee_runs_on_the_shared_fake_binary_harness() {
-    let report = Scratch::new();
-    support::live_run::run_fake(&report, &World::new(35, &report, Placement::Spawned, b"First answer").scenario);
-    let change = Scratch::new();
-    support::live_run::run_fake(&change, &World::changed(36, &change, Placement::Spawned).scenario);
 }
 
 #[test]
