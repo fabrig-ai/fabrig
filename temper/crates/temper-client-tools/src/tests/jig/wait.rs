@@ -371,9 +371,24 @@ fn an_answer_releases_only_the_calls_handle() {
 
 #[test]
 fn a_wait_text_uses_the_subjects_read_form() {
-    let expected = f::read_answer(f::TASK_CALL, f::task_result(f::parked_task()));
+    let mut task = f::parked_task();
+    task.waits_on = c::WaitsOn::News;
+    let wait = c::Wait {
+        task: f::TASK,
+        kind: c::WaitKind::News,
+        object: c::WaitObject::News { subscriptions: skein_lib::List::with_capacity(0), timer: None },
+        since: f::QUESTION_SINCE,
+        bound: c::waits::Bound::None(c::Unbounded::Standing),
+        hears: None,
+    };
+    task.wait = Some(wait.clone());
+    task.waits = skein_lib::List::with_capacity(1);
+    task.waits.push(wait).expect("the task's wait");
+    task.wait_count = 1;
+    let expected = f::read_answer(f::TASK_CALL, f::task_result(task.clone()));
+    assert!(f::has(&expected, "\nwaiting on: Waiting for news · since 2026-10-24 15:02 UTC\nwaits: 1\n".as_bytes()));
     let (mut root, call) = f::plain_wait(f::UNTIL_REPLIED);
-    root.deliver_subject(&f::task_watch(), f::parked());
+    root.deliver_subject(&f::task_watch(), c::Delivery::Task(Box::new(task)));
     assert_eq!(root.answer(call).expect("text answer").stdout, f::appended(&expected.stdout, b"met\n"));
 }
 #[test]

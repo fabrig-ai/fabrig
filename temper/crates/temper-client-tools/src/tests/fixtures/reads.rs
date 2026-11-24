@@ -178,7 +178,12 @@ pub(crate) fn task_line() -> c::TaskLine {
 }
 pub(crate) fn task_page_with_cursor() -> c::ReadResult {
     let mut rows = List::with_capacity(PAGE_ROWS);
-    rows.push(task_line()).expect("one task row");
+    let mut line = task_line();
+    let task = waiting_goal();
+    line.waits_on = task.waits_on;
+    line.wait = task.wait;
+    line.nearest = task.nearest;
+    rows.push(line).expect("one task row");
     c::ReadResult::Value(c::ReadValue::Tasks(Box::new(c::TaskPage {
         ended_mark: 0,
         live: rows,

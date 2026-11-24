@@ -109,6 +109,7 @@ fn encode_task_from_label(value: &jig_client::contract::Task, out: &mut Encoder,
     } else {
         super::encode_waits_on(&value.waits_on, out, budget);
     }
+    super::waits::encode_task(value, out, budget);
     out.key(b"chip");
     super::encode_chip(&value.chip, out, budget);
     out.key(b"goal");

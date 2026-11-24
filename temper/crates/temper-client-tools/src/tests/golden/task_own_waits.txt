@@ -1,0 +1,12 @@
+task 41 · goal · Running · shop · priority 2
+asked: Add a /health endpoint that reports the store's state
+requester: you · spent 1.20 of 5.00 · no deadline
+settings: revision 1
+waiting on: Waiting for an answer to its question 228316 · since 2026-11-24 06:07 UTC · passes up at 2026-11-24 08:07 UTC
+waits: 2
+  question 228316 to task 34 · since 2026-11-24 06:07 UTC · passes up at 2026-11-24 08:07 UTC · hears task 34
+  dependency task 17 · since 2026-11-24 05:50 UTC · no bound: no deadline · hears task 34
+acts:
+  task stop 41 --key KEY
+  task cancel 41 REASON --key KEY
+digest: task 3abe212d9ab183a2
