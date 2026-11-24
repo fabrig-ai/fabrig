@@ -3,6 +3,7 @@ jig/crates/jig-client-protocol-wire/src/generated/client.rs jig/crates/jig-clien
 jig/crates/jig-client-protocol-wire/src/generated/public.rs jig/crates/jig-client-protocol-wire/schema/public-v1.schema
 jig/crates/jig-client-view-codec/src/generated/records.rs jig/crates/jig-client-view/schema/records-v1.schema
 jig/crates/jig-protocol-accounts-codec/src/generated/moved.rs jig/crates/jig-protocol-accounts/schema/moved-v1.schema
+jig/crates/jig-protocol-charter/src/generated/charter.rs smith/crates/smith-charter/schema/charter-v5.schema jig/crates/jig-protocol-charter/schema/charter.maps
 jig/crates/jig-protocol-engine-clients-codec/src/generated/cursor.rs jig/crates/jig-protocol-engine-clients/schema/cursor-v2.schema
 jig/crates/jig-protocol-store-core/src/generated/core.rs jig/crates/jig-protocol-store/schema/core-v6.schema
 jig/crates/jig-protocol-store-families/src/generated/accounts.rs jig/crates/jig-protocol-store/schema/accounts-v2.schema
@@ -34,6 +35,8 @@ skein/tests/codec/src/generated/sample.rs skein/tests/codec/schema/sample-v1.sch
 smith/crates/smith-channel/src/generated/channel.rs smith/crates/smith-channel/schema/channel-v14.schema
 smith/crates/smith-charter/src/generated/charter.rs smith/crates/smith-charter/schema/charter-v5.schema
 smith/crates/smith-local-protocol-codec/src/generated/local_store.rs smith/crates/smith-local-protocol/schema/local-store-v1.schema
+smith/crates/smith-protocol-translate/src/generated/charter.rs smith/crates/smith-charter/schema/charter-v5.schema smith/crates/smith-protocol-translate/schema/charter.maps
+smith/crates/smith-protocol-translate/src/generated/transcript.rs smith/crates/smith-transcript/schema/transcript-v8.schema smith/crates/smith-protocol-translate/schema/transcript.maps
 smith/crates/smith-transcript/src/generated/transcript.rs smith/crates/smith-transcript/schema/transcript-v8.schema
 temper/crates/temper-client-protocol-wire/src/generated/client_wire.rs temper/crates/temper-client-protocol-wire/schema/client-wire-v1.schema
 temper/crates/temper-client-protocol-wire/src/generated/public.rs temper/crates/temper-client-protocol-wire/schema/public-v1.schema

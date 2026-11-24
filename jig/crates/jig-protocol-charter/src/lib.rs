@@ -7,6 +7,14 @@
 #![forbid(unsafe_code)]
 extern crate alloc;
 
+#[rustfmt::skip]
+#[expect(clippy::trivially_copy_pass_by_ref, reason = "generated translations borrow all domain values (data/codec/maps.md, 4.1)")]
+mod generated {
+    pub mod charter {
+        include!("generated/charter.rs");
+    }
+}
+
 mod assignment;
 mod boundary;
 mod call;

@@ -3,7 +3,7 @@
 use std::{fs, path::Path};
 
 use skein_codec::bounds::Declaration;
-use skein_codegen::{bounds_text, generate, values};
+use skein_codegen::{bounds_text, generate, translate, values};
 use smith_channel::v14 as channel;
 use smith_charter::v5 as charter;
 use smith_local_protocol::local_store_v1 as local_store;
@@ -79,6 +79,25 @@ fn local_store_schema_matches_generated_code() {
     let source = smith_local_protocol::SCHEMA;
     check_records(&crates.join("smith-local-protocol-codec"), "local_store", source);
     check_bounds("local_store", local_store::DECLARATIONS, local_store::CEILINGS.values().as_slice());
+}
+
+#[test]
+fn charter_translation_matches_generated_code() {
+    check_translation("charter", smith_charter::SCHEMA);
+}
+
+#[test]
+fn transcript_translation_matches_generated_code() {
+    check_translation("transcript", smith_transcript::SCHEMA);
+}
+
+fn check_translation(file: &str, source: &'static str) {
+    let root = skein_scratch::paths::tree().join("crates/smith-protocol-translate");
+    let maps_path = root.join(format!("schema/{file}.maps"));
+    let maps = fs::read_to_string(&maps_path).expect("translation maps");
+    let code =
+        translate(&values(source).schema, &maps).unwrap_or_else(|error| panic!("{}: {error}", maps_path.display()));
+    check_artifact(&root.join(format!("src/generated/{file}.rs")), code.as_bytes());
 }
 
 fn check_records(root: &Path, file: &str, source: &'static str) {
