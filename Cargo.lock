@@ -1069,6 +1069,7 @@ dependencies = [
  "jig-client-protocol-wire",
  "jig-client-shell-native",
  "jig-client-test-domain",
+ "jig-client-test-records",
  "jig-client-view",
  "jig-domain-core",
  "jig-domain-notes",

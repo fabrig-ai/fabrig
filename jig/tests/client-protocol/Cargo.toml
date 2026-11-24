@@ -52,6 +52,7 @@ skein-ui.workspace = true
 jig-test-connector.workspace = true
 jig-client-view.workspace = true
 jig-client-protocol-link.workspace = true
+jig-client-test-records.workspace = true
 jig-protocol-engine-clients.workspace = true
 jig-protocol-engine-clients-http.workspace = true
 jig-domain-people.workspace = true
