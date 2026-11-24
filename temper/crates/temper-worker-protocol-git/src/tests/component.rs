@@ -410,6 +410,7 @@ fn a_merges_unmerged_stdout_alone_keeps_a_prefix_past_its_cap() {
     component.end(pipes[1]);
     component.exited(child, 1);
     component.closed(child, &pipes);
+    super::view::invocation(&mut component, b"", 0);
     let (child, pipes) = component.spawned();
     let cap = fixtures::limits().stdout_bytes;
     let mut stdout = skein_lib::List::with_capacity(cap.checked_add(6).expect("room for the last path"));
