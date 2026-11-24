@@ -6,6 +6,57 @@ use std::collections::BTreeSet;
 use skein_world::faults::Kind;
 
 use crate::restarts::*;
+use crate::{bounds, parks, people};
+
+#[test]
+fn workload_kinds_keep_their_families_names_and_adapter_tables() {
+    let people = [
+        (people::CANCELS_A_GOAL, "cancelling a goal"),
+        (people::CANCELS_A_CHANGE, "cancelling a change"),
+        (people::CANCELS_A_LANDING, "cancelling a landing"),
+        (people::HOLDS_A_MEMBER, "holding a member of a live landing"),
+        (people::RELEASES_A_MEMBER, "releasing a held member of a live landing"),
+        (people::ANSWERS_LATE, "answering a change's question late"),
+        (people::NEVER_ANSWERS, "never answering a change's question"),
+        (people::ANSWERS_TWICE, "answering a change's question twice"),
+        (people::ANSWERS_AN_ENDED_RUN, "answering a question whose run has ended"),
+        (people::WORDS_TO_AN_ENDED_PRODUCER, "words to a change whose producer has ended"),
+    ];
+    let parks = [
+        (parks::A_CHANGE_WAITS_ON_ANOTHER_GOAL, "a change waits on another goal"),
+        (parks::DELIVERED_THEN_PARKED, "a run that delivered parks and finishes in its next run"),
+        (parks::RESUMED_ON_ANOTHER_WORKER, "a run resumes on another worker"),
+    ];
+    // These literals are the adapters' names, checked against temper-engine-inspect/src/tables.rs,
+    // temper-worker-inspect/src/lib.rs and tests/worker/domain/src/builder.rs.
+    let bounds = [
+        (bounds::FORGE_WRITE_ENTRIES, "forge write entries"),
+        (bounds::FORGE_READ_ADMISSIONS, "forge read admissions"),
+        (bounds::BRANCH_HOLDS, "branch holds"),
+        (bounds::LANDING_ROWS, "landing rows"),
+        (bounds::WORKSPACES, "workspaces"),
+        (bounds::PREPARE_PERMITS, "prepare permits"),
+        (bounds::PER_RUN_SCRATCH, "per-run scratch"),
+        (bounds::RUN_SLOTS, "run slots"),
+        (bounds::BUILD_PLACES, "build places"),
+    ];
+    assert_eq!(people::FAMILY, "people and parties");
+    assert_eq!(parks::FAMILY, "runs that park, resume and move");
+    assert_eq!(bounds::FAMILY, "the engine's own bounds");
+    for (family, kinds) in
+        [(people::FAMILY, people.as_slice()), (parks::FAMILY, parks.as_slice()), (bounds::FAMILY, bounds.as_slice())]
+    {
+        let mut names = BTreeSet::new();
+        for &(kind, name) in kinds {
+            assert_eq!(kind.family, family);
+            assert_eq!(kind.name, name);
+            assert!(names.insert(kind.name), "duplicate kind: {kind:?}");
+        }
+    }
+    for (kind, name) in bounds {
+        assert_eq!(bounds::table(name), kind);
+    }
+}
 
 // Section 2 names sixteen constants, apart from the twelve worker pairs.
 const NAMED: [(Kind, &str); 16] = [

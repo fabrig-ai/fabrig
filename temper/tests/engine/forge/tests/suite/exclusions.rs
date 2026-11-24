@@ -6,8 +6,8 @@ use temper_engine_forge_world::open::{self, *};
 // Each row pins a distinct open problem, its fault vocabulary and fixing work.
 const CASES: &[(Kind, &str, &str, &str, &str)] = &[
     (
-        FORGE_WRITE_ENTRIES_FULL,
-        "bounds/forge write entries full",
+        temper_faults::bounds::FORGE_WRITE_ENTRIES,
+        "the engine's own bounds/forge write entries",
         "a_change_waiting_for_room_has_a_bound",
         "bounded waits",
         "a change waiting for room past its stall",
@@ -26,10 +26,10 @@ const CASES: &[(Kind, &str, &str, &str, &str)] = &[
         "a change's reds",
         "a landing's gate red",
     ),
-    (A_STARVED_GATE, "forge/a starved gate", "a_starved_gate_is_the_runners", "a change's reds", "a landing's gate"),
+    (temper_blame::STARVED, "ci/starved", "a_starved_gate_is_the_runners", "a change's reds", "a landing's gate"),
     (
         A_PATH_DELETED_ON_THE_BASE,
-        "state/a path deleted on the base",
+        "stale/a path deleted on the base",
         "a_resolution_keeping_a_deleted_path_is_refused",
         "a change's reds",
         "a resolution under way",
@@ -42,22 +42,29 @@ const CASES: &[(Kind, &str, &str, &str, &str)] = &[
         "a landing's gate red",
     ),
     (
-        ANSWER_A_QUESTION,
-        "parties/answer a question",
+        temper_faults::people::ANSWERS_LATE,
+        "people and parties/answering a change's question late",
         "a_held_answer_tells_its_requester",
         "bounded waits",
         "a dependency holds the answer",
     ),
     (
-        A_CHANGE_WAITS_ON_ANOTHER_GOAL,
-        "parties/a change waits on another goal",
+        temper_faults::people::ANSWERS_TWICE,
+        "people and parties/answering a change's question twice",
+        "a_held_answer_tells_its_requester",
+        "bounded waits",
+        "a dependency holds the answer",
+    ),
+    (
+        temper_faults::parks::A_CHANGE_WAITS_ON_ANOTHER_GOAL,
+        "runs that park, resume and move/a change waits on another goal",
         "a_change_waits_on_another_goal",
         "bounded waits",
         "its requester parked",
     ),
     (
-        THE_ENGINE_RESTARTED_COLD,
-        "restarts/the engine restarted cold",
+        temper_faults::restarts::ENGINE_CRASH,
+        "restarts/engine crash",
         "a_stored_charter_is_checked_at_start",
         "bounded waits",
         "a stored charter past its room",
@@ -103,7 +110,7 @@ fn engine_exclusions_require_the_configured_fault_and_its_conditions() {
 fn engine_exclusions_return_the_first_refusal_without_adding_later_rows() {
     let mut sweep = Sweep::new("missing configured fault");
     sweep.configure(A_WRITE_REFUSED);
-    let refusal = open::exclude(&mut sweep, &[FORGE_WRITE_ENTRIES_FULL, A_WRITE_REFUSED])
+    let refusal = open::exclude(&mut sweep, &[temper_faults::bounds::FORGE_WRITE_ENTRIES, A_WRITE_REFUSED])
         .expect_err("the first fault is absent from the sweep");
     assert_eq!(
         refusal,
