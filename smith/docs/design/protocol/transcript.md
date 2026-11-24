@@ -358,10 +358,12 @@ jobs of every earlier window and activation.
 
 A host keeps turns beyond a release: jig's store keeps each in its
 transcript's frames and reads them back after its engine is upgraded
-(jig's `protocol/store/transcripts.md`, 6; temper's `draft/upgrades.md`, 7.2). From
-the baseline, that host patches a turn of an older version to the
-current one as it reads it, by smith's patches, so a run resumes across
-a change of turns and people read old turns in the current version. Every
+(jig's `protocol/store/transcripts.md`, 6; temper's `draft/upgrades.md`, 7.2). That
+host keeps each turn at the layout it was written at and converts it to
+the current one as it reads it, by plans from the texts its registry
+holds, so a run resumes across a change of turns and people read old
+turns in the current version; smith's patches serve the turns' wire
+alone. Every
 other reader reads one version (`transcript.md`, section 6), and its host hands it no
 other.
 

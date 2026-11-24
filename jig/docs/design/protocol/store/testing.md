@@ -72,11 +72,11 @@ Each within jig's suites' budgets.
   by the test that reads it; the writer's file compared with it byte
   for byte, and the reader walking it from both ends to the same turns.
   A change to the framing (`transcripts.md`, 1: the frame's length at both ends and its
-  checksum, around the body) fails it, naming the format. The framing,
-  the core's `TurnRecord` and smith's turn stay at their current versions:
-  a change designs how the store reaches it in that landing (temper's
-  `draft/store-floor.md`, section 5). The frame patcher and its fixtures
-  stay (`transcripts.md`, 6).
+  checksum, around the body) fails it, naming the format. The framing
+  stays as it is: a change designs how the store reaches it in that
+  landing (temper's `draft/store-floor.md`, section 5). The core's
+  `TurnRecord` and smith's turn move by their layouts
+  (`transcripts.md`, 6).
 - **Rehearsing and going back** (`opening-rehearsal.md`, 1), in the store's world over
   fixture sets: a rehearsal reporting each job and its counts and the restores whole,
   `A` still active and its maps unchanged, and the next start removing
@@ -94,20 +94,20 @@ Each within jig's suites' budgets.
   values built from the schema's text for the manifest, and a generation's
   number in decimal, no leading zero, and a newline for `active`. The
   manifest's fields are the component's family's, at its fixed version.
-- **Transcripts patched as read,** most of it at the lowest layer. Step
-  tests in `jig-protocol-store` over `jig-test-patches-smith` (and a
-  fixture body family in `jig-test-patches-jig`): frames written at each
-  fixture version, read by every kind of `transcripts.md`, 3, each handing on the bytes
-  its patches' goldens give (skein's `data/codec/command.md`, 3) and the file's
-  bytes unchanged; bounds judged on patched sizes; each halt, a
-  `NoSite` and a turn past its kept texts among them, an unread frame; a
-  version before a machine's first or past its last unread; a site up
-  and back on a read, a commit waiting behind it, and a stray `Site`
-  refused in each phase; the frames' checks refusing at a serving open;
-  no machine with sets that keep no text; each
-  machine's worst case against its measured peak; over skein-io's fault
-  points, a cut at each step of a read changes no file. Fuzzed: a frame's
-  decode with machines, over random fixture frames. The core's closed
+- **Transcripts converted as read,** most of it at the lowest layer.
+  Step tests in `jig-protocol-store` over fixture frames' families (a
+  body family and a turn family, `jig-test-layouts`): frames written at
+  each fixture layout, in a file and in a turns log, read by every kind
+  of `transcripts.md`, 3, each handing on the bytes the binary's codec
+  writes for the same values, and the file's bytes unchanged; a body
+  and a turn each at another layout, and both; the ids before the
+  registry, the body at the core's version and the turn at each kept
+  version, seeded and read; bounds judged on converted sizes; an id
+  with no row, and a value its plan refuses, an unread frame; a frames'
+  layout with no plan refusing the open; a frame written at the
+  binary's ids by a later layout's binary; over skein-io's fault
+  points, a cut at each step of a read changes no file. Fuzzed: a
+  frame's decode over random fixture frames at random layouts. The core's closed
   window starts fresh with its tail, counted as a transition
   (`../../domain/engine/executors-transcripts.md`, 1); no map patch closes it at open.
   Generation, upgrade, check and frame scenarios run in the focused

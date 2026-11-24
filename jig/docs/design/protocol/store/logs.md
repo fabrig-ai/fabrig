@@ -210,14 +210,13 @@ task logs this read has fetched. The jobs' pages read the map alone
 - **Read as a file's frames are:** every read kind of `transcripts.md`,
   3 (resuming, a turn, a page's turns, a page of turns, a tail) walks a
   turns log's records by `ReadLog` from its places as it walks a file's
-  frames, each record a frame's body, patched as read alike
+  frames, each record a frame's body, converted as read alike
   (`transcripts.md`, 6). A record past what is left of a page is read
   whole alone, its fields kept and its bytes left out, as a cut turn is.
   A record skein-kv cannot give is a frame unread.
 - **One record per demand:** forwards and backwards, the reader asks
   `ReadLog` for at most one record, so skein-kv checks and inflates no
-  later record before this one's body is consumed. A body's decode
-  that stops at a written patch site ends that step; the next record
+  later record before this one's body is consumed; the next record
   is demanded only after the frame completes. A record returned cut
   is retried alone under the whole-page byte bound.
 - **No cut at open:** skein-kv's extent leaves a torn tail as garbage
@@ -262,6 +261,11 @@ as it is read (temper's `draft/store-shape.md`, section 3):
   one with no plan to the binary's layout refuses the open, since no
   written job converts what a log holds. A change to a log-held value
   type is therefore one a plan derives.
+- **A later layout** (`layouts.md`, 5.6), one a build after the
+  binary's wrote, is planned in Read mode: no record of a log is
+  written again, so the log keeps what the binary skips, and the open's
+  check of later layouts walks the map alone. Nor does settling
+  (`settling.md`) put a log-held value.
 
 ## 9. Retention
 

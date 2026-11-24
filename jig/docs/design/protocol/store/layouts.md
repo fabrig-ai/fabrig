@@ -25,8 +25,15 @@ is converted as it is read, and written at the binary's layout.
   refused; the binary's layouts registered; a plan made for
   every layout held, or the open refused before anything is written;
   layouts no value holds retired.
+- **Later layouts** (5.6): the store keeps the order in which it first
+  held each layout, so a build going back plans a later build's layouts
+  to keep their values, checks every value at them before anything is
+  written, and refuses by value type and count where one can't be kept.
 - **Written changes** (6) convert by their owner's written job at open
   (`jobs.md`, 4).
+- **Settling** (`settling.md`): while the store serves, each map value
+  at another layout is put again at the binary's, and a layout it
+  empties is retired.
 
 ## 1. What is registered
 
@@ -36,16 +43,20 @@ is converted as it is read, and written at the binary's layout.
   `schema/registered` (skein's `data/codec/command.md`, 1). From the
   registration on their versions stay, and no patch names them (skein's
   `data/codec/README.md`, section 5).
+- **The transcripts' frames** (`transcripts.md`, 6): each frames'
+  family's frames' root is a value type of its own, with no key range,
+  its layouts rows of the registry as a map value type's are: the
+  core's `TurnRecord`, a frame's body, and smith-transcript's `Turn`,
+  the turn the body holds. No census counts them, so every layout of
+  theirs is held, as a log-held value type's is (`logs.md`, 8).
 - **Outside the registry:** the component's own rows under its tag (the
   format and wires rows, transcripts' places and
   attempts, the workers' openings and the registry's own rows, 3), read
-  before the registry or holding it; the secrets' store's families
+  before the registry or holding it; and the secrets' store's families
   (`secrets.md`), read once at open from a store copied whole at each
-  upgrade; and the transcripts' frames (`transcripts.md`, 6), already
-  converted as they are read. These formats stay at their current versions
+  upgrade. These formats stay at their current versions
   (temper's `draft/store-floor.md`, section 5). A change to one designs
-  how the deployment's store reaches it in the same landing; the frame
-  patcher and its texts and patches stay (`transcripts.md`, 6).
+  how the deployment's store reaches it in the same landing.
 - **The deployed store's layouts hold both rules.** Every layout the
   oldest store a build opens may hold, dev.fabrig.ai's (temper's
   `draft/store-floor.md`), plans to the binary's as 5.3 does or is a
@@ -160,6 +171,10 @@ versioned record Text { text: bytes 262144 }
 
 # A job done (jobs.md, 2): the commit that ended it.
 versioned record Job { ended: u64 }
+
+# The layouts a value type's values have been at, by fingerprint, in
+# the order the store first held them, the first the oldest (5.6).
+versioned record Order { layouts: list 64 fixed 32 }
 ```
 
 | Key | Row |
@@ -167,6 +182,13 @@ versioned record Job { ended: u64 }
 | `00 06 <family> <number> <id>` | a `Layout`: the family's name as skein-kv's escaped bytes, the value type's number and the layout's id, each a big-endian `u16` |
 | `00 07 <digest>` | a `Text`, by the SHA-256 (lib's) of its bytes, 32 bytes |
 | `00 08 <owner> <name>` | a `Job` done (`jobs.md`, 2): the owner's byte in `Owner`'s order, the job's name as escaped bytes |
+| `00 0e <family> <number>` | an `Order` (5.6): the family's name and the value type's number as a `Layout`'s key spells them; named `component.registry-orders` in the census (`growth.md`, 1.3) |
+
+- **`Order` is added at the family's version, 1:** no other record of
+  it changes, and a build before it reads no row at `00 0e`, which it
+  keeps as it keeps any key outside its ranges, so a store either
+  build writes the other opens. dev.fabrig.ai's store gains its rows at
+  the first open of a build that writes them (5.5).
 
 - **Every layout a value may be at** has its row, and every text a row
   names has its own: a value is never written at a layout the registry
@@ -259,7 +281,9 @@ a layout.
 Before anything is written, every open (whether it writes or not)
 plans each layout the registry holds to its value type's binary layout
 (skein's `data/codec/layouts.md`): from its row's text and held texts
-and its root and variant, to `current`'s. A layout planned is kept in
+and its root and variant, to `current`'s; an older layout by
+`Plan::derive`, a later one by `Plan::between` in the mode 5.6 gives,
+its values checked as 5.6 says. A layout planned is kept in
 memory for the read edge. A layout with no plan is refused, unless:
 
 - a written job of the binary converts from it (`jobs.md`, 4): one
@@ -282,8 +306,9 @@ opens.
 
 The refusal, `OpenRefusal::Layout`, names the family, the value type
 (its number, root and variant), the id, why (`Underived`'s, a text its
-row names that is missing or does not parse, or a value type the binary
-does not declare), and the values the census counts at that id, or that
+row names that is missing or does not parse, a value type the binary
+does not declare, or a later layout's values the binary can't keep,
+`Unkept`, 5.6), and the values the census counts at that id, or that
 it cannot tell (`opening.md`, 1.8). A layout row of a value type the
 binary no longer declares is refused the same way while a value may
 hold it, `Undeclared`, whether its family is one the binary declares or
@@ -296,19 +321,93 @@ holds (5.3's census exception), or a retired value type's whose ranges
 hold nothing (5.3), has its row erased by the next open that writes
 (`opening.md`, 2), with each text no other row names. No open writes
 for retirement alone. A log-held value type's layouts never retire by
-the census (`logs.md`, 8).
+the census (`logs.md`, 8), nor a frames' one (1). While the store
+serves, settling retires each layout of the map its walk has emptied,
+in the same way (`settling.md`). A retired layout keeps its place in
+its value type's order (5.6).
 
 ### 5.5 When the open writes
 
 The open writes before serving, in a new generation made by links
-(`opening.md`, 2), when a binary layout is not registered or when a job
+(`opening.md`, 2), when a binary layout is not registered, when a value
+type's order has no row or lacks its binary layout (5.6), or when a job
 is pending (`jobs.md`, 2); then one commit (or as many as the store's
-commit edge needs, `records.md`, 4) writes the binary's new layouts and
-the retirements, before any job runs. An open
+commit edge needs, `records.md`, 4) writes the binary's new layouts,
+the orders and the retirements, before any job runs. An open
 with none of these writes nothing, so a binary that changes no layout
 and brings no job opens the store in place, as before (temper's
 `draft/store-shape.md`, section 4, step 3: an older binary can read all
 such a binary writes).
+
+### 5.6 Later layouts
+
+A build started over a store a later build has committed to (temper's
+`draft/layouts-both-ways.md`, 8.1) finds layouts it has never had. A
+plan has no notion of older or newer (skein's `data/codec/layouts.md`),
+so the store keeps which way each layout lies.
+
+- **The order** (3): per value type, the fingerprints of the layouts
+  the store has held, in the order it first held them, the oldest
+  first, at most 64. A layout is **later** than the binary's where its
+  fingerprint comes after the binary layout's in its value type's
+  order; every other is **older**, one the order lacks among them.
+  An upgraded store's layouts are older than the upgrading binary's,
+  and a store gone back to an earlier build holds the later build's
+  layouts as later.
+- **Written** in the registry's commit (5.5), the first open of a build
+  that reads orders writing every value type's: a value type with no
+  order row takes its rows' fingerprints in their ids' order, then the
+  binary's where none of them is it; an order lacking the binary's
+  layout has it appended, its oldest dropped past 64. An order holding
+  the binary's layout stays as it is, so a build going back writes no
+  order, and the later build, started again, finds the earlier one's
+  layouts older than its own. An empty store's first commit writes
+  each value type's order with its binary layout alone; a retired
+  layout keeps its place (5.4), since the order outlives the rows.
+- **Planned to keep:** a later layout of a value type of the map is
+  planned by `Plan::between` in Keep mode (skein's
+  `data/codec/layouts.md`, 2), so what the binary lacks is dropped only
+  at its default or where the later text marks it `droppable`, and the
+  binary puts back what it read without losing what the later build
+  committed. A later layout of a value type held outside the map, a
+  log's (`logs.md`, 8) or the frames' (1), is planned in Read mode:
+  nothing writes such a value again, so the log or the file keeps what
+  the binary skips, and a value its plan refuses is handed on as it
+  was stored, for its reader to refuse as it would any malformed value
+  (4). An older layout is planned by `derive`, as before, so an
+  upgrade's plans and refusals are unchanged. A later layout with no
+  plan is refused as 5.3 refuses any, while a value may hold it.
+- **Checked before anything is written:** once every plan is made
+  (5.3), the open walks the ranges of each value type of the map with
+  a later layout the census can't show empty (5.3), a page at a time,
+  and converts each value at a later layout by its Keep plan, counting
+  each one refused per layout and writing nothing. Where any is
+  refused, the open is refused `OpenRefusal::Layout` at the first such
+  layout in the registry's key order, why `Unkept` with the count
+  refused and the first refusal's kind, declaration and part
+  (`Plan::refusal`), `values` the census's count at its id
+  (`opening.md`, 1.8). The previous generation, or a checkpoint taken
+  before the later build started, is then the way back
+  (`opening-rehearsal.md`, 1). A rehearsal makes the same check.
+- **Then it serves,** each value at a later layout converted by its
+  Keep plan as it is read and put back at the binary's; settling puts
+  the rest and retires what it empties (`settling.md`).
+- **A layout that comes back:** a binary whose layout of a value type
+  is one the store held before a later one, a change reverted among
+  them, goes back for that value type: it keeps the later layout's
+  values or refuses them. A written job naming the later layout
+  (`jobs.md`, 4) converts them where they must go.
+- **A build before the order** reads no order row and plans every
+  layout by `derive`, as before: going back keeps the later build's
+  values from the first build that reads the order.
+- **Why an order:** a layout's id is not its age, since a retired
+  layout's id comes back (3), and a build going back after its own
+  layout retired registers it anew at the next id. Nor is a text's
+  content: a field the binary lacks is one it dropped or one a later
+  build added, and only the order tells them apart. Turned down: a
+  mark written by the newer build's `back` past the first commit, which
+  a start of the older build without it would miss, losing what the
+  newer build added.
 
 ## 6. Written changes
 
@@ -366,7 +465,12 @@ values at a written job's layouts to the job, never to a plan
   schemas are dropped when the open ends, after its registry writes and
   written jobs; the drained pending queue keeps no spare capacity.
   Bounded beside the jobs' page and commit room at open
-  (`README.md`, section 8); no map patch machine is held.
+  (`README.md`, section 8); no map patch machine is held. The check of
+  later layouts (5.6) holds one page of the store's page bytes at a
+  time, as a job's page (`jobs.md`, 3), and converts into a buffer and
+  workspace as a read does (below). The orders, at most 64
+  fingerprints per value type, are read with the registry and held
+  while the open plans.
 - **Per read:** a converted value is built in a `Buffer` that grows with
   the values the store converts, never past the store's value bound
   (`records.md`, 4), with one skein `layout::Workspace` beside it fitted
@@ -437,6 +541,24 @@ values at a written job's layouts to the job, never to a plan
   census pages, each task's own rows and its ended record read back with
   every value at the binary's layout. The source generation is
   unchanged, and a second open writes nothing and reads the same.
+- **Going back** (5.6), step tests over a fixture family's texts, the
+  later text adding a field with a default, one without, a variant and
+  a `droppable` field: a store a later binary wrote, opened by the
+  earlier one, plans the later layout in Keep mode, reads each value
+  at it converted and puts it back at the earlier layout, and opened
+  again by the later binary reads it back whole; a value holding the
+  added field away from its default, or the added variant, refuses
+  the open `Layout` with why `Unkept`, its count and first refusal,
+  before anything is written; a `droppable` field's value drops; a
+  log-held value type's later layout is read in Read mode and refuses
+  nothing at open. The order: written for every value type by the
+  first open, from the rows' ids then the binary's; appended by an
+  upgrade, its oldest dropped past 64; unchanged by a build going
+  back, which writes nothing where its layout is registered; and a
+  build going back after its own layout retired registering it anew
+  at the next id still plans the later layout to keep. A store
+  without orders opened by a binary with them is written orders and
+  reads as before.
 - **The conversion buffer** (7), measured under skein's counting
   allocator in the store's world: a store whose plans convert holds no
   buffer at open; its first converted read makes one at its value's

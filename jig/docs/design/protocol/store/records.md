@@ -264,8 +264,8 @@ record PartKey { task: u64 attempt: u64 number: u32 }
 record PartRecord { key: PartKey turn: u32 thread: u32 call: u32 kind: PartKind body: bytes 33554432 holds smith-transcript Turn }
 ```
 
-Its body is held as a turn's, so the store patches it forward as it
-reads it, as it does a kept turn (`transcripts.md`, 6), and a restart
+Its body is held as a turn's, so the store converts it with its
+holder's layout as it reads it (`layouts.md`, 1 and 4), and a restart
 restores the parts with the calls, within the start's room.
 
 A settings revision's items, each with its edit and replaced state, cross as
