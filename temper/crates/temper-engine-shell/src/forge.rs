@@ -1,5 +1,6 @@
 //! Forge commands and slot removal (temper/docs/design/protocol/setup/box.md, 1).
 mod flags;
+use skein_forge::forgejo::pin::Platform;
 use std::{
     ffi::OsString,
     fs,
@@ -10,7 +11,15 @@ use std::{
     },
     path::Path,
 };
-use temper_forge_setup::{machine::BoxKind, place::Place, prepare::Prepare, run, setup::Mode, spec::Which};
+use temper_forge_setup::{
+    fetch::Fetch,
+    machine::BoxKind,
+    place::Place,
+    prepare::Prepare,
+    run,
+    setup::{Mode, Owned},
+    spec::Which,
+};
 pub use temper_forge_setup_shell::words::Refused;
 pub(crate) use temper_forge_setup_shell::words::command_error;
 use temper_forge_setup_shell::{prepare, run as host, words};
@@ -47,6 +56,8 @@ type Named = temper_engine_service::startup::Named;
 type ReadSetup<'a> = dyn Fn(&super::Directories, u16, &str, &[OsString]) -> Result<SetupFile, String> + 'a;
 type ReadConfiguration<'a> =
     dyn Fn(&super::Directories, temper_config_shell::Shape) -> Result<Configuration, String> + 'a;
+type FetchCommand<'a> = dyn Fn(&Owned, u64, Option<std::path::PathBuf>) -> Result<u8, String> + 'a;
+type Source<'a> = dyn Fn(&[u8], &Named, &Owned, &Place, skein_lib::Duration, Option<&[u8]>) -> Result<u8, String> + 'a;
 type SignIn<'a> = dyn Fn(&super::Directories, &[u8], &Named, u16, &[EnvironmentEntry]) -> Result<u8, String> + 'a;
 
 pub(super) struct Inputs<'a> {
@@ -179,10 +190,6 @@ pub(super) fn start_with_preparation(
     )
 }
 
-#[expect(
-    clippy::too_many_lines,
-    reason = "one forge command dispatches its binary-shaped document, checked setup and process lifecycle"
-)]
 fn start_with_effects(
     binary: &str,
     shape: temper_config_shell::Shape,
@@ -191,6 +198,35 @@ fn start_with_effects(
     ssl_cert_file: Option<std::path::PathBuf>,
     environment: &[EnvironmentEntry],
     (inputs, preparation, commands): (&Inputs<'_>, &Preparation<'_>, &OwnedCommands<'_>),
+) -> Result<u8, Refused> {
+    start_with_routes(
+        binary,
+        shape,
+        directories,
+        arguments,
+        ssl_cert_file,
+        environment,
+        (inputs, preparation, commands, &Routes { fetch: &fetch, source: &super::forge_sign_in::source }),
+    )
+}
+
+struct Routes<'a> {
+    fetch: &'a FetchCommand<'a>,
+    source: &'a Source<'a>,
+}
+
+#[expect(
+    clippy::too_many_lines,
+    reason = "one forge command dispatches its binary-shaped document, checked setup and process lifecycle"
+)]
+fn start_with_routes(
+    binary: &str,
+    shape: temper_config_shell::Shape,
+    directories: &super::Directories,
+    arguments: &[OsString],
+    ssl_cert_file: Option<std::path::PathBuf>,
+    environment: &[EnvironmentEntry],
+    (inputs, preparation, commands, routes): (&Inputs<'_>, &Preparation<'_>, &OwnedCommands<'_>, &Routes<'_>),
 ) -> Result<u8, Refused> {
     let usage = || {
         Refused::new(
@@ -259,7 +295,8 @@ fn start_with_effects(
         Mode::Fake(_) => None,
     };
     if verb == "fetch" {
-        return fetch(owned.expect("fetch requires owned"), checked.fetch_bytes, ssl_cert_file).map_err(refused);
+        return (routes.fetch)(owned.expect("fetch requires owned"), checked.fetch_bytes, ssl_cert_file)
+            .map_err(refused);
     }
     let directory = super::path(&entry.directory);
     let user = (preparation.directory)(directory, which.is_none()).map_err(refused)?;
@@ -279,8 +316,7 @@ fn start_with_effects(
         temper_forge_setup::setup_file::SetupFile::Fake(_) => None,
     };
     if verb == "source" {
-        return super::forge_sign_in::source(bytes, &named, owned, &place, checked.limits.deadline, client)
-            .map_err(refused);
+        return (routes.source)(bytes, &named, owned, &place, checked.limits.deadline, client).map_err(refused);
     }
     let owned_sign_in = client.is_some();
     (commands.prepare)(
@@ -379,33 +415,30 @@ pub(crate) mod testing {
         super::setup_file(directories, number, verb, flags)
     }
 }
-fn fetch(
-    owned: &temper_forge_setup::setup::Owned,
+fn fetch(owned: &Owned, fetch_bytes: u64, ssl_cert_file: Option<std::path::PathBuf>) -> Result<u8, String> {
+    let platform = if cfg!(target_os = "macos") { Platform::Macos } else { Platform::Linux };
+    fetch_with(owned, fetch_bytes, platform, std::env::consts::ARCH, |machine| {
+        temper_forge_setup_shell::fetch::run(
+            &jig_protocol_config::stock().io,
+            &skein_shell::Trust::Machine { ssl_cert_file },
+            machine,
+            &mut std::io::stdout(),
+        )
+    })
+}
+
+fn fetch_with(
+    owned: &Owned,
     fetch_bytes: u64,
-    ssl_cert_file: Option<std::path::PathBuf>,
+    platform: Platform,
+    arch: &str,
+    run: impl FnOnce(Fetch) -> Result<(), temper_forge_setup_shell::fetch::Failed>,
 ) -> Result<u8, String> {
     if !owned.fetch.forgejo && !owned.fetch.runner {
         return Err("neither of its binaries is \"fetched\"".into());
     }
-    let pins = temper_forge_setup::fetch::pins(
-        owned,
-        if cfg!(target_os = "macos") {
-            skein_forge::forgejo::pin::Platform::Macos
-        } else {
-            skein_forge::forgejo::pin::Platform::Linux
-        },
-        std::env::consts::ARCH,
-    )
-    .map_err(|why| text(&why.words()))?;
-    let machine = temper_forge_setup::fetch::Fetch::new(pins, fetch_bytes);
-    temper_forge_setup_shell::fetch::run(
-        &jig_protocol_config::stock().io,
-        &skein_shell::Trust::Machine { ssl_cert_file },
-        machine,
-        &mut std::io::stdout(),
-    )
-    .map(|()| 0)
-    .map_err(|why| why.words())
+    let pins = temper_forge_setup::fetch::pins(owned, platform, arch).map_err(|why| text(&why.words()))?;
+    run(Fetch::new(pins, fetch_bytes)).map(|()| 0).map_err(|why| why.words())
 }
 /// Admits fd 3 and runs the process, returning its exit or why it did not start.
 fn run_process(
@@ -461,23 +494,37 @@ fn prepare_directory_with(
 }
 
 /// The fake shares only the private directory and token with an owned forge (protocol/setup/playground.md).
-fn prepare_fake(path: &std::path::Path) -> Result<(), String> {
-    match fs::symlink_metadata(path) {
-        Ok(_) => return Ok(()),
-        Err(why) if why.kind() == std::io::ErrorKind::NotFound => {}
+fn prepare_fake(path: &Path) -> Result<(), String> {
+    prepare_fake_with(
+        path,
+        |path| fs::symlink_metadata(path).map(|_| ()),
+        skein_shell::crypto_seed,
+        |path, mode, token| match fs::OpenOptions::new().write(true).create_new(true).mode(mode).open(path) {
+            Ok(mut file) => file.write_all(token).map_err(|why| format!("{}: {why}", path.display())),
+            Err(why) if why.kind() == io::ErrorKind::AlreadyExists => Ok(()),
+            Err(why) => Err(format!("{}: {why}", path.display())),
+        },
+    )
+}
+
+fn prepare_fake_with(
+    path: &Path,
+    stat: impl FnOnce(&Path) -> io::Result<()>,
+    draw: impl FnOnce() -> Result<skein_lib::Secret, i32>,
+    write: impl FnOnce(&Path, u32, &[u8]) -> Result<(), String>,
+) -> Result<(), String> {
+    match stat(path) {
+        Ok(()) => return Ok(()),
+        Err(why) if why.kind() == io::ErrorKind::NotFound => {}
         Err(why) => return Err(format!("{}: {why}", path.display())),
     }
-    let seed = skein_shell::crypto_seed().map_err(|errno| format!("random token: errno {errno}"))?;
+    let seed = draw().map_err(|errno| format!("random token: errno {errno}"))?;
     let mut token = [0; 40];
     for (byte, digits) in seed.expose().iter().take(20).zip(token.as_chunks_mut::<2>().0) {
         digits[0] = b"0123456789abcdef"[usize::from(byte / 16)];
         digits[1] = b"0123456789abcdef"[usize::from(byte % 16)];
     }
-    match fs::OpenOptions::new().write(true).create_new(true).mode(0o600).open(path) {
-        Ok(mut file) => file.write_all(&token).map_err(|why| format!("{}: {why}", path.display())),
-        Err(why) if why.kind() == std::io::ErrorKind::AlreadyExists => Ok(()),
-        Err(why) => Err(format!("{}: {why}", path.display())),
-    }
+    write(path, 0o600, &token)
 }
 #[must_use]
 pub fn run(
@@ -766,3 +813,10 @@ mod tests;
 
 #[cfg(test)]
 mod owned_tests;
+
+#[cfg(test)]
+pub(crate) mod command_tests;
+
+#[cfg(test)]
+#[path = "../../../testing/forge_setup.rs"]
+pub(crate) mod test_fixtures;

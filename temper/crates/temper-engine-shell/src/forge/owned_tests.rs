@@ -1,3 +1,4 @@
+use super::test_fixtures as fixtures;
 use super::{
     Inputs, OwnedCommands, Path, Preparation, SetupFacts, io, prepare_directory_with, report_exit, setup_file_with,
     start_with_effects,
@@ -17,9 +18,6 @@ use std::{
 use temper_config_shell::{File, OpenId, OpenIdClient, Shape};
 use temper_forge_setup::machine::BoxKind;
 use temper_forge_setup_shell::{prepare, setup_file};
-
-#[path = "../../../../testing/forge_setup.rs"]
-mod fixtures;
 
 const USER: u32 = 1000;
 const GROUP_BYTES: u32 = 16; // The group file's bounded read.

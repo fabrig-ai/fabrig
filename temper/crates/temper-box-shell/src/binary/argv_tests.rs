@@ -175,6 +175,22 @@ fn reply(words: &[&str]) -> (ExitCode, String, String) {
 }
 
 #[test]
+fn forge_fetch_usage() {
+    let words =
+        ["forge", "fetch", "--config", "/fixture/config", "--data", "/fixture/data", "--cache", "/fixture/cache"];
+    assert_eq!(
+        reply(&words),
+        (
+            ExitCode::from(2),
+            String::new(),
+            "temper-box forge fetch: invalid arguments\nusage: temper-box forge fetch [DIRECTORIES] FORGE\n".into(),
+        )
+    );
+    let row = TABLE.commands.iter().find(|row| row.reach == skein_shell::Reach::Words(&["forge", "fetch"]));
+    assert_eq!(row.expect("fetch row").forms, ["[DIRECTORIES] FORGE"]);
+}
+
+#[test]
 fn argv_rows_keep_their_replies() {
     for (words, code, expected_stdout, expected_stderr) in ROWS {
         let (exit, stdout, stderr) = reply(words);
