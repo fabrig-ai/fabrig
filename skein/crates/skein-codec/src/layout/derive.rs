@@ -1,6 +1,9 @@
 //! Reach worklists and retained level conversions (data/codec/layouts.md, 2).
-use super::{Dropped, Field, Inner, Kind, Node, Plan, Read, ReadKind, Source, Underived, Variant, Why, add};
-use crate::patch::{Comparison, Target, compare_held, compare_types, payload_matches};
+use super::{
+    Absent, DropField, Field, Inner, Kind, Mode, Narrowed, Node, Plan, Read, ReadKind, Refusal, Refused, Source,
+    Underived, Variant, Why, add,
+};
+use crate::patch::{Comparison, Target, compare_held, compare_leaf, compare_types, integer_width, payload_matches};
 use crate::schema::{
     DeclIx, FieldIx, Held, MAX_DECLARATIONS, Named, Root, Schema, Shape, Span, Type, TypeIx, VariantIx,
 };
@@ -32,10 +35,29 @@ struct Place {
     decl: Span,
     part: Option<Span>,
     old: bool,
+    field: Option<FieldSite>,
+}
+#[derive(Clone, Copy, Debug)]
+struct FieldSite {
+    decl: Span,
+    part: Span,
+    outer: Option<FieldIx>,
 }
 impl Place {
+    fn new(decl: Span) -> Self {
+        Self { decl, part: None, old: false, field: None }
+    }
     fn error(self, why: Why) -> Underived {
         Underived { why, decl: self.decl, part: self.part, old: self.old }
+    }
+    fn outer_default(self, schema: &Schema) -> Option<&[u8]> {
+        schema.default(self.field?.outer?)
+    }
+    fn nested(mut self) -> Self {
+        if let Some(field) = &mut self.field {
+            field.outer = None;
+        }
+        self
     }
 }
 #[derive(Debug)]
@@ -47,7 +69,7 @@ struct Pair {
 #[derive(Clone, Copy)]
 pub(super) enum Policy {
     Strict,
-    RefuseDrops,
+    Between(Mode),
 }
 
 struct Builder {
@@ -137,7 +159,7 @@ impl Builder {
             plan: Plan {
                 nodes: List::uncapped(),
                 reads: List::uncapped(),
-                dropped: List::with_capacity(MAX_DECLARATIONS),
+                refusals: List::with_capacity(MAX_DECLARATIONS),
                 root: 0,
                 depth: 0,
                 fields: 0,
@@ -216,7 +238,10 @@ impl Builder {
         at
     }
     fn child(&mut self, key: Key, a: At, b: At, place: Place) -> u32 {
-        self.request(Key { old: location(key.old.text, a), new: location(key.new.text, b), root: false }, place)
+        self.request(
+            Key { old: location(key.old.text, a), new: location(key.new.text, b), root: false },
+            place.nested(),
+        )
     }
     fn build(&mut self, olds: &[&Schema], news: &[&Schema], at: u32) -> Result<(), Underived> {
         let key = *self.keys.get(at).expect("conversion key");
@@ -233,27 +258,60 @@ impl Builder {
         Ok(())
     }
     #[expect(clippy::disallowed_methods, reason = "schema parser has validated these ASCII names")]
-    fn drop_variant(&mut self, old: &Schema, place: Place) -> Result<Variant, Underived> {
-        match self.policy {
-            Policy::Strict => Err(place.error(Why::VariantDropped)),
-            Policy::RefuseDrops => {
-                let index = u16::try_from(self.plan.dropped.len()).expect("declaration bound fits u16");
-                let names = Dropped {
-                    enumeration: Box::from(
-                        core::str::from_utf8(old.spelled(place.decl)).expect("schema names are ASCII"),
-                    ),
-                    variant: Box::from(
-                        core::str::from_utf8(old.spelled(place.part.expect("dropped variant name")))
-                            .expect("schema names are ASCII"),
-                    ),
-                };
-                if self.plan.dropped.push(names).is_err() {
-                    return Err(place.error(Why::Deep));
-                }
-                Ok(Variant::Dropped(index))
-            }
+    fn refusal(&mut self, old: &Schema, decl: Span, part: Span, why: Refused) -> Result<u16, Underived> {
+        let index = u16::try_from(self.plan.refusals.len()).expect("declaration bound fits u16");
+        let names = Refusal {
+            why,
+            decl: Box::from(core::str::from_utf8(old.spelled(decl)).expect("schema names are ASCII")),
+            part: Box::from(core::str::from_utf8(old.spelled(part)).expect("schema names are ASCII")),
+        };
+        if self.plan.refusals.push(names).is_err() {
+            return Err(Underived { why: Why::Deep, decl, part: Some(part), old: true });
         }
+        Ok(index)
     }
+    fn field_refusal(&mut self, old: &Schema, place: Place, why: Refused) -> Result<u16, Underived> {
+        let field = place.field.expect("type conversion reached through a field");
+        self.refusal(old, field.decl, field.part, why)
+    }
+    fn narrowed(&mut self, old: &Schema, place: Place, a: u32, b: u32) -> Result<Option<Narrowed>, Underived> {
+        if b >= a {
+            return Ok(None);
+        }
+        let refusal = self.field_refusal(old, place, Refused::Narrowed)?;
+        Ok(Some(Narrowed { bound: b, refusal }))
+    }
+    fn check_drops(
+        &mut self,
+        old: &Schema,
+        decl: Span,
+        first: FieldIx,
+        used: &List<bool>,
+    ) -> Result<List<DropField>, Underived> {
+        let mut dropped = List::with_capacity(used.len());
+        for offset in 0..used.len() {
+            if *used.get(offset).expect("one slot per source field") {
+                continue;
+            }
+            let field = FieldIx::new(add(first.index(), offset));
+            let default = match old.default(field) {
+                Some(bytes) => {
+                    if bytes.is_empty() && empty(old, At::Type(old.field(field).ty)) {
+                        continue; // Every value of this field is already at its default.
+                    }
+                    Some(Box::from(bytes))
+                }
+                None => None,
+            };
+            let refusal = self.refusal(old, decl, old.field(field).name, Refused::Field)?;
+            dropped.push(DropField { offset, default, refusal }).expect("one check per dropped field");
+        }
+        Ok(dropped)
+    }
+    #[expect(
+        clippy::too_many_lines,
+        reason = "pairs fields and variants in discovery order (data/codec/layouts.md, 2)"
+    )]
     fn declaration(
         &mut self,
         olds: &[&Schema],
@@ -265,7 +323,8 @@ impl Builder {
     ) -> Result<Kind, Underived> {
         let old = text(olds, key.old.text);
         let new = text(news, key.new.text);
-        let place = Place { decl: new.declaration(b).name, part: None, old: false };
+        let place = Place::new(new.declaration(b).name);
+        let old_decl = old.declaration(a).name;
         if self.pairs.get(pair).expect("text pair").matching.get(b.index()).copied().flatten() != Some(a) {
             return Err(place.error(Why::Retyped));
         }
@@ -275,6 +334,12 @@ impl Builder {
                 Shape::Record { first: bf, count: bc, versioned: bv },
             ) => {
                 let mut fields = List::with_capacity(bc);
+                let mut used = List::with_capacity(ac);
+                if let Policy::Between(Mode::Keep) = self.policy {
+                    for _ in 0..ac {
+                        used.push(false).expect("one slot per old field");
+                    }
+                }
                 let mut in_place = ac == bc && av == bv && (key.root || !av || old.version() == new.version());
                 for offset in 0..bc {
                     let field = FieldIx::new(add(bf.index(), offset));
@@ -287,6 +352,13 @@ impl Builder {
                     let field = if let Some(source) = source {
                         let old_offset = source.index().checked_sub(af.index()).expect("field in matched record");
                         in_place &= old_offset == offset;
+                        if let Some(used) = used.get_mut(old_offset) {
+                            *used = true;
+                        }
+                        let part = Place {
+                            field: Some(FieldSite { decl: old_decl, part: old.field(source).name, outer: Some(field) }),
+                            ..part
+                        };
                         let mut child = Key {
                             old: location(key.old.text, At::Type(old.field(source).ty)),
                             new: location(key.new.text, At::Type(new.field(field).ty)),
@@ -305,7 +377,14 @@ impl Builder {
                     };
                     fields.push(field).expect("one source per new field");
                 }
-                Ok(Kind::Record { old_head: av, head: if bv { Some(new.version()) } else { None }, fields, in_place })
+                let dropped = self.check_drops(old, old_decl, af, &used)?;
+                Ok(Kind::Record {
+                    old_head: av,
+                    head: if bv { Some(new.version()) } else { None },
+                    fields,
+                    dropped,
+                    in_place,
+                })
             }
             (sa @ Shape::Enum { first: af, count: ac }, sb @ Shape::Enum { first: bf, .. }) => {
                 let mut variants = List::with_capacity(ac);
@@ -326,11 +405,18 @@ impl Builder {
                             break;
                         }
                     }
-                    let dropped =
-                        Place { decl: old.declaration(a).name, part: Some(old.variant(source).name), old: true };
                     let Some(dest) = found else {
-                        let variant = self.drop_variant(old, dropped)?;
-                        variants.push(Some(variant)).expect("one slot per old tag");
+                        let part = old.variant(source).name;
+                        if let Policy::Strict = self.policy {
+                            return Err(Underived {
+                                why: Why::VariantDropped,
+                                decl: old_decl,
+                                part: Some(part),
+                                old: true,
+                            });
+                        }
+                        let refusal = self.refusal(old, old_decl, part, Refused::Variant)?;
+                        variants.push(Some(Variant::Refuse(refusal))).expect("one slot per old tag");
                         continue;
                     };
                     let part = Place { part: Some(new.variant(dest).name), ..place };
@@ -376,23 +462,59 @@ impl Builder {
     ) -> Result<Kind, Underived> {
         let old = text(olds, key.old.text);
         let new = text(news, key.new.text);
-        if compare_types(&self.pairs.get(pair).expect("text pair").matching, old, new, a, b) == Comparison::Retype {
+        let matching = &self.pairs.get(pair).expect("text pair").matching;
+        // The store judges the entire field's type here, before queued declarations.
+        if let Policy::Strict = self.policy
+            && compare_types(matching, old, new, a, b) == Comparison::Retype
+        {
             return Err(place.error(Why::Retyped));
         }
         let av = old.ty(a);
         let bv = new.ty(b);
+        if let Some(inner) = option(bv) {
+            if let Some(a) = option(av) {
+                return Ok(Kind::Option(self.child(key, At::Type(a), At::Type(inner), place)));
+            }
+            return Ok(Kind::Wrap(self.child(key, At::Type(a), At::Type(inner), place)));
+        }
+        if let Some(inner) = option(av) {
+            let default = match self.policy {
+                Policy::Between(Mode::Read) => place.outer_default(new),
+                Policy::Between(Mode::Keep) | Policy::Strict => None,
+            };
+            let absent = match default {
+                Some(bytes) => Absent::Default(Box::from(bytes)),
+                None => Absent::Refuse(self.field_refusal(old, place, Refused::Absent)?),
+            };
+            return Ok(Kind::Unwrap { child: self.child(key, At::Type(inner), At::Type(b), place), absent });
+        }
+        if let Some((bound, item)) = list(bv) {
+            let (old_bound, a) = list(av).ok_or(place.error(Why::Retyped))?;
+            let narrowed = self.narrowed(old, place, old_bound, bound)?;
+            return Ok(Kind::List {
+                bound: old_bound,
+                item: self.child(key, At::Type(a), At::Type(item), place),
+                narrowed,
+            });
+        }
+        if let Some(old_width) = integer_width(av)
+            && let Some(new_width) = integer_width(bv)
+        {
+            if old_width == new_width {
+                return Ok(Kind::Copy);
+            }
+            let refusal =
+                if new_width < old_width { Some(self.field_refusal(old, place, Refused::Narrowed)?) } else { None };
+            return Ok(Kind::Integer { old: old_width, new: new_width, refusal });
+        }
+        // A tighter bound changes the pass, not which leaf types can be paired.
+        let bound = content_bound(av).unwrap_or(0);
+        if let Policy::Between(_) = self.policy
+            && compare_leaf(matching, old, new, av, widen_content(bv, bound)) == Comparison::Retype
+        {
+            return Err(place.error(Why::Retyped));
+        }
         match bv {
-            Type::Option(b) => {
-                if let Some(a) = option(av) {
-                    Ok(Kind::Option(self.child(key, At::Type(a), At::Type(b), place)))
-                } else {
-                    Ok(Kind::Wrap(self.child(key, At::Type(a), At::Type(b), place)))
-                }
-            }
-            Type::List { item: b, .. } => {
-                let (bound, a) = list(av).expect("compared list");
-                Ok(Kind::List { bound, item: self.child(key, At::Type(a), At::Type(b), place) })
-            }
             Type::Named(b) => {
                 let a = declaration(av).expect("compared named type");
                 let node = self.request(
@@ -403,18 +525,19 @@ impl Builder {
                     },
                     place,
                 );
-                // A named level has no wire of its own.
-                Ok(Kind::Named(node))
-            }
-            Type::U8 | Type::U16 | Type::U32 | Type::U64 => {
-                let a = width(av);
-                let b = width(bv);
-                Ok(if a == b { Kind::Copy } else { Kind::Integer { old: a, new: b } })
+                Ok(Kind::Named(node)) // A named level has no wire of its own.
             }
             Type::Bytes { bound, held } | Type::Secret { bound, held } => {
                 self.content(olds, news, pair, key, av, held, bound, place)
             }
-            Type::Bool | Type::Duration | Type::Fixed(_) | Type::Text(_) => Ok(Kind::Copy),
+            Type::Text(to) => match self.narrowed(old, place, bound, to)? {
+                Some(narrowed) => Ok(Kind::Content { bound: to, inner: None, narrowed: Some(narrowed) }),
+                None => Ok(Kind::Copy),
+            },
+            Type::U8 | Type::U16 | Type::U32 | Type::U64 | Type::Bool | Type::Duration | Type::Fixed(_) => {
+                Ok(Kind::Copy)
+            }
+            Type::List { .. } | Type::Option(_) => unreachable!("wrapper handled before leaf comparison"),
         }
     }
     #[expect(clippy::too_many_arguments, reason = "one terminal bytes conversion and its held-text context")]
@@ -448,13 +571,14 @@ impl Builder {
         if compare_held(&self.pairs.get(pair).expect("text pair").matching, old, new, ah, bh) == Comparison::Retype {
             return Err(place.error(Why::Retyped));
         }
+        let narrowed = self.narrowed(old, place, content_bound(av).expect("compared content bound"), bound)?;
         if let Some((af, an)) = held_record(ah)
             && let Some((bf, bn)) = held_record(bh)
         {
             let a = family(olds, old.spelled(af));
             let b = family(news, new.spelled(bf));
             match (a, b) {
-                (None, None) => return Ok(Kind::Copy),
+                (None, None) => return Ok(opaque(bound, narrowed)),
                 (Some(a), Some(b)) => {
                     let ad = text(olds, a).root(old.spelled(an), None).ok_or(place.error(Why::Held))?.decl;
                     let bd = text(news, b).root(new.spelled(bn), None).ok_or(place.error(Why::Held))?.decl;
@@ -462,7 +586,7 @@ impl Builder {
                         Key { old: location(a, At::Decl(ad)), new: location(b, At::Decl(bd)), root: false },
                         place,
                     );
-                    return Ok(Kind::Content { bound, inner: Inner::Held(inner) });
+                    return Ok(Kind::Content { bound, inner: Some(Inner::Held(inner)), narrowed });
                 }
                 (Some(_), None) | (None, Some(_)) => return Err(place.error(Why::Held)),
             }
@@ -491,9 +615,9 @@ impl Builder {
         };
         if let Some((a, b)) = pieces {
             let inner = self.child(key, At::Decl(a), At::Decl(b), place);
-            return Ok(Kind::Content { bound, inner: Inner::Pieces(inner) });
+            return Ok(Kind::Content { bound, inner: Some(Inner::Pieces(inner)), narrowed });
         }
-        Ok(Kind::Copy)
+        Ok(opaque(bound, narrowed))
     }
     #[expect(clippy::manual_map, reason = "step code enumerates options without callbacks")]
     fn build_read(&mut self, olds: &[&Schema], at: u32) {
@@ -559,6 +683,44 @@ impl Builder {
     }
 }
 
+fn opaque(bound: u32, narrowed: Option<Narrowed>) -> Kind {
+    match narrowed {
+        Some(narrowed) => Kind::Content { bound, inner: None, narrowed: Some(narrowed) },
+        None => Kind::Copy,
+    }
+}
+fn content_bound(ty: Type) -> Option<u32> {
+    match ty {
+        Type::Text(bound) | Type::Bytes { bound, .. } | Type::Secret { bound, .. } => Some(bound),
+        Type::U8
+        | Type::U16
+        | Type::U32
+        | Type::U64
+        | Type::Bool
+        | Type::Duration
+        | Type::Fixed(_)
+        | Type::List { .. }
+        | Type::Option(_)
+        | Type::Named(_) => None,
+    }
+}
+fn widen_content(ty: Type, minimum: u32) -> Type {
+    match ty {
+        Type::Text(bound) => Type::Text(bound.max(minimum)),
+        Type::Bytes { bound, held } => Type::Bytes { bound: bound.max(minimum), held },
+        Type::Secret { bound, held } => Type::Secret { bound: bound.max(minimum), held },
+        Type::U8
+        | Type::U16
+        | Type::U32
+        | Type::U64
+        | Type::Bool
+        | Type::Duration
+        | Type::Fixed(_)
+        | Type::List { .. }
+        | Type::Option(_)
+        | Type::Named(_) => ty,
+    }
+}
 fn empty(schema: &Schema, at: At) -> bool {
     match at {
         At::Type(at) => schema.fewest_bytes(at) == 0,
@@ -636,23 +798,6 @@ fn held_record(held: Held) -> Option<(Span, Span)> {
     }
 }
 
-fn width(ty: Type) -> u32 {
-    match ty {
-        Type::U8 => 1,
-        Type::U16 => 2,
-        Type::U32 => 4,
-        Type::U64 => 8,
-        Type::Bool
-        | Type::Duration
-        | Type::Fixed(_)
-        | Type::Secret { .. }
-        | Type::Text(_)
-        | Type::Bytes { .. }
-        | Type::List { .. }
-        | Type::Option(_)
-        | Type::Named(_) => unreachable!("compared integer"),
-    }
-}
 fn family(texts: &[&Schema], name: &[u8]) -> Option<u32> {
     // Entry zero is the containing family's text, not an implicit held registration.
     for at in 1..u32::try_from(texts.len()).expect("held texts fit u32") {
@@ -722,7 +867,7 @@ pub(super) fn plan(
 ) -> Result<Plan, Underived> {
     let decl =
         if new_root.decl.index() < new.declarations() { new.declaration(new_root.decl).name } else { new.family() };
-    let place = Place { decl, part: None, old: false };
+    let place = Place::new(decl);
     if !valid_root(old, old_root)
         || !valid_root(new, new_root)
         || old.spelled(old.family()) != new.spelled(new.family())
@@ -797,12 +942,12 @@ fn finish(builder: &mut Builder) -> Result<(), Underived> {
         }
         for at in 0..builder.plan.nodes.len() {
             if builder.plan.node(at).depth == 0
-                && let Some((depth, keeps)) = node_facts(&builder.plan, at)
+                && let Some(facts) = node_facts(&builder.plan, at)
             {
                 let node = builder.plan.nodes.get_mut(at).expect("conversion slot");
-                node.depth = depth;
-                node.keeps = keeps;
-                node.empty &= builder.plan.reads.get(node.read).expect("reader").minimum == 0;
+                node.depth = facts.depth;
+                node.keeps = facts.keeps;
+                node.empty = facts.empty;
                 changed = true;
             }
         }
@@ -892,58 +1037,73 @@ fn read_facts(plan: &Plan, at: u32) -> Option<(u32, u32)> {
     };
     Some((depth, minimum))
 }
-fn node_facts(plan: &Plan, at: u32) -> Option<(u32, bool)> {
+struct NodeFacts {
+    depth: u32,
+    keeps: bool,
+    empty: bool,
+}
+fn node_facts(plan: &Plan, at: u32) -> Option<NodeFacts> {
     let node = plan.node(at);
-    let mut depth = plan.read(node.read).depth;
+    let read = plan.read(node.read);
+    let mut depth = read.depth;
+    let mut empty = node.empty && read.minimum == 0;
     if depth == 0 {
         return None;
     }
     let keeps = match &node.kind {
         Kind::Pending => return None,
         Kind::Copy => true,
-        Kind::Integer { .. } => false,
+        Kind::Integer { .. } | Kind::Content { inner: None, .. } => false,
         Kind::Named(child) => {
             let child = plan.node(*child);
             if child.depth == 0 {
                 return None;
             }
             depth = depth.max(child.depth);
+            empty &= child.empty;
             child.keeps
         }
         Kind::Wrap(child)
+        | Kind::Unwrap { child, .. }
         | Kind::Option(child)
         | Kind::List { item: child, .. }
-        | Kind::Content { inner: Inner::Held(child) | Inner::Pieces(child), .. } => {
+        | Kind::Content { inner: Some(Inner::Held(child) | Inner::Pieces(child)), .. } => {
             let child = plan.node(*child);
             if child.depth == 0 {
                 return None;
             }
             let extra = match node.kind {
-                Kind::Content { inner: Inner::Pieces(_), .. } => 2,
-                Kind::Wrap(_) | Kind::Option(_) | Kind::List { .. } | Kind::Content { inner: Inner::Held(_), .. } => 1,
+                Kind::Content { inner: Some(Inner::Pieces(_)), .. } => 2,
+                Kind::Wrap(_)
+                | Kind::Unwrap { .. }
+                | Kind::Option(_)
+                | Kind::List { .. }
+                | Kind::Content { inner: Some(Inner::Held(_)), .. } => 1,
                 Kind::Pending
                 | Kind::Named(_)
                 | Kind::Copy
                 | Kind::Integer { .. }
                 | Kind::Record { .. }
-                | Kind::Enum(_) => unreachable!("wrapper conversion"),
+                | Kind::Enum(_)
+                | Kind::Content { inner: None, .. } => unreachable!("wrapper or content conversion"),
             };
             depth = depth.max(add(extra, child.depth));
             match node.kind {
-                Kind::Wrap(_) => false,
+                Kind::Wrap(_) | Kind::Unwrap { .. } => false,
+                Kind::List { narrowed, .. } | Kind::Content { narrowed, .. } => narrowed.is_none() && child.keeps,
                 Kind::Pending
                 | Kind::Copy
                 | Kind::Integer { .. }
                 | Kind::Named(_)
-                | Kind::Option(_)
-                | Kind::List { .. }
                 | Kind::Record { .. }
-                | Kind::Enum(_)
-                | Kind::Content { .. } => child.keeps,
+                | Kind::Enum(_) => unreachable!("wrapper or content conversion"),
+                Kind::Option(_) => child.keeps,
             }
         }
-        Kind::Record { fields, in_place, .. } => {
-            let mut keeps = *in_place;
+        Kind::Record { fields, dropped, in_place, .. } => {
+            // Even a record with no input or output bytes can refuse a dropped field.
+            empty &= dropped.is_empty();
+            let mut keeps = *in_place && dropped.is_empty();
             for field in fields {
                 if let Some(child) = field.node {
                     let child = plan.node(child);
@@ -951,6 +1111,7 @@ fn node_facts(plan: &Plan, at: u32) -> Option<(u32, bool)> {
                         return None;
                     }
                     depth = depth.max(add(1, child.depth));
+                    empty &= child.empty;
                     keeps &= child.keeps;
                 }
             }
@@ -961,7 +1122,7 @@ fn node_facts(plan: &Plan, at: u32) -> Option<(u32, bool)> {
             for variant in variants {
                 match variant {
                     None => {}
-                    Some(Variant::Dropped(_)) => keeps = false,
+                    Some(Variant::Refuse(_)) => keeps = false,
                     Some(Variant::Kept { in_place, payload, .. }) => {
                         keeps &= in_place;
                         if let Some(child) = payload {
@@ -978,5 +1139,5 @@ fn node_facts(plan: &Plan, at: u32) -> Option<(u32, bool)> {
             keeps
         }
     };
-    Some((depth, keeps))
+    Some(NodeFacts { depth, keeps, empty })
 }
