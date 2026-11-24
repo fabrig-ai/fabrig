@@ -89,7 +89,7 @@ pub struct Throwaway {
     instance: Instance,
     pid: u32,
     forgejo: PathBuf,
-    runner: owned::Running,
+    runner: Option<owned::Running>,
     person: Option<Token>,
     repository: Option<u64>,
     directory: PathBuf,
@@ -103,7 +103,7 @@ impl Throwaway {
 
     #[must_use]
     pub fn start_with_job_sleep(scratch: &Scratch, sleep_seconds: u64) -> Self {
-        Self::start_bare(scratch).with_repository(scratch, sleep_seconds, WORKFLOW)
+        Self::start_bare(scratch).with_repository(scratch, sleep_seconds, &workflow("'temper/**'"))
     }
 
     /// Keep the test's delivery receiver bound before configuring Forgejo's hook.
@@ -111,7 +111,8 @@ impl Throwaway {
     pub fn start_receiving(scratch: &Scratch) -> (Self, TcpListener) {
         let [listener] = super::reserve_listeners(&[]);
         let address = listener.local_addr().expect("delivery receiver address");
-        let fixture = Self::start_bare_with_webhooks(scratch, Some(address)).with_repository(scratch, 60, WORKFLOW);
+        let fixture =
+            Self::start_bare_with_webhooks(scratch, Some(address), true).with_repository(scratch, 0, &workflow("main"));
         (fixture, listener)
     }
 
@@ -131,11 +132,17 @@ impl Throwaway {
     /// The pinned server and runner with their administrator, before the fixture bot or adoption.
     #[must_use]
     pub fn start_bare(scratch: &Scratch) -> Self {
-        Self::start_bare_with_webhooks(scratch, None)
+        Self::start_bare_with_webhooks(scratch, None, true)
     }
 
-    fn start_bare_with_webhooks(scratch: &Scratch, webhooks: Option<SocketAddr>) -> Self {
-        let address = owned::tier_configuration(scratch.path());
+    /// The pinned server alone, for a story that never waits for Actions.
+    #[must_use]
+    pub fn start_without_runner(scratch: &Scratch) -> Self {
+        Self::start_bare_with_webhooks(scratch, None, false)
+    }
+
+    fn start_bare_with_webhooks(scratch: &Scratch, webhooks: Option<SocketAddr>, runner: bool) -> Self {
+        let address = owned::tier_configuration_with_runner(scratch.path(), runner);
         if let Some(webhooks) = webhooks {
             let path = scratch.path().join(temper_config_shell::FILE);
             let mut file = super::read_file(&path, temper_config_shell::Shape::Standalone);
@@ -147,10 +154,13 @@ impl Throwaway {
         let began = skein_shell::Clock::new().now().now;
         let instance = owned::attach(scratch.path(), address.port(), running);
         stage("attach", began);
-        let began = skein_shell::Clock::new().now().now;
-        let mut runner = owned::run(scratch.path(), "runner");
-        runner.declared();
-        stage("runner", began);
+        let runner = runner.then(|| {
+            let began = skein_shell::Clock::new().now().now;
+            let mut runner = owned::run(scratch.path(), "runner");
+            runner.declared();
+            stage("runner", began);
+            runner
+        });
         let webhooks =
             super::read_file(&scratch.path().join(temper_config_shell::FILE), temper_config_shell::Shape::Standalone)
                 .webhooks;
@@ -196,17 +206,6 @@ impl Throwaway {
         value.as_array().expect("pull list").iter().find_map(|pull| {
             (pull["merged"].as_bool() == Some(true)).then(|| pull["number"].as_u64().expect("pull number"))
         })
-    }
-    #[must_use]
-    pub fn job_state(&self, pull: u64) -> String {
-        let response = self.get(&format!("pulls/{pull}"));
-        assert_eq!(response.status, 200, "pull head");
-        let pull: Value = serde_json::from_slice(&response.body).expect("pull JSON");
-        let head = pull["head"]["sha"].as_str().expect("pull head");
-        let response = self.get(&format!("commits/{head}/status"));
-        assert_eq!(response.status, 200, "job status");
-        let status: Value = serde_json::from_slice(&response.body).expect("status JSON");
-        status["state"].as_str().expect("job state").into()
     }
     #[must_use]
     pub fn main_readme(&self) -> Vec<u8> {
@@ -264,7 +263,9 @@ impl Throwaway {
         )
     }
     pub fn stop(self) {
-        self.runner.stop();
+        if let Some(runner) = self.runner {
+            runner.stop();
+        }
         self.instance.stop().expect("owned Forgejo stopped");
     }
     #[must_use]
@@ -551,8 +552,6 @@ fn repository(instance: &Instance, person: &Token, sleep_seconds: u64, workflow:
         201,
     );
     request(instance, person, "PATCH", "/api/v1/repos/acme/widget", &json!({"has_actions":true}), 200);
-    // The hinted job sleeps 5 s, outlasting its overridden 3 s settle window
-    // (protocol/setup/testing.md 4).
     let check = format!(
         "test ! -e slow || sleep {sleep_seconds}\n\
          for file in batch-*.txt; do\n\
@@ -584,8 +583,11 @@ fn repository(instance: &Instance, person: &Token, sleep_seconds: u64, workflow:
     stage("repository", began);
     value["id"].as_u64().expect("repository id")
 }
-pub(super) const WORKFLOW: &str = r#"on: { push: { branches: ['temper/**'] } }
-jobs:
+fn workflow(branch: &str) -> String {
+    format!("on: {{ push: {{ branches: [{branch}] }} }}\n{CHECK_JOB}")
+}
+
+const CHECK_JOB: &str = r#"jobs:
   check:
     runs-on: temper-host
     steps:
@@ -680,83 +682,18 @@ impl Throwaway {
         request(&self.instance, &self.instance.admin().token, "PATCH", "/api/v1/repos/acme/widget", &options, 200);
     }
 
-    /// Repositories outside the bot's organizations, before the managed deployment starts.
-    pub fn adoption_repositories(&self) {
-        let token = &self.instance.admin().token;
-        request(&self.instance, token, "POST", "/api/v1/orgs", &json!({"username":"other","visibility":"public"}), 201);
-        for (name, private) in [("open", false), ("closed", true)] {
-            request(
-                &self.instance,
-                token,
-                "POST",
-                "/api/v1/orgs/other/repos",
-                &json!({"name":name,"auto_init":true,"default_branch":"main","private":private}),
-                201,
-            );
-        }
-    }
-
-    /// Remove access outside temper so the restart must repair it.
-    pub fn remove_adoption_collaborator(&self, name: &str) {
+    /// Remove a hook directly on the forge, so the next reconcile must make it again.
+    pub fn remove_repository_hook(&self, org: &str, name: &str, id: u64) {
         let response = self
             .instance
             .exchange(&Outgoing::json(
                 "DELETE",
-                &format!("/api/v1/repos/other/{name}/collaborators/elsewhere-bot"),
+                &format!("/api/v1/repos/{org}/{name}/hooks/{id}"),
                 Some(&self.instance.admin().token),
                 b"null",
             ))
-            .expect("remove collaborator answer");
-        assert_eq!(response.status, 204, "remove adoption collaborator");
-    }
-
-    pub fn remove_adoption_hooks(&self, name: &str) {
-        let value = self.repository_observation("other", name, "hooks");
-        for hook in value.as_array().expect("adoption hooks") {
-            let id = hook["id"].as_u64().expect("hook id");
-            let response = self
-                .instance
-                .exchange(&Outgoing::json(
-                    "DELETE",
-                    &format!("/api/v1/repos/other/{name}/hooks/{id}"),
-                    Some(&self.instance.admin().token),
-                    b"null",
-                ))
-                .expect("remove hook answer");
-            assert_eq!(response.status, 204, "remove adoption hook");
-        }
-    }
-
-    #[must_use]
-    pub fn merged_pull_in(&self, org: &str, name: &str) -> Option<u64> {
-        self.repository_observation(org, name, "pulls?state=closed&limit=50")
-            .as_array()
-            .expect("pull list")
-            .iter()
-            .find_map(|pull| (pull["merged"] == true).then(|| pull["number"].as_u64().expect("merged pull number")))
-    }
-
-    #[must_use]
-    pub fn job_state_in(&self, org: &str, name: &str, pull: u64) -> String {
-        let pull = self.repository_observation(org, name, &format!("pulls/{pull}"));
-        let head = pull["head"]["sha"].as_str().expect("pull head");
-        self.repository_observation(org, name, &format!("commits/{head}/status"))["state"]
-            .as_str()
-            .expect("job state")
-            .into()
-    }
-
-    #[must_use]
-    pub fn main_readme_in(&self, org: &str, name: &str) -> Vec<u8> {
-        let response = self
-            .instance
-            .exchange(&Outgoing::get(
-                &format!("/api/v1/repos/{org}/{name}/raw/README.md?ref=main"),
-                Some(&self.instance.admin().token),
-            ))
-            .expect("elsewhere README answer");
-        assert_eq!(response.status, 200, "elsewhere main README");
-        response.body
+            .expect("remove hook answer");
+        assert_eq!(response.status, 204, "remove repository hook");
     }
 
     #[must_use]
