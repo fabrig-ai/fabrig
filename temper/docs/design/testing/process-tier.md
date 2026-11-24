@@ -65,11 +65,9 @@
 - **Owned variants share their setup.** The owned turn landing's
   cancelled run contains its restart while proving. The owned
   welcome includes program login and key admission. One setup-cut story
-  walks fetch, preparation, run and started cuts using one scratch and
-  cache, makes one final setup, then restarts across its removal cut. Its
-  started cut runs on a box with no sign-in, as init writes one without
-  `openssl`: it holds the engine, and the group's source step needs the
-  engine to answer its discovery (`../protocol/openid-provider.md`, 9).
+  kills the box once the set up's Forgejo runs, then restarts across its
+  removal cut, on one scratch and cache; the cuts at each step are the
+  box host's simulated tests (`../protocol/setup/testing.md`, 1 and 4).
   The slot-host story still belongs here: its loop starts the shipped
   owned-slot subprocess and real Forgejo. Its referee polls the marker
   promptly instead of waiting for the fixture shell's 30-second sleep.
@@ -84,6 +82,16 @@
   `../../development/slow-tests-moves-2026-11-23-temper-forgejo.md`;
   a finding there is reproduced in that holder, not by a story here.
 
+- **The cluster's, restore's, checkpoint's and start-over's native
+  ends** (`../draft/slow-tests-down.md`, 6): these stories keep the
+  kill, the stop and the exit of a process, the copied place's launch,
+  the commands' dispatch and one start on a restored generation. Their
+  loss, retry, fencing, gate, landing and store checks, and the
+  mid-turn crash, drain and restart combinations, are the lower worlds'
+  and the restart faults' (`restarts.md`), each holder named beside the
+  assertion it took in
+  `../../development/slow-tests-moves-2026-11-24-temper-cluster.md`.
+
 - **Landing by turn's behaviours are the engine's worlds'**
   (skein/docs/foundation/testing-strategy.md, 1 and 2.9; the user's
   request of 2026-11-15): what a landing does, forming, batches,
@@ -93,9 +101,9 @@
   (`tests/engine/domain/tests/suite/forge_routes/`, D below) and its
   forge world (`tests/engine/forge/tests/suite/`, F below), on the fake
   forge, with faults and tiny limits (`../domain/landing.md`, 16). This
-  tier keeps two stories on the fake forge for what processes show, and
-  two on the owned Forgejo, run by choice, for what only a real Forgejo
-  shows (both below). The sixteen stories it held on the owned Forgejo
+  tier keeps two restarts of the cluster's processes on the fake forge
+  for what processes show, and two stories on the owned Forgejo, run by
+  choice, for what only a real Forgejo shows (both below). The sixteen stories it held on the owned Forgejo
   are gone, each once its behaviour had a scenario below it, and live
   here now (a module marked new is this re-layering's, a scenario of
   its own):
@@ -103,8 +111,8 @@
   | Former story | What it checked | Where it lives |
   |---|---|---|
   | `a_turn_landing_is_found_after_a_runner_cancellation_and_restarts` | restarts in preparing, proving and turn; a run cancelled outside temper dispatched afresh, its key and candidate kept, never repaired; a candidate on a main moved before forming | F `landing_batches.rs`, `batches_restart_preparing_proving_turn_recording_and_ended_without_repeating_writes`; F `landing.rs`, `a_restart_finds_the_dispatched_run_without_dispatching_again`; F `landing_cancelled.rs`, `a_persons_cancellation_dispatches_afresh_and_restart_finds_that_run` and `cancellations_past_the_gate_retry_bound_hold_without_repair`; the owned runner's cancellation, trimmed, by choice (below) |
-  | `an_engine_restarts_in_each_turn_landing_phase` | the engine restarted in preparing, proving and turn, the worker's prepare job living on | D `landing_restarts.rs`, `an_engine_restarts_in_each_turn_landing_phase`; D `landing_trains.rs`, `drill_14_a_dependency_across_goal_and_main_trains_survives_restart`; the engine killed as a process, the fake forge's first story (below) |
-  | `an_engine_and_worker_restart_during_delivery_beside_proof` | a producer's saved delivery across its worker's loss and an engine restart, beside a proving landing | D `landing_delivery_restart.rs`, `a_saved_delivery_survives_worker_loss_and_engine_restart_beside_proof`; the worker restarted as a process, the fake forge's second story (below) |
+  | `an_engine_restarts_in_each_turn_landing_phase` | the engine restarted in preparing, proving and turn, the worker's prepare job living on | D `landing_restarts.rs`, `an_engine_restarts_in_each_turn_landing_phase`; D `landing_trains.rs`, `drill_14_a_dependency_across_goal_and_main_trains_survives_restart`; the engine killed as a process, the cluster's first restart (below) |
+  | `an_engine_and_worker_restart_during_delivery_beside_proof` | a producer's saved delivery across its worker's loss and an engine restart, beside a proving landing | D `landing_delivery_restart.rs`, `a_saved_delivery_survives_worker_loss_and_engine_restart_beside_proof`; the worker restarted as a process, the cluster's second restart (below) |
   | `four_goals_land_together_after_loading_batch_four` | `batch` raised to 4 at a restart; four goals' changes in one landing, one run, one fast-forward | D `landing_restarts.rs`, `four_goals_land_together_after_loading_batch_four` |
   | `a_breaking_third_goal_is_narrowed_and_repaired_in_batch_four` | four units, the third red: narrowed, the rest landed, the third repaired and landed later | F `landing_red_four.rs`, `a_red_third_of_four_is_narrowed_across_restart_and_its_repair_lands_later`; F `train_drills.rs`, `drill_18_five_units_with_the_third_breaking_probe_two_then_three` |
   | `conflicting_goals_depart_and_resolve_in_batch_four` | a member conflicting with an earlier one leaves, the rest land, its resolution lands later | F `landing_batches.rs`, `drill_9_an_earlier_conflict_keeps_first_place_then_resolves_only_against_the_branch`; D `landing_merge_drill.rs`, `drill_16_a_batch_four_conflict_is_settled_by_the_merge_job_without_an_agent` |
@@ -119,40 +127,30 @@
   | `a_goal_delivering_mid_proof_takes_a_departed_landings_shared_run` | the same, the delivery in an ignored path: the successor's key the departed one's, its run shared | D `landing_goal_midproof.rs`, `a_goal_delivering_mid_proof_takes_a_departed_landings_shared_run`; F `landing_proofs.rs`, `a_departed_landings_run_proves_a_successor_with_the_same_key` |
   | `a_batch_of_four_narrows_its_breaking_member_with_deployment_limits` | four, the second red, on the shipped capacities and a copied policy: narrowed, the rest landed in round 2 | D `landing_copied.rs`, `a_batch_of_four_narrows_its_breaking_member_with_deployment_limits` |
 
-- **Landing by turn on the fake forge,** two stories of
-  `bin/temper-box/tests/process.rs`, on the cluster's processes
+- **The cluster's restarts on the fake forge,** two stories of
+  `bin/temper-box/tests/cluster_turn/mod.rs` (in `temper-box::process`), on the cluster's processes
   (`testing/temper-box-kit/src/cluster.rs`; the cluster, below): the
   deployment's binaries (`Cluster::deployment_binaries`), the engine
   alone, one worker alone and its agents, each a process started by its
   own `main`, on `temper-box fake forge` and `temper-box fake llm`, the
-  box's fake backends, and the fake git program. The fake forge's
-  document declares the gate's dispatch-only workflow, its verdict by
-  what the dispatched commit holds (`{"declared": ".fake-forge/gate"}`),
-  and manual merges detected (`fakes.md`, 2); the project lands by
-  `turn` with `batch` 1. They share one setup, never a copy of it:
-  - *a change lands by turn across an engine killed mid-proof:* a
-    chat's change, made through the fake model, ready; its landing
-    prepared by the worker's merge train and its gate dispatched; once
-    ctl reads the landing `proving`, the engine is killed
-    (`Members::kill`) and, once it has ended, started again on its
-    directories (`Members::restart`); the landing, found again
-    (`../domain/landing.md`, 15), lands: one dispatch of the gate, at
-    the candidate; main at the candidate; the change's pull request
-    merged; the change landed and the landing ended landed, read
-    through ctl and the fake forge's API. The fake forge's CI is paced
-    (its document's `pace`, `ci_ms`; `../protocol/setup/playground.md`)
-    so that the landing proves long enough for the kill to fall in it;
-    a story that reads the landing past proving before its kill fails,
-    naming the pace, and never passes;
-  - *a worker restarted mid-delivery:* a change's producer, scripted
+  box's fake backends, and the fake git program. They share one setup,
+  never a copy of it, and land nothing: a landing across a restart is
+  the engine's worlds' (the table above) and the restart faults'
+  (`restarts.md`, 4 and 5):
+  - `an_engine_killed_is_started_again_on_its_directories_and_its_worker_links_again`: a chat
+    answered on the worker; the engine killed (`Members::kill`), ending
+    by signal 9, and, once it has ended, started again on its
+    directories (`Members::restart`); it opens, the worker prints
+    `linked` again, and the chat's committed turn reads as before;
+  - `a_worker_restarted_mid_delivery_links_again_on_its_directories`: a change's producer, scripted
     through the fake model, writes a line and saves, then writes a
     second and delivers; the worker's git program, a wrapper of the
     fake git that the story writes, holds the delivery's push until the
     story lets it go; once the push is held, the worker is stopped
-    (`Members::stop_one`), the push let go, and the worker drains and
-    exits 0; started again on its directories, the change lands by
-    `turn` with both lines on main, delivered once: one pull request,
-    one landing, one dispatch.
+    alone (`Members::stop_one`), the push let go, and the worker drains
+    and exits 0; started again on its directories, it prints `linked`
+    again and is the engine's w1, and the change's one pull request on
+    the fake forge holds both lines at its head.
 
   Each is within the tier's 60 CPU s (`tools/tiers/budgets.toml`). Their
   referee is the cluster's: what the engine records, read through ctl,
@@ -246,7 +244,8 @@
   and the processes, so it is this profile's.
 
 - **A deployment at its place restarted with a newer build**
-  (`qa/deployment.md`; `../draft/landed-qa.md`, 10 and 11), one story,
+  (`a_stopped_deployment_restored_at_its_place_uses_new_files`;
+  `qa/deployment.md`; `../draft/landed-qa.md`, 10 and 11), one story,
   as a QA place of the deployment's kind runs it: a place directory of
   the story's own, its `bin/` holding copies of `temper-box`,
   `fake-claude`, `temper`, `temper-client-journeys`, `temper-engine`,
@@ -261,21 +260,19 @@
   restarting them; the walk ending with every process stopped, exit 0,
   nothing left; the scratch directory's `config/` and `data/` archived
   and removed, then unpacked again, as a place restores a copy
-  (`qa/places.md`, 4); each file of `bin/` replaced by a new copy; the
-  setup's check walked again from that copy (`--from turn-landing`), and
-  a ctl drive session (`--ctl --deployment`) opened on it, so that the
-  story needs no Chromium. ctl reads the project,
-  its forge, its repository and its landing by `turn` as they were; the
-  fake Forgejo's API reads `work/hello` and its gate workflow as they
-  were; the engine's store opened by the newer build, converted at
-  read by its registry and upgraded by pending registrations and jobs,
-  or refused by name when below the floor (`../protocol/floor.md`, 4); every
-  process of the deployment, read once ctl has signed in, runs a file of
-  the new `bin/`, by device and inode, none an old or deleted file, and
-  none a Forgejo or a runner; no stdout or log of the story holds the
-  sign-in link. It needs the binaries' files, the processes and their
-  stops, so it is this profile's, written and compiled in Q6 and run
-  after landing.
+  (`qa/places.md`, 4); each file of `bin/` replaced by a new copy; then
+  one start of the restored deployment from that copy, a ctl drive
+  session (`--ctl --deployment`) with no Chromium. One ctl read finds
+  project 1 and its home, the recipe's `work/hello`, as they were; every process of the deployment, read once ctl has
+  signed in, runs a file of the new `bin/`, by device and inode, none an
+  old or deleted file, and none a Forgejo or a runner; no stdout or log
+  of the story holds the sign-in link. What the restored store holds,
+  its settings, landings and forge's runs, and an older layout opened
+  or refused by name below the floor (`../protocol/floor.md`, 4), are
+  the one-process world's and the forge's worlds'
+  (`../../development/slow-tests-moves-2026-11-24-temper-cluster.md`,
+  3). It needs the binaries' files, the processes and their stops, so
+  it is this profile's.
 
 - **The upgrade's commands,** through the real binary and its production
   owner sets: `temper-box versions`' levels and version lines;
@@ -458,17 +455,22 @@
   `testing/temper-box-kit/src/cluster.rs`, which starts the fake forge,
   the fake LLM, the engine alone and two workers alone as processes,
   each in a cgroup of its own, awaits their ready lines and stops them
-  in reverse. Its stories: a task on each worker, on the box's binary
-  and on the deployment's binaries (../protocol/cluster.md, 6); a
-  worker lost, killed mid-run; a worker hung, stopped past the grace and
-  continued; a worker started later, and one restarted; a worker stopped
-  as its unit does (`KillMode=mixed`: the termination signal to the
-  worker alone, the kill only past the stop timeout its printed stop
-  bound gives), with a stray termination signal to its run's agent,
-  while the run's LLM answer is held, its turn then committed and its
-  attempt interrupted with no try spent before the worker exits 0
-  (`../draft/worker-restarts.md`, 9, test 8); and a mixed
-  document refused, exit 1. Each story's referee is the tier's: what the
+  in reverse. Its stories (../protocol/cluster.md, 6) each end a
+  process and read how it ended: a task on each worker, on the
+  deployment's binaries; a worker killed mid-run, ending by its signal,
+  its link closed; a worker stopped past the engine's silence and
+  continued, linking again as the same process; a worker stopped as its
+  unit does (`KillMode=mixed`: the termination signal to the worker
+  alone, the kill only past the stop timeout its printed stop bound
+  gives), with a stray termination signal to its run's agent, while the
+  run's LLM answer is held, its turn then committed before the worker
+  exits 0 (`../draft/worker-restarts.md`, 9, test 8); a member's
+  unexpected end reported once its client settles; and a mixed document
+  refused, exit 1. What a loss, a fence, a late or returning worker or a
+  drain does to the run is the engine's domain world's, jig's fleet's
+  and the restart faults' (`restarts.md`, 6 and 8;
+  `../../development/slow-tests-moves-2026-11-24-temper-cluster.md`,
+  1 and 2). Each story's referee is the tier's: what the
   engine records, read through the client (the forge's state, from the
   fake forge's API, once
   it joins: ../protocol/cluster.md, 5), and no process of the cluster

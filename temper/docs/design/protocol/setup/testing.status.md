@@ -1,6 +1,6 @@
 # testing: status
 
-2026-11-23. Where the tree's code lags or departs from [testing.md](testing.md).
+2026-11-24. Where the tree's code lags or departs from [testing.md](testing.md).
 
 
 - **Not yet:** 4: the file's secret on no log: the fresh box's story
@@ -48,8 +48,7 @@ choice. Its running-box restart proof remains after landing (15).
   playground copy's source read, the person's plan change, the person's
   change and the setup/removal cuts. Their requested all-five pass is
   unverified here; landed parts and focused test code do not establish
-  those outcomes. The started cut's fixture disables sign-in alone,
-  restoring it before the final setup and removal cut (4).
+  those outcomes.
 
 - **Not yet:** 4: the combined default-box walk proof remains `box.status.md`, 1, and `box-supervision.status.md`, 1.
 
