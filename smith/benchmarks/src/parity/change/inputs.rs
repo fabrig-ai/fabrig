@@ -5,6 +5,7 @@ use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
 
 use super::{ChangeSection, Stop};
+use crate::files::{Files, Native};
 use crate::{Fault, Mismatch, RunSummary, input, mismatch, refuse_if};
 
 /// A named run file supplied to a change report; missing files have no digest.
@@ -55,31 +56,33 @@ fn repository() -> &'static Path {
     Path::new(env!("CARGO_MANIFEST_DIR")).parent().expect("benchmark repository")
 }
 
-fn record(path: &Path) -> Input {
-    let absolute =
-        path.canonicalize().unwrap_or_else(|_| if path.is_absolute() { path.into() } else { repository().join(path) });
-    let sha256 = crate::arm::binary_digest(&absolute).ok();
+fn record(files: &dyn Files, path: &Path) -> Input {
+    let absolute = files
+        .canonicalize(path)
+        .unwrap_or_else(|_| if path.is_absolute() { path.into() } else { repository().join(path) });
+    let sha256 = crate::arm::binary_digest_with(files, &absolute).ok();
     // Repository-relative paths survive a checkout move; external inputs keep their absolute path.
     Input { path: absolute.strip_prefix(repository()).unwrap_or(&absolute).into(), sha256 }
 }
 
-fn read(input: &Input) -> Result<RunSummary, Fault> {
+fn read(files: &dyn Files, input: &Input) -> Result<RunSummary, Fault> {
     let path = repository().join(&input.path);
-    let digest = crate::arm::binary_digest(&path)?;
+    let digest = crate::arm::binary_digest_with(files, &path)?;
     if input.sha256.as_ref() != Some(&digest) {
         return Err(mismatch(format!("input SHA-256 differs: {}", input.path.display())));
     }
-    Ok(crate::read_summary(&path)?)
+    Ok(crate::read_summary_with(files, &path)?)
 }
 
 fn evaluate(
+    files: &dyn Files,
     summary: &RunSummary,
     original: &ChangeSection,
     baseline: &Input,
     landed: &[Input],
 ) -> Result<ChangeSection, Fault> {
-    let baseline = read(baseline)?;
-    let landed = landed.iter().map(read).collect::<Result<Vec<_>, _>>()?;
+    let baseline = read(files, baseline)?;
+    let landed = landed.iter().map(|input| read(files, input)).collect::<Result<Vec<_>, _>>()?;
     Ok(super::project_report(summary, original.clone(), &baseline, &landed).unwrap_or_else(|why| {
         let mut report = original.clone();
         report.stop = Some(Stop::Incomplete { why: why.detail });
@@ -89,14 +92,19 @@ fn evaluate(
 
 /// Attach named inputs and retain an incomplete report when any input is refused.
 pub fn attach(summary: &mut RunSummary, inputs: &Inputs) -> Result<(), Fault> {
+    attach_with(&Native, summary, inputs)
+}
+
+/// Attach named inputs from the supplied filesystem.
+pub fn attach_with(files: &dyn Files, summary: &mut RunSummary, inputs: &Inputs) -> Result<(), Fault> {
     let parent = &summary.change.as_ref().ok_or_else(|| input("change section missing"))?.parent_commit;
     let original = super::from_summary(summary, parent)?;
-    let baseline_run = inputs.baseline_run.as_deref().map(record);
-    let landed: Vec<_> = inputs.landed.iter().map(|path| record(path)).collect();
+    let baseline_run = inputs.baseline_run.as_deref().map(|path| record(files, path));
+    let landed: Vec<_> = inputs.landed.iter().map(|path| record(files, path)).collect();
     let mut report = baseline_run
         .as_ref()
         .ok_or_else(|| input("baseline run missing"))
-        .and_then(|baseline| evaluate(summary, &original, baseline, &landed))
+        .and_then(|baseline| evaluate(files, summary, &original, baseline, &landed))
         .unwrap_or_else(|why| {
             let mut report = original.clone();
             report.stop = Some(Stop::Incomplete { why: why.detail });
@@ -110,10 +118,15 @@ pub fn attach(summary: &mut RunSummary, inputs: &Inputs) -> Result<(), Fault> {
 
 /// Refuse changed inputs or a stored section that disagrees with its rows and inputs.
 pub fn verify(summary: &RunSummary) -> Result<ChangeSection, Fault> {
+    verify_with(&Native, summary)
+}
+
+/// Recompute a stored change section from the supplied filesystem.
+pub fn verify_with(files: &dyn Files, summary: &RunSummary) -> Result<ChangeSection, Fault> {
     let stored = summary.change.as_ref().ok_or_else(|| input("change section missing"))?;
     let baseline = stored.baseline_run.as_ref().ok_or_else(|| input("baseline run missing"))?;
     let original = super::from_summary(summary, &stored.parent_commit)?;
-    let mut report = evaluate(summary, &original, baseline, &stored.landed)?;
+    let mut report = evaluate(files, summary, &original, baseline, &stored.landed)?;
     report.baseline_run.clone_from(&stored.baseline_run);
     report.landed.clone_from(&stored.landed);
     refuse_if(stored != &report, Mismatch, "committed change section disagrees with rows or inputs")?;
@@ -123,7 +136,14 @@ pub fn verify(summary: &RunSummary) -> Result<ChangeSection, Fault> {
 /// Verify and print a change report, returning the offline command's exit code.
 #[must_use]
 pub fn command(file: &Path) -> u8 {
-    let result = crate::read_summary(file).map_err(Fault::from).and_then(|summary| verify(&summary));
+    command_with(&Native, file)
+}
+
+/// Verify a change report from the supplied filesystem and print its verdict.
+#[must_use]
+pub fn command_with(files: &dyn Files, file: &Path) -> u8 {
+    let result =
+        crate::read_summary_with(files, file).map_err(Fault::from).and_then(|summary| verify_with(files, &summary));
     match result {
         Ok(report) => {
             for ratio in &report.ratios {

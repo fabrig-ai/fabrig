@@ -159,13 +159,23 @@ pub fn root(value: Option<&std::ffi::OsStr>) -> Result<PathBuf, &'static str> {
 }
 
 pub fn setup(root: &Path, account: &str, key: bool) -> Result<(), &'static str> {
+    setup_with(root, account, key, |path| std::fs::symlink_metadata(path).map(|_| ()))
+}
+
+/// Require the selected account's record entry or the supplied key, without reading credentials.
+pub fn setup_with(
+    root: &Path,
+    account: &str,
+    key: bool,
+    present: impl FnOnce(&Path) -> std::io::Result<()>,
+) -> Result<(), &'static str> {
     let (path, message) = match account {
         "chatgpt" => ("tokens/chatgpt", CHATGPT),
         "claude" => ("programs/claude", CLAUDE),
         "anthropic-key" => return if key { Ok(()) } else { Err(KEY) },
         _ => panic!("unknown live account"),
     };
-    std::fs::symlink_metadata(root.join(path)).map(|_| ()).map_err(|_| message)
+    present(&root.join(path)).map_err(|_| message)
 }
 
 /// Insert `-c deployment.refresh_lead=<lead_seconds>` before the trailing prompt argument `-`.

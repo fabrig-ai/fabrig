@@ -1,9 +1,126 @@
 //! Replaying controls (smith/docs/design/testing.md, 2).
 
+use std::{io, path::Path};
+
 use common::{Rows, recompute};
-use smith_bench::Measure;
-use smith_bench::parity::{self, Parity, Verdict};
+use skein_fake_machine::Item;
+use smith_bench::files::Files;
+use smith_bench::parity::{self, Parity, Verdict, change};
+use smith_bench::{Fault, FaultKind, Measure, RunSummary, read_summary_with, write_summary_with};
+use smith_bench_fixtures::files::Tree;
 use smith_bench_fixtures::parity as common;
+
+const BASELINE_INPUT: &str = "/reports/baseline.json";
+const CHANGE_REPORT: &str = "/reports/change.json";
+
+fn reports() -> Tree {
+    Tree::new(&[Item::directory(b"reports")])
+}
+
+fn named_change() -> (Tree, RunSummary, change::Inputs) {
+    let files = reports();
+    let baseline = Path::new(BASELINE_INPUT);
+    write_summary_with(&files, baseline, &common::change_baseline()).expect("baseline input");
+    let inputs = change::Inputs { baseline_run: Some(baseline.into()), landed: Vec::new() };
+    let mut summary = common::change_summary();
+    change::attach_with(&files, &mut summary, &inputs).expect("attach baseline input");
+    (files, summary, inputs)
+}
+
+fn write_and_check_change(files: &Tree, summary: &RunSummary) -> u8 {
+    let file = Path::new(CHANGE_REPORT);
+    write_summary_with(files, file, summary).expect("write change report");
+    change::command_with(files, file)
+}
+
+#[test]
+fn a_summary_with_a_retried_failure_row_verifies_against_its_own_section() {
+    const SMITH_FIXTURE_WALL_MS: u64 = 1_739_248;
+    const CODEX_FIXTURE_WALL_MS: u64 = 1_748_166;
+    let mut summary = common::parity_summary(Rows {
+        smith_wall_ms: SMITH_FIXTURE_WALL_MS,
+        codex_wall_ms: CODEX_FIXTURE_WALL_MS,
+        ..Rows::equal()
+    });
+    let limits = {
+        let mut fixture_limits = smith_events_fixtures::SMALL;
+        fixture_limits.string = 524_288;
+        fixture_limits.content = 4096;
+        fixture_limits.items = 512;
+        fixture_limits
+    };
+    let mut observer =
+        smith_bench::agent::smith::events::Observer::with_ceiling(&limits, 16_384).expect("response bounds");
+    observer.feed(include_bytes!("../recorded/retried-failure-17d63afd-02.jsonl")).expect("response excerpt");
+    observer.finish().expect("whole lines");
+    let tokens = observer.tokens().expect("recorded tokens");
+    let total = tokens.iter().find(|record| record.role == smith_bench::ScopeKind::Total).expect("total");
+    let row = summary.attempts.iter_mut().find(|row| row.agent == "smith").expect("smith row");
+    row.fresh_tokens = total.usage.fresh.clone();
+    row.cache_read_tokens = total.usage.cache_read.clone();
+    row.output_tokens = total.usage.output.clone();
+    row.priced_usd = Measure::LowerBound {
+        value: 1.0,
+        missing: vec!["session-0/run-1/conversation-0: session-0/run-1/response-3: retried failure".into()],
+    };
+    summary.parity = Some(recompute(&summary));
+    let files = reports();
+    let file = Path::new("/reports/parity.json");
+    write_summary_with(&files, file, &summary).expect("write summary");
+    let read_back = read_summary_with(&files, file).expect("read summary");
+    assert_eq!(parity::verify(&read_back, common::CHANGE_COMMIT).expect("section agrees").verdict, Verdict::OnPar);
+}
+
+#[test]
+fn the_change_command_refuses_a_section_that_disagrees() {
+    let (files, mut summary, _) = named_change();
+    summary.change.as_mut().expect("section").ratios[0].value.statistic = 2.0;
+
+    assert_eq!(write_and_check_change(&files, &summary), 3);
+    assert_eq!(
+        change::verify_with(&files, &summary),
+        Err(Fault::new(FaultKind::Mismatch, "committed change section disagrees with rows or inputs"))
+    );
+}
+
+#[test]
+fn the_change_command_agrees_with_a_stopped_section() {
+    const CHANGE_WALL_MS: u64 = 200_000;
+    let (files, mut summary, inputs) = named_change();
+    for row in &mut summary.attempts {
+        if row.agent_version == common::CHANGE_COMMIT {
+            row.task_wall_ms = Measure::Observed { value: CHANGE_WALL_MS };
+        }
+    }
+    change::attach_with(&files, &mut summary, &inputs).expect("updated section");
+
+    assert_eq!(write_and_check_change(&files, &summary), 0);
+    assert_eq!(summary.change.expect("section").stop, Some(change::Stop::Moved { criterion: "FT".into() }));
+}
+
+#[test]
+fn a_change_command_refuses_an_input_whose_hash_differs() {
+    let (files, summary, _) = named_change();
+    files.write(Path::new(BASELINE_INPUT), b"changed input").expect("replace baseline with non-JSON bytes");
+
+    assert_eq!(write_and_check_change(&files, &summary), 3);
+    assert_eq!(
+        change::verify_with(&files, &summary),
+        Err(Fault::new(FaultKind::Mismatch, format!("input SHA-256 differs: {BASELINE_INPUT}")))
+    );
+}
+
+#[test]
+fn a_change_command_refuses_a_missing_input() {
+    let (files, summary, _) = named_change();
+    let baseline = Path::new(BASELINE_INPUT);
+    files.remove_file(baseline).expect("remove baseline");
+    let missing = files.symlink_metadata(baseline).expect_err("stored input path is missing");
+
+    assert_eq!(missing.kind(), io::ErrorKind::NotFound);
+    assert_eq!(write_and_check_change(&files, &summary), 3);
+    assert_eq!(change::verify_with(&files, &summary), Err(Fault::from(missing)));
+}
 
 fn failing(parity: &Parity) -> Vec<&str> {
     parity.criteria.iter().filter(|criterion| !criterion.holds).map(|criterion| criterion.name.as_str()).collect()

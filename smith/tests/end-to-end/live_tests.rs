@@ -1,23 +1,6 @@
-//! Offline checks of live configuration (smith/docs/design/testing.md, 2.3).
-use super::live::setup;
+//! Offline product check of live configuration (smith/docs/design/testing.md, 2.3).
 use smith_real_world::Scratch;
 use std::path::{Path, PathBuf};
-
-#[test]
-fn missing_chatgpt_names_the_sign_in() {
-    assert_eq!(
-        setup(Path::new("/dev/null"), "chatgpt", false),
-        Err("no record in `$SMITH_LIVE/tokens/chatgpt`: run `XDG_CONFIG_HOME=$SMITH_LIVE/config smith login chatgpt`")
-    );
-}
-
-#[test]
-fn missing_claude_names_the_sign_in() {
-    assert_eq!(
-        setup(Path::new("/dev/null"), "claude", false),
-        Err("no record in `$SMITH_LIVE/programs/claude`: run `XDG_CONFIG_HOME=$SMITH_LIVE/config smith login claude`")
-    );
-}
 
 fn synthetic_login(root: &Path) -> PathBuf {
     use std::os::unix::fs::{DirBuilderExt, PermissionsExt};

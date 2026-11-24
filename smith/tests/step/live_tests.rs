@@ -1,5 +1,5 @@
 //! Offline live-configuration controls (smith/docs/design/testing.md, 2.3).
-use super::live::{root, setup};
+use super::live::{refresh_report, root, setup, setup_with};
 use std::path::Path;
 
 #[test]
@@ -12,6 +12,62 @@ fn missing_key_names_the_variable() {
 fn missing_live_root_names_the_variable() {
     assert_eq!(root(None).expect_err("unset root"), "$SMITH_LIVE unset");
     assert_eq!(root(Some(std::ffi::OsStr::new(""))).expect_err("empty root"), "$SMITH_LIVE unset");
+}
+
+#[test]
+fn missing_chatgpt_names_the_sign_in() {
+    let root = Path::new("/fixture/smith-live");
+    assert_eq!(
+        setup_with(root, "chatgpt", false, |path| {
+            assert_eq!(path, root.join("tokens/chatgpt"));
+            Err(std::io::ErrorKind::NotADirectory.into())
+        }),
+        Err("no record in `$SMITH_LIVE/tokens/chatgpt`: run `XDG_CONFIG_HOME=$SMITH_LIVE/config smith login chatgpt`")
+    );
+}
+
+#[test]
+fn missing_claude_names_the_sign_in() {
+    let root = Path::new("/fixture/smith-live");
+    assert_eq!(
+        setup_with(root, "claude", false, |path| {
+            assert_eq!(path, root.join("programs/claude"));
+            Err(std::io::ErrorKind::NotADirectory.into())
+        }),
+        Err("no record in `$SMITH_LIVE/programs/claude`: run `XDG_CONFIG_HOME=$SMITH_LIVE/config smith login claude`")
+    );
+}
+
+#[test]
+fn the_refresh_report_names_facts_without_token_bytes() {
+    use skein_lib::{Secret, Wall};
+    use smith_local_shell::credentials::{RefreshFacts, env_record, refresh_facts_from_bytes, token_limits};
+
+    const ACCESS: &str = "synthetic-refresh-report-access";
+    const REFRESH: &str = "synthetic-refresh-report-refresh";
+    let now = Wall::from_nanos(10_000_500_000_000);
+    let mut record = env_record(ACCESS.as_bytes(), now).expect("synthetic record").record;
+    record.generation = 7;
+    record.refresh_token = Some(Secret::new(REFRESH.as_bytes().into()));
+    record.expires_at = Wall::from_nanos(13_127_900_000_000);
+    record.earliest_refresh_at = Some(Wall::from_nanos(11_840_900_000_000));
+    let bytes = skein_oauth::encode_record(&record, &token_limits()).expect("bounded synthetic record");
+    let before = refresh_facts_from_bytes(&bytes).expect("readable synthetic record");
+    let after = RefreshFacts {
+        generation: 8,
+        refreshable: false,
+        expires_at: Wall::from_nanos(9_988_900_000_000),
+        earliest_refresh_at: None,
+    };
+    let report = refresh_report(&before, &after, now);
+    assert_eq!(
+        report,
+        "record before: generation=7 refreshable=true expires_in=3127s earliest_in=1840s; after: generation=8 refreshable=false expires_in=-11s earliest_in=none",
+        "the report names only fixed words and whole seconds relative to the story clock"
+    );
+    for token in [ACCESS, REFRESH] {
+        assert!(!report.contains(token), "token bytes stay out of the refresh report");
+    }
 }
 
 use super::live_report::{Leg, Settled, Step, exec_report, file_report, stderr_lines};

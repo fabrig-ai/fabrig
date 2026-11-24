@@ -199,6 +199,17 @@ impl World {
         bytes
     }
 
+    /// Check whether a path in the fake checkout names a directory.
+    #[must_use]
+    pub fn is_directory(&self, path: &[u8]) -> bool {
+        let mut machine = self.machine.borrow_mut();
+        let Ok(opened) = machine.open(self.root_handle, path, How::Directory) else {
+            return false;
+        };
+        machine.close(opened);
+        true
+    }
+
     /// Run one admitted request through its terminal and descriptor settlement.
     pub fn request(&mut self, request: FromDomain) -> ToDomain {
         self.run(&Job::Request(request, false))

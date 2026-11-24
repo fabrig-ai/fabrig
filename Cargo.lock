@@ -4739,8 +4739,10 @@ dependencies = [
 name = "smith-bench-fixtures"
 version = "0.0.0"
 dependencies = [
+ "libc",
  "serde_json",
  "sha2",
+ "skein-fake-machine",
  "skein-lib",
  "skein-scratch",
  "smith-bench",

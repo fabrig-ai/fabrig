@@ -471,7 +471,12 @@ impl std::error::Error for Refusal {}
 
 /// Parse a task document and name the file and key path on refusal.
 pub fn read_task(file: &Path) -> Result<Task, Refusal> {
-    crate::formats::read_document(file)
+    read_task_with(&crate::files::Native, file)
+}
+
+/// Parse a task document on the supplied filesystem.
+pub fn read_task_with(files: &dyn crate::files::Files, file: &Path) -> Result<Task, Refusal> {
+    crate::formats::read_document_with(files, file)
 }
 
 pub fn parse_task(file: &Path, text: &str) -> Result<Task, Refusal> {
