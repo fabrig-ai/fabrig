@@ -28,6 +28,7 @@ pub mod parts;
 pub mod pause;
 pub mod prepare;
 pub mod restarts;
+pub mod workload;
 
 const RUN: Token = Token::new(81);
 const ATTEMPT: Token = Token::new(13);

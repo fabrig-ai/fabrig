@@ -67,6 +67,13 @@ GitHub forge on the fake's GitHub layer, it checks the forge connector's
 connected state, the picker and GitHub's merge queue as the branch's
 landing queue (`../domain/forge/README.md`).
 
+The composed workload runs there (`workloads.md`, section 5): several
+goals at once from two parties, each on its own account, a milestone
+whose goals depend on one another, a goal whose changes land as a train,
+and an after-landing tier following main, on one fake forge, each goal's
+agents and CI cued by its names and its tree; its sweep mixes every
+family of faults (`workloads.md`, 8.2).
+
 A change's merge job has its story there (`../domain/forge/change/repairs.md`; `../domain/worker/jobs.md`
 ), one table, `suite::merge_job`: a project naming a `merge_job`
 makes the job, the worker that declared the kind takes it, prepares the

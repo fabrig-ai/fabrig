@@ -99,8 +99,12 @@ pub struct CallError {
 pub struct World {
     /// Seeded engine faults; absent in all existing stories.
     pub restarts: Option<restarts::Injector>,
+    pub(crate) workload_deadlines: Option<crate::outcome::Deadlines>,
+    pub(crate) workload_worker: Option<(jig_domain_link::Bounds, Box<[jig_domain_link::JobBound]>, u32)>,
     restart_calls: Option<Vec<(fake::Event, fake::Config)>>,
     checks: crate::checks::Checks,
+    /// Optional bounds sweep, sampled at every checked quiet point.
+    pub(crate) bounds: Option<(Vec<skein_world::faults::Kind>, skein_world::faults::FaultLedger)>,
     iteration: u64,
     pub ends: crate::ends::Ends,
     idle_revision: Option<(u64, Option<Time>)>,
@@ -238,6 +242,8 @@ pub struct World {
 #[derive(Clone, Default)]
 #[expect(clippy::struct_excessive_bools, reason = "stories independently configure landing rules, kind and authority")]
 pub struct StoryLimits {
+    /// The workload's independent scheduling stream, before the fake forge is seeded.
+    pub scheduling_seed: Option<u64>,
     /// Gather startup edits before constructing either the store or the root.
     pub second_project: bool,
     pub forge_entries: Option<u32>,
@@ -313,6 +319,8 @@ pub struct StoryLimits {
     pub forge_charter: Option<u32>,
     pub applications: Option<u32>,
     pub forge_commits: Option<u32>,
+    /// Files accumulated by the workload's disjoint edits on main.
+    pub forge_files: Option<u32>,
     /// A complete CI diagnostic and its metadata may exceed the tiny client's answer.
     pub forge_answer_bytes: Option<u32>,
     /// The peer's pull bodies may exceed the issue-projection bound in landing stories.
@@ -552,6 +560,21 @@ impl World {
             Some((defaults, model, Some(limits))),
             &[],
         )
+    }
+
+    /// Give the workload's two people independent owner identities at bootstrap.
+    #[must_use]
+    pub fn with_workload_parties(mut self) -> Self {
+        assert_eq!(self.env.now, Time::ZERO);
+        self.restart_config.core.owners =
+            Box::new([7, 8].map(|user| people::InitialOwner { project: 1, identity: forge_top::user_key(1, user) }));
+        let mut bootstrap = crate::oracle::config::copy(&self.restart_config);
+        bootstrap.core.kinds = Box::new([]);
+        self.store = crate::fixtures::restored_over(Store::with_limits(&self.env.limits), bootstrap, &self.env.limits);
+        self.events = VecDeque::from([engine::Event::Restart { pending: self.store.pending_generation }]);
+        self.root = engine::Domain::new(crate::oracle::config::copy(&self.restart_config), &self.env.limits)
+            .expect("workload owners");
+        self
     }
 
     /// Keep the project's roles distinct from its policy template before bootstrap.
@@ -1490,6 +1513,9 @@ impl World {
         if let Some(commits) = timing.forge_commits {
             fake_config.limits.commits = commits;
         }
+        if let Some(files) = timing.forge_files {
+            fake_config.limits.files = files;
+        }
         if let Some(branches) = timing.forge_branches {
             fake_config.limits.branches = branches;
         }
@@ -1517,7 +1543,7 @@ impl World {
             // The two failed test cases and JUnit wrapper exceed a source file's 128 bytes.
             fake_config.limits.content_bytes = 512;
         }
-        let mut fake = fake::Domain::new(&fake_config, 71);
+        let mut fake = fake::Domain::new(&fake_config, timing.scheduling_seed.unwrap_or(71));
         let setup = raw::Setup {
             workflows: crate::tier_runs::workflows(
                 tier,
@@ -1703,8 +1729,11 @@ impl World {
         ends.restarted(Time::ZERO);
         Self {
             restarts: None,
+            workload_deadlines: None,
+            workload_worker: None,
             restart_calls: None,
             checks,
+            bounds: None,
             iteration: 0,
             ends,
             restart_config: crate::oracle::config::copy(&config),
@@ -2478,7 +2507,7 @@ impl World {
         if self.oracle_peer.is_some() || !self.assigned.is_empty() {
             let mut bounds = protocol::bounds();
             bounds.message_bytes = self.env.limits.tasks.message_bytes.max(self.env.limits.tasks.result_bytes);
-            self.events.push_back(protocol::hello_with(
+            let mut hello = protocol::hello_with(
                 Token::new(7),
                 0,
                 self.oracle_peer.map_or(if with_change { 2 } else { 1 }, |(_, _, slots)| slots),
@@ -2490,7 +2519,18 @@ impl World {
                         protocol::hosting(assignment.task, assignment.attempt, jig_domain_link::Phase::Active)
                     })
                     .collect(),
-            ));
+            );
+            if let Some(worker) = &self.workload_worker
+                && let engine::Event::Worker(engine::WorkerInput::Link {
+                    link: engine::Link::Hello { hello, .. }, ..
+                }) = &mut hello
+            {
+                hello.bounds = worker.0.clone();
+                hello.jobs.clone_from(&worker.1);
+                hello.slots = worker.2;
+                hello.fresh = false;
+            }
+            self.events.push_back(hello);
         }
     }
 
@@ -3256,6 +3296,11 @@ impl World {
     fn check_quiet(&mut self) {
         if self.quiet() {
             self.checks.quiet(&self.root, self.env.now, self.iteration).unwrap_or_else(|finding| panic!("{finding}"));
+            if let Some((kinds, ledger)) = &mut self.bounds {
+                let mut inspection = skein_world::inspect::Inspection::new("engine", temper_engine_inspect::KINDS);
+                temper_engine_inspect::inspect(&self.root, &mut inspection);
+                ledger.saturation(kinds, &[&inspection], self.env.now).expect("monotonic quiet points");
+            }
         }
     }
 
@@ -3330,6 +3375,11 @@ impl World {
 
     pub fn tick(&mut self) {
         self.try_tick().unwrap_or_else(|finding| panic!("{finding}"));
+    }
+
+    /// Rehearse the workload's final committed store through a cold opening.
+    pub(crate) fn check_workload_store(&self) -> Result<(), String> {
+        crate::check::store(&self.store, &self.restart_config, &self.env.limits, self.env.wall, self.store.applied)
     }
 
     /// A tick whose referee finding is returned to a check's own test.

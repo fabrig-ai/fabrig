@@ -320,6 +320,13 @@ pub(crate) fn chat_waited(store: &Store) -> bool {
     }) && snapshot(&store.rows).receipts.contains(&rules::Receipt::Turn(1, 1, 2))
 }
 fn snapshot(rows: &BTreeMap<root::Key, root::Record>) -> rules::Snapshot {
+    let records = rows
+        .iter()
+        .filter_map(|(key, record)| match (key, record) {
+            (root::Key::Core(key), root::Record::Core(record)) => Some((key.clone(), record)),
+            _ => None,
+        })
+        .collect();
     let mut snapshot = rules::Snapshot::default();
     for row in rows.values() {
         match row {
@@ -332,7 +339,7 @@ fn snapshot(rows: &BTreeMap<root::Key, root::Record>) -> rules::Snapshot {
             root::Record::Core(core::Record::Tasks(
                 jig_domain_tasks::Stored::Live(task) | jig_domain_tasks::Stored::Ended(task),
             )) => {
-                snapshot.tasks.insert(task.number, jig_conformance::core::task(task));
+                snapshot.tasks.insert(task.number, jig_conformance::core::task(task, &records));
                 snapshot.receipts.insert(rules::Receipt::Task(task.number));
                 if matches!(task.phase, jig_domain_tasks::Phase::Ended(_)) {
                     snapshot.receipts.insert(rules::Receipt::Ended(task.number));

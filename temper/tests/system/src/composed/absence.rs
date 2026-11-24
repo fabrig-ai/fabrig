@@ -203,9 +203,13 @@ impl World {
 
     /// Reopen only the engine root on its store. No worker Ready is generated here.
     pub fn reopen_engine(&mut self) {
+        self.reopen_with_config(open_config(self.seed));
+    }
+
+    pub(super) fn reopen_with_config(&mut self, config: engine::Config) {
         assert!(!self.absence.engine_running);
-        self.replace_root(open_config(self.seed));
-        self.root_events = VecDeque::from([engine::Event::Restart { pending: false }]);
+        self.replace_root(config);
+        self.root_events = super::opening_events();
         self.absence.engine_running = true;
         self.absence.drained = false;
         self.opened = false;
@@ -326,12 +330,8 @@ impl World {
         if !self.absence.enabled {
             return;
         }
-        for row in self.store.rows.values() {
-            if let engine::Record::Core(jig_domain_core::Record::Tasks(
-                tasks::Stored::Live(task) | tasks::Stored::Ended(task),
-            )) = row
-                && self.absence.tries.last() != Some(&task.tries)
-            {
+        for task in super::task_rows(&self.store) {
+            if self.absence.tries.last() != Some(&task.tries) {
                 self.absence.tries.push(task.tries);
             }
         }
@@ -359,7 +359,7 @@ impl World {
     }
 
     pub(super) fn absence_assignment(&mut self, assignment: &engine::Assignment) {
-        if !self.absence.enabled {
+        if !self.absence.enabled || self.workload.is_some() {
             return;
         }
         if self.assignment.is_some() {

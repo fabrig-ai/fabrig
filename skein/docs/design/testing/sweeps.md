@@ -101,6 +101,11 @@ impl FaultLedger {
     pub fn fallen(&self, at: Time, struck: &Struck) -> Vec<Injection>;
     /// The kinds that fell, each once.
     pub fn fell(&self) -> BTreeSet<Kind>;
+    /// Each kind of `bounds` whose name is a table's name in `inspections`:
+    /// in force from the first call that sees that table at its bound, as
+    /// many entries as its capacity or a newcomer refused, until the first
+    /// call that sees it at neither. A refusal of `stop` is returned.
+    pub fn saturation(&mut self, bounds: &[Kind], inspections: &[&crate::inspect::Inspection], at: Time) -> Result<(), String>;
 }
 ```
 
@@ -110,6 +115,7 @@ impl FaultLedger {
 - **Identities:** each is the identity's own name in the fake that holds it: an account's name, a runner's, a gate run's number in words, a commit's hex. A wrong tree is recorded with the candidate it is wrong in, and a base made red as the base's (the draft, 3.3). `striking` matches a field where both name the same identity.
 - **Counters:** the world's observers count a transition (a retry, a try, a repair, an ask) against each fault they attribute it to, by `striking`, or by `fallen` where the transition answers a fault that has stopped, as a gate's retry answers a job lost at an instant; the expected transitions of each failure class are the 3.3 check's table, held by the tree that holds the check. The six counters are skein's because every tree's worlds count them and skein is the lowest vocabulary all of them name (../../foundation/programming-model.md, 4.6).
 - **A ledger is one run's:** a world makes one per seed and returns it with its outcome.
+- **A bound reached is a fault that falls** (the draft, 4.7: the workload reaches each bound of 3.2's table): `saturation`, called at a world's quiet point after its adapters inspect (inspection.md, 5), records a table at its bound under the kind its caller names for it, its name the table's (inspection.md, 3), with `Struck::default()`, and stops it once the table is below its bound and refuses no newcomer, so that a sweep configuring the kind holds, by `check_fell`, that the bound was reached in some seed. A table matched in several components is at its bound where any is; a table of capacity `u64::MAX` never is. Each tree's kit names its tables' kinds (`temper/docs/design/testing/workloads.md`, 2.4).
 
 ## 4. A sweep
 
@@ -172,7 +178,7 @@ impl Exclusion {
 Step tests in the crate's own `src/tests/`, with no world:
 
 - **Streams:** one seed's four streams draw four different sequences; a stream's first draws are the same whether or not another stream, or another part of its own, was drawn first; two parts of one stream differ; one seed replays; `seed_of` for seed 0 and each stream's own part is pinned to its value, so the derivation never changes silently.
-- **The ledger:** an entry keeps its kind, interval and identities; `stop` refuses a second stop and a time before the start; `striking` finds a fault in force on a shared identity and not one stopped, or one on another identity; `fallen` finds one stopped too, and not one that falls after its moment; each counter counts on its own; `fell` gives each kind once.
+- **The ledger:** an entry keeps its kind, interval and identities; `stop` refuses a second stop and a time before the start; `striking` finds a fault in force on a shared identity and not one stopped, or one on another identity; `fallen` finds one stopped too, and not one that falls after its moment; each counter counts on its own; `fell` gives each kind once; `saturation` starts a kind at the first call seeing its table full, keeps one entry while it stays full, starts it for a refused newcomer below capacity too, stops it at the first call seeing it below and refusing none, starts it afresh when it fills again, and leaves a kind whose table no inspection holds, or one of capacity `u64::MAX`, unrecorded.
 - **A sweep:** a sweep whose configured fault never falls in any seed fails `check_fell`, naming the fault and the seeds; one where it falls in one seed of several passes.
 - **Exclusions:** an exclusion that names no ignored scenario (empty, or not a function's name) is refused; so are one with no work, one with no conditions, one on a fault not configured, and a duplicate; `leaves_out` answers only while every condition holds; left-out draws are counted by scenario.
 - **The boundary rule:** its step tests over source texts: an exclusion naming an ignored function of its tree passes; one naming a function without `#[ignore`, or none, fails naming file, line and scenario; the harness's own packages are outside it.

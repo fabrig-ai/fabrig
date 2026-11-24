@@ -13,11 +13,13 @@ mod simulation;
 mod stopped_news;
 mod store_check;
 mod text;
+mod workload;
 
 mod fuzzy {
     mod accounts;
     mod composed;
     mod restarts;
+    mod workload;
 }
 mod running_revision;
 
