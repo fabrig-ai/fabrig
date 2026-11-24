@@ -14,10 +14,6 @@ lookups, and the memory suite runs it under its ceilings (section 8).
 
 - **Not yet:** 9: the real-Chromium viewport story is compiled; its runtime
   check awaits the browser tier after landing.
-- **Not yet:** 9: the real-Chromium tests' waits shorter than their
-  conversation (a heading until `Missed`, a tab's reading, a kit
-  `Timeout`) fail unclassified, and ending what the rig owns has no total
-  bound. [in flight: change 14005]
 - **Design departs:** 9: the real-Chromium story's leaving document sends
   its request after the reload's document request, signalled over its
   still-open stream, in place of a `keepalive` request at `pagehide`: on
