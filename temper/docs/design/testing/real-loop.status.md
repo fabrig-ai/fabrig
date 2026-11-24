@@ -13,3 +13,4 @@
    the owned-forge live landing pair remains `live-tier.status.md` (Not yet).
    the live held-record return's proof remains `live-tier.status.md` (Not yet).
    the fake shell subset remains `fakes.status.md`, 3.  the remaining settings-kind stories remain `checks.status.md`, 4.  the remaining client-page stories remain `checks.status.md`, 4.
+- **Not yet:** 2: a drained service leaving nothing for the next one in its process, held in the one-process world [in flight: change 17001]
