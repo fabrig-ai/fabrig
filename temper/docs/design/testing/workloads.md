@@ -579,7 +579,12 @@ system world (`tiers.md`, 1.1) running `COMPOSED`'s draw.
   call), the
   milestone's later goal after the earlier one's landing, the train goal's
   changes landing as one train, every goal's closer landing its branch,
-  and the tier following main. smith's activations take turns on the one
+  and the tier following main. The train is the world's to gather, never
+  the engine's: the world holds each train producer's finish at the
+  boundary between the worker and the engine until every member's producer
+  has delivered, then lets them through together, so their changes are
+  ready for one landing; the engine's landings, holds and batching run as
+  they ship. smith's activations take turns on the one
   agent world, as the system world runs them; the goals are live at once
   in the engine.
 - **Cued by names and trees:** each activation's script is chosen by the
