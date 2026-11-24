@@ -58,5 +58,10 @@ stays host, and the page's `Builders`.
   member; a press's `ChangeSettings` item for a change of places, a
   removal and an add over a free and a withdrawn number; a *linked*
   refusal's words under its line.
-- **The browser's story** of the tab is written and compiled, and runs
-  after landing (`AGENTS.md`, section 5).
+- **The client world's story** (`tests/client`): an owner adds a worker on
+  the tab, changes its places by the field's submit, reads the changed line
+  again on a fresh load at the tab's address, and removes it. Each act sends
+  one `ChangeSettings` against the revision it read, and the fresh load sends
+  none and reads the same revision. The tab has no browser story: it holds
+  nothing a browser alone shows, a field's Enter being its submit binding, the
+  view's (`../web/testing.md`, 6).

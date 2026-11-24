@@ -1,6 +1,8 @@
 //! Jig's names, pictures and the browser parts' English phrases (protocol/browser/application.md, 1.3).
 use jig_client_view_words::{Owner, regions::JigRegion};
+use skein_lib::Duration;
 use skein_ui::look::Names;
+use skein_ui_web::restart::Restart;
 
 pub const NAMES: Names<'static> = Names {
     owner: Owner::Jig.opaque(),
@@ -83,4 +85,10 @@ pub const fn phrases() -> Phrases<'static> {
         keep: "Copy this credential now. It will not be shown again.",
         close: "Close",
     }
+}
+
+/// The reference shell's restart part, outside the client's small store (jig/docs/design/protocol/browser/loop.md, 1).
+#[must_use]
+pub fn restart() -> Restart {
+    Restart::new(3, Duration::from_secs(60), "jig-restarts", phrases().failed)
 }

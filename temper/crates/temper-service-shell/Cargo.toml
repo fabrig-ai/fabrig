@@ -8,6 +8,7 @@ rust-version.workspace = true
 publish.workspace = true
 
 [dependencies]
+rustix.workspace = true
 temper-config-shell.workspace = true
 temper-service-core.workspace = true
 temper-shell.workspace = true

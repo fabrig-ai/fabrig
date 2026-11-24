@@ -2,7 +2,8 @@ use crate::{
     adapter::{self, Asked, Heard},
     look, sign_in,
 };
-use skein_ui_web::{fetch, transport};
+use skein_lib::{Duration, Wall};
+use skein_ui_web::{fetch, restart::Action, transport};
 mod fixtures;
 use fixtures::{BOUND, ID};
 
@@ -115,6 +116,33 @@ fn the_credential_dialog_s_words_are_jig_s() {
         }
     );
 }
+#[test]
+fn the_restart_part_uses_jig_s_key_and_failure_words() {
+    let restart = look::restart();
+    assert_eq!((restart.key(), restart.words()), ("jig-restarts", look::phrases().failed));
+}
+
+#[test]
+fn a_fourth_panic_in_a_minute_stops_jig_reloading() {
+    const PANIC_SECONDS: [u64; 4] = [1, 2, 3, 4]; // The three retries and one more panic.
+    let restart = look::restart();
+    let mut dates = Vec::new();
+    let actions = PANIC_SECONDS
+        .map(|seconds| restart.panicked(Wall::from_nanos(Duration::from_secs(seconds).as_nanos()), &mut dates));
+    assert_eq!(actions, [Action::Reload, Action::Reload, Action::Reload, Action::Failed]);
+}
+
+#[test]
+fn jig_s_restart_window_ends_after_one_minute() {
+    const MINUTE: u64 = Duration::from_secs(60).as_nanos(); // The reference shell's one-minute window.
+    const KEPT_DATES: usize = 4; // The three reloads and the panic that stopped them.
+    let restart = look::restart();
+    for (nanos, action) in [(MINUTE - 1, Action::Failed), (MINUTE, Action::Reload), (MINUTE + 1, Action::Reload)] {
+        let mut dates = vec![Wall::EPOCH; KEPT_DATES];
+        assert_eq!(restart.panicked(Wall::from_nanos(nanos), &mut dates), action, "{nanos} ns");
+    }
+}
+
 #[test]
 fn the_stream_s_pieces_are_cut_to_the_client_s_piece() {
     const PIECE: u32 = 16;

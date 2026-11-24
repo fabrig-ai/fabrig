@@ -1,32 +1,19 @@
 //! Public row and page contracts (temper/docs/design/client/web/public.md, 3 and 4).
 #![expect(clippy::disallowed_types, reason = "test oracles collect complete paragraphs as UTF-8 strings")]
 #![expect(clippy::disallowed_methods, reason = "test oracles inspect and collect semantic subtrees")]
-#![expect(clippy::disallowed_macros, reason = "page test cases own differently sized document lists")]
-use super::{PROJECT, TASK, answer, board, reader, records, view};
-use crate::public::{PublicView, build_public};
+#![expect(clippy::disallowed_macros, reason = "page test cases build document lists and compose literal row oracles")]
+use super::{DELEGATE, PROJECT, TASK, board, records, render};
+use crate::public::PublicView;
 use jig_client_protocol_wire::Record as _;
 use jig_client_protocol_wire::public_v1 as j;
-use skein_lib::{Duration, List, Queue, Wall, Writer};
+use skein_lib::{List, Writer};
 use skein_ui::{Node, Role};
-use temper_client_domain::{
-    address::Public,
-    public::{Doc, Heard},
-};
+use temper_client_domain::{address::Public, public::Doc};
+use temper_client_protocol_wire::public_v1 as f;
 
-fn render(page: Public, documents: &[(Doc, Box<[u8]>)], seconds: u64) -> PublicView {
-    let mut reader = reader(page);
-    for (doc, body) in documents {
-        answer(&mut reader, *doc, Heard::Document { body: body.clone(), fresh: Duration::from_secs(5) });
-    }
-    let mut view = view();
-    build_public(
-        &mut view,
-        &reader,
-        Wall::from_nanos(seconds.checked_mul(1_000_000_000).expect("test clock")),
-        &mut Queue::uncapped(),
-    );
-    view
-}
+const MINUTE: u64 = 60;
+const HOUR: u64 = 60 * MINUTE;
+const DAY: u64 = 24 * HOUR;
 // Preorder subtrees preserve every text node, including separators between links.
 fn text(nodes: &[Node]) -> String {
     let mut text = String::new();
@@ -126,6 +113,63 @@ fn an_ended_row_says_how_long_ago() {
     }
 }
 #[test]
+fn each_rows_phase_and_time_read_at_fixed_clocks() {
+    use j::PublicPhase::{
+        Active, BackingOff, Cancelled, Claimed, Closing, Done, Due, Failed, Held, Idle, Preparing, Running, Waiting,
+    };
+    // 10 January 1971 at 17:00 UTC. All live phases began three minutes ago.
+    const NOW: u64 = 374 * DAY + 17 * HOUR;
+    const CHANGED: u64 = NOW - 3 * MINUTE;
+    const DONE: (&str, &str) = ("done", "landed");
+    let live = [
+        (Waiting, "waiting"),
+        (Idle, "waiting for news"),
+        (Due, "due to run"),
+        (Preparing, "preparing a host"),
+        (Claimed, "claimed by a host"),
+        (Running, "running"),
+        (BackingOff, "retrying"),
+        (Active, "executor active"),
+        (Closing, "closing"),
+        (Held, "held"),
+    ]
+    .map(|(phase, word)| (phase, None, (word, word), "for 3 minutes", false));
+    let ended = [
+        (Done, Some(NOW), DONE, "just now", true),
+        (Failed, Some(NOW - MINUTE), ("failed", "failed"), "a minute ago", false),
+        (Cancelled, Some(NOW - 12 * MINUTE), ("ended", "ended"), "12 minutes ago", false),
+        (Done, Some(NOW - HOUR), DONE, "an hour ago", false),
+        (Done, Some(NOW - 2 * HOUR), DONE, "2 hours ago", false),
+        (Done, Some(NOW - HOUR - MINUTE), DONE, "an hour a minute ago", false),
+        (Done, Some(NOW - HOUR - 5 * MINUTE), DONE, "an hour 5 minutes ago", false),
+        (Done, Some(NOW - 2 * HOUR - MINUTE), DONE, "2 hours a minute ago", false),
+        (Done, Some(NOW - 2 * HOUR - 5 * MINUTE), DONE, "2 hours 5 minutes ago", false),
+        (Done, Some(NOW - 12 * HOUR), DONE, "at 05:00", false),
+        (Done, Some(NOW - DAY), DONE, "yesterday", false),
+        (Done, Some(NOW - 2 * DAY), DONE, "Fri", false),
+        (Done, Some(NOW - 9 * DAY), DONE, "1 January", false),
+        (Done, Some(NOW - 10 * DAY), DONE, "31 December 1970", false),
+    ];
+    for (phase, ended_at, (task_word, goal_word), time, merged) in live.into_iter().chain(ended) {
+        let task = j::PublicLine { changed: CHANGED, ..line(false, phase.clone(), ended_at) };
+        let goal =
+            j::PublicLine { task: DELEGATE, parent: Some(TASK), changed: CHANGED, ..line(true, phase, ended_at) };
+        let mut documents = vec![(Doc::JigCard, records::card_with(task, List::with_capacity(0), goal))];
+        if merged {
+            documents
+                .push((Doc::ForgeChange, records::change_with_step(f::PublicStep::Landed, None, Some(records::HEAD))));
+        }
+        let page = render(Public::Task { project: PROJECT, task: TASK }, &documents, NOW);
+        assert_eq!(
+            facts(&page),
+            [format!("an agent · {task_word} · {time}"), format!("{goal_word} · {time} · 126 spent")]
+        );
+        // The landed change is visible as its own paragraph, not as the task's phase.
+        assert_eq!(paragraphs(&page).iter().any(|paragraph| paragraph == "landed"), merged);
+    }
+}
+
+#[test]
 fn the_board_says_what_it_is_and_when_it_has_no_goals() {
     let lede = "What temper is doing on this project, as it happens. Read-only.";
     let held = "Work that ended before this project went public, or before temper last restarted, isn't shown.";
@@ -182,6 +226,45 @@ fn landings_show_below_the_goals_only_with_a_queue_or_a_landing() {
         assert_eq!(paragraphs(&list).contains(&"No landings to show yet.".into()), !landed);
     }
 }
+#[test]
+fn a_landings_page_reads_whole_in_each_queue_and_merge_form() {
+    for (queue, merged, now, expected) in [
+        (false, false, 0, "temperSign inLandingsNo landings to show yet."),
+        (
+            true,
+            false,
+            0,
+            "temperSign inLandingsQueuetask 9abcdef0 · Goal 3f2a9c01 · Ready just nowNo landings to show yet.",
+        ),
+        (
+            true,
+            false,
+            MINUTE,
+            "temperSign inLandingsQueuetask 9abcdef0 · Goal 3f2a9c01 · Ready a minute agoNo landings to show yet.",
+        ),
+        (
+            true,
+            false,
+            12 * MINUTE,
+            "temperSign inLandingsQueuetask 9abcdef0 · Goal 3f2a9c01 · Ready 12 minutes agoNo landings to show yet.",
+        ),
+        (false, true, 0, "temperSign inLandingslanded · task 3f2a9c01 · 789ada1"),
+        (
+            true,
+            true,
+            2 * MINUTE,
+            "temperSign inLandingsQueuetask 9abcdef0 · Goal 3f2a9c01 · Ready 2 minutes agolanded · task 3f2a9c01 · 789ada1",
+        ),
+    ] {
+        let page = render(
+            Public::Landings { project: PROJECT },
+            &[(Doc::ForgeLandings, records::stock_landings(queue, merged))],
+            now,
+        );
+        assert_eq!(text(page.tree().nodes()), expected);
+    }
+}
+
 #[test]
 fn a_queue_merges_line_and_landing_read_as_a_landing() {
     let (list, landing) = records::queue_merge();
