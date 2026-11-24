@@ -21,6 +21,8 @@ import tarfile
 TREES = ("temper", "smith", "skein", "jig", "hearth")
 LABELS = ("Not yet", "Departs", "Design lags", "Design departs", "Open")
 MARK = 49_152
+OPENING_MARK = 8_192
+NUMBERED_HEADING = re.compile(rb"^## [0-9]", re.MULTILINE)
 LABEL = re.compile(r"^[ \t]*- \*\*(" + "|".join(LABELS) + r"):\*\*", re.MULTILINE)
 # The checker's section-list vocabulary (citations.py, status_label_matches).
 NUM = r"\d+(?:\.\d+)*"
@@ -64,7 +66,7 @@ def is_draft(path):
     return path.split("/", 1)[1].startswith("docs/design/draft/")
 
 
-def read_status(text):
+def read_status(text, *, draft=False):
     """Return (date, counts, in flight, done), or None for an unread file."""
     lines = text.splitlines()
     while lines and not lines[0].strip():
@@ -95,7 +97,9 @@ def read_status(text):
         counts[label[1]] += len(entries)
         if label[1] == "Not yet":
             in_flight += sum(TAG.search(entry) is not None for entry in entries)
-    return date[0], counts, in_flight, not any(counts.values())
+    done = not any(count for label, count in counts.items()
+                   if not draft or label != "Design departs")
+    return date[0], counts, in_flight, done
 
 
 def committed_markdown(rev, trees):
@@ -122,21 +126,35 @@ def counts_line(counts, in_flight, all_labels=False):
                      for label in LABELS if all_labels or counts[label])
 
 
+def size_lines(sizes):
+    return [f"{path}: {size:,} bytes" for path, size in
+            sorted(sizes, key=lambda item: (-item[1], os.fsencode(item[0])))]
+
+
 def roll_up(tree, files):
+    design = f"{tree}/docs/design/"
     totals = dict.fromkeys(LABELS, 0)
     in_flight = 0
-    opened, oversized, done, unread = [], [], [], []
+    opened, oversized, long_openings, done, unread = [], [], [], [], []
     for path in sorted(files, key=os.fsencode):
-        if not path.startswith(f"{tree}/docs/design/"):
+        if not path.startswith(design):
             continue
         data = files[path]
         if len(data) > MARK:
             oversized.append((path, len(data)))
+        if not path.endswith((".status.md", ".notes.md", ".execution.md")):
+            heading = NUMBERED_HEADING.search(data)
+            opening_size = heading.start() if heading else len(data)
+            if opening_size > OPENING_MARK:
+                long_openings.append((path, opening_size))
         if not path.endswith(".status.md"):
             continue
-        status = read_status(data.decode("utf-8", errors="replace"))
+        draft = is_draft(path)
+        status = read_status(data.decode("utf-8", errors="replace"), draft=draft)
         if status is None:
             unread.append(path)
+            continue
+        if path.startswith(design + "draft/archive/"):
             continue
         date, counts, flying, finished = status
         for label in LABELS:
@@ -144,14 +162,12 @@ def roll_up(tree, files):
         in_flight += flying
         if any(counts.values()):
             opened.append(f"{path}, {date}: {counts_line(counts, flying)}")
-        if (finished and is_draft(path)
-                and not path.startswith(f"{tree}/docs/design/draft/archive/")
+        if (finished and draft
                 and not path.removesuffix(".status.md").endswith((".notes", ".execution"))):
             done.append(path.removesuffix(".status.md") + ".md")
-    oversized.sort(key=lambda item: (-item[1], os.fsencode(item[0])))
     sections = [("Status files with an open entry:", opened),
-                (f"Over the mark, {MARK:,} bytes, largest first:",
-                 [f"{path}: {size:,} bytes" for path, size in oversized]),
+                (f"Over the mark, {MARK:,} bytes, largest first:", size_lines(oversized)),
+                (f"Openings over {OPENING_MARK:,} bytes, largest first:", size_lines(long_openings)),
                 ("Drafts done, outside draft/archive/:", sorted(done, key=os.fsencode)),
                 ("Unread status files:", unread)]
     lines = [f"# {tree}", "", f"Open entries: {counts_line(totals, in_flight, True)}."]
