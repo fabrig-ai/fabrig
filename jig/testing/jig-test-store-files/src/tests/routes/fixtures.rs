@@ -159,6 +159,7 @@ pub fn header(commits: u64) -> jig_test_domain::Write {
         jig_domain_core::CoreRecord::Deployment(jig_domain_core::Deployment {
             id: [18; 16],
             restart_wait_ms: None,
+            wait_floors: None,
             tasks: 21,
             people: 0,
             sign_ins: 0,

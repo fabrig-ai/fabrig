@@ -21,6 +21,7 @@ pub const HEADER: Deployment = Deployment {
     projects: 1,
     id: [31; 16],
     restart_wait_ms: None,
+    wait_floors: None,
     tasks: 0,
     people: 0,
     sign_ins: 0,

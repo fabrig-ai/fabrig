@@ -1,6 +1,10 @@
 //! Deployment numbers owned by the core (domain/engine/README.md, 3, and domain/engine/decisions.md, 1.4; domain/model.md, 6.1).
 
-use crate::{CoreRecord, Record, Write};
+use crate::{
+    CoreRecord, Record, Write,
+    waits::{WaitFloors, WaitKind},
+};
+use skein_lib::Wall;
 
 /// Core to store, then store to core at startup: one fixed-size deployment
 /// header with allocated high-water marks. Every writing decision saves it
@@ -37,6 +41,20 @@ pub struct Deployment {
     pub projects: u64,
     /// The longest restart wait still kept (domain/engine/restart.md, 1).
     pub restart_wait_ms: Option<u64>,
+    /// Each recorded wait kind's first observation.
+    pub wait_floors: Option<WaitFloors>,
+}
+
+impl Deployment {
+    #[must_use]
+    pub fn wait_floor(&self, kind: WaitKind) -> Option<Wall> {
+        self.wait_floors.as_ref()?.floor(kind)
+    }
+
+    /// Keep the first wall observation for a kind, returning whether it changed the header.
+    pub fn set_wait_floor(&mut self, kind: WaitKind, at: Wall) -> bool {
+        self.wait_floors.get_or_insert(WaitFloors::EMPTY).set_once(kind, at)
+    }
 }
 
 /// Core-selected counter for `fresh`; each is a separate checked `u64` high-water
@@ -97,6 +115,7 @@ impl Counters {
             commits: 0,
             projects: 0,
             restart_wait_ms: None,
+            wait_floors: None,
         };
         Counters { deployment, header: Header::Dirty }
     }

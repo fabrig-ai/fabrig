@@ -36,6 +36,7 @@ fn commit_wires(store: &mut Store) {
     let header = jig_domain_core::Deployment {
         id: [19; 16],
         restart_wait_ms: None,
+        wait_floors: None,
         projects: 0,
         tasks: 0,
         people: 0,

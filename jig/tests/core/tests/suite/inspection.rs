@@ -1,12 +1,12 @@
 //! Inspection at the core world's quiet points (jig/docs/design/domain/testing-fakes.md, 1.1).
 use jig_core_world::{
     fixtures::{configure_resources, delegate, member, resource_member},
-    world::World,
+    world::{Setup, World},
 };
 use jig_domain_core as core;
 use jig_domain_tasks as tasks;
 use jig_test_domain as root;
-use skein_lib::{Duration, ReplyTo, Token, Wall};
+use skein_lib::{Duration, ReplyTo, Time, Token, Wall};
 use skein_world::inspect::{Inspection, Moment, Release, Wait, Wake, check_tables, check_waits};
 use std::fmt::Write;
 
@@ -67,7 +67,12 @@ fn dependencies_name_the_pending_task() {
 
 fn pool_queue(seed: u64) -> (World, u64, u64) {
     let mut world = super::stories::plan_world(seed);
-    configure_resources(&mut world);
+    let (holder, task) = join_pool_queue(&mut world);
+    (world, holder, task)
+}
+
+fn join_pool_queue(world: &mut World) -> (u64, u64) {
+    configure_resources(world);
     world.send(root::Event::Connector {
         number: 1,
         event: jig_test_connector::Event::System(jig_test_connector::SystemEvent::Pool {
@@ -77,11 +82,11 @@ fn pool_queue(seed: u64) -> (World, u64, u64) {
         }),
     });
     let parent = world.assignments[0];
-    let child = resource_member(&world, 2, b"hold the pool");
-    let holder = delegate(&mut world, parent, 1, child);
-    let child = resource_member(&world, 2, b"queue for the pool");
-    let task = delegate(&mut world, parent, 2, child);
-    (world, holder, task)
+    let child = resource_member(world, 2, b"hold the pool");
+    let holder = delegate(world, parent, 1, child);
+    let child = resource_member(world, 2, b"queue for the pool");
+    let task = delegate(world, parent, 2, child);
+    (holder, task)
 }
 
 #[test]
@@ -250,18 +255,105 @@ fn an_open_question_waits_on_its_requester() {
     let child = member(&world, tasks::Executor::Agent { charter: 1 }, b"ask");
     let task = delegate(&mut world, parent, 1, child);
     let run = super::stories::running(&world, task);
+    ask_requester(&mut world, run, parent.0);
+    park(&mut world, run);
+    let inspection = inspect(&world, 11730);
+    assert!(waiting(&inspection, task, "on its requester").wakes.contains(&Wake::Waiter(format!("task {}", parent.0))));
+}
+
+fn ask_requester(world: &mut World, run: (u64, u64), requester: u64) {
     world.send(root::Event::Core(core::Event::NamedAction {
         to: ReplyTo::new(Token::new(9910)),
         key: key(run, 2),
         action: core::NamedAction::Message {
-            target: parent.0,
+            target: requester,
             kind: tasks::MessageKind::Question,
             words: b"proceed?".as_slice().into(),
         },
     }));
+}
+
+#[test]
+fn the_first_start_floors_old_waits_and_later_starts_keep_the_floor() {
+    const SEED: u64 = 11740;
+    const T0: Wall = Wall::from_nanos(10_000_000_000);
+    const T1: Wall = Wall::from_nanos(12_000_000_000);
+    const T2: Wall = Wall::from_nanos(13_000_000_000);
+    let (configuration, mut limits) = jig_core_world::faults::plan_fixture(SEED);
+    limits.core.tasks.delegates = 4;
+    // Four result reservations and the question share the requester's inbox.
+    limits.core.tasks.inbox_messages = 16;
+    limits.core.tasks.inbox_bytes = 2048;
+    let mut world = World::new(Setup {
+        seed: SEED,
+        configuration: Some(configuration),
+        limits,
+        clock: Some((Time::ZERO, T0)),
+        ..Setup::default()
+    });
+    assert_floors(&world, Some(T0));
+    let (_, queued) = join_pool_queue(&mut world);
+    let parent = world.assignments[0];
+    let leaf = |world: &World, words: &[u8]| {
+        let mut child = member(world, tasks::Executor::Agent { charter: 1 }, words);
+        child.authority.delegation = tasks::Delegation { kinds: Box::new([]), tasks: 0, depth: 0 };
+        child
+    };
+    let child = leaf(&world, b"ask the requester");
+    let asking = delegate(&mut world, parent, 3, child);
+    let run = super::stories::running(&world, asking);
+    ask_requester(&mut world, run, parent.0);
+    assert!(matches!(world.answers.last(), Some((_, _, core::CallPart::Sent { .. }))), "{:?}", world.answers.last());
     park(&mut world, run);
-    let inspection = inspect(&world, 11730);
-    assert!(waiting(&inspection, task, "on its requester").wakes.contains(&Wake::Waiter(format!("task {}", parent.0))));
+    let child = leaf(&world, b"escalate to the requester");
+    let held = delegate(&mut world, parent, 4, child);
+    world.send(root::Event::Core(core::Event::Tasks(tasks::Event::Hold { task: held, why: tasks::Hold::Budget })));
+
+    let waits = [
+        (asking, core::WaitKind::Question, limits.core.waits.question),
+        (held, core::WaitKind::Party, limits.core.tasks.escalation_stall),
+        (queued, core::WaitKind::Resource, limits.core.tasks.hold_wait),
+    ];
+    world.clear_wait_floors_for_upgrade();
+    assert_floors(&world, None);
+    for (task, kind, figure) in waits {
+        assert_wait_clock(&world, task, kind, T0, figure);
+    }
+    for at in [T1, T2] {
+        world.set_clock(world.clocks().0, at);
+        let (configuration, _) = jig_core_world::faults::plan_fixture(SEED);
+        world.restart_with(configuration);
+        assert!(world.domain.ready());
+        assert_floors(&world, Some(T1));
+        for (task, kind, figure) in waits {
+            assert_wait_clock(&world, task, kind, T1, figure);
+        }
+    }
+    world.send(root::Event::Core(core::Event::Tasks(tasks::Event::Hold { task: asking, why: tasks::Hold::Budget })));
+    assert_wait_clock(&world, asking, core::WaitKind::Party, T2, limits.core.tasks.escalation_stall);
+}
+
+fn assert_floors(world: &World, at: Option<Wall>) {
+    use core::WaitKind::*;
+    let core = world.domain.core();
+    for kind in [Party, Question, Dependency, Resource, Account, Host, Delegate, News] {
+        assert_eq!(core.wait_floor(kind), at, "{kind:?}");
+    }
+    for kind in [Step, Room, Turn, SignOff] {
+        assert_eq!(core.wait_floor(kind), None, "{kind:?}");
+    }
+}
+
+fn assert_wait_clock(world: &World, task: u64, kind: core::WaitKind, since: Wall, span: Duration) {
+    let waits = world.domain.core().waits(task);
+    let wait =
+        waits.own.iter().find(|wait| wait.kind == kind).unwrap_or_else(|| {
+            panic!("task {task} has no {kind:?} since {since:?} at {:?}: {waits:?}", world.clocks().1)
+        });
+    assert_eq!(wait.since, since, "{kind:?}");
+    let core::Bound::At { at, .. } = wait.bound else { panic!("bound for {kind:?}: {wait:?}") };
+    assert_eq!(at, Wall::from_nanos(since.as_nanos() + span.as_nanos()), "{kind:?}");
+    assert!(at > world.clocks().1, "{kind:?} is not past its bound");
 }
 
 #[test]

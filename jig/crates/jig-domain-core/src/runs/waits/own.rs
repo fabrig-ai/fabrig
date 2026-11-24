@@ -71,12 +71,12 @@ impl Own {
         self.task_entries(core, limits, row);
         self.questions(core, limits, row);
         if !working {
-            self.dependencies(row);
+            self.dependencies(core, row);
             self.resource(core, limits, row);
-            self.run(limits, row, due_wait);
+            self.run(core, limits, row, due_wait);
             if row.delegates.is_empty() {
                 if let Some(since) = parked {
-                    self.news(limits, row, since);
+                    self.news(core, limits, row, since);
                 }
             } else {
                 for number in &row.delegates {
@@ -85,7 +85,7 @@ impl Own {
                         row.number,
                         WaitKind::Delegate,
                         WaitObject::Task(*number),
-                        delegate.created_at,
+                        core.wait_since(WaitKind::Delegate, delegate.created_at),
                         deadline(row),
                     );
                 }
@@ -117,6 +117,7 @@ impl Own {
                 Some(line) => line.at,
                 None => row.phase_since,
             };
+            let since = core.wait_since(WaitKind::Question, since);
             self.push(
                 row.number,
                 WaitKind::Question,
@@ -127,7 +128,7 @@ impl Own {
         }
     }
 
-    fn dependencies(&mut self, row: &TaskRecord) {
+    fn dependencies(&mut self, core: &Core, row: &TaskRecord) {
         if let Phase::Active(_) | Phase::Held { was: tasks::Was::Active(_), .. } = row.phase {
             for number in &row.waiting_on {
                 let mut since = row.created_at;
@@ -137,6 +138,7 @@ impl Own {
                         break;
                     }
                 }
+                let since = core.wait_since(WaitKind::Dependency, since);
                 self.push(row.number, WaitKind::Dependency, WaitObject::Task(*number), since, deadline(row));
             }
         }
@@ -146,7 +148,7 @@ impl Own {
         if let Some(joined) = row.hold_wait_since
             && let Some((name, holder)) = core.tasks.resource_wait(row)
         {
-            let since = row.hold_bound_since.unwrap_or(joined);
+            let since = core.wait_since(WaitKind::Resource, row.hold_bound_since.unwrap_or(joined));
             self.push(
                 row.number,
                 WaitKind::Resource,
@@ -157,7 +159,7 @@ impl Own {
         }
     }
 
-    fn run(&mut self, limits: &Limits, row: &TaskRecord, due_wait: Option<TaskRunWait>) {
+    fn run(&mut self, core: &Core, limits: &Limits, row: &TaskRecord, due_wait: Option<TaskRunWait>) {
         let wait = if let Phase::Active(tasks::Active::BackingOff { until }) = row.phase {
             // Backoff has a reset but need not have a source to name.
             TaskRunWait::Account {
@@ -183,7 +185,7 @@ impl Own {
             } => (WaitKind::Account, limits.waits.account, until),
             TaskRunWait::Account { .. } | TaskRunWait::Credential => (WaitKind::Account, limits.waits.account, None),
         };
-        let since = row.phase_since;
+        let since = core.wait_since(kind, row.phase_since);
         let from = since.max(reset.unwrap_or(since));
         self.push(
             row.number,
@@ -194,7 +196,8 @@ impl Own {
         );
     }
 
-    fn news(&mut self, limits: &Limits, row: &TaskRecord, since: Wall) {
+    fn news(&mut self, core: &Core, limits: &Limits, row: &TaskRecord, since: Wall) {
+        let since = core.wait_since(WaitKind::News, since);
         let mut subscriptions = List::with_capacity(4);
         let mut timer = None;
         for subscription in &row.subscriptions {
@@ -236,6 +239,7 @@ fn entry(
     since: Wall,
     hears: Option<Holder>,
 ) -> Wait {
+    let since = core.wait_since(WaitKind::Party, since);
     let (figure, deadline) = match kind {
         EntryKind::Question { .. } => (limits.waits.party, row.authority.budget.deadline),
         EntryKind::Escalation { .. } => (limits.tasks.escalation_stall, None),

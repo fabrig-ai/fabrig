@@ -9,7 +9,40 @@ use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use skein_lib::{List, Token, Wall};
 
+pub(crate) const JIG_KINDS: [WaitKind; 8] = [
+    WaitKind::Party,
+    WaitKind::Question,
+    WaitKind::Dependency,
+    WaitKind::Resource,
+    WaitKind::Account,
+    WaitKind::Host,
+    WaitKind::Delegate,
+    WaitKind::News,
+];
+
 impl Core {
+    /// A kind's floor, none until it is set (jig/docs/design/domain/engine/waits.md, 7).
+    #[must_use]
+    pub fn wait_floor(&self, kind: WaitKind) -> Option<Wall> {
+        if let Some(at) = self.counters.deployment.wait_floor(kind) {
+            return Some(at);
+        }
+        if JIG_KINDS.contains(&kind) { self.start_floor_time() } else { None }
+    }
+
+    /// Keep a kind's first floor and dirty the deployment header for this decision.
+    /// A procedure's report calls this only after admission, using the time the core
+    /// keeps the report, not the reported wait's since.
+    pub fn set_wait_floor(&mut self, kind: WaitKind, at: Wall) {
+        if self.counters.deployment.set_wait_floor(kind, at) {
+            self.counters.header = crate::numbers::Header::Dirty;
+        }
+    }
+
+    fn wait_since(&self, kind: WaitKind, fact: Wall) -> Wall {
+        fact.max(self.wait_floor(kind).unwrap_or(fact))
+    }
+
     /// A live task's waits. An unknown or ended task has none.
     #[must_use]
     pub fn waits(&self, task: u64) -> Waits {
@@ -261,4 +294,24 @@ fn dependencies(core: &Core, limits: &Limits, own: &own::Records) -> WaitsOn {
         pending.push(number).expect("bounded pending dependencies");
     }
     WaitsOn::Dependencies { pending, count }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_procedure_floor_keeps_the_first_accepted_report_time() {
+        let (mut core, _) = crate::tests::core();
+        let _bootstrap = core.decision_header(false);
+        assert_eq!(core.wait_floor(WaitKind::Step), None);
+        core.set_wait_floor(WaitKind::Step, Wall::from_nanos(20));
+        let Some(crate::Record::Core(crate::CoreRecord::Deployment(header))) = core.decision_header(false) else {
+            panic!("first report writes the floor");
+        };
+        assert_eq!(header.wait_floor(WaitKind::Step), Some(Wall::from_nanos(20)));
+        core.set_wait_floor(WaitKind::Step, Wall::from_nanos(30));
+        assert_eq!(core.wait_floor(WaitKind::Step), Some(Wall::from_nanos(20)));
+        assert!(core.decision_header(false).is_none());
+    }
 }
