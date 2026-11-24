@@ -9,7 +9,7 @@ use std::{
 };
 use temper_qa_tool::{
     Refusal,
-    faces::{DirectoryMode, FilesFace, LockMode, PathFacts, RealFiles, WriteOptions},
+    faces::{DirectoryMode, FileEntry, FilesFace, LockMode, PathFacts, RealFiles, RemoveMode, WriteOptions},
 };
 
 #[derive(Default)]
@@ -40,6 +40,21 @@ impl FilesFace for Files {
     }
     fn facts(&mut self, path: &Path, follow: bool) -> io::Result<PathFacts> {
         RealFiles.facts(path, follow)
+    }
+    fn list(&mut self, path: &Path) -> io::Result<Vec<FileEntry>> {
+        RealFiles.list(path)
+    }
+    fn open_read(&mut self, path: &Path) -> io::Result<File> {
+        RealFiles.open_read(path)
+    }
+    fn open_write(&mut self, path: &Path, options: WriteOptions) -> io::Result<File> {
+        RealFiles.open_write(path, options)
+    }
+    fn writer_permissions(&mut self, file: &File, mode: u32) -> io::Result<()> {
+        RealFiles.writer_permissions(file, mode)
+    }
+    fn remove(&mut self, path: &Path, mode: RemoveMode) -> io::Result<()> {
+        RealFiles.remove(path, mode)
     }
     fn rename(&mut self, source: &Path, destination: &Path) -> io::Result<()> {
         RealFiles.rename(source, destination)

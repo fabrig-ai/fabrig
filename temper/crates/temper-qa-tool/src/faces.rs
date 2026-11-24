@@ -3,8 +3,8 @@ use crate::{Exit, Refusal, refused};
 mod files;
 pub(crate) use files::private_directory;
 pub use files::{
-    DirectoryMode, FileEntry, FilesFace, LockMode, Mode, PathFacts, PathKind, RealFiles, RemoveMode, ResolveMode,
-    WriteMode, WriteOptions,
+    DirectoryMode, DirectoryScan, FileEntry, FilesFace, LockMode, Mode, PathFacts, PathKind, RealFiles, RemoveMode,
+    ResolveMode, ScannedEntry, WriteMode, WriteOptions,
 };
 use std::{
     collections::BTreeMap,
@@ -24,6 +24,27 @@ use std::{
     process::{Child, Command, Output, Stdio},
     time::Duration,
 };
+
+pub(crate) fn read_text(files: &mut impl FilesFace, path: &Path) -> io::Result<String> {
+    String::from_utf8(files.read(path)?)
+        .map_err(|_| io::Error::new(io::ErrorKind::InvalidData, "stream did not contain valid UTF-8"))
+}
+
+pub(crate) fn remove_missing(files: &mut impl FilesFace, path: &Path, mode: RemoveMode) -> io::Result<()> {
+    match files.remove(path, mode) {
+        Err(why) if why.kind() == io::ErrorKind::NotFound => Ok(()),
+        result => result,
+    }
+}
+
+pub(crate) fn remove_any_if_present(files: &mut impl FilesFace, path: &Path) -> io::Result<()> {
+    match files.facts(path, false) {
+        Ok(facts) if facts.kind == PathKind::Directory => files.remove(path, RemoveMode::Tree),
+        Ok(_) => files.remove(path, RemoveMode::File),
+        Err(why) if why.kind() == io::ErrorKind::NotFound => Ok(()),
+        Err(why) => Err(why),
+    }
+}
 
 pub type EnvironmentEntry = (Box<[u8]>, Box<[u8]>);
 pub type Environment = Vec<EnvironmentEntry>;
@@ -74,6 +95,8 @@ pub fn parse_numstat(text: &str) -> Result<Vec<Changed>, Refusal> {
 }
 
 pub trait GitFace {
+    /// Select the repository named by the admitted command's home.
+    fn set_directory(&mut self, _directory: &Path) {}
     fn fetch(&mut self, remote: &str, branch: &str) -> Result<(), Refusal>;
     fn head(&mut self, reference: &str) -> Result<String, Refusal>;
     fn commits(&mut self, old: &str, new: &str) -> Result<Vec<Commit>, Refusal>;
@@ -161,6 +184,9 @@ impl RealGit {
     }
 }
 impl GitFace for RealGit {
+    fn set_directory(&mut self, directory: &Path) {
+        self.directory = directory.to_path_buf();
+    }
     fn fetch(&mut self, remote: &str, branch: &str) -> Result<(), Refusal> {
         self.bytes(&["fetch", "--quiet", remote, &format!("+refs/heads/{branch}:refs/temper-qa/{branch}")])?;
         Ok(())
@@ -304,6 +330,8 @@ pub struct OutputCommand<'a> {
 #[derive(Debug)]
 pub struct ProcessOutput {
     pub exit: Exit,
+    /// The platform's spelling of the status, used in tar's refusal.
+    pub status: String,
     pub stdout: Vec<u8>,
     pub stderr: Vec<u8>,
 }
@@ -522,10 +550,10 @@ impl Processes for RealProcesses {
             let log = RealFiles.open_write(path, WriteOptions::private(WriteMode::Append))?;
             let error = log.try_clone()?;
             let status = command.stdout(log).stderr(error).status()?;
-            Ok(ProcessOutput { exit: exit(status), stdout: Vec::new(), stderr: Vec::new() })
+            Ok(ProcessOutput { exit: exit(status), status: status.to_string(), stdout: Vec::new(), stderr: Vec::new() })
         } else {
             let Output { status, stdout, stderr } = command.output()?;
-            Ok(ProcessOutput { exit: exit(status), stdout, stderr })
+            Ok(ProcessOutput { exit: exit(status), status: status.to_string(), stdout, stderr })
         }
     }
 
@@ -733,9 +761,25 @@ impl ClockFace for RealClock {
 
 /// The place's build alone reads recipes and walks their drive lines (qa/places.md, 8).
 pub trait DriveFace {
-    fn list(&mut self, place: &crate::place::PlacePaths, setups: &Path) -> Result<String, Refusal>;
-    fn hash(&mut self, place: &crate::place::PlacePaths, setups: &Path, name: &str) -> Result<String, Refusal>;
-    fn walk(&mut self, request: &RecipeWalk<'_>) -> Result<WalkOutput, Refusal>;
+    fn list(
+        &mut self,
+        place: &crate::place::PlacePaths,
+        setups: &Path,
+        processes: &mut impl Processes,
+    ) -> Result<String, Refusal>;
+    fn hash(
+        &mut self,
+        place: &crate::place::PlacePaths,
+        setups: &Path,
+        name: &str,
+        processes: &mut impl Processes,
+    ) -> Result<String, Refusal>;
+    fn walk(
+        &mut self,
+        request: &RecipeWalk<'_>,
+        files: &mut impl FilesFace,
+        processes: &mut impl Processes,
+    ) -> Result<WalkOutput, Refusal>;
 }
 pub struct RecipeWalk<'a> {
     pub place: &'a crate::place::PlacePaths,
@@ -751,15 +795,33 @@ pub struct RealDrive {
     pub environment: Environment,
 }
 impl RealDrive {
-    fn command(&self, place: &crate::place::PlacePaths, operation: &str) -> Command {
-        let mut command = Command::new(place.bin.join("temper-client-journeys"));
-        captured(&mut command, &self.environment);
-        command.current_dir(&place.directory).stdin(Stdio::null()).args(["recipe", operation]);
-        command
+    fn output(
+        &self,
+        place: &crate::place::PlacePaths,
+        arguments: &[OsString],
+        log: Option<&Path>,
+        name: &str,
+        processes: &mut impl Processes,
+    ) -> Result<ProcessOutput, Refusal> {
+        processes
+            .output(&OutputCommand {
+                program: place.bin.join("temper-client-journeys").as_os_str(),
+                arguments,
+                directory: Some(&place.directory),
+                environment: &self.environment,
+                log,
+            })
+            .map_err(|why| refused(format!("recipe {name}: {why}")))
     }
-    fn text(command: &mut Command, name: &str) -> Result<String, Refusal> {
-        let output = command.output().map_err(|why| refused(format!("recipe {name}: {why}")))?;
-        if !output.status.success() {
+    fn text(
+        &self,
+        place: &crate::place::PlacePaths,
+        arguments: &[OsString],
+        name: &str,
+        processes: &mut impl Processes,
+    ) -> Result<String, Refusal> {
+        let output = self.output(place, arguments, None, name, processes)?;
+        if output.exit != Exit::Code(0) {
             let why = format!("{}{}", String::from_utf8_lossy(&output.stdout), String::from_utf8_lossy(&output.stderr));
             return Err(refused(format!("recipe {name}: {}", why.trim())));
         }
@@ -767,60 +829,95 @@ impl RealDrive {
     }
 }
 impl DriveFace for RealDrive {
-    fn list(&mut self, place: &crate::place::PlacePaths, setups: &Path) -> Result<String, Refusal> {
-        Self::text(self.command(place, "list").arg("--setups").arg(setups), "list")
+    fn list(
+        &mut self,
+        place: &crate::place::PlacePaths,
+        setups: &Path,
+        processes: &mut impl Processes,
+    ) -> Result<String, Refusal> {
+        self.text(place, &["recipe".into(), "list".into(), "--setups".into(), setups.into()], "list", processes)
     }
-    fn hash(&mut self, place: &crate::place::PlacePaths, setups: &Path, name: &str) -> Result<String, Refusal> {
-        let text = Self::text(self.command(place, "hash").arg(name).arg("--setups").arg(setups), name)?;
+    fn hash(
+        &mut self,
+        place: &crate::place::PlacePaths,
+        setups: &Path,
+        name: &str,
+        processes: &mut impl Processes,
+    ) -> Result<String, Refusal> {
+        let text = self.text(
+            place,
+            &["recipe".into(), "hash".into(), name.into(), "--setups".into(), setups.into()],
+            name,
+            processes,
+        )?;
         let hash = text.trim();
         if hash.len() != 64 || !hash.bytes().all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte)) {
             return Err(refused(format!("recipe {name}: invalid chain hash")));
         }
         Ok(hash.into())
     }
-    fn walk(&mut self, request: &RecipeWalk<'_>) -> Result<WalkOutput, Refusal> {
-        use std::io::{BufRead, Seek};
+    fn walk(
+        &mut self,
+        request: &RecipeWalk<'_>,
+        files: &mut impl FilesFace,
+        processes: &mut impl Processes,
+    ) -> Result<WalkOutput, Refusal> {
         let place = request.place;
-        let mut log = crate::private::file(&place.walk_log, &mut RealFiles, WriteMode::Append, true)?;
-        let start = log.seek(std::io::SeekFrom::End(0)).map_err(|why| refused(format!("walk.log: {why}")))?;
-        let output = log.try_clone().map_err(|why| refused(format!("walk.log: {why}")))?;
-        let error = log.try_clone().map_err(|why| refused(format!("walk.log: {why}")))?;
-        let mut command = self.command(place, "walk");
-        command.arg(request.name);
+        // Keep the reader at the end of the old log while the child appends.
+        let log = files.open_log_tail(&place.walk_log)?;
+        let mut arguments = vec!["recipe".into(), "walk".into(), request.name.into()];
         if let Some(from) = request.from {
-            command.args(["--from", from]);
+            arguments.extend(["--from".into(), from.into()]);
         }
-        command.arg("--bin").arg(&place.bin);
-        command.arg("--bundle").arg(&place.bundle);
-        command.arg("--scratch").arg(&place.scratch).arg("--setups").arg(request.setups).arg("--strict");
+        arguments.extend([
+            "--bin".into(),
+            place.bin.clone().into_os_string(),
+            "--bundle".into(),
+            place.bundle.clone().into_os_string(),
+            "--scratch".into(),
+            place.scratch.clone().into_os_string(),
+            "--setups".into(),
+            request.setups.into(),
+            "--strict".into(),
+        ]);
         if let Some(ports) = &place.ports {
-            command.args(["--ports", ports]);
+            arguments.extend(["--ports".into(), OsString::from(ports)]);
         }
-        let status = command
-            .stdout(output)
-            .stderr(error)
-            .status()
-            .map_err(|why| refused(format!("recipe {}: {why}", request.name)))?;
-        log.seek(std::io::SeekFrom::Start(start)).map_err(|why| refused(format!("walk.log: {why}")))?;
+        let output = self.output(place, &arguments, Some(&place.walk_log), request.name, processes)?;
         let mut tail = std::collections::VecDeque::new();
-        for line in std::io::BufReader::new(log).lines() {
+        for line in BufReader::new(log).lines() {
             tail.push_back(line.map_err(|why| refused(format!("walk.log: {why}")))?);
             if tail.len() > 40 {
                 tail.pop_front();
             }
         }
-        Ok(WalkOutput {
-            code: status.code().and_then(|code| u8::try_from(code).ok()).unwrap_or(1),
-            tail: tail.into_iter().collect::<Vec<_>>().join("\n"),
-        })
+        let code = match output.exit {
+            Exit::Code(code) => u8::try_from(code).unwrap_or(1),
+            Exit::Signal(_) | Exit::Bound | Exit::Lost | Exit::Unstarted => 1,
+        };
+        Ok(WalkOutput { code, tail: tail.into_iter().collect::<Vec<_>>().join("\n") })
     }
 }
 
 /// Copies hold config/ and data/ but for the relative paths left out by the place;
 /// cache/ stays at the place (qa/places.md, 2 and 4).
 pub trait ArchiveFace {
-    fn create(&mut self, scratch: &Path, archive: &Path, left_out: &[&str]) -> Result<(), Refusal>;
-    fn extract(&mut self, archive: &Path, scratch: &Path, left_out: &[&str]) -> Result<(), Refusal>;
+    fn create(
+        &mut self,
+        scratch: &Path,
+        archive: &Path,
+        left_out: &[&str],
+        files: &mut impl FilesFace,
+        processes: &mut impl Processes,
+    ) -> Result<(), Refusal>;
+    fn extract(
+        &mut self,
+        archive: &Path,
+        scratch: &Path,
+        left_out: &[&str],
+        files: &mut impl FilesFace,
+        processes: &mut impl Processes,
+    ) -> Result<(), Refusal>;
 }
 /// The system's tar, with pinned paths set aside for saves and removed after restores
 /// (qa/places.md, 4 and 8).
@@ -828,63 +925,82 @@ pub struct RealArchive {
     pub environment: Environment,
 }
 impl RealArchive {
-    fn command(&self, operation: &str, scratch: &Path, archive: &Path) -> Command {
-        let mut command = Command::new("tar");
-        captured(&mut command, &self.environment);
-        command.arg(operation).arg("--file").arg(archive).arg("--directory").arg(scratch).stdin(Stdio::null());
-        command
-    }
-
-    fn remove(path: &Path) -> Result<(), Refusal> {
-        match fs::symlink_metadata(path) {
-            Ok(metadata) if metadata.is_dir() => fs::remove_dir_all(path),
-            Ok(_) => fs::remove_file(path),
-            Err(why) if why.kind() == std::io::ErrorKind::NotFound => Ok(()),
-            Err(why) => Err(why),
+    fn tar(
+        &self,
+        operation: &str,
+        scratch: &Path,
+        archive: &Path,
+        members: &[&str],
+        processes: &mut impl Processes,
+    ) -> Result<(), Refusal> {
+        let mut arguments =
+            vec![operation.into(), "--file".into(), archive.into(), "--directory".into(), scratch.into()];
+        arguments.extend(members.iter().map(OsString::from));
+        let output = processes
+            .output(&OutputCommand {
+                program: OsStr::new("tar"),
+                arguments: &arguments,
+                directory: None,
+                environment: &self.environment,
+                log: None,
+            })
+            .map_err(|why| refused(format!("tar: {why}")))?;
+        if output.exit != Exit::Code(0) {
+            return Err(refused(format!(
+                "tar {operation}: {}: {}",
+                output.status,
+                String::from_utf8_lossy(&output.stderr).trim()
+            )));
         }
-        .map_err(|why| refused(format!("{}: {why}", path.display())))
+        Ok(())
+    }
+    fn remove(path: &Path, files: &mut impl FilesFace) -> Result<(), Refusal> {
+        path_io(path, remove_any_if_present(files, path))
     }
 }
 /// A copy's members present in `scratch`: a box run with fake backends keeps its configuration under
 /// `data/`, so its `config/` may never be made (qa/places.md, 4).
-pub fn copy_members(scratch: &Path) -> Result<Vec<&'static str>, Refusal> {
-    let members: Vec<_> = ["config", "data"].into_iter().filter(|name| scratch.join(name).is_dir()).collect();
+pub fn copy_members(scratch: &Path, files: &mut impl FilesFace) -> Result<Vec<&'static str>, Refusal> {
+    let members: Vec<_> = ["config", "data"]
+        .into_iter()
+        .filter(|name| files.facts(&scratch.join(name), true).is_ok_and(|facts| facts.kind == PathKind::Directory))
+        .collect();
     if members.is_empty() {
         return Err(refused(format!("{} holds neither config nor data to copy", scratch.display())));
     }
     Ok(members)
 }
 impl ArchiveFace for RealArchive {
-    fn create(&mut self, scratch: &Path, archive: &Path, left_out: &[&str]) -> Result<(), Refusal> {
-        let members = copy_members(scratch)?;
+    fn create(
+        &mut self,
+        scratch: &Path,
+        archive: &Path,
+        left_out: &[&str],
+        files: &mut impl FilesFace,
+        processes: &mut impl Processes,
+    ) -> Result<(), Refusal> {
+        let members = copy_members(scratch, files)?;
         let mut aside = archive.as_os_str().to_owned();
         aside.push(".left-out");
         let aside = PathBuf::from(aside);
-        Self::remove(&aside)?;
+        Self::remove(&aside, files)?;
         let mut moved = Vec::new();
         let result = (|| {
             for (index, path) in left_out.iter().enumerate() {
                 let path = scratch.join(path);
-                match fs::symlink_metadata(&path) {
+                match files.facts(&path, false) {
                     Ok(_) => {}
                     Err(why) if why.kind() == std::io::ErrorKind::NotFound => continue,
                     Err(why) => return Err(refused(format!("{}: {why}", path.display()))),
                 }
                 if moved.is_empty() {
-                    crate::private::directory(&aside, &mut RealFiles)?;
+                    crate::private::directory(&aside, files)?;
                 }
                 let saved = aside.join(index.to_string());
-                fs::rename(&path, &saved).map_err(|why| refused(format!("{}: {why}", path.display())))?;
+                files.rename(&path, &saved).map_err(|why| refused(format!("{}: {why}", path.display())))?;
                 moved.push((path, saved));
             }
-            checked(
-                self.command("--create", scratch, archive)
-                    .args(members)
-                    .output()
-                    .map_err(|why| refused(format!("tar: {why}")))?,
-                "tar --create",
-            )
-            .map(|_| ())
+            self.tar("--create", scratch, archive, &members, processes)
         })();
         let mut failures = Vec::new();
         if let Err(why) = result {
@@ -892,23 +1008,27 @@ impl ArchiveFace for RealArchive {
         }
         let mut restored = true;
         for (path, saved) in moved {
-            if let Err(why) = fs::rename(&saved, &path) {
+            if let Err(why) = files.rename(&saved, &path) {
                 failures.push(format!("{}: {why}", path.display()));
                 restored = false;
             }
         }
-        if restored && let Err(why) = Self::remove(&aside) {
+        if restored && let Err(why) = Self::remove(&aside, files) {
             failures.push(why.to_string());
         }
         if failures.is_empty() { Ok(()) } else { Err(refused(failures.join("; "))) }
     }
-    fn extract(&mut self, archive: &Path, scratch: &Path, left_out: &[&str]) -> Result<(), Refusal> {
-        checked(
-            self.command("--extract", scratch, archive).output().map_err(|why| refused(format!("tar: {why}")))?,
-            "tar --extract",
-        )?;
+    fn extract(
+        &mut self,
+        archive: &Path,
+        scratch: &Path,
+        left_out: &[&str],
+        files: &mut impl FilesFace,
+        processes: &mut impl Processes,
+    ) -> Result<(), Refusal> {
+        self.tar("--extract", scratch, archive, &[], processes)?;
         for path in left_out {
-            Self::remove(&scratch.join(path))?;
+            Self::remove(&scratch.join(path), files)?;
         }
         Ok(())
     }

@@ -199,7 +199,12 @@ fn a_program_sees_the_command_and_the_live_tree() {
         assert_eq!(command.environment, [(Box::from(b"MODE".as_slice()), Box::from(b"draft".as_slice()))]);
         let bytes = files.read(&directory.join("input"))?;
         files.write(&directory.join("out"), &bytes, WriteOptions::private(WriteMode::New), false)?;
-        Ok(ProcessOutput { exit: Exit::Code(3), stdout: b"report".into(), stderr: b"diagnostic".into() })
+        Ok(ProcessOutput {
+            exit: Exit::Code(3),
+            status: "exit status: 3".into(),
+            stdout: b"report".into(),
+            stderr: b"diagnostic".into(),
+        })
     });
     tree.directory(directory, DirectoryMode::One).expect("work directory");
     write(&mut tree, "/work/input", b"written after registration");
@@ -224,7 +229,12 @@ fn bounded_programs_answer_from_stdout_and_keep_both_streams() {
     let mut agents = Agents::new(tree.clone());
     agents.register("file", |command, _| {
         assert_eq!(command.arguments, ["goal"]);
-        Ok(ProcessOutput { exit: Exit::Code(0), stdout: b"progress\ngoal 41\n \n".into(), stderr: b"goal 99\n".into() })
+        Ok(ProcessOutput {
+            exit: Exit::Code(0),
+            status: "exit status: 0".into(),
+            stdout: b"progress\ngoal 41\n \n".into(),
+            stderr: b"goal 99\n".into(),
+        })
     });
     let command = ProcessCommand {
         arguments: vec!["file".into(), "goal".into()],
@@ -245,6 +255,7 @@ fn version_reads_the_first_line_of_scripted_stdout() {
         assert_eq!(command.arguments, ["--version"]);
         Ok(ProcessOutput {
             exit: Exit::Code(8),
+            status: "exit status: 8".into(),
             stdout: b"tool v1\r\nextra\n".into(),
             stderr: b"not a version\n".into(),
         })

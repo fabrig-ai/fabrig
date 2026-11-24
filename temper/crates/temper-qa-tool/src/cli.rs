@@ -1,12 +1,21 @@
 //! The table and command boundary (testing/tools.md, 4; qa/README.md, 2).
 use crate::{
     CaseInput, Home, Refusal,
-    faces::{GitFace, RealArchive, RealDrive, RealGit},
+    faces::{
+        ArchiveFace, ClockFace, DriveFace, FilesFace, GitFace, Processes, RealArchive, RealClock, RealDrive, RealFiles,
+        RealGit, RealProcesses, ResolveMode,
+    },
     place::{PassPlace, RecipeInput},
     refused,
 };
 use skein_shell::{Argument, Command, Front, Reach, Set, Table, Variable, Way};
-use std::{ffi::OsStr, io::Read, os::unix::ffi::OsStrExt, path::Path, process::ExitCode};
+use std::{
+    ffi::OsStr,
+    io::{self, Read, Write},
+    os::unix::ffi::OsStrExt,
+    path::{Path, PathBuf},
+    process::ExitCode,
+};
 
 pub(crate) type Environment = [(Box<[u8]>, Box<[u8]>)];
 
@@ -349,36 +358,83 @@ pub fn admit<'a>(version: &'static str, commit: &'static str, arguments: &'a [Bo
     Admission::Answer { code: 2, stdout: String::new(), stderr }
 }
 
+/// The six faces supplied to one command invocation.
+pub struct CommandFaces<G, P, C, F, D, A> {
+    pub git: G,
+    pub processes: P,
+    pub clock: C,
+    pub files: F,
+    pub drive: D,
+    pub archive: A,
+}
+
+/// Answer the command table first, then run an admitted command over its faces.
+#[expect(
+    clippy::too_many_arguments,
+    reason = "the entry takes its identity, capture, faces and all three streams explicitly"
+)]
+pub fn answer(
+    faces: CommandFaces<impl GitFace, impl Processes, impl ClockFace, impl FilesFace, impl DriveFace, impl ArchiveFace>,
+    version: &'static str,
+    commit: &'static str,
+    arguments: &[Box<[u8]>],
+    environment: &Environment,
+    stdin: &mut impl Read,
+    stdout: &mut impl Write,
+    stderr: &mut impl Write,
+) -> u8 {
+    let result = match admit(version, commit, arguments) {
+        Admission::Answer { code, stdout: page, stderr: refusal } => {
+            write_reply(stdout, page.as_bytes());
+            write_reply(stderr, refusal.as_bytes());
+            return code;
+        }
+        Admission::Run { command, arguments } => execute(faces, &command, arguments, environment, stdin, stdout),
+    };
+    match result {
+        Ok((code, text)) => {
+            write_reply(stdout, text.as_bytes());
+            code
+        }
+        Err(why) => {
+            write_reply(stderr, format!("temper-qa: {why}\n").as_bytes());
+            1
+        }
+    }
+}
+
+fn write_reply(output: &mut impl Write, bytes: &[u8]) {
+    // Like print!/eprint!, a failed write of the command's reply is not a command refusal.
+    if !bytes.is_empty() {
+        output.write_all(bytes).expect("write the QA command's reply");
+    }
+}
+
 #[expect(
     clippy::disallowed_methods,
     reason = "the binary's capture: temper-qa's arguments and environment, once (skein/docs/foundation/cli.md, 6)"
 )]
 pub fn main(version: &'static str, commit: &'static str) -> ExitCode {
     let arguments = skein_shell::arguments();
-    match admit(version, commit, &arguments) {
-        Admission::Answer { code, stdout, stderr } => {
-            if !stdout.is_empty() {
-                print!("{stdout}");
-            }
-            if !stderr.is_empty() {
-                eprint!("{stderr}");
-            }
-            ExitCode::from(code)
-        }
-        Admission::Run { command, arguments } => {
-            let environment = skein_shell::environment();
-            match execute(&command, arguments, &environment) {
-                Ok((code, text)) => {
-                    print!("{text}");
-                    ExitCode::from(code)
-                }
-                Err(why) => {
-                    eprintln!("temper-qa: {why}");
-                    ExitCode::from(1)
-                }
-            }
-        }
-    }
+    let environment = skein_shell::environment();
+    let faces = CommandFaces {
+        git: RealGit { directory: PathBuf::new(), environment: environment.to_vec() },
+        processes: RealProcesses::new(environment.to_vec()),
+        clock: RealClock::default(),
+        files: RealFiles,
+        drive: RealDrive { environment: environment.to_vec() },
+        archive: RealArchive { environment: environment.to_vec() },
+    };
+    ExitCode::from(answer(
+        faces,
+        version,
+        commit,
+        &arguments,
+        &environment,
+        &mut io::stdin(),
+        &mut io::stdout(),
+        &mut io::stderr(),
+    ))
 }
 fn argument<'a>(command: &Command, rest: &'a [Box<[u8]>]) -> Result<&'a [Box<[u8]>], String> {
     if command == &TRIAGE_GAP || command == &PASS_GAP {
@@ -523,60 +579,65 @@ fn drive_command_run(
     .serve()?;
     Ok(crate::hold::Reply { status: 0, text: String::new() })
 }
-fn execute(command: &Command, arguments: &[Box<[u8]>], environment: &Environment) -> Result<(u8, String), Refusal> {
+fn execute(
+    mut faces: CommandFaces<
+        impl GitFace,
+        impl Processes,
+        impl ClockFace,
+        impl FilesFace,
+        impl DriveFace,
+        impl ArchiveFace,
+    >,
+    command: &Command,
+    arguments: &[Box<[u8]>],
+    environment: &Environment,
+    stdin: &mut impl Read,
+    stdout: &mut impl Write,
+) -> Result<(u8, String), Refusal> {
     if [&OPEN, &LINE, &CLOSE, &HOLD].contains(&command) {
         return drive_command_run(command, arguments, environment).map(|reply| (reply.status, reply.text));
     }
     if command != &SETUP && command != &RECIPE {
-        return run(command, arguments, environment).map(|text| (0, text));
+        return run(faces, command, arguments, environment, stdin).map(|text| (0, text));
     }
-    let session = SESSION
-        .value(environment)
-        .ok_or_else(|| refused("TEMPER_INTERNAL_QA_SESSION is not set: pass commands run in a pass session"))?;
-    let session = std::str::from_utf8(session)
-        .ok()
-        .and_then(|value| value.parse::<u64>().ok())
-        .ok_or_else(|| refused("TEMPER_INTERNAL_QA_SESSION is not a session number"))?;
+    let session = read_session(environment, "pass")?;
     let directory = HOME.value(environment).ok_or_else(|| refused("TEMPER_INTERNAL_QA_HOME is not set"))?;
-    let home = Home::open(Path::new(OsStr::from_bytes(directory)), &mut crate::faces::RealFiles)?;
-    let mut place = PassPlace::for_session(
-        &home,
-        session,
-        RealDrive { environment: environment.to_vec() },
-        RealArchive { environment: environment.to_vec() },
-    )?;
+    let home = Home::open(Path::new(OsStr::from_bytes(directory)), &mut faces.files)?;
+    let mut place = PassPlace::for_session(&home, session, faces.drive, faces.archive, faces.files, faces.processes)?;
     let name = std::str::from_utf8(arguments.first().expect("checked name"))
         .map_err(|_| refused("recipe name must be UTF-8"))?;
-    let mut output = std::io::stdout().lock();
     let code = if command == &SETUP {
-        place.setup(name, &mut output)?
+        place.setup(name, stdout)?
     } else {
         let file = arguments.get(1).expect("checked file");
-        let bytes = if file.as_ref() == b"-" {
-            let mut bytes = Vec::new();
-            std::io::stdin().read_to_end(&mut bytes).map_err(|why| refused(format!("recipe {name}: stdin: {why}")))?;
-            bytes
-        } else {
-            std::fs::read(Path::new(OsStr::from_bytes(file)))
-                .map_err(|why| refused(format!("recipe {name}: {}: {why}", String::from_utf8_lossy(file))))?
-        };
+        let bytes = read_argument(file, &mut place.files, stdin).map_err(|why| {
+            let label = if file.as_ref() == b"-" { "stdin".into() } else { String::from_utf8_lossy(file) };
+            refused(format!("recipe {name}: {label}: {why}"))
+        })?;
         let input = RecipeInput::decode(&bytes)?;
-        let mut git =
-            RealGit { directory: home.configuration.git.directory.clone(), environment: environment.to_vec() };
-        let names = git
-            .entries(&place.pass.build, "temper/docs/development/qa/setups")?
+        faces.git.set_directory(&home.configuration.git.directory);
+        let names = faces
+            .git
+            .entries(&place.pass.build, crate::pass_files::SETUPS)?
             .into_iter()
             .filter(|entry| entry.directory)
             .map(|entry| entry.name)
             .collect::<Vec<_>>();
-        place.recipe(name, &input, &names, &mut output)?
+        place.recipe(name, &input, &names, stdout)?
     };
     Ok((code, String::new()))
 }
-fn record(home: &Home, session: u64, command: &Command, arguments: &[Box<[u8]>]) -> Result<String, Refusal> {
-    home.transact(&mut crate::faces::RealFiles, |ledger, _| {
+fn record(
+    home: &Home,
+    session: u64,
+    command: &Command,
+    arguments: &[Box<[u8]>],
+    files: &mut impl FilesFace,
+    clock: &impl ClockFace,
+) -> Result<String, Refusal> {
+    home.transact(files, |ledger, _| {
         ledger.pass_command_session(session)?;
-        let now = skein_shell::Clock::new().now().wall.as_secs();
+        let now = clock.now().wall;
         if command == &NOTE {
             let words = std::str::from_utf8(arguments.first().expect("note words"))
                 .map_err(|_| refused("note words must be UTF-8"))?;
@@ -620,45 +681,42 @@ fn record(home: &Home, session: u64, command: &Command, arguments: &[Box<[u8]>])
 fn is_number(value: &[u8]) -> bool {
     std::str::from_utf8(value).ok().and_then(|value| value.parse::<u64>().ok()).is_some()
 }
-fn run(command: &Command, arguments: &[Box<[u8]>], environment: &Environment) -> Result<String, Refusal> {
+fn run(
+    faces: CommandFaces<impl GitFace, impl Processes, impl ClockFace, impl FilesFace, impl DriveFace, impl ArchiveFace>,
+    command: &Command,
+    arguments: &[Box<[u8]>],
+    environment: &Environment,
+    stdin: &mut impl Read,
+) -> Result<String, Refusal> {
+    let CommandFaces { mut git, mut processes, clock, mut files, .. } = faces;
     let pass =
         command == &OUTCOME || command == &FINDING || command == &CHECK || command == &NOTE || command == &PASS_GAP;
     let session = if command == &NONE || command == &CASE || command == &TRIAGE_GAP || pass {
-        let kind = if pass { "pass" } else { "triage" };
-        let value = SESSION.value(environment).ok_or_else(|| {
-            refused(format!("TEMPER_INTERNAL_QA_SESSION is not set: {kind} commands run in a {kind} session"))
-        })?;
-        Some(
-            std::str::from_utf8(value)
-                .ok()
-                .and_then(|value| value.parse::<u64>().ok())
-                .ok_or_else(|| refused("TEMPER_INTERNAL_QA_SESSION is not a session number"))?,
-        )
+        Some(read_session(environment, if pass { "pass" } else { "triage" })?)
     } else {
         None
     };
     let directory = HOME.value(environment).ok_or_else(|| refused("TEMPER_INTERNAL_QA_HOME is not set"))?;
     let directory = Path::new(OsStr::from_bytes(directory));
     if command == &WAKE {
-        crate::events::poke(directory, &mut crate::faces::RealFiles)?;
+        crate::events::poke(directory, &mut files)?;
         return Ok(String::new());
     }
     // Session commands run from another working directory, so the home placed
     // in their environment must not depend on this command's working directory.
     let absolute = if command == &RUN {
-        Some(std::fs::canonicalize(directory).map_err(|why| refused(format!("{}: {why}", directory.display())))?)
+        Some(
+            files
+                .resolve(directory, ResolveMode::Canonical)
+                .map_err(|why| refused(format!("{}: {why}", directory.display())))?,
+        )
     } else {
         None
     };
-    let home = Home::open(absolute.as_deref().unwrap_or(directory), &mut crate::faces::RealFiles)?;
+    let home = Home::open(absolute.as_deref().unwrap_or(directory), &mut files)?;
     if command == &RUN {
-        let environment = environment.to_vec();
-        let git = crate::faces::RealGit {
-            directory: home.configuration.git.directory.clone(),
-            environment: environment.clone(),
-        };
-        let processes = crate::faces::RealProcesses::new(environment.clone());
-        crate::runner::Run::start(home, git, processes, crate::faces::RealClock::default(), environment)?.serve()?;
+        git.set_directory(&home.configuration.git.directory);
+        crate::runner::Run::start(home, git, processes, clock, files, environment.to_vec())?.serve()?;
         return Ok(String::new());
     }
     if command == &REPORT {
@@ -666,44 +724,58 @@ fn run(command: &Command, arguments: &[Box<[u8]>], environment: &Environment) ->
             .expect("checked UTF-8")
             .parse()
             .expect("checked pass number");
-        return home.read(&mut crate::faces::RealFiles, |ledger| {
+        return home.read(&mut files, |ledger| {
             serde_json::to_string_pretty(&ledger.report(number)?)
                 .map(|text| format!("{text}\n"))
                 .map_err(|why| refused(format!("report: {why}")))
         });
     }
     if command == &GAPS {
-        return home.read(&mut crate::faces::RealFiles, |ledger| Ok(ledger.gaps_text(!arguments.is_empty())));
+        return home.read(&mut files, |ledger| Ok(ledger.gaps_text(!arguments.is_empty())));
     }
     if command == &SHOW {
-        return home.read(&mut crate::faces::RealFiles, |ledger| Ok(ledger.show()));
+        return home.read(&mut files, |ledger| Ok(ledger.show()));
     }
     if command == &TUNE {
-        use crate::faces::ClockFace;
-        let now = crate::faces::RealClock::default().now().wall;
-        return home.read(&mut crate::faces::RealFiles, |ledger| Ok(ledger.tune(&home.configuration, now)));
+        let now = clock.now().wall;
+        return home.read(&mut files, |ledger| Ok(ledger.tune(&home.configuration, now)));
     }
     if command == &LINES {
-        return home.read(&mut crate::faces::RealFiles, |ledger| Ok(ledger.lines_text()));
+        return home.read(&mut files, |ledger| Ok(ledger.lines_text()));
     }
     if command == &KEEP {
         let [commit, directory] = arguments else { unreachable!("checked keep arguments") };
         let commit = std::str::from_utf8(commit)
             .map_err(|_| refused(format!("{} is no commit id", String::from_utf8_lossy(commit))))?;
-        return crate::build::keep(&home, commit, Path::new(OsStr::from_bytes(directory)), environment);
+        return crate::build::keep_with(
+            &home,
+            commit,
+            Path::new(OsStr::from_bytes(directory)),
+            environment,
+            &mut files,
+            &mut processes,
+            &clock,
+        );
     }
     let session = session.expect("session command");
     if command == &FINDING {
-        return crate::recording::finding(&home, session, arguments.first().expect("finding file"));
+        return crate::recording::finding(
+            &home,
+            session,
+            arguments.first().expect("finding file"),
+            &mut files,
+            &clock,
+            stdin,
+        );
     }
     if command == &TRIAGE_GAP || command == &PASS_GAP {
-        return record_gap(&home, session, command, arguments);
+        return record_gap(&home, session, command, arguments, &mut files, &clock);
     }
     if pass {
-        return record(&home, session, command, arguments);
+        return record(&home, session, command, arguments, &mut files, &clock);
     }
     let argument = arguments.first().expect("triage argument").as_ref();
-    home.transact(&mut crate::faces::RealFiles, |ledger, _| {
+    home.transact(&mut files, |ledger, files| {
         ledger.command_session(session)?;
         if command == &NONE {
             let why = std::str::from_utf8(argument).map_err(|_| refused("no QA why must be UTF-8"))?;
@@ -711,18 +783,32 @@ fn run(command: &Command, arguments: &[Box<[u8]>], environment: &Environment) ->
             return Ok(format!("landing {landing}: no QA\n"));
         }
         let file = String::from_utf8_lossy(argument);
-        let bytes = if argument == b"-" {
-            let mut bytes = Vec::new();
-            std::io::stdin().read_to_end(&mut bytes).map_err(|why| refused(format!("case refused: {file}: {why}")))?;
-            bytes
-        } else {
-            std::fs::read(Path::new(OsStr::from_bytes(argument)))
-                .map_err(|why| refused(format!("case refused: {file}: {why}")))?
-        };
+        let bytes =
+            read_argument(argument, files, stdin).map_err(|why| refused(format!("case refused: {file}: {why}")))?;
         let input = CaseInput::decode(&bytes, &file)?;
-        let now = skein_shell::Clock::new().now().wall.as_secs();
+        let now = clock.now().wall;
         Ok(format!("{}\n", ledger.add_case(session, &input, now)?))
     })
+}
+
+fn read_session(environment: &Environment, kind: &str) -> Result<u64, Refusal> {
+    let value = SESSION.value(environment).ok_or_else(|| {
+        refused(format!("TEMPER_INTERNAL_QA_SESSION is not set: {kind} commands run in a {kind} session"))
+    })?;
+    std::str::from_utf8(value)
+        .ok()
+        .and_then(|value| value.parse::<u64>().ok())
+        .ok_or_else(|| refused("TEMPER_INTERNAL_QA_SESSION is not a session number"))
+}
+
+pub(crate) fn read_argument(file: &[u8], files: &mut impl FilesFace, stdin: &mut impl Read) -> io::Result<Vec<u8>> {
+    if file == b"-" {
+        let mut bytes = Vec::new();
+        stdin.read_to_end(&mut bytes)?;
+        Ok(bytes)
+    } else {
+        files.read(Path::new(OsStr::from_bytes(file)))
+    }
 }
 
 fn gap_arguments<'a>(command: &Command, rest: &'a [Box<[u8]>]) -> Result<&'a [Box<[u8]>], String> {
@@ -741,7 +827,14 @@ fn gap_arguments<'a>(command: &Command, rest: &'a [Box<[u8]>]) -> Result<&'a [Bo
     }
 }
 
-fn record_gap(home: &Home, session: u64, command: &Command, arguments: &[Box<[u8]>]) -> Result<String, Refusal> {
+fn record_gap(
+    home: &Home,
+    session: u64,
+    command: &Command,
+    arguments: &[Box<[u8]>],
+    files: &mut impl FilesFace,
+    clock: &impl ClockFace,
+) -> Result<String, Refusal> {
     let (case, words) = if command == &PASS_GAP {
         let (case, words) = arguments.split_first().expect("checked case");
         (Some(std::str::from_utf8(case).expect("checked number").parse().expect("checked number")), words)
@@ -752,8 +845,8 @@ fn record_gap(home: &Home, session: u64, command: &Command, arguments: &[Box<[u8
     let kind = std::str::from_utf8(kind).expect("checked kind");
     let why = std::str::from_utf8(why).expect("checked why");
     let owner = home.configuration.gap_owner(kind);
-    home.transact(&mut crate::faces::RealFiles, |ledger, _| {
-        let now = skein_shell::Clock::new().now().wall.as_secs();
+    home.transact(files, |ledger, _| {
+        let now = clock.now().wall;
         let number = if let Some(case) = case {
             ledger.pass_gap(session, case, kind, why, owner, now)?
         } else {

@@ -3,7 +3,7 @@ use crate::{Refusal, manifest, refused};
 use sha2::{Digest, Sha256};
 use std::{
     fs::{self, DirBuilder, File, FileType, OpenOptions, Permissions, TryLockError},
-    io::{self, Read, Write},
+    io::{self, Read, Seek, SeekFrom, Write},
     os::unix::{
         ffi::OsStrExt,
         fs::{DirBuilderExt, FileTypeExt, MetadataExt, OpenOptionsExt, PermissionsExt},
@@ -34,6 +34,9 @@ pub struct WriteOptions {
     pub read: bool,
 }
 impl WriteOptions {
+    /// Replace a regular file with default creation permissions.
+    pub const REPLACE: Self = Self { way: WriteMode::Replace, mode: Mode::Default, read: false };
+
     #[must_use]
     pub const fn private(way: WriteMode) -> Self {
         Self { way, mode: Mode::Exact(0o600), read: false }
@@ -83,6 +86,14 @@ pub struct FileEntry {
     pub kind: PathKind,
 }
 
+/// An entry's name still identifies it if reading its kind fails.
+pub struct ScannedEntry {
+    pub name: Box<[u8]>,
+    pub kind: io::Result<PathKind>,
+}
+
+pub type DirectoryScan<T> = Box<dyn Iterator<Item = io::Result<T>>>;
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct PathFacts {
     pub kind: PathKind,
@@ -124,6 +135,23 @@ pub trait FilesFace {
     fn open_write(&mut self, _path: &Path, _options: WriteOptions) -> io::Result<Self::Writer> {
         unsupported()
     }
+    /// A diagnostic from the service loop (not part of a command's reply).
+    fn diagnostic(&mut self, _line: &str) {}
+    /// The facts of the opened file, not of the path that now names it.
+    fn reader_facts(&mut self, _file: &Self::Reader) -> io::Result<PathFacts> {
+        unsupported()
+    }
+    /// Set an open file's mode, without looking its path up again.
+    fn writer_permissions(&mut self, _file: &Self::Writer, _mode: u32) -> io::Result<()> {
+        unsupported()
+    }
+    fn sync_writer(&mut self, _file: &Self::Writer) -> io::Result<()> {
+        unsupported()
+    }
+    /// Open a private append log, with the reader positioned after its old contents.
+    fn open_log_tail(&mut self, _path: &Path) -> Result<Self::Reader, Refusal> {
+        Err(refused("the files face does not open append logs"))
+    }
     /// Rename a path.
     fn rename(&mut self, _source: &Path, _destination: &Path) -> io::Result<()> {
         unsupported()
@@ -145,6 +173,17 @@ pub trait FilesFace {
     /// List a directory: each entry's name as bytes and its kind.
     fn list(&mut self, _path: &Path) -> io::Result<Vec<FileEntry>> {
         unsupported()
+    }
+    /// Read names without inspecting their kinds. A real directory can fail
+    /// partway through iteration; callers can act on entries already read.
+    fn names(&mut self, path: &Path) -> io::Result<DirectoryScan<Box<[u8]>>> {
+        Ok(Box::new(self.list(path)?.into_iter().map(|entry| Ok(entry.name))))
+    }
+    /// Read an entry's name and kind in directory order, with their separate errors.
+    fn scan(&mut self, path: &Path) -> io::Result<DirectoryScan<ScannedEntry>> {
+        Ok(Box::new(
+            self.list(path)?.into_iter().map(|entry| Ok(ScannedEntry { name: entry.name, kind: Ok(entry.kind) })),
+        ))
     }
     /// A path's facts, following a link or not: its kind, size, permission bits,
     /// device, and the identity and link count that hard links share.
@@ -181,6 +220,16 @@ pub trait FilesFace {
     /// Bind a Unix socket: a stale entry replaced, the socket 0600, its accepts never waiting.
     fn bind(&mut self, _path: &Path) -> io::Result<Self::Listener> {
         unsupported()
+    }
+    /// Bind the loop's byte-free wake socket. The real acceptor waits off the loop.
+    fn bind_wake(&mut self, path: &Path) -> io::Result<Self::Listener> {
+        self.bind(path)
+    }
+    fn accept_wake(&mut self, listener: &Self::Listener) -> io::Result<bool> {
+        self.accept(listener).map(|stream| stream.is_some())
+    }
+    fn serve_wakes(&mut self, _listener: Self::Listener, _waker: crate::events::Waker) -> Result<(), Refusal> {
+        Err(refused("the files face does not serve the wake socket"))
     }
     /// Accept a Unix connection, or none yet; the connection reads and writes without
     /// waiting (`WouldBlock`) and closes when dropped.
@@ -297,6 +346,23 @@ impl FilesFace for RealFiles {
     fn open_write(&mut self, path: &Path, options: WriteOptions) -> io::Result<File> {
         Self::writer(path, options)
     }
+    fn diagnostic(&mut self, line: &str) {
+        eprintln!("{line}");
+    }
+    fn reader_facts(&mut self, file: &File) -> io::Result<PathFacts> {
+        file.metadata().map(|metadata| facts(&metadata))
+    }
+    fn writer_permissions(&mut self, file: &File, mode: u32) -> io::Result<()> {
+        file.set_permissions(Permissions::from_mode(mode))
+    }
+    fn sync_writer(&mut self, file: &File) -> io::Result<()> {
+        file.sync_all()
+    }
+    fn open_log_tail(&mut self, path: &Path) -> Result<File, Refusal> {
+        let mut log = crate::private::file(path, self, WriteMode::Append, true)?;
+        log.seek(SeekFrom::End(0)).map_err(|why| refused(format!("walk.log: {why}")))?;
+        Ok(log)
+    }
     fn rename(&mut self, source: &Path, destination: &Path) -> io::Result<()> {
         fs::rename(source, destination)
     }
@@ -330,23 +396,27 @@ impl FilesFace for RealFiles {
         }
     }
     fn list(&mut self, path: &Path) -> io::Result<Vec<FileEntry>> {
-        fs::read_dir(path)?
+        self.scan(path)?
             .map(|entry| {
                 let entry = entry?;
-                Ok(FileEntry { name: entry.file_name().as_bytes().into(), kind: kind(entry.file_type()?) })
+                Ok(FileEntry { name: entry.name, kind: entry.kind? })
             })
             .collect()
     }
+    fn names(&mut self, path: &Path) -> io::Result<DirectoryScan<Box<[u8]>>> {
+        Ok(Box::new(fs::read_dir(path)?.map(|entry| entry.map(|entry| entry.file_name().as_bytes().into()))))
+    }
+    fn scan(&mut self, path: &Path) -> io::Result<DirectoryScan<ScannedEntry>> {
+        Ok(Box::new(fs::read_dir(path)?.map(|entry| {
+            entry.map(|entry| ScannedEntry {
+                name: entry.file_name().as_bytes().into(),
+                kind: entry.file_type().map(kind),
+            })
+        })))
+    }
     fn facts(&mut self, path: &Path, follow: bool) -> io::Result<PathFacts> {
         let metadata = if follow { fs::metadata(path)? } else { fs::symlink_metadata(path)? };
-        Ok(PathFacts {
-            kind: kind(metadata.file_type()),
-            size: metadata.len(),
-            mode: metadata.mode() & 0o7777,
-            device: metadata.dev(),
-            inode: metadata.ino(),
-            links: metadata.nlink(),
-        })
+        Ok(facts(&metadata))
     }
     fn permissions(&mut self, path: &Path, mode: u32) -> io::Result<()> {
         fs::set_permissions(path, Permissions::from_mode(mode))
@@ -384,13 +454,33 @@ impl FilesFace for RealFiles {
             Err(TryLockError::Error(why)) => Err(why),
         }
     }
+    fn bind_wake(&mut self, path: &Path) -> io::Result<UnixListener> {
+        let listener = bind_socket(path)?;
+        self.permissions(path, 0o600)?;
+        Ok(listener)
+    }
+    fn accept_wake(&mut self, listener: &UnixListener) -> io::Result<bool> {
+        listener.accept().map(|_| true)
+    }
+    fn serve_wakes(&mut self, listener: UnixListener, waker: crate::events::Waker) -> Result<(), Refusal> {
+        #[expect(
+            clippy::disallowed_methods,
+            reason = "blocking socket accepts feed the std QA loop (temper/docs/design/testing/qa/README.md, 4)"
+        )]
+        std::thread::spawn(move || {
+            let mut files = Self;
+            loop {
+                if let Err(why) = crate::events::accept(&listener, &waker, &mut files) {
+                    eprintln!("temper-qa: {why}");
+                    waker.poke();
+                    break;
+                }
+            }
+        });
+        Ok(())
+    }
     fn bind(&mut self, path: &Path) -> io::Result<UnixListener> {
-        match fs::remove_file(path) {
-            Ok(()) => {}
-            Err(why) if why.kind() == io::ErrorKind::NotFound => {}
-            Err(why) => return Err(why),
-        }
-        let listener = UnixListener::bind(path)?;
+        let listener = bind_socket(path)?;
         let mut prepare = || {
             self.permissions(path, 0o600)?;
             listener.set_nonblocking(true)
@@ -420,6 +510,26 @@ impl FilesFace for RealFiles {
             Err(why) if matches!(why.kind(), io::ErrorKind::NotFound | io::ErrorKind::ConnectionRefused) => Ok(None),
             Err(why) => Err(why),
         }
+    }
+}
+
+fn bind_socket(path: &Path) -> io::Result<UnixListener> {
+    match fs::remove_file(path) {
+        Ok(()) => {}
+        Err(why) if why.kind() == io::ErrorKind::NotFound => {}
+        Err(why) => return Err(why),
+    }
+    UnixListener::bind(path)
+}
+
+fn facts(metadata: &fs::Metadata) -> PathFacts {
+    PathFacts {
+        kind: kind(metadata.file_type()),
+        size: metadata.len(),
+        mode: metadata.mode() & 0o7777,
+        device: metadata.dev(),
+        inode: metadata.ino(),
+        links: metadata.nlink(),
     }
 }
 

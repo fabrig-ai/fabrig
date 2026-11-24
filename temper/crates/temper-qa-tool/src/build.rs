@@ -2,30 +2,25 @@
 use crate::{
     Home, Refusal,
     cli::Environment,
-    faces::{FilesFace, Processes, RealFiles, RealProcesses},
+    faces::{ClockFace, DirectoryMode, FilesFace, PathKind, Processes, WriteOptions, remove_any_if_present},
     ledger::short,
     refused,
 };
 use std::{
     ffi::OsStr,
-    fs::{self, File},
-    io::Write,
-    os::unix::fs::{MetadataExt, PermissionsExt},
+    os::unix::ffi::OsStrExt,
     path::{Path, PathBuf},
 };
 
 /// Publish a staged build after checking its files and executable versions.
-pub fn keep(home: &Home, commit: &str, directory: &Path, environment: &Environment) -> Result<String, Refusal> {
-    keep_with(home, commit, directory, environment, &mut RealFiles)
-}
-
-/// Publish using the build-file face (qa/builds.md, 3 and 4).
 pub fn keep_with(
     home: &Home,
     commit: &str,
     directory: &Path,
     environment: &Environment,
     face: &mut impl FilesFace,
+    processes: &mut impl Processes,
+    clock: &impl ClockFace,
 ) -> Result<String, Refusal> {
     if !(commit.len() == 40 || commit.len() == 64)
         || !commit.bytes().all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
@@ -34,15 +29,15 @@ pub fn keep_with(
     }
     home.transact(face, |ledger, face| {
         ledger.check_build_keep(commit)?;
-        let files = check_files(directory)?;
+        let files = check_files(directory, face)?;
         for path in &files {
             if path.parent() == Some(Path::new("bin")) {
-                check_version(home, directory, path, commit, environment)?;
+                check_version(home, directory, path, commit, environment, face, processes)?;
             }
         }
-        io(&home.builds, fs::create_dir_all(&home.builds))?;
+        io(&home.builds, face.directory(&home.builds, DirectoryMode::Parents))?;
         let parent = directory.parent().filter(|path| !path.as_os_str().is_empty()).unwrap_or(Path::new("."));
-        if io(parent, fs::metadata(parent))?.dev() != io(&home.builds, fs::metadata(&home.builds))?.dev() {
+        if io(parent, face.facts(parent, true))?.device != io(&home.builds, face.facts(&home.builds, true))?.device {
             return Err(refused(format!(
                 "{} is not on the filesystem of {}",
                 directory.display(),
@@ -62,29 +57,17 @@ pub fn keep_with(
             return Err(refused("sha256sum answer names an unexpected file"));
         }
         let partial = home.builds.join(format!(".{commit}.partial"));
-        match fs::symlink_metadata(&partial) {
-            Ok(metadata) => {
-                if metadata.is_dir() {
-                    io(&partial, fs::remove_dir_all(&partial))?;
-                } else {
-                    io(&partial, fs::remove_file(&partial))?;
-                }
-            }
-            Err(why) if why.kind() == std::io::ErrorKind::NotFound => {}
-            Err(why) => return Err(refused(format!("{}: {why}", partial.display()))),
-        }
-        io(directory, fs::rename(directory, &partial))?;
+        io(&partial, remove_any_if_present(face, &partial))?;
+        io(directory, face.rename(directory, &partial))?;
         let manifest = partial.join("manifest");
-        let mut output = io(&manifest, File::create(&manifest))?;
-        io(&manifest, output.write_all(&bytes))?;
-        io(&manifest, output.sync_all())?;
-        io(&partial, fs::rename(&partial, home.builds.join(commit)))?;
-        ledger.record_build_kept(commit, skein_shell::Clock::new().now().wall.as_secs())?;
+        io(&manifest, face.write(&manifest, &bytes, WriteOptions::REPLACE, true))?;
+        io(&partial, face.rename(&partial, &home.builds.join(commit)))?;
+        ledger.record_build_kept(commit, clock.now().wall)?;
         Ok(format!("build {} kept: {} files\n", short(commit), files.len()))
     })
 }
 
-fn check_files(directory: &Path) -> Result<Vec<PathBuf>, Refusal> {
+fn check_files(directory: &Path, face: &mut impl FilesFace) -> Result<Vec<PathBuf>, Refusal> {
     let mut missing = Vec::new();
     for path in [
         "bin/temper-box",
@@ -96,7 +79,7 @@ fn check_files(directory: &Path) -> Result<Vec<PathBuf>, Refusal> {
         "bin/temper-agent",
         "bundle/index.html",
     ] {
-        if !fs::symlink_metadata(directory.join(path)).is_ok_and(|metadata| metadata.is_file()) {
+        if !face.facts(&directory.join(path), false).is_ok_and(|facts| facts.kind == PathKind::File) {
             missing.push(format!("{} lacks {path}", directory.display()));
         }
     }
@@ -104,25 +87,25 @@ fn check_files(directory: &Path) -> Result<Vec<PathBuf>, Refusal> {
         return Err(refused(missing.join("; ")));
     }
     let mut files = Vec::new();
-    walk(directory, Path::new(""), &mut files)?;
+    walk(directory, Path::new(""), &mut files, face)?;
     files.sort_by(|left, right| left.as_os_str().cmp(right.as_os_str()));
     files.retain(|path| path != Path::new("manifest"));
     Ok(files)
 }
 
-fn walk(directory: &Path, path: &Path, files: &mut Vec<PathBuf>) -> Result<(), Refusal> {
+fn walk(directory: &Path, path: &Path, files: &mut Vec<PathBuf>, face: &mut impl FilesFace) -> Result<(), Refusal> {
     let full = directory.join(path);
-    let metadata = io(&full, fs::symlink_metadata(&full))?;
-    if metadata.is_file() {
+    let metadata = io(&full, face.facts(&full, false))?;
+    if metadata.kind == PathKind::File {
         files.push(path.into());
-    } else if metadata.is_dir() {
-        let mut children = io(&full, fs::read_dir(&full))?
-            .map(|entry| entry.map(|entry| path.join(entry.file_name())))
+    } else if metadata.kind == PathKind::Directory {
+        let mut children = io(&full, face.names(&full))?
+            .map(|name| name.map(|name| path.join(OsStr::from_bytes(&name))))
             .collect::<Result<Vec<_>, _>>()
             .map_err(|why| refused(format!("{}: {why}", full.display())))?;
         children.sort();
         for child in children {
-            walk(directory, &child, files)?;
+            walk(directory, &child, files, face)?;
         }
     } else {
         return Err(refused(format!(
@@ -140,15 +123,17 @@ fn check_version(
     path: &Path,
     commit: &str,
     environment: &Environment,
+    face: &mut impl FilesFace,
+    processes: &mut impl Processes,
 ) -> Result<(), Refusal> {
     let executable = directory.join(path);
-    if io(&executable, fs::metadata(&executable))?.permissions().mode() & 0o111 == 0 {
+    if io(&executable, face.facts(&executable, true))?.mode & 0o111 == 0 {
         return Err(refused(format!("{} is not executable", path.display())));
     }
     if path.file_name() == Some(OsStr::new("fake-claude")) {
         return Ok(());
     }
-    let line = RealProcesses::default().version(&executable, &home.directory.join("build-version.tmp"), environment)?;
+    let line = processes.version(&executable, &home.directory.join("build-version.tmp"), environment)?;
     if !line.ends_with(&format!(" ({})", short(commit))) {
         return Err(refused(format!("{} prints {line}, not {}", path.display(), short(commit))));
     }

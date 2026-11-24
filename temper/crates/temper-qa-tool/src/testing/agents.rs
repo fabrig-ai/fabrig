@@ -186,14 +186,14 @@ impl<F: FilesFace> Processes for Agents<F> {
         let Some(output) = self.scripted(command) else {
             return self.real.as_mut().ok_or(ErrorKind::NotFound)?.output(command);
         };
-        let ProcessOutput { exit, stdout, stderr } = output?;
+        let ProcessOutput { exit, status, stdout, stderr } = output?;
         if let Some(log) = command.log {
             let mut log = self.files.open_write(log, WriteOptions::private(WriteMode::Append))?;
             log.write_all(&stdout)?;
             log.write_all(&stderr)?;
-            Ok(ProcessOutput { exit, stdout: Vec::new(), stderr: Vec::new() })
+            Ok(ProcessOutput { exit, status, stdout: Vec::new(), stderr: Vec::new() })
         } else {
-            Ok(ProcessOutput { exit, stdout, stderr })
+            Ok(ProcessOutput { exit, status, stdout, stderr })
         }
     }
     fn version(
@@ -290,7 +290,8 @@ impl<F: FilesFace> Processes for Agents<F> {
             real.environment.clone_from(&command.environment);
             return real.run(command, seconds);
         };
-        let ProcessOutput { exit, stdout, mut stderr } = output.map_err(|why| refused(format!("{program}: {why}")))?;
+        let ProcessOutput { exit, stdout, mut stderr, .. } =
+            output.map_err(|why| refused(format!("{program}: {why}")))?;
         let text = String::from_utf8_lossy(&stdout);
         let last_stdout =
             text.lines().rev().find(|line| !line.trim().is_empty()).map(|line| line.trim_end_matches('\r').to_owned());

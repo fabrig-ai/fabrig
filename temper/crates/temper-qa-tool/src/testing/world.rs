@@ -16,7 +16,7 @@ use std::{
 const CONFIGURATION: &[u8] = br#"{"owner":"qa","git":{"directory":"repo"},"agent":{"command":["agent","--effort={effort}"],"triage":"cheap","pass":"high"},"request":{"command":["file"]},"bounds":{"poll":60,"triage":30,"build_wait":90},"notify":["notify"]}"#;
 const REPLACE: WriteOptions = WriteOptions { way: WriteMode::Replace, mode: Mode::Default, read: false };
 
-pub type Loop<F = Tree> = Run<Git<F>, Agents<F>, Clock>;
+pub type Loop<F = Tree> = Run<Git<F>, Agents<F>, Clock, F>;
 
 pub struct World<F = Tree> {
     pub home: Home,
@@ -44,26 +44,20 @@ impl World<RealFiles> {
     pub fn on_disk(directory: &Path) -> Self {
         Self { agents: Agents::on_disk, ..Self::over(directory, || RealFiles) }
     }
-
-    // Run still owns real files on this base. Move these methods to the generic impl when it takes a FilesFace.
-    pub fn start(&self, git: Git<RealFiles>, agents: &[Agent]) -> Loop<RealFiles> {
-        self.start_with_environment(git, agents, vec![(b"CAPTURED".as_slice().into(), b"kept".as_slice().into())])
-    }
-
-    pub fn start_with_environment(
-        &self,
-        mut git: Git<RealFiles>,
-        agents: &[Agent],
-        environment: Environment,
-    ) -> Loop<RealFiles> {
-        git.files = self.files();
-        let mut processes = self.agents();
-        processes.next.extend(agents.iter().copied());
-        Run::start(self.home.clone(), git, processes, Clock::default(), environment).expect("run")
-    }
 }
 
 impl<F: FilesFace> World<F> {
+    pub fn start(&self, git: Git<F>, agents: &[Agent]) -> Loop<F> {
+        self.start_with_environment(git, agents, vec![(b"CAPTURED".as_slice().into(), b"kept".as_slice().into())])
+    }
+
+    pub fn start_with_environment(&self, mut git: Git<F>, agents: &[Agent], environment: Environment) -> Loop<F> {
+        git.files = self.files();
+        let mut processes = self.agents();
+        processes.next.extend(agents.iter().copied());
+        Run::start(self.home.clone(), git, processes, Clock::default(), self.files(), environment).expect("run")
+    }
+
     /// Put the loop fixture's configuration in an existing home. Each call to `files` supplies
     /// a handle on the same paths, including the handles held by Git and Agents.
     pub fn over(directory: &Path, files: impl Fn() -> F + 'static) -> Self {
@@ -118,7 +112,7 @@ impl<F: FilesFace> World<F> {
     }
 }
 
-pub fn land<F>(run: &mut Loop<F>, commit: u64, goal: u64) {
+pub fn land<F: FilesFace>(run: &mut Loop<F>, commit: u64, goal: u64) {
     let parent = u64::from_str_radix(&run.git.head, 16).expect("short id");
     run.git.commit(commit - 1, &[parent], "goal tip");
     run.git.merge(commit, &[parent, commit - 1], goal);

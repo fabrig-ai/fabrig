@@ -1,17 +1,13 @@
 //! A single-home service, with ordered saved steps per tick (qa/README.md, 4–5).
-use crate::faces::RealFiles;
-use crate::faces::{ClockFace, Environment, GitFace, Moment, ProcessCommand, Processes, Signal};
+use crate::faces::{
+    ClockFace, DirectoryMode, Environment, FilesFace, GitFace, LockMode, Moment, ProcessCommand, Processes, RemoveMode,
+    Signal, WriteOptions, read_text, remove_missing,
+};
 use crate::{
     Exit, Home, Ledger, PassState, Refusal, SessionKind, brief::Inputs, pass_brief, pass_files, refused,
     watch::watch_with_fetch,
 };
-use std::{
-    collections::BTreeMap,
-    fs::{self, File, OpenOptions, TryLockError},
-    os::unix::fs::OpenOptionsExt,
-    os::unix::net::UnixListener,
-    path::PathBuf,
-};
+use std::{collections::BTreeMap, path::PathBuf};
 
 struct Active {
     kind: SessionKind,
@@ -27,19 +23,20 @@ struct Failure {
     retry_at: u64,
 }
 
-pub struct Run<G, P, C> {
+pub struct Run<G, P, C, F: FilesFace> {
     pub home: Home,
     pub git: G,
     pub processes: P,
     pub clock: C,
+    pub files: F,
     environment: Environment,
     events: crate::events::Events,
-    listener: Option<UnixListener>,
+    listener: Option<F::Listener>,
     next_fetch: Option<u64>,
     place_retry: Option<u64>,
     state_retry: Option<u64>,
     holders: Vec<PathBuf>,
-    _lock: File,
+    _lock: F::Lock,
     active: BTreeMap<u64, Active>,
     trees: Vec<PathBuf>,
     reports: Vec<u64>,
@@ -47,24 +44,21 @@ pub struct Run<G, P, C> {
     notifications: Vec<u64>,
     failures: BTreeMap<&'static str, Failure>,
 }
-impl<G: GitFace, P: Processes, C: ClockFace> Run<G, P, C> {
-    pub fn start(home: Home, git: G, processes: P, clock: C, environment: Environment) -> Result<Self, Refusal> {
-        let lock = OpenOptions::new()
-            .read(true)
-            .write(true)
-            .create(true)
-            .truncate(false)
-            .mode(0o600)
-            .open(&home.run_lock)
-            .map_err(|why| refused(format!("run.lock: {why}")))?;
-        match lock.try_lock() {
-            Ok(()) => (),
-            Err(TryLockError::WouldBlock) => {
-                return Err(refused(format!("another temper-qa run holds {}", home.directory.display())));
-            }
-            Err(TryLockError::Error(why)) => return Err(refused(format!("run.lock: {why}"))),
-        }
-        let listener = crate::events::bind(&home.directory)?;
+impl<G: GitFace, P: Processes, C: ClockFace, F: FilesFace> Run<G, P, C, F> {
+    pub fn start(
+        home: Home,
+        git: G,
+        processes: P,
+        clock: C,
+        mut files: F,
+        environment: Environment,
+    ) -> Result<Self, Refusal> {
+        let lock =
+            files.lock(&home.run_lock, LockMode::Try, false).map_err(|why| refused(format!("run.lock: {why}")))?;
+        let Some(lock) = lock else {
+            return Err(refused(format!("another temper-qa run holds {}", home.directory.display())));
+        };
+        let listener = crate::events::bind(&home.directory, &mut files)?;
         let events = crate::events::Events::default();
         let mut processes = processes;
         processes.wake_on_exit(events.waker());
@@ -73,6 +67,7 @@ impl<G: GitFace, P: Processes, C: ClockFace> Run<G, P, C> {
             git,
             processes,
             clock,
+            files,
             environment,
             events,
             listener: Some(listener),
@@ -89,11 +84,11 @@ impl<G: GitFace, P: Processes, C: ClockFace> Run<G, P, C> {
             failures: BTreeMap::new(),
         };
         let now = run.clock.now();
-        let home = run.home.clone();
-        home.transact_loop(&mut RealFiles, |ledger, _| {
+        run.transact(|run, ledger| {
             let numbers: Vec<_> = ledger.running_sessions().iter().map(|session| session.number).collect();
             for number in numbers {
-                let output = fs::read_to_string(home.session_directory(number).join("output")).unwrap_or_default();
+                let output =
+                    read_text(&mut run.files, &run.home.session_directory(number).join("output")).unwrap_or_default();
                 run.end_record(ledger, number, Exit::Lost, parse_tokens(&output), now.wall)?;
             }
             Ok(())
@@ -101,6 +96,16 @@ impl<G: GitFace, P: Processes, C: ClockFace> Run<G, P, C> {
         let result = run.clean_passes();
         run.outcome("triage", result, now);
         Ok(run)
+    }
+
+    fn transact<T>(
+        &mut self,
+        operation: impl FnOnce(&mut Self, &mut Ledger) -> Result<T, Refusal>,
+    ) -> Result<T, Refusal> {
+        let (_lock, mut ledger) = self.home.begin(&mut self.files)?;
+        let result = operation(self, &mut ledger)?;
+        self.home.save(&mut self.files, &ledger)?;
+        Ok(result)
     }
 
     /// Exit results are collected outside the ledger lock: the fake, like an
@@ -112,37 +117,33 @@ impl<G: GitFace, P: Processes, C: ClockFace> Run<G, P, C> {
         if fetch {
             self.next_fetch = Some(now.monotonic.saturating_add(home.configuration.bounds.poll));
         }
-        let result = home.transact_loop(&mut RealFiles, |ledger, _| {
+        let result = home.transact_loop(&mut self.files, |ledger, _| {
             watch_with_fetch(&mut self.git, &home.configuration.git, ledger, now.wall, fetch)
         });
         self.outcome("watch", result, now);
-        let result = self.probe().and_then(|()| {
-            home.transact_loop(&mut RealFiles, |ledger, _| Ok(self.triage(ledger))).and_then(|result| result)
-        });
+        let result =
+            self.probe().and_then(|()| self.transact(|run, ledger| Ok(run.triage(ledger))).and_then(|result| result));
         self.outcome("triage", result, now);
         let result = self.passes();
         self.outcome("passes", result, now);
         let result = home
-            .transact_loop(&mut RealFiles, |ledger, _| {
-                Ok(crate::requests::step(&home, ledger, &mut self.processes, &self.environment, now.wall))
+            .transact_loop(&mut self.files, |ledger, files| {
+                Ok(crate::requests::step(&home, ledger, &mut self.processes, files, &self.environment, now.wall))
             })
             .and_then(|result| result);
         self.outcome("requests", result, now);
-        let result = home.transact_loop(&mut RealFiles, |ledger, _| {
+        let result = home.transact_loop(&mut self.files, |ledger, _| {
             ledger.waiting_lines(home.configuration.bounds.build_wait, now.wall, &home.configuration.owner);
             Ok(())
         });
         self.outcome("waiting cases", result, now);
         // Files already removed and sessions already ended must stay recorded
         // even if a later effect in their step fails.
-        let result = home
-            .transact_loop(&mut RealFiles, |ledger, _| Ok(self.delete_builds(ledger, now.wall)))
-            .and_then(|result| result);
+        let result = self.transact(|run, ledger| Ok(run.delete_builds(ledger, now.wall))).and_then(|result| result);
         self.outcome("builds", result, now);
-        let result =
-            home.transact_loop(&mut RealFiles, |ledger, _| Ok(self.give_lines(ledger))).and_then(|result| result);
+        let result = self.transact(|run, ledger| Ok(run.give_lines(ledger))).and_then(|result| result);
         self.outcome("lines", result, now);
-        let result = home.read(&mut RealFiles, |ledger| {
+        let result = home.read(&mut self.files, |ledger| {
             self.place_retry =
                 ledger.place_waits.last().filter(|wait| wait.to.is_none()).map(|_| now.monotonic.saturating_add(60));
             self.state_retry = (home.configuration.request.state.is_some()
@@ -165,19 +166,7 @@ impl<G: GitFace, P: Processes, C: ClockFace> Run<G, P, C> {
     pub fn serve(&mut self) -> Result<(), Refusal> {
         let listener = self.listener.take().expect("one serving loop");
         let waker = self.waker();
-        #[expect(
-            clippy::disallowed_methods,
-            reason = "blocking socket accepts feed the std QA loop (temper/docs/design/testing/qa/README.md, 4)"
-        )]
-        std::thread::spawn(move || {
-            loop {
-                if let Err(why) = crate::events::accept(&listener, &waker) {
-                    eprintln!("temper-qa: {why}");
-                    waker.poke();
-                    break;
-                }
-            }
-        });
+        self.files.serve_wakes(listener, waker)?;
         self.tick();
         loop {
             self.cycle();
@@ -192,14 +181,14 @@ impl<G: GitFace, P: Processes, C: ClockFace> Run<G, P, C> {
     /// Wait for one coalesced event or the nearest deadline, then run one tick.
     pub fn cycle(&mut self) {
         let timeout = self.wait_timeout().unwrap_or_else(|why| {
-            eprintln!("temper-qa: wait: {why}");
+            self.files.diagnostic(&format!("temper-qa: wait: {why}"));
             Some(60)
         });
         self.clock.wait(&self.events, timeout);
         self.tick();
     }
 
-    pub fn wait_timeout(&self) -> Result<Option<u64>, Refusal> {
+    pub fn wait_timeout(&mut self) -> Result<Option<u64>, Refusal> {
         let now = self.clock.now();
         let deadline = self
             .active
@@ -215,7 +204,7 @@ impl<G: GitFace, P: Processes, C: ClockFace> Run<G, P, C> {
                 failure.retry_at.min(if failure.lined || line <= now.monotonic { u64::MAX } else { line })
             }))
             .min();
-        self.home.read(&mut RealFiles, |ledger| {
+        self.home.read(&mut self.files, |ledger| {
             let build = ledger
                 .build_wait_deadline(self.home.configuration.bounds.build_wait)
                 .map(|wall| now.monotonic.saturating_add(wall.saturating_sub(now.wall)));
@@ -251,7 +240,8 @@ impl<G: GitFace, P: Processes, C: ClockFace> Run<G, P, C> {
         if let Some((&number, active)) = self.active.iter().find(|(_, active)| active.kind == SessionKind::Triage)
             && let Some(exit) = active.exit
         {
-            let output = fs::read_to_string(self.home.session_directory(number).join("output")).unwrap_or_default();
+            let output =
+                read_text(&mut self.files, &self.home.session_directory(number).join("output")).unwrap_or_default();
             ledger.end_session(
                 number,
                 if active.bounded { Exit::Bound } else { exit },
@@ -282,12 +272,21 @@ impl<G: GitFace, P: Processes, C: ClockFace> Run<G, P, C> {
         )?;
         let directory = self.home.session_directory(number);
         let tree = self.home.triage_tree();
-        let start = || -> Result<ProcessCommand, Refusal> {
-            fs::create_dir_all(&directory).map_err(|why| refused(format!("sessions/{number}: {why}")))?;
+        let mut start = || -> Result<ProcessCommand, Refusal> {
+            self.files
+                .directory(&directory, DirectoryMode::Parents)
+                .map_err(|why| refused(format!("sessions/{number}: {why}")))?;
             let brief = directory.join("brief");
-            fs::write(&brief, inputs.render(&self.home, number, &landing, ledger))
+            self.files
+                .write(
+                    &brief,
+                    inputs.render(&self.home, number, &landing, ledger).as_bytes(),
+                    WriteOptions::REPLACE,
+                    false,
+                )
                 .map_err(|why| refused(format!("brief: {why}")))?;
-            fs::write(directory.join("diff.patch"), inputs.patch)
+            self.files
+                .write(&directory.join("diff.patch"), &inputs.patch, WriteOptions::REPLACE, false)
                 .map_err(|why| refused(format!("diff.patch: {why}")))?;
             Ok(self.agent_command(number, &self.home.configuration.agent.triage, tree.clone()))
         };
@@ -345,8 +344,8 @@ impl<G: GitFace, P: Processes, C: ClockFace> Run<G, P, C> {
     /// Keep pending effects until they succeed, including after an unstarted end.
     fn passes(&mut self) -> Result<(), Refusal> {
         let home = self.home.clone();
-        home.transact_loop(&mut RealFiles, |ledger, _| {
-            let ended: Vec<_> = self
+        self.transact(|run, ledger| {
+            let ended: Vec<_> = run
                 .active
                 .iter()
                 .filter_map(|(&number, active)| {
@@ -356,16 +355,16 @@ impl<G: GitFace, P: Processes, C: ClockFace> Run<G, P, C> {
             let end = || -> Result<(), Refusal> {
                 for (number, exit, bounded) in ended {
                     if let Some(exit) = exit {
-                        let output =
-                            fs::read_to_string(home.session_directory(number).join("output")).unwrap_or_default();
-                        self.end_record(
+                        let output = read_text(&mut run.files, &home.session_directory(number).join("output"))
+                            .unwrap_or_default();
+                        run.end_record(
                             ledger,
                             number,
                             if bounded { Exit::Bound } else { exit },
                             parse_tokens(&output),
-                            self.clock.now().wall,
+                            run.clock.now().wall,
                         )?;
-                        self.active.remove(&number);
+                        run.active.remove(&number);
                     }
                 }
                 Ok(())
@@ -376,17 +375,17 @@ impl<G: GitFace, P: Processes, C: ClockFace> Run<G, P, C> {
         for place in home.configuration.places.clone() {
             // An effect failure must not undo an earlier session's end, or an
             // unstarted rollback, in this step.
-            let result = home.transact_loop(&mut RealFiles, |ledger, _| Ok(self.start_pass(ledger, &place)))?;
+            let result = self.transact(|run, ledger| Ok(run.start_pass(ledger, &place)))?;
             let cleanup = self.clean_passes();
             result?;
             cleanup?;
         }
-        home.transact_loop(&mut RealFiles, |ledger, _| {
+        home.transact_loop(&mut self.files, |ledger, files| {
             let mut free = false;
             for place in &home.configuration.places {
                 if !ledger.passes.iter().any(|pass| pass.state == PassState::Running && &pass.place == place) {
                     let directory = home.configuration.place_directory(&home.directory, place)?;
-                    if pass_files::free_lock(&directory, home.configuration.place_kind(place))?.is_some() {
+                    if pass_files::free_lock(&directory, home.configuration.place_kind(place), files)?.is_some() {
                         free = true;
                         break;
                     }
@@ -411,7 +410,12 @@ impl<G: GitFace, P: Processes, C: ClockFace> Run<G, P, C> {
             let recipes = if exit == Exit::Unstarted {
                 Vec::new()
             } else {
-                pass_files::changed_setups(&mut self.git, &pass.build, &pass_files::setups(&self.home, number))?
+                pass_files::changed_setups(
+                    &mut self.git,
+                    &pass.build,
+                    &pass_files::setups(&self.home, number),
+                    &mut self.files,
+                )?
             };
             let place = self.home.configuration.place_directory(&self.home.directory, &pass.place)?;
             ledger.end_pass_session(session.number, exit, tokens, now, &self.home.configuration.owner, &recipes)?;
@@ -421,7 +425,7 @@ impl<G: GitFace, P: Processes, C: ClockFace> Run<G, P, C> {
             ledger.end_session(number, exit, tokens, now, &self.home.configuration.owner)?;
         }
         let legacy = self.home.session_directory(number).join("tree");
-        if legacy.exists() {
+        if self.files.facts(&legacy, true).is_ok() {
             self.trees.push(legacy);
         }
         Ok(())
@@ -444,23 +448,32 @@ impl<G: GitFace, P: Processes, C: ClockFace> Run<G, P, C> {
             return Ok(());
         };
         let directory = configuration.place_directory(&self.home.directory, place)?;
-        let Some(lock) = pass_files::free_lock(&directory, kind)? else { return Ok(()) };
+        let Some(lock) = pass_files::free_lock(&directory, kind, &mut self.files)? else { return Ok(()) };
         crate::installation::install(
             &self.home.builds.join(&start.build),
             &start.build,
             &directory,
             kind,
-            &mut crate::faces::RealFiles,
+            &mut self.files,
         )?;
-        pass_files::write_setups(&mut self.git, &start.build, &pass_files::setups(&self.home, start.pass))?;
-        pass_files::prepare_files(&self.home, start.pass)?;
+        pass_files::write_setups(
+            &mut self.git,
+            &start.build,
+            &pass_files::setups(&self.home, start.pass),
+            &mut self.files,
+        )?;
+        pass_files::prepare_files(&self.home, start.pass, &mut self.files)?;
         *ledger = recorded;
         let command = self.agent_command(start.session, &configuration.agent.pass, self.home.pass_tree(place));
         let mut prepare = || -> Result<(), Refusal> {
             let directory = self.home.session_directory(start.session);
-            fs::create_dir_all(&directory).map_err(|why| refused(format!("{}: {why}", directory.display())))?;
+            self.files
+                .directory(&directory, DirectoryMode::Parents)
+                .map_err(|why| refused(format!("{}: {why}", directory.display())))?;
             let brief = pass_brief::render(&mut self.git, &self.home, &start, ledger)?;
-            fs::write(&command.stdin, brief).map_err(|why| refused(format!("brief: {why}")))?;
+            self.files
+                .write(&command.stdin, brief.as_bytes(), WriteOptions::REPLACE, false)
+                .map_err(|why| refused(format!("brief: {why}")))?;
             self.prepare_tree(&command.directory, &start.build)
         };
         let result = prepare().and_then(|()| self.processes.start(&command));
@@ -492,7 +505,7 @@ impl<G: GitFace, P: Processes, C: ClockFace> Run<G, P, C> {
             self.processes.end_holder(place, self.waker());
         }
         while let Some(&number) = self.reports.first() {
-            self.home.write_pass_report(number)?;
+            self.home.write_pass_report(number, &mut self.files)?;
             self.reports.remove(0);
         }
         self.clean_trees()
@@ -512,9 +525,9 @@ impl<G: GitFace, P: Processes, C: ClockFace> Run<G, P, C> {
 
     fn prepare_tree(&mut self, tree: &std::path::Path, commit: &str) -> Result<(), Refusal> {
         if let Some(parent) = tree.parent() {
-            crate::private::directory(parent, &mut crate::faces::RealFiles)?;
+            crate::private::directory(parent, &mut self.files)?;
         }
-        if tree.exists() {
+        if self.files.facts(tree, true).is_ok() {
             if self.git.move_tree(tree, commit).is_ok() {
                 return Ok(());
             }
@@ -528,17 +541,14 @@ impl<G: GitFace, P: Processes, C: ClockFace> Run<G, P, C> {
         }
         Ok(())
     }
-    fn delete_builds(&self, ledger: &mut Ledger, now: u64) -> Result<(), Refusal> {
+    fn delete_builds(&mut self, ledger: &mut Ledger, now: u64) -> Result<(), Refusal> {
         let mut builds: Vec<_> =
             ledger.deletable_builds().iter().map(|build| (build.order, build.commit.clone())).collect();
         builds.sort();
         for (_, commit) in builds {
             let directory = self.home.builds.join(&commit);
-            match fs::remove_dir_all(&directory) {
-                Ok(()) => (),
-                Err(why) if why.kind() == std::io::ErrorKind::NotFound => (),
-                Err(why) => return Err(refused(format!("{}: {why}", directory.display()))),
-            }
+            remove_missing(&mut self.files, &directory, RemoveMode::Tree)
+                .map_err(|why| refused(format!("{}: {why}", directory.display())))?;
             ledger.mark_build_deleted(&commit, now)?;
         }
         Ok(())
@@ -549,9 +559,9 @@ impl<G: GitFace, P: Processes, C: ClockFace> Run<G, P, C> {
             match self.processes.poll(*process) {
                 Ok(None) => running.push(*process),
                 Ok(Some(Exit::Code(0))) => (),
-                Ok(Some(exit)) => eprintln!("temper-qa: notify: {exit:?}"),
+                Ok(Some(exit)) => self.files.diagnostic(&format!("temper-qa: notify: {exit:?}")),
                 Err(why) => {
-                    eprintln!("temper-qa: notify: {why}");
+                    self.files.diagnostic(&format!("temper-qa: notify: {why}"));
                     running.push(*process);
                 }
             }
@@ -562,9 +572,12 @@ impl<G: GitFace, P: Processes, C: ClockFace> Run<G, P, C> {
         for line in lines {
             let directory = self.home.directory.join("notifications").join(line.number.to_string());
             let input = directory.join("input");
-            let prepare = || -> Result<(), Refusal> {
-                fs::create_dir_all(&directory).map_err(|why| refused(format!("notify: {why}")))?;
-                fs::write(&input, format!("{}: {}\n", line.area, line.words))
+            let mut prepare = || -> Result<(), Refusal> {
+                self.files
+                    .directory(&directory, DirectoryMode::Parents)
+                    .map_err(|why| refused(format!("notify: {why}")))?;
+                self.files
+                    .write(&input, format!("{}: {}\n", line.area, line.words).as_bytes(), WriteOptions::REPLACE, false)
                     .map_err(|why| refused(format!("notify: {why}")))
             };
             prepare()?;
@@ -578,7 +591,7 @@ impl<G: GitFace, P: Processes, C: ClockFace> Run<G, P, C> {
             ledger.mark_line_given(line.number)?;
             match result {
                 Ok(process) => self.notifications.push(process),
-                Err(why) => eprintln!("temper-qa: notify: {why}"),
+                Err(why) => self.files.diagnostic(&format!("temper-qa: notify: {why}")),
             }
         }
         Ok(())
@@ -589,7 +602,7 @@ impl<G: GitFace, P: Processes, C: ClockFace> Run<G, P, C> {
                 self.failures.remove(step);
             }
             Err(why) => {
-                eprintln!("temper-qa: {step}: {why}");
+                self.files.diagnostic(&format!("temper-qa: {step}: {why}"));
                 let failure = self.failures.entry(step).or_insert(Failure {
                     since: now.monotonic,
                     lined: false,
@@ -597,7 +610,7 @@ impl<G: GitFace, P: Processes, C: ClockFace> Run<G, P, C> {
                 });
                 failure.retry_at = now.monotonic.saturating_add(60);
                 if !failure.lined && now.monotonic.saturating_sub(failure.since) >= 3600 {
-                    match self.home.transact_loop(&mut RealFiles, |ledger, _| {
+                    match self.home.transact_loop(&mut self.files, |ledger, _| {
                         ledger.add_line(
                             &self.home.configuration.owner,
                             &format!("{step} has failed for an hour: {why}"),
@@ -606,7 +619,7 @@ impl<G: GitFace, P: Processes, C: ClockFace> Run<G, P, C> {
                         Ok(())
                     }) {
                         Ok(()) => failure.lined = true,
-                        Err(why) => eprintln!("temper-qa: recording {step} failure: {why}"),
+                        Err(why) => self.files.diagnostic(&format!("temper-qa: recording {step} failure: {why}")),
                     }
                 }
             }

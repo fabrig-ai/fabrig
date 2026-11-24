@@ -1,7 +1,7 @@
 //! A place and a setup chain share one kind (qa/places.md, 2; qa/triage.md, 3).
 use crate::{
     Refusal,
-    faces::{FilesFace, PathKind, RealFiles},
+    faces::{FilesFace, PathKind},
     refused,
 };
 use std::{
@@ -114,8 +114,12 @@ pub(crate) struct ChainMember {
     pub scripts: Option<PathBuf>,
 }
 impl Chain {
-    pub fn kind(&self) -> Kind {
-        if self.root.join("config").is_dir() { Kind::Deployment } else { Kind::Box }
+    pub fn kind(&self, files: &mut impl FilesFace) -> Kind {
+        if files.facts(&self.root.join("config"), true).is_ok_and(|facts| facts.kind == PathKind::Directory) {
+            Kind::Deployment
+        } else {
+            Kind::Box
+        }
     }
 }
 #[derive(Clone, Copy)]
@@ -130,9 +134,6 @@ impl ChainUse {
             Self::Holder => refused(format!("recipe {member}: {why}")),
         }
     }
-}
-pub(crate) fn read_chain(setups: &Path, name: &str, usage: ChainUse) -> Result<Chain, Refusal> {
-    read_chain_with(setups, name, usage, &mut RealFiles)
 }
 
 pub(crate) fn read_chain_with(
@@ -159,7 +160,7 @@ pub(crate) fn read_chain_with(
         let script = directory.join("scripts.json");
         let scripts = match files.facts(&script, true) {
             Ok(facts) if facts.kind == PathKind::File => {
-                files.open_read(&script).map_err(|why| fail(why.to_string()))?;
+                drop(files.open_read(&script).map_err(|why| fail(why.to_string()))?);
                 Some(script)
             }
             Ok(_) => return Err(fail("scripts.json is not a file".into())),

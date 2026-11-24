@@ -107,18 +107,28 @@ impl Home {
         files: &mut F,
         operation: impl FnOnce(&mut Ledger, &mut F) -> Result<T, Refusal>,
     ) -> Result<T, Refusal> {
-        let lock = self.lock(files, LockMode::Wait)?.expect("waiting lock is held on success");
-        let mut ledger = self.load(files)?;
+        let (_lock, mut ledger) = self.begin(files)?;
         let result = operation(&mut ledger, files)?;
+        self.save(files, &ledger)?;
+        Ok(result)
+    }
+
+    // The loop also needs the files face during its transaction. The owned lock
+    // keeps it held while the loop operates on the loaded ledger.
+    pub(crate) fn begin<F: FilesFace>(&self, files: &mut F) -> Result<(F::Lock, Ledger), Refusal> {
+        let lock = self.lock(files, LockMode::Wait)?.expect("waiting lock is held on success");
+        let ledger = self.load(files)?;
+        Ok((lock, ledger))
+    }
+
+    pub(crate) fn save(&self, files: &mut impl FilesFace, ledger: &Ledger) -> Result<(), Refusal> {
         let bytes = ledger.encode()?;
         let temporary = self.directory.join("ledger.tmp");
         let options = WriteOptions { way: WriteMode::Replace, mode: Mode::Create(0o600), read: false };
         files
             .write(&temporary, &bytes, options, true)
             .and_then(|()| files.rename(&temporary, &self.ledger))
-            .map_err(|why| refused(format!("ledger.json: {why}")))?;
-        drop(lock);
-        Ok(result)
+            .map_err(|why| refused(format!("ledger.json: {why}")))
     }
     fn lock<F: FilesFace>(&self, files: &mut F, mode: LockMode) -> Result<Option<F::Lock>, Refusal> {
         files.lock(&self.ledger_lock, mode, false).map_err(|why| refused(format!("ledger.lock: {why}")))

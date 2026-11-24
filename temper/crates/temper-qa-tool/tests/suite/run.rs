@@ -561,8 +561,9 @@ fn one_run_holds_the_home_and_restart_ends_every_running_session_lost_and_prunes
         assert!(!world.home.session_directory(number).join("tree").exists());
     }
     assert_eq!(run.git.prunes, 1);
-    let why =
-        Run::start(world.home.clone(), baseline(), world.agents(), Clock::default(), vec![]).err().expect("locked");
+    let why = Run::start(world.home.clone(), baseline(), world.agents(), Clock::default(), world.files(), vec![])
+        .err()
+        .expect("locked");
     assert_eq!(why.to_string(), format!("another temper-qa run holds {}", world.home.directory.display()));
     drop(run);
     let restarted = world.start(baseline(), &[]);

@@ -156,7 +156,7 @@ fn q3_configuration_show_and_report_cross_the_binary_boundary() {
     let report = run(&home, &["report", "1"], None, None);
     assert_eq!(report.status.code(), Some(0), "{:?}", report.stderr);
     assert_eq!(serde_json::from_slice::<serde_json::Value>(&report.stdout).expect("report"), expected);
-    home.write_pass_report(1).expect("loop report writer");
+    home.write_pass_report(1, &mut RealFiles).expect("loop report writer");
     assert_eq!(
         serde_json::from_slice::<serde_json::Value>(
             &std::fs::read(home.directory.join("passes/1/report.json")).expect("report file")
@@ -191,7 +191,7 @@ fn wake_pokes_without_a_session_or_ledger_write_and_saves_poke_too() {
     let (_scratch, home) = home();
     let before = fs::read(&home.ledger).expect("ledger");
     success(&run(&home, &["wake"], None, None), b"");
-    let listener = temper_qa_tool::events::bind(&home.directory).expect("fake loop socket");
+    let listener = temper_qa_tool::events::bind(&home.directory, &mut RealFiles).expect("fake loop socket");
     success(&run(&home, &["wake"], None, None), b"");
     let (mut stream, _) = listener.accept().expect("wake connection");
     assert_eq!(stream.read(&mut [0]).expect("closed"), 0);

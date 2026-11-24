@@ -6,7 +6,7 @@ use std::{
     path::{Path, PathBuf},
     process::{Command, Stdio},
 };
-use temper_qa_tool::faces::RealFiles;
+use temper_qa_tool::faces::{FilesFace, Processes, RealFiles, RealProcesses};
 use temper_qa_tool::{
     Home, Refusal,
     faces::{ArchiveFace, RealArchive, RealDrive, copy_members},
@@ -82,7 +82,14 @@ struct Archive {
     store: PathBuf,
 }
 impl ArchiveFace for Archive {
-    fn create(&mut self, scratch: &Path, archive: &Path, left_out: &[&str]) -> Result<(), Refusal> {
+    fn create(
+        &mut self,
+        scratch: &Path,
+        archive: &Path,
+        left_out: &[&str],
+        _files: &mut impl FilesFace,
+        _processes: &mut impl Processes,
+    ) -> Result<(), Refusal> {
         assert_mode(archive, 0o600);
         self.saved.push(archive.to_owned());
         let snapshot = self.store.join(self.saved.len().to_string());
@@ -92,7 +99,14 @@ impl ArchiveFace for Archive {
         fs::write(archive, snapshot.to_str().expect("snapshot path")).expect("archive marker");
         Ok(())
     }
-    fn extract(&mut self, archive: &Path, scratch: &Path, left_out: &[&str]) -> Result<(), Refusal> {
+    fn extract(
+        &mut self,
+        archive: &Path,
+        scratch: &Path,
+        left_out: &[&str],
+        _files: &mut impl FilesFace,
+        _processes: &mut impl Processes,
+    ) -> Result<(), Refusal> {
         if let Some(refused) = &self.removed_before_retry
             && archive != refused
         {
@@ -124,7 +138,7 @@ struct World {
     _scratch: Scratch,
     home: Home,
     session: u64,
-    place: PassPlace<RealDrive, Archive>,
+    place: PassPlace<RealDrive, Archive, RealFiles, RealProcesses>,
 }
 impl World {
     fn new() -> Self {
@@ -167,6 +181,8 @@ impl World {
             started.session,
             RealDrive { environment },
             Archive { store: scratch.path().join("archive-face"), ..Archive::default() },
+            RealFiles,
+            RealProcesses::default(),
         )
         .expect("session place");
         place.paths.ensure(&mut RealFiles).expect("place layout");
@@ -258,8 +274,15 @@ fn ctl_world() -> World {
         .replace("cat \"hash-$3\" ;;", "cmp \"expected-$3\" \"$5/$3/recipe\"\n    cat \"hash-$3\" ;;");
     fs::write(world.place.paths.bin.join("temper-client-journeys"), tool).expect("ctl fake build");
     world.home.configuration.surfaces = vec!["ctl".into()];
-    world.place =
-        PassPlace::for_session(&world.home, world.session, world.place.drive, world.place.archive).expect("ctl place");
+    world.place = PassPlace::for_session(
+        &world.home,
+        world.session,
+        world.place.drive,
+        world.place.archive,
+        RealFiles,
+        RealProcesses::default(),
+    )
+    .expect("ctl place");
     world
 }
 
@@ -612,7 +635,17 @@ fn unknown_unread_and_nonpass_setups_refuse_before_touching_the_box() {
         "recipe welcome: welcome/README.md: unread"
     );
     assert_eq!(world.walks().len(), 0);
-    assert!(PassPlace::for_session(&world.home, 1, RealDrive { environment: vec![] }, Archive::default()).is_err());
+    assert!(
+        PassPlace::for_session(
+            &world.home,
+            1,
+            RealDrive { environment: vec![] },
+            Archive::default(),
+            RealFiles,
+            RealProcesses::default()
+        )
+        .is_err()
+    );
     world
         .home
         .transact(&mut RealFiles, |ledger, _| {
@@ -620,8 +653,15 @@ fn unknown_unread_and_nonpass_setups_refuse_before_touching_the_box() {
         })
         .expect("end session");
     assert!(
-        PassPlace::for_session(&world.home, world.session, RealDrive { environment: vec![] }, Archive::default())
-            .is_err()
+        PassPlace::for_session(
+            &world.home,
+            world.session,
+            RealDrive { environment: vec![] },
+            Archive::default(),
+            RealFiles,
+            RealProcesses::default()
+        )
+        .is_err()
     );
 }
 
@@ -909,7 +949,7 @@ fn archive_commands_use_only_portable_options_and_hide_the_pinned_path() {
             fs::create_dir(source.join("config")).expect("configuration");
         }
         let mut face = scripted_archive(scratch.path(), 0);
-        face.create(&source, &archive, &[PINNED_AGENT]).expect("create");
+        face.create(&source, &archive, &[PINNED_AGENT], &mut RealFiles, &mut RealProcesses::default()).expect("create");
         let members = if config { "config\ndata\n" } else { "data\n" };
         assert_eq!(
             fs::read_to_string(archive.with_extension("tar.arguments")).expect("create arguments"),
@@ -921,7 +961,8 @@ fn archive_commands_use_only_portable_options_and_hide_the_pinned_path() {
         );
         assert_pinned_agent(&source);
         assert!(!archive.with_extension("tar.left-out").exists(), "nothing remains set aside");
-        face.extract(&archive, &source, &[PINNED_AGENT]).expect("extract");
+        face.extract(&archive, &source, &[PINNED_AGENT], &mut RealFiles, &mut RealProcesses::default())
+            .expect("extract");
         assert_eq!(
             fs::read_to_string(archive.with_extension("tar.arguments")).expect("extract arguments"),
             format!("--extract\n--file\n{}\n--directory\n{}\n", archive.display(), source.display())
@@ -940,7 +981,9 @@ fn a_failed_archive_save_restores_the_pinned_bytes_and_removes_the_set_aside_dir
     let source = scratch.path().join("source");
     let archive = scratch.path().join("copy.tar");
     write_copy_state(&source, true);
-    let why = scripted_archive(scratch.path(), 2).create(&source, &archive, &[PINNED_AGENT]).expect_err("tar failed");
+    let why = scripted_archive(scratch.path(), 2)
+        .create(&source, &archive, &[PINNED_AGENT], &mut RealFiles, &mut RealProcesses::default())
+        .expect_err("tar failed");
     assert_eq!(why.to_string(), "tar --create: exit status: 2: fake tar stderr");
     assert_eq!(fs::read_to_string(archive.with_extension("tar.pinned")).expect("pinned while creating"), "absent\n");
     assert_pinned_agent(&source);
@@ -959,7 +1002,10 @@ fn a_failed_archive_save_reports_tar_then_move_back_and_keeps_private_set_aside_
         TAR.replace("exit \"$QA_TAR_EXIT\"", "/bin/mkdir -p \"$5/$QA_TAR_PINNED/occupied\"\nexit \"$QA_TAR_EXIT\""),
     )
     .expect("tar blocks move back");
-    let why = face.create(&source, &archive, &[PINNED_AGENT]).expect_err("tar and move back failed").to_string();
+    let why = face
+        .create(&source, &archive, &[PINNED_AGENT], &mut RealFiles, &mut RealProcesses::default())
+        .expect_err("tar and move back failed")
+        .to_string();
     assert!(
         why.starts_with(&format!(
             "tar --create: exit status: 2: fake tar stderr; {}: ",
@@ -982,7 +1028,9 @@ fn an_interrupted_saves_set_aside_is_removed_before_moving_the_pinned_path() {
     fs::create_dir(&aside).expect("interrupted save");
     fs::write(aside.join("0"), "interrupted pinned file").expect("stale entry");
     write_copy_state(&source, true);
-    scripted_archive(scratch.path(), 0).create(&source, &archive, &[PINNED_AGENT]).expect("next save");
+    scripted_archive(scratch.path(), 0)
+        .create(&source, &archive, &[PINNED_AGENT], &mut RealFiles, &mut RealProcesses::default())
+        .expect("next save");
     assert_pinned_agent(&source);
     assert!(!aside.exists(), "the interrupted save and this save leave nothing set aside");
 }
@@ -1000,7 +1048,9 @@ fn archive_restore_removes_a_pinned_symlink_without_following_it() {
         }
         write_copy_state(&source, false);
         symlink(&target, source.join(PINNED_AGENT)).expect("pinned symlink");
-        scripted_archive(scratch.path(), 0).extract(&archive, &source, &[PINNED_AGENT]).expect("extract");
+        scripted_archive(scratch.path(), 0)
+            .extract(&archive, &source, &[PINNED_AGENT], &mut RealFiles, &mut RealProcesses::default())
+            .expect("extract");
         assert!(fs::symlink_metadata(source.join(PINNED_AGENT)).is_err(), "even a dangling symlink is removed");
         assert_copy_state(&source);
         if !dangling {
@@ -1015,7 +1065,9 @@ fn a_failed_archive_restore_leaves_the_pinned_path_untouched() {
     let source = scratch.path().join("source");
     let archive = scratch.path().join("copy.tar");
     write_copy_state(&source, true);
-    let why = scripted_archive(scratch.path(), 2).extract(&archive, &source, &[PINNED_AGENT]).expect_err("tar failed");
+    let why = scripted_archive(scratch.path(), 2)
+        .extract(&archive, &source, &[PINNED_AGENT], &mut RealFiles, &mut RealProcesses::default())
+        .expect_err("tar failed");
     assert_eq!(why.to_string(), "tar --extract: exit status: 2: fake tar stderr");
     assert_pinned_agent(&source);
 }
@@ -1029,7 +1081,7 @@ fn archive_restore_refuses_an_unremovable_path_by_name() {
     let path = source.join("data/state/agent");
     let expected = fs::symlink_metadata(&path).expect_err("state is a file");
     let why = scripted_archive(scratch.path(), 0)
-        .extract(&archive, &source, &["data/state/agent"])
+        .extract(&archive, &source, &["data/state/agent"], &mut RealFiles, &mut RealProcesses::default())
         .expect_err("cannot remove");
     assert_eq!(why.to_string(), format!("{}: {expected}", path.display()));
 }
@@ -1048,7 +1100,8 @@ fn real_copies_leave_out_only_the_pinned_agent_and_allow_its_absence() {
         write_copy_state(&source, pinned);
         fs::create_dir(&restored).expect("restore directory");
         let mut face = real_archive();
-        face.create(&source, &archive, &[PINNED_AGENT]).expect("create copy");
+        face.create(&source, &archive, &[PINNED_AGENT], &mut RealFiles, &mut RealProcesses::default())
+            .expect("create copy");
         assert_eq!(source.join(PINNED_AGENT).exists(), pinned, "save keeps the source's pinned directory");
         if pinned {
             assert_pinned_agent(&source);
@@ -1056,7 +1109,8 @@ fn real_copies_leave_out_only_the_pinned_agent_and_allow_its_absence() {
         // With a pin, inspect create's archive without masking it through extract's removal.
         // Without one, exercise extract's removal of an absent directory as well.
         let left_out: &[&str] = if pinned { &[] } else { &[PINNED_AGENT] };
-        face.extract(&archive, &restored, left_out).expect("restore copy");
+        face.extract(&archive, &restored, left_out, &mut RealFiles, &mut RealProcesses::default())
+            .expect("restore copy");
         assert_copy_state(&restored);
     }
 }
@@ -1080,7 +1134,9 @@ fn real_restore_leaves_out_the_pinned_agent_from_an_older_copy() {
         .output()
         .expect("plain tar");
     assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
-    real_archive().extract(&archive, &restored, &[PINNED_AGENT]).expect("restore older copy");
+    real_archive()
+        .extract(&archive, &restored, &[PINNED_AGENT], &mut RealFiles, &mut RealProcesses::default())
+        .expect("restore older copy");
     assert_copy_state(&restored);
 }
 
@@ -1121,11 +1177,11 @@ fn a_copy_takes_the_members_its_box_made() {
     // A box with fake backends keeps its configuration under data/, so its config/ may never be made.
     let scratch = Scratch::new("qa-copy-members");
     let box_directory = scratch.path();
-    assert!(copy_members(box_directory).is_err(), "an empty box directory has nothing to copy");
+    assert!(copy_members(box_directory, &mut RealFiles).is_err(), "an empty box directory has nothing to copy");
     fs::create_dir(box_directory.join("data")).expect("data");
-    assert_eq!(copy_members(box_directory).expect("members"), ["data"]);
+    assert_eq!(copy_members(box_directory, &mut RealFiles).expect("members"), ["data"]);
     fs::create_dir(box_directory.join("config")).expect("config");
-    assert_eq!(copy_members(box_directory).expect("members"), ["config", "data"]);
+    assert_eq!(copy_members(box_directory, &mut RealFiles).expect("members"), ["config", "data"]);
 }
 
 #[test]
@@ -1140,6 +1196,8 @@ fn ctl_only_pass_refuses_web_and_tui_in_a_setups_parent_before_restore() {
                 environment: vec![(Box::from(b"QA_RECIPE_ENV".as_slice()), Box::from(b"captured".as_slice()))],
             },
             Archive::default(),
+            RealFiles,
+            RealProcesses::default(),
         )
         .expect("ctl pass place");
         fs::write(&world.place.paths.setup, "fresh\n").expect("prior setup");
@@ -1216,15 +1274,28 @@ fn deployment_setup_saves_real_copies_without_its_pinned_agent_and_allows_its_ab
             .expect("fake")
             .replace("printf 'walked %s\\n'", "cp -R seed/data deployment/\n    printf 'walked %s\\n'");
         fs::write(tool, text).expect("state-writing fake");
-        let mut place =
-            PassPlace::for_session(&world.home, world.session, world.place.drive, real_archive()).expect("real copies");
+        let mut place = PassPlace::for_session(
+            &world.home,
+            world.session,
+            world.place.drive,
+            real_archive(),
+            RealFiles,
+            RealProcesses::default(),
+        )
+        .expect("real copies");
         assert_eq!(place.setup("welcome", &mut Vec::new()).expect("save setup"), 0);
         assert_eq!(paths.scratch.join(DEPLOYMENT_PINNED_AGENT).exists(), pinned, "the walk's state");
         let restored = paths.directory.join("inspect");
         fs::create_dir(&restored).expect("inspection directory");
         // Inspect the saved tar without extract's exclusion masking a faulty save.
         real_archive()
-            .extract(&paths.copies.join("welcome").join(format!("{WELCOME}-{BUILD}.tar")), &restored, &[])
+            .extract(
+                &paths.copies.join("welcome").join(format!("{WELCOME}-{BUILD}.tar")),
+                &restored,
+                &[],
+                &mut RealFiles,
+                &mut RealProcesses::default(),
+            )
             .expect("inspect copy");
         assert_deployment_copy_state(&restored);
         assert_eq!(fs::read_to_string(restored.join("config/receipt")).expect("configuration"), "saved config");
@@ -1242,9 +1313,18 @@ fn deployment_setup_restores_an_older_real_copy_without_its_pinned_agent() {
     let directory = paths.copies.join("welcome");
     fs::create_dir_all(&directory).expect("copy directory");
     let archive = directory.join(format!("{WELCOME}-{OLD}.tar"));
-    real_archive().create(&source, &archive, &[]).expect("older copy including pinned agent");
-    let mut place =
-        PassPlace::for_session(&world.home, world.session, world.place.drive, real_archive()).expect("real copies");
+    real_archive()
+        .create(&source, &archive, &[], &mut RealFiles, &mut RealProcesses::default())
+        .expect("older copy including pinned agent");
+    let mut place = PassPlace::for_session(
+        &world.home,
+        world.session,
+        world.place.drive,
+        real_archive(),
+        RealFiles,
+        RealProcesses::default(),
+    )
+    .expect("real copies");
     let mut output = Vec::new();
     assert_eq!(place.setup("welcome", &mut output).expect("restore older copy"), 0);
     assert!(String::from_utf8(output).expect("output").contains("restored from its copy made at aaaaaaaaaaaa"));

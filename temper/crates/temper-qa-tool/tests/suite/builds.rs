@@ -8,7 +8,11 @@ use std::{
     path::{Path, PathBuf},
 };
 use temper_qa_tool::faces::RealFiles;
-use temper_qa_tool::{BuildState, Home, build::keep};
+use temper_qa_tool::{
+    BuildState, Home,
+    build::keep_with,
+    faces::{RealClock, RealProcesses},
+};
 
 const COMMIT: &str = "0123456789abcdef0123456789abcdef01234567";
 const SHORT: &str = "0123456789ab";
@@ -50,7 +54,12 @@ fn script(path: &Path, line: &str) {
 
 fn refusal(home: &Home, stage: &Path, words: &str) {
     let before = fs::read(&home.ledger).ok();
-    assert_eq!(keep(home, COMMIT, stage, &[]).expect_err("stage refused").to_string(), words);
+    assert_eq!(
+        keep_with(home, COMMIT, stage, &[], &mut RealFiles, &mut RealProcesses::default(), &RealClock::default())
+            .expect_err("stage refused")
+            .to_string(),
+        words
+    );
     assert!(stage.is_dir(), "staging was moved");
     assert!(!home.builds.join(COMMIT).exists(), "build was published");
     assert!(!home.builds.join(format!(".{COMMIT}.partial")).exists(), "staging was moved to partial");
@@ -80,7 +89,11 @@ fn a_deployment_stage_keeps_the_coding_agent_version_and_checksums_all_eight_fil
         let bytes = fs::read(stage.join(path)).expect("staged bytes");
         writeln!(expected, "{:x}  {path}", Sha256::digest(&bytes)).expect("manifest row");
     }
-    assert_eq!(keep(&home, COMMIT, &stage, &[]).expect("kept"), format!("build {SHORT} kept: 8 files\n"));
+    assert_eq!(
+        keep_with(&home, COMMIT, &stage, &[], &mut RealFiles, &mut RealProcesses::default(), &RealClock::default())
+            .expect("kept"),
+        format!("build {SHORT} kept: 8 files\n")
+    );
     assert!(!stage.exists());
     let kept = home.builds.join(COMMIT);
     assert_eq!(fs::read_to_string(kept.join("manifest")).expect("manifest"), expected);
@@ -99,7 +112,11 @@ fn an_older_recording_bundle_is_kept_in_the_manifest() {
     let (_scratch, home, stage) = stage();
     fs::create_dir(stage.join("bundle-record")).expect("recording directory");
     fs::write(stage.join("bundle-record/index.html"), b"record\n").expect("recording bundle");
-    assert_eq!(keep(&home, COMMIT, &stage, &[]).expect("kept"), format!("build {SHORT} kept: 9 files\n"));
+    assert_eq!(
+        keep_with(&home, COMMIT, &stage, &[], &mut RealFiles, &mut RealProcesses::default(), &RealClock::default())
+            .expect("kept"),
+        format!("build {SHORT} kept: 9 files\n")
+    );
     let kept = home.builds.join(COMMIT);
     assert_eq!(fs::read(kept.join("bundle-record/index.html")).expect("kept recording"), b"record\n");
     let manifest = fs::read_to_string(kept.join("manifest")).expect("manifest");
@@ -180,7 +197,16 @@ fn manifest_keeps_path(name: &Path, escaped: &[u8]) {
         answer.extend_from_slice(&line);
     }
     let mut face = super::build_files::Files { answer: answer.clone(), ..Default::default() };
-    temper_qa_tool::build::keep_with(&home, COMMIT, &stage, &[], &mut face).expect("kept");
+    temper_qa_tool::build::keep_with(
+        &home,
+        COMMIT,
+        &stage,
+        &[],
+        &mut face,
+        &mut RealProcesses::default(),
+        &RealClock::default(),
+    )
+    .expect("kept");
     assert_eq!(face.hashes, [(stage, paths)]);
     let mut expected = format!("commit {COMMIT}\n").into_bytes();
     expected.extend_from_slice(&answer);
@@ -195,7 +221,16 @@ fn a_sha256sum_answer_missing_a_file_or_not_parsing_never_moves_or_records() {
     ] {
         let (_scratch, home, stage) = stage();
         let mut face = super::build_files::Files { answer, ..Default::default() };
-        let why = temper_qa_tool::build::keep_with(&home, COMMIT, &stage, &[], &mut face).expect_err("refused");
+        let why = temper_qa_tool::build::keep_with(
+            &home,
+            COMMIT,
+            &stage,
+            &[],
+            &mut face,
+            &mut RealProcesses::default(),
+            &RealClock::default(),
+        )
+        .expect_err("refused");
         assert!(why.0.contains(expected), "{why}");
         assert!(stage.is_dir());
         assert!(!home.builds.join(COMMIT).exists());

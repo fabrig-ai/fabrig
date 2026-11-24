@@ -15,12 +15,12 @@ fn a_socket_poke_wakes_and_a_burst_runs_one_tick() {
     // A separate listener supplies deterministic accepts to the loop's queue.
     let peer = world.home.directory.join("peer");
     fs::create_dir(&peer).expect("peer home");
-    let listener = events::bind(&peer).expect("fake wake socket");
+    let listener = events::bind(&peer, &mut RealFiles).expect("fake wake socket");
     run.tick();
     run.git.calls.clear();
     for _ in 0..20 {
         events::poke(&peer, &mut RealFiles).expect("poke");
-        events::accept(&listener, &run.waker()).expect("accept wakes");
+        events::accept(&listener, &run.waker(), &mut RealFiles).expect("accept wakes");
     }
     run.cycle();
     assert_eq!(run.clock.time, 0);
@@ -31,7 +31,7 @@ fn a_socket_poke_wakes_and_a_burst_runs_one_tick() {
 #[test]
 fn saved_commands_poke_after_commit_and_refusals_never_poke() {
     let world = World::new();
-    let listener = events::bind(&world.home.directory).expect("socket");
+    let listener = events::bind(&world.home.directory, &mut RealFiles).expect("socket");
     listener.set_nonblocking(true).expect("fake accept");
     world
         .home
@@ -76,6 +76,7 @@ fn socket_binding_replaces_stale_paths_and_ignores_the_umask() {
             baseline(),
             world.agents(),
             super::world::Clock::default(),
+            RealFiles,
             vec![]
         )
         .is_err()

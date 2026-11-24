@@ -2,6 +2,7 @@
 use temper_qa_tool::testing::{case, landing, pages, session};
 #[path = "../suite/configuration.rs"]
 mod configuration;
+mod entry;
 mod faces;
 #[path = "../suite/fuzzy.rs"]
 mod fuzzy;
