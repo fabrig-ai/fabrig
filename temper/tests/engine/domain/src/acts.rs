@@ -85,6 +85,17 @@ fn holds(store: &Store, target: u64, when: When) -> bool {
     }
 }
 
+/// The cancellation exclusion observes only this goal's branch-making read or write.
+#[must_use]
+pub fn goal_branch_making(world: &crate::forge_routes::World, goal: u64) -> bool {
+    world.root.forge().inspection_making_read_waiters().contains(&goal)
+        || world.store.rows.values().any(|record| {
+            let Record::Forge { row } = record else { return false };
+            matches!(row.as_ref(), forge::Stored::Entry { entry, held: false }
+                if entry.task == goal && matches!(entry.effect.write, skein_forge::api::Write::CreateBranch { .. }))
+        })
+}
+
 pub(crate) fn task(store: &Store, number: u64) -> Option<&tasks::TaskRecord> {
     [tasks::Key::Live(number), tasks::Key::Ended(number)].into_iter().find_map(|key| {
         match store.rows.get(&Key::Core(core::Key::Tasks(key))) {

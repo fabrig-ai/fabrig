@@ -63,6 +63,13 @@ const CASES: &[(Kind, &str, &str, &str, &str)] = &[
         "its requester parked",
     ),
     (
+        temper_faults::people::CANCELS_A_GOAL,
+        "people and parties/cancelling a goal",
+        "a_goal_cancelled_while_its_branch_is_being_made_ends_cancelled",
+        "failure worlds: repaired as a red",
+        "a goal branch making in flight",
+    ),
+    (
         temper_faults::restarts::ENGINE_CRASH,
         "restarts/engine crash",
         "a_stored_charter_is_checked_at_start",

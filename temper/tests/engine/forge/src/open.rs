@@ -84,5 +84,13 @@ pub fn exclude(sweep: &mut Sweep, configured: &[Kind]) -> Result<(), String> {
             &["a stored charter past its room"],
         ))?;
     }
+    if configured.contains(&temper_faults::people::CANCELS_A_GOAL) {
+        sweep.exclude(Exclusion::new(
+            "a_goal_cancelled_while_its_branch_is_being_made_ends_cancelled",
+            "failure worlds: repaired as a red",
+            temper_faults::people::CANCELS_A_GOAL,
+            &["a goal branch making in flight"],
+        ))?;
+    }
     Ok(())
 }

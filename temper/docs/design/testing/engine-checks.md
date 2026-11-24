@@ -526,6 +526,7 @@ own change.
 | `a_held_answer_tells_its_requester` | `temper_faults::people::ANSWERS_LATE`, and `ANSWERS_TWICE`, each the sweep configures | `a dependency holds the answer` |
 | `a_change_waits_on_another_goal` | `temper_faults::parks::A_CHANGE_WAITS_ON_ANOTHER_GOAL` | `its requester parked` |
 | `a_stored_charter_is_checked_at_start` | `temper_faults::restarts::ENGINE_CRASH` | `a stored charter past its room` |
+| `a_goal_cancelled_while_its_branch_is_being_made_ends_cancelled` | `temper_faults::people::CANCELS_A_GOAL` | `a goal branch making in flight` |
 
 - **The sweeps that draw these combinations** are the workloads'
   (`workloads.md`, 8), and each takes them through `exclude`. A sweep

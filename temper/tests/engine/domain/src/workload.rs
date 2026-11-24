@@ -39,6 +39,8 @@ pub struct Run {
     pub workload: Workload,
     pub names: Names,
     pub ledger: FaultLedger,
+    pub main: BTreeMap<String, String>,
+    pub left: Vec<temper_workload::outcome::Left>,
 }
 
 /// Run the engine shape without faults (`temper/docs/design/testing/workloads.md`, 9).
@@ -62,11 +64,54 @@ pub fn run_actions(
     sweep: &Sweep,
     mut inject: impl FnMut(&mut World, &Names, &mut FaultLedger, u64),
 ) -> Result<Run, String> {
+    run_injected(*streams, workload, actions, sweep, None, &mut inject)
+}
+
+/// Replay the same workload and acts, optionally enabling the engine restart family.
+pub fn with_restarts(
+    streams: &Streams,
+    workload: Workload,
+    actions: Vec<Action>,
+    sweep: &Sweep,
+    injector: Option<crate::forge_routes::restarts::Injector>,
+) -> Result<Run, String> {
+    run_injected(*streams, workload, actions, sweep, injector, &mut |_, _, _, _| {})
+}
+
+fn run_injected(
+    streams: Streams,
+    workload: Workload,
+    actions: Vec<Action>,
+    sweep: &Sweep,
+    injector: Option<crate::forge_routes::restarts::Injector>,
+    inject: &mut impl FnMut(&mut World, &Names, &mut FaultLedger, u64),
+) -> Result<Run, String> {
     skein_checks::count("workload-seeds", 1);
-    let mut driver = Driver::new(*streams, workload, actions, sweep)
+    let mut driver = Driver::new(streams, workload, actions, sweep, injector)
         .map_err(|finding| format!("workload seed {}: {finding}", streams.seed()))?;
-    driver.run(sweep, &mut inject).map_err(|finding| format!("workload seed {}: {finding}", streams.seed()))?;
-    Ok(Run { world: driver.world, workload: driver.workload, names: driver.names, ledger: driver.ledger })
+    driver.run(sweep, inject).map_err(|finding| format!("workload seed {}: {finding}", streams.seed()))?;
+    driver.world.check_workload_store()?;
+    let tip = driver.world.fake.branch(b"org/repo", b"main").expect("main");
+    let main = driver
+        .world
+        .fake
+        .object(tip)
+        .expect("main tree")
+        .tree
+        .iter()
+        .map(|(path, text)| {
+            (
+                String::from_utf8(path.to_vec()).expect("workload path"),
+                String::from_utf8(text.to_vec()).expect("workload text"),
+            )
+        })
+        .collect();
+    let left = driver
+        .world
+        .workload_deadlines
+        .as_ref()
+        .map_or_else(Vec::new, |deadlines| deadlines.left(&driver.world.store, &driver.names, &driver.workload));
+    Ok(Run { world: driver.world, workload: driver.workload, names: driver.names, ledger: driver.ledger, main, left })
 }
 
 struct Driver {
@@ -108,8 +153,18 @@ struct Goal {
 }
 
 impl Driver {
-    fn new(streams: Streams, workload: Workload, actions: Vec<Action>, sweep: &Sweep) -> Result<Self, String> {
+    fn new(
+        streams: Streams,
+        workload: Workload,
+        actions: Vec<Action>,
+        sweep: &Sweep,
+        injector: Option<crate::forge_routes::restarts::Injector>,
+    ) -> Result<Self, String> {
         let mut world = setup(streams, &workload);
+        if let Some(injector) = injector {
+            world.workload_deadlines = Some(crate::outcome::Deadlines::default());
+            world.inject_restarts(injector);
+        }
         world.adopt();
         let mut sessions = BTreeMap::new();
         sessions.insert(Party::First, world.signed_in.expect("first session"));
@@ -148,6 +203,7 @@ impl Driver {
                 result: world.env.limits.tasks.result_bytes,
                 deadline: Duration::from_secs(600),
             }]);
+            world.workload_worker = Some((hello.bounds.clone(), hello.jobs.clone(), hello.slots));
         }
         world.send(hello);
         let mut ledger = FaultLedger::new();
@@ -408,6 +464,25 @@ impl Driver {
         self.completed.insert((run.task, run.attempt));
     }
 
+    fn finish_restarts(&mut self) -> Result<(), String> {
+        let Some(injector) = self.world.restarts.as_ref() else { return Ok(()) };
+        let before = injector.ledger.entries().len();
+        let armed = crate::outcome::Deadlines::armed(&self.world.root, &self.world.store, self.world.env.now);
+        let restarts = self.world.finish_restarts();
+        self.world
+            .workload_deadlines
+            .as_mut()
+            .expect("workload observer")
+            .struck(&armed, &restarts.entries()[before..]);
+        for fault in restarts.entries() {
+            let entry = self.ledger.inject(fault.kind, fault.from, fault.struck.clone());
+            if let Some(until) = fault.until {
+                self.ledger.stop(entry, until)?;
+            }
+        }
+        Ok(())
+    }
+
     fn run(
         &mut self,
         sweep: &Sweep,
@@ -481,6 +556,8 @@ impl Driver {
             }
             self.judge_goals()?;
             if self.finished() {
+                self.finish_restarts()?;
+                self.judge_goals()?;
                 self.check_ends()?;
                 self.tier()?;
                 return Ok(());

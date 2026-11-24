@@ -40,6 +40,7 @@ mod opened;
 mod opening;
 mod oracle;
 mod orders;
+mod outcome;
 mod panel_before_change;
 mod panels;
 mod periods;

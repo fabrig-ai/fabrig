@@ -99,6 +99,8 @@ pub struct CallError {
 pub struct World {
     /// Seeded engine faults; absent in all existing stories.
     pub restarts: Option<restarts::Injector>,
+    pub(crate) workload_deadlines: Option<crate::outcome::Deadlines>,
+    pub(crate) workload_worker: Option<(jig_domain_link::Bounds, Box<[jig_domain_link::JobBound]>, u32)>,
     restart_calls: Option<Vec<(fake::Event, fake::Config)>>,
     checks: crate::checks::Checks,
     iteration: u64,
@@ -1725,6 +1727,8 @@ impl World {
         ends.restarted(Time::ZERO);
         Self {
             restarts: None,
+            workload_deadlines: None,
+            workload_worker: None,
             restart_calls: None,
             checks,
             iteration: 0,
@@ -2482,7 +2486,7 @@ impl World {
         if self.oracle_peer.is_some() || !self.assigned.is_empty() {
             let mut bounds = protocol::bounds();
             bounds.message_bytes = self.env.limits.tasks.message_bytes.max(self.env.limits.tasks.result_bytes);
-            self.events.push_back(protocol::hello_with(
+            let mut hello = protocol::hello_with(
                 Token::new(7),
                 0,
                 self.oracle_peer.map_or(if with_change { 2 } else { 1 }, |(_, _, slots)| slots),
@@ -2494,7 +2498,18 @@ impl World {
                         protocol::hosting(assignment.task, assignment.attempt, jig_domain_link::Phase::Active)
                     })
                     .collect(),
-            ));
+            );
+            if let Some(worker) = &self.workload_worker
+                && let engine::Event::Worker(engine::WorkerInput::Link {
+                    link: engine::Link::Hello { hello, .. }, ..
+                }) = &mut hello
+            {
+                hello.bounds = worker.0.clone();
+                hello.jobs.clone_from(&worker.1);
+                hello.slots = worker.2;
+                hello.fresh = false;
+            }
+            self.events.push_back(hello);
         }
     }
 
@@ -3336,12 +3351,28 @@ impl World {
         self.try_tick().unwrap_or_else(|finding| panic!("{finding}"));
     }
 
+    /// Rehearse the workload's final committed store through a cold opening.
+    pub(crate) fn check_workload_store(&self) -> Result<(), String> {
+        crate::check::store(&self.store, &self.restart_config, &self.env.limits, self.env.wall, self.store.applied)
+    }
+
     /// A tick whose referee finding is returned to a check's own test.
     pub fn try_tick(&mut self) -> Result<(), String> {
         // Do not move the large inline ledger on iterations with no injector.
         if self.restarts.is_some() {
+            let armed = self
+                .workload_deadlines
+                .as_ref()
+                .map(|_| crate::outcome::Deadlines::armed(&self.root, &self.store, self.env.now));
             let mut injector = self.restarts.take().expect("enabled restart injector");
+            let before = injector.ledger.entries().len();
             injector.tick(self);
+            if let Some(armed) = armed {
+                self.workload_deadlines
+                    .as_mut()
+                    .expect("workload observer")
+                    .struck(&armed, &injector.ledger.entries()[before..]);
+            }
             self.restarts = Some(injector);
         }
         if self.restart_calls.is_some() {

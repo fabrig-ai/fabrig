@@ -26,6 +26,8 @@ impl Driver {
                 && task(&self.world, target).is_some_and(|row| !row.waiting_on.is_empty())
             {
                 vec!["a dependency holds the answer"]
+            } else if action.act == Act::CancelGoal && crate::acts::goal_branch_making(&self.world, target) {
+                vec!["a goal branch making in flight"]
             } else if action.act == Act::AmendPassedDeadline && action.party == goal.party {
                 vec!["the amending party started the goal"]
             } else {
@@ -308,12 +310,18 @@ impl Driver {
             });
             let expect = if self.waits(&goal.name) {
                 Expect::Waits
-            } else if struck || self.actions.is_empty() {
+            } else if struck || self.actions.is_empty() || self.world.workload_deadlines.is_some() {
                 Expect::Ends
             } else {
                 Expect::Untouched
             };
-            let last_fault = self.ledger.entries().iter().map(|entry| entry.until.unwrap_or(entry.from)).max();
+            let last_fault = self
+                .ledger
+                .entries()
+                .iter()
+                .chain(self.world.restarts.iter().flat_map(|injector| injector.ledger.entries()))
+                .map(|entry| entry.until.unwrap_or(entry.from))
+                .max();
             let progress = self.goals.get_mut(&goal.name).expect("goal");
             if progress.expect != Some(expect) {
                 let mut ends = Ends::new(self.seed, OPENING);
@@ -328,7 +336,26 @@ impl Driver {
                 }
                 progress.fault_at = last_fault;
             }
-            progress.ends.as_mut().expect("goal referee").step(self.world.env.now, &self.world.store)?;
+            progress.ends.as_mut().expect("goal referee").step(self.world.env.now, &self.world.store).map_err(
+                |finding| {
+                    format!(
+                        "{finding}; tasks {:?}; assignments {:?}",
+                        self.world
+                            .store
+                            .rows
+                            .values()
+                            .filter_map(|record| {
+                                if let Record::Core(core::Record::Tasks(tasks::Stored::Live(row))) = record {
+                                    Some((row.number, row.requester, &row.phase, row.tries, &row.waiting_on))
+                                } else {
+                                    None
+                                }
+                            })
+                            .collect::<Vec<_>>(),
+                        self.world.assigned.iter().map(|run| (run.task, run.attempt)).collect::<Vec<_>>()
+                    )
+                },
+            )?;
         }
         Ok(())
     }

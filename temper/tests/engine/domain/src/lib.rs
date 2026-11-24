@@ -4,6 +4,7 @@ pub mod acts;
 pub mod checks;
 pub mod host_tool;
 pub mod journal_limits;
+pub mod outcome;
 /// The protocol layer the world plays: link records, tool decode and render, outcomes, accounts.
 pub mod protocol;
 pub mod replay;
