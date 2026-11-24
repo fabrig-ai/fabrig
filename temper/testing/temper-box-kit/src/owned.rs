@@ -606,6 +606,10 @@ pub fn binaries() -> (PathBuf, PathBuf) {
 /// Writes the process tier's owned setup and engine configuration without starting a process.
 #[must_use]
 pub fn tier_configuration(directory: &Path) -> std::net::SocketAddr {
+    tier_configuration_with_runner(directory, true)
+}
+
+pub(super) fn tier_configuration_with_runner(directory: &Path, runner: bool) -> std::net::SocketAddr {
     let owned = Owned::tier();
     super::configuration(
         directory,
@@ -619,7 +623,7 @@ pub fn tier_configuration(directory: &Path) -> std::net::SocketAddr {
         directory,
         &Names {
             forgejo: &owned.forgejo_binary,
-            runner: Some(&owned.runner_binary),
+            runner: runner.then_some(owned.runner_binary.as_path()),
             port: owned.forgejo.port(),
             bot: "temper",
             person: "ada",

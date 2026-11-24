@@ -114,7 +114,7 @@ mmdebstrap
   (`/etc/apt/apt.conf.d/99mmdebstrap`, `/etc/dpkg/dpkg.cfg.d/99mmdebstrap`).
   `install_recommends` is the packages part's (hearth/docs/design/domain/render/spec.md, 1.2). The
   others are hearth's constants, part of the encoding's version
-  `hearth/1` (hearth/docs/design/domain/store/README.md, 3.2), so changing one changes every key:
+  `hearth/1` (hearth/docs/design/domain/store/digests.md, 1.2), so changing one changes every key:
   `Check-Valid-Until`, which resolution passes too, and `force-confold`,
   which keeps the configuration file the setup hook places before its
   package (5). No proxy is passed: the source is local.
@@ -150,7 +150,7 @@ mmdebstrap
   - `/var/lib/machines` and `/var/lib/portables` are made directories
     first: systemd-container's postinst runs `systemd-tmpfiles --create`,
     whose `Q` lines make both subvolumes on btrfs where they are absent,
-    and the walk refuses a nested subvolume (hearth/docs/design/domain/store/README.md, 3.4). Seen with
+    and the walk refuses a nested subvolume (hearth/docs/design/domain/store/digests.md, 1.4). Seen with
     sid's systemd 261; trixie's 257 is to confirm.
 - **The extract hook seeds fixed ids,** after the essential packages are
   unpacked and before any is configured, in every variant. hearth/docs/design/protocol/format/README.md
@@ -177,7 +177,7 @@ mmdebstrap
 - **The initramfs configuration is the packages part's,** which render
   writes from its two fields, the modules and the microcode choice
   (hearth/docs/design/domain/render/spec.md, 1.2; hearth/docs/design/domain/machine/boot.md, 4.1). Nothing a task writes reaches it
-  (hearth/docs/design/protocol/format/tasks.md, 11), so `AUTO_MODULES=yes` and `MICROCODE=yes`, which
+  (hearth/docs/design/protocol/format/tasks-reserved.md, 1), so `AUTO_MODULES=yes` and `MICROCODE=yes`, which
   read the build host, cannot occur.
 - **apt's configuration** enters as `--aptopt` (4), written by
   mmdebstrap during its setup, permanent by design.
@@ -249,7 +249,7 @@ is the running one. They go in the tree file's end item (hearth/docs/design/doma
 ```
 version     the <version> of usr/lib/modules/<version> and boot/vmlinuz-<version>
 kernel      the content digest of boot/vmlinuz-<version>, from the walk
-modules     the subtree digest of usr/lib/modules/<version> (../store/README.md, 3.4)
+modules     the subtree digest of usr/lib/modules/<version> (../store/digests.md, 1.4)
 initramfs   the initramfs's input digest, below
 ```
 

@@ -67,10 +67,10 @@ The fleet child domain knows the hosts and the runs they host:
   taken as ever. An attempt the fleet chose for it and has not yet
   assigned there is placed again, as one refused as busy is, and no
   attempt is refused for the drain. A refusal as busy keeps a worker out
-  only until a slot frees there; a drain keeps it out for the rest of
-  its channel. A
-  worker that dials again is a new channel, placed on once its logins
-  answer.
+  until a slot frees there or the worker changes its word to taking.
+  An empty worker can thus recover local capacity. A worker shutting
+  down stays out for the rest of its channel. A worker that dials again
+  is a new channel, placed on once its logins answer.
 - **A paused worker leaves placement too.** An owner's ask to pause or
   drain a linked worker (`workers.md`, 5) is the fleet's to carry: it
   asks the worker's admitted channel, `Request::Pause { channel, mode }`

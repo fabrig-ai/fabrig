@@ -401,6 +401,8 @@ pub enum Seen {
     Acted { tool: String, path: String, error: bool },
     /// A server tool call and whether its result failed, without its input.
     Called { tool: String, error: bool },
+    /// A checked server reply lacked its expected text, even if the reply was already an error.
+    ReplyMismatch { tool: String },
     /// A built-in tool's permission decision, without its input.
     Prompted { tool: String, decision: Decision },
 }

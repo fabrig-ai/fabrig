@@ -132,6 +132,39 @@ fn a_program_grant_starts_claude_with_its_tools() {
 }
 
 #[test]
+fn a_program_exec_offers_the_live_claude_story_s_tools() {
+    use smith_events::{Event, Family};
+
+    let story = Story { turns: vec![Turn::new(vec![finish()])], ..Story::default() };
+    let run = program_world::run(Case::Events, &story, Some(b"claude.ai"), &charter_tools(), &program(b"source"), None);
+    accepted(&run);
+    assert_eq!(run.exits, [skein_io::kernel::Exit::Code(0); 5], "all hosted processes exit successfully");
+    let started = run
+        .events
+        .iter()
+        .find_map(|record| match &record.event {
+            Event::RunStarted(start) => Some(start),
+            _ => None,
+        })
+        .expect("program admission event");
+    assert_eq!(started.tools.families.as_slice(), [Family::Inspect, Family::Modify, Family::Shell]);
+    let tools = run
+        .events
+        .iter()
+        .find_map(|record| match &record.event {
+            Event::ResponseStarted(start) => {
+                start.prompt.as_ref().and_then(|prompt| prompt.tools.as_ref()).filter(|tools| !tools.is_empty())
+            }
+            _ => None,
+        })
+        .expect("the first prompt's offered tools");
+    let tools: Vec<&[u8]> = tools.iter().map(AsRef::as_ref).collect();
+    if let Some(fault) = smith_agent_process_world::program_contract::offered_tools_fault(&tools) {
+        panic!("{fault}");
+    }
+}
+
+#[test]
 fn a_built_in_call_is_told_with_its_text() {
     let run = steps(vec![read("a"), finish()]);
     accepted(&run);
@@ -563,6 +596,7 @@ fn a_program_without_modify_has_no_remove_tool() {
             | Seen::UnreadableSettings
             | Seen::Acted { .. }
             | Seen::Called { .. }
+            | Seen::ReplyMismatch { .. }
             | Seen::Prompted { .. } => None,
         })
         .collect();

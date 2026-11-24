@@ -1,4 +1,4 @@
-//! A task's typed exports depend on its settings and target alone (hearth/docs/design/protocol/format/README.md, 6.1).
+//! A task's typed exports depend on its settings and target alone (hearth/docs/design/protocol/format/exports.md, 1.1).
 use crate::evaluate::Entry;
 use alloc::boxed::Box;
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]

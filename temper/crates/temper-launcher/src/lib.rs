@@ -26,9 +26,15 @@ pub fn is_launcher(program: &OsStr) -> bool {
 #[must_use]
 pub fn run(name: &str, program: &OsStr, arguments: &[Box<[u8]>], environment: &[EnvironmentEntry]) -> u8 {
     let why = launch(program, arguments, environment).expect_err("exec only returns on failure");
-    eprintln!("{name}: claude: {why}");
-    1
+    let (code, line) = launch_refusal(name, &why);
+    eprint!("{line}");
+    code
 }
+
+fn launch_refusal(name: &str, why: &str) -> (u8, String) {
+    (1, format!("{name}: claude: {why}\n"))
+}
+
 fn launch(program: &OsStr, arguments: &[Box<[u8]>], environment: &[EnvironmentEntry]) -> Result<(), String> {
     let directory = Path::new(program).parent().ok_or("launcher has no parent")?;
     let cache = fs::read_link(directory.join("cache")).map_err(|why| format!("cache: {why}"))?;
@@ -247,6 +253,17 @@ mod tests {
                 "{name} keeps the pinned build from updating itself"
             );
         }
+    }
+
+    #[test]
+    fn a_cache_refusal_names_the_agent_and_claude() {
+        let failure = temper_fetch_shell::fetch::Failed::Refused(temper_fetch::fetch::Failure::Present {
+            file: b"/cache/claude".as_slice().into(),
+        });
+        assert_eq!(
+            launch_refusal("temper-agent", &failure.words()),
+            (1, "temper-agent: claude: /cache/claude: does not match the pinned digest\n".into())
+        );
     }
 
     #[test]

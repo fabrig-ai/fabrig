@@ -1,4 +1,4 @@
-//! Render's shared values (hearth/docs/design/domain/render/README.md, 5.1).
+//! Render's shared values (hearth/docs/design/domain/render/crates.md, 1.1).
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]
 extern crate alloc;

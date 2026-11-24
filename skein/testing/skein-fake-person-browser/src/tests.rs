@@ -565,6 +565,48 @@ fn a_refused_replacement_stops_its_sequence_and_retains_the_kit_refusal() {
 }
 
 #[test]
+fn timeouts_keep_the_answer_bound_and_a_find_never_reports_absence() {
+    let find = Find::text(b"answer");
+    let bound = skein_browser::Limits::default().answer;
+    for kind in ["find", "keep", "tabs", "snapshot", "screenshot", "act"] {
+        let mut face = face();
+        match kind {
+            "find" => assert_eq!(face.find(&find), Found::Pending),
+            "keep" => face.keep(b"input".as_slice().into(), None, b"read".as_slice().into()),
+            "tabs" => face.tabs(),
+            "snapshot" => face.snapshot(),
+            "screenshot" => face.screenshot_at(face.viewport_size().0),
+            "act" => face.key(Key::Enter, false),
+            _ => unreachable!(),
+        }
+        let op = Token::new(face.serial());
+        face.requests().for_each(drop);
+        face.event(&Event::Refused { op, why: Refusal::Timeout, detail: Box::default() });
+        assert_eq!(face.expired(), Some(bound), "{kind}");
+        if kind == "find" {
+            assert_eq!(face.find(&find), Found::Pending);
+            assert!(face.requests().next().is_none());
+        }
+        assert!(face.failure().expect(kind).contains("Timeout"), "{kind}");
+        assert_eq!(face.expired(), None);
+    }
+    let mut face = face();
+    assert_eq!(face.find(&find), Found::Pending);
+    let Request::Find { op, .. } = face.requests().next().expect("find") else { panic!("find request") };
+    face.event(&Event::Refused { op, why: Refusal::Protocol, detail: Box::default() });
+    assert_eq!(face.expired(), None);
+    assert_eq!(face.failure().as_deref(), Some("browser refused find: Protocol"));
+    face.expire(bound, "waited for an answer".into());
+    assert_eq!(face.expired(), Some(bound));
+    assert_eq!(face.failure().as_deref(), Some("waited for an answer"));
+    assert_eq!(face.expired(), None);
+    face.fail("wrong answer".into());
+    face.expire(bound, "another wait expired".into());
+    assert_eq!(face.expired(), None);
+    assert_eq!(face.failure().as_deref(), Some("wrong answer"));
+}
+
+#[test]
 fn downloaded_files_are_kept_in_completion_order() {
     let mut face = face();
     for (name, path) in [(b"second.json".as_slice(), b"/downloads/two".as_slice()), (b"first.json", b"/downloads/one")]

@@ -32,7 +32,7 @@
   `a_kept_forgejo_at_its_redirect_gets_its_meta_and_the_page_a_new_etag`
   (`temper/crates/temper-service/src/tests/forge_sign_in.rs`) holds of a
   record with `web`, and
-  `an_owned_forgejo_signs_its_member_in_through_temper`
+  `an_owned_forgejo_signs_its_people_in_through_temper`
   (`temper/bin/temper-box/tests/process.rs`) of a managed `forge connect`
   without `--web`. So `temper/docs/help/server.md`, 6 says the meta
   appears once `forge connect` has kept the forge and, if a page fetched

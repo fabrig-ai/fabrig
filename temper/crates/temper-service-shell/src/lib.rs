@@ -10,6 +10,8 @@ use temper_shell::{
     directories::{Directories, unread},
     link_file,
 };
+mod disk;
+pub use disk::DISK_BUDGET;
 pub mod configuration;
 pub mod host;
 pub mod providers;
@@ -118,6 +120,7 @@ pub type Ending<S> = fn(&S, &str, bool, &Directories, &[u8]) -> (String, u8);
 /// A binary's adapter to its service (protocol/services.md, 7).
 /// The shell owns scheduling and output; these plain functions supply the service's operations and words.
 pub struct Served<S> {
+    pub set_local_places: Option<fn(&mut S, u32)>,
     pub stages: &'static [service::Stage],
     pub iterate_stage: fn(&mut S, service::Stage, skein_lib::Time, skein_lib::Wall),
     pub resolve: fn(&mut S),
@@ -175,6 +178,7 @@ fn run_inner<S, B, A>(
     prepare: impl FnOnce(&[u8], &temper_config_shell::Programs, &mut Vec<Fd>, B) -> Result<Prepared<S, A>, String>,
     adopt: impl FnOnce(&mut S, &mut Vec<Fd>, A) -> Result<(), String>,
 ) -> Result<Exit, String> {
+    let disk = if served.set_local_places.is_some() { disk::Budget::read(environment)? } else { None };
     let link_file = local_link(directories, environment);
     let listeners = skein_shell::inherited_listeners().map_err(listeners_refusal)?;
     let input = before(listeners.len())?;
@@ -218,6 +222,7 @@ fn run_inner<S, B, A>(
     let mut host = Host::with_binary(binary, service, served, directories.clone(), environment);
     host.store = store;
     host.link_file = link_file;
+    host.disk = disk;
     let exit = skein_shell::drive(&mut kernel, clock, &mut host);
     if let Some(path) = &host.link_file {
         link_file::forget(path);
@@ -225,7 +230,9 @@ fn run_inner<S, B, A>(
     Ok(exit)
 }
 
-fn serve_error(binary: &str, why: &str) -> String {
+/// Prefix each line of a serve startup refusal with the binary and command.
+#[must_use]
+pub fn serve_error(binary: &str, why: &str) -> String {
     prefixed(&format!("{binary} serve"), why)
 }
 

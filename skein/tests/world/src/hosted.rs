@@ -3,7 +3,7 @@
 use std::collections::VecDeque;
 
 use skein_io::kernel::{Complete, Done, Exit, Fd, Op, OpenHow, Pipe, Reason, Signal, Spawn, Submit, Way};
-use skein_lib::{Duration, Queue, Time, Token, Wall};
+use skein_lib::{Queue, Time, Token, Wall};
 use skein_world::{Host, Inherited, Machine};
 
 /// One sequential kernel operation in a parent or child script.
@@ -11,8 +11,6 @@ use skein_world::{Host, Inherited, Machine};
 pub enum Act {
     /// The parent asks to start the hosted program.
     Spawn,
-    /// The parent starts the named hosted program.
-    SpawnProgram(&'static [u8]),
     /// Sets a terminal window size through its master.
     Resize(usize, skein_io::kernel::Size),
     /// Reads the terminal modes through its master.
@@ -43,14 +41,10 @@ pub enum Act {
     CloseLaunch,
     /// The parent sends an interrupt, termination or kill signal to its child.
     Signal(Signal),
-    /// The parent kills its child's group for this cause, as io's close does.
-    Kill(Reason),
     /// The child waits for a catchable signal from its parent.
     ReadSignal,
     /// The script stops until this simulated instant.
     Pause(Time),
-    /// The script pauses from the iteration that starts this act.
-    PauseFor(Duration),
 }
 
 /// A script runs kernel operations and closes all its descriptors at the end.
@@ -132,14 +126,6 @@ impl Script {
         script
     }
 
-    /// A hosted parent uses its last startup root to launch its own child.
-    #[must_use]
-    pub fn hosted_parent(inherited: &Inherited, acts: &[Act]) -> Self {
-        let mut script = Self::child(inherited, acts);
-        script.root = Some(script.roots.pop().expect("hosted parent's launch root"));
-        script
-    }
-
     /// Adopts scripted pipe or terminal descriptors opened by the binary kit.
     #[must_use]
     pub fn pipes(fds: Vec<Fd>, acts: &[Act]) -> Self {
@@ -154,15 +140,12 @@ impl Script {
         self.waiting = true;
     }
 
-    fn start(&mut self, act: Act, now: Time) {
+    fn start(&mut self, act: Act) {
         let kind = match act {
-            Act::Spawn | Act::SpawnStderr | Act::SpawnProgram(_) => Op::Spawn {
+            Act::Spawn | Act::SpawnStderr => Op::Spawn {
                 spawn: Box::new(Spawn {
                     reach: None,
-                    program: Box::from(match act {
-                        Act::SpawnProgram(program) => program,
-                        _ => &b"hosted"[..],
-                    }),
+                    program: Box::from(&b"hosted"[..]),
                     args: self.args.clone(),
                     env: Box::new([Box::from(&b"KEY=value"[..])]),
                     root: self.root.expect("parent root"),
@@ -205,17 +188,9 @@ impl Script {
                 signal,
                 to: skein_io::kernel::Target::Child,
                 reason: match signal {
-                    Signal::Kill => skein_io::kernel::Reason::Asked,
-                    Signal::Interrupt | Signal::Terminate | Signal::Stop | Signal::Continue => {
-                        skein_io::kernel::Reason::Unknown
-                    }
+                    Signal::Kill => Reason::Asked,
+                    Signal::Interrupt | Signal::Terminate | Signal::Stop | Signal::Continue => Reason::Unknown,
                 },
-            },
-            Act::Kill(reason) => Op::Signal {
-                pidfd: self.pidfd.expect("spawned child"),
-                signal: Signal::Kill,
-                to: skein_io::kernel::Target::Group,
-                reason,
             },
             Act::AwaitStderr(bytes) => {
                 self.awaiting = Some(bytes);
@@ -232,10 +207,6 @@ impl Script {
             Act::ReadSignal => Op::ReadSignal { fd: self.signal.expect("child signal source") },
             Act::Pause(until) => {
                 self.pause = Some(until);
-                return;
-            }
-            Act::PauseFor(duration) => {
-                self.pause = Some(now.saturating_add(duration));
                 return;
             }
         };
@@ -300,7 +271,7 @@ impl Host for Script {
         }
         self.pause = None;
         if let Some(act) = self.acts.pop_front() {
-            self.start(act, now);
+            self.start(act);
             return;
         }
         if let Some(fd) = self

@@ -100,7 +100,7 @@ Focused and fuzzy suites only, within their budgets. Every case is a world below
   5. A worker back as a new process: its attempts are suspended at once.
   6. A signal to an agent while its host lives: it waits for its host's word.
   7. A timeout setting changed while runs work: the next operation uses it, and no run is cut.
-  8. With real processes: a worker stopped as its unit does settles its turn in flight.
+  8. With real processes: a worker stopped as its unit does settles its turn in flight (`temper-box::process` `a_unit_stop_settles_a_workers_held_turn`).
 - **Fuzzy:** in the shared failure worlds of the goal-execution draft, once they land, a worker stopped or crashed at any iteration of a random workload, with their checks: no try spent for a stop, every goal goes on within a bound, and the same seed with and without the stops reaches the same outcomes.
 
 ## 10. Out

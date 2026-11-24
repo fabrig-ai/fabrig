@@ -350,12 +350,12 @@ section 1; skein/docs/foundation/testing-strategy.md, 2.9).
   test in `bin/temper-box/tests/live.rs`, run by
   `scripts/proof-live.sh RUNG`, `rung-a` to `rung-b2`. Its driver, the
   same code, first walks the whole story offline on the rung's twin
-  (`real-loop.md`). B0's offline proofs need no person: its setup and its walk on
-  the twin are the process tier's (`process-tier.md`, *Two drivers' offline proofs*),
+  (`real-loop.md`). B0's offline proof needs no person: its walk on
+  the twin, its setup checked at the account's import, is the process tier's (`process-tier.md`, *Two drivers' offline proofs*),
   and its live configuration's admission is `suite`'s (`startup.rs`).
-  `scripts/proof-live.sh rung-b0-offline` runs the first two before the
+  `scripts/proof-live.sh rung-b0-offline` runs it before the
   live story, under profile `process-temper`, whose default filter
-  selects them; it admits no live account. A driver's own fault is met there, never
+  selects it; it admits no live account. A driver's own fault is met there, never
   by spending a held login.
   - **What runs:** a fresh box as the help makes one, its owned Forgejo
     set up through ctl with the playground's copy

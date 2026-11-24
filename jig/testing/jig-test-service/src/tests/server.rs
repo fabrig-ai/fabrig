@@ -212,21 +212,19 @@ fn a_bundle_file_is_immutable_and_its_kind_follows_its_suffix() {
 }
 #[test]
 fn the_page_is_revalidated_by_its_etag() {
+    const PAGE: &[u8] = b"<!doctype html><title>t</title>";
     const REQUESTS: &[(&[u8], u16, &[u8])] = &[
-        (b"GET /tasks/7 HTTP/1.1\r\nHost: localhost\r\n\r\n", 200, b"<!doctype html><title>t</title>"),
+        (b"GET / HTTP/1.1\r\nHost: localhost\r\n\r\n", 200, PAGE),
+        (b"GET /tasks/7 HTTP/1.1\r\nHost: localhost\r\n\r\n", 200, PAGE),
         (b"GET /tasks/7 HTTP/1.1\r\nHost: localhost\r\nIf-None-Match: \"0011223344556677\"\r\n\r\n", 304, b""),
-        (
-            b"GET /tasks/7 HTTP/1.1\r\nHost: localhost\r\nIf-None-Match: \"different\"\r\n\r\n",
-            200,
-            b"<!doctype html><title>t</title>",
-        ),
+        (b"GET /tasks/7 HTTP/1.1\r\nHost: localhost\r\nIf-None-Match: \"different\"\r\n\r\n", 200, PAGE),
     ];
     for (request, status, body) in REQUESTS {
         let reply = f::answer(&mut f::serving(f::bundle()), request);
         assert_eq!(reply.status, *status, "{request:?}");
         assert_eq!(*reply.fields(b"ETag"), [b"\"0011223344556677\"".as_slice()]);
         assert_eq!(*reply.fields(b"Cache-Control"), [b"no-cache".as_slice()]);
-        assert_eq!(reply.body.as_ref(), *body);
+        assert_eq!(reply.body.as_ref(), *body, "{request:?}");
     }
 }
 #[test]

@@ -39,11 +39,12 @@ fn a_tool_killed_mid_output_fails_the_call_with_75() {
 #[test]
 fn a_busy_lock_waits_and_says_so_once() {
     for seed in fixtures::WORLD_SEEDS {
-        let run = protocol::with_lock(&fixtures::thin(), seed, fixtures::PROTOCOL_LOCK_RELEASE);
+        let run = protocol::with_lock(&fixtures::thin(), seed, fixtures::PROTOCOL_LOCK_RELEASE, &hearth::limits());
         assert!(run.now >= fixtures::PROTOCOL_LOCK_RELEASE, "seed {seed}: the contender held the lock");
         assert!(run.lock_times.len() > 1, "seed {seed}: lock acquisition retried");
         assert_eq!(run.stderr, b"waiting for the store's lock: /srv/store\n", "seed {seed}: busy reported once");
         assert_eq!(run.stdout, fixtures::THIN_TEXT.as_bytes(), "seed {seed}: render after the lock was released");
+        assert_eq!(run.code, Some(0), "seed {seed}: success after waiting");
     }
 }
 
@@ -63,7 +64,42 @@ fn a_resolve_over_cut_pipes_records_its_closure() {
             ],
             "seed {seed}: each apt index renamed into cache"
         );
+        if seed == fixtures::SIMULATION_SEED {
+            assert_cached_indices(&run, fixtures::only(&records));
+        }
     });
+}
+
+fn assert_cached_indices(run: &protocol::Run, resolution: &hearth_protocol_tree::resolution::Resolution) {
+    use hearth_fake_machine::hearth::mirror::Timestamp;
+    use hearth_protocol_tree::{cache_file, limits};
+
+    let fake = run.shared.borrow();
+    let machine = fake.behind.machine();
+    let suite = machine
+        .reach(None)
+        .expect("fixture mirror")
+        .suite(b"debian", Timestamp::new(b"20261001T030405Z").expect("fixture timestamp"), b"forky")
+        .expect("fixture suite");
+    let expected = [
+        (b"InRelease".as_slice(), suite.in_release()),
+        (b"main/binary-amd64/Packages".as_slice(), suite.index(b"main").expect("fixture index")),
+    ];
+    let indices = resolution.sources.iter().flat_map(|source| source.indices.iter()).collect::<Vec<_>>();
+    assert_eq!(indices.len(), expected.len());
+    for (index, (path, bytes)) in indices.into_iter().zip(expected) {
+        assert_eq!(index.path.as_ref(), path);
+        let digest = skein_lib::sha256::digest(bytes);
+        assert_eq!(index.sha256.0, digest);
+        let cache = format!("/srv/store/cache/{}", fixtures::hex_digest(digest));
+        assert_eq!(machine.linux().contents(cache.as_bytes()), Some(bytes));
+        assert_eq!(machine.linux().facts(cache.as_bytes()).expect("cached index").mode & 0o777, 0o644, "{cache}");
+        let record = format!("{cache}.record");
+        let bytes = machine.linux().contents(record.as_bytes()).expect("cached index record");
+        let record = cache_file::read(bytes, &limits::SHIPPED).expect("valid index record");
+        assert_eq!(record.sha256.0, digest);
+        assert_eq!(record.origin, cache_file::Origin::Index { resolution: resolution.key });
+    }
 }
 
 const NOT_INSTALLED: &[(&str, fixtures::Fault, Option<u8>)] = &[

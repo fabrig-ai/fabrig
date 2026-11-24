@@ -137,8 +137,8 @@ integer    = [ "-" ] [0-9]+
 | `tojson` | any value | compact JSON: keys in order; `"` and `\` as `\"` and `\\`; U+0008, U+000C, U+000A, U+000D and U+0009 as `\b`, `\f`, `\n`, `\r` and `\t`; the rest of U+0000 to U+001F as `\u00xx`, in lowercase hex; everything else, `/` and U+007F included, as it is, in UTF-8 |
 | `shell_quote` | a string | single-quoted for sh, each `'` written `'\''` |
 | `systemd_escape` | a string | as `systemd-escape`: `/` to `-`, every byte outside `[A-Za-z0-9:_.]` and a leading `.` to `\xNN` |
-| `systemd_escape_path` | a path (`README.md`, 5.2) | as `systemd-escape --path`: slashes collapsed and trimmed, then escaped; `/` alone is `-` |
-| `basename`, `dirname` | a path (`README.md`, 5.2), or a relative path of a `file`'s form | its last segment; the rest. Of `/`, both are `/`; `/a`'s `dirname` is `/`, and a one-segment relative path's is `.`, as coreutils gives them |
+| `systemd_escape_path` | a path (`schema.md`, 1.2) | as `systemd-escape --path`: slashes collapsed and trimmed, then escaped; `/` alone is `-` |
+| `basename`, `dirname` | a path (`schema.md`, 1.2), or a relative path of a `file`'s form | its last segment; the rest. Of `/`, both are `/`; `/a`'s `dirname` is `/`, and a one-segment relative path's is `.`, as coreutils gives them |
 
 - **A value a filter does not take is an evaluation error:** an empty
   string, `a/` or `/a/../b` to `basename` or `dirname`, a relative path
@@ -191,12 +191,12 @@ integer    = [ "-" ] [0-9]+
 |---|---|---|
 | `target.name`, `.base`, `.environment` | the target | `x1-prod`, `x1`, `prod` |
 | `target.member` | the member's name; undefined outside a cluster | `1` |
-| `target.placement` | `kind`, `firmware`, `hardware`, `on` (`README.md`, 3.4) | |
+| `target.placement` | `kind`, `firmware`, `hardware`, `on` (`targets.md`, 1.4) | |
 | `target.containers` | the targets placed on this one: name to placement | `{"chat-prod": {…}}` on `east-prod` |
 | `debian` | the sources (`tasks.md`, 3) | `debian.suite` |
 | `settings` | the task's own settings, defaults filled | `settings.port` |
-| `tasks.<task>.<setting>` | declared reads (`README.md`, 5.4) | `tasks.core.domain` |
-| `exports.<task>` | declared export reads: target name to exports (`README.md`, 6.2) | `exports.vpn` |
+| `tasks.<task>.<setting>` | declared reads (`schema.md`, 1.4) | `tasks.core.domain` |
+| `exports.<task>` | declared export reads: target name to exports (`exports.md`, 1.2) | `exports.vpn` |
 | `key`, `value` | the element of a `for_each` entry, in its fields and its template; unknown elsewhere, in a `tree/` template too | |
 | `loop` and assigned names | inside the template | |
 

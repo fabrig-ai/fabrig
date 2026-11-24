@@ -1,4 +1,4 @@
-//! Postfix expressions (hearth/docs/design/domain/render/README.md, 5.3), mirrored from the template machine.
+//! Postfix expressions (hearth/docs/design/domain/render/crates.md, 1.3), mirrored from the template machine.
 use super::Filter;
 use alloc::boxed::Box;
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]

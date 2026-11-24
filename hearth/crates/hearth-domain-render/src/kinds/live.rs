@@ -1,4 +1,4 @@
-//! Live declarations (hearth/docs/design/protocol/format/tasks.md, 14).
+//! Live declarations (hearth/docs/design/protocol/format/tasks-live.md, 1).
 use super::secrets::{fault, formed, required};
 use crate::{
     entries::Located,

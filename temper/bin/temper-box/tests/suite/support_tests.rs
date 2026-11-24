@@ -78,44 +78,36 @@ fn the_elsewhere_deployment_keeps_the_whole_fixture_provider_in_its_data_directo
     std::fs::create_dir(&config).expect("config directory");
     std::fs::create_dir(&data).expect("data directory");
     support::configuration(&config, &support::Forge::Unreached);
-    support::owned::producer_landing_settings(&config, 2);
-    let before = temper_agent_fixtures::providers::read(&config);
-    let peer = support::fake_llm(Box::new([]));
-    support::forgejo_elsewhere::configure_llm(scratch.path(), &peer);
+    let before = temper_agent_fixtures::providers::read(&data);
+    let [listener] = support::reserve_listeners(&[]);
+    let address = listener.local_addr().expect("unused endpoint");
+    support::forgejo_elsewhere::configure_provider(scratch.path(), address);
 
     // Read the startup copy through the product's reader, not the world's retained inputs.
-    let running = temper_service_shell::providers::read(
-        &data.join("providers.setting"),
-        temper_service::stock::providers(),
-        &mut Vec::new(),
-    );
+    let running = temper_service_shell::providers::read(&data.join("providers.setting"), Box::new([]), &mut Vec::new());
     let running = temper_agent_fixtures::providers::flat(&running);
-    assert_eq!(running["endpoints"][0]["address"]["socket"], peer.address().to_string());
+    assert_eq!(running["endpoints"][0]["address"]["socket"], address.to_string());
     assert_eq!(running["endpoints"][0]["transport"], "tls");
     assert_eq!(running["endpoints"][0]["server_name"], "skein.test");
     assert_eq!(running["endpoints"][0]["trust"], serde_json::json!(config.join("root.der")));
     let mut expected = before;
-    expected["endpoints"][0]["address"] = serde_json::json!({"socket":peer.address().to_string()});
+    expected["endpoints"][0]["address"] = serde_json::json!({"socket":address.to_string()});
     assert_eq!(running, expected, "rebinding preserves the complete provider, not stock with a new socket");
     let settings: serde_json::Value =
-        serde_json::from_slice(&std::fs::read(config.join("native-landing-settings.json")).expect("landing settings"))
+        serde_json::from_slice(&std::fs::read(config.join("elsewhere-providers.json")).expect("provider edits"))
             .expect("settings JSON");
     let edits = support::provider_setup::items(&running);
-    assert!(settings["items"].as_array().expect("items").ends_with(&edits), "ctl commits the running providers");
+    assert_eq!(settings["items"], serde_json::json!(edits), "ctl commits the running providers");
     scratch.remove();
 }
 
 #[test]
-fn cluster_turn_setup_declares_the_paced_gate_and_prepare_job() {
-    use serde_json::json;
+fn cluster_turn_documents_admit_the_worker_and_script_delivery() {
     use temper_service::startup;
     let scratch = support::Scratch::startup("cluster-turn-documents");
     let mut cluster = support::cluster::Cluster::description_from(scratch.path(), &cluster_turn_setup::fixture());
     let figures = cluster_turn_setup::prepare(&mut cluster, scratch.path(), &support::free_addresses(&[]));
     let forge = cluster_turn_setup::read(&cluster.dir("forge").join("forge.json"));
-    assert_eq!(forge["workflows"], json!([{"file":"gate.yml","jobs":["gate"],"cue":{"declared":".fake-forge/gate"}}]));
-    assert_eq!(forge["manual_merges"], json!({"allow":true,"autodetect":true}));
-    assert_eq!(forge["pace"]["ci_ms"], cluster_turn_setup::CI_MS);
     temper_fake::forge::Document::decode(&serde_json::to_vec(&forge).expect("forge JSON")).expect("forge document");
     let llm = cluster_turn_setup::read(&cluster.dir("llm").join("llm.json"));
     temper_fake::llm::Document::decode(&serde_json::to_vec(&llm).expect("LLM JSON"))
@@ -131,11 +123,6 @@ fn cluster_turn_setup_declares_the_paced_gate_and_prepare_job() {
         &cluster.dir("engine").join("config").join(temper_config_shell::FILE),
         temper_config_shell::Shape::EngineAlone,
     );
-    let landing = cluster_turn_setup::read(&cluster.dir("engine").join("config/landing-settings.json"));
-    let project = &landing["items"][0]["set"];
-    assert_eq!(project["by"], "turn");
-    assert_eq!(project["batch"], 1);
-    assert_eq!(landing["items"][1]["set"]["repositories"][0]["gates"][0]["workflow"], "gate.yml");
     let limits = jig_protocol_config::DocumentLimits { bytes: 1_048_576, tokens: 65_536, depth: 32 };
     let bytes = serde_json::to_vec(&engine["engine"]).expect("engine JSON");
     let document = jig_protocol_config::document(&bytes, &limits).expect("engine document");
@@ -147,10 +134,6 @@ fn cluster_turn_setup_declares_the_paced_gate_and_prepare_job() {
         &mut figures.jig.clone(),
     )
     .expect("initial engine");
-    assert!(
-        temper_service::limits::prepare_jobs(&engine.limits).contains(&temper_service::limits::prepare_bound()),
-        "the worker's merge train must be declared"
-    );
     let document = support::start_document(
         &cluster.dir("engine").join("config").join(temper_config_shell::FILE),
         temper_config_shell::Shape::EngineAlone,
@@ -200,20 +183,47 @@ fn cluster_turn_setup_declares_the_paced_gate_and_prepare_job() {
     assert_eq!(
         jig_domain_fleet::shortfall(&needs, &agent.bounds, jig_domain_fleet::HostKind::Worker),
         None,
-        "the sole worker admits the stock and the prepare job"
+        "the sole worker admits the stock"
     );
     scratch.remove();
 }
 
 #[test]
-fn cluster_turn_settings_leave_spend_for_preparation_and_keep_current_fields() {
+fn cluster_turn_worker_inputs_exclude_the_forge_admin_token() {
+    let scratch = support::Scratch::startup("cluster-worker-inputs");
+    let mut cluster = support::cluster::Cluster::description_from(scratch.path(), &cluster_turn_setup::fixture());
+    cluster_turn_setup::prepare(&mut cluster, scratch.path(), &support::free_addresses(&[]));
+    let worker = cluster.dir("w1");
+    let config = worker.join("config").join(temper_config_shell::FILE);
+    let secret = worker.join("data/secrets/worker.secret");
+    let engine = support::start_document(
+        &cluster.dir("engine").join("config").join(temper_config_shell::FILE),
+        temper_config_shell::Shape::EngineAlone,
+    );
+    let figures = support::cluster::figures(&engine);
+    let agent = temper_worker_shell::agent::figures::configuration(&figures, None, &worker.join("data"), &[])
+        .expect("generated worker agent");
+    let token = temper_fake::credential::credential(17, temper_fake::credential::ADMIN_TOKEN);
+    for (name, bytes) in [
+        ("worker start", std::fs::read(config).expect("rendered worker configuration")),
+        ("worker agent", agent.into_vec()),
+    ] {
+        assert!(!bytes.windows(token.len()).any(|window| window == token), "forge admin token in {name}");
+    }
+    assert!(
+        std::fs::metadata(secret).expect("rendered worker secret").len() < token.len() as u64,
+        "the fixture's worker secret is too short to contain the forge admin token",
+    );
+    scratch.remove();
+}
+
+#[test]
+fn cluster_turn_settings_point_open_and_coding_runs_at_the_worker() {
     use serde_json::json;
     let scratch = support::Scratch::new("cluster-turn-settings");
     let calls: Vec<_> = [
         json!({}),
         json!({"newest":7}),
-        json!({"setting":{"kind":"policy","number":1},"value":{
-            "period_spend":48000,"roles":[{"number":0,"period_spend":48000}],"kept":"policy"}}),
         json!({"setting":{"kind":"charter","number":1},"value":{"documents":[1],"kept":"chat",
             "model":{"provider":2},"alternatives":[{"provider":1,"name":"fixture"}]}}),
         json!({"setting":{"kind":"charter","number":2},"value":{"documents":[2],"kept":"producer",
@@ -228,17 +238,12 @@ fn cluster_turn_settings_leave_spend_for_preparation_and_keep_current_fields() {
     .collect();
     let _apply = cluster_turn_setup::settings(scratch.path(), &calls);
     let settings = cluster_turn_setup::read(&scratch.path().join("turn-settings.json"));
-    let policy = &settings["items"][0]["set"];
-    assert_eq!(policy["roles"][0]["period_spend"], 41000, "7000 of the period remains for preparation");
-    assert_eq!(policy["kept"], "policy");
-    assert_eq!(settings["items"][1]["set"]["kept"], "chat");
-    assert_eq!(settings["items"][2]["set"]["kept"], "producer");
-    assert_eq!(
-        settings["items"][1]["set"]["model"]["provider"], 1,
-        "the chat uses the fake provider, not stock's first choice"
-    );
-    assert_eq!(settings["items"][2]["set"]["model"]["provider"], 1, "the producer uses the fake provider");
-    assert_eq!(settings["items"][3]["set"]["gates"], json!([]), "turn's test gate is the only gate");
+    for (item, kept) in settings["items"].as_array().expect("settings items").iter().take(2).zip(["chat", "producer"]) {
+        assert_eq!(item["set"]["kept"], kept);
+        assert_eq!(item["set"]["documents"], json!([]));
+        assert_eq!(item["set"]["hosts"], "workers");
+        assert_eq!(item["set"]["model"]["provider"], 1, "use the fake provider for {kept}");
+    }
     scratch.remove();
 }
 
@@ -360,8 +365,8 @@ fn turn_configuration_declares_the_prepare_job() {
 // It reaches `forgejo_elsewhere`, whose capture witness uses Linux's abstract Unix sockets.
 #[cfg(target_os = "linux")]
 #[test]
-fn elsewhere_settings_follow_the_connected_project() {
-    support::forgejo_elsewhere::tests::settings_follow_the_connected_project();
+fn elsewhere_reads_the_connected_project() {
+    support::forgejo_elsewhere::tests::reads_the_connected_project();
 }
 
 #[test]

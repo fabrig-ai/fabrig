@@ -1,4 +1,4 @@
-//! Closed reserved rules (hearth/docs/design/protocol/format/tasks.md, 11; hearth/docs/design/domain/machine/boot.md, 3.2).
+//! Closed reserved rules (hearth/docs/design/protocol/format/tasks-reserved.md, 1; hearth/docs/design/domain/machine/boot.md, 3.2).
 use alloc::boxed::Box;
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Reserved {
