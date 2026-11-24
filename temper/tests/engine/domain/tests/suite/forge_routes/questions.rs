@@ -482,6 +482,8 @@ fn encode_resolution_assignment(run: &engine::Assignment) {
         endpoints: smith_protocol_channel::Endpoints::new(entries),
         deployment: [0; 16],
         charter_bytes: 65_536,
+        reply_bytes: 1_048_576,
+        forge_reads: temper_engine_smith::ForgeReadBounds::STOCK,
     };
     assignment::down(run.clone(), &forges, &encoding, &Values::new(0, 0), CHANNEL, Time::ZERO)
         .expect("production resolution assignment encodes");

@@ -1,0 +1,6 @@
+patch 1
+owner smith 1
+
+family smith-transcript 7 to 8
+add Interrupted
+add Outcome.interrupted

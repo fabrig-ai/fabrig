@@ -128,7 +128,9 @@ fn comment_end(source: &[u8], start: usize) -> usize {
 
 // Foreign boundary fields are allowed only at their declared construction site.
 fn foreign_fields(path: &Path, source: &str) -> Vec<usize> {
-    if !path.ends_with("testing/jig-test-worker/src/tests/fixtures.rs") {
+    if !path.ends_with("testing/jig-test-worker/src/tests/fixtures.rs")
+        && !path.ends_with("testing/jig-channel-kit/src/restarts.rs")
+    {
         return Vec::new();
     }
     let bytes = source.as_bytes();
@@ -145,7 +147,11 @@ fn foreign_fields(path: &Path, source: &str) -> Vec<usize> {
             index = comment_end(bytes, index);
             continue;
         }
-        let named = "smith::Directory";
+        let named = if path.ends_with("testing/jig-channel-kit/src/restarts.rs") {
+            "smith_host_domain::Directory"
+        } else {
+            "smith::Directory"
+        };
         if source[index..].starts_with(named)
             && !index
                 .checked_sub(1)
@@ -403,6 +409,18 @@ fn only_the_foreign_directory_field_is_allowed_at_its_named_site() {
     let literal = format!("fn setup() {{ let directory = smith::Directory {{ {field}: false }}; }}");
     let cases = [
         ("foreign field", site, literal.clone(), 0),
+        (
+            "restart mount",
+            Path::new("testing/jig-channel-kit/src/restarts.rs"),
+            format!("let directory = smith_host_domain::Directory {{ {field}: false }};"),
+            0,
+        ),
+        (
+            "other restart record",
+            Path::new("testing/jig-channel-kit/src/restarts.rs"),
+            format!("let directory = other::Directory {{ {field}: false }};"),
+            1,
+        ),
         ("elsewhere in named file", site, format!("{literal} fn {field}() {{}}"), 1),
         ("other file", other, literal, 1),
         ("other record", site, format!("let directory = other::Directory {{ {field}: false }};"), 1),

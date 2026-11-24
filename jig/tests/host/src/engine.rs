@@ -198,6 +198,8 @@ impl Engine {
     /// Takes the host's request `request`, which is for the engine.
     pub fn take(&mut self, request: Request) -> Vec<Act> {
         match request {
+            Request::Agent(ToAgent::AcknowledgePart { .. }) => panic!("scripted agent sends no parts"),
+            Request::Up(LinkUp::Part { .. }) => panic!("parts are not relayed by this hub"),
             Request::Asked { .. } | Request::Up(LinkUp::Ask { .. }) => {
                 unreachable!("the script does not make application asks")
             }
@@ -338,7 +340,14 @@ impl Engine {
             live: jig_domain_host::LiveAsk::NONE,
             charter,
         };
-        let mut assignment = Assignment { messages: Box::new([]), assignment, turns, answered: Box::new([]) };
+        let mut assignment = Assignment {
+            parts: Box::new([]),
+            tell_parts: false,
+            messages: Box::new([]),
+            assignment,
+            turns,
+            answered: Box::new([]),
+        };
         if !self.rng.chance(self.script.invalid) {
             return (assignment, None);
         }

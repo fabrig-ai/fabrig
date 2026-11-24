@@ -105,7 +105,11 @@ fn next(text: &[u8], offset: &mut usize) -> Option<Span> {
 }
 
 pub(super) fn check(schema: &mut Schema) -> Result<(), SchemaError> {
-    names(schema)?;
+    // Layout already checked current names. The metadata name table is only
+    // needed to check former names against them and against each other.
+    if !schema.former.is_empty() {
+        names(schema)?;
+    }
     let mut pool = core::mem::replace(&mut schema.pool, List::with_capacity(0));
     for at in 0..schema.fields.len() {
         let field = schema.field(FieldIx::new(at));

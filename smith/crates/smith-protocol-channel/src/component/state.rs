@@ -19,6 +19,8 @@ pub(super) enum State {
 #[derive(Debug)]
 pub(super) struct Active {
     pub(super) turns: Turns,
+    pub(super) tell_parts: bool,
+    pub(super) answered_turn: bool,
     pub(super) live: Option<smith_channel::LiveAsk>,
     pub(super) cancellation: Cancellation,
     pub(super) long_open: u32,

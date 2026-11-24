@@ -33,63 +33,70 @@ pub(super) struct Login {
 }
 
 impl Login {
-    fn signed_in(&mut self, subject: Option<Box<[u8]>>, missing: &[u8]) {
+    fn signed_in(&mut self, subject: Option<Box<[u8]>>, missing: &[u8]) -> String {
         if let Some(subject) = subject {
             for (name, file) in &self.others {
                 match sign_in::record(file) {
                     Ok(Some(record)) if record.subject.as_deref() == Some(subject.as_ref()) => {
-                        eprintln!("smith: account {}: already signed in as account {name}", self.name);
+                        let line = format!("smith: account {}: already signed in as account {name}", self.name);
                         self.state = State::Rollback;
                         self.driver.sign_out(0);
-                        return;
+                        return line;
                     }
                     Err(_) => {
-                        eprintln!("smith: account {name}: unreadable sign-in record");
+                        let line = format!("smith: account {name}: unreadable sign-in record");
                         self.state = State::Rollback;
                         self.driver.sign_out(0);
-                        return;
+                        return line;
                     }
                     Ok(Some(_) | None) => {}
                 }
             }
         }
         if missing.is_empty() {
-            if self.notice {
-                eprintln!("{}", registration::NOTICE);
-            }
-            eprintln!("account {}: signed in", self.name);
             self.outcome = Some(LoginOutcome::Usable);
+            let name = &self.name;
+            if self.notice {
+                format!("{}\naccount {name}: signed in", registration::NOTICE)
+            } else {
+                format!("account {name}: signed in")
+            }
         } else {
-            eprintln!("Signed in without plan usage: run `smith login {}` again and allow it, or use a key", self.name);
             self.outcome = Some(LoginOutcome::Unavailable);
+            format!("Signed in without plan usage: run `smith login {}` again and allow it, or use a key", self.name)
         }
     }
 
-    fn visit(&mut self, url: &[u8]) {
+    fn visit(&mut self, url: &[u8]) -> String {
         let deadline = self.driver.next_deadline().expect("a Visit keeps the sign-in deadline");
         self.state = State::Waiting { deadline };
-        eprintln!("{}", visit_lines(url, self.ssh.as_deref()));
+        visit_lines(url, self.ssh.as_deref())
     }
 
-    fn terminal(&mut self, terminal: Settled, now: Time) {
+    fn terminal(&mut self, terminal: Settled, now: Time) -> String {
         match terminal {
             Settled::SignedIn { subject, missing } => self.signed_in(subject, &missing),
             Settled::SignedOut { revoked } => {
-                if !revoked {
-                    eprintln!("account {}: disconnect smith at {}", self.name, registration::DISCONNECT);
-                }
-                eprintln!("account {}: signed out", self.name);
                 self.outcome =
                     Some(if self.state == State::Rollback { LoginOutcome::Refused } else { LoginOutcome::Usable });
+                let name = &self.name;
+                if revoked {
+                    format!("account {name}: signed out")
+                } else {
+                    format!(
+                        "account {name}: disconnect smith at {}\naccount {name}: signed out",
+                        registration::DISCONNECT
+                    )
+                }
             }
             Settled::Failed { failure, .. } => {
                 let (line, refused) = failure_line(&self.name, self.state, failure, now);
-                eprintln!("{line}");
                 self.outcome = Some(if refused || self.state == State::Rollback {
                     LoginOutcome::Refused
                 } else {
                     LoginOutcome::Unavailable
                 });
+                line
             }
         }
     }
@@ -103,7 +110,7 @@ impl Host for Login {
         self.driver.advance(now, wall, &mut self.out);
         while let Some(request) = self.out.pop() {
             match request {
-                CredentialRequest::Visit { url } => self.visit(&url),
+                CredentialRequest::Visit { url } => eprintln!("{}", self.visit(&url)),
                 CredentialRequest::SignedIn { .. }
                 | CredentialRequest::Failed { .. }
                 | CredentialRequest::Closed
@@ -112,7 +119,7 @@ impl Host for Login {
             }
         }
         while let Some((_, terminal)) = self.driver.settled() {
-            self.terminal(terminal, now);
+            eprintln!("{}", self.terminal(terminal, now));
         }
         if self.outcome.is_some() && !self.closing {
             self.driver.cancel(0);

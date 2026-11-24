@@ -1,5 +1,7 @@
 //! Startup's check document with value origins; credential values are redacted
-//! (shell/commands.md, section 4 and shell/settings.md, section 1.3 and shell/credentials.md). It starts no run or sign-in.
+//! (shell/commands.md, section 4; shell/settings.md, section 1.3; shell/README.md, section 2.3).
+//! `report` resolves the invocation, then projects the program inspections into the report.
+//! `command` writes the rendered verdict. Neither starts a run or sign-in.
 use crate::{
     command::{self, Command},
     settings::{self, Origin, Problem, Refusal, Settings},
@@ -75,66 +77,73 @@ pub enum Verdict {
 /// Build the document with access values omitted from every reported state.
 #[must_use]
 pub fn report(settings: &Settings, wall: skein_lib::Wall, clock: &skein_shell::Clock) -> Verdict {
-    report_for(settings, wall, clock, None)
+    report_for(Ok(settings), wall, clock, None)
 }
 
-#[expect(
-    clippy::too_many_lines,
-    reason = "one startup report resolves tools, limits and accounts without starting a run"
-)]
 fn report_for(
-    settings: &Settings,
+    settings: Result<&Settings, &Refusal>,
     wall: skein_lib::Wall,
     clock: &skein_shell::Clock,
     execution: Option<&command::Exec>,
 ) -> Verdict {
-    let mut resolved = match settings::resolve::resolve(settings) {
-        Ok(resolved) => resolved,
+    let prepared = match settings.map_err(Clone::clone).and_then(|settings| prepare_report(settings, wall, execution)) {
+        Ok(prepared) => prepared,
         Err(why) => return Verdict::Refused(why),
     };
-    let inventory = match startup_agent(&mut resolved).and_then(|()| invocation_limits(&mut resolved, execution, wall))
-    {
-        Ok(inventory) => inventory,
-        Err(reason) => {
-            return Verdict::Refused(Refusal {
-                origin: Origin::BuiltIn,
-                key: "limits".into(),
-                problem: Problem::Input(reason),
-            });
-        }
-    };
+    let mut answers = accounts::ProgramAnswers::new();
+    for account in accounts::program_accounts(&prepared.resolved) {
+        let answer = crate::credentials::program_check::inspect(&prepared.resolved, &account, clock);
+        answers.insert(account, answer);
+    }
+    prepared.finish(wall, answers)
+}
+
+struct PreparedReport {
+    resolved: settings::resolve::Resolved,
+    tools: BTreeMap<&'static str, PathBuf>,
+    environment: Vec<String>,
+    limits: Box<[smith_agent_service::profile::Limit]>,
+    named_limits: Vec<serde_json::Value>,
+    caches: Vec<PathBuf>,
+    warnings: Vec<Warning>,
+}
+
+fn prepare_report(
+    settings: &Settings,
+    wall: skein_lib::Wall,
+    execution: Option<&command::Exec>,
+) -> Result<PreparedReport, Refusal> {
+    let mut resolved = settings::resolve::resolve(settings)?;
+    startup_agent(&mut resolved).map_err(limits_refusal)?;
+    let limits =
+        invocation_limits(&mut resolved, execution, wall).map_err(limits_refusal)?.ok_or_else(effective_refusal)?;
+    let named_limits = named_limits(&limits, &resolved.agent).ok_or_else(effective_refusal)?;
     let settings = &resolved.settings;
-    let agent = &resolved.agent;
-    let Some(limits) = inventory else {
-        return effective_refusal();
-    };
-    let Some(named_limits) = named_limits(&limits, agent) else {
-        return effective_refusal();
-    };
-    let values = match settings::environment::values(settings) {
-        Ok(values) => values,
-        Err(why) => return Verdict::Refused(why),
-    };
+    let values = settings::environment::values(settings)?;
     let path = values.get("PATH").map(OsString::from);
+    let tools = check_tools(settings, path.as_ref())?;
+    let environment = values.keys().cloned().collect();
+    let caches = settings::environment::caches(settings, &values);
+    let warnings = warnings::collect(settings, &values, &caches)?;
+    Ok(PreparedReport { resolved, tools, environment, limits, named_limits, caches, warnings })
+}
+
+fn check_tools(settings: &Settings, path: Option<&OsString>) -> Result<BTreeMap<&'static str, PathBuf>, Refusal> {
     let mut tools = BTreeMap::new();
-    let rg = smith_agent_shell::config::find_rg(path.as_ref().map(|path| path.as_bytes()));
+    let rg = smith_agent_shell::config::find_rg(path.map(|path| path.as_bytes()));
     let Some(rg) = rg else {
-        return Verdict::Refused(Refusal {
-            origin: Origin::BuiltIn,
-            key: "tools.rg".into(),
-            problem: Problem::MissingTool,
-        });
+        return Err(Refusal { origin: Origin::BuiltIn, key: "tools.rg".into(), problem: Problem::MissingTool });
     };
     tools.insert("rg", rg);
     for name in ["sh", "git"] {
-        let resolved = path.as_ref().and_then(|path| {
+        let resolved = path.and_then(|path| {
             std::env::split_paths(path).map(|directory| settings.workspace.join(directory).join(name)).find(|file| {
                 std::fs::metadata(file)
                     .is_ok_and(|metadata| metadata.is_file() && metadata.permissions().mode() & 0o111 != 0)
             })
         });
         let Some(resolved) = resolved else {
-            return Verdict::Refused(Refusal {
+            return Err(Refusal {
                 origin: Origin::BuiltIn,
                 key: format!("tools.{name}"),
                 problem: Problem::MissingTool,
@@ -142,57 +151,58 @@ fn report_for(
         };
         tools.insert(name, resolved);
     }
-    let environment = values.keys().cloned().collect();
-    let caches = settings::environment::caches(settings, &values);
-    let mut warnings = match warnings::collect(settings, &values, &caches) {
-        Ok(warnings) => warnings,
-        Err(why) => return Verdict::Refused(why),
-    };
-    let credentials = accounts::report(&resolved, wall, clock);
-    let programs = resolved
-        .agent
-        .program
-        .iter()
-        .map(|program| (crate::credentials::program_check::key(ProgramName::ClaudeCode), program.path.clone()))
-        .collect();
-    for (account, state) in &credentials {
-        if !state.required && !state.credential.usable() {
-            warnings.push(Warning::Credential { account: account.clone(), credential: state.credential.clone() });
+    Ok(tools)
+}
+
+impl PreparedReport {
+    fn finish(self, wall: skein_lib::Wall, answers: accounts::ProgramAnswers) -> Verdict {
+        let Self { resolved, tools, environment, limits, named_limits, caches, mut warnings } = self;
+        let credentials = accounts::report(&resolved, wall, answers);
+        let programs = resolved
+            .agent
+            .program
+            .iter()
+            .map(|program| (crate::credentials::program_check::key(ProgramName::ClaudeCode), program.path.clone()))
+            .collect();
+        for (account, state) in &credentials {
+            if !state.required && !state.credential.usable() {
+                warnings.push(Warning::Credential { account: account.clone(), credential: state.credential.clone() });
+            }
         }
-    }
-    let mut redacted = settings.clone();
-    for (key, value) in &mut redacted.values {
-        if key == "credentials"
-            || key.starts_with("environment.set.")
-            || key.starts_with("endpoints.") && key.contains(".headers.")
-        {
-            value.value = toml::Value::String("<redacted>".into());
+        let mut redacted = resolved.settings;
+        for (key, value) in &mut redacted.values {
+            if key == "credentials"
+                || key.starts_with("environment.set.")
+                || key.starts_with("endpoints.") && key.contains(".headers.")
+            {
+                value.value = toml::Value::String("<redacted>".into());
+            }
         }
+        let identity = smith_agent_shell::identity();
+        let text = |bytes: &[u8]| String::from_utf8_lossy(bytes).into_owned();
+        Verdict::Ready(Box::new(Report {
+            version: CHECK_VERSION,
+            settings: redacted,
+            formats: BTreeMap::from([
+                ("channel", smith_channel::KindRule::FORMAT_VERSION),
+                ("charter", smith_charter::Charter::FORMAT_VERSION),
+                ("transcript", smith_transcript::Turn::FORMAT_VERSION),
+                ("events", smith_events::VERSION),
+                ("chat_store", smith_local_protocol::Store::FORMAT_VERSION),
+                ("check", CHECK_VERSION),
+            ]),
+            agent: serde_json::json!({"name":text(&identity.name),"version":text(&identity.version)}),
+            tools,
+            programs,
+            environment,
+            limits: limits.into_vec(),
+            named_limits,
+            caches,
+            warnings,
+            credentials,
+            outside_models: resolved.outside_models.into_iter().map(|(model, reason)| (model, reason.into())).collect(),
+        }))
     }
-    let identity = smith_agent_shell::identity();
-    let text = |bytes: &[u8]| String::from_utf8_lossy(bytes).into_owned();
-    Verdict::Ready(Box::new(Report {
-        version: CHECK_VERSION,
-        settings: redacted,
-        formats: BTreeMap::from([
-            ("channel", smith_channel::KindRule::FORMAT_VERSION),
-            ("charter", smith_charter::Charter::FORMAT_VERSION),
-            ("transcript", smith_transcript::Turn::FORMAT_VERSION),
-            ("events", smith_events::VERSION),
-            ("chat_store", smith_local_protocol::Store::FORMAT_VERSION),
-            ("check", CHECK_VERSION),
-        ]),
-        agent: serde_json::json!({"name":text(&identity.name),"version":text(&identity.version)}),
-        tools,
-        programs,
-        environment,
-        limits: limits.into_vec(),
-        named_limits,
-        caches,
-        warnings,
-        credentials,
-        outside_models: resolved.outside_models.into_iter().map(|(model, reason)| (model, reason.into())).collect(),
-    }))
 }
 
 /// Check the same caches and environment names before composing a product run.
@@ -202,12 +212,12 @@ pub fn startup_warnings(settings: &Settings) -> Result<Vec<Warning>, Refusal> {
     warnings::collect(settings, &values, &caches)
 }
 
-fn effective_refusal() -> Verdict {
-    Verdict::Refused(Refusal {
-        origin: Origin::BuiltIn,
-        key: "limits".into(),
-        problem: Problem::Input("effective limits or names exceed their bounds".into()),
-    })
+fn effective_refusal() -> Refusal {
+    limits_refusal("effective limits or names exceed their bounds".into())
+}
+
+fn limits_refusal(reason: String) -> Refusal {
+    Refusal { origin: Origin::BuiltIn, key: "limits".into(), problem: Problem::Input(reason) }
 }
 
 fn unit(value: smith_agent_service::profile::Value) -> &'static str {
@@ -424,19 +434,34 @@ pub fn command(arguments: &[OsString], wall: skein_lib::Wall, clock: &skein_shel
             return Some(2);
         }
     };
-    let verdict = match settings::read(&shared) {
-        Ok(settings) => report_for(&settings, wall, clock, execution.as_ref()),
-        Err(why) => Verdict::Refused(why),
-    };
+    let settings = settings::read(&shared);
+    let output = render_verdict(report_for(settings.as_ref(), wall, clock, execution.as_ref()), json);
+    if !output.stdout.is_empty() {
+        print!("{}", output.stdout);
+    }
+    if !output.stderr.is_empty() {
+        eprint!("{}", output.stderr);
+    }
+    Some(output.code)
+}
+
+struct Output {
+    code: u8,
+    stdout: String,
+    stderr: String,
+}
+
+fn render_verdict(verdict: Verdict, json: bool) -> Output {
     match verdict {
         Verdict::Ready(report) => {
-            println!("{}", if json { render_json(&report) } else { render_text(&report) });
-            Some(if report.credentials_ready() { 0 } else { 3 })
+            let text = if json { render_json(&report) } else { render_text(&report) };
+            Output {
+                code: if report.credentials_ready() { 0 } else { 3 },
+                stdout: format!("{text}\n"),
+                stderr: String::new(),
+            }
         }
-        Verdict::Refused(why) => {
-            eprintln!("{}", why.line());
-            Some(2)
-        }
+        Verdict::Refused(why) => Output { code: 2, stdout: String::new(), stderr: format!("{}\n", why.line()) },
     }
 }
 

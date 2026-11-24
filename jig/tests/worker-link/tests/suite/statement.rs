@@ -29,7 +29,7 @@ fn the_engine_states_the_current_version_first_and_the_worker_uses_it() {
             ("jig-worker-wire", wire::VERSION),
             ("smith-pieces", 1),
             ("smith-charter", 5),
-            ("smith-transcript", 7),
+            ("smith-transcript", 8),
             ("test-worker-wire", 3),
         ]
     );

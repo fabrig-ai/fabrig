@@ -83,11 +83,10 @@ pub(crate) fn symbols(values: &List<w::Symbol>) -> List<c::Symbol> {
     rows
 }
 
-#[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
-pub(crate) fn wire_symbols(values: &List<c::Symbol>, _limits: &w::Limits) -> Result<List<w::Symbol>, w::Problem> {
+pub(crate) fn wire_symbols(values: &List<c::Symbol>) -> List<w::Symbol> {
     let mut rows = List::with_capacity(values.len());
     for value in values {
         rows.push(w::Symbol { connector: value.connector, symbol: value.symbol }).expect("same capacity");
     }
-    Ok(rows)
+    rows
 }

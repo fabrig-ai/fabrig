@@ -229,7 +229,8 @@ enum Delivery {
     Host { relay: run::RelayName, reply: run::HostReply },
     Job { owner: Token },
     Cancel,
-    Drain,
+    Drain { grace: Option<Duration> },
+    PartKept { number: u32 },
     Grant { grant: Grant },
     Input { event: Box<Event> },
 }
@@ -338,16 +339,20 @@ pub struct World<B: Backend = Typed> {
     answer_detail: Box<[u8]>,
     answered: Option<Time>,
     checked: Vec<bool>,
+    check_marker: Option<Vec<u8>>,
+    check_results: Vec<(Box<[u8]>, bool)>,
     check_notices: Vec<(Time, bool)>,
     long_notices: Vec<(Time, Option<smith_domain::Operation>, Option<Time>)>,
     check_terminals: Vec<Time>,
     pushes: Vec<run::Delivery>,
     delivery_names: Vec<(run::CallName, Time)>,
     host_history: crate::host_referee::History,
+    resumed_host: Option<Box<[u8]>>,
     host_pending: BTreeMap<(u64, u32), Option<Key>>,
     host_decision: Option<run::HostAnswer>,
     host_decisions: u32,
     host_terminals: Vec<(run::RelayName, Time, run::HostReply)>,
+    host_withdrawals: Vec<(Time, run::RelayName)>,
     snapshots: BTreeMap<Token, Vec<u8>>,
     landed: Vec<u8>,
     prompts: Vec<provider::api::Query>,
@@ -355,6 +360,8 @@ pub struct World<B: Backend = Typed> {
     model_prices: BTreeMap<Box<[u8]>, run::Prices>,
     main_prices: run::Prices,
     turns: Vec<agent::Turn>,
+    parts: Vec<(Time, u32, u32, agent::session::record::Part)>,
+    command_writes: BTreeMap<Vec<u8>, Vec<(Duration, Vec<u8>)>>,
     messages_seen: Vec<(Time, crate::messages_referee::Seen)>,
     turn_metadata: Vec<(u32, Option<Token>, run::Spend)>,
     auto_ack: bool,
@@ -463,6 +470,7 @@ impl<B: Backend> World<B> {
         let root = fixture::seed(&mut disk);
         let workspace = Some(run::Workspace {
             directories: Box::new([run::Directory {
+                results: None,
                 host: Box::from(b"/host".as_slice()),
                 name: b"work".as_slice().into(),
                 root: Token::new(root),
@@ -478,12 +486,12 @@ impl<B: Backend> World<B> {
         clippy::too_many_arguments,
         reason = "the scripted world accepts each independent Start and backend fixture"
     )]
-    #[expect(
-        clippy::too_many_lines,
-        reason = "the world initializes its boundary observations beside the selected host start"
-    )]
     /// Start with caller-owned checkout, history and optional complete Start.
     #[must_use]
+    #[expect(
+        clippy::too_many_lines,
+        reason = "one world initializer binds the fake boundary, its observations and the selected host start"
+    )]
     pub fn with_selected_backend(
         settings: &Settings,
         transcript: Option<agent::Transcript>,
@@ -569,16 +577,20 @@ impl<B: Backend> World<B> {
             answer_detail: Box::new([]),
             answered: None,
             checked: Vec::new(),
+            check_marker: None,
+            check_results: Vec::new(),
             check_notices: Vec::new(),
             long_notices: Vec::new(),
             check_terminals: Vec::new(),
             pushes: Vec::new(),
             delivery_names: Vec::new(),
             host_history: crate::host_referee::History::with_reply_cap(settings.limits.run.host_reply_bytes),
+            resumed_host: None,
             host_pending: BTreeMap::new(),
             host_decision: None,
             host_decisions: 0,
             host_terminals: Vec::new(),
+            host_withdrawals: Vec::new(),
             snapshots: BTreeMap::new(),
             landed: Vec::new(),
             prompts: Vec::new(),
@@ -586,6 +598,8 @@ impl<B: Backend> World<B> {
             model_prices,
             main_prices,
             turns: Vec::new(),
+            parts: Vec::new(),
+            command_writes: BTreeMap::new(),
             messages_seen,
             turn_metadata: Vec::new(),
             auto_ack: false,
@@ -769,7 +783,96 @@ impl<B: Backend> World<B> {
 
     /// Ask the host to finish the current main turn, without cutting its calls.
     pub fn drain_at(&mut self, at: Time) {
-        self.schedule.send(at, Delivery::Drain);
+        self.drain_with_grace_at(at, None);
+    }
+
+    /// Ask for parts before the pending start is admitted.
+    pub fn tell_parts(&mut self) {
+        let Event::Start(mut start) = self.stage.next_event().expect("pending start") else { panic!("start pending") };
+        start.tell_parts = true;
+        self.stage.push(Event::Start(start));
+    }
+
+    /// Resume the cut turn from the host's durable parts.
+    pub fn resume_parts(&mut self, parts: Box<[agent::session::record::Resumed]>, activation: u64) {
+        let Event::Start(mut start) = self.stage.next_event().expect("pending start") else { panic!("start pending") };
+        start.parts = parts;
+        start.activation = activation;
+        start.tell_parts = true;
+        self.stage.push(Event::Start(start));
+    }
+
+    /// Return the settled fake checkout for a later activation.
+    pub fn take_checkout(&mut self) -> Checkout {
+        assert!(self.answer.is_some(), "only a settled activation releases its tree");
+        std::mem::take(&mut self.disk)
+    }
+
+    /// A scripted check writes a persistent marker under `SMITH_CHECK_RESULTS`.
+    pub fn check_marker(&mut self, name: &[u8]) {
+        self.check_marker = Some(name.into());
+    }
+
+    /// Results directory and whether the check found the previous marker.
+    pub fn check_results(&self) -> &[(Box<[u8]>, bool)] {
+        &self.check_results
+    }
+
+    /// Set the host's answered calls on the pending activation.
+    pub fn resume_answers(&mut self, answered: Box<[agent::AnsweredCall]>) {
+        let Event::Start(mut start) = self.stage.next_event().expect("pending start") else { panic!("start pending") };
+        start.answered = answered;
+        self.stage.push(Event::Start(start));
+    }
+
+    /// Grant the saved-turn fixture its unchecked-save tool.
+    pub fn grant_save(&mut self) {
+        let Event::Start(mut start) = self.stage.next_event().expect("pending start") else { panic!("start pending") };
+        start.charter.grants.save = true;
+        self.stage.push(Event::Start(start));
+    }
+
+    /// Messages carried by a resumed start, before any scheduling.
+    pub fn waking_messages(&mut self, messages: Box<[run::Message]>) {
+        let Event::Start(mut start) = self.stage.next_event().expect("pending start") else { panic!("start pending") };
+        start.messages = messages;
+        self.stage.push(Event::Start(start));
+    }
+
+    /// Supply the prefix the host kept before the cut answer.
+    pub fn resume_history(&mut self, transcript: agent::Transcript) {
+        let Event::Start(mut start) = self.stage.next_event().expect("pending start") else { panic!("start pending") };
+        start.transcript = Some(transcript);
+        self.stage.push(Event::Start(start));
+    }
+
+    /// Set one directory's persistent check-results path.
+    pub fn results_directory(&mut self, path: &[u8]) {
+        let Event::Start(mut start) = self.stage.next_event().expect("pending start") else { panic!("start pending") };
+        start.workspace.as_mut().expect("mounted workspace").directories[0].results = Some(path.into());
+        self.stage.push(Event::Start(start));
+    }
+
+    /// Set the pending start's durable record window.
+    pub fn record_window(&mut self, window: agent::Window) {
+        let Event::Start(mut start) = self.stage.next_event().expect("pending start") else { panic!("start pending") };
+        start.window = window;
+        self.stage.push(Event::Start(start));
+    }
+
+    /// Supply the host's grace for an answer-boundary drain.
+    pub fn drain_with_grace_at(&mut self, at: Time, grace: Option<Duration>) {
+        self.schedule.send(at, Delivery::Drain { grace });
+    }
+
+    /// A scripted command's bytes written at each elapsed time.
+    pub fn command_writes(&mut self, command: &[u8], writes: Vec<(Duration, Vec<u8>)>) {
+        self.command_writes.insert(command.to_vec(), writes);
+    }
+
+    /// Durable prefix of parts, independently of whole turns.
+    pub fn part_kept_at(&mut self, at: Time, number: u32) {
+        self.schedule.send(at, Delivery::PartKept { number });
     }
 
     /// Script durable host acknowledgement of this turn and its prefix.
@@ -1030,6 +1133,16 @@ impl<B: Backend> World<B> {
     )]
     fn request(&mut self, request: Request) {
         match request {
+            Request::Part { host_run, number, turn, part } => {
+                assert_eq!(host_run, self.host_run);
+                assert_eq!(usize::try_from(number).expect("part number"), self.parts.len() + 1);
+                assert_eq!(usize::try_from(turn).expect("turn number"), self.turns.len() + 1);
+                self.parts.push((self.now, number, turn, part));
+                if self.auto_ack {
+                    let run = self.admitted.expect("part follows admission");
+                    self.stage.push(Event::PartKept { run, number });
+                }
+            }
             Request::Turn { host_run, number, position, read, spent, opens_window, turn } => {
                 assert_eq!(host_run, self.host_run);
                 assert_eq!(usize::try_from(number).expect("bounded output number"), self.turns.len() + 1);
@@ -1121,6 +1234,22 @@ impl<B: Backend> World<B> {
                     self.check_notices.push((self.now, false));
                 }
             }
+            Request::Lower(smith_domain::Lower::Classify { owner, content, tools, served, asker, .. }) => {
+                let completion = crate::translate::classify(content, tools, &served, asker);
+                if let Some(completion) = &completion {
+                    for block in &completion.content {
+                        if let llm::Said::ToolCall { id, call: llm::Decoded::Served { ask }, .. } = block {
+                            match ask {
+                                run::Ask::Host { .. } => self.resumed_host = Some(id.clone()),
+                                run::Ask::Deliver { .. } => self.delivery_call = DeliveryCall::MidRun,
+                                run::Ask::Finish { .. } => self.delivery_call = DeliveryCall::Finish,
+                                run::Ask::Save | run::Ask::Wait | run::Ask::SubAgent { .. } => {}
+                            }
+                        }
+                    }
+                }
+                self.stage.push(Event::Below(agent::Below::Classified { owner, completion }));
+            }
             request @ Request::Lower(smith_domain::Lower::Complete { .. }) => {
                 let Request::Lower(smith_domain::Lower::Complete { owner, ref prompt, grant, .. }) = request else {
                     unreachable!("completion")
@@ -1134,6 +1263,27 @@ impl<B: Backend> World<B> {
                     && self.writing_opened.insert(prompt.affinity.thread)
                 {
                     self.observe(Seen::WritingChild);
+                }
+                if let Some(saved_id) = self.resumed_host.take()
+                    && !self.host_history.submissions().is_empty()
+                {
+                    for (message, value) in prompt.messages.iter().enumerate() {
+                        for (position, block) in value.content.iter().enumerate() {
+                            if let llm::Block::ToolCall { id, name, input, .. } = block
+                                && *id == saved_id
+                            {
+                                self.host_history
+                                    .called(
+                                        u32::try_from(message).expect("bounded"),
+                                        u32::try_from(position).expect("bounded"),
+                                        id.clone(),
+                                        name.clone(),
+                                        input.clone(),
+                                    )
+                                    .expect("resumed host call");
+                            }
+                        }
+                    }
                 }
                 self.host_history.prompt(prompt).expect("exact feedback for observed provider host call");
                 self.observe(Seen::Completing { owner });
@@ -1282,7 +1432,18 @@ impl<B: Backend> World<B> {
                     Flight { key: Some(key), cancelled: false, completion_message: None, completion_index: None },
                 );
             }
-            Request::Lower(smith_domain::Lower::Check { owner, program, bound, cap, tail }) => {
+            Request::Lower(smith_domain::Lower::Check { owner, program, results, bound, cap, tail }) => {
+                if let Some(marker) = &self.check_marker {
+                    let results = results.expect("scripted check requires its results directory");
+                    let path = results.strip_prefix(b"/").unwrap_or(&results);
+                    let root = self.disk.root(path);
+                    let present = self.disk.load(root, marker, 4096).is_ok();
+                    let mut file = path.to_vec();
+                    file.push(b'/');
+                    file.extend_from_slice(marker);
+                    self.disk.write(&file, b"passed earlier check step");
+                    self.check_results.push((results, present));
+                }
                 let deadline = self.now.saturating_add(bound).min(cap);
                 self.boundaries.push((self.now, Boundary::Check { program: program.clone() }));
                 self.observe(Seen::Checking { owner, tree: self.code() });
@@ -1303,7 +1464,19 @@ impl<B: Backend> World<B> {
             Request::Lower(smith_domain::Lower::Abort { owner }) => {
                 self.cancel(Family::Check, owner, Event::Below(smith_domain::Below::Aborted { owner }));
             }
-            Request::Save { .. } => panic!("this scripted charter does not offer saving"),
+            Request::Save { host_run, owner, name, deadline } => {
+                assert_eq!(host_run, self.host_run);
+                assert!(self.now < deadline);
+                self.delivery_names.push((name, self.now));
+                let tree = self.code();
+                self.observe(Seen::Pushing { owner, name, tree: tree.clone(), finishing: false, checked: false });
+                self.snapshots.insert(owner, tree);
+                self.flights.open(
+                    (Family::Delivery, owner),
+                    Flight { key: None, cancelled: false, completion_message: None, completion_index: None },
+                );
+                self.send(Family::Delivery, owner, Event::Delivered { owner, delivery: self.settings.push.terminal() });
+            }
             Request::Deliver { host_run, owner, change, name, deadline } => {
                 // The fixture host takes title/body for change deliveries and
                 // an opaque ticket for its report-only delivery policy.
@@ -1324,7 +1497,7 @@ impl<B: Backend> World<B> {
                 self.delivery_names.push((name, self.now));
                 let tree = self.code();
                 let finishing = self.delivery_call == DeliveryCall::Finish;
-                self.observe(Seen::Pushing { owner, name, tree: tree.clone(), finishing });
+                self.observe(Seen::Pushing { owner, name, tree: tree.clone(), finishing, checked: true });
                 self.snapshots.insert(owner, tree);
                 self.flights.open(
                     (Family::Delivery, owner),
@@ -1467,6 +1640,7 @@ impl<B: Backend> World<B> {
                 assert!(self.host_pending.insert((relay.owner.raw(), relay.attempt), Some(key)).is_none());
             }
             Request::WithdrawHost { relay } => {
+                self.host_withdrawals.push((self.now, relay));
                 self.host_history.withdraw(relay).expect("withdraw retains terminal");
                 assert!(self.host_pending.contains_key(&(relay.owner.raw(), relay.attempt)));
             }
@@ -1505,7 +1679,7 @@ impl<B: Backend> World<B> {
         if flight.cancelled {
             return;
         }
-        if flight.key.is_some() && self.rng.chance(self.settings.races) {
+        if (flight.key.is_some() || family == Family::Completion) && self.rng.chance(self.settings.races) {
             return;
         }
         if let Some(key) = flight.key {
@@ -1539,9 +1713,13 @@ impl<B: Backend> World<B> {
                 self.stage.push(Event::HostReturned { relay, reply });
                 self.terminals += 1;
             }
-            Delivery::Drain => {
+            Delivery::PartKept { number } => {
+                let run = self.admitted.expect("part follows admission");
+                self.stage.push(Event::PartKept { run, number });
+            }
+            Delivery::Drain { grace } => {
                 if let Some(run) = self.admitted {
-                    self.stage.push(Event::Drain { run });
+                    self.stage.push(Event::Drain { run, grace });
                 }
             }
             Delivery::Cancel => {
@@ -1628,15 +1806,18 @@ impl<B: Backend> World<B> {
             Event::HostReturned { .. }
             | Event::Start(_)
             | Event::Message { .. }
+            | Event::PartKept { .. }
             | Event::Acknowledge { .. }
             | Event::Renewals { .. }
             | Event::Grant { .. }
             | Event::Cancel { .. }
             | Event::Drain { .. }
+            | Event::Disconnected { .. }
             | Event::Delivered { .. }
             | Event::Below(
                 smith_domain::Below::Usage { .. }
                 | smith_domain::Below::BuiltinResult { .. }
+                | smith_domain::Below::Classified { .. }
                 | smith_domain::Below::ReadVersion { .. }
                 | smith_domain::Below::Done { .. }
                 | smith_domain::Below::Read { .. }
@@ -1650,6 +1831,10 @@ impl<B: Backend> World<B> {
         assert!(self.completions[index].terminal.replace((self.now, outcome)).is_none());
     }
 
+    #[expect(
+        clippy::too_many_lines,
+        reason = "one terminal feeds the boundary and message observations before delivery"
+    )]
     fn terminal(&mut self, family: Family, owner: Token, event: Event) {
         if family == Family::Completion
             && let Some(observations) = &mut self.fault_runs
@@ -1704,15 +1889,18 @@ impl<B: Backend> World<B> {
             }
             Event::HostReturned { .. }
             | Event::Message { .. }
+            | Event::PartKept { .. }
             | Event::Acknowledge { .. }
             | Event::Start(_)
             | Event::Renewals { .. }
             | Event::Grant { .. }
             | Event::Cancel { .. }
             | Event::Drain { .. }
+            | Event::Disconnected { .. }
             | Event::Below(
                 smith_domain::Below::Usage { .. }
                 | smith_domain::Below::BuiltinResult { .. }
+                | smith_domain::Below::Classified { .. }
                 | smith_domain::Below::ReadVersion { .. }
                 | smith_domain::Below::Done { .. }
                 | smith_domain::Below::Read { .. }
@@ -1731,8 +1919,10 @@ impl<B: Backend> World<B> {
             }
             Event::Cancel { .. }
             | Event::Drain { .. }
+            | Event::Disconnected { .. }
             | Event::Start(_)
             | Event::Message { .. }
+            | Event::PartKept { .. }
             | Event::Acknowledge { .. }
             | Event::Renewals { .. }
             | Event::Grant { .. }
@@ -1741,6 +1931,7 @@ impl<B: Backend> World<B> {
             | Event::Below(
                 smith_domain::Below::Usage { .. }
                 | smith_domain::Below::BuiltinResult { .. }
+                | smith_domain::Below::Classified { .. }
                 | smith_domain::Below::ReadVersion { .. }
                 | smith_domain::Below::Read { .. }
                 | smith_domain::Below::Probed { .. }
@@ -1841,10 +2032,22 @@ impl<B: Backend> World<B> {
         &self.turns
     }
 
+    /// Told parts with their clock, number and owning main turn.
+    #[must_use]
+    pub fn parts(&self) -> &[(Time, u32, u32, agent::session::record::Part)] {
+        &self.parts
+    }
+
     /// Activation numbers/read fences/token usage.
     #[must_use]
     pub fn turn_metadata(&self) -> &[(u32, Option<Token>, run::Spend)] {
         &self.turn_metadata
+    }
+
+    /// Host calls withdrawn, with the withdrawal's clock.
+    #[must_use]
+    pub fn host_withdrawals(&self) -> &[(Time, run::RelayName)] {
+        &self.host_withdrawals
     }
 
     /// Settled Waiting notices.

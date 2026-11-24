@@ -64,13 +64,13 @@ pub(crate) fn refusal(value: p::Refusal, limits: &w::Limits) -> Result<w::Refusa
             }),
         p::Refusal::Role { held } => {
             let held = match held {
-                Some(value) => Some(role(value, limits)?),
+                Some(value) => Some(role(value)),
                 None => None,
             };
             w::Refusal::Role(w::RefusalRole { held })
         }
         p::Refusal::Authority { lacking, proposable } => w::Refusal::Authority(w::RefusalAuthority {
-                lacking: lack(lacking, limits)?,
+                lacking: lack(lacking),
                 proposable: match proposable {
                     Some(p::Accepter::Role(_)) => Some(true),
                     Some(p::Accepter::Nobody) => Some(false),
@@ -82,7 +82,7 @@ pub(crate) fn refusal(value: p::Refusal, limits: &w::Limits) -> Result<w::Refusa
                 w::Limit::Admission(w::LimitAdmission { which: limit(which) });
             w::Refusal::Limit(w::RefusalLimit { which })
         }
-        p::Refusal::Moved { now } => moved(now, limits)?,
+        p::Refusal::Moved { now } => moved(now),
         p::Refusal::Ended { how } => {
             w::Refusal::Ended(w::RefusalEnded { how: ending(how, limits)? })
         }
@@ -127,18 +127,17 @@ pub(crate) fn refusal(value: p::Refusal, limits: &w::Limits) -> Result<w::Refusa
         }
     })
 }
-#[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
-fn role(value: p::Role, _limits: &w::Limits) -> Result<w::HeldRole, w::Problem> {
-    Ok(match value {
+fn role(value: p::Role) -> w::HeldRole {
+    match value {
         p::Role::Owner => w::HeldRole::Owner,
         p::Role::Maintainer => w::HeldRole::Maintainer,
         p::Role::Member => w::HeldRole::Member,
         p::Role::Observer => w::HeldRole::Observer,
         p::Role::Policy { role } => w::HeldRole::Policy(w::HeldRolePolicy { role }),
-    })
+    }
 }
-fn lack(value: p::Lack, limits: &w::Limits) -> Result<w::Lacking, w::Problem> {
-    Ok(match value {
+fn lack(value: p::Lack) -> w::Lacking {
+    match value {
         p::Lack::HoldOwner { hold, owner } => {
             let owner = match owner {
                 p::HoldOwner::Party { person } => w::HoldOwner::Party(w::HoldOwnerParty { person }),
@@ -147,7 +146,7 @@ fn lack(value: p::Lack, limits: &w::Limits) -> Result<w::Lacking, w::Problem> {
             w::Lacking::HoldOwner(w::LackingHoldOwner { hold, owner })
         }
         p::Lack::Ceiling { holder, dimension, value, asked } => w::Lacking::Ceiling(w::LackingCeiling {
-            holder: ceiling_holder(holder, limits)?,
+            holder: ceiling_holder(holder),
             dimension: ceiling_dimension(dimension),
             value,
             asked,
@@ -173,7 +172,7 @@ fn lack(value: p::Lack, limits: &w::Limits) -> Result<w::Lacking, w::Problem> {
         p::Lack::Required { connector, kind } => w::Lacking::Required(w::LackingRequired { connector, kind }),
         p::Lack::Failed { connector, kind } => w::Lacking::Failed(w::LackingFailed { connector, kind }),
         p::Lack::Unguarded { connector, kind } => w::Lacking::Unguarded(w::LackingUnguarded { connector, kind }),
-    })
+    }
 }
 pub(super) fn limit(value: p::LimitKind) -> w::AdmissionLimit {
     match value {
@@ -226,10 +225,10 @@ pub(super) fn limit(value: p::LimitKind) -> w::AdmissionLimit {
         }
     }
 }
-fn moved(value: p::Moved, limits: &w::Limits) -> Result<w::Refusal, w::Problem> {
+fn moved(value: p::Moved) -> w::Refusal {
     let (revision, what) = match value {
         p::Moved::Hold { revision, reason } => {
-            let value = hold(reason, limits)?;
+            let value = hold(reason);
             let reason = Some(w::CurrentHold::Reason(w::CurrentHoldReason { value }));
             (revision, w::Moved::Hold(w::MovedHold { reason }))
         }
@@ -239,11 +238,10 @@ fn moved(value: p::Moved, limits: &w::Limits) -> Result<w::Refusal, w::Problem> 
         p::Moved::Note { revision } => (u64::from(revision), w::Moved::Note),
     };
     let now = w::Revision { value: revision };
-    Ok(w::Refusal::Moved(w::RefusalMoved { now, what }))
+    w::Refusal::Moved(w::RefusalMoved { now, what })
 }
-#[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
-fn hold(value: p::HoldReason, _limits: &w::Limits) -> Result<w::HoldCategory, w::Problem> {
-    Ok(match value {
+fn hold(value: p::HoldReason) -> w::HoldCategory {
+    match value {
         p::HoldReason::Exceeded(value) => {
             let bound = match value.bound {
                 p::Bound::Reasoning => w::Bound::Reasoning,
@@ -286,22 +284,21 @@ fn hold(value: p::HoldReason, _limits: &w::Limits) -> Result<w::HoldCategory, w:
             };
             w::HoldCategory::Failures(w::HoldCategoryFailures { class })
         }
-    })
+    }
 }
-#[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
-fn actor(value: p::Party, _limits: &w::Limits) -> Result<w::Actor, w::Problem> {
-    Ok(match value {
+fn actor(value: p::Party) -> w::Actor {
+    match value {
         p::Party::Person(value) => w::Actor::Party(w::ActorParty { value }),
         p::Party::Task(value) => w::Actor::Task(w::ActorTask { value }),
         p::Party::Deployment { project } => w::Actor::ProjectDeployment(w::ActorProjectDeployment { project }),
-    })
+    }
 }
 fn ending(value: p::Ending, limits: &w::Limits) -> Result<w::Ending, w::Problem> {
     let value = match value {
         p::Ending::Done => w::EndingFields::Done,
         p::Ending::Failed => w::EndingFields::Failed(w::EndingFailedFields { reason: None }),
         p::Ending::Cancelled { by, at } => w::EndingFields::Cancelled(w::EndingCancelledFields {
-            by: actor(by, limits)?,
+            by: actor(by),
             reason: None,
             at: Some(at.as_nanos()),
         }),
@@ -338,13 +335,12 @@ fn numbers(values: &[u64], limit: u32, path: w::Path) -> Result<skein_lib::List<
     Ok(rows)
 }
 
-#[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
-fn ceiling_holder(value: p::CeilingHolder, _limits: &w::Limits) -> Result<w::CeilingHolder, w::Problem> {
-    Ok(match value {
+fn ceiling_holder(value: p::CeilingHolder) -> w::CeilingHolder {
+    match value {
         p::CeilingHolder::Rules => w::CeilingHolder::Rules,
         p::CeilingHolder::Policy => w::CeilingHolder::Policy,
         p::CeilingHolder::Role(role) => w::CeilingHolder::Role(w::CeilingRole { role }),
-    })
+    }
 }
 fn ceiling_dimension(value: p::CeilingDimension) -> w::CeilingDimension {
     match value {

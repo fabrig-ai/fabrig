@@ -335,11 +335,7 @@ fn a_fresh_claude_sitting_applies_its_settings_as_a_person_does() {
 fn a_fresh_key_sitting_applies_claude_settings_on_inits_configuration() {
     use std::path::Path;
     use support::forge_land::LiveModel;
-    assert_live_settings(
-        "live-key-settings",
-        LiveModel::AnthropicKey { key: Path::new("/private/key") },
-        configure_key,
-    );
+    assert_live_settings("live-key-settings", LiveModel::AnthropicKey { key: Path::new("/private/key") }, |_| {});
 }
 
 fn assert_live_settings(
@@ -1182,39 +1178,10 @@ fn an_anthropic_key_is_admitted_by_metadata_without_naming_its_path() {
     scratch.remove();
 }
 
-fn configure_key(paths: &[std::path::PathBuf; 3]) {
-    use std::path::Path;
-    support::forge_land::configure_live_model(
-        &paths[0],
-        support::forge_land::LiveModel::AnthropicKey { key: Path::new("/private/synthetic-key") },
-        Path::new(""),
-    );
-}
-
 #[test]
-fn a_key_configuration_changes_only_anthropics_list_policy_and_starts() {
-    let (scratch, paths) = initialized_deployment("live-key-configuration");
-    let path = paths[0].join(temper_config_shell::FILE);
-    let expected: Value = support::start_document(&path, temper_config_shell::Shape::Standalone);
-    let mut expected_providers = temper_agent_fixtures::providers::read(&paths[1]);
-    let agent = temper_agent_fixtures::read(&paths[0]);
-    let provider = expected_providers["providers"]
-        .as_array_mut()
-        .expect("providers")
-        .iter_mut()
-        .find(|provider| provider["name"] == "anthropic")
-        .expect("Anthropic")
-        .as_object_mut()
-        .expect("provider");
-    assert!(provider.remove("keep").is_some());
-    assert!(provider.remove("drop").is_some());
-    configure_key(&paths);
-    let configured: Value = support::start_document(&path, temper_config_shell::Shape::Standalone);
-    assert_eq!(configured, expected, "the startup document is unchanged");
-    assert_eq!(temper_agent_fixtures::providers::read(&paths[1]), expected_providers, "only Anthropic's list changes");
-    assert_eq!(temper_agent_fixtures::read(&paths[0]), agent, "Claude Code's program stays as init writes it");
-    scratch.remove();
-    assert_live_startup("live-key-startup", configure_key);
+fn a_key_configuration_starts_as_init_writes_it() {
+    // Provider 2's owner edit belongs to the limits bootstrap, not the init files.
+    assert_live_startup("live-key-startup", |_| {});
 }
 
 #[test]

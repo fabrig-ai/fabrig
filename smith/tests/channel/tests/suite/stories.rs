@@ -904,6 +904,8 @@ fn a_host_tool_answered_as_the_channel_is_lost_is_asked_again_under_its_name() {
     second.settle();
     second.send_domain_start(
         smith_host_domain::Start {
+            parts: Box::default(),
+            tell_parts: false,
             live: None,
             messages: Box::default(),
             logical_run: skein_lib::Token::new(1),
@@ -1341,6 +1343,8 @@ fn resumed_activation(
     two.settle();
     two.send_domain_start(
         smith_host_domain::Start {
+            parts: Box::default(),
+            tell_parts: false,
             live: None,
             messages: Box::default(),
             logical_run: skein_lib::Token::new(1),

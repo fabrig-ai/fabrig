@@ -156,6 +156,16 @@ fn prepared_channel_limits() -> &'static skein_channel::Limits {
 pub fn schema() -> skein_channel::Schema {
     prepared_schema().clone()
 }
+/// Reuse the fixture's table only when its size inputs match; changed limits build their own.
+#[must_use]
+pub fn schema_for_sizes(sizes: &jig_protocol_worker_wire::sizes::Sizes) -> skein_channel::Schema {
+    if sizes == &SIZES {
+        schema()
+    } else {
+        let codec = jig_protocol_worker_wire::sizes::limits(sizes).expect("world codec");
+        jig_protocol_worker_wire::schema(&codec).expect("world schema")
+    }
+}
 fn prepared_schema() -> &'static skein_channel::Schema {
     &prepared_channel().0
 }
@@ -333,8 +343,9 @@ pub fn account_refused_record() -> jig_protocol_worker_wire::AccountRefused {
     }
 }
 
-fn codec() -> jig_protocol_worker_wire::v21::Limits {
-    jig_protocol_worker_wire::sizes::limits(&SIZES).expect("small codec")
+fn codec() -> jig_protocol_worker_wire::v22::Limits {
+    static CODEC: std::sync::OnceLock<jig_protocol_worker_wire::v22::Limits> = std::sync::OnceLock::new();
+    *CODEC.get_or_init(|| jig_protocol_worker_wire::sizes::limits(&SIZES).expect("small codec"))
 }
 fn refused_messages() -> skein_lib::List<jig_protocol_worker_wire::Refused> {
     use jig_protocol_worker_wire as wire;
@@ -343,7 +354,7 @@ fn refused_messages() -> skein_lib::List<jig_protocol_worker_wire::Refused> {
     refused
 }
 
-fn encoded<R: Record<Limits = jig_protocol_worker_wire::v21::Limits>>(kind: u16, record: &R) -> skein_channel::Frame {
+fn encoded<R: Record<Limits = jig_protocol_worker_wire::v22::Limits>>(kind: u16, record: &R) -> skein_channel::Frame {
     frame(kind, &record.encode(&codec()).expect("record within fixture limits"))
 }
 #[must_use]
@@ -407,6 +418,8 @@ pub fn assignment() -> jig_domain_host::Assignment {
     use jig_domain_host as host;
     use skein_lib::Token;
     host::Assignment {
+        parts: Box::new([]),
+        tell_parts: false,
         assignment: host::RunAssignment {
             run: Token::new(7),
             attempt: Token::new(2),

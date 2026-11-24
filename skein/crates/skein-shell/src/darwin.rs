@@ -31,10 +31,8 @@ use skein_io::kernel::{Addr, Family, Fd};
 use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6};
 use std::{ffi::CStr, mem, ptr};
 
-pub use files::{
-    directory_access, make_root, open_append, open_root, prepare_output, process_id, resolve_system_links,
-};
-pub(crate) use files::{lock, opened, read_file, read_private_file};
+pub(crate) use files::{directory_access, lock, opened, read_file, read_private_file};
+pub use files::{open_append, open_root, prepare_output, process_id, resolve_system_links};
 pub(crate) use kqueue::{Event, Poller};
 pub(crate) use listing::Listings;
 pub(crate) use signals::read_signal;

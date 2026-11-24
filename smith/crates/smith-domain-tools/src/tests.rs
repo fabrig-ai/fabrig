@@ -1183,6 +1183,38 @@ fn spawned(h: &mut Harness, kit: Token, timeout: Option<Duration>) -> (Token, Op
     }
 }
 
+#[test]
+fn draining_a_command_keeps_its_output_and_cut_time_but_plain_cancel_does_not() {
+    for drain in [true, false] {
+        let mut h = Harness::new(LIMITS);
+        let kit = h.open(1, authority(ALL));
+        h.env.now = at(3);
+        let (owner, _, _) = spawned(&mut h, kit, None);
+        h.env.now = at(13);
+        let close = if drain { Event::Cut { kit } } else { Event::Close { kit } };
+        assert_eq!(h.emit(close).as_ref(), &[Request::CancelIo { owner }]);
+        h.env.now = at(15);
+        let outcome = if drain {
+            Outcome::Interrupted {
+                ran: Some(Duration::from_secs(10)),
+                head: bytes(b"step 1\n"),
+                last: bytes(b"last\n"),
+                dropped: 17,
+            }
+        } else {
+            Outcome::Cancelled
+        };
+        assert_eq!(
+            h.emit(Event::Done {
+                owner,
+                done: Done::CommandCancelled { head: bytes(b"step 1\n"), tail: bytes(b"last\n"), dropped: 17 },
+            })
+            .as_ref(),
+            &[Request::Answer { to: ReplyTo::new(Token::new(1)), outcome }, Request::Closed { session: Token::new(1) },]
+        );
+    }
+}
+
 fn at(secs: u64) -> Time {
     Time::ZERO.saturating_add(Duration::from_secs(secs))
 }

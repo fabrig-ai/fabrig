@@ -1,4 +1,4 @@
-//! Shared documents for the two process boundaries (testing/process-tier.md, landing by turn on the fake forge).
+//! Shared documents for the cluster restart and unit-stop stories (testing/process-tier.md).
 use crate::{
     self as support,
     cluster::Cluster,
@@ -7,12 +7,17 @@ use crate::{
 use serde_json::{Value, json};
 use std::{fs, path::Path};
 
-pub const CI_MS: u32 = 10_000;
 pub const CONTENT: &[u8] = b"Saved work\nDelivered work\n";
 
 #[must_use]
 pub fn fixture() -> std::path::PathBuf {
     skein_scratch::paths::tree().join("bin/temper-box/tests/fixtures/cluster-turn")
+}
+
+/// The checked-in engine template with the story's listener and ready facts supplied directly.
+#[must_use]
+pub fn engine_document(bindings: &[(&str, &str)]) -> Value {
+    support::configuration::engine_template(&fixture().join("engine").join(temper_config_shell::FILE), true, bindings)
 }
 
 #[must_use]
@@ -30,55 +35,21 @@ pub fn prepare(
     root: &Path,
     addresses: &[std::net::SocketAddr; 5],
 ) -> temper_playground::documents::Configuration {
-    for (name, address) in ["clients", "workers", "webhooks", "forge", "llm"].iter().zip(addresses) {
-        cluster.bind(&format!("story.{name}"), &address.to_string());
-    }
-    cluster.bind("proc.forge.ready.address", &addresses[3].to_string());
-    cluster.bind("proc.llm.ready.address", &addresses[4].to_string());
+    bind_addresses(cluster, addresses);
     // Source reads and preparation use the engine's git, found on PATH (config.md, 6.5).
     cluster.git_on_path("engine", root);
     for name in ["engine", "w1"] {
         cluster.prepare(name);
     }
 
-    let mut engine = support::limit_settings::configuration(&cluster.dir("engine").join("config"));
-    let mut agent = temper_agent_fixtures::at(&engine, &cluster.dir("engine").join("data"));
-    // domain/worker/jobs.md, kind 1: the engine declares preparation only when
-    // its spec and result fit. The worker and the agent must carry that result.
-    let prepare = temper_service::limits::prepare_bound();
-    for (name, bytes) in [
-        ("tasks.spec_bytes", prepare.spec),
-        ("tasks.message_bytes", prepare.result),
-        ("tasks.result_bytes", prepare.result),
-    ] {
-        engine.jig_over(name, bytes);
-    }
-    engine.jig_over("people.words", 512);
-    engine.jig_over("tasks.run_inbox", 8);
-    engine.jig_over("tasks.inbox_bytes", prepare.result * 8);
-    let payload = prepare.result + 2; // the result and its JSON string quotes
-    agent["profile"]["declared"]["tool_payload"] = payload.into();
-    engine.jig_over("hub.outcome_bytes", payload);
-    engine.temper_over("forge.client.op_bytes", prepare.result);
-    engine.temper_over("tool_payload", payload);
-    engine.jig_over("hub.event_bytes", prepare.result);
-    engine.temper_over("checkout.message_bytes", payload);
-    let turn = support::configuration::turn_bounds::turn_body(&agent);
-    support::configuration::turn_bounds::apply(&mut engine, turn);
-    write(
-        &cluster.dir("engine").join("config/landing-settings.json"),
-        &json!({"items":[
-            {"setting":{"kind":"project-landing","project":1},"set":{"by":"turn","batch":1}},
-            {"setting":{"kind":"project-gates","project":1},"set":{"repositories":[{"forge":1,"repository":1,"gates":[{"name":"gate","workflow":"gate.yml","ignored":[],"blocking":true,"base":true}],"tiers":[]}]}}
-        ]}),
-    );
-    temper_agent_fixtures::apply(&mut engine, &cluster.dir("engine").join("data"), &agent);
-    support::limit_settings::remember(&cluster.dir("engine").join("config"), &engine);
-    // Stock charters need a model-priced reserve, not the small cluster fixture's spend.
-    // Two runs fund production and leave room for its scripted turns after the reserve.
-    let configured = temper_real_loop_world::settings::configuration(&engine);
-    let stock = temper_service::stock::defaults(&configured.llm, configured.limits.core.tasks.result_bytes);
-    cluster.bind("story.change_spend", &(2 * stock.rules.maximum_run_spend).to_string());
+    let engine_config = cluster.dir("engine").join("config");
+    let engine_data = cluster.dir("engine").join("data");
+    let engine = support::limit_settings::configuration(&engine_config);
+    let agent = temper_agent_fixtures::at(&engine, &engine_data);
+    let engine = compose_engine(engine, &agent);
+    engine.agents.lay(&engine_data);
+    support::limit_settings::remember(&engine_config, &engine.configuration);
+    cluster.bind("story.change_spend", &engine.change_spend().to_string());
     for name in ["forge", "llm"] {
         cluster.prepare(name);
     }
@@ -91,42 +62,70 @@ pub fn prepare(
         &root.join("person.header"),
         format!("Authorization: token {}\n", std::str::from_utf8(&token).expect("fixture token")).as_bytes(),
     );
-    engine
+    engine.configuration
 }
 
-/// Leave seven forty-eighths of the period for landing tasks, not the owner's pool.
-/// Copy current whole settings so the fixture pins no stock charter document.
+/// Fix the cluster-turn listeners and peer captures before rendering any member.
+pub fn bind_addresses(cluster: &mut Cluster, addresses: &[std::net::SocketAddr; 5]) {
+    for (name, address) in ["clients", "workers", "webhooks", "forge", "llm"].iter().zip(addresses) {
+        cluster.bind(&format!("story.{name}"), &address.to_string());
+    }
+    cluster.bind("proc.forge.ready.address", &addresses[3].to_string());
+    cluster.bind("proc.llm.ready.address", &addresses[4].to_string());
+}
+
+/// The engine's configured figures and startup edits for this turn.
+pub struct Engine {
+    pub configuration: temper_playground::documents::Configuration,
+    pub agents: temper_agent_fixtures::Setting,
+}
+impl Engine {
+    /// Two stock runs fund production and leave room for its scripted turns after the model-priced reserve.
+    #[must_use]
+    pub fn change_spend(&self) -> u64 {
+        let configured = temper_real_loop_world::settings::configuration(&self.configuration);
+        let stock = temper_service::stock::defaults(&configured.llm, configured.limits.core.tasks.result_bytes);
+        2 * stock.rules.maximum_run_spend
+    }
+}
+
+/// Compose the edits both cluster boundaries lay over the rendered engine.
+#[must_use]
+pub fn compose_engine(mut engine: temper_playground::documents::Configuration, agent: &Value) -> Engine {
+    engine.jig_over("people.words", 512);
+    let turn = support::configuration::turn_bounds::turn_body(agent);
+    support::configuration::turn_bounds::apply(&mut engine, turn);
+    let providers = temper_agent_fixtures::providers::take(&mut engine).expect("fixture providers");
+    let agents = temper_agent_fixtures::compose_setting(&mut engine, agent, &providers);
+    Engine { configuration: engine, agents }
+}
+
+/// Keep the current charters, overriding their provider, documents and hosts.
 #[must_use]
 pub fn settings(root: &Path, calls: &[support::Ended]) -> Call {
+    let providers = temper_agent_fixtures::providers::read(&root.join("engine/data"));
+    settings_with(root, calls, &providers, support::write_private)
+}
+
+/// Compose the settings FILE from the captured replies and supplied provider copy.
+pub fn settings_with(
+    root: &Path,
+    calls: &[support::Ended],
+    providers: &Value,
+    write: impl FnOnce(&Path, &[u8]),
+) -> Call {
     let mut items = Vec::new();
-    for call in &calls[2..5] {
+    for call in &calls[2..4] {
         let packet = ctl::json(call);
         let mut value = packet["value"].clone();
-        if packet["setting"]["kind"] == "policy" {
-            let period = value["period_spend"].as_u64().expect("policy period");
-            let owner = value["roles"]
-                .as_array_mut()
-                .expect("roles")
-                .iter_mut()
-                .find(|role| role["number"] == 0)
-                .expect("owner role");
-            owner["period_spend"] = (period / 48 * 41).into();
-        } else {
-            support::provider_setup::use_provider(&mut value, 1);
-            value["documents"] = json!([]);
-            value["hosts"] = "workers".into();
-        }
+        support::provider_setup::use_provider(&mut value, 1);
+        value["documents"] = json!([]);
+        value["hosts"] = "workers".into();
         items.push(json!({"setting":packet["setting"],"set":value}));
     }
-    // Turn's test gate replaces the stock review; there is no second judgement
-    // path in these stories. The branch pattern covers this story's repository.
-    items.push(json!({"setting":{"kind":"landing-rule","project":1,"number":1},"set":{
-        "pattern":{"segments":["6272616e6368"],"last":{"open":""}},
-        "enforce":true,"ci":true,"up_to_date":true,"gates":[],"approvals":[]}}));
-    let providers = temper_agent_fixtures::providers::read(&root.join("engine/data"));
-    items.extend(support::provider_setup::items(&providers));
+    items.extend(support::provider_setup::items(providers));
     let path = root.join("turn-settings.json");
-    write(&path, &json!({"items":items}));
+    write(&path, &serde_json::to_vec(&json!({"items":items})).expect("settings JSON"));
     ctl::settings_change(&calls[1], &path, "turn-settings")
 }
 
@@ -153,20 +152,4 @@ exec /usr/bin/env -u PWD -u SHLVL -u _ '{git}' "$@"
         root = root.display(),
         git = git.display()
     )
-}
-
-/// A proving panel counts only once the dispatched run is known. Reading later
-/// is a finding, never a successful restart outside the intended cut.
-pub fn proof_cut(panel: &Value) -> Result<Option<u64>, String> {
-    match panel["phase"].as_str().ok_or("landing phase")? {
-        "waiting" | "preparing" => Ok(None),
-        "proving" => {
-            let proof = &panel["members"][0]["gates"][0]["proof"];
-            if proof.get("passed").is_some() || proof.get("failed").is_some() {
-                return Err(format!("missed proving before kill: pace.ci_ms={CI_MS}; {panel}"));
-            }
-            Ok(proof["dispatched"]["run"].as_u64())
-        }
-        phase => Err(format!("read landing past proving before kill ({phase}): pace.ci_ms={CI_MS}; {panel}")),
-    }
 }

@@ -15,6 +15,12 @@ pub fn remember(directory: &Path, configuration: &Configuration) {
 
 /// Keep only figures; the browser world commits its prospective providers through ctl.
 pub fn remember_figures(directory: &Path, configuration: &Configuration) {
+    super::write_private(&directory.join("fixture-limits.json"), &figures_bytes(configuration));
+}
+
+/// Serialize the fixture figures in the same form the native fixture retains.
+#[must_use]
+pub fn figures_bytes(configuration: &Configuration) -> Vec<u8> {
     let stock = Configuration::stock(Value::Null);
     let jig: Vec<_> = jig_protocol_config::names::NAMES
         .iter()
@@ -32,10 +38,7 @@ pub fn remember_figures(directory: &Path, configuration: &Configuration) {
                 .then(|| json!({"name":row.name,"value":value,"reason":"subprocess fixture"}))
         })
         .collect();
-    super::write_private(
-        &directory.join("fixture-limits.json"),
-        &serde_json::to_vec(&json!({"limits":jig,"temper-limits":own})).expect("fixture limits"),
-    );
+    serde_json::to_vec(&json!({"limits":jig,"temper-limits":own})).expect("fixture limits")
 }
 
 /// Continue a fixture edit without losing its non-document figures.
@@ -46,11 +49,20 @@ pub fn configuration(directory: &Path) -> Configuration {
 
 #[must_use]
 pub fn configuration_at(directory: &Path, shape: temper_config_shell::Shape) -> Configuration {
-    let mut value = Configuration::from_jig(super::start_document(&directory.join(temper_config_shell::FILE), shape));
-    value["world_providers"] = temper_agent_fixtures::providers::read(&temper_agent_fixtures::data(directory));
+    let document = super::start_document(&directory.join(temper_config_shell::FILE), shape);
+    let providers = temper_agent_fixtures::providers::read(&temper_agent_fixtures::data(directory));
     let path = directory.join("fixture-limits.json");
-    if path.exists() {
-        let figures: Value = serde_json::from_slice(&fs::read(path).expect("fixture limits")).expect("limits JSON");
+    let figures = path.exists().then(|| fs::read(path).expect("fixture limits"));
+    configuration_over(document, providers, figures.as_deref())
+}
+
+/// Read the typed configuration from the start, provider copy and optional retained figures.
+#[must_use]
+pub fn configuration_over(document: Value, providers: Value, figures: Option<&[u8]>) -> Configuration {
+    let mut value = Configuration::from_jig(document);
+    value["world_providers"] = providers;
+    if let Some(bytes) = figures {
+        let figures: Value = serde_json::from_slice(bytes).expect("limits JSON");
         for item in figures["limits"].as_array().expect("jig figures") {
             jig_protocol_config::overrides::apply(
                 &mut value.jig,
@@ -71,8 +83,9 @@ pub fn configuration_at(directory: &Path, shape: temper_config_shell::Shape) -> 
     value
 }
 
-/// A subprocess's places are its worker setting, never its file's slots.
-pub fn local_places(root: &Path, places: u32) {
+/// Encode the worker setting copy; the document's slots do not set its places.
+#[must_use]
+pub fn local_copy(places: u32) -> Box<[u8]> {
     use jig_client_protocol_wire::WorkerSetting;
     let local = WorkerSetting { number: 1, name: b"local".as_slice().into(), places, digest: None, withdrawn: false };
     let mut writer = skein_lib::Writer::new(
@@ -80,7 +93,12 @@ pub fn local_places(root: &Path, places: u32) {
             .expect("local bound"),
     );
     local.write(&jig_client_protocol_wire::CEILINGS, &mut writer).expect("local setting");
-    super::write_private(&root.join("local.setting"), &writer.finish());
+    writer.finish()
+}
+
+/// A subprocess's places are its worker setting, never its file's slots.
+pub fn local_places(root: &Path, places: u32) {
+    super::write_private(&root.join("local.setting"), &local_copy(places));
     let item = json!({"setting":{"kind":"worker","number":1},"set":{"name":"local","places":places,"digest":null}});
     super::write_private(
         &root.join("local-worker-settings.json"),
@@ -94,24 +112,35 @@ pub fn install(directory: &Path) {
 }
 
 pub fn install_paths(paths: &[std::path::PathBuf; 3]) {
+    install_paths_with(paths, Vec::new());
+}
+
+/// Install a fresh fixture's additional owner settings before the bootstrap drains.
+pub(crate) fn install_paths_with(paths: &[std::path::PathBuf; 3], extra: Vec<super::ctl::Step>) {
     use std::os::unix::ffi::OsStrExt;
     let mut directories = super::configuration::directories(&paths[0]);
     directories.data = paths[1].as_os_str().as_bytes().into();
     directories.cache = paths[2].as_os_str().as_bytes().into();
-    install_at(&directories);
+    install_at_with(&directories, extra);
 }
 
 pub fn install_at(directories: &temper_box_shell::directories::Directories) {
+    install_at_with(directories, Vec::new());
+}
+
+fn install_at_with(directories: &temper_box_shell::directories::Directories, extra: Vec<super::ctl::Step>) {
     use std::os::unix::ffi::OsStrExt;
     let directory = Path::new(std::ffi::OsStr::from_bytes(&directories.config));
     let data = Path::new(std::ffi::OsStr::from_bytes(&directories.data));
     let pending = directory.join("fixture-limits.json");
     if !pending.exists() {
+        assert!(extra.is_empty(), "additional bootstrap settings require fixture limits");
         return;
     }
     let bytes = fs::read(&pending).expect("fixture limits");
     let applied = data.join("fixture-limits-applied.json");
     if fs::read(&applied).ok().as_deref() == Some(bytes.as_slice()) {
+        assert!(extra.is_empty(), "additional bootstrap settings require a fresh fixture");
         return;
     }
     let mut value = configuration(directory);
@@ -171,7 +200,12 @@ pub fn install_at(directories: &temper_box_shell::directories::Directories) {
             temper_service::limits::apply(&mut value.limits, name.as_bytes(), least).expect("carrier floor");
         }
     }
-    remember(directory, &value);
+    if extra.is_empty() {
+        remember(directory, &value);
+    } else {
+        // These owner edits, not fixture copies, supply any provider changes.
+        remember_figures(directory, &value);
+    }
     let figures: Value =
         serde_json::from_slice(&fs::read(&pending).expect("normalized figures")).expect("figures JSON");
     let mut overrides = Vec::new();
@@ -181,32 +215,42 @@ pub fn install_at(directories: &temper_box_shell::directories::Directories) {
             overrides.push((kind, name, item["value"].as_u64().expect("figure"), "subprocess fixture"));
         }
     }
-    apply(directories, &overrides);
+    apply_with(directories, &overrides, extra);
     super::write_private(&applied, &fs::read(pending).expect("applied figures"));
 }
 
 /// Write the operator's bootstrap file for the same figures the setting takes.
 pub fn hold(directory: &Path, overrides: &[(&str, &str, u64, &str)]) {
+    super::write_private(&directory.join("limits-held"), held_text(overrides).as_bytes());
+}
+
+/// The bootstrap file keeps the operator's override order across both limit kinds.
+#[must_use]
+pub fn held_text(overrides: &[(&str, &str, u64, &str)]) -> String {
     use std::fmt::Write;
     let mut lines = String::new();
     for (_, name, value, _) in overrides {
         writeln!(&mut lines, "{name} {value}").expect("held line");
     }
-    super::write_private(&directory.join("limits-held"), lines.as_bytes());
+    lines
 }
 
 /// Bootstrap a fresh sitting with limits-held, apply the same figures as
 /// settings, drain, and remove the file. The next serve takes the settings.
-pub fn apply(directories: &temper_box_shell::directories::Directories, overrides: &[(&str, &str, u64, &str)]) {
+fn apply_with(
+    directories: &temper_box_shell::directories::Directories,
+    overrides: &[(&str, &str, u64, &str)],
+    extra: Vec<super::ctl::Step>,
+) {
     use super::ctl::{Call, Step, Story};
     use std::os::unix::ffi::{OsStrExt, OsStringExt};
     let directory = Path::new(std::ffi::OsStr::from_bytes(&directories.data));
     hold(directory, overrides);
     let mut steps = vec![Step::Run(Call::sign_in().in_directory("limit-owner"))];
-    steps.extend(super::ctl::limit_settings(directory, overrides).into_iter().map(|step| match step {
+    steps.extend(super::ctl::limit_settings(directory, overrides).into_iter().chain(extra).map(|step| match step {
         Step::Run(call) => Step::Run(call.in_directory("limit-owner")),
         Step::Then(next) => Step::Then(Box::new(move |calls| next(calls).in_directory("limit-owner"))),
-        _ => unreachable!("limit steps are calls"),
+        _ => unreachable!("bootstrap settings steps are calls"),
     }));
     steps.push(Step::Run(Call::new(&["sign-out"]).in_directory("limit-owner")));
     let command = skein_world::end_to_end::Command {
@@ -233,7 +277,7 @@ pub fn apply(directories: &temper_box_shell::directories::Directories, overrides
         assert_eq!(
             call.exit,
             Some(skein_io::kernel::Exit::Code(0)),
-            "limit settings: {}",
+            "bootstrap settings: {}",
             String::from_utf8_lossy(&call.stderr)
         );
     }

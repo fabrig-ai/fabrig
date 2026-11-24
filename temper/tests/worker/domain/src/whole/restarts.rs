@@ -2,16 +2,16 @@
 //! The agent is played at its process boundary: an LLM call has not said its
 //! next turn; a delivery call runs its check program before asking the worker
 //! to push. That program is held here, not a git operation in the worker.
-use super::{ATTEMPT, CALL, Case, REMOTE, RUN, World, agent, host, protocol, wire};
+use super::{ATTEMPT, CALL, Case, PATH, REMOTE, RUN, Request, World, agent, host, protocol, translate, wire};
 use jig_domain_link::{PauseMode, PauseState};
 use skein_lib::{Duration, Rng, Time, Token};
 use skein_world::{
     faults::{FaultLedger, Injection, Struck},
     streams::{Stream, Streams},
 };
-use temper_fake_checkout::Checkout;
+use temper_fake_checkout::{Checkout, git::Remote};
 use temper_faults::restarts::{PART, Point, Way, worker};
-use temper_worker_domain::{Domain, Event};
+use temper_worker_domain::{Domain, Encodable, Encoded, Event};
 
 /// Where a crashed worker's replacement process starts.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -51,14 +51,16 @@ impl Injector {
     }
 }
 
-/// The one-turn story's boundary referee. Each copy must have the complete
-/// scripted body and accounting, and cannot introduce an unseen prefix (the
-/// same rules as `runtime::World::turned`, with a single expected turn).
+/// The boundary referee reads each turn's complete body and accounting.
+/// The one-turn stories can replay their turn; a named text script must
+/// forward each turn once and in order.
 #[derive(Default)]
 pub(super) struct Observer {
     hellos: Vec<(Time, usize)>,
     turns: Vec<Token>,
     starts: Vec<Token>,
+    texts: &'static [&'static [u8]],
+    pub(super) signals: Vec<Request>,
 }
 
 impl Observer {
@@ -72,13 +74,28 @@ impl Observer {
     }
 
     pub(super) fn turned(&mut self, attempt: Token, turn: &host::Turn) {
-        assert_eq!(turn.turn, 1, "no unseen turn prefix");
+        let body = if self.texts.is_empty() {
+            assert_eq!(turn.turn, 1, "no unseen turn prefix");
+            protocol::transcript_turn(2, 8, false)
+        } else {
+            let number = u32::try_from(self.turns.len() + 1).expect("bounded story");
+            assert_eq!(turn.turn, number, "each turn is forwarded once and in order");
+            let text = self.texts.get(self.turns.len()).expect("no turn beyond the released answer");
+            let Encoded::Turn(expected) = protocol::encode(Encodable::Turn(protocol::text_turn(number, text))) else {
+                panic!("encodable fixture turn");
+            };
+            expected.body
+        };
         assert_eq!(turn.spent, 0);
         assert_eq!(turn.read, None);
         assert!(!turn.opens_window);
         assert!(turn.refused.is_empty());
-        assert_eq!(turn.body, protocol::transcript_turn(2, 8, false), "complete turn body, including replay");
+        assert_eq!(turn.body, body, "complete turn body, including replay");
         self.turns.push(attempt);
+    }
+
+    pub(super) fn acknowledges(&self, turn: u32) -> bool {
+        (1..=u32::try_from(self.texts.len()).expect("bounded story")).contains(&turn)
     }
 }
 
@@ -159,10 +176,7 @@ fn release(world: &mut World, point: Point) {
             assert_eq!(world.replies.len(), 1);
         }
         Point::Save => {
-            let (owner, op) = world.held.take().expect("pending save push");
-            world.hold_push = false;
-            let done = super::translate::perform(&mut world.forge, &mut world.disk, op);
-            world.event(Event::Done { owner, done }).expect("worker inspection");
+            world.release_push().expect("worker inspection");
             assert!(matches!(world.delivery_reply, Some(agent::Delivery::Delivered(_))));
         }
         Point::LlmCall => {}
@@ -349,6 +363,206 @@ pub fn at_point(seed: u64, way: Way, point: Point, recovery: Recovery) -> FaultL
     ledger
 }
 
+/// A checked delivery, not a save or its check, is in flight when the worker alone is signalled.
+pub fn signalled_during_delivery(seed: u64) -> Result<(), String> {
+    use super::Op;
+    let mut world = World::new(seed);
+    world.restart_observer = Some(Observer::default());
+    world.start()?;
+    world.disk.write(b"worker-state", b"same disk");
+
+    world.request_delivery(agent::Ask::Save)?;
+    assert_eq!(world.deliveries, 1, "the producer received its save receipt");
+    let saved = world.forge.branch(REMOTE, b"topic").expect("save pushed");
+    assert_eq!(world.forge.tree(saved), [(PATH.to_vec(), b"edited\n".to_vec())].into());
+    assert!(world.forge.message(saved).starts_with(b"Unchecked:"));
+    let pushes = world.pushes;
+
+    let place = temper_worker_domain::checkout::git::Place {
+        git: None,
+        workspace: world.workspace.expect("prepared"),
+        repository: b"app".as_slice().into(),
+    };
+    let both = b"edited\nlater\n";
+    world.disk.write(&[translate::path(&place).as_slice(), b"/code"].concat(), both);
+    let delivery = protocol::delivery(b"Delivery", b"Worker story");
+    let agent::Ask::Deliver { fields } = &delivery else { panic!("checked delivery") };
+    let change = fields.clone().into_value();
+    world.hold_push = true;
+    world.request_delivery(delivery)?;
+    assert!(matches!(world.held, Some((_, Op::Push { .. }))));
+    assert_eq!(world.forge.branch(REMOTE, b"topic"), Some(saved));
+    assert!(world.delivery_reply.is_none());
+
+    world.event(Event::Shutdown { drain: true })?;
+    assert_eq!(world.report.drains, 1, "the worker's first termination drains");
+    assert_eq!(world.report.cancellations, 0);
+    assert_eq!(world.stops, 0);
+    assert!(world.answer.is_none());
+    world.env.now = world.env.now.saturating_add(Duration::from_secs(1));
+    world.release_push()?;
+    assert_eq!(world.deliveries, 2, "exactly one checked delivery receipt after the save");
+    let head = world.forge.branch(REMOTE, b"topic").expect("delivery pushed");
+    assert_eq!(world.forge.parent(head), Some(saved));
+    assert_eq!(world.forge.tree(head), [(PATH.to_vec(), both.to_vec())].into(), "the delivery head holds both lines");
+
+    world.say(agent::Up::Turn { turn: protocol::turn(1, 0, 8) })?;
+    world.accept_change(change, 1)?;
+    world.gone()?;
+    let (answer, work, preparation) = world.answer.take().expect("one delivery answer");
+    assert_eq!(answer.turns, 1);
+    assert!(matches!(answer.ending, host::Ending::Ended { .. }));
+    assert_eq!(preparation, None);
+    assert_eq!(work.landed.as_ref(), [wire::Landed { tag: 1, commit: translate::commit(head).raw(), checked: true }]);
+    assert_eq!(world.stops, 0, "the final answer is not yet acknowledged");
+    assert_eq!(world.domain.kept_answers(), 1);
+    world.event(Event::Link(host::LinkDown::Acknowledge { run: RUN, attempt: world.attempt }))?;
+    assert_eq!(world.domain.kept_answers(), 0);
+    assert_eq!(world.stops, 0, "the turn is not yet acknowledged");
+    world.event(Event::Link(host::LinkDown::TurnKept { run: RUN, attempt: world.attempt, turn: 1 }))?;
+    assert_eq!(world.pushes, pushes + 1, "one push for the checked delivery");
+
+    reopen_settled(&mut world)?;
+    assert_eq!(world.restart_observer.as_ref().expect("referee").turns, [ATTEMPT]);
+    assert!(world.answer.is_none(), "the new worker does not replay the delivery's answer");
+    assert_eq!(world.pushes, pushes + 1, "the restart does not push again");
+    assert_eq!(world.forge.branch(REMOTE, b"topic"), Some(head));
+    Ok(())
+}
+
+fn reopen_settled(world: &mut World) -> Result<(), String> {
+    assert_eq!(world.stops, 1);
+    assert_eq!(world.domain.agent().agents(), 0);
+    assert_eq!(world.domain.workspaces(), 0);
+    world.domain = Domain::new(&world.env.limits, Box::new([]));
+    world.process = None;
+    world.up = false;
+    world.env.now = world.env.now.saturating_add(Duration::from_secs(2));
+    world.connect()?;
+    let observer = world.restart_observer.as_ref().expect("referee");
+    assert_eq!(observer.hellos, [(Time::ZERO, 0), (world.env.now, 0)], "fresh hello with no old attempt");
+    assert!(world.disk.exists(b"worker-state"), "the worker keeps its disk");
+    Ok(())
+}
+
+const REPLIES: &[&[u8]] = &[b"I read the file.", b"I updated it.", b"Here is the held answer."];
+const RELEASED_WRITE: &[u8] = b"released\n";
+
+/// The played agent's model boundary. It starts a Completion before each answer,
+/// and asks again after a turn only if its host has not sent Drain.
+#[derive(Default)]
+struct Model {
+    queries: u32,
+    pending: bool,
+}
+
+impl Model {
+    fn ask(&mut self, world: &mut World) -> Result<(), String> {
+        assert!(!self.pending, "one model query at a time");
+        self.queries += 1;
+        self.pending = true;
+        world.say(agent::Up::Long { operation: agent::Operation::Completion, span: Duration::from_secs(60) })
+    }
+
+    fn release(&mut self, world: &mut World, write: Option<&[u8]>) -> Result<(), String> {
+        assert!(self.pending, "release an outstanding answer");
+        self.pending = false;
+        world.say(agent::Up::LongDone)?;
+        if let Some(bytes) = write {
+            let place = temper_worker_domain::checkout::git::Place {
+                git: None,
+                workspace: world.workspace.expect("prepared"),
+                repository: b"app".as_slice().into(),
+            };
+            world.disk.write(&[translate::path(&place).as_slice(), b"/code"].concat(), bytes);
+        }
+        let text = REPLIES[usize::try_from(self.queries - 1).expect("bounded script")];
+        world.say(agent::Up::Turn { turn: protocol::text_turn(self.queries, text) })?;
+        if world.report.drains == 0 {
+            self.ask(world)?;
+        }
+        Ok(())
+    }
+}
+
+/// The first worker signal drains; the live agent's own signal is only a notice.
+pub fn signalled_during_model_answer(seed: u64) -> Result<(), String> {
+    let mut world = World::new(seed);
+    world.restart_observer = Some(Observer { texts: REPLIES, ..Observer::default() });
+    world.start()?;
+    world.disk.write(b"worker-state", b"same disk");
+    let mut model = Model::default();
+    model.ask(&mut world)?;
+    for turn in [1, 2] {
+        model.release(&mut world, None)?;
+        world.event(Event::Link(host::LinkDown::TurnKept { run: RUN, attempt: ATTEMPT, turn }))?;
+    }
+    // Point::LlmCall: the third query is out, but the next turn has not been said.
+    assert_eq!(world.restart_observer.as_ref().expect("referee").turns, [ATTEMPT; 2]);
+    assert_eq!(model.queries, 3);
+    assert!(model.pending && world.reading);
+    assert_eq!(world.forge.branch(REMOTE, b"saved"), Some(world.first));
+
+    world.event(Event::Shutdown { drain: true })?;
+    assert_eq!(world.report.drains, 1);
+    let signal = agent::parent::Signal::Terminate;
+    let from = Some(42);
+    world.say(agent::Up::Signalled { signal, from })?;
+    assert_eq!(
+        world.restart_observer.as_ref().expect("referee").signals,
+        [Request::AgentSignalled { run: RUN, attempt: ATTEMPT, signal, from }]
+    );
+    assert_eq!(
+        (world.report.cancellations, world.report.drops, world.stops),
+        (0, 0, 0),
+        "the stray signal is only a notice"
+    );
+    assert!(world.answer.is_none() && world.reading && model.pending, "the same attempt still waits on its answer");
+    assert_eq!(world.restart_observer.as_ref().expect("referee").turns, [ATTEMPT; 2]);
+
+    world.env.now = world.env.now.saturating_add(Duration::from_secs(1));
+    model.release(&mut world, Some(RELEASED_WRITE))?;
+    assert_eq!(model.queries, 3, "the drain commits this answer without asking the model again");
+    assert!(!model.pending);
+    let answer = agent::Answer {
+        read: None,
+        turns: model.queries,
+        spent: 0,
+        result: agent::RunResult::Failed { failure: agent::RunFailure::Cancelled },
+    };
+    world.say(agent::Up::Answer { answer })?;
+    world.gone()?;
+    let (answer, work, preparation) = world.answer.take().expect("one terminal after the released answer");
+    assert_eq!(answer.turns, 3);
+    // The hub maps this shutdown reason to Recheck, which spends no try.
+    assert!(matches!(
+        answer.ending,
+        host::Ending::Failed { failure: host::Failure::Cancelled(host::Reason::Shutdown), .. }
+    ));
+    assert_eq!(preparation, None);
+    let saved = world.forge.branch(REMOTE, b"saved").expect("saved branch");
+    let saved_work = work.saved.expect("saved work in the answer");
+    let [wire::SavedRepository { tag: 1, landing: wire::Landing::Landed { commit }, .. }] = saved_work.as_ref() else {
+        panic!("one saved head: {saved_work:?}");
+    };
+    assert_eq!(*commit, translate::commit(saved).raw());
+    assert_eq!(world.forge.tree(saved), [(PATH.to_vec(), RELEASED_WRITE.to_vec())].into());
+
+    assert_eq!(world.stops, 0, "the final turn is not yet acknowledged");
+    world.event(Event::Link(host::LinkDown::TurnKept { run: RUN, attempt: ATTEMPT, turn: 3 }))?;
+    assert_eq!(world.stops, 0, "the terminal is not yet acknowledged");
+    assert_eq!(world.domain.kept_answers(), 1);
+    world.event(Event::Link(host::LinkDown::Acknowledge { run: RUN, attempt: ATTEMPT }))?;
+    assert_eq!(world.domain.kept_answers(), 0);
+    assert_eq!(world.report.cancellations, 0, "the host never cancelled the concluding turn");
+    reopen_settled(&mut world)?;
+    let observer = world.restart_observer.expect("referee");
+    assert_eq!(observer.turns, [ATTEMPT; 3], "the three distinct texts, once each on the same attempt");
+    assert_eq!(observer.starts, [ATTEMPT]);
+    assert!(world.answer.is_none());
+    Ok(())
+}
+
 /// Each existing delivery/contact story, preceded by the same seed's restart
 /// at its drawn point. The next attempt continues from the interrupted one's
 /// saved work where it has any. One seed's ledger covers all four stories.
@@ -385,6 +599,5 @@ fn story(seed: u64, case: Case, draw: (Way, Point, Recovery), ledger: &mut Fault
     world.stops = 0;
     world.report.cancellations = 0;
     world.report.saves = 0;
-    world.story(case).expect("worker inspection");
-    world.completed(case).expect("worker inspection");
+    world.play_and_complete(case).expect("worker inspection");
 }

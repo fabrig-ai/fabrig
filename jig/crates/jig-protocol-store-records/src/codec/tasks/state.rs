@@ -1,5 +1,4 @@
 //! Durable task values translated exhaustively (protocol/store/records.md, 1).
-use super::Context;
 use crate::generated::tasks as mapped;
 use crate::tasks_v13 as wire;
 use alloc::boxed::Box;
@@ -9,20 +8,20 @@ use skein_lib::Wall;
 /// Translate `Status` to its durable tag.
 #[must_use]
 pub fn status(source: domain::Status) -> wire::Status {
-    mapped::status_to_record(&source, &Context::new(&super::EMPTY, None)).expect("translation has no fallible fields")
+    mapped::status_to_record(&source)
 }
 
 /// Translate `InvalidResult` to its durable tag.
 #[must_use]
 pub fn invalid_result(source: domain::InvalidResult) -> wire::InvalidResult {
-    mapped::invalid_result_to_record(&source, &Context::new(&super::EMPTY, None))
-        .expect("translation has no fallible fields")
+    mapped::invalid_result_to_record(&source)
 }
 
 /// Translate `Escalation` to its durable value.
 #[expect(clippy::match_same_arms, reason = "the stored number and kind are separate fields")]
-pub fn escalation(source: &domain::Escalation, limits: &wire::Limits) -> Result<wire::Escalation, wire::Problem> {
-    Ok(match source {
+#[must_use]
+pub fn escalation(source: &domain::Escalation) -> wire::Escalation {
+    match source {
         domain::Escalation::Unheld { revision } => {
             wire::Escalation::Unheld(wire::UnheldEscalation { revision: *revision })
         }
@@ -32,7 +31,7 @@ pub fn escalation(source: &domain::Escalation, limits: &wire::Limits) -> Result<
         domain::Escalation::Waiting { revision, holder, entry, since } => {
             wire::Escalation::Waiting(wire::WaitingEscalation {
                 revision: *revision,
-                holder: mapped::escalation_holder_to_record(holder, &Context::new(limits, None))?,
+                holder: mapped::escalation_holder_to_record(holder),
                 entry: *entry,
                 since: since.as_nanos(),
             })
@@ -49,11 +48,12 @@ pub fn escalation(source: &domain::Escalation, limits: &wire::Limits) -> Result<
                 domain::EscalationDecider::Person(_) => wire::DeciderKind::Person,
             },
         }),
-    })
+    }
 }
 /// Read `Escalation` from its durable value.
-pub fn read_escalation(source: wire::Escalation) -> Result<domain::Escalation, wire::Problem> {
-    Ok(match source {
+#[must_use]
+pub fn read_escalation(source: wire::Escalation) -> domain::Escalation {
+    match source {
         wire::Escalation::Unheld(source) => {
             let wire::UnheldEscalation { revision } = source;
             domain::Escalation::Unheld { revision }
@@ -66,7 +66,7 @@ pub fn read_escalation(source: wire::Escalation) -> Result<domain::Escalation, w
             let wire::WaitingEscalation { revision, holder, entry, since } = source;
             domain::Escalation::Waiting {
                 revision,
-                holder: mapped::escalation_holder_to_domain(holder, &Context::new(&super::EMPTY, None))?,
+                holder: mapped::escalation_holder_to_domain(holder),
                 entry,
                 since: Wall::from_nanos(since),
             }
@@ -82,23 +82,19 @@ pub fn read_escalation(source: wire::Escalation) -> Result<domain::Escalation, w
                 reason,
             }
         }
-    })
+    }
 }
 
 /// Translate `PersonAnswer` to its durable record.
-pub fn person_answer(
-    source: &domain::PersonAnswer,
-    _limits: &wire::Limits,
-) -> Result<wire::PersonAnswer, wire::Problem> {
-    mapped::person_answer_to_record(source, &Context::new(&super::EMPTY, None))
+#[must_use]
+pub fn person_answer(source: &domain::PersonAnswer) -> wire::PersonAnswer {
+    mapped::person_answer_to_record(source)
 }
 
 /// Translate `QuestionCredit` to its durable record.
-pub fn question_credit(
-    source: &domain::QuestionCredit,
-    limits: &wire::Limits,
-) -> Result<wire::QuestionCredit, wire::Problem> {
-    mapped::question_credit_to_record(source, &Context::new(limits, None))
+#[must_use]
+pub fn question_credit(source: &domain::QuestionCredit) -> wire::QuestionCredit {
+    mapped::question_credit_to_record(source)
 }
 
 /// Translate `SavedResource` to its durable record.

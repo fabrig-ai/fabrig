@@ -92,9 +92,14 @@ fn the_real_set_names_its_owner_family_root_and_mark() {
 }
 
 #[test]
-fn the_real_set_keeps_the_baseline_without_a_patch() {
-    assert_eq!((smith_transcript::patches::PATCHES).len(), 0);
-    assert_eq!(smith_transcript::patches::kept::smith_transcript::TEXTS, &[TRANSCRIPT]);
+fn the_real_set_keeps_seven_and_patches_to_eight_without_fresh_windows() {
+    let texts = smith_transcript::patches::kept::smith_transcript::TEXTS;
+    assert_eq!(texts.len(), 2);
+    assert_eq!(schema::parse(texts[0].as_bytes()).expect("baseline").version(), 7);
+    assert_eq!(texts[1], TRANSCRIPT);
+    let [patch] = smith_transcript::patches::PATCHES else { panic!("first patch") };
+    let header = skein_codec::patch::header(patch.as_bytes()).expect("patch header");
+    assert!(!header.marked(patch.as_bytes(), smith_transcript::FRESH_WINDOWS.as_bytes()));
 }
 
 #[test]

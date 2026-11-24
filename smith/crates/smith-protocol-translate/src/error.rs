@@ -21,7 +21,7 @@ pub enum Error {
     /// A concrete turn cannot be written to the durable transcript format.
     Transcript(smith_domain_session::record::Refusal),
     /// A concrete turn exceeds the transcript codec bounds.
-    TranscriptBody(smith_transcript::v7::Problem),
+    TranscriptBody(smith_transcript::v8::Problem),
     /// The service sent admission or an answer out of order.
     Order,
     /// A live host operation name is repeated, unknown, or beyond capacity.
@@ -33,7 +33,7 @@ pub enum Error {
     /// The measured result did not fit its output writer.
     Write(skein_lib::Overflow),
     /// A domain answer exceeds the configured channel body limits.
-    ChannelBody(smith_channel::v13::Problem),
+    ChannelBody(smith_channel::v14::Problem),
     /// A measured application frame could not be built.
     Frame(skein_channel::FrameError),
 }

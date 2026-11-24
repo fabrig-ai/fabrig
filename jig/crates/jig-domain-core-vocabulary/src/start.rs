@@ -122,6 +122,7 @@ pub enum LiveSet {
     ReadResults,
     RunProofs,
     Calls,
+    Parts,
     Projections,
     Conversations,
     Census,

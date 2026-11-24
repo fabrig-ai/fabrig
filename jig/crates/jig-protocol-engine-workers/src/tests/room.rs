@@ -172,7 +172,7 @@ fn a_resumed_start_is_fitted_to_the_engines_room() {
     );
     let Some(Request::Unsent { unsent, .. }) = out.pop() else { panic!("fitted frame refused by unopened channel") };
     // One answer stays whole; three become 67-byte cut words.
-    assert_eq!(unsent.bytes, 613);
+    assert_eq!(unsent.bytes, 617);
     assert_eq!(unsent.bound, Bound::Channel(skein_channel::Unsent::Closed));
     assert!(unsent.bytes <= ENGINE && ENGINE < WHOLE && WHOLE < WORKER);
 }
@@ -287,6 +287,7 @@ fn a_channels_closed_entrance_answers_the_current_record_once() {
             | hub::LinkUp::Usage { .. }
             | hub::LinkUp::Limited { .. }
             | hub::LinkUp::AccountRefused { .. }
+            | hub::LinkUp::Part { .. }
             | hub::LinkUp::Turn { .. }
             | hub::LinkUp::Ask { .. }
             | hub::LinkUp::Call { .. }) => panic!("start answer: {other:?}"),

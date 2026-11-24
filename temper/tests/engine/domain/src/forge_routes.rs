@@ -1974,6 +1974,24 @@ impl World {
         self
     }
 
+    /// Start with only the offered sign-in provider, without a seeded deployment payer.
+    #[must_use]
+    pub fn with_personal_plan(mut self, provider: jig_domain_accounts::Provider) -> Self {
+        assert_eq!(self.env.now, Time::ZERO, "plan provider precedes world startup");
+        let config = &mut self.restart_config;
+        config.core.settings.llm_providers.providers = Box::new([provider]);
+        config.core.defaults.providers = jig_test_profile::fixtures::provider_references(&config.core.settings);
+        self.store = crate::fixtures::first_start_over(
+            Store::with_limits(&self.env.limits),
+            crate::oracle::config::copy(config),
+            &self.env.limits,
+        );
+        self.events = VecDeque::from([engine::Event::Restart { pending: self.store.pending_generation }]);
+        self.root = engine::Domain::new(crate::oracle::config::copy(config), &self.env.limits)
+            .expect("valid plan provider configuration");
+        self
+    }
+
     /// Replace the forge client's admission bounds before the world's first input.
     /// The bootstrap rows and scripted worker retain their configured policy.
     #[must_use]

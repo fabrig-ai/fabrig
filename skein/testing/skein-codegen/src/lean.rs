@@ -6,6 +6,7 @@ use crate::{
     emit_limits::{self, LimitLevel, literal, pascal, snake},
     emit_types,
 };
+use alloc::collections::BTreeMap;
 use core::fmt::Write;
 
 fn line(out: &mut String, text: &str) {
@@ -33,12 +34,8 @@ fn field_path(record: &str, field: &str) -> String {
 }
 
 fn paths(schema: &Schema, out: &mut String) {
-    line(
-        out,
-        "// Paths: declaration and part positions, with one naming table.\npub mod paths {\n    use super::Path;",
-    );
-    let mut names = String::new();
-    for (at, declaration) in schema.declarations.iter().enumerate() {
+    line(out, "// Paths: names as the schema spells them.\npub mod paths {\n    use super::Path;");
+    for declaration in &schema.declarations {
         let mut parts = Vec::new();
         match declaration {
             Declaration::Record(record) => {
@@ -54,19 +51,11 @@ fn paths(schema: &Schema, out: &mut String) {
                 parts.push((constant(&format!("{}Tag", enumeration.name)), format!("{} (tag)", enumeration.name)));
             }
         }
-        line(&mut names, "    &[");
-        for (part, (name, text)) in parts.iter().enumerate() {
-            line(out, &format!("    pub const {name}: Path = Path::new({at}, {part});"));
-            line(&mut names, &format!("        \"{text}\","));
+        for (name, text) in parts {
+            line(out, &format!("    pub const {name}: Path = Path::new({text:?});"));
         }
-        line(&mut names, "    ],");
     }
-    line(out, "}\n\nconst PATH_NAMES: &[&[&str]] = &[");
-    out.push_str(&names);
-    line(
-        out,
-        "];\n\n/// The path as the schema spells it, or None outside this family's table.\n#[must_use]\npub fn name(path: Path) -> Option<&'static str> {\n    PATH_NAMES.get(usize::from(path.declaration))?.get(usize::from(path.part)).copied()\n}\n",
-    );
+    line(out, "}\n");
 }
 
 fn limits(context: &Context<'_>, out: &mut String) {
@@ -75,7 +64,7 @@ fn limits(context: &Context<'_>, out: &mut String) {
     line(
         out,
         &format!(
-            "// Limits: the owner's values, checked once against ceilings.\n#[derive(Clone{copy}, Debug, PartialEq, Eq, Hash)]\npub struct Limits {{"
+            "// Limits: the owner's values, checked once against ceilings.\n#[repr(C)]\n#[derive(Clone{copy}, Debug, PartialEq, Eq, Hash)]\npub struct Limits {{"
         ),
     );
     for (name, _, _) in bounds {
@@ -91,20 +80,21 @@ fn limits(context: &Context<'_>, out: &mut String) {
     }
     line(out, "];\n\nimpl Limits {");
     expectation(out, bounds.len().checked_add(4).expect("source length"));
-    line(out, "    #[must_use]\n    pub fn values(&self) -> List<u32> {");
-    if bounds.is_empty() {
-        line(out, "        List::with_capacity(0)");
-    } else {
-        line(
-            out,
-            "        let mut values = List::with_capacity(u32::try_from(LIMIT_NAMES.len()).expect(\"schema limits fit u32\"));",
-        );
-        for (name, _, _) in bounds {
-            line(out, &format!("        values.push(self.{name}).expect(\"room for every named limit\");"));
-        }
-        line(out, "        values");
+    line(out, "    #[must_use]\n    pub fn values(&self) -> List<u32> {\n        List::from_boxed([");
+    for (name, _, _) in bounds {
+        line(out, &format!("            self.{name},"));
     }
-    line(out, "    }\n}\n");
+    line(out, "        ].into())\n    }\n");
+    expectation(out, bounds.len().checked_add(5).expect("source length"));
+    // The binding keeps the signature unchanged for a family without limits.
+    line(
+        out,
+        "    #[must_use]\n    pub fn at_most(&self, most: u32) -> Limits {\n        let _: u32 = most;\n        Limits {",
+    );
+    for (name, _, _) in bounds {
+        line(out, &format!("            {name}: self.{name}.min(most),"));
+    }
+    line(out, "        }\n    }\n}\n");
     line(out, "const LIMIT_PATHS: &[Path] = &[");
     for (_, _, path) in bounds {
         line(out, &format!("    paths::{},", constant(path)));
@@ -174,9 +164,8 @@ fn types(declaration: &Declaration, out: &mut String) {
 fn implementation(
     context: &Context<'_>,
     declaration: &Declaration,
-    node: usize,
+    shape: Shape<'_>,
     encoded_at_zero: u64,
-    root: bool,
     out: &mut String,
 ) {
     let name = declaration_name(declaration);
@@ -187,20 +176,32 @@ fn implementation(
             Declaration::Enum(_) => "Tag",
         }
     ));
+    line(out, &format!("// Record: {name}.\nimpl {name} {{"));
+    line(out, "    const SHAPE: &'static [skein_codec::bounds::Node] = &[");
+    for (node, _) in shape.nodes {
+        line(out, &format!("        {node},"));
+    }
+    line(out, "    ];\n");
     line(
         out,
         &format!(
-            "// Record: {name}.\nimpl {name} {{\n    /// The record's encoded bound with every limit it reaches set to zero.\n    pub const ENCODED_AT_ZERO: u64 = {encoded_at_zero};\n}}\n\nimpl Record for {name} {{\n    type Limits = Limits;\n    const TAIL: Path = paths::{tail};\n\n    fn encoded_bound(limits: &Limits) -> Option<u64> {{\n        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, {node})?.encoded)\n    }}\n\n    fn decoded_bound(limits: &Limits) -> Option<u64> {{\n        Some(skein_codec::bounds::declaration(TABLE, limits.values().as_slice(), CEILING_VALUES, {node})?.decoded)\n    }}\n"
+            "    /// The record's encoded bound with every limit it reaches set to zero.\n    pub const ENCODED_AT_ZERO: u64 = {encoded_at_zero};\n}}\n\nimpl Record for {name} {{\n    type Limits = Limits;\n    const TAIL: Path = paths::{tail};\n"
         ),
     );
-    if root {
-        // Compile the outer entry with its family, not with an unoptimized caller.
-        // Release uses Record's default entry.
+    for bound in ["encoded", "decoded"] {
         line(
             out,
-            "    #[cfg(debug_assertions)]\n    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {\n        let value = Self::read(limits, reader)?;\n        if !reader.is_empty() {\n            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));\n        }\n        Ok(value)\n    }\n",
+            &format!(
+                "    fn {bound}_bound(limits: &Limits) -> Option<u64> {{\n        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, {name:?})?.{bound})\n    }}\n"
+            ),
         );
     }
+    // Compile the outer entry with its family, not with an unoptimized caller.
+    // Emit it even for nested types: inserting a user of a type does not change its code.
+    line(
+        out,
+        "    #[cfg(debug_assertions)]\n    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {\n        let value = Self::read(limits, reader)?;\n        if !reader.is_empty() {\n            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));\n        }\n        Ok(value)\n    }\n",
+    );
     match declaration {
         Declaration::Record(record) => record_impl(context, record, out),
         Declaration::Enum(enumeration) => enum_impl(enumeration, out),
@@ -321,14 +322,13 @@ fn enum_impl(enumeration: &crate::Enumeration, out: &mut String) {
     line(out, "        }\n    }");
 }
 
-struct Table<'a> {
+struct Shape<'a> {
     nodes: Vec<(String, u64)>,
-    named: alloc::collections::BTreeMap<&'a str, usize>,
-    limits: alloc::collections::BTreeMap<&'a str, usize>,
+    named: &'a BTreeMap<&'a str, u64>,
 }
 
 enum ZeroBound<'a> {
-    Scalar(u64),
+    Fixed(u64),
     LengthPrefix,
     Option(usize),
     Boxed(usize),
@@ -336,14 +336,14 @@ enum ZeroBound<'a> {
     Enum(&'a [usize]),
 }
 
-impl Table<'_> {
+impl Shape<'_> {
     fn bound(&self, at: usize) -> u64 {
         self.nodes.get(at).expect("earlier bounds node").1
     }
 
     fn encoded_at_zero(&self, node: ZeroBound<'_>) -> Option<u64> {
         match node {
-            ZeroBound::Scalar(size) => Some(size),
+            ZeroBound::Fixed(size) => Some(size),
             ZeroBound::LengthPrefix => Some(4),
             ZeroBound::Option(item) => 1_u64.checked_add(self.bound(item)),
             ZeroBound::Boxed(item) => Some(self.bound(item)),
@@ -364,7 +364,14 @@ impl Table<'_> {
     }
 
     fn scalar(&mut self, size: u64) -> usize {
-        self.push(format!("skein_codec::bounds::Node::Scalar({})", literal(size)), ZeroBound::Scalar(size))
+        self.push(format!("skein_codec::bounds::Node::Scalar({})", literal(size)), ZeroBound::Fixed(size))
+    }
+
+    fn named(&mut self, name: &str) -> usize {
+        self.push(
+            format!("skein_codec::bounds::Node::Named({name:?})"),
+            ZeroBound::Fixed(*self.named.get(name).expect("earlier declaration")),
+        )
     }
 
     fn ty(&mut self, ty: &Type, bound: &str) -> usize {
@@ -375,18 +382,14 @@ impl Table<'_> {
             Type::U64 | Type::Duration => self.scalar(8),
             Type::Fixed(width) => self.scalar(u64::from(*width)),
             Type::Bytes(_) | Type::Secret(_) | Type::Text(_) => self.push(
-                format!(
-                    "skein_codec::bounds::Node::Bytes {{ limit: {} }}",
-                    self.limits.get(bound).expect("limit collected")
-                ),
+                format!("skein_codec::bounds::Node::Bytes {{ limit: core::mem::offset_of!(Limits, {bound}) }}"),
                 ZeroBound::LengthPrefix,
             ),
             Type::List(_, item) => {
                 let at = self.ty(item, &emit_limits::child_name(bound, LimitLevel::Item));
                 self.push(
                     format!(
-                        "skein_codec::bounds::Node::List {{ limit: {}, item: {at}, size: size_of::<{}>() }}",
-                        self.limits.get(bound).expect("limit collected"),
+                        "skein_codec::bounds::Node::List {{ limit: core::mem::offset_of!(Limits, {bound}), item: {at}, size: size_of::<{}>() }}",
                         emit_types::rust_type(item)
                     ),
                     ZeroBound::LengthPrefix,
@@ -396,87 +399,74 @@ impl Table<'_> {
                 let at = self.ty(item, &emit_limits::child_name(bound, LimitLevel::Some));
                 self.push(format!("skein_codec::bounds::Node::Option {{ item: {at} }}"), ZeroBound::Option(at))
             }
-            Type::Named(name) => *self.named.get(name.as_str()).expect("earlier declaration"),
+            Type::Named(name) => self.named(name),
         }
     }
 }
 
-fn table(context: &Context<'_>, out: &mut String) -> Vec<(usize, u64)> {
-    let mut table = Table {
-        nodes: Vec::new(),
-        named: alloc::collections::BTreeMap::new(),
-        limits: context.bounds.iter().enumerate().map(|(at, (name, _, _))| (name.as_str(), at)).collect(),
-    };
-    let mut roots = Vec::new();
-    for declaration in context.declarations {
-        let at = match declaration {
-            Declaration::Record(record) => {
-                let fields = record
-                    .fields
-                    .iter()
-                    .map(|field| table.ty(&field.ty, &emit_limits::bound_name(&record.name, &field.name)))
-                    .collect::<Vec<_>>();
-                let prefix = if record.versioned { 2 } else { 0 };
-                table.push(
-                    format!("skein_codec::bounds::Node::Record {{ prefix: {prefix}, fields: &{fields:?} }}"),
-                    ZeroBound::Record { prefix, fields: &fields },
-                )
-            }
-            Declaration::Enum(enumeration) => {
-                let variants = enumeration
-                    .variants
-                    .iter()
-                    .map(|variant| match &variant.record {
-                        Some(name) => {
-                            let at = *table.named.get(name.as_str()).expect("earlier record");
-                            if variant.boxed {
-                                table.push(
-                                    format!(
-                                        "skein_codec::bounds::Node::Boxed {{ item: {at}, size: size_of::<{name}>() }}"
-                                    ),
-                                    ZeroBound::Boxed(at),
-                                )
-                            } else {
-                                at
-                            }
+fn shape_for<'a>(declaration: &Declaration, named: &'a BTreeMap<&str, u64>) -> (Shape<'a>, u64) {
+    let mut shape = Shape { nodes: Vec::new(), named };
+    let root = match declaration {
+        Declaration::Record(record) => {
+            let fields = record
+                .fields
+                .iter()
+                .map(|field| shape.ty(&field.ty, &emit_limits::bound_name(&record.name, &field.name)))
+                .collect::<Vec<_>>();
+            let prefix = if record.versioned { 2 } else { 0 };
+            shape.push(
+                format!("skein_codec::bounds::Node::Record {{ prefix: {prefix}, fields: &{fields:?} }}"),
+                ZeroBound::Record { prefix, fields: &fields },
+            )
+        }
+        Declaration::Enum(enumeration) => {
+            let variants = enumeration
+                .variants
+                .iter()
+                .map(|variant| match &variant.record {
+                    Some(name) => {
+                        let at = shape.named(name);
+                        if variant.boxed {
+                            shape.push(
+                                format!("skein_codec::bounds::Node::Boxed {{ item: {at}, size: size_of::<{name}>() }}"),
+                                ZeroBound::Boxed(at),
+                            )
+                        } else {
+                            at
                         }
-                        None => table.scalar(0),
-                    })
-                    .collect::<Vec<_>>();
-                table.push(
-                    format!("skein_codec::bounds::Node::Enum {{ variants: &{variants:?} }}"),
-                    ZeroBound::Enum(&variants),
-                )
-            }
-        };
-        table.named.insert(declaration_name(declaration), at);
-        roots.push((at, table.bound(at)));
-    }
-    line(
-        out,
-        "// Table: postordered shapes, with compiler-known heap slot sizes.\nstatic TABLE: &[skein_codec::bounds::Node] = &[",
-    );
-    for (node, _) in table.nodes {
-        line(out, &format!("    {node},"));
-    }
-    line(out, "];\n\nconst DECLARATIONS: &[u32] = &[");
-    for (at, _) in &roots {
-        line(out, &format!("    {at},"));
+                    }
+                    None => shape.scalar(0),
+                })
+                .collect::<Vec<_>>();
+            shape.push(
+                format!("skein_codec::bounds::Node::Enum {{ variants: &{variants:?} }}"),
+                ZeroBound::Enum(&variants),
+            )
+        }
+    };
+    let encoded_at_zero = shape.bound(root);
+    (shape, encoded_at_zero)
+}
+
+fn table(context: &Context<'_>, named: &BTreeMap<&str, u64>, out: &mut String) {
+    line(out, "// Bounds: one postordered shape per declaration, sorted by name.");
+    line(out, "pub static DECLARATIONS: &[skein_codec::bounds::Declaration] = &[");
+    for name in named.keys() {
+        line(out, &format!("    skein_codec::bounds::Declaration {{ name: {name:?}, nodes: {name}::SHAPE }},"));
     }
     line(out, "];\n\nstatic CEILING_VALUES: &[u32] = &[");
-    for (_, ceiling, _) in &context.bounds {
-        line(out, &format!("    {},", literal(ceiling)));
+    for (name, _, _) in &context.bounds {
+        line(out, &format!("    CEILINGS.{name},"));
     }
-    line(out, "];\n");
+    line(out, "];");
     for name in ["encoded", "decoded"] {
         line(
             out,
             &format!(
-                "#[must_use]\npub fn {name}_bound(limits: &Limits) -> Option<u64> {{\n    Some(skein_codec::bounds::family(TABLE, limits.values().as_slice(), CEILING_VALUES, DECLARATIONS)?.{name})\n}}\n"
+                "\n#[must_use]\npub fn {name}_bound(limits: &Limits) -> Option<u64> {{\n    Some(skein_codec::bounds::family(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES)?.{name})\n}}"
             ),
         );
     }
-    roots
 }
 
 pub(crate) fn generate(schema: &Schema) -> Output {
@@ -500,18 +490,13 @@ pub(crate) fn generate(schema: &Schema) -> Output {
     line(&mut out, &format!("pub const VERSION: u16 = {};\n", literal(schema.version)));
     limits(&context, &mut out);
     paths(schema, &mut out);
-    let nodes = table(&context, &mut out);
-    let roots = crate::roots(schema);
-    for (declaration, (node, encoded_at_zero)) in schema.declarations.iter().zip(nodes) {
+    let mut named = BTreeMap::new();
+    for declaration in context.declarations {
         types(declaration, &mut out);
-        implementation(
-            &context,
-            declaration,
-            node,
-            encoded_at_zero,
-            roots.iter().any(|root| root == declaration_name(declaration)),
-            &mut out,
-        );
+        let (shape, encoded_at_zero) = shape_for(declaration, &named);
+        implementation(&context, declaration, shape, encoded_at_zero, &mut out);
+        named.insert(declaration_name(declaration), encoded_at_zero);
     }
+    table(&context, &named, &mut out);
     Output { records: out }
 }

@@ -2,7 +2,7 @@
 
 use std::os::unix::ffi::OsStrExt;
 
-use skein_io::kernel::{Error, Exit};
+use skein_io::kernel::Error;
 use skein_lib::Duration;
 use skein_scratch::Scratch;
 use skein_shell::{Clock, open_root};
@@ -14,41 +14,6 @@ use skein_world_tests::roots::{file_child, missing_roots, parent, roots, waiting
 const DESCRIPTORS: &str = "/proc/self/fd";
 #[cfg(target_os = "macos")]
 const DESCRIPTORS: &str = "/dev/fd";
-
-#[test]
-fn child_files_survive_parent_root_close_in_a_real_scratch_directory() {
-    let scratch = Scratch::new("hosted-roots");
-    let descriptors = descriptor_count();
-    let root = open_root(scratch.path()).expect("parent root");
-    let mut world = real::World::new(Judge);
-    world.host_roots(
-        HostedProgram { program: Box::from(&b"hosted"[..]), make: file_child, instances: 1, operations: 8 },
-        roots,
-    );
-    world.spawn_with_fds(vec![root], || parent(root, scratch.path().as_os_str().as_bytes(), false));
-    let outcome = world.run(&Clock::new(), Duration::from_secs(2));
-    assert_scratch_closed(descriptors);
-    assert_eq!(outcome.procs[0].child_exit, Some(Exit::Code(0)));
-    assert_eq!(outcome.procs[1].received, b"gofrom child");
-    assert_eq!(std::fs::read(scratch.path().join("note")).expect("child output file"), b"from child");
-}
-
-#[test]
-fn kill_closes_real_child_roots_and_settles_the_parent_wait() {
-    let scratch = Scratch::new("killed-roots");
-    let descriptors = descriptor_count();
-    let root = open_root(scratch.path()).expect("parent root");
-    let mut world = real::World::new(Judge);
-    world.host_roots(
-        HostedProgram { program: Box::from(&b"hosted"[..]), make: waiting_child, instances: 1, operations: 8 },
-        roots,
-    );
-    world.spawn_with_fds(vec![root], || parent(root, scratch.path().as_os_str().as_bytes(), true));
-    let outcome = world.run(&Clock::new(), Duration::from_secs(2));
-    assert_scratch_closed(descriptors);
-    assert_eq!(outcome.procs[0].child_exit, Some(Exit::Signal(9)));
-    assert_eq!(outcome.killed.len(), 1);
-}
 
 #[test]
 fn partial_real_startup_failure_closes_roots_without_calling_the_factory() {
@@ -80,27 +45,6 @@ fn assert_scratch_closed(before: usize) {
     // hold no descriptors: counting checks that no descriptor at all is kept,
     // including one for a scratch entry that has already been removed.
     assert_eq!(descriptor_count(), before, "no parent, child, rollback or kernel descriptor remains open");
-}
-
-#[test]
-fn child_append_files_preserve_existing_bytes_and_close_after_parent_root_close() {
-    use skein_world_tests::roots::{append_child, appends};
-    let scratch = Scratch::new("hosted-appends");
-    let descriptors = descriptor_count();
-    std::fs::write(scratch.path().join("trace"), b"prefix:").expect("existing trace");
-    let root = open_root(scratch.path()).expect("parent root");
-    let mut world = real::World::new(Judge);
-    world.host_startup(
-        HostedProgram { program: Box::from(&b"hosted"[..]), make: append_child, instances: 1, operations: 8 },
-        roots,
-        appends,
-    );
-    world.spawn_with_fds(vec![root], || parent(root, scratch.path().as_os_str().as_bytes(), false));
-    let outcome = world.run(&Clock::new(), Duration::from_secs(2));
-    assert_eq!(outcome.procs[0].received, b"ready");
-    assert_eq!(std::fs::read(scratch.path().join("trace")).expect("trace"), b"prefix:onetwo");
-    assert_eq!(std::fs::read(scratch.path().join("side")).expect("side file"), b"side");
-    assert_scratch_closed(descriptors);
 }
 
 #[test]

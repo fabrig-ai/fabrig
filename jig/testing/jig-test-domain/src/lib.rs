@@ -993,52 +993,8 @@ pub fn release(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>)
         let delivery = ready.pop().expect("release count");
         match delivery {
             Delivery::Start(continuation) => decide(domain, env, Work::Start(StartInput::Resume(continuation))),
-            Delivery::Core(core::Held::PublicWait { read }) => {
-                step(domain, env, Event::Core(core::Event::PublicDurable { read }));
-            }
-            Delivery::Core(held @ core::Held::PublicRead { .. }) => {
-                domain.public_reads = domain.public_reads.checked_sub(1).expect("one answer per admitted read");
-                out.push(Request::Deliver(Delivery::Core(held)));
-            }
-            Delivery::Core(core::Held::MakeEffect { connector, entry }) => {
-                step(domain, env, Event::Connector { number: connector, event: connector::Event::Make { entry } });
-            }
-            Delivery::Core(core::Held::TaskTurnKept { task, attempt, turn }) => {
-                step(
-                    domain,
-                    env,
-                    Event::Core(core::Event::Fleet(jig_domain_fleet::Event::TurnKept {
-                        run: Token::new(task),
-                        attempt: Token::new(attempt),
-                        turn,
-                    })),
-                );
-            }
-            Delivery::Core(core::Held::TaskTerminalAcknowledged { task, attempt }) => {
-                step(
-                    domain,
-                    env,
-                    Event::Core(core::Event::Fleet(jig_domain_fleet::Event::Acknowledge {
-                        run: Token::new(task),
-                        attempt: Token::new(attempt),
-                    })),
-                );
-            }
+            Delivery::Core(held) => release_core(domain, env, held, out),
             Delivery::Fleet(event) => step(domain, env, Event::Core(core::Event::Fleet(event))),
-            Delivery::Core(core::Held::StopRun { task, attempt }) => {
-                step(
-                    domain,
-                    env,
-                    Event::Core(core::Event::Fleet(fleet::Event::Cancel {
-                        run: Token::new(task),
-                        attempt: Token::new(attempt),
-                    })),
-                );
-            }
-            Delivery::Core(core::Held::Relay { task, attempt, word, .. }) => {
-                let event = relay_message(domain, task, attempt, word);
-                step(domain, env, event);
-            }
             other @ (Delivery::ApplicationDocument { .. }
             | Delivery::AssignedJob { .. }
             | Delivery::Link { .. }
@@ -1049,7 +1005,6 @@ pub fn release(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>)
             | Delivery::Message { .. }
             | Delivery::CallBusy { .. }
             | Delivery::CallAnswer { .. }
-            | Delivery::Core(_)
             | Delivery::Assigned { .. }
             | Delivery::System { .. }
             | Delivery::LostRead { .. }
@@ -1061,6 +1016,105 @@ pub fn release(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>)
         out.push(now);
     }
     continue_ready(domain, env);
+}
+
+fn release_core(domain: &mut Domain, env: &Env<Limits>, held: core::Held, out: &mut Queue<Request>) {
+    match held {
+        core::Held::PublicWait { read } => {
+            step(domain, env, Event::Core(core::Event::PublicDurable { read }));
+        }
+        held @ core::Held::PublicRead { .. } => {
+            domain.public_reads = domain.public_reads.checked_sub(1).expect("one answer per admitted read");
+            out.push(Request::Deliver(Delivery::Core(held)));
+        }
+        core::Held::MakeEffect { connector, entry } => {
+            step(domain, env, Event::Connector { number: connector, event: connector::Event::Make { entry } });
+        }
+        core::Held::TaskPartKept { key } => {
+            step(
+                domain,
+                env,
+                Event::Core(core::Event::Fleet(fleet::Event::PartKept {
+                    run: Token::new(key.task),
+                    attempt: Token::new(key.attempt),
+                    part: key.number,
+                })),
+            );
+        }
+        core::Held::TaskTurnKept { task, attempt, turn } => {
+            step(
+                domain,
+                env,
+                Event::Core(core::Event::Fleet(jig_domain_fleet::Event::TurnKept {
+                    run: Token::new(task),
+                    attempt: Token::new(attempt),
+                    turn,
+                })),
+            );
+        }
+        core::Held::TaskTerminalAcknowledged { task, attempt } => {
+            step(
+                domain,
+                env,
+                Event::Core(core::Event::Fleet(jig_domain_fleet::Event::Acknowledge {
+                    run: Token::new(task),
+                    attempt: Token::new(attempt),
+                })),
+            );
+        }
+        core::Held::StopRun { task, attempt } => {
+            step(
+                domain,
+                env,
+                Event::Core(core::Event::Fleet(fleet::Event::Cancel {
+                    run: Token::new(task),
+                    attempt: Token::new(attempt),
+                })),
+            );
+        }
+        core::Held::Relay { task, attempt, word, .. } => {
+            let event = relay_message(domain, task, attempt, word);
+            step(domain, env, event);
+        }
+        other @ (core::Held::Acted { .. }
+        | core::Held::Drained
+        | core::Held::Restarting { .. }
+        | core::Held::Load(..)
+        | core::Held::ApplicationDelivery { .. }
+        | core::Held::ApplicationWatchEnded { .. }
+        | core::Held::ReadLoad { .. }
+        | core::Held::Read { .. }
+        | core::Held::Applied { .. }
+        | core::Held::CarriedUnused { .. }
+        | core::Held::Delivery { .. }
+        | core::Held::WatchEnded { .. }
+        | core::Held::SettledCall { .. }
+        | core::Held::Assign { .. }
+        | core::Held::ReadUsage { .. }
+        | core::Held::ReadList { .. }
+        | core::Held::Sources { .. }
+        | core::Held::CheckSource { .. }
+        | core::Held::PauseWorker { .. }
+        | core::Held::SignOutSource { .. }
+        | core::Held::SourceSignedOut { .. }
+        | core::Held::Grant { .. }
+        | core::Held::Relayed { .. }
+        | core::Held::Inbound { .. }
+        | core::Held::PeopleReply { .. }
+        | core::Held::CallAnswer { .. }
+        | core::Held::Result { .. }
+        | core::Held::Acknowledge { .. }
+        | core::Held::AcknowledgePart { .. }
+        | core::Held::PartBusy { .. }
+        | core::Held::AcknowledgeTurn { .. }
+        | core::Held::Cancel { .. }
+        | core::Held::Refuse { .. }
+        | core::Held::TurnBusy { .. }
+        | core::Held::NotesLoad { .. }
+        | core::Held::NotesWritten { .. }
+        | core::Held::NotesDeleted { .. }
+        | core::Held::NeedArrived { .. }) => out.push(Request::Deliver(Delivery::Core(other))),
+    }
 }
 
 fn continue_ready(domain: &mut Domain, env: &Env<Limits>) {

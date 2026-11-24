@@ -547,26 +547,47 @@ The help page `commands` (`../protocol/documentation.md`, 8) is
 
 ## 10. Tests
 
-- **Each binary's step tests,** one test binary in its package
-  (`tests/suite/`), run the built binary over a table of cases, with a
-  cleared environment and the three directories given: `-h`, `--help`
-  and `help` print one page, listing exactly the table's public entries;
-  an internal command's `--help`, where it has one, says it's internal;
-  `--version` prints its name, the workspace's version and a commit of
-  twelve hexadecimal digits, `-dirty` or `unknown`; an unknown command
-  is refused, exit 2; another binary's document is refused, exit 1, as
-  today, by each binary that reads one. A row that checks the version
-  line whole reads `temper-version`'s `VERSION` and `COMMIT`, a
-  dependency of its package, where the identity enters; no crate's unit
-  test names `temper-version`, and a crate's own tests of a `configure`
-  that answers `--version` give it an identity of their own, such as
-  `("0.0.0", "0123456789ab")`.
+- **Each binary's table, in its crate's unit tests,** without a
+  process: its `reach` and what `main` prints for each answer (3), on
+  the arguments alone: `-h`, `--help` and `help` print one page, listing
+  exactly the table's public entries; each command's `--help`, an
+  internal one's saying it's internal; `help`'s words; the version line
+  from an identity of the test's own, such as `("0.0.0",
+  "0123456789ab")`; an unknown command refused, with `Unknown`'s line;
+  each command's arguments refused, with `refused`'s lines (4); and the
+  refusals `main` makes before a command runs (no command, the client's
+  address, another binary's document, a document's shape) in their
+  words, on the values the capture and the document's read give.
 - **Dispatch and parsing** stay unit tests of the crate, on its
   `configure` without a process.
-- **The agent's suite** keeps a row per mode as well
-  (`../protocol/binaries.md`, 3): the relay's and the program child's
-  usage and refusals, a run and a list on a missing document and on a
-  loopback plaintext one, and the launcher by a link named `claude`.
+- **One launch per path, one test binary in its package**
+  (`tests/suite/`): the built binary with a cleared environment and the
+  three directories given, checking its exit, stdout and stderr, for
+  `--help`; for `--version`, its line read whole against
+  `temper-version`'s `VERSION` and `COMMIT`, a dependency of its
+  package, where the identity enters (no crate's unit test names
+  `temper-version`); for one refused invocation, exit 2; and for each
+  command's dispatch where `main` hands it on:
+  - `temper`: an address with no terminal refused, exit 1, the TUI's
+    start; its sibling's `box` run is `temper::process`'s;
+  - `temper-engine`: `versions`; `serve` and `forge fetch` on a
+    worker's document refused, exit 1; `checkpoint`'s refused
+    arguments; and `upgrade --check` on a prepared copy that passes,
+    leaving the active generation as it was. The check's refusals (a
+    deployment holding no generation, a record a start refuses,
+    settings out of their numbers, the limits held) are the engine
+    shell's unit tests and the one-process world's upgrade tests;
+  - `temper-worker`: `serve` on its own document, past the shapes'
+    check, and `program-login` on an engine's document refused;
+  - `temper-agent` (`../protocol/binaries.md`, 3): the relay's usage;
+    the program child's status of a script that isn't signed in, its
+    raw arguments and exit; a run and a list on a loopback plaintext
+    document; and the launcher by a link named `claude`, its arguments'
+    bytes unchanged. The modes' other refusals, a missing document's
+    words and the status a script's exit and output give are unit tests,
+    the crate's and smith's.
+
+  Every other row is the unit tests'.
 - **A story in a slower tier** that a rename touches is changed and
   compiled, not run (`AGENTS.md`, 5).
 

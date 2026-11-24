@@ -17,7 +17,7 @@
 
 use super::status_flags;
 pub(crate) use crate::posix::files::kind_of;
-use std::ffi::CString;
+use std::ffi::{CStr, CString};
 use std::io;
 use std::mem::{self, size_of};
 use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6};
@@ -475,10 +475,7 @@ pub(crate) fn random(bytes: &mut [u8]) -> Result<(), i32> {
 /// Checks startup's directory with `faccessat2(W_OK | X_OK, AT_EACCESS)`;
 /// creates nothing, opens nothing for writing and changes nothing (runtime/shell-startup.md, 1.1).
 /// The answer describes this moment; a later write must find out for itself.
-pub fn directory_access(path: &Path) -> DirectoryAccess {
-    let Ok(path) = CString::new(path.as_os_str().as_bytes()) else {
-        return DirectoryAccess::Denied(libc::EINVAL);
-    };
+pub(crate) fn directory_access(path: &CStr) -> DirectoryAccess {
     // SAFETY: `libc::stat` is a plain C struct of integers, for which all
     // zeroes is a valid value.
     let mut raw: libc::stat = unsafe { mem::zeroed() };

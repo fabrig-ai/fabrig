@@ -338,18 +338,16 @@ fn old_agent_payload_refuses_the_stock_event_carrier() {
 }
 
 #[test]
-fn stock_places_are_the_largest_round_engine_channel_ceiling() {
+fn stock_places_fit_the_room_bounded_engine_channel() {
     let mut jig = temper_service_core::derived::stock();
     temper_service_core::derived::engine(&mut jig, temper_service_core::derived::STOCK).unwrap();
     let mut own = temper_engine_service_startup::limits::stock();
     temper_engine_service_startup::limits::derive(&mut own, temper_service_core::derived::STOCK).unwrap();
     let payload = temper_engine_service_startup::translate::limits(&own).unwrap();
-    let mut sizes =
+    let sizes =
         temper_service_core::derived::worker_sizes(&jig, jig.core.fleet.slots, &payload, own.forge.forges).unwrap();
-    let cap = w::sizes::engine_cap(&sizes);
-    // 32 = 2⁵; 40 is the next number of form d × 10ⁿ, 2ⁿ or 3 × 2ⁿ.
+    let cap = w::sizes::engine_cap(&sizes, jig.io.output);
+    // The stock placement limit is unchanged by the room-bounded queue.
     assert_eq!(sizes.slots, 32);
     assert!(cap.is_some(), "{sizes:?}");
-    sizes.slots = 40;
-    assert!(w::sizes::engine_cap(&sizes).is_none(), "{cap:?}; next: {:?}", w::sizes::engine_cap(&sizes));
 }

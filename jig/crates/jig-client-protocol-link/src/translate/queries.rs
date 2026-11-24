@@ -4,8 +4,7 @@ use crate::Limits;
 use jig_client_domain::contract as c;
 use skein_lib::Wall;
 
-#[expect(clippy::unnecessary_wraps, reason = "translation helpers keep the fallible codec boundary")]
-pub(super) fn query(value: &c::TaskQuery, _limits: &w::Limits) -> Result<w::TaskQuery, w::Problem> {
+pub(super) fn query(value: &c::TaskQuery) -> w::TaskQuery {
     let requester = match value.requester {
         None => None,
         Some(c::Requester::Task(value)) => Some(w::Requester::Task(w::RequesterTask { value })),
@@ -14,7 +13,7 @@ pub(super) fn query(value: &c::TaskQuery, _limits: &w::Limits) -> Result<w::Task
             Some(w::Requester::Deployment(w::RequesterDeployment { project }))
         }
     };
-    Ok(w::TaskQuery {
+    w::TaskQuery {
         parts: {
             let mut parts = skein_lib::List::with_capacity(value.parts.len());
             for ask in &value.parts {
@@ -56,7 +55,7 @@ pub(super) fn query(value: &c::TaskQuery, _limits: &w::Limits) -> Result<w::Task
             c::QueryOrder::Priority => w::QueryOrder::Priority,
             c::QueryOrder::Ended => w::QueryOrder::Ended,
         },
-    })
+    }
 }
 pub(super) fn flags(value: &w::TaskFlags) -> c::TaskFlags {
     c::TaskFlags {

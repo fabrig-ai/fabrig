@@ -157,6 +157,8 @@ fn the_start_passes_each_ask_and_omits_an_empty_one() {
 
 fn start(assignment: host::RunAssignment, live: host::LiveAsk) -> host::Start {
     host::Start {
+        tell_parts: false,
+        parts: Box::default(),
         live,
         workspace: None,
         charter: assignment.charter,
@@ -476,7 +478,7 @@ fn resumed_turn_versions_are_not_malformed_transcripts() {
             host::Undecoded::Version(host::Mismatch {
                 wire: b"smith-transcript".as_slice().into(),
                 version: current.checked_add(1).unwrap(),
-                lowest: current,
+                lowest: smith_transcript::wire::FLOOR,
                 highest: current,
             })
         } else {

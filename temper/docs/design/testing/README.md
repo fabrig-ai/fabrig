@@ -8,8 +8,8 @@ keeps what is temper's: its tiers (`tiers.md`, section 1), its neighbours and th
 fakes (`README.md`, section 3 and `fakes.md`), its scenarios, referee and its case library
 (`scenarios.md`, section 1), what its worlds check beyond the strategy (`checks.md`; the
 engine's, `engine-checks.md`; blame and tries for gates, `blame.md`; the worker's
-waits, disk and faults, `worker.md`), the
-restarts and stops they inject (`restarts.md`), the workloads they draw
+waits, disk and faults, `worker.md`), where the box's own checks run
+(`box/README.md`), the restarts and stops they inject (`restarts.md`), the workloads they draw
 from the seed and the sweeps that mix every failure (`workloads.md`), the
 shipped settings checked against themselves (`settings-tests.md`), every commit's store
 checked against a start (`store-check.md`), its
@@ -116,11 +116,11 @@ Moved to [`scenarios.md`](scenarios.md), section 1.
 ```
 crates/*/src/tests.rs               step tests
 tests/codecs                        temper-codecs-world: the generated codecs and the foreign documents' decoders
-bin/temper-box/tests/domain          step and domain harness checks over values, committed fixtures and scripted client-tool reads
-bin/temper-box/tests/suite           real scratch files, sockets, locks, clocks, shell children and shipped wiring
+bin/temper-box/tests/domain          step and domain checks over values: profiles composed in memory and admitted, the kit's harness checks, scripted openings and client-tool reads (box/README.md, 2)
+bin/temper-box/tests/suite           what only real files, sockets, locks, children and shipped wiring show (box/README.md, 4)
 crates/temper-forge-setup-shell/tests/step  process-boundary checks over committed source and sample calls; suite keeps real files, locks, commands and TLS peers
 bin/temper-box/tests/process.rs      owned Forgejo integration and OS process boundaries (2.6); nextest profile process-temper
-bin/temper-box/tests/proof_live.rs   B0's offline driver proofs (2.6, 2.7), nextest profile process-temper; scripts/proof-live.sh rung-b0-offline runs them
+bin/temper-box/tests/proof_live.rs   B0's offline driver proof, its twin's walk (2.6, 2.7), nextest profile process-temper; scripts/proof-live.sh rung-b0-offline runs it
 testing/temper-box-kit              what temper-box's test binaries share, compiled once for them all (tools/crates/design.md, 3.2): the stories' processes, forges, people and fixtures
 testing/temper-box-kit/src/github.rs   GitHub's App as processes (2.6): the fake GitHub, the fake LLM, an engine alone and a worker alone, the App made on the layer and connected through ctl
 testing/temper-box-kit/src/cluster.rs  the cluster's reader: `bin/temper-box/tests/fixtures/cluster/` started, awaited and stopped on skein-world's `Binary` (../protocol/cluster.md, 5)
@@ -217,8 +217,9 @@ scripts/proof-live.sh               the live tier
 - **What the real loop leaves out:** the real-git bridge (above),
   CI that runs a workflow's steps in the shell subset (how much sh,
   below), and faults in the loop. Several workers in one world are the
-  cluster's services (`real-loop.md`); the cluster's faults, a worker lost or hung,
-  are the process tier's (`process-tier.md`).
+  cluster's services (`real-loop.md`); the native stop and kill witnesses
+  are the process tier's (`process-tier.md`, *The cluster*), while loss
+  and fencing policy are the engine's domain world's (`../protocol/cluster.md`, 6).
 - **How much sh:** which commands and syntax the subset takes. It stays a
   subset of POSIX, so that real sh agrees.
 - **Where the shell's interpreter lives,** so that the machine and the

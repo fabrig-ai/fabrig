@@ -1,0 +1,12 @@
+PublicApplication: ceilings encoded=16785416 decoded=16785408; at_most(3) encoded=35 decoded=27
+PublicBoard: ceilings encoded=46190168 decoded=52654144; at_most(3) encoded=2427 decoded=3771
+PublicCard: ceilings encoded=90731 decoded=103168; at_most(3) encoded=428 decoded=468
+PublicCounts: ceilings encoded=20 decoded=0; at_most(3) encoded=20 decoded=0
+PublicExecutor: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
+PublicGoal: ceilings encoded=90215 decoded=102656; at_most(3) encoded=400 decoded=444
+PublicHold: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
+PublicLine: ceilings encoded=351 decoded=256; at_most(3) encoded=98 decoded=3
+PublicPhase: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
+PublicProject: ceilings encoded=76 decoded=64; at_most(3) encoded=15 decoded=3
+PublicProjects: ceilings encoded=311304 decoded=360448; at_most(3) encoded=53 decoded=81
+family: ceilings encoded=46190168 decoded=52654144; at_most(3) encoded=2427 decoded=3771

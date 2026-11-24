@@ -55,6 +55,8 @@ pub struct Seen {
     /// Calls whose operation terminal still belongs to the parent.
     pub calls: BTreeSet<Token>,
     /// Turn payload bytes owned by the parent until its exact ACK.
+    pub parts: BTreeMap<u32, host::channel::ToldPart>,
+    pub order: Vec<(bool, u32)>,
     pub turns: BTreeMap<u32, host::TurnValue>,
     /// Last read fence observed in a parent Turn or Waiting notice.
     pub read: Option<Token>,
@@ -110,6 +112,8 @@ pub fn limits() -> Limits {
 #[must_use]
 pub fn start() -> Start {
     Start {
+        parts: Box::default(),
+        tell_parts: false,
         live: None,
         messages: Box::default(),
         logical_run: Token::new(7),
@@ -293,6 +297,7 @@ impl World {
         self.watch().unwrap_or_else(|why| panic!("{why}"));
         self.lower.assert_settled();
         assert!(self.seen.calls.is_empty(), "every parent call right returned");
+        assert!(self.seen.parts.is_empty(), "every parent-owned part committed");
         assert!(self.seen.turns.is_empty(), "every parent-owned turn committed");
         assert!(self.seen.gone.is_some());
         assert_eq!(self.domain.agents(), 0);
@@ -334,7 +339,12 @@ impl World {
                 self.seen.turns.remove(turn);
                 None
             }
+            Input::Parent(parent::Event::AcknowledgePart { number, .. }) => {
+                self.seen.parts.remove(number);
+                None
+            }
             Input::Parent(parent::Event::Drop { .. }) => {
+                self.seen.parts.clear();
                 self.seen.turns.clear();
                 None
             }
@@ -356,6 +366,7 @@ impl World {
                 parent::Event::Spawn { .. }
                 | parent::Event::Message { .. }
                 | parent::Event::Answer { .. }
+                | parent::Event::AcknowledgePart { .. }
                 | parent::Event::Acknowledge { .. }
                 | parent::Event::Renewals { .. }
                 | parent::Event::Grant { .. }
@@ -406,10 +417,11 @@ impl World {
                             self.seen.sent_messages.insert(*name);
                         }
                         Down::Answer { .. }
+                        | Down::PartKept { .. }
                         | Down::Acknowledge { .. }
                         | Down::Renewals { .. }
                         | Down::Grant { .. }
-                        | Down::Drain => {}
+                        | Down::Drain { .. } => {}
                         Down::Cancel => self.seen.controls.push("cancel"),
                     }
                     self.seen.down.push(message);
@@ -634,7 +646,14 @@ impl Seen {
                 }
                 self.withdrawals.insert(call);
             }
+            parent::Request::Part { part, .. } => {
+                self.order.push((true, part.number));
+                if self.parts.insert(part.number, part).is_some() {
+                    return Err("one parent part".into());
+                }
+            }
             parent::Request::Turn { turn, .. } => {
+                self.order.push((false, turn.number));
                 if self.turns.contains_key(&turn.number) {
                     return Err("one parent turn".into());
                 }
@@ -674,6 +693,9 @@ impl Seen {
                     }
                     if !self.calls.is_empty() {
                         return Err("Gone retains every parent call".into());
+                    }
+                    if !self.parts.is_empty() {
+                        return Err("Gone retains every told part".into());
                     }
                     if !self.turns.is_empty() {
                         return Err("Gone retains every told turn".into());

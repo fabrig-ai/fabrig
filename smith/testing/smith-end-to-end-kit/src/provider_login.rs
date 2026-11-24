@@ -19,7 +19,6 @@ struct Judge {
     deadline: Time,
     visited: bool,
     started: bool,
-    arriving: Option<(std::path::PathBuf, Vec<u8>)>,
 }
 impl Judge {
     fn act_checked(&mut self, _now: Time, procs: &mut [Process]) -> Result<(), String> {
@@ -43,12 +42,7 @@ impl Judge {
                 line.strip_suffix(b"\n").and_then(|line| line.strip_prefix(b"Sign in: ")).map(Vec::from)
             })
         };
-        if url.is_some() {
-            self.visited = true;
-            if let Some((path, bytes)) = self.arriving.take() {
-                keep_record(&path, &bytes).map_err(|_| String::from("racing record fixture"))?;
-            }
-        }
+        self.visited |= url.is_some();
         for proc in procs {
             match proc {
                 Process::Script(Proc::Terminal(person)) => {
@@ -98,6 +92,12 @@ impl Referee<Process> for Judge {
     }
 }
 
+pub fn keep_record(path: &std::path::Path, bytes: &[u8]) -> std::io::Result<()> {
+    use std::{io::Write, os::unix::fs::OpenOptionsExt};
+    let mut record = std::fs::OpenOptions::new().write(true).create_new(true).mode(0o600).open(path)?;
+    record.write_all(bytes)
+}
+
 #[must_use]
 pub fn run(
     scratch: &Scratch,
@@ -108,25 +108,6 @@ pub fn run(
     again: bool,
     revocation: Option<bool>,
 ) -> (Ran, Vec<Vec<u8>>, usize) {
-    run_arriving(scratch, name, logout, subject, plan, again, (revocation, None))
-}
-
-pub fn keep_record(path: &std::path::Path, bytes: &[u8]) -> std::io::Result<()> {
-    use std::{io::Write, os::unix::fs::OpenOptionsExt};
-    let mut record = std::fs::OpenOptions::new().write(true).create_new(true).mode(0o600).open(path)?;
-    record.write_all(bytes)
-}
-
-pub fn run_arriving(
-    scratch: &Scratch,
-    name: &str,
-    logout: bool,
-    subject: &[u8],
-    plan: bool,
-    again: bool,
-    finish: (Option<bool>, Option<(std::path::PathBuf, Vec<u8>)>),
-) -> (Ran, Vec<Vec<u8>>, usize) {
-    let (revocation, arriving) = finish;
     let clock = Clock::new();
     let mut binary = start(scratch, name, logout, Mode::Pipes);
     let streams = binary.take_streams().expect("credential pipes");
@@ -137,7 +118,6 @@ pub fn run_arriving(
         deadline: clock.now().now.saturating_add(Duration::from_secs(2)),
         visited: false,
         started: false,
-        arriving,
     });
     world.spawn_with_fds(binary.descriptors(), || Process::Binary(Box::new(binary)));
     world.spawn_with_fds(smith_real_world::listener_fds(34_444), || {
@@ -233,4 +213,20 @@ pub fn terminal_key(scratch: &Scratch, name: &str) -> Ran {
     let Process::Binary(binary) = outcome.procs.first().expect("binary") else { unreachable!() };
     let Some(skein_io::kernel::Exit::Code(code)) = binary.exit_status() else { panic!("terminal key exit") };
     Ran { code, stdout: Vec::new(), stderr: binary.stderr().into() }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::os::unix::fs::PermissionsExt;
+
+    #[test]
+    fn a_seed_refuses_an_existing_public_file() {
+        let scratch = Scratch::new();
+        let path = scratch.path().join("record");
+        std::fs::write(&path, b"previous").expect("public fixture");
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o644)).expect("public fixture mode");
+        keep_record(&path, b"record-for-work").expect_err("never write into a public file");
+        assert!(std::fs::read(&path).expect("untouched fixture") == b"previous", "existing file stays untouched");
+    }
 }

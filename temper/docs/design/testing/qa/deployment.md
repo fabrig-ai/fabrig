@@ -416,9 +416,12 @@ owner writes in the file, such as `public` or `[sign_in.google]`.
   - the end: the TUI ended and the browser closed before the worker's
     `SIGTERM`.
 - **The process tier's story** of a deployment at its place
-  (`../process-tier.md`), written and compiled in Q6 and run after
-  landing; Q7 opens its sessions as ctl sessions, `--ctl`, with a
-  fixture bundle as `--bundle`.
+  (`../process-tier.md`, *A deployment at its place restarted with a
+  newer build*): a fresh walk, a stopped copy with replaced executables,
+  and one restored `drive --ctl --deployment` session. Both take a
+  fixture bundle as `--bundle`. The restored store and fake forge reads
+  below that boundary are in
+  `../../../development/slow-tests-moves-2026-11-24-temper-cluster.md`, 3.
 
 ## 10. Later
 

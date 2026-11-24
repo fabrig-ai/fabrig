@@ -5,6 +5,13 @@ use c = skein_codec::convert
 use own = crate::mapped_domain
 by hand crate::mapped_domain
 context crate::mapped_domain::Context
+refuses c::text_to_domain
+refuses own::positive_to_record
+refuses own::positive_to_domain
+refuses d::checked_to_record
+refuses d::checked_to_domain
+with context d::checked_to_record
+with context d::checked_to_domain
 
 record Reference stands for id
 record Label stands for text via c::text

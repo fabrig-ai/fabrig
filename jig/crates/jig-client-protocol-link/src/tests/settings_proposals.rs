@@ -15,8 +15,8 @@ fn every_settings_proposal_record_translates_both_ways() {
     {
         let bytes = client_values::fixed_value("record_origin_revision_smallest.bin");
         let wire = w::OriginRevision::decode(limits.wire(), &mut Reader::new(bytes)).expect("wire fixture");
-        let client = t::restore_origin_revision(&wire).expect("client record");
-        assert_eq!(e::wire_origin_revision(&client, limits.wire()), Ok(wire));
+        let client = t::restore_origin_revision(&wire);
+        assert_eq!(e::wire_origin_revision(&client), wire);
     }
     {
         let bytes = client_values::fixed_value("record_review_item_smallest.bin");
@@ -45,20 +45,20 @@ fn every_settings_proposal_record_translates_both_ways() {
     {
         let bytes = client_values::fixed_value("enum_setting_origin_default_smallest.bin");
         let wire = w::SettingOrigin::decode(limits.wire(), &mut Reader::new(bytes)).expect("wire fixture");
-        let client = t::restore_setting_origin(&wire).expect("client record");
-        assert_eq!(e::wire_setting_origin(&client, limits.wire()), Ok(wire));
+        let client = t::restore_setting_origin(&wire);
+        assert_eq!(e::wire_setting_origin(&client), wire);
     }
     {
         let bytes = client_values::fixed_value("enum_setting_origin_change_smallest.bin");
         let wire = w::SettingOrigin::decode(limits.wire(), &mut Reader::new(bytes)).expect("wire fixture");
-        let client = t::restore_setting_origin(&wire).expect("client record");
-        assert_eq!(e::wire_setting_origin(&client, limits.wire()), Ok(wire));
+        let client = t::restore_setting_origin(&wire);
+        assert_eq!(e::wire_setting_origin(&client), wire);
     }
     {
         let bytes = client_values::fixed_value("enum_setting_origin_not_offered_smallest.bin");
         let wire = w::SettingOrigin::decode(limits.wire(), &mut Reader::new(bytes)).expect("wire fixture");
-        let client = t::restore_setting_origin(&wire).expect("client record");
-        assert_eq!(e::wire_setting_origin(&client, limits.wire()), Ok(wire));
+        let client = t::restore_setting_origin(&wire);
+        assert_eq!(e::wire_setting_origin(&client), wire);
     }
     {
         let bytes = client_values::fixed_value("enum_review_value_value_smallest.bin");

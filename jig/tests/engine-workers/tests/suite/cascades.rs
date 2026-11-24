@@ -72,6 +72,7 @@ fn jobs_mixed_with_runs_keep_their_order() {
             .filter_map(|r| {
                 if let Request::Up { up, .. } = r {
                     Some(match up {
+                        host::LinkUp::Part { .. } => panic!("parts are acknowledged below the domain"),
                         host::LinkUp::Turn { .. } => 0,
                         host::LinkUp::JobAnswer { .. } => 1,
                         host::LinkUp::Answer { .. } => 2,

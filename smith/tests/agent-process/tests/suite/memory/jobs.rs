@@ -34,6 +34,7 @@ pub(super) fn fill() -> Jobs {
     };
     let workspace = run::Workspace {
         directories: Box::new([run::Directory {
+            results: None,
             host: b"/host".as_slice().into(),
             name: b"repo".as_slice().into(),
             root: ROOT,

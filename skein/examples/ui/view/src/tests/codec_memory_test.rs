@@ -1,5 +1,4 @@
 //! Largest values at the ceilings, or at the largest clamp under the cap.
-//! Decoded-bound literals use the generated types' sizes on a 64-bit target.
 
 use super::codec_memory::family;
 use crate::records::Record;
@@ -17,15 +16,6 @@ fn largest_roots_stay_within_decoded_bounds() {
         CAP,
         skein_ui_example_view_codec::SCHEMA,
         crate::records,
-        limits [
-            note_title,
-            note_body,
-            note_due,
-            add_title,
-            add_body,
-            add_due,
-            notes_notes,
-        ],
         roots [
             Add,
             Notes,

@@ -1010,6 +1010,9 @@ impl Observer {
             | core::Held::Inbound { .. }
             | core::Held::Relay { .. }
             | core::Held::TaskTerminalAcknowledged { .. }
+            | core::Held::TaskPartKept { .. }
+            | core::Held::AcknowledgePart { .. }
+            | core::Held::PartBusy { .. }
             | core::Held::TaskTurnKept { .. }
             | core::Held::Refuse { .. }
             | core::Held::TurnBusy { .. }

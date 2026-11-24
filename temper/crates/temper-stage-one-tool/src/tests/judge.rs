@@ -283,6 +283,18 @@ fn judge_main_prints_the_brief_or_exits_2() {
 
 #[test]
 fn commands_refuse_usage_errors() {
+    for (command, expected) in [
+        (
+            &crate::cli::JUDGE,
+            "temper-stage-one judge: EVIDENCE is not given\nusage:\n  temper-stage-one judge EVIDENCE\n",
+        ),
+        (
+            &crate::cli::VERDICT,
+            "temper-stage-one verdict: EVIDENCE is not given\nusage:\n  temper-stage-one verdict EVIDENCE [--json]\n",
+        ),
+    ] {
+        assert_eq!(crate::cli::evidence_arguments(&[], command).expect_err("missing evidence"), expected);
+    }
     for args in [vec![], vec!["--json".into()], vec!["evidence".into(), "--unknown".into()]] {
         assert_eq!(judge::main(&args), ExitCode::from(2));
         assert_eq!(judge::verdict_main(&args), ExitCode::from(2));

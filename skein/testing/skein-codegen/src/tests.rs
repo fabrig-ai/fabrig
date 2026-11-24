@@ -42,12 +42,16 @@ fn limit_names_and_values_follow_field_order() {
             .map(|line| line.trim().trim_end_matches(',').trim_matches('"'))
             .collect::<Vec<_>>();
         assert_eq!(names, fields);
-        assert!(output.records.contains("pub fn values(&self) -> List<u32>"));
         let values = output
             .records
+            .split_once("pub fn values(&self) -> List<u32> {\n        List::from_boxed([\n")
+            .expect("values accessor")
+            .1
+            .split_once("        ].into())\n")
+            .expect("values end")
+            .0
             .lines()
-            .filter_map(|line| line.trim().strip_prefix("values.push(self."))
-            .map(|line| line.split_once(')').expect("pushed field").0)
+            .map(|line| line.trim().strip_prefix("self.").expect("limit value").trim_end_matches(','))
             .collect::<Vec<_>>();
         assert_eq!(values, fields);
         if !fields.is_empty() {

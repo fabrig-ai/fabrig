@@ -43,14 +43,17 @@ fn a_verdict_that_fits_is_accepted_and_the_run_finishes_with_it() {
 fn a_change_runs_each_repositorys_checks_then_is_delivered_and_accepted() {
     let mut harness = Harness::new(LIMITS);
     let (run, conversation) = harness.coding(1, 100);
+    harness.domain.runs.get_mut(skein_lib::Id::from_token(run)).unwrap().workspace.as_mut().unwrap().directories[1]
+        .results = Some(bytes(b"/kept/check-results"));
     let owner = harness.land(conversation, 7);
     let held = crate::lease::Lease::Workspace { owner };
     assert_eq!(harness.domain.runs.get(skein_lib::Id::from_token(run)).unwrap().lease, held);
     let requests = harness.step(Event::Checked { owner, ran: ran(0, b"ok") });
-    let [Request::Check { owner: second, program, .. }, Request::Checking { .. }] = &*requests else {
+    let [Request::Check { owner: second, program, results, .. }, Request::Checking { .. }] = &*requests else {
         panic!("expected the second check, got {requests:?}");
     };
     assert_eq!((second, program.root), (&owner, Token::new(901)));
+    assert_eq!(results.as_deref(), Some(b"/kept/check-results".as_slice()));
     assert_eq!(harness.domain.runs.get(skein_lib::Id::from_token(run)).unwrap().lease, held);
     let requests = harness.step(Event::Checked { owner, ran: ran(0, b"ok") });
     assert_eq!(
@@ -844,6 +847,7 @@ fn coding_after_delivery_and_park() -> (Harness, Token) {
     // this domain passes the binding on without decoding the transcript.
     let transcript = conversation;
     let requests = harness.step(Event::Start {
+        tell_parts: false,
         reply_to: ReplyTo::new(Token::new(2)),
         host_run: Token::new(1),
         activation: 2,

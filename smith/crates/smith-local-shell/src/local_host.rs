@@ -5,7 +5,7 @@
 //! passes. Every store acknowledgement follows file and directory sync.
 
 use crate::front::Front;
-use std::io::Write;
+use std::{io::Write, path::PathBuf};
 
 mod credentials;
 mod header;
@@ -17,7 +17,7 @@ mod words;
 
 use skein_io::{self as io, kernel};
 use skein_lib::stream::{OutputDown, OutputOutcome, OutputUp};
-use skein_lib::{Env, Map, Queue, Time, Token, Wall};
+use skein_lib::{Duration, Env, Map, Queue, Time, Token, Wall};
 use skein_shell::Host;
 use smith_agent_service as agent;
 use smith_local_domain as domain;
@@ -46,9 +46,38 @@ enum Announcement {
     Ended,
 }
 
+/// Opened store and optional product destinations, adopted before the first loop pass.
+pub struct ProductFiles {
+    pub store: kernel::Fd,
+    pub private: Option<PrivateChat>,
+    pub result: Option<ResultDestination>,
+}
+
+impl ProductFiles {
+    /// An ordinary chat store, with no private cleanup or result destination.
+    #[must_use]
+    pub const fn store(store: kernel::Fd) -> Self {
+        Self { store, private: None, result: None }
+    }
+}
+
+/// Parent of an opened private store and its path, whose leaf is removed on exit.
+pub struct PrivateChat {
+    pub parent: kernel::Fd,
+    pub path: PathBuf,
+}
+
+/// Opened parent for a durable result replace and the bound of that write.
+pub struct ResultDestination {
+    pub parent: kernel::Fd,
+    pub path: PathBuf,
+    pub maximum: u32,
+    pub timeout: Duration,
+}
+
 /// Paths and inherited descriptors owned by one invocation's shared shell.
 pub struct Resources {
-    pub state_root: kernel::Fd,
+    pub files: ProductFiles,
     pub input: kernel::Fd,
     pub output: kernel::Fd,
     pub signals: kernel::Fd,
@@ -118,13 +147,7 @@ impl Local {
         handed: Option<crate::credentials::Prepared>,
         front: Option<Front>,
     ) -> Result<Self, crate::startup::Failure> {
-        Self::with_admission(
-            config,
-            lower,
-            resources,
-            errors,
-            Admission { handed, front, producer: None, programs: None },
-        )
+        Self::with_admission(config, lower, resources, errors, Admission { handed, front, producer: None })
     }
 
     #[expect(
@@ -138,7 +161,7 @@ impl Local {
         errors: Box<dyn Write>,
         admission: Admission,
     ) -> Result<Self, crate::startup::Failure> {
-        let Admission { handed, front, producer, programs } = admission;
+        let Admission { handed, front, producer } = admission;
         let mut front = front.or_else(|| match &config.local.mode {
             domain::Mode::Headless { .. } => Some(Front::Headless(crate::front::headless::Headless::new(
                 false,
@@ -204,7 +227,7 @@ impl Local {
             &config.limits,
             lower_routes,
             AccountNeeds::prepared(handed.as_ref()),
-            front.as_ref().and_then(Front::headless).is_some_and(|front| front.result_file),
+            resources.files.result.is_some(),
         )?;
         if handed.as_ref().is_some_and(memory::has_programs) {
             config.limits.process.io.sockets = config
@@ -220,21 +243,8 @@ impl Local {
         if let Some(configuration) = producer {
             service.prepare_trace(&configuration);
         }
-        service.adopt_store(resources.state_root).map_err(|error| host_failure(format!("chat store: {error:?}")))?;
-        if let Some(front) = front.as_ref().and_then(Front::interactive) {
-            service.line_mode(front.plain());
-            service.initial_chat();
-        }
         let (credential_locations, lendable) = match handed {
             Some(prepared) => {
-                if let Some(programs) = programs {
-                    credentials::programs::hand(
-                        &mut service,
-                        programs,
-                        &prepared.locations,
-                        resources.delivery_environment.clone(),
-                    )?;
-                }
                 service
                     .handed_accounts(prepared.sources, prepared.limits, resources.oauth_entropy)
                     .map_err(|error| configuration_failure(format!("account driver: {error:?}")))?;
@@ -286,6 +296,11 @@ impl Local {
             last_line: None,
             operations,
         };
+        local.adopt_product_files(resources.files, resources.seed)?;
+        if let Some(front) = local.front.as_ref().and_then(Front::interactive) {
+            local.service.line_mode(front.plain());
+            local.service.initial_chat();
+        }
         local
             .service
             .adopt_terminal(
@@ -317,6 +332,26 @@ impl Local {
             .adopt_delivery_roots(resources.delivery_roots, resources.delivery_environment)
             .map_err(|error| host_failure(format!("delivery directories: {error:?}")))?;
         Ok(local)
+    }
+
+    /// Adopt a programs directory for the prepared program accounts, once before driving.
+    /// `startup_checked` covers each account's first request with a check already made.
+    /// On refusal the caller retains the descriptor.
+    pub fn adopt_programs(
+        &mut self,
+        programs: smith_protocol_program::Programs,
+        root: kernel::Fd,
+        environment: Box<[Box<[u8]>]>,
+        startup_checked: bool,
+    ) -> Result<(), crate::startup::Failure> {
+        credentials::programs::hand(
+            &mut self.service,
+            programs,
+            &self.credential_locations,
+            environment,
+            root,
+            startup_checked,
+        )
     }
 
     /// Configure the spawned product's bounded trace producer.
@@ -365,16 +400,17 @@ impl Local {
         self.service.pop_front()
     }
 
-    /// Attach the product result owner before its first pass.
-    pub(crate) fn result_file(&mut self, file: Option<Box<crate::compose::ResultFile>>) {
-        self.result_file = file;
-    }
-
-    /// The private store removes only its own names through this parent.
-    pub(crate) fn ephemeral(&mut self, parent: kernel::Fd, path: &std::path::Path) -> Result<(), kernel::Fd> {
-        let name = path.file_name().expect("private directory has a name").as_encoded_bytes().into();
-        self.service.ephemeral(parent, name)?;
-        self.ephemeral_directory = Some(path.as_os_str().as_encoded_bytes().into());
+    fn adopt_product_files(&mut self, files: ProductFiles, seed: u64) -> Result<(), crate::startup::Failure> {
+        self.service.adopt_store(files.store).map_err(|error| host_failure(format!("chat store: {error:?}")))?;
+        if let Some(PrivateChat { parent, path }) = files.private {
+            let name = path.file_name().expect("private directory has a name").as_encoded_bytes().into();
+            self.service
+                .ephemeral(parent, name)
+                .map_err(|_| host_failure("private parent cannot be adopted".into()))?;
+            self.ephemeral_directory = Some(path.as_os_str().as_encoded_bytes().into());
+        }
+        self.result_file =
+            files.result.map(|destination| Box::new(crate::compose::ResultFile::adopt(destination, seed)));
         Ok(())
     }
 
@@ -731,7 +767,7 @@ impl Host for Local {
         if self.is_empty() && self.announcement != Announcement::Ended {
             self.announcement = Announcement::Ended;
             if let Some(text) = self.last_line.take() {
-                drop(write!(self.errors, "smith: {}", String::from_utf8_lossy(&text)));
+                drop(crate::front::headless::write_operator_line(self.errors.as_mut(), &text));
             }
             if let Some(Err(why)) = self.result() {
                 let why = why.to_owned();

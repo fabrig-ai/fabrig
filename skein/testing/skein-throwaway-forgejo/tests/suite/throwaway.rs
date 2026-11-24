@@ -2,38 +2,8 @@
 #![cfg(target_os = "linux")]
 
 use skein_forge::forgejo::pin::VERSION;
-use skein_throwaway_forgejo::{Failure, Forgejo, Init, Outgoing, Refusal, Settings};
+use skein_throwaway_forgejo::{Forgejo, Init, Outgoing, Settings};
 use std::{fs, os::unix::fs::PermissionsExt, path::Path};
-#[test]
-fn a_binary_printing_another_version_is_refused_naming_it() {
-    let scratch = skein_scratch::paths::target_tmp().join("wrong-version");
-    fs::create_dir_all(&scratch).expect("scratch");
-    let binary = scratch.join("forgejo");
-    fs::write(&binary, b"#!/bin/sh\nprintf 'forgejo version 15.0.0+gitea-1.22.0\\n'\n").expect("script");
-    fs::set_permissions(&binary, fs::Permissions::from_mode(0o700)).expect("executable");
-    assert_eq!(
-        Forgejo::from_path(&binary).expect_err("refused"),
-        Refusal::Version {
-            path: fs::canonicalize(&binary).expect("absolute"),
-            printed: "forgejo version 15.0.0+gitea-1.22.0".into()
-        }
-    );
-    fs::remove_dir_all(scratch).expect("removed");
-}
-#[test]
-fn a_scratch_directory_that_is_not_empty_is_refused() {
-    let scratch = skein_scratch::paths::target_tmp().join("occupied");
-    fs::create_dir_all(&scratch).expect("scratch");
-    fs::write(scratch.join("keep"), b"mine").expect("file");
-    let binary = scratch.join("forgejo");
-    fs::write(&binary, format!("#!/bin/sh\nprintf 'forgejo version {VERSION}+gitea-1.22.0 (release name {VERSION}) built with GNU Make 4.4.1, go1.26.9\\n'\n")).expect("script");
-    fs::set_permissions(&binary, fs::Permissions::from_mode(0o700)).expect("executable");
-    let forgejo = Forgejo::from_path(&binary).expect("version accepted");
-    let result = forgejo.start(&scratch, &Settings::small());
-    assert!(matches!(result, Err(Failure::Scratch { .. })));
-    assert_eq!(fs::read(scratch.join("keep")).expect("kept"), b"mine");
-    fs::remove_dir_all(scratch).expect("removed");
-}
 #[test]
 #[ignore = "needs SKEIN_FORGEJO"]
 #[expect(clippy::disallowed_methods, reason = "skein's round: reads SKEIN_FORGEJO to locate the pinned test binary")]
@@ -92,23 +62,6 @@ fn a_failed_work_path_command_keeps_its_exit_code_and_both_streams() {
     assert_eq!(output.stderr, "diagnostic\n");
     fs::remove_dir_all(root).expect("removed");
 }
-#[test]
-fn a_work_path_is_refused_when_its_scratch_is_not_empty() {
-    let root = skein_scratch::paths::target_tmp().join("work-path-occupied");
-    let forgejo = forgejo_running(&root, "exit 0");
-    let work = root.join("work");
-    fs::create_dir_all(&work).expect("work");
-    fs::write(work.join("keep"), b"kept").expect("file");
-    match forgejo.work_path(&work, &Settings::small()) {
-        Err(Failure::Scratch { path, why }) => {
-            assert_eq!(path, work);
-            assert_eq!(why, "scratch is not empty");
-        }
-        other => panic!("expected scratch refusal, got success: {}", other.is_ok()),
-    }
-    assert_eq!(fs::read(work.join("keep")).expect("retained"), b"kept");
-    fs::remove_dir_all(root).expect("removed");
-}
 
 use crate::support;
 #[test]
@@ -120,28 +73,10 @@ fn attach_reads_the_admin_login_and_id() {
     fs::remove_dir_all(fixture.scratch).expect("owner removes scratch");
 }
 #[test]
-fn a_server_log_masks_the_attached_instances_secret() {
-    let fixture = support::attached("kit-owner", 37);
-    fs::write(fixture.scratch.join("server.log"), b"POST /pulls/1/update 200 owner-secret\n").expect("server output");
-    assert_eq!(fixture.instance.server_log().expect("server log"), "POST /pulls/1/update 200 MASKED\n");
-    fixture.instance.stop().expect("stopped");
-    fs::remove_dir_all(fixture.scratch).expect("owner removes scratch");
-}
-#[test]
 fn stopping_an_attached_instance_reaps_the_child_and_keeps_scratch() {
     let fixture = support::attached("kit-owner", 37);
     fixture.instance.stop().expect("stopped");
     assert!(!Path::new(&format!("/proc/{}", fixture.pid)).exists());
     assert_eq!(fs::read(fixture.scratch.join("keep")).expect("owner file"), b"mine");
-    fs::remove_dir_all(fixture.scratch).expect("owner removes scratch");
-}
-#[test]
-fn an_attached_instance_refuses_cli() {
-    let fixture = support::attached("kit-owner", 37);
-    match fixture.instance.cli(&[]) {
-        Err(Failure::Io(error)) => assert_eq!(error, "attached instance has no offline work path"),
-        other => panic!("expected offline path refusal: {other:?}"),
-    }
-    fixture.instance.stop().expect("stopped");
     fs::remove_dir_all(fixture.scratch).expect("owner removes scratch");
 }

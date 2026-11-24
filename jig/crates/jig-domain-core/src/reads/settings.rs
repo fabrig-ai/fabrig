@@ -824,6 +824,7 @@ pub(super) fn from_store(
                 )
                 | CoreRecord::Deployment(_)
                 | CoreRecord::RunProof(_)
+                | CoreRecord::Part(_)
                 | CoreRecord::Call(_)
                 | CoreRecord::Terminal(_)
                 | CoreRecord::Turn(_)

@@ -37,6 +37,7 @@ fn declared_read_search_shell_and_check_bounds_reach_the_machine() {
             deadline,
         },
         FromDomain::Check {
+            results: None,
             owner,
             program: run::Place { root, path: b".smith-test/check".as_slice().into() },
             bound: deadline.saturating_since(Time::ZERO),
@@ -48,6 +49,7 @@ fn declared_read_search_shell_and_check_bounds_reach_the_machine() {
         let mut machine = Component::new(&config.limits.machine, config.environment.clone(), config.rg.clone());
         machine.workspace(&run::Workspace {
             directories: Box::new([run::Directory {
+                results: None,
                 host: Box::from(b"/host".as_slice()),
                 name: b"repo".as_slice().into(),
                 root,

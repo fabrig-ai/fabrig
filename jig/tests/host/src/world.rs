@@ -80,6 +80,7 @@ impl Settings {
                 told: 8,
                 turns: 0,
                 turn_queue_bytes: 0,
+                drain_grace: Duration::from_secs(10),
                 piece_bytes: 4096,
             },
             engine: engine::Script {
@@ -712,6 +713,7 @@ impl World {
                 | LinkDown::Cancel { .. }
                 | LinkDown::Asked { .. }
                 | LinkDown::Relayed { .. }
+                | LinkDown::PartKept { .. }
                 | LinkDown::TurnKept { .. },
             )
             | Event::Agent(
@@ -728,6 +730,7 @@ impl World {
                 | FromAgent::StartBusy { .. }
                 | FromAgent::StartVersion { .. }
                 | FromAgent::Yielded { .. }
+                | FromAgent::Part { .. }
                 | FromAgent::Turn { .. }
                 | FromAgent::Faulted { .. },
             )
@@ -803,6 +806,7 @@ impl World {
     /// `run`'s attempt `attempt`: a refusal, or a prepare that admits it.
     fn assigned(&mut self, run: Token, attempt: Token, request: &Request) {
         match request {
+            Request::Up(LinkUp::Part { .. }) => panic!("parts are not relayed by this hub"),
             Request::ReadUsage { .. }
             | Request::ReadList { .. }
             | Request::CancelRead { .. }
@@ -861,6 +865,7 @@ impl World {
                 | ToAgent::Answer { .. }
                 | ToAgent::Drain { .. }
                 | ToAgent::Cancel { .. }
+                | ToAgent::AcknowledgePart { .. }
                 | ToAgent::Acknowledge { .. },
             )
             | Request::Asked { .. }
@@ -899,6 +904,8 @@ impl World {
         self.refusals.request(&request)?;
         self.trace.log(self.now, format_args!("host -> {request:?}"));
         match request {
+            Request::Agent(ToAgent::AcknowledgePart { .. }) => panic!("scripted agent sends no parts"),
+            Request::Up(LinkUp::Part { .. }) => panic!("parts are not relayed by this hub"),
             Request::Paused { state } => self.pause = state,
             Request::Asked { .. } | Request::Up(LinkUp::Ask { .. }) => {
                 unreachable!("the script does not make application asks")
@@ -998,7 +1005,7 @@ impl World {
                 }
                 self.parcel(request);
             }
-            Request::Agent(ToAgent::Drain { agent }) => {
+            Request::Agent(ToAgent::Drain { agent, grace: _ }) => {
                 let owner = *self.agents.get(&agent).expect("a drain names a started agent");
                 self.hosted.get_mut(&owner).expect("a drain names a hosted run").drained = true;
                 self.parcel(request);

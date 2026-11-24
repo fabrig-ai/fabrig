@@ -1001,7 +1001,12 @@ impl World {
             | Request::SignedOut { .. } => {
                 unreachable!("source world owns source commands")
             }
-            Request::Turned { .. } | Request::AcknowledgeTurn { .. } | Request::TurnBusy { .. } => {
+            Request::Turned { .. }
+            | Request::AcknowledgeTurn { .. }
+            | Request::TurnBusy { .. }
+            | Request::Parted { .. }
+            | Request::AcknowledgePart { .. }
+            | Request::PartBusy { .. } => {
                 unreachable!("this world exercises placement and relays")
             }
             Request::DropCall { call } => {
@@ -1377,6 +1382,7 @@ impl World {
                         adopt: true,
                     },
                     None => Event::Adopt {
+                        kept_part: 0,
                         worker: None,
                         holds: Box::new([]),
                         grants: Box::new([]),
@@ -1438,6 +1444,9 @@ fn describe(event: &Event) -> String {
         | Event::Turn { .. }
         | Event::TurnKept { .. }
         | Event::TurnBusy { .. }
+        | Event::Part { .. }
+        | Event::PartKept { .. }
+        | Event::PartBusy { .. }
         | Event::Adopt { .. }
         | Event::Cross { .. }
         | Event::Cancel { .. }

@@ -148,7 +148,8 @@ fn end(world: &mut World, mode: End) -> (Token, Option<u32>, Option<Token>) {
                 }
                 End::Full => {
                     world.withhold_write_room(connection);
-                    let cap = jig_protocol_worker_wire::sizes::engine_cap(&fixtures::SIZES).expect("cap");
+                    let cap = jig_protocol_worker_wire::sizes::engine_cap(&fixtures::SIZES, fixtures::limits().room)
+                        .expect("cap");
                     for _ in 0..=cap.frames {
                         busy(world, channel);
                     }

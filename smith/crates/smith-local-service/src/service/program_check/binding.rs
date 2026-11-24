@@ -8,11 +8,12 @@ use smith_host_domain::SourceName;
 use smith_protocol_program::Programs;
 
 impl Service {
-    /// Install checked program accounts and transfer their root before the first pass.
-    /// Startup covers the first request; later checks obey domain/host.md, section 8.
+    /// Install program accounts and transfer their root before the first pass.
+    /// Each source gives its number, name and whether startup covered its first request.
+    /// Later checks obey domain/host.md, section 8.
     pub fn handed_programs(
         &mut self,
-        sources: List<(u32, SourceName)>,
+        sources: List<(u32, SourceName, bool)>,
         programs: Programs,
         base: Box<[Box<[u8]>]>,
         root: kernel::Fd,
@@ -27,7 +28,7 @@ impl Service {
             return Err(Error::Memory);
         }
         let mut accounts = List::with_capacity(sources.len());
-        for (number, source) in &sources {
+        for (number, source, covered) in &sources {
             let Ok(configuration) = smith_protocol_program::configuration_directory(&programs, source.as_bytes())
             else {
                 return Err(Error::Process);
@@ -36,7 +37,9 @@ impl Service {
                 Ok(_) => {}
                 Err(_) => return Err(Error::Process),
             }
-            accounts.push(Account { number: *number, source: *source, covered: true }).expect("admitted account count");
+            accounts
+                .push(Account { number: *number, source: *source, covered: *covered })
+                .expect("admitted account count");
         }
         self.io.handed_programs(Checks {
             accounts,

@@ -55,6 +55,8 @@ impl Memory {
         charter.conventions = None;
         charter.reserve.time = self.env.limits.run.check_timeout;
         self.step(Event::Start(smith_domain::Start {
+            parts: Box::default(),
+            tell_parts: false,
             messages: Box::new([]),
             answered: Box::new([]),
             workspace: Some(super::workspace()),

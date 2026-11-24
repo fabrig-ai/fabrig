@@ -73,7 +73,7 @@ pub(crate) fn adoption_to_record(
     let domain::Adoption { resource, role, options } = value;
     Ok(wire::Adoption {
         resource: resource_name_to_record(resource, limits)?,
-        role: mapped::resource_role_to_record(role, limits)?,
+        role: mapped::resource_role_to_record(role),
         options: encode_segments(options, limits, limits.parameter_bytes_value, limits.adoption_options)?,
     })
 }
@@ -85,7 +85,7 @@ pub(crate) fn adoption_to_domain(
     let wire::Adoption { resource, role, options } = value;
     Ok(domain::Adoption {
         resource: resource_name_to_domain(resource, limits)?,
-        role: mapped::resource_role_to_domain(role, limits)?,
+        role: mapped::resource_role_to_domain(role),
         options: decode_segments(options, limits, limits.parameter_bytes_value)?,
     })
 }

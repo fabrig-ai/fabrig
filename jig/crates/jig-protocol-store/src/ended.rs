@@ -51,6 +51,7 @@ pub fn key(now: &Now) -> Option<Key> {
         | Now::RunPreparationFailed { .. }
         | Now::BriefFailed { .. }
         | Now::RunPrepared { .. }
+        | Now::PartBusy { .. }
         | Now::RestoreRefused => None,
     }
 }
@@ -128,6 +129,7 @@ pub fn answer(now: Now, row: Option<Record>) -> Option<core::Event> {
         | Now::RunPreparationFailed { .. }
         | Now::BriefFailed { .. }
         | Now::RunPrepared { .. }
+        | Now::PartBusy { .. }
         | Now::RestoreRefused => return None,
     })
 }
@@ -174,6 +176,7 @@ fn proposal_row(row: Option<Record>) -> Option<core::ProposalDecisionRecord> {
             | CoreRecord::Deployment(_)
             | CoreRecord::Projection(_)
             | CoreRecord::RunProof(_)
+            | CoreRecord::Part(_)
             | CoreRecord::Call(_)
             | CoreRecord::Turn(_)
             | CoreRecord::Terminal(_)
@@ -194,6 +197,7 @@ fn escalation_row(row: Option<Record>) -> Option<core::EscalationDecisionRecord>
             | CoreRecord::Deployment(_)
             | CoreRecord::Projection(_)
             | CoreRecord::RunProof(_)
+            | CoreRecord::Part(_)
             | CoreRecord::Call(_)
             | CoreRecord::Turn(_)
             | CoreRecord::Terminal(_)

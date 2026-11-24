@@ -40,9 +40,18 @@ fn forbidden_at(path: &Path, source: &str) -> bool {
         // Other process types and every lock operation retain the same guard.
         source.replace("std::process::Command", "TerminalCommand").replace("process::CommandExt", "TerminalExec")
     } else if path.ends_with("temper-box-shell/src/program_login.rs") {
-        // The machine adapter returns the worker shell's prepared command.
-        // Process creation, exec and locks remain guarded.
-        source.replace("Result<std::process::Command, String>", "PreparedLoginCommand")
+        // The box only names the worker shell's prepared command type.
+        // Guard direct construction and execution even when the type is imported.
+        let compact: String = source.chars().filter(|c| !c.is_whitespace()).collect();
+        if ["Command::", ".spawn(", ".status(", ".output(", ".exec("].iter().any(|name| compact.contains(name)) {
+            return true;
+        }
+        compact
+            .replace("Result<std::process::Command,String>", "PreparedLoginCommand")
+            .replace("{process::Command,", "{")
+            .replace(",process::Command,", ",")
+            .replace("{process::Command}", "{}")
+            .replace(",process::Command}", "}")
     } else if path.ends_with("temper-engine-shell/src/upgrade/scratch.rs") {
         // Rehearsal scratch uses io's nonblocking exclusive flock (protocol/binaries.md, 2).
         // Blocking locks, shared locks and process operations stay guarded.
@@ -195,6 +204,7 @@ fn serve_stdin_guard_does_not_exempt_file_locks_or_processes() {
 }
 #[test]
 fn the_scan_catches_each_form_and_passes_other_process_modules() {
+    const BOX_LOGIN: &str = "temper-box-shell/src/program_login.rs";
     for (path, source, expected) in [
         ("other.rs", "use std::{fs, process::Child};", true),
         ("other.rs", "std::process::exit(1)", true),
@@ -209,6 +219,21 @@ fn the_scan_catches_each_form_and_passes_other_process_modules() {
         ("temper-worker-shell/src/program_login.rs", "std::process::Child", true),
         ("temper-worker-shell/src/program_login.rs", "std::process::exit(1)", true),
         ("temper-worker-shell/src/program_login.rs", "try_lock", true),
+        (BOX_LOGIN, "use std::{path::Path, process :: Command,}; fn prepare() -> Result<Command, String> {}", false),
+        (BOX_LOGIN, "use std::{process::Command};", false),
+        (BOX_LOGIN, "Result<std::process::Command, String>", false),
+        (BOX_LOGIN, "std::process::Child", true),
+        (BOX_LOGIN, "std::process::exit(1)", true),
+        (BOX_LOGIN, "CommandExt", true),
+        (BOX_LOGIN, "file.lock()", true),
+        (BOX_LOGIN, "try_lock", true),
+        (BOX_LOGIN, "use std::{path::Path, process::Command,}; std::process::Child", true),
+        (BOX_LOGIN, "use std::{process::Command, process::Child};", true),
+        (BOX_LOGIN, "use std::{process::Command}; Command::new(program)", true),
+        (BOX_LOGIN, "use std::{process::Command}; command.spawn()", true),
+        (BOX_LOGIN, "use std::{process::Command}; command.status()", true),
+        (BOX_LOGIN, "use std::{process::Command}; command.output()", true),
+        (BOX_LOGIN, "use std::{process::Command}; command.exec()", true),
         ("temper-engine-shell/src/upgrade/scratch.rs", "file.try_lock()", false),
         ("temper-engine-shell/src/upgrade/scratch.rs", "file.lock()", true),
         ("temper-engine-shell/src/upgrade/scratch.rs", "std::process::Command", true),

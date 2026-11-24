@@ -19,9 +19,9 @@ pub fn line(models: &[crate::Model], value: &d::HistoryLine, limits: &w::Limits)
     Ok(w::HistoryLine {
         task: value.task,
         revision: value.revision,
-        by: owner::requester(value.by, limits)?,
+        by: owner::requester(value.by),
         change,
-        reason: owner::text(&value.reason, limits)?,
+        reason: owner::text(&value.reason),
         proposal: match &value.proposal {
             Some(item) => Some(objects::ended::proposal_history(models, item, limits)?),
             None => None,

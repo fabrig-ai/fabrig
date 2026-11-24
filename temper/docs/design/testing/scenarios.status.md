@@ -37,17 +37,22 @@ The owned-forge setup counts agree: `assert_forgejo_setup` checks and
 removes the sign-in call before `assert_forgejo_setup_after_sign_in`
 checks six calls on the first run or three otherwise.
 
-`live-tier.md`'s fresh Claude Code sitting applies its model item first
-(`live-model`), then charters 1 and 2 against the resulting revision
-(`live-settings`). The focused joined-world test declares a Claude Code
-program account and applies the fixture's own files and argv through ctl
-on the Claude deployment's catalogue. Readback checks model 64's person
-source, estimated figures and `low` effort, and both charters naming
-`claude-haiku-5-5` at `low`, with no alternatives and `rest` false
-(`bin/temper-box/tests/suite/forge_land.rs`). The settings table retains
-ChatGPT's single change on stock row 7, `gpt-6-luna`, and refusal of an
-unexpected stock model. These checks establish no real-model launch or
-live landing; `README.md`, section 7 retains that proof.
+`live-tier.md`'s fresh Claude Code and key sittings apply `live-model`,
+then `live-settings` against its revision. The focused joined world in
+`bin/temper-box/tests/domain/forge_land.rs` uses ctl's reads, file parse
+and engine decision: `claude_and_key_model_settings_are_admitted_on_stock`
+checks both files and reads back model 64 and charters 1 and 2;
+`a_live_model_file_reusing_the_stock_name_is_refused` checks the duplicate
+stock name; `an_anthropic_list_can_make_haiku_the_duplicate_at_model_63`
+reproduces that refusal with a scripted list; and
+`the_key_bootstrap_admits_only_the_anthropic_list_policy_change` checks
+and reads back the bootstrap's provider edit. The end-to-end suite's
+joined world (`bin/temper-box/tests/suite/forge_land.rs`) also checks
+Claude Code on its story configuration after declaring a program account.
+The settings table retains ChatGPT's single change on stock row 7,
+`gpt-6-luna`, and refusal of an unexpected stock model. These checks
+establish no real-model launch or live landing; `README.md`, section 7
+retains that proof.
 
 `tiers.md`, section 1.5 and `checks.md` have the profiled fuzzy repairs: engine walking,
 terminal-cut, escalation and role sweeps compare exact traces and

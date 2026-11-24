@@ -11,8 +11,7 @@ struct Input {
     io: io::Io,
     env: Env<io::Limits>,
     owner: Token,
-    bytes: List<u8>,
-    failure: Option<Usage>,
+    prompt: PromptInput,
     requests: Queue<io::Request>,
     events: Queue<io::Event>,
     completions: Queue<kernel::Complete>,
@@ -34,8 +33,7 @@ pub(crate) fn read_prompt(
         io,
         env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
         owner,
-        bytes: List::with_capacity(maximum),
-        failure: None,
+        prompt: PromptInput::new(maximum),
         requests: Queue::with_capacity(64),
         events: Queue::with_capacity(64),
         completions: Queue::with_capacity(64),
@@ -43,13 +41,7 @@ pub(crate) fn read_prompt(
     };
     input.demand();
     let _exit = skein_shell::drive(kernel, clock, &mut input);
-    if let Some(failure) = input.failure {
-        return Err(failure);
-    }
-    if input.bytes.as_slice().trim_ascii().is_empty() {
-        return Err(Usage("the prompt is empty".into()));
-    }
-    Ok(input.bytes.into_boxed())
+    input.prompt.finish()
 }
 
 impl Input {
@@ -68,20 +60,14 @@ impl Host for Input {
         io::stage::up(&mut self.io, &self.env, &mut self.completions, &mut self.events, &mut self.submissions, now);
         while let Some(event) = self.events.pop() {
             match event {
-                io::Event::Stream { up: stream::Up::Bytes(bytes), .. } => {
-                    if append_prompt(&mut self.bytes, &bytes) {
+                io::Event::Stream {
+                    up: up @ (stream::Up::Bytes(_) | stream::Up::End | stream::Up::Failed(_)), ..
+                } => {
+                    if self.prompt.read_more(up) {
                         self.demand();
                     } else {
-                        self.failure = Some(Usage("the prompt exceeds the message bound".into()));
                         self.requests.push(io::Request::Close { entity: self.owner });
                     }
-                }
-                io::Event::Stream { up: stream::Up::End, .. } => {
-                    self.requests.push(io::Request::Close { entity: self.owner });
-                }
-                io::Event::Stream { up: stream::Up::Failed(_), .. } => {
-                    self.failure = Some(Usage("standard input failed before its end".into()));
-                    self.requests.push(io::Request::Close { entity: self.owner });
                 }
                 io::Event::Closed { .. } => {}
                 io::Event::Listening { .. }
@@ -126,23 +112,71 @@ impl Host for Input {
     }
 }
 
-fn append_prompt(prompt: &mut List<u8>, bytes: &[u8]) -> bool {
-    bytes.iter().all(|byte| prompt.push(*byte).is_ok())
+struct PromptInput {
+    bytes: List<u8>,
+    failure: Option<Usage>,
+}
+
+impl PromptInput {
+    fn new(maximum: u32) -> Self {
+        Self { bytes: List::with_capacity(maximum), failure: None }
+    }
+
+    fn read_more(&mut self, up: stream::Up) -> bool {
+        match up {
+            stream::Up::Bytes(bytes) => {
+                if bytes.iter().all(|byte| self.bytes.push(*byte).is_ok()) {
+                    return true;
+                }
+                self.failure = Some(Usage("the prompt exceeds the message bound".into()));
+            }
+            stream::Up::End => {}
+            stream::Up::Failed(_) => self.failure = Some(Usage("standard input failed before its end".into())),
+            stream::Up::Room => unreachable!("standard input has no write demand"),
+        }
+        false
+    }
+
+    fn finish(self) -> Result<Box<[u8]>, Usage> {
+        if let Some(failure) = self.failure {
+            return Err(failure);
+        }
+        if self.bytes.as_slice().trim_ascii().is_empty() {
+            return Err(Usage("the prompt is empty".into()));
+        }
+        Ok(self.bytes.into_boxed())
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::append_prompt;
-    use skein_lib::List;
+    use super::{PromptInput, stream};
+    use crate::compose::Refused;
+
+    const PROMPT_BOUND: u32 = 32; // Room for either fixture's input.
 
     #[test]
     fn a_prompt_read_as_it_arrives_is_the_same_whatever_its_cuts() {
-        for cut in [20, 1] {
-            let mut prompt = List::with_capacity(32);
-            for delivery in b"abcdefghijklmnopqrst".chunks(cut) {
-                assert!(append_prompt(&mut prompt, delivery), "prompt fits its bound");
+        let bytes = b"abcdefghijklmnopqrst";
+        for cut in [bytes.len(), 1] {
+            let mut prompt = PromptInput::new(PROMPT_BOUND);
+            for delivery in bytes.chunks(cut) {
+                assert!(prompt.read_more(stream::Up::Bytes(delivery.into())), "prompt fits its bound");
             }
-            assert_eq!(prompt.as_slice(), b"abcdefghijklmnopqrst");
+            assert!(!prompt.read_more(stream::Up::End), "EOF closes the input");
+            assert_eq!(prompt.finish().expect("a prompt").as_ref(), bytes);
         }
+    }
+
+    #[test]
+    fn an_empty_prompt_is_a_usage_error_exiting_2() {
+        let mut prompt = PromptInput::new(PROMPT_BOUND);
+        for delivery in [b" \t".as_slice(), b"\n"] {
+            assert!(prompt.read_more(stream::Up::Bytes(delivery.into())), "whitespace does not end the read");
+        }
+        assert!(!prompt.read_more(stream::Up::End), "EOF closes the input");
+        let refused = Refused::Usage(prompt.finish().expect_err("a whitespace-only prompt must refuse"));
+        assert_eq!(refused.code(), 2, "empty input is a usage error");
+        assert_eq!(refused.line(), "smith: usage: the prompt is empty", "empty prompt line");
     }
 }

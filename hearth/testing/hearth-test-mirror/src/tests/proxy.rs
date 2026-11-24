@@ -10,6 +10,7 @@ use std::{
     path::PathBuf,
 };
 
+const FOUND: &[u8] = b"HTTP/1.1 200 OK\r\nContent-Length: 7\r\nConnection: close\r\n\r\nsigned\n";
 const HEAD_ONLY: &[u8] = b"HTTP/1.1 200 OK\r\nContent-Length: 7\r\nConnection: close\r\n\r\n";
 const NOT_FOUND: &[u8] = b"HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n";
 const XZ: &[u8] = b"HTTP/1.1 200 OK\r\nContent-Length: 3\r\nConnection: close\r\n\r\nxz\n";
@@ -45,6 +46,10 @@ fn a_by_hash_request_is_answered_the_file_it_names() {
         fixtures::XZ_SHA256
     );
     assert_eq!(request(&fixtures::get_head(&url)), XZ);
+}
+#[test]
+fn a_get_is_answered_with_the_head_and_body() {
+    assert_eq!(request(&fixtures::get_head(URL)), FOUND);
 }
 #[test]
 fn a_head_request_is_answered_the_head_alone() {

@@ -137,6 +137,7 @@ fn build(scenario: &Scenario<'_>, seed: u64, config: Config, options: &Options) 
         *context.borrow_mut() = Some(Context {
             scenario: Scenario {
                 files: &[],
+                later: None,
                 laid: &[],
                 call: scenario.call.clone(),
                 form: scenario.form,

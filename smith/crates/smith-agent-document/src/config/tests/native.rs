@@ -45,7 +45,7 @@ fn resolving_finds_rg_after_decoding_without_running_it() {
         .expect("decode without filesystem effects");
     let rg = Path::new("/fixture/bin/rg");
     let configuration = decoded
-        .resolve_with(
+        .resolve_native(
             &mut Vec::new(),
             |path| crate::config::native::find_rg_with(path, |file| file == rg),
             crate::config::native::RootReader::Native,

@@ -145,7 +145,7 @@ pub fn valid(limits: &Limits) -> bool {
 
 /// Two alarms per run and two per delegated call.
 pub(crate) fn alarms(limits: &Limits) -> Option<u32> {
-    limits.runs.checked_mul(2)?.checked_add(limits.calls.checked_mul(2)?)
+    limits.runs.checked_mul(3)?.checked_add(limits.calls.checked_mul(2)?)
 }
 
 /// Numeric declarations needed by this layer's transitional derivation.

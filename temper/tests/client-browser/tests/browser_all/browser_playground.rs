@@ -20,13 +20,8 @@ struct Walk {
     until: Option<Time>,
 }
 
-impl Play for Walk {
-    fn next(&mut self, face: &mut BrowserFace<'_>, now: Time) -> Next<Box<[u8]>> {
-        let next = self.script.next(face, now);
-        if next != Next::Done {
-            return next;
-        }
-        let until = *self.until.get_or_insert(now.saturating_add(WITHIN));
+impl Walk {
+    fn wait_for_output(&mut self, face: &mut BrowserFace<'_>, now: Time, until: Time) -> Next<Box<[u8]>> {
         let words = match self.figures.len() {
             0 => b"Memory high water".as_slice(),
             1 => b"Longest slice".as_slice(),
@@ -44,9 +39,31 @@ impl Play for Walk {
             return Next::Done;
         }
         if now >= until {
-            return Next::Failed { step: self.at(), why: Why::Missing { find: Find::text(words) } };
+            face.expire(WITHIN, format!("{:?}", Why::Missing { find: Find::text(words) }));
+            return Next::Wait { until: None };
         }
         Next::Wait { until: Some(until) }
+    }
+}
+
+impl Play for Walk {
+    fn next(&mut self, face: &mut BrowserFace<'_>, now: Time) -> Next<Box<[u8]>> {
+        let next = self.script.next(face, now);
+        if next != Next::Done {
+            return next;
+        }
+        let until = *self.until.get_or_insert(now.saturating_add(WITHIN));
+        self.wait_for_output(face, now, until)
+    }
+
+    fn check_deadline(&mut self, face: &mut BrowserFace<'_>, now: Time) {
+        if let Some(until) = self.until {
+            if now >= until {
+                self.wait_for_output(face, now, until);
+            }
+        } else {
+            self.script.check_deadline(face, now);
+        }
     }
 
     fn at(&self) -> u32 {

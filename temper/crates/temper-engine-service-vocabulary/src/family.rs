@@ -713,7 +713,7 @@ pub fn panel(value: forge::Panel, forges: &crate::forges::Forges, limits: &w::Li
         Some(number) => Some(w::Pull { number, address: address(&value, number, forges) }),
         None => None,
     };
-    let gates = panel_gates(value.gates, limits)?;
+    let gates = panel_gates(value.gates)?;
     let approvals = panel_approvals(value.approvals, limits)?;
     let unmapped_reviews = panel_unmapped(value.unmapped_reviews, limits)?;
     let record = w::ChangePanel {
@@ -763,7 +763,7 @@ pub fn panel(value: forge::Panel, forges: &crate::forges::Forges, limits: &w::Li
     record.encode(limits).ok()
 }
 
-fn panel_gates(value: Box<[forge::PanelGate]>, _limits: &w::Limits) -> Option<List<w::Gate>> {
+fn panel_gates(value: Box<[forge::PanelGate]>) -> Option<List<w::Gate>> {
     let mut gates = List::with_capacity(forge::PANEL_GATES);
     for gate in value {
         gates
@@ -2299,9 +2299,7 @@ pub fn trials(rows: Box<[root::TrialRow]>, limits: &w::Limits) -> Option<Box<[u8
 }
 
 fn trial_wait(value: jig_domain_core::documents::TaskRunWait) -> Option<Box<[u8]>> {
-    let value =
-        jig_protocol_engine_clients::translate::task_wait::waiting(Some(value), &jig_client_protocol_wire::CEILINGS)
-            .ok()??;
+    let value = jig_protocol_engine_clients::translate::task_wait::waiting(Some(value))?;
     value.encode(&jig_client_protocol_wire::CEILINGS).ok()
 }
 
@@ -2350,8 +2348,8 @@ pub fn approvals(document: root::Approvals, forges: &crate::forges::Forges, limi
             counted: row.counted,
             sets,
             whole: row.whole,
-            signed: approval_people(row.signed, limits)?,
-            can_sign: approval_people(row.can_sign, limits)?,
+            signed: approval_people(row.signed)?,
+            can_sign: approval_people(row.can_sign)?,
             can_sign_more: row.can_sign_more,
             yours: match row.yours {
                 root::YourReview::Counts => w::ApprovalYours::Counts,
@@ -2375,7 +2373,7 @@ pub fn approvals(document: root::Approvals, forges: &crate::forges::Forges, limi
     document.encode(limits).ok()
 }
 
-fn approval_people(people: Box<[root::ApprovalPerson]>, _limits: &w::Limits) -> Option<List<w::ApprovalPerson>> {
+fn approval_people(people: Box<[root::ApprovalPerson]>) -> Option<List<w::ApprovalPerson>> {
     let mut values = List::with_capacity(8);
     for person in people {
         values.push(w::ApprovalPerson { person: person.person, name: person.name }).ok()?;

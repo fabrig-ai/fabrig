@@ -26,6 +26,7 @@ pub fn limits() -> Limits {
         },
         watermark: crate::WATERMARK,
         host: host::Limits {
+            drain_grace: Duration::from_secs(10),
             application_ask_bytes: 0,
             application_answer_bytes: 0,
             program_sources: 12,
@@ -112,6 +113,7 @@ pub fn limits() -> Limits {
             reply_bytes: None,
         },
         drain: Duration::from_secs(10),
+        drain_grace: Duration::from_secs(10),
         after_grace: Duration::from_secs(15),
         stop_bound: Duration::from_secs(20),
     }
@@ -123,6 +125,8 @@ pub fn assignment(workspace: bool, grants: Box<[Grant]>) -> host::Assignment {
     let workspace =
         if workspace { Some(host::Workspace { workstream: WORKSTREAM, items: Token::new(0) }) } else { None };
     host::Assignment {
+        parts: Box::new([]),
+        tell_parts: false,
         messages: Box::new([]),
         turns: Box::new([]),
         answered: Box::new([]),
@@ -266,6 +270,8 @@ pub fn start(run: Token, source: &host::Start) -> agent::Start {
         grants.push(grant).expect("room for each grant");
     }
     agent::Start {
+        parts: Box::default(),
+        tell_parts: false,
         identity: None,
         messages: messages.into_boxed(),
         logical_run: run,

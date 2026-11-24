@@ -10,7 +10,7 @@ use jig_domain_people as p;
 fn a_message_record_becomes_the_cores_say() {
     let limits = f::wire();
     assert_eq!(
-        ask(f::start(&limits), &f::models(), &limits),
+        ask(f::start(), &f::models(), &limits),
         Ok(p::Ask::Say { project: 3, task: 8, words: Box::from(b"hello".as_slice()) })
     );
 }
@@ -73,7 +73,7 @@ fn an_ask_that_does_not_translate_reaches_no_core() {
     );
     let mut exchange = Exchange::new();
     for bytes in [f::encode_ask(&value), f::encode_ask(&f::malformed_piece()), Box::new([255]), {
-        let bytes = f::encode_ask(&f::start(&f::wire()));
+        let bytes = f::encode_ask(&f::start());
         let mut out = skein_lib::Writer::new(bytes.len().checked_add(1).expect("tail size"));
         out.put(&bytes).expect("ask");
         out.put(&[0]).expect("tail");
@@ -109,7 +109,7 @@ fn an_application_record_is_routed_with_its_digest() {
 #[test]
 fn a_third_exchange_past_the_client_s_bound_is_busy() {
     let mut exchange = Exchange::new();
-    let body = f::keyed(w::Owner::Jig, jig_client_protocol_wire::VERSION, f::encode_ask(&f::start(&f::wire())));
+    let body = f::keyed(w::Owner::Jig, jig_client_protocol_wire::VERSION, f::encode_ask(&f::start()));
     for _ in 0..2_u32 {
         exchange.send(crate::Message::Request(body.clone()));
         exchange.authenticate();
