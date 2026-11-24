@@ -42,6 +42,7 @@ pub enum Document {
 /// One landing, its members, gate proofs and the project's turn holder.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct LandingView {
+    pub read_hold: Option<Box<[u8]>>,
     pub waits: Option<LandingWait>,
     pub task: u64,
     pub project: u32,

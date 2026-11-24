@@ -276,7 +276,10 @@ producing ─► opening ─► gating ─► ready ─► in its landing ─►
   - its pull request refused for a cause not stale, `turn: WHY`; its
     merge not made, read again at the round's base with its pull request
     not closed, refused or past its bound (`landing-turn.md`, section 1), `turn: merge of #N: WHY;
-    read #N STATE, BRANCH at TIP`.
+    read #N STATE, BRANCH at TIP`;
+  - a run of waits for a fresh read past the deployment's stall,
+    whatever the step (`landing-waits.md`, 3), `read: READ, for change
+    C: WHY`, naming the read it last waited on and its last answer.
 
   A step a member's change makes (its judgement, its repair) is
   bounded by the change's own stall (`forge/change/stalls.md`): the

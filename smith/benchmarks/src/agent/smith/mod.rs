@@ -21,13 +21,13 @@ mod traces;
 
 pub(super) use run::{home, source_arm, takes_arguments};
 
-pub use faces::{FaceSince, Receiving, face, read as read_faces};
+pub use faces::{FaceSince, Receiving, face, read as read_faces, read_with as read_faces_with, select as select_face};
 
 pub use prepare::{Prepared, prepare, prepare_checked, teardown_from_check};
 
 pub use observe::Observing;
 
-pub use settings::product as product_settings;
+pub use settings::{product as product_settings, product_with as product_settings_with};
 
 #[cfg(test)]
 pub(crate) use observe::tests::program as recorded_program;

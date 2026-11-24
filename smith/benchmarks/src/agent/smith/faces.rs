@@ -9,6 +9,7 @@ use std::path::Path;
 use serde::{Deserialize, Serialize};
 
 use crate::arm::BuiltArm;
+use crate::files::{Files, Native};
 use crate::isolate::SetupStep;
 
 /// Receiving bounds pinned with the face that writes the stream.
@@ -58,11 +59,16 @@ struct Registry {
 
 /// Read the bounded, closed registry beside the configuration pin.
 pub fn read(path: &Path) -> Result<Vec<FaceSince>, Fault> {
-    read_registry(path).map_err(Fault::at(SetupStep::Configuration))
+    read_with(&Native, path)
 }
 
-fn read_registry(path: &Path) -> Result<Vec<FaceSince>, Fault> {
-    let bytes = std::fs::read(path)?;
+/// Read the bounded registry on a supplied filesystem.
+pub fn read_with(files: &dyn Files, path: &Path) -> Result<Vec<FaceSince>, Fault> {
+    read_registry_with(files, path).map_err(Fault::at(SetupStep::Configuration))
+}
+
+fn read_registry_with(files: &dyn Files, path: &Path) -> Result<Vec<FaceSince>, Fault> {
+    let bytes = files.read(path)?;
     refuse_if(bytes.len() > 65_536, Bound, "Smith face registry exceeds its bound")?;
     let text = std::str::from_utf8(&bytes)?;
     let registry: Registry = toml::from_str(text)?;
@@ -112,8 +118,8 @@ fn select_face(arm: &BuiltArm, faces: &[FaceSince], repository: &Path) -> Result
     select(arm, faces, &ancestry)
 }
 
-// Git results arrive newest first; only a proved ancestor admits a product face.
-fn select(arm: &BuiltArm, faces: &[FaceSince], ancestry: &[Option<i32>]) -> Result<FaceSince, Fault> {
+/// Choose from Git ancestry statuses supplied newest first; only a proved ancestor admits a face.
+pub fn select(arm: &BuiltArm, faces: &[FaceSince], ancestry: &[Option<i32>]) -> Result<FaceSince, Fault> {
     for (entry, status) in faces.iter().rev().zip(ancestry) {
         match status {
             Some(0) => return Ok(entry.clone()),

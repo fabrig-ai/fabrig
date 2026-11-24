@@ -60,6 +60,22 @@ fn a_turn_answers_each_user_message_with_its_result() {
 }
 
 #[test]
+fn a_plain_turn_finishes_cleanly_when_stdin_closes() {
+    let invocation = print::invocation(1).first_input_after("status");
+    let run = print::run(Story::default(), invocation, None, Some(MCP));
+    let records = messages(&run);
+    let [init, status, assistant, result] = records.as_slice() else {
+        panic!("expected four records for one turn, got {records:?}");
+    };
+    assert_eq!(init["subtype"], "init");
+    assert_eq!(status["subtype"], "status");
+    assert_eq!(assistant["type"], "assistant");
+    assert_eq!(result["type"], "result");
+    assert_eq!(result["result"], "Done.");
+    assert_eq!(run.records[0].exit, Some(Exit::Code(0)));
+}
+
+#[test]
 fn partial_messages_come_only_when_asked() {
     let run = normal(Story::default(), 1);
     assert!(!messages(&run).iter().any(|message| message["type"] == "stream_event"));

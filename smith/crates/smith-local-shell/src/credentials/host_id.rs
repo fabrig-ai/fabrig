@@ -2,23 +2,25 @@
 //! Absent-file stores choose one winner; every other process reads that winner.
 use super::{Directory, private_file};
 use skein_io::file::Expect;
-use std::fmt::Write;
+use std::{fmt::Write, path::Path};
 
 pub(super) fn read_or_draw(directory: &Directory, entropy: &[u8; 32]) -> Result<String, String> {
-    let file = directory.host_id();
     read_or_draw_with(
+        directory,
         entropy,
-        || skein_shell::read_private_file(&file, 45, skein_shell::effective_user()),
-        |bytes| private_file::store(&file, bytes, Expect::Absent, entropy).map(|_| ()),
+        |file| skein_shell::read_private_file(file, 45, skein_shell::effective_user()),
+        private_file::store,
     )
 }
 
 fn read_or_draw_with(
+    directory: &Directory,
     entropy: &[u8; 32],
-    mut read_bytes: impl FnMut() -> Result<skein_lib::Secret, skein_shell::Unread>,
-    publish: impl FnOnce(Box<[u8]>) -> Result<(), String>,
+    mut read_bytes: impl FnMut(&Path) -> Result<skein_lib::Secret, skein_shell::Unread>,
+    publish: impl FnOnce(&Path, Box<[u8]>, Expect, &[u8; 32]) -> Result<bool, String>,
 ) -> Result<String, String> {
-    if let Some(value) = read(read_bytes())? {
+    let file = directory.host_id();
+    if let Some(value) = read(read_bytes(&file))? {
         return Ok(value);
     }
     let mut bytes: [u8; 16] = entropy.get(..16).expect("UUID entropy").try_into().expect("sixteen bytes");
@@ -31,8 +33,8 @@ fn read_or_draw_with(
         }
         write!(value, "{byte:02x}").expect("UUID string");
     }
-    publish(value.into_bytes().into_boxed_slice())?;
-    read(read_bytes())?.ok_or_else(|| "unreadable host-id".into())
+    publish(&file, value.into_bytes().into_boxed_slice(), Expect::Absent, entropy)?;
+    read(read_bytes(&file))?.ok_or_else(|| "unreadable host-id".into())
 }
 
 fn read(bytes: Result<skein_lib::Secret, skein_shell::Unread>) -> Result<Option<String>, String> {

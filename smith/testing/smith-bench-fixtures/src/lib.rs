@@ -5,6 +5,8 @@
 
 pub mod events;
 
+pub mod files;
+
 pub mod json;
 
 pub mod request;

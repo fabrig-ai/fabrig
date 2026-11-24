@@ -9,7 +9,9 @@ way, what crosses as bytes of another owner and where smith's are
 decoded, names and credential grants, liveness and flow control, the
 worker's link on each side, the two components that own it, and how it
 is tested; `wires.md` holds the wires its opening states,
-`bridges.md` how the channel speaks them across versions,
+`layouts.md` how the engine converts between its layouts and a
+worker's (replacing `bridges.md`, which goes with the code it
+describes),
 `figures.md` what the engine sends a worker at its opening,
 `restart.md` the restart an engine says before it stops, and
 `pause.md` how an engine asks a worker to take no new work, to drain,
@@ -148,25 +150,23 @@ The opening is skein's (skein's `net/channel.md`, section 5): `Open` from the
 worker, `Accept` or `Refuse` from the engine, then each side's `Terms`.
 
 - **The magic** names jig's channel; the schema gives its four bytes.
-- **A wire whose version moves with its layout.** jig's worker channel
-  speaks the version its schema's header gives, `wire::VERSION`, its
-  kinds' table in the schema (`wires.md`, 4). Its messages, live and carried in an assignment, include the boolean
+- **A wire of frozen version, named by its layout.** jig's worker channel
+  speaks the version its schema's header gives, `wire::VERSION`, which
+  no longer moves, its kinds' table in the schema (`wires.md`, 4); the
+  engine converts between its layout and each worker's
+  (`layouts.md`). Its messages, live and carried in an assignment, include the boolean
   `finish_requested` (`../../domain/hosts/README.md`, section 7). Its assignment
   carries the ask for live content and its fact record a piece of it
   (`records.md`, 1 and 2, and `owners.md`, 1.4); a run's typed failure may name the configured
   bound it exceeded (`../../domain/hosts/hub.md`, 3); its `GrantValue` is a
   credential, an application's credential or a program source's name
-  (tags 0 to 2: `README.md`, section 7), with no other form. A
-  landing that changes its layout moves its version, with its patch
-  (skein's `data/codec/command.md`, 2, the wire rule). A worker of no
-  version in common is refused with skein's *version*; each build's
-  floor is its current version, and nothing is translated.
+  (tags 0 to 2: `README.md`, section 7), with no other form.
 - **A worker's credential** is a record of `jig-protocol-worker-wire`'s:
   - the worker's name, which a worker setting names
     (`../../domain/engine/workers.md`);
   - its secret;
-  - the wires it speaks, jig's and the application's, each by version
-    and layout (`wires.md`, 2), in place of a payload version;
+  - the wires it speaks, jig's and the application's, each by layout
+    and text (`wires.md`, 2);
   - the worker's output room in bytes, its `io.output`, taken from the
     worker component's stream room;
   - what the opening is for: a link, or the worker's figures alone
@@ -180,8 +180,9 @@ worker, `Accept` or `Refuse` from the engine, then each side's `Terms`.
     admitted*, so names cannot be probed; a worker with no digest is
     accepted on an in-process listener alone; a credential that does not
     decode is *unauthorized*;
-  - the wires, each the engine speaks stated alike, or *wires*, naming
-    the first that is not (`wires.md`, 3);
+  - the wires, each the engine speaks stated, at its layout or at one
+    its plans convert, or *wires*, naming the first that is not
+    (`wires.md`, 3);
   - for a link opening, the worker's `io.output`, equal to the engine's
     stream room, or skein's *limits*. The refusal and the engine's
     opening diagnostic name both byte values and tell the operator to
@@ -198,7 +199,7 @@ worker, `Accept` or `Refuse` from the engine, then each side's `Terms`.
   is shutting down) and *starting* (the engine has no figures to send
   yet, `figures.md`, 3). Their numbers are the schema's.
 - **Terms.** Each side states the largest body it takes of each kind,
-  from its own limits, as the agreed version encodes it (`wires.md`, 5);
+  from its own limits, as the worker's layout encodes it (`wires.md`, 5);
   each checks the other's against the largest it may
   send, computed from its own limits, and refuses with skein's *limits*,
   naming the kind, when one does not fit. An engine and a worker given

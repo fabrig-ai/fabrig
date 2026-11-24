@@ -1,14 +1,14 @@
 //! Validate hidden graders on private seeds and reference overlays, without an
 //! agent or credentials (../../docs/design/benchmarks/README.md, sections 3.1 and 5.2, and ../../docs/design/benchmarks/isolation.md, section 1).
 
-use std::fs;
-use std::os::unix::fs::DirBuilderExt;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use skein_lib::Duration;
 use skein_shell::Clock;
+use skein_world::end_to_end::Command;
 
-use crate::grade::{Entry, GradeEnd, Snapshot};
+use crate::files::{Files, Kind, Native};
+use crate::grade::{self, CommandReceipt, Entry, GradeEnd, Snapshot};
 use crate::guard::Guard;
 use crate::isolate::{Machine, Private};
 use crate::process::Bounds;
@@ -47,7 +47,7 @@ pub fn validate(tasks: &Path, names: &[String]) -> Result<Vec<Validation>, Fault
     let machine = Machine::from_environment()?;
     let state = crate::arm::state_root(&guard)?;
     let scratch = state.join("scratch");
-    fs::DirBuilder::new().recursive(true).mode(0o700).create(guard.write_path(&scratch)?)?;
+    Native.create_dir_all(&guard.write_path(&scratch)?, 0o700)?;
     let root = crate::isolate::create_directory(&guard, &scratch.join(format!("validate-{}", std::process::id())))?;
     let result = validate_catalogue(&catalogue, names, &guard, &machine, &root);
     crate::isolate::remove_owned_tree(&guard, &root)?;
@@ -61,35 +61,55 @@ fn validate_catalogue(
     machine: &Machine,
     root: &Path,
 ) -> Result<Vec<Validation>, Fault> {
+    let clock = Clock::new();
+    let world = Candidates { guard, machine, bundles: &|| Ok(crate::arm::state_root(guard)?.join("bundles")) };
+    validate_catalogue_with(&Native, tasks, names, &world, root, &mut |command, bounds| {
+        grade::run_command(&clock, command, bounds)
+    })
+}
+
+struct Candidates<'a> {
+    guard: &'a Guard,
+    machine: &'a Machine,
+    bundles: &'a dyn Fn() -> Result<PathBuf, Fault>,
+}
+
+fn validate_catalogue_with(
+    files: &dyn Files,
+    tasks: &[CatalogueTask],
+    names: &[String],
+    world: &Candidates<'_>,
+    root: &Path,
+    run: &mut impl FnMut(Command, Bounds) -> Result<CommandReceipt, Fault>,
+) -> Result<Vec<Validation>, Fault> {
     for name in names {
         if !tasks.iter().any(|entry| entry.name == *name && !entry.task.grade.is_empty()) {
             return Err(input(format!("unknown graded task {name}")));
         }
     }
-    let clock = Clock::new();
     let mut results = Vec::new();
     for (index, entry) in tasks.iter().enumerate() {
         if entry.task.grade.is_empty() || (!names.is_empty() && !names.contains(&entry.name)) {
             continue;
         }
-        let seed = candidate(&clock, guard, machine, entry, &root.join(format!("{index}-seed")), false)?;
-        let reference = candidate(&clock, guard, machine, entry, &root.join(format!("{index}-reference")), true)?;
+        let seed = candidate(files, world, entry, &root.join(format!("{index}-seed")), false, run)?;
+        let reference = candidate(files, world, entry, &root.join(format!("{index}-reference")), true, run)?;
         results.push(Validation { task: entry.name.clone(), seed, reference });
     }
     Ok(results)
 }
 
-fn overlay(guard: &Guard, source: &Path, destination: &Path) -> Result<(), Fault> {
-    for (relative, entry) in crate::grade::snapshot_all(source)? {
-        let target = guard.write_path(&destination.join(&relative))?;
+fn overlay(files: &dyn Files, guard: &Guard, source: &Path, destination: &Path) -> Result<(), Fault> {
+    for (relative, entry) in grade::snapshot_all_with(files, source)? {
+        let target = guard.write_path_with(files, &destination.join(&relative))?;
         match entry {
             Entry::Directory => {
-                if !target.exists() {
-                    crate::isolate::create_directory(guard, &target)?;
+                if files.metadata(&target).is_err() {
+                    crate::isolate::create_directory_with(files, guard, &target)?;
                 }
             }
             Entry::File { .. } => {
-                fs::copy(source.join(relative), target)?;
+                files.copy(&source.join(relative), &target)?;
             }
             Entry::Link { .. } | Entry::Special => return Err(input("reference contains a link or special node")),
         }
@@ -98,29 +118,31 @@ fn overlay(guard: &Guard, source: &Path, destination: &Path) -> Result<(), Fault
 }
 
 fn candidate(
-    clock: &Clock,
-    guard: &Guard,
-    machine: &Machine,
+    files: &dyn Files,
+    world: &Candidates<'_>,
     entry: &CatalogueTask,
     root: &Path,
     reference: bool,
+    run: &mut impl FnMut(Command, Bounds) -> Result<CommandReceipt, Fault>,
 ) -> Result<GradeEnd, Fault> {
     let task_root = entry.manifest.parent().ok_or_else(|| input("task has no directory"))?;
-    let bundles = crate::arm::state_root(guard)?.join("bundles");
-    let (seed, digest) = crate::seed_source(&entry.task, task_root, &bundles)?;
-    let private: Private = crate::isolate::prepare(guard, &seed, &digest, root)?;
-    let before = crate::grade::snapshot(&private.workspace)?;
+    let bundles = (world.bundles)()?;
+    let (seed, digest) = crate::seed_source_with(files, &entry.task, task_root, &bundles)?;
+    let guard = world.guard;
+    let private = crate::isolate::prepare_with(files, guard, &seed, &digest, root)?;
+    let before = grade::snapshot_with(files, &private.workspace)?;
     if reference {
         let reference = task_root.join("reference");
-        if reference.join("solution.patch").is_file() {
-            apply_patch(clock, guard, machine, &private, &reference.join("solution.patch"))?;
+        let patch = reference.join("solution.patch");
+        if files.metadata(&patch).is_ok_and(|facts| facts.kind == Kind::File) {
+            apply_patch(files, world, &private, &patch, run)?;
         } else {
-            overlay(guard, &reference, &private.workspace)?;
+            overlay(files, guard, &reference, &private.workspace)?;
         }
     }
     let grader = task_root.join("grader");
-    if grader.exists() {
-        crate::isolate::copy_directory(guard, &grader, &root.join("grader"))?;
+    if files.metadata(&grader).is_ok() {
+        crate::isolate::copy_directory_with(files, guard, &grader, &root.join("grader"))?;
     }
     let bounds = Bounds {
         hard: Duration::ZERO,
@@ -139,7 +161,8 @@ fn candidate(
             max_output_bytes: 4 * 1024 * 1024,
         };
         let environment = &entry.task.environment;
-        let result = crate::grade::command(clock, machine, &private, &private.workspace, &setup, bounds, environment)?;
+        let result =
+            grade::command_with(files, world.machine, &private, &private.workspace, &setup, bounds, environment, run)?;
         if result.end != GradeEnd::Passed {
             return Err(io(format!(
                 "validation setup failed: {:?}: {}",
@@ -149,14 +172,15 @@ fn candidate(
         }
     }
     for (index, grade) in entry.task.grade.iter().enumerate() {
-        let result = crate::grade::command(
-            clock,
-            machine,
+        let result = grade::command_with(
+            files,
+            world.machine,
             &private,
             &private.workspace,
             grade,
             bounds,
             &entry.task.environment,
+            run,
         )?;
         if entry.task.kind == crate::Kind::Repository {
             eprintln!(
@@ -182,14 +206,19 @@ fn candidate(
         }
     }
     if reference {
-        reference_checks(&entry.task, &private.workspace, &before)?;
+        reference_checks(files, &entry.task, &private.workspace, &before)?;
     }
     Ok(end)
 }
 
-fn reference_checks(task: &crate::Task, settled: &Path, before: &Snapshot) -> Result<(), crate::Refusal> {
-    let after =
-        crate::grade::snapshot(settled).map_err(|reason| crate::Refusal::new(settled, "reference", reason.detail))?;
+fn reference_checks(
+    files: &dyn Files,
+    task: &crate::Task,
+    settled: &Path,
+    before: &Snapshot,
+) -> Result<(), crate::Refusal> {
+    let after = grade::snapshot_with(files, settled)
+        .map_err(|reason| crate::Refusal::new(settled, "reference", reason.detail))?;
     for path in &task.protected {
         if crate::grade::changed(before, &after, path) {
             return Err(crate::Refusal::new(settled, "protected", format!("reference changes {}", path.display())));
@@ -202,7 +231,7 @@ fn reference_checks(task: &crate::Task, settled: &Path, before: &Snapshot) -> Re
         answer: None,
         credential_refresh: crate::Measure::Unavailable { reason: "reference runs without credentials".into() },
     };
-    for check in crate::grade::checks(settled, before, &after, &task.outcome, &ended) {
+    for check in grade::checks_with(files, settled, before, &after, &task.outcome, &ended) {
         if check.passed != (crate::Measure::Observed { value: true }) {
             return Err(crate::Refusal::new(settled, "outcome", format!("reference fails {}", check.check)));
         }
@@ -210,9 +239,15 @@ fn reference_checks(task: &crate::Task, settled: &Path, before: &Snapshot) -> Re
     Ok(())
 }
 
-fn apply_patch(clock: &Clock, guard: &Guard, machine: &Machine, private: &Private, patch: &Path) -> Result<(), Fault> {
+fn apply_patch(
+    files: &dyn Files,
+    world: &Candidates<'_>,
+    private: &Private,
+    patch: &Path,
+    run: &mut impl FnMut(Command, Bounds) -> Result<CommandReceipt, Fault>,
+) -> Result<(), Fault> {
     let target = private.root.join("solution.patch");
-    fs::copy(patch, guard.write_path(&target)?)?;
+    files.copy(patch, &world.guard.write_path_with(files, &target)?)?;
     let grade = crate::Grade {
         command: vec!["git".into(), "apply".into(), "../solution.patch".into()],
         deadline_seconds: 10,
@@ -227,14 +262,15 @@ fn apply_patch(clock: &Clock, guard: &Guard, machine: &Machine, private: &Privat
         stderr: 0,
         force_walk: true,
     };
-    let result = crate::grade::command(
-        clock,
-        machine,
+    let result = grade::command_with(
+        files,
+        world.machine,
         private,
         &private.workspace,
         &grade,
         bounds,
         &std::collections::BTreeMap::default(),
+        run,
     )?;
     if result.end != GradeEnd::Passed {
         return Err(io(format!("reference patch failed: {}", String::from_utf8_lossy(&result.stderr))));
@@ -243,7 +279,30 @@ fn apply_patch(clock: &Clock, guard: &Guard, machine: &Machine, private: &Privat
 }
 
 pub(crate) mod testing {
-    use super::{CatalogueTask, Fault, Guard, Machine, Path, Validation};
+    use super::{
+        Bounds, Candidates, CatalogueTask, Command, CommandReceipt, Fault, Files, Guard, Machine, Path, Validation,
+    };
+
+    /// Private scratch and bundle roots and the machine paths supplied to validation replay.
+    #[derive(Debug)]
+    pub struct ReplayPaths<'a> {
+        pub guard: &'a Guard,
+        pub machine: &'a Machine,
+        pub scratch: &'a Path,
+        pub bundles: &'a Path,
+    }
+
+    /// Validate real catalogue entries with filesystem and command receipts supplied by the test.
+    pub fn validate_catalogue_with(
+        files: &dyn Files,
+        entries: &[CatalogueTask],
+        names: &[String],
+        paths: &ReplayPaths<'_>,
+        mut run: impl FnMut(Command, Bounds) -> Result<CommandReceipt, Fault>,
+    ) -> Result<Vec<Validation>, Fault> {
+        let world = Candidates { guard: paths.guard, machine: paths.machine, bundles: &|| Ok(paths.bundles.into()) };
+        super::validate_catalogue_with(files, entries, names, &world, paths.scratch, &mut run)
+    }
 
     pub fn validate_catalogue(
         entries: &[CatalogueTask],

@@ -1,0 +1,4 @@
+# Record with `env -i /bin/sh -- tasks/probes/tool-output/seed/test.sh` from smith/benchmarks.
+# test.stdout holds stdout verbatim; stderr is empty.
+script_sha256 = "8760e52e3df1c3d907941451ed1a64ffe4330a79e6693f8643ad1ae6689c4603"
+exit_code = 1

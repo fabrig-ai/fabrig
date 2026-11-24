@@ -7,6 +7,7 @@ use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 
 use crate::agent::{Context, Invocation, Seen};
+use crate::files::{Files, Native};
 use crate::isolate::SetupStep;
 use crate::{Agent, Fault, FaultKind, Input, Mismatch, ModelChoice, Provider, input, mismatch, refuse_if, stream};
 
@@ -39,8 +40,14 @@ pub struct Observing {
 
 /// Prepare a version-matched Codex command without touching its existing login.
 pub fn prepare(context: &Context<'_>) -> Result<PreparedCodex, Fault> {
-    let mut prepared = configure(context).map_err(Fault::at(SetupStep::Configuration))?;
-    let borrowed = crate::credential::codex(
+    prepare_with(&Native, context)
+}
+
+/// Prepare a pinned Codex command and stage its private login on the supplied filesystem.
+pub fn prepare_with(files: &dyn Files, context: &Context<'_>) -> Result<PreparedCodex, Fault> {
+    let mut prepared = configure(files, context).map_err(Fault::at(SetupStep::Configuration))?;
+    let borrowed = crate::credential::codex_with(
+        files,
         context.guard,
         context.home,
         &prepared.home,
@@ -56,7 +63,7 @@ pub fn prepare(context: &Context<'_>) -> Result<PreparedCodex, Fault> {
     Ok(prepared)
 }
 
-fn configure(context: &Context<'_>) -> Result<PreparedCodex, Fault> {
+fn configure(files: &dyn Files, context: &Context<'_>) -> Result<PreparedCodex, Fault> {
     refuse_if(!context.task.person.is_empty(), Input, "Codex does not accept later person lines")?;
     if context.pin.pin.agent != Agent::Codex || context.pin.pin.provider != Provider::Codex {
         return Err(input("Codex requires its own codex configuration pin"));
@@ -77,9 +84,9 @@ fn configure(context: &Context<'_>) -> Result<PreparedCodex, Fault> {
             return Err(input("Codex requires its installed executable, not a smith build"));
         }
     };
-    let reread = crate::read_configuration(context.pin_file)?;
+    let reread = crate::read_configuration_with(files, context.pin_file)?;
     refuse_if(reread != *context.pin, Mismatch, "Codex configuration changed since the attempt was planned")?;
-    let digest = crate::arm::binary_digest(&program)?;
+    let digest = crate::arm::binary_digest_with(files, &program)?;
     if Some(digest.as_str()) != context.pin.pin.sha256.as_deref() {
         return Err(mismatch(format!("Codex executable digest {digest} differs from its pin")));
     }
@@ -88,7 +95,7 @@ fn configure(context: &Context<'_>) -> Result<PreparedCodex, Fault> {
         .parent()
         .ok_or_else(|| input("configuration pin needs a directory"))?
         .join(&context.pin.pin.configuration);
-    let bytes = std::fs::read(&overrides_path)?;
+    let bytes = files.read(&overrides_path)?;
     let text = std::str::from_utf8(&bytes)?;
     let document: std::collections::BTreeMap<String, toml::Value> = toml::from_str(text)?;
     let milliseconds = document
@@ -104,7 +111,7 @@ fn configure(context: &Context<'_>) -> Result<PreparedCodex, Fault> {
     let teardown = skein_lib::Duration::from_nanos(nanos);
     let mut overrides: Vec<_> =
         document.into_iter().filter(|(key, _)| key != "harness").map(|(key, value)| (key, value.to_string())).collect();
-    let workspace = crate::isolate::working_directory(context.guard, context.private, context.task)?;
+    let workspace = crate::isolate::working_directory_with(files, context.guard, context.private, context.task)?;
     // Codex splits dotted override paths literally; quote the dynamic path
     // within a top-level TOML table value, including dots in the workspace.
     let project = toml::Table::from_iter([("trust_level".into(), toml::Value::String("trusted".into()))]);
@@ -230,6 +237,11 @@ impl Observing {
 
     /// Read only this completed attempt's native root and child records.
     pub fn collect(&mut self) -> Result<&super::Rollouts, Fault> {
+        self.collect_with(&Native)
+    }
+
+    /// Collect and cache the named rollout evidence from the supplied filesystem.
+    pub fn collect_with(&mut self, files: &dyn Files) -> Result<&super::Rollouts, Fault> {
         let prepared =
             self.prepared.as_ref().ok_or_else(|| stream("offline Codex replay has no preparation to collect"))?;
         if let Some(what) = &self.collection_error {
@@ -249,6 +261,7 @@ impl Observing {
             children.dedup();
             self.collected = Some(super::Rollouts { responses: Vec::new(), children: Vec::new(), files: Vec::new() });
             if let Err(error) = super::rollouts::collect_named(
+                files,
                 &prepared.home,
                 thread,
                 &children,

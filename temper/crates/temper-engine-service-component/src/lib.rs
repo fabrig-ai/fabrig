@@ -221,6 +221,7 @@ pub enum Note {
         why: Option<jig_domain_tasks::Refusal>,
         changes: Box<[u64]>,
     },
+    LandingRead(temper_engine_domain_forge::LandingReadNote),
     /// Start's Link repairs (domain/landing-forming.md, 4).
     LandingUnmade {
         task: u64,
