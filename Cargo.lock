@@ -5794,7 +5794,6 @@ dependencies = [
  "temper-test-env",
  "temper-version",
  "temper-worker-domain",
- "temper-worker-domain-checkout",
  "temper-worker-protocol-git",
  "temper-worker-service",
  "temper-worker-shell",
@@ -5926,6 +5925,8 @@ dependencies = [
  "skein-oauth-accounts",
  "skein-scratch",
  "skein-shell",
+ "skein-sim",
+ "skein-sim-world",
  "skein-tls",
  "skein-tls-kit",
  "skein-world",
@@ -7597,6 +7598,7 @@ dependencies = [
 name = "temper-fake-git-hosted"
 version = "0.0.0"
 dependencies = [
+ "serde_json",
  "skein-fake-checkout",
  "skein-fake-forge-domain",
  "skein-fake-machine",
@@ -7604,7 +7606,10 @@ dependencies = [
  "skein-io",
  "skein-lib",
  "skein-shell",
+ "skein-sim",
  "skein-sim-world",
+ "temper-box-shell",
+ "temper-fake",
  "temper-fake-git",
  "temper-worker-checkout-world",
  "temper-worker-domain-checkout",

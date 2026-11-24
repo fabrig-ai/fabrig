@@ -65,20 +65,22 @@ pub fn exec(spec: &Spec, lock: Lock) -> io::Error {
 
 /// Writes a sign-in key to a preopened private partial file; the caller publishes it by rename.
 pub fn sign_in_key(file: fs::File) -> Result<(), String> {
-    // The preopened stdout is 0600; umask also confines any file opens by openssl.
-    Command::new("/bin/sh")
-        .args(["-c", "umask 077; exec openssl \"$@\"", "openssl"])
-        .args(temper_forge_setup::sign_in::KEY_ARGUMENTS.iter().map(|arg| std::ffi::OsStr::from_bytes(arg)))
-        .stdin(Stdio::null())
-        .stdout(file)
-        .stderr(Stdio::null())
-        .status()
-        .map_err(|why| format!("openssl could not start: {why}"))
-        .and_then(
-            |status| {
-                if status.success() { Ok(()) } else { Err("openssl genpkey failed; openssl must be on PATH".into()) }
-            },
-        )
+    sign_in_key_with(|| {
+        // The preopened stdout is 0600; umask also confines any file opens by openssl.
+        Command::new("/bin/sh")
+            .args(["-c", "umask 077; exec openssl \"$@\"", "openssl"])
+            .args(temper_forge_setup::sign_in::KEY_ARGUMENTS.iter().map(|arg| std::ffi::OsStr::from_bytes(arg)))
+            .stdin(Stdio::null())
+            .stdout(file)
+            .stderr(Stdio::null())
+            .status()
+    })
+}
+
+/// Checks the status of OpenSSL writing to the private partial file.
+pub fn sign_in_key_with(status: impl FnOnce() -> io::Result<std::process::ExitStatus>) -> Result<(), String> {
+    let status = status().map_err(|why| format!("openssl could not start: {why}"))?;
+    if status.success() { Ok(()) } else { Err("openssl genpkey failed; openssl must be on PATH".into()) }
 }
 
 /// The hidden child command inherits its environment, directory and descriptors.

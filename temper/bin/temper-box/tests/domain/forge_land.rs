@@ -1,8 +1,15 @@
 //! Story discovery and evidence over values and scripted client-tool reads.
 use crate::support;
 use serde_json::{Value, json};
-use std::collections::BTreeSet;
-use support::forge_land::{last_readme_line, live_roots, require_chat_progress, require_closed_roots};
+use std::{
+    cell::RefCell,
+    collections::{BTreeMap, BTreeSet},
+    io,
+    path::{Path, PathBuf},
+};
+use support::forge_land::{
+    FileFacts, FileKind, last_readme_line, live_roots, require_chat_progress, require_closed_roots,
+};
 
 fn roots_read(tasks: &[u64]) -> Value {
     json!({"tasks": {"rows": tasks.iter().map(|task| json!({"chip": {"task": task}})).collect::<Vec<_>>(), "more": false}})
@@ -1144,4 +1151,688 @@ fn the_live_temper_profile_selects_only_the_key_and_claude_code_stories() {
         "default-filter = \"(binary(=live) & (test(=a_person_asks_claude_on_an_api_key_to_land_a_change_on_the_owned_forge) | test(=a_person_asks_claude_code_to_land_a_change_on_the_owned_forge))) & package(/^temper(-|$)/)\""
     );
     assert!(!filter.contains("chatgpt"));
+}
+
+#[test]
+fn a_held_chatgpt_record_is_admitted_only_as_a_private_regular_file_never_named() {
+    use support::forge_land::held_account_with;
+    let file = Path::new("/fixture/private/record");
+    assert_eq!(
+        held_account_with(file, |path| {
+            assert_eq!(path, file);
+            Err(io::ErrorKind::NotFound.into())
+        }),
+        Err("TEMPER_TEST_LIVE_ACCOUNT names no file")
+    );
+    for (kind, mode, admitted) in [
+        (FileKind::File, 0o600, Ok(())),
+        (FileKind::File, 0o640, Err("TEMPER_TEST_LIVE_ACCOUNT is not 0600")),
+        (FileKind::File, 0o644, Err("TEMPER_TEST_LIVE_ACCOUNT is not 0600")),
+        (FileKind::File, 0o400, Err("TEMPER_TEST_LIVE_ACCOUNT is not 0600")),
+        (FileKind::File, 0o700, Err("TEMPER_TEST_LIVE_ACCOUNT is not 0600")),
+        (FileKind::Symlink, 0o777, Err("TEMPER_TEST_LIVE_ACCOUNT is not a regular file")),
+        (FileKind::Directory, 0o700, Err("TEMPER_TEST_LIVE_ACCOUNT is not a regular file")),
+    ] {
+        let result = held_account_with(file, |path| {
+            assert_eq!(path, file);
+            Ok(FileFacts { kind, mode, uid: 12, len: 6 })
+        });
+        assert_eq!(result, admitted, "{kind:?} at {mode:o}");
+    }
+}
+
+#[test]
+fn an_anthropic_key_is_admitted_by_metadata_without_naming_its_path() {
+    use support::forge_land::anthropic_key_with;
+    let file = Path::new("/fixture/private/key");
+    let user = 12;
+    let owned_key = FileFacts { kind: FileKind::File, mode: 0o600, uid: user, len: 14 };
+    assert_eq!(
+        anthropic_key_with(None, |_| panic!("unset skips the stat"), || panic!("unset skips the user read")),
+        Ok(None)
+    );
+    for (metadata, admitted) in [
+        (None, Err("TEMPER_TEST_LIVE_ANTHROPIC_KEY names no file")),
+        (Some(owned_key), Ok(Some(file.to_owned()))),
+        (Some(FileFacts { mode: 0o644, ..owned_key }), Err("TEMPER_TEST_LIVE_ANTHROPIC_KEY is not 0600")),
+        (
+            Some(FileFacts { kind: FileKind::Symlink, mode: 0o777, ..owned_key }),
+            Err("TEMPER_TEST_LIVE_ANTHROPIC_KEY is not a regular file or is a link"),
+        ),
+        (
+            Some(FileFacts { kind: FileKind::Directory, mode: 0o700, ..owned_key }),
+            Err("TEMPER_TEST_LIVE_ANTHROPIC_KEY is not a regular file or is a link"),
+        ),
+        (Some(FileFacts { uid: 13, ..owned_key }), Err("TEMPER_TEST_LIVE_ANTHROPIC_KEY is not owned by this user")),
+        (Some(FileFacts { len: 0, ..owned_key }), Err("TEMPER_TEST_LIVE_ANTHROPIC_KEY is empty")),
+    ] {
+        let result = anthropic_key_with(
+            Some(file.into()),
+            |path| {
+                assert_eq!(path, file);
+                metadata.ok_or_else(|| io::ErrorKind::NotFound.into())
+            },
+            || user,
+        );
+        assert_eq!(result, admitted, "{metadata:?}");
+    }
+}
+
+struct StoreFixture {
+    root: PathBuf,
+    entries: RefCell<BTreeMap<PathBuf, FileFacts>>,
+}
+
+impl StoreFixture {
+    fn new() -> Self {
+        Self { root: PathBuf::from("/fixture"), entries: RefCell::default() }
+    }
+
+    fn put(&self, path: PathBuf, kind: FileKind, mode: u32) {
+        self.entries.borrow_mut().insert(path, FileFacts { kind, mode, uid: 12, len: 0 });
+    }
+
+    fn stat(&self, path: &Path) -> io::Result<FileFacts> {
+        self.entries.borrow().get(path).copied().ok_or_else(|| io::ErrorKind::NotFound.into())
+    }
+
+    fn create(&self, path: &Path, mode: u32, recursive: bool) -> io::Result<()> {
+        assert!(path.starts_with(&self.root));
+        let missing = self.stat(path).is_err();
+        if recursive {
+            for directory in path.ancestors().take_while(|directory| *directory != self.root) {
+                if self.stat(directory).is_err() {
+                    self.put(directory.to_owned(), FileKind::Directory, mode);
+                }
+            }
+        } else if missing {
+            self.put(path.to_owned(), FileKind::Directory, mode);
+        } else {
+            return Err(io::ErrorKind::AlreadyExists.into());
+        }
+        Ok(())
+    }
+
+    fn story(&self, stores: &Path, model: support::forge_land::LiveModel<'_>) -> Result<(PathBuf, bool), String> {
+        support::forge_land::story_store_with(
+            stores,
+            model,
+            |path, mode, recursive| self.create(path, mode, recursive),
+            |path| self.stat(path),
+            |path| Ok(self.entries.borrow().keys().any(|entry| entry.parent() == Some(path))),
+        )
+    }
+}
+
+#[test]
+fn each_landing_story_takes_its_own_store_under_one_live_store() {
+    use support::forge_land::LiveModel;
+    let files = StoreFixture::new();
+    let stores = files.root.join("parent/stores");
+    let chatgpt = LiveModel::ChatGpt { account: None };
+    let claude = LiveModel::ClaudeCode { login: Path::new("/held/claude-login") };
+    let chatgpt_store = stores.join("forge-land");
+    assert_eq!(files.story(&stores, chatgpt), Ok((chatgpt_store.clone(), false)));
+    for directory in [stores.parent().expect("stores parent"), &stores, &chatgpt_store] {
+        let metadata = files.stat(directory).expect("private directory");
+        assert_eq!(metadata.kind, FileKind::Directory);
+        assert_eq!(metadata.mode, 0o700);
+    }
+    files.put(chatgpt_store.join("begun"), FileKind::File, 0o600);
+    assert_eq!(files.story(&stores, claude), Ok((stores.join("forge-land-claude"), false)));
+    let key = LiveModel::AnthropicKey { key: Path::new("/private/key") };
+    let key_store = stores.join("forge-land-claude-key");
+    assert_eq!(files.story(&stores, key), Ok((key_store.clone(), false)));
+    assert_eq!(files.story(&stores, key), Ok((key_store.clone(), false)), "an empty store is fresh");
+    files.put(key_store.join("begun"), FileKind::File, 0o600);
+    assert_eq!(files.story(&stores, key), Err(format!("kept store {} lacks config", key_store.display())));
+    let missing = format!("kept store {} lacks config", chatgpt_store.display());
+    assert_eq!(files.story(&stores, chatgpt), Err(missing.clone()));
+    assert!(files.stat(&chatgpt_store.join("config")).is_err(), "a kept store is never repaired");
+    assert_eq!(files.story(&stores, LiveModel::ChatGpt { account: Some(Path::new("/held/record")) }), Err(missing));
+}
+
+#[test]
+fn a_key_store_is_kept_without_a_held_record() {
+    use skein_forge::forgejo::pin::{RUNNER_VERSION, VERSION};
+    use support::forge_land::LiveModel;
+    let files = StoreFixture::new();
+    let stores = files.root.join("stores");
+    let model = LiveModel::AnthropicKey { key: Path::new("/private/synthetic-key") };
+    let (store, kept) = files.story(&stores, model).expect("fresh key store");
+    assert!(!kept);
+    for directory in ["config", "data", "cache", "data/deployment", "data/forge-1/forgejo", "data/box/started"] {
+        files.put(store.join(directory), FileKind::Directory, 0o700);
+    }
+    for file in [
+        format!("config/{}", temper_config_shell::FILE),
+        "data/box/started/1".to_owned(),
+        "data/forge-1/forgejo/app.ini".to_owned(),
+        "data/forge-1/forgejo/forgejo.db".to_owned(),
+        format!("cache/forgejo/{VERSION}/forgejo"),
+        format!("cache/forgejo-runner/{RUNNER_VERSION}/forgejo-runner"),
+    ] {
+        files.put(store.join(file), FileKind::File, 0o600);
+    }
+    assert_eq!(files.story(&stores, model), Ok((store, true)), "a key has no held record to import again");
+}
+
+#[test]
+fn setup_accepts_a_project_free_first_repository_row() {
+    use skein_io::kernel::Exit;
+    use support::forge_land::check_forgejo_setup_after_sign_in_with;
+    let data = Path::new("/fixture/data");
+    let row = json!({"forges":[{
+        "number":1,"host":"git.example:3000","mode":"owned","state":"connected",
+        "first":{"state":"made","org":"work","repository":"hello","id":1}
+    }]});
+    let mut calls = [
+        String::new(),
+        json!({"forges":[]}).to_string(),
+        "setting up\nproject: 1 · hello\nAdopted work/hello on forge 1 as owned.\nIt is the project's home.\n"
+            .to_owned(),
+        String::new(),
+        row.to_string(),
+        "forge 1 · host: git.example:3000 · Forgejo · owned · Connected as temper (2)".to_owned(),
+    ]
+    .map(|stdout| support::Ended { exit: Some(Exit::Code(0)), stdout: stdout.into_bytes(), stderr: vec![] });
+    let stderr = "forgejo-1: started\nrunner-1: started";
+    let mut probes = Vec::new();
+    let verdict = check_forgejo_setup_after_sign_in_with(
+        "first",
+        &calls,
+        stderr,
+        None,
+        data,
+        |path| {
+            probes.push(path.to_owned());
+            false
+        },
+        |_| {},
+    );
+    assert_eq!(verdict, Ok(2));
+    assert_eq!(
+        probes,
+        ["admin_token", "api_token", "git_token", "user", "webhook_secret"].map(|name| data.join("forge-1").join(name))
+    );
+    let mut other_host = row;
+    other_host["forges"][0]["host"] = json!("other.example:3000");
+    calls[4].stdout = other_host.to_string().into_bytes();
+    let finding = check_forgejo_setup_after_sign_in_with(
+        "first",
+        &calls,
+        stderr,
+        None,
+        data,
+        |_| panic!("mismatch precedes leaf checks"),
+        |_| {},
+    )
+    .expect_err("the text row must name the JSON row's resource host");
+    assert_eq!(
+        finding,
+        "first: forges row: forge 1 · host: git.example:3000 · Forgejo · owned · Connected as temper (2); box: forgejo-1: started\nrunner-1: started"
+    );
+}
+
+struct ListedEntry {
+    name: std::ffi::OsString,
+    kind: Option<FileKind>,
+}
+
+impl support::forge_land::DirectoryEntry for ListedEntry {
+    fn name(&self) -> std::ffi::OsString {
+        self.name.clone()
+    }
+
+    fn kind(&self) -> io::Result<FileKind> {
+        Ok(self.kind.expect("an excluded entry's kind is never read"))
+    }
+}
+
+fn log_entries(names: &[&str]) -> Vec<io::Result<ListedEntry>> {
+    names.iter().map(|name| Ok(ListedEntry { name: (*name).into(), kind: Some(FileKind::File) })).collect()
+}
+
+#[test]
+fn run_failure_lines_keep_only_run_records_in_rotation_order() {
+    use support::forge_land::run_failure_lines_with;
+    let data = Path::new("/fixture/data");
+    let logs = data.join("box/logs");
+    let oldest = "temper worker: run 2 attempt 1 failed Unprepared(Transient): host local: git failed";
+    let refused = "temper serve: task 7 run 2 attempt 1 refused Invalid(Start(Bounds)): oversized charter";
+    let failed = "temper serve: task 7 run 2 attempt 1 failed Run(Model): anthropic 400 invalid_request_error";
+    let version = "temper-box serve: task 8 run 3 attempt 2 refused: worker version mismatch";
+    let mut text = BTreeMap::from([
+        (logs.join("serve.log.2"), format!("ordinary step\n{oldest}\n")),
+        (logs.join("serve.log.1"), format!("{refused}\n")),
+        (
+            logs.join("serve.log"),
+            format!(
+                "temper serve: listening on 127.0.0.1:8370\n\
+                 temper serve: task 7 run 2 attempt 1 started\n\
+                 temper serve: task seven run 2 attempt 1 failed Run(Model): not a record\n\
+                 ordinary step quotes {failed}\n\
+                 temper worker: run 2 attempt 1 refused Busy: not a worker failure\n\
+                 {failed}\r\n{version}"
+            ),
+        ),
+    ]);
+    let mut opened = Vec::new();
+    let lines = run_failure_lines_with(
+        data,
+        |path| {
+            assert_eq!(path, logs);
+            Ok(log_entries(&["serve.log.1", "serve.log", "serve.log.3.gz", "worker.log", "serve.log.2"]))
+        },
+        |path| {
+            opened.push(path.to_owned());
+            Ok(io::Cursor::new(text.remove(path).expect("only plain-text serve logs opened")))
+        },
+    );
+    assert_eq!(lines, [oldest, refused, failed, version]);
+    assert_eq!(opened, ["serve.log.2", "serve.log.1", "serve.log"].map(|name| logs.join(name)));
+}
+
+#[test]
+fn run_failure_lines_redact_credentials_but_keep_run_context() {
+    use std::fmt::Write as _;
+    use support::forge_land::run_failure_lines_with;
+    let data = Path::new("/fixture/data");
+    let logs = data.join("box/logs");
+    let context = "temper serve: task 7 run 2 attempt 1 failed Run(Model): ";
+    let details = [
+        ("secret=abc123 task-12", "secret=… task-12"),
+        (r#"{"api_key":"k1"} task-12"#, r#"{"api_key":"…"} task-12"#),
+        ("x-api-key: sk-ant-api03-xyz task-12", "x-api-key: … task-12"),
+        ("sk-ant-api03-xyz task-12", "… task-12"),
+        ("X-Api-Key:\theader-value task-12", "X-Api-Key:\t… task-12"),
+        ("(sk-ant-api03-xyz), task-12", "(…), task-12"),
+        ("task-12 wordsk-ant-not-a-key _sk-ant-not-a-key", "task-12 wordsk-ant-not-a-key _sk-ant-not-a-key"),
+    ];
+    let mut text = String::new();
+    for (detail, _) in details {
+        writeln!(text, "{context}{detail}").expect("fixture line");
+    }
+    let lines = run_failure_lines_with(
+        data,
+        |path| {
+            assert_eq!(path, logs);
+            Ok(log_entries(&["serve.log"]))
+        },
+        |path| {
+            assert_eq!(path, logs.join("serve.log"));
+            Ok(io::Cursor::new(text.as_bytes()))
+        },
+    );
+    assert_eq!(lines, details.map(|(_, safe)| format!("{context}{safe}")));
+    assert!(lines.iter().all(|line| !line.contains("abc123") && !line.contains("k1") && !line.contains("xyz")));
+}
+
+#[test]
+fn run_failure_lines_allow_a_box_that_never_started() {
+    use support::forge_land::run_failure_lines_with;
+    let data = Path::new("/fixture/data");
+    let absent = data.join("absent");
+    for (root, listing) in [
+        (absent.as_path(), Err(io::ErrorKind::NotFound.into())),
+        (data, Err(io::ErrorKind::NotFound.into())),
+        (data, Ok(log_entries(&[]))),
+    ] {
+        let lines = run_failure_lines_with(
+            root,
+            |path| {
+                assert_eq!(path, root.join("box/logs"));
+                listing
+            },
+            |path| -> io::Result<io::Cursor<&[u8]>> { panic!("nothing to open: {}", path.display()) },
+        );
+        assert_eq!(lines, Vec::<String>::new());
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+enum DataMember {
+    Directory(u32),
+    File(&'static [u8]),
+    Link(PathBuf),
+    Excluded,
+}
+
+struct DataFixture {
+    source: PathBuf,
+    entries: BTreeMap<PathBuf, DataMember>,
+    kept: BTreeMap<PathBuf, DataMember>,
+    listed: Vec<PathBuf>,
+}
+
+impl DataFixture {
+    fn new(source: &Path) -> Self {
+        use DataMember::{Directory, Excluded, File, Link};
+        let entries = [
+            ("", Directory(0o755)),
+            ("box", Directory(0o755)),
+            ("box/logs", Directory(0o755)),
+            ("box/logs/serve.log", File(b"ordinary log\n\0\xff")),
+            ("box/link", Link("../worker.secret".into())),
+            ("box/directory-link", Link("../deployment".into())),
+            ("box/nested", Directory(0o755)),
+            ("deployment", Directory(0o755)),
+            ("deployment/generations", Directory(0o755)),
+            ("deployment/generations/1", Directory(0o755)),
+            ("deployment/generations/1/store", Directory(0o755)),
+            ("deployment/generations/1/store/logs", Directory(0o755)),
+            ("deployment/generations/1/store/logs/2", File(b"store log\0\xff")),
+            ("deployment/generations/1/secrets", Excluded),
+            ("deployment/generations/1/secrets/s", Excluded),
+            ("deployment/checkpoints", Excluded),
+            ("deployment/checkpoints/1", Excluded),
+            ("deployment/checkpoints/1/secrets", Excluded),
+            ("deployment/checkpoints/1/secrets/s", Excluded),
+            ("programs", Excluded),
+            ("programs/live", Excluded),
+            ("programs/live/x", Excluded),
+            ("forge-1", Excluded),
+            ("forge-1/admin_token", Excluded),
+            ("forge-1/setup", Excluded),
+            ("box/nested/secrets", Excluded),
+            ("box/nested/checkpoints", Excluded),
+            ("worker.secret", Excluded),
+            ("provider.key", Excluded),
+        ]
+        .into_iter()
+        .map(|(name, member)| (source.join(name), member))
+        .collect();
+        Self { source: source.to_owned(), entries, kept: BTreeMap::new(), listed: Vec::new() }
+    }
+}
+
+impl support::forge_land::CopyFiles for DataFixture {
+    type Entry = ListedEntry;
+    type Entries = Vec<io::Result<ListedEntry>>;
+
+    fn root_is_directory(&mut self, path: &Path) -> io::Result<bool> {
+        assert_eq!(path, self.source);
+        Ok(matches!(self.entries[path], DataMember::Directory(_)))
+    }
+
+    fn create_exclusive(&mut self, path: &Path, mode: u32) -> io::Result<()> {
+        use std::collections::btree_map::Entry;
+        match self.kept.entry(path.to_owned()) {
+            Entry::Vacant(entry) => {
+                entry.insert(DataMember::Directory(mode));
+                Ok(())
+            }
+            Entry::Occupied(_) => Err(io::ErrorKind::AlreadyExists.into()),
+        }
+    }
+
+    fn entries(&mut self, path: &Path) -> io::Result<Self::Entries> {
+        assert!(matches!(self.entries[path], DataMember::Directory(_)), "only directories are listed");
+        self.listed.push(path.to_owned());
+        Ok(self
+            .entries
+            .iter()
+            .filter(|(entry, _)| entry.parent() == Some(path))
+            .map(|(entry, member)| {
+                let name = entry.file_name().expect("listed entry name").into();
+                let kind = match member {
+                    DataMember::Directory(_) => Some(FileKind::Directory),
+                    DataMember::File(_) => Some(FileKind::File),
+                    DataMember::Link(_) => Some(FileKind::Symlink),
+                    DataMember::Excluded => None,
+                };
+                Ok(ListedEntry { name, kind })
+            })
+            .collect())
+    }
+
+    fn read_link(&mut self, path: &Path) -> io::Result<PathBuf> {
+        let DataMember::Link(target) = &self.entries[path] else { panic!("only links are read as links") };
+        Ok(target.clone())
+    }
+
+    fn link(&mut self, target: &Path, path: &Path) -> io::Result<()> {
+        self.kept.insert(path.to_owned(), DataMember::Link(target.to_owned()));
+        Ok(())
+    }
+
+    fn copy(&mut self, source: &Path, destination: &Path) -> io::Result<()> {
+        let DataMember::File(bytes) = self.entries[source] else { panic!("only included files are copied") };
+        self.kept.insert(destination.to_owned(), DataMember::File(bytes));
+        Ok(())
+    }
+}
+
+#[test]
+fn kept_box_data_is_private_credential_free_and_does_not_follow_links() {
+    use support::forge_land::keep_box_data_with;
+    let scratch = Path::new("/fixture/scratch");
+    let source = scratch.join("source");
+    let mut files = DataFixture::new(&source);
+    let kept = keep_box_data_with(&source, scratch, &mut files).expect("kept data");
+    assert_eq!(kept, scratch.join("data"));
+    for log in ["box/logs/serve.log", "deployment/generations/1/store/logs/2"] {
+        assert_eq!(files.kept[&kept.join(log)], files.entries[&source.join(log)]);
+    }
+    for link in ["box/link", "box/directory-link"] {
+        let copy = &files.kept[&kept.join(link)];
+        assert!(matches!(copy, DataMember::Link(_)));
+        assert_eq!(*copy, files.entries[&source.join(link)]);
+    }
+    for excluded in ["worker.secret", "provider.key", "programs", "forge-1"] {
+        assert!(!files.kept.contains_key(&kept.join(excluded)), "excluded {excluded}");
+        assert!(files.entries.contains_key(&source.join(excluded)), "source stays: {excluded}");
+    }
+    assert_eq!(files.kept[&kept], DataMember::Directory(0o700));
+    for (path, member) in files.kept {
+        assert_ne!(path.file_name().expect("name"), "secrets");
+        assert_ne!(path.file_name().expect("name"), "checkpoints");
+        if let DataMember::Directory(mode) = member {
+            assert_eq!(mode, 0o700, "{}", path.display());
+        }
+    }
+}
+
+#[test]
+fn kept_box_data_never_overwrites_an_existing_destination() {
+    use support::forge_land::keep_box_data_with;
+    let scratch = Path::new("/fixture/scratch");
+    let source = scratch.join("source");
+    let mut files = DataFixture::new(&source);
+    let destination = scratch.join("data");
+    let earlier = BTreeMap::from([
+        (destination.clone(), DataMember::Directory(0o755)),
+        (destination.join("evidence"), DataMember::File(b"keep me")),
+    ]);
+    files.kept = earlier.clone();
+    let why = keep_box_data_with(&source, scratch, &mut files).expect_err("existing destination refused");
+    assert!(why.contains(&destination.display().to_string()), "{why}");
+    assert!(files.listed.is_empty(), "existing destination prevents traversal");
+    assert_eq!(files.kept, earlier, "earlier copy untouched");
+}
+
+#[test]
+fn a_claude_configuration_replaces_openai_and_keeps_the_demo() {
+    use std::path::Path;
+    use support::forge_land::{LiveModel, LiveProfile};
+
+    let data = Path::new("/fixture/live-claude/data");
+    let executable = Path::new("/usr/bin/true");
+    let init = LiveProfile::compose(data, LiveModel::ChatGpt { account: None }, executable);
+    let login = data.join("programs/claude-login");
+    let claude = LiveProfile::compose(data, LiveModel::ClaudeCode { login: &login }, executable);
+    let agent = &claude.agent;
+    let demo = init.agent["endpoints"]
+        .as_array()
+        .expect("init endpoints")
+        .iter()
+        .find(|endpoint| endpoint["name"] == "demo")
+        .expect("init demo");
+    assert_eq!(agent["programs"], json!({"claude_code":{"path":"fetched", "directory":data.join("programs")}}));
+    assert_eq!(
+        agent["endpoints"],
+        json!([
+            {"name":"claude", "number":2, "dialect":2, "provider":"anthropic", "program":"claude_code",
+                "address":"api.anthropic.com:443", "transport":"tls", "server_name":"api.anthropic.com",
+                "connect":10000, "handshake":10000, "headers":[],
+                "limits": {
+                    "window":1_048_576, "output":48_000, "reasoning_item":65536, "head":60000, "idle":300_000,
+                    "oversized_reasoning":"fail"}},
+            demo
+        ])
+    );
+    assert_eq!(agent["profile"], init.agent["profile"]);
+    assert_eq!(agent["environment"], init.agent["environment"]);
+    assert_eq!(
+        temper_agent_fixtures::providers::flat(&claude.providers),
+        json!({
+            "providers":[{"name":"anthropic", "number":2, "signed_in_plan":false,
+                "manage_usage":"https://claude.ai/settings/usage", "endpoint":"claude",
+                "sources":{"programs":["claude_code"]}}],
+            "endpoints":[{"name":"claude", "number":2, "dialect":2, "provider":"anthropic", "program":"claude_code",
+                "address":{"host":"api.anthropic.com", "port":443}, "transport":"tls", "server_name":"api.anthropic.com",
+                "headers":[], "connect_ms":10000, "handshake_ms":10000}]
+        })
+    );
+    assert_eq!(claude.document["application"], init.document["application"], "including init's demo");
+    assert_eq!(claude.document["engine"]["limits"], init.document["engine"]["limits"]);
+    assert_eq!(claude.document["workers"], init.document["workers"]);
+    let prepared = support::prepare_agent(serde_json::to_vec(agent).expect("agent JSON").into());
+    assert_eq!(prepared.agent.bounds.program_endpoints.as_ref(), [2]);
+}
+
+#[test]
+fn stock_charters_keep_seven_models_and_choose_the_boxs_scripted_default() {
+    use std::path::Path;
+    use support::forge_land::{LiveModel, LiveProfile};
+
+    let data = Path::new("/fixture/live-claude/data");
+    let login = data.join("programs/claude-login");
+    let profile = LiveProfile::compose(data, LiveModel::ClaudeCode { login: &login }, Path::new("/usr/bin/true"));
+    let (engine, given) = profile.engine(&data.with_file_name("config"));
+    let defaults = given.defaults(&engine.llm, engine.limits.core.tasks.result_bytes).expect("stock");
+    let mut ordinary: Vec<_> = defaults
+        .models
+        .iter()
+        .filter(|entry| entry.number != 8)
+        .map(|entry| (entry.model.name.as_ref(), entry.model.endpoint))
+        .collect();
+    assert_eq!(ordinary.len(), 7);
+    ordinary.sort();
+    for charter in &defaults.charters {
+        assert_eq!((charter.policy.model.name.as_ref(), charter.policy.model.endpoint), (b"demo".as_slice(), 3));
+        let resolved = jig_domain_core::settings::charters::resolved(charter, &defaults.models, &engine.limits.core)
+            .expect("stock charter");
+        let mut alternatives: Vec<_> =
+            resolved.policy.alternatives.iter().map(|model| (model.name.as_ref(), model.endpoint)).collect();
+        alternatives.sort();
+        assert_eq!(alternatives, ordinary);
+    }
+}
+
+#[test]
+fn a_key_configuration_leaves_the_startup_copies_unchanged() {
+    use std::path::Path;
+    use support::forge_land::{LiveModel, LiveProfile};
+    use temper_agent_fixtures::providers;
+
+    let data = Path::new("/fixture/live-key/data");
+    let init = LiveProfile::compose(data, LiveModel::ChatGpt { account: None }, Path::new(""));
+    let key =
+        LiveProfile::compose(data, LiveModel::AnthropicKey { key: Path::new("/private/synthetic-key") }, Path::new(""));
+    assert_eq!(providers::flat(&key.providers), providers::flat(&init.providers), "the store owns the provider edit");
+    assert_eq!(key.document, init.document, "the startup document is unchanged");
+    assert_eq!(key.agent, init.agent, "Claude Code's program stays as init writes it");
+}
+
+#[test]
+fn held_login_returns_before_stop_on_each_ending() {
+    use skein_io::kernel::Exit;
+    use skein_lib::Time;
+    use std::path::Path;
+    use support::{
+        forge_land::{LiveModel, live_commands},
+        held_login::{End, Ending},
+    };
+
+    let record = "/fixture/held/record";
+    let model = LiveModel::ChatGpt { account: Some(Path::new(record)) };
+    for (failed_box, expected) in [
+        (None, vec![("connect-plan", Ok(())), ("restart-plan", Ok(()))]),
+        (Some(true), vec![("connect-plan", Err("run failed"))]),
+        (Some(false), vec![("connect-plan", Ok(())), ("restart-plan", Err("run failed"))]),
+    ] {
+        let mut ended = Vec::new();
+        for first in [true, false] {
+            let (commands, _) = live_commands(first, model);
+            let import =
+                commands.iter().find(|args| args.starts_with(&["account".into(), "import".into()])).expect("import");
+            assert_eq!(&import[..4], ["account", "import", record, "--key"], "first={first}");
+            let key = import[4].as_str();
+            let failed = failed_box == Some(first);
+            let now = Time::ZERO;
+            let mut ending = Ending::new(true, first, failed, now);
+            assert!(matches!(ending.next(now, false, None), End::Wait), "drain ctl before return: {key}");
+            assert!(matches!(ending.next(now, true, None), End::Return), "return before stop: {key}");
+            assert!(matches!(ending.next(now, true, None), End::Wait), "await give-back: {key}");
+            let End::Stop(return_failure) = ending.next(now, true, Some(Some(Exit::Code(0)))) else {
+                panic!("stop after the record returns: {key}");
+            };
+            let outcome = return_failure.or(failed.then_some("run failed")).map_or(Ok(()), Err);
+            ended.push((key.to_owned(), outcome));
+            if outcome.is_err() {
+                break;
+            }
+        }
+        let observations: Vec<_> = ended.iter().map(|(key, outcome)| (key.as_str(), *outcome)).collect();
+        assert_eq!(observations, expected, "failed_box={failed_box:?}");
+    }
+}
+
+#[test]
+fn held_login_calls_use_the_sittings_client_directory() {
+    use std::path::Path;
+    use support::forge_land::{LiveModel, LivePlan};
+
+    let store = Path::new("/fixture/stores/forge-land");
+    let paths = ["config", "data", "cache"].map(|name| store.join(name));
+    let run = store.join("first");
+    let record = Path::new("/fixture/held/record");
+    let binary = Path::new("/fixture/ctl-stub's path");
+    let plan = LivePlan {
+        paths: &paths,
+        client: &run,
+        first: true,
+        kept: false,
+        model: LiveModel::ChatGpt { account: Some(record) },
+        address: None,
+        tasks: None,
+        baseline: None,
+        roots: None,
+        words: "",
+        line: "",
+    };
+    let client = run.join("client");
+    assert_eq!(plan.client_directory(), client);
+    let arguments = ["account", "import", "/fixture/held/record", "--key", "connect-plan"];
+    let import = plan.import_script(binary, &arguments);
+    assert_eq!(import.call.program(), Some(store.join("import-held").as_path()));
+    assert_eq!(import.call.arguments(), arguments.map(|word| Box::from(word.as_bytes())));
+    let ctl = format!("'/fixture/ctl-stub'\"'\"'s path' ctl '{}'", client.display());
+    assert!(import.script.lines().any(|line| line == format!("exec {ctl} \"$@\" </dev/null")));
+    let hook = plan.return_hook(binary).expect("held give-back");
+    assert_eq!(hook.path, store.join("give-back"));
+    assert!(hook.script.contains(&format!("rung_account=$({ctl} account list --json </dev/null | jq")));
+    assert!(
+        hook.script
+            .lines()
+            .any(|line| line == format!("  {ctl} account export \"$rung_account\" '/fixture/held/record' </dev/null"))
+    );
+    let call = plan.return_call();
+    assert_eq!(call.program(), Some(hook.path.as_path()));
+    assert_eq!(call.arguments(), [Box::from(b"--box-ended".as_slice())]);
+    let restart = LivePlan { first: false, ..plan };
+    let call = restart.return_call();
+    assert_eq!(call.program(), Some(hook.path.as_path()));
+    assert!(call.arguments().is_empty(), "the restart's give-back is terminal");
 }

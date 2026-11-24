@@ -143,6 +143,21 @@ fn first_link_accepts_4096_bytes_and_refuses_one_more() {
 }
 
 #[test]
+fn first_link_uses_the_supplied_seed_for_serve_and_its_url() {
+    const SEED: [u8; temper_service::clients::LINK_SECRET_BYTES] = [7; temper_service::clients::LINK_SECRET_BYTES];
+    let link = crate::box_command::first_link_with_seed(&first_link_named(), &first_link_steps(), || {
+        Ok(skein_lib::Secret::new(Box::new(SEED)))
+    })
+    .expect("supplied seed")
+    .expect("first link");
+    assert_eq!(link.secret.expose(), &SEED);
+    assert_eq!(
+        link.url.as_ref(),
+        b"https://temper.example.invalid:8443/sign-in?secret=BwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwcHBwc"
+    );
+}
+
+#[test]
 fn a_refusal_names_whose_descriptor_it_was() {
     use skein_io::kernel::Fd;
     use skein_shell::{ListenerCheck, ListenersRefusal as Why};

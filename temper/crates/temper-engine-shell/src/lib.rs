@@ -1,7 +1,7 @@
 //! Shared engine commands (temper/docs/design/protocol/binaries.md, 1).
 #[cfg(test)]
 extern crate self as temper_box_shell;
-use directories::{Directories, private_root, unread};
+use directories::{Directories, unread};
 use jig_protocol_config::{self as config, read};
 use skein_shell::login;
 use std::{fmt::Write, net::ToSocketAddrs, os::unix::ffi::OsStrExt, path::Path};

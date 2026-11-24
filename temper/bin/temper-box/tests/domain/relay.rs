@@ -1,8 +1,23 @@
-//! Relay route guards and request accounting over values.
+//! Relay route guards, request accounting and scripted connections.
 use temper_box_kit::{
-    relay::{CAP, Counter},
+    relay::{CAP, Counter, tests},
     relay_fixture::{guard, push},
 };
+#[test]
+fn framing_preserves_requests_and_keeps_the_client_alive() {
+    tests::framing_preserves_requests_and_keeps_the_client_alive();
+}
+
+#[test]
+fn bodyless_answers_and_minted_tokens_stay_in_their_lanes() {
+    tests::bodyless_answers_and_minted_tokens_stay_in_their_lanes();
+}
+
+#[test]
+fn requested_close_and_peer_eof_end_a_connection() {
+    tests::requested_close_and_peer_eof_end_a_connection();
+}
+
 /// Listener, method, target, body (`None`: encoded), allowed.
 type Row<'a> = (&'a str, &'a str, &'a str, Option<&'a [u8]>, bool);
 

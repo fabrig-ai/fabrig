@@ -336,16 +336,43 @@ pub fn configured_agent(
     environment: &[EnvironmentEntry],
     programs: &temper_config_shell::Programs,
 ) -> Result<Option<agent::Prepared>, String> {
-    let initial = agents_setting(&path(&directories.data).join("agents.setting"), &mut std::io::stderr())
+    configured_agent_with(
+        bytes,
+        directories,
+        environment,
+        &mut std::io::stderr(),
+        read_setting,
+        || {
+            Ok(crate::scripted::given(
+                directories,
+                &service::stock::Given::Stock,
+                crate::scripted::address(environment)?,
+            ))
+        },
+        |part| prepare_agent(part, directories, environment, programs),
+    )
+}
+
+/// Compose the worker over its bounded setting reads and prepare the resulting agent.
+pub(crate) fn configured_agent_with(
+    bytes: &[u8],
+    directories: &Directories,
+    environment: &[EnvironmentEntry],
+    log: &mut impl std::io::Write,
+    mut read_copy: impl FnMut(&std::path::Path, u64) -> std::io::Result<Option<Box<[u8]>>>,
+    given: impl FnOnce() -> Result<service::stock::Given, String>,
+    prepare: impl FnOnce(&mut service::startup::WorkerPart) -> Result<agent::Prepared, String>,
+) -> Result<Option<agent::Prepared>, String> {
+    let data = path(&directories.data);
+    let initial = agents_setting_over(read_copy(&data.join("agents.setting"), agents_bound()), log)
         .unwrap_or_else(service::stock::agents);
-    let given =
-        crate::scripted::given(directories, &service::stock::Given::Stock, crate::scripted::address(environment)?);
-    let local = local_setting(&path(&directories.data).join("local.setting"), &mut std::io::stderr());
+    let given = given()?;
+    let local = local_setting_over(read_copy(&data.join("local.setting"), local_bound()), log);
     let places = local.as_ref().map_or(4, |value| value.places);
     let mut part =
         service::startup::box_worker(bytes, &jig_directories(directories), &given, &initial, places, environment)
             .map_err(|why| String::from_utf8_lossy(&service::startup::lines(&why)).into_owned())?;
-    part.as_mut().map(|part| prepare_agent(part, directories, environment, programs)).transpose()
+    part.as_mut().map(prepare).transpose()
 }
 fn prepare_agent(
     part: &mut service::startup::WorkerPart,
@@ -431,13 +458,21 @@ pub fn local_setting_over(
     }
 }
 fn read_agents_setting(path: &std::path::Path) -> std::io::Result<Option<Box<[u8]>>> {
+    read_setting(path, agents_bound())
+}
+
+fn agents_bound() -> u64 {
     use temper_client_protocol_wire::v1::{AgentFigures, CEILINGS};
-    read_setting(path, AgentFigures::encoded_bound(&CEILINGS).expect("agents codec bound"))
+    AgentFigures::encoded_bound(&CEILINGS).expect("agents codec bound")
 }
 
 fn read_local_setting(path: &std::path::Path) -> std::io::Result<Option<Box<[u8]>>> {
+    read_setting(path, local_bound())
+}
+
+fn local_bound() -> u64 {
     use jig_client_protocol_wire::{CEILINGS, WorkerSetting};
-    read_setting(path, WorkerSetting::encoded_bound(&CEILINGS).expect("worker codec bound"))
+    WorkerSetting::encoded_bound(&CEILINGS).expect("worker codec bound")
 }
 
 fn read_setting(path: &std::path::Path, bound: u64) -> std::io::Result<Option<Box<[u8]>>> {

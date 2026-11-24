@@ -130,6 +130,7 @@ impl Bounds {
 pub fn bounds(forge: &temper_engine_domain_forge_vocabulary::Limits, change_words: u32) -> Option<Bounds> {
     let limits = v25::Limits {
         closer_selections: forge.tasks,
+        closing_relay_waiting: u32::try_from(temper_engine_domain_forge_closer::relay::OPEN_STEPS).ok()?,
         closing_question_words: forge.client.op_bytes.max(change_words),
         closing_asked_answer_some: forge.client.op_bytes.max(change_words),
         // A change's notices/accounts fit 512 bytes; `Change ` + u64 + `: ` adds 29.

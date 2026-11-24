@@ -289,6 +289,7 @@ pub struct Limits {
     pub closing_question_words: u32,
     pub closing_message_words: u32,
     pub closing_relay_replies: u32,
+    pub closing_relay_waiting: u32,
     pub closer_close_changes: u32,
     pub closer_landing_changes: u32,
     pub closer_selections: u32,
@@ -657,6 +658,7 @@ pub const CEILINGS: Limits = Limits {
     closing_question_words: 1_048_576,
     closing_message_words: 1_048_576,
     closing_relay_replies: 1_024,
+    closing_relay_waiting: 1_024,
     closer_close_changes: 1_024,
     closer_landing_changes: 1_024,
     closer_selections: 1_024,
@@ -1025,6 +1027,7 @@ pub const LIMIT_NAMES: &[&str] = &[
     "closing_question_words",
     "closing_message_words",
     "closing_relay_replies",
+    "closing_relay_waiting",
     "closer_close_changes",
     "closer_landing_changes",
     "closer_selections",
@@ -1397,6 +1400,7 @@ impl Limits {
             self.closing_question_words,
             self.closing_message_words,
             self.closing_relay_replies,
+            self.closing_relay_waiting,
             self.closer_close_changes,
             self.closer_landing_changes,
             self.closer_selections,
@@ -1770,6 +1774,7 @@ impl Limits {
             closing_question_words: self.closing_question_words.min(most),
             closing_message_words: self.closing_message_words.min(most),
             closing_relay_replies: self.closing_relay_replies.min(most),
+            closing_relay_waiting: self.closing_relay_waiting.min(most),
             closer_close_changes: self.closer_close_changes.min(most),
             closer_landing_changes: self.closer_landing_changes.min(most),
             closer_selections: self.closer_selections.min(most),
@@ -2140,6 +2145,7 @@ const LIMIT_PATHS: &[Path] = &[
     paths::CLOSING_QUESTION_WORDS,
     paths::CLOSING_MESSAGE_WORDS,
     paths::CLOSING_RELAY_REPLIES,
+    paths::CLOSING_RELAY_WAITING,
     paths::CLOSER_CLOSE_CHANGES,
     paths::CLOSER_LANDING_CHANGES,
     paths::CLOSER_SELECTIONS,
@@ -3772,6 +3778,7 @@ pub mod paths {
     pub const CLOSING_MESSAGE_TAIL: Path = Path::new("ClosingMessage (tail)");
     pub const CLOSING_RELAY_OPEN: Path = Path::new("ClosingRelay.open");
     pub const CLOSING_RELAY_REPLIES: Path = Path::new("ClosingRelay.replies");
+    pub const CLOSING_RELAY_WAITING: Path = Path::new("ClosingRelay.waiting");
     pub const CLOSING_RELAY_TAIL: Path = Path::new("ClosingRelay (tail)");
     pub const CLOSER_TASK: Path = Path::new("Closer.task");
     pub const CLOSER_GOAL: Path = Path::new("Closer.goal");
@@ -31444,6 +31451,7 @@ impl Record for ClosingMessage {
 pub struct ClosingRelay {
     pub open: Option<ClosingQuestion>,
     pub replies: List<ClosingMessage>,
+    pub waiting: List<ClosingQuestion>,
 }
 
 // Record: ClosingRelay.
@@ -31453,11 +31461,13 @@ impl ClosingRelay {
         skein_codec::bounds::Node::Option { item: 0 },
         skein_codec::bounds::Node::Named("ClosingMessage"),
         skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, closing_relay_replies), item: 2, size: size_of::<ClosingMessage>() },
-        skein_codec::bounds::Node::Record { prefix: 0, fields: &[1, 3] },
+        skein_codec::bounds::Node::Named("ClosingQuestion"),
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, closing_relay_waiting), item: 4, size: size_of::<ClosingQuestion>() },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[1, 3, 5] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 40;
+    pub const ENCODED_AT_ZERO: u64 = 44;
 }
 
 impl Record for ClosingRelay {
@@ -31484,6 +31494,7 @@ impl Record for ClosingRelay {
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
         field::write(field::Optional { item: field::Nested }, &self.open, limits, out, paths::CLOSING_RELAY_OPEN)?;
         field::write(field::Sequence { limit: limits.closing_relay_replies.min(CEILINGS.closing_relay_replies), minimum: 13, item: field::Nested }, &self.replies, limits, out, paths::CLOSING_RELAY_REPLIES)?;
+        field::write(field::Sequence { limit: limits.closing_relay_waiting.min(CEILINGS.closing_relay_waiting), minimum: 22, item: field::Nested }, &self.waiting, limits, out, paths::CLOSING_RELAY_WAITING)?;
         Ok(())
     }
 
@@ -31491,6 +31502,7 @@ impl Record for ClosingRelay {
         Ok(Self {
             open: field::read(field::Optional { item: field::Nested }, limits, reader, paths::CLOSING_RELAY_OPEN)?,
             replies: field::read(field::Sequence { limit: limits.closing_relay_replies.min(CEILINGS.closing_relay_replies), minimum: 13, item: field::Nested }, limits, reader, paths::CLOSING_RELAY_REPLIES)?,
+            waiting: field::read(field::Sequence { limit: limits.closing_relay_waiting.min(CEILINGS.closing_relay_waiting), minimum: 22, item: field::Nested }, limits, reader, paths::CLOSING_RELAY_WAITING)?,
         })
     }
 }
@@ -31543,7 +31555,7 @@ impl Closer {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 108;
+    pub const ENCODED_AT_ZERO: u64 = 112;
 }
 
 impl Record for Closer {
@@ -41470,6 +41482,7 @@ static CEILING_VALUES: &[u32] = &[
     CEILINGS.closing_question_words,
     CEILINGS.closing_message_words,
     CEILINGS.closing_relay_replies,
+    CEILINGS.closing_relay_waiting,
     CEILINGS.closer_close_changes,
     CEILINGS.closer_landing_changes,
     CEILINGS.closer_selections,

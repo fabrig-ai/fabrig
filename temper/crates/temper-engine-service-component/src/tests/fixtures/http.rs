@@ -123,7 +123,10 @@ impl Peer {
                     engine.demo.as_ref(),
                     &mut engine.accounts,
                 );
-                engine.clients.secrets_step(&mut engine.store);
+                // As in the engine pass, leave secret requests queued until the startup mark is durable.
+                if engine.end.is_none() && crate::stop::marked(engine) {
+                    engine.clients.secrets_step(&mut engine.store);
+                }
             }
             for _ in 0..engine.clients.io.len() {
                 match engine.clients.io.pop().unwrap() {
@@ -227,13 +230,12 @@ impl Peer {
     pub fn received(&self) -> &[u8] {
         &self.wire.received
     }
-    pub fn sign_in_answer(&self, engine: &Engine) -> wire::SignInAnswer {
+    pub fn sign_in_body(&self) -> Reader<'_> {
         let at = skein_lib::bytes::find(&self.wire.received, b"\r\n\r\n").unwrap().checked_add(4).unwrap();
-        wire::SignInAnswer::decode(
-            &engine.clients.env.limits.wire,
-            &mut Reader::new(self.wire.received.get(at..).unwrap()),
-        )
-        .unwrap()
+        Reader::new(self.wire.received.get(at..).unwrap())
+    }
+    pub fn sign_in_answer(&self, engine: &Engine) -> wire::SignInAnswer {
+        wire::SignInAnswer::decode(&engine.clients.env.limits.wire, &mut self.sign_in_body()).unwrap()
     }
     pub fn streaming(&self) -> bool {
         skein_lib::bytes::find(&self.wire.received, b"text/event-stream").is_some()

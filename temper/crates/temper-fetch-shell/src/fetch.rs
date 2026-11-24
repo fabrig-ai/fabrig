@@ -187,90 +187,123 @@ fn path(bytes: &[u8]) -> &Path {
 pub fn run(
     limits: &skein_io::Limits,
     trust: &Trust,
-    mut machine: Fetch,
+    machine: Fetch,
     extract: Extract,
     out: &mut dyn io::Write,
 ) -> Result<(), Failed> {
+    let mut files = Download { connection: None, part_file: None, part_path: Box::new([]) };
+    let result =
+        run_with(machine, || tls_config(trust), |config, request| files.answer(limits, config, extract, request), out);
+    if let Some(mut connection) = files.connection {
+        connection.close();
+    }
+    result
+}
+
+fn tls_config(trust: &Trust) -> Result<skein_tls::Config, Failed> {
     let roots = skein_shell::read_trust_roots(
         trust,
         &skein_shell::RootBounds { bundle_bytes: 1 << 20, certificates: 1024, certificate_bytes: 65_536 },
     )
     .map_err(Failed::Roots)?;
     let (config, _) = skein_tls::Config::from_der(&roots.certificates, &[b"http/1.1"]).map_err(Failed::Trust)?;
-    let mut connection: Option<Connection> = None;
-    let mut part_file: Option<fs::File> = None;
-    let mut part_path: Box<[u8]> = Box::new([]);
+    Ok(config)
+}
+
+/// Drives fetch over supplied roots and answers to its cache and download requests.
+pub fn run_with<R>(
+    mut machine: Fetch,
+    roots: impl FnOnce() -> Result<R, Failed>,
+    mut answer: impl FnMut(&R, Request) -> Result<Event, Failed>,
+    out: &mut dyn io::Write,
+) -> Result<(), Failed> {
+    let roots = roots()?;
     let mut event = Event::Begin;
     let mut requests = Queue::uncapped();
-    let result = loop {
+    loop {
         fetch::step(&mut machine, event, &mut requests);
         assert_eq!(requests.len(), 1, "one fetch request per event");
-        let answer = match requests.pop().expect("one fetch request") {
-            Request::Hash { file } => hash(&file).map(Event::Hashed),
-            Request::Get { origin, path, authorization } => {
-                if let Some(mut old) = connection.take() {
-                    old.close();
-                }
-                match Connection::new(limits, &config, &origin, &path, authorization) {
-                    Ok(next) => {
-                        connection = Some(next);
-                        connection.as_mut().expect("new connection").answer()
-                    }
-                    Err(why) => Err(why),
-                }
-            }
-            Request::Open { part } => open(&part).map(|file| {
-                part_file = Some(file);
-                part_path = part;
-                Event::Done
-            }),
+        event = match requests.pop().expect("one fetch request") {
             Request::Say(fetched) => {
                 match out.write_all(&fetched.line()) {
                     Ok(()) | Err(_) => {}
                 }
-                Ok(Event::Done)
+                Event::Done
             }
+            Request::End(result) => return result.map_err(Failed::Refused),
+            request @ (Request::Hash { .. }
+            | Request::Get { .. }
+            | Request::Open { .. }
+            | Request::Read
+            | Request::Write { .. }
+            | Request::Extract { .. }
+            | Request::Finish { .. }
+            | Request::Remove { .. }) => answer(&roots, request)?,
+        };
+    }
+}
+
+struct Download {
+    connection: Option<Connection>,
+    part_file: Option<fs::File>,
+    part_path: Box<[u8]>,
+}
+
+impl Download {
+    fn answer(
+        &mut self,
+        limits: &skein_io::Limits,
+        config: &skein_tls::Config,
+        extract: Extract,
+        request: Request,
+    ) -> Result<Event, Failed> {
+        match request {
+            Request::Hash { file } => hash(&file).map(Event::Hashed),
+            Request::Get { origin, path, authorization } => {
+                if let Some(mut old) = self.connection.take() {
+                    old.close();
+                }
+                self.connection = Some(Connection::new(limits, config, &origin, &path, authorization)?);
+                self.connection.as_mut().expect("new connection").answer()
+            }
+            Request::Open { part } => open(&part).map(|file| {
+                self.part_file = Some(file);
+                self.part_path = part;
+                Event::Done
+            }),
             Request::Read => {
-                let connection = connection.as_mut().expect("body follows Get");
+                let connection = self.connection.as_mut().expect("body follows Get");
                 connection.demand();
                 connection.answer()
             }
             Request::Write { offset, bytes } => {
                 use std::io::{Seek, SeekFrom};
-                let file = part_file.as_mut().expect("write follows Open");
+                let file = self.part_file.as_mut().expect("write follows Open");
                 file.seek(SeekFrom::Start(offset))
                     .and_then(|_| file.write_all(&bytes))
                     .map(|()| Event::Done)
-                    .map_err(|why| file_error(&part_path, &why))
+                    .map_err(|why| file_error(&self.part_path, &why))
             }
             Request::Extract { archive, member, part, bound } => {
-                part_file = None;
+                self.part_file = None;
                 open(&part).map(|mut file| {
                     let extraction = extract(&archive, &member, &mut file, bound);
-                    part_file = Some(file);
-                    part_path = part;
+                    self.part_file = Some(file);
+                    self.part_path = part;
                     Event::Extracted(extraction)
                 })
             }
             Request::Finish { part, file } => {
-                let handle = part_file.take().expect("finish follows Open");
+                let handle = self.part_file.take().expect("finish follows Open");
                 finish(&handle, &part, &file).map(|()| Event::Done)
             }
             Request::Remove { part } => {
-                part_file = None;
+                self.part_file = None;
                 fs::remove_file(path(&part)).map(|()| Event::Done).map_err(|why| file_error(&part, &why))
             }
-            Request::End(result) => break result.map_err(Failed::Refused),
-        };
-        match answer {
-            Ok(next) => event = next,
-            Err(why) => break Err(why),
+            Request::Say(_) | Request::End(_) => unreachable!("handled by the fetch driver"),
         }
-    };
-    if let Some(mut connection) = connection {
-        connection.close();
     }
-    result
 }
 pub(crate) struct Connection {
     io: Io,
