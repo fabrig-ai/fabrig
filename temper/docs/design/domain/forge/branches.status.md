@@ -1,6 +1,12 @@
 # branches: status
 
-2026-11-22. Where the tree's code lags or departs from [branches.md](branches.md).
+2026-11-24. Where the tree's code lags or departs from [branches.md](branches.md).
+
+- **Not yet:** 2, *Its changes' questions go up to the goal*: the closer
+  relays for its running step alone, so a landing that a status settlement
+  interrupted has each of its questions answered with the closer's canned
+  words; it keeps no waiting questions, and its canned words are the earlier
+  ones. [in flight: change 15448]
 
 
 

@@ -309,9 +309,8 @@ section 6).
     passes up; the others wait on its row in the order taken, and the
     first waiting stands once the one before is settled, its answer
     relayed down or dropped (below). Each open step's change passes up
-    one at a time, so at most one waits for each other open step; a
-    second from a change whose first still stands waits in turn as
-    any does. A question from any other task, which no open step is
+    one at a time, so with two steps open at most one waits; a second
+    from a change whose first still stands waits in turn as any does. A question from any other task, which no open step is
     left to relay for, is answered, in the answer form to its number,
     `This question reached no one: the goal's closer decides nothing
     and relays only the questions its open steps ask.` Any other
