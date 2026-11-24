@@ -198,7 +198,7 @@ impl Staged {
     ) {
         let row = self.row_mut(domain, plan.number);
         crate::positions::message(row, &plan.prepared.word, limits.inbox_messages);
-        if let Some(question) = plan.answer {
+        if let Some(crate::inbox::Answering { question, .. }) = plan.answer {
             let mut credits = skein_lib::List::with_capacity(limits.inbox_messages);
             for credit in &row.questions {
                 if credit.number != question {

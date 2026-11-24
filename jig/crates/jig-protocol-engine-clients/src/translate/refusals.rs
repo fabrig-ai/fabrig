@@ -68,6 +68,13 @@ pub(crate) fn refusal(value: p::Refusal, limits: &w::Limits) -> Result<w::Refusa
         p::Refusal::Kept { pending } => w::Refusal::Kept(w::RefusalKept {
             pending: names(&pending, limits.refusal_kept_pending, w::paths::REFUSAL_KEPT_PENDING)?,
         }),
+        p::Refusal::QuestionAnswered { question, by } => w::Refusal::QuestionAnswered(w::RefusalQuestionAnswered {
+            question,
+            by: match by {
+                p::QuestionAnswerer::Task(number) => w::QuestionAnswerer::Task(w::AnswererNumber { number }),
+                p::QuestionAnswerer::Person(number) => w::QuestionAnswerer::Person(w::AnswererNumber { number }),
+            },
+        }),
         p::Refusal::Unlinked { worker } => w::Refusal::Unlinked(w::RefusalUnlinked { worker }),
         p::Refusal::Concluded { at } => w::Refusal::Concluded(w::RefusalConcluded { at: at.as_nanos() }),
         p::Refusal::Dependency { dependency, how } => w::Refusal::Dependency(w::RefusalDependency {

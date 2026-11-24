@@ -179,10 +179,10 @@ impl Core {
         };
         let family = self.tool_family(&kind);
         let call = match kind {
-            ToolKind::Message { target } => authority::Call::Message {
-                referenced: task.requester == tasks::Party::Task(target)
-                    || task.delegates.contains(&target)
-                    || task.references.contains(&target),
+            ToolKind::Message { target } => authority::Call::Message { referenced: message_reference(task, target) },
+            ToolKind::AnswerQuestion { target, question } => authority::Call::Message {
+                referenced: message_reference(task, target)
+                    || self.tasks.question_answer_reference(target, key.task, question),
             },
             ToolKind::Note { scope } => {
                 let scope = match scope {
@@ -269,7 +269,9 @@ impl Core {
     fn tool_family(&self, kind: &ToolKind) -> authority::Tools {
         match kind {
             ToolKind::Delegate => self.settings.tools.delegate,
-            ToolKind::Message { .. } | ToolKind::MarkRead => self.settings.tools.message,
+            ToolKind::Message { .. } | ToolKind::AnswerQuestion { .. } | ToolKind::MarkRead => {
+                self.settings.tools.message
+            }
             ToolKind::Control => self.settings.tools.control,
             ToolKind::Decide => self.settings.tools.decide,
             ToolKind::Propose => self.settings.tools.propose,
@@ -909,4 +911,10 @@ pub(crate) fn deletion_event(core: &mut Core, env: &Env<Limits>, event: Event, o
     }
     assert!(work.is_empty(), "deletion sibling routes drained");
     let _previous = core.deletions.route(previous);
+}
+
+fn message_reference(task: &tasks::TaskRecord, target: u64) -> bool {
+    task.requester == tasks::Party::Task(target)
+        || task.delegates.contains(&target)
+        || task.references.contains(&target)
 }

@@ -282,6 +282,8 @@ record PersonStallNotice = d::PersonStallNotice { at via s::wall }
 record PersonOffer = d::PersonOffer { since via s::wall }
 record PersonWait = d::PersonWait { since via s::wall, deadline via s::wall }
 record RecurringState = d::RecurringState { last_batch slice }
+record QuestionRelay = d::QuestionRelay
+record QuestionOffer = d::QuestionOffer { since via s::wall }
 record QuestionCredit = d::QuestionCredit
 record TaskInterest
 record TimerInterest { at via s::wall }
@@ -290,6 +292,9 @@ enum SubscriptionKind = d::SubscriptionKind
 record Subscription = d::Subscription
 record SavedResource by hand # path is framed authority segments
 record AnswerLine = d::AnswerLine
+enum QuestionAnswerer = d::QuestionAnswerer { task tuple, person tuple }
+record QuestionAnswerNotice = d::QuestionAnswerNotice { at via s::wall }
+record QuestionResolution = d::QuestionResolution
 record QuestionLine = d::QuestionLine
 record ProposalRow = d::ProposalRow
 record Endings = d::Endings
@@ -382,6 +387,7 @@ record RefusalHoldOwner
 record RefusalHoldRevision
 record TalkOpen
 record RefusalConcluded { at via s::wall }
+record RefusalQuestionAnswered
 enum Refusal = d::Refusal
 record TaskProblem = d::Problem { blocked_by slice }
 record ResultFollowupsDelegates by hand # framed creations under the batch byte budget

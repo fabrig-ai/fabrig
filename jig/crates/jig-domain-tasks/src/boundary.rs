@@ -138,6 +138,11 @@ pub enum MessageKind {
     /// Its person answered the question in their inbox; `Word::from` names its asker
     /// (domain/people/README.md, 5; domain/tasks/lifecycle-endings.md, 1).
     QuestionAnswered { question: u64 },
+    /// A question offered to another task. The word's number orders the offer;
+    /// the question number is the one its answer names.
+    PassedQuestion { question: u64 },
+    /// A question answered by someone other than the task it was asked of.
+    PassedAnswer { question: u64 },
     /// Its requester is owed a question before a done finish (domain/tasks/lifecycle-endings.md, 1).
     QuestionOwed,
     /// Nothing remains to await after a result-ended task parks (domain/tasks/lifecycle.md, 2).
@@ -278,7 +283,7 @@ pub struct SavedResource {
     pub path: Box<[Box<[u8]>]>,
 }
 
-/// An unanswered question and the party allowed to use its reserved answer room.
+/// An unanswered question, its first answerer, and its current offer if passed up.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct QuestionCredit {
     pub number: u64,
@@ -287,6 +292,38 @@ pub struct QuestionCredit {
     pub asked: Party,
     /// Position of the question activity in the owning task record.
     pub line: u64,
+    pub offer: Option<QuestionOffer>,
+}
+
+/// The current holder and its new waiting interval. Only a task needs a relay word.
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct QuestionOffer {
+    pub holder: crate::EscalationHolder,
+    pub since: Wall,
+    pub relay: Option<QuestionRelay>,
+}
+
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct QuestionRelay {
+    pub entry: u64,
+    pub words: Box<[u8]>,
+}
+
+/// An answer names its first writer, not the party on whose behalf it was sent.
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum QuestionAnswerer {
+    Task(u64),
+    Person(u64),
+}
+
+impl QuestionAnswerer {
+    #[must_use]
+    pub fn party(self) -> Party {
+        match self {
+            Self::Task(task) => Party::Task(task),
+            Self::Person(person) => Party::Person(person),
+        }
+    }
 }
 
 /// Root-numbered notices for one asker's retired questions.
@@ -1555,6 +1592,10 @@ pub enum Refusal {
         question: u64,
     },
     /// Its person answers this question in their inbox (domain/people/README.md, 5).
+    QuestionAnswered {
+        question: u64,
+        by: QuestionAnswerer,
+    },
     PersonAnswers {
         question: u64,
     },
@@ -1930,6 +1971,18 @@ pub enum Event {
         word: Word,
     },
     /// Deliver an authenticated inbox answer and its notice in one decision.
+    PassQuestion {
+        asker: u64,
+        question: u64,
+        offer: QuestionOffer,
+    },
+    /// Core-admitted answer at a party placement, including a role's holder.
+    AnswerOfferedQuestion {
+        reply_to: ReplyTo,
+        project: u32,
+        asker: u64,
+        word: Word,
+    },
     PersonQuestionAnswer {
         reply_to: ReplyTo,
         project: u32,
@@ -2710,7 +2763,10 @@ impl MessageKind {
             Self::QuestionAnswered { .. } => MessageFamily::Slot(Slot::QuestionAnswered),
             Self::QuestionOwed => MessageFamily::Slot(Slot::QuestionOwed),
             Self::QuestionEnded { .. } => MessageFamily::Slot(Slot::QuestionEnded),
-            Self::Escalation { .. } | Self::Proposal { .. } => MessageFamily::Virtual,
+            Self::Escalation { .. }
+            | Self::Proposal { .. }
+            | Self::PassedQuestion { .. }
+            | Self::PassedAnswer { .. } => MessageFamily::Virtual,
         }
     }
 
@@ -2721,6 +2777,8 @@ impl MessageKind {
             Self::Result(result) => Some(result),
             Self::Escalation { .. }
             | Self::Proposal { .. }
+            | Self::PassedQuestion { .. }
+            | Self::PassedAnswer { .. }
             | Self::PersonStalled { .. }
             | Self::ProposalDecision { .. }
             | Self::SettingsDecision { .. }
@@ -2749,6 +2807,8 @@ impl MessageKind {
             Self::Result(result) => Some(ProcedureInput::Result(result)),
             Self::Escalation { .. }
             | Self::Proposal { .. }
+            | Self::PassedQuestion { .. }
+            | Self::PassedAnswer { .. }
             | Self::SettingsDecision { .. }
             | Self::ProposalDecision { .. }
             | Self::EffectNotMade { .. }

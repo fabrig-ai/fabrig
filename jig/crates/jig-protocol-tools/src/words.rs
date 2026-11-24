@@ -23,6 +23,21 @@ pub fn words(word: &tasks::Word) -> Box<[u8]> {
         tasks::MessageKind::Notice { target, state: tasks::NoticeState::Held { revision }, .. } => {
             return held(b"Task ", target, revision, &word.words);
         }
+        tasks::MessageKind::PassedQuestion { question } => {
+            let from = Decimal::of(source_number(word.from));
+            let question = Decimal::of(question);
+            return skein_lib::bytes::concat(&[
+                b"Passed-up question ",
+                question.as_bytes(),
+                b"; answer with message target=",
+                from.as_bytes(),
+                b", form=answer, question=",
+                question.as_bytes(),
+                b":\n",
+                &word.words,
+            ]);
+        }
+        tasks::MessageKind::PassedAnswer { question } => (b"Answer to question ".as_slice(), question),
         tasks::MessageKind::QuestionAnswered { question } => {
             (b"Your person answered question in their inbox ".as_slice(), question)
         }

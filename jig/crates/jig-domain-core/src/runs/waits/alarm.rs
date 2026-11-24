@@ -6,7 +6,7 @@ use super::{activity, own};
 use crate::{AtBound, Bound, Core, Figures, Limits, Request, Wait, WaitKind, WaitObject};
 use alloc::boxed::Box;
 use jig_domain_people::EntryKind;
-use jig_domain_tasks::{self as tasks, Active, Hold, HoldSource, Phase, TaskRecord};
+use jig_domain_tasks::{self as tasks, Active, EscalationHolder as Holder, Hold, HoldSource, Phase, TaskRecord};
 use skein_lib::{Deadlines, Duration, Env, Map, Queue, Set, Time, Wall};
 
 #[derive(Hash, Debug)]
@@ -196,7 +196,13 @@ pub(crate) fn fire(core: &mut Core, env: &Env<Limits>) -> Queue<Request> {
         core.wait_alarms.arm(task, Some(agenda.first.at), env);
         return out;
     }
-    let why = agenda.first.why;
+    let why = match agenda.first.action {
+        Action::Hold(why) => why,
+        Action::PassQuestion { question, from } => {
+            pass_question(core, env, task, question, from, &mut out);
+            return out;
+        }
+    };
     let source = Box::new(HoldSource::Wait { words: words::source(core.wait_limits.waits, &agenda) });
     if let Some(attempt) = agenda.attempt {
         assert!(core.wait_alarms.parking.insert(task, Park { attempt, why, source }).is_ok(), "one park per task");
@@ -210,7 +216,13 @@ pub(crate) fn fire(core: &mut Core, env: &Env<Limits>) -> Queue<Request> {
 #[derive(Clone, Copy)]
 struct Outcome {
     at: Wall,
-    why: Hold,
+    action: Action,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Action {
+    Hold(Hold),
+    PassQuestion { question: u64, from: Holder },
 }
 
 struct Agenda {
@@ -221,17 +233,15 @@ struct Agenda {
 }
 
 fn agenda(core: &Core, row: &TaskRecord, observed: (bool, Option<Wall>)) -> Option<Agenda> {
-    if let Phase::Held { .. } | Phase::Closing(_) | Phase::Ended(_) = row.phase {
-        return None;
-    }
-    if observed.0 || core.wait_alarms.parking.contains_key(&row.number) {
+    if let Phase::Closing(_) | Phase::Ended(_) = row.phase {
         return None;
     }
     let deadline = tasks::deadline(row, core.run_wall);
-    if deadline.is_none()
-        && let Phase::Waiting | Phase::Active(Active::Preparing) = row.phase
-    {
-        return None;
+    let mut may_hold = !observed.0 && !core.wait_alarms.parking.contains_key(&row.number);
+    match row.phase {
+        Phase::Held { .. } => may_hold = false,
+        Phase::Waiting | Phase::Active(Active::Preparing) if deadline.is_none() => may_hold = false,
+        Phase::Waiting | Phase::Active(_) | Phase::Closing(_) | Phase::Ended(_) => {}
     }
     // An open suspension advances the cap as time passes. Its own window
     // rechecks placement; leaving suspension fixes the deadline again.
@@ -242,37 +252,66 @@ fn agenda(core: &Core, row: &TaskRecord, observed: (bool, Option<Wall>)) -> Opti
     let waits = core.own_waits(row, observed);
     let mut first = None;
     for wait in waits.values() {
-        if let Some(next) = dispatch(wait, core.wait_limits.waits, moving) {
+        if let Some(next) = dispatch(wait, core.wait_limits.waits, moving, may_hold) {
             consider(&mut first, next);
         }
-        // The task's deadline applies even if this wait has no clock of its
-        // own, or another owner takes the outcome of that clock.
-        if let Some(at) = deadline {
-            consider(&mut first, Outcome { at: at.max(wait.since), why: Hold::Deadline });
+        // A question's deadline caps its own outcome, not a second timer.
+        // Other waits still take the task's deadline as before.
+        if may_hold
+            && let Some(at) = deadline
+            && !is_question(wait)
+        {
+            consider(&mut first, Outcome { at: at.max(wait.since), action: Action::Hold(Hold::Deadline) });
         }
     }
     // The actions coalesce into one hold bearing the words of all the waits.
     Some(Agenda { first: first?, waits, deadline, attempt: tasks::run_attempt(&row.phase) })
 }
 
+fn priority(action: Action) -> u8 {
+    match action {
+        Action::PassQuestion { .. } => 0,
+        Action::Hold(Hold::Deadline) => 1,
+        Action::Hold(_) => 2,
+    }
+}
+
 fn consider(first: &mut Option<Outcome>, next: Outcome) {
     if let Some(prior) = *first
-        && (prior.at < next.at || prior.at == next.at && (prior.why == Hold::Deadline || next.why != Hold::Deadline))
+        && (prior.at, priority(prior.action)) <= (next.at, priority(next.action))
     {
         return;
     }
     *first = Some(next);
 }
 
-/// What the alarm takes at a record's bound. Leave the question arms for
-/// pass-up; resource queues, stalls and procedures' clocks have other owners.
-fn dispatch(wait: &Wait, figures: Figures, moving: Option<Wall>) -> Option<Outcome> {
-    let at = match (wait.kind, &wait.object, wait.bound) {
-        (WaitKind::News | WaitKind::Host | WaitKind::Account, _, Bound::At { at, then: AtBound::Hold }) => at,
-        (WaitKind::Question, _, _)
-        | (WaitKind::Party, WaitObject::Entry { kind: EntryKind::Question { .. }, .. }, _) => {
-            return None;
+fn is_question(wait: &Wait) -> bool {
+    match &wait.object {
+        WaitObject::Question { .. } | WaitObject::Entry { kind: EntryKind::Question { .. }, .. } => true,
+        WaitObject::News { .. }
+        | WaitObject::Entry { .. }
+        | WaitObject::Run(_)
+        | WaitObject::Task(_)
+        | WaitObject::Resource { .. }
+        | WaitObject::Procedure { .. } => false,
+    }
+}
+
+/// What this alarm takes; resource queues, stalls and procedures' clocks
+/// have other owners (jig/docs/design/domain/engine/contracts.md, 2).
+fn dispatch(wait: &Wait, figures: Figures, moving: Option<Wall>, may_hold: bool) -> Option<Outcome> {
+    let (at, action) = match (wait.kind, &wait.object, wait.bound) {
+        (WaitKind::News | WaitKind::Host | WaitKind::Account, _, Bound::At { at, then: AtBound::Hold }) if may_hold => {
+            (at, Action::Hold(Hold::Waited))
         }
+        (WaitKind::Question, WaitObject::Question { number, answerer }, Bound::At { at, then: AtBound::PassUp }) => {
+            (at, Action::PassQuestion { question: *number, from: Holder::Task(*answerer) })
+        }
+        (
+            WaitKind::Party,
+            WaitObject::Entry { kind: EntryKind::Question { message }, at: holder },
+            Bound::At { at, then: AtBound::PassUp },
+        ) => (at, Action::PassQuestion { question: *message, from: *holder }),
         (
             WaitKind::Dependency
             | WaitKind::Delegate
@@ -281,6 +320,7 @@ fn dispatch(wait: &Wait, figures: Figures, moving: Option<Wall>) -> Option<Outco
             | WaitKind::Account
             | WaitKind::Resource
             | WaitKind::Party
+            | WaitKind::Question
             | WaitKind::Step
             | WaitKind::Room
             | WaitKind::Turn
@@ -292,12 +332,46 @@ fn dispatch(wait: &Wait, figures: Figures, moving: Option<Wall>) -> Option<Outco
     let at = if let Some(cap) = moving
         && at == cap.max(wait.since)
     {
-        let (figure, from) = clock(wait, figures).expect("figure wait has a clock");
+        let (figure, from) = match action {
+            Action::Hold(_) => clock(wait, figures).expect("figure wait has a clock"),
+            Action::PassQuestion { from: Holder::Task(_), .. } => (figures.question, wait.since),
+            Action::PassQuestion { from: Holder::Person(_) | Holder::Role { .. }, .. } => (figures.party, wait.since),
+        };
         own::figure_at(from, figure)
     } else {
         at
     };
-    Some(Outcome { at, why: Hold::Waited })
+    Some(Outcome { at, action })
+}
+
+fn pass_question(
+    core: &mut Core,
+    env: &Env<Limits>,
+    asker: u64,
+    question: u64,
+    from: Holder,
+    out: &mut Queue<Request>,
+) {
+    let Some(row) = core.tasks.task(asker) else { return };
+    let Some(holder) = crate::admission::escalation::next_question_holder(core, &core.wait_limits, row, from) else {
+        return;
+    };
+    let relay = match holder {
+        Holder::Task(_) => {
+            let Some(ticket) = core.tasks.question_ticket(asker, question) else { return };
+            let Some(words) =
+                core.open_question_words(tasks::OpenQuestion { asker, number: question, line: ticket.line })
+            else {
+                return;
+            };
+            let words = Box::from(words);
+            let Some(entry) = crate::fresh(&mut core.counters, crate::Family::Message) else { return };
+            Some(tasks::QuestionRelay { entry, words })
+        }
+        Holder::Person(_) | Holder::Role { .. } => None,
+    };
+    let offer = tasks::QuestionOffer { holder, since: env.wall, relay };
+    crate::routing::children::append_tasks(core, env, tasks::Event::PassQuestion { asker, question, offer }, out);
 }
 
 fn clock(wait: &Wait, figures: Figures) -> Option<(Duration, Wall)> {

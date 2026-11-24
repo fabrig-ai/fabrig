@@ -336,6 +336,7 @@ fn refusal(key: &Key, why: &Refusal) -> Result<(), RestoreCause> {
         | Refusal::Limit { .. }
         | Refusal::Moved { .. }
         | Refusal::Unlinked { .. }
+        | Refusal::QuestionAnswered { .. }
         | Refusal::Concluded { .. }
         | Refusal::Ended { .. }
         | Refusal::Taken { .. }

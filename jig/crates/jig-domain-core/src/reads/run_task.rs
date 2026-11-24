@@ -323,8 +323,13 @@ mod tests {
         row.spec.words = skein_lib::bytes::zeroed(64);
         limits.tasks.dependencies = 2;
         row.dependencies = Box::new([1; 2]);
-        let credit =
-            tasks::QuestionCredit { number: 1, answerer: tasks::Party::Task(1), asked: tasks::Party::Task(1), line: 2 };
+        let credit = tasks::QuestionCredit {
+            number: 1,
+            answerer: tasks::Party::Task(1),
+            asked: tasks::Party::Task(1),
+            line: 2,
+            offer: None,
+        };
         limits.tasks.inbox_messages = 2;
         row.questions = Box::new([credit.clone(), credit]);
         row.phase = tasks::Phase::Held {
@@ -365,6 +370,7 @@ mod tests {
             answerer: tasks::Party::Task(1),
             asked: tasks::Party::Task(1),
             line: 106,
+            offer: None,
         }]);
         for phase in [
             tasks::Phase::Waiting,
@@ -499,6 +505,7 @@ mod tests {
             answerer: tasks::Party::Task(1),
             asked: tasks::Party::Task(1),
             line: 106,
+            offer: None,
         };
         row.questions = Box::new([credit.clone(), tasks::QuestionCredit { number: 104, ..credit.clone() }]);
         let read =

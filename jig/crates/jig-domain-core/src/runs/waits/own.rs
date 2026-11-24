@@ -184,23 +184,24 @@ impl Own {
     }
 
     fn questions(&mut self, core: &Core, limits: &Limits, row: &TaskRecord) {
-        let Party::Task(answerer) = row.requester else { return };
         for credit in &row.questions {
-            if credit.asked != row.requester {
+            let Some((holder, at)) = question_place(core, row, credit) else { continue };
+            let Holder::Task(answerer) = holder else { continue };
+            if credit.offer.is_none() && credit.asked != row.requester {
                 continue;
             }
-            // Restored and newly committed questions have their activity fact.
-            let since = match core.question_activity.get(&(row.number, credit.line)) {
-                Some(line) => line.at,
-                None => row.phase_since,
-            };
-            let since = core.wait_since(WaitKind::Question, since);
+            let since = core.wait_since(WaitKind::Question, at);
             self.push(
                 row.number,
                 WaitKind::Question,
                 WaitObject::Question { number: credit.number, answerer },
                 since,
-                clock(since, limits.waits.question, tasks::deadline(row, core.run_wall), AtBound::PassUp),
+                clock(
+                    since,
+                    limits.waits.question,
+                    tasks::deadline(row, core.run_wall),
+                    question_bound(core, limits, row, holder),
+                ),
             );
         }
     }
@@ -373,8 +374,63 @@ pub(super) fn policy_entry(row: &TaskRecord, inbox: &[Entry]) -> Option<Entry> {
     })
 }
 
+fn question_place(core: &Core, row: &TaskRecord, credit: &tasks::QuestionCredit) -> Option<(Holder, Wall)> {
+    if let Some(offer) = &credit.offer {
+        return Some((offer.holder, offer.since));
+    }
+    let holder = match credit.answerer {
+        Party::Task(task) => Holder::Task(task),
+        Party::Person(person) => Holder::Person(person),
+        Party::Deployment { .. } => unreachable!("questions wait at a task or person"),
+    };
+    let question = tasks::OpenQuestion { asker: row.number, number: credit.number, line: credit.line };
+    let since = match core.open_question_fact(question) {
+        Some((at, _)) => at,
+        None => match holder {
+            Holder::Task(_) => row.phase_since,
+            Holder::Person(_) | Holder::Role { .. } => return None,
+        },
+    };
+    Some((holder, since))
+}
+
+fn question_bound(core: &Core, limits: &Limits, row: &TaskRecord, holder: Holder) -> AtBound {
+    if crate::admission::escalation::next_question_holder(core, limits, row, holder).is_some() {
+        AtBound::PassUp
+    } else {
+        AtBound::Overdue
+    }
+}
+
+/// Original and offered inbox entries are two ways to answer, not two waits.
+/// Put every party-held question's wait on its credit owner, even when its
+/// first inbox link is the task the question was asked of.
+pub(super) fn party_entries(core: &Core, limits: &Limits, row: &TaskRecord) -> List<Entry> {
+    let inbox = core.waiting_entries(limits, row);
+    let mut entries = List::uncapped();
+    for fact in inbox.iter().chain(policy_entry(row, &inbox).iter()) {
+        if let EntryKind::Question { message } = fact.kind
+            && core.tasks.question_ticket(row.number, message).is_some()
+        {
+            continue;
+        }
+        if let Some(fact) = party_fact(row, *fact) {
+            entries.push(fact).expect("bounded party facts");
+        }
+    }
+    if crate::inbox::questions_live(&row.phase) {
+        for credit in &row.questions {
+            let Some((holder, at)) = question_place(core, row, credit) else { continue };
+            if let Some(entry) = crate::inbox::question_entry(row, credit.number, holder, at) {
+                entries.push(entry).expect("one fact per open credit");
+            }
+        }
+    }
+    entries
+}
+
 /// The second inbox entry is another way to answer, not another wait.
-pub(super) fn party_fact(row: &TaskRecord, mut fact: Entry) -> Option<Entry> {
+fn party_fact(row: &TaskRecord, mut fact: Entry) -> Option<Entry> {
     match fact.kind {
         EntryKind::PersonTask => {
             if let Some(offer) = row.person_wait?.offer {
@@ -424,7 +480,8 @@ fn entry(
             Holder::Person(person) => proposal_passes(core, limits, row, tasks::ProposalHolder::Person(person)),
         },
         EntryKind::PersonTask => crate::admission::escalation::next_person_holder(core, limits, row).is_some(),
-        EntryKind::Question { .. } | EntryKind::Escalation { .. } => match wait_holder(core, limits, row, Some(at)) {
+        EntryKind::Question { .. } => question_bound(core, limits, row, at) == AtBound::PassUp,
+        EntryKind::Escalation { .. } => match wait_holder(core, limits, row, Some(at)) {
             Some(next) => next != at,
             None => false,
         },

@@ -2568,6 +2568,12 @@ pub fn message_kind_to_record(value: &jig_domain_tasks::MessageKind, context: &c
         }),
         jig_domain_tasks::MessageKind::QuestionOwed => crate::tasks_v13::MessageKind::QuestionOwed,
         jig_domain_tasks::MessageKind::NothingAwaited => crate::tasks_v13::MessageKind::NothingAwaited,
+        jig_domain_tasks::MessageKind::PassedQuestion { question: field_000000 } => crate::tasks_v13::MessageKind::PassedQuestion(crate::tasks_v13::AnswerMessage {
+            question: *field_000000
+        }),
+        jig_domain_tasks::MessageKind::PassedAnswer { question: field_000000 } => crate::tasks_v13::MessageKind::PassedAnswer(crate::tasks_v13::AnswerMessage {
+            question: *field_000000
+        }),
     })
 }
 
@@ -2681,6 +2687,18 @@ pub fn message_kind_to_domain(record: crate::tasks_v13::MessageKind, context: &c
         },
         crate::tasks_v13::MessageKind::QuestionOwed => jig_domain_tasks::MessageKind::QuestionOwed,
         crate::tasks_v13::MessageKind::NothingAwaited => jig_domain_tasks::MessageKind::NothingAwaited,
+        crate::tasks_v13::MessageKind::PassedQuestion(held) => {
+            let crate::tasks_v13::AnswerMessage { question: field_000000 } = held;
+            jig_domain_tasks::MessageKind::PassedQuestion {
+                question: field_000000
+            }
+        },
+        crate::tasks_v13::MessageKind::PassedAnswer(held) => {
+            let crate::tasks_v13::AnswerMessage { question: field_000000 } = held;
+            jig_domain_tasks::MessageKind::PassedAnswer {
+                question: field_000000
+            }
+        },
     })
 }
 
@@ -3551,24 +3569,88 @@ pub fn recurring_state_to_domain(record: crate::tasks_v13::RecurringState, conte
 }
 
 #[must_use]
+pub fn question_relay_to_record(value: &jig_domain_tasks::QuestionRelay) -> crate::tasks_v13::QuestionRelay {
+    let jig_domain_tasks::QuestionRelay { entry: field_000000, words: field_000001 } = value;
+    crate::tasks_v13::QuestionRelay {
+        entry: *field_000000,
+        words: field_000001.clone()
+    }
+}
+
+#[must_use]
+pub fn question_relay_to_domain(record: crate::tasks_v13::QuestionRelay) -> jig_domain_tasks::QuestionRelay {
+    let crate::tasks_v13::QuestionRelay { entry: field_000000, words: field_000001 } = record;
+    jig_domain_tasks::QuestionRelay {
+        entry: field_000000,
+        words: field_000001
+    }
+}
+
+#[must_use]
+pub fn question_offer_to_record(value: &jig_domain_tasks::QuestionOffer) -> crate::tasks_v13::QuestionOffer {
+    let jig_domain_tasks::QuestionOffer { holder: field_000000, since: field_000001, relay: field_000002 } = value;
+    crate::tasks_v13::QuestionOffer {
+        holder: escalation_holder_to_record(field_000000),
+        since: skein_codec::convert::wall_to_record(field_000001),
+        relay: match field_000002 {
+            Some(item) => {
+                let converted = question_relay_to_record(item);
+                Some(converted)
+            }
+            None => None,
+        }
+    }
+}
+
+#[must_use]
+pub fn question_offer_to_domain(record: crate::tasks_v13::QuestionOffer) -> jig_domain_tasks::QuestionOffer {
+    let crate::tasks_v13::QuestionOffer { holder: field_000000, since: field_000001, relay: field_000002 } = record;
+    jig_domain_tasks::QuestionOffer {
+        holder: escalation_holder_to_domain(field_000000),
+        since: skein_codec::convert::wall_to_domain(field_000001),
+        relay: match field_000002 {
+            Some(item) => {
+                let converted = question_relay_to_domain(item);
+                Some(converted)
+            }
+            None => None,
+        }
+    }
+}
+
+#[must_use]
 pub fn question_credit_to_record(value: &jig_domain_tasks::QuestionCredit) -> crate::tasks_v13::QuestionCredit {
-    let jig_domain_tasks::QuestionCredit { number: field_000000, answerer: field_000001, asked: field_000002, line: field_000003 } = value;
+    let jig_domain_tasks::QuestionCredit { number: field_000000, answerer: field_000001, asked: field_000002, line: field_000003, offer: field_000004 } = value;
     crate::tasks_v13::QuestionCredit {
         number: *field_000000,
         answerer: party_to_record(field_000001),
         asked: party_to_record(field_000002),
-        line: *field_000003
+        line: *field_000003,
+        offer: match field_000004 {
+            Some(item) => {
+                let converted = question_offer_to_record(item);
+                Some(converted)
+            }
+            None => None,
+        }
     }
 }
 
 #[must_use]
 pub fn question_credit_to_domain(record: crate::tasks_v13::QuestionCredit) -> jig_domain_tasks::QuestionCredit {
-    let crate::tasks_v13::QuestionCredit { number: field_000000, answerer: field_000001, asked: field_000002, line: field_000003 } = record;
+    let crate::tasks_v13::QuestionCredit { number: field_000000, answerer: field_000001, asked: field_000002, line: field_000003, offer: field_000004 } = record;
     jig_domain_tasks::QuestionCredit {
         number: field_000000,
         answerer: party_to_domain(field_000001),
         asked: party_to_domain(field_000002),
-        line: field_000003
+        line: field_000003,
+        offer: match field_000004 {
+            Some(item) => {
+                let converted = question_offer_to_domain(item);
+                Some(converted)
+            }
+            None => None,
+        }
     }
 }
 
@@ -3668,8 +3750,96 @@ pub fn answer_line_to_domain(record: crate::tasks_v13::AnswerLine) -> jig_domain
 }
 
 #[must_use]
+pub fn question_answerer_to_record(value: &jig_domain_tasks::QuestionAnswerer) -> crate::tasks_v13::QuestionAnswerer {
+    match value {
+        jig_domain_tasks::QuestionAnswerer::Task(held) => crate::tasks_v13::QuestionAnswerer::Task(crate::tasks_v13::Number { value: *held }),
+        jig_domain_tasks::QuestionAnswerer::Person(held) => crate::tasks_v13::QuestionAnswerer::Person(crate::tasks_v13::Number { value: *held }),
+    }
+}
+
+#[must_use]
+pub fn question_answerer_to_domain(record: crate::tasks_v13::QuestionAnswerer) -> jig_domain_tasks::QuestionAnswerer {
+    match record {
+        crate::tasks_v13::QuestionAnswerer::Task(held) => jig_domain_tasks::QuestionAnswerer::Task({
+            let crate::tasks_v13::Number { value: held } = held;
+            held
+        }),
+        crate::tasks_v13::QuestionAnswerer::Person(held) => jig_domain_tasks::QuestionAnswerer::Person({
+            let crate::tasks_v13::Number { value: held } = held;
+            held
+        }),
+    }
+}
+
+#[must_use]
+pub fn question_answer_notice_to_record(value: &jig_domain_tasks::QuestionAnswerNotice) -> crate::tasks_v13::QuestionAnswerNotice {
+    let jig_domain_tasks::QuestionAnswerNotice { number: field_000000, at: field_000001, words: field_000002 } = value;
+    crate::tasks_v13::QuestionAnswerNotice {
+        number: *field_000000,
+        at: skein_codec::convert::wall_to_record(field_000001),
+        words: field_000002.clone()
+    }
+}
+
+#[must_use]
+pub fn question_answer_notice_to_domain(record: crate::tasks_v13::QuestionAnswerNotice) -> jig_domain_tasks::QuestionAnswerNotice {
+    let crate::tasks_v13::QuestionAnswerNotice { number: field_000000, at: field_000001, words: field_000002 } = record;
+    jig_domain_tasks::QuestionAnswerNotice {
+        number: field_000000,
+        at: skein_codec::convert::wall_to_domain(field_000001),
+        words: field_000002
+    }
+}
+
+#[must_use]
+pub fn question_resolution_to_record(value: &jig_domain_tasks::QuestionResolution) -> crate::tasks_v13::QuestionResolution {
+    let jig_domain_tasks::QuestionResolution { by: field_000000, first: field_000001, holder: field_000002, notice: field_000003 } = value;
+    crate::tasks_v13::QuestionResolution {
+        by: question_answerer_to_record(field_000000),
+        first: question_answerer_to_record(field_000001),
+        holder: match field_000002 {
+            Some(item) => {
+                let converted = escalation_holder_to_record(item);
+                Some(converted)
+            }
+            None => None,
+        },
+        notice: match field_000003 {
+            Some(item) => {
+                let converted = question_answer_notice_to_record(item);
+                Some(converted)
+            }
+            None => None,
+        }
+    }
+}
+
+#[must_use]
+pub fn question_resolution_to_domain(record: crate::tasks_v13::QuestionResolution) -> jig_domain_tasks::QuestionResolution {
+    let crate::tasks_v13::QuestionResolution { by: field_000000, first: field_000001, holder: field_000002, notice: field_000003 } = record;
+    jig_domain_tasks::QuestionResolution {
+        by: question_answerer_to_domain(field_000000),
+        first: question_answerer_to_domain(field_000001),
+        holder: match field_000002 {
+            Some(item) => {
+                let converted = escalation_holder_to_domain(item);
+                Some(converted)
+            }
+            None => None,
+        },
+        notice: match field_000003 {
+            Some(item) => {
+                let converted = question_answer_notice_to_domain(item);
+                Some(converted)
+            }
+            None => None,
+        }
+    }
+}
+
+#[must_use]
 pub fn question_line_to_record(value: &jig_domain_tasks::QuestionLine) -> crate::tasks_v13::QuestionLine {
-    let jig_domain_tasks::QuestionLine { message: field_000000, line: field_000001, answer: field_000002 } = value;
+    let jig_domain_tasks::QuestionLine { message: field_000000, line: field_000001, answer: field_000002, resolution: field_000003 } = value;
     crate::tasks_v13::QuestionLine {
         message: *field_000000,
         line: *field_000001,
@@ -3679,19 +3849,33 @@ pub fn question_line_to_record(value: &jig_domain_tasks::QuestionLine) -> crate:
                 Some(converted)
             }
             None => None,
+        },
+        resolution: match field_000003 {
+            Some(item) => {
+                let converted = question_resolution_to_record(item);
+                Some(converted)
+            }
+            None => None,
         }
     }
 }
 
 #[must_use]
 pub fn question_line_to_domain(record: crate::tasks_v13::QuestionLine) -> jig_domain_tasks::QuestionLine {
-    let crate::tasks_v13::QuestionLine { message: field_000000, line: field_000001, answer: field_000002 } = record;
+    let crate::tasks_v13::QuestionLine { message: field_000000, line: field_000001, answer: field_000002, resolution: field_000003 } = record;
     jig_domain_tasks::QuestionLine {
         message: field_000000,
         line: field_000001,
         answer: match field_000002 {
             Some(item) => {
                 let converted = answer_line_to_domain(item);
+                Some(converted)
+            }
+            None => None,
+        },
+        resolution: match field_000003 {
+            Some(item) => {
+                let converted = question_resolution_to_domain(item);
                 Some(converted)
             }
             None => None,
@@ -4699,6 +4883,10 @@ pub fn refusal_to_record(value: &jig_domain_tasks::Refusal) -> crate::tasks_v13:
             at: skein_codec::convert::wall_to_record(field_000000)
         }),
         jig_domain_tasks::Refusal::Unreported => crate::tasks_v13::Refusal::Unreported,
+        jig_domain_tasks::Refusal::QuestionAnswered { question: field_000000, by: field_000001 } => crate::tasks_v13::Refusal::QuestionAnswered(crate::tasks_v13::RefusalQuestionAnswered {
+            question: *field_000000,
+            by: question_answerer_to_record(field_000001)
+        }),
     }
 }
 
@@ -4817,6 +5005,13 @@ pub fn refusal_to_domain(record: crate::tasks_v13::Refusal) -> jig_domain_tasks:
             }
         },
         crate::tasks_v13::Refusal::Unreported => jig_domain_tasks::Refusal::Unreported,
+        crate::tasks_v13::Refusal::QuestionAnswered(held) => {
+            let crate::tasks_v13::RefusalQuestionAnswered { question: field_000000, by: field_000001 } = held;
+            jig_domain_tasks::Refusal::QuestionAnswered {
+                question: field_000000,
+                by: question_answerer_to_domain(field_000001)
+            }
+        },
     }
 }
 

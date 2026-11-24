@@ -2783,6 +2783,28 @@ pub fn account_move_why_to_domain(record: crate::people_v17::AccountMoveWhy) -> 
     }
 }
 
+#[must_use]
+pub fn question_answerer_to_record(value: &jig_domain_people::QuestionAnswerer) -> crate::people_v17::QuestionAnswerer {
+    match value {
+        jig_domain_people::QuestionAnswerer::Task(held) => crate::people_v17::QuestionAnswerer::Task(crate::people_v17::Number64 { value: *held }),
+        jig_domain_people::QuestionAnswerer::Person(held) => crate::people_v17::QuestionAnswerer::Person(crate::people_v17::Number64 { value: *held }),
+    }
+}
+
+#[must_use]
+pub fn question_answerer_to_domain(record: crate::people_v17::QuestionAnswerer) -> jig_domain_people::QuestionAnswerer {
+    match record {
+        crate::people_v17::QuestionAnswerer::Task(held) => jig_domain_people::QuestionAnswerer::Task({
+            let crate::people_v17::Number64 { value: held } = held;
+            held
+        }),
+        crate::people_v17::QuestionAnswerer::Person(held) => jig_domain_people::QuestionAnswerer::Person({
+            let crate::people_v17::Number64 { value: held } = held;
+            held
+        }),
+    }
+}
+
 #[expect(clippy::too_many_lines, reason = "one translation step per field or variant (data/codec/maps.md, 4.1)")]
 pub fn refusal_to_record(value: &jig_domain_people::Refusal) -> Result<crate::people_v17::Refusal, crate::people_v17::Problem> {
     Ok(match value {
@@ -2919,6 +2941,10 @@ pub fn refusal_to_record(value: &jig_domain_people::Refusal) -> Result<crate::pe
         }),
         jig_domain_people::Refusal::Unlinked { worker: field_000000 } => crate::people_v17::Refusal::Unlinked(crate::people_v17::RefusalUnlinked {
             worker: *field_000000
+        }),
+        jig_domain_people::Refusal::QuestionAnswered { question: field_000000, by: field_000001 } => crate::people_v17::Refusal::QuestionAnswered(crate::people_v17::RefusalQuestionAnswered {
+            question: *field_000000,
+            by: question_answerer_to_record(field_000001)
         }),
     })
 }
@@ -3122,6 +3148,13 @@ pub fn refusal_to_domain(record: crate::people_v17::Refusal) -> jig_domain_peopl
             let crate::people_v17::RefusalUnlinked { worker: field_000000 } = held;
             jig_domain_people::Refusal::Unlinked {
                 worker: field_000000
+            }
+        },
+        crate::people_v17::Refusal::QuestionAnswered(held) => {
+            let crate::people_v17::RefusalQuestionAnswered { question: field_000000, by: field_000001 } = held;
+            jig_domain_people::Refusal::QuestionAnswered {
+                question: field_000000,
+                by: question_answerer_to_domain(field_000001)
             }
         },
     }

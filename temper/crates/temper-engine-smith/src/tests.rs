@@ -2782,6 +2782,17 @@ fn a_chats_answer_refusal_names_its_persons_inbox_question() {
 }
 
 #[test]
+fn a_late_answer_refusal_names_its_first_writer() {
+    const QUESTION: u64 = 42;
+    const ANSWERER: u64 = 23;
+    refusal_words(
+        tasks::Refusal::QuestionAnswered { question: QUESTION, by: tasks::QuestionAnswerer::Task(ANSWERER) },
+        None,
+        b"Refused: task 99 question 42 was answered by task 23",
+    );
+}
+
+#[test]
 fn a_numbered_verdict_preserves_its_fields_and_cannot_claim_a_resource() {
     let answer = || run::Answer::Accepted {
         outcome: run::outcome::Declared::Verdict(run::outcome::Verdict {
@@ -3799,6 +3810,7 @@ fn task_reads_name_durable_answer_targets_and_answerers() {
         answerer: tasks::Party::Task(18),
         asked: tasks::Party::Task(18),
         line: 106,
+        offer: None,
     }]);
     let rendered = answer(&engine::CallAnswer::TaskRead(Box::new(Ok(read))));
     assert!(

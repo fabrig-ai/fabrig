@@ -298,6 +298,7 @@ fn question_store() -> Store {
             message: QUESTION,
             line: QUESTION_POSITION,
             answer: Some(tasks::AnswerLine { task: GRANDCHILD, position: ANSWER_POSITION }),
+            resolution: None,
         }],
     );
     fixtures::committed(

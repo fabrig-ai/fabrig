@@ -122,6 +122,8 @@ pub fn is_answer(kind: &tasks::MessageKind) -> bool {
     match kind {
         tasks::MessageKind::Answer { .. } => true,
         tasks::MessageKind::Question
+        | tasks::MessageKind::PassedQuestion { .. }
+        | tasks::MessageKind::PassedAnswer { .. }
         | tasks::MessageKind::Words
         | tasks::MessageKind::Result(_)
         | tasks::MessageKind::Escalation { .. }

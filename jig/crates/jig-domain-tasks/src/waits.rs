@@ -1135,6 +1135,7 @@ fn circle_cut(why: &Refusal) -> bool {
         | Refusal::Dependencies
         | Refusal::DependencyEnded { .. }
         | Refusal::PersonAnswers { .. }
+        | Refusal::QuestionAnswered { .. }
         | Refusal::KeptQuestion { .. }
         | Refusal::Kept
         | Refusal::Executor

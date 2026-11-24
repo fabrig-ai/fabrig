@@ -907,7 +907,8 @@ fn stored_waiting_and_reply_entries_keep_separate_original_contexts_and_activity
         hits: 0,
         eligible: true,
     }]);
-    owner.question_lines = Box::new([tasks::QuestionLine { message: u64::MAX, line: owner.activity, answer: None }]);
+    owner.question_lines =
+        Box::new([tasks::QuestionLine { message: u64::MAX, line: owner.activity, answer: None, resolution: None }]);
     core.question_activity
         .insert(
             (owner.number, owner.activity),

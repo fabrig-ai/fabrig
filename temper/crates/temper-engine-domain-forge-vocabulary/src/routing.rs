@@ -473,6 +473,8 @@ pub fn change_delegate_status(
         | tasks::MessageKind::FinishRequested { .. }
         | tasks::MessageKind::Amendment { .. }
         | tasks::MessageKind::Question
+        | tasks::MessageKind::PassedQuestion { .. }
+        | tasks::MessageKind::PassedAnswer { .. }
         | tasks::MessageKind::Answer { .. }
         | tasks::MessageKind::Met { .. }
         | tasks::MessageKind::Notice { .. }

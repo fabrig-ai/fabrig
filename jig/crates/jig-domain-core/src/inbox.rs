@@ -28,6 +28,26 @@ fn add(
         .expect("one bounded projection per task state");
 }
 
+pub(crate) fn question_entry(
+    row: &tasks::TaskRecord,
+    message: u64,
+    holder: tasks::EscalationHolder,
+    at: skein_lib::Wall,
+) -> Option<people::Entry> {
+    let whom = match holder {
+        tasks::EscalationHolder::Person(person) => people::Whom::Person(person),
+        tasks::EscalationHolder::Role { project, role } => people::Whom::Role { project, role },
+        tasks::EscalationHolder::Task(_) => return None,
+    };
+    Some(people::Entry {
+        task: row.number,
+        project: row.project,
+        whom,
+        kind: people::EntryKind::Question { message },
+        at,
+    })
+}
+
 fn matches_person(party: tasks::Party) -> bool {
     match party {
         tasks::Party::Person(_) => true,
@@ -83,11 +103,15 @@ pub(crate) fn reply_refs(limits: &Limits, row: &tasks::TaskRecord, party: u64) -
 
 impl Core {
     pub(crate) fn open_question_words(&self, question: tasks::OpenQuestion) -> Option<&[u8]> {
+        Some(self.open_question_fact(question)?.1)
+    }
+
+    pub(crate) fn open_question_fact(&self, question: tasks::OpenQuestion) -> Option<(skein_lib::Wall, &[u8])> {
         let line = self.question_activity.get(&(question.asker, question.line))?;
         if let tasks::Line::Words { message, kind: tasks::MessageKind::Question, words, .. } = &line.line
             && *message == question.number
         {
-            Some(words)
+            Some((line.at, words))
         } else {
             None
         }
@@ -248,6 +272,13 @@ impl Core {
                 }
             }
             tasks::Party::Task(_) | tasks::Party::Deployment { .. } => {}
+        }
+        for credit in &row.questions {
+            if let Some(offer) = &credit.offer
+                && let Some(entry) = question_entry(row, credit.number, offer.holder, offer.since)
+            {
+                entries.push(entry).expect("one projection per party-held credit");
+            }
         }
         if let Some(person) = self.conversation_requester(row) {
             for reply in &row.replies {

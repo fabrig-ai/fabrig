@@ -296,6 +296,8 @@ record RefusalAccountMove
 record RefusalJudged
 record RefusalForgotten
 record RefusalConcluded { at via s::wall }
+enum QuestionAnswerer = p::QuestionAnswerer { task tuple, person tuple }
+record RefusalQuestionAnswered
 enum Refusal = p::Refusal
 enum ProposalChoice = p::ProposalChoice
 enum EscalationChoice = p::EscalationChoice

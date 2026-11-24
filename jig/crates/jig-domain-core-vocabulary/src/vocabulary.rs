@@ -1616,6 +1616,11 @@ pub enum ToolKind {
     Message {
         target: u64,
     },
+    /// A reference granted only to answer this question.
+    AnswerQuestion {
+        target: u64,
+        question: u64,
+    },
     /// The message family alone, without a reference to another task.
     MarkRead,
     Control,
@@ -1800,6 +1805,7 @@ fn tasks_new_work(event: &tasks::Event) -> bool {
         | tasks::Event::Message { .. }
         | tasks::Event::PersonQuestion { .. }
         | tasks::Event::PersonQuestionAnswer { .. }
+        | tasks::Event::AnswerOfferedQuestion { .. }
         | tasks::Event::Talk { .. }
         | tasks::Event::Leave { .. }
         | tasks::Event::AuthorizedMessage { .. }
@@ -1852,6 +1858,7 @@ fn tasks_new_work(event: &tasks::Event) -> bool {
         | tasks::Event::NothingAwaitedNotice { .. }
         | tasks::Event::QuestionEndedNotice { .. }
         | tasks::Event::CancelQuestion { .. }
+        | tasks::Event::PassQuestion { .. }
         | tasks::Event::Restore { .. }
         | tasks::Event::Check
         | tasks::Event::Restored => false,

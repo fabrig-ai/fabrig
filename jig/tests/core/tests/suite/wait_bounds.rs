@@ -374,3 +374,232 @@ fn a_hold_at_the_tasks_deadline_keeps_its_place_in_the_resource_queue() {
     assert_eq!(live_row(&world, task).hold_wait_since, before.hold_wait_since);
     assert!(held(&world, task, Hold::Deadline).contains("resource since "));
 }
+
+const QUESTION_SPAN: u64 = 2 * HOUR;
+const PERSON_SPAN: u64 = 8 * HOUR;
+const QUESTION_PROJECT: u32 = jig_core_world::fixtures::PROJECT;
+const QUESTION_PERSON: u64 = jig_core_world::fixtures::PARTY;
+const OWNER_SUBJECT: u64 = 7;
+const LAST_ROLE: u32 = 0;
+const QUESTION_TEXT: &[u8] = b"Which result should I use?";
+const ANSWER_TEXT: &[u8] = b"Use the first result.";
+
+struct QuestionTree {
+    world: World,
+    covering: (u64, u64),
+    first: (u64, u64),
+    asker: u64,
+    question: u64,
+}
+
+fn question_tree(seed: u64, cap: Option<Wall>) -> QuestionTree {
+    let (configuration, limits) = jig_core_world::faults::plan_fixture(seed);
+    let creating = jig_test_profile::fixtures::Creating::new(&configuration.core, limits.core.tasks.tree_tasks);
+    let people::Ask::Create { project, mut batch } = jig_test_profile::fixtures::create_chat(
+        &creating,
+        QUESTION_PROJECT,
+        LAST_ROLE,
+        b"Decide for the plan".as_slice().into(),
+    ) else {
+        unreachable!()
+    };
+    batch[0].flags = people::Flags::PLAIN;
+    let mut world = World::new(Setup {
+        seed,
+        configuration: Some(configuration),
+        limits,
+        initial: Some(people::Ask::Create { project, batch }),
+        ..Setup::default()
+    });
+    let covering = world.assignments[0];
+    let mut goal = member(&world, tasks::Executor::Agent { charter: 1 }, b"Decide for the change");
+    goal.authority.budget.spend = 40;
+    let first = delegate(&mut world, covering, 1, goal);
+    let first = run_for(&world, first);
+    let mut change = member(&world, tasks::Executor::Agent { charter: 1 }, b"Ask for a decision");
+    change.authority.delegation.tasks = 0;
+    change.authority.delegation.depth = 0;
+    // The task's own deadline is independent of its holders' deadlines.
+    change.authority.budget.deadline = cap;
+    let asker = delegate(&mut world, first, 1, change);
+    let run = run_for(&world, asker);
+    let (now, at) = clocks(&world, T);
+    world.set_clock(now, at);
+    question_call(&mut world, run, first.0, tasks::MessageKind::Question, QUESTION_TEXT, 2);
+    let Some((_, _, core::CallPart::Sent { message })) = world.answers.last() else {
+        panic!("question refused: {:?}", world.answers.last())
+    };
+    let question = *message;
+    QuestionTree { world, covering, first, asker, question }
+}
+
+fn run_for(world: &World, task: u64) -> (u64, u64) {
+    world.assignments.iter().rev().find(|run| run.0 == task).copied().expect("task has a run")
+}
+
+fn question_call(
+    world: &mut World,
+    run: (u64, u64),
+    target: u64,
+    kind: tasks::MessageKind,
+    words: &[u8],
+    completion: u32,
+) {
+    world.send(root::Event::Core(core::Event::NamedAction {
+        to: ReplyTo::new(Token::new(19_900 + u64::from(completion))),
+        key: core::CallKey { task: run.0, attempt: run.1, completion, position: 0 },
+        action: core::NamedAction::Message { target, kind, words: words.into() },
+    }));
+}
+
+fn question_wait(tree: &QuestionTree) -> core::Wait {
+    let waits = tree.world.domain.core().waits(tree.asker);
+    let mut matching = waits.own.iter().filter(|wait| match wait.object {
+        core::WaitObject::Question { number, .. } => number == tree.question,
+        core::WaitObject::Entry { kind: people::EntryKind::Question { message }, .. } => message == tree.question,
+        _ => false,
+    });
+    let wait = matching.next().expect("one open question").clone();
+    assert!(matching.next().is_none(), "one question must have one wait");
+    wait
+}
+
+fn at_task(tree: &QuestionTree, task: u64, since: Wall) {
+    let wait = question_wait(tree);
+    assert_eq!(wait.object, core::WaitObject::Question { number: tree.question, answerer: task });
+    assert_eq!(wait.kind, core::WaitKind::Question);
+    assert_eq!(wait.since, since);
+}
+
+fn at_party(tree: &QuestionTree, at: tasks::EscalationHolder, since: Wall, then: core::AtBound) {
+    let wait = question_wait(tree);
+    assert_eq!(
+        wait.object,
+        core::WaitObject::Entry { kind: people::EntryKind::Question { message: tree.question }, at }
+    );
+    assert_eq!(wait.kind, core::WaitKind::Party);
+    assert_eq!(wait.since, since);
+    assert_eq!(wait.bound, core::Bound::At { at: plus(since, PERSON_SPAN), then });
+}
+
+fn last_role() -> tasks::EscalationHolder {
+    tasks::EscalationHolder::Role { project: QUESTION_PROJECT, role: LAST_ROLE }
+}
+
+#[test]
+fn one_question_wait_moves_at_two_four_and_twelve_hours() {
+    let mut tree = question_tree(17240, None);
+    let task_bound = plus(T, QUESTION_SPAN);
+    let person_bound = plus(task_bound, QUESTION_SPAN);
+    let role_bound = plus(person_bound, PERSON_SPAN);
+    fire_at(&mut tree.world, before(task_bound));
+    at_task(&tree, tree.first.0, T);
+    fire_at(&mut tree.world, task_bound);
+    at_task(&tree, tree.covering.0, task_bound);
+    fire_at(&mut tree.world, person_bound);
+    at_party(&tree, tasks::EscalationHolder::Person(QUESTION_PERSON), person_bound, core::AtBound::PassUp);
+    fire_at(&mut tree.world, role_bound);
+    at_party(&tree, last_role(), role_bound, core::AtBound::Overdue);
+    fire_at(&mut tree.world, plus(role_bound, PERSON_SPAN));
+    assert_eq!(tree.world.domain.core().inspection_wait_bound(tree.asker), None);
+    assert!(live_row(&tree.world, tree.asker).inbox.is_empty(), "the moves sent no words to the asker");
+}
+
+#[test]
+fn restart_keeps_a_question_placement_and_rearms_its_bound() {
+    let seed = 17241;
+    let mut tree = question_tree(seed, None);
+    let placed = plus(T, QUESTION_SPAN);
+    let next = plus(placed, QUESTION_SPAN);
+    fire_at(&mut tree.world, placed);
+    tree.world.restart_with(jig_core_world::faults::plan_fixture(seed).0);
+    at_task(&tree, tree.covering.0, placed);
+    assert_eq!(tree.world.domain.core().inspection_wait_bound(tree.asker), Some(clocks(&tree.world, next).0));
+}
+
+#[test]
+fn a_role_holders_answer_settles_the_original_question() {
+    let mut tree = question_tree(17242, None);
+    let task_bound = plus(T, QUESTION_SPAN);
+    let person_bound = plus(task_bound, QUESTION_SPAN);
+    for at in [task_bound, person_bound, plus(person_bound, PERSON_SPAN)] {
+        fire_at(&mut tree.world, at);
+    }
+    tree.world.send(jig_core_world::fixtures::sign_in(
+        Token::new(19_901),
+        0,
+        &OWNER_SUBJECT.to_be_bytes(),
+        b"person",
+        b"Person",
+    ));
+    let answer = people::Ask::AnswerQuestion {
+        project: QUESTION_PROJECT,
+        task: tree.asker,
+        question: tree.question,
+        words: ANSWER_TEXT.into(),
+    };
+    ask(&mut tree.world, 95, answer.clone());
+    assert!(live_row(&tree.world, tree.asker).questions.is_empty(), "{:?}", tree.world.people_answers.last());
+    ask(&mut tree.world, 96, answer);
+    assert_eq!(
+        tree.world.people_answers.last(),
+        Some(&people::Reply::Outcome(people::Outcome::Refused(people::Refusal::QuestionAnswered {
+            question: tree.question,
+            by: people::QuestionAnswerer::Person(QUESTION_PERSON),
+        })))
+    );
+}
+
+#[test]
+fn a_question_passes_at_the_askers_earlier_deadline() {
+    let cap = plus(T, HOUR);
+    let mut tree = question_tree(17243, Some(cap));
+    fire_at(&mut tree.world, cap);
+    // Each onward wait is also capped by that same deadline.
+    let wait = question_wait(&tree);
+    assert_eq!(
+        wait.object,
+        core::WaitObject::Entry { kind: people::EntryKind::Question { message: tree.question }, at: last_role() }
+    );
+    assert_eq!(wait.bound, core::Bound::At { at: cap, then: core::AtBound::Overdue });
+}
+
+#[test]
+fn an_answer_before_the_bound_disarms_the_question() {
+    let mut tree = question_tree(17244, None);
+    fire_at(&mut tree.world, plus(T, HOUR));
+    question_call(
+        &mut tree.world,
+        tree.first,
+        tree.asker,
+        tasks::MessageKind::Answer { question: tree.question },
+        ANSWER_TEXT,
+        2,
+    );
+    fire_at(&mut tree.world, plus(T, QUESTION_SPAN));
+    assert_eq!(tree.world.domain.core().inspection_wait_bound(tree.asker), None);
+    assert!(live_row(&tree.world, tree.asker).questions.is_empty());
+}
+
+#[test]
+fn the_first_task_hears_who_answered_after_the_pass() {
+    let mut tree = question_tree(17245, None);
+    let pass = plus(T, QUESTION_SPAN);
+    fire_at(&mut tree.world, pass);
+    let answer_at = plus(pass, HOUR);
+    fire_at(&mut tree.world, answer_at);
+    let kind = tasks::MessageKind::Answer { question: tree.question };
+    question_call(&mut tree.world, tree.covering, tree.asker, kind.clone(), ANSWER_TEXT, 2);
+    fire_at(&mut tree.world, plus(answer_at, 10 * 60));
+    question_call(&mut tree.world, tree.first, tree.asker, kind, ANSWER_TEXT, 2);
+    let (_, _, core::CallPart::MessageRefused(problem)) = tree.world.answers.last().expect("answer reply") else {
+        panic!("expected late refusal: {:?}", tree.world.answers.last());
+    };
+    assert_eq!(
+        problem.why,
+        tasks::Refusal::QuestionAnswered {
+            question: tree.question,
+            by: tasks::QuestionAnswerer::Task(tree.covering.0)
+        }
+    );
+}

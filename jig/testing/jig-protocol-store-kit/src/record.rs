@@ -166,10 +166,11 @@ fn task_question_lines() -> Box<[jig_domain_tasks::QuestionLine]> {
         message: 5,
         line: 7,
         answer: Some(jig_domain_tasks::AnswerLine { task: 19, position: 11 }),
+        resolution: None,
     }])
 }
 
 fn task_credit() -> jig_domain_tasks::QuestionCredit {
     use jig_domain_tasks::{Party, QuestionCredit};
-    QuestionCredit { number: 5, answerer: Party::Task(19), asked: Party::Task(19), line: 7 }
+    QuestionCredit { number: 5, answerer: Party::Task(19), asked: Party::Task(19), line: 7, offer: None }
 }

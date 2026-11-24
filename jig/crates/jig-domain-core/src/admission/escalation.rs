@@ -207,6 +207,22 @@ pub(crate) fn wait_holder(
     route(core, limits, &context, core.people.role(requester, row.project), after)
 }
 
+/// Questions do not travel past the project's final role.
+pub(crate) fn next_question_holder(
+    core: &Core,
+    limits: &Limits,
+    row: &tasks::TaskRecord,
+    at: tasks::EscalationHolder,
+) -> Option<tasks::EscalationHolder> {
+    match at {
+        tasks::EscalationHolder::Role { .. } => None,
+        tasks::EscalationHolder::Task(_) | tasks::EscalationHolder::Person(_) => {
+            let next = wait_holder(core, limits, row, Some(at))?;
+            if next == at { None } else { Some(next) }
+        }
+    }
+}
+
 /// A person task passes the task holders and uses only the party end of the escalation route.
 pub(crate) fn next_person_holder(
     core: &Core,

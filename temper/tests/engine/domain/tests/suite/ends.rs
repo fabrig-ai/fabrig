@@ -60,6 +60,7 @@ fn asking_producer(store: &mut Store, requester: u64) {
         answerer: tasks::Party::Person(1),
         asked: tasks::Party::Person(1),
         line: 1,
+        offer: None,
     }]);
     let row = Record::Core(core::Record::Tasks(tasks::Stored::Live(Box::new(producer))));
     store.rows.insert(row.key(), row);

@@ -345,6 +345,32 @@ pub(super) fn task(limits: &Limits, value: &TaskRecord) -> Result<(), RestoreCau
     count(RestoreBound::Dependencies, value.added.len(), limits.dependencies)?;
     count(RestoreBound::Dependencies, value.started_from.len(), limits.dependencies)?;
     count(RestoreBound::InboxMessages, value.questions.len(), limits.inbox_messages)?;
+    for credit in &value.questions {
+        if let Some(offer) = &credit.offer {
+            match (&offer.holder, &offer.relay) {
+                (crate::EscalationHolder::Task(holder), Some(relay)) if *holder != 0 && relay.entry > credit.number => {
+                    count(RestoreBound::MessageBytes, relay.words.len(), limits.message_bytes)?;
+                }
+                (crate::EscalationHolder::Person(person), None) if *person != 0 => {}
+                (crate::EscalationHolder::Role { project, .. }, None) if *project == value.project => {}
+                _ => return Err(RestoreCause::Accounting),
+            }
+        }
+    }
+    for line in &value.question_lines {
+        if let Some(resolution) = &line.resolution {
+            if line.answer.is_none() {
+                return Err(RestoreCause::Accounting);
+            }
+            if let Some(notice) = &resolution.notice {
+                bound(
+                    RestoreBound::MessageBytes,
+                    len_u64(notice.words.len()),
+                    u64::try_from(crate::questions::ANSWER_NOTICE_BYTES).expect("question notice bound fits"),
+                )?;
+            }
+        }
+    }
     count(RestoreBound::InboxMessages, value.question_lines.len(), limits.inbox_messages)?;
     count(RestoreBound::InboxMessages, value.proposal_rows.len(), limits.inbox_messages)?;
     count(RestoreBound::InboxMessages, value.replies.len(), limits.inbox_messages)?;
@@ -473,6 +499,8 @@ fn payload_bound(value: &TaskRecord, word: &crate::Word, limits: &Limits) -> (Re
             }
         }
         MessageKind::EffectNotMade { .. }
+        | MessageKind::PassedQuestion { .. }
+        | MessageKind::PassedAnswer { .. }
         | MessageKind::Escalation { .. }
         | MessageKind::Proposal { .. }
         | MessageKind::PersonStalled { .. }

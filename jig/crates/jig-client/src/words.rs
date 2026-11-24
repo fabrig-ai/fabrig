@@ -4,7 +4,7 @@ mod facts;
 pub use facts::decision;
 mod english;
 use crate::{
-    contract::{Bound, HoldCategory, Phase, Refusal, WaitsOn},
+    contract::{Bound, HoldCategory, Phase, QuestionAnswerer, Refusal, WaitsOn},
     facts::{ChatStatus, RunWaitKind},
 };
 use alloc::boxed::Box;
@@ -12,7 +12,7 @@ pub use decision::DecisionWord;
 use skein_lib::List;
 use skein_ui::phrases::{HoleKind, HoleShape, Language, PhraseId, PhraseShape};
 /// Phrase count, for a caller composing a bounded phrasebook.
-pub const PHRASES: u32 = 135;
+pub const PHRASES: u32 = 137;
 /// Owner of jig's public enum vocabulary.
 pub const OWNER: skein_ui::Owner = skein_ui::Owner { number: 65_537 };
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -49,6 +49,8 @@ pub enum HoldWord {
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum RefusalWord {
+    QuestionAnsweredByTask,
+    QuestionAnsweredByPerson,
     Unlinked,
     Concluded,
     Judged,
@@ -156,6 +158,10 @@ impl Word {
     #[must_use]
     pub fn refusal(value: &Refusal) -> Self {
         Self::Refusal(match value {
+            Refusal::QuestionAnswered { by, .. } => match by {
+                QuestionAnswerer::Task(_) => RefusalWord::QuestionAnsweredByTask,
+                QuestionAnswerer::Person(_) => RefusalWord::QuestionAnsweredByPerson,
+            },
             Refusal::Unlinked { .. } => RefusalWord::Unlinked,
             Refusal::Concluded { .. } => RefusalWord::Concluded,
             Refusal::Judged { .. } => RefusalWord::Judged,
@@ -257,7 +263,7 @@ impl Word {
     }
 }
 /// All public words, for composing phrasebook capacities without allocation.
-pub const ALL: [Word; 135] = [
+pub const ALL: [Word; 137] = [
     Word::Refusal(RefusalWord::Judged),
     Word::Refusal(RefusalWord::Stale),
     Word::Refusal(RefusalWord::Forgotten),
@@ -325,6 +331,8 @@ pub const ALL: [Word; 135] = [
     Word::Refusal(RefusalWord::Moved),
     Word::Refusal(RefusalWord::Ended),
     Word::Refusal(RefusalWord::Unlinked),
+    Word::Refusal(RefusalWord::QuestionAnsweredByTask),
+    Word::Refusal(RefusalWord::QuestionAnsweredByPerson),
     Word::Refusal(RefusalWord::Concluded),
     Word::Refusal(RefusalWord::Provider),
     Word::Refusal(RefusalWord::Unknown),

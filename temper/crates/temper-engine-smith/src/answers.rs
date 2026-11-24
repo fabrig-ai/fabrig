@@ -1410,6 +1410,7 @@ fn task_problem(text: &mut Text, problem: &jig_domain_tasks::Problem) -> Result<
         Refusal::Circle { .. } => text.add(b"circle"),
         Refusal::DependencyEnded { .. } => text.add(b"dependency"),
         Refusal::Kept | Refusal::KeptQuestion { .. } => text.add(b"kept"),
+        Refusal::QuestionAnswered { question, by } => text.add(&by.answered_words(question)),
         Refusal::PersonAnswers { question } => {
             text.add(b"your person answers question ")?;
             text.number(question)?;

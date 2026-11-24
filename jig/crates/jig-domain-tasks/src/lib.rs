@@ -115,7 +115,7 @@ mod periods;
 mod placed;
 mod positions;
 pub use placed::{Mode, Owner, PlacedHold, Scope};
-pub use positions::{AnswerLine, ProposalRow, QuestionLine};
+pub use positions::{AnswerLine, ProposalRow, QuestionAnswerNotice, QuestionLine, QuestionResolution};
 mod person;
 mod person_proposals;
 mod procedure;
@@ -160,11 +160,11 @@ pub use boundary::{
     DelegationContext, End, Ending, Event, Exceeded, Executor, FieldRule, Hold, HoldKind, HoldSource, Holding,
     InvalidResult, JobSpec, KeptStart, Key, Kind, Message, MessageKind, Name, New, NewsClass, NoticeState, Parameter,
     Party, PersonAddress, PersonAnswer, PersonOffer, PersonStallNotice, PersonWait, Phase, PoolSlots, Problem,
-    ProcedureDecision, ProcedureEnd, ProcedureInput, QuestionCredit, QuestionNotice, RecurringOverlap, RecurringState,
-    RecurringTemplate, Refusal, ReplyHint, Request, ResourceAccess, ResultField, ResultFollowups, ResultKind,
-    ResultsWake, Revisions, RunContext, SavedResource, SettingsRevision, Spec, Stage, Status, Stored, Stub,
-    Subscription, SubscriptionKind, SuspendWhy, Suspended, Suspension, Taken, TaskRecord, TaskResult, Verdict,
-    WakePolicy, WakeRule, Was, Word, Writer, WriterSlot,
+    ProcedureDecision, ProcedureEnd, ProcedureInput, QuestionAnswerer, QuestionCredit, QuestionNotice, QuestionOffer,
+    QuestionRelay, RecurringOverlap, RecurringState, RecurringTemplate, Refusal, ReplyHint, Request, ResourceAccess,
+    ResultField, ResultFollowups, ResultKind, ResultsWake, Revisions, RunContext, SavedResource, SettingsRevision,
+    Spec, Stage, Status, Stored, Stub, Subscription, SubscriptionKind, SuspendWhy, Suspended, Suspension, Taken,
+    TaskRecord, TaskResult, Verdict, WakePolicy, WakeRule, Was, Word, Writer, WriterSlot,
 };
 pub use boundary::{Hint, MessageFamily, Separate, Slot, Spoken, WAIT_WORDS};
 pub use capacity::{Capacity, CapacityAction, CapacityCause, CapacityRefusal};
@@ -193,7 +193,7 @@ pub use proposals::{
     ProposalDecision, ProposalHolder, ProposalKind, ProposalOutcome, ProposalState, SETTINGS_ITEMS, Setting,
     SettingEdit, SettingHead, SettingsDecision, SettingsOutcome,
 };
-pub use questions::{OpenQuestion, open_question_reason};
+pub use questions::{OpenQuestion, QuestionTicket, open_question_reason};
 pub use runtime::{REASON_BYTES, RetryNotice};
 pub use value::{
     Authority, AuthorityExecutor, Budget, Delegation, Funder, Grant, Last, Models, Numbers, Pattern, ResourceScope,

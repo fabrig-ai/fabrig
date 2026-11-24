@@ -15,7 +15,7 @@ const CUT: &[u8] = b" [cut]";
 
 pub(super) fn source(figures: Figures, agenda: &Agenda) -> Box<[u8]> {
     let mut out = Words { bytes: List::with_capacity(WAIT_WORDS), cut: false };
-    let deadline = if agenda.first.why == Hold::Deadline { agenda.deadline } else { None };
+    let deadline = if agenda.first.action == super::Action::Hold(Hold::Deadline) { agenda.deadline } else { None };
     if let Some(deadline) = deadline {
         out.put(b"Deadline ");
         out.at(deadline);

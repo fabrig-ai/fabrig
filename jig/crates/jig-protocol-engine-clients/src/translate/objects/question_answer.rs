@@ -14,7 +14,7 @@ pub fn message_kind(value: &t::MessageKind) -> Result<w::MessageKind, w::Problem
                 outcome: settings_outcome(*outcome),
             })
         }
-        t::MessageKind::QuestionAnswered { question } => {
+        t::MessageKind::QuestionAnswered { question } | t::MessageKind::PassedAnswer { question } => {
             w::MessageKind::QuestionAnswered(w::MessageKindAnswer { question: *question })
         }
         t::MessageKind::QuestionOwed => w::MessageKind::QuestionOwed,
@@ -23,7 +23,7 @@ pub fn message_kind(value: &t::MessageKind) -> Result<w::MessageKind, w::Problem
             w::MessageKind::QuestionEnded(w::MessageKindAnswer { question: *question })
         }
         t::MessageKind::Words => w::MessageKind::Words,
-        t::MessageKind::Question => w::MessageKind::Question,
+        t::MessageKind::Question | t::MessageKind::PassedQuestion { .. } => w::MessageKind::Question,
         t::MessageKind::Escalation { task, revision } => {
             w::MessageKind::Escalation(w::MessageKindEscalation { task: *task, revision: *revision })
         }

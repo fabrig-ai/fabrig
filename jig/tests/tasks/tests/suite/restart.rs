@@ -767,7 +767,8 @@ fn writer_referee_catches_phase_observations_and_positions_that_restore_does_not
             name: "question position",
             expected: "writer lifecycle observations or positions disagree",
             apply: |row| {
-                row.question_lines = Box::new([jig_domain_tasks::QuestionLine { message: 0, line: 0, answer: None }]);
+                row.question_lines =
+                    Box::new([jig_domain_tasks::QuestionLine { message: 0, line: 0, answer: None, resolution: None }]);
             },
         },
         Case {

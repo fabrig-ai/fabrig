@@ -364,7 +364,7 @@ fn a_task_record_without_optional_values_reads_back() {
     record.hold_wait_since = None;
     record.last_answer = None;
     record.invalid_result = None;
-    record.question_lines = Box::new([domain::QuestionLine { message: 5, line: 7, answer: None }]);
+    record.question_lines = Box::new([domain::QuestionLine { message: 5, line: 7, answer: None, resolution: None }]);
     let row = live_record(record);
     assert_eq!(saved_tasks(&row), Ok(row));
 }

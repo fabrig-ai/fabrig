@@ -272,16 +272,59 @@ pub(crate) fn question(
         return Err(people::Refusal::NotOffered);
     }
     let row = core.tasks.task(number).ok_or(people::Refusal::Unknown)?;
-    standing::role(core, row.project, core.people.role(party, row.project), act)?;
+    let role = core.people.role(party, row.project);
+    let ticket = core.tasks.question_ticket(number, message);
+    if let Some(ticket) = ticket
+        && at_question_offer(ticket, number, row.project, party, role)
+    {
+        if let Some(by) = ticket.by {
+            return Err(crate::routing::refusals::answered(message, by));
+        }
+        return super::mutable_phase(&row.phase);
+    }
+    standing::role(core, row.project, role, act)?;
     if row.requester != tasks::Party::Person(party) {
         return Err(people::Refusal::Unknown);
     }
-    writable_in(core, limits, party, number, &tasks::CompoundAdmission::new(&core.tasks, 0), true)?;
-    let mut found = false;
-    for line in &row.question_lines {
-        if line.message == message && line.answer.is_none() {
-            found = true;
+    if let Some(ticket) = ticket {
+        if ticket.asked != number
+            || (core.person_answers
+                && ticket.first != tasks::QuestionAnswerer::Person(party)
+                && core.question_requester(row) != Some(party))
+        {
+            return Err(people::Refusal::Unknown);
+        }
+        if let Some(by) = ticket.by {
+            return Err(crate::routing::refusals::answered(message, by));
         }
     }
-    if found { Ok(()) } else { Err(people::Refusal::Authority { proposable: None, lacking: people::Lack::Reference }) }
+    writable_in(core, limits, party, number, &tasks::CompoundAdmission::new(&core.tasks, 0), true)?;
+    for line in &row.question_lines {
+        if line.message == message && line.answer.is_none() {
+            return Ok(());
+        }
+    }
+    Err(people::Refusal::Authority { proposable: None, lacking: people::Lack::Reference })
+}
+
+/// The offered inbox entry grants its named party the answer, including a
+/// role holder acting as a person, not other writes to the task.
+pub(crate) fn at_question_offer(
+    ticket: tasks::QuestionTicket,
+    link: u64,
+    project: u32,
+    party: u64,
+    role: Option<people::Role>,
+) -> bool {
+    if role.is_none() || ticket.asker != link {
+        return false;
+    }
+    let address = match ticket.holder {
+        Some(tasks::EscalationHolder::Person(person)) => tasks::PersonAddress::Person(person),
+        Some(tasks::EscalationHolder::Role { project: held_project, role }) if held_project == project => {
+            tasks::PersonAddress::Role(role)
+        }
+        Some(tasks::EscalationHolder::Role { .. } | tasks::EscalationHolder::Task(_)) | None => return false,
+    };
+    crate::admission::person_task::address_matches(address, party, role)
 }

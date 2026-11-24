@@ -406,6 +406,7 @@ pub fn refusal(why: &Refusal, book: &Phrasebook, out: &mut Text) {
         | Refusal::NotLending
         | Refusal::NotOffered
         | Refusal::KeyConflict
+        | Refusal::QuestionAnswered { .. }
         | Refusal::Llm { .. } => {}
     }
     plain_refusal(why, book, out);
@@ -427,6 +428,9 @@ fn plain_refusal(why: &Refusal, book: &Phrasebook, out: &mut Text) {
         }
         Refusal::Judged { why, .. } => book.say(0, word.id(), &[Hole::Name(why.bytes().into())]),
         Refusal::Account { account, .. } => book.say(0, word.id(), &[Hole::Number(u64::from(*account))]),
+        Refusal::QuestionAnswered { question, by } => {
+            book.say(0, word.id(), &[Hole::Number(*question), Hole::Number(by.number())])
+        }
         Refusal::Taken { by } => book.say(0, word.id(), &[Hole::Number(*by)]),
         Refusal::Llm { model, .. } => book.say(0, word.id(), &[Hole::Name(model.bytes().into())]),
         Refusal::NoEscalationHolder

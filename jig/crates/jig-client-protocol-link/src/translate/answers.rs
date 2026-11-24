@@ -456,6 +456,13 @@ pub(crate) fn refusal(value: &w::Refusal, limits: &Limits) -> Result<c::Refusal,
         w::Refusal::LiveTasks(value) => c::Refusal::LiveTasks { tasks: value.tasks.clone(), more: value.more },
         w::Refusal::Circle(value) => c::Refusal::Circle { tasks: value.tasks.clone(), cut: value.cut },
         w::Refusal::Kept(value) => c::Refusal::Kept { pending: value.pending.clone() },
+        w::Refusal::QuestionAnswered(value) => c::Refusal::QuestionAnswered {
+            question: value.question,
+            by: match &value.by {
+                w::QuestionAnswerer::Task(v) => c::QuestionAnswerer::Task(v.number),
+                w::QuestionAnswerer::Person(v) => c::QuestionAnswerer::Person(v.number),
+            },
+        },
         w::Refusal::Unlinked(value) => c::Refusal::Unlinked { worker: value.worker },
         w::Refusal::Concluded(value) => c::Refusal::Concluded { at: Wall::from_nanos(value.at) },
         w::Refusal::Dependency(value) => c::Refusal::Dependency {

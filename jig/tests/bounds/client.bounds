@@ -112,6 +112,7 @@ Answer: ceilings encoded=131103 decoded=131072; at_most(3) encoded=37 decoded=6
 AnswerOn: ceilings encoded=131099 decoded=131072; at_most(3) encoded=33 decoded=6
 AnswerPerson: ceilings encoded=131098 decoded=131072; at_most(3) encoded=32 decoded=6
 AnswerQuestion: ceilings encoded=65556 decoded=65536; at_most(3) encoded=23 decoded=3
+AnswererNumber: ceilings encoded=8 decoded=0; at_most(3) encoded=8 decoded=0
 AnswersFull: ceilings encoded=12 decoded=0; at_most(3) encoded=12 decoded=0
 ApplicationEdit: ceilings encoded=5 decoded=0; at_most(3) encoded=5 decoded=0
 ApplicationFollows: ceilings encoded=5 decoded=0; at_most(3) encoded=5 decoded=0
@@ -734,6 +735,7 @@ ProviderTransport: ceilings encoded=8202 decoded=8192; at_most(3) encoded=16 dec
 ProvisionalTurnName: ceilings encoded=16 decoded=0; at_most(3) encoded=16 decoded=0
 QueryOrder: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
 Question: ceilings encoded=50397228 decoded=50397184; at_most(3) encoded=56 decoded=12
+QuestionAnswerer: ceilings encoded=9 decoded=0; at_most(3) encoded=9 decoded=0
 Read: ceilings encoded=2229403 decoded=2229760; at_most(3) encoded=96 decoded=66
 ReadActivity: ceilings encoded=1037 decoded=1024; at_most(3) encoded=16 decoded=3
 ReadActivityBeside: ceilings encoded=17 decoded=0; at_most(3) encoded=17 decoded=0
@@ -788,6 +790,7 @@ RefusalLiveTasks: ceilings encoded=264 decoded=256; at_most(3) encoded=32 decode
 RefusalLlm: ceilings encoded=4101 decoded=4096; at_most(3) encoded=8 decoded=3
 RefusalMalformed: ceilings encoded=38 decoded=0; at_most(3) encoded=38 decoded=0
 RefusalMoved: ceilings encoded=16777231 decoded=16777216; at_most(3) encoded=21 decoded=3
+RefusalQuestionAnswered: ceilings encoded=17 decoded=0; at_most(3) encoded=17 decoded=0
 RefusalRole: ceilings encoded=6 decoded=0; at_most(3) encoded=6 decoded=0
 RefusalSignInRedirect: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
 RefusalStale: ceilings encoded=4 decoded=0; at_most(3) encoded=4 decoded=0

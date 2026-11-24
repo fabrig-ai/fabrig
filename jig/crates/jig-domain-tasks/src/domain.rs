@@ -820,6 +820,12 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
         Event::PersonQuestion { reply_to, project, task, person, word } => {
             crate::questions::person_question(domain, env, reply_to, (project, person), task, word, out);
         }
+        Event::PassQuestion { asker, question, offer } => {
+            crate::questions::pass(domain, env, asker, question, offer, out);
+        }
+        Event::AnswerOfferedQuestion { reply_to, project, asker, word } => {
+            crate::questions::offered_answer(domain, env, reply_to, project, asker, word, out);
+        }
         Event::PersonQuestionAnswer { reply_to, project, asked, person, question, word, notice } => {
             crate::questions::person_answer(
                 domain,
@@ -1177,6 +1183,9 @@ impl Domain {
         for word in crate::escalation::waiting_for(self, number) {
             last = last.max(word.number);
         }
+        for word in crate::questions::waiting_for(self, number) {
+            last = last.max(word.number);
+        }
         Some(last)
     }
 
@@ -1199,8 +1208,10 @@ impl Domain {
         }
         let waiting = crate::proposals::waiting_for(domain, number);
         let escalations = crate::escalation::waiting_for(domain, number);
+        let questions = crate::questions::waiting_for(domain, number);
         let capacity = task.inbox.len().checked_add(waiting.len()).expect("bounded inbox and proposals");
         let capacity = capacity.checked_add(escalations.len()).expect("bounded inbox and decisions");
+        let capacity = capacity.checked_add(questions.len()).expect("bounded inbox and questions");
         let mut unordered = List::with_capacity(u32::try_from(capacity).expect("bounded inbox and proposals"));
         for word in &task.inbox {
             unordered.push(word.clone()).expect("inbox counted");
@@ -1210,6 +1221,9 @@ impl Domain {
         }
         for word in escalations {
             unordered.push(word).expect("virtual escalation counted");
+        }
+        for word in questions {
+            unordered.push(word).expect("virtual question counted");
         }
         let mut inbox = List::with_capacity(unordered.len());
         let mut previous = 0_u64;

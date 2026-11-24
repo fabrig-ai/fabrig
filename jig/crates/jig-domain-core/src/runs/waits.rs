@@ -64,11 +64,8 @@ impl Core {
     fn own_waits(&self, row: &tasks::TaskRecord, (working, parked): (bool, Option<Wall>)) -> own::Records {
         let limits = &self.wait_limits;
         let mut own = own::Own::new();
-        let inbox = self.waiting_entries(limits, row);
-        for entry in inbox.iter().chain(own::policy_entry(row, &inbox).iter()) {
-            if let Some(fact) = own::party_fact(row, *entry) {
-                own.party(self, limits, row, &fact);
-            }
+        for fact in &own::party_entries(self, limits, row) {
+            own.party(self, limits, row, fact);
         }
         own.finish(self, limits, row, working, parked, due_wait(self, row));
         own.into_records()
@@ -121,9 +118,8 @@ pub(crate) fn read(core: &Core, limits: &Limits, row: &tasks::TaskRecord) -> Pro
             candidate
         };
         phases.add(&candidate.phase);
-        let inbox = core.waiting_entries(limits, candidate);
-        for entry in inbox.iter().chain(own::policy_entry(candidate, &inbox).iter()) {
-            let Some(entry) = own::party_fact(candidate, *entry) else { continue };
+        for entry in &own::party_entries(core, limits, candidate) {
+            let entry = *entry;
             entries = entries.saturating_add(1);
             let earlier = match oldest {
                 Some((previous, _)) => (entry.at, entry.task) < (previous.at, previous.task),

@@ -151,6 +151,8 @@ pub fn limits(domain: &domain::Limits) -> Option<wire::Limits> {
         true,
     )?;
     let limits = wire::Limits {
+        question_relay_words: domain.message_bytes,
+        question_answer_notice_words: wire::CEILINGS.question_answer_notice_words,
         task_summary_title: domain::SUMMARY_TEXT,
         task_summary_reason: domain::SUMMARY_TEXT,
         summary_result_words: domain::SUMMARY_TEXT,

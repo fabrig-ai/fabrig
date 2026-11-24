@@ -598,7 +598,7 @@ fn party_refusal(why: people::Refusal) -> parties::Refusal {
         people::Refusal::NotWellFormed {
             why: people::Malformed::Conversation | people::Malformed::EndedBy, ..
         } => parties::Refusal::Limit { which: parties::LimitKind::Spec },
-        people::Refusal::NotWaiting => parties::Refusal::NotWaiting,
+        people::Refusal::NotWaiting | people::Refusal::QuestionAnswered { .. } => parties::Refusal::NotWaiting,
         people::Refusal::NoFurther => parties::Refusal::NoFurther,
         people::Refusal::LiveTasks { .. }
         | people::Refusal::NoTerminal

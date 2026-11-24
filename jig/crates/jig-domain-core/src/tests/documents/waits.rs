@@ -35,7 +35,8 @@ fn question(number: u64, at: u64) -> tasks::Word {
 fn an_askers_credit_keeps_question_words_while_it_closes() {
     let (mut core, limits) = pair();
     let mut parent = core.tasks.task(1).unwrap().clone();
-    parent.question_lines = Box::new([tasks::QuestionLine { message: 3, line: parent.activity, answer: None }]);
+    parent.question_lines =
+        Box::new([tasks::QuestionLine { message: 3, line: parent.activity, answer: None, resolution: None }]);
     let mut child = core.tasks.task(2).unwrap().clone();
     let question = tasks::OpenQuestion { asker: 2, number: 3, line: child.activity };
     child.questions = Box::new([tasks::QuestionCredit {
@@ -43,6 +44,7 @@ fn an_askers_credit_keeps_question_words_while_it_closes() {
         answerer: tasks::Party::Task(1),
         asked: tasks::Party::Task(1),
         line: child.activity,
+        offer: None,
     }]);
     child.phase = tasks::Phase::Closing(tasks::Closing {
         stage: tasks::Stage::Effects,
@@ -81,7 +83,8 @@ fn a_question_to_the_requester_names_that_party_and_one_entry() {
     parent.questions = Box::new([own_credit(&parent, 7)]);
     parent.inbox = Box::new([question(3, 10)]);
     parent.last_message = 3;
-    parent.question_lines = Box::new([tasks::QuestionLine { message: 3, line: parent.activity, answer: None }]);
+    parent.question_lines =
+        Box::new([tasks::QuestionLine { message: 3, line: parent.activity, answer: None, resolution: None }]);
     let child = core.tasks.task(2).unwrap().clone();
     restore(&mut core, &limits, Box::new([parent, child]));
     let position = core.tasks.task(1).unwrap().activity;
@@ -115,7 +118,8 @@ fn the_oldest_of_two_waiting_entries_names_whom() {
     parent.questions = Box::new([own_credit(&parent, 7)]);
     parent.inbox = Box::new([question(3, 10)]);
     parent.last_message = 3;
-    parent.question_lines = Box::new([tasks::QuestionLine { message: 3, line: parent.activity, answer: None }]);
+    parent.question_lines =
+        Box::new([tasks::QuestionLine { message: 3, line: parent.activity, answer: None, resolution: None }]);
     let mut child = core.tasks.task(2).unwrap().clone();
     child.revisions.hold = 1;
     child.escalation = tasks::Escalation::Waiting {
@@ -260,7 +264,7 @@ fn a_kept_idle_row_waits_on_dependencies_before_delegates_and_cuts_oldest_first(
 }
 
 fn own_credit(row: &tasks::TaskRecord, number: u64) -> tasks::QuestionCredit {
-    tasks::QuestionCredit { number, answerer: row.requester, asked: row.requester, line: row.activity }
+    tasks::QuestionCredit { number, answerer: row.requester, asked: row.requester, line: row.activity, offer: None }
 }
 
 #[test]
@@ -368,7 +372,8 @@ fn remember(core: &mut Core, task: u64, line: u64, message: u64) {
 fn party_question_uses_asking_time_and_distinguishes_pass_up_from_overdue() {
     let (mut core, limits) = pair();
     let mut row = core.tasks.task(1).unwrap().clone();
-    row.question_lines = Box::new([tasks::QuestionLine { message: 7, line: row.activity, answer: None }]);
+    row.question_lines =
+        Box::new([tasks::QuestionLine { message: 7, line: row.activity, answer: None, resolution: None }]);
     remember(&mut core, row.number, row.activity, 7);
     let mut expected = Wait {
         task: 1,
@@ -704,7 +709,8 @@ fn a_goal_keeps_its_descendants_question_and_the_earliest_bound() {
     let leaf = new_row(&core, 3, tasks::Funder::Period { project: 1, period: 1 }, None);
     make_batch(&mut core, &limits, tasks::Party::Person(1), Box::new([leaf]));
     let mut leaf = core.tasks.task(3).unwrap().clone();
-    leaf.question_lines = Box::new([tasks::QuestionLine { message: 7, line: leaf.activity, answer: None }]);
+    leaf.question_lines =
+        Box::new([tasks::QuestionLine { message: 7, line: leaf.activity, answer: None, resolution: None }]);
     remember(&mut core, leaf.number, leaf.activity, 7);
     let mut child = core.tasks.task(2).unwrap().clone();
     // Supply the wait walk with a person-facing question below the direct delegate.

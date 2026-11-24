@@ -674,6 +674,8 @@ impl World {
             | Event::Message { .. }
             | Event::PersonQuestion { .. }
             | Event::PersonQuestionAnswer { .. }
+            | Event::PassQuestion { .. }
+            | Event::AnswerOfferedQuestion { .. }
             | Event::Talk { .. }
             | Event::AuthorizedMessage { .. }
             | Event::Introduce { .. }
@@ -694,6 +696,11 @@ impl World {
             | Event::Notice { .. } => None,
         };
         match event {
+            Event::PassQuestion { offer, .. } => {
+                if let Some(relay) = &offer.relay {
+                    self.message = self.message.max(relay.entry);
+                }
+            }
             Event::QuestionEndedNotice { notices, .. } => {
                 for notice in notices {
                     self.message = self.message.max(notice.message);
@@ -710,6 +717,7 @@ impl World {
             Event::Message { operation: tasks::Message { word, .. }, .. }
             | Event::PersonQuestion { word, .. }
             | Event::PersonQuestionAnswer { word, .. }
+            | Event::AnswerOfferedQuestion { word, .. }
             | Event::Talk { operation: tasks::Message { word, .. }, .. }
             | Event::AuthorizedMessage { operation: tasks::Message { word, .. }, .. }
             | Event::DelegateResult { word, .. }
