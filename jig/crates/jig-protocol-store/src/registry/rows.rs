@@ -112,6 +112,7 @@ fn made(
     Some(value)
 }
 pub(super) fn register(store: &Store, layouts: &mut Layouts, binary: &mut texts::Binary) -> Result<bool, OpenRefusal> {
+    layouts.owners = store.owner_sets;
     let mut changed = false;
     for set in store.owner_sets.sets {
         for family in set.families {
@@ -200,7 +201,7 @@ fn remember(order: &mut wire::Order, fingerprint: Digest) -> bool {
     true
 }
 
-fn key(key: &RowKey, limit: u32) -> Option<Box<[u8]>> {
+pub(super) fn key(key: &RowKey, limit: u32) -> Option<Box<[u8]>> {
     keys::encode_own(&keys::Own::Layout { family: key.0.clone(), number: key.1, id: key.2 }, limit)
 }
 pub(super) fn operations(bound: u32, layouts: &mut Layouts) -> Result<(), OpenRefusal> {
@@ -242,15 +243,15 @@ pub(super) fn operations(bound: u32, layouts: &mut Layouts) -> Result<(), OpenRe
             layouts.pending.push(skein_kv::Op::Put { key, value });
         }
     }
-    // Stage the resulting registry for a later settling retirement. Keep the
-    // rows and texts until jobs end: a written job's first page names them.
+    // Keep the rows and texts until jobs end: a written job's first page names them.
+    // A retirement does not stop protecting its text unless its erase enters a writing open's batch.
     let mut row_keys = List::uncapped();
     for (key, _) in &layouts.rows {
         row_keys.push(key.clone()).expect("uncapped row keys");
     }
     for key in &row_keys {
         let row = layouts.rows.get_mut(key).expect("held row");
-        row.stored = !row.retire;
+        row.stored |= !row.retire;
     }
     let mut digests = List::uncapped();
     for (digest, _) in &layouts.texts {

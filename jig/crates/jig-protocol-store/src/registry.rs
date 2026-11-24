@@ -13,6 +13,7 @@ mod counting;
 mod depth;
 pub(crate) mod rehearsal;
 mod rows;
+pub(crate) mod settling;
 #[cfg(test)]
 mod tests;
 mod texts;
@@ -101,6 +102,25 @@ struct Type {
     keeping: List<u16>,
     plans: Map<u16, Plan>,
 }
+enum ReadAs {
+    Stored,
+    Reheaded,
+    Converted,
+}
+impl Type {
+    fn read_as(&self, id: u16, value: &[u8], work: &mut ReadWork) -> ReadAs {
+        if id == self.binary || self.keeping.as_slice().contains(&id) {
+            return ReadAs::Reheaded;
+        }
+        if let Some(plan) = self.plans.get(&id)
+            && work.convert(plan, value).is_ok()
+        {
+            return ReadAs::Converted;
+        }
+        ReadAs::Stored
+    }
+}
+
 #[derive(Debug)]
 struct Range {
     to: Box<[u8]>,
@@ -119,6 +139,10 @@ pub(crate) struct Layouts {
     texts: Map<Digest, Text>,
     prepared_schemas: &'static [Schema],
     pending: Queue<skein_kv::Op>,
+    owners: crate::OwnerSets,
+    walk: Option<Box<settling::Walk>>,
+    #[cfg(test)]
+    pub(crate) walk_reads: u32,
 }
 impl Layouts {
     pub(crate) fn new() -> Self {
@@ -133,6 +157,10 @@ impl Layouts {
             texts: Map::uncapped(),
             prepared_schemas: &[],
             pending: Queue::uncapped(),
+            owners: crate::OwnerSets::NONE,
+            walk: None,
+            #[cfg(test)]
+            walk_reads: 0,
         }
     }
     fn resolve_index(&self, key: &[u8]) -> Option<u32> {
@@ -178,29 +206,28 @@ impl Layouts {
         let Some(id) = head(value) else {
             return value;
         };
-        if id == ty.binary {
-            rehead(value, ty.version);
-            return value;
+        match ty.read_as(id, value, work) {
+            ReadAs::Stored => value,
+            ReadAs::Reheaded => {
+                rehead(value, ty.version);
+                value
+            }
+            ReadAs::Converted => work.buffer.as_slice(),
         }
-        if ty.keeping.as_slice().contains(&id) {
-            rehead(value, ty.version);
-            return value;
-        }
-        let Some(plan) = ty.plans.get(&id) else {
-            return value;
-        };
-        if work.convert(plan, value).is_ok() { work.buffer.as_slice() } else { value }
     }
     pub(crate) fn activate(&mut self) {
         self.active = true;
     }
-    /// Once registry writes and written jobs are durable, only the read and
-    /// write edges' tables survive. Activation itself precedes written jobs.
+    /// Once registry writes and written jobs are durable, keep the read and
+    /// write edges' tables and just the references the serving walk needs.
+    /// Activation itself precedes written jobs.
     pub(crate) fn settle(&mut self) {
-        if !self.active {
+        if !self.active || self.rows.is_empty() {
             return;
         }
         assert!(self.pending.is_empty(), "registry writes finished before settling");
+        self.walk = settling::Walk::new(self);
+        self.owners = crate::OwnerSets::NONE;
         self.rows = Map::uncapped();
         self.texts = Map::uncapped();
         self.pending = Queue::uncapped();
@@ -211,6 +238,9 @@ impl Layouts {
         }
         let types = core::mem::replace(&mut self.types, List::uncapped());
         self.types = List::from_boxed(types.into_boxed());
+    }
+    pub(crate) fn committed(&mut self, number: u64) {
+        settling::committed(self, number);
     }
     #[cfg(test)]
     pub(crate) fn assert_settled(&self) {
@@ -227,9 +257,21 @@ impl Layouts {
             }
         }
     }
+    fn next_op(&mut self) -> Option<skein_kv::Op> {
+        let op = self.pending.pop()?;
+        if let skein_kv::Op::Erase { key } = &op
+            && key.starts_with(&[crate::keys::COMPONENT, 6])
+            && let Some(crate::keys::Own::Layout { family, number, id }) = crate::keys::decode_own(key)
+            && let Some(row) = self.rows.get_mut(&(family, number, id))
+        {
+            // The serving tables are built after the pending operations commit.
+            row.stored = false;
+        }
+        Some(op)
+    }
     pub(crate) fn first(&mut self, ops: &mut List<skein_kv::Op>) -> Option<()> {
         for _ in 0..self.pending.len() {
-            ops.push(self.pending.pop()?).ok()?;
+            ops.push(self.next_op()?).ok()?;
         }
         Some(())
     }
@@ -244,7 +286,7 @@ impl Layouts {
                 break;
             }
             bytes = total;
-            ops.push(self.pending.pop()?).ok()?;
+            ops.push(self.next_op()?).ok()?;
         }
         if ops.is_empty() && !self.pending.is_empty() {
             return None;

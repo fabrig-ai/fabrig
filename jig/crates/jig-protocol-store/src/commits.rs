@@ -12,7 +12,7 @@ pub(crate) fn submit(
     above: &mut Queue<Event>,
     below: &mut crate::Below,
 ) {
-    let ops = match prepare(store, ops) {
+    let ops = match prepare(store, number, ops) {
         Ok(ops) => ops,
         Err(check) => {
             store.phase = crate::Phase::Stopped;
@@ -31,7 +31,7 @@ pub(crate) fn submit(
     );
     crate::directory::events_up(store, false, &mut events, above, below);
 }
-fn prepare(store: &mut Store, ops: Box<[skein_kv::Op]>) -> Result<Box<[skein_kv::Op]>, CommitCheck> {
+fn prepare(store: &mut Store, number: u64, ops: Box<[skein_kv::Op]>) -> Result<Box<[skein_kv::Op]>, CommitCheck> {
     let mut ops = unique(ops, store.limits.store.ops).ok_or(CommitCheck::Capacity)?;
     for op in &mut ops {
         if let skein_kv::Op::Put { key, value } = op {
@@ -39,8 +39,8 @@ fn prepare(store: &mut Store, ops: Box<[skein_kv::Op]>) -> Result<Box<[skein_kv:
         }
     }
     let ops = crate::logs::write::route(store, ops)?;
-    crate::logs::write::bounds(store, &ops)?;
-    Ok(ops)
+    let (count, bytes) = crate::logs::write::bounds(store, &ops)?;
+    Ok(crate::registry::settling::ride(store, number, ops, count, bytes))
 }
 
 #[derive(Debug)]

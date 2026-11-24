@@ -88,7 +88,7 @@ fn history(store: &mut Store, task: u64, rows: &Rows, ops: &mut List<skein_kv::O
 }
 
 /// Count payload operations and their map extents, and the bytes skein-kv commits.
-pub(crate) fn bounds(store: &Store, ops: &[skein_kv::Op]) -> Result<(), CommitCheck> {
+pub(crate) fn bounds(store: &Store, ops: &[skein_kv::Op]) -> Result<(u32, u64), CommitCheck> {
     let mut count = u32::try_from(ops.len()).or(Err(CommitCheck::Capacity))?;
     let mut bytes = u64::from(skein_kv::FRAME_BYTES);
     for op in ops {
@@ -116,5 +116,5 @@ pub(crate) fn bounds(store: &Store, ops: &[skein_kv::Op]) -> Result<(), CommitCh
     if bytes > u64::from(store.limits.store.commit) {
         return Err(CommitCheck::Bytes);
     }
-    Ok(())
+    Ok((count, bytes))
 }
