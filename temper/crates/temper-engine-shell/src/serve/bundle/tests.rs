@@ -172,7 +172,10 @@ fn serve_refusal(files: &[(&str, &[u8])], empty: &[&str]) -> String {
 fn a_bundle_page_without_a_head_refuses_the_start_for_its_metadata() {
     assert_eq!(
         serve_refusal(BUNDLE_FILES, &[]),
-        "temper serve: temper.toml:2: internal.bundle: /fixture/bundle: the page has no </head> for its sign-in metadata\n"
+        format!(
+            "temper serve: {}:2: internal.bundle: /fixture/bundle: the page has no </head> for its sign-in metadata\n",
+            temper_config_shell::FILE
+        )
     );
 }
 
@@ -199,7 +202,7 @@ fn a_directory_that_is_no_bundle_refuses_the_start() {
     ] {
         assert_eq!(
             serve_refusal(files, empty),
-            format!("temper serve: temper.toml:2: internal.bundle: {expected}\n"),
+            format!("temper serve: {}:2: internal.bundle: {expected}\n", temper_config_shell::FILE),
             "row {name}"
         );
     }

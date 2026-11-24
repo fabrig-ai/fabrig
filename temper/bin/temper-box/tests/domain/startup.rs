@@ -295,7 +295,7 @@ fn turn_bounds() {
     ]);
     let qa = tree.join("docs/development/qa/setups");
     for (source, document) in [
-        ("cluster-turn/engine/temper.toml", cluster_turn),
+        (format!("cluster-turn/engine/{}", temper_config_shell::FILE).as_str(), cluster_turn),
         (
             "turn-landing/config/engine.toml",
             turn_landing_fixture::engine_template(&qa.join("turn-landing"), root, inert),
@@ -321,7 +321,7 @@ fn turn_bounds() {
     );
     let turn = turn_body(&cluster::agent_configuration(&engine, root));
     let document = live_github::engine_document(root, &[("proc.forge.ready.address", inert), ("story.clients", inert)]);
-    turn_bound_members(&document, "github/engine/temper.toml", turn);
+    turn_bound_members(&document, &format!("github/engine/{}", temper_config_shell::FILE), turn);
 }
 
 #[test]

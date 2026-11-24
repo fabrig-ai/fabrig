@@ -155,16 +155,18 @@ fn init_reports_its_writes_and_start_command_on_stderr() {
     const NO_GIT: &str =
         "init: no git on PATH: a real forge's repositories need git 2.41 or later, set as [programs] git\n";
     const NO_SIGN_IN: &str = "init: no sign-in through temper: openssl is not on PATH\n";
-    const BARE_WRITES: &[&str] = &["data/worker.secret", "config/temper.toml"];
-    const BOX_WRITES: &[&str] = &["data/worker.secret", "data/demo/bin/git", "config/temper.toml"];
+
+    let config_write = format!("config/{}", temper_config_shell::FILE);
+    let bare_writes: &[&str] = &["data/worker.secret", &config_write];
+    let box_writes: &[&str] = &["data/worker.secret", "data/demo/bin/git", &config_write];
 
     let root = Path::new("/fixture");
     let dirs = directories(root);
     for (boxed, git, names, sign_in, git_warning, command, demo) in [
-        (false, true, BARE_WRITES, "", "", "temper-box serve", None),
-        (false, false, BARE_WRITES, "", NO_GIT, "temper-box serve", None),
-        (true, true, BOX_WRITES, NO_SIGN_IN, "", "temper box", Some(Is::Directory)),
-        (true, false, BOX_WRITES, NO_SIGN_IN, NO_GIT, "temper box", Some(Is::Directory)),
+        (false, true, bare_writes, "", "", "temper-box serve", None),
+        (false, false, bare_writes, "", NO_GIT, "temper-box serve", None),
+        (true, true, box_writes, NO_SIGN_IN, "", "temper box", Some(Is::Directory)),
+        (true, false, box_writes, NO_SIGN_IN, NO_GIT, "temper box", Some(Is::Directory)),
     ] {
         let mut items = vec![Item::directory(b"bin")];
         if git {

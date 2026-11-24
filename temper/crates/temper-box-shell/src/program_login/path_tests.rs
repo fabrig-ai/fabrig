@@ -144,7 +144,7 @@ fn invalid_login_input_refuses_before_preparing_programs() {
     let valid = temper_config_shell::render(&file(), Shape::Standalone);
     let oversized = vec![b' '; 1_048_577];
     for (row, text, name, message) in [
-        ("malformed", b"[".as_slice(), "source", "temper.toml:"),
+        ("malformed", b"[".as_slice(), "source", format!("{}:", temper_config_shell::FILE).as_str()),
         ("wrong-type", b"owner = 42\n", "source", "owner:"),
         ("oversized", oversized.as_slice(), "source", "past 1048576 bytes"),
         ("bad-name", valid.as_ref(), "../escape", "source name must be 1 to 32 of a-z, 0-9 and -"),
