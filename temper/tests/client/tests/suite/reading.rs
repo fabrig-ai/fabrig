@@ -1,4 +1,6 @@
 //! A person reads a bounded conversation through the engine and store (client/pages/chat/conversation.md, 2).
+use std::ops::Range;
+
 use jig_client_kit::harness::{ClientId, Until, World};
 use skein_fake_person::{Face, Find, Found, Step, Target, TreeFace};
 use skein_ui::{LogEdge, Role};
@@ -150,8 +152,120 @@ fn reading_back_then_forward_recovers_whole_lines_and_follows_new_turns() {
     run(&mut world, client, vec![see(b"A new turn at the end")]);
 }
 
+// In the 4,096-byte window, three recent pairs reach the opening weight
+// and a fourth still fits. The four older, longer pairs take the history past two windows.
+const ORDERED_PAIRS: u8 = 8;
+const RECENT_PAIRS: u8 = 4;
+const RECENT_REPLY_BYTES: usize = 710;
+const OLDER_REPLY_BYTES: usize = 955;
+
+#[test]
+fn a_long_chat_keeps_its_order_through_each_window_both_ways() {
+    // The opening and each subsequent message take one key; leave room for Seen.
+    let mut world = fixtures::roomy_reading_world(fixtures::SEED, u32::from(ORDERED_PAIRS) + 1);
+    let mut order = Vec::new();
+    let mut task = None;
+    for number in 1..=ORDERED_PAIRS {
+        let message = format!("Reading message {number:02}: please go on.").into_bytes();
+        let mut reply = format!("Reading reply {number:02}: ").into_bytes();
+        let end = format!(" end {number:02}.");
+        let bytes = if number > ORDERED_PAIRS - RECENT_PAIRS { RECENT_REPLY_BYTES } else { OLDER_REPLY_BYTES };
+        reply.resize(bytes - end.len(), b'x');
+        reply.extend_from_slice(end.as_bytes());
+        let task = match task {
+            Some(task) => {
+                fixtures::long_message(world.front(), task, number, &message);
+                task
+            }
+            None => *task.insert(fixtures::chat(world.front(), &message)),
+        };
+        fixtures::reading_reply(world.front(), task, &reply);
+        order.extend([message, reply]);
+    }
+    let client = fixtures::roomy_reading_client(&mut world, task.expect("ordered chat"));
+    person(&mut world, client, vec![see(order.last().expect("last reply"))]);
+    let opening = ordered_window(&world, client, &order);
+    assert_eq!(opening.end, order.len(), "opening at the end");
+
+    person(&mut world, client, vec![near(LogEdge::Head)]);
+    let earlier = ordered_window(&world, client, &order);
+    assert!(
+        earlier.start < opening.start && earlier.start.is_multiple_of(2),
+        "earlier read starts at a message: {earlier:?}"
+    );
+    assert_eq!(earlier.end, order.len(), "first earlier read still holds the end");
+
+    let first = walk_windows(&mut world, client, &order, LogEdge::Head, earlier);
+    assert_eq!(first.start, 0, "the first message and reply return");
+    assert!(first.len() >= 2 && first.end < order.len(), "reading back lets the newest reply go: {first:?}");
+    let last = walk_windows(&mut world, client, &order, LogEdge::Foot, first);
+    assert_eq!(last.end, order.len(), "the newest reply returns");
+    assert!(last.start > 0, "reading forward lets the first message go: {last:?}");
+}
+
+fn walk_windows(
+    world: &mut ChatWorld,
+    client: ClientId,
+    order: &[Vec<u8>],
+    edge: LogEdge,
+    mut previous: Range<usize>,
+) -> Range<usize> {
+    const MIN_SEAMS: usize = 2;
+    for seams in 0..order.len() {
+        if match edge {
+            LogEdge::Head => previous.start == 0,
+            LogEdge::Foot => previous.end == order.len(),
+        } {
+            assert!(seams >= MIN_SEAMS, "at least two seams toward {edge:?}");
+            return previous;
+        }
+        person(world, client, vec![near(edge)]);
+        let next = ordered_window(world, client, order);
+        // Each slice is already whole and ordered. Its new portion must extend
+        // the previous slice on the requested side, without a gap at that edge.
+        assert!(
+            match edge {
+                LogEdge::Head => next.start < previous.start && (previous.start..=previous.end).contains(&next.end),
+                LogEdge::Foot => next.end > previous.end && (previous.start..=previous.end).contains(&next.start),
+            },
+            "seam toward {edge:?}: {previous:?} -> {next:?}"
+        );
+        previous = next;
+    }
+    panic!("reaches the {edge:?} of the conversation");
+}
+
+fn ordered_window(world: &ChatWorld, client: ClientId, order: &[Vec<u8>]) -> Range<usize> {
+    let log = conversation(world, client);
+    let drawn: Vec<Vec<u8>> = log
+        .iter()
+        .enumerate()
+        .filter(|(_, node)| node.styles.as_slice().contains(&temper_client_view::look::SAYS))
+        .map(|(at, node)| {
+            let count = usize::try_from(node.size).expect("words subtree size");
+            log[at..at + count]
+                .iter()
+                .flat_map(|child| child.text.as_slice())
+                .flat_map(|run| run.text.iter().copied())
+                .collect()
+        })
+        .collect();
+    let first = drawn.first().expect("nonempty window");
+    let start = order.iter().position(|line| line == first).expect("window starts with a whole conversation line");
+    let end = start + drawn.len();
+    assert_eq!(order.get(start..end), Some(drawn.as_slice()), "whole lines in conversation order at {start}..{end}");
+    start..end
+}
+
+fn conversation(world: &ChatWorld, client: ClientId) -> &[skein_ui::Node] {
+    let nodes = world.tree(client).nodes();
+    let at = nodes.iter().position(|node| node.role == Role::Log).expect("conversation log");
+    let count = usize::try_from(nodes[at].size).expect("log subtree size");
+    &nodes[at..at + count]
+}
+
 fn log(world: &ChatWorld, client: ClientId) -> &skein_ui::Node {
-    world.tree(client).nodes().iter().find(|node| node.role == Role::Log).expect("conversation log")
+    &conversation(world, client)[0]
 }
 fn latest() -> Step<temper_client_domain::Address> {
     Step::Press { find: Find::named(Role::Button, b"Latest") }
@@ -365,7 +479,7 @@ fn ended_page(agent: bool) -> (ChatWorld, ClientId, u64) {
     limits.people.sign_in_lifetime = QUIET.saturating_mul(2);
     let front = Joint::with_engine(
         seed,
-        &fixtures::unread_reading_limits(),
+        &fixtures::roomy_reading_limits(),
         Store::with_limits(&limits),
         [walking::config(seed), walking::config(seed)],
         &limits,
@@ -382,7 +496,7 @@ fn ended_page(agent: bool) -> (ChatWorld, ClientId, u64) {
             &long_words(number, RETAINED_BYTES),
         );
     }
-    let client = fixtures::unread_reading_client(&mut world, task);
+    let client = fixtures::roomy_reading_client(&mut world, task);
     if agent {
         world.go(client, temper_client_domain::Address::Task { task });
     }

@@ -403,7 +403,7 @@ fn heard(figures: &wire::Figures, name: &[u8]) -> u64 {
     unreachable!("the figures carry every named limit")
 }
 
-fn settings_changed(engine: &mut Engine, revision: u32) {
+pub(crate) fn settings_changed(engine: &mut Engine, revision: u32) {
     assert_eq!(settle(engine).as_slice(), &[Reply::Outcome(people::Outcome::SettingsChanged { revision })]);
 }
 

@@ -7,7 +7,7 @@ use std::fs;
 use std::path::{Component, Path, PathBuf};
 use std::process::Command;
 
-use skein_codegen::patch::{self, Finding, Landed};
+use skein_codegen::patch::{self, Finding, Landed, Tree};
 use skein_scratch::{Scratch, paths};
 
 const OWNERS: &[&str] = &[
@@ -79,8 +79,8 @@ fn stored_changes_have_patches() {
     let mut failures = Vec::new();
     for owner in OWNERS {
         let path = root.join(owner);
-        let result =
-            landed(&path, &base).and_then(|landed| patch::check(&path, &landed).map_err(|why| why.to_string()));
+        let result = landed(&path, &base)
+            .and_then(|landed| patch::check(&Tree::disk(&path), &landed).map_err(|why| why.to_string()));
         match result {
             Ok(findings) => {
                 for finding in findings {
@@ -141,7 +141,7 @@ fn copy_directory(source: &Path, target: &Path) {
 fn records_copy() -> (Scratch, Landed) {
     let scratch = Scratch::new("boundary-patches");
     copy_directory(&paths::workspace().join(RECORDS), scratch.path());
-    let landed = Landed::read(scratch.path()).expect("scratch copy's files before the edit");
+    let landed = Tree::disk(scratch.path()).landed().expect("scratch copy's files before the edit");
     (scratch, landed)
 }
 
@@ -153,7 +153,7 @@ fn added_field_without_patch_is_unpatched() {
     let changed = source.replace("record User { value: u64 }", "record User { value: u64 added: u64 }");
     assert_ne!(source, changed, "the mutation must add a field");
     fs::write(schema, changed).expect("add a field without a patch");
-    let findings = patch::check(scratch.path(), &landed).expect("check the mutated crate");
+    let findings = patch::check(&Tree::disk(scratch.path()), &landed).expect("check the mutated crate");
     assert!(
         findings
             .iter()
@@ -181,7 +181,7 @@ fn channel_kind_layout_changes_require_a_version_move() {
     ] {
         let scratch = Scratch::new("boundary-channel-kinds");
         copy_directory(&source, scratch.path());
-        let landed = Landed::read(scratch.path()).expect("scratch wire's baseline");
+        let landed = Tree::disk(scratch.path()).landed().expect("scratch wire's baseline");
         let path = scratch.path().join("schema/worker-wire-v21.schema");
         let text = fs::read_to_string(&path).expect("current channel schema");
         let mut changed = text.replace(old, new);
@@ -191,7 +191,7 @@ fn channel_kind_layout_changes_require_a_version_move() {
         assert_ne!(changed, text, "{name} changes the kinds' layout");
         assert!(changed.starts_with("family jig-worker-wire 21\n"), "{name} keeps the version unmoved");
         fs::write(&path, changed).expect("mutate channel kind without moving its version");
-        let findings = patch::check(scratch.path(), &landed).expect("check mutated channel kinds");
+        let findings = patch::check(&Tree::disk(scratch.path()), &landed).expect("check mutated channel kinds");
         assert!(findings.iter().any(|finding| matches!(finding,
             Finding::Version { family, verdict: Version::Unmoved, kept: 21, current: 21 } if family == "jig-worker-wire"
         )), "{name} must move the wire's version: {findings:?}");
@@ -206,7 +206,7 @@ fn edited_landed_kept_text_is_changed() {
     let mut source = fs::read_to_string(&schema).expect("read kept secrets schema");
     source.push_str("\n# A landed kept text was edited.\n");
     fs::write(schema, source).expect("edit the landed kept text");
-    let findings = patch::check(scratch.path(), &landed).expect("check the mutated crate");
+    let findings = patch::check(&Tree::disk(scratch.path()), &landed).expect("check the mutated crate");
     assert!(
         findings.contains(&Finding::Changed { path: path.to_path_buf() }),
         "expected Changed for {}, got {findings:?}",

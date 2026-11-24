@@ -2,26 +2,32 @@
 
 use alloc::collections::BTreeMap;
 use core::fmt::Write;
-use std::{fs, path::Path};
+use std::path::Path;
 
 use skein_codec::schema::{self, DeclIx, FieldIx, Shape, VariantIx};
 
-use super::{Error, files::Crate, text::PatchText};
+use super::{Error, Tree, files::Crate, text::PatchText};
 use crate::snake;
 
 /// Generates `patches/mod.rs` from an owner's kept texts and patches.
-pub fn module(owner: &Path) -> Result<String, Error> {
-    module_text(&Crate::read(owner)?)
+pub fn module(tree: &Tree) -> Result<String, Error> {
+    module_text(&Crate::read(tree)?)
 }
 
 /// Checks the owner's generated patch module.
 pub fn current(owner: &Path) -> Result<(), Error> {
-    let expected = module(owner)?;
-    match fs::read_to_string(owner.join("patches/mod.rs")) {
+    current_in(&Tree::disk(owner))
+}
+
+/// Checks the tree's generated patch module.
+pub fn current_in(tree: &Tree) -> Result<(), Error> {
+    let expected = module(tree)?;
+    let path = Path::new("patches/mod.rs");
+    match tree.read_text(path) {
         Ok(text) if text == expected => Ok(()),
         Ok(_) => Err(Error::Stale),
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => Err(Error::Stale),
-        Err(error) => Err(Error::io(&owner.join("patches/mod.rs"), &error)),
+        Err(error) => Err(Error::io(&tree.named(path), &error)),
     }
 }
 
@@ -269,8 +275,8 @@ fn tests(krate: &Crate, out: &mut String) {
 #[cfg(test)]
 mod tests {
     use super::module_text;
-    use crate::patch::{Error, files::Crate, text::PatchText};
-    use std::{fs, path::PathBuf};
+    use crate::patch::{Error, Tree, files::Crate, text::PatchText};
+    use std::path::PathBuf;
 
     #[test]
     fn raw_strings_preserve_quotes_hashes_backslashes_and_newlines() {
@@ -307,17 +313,14 @@ mod tests {
         assert_eq!(out, "pub const PATCHES: &[&str] = &[\n    r\"first\n\",\n    r\"second\n\",\n];\n");
     }
 
-    fn fixture() -> PathBuf {
-        let root = std::env::temp_dir().join(format!("skein-codegen-t2-spelled-{}", std::process::id()));
-        fs::create_dir(&root).expect("unique scratch directory");
-        fs::create_dir_all(root.join("schema/kept")).expect("kept directory");
-        fs::write(root.join("schema/kept/a-b-v1.schema"), "family a-b 1\nrecord R { foo: u8 }\n").expect("kept text");
-        root
-    }
     #[test]
     fn names_spelling_one_constant_or_function_are_refused() {
-        let root = fixture();
-        let mut krate = Crate::read(&root).expect("crate");
+        let tree = Tree::new(
+            [(PathBuf::from("schema/kept/a-b-v1.schema"), b"family a-b 1\nrecord R { foo: u8 }\n".to_vec())]
+                .into_iter()
+                .collect(),
+        );
+        let mut krate = Crate::read(&tree).expect("crate");
         // The runtime grammar admits case distinctions that cannot name two
         // uppercase constants; module_text checks them before writing Rust.
         krate.kept.get_mut("a-b").expect("family").get_mut(&1).expect("v1").source =
@@ -334,7 +337,6 @@ mod tests {
             super::super::skeleton::skeleton_text(1, &patch, None),
             Err(Error::Spelled { first: "EveryScore".into(), second: "Every.score".into() })
         );
-        fs::remove_dir_all(root).expect("remove fixture");
     }
 
     #[test]

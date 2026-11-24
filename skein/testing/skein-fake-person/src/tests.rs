@@ -257,11 +257,20 @@ fn missing_target_failure_names_the_step_and_regions_and_stays_terminal() {
     let view = fixture();
     let mut face = TreeFace::new(view.tree());
     let find = Find::named(Role::Button, b"Release").within(Box::from([region(b"T7")]));
-    let mut person = Person::<u8>::new(Box::from([Step::Reload, Step::Press { find: find.clone() }]));
-    assert_eq!(person.next(&mut face, Time::from_nanos(0)), Next::Do(Doing::Reload));
-    let failure = Next::Failed { step: 1, why: Why::Missing { find } };
-    assert_eq!(person.next(&mut face, Time::from_nanos(0)), failure);
-    assert_eq!(person.next(&mut face, Time::from_nanos(99)), failure);
+    let failure = Next::Failed { step: 1, why: Why::Missing { find: find.clone() } };
+    for step in [
+        Step::Press { find: find.clone() },
+        Step::Type { find: find.clone(), words: Box::from(*b"words") },
+        Step::Send { find: find.clone() },
+        Step::Near { find, edge: skein_ui::LogEdge::Head },
+    ] {
+        let mut person = Person::<u8>::new(Box::from([Step::Reload, step]));
+        assert_eq!(person.next(&mut face, Time::ZERO), Next::Do(Doing::Reload));
+        assert_eq!(person.expired(), None);
+        assert_eq!(person.next(&mut face, Time::ZERO), failure);
+        assert_eq!(person.expired(), None);
+        assert_eq!(person.next(&mut face, Time::from_nanos(99)), failure);
+    }
     let Next::Failed { why, .. } = failure else { unreachable!() };
     assert_eq!(why.to_string(), "no button named Release in the region named T7");
 }
@@ -285,13 +294,26 @@ fn expectations_wait_for_changes_and_fail_at_their_deadlines() {
     let mut timeout =
         Person::<u8>::new(Box::from([Step::See { find: find.clone(), within: Duration::from_nanos(10) }]));
     assert_eq!(timeout.next(&mut absent, Time::from_nanos(2)), Next::Wait { until: Some(Time::from_nanos(12)) });
+    assert_eq!(timeout.expired(), None);
     assert_eq!(
         timeout.next(&mut absent, Time::from_nanos(12)),
         Next::Failed { step: 0, why: Why::Missing { find: find.clone() } }
     );
-    let mut timeout =
-        Person::<u8>::new(Box::from([Step::Gone { find: find.clone(), within: Duration::from_nanos(0) }]));
-    assert_eq!(timeout.next(&mut face, Time::from_nanos(2)), Next::Failed { step: 0, why: Why::StillThere { find } });
+    assert_eq!(timeout.expired(), Some(Duration::from_nanos(10)));
+    for within in [Duration::from_nanos(0), Duration::from_nanos(10)] {
+        let mut timeout = Person::<u8>::new(Box::from([Step::Gone { find: find.clone(), within }]));
+        if within.as_nanos() != 0 {
+            assert_eq!(
+                timeout.next(&mut face, Time::ZERO),
+                Next::Wait { until: Some(Time::ZERO.saturating_add(within)) }
+            );
+            assert_eq!(timeout.expired(), None);
+        }
+        let failed = Next::Failed { step: 0, why: Why::StillThere { find: find.clone() } };
+        assert_eq!(timeout.next(&mut face, Time::ZERO.saturating_add(within)), failed);
+        assert_eq!(timeout.next(&mut absent, Time::from_nanos(11)), failed);
+        assert_eq!(timeout.expired(), Some(within));
+    }
 }
 
 fn pending_queries_and_pauses_advance_at_most_one_step() {
@@ -524,6 +546,7 @@ fn typing_into_a_button_fails_as_unexpected() {
         person.next(&mut TreeFace::new(view.tree()), Time::ZERO),
         Next::Failed { step: 0, why: Why::Unexpected { find } }
     );
+    assert_eq!(person.expired(), None);
 }
 
 #[test]
@@ -535,6 +558,7 @@ fn pressing_an_option_of_a_disabled_select_fails() {
         person.next(&mut TreeFace::new(view.tree()), Time::ZERO),
         Next::Failed { step: 0, why: Why::Unexpected { find } }
     );
+    assert_eq!(person.expired(), None);
 }
 
 #[test]

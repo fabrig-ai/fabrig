@@ -1,18 +1,23 @@
 //! Request files and deployment commands (qa/findings.md, 4–6).
-use crate::faces::{Environment, ProcessCommand, Processes};
+use crate::faces::{
+    DirectoryMode, Environment, FilesFace, PathKind, ProcessCommand, Processes, RemoveMode, WriteOptions,
+    remove_missing,
+};
 use crate::{Exit, Home, Ledger, Pass, PassState, Refusal, Request, refused};
 use std::{
+    ffi::OsStr,
     fmt::Write,
-    fs,
+    os::unix::ffi::OsStrExt,
     path::{Component, Path, PathBuf},
 };
 
 const QA: &str = "temper/docs/development/qa";
 
-pub(crate) fn step<P: Processes>(
+pub(crate) fn step(
     home: &Home,
     ledger: &mut Ledger,
-    processes: &mut P,
+    processes: &mut impl Processes,
+    files: &mut impl FilesFace,
     captured: &Environment,
     now: u64,
 ) -> Result<(), Refusal> {
@@ -30,11 +35,11 @@ pub(crate) fn step<P: Processes>(
         .collect();
     unfiled.sort_unstable();
     for (_, pass, request) in unfiled {
-        if let Err(why) = file_request(home, ledger, processes, &environment, pass, request, now) {
+        if let Err(why) = file_request(home, ledger, processes, files, &environment, (pass, request), now) {
             failures.push(format!("pass {pass}, request {request}: {why}"));
         }
     }
-    if let Err(why) = file_gaps(home, ledger, processes, &environment, now) {
+    if let Err(why) = file_gaps(home, ledger, processes, files, &environment, now) {
         failures.push(why.to_string());
     }
     if let Some(arguments) = &home.configuration.request.state {
@@ -52,7 +57,11 @@ pub(crate) fn step<P: Processes>(
                 .collect();
         for (pass, request, goal) in waiting {
             let directory = directory(home, pass, request);
-            if let Err(why) = check_goal(ledger, processes, arguments, &directory, &environment, goal, now) {
+            let result = files
+                .directory(&directory, DirectoryMode::Parents)
+                .map_err(io)
+                .and_then(|()| check_goal(ledger, processes, arguments, &directory, &environment, goal, now));
+            if let Err(why) = result {
                 failures.push(format!("goal {goal}: {why}"));
             }
         }
@@ -64,15 +73,16 @@ fn file_request(
     home: &Home,
     ledger: &mut Ledger,
     processes: &mut impl Processes,
+    files: &mut impl FilesFace,
     environment: &Environment,
-    pass: u64,
-    request: u64,
+    number: (u64, u64),
     now: u64,
 ) -> Result<(), Refusal> {
+    let (pass, request) = number;
     let record = ledger.passes.iter().find(|record| record.number == pass).expect("unfiled pass");
     let ask = record.requests.iter().find(|record| record.number == request).expect("unfiled request");
     let directory = directory(home, pass, request);
-    prepare(home, ledger, record, ask, &directory)?;
+    prepare(home, ledger, record, ask, &directory, files)?;
     let answer =
         processes.run(&command(home.configuration.request.command.clone(), &directory, "output", environment), 600)?;
     if answer.exit != Exit::Code(0) {
@@ -95,7 +105,6 @@ fn check_goal(
     goal: u64,
     now: u64,
 ) -> Result<(), Refusal> {
-    fs::create_dir_all(directory).map_err(io)?;
     let mut arguments = arguments.to_vec();
     arguments.push(goal.to_string());
     let answer = processes.run(&command(arguments, directory, "state-output", environment), 60)?;
@@ -138,14 +147,17 @@ fn goal_number(line: &str) -> Option<u64> {
     number.parse().ok().filter(|number| *number > 0)
 }
 
-fn prepare(home: &Home, ledger: &Ledger, pass: &Pass, request: &Request, directory: &Path) -> Result<(), Refusal> {
-    match fs::remove_dir_all(directory) {
-        Ok(()) => (),
-        Err(why) if why.kind() == std::io::ErrorKind::NotFound => (),
-        Err(why) => return Err(io(why)),
-    }
+fn prepare(
+    home: &Home,
+    ledger: &Ledger,
+    pass: &Pass,
+    request: &Request,
+    directory: &Path,
+    files: &mut impl FilesFace,
+) -> Result<(), Refusal> {
+    remove_missing(files, directory, RemoveMode::Tree).map_err(io)?;
     let tree = directory.join("tree");
-    fs::create_dir_all(&tree).map_err(io)?;
+    files.directory(&tree, DirectoryMode::Parents).map_err(io)?;
     for recipe in &request.recipes {
         if !matches!(Path::new(recipe).components().collect::<Vec<_>>().as_slice(), [Component::Normal(_)]) {
             return Err(refused(format!("invalid recipe name {recipe}")));
@@ -153,6 +165,7 @@ fn prepare(home: &Home, ledger: &Ledger, pass: &Pass, request: &Request, directo
         copy_recipe(
             &home.directory.join("passes").join(pass.number.to_string()).join("setups").join(recipe),
             &tree.join(QA).join("setups").join(recipe),
+            files,
         )?;
     }
     let subject = if request.findings.is_empty() {
@@ -167,12 +180,12 @@ fn prepare(home: &Home, ledger: &Ledger, pass: &Pass, request: &Request, directo
         );
         let path = format!("{QA}/requests/pass-{}-{}.md", pass.number, request.number);
         let document = tree.join(&path);
-        fs::create_dir_all(document.parent().expect("request path parent")).map_err(io)?;
-        fs::write(document, render(ledger, request, &subject)).map_err(io)?;
-        fs::write(directory.join("goal"), format!("Read the QA request at {path} and fix each finding it lists, each with a test in the lowest world that reproduces it, starting from its lines.\n")).map_err(io)?;
+        files.directory(document.parent().expect("request path parent"), DirectoryMode::Parents).map_err(io)?;
+        write(files, &document, &render(ledger, request, &subject)).map_err(io)?;
+        write(files, &directory.join("goal"), &format!("Read the QA request at {path} and fix each finding it lists, each with a test in the lowest world that reproduces it, starting from its lines.\n")).map_err(io)?;
         subject
     };
-    fs::write(directory.join("message"), format!("{subject}\n\nQA-pass: {}\n", pass.number)).map_err(io)
+    write(files, &directory.join("message"), &format!("{subject}\n\nQA-pass: {}\n", pass.number)).map_err(io)
 }
 
 fn render(ledger: &Ledger, request: &Request, subject: &str) -> String {
@@ -235,20 +248,27 @@ fn render(ledger: &Ledger, request: &Request, subject: &str) -> String {
     }
     document
 }
-fn copy_recipe(source: &Path, destination: &Path) -> Result<(), Refusal> {
-    fs::create_dir_all(destination).map_err(io)?;
-    for entry in fs::read_dir(source).map_err(io)? {
+fn copy_recipe(source: &Path, destination: &Path, files: &mut impl FilesFace) -> Result<(), Refusal> {
+    files.directory(destination, DirectoryMode::Parents).map_err(io)?;
+    for entry in files.scan(source).map_err(io)? {
         let entry = entry.map_err(io)?;
-        let kind = entry.file_type().map_err(io)?;
-        if kind.is_dir() {
-            copy_recipe(&entry.path(), &destination.join(entry.file_name()))?;
-        } else if kind.is_file() {
-            fs::copy(entry.path(), destination.join(entry.file_name())).map_err(io)?;
+        let name = OsStr::from_bytes(&entry.name);
+        let from = source.join(name);
+        let to = destination.join(name);
+        let kind = entry.kind.map_err(io)?;
+        if kind == PathKind::Directory {
+            copy_recipe(&from, &to, files)?;
+        } else if kind == PathKind::File {
+            files.copy(&from, &to).map_err(io)?;
         } else {
-            return Err(refused(format!("recipe entry {} is not a file or directory", entry.path().display())));
+            return Err(refused(format!("recipe entry {} is not a file or directory", from.display())));
         }
     }
     Ok(())
+}
+
+fn write(files: &mut impl FilesFace, path: &Path, text: &str) -> std::io::Result<()> {
+    files.write(path, text.as_bytes(), WriteOptions::REPLACE, false)
 }
 #[expect(clippy::needless_pass_by_value, reason = "map_err passes its owned I/O error to this adapter")]
 fn io(why: std::io::Error) -> Refusal {
@@ -260,6 +280,7 @@ fn file_gaps(
     home: &Home,
     ledger: &mut Ledger,
     processes: &mut impl Processes,
+    files: &mut impl FilesFace,
     environment: &Environment,
     now: u64,
 ) -> Result<(), Refusal> {
@@ -270,13 +291,9 @@ fn file_gaps(
     let numbers = gaps.iter().map(|gap| gap.number).collect::<Vec<_>>();
     let directory =
         home.directory.join("gaps").join("requests").join(numbers.first().expect("unfiled gaps").to_string());
-    match fs::remove_dir_all(&directory) {
-        Ok(()) => (),
-        Err(why) if why.kind() == std::io::ErrorKind::NotFound => (),
-        Err(why) => return Err(io(why)),
-    }
+    remove_missing(files, &directory, RemoveMode::Tree).map_err(io)?;
     let tree = directory.join("tree").join(QA).join("gaps");
-    fs::create_dir_all(&tree).map_err(io)?;
+    files.directory(&tree, DirectoryMode::Parents).map_err(io)?;
     for gap in gaps {
         let landing = ledger.landings.iter().find(|landing| landing.number == gap.landing).expect("gap landing");
         let mut document = format!(
@@ -307,10 +324,10 @@ fn file_gaps(
             }
         }
         writeln!(document, "\nA landing closes this gap with the trailer `QA-gap: {}`.\n", gap.number).expect("string");
-        fs::write(tree.join(format!("gap-{}.md", gap.number)), document).map_err(io)?;
+        write(files, &tree.join(format!("gap-{}.md", gap.number)), &document).map_err(io)?;
     }
     let list = crate::ledger::numbers(&numbers);
-    fs::write(directory.join("message"), format!("QA gaps {list}: {} open\n\nQA-gaps: {list}\n", numbers.len()))
+    write(files, &directory.join("message"), &format!("QA gaps {list}: {} open\n\nQA-gaps: {list}\n", numbers.len()))
         .map_err(io)?;
     let answer =
         processes.run(&command(home.configuration.request.command.clone(), &directory, "output", environment), 600)?;

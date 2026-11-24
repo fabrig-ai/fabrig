@@ -12,6 +12,10 @@ test = false
 doctest = false
 
 [[test]]
+name = "domain"
+path = "tests/domain/main.rs"
+
+[[test]]
 name = "suite"
 path = "tests/suite/main.rs"
 

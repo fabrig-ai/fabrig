@@ -595,7 +595,6 @@ struct CtlJudge<'a, F, T> {
     tab: Option<usize>,
     tab_visit: Visit,
     visits: &'a Cell<Vec<Vec<super::sign_in_browser::Hop>>>,
-    reply: Option<super::forge_land::Reply>,
     on_link: Option<Box<dyn FnOnce()>>,
     check: Option<F>,
     checked: &'a Cell<Option<T>>,
@@ -749,13 +748,8 @@ impl<F: FnOnce(&Binary) -> T, T> Referee<Process> for CtlJudge<'_, F, T> {
         let result = (|| -> Result<(), String> {
             let Some(Process::Binary(binary)) = procs.first() else { return Err(String::from("box")) };
             self.resume_playground(binary)?;
-            let Some(Process::Calls(calls)) = procs.get(1) else { return Err(String::from("ctl")) };
-            let failed = calls.ends().iter().enumerate().any(|(index, call)| {
-                let expected = self.expected_exits.iter().find(|(at, _)| *at == index).map_or(0, |(_, code)| *code);
-                calls.observed_at()[index].is_some() && call.exit != Some(Exit::Code(expected))
-            });
             if let Some(face) = &self.face {
-                let Some(Process::Calls(calls)) = procs.get_mut(1) else { return Err(String::from("ctl")) };
+                let Some(Process::Calls(calls)) = procs.get(1) else { return Err(String::from("ctl")) };
                 if matches!(self.visit, Visit::AwaitingAddress)
                     && let Some(address) = calls.ends().iter().find_map(super::sign_in::authorization_address)
                 {
@@ -765,10 +759,6 @@ impl<F: FnOnce(&Binary) -> T, T> Referee<Process> for CtlJudge<'_, F, T> {
                     };
                     visitor.hand(&address);
                     self.visit = Visit::Handed;
-                }
-                let Some(Process::Calls(calls)) = procs.get_mut(1) else { return Err(String::from("ctl")) };
-                if !failed && let Some(reply) = &mut self.reply {
-                    reply.advance(calls, &mut self.expected_exits);
                 }
             }
             if let Some(index) = self.tab {
@@ -813,7 +803,7 @@ impl<F: FnOnce(&Binary) -> T, T> Referee<Process> for CtlJudge<'_, F, T> {
                 on_link();
             }
             calls.observe_box_stderr(binary.stderr(), now);
-            // The box's stderr may end a call: judge the calls again after it.
+            // The box's stderr may end a call, so judge the calls after observing it.
             let failed = calls.ends().iter().enumerate().any(|(index, call)| {
                 let expected = self.expected_exits.iter().find(|(at, _)| *at == index).map_or(0, |(_, code)| *code);
                 calls.observed_at()[index].is_some() && call.exit != Some(Exit::Code(expected))
@@ -833,8 +823,8 @@ impl<F: FnOnce(&Binary) -> T, T> Referee<Process> for CtlJudge<'_, F, T> {
                     }
                     self.checked.set(Some(self.check.take().ok_or(String::from("one live check"))?(binary)));
                 }
-                // A held batch keeps its root open for the reply referee. Release
-                // it on failure too, so cancellation drains that descriptor.
+                // A held batch keeps its root open. Release
+                // it even on failure, so cancellation drains that descriptor.
                 calls.release();
                 calls.cancel();
                 for proc in peers {
@@ -998,7 +988,7 @@ enum CtlModel {
     ResumingPlayground([PathBuf; 2]),
     None,
     Llm(Box<CtlLlm>),
-    Face(Box<super::forge_land::CtlFace>),
+    PlanChat(Box<super::forge_land::Face>),
     Account(Box<AccountProbe>),
 }
 /// Process-tier account restart controls and a one-shot listener fault.
@@ -1006,7 +996,7 @@ pub struct AccountProbe {
     pub face: super::forge_land::Face,
     pub cut_after_listening: Option<PathBuf>,
 }
-/// Drive a caller's steps with a signed-in fake account, without a reply sketch.
+/// Drive a caller's steps with a signed-in fake account.
 #[must_use]
 pub fn run_ctl_with_account<T>(
     directory: &Path,
@@ -1070,27 +1060,26 @@ pub fn run_ctl_with_llm<T>(
     )
     .0
 }
-/// Drive the owned forge with a plan issuer, redirect visitor and bearer peer.
+/// Drive a fresh box's plan sign-in and chat, with the issuer and bearer peer on this loop.
 #[must_use]
-pub fn run_ctl_with_face<T>(
+pub fn run_ctl_with_plan_chat(
     directory: &Path,
     flags: Vec<String>,
     client_root: &Path,
     steps: Vec<super::ctl::Step>,
     deadline: Duration,
-    check: impl FnOnce() -> T,
-    face: super::forge_land::CtlFace,
-) -> (CtlOutcome<T>, super::forge_land::Seen) {
+    face: super::forge_land::Face,
+) -> (CtlOutcome<()>, super::forge_land::Seen) {
     let (outcome, seen) = run_ctl_peers(
         directory,
         flags,
         client_root,
         steps,
         deadline,
-        |_| check(),
-        CtlPeers { program: None, expected_exits: Vec::new(), model: CtlModel::Face(Box::new(face)) },
+        |_| (),
+        CtlPeers { program: None, expected_exits: Vec::new(), model: CtlModel::PlanChat(Box::new(face)) },
     );
-    (outcome, seen.expect("face observations"))
+    (outcome, seen.expect("plan chat observations"))
 }
 fn account_environment(probe: bool, cut: Option<&Path>) -> Vec<(std::ffi::OsString, std::ffi::OsString)> {
     let mut environment = vec![("PATH".into(), "/usr/bin:/bin".into())];
@@ -1103,18 +1092,22 @@ fn account_environment(probe: bool, cut: Option<&Path>) -> Vec<(std::ffi::OsStri
     environment
 }
 
-fn configure_face(face: Option<&super::forge_land::Face>, flags: &[String], directory: &Path) {
+fn configure_face(face: Option<&super::forge_land::Face>, flags: &[String], directory: &Path, account_probe: bool) {
     if let Some(super::forge_land::Face::Fake { peer, .. }) = face {
         let config = flags.windows(2).find(|pair| pair[0] == "--config").expect("explicit config directory");
         peer.configure(Path::new(&config[1]));
-        super::provider_setup::commit(directory, flags);
+        // A fresh plan chat reads the fixture providers at bootstrap. The
+        // account probe also supports reopenings over already committed settings.
+        if account_probe {
+            super::provider_setup::commit(directory, flags);
+        }
     }
 }
 
 fn resuming_playground(model: &CtlModel) -> Option<[PathBuf; 2]> {
     match model {
         CtlModel::ResumingPlayground(paths) => Some(paths.clone()),
-        CtlModel::None | CtlModel::Llm(_) | CtlModel::Face(_) | CtlModel::Account(_) => None,
+        CtlModel::None | CtlModel::Llm(_) | CtlModel::PlanChat(_) | CtlModel::Account(_) => None,
     }
 }
 
@@ -1136,18 +1129,16 @@ fn run_ctl_peers<T>(
     let account_probe = matches!(&peers.model, CtlModel::Account(_));
     let cut = match &peers.model {
         CtlModel::Account(probe) => probe.cut_after_listening.clone(),
-        CtlModel::None | CtlModel::Llm(_) | CtlModel::Face(_) | CtlModel::ResumingPlayground(_) => None,
+        CtlModel::None | CtlModel::Llm(_) | CtlModel::PlanChat(_) | CtlModel::ResumingPlayground(_) => None,
     };
     let fail_on_panic = account_probe.then_some(());
-    let (peer, on_link, face, reply) = match peers.model {
-        CtlModel::Llm(llm) => (Some(llm.peer), Some(llm.on_link), None, None),
-        CtlModel::Face(story) => {
-            (None, None, Some(story.face), Some(super::forge_land::Reply::new(story.first, story.reply)))
-        }
-        CtlModel::None | CtlModel::ResumingPlayground(_) => (None, None, None, None),
-        CtlModel::Account(probe) => (None, None, Some(probe.face), None),
+    let (peer, on_link, face) = match peers.model {
+        CtlModel::Llm(llm) => (Some(llm.peer), Some(llm.on_link), None),
+        CtlModel::PlanChat(face) => (None, None, Some(*face)),
+        CtlModel::None | CtlModel::ResumingPlayground(_) => (None, None, None),
+        CtlModel::Account(probe) => (None, None, Some(probe.face)),
     };
-    configure_face(face.as_ref(), &flags, directory);
+    configure_face(face.as_ref(), &flags, directory, account_probe);
     let tab = steps.iter().any(|step| matches!(step, super::ctl::Step::Visit));
     assert!(!tab || face.is_none(), "box-owned peers or an independent face");
     let clock = Clock::new();
@@ -1186,7 +1177,6 @@ fn run_ctl_peers<T>(
     fds.push(root);
     let checked = Cell::new(None);
     let visits = Cell::new(Vec::new());
-    let follow_reply = reply.is_some();
     let mut world = real::World::new(CtlJudge {
         program,
         failed: None,
@@ -1202,7 +1192,6 @@ fn run_ctl_peers<T>(
         tab: tab.then_some(2),
         tab_visit: Visit::AwaitingAddress,
         visits: &visits,
-        reply,
         on_link,
         check: Some(check),
         checked: &checked,
@@ -1215,11 +1204,7 @@ fn run_ctl_peers<T>(
     });
     world.spawn_with_fds(binary.descriptors(), || Process::Binary(Box::new(binary)));
     world.spawn_with_fds(fds, || {
-        let mut calls =
-            super::ctl::Calls::new(root, steps, Some(&streams), None).with_serve_data(&data).with_box_stderr();
-        if follow_reply {
-            calls.hold();
-        }
+        let calls = super::ctl::Calls::new(root, steps, Some(&streams), None).with_serve_data(&data).with_box_stderr();
         Process::Calls(Box::new(calls))
     });
     if tab {
@@ -1392,7 +1377,6 @@ pub fn run_ctl_with_cut(
             tab: None,
             tab_visit: Visit::AwaitingAddress,
             visits: &visits,
-            reply: None,
             on_link: None,
             check: Some(check as fn(&Binary)),
             checked: &checked,

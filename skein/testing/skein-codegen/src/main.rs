@@ -7,7 +7,7 @@ use std::path::{Component, Path, PathBuf};
 use std::process::{Command, ExitCode};
 
 use skein_codegen::diff::Rename;
-use skein_codegen::patch::{self, Landed, Options};
+use skein_codegen::patch::{self, Landed, Options, Tree};
 use skein_codegen::{generate, parse};
 
 const USAGE: &str = "usage: skein-codegen <schema>... [<maps>] <out-dir> | patch <crate> [--baseline] [--owner <name>] [--after <upstream> <level>] [--rename <family> <old> <new>] [--base <ref>] [--check]";
@@ -89,14 +89,15 @@ fn execute() -> Result<u8, Box<dyn core::error::Error>> {
         }
         Arguments::Patch { owner, options, base, check } => {
             let landed = landed(&owner, base.as_deref())?;
+            let mut tree = Tree::disk(&owner);
             if check {
-                let findings = patch::check(&owner, &landed)?;
+                let findings = patch::check(&tree, &landed)?;
                 for finding in &findings {
                     println!("{finding}");
                 }
                 Ok(u8::from(!findings.is_empty()))
             } else {
-                let report = patch::run(&owner, &landed, &options)?;
+                let report = patch::run(&mut tree, &landed, &options)?;
                 print!("{report}");
                 Ok(u8::from(!report.findings.is_empty()))
             }

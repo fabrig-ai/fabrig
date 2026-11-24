@@ -182,6 +182,7 @@ fn private_roots_and_files_refuse_planted_metadata_unread_and_make_secret_modes(
                 Private::FileMode,
                 Private::FileOwner,
                 Private::FileLink,
+                Private::FileDanglingLink,
                 Private::FileKind,
                 Private::FileLinks,
                 Private::RootDeniedSafe,
