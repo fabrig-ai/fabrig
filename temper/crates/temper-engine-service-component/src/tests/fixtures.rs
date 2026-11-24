@@ -8,6 +8,8 @@ use temper_protocol_worker_wire::v1::Record as WorkerRecord;
 // smith's protocol/agent.md, section 4: OpenAI's public Responses dialect.
 pub const DIALECT: u32 = 3;
 
+const FIRST_START_WALL: skein_lib::Wall = skein_lib::Wall::from_nanos(1);
+
 // The stock catalogue holds twelve charters.
 // The closer procedure and close job make seventeen executor places in both limits.
 pub const ENGINE: &[u8] = br#"{
@@ -375,7 +377,7 @@ fn completed_root() -> (temper_engine_domain::Domain, skein_lib::Env<temper_engi
         under_box: false,
         playground: None,
     };
-    let env = skein_lib::Env { now: skein_lib::Time::from_nanos(1), wall: skein_lib::Wall::from_nanos(1), limits };
+    let env = skein_lib::Env { now: skein_lib::Time::from_nanos(1), wall: FIRST_START_WALL, limits };
     let mut domain = root::Domain::new(config, &limits).unwrap();
     domain.connection_limits(settings.limits.forge.forges, settings.limits.forge_component.installations);
     root::step(&mut domain, &env, root::Event::Restart { pending: false });
@@ -849,7 +851,10 @@ pub fn start_configured(
     )
     .unwrap();
 
-    service.engine.as_mut().expect("engine").store = store;
+    let engine = service.engine.as_mut().expect("engine");
+    engine.store = store;
+    // Seeding the first forge begins the start before the first service turn.
+    engine.env.wall = FIRST_START_WALL;
     for source in sources {
         let mut record = forge_record(source.number);
         if under_box {
@@ -883,7 +888,7 @@ mod server;
 pub use server::{answered, header, listening, request, server, server_call, server_head, server_response};
 
 pub fn turn(service: &mut crate::Service) {
-    crate::iterate(service, skein_lib::Time::from_nanos(1), skein_lib::Wall::from_nanos(1));
+    crate::iterate(service, skein_lib::Time::from_nanos(1), FIRST_START_WALL);
     clients::kernel(service);
 }
 pub fn restart(service: &mut crate::Service) {
