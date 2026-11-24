@@ -1,6 +1,11 @@
 //! Lean surface and helper fixture drift (skein/docs/design/data/codec/README.md, 4).
 
-use crate::{generate, parse};
+use crate::{bounds_text, generate, parse};
+
+#[rustfmt::skip]
+#[expect(dead_code, reason = "the drift test links the full generated fixture for its bounds table")]
+#[path = "../../../crates/skein-codec/src/tests/lean_fixture.rs"]
+mod fixture;
 
 const FIXTURE: &str = "family helper-fixture 7
 record Empty {}
@@ -19,12 +24,24 @@ record Nested {
 fn lean_helper_fixture_has_no_drift() {
     let schema = parse(FIXTURE).expect("helper schema");
     let output = generate(&schema);
+    let write = std::env::var_os("SKEIN_CODEGEN_WRITE").is_some_and(|value| value == "1");
     let path = skein_scratch::paths::tree().join("crates/skein-codec/src/tests/lean_fixture.rs");
-    if std::env::var_os("SKEIN_CODEGEN_WRITE").is_some_and(|value| value == "1") {
-        std::fs::write(&path, &output.records).expect("write helper fixture");
+    check(&path, &output.records, write);
+    let bounds = bounds_text(fixture::DECLARATIONS, fixture::CEILINGS.values().as_slice());
+    check(std::path::Path::new("bounds/helper-fixture.bounds"), &bounds, write);
+}
+
+fn check(path: &std::path::Path, text: &str, write: bool) {
+    if write {
+        std::fs::create_dir_all(path.parent().expect("output has a parent")).expect("output directory");
+        std::fs::write(path, text).expect("write generated output");
+    } else {
+        assert!(
+            std::fs::read_to_string(path).ok().as_deref() == Some(text),
+            "{} drifted: run SKEIN_CODEGEN_WRITE=1 cargo nextest run -p skein-codegen --lib -E 'test(=lean_tests::lean_helper_fixture_has_no_drift)'",
+            path.display()
+        );
     }
-    let committed = std::fs::read_to_string(path).expect("helper fixture committed");
-    assert!(committed == output.records, "helper fixture drifted: run this test with SKEIN_CODEGEN_WRITE=1");
 }
 
 #[test]

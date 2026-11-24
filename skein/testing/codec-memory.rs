@@ -12,12 +12,13 @@ pub(crate) fn select<L>(
     pin: Option<(u64, u64)>,
 ) -> (L, Option<u32>) {
     let ceiling_bounds = bounds(&ceilings);
+    // Decoded pins describe the generated types on a 64-bit target.
+    if let Some(pin) = pin {
+        assert_eq!(ceiling_bounds, pin, "{family}/{root}: ceiling bounds (64-bit sizes)");
+    }
     if ceiling_bounds.0 <= cap {
-        assert_eq!(pin, None, "{family}/{root}: a ceiling-sized root needs no pin");
         return (ceilings, None);
     }
-    // Decoded pins describe the generated types on a 64-bit target.
-    assert_eq!(Some(ceiling_bounds), pin, "{family}/{root}: ceiling bounds (64-bit sizes)");
     assert!(bounds(&lower(0)).0 <= cap, "{family}/{root}: even zero limits exceed cap {cap}");
     let mut low = 0;
     let mut high = u32::MAX;
@@ -42,14 +43,15 @@ macro_rules! round_trip {
     }};
 }
 
-/// The type list dispatches every schema root through its generated decoder;
-/// the exhaustive Limits literal makes a newly added limit a compile error.
+/// The type list dispatches every schema root through its generated decoder.
+/// The optional limit list is accepted during the migration to bounds files
+/// (data/codec/contracts.md, section 1); the generated clamp covers every limit.
 macro_rules! family {
     ($cap:expr, $text:expr, $module:path,
-     limits [$($field:ident),* $(,)?], roots [$($root:ident $(=> $pin:expr)?),+ $(,)?]) => {{
+     $(limits [$($field:ident),* $(,)?],)? roots [$($root:ident $(=> $pin:expr)?),+ $(,)?]) => {{
         use $module as codec;
         let schema = &skein_codegen::values($text).schema;
-        let lower = |k| codec::Limits { $($field: codec::CEILINGS.$field.min(k)),* };
+        let lower = |k| codec::CEILINGS.at_most(k);
         let roots = skein_codegen::roots(schema);
         let expected = [$(stringify!($root)),+];
         assert_eq!(roots, expected, "{}: generated decoder coverage", schema.family);

@@ -6,19 +6,23 @@ mod tests {
     use std::fs;
     use std::path::Path;
 
-    use skein_codegen::{fixed_values, generate, missing, parse};
+    use skein_codegen::{bounds_text, fixed_values, generate, missing, parse};
 
-    const FAMILIES: [(&str, &str, Option<&str>); 9] = [
-        ("schema/every-v1.schema", "src/every/v1.rs", Some("golden/every-v1")),
-        ("schema/every-v2.schema", "src/every/v2.rs", Some("golden/every-v2")),
-        ("schema/every-v3.schema", "src/every/v3.rs", Some("golden/every-v3")),
-        ("schema/secrets-v1.schema", "src/secrets/v1.rs", None),
-        ("schema/sample-v1.schema", "src/generated/sample.rs", None),
-        ("schema/mapped-v1.schema", "src/generated/mapped.rs", None),
-        ("schema/scalars-v1.schema", "src/scalars/v1.rs", None),
-        ("schema/lints-v1.schema", "src/lints/v1.rs", None),
-        ("schema/growth-v1.schema", "src/growth/v1.rs", None),
-    ];
+    const REGENERATE: &str =
+        "run SKEIN_CODEGEN_WRITE=1 cargo nextest run -p skein-codec-tests --test suite -E 'test(/^drift::/)'";
+
+    macro_rules! check_family {
+        ($codec:ident, $schema:literal, $generated:literal, $bounds:literal, $goldens:expr) => {{
+            use skein_codec_tests::$codec as codec;
+            check(
+                concat!("schema/", $schema, ".schema"),
+                $generated,
+                $goldens,
+                concat!("bounds/", $bounds, ".bounds"),
+                &bounds_text(codec::DECLARATIONS, codec::CEILINGS.values().as_slice()),
+            );
+        }};
+    }
 
     #[test]
     fn every_v3_holds_every_construct() {
@@ -60,20 +64,19 @@ mod tests {
         clippy::disallowed_methods,
         reason = "skein's round: reads SKEIN_CODEGEN_WRITE, the codegen rewrite switch"
     )]
-    fn check(schema_path: &str) {
-        let (_, generated_path, golden_directory) =
-            FAMILIES.into_iter().find(|row| row.0 == schema_path).expect("family registered");
+    fn check(schema_path: &str, generated_path: &str, golden_directory: Option<&str>, bounds_path: &str, bounds: &str) {
         let current = crate::support::generated::current_text(schema_path);
         let source = current.map_or_else(|| fs::read_to_string(schema_path).expect("schema readable"), str::to_owned);
 
         let schema = current
             .map_or_else(|| parse(&source).expect("schema valid"), |text| skein_codegen::values(text).schema.clone());
         let write = std::env::var_os("SKEIN_CODEGEN_WRITE").is_some_and(|value| value == "1");
-        check_text(generated_path, &generate(&schema).records, write);
+        check_text(Path::new(generated_path), &generate(&schema).records, write);
+        check_text(Path::new(bounds_path), bounds, write);
         if schema_path == "schema/mapped-v1.schema" {
             let translation =
                 skein_codegen::translate(&schema, skein_codec_tests::MAPPED_MAPS).expect("fixture translation");
-            check_text("src/generated/maps/mapped.rs", &translation, write);
+            check_text(Path::new("src/generated/maps/mapped.rs"), &translation, write);
         }
         if let Some(directory) = golden_directory {
             check_goldens(
@@ -84,62 +87,73 @@ mod tests {
         }
     }
 
-    fn check_text(path: &str, text: &str, write: bool) {
+    fn check_text(path: &Path, text: &str, write: bool) {
         if write {
-            let parent = Path::new(path).parent().expect("generated file has a parent");
+            let parent = path.parent().expect("generated file has a parent");
             fs::create_dir_all(parent).expect("create generated directory");
             fs::write(path, text).expect("write generated text");
         } else {
-            let committed = fs::read_to_string(path).expect("generated text committed");
-            assert!(
-                committed == text,
-                "{path}: run SKEIN_CODEGEN_WRITE=1 cargo nextest run -p skein-codec-tests --test suite -E 'test(/^drift::/)'"
-            );
+            assert!(fs::read_to_string(path).ok().as_deref() == Some(text), "{} drifted: {REGENERATE}", path.display());
         }
     }
 
     #[test]
+    #[should_panic(expected = "sample.bounds drifted: run SKEIN_CODEGEN_WRITE=1")]
+    fn a_changed_bounds_line_fails_drift_check() {
+        use skein_codec_tests::v1 as sample;
+
+        let scratch = skein_scratch::Scratch::new("bounds-drift");
+        let path = scratch.path().join("sample.bounds");
+        let bounds = bounds_text(sample::DECLARATIONS, sample::CEILINGS.values().as_slice());
+        check_text(&path, &bounds, true);
+
+        let (_, rest) = bounds.split_once('\n').expect("declaration line");
+        fs::write(&path, ["changed declaration line\n", rest].concat()).expect("change one bounds line");
+        check_text(&path, &bounds, false);
+    }
+
+    #[test]
     fn every_schema_code_and_goldens_have_no_drift() {
-        check("schema/every-v1.schema");
+        check_family!(every, "every-v1", "src/every/v1.rs", "every-v1", Some("golden/every-v1"));
     }
 
     #[test]
     fn every_v2_schema_code_and_goldens_have_no_drift() {
-        check("schema/every-v2.schema");
+        check_family!(every_v2, "every-v2", "src/every/v2.rs", "every-v2", Some("golden/every-v2"));
     }
 
     #[test]
     fn every_v3_schema_code_and_goldens_have_no_drift() {
-        check("schema/every-v3.schema");
+        check_family!(every_v3, "every-v3", "src/every/v3.rs", "every-v3", Some("golden/every-v3"));
     }
 
     #[test]
     fn growth_schema_code_has_no_drift() {
-        check("schema/growth-v1.schema");
+        check_family!(growth, "growth-v1", "src/growth/v1.rs", "growth-v1", None);
     }
 
     #[test]
     fn secret_schema_code_has_no_drift() {
-        check("schema/secrets-v1.schema");
+        check_family!(secrets, "secrets-v1", "src/secrets/v1.rs", "secrets-v1", None);
     }
 
     #[test]
     fn sample_schema_code_has_no_drift() {
-        check("schema/sample-v1.schema");
+        check_family!(v1, "sample-v1", "src/generated/sample.rs", "sample", None);
     }
 
     #[test]
     fn scalar_schema_code_has_no_drift() {
-        check("schema/scalars-v1.schema");
+        check_family!(scalars, "scalars-v1", "src/scalars/v1.rs", "scalars-v1", None);
     }
 
     #[test]
     fn mapped_records_and_translation_have_no_drift() {
-        check("schema/mapped-v1.schema");
+        check_family!(mapped_records, "mapped-v1", "src/generated/mapped.rs", "mapped", None);
     }
 
     #[test]
     fn lint_fixture_schema_code_has_no_drift() {
-        check("schema/lints-v1.schema");
+        check_family!(lints, "lints-v1", "src/lints/v1.rs", "lints-v1", None);
     }
 }

@@ -1,0 +1,9 @@
+Blank: ceilings encoded=0 decoded=0; at_most(3) encoded=0 decoded=0
+Every: ceilings encoded=399 decoded=534; at_most(3) encoded=312 decoded=429
+Light: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
+Nest: ceilings encoded=209 decoded=374; at_most(3) encoded=201 decoded=354
+Numbers: ceilings encoded=27 decoded=0; at_most(3) encoded=27 decoded=0
+Shape: ceilings encoded=31 decoded=66; at_most(3) encoded=28 decoded=57
+Stamp: ceilings encoded=19 decoded=4; at_most(3) encoded=18 decoded=3
+Strings: ceilings encoded=30 decoded=18; at_most(3) encoded=21 decoded=9
+family: ceilings encoded=399 decoded=534; at_most(3) encoded=312 decoded=429
