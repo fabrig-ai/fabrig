@@ -315,8 +315,9 @@ fn a_worker_drained_during_a_check_runs_it_again_on_the_same_tree() {
 fn a_worker_drained_during_a_command_resumes_with_its_interrupted_output() {
     let outcome = resumed(jig_channel_world::restarts::Point::Command);
     assert_eq!(outcome.restart.commands, 1);
-    assert_eq!(outcome.restart.kept.len(), 2);
+    assert_eq!(outcome.restart.kept.len(), 3);
     assert_eq!(outcome.restart.kept[1].kind, jig_domain_link::PartKind::Result);
+    assert_eq!(outcome.restart.kept[2].kind, jig_domain_link::PartKind::Result);
     assert!(outcome.restart.interrupted_output);
     assert_eq!(outcome.restart.drain_to_end, Some(skein_lib::Duration::from_secs(1)));
 }

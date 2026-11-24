@@ -1,5 +1,5 @@
 //! Concrete turns and content-free facts. The cursor tracks the told prefix; emitted turns resolve live calls into historical blocks.
-//! Contract: smith/docs/design/domain/session.md, sections 3, 4 and 6.
+//! Contract: smith/docs/design/domain/session.md, sections 3, 4 and 6; smith/docs/design/domain/turn-parts.md, section 3.
 
 use super::{
     Block, Box, Conversation, Decoded, End, FactKind, Facts, Id, List, Message, Queue, Request, Run, Session, Slab,
@@ -180,6 +180,44 @@ pub(super) fn not_run(conversation: &Conversation, tools: &super::Tools, out: &m
             }
             slot = slot.checked_add(1).expect("bounded calls");
         }
+    }
+}
+
+/// A command's start stands as interrupted until its end or a drain supersedes it.
+pub(super) fn started(conversation: &Conversation, block: &Block, out: &mut Queue<Request>) {
+    if !conversation.tell_parts {
+        return;
+    }
+    let call = block.tool_call().expect("a running workspace call");
+    let starts = match &call.call {
+        Decoded::Owned { call } => match call {
+            smith_domain_tools::Call::Shell { .. } => true,
+            smith_domain_tools::Call::Job { stop, .. } => !stop,
+            smith_domain_tools::Call::Read { .. }
+            | smith_domain_tools::Call::List { .. }
+            | smith_domain_tools::Call::Search { .. }
+            | smith_domain_tools::Call::Remove { .. }
+            | smith_domain_tools::Call::Write { .. }
+            | smith_domain_tools::Call::Edit { .. } => false,
+        },
+        Decoded::Builtin { .. } | Decoded::Delegated { .. } | Decoded::Invalid { .. } | Decoded::Historical => false,
+    };
+    if starts {
+        result(
+            conversation,
+            &Block::ToolResult {
+                id: call.id.clone(),
+                result: crate::llm::Returned::Owned {
+                    outcome: smith_domain_tools::Outcome::Interrupted {
+                        ran: None,
+                        head: Box::default(),
+                        last: Box::default(),
+                        dropped: 0,
+                    },
+                },
+            },
+            out,
+        );
     }
 }
 
