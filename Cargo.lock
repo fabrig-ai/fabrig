@@ -6310,6 +6310,7 @@ dependencies = [
  "temper-client-protocol-wire",
  "temper-client-redaction",
  "temper-client-view",
+ "temper-client-view-kit",
  "wasm-bindgen",
  "web-sys",
 ]

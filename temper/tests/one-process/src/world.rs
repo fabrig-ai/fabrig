@@ -94,6 +94,7 @@ pub(crate) enum Phase {
     #[cfg(test)]
     Committed,
     Story,
+    LandedRestart,
     SignIn,
     Drain,
     Restart,
@@ -564,6 +565,10 @@ impl Person {
         );
     }
     fn new(root: Fd, scenario: Story) -> Self {
+        Self::scripted(root, scenario, None)
+    }
+    fn scripted(root: Fd, scenario: Story, landing_read: Option<bool>) -> Self {
+        let after_crash = landing_read == Some(true);
         let (playground_steps, playground_replies) = if matches!(scenario, Story::PlaygroundA) {
             stories::playground::person()
         } else {
@@ -588,6 +593,7 @@ impl Person {
                 Step::See { find: Find::text("gpt-future · estimated prices · new".as_bytes()), within: CHAT_WITHIN },
             ],
             Story::Adoption => stories::adoption_person(),
+            Story::Adopt if landing_read.is_some() => stories::recovery::person(after_crash),
             Story::Adopt | Story::Merge | Story::CodingAtStop => stories::person(),
             Story::HeldChange if stories::first_start() => stories::person(),
             Story::HeldChange => Vec::new(),
@@ -599,7 +605,7 @@ impl Person {
                 Step::See { find: Find::named(skein_ui::Role::Heading { level: 1 }, b"Inbox"), within: CHAT_WITHIN },
             ],
         };
-        let mut offset = PROGRESS.with(|progress| progress.borrow().at);
+        let mut offset = if after_crash { 0 } else { PROGRESS.with(|progress| progress.borrow().at) };
         if matches!(scenario, Story::Adoption) && offset < fixtures::ADOPTION_REPLY_STEP {
             offset = 0;
         }
@@ -611,8 +617,12 @@ impl Person {
             progress.borrow_mut().life += 1;
             progress.borrow().life
         });
+        let mut wire = referee::client::Wire::default();
+        if landing_read.is_some() {
+            wire.watch_landing();
+        }
         Self {
-            wire: referee::client::Wire::default(),
+            wire,
             cache: referee::client::cache::Cache::new(
                 root,
                 life,
@@ -622,7 +632,7 @@ impl Person {
             root: Some(root),
             actor: skein_fake_person::Person::new(remaining.into_boxed_slice()),
             provision_after: 0,
-            provision: (offset == 0 && !matches!(scenario, Story::PlaygroundA | Story::NoWelcome))
+            provision: (!after_crash && offset == 0 && !matches!(scenario, Story::PlaygroundA | Story::NoWelcome))
                 .then(|| skein_fake_person::Person::new(fixtures::account_steps())),
             wake: None,
             signed_in: 0,
@@ -1081,6 +1091,17 @@ pub fn require_pending_at_cut(outcome: &Outcome, seed: u64, before: u32) {
         });
     }
 }
+pub(crate) fn landing_person(inherited: &Inherited) -> Proc {
+    let root = inherited.roots.first().expect("client root").1;
+    let restarted = PROGRESS.with(|progress| progress.borrow().life != 0);
+    let mut person = Person::scripted(root, Story::Adopt, Some(restarted));
+    if restarted {
+        person.saved();
+        // No new printed link: the read must be authorized by the saved sign-in.
+        person.signed_in = 1;
+    }
+    Proc::Other(HarnessProcess::Client(Box::new(SignalHost::new(person, Some(inherited.signal)))))
+}
 fn person(inherited: &Inherited) -> Proc {
     let root = inherited.roots.first().expect("client root").1;
     let signed = PROGRESS.with(|progress| progress.borrow().signed);
@@ -1223,6 +1244,22 @@ pub fn restart_held_change(settings: Settings) -> Outcome {
     run_phase(settings, Story::HeldChange, Phase::SignIn, disk, store, run).0
 }
 
+/// Read a managed adoption's landing, cut every process and read it on the kept sign-in.
+#[must_use]
+pub fn restart_landed_change(settings: Settings) -> Outcome {
+    stories::recovery::with_merge(|| {
+        run_phase(
+            settings,
+            Story::Adopt,
+            Phase::LandedRestart,
+            machine::fresh(),
+            Store::new(),
+            Rc::new(RefCell::new(referee::Run::default())),
+        )
+        .0
+    })
+}
+
 /// Restore a persisted policy past a smaller read bound, with the box's held listener.
 #[must_use]
 pub fn refused_restore(settings: Settings) -> Outcome {
@@ -1294,7 +1331,10 @@ pub(crate) fn try_run_phase(
     });
     let transport =
         start.as_ref().map_or_else(|| forge_for_run(&run, scenario, phase), |start| start.fakes.forge.clone());
-    let observed_forge = Rc::new(RefCell::new(referee::forge::Forge::new(transport.clone(), scenario)));
+    let observed_forge = referee::forge::Forge::new(transport.clone(), scenario);
+    let observed_forge =
+        if matches!(phase, Phase::LandedRestart) { observed_forge.keeping_ledger() } else { observed_forge };
+    let observed_forge = Rc::new(RefCell::new(observed_forge));
 
     let machine = Machine::new(disk);
     run.borrow_mut().disk = Some(machine.0.clone());
@@ -1364,6 +1404,9 @@ pub(crate) fn try_run_phase(
                             )))
                         });
                     }
+                    Phase::LandedRestart => {
+                        stories::recovery::spawn(&mut world);
+                    }
                     Phase::Story | Phase::SignIn | Phase::Drain => {
                         world.spawn_root(skein_sim::Handle::new(client.expect("story client root").raw()), |root| {
                             Proc::Other(HarnessProcess::Client(Box::new(SignalHost::new(
@@ -1393,7 +1436,7 @@ pub(crate) fn try_run_phase(
     if let Some(injector) = &run.borrow().restart_faults {
         injector.borrow_mut().end_phase(outcome.end);
     }
-    if matches!(scenario, Story::Adopt) {
+    if matches!(scenario, Story::Adopt) && !matches!(phase, Phase::LandedRestart) {
         assert!(referee::forge::Forge::hooks_complete(&outcome.procs), "the required push-hook prefix was delivered");
     }
     let signed_in = outcome
