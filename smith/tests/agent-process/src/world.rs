@@ -2,7 +2,7 @@
 //! knows channel bytes and kernel terminals, never agent state; the referee
 //! reads those bytes and independent provider observations, including facts
 //! decoded from the host's channel.
-//! Scheduling, replay and process heaps belong to Skein (smith/docs/design/testing.md, 2–5).
+//! Scheduling, replay and process heaps belong to Skein (smith/docs/design/testing-tiers.md and smith/docs/design/testing.md, 3–5).
 use crate::fake;
 use smith_channel::Record;
 

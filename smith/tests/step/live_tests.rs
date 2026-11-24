@@ -1,4 +1,4 @@
-//! Offline live-configuration controls (smith/docs/design/testing.md, 2.3).
+//! Offline live-configuration controls (smith/docs/design/testing-tiers.md, 3).
 use super::live::{refresh_report, root, setup, setup_with};
 use std::path::Path;
 

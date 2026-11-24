@@ -486,7 +486,7 @@ failure, when observed, in the Git directory’s `temper/repair-trial-result.jso
    for each binary listed, in order, since nextest builds only the selected
    packages' own. A failed build is a build failure, and no test runs.
    `smith`'s end-to-end tests run `smith-fake-claude`'s `fake-claude`
-   (`smith/docs/design/testing.md`, 2.3); since they run after landing,
+   (`smith/docs/design/testing-tiers.md`, 3); since they run after landing,
    in `real-smith` (`tools/tiers/layers.md`, 9.2), the build serves none
    of the check's runs, and is kept while `[test-binaries]` names it.
 
