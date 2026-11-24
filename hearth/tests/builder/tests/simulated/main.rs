@@ -15,6 +15,9 @@ mod protocol;
 mod simulation;
 
 mod diff {
+    mod accounts;
+    mod additions;
+    mod data;
     mod exports;
     mod files;
     mod hunks;
@@ -22,6 +25,7 @@ mod diff {
     mod packages;
     mod parts;
     mod resolution;
+    mod scripts;
 }
 
 mod render {
