@@ -6,6 +6,38 @@ use skein_lib::{Decimal, List, bytes};
 pub const FALLBACK: &[u8] =
     b"This question reached no one: the goal's closer decides nothing and relays only the questions its open steps ask.";
 
+const NO_WORDS: &[u8] = b"This closer takes no words: it relays its open steps' questions and their answers alone. To answer, message form=answer with the question's number.";
+
+/// Feedback for both relays (temper/docs/design/domain/forge/change/notices.md, 3).
+#[must_use]
+pub fn answer_refusal(target: u64, named: u64, open: Option<(u64, &[u8])>) -> Box<[u8]> {
+    let mut text = List::uncapped();
+    let task = Decimal::of(target);
+    if let Some((number, line)) = open {
+        let question = Decimal::of(number);
+        append(&mut text, b"Question ");
+        append(&mut text, Decimal::of(named).as_bytes());
+        append(&mut text, b" is not open at task ");
+        append(&mut text, task.as_bytes());
+        append(&mut text, b"; its question to you is ");
+        append(&mut text, question.as_bytes());
+        append(&mut text, b": ");
+        append(&mut text, line);
+        append(&mut text, b". Answer it: message target=");
+        append(&mut text, task.as_bytes());
+        append(&mut text, b", form=answer, question=");
+        append(&mut text, question.as_bytes());
+        append(&mut text, b".");
+    } else {
+        append(&mut text, b"Task ");
+        append(&mut text, task.as_bytes());
+        append(&mut text, b" has no question open to you; read_task on task ");
+        append(&mut text, task.as_bytes());
+        append(&mut text, b" shows its questions.");
+    }
+    text.into_boxed()
+}
+
 /// One waiting slot per possible open step, apart from the standing question.
 pub const OPEN_STEPS: usize = 2;
 
@@ -66,6 +98,18 @@ impl Relay {
     pub fn new() -> Self {
         Self { open: None, replies: Box::new([]), waiting: Box::new([]) }
     }
+    /// Only the goal can answer a standing question, and only once.
+    #[must_use]
+    pub fn open_to(&self, goal: u64, from: u64) -> Option<(u64, &[u8])> {
+        if from == goal
+            && let Some(open) = &self.open
+            && let Stands::Asked { question, answer: None } = open.stands
+        {
+            Some((question, first_line(&open.words)))
+        } else {
+            None
+        }
+    }
     fn promote(&mut self) {
         let waiting = core::mem::replace(&mut self.waiting, Box::new([]));
         let mut next = None;
@@ -115,7 +159,17 @@ impl Relay {
 }
 
 /// Retain every offered input before sending anything; only an open step may ask.
-pub fn take(relay: &mut Relay, steps: &[Running], goal: u64, from: u64, number: u64, form: &Form, words: &[u8]) {
+#[expect(clippy::too_many_arguments, reason = "the relay consumes one offered message at its task and goal")]
+pub fn take(
+    relay: &mut Relay,
+    steps: &[Running],
+    task: u64,
+    goal: u64,
+    from: u64,
+    number: u64,
+    form: &Form,
+    words: &[u8],
+) {
     let mut step = None;
     for running in steps {
         if running.change == from {
@@ -135,13 +189,15 @@ pub fn take(relay: &mut Relay, steps: &[Running], goal: u64, from: u64, number: 
             }
         }
         Form::Answer { question } => {
-            if from == goal
-                && let Some(open) = &mut relay.open
-                && let Stands::Asked { question: asked, answer } = &mut open.stands
-                && asked == question
-                && answer.is_none()
+            let open = relay.open_to(goal, from);
+            if let Some((asked, _)) = open
+                && asked == *question
             {
-                *answer = Some(words.into());
+                relay.open.as_mut().expect("a question stands").stands =
+                    Stands::Asked { question: asked, answer: Some(words.into()) };
+            } else {
+                let words = answer_refusal(task, *question, open);
+                push(relay, Message { target: from, form: Form::Words, words });
             }
         }
         Form::Words => {
@@ -150,6 +206,8 @@ pub fn take(relay: &mut Relay, steps: &[Running], goal: u64, from: u64, number: 
                 append(&mut text, b": ");
                 append(&mut text, words);
                 push(relay, Message { target: goal, form: Form::Words, words: text.into_boxed() });
+            } else {
+                push(relay, Message { target: from, form: Form::Words, words: NO_WORDS.into() });
             }
         }
     }

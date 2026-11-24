@@ -389,7 +389,23 @@ pub(crate) fn relay_payload(
                             tasks::MessageKind::Words
                         }
                         MessageForm::Question => tasks::MessageKind::Question,
-                        MessageForm::Answer { question } => tasks::MessageKind::Answer { question },
+                        MessageForm::Answer { question } => {
+                            if let Some(words) = forge_route::refused_answer(
+                                domain,
+                                key.task,
+                                target,
+                                question,
+                                env.limits.tasks.message_bytes,
+                            ) {
+                                super::host_route::rendered(
+                                    domain,
+                                    reply_to,
+                                    core::SettledAnswer::Host { error: true, body: words },
+                                );
+                                return;
+                            }
+                            tasks::MessageKind::Answer { question }
+                        }
                     };
                     domain.work.push(Work::Core(core::Event::NamedAction {
                         to: reply_to,

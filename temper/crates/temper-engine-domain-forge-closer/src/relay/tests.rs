@@ -1,4 +1,5 @@
 use super::*;
+const CLOSER: u64 = 5;
 const GOAL: u64 = 1;
 const CHANGE: u64 = 2;
 const SETTLEMENT: u64 = 3;
@@ -20,12 +21,12 @@ const ASKED_LANDING_WORDS: &[u8] = b"Change 2, the goal's landing, asks:\n\nWhic
 const ANSWER: &[u8] = b"Use the design.";
 
 fn tell(state: &mut Relay, from: u64, number: u64, form: Form, words: &[u8]) {
-    take(state, OPEN, GOAL, from, number, &form, words);
+    take(state, OPEN, CLOSER, GOAL, from, number, &form, words);
 }
 
 fn question() -> Relay {
     let mut state = Relay::new();
-    take(&mut state, &[LAND], GOAL, CHANGE, LANDING_QUESTION, &Form::Question, WORDS);
+    take(&mut state, &[LAND], CLOSER, GOAL, CHANGE, LANDING_QUESTION, &Form::Question, WORDS);
     state
 }
 
@@ -48,14 +49,34 @@ fn one_question_is_taken_asked_and_answered() {
     );
     assert!(next.asked);
     asked(&mut next.relay, GOAL_QUESTION);
-    tell(&mut next.relay, GOAL, GOAL_ANSWER, Form::Words, b"Not an answer");
-    tell(&mut next.relay, GOAL, GOAL_ANSWER, Form::Answer { question: OTHER_QUESTION }, b"Wrong number");
-    assert!(relay(&next.relay, GOAL, false, 1, BOUND).messages.is_empty());
     answer(&mut next.relay);
     let next = relay(&next.relay, GOAL, false, 1, BOUND);
     assert_eq!(
         next.messages.as_ref(),
         &[Message { target: CHANGE, form: Form::Answer { question: LANDING_QUESTION }, words: ANSWER.into() }]
+    );
+    assert!(next.relay.open.is_none());
+}
+
+#[test]
+fn the_closer_corrects_a_wrong_number_and_refuses_a_duplicate_answer() {
+    let mut state = asked_landing();
+    tell(&mut state, GOAL, GOAL_ANSWER, Form::Answer { question: OTHER_QUESTION }, b"Wrong number");
+    let next = relay(&state, GOAL, false, 1, BOUND);
+    assert_eq!(next.relay.open, state.open, "a wrong number leaves the question asked");
+    let [reply] = next.messages.as_ref() else { panic!("one refusal: {:?}", next.messages) };
+    assert_eq!((reply.target, &reply.form), (GOAL, &Form::Words));
+    assert_eq!(reply.words.as_ref(), b"Question 29 is not open at task 5; its question to you is 30: Which rule?. Answer it: message target=5, form=answer, question=30.");
+    let mut state = next.relay;
+    answer(&mut state);
+    tell(&mut state, GOAL, GOAL_ANSWER + 1, Form::Answer { question: GOAL_QUESTION }, b"Do not replace the answer");
+    let next = relay(&state, GOAL, false, 2, BOUND);
+    let [reply, relayed] = next.messages.as_ref() else { panic!("refusal and answer: {:?}", next.messages) };
+    assert_eq!((reply.target, &reply.form), (GOAL, &Form::Words));
+    assert_eq!(reply.words.as_ref(), b"Task 5 has no question open to you; read_task on task 5 shows its questions.");
+    assert_eq!(
+        relayed,
+        &Message { target: CHANGE, form: Form::Answer { question: LANDING_QUESTION }, words: ANSWER.into() }
     );
     assert!(next.relay.open.is_none());
 }
@@ -165,7 +186,7 @@ fn a_third_waiting_question_gets_the_canned_answer() {
 fn questions_from_other_tasks_get_the_canned_answer() {
     for open in [OPEN, &[]] {
         let mut state = Relay::new();
-        take(&mut state, open, GOAL, STRANGER, LANDING_QUESTION, &Form::Question, b"Will you decide?");
+        take(&mut state, open, CLOSER, GOAL, STRANGER, LANDING_QUESTION, &Form::Question, b"Will you decide?");
         let next = relay(&state, GOAL, false, 1, BOUND);
         assert_eq!(
             next.messages.as_ref(),
@@ -181,14 +202,22 @@ fn questions_from_other_tasks_get_the_canned_answer() {
 
 #[test]
 fn only_open_changes_words_go_up_to_the_goal() {
-    let mut state = Relay::new();
-    tell(&mut state, STRANGER, LANDING_QUESTION, Form::Words, b"Ignore me");
+    let mut state = asked_landing();
     tell(&mut state, CHANGE, NEXT_LANDING_QUESTION, Form::Words, b"The asker ended.");
-    let next = relay(&state, GOAL, false, 2, BOUND);
+    tell(&mut state, GOAL, GOAL_ANSWER, Form::Words, b"Not an answer");
+    let next = relay(&state, GOAL, false, 1, BOUND);
     assert_eq!(
         next.messages.as_ref(),
         &[Message { target: GOAL, form: Form::Words, words: b"Change 2: The asker ended.".as_slice().into() }]
     );
+    assert!(next.more, "the goal's refusal finds no room at the first step");
+    let next = relay(&next.relay, GOAL, false, 1, BOUND);
+    let [reply] = next.messages.as_ref() else { panic!("the retained reply: {:?}", next.messages) };
+    assert_eq!((reply.target, &reply.form), (GOAL, &Form::Words));
+    assert_eq!(reply.words.as_ref(), b"This closer takes no words: it relays its open steps' questions and their answers alone. To answer, message form=answer with the question's number.");
+    assert_eq!(next.relay.open, state.open, "words do not answer");
+    assert!(next.relay.replies.is_empty());
+    assert!(!next.more);
 }
 
 #[test]

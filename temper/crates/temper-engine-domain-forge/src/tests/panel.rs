@@ -741,6 +741,7 @@ fn a_panel_shows_its_questions() {
         waiting: Box::new([]),
         answered: Box::new([]),
         amended: Box::new([]),
+        replies: Box::new([]),
         route: change::Route::Up,
         taken: 2,
         open: Box::new([

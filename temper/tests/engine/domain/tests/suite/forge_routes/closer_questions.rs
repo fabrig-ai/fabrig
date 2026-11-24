@@ -200,6 +200,54 @@ fn finish_repair(world: &mut World, branch: &[u8], repair: &engine::Assignment, 
 }
 
 #[test]
+fn the_closer_refuses_answers_that_do_not_name_its_question() {
+    use super::super::questions::call;
+    let (mut world, goal, _, closer, landing, repair) = repairing_landing();
+    call(
+        &mut world,
+        &goal,
+        109,
+        engine::Tool::Message {
+            target: closer,
+            form: engine::MessageForm::Answer { question: 1 },
+            words: ANSWER.into(),
+        },
+    );
+    let expected =
+        format!("Task {closer} has no question open to you; read_task on task {closer} shows its questions.");
+    assert_eq!(world.call_errors.last().map(|error| error.text.as_ref()), Some(expected.as_bytes()));
+    let (number, up) = ask(&mut world, goal.task, closer, landing, &repair);
+    let sent = world.answers.len();
+    let mut expected = format!(
+        "Question {number} is not open at task {closer}; its question to you is {up}: {}. Answer it: message target={closer}, form=answer, question={up}.",
+        core::str::from_utf8(QUESTION).unwrap()
+    );
+    let bound = usize::try_from(world.env.limits.tasks.message_bytes).unwrap();
+    if expected.len() > bound {
+        expected.replace_range(bound - "…".len().., "…");
+    }
+    call(
+        &mut world,
+        &goal,
+        111,
+        engine::Tool::Message {
+            target: closer,
+            form: engine::MessageForm::Answer { question: number },
+            words: ANSWER.into(),
+        },
+    );
+    assert_eq!(world.call_errors.last().map(|error| error.text.as_ref()), Some(expected.as_bytes()));
+    assert_eq!(world.answers.len(), sent);
+    assert_eq!(
+        closer_row(&world, closer).unwrap().relay.open.as_ref().unwrap().stands,
+        Stands::Asked { question: up, answer: None }
+    );
+    world.goal_answer(&goal, 112, closer, up, ANSWER);
+    resumed(&mut world, &repair, number);
+    world.close();
+}
+
+#[test]
 fn a_restart_keeps_the_closers_question_and_relays_its_answer() {
     repair_asks(true);
 }

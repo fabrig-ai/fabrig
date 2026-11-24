@@ -29,7 +29,7 @@ pub(super) fn apply(
         }
         let tasks::Party::Task(from) = word.from else { continue };
         let Some(form) = form(&word.kind) else { continue };
-        c::relay::take(&mut row.relay, open.as_slice(), row.goal, from, word.number, &form, &word.words);
+        c::relay::take(&mut row.relay, open.as_slice(), row.task, row.goal, from, word.number, &form, &word.words);
     }
     let done = match &row.relay.open {
         Some(open) => ended(domain, open.asker),

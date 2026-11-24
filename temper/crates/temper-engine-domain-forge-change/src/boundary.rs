@@ -663,6 +663,17 @@ pub struct Questions {
     pub answered: Box<[Answered]>,
     /// The newest amendments, kept oldest first under either question route.
     pub amended: Box<[Amended]>,
+    /// Replies that did not fit the step's message room, oldest first.
+    pub replies: Box<[Reply]>,
+}
+
+/// Feedback owed to the sender of a message (domain/forge/change/notices.md, 3).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub struct Reply {
+    pub target: u64,
+    /// A fallback for a question answers it; other feedback is words.
+    pub question: Option<u64>,
+    pub words: Box<[u8]>,
 }
 
 /// Answers kept for later work at most.

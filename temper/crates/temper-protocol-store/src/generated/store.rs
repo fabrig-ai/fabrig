@@ -2659,8 +2659,40 @@ pub fn amended_to_domain(record: crate::v25::Amended) -> temper_engine_domain_fo
     }
 }
 
+#[must_use]
+pub fn change_reply_to_record(value: &temper_engine_domain_forge_change::Reply) -> crate::v25::ChangeReply {
+    let temper_engine_domain_forge_change::Reply { target: field_000000, question: field_000001, words: field_000002 } = value;
+    crate::v25::ChangeReply {
+        target: *field_000000,
+        question: match field_000001 {
+            Some(item) => {
+                let converted = *item;
+                Some(converted)
+            }
+            None => None,
+        },
+        words: field_000002.clone()
+    }
+}
+
+#[must_use]
+pub fn change_reply_to_domain(record: crate::v25::ChangeReply) -> temper_engine_domain_forge_change::Reply {
+    let crate::v25::ChangeReply { target: field_000000, question: field_000001, words: field_000002 } = record;
+    temper_engine_domain_forge_change::Reply {
+        target: field_000000,
+        question: match field_000001 {
+            Some(item) => {
+                let converted = item;
+                Some(converted)
+            }
+            None => None,
+        },
+        words: field_000002
+    }
+}
+
 pub fn questions_to_record(value: &temper_engine_domain_forge_change::Questions) -> Result<crate::v25::Questions, crate::v25::Problem> {
-    let temper_engine_domain_forge_change::Questions { route: field_000000, taken: field_000001, open: field_000002, waiting: field_000003, answered: field_000004, amended: field_000005 } = value;
+    let temper_engine_domain_forge_change::Questions { route: field_000000, taken: field_000001, open: field_000002, waiting: field_000003, answered: field_000004, amended: field_000005, replies: field_000006 } = value;
     Ok(crate::v25::Questions {
         route: crate::records::by_hand::route_to_record(field_000000),
         taken: *field_000001,
@@ -2703,12 +2735,22 @@ pub fn questions_to_record(value: &temper_engine_domain_forge_change::Questions)
                 assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             translated
+        },
+        replies: {
+            let source = field_000006;
+            let count = match u32::try_from(source.len()) { Ok(count) => count, Err(_error) => return Err(crate::v25::paths::QUESTIONS_REPLIES.problem(skein_codec::Reason::Bound)) };
+            let mut translated = skein_lib::List::with_capacity(count);
+            for item in source.as_ref() {
+                let converted = change_reply_to_record(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
+            }
+            translated
         }
     })
 }
 
 pub fn questions_to_domain(record: crate::v25::Questions) -> Result<temper_engine_domain_forge_change::Questions, crate::v25::Problem> {
-    let crate::v25::Questions { route: field_000000, taken: field_000001, open: field_000002, waiting: field_000003, answered: field_000004, amended: field_000005 } = record;
+    let crate::v25::Questions { route: field_000000, taken: field_000001, open: field_000002, waiting: field_000003, answered: field_000004, amended: field_000005, replies: field_000006 } = record;
     Ok(temper_engine_domain_forge_change::Questions {
         route: crate::records::by_hand::route_to_domain(field_000000)?,
         taken: field_000001,
@@ -2748,6 +2790,16 @@ pub fn questions_to_domain(record: crate::v25::Questions) -> Result<temper_engin
             let mut translated = skein_lib::List::with_capacity(count);
             for item in source.into_boxed() {
                 let converted = amended_to_domain(item);
+                assert!(translated.push(converted).is_ok(), "one output per source item");
+            }
+            Box::from(translated)
+        },
+        replies: {
+            let source = field_000006;
+            let count = source.len();
+            let mut translated = skein_lib::List::with_capacity(count);
+            for item in source.into_boxed() {
+                let converted = change_reply_to_domain(item);
                 assert!(translated.push(converted).is_ok(), "one output per source item");
             }
             Box::from(translated)

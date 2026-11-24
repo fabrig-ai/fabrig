@@ -2278,7 +2278,7 @@ fn questions_open_follows_the_change_bound() {
 
 #[test]
 fn a_changes_questions_round_trip_unchanged() {
-    use temper_engine_domain_forge_change::{Hold, Open, Questions, Route, Stands, State, Waiting};
+    use temper_engine_domain_forge_change::{Hold, Open, Questions, Reply, Route, Stands, State, Waiting};
     const ASKER: u64 = 7;
     let mut row =
         fixtures::change_row(State::Held { was: Box::new(State::Checking { head: [1; 32] }), why: Hold::Questions });
@@ -2306,6 +2306,10 @@ fn a_changes_questions_round_trip_unchanged() {
         waiting: Box::new([
             Waiting { from: 40, number: 8, words: Box::new([]), passed: Some(42) },
             Waiting { from: 40, number: 9, words: b"Go on: prerequisite landed".as_slice().into(), passed: None },
+        ]),
+        replies: Box::new([
+            Reply { target: 40, question: Some(1), words: b"This change cannot take the question".as_slice().into() },
+            Reply { target: 40, question: None, words: b"No question is open".as_slice().into() },
         ]),
     };
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture bounds");
@@ -2353,7 +2357,11 @@ fn a_change_row_written_without_kept_answers_decodes_with_none() {
     }
     let family = family.unwrap();
     for keep_answers in [false, true] {
-        let mut before = family.current.replace(" amended: list 16 Amended = []", "").replace(" revision: u64 = 0", "");
+        let mut before = family
+            .current
+            .replace(" replies: list 1024 ChangeReply = []", "")
+            .replace(" amended: list 16 Amended = []", "")
+            .replace(" revision: u64 = 0", "");
         if !keep_answers {
             before = before.replace(" answered: list 16 Answered = []", "");
         }
@@ -3663,6 +3671,7 @@ fn a_change_holding_a_retired_route_or_state_never_decodes() {
             waiting: skein_lib::List::with_capacity(0),
             answered: skein_lib::List::with_capacity(0),
             amended: skein_lib::List::with_capacity(0),
+            replies: skein_lib::List::with_capacity(0),
         };
         let row = w::Row { value: w::Value::ChangeHot(parts) };
         let bytes = row.encode(&w::CEILINGS).unwrap();

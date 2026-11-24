@@ -54,8 +54,9 @@ ChangeFollows: ceilings encoded=32776 decoded=32768; at_most(3) encoded=104 deco
 ChangeHead: ceilings encoded=32 decoded=0; at_most(3) encoded=32 decoded=0
 ChangeHistory: ceilings encoded=86 decoded=0; at_most(3) encoded=86 decoded=0
 ChangeHold: ceilings encoded=43 decoded=0; at_most(3) encoded=43 decoded=0
-ChangeHot: ceilings encoded=1162378719 decoded=1162673632; at_most(3) encoded=3006 decoded=2010
+ChangeHot: ceilings encoded=1162924515 decoded=1163238880; at_most(3) encoded=3082 decoded=2139
 ChangeLive: ceilings encoded=65541 decoded=65536; at_most(3) encoded=133 decoded=48
+ChangeReply: ceilings encoded=533 decoded=512; at_most(3) encoded=24 decoded=3
 ChangeResult: ceilings encoded=4194393 decoded=4194304; at_most(3) encoded=101 decoded=12
 ChangeSource: ceilings encoded=4133 decoded=4096; at_most(3) encoded=40 decoded=3
 ChangeState: ceilings encoded=65889 decoded=65920; at_most(3) encoded=266 decoded=192
@@ -425,7 +426,7 @@ Provenance: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0
 Pull: ceilings encoded=2621561 decoded=2621440; at_most(3) encoded=151 decoded=30
 PullFilesAnswer: ceilings encoded=2097190 decoded=2097152; at_most(3) encoded=41 decoded=3
 PullState: ceilings encoded=65581 decoded=65536; at_most(3) encoded=49 decoded=3
-Questions: ceilings encoded=79733541 decoded=79739904; at_most(3) encoded=390 decoded=663
+Questions: ceilings encoded=80279337 decoded=80305152; at_most(3) encoded=466 decoded=792
 RateLimited: ceilings encoded=8 decoded=0; at_most(3) encoded=8 decoded=0
 Reach: ceilings encoded=8 decoded=0; at_most(3) encoded=8 decoded=0
 ReachClass: ceilings encoded=1 decoded=0; at_most(3) encoded=1 decoded=0

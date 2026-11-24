@@ -240,6 +240,56 @@ pub(super) fn finish_producing(world: &mut World, change: u64, producer: &engine
 }
 
 #[test]
+fn a_change_refuses_an_answer_naming_no_open_question() {
+    let (mut world, requester, change, producer) = up_world(None);
+    let sent = world.answers.len();
+    let unopened =
+        format!("Task {change} has no question open to you; read_task on task {change} shows its questions.");
+    call(
+        &mut world,
+        &requester,
+        CALL + 1,
+        engine::Tool::Message {
+            target: change,
+            form: engine::MessageForm::Answer { question: 1 },
+            words: ANSWER.into(),
+        },
+    );
+    assert_eq!(world.call_errors.last().map(|error| error.text.as_ref()), Some(unopened.as_bytes()));
+    assert_eq!(world.answers.len(), sent);
+    let down = ask(&mut world, &producer, change);
+    let sent = world.answers.len();
+    let up = live_task(&world, change).questions[0].number;
+    assert_ne!(up, down);
+    let mut expected = format!(
+        "Question {down} is not open at task {change}; its question to you is {up}: Which behavior should hold?. Answer it: message target={change}, form=answer, question={up}."
+    );
+    let bound = usize::try_from(world.env.limits.tasks.message_bytes).unwrap();
+    if expected.len() > bound {
+        expected.replace_range(bound - "…".len().., "…");
+    }
+    call(
+        &mut world,
+        &requester,
+        CALL + 2,
+        engine::Tool::Message {
+            target: change,
+            form: engine::MessageForm::Answer { question: down },
+            words: ANSWER.into(),
+        },
+    );
+    assert_eq!(world.call_errors.last().map(|error| error.text.as_ref()), Some(expected.as_bytes()));
+    assert_eq!(world.answers.len(), sent);
+    assert_eq!(row(&world, change).questions.open[0].stands, Stands::Asked);
+    assert_eq!(replies(&world, producer.task, change), [] as [&tasks::Word; 0]);
+    answer(&mut world, &requester, change, CALL + 3);
+    wait_answer(&mut world, producer.task, change);
+    let words = replies(&world, producer.task, change);
+    assert_eq!(words[0].kind, tasks::MessageKind::Answer { question: down });
+    assert_eq!(words[0].words.as_ref(), ANSWER);
+}
+
+#[test]
 fn a_producers_words_are_refused_by_the_call_and_its_finish_goes_through() {
     let (mut world, _, change, producer) = up_world(None);
     call(
@@ -1296,6 +1346,65 @@ fn a_restart_relays_a_held_answer_while_its_dependency_is_pending() {
     let resumed = resumed_producer(&mut world, change, &producer, question);
     assert_pending_dependency(&world, change, dependency);
     finish_early_pair(&mut world, change, dependency, &resumed, &upstream, head);
+}
+
+#[test]
+fn a_change_sends_batch_one_feedback_once_after_a_restart() {
+    let (mut world, requester, change, producer) = up_world(None);
+    assert_eq!(world.env.limits.tasks.batch, 1);
+    world.drain_cut();
+    let mut task = Box::new(live_task(&world, change).clone());
+    let mut header = world.store.header();
+    let mut inbox = task.inbox.into_vec();
+    // At the restored cut, the report's reply spends the only message slot.
+    // The other input models an old inbox answer: jig would refuse it at admission today.
+    for (from, kind) in
+        [(producer.task, tasks::MessageKind::Words), (requester.task, tasks::MessageKind::Answer { question: 1 })]
+    {
+        header.messages += 1;
+        inbox.push(tasks::Word {
+            number: header.messages,
+            from: tasks::Party::Task(from),
+            kind,
+            words: ANSWER.into(),
+            at: world.env.wall,
+            hits: 1,
+            eligible: true,
+        });
+    }
+    task.inbox = inbox.into_boxed_slice();
+    task.last_message = header.messages;
+    task.phase = tasks::Phase::Active(tasks::Active::Due);
+    world.store.seed(
+        Box::new([
+            Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(task))),
+            Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Deployment(header))),
+        ]),
+        Box::new([]),
+    );
+    world.restart_same();
+    for _ in 0..TICKS {
+        world.tick();
+        if !row(&world, change).questions.replies.is_empty() && world.store.pending.is_empty() {
+            break;
+        }
+    }
+    let expected =
+        format!("Task {change} has no question open to you; read_task on task {change} shows its questions.");
+    let saved = row(&world, change).questions.replies;
+    assert_eq!(saved.len(), 1, "the second reply is saved before it is sent");
+    assert_eq!(saved[0].target, requester.task);
+    assert_eq!(saved[0].question, None);
+    assert_eq!(saved[0].words.as_ref(), expected.as_bytes());
+    assert_eq!(replies(&world, producer.task, change)[0].words.as_ref(), REPORT_IN_FINISH);
+    assert_eq!(replies(&world, requester.task, change), [] as [&tasks::Word; 0]);
+    world.restart_same();
+    world.advance_ticks(TICKS);
+    let replies = replies(&world, requester.task, change);
+    assert_eq!(replies.len(), 1, "the saved reply is sent exactly once");
+    assert_eq!(replies[0].kind, tasks::MessageKind::Words);
+    assert_eq!(replies[0].words.as_ref(), expected.as_bytes());
+    assert!(row(&world, change).questions.replies.is_empty());
 }
 
 #[test]

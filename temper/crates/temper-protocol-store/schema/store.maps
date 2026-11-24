@@ -250,7 +250,8 @@ record Open = c::Open
 record Waiting = c::Waiting
 record Answered = c::Answered
 record Amended = c::Amended
-record Questions = c::Questions { open slice, waiting slice, answered slice, amended slice }
+record ChangeReply = c::Reply
+record Questions = c::Questions { open slice, waiting slice, answered slice, amended slice, replies slice }
 record ChangeFailure
 enum ChangeEnding = d::Ending
 record SignOff = d::SignOff { at via s::wall }
