@@ -1,5 +1,7 @@
+use crate::generated::records_v1 as w;
 use crate::state::records::{self, Record, RecordKey};
 use crate::tests::fixtures;
+use w::Record as _;
 fn round_trip(record: Record) {
     let (key, bytes) = records::encode(&record);
     assert_eq!(records::decode(&key, &bytes), Some(record));
@@ -17,13 +19,12 @@ fn a_draft_round_trips_through_the_small_store() {
     round_trip(fixtures::draft());
 }
 #[test]
-fn a_record_of_another_version_is_dropped() {
-    let record = Record::Place {
-        version: u16::MAX,
-        party: fixtures::PARTY,
-        address: crate::state::address::Address::Deployment,
-    };
-    let (key, bytes) = records::encode(&record);
+fn a_record_at_another_layout_is_dropped() {
+    let (key, bytes) = records::encode(&fixtures::place());
+    let mut record = w::StoredRecord::decode(&w::CEILINGS, &mut skein_lib::Reader::new(&bytes)).unwrap();
+    record.layout = w::LAYOUT;
+    record.layout[0] ^= 1;
+    let bytes = record.encode(&w::CEILINGS).unwrap();
     assert_eq!(records::decode(&key, &bytes), None);
 }
 #[test]
@@ -41,7 +42,6 @@ fn a_malformed_record_is_dropped() {
 #[test]
 fn a_draft_at_its_ceiling_round_trips_unchanged() {
     let record = Record::Draft {
-        version: records::RECORDS_VERSION,
         party: fixtures::PARTY,
         task: fixtures::TASK,
         words: jig_client::contract::Text::new(skein_lib::bytes::zeroed(65536), 65536).unwrap(),
