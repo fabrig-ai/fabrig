@@ -173,7 +173,6 @@ fn phase(
         let mut s = s.borrow_mut();
         s.disk = Some(machine.0.clone());
         s.epoch = 0;
-        s.epoch_floor = None;
         s.upgrade_started = None;
         s.transport = Some(transport.clone());
     });

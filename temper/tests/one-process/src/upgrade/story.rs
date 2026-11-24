@@ -92,7 +92,6 @@ struct State {
     upgrade_started: Option<Wall>,
     points: cuts::Points,
     epoch: u32,
-    epoch_floor: Option<u64>,
     transport: Option<temper_fake_git_hosted::Typed>,
     end_after_kill: bool,
     killed: bool,
@@ -131,7 +130,6 @@ impl Observe for Observer {
                     store.recovering();
                     store.agent_records.clear();
                 });
-                s.epoch_floor = None;
                 s.checked = false;
             }
         });
@@ -189,20 +187,8 @@ impl Observe for Observer {
             if state.upgrade && !state.checked {
                 // Keep the first start's wall across a power-loss restart.
                 let started = *state.upgrade_started.get_or_insert(wall);
-                let wires = STORE.with(|s| s.borrow().as_ref().expect("store").borrow().wires);
-                if state.epoch_floor.is_none() {
-                    state.epoch_floor = STORE.with(|s| {
-                        s.borrow().as_ref().expect("store").borrow().restored.as_ref().and_then(|rows| {
-                            rows.values().find_map(|r| match r {
-                                temper_engine_domain::Record::Core(Record::Core(CoreRecord::Deployment(header))) => {
-                                    Some(header.commits)
-                                }
-                                _ => None,
-                            })
-                        })
-                    });
-                }
-                if wires.is_some_and(|n| n > state.epoch_floor.unwrap_or(u64::MAX)) {
+                let synced_wires = STORE.with(|s| s.borrow().as_ref().expect("store").borrow().synced_wires);
+                if synced_wires {
                     let after = Maps::read(&mut state.disk.as_ref().expect("disk").borrow_mut());
                     let before = state.before.as_ref().expect("stop snapshot");
                     let source = Maps::generation(&mut state.disk.as_ref().expect("disk").borrow_mut(), before.active);
