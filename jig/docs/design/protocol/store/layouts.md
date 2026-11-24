@@ -374,7 +374,9 @@ so the store keeps which way each layout lies.
   nothing writes such a value again, so the log or the file keeps what
   the binary skips, and a value its plan refuses is handed on as it
   was stored, for its reader to refuse as it would any malformed value
-  (4). An older layout is planned by `derive`, as before, so an
+  (4). A `Write::Copy` from such a value puts what the binary read, as
+  a put of the read value would: the copy is the binary's own write,
+  and the log keeps the source whole. An older layout is planned by `derive`, as before, so an
   upgrade's plans and refusals are unchanged. A later layout with no
   plan is refused as 5.3 refuses any, while a value may hold it.
 - **Checked before anything is written:** once every plan is made
