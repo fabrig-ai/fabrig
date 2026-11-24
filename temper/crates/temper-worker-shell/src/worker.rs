@@ -273,11 +273,24 @@ fn source_inputs(
     environment: &[EnvironmentEntry],
     open_parent: bool,
 ) -> Result<Sources, String> {
+    source_inputs_with(agent, command_environment, user, environment, open_parent, |directory| {
+        temper_launcher::place(directory, cache, agent_program)
+    })
+}
+
+fn source_inputs_with(
+    agent: &service::settings::Agent,
+    command_environment: Box<[Box<[u8]>]>,
+    user: u32,
+    environment: &[EnvironmentEntry],
+    open_parent: bool,
+    place: impl FnOnce(&Path) -> Result<(), String>,
+) -> Result<Sources, String> {
     let reuse = crate::workspace_reuse(environment);
     let dump = crate::dump_llm(environment).map(|directory| directory.as_os_str().as_bytes().into());
     let resources = if let Some(program) = agent.programs.first() {
         if agent::launcher(path(&program.directory)).as_deref() == Some(path(&program.path)) {
-            temper_launcher::place(path(&program.path).parent().expect("launcher parent"), cache, agent_program)
+            place(path(&program.path).parent().expect("launcher parent"))
                 .map_err(|why| format!("programs.claude_code: {why}"))?;
         }
         // Source commands use the agent's explicit command environment.
@@ -373,3 +386,7 @@ pub fn stop_line(stop_bound: skein_lib::Duration, drain: skein_lib::Duration) ->
     let drain = drain.as_nanos().div_ceil(1_000_000_000);
     format!("stop bound {stop} s, drain {drain} s\n")
 }
+
+#[cfg(test)]
+#[path = "worker_sources_tests.rs"]
+mod sources_tests;

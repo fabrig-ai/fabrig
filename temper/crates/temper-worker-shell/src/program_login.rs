@@ -92,14 +92,33 @@ pub fn from_machine(
     agent: &Path,
 ) -> Result<std::process::Command, String> {
     from_machine_with(part, directories, name, environment, is_executable, |programs, program, name| {
-        if super::agent::launcher(programs).as_deref() == Some(program) {
-            super::worker::executable_file(agent, "the derived agent program", is_executable)?;
-            temper_launcher::place(program.parent().expect("launcher parent"), super::path(&directories.cache), agent)
-                .map_err(|why| format!("programs.claude_code: {why}"))?;
-        }
+        place_launcher_with(
+            programs,
+            program,
+            super::path(&directories.cache),
+            agent,
+            is_executable,
+            temper_launcher::place,
+        )?;
         smith_agent_document::program::prepare(programs, name)
             .map_err(|why| super::agent::program_directory_refusal(&why))
     })
+}
+
+fn place_launcher_with(
+    programs: &Path,
+    program: &Path,
+    cache: &Path,
+    agent: &Path,
+    is_executable: impl FnOnce(&Path) -> bool,
+    place: impl FnOnce(&Path, &Path, &Path) -> Result<(), String>,
+) -> Result<(), String> {
+    if super::agent::launcher(programs).as_deref() == Some(program) {
+        super::worker::executable_file(agent, "the derived agent program", is_executable)?;
+        place(program.parent().expect("launcher parent"), cache, agent)
+            .map_err(|why| format!("programs.claude_code: {why}"))?;
+    }
+    Ok(())
 }
 
 pub(crate) fn from_machine_with(
@@ -127,9 +146,20 @@ pub(crate) fn from_machine_with(
     Ok(smith_agent_document::program::sign_in(&program, &source, environment))
 }
 /// Take the terminal immediately before replacing the caller with its prepared command.
-pub fn run_command(mut command: std::process::Command) -> Result<u8, String> {
-    take_terminal(std::io::stdin().is_terminal(), skein_shell::take_foreground)?;
-    Err(format!("exec: {}", command.exec()))
+pub fn run_command(command: std::process::Command) -> Result<u8, String> {
+    run_command_with(command, std::io::stdin().is_terminal(), skein_shell::take_foreground, |mut command| {
+        Err(format!("exec: {}", command.exec()))
+    })
+}
+
+fn run_command_with(
+    command: std::process::Command,
+    terminal: bool,
+    take: impl FnOnce(Fd) -> Result<(), Error>,
+    exec: impl FnOnce(std::process::Command) -> Result<u8, String>,
+) -> Result<u8, String> {
+    take_terminal(terminal, take)?;
+    exec(command)
 }
 
 fn take_terminal(terminal: bool, take: impl FnOnce(Fd) -> Result<(), Error>) -> Result<(), String> {

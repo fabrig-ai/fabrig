@@ -14,11 +14,18 @@ use skein_tls::client as tls;
 use std::fs;
 use std::io::{self, Read as _, Write as _};
 use std::net::ToSocketAddrs;
-use std::os::unix::fs::{DirBuilderExt, OpenOptionsExt, PermissionsExt};
+use std::os::unix::{
+    ffi::OsStrExt,
+    fs::{DirBuilderExt, OpenOptionsExt, PermissionsExt},
+};
+use std::path::Path;
 use temper_fetch::{
     Origin,
     fetch::{self, Event, Failure, Fetch, Request},
 };
+
+#[cfg(test)]
+mod tests;
 
 const CHUNK: u32 = 16_384;
 const HTTP: http::Limits = http::Limits { request: 16_384, head: 16_384, headers: 64, read: CHUNK, send: CHUNK };
@@ -96,19 +103,53 @@ fn finish(handle: &fs::File, part: &[u8], file: &[u8]) -> Result<(), Failed> {
 pub fn claude_code(
     limits: &skein_io::Limits,
     trust: &Trust,
-    file: &std::path::Path,
+    file: &Path,
     pin: fetch::Pin,
     bytes: u64,
     out: &mut dyn io::Write,
 ) -> Result<(), Failed> {
-    use std::os::unix::ffi::OsStrExt;
-    let name = file.as_os_str().as_bytes();
-    if claude_present(file, bytes)? {
+    claude_code_with(
+        file,
+        bytes,
+        |file| fs::metadata(file).map(|metadata| (metadata.is_file(), metadata.len())),
+        prepare_claude_cache,
+        lock_claude_cache,
+        |out| run(limits, trust, Fetch::new(Box::new([pin]), bytes), no_extraction, out),
+        out,
+    )
+}
+
+fn claude_code_with<L>(
+    file: &Path,
+    bytes: u64,
+    mut metadata: impl FnMut(&Path) -> io::Result<(bool, u64)>,
+    prepare: impl FnOnce(&Path) -> Result<(), Failed>,
+    lock: impl FnOnce(&Path) -> Result<L, Failed>,
+    download: impl FnOnce(&mut dyn io::Write) -> Result<(), Failed>,
+    out: &mut dyn io::Write,
+) -> Result<(), Failed> {
+    if claude_present(file, bytes, metadata(file))? {
         return Ok(());
     }
+    prepare(file)?;
+    let _held = lock(file)?;
+    if claude_present(file, bytes, metadata(file))? {
+        return Ok(());
+    }
+    match out.write_all(b"fetching Claude Code\n") {
+        Ok(()) | Err(_) => {}
+    }
+    download(out)
+}
+
+fn prepare_claude_cache(file: &Path) -> Result<(), Failed> {
+    let name = file.as_os_str().as_bytes();
     let parent = file.parent().expect("cache path has a parent");
     fs::DirBuilder::new().recursive(true).mode(0o700).create(parent).map_err(|why| file_error(name, &why))?;
-    fs::set_permissions(parent, fs::Permissions::from_mode(0o700)).map_err(|why| file_error(name, &why))?;
+    fs::set_permissions(parent, fs::Permissions::from_mode(0o700)).map_err(|why| file_error(name, &why))
+}
+
+fn lock_claude_cache(file: &Path) -> Result<fs::File, Failed> {
     let mut lock_name = file.as_os_str().to_os_string();
     lock_name.push(".lock");
     let lock = fs::OpenOptions::new()
@@ -119,18 +160,12 @@ pub fn claude_code(
         .open(&lock_name)
         .map_err(|why| file_error(lock_name.as_bytes(), &why))?;
     lock.lock().map_err(|why| file_error(lock_name.as_bytes(), &why))?;
-    if claude_present(file, bytes)? {
-        return Ok(());
-    }
-    match out.write_all(b"fetching Claude Code\n") {
-        Ok(()) | Err(_) => {}
-    }
-    run(limits, trust, Fetch::new(Box::new([pin]), bytes), no_extraction, out)
+    Ok(lock)
 }
-fn claude_present(file: &std::path::Path, bytes: u64) -> Result<bool, Failed> {
-    use std::os::unix::ffi::OsStrExt;
-    match fs::metadata(file) {
-        Ok(metadata) if metadata.is_file() && metadata.len() == bytes => Ok(true),
+
+fn claude_present(file: &Path, bytes: u64, metadata: io::Result<(bool, u64)>) -> Result<bool, Failed> {
+    match metadata {
+        Ok((true, length)) if length == bytes => Ok(true),
         Ok(_) => Err(Failed::Refused(Failure::Present { file: file.as_os_str().as_bytes().into() })),
         Err(why) if why.kind() == io::ErrorKind::NotFound => Ok(false),
         Err(why) => Err(file_error(file.as_os_str().as_bytes(), &why)),
@@ -143,9 +178,8 @@ fn no_extraction(_: &[u8], _: &[u8], _: &mut fs::File, _: u64) -> fetch::Extract
     fetch::Extraction::Failed
 }
 
-fn path(bytes: &[u8]) -> &std::path::Path {
-    use std::os::unix::ffi::OsStrExt;
-    std::path::Path::new(std::ffi::OsStr::from_bytes(bytes))
+fn path(bytes: &[u8]) -> &Path {
+    Path::new(std::ffi::OsStr::from_bytes(bytes))
 }
 
 /// Runs the machine; an interrupted body leaves its part to be truncated next time.
