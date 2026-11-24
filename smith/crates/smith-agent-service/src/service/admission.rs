@@ -80,7 +80,11 @@ pub(super) fn drain(service: &mut Stages, grace: Option<Duration>) {
 pub(super) fn follow(service: &mut Stages) {
     service.admission = match service.admission {
         Admission::Owed { run } => {
-            service.domain_events.push(domain::Event::Cancel { run });
+            if service.host.gone() {
+                super::orphan::disconnect(service, run);
+            } else {
+                service.domain_events.push(domain::Event::Cancel { run });
+            }
             Admission::Admitted { run }
         }
         Admission::DrainOwed { run, grace } => {
@@ -137,8 +141,7 @@ pub(super) fn tell_signal(service: &mut Stages, frame: &mut super::Frame) -> boo
     let record = service.pending_signal.take().expect("one retained signal");
     let token = service.next_send();
     if frame.channel.send_signalled(record, token, &mut service.channel_events, &mut service.channel_below).is_err() {
-        service.mark_failed(super::Failure::WriteFailed);
-        cancel(service);
+        super::orphan::host_lost(service, super::Failure::WriteFailed);
     }
     true
 }

@@ -199,6 +199,7 @@ pub struct Machine {
     phase: Phase,
     read: ReadState,
     demand: Demand,
+    record_read: bool,
     output: Queue<Queued>,
     right: Output,
     next_right: u64,
@@ -229,6 +230,7 @@ impl Machine {
             phase,
             read,
             demand: Demand::None,
+            record_read: false,
             output: Queue::with_capacity(output_capacity),
             right: Output::Free,
             next_right: 1,
@@ -277,6 +279,12 @@ impl Machine {
         self.maybe_ready(above);
         self.maybe_finish(below);
         self.maybe_terminal(above);
+    }
+
+    /// Whether a whole frame was read since the owner last checked, including skipped kinds.
+    #[must_use]
+    pub fn take_record_read(&mut self) -> bool {
+        mem::replace(&mut self.record_read, false)
     }
 
     /// The owner-visible waits for deadlines.
@@ -819,6 +827,7 @@ impl Machine {
                 let delivered = u32::try_from(bytes.len()).expect("bounded skip chunk");
                 let left = remaining.checked_sub(delivered).expect("skip demand fits remaining body");
                 if left == 0 {
+                    self.record_read = true;
                     self.read = ReadState::Skipped { kind };
                 } else {
                     self.read = ReadState::Skip { kind, remaining: left };
@@ -850,6 +859,7 @@ impl Machine {
             }
             Some(ReadKind::Skip) => {
                 if header.body_len == 0 {
+                    self.record_read = true;
                     self.read = ReadState::Skipped { kind: header.kind };
                 } else {
                     self.read = ReadState::Skip { kind: header.kind, remaining: header.body_len };
@@ -901,6 +911,7 @@ impl Machine {
         reason = "the control variants keep their opening and terminal transitions together"
     )]
     fn received(&mut self, kind: u16, body: Box<[u8]>, above: &mut Queue<Event>) {
+        self.record_read = true;
         if kind >= 0x0100 {
             above.push(Event::Body { kind, body });
             return;

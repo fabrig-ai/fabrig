@@ -207,6 +207,16 @@ fn overflowing_declared_durations_name_the_first_field_and_its_scope() {
 }
 
 #[test]
+fn an_overflowing_orphan_exit_refuses_at_startup_by_name() {
+    let mut document = document();
+    document.profile.policy.cancel_grace = Some(u64::MAX / 1_000_000);
+    assert_eq!(
+        decode_document(document).err().map(ConfigurationRefusal::detail).as_deref(),
+        Some("derived: service.orphan_exit does not fit its type"),
+    );
+}
+
+#[test]
 fn an_unknown_profile_refuses_before_a_channel_is_opened() {
     let mut bad = document();
     bad.profile.name = "unknown".into();

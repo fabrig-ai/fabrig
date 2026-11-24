@@ -38,6 +38,8 @@ pub(crate) struct Setup {
     pub provider: skein_llm::Provider,
     pub output: u32,
     pub order_requests: bool,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub watch_channel: bool,
 }
 
 impl Default for Setup {
@@ -49,6 +51,7 @@ impl Default for Setup {
             provider: skein_llm::Provider::OpenAi,
             output: 0,
             order_requests: false,
+            watch_channel: false,
         }
     }
 }

@@ -90,7 +90,7 @@ use child::{Wanted, sub_agent};
 use core::mem;
 pub use gate::Most;
 use gate::{account_state, begin_wind_down, final_remaining};
-pub use gate::{completion_overflow, completion_permit, reserve, settle_reservation};
+pub use gate::{completion_overflow, completion_permit, completion_waits_for_host, reserve, settle_reservation};
 pub(crate) use gate::{priced, used};
 pub(crate) use jobs::cancelled as jobs_cancelled;
 pub(crate) use relay::{host_alarm, host_returned};
