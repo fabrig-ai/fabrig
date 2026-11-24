@@ -396,14 +396,17 @@
   fixed at its start, and once more for the links-only restart: first a
   public source, added by `forge source` twice and kept once, whose
   exchange joins the owner's existing account to its `sub`; then the
-  confidential source above, its secret on no output, the member made,
+  confidential source above, for which the same Forgejo is started again
+  once on its database, since a running Forgejo keeps the sources it
+  loaded at its start, its secret on no output, the member made,
   the links-only restart (`../draft/dogfood-hacks.md`, 2.8) and the
   admin's connect. The box's one click is a test of its own
   (`a_box_signs_its_person_in_to_its_owned_forgejo_with_one_click`).
   It aims at 2 s, as a world's story
   does (`checks.md`, 1), and takes about 3 s whole: about 2.5 s is the owned
   Forgejo's preparation and start, as every owned-Forgejo story pays,
-  and about 0.5 s is temper's part; being past its aim, it waits on the
+  and about 0.5 s is temper's part; the confidential leg's restart of
+  Forgejo adds about 1 s to that whole; being past its aim, it waits on the
   user's call with these figures. It shares no start: nextest runs each
   test in a process of its own.
 - **The throwaway Forgejo** is the one in skein's `testing/fakes/throwaway.md`,
