@@ -266,6 +266,7 @@ fn create_landing(
         super::report_resource(domain, env, project, name);
     }
     let row = forge::LandingRow {
+        read_hold: None,
         last_event: None,
         turn_since: None,
         waiting: None,

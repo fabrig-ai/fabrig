@@ -99,6 +99,7 @@ fn landing(d: &mut Domain) {
         .insert(
             61,
             LandingRow {
+                read_hold: None,
                 last_event: None,
                 turn_since: None,
                 waiting: None,

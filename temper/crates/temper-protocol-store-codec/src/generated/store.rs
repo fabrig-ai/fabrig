@@ -180,6 +180,7 @@ pub struct Limits {
     pub landing_flake_rerun_pending: u32,
     pub landing_follow_reruns: u32,
     pub landing_follows_items: u32,
+    pub landing_row_read_hold_some: u32,
     pub landing_row_asks: u32,
     pub landing_row_entries: u32,
     pub landing_row_flake_reruns: u32,
@@ -549,6 +550,7 @@ pub const CEILINGS: Limits = Limits {
     landing_flake_rerun_pending: 16,
     landing_follow_reruns: 65_536,
     landing_follows_items: 2_097_152,
+    landing_row_read_hold_some: 256,
     landing_row_asks: 64,
     landing_row_entries: 65_536,
     landing_row_flake_reruns: 65_536,
@@ -918,6 +920,7 @@ pub const LIMIT_NAMES: &[&str] = &[
     "landing_flake_rerun_pending",
     "landing_follow_reruns",
     "landing_follows_items",
+    "landing_row_read_hold_some",
     "landing_row_asks",
     "landing_row_entries",
     "landing_row_flake_reruns",
@@ -1291,6 +1294,7 @@ impl Limits {
             self.landing_flake_rerun_pending,
             self.landing_follow_reruns,
             self.landing_follows_items,
+            self.landing_row_read_hold_some,
             self.landing_row_asks,
             self.landing_row_entries,
             self.landing_row_flake_reruns,
@@ -1665,6 +1669,7 @@ impl Limits {
             landing_flake_rerun_pending: self.landing_flake_rerun_pending.min(most),
             landing_follow_reruns: self.landing_follow_reruns.min(most),
             landing_follows_items: self.landing_follows_items.min(most),
+            landing_row_read_hold_some: self.landing_row_read_hold_some.min(most),
             landing_row_asks: self.landing_row_asks.min(most),
             landing_row_entries: self.landing_row_entries.min(most),
             landing_row_flake_reruns: self.landing_row_flake_reruns.min(most),
@@ -2036,6 +2041,7 @@ const LIMIT_PATHS: &[Path] = &[
     paths::LANDING_FLAKE_RERUN_PENDING,
     paths::LANDING_FOLLOW_RERUNS,
     paths::LANDING_FOLLOWS_ITEMS,
+    paths::LANDING_ROW_READ_HOLD,
     paths::LANDING_ROW_ASKS,
     paths::LANDING_ROW_ENTRIES,
     paths::LANDING_ROW_FLAKE_RERUNS,
@@ -3262,6 +3268,7 @@ pub mod paths {
     pub const LANDING_FOLLOW_TAIL: Path = Path::new("LandingFollow (tail)");
     pub const LANDING_FOLLOWS_ITEMS: Path = Path::new("LandingFollows.items");
     pub const LANDING_FOLLOWS_TAIL: Path = Path::new("LandingFollows (tail)");
+    pub const LANDING_ROW_READ_HOLD: Path = Path::new("LandingRow.read_hold");
     pub const LANDING_ROW_LAST_EVENT: Path = Path::new("LandingRow.last_event");
     pub const LANDING_ROW_TURN_SINCE: Path = Path::new("LandingRow.turn_since");
     pub const LANDING_ROW_WAITING: Path = Path::new("LandingRow.waiting");
@@ -20749,6 +20756,7 @@ pub enum LandingOwnHold {
     Record(LandingRecordHold),
     Timeout(LandingTimeout),
     Turn,
+    Read,
 }
 
 // Record: LandingOwnHold.
@@ -20758,7 +20766,8 @@ impl LandingOwnHold {
         skein_codec::bounds::Node::Named("LandingRecordHold"),
         skein_codec::bounds::Node::Named("LandingTimeout"),
         skein_codec::bounds::Node::Scalar(0),
-        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2, 3] },
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2, 3, 4] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
@@ -20792,6 +20801,7 @@ impl Record for LandingOwnHold {
             Self::Record(value) => { field::put(out, &[1], paths::LANDING_OWN_HOLD_TAG)?; value.write(limits, out) },
             Self::Timeout(value) => { field::put(out, &[2], paths::LANDING_OWN_HOLD_TAG)?; value.write(limits, out) },
             Self::Turn => field::put(out, &[3], paths::LANDING_OWN_HOLD_TAG),
+            Self::Read => field::put(out, &[4], paths::LANDING_OWN_HOLD_TAG),
         }
     }
 
@@ -20802,7 +20812,8 @@ impl Record for LandingOwnHold {
             1 => Ok(Self::Record(LandingRecordHold::read(limits, reader)?)),
             2 => Ok(Self::Timeout(LandingTimeout::read(limits, reader)?)),
             3 => Ok(Self::Turn),
-            4..=u8::MAX => Err(Problem { path: paths::LANDING_OWN_HOLD_TAG, reason: skein_codec::Reason::Tag }),
+            4 => Ok(Self::Read),
+            5..=u8::MAX => Err(Problem { path: paths::LANDING_OWN_HOLD_TAG, reason: skein_codec::Reason::Tag }),
         }
     }
 }
@@ -22845,6 +22856,7 @@ impl Record for LandingFollows {
 // Type: LandingRow.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct LandingRow {
+    pub read_hold: Option<Box<[u8]>>,
     pub last_event: Option<u64>,
     pub turn_since: Option<u64>,
     pub waiting: Option<LandingAwaited>,
@@ -22860,30 +22872,32 @@ pub struct LandingRow {
 // Record: LandingRow.
 impl LandingRow {
     const SHAPE: &'static [skein_codec::bounds::Node] = &[
-        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, landing_row_read_hold_some) },
         skein_codec::bounds::Node::Option { item: 0 },
         skein_codec::bounds::Node::Scalar(8),
         skein_codec::bounds::Node::Option { item: 2 },
-        skein_codec::bounds::Node::Named("LandingAwaited"),
-        skein_codec::bounds::Node::Option { item: 4 },
         skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Option { item: 4 },
+        skein_codec::bounds::Node::Named("LandingAwaited"),
         skein_codec::bounds::Node::Option { item: 6 },
-        skein_codec::bounds::Node::Named("HistoryJobRecord"),
+        skein_codec::bounds::Node::Scalar(8),
         skein_codec::bounds::Node::Option { item: 8 },
+        skein_codec::bounds::Node::Named("HistoryJobRecord"),
+        skein_codec::bounds::Node::Option { item: 10 },
         skein_codec::bounds::Node::Named("LandingState"),
         skein_codec::bounds::Node::Named("LandingAskSlot"),
-        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, landing_row_asks), item: 11, size: size_of::<LandingAskSlot>() },
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, landing_row_asks), item: 13, size: size_of::<LandingAskSlot>() },
         skein_codec::bounds::Node::Named("LandingEntry"),
-        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, landing_row_entries), item: 13, size: size_of::<LandingEntry>() },
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, landing_row_entries), item: 15, size: size_of::<LandingEntry>() },
         skein_codec::bounds::Node::Named("LandingFlakeRerun"),
-        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, landing_row_flake_reruns), item: 15, size: size_of::<LandingFlakeRerun>() },
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, landing_row_flake_reruns), item: 17, size: size_of::<LandingFlakeRerun>() },
         skein_codec::bounds::Node::Named("LandingFollows"),
-        skein_codec::bounds::Node::Option { item: 17 },
-        skein_codec::bounds::Node::Record { prefix: 0, fields: &[1, 3, 5, 7, 9, 10, 12, 14, 16, 18] },
+        skein_codec::bounds::Node::Option { item: 19 },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[1, 3, 5, 7, 9, 11, 12, 14, 16, 18, 20] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 395;
+    pub const ENCODED_AT_ZERO: u64 = 400;
 }
 
 impl Record for LandingRow {
@@ -22908,6 +22922,7 @@ impl Record for LandingRow {
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        field::write(field::Optional { item: field::Bytes { limit: limits.landing_row_read_hold_some.min(CEILINGS.landing_row_read_hold_some) } }, &self.read_hold, limits, out, paths::LANDING_ROW_READ_HOLD)?;
         field::write(field::Optional { item: field::U64 }, &self.last_event, limits, out, paths::LANDING_ROW_LAST_EVENT)?;
         field::write(field::Optional { item: field::U64 }, &self.turn_since, limits, out, paths::LANDING_ROW_TURN_SINCE)?;
         field::write(field::Optional { item: field::Nested }, &self.waiting, limits, out, paths::LANDING_ROW_WAITING)?;
@@ -22923,6 +22938,7 @@ impl Record for LandingRow {
 
     fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
         Ok(Self {
+            read_hold: field::read(field::Optional { item: field::Bytes { limit: limits.landing_row_read_hold_some.min(CEILINGS.landing_row_read_hold_some) } }, limits, reader, paths::LANDING_ROW_READ_HOLD)?,
             last_event: field::read(field::Optional { item: field::U64 }, limits, reader, paths::LANDING_ROW_LAST_EVENT)?,
             turn_since: field::read(field::Optional { item: field::U64 }, limits, reader, paths::LANDING_ROW_TURN_SINCE)?,
             waiting: field::read(field::Optional { item: field::Nested }, limits, reader, paths::LANDING_ROW_WAITING)?,
@@ -41373,6 +41389,7 @@ static CEILING_VALUES: &[u32] = &[
     CEILINGS.landing_flake_rerun_pending,
     CEILINGS.landing_follow_reruns,
     CEILINGS.landing_follows_items,
+    CEILINGS.landing_row_read_hold_some,
     CEILINGS.landing_row_asks,
     CEILINGS.landing_row_entries,
     CEILINGS.landing_row_flake_reruns,

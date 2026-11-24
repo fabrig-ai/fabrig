@@ -282,23 +282,8 @@ fn decide(landing: &Landing, facts: &Facts, project: &Project, limits: &Limits, 
         Phase::Landed => return done(next, Decision::Finish),
         Phase::Cancelled => return done(next, Decision::None),
         Phase::Held { .. } => {
-            if !facts.released {
-                return wait(next, None, Awaited::Release);
-            }
-            if let Phase::Held { why: Hold::Record { .. }, .. } = landing.phase {
-                next.phase = Phase::Turn { at: now };
-            } else {
-                next.phase = Phase::Preparing;
-                next.round.ending = Some(crate::RoundEnd::Stale);
-            }
-            // A person's release asks again from a fresh count (landing-preparing.md, 5).
-            next.last_prepare = None;
-            for member in &mut next.members {
-                for gate in &mut member.gates {
-                    gate.faults = 0;
-                }
-            }
-            return done(next, Decision::None);
+            let stepped = held(next, facts.released, now);
+            return done(stepped.landing, stepped.decision);
         }
         Phase::Waiting | Phase::Preparing | Phase::Proving | Phase::Proved { .. } | Phase::Turn { .. } => {}
     }
@@ -396,6 +381,31 @@ fn decide(landing: &Landing, facts: &Facts, project: &Project, limits: &Limits, 
         Phase::Turn { .. } => turn(next, facts, limits, now),
         Phase::Landed | Phase::Held { .. } | Phase::Cancelled => unreachable!("inactive phases returned above"),
     }
+}
+
+/// A held landing waits for its release; no fresh forge facts are needed.
+#[must_use]
+pub fn held(mut landing: Landing, released: bool, now: Wall) -> Stepped {
+    if !released {
+        return Stepped { landing, decision: Decision::Wait { until: None, on: Awaited::Release } };
+    }
+    if landing.round.branch.is_empty() {
+        landing.phase = Phase::Preparing;
+    } else {
+        if let Phase::Held { why: Hold::Record { .. }, .. } = landing.phase {
+            landing.phase = Phase::Turn { at: now };
+        } else {
+            landing.phase = Phase::Preparing;
+            landing.round.ending = Some(crate::RoundEnd::Stale);
+        }
+        landing.last_prepare = None;
+    }
+    for member in &mut landing.members {
+        for gate in &mut member.gates {
+            gate.faults = 0;
+        }
+    }
+    Stepped { landing, decision: Decision::None }
 }
 
 fn admitted(landing: &Landing, facts: &Facts, limits: &Limits) {
