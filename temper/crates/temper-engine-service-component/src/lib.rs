@@ -322,7 +322,7 @@ pub enum Note {
     },
     WorkerOpened {
         worker: Box<[u8]>,
-        wires: skein_lib::List<jig_protocol_worker_wire::Agreed>,
+        converted: skein_lib::List<Box<str>>,
     },
     /// A refusal at the opening, including skein's pre-credential refusal.
     WorkerOpeningRefused {

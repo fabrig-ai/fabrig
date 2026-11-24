@@ -226,12 +226,6 @@ fn place(text: &mut String, at: &Undecoded) {
     }
 }
 
-// The table's worker-facing entries are precisely jig's four and temper's worker wire.
-fn worker_wire(name: &str) -> bool {
-    name == temper_protocol_worker_wire::wire::FAMILY
-        || jig_protocol_worker_wire::spoken().iter().any(|wire| wire.name == name)
-}
-
 fn workers(
     text: &mut String,
     binary: &str,
@@ -243,10 +237,10 @@ fn workers(
         writeln!(text, "{binary} upgrade: workers may stay: unknown; the copy keeps no wires").expect("string write");
         return;
     };
-    let (spoken, mut allowed) = engine_wires(text, binary, kept);
+    let mut allowed = host_tools(text, binary, kept);
     for opening in openings {
         let name = &opening.worker;
-        match judge(&spoken, configured.room, &configured.schema, &statement(opening)) {
+        match judge(&configured.spoken, &configured.roots, configured.room, &configured.limits, &statement(opening)) {
             Ok(_) => writeln!(text, "{binary} upgrade: worker {name} may stay: opened {}", at(opening.at))
                 .expect("string write"),
             Err(unfit) => {
@@ -267,35 +261,27 @@ fn workers(
     writeln!(text, "{binary} upgrade: workers may stay: {}", if allowed { "yes" } else { "no" }).expect("string write");
 }
 
-fn engine_wires(text: &mut String, binary: &str, kept: &[KeptWire]) -> (List<jig_protocol_worker_wire::Spoken>, bool) {
-    let mut allowed = true;
-    let mut spoken = List::with_capacity(temper_engine_service::wires().len());
-    for wire in temper_engine_service::wires().into_boxed() {
-        if worker_wire(wire.name) {
-            spoken.push(wire).expect("table capacity");
-            continue;
+fn host_tools(text: &mut String, binary: &str, kept: &[KeptWire]) -> bool {
+    let wire = temper_engine_service::store::host_tools_wire();
+    match kept.iter().find(|old| old.name.as_ref() == wire.name) {
+        Some(old) if (u32::from(wire.lowest)..=u32::from(wire.highest())).contains(&old.version) => true,
+        Some(old) => {
+            writeln!(
+                text,
+                "{binary} upgrade: wire {}: kept {}, this binary speaks {}..{}",
+                wire.name,
+                old.version,
+                wire.lowest,
+                wire.highest()
+            )
+            .expect("string write");
+            false
         }
-        match kept.iter().find(|old| old.name.as_ref() == wire.name) {
-            Some(old) if (u32::from(wire.lowest)..=u32::from(wire.highest())).contains(&old.version) => {}
-            Some(old) => {
-                allowed = false;
-                writeln!(
-                    text,
-                    "{binary} upgrade: wire {}: kept {}, this binary speaks {}..{}",
-                    wire.name,
-                    old.version,
-                    wire.lowest,
-                    wire.highest()
-                )
-                .expect("string write");
-            }
-            None => {
-                allowed = false;
-                writeln!(text, "{binary} upgrade: wire {} is not kept by the copy", wire.name).expect("string write");
-            }
+        None => {
+            writeln!(text, "{binary} upgrade: wire {} is not kept by the copy", wire.name).expect("string write");
+            false
         }
     }
-    (spoken, allowed)
 }
 
 fn statement(opening: &WorkerOpening) -> Statement {
@@ -304,10 +290,8 @@ fn statement(opening: &WorkerOpening) -> Statement {
             opening
                 .wires
                 .iter()
-                .map(|wire| Stated {
-                    name: wire.name.clone(),
-                    lowest: wire.lowest,
-                    layouts: List::from_boxed(wire.layouts.clone()),
+                .filter_map(|wire| {
+                    Some(Stated { name: wire.name.clone(), layout: *wire.layouts.last()?, text: Box::new([]) })
                 })
                 .collect::<Vec<_>>()
                 .into_boxed_slice(),

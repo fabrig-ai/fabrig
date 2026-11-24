@@ -13,7 +13,8 @@ pub mod wire {
     /// The lowest version this build speaks.
     pub const FLOOR: u16 = crate::patches::kept::smith_pieces::FLOOR;
 
-    const TEXT: &str = crate::PIECES_SCHEMA;
+    /// The embedded current schema text.
+    pub const TEXT: &str = crate::PIECES_SCHEMA;
 
     /// The current schema's family fingerprint.
     #[must_use]

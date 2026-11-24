@@ -20,9 +20,8 @@ pub mod convert;
 mod kinds;
 pub mod layouts;
 mod spoken;
-pub use application::{Application, Carried, Kept, Root};
-pub mod translation;
-pub use spoken::{Agreed, Spoken, spoken};
+pub use application::{Application, Carried, Root};
+pub use spoken::{Spoken, spoken};
 mod loss;
 #[path = "../patches/mod.rs"]
 pub mod patches;
@@ -40,9 +39,8 @@ pub use v22::Record;
 
 pub use v22::{ModelEvidence, ModelFailure, ModelFailureKind};
 
-pub use kinds::{
-    KINDS, Kind, KindRule, Overflow, schema, schema_and_spoken, schema_for, schema_for_prepared, terms_gap,
-};
+pub use kinds::{KINDS, Kind, KindRule, Overflow, schema, schema_and_spoken, terms_gap, terms_gap_at};
+pub use v22::Draining;
 pub use v22::Restarting;
 pub use v22::{
     AccountRefused, AgentFailure, AgentFailureValue, Answer, Bound, Call, CancelReason, CancelReasonValue, Count,
@@ -56,7 +54,6 @@ pub use v22::{
     Grant, GrantValue, Granted, HostAnswer, Inbound, Message, ProgramValue, RelayAnswer, RelayText, Relayed, Scheme,
     SettledAnswer, TurnBusy, TurnKept, Workspace,
 };
-pub use v22::{AgreedWire, Draining};
 pub use v22::{Bounds, CEILINGS, Credential, EndpointBound, Hello, Hosting, Phase, Wire};
 pub use v22::{Pause, PauseMode, PauseState, Paused};
 
@@ -67,7 +64,7 @@ pub struct Part {
     pub bytes: Box<[u8]>,
 }
 
-/// The magic and current version (protocol/channel/bridges.md, 2).
+/// The magic and current version (protocol/channel/wires.md, 2).
 pub const MAGIC: [u8; 4] = *b"jigw";
 pub const VERSION: u16 = wire::VERSION;
 
@@ -138,13 +135,17 @@ pub mod wire {
     /// The lowest version this build speaks.
     pub const FLOOR: u16 = crate::patches::kept::jig_worker_wire::FLOOR;
 
-    #[cfg(test)]
-    const TEXT: &str = crate::SCHEMA;
+    /// The embedded current schema text.
+    pub const TEXT: &str = crate::SCHEMA;
 
     /// The current schema's family fingerprint.
     #[must_use]
     pub fn layout() -> [u8; 32] {
-        *crate::patches::kept::jig_worker_wire::LAYOUTS.last().expect("the kept wire has its current layout")
+        skein_codec::schema::parse(TEXT.as_bytes())
+            .expect("the embedded current schema is valid")
+            .fingerprints()
+            .family()
+            .digest()
     }
 
     #[cfg(test)]
@@ -156,6 +157,7 @@ pub mod wire {
             let schema = skein_codec::schema::parse(TEXT.as_bytes()).expect("current schema");
             assert_eq!(FAMILY.as_bytes(), schema.spelled(schema.family()));
             assert_eq!(VERSION, schema.version());
+            assert_eq!(VERSION, 22);
             assert_eq!(layout(), schema.fingerprints().family().digest());
 
             let changed = TEXT.replacen("spec: u32", "spec: u64", 1);

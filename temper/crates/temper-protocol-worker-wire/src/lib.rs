@@ -207,13 +207,17 @@ pub mod wire {
     /// The oldest version this build speaks.
     pub const FLOOR: u16 = crate::patches::kept::temper_worker_wire::FLOOR;
 
-    #[cfg(test)]
-    const TEXT: &str = crate::SCHEMA;
+    /// The embedded current schema text.
+    pub const TEXT: &str = crate::SCHEMA;
 
     /// The current schema's family fingerprint.
     #[must_use]
     pub fn layout() -> [u8; 32] {
-        *crate::patches::kept::temper_worker_wire::LAYOUTS.last().expect("the kept wire has its current layout")
+        skein_codec::schema::parse(TEXT.as_bytes())
+            .expect("the embedded current schema is valid")
+            .fingerprints()
+            .family()
+            .digest()
     }
 
     #[cfg(test)]
@@ -225,6 +229,7 @@ pub mod wire {
             let schema = skein_codec::schema::parse(TEXT.as_bytes()).expect("current schema");
             assert_eq!(FAMILY.as_bytes(), schema.spelled(schema.family()));
             assert_eq!(VERSION, schema.version());
+            assert_eq!(VERSION, 12);
             assert_eq!(FLOOR, crate::patches::kept::temper_worker_wire::FLOOR);
             assert_eq!(layout(), schema.fingerprints().family().digest());
 

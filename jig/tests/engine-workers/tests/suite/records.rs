@@ -322,7 +322,7 @@ mod down_records {
         });
         world.run();
         let kinds: Vec<_> = world.observed(connection).iter().map(|record| record.kind).collect();
-        assert_eq!(kinds, [0x018d, 0x0180, 0x0181, 0x0182, 0x0183, 0x0185, 0x0186, 0x0184, 0x0187]);
+        assert_eq!(kinds, [0x0180, 0x0181, 0x0182, 0x0183, 0x0185, 0x0186, 0x0184, 0x0187]);
     }
     #[test]
     fn a_replaced_channel_receives_no_later_down_record() {

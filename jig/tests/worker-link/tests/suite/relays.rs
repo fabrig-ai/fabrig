@@ -50,7 +50,6 @@ fn answers(world: &World) -> Vec<&host::Relayed> {
             | Request::Close { .. }
             | Request::Abort { .. }
             | Request::Refused { .. }
-            | Request::CannotSendWhole { .. }
             | Request::Untranslated { .. }
             | Request::Fact { .. }
             | Request::Figures { .. }
@@ -98,7 +97,6 @@ fn a_relay_cancelled_while_the_link_is_down_is_never_sent_again() {
             | Request::Close { .. }
             | Request::Abort { .. }
             | Request::Refused { .. }
-            | Request::CannotSendWhole { .. }
             | Request::Untranslated { .. }
             | Request::Figures { .. }
             | Request::Fact { .. } => None,

@@ -65,10 +65,6 @@ pub trait Harness: 'static {
     /// Let a world keep the live store's checked opening bounds for its copies.
     fn checked_opening_limits(_limits: &jig_protocol_store::Checked) {}
     /// A world's worker may speak chosen versions; the playground keeps the build's ranges.
-    #[must_use]
-    fn worker_wires() -> Option<temper_service::worker_settings::Wires> {
-        None
-    }
     fn spawned(_role: Role, _inherited: &Inherited, _base: &[u8]) {}
     fn complete(_role: Role, _complete: &Complete) {}
     /// A routed git world's protocol bounds.
@@ -363,7 +359,6 @@ pub fn service<H: Harness>(inherited: &Inherited) -> Process<H> {
         &seeds,
         issuer::runtime(&typed_document),
         Some(temper_service::WorkerRuntime {
-            wires: H::worker_wires(),
             root: worker,
             path: b"/worker".as_slice().into(),
             agent: documents::pinned_agent(),

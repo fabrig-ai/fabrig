@@ -1277,25 +1277,31 @@ fn check_answer_diagnostic(ending: host::Ending, spent: u64, full: bool) {
 }
 
 #[test]
-fn opening_agreements_and_each_refusals_text_reach_shell_notes() {
+fn opening_layouts_and_each_refusals_text_reach_shell_notes() {
     use jig_protocol_engine_workers::host::Output;
     let mut service = fixtures::started();
     let workers = &mut service.engine.as_mut().unwrap().workers;
     let worker: Box<[u8]> = b"worker-a".as_slice().into();
-    let wires =
-        skein_lib::List::from_boxed(Box::new([jig_protocol_worker_wire::Agreed { name: "example-wire", version: 7 }]));
+    let converted = skein_lib::List::from_boxed(Box::new([Box::from("smith-charter")]));
     let mut events = skein_lib::Queue::uncapped();
     let statement = jig_protocol_engine_workers::Statement {
-        wires: skein_lib::List::from_boxed(Box::new([jig_protocol_engine_workers::Stated {
-            name: "example-wire".into(),
-            lowest: 7,
-            layouts: skein_lib::List::from_boxed(Box::new([[5; 32]])),
-        }])),
+        wires: skein_lib::List::from_boxed(Box::new([
+            jig_protocol_engine_workers::Stated {
+                name: "example-wire".into(),
+                layout: [4; 32],
+                text: b"extra".as_slice().into(),
+            },
+            jig_protocol_engine_workers::Stated {
+                name: "smith-charter".into(),
+                layout: [5; 32],
+                text: b"peer text".as_slice().into(),
+            },
+        ])),
         output: 4096,
         terms: skein_lib::List::from_boxed(Box::new([skein_channel::Term { kind: 12, largest: 34 }])),
     };
-    workers.route(Output::Opened { worker: worker.clone(), wires: wires.clone(), statement }, &mut events);
-    assert_eq!(workers.notes.pop(), Some(crate::Note::WorkerOpened { worker: worker.clone(), wires }));
+    workers.route(Output::Opened { worker: worker.clone(), converted: converted.clone(), statement }, &mut events);
+    assert_eq!(workers.notes.pop(), Some(crate::Note::WorkerOpened { worker: worker.clone(), converted }));
     let Some(root::Event::Worker(root::WorkerInput::Opened { worker: name, statement })) = events.pop() else {
         panic!("accepted opening reaches the root");
     };
@@ -1304,8 +1310,8 @@ fn opening_agreements_and_each_refusals_text_reach_shell_notes() {
         statement,
         root::WorkerStatement {
             wires: Box::new([root::OpenedWire {
-                name: "example-wire".into(),
-                lowest: 7,
+                name: "smith-charter".into(),
+                lowest: 5,
                 layouts: Box::new([[5; 32]])
             }]),
             output: 4096,

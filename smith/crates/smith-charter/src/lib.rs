@@ -49,7 +49,8 @@ pub mod wire {
     /// The lowest version this build speaks.
     pub const FLOOR: u16 = crate::patches::kept::smith_charter::FLOOR;
 
-    const TEXT: &str = crate::SCHEMA;
+    /// The embedded current schema text.
+    pub const TEXT: &str = crate::SCHEMA;
 
     /// The current schema's family fingerprint.
     #[must_use]
@@ -99,6 +100,7 @@ pub mod wire {
             let schema = skein_codec::schema::parse(TEXT.as_bytes()).expect("current schema");
             assert_eq!(FAMILY.as_bytes(), schema.spelled(schema.family()));
             assert_eq!(VERSION, schema.version());
+            assert_eq!(VERSION, 5);
             assert_eq!(FLOOR, crate::patches::kept::smith_charter::FLOOR);
             assert_eq!(FLOOR, 4);
             assert_eq!(layout(), schema.fingerprints().family().digest());

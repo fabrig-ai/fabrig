@@ -1,16 +1,21 @@
-//! The statement handed up whole and its checks (protocol/channel/wires.md, 3 and 5).
+//! The statement handed up whole and its checks (jig/docs/design/protocol/channel/wires.md, 3 and 5).
 use alloc::boxed::Box;
-use jig_protocol_worker_wire::{self as wire, Agreed, Credential, Spoken};
-use skein_channel::{Role, Schema, Term};
+use jig_protocol_worker_wire::{
+    self as wire, Credential, Root, Spoken,
+    layouts::{Peer, Plans, Theirs},
+};
+use skein_channel::{Role, Term, Version};
 use skein_lib::{Decimal, List, bytes};
 
+/// A wire as the worker stated it.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Stated {
     pub name: Box<str>,
-    pub lowest: u16,
-    pub layouts: List<[u8; 32]>,
+    pub layout: [u8; 32],
+    pub text: Box<[u8]>,
 }
 
+/// The credential's wires and output, and the worker's terms in their order.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Statement {
     pub wires: List<Stated>,
@@ -18,41 +23,87 @@ pub struct Statement {
     pub terms: List<Term>,
 }
 
+/// The opening's reason and text, after authentication.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Unfit {
+    /// A wire did not fit.
     Wires(Box<[u8]>),
+    /// The output room or a term did not fit.
     Limits(Box<[u8]>),
 }
 
 /// Judge a kept opening as the engine would, after authentication.
-pub fn judge(spoken: &List<Spoken>, room: u32, schema: &Schema, statement: &Statement) -> Result<List<Agreed>, Unfit> {
-    let agreed = match crate::wires::agree(spoken, &statement.wires) {
-        Ok(agreed) => agreed,
+pub fn judge(
+    spoken: &List<Spoken>,
+    roots: &List<Root>,
+    room: u32,
+    limits: &wire::v22::Limits,
+    statement: &Statement,
+) -> Result<List<Box<str>>, Unfit> {
+    let mut plans = match plans(spoken, roots) {
+        Ok(plans) => plans,
+        Err(text) => return Err(Unfit::Wires(text)),
+    };
+    let fitted = match wires(&mut plans, spoken, limits, &statement.wires) {
+        Ok(fitted) => fitted,
         Err(text) => return Err(Unfit::Wires(text)),
     };
     if let Err(text) = output(room, statement.output) {
         return Err(Unfit::Limits(text));
     }
-    for wire in &agreed {
-        if wire.name == wire::wire::FAMILY
-            && let Err(text) = terms(schema, wire.version, &statement.terms)
-        {
-            return Err(Unfit::Limits(text));
+    if let Err(text) = terms(&fitted.table, &statement.terms) {
+        return Err(Unfit::Limits(text));
+    }
+    Ok(fitted.converted)
+}
+
+pub(crate) fn plans(spoken: &List<Spoken>, roots: &List<Root>) -> Result<Plans, Box<[u8]>> {
+    let mut texts = List::with_capacity(spoken.len());
+    for wire in spoken {
+        texts.push(wire.text).expect("one text per wire");
+    }
+    Plans::new(texts.as_slice(), roots)
+}
+
+pub(crate) struct Fitted {
+    pub peer: Peer,
+    pub table: Version,
+    pub converted: List<Box<str>>,
+}
+
+pub(crate) fn wires(
+    plans: &mut Plans,
+    spoken: &List<Spoken>,
+    limits: &wire::v22::Limits,
+    stated: &List<Stated>,
+) -> Result<Fitted, Box<[u8]>> {
+    let mut theirs = List::with_capacity(stated.len());
+    for wire in stated {
+        theirs.push(Theirs { name: &wire.name, layout: wire.layout, text: &wire.text }).expect("one slot per wire");
+    }
+    let peer = plans.judge(theirs.as_slice())?;
+    let table = peer.table(limits)?;
+    let mut converted = List::uncapped();
+    for ours in spoken {
+        for theirs in stated {
+            if theirs.name.as_ref() == ours.name && theirs.layout != ours.layout {
+                converted.push(Box::from(ours.name)).expect("uncapped wires");
+            }
         }
     }
-    Ok(agreed)
+    Ok(Fitted { peer, table, converted })
 }
 
 impl Statement {
     #[expect(clippy::disallowed_methods, reason = "the credential codec validates wire names as UTF-8")]
-    pub(crate) fn credential(credential: &Credential) -> Self {
+    pub(crate) fn credential(credential: Credential) -> Self {
         let mut wires = List::with_capacity(credential.wires.len());
-        for wire in &credential.wires {
+        for wire in credential.wires.into_boxed() {
             wires
                 .push(Stated {
-                    name: core::str::from_utf8(wire.name.as_ref()).expect("credential text is UTF-8").into(),
-                    lowest: wire.lowest,
-                    layouts: wire.layouts.clone(),
+                    name: core::str::from_utf8(&wire.name).expect("credential text is UTF-8").into(),
+                    layout: wire.layout,
+                    text: wire.text,
                 })
                 .expect("one slot per stated wire");
         }
@@ -64,9 +115,13 @@ pub(crate) fn output(room: u32, stated: u32) -> Result<(), Box<[u8]>> {
     if stated == room { Ok(()) } else { Err(crate::opening::output_room_words(room, stated)) }
 }
 
-pub(crate) fn terms(schema: &Schema, version: u16, terms: &List<Term>) -> Result<(), Box<[u8]>> {
-    match wire::terms_gap(schema, version, Role::Responder, terms) {
-        Some(kind) => Err(bytes::copy_of(Decimal::of(u64::from(kind)).as_bytes())),
+pub(crate) fn terms(table: &Version, terms: &List<Term>) -> Result<(), Box<[u8]>> {
+    match wire::terms_gap_at(table, Role::Responder, terms) {
+        Some(kind) => Err(kind_words(kind)),
         None => Ok(()),
     }
+}
+
+pub(crate) fn kind_words(kind: u16) -> Box<[u8]> {
+    bytes::copy_of(Decimal::of(u64::from(kind)).as_bytes())
 }

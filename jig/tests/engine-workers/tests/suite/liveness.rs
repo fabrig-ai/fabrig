@@ -64,7 +64,7 @@ fn an_idle_channel_sends_a_ping_after_the_interval() {
     world.advance(Duration::from_millis(4_999));
     assert_eq!((world.observed(connection)).len(), 1);
     world.advance(Duration::from_millis(1));
-    assert_eq!(observed(&world, connection), [0x018d, 5]);
+    assert_eq!(observed(&world, connection), [5]);
     assert_eq!(world.root().len(), 1);
 }
 
@@ -118,9 +118,9 @@ fn a_drained_record_restarts_the_ping_interval() {
     busy(&mut world, channel);
     world.run();
     world.advance(Duration::from_millis(4_999));
-    assert_eq!(observed(&world, connection), [0x018d, 0x0184]);
+    assert_eq!(observed(&world, connection), [0x0184]);
     world.advance(Duration::from_millis(1));
-    assert_eq!(observed(&world, connection), [0x018d, 0x0184, 5]);
+    assert_eq!(observed(&world, connection), [0x0184, 5]);
 }
 
 #[test]

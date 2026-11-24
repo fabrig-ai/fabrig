@@ -414,7 +414,6 @@ impl Worker {
                 | link::Request::Refused { .. }
                 | link::Request::Fact { .. }
                 | link::Request::Restarting { .. }
-                | link::Request::CannotSendWhole { .. }
                 | link::Request::Untranslated { .. } => {}
             }
         }
@@ -1215,22 +1214,6 @@ mod admission_tests {
                 intake: Intake::with_capacity(WIRE_BYTES),
                 read: stream::Read::Nothing,
             };
-            let mut wires = List::with_capacity(4);
-            for spoken in &wire::spoken() {
-                wires
-                    .push(wire::AgreedWire { name: spoken.name.as_bytes().into(), version: spoken.highest() })
-                    .expect("four wires");
-            }
-            let record = wire::v22::Agreed { wires };
-            let mut body = skein_lib::Writer::new(skein_lib::length::usize_of(
-                record.measure(&wire::CEILINGS).expect("statement within limits"),
-            ));
-            record.write(&wire::CEILINGS, &mut body).expect("statement body");
-            let mut frame =
-                skein_channel::frame_writer(0x018d, record.measure(&wire::CEILINGS).expect("statement within limits"))
-                    .expect("statement frame");
-            frame.put(&body.finish()).expect("measured body");
-            peer.channel.play(frame.finish().expect("measured frame"));
             layer.socket = Some(SOCKET);
             layer.link_down(Time::ZERO, link::Event::Dialled { connection: Token::new(layer.prefix) });
             peer.pump(layer);

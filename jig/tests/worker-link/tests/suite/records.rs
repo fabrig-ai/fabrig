@@ -30,7 +30,6 @@ fn assignment(world: &World) -> &host::Assignment {
             | Request::Close { .. }
             | Request::Abort { .. }
             | Request::Refused { .. }
-            | Request::CannotSendWhole { .. }
             | Request::Untranslated { .. }
             | Request::Fact { .. }
             | Request::ResendPart { .. }
@@ -57,7 +56,6 @@ fn down(world: &World) -> Vec<&host::LinkDown> {
             | Request::Close { .. }
             | Request::Abort { .. }
             | Request::Refused { .. }
-            | Request::CannotSendWhole { .. }
             | Request::Untranslated { .. }
             | Request::Fact { .. }
             | Request::ResendPart { .. }

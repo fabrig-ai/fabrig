@@ -39,7 +39,7 @@ pub(crate) fn channel(limits: &Limits) -> Option<skein_channel::Limits> {
         skip: limits.chunk,
         output_bytes: cap.bytes,
         output_frames: cap.frames,
-        kinds: u32::try_from(wire::KINDS.len()).ok()?,
+        kinds: 384, // FromWorker starts at 0x0100, FromEngine at 0x0180; each has u8 tags.
     })
 }
 /// The opening's kinds and bounds, derived from the engine's limits.
@@ -58,7 +58,8 @@ pub fn valid(limits: &Limits) -> bool {
 /// Checks these bounds against the full schema prepared for this construction.
 #[must_use]
 pub fn valid_with_schema(limits: &Limits, schema: &Schema) -> bool {
-    if limits.room < 270
+    if schema.range() != Some((wire::VERSION, wire::VERSION))
+        || limits.room < 270
         || limits.handshake == Duration::ZERO
         || limits.hello == Duration::ZERO
         || limits.stall == Duration::ZERO

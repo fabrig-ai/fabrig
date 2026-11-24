@@ -31,7 +31,6 @@ pub enum Kind {
     SignedOut,
     Job,
     JobAnswer,
-    Wires,
     Ask,
     Asked,
     Restarting,
@@ -66,7 +65,7 @@ pub struct KindRule {
     pub body: Kind,
 }
 
-/// Every kind is required, in wire number order.
+/// The current schema's frame kinds, in wire number order.
 #[rustfmt::skip]
 pub const KINDS: &[KindRule] = &[
     KindRule { kind: 0x0100, direction: Direction::FromInitiator, body: Kind::Hello },
@@ -100,134 +99,54 @@ pub const KINDS: &[KindRule] = &[
     KindRule { kind: 0x018a, direction: Direction::FromResponder, body: Kind::SignOut },
     KindRule { kind: 0x018b, direction: Direction::FromResponder, body: Kind::Job },
     KindRule { kind: 0x018c, direction: Direction::FromResponder, body: Kind::ReadList },
-    KindRule { kind: 0x018d, direction: Direction::FromResponder, body: Kind::Wires },
-    KindRule { kind: 0x018e, direction: Direction::FromResponder, body: Kind::Asked },
-    KindRule { kind: 0x018f, direction: Direction::FromResponder, body: Kind::Restarting },
-    KindRule { kind: 0x0190, direction: Direction::FromResponder, body: Kind::Figures },
-    KindRule { kind: 0x0191, direction: Direction::FromResponder, body: Kind::ReadUsage },
-    KindRule { kind: 0x0192, direction: Direction::FromResponder, body: Kind::Pause },
-    KindRule { kind: 0x0193, direction: Direction::FromResponder, body: Kind::PartKept },
-    KindRule { kind: 0x0194, direction: Direction::FromResponder, body: Kind::PartBusy },
+    KindRule { kind: 0x018d, direction: Direction::FromResponder, body: Kind::Asked },
+    KindRule { kind: 0x018e, direction: Direction::FromResponder, body: Kind::Restarting },
+    KindRule { kind: 0x018f, direction: Direction::FromResponder, body: Kind::Figures },
+    KindRule { kind: 0x0190, direction: Direction::FromResponder, body: Kind::ReadUsage },
+    KindRule { kind: 0x0191, direction: Direction::FromResponder, body: Kind::Pause },
+    KindRule { kind: 0x0192, direction: Direction::FromResponder, body: Kind::PartKept },
+    KindRule { kind: 0x0193, direction: Direction::FromResponder, body: Kind::PartBusy },
 ];
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Overflow {
     Body,
-    Frame,
 }
 
-fn kept() -> List<skein_codec::schema::Schema> {
-    let mut schemas = List::uncapped();
-    let texts = crate::patches::kept::jig_worker_wire::TEXTS;
-    let count = usize::from(VERSION.checked_sub(crate::wire::FLOOR).expect("floor at or below current"))
-        .checked_add(1)
-        .expect("version count fits");
-    let skip = texts.len().checked_sub(count).expect("kept texts cover the floor");
-    for text in texts.iter().skip(skip) {
-        schemas
-            .push(skein_codec::schema::parse(text.as_bytes()).expect("valid kept worker schema"))
-            .expect("uncapped schemas");
+pub(crate) fn current(limits: &v22::Limits) -> Result<Version, Overflow> {
+    let mut kinds = List::with_capacity(u32::try_from(KINDS.len()).expect("the current kinds fit"));
+    for rule in KINDS {
+        let largest = crate::sizes::body(limits, rule.body).ok_or(Overflow::Body)?;
+        kinds.push(ChannelKind { kind: rule.kind, direction: rule.direction, largest }).expect("one row per kind");
     }
-    schemas
+    Ok(Version { version: VERSION, kinds })
 }
 
+/// The channel offers the current schema at its one version.
 pub fn schema(limits: &v22::Limits) -> Result<Schema, Overflow> {
-    schema_from(limits, &kept())
-}
-
-/// The channel table and jig's spoken ranges.
-pub fn schema_and_spoken(limits: &v22::Limits) -> Result<(Schema, List<crate::Spoken>), Overflow> {
-    Ok((schema(limits)?, crate::spoken()))
-}
-
-fn schema_from(limits: &v22::Limits, schemas: &List<skein_codec::schema::Schema>) -> Result<Schema, Overflow> {
-    use skein_codec::schema::{Shape, VariantIx};
-    let values = limits.values();
-    let mut versions = List::uncapped();
-    for kept in schemas {
-        let version = kept.version();
-        if version < crate::wire::FLOOR {
-            continue;
-        }
-        let bounds =
-            if version == VERSION { None } else { Some(kept.bounds_within(v22::LIMIT_NAMES, values.as_slice())) };
-        let mut kinds = List::uncapped();
-        for (name, base, direction) in [
-            (b"FromWorker".as_slice(), 0x0100_u16, Direction::FromInitiator),
-            (b"FromEngine".as_slice(), 0x0180_u16, Direction::FromResponder),
-        ] {
-            let at = kept.find(name).expect("kept kinds enumeration");
-            let Shape::Enum { first, count } = kept.declaration(at).shape else {
-                unreachable!("kinds are enumerations")
-            };
-            for tag in 0..count {
-                let variant = kept.variant(VariantIx::new(first.index().checked_add(tag).expect("bounded variants")));
-                let kind = base.checked_add(u16::try_from(tag).expect("variant tag fits")).expect("kind fits");
-                let largest = if version == VERSION {
-                    let rule = current_kind(kind);
-                    crate::sizes::body(limits, rule)
-                } else {
-                    let record = variant.record.expect("each kind holds a record");
-                    let bound = bounds.as_ref().expect("kept bounds").at(record).ok_or(Overflow::Body)?;
-                    let Ok(bound) = u32::try_from(bound) else { return Err(Overflow::Frame) };
-                    Some(bound)
-                }
-                .ok_or(Overflow::Body)?;
-                kinds.push(ChannelKind { kind, direction, largest }).expect("uncapped kinds");
-            }
-        }
-        versions.push(Version { version, kinds }).expect("uncapped versions");
-    }
+    let mut versions = List::with_capacity(1);
+    versions.push(current(limits)?).expect("one version");
     Ok(Schema { magic: MAGIC, versions })
 }
 
-/// The channel offers the range stated for jig's own wire.
-#[must_use]
-pub fn schema_for(limits: &v22::Limits, wires: &List<crate::Spoken>) -> Option<Schema> {
-    schema_for_prepared(&schema(limits).ok()?, wires)
-}
-
-/// Selects the stated range from a table already prepared by this construction.
-#[must_use]
-pub fn schema_for_prepared(full: &Schema, wires: &List<crate::Spoken>) -> Option<Schema> {
-    let mut stated = None;
-    for wire in wires {
-        if wire.name == crate::wire::FAMILY {
-            if stated.is_some() || wire.layouts.is_empty() {
-                return None;
-            }
-            stated = Some(wire);
-        }
-    }
-    let stated = stated?;
-    full.version(stated.lowest)?;
-    full.version(stated.highest())?;
-    let mut versions = List::uncapped();
-    for version in &full.versions {
-        if version.version >= stated.lowest && version.version <= stated.highest() {
-            versions.push(version.clone()).expect("uncapped versions");
-        }
-    }
-    Some(Schema { magic: MAGIC, versions })
-}
-
-fn current_kind(number: u16) -> Kind {
-    for rule in KINDS {
-        if rule.kind == number {
-            return rule.body;
-        }
-    }
-    unreachable!("every current variant has a kind rule")
+/// The channel table and jig's current texts.
+pub fn schema_and_spoken(limits: &v22::Limits) -> Result<(Schema, List<crate::Spoken>), Overflow> {
+    Ok((schema(limits)?, crate::spoken()))
 }
 
 /// The first sending kind whose peer bound does not hold this side's largest.
 #[must_use]
 pub fn terms_gap(schema: &Schema, version: u16, role: Role, terms: &List<Term>) -> Option<u16> {
+    terms_gap_at(schema.version(version)?, role, terms)
+}
+
+/// Check terms against this connection's kinds.
+#[must_use]
+pub fn terms_gap_at(table: &Version, role: Role, terms: &List<Term>) -> Option<u16> {
     let sending = match role {
         Role::Initiator => Direction::FromInitiator,
         Role::Responder => Direction::FromResponder,
     };
-    let table = schema.version(version)?;
     for rule in &table.kinds {
         if rule.direction == sending {
             let mut accepted = false;
@@ -242,33 +161,4 @@ pub fn terms_gap(schema: &Schema, version: u16, role: Role, terms: &List<Term>) 
         }
     }
     None
-}
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn table_from_the_floor_equals_the_table_from_every_kept_text() {
-        let mut all = skein_lib::List::uncapped();
-        for text in crate::patches::kept::jig_worker_wire::TEXTS {
-            all.push(skein_codec::schema::parse(text.as_bytes()).expect("kept schema")).expect("uncapped schemas");
-        }
-        let kept = super::kept();
-        let mut versions = skein_lib::List::uncapped();
-        for schema in &kept {
-            versions.push(schema.version()).expect("uncapped versions");
-        }
-        let mut expected = skein_lib::List::uncapped();
-        for version in crate::wire::FLOOR..=crate::VERSION {
-            expected.push(version).expect("uncapped versions");
-        }
-        assert_eq!(versions, expected);
-        let limits = crate::tests::fixtures::LIMITS;
-        let table = super::schema(&limits).expect("floor table");
-        assert_eq!(table, super::schema_from(&limits, &all).expect("all texts table"));
-        let mut listed = skein_lib::List::uncapped();
-        for version in &table.versions {
-            listed.push(version.version).expect("uncapped versions");
-        }
-        assert_eq!(listed, expected);
-    }
 }

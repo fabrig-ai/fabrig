@@ -39,7 +39,7 @@ fn a_close_waits_for_queued_records_to_drain() {
     assert_eq!(closed(&world), 0);
     world.grant_write_room(connection);
     world.run();
-    assert_eq!(world.observed(connection).iter().map(|r| r.kind).collect::<Vec<_>>(), [0x018d, 0x0184]);
+    assert_eq!(world.observed(connection).iter().map(|r| r.kind).collect::<Vec<_>>(), [0x0184]);
     assert!(world.gone(connection));
     assert_eq!(closed(&world), 1);
     referee::judge(world.root()).expect("closed last");

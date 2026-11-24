@@ -265,7 +265,6 @@ fn service(inherited: &skein_world::Inherited, parameters: programs::Parameters)
         &seeds,
         None,
         Some(temper_service::WorkerRuntime {
-            wires: None,
             root: worker,
             path: b"/worker".as_slice().into(),
             agent: temper_playground::documents::pinned_agent(),

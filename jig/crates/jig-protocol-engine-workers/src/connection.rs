@@ -1,6 +1,8 @@
 //! One accepted stream and its opening (protocol/channel/worker-link.md, 1.3).
 use crate::{Limits, Loss, Statement};
-use skein_channel::{Event, Lower, LowerEvent, Machine, Request, Role, Schema, StreamMode, WriteWait};
+use alloc::boxed::Box;
+use jig_protocol_worker_wire::{Kind, layouts::Peer};
+use skein_channel::{Event, Lower, LowerEvent, Machine, Request, Role, Schema, StreamMode, Version, WriteWait};
 use skein_lib::{List, Queue, Time, Token};
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub(crate) enum Phase {
@@ -26,9 +28,9 @@ pub(crate) struct Connection {
     pub opening: jig_protocol_worker_wire::Opening,
     pub worker: Option<u32>,
     pub channel: Token,
-    pub wires: List<jig_protocol_worker_wire::Agreed>,
-    pub stated: List<jig_protocol_worker_wire::Wire>,
-    pub version: u16,
+    pub peer: Option<Box<Peer>>,
+    pub table: Option<Version>,
+    pub converted: List<Box<str>>,
     pub statement: Option<Statement>,
     pub refusal: bool,
     pub deadline: Option<Time>,
@@ -56,9 +58,9 @@ impl Connection {
             opening: jig_protocol_worker_wire::Opening::Link,
             worker: None,
             channel: Token::new(0),
-            wires: List::uncapped(),
-            stated: List::uncapped(),
-            version: jig_protocol_worker_wire::VERSION,
+            peer: None,
+            table: None,
+            converted: List::uncapped(),
             statement: None,
             refusal: false,
             deadline: Some(now.saturating_add(limits.handshake)),
@@ -75,6 +77,10 @@ impl Connection {
             ending: Ending::Active,
         }
     }
+    pub fn sends(&self, kind: Kind) -> Option<u16> {
+        self.peer.as_ref()?.sends(kind)
+    }
+
     pub fn down(&mut self, request: Request, connection: Token, out: &mut Queue<crate::Request>) {
         self.machine.down(request, &mut self.above, &mut self.below);
         self.flush(connection, out);

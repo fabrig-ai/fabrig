@@ -3,6 +3,7 @@ use crate::{
     Bound, Event, Limits, Loss, Request, Unsent, Worker,
     connection::{Connection, Ending, Phase},
     opening::Verdict,
+    statement::{self, Fitted},
 };
 use alloc::boxed::Box;
 use jig_protocol_worker_wire::Record;
@@ -46,13 +47,12 @@ pub struct Component {
     pub(crate) connections: Map<Token, Connection>,
     pub(crate) figures: Option<wire::Figures>,
     schema: skein_channel::Schema,
-    full_schema: skein_channel::Schema,
     next_channel: u64,
     next_part: u64,
     life: Life,
     dropped_down: u64,
     sending: Option<Sending>,
-    translation: Box<wire::translation::Translation>,
+    pub(crate) plans: wire::layouts::Plans,
 }
 impl core::fmt::Debug for Component {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
@@ -82,7 +82,6 @@ impl Component {
             return Err(Unusable::Limits);
         }
         let codec = wire::sizes::limits(&limits.sizes).ok_or(Unusable::Limits)?;
-        let schema = wire::schema_for_prepared(&full_schema, &jig).ok_or(Unusable::Limits)?;
         if workers.len() > skein_lib::length::usize_of(limits.names) {
             return Err(Unusable::Workers);
         }
@@ -112,7 +111,7 @@ impl Component {
         for wire in &application.spoken {
             wires.push(wire.clone()).expect("uncapped wire list");
         }
-        let translation = Box::new(wire::translation::Translation::new(application).or(Err(Unusable::Application))?);
+        let plans = statement::plans(&wires, &application.roots).or(Err(Unusable::Application))?;
         let connections = Map::with_capacity(limits.workers.checked_add(limits.opening).expect("checked limits"));
         // The restore publishes even an empty initial table through Event::Workers.
         let workers_ready = !workers.is_empty();
@@ -125,14 +124,13 @@ impl Component {
             wires,
             codec,
             connections,
-            schema,
-            full_schema,
+            schema: full_schema,
             next_channel: 1,
             next_part: 1,
             life: Life::Running,
             dropped_down: 0,
             sending: None,
-            translation,
+            plans,
         })
     }
     #[must_use]
@@ -145,10 +143,22 @@ impl Component {
         Some(self.names.get(&position)?)
     }
 
-    /// The full opening table used by validation and upgrade judgements.
+    /// The engine's channel table, prepared for these limits.
     #[must_use]
-    pub fn full_schema(&self) -> &skein_channel::Schema {
-        &self.full_schema
+    pub const fn full_schema(&self) -> &skein_channel::Schema {
+        &self.schema
+    }
+
+    /// The engine's current wires, in opening order.
+    #[must_use]
+    pub const fn spoken(&self) -> &List<wire::Spoken> {
+        &self.wires
+    }
+
+    /// The limits used to bound a worker's kinds table.
+    #[must_use]
+    pub const fn codec(&self) -> &wire::v22::Limits {
+        &self.codec
     }
 
     /// Takes timers for the next operation without moving an armed deadline
@@ -156,7 +166,7 @@ impl Component {
     #[must_use]
     pub fn retime(&mut self, timers: crate::Timers) -> bool {
         let limits = Limits { handshake: timers.handshake, hello: timers.hello, stall: timers.stall, ..self.limits };
-        if !crate::limits::valid_with_schema(&limits, &self.full_schema) {
+        if !crate::limits::valid_with_schema(&limits, &self.schema) {
             return false;
         }
         self.limits = limits;
@@ -242,19 +252,21 @@ impl Component {
         }
         self.completed(out);
     }
-    /// The word goes only where the channel's version holds it (protocol/channel/restart.md, 3).
+    /// The word goes only where the worker's layout holds it (protocol/channel/restart.md, 3).
     fn restarting(&mut self, now: Time, wait: Duration, out: &mut Queue<Request>) {
         let mut channels = List::uncapped();
         for (connection, state) in &self.connections {
             if state.phase == Phase::Open && state.heard {
                 channels
-                    .push((*connection, state.version, state.worker.expect("authenticated worker")))
+                    .push((
+                        *connection,
+                        state.sends(wire::Kind::Restarting).is_some(),
+                        state.worker.expect("authenticated worker"),
+                    ))
                     .expect("uncapped channels");
             }
         }
-        for (connection, version, worker) in channels.into_boxed() {
-            let held =
-                self.schema.version(version).expect("agreed version").kind(wire::Kind::Restarting.number()).is_some();
+        for (connection, held, worker) in channels.into_boxed() {
             let sent = if held {
                 let record = wire::Restarting { wait_ms: wait.as_millis() };
                 self.send(now, connection, Some(crate::translate::Down::Restarting(record)), Reply::Drop, out);
@@ -263,7 +275,7 @@ impl Component {
                 None
             };
             let worker = self.workers.get(skein_lib::usize_of(worker)).expect("authenticated worker").name.clone();
-            out.push(Request::Told { worker, version, wait: sent });
+            out.push(Request::Told { worker, version: wire::VERSION, wait: sent });
         }
     }
     fn lower(&mut self, now: Time, connection: Token, event: skein_channel::LowerEvent, out: &mut Queue<Request>) {
@@ -286,36 +298,23 @@ impl Component {
             if let Some(connection) = self.target(channel) {
                 if let jig_domain_host::LinkDown::ReadUsage { .. } = &down {
                     let state = self.connections.get(&connection).expect("target channel exists");
-                    if self
-                        .schema
-                        .version(state.version)
-                        .expect("agreed version")
-                        .kind(wire::Kind::ReadUsage.number())
-                        .is_none()
-                    {
+                    if state.sends(wire::Kind::ReadUsage).is_none() {
                         self.dropped_down = self.dropped_down.saturating_add(1);
                         return;
                     }
                 }
                 let reply = match &down {
                     jig_domain_host::LinkDown::Pause { mode } => {
-                        // A pause is best effort at the agreed version (protocol/channel/pause.md, 3).
+                        // A pause is best effort at the worker's layout (protocol/channel/pause.md, 3).
                         let state = self.connections.get(&connection).expect("heard channel exists");
-                        let version = state.version;
-                        let held = self
-                            .schema
-                            .version(version)
-                            .expect("agreed version")
-                            .kind(wire::Kind::Pause.number())
-                            .is_some();
-                        if !held {
+                        if state.sends(wire::Kind::Pause).is_none() {
                             let worker = self
                                 .workers
                                 .get(skein_lib::usize_of(state.worker.expect("authenticated worker")))
                                 .expect("authenticated worker")
                                 .name
                                 .clone();
-                            out.push(Request::Unpaused { worker, version, mode: *mode });
+                            out.push(Request::Unpaused { worker, version: wire::VERSION, mode: *mode });
                             return;
                         }
                         Reply::Drop
@@ -457,8 +456,8 @@ impl Component {
         };
         let kind = record.kind();
         if kind == wire::Kind::PartKept || kind == wire::Kind::PartBusy {
-            let version = self.connections.get(&connection).expect("target channel exists").version;
-            if self.schema.version(version).expect("agreed version").kind(kind.number()).is_none() {
+            let state = self.connections.get(&connection).expect("target channel exists");
+            if state.sends(kind).is_none() {
                 return;
             }
         }
@@ -511,15 +510,7 @@ impl Component {
                     return;
                 }
             };
-            let version = state.version;
-            match crate::translate::send(&mut self.translation, frame, version, &state.wires, &self.codec) {
-                Ok(frame) => Some(frame),
-                Err(error) => {
-                    self.untranslated(&state, kind, reply, error, out);
-                    self.keep(connection, state);
-                    return;
-                }
-            }
+            Some(frame)
         } else {
             None
         };
@@ -539,7 +530,7 @@ impl Component {
         }
         self.keep(connection, state);
     }
-    /// Whole owner input and each post-Agreed channel (protocol/channel/figures.md, 3).
+    /// Whole owner input and each ready channel (protocol/channel/figures.md, 3).
     fn give_figures(&mut self, now: Time, figures: wire::Figures, out: &mut Queue<Request>) {
         self.figures = Some(figures);
         let mut channels = List::uncapped();
@@ -549,13 +540,16 @@ impl Component {
             }
         }
         for connection in &channels {
-            let mut state = self.connections.remove(connection).expect("post-Agreed channel");
+            let mut state = self.connections.remove(connection).expect("ready channel");
             self.send_figures(now, *connection, &mut state, out);
             self.progress(now, *connection, &mut state, out);
             self.keep(*connection, state);
         }
     }
     fn send_figures(&mut self, now: Time, connection: Token, state: &mut Connection, out: &mut Queue<Request>) -> bool {
+        if state.sends(wire::Kind::Figures).is_none() {
+            return true;
+        }
         let Some(figures) = &self.figures else { return true };
         let mut parts = figures.clone();
         let mut admitted = None;
@@ -666,7 +660,7 @@ impl Component {
     }
     #[expect(
         clippy::too_many_lines,
-        reason = "opening, ready and terminal events keep their ordered transitions together"
+        reason = "one exhaustive event match keeps the opening and channel lifecycle in order"
     )]
     fn heard(
         &mut self,
@@ -687,7 +681,7 @@ impl Component {
                     return;
                 }
                 let verdict = self.judge(&credential, state.in_process);
-                let worker = match verdict {
+                let (worker, opening, older, fitted, statement) = match verdict {
                     Verdict::Refuse { worker, reason, text } => {
                         state.worker = worker;
                         self.refuse(now, connection, state, reason.code(), text, out);
@@ -699,86 +693,60 @@ impl Component {
                         self.refuse(now, connection, state, 2, text, out);
                         return;
                     }
-                    Verdict::Accept { worker, wires, statement } => {
-                        state.wires = wires;
-                        state.statement = Some(statement);
-                        worker
-                    }
-                    Verdict::Replace { worker, older, wires, statement } => {
-                        state.wires = wires;
-                        state.statement = Some(statement);
-                        if let Some(mut old) = self.connections.remove(&older) {
-                            self.refuse(now, older, &mut old, Reason::Replaced.code(), Box::new([]), out);
-                            old.poll(older, out);
-                            for _ in 0..skein_channel::MAX_UP {
-                                let Some(event) = old.above.pop() else { break };
-                                match event {
-                                    ChannelEvent::Closed { why, text } => {
-                                        closed(older, &mut old, why, text, self.life, out);
-                                    }
-                                    ChannelEvent::Opening { .. }
-                                    | ChannelEvent::Ready { .. }
-                                    | ChannelEvent::Body { .. }
-                                    | ChannelEvent::Ping
-                                    | ChannelEvent::Unsupported { .. }
-                                    | ChannelEvent::Refused { .. }
-                                    | ChannelEvent::Ended
-                                    | ChannelEvent::Sent { .. }
-                                    | ChannelEvent::Unsent { .. }
-                                    | ChannelEvent::Drained
-                                    | ChannelEvent::OutputFailed => {}
-                                }
-                            }
-                            self.keep(older, old);
-                        }
-                        worker
+                    Verdict::Accept { worker, opening, older, fitted, statement } => {
+                        (worker, opening, older, fitted, statement)
                     }
                 };
-                if let Ok(credential) = wire::Credential::decode(&self.codec, &mut Reader::new(&credential)) {
-                    state.opening = credential.opening;
-                    state.stated = credential.wires;
+                if let Some(older) = older
+                    && let Some(mut old) = self.connections.remove(&older)
+                {
+                    self.refuse(now, older, &mut old, Reason::Replaced.code(), Box::new([]), out);
+                    old.poll(older, out);
+                    for _ in 0..skein_channel::MAX_UP {
+                        let Some(event) = old.above.pop() else { break };
+                        match event {
+                            ChannelEvent::Closed { why, text } => {
+                                closed(older, &mut old, why, text, self.life, out);
+                            }
+                            ChannelEvent::Opening { .. }
+                            | ChannelEvent::Ready { .. }
+                            | ChannelEvent::Body { .. }
+                            | ChannelEvent::Ping
+                            | ChannelEvent::Unsupported { .. }
+                            | ChannelEvent::Refused { .. }
+                            | ChannelEvent::Ended
+                            | ChannelEvent::Sent { .. }
+                            | ChannelEvent::Unsent { .. }
+                            | ChannelEvent::Drained
+                            | ChannelEvent::OutputFailed => {}
+                        }
+                    }
+                    self.keep(older, old);
                 }
+                let Fitted { peer, table, converted } = *fitted;
+                state.opening = opening;
+                state.peer = Some(Box::new(peer));
+                state.table = Some(table.clone());
+                state.converted = converted;
+                state.statement = Some(statement);
                 state.worker = Some(worker);
                 state.channel = Token::new(self.next_channel);
                 self.next_channel =
                     self.next_channel.checked_add(1).expect("channel tokens never wrap in a process life");
                 state.phase = Phase::Terms;
                 state.hello_deadline = Some(now.saturating_add(self.limits.hello));
-                state.down(ChannelRequest::Accept { version: highest }, connection, out);
+                state.down(ChannelRequest::AcceptWith { table }, connection, out);
             }
-            ChannelEvent::Ready { version, terms } => {
-                state.version = version;
-                let checked = if state.opening == wire::Opening::Figures {
-                    figures_terms(&self.schema, version, &terms)
+            ChannelEvent::Ready { version: _, terms } => {
+                let table = state.table.take().expect("the opening installed a table");
+                let check = if state.opening == wire::Opening::Figures {
+                    figures_terms(&table, state.sends(wire::Kind::Figures), &terms)
                 } else {
-                    crate::statement::terms(&self.schema, version, &terms)
+                    statement::terms(&table, &terms)
                 };
-                if let Err(text) = checked {
+                if let Err(text) = check {
                     self.refuse(now, connection, state, 2, text, out);
                 } else {
-                    if self.schema.version(version).expect("agreed version").kind(wire::Kind::Wires.number()).is_some()
-                    {
-                        let mut wires = List::with_capacity(self.codec.agreed_wires);
-                        for agreed in &state.wires {
-                            let record = wire::AgreedWire {
-                                name: bytes::copy_of(agreed.name.as_bytes()),
-                                version: agreed.version,
-                            };
-                            wires.push(record).expect("agreed wires fit credential limits");
-                        }
-                        let record = wire::v22::Agreed { wires };
-                        let length = record.measure(&self.codec).expect("agreed statement fits limits");
-                        let mut body = skein_lib::Writer::new(skein_lib::length::usize_of(length));
-                        record.write(&self.codec, &mut body).expect("measured statement");
-                        let mut frame =
-                            skein_channel::frame_writer(wire::Kind::Wires.number(), length).expect("bounded statement");
-                        frame.put(&body.finish()).expect("measured statement");
-                        let frame = frame.finish().expect("measured statement");
-                        let frame =
-                            crate::translate::send(&mut self.translation, frame, version, &state.wires, &self.codec)
-                                .expect("a statement is sent only where its kind is held");
-                        self.send_opening(now, connection, state, wire::Kind::Wires, frame, out);
-                    }
                     if !self.send_figures(now, connection, state, out) {
                         return;
                     }
@@ -794,7 +762,7 @@ impl Component {
                     statement.terms = terms;
                     out.push(Request::Opened {
                         worker: state.worker.expect("authenticated worker"),
-                        wires: state.wires.clone(),
+                        converted: core::mem::replace(&mut state.converted, List::with_capacity(0)),
                         statement,
                     });
                     state.phase = Phase::Hello;
@@ -849,14 +817,6 @@ impl Component {
         body: &[u8],
         out: &mut Queue<Request>,
     ) {
-        let Ok(frame) =
-            crate::translate::receive(&mut self.translation, kind, body, state.version, &state.wires, &self.codec)
-        else {
-            self.refuse(now, connection, state, 3, Box::new([]), out);
-            return;
-        };
-        let kind = frame.kind();
-        let body = frame.bytes().get(8..).expect("validated frame header");
         match state.phase {
             Phase::Hello => {
                 if kind == 0x0100
@@ -870,12 +830,7 @@ impl Component {
                         self.refuse(now, connection, state, 3, Box::new([]), out);
                         return;
                     };
-                    hello.reads_usage = self
-                        .schema
-                        .version(state.version)
-                        .expect("agreed version")
-                        .kind(wire::Kind::ReadUsage.number())
-                        .is_some();
+                    hello.reads_usage = state.sends(wire::Kind::ReadUsage).is_some();
                     state.phase = Phase::Open;
                     state.heard = true;
                     state.deadline = None;
@@ -998,22 +953,18 @@ impl Component {
 }
 
 fn figures_terms(
-    schema: &skein_channel::Schema,
-    version: u16,
+    table: &skein_channel::Version,
+    kind: Option<u16>,
     terms: &List<skein_channel::Term>,
 ) -> Result<(), Box<[u8]>> {
-    let table = schema.version(version).expect("agreed version");
-    for kind in [wire::Kind::Wires, wire::Kind::Figures] {
-        let rule = table.kind(kind.number()).expect("figures opening kinds");
-        let mut takes = false;
-        for term in terms {
-            takes |= term.kind == rule.kind && term.largest >= rule.largest;
-        }
-        if !takes {
-            return Err(bytes::copy_of(Decimal::of(u64::from(rule.kind)).as_bytes()));
+    let Some(kind) = kind else { return Err(statement::kind_words(wire::Kind::Figures.number())) };
+    let rule = table.kind(kind).expect("the worker's figures kind is in its table");
+    for term in terms {
+        if term.kind == kind && term.largest >= rule.largest {
+            return Ok(());
         }
     }
-    Ok(())
+    Err(statement::kind_words(kind))
 }
 
 fn closed(
@@ -1150,89 +1101,4 @@ fn unsent_words(name: &[u8], bytes: u32, bound: Bound) -> Box<[u8]> {
         words.put(part).expect("measured words");
     }
     words.finish()
-}
-
-impl Component {
-    fn untranslated(
-        &mut self,
-        state: &Connection,
-        kind: wire::Kind,
-        reply: Reply,
-        error: wire::translation::Untranslated,
-        out: &mut Queue<Request>,
-    ) {
-        use jig_domain_host as host;
-        let mut lowest = state.version;
-        let mut highest = state.version;
-        for stated in &state.stated {
-            if stated.name.as_ref() == error.wire.as_ref() {
-                lowest = stated.lowest;
-                highest = lowest
-                    .saturating_add(u16::try_from(stated.layouts.len().saturating_sub(1)).expect("bounded wire range"));
-            }
-        }
-        let mismatch = host::Mismatch { wire: error.wire, version: error.version, lowest, highest };
-        out.push(Request::Unsent {
-            worker: state.worker.expect("authenticated worker"),
-            channel: state.channel,
-            unsent: Unsent { kind, bytes: 0, bound: Bound::Translation { version: state.version, halt: error.halt } },
-        });
-        let up = match reply {
-            Reply::Assignment { run, attempt } => host::LinkUp::Answer {
-                run,
-                attempt,
-                answer: host::RunAnswer {
-                    read: None,
-                    refused: Box::new([]),
-                    turns: 0,
-                    spent: 0,
-                    ending: host::Ending::Refused(host::Refusal::Untranslated(mismatch)),
-                },
-            },
-            Reply::Job { run, attempt } => host::LinkUp::JobAnswer {
-                run,
-                attempt,
-                answer: host::JobEnding::Refused(host::JobRefusal::Untranslated(mismatch)),
-            },
-            Reply::ReadList { .. } | Reply::Drop => {
-                self.dropped_down = self.dropped_down.saturating_add(1);
-                return;
-            }
-        };
-        out.push(Request::Up { channel: state.channel, up, parts: Box::new([]) });
-    }
-}
-
-#[cfg(test)]
-mod bridge_tests {
-    use super::{Bound, Connection, Reply, Request};
-    use jig_protocol_worker_wire::{self as wire, translation::Untranslated};
-    use skein_lib::{Queue, Time, Token};
-    #[test]
-    fn a_halted_running_message_is_discarded_with_its_channel_diagnostic() {
-        let mut component = crate::tests::fixtures::component();
-        let mut state = Connection::new(component.schema.clone(), &component.limits, Time::ZERO, false);
-        state.worker = Some(0);
-        state.channel = Token::new(17);
-        state.version = 11;
-        let mut out = Queue::uncapped();
-        component.untranslated(
-            &state,
-            wire::Kind::Message,
-            Reply::Drop,
-            Untranslated {
-                wire: b"jig-worker-wire".as_slice().into(),
-                version: 12,
-                halt: skein_codec::patch::Halt::Altered,
-            },
-            &mut out,
-        );
-        let Request::Unsent { channel, worker, unsent } = out.pop().expect("halt diagnostic") else {
-            panic!("diagnostic")
-        };
-        assert_eq!((channel, worker, unsent.kind), (Token::new(17), 0, wire::Kind::Message));
-        assert_eq!(unsent.bound, Bound::Translation { version: 11, halt: skein_codec::patch::Halt::Altered });
-        assert!(out.is_empty(), "no frame or attempt answer for a running message");
-        assert_eq!(component.dropped_down(), 1);
-    }
 }

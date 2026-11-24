@@ -14,7 +14,7 @@ pub const VERSION: u16 = 22;
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct Limits {
     pub wire_name: u32,
-    pub wire_layouts: u32,
+    pub wire_text: u32,
     pub credential_name: u32,
     pub credential_secret: u32,
     pub credential_wires: u32,
@@ -90,8 +90,6 @@ pub struct Limits {
     pub usage_label: u32,
     pub usage_windows_windows: u32,
     pub read_usage_source: u32,
-    pub agreed_wire_name: u32,
-    pub agreed_wires: u32,
     pub ask_bytes: u32,
     pub ask_bytes_bytes: u32,
     pub limit_name: u32,
@@ -111,10 +109,10 @@ pub struct Limits {
 
 pub const CEILINGS: Limits = Limits {
     wire_name: 32,
-    wire_layouts: 16,
+    wire_text: 65_536,
     credential_name: 256,
     credential_secret: 1_024,
-    credential_wires: 16,
+    credential_wires: 8,
     bounds_endpoints: 64,
     bounds_program_endpoints: 64,
     hello_workstreams: 65_536,
@@ -187,8 +185,6 @@ pub const CEILINGS: Limits = Limits {
     usage_label: 32,
     usage_windows_windows: 8,
     read_usage_source: 32,
-    agreed_wire_name: 32,
-    agreed_wires: 16,
     ask_bytes: 1_048_576,
     ask_bytes_bytes: 1_048_576,
     limit_name: 64,
@@ -208,7 +204,7 @@ pub const CEILINGS: Limits = Limits {
 
 pub const LIMIT_NAMES: &[&str] = &[
     "wire_name",
-    "wire_layouts",
+    "wire_text",
     "credential_name",
     "credential_secret",
     "credential_wires",
@@ -284,8 +280,6 @@ pub const LIMIT_NAMES: &[&str] = &[
     "usage_label",
     "usage_windows_windows",
     "read_usage_source",
-    "agreed_wire_name",
-    "agreed_wires",
     "ask_bytes",
     "ask_bytes_bytes",
     "limit_name",
@@ -308,7 +302,7 @@ impl Limits {
     pub fn values(&self) -> List<u32> {
         List::from_boxed([
             self.wire_name,
-            self.wire_layouts,
+            self.wire_text,
             self.credential_name,
             self.credential_secret,
             self.credential_wires,
@@ -384,8 +378,6 @@ impl Limits {
             self.usage_label,
             self.usage_windows_windows,
             self.read_usage_source,
-            self.agreed_wire_name,
-            self.agreed_wires,
             self.ask_bytes,
             self.ask_bytes_bytes,
             self.limit_name,
@@ -409,7 +401,7 @@ impl Limits {
         let _: u32 = most;
         Limits {
             wire_name: self.wire_name.min(most),
-            wire_layouts: self.wire_layouts.min(most),
+            wire_text: self.wire_text.min(most),
             credential_name: self.credential_name.min(most),
             credential_secret: self.credential_secret.min(most),
             credential_wires: self.credential_wires.min(most),
@@ -485,8 +477,6 @@ impl Limits {
             usage_label: self.usage_label.min(most),
             usage_windows_windows: self.usage_windows_windows.min(most),
             read_usage_source: self.read_usage_source.min(most),
-            agreed_wire_name: self.agreed_wire_name.min(most),
-            agreed_wires: self.agreed_wires.min(most),
             ask_bytes: self.ask_bytes.min(most),
             ask_bytes_bytes: self.ask_bytes_bytes.min(most),
             limit_name: self.limit_name.min(most),
@@ -508,7 +498,7 @@ impl Limits {
 
 const LIMIT_PATHS: &[Path] = &[
     paths::WIRE_NAME,
-    paths::WIRE_LAYOUTS,
+    paths::WIRE_TEXT,
     paths::CREDENTIAL_NAME,
     paths::CREDENTIAL_SECRET,
     paths::CREDENTIAL_WIRES,
@@ -584,8 +574,6 @@ const LIMIT_PATHS: &[Path] = &[
     paths::USAGE_LABEL,
     paths::USAGE_WINDOWS_WINDOWS,
     paths::READ_USAGE_SOURCE,
-    paths::AGREED_WIRE_NAME,
-    paths::AGREED_WIRES,
     paths::ASK_BYTES,
     paths::ASK_BYTES_BYTES,
     paths::LIMIT_NAME,
@@ -617,8 +605,8 @@ pub mod paths {
     use super::Path;
     pub const OPENING_TAG: Path = Path::new("Opening (tag)");
     pub const WIRE_NAME: Path = Path::new("Wire.name");
-    pub const WIRE_LOWEST: Path = Path::new("Wire.lowest");
-    pub const WIRE_LAYOUTS: Path = Path::new("Wire.layouts");
+    pub const WIRE_LAYOUT: Path = Path::new("Wire.layout");
+    pub const WIRE_TEXT: Path = Path::new("Wire.text");
     pub const WIRE_TAIL: Path = Path::new("Wire (tail)");
     pub const CREDENTIAL_NAME: Path = Path::new("Credential.name");
     pub const CREDENTIAL_SECRET: Path = Path::new("Credential.secret");
@@ -1006,11 +994,6 @@ pub mod paths {
     pub const READ_USAGE_SOURCE: Path = Path::new("ReadUsage.source");
     pub const READ_USAGE_TAIL: Path = Path::new("ReadUsage (tail)");
     pub const DRAINING_TAIL: Path = Path::new("Draining (tail)");
-    pub const AGREED_WIRE_NAME: Path = Path::new("AgreedWire.name");
-    pub const AGREED_WIRE_VERSION: Path = Path::new("AgreedWire.version");
-    pub const AGREED_WIRE_TAIL: Path = Path::new("AgreedWire (tail)");
-    pub const AGREED_WIRES: Path = Path::new("Agreed.wires");
-    pub const AGREED_TAIL: Path = Path::new("Agreed (tail)");
     pub const ASK_RUN: Path = Path::new("Ask.run");
     pub const ASK_ATTEMPT: Path = Path::new("Ask.attempt");
     pub const ASK_NUMBER: Path = Path::new("Ask.number");
@@ -1135,22 +1118,21 @@ impl Record for Opening {
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Wire {
     pub name: Box<[u8]>,
-    pub lowest: u16,
-    pub layouts: List<[u8; 32]>,
+    pub layout: [u8; 32],
+    pub text: Box<[u8]>,
 }
 
 // Record: Wire.
 impl Wire {
     const SHAPE: &'static [skein_codec::bounds::Node] = &[
         skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, wire_name) },
-        skein_codec::bounds::Node::Scalar(2),
         skein_codec::bounds::Node::Scalar(32),
-        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, wire_layouts), item: 2, size: size_of::<[u8; 32]>() },
-        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 3] },
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, wire_text) },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1, 2] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 10;
+    pub const ENCODED_AT_ZERO: u64 = 40;
 }
 
 impl Record for Wire {
@@ -1176,16 +1158,16 @@ impl Record for Wire {
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
         field::write(field::Text { limit: limits.wire_name.min(CEILINGS.wire_name) }, &self.name, limits, out, paths::WIRE_NAME)?;
-        field::write(field::U16, &self.lowest, limits, out, paths::WIRE_LOWEST)?;
-        field::write(field::Sequence { limit: limits.wire_layouts.min(CEILINGS.wire_layouts), minimum: 32, item: field::Fixed::<32> }, &self.layouts, limits, out, paths::WIRE_LAYOUTS)?;
+        field::write(field::Fixed::<32>, &self.layout, limits, out, paths::WIRE_LAYOUT)?;
+        field::write(field::Bytes { limit: limits.wire_text.min(CEILINGS.wire_text) }, &self.text, limits, out, paths::WIRE_TEXT)?;
         Ok(())
     }
 
     fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
         Ok(Self {
             name: field::read(field::Text { limit: limits.wire_name.min(CEILINGS.wire_name) }, limits, reader, paths::WIRE_NAME)?,
-            lowest: field::read(field::U16, limits, reader, paths::WIRE_LOWEST)?,
-            layouts: field::read(field::Sequence { limit: limits.wire_layouts.min(CEILINGS.wire_layouts), minimum: 32, item: field::Fixed::<32> }, limits, reader, paths::WIRE_LAYOUTS)?,
+            layout: field::read(field::Fixed::<32>, limits, reader, paths::WIRE_LAYOUT)?,
+            text: field::read(field::Bytes { limit: limits.wire_text.min(CEILINGS.wire_text) }, limits, reader, paths::WIRE_TEXT)?,
         })
     }
 }
@@ -1240,7 +1222,7 @@ impl Record for Credential {
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
         field::write(field::Text { limit: limits.credential_name.min(CEILINGS.credential_name) }, &self.name, limits, out, paths::CREDENTIAL_NAME)?;
         field::write(field::Hidden { limit: limits.credential_secret.min(CEILINGS.credential_secret) }, &self.secret, limits, out, paths::CREDENTIAL_SECRET)?;
-        field::write(field::Sequence { limit: limits.credential_wires.min(CEILINGS.credential_wires), minimum: 10, item: field::Nested }, &self.wires, limits, out, paths::CREDENTIAL_WIRES)?;
+        field::write(field::Sequence { limit: limits.credential_wires.min(CEILINGS.credential_wires), minimum: 40, item: field::Nested }, &self.wires, limits, out, paths::CREDENTIAL_WIRES)?;
         field::write(field::U32, &self.output, limits, out, paths::CREDENTIAL_OUTPUT)?;
         field::write(field::Nested, &self.opening, limits, out, paths::CREDENTIAL_OPENING)?;
         Ok(())
@@ -1250,7 +1232,7 @@ impl Record for Credential {
         Ok(Self {
             name: field::read(field::Text { limit: limits.credential_name.min(CEILINGS.credential_name) }, limits, reader, paths::CREDENTIAL_NAME)?,
             secret: field::read(field::Hidden { limit: limits.credential_secret.min(CEILINGS.credential_secret) }, limits, reader, paths::CREDENTIAL_SECRET)?,
-            wires: field::read(field::Sequence { limit: limits.credential_wires.min(CEILINGS.credential_wires), minimum: 10, item: field::Nested }, limits, reader, paths::CREDENTIAL_WIRES)?,
+            wires: field::read(field::Sequence { limit: limits.credential_wires.min(CEILINGS.credential_wires), minimum: 40, item: field::Nested }, limits, reader, paths::CREDENTIAL_WIRES)?,
             output: field::read(field::U32, limits, reader, paths::CREDENTIAL_OUTPUT)?,
             opening: field::read(field::Nested, limits, reader, paths::CREDENTIAL_OPENING)?,
         })
@@ -8612,111 +8594,6 @@ impl Record for Draining {
     }
 }
 
-// Type: AgreedWire.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct AgreedWire {
-    pub name: Box<[u8]>,
-    pub version: u16,
-}
-
-// Record: AgreedWire.
-impl AgreedWire {
-    const SHAPE: &'static [skein_codec::bounds::Node] = &[
-        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, agreed_wire_name) },
-        skein_codec::bounds::Node::Scalar(2),
-        skein_codec::bounds::Node::Record { prefix: 0, fields: &[0, 1] },
-    ];
-
-    /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 6;
-}
-
-impl Record for AgreedWire {
-    type Limits = Limits;
-    const TAIL: Path = paths::AGREED_WIRE_TAIL;
-
-    fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "AgreedWire")?.encoded)
-    }
-
-    fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "AgreedWire")?.decoded)
-    }
-
-    #[cfg(debug_assertions)]
-    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let value = Self::read(limits, reader)?;
-        if !reader.is_empty() {
-            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
-        }
-        Ok(value)
-    }
-
-    fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
-        field::write(field::Text { limit: limits.agreed_wire_name.min(CEILINGS.agreed_wire_name) }, &self.name, limits, out, paths::AGREED_WIRE_NAME)?;
-        field::write(field::U16, &self.version, limits, out, paths::AGREED_WIRE_VERSION)?;
-        Ok(())
-    }
-
-    fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        Ok(Self {
-            name: field::read(field::Text { limit: limits.agreed_wire_name.min(CEILINGS.agreed_wire_name) }, limits, reader, paths::AGREED_WIRE_NAME)?,
-            version: field::read(field::U16, limits, reader, paths::AGREED_WIRE_VERSION)?,
-        })
-    }
-}
-
-// Type: Agreed.
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct Agreed {
-    pub wires: List<AgreedWire>,
-}
-
-// Record: Agreed.
-impl Agreed {
-    const SHAPE: &'static [skein_codec::bounds::Node] = &[
-        skein_codec::bounds::Node::Named("AgreedWire"),
-        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, agreed_wires), item: 0, size: size_of::<AgreedWire>() },
-        skein_codec::bounds::Node::Record { prefix: 0, fields: &[1] },
-    ];
-
-    /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 4;
-}
-
-impl Record for Agreed {
-    type Limits = Limits;
-    const TAIL: Path = paths::AGREED_TAIL;
-
-    fn encoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Agreed")?.encoded)
-    }
-
-    fn decoded_bound(limits: &Limits) -> Option<u64> {
-        Some(skein_codec::bounds::declaration(DECLARATIONS, limits.values().as_slice(), CEILING_VALUES, "Agreed")?.decoded)
-    }
-
-    #[cfg(debug_assertions)]
-    fn decode(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        let value = Self::read(limits, reader)?;
-        if !reader.is_empty() {
-            return Err(Self::TAIL.problem(skein_codec::Reason::Trailing));
-        }
-        Ok(value)
-    }
-
-    fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
-        field::write(field::Sequence { limit: limits.agreed_wires.min(CEILINGS.agreed_wires), minimum: 6, item: field::Nested }, &self.wires, limits, out, paths::AGREED_WIRES)?;
-        Ok(())
-    }
-
-    fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
-        Ok(Self {
-            wires: field::read(field::Sequence { limit: limits.agreed_wires.min(CEILINGS.agreed_wires), minimum: 6, item: field::Nested }, limits, reader, paths::AGREED_WIRES)?,
-        })
-    }
-}
-
 // Type: Ask.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Ask {
@@ -9919,7 +9796,6 @@ pub enum FromEngine {
     SignOut(SignOut),
     Job(Job),
     ReadList(ReadList),
-    Wires(Agreed),
     Asked(Asked),
     Restarting(Restarting),
     Figures(Figures),
@@ -9945,7 +9821,6 @@ impl FromEngine {
         skein_codec::bounds::Node::Named("SignOut"),
         skein_codec::bounds::Node::Named("Job"),
         skein_codec::bounds::Node::Named("ReadList"),
-        skein_codec::bounds::Node::Named("Agreed"),
         skein_codec::bounds::Node::Named("Asked"),
         skein_codec::bounds::Node::Named("Restarting"),
         skein_codec::bounds::Node::Named("Figures"),
@@ -9953,7 +9828,7 @@ impl FromEngine {
         skein_codec::bounds::Node::Named("Pause"),
         skein_codec::bounds::Node::Named("PartKept"),
         skein_codec::bounds::Node::Named("PartBusy"),
-        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20] },
+        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
@@ -9996,14 +9871,13 @@ impl Record for FromEngine {
             Self::SignOut(value) => { field::put(out, &[10], paths::FROM_ENGINE_TAG)?; value.write(limits, out) },
             Self::Job(value) => { field::put(out, &[11], paths::FROM_ENGINE_TAG)?; value.write(limits, out) },
             Self::ReadList(value) => { field::put(out, &[12], paths::FROM_ENGINE_TAG)?; value.write(limits, out) },
-            Self::Wires(value) => { field::put(out, &[13], paths::FROM_ENGINE_TAG)?; value.write(limits, out) },
-            Self::Asked(value) => { field::put(out, &[14], paths::FROM_ENGINE_TAG)?; value.write(limits, out) },
-            Self::Restarting(value) => { field::put(out, &[15], paths::FROM_ENGINE_TAG)?; value.write(limits, out) },
-            Self::Figures(value) => { field::put(out, &[16], paths::FROM_ENGINE_TAG)?; value.write(limits, out) },
-            Self::ReadUsage(value) => { field::put(out, &[17], paths::FROM_ENGINE_TAG)?; value.write(limits, out) },
-            Self::Pause(value) => { field::put(out, &[18], paths::FROM_ENGINE_TAG)?; value.write(limits, out) },
-            Self::PartKept(value) => { field::put(out, &[19], paths::FROM_ENGINE_TAG)?; value.write(limits, out) },
-            Self::PartBusy(value) => { field::put(out, &[20], paths::FROM_ENGINE_TAG)?; value.write(limits, out) },
+            Self::Asked(value) => { field::put(out, &[13], paths::FROM_ENGINE_TAG)?; value.write(limits, out) },
+            Self::Restarting(value) => { field::put(out, &[14], paths::FROM_ENGINE_TAG)?; value.write(limits, out) },
+            Self::Figures(value) => { field::put(out, &[15], paths::FROM_ENGINE_TAG)?; value.write(limits, out) },
+            Self::ReadUsage(value) => { field::put(out, &[16], paths::FROM_ENGINE_TAG)?; value.write(limits, out) },
+            Self::Pause(value) => { field::put(out, &[17], paths::FROM_ENGINE_TAG)?; value.write(limits, out) },
+            Self::PartKept(value) => { field::put(out, &[18], paths::FROM_ENGINE_TAG)?; value.write(limits, out) },
+            Self::PartBusy(value) => { field::put(out, &[19], paths::FROM_ENGINE_TAG)?; value.write(limits, out) },
         }
     }
 
@@ -10023,15 +9897,14 @@ impl Record for FromEngine {
             10 => Ok(Self::SignOut(SignOut::read(limits, reader)?)),
             11 => Ok(Self::Job(Job::read(limits, reader)?)),
             12 => Ok(Self::ReadList(ReadList::read(limits, reader)?)),
-            13 => Ok(Self::Wires(Agreed::read(limits, reader)?)),
-            14 => Ok(Self::Asked(Asked::read(limits, reader)?)),
-            15 => Ok(Self::Restarting(Restarting::read(limits, reader)?)),
-            16 => Ok(Self::Figures(Figures::read(limits, reader)?)),
-            17 => Ok(Self::ReadUsage(ReadUsage::read(limits, reader)?)),
-            18 => Ok(Self::Pause(Pause::read(limits, reader)?)),
-            19 => Ok(Self::PartKept(PartKept::read(limits, reader)?)),
-            20 => Ok(Self::PartBusy(PartBusy::read(limits, reader)?)),
-            21..=u8::MAX => Err(Problem { path: paths::FROM_ENGINE_TAG, reason: skein_codec::Reason::Tag }),
+            13 => Ok(Self::Asked(Asked::read(limits, reader)?)),
+            14 => Ok(Self::Restarting(Restarting::read(limits, reader)?)),
+            15 => Ok(Self::Figures(Figures::read(limits, reader)?)),
+            16 => Ok(Self::ReadUsage(ReadUsage::read(limits, reader)?)),
+            17 => Ok(Self::Pause(Pause::read(limits, reader)?)),
+            18 => Ok(Self::PartKept(PartKept::read(limits, reader)?)),
+            19 => Ok(Self::PartBusy(PartBusy::read(limits, reader)?)),
+            20..=u8::MAX => Err(Problem { path: paths::FROM_ENGINE_TAG, reason: skein_codec::Reason::Tag }),
         }
     }
 }
@@ -10044,8 +9917,6 @@ pub static DECLARATIONS: &[skein_codec::bounds::Declaration] = &[
     skein_codec::bounds::Declaration { name: "AgentFailure", nodes: AgentFailure::SHAPE },
     skein_codec::bounds::Declaration { name: "AgentFailureValue", nodes: AgentFailureValue::SHAPE },
     skein_codec::bounds::Declaration { name: "Agents", nodes: Agents::SHAPE },
-    skein_codec::bounds::Declaration { name: "Agreed", nodes: Agreed::SHAPE },
-    skein_codec::bounds::Declaration { name: "AgreedWire", nodes: AgreedWire::SHAPE },
     skein_codec::bounds::Declaration { name: "Answer", nodes: Answer::SHAPE },
     skein_codec::bounds::Declaration { name: "AnsweredCall", nodes: AnsweredCall::SHAPE },
     skein_codec::bounds::Declaration { name: "ApplicationValue", nodes: ApplicationValue::SHAPE },
@@ -10188,7 +10059,7 @@ pub static DECLARATIONS: &[skein_codec::bounds::Declaration] = &[
 
 static CEILING_VALUES: &[u32] = &[
     CEILINGS.wire_name,
-    CEILINGS.wire_layouts,
+    CEILINGS.wire_text,
     CEILINGS.credential_name,
     CEILINGS.credential_secret,
     CEILINGS.credential_wires,
@@ -10264,8 +10135,6 @@ static CEILING_VALUES: &[u32] = &[
     CEILINGS.usage_label,
     CEILINGS.usage_windows_windows,
     CEILINGS.read_usage_source,
-    CEILINGS.agreed_wire_name,
-    CEILINGS.agreed_wires,
     CEILINGS.ask_bytes,
     CEILINGS.ask_bytes_bytes,
     CEILINGS.limit_name,

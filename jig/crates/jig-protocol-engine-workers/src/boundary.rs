@@ -116,7 +116,7 @@ pub enum Request {
     FiguresTaken {
         worker: u32,
     },
-    /// A pause ask the channel's version cannot carry (protocol/channel/pause.md, 3).
+    /// A pause ask the worker's layout cannot carry (protocol/channel/pause.md, 3).
     Unpaused {
         worker: Box<[u8]>,
         version: u16,
@@ -127,10 +127,10 @@ pub enum Request {
         version: u16,
         wait: Option<Duration>,
     },
-    /// Opening accepted, with the worker's statement and agreed versions in its order.
+    /// Opening accepted, with the worker's statement and names of wires that convert.
     Opened {
         worker: u32,
-        wires: List<jig_protocol_worker_wire::Agreed>,
+        converted: List<Box<str>>,
         statement: crate::Statement,
     },
     /// A refusal sent at the opening, before a hello reaches the domain.
@@ -242,8 +242,8 @@ impl core::fmt::Debug for Request {
                 .field("channel", channel)
                 .field("unsent", unsent)
                 .finish(),
-            Self::Opened { worker, wires, statement } => {
-                f.debug_tuple("Opened").field(worker).field(wires).field(statement).finish()
+            Self::Opened { worker, converted, statement } => {
+                f.debug_tuple("Opened").field(worker).field(converted).field(statement).finish()
             }
             Self::Refused { worker, reason, text } => {
                 f.debug_tuple("Refused").field(worker).field(reason).field(text).finish()

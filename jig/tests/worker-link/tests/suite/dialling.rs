@@ -53,8 +53,8 @@ fn the_worker_opens_with_its_credential() {
     assert_eq!(credential.wires.len(), u32::try_from(expected.len()).expect("wire count"));
     for (stated, spoken) in credential.wires.iter().zip(&expected) {
         assert_eq!(stated.name.as_ref(), spoken.name.as_bytes());
-        assert_eq!(stated.lowest, spoken.lowest);
-        assert_eq!((&stated.layouts), &spoken.layouts);
+        assert_eq!(stated.layout, spoken.layout);
+        assert_eq!(stated.text.as_ref(), spoken.text.as_bytes());
     }
 }
 #[test]
@@ -115,6 +115,14 @@ fn engine_terms_below_the_largest_turn_are_refused_as_limits() {
     check_redial(&mut world, 50, 100);
     check_local_loss(&world, REFUSED_LIMITS);
 }
+#[test]
+fn the_engine_omitting_a_required_kind_is_refused_as_limits() {
+    let mut world = engine_world(fixtures::engine_without_term(jig_protocol_worker_wire::Kind::Turn));
+    world.run();
+    check_local_loss(&world, 2);
+    assert!(!world.root().iter().any(|r| matches!(r, jig_protocol_worker_link::Request::Ready)));
+}
+
 #[test]
 fn malformed_records_are_refused_as_framing_and_redialled() {
     // Inbound and TurnBusy exercise the ordinary decoder and the Busy-specific path.

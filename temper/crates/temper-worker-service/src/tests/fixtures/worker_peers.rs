@@ -101,13 +101,7 @@ impl LinkPeer {
                 jig_protocol_worker_wire::spoken(),
                 {
                     let mut wires = List::with_capacity(1);
-                    wires
-                        .push(jig_protocol_worker_wire::Spoken::current(
-                            temper_protocol_worker_wire::wire::FAMILY,
-                            temper_protocol_worker_wire::wire::VERSION,
-                            temper_protocol_worker_wire::wire::layout(),
-                        ))
-                        .unwrap();
+                    wires.push(temper_protocol_worker_wire::spoken()).unwrap();
                     jig_protocol_worker_wire::Application::opaque(wires)
                 },
             )

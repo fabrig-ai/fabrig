@@ -705,7 +705,7 @@ pub fn note_line(binary: &str, note: temper_engine_service::Note) -> String {
         temper_engine_service::Note::WorkerFiguresTaken { worker } => {
             format!("{binary} serve: worker {} took its figures\n", String::from_utf8_lossy(&worker))
         }
-        temper_engine_service::Note::WorkerUnpaused { worker, version, mode } => {
+        temper_engine_service::Note::WorkerUnpaused { worker, version: _, mode } => {
             let worker = String::from_utf8_lossy(&worker);
             let mode = match mode {
                 jig_domain_link::PauseMode::Resume => "resume",
@@ -713,27 +713,32 @@ pub fn note_line(binary: &str, note: temper_engine_service::Note) -> String {
                 jig_domain_link::PauseMode::Drain => "drain",
             };
             format!(
-                "{binary} serve: worker {worker} not told to {mode}: jig-worker-wire {version}; the engine's placement follows the ask\n"
+                "{binary} serve: worker {worker} not told to {mode}: its layout lacks the kind; the engine's placement follows the ask\n"
             )
         }
-        temper_engine_service::Note::WorkerTold { worker, version, wait } => {
+        temper_engine_service::Note::WorkerTold { worker, version: _, wait } => {
             let worker = String::from_utf8_lossy(&worker);
             match wait {
                 Some(wait) => {
                     format!("{binary} serve: worker {worker} told the engine restarts: wait {} ms\n", wait.as_millis())
                 }
                 None => format!(
-                    "{binary} serve: worker {worker} not told the engine restarts: jig-worker-wire {version}; it keeps its grace\n"
+                    "{binary} serve: worker {worker} not told the engine restarts: its layout lacks the word; it keeps its grace\n"
                 ),
             }
         }
-        temper_engine_service::Note::WorkerOpened { worker, wires } => {
-            use std::fmt::Write as _;
+        temper_engine_service::Note::WorkerOpened { worker, converted } => {
             let mut line = format!("{binary} serve: worker {} opened: ", String::from_utf8_lossy(&worker));
-            let mut separator = "";
-            for wire in &wires {
-                write!(line, "{separator}{} {}", wire.name, wire.version).expect("wire version line");
-                separator = ", ";
+            if converted.is_empty() {
+                line.push_str("at the engine's layouts");
+            } else {
+                line.push_str("converting ");
+                let mut separator = "";
+                for wire in &converted {
+                    line.push_str(separator);
+                    line.push_str(wire);
+                    separator = ", ";
+                }
             }
             line.push('\n');
             line
@@ -794,7 +799,6 @@ pub fn note_line(binary: &str, note: temper_engine_service::Note) -> String {
                 Kind::Job => "job",
                 Kind::JobAnswer => "job-answer",
                 Kind::Figures => "figures",
-                Kind::Wires => "wires",
                 Kind::Ask => "ask",
                 Kind::Pause => "pause",
                 Kind::Paused => "paused",

@@ -64,14 +64,13 @@ fn down_terms() -> List<Term> {
         (0x018a, 36),
         (0x018b, 229),
         (0x018c, 70),
-        (0x018d, 612),
-        (0x018e, 24 + 1 + 4 + 4),
-        (0x018f, 8),
-        (0x0190, 10_062_736),
-        (0x0191, 44), // ReadUsage: read8 + source name36.
-        (0x0192, 1),
+        (0x018d, 24 + 1 + 4 + 4),
+        (0x018e, 8),
+        (0x018f, 10_062_736),
+        (0x0190, 44), // ReadUsage: read8 + source name36.
+        (0x0191, 1),
+        (0x0192, 20),
         (0x0193, 20),
-        (0x0194, 20),
     ] {
         terms.push(Term { kind, largest }).expect("one term per down kind");
     }
@@ -606,4 +605,36 @@ fn the_schema_lists_every_down_kind_from_the_responder() {
 fn an_assignment_keeps_its_transcript_piece_opaque() {
     let decoded = assignment_through_bytes(&fixtures::assignment_resumed());
     assert_eq!(decoded.transcript.as_ref(), b"\0\0\0\x08turn-one\0\0\0\x08turn-two");
+}
+
+/// Hold the bootstrap layouts before the engine knows which layout the worker speaks.
+#[test]
+fn the_credential_bootstrap_layouts_are_fixed() {
+    let schema = skein_codec::schema::parse(crate::SCHEMA.as_bytes()).expect("worker schema");
+    for (name, layout) in [
+        (
+            b"Opening".as_slice(),
+            [
+                0xe5, 0xa9, 0x8d, 0x99, 0xf3, 0x12, 0x54, 0xea, 0x1d, 0x1f, 0xee, 0x35, 0xe9, 0xba, 0xcf, 0x91, 0x47,
+                0x57, 0x02, 0x24, 0xc7, 0xd4, 0x31, 0x45, 0x43, 0xd3, 0xbf, 0x79, 0xc1, 0xc5, 0x11, 0x9d,
+            ],
+        ),
+        (
+            b"Wire".as_slice(),
+            [
+                0x9c, 0xac, 0xf1, 0xf7, 0xd7, 0x70, 0xfe, 0xe2, 0x80, 0xb2, 0x3d, 0x46, 0x71, 0x6a, 0xa4, 0xce, 0x7b,
+                0x8e, 0x3e, 0x55, 0xca, 0xaa, 0x36, 0x36, 0xb9, 0xb4, 0x04, 0xee, 0xd9, 0x08, 0x9a, 0x8f,
+            ],
+        ),
+        (
+            b"Credential".as_slice(),
+            [
+                0xc2, 0xab, 0x62, 0xfe, 0xef, 0xfd, 0x23, 0x6b, 0xc3, 0x0a, 0xe7, 0x08, 0x40, 0x99, 0x6e, 0xf2, 0xcc,
+                0xd7, 0xcc, 0x66, 0xe8, 0x1f, 0x47, 0xda, 0x4d, 0x1e, 0x94, 0x59, 0xd1, 0xb4, 0x44, 0xc1,
+            ],
+        ),
+    ] {
+        let root = schema.root(name, None).expect("bootstrap declaration");
+        assert_eq!(schema.layout(root, &[]).expect("bootstrap layout").digest(), layout);
+    }
 }

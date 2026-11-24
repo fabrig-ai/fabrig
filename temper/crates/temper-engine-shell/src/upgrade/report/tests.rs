@@ -418,21 +418,15 @@ fn rehearsal() -> Report {
     })
 }
 
-// A single sending kind keeps the report tests about routing judge's verdict, not schema derivation.
 pub(super) fn configured() -> Workers {
+    let jig = jig_protocol_worker_wire::spoken();
+    let application =
+        temper_protocol_worker_wire::application(&temper_protocol_worker_wire::v1::CEILINGS).expect("application");
     Workers {
         room: 4096,
-        schema: skein_channel::Schema {
-            magic: *b"test",
-            versions: List::from_boxed(Box::new([skein_channel::Version {
-                version: jig_protocol_worker_wire::wire::VERSION,
-                kinds: List::from_boxed(Box::new([skein_channel::Kind {
-                    kind: 0x0180,
-                    direction: skein_channel::Direction::FromResponder,
-                    largest: 8,
-                }])),
-            }])),
-        },
+        limits: jig_protocol_worker_wire::CEILINGS,
+        spoken: List::from_boxed(jig.iter().chain(&application.spoken).cloned().collect()),
+        roots: application.roots,
     }
 }
 
@@ -445,20 +439,27 @@ fn kept() -> Box<[KeptWire]> {
 }
 
 fn opening(name: &str) -> WorkerOpening {
+    let configured = configured();
+    let schema = jig_protocol_worker_wire::schema(&configured.limits).expect("fixture table");
+    let table = schema.version(jig_protocol_worker_wire::VERSION).expect("current version");
     WorkerOpening {
         worker: name.into(),
-        wires: temper_engine_service::wires()
+        wires: configured
+            .spoken
             .iter()
-            .filter(|wire| worker_wire(wire.name))
             .map(|wire| jig_protocol_store::OpenedWire {
                 name: wire.name.into(),
-                lowest: wire.lowest,
-                layouts: wire.layouts.clone().into_boxed(),
+                lowest: wire.version,
+                layouts: Box::new([wire.layout]),
             })
-            .collect::<Vec<_>>()
-            .into_boxed_slice(),
-        output: 4096,
-        terms: Box::new([jig_protocol_store::OpenedTerm { kind: 0x0180, largest: 8 }]),
+            .collect(),
+        output: configured.room,
+        terms: table
+            .kinds
+            .iter()
+            .filter(|kind| kind.direction == skein_channel::Direction::FromResponder)
+            .map(|kind| jig_protocol_store::OpenedTerm { kind: kind.kind, largest: kind.largest })
+            .collect(),
         at: Wall::from_nanos(1_794_564_000_123_456_789),
     }
 }
@@ -496,16 +497,6 @@ fn compatible_openings_follow_the_stored_openings() {
 
 #[test]
 fn worker_refusals_keep_the_openings_wire_and_limits_words() {
-    let charter = temper_engine_service::wires()
-        .into_boxed()
-        .into_iter()
-        .find(|wire| wire.name == "smith-charter")
-        .expect("charter");
-    let version = charter.highest();
-    let mut hex = String::new();
-    for byte in charter.layout(version).expect("current layout").iter().take(8) {
-        write!(hex, "{byte:02x}").expect("string write");
-    }
     let mut layout = opening("w2");
     *layout
         .wires
@@ -515,41 +506,22 @@ fn worker_refusals_keep_the_openings_wire_and_limits_words() {
         .layouts
         .last_mut()
         .expect("current layout") = [0xcd; 32];
-    let mut disjoint = opening("w2");
-    disjoint.wires.iter_mut().find(|wire| wire.name.as_ref() == "smith-charter").expect("charter").lowest =
-        version.checked_add(1).expect("test version");
+    let mut missing = opening("w2");
+    missing.wires = missing.wires.into_iter().filter(|wire| wire.name.as_ref() != "smith-charter").collect();
     let mut output = opening("w1");
     output.output = 4095;
     let mut terms = opening("w2");
     terms.terms[0].largest = 7;
     for (opening, name, other, reason) in [
-        (
-            layout,
-            "w2",
-            "w1",
-            format!(
-                "wires: wire smith-charter version {version}: the engine's layout {hex}, the worker's cdcdcdcdcdcdcdcd"
-            ),
-        ),
-        (
-            disjoint,
-            "w2",
-            "w1",
-            format!(
-                "wires: wire smith-charter: the engine speaks {}..{version}, the worker {}..{}",
-                charter.lowest,
-                version + 1,
-                version + u16::try_from(charter.layouts.len()).expect("range")
-            ),
-        ),
+        (layout, "w2", "w1", "wires: wire smith-charter: the worker's text does not parse at line 1"),
+        (missing, "w2", "w1", "wires: wire smith-charter: the worker states none"),
         (
             output,
             "w1",
             "w2",
-            "limits: engine io.output 4096 bytes differs from worker io.output 4095 bytes; change io.output to agree"
-                .into(),
+            "limits: engine io.output 4096 bytes differs from worker io.output 4095 bytes; change io.output to agree",
         ),
-        (terms, "w2", "w1", "limits: 384".into()),
+        (terms, "w2", "w1", "limits: 384"),
     ] {
         // The failing worker precedes the compatible worker in stored opening order.
         assert_eq!(

@@ -5,7 +5,7 @@ use alloc::boxed::Box;
 use jig_domain_host as hub;
 use jig_domain_link::Grant;
 use jig_protocol_config::{self as config, Path, Problems, What};
-use jig_protocol_worker_wire::{Agreed, Part};
+use jig_protocol_worker_wire::Part;
 use skein_channel::{Lower, LowerEvent};
 use skein_io as io;
 use skein_lib::{Duration, List, Map, Queue, Time, Token, stream};
@@ -26,7 +26,7 @@ pub enum Closing {
 /// What the channel hands its root, in the component's order; the owner routes each before the next.
 #[derive(Debug)]
 pub enum Output {
-    /// A pause ask the channel's version cannot carry (protocol/channel/pause.md, 3).
+    /// A pause ask the worker's layout cannot carry (protocol/channel/pause.md, 3).
     Unpaused {
         worker: Box<[u8]>,
         version: u16,
@@ -43,7 +43,7 @@ pub enum Output {
     },
     Opened {
         worker: Box<[u8]>,
-        wires: List<Agreed>,
+        converted: List<Box<str>>,
         statement: crate::Statement,
     },
     Refused {
@@ -321,12 +321,12 @@ impl Workers {
                     });
                 }
             }
-            Request::Opened { worker, wires, statement } => {
+            Request::Opened { worker, converted, statement } => {
                 return Some(Output::Opened {
                     worker: skein_lib::bytes::copy_of(
                         self.component.worker_name(worker).expect("authenticated worker name"),
                     ),
-                    wires,
+                    converted,
                     statement,
                 });
             }

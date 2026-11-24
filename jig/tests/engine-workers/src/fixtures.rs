@@ -15,39 +15,26 @@ pub const OTHER_VERSION: u32 = 4;
 
 #[must_use]
 pub fn application() -> skein_lib::List<jig_protocol_worker_wire::Spoken> {
-    let mut wires = skein_lib::List::with_capacity(1);
-    wires.push(jig_protocol_worker_wire::Spoken::current("test-worker-wire", 3, [3; 32])).expect("application wire");
-    wires
+    use jig_protocol_worker_wire::Spoken;
+    let text = "family test-worker-wire 3\nrecord Test { value: u32 note: u8 = 0 }\n";
+    let layout = skein_codec::schema::parse(text.as_bytes()).expect("test wire").fingerprints().family().digest();
+    skein_lib::List::from_boxed(Box::new([Spoken { name: "test-worker-wire", version: 3, layout, text }]))
 }
+
 #[must_use]
 pub fn statement(version: u32) -> skein_lib::List<jig_protocol_worker_wire::Wire> {
     use jig_protocol_worker_wire as wire;
-    let mut wires = prepared_statement_wires().clone();
-    let current = wire::Spoken::current("test-worker-wire", u16::try_from(version).expect("fixture version"), [3; 32]);
-    wires
-        .push(wire::Wire { name: current.name.as_bytes().into(), lowest: current.lowest, layouts: current.layouts })
-        .expect("wire slot");
+    let mut wires = skein_lib::List::with_capacity(wire::CEILINGS.credential_wires);
+    for spoken in prepared_kept_wires().iter().chain(&application()) {
+        let (layout, text) = if spoken.name == "test-worker-wire" && version != APPLICATION_VERSION {
+            ([0; 32], b"not a schema".as_slice())
+        } else {
+            (spoken.layout, spoken.text.as_bytes())
+        };
+        wires.push(wire::Wire { name: spoken.name.as_bytes().into(), layout, text: text.into() }).expect("wire slot");
+    }
     wires
 }
-
-fn prepared_statement_wires() -> &'static skein_lib::List<jig_protocol_worker_wire::Wire> {
-    use jig_protocol_worker_wire as wire;
-    static WIRES: std::sync::OnceLock<skein_lib::List<wire::Wire>> = std::sync::OnceLock::new();
-    WIRES.get_or_init(|| {
-        let mut wires = skein_lib::List::with_capacity(16);
-        for spoken in prepared_kept_wires() {
-            wires
-                .push(wire::Wire {
-                    name: spoken.name.as_bytes().into(),
-                    lowest: spoken.lowest,
-                    layouts: spoken.layouts.clone(),
-                })
-                .expect("wire slot");
-        }
-        wires
-    })
-}
-
 pub const SIZES: jig_protocol_worker_wire::sizes::Sizes = jig_protocol_worker_wire::sizes::Sizes {
     application_ask: 64,
     application_answer: 64,
@@ -452,4 +439,57 @@ pub fn assignment_down(channel: skein_lib::Token) -> jig_protocol_engine_workers
         parts: parts(),
         values: values(),
     }
+}
+
+/// A worker at a derived layout with one optional responder kind omitted.
+#[must_use]
+pub fn worker_without(kind: jig_protocol_worker_wire::Kind) -> skein_fake_channel::ScriptedPeer {
+    use jig_protocol_worker_wire::{self as wire, Kind};
+    let phrase = match kind {
+        Kind::Restarting => ", restarting: Restarting",
+        Kind::Pause => ", pause: Pause",
+        Kind::Figures => ", figures: Figures",
+        Kind::PartKept => ", part_kept: PartKept",
+        Kind::PartBusy => ", part_busy: PartBusy",
+        Kind::ReadUsage => ", read_usage: ReadUsage",
+        _ => panic!("an optional responder kind"),
+    };
+    assert_eq!(wire::SCHEMA.matches(phrase).count(), 1);
+    let text = wire::SCHEMA.replace(phrase, "");
+    let mut wires = statement(APPLICATION_VERSION);
+    let changed = wires.get_mut(0).expect("jig wire");
+    changed.layout =
+        skein_codec::schema::parse(text.as_bytes()).expect("derived wire").fingerprints().family().digest();
+    changed.text = text.into_bytes().into_boxed_slice();
+    let mut schema = schema();
+    let version = schema.versions.get_mut(0).expect("worker version");
+    let omit = kind.number();
+    version.kinds = skein_lib::List::from_boxed(
+        version
+            .kinds
+            .iter()
+            .filter_map(|rule| {
+                if rule.kind == omit {
+                    return None;
+                }
+                Some(skein_channel::Kind { kind: if rule.kind > omit { rule.kind - 1 } else { rule.kind }, ..*rule })
+            })
+            .collect(),
+    );
+    let codec = wire::sizes::limits(&SIZES).expect("codec");
+    let value = wire::Credential {
+        opening: wire::Opening::Link,
+        name: WORKER_A.into(),
+        secret: Secret::new(SECRET_A.into()),
+        wires,
+        output: LIMITS.room,
+    };
+    skein_fake_channel::ScriptedPeer::new(
+        schema,
+        skein_channel::Role::Initiator,
+        channel_limits(),
+        wire::VERSION,
+        value.encode(&codec).expect("credential"),
+    )
+    .expect("worker at derived layout")
 }

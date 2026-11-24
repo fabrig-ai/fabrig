@@ -8,7 +8,9 @@ use skein_lib::{Duration, List, Queue, Time, Token};
 #[derive(Debug)]
 pub struct Workers {
     pub room: u32,
-    pub schema: skein_channel::Schema,
+    pub limits: jig_protocol_worker_wire::v22::Limits,
+    pub spoken: List<jig_protocol_worker_wire::Spoken>,
+    pub roots: List<jig_protocol_worker_wire::Root>,
 }
 
 /// The store's ordered progress and terminal, retained through stopped-tool teardown.
