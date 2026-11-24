@@ -1,4 +1,4 @@
-//! A task's supplied wait records (temper/docs/design/client/ctl/results.md, 1 and 2).
+//! A task's supplied wait records (client/ctl/results.md, 1 and 2).
 use super::{Cut, Me, Text, acts, clock, llm};
 use jig_client::contract::{self as c, waits::Bound};
 use skein_json::writer::Encoder;
