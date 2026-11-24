@@ -307,6 +307,7 @@ pub struct Served {
     pub family: Option<u16>,
     pub first: u32,
     pub last: u32,
+    pub layout: [u8; 32],
 }
 
 /// How an exchange came, decided by its `Host` alone (protocol/client/default-http.md, 3).

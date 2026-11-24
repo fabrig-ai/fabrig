@@ -129,11 +129,13 @@ impl Composition {
                     family: None,
                     first: jig_client_protocol_wire::VERSION,
                     last: jig_client_protocol_wire::VERSION,
+                    layout: jig_client_protocol_wire::LAYOUT,
                 },
                 clients::Served {
                     family: Some(temper_client_protocol_wire::FORGE),
                     first: temper_client_protocol_wire::CLIENT_VERSION,
                     last: temper_client_protocol_wire::CLIENT_VERSION,
+                    layout: temper_client_protocol_wire::CLIENT_LAYOUT,
                 },
             ]),
             providers: list([provider]),

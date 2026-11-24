@@ -498,8 +498,18 @@ impl Story {
         self.advance();
         let mut settings = fixtures::settings(self.engine.limits.core.documents.rows);
         settings.served = jig_client_kit::test::list([
-            jig_protocol_engine_clients::Served { family: None, first: version, last: version },
-            jig_protocol_engine_clients::Served { family: Some(1), first: 2, last: 2 },
+            jig_protocol_engine_clients::Served {
+                family: None,
+                first: version,
+                last: version,
+                layout: jig_client_protocol_wire::LAYOUT,
+            },
+            jig_protocol_engine_clients::Served {
+                family: Some(1),
+                first: 2,
+                last: 2,
+                layout: jig_client_test_protocol_wire::LAYOUT,
+            },
         ]);
         while self.engine.out.pop().is_some() {}
         self.engine.component =

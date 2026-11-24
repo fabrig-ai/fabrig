@@ -318,8 +318,9 @@ fn a_request_pending_across_a_restart_that_stops_serving_its_family_stays_unsent
             family: None,
             first: jig_client_protocol_wire::VERSION,
             last: jig_client_protocol_wire::VERSION,
+            layout: jig_client_protocol_wire::LAYOUT,
         },
-        jig_protocol_engine_clients::Served { family: Some(1), first: 3, last: 3 },
+        jig_protocol_engine_clients::Served { family: Some(1), first: 3, last: 3, layout: [3; 32] },
     ]));
     assert!(story.run_until(|s| s.client.link().state == Link::Live, PROOF_WAIT));
     assert_eq!(story.client.pending(FAMILY_REQUEST).expect("kept request").progress, jig_client::Progress::NotServed);

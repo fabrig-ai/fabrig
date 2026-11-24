@@ -50,8 +50,16 @@ pub(super) fn limits() -> Limits {
         client: jig_client::Limits {
             domain: jig_client::DomainLimits {
                 owners: &[
-                    jig_client::Spoken { family: 1, version: jig_client_test_protocol_wire::VERSION },
-                    jig_client::Spoken { family: 2, version: jig_client_test_protocol_wire::VERSION },
+                    jig_client::Spoken {
+                        family: 1,
+                        version: jig_client_test_protocol_wire::VERSION,
+                        layout: jig_client_test_protocol_wire::LAYOUT,
+                    },
+                    jig_client::Spoken {
+                        family: 2,
+                        version: jig_client_test_protocol_wire::VERSION,
+                        layout: jig_client_test_protocol_wire::LAYOUT,
+                    },
                 ],
                 requests: RequestLimits {
                     requests: 4,

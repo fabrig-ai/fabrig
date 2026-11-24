@@ -6,6 +6,7 @@ use skein_lib::{List, RequestEnvelope, RequestKey, RequestRecord, Secret, Token}
 pub struct Spoken {
     pub family: u16,
     pub version: u32,
+    pub layout: [u8; 32],
 }
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Family {

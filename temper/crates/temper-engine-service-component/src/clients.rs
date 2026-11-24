@@ -226,6 +226,7 @@ impl Clients {
                 family: Some(temper_client_protocol_wire::number(temper_client_protocol_wire::Owner::Forge)),
                 first: temper_client_protocol_wire::CLIENT_VERSION,
                 last: temper_client_protocol_wire::CLIENT_VERSION,
+                layout: temper_client_protocol_wire::CLIENT_LAYOUT,
             }),
         );
         // The provider owns its signer; construct the initial settings twice without cloning it.
