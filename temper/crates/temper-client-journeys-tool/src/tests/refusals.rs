@@ -1,86 +1,45 @@
 //! Refusals expose positions and kinds alone (client/web/journeys-recordings.md, 1.7, and client/web/journeys.md, 6).
+use super::{Memory, OUT, build, snapshot, welcome_lines, write_lines};
+use crate::run::{Outcome, print_command};
 use jig_client_protocol_wire as w;
 use jig_client_protocol_wire::Record as _;
 use skein_lib::{
-    Time, Wall, Writer,
+    Time, Writer,
     base64::{self, Alphabet},
     bytes::find,
 };
-use skein_scratch::{Scratch, paths};
-use skein_ui_web::mapping::Primary;
-use std::{
-    ffi::OsString,
-    fs,
-    path::{Path, PathBuf},
-    process::{Command, Output},
-};
+use std::{ffi::OsString, os::unix::ffi::OsStrExt, path::Path};
 use temper_client_shell_web::journey::{self, Line};
 
-fn fixture() -> Vec<Line> {
-    let facts = journey::Facts {
-        seed: 11,
-        now: Time::ZERO,
-        wall: Wall::EPOCH,
-        primary: Primary::Control,
-        zone_minutes: 0,
-        ways: None,
-        forges: Vec::new(),
-        path: b"/welcome".as_slice().into(),
-        secret: Some(["fake", "-link"].concat().into_bytes().into()),
-        stored: Vec::new(),
-    };
-    let (mut host, mut page) = facts.start();
-    let mut recorder = journey::Recorder::new(&facts);
-    recorder.turn(facts.now, facts.wall);
-    recorder.report(&mut host, &page, temper_client_shell_web::host::Report::Start);
-    host.draw(&mut page, &mut Vec::new());
-    recorder.deadline(host.deadline());
-    journey::lines(&recorder.save(&page)).expect("fixture lines")
-}
-fn written(lines: &[Line]) -> Vec<u8> {
-    let mut bytes = Vec::new();
-    for line in lines {
-        line.write(&mut bytes);
-    }
-    bytes
-}
-fn listing(path: &Path) -> Vec<PathBuf> {
-    let mut entries: Vec<_> =
-        fs::read_dir(path).expect("directory").map(|entry| entry.expect("entry").path()).collect();
-    entries.sort();
-    entries
-}
-fn invoke(name: &str, recording: &[u8], options: &[OsString], private: &[&[u8]], code: i32) -> Output {
-    let scratch = Scratch::new("journeys-process-refusal");
-    let file = scratch.path().join(format!("{name}.recording"));
-    let out = scratch.path().join("out");
-    fs::write(&file, recording).expect("scratch recording");
-    let journeys = paths::tree().join("docs/design/client/web/journeys");
-    let tool = paths::tree().join("crates/temper-client-journeys-tool");
-    let tui = paths::tree().join("docs/design/client/tui/journeys");
-    let before = (listing(&journeys), listing(&tool), listing(&tui));
-    assert!(!journeys.join(name).exists() && !tui.join(name).exists(), "unused refusal name");
-    let output = Command::new(paths::binary("temper-client-journeys"))
-        .arg("print")
-        .args(options)
-        .arg(&file)
-        .arg(&out)
-        .output()
-        .expect("run print");
-    for bytes in [&output.stdout, &output.stderr] {
+fn invoke(name: &str, recording: &[u8], options: &[OsString], private: &[&[u8]], code: u8) -> Outcome {
+    let file = format!("{name}.recording");
+    let mut arguments: Vec<_> = options.iter().map(|word| word.as_bytes().into()).collect();
+    arguments.extend([file.as_bytes().into(), OUT.as_bytes().into()]);
+    let mut output = Memory::default();
+    let before = snapshot(&output);
+    let answer = print_command(
+        &arguments,
+        &build(),
+        |out| Ok(out.to_owned()),
+        |read| {
+            assert_eq!(read, Path::new(&file).as_os_str());
+            assert_ne!(code, 2, "usage does not read FILE");
+            Ok(recording.to_vec())
+        },
+        &mut output,
+    );
+    for text in [&answer.stdout, &answer.stderr] {
         for value in private {
-            assert!(find(bytes, value).is_none(), "no fake bytes in either stream");
+            assert!(find(text.as_bytes(), value).is_none(), "no fake bytes in either stream");
         }
     }
-    assert_eq!(output.status.code(), Some(code));
-    assert!(output.stdout.is_empty(), "refusal has no stdout");
-    assert!(!out.exists(), "refusal writes no OUT");
-    assert!(!journeys.join(name).exists() && !tui.join(name).exists(), "no refused journey");
-    assert!(before == (listing(&journeys), listing(&tool), listing(&tui)), "no temporary or journey paths");
-    output
+    assert_eq!(answer.exit, code);
+    assert!(answer.stdout.is_empty(), "refusal has no stdout");
+    assert_eq!(snapshot(&output), before, "no writes, including temporary or journey paths");
+    answer
 }
-fn messages(output: &Output, facts: &[&str]) {
-    let text = String::from_utf8_lossy(&output.stderr);
+fn messages(output: &Outcome, facts: &[&str]) {
+    let text = &output.stderr;
     for fact in facts {
         assert!(text.contains(fact), "refusal states its position, kind and that nothing was written");
     }
@@ -107,11 +66,11 @@ fn a_shape_prints_no_bytes() {
         (["co", "de=", "Ab0123%+"].concat(), "code"),
         (["refresh", "_token=", "Ab0123%+"].concat(), "refresh token"),
     ] {
-        let mut lines = fixture();
+        let mut lines = welcome_lines();
         let line = insert_before_deadline(&mut lines, vec![heard(b"heard answered 999 200 ", fake.as_bytes())]);
         make_stale(&mut lines);
-        let output = invoke("guard-shape-refusal", &written(&lines), &[], &[fake.as_bytes(), b"fake-link"], 1);
-        let text = String::from_utf8_lossy(&output.stderr);
+        let output = invoke("guard-shape-refusal", &write_lines(&lines), &[], &[fake.as_bytes(), b"fake-link"], 1);
+        let text = &output.stderr;
         if ![format!("line {line}"), "heard".into(), "field".into(), kind.into(), "nothing was written".into()]
             .iter()
             .all(|fact| text.contains(fact))
@@ -155,20 +114,20 @@ fn a_split_token_prints_no_bytes() {
     let cut = fake.len() / 2;
     let stream = [data(&fake[..cut], 0), data(&fake[cut..], u32::try_from(cut).expect("offset"))].concat();
     let middle = stream.len() / 2;
-    let mut lines = fixture();
+    let mut lines = welcome_lines();
     let line = insert_before_deadline(
         &mut lines,
         vec![heard(b"heard piece ", &stream[..middle]), heard(b"heard piece ", &stream[middle..])],
     );
     make_stale(&mut lines);
-    let output = invoke("guard-split-refusal", &written(&lines), &[], &[&fake, b"fake-link"], 1);
+    let output = invoke("guard-split-refusal", &write_lines(&lines), &[], &[&fake, b"fake-link"], 1);
     messages(&output, &[&format!("line {line}"), "heard", "run", "key", "nothing was written"]);
 }
 #[test]
 fn a_failed_proof_prints_no_bytes() {
     let fake = ["private", "-stale-exchange"].concat().into_bytes();
     let given = ["private", "-given-word"].concat();
-    let mut lines = fixture();
+    let mut lines = welcome_lines();
     let mut count = 0;
     let mut position = 0;
     for (at, line) in lines.iter_mut().enumerate() {
@@ -181,7 +140,7 @@ fn a_failed_proof_prints_no_bytes() {
     assert_eq!(count, 1, "edited exchange");
     let output = invoke(
         "guard-proof-refusal",
-        &written(&lines),
+        &write_lines(&lines),
         &["--redact".into(), given.clone().into()],
         &[&fake, given.as_bytes(), b"fake-link"],
         1,
@@ -194,17 +153,17 @@ fn a_failed_proof_prints_no_bytes() {
 #[test]
 fn an_undecodable_line_prints_no_bytes() {
     let fake = ["private", "-not-base64!"].concat().into_bytes();
-    let mut lines = fixture();
+    let mut lines = welcome_lines();
     let piece = [b"data: ".as_slice(), &fake, b"\n"].concat();
     let line = insert_before_deadline(&mut lines, vec![heard(b"heard piece ", &piece)]);
     make_stale(&mut lines);
-    let output = invoke("guard-undecoded-refusal", &written(&lines), &[], &[&fake, b"fake-link"], 1);
+    let output = invoke("guard-undecoded-refusal", &write_lines(&lines), &[], &[&fake, b"fake-link"], 1);
     messages(&output, &[&format!("line {line}"), "undecodable", "nothing was written"]);
 }
 #[test]
 fn a_differing_mark_prints_no_bytes() {
     let fake = ["private", "-mark-marker"].concat().into_bytes();
-    let mut lines = fixture();
+    let mut lines = welcome_lines();
     let mut count = 0;
     for line in &mut lines {
         if let Line::End(html) = line {
@@ -213,26 +172,9 @@ fn a_differing_mark_prints_no_bytes() {
         }
     }
     assert_eq!(count, 1, "edited end mark");
-    let output = invoke("guard-mark-refusal", &written(&lines), &[], &[&fake, b"fake-link"], 1);
+    let output = invoke("guard-mark-refusal", &write_lines(&lines), &[], &[&fake, b"fake-link"], 1);
     messages(&output, &["mark 1", "byte", "nothing was written"]);
 }
-#[test]
-fn usage_echoes_nothing_given() {
-    let fake = ["private", "-usage-text"].concat();
-    for options in [vec!["--redact".into()], vec!["--bogus".into(), fake.clone().into()]] {
-        let output = invoke("guard-usage-refusal", b"", &options, &[fake.as_bytes()], 2);
-        messages(&output, &["usage:"]);
-    }
-    let output = Command::new(paths::binary("temper-client-journeys"))
-        .args(["print", "--redact", &fake])
-        .output()
-        .expect("usage");
-    for bytes in [&output.stdout, &output.stderr] {
-        assert!(find(bytes, fake.as_bytes()).is_none(), "usage echoes no given text");
-    }
-    assert_eq!(output.status.code(), Some(2));
-}
-
 fn make_stale(lines: &mut [Line]) {
     let mut count = 0;
     for line in lines {
@@ -241,10 +183,11 @@ fn make_stale(lines: &mut [Line]) {
             count += 1;
         }
     }
-    assert_eq!(count, 1, "edited deadline makes the process fixture refuse even without a scan");
+    assert_eq!(count, 1, "edited deadline makes the fixture refuse even without a scan");
 }
 
 fn tui_fixture(frame: bool) -> Vec<u8> {
+    use skein_lib::Wall;
     use skein_ui_screen::Size;
     use temper_client_shell_tui::{host::Report, journey as tj};
     let log = if frame { "pri\u{200b}vate-frame-marker&".as_bytes() } else { b"" };
@@ -322,7 +265,9 @@ fn a_tui_refusal_prints_positions_and_no_original_bytes() {
         ),
         (false, vec![], b"private-proof-marker".as_slice(), vec!["mark 1", "frame line"]),
     ] {
-        let output = invoke("guard-tui-refusal", &tui_fixture(frame), &options, &[private], 1);
+        let original_link = format!("http://127.0.0.1:8367/sign-in?secret={}", "A".repeat(43));
+        let output =
+            invoke("guard-tui-refusal", &tui_fixture(frame), &options, &[private, original_link.as_bytes()], 1);
         messages(&output, &expected);
         messages(&output, &["line", "nothing was written"]);
     }

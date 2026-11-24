@@ -5629,7 +5629,6 @@ dependencies = [
  "skein-fail-stop",
  "skein-scratch",
  "temper-client-shell",
- "temper-shell",
  "temper-version",
 ]
 
@@ -5640,11 +5639,9 @@ dependencies = [
  "skein-fail-stop",
  "skein-forge",
  "skein-scratch",
- "skein-shell",
  "smith-protocol-program",
  "temper-agent-shell",
  "temper-fetch",
- "temper-shell",
  "temper-version",
 ]
 
@@ -6102,18 +6099,12 @@ dependencies = [
 name = "temper-client-journeys"
 version = "0.0.0"
 dependencies = [
- "jig-client",
- "jig-client-protocol-wire",
+ "serde_json",
  "skein-fail-stop",
- "skein-lib",
  "skein-scratch",
- "skein-ui-screen",
- "skein-ui-web",
  "temper-client-journeys-kit",
  "temper-client-journeys-tool",
- "temper-client-shell-tui",
  "temper-client-shell-web",
- "temper-client-tui",
  "temper-version",
 ]
 
@@ -6516,7 +6507,6 @@ dependencies = [
  "temper-client-shell-web",
  "temper-client-tui",
  "temper-config-shell",
- "tempfile",
 ]
 
 [[package]]
@@ -6746,7 +6736,6 @@ dependencies = [
  "skein-fail-stop",
  "skein-lib",
  "skein-scratch",
- "skein-shell",
  "temper-agent-fixtures",
  "temper-config-shell",
  "temper-deployment-fixtures",
@@ -6756,7 +6745,6 @@ dependencies = [
  "temper-forge-setup",
  "temper-forge-setup-shell",
  "temper-github-app",
- "temper-protocol-store",
  "temper-service-core",
  "temper-service-shell",
  "temper-shell",
@@ -8553,7 +8541,6 @@ dependencies = [
  "skein-fail-stop",
  "skein-scratch",
  "temper-config-shell",
- "temper-shell",
  "temper-version",
  "temper-worker-shell",
 ]
