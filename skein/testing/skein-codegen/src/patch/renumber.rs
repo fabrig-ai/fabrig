@@ -3,14 +3,13 @@
 use alloc::collections::{BTreeMap, BTreeSet};
 
 use super::files::{golden_path, skeleton_path, unconflicted};
-use super::run::{Writes, read_optional};
+use super::run::Writes;
 use super::text::PatchText;
-use super::{Error, Landed, Report};
-use std::path::Path;
+use super::{Error, Landed, Report, Tree};
 
 #[expect(clippy::too_many_arguments, reason = "renumbering compares both numbers and both parsed patch texts")]
 pub(super) fn move_files(
-    owner: &Path,
+    tree: &Tree,
     landed: &Landed,
     old: u32,
     new: u32,
@@ -30,10 +29,10 @@ pub(super) fn move_files(
         }
     }
     let path = skeleton_path(old);
-    if let Some(bytes) = read_optional(&owner.join(&path))?
+    if let Some(bytes) = tree.read(&path)?
         && landed.get(&path) != Some(bytes.as_slice())
     {
-        let source = unconflicted(owner, &path)?;
+        let source = unconflicted(tree, &path)?;
         let source = source
             .replace(&format!("p{old:04}"), &format!("p{new:04}"))
             .replace(&format!("Site::new({old},"), &format!("Site::new({new},"));
@@ -44,7 +43,7 @@ pub(super) fn move_files(
             report.restored.push(path);
         }
     }
-    let files = super::files::landed(owner)?;
+    let files = tree.landed_files()?;
     for (path, bytes) in files.iter().filter(|(path, _)| path.starts_with(golden_path(old))) {
         if landed.get(path) == Some(bytes.as_slice()) {
             continue;
