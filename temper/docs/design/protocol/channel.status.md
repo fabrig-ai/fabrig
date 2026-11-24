@@ -4,7 +4,6 @@
 
 
 
-- **Not yet:** 7: each side's translation of temper's worker wire generated from its maps file. [in flight: change 16712]
 - **Not yet:** 8: jig's ceiling for `saved` is 65,536, below what temper's payload ceilings let the checkout's conflicts make, so a raise of `checkout.conflicts` past about 120 meets it before the links' rooms.
 
 - **Not yet:** 8: a Forgejo connected as its admin is not refused at its connect when its remote could pass the checkout's `name_bytes`: the start holds the machine's places alone to it (`temper-service/src/startup/checks.rs`, `machine_remote`), and a longer remote fails its item's encoding at an assignment (`temper-service/src/translate.rs`, `repository_item`).
