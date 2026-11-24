@@ -145,6 +145,7 @@ instructions = 10_600_000_000
 [gate.default.skein.simulated]
 cpu_s = 3
 instructions = 48_100_000_000
+accepted_instructions = 39_800_000_000
 
 [gate.default.skein.real-loop]
 cpu_s = 7
@@ -187,6 +188,7 @@ instructions = 22_200_000_000
 [gate.default.smith.simulated]
 cpu_s = 11
 instructions = 73_200_000_000
+accepted_instructions = 84_200_000_000
 
 [gate.default.smith.real-loop]
 cpu_s = 2
@@ -375,6 +377,7 @@ cpu_s = 2
 
 [gate.default.hearth.simulated]
 instructions = 25_300_000_000
+accepted_instructions = 44_000_000_000
 
 [[gate.default.moves]]
 from = "hearth.real-loop"
