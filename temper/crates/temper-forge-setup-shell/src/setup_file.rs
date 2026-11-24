@@ -16,8 +16,20 @@ pub fn path(directories: &Directories, forge: u16, kind: BoxKind) -> PathBuf {
     crate::path(&directories.join(Directory::Data, &setup_file::path(forge, kind)).expect("forge setup path")).into()
 }
 pub fn read(directories: &Directories, forge: u16, kind: BoxKind) -> Result<SetupFile, String> {
+    read_with(directories, forge, kind, |path, bound| {
+        skein_shell::read_private_file(path, bound, skein_shell::effective_user())
+    })
+}
+
+/// Decodes the selected private setup's bounded bytes and checks its kind.
+pub fn read_with(
+    directories: &Directories,
+    forge: u16,
+    kind: BoxKind,
+    read_private: impl FnOnce(&std::path::Path, u32) -> Result<skein_lib::Secret, skein_shell::Unread>,
+) -> Result<SetupFile, String> {
     let path = path(directories, forge, kind);
-    let bytes = skein_shell::read_private_file(&path, 65536, skein_shell::effective_user()).map_err(|why| {
+    let bytes = read_private(&path, 65536).map_err(|why| {
         format!(
             "{}: {why:?}; run forge prepare {forge} --listen ADDR --person LOGIN EMAIL [--runner-label LABEL]",
             path.display()

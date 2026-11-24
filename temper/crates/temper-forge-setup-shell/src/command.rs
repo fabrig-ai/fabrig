@@ -19,6 +19,11 @@ pub enum Error {
     Spawn(skein_io::Error),
     Interrupted,
 }
+pub(crate) fn first_line(ran: &Ran) -> std::borrow::Cow<'_, str> {
+    let line = ran.stdout.expose().split(|b| *b == b'\n').next().unwrap_or_default();
+    String::from_utf8_lossy(line.strip_suffix(b"\r").unwrap_or(line))
+}
+
 const OWNER: Token = Token::new(1);
 /// Reads both pipes through their end, retaining only the configured prefix.
 pub fn run_one(limits: &Limits, spec: &Spec) -> Result<Ran, Error> {

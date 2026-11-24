@@ -1,4 +1,4 @@
-use super::prepare_hint;
+use super::words::prepare_hint;
 use temper_shell::directories;
 
 #[test]
