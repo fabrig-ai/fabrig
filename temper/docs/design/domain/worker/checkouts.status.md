@@ -1,7 +1,8 @@
 # checkouts: status
 
-2026-11-23. Where the tree's code lags or departs from [checkouts.md](checkouts.md).
+2026-11-24. Where the tree's code lags or departs from [checkouts.md](checkouts.md).
 
+- **Not yet:** *A workspace kept for its run*: a hold's `held` mark, written before its run starts, kept current and removed at release; the start's layout keeping a held mark's workspace and removing git's lock files; the take-up's save before the run's agent starts, then a saved start of it; the mark's form `temper-kept 2`. [in flight: change 15509]
 
 
 `checkouts.md`'s design delivery has no known gap in running the repository's

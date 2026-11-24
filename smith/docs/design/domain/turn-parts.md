@@ -297,7 +297,10 @@ before it asks any completion:
   answer and the command's start, and the model reads it interrupted
   after an unknown time, with no output, and it is not run again. A
   drained command's resume reads its time, its drain's part told after
-  its start.
+  its start. In jig's channel world, with a real agent, a worker killed
+  with its agent at each of those points comes back as a new process,
+  its attempt suspended at its hello with no try spent, and the next
+  attempt resumes on it the same way from the parts the engine kept.
 
 ## 8. Open questions
 
