@@ -78,6 +78,14 @@ impl Line {
         self.ready = false;
     }
 
+    /// The retained retry for one read waiting on client admission.
+    pub(crate) fn retry_at(&self, waiter: Waiter) -> Option<Time> {
+        match self.places.get(&waiter) {
+            Some(place) => Some(place.at),
+            None => None,
+        }
+    }
+
     pub(super) fn deadline(&self) -> Option<Time> {
         let mut due = None;
         for (_, place) in &self.places {

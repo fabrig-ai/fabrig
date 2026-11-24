@@ -375,6 +375,39 @@ pub fn set_opening(domain: &mut Domain, repository: &[u8], context: &[u8], bytes
         .expect("one opening per context") = copy_of(bytes);
 }
 
+/// Replaces one dispatched job's step log within the repository's content bound
+/// (skein/docs/design/testing/fakes/forge.md, 2.4).
+pub fn set_job_log(domain: &mut Domain, repository: &[u8], job: u64, step: u32, bytes: &[u8]) -> Result<(), Error> {
+    let id = domain.id(repository);
+    let repository = domain.repositories.get_mut(id).expect("a repository of the forge");
+    let mut run = None;
+    for (number, kept) in &repository.dispatched {
+        for found in &kept.jobs {
+            if found.id == job {
+                run = Some(*number);
+                break;
+            }
+        }
+        if run.is_some() {
+            break;
+        }
+    }
+    let kept = repository.dispatched.get_mut(&run.ok_or(Error::Missing(What::Job))?).expect("found run");
+    for found in kept.jobs.iter_mut() {
+        if found.id != job {
+            continue;
+        }
+        for found in &mut found.steps {
+            if found.number == step {
+                fits(bytes, repository.opening_limit)?;
+                found.log = copy_of(bytes);
+                return Ok(());
+            }
+        }
+    }
+    Err(Error::Missing(What::Job))
+}
+
 /// Starts checking the pull's mergeability for `span` on the forge's clock.
 pub fn check(domain: &mut Domain, env: &Env<Config>, repository: &[u8], number: u64, span: Duration) {
     let id = *domain.names.get(repository).expect("a scenario repository");

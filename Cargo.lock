@@ -5704,6 +5704,7 @@ version = "0.0.0"
 dependencies = [
  "skein-lib",
  "skein-world",
+ "temper-faults",
 ]
 
 [[package]]
@@ -7019,6 +7020,7 @@ dependencies = [
  "jig-client-protocol-link",
  "jig-client-protocol-wire",
  "jig-conformance",
+ "jig-core-kit",
  "jig-domain-accounts",
  "jig-domain-authority",
  "jig-domain-brief",
@@ -7042,6 +7044,7 @@ dependencies = [
  "jig-test-profile",
  "jig-test-store-files",
  "serde_json",
+ "skein-checks",
  "skein-fake-forge-domain",
  "skein-fake-llm-domain",
  "skein-forge",
@@ -7085,6 +7088,7 @@ dependencies = [
  "temper-service-core",
  "temper-worker-checkout-world",
  "temper-worker-domain-checkout",
+ "temper-workload",
 ]
 
 [[package]]
@@ -7110,6 +7114,7 @@ dependencies = [
  "temper-engine-inspect",
  "temper-faults",
  "temper-protocol-reaches",
+ "temper-workload",
 ]
 
 [[package]]
@@ -7125,6 +7130,7 @@ dependencies = [
  "temper-engine-domain-forge",
  "temper-engine-domain-forge-change",
  "temper-engine-domain-forge-landing",
+ "temper-engine-forge-world",
 ]
 
 [[package]]
@@ -8483,6 +8489,7 @@ dependencies = [
  "jig-domain-people",
  "jig-domain-tasks",
  "jig-fake-parties",
+ "jig-inspect",
  "jig-protocol-charter",
  "jig-protocol-config",
  "jig-protocol-config-fixtures",
@@ -8515,24 +8522,31 @@ dependencies = [
  "smith-protocol-llm-world",
  "smith-transcript",
  "temper-agent-fixtures",
+ "temper-blame",
  "temper-engine-domain",
  "temper-engine-domain-forge",
  "temper-engine-domain-forge-change",
+ "temper-engine-domain-forge-landing",
+ "temper-engine-domain-forge-tiers",
  "temper-engine-domain-world",
  "temper-engine-forge-world",
+ "temper-engine-inspect",
  "temper-engine-service-stock",
  "temper-engine-service-vocabulary",
  "temper-engine-smith",
  "temper-fake",
  "temper-fake-checkout",
  "temper-faults",
+ "temper-landing-fixtures",
  "temper-limits-fixtures",
  "temper-protocol-worker-wire",
  "temper-service-core",
  "temper-worker-checkout-world",
  "temper-worker-domain",
  "temper-worker-domain-world",
+ "temper-worker-inspect",
  "temper-worker-service",
+ "temper-workload",
 ]
 
 [[package]]
@@ -8804,6 +8818,14 @@ dependencies = [
  "temper-shell",
  "temper-worker-domain",
  "temper-worker-service",
+]
+
+[[package]]
+name = "temper-workload"
+version = "0.0.0"
+dependencies = [
+ "skein-lib",
+ "skein-world",
 ]
 
 [[package]]

@@ -31,7 +31,7 @@ use temper_engine_domain_world::walking;
 use temper_engine_forge_world::translate as api;
 use temper_fake_checkout::Checkout;
 use temper_fake_checkout::git::Tree;
-use temper_worker_checkout_world::{forge::Forge, translate as git};
+use temper_worker_checkout_world::forge::Forge;
 use temper_worker_domain as worker;
 use temper_worker_domain_world::protocol as worker_protocol;
 
@@ -50,6 +50,7 @@ mod delegates;
 mod design_delivery;
 #[cfg(test)]
 mod goals;
+mod inspection;
 #[cfg(test)]
 mod latched;
 mod link;
@@ -64,6 +65,7 @@ pub mod restarts;
 mod review;
 mod two_workers;
 mod walk;
+pub mod workload;
 
 pub use agreement::call;
 pub use delegates::survey_delegation;
@@ -77,6 +79,25 @@ const STEPS: u64 = 10000;
 /// The party's request that adopts the repository.
 const ADOPTION: Token = Token::new(900);
 const RUN_WATCH: Token = Token::new(901);
+
+// Task rows have two disjoint key ranges, in this order. Other store records
+// cannot contribute to a task observation (including its live/ended ordering).
+fn task_rows(store: &Store) -> impl Iterator<Item = &tasks::TaskRecord> {
+    [tasks::Key::Live(0)..=tasks::Key::Live(u64::MAX), tasks::Key::Ended(0)..=tasks::Key::Ended(u64::MAX)]
+        .into_iter()
+        .flat_map(|range| {
+            store.rows.range(
+                Key::Core(jig_domain_core::Key::Tasks(*range.start()))
+                    ..=Key::Core(jig_domain_core::Key::Tasks(*range.end())),
+            )
+        })
+        .map(|(_, row)| match row {
+            engine::Record::Core(jig_domain_core::Record::Tasks(
+                tasks::Stored::Live(row) | tasks::Stored::Ended(row),
+            )) => row.as_ref(),
+            _ => unreachable!("task key range"),
+        })
+}
 
 /// What crossed the independently driven roots and process channel.
 #[derive(Default, Debug, PartialEq, Eq)]
@@ -174,6 +195,8 @@ pub struct World {
     goal_replies: Option<Vec<(Token, people::Reply)>>,
     absence: absence::Controls,
     account_case: Option<accounts::Story>,
+    workload: Option<workload::Story>,
+    workload_faults: Option<workload::faults::Faults>,
     notes: notes::Party,
     merge_job: Option<merge_job::Story>,
     close_job: Option<close_job::Story>,
@@ -528,14 +551,17 @@ impl World {
         config: fn(u64) -> engine::Config,
         limits: fn(&mut engine::Limits),
     ) -> Self {
-        Self::configured_case(
-            seed,
-            script,
-            repository,
-            config(seed),
-            limits,
-            (repository_forge(seed), link::default_forge()),
-        )
+        Self::configured_values(seed, script, repository, config(seed), limits)
+    }
+
+    fn configured_values(
+        seed: u64,
+        script: Script,
+        repository: bool,
+        config: engine::Config,
+        limits: fn(&mut engine::Limits),
+    ) -> Self {
+        Self::configured_case(seed, script, repository, config, limits, (repository_forge(seed), link::default_forge()))
     }
 
     fn configured_case(
@@ -582,6 +608,8 @@ impl World {
             goal_replies: None,
             absence: absence::Controls::default(),
             account_case: None,
+            workload: None,
+            workload_faults: None,
             notes: notes::Party::default(),
             merge_job: None,
             close_job: None,
@@ -597,16 +625,7 @@ impl World {
             root: engine::Domain::new(config, &limits).expect("valid engine configuration"),
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
             root_out: Queue::uncapped(),
-            root_events: VecDeque::from([
-                engine::Event::Restart { pending: false },
-                engine::Event::Forge(Box::new(temper_engine_domain_forge::Event::Connection {
-                    forge: forge_binding.number,
-                    state: temper_engine_domain_forge::Connection::Connected {
-                        id: forge_binding.user,
-                        login: b"bot".as_slice().into(),
-                    },
-                })),
-            ]),
+            root_events: opening_events(&forge_binding),
             store,
             party: signed_in_party(b"@system"),
             protocol: Protocol::default(),
@@ -629,6 +648,9 @@ impl World {
         self.store_checks
             .replace_config(&mut self.restart_config, temper_engine_domain_world::oracle::config::copy(&config));
         self.root = engine::Domain::new(config, &self.env.limits).expect("restart configuration");
+        // The credential source reports its generation after every start;
+        // the root keeps no credential validity across a restart.
+        self.funded = false;
     }
 
     /// Offer one input through admission; one the journal cannot take
@@ -710,7 +732,7 @@ impl World {
         }
         self.account_party();
         // A surviving worker keeps driving its hello while the engine reopens.
-        if (self.opened || self.absence.enabled) && self.absence.worker_running {
+        if (self.opened || self.absence.enabled || self.workload_faults.is_some()) && self.absence.worker_running {
             for lane in 0..self.lanes.len() {
                 self.worker_tick(lane);
             }
@@ -730,6 +752,8 @@ impl World {
             lane.process.tick(lane.worker_env.now, &mut around);
         }
         self.account_observe();
+        self.workload_tick();
+        self.workload_fault_tick();
         for lane in &mut self.lanes {
             lane.worker.reclaim();
         }
@@ -737,7 +761,7 @@ impl World {
         let result = self.ends.step(self.env.now, &self.store);
         self.keep_finding(result)?;
         if self.engine_quiet() {
-            let result = self.checks.quiet(&self.root, self.env.now, self.iteration);
+            let result = self.composed_checks();
             self.keep_finding(result)?;
         }
         Ok(())
@@ -1076,6 +1100,7 @@ impl World {
                 self.root_events.push_back(engine::Event::Store(answer));
             }
             engine::StoreRequest::Commit { number, writes } => {
+                self.workload_blame_writes(&writes);
                 let delay = u32::try_from(self.seed % 3).expect("small seeded delay");
                 self.store.submit(number, writes, delay);
             }
@@ -1121,6 +1146,18 @@ impl World {
                 }
             }
             engine::Request::Drained => self.absence.drained = true,
+            engine::Request::Busy(event) => {
+                // The drain returns an undecided forge reply to its owner. This
+                // fake has no connection queue: the reopened root reads again.
+                assert!(self.absence.enabled, "a scripted engine drain");
+                assert!(
+                    matches!(
+                        *event,
+                        temper_engine_domain_forge::Event::Client(skein_forge_client::Event::Answered { .. })
+                    ),
+                    "only the fake forge's replies can be returned"
+                );
+            }
             engine::Request::Worker(engine::WorkerRequest::Settings(_))
             | engine::Request::Party(engine::PartyRequest::Catalogue { .. }) => {}
             engine::Request::ToChild(released) => self.root_events.push_back(engine::Event::Released(released)),
@@ -1180,7 +1217,6 @@ impl World {
             | engine::Request::SetUp { .. }
             | engine::Request::Bound { .. }
             | engine::Request::Setup { .. }
-            | engine::Request::Busy(_)
             | engine::Request::Unsettled(_)) => panic!("unscripted engine output: {other:?}"),
         }
     }
@@ -1326,12 +1362,22 @@ impl World {
         let expected = self.walk.as_ref().map_or(temper_engine_forge_world::REPO.repository, |walk| walk.repository);
         assert!(repository.repository == 0 || repository.repository == expected);
         self.forge.at(self.env.now);
+        let config = self.workload_forge_call(op);
         let client = &self.env.limits.forge.client;
         let located = temper_engine_forge_world::translate::locate_name(op);
         let name = located.as_deref().unwrap_or(&self.repository_name);
-        let result = match self.forge.api(name, self.forge_binding.user, api::op(op, client)) {
+        let raw = api::op(op, client);
+        let result = match self.forge.api_configured(name, self.forge_binding.user, raw, config) {
             Ok(answer) => {
-                let answer = api::answer(op, answer, client);
+                let mut answer = api::answer(op, answer, client);
+                if let Ok(skein_forge::api::Answer::Run(run)) = &mut answer {
+                    let Ok(fake::Answer::Jobs(jobs)) =
+                        self.forge.api(name, self.forge_binding.user, fake::Op::Read(fake::Read::Jobs { run: run.id }))
+                    else {
+                        panic!("run jobs")
+                    };
+                    run.jobs = api::run_jobs(jobs);
+                }
                 if let Ok(answer) = &answer
                     && skein_forge::measure::answer(answer).expect("fake answer size") > u64::from(client.answer_bytes)
                 {
@@ -1345,10 +1391,14 @@ impl World {
                 skein_fake_forge_domain::time(&temper_worker_checkout_world::forge::config(), self.env.now),
             )),
         };
-        self.root_events.push_back(engine::Event::Forge(Box::new(temper_engine_domain_forge::Event::Client(
-            skein_forge_client::Event::Answered { free: 0, rate: None, call, cost: 1, result },
-        ))));
+        self.workload_forge_reply(
+            op,
+            engine::Event::Forge(Box::new(temper_engine_domain_forge::Event::Client(
+                skein_forge_client::Event::Answered { free: 0, rate: None, call, cost: 1, result },
+            ))),
+        );
         let _moves = self.forge.moves();
+        self.workload_forge_answer(op);
     }
 
     fn lane(&self, channel: Token) -> usize {
@@ -1397,7 +1447,7 @@ impl World {
             self.bind_review_script();
         }
         self.absence_assignment(&assignment);
-        if at == 0 && !self.account_assignment(&assignment) {
+        if at == 0 && !self.workload_assignment(&assignment) && !self.account_assignment(&assignment) {
             self.select_process(assignment.task);
         }
         if self.account_generation.is_some() && assignment.task == 2 {
@@ -1482,7 +1532,11 @@ impl World {
                 assert_eq!(watcher, RUN_WATCH);
             }
             Delivery::AssignedJob { channel, job, workspace } => {
-                self.assign_story_job(channel, job, workspace.as_ref());
+                if self.workload.is_some() {
+                    self.workload_job(channel, job, workspace.as_ref());
+                } else {
+                    self.assign_story_job(channel, job, workspace.as_ref());
+                }
             }
             other @ (Delivery::PlaygroundNote { .. }
             | Delivery::Host(_)
@@ -1531,6 +1585,9 @@ impl World {
         #[cfg(test)]
         if let Some(replies) = &mut self.goal_replies {
             replies.push((to, reply));
+            return;
+        }
+        if self.workload_reply(to, &reply) {
             return;
         }
         if self.account_reply(to, &reply) {
@@ -1814,9 +1871,7 @@ impl World {
                 let op = forge_operation(op, &self.forge_binding.git);
                 self.observe_merge_fetch(&op);
                 self.observe_close_io(&op);
-                let lane = &mut self.lanes[at];
-                let done =
-                    git::perform_within(&mut self.forge, &mut lane.disk, op, lane.worker_env.limits.checkout.conflicts);
+                let done = self.workload_io(at, owner, op);
                 self.lanes[at].worker_events.push_back(worker::Event::Done { owner, done });
                 let _moves = self.forge.moves();
             }
@@ -1860,6 +1915,21 @@ impl World {
                 .push_back(engine::Event::Worker(engine::WorkerInput::Link { channel: self.lanes[at].channel, link }));
         }
     }
+}
+
+/// Connection state is rebuilt from routing events at every start, never from
+/// the store (temper/docs/design/domain/forge/adoption-connection.md, 1).
+fn opening_events(binding: &temper_engine_service_vocabulary::settings::Forge) -> VecDeque<engine::Event> {
+    VecDeque::from([
+        engine::Event::Restart { pending: false },
+        engine::Event::Forge(Box::new(temper_engine_domain_forge::Event::Connection {
+            forge: binding.number,
+            state: temper_engine_domain_forge::Connection::Connected {
+                id: binding.user,
+                login: b"bot".as_slice().into(),
+            },
+        })),
+    ])
 }
 
 impl World {

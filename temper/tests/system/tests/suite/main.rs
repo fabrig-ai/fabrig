@@ -13,6 +13,7 @@ mod simulation;
 mod stopped_news;
 mod store_check;
 mod text;
+mod workload;
 
 mod fuzzy {
     mod accounts;
@@ -21,6 +22,7 @@ mod fuzzy {
     mod repair;
     mod restarts;
     mod twin;
+    mod workload;
 }
 mod running_revision;
 

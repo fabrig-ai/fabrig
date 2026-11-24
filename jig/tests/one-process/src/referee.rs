@@ -397,6 +397,13 @@ pub(super) fn lost_tries(store: &Store) -> u32 {
         .sum()
 }
 fn snapshot(rows: &BTreeMap<root::Key, root::Record>) -> rules::Snapshot {
+    let records = rows
+        .iter()
+        .filter_map(|(key, record)| match (key, record) {
+            (root::Key::Core(key), root::Record::Core(record)) => Some((key.clone(), record)),
+            _ => None,
+        })
+        .collect();
     let mut snapshot = rules::Snapshot::default();
     for row in rows.values() {
         if let root::Record::Core(core::Record::Core(core::CoreRecord::Settings(core::settings::Record::Revision {
@@ -410,7 +417,7 @@ fn snapshot(rows: &BTreeMap<root::Key, root::Record>) -> rules::Snapshot {
             jig_domain_tasks::Stored::Live(task) | jig_domain_tasks::Stored::Ended(task),
         )) = row
         {
-            snapshot.tasks.insert(task.number, jig_conformance::core::task(task));
+            snapshot.tasks.insert(task.number, jig_conformance::core::task(task, &records));
             snapshot.receipts.insert(rules::Receipt::Task(task.number));
             for word in &task.inbox {
                 snapshot.receipts.insert(rules::Receipt::Word(task.number, word.number));

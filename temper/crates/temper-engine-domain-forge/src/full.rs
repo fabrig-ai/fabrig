@@ -33,6 +33,12 @@ impl State {
     pub(crate) fn raise(&mut self, entries: u32) {
         self.reservations.raise(entries);
     }
+    fn table(&mut self, table: FullKind) -> &mut Option<Full> {
+        match table {
+            FullKind::Outbox => &mut self.outbox,
+            FullKind::ReadAdmission => &mut self.reads,
+        }
+    }
     pub(crate) fn reserve(&mut self, reservation: Reservation, task: u64) {
         if self.reservations.contains_key(&reservation) {
             return;
@@ -111,10 +117,8 @@ pub(crate) fn update(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>
     }
     let outbox_full = crate::room::free(d, &env.limits) == 0;
     let reads_full = !d.client.has_room();
-    let outbox = if outbox_full { Some(outbox_words(d, env.limits.entries)) } else { None };
-    let reads = if reads_full { Some(read_words(d, env.limits.client.pending)) } else { None };
-    advance(&mut d.full.outbox, env, FullKind::Outbox, outbox, out);
-    advance(&mut d.full.reads, env, FullKind::ReadAdmission, reads, out);
+    advance(d, env, FullKind::Outbox, outbox_full, out);
+    advance(d, env, FullKind::ReadAdmission, reads_full, out);
     crate::domain::catching_up::advance(d, env, out);
 }
 fn table_name(table: FullKind) -> &'static [u8] {
@@ -123,14 +127,9 @@ fn table_name(table: FullKind) -> &'static [u8] {
         FullKind::ReadAdmission => b"the forge's read admission",
     }
 }
-fn advance(
-    state: &mut Option<Full>,
-    env: &Env<Limits>,
-    table: FullKind,
-    words: Option<Box<[u8]>>,
-    out: &mut Queue<Request>,
-) {
-    let Some(words) = words else {
+fn advance(d: &mut Domain, env: &Env<Limits>, table: FullKind, is_full: bool, out: &mut Queue<Request>) {
+    let state = d.full.table(table);
+    if !is_full {
         if let Some(ended) = state.take()
             && ended.words.is_some()
         {
@@ -138,20 +137,28 @@ fn advance(
             out.push(Request::MarkedForges);
         }
         return;
-    };
+    }
     start(state, env.now, env.wall.as_nanos());
     let full = state.as_mut().expect("full table has its clock");
     let age = full.clock.due(env.now);
-    if age.is_some() || full.words.is_some() {
-        if full.words.as_deref() != Some(&words) {
-            full.words = Some(words.clone());
-            out.push(Request::MarkedForges);
-        }
-        if let Some(age) = age {
-            out.push(Request::FullTableFact {
-                words: bytes::concat(&[table_name(table), b" full for ", &age_words(age), b": ", &words]),
-            });
-        }
+    if age.is_none() && full.words.is_none() {
+        return;
+    }
+    // Before the first report, only the clock is observable. Once published,
+    // the census still follows every holder change, including between reports.
+    let words = match table {
+        FullKind::Outbox => outbox_words(d, env.limits.entries),
+        FullKind::ReadAdmission => read_words(d, env.limits.client.pending),
+    };
+    let full = d.full.table(table).as_mut().expect("full table has its clock");
+    if full.words.as_deref() != Some(&words) {
+        full.words = Some(words.clone());
+        out.push(Request::MarkedForges);
+    }
+    if let Some(age) = age {
+        out.push(Request::FullTableFact {
+            words: bytes::concat(&[table_name(table), b" full for ", &age_words(age), b": ", &words]),
+        });
     }
 }
 // Eight names each capped at 88 bytes leave room for counts, suffixes and the shell's prefix.

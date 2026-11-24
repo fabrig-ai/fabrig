@@ -60,7 +60,7 @@ pub(super) fn project(records: &BTreeMap<core::Key, &core::Record>) -> r::Snapsh
                 snapshot.party_proposals.insert(row.number, row.proposer);
             }
             core::Record::Tasks(tasks::Stored::Live(row) | tasks::Stored::Ended(row)) => {
-                snapshot.tasks.insert(row.number, super::task(row));
+                snapshot.tasks.insert(row.number, super::task(row, records));
                 if let tasks::Escalation::Waiting { holder: tasks::EscalationHolder::Task(holder), entry, .. } =
                     row.escalation
                 {

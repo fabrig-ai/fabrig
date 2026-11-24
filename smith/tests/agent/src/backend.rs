@@ -45,6 +45,8 @@ pub struct Progress {
     pub delay_terminals: bool,
 }
 
+type Call = (tools::Grants, Box<[llm::Served]>, llm::Asker, Option<u32>);
+
 /// The domain-only scripted provider, with finite failure injection.
 #[derive(Debug)]
 pub struct Typed {
@@ -54,13 +56,19 @@ pub struct Typed {
     pub(crate) failure: Option<(llm::Failure, llm::Evidence)>,
     pub(crate) failure_report: llm::Report,
     pub(crate) failure_count: Option<u32>,
-    calls: Ledger<Token, (tools::Grants, Box<[llm::Served]>, llm::Asker)>,
+    calls: Ledger<Token, Call>,
+    faults: Vec<(Time, Token, u32, provider::api::Error)>,
 }
 
 impl Typed {
     /// The fake provider's fault entrances for a composed backend.
     pub fn provider_mut(&mut self) -> &mut provider::Domain {
         &mut self.provider
+    }
+
+    /// Drain raw failures reported by the fake, before the client translation.
+    pub fn take_faults(&mut self) -> Vec<(Time, Token, u32, provider::api::Error)> {
+        core::mem::take(&mut self.faults)
     }
 
     fn completion(
@@ -102,6 +110,7 @@ impl Typed {
             failure_report: llm::Report::none(),
             failure_count: None,
             calls: Ledger::new("fake provider call"),
+            faults: Vec::new(),
         }
     }
 
@@ -116,7 +125,7 @@ impl Backend for Typed {
         };
         self.stage.tick(now);
         self.stage.env.wall = wall;
-        self.calls.open(owner, (prompt.tools, prompt.served.clone(), prompt.asker));
+        self.calls.open(owner, (prompt.tools, prompt.served.clone(), prompt.asker, grant.map(|name| name.account)));
         let mut query = translate::query(prompt);
         query.credential = grant.map(|name| name.account);
         self.stage.push(provider::Event::Call { reply_to: ReplyTo::new(owner), call: owner, query: query.clone() });
@@ -142,13 +151,16 @@ impl Backend for Typed {
         while let Some(request) = self.stage.out.pop() {
             let provider::Request::Reply { to, result } = request else { panic!("typed provider returns a terminal") };
             let owner = to.into_token();
-            let (grants, served, asker) = self.calls.end(owner);
+            let (grants, served, asker, credential) = self.calls.end(owner);
             let event = match result {
                 Ok(answer) => Event::Below(smith_domain::Below::Completed {
                     owner,
                     completion: self.completion(answer, grants, &served, asker),
                 }),
                 Err(error) => {
+                    if let Some(credential) = credential {
+                        self.faults.push((now, owner, credential, error.error));
+                    }
                     // Domain-face strikes stand for the OpenAI response column
                     // (skein/docs/design/testing/fakes/llm.md, 2.7).
                     let status = match &error.error {

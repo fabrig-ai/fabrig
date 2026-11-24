@@ -10,7 +10,7 @@ use temper_fake_checkout::git::{self, Pushed, Remote, What};
 use temper_worker_domain_checkout::git::{Commit, Done, Fault, Missing, Op, Place};
 
 mod machine;
-pub use machine::{cut, perform_with_capacity, used};
+pub use machine::{cut, perform_with_capacity, used, writes};
 
 /// The domain's name for the fake's commit `fake`.
 #[must_use]
@@ -389,8 +389,19 @@ pub fn perform_within(
     op: Op,
     conflicts: u32,
 ) -> Done {
+    perform_within_capacity(forge, disk, op, conflicts, None)
+}
+
+/// The same conflict bound, with the fake disk's optional byte capacity.
+pub fn perform_within_capacity(
+    forge: &mut impl temper_fake_git::counts::Remote,
+    disk: &mut Checkout,
+    op: Op,
+    conflicts: u32,
+    capacity: Option<u64>,
+) -> Done {
     let merge = matches!(op, Op::Merge { .. });
-    match perform(forge, disk, op) {
+    match perform_with_capacity(forge, disk, op, capacity) {
         Done::Conflicted { files, cut } if merge => {
             let most = usize::try_from(conflicts).expect("conflicts fits usize");
             let cut = cut || files.len() > most;

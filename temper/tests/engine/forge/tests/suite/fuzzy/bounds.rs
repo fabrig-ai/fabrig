@@ -10,10 +10,7 @@ use skein_world::{
 use temper_engine_domain_forge as top;
 use temper_engine_domain_forge_change as change;
 use temper_engine_forge_world::{World, changes, landings::LANDING, translate};
-
-const PULL_FILES: Kind = Kind { family: "bounds", name: "pull_files" };
-const COMPARISON: Kind = Kind { family: "bounds", name: "comparison" };
-const JOB_LOG: Kind = Kind { family: "bounds", name: "job_log" };
+use temper_faults::forge::{COMPARISON, JOB_LOG, PAST_BOUNDS, PULL_FILES};
 
 fn holding(world: &World, task: u64) -> Vec<&'static str> {
     match world.change(task).change.state {
@@ -223,7 +220,7 @@ fn job_log(world: &mut World, task: u64, head: api::Commit, sweep: &Sweep) {
 #[test]
 fn answers_past_bounds_leave_repairs_their_evidence() {
     let mut sweep = Sweep::new("answers_past_bounds_leave_repairs_their_evidence");
-    for kind in [PULL_FILES, COMPARISON, JOB_LOG] {
+    for kind in PAST_BOUNDS {
         sweep.configure(kind);
     }
     sweep

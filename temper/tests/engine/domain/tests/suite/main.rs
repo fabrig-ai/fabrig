@@ -9,6 +9,7 @@ mod store_check;
 
 mod accounts;
 mod accounts_restart;
+mod acts;
 mod admission;
 mod agent_reads;
 mod applications;
@@ -39,6 +40,7 @@ mod opened;
 mod opening;
 mod oracle;
 mod orders;
+mod outcome;
 mod panel_before_change;
 mod panels;
 mod periods;
@@ -58,6 +60,7 @@ mod trials;
 mod walking;
 mod watch_room;
 mod ways;
+mod workload;
 
 mod fuzzy {
     mod closer_attempts;
@@ -73,6 +76,7 @@ mod fuzzy {
     mod roles;
     mod see;
     mod walking;
+    mod workload;
 }
 
 mod added_deps;

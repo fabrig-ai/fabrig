@@ -4,6 +4,29 @@ use super::{World, report_script};
 use temper_engine_domain_world::ends::OPENING;
 
 #[test]
+fn task_observation_keeps_live_then_ended_order() {
+    let mut world = World::composed_workload(0);
+    let mut row = super::task_rows(&world.store).next().expect("opened task").clone();
+    let ended = world.root.deployment().tasks + 1;
+    let live = ended + 1;
+    row.number = live;
+    let key = super::Key::Core(jig_domain_core::Key::Tasks(super::tasks::Key::Live(live)));
+    world.store.rows.insert(
+        key,
+        super::engine::Record::Core(jig_domain_core::Record::Tasks(super::tasks::Stored::Live(Box::new(row.clone())))),
+    );
+    row.number = ended;
+    let key = super::Key::Core(jig_domain_core::Key::Tasks(super::tasks::Key::Ended(ended)));
+    world.store.rows.insert(
+        key,
+        super::engine::Record::Core(jig_domain_core::Record::Tasks(super::tasks::Stored::Ended(Box::new(row)))),
+    );
+    let observed: Vec<_> =
+        super::task_rows(&world.store).filter(|row| row.number >= ended).map(|row| row.number).collect();
+    assert_eq!(observed, [live, ended]);
+}
+
+#[test]
 fn a_composed_restart_opens_within_the_shared_bound() {
     let mut world = World::absence_chat(941, report_script(false), b"@system", 1);
     world.until_model_held();
