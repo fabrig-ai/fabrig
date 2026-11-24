@@ -852,7 +852,14 @@ impl Frame {
             None => jig_client_test_records::frame_record(),
         };
         if let Some(hello) = self.opening.take() {
-            let event = jig_client_test_records::opened(hello, me);
+            let event = jig_client_test_records::opened_with_layouts(
+                hello,
+                me,
+                &[jig_client_test_records::family_layout(
+                    temper_client_protocol_wire::FORGE,
+                    temper_client_protocol_wire::CLIENT_LAYOUT,
+                )],
+            );
             self.sockets.get_mut(&self.stream.expect("open stream")).expect("stream socket").reply.extend(sse(&event));
             return;
         }

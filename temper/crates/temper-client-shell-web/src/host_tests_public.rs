@@ -3,9 +3,15 @@ use super::*;
 use temper_client_view_kit::public_records as records;
 
 const TASK_PATH: &[u8] = b"/public/projects/3f2a9c0176543210/tasks/9abcdef076543210";
-const CARD_GET: &[u8] = b"/jig/v1/public/0/1/3/3f2a9c0176543210/9abcdef076543210";
-const CHANGE_GET: &[u8] = b"/jig/v1/public/2/4/1/3f2a9c0176543210/9abcdef076543210";
-const PROJECTS_GET: &[u8] = b"/jig/v1/public/0/1/1";
+fn target(owner: u16, layout: [u8; 32], kind_and_ids: &str) -> String {
+    use std::fmt::Write as _;
+    let mut path = format!("/jig/v1/public/{owner}/");
+    for byte in layout {
+        write!(path, "{byte:02x}").expect("writes to a string");
+    }
+    write!(path, "/{kind_and_ids}").expect("writes to a string");
+    path
+}
 
 fn fixture(path: &[u8]) -> (PublicHost, Duties) {
     let mut host = PublicHost::new(Time::ZERO, Wall::EPOCH, Ways::parse("", b"https://temper.example"));
@@ -125,8 +131,10 @@ fn a_task_made_private_reads_unknown_at_its_next_read() {
     let mut page = crate::host::page(&host.bounds, skein_ui_web::mapping::Primary::Control);
     assert!(duties.show.is_none());
     assert_eq!(duties.asked.len(), 2);
-    let card = asked_for(&duties, CARD_GET);
-    let change = asked_for(&duties, CHANGE_GET);
+    let card_path = target(0, jig_client_protocol_wire::PUBLIC_LAYOUT, "3/3f2a9c0176543210/9abcdef076543210");
+    let change_path = target(2, temper_client_protocol_wire::PUBLIC_LAYOUT, "1/3f2a9c0176543210/9abcdef076543210");
+    let card = asked_for(&duties, card_path.as_bytes());
+    let change = asked_for(&duties, change_path.as_bytes());
     answer(&mut host, card, 200, records::card());
     answer(&mut host, change, 200, records::change());
     host.draw(&mut page, &mut Vec::new());
@@ -137,8 +145,8 @@ fn a_task_made_private_reads_unknown_at_its_next_read() {
     let due = host.report(Report::Due);
     assert!(due.show.is_none());
     assert_eq!(due.asked.len(), 2);
-    let card = asked_for(&due, CARD_GET);
-    let change = asked_for(&due, CHANGE_GET);
+    let card = asked_for(&due, card_path.as_bytes());
+    let change = asked_for(&due, change_path.as_bytes());
     let unknown = answer(&mut host, card, 404, Box::default());
     assert!(unknown.show.is_none(), "Unknown leaves the task address alone");
     let mut ops = Vec::new();
@@ -164,7 +172,7 @@ fn a_task_made_private_reads_unknown_at_its_next_read() {
     let projects = host.report(Report::Act { node, act: Act::Press });
     assert_eq!(projects.show, Some((b"/public".as_slice().into(), false)));
     assert_eq!(projects.asked.len(), 1);
-    answered(&mut host, asked_for(&projects, PROJECTS_GET));
+    answered(&mut host, asked_for(&projects, target(0, jig_client_protocol_wire::PUBLIC_LAYOUT, "1").as_bytes()));
     host.draw(&mut page, &mut Vec::new());
     let empty_words: &[&[u8]] = &[b"temper", b"Sign in", b"Public projects", b"No public projects yet."];
     assert_eq!(words(&host), empty_words);

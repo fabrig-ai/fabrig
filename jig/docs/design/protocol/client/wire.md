@@ -223,15 +223,18 @@ the engine's messages to the client as they come.
   first message is the hello: the stream's name, the versions the
   engine serves of jig's wire and of each application's, and the
   heartbeat; then, where the opening named a version the engine serves,
-  `me`'s value (below). Every watch the client opens names its stream.
+  the layout it serves of each of those owners, and `me`'s value
+  (below). Every watch the client opens names its stream.
 - **`me` comes with the stream.** The engine opens a watch of `me` for
   every stream whose opening names a version it serves, as it would open
   a client's watch of `me`, the core naming the party from the stream's
   sign-in (`README.md`, section 5), and names it `0` on that stream. It sends nothing on the stream before
   the hello, and the hello waits for that watch's first delivery, held
   until durable as every delivery is: it is the stream's
-  `StreamEvent::Opened`, `Opened { hello, me }`, its `hello` the hello
-  alone's record, so the ranges come first, and its `me` the document
+  `StreamEvent::Opened`, `Opened { hello, layouts, me }`, its `hello`
+  the hello alone's record, so the ranges come first, its `layouts` the
+  layout of each owner the hello serves, jig's first, which the client
+  judges before it reads `me` (`versions.md`, section 1), and its `me` the document
   in jig's versioned envelope, `Owned`, at the opening's version, whose
   record is what a delivery of `me` carries. `me`'s later values are
   deliveries of watch `0`, paced and coalesced as any watch's. The

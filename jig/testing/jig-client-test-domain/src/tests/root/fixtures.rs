@@ -50,8 +50,16 @@ pub(super) fn limits() -> Limits {
         client: jig_client::Limits {
             domain: jig_client::DomainLimits {
                 owners: &[
-                    jig_client::Spoken { family: 1, version: jig_client_test_protocol_wire::VERSION },
-                    jig_client::Spoken { family: 2, version: jig_client_test_protocol_wire::VERSION },
+                    jig_client::Spoken {
+                        family: 1,
+                        version: jig_client_test_protocol_wire::VERSION,
+                        layout: jig_client_test_protocol_wire::LAYOUT,
+                    },
+                    jig_client::Spoken {
+                        family: 2,
+                        version: jig_client_test_protocol_wire::VERSION,
+                        layout: jig_client_test_protocol_wire::LAYOUT,
+                    },
                 ],
                 requests: RequestLimits {
                     requests: 4,
@@ -160,6 +168,7 @@ pub(super) fn confirm(root: &mut Domain, watch: Token, party: u64) -> Vec<Reques
                 event: jig_client::Event::Up {
                     up: jig_client::Up::FamilyServed {
                         family,
+                        served: true,
                         versions: Some(contract::VersionRange {
                             first: jig_client_test_protocol_wire::VERSION,
                             last: jig_client_test_protocol_wire::VERSION,

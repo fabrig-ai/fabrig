@@ -307,6 +307,7 @@ pub struct Served {
     pub family: Option<u16>,
     pub first: u32,
     pub last: u32,
+    pub layout: [u8; 32],
 }
 
 /// How an exchange came, decided by its `Host` alone (protocol/client/default-http.md, 3).
@@ -407,7 +408,8 @@ pub struct ProviderAnswer {
 #[derive(Debug, PartialEq)]
 pub struct PublicRead {
     pub owner: u16,
-    pub version: u16,
+    /// A decimal version segment names no layout.
+    pub layout: Option<[u8; 32]>,
     pub kind: u16,
     pub ids: Box<[u64]>,
 }

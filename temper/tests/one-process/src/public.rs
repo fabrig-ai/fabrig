@@ -16,11 +16,25 @@ mod service_checks;
 mod visitor;
 mod wire;
 
-use std::cell::Cell;
+use std::{cell::Cell, fmt::Write as _};
 thread_local! { static ACTIVE: Cell<bool> = const { Cell::new(false) }; }
 // The forge's largest public record is PublicLandings; two reservations fit, three do not.
 pub(super) const PUBLIC_ANSWER_BYTES: u32 = 67_405;
 pub(super) const PUBLIC_BYTES: u32 = PUBLIC_ANSWER_BYTES * 2 + 1;
+fn target(owner: u16, layout: [u8; 32], kind_and_ids: &str) -> String {
+    let mut path = format!("/jig/v1/public/{owner}/");
+    for byte in layout {
+        write!(path, "{byte:02x}").expect("writes to a string");
+    }
+    write!(path, "/{kind_and_ids}").expect("writes to a string");
+    path
+}
+fn jig_target(kind_and_ids: &str) -> String {
+    target(0, jig_client_protocol_wire::PUBLIC_LAYOUT, kind_and_ids)
+}
+fn forge_target(kind_and_ids: &str) -> String {
+    target(2, temper_client_protocol_wire::PUBLIC_LAYOUT, kind_and_ids)
+}
 pub(crate) fn configure(value: &mut temper_playground::documents::Configuration) {
     if !ACTIVE.with(Cell::get) {
         return;

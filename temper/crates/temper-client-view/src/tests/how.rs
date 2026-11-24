@@ -86,6 +86,7 @@ fn fixture(case: &Case) -> (d::Domain, Token) {
         &mut root,
         Up::FamilyServed {
             family: wire::FORGE,
+            served: true,
             versions: Some(c::VersionRange { first: wire::CLIENT_VERSION, last: wire::CLIENT_VERSION }),
         },
     );
@@ -1123,6 +1124,7 @@ fn follows_boxes_word_their_facts_and_mark_who_acts() {
         &mut root,
         Up::FamilyServed {
             family: wire::FORGE,
+            served: true,
             versions: Some(c::VersionRange { first: wire::CLIENT_VERSION, last: wire::CLIENT_VERSION }),
         },
     );

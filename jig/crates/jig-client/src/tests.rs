@@ -2,6 +2,7 @@ use jig_client_protocol_wire::Record as _;
 mod accounts;
 mod facts;
 mod fixtures;
+mod layouts;
 mod reads;
 mod shapes;
 mod sign_in;

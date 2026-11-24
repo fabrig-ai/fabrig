@@ -65,6 +65,22 @@ pub(crate) fn hello(name: [u8; 16], settings: &crate::Settings) -> w::Hello {
     }
     w::Hello { stream: name, served, heartbeat: settings.heartbeat }
 }
+pub(crate) fn layouts(settings: &crate::Settings) -> List<w::Layout> {
+    let mut layouts = List::with_capacity(settings.served.len());
+    for served in &settings.served {
+        if served.family.is_none() {
+            layouts.push(w::Layout { owner: w::Owner::Jig, layout: served.layout }).expect("served layouts fit");
+        }
+    }
+    for served in &settings.served {
+        if let Some(number) = served.family {
+            layouts
+                .push(w::Layout { owner: w::Owner::Family(w::Family { number }), layout: served.layout })
+                .expect("served layouts fit");
+        }
+    }
+    layouts
+}
 pub(crate) fn delivery(
     value: &d::Document,
     rows: u32,

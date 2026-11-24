@@ -1,6 +1,8 @@
 //! Public reading's identifiers and declared kinds (jig/docs/design/protocol/client/public-reads.md).
 mod names;
-use jig_client_protocol_wire::{PUBLIC_BOARD, PUBLIC_CARD, PUBLIC_PROJECTS, PUBLIC_VERSION, PublicIndexBounds};
+use jig_client_protocol_wire::{
+    PUBLIC_BOARD, PUBLIC_CARD, PUBLIC_LAYOUT, PUBLIC_PROJECTS, PUBLIC_VERSION, PublicIndexBounds,
+};
 pub use names::{Names, Of};
 
 /// A declared public kind and its largest answer.
@@ -8,8 +10,8 @@ pub use names::{Names, Of};
 pub struct PublicKind {
     pub owner: u16,
     pub kind: u16,
-    pub first: u16,
-    pub last: u16,
+    pub version: u16,
+    pub layout: [u8; 32],
     pub task: bool,
     pub bound: u32,
 }
@@ -21,24 +23,24 @@ pub fn jig_kinds(bounds: &PublicIndexBounds) -> [PublicKind; 3] {
         PublicKind {
             owner: 0,
             kind: PUBLIC_PROJECTS,
-            first: PUBLIC_VERSION,
-            last: PUBLIC_VERSION,
+            version: PUBLIC_VERSION,
+            layout: PUBLIC_LAYOUT,
             task: false,
             bound: projects,
         },
         PublicKind {
             owner: 0,
             kind: PUBLIC_BOARD,
-            first: PUBLIC_VERSION,
-            last: PUBLIC_VERSION,
+            version: PUBLIC_VERSION,
+            layout: PUBLIC_LAYOUT,
             task: false,
             bound: board,
         },
         PublicKind {
             owner: 0,
             kind: PUBLIC_CARD,
-            first: PUBLIC_VERSION,
-            last: PUBLIC_VERSION,
+            version: PUBLIC_VERSION,
+            layout: PUBLIC_LAYOUT,
             task: true,
             bound: card,
         },

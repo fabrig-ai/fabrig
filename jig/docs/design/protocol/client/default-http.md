@@ -305,12 +305,17 @@ prefix; jig's test application mounts it at `/jig`.
 ## 5. Public reads
 
 - **A `GET`, its read in its path:**
-  `<prefix>/v1/public/<owner>/<version>/<kind>[/<id>[/<id>]]`: the
+  `<prefix>/v1/public/<owner>/<layout>/<kind>[/<id>[/<id>]]`: the
   owner's number (0 for jig, and one more than its family's number for
-  an application's), its public records' version and the public kind, each
-  a decimal number with no sign and no leading zero, within its field's
-  type; then the kind's public identifiers (`public-reads.md`), each exactly 16
-  lowercase hexadecimal digits. No query, no trailing slash, no empty,
+  an application's) and the public kind, each a decimal number with no
+  sign and no leading zero, within its field's type; the reader's layout
+  of the owner's public records, exactly 64 lowercase hexadecimal digits
+  (`versions.md`, section 1); then the kind's public identifiers
+  (`public-reads.md`), each exactly 16 lowercase hexadecimal digits. A
+  layout's place holding a decimal number as above, a reader's that
+  names its records' version as pages before layouts did, is a read of
+  a layout not served, and answered so; that form goes once
+  dev.fabrig.ai serves layouts (`temper/docs/design/draft/layouts-both-ways.md`, 7.4). No query, no trailing slash, no empty,
   dot or percent-encoded segment. One document has one address, so a
   proxy keeps one copy of it. Any other path under
   `<prefix>/v1/public/`, and any method there but `GET`, a preflight's

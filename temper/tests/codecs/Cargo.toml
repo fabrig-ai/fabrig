@@ -20,7 +20,6 @@ skein-checks.workspace = true
 sha2.workspace = true
 temper-engine-service-vocabulary.workspace = true
 jig-protocol-store.workspace = true
-jig-client-view-codec.workspace = true
 skein-heap.workspace = true
 skein-scratch.workspace = true
 skein-codec.workspace = true

@@ -226,6 +226,7 @@ impl Clients {
                 family: Some(temper_client_protocol_wire::number(temper_client_protocol_wire::Owner::Forge)),
                 first: temper_client_protocol_wire::CLIENT_VERSION,
                 last: temper_client_protocol_wire::CLIENT_VERSION,
+                layout: temper_client_protocol_wire::CLIENT_LAYOUT,
             }),
         );
         // The provider owns its signer; construct the initial settings twice without cloning it.
@@ -995,24 +996,24 @@ fn forge_public_kinds() -> [kit::public::PublicKind; 3] {
         kit::public::PublicKind {
             owner,
             kind: wire::PUBLIC_CHANGE,
-            first: wire::PUBLIC_VERSION,
-            last: wire::PUBLIC_VERSION,
+            version: wire::PUBLIC_VERSION,
+            layout: wire::PUBLIC_LAYOUT,
             task: true,
             bound: change,
         },
         kit::public::PublicKind {
             owner,
             kind: wire::PUBLIC_LANDINGS,
-            first: wire::PUBLIC_VERSION,
-            last: wire::PUBLIC_VERSION,
+            version: wire::PUBLIC_VERSION,
+            layout: wire::PUBLIC_LAYOUT,
             task: false,
             bound: landings,
         },
         kit::public::PublicKind {
             owner,
             kind: wire::PUBLIC_LANDING,
-            first: wire::PUBLIC_VERSION,
-            last: wire::PUBLIC_VERSION,
+            version: wire::PUBLIC_VERSION,
+            layout: wire::PUBLIC_LAYOUT,
             task: true,
             bound: landing,
         },

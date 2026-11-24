@@ -1071,6 +1071,7 @@ dependencies = [
  "jig-client-protocol-wire",
  "jig-client-shell-native",
  "jig-client-test-domain",
+ "jig-client-test-records",
  "jig-client-view",
  "jig-domain-core",
  "jig-domain-notes",
@@ -1084,6 +1085,7 @@ dependencies = [
  "jig-test-connector",
  "jig-test-domain",
  "jig-test-service",
+ "skein-checks",
  "skein-fake-machine",
  "skein-fake-person",
  "skein-http",
@@ -6645,7 +6647,6 @@ name = "temper-codecs-world"
 version = "0.0.0"
 dependencies = [
  "jig-client-protocol-wire",
- "jig-client-view-codec",
  "jig-protocol-config",
  "jig-protocol-store",
  "sha2",

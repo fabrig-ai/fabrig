@@ -599,19 +599,16 @@ impl Client {
         let event = if again { link::Event::ReadAgain { read, what } } else { link::Event::Read { read, what } };
         self.link_step(now, event);
     }
-    fn prune_link_reads(&mut self, env: &Env<DomainLimits>) {
+    fn prune_link_reads(&mut self) {
         let mut ended = List::with_capacity(self.submitted_reads.len());
         for (read, ()) in &self.submitted_reads {
-            if !self.domain.has_read(*read) || self.domain.read_refusal(*read).is_some() {
+            if !self.domain.has_read(*read) {
                 ended.push(*read).expect("submitted reads");
             }
         }
         for read in &ended {
             self.link.as_mut().expect("linked reads").cancel_read(*read);
             self.submitted_reads.remove(read);
-            if let Some(result) = self.domain.read_refusal(*read) {
-                self.up(env, Up::ReadDone { read: *read, result });
-            }
         }
     }
     fn defer_read(&mut self, now: Time, read: Token, what: Readable, again: bool) {
@@ -641,7 +638,7 @@ impl Client {
         // Link and domain outputs answer each other within this step; the routed event's bounded
         // fan-out ends this settle (client_settled below).
         loop {
-            self.prune_link_reads(env);
+            self.prune_link_reads();
             // link_requests_dispatched: route the link's consequences before the next domain request.
             if let Some(request) = self.link_out.pop() {
                 self.route_link(env, request, out);
@@ -685,10 +682,7 @@ impl Client {
                 self.link_step(env.now, link::Event::OpenStream);
             } else if !self.reads.is_empty() {
                 let token = self.reads.iter().next().expect("deferred read").read;
-                let refusal = self.domain.read_refusal(token);
-                if self.domain.has_read(token)
-                    && refusal.is_none()
-                    && !self.link.as_ref().expect("linked deferred read").has_exchange_room()
+                if self.domain.has_read(token) && !self.link.as_ref().expect("linked deferred read").has_exchange_room()
                 {
                     break;
                 }
@@ -696,10 +690,7 @@ impl Client {
                 if !self.domain.has_read(read.read) {
                     continue;
                 }
-                match refusal {
-                    Some(result) => self.up(env, Up::ReadDone { read: read.read, result }),
-                    None => self.send_read(env.now, read.read, read.what, read.again),
-                }
+                self.send_read(env.now, read.read, read.what, read.again);
             } else {
                 break;
             }
@@ -777,21 +768,17 @@ impl Client {
                     self.defer_read(env.now, read, what, true);
                 }
             }
-            link::Request::Hello { family: None, versions } => {
-                let served = match versions {
-                    Some(range) => link::serves(range),
-                    None => false,
-                };
+            link::Request::Hello { family: None, versions, served } => {
                 self.up(env, Up::Served { served, versions });
             }
-            link::Request::Hello { family: Some(family), versions } => {
-                self.up(env, Up::FamilyServed { family, versions });
+            link::Request::Hello { family: Some(family), versions, served } => {
+                self.up(env, Up::FamilyServed { family, versions, served });
             }
             link::Request::AskedLink(answer) => out.push(Request::AskedLink(answer)),
             link::Request::Approval(answer) => out.push(Request::Approval(answer)),
             link::Request::Authorized(answer) => out.push(Request::Authorized(answer)),
             link::Request::Signing { signing } => self.signing(env, signing),
-            link::Request::Kept { record: link::Saved { record, .. } } => {
+            link::Request::Kept { record } => {
                 let mut kept = List::with_capacity(1);
                 kept.push(record).expect("one restored record");
                 self.domain.restore_record(env, kept, &mut self.domain_out);
@@ -820,7 +807,7 @@ impl Client {
 }
 fn down_event(down: Down) -> link::Event {
     match down {
-        Down::Save { record } => link::Event::Save { record: link::Saved { version: domain::TABLE_VERSION, record } },
+        Down::Save { record } => link::Event::Save { record },
         Down::Erase { key } => link::Event::Erase { key },
         Down::Send { attempt, key, request, value } => link::Event::Send { attempt, key, ask: request, value },
         Down::Open { watch, subject } => link::Event::Open { watch, subject },

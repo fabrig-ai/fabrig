@@ -142,10 +142,6 @@ pub fn store_asks() -> List<c::Ask> {
 pub fn list<T, const N: usize>(values: [T; N]) -> List<T> {
     List::from_boxed(Box::new(values))
 }
-pub const TABLE_VERSION: u16 = jig_client_domain::TABLE_VERSION;
-pub fn saved_table(ask: c::Ask) -> Saved {
-    Saved { version: TABLE_VERSION, record: table_record(ask) }
-}
 pub fn store_read(value: Saved) -> Record {
     let mut harness = Harness::new(&limits());
     harness.save(value);
@@ -159,15 +155,21 @@ pub fn stored(harness: &Harness) -> Record {
     }
     panic!("one store write")
 }
-pub fn other_store_version(mut value: Record) -> Record {
-    let record = w::Kept::decode(limits().wire(), &mut Reader::new(&value.bytes)).unwrap();
-    let record = w::Kept { store_version: u16::MAX, record: record.record.as_ref().into() };
-    let mut writer = Writer::new(
-        usize::try_from(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
-    );
-    record.write(&jig_client_protocol_wire::CEILINGS, &mut writer).unwrap();
-    value.bytes = writer.finish();
+pub fn other_store_layout(mut value: Record) -> Record {
+    let mut kept = w::Kept::decode(limits().wire(), &mut Reader::new(&value.bytes)).unwrap();
+    kept.layout[0] ^= 1;
+    value.bytes = kept.encode(limits().wire()).unwrap();
     value
+}
+pub fn table_from_store(value: &Record) -> w::TableEntry {
+    let mut reader = Reader::new(&value.bytes);
+    let kept = w::Kept::decode(limits().wire(), &mut reader).unwrap();
+    assert!(reader.is_empty());
+    assert_eq!(kept.layout, w::LAYOUT);
+    let mut reader = Reader::new(&kept.record);
+    let table = w::TableEntry::decode(limits().wire(), &mut reader).unwrap();
+    assert!(reader.is_empty());
+    table
 }
 impl Harness {
     pub fn save(&mut self, value: Saved) {
@@ -320,7 +322,7 @@ fn propose_amendment(revision: c::Revision) -> c::Ask {
 }
 
 pub fn kept_stream() -> Record {
-    let record = w::Kept { store_version: TABLE_VERSION, record: Box::from(STREAM) };
+    let record = w::Kept { layout: w::LAYOUT, record: Box::from(STREAM) };
     let mut writer = Writer::new(
         usize::try_from(record.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture")).unwrap(),
     );
