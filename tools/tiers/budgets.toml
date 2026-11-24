@@ -589,7 +589,7 @@ accepted_instructions = 458_200_000_000
 [gate.fuzzy.temper.system]
 cpu_s = 13
 instructions = 71_700_000_000
-accepted_instructions = 130_900_000_000
+accepted_instructions = 149_500_000_000
 
 [gate.fuzzy.temper.machine]
 cpu_s = 2
