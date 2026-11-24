@@ -1,8 +1,10 @@
 # testing: status
 
-2026-11-23. Where smith's code lags or departs from [testing.md](testing.md).
+2026-11-24. Where smith's code lags or departs from [testing.md](testing.md).
 
 - **Not yet:**
+  - 7: `tests/transcript-patches` still stands, and 3's kept texts and
+    patch goldens with the wires' crates. [in flight: change 16311]
   - 6: smith's inspection adapter, `smith-inspect`, and its worlds'
     calls of the shared checks.
   - 2.1: only the local-process world sweeps the simulator's faults

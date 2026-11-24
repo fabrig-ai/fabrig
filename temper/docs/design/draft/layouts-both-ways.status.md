@@ -4,7 +4,7 @@
 
 - **Design lags:**
   - 3: `skein/docs/design/data/codec/README.md`, 5, and `temper/docs/design/draft/redeploys.md`, 3.1, move a wire's version at each layout change; `temper/docs/design/draft/redeploys.md`, 3.2, agrees a highest common version.
-  - 5 and 9: `skein/docs/design/data/codec/patches.md`, `skein/docs/design/data/codec/bridges.md`, `skein/docs/design/data/codec/diff.md` and `skein/docs/design/data/codec/command.md`, 2 to 7 and 9, keep texts and patches in the repository and bridge through them, and `skein/docs/design/data/codec/README.md`, 1, 2 and 5, lists `skein-codec`'s `patch` and `bridge` modules and the diff: L6 removed that code, and L7 writes these words.
+  - 5 and 9: `skein/docs/design/data/codec/patches.md`, `skein/docs/design/data/codec/bridges.md`, `skein/docs/design/data/codec/diff.md` and `skein/docs/design/data/codec/command.md`, 2 to 7 and 9, keep texts and patches in the repository and bridge through them, and `skein/docs/design/data/codec/README.md`, 1, 2 and 5, lists `skein-codec`'s `patch` and `bridge` modules and the diff, as `skein/docs/design/README.md` and `skein/docs/design/data/README.md` index them: L6 removed that code, and L7 writes these words.
   - 6: `temper/docs/design/draft/redeploys.md`, 4.1, has the newer side translate, through the bridges.
   - 9: `AGENTS.md`, 2, says a wire's change brings its patch.
 - **Design departs:**
