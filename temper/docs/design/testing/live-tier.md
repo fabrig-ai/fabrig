@@ -122,8 +122,8 @@ section 1; skein/docs/foundation/testing-strategy.md, 2.9).
   - **A failure says why:** once a sitting has returned with a finding,
     before the test fails with it, the story prints each run the box's
     serve log records as failed or refused, serve's operator line
-    (`../domain/worker/hosted-runs.md`, 1.3; `../domain/worker/checkouts.md`,
-    1.4): its task, run, attempt and jig's failure, then its detail,
+    (`../domain/worker/hosted-runs.md`, 1.3; `../domain/worker/checkouts-prepare.md`,
+    12.4): its task, run, attempt and jig's failure, then its detail,
     the agent's last error. Each line goes out redacted as every notice
     is, and the redaction also masks an `x-api-key` header's value and
     an Anthropic key (`sk-ant-`). Task JSON alone can't say why: a run's

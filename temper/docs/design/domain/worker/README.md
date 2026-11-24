@@ -13,7 +13,9 @@ open is listed in `README.md`, section 10.
 
 - `hosted-runs.md`: assignments, lifecycle and failures.
 - `agent-processes.md`: the worker's agent processes and their bounds.
-- `checkouts.md`: workspaces, preparing, delivering and saving, and the checkout's open questions.
+- `checkouts.md`: workspaces, their stores and holds, a workspace kept for its run, and the checkout's open questions.
+- `checkouts-prepare.md`: checkout preparation, starting points and failure diagnostics.
+- `checkouts-push.md`: delivery, saving and their open questions.
 - `jobs.md`: the worker's job capability, its kinds, commands and failure diagnostics.
 
 ## 1. In one page

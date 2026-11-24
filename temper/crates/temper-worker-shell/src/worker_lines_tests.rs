@@ -146,7 +146,7 @@ fn worker_job_words_keep_the_binary_prefix_and_reason() {
         "temper-worker worker: run 7 attempt 2 job 3 merge failed Deadline: deadline\n"
     );
 }
-/// temper/docs/design/domain/worker/checkouts.md, 1.3: one escaped operator line.
+/// temper/docs/design/domain/worker/checkouts-prepare.md, 12.3: one escaped operator line.
 #[test]
 fn unprepared_words_name_the_run_failure_and_escape_the_hosted_detail() {
     for (detail, expected) in [
