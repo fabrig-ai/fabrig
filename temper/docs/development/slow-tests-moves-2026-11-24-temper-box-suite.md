@@ -34,7 +34,7 @@
 - **The setup's rows:** `absent`; `short`, 39 bytes; `uppercase`, 40 with an uppercase digit; `long`, 41, past the read's bound, refused by the reader; `both`, a forge number beside `--document`, exit 2 with both usage forms, through `binary::dispatch_with` with no run; `observations`, an exclusive create refused, the setup's tree unchanged.
 - **The demo's rows:** `llm_no_document` and `llm_absent`, a missing key with the configuration absent and present, both naming `demo/llm.key` and reading no configuration; `llm_public`, a `0644` key; `llm_empty`, a key of one LF, holding no key; `llm_long`, a key past its bound; `llm_word`, an extra word, exit 2 with both LLM usage forms.
 
-`temper-box-shell` `deployment_arguments` and `argument_refusals` hold the sources' and other flags' resolution; `temper-box-shell::real` `retained_seed_outputs_survive_later_refusal_and_rollback` and `unsafe_or_different_retained_seed_outputs_are_named_and_refused` hold the native ownership of created outputs.
+`temper-box-shell` `deployment_arguments` and `argument_refusals` hold the sources' and other flags' resolution; `temper-box-shell` library tests `fake::tests::admission::retained_seed_outputs_survive_later_refusal_and_rollback` and `fake::tests::admission::unsafe_or_different_retained_seed_outputs_are_named_and_refused` hold output ownership over no-follow metadata, distinct node identities, bounded bytes and recorded file effects.
 
 ### 1.2 A refused image's rows
 
