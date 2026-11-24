@@ -553,6 +553,36 @@ fn talk_lines_and_the_two_session_ends_cross_the_client_wire() {
 }
 
 #[test]
+fn an_unreadable_watch_notice_crosses_the_client_wire() {
+    use jig_client_domain::contract as c;
+    use jig_domain_tasks as t;
+    use skein_lib::{List, Reader, Wall};
+    let word = t::Word {
+        number: 13,
+        from: t::Party::Task(11),
+        kind: t::MessageKind::Notice { subscription: 5, target: 11, state: t::NoticeState::Unreadable },
+        words: Box::new([]),
+        at: Wall::EPOCH,
+        hits: 1,
+        eligible: false,
+    };
+    let mut rows = List::with_capacity(1);
+    rows.push(reads::PageRow::Activity {
+        line: t::ActivityLine { task: 7, position: 1, at: Wall::EPOCH, line: t::Line::Heard(word) },
+        turn: None,
+    })
+    .unwrap();
+    let w::ReadValue::Activity(page) = activity(&fixtures::page(rows), &w::CEILINGS).unwrap() else {
+        panic!("activity page")
+    };
+    let bytes = page.encode(&w::CEILINGS).unwrap();
+    let page = w::ActivityPage::decode(&w::CEILINGS, &mut Reader::new(&bytes)).unwrap();
+    let page = jig_client_protocol_link::translate::pages::activity_page(page, &fixtures::client_limits()).unwrap();
+    let c::Activity::Heard(word) = &page.rows.get(0).unwrap().source.line else { panic!("heard") };
+    assert_eq!(word.kind, c::MessageKind::Notice { subscription: 5, target: 11, state: c::NoticeState::Unreadable });
+}
+
+#[test]
 fn now_written_crosses_the_client_wire_at_its_line_bound() {
     use jig_client_domain::contract as c;
     use jig_domain_tasks as t;

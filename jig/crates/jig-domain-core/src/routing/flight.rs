@@ -207,6 +207,7 @@ fn reply_to(event: &mut jig_domain_tasks::Event) -> Option<&mut skein_lib::Reply
         | tasks::Event::CloserBatch { .. }
         | tasks::Event::RecurringBatch { .. }
         | tasks::Event::StalledProposal { .. }
+        | tasks::Event::ReadingLost { .. }
         | tasks::Event::Notice { .. }
         | tasks::Event::DelegateResult { .. }
         | tasks::Event::RememberStub { .. }

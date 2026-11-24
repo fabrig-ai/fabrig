@@ -298,6 +298,7 @@ fn each_notice_state_reads_back() {
         domain::NoticeState::Done,
         domain::NoticeState::Failed,
         domain::NoticeState::Cancelled,
+        domain::NoticeState::Unreadable,
     ] {
         let row = message_row(domain::MessageKind::Notice { subscription: 109, target: 19, state });
         assert_eq!(saved_tasks(&row), Ok(row));

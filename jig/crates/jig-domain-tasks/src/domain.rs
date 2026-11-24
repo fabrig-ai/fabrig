@@ -747,6 +747,7 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
         Event::Unsubscribe { reply_to, task, subscription } => {
             crate::subscriptions::unsubscribe(domain, env, reply_to, task, subscription, out);
         }
+        Event::ReadingLost { project, parties } => crate::subscriptions::reading_lost(domain, project, &parties, out),
         Event::Notice { task, word } => crate::subscriptions::notice(domain, env, task, word, out),
         Event::Introduce { reply_to, by, left, right } => {
             crate::refs::introduce(domain, env, reply_to, by, left, right, out);

@@ -8,7 +8,7 @@ use crate::{
     SubscriptionKind, Word,
 };
 use alloc::boxed::Box;
-use skein_lib::{Duration, Env, List, Queue, ReplyTo, Wall};
+use skein_lib::{Duration, Env, List, Queue, ReplyTo, Set, Wall};
 
 fn hint_of(kind: &MessageKind) -> Option<u64> {
     match kind.family() {
@@ -208,13 +208,7 @@ pub(crate) fn unsubscribe(
         return refused(to, Some(number), Refusal::Subscription, out);
     };
     let row = task_mut(domain, number).expect("subscriber live");
-    let mut next = List::with_capacity(u32::try_from(row.record.subscriptions.len()).expect("bounded subscriptions"));
-    for old in &row.record.subscriptions {
-        if old.number != subscription {
-            next.push(*old).expect("subscription subset bounded");
-        }
-    }
-    row.record.subscriptions = next.into_boxed();
+    forget(&mut row.record, subscription);
     let mut inbox = List::with_capacity(env.limits.inbox_messages);
     for word in &row.record.inbox {
         if hint_of(&word.kind) != Some(subscription) {
@@ -225,6 +219,48 @@ pub(crate) fn unsubscribe(
     release_timer(domain, removed);
     publish(domain, env, number, out);
     out.push(Request::Done { reply_to: to });
+}
+
+fn forget(task: &mut crate::TaskRecord, subscription: u64) {
+    let mut next = List::with_capacity(u32::try_from(task.subscriptions.len()).expect("bounded subscriptions"));
+    for old in &task.subscriptions {
+        if old.number != subscription {
+            next.push(*old).expect("subscription subset bounded");
+        }
+    }
+    task.subscriptions = next.into_boxed();
+}
+
+pub(crate) fn reading_lost(domain: &Domain, project: u32, parties: &[u64], out: &mut Queue<Request>) {
+    let mut lost = Set::with_capacity(u32::try_from(parties.len()).expect("bounded previous roster"));
+    for party in parties {
+        assert!(lost.insert(*party).is_ok(), "one set place per previous holder");
+    }
+    for (number, _) in &domain.names {
+        let task = record(domain, *number).expect("indexed subscriber");
+        if task.project != project || task.subscriptions.is_empty() {
+            continue;
+        }
+        let Some(root) = record(domain, task.root) else { continue };
+        match root.requester {
+            crate::Party::Person(party) if lost.contains(&party) => {}
+            crate::Party::Person(_) | crate::Party::Task(_) | crate::Party::Deployment { .. } => continue,
+        }
+        for subscription in &task.subscriptions {
+            match subscription.kind {
+                SubscriptionKind::Task { target, .. } if !crate::refs::allows(domain, *number, target) => {
+                    out.push(Request::Notify {
+                        task: *number,
+                        subscription: subscription.number,
+                        target,
+                        state: NoticeState::Unreadable,
+                        words: Box::new([]),
+                    });
+                }
+                SubscriptionKind::Task { .. } | SubscriptionKind::Timer { .. } | SubscriptionKind::Topic { .. } => {}
+            }
+        }
+    }
 }
 
 pub(crate) fn release_timer(domain: &mut Domain, subscription: Subscription) {
@@ -288,6 +324,18 @@ pub(crate) fn notice(domain: &mut Domain, env: &Env<Limits>, number: u64, word: 
     let row = task_mut(domain, number).expect("subscriber live");
     row.record.last_message = prepared.word.number;
     row.record.inbox = prepared.inbox;
+    // The final notice uses the watch's reserved slot before releasing it.
+    match prepared.word.kind.family() {
+        MessageFamily::Hint(Hint::Notice { state: NoticeState::Unreadable, .. }) => {
+            forget(&mut row.record, subscription_number);
+        }
+        MessageFamily::Hint(_)
+        | MessageFamily::Spoken(_)
+        | MessageFamily::Slot(_)
+        | MessageFamily::Separate(_)
+        | MessageFamily::Result
+        | MessageFamily::Virtual => {}
+    }
     crate::activity::message(&mut row.record, &prepared.activity_word, env.limits.inbox_messages, out);
     publish(domain, env, number, out);
     crate::wake::after_message(domain, env, number, prepared.previous, prepared.word.clone(), out);
@@ -353,6 +401,7 @@ pub(crate) fn notify_state(
                     let interested = match state {
                         NoticeState::Held { .. } => held,
                         NoticeState::Done | NoticeState::Failed | NoticeState::Cancelled => result,
+                        NoticeState::Unreadable => false,
                     };
                     if interested {
                         out.push(Request::Notify {

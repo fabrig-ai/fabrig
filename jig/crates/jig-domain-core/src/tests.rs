@@ -3448,6 +3448,7 @@ fn deployment_capacity_carries_keyed_refusal_identity_time_and_bounded_omissions
                 | people::Request::Erase { .. }
                 | people::Request::Reply { .. }
                 | people::Request::ServiceMade { .. }
+                | people::Request::ReadingLost { .. }
                 | people::Request::RolesApplied { .. }
                 | people::Request::RolesRefused { .. }
                 | people::Request::NeedArrived { .. }

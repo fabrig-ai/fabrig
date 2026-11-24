@@ -19,6 +19,7 @@ pub(crate) fn notice_state_fields(value: &w::NoticeState) -> c::NoticeState {
         w::NoticeState::Done => c::NoticeState::Done,
         w::NoticeState::Failed => c::NoticeState::Failed,
         w::NoticeState::Cancelled => c::NoticeState::Cancelled,
+        w::NoticeState::Unreadable => c::NoticeState::Unreadable,
     }
 }
 

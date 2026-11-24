@@ -637,6 +637,7 @@ fn reply(rows: &[Request]) -> Reply {
             Request::Save { .. }
             | Request::Erase { .. }
             | Request::Route { .. }
+            | Request::ReadingLost { .. }
             | Request::RolesApplied { .. }
             | Request::RolesRefused { .. }
             | Request::ServiceMade { .. }
@@ -655,6 +656,7 @@ fn route(rows: &[Request]) -> Token {
             Request::Save { .. }
             | Request::Erase { .. }
             | Request::Reply { .. }
+            | Request::ReadingLost { .. }
             | Request::RolesApplied { .. }
             | Request::RolesRefused { .. }
             | Request::ServiceMade { .. }
@@ -686,6 +688,7 @@ fn saved_answer(rows: &[Request]) -> Stored {
             Request::Reply { .. }
             | Request::Erase { .. }
             | Request::Route { .. }
+            | Request::ReadingLost { .. }
             | Request::RolesApplied { .. }
             | Request::RolesRefused { .. }
             | Request::ServiceMade { .. }
@@ -1255,6 +1258,7 @@ fn is_reply(request: &Request) -> bool {
         Request::Save { .. }
         | Request::Erase { .. }
         | Request::Route { .. }
+        | Request::ReadingLost { .. }
         | Request::RolesApplied { .. }
         | Request::RolesRefused { .. }
         | Request::ServiceMade { .. }
@@ -1284,6 +1288,7 @@ fn is_answer(request: &Request) -> bool {
         Request::Reply { .. }
         | Request::Erase { .. }
         | Request::Route { .. }
+        | Request::ReadingLost { .. }
         | Request::RolesApplied { .. }
         | Request::RolesRefused { .. }
         | Request::ServiceMade { .. }
@@ -1313,6 +1318,7 @@ fn is_roles(request: &Request) -> bool {
         Request::Reply { .. }
         | Request::Erase { .. }
         | Request::Route { .. }
+        | Request::ReadingLost { .. }
         | Request::RolesApplied { .. }
         | Request::RolesRefused { .. }
         | Request::ServiceMade { .. }
@@ -1461,6 +1467,7 @@ fn authenticated_escalation_decisions_route_without_membership_and_io_pressure_i
         Request::Reply { .. }
         | Request::Save { .. }
         | Request::Erase { .. }
+        | Request::ReadingLost { .. }
         | Request::RolesApplied { .. }
         | Request::RolesRefused { .. }
         | Request::ServiceMade { .. }
@@ -1605,6 +1612,7 @@ fn application_keys_join_flights_and_replay_opaque_tokens_across_sign_ins_and_re
                 | Request::Save { .. }
                 | Request::Erase { .. }
                 | Request::ServiceMade { .. }
+                | Request::ReadingLost { .. }
                 | Request::RolesApplied { .. }
                 | Request::RolesRefused { .. }
                 | Request::Act { .. }

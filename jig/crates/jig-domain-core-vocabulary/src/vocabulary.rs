@@ -1819,6 +1819,7 @@ fn tasks_new_work(event: &tasks::Event) -> bool {
         | tasks::Event::DelegateResult { .. }
         | tasks::Event::RememberStub { .. }
         | tasks::Event::InspectEscalations { .. }
+        | tasks::Event::ReadingLost { .. }
         | tasks::Event::RecheckEscalations { .. }
         | tasks::Event::RoutedEscalation { .. }
         | tasks::Event::DecideEscalation { .. }

@@ -20,8 +20,8 @@ pub use applications::{application_part, application_part_done, holds as account
 pub(crate) use asks::{invalid_ask, valid_ask};
 use asks::{note_pattern_bytes, project, valid_adoption};
 use parties::{
-    SignIn, apply_roles, deadline, end_signin, has_person, make_service, reissue_service, role, seed, signin,
-    valid_roles,
+    SignIn, apply_roles, deadline, end_signin, has_person, make_service, reissue_service, replace_roles, role, seed,
+    signin, valid_roles,
 };
 pub(crate) use requests::{Answered, Pending};
 use requests::{admit_ask, again, answer_decided, answer_expiry, answer_reservations, decided, refused, signed_out};
@@ -30,7 +30,7 @@ use inbox::{ChatTotal, Recent, conversation_seen_decision, mark_seen, prune_unhe
 
 use crate::{
     Again, Ask, Entry, Event, Fact, Holding, Identity, IdentityKey, InitialOwner, Key, Kind, Limits, NeedSource,
-    Outcome, ProjectRole, Reply, Request, RequestKey, ResultRef, Role, Seed, Stored, Whom,
+    Outcome, ProjectRole, Reply, Request, RequestKey, ResultRef, Role, Seed, Whom,
 };
 use alloc::boxed::Box;
 use skein_lib::{Deadlines, Env, Id, List, Map, Queue, Set, Slab, Time, Token, Wall};
@@ -614,12 +614,7 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
                 return;
             }
             match valid_roles(domain, &env.limits, project, &holdings) {
-                Ok(()) => {
-                    out.push(Request::Save { record: Stored::Roles { project, holdings: holdings.clone() } });
-                    let saved = domain.roles.insert(project, holdings);
-                    assert!(saved.is_ok(), "roles admitted before mutation");
-                    prune_unheld_roles(domain, project);
-                }
+                Ok(()) => replace_roles(domain, project, holdings, out),
                 Err(outcome) => out.push(Request::RolesRefused { project, outcome }),
             }
         }

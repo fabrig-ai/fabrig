@@ -11037,6 +11037,7 @@ pub enum NoticeState {
     Done,
     Failed,
     Cancelled,
+    Unreadable,
 }
 
 // Record: NoticeState.
@@ -11046,7 +11047,8 @@ impl NoticeState {
         skein_codec::bounds::Node::Scalar(0),
         skein_codec::bounds::Node::Scalar(0),
         skein_codec::bounds::Node::Scalar(0),
-        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2, 3] },
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2, 3, 4] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
@@ -11080,6 +11082,7 @@ impl Record for NoticeState {
             Self::Done => field::put(out, &[1], paths::NOTICE_STATE_TAG),
             Self::Failed => field::put(out, &[2], paths::NOTICE_STATE_TAG),
             Self::Cancelled => field::put(out, &[3], paths::NOTICE_STATE_TAG),
+            Self::Unreadable => field::put(out, &[4], paths::NOTICE_STATE_TAG),
         }
     }
 
@@ -11090,7 +11093,8 @@ impl Record for NoticeState {
             1 => Ok(Self::Done),
             2 => Ok(Self::Failed),
             3 => Ok(Self::Cancelled),
-            4..=u8::MAX => Err(Problem { path: paths::NOTICE_STATE_TAG, reason: skein_codec::Reason::Tag }),
+            4 => Ok(Self::Unreadable),
+            5..=u8::MAX => Err(Problem { path: paths::NOTICE_STATE_TAG, reason: skein_codec::Reason::Tag }),
         }
     }
 }

@@ -660,6 +660,7 @@ impl World {
             | Event::QuestionEndedNotice { .. }
             | Event::CancelQuestion { .. }
             | Event::PersonStallNotice { .. }
+            | Event::ReadingLost { .. }
             | Event::Notice { .. } => None,
         };
         match event {

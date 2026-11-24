@@ -1054,6 +1054,7 @@ dependencies = [
  "skein-codegen",
  "skein-lib",
  "skein-rows",
+ "skein-scratch",
 ]
 
 [[package]]

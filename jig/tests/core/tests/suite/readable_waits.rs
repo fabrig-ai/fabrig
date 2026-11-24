@@ -10,7 +10,7 @@ use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use jig_test_domain as root;
 use jig_test_profile::fixtures::unchanged;
-use skein_lib::{ReplyTo, Token};
+use skein_lib::{Duration, ReplyTo, Token};
 
 const OTHER_PROJECT: u32 = 2;
 const CHARTER: tasks::Executor = tasks::Executor::Agent { charter: 1 };
@@ -19,6 +19,10 @@ const CALL: u64 = 12_200;
 
 fn root_task(world: &mut World, project: u32, sign_in: u64, role: people::Role, words: &[u8]) -> u64 {
     let request = chat_for(world, project, role.number(), words.into());
+    request_root(world, sign_in, request)
+}
+
+fn request_root(world: &mut World, sign_in: u64, request: people::Ask) -> u64 {
     ask_as(world, sign_in, ROOT_KEY, request);
     let Some(people::Reply::Outcome(people::Outcome::Created { first, last, .. })) = world.people_answers.last() else {
         panic!("root was not created: {:?}", world.people_answers.last());
@@ -110,6 +114,131 @@ fn a_task_waits_on_another_tree_its_requester_reads() {
     assert_ne!(live_row(&world, child).phase, tasks::Phase::Waiting);
     let notice = tasks::MessageKind::Notice { subscription, target: prerequisite, state: tasks::NoticeState::Done };
     assert!(live_row(&world, requester.0).inbox.iter().any(|word| word.kind == notice));
+}
+
+const LOST_READING_SEED: u64 = 12_212;
+
+fn watch_fixture() -> (root::Config, root::Limits) {
+    let (mut configuration, mut limits) = jig_core_world::faults::plan_fixture(LOST_READING_SEED);
+    limits.core.authority.roles = 3;
+    let roles = &mut configuration.core.seed_projects[0].policy.policy.roles;
+    let mut member = roles[0].clone();
+    member.number = people::Role::Member.number();
+    let mut maintainer = roles[0].clone();
+    maintainer.number = people::Role::Maintainer.number();
+    *roles = Box::new([roles[0].clone(), maintainer, member]);
+    (configuration, limits)
+}
+
+fn watch(world: &mut World, run: (u64, u64), completion: u32, target: u64, held: bool) -> u64 {
+    let kind = tasks::SubscriptionKind::Task { target, held, result: true };
+    let core::CallPart::Subscribed { subscription } =
+        call(world, run, completion, core::NamedAction::Subscribe { kind })
+    else {
+        panic!("watch was not admitted: {:?}", world.answers.last());
+    };
+    subscription
+}
+
+fn set_roles(world: &mut World, owner: u64, key: u8, holdings: Box<[people::Holding]>) {
+    ask_as(world, owner, key, people::Ask::SetRoles { project: PROJECT, holdings });
+    assert_eq!(
+        world.people_answers.last(),
+        Some(&people::Reply::Outcome(people::Outcome::RolesSet { project: PROJECT }))
+    );
+}
+
+fn watch_word(row: &tasks::TaskRecord, subscription: u64) -> &tasks::Word {
+    let mut notices = row.inbox.iter().filter(
+        |word| matches!(word.kind, tasks::MessageKind::Notice { subscription: number, .. } if number == subscription),
+    );
+    let word = notices.next().expect("watch notice in inbox");
+    assert!(notices.next().is_none(), "one merged slot for this watch");
+    word
+}
+
+#[test]
+fn losing_project_reading_ends_only_the_reading_watch_and_its_last_notice_survives_restart() {
+    let (configuration, limits) = watch_fixture();
+    let mut world =
+        World::new(Setup { seed: LOST_READING_SEED, configuration: Some(configuration), limits, ..Setup::default() });
+    let target = world.assignments[0].0;
+    let owner = world.sign_in.expect("owner signed in");
+    let signed = second_party(&mut world, b"member who watches", people::Role::Member);
+    let mut ask = chat_for(&world, PROJECT, people::Role::Member.number(), b"watch the other tree".as_slice().into());
+    let people::Ask::Create { batch, .. } = &mut ask else { panic!("chat creation") };
+    batch[0].wake = Some(people::WakePolicy {
+        words: people::WakeRule::Never,
+        notices: people::WakeRule::Batch { count: 2, age: Duration::from_secs(60) },
+        news: people::WakeRule::Never,
+        results: people::ResultsWake::Never,
+        questions: true,
+        answers: true,
+        timers: true,
+    });
+    let task = request_root(&mut world, signed, ask);
+    let tasks::Party::Person(person) = live_row(&world, task).requester else { panic!("person's root") };
+    let run = running(&world, task);
+    let child = member(&world, CHARTER, b"watch by reference");
+    let child = delegate(&mut world, run, 1, child);
+    let waiting = dependent(&world, target);
+    let waiting = delegate(&mut world, run, 2, waiting);
+    let by_reading = watch(&mut world, run, 3, target, true);
+    let by_reference = watch(&mut world, run, 4, child, false);
+    assert!(live_row(&world, task).references.is_empty());
+    assert_ne!(live_row(&world, target).root, task);
+    assert_eq!(live_row(&world, waiting).waiting_on.as_ref(), [target]);
+
+    // Give the watch a pending hint so losing it must replace, not add to, the slot.
+    let previous_state = tasks::NoticeState::Held { revision: 1 };
+    let at = world.wall_time();
+    let previous = world.domain.core_mut().notice(task, by_reading, target, previous_state, Box::new([]), at);
+    world.send(root::Event::Core(core::Event::Tasks(previous)));
+    let first = watch_word(live_row(&world, task), by_reading).clone();
+    assert_eq!(first.kind, tasks::MessageKind::Notice { subscription: by_reading, target, state: previous_state });
+    assert_eq!((first.hits, first.eligible), (1, false));
+
+    let owner_holding = people::Holding { person: PARTY, role: people::Role::Owner };
+    set_roles(
+        &mut world,
+        owner,
+        49,
+        Box::new([owner_holding, people::Holding { person, role: people::Role::Maintainer }]),
+    );
+    let row = live_row(&world, task);
+    assert_eq!(row.subscriptions.len(), 2);
+    assert_eq!(watch_word(row, by_reading), &first);
+
+    set_roles(&mut world, owner, 50, Box::new([owner_holding]));
+    let row = live_row(&world, task);
+    assert!(
+        matches!(row.subscriptions.as_ref(), [tasks::Subscription { number, kind: tasks::SubscriptionKind::Task { target, .. } }] if *number == by_reference && *target == child)
+    );
+    assert_eq!(live_row(&world, waiting).waiting_on.as_ref(), [target]);
+    assert_eq!(live_row(&world, waiting).phase, tasks::Phase::Waiting);
+    let last = watch_word(row, by_reading).clone();
+    assert_eq!(
+        last.kind,
+        tasks::MessageKind::Notice { subscription: by_reading, target, state: tasks::NoticeState::Unreadable }
+    );
+    assert!(last.number > first.number);
+    assert_eq!(
+        (last.at, last.hits, last.eligible),
+        (first.at, 2, true),
+        "the merged notice reaches the batch threshold"
+    );
+
+    let upstream = running(&world, target);
+    finish(&mut world, upstream, b"done");
+    assert!(live_row(&world, waiting).waiting_on.is_empty());
+    assert_ne!(live_row(&world, waiting).phase, tasks::Phase::Waiting);
+    assert_eq!(watch_word(live_row(&world, task), by_reading), &last);
+
+    world.restart_with(watch_fixture().0);
+    let restored = world.domain.core().tasks.task(task).expect("restored watcher");
+    assert_eq!(restored.subscriptions.len(), 1);
+    assert_eq!(restored.subscriptions[0].number, by_reference);
+    assert_eq!(watch_word(restored, by_reading), &last);
 }
 
 #[test]

@@ -164,6 +164,7 @@ pub(in crate::codec) fn wire_notice_state(value: &c::NoticeState) -> w::NoticeSt
         c::NoticeState::Done => w::NoticeState::Done,
         c::NoticeState::Failed => w::NoticeState::Failed,
         c::NoticeState::Cancelled => w::NoticeState::Cancelled,
+        c::NoticeState::Unreadable => w::NoticeState::Unreadable,
     }
 }
 

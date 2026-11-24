@@ -348,6 +348,9 @@ pub(crate) fn roles_route(
                 crate::routing::view::routes::touch_people_row(core, &record);
                 routed.out.push(Request::Write(Write::Save(Record::People(record))));
             }
+            people::Request::ReadingLost { project, parties } => {
+                routed.work.push(Work::Event(Event::Tasks(tasks::Event::ReadingLost { project, parties })));
+            }
             people::Request::RolesApplied { reply_to, request: actual, result } => {
                 assert!(
                     reply_to.into_token() == request && actual == original && terminal.is_none(),
@@ -363,7 +366,9 @@ pub(crate) fn roles_route(
             | people::Request::RolesRefused { .. }
             | people::Request::ServiceMade { .. }
             | people::Request::NeedArrived { .. }
-            | people::Request::RestoreRefused { .. } => unreachable!("role application has one save and terminal"),
+            | people::Request::RestoreRefused { .. } => {
+                unreachable!("role application only saves the roster, reports losses and answers")
+            }
         }
     }
     if let Err(why) = terminal.expect("role application terminal") {
@@ -410,6 +415,7 @@ pub(crate) fn make_service_request(
                             }
                             other @ (people::Request::Act { .. }
                             | people::Request::Acted { .. }
+                            | people::Request::ReadingLost { .. }
                             | people::Request::RolesApplied { .. }
                             | people::Request::Route { .. }
                             | people::Request::Reply { .. }

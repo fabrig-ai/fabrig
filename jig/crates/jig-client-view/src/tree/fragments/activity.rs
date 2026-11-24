@@ -51,6 +51,7 @@ fn notice(b: &mut Builder, value: NoticeState, words: &Words) {
         NoticeState::Done => P::Done,
         NoticeState::Failed => P::NoticeFailed,
         NoticeState::Cancelled => P::NoticeCancelled,
+        NoticeState::Unreadable => P::NoticeUnreadable,
     };
     caption(b, words, phrase);
 }

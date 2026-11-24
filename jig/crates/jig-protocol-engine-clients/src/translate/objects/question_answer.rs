@@ -59,6 +59,7 @@ pub fn message_kind(value: &t::MessageKind) -> Result<w::MessageKind, w::Problem
                 t::NoticeState::Done => w::NoticeState::Done,
                 t::NoticeState::Failed => w::NoticeState::Failed,
                 t::NoticeState::Cancelled => w::NoticeState::Cancelled,
+                t::NoticeState::Unreadable => w::NoticeState::Unreadable,
             },
         }),
         t::MessageKind::News { subscription, class } => w::MessageKind::News(w::MessageKindNews {

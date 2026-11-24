@@ -1335,6 +1335,8 @@ pub enum Request {
         /// use `Limits::holdings`.
         result: Result<(), Outcome>,
     },
+    /// Parties omitted from a replaced project's roster, after its save.
+    ReadingLost { project: u32, parties: Box<[u64]> },
     /// New eligible keyed flight for the root's authority/task decision; duplicate callers share
     /// this route.
     Route {

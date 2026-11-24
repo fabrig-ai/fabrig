@@ -69,13 +69,14 @@ pub enum NewsClass {
     Dropped,
 }
 
-/// State of a watched task, distinct from a terminal result.
+/// State reported by a task watch, distinct from a terminal result.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum NoticeState {
     Held { revision: u64 },
     Done,
     Failed,
     Cancelled,
+    Unreadable,
 }
 
 /// One bounded standing task, timer or topic interest.
@@ -1869,6 +1870,11 @@ pub enum Event {
         reply_to: ReplyTo,
         task: u64,
         subscription: u64,
+    },
+    /// End task watches by reading in trees requested by parties who lost their project role.
+    ReadingLost {
+        project: u32,
+        parties: Box<[u64]>,
     },
     /// Root places a merged state/timer/connector hint in a subscribed inbox.
     Notice {

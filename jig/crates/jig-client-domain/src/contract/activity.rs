@@ -183,6 +183,7 @@ pub enum NoticeState {
     Done,
     Failed,
     Cancelled,
+    Unreadable,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum NewsClass {

@@ -270,6 +270,10 @@ pub(crate) fn tag_people_part(
                     | people::Outcome::Refused(..),
                 )) => Request::Held(Box::new(Held::PeopleReply { to, reply })),
             },
+            people::Request::ReadingLost { project, parties } => {
+                routed.work.push(Work::Event(Event::Tasks(jig_domain_tasks::Event::ReadingLost { project, parties })));
+                continue;
+            }
             people::Request::RolesApplied { .. } => continue,
             people::Request::RolesRefused { .. } | people::Request::RestoreRefused { .. } => {
                 core.start_collect_failure();
