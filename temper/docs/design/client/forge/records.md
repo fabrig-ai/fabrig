@@ -85,8 +85,11 @@ Moved to [`records-deployment.md`](records-deployment.md), section 1.
     task (u64) and the question's number there (u32), the first line of
     its words (at most 256 bytes, cut on a UTF-8 boundary and marked),
     and where it stands: taken, asked
-    of the change's requester, or answered and held for the change's
-    dependencies. A change past its bound
+    of the change's requester, or answered and held, with its blocker,
+    a dependency's task (u64) or message room, and since when, an
+    instant, each none where the change's record keeps none
+    (`../../domain/forge/change/notices.md`, 2): a field of the held
+    variant, so the family's version moves. A change past its bound
     shows the question that held it among them, as its hold says;
   - its source (`../../domain/forge/change/opened.md`, 6), `source`,
     appended after the record's last field: none for a change with no

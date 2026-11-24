@@ -314,7 +314,9 @@ section 6).
     left to relay for, is answered, in the answer form to its number,
     `This question reached no one: the goal's closer decides nothing
     and relays only the questions its open steps ask.` Any other
-    task's words are taken and dropped.
+    task's words, and an answer that matches no standing question, are
+    answered in words naming what the closer takes and what is open
+    (`change/notices.md`, 3).
   - *Why one at a time:* the closer matches the question it passes up
     to the credit jig admits it with (*Room and admission*, below), and
     one asked of its goal at a time keeps that match whole. Two
@@ -359,7 +361,9 @@ section 6).
     only once jig admits the step, as a change's relay is
     (`change/questions.md`, 1), and the question passed up at a step is
     asked with the number of the credit jig admits that step's
-    question with.
+    question with. The goal's answer held here for want of room tells
+    the goal so, and again once it is relayed down; the stored relay
+    keeps since when (`change/notices.md`, 1 and 2).
   - *Reporting waits* while a question stands or waits, or a notice is
     still to send, as for any of the closer's retained messages.
   - *Kept across a restart:* the questions, standing and waiting, with

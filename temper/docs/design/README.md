@@ -205,6 +205,7 @@ forge, temper adds:
   - `domain/forge/change/README.md`: the change procedure and its documents.
   - `domain/forge/change/drift.md`: a change's drift and its own writes.
   - `domain/forge/change/panel.md`: a change's panel.
+  - `domain/forge/change/notices.md`: what a relay tells the senders of answers and words.
   - `domain/forge/change/records.md`: a change's records and room.
   - `domain/forge/change/repairs.md`: repairs and their outcomes.
   - `domain/forge/change/repairs-resolutions.md`: merge jobs and conflict resolutions.

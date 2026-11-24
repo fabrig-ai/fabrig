@@ -130,9 +130,9 @@ answered with words saying the same, to that task, but its requester's
 while it has a live producer, which pass to that producer under either
 route (`questions.md`, 1, *Its requester's words and amendments*); each
 reply commits with the step that takes what it answers, so a retried
-step answers once. A party's words stay unanswered, since a procedure's step
-messages tasks alone (jig's `domain/tasks/messages.md`, 5): they are taken and
-dropped, and the change's page says that a change takes no words. An
+step answers once. A party's words reach its live producer or are refused,
+naming the amendment that carries them (`questions.md`, 1, *Its requester's
+words and amendments*); the change's page says that a change takes no words. An
 amendment reaches its live producer, repair or resolution under either
 route (`questions.md`, 1, *Its requester's words and amendments*); its
 cancels are its own (4).
@@ -228,6 +228,7 @@ Documents:
   - `repairs-releases.md`: holds and releases.
   - `repairs-later.md`: repairs, resolutions and releases' open questions.
 - `questions.md`: questions and the change's words.
+  - `notices.md`: what a relay tells the senders of answers and words.
 - `branch-path.md`: the goal's branch path.
 - `stalls.md`: waits and their bounds.
 
