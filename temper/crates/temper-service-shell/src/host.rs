@@ -5,6 +5,7 @@ use crate::Served;
 use skein_io::kernel::{Complete, Exit, Submit};
 use skein_lib::{Queue, Time, Wall};
 use std::io::{self, Write};
+use std::os::unix::ffi::OsStrExt;
 use temper_service_core::long_pass::{LONG_PASS, LongPass, Part, Watch};
 use temper_shell::directories::Directories;
 use temper_shell::directories::EnvironmentEntry;
@@ -23,6 +24,7 @@ pub struct Host<S> {
     output_failed: bool,
     wait_check: bool,
     cut_at_listen: Option<std::path::PathBuf>,
+    pub(super) disk: Option<super::disk::Budget>,
     now: Time,
     watch: Watch,
     clock: skein_shell::Clock,
@@ -55,6 +57,7 @@ impl<S> Host<S> {
             // always check; release programs can opt in with the same flag.
             wait_check: wait_check(environment, cfg!(debug_assertions)),
             cut_at_listen: super::restart_fault::marker(environment),
+            disk: None,
             now: Time::ZERO,
             watch: Watch::new(),
             clock: skein_shell::Clock::new(),
@@ -97,6 +100,12 @@ pub(crate) fn wait_check(environment: &[EnvironmentEntry], debug: bool) -> bool 
 impl<S> skein_shell::Host for Host<S> {
     fn iterate(&mut self, now: Time, wall: Wall) {
         self.now = now;
+        if let (Some(disk), Some(apply)) = (&mut self.disk, self.served.set_local_places)
+            && now >= disk.next
+        {
+            let places = disk.sample(std::path::Path::new(std::ffi::OsStr::from_bytes(&self.directories.data)), now);
+            apply(&mut self.service, places);
+        }
         self.watch.begin(self.clock.now().now);
         for &stage in self.served.stages {
             (self.served.iterate_stage)(&mut self.service, stage, now, wall);
@@ -118,7 +127,7 @@ impl<S> skein_shell::Host for Host<S> {
         (self.served.next_mechanism_deadline)(&self.service)
     }
     fn next_policy_deadline(&self) -> Option<Time> {
-        (self.served.next_policy_deadline)(&self.service)
+        skein_lib::earliest((self.served.next_policy_deadline)(&self.service), self.disk.as_ref().map(|disk| disk.next))
     }
     fn is_empty(&self) -> bool {
         (self.served.is_empty)(&self.service)
@@ -261,6 +270,7 @@ pub(super) mod adapter_tests {
         }
     }
     pub(crate) const SERVED: Served<OneStage> = Served {
+        set_local_places: None,
         stages: &[temper_service_core::Stage::Route],
         iterate_stage: |service, stage, now, wall| {
             assert_eq!(stage, temper_service_core::Stage::Route);
