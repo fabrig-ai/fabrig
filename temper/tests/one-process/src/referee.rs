@@ -75,6 +75,7 @@ pub(crate) struct Referee {
     ended: bool,
     hold_released: bool,
     forge: Rc<RefCell<forge::Forge>>,
+    landing_at_cut: Option<client::Landing>,
     story: crate::world::Story,
 }
 impl Referee {
@@ -114,7 +115,7 @@ impl Referee {
             scope.tools = 3;
             scope.depth = 3;
             scope.executors.insert((1, 2));
-            for kind in [3, 11] {
+            for kind in crate::stories::grant_kinds() {
                 scope.grants.push(rules::Grant {
                     connector: 1,
                     kind,
@@ -192,6 +193,7 @@ impl Referee {
             ended: false,
             hold_released: false,
             forge,
+            landing_at_cut: None,
             story: scenario,
         }
     }
@@ -368,6 +370,34 @@ impl Referee {
         self.held_at = Some((store.applied, held));
         held
     }
+    fn landing_recovered(&mut self, other: &[Proc]) -> Result<bool, String> {
+        use crate::stories::recovery;
+        let Some(landing) = other.iter().find_map(|proc| match proc {
+            Proc::Other(HarnessProcess::Client(person)) if person.is_empty() => person.wire.landing().copied(),
+            _ => None,
+        }) else {
+            return Ok(false);
+        };
+        if let Some(before) = self.landing_at_cut {
+            if self.cold.is_some() || self.run.borrow().restarts == 0 {
+                return Ok(false);
+            }
+            if landing != before {
+                return Err(format!("the saved sign-in found a different landing: {landing:?}, was {before:?}"));
+            }
+            return Ok(true);
+        }
+        if !self.forge.borrow().complete() {
+            return Ok(false);
+        }
+        recovery::check_landing(landing, &self.forge.borrow_mut().take_ledger())?;
+        recovery::keep_forge(other)?;
+        self.landing_at_cut = Some(landing);
+        // The first watch after the cut precedes attachment of the new service.
+        self.agent_seen = 0;
+        self.controls.cut(0, skein_world::Cut::PowerLoss);
+        Ok(false)
+    }
     fn phase_complete(&mut self, other: &[Proc]) -> Result<bool, String> {
         Ok({
             match self.phase {
@@ -377,6 +407,7 @@ impl Referee {
                 crate::world::Phase::SignIn => other
                     .iter()
                     .any(|proc| matches!(proc, Proc::Other(HarnessProcess::Client(person)) if person.signed_in > 0)),
+                crate::world::Phase::LandedRestart => self.landing_recovered(other)?,
                 crate::world::Phase::Drain => stopped::ready(self.story, &self.store.borrow(), other)?,
                 crate::world::Phase::Restart => {
                     self.cold.is_none()
@@ -547,6 +578,9 @@ impl skein_world::Referee<Proc> for Referee {
         }
 
         self.forge.borrow_mut().observe(procs)?;
+        if self.landing_at_cut.is_some() {
+            crate::stories::recovery::no_writes(&self.forge.borrow_mut().take_ledger())?;
+        }
         let Proc::Service(service) = &procs[0] else { return Err(String::from("service first")) };
         self.adoption_window(service);
         // Each service incarnation owns its commit vector. Check every new

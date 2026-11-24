@@ -78,30 +78,26 @@ fn the_elsewhere_deployment_keeps_the_whole_fixture_provider_in_its_data_directo
     std::fs::create_dir(&config).expect("config directory");
     std::fs::create_dir(&data).expect("data directory");
     support::configuration(&config, &support::Forge::Unreached);
-    support::owned::producer_landing_settings(&config, 2);
-    let before = temper_agent_fixtures::providers::read(&config);
-    let peer = support::fake_llm(Box::new([]));
-    support::forgejo_elsewhere::configure_llm(scratch.path(), &peer);
+    let before = temper_agent_fixtures::providers::read(&data);
+    let [listener] = support::reserve_listeners(&[]);
+    let address = listener.local_addr().expect("unused endpoint");
+    support::forgejo_elsewhere::configure_provider(scratch.path(), address);
 
     // Read the startup copy through the product's reader, not the world's retained inputs.
-    let running = temper_service_shell::providers::read(
-        &data.join("providers.setting"),
-        temper_service::stock::providers(),
-        &mut Vec::new(),
-    );
+    let running = temper_service_shell::providers::read(&data.join("providers.setting"), Box::new([]), &mut Vec::new());
     let running = temper_agent_fixtures::providers::flat(&running);
-    assert_eq!(running["endpoints"][0]["address"]["socket"], peer.address().to_string());
+    assert_eq!(running["endpoints"][0]["address"]["socket"], address.to_string());
     assert_eq!(running["endpoints"][0]["transport"], "tls");
     assert_eq!(running["endpoints"][0]["server_name"], "skein.test");
     assert_eq!(running["endpoints"][0]["trust"], serde_json::json!(config.join("root.der")));
     let mut expected = before;
-    expected["endpoints"][0]["address"] = serde_json::json!({"socket":peer.address().to_string()});
+    expected["endpoints"][0]["address"] = serde_json::json!({"socket":address.to_string()});
     assert_eq!(running, expected, "rebinding preserves the complete provider, not stock with a new socket");
     let settings: serde_json::Value =
-        serde_json::from_slice(&std::fs::read(config.join("native-landing-settings.json")).expect("landing settings"))
+        serde_json::from_slice(&std::fs::read(config.join("elsewhere-providers.json")).expect("provider edits"))
             .expect("settings JSON");
     let edits = support::provider_setup::items(&running);
-    assert!(settings["items"].as_array().expect("items").ends_with(&edits), "ctl commits the running providers");
+    assert_eq!(settings["items"], serde_json::json!(edits), "ctl commits the running providers");
     scratch.remove();
 }
 
@@ -360,8 +356,8 @@ fn turn_configuration_declares_the_prepare_job() {
 // It reaches `forgejo_elsewhere`, whose capture witness uses Linux's abstract Unix sockets.
 #[cfg(target_os = "linux")]
 #[test]
-fn elsewhere_settings_follow_the_connected_project() {
-    support::forgejo_elsewhere::tests::settings_follow_the_connected_project();
+fn elsewhere_reads_the_connected_project() {
+    support::forgejo_elsewhere::tests::reads_the_connected_project();
 }
 
 #[test]
