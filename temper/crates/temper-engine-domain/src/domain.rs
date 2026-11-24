@@ -303,6 +303,12 @@ impl Domain {
         &self.forge
     }
 
+    /// Jig's core, for a world to inspect between iterations.
+    #[must_use]
+    pub const fn core(&self) -> &Core {
+        &self.core
+    }
+
     /// The live task arena, for a world to inspect between iterations.
     #[must_use]
     pub const fn tasks(&self) -> &tasks::Domain {
