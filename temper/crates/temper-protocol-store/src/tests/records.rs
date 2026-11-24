@@ -1679,6 +1679,7 @@ fn landing_rows_preserve_phases_proofs_asks_and_effects() {
                 Some(c::Ask::Repair { gate: 0, candidate: [1; 32], below: None }),
             ] {
                 let row = forge::Stored::Landing(forge::LandingRow {
+                    read_hold: None,
                     last_event: None,
                     turn_since: None,
                     waiting: None,
@@ -1752,6 +1753,7 @@ fn landing_rows_preserve_phases_proofs_asks_and_effects() {
 fn landing_with_clock(clock: Option<temper_engine_domain_forge_change::Clock>) -> forge::Stored {
     use temper_engine_domain_forge_landing as l;
     forge::Stored::Landing(forge::LandingRow {
+        read_hold: None,
         last_event: None,
         turn_since: None,
         waiting: None,
@@ -1783,6 +1785,18 @@ fn landing_with_clock(clock: Option<temper_engine_domain_forge_change::Clock>) -
             run: Some(forge::LandingRun { id: 23, attempt: 2, ended: false, clock }),
         }]),
     })
+}
+
+#[test]
+fn a_landing_read_hold_keeps_its_exact_reason() {
+    use temper_engine_domain_forge_landing as l;
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
+    let mut row = landing_with_clock(None);
+    let forge::Stored::Landing(landing) = &mut row else { panic!("landing fixture") };
+    landing.landing.phase = l::Phase::Held { was: Box::new(l::Phase::Preparing), why: l::Hold::Read };
+    landing.read_hold = Some(b"read: branch main: no answer".as_slice().into());
+    let key = crate::keys::encode(&forge::stored_key(&row), u32::MAX).unwrap();
+    assert_eq!(records::row(&key, &records::encode(&row), &bounds), Ok(row));
 }
 
 #[test]
@@ -1851,28 +1865,42 @@ fn a_landing_run_written_without_a_clock_decodes_with_none() {
     let run = run.unwrap();
     let before = family.current.replace(run, "record LandingRun { id: u64 attempt: u32 ended: bool }");
     assert_ne!(before, family.current);
+    assert_landing_through_layout(family.current, &before, false);
+}
+
+#[test]
+fn a_landing_written_before_read_holds_reads_as_before() {
+    let family = crate::OWNER_SET.families.first().unwrap();
+    let before = family
+        .current
+        .replace(" read_hold: option bytes 256 = none", "")
+        .replace(", timeout: LandingTimeout, turn, read }", ", timeout: LandingTimeout, turn }");
+    assert_landing_through_layout(family.current, &before, true);
+}
+
+fn assert_landing_through_layout(current: &str, before: &str, added_variant: bool) {
+    use skein_codec::layout::{Mode, Plan, Workspace};
     let old = skein_codec::schema::parse(before.as_bytes()).unwrap();
-    let new = skein_codec::schema::parse(family.current.as_bytes()).unwrap();
-    let stored = landing_with_clock(None);
-    let mut bytes = records::encode(&stored);
-    for (source, target) in [(&new, &old), (&old, &new)] {
-        let plan = skein_codec::layout::Plan::derive(
-            source,
-            source.root(b"Row", None).unwrap(),
-            &[],
-            target,
-            target.root(b"Row", None).unwrap(),
-            &[],
-        )
-        .unwrap();
-        let mut work = skein_codec::layout::Workspace::new();
-        assert!(work.fit(&plan));
-        let mut out = skein_lib::Buffer::with_capacity(131_072);
-        plan.convert(&bytes, &mut out, &mut work).unwrap();
-        bytes = out.as_slice().into();
+    let new = skein_codec::schema::parse(current.as_bytes()).unwrap();
+    let old_root = old.root(b"Row", None).unwrap();
+    let new_root = new.root(b"Row", None).unwrap();
+    let down = if added_variant {
+        Plan::between(Mode::Read, &new, new_root, &[], &old, old_root, &[])
+    } else {
+        Plan::derive(&new, new_root, &[], &old, old_root, &[])
     }
-    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture bounds");
-    assert_eq!(records::decode(&bytes, &bounds), Ok(stored));
+    .unwrap();
+    let up = Plan::derive(&old, old_root, &[], &new, new_root, &[]).unwrap();
+    let stored = landing_with_clock(None);
+    let mut work = Workspace::new();
+    assert!(work.fit(&down));
+    let mut earlier = skein_lib::Buffer::with_capacity(131_072);
+    down.convert(&records::encode(&stored), &mut earlier, &mut work).unwrap();
+    assert!(work.fit(&up));
+    let mut current = skein_lib::Buffer::with_capacity(131_072);
+    up.convert(earlier.as_slice(), &mut current, &mut work).unwrap();
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
+    assert_eq!(records::decode(current.as_slice(), &bounds), Ok(stored));
 }
 
 #[test]
@@ -1900,6 +1928,7 @@ fn landing_faults_and_own_holds_are_mutually_exclusive() {
                 last_prepare: None,
             };
             let row = v25::LandingRow {
+                read_hold: None,
                 last_event: None,
                 turn_since: None,
                 waiting: None,
@@ -3088,38 +3117,81 @@ fn a_closer_row_round_trips() {
     }
 }
 
+fn closer_relay_row(relay: temper_engine_domain_forge_closer::relay::Relay) -> forge::Stored {
+    const CLOSER: u64 = 8;
+    forge::Stored::Closer(forge::CloserRow {
+        task: CLOSER,
+        goal: CLOSER_GOAL,
+        closer: temper_engine_domain_forge_closer::Closer::new(),
+        making: None,
+        close_changes: Box::new([]),
+        landing_changes: Box::new([]),
+        done: false,
+        relay,
+    })
+}
+
+const CLOSER_GOAL: u64 = 7;
+const CLOSER_LANDING: u64 = 20;
+const CLOSER_SETTLEMENT: u64 = 21;
+const LANDING_QUESTION: u64 = 10;
+const SETTLEMENT_QUESTION: u64 = 11;
+const NEXT_LANDING_QUESTION: u64 = 12;
+const GOAL_QUESTION: u64 = 30;
+
+fn waiting_questions() -> Box<[temper_engine_domain_forge_closer::relay::Question]> {
+    use temper_engine_domain_forge_closer::{Step, relay::*};
+    Box::new([
+        Question {
+            asker: CLOSER_SETTLEMENT,
+            number: SETTLEMENT_QUESTION,
+            step: Step::Close,
+            words: b"What should I settle?".as_slice().into(),
+            stands: Stands::Taken,
+        },
+        Question {
+            asker: CLOSER_LANDING,
+            number: NEXT_LANDING_QUESTION,
+            step: Step::Land,
+            words: b"What should I check?".as_slice().into(),
+            stands: Stands::Taken,
+        },
+    ])
+}
+
+fn standing_question(
+    stands: temper_engine_domain_forge_closer::relay::Stands,
+) -> temper_engine_domain_forge_closer::relay::Relay {
+    use temper_engine_domain_forge_closer::{Step, relay::*};
+    Relay {
+        open: Some(Question {
+            asker: CLOSER_LANDING,
+            number: LANDING_QUESTION,
+            step: Step::Land,
+            words: b"Which rule?".as_slice().into(),
+            stands,
+        }),
+        replies: Box::new([Message {
+            target: CLOSER_GOAL,
+            form: Form::Words,
+            words: b"Change 20: asker ended".as_slice().into(),
+        }]),
+        waiting: Box::new([]),
+    }
+}
+
 #[test]
 fn a_closers_question_round_trips_with_its_owned_bytes() {
-    use temper_engine_domain_forge_closer::{Closer, Step, relay::*};
+    use temper_engine_domain_forge_closer::relay::Stands;
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture limits");
     for stands in [
         Stands::Taken,
-        Stands::Asked { question: 30, answer: None },
-        Stands::Asked { question: 30, answer: Some(b"Use known reds.".as_slice().into()) },
+        Stands::Asked { question: GOAL_QUESTION, answer: None },
+        Stands::Asked { question: GOAL_QUESTION, answer: Some(b"Use known reds.".as_slice().into()) },
     ] {
-        let row = forge::Stored::Closer(forge::CloserRow {
-            task: 8,
-            goal: 7,
-            closer: Closer::new(),
-            making: None,
-            close_changes: Box::new([]),
-            landing_changes: Box::new([]),
-            done: false,
-            relay: Relay {
-                open: Some(Question {
-                    asker: 20,
-                    number: 10,
-                    step: Step::Land,
-                    words: b"Which rule?".as_slice().into(),
-                    stands,
-                }),
-                replies: Box::new([Message {
-                    target: 7,
-                    form: Form::Words,
-                    words: b"Change 20: asker ended".as_slice().into(),
-                }]),
-            },
-        });
+        let mut relay = standing_question(stands);
+        relay.waiting = waiting_questions();
+        let row = closer_relay_row(relay);
         let meter = skein_world::domain::heap::Meter::new();
         meter.start();
         let cloned = row.clone();
@@ -3131,18 +3203,42 @@ fn a_closers_question_round_trips_with_its_owned_bytes() {
 }
 
 #[test]
+fn an_older_closer_defaults_its_waiting_questions_to_empty() {
+    use super::dev_layouts::Dev;
+    use temper_engine_domain_forge_closer::relay::Stands;
+    let mut dev = Dev::new();
+    let expected = closer_relay_row(standing_question(Stands::Asked { question: GOAL_QUESTION, answer: None }));
+    let stored = dev.row(&expected, "closer");
+    assert_eq!(dev.read(&stored, "closer"), expected);
+}
+
+#[test]
+fn a_closers_waiting_questions_alone_keep_the_relay_present() {
+    use temper_engine_domain_forge_closer::relay::Relay;
+    const WAITING_BOUND: u32 = 2; // One slot per possible open step.
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture limits");
+    let waiting = waiting_questions();
+    assert_eq!(bounds.limits().closing_relay_waiting, WAITING_BOUND);
+    assert_eq!(u32::try_from(waiting.len()).expect("fixture count"), WAITING_BOUND);
+    let row = closer_relay_row(Relay { waiting, ..Relay::new() });
+    assert_eq!(records::decode(&records::encode(&row), &bounds), Ok(row));
+}
+
+#[test]
+fn a_closers_third_waiting_question_is_refused_by_the_decoder() {
+    use temper_engine_domain_forge_closer::relay::{Question, Relay};
+    const EXTRA_QUESTION: u64 = 13;
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture limits");
+    let waiting = waiting_questions();
+    let [first, second] = waiting.as_ref() else { panic!("two waiting questions") };
+    let extra = Question { number: EXTRA_QUESTION, ..first.clone() };
+    let row = closer_relay_row(Relay { waiting: Box::new([first.clone(), second.clone(), extra]), ..Relay::new() });
+    assert_eq!(records::decode(&records::encode(&row), &bounds), Err(crate::Undecodable::Malformed));
+}
+
+#[test]
 fn a_closer_with_a_truncated_relay_is_malformed() {
-    use temper_engine_domain_forge_closer::{Closer, relay::Relay};
-    let row = forge::Stored::Closer(forge::CloserRow {
-        task: 8,
-        goal: 7,
-        closer: Closer::new(),
-        making: None,
-        close_changes: Box::new([]),
-        landing_changes: Box::new([]),
-        done: false,
-        relay: Relay::new(),
-    });
+    let row = closer_relay_row(temper_engine_domain_forge_closer::relay::Relay::new());
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture limits");
     let bytes = records::encode(&row);
     assert_eq!(bytes.last(), Some(&0));

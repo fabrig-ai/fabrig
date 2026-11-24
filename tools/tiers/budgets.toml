@@ -321,6 +321,7 @@ reference_s = 1
 [gate.default.temper.simulated]
 cpu_s = 470
 instructions = 2_321_400_000_000
+accepted_instructions = 896_000_000_000
 ideal_s = 15
 ideal_instructions = 74_100_000_000
 reference_s = 2
@@ -583,11 +584,12 @@ accepted_instructions = 268_000_000_000
 [gate.fuzzy.temper.domain]
 cpu_s = 78
 instructions = 366_600_000_000
-accepted_instructions = 425_400_000_000
+accepted_instructions = 458_200_000_000
 
 [gate.fuzzy.temper.system]
 cpu_s = 13
 instructions = 71_700_000_000
+accepted_instructions = 130_900_000_000
 
 [gate.fuzzy.temper.machine]
 cpu_s = 2

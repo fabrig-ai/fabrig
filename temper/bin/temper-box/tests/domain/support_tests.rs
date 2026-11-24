@@ -8,6 +8,17 @@ use std::{
 use temper_box_kit::cluster_turn as cluster_turn_setup;
 
 #[test]
+fn readiness_eof_reports_child_status_and_stderr() {
+    use std::os::unix::process::ExitStatusExt;
+    let finding = temper_box_kit::fake_readiness::read_with(&mut b"".as_slice(), &"fake fixture", |kind| {
+        assert_eq!(kind, std::io::ErrorKind::UnexpectedEof);
+        (std::process::ExitStatus::from_raw(7 << 8), b"fixture refused".to_vec())
+    })
+    .expect_err("readiness EOF finding");
+    assert!(finding.contains("status exit status: 7; stderr fixture refused"), "{finding}");
+}
+
+#[test]
 fn an_explicit_program_supplies_its_own_death_signal_wrapper() {
     support::boxed::tests::an_explicit_program_supplies_its_own_death_signal_wrapper();
 }
@@ -232,7 +243,13 @@ fn the_sign_in_fixture_reads_the_initialized_listeners_without_an_llm_member() {
 #[test]
 fn moving_listeners_preserves_the_retained_files_explicit_keys() {
     use temper_config_shell::{File, Internal, Shape};
-    let file = File {
+    // The world supplies the allocator's cutoff rather than consulting the host.
+    const EPHEMERAL_FIRST: u16 = 32_768;
+    let init = temper_box_shell::testing::init_fixtures::configuration(
+        8367.try_into().expect("init's preferred clients port"),
+        8368.try_into().expect("the adjacent webhooks port"),
+    );
+    let explicit = File {
         listen: Some(local(7100)),
         webhooks: Some(local(7101)),
         public: Some("https://temper.example.invalid".into()),
@@ -241,16 +258,32 @@ fn moving_listeners_preserves_the_retained_files_explicit_keys() {
         environment: vec![("FIXTURE".into(), "retained".into())],
         ..Default::default()
     };
-    let read = support::configuration::parse(&temper_config_shell::render(&file, Shape::Standalone), Shape::Standalone);
-    let drawn = [local(19_001), local(19_002)];
-    let moved = support::move_listener_file(read, drawn);
-    let moved =
-        support::configuration::parse(&temper_config_shell::render(&moved, Shape::Standalone), Shape::Standalone).file;
-    assert_ne!(moved.listen, file.listen);
-    assert_ne!(moved.webhooks, file.webhooks);
-    assert_ne!(moved.listen, moved.webhooks);
-    let expected = File { listen: Some(drawn[0]), webhooks: Some(drawn[1]), ..file };
-    assert_eq!(moved, expected, "all non-listener keys are retained");
+    // Init omits the adjacent webhooks port. A non-adjacent draw must be written explicitly.
+    for (row, file, drawn) in
+        [("init", init, [local(19_001), local(19_003)]), ("explicit keys", explicit, [local(19_001), local(19_002)])]
+    {
+        let read =
+            support::configuration::parse(&temper_config_shell::render(&file, Shape::Standalone), Shape::Standalone);
+        let moved = support::move_listener_file(read, drawn);
+        let moved =
+            support::configuration::parse(&temper_config_shell::render(&moved, Shape::Standalone), Shape::Standalone);
+        let document = json_bytes(&moved.document);
+        assert!(document["application"].get("machine").is_none(), "{row}: a forge chooses its listener at set-up");
+        for (pointer, wanted) in
+            ["/application/clients/listener/socket", "/application/webhooks/listener/socket"].into_iter().zip(drawn)
+        {
+            let address: SocketAddr =
+                document.pointer(pointer).expect("listener").as_str().expect("socket").parse().expect("address");
+            assert_eq!(address, wanted, "{row}: {pointer}");
+            assert!(address.port() < EPHEMERAL_FIRST, "{row}: {pointer}: {address}");
+        }
+
+        assert_ne!(moved.file.listen, file.listen, "{row}");
+        assert_ne!(moved.file.webhooks, file.webhooks, "{row}");
+        assert_ne!(moved.file.listen, moved.file.webhooks, "{row}");
+        let expected = File { listen: Some(drawn[0]), webhooks: Some(drawn[1]), ..file };
+        assert_eq!(moved.file, expected, "{row}: all non-listener keys are retained");
+    }
 }
 
 #[test]

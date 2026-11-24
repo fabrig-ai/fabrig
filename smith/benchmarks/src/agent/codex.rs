@@ -16,9 +16,11 @@ mod run;
 
 pub(super) use run::source_arm;
 
-pub use prepare::{Observing, PreparedCodex, prepare};
+pub use prepare::{Observing, PreparedCodex, prepare, prepare_with};
 
-pub use rollouts::{ChildThread, Link, ResponseUsage, RolloutFile, Rollouts, collect_rollouts, parse_rollout};
+pub use rollouts::{
+    ChildThread, Link, ResponseUsage, RolloutFile, Rollouts, collect_rollouts, collect_rollouts_with, parse_rollout,
+};
 
 use crate::{
     Classification, Convention, Counts, End, Exit, FailureReason, Fault, Forced, Measure, ScopeKind, TokenCounts,

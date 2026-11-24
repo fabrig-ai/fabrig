@@ -173,3 +173,111 @@ fn path_resolution_requires_an_executable_and_spawn_uses_the_invocation() {
             .collect::<Vec<_>>()
     );
 }
+
+const USER: u32 = 1000;
+const CHECKPOINT: &[u8] = b"checkpoints/00000000000000000012-00000000000000ff";
+
+fn stopped_tool(
+    adoption: Adoption,
+    child: Option<service::checkpoint::Child>,
+    root: skein_io::kernel::Fd,
+) -> service::Service {
+    let (directories, read, seeds, files) = crate::stopped::tests::fixture();
+    let mut providers = service::stock::providers();
+    for setting in &mut providers {
+        setting.provider.sign_in = None;
+        setting.provider.signed_in_plan = false;
+        setting.provider.manage_usage = None;
+        setting.provider.keys = true;
+    }
+    let given = service::stock::Given::Stock.with_providers(providers, Box::new([]));
+    let mut tool = service::startup::restoring_with(
+        &read.document,
+        &temper_service_shell::jig_directories(&directories),
+        &files,
+        None,
+        &seeds,
+        None,
+        &given,
+    )
+    .expect("checked stopped tool");
+    tool.checkpoint_store(root, USER, adoption, child).expect("adopt source");
+    tool
+}
+
+fn checkpoint_lock(machine: &mut skein_fake_machine::Machine) -> Result<(), skein_fake_machine::Refusal> {
+    use skein_fake_machine::How;
+    let root = machine.reopen_root(0);
+    let checkpoint = machine.open(root, CHECKPOINT, How::DirectoryNoFollow).expect("checkpoint stands");
+    let lock = machine.lock(checkpoint);
+    machine.close(checkpoint);
+    machine.close(root);
+    lock
+}
+
+fn drive_checkpoint(
+    machine: &mut skein_fake_machine::Machine,
+    adoption: Adoption,
+    child: Option<service::checkpoint::Child>,
+) -> (String, u8) {
+    use skein_io::kernel::Op;
+    use skein_sim::{Handle, Sim};
+    let mut sim = Sim::new(0, skein_sim::Config::calm());
+    let pid = sim.spawn_process();
+    let root = sim.root(pid, Handle::new(machine.reopen_root(0).raw()));
+    let mut tool = stopped_tool(adoption, child, root);
+    let mut releasing = false;
+    for _ in 0..10_000 {
+        service::iterate(&mut tool, sim.now(), sim.wall());
+        assert!(tool.submissions().iter().all(|submit| !matches!(submit.kind, Op::Spawn { .. })), "no child run");
+        if matches!(tool.checkpoint_outcome(), Some(Outcome::CantRun { .. })) && !releasing {
+            assert!(tool.end().is_none(), "the tool waits for the hold's release");
+            assert_eq!(checkpoint_lock(machine), Err(skein_fake_machine::Refusal::Held));
+            releasing = true;
+        }
+        if tool.is_empty() {
+            sim.assert_no_open_fds(pid);
+            if releasing {
+                assert_eq!(checkpoint_lock(machine), Ok(()), "the hold has been released at the end");
+            }
+            return lines("temper-engine", tool.checkpoint_outcome().expect("terminal"), b"/deployment");
+        }
+        let pending = tool.work_pending(sim.now());
+        sim.submit(pid, tool.submissions());
+        skein_fake_machine::serve(machine, &mut sim);
+        if !pending && sim.ready(pid) == 0 {
+            assert!(sim.advance(), "a pending checkpoint operation");
+        }
+        sim.reap(pid, tool.completions());
+    }
+    panic!("stopped checkpoint did not settle");
+}
+
+#[test]
+fn a_missing_hold_program_and_a_second_removal_end_as_stopped() {
+    use skein_fake_machine::{Item, Machine};
+    use skein_io::kernel::Fd;
+    let mut machine = Machine::for_user(USER);
+    let root = machine.lay(&[Item::directory(b"checkpoints").mode(0o700), Item::directory(CHECKPOINT).mode(0o700)]);
+    machine.close(root);
+    let command = words(&[b"no-such-command"]);
+    let spawn = spawn(&command, &[], b"/", path(b"/checkpoint"), Fd::new(8), &|_| None);
+    assert!(spawn.is_err(), "the command was not found");
+    assert_eq!(
+        drive_checkpoint(
+            &mut machine,
+            Adoption::HoldCheckpoint { name: NAME_VALUE },
+            Some((command[0].clone(), spawn))
+        ),
+        ("temper-engine checkpoint: can't run no-such-command: not found\n".into(), 127)
+    );
+    for (expected, code) in [
+        ("temper-engine checkpoint: removed 00000000000000000012-00000000000000ff\n", 0),
+        ("temper-engine checkpoint: no checkpoint 00000000000000000012-00000000000000ff\n", 1),
+    ] {
+        assert_eq!(
+            drive_checkpoint(&mut machine, Adoption::RemoveCheckpoint { name: NAME_VALUE }, None),
+            (expected.into(), code)
+        );
+    }
+}

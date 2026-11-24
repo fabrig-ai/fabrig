@@ -12,15 +12,27 @@ pub(crate) use sweep::sweep_past_a_stuck_file;
 
 #[test]
 fn a_mark_keeps_only_its_workspace_and_git_directories_across_start() {
+    marked_start(git::KeptState::Kept);
+}
+
+#[test]
+fn a_held_mark_keeps_its_tree_and_clears_git_locks_at_start() {
+    marked_start(git::KeptState::Held);
+}
+
+fn marked_start(state: git::KeptState) {
     let mut scenario = fixtures::operations().remove(0).1;
     let mark = git::Kept {
         workspace: Token::new(7),
         key: b"stream".as_slice().into(),
+        state,
         when: 42,
         repositories: Box::new([git::KeptRepository {
             name: b"app".as_slice().into(),
             remote: b"remote".as_slice().into(),
             commit: git::Commit::new([3; 32]),
+            merging: Some(git::Commit::new([4; 32])),
+            unchecked: true,
         }]),
     };
     scenario.op = git::Op::Keep { workspace: mark.workspace, mark: Some(mark.clone()) };
@@ -32,6 +44,14 @@ fn a_mark_keeps_only_its_workspace_and_git_directories_across_start() {
         "gitdirs/7",
         "gitdirs/7/app",
         "gitdirs/8",
+        "workspaces/7/app/.git/refs",
+        "workspaces/7/app/.git/refs/heads",
+        "gitdirs/7/app/refs",
+        "gitdirs/7/app/refs/heads",
+        "stores/9",
+        "stores/9/refs",
+        "stores/9/refs/temper",
+        "stores/9/refs/temper/7",
     ] {
         scenario.files.insert(directory.as_bytes().to_vec(), Node::Directory);
     }
@@ -44,18 +64,128 @@ fn a_mark_keeps_only_its_workspace_and_git_directories_across_start() {
     ] {
         scenario.files.insert(file.as_bytes().to_vec(), Node::File(b"content".as_slice().into()));
     }
+    let locks: Vec<_> = ["workspaces/7/app/.git", "gitdirs/7/app"]
+        .into_iter()
+        .flat_map(|root| ["index.lock", "HEAD.lock", "refs/heads/x.lock"].map(|file| format!("{root}/{file}")))
+        .chain(["stores/9/refs/temper/7/fetched.lock".to_owned()])
+        .collect();
+    for file in &locks {
+        scenario.files.insert(file.as_bytes().to_vec(), Node::File(b"stale".as_slice().into()));
+    }
+    scenario.files.insert(b"stores/9/refs/temper/7/fetched".to_vec(), Node::File(b"tip".as_slice().into()));
     let written = world::run(&scenario, fixtures::SEED);
     assert_eq!(written.verdict, Verdict::Passed);
     assert!(written.tree.contains_key(b"kept/7".as_slice()));
+    assert!(
+        matches!(written.tree.get(b"kept/7".as_slice()), Some(Node::File(bytes)) if bytes.starts_with(b"temper-kept 2\n"))
+    );
     scenario.files.clear();
     scenario.op = git::Op::Keep { workspace: Token::new(999), mark: None };
-    let restarted = world::run_on_tree(&scenario, fixtures::SEED, written.tree);
+    let mut tree = written.tree;
+    for file in &locks {
+        tree.insert(file.as_bytes().to_vec(), Node::File(b"stale".as_slice().into()));
+    }
+    let restarted = world::run_on_tree(&scenario, fixtures::SEED, tree);
     assert_eq!(restarted.verdict, Verdict::Passed);
     assert_eq!(restarted.kept.as_ref(), &[mark]);
     for file in ["workspaces/7/app/output", "workspaces/7/app/.git/passed", "gitdirs/7/app/HEAD"] {
         assert!(restarted.tree.contains_key(file.as_bytes()), "{file} survives");
     }
     assert!(!restarted.tree.keys().any(|path| path.starts_with(b"workspaces/8") || path.starts_with(b"gitdirs/8")));
+    for file in locks {
+        assert!(!restarted.tree.contains_key(file.as_bytes()), "{file} was a stale lock");
+    }
+    assert!(
+        matches!(restarted.tree.get(b"stores/9/refs/temper/7/fetched".as_slice()), Some(Node::File(bytes)) if bytes.as_ref() == b"tip")
+    );
+}
+
+#[test]
+fn version_one_marks_are_read_and_unknown_versions_are_discarded() {
+    for version in [1, 99] {
+        let mut bytes = format!("temper-kept {version}\n").into_bytes();
+        bytes.extend(42_u64.to_be_bytes());
+        bytes.extend(6_u32.to_be_bytes());
+        bytes.extend(b"stream");
+        bytes.extend(1_u32.to_be_bytes());
+        bytes.extend(3_u32.to_be_bytes());
+        bytes.extend(b"app");
+        bytes.extend(6_u32.to_be_bytes());
+        bytes.extend(b"remote");
+        bytes.extend([3; 32]);
+        let tree = [
+            (b"kept".to_vec(), Node::Directory),
+            (b"kept/7".to_vec(), Node::File(bytes.into_boxed_slice())),
+            (b"workspaces".to_vec(), Node::Directory),
+            (b"workspaces/7".to_vec(), Node::Directory),
+            (b"workspaces/7/output".to_vec(), Node::File(b"kept".as_slice().into())),
+        ]
+        .into();
+        let mut scenario = fixtures::operations().remove(0).1;
+        scenario.op = git::Op::Keep { workspace: Token::new(999), mark: None };
+        scenario.files.clear();
+        let restarted = world::run_on_tree(&scenario, fixtures::SEED, tree);
+        assert_eq!(restarted.verdict, Verdict::Passed);
+        if version == 1 {
+            let [mark] = restarted.kept.as_ref() else { panic!("version one kept") };
+            assert_eq!(mark.state, git::KeptState::Kept);
+            assert_eq!(mark.repositories[0].merging, None);
+            assert!(!mark.repositories[0].unchecked);
+            assert!(restarted.tree.contains_key(b"workspaces/7/output".as_slice()));
+        } else {
+            assert!(restarted.kept.is_empty());
+            assert!(!restarted.tree.contains_key(b"kept/7".as_slice()));
+            assert!(!restarted.tree.contains_key(b"workspaces/7/output".as_slice()));
+        }
+    }
+}
+
+#[test]
+fn malformed_version_two_marks_are_discarded() {
+    let mut valid = b"temper-kept 2\n".to_vec();
+    valid.extend(42_u64.to_be_bytes());
+    let state = valid.len();
+    valid.push(1);
+    valid.extend(6_u32.to_be_bytes());
+    valid.extend(b"stream");
+    valid.extend(1_u32.to_be_bytes());
+    valid.extend(3_u32.to_be_bytes());
+    valid.extend(b"app");
+    valid.extend(6_u32.to_be_bytes());
+    valid.extend(b"remote");
+    valid.extend([3; 32]);
+    let merging = valid.len();
+    valid.push(0);
+    let unchecked = valid.len();
+    valid.push(0);
+    for case in 0..5 {
+        let mut bytes = valid.clone();
+        match case {
+            0 => bytes[state] = 2,
+            1 => bytes[merging] = 2,
+            2 => bytes[unchecked] = 2,
+            3 => bytes.push(0),
+            4 => {
+                bytes.pop();
+            }
+            _ => unreachable!(),
+        }
+        let tree = [
+            (b"kept".to_vec(), Node::Directory),
+            (b"kept/7".to_vec(), Node::File(bytes.into_boxed_slice())),
+            (b"workspaces".to_vec(), Node::Directory),
+            (b"workspaces/7".to_vec(), Node::Directory),
+        ]
+        .into();
+        let mut scenario = fixtures::operations().remove(0).1;
+        scenario.op = git::Op::Keep { workspace: Token::new(999), mark: None };
+        scenario.files.clear();
+        let restarted = world::run_on_tree(&scenario, fixtures::SEED, tree);
+        assert_eq!(restarted.verdict, Verdict::Passed);
+        assert!(restarted.kept.is_empty(), "malformed case {case}");
+        assert!(!restarted.tree.contains_key(b"kept/7".as_slice()));
+        assert!(!restarted.tree.contains_key(b"workspaces/7".as_slice()));
+    }
 }
 
 #[test]
@@ -66,11 +196,14 @@ fn a_mark_for_a_missing_workspace_is_removed_at_start() {
         mark: Some(git::Kept {
             workspace: Token::new(7),
             key: b"stream".as_slice().into(),
+            state: git::KeptState::Kept,
             when: 42,
             repositories: Box::new([git::KeptRepository {
                 name: b"app".as_slice().into(),
                 remote: b"remote".as_slice().into(),
                 commit: git::Commit::new([3; 32]),
+                merging: None,
+                unchecked: false,
             }]),
         }),
     };

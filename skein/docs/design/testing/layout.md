@@ -68,7 +68,7 @@ tests/forge/client              the client world: the client alone under a scrip
 tests/forge/setup               the setup world: the host component over a store of items and the fake forge's setup routes and GitHub layer, through HTTP bytes, and its peak under a scenario ceiling with the counting allocator (../forge/setup/README.md, 5)
 tests/forge/dialect             both dialects' documents, plans and bounds driven from outside, with their fuzzy mutations, skein-forge-dialect-tests
 tests/forge/conformance         the conformance tool, outside the suites: a throwaway Forgejo driven, each fact the dialect relies on recorded (fakes/throwaway.md, 2)
-tests/forge/github              GitHub's conformance tool: the hosted fake and owner fixtures (fakes/github.md, 2); tests/suite is github-conformance::suite, real-loop (real journal and transcript files over a simulated network)
+tests/forge/github              GitHub's conformance tool: the hosted fake and owner fixtures (fakes/github.md, 2); tests/suite is github-conformance::suite, simulated (the hosted fake over the simulator, its directories in the fake machine), and the library's own tests hold its checks that drive no runner
 tests/fake-forge                the fake forge's domain, its Forgejo layer and its GitHub service against the counting allocator, skein-fake-forge-tests
 tests/fail-stop                 a panic on any thread aborts the process after its report, through a fixture binary, skein-fail-stop-tests
 tests/fake-peers                the LLM, OAuth and forge peers on loopback io against their clients, including GitHub's job-log redirect to its blob listener, skein-fake-peers-tests

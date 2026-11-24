@@ -123,10 +123,12 @@ impl Fill {
                 Request::Prepared { prepared, .. } => Asked::Prepared {
                     prepared: match prepared {
                         Prepared::Candidate { .. } => unreachable!("branch-only clients"),
-                        Prepared::Ready { workspace, conflicts } => Preparation::Ready {
-                            workspace,
-                            conflicts: conflicts.iter().map(|row| skein_lib::len_u64(row.files.len())).sum(),
-                        },
+                        Prepared::Ready { workspace, conflicts } | Prepared::Recovered { workspace, conflicts, .. } => {
+                            Preparation::Ready {
+                                workspace,
+                                conflicts: conflicts.iter().map(|row| skein_lib::len_u64(row.files.len())).sum(),
+                            }
+                        }
                         Prepared::Refused { refusal } => Preparation::Refused { refusal },
                         Prepared::Failed { failure, .. } => Preparation::Failed { failure },
                         Prepared::Aborted => Preparation::Aborted,
@@ -145,7 +147,18 @@ impl Fill {
     }
 
     fn done(&mut self, hold: Token, done: Done) -> Vec<Asked> {
-        self.step(Event::Done { owner: hold, done })
+        // Mark writes share this hold's IO lane. Meter each write and removal,
+        // then return the lifecycle or git operation the scenario is waiting for.
+        let mut pending: std::collections::VecDeque<_> = self.step(Event::Done { owner: hold, done }).into();
+        let mut next = Vec::new();
+        while let Some(asked) = pending.pop_front() {
+            if asked == (Asked::Io { op: Kind::Keep }) {
+                pending.extend(self.step(Event::Done { owner: hold, done: Done::Succeeded }));
+            } else {
+                next.push(asked);
+            }
+        }
+        next
     }
 
     /// Settle the prepare's final check files and any due maintenance, metering each step.

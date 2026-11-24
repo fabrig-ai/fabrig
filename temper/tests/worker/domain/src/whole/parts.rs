@@ -4,6 +4,7 @@ use super::{ATTEMPT, RUN, World, agent, host, protocol, wire};
 use jig_domain_link::{KeptPart, Part, PartKind};
 use skein_lib::{Duration, Token};
 use smith_domain_session::{llm, record};
+use temper_fake_checkout::git::Remote;
 use temper_worker_domain::{Encodable, Encoded};
 
 #[derive(Clone, Copy, Debug)]
@@ -64,16 +65,19 @@ fn keep_part(world: &mut World, number: u32) -> Result<(), String> {
 }
 
 /// The second process owns fresh domain state but the same fake disk and forge.
-fn restart(world: World) -> World {
-    assert_eq!(world.stops, 1);
-    assert!(world.owed.is_empty() && world.out.is_empty());
-    let marks = world.report.kept.clone().into_boxed_slice();
+fn restart(world: World, crashed: bool) -> World {
+    if !crashed {
+        assert_eq!(world.stops, 1);
+        assert!(world.owed.is_empty() && world.out.is_empty());
+    }
+    let marks = world.marks.values().cloned().collect::<Vec<_>>().into_boxed_slice();
     for mark in &marks {
         assert!(world.disk.exists(format!("kept/{}", mark.workspace.raw()).as_bytes()));
     }
     let mut next = World::new(world.seed);
     next.forge = world.forge;
     next.disk = world.disk;
+    next.marks = world.marks;
     next.first = world.first;
     next.env = world.env;
     next.domain = super::Domain::new(&next.env.limits, Box::new([]));
@@ -175,6 +179,52 @@ pub fn starts_and_graces() -> Result<(), String> {
 }
 
 pub fn resumes(in_flight: InFlight) -> Result<(), String> {
+    resume(in_flight, false)
+}
+
+#[derive(Clone, Copy)]
+pub enum Fallback {
+    RefusedSave,
+    OtherWorkstream,
+    DifferentRepositories,
+}
+
+pub fn fallback(reason: Fallback) -> Result<(), String> {
+    let mut world = World::new(133);
+    world.start()?;
+    let path = temper_fake_checkout::layout::path(world.workspace.expect("prepared"), b"app");
+    world.disk.write(&[path.as_slice(), b"/code"].concat(), b"unsaved edit\n");
+    world.disk.write(&[path.as_slice(), b"/.git/target/output"].concat(), b"old build");
+    if matches!(reason, Fallback::DifferentRepositories) {
+        world.marks.values_mut().next().expect("held mark").repositories[0].remote =
+            b"another/repository".as_slice().into();
+    }
+    let mut next = restart(world, true);
+    if matches!(reason, Fallback::OtherWorkstream) {
+        next.run = Token::new(82);
+    }
+    next.faults.refuse_push = matches!(reason, Fallback::RefusedSave);
+    next.connect()?;
+    assert_eq!(next.workstreams.as_ref(), &[super::WORKSTREAM]);
+    next.assign(wire::Start::Branch { branch: b"topic".as_slice().into() })?;
+    next.say(agent::Up::Admitted)?;
+    let path = temper_fake_checkout::layout::path(next.workspace.expect("prepared"), b"app");
+    assert_eq!(next.disk.tree(&path).get(b"code".as_slice()).expect("assigned tree"), b"original\n");
+    assert!(!next.disk.exists(&[path.as_slice(), b"/.git/target/output"].concat()));
+    assert!(next.report.trace.iter().any(|line| line.contains("op: Make {")));
+    assert!(next.report.trace.iter().any(|line| line.contains("op: CheckOut {")));
+    assert_eq!(next.report.saves, u32::from(matches!(reason, Fallback::RefusedSave)));
+    assert_eq!(next.forge.branch(super::REMOTE, b"saved"), Some(next.first));
+    next.finish()?;
+    next.gone()?;
+    Ok(())
+}
+
+pub fn crashes(in_flight: InFlight) -> Result<(), String> {
+    resume(in_flight, true)
+}
+
+fn resume(in_flight: InFlight, crashed: bool) -> Result<(), String> {
     let mut world = World::new(132);
     // The answer and its interrupted call can be unacknowledged together.
     world.env.limits.host.turns = 2;
@@ -196,8 +246,11 @@ pub fn resumes(in_flight: InFlight) -> Result<(), String> {
     world.disk.write(&results, b"first check passed");
     world.disk.write(&output, b"untracked build");
     world.disk.write(&[path.as_slice(), b"/code"].concat(), b"saved edit\n");
-    if !matches!(in_flight, InFlight::Answer) {
+    if !matches!(in_flight, InFlight::Answer) || crashed {
         world.say(agent::Up::Part { part: part(1, record::PartKind::Answer, b"answer in flight") })?;
+    }
+    if crashed && !matches!(in_flight, InFlight::Answer) {
+        world.say(agent::Up::Part { part: part(2, record::PartKind::Result, b"previous result") })?;
     }
     let operation = match in_flight {
         InFlight::Answer => agent::Operation::Completion,
@@ -205,6 +258,20 @@ pub fn resumes(in_flight: InFlight) -> Result<(), String> {
         InFlight::Command => agent::Operation::Command,
     };
     world.say(agent::Up::Long { operation, span: Duration::from_secs(60) })?;
+    if crashed {
+        assert_eq!(world.report.saves, 0, "a crash does not settle");
+        assert_eq!(world.stops, 0);
+        let mark = world.marks.values().next().expect("held workspace");
+        assert_eq!(mark.state, temper_worker_domain::checkout::git::KeptState::Held);
+        assert_eq!(mark.repositories[0].commit, super::translate::commit(world.first));
+    } else {
+        drain(&mut world, in_flight)?;
+    }
+    let expected: Vec<_> = world.parts.iter().map(|part| kept(part, ATTEMPT)).collect();
+    resumed(world, crashed, &path, &expected)
+}
+
+fn drain(world: &mut World, in_flight: InFlight) -> Result<(), String> {
     world.event(super::Event::Shutdown { drain: true })?;
     if matches!(in_flight, InFlight::Answer) {
         world.say(agent::Up::Part { part: part(1, record::PartKind::Answer, b"answer in flight") })?;
@@ -218,7 +285,7 @@ pub fn resumes(in_flight: InFlight) -> Result<(), String> {
     }
     let expected: Vec<_> = world.parts.iter().map(|part| kept(part, ATTEMPT)).collect();
     assert_eq!(world.part_acks.len(), expected.len());
-    cancel(&mut world)?;
+    cancel(world)?;
     let (answer, work, _) = world.answer.take().expect("saved answer");
     assert!(matches!(
         answer.ending,
@@ -231,23 +298,33 @@ pub fn resumes(in_flight: InFlight) -> Result<(), String> {
     world.event(super::Event::Link(host::LinkDown::Acknowledge { run: RUN, attempt: ATTEMPT }))?;
     assert_eq!(world.stops, 0, "answer acknowledgement does not keep its parts");
     for number in 1..=u32::try_from(expected.len()).expect("part count") {
-        keep_part(&mut world, number)?;
+        keep_part(world, number)?;
     }
     assert_eq!(world.stops, 1);
-    let mut next = restart(world);
+    Ok(())
+}
+
+fn resumed(world: World, crashed: bool, path: &[u8], expected: &[KeptPart]) -> Result<(), String> {
+    let mut next = restart(world, crashed);
     next.connect()?;
+    assert_eq!(next.workstreams.as_ref(), &[super::WORKSTREAM]);
     next.assign_parts(
-        wire::Start::Saved { branch: b"saved".as_slice().into() },
+        if crashed {
+            wire::Start::Branch { branch: b"topic".as_slice().into() }
+        } else {
+            wire::Start::Saved { branch: b"saved".as_slice().into() }
+        },
         true,
         true,
-        expected.clone().into_boxed_slice(),
+        expected.to_vec().into_boxed_slice(),
     )?;
+    assert!(next.reading, "resumed start: {:?}", next.report.trace);
     next.say(agent::Up::Admitted)?;
     let opening = next.opening.as_ref().expect("resumed start");
     assert!(opening.tell_parts);
     assert_eq!(opening.directories[0].root, next.workspace.expect("restored place"));
     assert_eq!(temper_fake_checkout::layout::path(opening.directories[0].root, &opening.directories[0].name), path);
-    for (actual, expected) in opening.parts.iter().zip(&expected) {
+    for (actual, expected) in opening.parts.iter().zip(expected) {
         assert_eq!(actual.activation, ATTEMPT.raw());
         let bytes = smith_protocol_translate::encode_part(
             actual.body.value(),
@@ -258,7 +335,7 @@ pub fn resumes(in_flight: InFlight) -> Result<(), String> {
         assert_eq!(bytes, expected.body);
     }
     assert_eq!(opening.parts.len(), expected.len());
-    let tree = next.disk.tree(&path);
+    let tree = next.disk.tree(path);
     assert_eq!(tree.get(b".git/target/build-output".as_slice()).expect("build output"), b"untracked build");
     assert_eq!(tree.get(b".git/smith-check/passed".as_slice()).expect("check results"), b"first check passed");
     assert!(
@@ -269,8 +346,20 @@ pub fn resumes(in_flight: InFlight) -> Result<(), String> {
             .any(|line| line.contains("op: Make {") || line.contains("op: CheckOut {") || line.contains("op: Clone {")),
         "taking up the kept tree does not rebuild it"
     );
+    let saved_head = next.forge.branch(super::REMOTE, b"saved").expect("saved branch");
+    if crashed {
+        assert_eq!(next.report.saves, 1, "one save before the agent starts");
+        assert_eq!(next.pushes, 1);
+        assert_eq!(next.forge.parent(saved_head), Some(next.first));
+        assert_eq!(next.forge.tree(saved_head).get(b"code".as_slice()).expect("saved code"), b"saved edit\n");
+    }
     next.finish()?;
     next.gone()?;
+    if crashed {
+        let (_, work, _) = next.answer.as_ref().expect("resumed answer");
+        let [saved] = work.saved.as_deref().expect("take-up save in answer") else { panic!("one save") };
+        assert_eq!(saved.landing, wire::Landing::Landed { commit: super::translate::commit(saved_head).raw() });
+    }
     next.event(super::Event::Link(host::LinkDown::Acknowledge { run: RUN, attempt: next.attempt }))?;
     next.event(super::Event::Shutdown { drain: true })?;
     assert_eq!(next.stops, 1);

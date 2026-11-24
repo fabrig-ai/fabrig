@@ -35,6 +35,7 @@ pub(super) fn before_restart() -> World {
 
 pub(super) fn held_landing() -> top::LandingRow {
     top::LandingRow {
+        read_hold: None,
         last_event: None,
         turn_since: None,
         waiting: Some(landing::Awaited::Release),

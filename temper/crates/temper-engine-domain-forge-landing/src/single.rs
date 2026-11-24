@@ -30,18 +30,7 @@ pub fn step(landing: &Landing, facts: &Facts, project: &Project, limits: &Limits
     let mut next = landing.clone();
     match &landing.phase {
         Phase::Landed | Phase::Cancelled => return done(next, Decision::None),
-        Phase::Held { .. } => {
-            if !facts.released {
-                return wait(next, None, Awaited::Release);
-            }
-            next.phase = Phase::Preparing;
-            for member in &mut next.members {
-                for gate in &mut member.gates {
-                    gate.faults = 0;
-                }
-            }
-            return done(next, Decision::None);
-        }
+        Phase::Held { .. } => return crate::domain::held(next, facts.released, now),
         Phase::Waiting | Phase::Preparing | Phase::Proving | Phase::Proved { .. } | Phase::Turn { .. } => {}
     }
     for member in &facts.members {

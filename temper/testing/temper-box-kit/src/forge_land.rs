@@ -9,9 +9,16 @@ use skein_world::{Referee, real};
 use std::{fs, os::unix::fs::PermissionsExt, path::PathBuf};
 
 mod failure;
+mod files;
 pub mod rung;
 mod survivors;
-pub use failure::{keep_box_data, run_failure_lines};
+pub use failure::{
+    CopyFiles, DirectoryEntry, keep_box_data, keep_box_data_with, run_failure_lines, run_failure_lines_with,
+};
+pub use files::{
+    FileFacts, FileKind, anthropic_key, anthropic_key_with, held_account, held_account_with, reserve_live_store,
+    story_store, story_store_with,
+};
 
 /// forge-setup's first repository goes into project 1, the first made
 /// (temper/docs/design/client/ctl/areas.md): work/hello is project 1's.
@@ -501,6 +508,20 @@ pub fn check_forgejo_setup_after_sign_in(
     previous: Option<u64>,
     data: &std::path::Path,
 ) -> Result<u64, String> {
+    check_forgejo_setup_after_sign_in_with(run, calls, stderr, previous, data, std::path::Path::exists, |note| {
+        eprintln!("{note}");
+    })
+}
+
+pub fn check_forgejo_setup_after_sign_in_with(
+    run: &str,
+    calls: &[super::Ended],
+    stderr: &str,
+    previous: Option<u64>,
+    data: &std::path::Path,
+    mut exists: impl FnMut(&std::path::Path) -> bool,
+    note: impl FnMut(std::fmt::Arguments<'_>),
+) -> Result<u64, String> {
     for call in calls {
         if call.exit != Some(Exit::Code(0)) {
             return Err(format!(
@@ -518,7 +539,7 @@ pub fn check_forgejo_setup_after_sign_in(
     let number = row["number"].as_u64().ok_or("forge number")?;
     let host = row["host"].as_str().filter(|host| !host.is_empty()).ok_or("forge resource host")?;
     if run == "first" {
-        check_first_setup(run, calls, stderr, row, number)?;
+        check_first_setup(run, calls, stderr, row, number, note)?;
     } else if stderr.lines().any(|line| line.starts_with("fetch ") || line.contains("download")) {
         return Err(format!("the restarted group fetches nothing: {stderr}"));
     }
@@ -540,7 +561,7 @@ pub fn check_forgejo_setup_after_sign_in(
         return Err("the second box connects as the same bot".into());
     }
     for name in ["admin_token", "api_token", "git_token", "user", "webhook_secret"] {
-        if data.join(format!("forge-{number}")).join(name).exists() {
+        if exists(&data.join(format!("forge-{number}")).join(name)) {
             return Err(format!("{run}: no forge-{number}/{name}"));
         }
     }
@@ -553,6 +574,7 @@ fn check_first_setup(
     stderr: &str,
     row: &serde_json::Value,
     number: u64,
+    mut note: impl FnMut(std::fmt::Arguments<'_>),
 ) -> Result<(), String> {
     let offered = super::ctl::try_json(&calls[1])?;
     if offered["forges"] != serde_json::json!([]) {
@@ -574,8 +596,8 @@ fn check_first_setup(
     if !adoption.contains(&format!("Adopted work/hello on forge {number} as owned.")) {
         return Err(format!("ctl printed the first adoption: {adoption}"));
     }
-    eprintln!("{run} first repository adoption: {adoption}");
-    eprintln!("{run} first repository read: {}", row["first"]);
+    note(format_args!("{run} first repository adoption: {adoption}"));
+    note(format_args!("{run} first repository read: {}", row["first"]));
     if row["first"]["state"] != "made" {
         return Err(format!("assertion failed: left == right; left: {:?}; right: {:?}", row["first"]["state"], "made"));
     }
@@ -672,7 +694,8 @@ pub fn live_store(account: bool) -> (PathBuf, bool) {
         temper_test_env::value(&temper_test_env::LIVE_STORE)
             .expect("run live through scripts/proof-live.sh forge-land"),
     );
-    let kept = reserve_account_store(&store, account).unwrap_or_else(|message| {
+    let reserved = reserve_live_store(&store);
+    let kept = reserved.and_then(|kept| files::account_store(kept, account)).unwrap_or_else(|message| {
         super::live::notice(&message);
         panic!("{message}")
     });
@@ -693,27 +716,6 @@ pub fn landing_store(model: LiveModel<'_>) -> (PathBuf, bool) {
     })
 }
 
-/// Make the stores' directory (0700, with its parents) when absent, then reserve
-/// `stores/<story>` as `reserve_live_store` does; a held `ChatGPT` record moves into a fresh
-/// store only.
-pub fn story_store(stores: &std::path::Path, model: LiveModel<'_>) -> Result<(PathBuf, bool), String> {
-    use std::os::unix::fs::DirBuilderExt;
-    fs::DirBuilder::new()
-        .recursive(true)
-        .mode(0o700)
-        .create(stores)
-        .map_err(|error| format!("create stores directory {}: {error}", stores.display()))?;
-    let store = stores.join(model.story());
-    let kept = reserve_account_store(&store, matches!(model, LiveModel::ChatGpt { account: Some(_) }))?;
-    Ok((store, kept))
-}
-
-fn reserve_account_store(store: &std::path::Path, account: bool) -> Result<bool, String> {
-    reserve_live_store(store).and_then(|kept| {
-        if kept && account { Err("a held account moves into a fresh store only".to_owned()) } else { Ok(kept) }
-    })
-}
-
 /// The held record `TEMPER_TEST_LIVE_ACCOUNT` names, admitted before any store is.
 #[must_use]
 pub fn live_account() -> Option<PathBuf> {
@@ -723,43 +725,6 @@ pub fn live_account() -> Option<PathBuf> {
         panic!("{message}");
     }
     Some(account)
-}
-
-/// Admit the held `ChatGPT` record a fresh store's first run moves in: a
-/// regular file only its owner reads, as ctl account import's FILE must be. Its words
-/// never name the path, which goes to `account import` alone.
-pub fn held_account(file: &std::path::Path) -> Result<(), &'static str> {
-    use std::os::unix::fs::MetadataExt;
-    let metadata = fs::symlink_metadata(file).map_err(|_| "TEMPER_TEST_LIVE_ACCOUNT names no file")?;
-    if !metadata.file_type().is_file() {
-        return Err("TEMPER_TEST_LIVE_ACCOUNT is not a regular file");
-    }
-    if metadata.mode() & 0o7777 != 0o600 {
-        return Err("TEMPER_TEST_LIVE_ACCOUNT is not 0600");
-    }
-    Ok(())
-}
-
-/// Admit the key by metadata alone; refusal words never include its path.
-/// Unset, the caller skips before reserving a store or starting a process.
-pub fn anthropic_key(value: Option<std::ffi::OsString>) -> Result<Option<PathBuf>, &'static str> {
-    use std::os::unix::fs::MetadataExt;
-    let Some(value) = value else { return Ok(None) };
-    let path = PathBuf::from(value);
-    let metadata = fs::symlink_metadata(&path).map_err(|_| "TEMPER_TEST_LIVE_ANTHROPIC_KEY names no file")?;
-    if !metadata.is_file() {
-        return Err("TEMPER_TEST_LIVE_ANTHROPIC_KEY is not a regular file or is a link");
-    }
-    if metadata.mode() & 0o7777 != 0o600 {
-        return Err("TEMPER_TEST_LIVE_ANTHROPIC_KEY is not 0600");
-    }
-    if metadata.uid() != skein_shell::effective_user() {
-        return Err("TEMPER_TEST_LIVE_ANTHROPIC_KEY is not owned by this user");
-    }
-    if metadata.len() == 0 {
-        return Err("TEMPER_TEST_LIVE_ANTHROPIC_KEY is empty");
-    }
-    Ok(Some(path))
 }
 
 /// A live command as notices and failures print it: an imported record or added
@@ -790,56 +755,6 @@ pub fn live_tag() -> String {
         .expect("UTC ISO minute");
     assert!(minute.status.success());
     format!("live-{}-{}", String::from_utf8(minute.stdout).expect("date UTF-8").trim(), std::process::id())
-}
-
-/// Reserve a fresh store, or validate a kept deployment using metadata only.
-/// An empty directory is fresh; an incomplete deployment is never repaired.
-pub fn reserve_live_store(path: &std::path::Path) -> Result<bool, String> {
-    use skein_forge::forgejo::pin::{RUNNER_VERSION, VERSION};
-    use std::os::unix::fs::DirBuilderExt;
-    match fs::DirBuilder::new().mode(0o700).create(path) {
-        Ok(()) => return Ok(false),
-        Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => {}
-        Err(error) => return Err(format!("create kept store {}: {error}", path.display())),
-    }
-    let metadata = fs::symlink_metadata(path).map_err(|error| error.to_string())?;
-    require(metadata.is_dir(), &format!("kept store {} is not a directory", path.display()))?;
-    require(metadata.permissions().mode() & 0o777 == 0o700, "kept store must have mode 0700")?;
-    if fs::read_dir(path)
-        .map_err(|error| error.to_string())?
-        .next()
-        .transpose()
-        .map_err(|error| error.to_string())?
-        .is_none()
-    {
-        return Ok(false);
-    }
-    // The deployment alone: a rerun makes its own client roots, and a sitting
-    // that failed before its restart never made `second`.
-    for (name, directory) in [
-        ("config", true),
-        ("data", true),
-        ("cache", true),
-        ("data/deployment", true),
-        ("data/forge-1/forgejo", true),
-        (&format!("config/{}", temper_config_shell::FILE), false),
-        ("data/box/started/1", false),
-        ("data/forge-1/forgejo/app.ini", false),
-        ("data/forge-1/forgejo/forgejo.db", false),
-    ] {
-        let present = fs::symlink_metadata(path.join(name))
-            .is_ok_and(|meta| if directory { meta.is_dir() } else { meta.is_file() });
-        require(present, &format!("kept store {} lacks {}", path.display(), name))?;
-    }
-    for name in
-        [format!("cache/forgejo/{VERSION}/forgejo"), format!("cache/forgejo-runner/{RUNNER_VERSION}/forgejo-runner")]
-    {
-        require(
-            fs::symlink_metadata(path.join(&name)).is_ok_and(|meta| meta.is_file()),
-            &format!("kept store {} lacks {}", path.display(), name),
-        )?;
-    }
-    Ok(true)
 }
 
 pub const KEPT_SIGN_IN_EXPIRED: &str = "the kept ChatGPT sign-in is expired or refused; the person signs in afresh";
@@ -1293,11 +1208,66 @@ pub fn retain_live_model(path: &std::path::Path, name: &str) {
     temper_agent_fixtures::providers::keep(&mut value, &data);
 }
 
+/// Apply a live overlay to the copies native init left, using the fixture writers.
 pub fn configure_live_model(config: &std::path::Path, model: LiveModel<'_>, executable: &std::path::Path) {
+    use temper_agent_fixtures::providers;
+
     let LiveModel::ClaudeCode { login } = model else { return };
     let data = temper_agent_fixtures::data(config);
-    let mut value = serde_json::json!({"world_providers":temper_agent_fixtures::providers::read(&data)});
+    let mut routes = providers::read(&data);
     let mut agent = temper_agent_fixtures::read(config);
+    claude_overlay(&mut routes, &mut agent, login, executable);
+    providers::write(&data, &routes);
+    temper_agent_fixtures::install(config, &agent);
+}
+
+/// The start and its prospective worker and provider copies, before any native writes.
+pub struct LiveProfile {
+    pub document: serde_json::Value,
+    pub providers: Box<[jig_protocol_config::ProviderSetting]>,
+    pub agent: serde_json::Value,
+}
+
+impl LiveProfile {
+    /// Boxed init with fixed listeners and the landing story's model overlay.
+    #[must_use]
+    pub fn compose(data: &std::path::Path, model: LiveModel<'_>, executable: &std::path::Path) -> Self {
+        use temper_agent_fixtures::{providers, with_figures};
+
+        let mut document = serde_json::from_slice(&temper_config_shell::init_document(true)).expect("init start");
+        let mut agents = temper_service::stock::agents();
+        let mut providers = temper_service::stock::providers();
+        if let LiveModel::ClaudeCode { login } = model {
+            let mut agent = with_figures(&document, &agents, data, &providers);
+            let mut routes = providers::flat(&providers);
+            claude_overlay(&mut routes, &mut agent, login, executable);
+            let setting = temper_agent_fixtures::compose_setting(&mut document, &agent, &providers::values(&routes));
+            (agents, providers) = (setting.figures, setting.providers);
+        }
+        let agent = with_figures(&document, &agents, data, &providers);
+        Self { document, providers, agent }
+    }
+
+    /// Admit the engine with the configured providers and the box's fixed demo route.
+    #[must_use]
+    pub fn engine(&self, config: &std::path::Path) -> (jig_protocol_config::Engine, temper_service::stock::Given) {
+        let bytes = serde_json::to_vec(&self.document["engine"]).expect("engine JSON");
+        let document =
+            jig_protocol_config::document(&bytes, &super::configuration_fixture::DOCUMENT).expect("engine document");
+        let given =
+            temper_agent_fixtures::providers::given_with(self.providers.clone(), Some(([127, 0, 0, 1], 8370).into()));
+        let directories = temper_box_shell::directories::jig_directories(&super::configuration::directories(config));
+        let engine = temper_service::startup::engine_with(&document, 0, &directories, &given).expect("engine schema");
+        (engine, given)
+    }
+}
+
+fn claude_overlay(
+    providers: &mut serde_json::Value,
+    agent: &mut serde_json::Value,
+    login: &std::path::Path,
+    executable: &std::path::Path,
+) {
     let mut endpoint = agent["endpoints"]
         .as_array()
         .expect("agent endpoints")
@@ -1312,7 +1282,7 @@ pub fn configure_live_model(config: &std::path::Path, model: LiveModel<'_>, exec
     endpoint["program"] = "claude_code".into();
     endpoint["address"] = "api.anthropic.com:443".into();
     endpoint["server_name"] = "api.anthropic.com".into();
-    let mut route = temper_agent_fixtures::providers::input(&mut value)["endpoints"]
+    let mut route = providers["endpoints"]
         .as_array()
         .expect("engine endpoints")
         .iter()
@@ -1328,8 +1298,7 @@ pub fn configure_live_model(config: &std::path::Path, model: LiveModel<'_>, exec
         "sources":{"programs":["claude_code"]}
     });
     for (table, field, replacement) in [("providers", "name", provider), ("endpoints", "name", route)] {
-        let entries =
-            temper_agent_fixtures::providers::input(&mut value)[table].as_array_mut().expect("init LLM table");
+        let entries = providers[table].as_array_mut().expect("init LLM table");
         entries
             .retain(|entry| entry[field] != "openai" && entry[field] != "anthropic" && entry[field] != "anthropic-api");
         entries.insert(0, replacement);
@@ -1345,8 +1314,6 @@ pub fn configure_live_model(config: &std::path::Path, model: LiveModel<'_>, exec
     agent["programs"]["claude_code"] = serde_json::json!({
         "path":executable, "directory":login.parent().expect("held login parent")
     });
-    temper_agent_fixtures::providers::keep(&mut value, &data);
-    temper_agent_fixtures::install(config, &agent);
 }
 
 /// A settings change a fresh sitting applies, and its `settings apply`'s key.
@@ -1479,27 +1446,36 @@ impl LivePlan<'_> {
     /// Install the held record's give-back in the story's store; `binary` is the temper
     /// the hook runs.
     pub fn install_return_hook(&self, binary: &std::path::Path) -> Result<(), String> {
-        if let LiveModel::ChatGpt { account: Some(account) } = self.model {
-            super::held_login::return_hook(
-                binary,
-                self.paths[0].parent().expect("store"),
-                &self.client_directory(),
-                account,
-            )?;
-        }
-        Ok(())
+        self.return_hook(binary).map_or(Ok(()), super::held_login::ReturnHook::install)
+    }
+
+    /// The give-back this sitting will install, if it holds a record.
+    #[must_use]
+    pub fn return_hook(&self, binary: &std::path::Path) -> Option<super::held_login::ReturnHook> {
+        let LiveModel::ChatGpt { account: Some(account) } = self.model else { return None };
+        Some(super::held_login::ReturnHook::compose(binary, self.store(), &self.client_directory(), account))
     }
 
     /// The held record's import as the sitting runs it, behind the give-back's lock.
     #[must_use]
     pub fn held_import(&self, binary: &std::path::Path, words: &[&str]) -> super::ctl::Call {
-        super::held_login::import_guard(binary, self.paths[0].parent().expect("store"), &self.client_directory(), words)
+        self.import_script(binary, words).write()
+    }
+
+    /// The held import's script and call before the wrapper is written.
+    #[must_use]
+    pub fn import_script(&self, binary: &std::path::Path, words: &[&str]) -> super::held_login::Import {
+        super::held_login::Import::compose(binary, self.store(), &self.client_directory(), words)
+    }
+
+    fn store(&self) -> &std::path::Path {
+        self.paths[0].parent().expect("store")
     }
 
     /// Return before this box stops; only the first box permits a later restart import.
     #[must_use]
     pub fn return_call(&self) -> super::ctl::Call {
-        let hook = self.paths[0].parent().expect("store").join("give-back");
+        let hook = self.store().join("give-back");
         super::ctl::Call::command(&hook, if self.first { &["--box-ended"] } else { &[] })
     }
 

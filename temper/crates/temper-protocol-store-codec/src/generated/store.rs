@@ -9,8 +9,8 @@ pub type Problem = skein_codec::Problem<Limits>;
 
 pub const VERSION: u16 = 25;
 pub const LAYOUT: [u8; 32] = [
-    0xf8, 0xfc, 0x1b, 0x2f, 0xfd, 0x91, 0x82, 0xcd, 0xf8, 0x0d, 0x28, 0x9e, 0x7a, 0xcf, 0x84, 0x73, 0x79, 0xbd, 0x0b,
-    0xc7, 0x45, 0xfb, 0x4d, 0x5a, 0x80, 0x1c, 0x8e, 0xde, 0x28, 0x96, 0x17, 0xc7,
+    0x13, 0x49, 0x0f, 0xc6, 0x8f, 0x95, 0x6e, 0x00, 0xb9, 0x37, 0xc2, 0x19, 0x94, 0xdb, 0x1d, 0xe4, 0x45, 0x75, 0x46,
+    0x4c, 0x05, 0xc7, 0xe3, 0xe3, 0xcc, 0xb9, 0x87, 0x57, 0x72, 0x40, 0x9a, 0x97,
 ];
 
 // Limits: the owner's values, checked once against ceilings.
@@ -184,6 +184,7 @@ pub struct Limits {
     pub landing_flake_rerun_pending: u32,
     pub landing_follow_reruns: u32,
     pub landing_follows_items: u32,
+    pub landing_row_read_hold_some: u32,
     pub landing_row_asks: u32,
     pub landing_row_entries: u32,
     pub landing_row_flake_reruns: u32,
@@ -293,6 +294,7 @@ pub struct Limits {
     pub closing_question_words: u32,
     pub closing_message_words: u32,
     pub closing_relay_replies: u32,
+    pub closing_relay_waiting: u32,
     pub closer_close_changes: u32,
     pub closer_landing_changes: u32,
     pub closer_selections: u32,
@@ -552,6 +554,7 @@ pub const CEILINGS: Limits = Limits {
     landing_flake_rerun_pending: 16,
     landing_follow_reruns: 65_536,
     landing_follows_items: 2_097_152,
+    landing_row_read_hold_some: 256,
     landing_row_asks: 64,
     landing_row_entries: 65_536,
     landing_row_flake_reruns: 65_536,
@@ -661,6 +664,7 @@ pub const CEILINGS: Limits = Limits {
     closing_question_words: 1_048_576,
     closing_message_words: 1_048_576,
     closing_relay_replies: 1_024,
+    closing_relay_waiting: 1_024,
     closer_close_changes: 1_024,
     closer_landing_changes: 1_024,
     closer_selections: 1_024,
@@ -920,6 +924,7 @@ pub const LIMIT_NAMES: &[&str] = &[
     "landing_flake_rerun_pending",
     "landing_follow_reruns",
     "landing_follows_items",
+    "landing_row_read_hold_some",
     "landing_row_asks",
     "landing_row_entries",
     "landing_row_flake_reruns",
@@ -1029,6 +1034,7 @@ pub const LIMIT_NAMES: &[&str] = &[
     "closing_question_words",
     "closing_message_words",
     "closing_relay_replies",
+    "closing_relay_waiting",
     "closer_close_changes",
     "closer_landing_changes",
     "closer_selections",
@@ -1292,6 +1298,7 @@ impl Limits {
             self.landing_flake_rerun_pending,
             self.landing_follow_reruns,
             self.landing_follows_items,
+            self.landing_row_read_hold_some,
             self.landing_row_asks,
             self.landing_row_entries,
             self.landing_row_flake_reruns,
@@ -1401,6 +1408,7 @@ impl Limits {
             self.closing_question_words,
             self.closing_message_words,
             self.closing_relay_replies,
+            self.closing_relay_waiting,
             self.closer_close_changes,
             self.closer_landing_changes,
             self.closer_selections,
@@ -1665,6 +1673,7 @@ impl Limits {
             landing_flake_rerun_pending: self.landing_flake_rerun_pending.min(most),
             landing_follow_reruns: self.landing_follow_reruns.min(most),
             landing_follows_items: self.landing_follows_items.min(most),
+            landing_row_read_hold_some: self.landing_row_read_hold_some.min(most),
             landing_row_asks: self.landing_row_asks.min(most),
             landing_row_entries: self.landing_row_entries.min(most),
             landing_row_flake_reruns: self.landing_row_flake_reruns.min(most),
@@ -1774,6 +1783,7 @@ impl Limits {
             closing_question_words: self.closing_question_words.min(most),
             closing_message_words: self.closing_message_words.min(most),
             closing_relay_replies: self.closing_relay_replies.min(most),
+            closing_relay_waiting: self.closing_relay_waiting.min(most),
             closer_close_changes: self.closer_close_changes.min(most),
             closer_landing_changes: self.closer_landing_changes.min(most),
             closer_selections: self.closer_selections.min(most),
@@ -2035,6 +2045,7 @@ const LIMIT_PATHS: &[Path] = &[
     paths::LANDING_FLAKE_RERUN_PENDING,
     paths::LANDING_FOLLOW_RERUNS,
     paths::LANDING_FOLLOWS_ITEMS,
+    paths::LANDING_ROW_READ_HOLD,
     paths::LANDING_ROW_ASKS,
     paths::LANDING_ROW_ENTRIES,
     paths::LANDING_ROW_FLAKE_RERUNS,
@@ -2144,6 +2155,7 @@ const LIMIT_PATHS: &[Path] = &[
     paths::CLOSING_QUESTION_WORDS,
     paths::CLOSING_MESSAGE_WORDS,
     paths::CLOSING_RELAY_REPLIES,
+    paths::CLOSING_RELAY_WAITING,
     paths::CLOSER_CLOSE_CHANGES,
     paths::CLOSER_LANDING_CHANGES,
     paths::CLOSER_SELECTIONS,
@@ -3260,6 +3272,7 @@ pub mod paths {
     pub const LANDING_FOLLOW_TAIL: Path = Path::new("LandingFollow (tail)");
     pub const LANDING_FOLLOWS_ITEMS: Path = Path::new("LandingFollows.items");
     pub const LANDING_FOLLOWS_TAIL: Path = Path::new("LandingFollows (tail)");
+    pub const LANDING_ROW_READ_HOLD: Path = Path::new("LandingRow.read_hold");
     pub const LANDING_ROW_LAST_EVENT: Path = Path::new("LandingRow.last_event");
     pub const LANDING_ROW_TURN_SINCE: Path = Path::new("LandingRow.turn_since");
     pub const LANDING_ROW_WAITING: Path = Path::new("LandingRow.waiting");
@@ -3776,6 +3789,7 @@ pub mod paths {
     pub const CLOSING_MESSAGE_TAIL: Path = Path::new("ClosingMessage (tail)");
     pub const CLOSING_RELAY_OPEN: Path = Path::new("ClosingRelay.open");
     pub const CLOSING_RELAY_REPLIES: Path = Path::new("ClosingRelay.replies");
+    pub const CLOSING_RELAY_WAITING: Path = Path::new("ClosingRelay.waiting");
     pub const CLOSING_RELAY_TAIL: Path = Path::new("ClosingRelay (tail)");
     pub const CLOSER_TASK: Path = Path::new("Closer.task");
     pub const CLOSER_GOAL: Path = Path::new("Closer.goal");
@@ -20746,6 +20760,7 @@ pub enum LandingOwnHold {
     Record(LandingRecordHold),
     Timeout(LandingTimeout),
     Turn,
+    Read,
 }
 
 // Record: LandingOwnHold.
@@ -20755,7 +20770,8 @@ impl LandingOwnHold {
         skein_codec::bounds::Node::Named("LandingRecordHold"),
         skein_codec::bounds::Node::Named("LandingTimeout"),
         skein_codec::bounds::Node::Scalar(0),
-        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2, 3] },
+        skein_codec::bounds::Node::Scalar(0),
+        skein_codec::bounds::Node::Enum { variants: &[0, 1, 2, 3, 4] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
@@ -20789,6 +20805,7 @@ impl Record for LandingOwnHold {
             Self::Record(value) => { field::put(out, &[1], paths::LANDING_OWN_HOLD_TAG)?; value.write(limits, out) },
             Self::Timeout(value) => { field::put(out, &[2], paths::LANDING_OWN_HOLD_TAG)?; value.write(limits, out) },
             Self::Turn => field::put(out, &[3], paths::LANDING_OWN_HOLD_TAG),
+            Self::Read => field::put(out, &[4], paths::LANDING_OWN_HOLD_TAG),
         }
     }
 
@@ -20799,7 +20816,8 @@ impl Record for LandingOwnHold {
             1 => Ok(Self::Record(LandingRecordHold::read(limits, reader)?)),
             2 => Ok(Self::Timeout(LandingTimeout::read(limits, reader)?)),
             3 => Ok(Self::Turn),
-            4..=u8::MAX => Err(Problem { path: paths::LANDING_OWN_HOLD_TAG, reason: skein_codec::Reason::Tag }),
+            4 => Ok(Self::Read),
+            5..=u8::MAX => Err(Problem { path: paths::LANDING_OWN_HOLD_TAG, reason: skein_codec::Reason::Tag }),
         }
     }
 }
@@ -22842,6 +22860,7 @@ impl Record for LandingFollows {
 // Type: LandingRow.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct LandingRow {
+    pub read_hold: Option<Box<[u8]>>,
     pub last_event: Option<u64>,
     pub turn_since: Option<u64>,
     pub waiting: Option<LandingAwaited>,
@@ -22857,30 +22876,32 @@ pub struct LandingRow {
 // Record: LandingRow.
 impl LandingRow {
     const SHAPE: &'static [skein_codec::bounds::Node] = &[
-        skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Bytes { limit: core::mem::offset_of!(Limits, landing_row_read_hold_some) },
         skein_codec::bounds::Node::Option { item: 0 },
         skein_codec::bounds::Node::Scalar(8),
         skein_codec::bounds::Node::Option { item: 2 },
-        skein_codec::bounds::Node::Named("LandingAwaited"),
-        skein_codec::bounds::Node::Option { item: 4 },
         skein_codec::bounds::Node::Scalar(8),
+        skein_codec::bounds::Node::Option { item: 4 },
+        skein_codec::bounds::Node::Named("LandingAwaited"),
         skein_codec::bounds::Node::Option { item: 6 },
-        skein_codec::bounds::Node::Named("HistoryJobRecord"),
+        skein_codec::bounds::Node::Scalar(8),
         skein_codec::bounds::Node::Option { item: 8 },
+        skein_codec::bounds::Node::Named("HistoryJobRecord"),
+        skein_codec::bounds::Node::Option { item: 10 },
         skein_codec::bounds::Node::Named("LandingState"),
         skein_codec::bounds::Node::Named("LandingAskSlot"),
-        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, landing_row_asks), item: 11, size: size_of::<LandingAskSlot>() },
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, landing_row_asks), item: 13, size: size_of::<LandingAskSlot>() },
         skein_codec::bounds::Node::Named("LandingEntry"),
-        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, landing_row_entries), item: 13, size: size_of::<LandingEntry>() },
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, landing_row_entries), item: 15, size: size_of::<LandingEntry>() },
         skein_codec::bounds::Node::Named("LandingFlakeRerun"),
-        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, landing_row_flake_reruns), item: 15, size: size_of::<LandingFlakeRerun>() },
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, landing_row_flake_reruns), item: 17, size: size_of::<LandingFlakeRerun>() },
         skein_codec::bounds::Node::Named("LandingFollows"),
-        skein_codec::bounds::Node::Option { item: 17 },
-        skein_codec::bounds::Node::Record { prefix: 0, fields: &[1, 3, 5, 7, 9, 10, 12, 14, 16, 18] },
+        skein_codec::bounds::Node::Option { item: 19 },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[1, 3, 5, 7, 9, 11, 12, 14, 16, 18, 20] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 395;
+    pub const ENCODED_AT_ZERO: u64 = 400;
 }
 
 impl Record for LandingRow {
@@ -22905,6 +22926,7 @@ impl Record for LandingRow {
     }
 
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
+        field::write(field::Optional { item: field::Bytes { limit: limits.landing_row_read_hold_some.min(CEILINGS.landing_row_read_hold_some) } }, &self.read_hold, limits, out, paths::LANDING_ROW_READ_HOLD)?;
         field::write(field::Optional { item: field::U64 }, &self.last_event, limits, out, paths::LANDING_ROW_LAST_EVENT)?;
         field::write(field::Optional { item: field::U64 }, &self.turn_since, limits, out, paths::LANDING_ROW_TURN_SINCE)?;
         field::write(field::Optional { item: field::Nested }, &self.waiting, limits, out, paths::LANDING_ROW_WAITING)?;
@@ -22920,6 +22942,7 @@ impl Record for LandingRow {
 
     fn read(limits: &Limits, reader: &mut skein_lib::Reader<'_>) -> Result<Self, Problem> {
         Ok(Self {
+            read_hold: field::read(field::Optional { item: field::Bytes { limit: limits.landing_row_read_hold_some.min(CEILINGS.landing_row_read_hold_some) } }, limits, reader, paths::LANDING_ROW_READ_HOLD)?,
             last_event: field::read(field::Optional { item: field::U64 }, limits, reader, paths::LANDING_ROW_LAST_EVENT)?,
             turn_since: field::read(field::Optional { item: field::U64 }, limits, reader, paths::LANDING_ROW_TURN_SINCE)?,
             waiting: field::read(field::Optional { item: field::Nested }, limits, reader, paths::LANDING_ROW_WAITING)?,
@@ -31448,6 +31471,7 @@ impl Record for ClosingMessage {
 pub struct ClosingRelay {
     pub open: Option<ClosingQuestion>,
     pub replies: List<ClosingMessage>,
+    pub waiting: List<ClosingQuestion>,
 }
 
 // Record: ClosingRelay.
@@ -31457,11 +31481,13 @@ impl ClosingRelay {
         skein_codec::bounds::Node::Option { item: 0 },
         skein_codec::bounds::Node::Named("ClosingMessage"),
         skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, closing_relay_replies), item: 2, size: size_of::<ClosingMessage>() },
-        skein_codec::bounds::Node::Record { prefix: 0, fields: &[1, 3] },
+        skein_codec::bounds::Node::Named("ClosingQuestion"),
+        skein_codec::bounds::Node::List { limit: core::mem::offset_of!(Limits, closing_relay_waiting), item: 4, size: size_of::<ClosingQuestion>() },
+        skein_codec::bounds::Node::Record { prefix: 0, fields: &[1, 3, 5] },
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 40;
+    pub const ENCODED_AT_ZERO: u64 = 44;
 }
 
 impl Record for ClosingRelay {
@@ -31488,6 +31514,7 @@ impl Record for ClosingRelay {
     fn write(&self, limits: &Limits, out: &mut skein_lib::Writer) -> Result<(), Problem> {
         field::write(field::Optional { item: field::Nested }, &self.open, limits, out, paths::CLOSING_RELAY_OPEN)?;
         field::write(field::Sequence { limit: limits.closing_relay_replies.min(CEILINGS.closing_relay_replies), minimum: 13, item: field::Nested }, &self.replies, limits, out, paths::CLOSING_RELAY_REPLIES)?;
+        field::write(field::Sequence { limit: limits.closing_relay_waiting.min(CEILINGS.closing_relay_waiting), minimum: 22, item: field::Nested }, &self.waiting, limits, out, paths::CLOSING_RELAY_WAITING)?;
         Ok(())
     }
 
@@ -31495,6 +31522,7 @@ impl Record for ClosingRelay {
         Ok(Self {
             open: field::read(field::Optional { item: field::Nested }, limits, reader, paths::CLOSING_RELAY_OPEN)?,
             replies: field::read(field::Sequence { limit: limits.closing_relay_replies.min(CEILINGS.closing_relay_replies), minimum: 13, item: field::Nested }, limits, reader, paths::CLOSING_RELAY_REPLIES)?,
+            waiting: field::read(field::Sequence { limit: limits.closing_relay_waiting.min(CEILINGS.closing_relay_waiting), minimum: 22, item: field::Nested }, limits, reader, paths::CLOSING_RELAY_WAITING)?,
         })
     }
 }
@@ -31547,7 +31575,7 @@ impl Closer {
     ];
 
     /// The record's encoded bound with every limit it reaches set to zero.
-    pub const ENCODED_AT_ZERO: u64 = 108;
+    pub const ENCODED_AT_ZERO: u64 = 112;
 }
 
 impl Record for Closer {
@@ -41365,6 +41393,7 @@ static CEILING_VALUES: &[u32] = &[
     CEILINGS.landing_flake_rerun_pending,
     CEILINGS.landing_follow_reruns,
     CEILINGS.landing_follows_items,
+    CEILINGS.landing_row_read_hold_some,
     CEILINGS.landing_row_asks,
     CEILINGS.landing_row_entries,
     CEILINGS.landing_row_flake_reruns,
@@ -41474,6 +41503,7 @@ static CEILING_VALUES: &[u32] = &[
     CEILINGS.closing_question_words,
     CEILINGS.closing_message_words,
     CEILINGS.closing_relay_replies,
+    CEILINGS.closing_relay_waiting,
     CEILINGS.closer_close_changes,
     CEILINGS.closer_landing_changes,
     CEILINGS.closer_selections,

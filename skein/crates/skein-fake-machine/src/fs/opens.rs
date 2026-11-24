@@ -34,7 +34,7 @@ impl Machine {
                     }
                 }
                 // Opened without blocking, then refused for what it is.
-                if !path_only && let Body::Special(_) = self.node(node).body {
+                if !path_only && let Body::Special(_) = self.node_state(node).body {
                     return Err(Refusal::NotAFile);
                 }
                 node
@@ -46,7 +46,7 @@ impl Machine {
                 }
                 match found.node {
                     Some(node) => {
-                        match &self.node(node).body {
+                        match &self.node_state(node).body {
                             Body::Directory { .. } => return Err(Refusal::IsADirectory),
                             Body::Special(_) => return Err(Refusal::NotAFile),
                             Body::File(_) => {}

@@ -1,7 +1,7 @@
 //! A change's criteria use its parent commit as the reference (benchmarks/codex-parity.md 6).
 
 mod inputs;
-pub use inputs::{Input, Inputs, attach, command, verify};
+pub use inputs::{Input, Inputs, attach, attach_with, command, command_with, verify, verify_with};
 
 use serde::{Deserialize, Serialize};
 

@@ -131,18 +131,32 @@ fn run_at(mut settings: Settings, script: Script, before_cut: Option<u32>) -> (O
     let _store_root = machine.lay(&[]);
     let client_root = machine.lay(&[]);
     let root = (!matches!(script.story, crate::stories::Story::Opening(_))).then(|| machine.lay(&[]));
-    if matches!(script.story, crate::stories::Story::Resume(_)) {
-        let workspace = machine.lay(&crate::restarts::files());
+    if matches!(script.story, crate::stories::Story::Resume(_) | crate::stories::Story::Crash(_)) {
+        let workspace = machine.lay(&crate::restarts::files(matches!(
+            script.story,
+            crate::stories::Story::Crash(crate::restarts::Point::Answer)
+        )));
         machine.close(workspace);
     }
-    let root = if matches!(script.story, crate::stories::Story::Shutdown | crate::stories::Story::Resume(_)) {
+    let root = if matches!(
+        script.story,
+        crate::stories::Story::Shutdown | crate::stories::Story::Resume(_) | crate::stories::Story::Crash(_)
+    ) {
         machine.close(root.expect("worker root to reopen through startup"));
         None
     } else {
         root
     };
-    let mut harness = skein_world::World::new(settings.seed, settings.config, referee, skein_world::Memory::Unchecked)
-        .with_machine(Machine(machine, Some(views.clone())));
+    let mut harness = skein_world::World::new_controlled(
+        settings.seed,
+        settings.config,
+        skein_world::Memory::Unchecked,
+        |controls| {
+            referee.controls = Some(controls);
+            referee
+        },
+    )
+    .with_machine(Machine(machine, Some(views.clone())));
     launch(&mut harness, root, &script, before_cut);
     harness.spawn_root(skein_sim::Handle::new(client_root.raw()), |root| {
         let mut client = jig_client_protocol_kit::native::NativeClient::new(
@@ -269,7 +283,8 @@ fn outcome(procs: &[Proc], store: &Store, views: &Views, reset_injected: bool, c
         }).sum(),
         parts_received: procs.iter().filter_map(|proc| if let Proc::Engine(host) = proc { Some(&host.wire) } else { None }).flat_map(|wire| &wire.frames).filter(|(_, kind, _)| *kind == jig_protocol_worker_wire::Kind::Part.number()).count(),
         parts_acknowledged: worker.map_or(0, |wire| wire.frames.iter().filter(|(_, kind, _)| *kind == jig_protocol_worker_wire::Kind::PartKept.number()).count()),
-        agent_starts: u32::try_from(killed + procs.iter().filter(|proc| matches!(proc, Proc::Agent { .. })).count()).expect("agent count"),
+        agent_starts: u32::try_from(if views.restart.killed_at.is_some() { views.restart.killed_agents } else { killed }
+            + procs.iter().filter(|proc| matches!(proc, Proc::Agent { .. })).count()).expect("agent count"),
         messages_ended: u32::try_from(views.messages_ended).expect("bounded messages"),
         start_messages: worker.map_or(0, |wire| wire.start_messages),
         waited: worker.is_some_and(|wire| wire.waited),
@@ -288,6 +303,8 @@ pub(crate) fn terminal(store: &Store, task: u64, attempt: u64, scenario: crate::
             answer.end == jig_domain_tasks::End::Parked
         } else if matches!(scenario, crate::stories::Story::BeyondGrace) {
             answer.end == jig_domain_tasks::End::Recheck
+        } else if matches!(scenario, crate::stories::Story::Crash(_)) && attempt == 1 {
+            matches!(answer.end, jig_domain_tasks::End::Suspended(jig_domain_tasks::Suspended { worker: 1, why: jig_domain_tasks::SuspendWhy::Restarted, .. }))
         } else if matches!(scenario, crate::stories::Story::Shutdown | crate::stories::Story::Resume(_)) && attempt == 1 {
             matches!(answer.end, jig_domain_tasks::End::Suspended(jig_domain_tasks::Suspended { worker: 1, why: jig_domain_tasks::SuspendWhy::Stopped, .. }))
         } else { matches!(answer.end, jig_domain_tasks::End::Finished { .. }) }
@@ -328,6 +345,14 @@ pub(crate) fn answer_store(
                         answer_refusals(host, store, answer, rules)?;
                         if answer.end == jig_domain_tasks::End::Failed(jig_domain_tasks::Class::Lost) {
                             rules.lost_ended(answer.task, answer.attempt, now);
+                        } else if matches!(
+                            answer.end,
+                            jig_domain_tasks::End::Suspended(jig_domain_tasks::Suspended {
+                                why: jig_domain_tasks::SuspendWhy::Restarted,
+                                ..
+                            })
+                        ) {
+                            rules.unhosted_ended(answer.task, answer.attempt);
                         } else {
                             rules.answered(answer.task, answer.attempt);
                         }
@@ -558,6 +583,7 @@ fn make_referee(
 ) -> crate::referee::Referee {
     crate::referee::Referee {
         finding: None,
+        controls: None,
         calibrating_held_turn,
         redial_ceiling: fixtures::worker_redial_ceiling(),
         store,
@@ -573,7 +599,7 @@ fn make_referee(
             crate::stories::Story::InvalidCharter
             | crate::stories::Story::BeyondGrace
             | crate::stories::Story::Cuts { .. } => 0,
-            crate::stories::Story::Resume(_) => 3,
+            crate::stories::Story::Resume(_) | crate::stories::Story::Crash(_) => 3,
             crate::stories::Story::Input => 1,
             crate::stories::Story::Window => 7,
             crate::stories::Story::Facts | crate::stories::Story::InvalidTranscript => 2,
@@ -622,7 +648,7 @@ fn launch(
 ) {
     let agent_program = skein_world::HostedProgram {
         program: b"agent-program".as_slice().into(),
-        make: if matches!(script.story, crate::stories::Story::Resume(_)) {
+        make: if matches!(script.story, crate::stories::Story::Resume(_) | crate::stories::Story::Crash(_)) {
             crate::restarts::agent
         } else if matches!(script.story, crate::stories::Story::BeyondGrace) {
             processes::agent_slow
@@ -636,10 +662,16 @@ fn launch(
         instances: 2,
         operations: smith_agent_process_world::limits()
             .routes
-            .checked_add(if matches!(script.story, crate::stories::Story::Resume(_)) { 8 } else { 2 })
+            .checked_add(
+                if matches!(script.story, crate::stories::Story::Resume(_) | crate::stories::Story::Crash(_)) {
+                    8
+                } else {
+                    2
+                },
+            )
             .expect("agent operations"),
     };
-    if matches!(script.story, crate::stories::Story::Resume(_)) {
+    if matches!(script.story, crate::stories::Story::Resume(_) | crate::stories::Story::Crash(_)) {
         harness.host_roots(agent_program, crate::restarts::roots);
         harness.host_roots(
             skein_world::HostedProgram {
@@ -653,7 +685,7 @@ fn launch(
     } else {
         harness.host(agent_program);
     }
-    let engine_factory = if matches!(script.story, crate::stories::Story::Resume(_)) {
+    let engine_factory = if matches!(script.story, crate::stories::Story::Resume(_) | crate::stories::Story::Crash(_)) {
         crate::restarts::engine
     } else if matches!(script.story, crate::stories::Story::Providers) {
         processes::engine_providers
@@ -776,13 +808,21 @@ fn spawn_channel_side(
         });
     } else if let crate::stories::Story::Opening(case) = script.story {
         harness.spawn(|| Proc::Probe(Box::new(crate::relay::Peer::opening(case))));
-    } else if matches!(script.story, crate::stories::Story::Shutdown | crate::stories::Story::Resume(_)) {
+    } else if matches!(
+        script.story,
+        crate::stories::Story::Shutdown | crate::stories::Story::Resume(_) | crate::stories::Story::Crash(_)
+    ) {
+        let mut roots =
+            vec![skein_world::StartupRoot { name: b"worker".as_slice().into(), path: b"worker".as_slice().into() }];
+        if !matches!(script.story, crate::stories::Story::Crash(_)) {
+            roots.push(skein_world::StartupRoot {
+                name: b"replacement".as_slice().into(),
+                path: b"worker".as_slice().into(),
+            });
+        }
         harness.spawn_restartable(
-            vec![
-                skein_world::StartupRoot { name: b"worker".as_slice().into(), path: b"worker".as_slice().into() },
-                skein_world::StartupRoot { name: b"replacement".as_slice().into(), path: b"worker".as_slice().into() },
-            ],
-            if matches!(script.story, crate::stories::Story::Resume(_)) {
+            roots,
+            if matches!(script.story, crate::stories::Story::Resume(_) | crate::stories::Story::Crash(_)) {
                 crate::restarts::worker_restarting
             } else {
                 processes::worker_restarting
