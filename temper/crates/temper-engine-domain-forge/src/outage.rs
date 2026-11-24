@@ -293,7 +293,9 @@ pub(super) fn read_ended(d: &mut Domain, env: &Env<Limits>, owner: Token, result
         || (*result == Err(Error::NotConnected) && d.rebase_fresh.contains_key(&owner));
     if !d.stopping && reading.retry && riding(d, owner) && (outage || capacity) {
         if let Some(pending) = d.steps.get(&owner) {
-            super::read_session::pause(d, pending.task);
+            let task = pending.task;
+            super::read_session::pause(d, task);
+            crate::waits::changed(d, task);
         }
         reading.outage |= outage;
         reading.wait.again(env, outage);
@@ -303,7 +305,9 @@ pub(super) fn read_ended(d: &mut Domain, env: &Env<Limits>, owner: Token, result
     if reading.outage
         && let Some(pending) = d.steps.get(&owner)
     {
-        super::read_session::ended(d, env, pending.task, env.wall);
+        let task = pending.task;
+        super::read_session::ended(d, env, task, env.wall);
+        crate::waits::changed(d, task);
     }
     if reading.outage
         && let Some(pending) = d.steps.get(&owner)

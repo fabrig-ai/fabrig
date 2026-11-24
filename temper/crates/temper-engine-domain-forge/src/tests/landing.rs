@@ -1441,7 +1441,7 @@ pub(crate) fn member_landing(d: &mut Domain) {
     member_landing_with_gates(d, Box::new([]));
 }
 
-fn member_landing_with_gates(d: &mut Domain, gates: Box<[policy::GateProof]>) {
+fn member_landing_with_gates(d: &mut Domain, gates: Box<[policy::GateProof]>) -> Box<[Request]> {
     let mut row = landing_row(61, policy::Phase::Proving);
     row.landing.members = Box::new([policy::Member {
         round: None,
@@ -1466,7 +1466,75 @@ fn member_landing_with_gates(d: &mut Domain, gates: Box<[policy::GateProof]>) {
     row.asks = Box::new([None]);
     row.landing.round.pull = Some(2);
     row.landing.round.combined = Some(policy::Combine::Merge);
-    outputs(d, Event::Landing { row });
+    outputs(d, Event::Landing { row })
+}
+
+fn ready_train_waiter(d: &mut Domain) -> Box<[Request]> {
+    use temper_engine_domain_forge_change as change;
+    let mut waiter = fixtures::opening_row();
+    waiter.task = TRAIN_WAITER;
+    waiter.change.task = TRAIN_WAITER;
+    waiter.change.state = change::State::Ready { head: fixtures::HEAD, ready_since: env().wall };
+    waiter.change.ready_since = Some(env().wall);
+    waiter.pending = None;
+    waiter.pull = Some(3);
+    waiter.effect = change::EffectResult::None;
+    outputs(d, Event::Change { row: waiter })
+}
+
+const TRAIN_WAITER: u64 = 62;
+
+fn active_train() -> Domain {
+    let mut d = landing_fixture_with(fixtures::connected_domain());
+    outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
+    outputs(&mut d, Event::CatchUp);
+    d
+}
+
+#[test]
+fn a_ready_change_reports_the_landing_holding_its_train() {
+    use jig_domain_core_vocabulary::waits::{ReportedBound, Unbounded};
+    use temper_client_protocol_wire::waits as code;
+    const TRAIN_LANDING: u64 = 61; // The landing made by member_landing_with_gates.
+    let mut d = active_train();
+    ready_train_waiter(&mut d);
+    let registered = member_landing_with_gates(&mut d, Box::new([]));
+    let mut landed = d.landing.rows.get(&TRAIN_LANDING).expect("held train").clone();
+    landed.landing.phase = policy::Phase::Landed;
+    landing::save(&mut d, &env(), landed, &mut Queue::uncapped());
+    let freed = ready(&mut d);
+    assert_eq!(
+        wait_report(&registered, TRAIN_WAITER),
+        Some(
+            [step_wait(
+                code::CHANGE_READY,
+                env().wall,
+                ReportedBound::None(Unbounded::Behind(TRAIN_LANDING)),
+                &[wait_thing(code::THING_TASK, TRAIN_LANDING)],
+            )]
+            .as_slice()
+        )
+    );
+    assert_eq!(
+        wait_report(&freed, TRAIN_WAITER),
+        Some([step_wait(code::CHANGE_READY, env().wall, ReportedBound::None(Unbounded::NoDeadline), &[],)].as_slice())
+    );
+}
+
+#[test]
+fn a_ready_change_without_landing_room_has_no_deadline() {
+    use jig_domain_core_vocabulary::waits::{ReportedBound, Unbounded};
+    use temper_client_protocol_wire::waits as code;
+    const FIRST_OTHER_LANDING: u64 = 70;
+    let mut d = active_train();
+    for task in FIRST_OTHER_LANDING..FIRST_OTHER_LANDING.saturating_add(u64::from(LIMITS.landings)) {
+        d.landing.rows.insert(task, landing_row(task, policy::Phase::Preparing)).expect("one live landing per place");
+    }
+    let report = ready_train_waiter(&mut d);
+    assert_eq!(
+        wait_report(&report, TRAIN_WAITER),
+        Some([step_wait(code::CHANGE_READY, env().wall, ReportedBound::None(Unbounded::NoDeadline), &[],)].as_slice())
+    );
 }
 
 #[test]

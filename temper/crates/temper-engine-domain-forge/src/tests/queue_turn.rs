@@ -191,6 +191,31 @@ fn a_withheld_merge_observation_follows_the_last_decision_and_the_rows_end() {
 }
 
 #[test]
+fn a_merge_withheld_by_the_operator_reports_no_bound() {
+    use crate::tests::step_wait;
+    use jig_domain_core_vocabulary::waits::{ReportedBound, Unbounded};
+    use temper_client_protocol_wire::waits as code;
+    let mut d = changes_setup(first(), SINCE);
+    fixtures::connect(&mut d);
+    d.hold_landings(true);
+    let mut out = Queue::uncapped();
+    decide_step(&mut d, &env(), pending(OWNER), &mut out);
+    crate::waits::report(&mut d, &env(), OWNER, &mut out);
+    let mut report = None;
+    for request in &out {
+        if let Request::Waits { task: OWNER, waits } = request {
+            assert!(report.replace(waits.as_slice()).is_none(), "one operator wait report");
+        }
+    }
+    assert_eq!(
+        report,
+        Some(
+            [step_wait(code::CHANGE_FIRST, env().wall, ReportedBound::None(Unbounded::OperatorHold), &[],)].as_slice()
+        )
+    );
+}
+
+#[test]
 fn a_turn_is_exclusive_through_update_checks_gates_and_merge() {
     for (state, second_since) in [
         (first(), SINCE),

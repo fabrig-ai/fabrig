@@ -7,6 +7,7 @@ mod fence;
 mod flake;
 mod no_test;
 mod released_resolution;
+pub(super) mod waits;
 
 /// Landing mode is selected at readiness, including work restored across a configuration change
 /// (temper/docs/design/domain/landing.md, 1).

@@ -337,6 +337,13 @@ fn open_change(d: &mut Domain, entry: u64) -> Box<[Request]> {
     fixtures::finish_missing(d)
 }
 
+fn pending_write(step: u32, things: &[WaitThing]) -> Reported {
+    use jig_domain_core_vocabulary::waits::AtBound;
+    let e = env();
+    let at = Wall::from_nanos(e.wall.as_nanos().saturating_add(e.limits.change_policy.stall.as_nanos()));
+    step_wait(step, e.wall, ReportedBound::At { at, then: AtBound::Hold }, things)
+}
+
 #[test]
 fn a_change_waiting_first_takes_room_before_a_landing() {
     let mut d = full("open");
@@ -352,7 +359,13 @@ fn a_change_waiting_first_takes_room_before_a_landing() {
     assert_wait(&drive(&mut d, TASK, 92), policy::Awaited::Open);
     let out = open_change(&mut d, FRESH);
     assert_eq!(entries(&out).as_ref(), &[FRESH]);
-    assert_eq!(wait_report(&out, OTHER), Some([].as_slice()));
+    assert_eq!(
+        wait_report(&out, OTHER),
+        Some(
+            [pending_write(CHANGE_OPENING, &[Thing { what: THING_ENTRY, number: FRESH, owner: Some(OTHER) }])]
+                .as_slice()
+        )
+    );
     assert_eq!(d.landing(TASK).unwrap().room, Some(2));
     assert_eq!(d.change(OTHER).unwrap().room, None);
 }
@@ -388,7 +401,19 @@ fn landing_room_places_restart_in_order_without_a_saved_decision() {
     let reports = outputs(&mut d, Event::CatchUp);
     assert_room_report(&reports, TASK, LANDING_ROOM, started, 1);
     assert_room_report(&reports, OTHER, CHANGE_OPENING, started, 1);
-    assert_eq!(wait_report(&reports, fixtures::CHANGE), Some([].as_slice()));
+    assert_eq!(
+        wait_report(&reports, fixtures::CHANGE),
+        Some(
+            [pending_write(
+                temper_client_protocol_wire::waits::CHANGE_READY,
+                &[
+                    Thing { what: THING_ENTRY, number: fixtures::OPEN, owner: Some(fixtures::CHANGE) },
+                    wait_thing(temper_client_protocol_wire::waits::THING_PULL, 1),
+                ]
+            )]
+            .as_slice()
+        )
+    );
     assert_eq!(wait_report(&reports, closer_task), Some([].as_slice()));
     assert_eq!(wait_report(&reports, 63), None);
     assert_eq!(wait_report(&reports, ended_closer), None);

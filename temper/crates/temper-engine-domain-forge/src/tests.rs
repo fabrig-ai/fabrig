@@ -1,4 +1,7 @@
 use crate::*;
+use jig_domain_core_vocabulary::waits::{
+    Reported as WaitReport, ReportedBound, Thing as WaitThing, WaitKind, WaitObject,
+};
 
 use temper_engine_domain_forge_issues as issues;
 mod admission;
@@ -420,7 +423,20 @@ fn fire_at(d: &mut Domain, clock: &Env<Limits>, wall: Wall) -> Box<[Request]> {
     collected(out)
 }
 
-fn wait_report(requests: &[Request], task: u64) -> Option<&[jig_domain_core_vocabulary::waits::Reported]> {
+pub(crate) fn wait_thing(what: u32, number: u64) -> WaitThing {
+    WaitThing { what, number, owner: None }
+}
+
+pub(crate) fn step_wait(step: u32, since: Wall, bound: ReportedBound, things: &[WaitThing]) -> WaitReport {
+    WaitReport {
+        kind: WaitKind::Step,
+        object: WaitObject::Procedure { step, things: skein_lib::List::from_boxed(things.into()) },
+        since,
+        bound,
+    }
+}
+
+pub(crate) fn wait_report(requests: &[Request], task: u64) -> Option<&[WaitReport]> {
     let mut report = None;
     for request in requests {
         if let Request::Waits { task: waiter, waits } = request

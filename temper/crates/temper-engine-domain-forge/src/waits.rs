@@ -13,6 +13,7 @@ pub(crate) struct State {
     // An absent report is equivalent to an empty report, except at catch-up.
     last: Map<u64, List<Reported>>,
     dirty: Set<u64>,
+    changes: Map<u64, change::Observed>,
     holders: Option<room::Holders>,
     catch_up_tasks: Option<List<u64>>,
     catch_up_at: Option<Wall>,
@@ -24,11 +25,16 @@ impl State {
         Self {
             last: Map::uncapped(),
             dirty: Set::with_capacity(u32::MAX),
+            changes: Map::uncapped(),
             holders: None,
             catch_up_tasks: None,
             catch_up_at: None,
             refusal: None,
         }
+    }
+
+    pub(crate) fn changed(&mut self, task: u64) {
+        self.dirty.insert(task).expect("one pending report per task");
     }
 }
 
@@ -68,12 +74,87 @@ pub(crate) fn refused(d: &mut Domain, task: u64, why: ReportRefusal) {
 
 /// Save a changed row first; report from its committed state at the end of the step.
 pub(crate) fn changed(d: &mut Domain, task: u64) {
-    d.wait_reports.dirty.insert(task).expect("one pending report per task");
+    d.wait_reports.changed(task);
+}
+
+/// The root's pending dependencies and live pushing child may outlive the gather.
+pub(crate) fn change_standing(
+    d: &mut Domain,
+    task: u64,
+    dependencies: &[temper_engine_domain_forge_change::Pending],
+    agent_live: bool,
+) {
+    if !d.changes.contains_key(&task) {
+        return;
+    }
+    let mut things = List::with_capacity(if dependencies.is_empty() { 0 } else { change::THINGS });
+    for dependency in dependencies {
+        things
+            .push(change::thing(temper_client_protocol_wire::waits::THING_TASK, dependency.task))
+            .expect("at most four dependencies named");
+        if things.room() == 0 {
+            break;
+        }
+    }
+    let mut seen = match d.wait_reports.changes.remove(&task) {
+        Some(seen) => seen,
+        None => change::Observed::empty(),
+    };
+    seen.dependencies = things;
+    seen.agent_live = agent_live;
+    keep_change(d, task, seen);
+}
+
+pub(crate) fn change_policy(
+    d: &mut Domain,
+    row: &crate::ChangeRow,
+    decision: temper_engine_domain_forge_change::Decision,
+    execution: bool,
+) {
+    let mut seen = match d.wait_reports.changes.remove(&row.task) {
+        Some(seen) => seen,
+        None => change::Observed::empty(),
+    };
+    seen.policy = change::observe_policy(row, decision, execution);
+    keep_change(d, row.task, seen);
+}
+
+fn keep_change(d: &mut Domain, task: u64, seen: change::Observed) {
+    if !seen.is_empty() {
+        d.wait_reports.changes.insert(task, seen).expect("observations of bounded changes");
+    }
+}
+
+pub(crate) fn change_dependencies_met(d: &mut Domain, task: u64) {
+    if let Some(mut seen) = d.wait_reports.changes.remove(&task) {
+        seen.dependencies = List::with_capacity(0);
+        seen.policy = None;
+        keep_change(d, task, seen);
+    }
+    changed(d, task);
+}
+
+pub(crate) fn change_agent_ended(d: &mut Domain, task: u64) {
+    if let Some(mut seen) = d.wait_reports.changes.remove(&task) {
+        seen.agent_live = false;
+        seen.policy = None;
+        keep_change(d, task, seen);
+    }
+    changed(d, task);
+}
+
+pub(crate) fn change_forge(d: &mut Domain, forge: u16) {
+    for (task, row) in &d.changes {
+        if row.repository.forge == forge {
+            d.wait_reports.changed(*task);
+        }
+    }
 }
 
 pub(crate) fn forget(d: &mut Domain, task: u64) {
     d.wait_reports.last.remove(&task);
     d.wait_reports.dirty.remove(&task);
+    d.wait_reports.changes.remove(&task);
     for waiter in [room::Waiter::Change(task), room::Waiter::Landing(task), room::Waiter::Release(task)] {
         d.room.places.remove(&waiter);
     }

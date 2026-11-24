@@ -722,17 +722,21 @@ impl Domain {
     /// Trains and their waiting changes are derived, never reserved (domain/landing-turn.md, 2).
     #[must_use]
     pub fn train_free(&self, repository: api::Repository, branch: &[u8]) -> bool {
-        for (_, row) in &self.landing.rows {
+        self.train_holder(repository, branch).is_none()
+    }
+
+    pub(crate) fn train_holder(&self, repository: api::Repository, branch: &[u8]) -> Option<u64> {
+        for (task, row) in &self.landing.rows {
             if row.landing.branch.as_ref() != branch || matches_terminal(&row.landing.phase) {
                 continue;
             }
             for member in &row.landing.members {
                 if self::repository(member) == repository {
-                    return false;
+                    return Some(*task);
                 }
             }
         }
-        true
+        None
     }
     /// Each ready turn change names a train to judge; the root filters kept tasks.
     #[must_use]
@@ -1020,6 +1024,21 @@ pub(crate) fn save_row(d: &mut Domain, mut row: LandingRow, out: &mut Queue<Requ
     }
     let project = row.landing.project;
     let task = row.landing.task;
+    let was_live =
+        if let Some(prior) = d.landing.rows.get(&task) { !matches_terminal(&prior.landing.phase) } else { false };
+    let live = !matches_terminal(&row.landing.phase);
+    if was_live != live {
+        for (task, change) in &d.changes {
+            if waiting(change) && change.base == row.landing.branch {
+                for member in &row.landing.members {
+                    if repository(member) == change.repository {
+                        d.wait_reports.changed(*task);
+                        break;
+                    }
+                }
+            }
+        }
+    }
     let was_turn = match d.landing.rows.get(&task) {
         Some(prior) => crate::views::matches_turn(&prior.landing.phase),
         None => false,
