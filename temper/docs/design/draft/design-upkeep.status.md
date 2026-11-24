@@ -1,7 +1,9 @@
 # design-upkeep: status
 
-2026-11-23. Where the design lags or departs from [design-upkeep.md](design-upkeep.md).
+2026-11-24. Where the design lags or departs from [design-upkeep.md](design-upkeep.md).
 
+- **Design lags:**
+  - 3.2, 4.1 and 5: `tools/citations/README.md`, "The status roll-up and the page", still counts a draft done only when every label reads none, counts the entries of status files under `draft/archive/`, and lists no long opening; `status.py` reads the same.
 - **Design departs:**
   - 3.2: a status file with nothing after its opening reads as done, as the close command leaves one when it settles the file's last entry (`tools/close/README.md`), where the draft names only "No gap.". Decided by U2's designer, 2026-11-21, so that each goal's close doesn't leave files the roll-up calls unread.
   - 3.2: a design document's status may also hold **Design departs** entries, where a goal with no draft records how its design departs from a request or a mockup, as fabrig's goal charter asks. The roll-up reads them under that label (`tools/citations/README.md`), where 3.2 gives a design document's labels as **Not yet** and **Departs**. Decided by the drafter, answering U2's designer (question 218192), 2026-11-21, so that no departure's reason is dropped and no text is pushed into a document over 48 KB before the split pass.
