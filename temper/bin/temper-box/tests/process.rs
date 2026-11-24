@@ -143,7 +143,7 @@ fn temper_open_adopts_a_repository_by_commands() {
 }
 
 #[test]
-fn a_push_is_delivered_signed_with_the_secret_reconcile_drew() {
+fn a_push_and_its_jobs_end_are_delivered_signed_with_the_secret_reconcile_drew() {
     let scratch = support::Scratch::new("hook_delivery");
     let (forgejo, listener) = support::forgejo::Throwaway::start_receiving(&scratch);
     assert_eq!(
@@ -153,22 +153,34 @@ fn a_push_is_delivered_signed_with_the_secret_reconcile_drew() {
         std::io::ErrorKind::AddrInUse
     );
     forgejo.push("hook.txt");
-    let delivery = loop {
+    let head = forgejo.branch_head(b"main").expect("pushed head");
+    let head = std::str::from_utf8(&head).expect("commit SHA");
+    let repository = forgejo.repository();
+    let secret = forgejo.secret();
+    let (mut pushed, mut ended) = (false, false);
+    while !pushed || !ended {
         let delivery = support::webhooks::receive(&listener, support::WITHIN);
-        if skein_lib::bytes::find(&delivery.body, b"Add hook.txt").is_some() {
-            break delivery;
+        let body: serde_json::Value = serde_json::from_slice(&delivery.body).expect("delivery JSON");
+        if skein_lib::bytes::find(&delivery.body, b"Add hook.txt").is_some() && body["after"] == head {
+            assert_eq!(delivery.event, "push", "Forgejo names the event");
+            assert_eq!(body["ref"], "refs/heads/main", "a push to main");
+            assert_eq!(body["repository"]["id"], repository);
+            pushed = true;
+        } else if body["run"]["commit_sha"] == head {
+            assert_eq!(delivery.event, "workflow_job_success");
+            assert_eq!(body["action"], "job_completed");
+            assert_eq!(body["job"]["name"], "check");
+            assert_eq!(body["job"]["status"], "success");
+            assert_eq!(body["run"]["event"], "push");
+            assert_eq!(body["run"]["repository"]["id"], repository);
+            ended = true;
+        } else {
+            continue;
         }
-    };
-    assert_eq!(delivery.event, "push", "Forgejo names the event");
-    assert!(skein_lib::bytes::find(&delivery.body, b"refs/heads/main").is_some(), "a push to main");
-    assert_eq!(delivery.signature, support::webhooks::signature(&forgejo.secret(), &delivery.body));
+        assert_eq!(delivery.signature, support::webhooks::signature(&secret, &delivery.body));
+    }
     forgejo.stop();
     scratch.remove();
-}
-
-#[test]
-fn a_persons_change_lands_on_the_forge_and_is_found_after_a_restart() {
-    landing("landed", true);
 }
 
 #[test]
@@ -267,37 +279,6 @@ fn turn_gate_runs(forge: &support::forgejo::Throwaway, commit: &str, passed_run:
     let key = gate["key"].as_str().expect("receipt key");
     assert_eq!(status["description"], format!("key {} passed", &key[..16]));
     assert_eq!(status["target_url"], receipt["address"]);
-}
-
-/// The landing story; the hinted case raises four limits and pushes the slow job marker.
-fn landing(case: &str, raised: bool) {
-    let scratch = support::Scratch::new(case);
-    let forgejo = if raised {
-        support::forgejo::Throwaway::start_with_job_sleep(&scratch, 5)
-    } else {
-        support::forgejo::Throwaway::start(&scratch)
-    };
-    if raised {
-        forgejo.push("slow");
-    }
-    support::configuration(scratch.path(), &forgejo.forge());
-    if raised {
-        support::raise_paces(scratch.path());
-    }
-    let peer = support::fake_llm(support::landing_scripts(support::ANSWER, &forgejo));
-    let clock = skein_shell::Clock::new();
-    let began = clock.now().now;
-    let first = support::run_until_landed(scratch.path(), support::person::adopt_and_change(&forgejo), peer, &forgejo);
-    assert_eq!((first.signed_in, first.finished), (1, true), "{}", String::from_utf8_lossy(&first.stderr));
-    eprintln!("stage job: {} ms", clock.now().now.saturating_since(began).as_nanos() / 1_000_000);
-    let merged = forgejo.merged_pull().expect("the change's pull request is merged");
-    assert_eq!(forgejo.job_state(merged), "success");
-    assert!(forgejo.main_readme().ends_with(support::EDIT), "main holds the agent's edit");
-    let second = support::run(scratch.path(), support::person::found(), None, Duration::from_secs(120));
-    assert!(second.finished, "the work is found after the restart");
-    assert_eq!(forgejo.merged_pull(), Some(merged), "the forge's state is unchanged by the restart");
-    forgejo.stop();
-    scratch.remove();
 }
 
 #[test]
@@ -511,6 +492,7 @@ fn temper_box_restarts_a_killed_forgejo_while_the_engine_serves() {
 }
 
 #[test]
+#[expect(clippy::too_many_lines, reason = "keep both sittings and the independent Forgejo reads in the same story")]
 fn a_csv_change_passes_ci_and_a_blocking_agent_review_on_the_owned_forge_then_lands_and_survives_restart() {
     use skein_forge::forgejo::pin::VERSION;
     use std::{fs, os::unix::fs::PermissionsExt};
@@ -553,6 +535,9 @@ fn a_csv_change_passes_ci_and_a_blocking_agent_review_on_the_owned_forge_then_la
             BOX_DEADLINE,
             |_| {
                 let evidence = support::first_repository::live_from_hands(&paths[0], &paths[1], &client_root);
+                if run == "first" {
+                    support::csv_repair::landed(&paths, &client_root, &support::ctl::json(&evidence.panel), began);
+                }
                 support::first_repository::probe_admin_handover(&paths, &client_root, &mut older_admin);
                 evidence
             },

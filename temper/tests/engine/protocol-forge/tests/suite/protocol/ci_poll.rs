@@ -66,14 +66,20 @@ fn metadata(world: &Protocol) -> Option<skein_forge::api::Summary> {
     })
 }
 
-struct Schedule {
+pub(super) struct Schedule {
     due: bool,
     until: Option<Wall>,
     repaired: bool,
     entry: u64,
 }
 
-fn hear(world: &mut Protocol, schedule: &mut Schedule) {
+impl Schedule {
+    pub(super) fn after_open() -> Self {
+        Self { due: true, until: None, repaired: false, entry: 4 }
+    }
+}
+
+pub(super) fn hear(world: &mut Protocol, schedule: &mut Schedule) {
     for request in world.take_seen() {
         match request {
             top::Request::WakeProcedure { task: 51 } => schedule.due = true,
@@ -95,7 +101,7 @@ fn hear(world: &mut Protocol, schedule: &mut Schedule) {
     }
 }
 
-fn advance(world: &mut Protocol, schedule: &mut Schedule) {
+pub(super) fn advance(world: &mut Protocol, schedule: &mut Schedule) {
     if schedule.until.is_some_and(|at| world.wall() >= at) {
         schedule.due = true;
         schedule.until = None;
@@ -116,7 +122,7 @@ fn a_github_ninety_second_ci_failure_wakes_a_repair_at_the_same_head() {
     let deadline = Wall::from_nanos(
         verdict.as_nanos() + small().forge.client.poll_max.as_nanos() + Duration::from_secs(1).as_nanos(),
     );
-    let mut schedule = Schedule { due: true, until: None, repaired: false, entry: 4 };
+    let mut schedule = Schedule::after_open();
     let (mut named, mut before) = (false, None);
     while world.wall() <= deadline && !schedule.repaired {
         if !named {

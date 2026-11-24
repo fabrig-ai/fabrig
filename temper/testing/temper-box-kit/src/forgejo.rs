@@ -103,7 +103,7 @@ impl Throwaway {
 
     #[must_use]
     pub fn start_with_job_sleep(scratch: &Scratch, sleep_seconds: u64) -> Self {
-        Self::start_bare(scratch).with_repository(scratch, sleep_seconds, WORKFLOW)
+        Self::start_bare(scratch).with_repository(scratch, sleep_seconds, &workflow("'temper/**'"))
     }
 
     /// Keep the test's delivery receiver bound before configuring Forgejo's hook.
@@ -112,7 +112,7 @@ impl Throwaway {
         let [listener] = super::reserve_listeners(&[]);
         let address = listener.local_addr().expect("delivery receiver address");
         let fixture =
-            Self::start_bare_with_webhooks(scratch, Some(address), true).with_repository(scratch, 60, WORKFLOW);
+            Self::start_bare_with_webhooks(scratch, Some(address), true).with_repository(scratch, 0, &workflow("main"));
         (fixture, listener)
     }
 
@@ -206,17 +206,6 @@ impl Throwaway {
         value.as_array().expect("pull list").iter().find_map(|pull| {
             (pull["merged"].as_bool() == Some(true)).then(|| pull["number"].as_u64().expect("pull number"))
         })
-    }
-    #[must_use]
-    pub fn job_state(&self, pull: u64) -> String {
-        let response = self.get(&format!("pulls/{pull}"));
-        assert_eq!(response.status, 200, "pull head");
-        let pull: Value = serde_json::from_slice(&response.body).expect("pull JSON");
-        let head = pull["head"]["sha"].as_str().expect("pull head");
-        let response = self.get(&format!("commits/{head}/status"));
-        assert_eq!(response.status, 200, "job status");
-        let status: Value = serde_json::from_slice(&response.body).expect("status JSON");
-        status["state"].as_str().expect("job state").into()
     }
     #[must_use]
     pub fn main_readme(&self) -> Vec<u8> {
@@ -563,8 +552,6 @@ fn repository(instance: &Instance, person: &Token, sleep_seconds: u64, workflow:
         201,
     );
     request(instance, person, "PATCH", "/api/v1/repos/acme/widget", &json!({"has_actions":true}), 200);
-    // The hinted job sleeps 5 s, outlasting its overridden 3 s settle window
-    // (protocol/setup/testing.md 4).
     let check = format!(
         "test ! -e slow || sleep {sleep_seconds}\n\
          for file in batch-*.txt; do\n\
@@ -596,8 +583,11 @@ fn repository(instance: &Instance, person: &Token, sleep_seconds: u64, workflow:
     stage("repository", began);
     value["id"].as_u64().expect("repository id")
 }
-pub(super) const WORKFLOW: &str = r#"on: { push: { branches: ['temper/**'] } }
-jobs:
+fn workflow(branch: &str) -> String {
+    format!("on: {{ push: {{ branches: [{branch}] }} }}\n{CHECK_JOB}")
+}
+
+const CHECK_JOB: &str = r#"jobs:
   check:
     runs-on: temper-host
     steps:
