@@ -68,6 +68,7 @@ pub fn submit_noisily(world: &mut World, settings: &Settings, seed: u64) {
             start: None,
             pushes: u32::try_from(rng.between(0, 3)).expect("small"),
             save: rng.chance(400),
+            keep: false,
             interrupt,
             invalid: rng.chance(30),
             twice: rng.chance(80),

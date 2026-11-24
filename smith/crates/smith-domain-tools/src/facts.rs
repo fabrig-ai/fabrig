@@ -253,6 +253,10 @@ pub(crate) fn answered(session: Token, tool: Tool, outcome: &Outcome, observatio
         }
         Outcome::Failed { fault } => (Verdict::Failed { fault: *fault }, 0),
         Outcome::TimedOut => (Verdict::TimedOut, 0),
+        Outcome::Interrupted { head, last, dropped, .. } => {
+            observed.omitted_bytes = *dropped;
+            (Verdict::Cancelled, len(head).checked_add(len(last)).expect("bounded command output"))
+        }
         Outcome::Cancelled => (Verdict::Cancelled, 0),
         Outcome::Busy => (Verdict::Busy, 0),
         Outcome::NulByte => (Verdict::NulByte, 0),

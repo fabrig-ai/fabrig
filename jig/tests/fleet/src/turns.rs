@@ -282,6 +282,9 @@ impl World {
                 | Request::ReadList { .. }
                 | Request::ListRead { .. }
                 | Request::ProgramEmail { .. }
+                | Request::Parted { .. }
+                | Request::AcknowledgePart { .. }
+                | Request::PartBusy { .. }
                 | Request::Assign { .. }
                 | Request::Inbound { .. }
                 | Request::Ask { .. }
@@ -346,6 +349,7 @@ impl World {
 
     fn adopt(&mut self) {
         self.step(Event::Adopt {
+            kept_part: 0,
             worker: None,
             holds: Box::new([]),
             grants: Box::new([]),

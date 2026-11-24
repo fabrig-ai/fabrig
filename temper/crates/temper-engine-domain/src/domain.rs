@@ -1508,6 +1508,7 @@ fn released_into(
         | Delivery::LimitSettingsCommitted { .. }
         | Delivery::Drained
         | Delivery::Refuse { .. }
+        | Delivery::PartBusy { .. }
         | Delivery::TurnBusy { .. }
         | Delivery::SourceSignedOut { .. }
         | Delivery::Result { .. }) => out.push(crate::boundary::delivery_output(delivery)),

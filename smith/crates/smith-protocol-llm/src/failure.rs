@@ -120,7 +120,7 @@ fn named_refusal(owner: Token, name: &[u8], maximum: u32) -> Event {
     })
 }
 
-pub(crate) fn problem(problem: llm::Problem, maximum: u32) -> Result<Box<[u8]>, Error> {
+pub fn problem(problem: llm::Problem, maximum: u32) -> Result<Box<[u8]>, Error> {
     match problem {
         llm::Problem::Oversize { bytes, bound } => return call_size_problem(bytes, Some(bound), maximum),
         llm::Problem::CutOff { bytes } => return call_size_problem(bytes, None, maximum),

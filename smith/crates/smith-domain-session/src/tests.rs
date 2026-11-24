@@ -102,6 +102,7 @@ impl Harness {
         let mut one = None;
         while let Some(request) = self.next() {
             match request {
+                Request::Part { .. } => panic!("parts not requested"),
                 Request::Turn { .. }
                 | Request::Priced { .. }
                 | Request::RateLimitWait { .. }
@@ -136,6 +137,7 @@ impl Harness {
     fn next(&mut self) -> Option<Request> {
         while let Some(request) = self.out.pop() {
             match request {
+                Request::Part { .. } => panic!("parts not requested"),
                 Request::Priced { spent, own_spent, .. } => {
                     assert_eq!((spent, own_spent), (0, 0));
                     self.prices_reported = self.prices_reported.checked_add(1).expect("bounded fixture prices");
@@ -183,6 +185,7 @@ impl Harness {
         let mut runs = List::with_capacity(self.out.len());
         while let Some(request) = self.next() {
             match request {
+                Request::Part { .. } => panic!("parts not requested"),
                 Request::Turn { .. }
                 | Request::Priced { .. }
                 | Request::RateLimitWait { .. }
@@ -262,6 +265,7 @@ fn bytes(text: &[u8]) -> Box<[u8]> {
 
 fn spec() -> Spec {
     Spec {
+        tell_parts: false,
         backend: crate::record::Backend::Direct,
         effort: None,
         final_turn: None,
@@ -429,6 +433,7 @@ fn opening(spec: Spec) -> Box<crate::record::Opening> {
         budget: 100,
         transcript: None,
         answered: Box::default(),
+        cut: None,
         withheld: None,
     })
 }
@@ -1396,6 +1401,7 @@ fn completion_name_exhaustion_ends_before_any_owned_or_delegated_effect() {
         let mut ended = false;
         while let Some(request) = harness.out.pop() {
             match request {
+                Request::Part { .. } => panic!("parts not requested"),
                 Request::Used { usage, .. } => {
                     assert_eq!(usage, USAGE);
                     used = true;
@@ -1452,6 +1458,7 @@ fn reserved_recorded_call(harness: &mut Harness) -> Token {
                 budget: 100,
                 transcript: None,
                 answered: Box::default(),
+                cut: None,
                 withheld: None,
             }),
         },

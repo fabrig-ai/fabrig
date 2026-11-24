@@ -25,7 +25,7 @@ impl Check {
     }
 
     fn start(run: PendingCheck, request: Request) -> Self {
-        let Request::Check { owner, program, bound, cap, tail } = request else { panic!("check") };
+        let Request::Check { owner, program, results, bound, cap, tail } = request else { panic!("check") };
         let limits = smith_protocol_machine::Limits { output_bytes: tail, ..smith_protocol_machine_fixtures::SMALL };
         let mut machine = Component::new(
             &limits,
@@ -34,6 +34,7 @@ impl Check {
         );
         machine.workspace(&run::Workspace {
             directories: Box::new([run::Directory {
+                results: None,
                 host: b"/host".as_slice().into(),
                 name: b"code".as_slice().into(),
                 root: program.root,
@@ -51,7 +52,7 @@ impl Check {
         };
         check.machine.from_domain(
             &check.env,
-            FromDomain::Check { owner, program, bound, cap, tail },
+            FromDomain::Check { owner, program, results, bound, cap, tail },
             &mut check.above,
             &mut check.below,
         );

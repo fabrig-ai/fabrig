@@ -60,6 +60,7 @@ mod notes;
 mod parked;
 mod process;
 pub mod provider;
+pub mod restarts;
 mod review;
 mod two_workers;
 mod walk;
@@ -1506,6 +1507,7 @@ impl World {
             | Delivery::ReadEscalationDecision { .. }
             | Delivery::Fleet(_)
             | Delivery::PartLoad { .. }
+            | Delivery::PartBusy { .. }
             | Delivery::ReadLoad { .. }
             | Delivery::Public { .. }
             | Delivery::PublicWait { .. }
@@ -1765,6 +1767,7 @@ impl World {
                     | host::LinkUp::Usage { .. }
                     | host::LinkUp::Limited { .. }
                     | host::LinkUp::AccountRefused { .. }
+                    | host::LinkUp::Part { .. }
                     | host::LinkUp::JobAnswer { .. }
                     | host::LinkUp::Ask { .. }
                     | host::LinkUp::Answer { .. } => {}
@@ -2079,6 +2082,7 @@ fn forge_operation(mut op: worker::checkout::git::Op, git_base: &[u8]) -> worker
         | Op::Reset { .. }
         | Op::Pack { .. }
         | Op::Point { .. }
+        | Op::Keep { .. }
         | Op::Make { .. }
         | Op::CheckOut { .. }
         | Op::Look { .. }

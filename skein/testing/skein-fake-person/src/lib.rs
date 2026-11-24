@@ -114,7 +114,7 @@ pub struct Person<A> {
     script: Box<[Step<A>]>,
     at: u32,
     since: Option<Time>,
-    failed: Option<Why>,
+    failed: Option<(Why, Option<Duration>)>,
 }
 
 /// The next operation or the reason the script cannot progress.
@@ -189,18 +189,23 @@ impl<A: Clone> Person<A> {
     pub fn at(&self) -> u32 {
         self.at
     }
+    /// The bound of a failed expectation, or none for an immediate failure.
+    #[must_use]
+    pub fn expired(&self) -> Option<Duration> {
+        self.failed.as_ref().and_then(|(_, bound)| *bound)
+    }
     fn advance(&mut self) {
         self.at = self.at.checked_add(1).expect("script length fits step numbers");
         self.since = None;
     }
-    fn fail(&mut self, why: Why) -> Next<A> {
-        self.failed = Some(why.clone());
+    fn fail(&mut self, why: Why, bound: Option<Duration>) -> Next<A> {
+        self.failed = Some((why.clone(), bound));
         Next::Failed { step: self.at, why }
     }
     /// Query the face and report at most one operation. A failure stays terminal.
     #[must_use]
     pub fn next<F: Face>(&mut self, face: &mut F, now: Time) -> Next<A> {
-        if let Some(why) = &self.failed {
+        if let Some((why, _)) = &self.failed {
             return Next::Failed { step: self.at, why: why.clone() };
         }
         let Some(step) = self.script.get(usize::try_from(self.at).expect("step fits usize")) else {
@@ -222,11 +227,11 @@ impl<A: Clone> Person<A> {
                 Found::Node(node) => {
                     let act = Act::Near { edge: *edge };
                     if !face.allows(node, &act) {
-                        return self.fail(Why::Unexpected { find: find.clone() });
+                        return self.fail(Why::Unexpected { find: find.clone() }, None);
                     }
                     Next::Do(Doing::Act { node, act })
                 }
-                Found::Absent => return self.fail(Why::Missing { find: find.clone() }),
+                Found::Absent => return self.fail(Why::Missing { find: find.clone() }, None),
                 Found::Pending => return Next::Wait { until: None },
             },
             Step::Press { find } | Step::Type { find, .. } | Step::Send { find } => match face.find(find) {
@@ -253,11 +258,11 @@ impl<A: Clone> Person<A> {
                         }
                     };
                     if !face.allows(node, &act) {
-                        return self.fail(Why::Unexpected { find: find.clone() });
+                        return self.fail(Why::Unexpected { find: find.clone() }, None);
                     }
                     Next::Do(Doing::Act { node, act })
                 }
-                Found::Absent => return self.fail(Why::Missing { find: find.clone() }),
+                Found::Absent => return self.fail(Why::Missing { find: find.clone() }, None),
                 Found::Pending => return Next::Wait { until: None },
             },
             Step::See { find, within } | Step::Gone { find, within } => {
@@ -292,7 +297,7 @@ impl<A: Clone> Person<A> {
                     | Step::Reload
                     | Step::Pause { .. } => unreachable!("expectation step"),
                 };
-                return self.fail(why);
+                return self.fail(why, Some(*within));
             }
         };
         self.advance();

@@ -4,6 +4,7 @@ use temper_service_shell::{Host, Served};
 use temper_shell::directories::{Directories, EnvironmentEntry};
 use temper_worker_service::fetch::{self, Fetch};
 pub const SERVED: Served<Fetch> = Served {
+    set_local_places: None,
     stages: &temper_worker_service::STAGES,
     iterate_stage: fetch::iterate_stage,
     resolve: |_| {},

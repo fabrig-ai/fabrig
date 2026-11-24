@@ -180,11 +180,12 @@ impl Timing {
             | process::Request::Send {
                 message:
                     host::Down::Answer { .. }
+                    | host::Down::PartKept { .. }
                     | host::Down::Acknowledge { .. }
                     | host::Down::Grant { .. }
                     | host::Down::Renewals { .. }
                     | host::Down::Cancel
-                    | host::Down::Drain,
+                    | host::Down::Drain { .. },
                 ..
             } => {}
         }
@@ -207,7 +208,8 @@ impl Timing {
                         }
                     }
                 }
-                host::Up::Admitted
+                host::Up::Part { .. }
+                | host::Up::Admitted
                 | host::Up::Call { .. }
                 | host::Up::Withdraw { .. }
                 | host::Up::Fact { .. }
@@ -546,6 +548,8 @@ mod tests {
                 process: Token::new(8),
                 message: host::Down::Start {
                     start: host::Start {
+                        parts: Box::default(),
+                        tell_parts: false,
                         live: None,
                         identity: None,
                         messages: messages.into_boxed(),

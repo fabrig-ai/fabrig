@@ -38,7 +38,16 @@ pub(super) fn answered_next(tools: &mut Tools, block: &Block, result: &Returned)
 }
 
 pub(super) fn answered(tools: &mut Tools, slot: u32, block: &Block, result: &Returned) {
-    let failed = match result {
+    let failed = failed(block, result);
+    if failed {
+        let call = u16::try_from(slot.checked_add(1).expect("bounded call count")).expect("bounded completion calls");
+        tools.failed = Some(tools.failed.unwrap_or(call).min(call));
+    }
+}
+
+/// Whether this result suppresses the writes after its call.
+pub(super) fn failed(block: &Block, result: &Returned) -> bool {
+    match result {
         Returned::Invalid { .. } => true,
         Returned::Owned { outcome } => {
             file_change(block)
@@ -66,16 +75,13 @@ pub(super) fn answered(tools: &mut Tools, slot: u32, block: &Block, result: &Ret
                     | Outcome::EditFailed { .. }
                     | Outcome::Failed { .. }
                     | Outcome::TimedOut
+                    | Outcome::Interrupted { .. }
                     | Outcome::Cancelled
                     | Outcome::Busy
                     | Outcome::NulByte => true,
                 }
         }
         Returned::Text { .. } | Returned::Withdrawn | Returned::NotRun { .. } => false,
-    };
-    if failed {
-        let call = u16::try_from(slot.checked_add(1).expect("bounded call count")).expect("bounded completion calls");
-        tools.failed = Some(tools.failed.unwrap_or(call).min(call));
     }
 }
 

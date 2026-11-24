@@ -125,6 +125,7 @@ pub(crate) fn open(store: &mut Store, owner: Token, above: &mut Queue<Event>, be
         Record::Core(
             CoreRecord::Settings(_)
             | CoreRecord::Projection(_)
+            | CoreRecord::Part(_)
             | CoreRecord::Call(_)
             | CoreRecord::RunProof(_)
             | CoreRecord::Turn(_)

@@ -345,6 +345,61 @@ fn owned_config() -> engine::Config {
     config
 }
 #[test]
+fn a_forge_whose_start_was_never_heard_stays_unfinished_across_a_restart() {
+    // protocol/setup/owned-repositories.md, 1: admission keeps the forge and its intent, not a made repository.
+    let limits = fixtures::forge_limits();
+    let mut driver = Driver::configured(Store::new(), std::array::from_fn(|_| owned_config()), &limits);
+    driver.hello(Token::new(7));
+    driver.settle();
+    driver.sign_in();
+    driver.settle();
+    let first = forge::SetUpFirst::Empty {
+        org: b"work".as_slice().into(),
+        repository: b"hello".as_slice().into(),
+        playground: false,
+        sample: false,
+    };
+    assert_eq!(setup_intent(&mut driver, 71, forge::Making::New(forge::ForgeAsk::Owned), first.clone()), None);
+    let request = driver
+        .immediate
+        .iter()
+        .find_map(|effect| {
+            if let engine::Request::SetUp { forge: 1, request, first: intent, .. } = effect {
+                assert_eq!(*intent, first);
+                Some(*request)
+            } else {
+                None
+            }
+        })
+        .expect("admitted setup reaches the box");
+    event(&mut driver, forge::Event::SetUpAnswered { forge: 1, request, answer: forge::SetUpAnswer::SettingUp });
+    event(&mut driver, forge::Event::Connection { forge: 1, state: forge::Connection::SettingUp { step: None } });
+    assert_eq!(forges(&mut driver).rows[0].connection, forge::Connection::SettingUp { step: None });
+    let mut store = driver.take_store();
+    store.crash(71);
+    let mut restarted = Driver::cold(store, owned_config(), &limits);
+    restarted.hello(Token::new(7));
+    restarted.settle();
+    assert!(restarted.root.ready(), "the engine restored its store");
+    restarted.sign_in();
+    restarted.settle();
+    let rows = forges(&mut restarted);
+    assert_eq!(rows.rows.len(), 1);
+    let row = &rows.rows[0];
+    assert_eq!(row.number, 1);
+    assert_eq!(row.mode, forge::Mode::Owned);
+    assert_eq!(row.connection, forge::Connection::NotConnected, "the cut lost the connection progress");
+    let repository = row.first.as_ref().expect("the intent survives with the unfinished forge");
+    assert_eq!(repository.org.as_ref(), b"work");
+    assert_eq!(repository.repository.as_ref(), b"hello");
+    assert_eq!(repository.state, forge::FirstState::Making);
+    assert!(
+        !restarted.immediate.iter().any(|request| matches!(request, engine::Request::SetUp { .. })),
+        "cold restore does not replay the owner's setup"
+    );
+}
+
+#[test]
 fn deferred_owned_rows_keep_their_choice_across_engine_restart() {
     let address: Box<[u8]> = Box::from(b"https://source.example/owner/repo".as_slice());
     for (first, starts_with) in [

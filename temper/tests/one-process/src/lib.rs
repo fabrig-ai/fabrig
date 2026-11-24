@@ -14,6 +14,7 @@ mod oracle;
 pub mod referee;
 pub mod replay;
 mod restart_control;
+pub mod restarts;
 mod schemas;
 pub mod store_check;
 mod stories;

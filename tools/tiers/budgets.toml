@@ -145,6 +145,7 @@ instructions = 10_600_000_000
 [gate.default.skein.simulated]
 cpu_s = 3
 instructions = 48_100_000_000
+accepted_instructions = 39_800_000_000
 
 [gate.default.skein.real-loop]
 cpu_s = 7
@@ -157,6 +158,12 @@ from = "skein.real-loop"
 to = "skein.simulated"
 cpu_s = 3.7
 why = "skein-echo-world, skein-fake-peers-tests, skein-kv-tests, skein-oauth-accounts-world and skein-world-tests' replaying tests left their real-loop suites for simulated binaries (tools/tiers/layers.md, 6.1)."
+
+[[gate.default.moves]]
+from = "skein.real-loop"
+to = "skein.simulated"
+cpu_s = 2.0
+why = "github-conformance's suite, 44 cases, left the real loop to replay on the fake machine (temper/docs/design/draft/slow-tests-down.md, 5.2); the user's figure of 2026-11-23."
 
 [gate.default.smith]
 ideal_s = 30
@@ -181,6 +188,7 @@ instructions = 22_200_000_000
 [gate.default.smith.simulated]
 cpu_s = 11
 instructions = 73_200_000_000
+accepted_instructions = 84_200_000_000
 
 [gate.default.smith.real-loop]
 cpu_s = 2
@@ -199,6 +207,12 @@ from = "smith.end-to-end"
 to = "smith.simulated"
 cpu_s = 2.1
 why = "smith-fake-claude's encodings and hosted fake left their end-to-end binary for a simulated binary (tools/tiers/layers.md, 6.1)."
+
+[[gate.default.moves]]
+from = "smith.end-to-end"
+to = "smith.simulated"
+cpu_s = 1.5
+why = "smith's command-line tests, 63 cases, left smith::end_to_end for the simulated local- and agent-process worlds (temper/docs/design/draft/slow-tests-down.md, 5.3); the user's figure of 2026-11-24."
 
 [[gate.default.moves]]
 from = "smith.real-loop"
@@ -369,12 +383,19 @@ cpu_s = 2
 
 [gate.default.hearth.simulated]
 instructions = 25_300_000_000
+accepted_instructions = 44_000_000_000
 
 [[gate.default.moves]]
 from = "hearth.real-loop"
 to = "hearth.simulated"
 cpu_s = 3.9
 why = "hearth-builder-world's tests that replay left its real-loop binary for a binary of their own (tools/tiers/layers.md, 6.1)."
+
+[[gate.default.moves]]
+from = "hearth.real-loop"
+to = "hearth.simulated"
+cpu_s = 3.0
+why = "hearth's builder render, diff, outcome, repository and store cases, 220, left its real and suite binaries for the simulated world (temper/docs/design/draft/slow-tests-down.md, 5.2); the user's figure of 2026-11-24."
 
 [gate.default.repository]
 ideal_s = 30

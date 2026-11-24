@@ -24,7 +24,7 @@ fn a_replay_arm_runs_through_the_probe_command_and_prints_one_line() {
     std::fs::write(login.join("config/smith/config.toml"), []).expect("setup marker");
     std::fs::write(login.join("host-id"), []).expect("host marker");
     std::fs::write(login.join("tokens/chatgpt"), []).expect("record marker");
-    let output = Command::new(env!("CARGO_BIN_EXE_smith-bench"))
+    let output = Command::new(skein_scratch::paths::binary("smith-bench"))
         .args(["probe", "probes/smoke-tools", "--arm"])
         .arg(&arm)
         .arg("--shared-temporary")
@@ -61,7 +61,7 @@ fn replay_arm(directory: &Path) -> PathBuf {
     let mut build = common::unexecuted_arm(directory, repository);
     let settings = build.directory.join("recording.jsonl");
     std::fs::write(&settings, common::events::bytes(&common::events::balanced())).expect("wire recording");
-    let executable = std::fs::read(env!("CARGO_BIN_EXE_test-peer")).expect("Rust replay peer");
+    let executable = std::fs::read(skein_scratch::paths::binary("test-peer")).expect("Rust replay peer");
     let program = build.directory.join("smith");
     std::fs::write(&program, &executable).expect("replay executable");
     std::fs::set_permissions(&program, std::fs::Permissions::from_mode(0o700)).expect("execute");
@@ -128,7 +128,7 @@ fn a_missing_smoke_login_refuses_before_calibration() {
     let scratch = root("missing-smoke-login");
     let directory = scratch.path().join("root");
     std::fs::DirBuilder::new().mode(0o700).create(&directory).expect("private root");
-    let output = Command::new(env!("CARGO_BIN_EXE_smith-bench"))
+    let output = Command::new(skein_scratch::paths::binary("smith-bench"))
         .args(["suite", "smoke"])
         .env_clear()
         .env("PATH", "/usr/bin:/bin")

@@ -3,16 +3,19 @@
 use std::collections::VecDeque;
 
 use skein_io::kernel::{Complete, Done, Exit, Fd, Op, OpenHow, Pipe, Reason, Signal, Spawn, Submit, Way};
-use skein_lib::{Duration, Queue, Time, Token, Wall};
+use skein_lib::{Queue, Time, Token, Wall};
 use skein_world::{Host, Inherited, Machine};
+
+mod exchange;
+mod server;
+
+pub use exchange::Address;
 
 /// One sequential kernel operation in a parent or child script.
 #[derive(Clone, Copy, Debug)]
 pub enum Act {
     /// The parent asks to start the hosted program.
     Spawn,
-    /// The parent starts the named hosted program.
-    SpawnProgram(&'static [u8]),
     /// Sets a terminal window size through its master.
     Resize(usize, skein_io::kernel::Size),
     /// Reads the terminal modes through its master.
@@ -43,14 +46,24 @@ pub enum Act {
     CloseLaunch,
     /// The parent sends an interrupt, termination or kill signal to its child.
     Signal(Signal),
-    /// The parent kills its child's group for this cause, as io's close does.
-    Kill(Reason),
     /// The child waits for a catchable signal from its parent.
     ReadSignal,
     /// The script stops until this simulated instant.
     Pause(Time),
-    /// The script pauses from the iteration that starts this act.
-    PauseFor(Duration),
+    /// Listens on loopback and prints prefix, bound address, suffix and newline to the named pipe index.
+    ListenAndPrint { output: usize, prefix: &'static str, suffix: &'static str },
+    /// Answers HTTP requests until a termination signal; requires `ListenAndPrint` first.
+    AnswerRequests(u16),
+    /// Reads an inherited pipe until EOF, retaining every byte.
+    ReadToEnd(usize),
+    /// Prints an argument and a newline to an inherited pipe.
+    PrintArgument { output: usize, argument: usize },
+    /// Exits with this status after closing all descriptors.
+    ExitCode(u8),
+    /// Connects to a launch address, sends the request and keeps the reply through EOF.
+    Exchange { address: Address, request: &'static [u8] },
+    /// Answers as `AnswerRequests` does, with a fixed response body.
+    AnswerRequestsWithBody { status: u16, body: &'static [u8] },
 }
 
 /// A script runs kernel operations and closes all its descriptors at the end.
@@ -65,12 +78,16 @@ pub struct Script {
     roots: Vec<Fd>,
     pub args: Box<[Box<[u8]>]>,
     waiting: bool,
+    reading_to_end: Option<usize>,
     next: u64,
     done: bool,
     pause: Option<Time>,
     completions: Queue<Complete>,
     submissions: Queue<Submit>,
     pub received: Vec<u8>,
+    pub request_heads: Vec<Box<[u8]>>,
+    exchanges: Option<Box<exchange::Exchanges>>,
+    server: Option<Box<server::Server>>,
     pub modes: Vec<skein_shell::Modes>,
     pub results: Vec<Result<Done, skein_io::kernel::Error>>,
     pub signals: Vec<skein_io::kernel::ServiceSignal>,
@@ -96,12 +113,16 @@ impl Script {
             roots: Vec::new(),
             args: Box::new([Box::from(&b"argument"[..])]),
             waiting: false,
+            reading_to_end: None,
             next: 1,
             done: false,
             pause: None,
             completions: Queue::with_capacity(8),
             submissions: Queue::with_capacity(8),
             received: Vec::new(),
+            request_heads: Vec::new(),
+            exchanges: None,
+            server: None,
             modes: Vec::new(),
             results: Vec::new(),
             signals: Vec::new(),
@@ -132,12 +153,28 @@ impl Script {
         script
     }
 
-    /// A hosted parent uses its last startup root to launch its own child.
+    /// A child that reads its own launch arguments or environment.
     #[must_use]
-    pub fn hosted_parent(inherited: &Inherited, acts: &[Act]) -> Self {
+    pub fn spawned(spawn: &Spawn, inherited: &Inherited, acts: &[Act]) -> Self {
         let mut script = Self::child(inherited, acts);
-        script.root = Some(script.roots.pop().expect("hosted parent's launch root"));
+        script.args.clone_from(&spawn.args);
+        script.exchanges = Some(Box::new(exchange::Exchanges::new(spawn)));
         script
+    }
+
+    #[must_use]
+    pub fn env(&self) -> &[Box<[u8]>] {
+        self.exchanges.as_deref().map_or(&[], |exchanges| &exchanges.env)
+    }
+
+    #[must_use]
+    pub fn replies(&self) -> &[Vec<u8>] {
+        self.exchanges.as_deref().map_or(&[], |exchanges| &exchanges.replies)
+    }
+
+    #[must_use]
+    pub fn listening_address(&self) -> Option<std::net::SocketAddr> {
+        self.server.as_deref().and_then(server::Server::address)
     }
 
     /// Adopts scripted pipe or terminal descriptors opened by the binary kit.
@@ -154,15 +191,23 @@ impl Script {
         self.waiting = true;
     }
 
-    fn start(&mut self, act: Act, now: Time) {
+    fn answer_requests(&mut self, status: u16, body: &'static [u8]) {
+        let mut server = self.server.take().expect("listen before serving");
+        server.serve(self, status, body);
+        self.server = Some(server);
+    }
+
+    fn start_exchange(&mut self, address: Address, request: &'static [u8]) -> Op {
+        let address = address.read(self);
+        self.exchanges.as_mut().expect("an exchange uses the child's launch record").start(address, request)
+    }
+
+    fn start(&mut self, act: Act) {
         let kind = match act {
-            Act::Spawn | Act::SpawnStderr | Act::SpawnProgram(_) => Op::Spawn {
+            Act::Spawn | Act::SpawnStderr => Op::Spawn {
                 spawn: Box::new(Spawn {
                     reach: None,
-                    program: Box::from(match act {
-                        Act::SpawnProgram(program) => program,
-                        _ => &b"hosted"[..],
-                    }),
+                    program: Box::from(&b"hosted"[..]),
                     args: self.args.clone(),
                     env: Box::new([Box::from(&b"KEY=value"[..])]),
                     root: self.root.expect("parent root"),
@@ -205,17 +250,9 @@ impl Script {
                 signal,
                 to: skein_io::kernel::Target::Child,
                 reason: match signal {
-                    Signal::Kill => skein_io::kernel::Reason::Asked,
-                    Signal::Interrupt | Signal::Terminate | Signal::Stop | Signal::Continue => {
-                        skein_io::kernel::Reason::Unknown
-                    }
+                    Signal::Kill => Reason::Asked,
+                    Signal::Interrupt | Signal::Terminate | Signal::Stop | Signal::Continue => Reason::Unknown,
                 },
-            },
-            Act::Kill(reason) => Op::Signal {
-                pidfd: self.pidfd.expect("spawned child"),
-                signal: Signal::Kill,
-                to: skein_io::kernel::Target::Group,
-                reason,
             },
             Act::AwaitStderr(bytes) => {
                 self.awaiting = Some(bytes);
@@ -234,8 +271,26 @@ impl Script {
                 self.pause = Some(until);
                 return;
             }
-            Act::PauseFor(duration) => {
-                self.pause = Some(now.saturating_add(duration));
+            Act::ListenAndPrint { output, prefix, suffix } => {
+                assert!(self.server.is_none(), "one listener per scripted server");
+                self.server = Some(Box::new(server::Server::announce(self, self.fds[output], prefix, suffix)));
+                return;
+            }
+            Act::AnswerRequests(status) => return self.answer_requests(status, b""),
+            Act::AnswerRequestsWithBody { status, body } => return self.answer_requests(status, body),
+            Act::Exchange { address, request } => self.start_exchange(address, request),
+            Act::ReadToEnd(at) => {
+                self.reading_to_end = Some(at);
+                Op::PipeRead { fd: self.fds[at], buf: Box::new([0; 32]) }
+            }
+            Act::PrintArgument { output, argument } => {
+                let mut bytes = self.args[argument].to_vec();
+                bytes.push(b'\n');
+                Op::PipeWrite { fd: self.fds[output], bytes: bytes.into_boxed_slice(), from: 0 }
+            }
+            Act::ExitCode(code) => {
+                self.terminal = Some(Exit::Code(code));
+                self.acts.clear();
                 return;
             }
         };
@@ -256,8 +311,23 @@ impl Host for Script {
             self.held = vec![0; self.hog].into_boxed_slice();
             self.hog = 0;
         }
+        if self.server.as_deref().is_some_and(server::Server::active) {
+            let mut server = self.server.take().expect("active server");
+            server.iterate(self);
+            self.server = Some(server);
+            return;
+        }
         while let Some(complete) = self.completions.pop() {
             self.waiting = false;
+            if let Some(exchanges) = self.exchanges.as_deref_mut()
+                && exchanges.active()
+            {
+                if let Some(op) = exchanges.advance(complete) {
+                    self.submit(op);
+                }
+                continue;
+            }
+            let reading_to_end = self.reading_to_end.take();
             match complete.result {
                 Ok(Done::Spawned { pidfd, .. }) => {
                     self.pidfd = Some(pidfd);
@@ -268,6 +338,11 @@ impl Host for Script {
                     if let Op::PipeRead { buf, .. } | Op::Read { buf, .. } = &complete.kind {
                         if matches!(self.acts.front(), Some(Act::ReadUntil(..))) {
                             assert_ne!(count, 0, "the pipe ended before its read marker");
+                        }
+                        if let Some(at) = reading_to_end
+                            && count != 0
+                        {
+                            self.acts.push_front(Act::ReadToEnd(at));
                         }
                         self.received.extend_from_slice(&buf[..usize::try_from(count).expect("small count")]);
                     }
@@ -291,6 +366,7 @@ impl Host for Script {
                         !matches!(self.acts.front(), Some(Act::ReadUntil(..))),
                         "the pipe failed before its read marker: {error:?}"
                     );
+                    assert!(reading_to_end.is_none(), "the pipe failed before EOF: {error:?}");
                 }
             }
             self.results.push(complete.result);
@@ -300,7 +376,7 @@ impl Host for Script {
         }
         self.pause = None;
         if let Some(act) = self.acts.pop_front() {
-            self.start(act, now);
+            self.start(act);
             return;
         }
         if let Some(fd) = self
@@ -329,7 +405,11 @@ impl Host for Script {
     }
     fn work_pending(&self, now: Time) -> bool {
         !self.completions.is_empty()
-            || (!self.waiting && !self.done && self.awaiting.is_none() && self.pause.is_none_or(|at| now >= at))
+            || (!self.server.as_deref().is_some_and(server::Server::active)
+                && !self.waiting
+                && !self.done
+                && self.awaiting.is_none()
+                && self.pause.is_none_or(|at| now >= at))
     }
     fn next_mechanism_deadline(&self) -> Option<Time> {
         None

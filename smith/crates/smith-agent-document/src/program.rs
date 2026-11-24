@@ -4,11 +4,7 @@
 
 use std::{
     ffi::{OsStr, OsString},
-    fs,
-    os::unix::{
-        ffi::OsStrExt,
-        fs::{DirBuilderExt, MetadataExt},
-    },
+    os::unix::{ffi::OsStrExt, fs::DirBuilderExt},
     path::{Path, PathBuf},
     process::Stdio,
 };
@@ -19,6 +15,7 @@ use std::{
 )]
 use std::process::Command;
 
+use skein_io::kernel::{Kind, Stat};
 use smith_protocol_program::{ANTHROPIC_DIRECTORY, Error, Programs, SIGN_IN, configuration_directory, keeps};
 
 /// Why a source's directories were refused before its program ran.
@@ -70,20 +67,29 @@ impl std::fmt::Display for Refusal {
 
 /// Check an existing directory's kind, owner and mode; `Ok(false)` means absent.
 pub fn private_directory(path: &Path) -> Result<bool, Refusal> {
+    private_directory_with(path, skein_shell::effective_user(), inspect(path))
+}
+
+fn inspect(path: &Path) -> std::io::Result<Stat> {
     let inspected: PathBuf = path.components().collect();
-    let metadata = match fs::symlink_metadata(&inspected) {
+    skein_shell::symlink_stat(&inspected)
+}
+
+/// Check supplied no-follow metadata; a not-found result means the name is absent.
+pub fn private_directory_with(path: &Path, user: u32, metadata: std::io::Result<Stat>) -> Result<bool, Refusal> {
+    let metadata = match metadata {
         Ok(metadata) => metadata,
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => return Ok(false),
         Err(error) => return Err(Refusal::Io { path: path.into(), error }),
     };
-    let found = if metadata.file_type().is_symlink() {
+    let found = if metadata.kind == Kind::Symlink {
         Some(Unsafe::Link)
-    } else if !metadata.is_dir() {
+    } else if metadata.kind != Kind::Directory {
         Some(Unsafe::NotADirectory)
-    } else if metadata.uid() != skein_shell::effective_user() {
-        Some(Unsafe::Owner { found: metadata.uid() })
-    } else if metadata.mode() & 0o077 != 0 {
-        Some(Unsafe::Mode(metadata.mode() & 0o077))
+    } else if metadata.owner != user {
+        Some(Unsafe::Owner { found: metadata.owner })
+    } else if metadata.mode & 0o077 != 0 {
+        Some(Unsafe::Mode(metadata.mode & 0o077))
     } else {
         None
     };
@@ -95,35 +101,49 @@ pub fn private_directory(path: &Path) -> Result<bool, Refusal> {
 
 /// Make and recheck the private programs and source directories, refusing names first.
 pub fn prepare(directory: &Path, source: &str) -> Result<PathBuf, Refusal> {
+    prepare_with(directory, source, skein_shell::effective_user(), inspect, |path, parents, mode| {
+        std::fs::DirBuilder::new().recursive(parents).mode(mode).create(path)
+    })
+}
+
+/// Check both names before making either directory, then recheck each at its name.
+pub fn prepare_with(
+    directory: &Path,
+    source: &str,
+    user: u32,
+    mut inspect: impl FnMut(&Path) -> std::io::Result<Stat>,
+    mut create: impl FnMut(&Path, bool, u32) -> std::io::Result<()>,
+) -> Result<PathBuf, Refusal> {
     let programs = Programs { directory: directory.as_os_str().as_bytes().into(), claude: Box::default() };
     let configuration = match configuration_directory(&programs, source.as_bytes()) {
         Ok(path) => PathBuf::from(OsStr::from_bytes(&path)),
         Err(Error::Name) => return Err(Refusal::Name),
         Err(Error::Directory | Error::Environment) => return Err(Refusal::Relative(directory.into())),
     };
-    let programs_present = private_directory(directory)?;
-    let source_present = private_directory(&configuration)?;
+    let mut check = |path: &Path| private_directory_with(path, user, inspect(path));
+    let programs_present = check(directory)?;
+    let source_present = check(&configuration)?;
     if !programs_present {
-        make(directory, true)?;
+        made(directory, create(directory, true, 0o700))?;
     }
-    require_directory(directory)?;
+    require_directory(directory, check(directory)?)?;
     if !source_present {
-        make(&configuration, false)?;
+        made(&configuration, create(&configuration, false, 0o700))?;
     }
-    require_directory(&configuration)?;
+    require_directory(&configuration, check(&configuration)?)?;
     Ok(configuration)
 }
 
-fn require_directory(path: &Path) -> Result<(), Refusal> {
-    if private_directory(path)? {
+fn require_directory(path: &Path, present: bool) -> Result<(), Refusal> {
+    if present {
         Ok(())
     } else {
         Err(Refusal::Io { path: path.into(), error: std::io::Error::from(std::io::ErrorKind::NotFound) })
     }
 }
 
-fn make(path: &Path, parents: bool) -> Result<(), Refusal> {
-    match fs::DirBuilder::new().recursive(parents).mode(0o700).create(path) {
+fn made(path: &Path, result: std::io::Result<()>) -> Result<(), Refusal> {
+    match result {
         Ok(()) => Ok(()),
         Err(error) if error.kind() == std::io::ErrorKind::AlreadyExists => Ok(()),
         Err(error) => Err(Refusal::Io { path: path.into(), error }),

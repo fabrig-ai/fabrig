@@ -1,4 +1,4 @@
-//! Bounded channel records and the version-thirteen kind table. This crate keeps no
+//! Bounded channel records and the version-fourteen kind table. This crate keeps no
 //! runtime state and knows no domain, credentials or host policy. Generated
 //! records, encoders and decoders handle bodies; [`schema`] advertises
 //! their largest permitted encodings. Contracts: `protocol/channel.md`,
@@ -11,7 +11,7 @@ extern crate alloc;
 
 /// The current family schema text (skein/docs/design/data/codec/golden.md, section 1).
 #[expect(clippy::disallowed_macros, reason = "the owner embeds its current schema text once")]
-pub const CHANNEL_SCHEMA: &str = include_str!("../schema/channel-v13.schema");
+pub const CHANNEL_SCHEMA: &str = include_str!("../schema/channel-v14.schema");
 
 /// The current family schema text (skein/docs/design/data/codec/golden.md, section 1).
 #[expect(clippy::disallowed_macros, reason = "the owner embeds its current schema text once")]
@@ -19,13 +19,13 @@ pub const PIECES_SCHEMA: &str = include_str!("../schema/pieces-v1.schema");
 
 #[rustfmt::skip]
 mod generated {
-    pub mod v13 {
+    pub mod v14 {
         include!("generated/channel.rs");
     }
 }
 
-pub use generated::v13;
-pub use v13::{Usage, UsageState, UsageWindow};
+pub use generated::v14;
+pub use v14::{Usage, UsageState, UsageWindow};
 
 mod frame;
 pub mod kind;
@@ -35,27 +35,28 @@ pub mod reason;
 
 pub use frame::{Body, frame};
 
-pub use kinds::{KindRule, Overflow, V13, peer_terms_gap, schema};
-pub use v13::{
+pub use kinds::{KindRule, Overflow, V14, peer_terms_gap, schema};
+pub use v14::{
     Cap, CompletionLimit, CompletionPhase, LimitFailure, PathCap, PoolLimit, Record, Renewals, ResponseEvidence,
     TimeoutFailure,
 };
 
-pub use v13::{
+pub use v14::{
     Accepted, AccountRefused, Acknowledge, Admitted, Answer, AnsweredCall, Ask, BudgetCeiling, BudgetCeilingValue,
     BudgetChecks, BudgetCompletion, BudgetFailure, BudgetFailureValue, BudgetPart, BudgetPartValue, BudgetRefusal,
     BudgetRefusalValue, BudgetSpend, BudgetTime, BudgetTurns, CEILINGS, Call, CallName, Cancel, CompletionEvidence,
     CompletionFailure, CompletionFault, CredentialValue, DeliverAsk, Delivered, Delivery, DeliveryFailure,
     DeliveryReason, DeliveryRefusal, DeliveryReply, Directory, Drain, Effect, Fact, FactKind, Failed, Field, Grant,
-    GrantRefresh, GrantValue, HostAnswer, HostAsk, HostReply, InvalidStart, InvalidStartValue, Limited, LimitedFault,
-    Limits, Live, LiveAsk, LiveCall, LiveKind, Long, LongDone, Marker, Message, MessageRefusal, MessageRefused,
-    ModelFault, ModelFaultValue, Operation, Overflow as BudgetOverflow, OverflowValue, PolicyFailure, PriceRate,
-    PriceRateValue, ProgramFault, ProgramValue, Receipt, ReceivingLimit, ReceivingLimitValue, Refused, RefusedFault,
-    Reply, RunFailure, RunResult, SavedReply, Scheme, Signal, Signalled, Start, StartRefusal, TranscriptRefusal,
-    TranscriptRefusalValue, Turn, Unauthorized, UnauthorizedFault, Waiting, Window, WindowBound, Withdraw, Workspace,
+    GrantRefresh, GrantValue, HostAnswer, HostAsk, HostReply, InvalidStart, InvalidStartValue, KeptPart, Limited,
+    LimitedFault, Limits, Live, LiveAsk, LiveCall, LiveKind, Long, LongDone, Marker, Message, MessageRefusal,
+    MessageRefused, ModelFault, ModelFaultValue, Operation, Overflow as BudgetOverflow, OverflowValue, Part, PartKept,
+    PartKind, PolicyFailure, PriceRate, PriceRateValue, ProgramFault, ProgramValue, Receipt, ReceivingLimit,
+    ReceivingLimitValue, Refused, RefusedFault, Reply, RunFailure, RunResult, SavedReply, Scheme, Signal, Signalled,
+    Start, StartRefusal, TranscriptRefusal, TranscriptRefusalValue, Turn, Unauthorized, UnauthorizedFault, Waiting,
+    Window, WindowBound, Withdraw, Workspace,
 };
 
-pub use v13::{ListAnswer, ListAsk, ListFailed, ListFailure, ListRefused, ListRow, ListRows};
+pub use v14::{ListAnswer, ListAsk, ListFailed, ListFailure, ListRefused, ListRow, ListRows};
 
 /// This crate's spoken family and layout (temper/docs/design/protocol/wires.md, 3.1).
 pub mod wire {
@@ -63,7 +64,7 @@ pub mod wire {
     pub const FAMILY: &str = "smith-channel";
 
     /// The version named by the current schema's header.
-    pub const VERSION: u16 = crate::v13::VERSION;
+    pub const VERSION: u16 = crate::v14::VERSION;
 
     /// The lowest version this build speaks.
     pub const FLOOR: u16 = crate::patches::kept::smith_channel::FLOOR;

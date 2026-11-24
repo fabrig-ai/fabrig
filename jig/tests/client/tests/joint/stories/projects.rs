@@ -25,7 +25,7 @@ fn a_deleted_projects_read_reaches_the_client_as_gone() {
         driver,
         receiving,
         jig_protocol_transcript::Limits {
-            smith: smith_transcript::v7::CEILINGS,
+            smith: smith_transcript::v8::CEILINGS,
             bytes: 1_048_576,
             turn: c::TurnLimits { messages: 8, blocks: 8, text: 128, outcome: 128 },
         },

@@ -252,20 +252,47 @@ and changes no code above io:
   or the one a test forces (`skein_world::real`), and the echo's
   real-loop story runs on each: its smoke on the readiness backend,
   forced, beside the ring's.
-- **`drive`'s own tests,** in the real loop, over scripted hosts: one that
-  ends by itself returns its exit at once; one that waits on a keep time
-  after its last word fails the teardown check (../../foundation/testing-strategy.md, 6);
-  a termination signal while it closes aborts what is still closing; the
-  hook runs once per iteration, after `iterate`.
-- **Startup reads** (`tests/ring`): a whole file within its maximum, one
-  past it, a FIFO and a directory refused; a PEM bundle with certificates,
-  other blocks, a certificate that does not parse, and malformed blocks
-  of each kind (invalid base64, unterminated, ended by another label,
-  with headers), each skipped and counted while the rest are taken; a
-  bundle past each bound refused; a DER file. `directory_access`: a
+- **`drive`'s own tests,** below the real kernel, over a scripted kernel
+  and clock (section 11) and scripted hosts: one that ends by itself
+  returns its exit at once, after one turn and its drain, submitting
+  nothing; each turn reaps, reads the clock, iterates, drains and
+  submits, in that order, so the hook runs once per iteration, after
+  `iterate` and before the submit; it submits without waiting while work
+  is pending, else waits until the earlier of the mechanism and policy
+  deadlines as the clock's `until` gives it, whichever of the two is
+  earlier, or for a completion alone where there is none, and a
+  completion that comes first ends the wait; one that waits on a keep
+  time after its last word fails the teardown check
+  (../../foundation/testing-strategy.md, 6); a termination while it
+  closes aborts what is still closing, and `drive` returns once those
+  settle. The shipped binaries run it over the real kernel and clock,
+  the echo's end to end with its termination signal (../examples.md, 7).
+- **Startup reads:** what startup decides, it decides over facts handed
+  to it, and the shell's own tests hand them: a whole file within its
+  maximum and one past it, over the opened entry's metadata and the
+  lengths its reads return; a private file's checks (io/files.md, 3) over
+  its metadata, an owner other than the expected one refused as such; a
+  PEM bundle with certificates, other blocks, a certificate that does
+  not parse, and malformed blocks of each kind (invalid base64,
+  unterminated, ended by another label, with headers), each skipped and
+  counted while the rest are taken; a bundle past each bound refused; a
+  DER file taken whole as the one certificate; the machine's bundle asked
+  for at its path within the bundle's byte bound; a path holding a NUL
+  refused before any call. On the real kernel (`tests/ring`), what only
+  the kernel answers: a whole file at its bound and one past it, a FIFO
+  and a directory refused; a private file's mode, its links, its kind, a
+  link at it or in a parent, and an own file it may not open named by its
+  path; no descriptor left open by any read; `directory_access`: a
   writable directory, an absent path, a file, a directory without write
-  permission for the user, each answered as such, and nothing created
-  or changed by any of them.
+  or search permission for the user, each answered as such, and nothing
+  created or changed by any of them.
+- **Root preparation** (`make_root`, `shell-startup.md`, 1): its walk
+  over the results of its directory calls, in the shell's own tests, the
+  same walk on Linux and macOS: a nested absent path made from the top
+  down, each made directory's parent synced, each child opened from its
+  parent and each parent closed once its child is open, the last handed
+  up; a file at the path or in it refused, nothing made and no handle
+  left. On the real kernel, an existing directory keeps its mode.
 - **A command's settings** (the crate's own tests, no kernel): flag and
   variable precedence, empty variables, literal and XDG defaults, refusals,
   argument order and `--`, byte values, and help agreeing with refusals.
@@ -384,7 +411,12 @@ every service's `main`.
   (section 5), at every iteration, and submit, waiting not at all while
   work is pending, until the instant `until` gave, or until a completion. A service's `main`
   is its startup, then `drive`. It is native, as the kernel and the
-  clock it takes are (section 13).
+  clock it takes are (section 13). The loop itself turns over one face
+  of its kernel and clock: reap, read the clock, translate a deadline
+  with `until`, count what is in flight, submit with a wait. `drive` is
+  that loop over the native `Kernel` and `Clock`, and its own tests hand
+  it a scripted one (section 8), so the loop they check is the one that
+  ships.
 - **The hook** runs once per iteration, after `iterate` and before the
   submit, while the service is a frozen snapshot. It is for drains that
   belong to the shell: reading what the service holds for its operator

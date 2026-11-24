@@ -1097,7 +1097,11 @@ impl Joint {
     /// A whole-turn engine with two activity rows per page.
     #[must_use]
     pub fn with_reading_pages(seed: u64, limits: &client::Limits) -> Self {
-        let engine_limits = reading_engine_limits();
+        Self::with_reading_requests(seed, limits, 0)
+    }
+    pub(crate) fn with_reading_requests(seed: u64, limits: &client::Limits, requests: u32) -> Self {
+        let mut engine_limits = reading_engine_limits();
+        engine_limits.people.requests = engine_limits.people.requests.max(requests);
         Self::with_engine(
             seed,
             limits,

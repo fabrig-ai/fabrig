@@ -36,7 +36,7 @@ pub mod watch;
 
 pub use brief::stat_text;
 pub use case::{CaseInput, Step};
-pub use cli::{AREA, HOME, SESSION, TABLE, main};
+pub use cli::{AREA, Admission, CommandFaces, HOME, SESSION, TABLE, admit, answer, main};
 pub use config::{Agent, Bounds, Configuration, Git, RequestConfiguration};
 pub use findings::{Check, Finding, FindingAnswer, FindingInput, FindingState, Note};
 pub use gaps::{Gap, GapClosed, GapState};

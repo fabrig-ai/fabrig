@@ -79,9 +79,9 @@ pub use skein_lib::FixedStart;
 pub use clock::{Clock, Now};
 #[cfg(all(unix, target_os = "macos"))]
 pub(crate) use darwin as system;
-#[cfg(unix)]
-pub use drive::drive;
 pub use drive::{Delegate, Host};
+#[cfg(unix)]
+pub use drive::{Turns, drive, drive_with};
 #[cfg(all(unix, target_os = "linux"))]
 pub(crate) use linux as system;
 
@@ -109,6 +109,7 @@ pub use startup::{
     DirectoryAccess, OutputKind, RootBounds, Roots, RootsRefusal, STORE_OPERATIONS, StartupStore, StoreDirectory,
     Stored, Trust, Unread, Unstored, directory_access, effective_user, make_root, open_append, open_root,
     prepare_output, process_id, read_file, read_private_file, read_trust_roots, resolve_system_links, store_file,
+    symlink_stat,
 };
 
 #[cfg(unix)]

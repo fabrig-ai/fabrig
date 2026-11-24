@@ -128,6 +128,7 @@ fn delayed_facts_keep_activation_history_and_child_parentage() {
         let mut harness = Harness::new(LIMITS);
         harness.env.now = Time::from_nanos(7);
         let started = harness.step(Event::Start {
+            tell_parts: false,
             messages: Box::default(),
             reply_to: ReplyTo::new(Token::new(1)),
             host_run: Token::new(1),

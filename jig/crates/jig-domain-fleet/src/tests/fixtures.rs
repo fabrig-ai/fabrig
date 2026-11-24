@@ -22,6 +22,7 @@ pub fn adopt(run: skein_lib::Token, attempt: skein_lib::Token, kept: u32) -> cra
         run,
         attempt,
         kept,
+        kept_part: 0,
         kind: crate::HostKind::Worker,
         worked: false,
         holds: Box::new([]),

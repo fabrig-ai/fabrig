@@ -320,6 +320,9 @@ impl Workers {
                     kit::Bound::Translation { .. } => match unsent.kind {
                         jig_protocol_worker_wire::Kind::Assignment | jig_protocol_worker_wire::Kind::Job => {}
                         jig_protocol_worker_wire::Kind::Hello
+                        | jig_protocol_worker_wire::Kind::Part
+                        | jig_protocol_worker_wire::Kind::PartKept
+                        | jig_protocol_worker_wire::Kind::PartBusy
                         | jig_protocol_worker_wire::Kind::Turn
                         | jig_protocol_worker_wire::Kind::Call
                         | jig_protocol_worker_wire::Kind::Answer
@@ -458,6 +461,7 @@ pub fn parts(up: &host::LinkUp, parts: &[Part], limits: &wire::Limits) -> Option
         | host::LinkUp::Usage { .. }
         | host::LinkUp::Limited { .. }
         | host::LinkUp::AccountRefused { .. }
+        | host::LinkUp::Part { .. }
         | host::LinkUp::Turn { .. }
         | host::LinkUp::Ask { .. }
         | host::LinkUp::Call { .. } => (None, None),
@@ -627,6 +631,11 @@ impl Workers {
                 limits: crate::translate::limits(&settings.limits).ok_or(kit::host::invalid(What::Bound))?,
                 endpoints: smith_protocol_translate::Endpoints::new(endpoints),
                 deployment,
+                reply_bytes: settings.jig.limits.core.call_answer_bytes,
+                forge_reads: temper_engine_smith::ForgeReadBounds {
+                    rows: settings.limits.forge.client.rows,
+                    answer_bytes: settings.limits.forge.client.answer_bytes,
+                },
                 charter_bytes: crate::assignment::charter_bound(
                     settings.jig.limits.hub.charter_bytes,
                     settings.agent_charter_bytes,

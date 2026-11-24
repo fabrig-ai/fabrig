@@ -22,6 +22,7 @@ fn graces() -> Graces {
     Graces {
         grace: Duration::from_secs(30),
         drain: Duration::from_secs(10),
+        drain_grace: crate::DEFAULT_DRAIN_GRACE,
         agent_stop: Duration::from_secs(10),
         delivery: Duration::from_secs(20),
         save: Duration::from_secs(5),
@@ -55,7 +56,7 @@ fn an_absent_drain_uses_three_minutes() {
         if row.shape == "graces" {
             if row.name == "drain_ms" {
                 drain = Some(row);
-            } else {
+            } else if row.name != "drain_grace_ms" {
                 assert!(row.required);
             }
         }
@@ -74,6 +75,43 @@ fn a_present_drain_accepts_unsigned_milliseconds_up_to_a_duration() {
         assert_eq!(worker(&bytes).unwrap().graces.drain, Duration::from_millis(millis));
     }
 }
+#[test]
+fn drain_grace_defaults_to_ten_seconds_and_accepts_milliseconds_without_extending_the_stop_bound() {
+    assert_eq!(small().graces.drain_grace, Duration::from_secs(10));
+    for millis in [0, 73, 18_446_744_073_709_u64] {
+        let value = fixtures::with(
+            br#""drain_grace_ms": MILLIS, "grace_ms": 30000"#,
+            b"MILLIS",
+            skein_lib::Decimal::of(millis).as_bytes(),
+        );
+        let bytes = fixtures::with(fixtures::WORKER_SMALL, br#""grace_ms": 30000"#, &value);
+        let parsed = worker(&bytes).unwrap();
+        assert_eq!(parsed.graces.drain_grace, Duration::from_millis(millis));
+        assert_eq!(parsed.stop_bound, small().stop_bound);
+    }
+    let mut required = None;
+    for row in &crate::members::MEMBERS {
+        if row.shape == "graces" && row.name == "drain_grace_ms" {
+            required = Some(row.required);
+        }
+    }
+    assert_eq!(required, Some(false));
+}
+
+#[test]
+fn invalid_drain_grace_members_name_their_field() {
+    for (value, what) in [
+        (br#""ten""#.as_slice(), What::Kind),
+        (b"-1", What::Bound),
+        (b"1.5", What::Bound),
+        (b"18446744073710", What::Bound),
+        (b"10, \"drain_grace_ms\": 20", What::Duplicate),
+    ] {
+        let field = fixtures::with(br#""drain_grace_ms": VALUE, "grace_ms": 30000"#, b"VALUE", value);
+        refuses(br#""grace_ms": 30000"#, &field, fixtures::path(&[b"graces", b"drain_grace_ms"]), what);
+    }
+}
+
 #[test]
 fn invalid_drain_members_name_their_field() {
     for (drain, what) in [
@@ -347,6 +385,7 @@ fn fixed_worker_values_feed_the_stop_bound_and_source_interval() {
     let given = Graces {
         grace: Duration::from_secs(300),
         drain: Duration::from_secs(180),
+        drain_grace: crate::DEFAULT_DRAIN_GRACE,
         agent_stop: Duration::from_secs(5),
         delivery: Duration::from_secs(1),
         save: Duration::from_secs(1),

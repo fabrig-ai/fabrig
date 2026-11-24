@@ -25,9 +25,10 @@ pub struct Ring {
     pub(crate) state: State,
 }
 
-/// Host-local bindings and returned records (skein/docs/foundation/testing-strategy.md, 2.1).
+/// Host-local bindings and returned records, independent of the kernel
+/// delivering them (skein/docs/foundation/testing-strategy.md, 2.1).
 #[derive(Debug)]
-pub(crate) struct State {
+pub struct State {
     pub(crate) next: u64,
     pub(crate) limits: Vec<u32>,
     pub(crate) counts: Vec<u32>,
@@ -125,7 +126,9 @@ impl Ring {
 }
 
 impl State {
-    pub(crate) fn new(operations: u32, limits: Vec<u32>) -> Self {
+    /// Provisions kernel-facing queues and each owner's local operation budget.
+    #[must_use]
+    pub fn new(operations: u32, limits: Vec<u32>) -> Self {
         Self {
             next: 0,
             counts: vec![0; limits.len()],
@@ -137,6 +140,22 @@ impl State {
             submits: Queue::with_capacity(operations),
             arrived: Queue::with_capacity(operations),
         }
+    }
+
+    /// Kernel-facing completion queue.
+    pub fn completions(&mut self) -> &mut Queue<Complete> {
+        &mut self.arrived
+    }
+
+    /// Kernel-facing submission queue.
+    pub fn submissions(&mut self) -> &mut Queue<Submit> {
+        &mut self.submits
+    }
+
+    /// Whether every operation has been delivered and the kernel queues drained.
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.bindings.is_empty() && !self.has_ready() && self.arrived.is_empty() && self.submits.is_empty()
     }
 
     /// Queues a restored record until its owner has completion capacity.
@@ -203,13 +222,13 @@ impl State {
     }
 
     /// Reserves a kernel token for loop-owned cleanup, outside host bindings.
-    pub fn fresh(&mut self) -> Token {
+    pub(crate) fn fresh(&mut self) -> Token {
         self.next = self.next.checked_add(1).expect("world tokens do not wrap");
         Token::new(self.next)
     }
 
     /// Adds a host whose declared operations fit the provisioned total.
-    pub fn admit(&mut self, limit: u32) -> usize {
+    pub(crate) fn admit(&mut self, limit: u32) -> usize {
         let host = self.limits.len();
         self.limits.push(limit);
         self.counts.push(0);
@@ -219,7 +238,7 @@ impl State {
 
     /// Counts a host's operations, including terminals waiting for delivery.
     #[must_use]
-    pub fn count(&self, host: usize) -> u32 {
+    pub(crate) fn count(&self, host: usize) -> u32 {
         *self.counts.get(host).expect("a count per host")
     }
 

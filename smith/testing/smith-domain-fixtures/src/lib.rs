@@ -64,6 +64,8 @@ pub const SMALL: Limits = Limits {
 #[must_use]
 pub fn start(call: skein_lib::Token, charter: run::Charter) -> smith_domain::Start {
     smith_domain::Start {
+        tell_parts: false,
+        parts: Box::default(),
         reply_to: skein_lib::ReplyTo::new(call),
         host_run: call,
         activation: 1,

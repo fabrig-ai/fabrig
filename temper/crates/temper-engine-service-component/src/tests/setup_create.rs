@@ -105,6 +105,17 @@ impl Forge {
             self.requests.push(Box::from(line.as_slice())).unwrap();
         }
     }
+    /// Close the old service's stream at a crash without resetting the fake forge's repositories.
+    pub(super) fn disconnect(&mut self) {
+        if let Some(mut server) = self.server.take() {
+            fake::closed(&mut server, &mut self.service, &self.env, &mut self.events, &mut self.down);
+            self.record_requests();
+            self.socket = None;
+            self.events.clear();
+            self.down.clear();
+            self.service.reclaim();
+        }
+    }
     pub(super) fn turn_io(&mut self, engine: &mut crate::engine::Engine) {
         for setup in [true, false] {
             if self.only_setup && !setup {

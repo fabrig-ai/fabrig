@@ -13,6 +13,8 @@ fn a_start_keeps_host_bytes_and_service_values_in_order() {
 
     let limits = process_limits();
     let start = channel::Start {
+        parts: Box::default(),
+        tell_parts: false,
         live: None,
         messages: Box::default(),
         logical_run: Token::new(2),
@@ -27,6 +29,7 @@ fn a_start_keeps_host_bytes_and_service_values_in_order() {
             reply: channel::SavedReply::Host { error: false, body: Box::from(*b"ok") },
         }]),
         directories: Box::from([channel::Directory {
+            results: None,
             host: Box::from(b"/host".as_slice()),
             root: Token::new(1),
             name: Box::from(*b"src"),
@@ -123,6 +126,8 @@ fn a_resumed_start_forwards_saved_turns_from_an_unconfigured_endpoint() {
     let transcript = Transcript::from_saved(decoded, piece.clone(), owned).expect("exact ownership bound");
     assert_eq!(transcript.owned_bytes(), owned);
     let start = channel::Start {
+        parts: Box::default(),
+        tell_parts: false,
         live: None,
         messages: Box::default(),
         logical_run: Token::new(2),

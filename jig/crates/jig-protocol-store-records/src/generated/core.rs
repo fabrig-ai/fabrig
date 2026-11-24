@@ -3,7 +3,7 @@
 
 use alloc::boxed::Box;
 
-// Maps line 16: HoldOwner.
+// Maps line 17: HoldOwner.
 pub fn hold_owner_to_record(value: &jig_domain_people::HoldOwner, _context: &crate::codec::View) -> Result<crate::core_v6::HoldOwner, crate::core_v6::Problem> {
     match value {
         jig_domain_people::HoldOwner::Party { person: field_000000 } => Ok(crate::core_v6::HoldOwner::Party(crate::core_v6::HoldOwnerParty {
@@ -15,7 +15,7 @@ pub fn hold_owner_to_record(value: &jig_domain_people::HoldOwner, _context: &cra
     }
 }
 
-// Maps line 16: HoldOwner.
+// Maps line 17: HoldOwner.
 pub fn hold_owner_to_domain(record: crate::core_v6::HoldOwner, _context: &crate::codec::View) -> Result<jig_domain_people::HoldOwner, crate::core_v6::Problem> {
     match record {
         crate::core_v6::HoldOwner::Party(held) => {
@@ -33,7 +33,7 @@ pub fn hold_owner_to_domain(record: crate::core_v6::HoldOwner, _context: &crate:
     }
 }
 
-// Maps line 20: Proposer.
+// Maps line 21: Proposer.
 pub fn proposer_to_record(value: &jig_domain_people::Proposer, _context: &crate::codec::View) -> Result<crate::core_v6::Proposer, crate::core_v6::Problem> {
     match value {
         jig_domain_people::Proposer::Task(held) => Ok(crate::core_v6::Proposer::Task(crate::core_v6::ProposerTask { value: *held })),
@@ -41,7 +41,7 @@ pub fn proposer_to_record(value: &jig_domain_people::Proposer, _context: &crate:
     }
 }
 
-// Maps line 20: Proposer.
+// Maps line 21: Proposer.
 pub fn proposer_to_domain(record: crate::core_v6::Proposer, _context: &crate::codec::View) -> Result<jig_domain_people::Proposer, crate::core_v6::Problem> {
     match record {
         crate::core_v6::Proposer::Task(held) => Ok(jig_domain_people::Proposer::Task({
@@ -55,7 +55,7 @@ pub fn proposer_to_domain(record: crate::core_v6::Proposer, _context: &crate::co
     }
 }
 
-// Maps line 21: ProposalChoice.
+// Maps line 22: ProposalChoice.
 pub fn proposal_choice_to_record(value: &jig_domain_people::ProposalChoice, _context: &crate::codec::View) -> Result<crate::core_v6::ProposalChoice, crate::core_v6::Problem> {
     match value {
         jig_domain_people::ProposalChoice::Accepted => Ok(crate::core_v6::ProposalChoice::Accepted),
@@ -66,7 +66,7 @@ pub fn proposal_choice_to_record(value: &jig_domain_people::ProposalChoice, _con
     }
 }
 
-// Maps line 21: ProposalChoice.
+// Maps line 22: ProposalChoice.
 pub fn proposal_choice_to_domain(record: crate::core_v6::ProposalChoice, _context: &crate::codec::View) -> Result<jig_domain_people::ProposalChoice, crate::core_v6::Problem> {
     match record {
         crate::core_v6::ProposalChoice::Accepted => Ok(jig_domain_people::ProposalChoice::Accepted),
@@ -77,7 +77,7 @@ pub fn proposal_choice_to_domain(record: crate::core_v6::ProposalChoice, _contex
     }
 }
 
-// Maps line 23: EscalationDecision.
+// Maps line 24: EscalationDecision.
 pub fn escalation_decision_to_record(value: &jig_domain_people::EscalationDecision, _context: &crate::codec::View) -> Result<crate::core_v6::EscalationDecision, crate::core_v6::Problem> {
     match value {
         jig_domain_people::EscalationDecision::Release => Ok(crate::core_v6::EscalationDecision::Release),
@@ -88,7 +88,7 @@ pub fn escalation_decision_to_record(value: &jig_domain_people::EscalationDecisi
     }
 }
 
-// Maps line 23: EscalationDecision.
+// Maps line 24: EscalationDecision.
 pub fn escalation_decision_to_domain(record: crate::core_v6::EscalationDecision, _context: &crate::codec::View) -> Result<jig_domain_people::EscalationDecision, crate::core_v6::Problem> {
     match record {
         crate::core_v6::EscalationDecision::Release => Ok(jig_domain_people::EscalationDecision::Release),
@@ -102,7 +102,7 @@ pub fn escalation_decision_to_domain(record: crate::core_v6::EscalationDecision,
     }
 }
 
-// Maps line 24: ProposalKind.
+// Maps line 25: ProposalKind.
 pub fn proposal_kind_to_record(value: &jig_domain_tasks::ProposalKind, _context: &crate::codec::View) -> Result<crate::core_v6::ProposalKind, crate::core_v6::Problem> {
     match value {
         jig_domain_tasks::ProposalKind::Batch => Ok(crate::core_v6::ProposalKind::Batch),
@@ -114,7 +114,7 @@ pub fn proposal_kind_to_record(value: &jig_domain_tasks::ProposalKind, _context:
     }
 }
 
-// Maps line 24: ProposalKind.
+// Maps line 25: ProposalKind.
 pub fn proposal_kind_to_domain(record: crate::core_v6::ProposalKind, _context: &crate::codec::View) -> Result<jig_domain_tasks::ProposalKind, crate::core_v6::Problem> {
     match record {
         crate::core_v6::ProposalKind::Batch => Ok(jig_domain_tasks::ProposalKind::Batch),
@@ -126,7 +126,7 @@ pub fn proposal_kind_to_domain(record: crate::core_v6::ProposalKind, _context: &
     }
 }
 
-// Maps line 26: EscalationOutcome.
+// Maps line 27: EscalationOutcome.
 pub fn escalation_outcome_to_record(value: &jig_domain_tasks::EscalationOutcome, _context: &crate::codec::View) -> Result<crate::core_v6::EscalationOutcome, crate::core_v6::Problem> {
     match value {
         jig_domain_tasks::EscalationOutcome::Released => Ok(crate::core_v6::EscalationOutcome::Released),
@@ -140,7 +140,7 @@ pub fn escalation_outcome_to_record(value: &jig_domain_tasks::EscalationOutcome,
     }
 }
 
-// Maps line 26: EscalationOutcome.
+// Maps line 27: EscalationOutcome.
 pub fn escalation_outcome_to_domain(record: crate::core_v6::EscalationOutcome, _context: &crate::codec::View) -> Result<jig_domain_tasks::EscalationOutcome, crate::core_v6::Problem> {
     match record {
         crate::core_v6::EscalationOutcome::Released => Ok(jig_domain_tasks::EscalationOutcome::Released),
@@ -157,7 +157,7 @@ pub fn escalation_outcome_to_domain(record: crate::core_v6::EscalationOutcome, _
     }
 }
 
-// Maps line 27: ProposalOutcome.
+// Maps line 28: ProposalOutcome.
 pub fn proposal_outcome_to_record(value: &jig_domain_tasks::ProposalOutcome, _context: &crate::codec::View) -> Result<crate::core_v6::ProposalOutcome, crate::core_v6::Problem> {
     match value {
         jig_domain_tasks::ProposalOutcome::Accepted => Ok(crate::core_v6::ProposalOutcome::Accepted),
@@ -168,7 +168,7 @@ pub fn proposal_outcome_to_record(value: &jig_domain_tasks::ProposalOutcome, _co
     }
 }
 
-// Maps line 27: ProposalOutcome.
+// Maps line 28: ProposalOutcome.
 pub fn proposal_outcome_to_domain(record: crate::core_v6::ProposalOutcome, _context: &crate::codec::View) -> Result<jig_domain_tasks::ProposalOutcome, crate::core_v6::Problem> {
     match record {
         crate::core_v6::ProposalOutcome::Accepted => Ok(jig_domain_tasks::ProposalOutcome::Accepted),
@@ -179,7 +179,7 @@ pub fn proposal_outcome_to_domain(record: crate::core_v6::ProposalOutcome, _cont
     }
 }
 
-// Maps line 28: Source.
+// Maps line 29: Source.
 pub fn source_to_record(value: &jig_domain_authority::Source, _context: &crate::codec::View) -> Result<crate::core_v6::Source, crate::core_v6::Problem> {
     match value {
         jig_domain_authority::Source::Task => Ok(crate::core_v6::Source::Task),
@@ -189,7 +189,7 @@ pub fn source_to_record(value: &jig_domain_authority::Source, _context: &crate::
     }
 }
 
-// Maps line 28: Source.
+// Maps line 29: Source.
 pub fn source_to_domain(record: crate::core_v6::Source, _context: &crate::codec::View) -> Result<jig_domain_authority::Source, crate::core_v6::Problem> {
     match record {
         crate::core_v6::Source::Task => Ok(jig_domain_authority::Source::Task),
@@ -199,7 +199,7 @@ pub fn source_to_domain(record: crate::core_v6::Source, _context: &crate::codec:
     }
 }
 
-// Maps line 29: Lacks.
+// Maps line 30: Lacks.
 pub fn lacks_to_record(value: &jig_domain_authority::Lacks, _context: &crate::codec::View) -> Result<crate::core_v6::Lacks, crate::core_v6::Problem> {
     let jig_domain_authority::Lacks { tools: field_000000, grants: field_000001, executors: field_000002, tasks: field_000003, depth: field_000004, spend: field_000005, deadline: field_000006, notes: field_000007, models: field_000008 } = value;
     Ok(crate::core_v6::Lacks {
@@ -215,7 +215,7 @@ pub fn lacks_to_record(value: &jig_domain_authority::Lacks, _context: &crate::co
     })
 }
 
-// Maps line 29: Lacks.
+// Maps line 30: Lacks.
 pub fn lacks_to_domain(record: crate::core_v6::Lacks, _context: &crate::codec::View) -> Result<jig_domain_authority::Lacks, crate::core_v6::Problem> {
     let crate::core_v6::Lacks { tools: field_000000, grants: field_000001, executors: field_000002, tasks: field_000003, depth: field_000004, spend: field_000005, deadline: field_000006, notes: field_000007, models: field_000008 } = record;
     Ok(jig_domain_authority::Lacks {
@@ -231,7 +231,7 @@ pub fn lacks_to_domain(record: crate::core_v6::Lacks, _context: &crate::codec::V
     })
 }
 
-// Maps line 30: Judge.
+// Maps line 31: Judge.
 pub fn judge_to_record(value: &jig_domain_authority::Judge, _context: &crate::codec::View) -> Result<crate::core_v6::Judge, crate::core_v6::Problem> {
     let jig_domain_authority::Judge { connector: field_000000, requirement: field_000001, parameters: field_000002 } = value;
     Ok(crate::core_v6::Judge {
@@ -241,7 +241,7 @@ pub fn judge_to_record(value: &jig_domain_authority::Judge, _context: &crate::co
     })
 }
 
-// Maps line 30: Judge.
+// Maps line 31: Judge.
 pub fn judge_to_domain(record: crate::core_v6::Judge, _context: &crate::codec::View) -> Result<jig_domain_authority::Judge, crate::core_v6::Problem> {
     let crate::core_v6::Judge { connector: field_000000, requirement: field_000001, parameters: field_000002 } = record;
     Ok(jig_domain_authority::Judge {
@@ -251,7 +251,7 @@ pub fn judge_to_domain(record: crate::core_v6::Judge, _context: &crate::codec::V
     })
 }
 
-// Maps line 31: Answer.
+// Maps line 32: Answer.
 pub fn answer_to_record(value: &jig_domain_authority::Answer, _context: &crate::codec::View) -> Result<crate::core_v6::Answer, crate::core_v6::Problem> {
     match value {
         jig_domain_authority::Answer::Allow => Ok(crate::core_v6::Answer::Allow),
@@ -261,7 +261,7 @@ pub fn answer_to_record(value: &jig_domain_authority::Answer, _context: &crate::
     }
 }
 
-// Maps line 31: Answer.
+// Maps line 32: Answer.
 pub fn answer_to_domain(record: crate::core_v6::Answer, _context: &crate::codec::View) -> Result<jig_domain_authority::Answer, crate::core_v6::Problem> {
     match record {
         crate::core_v6::Answer::Allow => Ok(jig_domain_authority::Answer::Allow),
@@ -271,7 +271,7 @@ pub fn answer_to_domain(record: crate::core_v6::Answer, _context: &crate::codec:
     }
 }
 
-// Maps line 42: Finding.
+// Maps line 43: Finding.
 pub fn finding_to_record(value: &jig_domain_authority::Finding, context: &crate::codec::View) -> Result<crate::core_v6::Finding, crate::core_v6::Problem> {
     match value {
         jig_domain_authority::Finding::Oversized => Ok(crate::core_v6::Finding::Oversized),
@@ -324,7 +324,7 @@ pub fn finding_to_record(value: &jig_domain_authority::Finding, context: &crate:
     }
 }
 
-// Maps line 42: Finding.
+// Maps line 43: Finding.
 pub fn finding_to_domain(record: crate::core_v6::Finding, context: &crate::codec::View) -> Result<jig_domain_authority::Finding, crate::core_v6::Problem> {
     match record {
         crate::core_v6::Finding::Oversized => Ok(jig_domain_authority::Finding::Oversized),
@@ -407,7 +407,7 @@ pub fn finding_to_domain(record: crate::core_v6::Finding, context: &crate::codec
     }
 }
 
-// Maps line 43: HostKind.
+// Maps line 44: HostKind.
 pub fn host_kind_to_record(value: &jig_domain_fleet::HostKind, _context: &crate::codec::View) -> Result<crate::core_v6::HostKind, crate::core_v6::Problem> {
     match value {
         jig_domain_fleet::HostKind::Worker => Ok(crate::core_v6::HostKind::Worker),
@@ -415,7 +415,7 @@ pub fn host_kind_to_record(value: &jig_domain_fleet::HostKind, _context: &crate:
     }
 }
 
-// Maps line 43: HostKind.
+// Maps line 44: HostKind.
 pub fn host_kind_to_domain(record: crate::core_v6::HostKind, _context: &crate::codec::View) -> Result<jig_domain_fleet::HostKind, crate::core_v6::Problem> {
     match record {
         crate::core_v6::HostKind::Worker => Ok(jig_domain_fleet::HostKind::Worker),
@@ -423,7 +423,7 @@ pub fn host_kind_to_domain(record: crate::core_v6::HostKind, _context: &crate::c
     }
 }
 
-// Maps line 45: OutboxOutcome.
+// Maps line 46: OutboxOutcome.
 pub fn outbox_outcome_to_record(value: &jig_domain_core_vocabulary::effects::connector::OutboxOutcome, _context: &crate::codec::View) -> Result<crate::core_v6::OutboxOutcome, crate::core_v6::Problem> {
     match value {
         jig_domain_core_vocabulary::effects::connector::OutboxOutcome::Made => Ok(crate::core_v6::OutboxOutcome::Made),
@@ -437,7 +437,7 @@ pub fn outbox_outcome_to_record(value: &jig_domain_core_vocabulary::effects::con
     }
 }
 
-// Maps line 45: OutboxOutcome.
+// Maps line 46: OutboxOutcome.
 pub fn outbox_outcome_to_domain(record: crate::core_v6::OutboxOutcome, _context: &crate::codec::View) -> Result<jig_domain_core_vocabulary::effects::connector::OutboxOutcome, crate::core_v6::Problem> {
     match record {
         crate::core_v6::OutboxOutcome::Made => Ok(jig_domain_core_vocabulary::effects::connector::OutboxOutcome::Made),
@@ -454,7 +454,7 @@ pub fn outbox_outcome_to_domain(record: crate::core_v6::OutboxOutcome, _context:
     }
 }
 
-// Maps line 46: DeliveryOutcome.
+// Maps line 47: DeliveryOutcome.
 pub fn delivery_outcome_to_record(value: &jig_domain_core_vocabulary::DeliveryOutcome, _context: &crate::codec::View) -> Result<crate::core_v6::DeliveryOutcome, crate::core_v6::Problem> {
     match value {
         jig_domain_core_vocabulary::DeliveryOutcome::Delivered => Ok(crate::core_v6::DeliveryOutcome::Delivered),
@@ -466,7 +466,7 @@ pub fn delivery_outcome_to_record(value: &jig_domain_core_vocabulary::DeliveryOu
     }
 }
 
-// Maps line 46: DeliveryOutcome.
+// Maps line 47: DeliveryOutcome.
 pub fn delivery_outcome_to_domain(record: crate::core_v6::DeliveryOutcome, _context: &crate::codec::View) -> Result<jig_domain_core_vocabulary::DeliveryOutcome, crate::core_v6::Problem> {
     match record {
         crate::core_v6::DeliveryOutcome::Delivered => Ok(jig_domain_core_vocabulary::DeliveryOutcome::Delivered),
@@ -478,7 +478,7 @@ pub fn delivery_outcome_to_domain(record: crate::core_v6::DeliveryOutcome, _cont
     }
 }
 
-// Maps line 49: SettledAnswer.
+// Maps line 50: SettledAnswer.
 pub fn settled_answer_to_record(value: &jig_domain_core_vocabulary::SettledAnswer, context: &crate::codec::View) -> Result<crate::core_v6::SettledAnswer, crate::core_v6::Problem> {
     match value {
         jig_domain_core_vocabulary::SettledAnswer::Host { error: field_000000, body: field_000001 } => Ok(crate::core_v6::SettledAnswer::Host(crate::core_v6::SettledAnswerHost {
@@ -492,7 +492,7 @@ pub fn settled_answer_to_record(value: &jig_domain_core_vocabulary::SettledAnswe
     }
 }
 
-// Maps line 49: SettledAnswer.
+// Maps line 50: SettledAnswer.
 pub fn settled_answer_to_domain(record: crate::core_v6::SettledAnswer, context: &crate::codec::View) -> Result<jig_domain_core_vocabulary::SettledAnswer, crate::core_v6::Problem> {
     match record {
         crate::core_v6::SettledAnswer::Host(held) => {
@@ -512,7 +512,7 @@ pub fn settled_answer_to_domain(record: crate::core_v6::SettledAnswer, context: 
     }
 }
 
-// Maps line 50: SettledCall.
+// Maps line 51: SettledCall.
 pub fn settled_call_to_record(value: &jig_domain_core_vocabulary::SettledCall, context: &crate::codec::View) -> Result<crate::core_v6::SettledCall, crate::core_v6::Problem> {
     let jig_domain_core_vocabulary::SettledCall { serial: field_000000, tool: field_000001, answer: field_000002 } = value;
     Ok(crate::core_v6::SettledCall {
@@ -522,7 +522,7 @@ pub fn settled_call_to_record(value: &jig_domain_core_vocabulary::SettledCall, c
     })
 }
 
-// Maps line 50: SettledCall.
+// Maps line 51: SettledCall.
 pub fn settled_call_to_domain(record: crate::core_v6::SettledCall, context: &crate::codec::View) -> Result<jig_domain_core_vocabulary::SettledCall, crate::core_v6::Problem> {
     let crate::core_v6::SettledCall { serial: field_000000, tool: field_000001, answer: field_000002 } = record;
     Ok(jig_domain_core_vocabulary::SettledCall {
@@ -532,7 +532,7 @@ pub fn settled_call_to_domain(record: crate::core_v6::SettledCall, context: &cra
     })
 }
 
-// Maps line 51: CallKey.
+// Maps line 52: CallKey.
 pub fn call_key_to_record(value: &jig_domain_core_vocabulary::CallKey, _context: &crate::codec::View) -> Result<crate::core_v6::CallKey, crate::core_v6::Problem> {
     let jig_domain_core_vocabulary::CallKey { task: field_000000, attempt: field_000001, completion: field_000002, position: field_000003 } = value;
     Ok(crate::core_v6::CallKey {
@@ -543,7 +543,7 @@ pub fn call_key_to_record(value: &jig_domain_core_vocabulary::CallKey, _context:
     })
 }
 
-// Maps line 51: CallKey.
+// Maps line 52: CallKey.
 pub fn call_key_to_domain(record: crate::core_v6::CallKey, _context: &crate::codec::View) -> Result<jig_domain_core_vocabulary::CallKey, crate::core_v6::Problem> {
     let crate::core_v6::CallKey { task: field_000000, attempt: field_000001, completion: field_000002, position: field_000003 } = record;
     Ok(jig_domain_core_vocabulary::CallKey {
@@ -554,7 +554,7 @@ pub fn call_key_to_domain(record: crate::core_v6::CallKey, _context: &crate::cod
     })
 }
 
-// Maps line 59: ProposalHolder.
+// Maps line 60: ProposalHolder.
 pub fn proposal_holder_to_record(value: &jig_domain_tasks::ProposalHolder, context: &crate::codec::View) -> Result<crate::core_v6::ProposalHolder, crate::core_v6::Problem> {
     match value {
         jig_domain_tasks::ProposalHolder::Task(held) => Ok(crate::core_v6::ProposalHolder::Task(crate::core_v6::Number { value: *held })),
@@ -566,7 +566,7 @@ pub fn proposal_holder_to_record(value: &jig_domain_tasks::ProposalHolder, conte
     }
 }
 
-// Maps line 59: ProposalHolder.
+// Maps line 60: ProposalHolder.
 pub fn proposal_holder_to_domain(record: crate::core_v6::ProposalHolder, context: &crate::codec::View) -> Result<jig_domain_tasks::ProposalHolder, crate::core_v6::Problem> {
     match record {
         crate::core_v6::ProposalHolder::Task(held) => Ok(jig_domain_tasks::ProposalHolder::Task({
@@ -587,7 +587,7 @@ pub fn proposal_holder_to_domain(record: crate::core_v6::ProposalHolder, context
     }
 }
 
-// Maps line 76: Made.
+// Maps line 77: Made.
 pub fn made_to_record(value: &jig_domain_core_vocabulary::Made, _context: &crate::codec::View) -> Result<crate::core_v6::Made, crate::core_v6::Problem> {
     let jig_domain_core_vocabulary::Made { task: field_000000, revision: field_000001, given: field_000002 } = value;
     Ok(crate::core_v6::Made {
@@ -600,7 +600,7 @@ pub fn made_to_record(value: &jig_domain_core_vocabulary::Made, _context: &crate
     })
 }
 
-// Maps line 76: Made.
+// Maps line 77: Made.
 pub fn made_to_domain(record: crate::core_v6::Made, _context: &crate::codec::View) -> Result<jig_domain_core_vocabulary::Made, crate::core_v6::Problem> {
     let crate::core_v6::Made { task: field_000000, revision: field_000001, given: field_000002 } = record;
     Ok(jig_domain_core_vocabulary::Made {
@@ -613,7 +613,7 @@ pub fn made_to_domain(record: crate::core_v6::Made, _context: &crate::codec::Vie
     })
 }
 
-// Maps line 84: NoteRefusal.
+// Maps line 85: NoteRefusal.
 pub fn note_refusal_to_record(value: &jig_domain_notes::Refusal, _context: &crate::codec::View) -> Result<crate::core_v6::NoteRefusal, crate::core_v6::Problem> {
     match value {
         jig_domain_notes::Refusal::Busy => Ok(crate::core_v6::NoteRefusal::Busy),
@@ -635,7 +635,7 @@ pub fn note_refusal_to_record(value: &jig_domain_notes::Refusal, _context: &crat
     }
 }
 
-// Maps line 84: NoteRefusal.
+// Maps line 85: NoteRefusal.
 pub fn note_refusal_to_domain(record: crate::core_v6::NoteRefusal, _context: &crate::codec::View) -> Result<jig_domain_notes::Refusal, crate::core_v6::Problem> {
     match record {
         crate::core_v6::NoteRefusal::Busy => Ok(jig_domain_notes::Refusal::Busy),
@@ -666,7 +666,7 @@ pub fn note_refusal_to_domain(record: crate::core_v6::NoteRefusal, _context: &cr
     }
 }
 
-// Maps line 87: FailureClass.
+// Maps line 88: FailureClass.
 pub fn failure_class_to_record(value: &jig_domain_people::FailureClass, _context: &crate::codec::View) -> Result<crate::core_v6::FailureClass, crate::core_v6::Problem> {
     match value {
         jig_domain_people::FailureClass::Transient => Ok(crate::core_v6::FailureClass::Transient),
@@ -679,7 +679,7 @@ pub fn failure_class_to_record(value: &jig_domain_people::FailureClass, _context
     }
 }
 
-// Maps line 87: FailureClass.
+// Maps line 88: FailureClass.
 pub fn failure_class_to_domain(record: crate::core_v6::FailureClass, _context: &crate::codec::View) -> Result<jig_domain_people::FailureClass, crate::core_v6::Problem> {
     match record {
         crate::core_v6::FailureClass::Transient => Ok(jig_domain_people::FailureClass::Transient),
@@ -692,7 +692,7 @@ pub fn failure_class_to_domain(record: crate::core_v6::FailureClass, _context: &
     }
 }
 
-// Maps line 93: Bound.
+// Maps line 94: Bound.
 pub fn bound_to_record(value: &jig_domain_people::Bound, _context: &crate::codec::View) -> Result<crate::core_v6::Bound, crate::core_v6::Problem> {
     match value {
         jig_domain_people::Bound::Reasoning => Ok(crate::core_v6::Bound::Reasoning),
@@ -707,7 +707,7 @@ pub fn bound_to_record(value: &jig_domain_people::Bound, _context: &crate::codec
     }
 }
 
-// Maps line 93: Bound.
+// Maps line 94: Bound.
 pub fn bound_to_domain(record: crate::core_v6::Bound, _context: &crate::codec::View) -> Result<jig_domain_people::Bound, crate::core_v6::Problem> {
     match record {
         crate::core_v6::Bound::Reasoning => Ok(jig_domain_people::Bound::Reasoning),
@@ -722,7 +722,7 @@ pub fn bound_to_domain(record: crate::core_v6::Bound, _context: &crate::codec::V
     }
 }
 
-// Maps line 94: Exceeded.
+// Maps line 95: Exceeded.
 pub fn exceeded_to_record(value: &jig_domain_people::Exceeded, context: &crate::codec::View) -> Result<crate::core_v6::Exceeded, crate::core_v6::Problem> {
     let jig_domain_people::Exceeded { bound: field_000000, value: field_000001 } = value;
     Ok(crate::core_v6::Exceeded {
@@ -731,7 +731,7 @@ pub fn exceeded_to_record(value: &jig_domain_people::Exceeded, context: &crate::
     })
 }
 
-// Maps line 94: Exceeded.
+// Maps line 95: Exceeded.
 pub fn exceeded_to_domain(record: crate::core_v6::Exceeded, context: &crate::codec::View) -> Result<jig_domain_people::Exceeded, crate::core_v6::Problem> {
     let crate::core_v6::Exceeded { bound: field_000000, value: field_000001 } = record;
     Ok(jig_domain_people::Exceeded {
@@ -740,7 +740,7 @@ pub fn exceeded_to_domain(record: crate::core_v6::Exceeded, context: &crate::cod
     })
 }
 
-// Maps line 95: HoldReason.
+// Maps line 96: HoldReason.
 pub fn hold_reason_to_record(value: &jig_domain_people::HoldReason, context: &crate::codec::View) -> Result<crate::core_v6::HoldReason, crate::core_v6::Problem> {
     match value {
         jig_domain_people::HoldReason::Failures { class: field_000000 } => Ok(crate::core_v6::HoldReason::Failures(crate::core_v6::HoldReasonFailures {
@@ -774,7 +774,7 @@ pub fn hold_reason_to_record(value: &jig_domain_people::HoldReason, context: &cr
     }
 }
 
-// Maps line 95: HoldReason.
+// Maps line 96: HoldReason.
 pub fn hold_reason_to_domain(record: crate::core_v6::HoldReason, context: &crate::codec::View) -> Result<jig_domain_people::HoldReason, crate::core_v6::Problem> {
     match record {
         crate::core_v6::HoldReason::Failures(held) => {
@@ -823,7 +823,7 @@ pub fn hold_reason_to_domain(record: crate::core_v6::HoldReason, context: &crate
     }
 }
 
-// Maps line 100: Moved.
+// Maps line 101: Moved.
 pub fn moved_to_record(value: &jig_domain_people::Moved, context: &crate::codec::View) -> Result<crate::core_v6::Moved, crate::core_v6::Problem> {
     match value {
         jig_domain_people::Moved::Hold { revision: field_000000, reason: field_000001 } => Ok(crate::core_v6::Moved::Hold(crate::core_v6::MovedHold {
@@ -845,7 +845,7 @@ pub fn moved_to_record(value: &jig_domain_people::Moved, context: &crate::codec:
     }
 }
 
-// Maps line 100: Moved.
+// Maps line 101: Moved.
 pub fn moved_to_domain(record: crate::core_v6::Moved, context: &crate::codec::View) -> Result<jig_domain_people::Moved, crate::core_v6::Problem> {
     match record {
         crate::core_v6::Moved::Hold(held) => {
@@ -882,7 +882,7 @@ pub fn moved_to_domain(record: crate::core_v6::Moved, context: &crate::codec::Vi
     }
 }
 
-// Maps line 106: CallPart.
+// Maps line 107: CallPart.
 #[expect(clippy::too_many_lines, reason = "one translation step per field or variant (data/codec/maps.md, 4.1)")]
 pub fn call_part_to_record(value: &jig_domain_core_vocabulary::CallPart, context: &crate::codec::View) -> Result<crate::core_v6::CallPart, crate::core_v6::Problem> {
     match value {
@@ -1063,7 +1063,7 @@ pub fn call_part_to_record(value: &jig_domain_core_vocabulary::CallPart, context
     }
 }
 
-// Maps line 106: CallPart.
+// Maps line 107: CallPart.
 #[expect(clippy::too_many_lines, reason = "one translation step per field or variant (data/codec/maps.md, 4.1)")]
 pub fn call_part_to_domain(record: crate::core_v6::CallPart, context: &crate::codec::View) -> Result<jig_domain_core_vocabulary::CallPart, crate::core_v6::Problem> {
     match record {
@@ -1340,7 +1340,7 @@ pub fn call_part_to_domain(record: crate::core_v6::CallPart, context: &crate::co
     }
 }
 
-// Maps line 118: CallRecord.
+// Maps line 119: CallRecord.
 pub fn call_record_to_record(value: &jig_domain_core_vocabulary::CallRecord, context: &crate::codec::View) -> Result<crate::core_v6::CallRecord, crate::core_v6::Problem> {
     let jig_domain_core_vocabulary::CallRecord { key: field_000000, part: field_000001, settled: field_000002 } = value;
     Ok(crate::core_v6::CallRecord {
@@ -1353,7 +1353,7 @@ pub fn call_record_to_record(value: &jig_domain_core_vocabulary::CallRecord, con
     })
 }
 
-// Maps line 118: CallRecord.
+// Maps line 119: CallRecord.
 pub fn call_record_to_domain(record: crate::core_v6::CallRecord, context: &crate::codec::View) -> Result<jig_domain_core_vocabulary::CallRecord, crate::core_v6::Problem> {
     let crate::core_v6::CallRecord { key: field_000000, part: field_000001, settled: field_000002 } = record;
     Ok(jig_domain_core_vocabulary::CallRecord {
@@ -1366,7 +1366,71 @@ pub fn call_record_to_domain(record: crate::core_v6::CallRecord, context: &crate
     })
 }
 
-// Maps line 119: Deployment.
+// Maps line 120: PartKey.
+pub fn part_key_to_record(value: &jig_domain_core_vocabulary::PartKey, _context: &crate::codec::View) -> Result<crate::core_v6::PartKey, crate::core_v6::Problem> {
+    let jig_domain_core_vocabulary::PartKey { task: field_000000, attempt: field_000001, number: field_000002 } = value;
+    Ok(crate::core_v6::PartKey {
+        task: *field_000000,
+        attempt: *field_000001,
+        number: *field_000002
+    })
+}
+
+// Maps line 120: PartKey.
+pub fn part_key_to_domain(record: crate::core_v6::PartKey, _context: &crate::codec::View) -> Result<jig_domain_core_vocabulary::PartKey, crate::core_v6::Problem> {
+    let crate::core_v6::PartKey { task: field_000000, attempt: field_000001, number: field_000002 } = record;
+    Ok(jig_domain_core_vocabulary::PartKey {
+        task: field_000000,
+        attempt: field_000001,
+        number: field_000002
+    })
+}
+
+// Maps line 121: PartKind.
+pub fn part_kind_to_record(value: &jig_domain_link::PartKind, _context: &crate::codec::View) -> Result<crate::core_v6::PartKind, crate::core_v6::Problem> {
+    match value {
+        jig_domain_link::PartKind::Answer => Ok(crate::core_v6::PartKind::Answer),
+        jig_domain_link::PartKind::Result => Ok(crate::core_v6::PartKind::Result),
+        jig_domain_link::PartKind::Window => Ok(crate::core_v6::PartKind::Window),
+    }
+}
+
+// Maps line 121: PartKind.
+pub fn part_kind_to_domain(record: crate::core_v6::PartKind, _context: &crate::codec::View) -> Result<jig_domain_link::PartKind, crate::core_v6::Problem> {
+    match record {
+        crate::core_v6::PartKind::Answer => Ok(jig_domain_link::PartKind::Answer),
+        crate::core_v6::PartKind::Result => Ok(jig_domain_link::PartKind::Result),
+        crate::core_v6::PartKind::Window => Ok(jig_domain_link::PartKind::Window),
+    }
+}
+
+// Maps line 122: PartRecord.
+pub fn part_record_to_record(value: &jig_domain_core_vocabulary::PartRecord, context: &crate::codec::View) -> Result<crate::core_v6::PartRecord, crate::core_v6::Problem> {
+    let jig_domain_core_vocabulary::PartRecord { key: field_000000, turn: field_000001, thread: field_000002, call: field_000003, kind: field_000004, body: field_000005 } = value;
+    Ok(crate::core_v6::PartRecord {
+        key: part_key_to_record(field_000000, context)?,
+        turn: *field_000001,
+        thread: *field_000002,
+        call: *field_000003,
+        kind: part_kind_to_record(field_000004, context)?,
+        body: field_000005.clone()
+    })
+}
+
+// Maps line 122: PartRecord.
+pub fn part_record_to_domain(record: crate::core_v6::PartRecord, context: &crate::codec::View) -> Result<jig_domain_core_vocabulary::PartRecord, crate::core_v6::Problem> {
+    let crate::core_v6::PartRecord { key: field_000000, turn: field_000001, thread: field_000002, call: field_000003, kind: field_000004, body: field_000005 } = record;
+    Ok(jig_domain_core_vocabulary::PartRecord {
+        key: part_key_to_domain(field_000000, context)?,
+        turn: field_000001,
+        thread: field_000002,
+        call: field_000003,
+        kind: part_kind_to_domain(field_000004, context)?,
+        body: field_000005
+    })
+}
+
+// Maps line 123: Deployment.
 pub fn deployment_to_record(value: &jig_domain_core_vocabulary::Deployment, _context: &crate::codec::View) -> Result<crate::core_v6::Deployment, crate::core_v6::Problem> {
     let jig_domain_core_vocabulary::Deployment { id: field_000000, tasks: field_000001, people: field_000002, sign_ins: field_000003, messages: field_000004, runs: field_000005, calls: field_000006, connector_rows: field_000007, applications: field_000008, commits: field_000009, projects: field_000010, restart_wait_ms: field_000011 } = value;
     Ok(crate::core_v6::Deployment {
@@ -1388,7 +1452,7 @@ pub fn deployment_to_record(value: &jig_domain_core_vocabulary::Deployment, _con
     })
 }
 
-// Maps line 119: Deployment.
+// Maps line 123: Deployment.
 pub fn deployment_to_domain(record: crate::core_v6::Deployment, _context: &crate::codec::View) -> Result<jig_domain_core_vocabulary::Deployment, crate::core_v6::Problem> {
     let crate::core_v6::Deployment { id: field_000000, tasks: field_000001, people: field_000002, sign_ins: field_000003, messages: field_000004, runs: field_000005, calls: field_000006, connector_rows: field_000007, applications: field_000008, commits: field_000009, projects: field_000010, restart_wait_ms: field_000011 } = record;
     Ok(jig_domain_core_vocabulary::Deployment {
@@ -1410,7 +1474,7 @@ pub fn deployment_to_domain(record: crate::core_v6::Deployment, _context: &crate
     })
 }
 
-// Maps line 126: Party.
+// Maps line 130: Party.
 pub fn party_to_record(value: &jig_domain_tasks::Party, _context: &crate::codec::View) -> Result<crate::core_v6::Party, crate::core_v6::Problem> {
     match value {
         jig_domain_tasks::Party::Task(held) => Ok(crate::core_v6::Party::Task(crate::core_v6::PartyTask { value: *held })),
@@ -1421,7 +1485,7 @@ pub fn party_to_record(value: &jig_domain_tasks::Party, _context: &crate::codec:
     }
 }
 
-// Maps line 126: Party.
+// Maps line 130: Party.
 pub fn party_to_domain(record: crate::core_v6::Party, _context: &crate::codec::View) -> Result<jig_domain_tasks::Party, crate::core_v6::Problem> {
     match record {
         crate::core_v6::Party::Task(held) => Ok(jig_domain_tasks::Party::Task({
@@ -1441,7 +1505,7 @@ pub fn party_to_domain(record: crate::core_v6::Party, _context: &crate::codec::V
     }
 }
 
-// Maps line 129: MilestoneId.
+// Maps line 133: MilestoneId.
 pub fn milestone_id_to_record(value: &jig_domain_core_vocabulary::MilestoneId, _context: &crate::codec::View) -> Result<crate::core_v6::MilestoneId, crate::core_v6::Problem> {
     match value {
         jig_domain_core_vocabulary::MilestoneId::Lifecycle { task: field_000000, position: field_000001 } => Ok(crate::core_v6::MilestoneId::Lifecycle(crate::core_v6::MilestoneLifecycle {
@@ -1455,7 +1519,7 @@ pub fn milestone_id_to_record(value: &jig_domain_core_vocabulary::MilestoneId, _
     }
 }
 
-// Maps line 129: MilestoneId.
+// Maps line 133: MilestoneId.
 pub fn milestone_id_to_domain(record: crate::core_v6::MilestoneId, _context: &crate::codec::View) -> Result<jig_domain_core_vocabulary::MilestoneId, crate::core_v6::Problem> {
     match record {
         crate::core_v6::MilestoneId::Lifecycle(held) => {
@@ -1475,7 +1539,7 @@ pub fn milestone_id_to_domain(record: crate::core_v6::MilestoneId, _context: &cr
     }
 }
 
-// Maps line 130: ProjectionMilestone.
+// Maps line 134: ProjectionMilestone.
 pub fn projection_milestone_to_record(value: &jig_domain_core_vocabulary::ProjectionMilestone, context: &crate::codec::View) -> Result<crate::core_v6::ProjectionMilestone, crate::core_v6::Problem> {
     let jig_domain_core_vocabulary::ProjectionMilestone { identity: field_000000, phase: field_000001, change: field_000002, words: field_000003 } = value;
     Ok(crate::core_v6::ProjectionMilestone {
@@ -1492,7 +1556,7 @@ pub fn projection_milestone_to_record(value: &jig_domain_core_vocabulary::Projec
     })
 }
 
-// Maps line 130: ProjectionMilestone.
+// Maps line 134: ProjectionMilestone.
 pub fn projection_milestone_to_domain(record: crate::core_v6::ProjectionMilestone, context: &crate::codec::View) -> Result<jig_domain_core_vocabulary::ProjectionMilestone, crate::core_v6::Problem> {
     let crate::core_v6::ProjectionMilestone { identity: field_000000, phase: field_000001, change: field_000002, words: field_000003 } = record;
     Ok(jig_domain_core_vocabulary::ProjectionMilestone {
@@ -1509,7 +1573,7 @@ pub fn projection_milestone_to_domain(record: crate::core_v6::ProjectionMileston
     })
 }
 
-// Maps line 137: TerminalRecord.
+// Maps line 141: TerminalRecord.
 pub fn terminal_record_to_record(value: &jig_domain_core_vocabulary::TerminalRecord, context: &crate::codec::View) -> Result<crate::core_v6::TerminalRecord, crate::core_v6::Problem> {
     let jig_domain_core_vocabulary::TerminalRecord { task: field_000000, attempt: field_000001, cumulative: field_000002, end: field_000003 } = value;
     Ok(crate::core_v6::TerminalRecord {
@@ -1520,7 +1584,7 @@ pub fn terminal_record_to_record(value: &jig_domain_core_vocabulary::TerminalRec
     })
 }
 
-// Maps line 137: TerminalRecord.
+// Maps line 141: TerminalRecord.
 pub fn terminal_record_to_domain(record: crate::core_v6::TerminalRecord, context: &crate::codec::View) -> Result<jig_domain_core_vocabulary::TerminalRecord, crate::core_v6::Problem> {
     let crate::core_v6::TerminalRecord { task: field_000000, attempt: field_000001, cumulative: field_000002, end: field_000003 } = record;
     Ok(jig_domain_core_vocabulary::TerminalRecord {
@@ -1531,7 +1595,7 @@ pub fn terminal_record_to_domain(record: crate::core_v6::TerminalRecord, context
     })
 }
 
-// Maps line 138: TurnProof.
+// Maps line 142: TurnProof.
 pub fn turn_proof_to_record(value: &jig_domain_core_vocabulary::TurnProof, _context: &crate::codec::View) -> Result<crate::core_v6::TurnProof, crate::core_v6::Problem> {
     let jig_domain_core_vocabulary::TurnProof { turn: field_000000, cumulative: field_000001, read: field_000002 } = value;
     Ok(crate::core_v6::TurnProof {
@@ -1544,7 +1608,7 @@ pub fn turn_proof_to_record(value: &jig_domain_core_vocabulary::TurnProof, _cont
     })
 }
 
-// Maps line 138: TurnProof.
+// Maps line 142: TurnProof.
 pub fn turn_proof_to_domain(record: crate::core_v6::TurnProof, _context: &crate::codec::View) -> Result<jig_domain_core_vocabulary::TurnProof, crate::core_v6::Problem> {
     let crate::core_v6::TurnProof { turn: field_000000, cumulative: field_000001, read: field_000002 } = record;
     Ok(jig_domain_core_vocabulary::TurnProof {
@@ -1557,7 +1621,7 @@ pub fn turn_proof_to_domain(record: crate::core_v6::TurnProof, _context: &crate:
     })
 }
 
-// Maps line 139: Window.
+// Maps line 143: Window.
 pub fn window_to_record(value: &jig_domain_core_vocabulary::CurrentWindow, _context: &crate::codec::View) -> Result<crate::core_v6::Window, crate::core_v6::Problem> {
     let jig_domain_core_vocabulary::CurrentWindow { attempt: field_000000, turn: field_000001, closed: field_000002 } = value;
     Ok(crate::core_v6::Window {
@@ -1567,7 +1631,7 @@ pub fn window_to_record(value: &jig_domain_core_vocabulary::CurrentWindow, _cont
     })
 }
 
-// Maps line 139: Window.
+// Maps line 143: Window.
 pub fn window_to_domain(record: crate::core_v6::Window, _context: &crate::codec::View) -> Result<jig_domain_core_vocabulary::CurrentWindow, crate::core_v6::Problem> {
     let crate::core_v6::Window { attempt: field_000000, turn: field_000001, closed: field_000002 } = record;
     Ok(jig_domain_core_vocabulary::CurrentWindow {
@@ -1577,7 +1641,7 @@ pub fn window_to_domain(record: crate::core_v6::Window, _context: &crate::codec:
     })
 }
 
-// Maps line 141: AccountBinding.
+// Maps line 145: AccountBinding.
 pub fn account_binding_to_record(value: &jig_domain_authority::AccountBinding, _context: &crate::codec::View) -> Result<crate::core_v6::AccountBinding, crate::core_v6::Problem> {
     let jig_domain_authority::AccountBinding { provider: field_000000, account: field_000001, source: field_000002 } = value;
     Ok(crate::core_v6::AccountBinding {
@@ -1587,7 +1651,7 @@ pub fn account_binding_to_record(value: &jig_domain_authority::AccountBinding, _
     })
 }
 
-// Maps line 141: AccountBinding.
+// Maps line 145: AccountBinding.
 pub fn account_binding_to_domain(record: crate::core_v6::AccountBinding, _context: &crate::codec::View) -> Result<jig_domain_authority::AccountBinding, crate::core_v6::Problem> {
     let crate::core_v6::AccountBinding { provider: field_000000, account: field_000001, source: field_000002 } = record;
     Ok(jig_domain_authority::AccountBinding {
@@ -1597,9 +1661,9 @@ pub fn account_binding_to_domain(record: crate::core_v6::AccountBinding, _contex
     })
 }
 
-// Maps line 142: RunProof.
+// Maps line 146: RunProof.
 pub fn run_proof_to_record(value: &jig_domain_core_vocabulary::RunProof, context: &crate::codec::View) -> Result<crate::core_v6::RunProof, crate::core_v6::Problem> {
-    let jig_domain_core_vocabulary::RunProof { task: field_000000, attempt: field_000001, conversation: field_000002, endpoint: field_000003, accounts: field_000004, placement: field_000005, account_failure: field_000006, account_terminal: field_000007, credentials: field_000008, window: field_000009, crossed: field_000010, host: field_000011, offered: field_000012, outstanding: field_000013, turn: field_000014, terminal: field_000015, worker: field_000016 } = value;
+    let jig_domain_core_vocabulary::RunProof { task: field_000000, attempt: field_000001, conversation: field_000002, endpoint: field_000003, accounts: field_000004, placement: field_000005, account_failure: field_000006, account_terminal: field_000007, credentials: field_000008, window: field_000009, crossed: field_000010, host: field_000011, offered: field_000012, outstanding: field_000013, turn: field_000014, terminal: field_000015, worker: field_000016, kept_part: field_000017 } = value;
     Ok(crate::core_v6::RunProof {
         task: *field_000000,
         attempt: *field_000001,
@@ -1668,13 +1732,14 @@ pub fn run_proof_to_record(value: &jig_domain_core_vocabulary::RunProof, context
         worker: match field_000016 {
             Some(item) => Some(*item),
             None => None,
-        }
+        },
+        kept_part: *field_000017
     })
 }
 
-// Maps line 142: RunProof.
+// Maps line 146: RunProof.
 pub fn run_proof_to_domain(record: crate::core_v6::RunProof, context: &crate::codec::View) -> Result<jig_domain_core_vocabulary::RunProof, crate::core_v6::Problem> {
-    let crate::core_v6::RunProof { task: field_000000, attempt: field_000001, conversation: field_000002, endpoint: field_000003, accounts: field_000004, placement: field_000005, account_failure: field_000006, account_terminal: field_000007, credentials: field_000008, window: field_000009, crossed: field_000010, host: field_000011, offered: field_000012, outstanding: field_000013, turn: field_000014, terminal: field_000015, worker: field_000016 } = record;
+    let crate::core_v6::RunProof { task: field_000000, attempt: field_000001, conversation: field_000002, endpoint: field_000003, accounts: field_000004, placement: field_000005, account_failure: field_000006, account_terminal: field_000007, credentials: field_000008, window: field_000009, crossed: field_000010, host: field_000011, offered: field_000012, outstanding: field_000013, turn: field_000014, terminal: field_000015, worker: field_000016, kept_part: field_000017 } = record;
     Ok(jig_domain_core_vocabulary::RunProof {
         task: field_000000,
         attempt: field_000001,
@@ -1749,11 +1814,12 @@ pub fn run_proof_to_domain(record: crate::core_v6::RunProof, context: &crate::co
         worker: match field_000016 {
             Some(item) => Some(item),
             None => None,
-        }
+        },
+        kept_part: field_000017
     })
 }
 
-// Maps line 143: TurnRecord.
+// Maps line 147: TurnRecord.
 pub fn turn_record_to_record(value: &jig_domain_core_vocabulary::TurnRecord, _context: &crate::codec::View) -> Result<crate::core_v6::TurnRecord, crate::core_v6::Problem> {
     let jig_domain_core_vocabulary::TurnRecord { opens_window: field_000000, task: field_000001, attempt: field_000002, turn: field_000003, spent: field_000004, read: field_000005, at: field_000006, transcript: field_000007 } = value;
     Ok(crate::core_v6::TurnRecord {
@@ -1771,7 +1837,7 @@ pub fn turn_record_to_record(value: &jig_domain_core_vocabulary::TurnRecord, _co
     })
 }
 
-// Maps line 143: TurnRecord.
+// Maps line 147: TurnRecord.
 pub fn turn_record_to_domain(record: crate::core_v6::TurnRecord, _context: &crate::codec::View) -> Result<jig_domain_core_vocabulary::TurnRecord, crate::core_v6::Problem> {
     let crate::core_v6::TurnRecord { opens_window: field_000000, task: field_000001, attempt: field_000002, turn: field_000003, spent: field_000004, read: field_000005, at: field_000006, transcript: field_000007 } = record;
     Ok(jig_domain_core_vocabulary::TurnRecord {
@@ -1789,7 +1855,7 @@ pub fn turn_record_to_domain(record: crate::core_v6::TurnRecord, _context: &crat
     })
 }
 
-// Maps line 145: ProposalDecisionRecord.
+// Maps line 149: ProposalDecisionRecord.
 pub fn proposal_decision_record_to_record(value: &jig_domain_core_vocabulary::ProposalDecisionRecord, context: &crate::codec::View) -> Result<crate::core_v6::ProposalDecisionRecord, crate::core_v6::Problem> {
     let jig_domain_core_vocabulary::ProposalDecisionRecord { project: field_000000, proposer: field_000001, proposal: field_000002, kind: field_000003, by: field_000004, at: field_000005, choice: field_000006, created: field_000007 } = value;
     Ok(crate::core_v6::ProposalDecisionRecord {
@@ -1807,7 +1873,7 @@ pub fn proposal_decision_record_to_record(value: &jig_domain_core_vocabulary::Pr
     })
 }
 
-// Maps line 145: ProposalDecisionRecord.
+// Maps line 149: ProposalDecisionRecord.
 pub fn proposal_decision_record_to_domain(record: crate::core_v6::ProposalDecisionRecord, context: &crate::codec::View) -> Result<jig_domain_core_vocabulary::ProposalDecisionRecord, crate::core_v6::Problem> {
     let crate::core_v6::ProposalDecisionRecord { project: field_000000, proposer: field_000001, proposal: field_000002, kind: field_000003, by: field_000004, at: field_000005, choice: field_000006, created: field_000007 } = record;
     Ok(jig_domain_core_vocabulary::ProposalDecisionRecord {
@@ -1825,7 +1891,7 @@ pub fn proposal_decision_record_to_domain(record: crate::core_v6::ProposalDecisi
     })
 }
 
-// Maps line 146: EscalationDecisionRecord.
+// Maps line 150: EscalationDecisionRecord.
 pub fn escalation_decision_record_to_record(value: &jig_domain_core_vocabulary::EscalationDecisionRecord, context: &crate::codec::View) -> Result<crate::core_v6::EscalationDecisionRecord, crate::core_v6::Problem> {
     let jig_domain_core_vocabulary::EscalationDecisionRecord { project: field_000000, requester: field_000001, task: field_000002, revision: field_000003, by: field_000004, at: field_000005, decision: field_000006 } = value;
     Ok(crate::core_v6::EscalationDecisionRecord {
@@ -1839,7 +1905,7 @@ pub fn escalation_decision_record_to_record(value: &jig_domain_core_vocabulary::
     })
 }
 
-// Maps line 146: EscalationDecisionRecord.
+// Maps line 150: EscalationDecisionRecord.
 pub fn escalation_decision_record_to_domain(record: crate::core_v6::EscalationDecisionRecord, context: &crate::codec::View) -> Result<jig_domain_core_vocabulary::EscalationDecisionRecord, crate::core_v6::Problem> {
     let crate::core_v6::EscalationDecisionRecord { project: field_000000, requester: field_000001, task: field_000002, revision: field_000003, by: field_000004, at: field_000005, decision: field_000006 } = record;
     Ok(jig_domain_core_vocabulary::EscalationDecisionRecord {

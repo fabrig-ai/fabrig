@@ -816,26 +816,26 @@ pair = "fuzzy"
 package = "temper-worker-service"
 filter = "kind(lib)"
 
-# temper/testing/temper-box-kit/src/cluster.rs: description/read/documents/render_files and settings_file; suite
-# configuration/startup/fake_opening and process cluster/case callers.
+# temper/testing/temper-box-kit/src/cluster.rs: description/read/documents/render_files and settings_file;
+# domain configuration/startup, suite fake_opening and process cluster callers.
 [[fixture]]
 paths = ["temper/bin/temper-box/tests/fixtures/cluster/*"]
 [[fixture.reader]]
 pair = "default"
 package = "temper-box"
-filter = "binary(=suite)"
+filter = "binary(=domain) | binary(=suite)"
 [[fixture.reader]]
 pair = "process-temper"
 package = "temper-box"
 filter = "binary(=process)"
 
-# cluster_turn/mod.rs and its focused shared-setup contracts.
+# cluster_turn/mod.rs and its focused worker-input and delivery fixture contracts.
 [[fixture]]
 paths = ["temper/bin/temper-box/tests/fixtures/cluster-turn/*"]
 [[fixture.reader]]
 pair = "default"
 package = "temper-box"
-filter = "binary(=suite) & test(/support_tests::cluster_turn_/)"
+filter = "binary(=domain) & (test(=support_tests::cluster_turn_documents_admit_the_worker_and_script_delivery) | test(=support_tests::cluster_turn_worker_inputs_exclude_the_forge_admin_token))"
 [[fixture.reader]]
 pair = "process-temper"
 package = "temper-box"
@@ -935,7 +935,11 @@ paths = [
 [[fixture.reader]]
 pair = "default"
 package = "temper-one-process-world"
-filter = "binary(=suite) & test(=golden::dev_image_opens_and_serves_on_this_build)"
+filter = "binary(=suite) & (test(=golden::dev_image_opens_and_serves_on_this_build) | test(=restarts::an_older_layout_opens_and_serves_the_kept_person))"
+[[fixture.reader]]
+pair = "fuzzy"
+package = "temper-one-process-world"
+filter = "binary(=suite) & test(=fuzzy::restarts::drawn_unit_signals_and_older_layouts_keep_the_worlds_rules)"
 
 [[fixture]]
 paths = [

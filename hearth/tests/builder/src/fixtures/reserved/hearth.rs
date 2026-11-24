@@ -1,4 +1,4 @@
-use super::super::{File, Form, Rendered, Repository};
+use super::super::File;
 pub const HEARTH: &[File] = &[
     File { path: "tasks/hearth/task.json", body: include_bytes!("hearth.json"), mode: 0o644 },
     File {
@@ -24,34 +24,13 @@ pub const CONTAINER_HEARTH: File = File {
     mode: 0o644,
 };
 #[must_use]
-pub fn no_hearth() -> Vec<File> {
+pub fn no_hearth(container: File) -> Vec<File> {
     let mut files = Vec::new();
     for file in super::super::CONTAINERS {
-        if file.path != "tasks/hearth/task.json" && file.path != CONTAINER.path {
+        if file.path != super::EMPTY_HEARTH.path && file.path != container.path {
             files.push(*file);
         }
     }
-    files.push(CONTAINER);
+    files.push(container);
     files
-}
-#[must_use]
-pub fn render_no_hearth(target: &[u8]) -> Rendered {
-    let repository = Repository::make("no-hearth", &no_hearth());
-    super::super::render(&repository, &[target], Form::Text)
-}
-#[must_use]
-pub fn render_hearth() -> Rendered {
-    super::rendered_files(HEARTH)
-}
-#[must_use]
-pub fn render_empty_hearth() -> Rendered {
-    let repository = Repository::make("empty-hearth", super::super::TEST_REPOSITORY);
-    super::super::render(&repository, &[b"test-min"], Form::Text)
-}
-#[must_use]
-pub fn render_container_hearth() -> Rendered {
-    let mut files = no_hearth();
-    files.push(CONTAINER_HEARTH);
-    let repository = Repository::make("container-hearth", &files);
-    super::super::render(&repository, &[b"chat-prod"], Form::Text)
 }

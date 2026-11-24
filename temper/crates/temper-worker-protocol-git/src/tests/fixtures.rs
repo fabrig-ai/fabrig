@@ -29,6 +29,7 @@ pub const MAKING: skein_io::kernel::Fd = skein_io::kernel::Fd::new(7);
 pub const STORES: skein_io::kernel::Fd = skein_io::kernel::Fd::new(6);
 pub const GITDIRS: skein_io::kernel::Fd = skein_io::kernel::Fd::new(9);
 pub const WORKSPACES: skein_io::kernel::Fd = skein_io::kernel::Fd::new(5);
+pub const KEPT: skein_io::kernel::Fd = skein_io::kernel::Fd::new(10);
 pub fn make(owner: skein_lib::Token, workspace: skein_lib::Token) -> crate::Request {
     crate::Request::Io {
         owner,
@@ -198,16 +199,23 @@ impl Started {
         started.component = crate::Component::new(
             &limits(),
             &checkout(),
-            crate::Settings { serial: SERIAL.checked_sub(4).expect("layout names"), ..settings() },
+            crate::Settings { serial: SERIAL.checked_sub(2).expect("layout names"), ..settings() },
         )
         .expect("valid");
         started.version();
-        for _ in 0_u8..15 {
-            started.file_operation();
-            started.complete_ok();
-        }
+        started.finish_layout();
         assert_eq!(started.below.out.events.pop(), Some(crate::Event::Started));
         started
+    }
+    pub fn finish_layout(&mut self) {
+        for _ in 0_u8..40 {
+            if !self.below.out.events.is_empty() {
+                return;
+            }
+            self.file_operation();
+            self.complete_ok();
+        }
+        panic!("layout settles");
     }
     pub fn file_operation(&mut self) -> skein_io::kernel::Op {
         assert!(self.file.is_none(), "previous file operation completed");
@@ -235,6 +243,8 @@ impl Started {
                 GITDIRS
             } else if &**path == b"making" {
                 MAKING
+            } else if &**path == b"kept" {
+                KEPT
             } else {
                 WORKSPACES
             }),
@@ -245,6 +255,7 @@ impl Started {
             skein_io::kernel::Op::Rename { .. }
             | skein_io::kernel::Op::MakeDirectory { .. }
             | skein_io::kernel::Op::Remove { .. }
+            | skein_io::kernel::Op::Sync { .. }
             | skein_io::kernel::Op::Close { .. } => skein_io::kernel::Done::Nothing,
             skein_io::kernel::Op::HardLink { .. }
             | skein_io::kernel::Op::Lock { .. }
@@ -258,7 +269,6 @@ impl Started {
             | skein_io::kernel::Op::Shutdown { .. }
             | skein_io::kernel::Op::Append { .. }
             | skein_io::kernel::Op::Truncate { .. }
-            | skein_io::kernel::Op::Sync { .. }
             | skein_io::kernel::Op::Stat { .. }
             | skein_io::kernel::Op::Spawn { .. }
             | skein_io::kernel::Op::Wait { .. }
@@ -400,7 +410,7 @@ impl Started {
     }
     pub fn shutdown(&mut self) {
         self.down(crate::Request::Shutdown);
-        for _ in 0_u8..5 {
+        for _ in 0_u8..6 {
             self.file_operation();
             self.complete_ok();
         }

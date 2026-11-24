@@ -110,6 +110,7 @@ fn render(world: &World, op: &Op) -> Option<Box<[u8]>> {
             | Next::Run(_)
             | Next::Snapshot { .. }
             | Next::Look { .. }
+            | Next::Keep
             | Next::Make
             | Next::Store
             | Next::InstallStore { .. }

@@ -132,6 +132,27 @@ impl Environment {
         self.bytes <= limits.env_bytes
     }
 
+    /// Set the check's results path, removing any configured value when absent.
+    pub(crate) fn for_check(&self, results: Option<&[u8]>) -> Option<Box<[Box<[u8]>]>> {
+        let capacity = u32::try_from(self.entries.len()).ok()?.checked_add(1)?;
+        let mut entries = List::with_capacity(capacity);
+        for entry in self.for_process(Purpose::Check) {
+            if !entry.starts_with(b"SMITH_CHECK_RESULTS=") {
+                entries.push(entry).ok()?;
+            }
+        }
+        if let Some(results) = results {
+            if results.is_empty() || results.len() > 4096 || results.contains(&0) {
+                return None;
+            }
+            let mut entry = Writer::new(b"SMITH_CHECK_RESULTS=".len().checked_add(results.len())?);
+            entry.put(b"SMITH_CHECK_RESULTS=").ok()?;
+            entry.put(results).ok()?;
+            entries.push(entry.finish()).ok()?;
+        }
+        Some(entries.into_boxed())
+    }
+
     /// Copy the already encoded configuration only for commands and checks.
     pub(crate) fn for_process(&self, purpose: Purpose) -> Box<[Box<[u8]>]> {
         match purpose {

@@ -33,8 +33,8 @@ pub const APPEND_DESCRIPTOR_LIMIT: u32 = ROOT_DESCRIPTOR_LIMIT + 2;
 pub const BASE_HANDLES: usize = 1;
 /// A first append completes before the next submission is cut.
 pub const AFTER_FIRST_APPEND: u32 = 1;
-/// The trace read covers the complete seeded prefix and both appended pieces.
-pub const TRACE_READ_ROOM: u32 = 13;
+/// The trace read covers the seeded prefix, both appended pieces and a possible extra byte.
+pub const TRACE_READ_ROOM: u32 = 14;
 
 #[must_use]
 pub fn hosted(make: fn(&Spawn, &Inherited) -> Script) -> HostedProgram<Script> {
@@ -103,9 +103,15 @@ pub fn processes(outcome: &Outcome<Script, RootFiles>) -> Processes<'_> {
 
 #[must_use]
 pub fn trace_bytes(machine: &mut RootFiles) -> Vec<u8> {
-    let root = machine.open_root(b".").expect("inspect the trace");
-    let file = machine.files.open(Opened::new(root.raw()), b"trace", How::Read).expect("trace");
-    let bytes = machine.files.read(file, 0, TRACE_READ_ROOM).expect("trace bytes");
+    file_bytes(machine, b"trace", TRACE_READ_ROOM)
+}
+
+/// Reads a settled child's file, without leaving a test handle open.
+#[must_use]
+pub fn file_bytes(machine: &mut RootFiles, path: &[u8], limit: u32) -> Vec<u8> {
+    let root = machine.open_root(b".").expect("inspect the child's file");
+    let file = machine.files.open(Opened::new(root.raw()), path, How::Read).expect("child's file");
+    let bytes = machine.files.read(file, 0, limit).expect("file bytes");
     machine.files.close(file);
     machine.close_root(root);
     bytes

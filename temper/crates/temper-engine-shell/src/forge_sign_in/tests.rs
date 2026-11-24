@@ -82,6 +82,7 @@ fn a_public_client_refuses_before_creating_any_file() {
         &[],
         &forge::Inputs {
             reader: crate::setup::check,
+            listener_at: |_| panic!("sign-in needs no listener"),
             setup: &|_, _, _, _| {
                 temper_forge_setup::setup_file::chosen(
                     temper_forge_setup::machine::BoxKind::Fake,

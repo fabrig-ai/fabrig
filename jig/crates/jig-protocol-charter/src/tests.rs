@@ -749,6 +749,7 @@ fn hosted_fixture() -> jig_domain_core_vocabulary::Assignment {
     use jig_domain_tasks as tasks;
     use skein_lib::Wall;
     jig_domain_core_vocabulary::Assignment {
+        parts: Box::new([]),
         live: core::LiveAsk { text: true, reasoning: false, input: true },
         brief: Box::new([]),
         conversation: 3,

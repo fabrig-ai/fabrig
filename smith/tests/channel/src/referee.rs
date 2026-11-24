@@ -220,6 +220,9 @@ pub fn review(observations: &[Observation], credential: Box<[u8]>) -> Referee<Me
             | Observation::HostLimited { .. }
             | Observation::HostRefused { .. }
             | Observation::AgentCancel
+            | Observation::AgentDrainGrace(_)
+            | Observation::HostPart { .. }
+            | Observation::AgentPartKept(_)
             | Observation::AgentDrain
             | Observation::AgentWriteFailed
             | Observation::HostWriteFailed

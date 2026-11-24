@@ -15,6 +15,13 @@ enum Page {
     Leaving,
     Done,
 }
+/// Story A's shipped deployment document, before the story applies any settings.
+#[must_use]
+pub fn story_a_document() -> serde_json::Value {
+    serde_json::from_slice(include_bytes!("../../../crates/temper-playground/stories/a/deployment.json"))
+        .expect("story A deployment")
+}
+
 struct Judge {
     failed: Option<String>,
     page: Page,

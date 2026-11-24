@@ -164,7 +164,13 @@ fn run_failure(
         host::Failed::Exec(why) => format!("{}: {why}", text(&launch.program)),
     }
 }
-fn inherited_listener(which: Which, environment: &[EnvironmentEntry]) -> Result<Option<std::net::SocketAddr>, String> {
+type ListenerAt = fn(skein_io::kernel::Fd) -> Result<std::net::SocketAddr, skein_shell::ListenersRefusal>;
+
+fn inherited_listener(
+    which: Which,
+    environment: &[EnvironmentEntry],
+    listener_at: ListenerAt,
+) -> Result<Option<std::net::SocketAddr>, String> {
     let Some(count) = temper_shell::environment::LISTEN_FDS.value(environment) else { return Ok(None) };
     if which == Which::Runner {
         return Err("LISTEN_FDS: runner takes no listeners (fd 3)".into());
@@ -172,8 +178,7 @@ fn inherited_listener(which: Which, environment: &[EnvironmentEntry]) -> Result<
     if count != b"1" {
         return Err("LISTEN_FDS: forgejo requires exactly 1 listener at fd 3".into());
     }
-    // Unlike inherited_listeners, listener_at preserves fd 3's exec flags.
-    skein_shell::listener_at(skein_io::kernel::Fd::new(3)).map(Some).map_err(temper_service_shell::listeners_refusal)
+    listener_at(skein_io::kernel::Fd::new(3)).map(Some).map_err(temper_service_shell::listeners_refusal)
 }
 /// A binary shell supplies the checked document shape it serves (protocol/services.md, 7).
 pub type Reader = fn(&[u8], &jig_protocol_config::Directories) -> Result<super::setup::Deployment, String>;
@@ -188,6 +193,7 @@ type SignIn<'a> = dyn Fn(&super::Directories, &[u8], &Named, u16, &[EnvironmentE
 
 pub(super) struct Inputs<'a> {
     pub(super) reader: Reader,
+    pub(super) listener_at: ListenerAt,
     pub(super) setup: &'a ReadSetup<'a>,
     pub(super) configuration: &'a ReadConfiguration<'a>,
     pub(super) sign_in: &'a SignIn<'a>,
@@ -256,6 +262,8 @@ fn start_with_binary_reader(
         environment,
         &Inputs {
             reader,
+            // Unlike inherited_listeners, listener_at preserves fd 3's exec flags.
+            listener_at: skein_shell::listener_at,
             setup: &setup_file,
             configuration: &temper_service_shell::configuration::read,
             sign_in: &super::forge_sign_in::run,
@@ -327,7 +335,11 @@ pub(super) fn start_with_preparation(
     let refused = |why| Refused { verb, number: Some(number), why };
 
     // Inspect before reading the document or opening the lock: neither may occupy fd 3.
-    let listener = which.map(|which| inherited_listener(which, environment)).transpose().map_err(refused)?.flatten();
+    let listener = which
+        .map(|which| inherited_listener(which, environment, inputs.listener_at))
+        .transpose()
+        .map_err(refused)?
+        .flatten();
     let dirs = jig_directories(directories);
     let setup = (inputs.setup)(directories, number, verb, setup_flags).map_err(refused)?;
     let entry = setup.entry(number, &dirs).ok_or_else(|| refused("invalid setup directory".into()))?;

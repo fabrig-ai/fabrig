@@ -3,7 +3,7 @@ use crate::{KeptFamily, KeptMap, Owner, OwnerSets};
 use skein_codec::schema;
 use skein_lib::Map;
 
-pub(crate) fn check(sets: &OwnerSets, prepared: &[schema::Schema]) -> Result<(), Owner> {
+pub(crate) fn check(sets: &OwnerSets, prepared: &[schema::Schema], current: &[schema::Schema]) -> Result<(), Owner> {
     for set in sets.sets {
         let refusal = set.owner;
         for family in set.families {
@@ -13,10 +13,7 @@ pub(crate) fn check(sets: &OwnerSets, prepared: &[schema::Schema]) -> Result<(),
             if family.map != KeptMap::Store {
                 return Err(refusal);
             }
-            let mut parsed = None;
-            let Some(current) = super::schemas::get(prepared, family.current.as_bytes(), &mut parsed) else {
-                return Err(refusal);
-            };
+            let current = super::schemas::get(prepared, current, family.current.as_bytes()).ok_or(refusal)?;
             let mut ranges = Map::uncapped();
             let mut first = None;
             for (index, ty) in family.types.iter().enumerate() {

@@ -558,7 +558,10 @@ Focused and fuzzy suites alone, each failing first:
 
 The process-tier stories of a box and of a deployment at their places are
 written and compiled in their milestones, and run in the process tier
-after they land.
+after they land (`../testing/process-tier.md`). The deployment story
+keeps the copied place's launch and one ctl read from the restored copy;
+its deeper store, settings and forge reads are in the lower worlds
+(`../../development/slow-tests-moves-2026-11-24-temper-cluster.md`, 3).
 
 ## 12. Later
 

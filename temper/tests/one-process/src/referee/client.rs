@@ -42,10 +42,26 @@ struct Connection {
     answered: bool,
     request_owner: Option<wire::Owner>,
 }
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct Landing {
+    pub(crate) task: u64,
+    pub(crate) pull: u64,
+    pub(crate) merge: [u8; 32],
+}
+
+#[derive(Default)]
+enum LandingRead {
+    #[default]
+    Off,
+    Watching,
+    Landed(Landing),
+}
+
 #[derive(Default)]
 pub(crate) struct Wire {
     connections: BTreeMap<i32, Connection>,
     capture_only: bool,
+    landing: LandingRead,
     pub(crate) received: Vec<Received>,
 }
 impl Wire {
@@ -57,6 +73,15 @@ impl Wire {
         self.connections.values().any(|connection| connection.request_owner.as_ref() == Some(&wire::Owner::Jig))
     }
 
+    pub(crate) fn watch_landing(&mut self) {
+        self.landing = LandingRead::Watching;
+    }
+    pub(crate) fn landing(&self) -> Option<&Landing> {
+        match &self.landing {
+            LandingRead::Off | LandingRead::Watching => None,
+            LandingRead::Landed(landing) => Some(landing),
+        }
+    }
     pub(crate) fn complete(&mut self, complete: &Complete) {
         match (&complete.kind, &complete.result) {
             (Op::Send { fd, bytes, from }, Ok(Done::Count(count))) => {
@@ -69,7 +94,7 @@ impl Wire {
             (Op::Recv { fd, buf }, Ok(Done::Count(count))) => {
                 let connection = self.connections.entry(fd.raw()).or_default();
                 connection.incoming.extend_from_slice(&buf[..*count as usize]);
-                connection.progress(&mut self.received, self.capture_only);
+                connection.progress(&mut self.received, self.capture_only, &mut self.landing);
             }
             (Op::Connect { .. }, Ok(Done::Fd(fd))) => {
                 self.connections.insert(fd.raw(), Connection::default());
@@ -118,7 +143,7 @@ impl Connection {
         }
         self.request_owner = Some(keyed.owner);
     }
-    fn progress(&mut self, received: &mut Vec<Received>, capture_only: bool) {
+    fn progress(&mut self, received: &mut Vec<Received>, capture_only: bool, landing: &mut LandingRead) {
         if !self.header {
             let Some(end) = mark(&self.incoming, b"\r\n\r\n") else { return };
             let header = std::str::from_utf8(&self.incoming[..end]).expect("HTTP response header");
@@ -146,7 +171,7 @@ impl Connection {
                 assert_eq!(&self.incoming[end + 2 + size..end + 4 + size], b"\r\n", "chunk ending");
                 self.incoming.drain(..end + size + 4);
             }
-            self.stream(received, capture_only);
+            self.stream(received, capture_only, landing);
         } else if !self.answered && self.remaining.is_some_and(|size| self.incoming.len() >= size) {
             let size = self.remaining.expect("length-framed reply");
             crate::m15::observer::artifact("wire reply body", &self.incoming[..size]);
@@ -219,7 +244,7 @@ impl Connection {
             _ => panic!("unobserved client request target"),
         }
     }
-    fn stream(&mut self, received: &mut Vec<Received>, capture_only: bool) {
+    fn stream(&mut self, received: &mut Vec<Received>, capture_only: bool, landing: &mut LandingRead) {
         let limits = native_link_limits();
         while let Some(end) = mark(&self.body, b"\n\n") {
             let mut data = Vec::new();
@@ -244,12 +269,23 @@ impl Connection {
                 wire::StreamEvent::Delivery(value) => Some(value.document),
                 wire::StreamEvent::Hello(_) | wire::StreamEvent::Text(_) | wire::StreamEvent::Ended(_) => None,
             };
-            if let Some(document) = document
-                && document.owner == wire::Owner::Jig
-            {
-                received.push(Received::Delivery(
-                    translate::watches::delivery(document.record.as_ref(), &limits).expect("delivery document"),
-                ));
+            if let Some(document) = document {
+                match document.owner {
+                    wire::Owner::Jig => received.push(Received::Delivery(
+                        translate::watches::delivery(document.record.as_ref(), &limits).expect("delivery document"),
+                    )),
+                    wire::Owner::Family(family) => {
+                        use temper_client_protocol_wire as forge;
+                        if matches!(landing, LandingRead::Watching)
+                            && family.number == forge::FORGE
+                            && let Some(panel) = forge::decode_change_panel(&document.record, &forge::v1::CEILINGS)
+                            && let (forge::v1::Step::Landed(at), Some(pull)) = (panel.step, panel.pull)
+                        {
+                            *landing =
+                                LandingRead::Landed(Landing { task: panel.task, pull: pull.number, merge: at.merge });
+                        }
+                    }
+                }
             }
         }
     }

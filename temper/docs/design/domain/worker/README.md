@@ -100,19 +100,24 @@ agent    smith: LLM work, one run per agent process, reporting to the worker
   a worker alone or a cluster's at its first termination signal, which
   its unit sends it alone (`KillMode=mixed`). At
   once it asks its hub to drain (jig's `domain/hosts/hub.md`, 7): each
-  agent stops at the end of its current turn, once the LLM has answered
-  and the turn's calls have their answers, and a run not yet live is
+  agent stops at its answer, the LLM's answer in flight committed and
+  the calls it made cut after the drain's grace, `graces.drain_grace_ms`,
+  the turn left open for its next attempt (smith's
+  `domain/turn-parts.md`, section 4), or at the end of its current turn
+  where the link carries no parts; and a run not yet live is
   cancelled. From that moment it keeps two deadlines. At the drain's
-  bound, it cancels what is left for shutdown, a run still in its turn
-  among them, a check in flight cut, which its next attempt runs again.
+  bound, it cancels what is left for shutdown, a run still waiting for
+  its answer among them, whose next attempt plans that turn again.
   At its stop bound, it abandons what its stop still runs: every agent's
   process group killed and every git operation in flight cut, so nothing
   of an attempt writes after it, then gives up what it keeps, counted,
   and exits, as at a second signal. Between, its runs end as cancels end
   them: each agent gone, its relays and deliveries settled, its work
-  saved to its saved-work branch, the answer `Cancelled(Shutdown)`, so
-  each attempt ends interrupted with no try spent and its window open,
-  and every turn and answer acknowledged before it exits. Its git
+  saved to its saved-work branch and its workspace kept for its next
+  attempt (`checkouts.md`, *A workspace kept for its run*), the answer
+  `Cancelled(Shutdown)`, so each attempt ends suspended with no try spent
+  and its window open, and every turn, part and answer acknowledged
+  before it exits. Its git
   component takes every save and push a run's end asks for until then,
   and no new preparation. A job runs on through the drain; cancelled
   after it before its push began, it ends interrupted too (jig's

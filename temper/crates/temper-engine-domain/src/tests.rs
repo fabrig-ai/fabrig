@@ -728,6 +728,7 @@ fn held_assignment() -> crate::Assignment {
         transcript: Box::new([]),
         answered: Box::new([]),
         settled: Box::new([]),
+        parts: Box::new([]),
         grants: Box::new([Grant {
             form: Form::Credential(Scheme::Bearer),
             account: 1,
@@ -829,6 +830,14 @@ fn a_conversations_prepared_text_ask_reaches_its_assignment() {
         .unwrap();
     let mut requests = Queue::with_capacity(1);
     requests.push(core::Request::Now(Box::new(core::Now::RunPrepared {
+        parts: Box::new([jig_domain_link::KeptPart {
+            attempt: 1,
+            turn: 2,
+            thread: 0,
+            call: 0,
+            kind: jig_domain_link::PartKind::Answer,
+            body: b"parts".as_slice().into(),
+        }]),
         task: fixture.task,
         attempt: fixture.attempt,
         conversation: fixture.conversation,
@@ -847,6 +856,8 @@ fn a_conversations_prepared_text_ask_reaches_its_assignment() {
     assert!(assignment.live.text);
     assert!(!assignment.live.reasoning);
     assert!(!assignment.live.input);
+    assert_eq!(assignment.parts.len(), 1);
+    assert_eq!(domain.held_bytes(), 5, "prepared parts hold transcript room");
 }
 
 #[test]

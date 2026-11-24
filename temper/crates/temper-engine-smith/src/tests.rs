@@ -95,6 +95,7 @@ fn assignment() -> engine::Assignment {
         workspace: engine::ForgeWorkspace { repositories: Box::new([]) },
         workstream: 23,
         transcript: Box::new([]),
+        parts: Box::new([]),
         answered: Box::new([]),
         settled: Box::new([]),
         grants: Box::new([jig_domain_link::Grant {

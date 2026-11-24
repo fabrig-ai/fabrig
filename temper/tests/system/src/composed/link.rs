@@ -34,6 +34,8 @@ pub fn assignment(assignment: &engine::Assignment, forge: settings::Forge) -> (h
         endpoints: worker_protocol::endpoints_with_dialect(3),
         deployment: [0; 16],
         charter_bytes: 65_536,
+        reply_bytes: 1_048_576,
+        forge_reads: temper_engine_smith::ForgeReadBounds::STOCK,
     };
     let event = temper_engine_service_vocabulary::assignment::down(
         assignment.clone(),
@@ -65,6 +67,8 @@ pub fn job(
         endpoints: worker_protocol::endpoints_with_dialect(3),
         deployment: [0; 16],
         charter_bytes: 65_536,
+        reply_bytes: 1_048_576,
+        forge_reads: temper_engine_smith::ForgeReadBounds::STOCK,
     };
     let event = temper_engine_service_vocabulary::assignment::job_down(
         job,

@@ -11,6 +11,7 @@ use std::collections::{BTreeMap, VecDeque};
 use std::fmt::Write;
 
 enum Part {
+    Navigate(Box<Script>),
     Script(Box<Script>),
     Identity { key: &'static str, name: &'static str },
 }
@@ -23,10 +24,14 @@ struct TreeStory {
 impl TreeStory {
     fn new(case: &str) -> Self {
         let mut story = Self { parts: VecDeque::new(), nodes: BTreeMap::new(), at: 0 };
+        story.visit(case);
         story
-            .steps(vec![harness::Step::Person(Step::Go { address: format!("/test/tree/{case}").into_bytes().into() })]);
-        story.revision(0);
-        story
+    }
+    fn visit(&mut self, case: &str) {
+        let address = format!("/test/tree/{case}").into_bytes().into();
+        self.parts
+            .push_back(Part::Navigate(Box::new(Script::new(Box::new([harness::Step::Person(Step::Go { address })])))));
+        self.revision(0);
     }
     fn steps(&mut self, steps: Vec<harness::Step>) {
         self.parts.push_back(Part::Script(Box::new(Script::new(steps.into()))));
@@ -107,6 +112,10 @@ impl Play for TreeStory {
     fn next(&mut self, face: &mut BrowserFace<'_>, now: Time) -> Next<Box<[u8]>> {
         let Some(part) = self.parts.front_mut() else { return Next::Done };
         match part {
+            Part::Navigate(script) => match script.next(face, now) {
+                Next::Done => self.nodes.clear(),
+                next => return next,
+            },
             Part::Script(script) => match script.next(face, now) {
                 Next::Done => {}
                 next => return next,
@@ -133,42 +142,31 @@ impl Play for TreeStory {
         self.at
     }
     fn check_deadline(&mut self, face: &mut BrowserFace<'_>, now: Time) {
-        if let Some(Part::Script(script)) = self.parts.front_mut() {
+        if let Some(Part::Navigate(script) | Part::Script(script)) = self.parts.front_mut() {
             script.check_deadline(face, now);
         }
     }
 }
 
 #[test]
-fn the_first_child_gets_a_group_in_the_drawn_tree() {
+fn the_live_tree_applies_each_patch_in_place() {
+    const MAIN_NODE: &[u8] = b"2"; // Page, main in the live fixture.
     let mut story = TreeStory::new("first");
     story.tree(&[]);
     story.patch(1);
     story.tree(&[&["One"]]);
-    story.run();
-}
 
-#[test]
-fn a_child_is_inserted_between_two_live_keyed_children() {
-    let mut story = TreeStory::new("middle");
+    story.visit("middle");
     story.tree(&[&["One", "Three"]]);
     story.patch(1);
     story.tree(&[&["One", "Two", "Three"]]);
-    story.run();
-}
 
-#[test]
-fn a_keyed_child_moves_within_its_live_group() {
-    let mut story = TreeStory::new("move");
+    story.visit("move");
     story.tree(&[&["One", "Two", "Three"]]);
     story.patch(1);
     story.tree(&[&["Three", "One", "Two"]]);
-    story.run();
-}
 
-#[test]
-fn a_childs_name_changes_on_the_same_live_node() {
-    let mut story = TreeStory::new("rename");
+    story.visit("rename");
     story.tree(&[&["One", "Two", "Three"]]);
     story.patch(1);
     story.parts.push_back(Part::Identity { key: "Two", name: "Renamed two" });
@@ -177,12 +175,8 @@ fn a_childs_name_changes_on_the_same_live_node() {
         find: Find::exactly_named(Role::TreeItem, b"Two"),
         within: SECOND,
     })]);
-    story.run();
-}
 
-#[test]
-fn removing_the_last_child_leaves_no_empty_live_group() {
-    let mut story = TreeStory::new("last");
+    story.visit("last");
     story.tree(&[&["One"]]);
     story.patch(1);
     story.tree(&[]);
@@ -192,13 +186,8 @@ fn removing_the_last_child_leaves_no_empty_live_group() {
             within: SECOND,
         })]);
     }
-    story.run();
-}
 
-#[test]
-fn a_refreshed_form_removes_its_field_and_companion_label() {
-    const MAIN_NODE: &[u8] = b"2"; // Page, main in the live fixture.
-    let mut story = TreeStory::new("form");
+    story.visit("form");
     story.patch(1);
     story.dom("form:has(> label + input)".into(), "aria-label", "Rename renamed project");
     story.patch(2);
@@ -210,6 +199,52 @@ fn a_refreshed_form_removes_its_field_and_companion_label() {
             name: MAIN_NODE.into(),
         },
     ]);
+
+    story.visit("mixed");
+    story.tree(&[&["One", "Three"]]);
+    story.patch(1);
+    story.tree(&[&["One"], &[], &["Three"]]);
+    story.patch(2);
+    story.tree(&[&["One", "Two"], &[], &["Three", "Four"]]);
+    story.patch(3);
+    story.tree(&[&["One", "Two", "Three", "Four"]]);
+
+    story.visit("shown-folded");
+    for revision in 0_u64..=5 {
+        if revision != 0 {
+            story.patch(revision);
+        }
+        let words = if revision < 2 { "Ready" } else { "Updated" };
+        let head = if revision == 4 { "details > [role=group]" } else { "summary > [role=group]" };
+        story.dom(
+            format!("{head}:has(> span:first-child + [role=meter][aria-label=Usage]):not([data-shown-folded])"),
+            "role",
+            "group",
+        );
+        story.dom(
+            format!("{head} > [role=meter][aria-valuenow='2900'][aria-valuemax='10000'][aria-valuetext='29% used']"),
+            "data-progress",
+            "29",
+        );
+        story.dom("summary > [id^=skein-ui-description-]:first-child".into(), "id", "skein-ui-description-6");
+        story.steps(vec![harness::Step::Person(Step::See {
+            find: Find::named(Role::Disclosure, words.as_bytes()),
+            within: SECOND,
+        })]);
+        let caption = if revision < 2 { "Week" } else { "Month" };
+        story.dom(format!("{head} > span:first-child"), "data-node", "8");
+        if revision != 4 {
+            story
+                .steps(vec![harness::Step::Person(Step::See { find: Find::text(caption.as_bytes()), within: SECOND })]);
+        }
+        if revision == 1 || revision == 2 {
+            story.dom("details:has(> summary > [role=group] + span:last-child)".into(), "data-node", "6");
+            story.steps(vec![harness::Step::Person(Step::See { find: Find::text(b"Extra"), within: SECOND })]);
+        } else {
+            story.dom("details:has(> summary:not(:has(> [role=group] + span)))".into(), "data-node", "6");
+        }
+        story.dom("details:has(> summary:first-child ~ p:last-child)".into(), "data-node", "6");
+    }
     story.run();
 }
 
@@ -224,19 +259,6 @@ fn a_disclosure_keeps_focus_when_its_summary_name_changes() {
     story.revision(2);
     story.steps(vec![harness::Step::Focused(Find::named(Role::Disclosure, b"Renamed project"))]);
     story.dom("main:not(:has(form))".into(), "data-node", MAIN_NODE);
-    story.run();
-}
-
-#[test]
-fn a_paragraph_splits_two_live_runs_which_grow_and_merge_in_order() {
-    let mut story = TreeStory::new("mixed");
-    story.tree(&[&["One", "Three"]]);
-    story.patch(1);
-    story.tree(&[&["One"], &[], &["Three"]]);
-    story.patch(2);
-    story.tree(&[&["One", "Two"], &[], &["Three", "Four"]]);
-    story.patch(3);
-    story.tree(&[&["One", "Two", "Three", "Four"]]);
     story.run();
 }
 
@@ -276,45 +298,4 @@ fn clicking_the_visible_field_label_focuses_its_named_input() {
     assert_eq!(kept.len(), 2);
     assert!(!kept[0].value.is_empty());
     assert_eq!(kept[0].value, kept[1].value, "caption's for names this input");
-}
-
-#[test]
-fn shown_folded_children_patch_in_the_live_summary() {
-    let mut story = TreeStory::new("shown-folded");
-    for revision in 0_u64..=5 {
-        if revision != 0 {
-            story.patch(revision);
-        }
-        let words = if revision < 2 { "Ready" } else { "Updated" };
-        let head = if revision == 4 { "details > [role=group]" } else { "summary > [role=group]" };
-        story.dom(
-            format!("{head}:has(> span:first-child + [role=meter][aria-label=Usage]):not([data-shown-folded])"),
-            "role",
-            "group",
-        );
-        story.dom(
-            format!("{head} > [role=meter][aria-valuenow='2900'][aria-valuemax='10000'][aria-valuetext='29% used']"),
-            "data-progress",
-            "29",
-        );
-        story.dom("summary > [id^=skein-ui-description-]:first-child".into(), "id", "skein-ui-description-6");
-        story.steps(vec![harness::Step::Person(Step::See {
-            find: Find::named(Role::Disclosure, words.as_bytes()),
-            within: SECOND,
-        })]);
-        let caption = if revision < 2 { "Week" } else { "Month" };
-        story.dom(format!("{head} > span:first-child"), "data-node", "8");
-        if revision != 4 {
-            story
-                .steps(vec![harness::Step::Person(Step::See { find: Find::text(caption.as_bytes()), within: SECOND })]);
-        }
-        if revision == 1 || revision == 2 {
-            story.dom("details:has(> summary > [role=group] + span:last-child)".into(), "data-node", "6");
-            story.steps(vec![harness::Step::Person(Step::See { find: Find::text(b"Extra"), within: SECOND })]);
-        } else {
-            story.dom("details:has(> summary:not(:has(> [role=group] + span)))".into(), "data-node", "6");
-        }
-        story.dom("details:has(> summary:first-child ~ p:last-child)".into(), "data-node", "6");
-    }
-    story.run();
 }

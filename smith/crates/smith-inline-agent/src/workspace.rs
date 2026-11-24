@@ -75,6 +75,7 @@ pub(crate) fn start(
                         writable: directory.writable,
                         git: directory.git,
                         conflicts: directory.conflicts,
+                        results: directory.results,
                     })
                     .expect("checked mount count");
             }
@@ -124,7 +125,7 @@ pub(crate) fn terminal(slot: &mut Slot, terminal: Below) -> Option<smith::Event>
             }
             Machine::Read { .. } | Machine::Probe { .. } => return None,
         },
-        Below::Usage { .. } | Below::BuiltinResult { .. } | Below::ReadVersion { .. } => {}
+        Below::Classified { .. } | Below::Usage { .. } | Below::BuiltinResult { .. } | Below::ReadVersion { .. } => {}
     }
     Some(smith::Event::Below(terminal))
 }
@@ -208,6 +209,7 @@ pub(crate) fn check(
     agent: Token,
     owner: Token,
     program: run::Place,
+    results: Option<Box<[u8]>>,
     bound: skein_lib::Duration,
     cap: Time,
     tail: u32,
@@ -217,7 +219,7 @@ pub(crate) fn check(
         slot.machine.insert(owner, Machine::Check { cancelled: false }).expect("bounded run check rights").is_none(),
         "root machine requests own one callback right"
     );
-    out.push(Output::Lower { agent, request: Lower::Check { owner, program, bound, cap, tail } });
+    out.push(Output::Lower { agent, request: Lower::Check { owner, program, results, bound, cap, tail } });
 }
 
 pub(crate) fn abort(slot: &mut Slot, agent: Token, owner: Token, out: &mut Queue<Output>) {

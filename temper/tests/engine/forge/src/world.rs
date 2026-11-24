@@ -138,6 +138,8 @@ mod check_record_open;
 mod follows;
 #[path = "world/history.rs"]
 mod history_reads;
+#[path = "world/restarts.rs"]
+pub mod restarts;
 mod store_check;
 mod tasks;
 
@@ -196,6 +198,9 @@ pub struct World {
     dispatch_latency: Option<Duration>,
     lose_rerun_answer: bool,
     unavailable: Option<(Wall, Wall)>,
+    restart_scripts: Option<restarts::Scripts>,
+    settled_generation: Option<(u64, Time)>,
+    dropped_answers: u32,
     calls: u32,
     call_ops: Vec<skein_forge::api::Op>,
     hints: Vec<skein_forge::api::Hint>,
@@ -917,6 +922,9 @@ impl World {
             dispatch_latency: None,
             lose_rerun_answer: false,
             unavailable: None,
+            restart_scripts: None,
+            settled_generation: None,
+            dropped_answers: 0,
             calls: 0,
             call_ops: Vec::new(),
             hints: Vec::new(),
@@ -1245,6 +1253,7 @@ impl World {
                 self.owed.insert(row.landing.task);
             }
             top::Event::Restore { record } => {
+                self.changing_synthetic_entry(record);
                 let task = Self::restored_task(record);
                 if let Some(task) = task {
                     self.owed.insert(task);
@@ -1352,6 +1361,11 @@ impl World {
     /// Requests sent to the independent forge, in submission order.
     pub fn take_calls(&mut self) -> Vec<skein_forge::api::Op> {
         core::mem::take(&mut self.call_ops)
+    }
+    /// Whether the fake still owes this generation a reply to the named operation.
+    #[must_use]
+    pub fn awaiting_forge_reply(&self, op: &skein_forge::api::Op) -> bool {
+        self.pending.iter().any(|(_, pending)| pending.generation == self.generation && pending.op == *op)
     }
     #[must_use]
     pub fn stored(&self) -> &Map<top::Key, top::Stored> {
@@ -1796,16 +1810,44 @@ impl World {
             return Err(finding.clone());
         }
         let frozen = self.inspection();
+        let synthetic = self.synthetic_held_entries();
         let mut inspection = skein_world::inspect::Inspection::new("engine", temper_engine_inspect::KINDS);
         for wait in frozen.waits() {
             let mut wait = wait.clone();
             if self.owed.iter().any(|task| wait.waiter == format!("task {task}")) {
                 wait.wakes.push(skein_world::inspect::Wake::Party("root".into()));
             }
+            // A room waiting only on the impossible fixture's held rows cannot
+            // progress; keep its kind and bound checked, but not that injected deadlock.
+            if matches!(wait.kind.as_str(), "change: room" | "landing: room" | "making: room")
+                && !wait.wakes.is_empty()
+                && wait.wakes.iter().all(|wake| {
+                    synthetic.iter().any(|number| {
+                        *wake
+                            == skein_world::inspect::Wake::Ended(format!("entry {number} of task {}", restarts::ENDED))
+                    })
+                })
+            {
+                wait.wakes.push(skein_world::inspect::Wake::Party("synthetic ended entries".into()));
+            }
             inspection.wait(wait);
         }
         for table in frozen.tables() {
-            inspection.table(table.clone());
+            let mut table = table.clone();
+            if table.name == "forge write entries" {
+                for entry in &mut table.entries {
+                    if entry.release == skein_world::inspect::Release::Due
+                        && synthetic
+                            .iter()
+                            .any(|number| entry.key == format!("entry {number} (task {})", restarts::ENDED))
+                    {
+                        // Retain the row for capacity/refusal checks; only its
+                        // deliberately broken release rule is left out.
+                        entry.release = skein_world::inspect::Release::Kept;
+                    }
+                }
+            }
+            inspection.table(table);
         }
         let moment = skein_world::inspect::Moment { seed: self.seed, at: self.env.now, iteration: self.iteration };
         let waits = skein_world::inspect::check_waits(&[&inspection], moment);
@@ -1828,6 +1870,8 @@ impl World {
         if let Some((generation, event)) = self.to_top.pop() {
             if generation == self.generation {
                 self.event(event);
+            } else if matches!(event, top::Event::Client(skein_forge_client::Event::Answered { .. })) {
+                self.dropped_answers += 1;
             }
         } else if let Some(event) = self.to_forge.pop() {
             let mut env =
@@ -1845,6 +1889,9 @@ impl World {
                 env.limits.timeouts = 1000;
             }
             self.sweep_call(&event, &mut env.limits);
+            if self.restart_scripts.is_some() {
+                self.restart_call_config(&event, &mut env);
+            }
             let excluded = self.exclude_record_lag(&event);
             if let Some(delay) = self.dispatch_latency
                 && matches!(&event, forge::Event::Call { op: raw::Op::Write(raw::Write::Dispatch { .. }), .. })
@@ -2017,6 +2064,9 @@ impl World {
                     self.seen.push(top::Request::Settled { unfinished }).expect("world output capacity");
                 }
                 top::Request::RestartDone { stage } => {
+                    if stage == top::RestartStage::Settled {
+                        self.settled_generation = Some((self.generation, self.env.now));
+                    }
                     restart = match stage {
                         top::RestartStage::Restored => Some(top::Event::CatchUp),
                         top::RestartStage::ReadAfresh | top::RestartStage::Settled => None,
@@ -2123,6 +2173,21 @@ impl World {
                     call,
                     cost: 1,
                     result: Err(skein_forge::api::Error::Unavailable),
+                }),
+            ));
+            return;
+        }
+        if self.restart_scripts.is_some()
+            && let Some(error) = self.restart_refusal(&op)
+        {
+            self.to_top.push((
+                self.generation,
+                top::Event::Client(skein_forge_client::Event::Answered {
+                    free: 0,
+                    rate: None,
+                    call,
+                    cost: 1,
+                    result: Err(error),
                 }),
             ));
             return;
@@ -2256,6 +2321,12 @@ impl World {
                     } else {
                         result
                     };
+                    if self.restart_scripts.is_some() {
+                        if self.restart_loses_answer(&pending.op, &result) {
+                            continue;
+                        }
+                        self.restart_answer(&pending.op, &result);
+                    }
                     let event = (
                         pending.generation,
                         top::Event::Client(skein_forge_client::Event::Answered {

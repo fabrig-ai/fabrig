@@ -137,12 +137,19 @@ pub enum Command {
         environment: Box<[EnvironmentEntry]>,
     },
 }
+fn dispatch_box(exit: Result<Exit, String>) -> Result<Exit, String> {
+    exit.map_err(|why| box_error(&why))
+}
+
 fn prefixed(command: &str, why: &str) -> String {
     let mut lines = String::new();
     for line in why.lines() {
         writeln!(lines, "{command}: {line}").expect("writing into a string");
     }
     lines
+}
+fn box_error(why: &str) -> String {
+    prefixed("temper-box", why)
 }
 type EnvironmentEntry = (Box<[u8]>, Box<[u8]>);
 pub fn configure_with(
@@ -373,18 +380,18 @@ pub fn run(
         Command::Serve { directories, boxed, record } => {
             serve::run("temper-box", environment, working, &directories, boxed, record)?
         }
-        Command::BoxFakeBackends { directories, bundle, scripts, strict, echo, front, record } => fake_backends::run(
-            &directories,
-            &fake_backends::Options { bundle, scripts, strict },
-            echo,
-            front,
-            record,
-            environment,
-        )
-        .map_err(|why| prefixed("temper-box", &why))?,
+        Command::BoxFakeBackends { directories, bundle, scripts, strict, echo, front, record } => {
+            dispatch_box(fake_backends::run(
+                &directories,
+                &fake_backends::Options { bundle, scripts, strict },
+                echo,
+                front,
+                record,
+                environment,
+            ))?
+        }
         Command::Box { directories, echo, front, record } => {
-            box_command::run(&directories, echo, front, record, environment)
-                .map_err(|why| prefixed("temper-box", &why))?
+            return box_status(box_command::run(&directories, echo, front, record, environment));
         }
         Command::Agent { configuration } => {
             return temper_agent_shell::run(
@@ -398,8 +405,7 @@ pub fn run(
             return temper_agent_shell::list("temper internal agent-list", &configuration);
         }
         Command::ProgramLogin { directories, name } => {
-            return program_login::run(&directories, &name, environment)
-                .map_err(|why| temper_service_shell::configuration::login_problems("temper-box program-login", &why));
+            return program_login::run(&directories, &name, environment);
         }
         Command::Fake { arguments } => return fake::run(&arguments),
         Command::FakeCheck { directories, check } => return Ok(fake::check::run(&directories, &check)),
@@ -420,10 +426,18 @@ pub fn run(
         Command::Ctl { arguments } => return Ok(ctl::run(&arguments, &Clock::new())),
         Command::Open { arguments } => return Ok(open::run(&arguments, &Clock::new())),
     };
-    Ok(match exit {
+    Ok(exit_status(exit))
+}
+
+fn box_status(result: Result<Exit, String>) -> Result<u8, String> {
+    dispatch_box(result).map(exit_status)
+}
+
+fn exit_status(exit: Exit) -> u8 {
+    match exit {
         Exit::Code(code) => code,
         Exit::Signal(_) => 1,
-    })
+    }
 }
 fn path(bytes: &[u8]) -> &Path {
     Path::new(std::ffi::OsStr::from_bytes(bytes))

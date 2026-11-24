@@ -16,7 +16,8 @@ look requests drawn on their pages are `web/look-requests.md`'s.
   pages` walks every journey in a world, in one process, with no box,
   browser, terminal, recording or network (`journey-walks.md`, 5.2).
 - **A script runs it one at a time** (section 4): at each landing of
-  main, `scripts/journey-pages.sh` prints the tip and offers what
+  main, `scripts/journey-pages.sh`, through the journeys tool's
+  `writer` command, prints the tip and offers what
   differs as one change, opened from a pushed branch, its message ending
   `Printed: COMMIT`, or, given no project, as a commit on a branch of
   its own for its runner to land. While an offer of its own is open it
@@ -94,6 +95,19 @@ its own whose `origin` is the repository. With `--project` it opens a
 change, and needs `temper` on its `PATH` signed in; without it, it
 opens nothing, and needs no ctl directory and no way to push.
 
+- **The script runs the command:** `scripts/journey-pages.sh` runs
+  `cargo run --locked --quiet --manifest-path ROOT/Cargo.toml -p
+  temper-client-journeys -- writer` with its arguments, ROOT the
+  repository holding the script, in the directory it was run in; its
+  exit is the command's. The command, `temper-client-journeys writer`
+  (`../testing/tools.md`, 2), is the run: this section's words, lines
+  and exits are its own, under the script's name (`journey-pages:
+  WHY`). It asks for each effect as a value, a child (`git`, `cargo`,
+  `temper`) with its arguments, a file or a directory, or whether a
+  process is live, and decides on the answer, so that its decisions are
+  tested on canned answers (section 7). Every child runs with
+  `LC_ALL=C` and its stdin closed. Building the command reads no
+  `TEMPER_INTERNAL_BUNDLE`: the journeys tool builds no bundle.
 - **Its arguments:** a value option needs a nonempty value, not another
   option; repeated options and unknown arguments are refused. With a
   project, exactly one of `--budget` and `--as-allowed` is needed;
@@ -103,7 +117,8 @@ opens nothing, and needs no ctl directory and no way to push.
   given option warns on stderr, `journey-pages.sh: --OPTION has no
   effect: temper-client-walk pages walks no box`. `--within` still
   requires digits then `s`, `m` or `h` (`90m`); neither option bounds or
-  changes the print. `--help` says this and exits 0.
+  changes the print. `--help` prints the command's page
+  (`../testing/tools.md`, 4.2), which says this, and exits 0.
 - **Its branch:** NAME, `journey-pages` where none is given, the local
   branch its commit is made on.
 - **Its push:** with `--project`, to REMOTE, `origin` where none is
@@ -124,7 +139,8 @@ opens nothing, and needs no ctl directory and no way to push.
    with `mkdir`. A second run while a live process holds it is refused,
    naming the lock and the process, exit 2; a lock whose process has
    gone is taken over. A missing or invalid process number is refused.
-   The run removes its lock as it exits.
+   The run removes its lock as it exits; a run a signal ends leaves it,
+   and the next run takes it over, its process gone.
 2. **One at a time:** the git directory keeps `journey-pages`, the last
    offer: `task N`, the change the script opened, or `commit COMMIT`,
    the commit it wrote where it opened none. While `temper ctl task
@@ -206,7 +222,9 @@ opens nothing, and needs no ctl directory and no way to push.
 - **Drawn on main's pages as they stand** (`web/look-requests.md`, 2):
   the writer's last print, never a walk of the person's.
 - **The refresh goes by the print** (`web/journeys.md`, 7):
-  `look-refresh.sh` reads PRINTED, the value of the newest valid
+  `look-refresh.sh`, which runs the journeys tool's `look-refresh`
+  command as the writer's script runs `writer` (section 4), reads
+  PRINTED, the value of the newest valid
   `Printed:` trailer in topological order among every commit reachable
   from `origin/main`, not its first-parent line alone: a print reaches
   main as its own commit, as a merge's second parent made by hand, or
@@ -244,28 +262,51 @@ Focused and native: no box, browser or terminal starts.
   including the TUI's `NN.txt`; a stopped walk keeps all its journey's
   files and lets the others print. Its lines and exits are held there
   (`journey-walks.md`, 7).
-- **The run,** in `crates/temper-client-journeys-tool`'s suite beside
-  the refresh's tests, in scratch repositories with a fake `cargo` and
-  a fake `temper` first on `PATH`: nothing to write, nothing pushed or
+- **The run's decisions,** step tests in
+  `crates/temper-client-journeys-tool`'s library: the `writer` command
+  on canned answers, each request it makes, in order, with its answer
+  (git's output and exit, the print's lines and exit, `temper ctl`'s
+  answers, the lock's and the offer's files, a process's liveness),
+  then its stdout, stderr and exit. Nothing to write, nothing pushed or
   opened; pages changed, one commit of them alone whose last paragraph
   is `Printed: TIP`, pushed, and one `change open` asked with its
-  branch, commit and key; a second run while that task is live starts
-  no print, push or open; once it has ended, the next run prints; with
-  no project, a commit written on its branch, pushed only where asked
-  and never forced, a branch held elsewhere refused, and the next run
-  waiting until main holds the print, merged or squashed; its last line
-  in each case; a held lock refused, exit 2; a path outside the written
-  files changed, nothing pushed or opened, exit 1; a dirty checkout
-  refused, exit 2. One `temper-client-walk pages` call, with or without
-  a walk in the roots; its removed `recording` committed and its
-  `stopped` lines in the paragraph; exit 2 or 3 offering nothing.
-  `--prepared` and `--within` are validated and warn, but affect neither
-  the print nor its commit.
-- **The refresh:** a request whose trailer is on main and not yet
-  printed kept; dropped once a `Printed:` names a commit that contains
-  it, the print reaching main as its own commit, a merge's second
-  parent or squashed; nothing dropped while main holds no `Printed:`;
-  the report's first line.
+  branch, commit and key, for each budget form and remote; a second run
+  while that task is live starts no print, push or open; once it has
+  ended, the next run prints; with no project, a commit written on its
+  branch, pushed only where asked and never forced, a branch held
+  elsewhere refused, and the next run waiting until main holds the
+  print, merged or squashed; its last line in each case; a held lock
+  refused, exit 2, and one whose process has gone taken over; a path
+  outside the written files changed, nothing pushed or opened, exit 1;
+  a checkout with tracked changes, or a rebase, merge, cherry-pick or
+  sequencer in progress, refused before fetching, exit 2; each refused
+  argument, exit 2; an unreadable offer or task answer kept, exit 1.
+  One `temper-client-walk pages` call, with or without a walk in the
+  roots; its removed `recording` committed and its `stopped` lines in
+  the paragraph; exit 2 or 3 offering nothing. `--prepared` and
+  `--within` are validated and warn, but affect neither the print nor
+  its commit.
+- **The refresh's decisions,** step tests in the same library, the
+  `look-refresh` command on canned answers: a request whose trailer is
+  on main and not yet printed kept; dropped once a `Printed:` names a
+  commit that contains it, the print reaching main as its own commit, a
+  merge's second parent or squashed; the newest valid `Printed:`
+  deciding, each invalid one warned of and passed over; nothing dropped
+  while main holds no `Printed:`; the report's lines; a first push
+  making the branch; a branch moved elsewhere left as it is, exit 3; a
+  request without its trailer, with a malformed or repeated one, or a
+  merge commit refused before rebasing, exit 2; an unsuitable checkout
+  refused before fetching, exit 2.
+- **Their witnesses,** in `temper-client-journeys`'s suite, the
+  shipped scripts in scratch repositories with real git, a fake `cargo`
+  first on `PATH` that runs the built tool for `-p
+  temper-client-journeys` and answers the print for `-p
+  temper-client-walk`, and a fake `temper`: changed pages offered on the
+  fetched tip, with each budget form; a lock whose process is live
+  refused, exit 2, then one whose process has gone taken over; the
+  requests following main, rebased and pushed with the lease; and a
+  conflict stopping for the person, exit 1, with the rebase in
+  progress, the next refresh pushing once it is settled.
 - **The delivery check** (`tools/pre-pr/design.md`, 9.2) and **the
   merge job** (`tools/merge/README.md`), in their own tests.
 

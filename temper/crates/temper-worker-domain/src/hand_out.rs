@@ -35,6 +35,8 @@ impl StartClass {
 /// What a payload handed out is for.
 #[derive(Debug)]
 pub(crate) enum Pending {
+    /// A part of the run `owner`, for the hub.
+    Part { owner: Token },
     /// A turn of the run `owner`, for the hub.
     Turn { owner: Token },
     /// The name of the call `call` of the run `owner`.
@@ -47,7 +49,10 @@ impl Pending {
     /// The hosted run the hand-out is for.
     pub(crate) const fn owner(&self) -> Token {
         match self {
-            Pending::Turn { owner } | Pending::Call { owner, .. } | Pending::Result { owner, .. } => *owner,
+            Pending::Part { owner }
+            | Pending::Turn { owner }
+            | Pending::Call { owner, .. }
+            | Pending::Result { owner, .. } => *owner,
         }
     }
 }

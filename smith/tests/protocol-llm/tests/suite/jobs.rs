@@ -62,6 +62,7 @@ fn checkout() -> (Checkout, run::Workspace) {
     );
     let workspace = run::Workspace {
         directories: Box::new([run::Directory {
+            results: None,
             host: b"/host".as_slice().into(),
             name: b"work".as_slice().into(),
             root,

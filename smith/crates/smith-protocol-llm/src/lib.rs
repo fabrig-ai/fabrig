@@ -48,7 +48,7 @@ pub use boundary::{Below, BelowEvent, Deltas, FromDomain, ToDomain};
 pub use capture::{Measure, Observation};
 
 /// Decode a client completion under its retained contract.
-pub use completion::completion;
+pub use completion::{classify, completion};
 
 pub use component::{Component, ComponentError, ComponentLimits, component_valid};
 pub use contract::{decode_deliver, decode_finish, decode_finish_call, deliver_schema, finish_schema, outcome_schema};
@@ -60,6 +60,9 @@ pub use failure::cancelled;
 
 /// Translate a client failure with its evidence and bounded detail.
 pub use failure::failed;
+
+/// Render a tool input problem within the reply's byte bound.
+pub use failure::problem as render_call_problem;
 
 /// Report a prompt preparation refusal as an unsent root terminal.
 pub use failure::refusal;

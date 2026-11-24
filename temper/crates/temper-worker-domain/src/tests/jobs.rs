@@ -117,6 +117,7 @@ fn git(h: &mut Harness, initial: Box<[Request]>, stale: bool) -> Box<[Request]> 
                 | Op::Point { .. }
                 | Op::Counts { .. }
                 | Op::Store { .. }
+                | Op::Keep { .. }
                 | Op::Make { .. }
                 | Op::Clone { .. }
                 | Op::Create { .. }
@@ -442,4 +443,32 @@ fn a_close_jobs_commit_title_names_its_goal() {
     ] {
         assert_eq!(crate::jobs::commit_title(JobKind(kind), request).as_ref(), expected, "{request:?}");
     }
+}
+
+#[test]
+fn disk_capacity_queues_before_checkout_and_preserves_operator_pause() {
+    use jig_domain_link::{PauseMode, PauseState};
+    let mut h = harness(true);
+    let word = |state| Request::Link(host::LinkUp::Paused { state });
+    h.domain.set_local_places(0, &h.env, &mut h.out);
+    assert_eq!(h.out.pop(), Some(word(PauseState::Paused)));
+    let declined = h.step(assignment(true, true));
+    let [Request::JobAnswer { answer, .. }] = &*declined else { panic!("busy job starts no checkout: {declined:?}") };
+    assert_eq!(answer, &host::JobEnding::Refused(host::JobRefusal::Busy));
+    let run = h.step(fixtures::assignment_of(77, &[b"work"], 0));
+    let [Request::Answer { answer, .. }] = &*run else { panic!("busy run starts no checkout") };
+    assert_eq!(answer.ending, host::Ending::Refused(host::Refusal::Busy));
+    h.step(Event::Lost);
+    assert!(h.step(Event::Ready).contains(&word(PauseState::Paused)));
+    let ask = |mode| Event::Link(host::LinkDown::Pause { mode });
+    h.step(ask(PauseMode::Pause));
+    h.domain.set_local_places(1, &h.env, &mut h.out);
+    assert!(h.out.is_empty(), "free disk cannot lift an operator pause");
+    assert!(h.step(ask(PauseMode::Resume)).contains(&word(PauseState::Taking)));
+    let admitted = h.step(assignment(true, true));
+    assert!(admitted.contains(&word(PauseState::Paused)), "the admitted checkout reserves the only place");
+    let second = h.step(fixtures::assignment_of(78, &[b"work"], 0));
+    let [Request::Answer { answer, .. }] = &*second else { panic!("busy run starts no checkout") };
+    assert_eq!(answer.ending, host::Ending::Refused(host::Refusal::Busy));
+    assert!(requested(&git(&mut h, admitted, false)), "the admitted job continues under disk pressure");
 }
