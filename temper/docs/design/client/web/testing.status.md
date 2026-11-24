@@ -23,6 +23,9 @@
 - **Not yet:** 6: the journey chain's story is still a browser test, its
   scripted test reading no page an ancestor changed, and a TUI walk's
   scripted test is not written [in flight: change 14084].
+- **Not yet:** 6: stories 17 and 18, the journey's look and the TUI journey
+  approved in Chromium, are two tests, so the tier holds thirteen against
+  its cap of twelve [in flight: change 14351].
 - **Not yet:** 2, 3, 6: the tier holds twelve test functions. Its merged
   tests 2 (with 11 and the call line), 4 (with 5, the model picker and 15),
   8 and 9 (welcome then ConnectModel, with Accounts history and key

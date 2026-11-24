@@ -729,7 +729,9 @@ Focused, with no browser, no box and no Chromium:
 - **Above them:** the browser tier's journey test
   (story 17 of `web/testing.md`, 6) walks a scratch journey in Chromium on the
   shipped bundle, its mark's screenshot a PNG on disk and its kept
-  lines the file's.
+  lines the file's; in the same test, story 18 walks a scratch TUI
+  journey on the native TUI, its `tui approve` pressing Approve in the
+  session's Chromium, the one witness of that sign-in.
 - **A deployment's session:** `../testing/qa/deployment.md`, 9's;
   `--ctl --deployment` a ctl session, `--deployment` alone a full one
   needing Chromium, and `--bundle` optional there.

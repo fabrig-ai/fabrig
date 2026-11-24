@@ -338,9 +338,10 @@ One test, the provider's (`../../protocol/openid-provider.md`, 8).
 
 The tier's tests, each on its own `temper-box serve` (the playground's on its
 built playground; 2 and 11, 13 and 14 on `temper box`, whose first run is
-over; 17 on the journeys' drive session's box). Each is one test of the steps
+over; 17 and 18 each on a journeys' drive session's box). Each is one test of the steps
 it names; 2 and 11 share one, and 4, 5 and 15 another, on one setup (3, the
-cap); 8 and 9 share their Accounts setup, and 16 shares its sheet's setup
+cap); 8 and 9 share their Accounts setup, 17 and 18 their journeys' scratch
+and built programs, and 16 shares its sheet's setup
 across desktop and phone widths. A story's state is made before its page
 opens, through ctl and the tier's scripted model (3), and its page goes to the
 address the story is about: what a story would walk through on its way is held
@@ -361,7 +362,7 @@ functions in `tests/client-browser/tests/browser_all` are:
 | 13 | `browser_public` | `public_board_and_task_lines_are_readable_at_desktop_and_phone_widths` |
 | 14 | `browser_pages` | `a_chat_opens_at_its_end_and_reads_back_keeping_its_place` |
 | 16 | `browser_connect_flows` | `scrolling_the_sheet_reads_more_then_search_picks_and_adopts` |
-| 17 | `browser_journeys` | `browser_journey_answers_a_screenshot_and_the_controls_text` |
+| 17 and 18 | `browser_journeys` | `a_browser_journey_looks_and_a_tui_journey_is_approved_in_chromium` |
 
 1. **Signing in** (1, 1): the printed link signs in, a reload on a
    chat signs in by the cookie, and the link spent shows the
@@ -437,6 +438,16 @@ functions in `tests/client-browser/tests/browser_all` are:
     screenshot at 420 px, a PNG, then the page's text, and its kept lines are
     its lines but the mark. A chain's sequencing and a TUI walk's answers are
     the drive's focused tests' (below).
+18. **A TUI journey approved in Chromium** (`../drive.md`, 3.3;
+    `../tui/journeys.md`, 8): a scratch TUI journey walked by the same kind
+    of session runs the native TUI on its terminal, waits for its approval
+    prompt, and its `tui approve` presses Approve in the session's Chromium;
+    the launchpad's words then answer its mark, no screenshot is taken, and
+    its kept lines hold `tui approve` and no `tui mark`. It is the one
+    witness of a native TUI signed in through a real browser, which is why
+    it stays in the tier (`temper/docs/design/draft/slow-tests-down.status.md`,
+    Design departs); the rules its walk follows are the drive's focused
+    tests' (below).
 
 The cap includes all browser tests, whatever their names.
 
@@ -487,9 +498,10 @@ Not in the tier, each in the lowest world that shows it:
   world's welcome, forge and adoption stories; the manifest's post, the
   one thing a browser alone shows, stays in 10.
 
-What 2, 4, 11, 13, 14 and 15 asserted on their way, and the Workers tab's and
-the journeys' stories, which left the tier (`temper/docs/design/draft/slow-tests-down.md`,
-3.2 and 5.1), each beside the lower test that holds it:
+What 2, 4, 11, 13, 14 and 15 asserted on their way, the Workers tab's and the
+journey chain's stories, which left the tier, and the rules 18's walk follows
+(`temper/docs/design/draft/slow-tests-down.md`, 3.2 and 5.1), each beside the
+lower test that holds it:
 - **A public project's pages (13):**
   - the projects page's heading and its whole list: `temper-client-view-parts`'
     `tests::public::the_projects_page_lists_its_projects_under_its_heading`, with
@@ -594,7 +606,8 @@ the journeys' stories, which left the tier (`temper/docs/design/draft/slow-tests
   the ancestor's press left, and one screenshot, at the child's mark:
   `temper-client-journeys-tool`'s `journey_walk::tests::chain_walks_one_journey_session_root_first_with_scripts_and_only_its_own_marks`,
   with a page the ancestor's press changes.
-- **A TUI journey's answers** (`../drive.md`, 6): each line's answer under its
+- **A TUI journey's answers** (`../drive.md`, 6), which 18 also shows once
+  natively: each line's answer under its
   journey's line number, the launchpad's rows after an explicit approval,
   `tui approve` kept and `tui mark` not, and no screenshot:
   `journey_walk::tests::a_tui_walk_answers_by_its_lines_and_keeps_approve_alone`,
