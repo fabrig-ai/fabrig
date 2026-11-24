@@ -1,6 +1,6 @@
 use super::{DeploymentIo, ProviderKey, StartupIo, Written, write_deployment_with};
 use crate::{Directories, EnvironmentEntry, path, testing::init_fixtures::directories};
-use skein_fake_machine::{How, Is, Item, Machine, Opened, Refusal};
+use skein_fake_machine::{Facts, How, Is, Item, Machine, Opened, Refusal};
 use skein_io::kernel::{Done, Error, Family, Fd, Op};
 use std::{
     collections::VecDeque,
@@ -12,26 +12,24 @@ use std::{
 pub(super) struct ListenerScript(VecDeque<(Op, Result<Done, Error>)>);
 
 impl ListenerScript {
-    pub(super) fn new(preferred: [u16; 2], occupied: bool) -> Self {
-        let clients = Fd::new(11);
-        let webhooks = Fd::new(12);
+    /// Each row gives the bind request and the port returned. A different
+    /// answer to a nonzero request means that port was already taken.
+    pub(super) fn ports(bindings: [(u16, u16); 2]) -> Self {
         let backlog = jig_protocol_config::stock().io.backlog;
         let address = |port| ([127, 0, 0, 1], port).into();
-        let mut steps = VecDeque::from([
-            (Op::Socket { family: Family::Ipv4 }, Ok(Done::Fd(clients))),
-            (Op::Bind { fd: clients, addr: address(preferred[0]) }, Ok(Done::Bound(address(7100)))),
-            (Op::Listen { fd: clients, backlog }, Ok(Done::Nothing)),
-            (Op::Socket { family: Family::Ipv4 }, Ok(Done::Fd(webhooks))),
-        ]);
-        let requested = if preferred[1] == 0 { 7101 } else { preferred[1] };
-        let bind = |port| Op::Bind { fd: webhooks, addr: address(port) };
-        if occupied {
-            steps.push_back((bind(requested), Err(Error::AddressInUse)));
-            steps.push_back((bind(0), Ok(Done::Bound(address(7102)))));
-        } else {
-            steps.push_back((bind(requested), Ok(Done::Bound(address(requested)))));
+        let mut steps = VecDeque::new();
+        for (fd, (requested, chosen)) in [11, 12].map(Fd::new).into_iter().zip(bindings) {
+            steps.push_back((Op::Socket { family: Family::Ipv4 }, Ok(Done::Fd(fd))));
+            let bind = |port| Op::Bind { fd, addr: address(port) };
+            let bound = Ok(Done::Bound(address(chosen)));
+            if requested != 0 && requested != chosen {
+                steps.push_back((bind(requested), Err(Error::AddressInUse)));
+                steps.push_back((bind(0), bound));
+            } else {
+                steps.push_back((bind(requested), bound));
+            }
+            steps.push_back((Op::Listen { fd, backlog }, Ok(Done::Nothing)));
         }
-        steps.push_back((Op::Listen { fd: webhooks, backlog }, Ok(Done::Nothing)));
         Self(steps)
     }
 
@@ -48,35 +46,49 @@ impl StartupIo for ListenerScript {
     }
 }
 
+#[derive(Debug, PartialEq, Eq)]
+pub(super) enum Effect {
+    Directory(PathBuf, u32),
+    Write(PathBuf, u32),
+    Link(PathBuf, PathBuf),
+}
+
 pub(crate) struct Startup {
     files: Machine,
     root: Opened,
-    link: Option<(PathBuf, PathBuf)>,
     listeners: Option<ListenerScript>,
-    pub(super) lookups: Vec<Box<[u8]>>,
+    lookups: Vec<(Box<[u8]>, Option<PathBuf>)>,
+    pub(super) effects: Vec<Effect>,
 }
 
 impl Startup {
     pub(crate) fn new(items: &[Item], accepts: bool) -> Self {
+        Self::with_listeners(items, accepts.then(|| ListenerScript::ports([(0, 7100), (7101, 7101)])))
+    }
+
+    pub(super) fn with_listeners(items: &[Item], listeners: Option<ListenerScript>) -> Self {
         let mut files = Machine::new();
         let root = files.lay(items);
-        Self {
-            files,
-            root,
-            link: None,
-            listeners: accepts.then(|| ListenerScript::new([0; 2], false)),
-            lookups: Vec::new(),
-        }
+        Self { files, root, listeners, lookups: Vec::new(), effects: Vec::new() }
     }
 
     pub(crate) fn init(&mut self, boxed: bool, program: Option<&Path>) -> Result<Written, String> {
+        self.init_with_preferred(boxed, program, [0; 2])
+    }
+
+    pub(super) fn init_with_preferred(
+        &mut self,
+        boxed: bool,
+        program: Option<&Path>,
+        preferred: [u16; 2],
+    ) -> Result<Written, String> {
         let dirs = directories(Path::new("/fixture"));
         let environment = [(Box::from(b"PATH".as_slice()), Box::from(b"/fixture/bin".as_slice()))];
         write_deployment_with(
             &dirs,
             &environment,
             Path::new("/fixture/bin/temper"),
-            &[0; 2],
+            &preferred,
             program,
             boxed,
             ProviderKey::Generated,
@@ -84,8 +96,24 @@ impl Startup {
         )
     }
 
-    pub(super) fn snapshot(&self) -> ([u8; 32], Option<(PathBuf, PathBuf)>) {
-        (self.files.state_digest(), self.link.clone())
+    pub(super) fn lookups(&self) -> Vec<(&[u8], Option<&Path>)> {
+        self.lookups.iter().map(|(name, found)| (name.as_ref(), found.as_deref())).collect()
+    }
+
+    pub(super) fn snapshot(&self) -> ([u8; 32], usize) {
+        (self.files.state_digest(), self.effects.len())
+    }
+
+    pub(super) fn hold(&mut self, name: &Path) -> Opened {
+        self.files.open(self.root, relative(name), How::Read).expect("retained file")
+    }
+
+    pub(super) fn stat(&self, file: Opened) -> Facts {
+        self.files.stat(file)
+    }
+
+    pub(super) fn release(&mut self, file: Opened) {
+        self.files.close(file);
     }
 
     pub(crate) fn read(&mut self, name: &Path) -> Vec<u8> {
@@ -133,11 +161,12 @@ impl Startup {
     ) -> Result<temper_config_shell::Read, temper_config_shell::Refusal> {
         let config = path(&dirs.config);
         let former = self.symlink_metadata(&config.join(temper_config_shell::FORMER));
+        let provider_key = self.symlink_metadata(&path(&dirs.data).join("provider.key")).is_ok();
         temper_config_shell::read_with(
             temper_config_shell::Shape::Standalone,
             || former,
             |max| self.read_bounded(&config.join(temper_config_shell::FILE), max),
-            || Ok(temper_config_shell::Facts { login: "ada".into(), hostname: "fixture".into(), provider_key: false }),
+            || Ok(temper_config_shell::Facts { login: "ada".into(), hostname: "fixture".into(), provider_key }),
         )
     }
 
@@ -173,7 +202,6 @@ impl DeploymentIo for Startup {
     }
 
     fn find(&mut self, environment: &[EnvironmentEntry], name: &[u8]) -> Option<PathBuf> {
-        self.lookups.push(name.into());
         let facts = temper_shell::lookup::candidates(environment, name)
             .into_iter()
             .map(|candidate| {
@@ -185,7 +213,9 @@ impl DeploymentIo for Startup {
                 (candidate, executable)
             })
             .collect::<Vec<_>>();
-        temper_shell::lookup::lookup(environment, name, &facts)
+        let found = temper_shell::lookup::lookup(environment, name, &facts);
+        self.lookups.push((name.into(), found.clone()));
+        found
     }
 
     fn open(&mut self) -> Result<ListenerScript, String> {
@@ -212,7 +242,11 @@ impl DeploymentIo for Startup {
         let result = self.files.make_directory(directory, name.file_name().expect("name").as_bytes(), 0o700);
         self.files.close(directory);
         match result {
-            Ok(()) | Err(Refusal::Exists) => Ok(()),
+            Ok(()) => {
+                self.effects.push(Effect::Directory(name.to_owned(), 0o700));
+                Ok(())
+            }
+            Err(Refusal::Exists) => Ok(()),
             Err(why) => Err(format!("{why:?}")),
         }
     }
@@ -227,6 +261,7 @@ impl DeploymentIo for Startup {
 
     fn write(&mut self, io: &mut ListenerScript, name: &Path, bytes: Box<[u8]>, mode: u32) -> Result<(), String> {
         io.finish();
+        self.effects.push(Effect::Write(name.to_owned(), mode));
         let opened = self.files.open(self.root, relative(name), How::Create { mode }).expect("init creates its file");
         self.files.write(opened, 0, &bytes).expect("init writes its file");
         self.files.close(opened);
@@ -236,11 +271,12 @@ impl DeploymentIo for Startup {
     fn symlink(&mut self, target: &Path, name: &Path) -> Result<(), String> {
         assert_eq!(name, Path::new("/fixture/data/demo/bin/git"));
         assert_eq!(target, Path::new("/fixture/bin/temper"));
-        assert!(self.link.replace((name.to_owned(), target.to_owned())).is_none());
+        self.effects.push(Effect::Link(name.to_owned(), target.to_owned()));
         Ok(())
     }
 
-    fn make_provider_key(&mut self, _: &Path, _: ProviderKey) -> Result<(), String> {
-        panic!("no openssl in the startup fixture")
+    fn make_provider_key(&mut self, name: &Path, _: ProviderKey) -> Result<(), String> {
+        self.symlink_metadata(name).expect("the startup fixture can keep a key but does not run OpenSSL");
+        Ok(())
     }
 }

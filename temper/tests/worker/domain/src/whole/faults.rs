@@ -15,6 +15,7 @@ use temper_worker_inspect::faults::{DISK_FULL, FETCH_CUT, PLACEMENT_BUSY};
 #[derive(Default)]
 pub(super) struct Faults {
     pub cut: Option<bool>,
+    pub refuse_push: bool,
     pub held: Option<(Token, Op, Time)>,
     pub fill: Option<bool>,
     pub capacity: Option<u64>,
@@ -33,6 +34,10 @@ impl Faults {
         now: Time,
         deadline: Time,
     ) -> Option<Done> {
+        if self.refuse_push && matches!(op, Op::Push { .. }) {
+            self.refuse_push = false;
+            return Some(Done::Rejected);
+        }
         if matches!(op, Op::Make { .. }) {
             self.makes += 1;
         }
