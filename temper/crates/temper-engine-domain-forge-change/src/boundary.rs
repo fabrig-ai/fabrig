@@ -731,3 +731,37 @@ pub struct Ready {
     pub priority: i32,
     pub since: Wall,
 }
+
+impl State {
+    /// The change's procedure step, in accounts (domain/forge/waits.md, 9).
+    #[must_use]
+    pub fn step_name(&self) -> &'static [u8] {
+        match self {
+            Self::Taking { .. } => b"taking",
+            Self::Producing { .. } => b"producing",
+            Self::Opening { .. } => b"opening",
+            Self::Recreating { .. } => b"recreating",
+            Self::Reopening { .. } => b"reopening",
+            Self::Checking { .. } => b"checking",
+            Self::Gating { .. } => b"gating",
+            Self::Judging { .. } => b"judging",
+            Self::CancellingGates { .. } => b"cancelling gates",
+            Self::Ready { .. } => b"ready",
+            Self::Queued { .. } => b"queued",
+            Self::First { .. } => b"first",
+            Self::Updating { .. } => b"updating",
+            Self::Preparing { .. } => b"preparing",
+            Self::WaitingProducer { .. } => b"waiting producer",
+            Self::Resolving { .. } => b"resolving",
+            Self::Repairing { .. } => b"repairing",
+            Self::Landing { .. } => b"landing",
+            Self::Landed { .. } => b"landed",
+            Self::Red { .. } => b"red",
+            Self::Cleared { .. } => b"cleared",
+            Self::Uncleared { .. } => b"uncleared",
+            Self::NoChange { .. } => b"no change",
+            Self::Ended => b"ended",
+            Self::Held { was, .. } => was.step_name(),
+        }
+    }
+}

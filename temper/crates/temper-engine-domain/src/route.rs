@@ -916,13 +916,25 @@ fn forge_event(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision, 
 
 fn prepare_wait_catch_up(domain: &mut Domain) {
     let rows = domain.core.tasks.view_tasks();
-    let mut live = List::with_capacity(u32::try_from(rows.len()).expect("bounded live tasks"));
+    let capacity = u32::try_from(rows.len()).expect("bounded live tasks");
+    let mut live = List::with_capacity(capacity);
+    let mut writers = skein_lib::Set::with_capacity(capacity);
     for row in &rows {
-        if let Some(task) = domain.core.tasks.task(row.number)
-            && let tasks::Executor::Procedure {
-                connector,
-                code: forge_route::CHANGE_CODE | forge_route::LANDING_CODE | forge_route::GOAL_CLOSER_CODE,
-            } = task.executor
+        let Some(task) = domain.core.tasks.task(row.number) else { continue };
+        match task.phase {
+            tasks::Phase::Waiting
+            | tasks::Phase::Active(_)
+            | tasks::Phase::Held { was: tasks::Was::Active(_) | tasks::Was::Waiting, .. } => {
+                writers.insert(task.number).expect("counted tasks");
+            }
+            tasks::Phase::Closing(_)
+            | tasks::Phase::Held { was: tasks::Was::Closing(_), .. }
+            | tasks::Phase::Ended(_) => {}
+        }
+        if let tasks::Executor::Procedure {
+            connector,
+            code: forge_route::CHANGE_CODE | forge_route::LANDING_CODE | forge_route::GOAL_CLOSER_CODE,
+        } = task.executor
             && connector == domain.config.forge_connector
         {
             match task.phase {
@@ -936,6 +948,7 @@ fn prepare_wait_catch_up(domain: &mut Domain) {
             }
         }
     }
+    domain.forge.prepare_room_catch_up(&writers);
     domain.forge.prepare_wait_catch_up(live);
 }
 

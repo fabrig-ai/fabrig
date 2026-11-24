@@ -83,7 +83,7 @@ enum LostWriterKind {
     Design,
 }
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-enum LostReadState {
+pub(crate) enum LostReadState {
     Restoring,
     Asked,
     WaitingForRoom,
@@ -200,6 +200,7 @@ struct StepInput {
 #[derive(Hash, Debug)]
 pub(crate) struct Outboxed {
     pub(crate) entry: skein_forge_client::Entry,
+    pub(crate) owner_ended: Option<skein_lib::Wall>,
     pub(crate) held: bool,
     handoff: Handoff,
 }
@@ -382,7 +383,7 @@ pub struct Domain {
     /// Restored timers stay passive until the scripted fresh-read stage (domain/root-restart.md, 1.1).
     restore_phase: RestorePhase,
     pub(crate) reconciliation: crate::reconcile::Reconciliation,
-    restore_started: Option<skein_lib::Wall>,
+    pub(crate) restore_started: Option<skein_lib::Wall>,
     restore_fit: Option<Box<RestoreFit>>,
     outage: Option<Box<outage::State>>,
     client: skein_forge_client::Domain,
@@ -906,7 +907,7 @@ impl Domain {
         }
         assert!(!self.call_room.contains(&owner), "fresh call flight");
         self.call_room.insert(owner).expect("call reservations fit the outbox");
-        self.full.reserve(full::Reservation::Call(owner), task);
+        self.full.reserve(full::Reservation::Call(owner), task, None);
         full::filled(self, env);
         true
     }
@@ -1184,6 +1185,7 @@ impl Domain {
         self.names.raise(limits.tasks.checked_add(limits.repositories).expect("checked names capacity"));
         self.proposed_effects.raise(limits.tasks);
         self.releases.raise(limits.tasks);
+        self.room.closing.raise(limits.tasks);
         self.waiting_claims.raise(limits.tasks);
         self.release_waits.raise(limits.tasks);
         self.release_reads.raise(limits.tasks);
@@ -1281,6 +1283,7 @@ impl Domain {
             .into_iter()
             .chain(crate::history::sweep::deadline(self))
             .chain(crate::findings::judging::deadline(self))
+            .chain(self.room.deadline)
             .chain(crate::closer::deadline(self))
             .chain(release_reads::deadline(self))
             .chain(goal_branch::read_deadline(self))
@@ -1842,6 +1845,7 @@ fn decide(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Reque
             crate::waits::changed(d, task);
         }
         Event::ChangeEnding { task, ending } => {
+            crate::room::owner_ended(d, task, env.wall);
             crate::room::leave(d, crate::room::Waiter::Change(task));
             if let Some(row) = d.changes.get_mut(&task) {
                 let verified = row.ending.is_none()
@@ -2341,7 +2345,7 @@ fn decide(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Reque
             }
         }
         Event::JobSuspended { task, child, attempt } => {
-            crate::job_history::suspended(d, env, task, child, attempt, out)
+            crate::job_history::suspended(d, env, task, child, attempt, out);
         }
         Event::Delegated { task, child, kind } => delegated(d, env, task, child, kind, out),
         Event::DelegateRefused { task, child } => delegate_refused(d, env, task, child, out),
@@ -2528,6 +2532,7 @@ fn decide(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Reque
         Event::WaitsRefused { .. } => unreachable!("a refusal never steps the connector"),
         Event::CatchUp => {
             d.catching_up_report = Some(crate::Report::new(env.now));
+            crate::room::catch_up(d, env.wall);
             read_afresh(d, env, out);
             settle_outbox(d, env, out);
             d.room.ready = true;
@@ -2677,6 +2682,9 @@ fn expire(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     skein_forge_client::fire(&mut d.client, &child_env, &mut d.client_out);
     drain(d, env, out);
     crate::room::ask(d, env, out);
+    if crate::room::fire(d, env, out) {
+        crate::room::ask(d, env, out);
+    }
 }
 
 /// Give a forge its writer once access is known (domain/forge/adoption-connection.md, 1).
@@ -4058,9 +4066,16 @@ pub(crate) fn keep_entry(
     release: Option<u64>,
     out: &mut Queue<Request>,
 ) {
-    let handoff = match d.entries.get(&entry.number) {
-        Some(row) => row.handoff,
-        None => Handoff::Uncommitted,
+    let (handoff, owner_ended) = match d.entries.get(&entry.number) {
+        Some(row) => (row.handoff, row.owner_ended),
+        None => (
+            Handoff::Uncommitted,
+            d.room
+                .closing
+                .get(&entry.task)
+                .copied()
+                .or(d.full.reserved_owner_ended(full::Reservation::Projection(entry.number))),
+        ),
     };
     if entry.attempt.is_some() {
         d.flights.insert((entry.task, entry.number), ()).expect("flights are bounded by entries");
@@ -4073,7 +4088,7 @@ pub(crate) fn keep_entry(
             },
         );
     }
-    let row = Outboxed { entry: entry.clone(), held: false, handoff };
+    let row = Outboxed { entry: entry.clone(), owner_ended, held: false, handoff };
     d.entries.insert(entry.number, row).expect("entry capacity checked or a known entry replaced");
     emit(out, Request::Save { read_afresh: None, release, record: Stored::Entry { entry, held: false } });
 }
@@ -6174,6 +6189,43 @@ fn hold_read_session(
     );
 }
 
+pub(super) fn hold_room_change(
+    d: &mut Domain,
+    env: &Env<Limits>,
+    task: u64,
+    account: crate::EffectAccount,
+    out: &mut Queue<Request>,
+) {
+    let mut row = d.changes.get(&task).expect("change waiting for room").clone();
+    let before = crate::panel::ready(&row);
+    let owned = row.change.owns_turn;
+    row.change.owns_turn = false;
+    row.change.state = change::State::Held { was: Box::new(row.change.state), why: change::Hold::Stalled };
+    row.effect_account = Some(account);
+    if let Some(owner) = step_owner(d, task) {
+        d.steps.remove(&owner);
+    }
+    d.change_due.remove(&task);
+    d.read_sessions.remove(&task);
+    d.fresh_steps.remove(&task);
+    d.fresh_waits.remove(&task);
+    d.procedure_wakes.remove(&task);
+    d.merge_withheld.remove(&task);
+    connection_wait::take(d, task);
+    crate::room::pass(d, task);
+    wake_after_turn(d, &row, owned);
+    save_queue_change(d, env, before, row, out);
+    emit(
+        out,
+        Request::ChangeDecision {
+            task,
+            decision: change::Decision::Hold(change::Hold::Stalled),
+            entry: None,
+            evidence: None,
+        },
+    );
+}
+
 fn titled_change(
     d: &mut Domain,
     env: &Env<Limits>,
@@ -7623,6 +7675,12 @@ fn release_change(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queue<
     retire_failed_delegate(row);
     let released = change::released(&row.change, env.wall);
     let lifted = released.state != row.change.state;
+    if lifted && row.room.is_some() {
+        row.effect_account = None;
+        crate::room::released(d, task, env.wall);
+    }
+    // Reborrow after resetting the room clock.
+    let row = d.changes.get_mut(&task).expect("released change");
     row.change = released;
     row.change.since = env.wall;
     if lifted && (row.effect == change::EffectResult::Failed || row.effect == change::EffectResult::Stale) {
@@ -7901,6 +7959,7 @@ fn settle_effects(
         d.releases.insert(task, row.clone()).expect("release capacity checked");
         emit(out, Request::Save { read_afresh: None, release: None, record: Stored::Release(row) });
     }
+    crate::room::release_started(d, task, env.wall);
     if ending == ReleaseEnding::Cancelled || (ending == ReleaseEnding::Done && d.landing.rows.contains_key(&task)) {
         withdraw_unsent(d, env, task, out);
     }
@@ -8013,6 +8072,7 @@ fn release(
         d.releases.insert(task, row.clone()).expect("release capacity checked");
         emit(out, Request::Save { read_afresh: None, release: None, record: Stored::Release(row) });
     }
+    crate::room::release_started(d, task, env.wall);
     if advanced {
         release_reads::advanced(d, task, env.wall);
     }
@@ -8036,6 +8096,13 @@ fn continue_release(d: &mut Domain, env: &Env<Limits>, task: u64, entry: u64, ou
     if crate::room::asked(d, crate::room::Waiter::Release(task)) {
         leave_room_release(d, task, out);
     }
+}
+
+pub(super) fn room_release_failed(d: &mut Domain, task: u64, account: crate::EffectAccount, out: &mut Queue<Request>) {
+    let row = d.releases.get_mut(&task).expect("release waiting for room");
+    row.failed = true;
+    leave_room_release(d, task, out);
+    emit(out, Request::ReleaseFailed { task, account: Some(account), reason: None });
 }
 
 fn leave_room_release(d: &mut Domain, task: u64, out: &mut Queue<Request>) {
@@ -8227,6 +8294,7 @@ fn continue_release_inner(d: &mut Domain, env: &Env<Limits>, task: u64, entry: u
         end_change(d, env, task, out);
         heads::free(d, env, out);
         d.releases.remove(&task);
+        d.room.closing.remove(&task);
         d.release_reads.remove(&task);
         crate::room::leave(d, crate::room::Waiter::Release(task));
         crate::waits::report(d, env, task, out);
@@ -8561,6 +8629,12 @@ fn project(
     out: &mut Queue<Request>,
 ) {
     let goal = view.goal;
+    let ended = if view.finished.is_some() {
+        crate::room::owner_ended(d, goal, env.wall);
+        Some(d.room.closing.get(&goal).copied().unwrap_or(env.wall))
+    } else {
+        None
+    };
     let Some(adopted) = d.repositories.get(&repository) else {
         fail_projection(d, env, goal, Some(repository), view.finished.is_some(), out);
         return;
@@ -8675,7 +8749,7 @@ fn project(
                 return;
             };
             d.projection_room.insert(number).expect("projection reservations fit the outbox");
-            d.full.reserve(full::Reservation::Projection(number), goal);
+            d.full.reserve(full::Reservation::Projection(number), goal, ended);
             emit(out, Request::ProjectionEffect { row, entry, description });
         }
     }
@@ -10109,7 +10183,12 @@ fn restore(d: &mut Domain, env: &Env<Limits>, record: Stored) {
             d.entries
                 .insert(
                     entry.number,
-                    Outboxed { entry, held, handoff: if held { Handoff::Handed } else { Handoff::Restored } },
+                    Outboxed {
+                        entry,
+                        owner_ended: None,
+                        held,
+                        handoff: if held { Handoff::Handed } else { Handoff::Restored },
+                    },
                 )
                 .expect("restored entry within limits");
         }

@@ -272,6 +272,41 @@ fn taking_a_missing_goal_branch_makes_it_at_the_adopted_landing_tip() {
 }
 
 #[test]
+fn a_room_bound_gives_up_a_making_before_its_write() {
+    let mut d = fresh();
+    take(&mut d);
+    fixtures::answer_next(&mut d, Err(Error::Missing));
+    let (call, _) = fixtures::next_call(&mut d);
+    for number in 1..=u64::from(LIMITS.entries) {
+        outputs(&mut d, Event::Enqueue { entry: status(number, OTHER) });
+    }
+    let waiting = fixtures::answer(&mut d, call, Ok(Answer::Commit(TIP)));
+    assert_no_making(&waiting);
+    assert!(d.making_waits(GOAL));
+    let ended = outbox_room::later(&env(), Duration::from_secs(1));
+    at_step(&mut d, &ended, Event::ChangeEnding { task: OTHER, ending: Ending::Cancelled });
+    let due = outbox_room::later(&ended, ended.limits.waits.room);
+    assert_eq!(d.next_wall_deadline(), Some(due.wall));
+    let mut out = Queue::uncapped();
+    fire(&mut d, &due, &mut out);
+    let requests = collected(out);
+    let reason = format!(
+        "no progress at making for 30 minutes: waiting for room in the forge's outbox, held by entry 1 of ended task {OTHER}"
+    );
+    assert!(
+        requests.contains(&Request::MakeFailed {
+            task: GOAL,
+            resource: name(GOAL_BRANCH),
+            reason: reason.into_bytes().into_boxed_slice()
+        }),
+        "{requests:?}"
+    );
+    assert!(!d.making_waits(GOAL));
+    assert_eq!(d.hold(&name(GOAL_BRANCH)).unwrap().writer, None);
+    assert_eq!(d.entries.len(), LIMITS.entries);
+}
+
+#[test]
 fn a_goal_branch_making_waits_for_room_but_holds_for_each_unmendable_cause() {
     for (case, count, number, access, branch, reason) in [
         ("full", LIMITS.entries, 5, Some(Role::Owned), true, None),

@@ -4,7 +4,7 @@ use crate::{FullKind, FullTable, Limits, Report, Request, age_words};
 use alloc::boxed::Box;
 use skein_forge::api::Read;
 use skein_forge_client::{CallOwner, Holding};
-use skein_lib::{Decimal, Env, List, Map, Queue, Time, bytes};
+use skein_lib::{Decimal, Env, List, Map, Queue, Time, Wall, bytes};
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub(crate) enum Reservation {
@@ -22,7 +22,7 @@ struct Full {
 pub(crate) struct State {
     outbox: Option<Full>,
     reads: Option<Full>,
-    reservations: Map<Reservation, (u64, u64)>,
+    reservations: Map<Reservation, (u64, u64, Option<Wall>)>,
     sequence: u64,
     pub(crate) dirty: bool,
 }
@@ -39,12 +39,26 @@ impl State {
             FullKind::ReadAdmission => &mut self.reads,
         }
     }
-    pub(crate) fn reserve(&mut self, reservation: Reservation, task: u64) {
+    pub(crate) fn reserve(&mut self, reservation: Reservation, task: u64, ended: Option<Wall>) {
         if self.reservations.contains_key(&reservation) {
             return;
         }
         self.sequence = self.sequence.checked_add(1).expect("reservation sequence fits a process");
-        self.reservations.insert(reservation, (self.sequence, task)).expect("reservations fit outbox");
+        self.reservations.insert(reservation, (self.sequence, task, ended)).expect("reservations fit outbox");
+    }
+    pub(crate) fn reserved_owner_ended(&self, reservation: Reservation) -> Option<Wall> {
+        self.reservations.get(&reservation)?.2
+    }
+    pub(crate) fn owner_ended(&mut self, task: u64, now: Wall) {
+        let mut keys = List::uncapped();
+        for (reservation, (_, owner, ended)) in &self.reservations {
+            if *owner == task && ended.is_none() {
+                keys.push(*reservation).expect("counted reservations");
+            }
+        }
+        for key in &keys {
+            self.reservations.get_mut(key).expect("ending owner's reservation").2 = Some(now);
+        }
     }
     pub(crate) fn document(&self) -> Box<[FullTable]> {
         let mut full = List::with_capacity(2);
@@ -74,12 +88,8 @@ impl Domain {
     #[must_use]
     pub fn inspection_reservations(&self) -> Box<[u64]> {
         let mut tasks = List::with_capacity(self.full.reservations.len());
-        for (reservation, (_, task)) in &self.full.reservations {
-            let live = match reservation {
-                Reservation::Asked(waiter) => self.room.asked.contains(waiter),
-                Reservation::Call(owner) => self.call_room.contains(owner),
-                Reservation::Projection(entry) => self.projection_room.contains(entry),
-            };
+        for (reservation, (_, task, _)) in &self.full.reservations {
+            let live = reservation_held(self, *reservation);
             if live {
                 tasks.push(*task).expect("counted reservations");
             }
@@ -103,11 +113,7 @@ pub(crate) fn update(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>
     d.full.dirty = false;
     let mut gone = List::with_capacity(d.full.reservations.len());
     for (reservation, _) in &d.full.reservations {
-        let live = match reservation {
-            Reservation::Asked(waiter) => d.room.asked.contains(waiter),
-            Reservation::Call(owner) => d.call_room.contains(owner),
-            Reservation::Projection(entry) => d.projection_room.contains(entry),
-        };
+        let live = reservation_held(d, *reservation);
         if !live {
             gone.push(*reservation).expect("counted reservations");
         }
@@ -121,28 +127,47 @@ pub(crate) fn update(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>
     advance(d, env, FullKind::ReadAdmission, reads_full, out);
     crate::domain::catching_up::advance(d, env, out);
 }
-/// The writer of the earliest reservation that still holds outbox room.
-pub(crate) fn oldest_reservation(d: &Domain) -> Option<u64> {
+fn reservation_held(d: &Domain, reservation: Reservation) -> bool {
+    match reservation {
+        Reservation::Asked(waiter) => d.room.asked.contains(&waiter),
+        Reservation::Call(owner) => d.call_room.contains(&owner),
+        Reservation::Projection(entry) => d.projection_room.contains(&entry),
+    }
+}
+
+/// The oldest live reservation's owner, latest end, and oldest reservation's owner.
+pub(crate) fn reservation_owners(d: &Domain) -> (Option<u64>, Option<Wall>, Option<u64>) {
+    let mut live: Option<(u64, u64)> = None;
+    let mut latest_end = None;
     let mut oldest: Option<(u64, u64)> = None;
-    for (reservation, (order, task)) in &d.full.reservations {
-        let live = match reservation {
-            Reservation::Asked(waiter) => d.room.asked.contains(waiter),
-            Reservation::Call(owner) => d.call_room.contains(owner),
-            Reservation::Projection(entry) => d.projection_room.contains(entry),
-        };
-        if live
-            && match oldest {
-                Some((prior, _)) => *order < prior,
-                None => true,
-            }
-        {
-            oldest = Some((*order, *task));
+    for (reservation, (order, task, ended)) in &d.full.reservations {
+        let held = reservation_held(d, *reservation);
+        if !held {
+            continue;
+        }
+        let key = (*order, *task);
+        oldest = Some(match oldest {
+            Some(prior) => prior.min(key),
+            None => key,
+        });
+        if let Some(ended) = ended {
+            latest_end = latest_end.max(Some(*ended));
+        } else {
+            live = Some(match live {
+                Some(prior) => prior.min(key),
+                None => key,
+            });
         }
     }
-    match oldest {
+    let live = match live {
         Some((_, task)) => Some(task),
         None => None,
-    }
+    };
+    let oldest = match oldest {
+        Some((_, task)) => Some(task),
+        None => None,
+    };
+    (live, latest_end, oldest)
 }
 
 fn table_name(table: FullKind) -> &'static [u8] {
@@ -253,7 +278,7 @@ fn outbox_words(d: &Domain, limit: u32) -> Box<[u8]> {
         }
     }
     let mut reservations = Map::with_capacity(d.full.reservations.len());
-    for (reservation, (order, task)) in &d.full.reservations {
+    for (reservation, (order, task, _)) in &d.full.reservations {
         reservations.insert(*order, (*reservation, *task)).expect("ordered reservations fit");
     }
     for (_, (reservation, task)) in &reservations {

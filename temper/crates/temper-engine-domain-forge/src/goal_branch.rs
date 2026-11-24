@@ -18,7 +18,7 @@ pub(crate) struct Making {
     pub(crate) name: Name,
     entry: Option<u64>,
     default: bool,
-    state: LostReadState,
+    pub(crate) state: LostReadState,
     retry_at: Option<Time>,
     since: Wall,
     last_answer: Option<Error>,
@@ -31,6 +31,7 @@ pub(crate) struct Making {
 #[derive(Hash, Debug)]
 pub(crate) struct RoomWait {
     pub(crate) order: u64,
+    pub(crate) since: Wall,
 }
 
 impl Domain {
@@ -344,7 +345,7 @@ fn missing(d: &mut Domain, env: &Env<Limits>, owner: Token, mut pending: Making,
         if waiting(d, &pending.name) {
             return;
         }
-        wait_for_room(d, owner, pending, out);
+        wait_for_room(d, env, owner, pending, out);
         return;
     }
     let resource = to_client(&pending.name, &env.limits).expect("validated held branch");
@@ -402,7 +403,7 @@ fn make(
         return;
     }
     if !crate::room::check(d, &env.limits, Some(crate::room::Waiter::Making(owner))) {
-        wait_for_room(d, owner, pending, out);
+        wait_for_room(d, env, owner, pending, out);
         return;
     }
     let hold = d.holds.get_mut(&pending.name).expect("making's hold");
@@ -438,10 +439,10 @@ fn entry_in_use(number: u64) -> Box<[u8]> {
 
 /// A wait gives up its reservation without giving up its position
 /// (temper/docs/design/domain/forge/branches.md, 1).
-fn wait_for_room(d: &mut Domain, owner: Token, mut pending: Making, out: &mut Queue<Request>) {
+fn wait_for_room(d: &mut Domain, env: &Env<Limits>, owner: Token, mut pending: Making, out: &mut Queue<Request>) {
     crate::room::leave(d, crate::room::Waiter::Making(owner));
     if pending.outbox_wait.is_none() {
-        pending.outbox_wait = Some(RoomWait { order: crate::room::next_place(d) });
+        pending.outbox_wait = Some(RoomWait { order: crate::room::next_place(d), since: env.wall });
     }
     pending.entry = None;
     pending.default = false;
@@ -669,6 +670,15 @@ fn wake(d: &mut Domain, name: &Name, out: &mut Queue<Request>) {
         super::wake_once(out, *task);
     }
 }
+pub(crate) fn room_failed(d: &mut Domain, owner: Token, reason: &[u8], out: &mut Queue<Request>) {
+    let pending = d.makings.remove(&owner).expect("making waiting for outbox room");
+    d.read_line.leave(Waiter::Making(owner));
+    crate::room::leave(d, crate::room::Waiter::Making(owner));
+    wake(d, &pending.name, out);
+    failed(pending.task, pending.name, reason, out);
+    released(d, pending.task, out);
+}
+
 fn failed(task: u64, resource: Name, reason: &[u8], out: &mut Queue<Request>) {
     emit(out, Request::MakeFailed { task, resource, reason: Box::from(reason) });
 }

@@ -114,6 +114,106 @@ pub(super) fn free_one(d: &mut Domain) -> Box<[Request]> {
     outputs(d, Event::Withdraw { entry: 1 })
 }
 
+pub(super) fn later(clock: &Env<Limits>, duration: Duration) -> Env<Limits> {
+    let mut clock = clock.with(clock.limits);
+    clock.now = clock.now.saturating_add(duration);
+    clock.wall = Wall::from_nanos(clock.wall.as_nanos().saturating_add(duration.as_nanos()));
+    clock
+}
+
+fn wait_in(d: &mut Domain, env: &Env<Limits>, task: u64, place: u64) {
+    let mut row = row(task);
+    row.room = Some(place);
+    step(d, env, Event::Change { row }, &mut Queue::uncapped());
+}
+
+fn room_wait(d: &Domain, env: &Env<Limits>, task: u64) -> jig_domain_core_vocabulary::waits::Reported {
+    room::waited(d, env, task, temper_client_protocol_wire::waits::CHANGE_OPENING).expect("blocked room wait")
+}
+
+#[test]
+fn room_reports_follow_live_holders_then_the_latest_end_or_join() {
+    use jig_domain_core_vocabulary::waits::{AtBound, ReportedBound, Unbounded};
+    const OLD: u64 = 71;
+    const LIVE: u64 = 72;
+    for reservation in [false, true] {
+        let mut d = refusals::adopted_domain();
+        let start = env();
+        let limit = u64::from(start.limits.entries);
+        let last = if reservation { limit - 1 } else { limit };
+        for number in 1..=last {
+            let mut entry = refusals::entry(number);
+            entry.task = if !reservation && number == last { LIVE } else { OLD };
+            outputs(&mut d, Event::Enqueue { entry });
+        }
+        if reservation {
+            assert!(d.reserve_call(&start, Token::new(1), LIVE));
+        }
+        wait_in(&mut d, &start, FIRST, 1);
+        assert_eq!(room_wait(&d, &start, FIRST).bound, ReportedBound::None(Unbounded::Behind(OLD)));
+        let moved = outputs(&mut d, Event::ChangeEnding { task: OLD, ending: Ending::Cancelled });
+        let [replaced] = wait_report(&moved, FIRST).expect("owner ending changes the report") else {
+            panic!("room record")
+        };
+        assert_eq!(replaced.bound, ReportedBound::None(Unbounded::Behind(LIVE)));
+        let old = replaced.object.clone();
+        let ended = later(&start, Duration::from_secs(7));
+        let mut out = Queue::uncapped();
+        step(&mut d, &ended, Event::ChangeEnding { task: LIVE, ending: Ending::Cancelled }, &mut out);
+        let moved = collected(out);
+        let [replaced] = wait_report(&moved, FIRST).expect("last live holder's end replaces the report") else {
+            panic!("room record")
+        };
+        assert_eq!(replaced, &room_wait(&d, &ended, FIRST));
+        assert_eq!(replaced.object, old);
+        assert_eq!(
+            replaced.bound,
+            ReportedBound::At { at: later(&ended, ended.limits.waits.room).wall, then: AtBound::Hold }
+        );
+        let joined = later(&ended, Duration::from_secs(3));
+        wait_in(&mut d, &joined, SECOND, 2);
+        let late_wait = room_wait(&d, &joined, SECOND);
+        assert_eq!(late_wait.since, joined.wall);
+        assert_eq!(
+            late_wait.bound,
+            ReportedBound::At { at: later(&joined, joined.limits.waits.room).wall, then: AtBound::Hold }
+        );
+        let mut settled = Queue::uncapped();
+        step(&mut d, &joined, Event::Withdraw { entry: 1 }, &mut settled);
+        let settled = collected(settled);
+        assert_eq!(wait_report(&settled, FIRST), Some([].as_slice()), "first is asked");
+        assert_eq!(wait_report(&settled, SECOND), Some([room_wait(&d, &joined, SECOND)].as_slice()));
+        assert_eq!(room_wait(&d, &joined, SECOND).bound, ReportedBound::None(Unbounded::Behind(FIRST)));
+    }
+}
+
+#[test]
+fn restored_room_clocks_start_with_the_engine_not_the_catch_up() {
+    use jig_domain_core_vocabulary::waits::{AtBound, ReportedBound};
+    let joined = env();
+    let catch_up = later(&joined, Duration::from_secs(7));
+    let mut d = fixtures::connected_domain();
+    d.restore_begin(joined.wall);
+    let mut out = Queue::uncapped();
+    step(&mut d, &joined, Event::Restore { record: Stored::Repository(adopted()) }, &mut out);
+    let mut row = row(FIRST);
+    row.room = Some(1);
+    step(&mut d, &joined, Event::Restore { record: Stored::Change(Box::new(row)) }, &mut out);
+    for number in 1..=u64::from(joined.limits.entries) {
+        let entry = refusals::entry(number);
+        step(&mut d, &joined, Event::Restore { record: Stored::Entry { entry, held: true } }, &mut out);
+    }
+    step(&mut d, &joined, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic }, &mut out);
+    step(&mut d, &catch_up, Event::CatchUp, &mut out);
+    assert_eq!(d.inspection_entry_owner_ended(1), Some(joined.wall));
+    let waited = room_wait(&d, &catch_up, FIRST);
+    assert_eq!(waited.since, joined.wall);
+    assert_eq!(
+        waited.bound,
+        ReportedBound::At { at: later(&joined, joined.limits.waits.room).wall, then: AtBound::Hold }
+    );
+}
+
 #[test]
 fn a_projections_room_is_reserved_until_kept_or_dropped() {
     for keep in [true, false] {

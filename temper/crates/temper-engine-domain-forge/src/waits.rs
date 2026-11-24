@@ -124,7 +124,7 @@ fn standalone_live(d: &Domain, task: u64) -> bool {
     false
 }
 
-/// Publish changed room objects when a holder leaves, not by stepping its waiters.
+/// Publish changed room records when a holder settles or its owner ends, without stepping its waiters.
 pub(crate) fn flush(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     if let Some(started) = d.wait_reports.catch_up_at.take() {
         catch_up(d, env, started, out);
@@ -146,6 +146,7 @@ pub(crate) fn flush(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>)
         let task = d.wait_reports.dirty.pop_first().expect("counted pending reports");
         report(d, env, task, out);
     }
+    room::refresh_deadline(d, &env.limits);
 }
 
 /// Compute the task's replacement report, suppressing an unchanged list.
