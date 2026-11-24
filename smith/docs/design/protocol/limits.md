@@ -147,7 +147,7 @@ name `smith check` and the event stream's header print it under
 | `cancel_grace` | duration | the inline agent's grace for a cancel, before it drops a run (domain/host.md, 9.2); a host's for its spawned agent's cancel, before it terminates the tree; and an agent's own, once its host is gone, before it drops its run (domain/host.md, section 4) |
 | `live_interval` | duration | the longest the agent holds live bytes before sending them as a piece (channel.md, section 7); the default is 100 ms |
 | `exit_grace` | duration | a host's grace for a spawned agent to exit after its answer, above the agent's teardown bound (section 4) |
-| `refresh_lead` | duration | how long before a sign-in record's access token expires the local host refreshes it: skein's `oauth/README.md` refresh lead, shared by every process on the record (`../shell/settings.md`, 2.5, and `../shell/credentials.md`, 3). A story raises it so that its run refreshes at once (`docs/design/testing.md`, 2.3) |
+| `refresh_lead` | duration | how long before a sign-in record's access token expires the local host refreshes it: skein's `oauth/README.md` refresh lead, shared by every process on the record (`../shell/settings.md`, 2.5, and `../shell/credentials.md`, 3). A story raises it so that its run refreshes at once (`../testing-tiers.md`, 3) |
 
 ### 2.4 Fixed by the vocabulary
 

@@ -1,4 +1,4 @@
-//! Live account setup and command policy (smith/docs/design/testing.md, section 2.3).
+//! Live account setup and command policy (smith/docs/design/testing-tiers.md, section 3).
 //! Keeps only the guarded live root; smith owns all credential reads and writes.
 
 use std::path::{Path, PathBuf};
@@ -19,13 +19,13 @@ pub const CHECK_SECONDS: u64 = 30;
 pub const EXEC_SECONDS: u64 = 260;
 
 /// How far ahead an earliest refresh time must be for the refresh story to expect its record
-/// kept: longer than its check and exec bounds together (testing.md, 2.3).
+/// kept: longer than its check and exec bounds together (testing-tiers.md, 3).
 pub const EARLIEST_MARGIN_SECONDS: u64 = 300;
 
 /// A record without a refresh token needs a new sign-in before the refresh story.
 pub const NOT_REFRESHABLE: &str = "the record in `$SMITH_LIVE/tokens/chatgpt` holds no refresh token: run `XDG_CONFIG_HOME=$SMITH_LIVE/config smith login chatgpt`";
 
-/// The refresh story's case, from its record's refresh facts (testing.md, 2.3).
+/// The refresh story's case, from its record's refresh facts (testing-tiers.md, 3).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum RefreshCase {
     /// No earliest refresh time, or one at or before now: the run refreshes at once.

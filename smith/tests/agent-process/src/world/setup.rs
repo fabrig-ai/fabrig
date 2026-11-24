@@ -1,5 +1,5 @@
 //! One serialized startup record for the hosted agent; parent options describe
-//! channel input independently (smith/docs/design/testing.md, sections 2 and 5).
+//! channel input independently (smith/docs/design/testing-tiers.md and smith/docs/design/testing.md, section 5).
 use super::TraceCase;
 use skein_io::kernel::Spawn;
 use smith_protocol_events::sinks::Capture;
