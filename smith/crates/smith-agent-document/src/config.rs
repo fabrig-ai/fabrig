@@ -22,10 +22,9 @@ mod document;
 mod endpoints;
 use endpoints::{PreparedEndpoints, build_endpoints, build_limits};
 mod native;
-pub use document::TrustDocument;
 #[cfg(test)]
 use document::Variable;
-use document::{DeclaredOverrides, Document, Endpoint, PolicyOverrides, ProfileDocument, TraceDocument};
+use document::{DeclaredOverrides, Document, Endpoint, PolicyOverrides, ProfileDocument, TraceDocument, TrustDocument};
 pub use native::TRUST_BYTES;
 
 #[cfg(all(test, unix))]
@@ -301,7 +300,7 @@ impl Decoded {
         lookup: impl FnOnce(Option<&[u8]>) -> Option<std::path::PathBuf>,
         #[cfg(unix)] mut roots: native::RootReader<'_>,
     ) -> Result<Configuration, ConfigurationRefusal> {
-        self.resolve_with(
+        self.resolve_with_trust(
             native::resolve,
             |der, trust| {
                 native::endpoint_trust(
@@ -316,8 +315,22 @@ impl Decoded {
         )
     }
 
-    /// Resolve using supplied addresses, endpoint trust and command lookup, without native lookups.
+    /// Resolve without native lookups, using the supplied TLS configuration for every TLS endpoint.
+    /// Without a TLS configuration, only plaintext endpoints can resolve.
     pub fn resolve_with(
+        self,
+        address: impl Fn(&str) -> Result<std::net::SocketAddr, ConfigurationRefusal>,
+        tls: Option<&skein_tls::Config>,
+        lookup: impl FnOnce(Option<&[u8]>) -> Option<std::path::PathBuf>,
+    ) -> Result<Configuration, ConfigurationRefusal> {
+        self.resolve_with_trust(
+            address,
+            |_, _| tls.cloned().ok_or_else(|| "TLS endpoint requires supplied trust".into()),
+            lookup,
+        )
+    }
+
+    fn resolve_with_trust(
         self,
         address: impl Fn(&str) -> Result<std::net::SocketAddr, ConfigurationRefusal>,
         trust: impl FnMut(Option<&str>, Option<&TrustDocument>) -> Result<skein_tls::Config, ConfigurationRefusal>,

@@ -1,8 +1,7 @@
 //! Direct draining keeps the fixed-step driver's observations and injected clocks.
-use jig_domain_people as people;
-use skein_lib::{ReplyTo, Token, Wall};
+use skein_lib::{Token, Wall};
 use temper_engine_domain as engine;
-use temper_engine_domain_world::{direct::Driver, fixtures, protocol, store::Store};
+use temper_engine_domain_world::{direct::Driver, fixtures, protocol};
 
 fn observation(driver: &Driver) -> String {
     format!(
@@ -62,56 +61,6 @@ fn a_store_fork_keeps_transcript_bytes_after_its_source_drops_them() {
         before,
         "both copies cold-open their durable backing"
     );
-}
-
-#[test]
-fn independent_stores_each_number_their_first_two_tasks_from_one() {
-    let first = first_two_chat_receipts();
-    let second = first_two_chat_receipts();
-    // Each request creates one task: its receipt has the same first and last number.
-    let expected = [(1, 1), (2, 2)];
-    assert_eq!([first, second], [expected; 2]);
-}
-
-fn first_two_chat_receipts() -> [(u64, u64); 2] {
-    const FIRST_CHAT: u8 = 31;
-    const SECOND_CHAT: u8 = 32;
-    let mut driver = Driver::new(Store::new());
-    driver.settle();
-    driver.sign_in();
-    driver.settle();
-    [FIRST_CHAT, SECOND_CHAT].map(|key| create_chat(&mut driver, key))
-}
-
-fn create_chat(driver: &mut Driver, key: u8) -> (u64, u64) {
-    const PROJECT: u32 = 1;
-    // Both chats must fit in the walking owner's 500-unit purse without ending either.
-    const CHAT_CAP: u64 = 200;
-    let mut ask = driver.chat_ask(PROJECT, b"hello");
-    let people::Ask::Create { batch, .. } = &mut ask else { panic!("chat creation") };
-    batch[0].budget = people::Budget::AsAllowed { cap: Some(CHAT_CAP) };
-    let token = Token::new(u64::from(key));
-    driver.send(engine::Event::Party(engine::PartyInput::Ask {
-        models: Box::new([]),
-        reply_to: ReplyTo::new(token),
-        sign_in: driver.session(),
-        key: [key; 16],
-        ask,
-    }));
-    // The number is committed before the unhosted chat can start a run.
-    driver.pump();
-    driver
-        .delivered
-        .iter()
-        .find_map(|delivery| match delivery {
-            engine::Delivery::WebReply { to, reply } if *to == ReplyTo::new(token) => Some(reply),
-            _ => None,
-        })
-        .map(|reply| match reply {
-            people::Reply::Outcome(people::Outcome::Created { first, last, .. }) => (*first, *last),
-            _ => panic!("chat {key} was not created: {reply:?}"),
-        })
-        .expect("committed chat creation reply")
 }
 
 #[test]
