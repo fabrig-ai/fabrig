@@ -574,27 +574,7 @@ impl Driver {
             self.prepare_jobs();
             self.latch_trains();
             self.release_trains();
-            let assignments = self.world.assigned.clone();
-            for run in assignments {
-                if self.completed.contains(&(run.task, run.attempt))
-                    || running(&self.world, run.task).is_none_or(|current| current.attempt != run.attempt)
-                {
-                    continue;
-                }
-                let due = self
-                    .scripts_due
-                    .entry((run.task, run.attempt))
-                    .or_insert_with(|| step + self.scheduling.between(1, 60));
-                if step < *due {
-                    continue;
-                }
-                *due = step + self.scheduling.between(1, 60);
-                if let Some(name) = self.names.logical(run.task).map(str::to_owned) {
-                    self.coordinate(&name, &run, sweep)?;
-                } else {
-                    self.produce(&run);
-                }
-            }
+            self.run_due_assignments(sweep, step)?;
             self.judge_goals()?;
             if self.finished() {
                 self.finish_restarts()?;
@@ -629,6 +609,31 @@ impl Driver {
                     .map(|row| (number, &row.change.state))))
                 .collect::<Vec<_>>()
         ))
+    }
+
+    fn run_due_assignments(&mut self, sweep: &Sweep, step: u64) -> Result<(), String> {
+        let assignments = self.world.assigned.clone();
+        for run in assignments {
+            if self.completed.contains(&(run.task, run.attempt))
+                || running(&self.world, run.task).is_none_or(|current| current.attempt != run.attempt)
+            {
+                continue;
+            }
+            let due = self
+                .scripts_due
+                .entry((run.task, run.attempt))
+                .or_insert_with(|| step + self.scheduling.between(1, 60));
+            if step < *due {
+                continue;
+            }
+            *due = step + self.scheduling.between(1, 60);
+            if let Some(name) = self.names.logical(run.task).map(str::to_owned) {
+                self.coordinate(&name, &run, sweep)?;
+            } else {
+                self.produce(&run);
+            }
+        }
+        Ok(())
     }
 
     #[expect(
