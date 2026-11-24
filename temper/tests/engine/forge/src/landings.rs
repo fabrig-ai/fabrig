@@ -206,7 +206,6 @@ pub fn drive_landing(world: &mut World, task: u64) {
             })
             .collect();
         for (index, member) in members.into_iter().enumerate() {
-            world.run_for(10);
             changes::change_step_task(
                 world,
                 member,
@@ -220,8 +219,16 @@ pub fn drive_landing(world: &mut World, task: u64) {
         if decision == landing::Decision::Finish {
             return;
         }
+        wait_for_run_poll(world, decision);
     }
     panic!("landing did not finish: {:?}", world.landing(task));
+}
+
+/// Let a running gate make progress without delaying the next landing step per member.
+pub fn wait_for_run_poll(world: &mut World, decision: landing::Decision) {
+    if let landing::Decision::Wait { until: Some(at), on: landing::Awaited::Run { .. } } = decision {
+        world.run_for(at.as_nanos().saturating_sub(world.wall().as_nanos()).div_ceil(1_000_000_000));
+    }
 }
 /// Open a produced change and let its actual procedure reach Ready.
 pub fn ready_change(world: &mut World, task: u64, branch: &[u8]) {

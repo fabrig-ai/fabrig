@@ -230,11 +230,12 @@ fn leaving_mid_proof_supersedes_the_open_interval_once() {
 }
 #[test]
 fn a_completed_run_first_relearned_has_only_its_end() {
-    let mut world = start(60);
+    let mut world = start(10);
     until_dispatch(&mut world);
     assert_eq!(events(&world, CHANGE), []);
     world.restart();
-    world.run_for(100);
+    // The run finishes before the first landing step, inside the read stall.
+    world.run_for(20);
     landings::drive_landing(&mut world, LANDING);
     let events = events(&world, CHANGE);
     assert!(matches!(events[0].what, What::GateEnded { verdict: GateVerdict::Passed, .. }), "{events:?}");
