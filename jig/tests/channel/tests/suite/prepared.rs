@@ -115,6 +115,7 @@ fn incremental_assignments_keep_the_second_and_notice_new_frames() {
 fn query(output: &[u8]) -> Observation {
     Observation::Query {
         connection: Token::new(1),
+        at: Time::ZERO,
         query: api::Query {
             credential: None,
             caching: api::Caching::Unscoped,
