@@ -6225,6 +6225,7 @@ dependencies = [
  "skein-json",
  "skein-lib",
  "skein-shell",
+ "smith-transcript",
  "temper-client-domain-forge",
  "temper-client-protocol-wire",
  "temper-client-tools",

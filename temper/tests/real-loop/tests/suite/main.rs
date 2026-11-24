@@ -21,7 +21,6 @@ mod sample;
 mod sign_in;
 mod teardown;
 mod terminal;
-mod tools;
 mod turn_landing;
 
 mod world {

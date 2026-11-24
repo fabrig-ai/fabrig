@@ -77,6 +77,7 @@ pub fn host(spawn: &Spawn, inherited: &Inherited) -> Recorded {
             crate::referee::client::Wire::default()
         },
         seen: 0,
+        observe: false,
         sign_in: spawn.args.get(1).is_some_and(|word| word.as_ref() == b"sign-in"),
     }
 }
@@ -401,12 +402,13 @@ pub(crate) struct Recorded {
     host: OneShot,
     wire: crate::referee::client::Wire,
     seen: usize,
+    observe: bool,
     sign_in: bool,
 }
 impl Host for Recorded {
     fn iterate(&mut self, now: Time, wall: Wall) {
         for complete in self.host.completions().iter() {
-            if self.sign_in || crate::m15::observer::enabled() {
+            if self.sign_in || self.observe || crate::m15::observer::enabled() {
                 self.wire.complete(complete);
             }
         }
@@ -466,6 +468,17 @@ impl Caller {
 }
 
 impl Recorded {
+    /// Decode this call's wire receipts for the story's referee, not the capture log.
+    pub(crate) fn observing(mut self) -> Self {
+        self.wire = crate::referee::client::Wire::default();
+        self.observe = true;
+        self
+    }
+
+    pub(crate) fn receipts(&self) -> Option<&crate::referee::client::Wire> {
+        self.observe.then_some(&self.wire)
+    }
+
     /// Keep wire bytes while the incident's referee checks terminal answers.
     pub(crate) fn capturing(mut self) -> Self {
         self.wire = crate::referee::client::Wire::capturing();

@@ -11,6 +11,7 @@ mod push;
 mod ready_copies;
 mod replay;
 mod story_a;
+mod tools;
 mod upgrade;
 
 mod fuzzy {

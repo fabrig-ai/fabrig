@@ -1,4 +1,5 @@
 use jig_client_protocol_wire::Record as _;
+mod chat;
 mod deadline;
 pub(crate) mod fixtures;
 mod link;

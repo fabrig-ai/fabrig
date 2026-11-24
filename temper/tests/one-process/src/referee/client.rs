@@ -40,7 +40,7 @@ struct Connection {
     header: bool,
     body: Vec<u8>,
     answered: bool,
-    sent_application: Option<()>,
+    request_owner: Option<wire::Owner>,
 }
 #[derive(Default)]
 pub(crate) struct Wire {
@@ -52,6 +52,11 @@ impl Wire {
     pub(crate) fn capturing() -> Self {
         Self { capture_only: true, ..Self::default() }
     }
+    /// A full keyed Jig request was sent, not just the command queued or its stream opened.
+    pub(crate) fn sent_jig(&self) -> bool {
+        self.connections.values().any(|connection| connection.request_owner.as_ref() == Some(&wire::Owner::Jig))
+    }
+
     pub(crate) fn complete(&mut self, complete: &Complete) {
         match (&complete.kind, &complete.result) {
             (Op::Send { fd, bytes, from }, Ok(Done::Count(count))) => {
@@ -86,7 +91,7 @@ pub(super) fn picker(owner: &wire::Owner, request: &[u8]) -> bool {
 }
 impl Connection {
     fn request(&mut self, received: &mut Vec<Received>) {
-        if self.sent_application.is_some() {
+        if self.request_owner.is_some() {
             return;
         }
         let Some(end) = mark(&self.sent, b"\r\n\r\n") else { return };
@@ -108,10 +113,10 @@ impl Connection {
         let limits = native_link_limits();
         let keyed =
             wire::Keyed::decode(limits.wire(), &mut Reader::new(&self.sent[end + 4..])).expect("sent keyed request");
-        self.sent_application = Some(());
         if matches!(&keyed.owner, wire::Owner::Family(_)) && !picker(&keyed.owner, keyed.request.as_ref()) {
             received.push(Received::ApplicationSent { key: keyed.key });
         }
+        self.request_owner = Some(keyed.owner);
     }
     fn progress(&mut self, received: &mut Vec<Received>, capture_only: bool) {
         if !self.header {
