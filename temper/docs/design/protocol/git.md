@@ -475,7 +475,11 @@ checks this document's contract:
   invocation and racing an exit; a missing identity's value; file
   operations failing; a `Store` whose store another made first; the
   sweep's stories (`git-sweep.md`, 5); a view whose every step in the
-  run's directory fails once, made again, and fails twice. Its referee: each operation ends exactly once, with the outcome
+  run's directory fails once, made again, and fails twice; a merge's
+  commit past `conflicts` whose last page in the private index holds a
+  marker, refused with that page's marked paths, the worker's index
+  unstaged and the copy removed before the terminal
+  (`git-operations.md`, 1.7). Its referee: each operation ends exactly once, with the outcome
   its scripted outputs imply; no invocation starts after a deadline or a
   cancel; every child is closed before its operation's terminal; no
   credential in an argument; scenario memory peaks under their ceilings.
@@ -493,7 +497,12 @@ checks this document's contract:
   references moved, and the worker's next operations running none of it
   and delivering the work tree's files; a run's own git at its start and
   after a delivery; a checkout made with one directory taken on; a merge's
-  commit past `conflicts`.
+  commit past `conflicts`, its pages staged in the private index and
+  delivered, the run's own index apart from the worker's. Its refusal
+  at a marked last page is the machine world's (above); what the
+  refusal leaves, the hold, every unmerged path, the files and the
+  forge's branch as they were and nothing pushed, is the checkout's
+  `fakes` world's (`tests/worker/checkout`), on the fake disk and forge.
 - **The process tier** runs the machine's git, 2.41 or later, against
   its owned Forgejo: clone, fetch, create, check out, commit, push, in
   its story (`../testing/process-tier.md`).

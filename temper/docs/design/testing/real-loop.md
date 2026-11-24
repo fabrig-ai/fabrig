@@ -74,6 +74,16 @@ in the lower world that owns it, never here.
   together, forming one landing by `turn` at a `batch` of two and
   landing on one green gate, are the engine's domain world's
   (`../domain/landing.md`, 16).
+- **Moved below** (`../draft/slow-tests-down.md`, 5.4), each former
+  story's checks held by the lower tests named, none of them by
+  failure-worlds' workloads (`../draft/failure-worlds.md`, 5), which
+  may vary them once they land, since each is a pinned path whose
+  oracle a random workload would not keep:
+  - the shipped agent fitting Standard's page with its derived
+    carriers: a step test of this world's library;
+  - a second world in the same process numbering its tasks from one:
+    the engine's domain world, two stores each numbering their first
+    two tasks from one;
 - **The first run's green light,** one story (`suite::fuzzy::green_light`), on
   the first run's cast (`../client/web/mockups/README.md`, "The first
   run"): the person asks their chat T1 "Add CSV export to widget"; T1
