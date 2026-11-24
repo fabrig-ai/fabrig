@@ -291,6 +291,7 @@ pub(crate) struct ServiceObserver {
     pub(crate) finding: Option<String>,
     pub(crate) wire: Wire,
     pub(crate) attached: bool,
+    pub(crate) worker_notes: Option<Vec<temper_service::worker_alone::Note>>,
     pub(crate) cut_before: Option<u32>,
     pub(crate) submitted: u32,
     pub(crate) before_iteration: u32,
@@ -317,6 +318,7 @@ impl Observe for ServiceObserver {
             finding: None,
             wire: Wire::new(store),
             attached: false,
+            worker_notes: None,
             cut_before: None,
             submitted: 0,
             before_iteration: 0,
@@ -364,6 +366,11 @@ impl Observe for ServiceObserver {
             crate::across_versions::note(&note);
             if stories::playground() {
                 eprintln!("story A at {} ns: service {note:?}", now.as_nanos());
+            }
+            if let Some(notes) = &mut self.worker_notes
+                && let temper_service::Note::Worker(note) = note
+            {
+                notes.push(note);
             }
         }
         self.before_iteration = self.submitted;

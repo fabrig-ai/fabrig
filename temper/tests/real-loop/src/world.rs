@@ -166,9 +166,6 @@ impl Host for Kind {
                 || host.next_policy_deadline().is_some_and(|deadline| deadline <= now)
             {
                 host.iterate(now, wall);
-                if let Self::Llm(llm) = self {
-                    llm.queries.observe(now, llm.peer.observations());
-                }
             }
         }
     }
@@ -267,7 +264,6 @@ fn run_with_agent(
     world.spawn(|| {
         Proc::new(Kind::Llm(Box::new(Llm {
             pending_streak: crate::patience::PendingStreak::default(),
-            queries: llm::Queries::default(),
             peer: llm::peer(recipe()).expect("independent LLM peer"),
             scripts: None,
             groups: None,
@@ -327,7 +323,6 @@ impl std::ops::DerefMut for ForgePeer {
     }
 }
 pub(crate) struct Llm {
-    pub(crate) queries: llm::Queries,
     pub(crate) pending_streak: crate::patience::PendingStreak,
     pub(crate) peer: skein_fake_peers::llm::Peer,
     scripts: Option<Scripts>,
@@ -417,7 +412,6 @@ pub(crate) fn run_forge(
     world.spawn(|| {
         Proc::new(Kind::Llm(Box::new(Llm {
             pending_streak: crate::patience::PendingStreak::default(),
-            queries: llm::Queries::default(),
             peer: llm::peer(llm::scripted(Box::new([]))).expect("deferred peer"),
             scripts: Some(scripts),
             groups: None,
@@ -468,7 +462,6 @@ pub(crate) fn run_github(
     world.spawn(|| {
         Proc::new(Kind::Llm(Box::new(Llm {
             pending_streak: crate::patience::PendingStreak::default(),
-            queries: llm::Queries::default(),
             peer: llm::peer(llm::scripted(Box::new([]))).expect("deferred peer"),
             scripts: None,
             groups: Some(scripts),
@@ -1249,7 +1242,6 @@ pub fn cluster_roots<R: Referee<Proc>>(
         let placement_hold = holds.iter().any(|name| name.as_ref() == crate::cluster::PLACED);
         Proc::new(Kind::Llm(Box::new(Llm {
             pending_streak: crate::patience::PendingStreak::default(),
-            queries: llm::Queries::default(),
             peer: llm::peer(recipe).expect("cluster LLM"),
             scripts: forge.map(|(_, scripts, _)| scripts),
             groups: None,
@@ -1507,6 +1499,7 @@ mod tests {
         let connection = Token::new(1);
         let query = || Query {
             connection,
+            at: skein_lib::Time::ZERO,
             query: api::Query {
                 credential: None,
                 caching: api::Caching::Unscoped,

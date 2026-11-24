@@ -1,5 +1,5 @@
 //! The scripted shell (temper/docs/design/playground.md, 3).
-/// The scripted shell's echo redirection acts on the inherited machine files.
+/// Echo redirection acts on inherited files; a literal printf writes to stdout.
 pub struct Shell {
     jobs: std::collections::VecDeque<skein_io::kernel::Op>,
     owned: std::collections::BTreeSet<skein_io::kernel::Fd>,
@@ -29,6 +29,10 @@ impl Shell {
             let path = [spawn.dir.as_ref(), b"/", target].concat();
             jobs.push_back(Op::Open { root, path: path.into(), how: OpenHow::WriteNoFollow });
             ([text.as_bytes(), b"\n"].concat().into(), target.to_vec(), 0)
+        } else if let Some(text) = command.and_then(printf_line) {
+            let stdout = inherited.pipes.iter().find(|(child, _)| *child == 1).expect("shell stdout").1;
+            jobs.push_back(Op::PipeWrite { fd: stdout, bytes: [text.as_bytes(), b"\n"].concat().into(), from: 0 });
+            (Box::default(), Vec::new(), 0)
         } else {
             let error = inherited.pipes.iter().find(|(child, _)| *child == 2).expect("shell stderr").1;
             jobs.push_back(Op::PipeWrite {
@@ -55,6 +59,12 @@ impl Shell {
         }
     }
 }
+// Only a single quoted literal ending in \\n, not a shell or format-string parser.
+fn printf_line(command: &str) -> Option<&str> {
+    let text = command.strip_prefix("printf '")?.strip_suffix("\\n'")?;
+    (!text.contains(['%', '\\', '\'', '\n', '\r'])).then_some(text)
+}
+
 impl skein_shell::Host for Shell {
     fn iterate(&mut self, _now: skein_lib::Time, _wall: skein_lib::Wall) {
         use skein_io::kernel::{Done, Op};

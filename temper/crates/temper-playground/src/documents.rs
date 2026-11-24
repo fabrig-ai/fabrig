@@ -370,7 +370,14 @@ pub fn agent() -> temper_service::settings::Agent {
 /// Service metadata derived from the profile used by the hosted agent.
 #[must_use]
 pub fn agent_for(profile: &smith_agent_service::profile::Profile) -> temper_service::settings::Agent {
-    let configuration = agent_configuration_for(profile);
+    agent_from_configuration(profile, &agent_configuration_for(profile))
+}
+/// Derive worker supervision from the same effective endpoint limits as the hosted agent.
+#[must_use]
+pub fn agent_from_configuration(
+    profile: &smith_agent_service::profile::Profile,
+    configuration: &smith_agent_service::Config,
+) -> temper_service::settings::Agent {
     let limits = configuration.limits;
     let host_limits = smith_local_service::profile::host_limits(profile, &limits, &configuration.domain.limits)
         .expect("agent host limits");

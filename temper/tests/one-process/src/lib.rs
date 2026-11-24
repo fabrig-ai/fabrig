@@ -4,6 +4,7 @@ mod box_listener;
 pub mod fixtures;
 pub mod golden;
 pub mod held_program;
+pub mod hung_model;
 #[doc(hidden)]
 pub mod testing;
 pub mod upgrade;

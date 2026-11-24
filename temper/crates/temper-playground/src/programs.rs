@@ -37,6 +37,12 @@ pub trait Harness: 'static {
     fn agent_profile() -> smith_agent_service::profile::Profile {
         documents::agent_profile()
     }
+    /// Specialize the hosted agent's service configuration and its declared limits together.
+    fn configure_agent(
+        _service: &mut smith_agent_service::Config,
+        _declarations: &mut smith_agent_service::profile::Configuration,
+    ) {
+    }
     #[must_use]
     fn agent_settings() -> temper_service::settings::Agent {
         documents::agent()
@@ -401,8 +407,9 @@ pub fn agent<H: Harness>(spawn: &Spawn, inherited: &Inherited) -> Process<H> {
             },
         )));
     }
-    let declarations = documents::agent_declarations_for(&profile);
+    let mut declarations = documents::agent_declarations_for(&profile);
     let mut service = documents::agent_configuration_for(&profile);
+    H::configure_agent(&mut service, &mut declarations);
     if parameters().deployment["world_settings"]["issuer"].is_string() {
         service.channel_endpoints = issuer::endpoints();
     }

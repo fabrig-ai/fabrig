@@ -4,6 +4,7 @@ mod core_after_project;
 mod github;
 mod golden;
 mod held_program;
+mod hung_model;
 mod m15;
 mod one_process;
 mod public;
