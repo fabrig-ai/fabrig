@@ -21,6 +21,13 @@ const ACTS: [Act; 11] = [
 ];
 
 #[test]
+fn the_workload_ends_green_at_each_seed() {
+    for seed in 0..=2 {
+        workload::without_acts(&Streams::new(seed)).expect("world checks, Ends and final tier green");
+    }
+}
+
+#[test]
 fn people_act_on_goals_at_any_step() {
     let mut sweep = Sweep::new("people_act_on_goals_at_any_step");
     let kinds = ACTS.map(acts::kind);

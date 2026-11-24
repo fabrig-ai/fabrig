@@ -861,7 +861,15 @@ impl Driver {
         }
         let main = self.world.fake.branch(b"org/repo", b"main").expect("main");
         let main = temper_engine_forge_world::translate::commit(main);
-        for _ in 0..crate::tier_runs::RUN_TICKS {
+        // A run at an earlier tip may still be in flight. Allow both it and the final
+        // tip's run their workflow window and the repository's polling fallback
+        // (temper/docs/design/domain/after-landing-runs.md, 2).
+        let client = &self.world.env.limits.forge.client;
+        let polling = client.poll.max(client.fallback);
+        let run_ticks =
+            u64::from(crate::tier_runs::RUN_TICKS) + polling.as_nanos().div_ceil(self.world.tick_interval.as_nanos());
+        let final_tip_ticks = 2 * run_ticks;
+        for _ in 0..final_tip_ticks {
             crate::tier_runs::try_tick(&mut self.world)?;
             let tier = crate::tier_runs::tier(&self.world);
             if tier.record.judged.as_ref().is_some_and(|judged| judged.tip == main)
@@ -870,7 +878,16 @@ impl Driver {
                 return Ok(());
             }
         }
-        Err("main's after-landing tier did not judge the final tip green".into())
+        let tier = crate::tier_runs::tier(&self.world);
+        Err(format!(
+            "main's after-landing tier did not judge the final tip green: main {main:?}; judged {:?}; failing {:?}; runs {:?}",
+            tier.record.judged,
+            tier.record.failing,
+            crate::tier_runs::runs(&self.world)
+                .iter()
+                .map(|run| (run.number, run.commit, run.state, run.conclusion))
+                .collect::<Vec<_>>()
+        ))
     }
 }
 
