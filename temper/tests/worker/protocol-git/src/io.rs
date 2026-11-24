@@ -26,10 +26,20 @@ impl Invocation {
 pub struct Script {
     pub invocations: VecDeque<Invocation>,
     pub exit_first: bool,
+    /// The scripted command consuming stdin waits for EOF before it exits.
+    pub read_stdin_to_end: bool,
     pub file_failure: Option<(u32, kernel::Error)>,
     /// Fail this step of the view on this many attempts.
     pub view_failure: Option<(u32, u8)>,
 }
+/// A spawn's private index override and the bytes it can read there.
+#[derive(Debug, PartialEq, Eq)]
+pub struct IndexOverride {
+    pub spawn: u32,
+    pub path: Box<[u8]>,
+    pub contents: Option<Box<[u8]>>,
+}
+
 #[derive(Clone, Debug)]
 pub enum Node {
     Directory,
@@ -79,6 +89,7 @@ pub struct Below {
     pub signals: u32,
     pub arguments: Vec<Vec<Box<[u8]>>>,
     pub messages: Vec<Vec<u8>>,
+    pub index_overrides: Vec<IndexOverride>,
     children: BTreeMap<Token, Child>,
     pipes: BTreeMap<Token, Pipe>,
     files: BTreeMap<kernel::Fd, OpenFile>,
@@ -106,6 +117,7 @@ impl Below {
             signals: 0,
             arguments: Vec::new(),
             messages: Vec::new(),
+            index_overrides: Vec::new(),
             children: BTreeMap::new(),
             pipes: BTreeMap::new(),
             files: BTreeMap::from([(kernel::Fd::new(3), OpenFile::default())]),
@@ -124,6 +136,7 @@ impl Below {
         self.closed_children = 0;
         self.arguments.clear();
         self.messages.clear();
+        self.index_overrides.clear();
     }
     /// Use the directory descriptor supplied to the worker service.
     pub fn adopt_root(&mut self, root: kernel::Fd) {
@@ -209,6 +222,14 @@ impl Below {
         Some(input)
     }
     #[must_use]
+    pub fn file_completions_drained(&self) -> bool {
+        self.out.kernel.is_empty() && !self.pending.iter().any(|input| matches!(input, Input::Kernel(_)))
+    }
+    #[must_use]
+    pub fn open_files(&self) -> usize {
+        self.files.len()
+    }
+    #[must_use]
     pub fn settled(&self) -> bool {
         self.pending.is_empty()
             && self.children.is_empty()
@@ -260,6 +281,7 @@ impl Below {
             assert!(!argument.windows(11).any(|part| part == b"secret-git!"));
         }
         let init = word == Some(b"init".as_slice());
+        self.observe_indexes(&spawn.env);
         self.arguments.push(spawn.args.into_vec());
         if invocation.fault == Fault::Spawn {
             self.event(records::Event::Failed { owner, error: records::Error::Other });
@@ -300,6 +322,21 @@ impl Below {
         self.messages.push(Vec::new());
         if self.script.exit_first {
             self.exit(child);
+        }
+    }
+    fn observe_indexes(&mut self, env: &[Box<[u8]>]) {
+        for path in env.iter().filter_map(|entry| entry.strip_prefix(b"GIT_INDEX_FILE=")) {
+            let relative = env
+                .iter()
+                .find_map(|entry| entry.strip_prefix(b"HOME="))
+                .and_then(|home| home.strip_suffix(b"/home"))
+                .and_then(|root| path.strip_prefix(root))
+                .and_then(|rest| rest.strip_prefix(b"/"));
+            let contents = match relative.and_then(|path| self.tree.get(path)) {
+                Some(Node::File(bytes)) => Some(bytes.clone()),
+                Some(Node::Directory | Node::Link) | None => None,
+            };
+            self.index_overrides.push(IndexOverride { spawn: self.spawns, path: path.into(), contents });
         }
     }
     fn exit(&mut self, token: Token) {
@@ -356,7 +393,7 @@ impl Below {
                 !child.exited
                     && child.pipes.iter().all(|pipe| {
                         let pipe = &self.pipes[pipe];
-                        pipe.input || pipe.ended
+                        if pipe.input { !self.script.read_stdin_to_end || pipe.closed } else { pipe.ended }
                     })
             })
             .map(|(token, _)| *token)

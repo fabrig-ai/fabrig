@@ -52,6 +52,10 @@ struct World {
 
 impl World {
     fn new(seed: u64, case: Case, facts: u32) -> Self {
+        Self::with_extra_conflicts(seed, case, facts, 1)
+    }
+
+    fn with_extra_conflicts(seed: u64, case: Case, facts: u32, extra_conflicts: u32) -> Self {
         let limits = Limits {
             workspaces: 1,
             preparations: 1,
@@ -67,8 +71,9 @@ impl World {
             facts,
         };
         let mut forge = Forge::new(seed);
+        let paths = 0..limits.conflicts + extra_conflicts;
         let initial = if matches!(case, Case::PastTheBound) {
-            (0..=limits.conflicts).map(|n| (format!("code{n}").into_bytes(), b"original\n".to_vec())).collect()
+            paths.clone().map(|n| (format!("code{n}").into_bytes(), b"original\n".to_vec())).collect()
         } else {
             [(b"code".to_vec(), b"original\n".to_vec())].into()
         };
@@ -89,7 +94,7 @@ impl World {
                 let mut ours = first;
                 let mut base = first;
                 let mut expected = temper_fake_checkout::git::Tree::new();
-                for n in 0..=limits.conflicts {
+                for n in paths {
                     let path = format!("code{n}").into_bytes();
                     ours = forge.advance(b"forge/temper", b"topic", &path, left.as_bytes());
                     base = forge.advance(b"forge/temper", b"main", &path, right.as_bytes());
@@ -257,13 +262,8 @@ impl World {
     }
 }
 
-/// Run one complete scenario, checking every promised terminal and observable
-/// tree/ref against its independent prediction. Seed changes file content.
-#[must_use]
-#[expect(clippy::too_many_lines, reason = "the merge scenario checks its prepare pin and resulting tree together")]
-pub fn run(seed: u64, case: Case, facts: u32) -> Report {
-    let mut world = World::new(seed, case, facts);
-    let spec = Spec {
+fn merge_spec(world: &World, case: Case) -> Spec {
+    Spec {
         key: b"merge".as_slice().into(),
         repositories: Box::new([Repository {
             prefixes: Box::new([]),
@@ -284,7 +284,15 @@ pub fn run(seed: u64, case: Case, facts: u32) -> Report {
                 None
             },
         }]),
-    };
+    }
+}
+
+/// Run one complete scenario, checking every promised terminal and observable
+/// tree/ref against its independent prediction. Seed changes file content.
+#[must_use]
+pub fn run(seed: u64, case: Case, facts: u32) -> Report {
+    let mut world = World::new(seed, case, facts);
+    let spec = merge_spec(&world, case);
     world.forge.moves();
     let Request::Prepared { prepared: Prepared::Ready { workspace, conflicts }, .. } =
         world.finish(Event::Prepare { client: Token::new(9), spec }, false)
@@ -591,6 +599,59 @@ fn settle_past_the_bound(world: &mut World, at: &[u8], conflicts: &[Conflicts], 
     let unmerged = world.disk.tree(&[at, b"/.git/temper-conflicts"].concat());
     assert_eq!(unmerged.into_values().collect::<Vec<_>>(), world.expected.keys().cloned().collect::<Vec<_>>());
     world.disk.write(&[at, b"/", &last].concat(), &world.expected[&last]);
+}
+
+/// A four-path prepare prefix cannot hide the sixth path from checked delivery.
+pub fn refuse_past_the_bound() {
+    const EXTRA_CONFLICTS: u32 = 2;
+    const SEED: u64 = 73;
+    const CLIENT: Token = Token::new(9);
+    let case = Case::PastTheBound;
+    let mut world = World::with_extra_conflicts(SEED, case, 64, EXTRA_CONFLICTS);
+    let spec = merge_spec(&world, case);
+    let prepared = world.finish(Event::Prepare { client: CLIENT, spec }, false);
+    let Request::Prepared { client, prepared: Prepared::Ready { workspace, conflicts } } = prepared else {
+        panic!("merge ready: {prepared:?}")
+    };
+    assert_eq!(client, CLIENT);
+    let named = [b"code0", b"code1", b"code2", b"code3"].map(|path| path.as_slice().into());
+    assert_eq!(conflicts.as_ref(), &[Conflicts { repository: 0, files: Box::new(named) }]);
+
+    let at = translate::path(&temper_worker_domain_checkout::git::Place {
+        git: None,
+        workspace,
+        repository: b"temper".as_slice().into(),
+    });
+    let prefix = [at.as_slice(), b"/"].concat();
+    let index = [prefix.as_slice(), b".git/temper-conflicts"].concat();
+    let head = [prefix.as_slice(), b".git/temper-head"].concat();
+    let merge_head = [prefix.as_slice(), b".git/MERGE_HEAD"].concat();
+    let paths = [b"code0", b"code1", b"code2", b"code3", b"code4", b"code5"].map(|name| name.to_vec());
+    let last = b"code5";
+    let topic = b"topic";
+    let remote = b"forge/temper";
+    let ours = world.ours.to_le_bytes();
+    let base = world.base.to_le_bytes();
+    let check_index = |disk: &Checkout| {
+        assert_eq!(disk.tree(&index).into_values().collect::<Vec<_>>(), paths);
+        assert_eq!(disk.content(&head), Some(ours.as_slice()));
+        assert_eq!(disk.content(&merge_head), Some(base.as_slice()));
+    };
+    check_index(&world.disk);
+    for path in paths.iter().filter(|path| path.as_slice() != last) {
+        world.disk.write(&[prefix.as_slice(), path].concat(), b"resolved\n");
+    }
+    let before = translate::disk_snapshot(&world.disk);
+    world.forge.moves();
+    assert_eq!(world.push(false, false).as_ref(), &[Landing::Conflicted { files: Box::new([last.as_slice().into()]) }]);
+    assert_eq!(translate::disk_snapshot(&world.disk), before, "refusal makes no disk writes");
+    check_index(&world.disk);
+    assert_eq!(world.push_attempts, 0);
+    assert_eq!(world.forge.moves(), []);
+    assert_eq!(world.forge.branch(remote, topic), Some(world.ours));
+    let hold = world.hold.take().expect("refused delivery still holds the checkout");
+    assert!(matches!(world.finish(Event::Release { hold }, false), Request::Released { client: CLIENT }));
+    assert_eq!(world.domain.holds(), 0);
 }
 
 /// Read the fake's checkout and merge metadata before the run edits anything.

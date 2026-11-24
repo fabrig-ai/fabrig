@@ -934,11 +934,12 @@ fn a_kept_one_directory_checkout_is_taken_on_without_running_its_filters() {
     instance.stop().expect("stopped");
 }
 
+#[test]
 #[expect(
     clippy::too_many_lines,
     reason = "one merge story holds preparation, resolution, delivery and its index oracle together"
 )]
-fn merge_past_the_bound(marked: bool) {
+fn a_merge_delivery_pages_past_the_bound_after_the_run_stages_two_files() {
     let binary = temper_test_env::value(&temper_test_env::FORGEJO).expect("pinned Forgejo");
     let forgejo = Forgejo::from_path(std::path::Path::new(&binary)).expect("Forgejo");
     let scratch = skein_scratch::Scratch::new_in(&skein_scratch::paths::target_tmp(), "paged-merge");
@@ -1016,11 +1017,8 @@ fn merge_past_the_bound(marked: bool) {
     let unmerged_args = ["diff-files", "--name-only", "-z", "--diff-filter=U"];
     let unmerged = names.join("\0") + "\0";
     assert_eq!(world.worker(&directory, &unmerged_args), unmerged);
-    let last = names.last().expect("last page path");
     for name in &names {
-        if !marked || name != last {
-            fs::write(world.root.join(&directory).join(name), b"resolved\n").expect("settled file");
-        }
+        fs::write(world.root.join(&directory).join(name), b"resolved\n").expect("settled file");
     }
     // The command stages into its own .git, not the worker's still-unmerged index.
     world.run_git(&directory, &["add", "--", &names[0], &names[1]]);
@@ -1032,36 +1030,20 @@ fn merge_past_the_bound(marked: bool) {
     let checkout::Request::Pushed { outcome: checkout::Outcome::Pushed { landings }, .. } = answer else {
         panic!("push terminal")
     };
-    if marked {
-        assert_eq!(landings.as_ref(), &[checkout::Landing::Conflicted { files: Box::new([last.as_bytes().into()]) }]);
-        assert_eq!(world.worker(&directory, &unmerged_args), unmerged, "every worker index conflict survives refusal");
-        assert_eq!(world.topic_head(workspace, &remote), ours);
-    } else {
-        let [checkout::Landing::Landed { commit }] = landings.as_ref() else { panic!("merge delivered: {landings:?}") };
-        let head = String::from_utf8(invocation::hex(*commit).into_vec()).expect("commit id");
-        assert_eq!(world.topic_head(workspace, &remote), *commit);
-        let parents = world.inspect(&directory, &["show", "--no-patch", "--format=%P", &head]);
-        assert_eq!(
-            parents.split_whitespace().map(|id| invocation::object(id.as_bytes()).expect("parent")).collect::<Vec<_>>(),
-            [ours, base]
-        );
-        for name in &names {
-            assert_eq!(world.inspect(&directory, &["show", &format!("{head}:{name}")]), "resolved\n");
-        }
+    let [checkout::Landing::Landed { commit }] = landings.as_ref() else { panic!("merge delivered: {landings:?}") };
+    let head = String::from_utf8(invocation::hex(*commit).into_vec()).expect("commit id");
+    assert_eq!(world.topic_head(workspace, &remote), *commit);
+    let parents = world.inspect(&directory, &["show", "--no-patch", "--format=%P", &head]);
+    assert_eq!(
+        parents.split_whitespace().map(|id| invocation::object(id.as_bytes()).expect("parent")).collect::<Vec<_>>(),
+        [ours, base]
+    );
+    for name in &names {
+        assert_eq!(world.inspect(&directory, &["show", &format!("{head}:{name}")]), "resolved\n");
     }
     assert!(!git_directory.join("temper-scan").exists(), "no scan copy remains");
     let hold = world.hold.take().expect("held");
     assert!(matches!(world.finish(checkout::Event::Release { hold }), checkout::Request::Released { .. }));
     world.git.borrow_mut().close();
     instance.stop().expect("stopped");
-}
-
-#[test]
-fn a_merge_delivery_pages_past_the_bound_after_the_run_stages_two_files() {
-    merge_past_the_bound(false);
-}
-
-#[test]
-fn a_last_page_marker_refuses_real_delivery_and_preserves_every_unmerged_path() {
-    merge_past_the_bound(true);
 }

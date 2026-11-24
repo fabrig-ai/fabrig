@@ -4,6 +4,7 @@
 //! uses the fake forge's shared object spelling (skein's testing/fakes/forge.md, 3).
 
 use skein_lib::Token;
+use std::collections::BTreeMap;
 use temper_fake_checkout::Checkout;
 use temper_fake_checkout::git::{self, Pushed, Remote, What};
 use temper_worker_domain_checkout::git::{Commit, Done, Fault, Missing, Op, Place};
@@ -40,6 +41,15 @@ pub fn dir(workspace: Token) -> Vec<u8> {
 #[must_use]
 pub fn path(place: &Place) -> Vec<u8> {
     temper_fake_checkout::layout::path(place.workspace, &place.repository)
+}
+
+/// Every fake disk file's bytes and write version, including metadata.
+#[must_use]
+pub fn disk_snapshot(disk: &Checkout) -> BTreeMap<Vec<u8>, (Vec<u8>, u64)> {
+    disk.files()
+        .into_iter()
+        .map(|(path, bytes)| (path.to_vec(), (bytes.to_vec(), disk.version(path).expect("file"))))
+        .collect()
 }
 
 /// The workspace an operation is in.
