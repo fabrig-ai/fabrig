@@ -9,7 +9,7 @@ pub const SKEIN_SET: OwnerSet = OwnerSet {
     level: Some(0),
     families: &[KeptFamily {
         retired: &[],
-        current: skein_oauth::patches::kept::skein_oauth::TEXTS.last().expect("kept text"),
+        current: skein_oauth::SCHEMA,
         types: &[],
         name: "skein-oauth",
         map: KeptMap::Secrets,

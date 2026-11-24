@@ -3,12 +3,9 @@
 use crate::schema::{self, DeclIx, FieldIx, Schema, SchemaError, Span, VariantIx};
 use skein_lib::{List, usize_of};
 
+pub use crate::layout::compare::Comparison;
 mod plan;
-pub use plan::{Change, Comparison, Matching, RenameRefused, changes};
-pub(crate) use plan::{
-    compare as compare_types, held as compare_held, leaf as compare_leaf, payload as payload_matches,
-    width as integer_width,
-};
+pub use plan::{Change, Matching, RenameRefused, changes};
 mod run;
 pub use run::{Build, Halt, Old, Step};
 mod text;

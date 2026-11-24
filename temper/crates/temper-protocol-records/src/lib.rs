@@ -7,10 +7,6 @@ extern crate alloc;
 #[expect(clippy::disallowed_macros, reason = "the owner embeds its current schema text once")]
 pub const SCHEMA: &str = include_str!("../schema/secrets-v1.schema");
 
-#[path = "../patches/mod.rs"]
-pub mod patches;
-
-
 #[rustfmt::skip]
 #[path = "generated/secrets.rs"]
 pub mod v1;

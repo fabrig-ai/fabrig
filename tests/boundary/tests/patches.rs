@@ -10,17 +10,14 @@ use std::process::Command;
 use skein_codegen::patch::{self, Finding, Landed, Tree};
 use skein_scratch::{Scratch, paths};
 
+const SMITH_CHANNEL: &str = "smith/crates/smith-channel";
 const OWNERS: &[&str] = &[
-    "skein/crates/skein-oauth",
     "smith/crates/smith-transcript",
     "smith/crates/smith-charter",
-    "smith/crates/smith-channel",
+    SMITH_CHANNEL,
     "jig/crates/jig-protocol-worker-wire",
-    "jig/crates/jig-protocol-accounts",
-    "temper/crates/temper-protocol-records",
     "temper/crates/temper-protocol-worker-wire",
 ];
-const RECORDS: &str = "temper/crates/temper-protocol-records";
 
 fn git(root: &Path, args: &[&str]) -> Result<Vec<u8>, String> {
     let output = Command::new("git")
@@ -138,27 +135,39 @@ fn copy_directory(source: &Path, target: &Path) {
     }
 }
 
-fn records_copy() -> (Scratch, Landed) {
+fn pieces_copy() -> (Scratch, Landed) {
+    // No existing patch moves smith-pieces to its current version. Keep the
+    // owner's patch statements, but don't copy their unrelated golden trees.
+    let source = paths::workspace().join(SMITH_CHANNEL);
     let scratch = Scratch::new("boundary-patches");
-    copy_directory(&paths::workspace().join(RECORDS), scratch.path());
+    copy_directory(&source.join("schema"), &scratch.path().join("schema"));
+    let patches = scratch.path().join("patches");
+    fs::create_dir(&patches).expect("create scratch patches directory");
+    for entry in fs::read_dir(source.join("patches")).expect("read owner patches") {
+        let entry = entry.expect("read patch entry");
+        if entry.path().extension().is_some_and(|extension| extension == "patch") {
+            fs::copy(entry.path(), patches.join(entry.file_name())).expect("copy patch statement");
+        }
+    }
     let landed = Tree::disk(scratch.path()).landed().expect("scratch copy's files before the edit");
     (scratch, landed)
 }
 
 #[test]
 fn added_field_without_patch_is_unpatched() {
-    let (scratch, landed) = records_copy();
-    let schema = scratch.path().join("schema/secrets-v1.schema");
-    let source = fs::read_to_string(&schema).expect("read current secrets schema");
-    let changed = source.replace("record User { value: u64 }", "record User { value: u64 added: u64 }");
+    let (scratch, landed) = pieces_copy();
+    let schema = scratch.path().join("schema/pieces-v1.schema");
+    let source = fs::read_to_string(&schema).expect("read current pieces schema");
+    let changed = source.replace(
+        "record CallName { activation: u64 completion: u32 position: u32 }",
+        "record CallName { activation: u64 completion: u32 position: u32 added: u64 }",
+    );
     assert_ne!(source, changed, "the mutation must add a field");
     fs::write(schema, changed).expect("add a field without a patch");
     let findings = patch::check(&Tree::disk(scratch.path()), &landed).expect("check the mutated crate");
     assert!(
-        findings
-            .iter()
-            .any(|finding| matches!(finding, Finding::Unpatched { family, .. } if family == "temper-secrets")),
-        "expected Unpatched for temper-secrets, got {findings:?}"
+        findings.iter().any(|finding| matches!(finding, Finding::Unpatched { family, .. } if family == "smith-pieces")),
+        "expected Unpatched for smith-pieces, got {findings:?}"
     );
 }
 
@@ -200,10 +209,10 @@ fn channel_kind_layout_changes_require_a_version_move() {
 
 #[test]
 fn edited_landed_kept_text_is_changed() {
-    let (scratch, landed) = records_copy();
-    let path = Path::new("schema/kept/temper-secrets-v1.schema");
+    let (scratch, landed) = pieces_copy();
+    let path = Path::new("schema/kept/smith-pieces-v1.schema");
     let schema = scratch.path().join(path);
-    let mut source = fs::read_to_string(&schema).expect("read kept secrets schema");
+    let mut source = fs::read_to_string(&schema).expect("read kept pieces schema");
     source.push_str("\n# A landed kept text was edited.\n");
     fs::write(schema, source).expect("edit the landed kept text");
     let findings = patch::check(&Tree::disk(scratch.path()), &landed).expect("check the mutated crate");
