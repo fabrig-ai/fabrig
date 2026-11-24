@@ -7,11 +7,12 @@ use crate::{
     public::{PublicView, build_public},
     sign_in::Ways,
 };
-use skein_lib::{Duration, Queue, Time, Wall};
-use skein_ui::Role;
+use jig_client_protocol_wire::public_v1 as j;
+use skein_lib::{Duration, List, Queue, Time, Wall};
+use skein_ui::{Node, Role};
 use temper_client_domain::{
     address::Public,
-    public::{Doc, Heard, PublicEvent},
+    public::{Doc, Heard, PublicEvent, Reader},
 };
 mod rules;
 
@@ -24,6 +25,138 @@ fn view() -> PublicView {
         fixtures::browser_words(),
         Ways::parse("google", b"https://temper.example"),
     )
+}
+
+const FRESH: Duration = Duration::from_secs(5);
+const DELEGATE: u64 = 0xfedc_ba98_7654_3210;
+
+fn render(page: Public, documents: &[(Doc, Box<[u8]>)], seconds: u64) -> PublicView {
+    let mut reader = reader(page);
+    for (doc, body) in documents {
+        answer(&mut reader, *doc, Heard::Document { body: body.clone(), fresh: FRESH });
+    }
+    draw(&reader, Wall::from_nanos(seconds.checked_mul(1_000_000_000).expect("test clock")))
+}
+
+fn draw(reader: &Reader, wall: Wall) -> PublicView {
+    let mut view = view();
+    build_public(&mut view, reader, wall, &mut Queue::uncapped());
+    view
+}
+
+fn render_answer(page: Public, doc: Doc, heard: Heard) -> PublicView {
+    let mut reader = reader(page);
+    answer(&mut reader, doc, heard);
+    draw(&reader, Wall::EPOCH)
+}
+
+#[expect(clippy::disallowed_methods, reason = "the test oracle collects visible runs in tree order")]
+fn text_runs(nodes: &[Node]) -> Box<[&[u8]]> {
+    nodes.iter().flat_map(|node| node.text.iter().map(|run| run.text.as_ref())).collect()
+}
+
+fn assert_link(view: &mut PublicView, name: &[u8], address: &[u8]) {
+    let link = fixtures::find(view.tree(), Role::Link, name).expect("public link");
+    assert_eq!(crate::public::href(view, link).as_deref(), Some(address), "link {name:?}");
+}
+
+#[test]
+#[expect(clippy::disallowed_methods, reason = "the test inspects the main subtree by role")]
+fn the_projects_page_lists_its_projects_under_its_heading() {
+    const SECOND_PROJECT: u64 = 0xabcd_0123_7654_3210;
+    const SECOND_NAME: &[u8] = b"Another public project";
+    // One link per named project, in the record's order.
+    const PROJECT_LINKS: usize = 2;
+    let body = records::projects_named(&[(PROJECT, records::PROJECT_NAME), (SECOND_PROJECT, SECOND_NAME)]);
+    let mut page = render(Public::Projects, &[(Doc::JigProjects, body)], 0);
+    let nodes = page.tree().nodes();
+    let (at, main) = nodes.iter().enumerate().find(|(_, node)| node.role == Role::Main).expect("public main");
+    let size = usize::try_from(main.size).expect("main size");
+    let main = &nodes[at..at.checked_add(size).expect("main end")];
+    assert_eq!(text_runs(main).as_ref(), [b"Public projects".as_slice(), records::PROJECT_NAME, SECOND_NAME]);
+    assert!(
+        main.iter().any(|node| {
+            node.role == Role::Heading { level: 1 } && node.name.as_deref() == Some(b"Public projects")
+        })
+    );
+    assert_eq!(main.iter().filter(|node| node.role == Role::Link).count(), PROJECT_LINKS);
+    assert_link(&mut page, records::PROJECT_NAME, b"/public/projects/3f2a9c0176543210");
+    assert_link(&mut page, SECOND_NAME, b"/public/projects/abcd012376543210");
+}
+
+#[test]
+#[expect(clippy::disallowed_methods, reason = "the test composes a page oracle from shared row runs")]
+fn a_populated_board_and_its_goals_card_show_their_records_alone() {
+    const DELEGATE_TITLE: &[u8] = b"Write the parser";
+    const GOAL_LINK: &[u8] = b"Goal 9abcdef0";
+    const DELEGATE_LINK: &[u8] = b"task fedcba98";
+    const DELEGATE_HREF: &[u8] = b"/public/projects/3f2a9c0176543210/tasks/fedcba9876543210";
+    const NOW: u64 = 900;
+    const SEP: &[u8] = " · ".as_bytes();
+    let [(long_title, cut_title), _] = fixtures::row_titles();
+    let goal = j::PublicLine {
+        title: long_title.into(),
+        priority: Some(99),
+        executor: j::PublicExecutor::Procedure,
+        changed: 60,
+        spent: Some(126),
+        ..records::line(true)
+    };
+    let delegate = j::PublicLine {
+        task: DELEGATE,
+        title: DELEGATE_TITLE.into(),
+        parent: Some(TASK),
+        phase: j::PublicPhase::Waiting,
+        changed: 720,
+        ..records::line(false)
+    };
+    let board = render(
+        Public::Board { project: PROJECT },
+        &[(Doc::JigBoard, records::board_with(goal.clone(), delegate.clone()))],
+        NOW,
+    );
+    let card = render(
+        Public::Task { project: PROJECT, task: TASK },
+        &[(Doc::JigCard, records::card_with(goal, List::with_capacity(0), delegate))],
+        NOW,
+    );
+    let top: &[&[u8]] = &[b"temper", b"Sign in"];
+    let intro = [
+        records::PROJECT_NAME,
+        b"What temper is doing on this project, as it happens. Read-only.",
+        b"Work that ended before this project went public, or before temper last restarted, isn't shown.",
+    ];
+    let goal_title = [GOAL_LINK, b" ", cut_title];
+    let goal_facts = [b"running", SEP, b"for 14 minutes", SEP, b"126 spent"];
+    let delegate_row = [DELEGATE_LINK, b" ", DELEGATE_TITLE, b"waiting", SEP, b"for 3 minutes"];
+    let board_words = [top, &intro, &goal_title, &goal_facts, &delegate_row, &[b"2 lines folded"]].concat();
+    let card_words = [top, &[GOAL_LINK], &goal_title, &[b"a procedure", SEP], &goal_facts, &delegate_row].concat();
+    // Exact runs count the executor (only on the card), while the same allowlists
+    // exclude priority and any extra text or accessible name.
+    for (kind, mut page, words) in [("board", board, board_words), ("card", card, card_words)] {
+        assert_eq!(text_runs(page.tree().nodes()).as_ref(), words.as_slice(), "public {kind}");
+        only_words(&page, &words);
+        assert_link(&mut page, DELEGATE_LINK, DELEGATE_HREF);
+    }
+}
+
+#[test]
+fn unknown_and_empty_pages_read_their_whole_words() {
+    let mut unknown =
+        render_answer(Public::Task { project: PROJECT, task: TASK }, Doc::JigCard, Heard::Unknown { fresh: FRESH });
+    assert_eq!(
+        text_runs(unknown.tree().nodes()).as_ref(),
+        [b"temper".as_slice(), b"Sign in", b"Not public, or not here.", b"Read public projects"]
+    );
+    assert!(fixtures::find(unknown.tree(), Role::Heading { level: 1 }, b"Not public, or not here.").is_some());
+    assert_link(&mut unknown, b"Read public projects", b"/public");
+
+    let empty = render(Public::Projects, &[(Doc::JigProjects, records::projects_with(false))], 0);
+    assert_eq!(
+        text_runs(empty.tree().nodes()).as_ref(),
+        [b"temper".as_slice(), b"Sign in", b"Public projects", b"No public projects yet."]
+    );
+    assert!(fixtures::find(empty.tree(), Role::Heading { level: 1 }, b"Public projects").is_some());
 }
 
 #[test]
@@ -70,10 +203,7 @@ fn unknown_and_unavailable_say_their_words() {
         (Heard::Unknown { fresh: Duration::from_secs(5) }, b"Not public, or not here.".as_slice()),
         (Heard::Failed, b"Not available just now."),
     ] {
-        let mut reader = reader(Public::Projects);
-        answer(&mut reader, Doc::JigProjects, heard);
-        let mut view = view();
-        build_public(&mut view, &reader, Wall::EPOCH, &mut Queue::uncapped());
+        let view = render_answer(Public::Projects, Doc::JigProjects, heard);
         assert!(fixtures::find(view.tree(), Role::Heading { level: 1 }, words).is_some());
     }
 }

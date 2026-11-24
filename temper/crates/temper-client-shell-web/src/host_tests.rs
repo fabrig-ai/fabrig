@@ -152,19 +152,18 @@ fn batch_admitted(host: &mut Host, exchange: u32, body: &[u8]) {
                 continue; // These fixtures leave lone reads unanswered too.
             }
         };
-        let part = w::BatchReply { member: u16::try_from(place).expect("member"), reply: Some(reply) };
-        let bytes = part.encode(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture encoding");
-        let frame = [
-            part.measure(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture").to_be_bytes().as_slice(),
-            bytes.as_ref(),
-        ]
-        .concat()
-        .into_boxed_slice();
-        host.heard(Heard::Part { exchange, bytes: frame });
+        host.heard(batch_part(exchange, place, reply));
     }
     if complete {
         host.heard(Heard::Done { exchange });
     }
+}
+fn batch_part(exchange: u32, place: usize, reply: Box<[u8]>) -> Heard {
+    let part = w::BatchReply { member: u16::try_from(place).expect("member"), reply: Some(reply) };
+    let bytes = part.encode(&w::CEILINGS).expect("bounded fixture encoding");
+    let mut frame = Vec::new();
+    wire_piece(&mut frame, &bytes);
+    Heard::Part { exchange, bytes: frame.into_boxed_slice() }
 }
 
 #[test]
@@ -382,7 +381,10 @@ fn owned(record: Box<[u8]>) -> jig_client_protocol_wire::Owned {
     use jig_client_protocol_wire::VERSION;
     w::Owned { owner: w::Owner::Jig, version: VERSION, record }
 }
-fn streamed(host: &mut Host, event: &jig_client_protocol_wire::StreamEvent) {
+fn streamed(host: &mut Host, event: &w::StreamEvent) {
+    host.heard(Heard::Piece { bytes: stream_bytes(event) });
+}
+fn stream_bytes(event: &w::StreamEvent) -> Box<[u8]> {
     use skein_lib::base64::{self, Alphabet};
     let bytes = event.encode(&jig_client_protocol_wire::CEILINGS).expect("bounded fixture encoding");
     let size = base64::encoded_len(Alphabet::Standard, u32::try_from(bytes.len()).expect("fixture fits"))
@@ -392,7 +394,7 @@ fn streamed(host: &mut Host, event: &jig_client_protocol_wire::StreamEvent) {
     let mut piece = b"data: ".to_vec();
     piece.extend_from_slice(&writer.finish());
     piece.extend_from_slice(b"\n\n");
-    host.heard(Heard::Piece { bytes: piece.into_boxed_slice() });
+    piece.into_boxed_slice()
 }
 #[test]
 fn the_first_task_activity_answer_survives_transport_sign_in() {
@@ -834,6 +836,200 @@ fn root_and_missing_starts_wait_for_me_and_replace_even_the_provisional_home() {
             assert_eq!(host.report(Report::Start).show, None);
         }
     }
+}
+
+const PLAYGROUND_PROJECT: u32 = 7;
+const PLAYGROUND_NAME: &[u8] = b"playground/widget";
+
+fn wire_piece(pieces: &mut Vec<u8>, bytes: &[u8]) {
+    pieces.extend_from_slice(&u32::try_from(bytes.len()).expect("fixture piece length").to_be_bytes());
+    pieces.extend_from_slice(bytes);
+}
+
+fn playground_me(client: &jig_client::DomainLimits) -> w::Me {
+    // The box can fill the client's short template list and its document text (client/view.md, 4).
+    let mut templates = Vec::new();
+    let template_name = vec![b'x'; usize::try_from(client.text).expect("document text bound")];
+    for (offset, name) in (0..client.rows).zip(std::iter::repeat(template_name.as_slice())) {
+        let number = jig_client::shapes::CHAT + offset;
+        let template = w::Template {
+            number,
+            name: jig_client_test_records::wire_text(name),
+            executor: w::TemplateExecutor::Charter(w::TemplateCharter { value: number }),
+            contract: w::TaskContractDocument::Report(w::TaskContractDocumentReport { words: client.text }),
+            shallower: 1,
+            budget: w::TemplateBudget::AsAllowed(w::TemplateAsAllowed { cap: None }),
+            deadline: w::TemplateDeadline::None,
+            tracked: None,
+            flags: w::TaskFlags {
+                conversation: true,
+                listed: false,
+                retention: w::Retention::Kept,
+                ended_by: w::EndedBy::Requester,
+            },
+            label: number,
+            grace: None,
+            llm: None,
+            resources: List::with_capacity(0),
+        };
+        wire_piece(&mut templates, &template.encode(&w::CEILINGS).expect("box template"));
+    }
+    let project = w::MeProject {
+        left_out: 0,
+        project: PLAYGROUND_PROJECT,
+        name: jig_client_test_records::wire_text(PLAYGROUND_NAME),
+        role: w::HeldRole::Owner,
+        pool: None,
+        templates: templates.into_boxed_slice(),
+        creating: None,
+        models: List::with_capacity(0),
+        defaults: List::with_capacity(0),
+        public: None,
+    };
+    let mut projects = Vec::new();
+    wire_piece(&mut projects, &project.encode(&w::CEILINGS).expect("box project"));
+    let mut me = jig_client_test_records::frame_record();
+    me.projects = projects.into_boxed_slice();
+    me.deployment_role = Some(w::HeldRole::Owner);
+    me.party.name = jig_client_test_records::wire_text(b"Owner");
+    me
+}
+
+fn fresh_chats_report(host: &mut Host, report: Report, linked: bool) -> Duties {
+    let duties = host.report(report);
+    build(host);
+    let nodes = host.tree().nodes();
+    assert!(!nodes.iter().any(|node| node.styles.as_slice().contains(&view::look::BEHIND)), "never Behind");
+    if linked {
+        let foot =
+            nodes.iter().position(|node| node.styles.as_slice().contains(&view::look::RAIL_FOOT)).expect("rail foot");
+        let end = foot + usize::try_from(nodes[foot].size).expect("foot subtree size");
+        let at = (foot + 1..end)
+            .find(|at| nodes[*at].region == Some(view::frame::link_region()))
+            .expect("link region in foot");
+        let status = &nodes[at + 1];
+        assert_eq!(nodes[at].size, 1 + status.size, "the link region holds only its own status");
+        assert_eq!(status.role, Role::Status);
+        assert_eq!(status.name.as_deref(), Some(b"Live".as_slice()));
+        assert!(status.styles.as_slice().contains(&view::look::LIVE));
+    }
+    duties
+}
+
+#[test]
+fn a_fresh_load_of_a_playgrounds_chats_stays_live() {
+    use skein_lib::Duration;
+    use temper_client_protocol_wire as wire;
+    let bounds = limits::client_for(true);
+    let frame = playground_me(&bounds.client.domain);
+    let mut host = Host::new(bounds, 11, Time::ZERO, Wall::EPOCH, 0, view::sign_in::Ways::NONE);
+    host.start(b"/chats", Vec::new(), None);
+    fresh_chats_report(&mut host, Report::Start, false);
+    fresh_chats_report(&mut host, Report::Heard(Heard::StreamOpened), false);
+    let served = List::from_boxed(Box::new([
+        w::Served { owner: w::Owner::Jig, first: w::VERSION, last: w::VERSION },
+        w::Served {
+            owner: w::Owner::Family(w::Family { number: wire::FORGE }),
+            first: wire::CLIENT_VERSION,
+            last: wire::CLIENT_VERSION,
+        },
+    ]));
+    let opened = jig_client_test_records::opened(
+        w::Hello { stream: [7; 16], served, heartbeat: Duration::from_secs(30) },
+        frame,
+    );
+    let bytes = stream_bytes(&opened);
+    let mut pieces = bytes.chunks(usize::try_from(limits::PIECE).expect("stream chunk size"));
+    let last = pieces.next_back().expect("opened frame has bytes");
+    for bytes in pieces {
+        fresh_chats_report(&mut host, Report::Heard(Heard::Piece { bytes: bytes.into() }), false);
+    }
+    let duties = fresh_chats_report(&mut host, Report::Heard(Heard::Piece { bytes: last.into() }), true);
+    let watch = admit_chats(&mut host, duties);
+
+    let mut row = jig_client_test_records::task_line_record();
+    row.project = PLAYGROUND_PROJECT;
+    row.requester = w::Requester::Person(w::RequesterPerson { value: 7 }); // frame_record's person.
+    row.label = jig_client::shapes::CHAT;
+    row.flags.conversation = true;
+    // The live list requests the forge family's chat part, even for a chat with no draft.
+    row.parts = List::from_boxed(Box::new([w::RowPart::Unknown]));
+    let mut rows = Vec::new();
+    wire_piece(&mut rows, &row.encode(&w::CEILINGS).expect("chat row"));
+    let document = w::DeliveryValue::Tasks(w::Tasks { ended_mark: 0, rows: rows.into_boxed_slice(), more: false });
+    let delivered = w::StreamEvent::Delivery(w::Delivery {
+        watch,
+        document: owned(document.encode(&w::CEILINGS).expect("chat list")),
+    });
+    fresh_chats_report(&mut host, Report::Heard(Heard::Piece { bytes: stream_bytes(&delivered) }), true);
+    assert!(
+        host.tree().nodes().iter().any(|n| n.role == Role::List && n.name.as_deref() == Some(b"Your chats")),
+        "the live list is populated: address={:?}, live={:?}",
+        host.root.pages().address(),
+        host.root.pages().chats().and_then(|chats| chats.live(host.root.client()))
+    );
+    assert!(
+        host.tree().nodes().iter().any(|n| n.role == Role::Link && n.name.as_deref() == Some(b"T7")),
+        "the list shows the fixture chat's link"
+    );
+}
+
+fn admit_chats(host: &mut Host, duties: Duties) -> u64 {
+    let (exchange, batch) = duties
+        .asked
+        .into_iter()
+        .find_map(|asked| {
+            let Asked::Exchange { id, call, .. } = asked else { return None };
+            (call.path.as_ref() == b"/jig/v1/batch")
+                .then(|| (id, w::Batch::decode(&w::CEILINGS, &mut Reader::new(&call.body)).expect("startup batch")))
+        })
+        .expect("first page's watches and reads leave in a batch");
+    fresh_chats_report(host, Report::Heard(Heard::Begun { exchange, status: 200 }), true);
+    let mut watch = None;
+    for (place, member) in batch.members.into_boxed().into_iter().enumerate() {
+        let reply = match member {
+            w::Member::Open(open) => {
+                if open.subject.owner == w::Owner::Jig
+                    && let w::Subject::Tasks(tasks) =
+                        w::Subject::decode(&w::CEILINGS, &mut Reader::new(&open.subject.record)).expect("watch subject")
+                    && tasks.query.project == Some(PLAYGROUND_PROJECT)
+                    && tasks.query.parts.iter().any(|part| part.kind == temper_client_protocol_wire::CHAT_PART)
+                {
+                    assert!(watch.replace(open.watch).is_none(), "one watch for the live chats");
+                }
+                w::OpenAnswer::Admitted.encode(&w::CEILINGS)
+            }
+            w::Member::Read(read) => playground_read(read).encode(&w::CEILINGS),
+            w::Member::Close(_) => panic!("fresh load opens its watches"),
+        }
+        .expect("startup batch member reply");
+        fresh_chats_report(host, Report::Heard(batch_part(exchange, place, reply)), true);
+    }
+    fresh_chats_report(host, Report::Heard(Heard::Done { exchange }), true);
+    assert!(host.root.forge().playground_running(), "the host has the running playground's fact");
+    watch.expect("the fresh page watches the playground chats")
+}
+
+fn playground_read(read: w::Owned) -> w::ReadAnswer {
+    use temper_client_protocol_wire::{self as wire, v1::Reading};
+    if read.owner == w::Owner::Family(w::Family { number: wire::FORGE }) {
+        let request = w::FamilyRecord::decode(&w::CEILINGS, &mut Reader::new(&read.record)).expect("family scope");
+        let reading = Reading::decode(&wire::v1::CEILINGS, &mut Reader::new(&request.record)).expect("forge read");
+        if reading.read == wire::v1::Read::Playground {
+            let answer = wire::v1::PlaygroundAnswer {
+                forge: 1,
+                project: Some(PLAYGROUND_PROJECT),
+                provider: 1,
+                owner: b"playground".as_slice().into(),
+                name: b"widget".as_slice().into(),
+                state: wire::v1::PlaygroundState::Running,
+                cues: List::with_capacity(0),
+            };
+            return w::ReadAnswer::Value(w::Owned { record: wire::playground_answer(&answer), ..read });
+        }
+    }
+    // The other reads don't supply the live chats watch or its frame.
+    w::ReadAnswer::None(w::ReadAnswerNone { value: w::ReadNone::Unknown })
 }
 
 #[test]

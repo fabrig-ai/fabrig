@@ -465,26 +465,7 @@ fn make_fake(spawn: &Spawn, inherited: &Inherited) -> Proc {
 }
 
 fn fake_launch(spawn: &Spawn) -> Spawn {
-    let mut launch = Spawn {
-        reach: None,
-        program: spawn.program.clone(),
-        args: spawn.args.clone(),
-        env: spawn.env.clone(),
-        root: spawn.root,
-        dir: spawn.dir.clone(),
-        pipes: spawn.pipes.clone(),
-    };
-    // Hosted startup paths use the scenario namespace. Program print launches
-    // use either the admitted workspace descriptor (empty dir) or /programs
-    // with a run-relative dir; resolve that descriptor-relative cwd for the fake.
-    if launch.args.first().is_some_and(|argument| argument.as_ref() == b"-p") {
-        launch.dir = if launch.dir.is_empty() {
-            b"/work/repo".as_slice().into()
-        } else {
-            [b"/programs/", launch.dir.as_ref()].concat().into()
-        };
-    }
-    launch
+    smith_fake_claude::simulated_launch(spawn, b"/programs", b"/work/repo")
 }
 
 fn make_relay(spawn: &Spawn, inherited: &Inherited) -> Proc {

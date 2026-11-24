@@ -1,25 +1,122 @@
-pub(super) use fixtures::{TuiWorld, tui_approval_reply};
+mod admission;
+mod arguments;
+mod refusals;
+mod table;
+
+pub(super) use fixtures::TuiWorld;
 use fixtures::{absent, fixture_recording, fixture_with_marks_and_secret, fixture_with_secret, stale_recording};
 use temper_client_journeys_kit as fixtures;
 
 use crate::JOURNEYS;
 use skein_scratch::Scratch;
-use std::{fs, path::Path};
+use std::{
+    collections::BTreeMap,
+    ffi::OsStr,
+    fs, io,
+    path::{Path, PathBuf},
+};
+use temper_client_walk_lines::layout::WEB;
+
+const OUT: &str = "/scratch/out";
+
+fn build() -> crate::Build {
+    crate::Build { wire: jig_client_protocol_wire::VERSION, temper: "1.2.3 (abcdef123456-dirty)".into() }
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+struct Memory {
+    nodes: BTreeMap<PathBuf, Option<Vec<u8>>>,
+    changed_paths: Vec<PathBuf>,
+}
+
+impl Memory {
+    fn put(&mut self, path: &Path, bytes: impl AsRef<[u8]>) {
+        if let Some(parent) = path.parent() {
+            self.directory(parent);
+        }
+        self.nodes.insert(path.into(), Some(bytes.as_ref().to_vec()));
+        self.changed_paths.push(path.into());
+    }
+
+    fn directory(&mut self, path: &Path) {
+        for ancestor in path.ancestors() {
+            assert!(self.nodes.entry(ancestor.into()).or_insert(None).is_none());
+        }
+        self.changed_paths.push(path.into());
+    }
+
+    fn read(&self, path: &Path) -> &[u8] {
+        self.nodes.get(path).and_then(Option::as_deref).expect("printed file")
+    }
+
+    fn is_file(&self, path: &Path) -> bool {
+        self.nodes.get(path).is_some_and(Option::is_some)
+    }
+}
+
+impl crate::output::Output for Memory {
+    fn create_dir(&mut self, path: &Path) -> io::Result<()> {
+        self.directory(path);
+        Ok(())
+    }
+
+    fn files(&mut self, directory: &Path) -> Result<Vec<PathBuf>, crate::Refusal> {
+        Ok(self
+            .nodes
+            .iter()
+            .filter(|(path, bytes)| path.parent() == Some(directory) && bytes.is_some())
+            .map(|(path, _)| path.clone())
+            .collect())
+    }
+
+    fn remove(&mut self, path: &Path) -> io::Result<()> {
+        assert!(self.nodes.remove(path).is_some_and(|entry| entry.is_some()));
+        self.changed_paths.push(path.into());
+        Ok(())
+    }
+
+    fn write(&mut self, path: &Path, bytes: &[u8]) -> io::Result<()> {
+        self.put(path, bytes);
+        Ok(())
+    }
+
+    fn write_asset(&mut self, path: &Path, bytes: &[u8]) -> io::Result<()> {
+        if self.nodes.get(path).and_then(Option::as_deref) != Some(bytes) {
+            self.put(path, bytes);
+        }
+        Ok(())
+    }
+}
+
+fn words(arguments: &[&str]) -> Vec<Box<[u8]>> {
+    arguments.iter().map(|word| word.as_bytes().into()).collect()
+}
+
+fn snapshot(output: &Memory) -> Memory {
+    output.clone()
+}
 use temper_client_shell_web::journey;
 
 fn print_fixture(
-    out: &Path,
+    output: &mut Memory,
     name: &str,
     recording: &[u8],
     given: &[Box<[u8]>],
 ) -> Result<crate::Printed, crate::Refusal> {
-    crate::print(
-        std::ffi::OsStr::new(name),
-        recording,
-        given,
-        out,
-        &crate::Build { wire: jig_client_protocol_wire::VERSION, temper: "1.2.3 (abcdef123456-dirty)".into() },
-    )
+    print_at(output, Path::new(OUT), name, recording, given, &build())
+}
+
+fn print_at(
+    output: &mut Memory,
+    out: &Path,
+    name: &str,
+    recording: &[u8],
+    given: &[Box<[u8]>],
+    build: &crate::Build,
+) -> Result<crate::Printed, crate::Refusal> {
+    let admitted = crate::admit(OsStr::new(name), recording, given, build)?;
+    crate::output::publish(output, out, &admitted)?;
+    Ok(admitted.printed)
 }
 
 fn replay_pages(recording: &[u8]) -> Vec<crate::print::Printed> {
@@ -28,12 +125,12 @@ fn replay_pages(recording: &[u8]) -> Vec<crate::print::Printed> {
 
 #[test]
 fn an_unreadable_recording_is_refused_by_print() {
-    let scratch = Scratch::new("temper-client-journeys-unreadable");
+    let mut output = Memory::default();
     assert!(matches!(
-        print_fixture(scratch.path(), "welcome", b"not a recording\n", &[]),
+        print_fixture(&mut output, "welcome", b"not a recording\n", &[]),
         Err(crate::Refusal::Proof { name, refusal: journey::Refusal::Unreadable(_) }) if name == "welcome"
     ));
-    assert!(!scratch.path().join(temper_client_walk_lines::layout::WEB).join("welcome").exists());
+    assert!(output.nodes.is_empty());
 }
 
 #[test]
@@ -59,64 +156,64 @@ fn every_tui_journey_has_its_description() {
     descriptions(Path::new(crate::TUI_JOURNEYS)).expect("committed TUI journey descriptions");
 }
 
-fn snapshot(root: &Path) -> std::collections::BTreeMap<std::path::PathBuf, Option<Vec<u8>>> {
-    fn visit(
-        root: &Path,
-        directory: &Path,
-        files: &mut std::collections::BTreeMap<std::path::PathBuf, Option<Vec<u8>>>,
-    ) {
-        for entry in fs::read_dir(directory).expect("snapshot directory") {
-            let entry = entry.expect("snapshot entry");
-            let path = entry.path();
-            let relative = path.strip_prefix(root).expect("entry beneath root").to_owned();
-            if entry.file_type().expect("snapshot type").is_dir() {
-                files.insert(relative, None);
-                visit(root, &path, files);
-            } else {
-                files.insert(relative, Some(fs::read(path).expect("snapshot file")));
-            }
-        }
-    }
-    let mut files = std::collections::BTreeMap::new();
-    visit(root, root, &mut files);
-    files
-}
-
 #[test]
 fn a_refused_print_leaves_its_root_as_it_was() {
-    let scratch = Scratch::new("temper-client-journeys-refused");
+    let mut output = Memory::default();
     let recording = fixture_recording();
     let unproved = journey::prove(&recording).expect("strip live prints");
     for recording in [unproved, stale_recording(&recording)] {
-        let before = snapshot(scratch.path());
-        assert!(print_fixture(scratch.path(), "welcome", &recording, &[]).is_err(), "recording refused");
-        assert!(snapshot(scratch.path()) == before, "a refused print leaves the root empty");
+        let before = snapshot(&output);
+        assert!(print_fixture(&mut output, "welcome", &recording, &[]).is_err(), "recording refused");
+        assert!(snapshot(&output) == before, "a refused print leaves the root empty");
     }
-    let missing = scratch.path().join("missing");
-    assert!(print_fixture(&missing, "welcome", &stale_recording(&recording), &[]).is_err(), "stale recording refused");
-    assert!(!missing.exists(), "a refused print makes no root");
+    let missing = Path::new(OUT).join("missing");
+    assert!(
+        print_at(&mut output, &missing, "welcome", &stale_recording(&recording), &[], &build()).is_err(),
+        "stale recording refused"
+    );
+    assert!(!output.nodes.contains_key(&missing), "a refused print makes no root");
 }
 
 #[test]
 fn a_refused_print_keeps_the_journey_of_its_name() {
-    let scratch = Scratch::new("temper-client-journeys-kept");
+    let mut output = Memory::default();
+    let out = Path::new(OUT);
     let recording = fixture_recording();
-    print_fixture(scratch.path(), "welcome", &recording, &[]).expect("print fixture journey");
-    fs::write(
-        scratch.path().join(temper_client_walk_lines::layout::WEB).join("welcome/README.md"),
-        "The person's description.\n",
-    )
-    .expect("description");
-    fs::write(scratch.path().join(temper_client_walk_lines::layout::WEB).join("welcome/99.html"), "An older page.\n")
-        .expect("older page");
-    fs::write(scratch.path().join("overlay.css"), "#app { color: red; }\n").expect("overlay");
-    fs::write(scratch.path().join("unrelated"), "Another file.\n").expect("unrelated file");
-    let before = snapshot(scratch.path());
+    print_fixture(&mut output, "welcome", &recording, &[]).expect("print fixture journey");
+    output.put(&out.join(WEB).join("welcome/README.md"), "The person's description.\n");
+    output.put(&out.join(WEB).join("welcome/99.html"), "An older page.\n");
+    output.put(&out.join("overlay.css"), "#app { color: red; }\n");
+    output.put(&out.join("unrelated"), "Another file.\n");
+    let before = snapshot(&output);
     assert!(
-        print_fixture(scratch.path(), "welcome", &stale_recording(&recording), &[]).is_err(),
+        print_fixture(&mut output, "welcome", &stale_recording(&recording), &[]).is_err(),
         "stale recording refused"
     );
-    assert!(snapshot(scratch.path()) == before, "a refused print keeps every directory and file byte for byte");
+    assert!(snapshot(&output) == before, "a refused print keeps every directory and file byte for byte");
+}
+
+fn welcome_lines() -> Vec<journey::Line> {
+    use skein_lib::{Time, Wall};
+    use skein_ui_web::mapping::Primary;
+    let facts = journey::Facts {
+        seed: 11,
+        now: Time::ZERO,
+        wall: Wall::EPOCH,
+        primary: Primary::Control,
+        zone_minutes: 0,
+        ways: None,
+        forges: Vec::new(),
+        path: b"/welcome".as_slice().into(),
+        secret: Some(["fake", "-link"].concat().into_bytes().into()),
+        stored: Vec::new(),
+    };
+    let (mut host, mut page) = facts.start();
+    let mut recorder = journey::Recorder::new(&facts);
+    recorder.turn(facts.now, facts.wall);
+    recorder.report(&mut host, &page, temper_client_shell_web::host::Report::Start);
+    host.draw(&mut page, &mut Vec::new());
+    recorder.deadline(host.deadline());
+    journey::lines(&recorder.save(&page)).expect("fixture lines")
 }
 
 fn write_lines(lines: &[journey::Line]) -> Box<[u8]> {
@@ -143,89 +240,85 @@ fn with_answer(value: &[u8]) -> (Box<[u8]>, u32) {
 
 #[test]
 fn print_takes_the_link_out_and_the_replay_holds() {
-    let scratch = Scratch::new("journeys-link");
+    let mut output = Memory::default();
     let fake = ["fake", "-link-private"].concat().into_bytes();
     let recording = fixture_with_secret(Some(fake.clone().into()));
-    let printed = print_fixture(scratch.path(), "welcome", &recording, &[]).expect("print redacted link");
+    let printed = print_fixture(&mut output, "welcome", &recording, &[]).expect("print redacted link");
     assert_eq!(printed.link, 1, "one link original");
     assert_eq!((printed.stored, printed.typed, printed.given), (0, 0, 0));
     assert!(printed.places >= 2, "secret and exchange replaced");
     let redacted = journey::redact(&recording, &[]).expect("redacted fixture");
     let pages = replay_pages(&redacted.recording);
     for page in pages {
-        let bytes =
-            fs::read(scratch.path().join(temper_client_walk_lines::layout::WEB).join("welcome").join(page.name))
-                .expect("written page");
-        absent(&bytes, &fake, "page");
+        let bytes = output.read(&Path::new(OUT).join(WEB).join("welcome").join(page.name));
+        absent(bytes, &fake, "page");
     }
 }
 
 #[test]
 fn print_takes_a_given_text_out() {
-    let scratch = Scratch::new("journeys-given");
+    let mut output = Memory::default();
     let fake = ["private", "-heard-answer"].concat().into_bytes();
     let (recording, _) = with_answer(&fake);
-    let printed =
-        print_fixture(scratch.path(), "welcome", &recording, &[fake.clone().into()]).expect("print given text");
+    let printed = print_fixture(&mut output, "welcome", &recording, &[fake.clone().into()]).expect("print given text");
     assert_eq!((printed.given, printed.places), (1, 1));
-    for bytes in snapshot(scratch.path()).values().flatten() {
+    for bytes in output.nodes.values().flatten() {
         absent(bytes, &fake, "written file");
     }
 }
 
 #[test]
 fn a_shape_in_a_heard_answer_refuses() {
-    let scratch = Scratch::new("journeys-shape");
+    let mut output = Memory::default();
     let fake = ["s", "k", "-", "Ab0123456789_-cdefGHI"].concat();
     let (recording, line) = with_answer(fake.as_bytes());
-    let before = snapshot(scratch.path());
+    let before = snapshot(&output);
     assert!(
-        matches!(print_fixture(scratch.path(), "welcome", &recording, &[]),
+        matches!(print_fixture(&mut output, "welcome", &recording, &[]),
         Err(crate::Refusal::Found { line: found, record: "heard", place: journey::Place::Field, what: journey::What::Shape(journey::Shape::Key), .. }) if found == line),
         "heard field shape refused"
     );
-    assert!(snapshot(scratch.path()) == before, "refusal writes nothing");
+    assert!(snapshot(&output) == before, "refusal writes nothing");
 }
 
 #[test]
 fn a_given_text_the_page_draws_refuses() {
-    let scratch = Scratch::new("journeys-drawn");
-    let before = snapshot(scratch.path());
-    let result = print_fixture(scratch.path(), "welcome", &fixture_recording(), &[b"temper".as_slice().into()]);
+    let mut output = Memory::default();
+    let before = snapshot(&output);
+    let result = print_fixture(&mut output, "welcome", &fixture_recording(), &[b"temper".as_slice().into()]);
     assert!(
         matches!(result, Err(crate::Refusal::FoundDrawn { turn: 1, what: journey::What::Original, .. })),
         "drawn hit precedes differing live print"
     );
-    assert!(snapshot(scratch.path()) == before, "drawn refusal writes nothing");
+    assert!(snapshot(&output) == before, "drawn refusal writes nothing");
 }
 
 #[test]
 fn a_given_text_only_the_print_holds_refuses() {
-    let scratch = Scratch::new("journeys-printed");
-    let before = snapshot(scratch.path());
+    let mut output = Memory::default();
+    let before = snapshot(&output);
     {
         let recording = fixture_recording();
-        let result = print_fixture(scratch.path(), "welcome", &recording, &[b"skein-ui.css".as_slice().into()]);
+        let result = print_fixture(&mut output, "welcome", &recording, &[b"skein-ui.css".as_slice().into()]);
         assert!(
             matches!(result, Err(crate::Refusal::FoundPrinted { page, what: journey::What::Original, .. }) if page == "01.html"),
             "printed document is scanned"
         );
-        assert!(snapshot(scratch.path()) == before, "printed refusal writes nothing");
+        assert!(snapshot(&output) == before, "printed refusal writes nothing");
     }
 }
 
 #[test]
 fn a_refusal_keeps_the_journey_of_its_name() {
-    let scratch = Scratch::new("journeys-existing-guard");
-    print_fixture(scratch.path(), "welcome", &fixture_recording(), &[]).expect("initial journey");
-    fs::write(scratch.path().join(temper_client_walk_lines::layout::WEB).join("welcome/README.md"), "Description")
-        .expect("description");
-    let before = snapshot(scratch.path());
+    let mut output = Memory::default();
+    print_fixture(&mut output, "welcome", &fixture_recording(), &[]).expect("initial journey");
+    output.put(&Path::new(OUT).join(WEB).join("welcome/README.md"), "Description");
+    let before = snapshot(&output);
     assert!(
-        print_fixture(scratch.path(), "welcome", &fixture_recording(), &[b"skein-ui.css".as_slice().into()]).is_err(),
+        print_fixture(&mut output, "welcome", &fixture_recording(), &[b"skein-ui.css".as_slice().into()]).is_err(),
         "guard refuses replacement"
     );
-    assert!(snapshot(scratch.path()) == before, "existing journey and neighbours kept");
+    assert!(snapshot(&output) == before, "existing journey and neighbours kept");
 }
 
 #[test]

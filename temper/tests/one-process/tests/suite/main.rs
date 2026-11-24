@@ -10,10 +10,12 @@ mod public;
 mod push;
 mod ready_copies;
 mod replay;
+mod restarts;
 mod story_a;
 mod upgrade;
 
 mod fuzzy {
     mod one_process;
+    mod restarts;
     mod upgrade;
 }

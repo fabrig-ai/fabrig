@@ -28,6 +28,11 @@ Each within skein's suites' budgets (../../../foundation/testing-strategy.md, se
   - the bundler: the directory named by its digest, the same inputs
     giving the same bundle, references under the prefix, an own page's
     marker, and each refusal of `bundle.md`, 2 and 3 naming its file;
+  - a served bundle's routes (`bundle.md`, 4), over a bundle handed in
+    whole: the compressed form, with its headers, to a client that takes
+    gzip, the plain one to a client that doesn't or refuses it, and no
+    address for a compressed form; one bundle the bundler writes and the
+    example's server reads from disk stays in `tests/ui-web`'s real suite;
   - the stylesheet (`README.md`, section 10): its 101 rules for a progress, read from
     `skein_ui_bundle::STYLESHEET` against the numbers 0 to 100.
 - **The wasm32 builds in skein's gate:** `skein-ui`, `skein-ui-web`, the
@@ -171,6 +176,56 @@ Each within skein's suites' budgets (../../../foundation/testing-strategy.md, se
   **Its run ends at forty seconds,** io's close window inside them, on
   which every test stands; a program that is no test, with bounds of its
   own on each step, may set another horizon on the harness.
+  **Every step's deadline goes through the starvation rule**
+  (../../../foundation/testing-strategy.md, 2.10), as the run's startup
+  and its horizon do:
+  - **A step's expiry** is a bound passing with what the step awaits
+    unseen: a `See`'s target not shown, a `Gone`'s still shown, tabs
+    not reading as the step says, a control not pressed, trouble not
+    come, a request unanswered, a field not grown, a pressed target not
+    found again, a command's line or exit not come; and any operation
+    the kit refuses with `Timeout`, its answer deadline passed
+    (../../testing/browser.md, section 6), whose bound is that deadline.
+    A find the kit refused with `Timeout` is that expiry, never an
+    absent target, so it neither fails a press as missing nor meets a
+    `Gone`.
+  - **Everything else fails at once,** whatever the load: a target
+    absent when a step acts on it, an act its node does not take, a
+    refusal other than `Timeout`, a request answered with another status
+    than the step's (failing as it comes, naming both), a field's value
+    or focus not the step's, trouble the story did not expect, a bad
+    exit.
+  - **A step's account:** the harness arms a `Deadline` for each person
+    as its step begins, at its page's first step and each time its
+    position (`Play::at`) moves, watching the server's, Chromium's and
+    the person's command's processes (../../testing/service-tiers.md,
+    1). It classifies the step's expiry against that account with the
+    bound the expiry passed (`Deadline::expired_for`, there). Starved,
+    the harness ends what it owns and the story ends as a starved pass,
+    its one line naming the figures, counted as every starved pass is;
+    otherwise the step fails, its report followed by the figures. A
+    failure already observed stays the story's outcome whatever is
+    classified after it.
+  - **The face holds an expiry apart from a failure:**
+    `BrowserFace::expire(bound, why)` holds `why` as its step's failure,
+    an unanswered wait whose `bound` passed now; `failure()` takes it
+    as it takes any other, and `expired()`, read before it, gives its
+    bound, and nothing for any other failure. The fake person says
+    which of its failures is a bound passing (../testing.md, 1.1), and
+    the harness's script holds it so. An application's script whose own
+    bound passes unanswered reports it by `expire` and waits, never
+    returning `Failed` for it. The incremental session judges neither:
+    its caller reads `expired()`.
+  **A red story ends within seconds of its failure.** Once a story has
+  failed, its failure's snapshot and screenshot are taken within five
+  seconds of the failure, each one not answered by then written
+  `unavailable`; its children then close within the close window, and
+  the run returns, as at the horizon. A starved verdict ends the run the
+  same way before its pass. So a red story's wall is its progress to its
+  failing step, that step's bound, one to ten seconds in skein's, jig's
+  and temper's stories, and at most nine seconds more: never past the
+  horizon, which is within every browser tier's wall hard limit
+  (`tools/tiers/budgets.toml`).
   **Its persons' downloads** go to a directory the test names in its
   setup, or are refused when it names none (../../testing/browser.md, section 5). The
   face keeps each person's `Downloaded` in order, its suggested name and

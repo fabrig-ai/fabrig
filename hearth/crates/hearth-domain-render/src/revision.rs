@@ -1,4 +1,4 @@
-//! The listing and typed documents (hearth/docs/design/protocol/format/README.md, 2.1 and 3.4).
+//! The listing and typed documents (hearth/docs/design/protocol/format/README.md, 2.1, and hearth/docs/design/protocol/format/targets.md, 1.4).
 use crate::errors::Repository;
 use alloc::boxed::Box;
 pub use hearth_domain_render_vocabulary::revision::{Firmware, Mode, Oid, Position, Runs};

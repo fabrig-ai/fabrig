@@ -208,7 +208,7 @@ fn assign_runtime(
         refused(&assignment, Refusal::Busy, &runtime, out);
         return;
     }
-    let Hub { hosted, names, facts, shut, pause, .. } = domain;
+    let Hub { hosted, names, facts, shut, pause, local_places, .. } = domain;
     // An assignment that can never fit is invalid, room or not: busy invites a
     // retry.
     if let Err(invalid) = assignment::check(&assignment, &env.limits) {
@@ -220,7 +220,7 @@ fn assign_runtime(
     let taken = hosted.len();
     if *shut
         || *pause != jig_domain_link::PauseState::Taking
-        || taken >= env.limits.slots
+        || taken >= env.limits.slots.min(*local_places)
         || names.contains_key(&assignment.run)
     {
         refused(&assignment, Refusal::Busy, &runtime, out);

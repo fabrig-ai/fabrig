@@ -46,6 +46,10 @@ fn a_story_keeps_its_history_through_a_settled_upgrade() {
     temper_one_process_world::upgrade::story::settled();
 }
 #[test]
+fn a_stopped_deployments_project_forge_settings_and_landings_read_the_same_on_its_next_start() {
+    temper_one_process_world::testing::restored_deployment_reads();
+}
+#[test]
 fn golden_rehearsal_decodes_every_record_and_restores_without_pending_work() {
     temper_one_process_world::upgrade::rehearsal::golden_check(
         &std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("golden/floor"),

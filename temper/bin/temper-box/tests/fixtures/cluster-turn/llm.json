@@ -247,6 +247,13 @@
           "tokens": 20
         }}
       ]
+    }},
+    {{
+      "cue": "Answer before the engine restarts",
+      "turns": [
+        {{"lines":[{{"text":"The worker answered before the restart."}},{{"call":"wait","arguments":{{}}}}],"finish":"tool_calls","tokens":1}},
+        {{"lines":[{{"text":"The chat is closed."}}],"finish":"stop","tokens":1}}
+      ]
     }}
   ],
   "otherwise": [

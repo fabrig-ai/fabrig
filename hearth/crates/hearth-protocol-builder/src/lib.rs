@@ -1,4 +1,4 @@
-//! The root's requests as git processes and decoded documents (hearth/docs/design/domain/render/README.md, 5.1).
+//! The root's requests as git processes and decoded documents (hearth/docs/design/domain/render/crates.md, 1.1).
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]
 extern crate alloc;
@@ -406,7 +406,7 @@ pub fn up(protocol: &mut Protocol, env: &Env<Limits>, ev: Told, above: &mut Queu
     io_up(protocol, env, event, below);
 }
 /// Whether a store step answered: it added to what this entry gave above, whatever
-/// that queue already held (hearth/docs/design/domain/render/README.md, 5.5).
+/// that queue already held (hearth/docs/design/domain/render/crates.md, 1.5).
 fn store_answered(before: u32, above: &Queue<Event>) -> bool {
     above.len() != before
 }

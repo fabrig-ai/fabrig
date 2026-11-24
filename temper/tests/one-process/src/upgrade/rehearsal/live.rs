@@ -13,7 +13,7 @@ use temper_engine_service::{self as service, startup};
 use temper_playground::programs::prepared_schemas;
 use temper_shell::directories::Directories;
 
-const OWNER: Token = Token::new(77);
+pub(super) const OWNER: Token = Token::new(77);
 
 fn seed(disk: &mut Disk, inputs: &startup::LimitInputs) -> Box<[u8]> {
     let (mut jig, own) = inputs.stock().expect("fixture stock limits");
@@ -99,7 +99,7 @@ fn open_copy(disk: &mut Disk, store: &mut service::store::Store) {
     panic!("copy opens");
 }
 
-fn check(disk: &mut Disk, service: &mut service::Service) {
+pub(super) fn settle(disk: &mut Disk, service: &mut service::Service) {
     for _ in 0..10_000 {
         let now = disk.sim.now();
         service::iterate(service, now, disk.sim.wall());
@@ -132,7 +132,7 @@ fn check(disk: &mut Disk, service: &mut service::Service) {
     panic!("rehearsal drains");
 }
 
-fn accounts(engine: &jig_protocol_config::Engine) -> service::AccountsRuntime {
+pub(super) fn accounts(engine: &jig_protocol_config::Engine) -> service::AccountsRuntime {
     use skein_oauth_accounts::{Endpoint, Origin, Transport};
 
     let mut runtime = service::AccountsRuntime { providers: List::with_capacity(2), trust: None };
@@ -201,7 +201,7 @@ pub fn a_live_change_and_uncertain_write_reach_the_opening_without_network(
     while let Some(event) = saved.pop() {
         store.events().push(event);
     }
-    check(&mut disk, &mut service);
+    settle(&mut disk, &mut service);
     let report = service.upgrade_report().expect("check report");
     assert!(report.done);
     assert_eq!(golden::files::image_root(&mut disk.machine, 1).len(), 1, "scratch emptied");

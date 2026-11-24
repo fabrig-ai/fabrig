@@ -36,12 +36,18 @@ fn limits() -> io::Limits {
     }
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Mode {
+    Source { detail_bytes: u32 },
+    Usage,
+}
+
 struct Parent {
     io: io::Io,
     env: Env<io::Limits>,
     source: Option<ProgramSource>,
     usage: Option<UsageRead>,
-    read_usage: bool,
+    mode: Mode,
     usage_answers: Vec<ProgramUsage>,
     inspection: Option<SourceInspection>,
     files: file_layer::FileIo,
@@ -64,7 +70,7 @@ struct Parent {
 }
 
 impl Parent {
-    fn new(root: kernel::Fd, asks: &[SourceAsk], base: &[Box<[u8]>], missing: bool, read_usage: bool) -> Self {
+    fn new(root: kernel::Fd, asks: &[SourceAsk], base: &[Box<[u8]>], missing: bool, mode: Mode) -> Self {
         let limits = limits();
         let mut pending = Queue::with_capacity(u32::try_from(asks.len()).expect("short scenario"));
         for ask in asks {
@@ -75,7 +81,7 @@ impl Parent {
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
             source: None,
             usage: None,
-            read_usage,
+            mode,
             usage_answers: Vec::new(),
             inspection: None,
             files: file_layer::FileIo::with_limits(&file_limits()),
@@ -99,7 +105,7 @@ impl Parent {
     }
     fn launch(&mut self, ask: SourceAsk) {
         self.launches = self.launches.checked_add(1).expect("bounded source asks");
-        if self.read_usage {
+        let Mode::Source { detail_bytes } = self.mode else {
             self.usage = Some(
                 UsageRead::new(
                     OWNER,
@@ -116,7 +122,7 @@ impl Parent {
                 .expect("source binding"),
             );
             return;
-        }
+        };
         self.source = Some(
             ProgramSource::new(
                 OWNER,
@@ -127,7 +133,7 @@ impl Parent {
                 self.root,
                 b".".as_slice().into(),
                 self.deadline,
-                32,
+                detail_bytes,
                 &mut self.requests,
             )
             .expect("source binding"),
@@ -147,7 +153,7 @@ impl Parent {
             match answer {
                 Ok(()) => self.launch(SourceAsk::Check),
                 Err(check) => {
-                    if self.read_usage {
+                    if self.mode == Mode::Usage {
                         self.usage_answers.push(match check {
                             ProgramCheck::NotSignedIn => ProgramUsage::NotSignedIn,
                             ProgramCheck::Failed(failure) => ProgramUsage::Failed(failure),
@@ -445,8 +451,12 @@ pub struct Run {
     pub launches: u32,
 }
 
-/// Run source asks with chosen directory modes or absent levels on a fake machine.
+/// Run source asks with chosen directory modes or absent levels and a stderr tail bound.
 #[must_use]
+#[expect(
+    clippy::too_many_arguments,
+    reason = "source fixtures choose the directory modes and stderr bound independently"
+)]
 pub fn run(
     seed: u64,
     story: Option<Story>,
@@ -455,8 +465,9 @@ pub fn run(
     missing: bool,
     extra_environment: &[Box<[u8]>],
     directories: [Option<u32>; 2],
+    detail_bytes: u32,
 ) -> Run {
-    run_mode(seed, story, login, asks, missing, extra_environment, directories, false)
+    run_mode(seed, story, login, asks, missing, extra_environment, directories, Mode::Source { detail_bytes })
 }
 
 /// Read local usage after the same directory inspection used by source checks.
@@ -470,7 +481,7 @@ pub fn usage(
 ) -> Run {
     let login = if directories.iter().all(Option::is_some) { Some(b"claude.ai".as_slice()) } else { None };
     let story = if directories.iter().all(Option::is_some) { Some(story) } else { None };
-    run_mode(seed, story, login, &[SourceAsk::Check], missing, extra_environment, directories, true)
+    run_mode(seed, story, login, &[SourceAsk::Check], missing, extra_environment, directories, Mode::Usage)
 }
 
 #[expect(
@@ -485,7 +496,7 @@ fn run_mode(
     missing: bool,
     extra_environment: &[Box<[u8]>],
     directories: [Option<u32>; 2],
-    read_usage: bool,
+    mode: Mode,
 ) -> Run {
     // Peak across every program_source test: source checks and sign-out with the hosted fake.
     // The signed-in-otherwise check's hosted fake is largest.
@@ -497,7 +508,7 @@ fn run_mode(
     let mut environment = vec![Box::from(b"HOME=/home".as_slice())];
     environment.extend_from_slice(extra_environment);
     let mut config = skein_sim::Config::calm();
-    if read_usage {
+    if mode == Mode::Usage {
         let midnight = (Civil { year: 2026, month: 11, day: 19 }).wall().expect("fixture date");
         config.wall = Wall::from_nanos(
             midnight.as_nanos().checked_add(Duration::from_secs(14_400).as_nanos()).expect("fixture wall time"),
@@ -521,7 +532,7 @@ fn run_mode(
         |spawn| smith_fake_claude::config_root(spawn).into_iter().chain(smith_fake_claude::mcp_root(spawn)).collect(),
         |spawn| smith_fake_claude::observation_append(spawn).into_iter().collect(),
     );
-    world.spawn_root(root, |fd| Process::Parent(Box::new(Parent::new(fd, asks, &environment, missing, read_usage))));
+    world.spawn_root(root, |fd| Process::Parent(Box::new(Parent::new(fd, asks, &environment, missing, mode))));
     collect(world.run())
 }
 

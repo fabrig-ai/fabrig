@@ -154,13 +154,13 @@ Identity { target, items: [ { item, kind, algorithm } ] }
   | Kind | Made with | Public half |
   |---|---|---|
   | the machine-id, always | `/proc/sys/kernel/random/uuid`: a random v4 UUID's 32 hexadecimal digits | itself |
-  | `ssh-host-key` | the running system's `ssh-keygen -q -t <algorithm> -N "" -C "" -f <.new>/<item>`: the running slot's, from the `hearth` task's `openssh-client` (hearth/docs/design/protocol/format/tasks.md, 12), or the live system's at bootstrap, which checks for it | the `.pub` line |
+  | `ssh-host-key` | the running system's `ssh-keygen -q -t <algorithm> -N "" -C "" -f <.new>/<item>`: the running slot's, from the `hearth` task's `openssh-client` (hearth/docs/design/protocol/format/tasks-hearth.md, 1), or the live system's at bootstrap, which checks for it | the `.pub` line |
   | `wireguard-key` [later] | in-process, from the kernel's random source and X25519, an ask of skein: no running slot need carry `wg` | the base64 public key |
-  | `backup-key` [M6] | `age-keygen -o <.new>/<item>`: an X25519 key, kept in the identity store and written into no slot (hearth/docs/design/protocol/format/README.md, 7.3 and 6.7) | the `age1…` recipient, reported as a fact |
+  | `backup-key` [M6] | `age-keygen -o <.new>/<item>`: an X25519 key, kept in the identity store and written into no slot (hearth/docs/design/protocol/format/README.md, 7.3, and hearth/docs/design/protocol/format/exports.md, 1.7) | the `age1…` recipient, reported as a fact |
 
 - **Done:** the generation and the public halves, which the steward
   reports so that people and agents can record them as data in the
-  repository (hearth/docs/design/protocol/format/README.md, section 6).
+  repository (hearth/docs/design/protocol/format/exports.md, section 1).
 - **A crash** leaves a `.new` directory, removed at the next start.
 - **Prepare asks for it first,** before it computes its key
   (hearth/docs/design/domain/slots/prepare.md), so a new item never causes a second prepare;
@@ -245,7 +245,7 @@ Send { target, class, seq, parent }      Receive { from, class, seq }      [M6]
   the running slot's record's (hearth/docs/design/domain/slots/README.md, 2.2), never a request's; a
   container's class follows its host's (hearth/docs/design/domain/slots/containers.md, 1). Keyed by
   `<seq>`, which only grows: a snapshot of that sequence means done.
-  Then the class's record (`README.md`, 6.1) gains it, and the next deadline is set.
+  Then the class's record (`state.md`, 1.1) gains it, and the next deadline is set.
 - **Prune,** after every snapshot: each snapshot that no bucket keeps
   and the backup does not need (hearth/docs/design/domain/operating.md, 7.3) is deleted with
   `SNAP_DESTROY_V2`, then dropped from the record. Idempotent: a
@@ -287,7 +287,7 @@ Restore { target, class, entry?, seq, expect { uuid } }
   <its backup key>` into `btrfs receive`, into its own
   `@hearth.snapshots`, so plaintext exists only between two activators.
 - **A cut between the renames** is finished or undone at the next start
-  from the recorded swap (`README.md`, 6.3).
+  from the recorded swap (`state.md`, 1.3).
 
 ## 13. Hold, and release, a bless [M4]
 
@@ -363,7 +363,7 @@ hearth/docs/design/domain/slots/containers.md's; none touches the boot partition
 |---|---|---|
 | place | `operations.md`'s steps with a container's differences (hearth/docs/design/domain/slots/containers.md, 1) | keyed: the prepare key |
 | trial | the marker; the slot's nspawn settings and link, each by rename; `systemctl restart systemd-nspawn@<container>.service`; the poll (hearth/docs/design/domain/slots/containers.md, 2 and 3) | conditional on the container's running slot, default and the slot's prepare key; a repeat by attempt gets the first answer |
-| bless | the criterion, read from the host; the record `blessed`; the marker removed; the default recorded (`README.md`, 6.1) | conditional |
+| bless | the criterion, read from the host; the record `blessed`; the marker removed; the default recorded (`state.md`, 1.1) | conditional |
 | hold, and release | the marker `held`, with the hold's end as the activator's deadline in place of the window's; a `Bless` releases it (hearth/docs/design/domain/slots/bless.md, 1.4) | conditional |
 | fall back | the default's settings and link back, a restart, the record `fell back` | conditional |
 | roll back | a trial of the other blessed slot; while live, the live fall back | conditional |
@@ -387,7 +387,7 @@ hearth/docs/design/domain/slots/containers.md's; none touches the boot partition
 ```
 TryLive {
   slot, attempt
-  change      Digest                         the change from the base's output to the new slot's (../slots/trial.md, 7), in ../store/README.md, 3.5's form
+  change      Digest                         the change from the base's output to the new slot's (../slots/trial.md, 7), in ../store/digests.md, 1.5's form
   plan        stop                [ unit ]   before the swap
               reload              [ unit ]
               restart             [ unit ]

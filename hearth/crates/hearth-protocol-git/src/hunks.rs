@@ -1,4 +1,4 @@
-//! Unified hunks with bounded lines and retained text (hearth/docs/design/domain/render/README.md, 2.2 and 4.1).
+//! Unified hunks with bounded lines and retained text (hearth/docs/design/domain/render/README.md, 2.2, and hearth/docs/design/domain/render/diff.md, 1.1).
 use crate::limits::Limits;
 use core::mem;
 pub use hearth_domain_render_vocabulary::diff::{Hunks, Line, LineKind as Kind};

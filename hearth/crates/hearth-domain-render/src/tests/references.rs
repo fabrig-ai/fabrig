@@ -20,7 +20,7 @@ fn a_settings_reference_must_be_a_declared_setting() {
                 },
                 9
             )),
-            "row {row}: hearth/docs/design/protocol/format/README.md, 5.4"
+            "row {row}: hearth/docs/design/protocol/format/schema.md, 1.4"
         );
     }
 }

@@ -16,7 +16,7 @@
 Render's values have one owner, `hearth-domain-render-vocabulary`. The
 client's records, the builder's translations and the config, git and
 mmdebstrap machines name those values and hold no copy of them
-(`hearth/docs/design/domain/render/README.md`, 5.1).
+(`hearth/docs/design/domain/render/crates.md`, 1.1).
 
 At the checked commit, counting whole lines, including blanks and comments:
 
@@ -36,7 +36,7 @@ The copies kept have work of their own:
 - Configuration's positioned documents and declarations keep the byte offset
   their decoder orders refusals by. The builder compiles declarations,
   including their expressions, into render's types, rather than copying
-  them (`hearth/docs/design/domain/render/README.md`, 5.1).
+  them (`hearth/docs/design/domain/render/crates.md`, 1.1).
 - The template machine's instructions and expressions are a tool's
   vocabulary (`temper/docs/design/draft/one-owner.md`, 3), not render's
   values. Its translations and their checks stay.
@@ -49,7 +49,7 @@ The copies kept have work of their own:
   id printed as hex, and store answers. Config's `Fault` adds the tokenizer's
   faults, translated with the document limit; a read's stream fault, refused;
   and a duplicate key's first byte offset
-  (`hearth/docs/design/domain/render/README.md`, 5.1).
+  (`hearth/docs/design/domain/render/crates.md`, 1.1).
 
 Nobody has examined `hearth-domain-tree/src/vocabulary.rs` against
 `hearth-protocol-tree/src/tree.rs` for the rule; that area remains open.

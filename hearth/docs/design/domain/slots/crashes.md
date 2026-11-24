@@ -2,7 +2,7 @@
 
 The activator writes its journal before each step with effects outside
 the state, and the trial marker before each one-shot
-(hearth/docs/design/domain/activator/README.md, section 6). Every start reads them, reads the facts, and
+(hearth/docs/design/domain/activator/state.md, section 1). Every start reads them, reads the facts, and
 applies the start events of `README.md`, section 4. What each cut leaves, with `a`
 running and default and `b` the slot in question:
 

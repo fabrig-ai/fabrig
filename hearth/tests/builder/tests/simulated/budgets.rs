@@ -3,6 +3,7 @@ use hearth_builder_world::{
     fixtures::{self, budgets},
     simulated,
 };
+use skein_io::kernel::Exit;
 use skein_sim::Config;
 
 #[test]
@@ -24,7 +25,7 @@ fn a_diff_reads_a_blob_the_two_revisions_share_once() {
     assert_eq!(
         budgets::distinct(&reads.blobs),
         reads.blobs.len(),
-        "hearth/docs/design/domain/render/README.md, 5.4: shared oids reused"
+        "hearth/docs/design/domain/render/crates.md, 1.4: shared oids reused"
     );
 }
 
@@ -45,5 +46,10 @@ fn a_render_spawns_git_once_per_read_and_twice_more_and_a_known_resolution_no_mm
         let outcome = simulated::run(&scenario, fixtures::SIMULATION_SEED, Config::calm());
         assert_eq!(budgets::programs(&outcome.trace), (row.git, row.mmdebstrap), "{:?}", row.repository);
         assert_eq!(reads.batches + budgets::DISCOVERY_SPAWNS, row.git, "{:?}", row.repository);
+        let stdout = outcome.machine.contents(fixtures::OUTPUT).expect("client output");
+        let packages = fixtures::lines_starting(&stdout, &["packages "]);
+        assert!(packages.ends_with(row.packages_suffix), "{:?}: {packages}", row.repository);
+        assert_eq!(fixtures::client_exits(&outcome), [Exit::Code(0)], "{:?}", row.repository);
+        assert!(fixtures::staging_is_empty(&outcome.machine), "{:?}", row.repository);
     }
 }

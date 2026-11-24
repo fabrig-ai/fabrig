@@ -502,6 +502,17 @@ fn the_lines_name_the_binary() {
     }
 }
 
+#[test]
+fn a_bare_start_without_a_terminal_fails() {
+    const HTTPS: &[u8] = b"https://dev.fabrig.ai";
+    for (argument, words) in [
+        (None, "temper: no command; temper --help lists them\n"),
+        (Some(HTTPS), "temper: the TUI needs a terminal on stdin and stdout\n"),
+    ] {
+        assert_eq!(super::require_terminal("temper", argument, false), Err((1, words.into())), "{argument:?}");
+    }
+}
+
 const FLAT: [(&str, &[u8]); 3] =
     [("token", b"fake-token"), ("store", b"fake-store"), ("sign-in", b"127.0.0.1:8367 until 123")];
 const STAGING: &str = "tui/at/127.0.0.1/8367.new";

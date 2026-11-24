@@ -1,4 +1,4 @@
-//! Meta's canonical record (hearth/docs/design/domain/render/spec.md, 1.4; hearth/docs/design/domain/store/README.md, 3.1).
+//! Meta's canonical record (hearth/docs/design/domain/render/spec.md, 1.4; hearth/docs/design/domain/store/digests.md, 1.1).
 use crate::revision::{Firmware, Runs};
 pub use hearth_domain_render_vocabulary::parts::meta::{Change, MemberPair, Meta, NamePair, Placement, PlacementPair};
 use hearth_lib::{

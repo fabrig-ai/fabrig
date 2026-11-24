@@ -1,4 +1,4 @@
-//! Typed differences and the lowest changed layer (hearth/docs/design/domain/render/README.md, 4.1, 4.2).
+//! Typed differences and the lowest changed layer (hearth/docs/design/domain/render/diff.md, 1.1, 1.2).
 use crate::{
     parts::{boot, config, data, exports, live, packages, secrets, software},
     revision::Oid,
@@ -60,7 +60,7 @@ pub struct Tally {
     pub changed: u32,
     pub unchanged: u32,
 }
-/// Git's retained unified lines (hearth/docs/design/domain/render/README.md, 4.1).
+/// Git's retained unified lines (hearth/docs/design/domain/render/diff.md, 1.1).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Hunks {
     pub lines: Box<[Line]>,

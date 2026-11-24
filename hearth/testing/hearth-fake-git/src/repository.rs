@@ -145,6 +145,10 @@ impl Repository {
         }
         unreachable!("stored tags have no cycle")
     }
+    /// Make the commit's tree unreadable without losing the commit or its ref.
+    pub fn drop_listing(&mut self, commit: Oid) {
+        drop(self.listings.remove(&commit));
+    }
     #[must_use]
     pub fn list(&self, commit: Oid) -> Option<Box<[Listed]>> {
         self.listings.get(&commit).cloned()

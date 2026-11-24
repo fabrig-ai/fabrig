@@ -1,4 +1,4 @@
-//! Store io, with no waiting in the protocol layer (hearth/docs/design/domain/store/README.md, 6.2).
+//! Store io, with no waiting in the protocol layer (hearth/docs/design/domain/store/state.md, 1.2).
 pub(super) mod names;
 use crate::{
     Asked, Current, Roots,

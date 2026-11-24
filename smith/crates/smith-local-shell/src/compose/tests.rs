@@ -1,6 +1,41 @@
 use super::*;
 
 #[test]
+fn an_account_without_a_credential_exits_3_before_any_request() {
+    let scratch = credentials::tests::Files::new("smith-exec-admission");
+    let mut resolved = credentials::tests::resolved_source(&scratch, "env");
+    resolved.settings.values.retain(|key, _| !key.starts_with("accounts.unused."));
+    let state = scratch.path().join("state");
+    resolved.settings.paths.state_home = Some(state.clone().into());
+    let programs = credentials::program_check::ProgramStates::new();
+    let environment = credentials::Environment::default();
+    // A successful admission would create the chat and hand the composition its sources.
+    let refused = preflight(&resolved, Wall::EPOCH, false, &programs, &environment, None)
+        .err()
+        .expect("a required unset variable must refuse admission");
+    assert_eq!(refused.code(), 3, "unusable credential");
+    assert_eq!(refused.line(), "smith: account codex: SMITH_UNSET_FIXTURE is not set", "selected account's variable");
+    assert!(!state.exists(), "credential admission precedes the chat tree");
+}
+
+#[test]
+fn local_chat_store_io_failure_keeps_exit_1() {
+    let scratch = smith_real_world::Scratch::new();
+    let workspace = scratch.path().canonicalize().expect("scratch workspace");
+    let paths = settings::Paths { state_home: Some(workspace.join("state").into()), ..settings::Paths::default() };
+    let tree = chats_tree(&workspace, &paths).unwrap_or_else(|why| panic!("{}", why.line()));
+    std::fs::create_dir_all(&tree).expect("workspace chats tree");
+    let chat = tree.join("refused");
+    let original = b"a file cannot be the chat directory";
+    std::fs::write(&chat, original).expect("block the selected chat's path");
+    let refused = chat_paths(&workspace, b"refused", None, &paths).expect_err("a file blocks chat creation");
+    assert_eq!(refused.code(), 1, "chat store failure");
+    let line = refused.line();
+    assert!(line.contains("File exists"), "chat store line: {line}");
+    assert_eq!(std::fs::read(chat).expect("unchanged chat file"), original, "the blocked path keeps its bytes");
+}
+
+#[test]
 fn trace_admission_resolves_existing_files_absent_files_and_aliases_before_opening() {
     let scratch = smith_real_world::Scratch::new();
     let chats = scratch.path().join("chats");

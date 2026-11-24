@@ -59,7 +59,7 @@ firmware uses these, and kept in the machine record. Made with
 - **`initrd=` is written with a backslash.** efibootmgr converts `/` in
   `--loader`, not in the command line.
 - **The disk is found afresh** at each start, from
-  `/sys/fs/btrfs/<fs uuid>/devices/` (hearth/docs/design/domain/activator/README.md, 6.4).
+  `/sys/fs/btrfs/<fs uuid>/devices/` (hearth/docs/design/domain/activator/state.md, 1.4).
 - **Other calls,** each an argument vector of `hearth-protocol-efi`:
 
   ```
@@ -339,7 +339,7 @@ initrd=\initrd.img.x1-prod.b root=UUID=0f3c9a6e-5b2d-4c1e-9a7f-2d8e6b1c4a90 root
   are the activator's, nor `rootfstype`, `rootwait`, `rootdelay` or
   `init`, which would change how tiny-initramfs finds and starts the
   root; `rootwait` in particular would make a missing root wait for ever
-  instead of panicking. Render refuses them (hearth/docs/design/protocol/format/tasks.md, 11), and the
+  instead of panicking. Render refuses them (hearth/docs/design/protocol/format/tasks-reserved.md, 1), and the
   activator refuses them again.
 - **Tokens** are printable ASCII without spaces, quotes or what GRUB's
   script reads (`\`, `$`, `;`, `&`, `|`, `<`, `>`, `{`, `}`, `#`;
@@ -385,7 +385,7 @@ INCLUDE_MODULES=btrfs,virtio_pci,virtio_scsi,sd_mod
   metal. `yes` means the build host's processor.
 - **`INCLUDE_MODULES`** is the packages part's `initramfs` set, which the
   `boot` task keys by hardware profile (4.2; hearth/docs/design/protocol/format/tasks.md, 4), in the
-  set's order, bytewise (hearth/docs/design/domain/store/README.md, 3.1), comma-joined: the file follows
+  set's order, bytewise (hearth/docs/design/domain/store/digests.md, 1.1), comma-joined: the file follows
   the part's digest, whatever order a list in 4.2 or a task gives.
   `mktirfs` resolves their dependencies when it makes the image, and
   nothing is resolved at boot.

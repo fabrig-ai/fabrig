@@ -103,7 +103,7 @@ pub fn claude_code(
 ) -> Result<(), Failed> {
     use std::os::unix::ffi::OsStrExt;
     let name = file.as_os_str().as_bytes();
-    if claude_present(file, bytes)? {
+    if claude_present(name, bytes, claude_stat(file))? {
         return Ok(());
     }
     let parent = file.parent().expect("cache path has a parent");
@@ -119,7 +119,7 @@ pub fn claude_code(
         .open(&lock_name)
         .map_err(|why| file_error(lock_name.as_bytes(), &why))?;
     lock.lock().map_err(|why| file_error(lock_name.as_bytes(), &why))?;
-    if claude_present(file, bytes)? {
+    if claude_present(name, bytes, claude_stat(file))? {
         return Ok(());
     }
     match out.write_all(b"fetching Claude Code\n") {
@@ -127,15 +127,21 @@ pub fn claude_code(
     }
     run(limits, trust, Fetch::new(Box::new([pin]), bytes), no_extraction, out)
 }
-fn claude_present(file: &std::path::Path, bytes: u64) -> Result<bool, Failed> {
-    use std::os::unix::ffi::OsStrExt;
-    match fs::metadata(file) {
-        Ok(metadata) if metadata.is_file() && metadata.len() == bytes => Ok(true),
-        Ok(_) => Err(Failed::Refused(Failure::Present { file: file.as_os_str().as_bytes().into() })),
+fn claude_stat(file: &std::path::Path) -> io::Result<(bool, u64)> {
+    fs::metadata(file).map(|metadata| (metadata.is_file(), metadata.len()))
+}
+
+fn claude_present(file: &[u8], bytes: u64, stat: io::Result<(bool, u64)>) -> Result<bool, Failed> {
+    match stat {
+        Ok((regular, length)) if regular && length == bytes => Ok(true),
+        Ok(_) => Err(Failed::Refused(Failure::Present { file: file.into() })),
         Err(why) if why.kind() == io::ErrorKind::NotFound => Ok(false),
-        Err(why) => Err(file_error(file.as_os_str().as_bytes(), &why)),
+        Err(why) => Err(file_error(file, &why)),
     }
 }
+
+#[cfg(test)]
+mod tests;
 /// The caller's bounded archive extraction (protocol/setup/owned.md, 6).
 pub type Extract = fn(archive: &[u8], member: &[u8], file: &mut fs::File, bound: u64) -> fetch::Extraction;
 

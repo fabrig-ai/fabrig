@@ -7,7 +7,7 @@ mod tests {
     use skein_codec::value::Node;
     use skein_codec_patches::patches::{self, Context};
     use skein_codegen::diff::Rename;
-    use skein_codegen::patch::{self, Error, Finding, Landed, Mode, Options, Outcome, Report};
+    use skein_codegen::patch::{self, Error, Finding, Landed, Mode, Options, Outcome, Report, Tree};
     use std::fs;
     use std::path::{Path, PathBuf};
 
@@ -33,82 +33,52 @@ mod tests {
     // One Label record, smallest and full.
     const LABEL_GOLDENS: [&str; 2] = ["record_label_full.bin", "record_label_smallest.bin"];
 
-    #[derive(Debug)]
-    struct Scratch(PathBuf);
-    impl Scratch {
-        fn new(name: &str) -> Self {
-            let root = std::env::temp_dir().join(format!("skein-codec-patches-{name}-{}", std::process::id()));
-            fs::create_dir(&root).expect("unique story scratch directory");
-            Self(root)
-        }
-    }
-    impl Drop for Scratch {
-        fn drop(&mut self) {
-            fs::remove_dir_all(&self.0).expect("remove story scratch directory");
-        }
-    }
     fn owner() -> PathBuf {
         skein_scratch::paths::package()
     }
     fn input(step: &str, name: &str) -> PathBuf {
         owner().join("story").join(step).join(name)
     }
-    fn put(root: &Path, path: &Path, bytes: &[u8]) {
-        let path = root.join(path);
-        fs::create_dir_all(path.parent().expect("file parent")).expect("story directories");
-        fs::write(path, bytes).expect("story file");
-    }
-    fn author(root: &Path, path: &str, step: &str, name: &str) {
-        put(root, Path::new(path), &fs::read(input(step, name)).expect("author's input"));
+    fn author(tree: &mut Tree, path: &str, step: &str, name: &str) {
+        let bytes = fs::read(input(step, name)).expect("author's input");
+        tree.write(Path::new(path), &bytes).expect("story file");
     }
     #[expect(
         clippy::disallowed_methods,
         reason = "reads SKEIN_PATCH_WRITE to regenerate the command's module fixtures"
     )]
-    fn text(root: &Path, path: &str, step: &str, name: &str) {
-        let actual = fs::read_to_string(root.join(path)).expect("command's text");
+    fn text(tree: &Tree, path: &str, step: &str, name: &str) {
+        let bytes = tree.read(Path::new(path)).expect("read story file").expect("command's text");
+        let actual = core::str::from_utf8(&bytes).expect("command's UTF-8 text");
         let write = std::env::var_os("SKEIN_PATCH_WRITE").is_some_and(|value| value == "1");
         if path == "patches/mod.rs" && write {
-            fs::write(input(step, name), &actual).expect("regenerate the command's module fixture");
+            fs::write(input(step, name), actual).expect("regenerate the command's module fixture");
         }
         assert_eq!(actual, fs::read_to_string(input(step, name)).expect("expected text"), "{step}: {path}");
     }
-    fn files(root: &Path, directory: &Path) -> BTreeMap<PathBuf, Vec<u8>> {
-        let mut result = BTreeMap::new();
-        let full = root.join(directory);
-        if full.is_dir() {
-            for entry in fs::read_dir(full).expect("story directory") {
-                let entry = entry.expect("story entry");
-                let path = directory.join(entry.file_name());
-                if entry.path().is_dir() {
-                    result.extend(files(root, &path));
-                } else {
-                    result.insert(path, fs::read(entry.path()).expect("story file"));
-                }
-            }
-        }
-        result
+    fn files(tree: &Tree, directory: &str) -> BTreeMap<PathBuf, Vec<u8>> {
+        tree.files().expect("story files").into_iter().filter(|(path, _)| path.starts_with(directory)).collect()
     }
-    fn restore(root: &Path, landed: &Landed) {
+    fn restore(tree: &mut Tree, landed: &Landed) {
         for path in landed.paths() {
-            put(root, path, landed.get(path).expect("landed bytes"));
+            tree.write(path, landed.get(path).expect("landed bytes")).expect("restore landed file");
         }
     }
-    fn clean(root: &Path, landed: &Landed) {
-        assert_eq!(patch::check(root, landed), Ok(vec![]), "step has no findings");
-        assert_eq!(patch::current(root), Ok(()), "step has the generated module");
+    fn clean(tree: &Tree, landed: &Landed) {
+        assert_eq!(patch::check(tree, landed), Ok(vec![]), "step has no findings");
+        assert_eq!(patch::current_in(tree), Ok(()), "step has the generated module");
     }
-    fn golden_names<const N: usize>(root: &Path, directory: &str, names: [&str; N]) {
+    fn golden_names<const N: usize>(tree: &Tree, directory: &str, names: [&str; N]) {
         assert_eq!(
-            files(root, Path::new(directory)).keys().cloned().collect::<Vec<_>>(),
+            files(tree, directory).into_keys().collect::<Vec<_>>(),
             names.map(|name| Path::new(directory).join(name)),
             "{directory}: every golden, no stale files"
         );
     }
     #[expect(clippy::disallowed_methods, reason = "SKEIN_PATCH_WRITE regenerates the story's down golden fixtures")]
-    fn down_files(root: &Path, number: u32) {
+    fn down_files(tree: &Tree, number: u32) {
         let directory = format!("patches/golden/{number:04}/label/down");
-        let actual = files(root, Path::new(&directory));
+        let actual = files(tree, &directory);
         let fixture = input(WIRE, &format!("golden/{number:04}"));
         if std::env::var_os("SKEIN_PATCH_WRITE").is_some_and(|value| value == "1") {
             for (path, bytes) in &actual {
@@ -117,25 +87,31 @@ mod tests {
                 fs::write(fixture.join(name), bytes).expect("regenerate down golden");
             }
         }
-        let expected = files(&fixture, Path::new(""));
+        let mut expected = fs::read_dir(&fixture)
+            .expect("down golden fixtures")
+            .map(|entry| entry.expect("down golden fixture").path())
+            .collect::<Vec<_>>();
+        expected.sort_unstable();
         assert!(!expected.is_empty(), "down goldens required");
         assert_eq!(actual.len(), expected.len(), "every down golden");
-        for (path, bytes) in expected {
-            assert_eq!(actual.get(&Path::new(&directory).join(&path)), Some(&bytes), "{}", path.display());
+        for path in expected {
+            let name = path.file_name().expect("golden name");
+            let bytes = fs::read(&path).expect("expected down golden");
+            assert_eq!(actual.get(&Path::new(&directory).join(name)), Some(&bytes), "{}", path.display());
         }
     }
 
-    fn wire_steps(root: &Path) {
+    fn wire_steps(tree: &mut Tree) {
         // 6. A wire moves above its floor with a derived reverse and goldens down.
-        let before = Landed::read(root).expect("written patch lands");
-        author(root, "schema/wires", WIRE, "wires");
-        let marked = patch::run(root, &before, &Options::default()).expect("mark label a wire");
+        let before = tree.landed().expect("written patch lands");
+        author(tree, "schema/wires", WIRE, "wires");
+        let marked = patch::run(tree, &before, &Options::default()).expect("mark label a wire");
         assert_eq!(marked, Report { outcomes: vec![current("label"), current("shelf")], ..Report::default() });
-        text(root, "schema/wires", WIRE, "wires");
-        text(root, "patches/mod.rs", WIRE, "marked-mod.rs");
-        let marked = Landed::read(root).expect("wire floor lands");
-        author(root, "schema/label-v3.schema", WIRE, "label-v3.schema");
-        let report = patch::run(root, &marked, &Options::default()).expect("wire widens");
+        text(tree, "schema/wires", WIRE, "wires");
+        text(tree, "patches/mod.rs", WIRE, "marked-mod.rs");
+        let marked = tree.landed().expect("wire floor lands");
+        author(tree, "schema/label-v3.schema", WIRE, "label-v3.schema");
+        let report = patch::run(tree, &marked, &Options::default()).expect("wire widens");
         assert_eq!(
             report,
             Report {
@@ -144,17 +120,17 @@ mod tests {
                 ..Report::default()
             }
         );
-        text(root, "patches/0004.patch", WIRE, "0004.patch");
-        text(root, "schema/kept/label-v3.schema", WIRE, "label-v3.schema");
-        text(root, "patches/mod.rs", WIRE, "mod.rs");
-        down_files(root, 4);
-        assert_eq!(patch::golden(root, 4, patches::written, Mode::Check), Ok(()));
-        clean(root, &marked);
-        let widened = Landed::read(root).expect("wire move lands");
+        text(tree, "patches/0004.patch", WIRE, "0004.patch");
+        text(tree, "schema/kept/label-v3.schema", WIRE, "label-v3.schema");
+        text(tree, "patches/mod.rs", WIRE, "mod.rs");
+        down_files(tree, 4);
+        assert_eq!(patch::golden(tree, 4, patches::written, Mode::Check), Ok(()));
+        clean(tree, &marked);
+        let widened = tree.landed().expect("wire move lands");
 
         // 7. Dropping color needs the author's down value, never the command's.
-        author(root, "schema/label-v4.schema", WIRE, "label-v4.schema");
-        let report = patch::run(root, &widened, &Options::default()).expect("asks down value");
+        author(tree, "schema/label-v4.schema", WIRE, "label-v4.schema");
+        let report = patch::run(tree, &widened, &Options::default()).expect("asks down value");
         assert_eq!(report.outcomes, [Outcome::Patched { family: "label".into(), from: 3, to: 4 }, current("shelf")]);
         assert_eq!(report.patch, Some(5));
         assert_eq!(
@@ -167,19 +143,19 @@ mod tests {
             report.findings,
             [Finding::Unbridged { family: "label".into(), version: 4, error: "line 5 at 48..53: Irreversible".into() }]
         );
-        text(root, "patches/0005.patch", WIRE, "asked.patch");
-        text(root, "schema/kept/label-v4.schema", WIRE, "label-v4.schema");
-        text(root, "patches/mod.rs", WIRE, "asked-mod.rs");
-        assert!(!root.join("patches/golden/0005").exists());
-        author(root, "patches/0005.patch", WIRE, "0005.patch");
-        let report = patch::run(root, &widened, &Options::default()).expect("down value kept");
+        text(tree, "patches/0005.patch", WIRE, "asked.patch");
+        text(tree, "schema/kept/label-v4.schema", WIRE, "label-v4.schema");
+        text(tree, "patches/mod.rs", WIRE, "asked-mod.rs");
+        assert!(files(tree, "patches/golden/0005").is_empty());
+        author(tree, "patches/0005.patch", WIRE, "0005.patch");
+        let report = patch::run(tree, &widened, &Options::default()).expect("down value kept");
         assert_eq!(report.asked, Vec::<String>::new());
         assert_eq!(report.findings, []);
-        text(root, "patches/0005.patch", WIRE, "0005.patch");
-        text(root, "patches/mod.rs", WIRE, "down-mod.rs");
-        down_files(root, 5);
-        assert_eq!(patch::golden(root, 5, patches::written, Mode::Check), Ok(()));
-        clean(root, &widened);
+        text(tree, "patches/0005.patch", WIRE, "0005.patch");
+        text(tree, "patches/mod.rs", WIRE, "down-mod.rs");
+        down_files(tree, 5);
+        assert_eq!(patch::golden(tree, 5, patches::written, Mode::Check), Ok(()));
+        clean(tree, &widened);
     }
 
     fn current(family: &str) -> Outcome {
@@ -208,18 +184,17 @@ mod tests {
         reason = "data/codec/command.md 9 asks for one readable history, each run checked beside its inputs"
     )]
     fn owner_history_replays_from_baseline_through_rebased_written_patch() {
-        let scratch = Scratch::new("branch");
-        let root = &scratch.0;
+        let mut tree = Tree::new(BTreeMap::new());
         let options = Options::default();
 
         // 1. Before release the command requires an explicit baseline.
-        author(root, "schema/shelf-v1.schema", BASELINE, "shelf-v1.schema");
-        author(root, "schema/label-v1.schema", BASELINE, "label-v1.schema");
-        let before = files(root, Path::new(""));
-        assert_eq!(patch::run(root, &Landed::none(), &options), Err(Error::Baseline));
-        assert_eq!(files(root, Path::new("")), before, "refused run writes nothing");
+        author(&mut tree, "schema/shelf-v1.schema", BASELINE, "shelf-v1.schema");
+        author(&mut tree, "schema/label-v1.schema", BASELINE, "label-v1.schema");
+        let before = tree.clone();
+        assert_eq!(patch::run(&mut tree, &Landed::none(), &options), Err(Error::Baseline));
+        assert_eq!(tree, before, "refused run writes nothing");
         assert_eq!(
-            patch::run(root, &Landed::none(), &Options { baseline: true, ..Options::default() }),
+            patch::run(&mut tree, &Landed::none(), &Options { baseline: true, ..Options::default() }),
             Ok(Report {
                 outcomes: vec![
                     Outcome::Kept { family: "label".into(), version: 1 },
@@ -228,19 +203,19 @@ mod tests {
                 ..Report::default()
             })
         );
-        text(root, "schema/kept/shelf-v1.schema", BASELINE, "shelf-v1.schema");
-        text(root, "schema/kept/label-v1.schema", BASELINE, "label-v1.schema");
-        text(root, "patches/mod.rs", BASELINE, "mod.rs");
-        text(root, "patches/context.rs", BASELINE, "context.rs");
-        clean(root, &Landed::none());
-        let baseline = Landed::read(root).expect("baseline lands");
+        text(&tree, "schema/kept/shelf-v1.schema", BASELINE, "shelf-v1.schema");
+        text(&tree, "schema/kept/label-v1.schema", BASELINE, "label-v1.schema");
+        text(&tree, "patches/mod.rs", BASELINE, "mod.rs");
+        text(&tree, "patches/context.rs", BASELINE, "context.rs");
+        clean(&tree, &Landed::none());
+        let baseline = tree.landed().expect("baseline lands");
 
         // 2. A new field first asks its author, then plans with zero pages.
-        author(root, "schema/shelf-v2.schema", FIELD, "shelf-v2.schema");
+        author(&mut tree, "schema/shelf-v2.schema", FIELD, "shelf-v2.schema");
         let unplanned =
             Finding::Unplanned { patch: 1, family: "shelf".into(), error: "line 5 at 62..63: Asked".into() };
         assert_eq!(
-            patch::run(root, &baseline, &Options { owner: Some("skein".into()), ..Options::default() }),
+            patch::run(&mut tree, &baseline, &Options { owner: Some("skein".into()), ..Options::default() }),
             Ok(Report {
                 outcomes: vec![current("label"), shelf_patch(1, 2)],
                 patch: Some(1),
@@ -249,56 +224,56 @@ mod tests {
                 ..Report::default()
             })
         );
-        text(root, "patches/0001.patch", FIELD, "asked.patch");
-        text(root, "schema/kept/shelf-v2.schema", FIELD, "shelf-v2.schema");
-        text(root, "patches/mod.rs", FIELD, "asked-mod.rs");
-        assert_eq!(patch::check(root, &baseline), Ok(vec![unplanned]));
-        assert!(!root.join("patches/golden/0001").exists(), "an unplanned patch writes no goldens");
-        author(root, "patches/0001.patch", FIELD, "0001.patch");
+        text(&tree, "patches/0001.patch", FIELD, "asked.patch");
+        text(&tree, "schema/kept/shelf-v2.schema", FIELD, "shelf-v2.schema");
+        text(&tree, "patches/mod.rs", FIELD, "asked-mod.rs");
+        assert_eq!(patch::check(&tree, &baseline), Ok(vec![unplanned]));
+        assert!(files(&tree, "patches/golden/0001").is_empty(), "an unplanned patch writes no goldens");
+        author(&mut tree, "patches/0001.patch", FIELD, "0001.patch");
         assert_eq!(
-            patch::run(root, &baseline, &options),
+            patch::run(&mut tree, &baseline, &options),
             Ok(Report { outcomes: vec![current("label"), shelf_patch(1, 2)], patch: Some(1), ..Report::default() })
         );
-        text(root, "patches/0001.patch", FIELD, "0001.patch");
-        text(root, "patches/mod.rs", FIELD, "mod.rs");
-        golden_names(root, "patches/golden/0001/shelf", SHELF_GOLDENS);
-        assert_eq!(patch::golden(root, 1, patches::written, Mode::Check), Ok(()));
-        clean(root, &baseline);
-        let field = Landed::read(root).expect("added pages lands");
+        text(&tree, "patches/0001.patch", FIELD, "0001.patch");
+        text(&tree, "patches/mod.rs", FIELD, "mod.rs");
+        golden_names(&tree, "patches/golden/0001/shelf", SHELF_GOLDENS);
+        assert_eq!(patch::golden(&mut tree, 1, patches::written, Mode::Check), Ok(()));
+        clean(&tree, &baseline);
+        let field = tree.landed().expect("added pages lands");
 
         // 3. Label can refresh; shelf's frozen v2 keeps its rename waiting.
-        author(root, "schema/label-v1.schema", RENAMES, "label-v1.schema");
+        author(&mut tree, "schema/label-v1.schema", RENAMES, "label-v1.schema");
         assert_eq!(
-            patch::run(root, &field, &rename("label", "Label", "text", "caption")),
+            patch::run(&mut tree, &field, &rename("label", "Label", "text", "caption")),
             Ok(Report {
                 outcomes: vec![Outcome::Refreshed { family: "label".into(), version: 1 }, current("shelf")],
                 ..Report::default()
             })
         );
-        text(root, "schema/kept/label-v1.schema", RENAMES, "label-v1.schema");
-        text(root, "patches/0001.patch", FIELD, "0001.patch");
-        text(root, "patches/mod.rs", RENAMES, "mod.rs");
-        clean(root, &field);
-        author(root, "schema/shelf-v2.schema", RENAMES, "shelf-v2.schema");
+        text(&tree, "schema/kept/label-v1.schema", RENAMES, "label-v1.schema");
+        text(&tree, "patches/0001.patch", FIELD, "0001.patch");
+        text(&tree, "patches/mod.rs", RENAMES, "mod.rs");
+        clean(&tree, &field);
+        author(&mut tree, "schema/shelf-v2.schema", RENAMES, "shelf-v2.schema");
         let waiting = Outcome::Waiting {
             family: "shelf".into(),
             renames: vec![Rename::Part { decl: "Book".into(), old: "title".into(), new: "name".into() }],
         };
         assert_eq!(
-            patch::run(root, &field, &rename("shelf", "Book", "title", "name")),
+            patch::run(&mut tree, &field, &rename("shelf", "Book", "title", "name")),
             Ok(Report { outcomes: vec![current("label"), waiting.clone()], ..Report::default() })
         );
-        text(root, "schema/kept/shelf.renames", RENAMES, "shelf.renames");
-        text(root, "schema/kept/shelf-v2.schema", FIELD, "shelf-v2.schema");
-        text(root, "patches/mod.rs", RENAMES, "mod.rs");
-        clean(root, &field);
-        let renames = Landed::read(root).expect("renames land");
+        text(&tree, "schema/kept/shelf.renames", RENAMES, "shelf.renames");
+        text(&tree, "schema/kept/shelf-v2.schema", FIELD, "shelf-v2.schema");
+        text(&tree, "patches/mod.rs", RENAMES, "mod.rs");
+        clean(&tree, &field);
+        let renames = tree.landed().expect("renames land");
 
         // 4. Audio is dropped. The skeleton reports its site; the author then
         // replaces it and reviews the results that will live under 0003.
-        author(root, "schema/shelf-v3.schema", WRITTEN, "shelf-v3.schema");
+        author(&mut tree, "schema/shelf-v3.schema", WRITTEN, "shelf-v3.schema");
         assert_eq!(
-            patch::run(root, &renames, &options),
+            patch::run(&mut tree, &renames, &options),
             Ok(Report {
                 outcomes: vec![current("label"), shelf_patch(2, 3)],
                 patch: Some(2),
@@ -306,24 +281,25 @@ mod tests {
                 ..Report::default()
             })
         );
-        text(root, "patches/0002.patch", WRITTEN, "0002.patch");
-        text(root, "patches/p0002.rs", WRITTEN, "skeleton.rs");
-        text(root, "patches/mod.rs", WRITTEN, "mod.rs");
-        text(root, "schema/kept/shelf-v3.schema", WRITTEN, "shelf-v3.schema");
-        assert!(!root.join("schema/kept/shelf.renames").exists(), "patch consumes waiting rename");
-        clean(root, &renames);
-        let Err(Error::Golden(failures)) = patch::golden(root, 2, skeleton, Mode::Check) else {
+        text(&tree, "patches/0002.patch", WRITTEN, "0002.patch");
+        text(&tree, "patches/p0002.rs", WRITTEN, "skeleton.rs");
+        text(&tree, "patches/mod.rs", WRITTEN, "mod.rs");
+        text(&tree, "schema/kept/shelf-v3.schema", WRITTEN, "shelf-v3.schema");
+        assert_eq!(tree.read(Path::new("schema/kept/shelf.renames")), Ok(None), "patch consumes waiting rename");
+        clean(&tree, &renames);
+        let Err(Error::Golden(failures)) = patch::golden(&mut tree, 2, skeleton, Mode::Check) else {
             unreachable!("skeleton must fail its goldens")
         };
         // Successful Book conversions also report their two not-yet-reviewed files.
         // Keep the path and omit the platform's filesystem error wording.
         let failures = failures
-            .iter()
+            .into_iter()
             .map(|failure| {
-                failure.strip_prefix(&format!("{}/", root.display())).map_or_else(
-                    || failure.clone(),
-                    |message| message.split_once(": ").expect("file failure has its reason").0.to_owned(),
-                )
+                if failure.starts_with("patches/golden/") {
+                    failure.split_once(": ").expect("file failure has its reason").0.to_owned()
+                } else {
+                    failure
+                }
             })
             .collect::<Vec<_>>();
         let mut expected = [
@@ -343,41 +319,42 @@ mod tests {
             "patches/golden/0002/shelf/record_book_smallest.bin".into(),
         ]);
         assert_eq!(failures, expected);
-        author(root, "patches/p0002.rs", WRITTEN, "p0002.rs");
-        for (path, bytes) in files(&owner(), Path::new("patches/golden/0003/shelf")) {
-            put(root, &Path::new("patches/golden/0002/shelf").join(path.file_name().expect("golden name")), &bytes);
+        author(&mut tree, "patches/p0002.rs", WRITTEN, "p0002.rs");
+        let committed = Tree::disk(&owner()).files().expect("committed owner files");
+        for (path, bytes) in committed.iter().filter(|(path, _)| path.starts_with("patches/golden/0003/shelf")) {
+            let dest = Path::new("patches/golden/0002/shelf").join(path.file_name().expect("golden name"));
+            tree.write(&dest, bytes).expect("reviewed shelf golden");
         }
-        golden_names(root, "patches/golden/0002/shelf", SHELF_GOLDENS);
-        assert_eq!(patch::golden(root, 2, written, Mode::Check), Ok(()));
+        golden_names(&tree, "patches/golden/0002/shelf", SHELF_GOLDENS);
+        assert_eq!(patch::golden(&mut tree, 2, written, Mode::Check), Ok(()));
 
         // 5. Main lands label's color while the branch's written change waits.
-        // This scratch tree is the branch's side of patches/ and schema/kept/;
+        // The replay tree keeps the branch's side of patches/ and schema/kept/;
         // the current schemas merge main's label v2 before the command runs.
-        let main_scratch = Scratch::new("main");
-        let main_root = &main_scratch.0;
-        restore(main_root, &renames);
-        author(main_root, "schema/shelf-v2.schema", RENAMES, "shelf-v2.schema");
-        author(main_root, "schema/label-v2.schema", RENUMBERED, "label-v2.schema");
-        let label_asked = patch::run(main_root, &renames, &options).expect("main asks color");
+        let mut main_tree = Tree::new(BTreeMap::new());
+        restore(&mut main_tree, &renames);
+        author(&mut main_tree, "schema/shelf-v2.schema", RENAMES, "shelf-v2.schema");
+        author(&mut main_tree, "schema/label-v2.schema", RENUMBERED, "label-v2.schema");
+        let label_asked = patch::run(&mut main_tree, &renames, &options).expect("main asks color");
         assert_eq!(label_asked.asked, ["patch 0002, label: add Label.color u8 ?"]);
-        author(main_root, "patches/0002.patch", RENUMBERED, "0002.patch");
+        author(&mut main_tree, "patches/0002.patch", RENUMBERED, "0002.patch");
         assert_eq!(
-            patch::run(main_root, &renames, &options),
+            patch::run(&mut main_tree, &renames, &options),
             Ok(Report {
                 outcomes: vec![Outcome::Patched { family: "label".into(), from: 1, to: 2 }, waiting],
                 patch: Some(2),
                 ..Report::default()
             })
         );
-        text(main_root, "patches/0002.patch", RENUMBERED, "0002.patch");
-        text(main_root, "schema/kept/label-v2.schema", RENUMBERED, "label-v2.schema");
-        text(main_root, "patches/mod.rs", RENUMBERED, "mod.rs");
-        golden_names(main_root, "patches/golden/0002/label", LABEL_GOLDENS);
-        clean(main_root, &renames);
-        let main = Landed::read(main_root).expect("main's color lands first");
-        author(root, "schema/label-v2.schema", RENUMBERED, "label-v2.schema");
+        text(&main_tree, "patches/0002.patch", RENUMBERED, "0002.patch");
+        text(&main_tree, "schema/kept/label-v2.schema", RENUMBERED, "label-v2.schema");
+        text(&main_tree, "patches/mod.rs", RENUMBERED, "mod.rs");
+        golden_names(&main_tree, "patches/golden/0002/label", LABEL_GOLDENS);
+        clean(&main_tree, &renames);
+        let main = main_tree.landed().expect("main's color lands first");
+        author(&mut tree, "schema/label-v2.schema", RENUMBERED, "label-v2.schema");
         assert_eq!(
-            patch::run(root, &main, &options),
+            patch::run(&mut tree, &main, &options),
             Ok(Report {
                 outcomes: vec![current("label"), shelf_patch(2, 3)],
                 patch: Some(3),
@@ -392,29 +369,26 @@ mod tests {
                 ..Report::default()
             })
         );
-        text(root, "patches/0002.patch", RENUMBERED, "0002.patch");
-        assert!(!root.join("patches/p0002.rs").exists(), "written function moved");
-        assert!(!root.join("patches/golden/0002/shelf").exists(), "reviewed shelf goldens moved");
-        golden_names(root, "patches/golden/0003/shelf", SHELF_GOLDENS);
-        golden_names(root, "patches/golden/0002/label", LABEL_GOLDENS);
-        clean(root, &main);
-        for directory in ["schema", "patches"] {
-            let replayed = files(root, Path::new(directory));
-            let committed = files(&owner(), Path::new(directory));
-            assert_eq!(
-                replayed.keys().collect::<Vec<_>>(),
-                committed.keys().collect::<Vec<_>>(),
-                "final {directory} paths"
-            );
-            for (path, bytes) in &committed {
-                let result = replayed.get(path).expect("same paths");
-                if let (Ok(result), Ok(bytes)) = (core::str::from_utf8(result), core::str::from_utf8(bytes)) {
-                    assert_eq!(result, bytes, "final {}", path.display());
-                } else {
-                    assert_eq!(result, bytes, "final {}", path.display());
-                }
+        text(&tree, "patches/0002.patch", RENUMBERED, "0002.patch");
+        assert_eq!(tree.read(Path::new("patches/p0002.rs")), Ok(None), "written function moved");
+        assert!(files(&tree, "patches/golden/0002/shelf").is_empty(), "reviewed shelf goldens moved");
+        golden_names(&tree, "patches/golden/0003/shelf", SHELF_GOLDENS);
+        golden_names(&tree, "patches/golden/0002/label", LABEL_GOLDENS);
+        clean(&tree, &main);
+        let replayed = tree.files().expect("replayed owner files");
+        assert_eq!(
+            replayed.keys().collect::<Vec<_>>(),
+            committed.keys().collect::<Vec<_>>(),
+            "final schema/ and patches/ paths"
+        );
+        for (path, bytes) in &committed {
+            let result = replayed.get(path).expect("same paths");
+            if let (Ok(result), Ok(bytes)) = (core::str::from_utf8(result), core::str::from_utf8(bytes)) {
+                assert_eq!(result, bytes, "final {}", path.display());
+            } else {
+                assert_eq!(result, bytes, "final {}", path.display());
             }
         }
-        wire_steps(root);
+        wire_steps(&mut tree);
     }
 }
