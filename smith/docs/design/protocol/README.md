@@ -331,14 +331,20 @@ to an older reader or writer. Each has one version at a time.
   since a writer and its agents are built together
   (the owner, 2026-11-09: the `save` grant and ask, ../domain/run-delivery.md, 1.5);
   from it, it moves with its layout, as the next bullet says.
-- **The channel, the charter and turns are wires,** whose versions move
-  with their layouts (`temper/docs/design/protocol/wires.md`, 3.1):
-  `smith-channel`, `smith-charter` and `smith-transcript` are patch
-  owners, each marked a wire in its crate's `schema/wires` (skein's
-  `data/codec/command.md`, 2), with its floor (skein's
-  `data/codec/bridges.md`, 4): `smith-channel` per-build, the others
-  bridged by their reverses, which a host that speaks several versions
-  runs, never the agent (jig's `protocol/channel/bridges.md`, 5.3).
+- **The charter and turns cross builds by layout:** a host that speaks
+  to agents of several builds (jig's engine) converts a charter down and
+  its result up, and turns both ways, between its layouts and its
+  agent's, by plans derived from both texts (jig's
+  `protocol/channel/layouts.md`, 2.1), never the agent. `smith-charter`'s
+  version is frozen at 5, its layout its text's fingerprint, and it keeps
+  no old text and no patch (`temper/docs/design/protocol/wires.md`, 3).
+  `smith-transcript` stays a patch owner, marked a wire in its crate's
+  `schema/wires` with its floor, its version moving with its layout and
+  keeping the old text and its forward patch, because a host's store
+  reads the turns it keeps by their version (jig's
+  `protocol/store/layouts.md`, 1) until the store names their layout
+  (`temper/docs/design/draft/layouts-both-ways.md`, 8.3).
+  `smith-channel` is a patch owner marked per-build (`build`).
 - **The pieces a host keeps are a wire of their own,** `smith-pieces`:
   a call's name (`CallName`) and a delivery's evidence (`DeliveryReply`
   and what it reaches), declared in `smith-channel`'s crate as a second
@@ -348,10 +354,14 @@ to an older reader or writer. Each has one version at a time.
   `smith-pieces` at its workers' opening in place of `smith-channel`,
   so a change of the channel's other records leaves its workers
   speaking to it. The engine keeps a delivery's evidence as bytes
-  without its version, so `smith-pieces` has no bridge: its floor is
-  its current, and every move of it is breaking (skein's
-  `data/codec/bridges.md`, 3), raising the floor. Its version starts at
-  1, its module `smith_channel::pieces::wire` saying what it speaks. A landing that changes one's layout in
+  without its layout, so `smith-pieces` is never converted: the engine
+  refuses a worker whose layout of it is not its own (jig's
+  `protocol/channel/wires.md`, 3), its floor is its current, and every
+  move of it is breaking (skein's `data/codec/bridges.md`, 3), raising
+  the floor. Its version starts at
+  1, its module `smith_channel::pieces::wire` saying what it speaks. A
+  landing that changes the layout of `smith-channel`, `smith-transcript`
+  or `smith-pieces` in
   anything but names, comments, `boxed` and the text's layout moves its
   version by one, keeps the old text and brings its forward patch;
   `fabrig-boundary`'s `patches` test refuses one changed in place. Each

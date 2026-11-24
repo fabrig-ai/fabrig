@@ -104,8 +104,12 @@ impl Peer {
     }
 
     fn new_mode(role: Role, mode: StreamMode) -> Peer {
+        Self::with_schema(schema(), role, limits(), mode)
+    }
+
+    fn with_schema(schema: Schema, role: Role, limits: Limits, mode: StreamMode) -> Peer {
         Peer {
-            machine: Machine::with_mode(schema(), role, limits(), mode).expect("checked schema"),
+            machine: Machine::with_mode(schema, role, limits, mode).expect("checked schema"),
             events: Queue::with_capacity(64),
             below: Queue::with_capacity(64),
             pending: None,
@@ -325,6 +329,288 @@ fn a_version_refusal_names_both_ranges_to_the_peer_and_its_owner() {
         }
     }
     assert_eq!(terminal, 1);
+}
+
+const TABLE_VERSION: u16 = 1;
+const NATIVE_RECEIVE: u16 = 0x0100;
+const NATIVE_SEND: u16 = 0x0180;
+const PEER_RECEIVE: u16 = 0x0101;
+const PEER_SEND: u16 = 0x0181;
+const NATIVE_RECEIVE_LARGEST: u32 = 10;
+const PEER_RECEIVE_LARGEST: usize = 20;
+const PEER_SEND_LARGEST: u32 = 8;
+const TABLE_KIND_CAP: u32 = 2; // One received kind and one sent kind.
+// Output holds an eight-byte header and the largest send, not the larger receive body.
+const TABLE_OUTPUT_CAP: u32 = 8 + PEER_SEND_LARGEST;
+// Each step reads a header or at most one chunk, and grants or sends at most one frame.
+// Two opening frames each way and one application frame fit within this script.
+const TABLE_STEPS: u32 = 32;
+
+fn kind_table(version: u16, kinds: &[Kind]) -> Version {
+    Version { version, kinds: List::from_boxed(Box::from(kinds)) }
+}
+
+fn peer_table() -> Version {
+    kind_table(
+        TABLE_VERSION,
+        &[
+            Kind {
+                kind: PEER_RECEIVE,
+                direction: Direction::FromInitiator,
+                largest: u32::try_from(PEER_RECEIVE_LARGEST).expect("fixture body fits"),
+            },
+            Kind { kind: PEER_SEND, direction: Direction::FromResponder, largest: PEER_SEND_LARGEST },
+        ],
+    )
+}
+
+fn run_responder(responder: &mut Peer, peer: &mut Peer) {
+    for _ in 0..TABLE_STEPS {
+        responder.step(peer);
+    }
+}
+
+fn feed_control(responder: &mut Peer, control: &Control) {
+    let frame = control_frame(control, &limits()).expect("scripted control frame");
+    responder.input.extend(frame.bytes().iter().copied());
+}
+
+fn take_control(peer: &mut Peer) -> Control {
+    let mut header = [0; 8];
+    for byte in &mut header {
+        *byte = peer.input.pop_front().expect("scripted peer should receive a control header");
+    }
+    let header = parse_header(&header).expect("control header");
+    let length = usize::try_from(header.body_len).expect("control body length");
+    let mut body = Vec::new();
+    body.extend(peer.input.drain(..length));
+    decode_control(header.kind, &body, &limits()).expect("control body")
+}
+
+fn take_accept(peer: &mut Peer) -> (u16, u16) {
+    let Control::Accept { version, features } = take_control(peer) else { panic!("expected Accept") };
+    (version, features)
+}
+
+fn take_refusal(peer: &mut Peer) -> (u16, Box<[u8]>) {
+    let Control::Refuse { reason, text } = take_control(peer) else { panic!("expected Refuse") };
+    (reason, text)
+}
+
+fn table_opening() -> (Peer, Peer) {
+    let native = kind_table(
+        TABLE_VERSION,
+        &[
+            Kind { kind: NATIVE_RECEIVE, direction: Direction::FromInitiator, largest: NATIVE_RECEIVE_LARGEST },
+            Kind { kind: NATIVE_SEND, direction: Direction::FromResponder, largest: PEER_SEND_LARGEST },
+        ],
+    );
+    let source = Schema { magic: *b"test", versions: List::from_boxed(Box::new([native])) };
+    let bounds = Limits { output_bytes: TABLE_OUTPUT_CAP, kinds: TABLE_KIND_CAP, ..limits() };
+    let mut responder = Peer::with_schema(source, Role::Responder, bounds, StreamMode::One);
+    let mut peer = Peer::new(Role::Initiator);
+    feed_control(
+        &mut responder,
+        &Control::Open {
+            magic: *b"test",
+            lowest: TABLE_VERSION,
+            highest: TABLE_VERSION,
+            features: 0,
+            credential: Box::from([]),
+        },
+    );
+    run_responder(&mut responder, &mut peer);
+    responder.events.clear();
+    (responder, peer)
+}
+
+// The scripted initiator takes more than the responder's own send bound.
+const PEER_TERM: Term = Term { kind: PEER_SEND, largest: PEER_SEND_LARGEST + 1 };
+
+fn accept_with_terms(term: Term) -> (Peer, Peer) {
+    let (mut responder, mut peer) = table_opening();
+    responder.down(Request::AcceptWith { table: peer_table() });
+    run_responder(&mut responder, &mut peer);
+    feed_control(&mut responder, &Control::Terms { entries: List::from_boxed(Box::new([term])) });
+    run_responder(&mut responder, &mut peer);
+    (responder, peer)
+}
+
+fn ready_with_table() -> (Peer, Peer) {
+    let (mut responder, mut peer) = accept_with_terms(PEER_TERM);
+    responder.events.clear();
+    peer.input.clear();
+    (responder, peer)
+}
+
+fn application_frame(kind: u16, body: &[u8]) -> super::Frame {
+    let length = u32::try_from(body.len()).expect("fixture body fits");
+    let mut frame = frame_writer(kind, length).expect("measured frame");
+    frame.put(body).expect("measured body");
+    frame.finish().expect("complete frame")
+}
+
+#[test]
+fn accept_with_advertises_only_the_replacement_receive_terms() {
+    let (mut responder, mut peer) = table_opening();
+    responder.down(Request::AcceptWith { table: peer_table() });
+    run_responder(&mut responder, &mut peer);
+    assert_eq!(take_accept(&mut peer), (TABLE_VERSION, 0));
+    let Control::Terms { entries } = take_control(&mut peer) else { panic!("expected Terms after Accept") };
+    let largest = u32::try_from(PEER_RECEIVE_LARGEST).expect("fixture body fits");
+    assert_eq!(entries.as_slice(), &[Term { kind: PEER_RECEIVE, largest }]);
+    assert!(peer.input.is_empty());
+}
+
+#[test]
+fn accept_with_checks_peer_terms_against_the_replacement_sends() {
+    let (responder, _) = accept_with_terms(PEER_TERM);
+    let mut ready = None;
+    for event in &responder.events {
+        if let Event::Ready { version, terms } = event {
+            ready = Some((*version, terms.as_slice()));
+        }
+    }
+    assert_eq!(ready, Some((TABLE_VERSION, &[PEER_TERM][..])));
+}
+
+#[test]
+#[expect(
+    clippy::wildcard_enum_match_arm,
+    reason = "the test fails on every event other than a drain or framing terminal"
+)]
+fn accept_with_refuses_peer_terms_for_a_removed_send() {
+    let (mut responder, _) = accept_with_terms(Term { kind: NATIVE_SEND, largest: PEER_SEND_LARGEST });
+    while let Some(event) = responder.events.pop() {
+        match event {
+            Event::Drained => {}
+            Event::Closed { why: super::Closed::Framing, .. } => return,
+            event => panic!("expected a framing terminal, got {event:?}"),
+        }
+    }
+    panic!("expected a framing terminal for the removed send kind");
+}
+
+#[test]
+fn accept_with_admits_a_replacement_send_at_its_bound() {
+    let (mut responder, _) = ready_with_table();
+    let token = Token::new(42);
+    let frame = application_frame(PEER_SEND, b"at bound");
+    responder.down(Request::Send { token, frame });
+    match responder.events.pop() {
+        Some(Event::Sent { token: admitted }) => assert_eq!(admitted, token),
+        event => panic!("expected admitted send, got {event:?}"),
+    }
+}
+
+#[test]
+fn accept_with_refuses_a_send_of_the_removed_kind() {
+    let (mut responder, _) = ready_with_table();
+    let token = Token::new(42);
+    let frame = application_frame(NATIVE_SEND, b"");
+    responder.down(Request::Send { token, frame });
+    match responder.events.pop() {
+        Some(Event::Unsent { token: refused, why: Unsent::WrongDirection }) => assert_eq!(refused, token),
+        event => panic!("expected wrong direction, got {event:?}"),
+    }
+}
+
+#[test]
+fn accept_with_checks_its_send_bound_before_queue_room() {
+    let (mut responder, _) = ready_with_table();
+    let token = Token::new(42);
+    let frame = application_frame(PEER_SEND, b"one extra");
+    responder.down(Request::Send { token, frame });
+    match responder.events.pop() {
+        Some(Event::Unsent { token: refused, why: Unsent::TooLarge }) => assert_eq!(refused, token),
+        event => panic!("expected too large, got {event:?}"),
+    }
+}
+
+#[test]
+fn accept_with_delivers_a_replacement_body_at_its_bound() {
+    let (mut responder, mut peer) = ready_with_table();
+    let body = [7; PEER_RECEIVE_LARGEST];
+    let frame = application_frame(PEER_RECEIVE, &body);
+    responder.input.extend(frame.bytes().iter().copied());
+    responder.down(Request::Read);
+    run_responder(&mut responder, &mut peer);
+    match responder.events.pop() {
+        Some(Event::Body { kind: PEER_RECEIVE, body: delivered }) => assert_eq!(delivered.as_ref(), &body),
+        event => panic!("expected replacement body, got {event:?}"),
+    }
+}
+
+#[test]
+fn accept_with_refuses_the_header_past_its_receive_bound() {
+    let (mut responder, mut peer) = ready_with_table();
+    let frame = application_frame(PEER_RECEIVE, &[7; PEER_RECEIVE_LARGEST + 1]);
+    responder.input.extend(frame.bytes().get(..8).expect("header only").iter().copied());
+    responder.down(Request::Read);
+    run_responder(&mut responder, &mut peer);
+    assert!(responder.pending.is_none(), "an oversized header must not demand any of its body");
+    let (reason, text) = take_refusal(&mut peer);
+    assert_eq!((reason, text.as_ref()), (3, &[][..]));
+}
+
+#[test]
+fn accept_with_skips_the_removed_native_receive_kind() {
+    let (mut responder, mut peer) = ready_with_table();
+    let frame = application_frame(NATIVE_RECEIVE, b"native");
+    responder.input.extend(frame.bytes().iter().copied());
+    responder.down(Request::Read);
+    run_responder(&mut responder, &mut peer);
+    match responder.events.pop() {
+        Some(Event::Drained) => {}
+        event => panic!("expected Unsupported to drain rather than a body, got {event:?}"),
+    }
+    let Control::Unsupported { kind } = take_control(&mut peer) else { panic!("expected Unsupported") };
+    assert_eq!(kind, NATIVE_RECEIVE);
+    assert!(responder.events.is_empty());
+}
+
+#[test]
+fn accept_with_refuses_invalid_tables_with_limits_and_text() {
+    let receive = Kind { kind: PEER_RECEIVE, direction: Direction::FromInitiator, largest: 0 };
+    let reserved = Kind { kind: 6, ..receive };
+    let another_receive = Kind { kind: NATIVE_RECEIVE, ..receive };
+    let send = Kind { kind: PEER_SEND, direction: Direction::FromResponder, largest: PEER_SEND_LARGEST };
+    let too_large = Kind { largest: PEER_SEND_LARGEST + 1, ..send };
+    let cases: [(&[Kind], &[u8]); 4] = [
+        (&[receive, receive], b"the responder's table: duplicate kind"),
+        (&[reserved], b"the responder's table: reserved kind"),
+        (&[too_large], b"the responder's table: sent frame exceeds the output cap"),
+        (&[receive, another_receive, send], b"the responder's table: too many kinds"),
+    ];
+    for (kinds, expected) in cases {
+        let (mut responder, mut peer) = table_opening();
+        responder.down(Request::AcceptWith { table: kind_table(TABLE_VERSION, kinds) });
+        run_responder(&mut responder, &mut peer);
+        let (reason, text) = take_refusal(&mut peer);
+        assert_eq!((reason, text.as_ref()), (2, expected));
+        assert!(peer.input.is_empty());
+        match responder.events.pop() {
+            Some(Event::Drained) => {}
+            event => panic!("expected refusal to drain, got {event:?}"),
+        }
+        match responder.events.pop() {
+            Some(Event::Closed { why: super::Closed::RefusedHere(2), text }) => assert_eq!(text.as_ref(), expected),
+            event => panic!("expected limits terminal, got {event:?}"),
+        }
+        assert!(responder.events.is_empty());
+    }
+}
+
+#[test]
+fn accept_with_ignores_a_version_neither_peer_offered() {
+    let (mut responder, mut peer) = table_opening();
+    responder.down(Request::AcceptWith { table: kind_table(TABLE_VERSION + 1, &[]) });
+    run_responder(&mut responder, &mut peer);
+    assert!(peer.input.is_empty());
+    assert!(responder.events.is_empty());
+    responder.down(Request::Accept { version: TABLE_VERSION });
+    run_responder(&mut responder, &mut peer);
+    assert_eq!(take_accept(&mut peer), (TABLE_VERSION, 0));
 }
 
 fn ready_pair() -> (Peer, Peer) {

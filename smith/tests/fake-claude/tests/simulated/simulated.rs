@@ -66,6 +66,22 @@ fn a_login_then_a_status_is_signed_in_through_the_subscription() {
 }
 
 #[test]
+fn a_login_writes_only_in_the_supplied_configuration_directory() {
+    let environment = ["ANTHROPIC_CONFIG_DIR=config/anthropic", "CLAUDE_CONFIG_DIR=config", "HOME=home"];
+    let run = support::run_with(
+        vec![Invocation::auth("login").environment(&environment)],
+        support::Options { paths: &[b"home/.claude"], ..support::Options::default() },
+    );
+    assert_eq!(run.records[0].exit, Some(Exit::Code(0)));
+    assert_eq!(run.login.as_deref(), Some(b"claude.ai".as_slice()));
+    let records = observations(run.observations.as_deref().expect("observations"));
+    assert_eq!(records.len(), 1);
+    assert_eq!(records[0].arguments, ["auth", "login"]);
+    assert_eq!(records[0].environment, ["ANTHROPIC_CONFIG_DIR", "CLAUDE_CONFIG_DIR", "HOME"]);
+    assert_eq!(run.file(b"home/.claude"), None, "nothing was created under HOME");
+}
+
+#[test]
 fn a_login_as_another_method_is_signed_in_otherwise() {
     let method = "api\"key\\method";
     let result = run(

@@ -10,18 +10,19 @@ the application's (temper's `protocol/configuration/figures.md`).
 
 ## 1. In one page
 
-- **The engine's answer carries them.** Right after `Agreed`
-  (`bridges.md`, 3), the engine sends `figures` (2): the places it
+- **The engine's answer carries them.** First of what it sends once
+  the channel is ready, the engine sends `figures` (2): the places it
   admits that worker at, every limit by its name, and its agents' profile
-  and endpoints. A worker builds its host from them, not from its own
-  document.
+  and endpoints, converted to the worker's layout as any record
+  (`layouts.md`, 4.1). A worker builds its host from them, not from its
+  own document.
 - **A worker with no figures opens for them alone** (4). Its credential
-  says `opening: figures`. The engine answers with `Agreed` and
-  `figures` and closes the channel. Nothing is admitted, and the fleet
+  says `opening: figures`. The engine answers with `figures` and closes
+  the channel. Nothing is admitted, and the fleet
   hears nothing. The worker then builds, and opens its link as today,
   saying `opening: link`.
 - **At every link opening, and when they change.** The engine sends
-  `figures` after `Agreed` at each link opening, and to every linked
+  `figures` first at each link opening, and to every linked
   worker whenever its owner gives new ones (3). A running worker tells
   its owner each one it hears. The owner applies the live ones at once,
   through `retime` for the link's timers (4), and the rest at its next
@@ -34,15 +35,14 @@ the application's (temper's `protocol/configuration/figures.md`).
 - **The owner gives them, as data.** jig's engine host sends what its
   owner last gave it. Until it's been given figures, it refuses a figures
   opening as *starting*.
-- **`jig-worker-wire` 16, declared breaking.** Its floor is 16, so an
-  engine and its workers move together (5).
+- **The opening's own records** are laid out alike in every build (5).
 - **A worker part's `agent` and `limits` may be absent**
   (`../configuration.md`, section 4). jig's reference binary still
   requires them (6).
 
 ## 2. The record
 
-`jig-worker-wire` 16 adds, after 15's text:
+`jig-worker-wire` holds:
 
 ```
 enum Opening { link, figures }
@@ -100,18 +100,18 @@ them picks each one, and the schema then fixes it.
   engine's limits, and what the engine sends it is bounded by the
   schema's ceilings, not by `io.output`. It takes no channel's place,
   so it's never *busy* and replaces nothing. Its terms are judged for
-  `wires` and `figures` alone, the only kinds it sends. The engine sends `Agreed`, then
+  `figures` alone, the only kind it sends. The engine sends
   `figures` with that worker's places, then finishes the channel and
   closes it once drained. No hello is awaited, and the fleet hears
   nothing. The engine's log says `worker NAME took its figures`.
 - ***starting*** is jig's reason 262, after *stopping*: the host has no
   figures from its owner yet. The worker redials after its pause, as
   after any refusal.
-- **A link opening** is as today, with `figures` sent right after
-  `Agreed` when the host has figures. Then the hello is awaited as
-  before (`README.md`, 4.3).
-- **New figures from the owner** go to every channel that has sent its
-  `Agreed`, and every later opening sends them.
+- **A link opening** is as today, with `figures` sent first once the
+  channel is ready, when the host has figures. Then the hello is awaited
+  as before (`README.md`, 4.3).
+- **New figures from the owner** go to every channel that is ready, and
+  every later opening sends them.
 - **Places** are what the fleet admits a worker at whatever its hello's
   slots: today the fleet's per-worker `slots` limit, one figure for
   every worker (`../../domain/engine/fleet.md`). Workers made settings
@@ -162,15 +162,12 @@ them picks each one, and the schema then fixes it.
 - **The hello is unchanged.** It still states the worker's slots,
   stop bound and bounds, which the worker took from its figures.
 
-## 5. Its version
+## 5. Its layout
 
-- **`jig-worker-wire` 16 is declared breaking** (skein's
-  `data/codec/bridges.md`, 3): `Credential` changes, so a worker of 15
-  can't be read by an engine of 16. Its floor in `schema/wires` rises
-  to 16. Its kept texts stay, and patch `0006` takes 15 to 16.
-- **A worker of another floor is refused by version** at the opening,
-  as skein's channel refuses one (skein's `net/channel.md`, 5.2). Each
-  side's log names both ranges, so an operator sees which moved.
+- **`Opening` is the credential's,** laid out alike in every build
+  (`wires.md`, 2), so an engine reads what a worker opens for before it
+  knows the worker's layouts. `Figures` is a record as any other,
+  converted to the worker's layout (`layouts.md`, 4.1).
 
 ## 6. jig's reference binary
 
@@ -185,15 +182,14 @@ them picks each one, and the schema then fixes it.
 Focused, in the link's and the host's tests and jig's channel world:
 
 - **A figures opening:** a worker opening with `opening: figures` hears
-  `Agreed`, then `figures` with its places and the owner's limits and
+  `figures` with its places and the owner's limits and
   agents, and the channel's end. The fleet hears no channel, and a live
   link under that worker's name stays.
 - **Before figures:** a figures opening is refused as *starting*; the
   worker redials, and takes them once the owner gives them.
-- **A link opening** hears `figures` right after `Agreed`, then sends
-  its hello. New figures given to the host reach every linked worker.
-- **Refusals:** a wrong secret is refused *unauthorized*, and a worker
-  of 15 is refused by version.
+- **A link opening** hears `figures` first, then sends its hello. New
+  figures given to the host reach every linked worker.
+- **Refusals:** a wrong secret is refused *unauthorized*.
 - **Timers, live:** a running link given a longer handshake by `retime`
   keeps the deadline of the dial in flight and gives its next dial the
   new one; a longer backoff and ceiling make its next redial wait the

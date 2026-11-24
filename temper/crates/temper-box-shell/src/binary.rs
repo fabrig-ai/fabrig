@@ -51,6 +51,32 @@ fn dispatch_with(
     stdout: impl FnOnce(&str),
     run: impl FnOnce(Command, &[u8]) -> Result<u8, String>,
 ) -> Result<ExitCode, (u8, String)> {
+    dispatch_routed(
+        captured,
+        version,
+        commit,
+        stdout,
+        |command, working| {
+            if let Command::Relay = command {
+                return Ok(smith_agent_shell::relay::main());
+            }
+            if let Command::ProgramChild = command {
+                return Ok(smith_agent_shell::program_child::main());
+            }
+            run(command, working).map(ExitCode::from)
+        },
+        || front_pipes(skein_shell::descriptor_writes),
+    )
+}
+
+fn dispatch_routed(
+    captured: &Capture,
+    version: &'static str,
+    commit: &'static str,
+    stdout: impl FnOnce(&str),
+    run: impl FnOnce(Command, &[u8]) -> Result<ExitCode, String>,
+    check_front: impl FnOnce() -> Result<(), (u8, String)>,
+) -> Result<ExitCode, (u8, String)> {
     let command = match TABLE.reach(&captured.run_as, &captured.arguments) {
         Reached::Help => {
             stdout(&TABLE.help());
@@ -83,7 +109,7 @@ fn dispatch_with(
                 let command =
                     crate::configure_command(command, arguments, &captured.arguments, &captured.environment, b"")
                         .map_err(|why| (2, why))?;
-                return run(command, b"").map(ExitCode::from).map_err(|why| (1, why));
+                return run(command, b"").map_err(|why| (1, why));
             }
             let working = captured.working.as_ref().map_err(|why| (1, format!("temper-box: {why}\n")))?;
             crate::configure_command(
@@ -96,12 +122,6 @@ fn dispatch_with(
             .map_err(|why| (2, why))?
         }
     };
-    if let Command::Relay = command {
-        return Ok(smith_agent_shell::relay::main());
-    }
-    if let Command::ProgramChild = command {
-        return Ok(smith_agent_shell::program_child::main());
-    }
     if let Command::Claude { arguments, .. } = command {
         return Ok(ExitCode::from(crate::claude_code::run(
             std::ffi::OsStr::from_bytes(&captured.run_as),
@@ -109,14 +129,41 @@ fn dispatch_with(
             &captured.environment,
         )));
     }
-    if matches!(&command, Command::Box { front: true, .. } | Command::BoxFakeBackends { front: true, .. })
-        && ![3, 4].into_iter().all(|fd| skein_shell::descriptor_writes(skein_io::kernel::Fd::new(fd)) == Ok(true))
-    {
-        return Err((2, "temper-box --front: fd 3 and fd 4 are its parent's pipes\n".into()));
+    if matches!(&command, Command::Box { front: true, .. } | Command::BoxFakeBackends { front: true, .. }) {
+        check_front()?;
     }
     run(command, captured.working.as_ref().map_err(|why| (1, format!("temper-box: {why}\n")))?.as_os_str().as_bytes())
-        .map(ExitCode::from)
         .map_err(|why| (1, why))
+}
+
+fn front_pipes(mut writes: impl FnMut(skein_io::kernel::Fd) -> Result<bool, i32>) -> Result<(), (u8, String)> {
+    for fd in [3, 4] {
+        if writes(skein_io::kernel::Fd::new(fd)) != Ok(true) {
+            return Err((2, "temper-box --front: fd 3 and fd 4 are its parent's pipes\n".into()));
+        }
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+#[path = "binary/argv_tests.rs"]
+mod argv_tests;
+
+#[cfg(test)]
+pub(crate) fn dispatch_fixture<'a>(
+    words: impl IntoIterator<Item = &'a str>,
+    environment: Box<[crate::EnvironmentEntry]>,
+    working: PathBuf,
+    stdout: impl FnOnce(&str),
+    run: impl FnOnce(Command, &[u8]) -> Result<u8, String>,
+) -> Result<ExitCode, (u8, String)> {
+    let capture = Capture {
+        run_as: b"temper-box".as_slice().into(),
+        arguments: words.into_iter().map(|word| word.as_bytes().into()).collect(),
+        environment,
+        working: Ok(working),
+    };
+    dispatch_with(&capture, "fixture", "fixture", stdout, run)
 }
 
 #[cfg(test)]

@@ -9,7 +9,7 @@ use skein_fake_forge_forgejo::observations::decode_with_limits;
 use skein_io::{
     file,
     file_layer::{FileIo, Limits, step},
-    kernel::{Complete, Submit},
+    kernel::{Complete, Fd, Submit},
 };
 use skein_kv::{Event, Range, Request, Store};
 use skein_lib::{Env, Queue, Time, Token, Wall};
@@ -33,7 +33,16 @@ pub(crate) struct Outcome {
 
 /// Reads the document, the observations and the store's copy, and judges.
 pub(crate) fn outcome(directories: &Directories, check: &Check) -> Outcome {
-    let limits = match configuration(directories) {
+    outcome_with(check, || configuration(directories), |path| File::open(path), read_store)
+}
+
+fn outcome_with<R: Read>(
+    check: &Check,
+    configuration: impl FnOnce() -> Result<temper_service::startup::StoreLimits, String>,
+    mut open_observations: impl FnMut(&Path) -> std::io::Result<R>,
+    read_store: impl FnOnce(&Path, &jig_protocol_store::Limits) -> Result<Rows, String>,
+) -> Outcome {
+    let limits = match configuration() {
         Ok(limits) => limits,
         Err(why) => {
             return Outcome {
@@ -43,7 +52,7 @@ pub(crate) fn outcome(directories: &Directories, check: &Check) -> Outcome {
             };
         }
     };
-    let observations = match Observations::open(&check.observations) {
+    let observations = match Observations::open_with(&check.observations, &mut open_observations) {
         Ok(observations) => observations,
         Err(why) => return undecided(Reason::ObservationsMissing, Vec::new(), Some(&why)),
     };
@@ -62,7 +71,7 @@ pub(crate) fn outcome(directories: &Directories, check: &Check) -> Outcome {
         judge.decide(decision);
     }
     judge.decided();
-    let records = match observations.records() {
+    let records = match observations.records_with(open_observations) {
         Ok(records) => records,
         Err(why) => return undecided(Reason::ObservationsMissing, stderr, Some(&why)),
     };
@@ -76,11 +85,26 @@ pub(crate) fn outcome(directories: &Directories, check: &Check) -> Outcome {
     Outcome { status: output.status, stdout: output.stdout, stderr: stderr.into_boxed_slice() }
 }
 fn configuration(directories: &Directories) -> Result<temper_service::startup::StoreLimits, String> {
-    let read = temper_service_shell::configuration::read_only(directories, temper_config_shell::Shape::Standalone)?;
-    let programs = read.programs()?;
+    configuration_with(
+        directories,
+        &temper_service_shell::configuration::read_only(directories, temper_config_shell::Shape::Standalone)?,
+        temper_shell::lookup::is_executable,
+        |bytes, programs| crate::serve::configured_agent(bytes, directories, &[], programs),
+    )
+}
+fn configuration_with(
+    directories: &Directories,
+    read: &temper_service_shell::configuration::Read,
+    is_executable: impl Fn(&Path) -> bool,
+    prepare_agent: impl FnOnce(
+        &[u8],
+        &temper_config_shell::Programs,
+    ) -> Result<Option<temper_worker_shell::agent::Prepared>, String>,
+) -> Result<temper_service::startup::StoreLimits, String> {
+    let programs = read.programs_with(is_executable)?;
     read.prepare(|bytes| {
         let jig = jig_directories(directories);
-        let agent = crate::serve::configured_agent(bytes, directories, &[], &programs)?;
+        let agent = prepare_agent(bytes, &programs)?;
         let declaration = agent.as_ref().map(|prepared| prepared.agent.declaration());
         let limits = temper_service::startup::store_limits(bytes, &jig, declaration.as_ref())
             .map_err(|why| String::from_utf8_lossy(&temper_service::startup::lines(&why)).into_owned())?;
@@ -120,10 +144,18 @@ const ENTRIES: u32 = 32;
 const OPERATIONS: u32 = 32;
 
 pub(crate) fn read_store(path: &Path, limits: &jig_protocol_store::Limits) -> Result<Rows, String> {
-    run_store(path, StoreHost::new(limits.store))
+    run_store_with(path, StoreHost::new(limits.store), skein_shell::open_root)
 }
-fn run_store(path: &Path, mut host: StoreHost) -> Result<Rows, String> {
-    let root = skein_shell::open_root(path).map_err(|why| format!("opening {}: errno {why}", path.display()))?;
+#[cfg(test)]
+fn run_store(path: &Path, host: StoreHost) -> Result<Rows, String> {
+    run_store_with(path, host, skein_shell::open_root)
+}
+fn run_store_with(
+    path: &Path,
+    mut host: StoreHost,
+    open_root: impl FnOnce(&Path) -> Result<Fd, i32>,
+) -> Result<Rows, String> {
+    let root = open_root(path).map_err(|why| format!("opening {}: errno {why}", path.display()))?;
     let mut kernel = match skein_shell::Kernel::open(skein_shell::Config { operations: host.operations() }) {
         Ok(kernel) => kernel,
         Err(why) => {
@@ -354,8 +386,12 @@ pub(crate) struct Observations {
     lost: u64,
 }
 impl Observations {
+    #[cfg(test)]
     pub(crate) fn open(path: &Path) -> Result<Self, String> {
-        let mut reader = Lines::open(path, u64::MAX)?;
+        Self::open_with(path, |path| File::open(path))
+    }
+    fn open_with<R: Read>(path: &Path, open: impl FnOnce(&Path) -> std::io::Result<R>) -> Result<Self, String> {
+        let mut reader = Lines::open(path, u64::MAX, open)?;
         let mut boundary = None;
         let mut lines = 0_u64;
         let mut refused = None;
@@ -386,8 +422,12 @@ impl Observations {
     pub(crate) fn lost(&self) -> u64 {
         self.lost
     }
-    pub(crate) fn records(&self) -> Result<Records, String> {
-        Ok(Records { reader: Lines::open(&self.path, self.end)?, end: self.end, done: false })
+    #[cfg(test)]
+    pub(crate) fn records(&self) -> Result<Records<File>, String> {
+        self.records_with(|path| File::open(path))
+    }
+    fn records_with<R: Read>(&self, open: impl FnOnce(&Path) -> std::io::Result<R>) -> Result<Records<R>, String> {
+        Ok(Records { reader: Lines::open(&self.path, self.end, open)?, end: self.end, done: false })
     }
 }
 const GIT_FULL: &str = "GitHub git-call record is full";
@@ -410,12 +450,12 @@ fn decode(bytes: &[u8]) -> Result<Option<Recorded>, String> {
     }
 }
 
-pub(crate) struct Records {
-    reader: Lines,
+pub(crate) struct Records<R> {
+    reader: Lines<R>,
     end: u64,
     done: bool,
 }
-impl Iterator for Records {
+impl<R: Read> Iterator for Records<R> {
     type Item = Result<Recorded, String>;
     fn next(&mut self) -> Option<Self::Item> {
         if self.done || self.reader.offset == self.end {
@@ -444,14 +484,14 @@ impl Iterator for Records {
 }
 // The fixed read buffer and one bounded line are shared by both passes. An
 // overlong line is skipped through LF without retaining its remaining bytes.
-struct Lines {
-    reader: BufReader<Take<File>>,
+struct Lines<R> {
+    reader: BufReader<Take<R>>,
     bytes: Vec<u8>,
     offset: u64,
 }
-impl Lines {
-    fn open(path: &Path, end: u64) -> Result<Self, String> {
-        let file = File::open(path).map_err(|why| format!("observations {}: {why}", path.display()))?;
+impl<R: Read> Lines<R> {
+    fn open(path: &Path, end: u64, open: impl FnOnce(&Path) -> std::io::Result<R>) -> Result<Self, String> {
+        let file = open(path).map_err(|why| format!("observations {}: {why}", path.display()))?;
         Ok(Self { reader: BufReader::with_capacity(8192, file.take(end)), bytes: Vec::new(), offset: 0 })
     }
     fn next_line(&mut self) -> Result<Option<Result<(), String>>, String> {

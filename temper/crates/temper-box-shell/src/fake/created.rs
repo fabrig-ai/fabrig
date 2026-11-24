@@ -1,8 +1,8 @@
 //! Seed outputs owned by one fake-peer start (temper/docs/design/protocol/setup/box-backends.md, 1).
+use super::disk::{Disk, Native, UNSAFE_OUTPUT, opened};
 use std::{
-    fs::{self, File, OpenOptions},
-    io::{self, Read, Write},
-    os::unix::fs::{MetadataExt, OpenOptionsExt},
+    fs::File,
+    io,
     path::{Path, PathBuf},
 };
 
@@ -13,60 +13,45 @@ pub struct Created {
 }
 impl Created {
     pub fn output(&mut self, path: &Path, expected: &[u8]) -> Result<(), String> {
-        let metadata = match fs::symlink_metadata(path) {
+        self.output_with(&mut Native, path, expected)
+    }
+    pub fn file(&mut self, path: &Path, bytes: &[u8]) -> Result<File, String> {
+        self.file_with(&mut Native, path, bytes)
+    }
+    pub fn rollback(self) {
+        self.rollback_with(&mut Native);
+    }
+    pub(super) fn output_with(&mut self, disk: &mut impl Disk, path: &Path, expected: &[u8]) -> Result<(), String> {
+        let named = |why| format!("{}: {why}", path.display());
+        let metadata = match disk.metadata(path) {
             Ok(metadata) => metadata,
             Err(why) if why.kind() == io::ErrorKind::NotFound => {
-                self.file(path, expected)?;
+                self.file_with(disk, path, expected)?;
                 return Ok(());
             }
-            Err(why) => return Err(format!("{}: {why}", path.display())),
+            Err(why) => return Err(named(why.to_string())),
         };
-        let safe = |metadata: &fs::Metadata| {
-            metadata.is_file()
-                && !metadata.file_type().is_symlink()
-                && metadata.uid() == skein_shell::effective_user()
-                // No group or other permission bits.
-                && metadata.mode().trailing_zeros() >= 6
-                && metadata.nlink() == 1
-        };
-        if !safe(&metadata) {
-            return Err(format!("{}: expected this user's private single-link regular output", path.display()));
+        if !metadata.safe(disk.user()) {
+            return Err(named(UNSAFE_OUTPUT.into()));
         }
-        let file = File::open(path).map_err(|why| format!("{}: {why}", path.display()))?;
-        let opened = file.metadata().map_err(|why| format!("{}: {why}", path.display()))?;
-        let named = fs::symlink_metadata(path).map_err(|why| format!("{}: {why}", path.display()))?;
-        if !safe(&opened)
-            || !safe(&named)
-            || opened.dev() != named.dev()
-            || opened.ino() != named.ino()
-            || opened.dev() != metadata.dev()
-            || opened.ino() != metadata.ino()
-        {
-            return Err(format!("{}: output changed while opening", path.display()));
-        }
+        let (file, _) = opened(disk, path, metadata).map_err(named)?;
         let bound = skein_lib::len_u64(expected.len()).checked_add(1).expect("output bound");
-        let mut content = Vec::new();
-        file.take(bound).read_to_end(&mut content).map_err(|why| format!("{}: {why}", path.display()))?;
-        if content != expected {
-            return Err(format!("{}: retained output differs from expected seeded bytes", path.display()));
+        let content = disk.read(file, bound).map_err(|why| named(why.to_string()))?;
+        if content.as_ref() != expected {
+            return Err(named("retained output differs from expected seeded bytes".into()));
         }
         Ok(())
     }
-    pub fn file(&mut self, path: &Path, bytes: &[u8]) -> Result<File, String> {
-        let mut file = OpenOptions::new()
-            .write(true)
-            .create_new(true)
-            .mode(0o600)
-            .open(path)
-            .map_err(|why| format!("{}: {why}", path.display()))?;
+    pub(super) fn file_with<D: Disk>(&mut self, disk: &mut D, path: &Path, bytes: &[u8]) -> Result<D::File, String> {
+        let mut file = disk.create(path, 0o600).map_err(|why| format!("{}: {why}", path.display()))?;
         self.files.push(path.into());
-        file.write_all(bytes).map_err(|why| format!("{}: {why}", path.display()))?;
+        disk.write(&mut file, bytes).map_err(|why| format!("{}: {why}", path.display()))?;
         Ok(file)
     }
-    pub(super) fn directory(&mut self, path: &Path) -> Result<(), String> {
+    pub(super) fn directory(&mut self, disk: &mut impl Disk, path: &Path) -> Result<(), String> {
         let mut missing = Vec::new();
         for parent in path.ancestors() {
-            match fs::symlink_metadata(parent) {
+            match disk.metadata(parent) {
                 Ok(_) => break,
                 Err(why) if why.kind() == io::ErrorKind::NotFound => missing.push(parent.to_path_buf()),
                 Err(why) => return Err(format!("{}: {why}", parent.display())),
@@ -74,14 +59,22 @@ impl Created {
         }
         // Record before creation, so a partially successful mkdir is also undone.
         self.directories.extend(missing.into_iter().rev());
-        crate::directories::make_private(path, skein_shell::effective_user())
+        match disk.metadata(path) {
+            Ok(_) => {}
+            Err(why) if why.kind() == io::ErrorKind::NotFound => {
+                disk.create_directories(path, 0o700).map_err(|why| format!("{}: {why}", path.display()))?;
+            }
+            Err(why) => return Err(format!("{}: {why}", path.display())),
+        }
+        temper_shell::directories::private_root_with(disk.user(), disk.metadata(path).map(|metadata| metadata.stat))
+            .map_err(|why| format!("{}: {why}", path.display()))
     }
-    pub fn rollback(self) {
+    pub(super) fn rollback_with(self, disk: &mut impl Disk) {
         for path in self.files.into_iter().rev() {
-            let _removed = fs::remove_file(path);
+            let _removed = disk.remove_file(&path);
         }
         for path in self.directories.into_iter().rev() {
-            let _removed = fs::remove_dir(path);
+            let _removed = disk.remove_directory(&path);
         }
     }
 }

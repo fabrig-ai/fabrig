@@ -79,10 +79,35 @@ fn locating_a_program_searches_the_given_path() {
     let path = Path::new("/fixture/bin");
     let executable = path.join("claude");
     assert_eq!(
-        resolve::programs::locate_with(None, Some(path.as_os_str()), |path| path == executable),
+        resolve::programs::locate_with(None, Some(path.as_os_str()), |path| {
+            (path == executable).then_some(resolve::programs::FileFacts { is_file: true, mode: 0o700 })
+        }),
         Ok(executable),
         "given PATH"
     );
+}
+
+#[test]
+fn a_missing_or_non_executable_program_is_refused() {
+    use resolve::programs::{FileFacts, locate_with};
+
+    let directory = Path::new("/fixture/bin");
+    let candidate = directory.join("claude");
+    for (path, facts, why) in [
+        (Some(directory.as_os_str()), None, "absent executable"),
+        (Some(directory.as_os_str()), Some(FileFacts { is_file: true, mode: 0o600 }), "non-executable"),
+        (None, None, "absent PATH"),
+    ] {
+        let mut checked = Vec::new();
+        let result = locate_with(None, path, |file| {
+            checked.push(file.to_path_buf());
+            assert_eq!(file, candidate, "only claude on the supplied PATH can be checked");
+            facts
+        });
+        assert_eq!(result, Err(()), "{why}");
+        let expected = path.map_or(&[][..], |_| std::slice::from_ref(&candidate));
+        assert_eq!(checked, expected, "lookup follows the supplied PATH only");
+    }
 }
 
 #[test]

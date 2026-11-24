@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 use smith_events::{Event, Reader, Record, SessionEnded, SessionStarted};
 
 use crate::agent::Seen;
+use crate::files::{Files, Native};
 use crate::{Classification, Counts, Exit, Fault, Forced, Stream, TokenRecord, bound, refuse_if, stream};
 
 mod delegation;
@@ -303,7 +304,19 @@ impl Observer {
         minimum: u64,
         workspace: &std::path::Path,
     ) -> crate::CheckVerdict {
-        written_file::check(self, path, minimum, workspace)
+        self.written_file_with(&Native, path, minimum, workspace)
+    }
+
+    /// Compare a captured successful write with settled bytes on the supplied filesystem.
+    #[must_use]
+    pub fn written_file_with(
+        &self,
+        files: &dyn Files,
+        path: &std::path::Path,
+        minimum: u64,
+        workspace: &std::path::Path,
+    ) -> crate::CheckVerdict {
+        written_file::check(files, self, path, minimum, workspace)
     }
 
     /// Judge one exact paired oversized write before any repair.
@@ -327,7 +340,20 @@ impl Observer {
         file_bytes: u64,
         workspace: &std::path::Path,
     ) -> crate::CheckVerdict {
-        file_pieces::check(self, path, above, file_bytes, workspace)
+        self.file_pieces_with(&Native, path, above, file_bytes, workspace)
+    }
+
+    /// Compare successful captured pieces with settled bytes on the supplied filesystem.
+    #[must_use]
+    pub fn file_pieces_with(
+        &self,
+        files: &dyn Files,
+        path: &std::path::Path,
+        above: u64,
+        file_bytes: u64,
+        workspace: &std::path::Path,
+    ) -> crate::CheckVerdict {
+        file_pieces::check(files, self, path, above, file_bytes, None, workspace)
     }
 
     /// Judge accepted pieces even when the protocol trigger was not exercised.
@@ -340,7 +366,21 @@ impl Observer {
         protocol_bound: u64,
         workspace: &std::path::Path,
     ) -> crate::CheckVerdict {
-        file_pieces::check_protocol(self, path, above, file_bytes, protocol_bound, workspace)
+        self.file_pieces_for_protocol_probe_with(&Native, path, above, file_bytes, protocol_bound, workspace)
+    }
+
+    /// Judge accepted pieces on the supplied filesystem even without a protocol trigger.
+    #[must_use]
+    pub fn file_pieces_for_protocol_probe_with(
+        &self,
+        files: &dyn Files,
+        path: &std::path::Path,
+        above: u64,
+        file_bytes: u64,
+        protocol_bound: u64,
+        workspace: &std::path::Path,
+    ) -> crate::CheckVerdict {
+        file_pieces::check(files, self, path, above, file_bytes, Some(protocol_bound), workspace)
     }
 
     /// Report typed stream integrity, pairing, loss and spend observations.

@@ -42,5 +42,5 @@ pub enum Landlock {
 mod tests;
 
 pub use face::{kernel_error, serve, step};
-pub use fs::{Facts, How, Is, Item, Listed, Machine, Made, Opened, Refusal};
+pub use fs::{Facts, How, Is, Item, Listed, Machine, Made, Node, Opened, Refusal};
 pub use rooted::Rooted;

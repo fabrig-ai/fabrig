@@ -229,7 +229,7 @@ enum Want {
     Element,
     Done,
     Terminal,
-    Cut,
+    SkipRows { left: u32 },
 }
 #[derive(Debug)]
 pub(crate) struct Walk {
@@ -270,14 +270,20 @@ impl Walk {
         self.skip_row = true;
     }
     pub(crate) fn cut(&mut self) -> tokenizer::Request {
+        // The document byte bound is a u32, so no array can have this many rows.
+        self.skip_rows(u32::MAX)
+    }
+    pub(crate) fn skip_rows(&mut self, left: u32) -> tokenizer::Request {
+        assert!(left > 0, "a skip requests at least one row");
         assert!(
             self.parent() == Some(Kind::Item(Item::Issues))
                 || self.parent() == Some(Kind::Item(Item::Comments))
                 || self.parent() == Some(Kind::Review(crate::forgejo::client::reviews::ReviewKind::Comments))
-                || self.parent() == Some(Kind::Review(crate::forgejo::client::reviews::ReviewKind::Reviews)),
+                || self.parent() == Some(Kind::Review(crate::forgejo::client::reviews::ReviewKind::Reviews))
+                || self.parent() == Some(Kind::File(crate::forgejo::client::files::FileKind::Messages)),
             "cut at a listing row boundary"
         );
-        self.want = Want::Cut;
+        self.want = Want::SkipRows { left };
         tokenizer::Request::Skip
     }
     pub(crate) fn step(&mut self, event: &tokenizer::Event, limits: &Limits) -> Result<Move, Malformed> {
@@ -353,19 +359,7 @@ impl Walk {
                     }
                 }
             }
-            Want::Cut => match event {
-                tokenizer::Event::Token(Token::ArrayEnd) => self.end(),
-                tokenizer::Event::Skipped(_) => {
-                    self.skipped = self.skipped.saturating_add(1);
-                    self.want = Want::Cut;
-                    Ok(Move::Demand(tokenizer::Request::Skip))
-                }
-                tokenizer::Event::Token(_)
-                | tokenizer::Event::Long(_)
-                | tokenizer::Event::Done
-                | tokenizer::Event::Failed(_)
-                | tokenizer::Event::Closed => Err(Malformed::Shape { field: b"" }),
-            },
+            Want::SkipRows { left } => self.skipped_row(event, left),
             Want::Ignore(depth) => self.ignore(event, depth),
             Want::Done => {
                 if event == &tokenizer::Event::Done {
@@ -375,6 +369,27 @@ impl Walk {
                 }
             }
             Want::Terminal => Err(Malformed::Shape { field: b"" }),
+        }
+    }
+    fn skipped_row(&mut self, event: &tokenizer::Event, left: u32) -> Result<Move, Malformed> {
+        match event {
+            tokenizer::Event::Token(Token::ArrayEnd) => self.end(),
+            tokenizer::Event::Skipped(_) => {
+                self.skipped = self.skipped.saturating_add(1);
+                let left = left.saturating_sub(1);
+                if left == 0 {
+                    self.want = Want::Element;
+                    Ok(Move::Demand(tokenizer::Request::Next))
+                } else {
+                    self.want = Want::SkipRows { left };
+                    Ok(Move::Demand(tokenizer::Request::Skip))
+                }
+            }
+            tokenizer::Event::Token(_)
+            | tokenizer::Event::Long(_)
+            | tokenizer::Event::Done
+            | tokenizer::Event::Failed(_)
+            | tokenizer::Event::Closed => Err(Malformed::Shape { field: b"" }),
         }
     }
     fn start(&mut self, kind: Kind, event: &tokenizer::Event) -> Result<Move, Malformed> {

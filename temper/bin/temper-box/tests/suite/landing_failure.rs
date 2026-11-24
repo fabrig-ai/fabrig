@@ -5,73 +5,7 @@ use std::{
     os::unix::fs::{PermissionsExt, symlink},
     path::Path,
 };
-use support::forge_land::{keep_box_data, run_failure_lines};
-
-#[test]
-fn run_failure_lines_keep_only_run_records_in_rotation_order() {
-    let scratch = support::Scratch::new("landing-failure-lines");
-    let logs = scratch.path().join("box/logs");
-    fs::create_dir_all(&logs).expect("log fixture");
-    let oldest = "temper worker: run 2 attempt 1 failed Unprepared(Transient): host local: git failed";
-    let refused = "temper serve: task 7 run 2 attempt 1 refused Invalid(Start(Bounds)): oversized charter";
-    let failed = "temper serve: task 7 run 2 attempt 1 failed Run(Model): anthropic 400 invalid_request_error";
-    let version = "temper-box serve: task 8 run 3 attempt 2 refused: worker version mismatch";
-    fs::write(logs.join("serve.log.2"), format!("ordinary step\n{oldest}\n")).expect("oldest log");
-    fs::write(logs.join("serve.log.1"), format!("{refused}\n")).expect("rotated log");
-    fs::write(logs.join("serve.log.3.gz"), format!("{failed}\n")).expect("unread compressed sibling");
-    fs::write(logs.join("worker.log"), format!("{oldest}\n")).expect("other log");
-    fs::write(
-        logs.join("serve.log"),
-        format!(
-            "temper serve: listening on 127.0.0.1:8370\n\
-         temper serve: task 7 run 2 attempt 1 started\n\
-         temper serve: task seven run 2 attempt 1 failed Run(Model): not a record\n\
-         ordinary step quotes {failed}\n\
-         temper worker: run 2 attempt 1 refused Busy: not a worker failure\n\
-         {failed}\r\n{version}"
-        ),
-    )
-    .expect("current log");
-    assert_eq!(run_failure_lines(scratch.path()), [oldest, refused, failed, version]);
-    scratch.remove();
-}
-
-#[test]
-fn run_failure_lines_redact_credentials_but_keep_run_context() {
-    use std::fmt::Write as _;
-    let scratch = support::Scratch::new("landing-failure-redaction");
-    let logs = scratch.path().join("box/logs");
-    fs::create_dir_all(&logs).expect("log fixture");
-    let context = "temper serve: task 7 run 2 attempt 1 failed Run(Model): ";
-    let details = [
-        ("secret=abc123 task-12", "secret=… task-12"),
-        (r#"{"api_key":"k1"} task-12"#, r#"{"api_key":"…"} task-12"#),
-        ("x-api-key: sk-ant-api03-xyz task-12", "x-api-key: … task-12"),
-        ("sk-ant-api03-xyz task-12", "… task-12"),
-        ("X-Api-Key:\theader-value task-12", "X-Api-Key:\t… task-12"),
-        ("(sk-ant-api03-xyz), task-12", "(…), task-12"),
-        ("task-12 wordsk-ant-not-a-key _sk-ant-not-a-key", "task-12 wordsk-ant-not-a-key _sk-ant-not-a-key"),
-    ];
-    let mut text = String::new();
-    for (detail, _) in details {
-        writeln!(text, "{context}{detail}").expect("fixture line");
-    }
-    fs::write(logs.join("serve.log"), text).expect("credential-shaped fixture lines");
-    let lines = run_failure_lines(scratch.path());
-    assert_eq!(lines, details.map(|(_, safe)| format!("{context}{safe}")));
-    assert!(lines.iter().all(|line| !line.contains("abc123") && !line.contains("k1") && !line.contains("xyz")));
-    scratch.remove();
-}
-
-#[test]
-fn run_failure_lines_allow_a_box_that_never_started() {
-    let scratch = support::Scratch::new("landing-no-serve-log");
-    assert_eq!(run_failure_lines(&scratch.path().join("absent")), Vec::<String>::new());
-    assert_eq!(run_failure_lines(scratch.path()), Vec::<String>::new());
-    fs::create_dir_all(scratch.path().join("box/logs")).expect("empty log directory");
-    assert_eq!(run_failure_lines(scratch.path()), Vec::<String>::new());
-    scratch.remove();
-}
+use support::forge_land::keep_box_data;
 
 fn data_fixture(data: &Path) {
     for directory in [

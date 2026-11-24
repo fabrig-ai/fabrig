@@ -289,6 +289,50 @@ impl Plan {
         run::convert(self, old, out, work)
     }
 
+    /// Maps a whole enumeration's source tag, without reading its payload.
+    pub fn variant_tag(&self, old: u8) -> Result<u8, Misconverted> {
+        let (tag, _) = variant(self.whole_enum()?, old)?;
+        Ok(tag)
+    }
+
+    /// Converts a whole enumeration whose tag is separate from its payload.
+    /// Clears `out`, writes only the new payload, and returns the new tag.
+    pub fn convert_variant(
+        &self,
+        old: u8,
+        payload: &[u8],
+        out: &mut Buffer,
+        work: &mut Workspace,
+    ) -> Result<u8, Misconverted> {
+        out.clear();
+        let variants = self.whole_enum()?;
+        if !work.fits(self) {
+            return Err(Misconverted::Room);
+        }
+        let (tag, node) = variant(variants, old)?;
+        run::convert_payload(self, node, payload, out, work)?;
+        Ok(tag)
+    }
+
+    fn whole_enum(&self) -> Result<&List<Option<Variant>>, Misconverted> {
+        if self.tag.is_some() {
+            return Err(Misconverted::Tag);
+        }
+        match &self.node(self.root).kind {
+            Kind::Enum(variants) => Ok(variants),
+            Kind::Pending
+            | Kind::Copy
+            | Kind::Integer { .. }
+            | Kind::Named(_)
+            | Kind::Wrap(_)
+            | Kind::Unwrap { .. }
+            | Kind::Option(_)
+            | Kind::List { .. }
+            | Kind::Record { .. }
+            | Kind::Content { .. } => Err(Misconverted::Tag),
+        }
+    }
+
     /// The scratch tables' heap bound, fitted once and shared by passes.
     #[must_use]
     pub fn workspace_bound(&self) -> Option<u64> {
@@ -305,6 +349,13 @@ impl Plan {
 
     fn read(&self, at: u32) -> &Read {
         self.reads.get(at).expect("planned span reader")
+    }
+}
+
+fn variant(variants: &List<Option<Variant>>, old: u8) -> Result<(u8, Option<u32>), Misconverted> {
+    match variants.get(u32::from(old)).copied().flatten().ok_or(Misconverted::Tag)? {
+        Variant::Kept { tag, payload, .. } => Ok((tag, payload)),
+        Variant::Refuse(index) => Err(Misconverted::Refused(index)),
     }
 }
 

@@ -11,13 +11,11 @@ restart said holds its runs*.
 
 ## 1. In one page
 
-- **One record down,** `restarting`, carrying the restart wait, new in
-  `jig-worker-wire` 15 (2).
+- **One record down,** `restarting`, carrying the restart wait (2).
 - **Sent by the engine's component** when its owner says the engine
-  restarts, on every channel open with its hello heard whose version
-  has the kind (3). At an older version it is not sent: no mismatch,
-  no floor raised (temper's `draft/redeploys.md`, 4.3), and the owner
-  is told that worker was not told.
+  restarts, on every channel open with its hello heard whose worker's
+  layout has the kind (3). Where it lacks it, it is not sent: no
+  mismatch, and the owner is told that worker was not told.
 - **Kept by the worker's link with its channel** (4): when that channel
   is lost, the grace's clock runs for the longer of the wait and the
   grace, in place of the grace.
@@ -32,19 +30,16 @@ restart said holds its runs*.
 record Restarting { wait_ms: u64 }
 ```
 
-- **`FromEngine` gains `restarting: Restarting`** as its last variant,
-  kind `0x0180` plus its tag, `0x018f` (`wires.md`, 4), a notice. It
-  changes the channel's layout, so `jig-worker-wire` moves to 15, keeps
-  14's text and brings its forward patch; its floor stays 12. Below 15
-  the variant is unheld, so its reverse halts, which the engine never
-  meets: it sends the kind only at a version that has it (3).
+- **`FromEngine` has `restarting: Restarting`,** a kind numbered by its
+  place (`wires.md`, 4), a notice, which the engine sends only where the
+  worker's layout has it (3; `layouts.md`, 4.1).
 - **`wait_ms`** is the restart wait, from the engine's configuration
   (`fleet.restart_wait`, `../../domain/engine/fleet.md`), in
   milliseconds: how long after its link drops the engine asks the
   worker to keep its runs.
-- **No running attempt waits on it** (`bridges.md`, 6.2): like `wires`,
-  it goes only where its version has it, and is not among the kinds
-  that must go down whole.
+- **No running attempt waits on it:** it goes only where the worker's
+  layout has it, and is not among a running attempt's kinds
+  (`layouts.md`, 5.2).
 - **Its row** is `records.md`, section 2's.
 
 ## 3. The engine's side
@@ -57,7 +52,7 @@ record Restarting { wait_ms: u64 }
   record is queued before the close's finish and drains with the rest
   (`worker-link.md`, 1.2).
 - **Each channel open with its hello heard,** and not closing: where its
-  version's kinds hold `restarting`, the component sends `Restarting {
+  worker's layout has `restarting`, the component sends `Restarting {
   wait_ms }` and tells its owner the worker was told; otherwise it sends
   nothing and tells its owner the worker was not told, with the
   channel's version. A connection still opening, or past its open
@@ -71,8 +66,8 @@ record Restarting { wait_ms: u64 }
 
   `worker` the worker the channel authenticated as, as `Opened` names
   it; `version` the channel's version of
-  `jig-worker-wire`; `wait` the wait sent, or none where the version
-  lacks the kind. The application writes each as a line of its log
+  `jig-worker-wire`, its frozen one; `wait` the wait sent, or none
+  where the worker's layout lacks the kind. The application writes each as a line of its log
   (temper's `protocol/wires.md`, section 4).
 - **Asked again,** it sends again on each such channel; a worker keeps
   the last.
@@ -124,13 +119,14 @@ Focused, in the worlds that own each side, with their simulated clocks:
   with no word: the grace from that loss. A wait heard, then a channel
   refused: the wait, from the first loss. `Request::Restarting` handed
   up once per record.
-- **The engine's component:** a worker at 15 told, its frame sent and
-  `Told` with the wait; one at 14 sent nothing, `Told` with none and
-  14; a connection whose hello is not heard told nothing; a second ask
-  sent again.
+- **The engine's component:** a worker whose layout has the kind told,
+  its frame sent and `Told` with the wait; one at a layout without it
+  sent nothing, `Told` with none; a connection whose hello is not heard
+  told nothing; a second ask sent again.
 - **The wire:** generated records' drift, as skein's
-  `data/codec/golden.md`, section 1 has it; the patch's goldens up and down
-  with the variant refused below 15, and `KINDS` against the schema (`wires.md`, 7).
+  `data/codec/golden.md`, section 1 has it; the kind refused per value
+  to a layout without it (`layouts.md`, 8), and `KINDS` against the
+  schema (`wires.md`, 7).
 - **Fuzzy,** in the worker-link world's seeded runs: any order of words,
   losses, refusals, redials and admissions, and the clock never ends
   before the longer of the grace and the wait last heard on the channel

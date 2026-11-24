@@ -111,6 +111,10 @@ that a face translates to and from the simulator's. Its programs are
 the fixture of the conformance suite's processes, and its crash model
 keeps what a crash keeps (simulator.md, 3.3). It
 keeps each file's lock with the handle that took it (simulator.md, 3.1).
+A test reads back what it laid, or what the code under test left there,
+without the simulator: each entry's kind, mode, owner and bytes, a link's
+target, and the node a handle names, so that a file replaced by another
+with the same bytes and mode shows as replaced.
 For a tree's metadata (kernel-files.md, 2) it keeps each entry's inode,
 group, mode up to `0o7777`, times and attributes, and hard links, and
 lays FIFOs; it has no devices, no sockets and no btrfs. It answers every

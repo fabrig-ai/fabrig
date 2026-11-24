@@ -43,5 +43,10 @@ impl ModelTiers {
 
 /// Read model tiers without selecting a default for an unresolved entry.
 pub fn read_model_tiers(file: &Path) -> Result<ModelTiers, Refusal> {
-    crate::formats::read_document(file)
+    read_model_tiers_with(&crate::files::Native, file)
+}
+
+/// Read model tiers on the supplied filesystem.
+pub fn read_model_tiers_with(files: &dyn crate::files::Files, file: &Path) -> Result<ModelTiers, Refusal> {
+    crate::formats::read_document_with(files, file)
 }

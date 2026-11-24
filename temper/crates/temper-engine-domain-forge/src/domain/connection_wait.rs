@@ -44,7 +44,7 @@ pub(super) fn waiting(d: &Domain, task: u64, forge: u16) -> bool {
     disconnected(&d.connection(forge))
 }
 
-pub(super) fn disconnected(connection: &Connection) -> bool {
+pub(crate) fn disconnected(connection: &Connection) -> bool {
     match connection {
         Connection::Connected { .. } | Connection::Connecting => false,
         Connection::NotConnected

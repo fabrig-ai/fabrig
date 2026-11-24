@@ -173,6 +173,18 @@ Terms                                           ───►
   normally the highest, or refuses with a reason of its own: the
   credential is unknown, or it is busy. For an agent's pipes, the owner
   accepts at once.
+- **Accepting with the peer's table.** A responder's owner may accept
+  with a kinds' table of its own making for the version it accepts, in
+  place of its schema's: the table of a peer whose layout of the
+  application's bodies differs, so that frames cross at the peer's
+  layout and the owner converts them (jig's
+  `protocol/channel/wires.md`, 4). The machine checks it as section 4
+  checks a schema's version, for this role and these limits, and keeps
+  it for the channel's life: its terms, its sends' and receipts' checks
+  and their bounds are that table's. A table that fails the check is a
+  fault of the owner's: the machine refuses the opening with *limits*,
+  its text `the responder's table: WHY`, and the owner hears the
+  terminal.
 - **Terms list the kinds a side receives:** the largest body it takes of
   each, at most its schema's. The responder sends its terms right after
   `Accept`, and the initiator answers with its own.
@@ -319,7 +331,7 @@ the output stream is finished once what is queued has gone.
 | From the owner | What it does |
 |---|---|
 | open | the initiator's `Open`, with its credential |
-| accept, refuse | the responder's owner's answer to an opening; refuse also at any later time |
+| accept, refuse | the responder's owner's answer to an opening, accept with a version or with a table for one (5.2); refuse also at any later time |
 | read | read one more frame |
 | send | queue one frame, named by the owner's token |
 | ping | queue a `Ping` |
@@ -371,6 +383,9 @@ credential, skip and output caps remain admission checks.
   - owners that read slowly, send at awkward moments, refuse and close in
     every state;
   - every refusal of the opening;
+  - a responder accepting with a table of its own (5.2): its terms,
+    sends and receipts held to that table, not its schema's, and a table
+    that fails section 4's checks refused with *limits*;
   - golden frames for the channel's own messages;
   - a fuzz target over the header, the opening and terms.
 - **A protocol world** (../../foundation/testing-strategy.md, 2.5): two machines joined by

@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
-use crate::{Agent, Fault, Kind, ModelTiers, Provider, Refusal, Task, bound, check_task, read_configuration};
+use crate::{Agent, Fault, Kind, ModelTiers, Provider, Refusal, Task, bound, read_configuration};
 
 /// The attempt ordering requested by the suite author.
 #[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq)]
@@ -135,18 +135,32 @@ pub struct GuardSelection {
 
 /// Read a suite strictly; resolving its references is a separate offline check.
 pub fn read_suite(file: &Path) -> Result<Suite, Refusal> {
-    crate::formats::read_document(file)
+    read_suite_with(&crate::files::Native, file)
+}
+
+/// Read a suite on the supplied filesystem.
+pub fn read_suite_with(files: &dyn crate::files::Files, file: &Path) -> Result<Suite, Refusal> {
+    crate::formats::read_document_with(files, file)
 }
 
 /// Read frozen tasks from a catalogue and give each its kind/id name.
 pub fn catalogue(tasks: &Path, design: &Path) -> Result<Vec<CatalogueTask>, Refusal> {
+    catalogue_with(&crate::files::Native, tasks, design)
+}
+
+/// Walk and verify a frozen catalogue on the supplied filesystem.
+pub fn catalogue_with(
+    files: &dyn crate::files::Files,
+    tasks: &Path,
+    design: &Path,
+) -> Result<Vec<CatalogueTask>, Refusal> {
     let mut manifests = Vec::new();
-    crate::check::find_manifests(tasks, &mut manifests)?;
+    crate::check::find_manifests(files, tasks, &mut manifests)?;
     manifests.sort();
     let mut entries = Vec::new();
     let mut names = BTreeSet::new();
     for manifest in manifests {
-        let task = check_task(&manifest, design)?;
+        let task = crate::check_task_with(files, &manifest, design)?;
         let kind = match task.kind {
             Kind::Probe => "probes",
             Kind::Fixture => "fixtures",
