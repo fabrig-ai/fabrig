@@ -1,4 +1,4 @@
-//! Paired wire and client literals for structured waits (jig/docs/design/domain/engine/contracts.md, 4).
+//! Paired wire and client literals for structured waits (jig/docs/design/client/domain/contract/documents.md, 1).
 use jig_client_domain::contract::{self as c, waits::Bound};
 use jig_client_protocol_wire as w;
 use skein_lib::{List, Wall};
