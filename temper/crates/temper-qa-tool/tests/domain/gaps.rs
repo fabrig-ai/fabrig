@@ -1,14 +1,16 @@
 //! What QA cannot judge is recorded and filed without a goal (qa/gaps.md, 8).
-use super::passes::{build, start};
-use super::{case, session};
-use temper_qa_tool::{Answer, CaseState, Exit, Ledger};
-
-use super::world::{Agent, Git, Loop, World, id};
-use std::fs;
-use temper_qa_tool::faces::CommandAnswer;
+use temper_qa_tool::{
+    Answer, CaseState, Exit, Ledger,
+    faces::{CommandAnswer, FilesFace, WriteOptions},
+    testing::{
+        Agent, Git, Loop, World, case, id,
+        passes::{build, start},
+        session,
+    },
+};
 
 fn running_triage(world: &World) -> Loop {
-    let mut git = Git::default();
+    let mut git = Git::new(world.files());
     git.commit(0, &[], "baseline");
     let mut run = world.start(git, &[Agent::Never]);
     run.tick();
@@ -20,7 +22,7 @@ fn running_triage(world: &World) -> Loop {
 fn record_gaps(world: &World) {
     world
         .home
-        .transact(|ledger| {
+        .transact(&mut world.files(), |ledger, _| {
             ledger.triage_gap(1, "ctl", "no runner tool", "tools", 1)?;
             ledger.add_case(1, &case(), 1)?;
             ledger.triage_gap(1, "fake", "no fake runner", "fakes", 2)?;
@@ -43,13 +45,15 @@ fn one_request_files_every_open_gap_once_and_has_no_goal() {
     answer(&mut run, Exit::Code(0));
     run.tick();
     let request = gap_request(&world);
-    assert!(!request.join("goal").exists());
+    assert!(!world.files().exists(request.join("goal")));
     assert_eq!(
-        fs::read_to_string(request.join("message")).expect("message"),
+        world.files().read_to_string(&request.join("message")).expect("message"),
         "QA gaps 1, 2: 2 open\n\nQA-gaps: 1, 2\n"
     );
     for (number, owner, why) in [(1, "tools", "no runner tool"), (2, "fakes", "no fake runner")] {
-        let text = fs::read_to_string(request.join(format!("tree/temper/docs/development/qa/gaps/gap-{number}.md")))
+        let text = world
+            .files()
+            .read_to_string(&request.join(format!("tree/temper/docs/development/qa/gaps/gap-{number}.md")))
             .expect("gap document");
         for words in [
             format!("Owner: {owner}"),
@@ -78,16 +82,16 @@ fn failed_gap_filing_retries_and_removes_a_stale_goal() {
     answer(&mut run, Exit::Code(1));
     run.tick();
     assert!(world.ledger().gaps.iter().all(|gap| gap.state == temper_qa_tool::GapState::Open && gap.filed.is_none()));
-    fs::write(gap_request(&world).join("goal"), "stale").expect("stale file");
+    world.files().write(&gap_request(&world).join("goal"), b"stale", WriteOptions::REPLACE, false).expect("stale file");
     answer(&mut run, Exit::Code(0));
     run.tick();
     assert_eq!(run.processes.bounded.len(), 2);
-    assert!(!gap_request(&world).join("goal").exists());
+    assert!(!world.files().exists(gap_request(&world).join("goal")));
     assert!(world.ledger().gaps.iter().all(|gap| gap.state == temper_qa_tool::GapState::Filed));
 }
 
-fn closing_git() -> Git {
-    let mut git = Git::default();
+fn closing_git(world: &World) -> Git {
+    let mut git = Git::new(world.files());
     git.commit(0, &[], "baseline");
     git.commit(1, &[0], "first change");
     git.merge(2, &[0, 1], 11);
@@ -109,7 +113,7 @@ fn closing_trailer_waits_for_a_kept_build_and_requeues_on_that_build() {
     ledger.pass_gap(pass.session, 1, "ctl", "no runner tool", "tools", 5).expect("gap");
     ledger.end_pass_session(pass.session, Exit::Code(0), None, 6, "qa", &[]).expect("pass end");
     ledger.record_head(&id(2));
-    let mut git = closing_git();
+    let mut git = closing_git(&world);
     temper_qa_tool::watch::watch(&mut git, &world.home.configuration.git, &mut ledger, 7).expect("watch without build");
     assert_eq!(ledger.gaps[0].state, temper_qa_tool::GapState::Open);
     ledger.keep_build(&id(4), 8).expect("closing build");
@@ -136,7 +140,7 @@ fn closing_trailer_waits_for_a_kept_build_and_requeues_on_that_build() {
 fn gap_closures_read_only_the_landing_side_of_either_parent_order() {
     for parents in [[3, 4], [4, 3]] {
         let world = World::new();
-        let mut git = Git::default();
+        let mut git = Git::new(world.files());
         git.commit(0, &[], "baseline");
         git.commit(1, &[0], "earlier change");
         git.merge(2, &[0, 1], 11);
@@ -162,11 +166,14 @@ fn gap_closures_read_only_the_landing_side_of_either_parent_order() {
 fn closed_triage_gap_retriages_with_the_kept_build_and_earlier_gap() {
     let world = World::new();
     let mut run = running_triage(&world);
-    world.home.transact(|ledger| ledger.triage_gap(1, "ctl", "no runner tool", "tools", 1)).expect("gap");
+    world
+        .home
+        .transact(&mut world.files(), |ledger, _| ledger.triage_gap(1, "ctl", "no runner tool", "tools", 1))
+        .expect("gap");
     answer(&mut run, Exit::Code(0));
     run.processes.finish(1, Agent::Empty);
     run.tick();
-    run.git = closing_git();
+    run.git = closing_git(&world);
     run.tick();
     assert_eq!(world.ledger().landings[0].triaged, Some(0));
     run.processes.finish(2, Agent::None);
@@ -181,7 +188,8 @@ fn closed_triage_gap_retriages_with_the_kept_build_and_earlier_gap() {
     assert!(triage.pages["ctl"].contains(&"runner".into()));
     assert_eq!(ledger.gaps[0].state, temper_qa_tool::GapState::Closed);
     assert!(run.git.calls.contains(&format!("checkout {}", id(5))));
-    let brief = fs::read_to_string(world.home.session_directory(triage.number).join("brief")).expect("brief");
+    let brief =
+        world.files().read_to_string(&world.home.session_directory(triage.number).join("brief")).expect("brief");
     assert!(brief.contains("Earlier gap 1 (ctl; closed): no runner tool"));
     assert!(brief.contains("is a gap: `temper-qa triage gap KIND WHY`, never none"));
 }
@@ -190,12 +198,12 @@ fn closed_triage_gap_retriages_with_the_kept_build_and_earlier_gap() {
 fn a_pass_gap_request_keeps_the_case_setup_and_steps() {
     let world = World::new();
     let mut run = running_triage(&world);
-    world.home.transact(|ledger| ledger.add_case(1, &case(), 1)).expect("case");
+    world.home.transact(&mut world.files(), |ledger, _| ledger.add_case(1, &case(), 1)).expect("case");
     run.processes.finish(1, Agent::Empty);
     run.tick();
     world
         .home
-        .transact(|ledger| {
+        .transact(&mut world.files(), |ledger, _| {
             build(ledger, &id(2), &[1], 1);
             let pass = start(ledger);
             ledger.pass_gap(pass.session, 1, "qa", "no pushed branch", "qa", 5)?;
@@ -204,7 +212,9 @@ fn a_pass_gap_request_keeps_the_case_setup_and_steps() {
         .expect("pass gap");
     answer(&mut run, Exit::Code(0));
     run.tick();
-    let text = fs::read_to_string(gap_request(&world).join("tree/temper/docs/development/qa/gaps/gap-1.md"))
+    let text = world
+        .files()
+        .read_to_string(&gap_request(&world).join("tree/temper/docs/development/qa/gaps/gap-1.md"))
         .expect("case gap");
     for words in [
         "Case 1: web / work",
@@ -216,18 +226,21 @@ fn a_pass_gap_request_keeps_the_case_setup_and_steps() {
     ] {
         assert!(text.contains(words), "{words}");
     }
-    assert!(!gap_request(&world).join("goal").exists());
+    assert!(!world.files().exists(gap_request(&world).join("goal")));
 }
 
 #[test]
 fn closing_a_triage_gap_preserves_the_running_later_triage() {
     let world = World::new();
     let mut run = running_triage(&world);
-    world.home.transact(|ledger| ledger.triage_gap(1, "ctl", "no runner tool", "tools", 1)).expect("gap");
+    world
+        .home
+        .transact(&mut world.files(), |ledger, _| ledger.triage_gap(1, "ctl", "no runner tool", "tools", 1))
+        .expect("gap");
     answer(&mut run, Exit::Code(0));
     run.processes.finish(1, Agent::Empty);
     run.tick();
-    run.git = closing_git();
+    run.git = closing_git(&world);
     run.processes.next.push_back(Agent::None);
     run.tick(); // The closing landing's triage starts before its build is kept.
     run.git.commit(5, &[4], "later build");

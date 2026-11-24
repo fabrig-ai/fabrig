@@ -20,6 +20,7 @@
 //! This is ordinary Rust (programming-model.md, 10.2).
 #![forbid(unsafe_code)]
 
+use core::fmt::Arguments;
 use std::io::Write;
 use std::sync::{Mutex, PoisonError};
 
@@ -46,12 +47,45 @@ pub fn install() {
         let location = panic.location().expect("std supplies the panic's location");
         let message = panic.payload_as_str().unwrap_or("Box<dyn Any>");
         let backtrace = std::backtrace::Backtrace::force_capture();
-        let line = format!("thread '{name}' panicked at {location}:\n{message}\n");
-        let report = format!("\n{line}stack backtrace:\n{backtrace}\n{line}");
+        let report = report(name, format_args!("{location}"), message, format_args!("{backtrace}"));
         // Hold stderr through the abort so concurrent panic reports cannot
         // interleave. A failed write must still end the process.
         let mut stderr = std::io::stderr().lock();
         let _write_result = stderr.write_all(report.as_bytes());
         std::process::abort();
     }));
+}
+
+fn report(name: &str, location: Arguments<'_>, message: &str, backtrace: Arguments<'_>) -> String {
+    let line = format!("thread '{name}' panicked at {location}:\n{message}\n");
+    format!("\n{line}stack backtrace:\n{backtrace}\n{line}")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::report;
+    use skein_lib::{Tail, usize_of};
+
+    #[test]
+    fn a_supervisors_tail_keeps_the_panic_line_and_message() {
+        // The supervisor keeps the last 1,024 stderr bytes.
+        const DETAIL_BYTES: u32 = 1024;
+        const FRAME: &str = "   0: fail_stop_fixture::panic_in_fixture\n";
+        let backtrace = FRAME.repeat(usize_of(DETAIL_BYTES).div_ceil(FRAME.len()));
+        let report = report(
+            "fixture-worker",
+            format_args!("src/bin/fail_stop_fixture.rs:42:7"),
+            "the fixture's thread panics",
+            format_args!("{backtrace}"),
+        );
+        assert!(report.len() > usize_of(DETAIL_BYTES), "the report must exceed the supervisor's tail");
+        let mut tail = Tail::with_capacity(DETAIL_BYTES);
+        tail.put(report.as_bytes());
+        let kept = tail.into_boxed();
+        assert!(
+            kept.ends_with(b"thread 'fixture-worker' panicked at src/bin/fail_stop_fixture.rs:42:7:\nthe fixture's thread panics\n"),
+            "the supervisor keeps the panic's line and message at the end: {}",
+            String::from_utf8_lossy(&kept)
+        );
+    }
 }

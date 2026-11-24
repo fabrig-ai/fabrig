@@ -134,25 +134,6 @@ pub(super) fn unsafe_root(stat: Stat, expected: u32) -> Option<Unsafe> {
     None
 }
 
-pub(super) fn unsafe_file(stat: Stat, expected: u32) -> Option<Unsafe> {
-    if stat.owner != expected {
-        return Some(Unsafe::Owner { found: stat.owner, expected });
-    }
-    if stat.kind == Kind::Symlink {
-        return Some(Unsafe::Link);
-    }
-    if stat.kind != Kind::File {
-        return Some(Unsafe::Kind(stat.kind));
-    }
-    if stat.mode & 0o077 != 0 {
-        return Some(Unsafe::Mode(stat.mode & 0o077));
-    }
-    if stat.links != 1 {
-        return Some(Unsafe::Links(stat.links));
-    }
-    None
-}
-
 pub(super) fn start(
     io: &mut FileIo,
     owner: Token,
@@ -350,7 +331,7 @@ fn denied_stated(
             let stat = super::store::done_stat(done);
             let found = match check {
                 Check::Root { user } => unsafe_root(stat, user),
-                Check::File { user } => unsafe_file(stat, user),
+                Check::File { user } => Unsafe::private_file(stat, user),
             };
             match found {
                 Some(found) => Event::Refused { owner, found },

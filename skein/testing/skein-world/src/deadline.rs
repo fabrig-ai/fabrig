@@ -254,6 +254,20 @@ impl Deadline {
         self.classify_at(self.what, self.patience, now, end)
     }
 
+    /// Classifies an unanswered wait of `bound` that has passed. The patience
+    /// is at least the time since this account was armed, and never less than `bound`.
+    #[must_use]
+    pub fn expired_for(&self, what: &'static str, bound: Duration) -> Expired {
+        let now = Clock::new().now().now;
+        let end = thread_sched();
+        self.sample_pressure();
+        self.classify_for_at(what, bound, now, end)
+    }
+
+    fn classify_for_at(&self, what: &'static str, bound: Duration, now: Time, end: Option<Sched>) -> Expired {
+        self.classify_at(what, bound.max(now.saturating_since(self.start)), now, end)
+    }
+
     /// Classifies another unanswered deadline using this wait's time and scheduler origins.
     pub(crate) fn expired_at(&self, what: &'static str, until: Time) -> Expired {
         let now = Clock::new().now().now;
@@ -428,6 +442,30 @@ mod tests {
         Deadline, Duration, Expired, Figures, Sched, Time, classify, largest_wait, parse_pressure, parse_schedstat,
         sched_elapsed, starved,
     };
+
+    #[test]
+    fn step_expiry_uses_the_longer_of_its_bound_and_account_age() {
+        let start = Time::from_nanos(1);
+        let mut deadline = Deadline::at("browser step", Duration::from_secs(40), start);
+        deadline.thread = Some(Sched { cpu: 0, waited: Some(0) });
+        for (age, bound, waited_ms, starved) in [
+            (10, 4, Some(6000), true),
+            (10, 4, Some(4000), false),
+            (2, 10, Some(6000), true),
+            (2, 10, Some(4900), false),
+            (2, 10, None, false),
+        ] {
+            let now = start.saturating_add(Duration::from_secs(age));
+            let end = waited_ms.map(|ms| Sched { cpu: 0, waited: Some(Duration::from_millis(ms).as_nanos()) });
+            let expired = deadline.classify_for_at("step expiry", Duration::from_secs(bound), now, end);
+            let (is_starved, figures) = match &expired {
+                Expired::Starved(verdict) => (true, verdict.figures()),
+                Expired::Failed(figures) => (false, figures),
+            };
+            assert_eq!(is_starved, starved, "age={age}, bound={bound}, waited_ms={waited_ms:?}");
+            assert_eq!(figures.patience, Duration::from_secs(10));
+        }
+    }
 
     #[test]
     fn referee_patience_is_its_deadline_since_the_runs_start() {

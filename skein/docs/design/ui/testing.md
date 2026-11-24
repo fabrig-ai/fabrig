@@ -58,7 +58,13 @@ a world's loop and the browser tier's run it.
 - **What it reports:** its next act on a node's id, a navigation or a
   reload; that it waits until the tree changes or a time passes; that it
   is done; or that it failed, at which step and why ("no button named
-  Save in the region named Draft").
+  Save in the region named Draft"). `Person::expired()` says which
+  failures are a bound passing: a see's or a see gone's, past its time,
+  gives that time; one at once (a target absent to act on, an act its
+  node does not take) gives nothing. A harness on the real clock
+  classifies the first kind by the starvation rule
+  (../../foundation/testing-strategy.md, 2.10; web/testing.md, 2); a
+  world on a simulated clock fails on both.
 - **The tree face** answers its queries on the view's tree at once, as an
   accessibility tree is searched, finding a text's words across a
   node's runs, and turns its acts into those a shell would report: a
