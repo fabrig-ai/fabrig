@@ -1589,7 +1589,7 @@ pub struct LandingReadNote {
 pub enum LandingReadNoteKind {
     Started { why: Box<[u8]> },
     Read { elapsed: skein_lib::Duration },
-    Held { elapsed: skein_lib::Duration, why: Box<[u8]> },
+    Held { elapsed: skein_lib::Duration, words: Box<[u8]> },
 }
 /// Family 23, committed together with its task's decision (domain/landing.md, 12).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]

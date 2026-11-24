@@ -48,7 +48,18 @@ fn landing_wait(view: &View<'_>, row: &LandingRow) -> Option<Wait> {
             wakes.push(Wake::Timer(Time::from_nanos(due.as_nanos())));
         }
     }
-    Some(Wait { waiter: task_name(task), kind, wakes, bound: None })
+    if let Some(at) = view.forge.inspection_landing_stall_wake(task) {
+        let wake = Wake::Timer(at);
+        if !wakes.contains(&wake) {
+            wakes.push(wake);
+        }
+    }
+    let held = view
+        .root
+        .and_then(|root| root.tasks().task(task))
+        .is_some_and(|task| matches!(task.phase, tasks::Phase::Held { .. }) || task.placed.is_some());
+    let bound = if held { None } else { view.forge.inspection_landing_bound(task) };
+    Some(Wait { waiter: task_name(task), kind, wakes, bound })
 }
 
 fn change_wait(view: &View<'_>, row: &temper_engine_domain_forge::ChangeRow) -> Option<Wait> {

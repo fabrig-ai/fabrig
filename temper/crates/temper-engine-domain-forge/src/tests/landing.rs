@@ -2714,10 +2714,15 @@ fn poll_clocked_gate(d: &mut Domain, clock: &Env<Limits>, run: &skein_forge::api
 fn a_queued_gate_only_expires_after_its_running_time_passes_the_bound() {
     let (mut d, key, mut run) = clocked_gate();
     let mut clock = env();
+    clock.limits.change_policy.stall = Duration::from_secs(2);
     for seconds in [100, 110, 120] {
         clock.now = Time::from_nanos(seconds * 1_000_000_000);
         clock.wall = Wall::from_nanos(clock.now.as_nanos());
-        assert!(matches!(poll_clocked_gate(&mut d, &clock, &run), policy::Decision::Wait { .. }));
+        assert!(matches!(
+            poll_clocked_gate(&mut d, &clock, &run),
+            policy::Decision::Wait { on: policy::Awaited::Run { .. }, .. }
+        ));
+        assert_eq!(d.inspection_landing_bound(61), None, "the gate's clock owns the wait");
         assert_eq!(d.landing.flights.get(&key).unwrap().clock.unwrap().ran(clock.wall), Duration::ZERO);
     }
     run.state = skein_forge::api::RunState::Running;
@@ -3701,7 +3706,11 @@ fn a_landing_without_a_regate_waits_for_the_keys_superseding_run_then_reads_its_
     d.landing.rows.insert(62, waiter).unwrap();
     run.state = skein_forge::api::RunState::Running;
     run.conclusion = None;
-    assert!(matches!(step_regate(&mut d, 62, 93, &run), policy::Decision::Wait { .. }));
+    assert!(matches!(
+        step_regate(&mut d, 62, 93, &run),
+        policy::Decision::Wait { on: policy::Awaited::Receipt { .. }, .. }
+    ));
+    assert_eq!(d.inspection_landing_bound(62), None, "another landing owns the run");
     assert_eq!(d.receipt(&key).unwrap().run.id, 41);
     run.state = skein_forge::api::RunState::Completed;
     run.conclusion = Some(skein_forge::api::Conclusion::Success);

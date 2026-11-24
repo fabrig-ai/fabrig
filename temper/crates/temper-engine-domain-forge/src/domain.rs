@@ -1880,7 +1880,7 @@ fn decide(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Reque
         Event::JoinLanding { task, member, after } => crate::landing::join(d, task, member, &after, out),
         Event::Landing { row } => crate::landing::register(d, env, row, out),
         Event::VetoLanding { task, entry } => crate::landing::veto(d, env, task, entry, out),
-        Event::DeferLandingMerge { task, entry } => crate::landing::defer_merge(d, task, entry, out),
+        Event::DeferLandingMerge { task, entry } => crate::landing::defer_merge(d, env, task, entry, out),
         Event::StepLanding { task, entry, heard } => {
             crate::landing::step(d, env, task, entry, heard, out);
             crate::waits::changed(d, task);
@@ -2325,7 +2325,7 @@ fn decide(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Reque
                 }
                 crate::landing::job_woken(d, task);
             }
-            crate::job_history::heard(d, env.wall, task, job, out);
+            crate::job_history::heard(d, env, task, job, out);
             if job.outcome.is_some()
                 && let Some(mut row) = d.changes.get(&task).cloned()
                 && row.frozen()
@@ -2336,7 +2336,9 @@ fn decide(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Reque
                 save_change(d, out, row);
             }
         }
-        Event::JobSuspended { task, child, attempt } => crate::job_history::suspended(d, task, child, attempt, out),
+        Event::JobSuspended { task, child, attempt } => {
+            crate::job_history::suspended(d, env, task, child, attempt, out)
+        }
         Event::Delegated { task, child, kind } => delegated(d, env, task, child, kind, out),
         Event::DelegateRefused { task, child } => delegate_refused(d, env, task, child, out),
         Event::DelegateAdmissionRefused { task, kind } => delegate_admission_refused(d, env, task, kind, out),
@@ -2840,7 +2842,7 @@ fn drain(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
                         if lost_comment {
                             // domain/forge/issues.md: an unfindable milestone counts
                             // as posted. Retire its entry without sending it again.
-                            not_made(d, entry, out);
+                            not_made(d, env, entry, out);
                         } else {
                             // It stays in the outbox, keeping its room, until a
                             // person or its task's close settles it.
@@ -5288,7 +5290,7 @@ fn step_verified(
     let stepped = change::step(&row.change, &facts, &heard, env.wall, &env.limits.change_policy);
     let prior = row.change.clone();
     row.change = stepped.change;
-    crate::landing::change_advanced(d, &mut row, &prior, stepped.decision, out);
+    crate::landing::change_advanced(d, env, &mut row, &prior, stepped.decision, out);
     if landed_commit(&prior.state).is_none() && landed_commit(&row.change.state).is_some() {
         reds::landed(d, &env.limits, &row, out);
     }
@@ -6451,7 +6453,7 @@ fn decide_step(d: &mut Domain, env: &Env<Limits>, mut pending: PendingStep, out:
                     d.stall_words.insert(row.task, report).expect("bounded tasks");
                 }
                 crate::change_history::advanced(d, env.wall, &mut row, &prior, out);
-                crate::landing::change_advanced(d, &mut row, &prior, decision, out);
+                crate::landing::change_advanced(d, env, &mut row, &prior, decision, out);
                 let withdrawn = take_landed_merge(d, &mut row);
                 d.changes.insert(row.task, row.clone()).expect("replaces change");
                 if let Some(entry) = withdrawn {
@@ -7051,7 +7053,7 @@ fn emit_change_effect(
     crate::room::leave(d, crate::room::Waiter::Change(row.task));
     let facts = change_facts(d, env, row, pending, pending.base_tip.unwrap_or([0; 32]));
     keep_step_progress(d, env, row, pending, &facts, out);
-    crate::landing::change_advanced(d, row, &prior, change::Decision::Effect(effect), out);
+    crate::landing::change_advanced(d, env, row, &prior, change::Decision::Effect(effect), out);
     row.pending = Some(pending.entry);
     row.effect = change::EffectResult::Pending;
     row.effect_account = match effect {
@@ -7120,7 +7122,7 @@ fn hold_owned_pull(d: &mut Domain, env: &Env<Limits>, row: &mut ChangeRow, out: 
     row.change.released = None;
     row.change.owns_turn = false;
     crate::change_history::advanced(d, env.wall, row, &prior, out);
-    crate::landing::change_advanced(d, row, &prior, change::Decision::Hold(change::Hold::PullClosed), out);
+    crate::landing::change_advanced(d, env, row, &prior, change::Decision::Hold(change::Hold::PullClosed), out);
     d.changes.insert(row.task, row.clone()).expect("retained change");
     wake_after_turn(d, row, prior.owns_turn);
     save_queue_change(d, env, before, row.clone(), out);
@@ -7886,7 +7888,7 @@ fn settle_effects(
     if ending == ReleaseEnding::Cancelled || (ending == ReleaseEnding::Done && d.landing.rows.contains_key(&task)) {
         withdraw_unsent(d, env, task, out);
     }
-    settle_prior_effects(d, task, out);
+    settle_prior_effects(d, env, task, out);
 }
 
 fn withdraw_unsent(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queue<Request>) {
@@ -7918,7 +7920,7 @@ fn withdraw_unsent(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queue
     }
 }
 
-fn settle_prior_effects(d: &mut Domain, task: u64, out: &mut Queue<Request>) {
+fn settle_prior_effects(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queue<Request>) {
     if !repository_reads::release_fresh(d, task) {
         repository_reads::park_release(d, task);
         return;
@@ -7930,7 +7932,7 @@ fn settle_prior_effects(d: &mut Domain, task: u64, out: &mut Queue<Request>) {
     {
         return;
     }
-    if !settle_held(d, task, out) {
+    if !settle_held(d, env, task, out) {
         return;
     }
     let row = d.releases.get_mut(&task).expect("effect settlement row");
@@ -8068,7 +8070,7 @@ fn continue_release_inner(d: &mut Domain, env: &Env<Limits>, task: u64, entry: u
             return;
         }
         if !row.effects_settled {
-            settle_prior_effects(d, task, out);
+            settle_prior_effects(d, env, task, out);
             return;
         }
         if !row.releasing {
@@ -8077,7 +8079,7 @@ fn continue_release_inner(d: &mut Domain, env: &Env<Limits>, task: u64, entry: u
         if !release_writers(d, env, task, out) {
             return;
         }
-        if !settle_held(d, task, out) {
+        if !settle_held(d, env, task, out) {
             return;
         }
         if !release_pull(d, env, &mut row, entry, out) {
@@ -8952,7 +8954,7 @@ fn resolve(d: &mut Domain, env: &Env<Limits>, number: u64, again: bool, out: &mu
         return;
     }
     if !again {
-        not_made(d, number, out);
+        not_made(d, env, number, out);
         return;
     }
     row.held = false;
@@ -8972,10 +8974,10 @@ fn erase_flight(d: &mut Domain, task: u64, entry: u64, out: &mut Queue<Request>)
 }
 
 /// Settle one held entry as not made, freeing its room.
-fn not_made(d: &mut Domain, number: u64, out: &mut Queue<Request>) {
+fn not_made(d: &mut Domain, env: &Env<Limits>, number: u64, out: &mut Queue<Request>) {
     outage::forget_entry(d, number);
     let row = d.entries.remove(&number).expect("a held entry lives");
-    crate::landing::not_made(d, row.entry.task, number, out);
+    crate::landing::not_made(d, env, row.entry.task, number, out);
     emit(out, Request::Erase { key: Key::Entry(number) });
     erase_flight(d, row.entry.task, number, out);
     emit(out, Request::NotMade { entry: number, task: row.entry.task });
@@ -8985,7 +8987,7 @@ fn not_made(d: &mut Domain, number: u64, out: &mut Queue<Request>) {
 /// output has room for, so its effects settle and their room is freed. True
 /// when none of the task's entries remains; one settled here continues the
 /// close in a later step.
-fn settle_held(d: &mut Domain, task: u64, out: &mut Queue<Request>) -> bool {
+fn settle_held(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queue<Request>) -> bool {
     let mut held = List::with_capacity(d.entries.len());
     let mut pending = false;
     for (number, row) in &d.entries {
@@ -9007,7 +9009,7 @@ fn settle_held(d: &mut Domain, task: u64, out: &mut Queue<Request>) -> bool {
         if out.room() < needed {
             break;
         }
-        not_made(d, *number, out);
+        not_made(d, env, *number, out);
     }
     continue_release_once(out, task);
     false
@@ -10021,6 +10023,7 @@ fn restore(d: &mut Domain, env: &Env<Limits>, record: Stored) {
             {
                 row.room = None;
             }
+            crate::landing::restoring(d, env, &row);
             d.landing.rows.insert(row.landing.task, row).expect("restored landing within limits");
         }
         Stored::Receipt { key, receipt } => {
@@ -10366,7 +10369,7 @@ fn retire_ended(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
             let task = d.entries.get(&number).expect("collected entry").entry.task;
             d.named_outcome(number, skein_forge_client::Outcome::Withdrawn);
             settled_facts(d, env, number, task, skein_forge_client::Outcome::Withdrawn, out);
-            not_made(d, number, out);
+            not_made(d, env, number, out);
             child(d, env, skein_forge_client::Event::Withdraw { entry: number }, out);
             if let Some(row) = d.releases.get(&task)
                 && !row.failed

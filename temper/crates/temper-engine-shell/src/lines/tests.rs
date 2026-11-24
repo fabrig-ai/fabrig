@@ -945,10 +945,8 @@ fn a_landings_read_run_names_its_start_end_and_hold() {
             format!("temper-box serve: landing 7 round 2 has its fresh read after 37m 12s: {READING}\n"),
         ),
         (
-            Kind::Held { elapsed, why: WHY.as_bytes().into() },
-            format!(
-                "temper-box serve: warning: landing 7 round 2 held after 37m 12s waiting for a fresh read: {READING}: {WHY}\n"
-            ),
+            Kind::Held { elapsed, words: format!("read: {READING}: {WHY}").into_bytes().into_boxed_slice() },
+            format!("temper-box serve: warning: landing 7 round 2 held after 37m 12s: read: {READING}: {WHY}\n"),
         ),
     ] {
         let note = LandingReadNote { task: 7, round: 2, reading: READING.as_bytes().into(), kind };

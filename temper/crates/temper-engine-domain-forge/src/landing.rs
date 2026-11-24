@@ -15,7 +15,7 @@ pub use temper_engine_domain_forge_vocabulary::landing::*;
 
 #[path = "landing_read_wait.rs"]
 mod read_wait;
-pub(crate) use read_wait::unavailable as read_unavailable;
+pub(crate) use read_wait::{clear as forget_progress, unavailable as read_unavailable};
 
 #[path = "landing_follow.rs"]
 mod saved_follow;
@@ -44,7 +44,7 @@ pub(crate) struct State {
     pub(crate) held: bool,
     pub(crate) pending: Map<Token, Pending>,
     decisions: Map<u64, Ready>,
-    read_runs: Map<u64, read_wait::Run>,
+    progress: Map<u64, read_wait::Progress>,
     pub(crate) keys: Map<Position, (api::Commit, Option<api::Commit>, policy::Key)>,
     pub(crate) main_keys: Map<RepositoryGate, KeyAt>,
     pub(crate) flights: Map<ReceiptKey, runs::Follow>,
@@ -254,7 +254,7 @@ impl State {
             held: false,
             pending: Map::with_capacity(l.landings),
             decisions: Map::with_capacity(l.landings),
-            read_runs: Map::with_capacity(l.landings),
+            progress: Map::with_capacity(l.landings),
             keys: Map::with_capacity(slots),
             main_keys: Map::with_capacity(l.repositories.checked_mul(l.gates).expect("gate bounds")),
             flights: Map::with_capacity(slots),
@@ -791,6 +791,24 @@ impl Domain {
     pub fn offered_landing(&mut self, task: u64) {
         self.landing.due.remove(&task);
     }
+    /// Wall time of the last advance and forge reads issued since it (domain/forge/contracts.md, 5).
+    #[must_use]
+    pub fn landing_advance(&self, task: u64) -> Option<(Wall, u64)> {
+        read_wait::last_advance(self, task)
+    }
+
+    /// The stall of the current forge wait, exposed to the world referee.
+    #[must_use]
+    pub fn inspection_landing_bound(&self, task: u64) -> Option<skein_lib::Time> {
+        read_wait::bound(self, task).or(read_wait::armed(self, task))
+    }
+
+    /// The engine's armed stall wake, separate from the poll.
+    #[must_use]
+    pub fn inspection_landing_stall_wake(&self, task: u64) -> Option<skein_lib::Time> {
+        read_wait::armed(self, task)
+    }
+
     #[must_use]
     pub fn landing(&self, task: u64) -> Option<&LandingRow> {
         self.landing.rows.get(&task)
@@ -984,7 +1002,19 @@ fn proof_key(proof: policy::Proof) -> Option<policy::Key> {
         | policy::Proof::Failed { key } => Some(key),
     }
 }
-pub(crate) fn save(d: &mut Domain, mut row: LandingRow, out: &mut Queue<Request>) {
+pub(crate) fn save(d: &mut Domain, env: &Env<Limits>, row: LandingRow, out: &mut Queue<Request>) {
+    let advances = match d.landing.rows.get(&row.landing.task) {
+        Some(prior) => read_wait::changed(prior, &row),
+        None => true,
+    };
+    if advances {
+        read_wait::advanced(d, env, &row);
+    }
+    save_row(d, row, out);
+}
+
+// History only writes a timestamp, never an advance.
+pub(crate) fn save_row(d: &mut Domain, mut row: LandingRow, out: &mut Queue<Request>) {
     if matches_terminal(&row.landing.phase) {
         leave_room(d, &mut row);
     }
@@ -1056,7 +1086,7 @@ pub(crate) fn register(d: &mut Domain, env: &Env<Limits>, row: LandingRow, out: 
         super::domain::save_change(d, out, saved);
     }
     let count = row.landing.members.len();
-    save(d, row, out);
+    save(d, env, row, out);
     for index in 0..count {
         emit(
             out,
@@ -1121,13 +1151,12 @@ fn fresh(gates: &[policy::Gate]) -> policy::MemberFacts {
     }
 }
 fn pending_for(d: &Domain, task: u64) -> Option<Token> {
-    let mut existing = None;
     for (token, pending) in &d.landing.pending {
         if pending.task == task {
-            existing = Some(*token);
+            return Some(*token);
         }
     }
-    existing
+    None
 }
 // A procedure consumes its result even when a prefix read is busy (domain/landing-prepare.md, 1.2).
 fn remember_preparation(d: &mut Domain, env: &Env<Limits>, task: u64, heard: &LandingHeard, out: &mut Queue<Request>) {
@@ -1143,7 +1172,7 @@ fn remember_preparation(d: &mut Domain, env: &Env<Limits>, task: u64, heard: &La
     if row.landing.round.failure != failure {
         let mut row = row.clone();
         row.landing.round.failure = failure;
-        save(d, row, out);
+        save(d, env, row, out);
     }
 }
 
@@ -1200,7 +1229,7 @@ fn retire_preparation(
     if row.landing.round.failure != failure {
         let mut row = row.clone();
         row.landing.round.failure = failure;
-        save(d, row, out);
+        save(d, env, row, out);
     }
 }
 
@@ -1239,8 +1268,10 @@ pub(crate) fn step(
     if entry == 0 && pending.is_some() {
         return;
     }
-    if heard.released || heard.cancelled {
-        read_wait::clear(d, task);
+    if heard.released
+        && let Some(row) = d.landing.rows.get(&task).cloned()
+    {
+        read_wait::released(d, env, &row);
     }
     if let Some(row) = d.landing.rows.get(&task)
         && let policy::Phase::Held { why: policy::Hold::Read, .. } = row.landing.phase
@@ -1252,16 +1283,8 @@ pub(crate) fn step(
         }
         return;
     }
-    if entry != 0
-        && pending.is_none()
-        && let Some(until) = read_wait::bound(d, task)
-        && until <= env.now
-    {
-        read_ready(d, task, ReadStep::Stalled, out);
-        return;
-    }
     if let Some(job) = heard.job.take() {
-        crate::job_history::heard(d, env.wall, task, job, out);
+        crate::job_history::heard(d, env, task, job, out);
     }
     retire_preparation(d, env, task, &mut heard, out);
     remember_preparation(d, env, task, &heard, out);
@@ -1285,9 +1308,6 @@ pub(crate) fn step(
         pending.entry = entry;
         pending.heard = heard;
         pending.woken = true;
-        if pending.retry == Retry::Waiting {
-            read_in_line(d, env, token, out);
-        }
         return;
     }
     let Some(mut row) = d.landing.rows.get(&task).cloned() else {
@@ -1304,7 +1324,16 @@ pub(crate) fn step(
         member.pull = pull;
     }
     if d.landing.rows.get(&task) != Some(&row) {
-        save(d, row.clone(), out);
+        save(d, env, row.clone(), out);
+    }
+    if entry != 0
+        && pending.is_none()
+        && !heard.cancelled
+        && let Some(until) = read_wait::bound(d, task)
+        && until <= env.now
+    {
+        read_ready(d, task, ReadStep::Stalled, out);
+        return;
     }
     let mut facts = List::with_capacity(env.limits.landing_members);
     let mut evidence = List::with_capacity(env.limits.landing_members);
@@ -1358,6 +1387,7 @@ pub(crate) fn step(
             },
         )
         .expect("one chain per landing");
+    read_wait::issued(d, env, owner);
     child(d, env, skein_forge_client::Event::Read { owner, repository: repo, read }, out);
 }
 fn ask(
@@ -1380,6 +1410,7 @@ fn ask(
     let cached = pending.cached;
     d.landing.pending.insert(owner, pending).expect("replaces pending chain");
     if !cached {
+        read_wait::issued(d, env, owner);
         child(d, env, skein_forge_client::Event::Read { owner, repository, read }, out);
     }
 }
@@ -1493,11 +1524,10 @@ fn read_decision(d: &mut Domain, env: &Env<Limits>, task: u64, step: ReadStep, o
         }
         ReadStep::Failed(_) | ReadStep::Stalled => {
             let repository = if let ReadStep::Failed(failure) = step {
-                let repository = failure.repository();
-                read_wait::record(d, env, task, failure, false, out);
-                repository
+                read_wait::failed(d, env, &row, failure);
+                read_wait::repository_waiting(d, task).expect("failed wait's provider")
             } else {
-                let Some(repository) = read_wait::repository(d, task) else {
+                let Some(repository) = read_wait::repository_waiting(d, task) else {
                     emit(out, Request::WakeProcedure { task });
                     return;
                 };
@@ -1525,7 +1555,7 @@ fn read_decision(d: &mut Domain, env: &Env<Limits>, task: u64, step: ReadStep, o
         if row.landing.round.ending.is_some() && prior.landing.round.ending.is_none() {
             end_runs(d, env, &prior, &mut row, crate::history::GateVerdict::Superseded, None, out);
         }
-        save(d, row, out);
+        save(d, env, row, out);
     }
     if let policy::Decision::Hold(policy::Hold::Read) = decision {
         for (member, _) in prior.landing.members.iter().enumerate() {
@@ -1540,16 +1570,6 @@ fn read_decision(d: &mut Domain, env: &Env<Limits>, task: u64, step: ReadStep, o
         }
     }
     emit_decision(out, Request::LandingDecision { task, decision, entry: None, evidence: None }, d, env);
-}
-
-fn read_in_line(d: &mut Domain, env: &Env<Limits>, owner: Token, out: &mut Queue<Request>) {
-    let p = d.landing.pending.get(&owner).expect("pending gather");
-    let Some(row) = d.landing.rows.get(&p.task) else { return };
-    if p.entry != 0 && !read_wait::running(d, p.task) {
-        let failure = read_wait::Failure::pending(row, p, read_wait::Cause::Pending);
-        let exempt = crate::domain::outage::reading(d, owner);
-        read_wait::record(d, env, p.task, failure, exempt, out);
-    }
 }
 
 pub(crate) fn read_deadline(d: &Domain) -> Option<skein_lib::Time> {
@@ -1601,6 +1621,7 @@ fn advance(
     if !d.repositories.contains_key(&p.repository) {
         return;
     }
+    let cached = p.cached;
     p.cached = false;
     if d.stopping {
         return;
@@ -1611,7 +1632,6 @@ fn advance(
                 // Admission made no call. Keep the coherent prefix and wait for this read.
                 d.landing.pending.insert(owner, p).expect("keeps the gather's slot");
                 wait_in_line(d, owner, env.now, out);
-                read_in_line(d, env, owner, out);
                 return;
             }
             Err(api::Error::NotConnected) => {
@@ -1623,10 +1643,11 @@ fn advance(
             Ok(_) | Err(_) => {}
         }
     }
-    if p.entry != 0 {
-        read_wait::resume(d, env, p.task, p.repository);
-    }
     let error = answer.as_ref().err().copied();
+    if !cached {
+        read_wait::resume(d, env, p.task, p.repository);
+        read_wait::answered(d, &p, error);
+    }
     let Some(row) = d.landing.rows.get(&p.task).cloned() else {
         return;
     };
@@ -1931,7 +1952,7 @@ fn advance(
                 d.landing.flights.get_mut(&key).expect("unreported flight").outcome =
                     Some(policy::Verdict::Fault(policy::Fault::Unreported));
                 reported_end(d, env, &key, crate::history::GateVerdict::Fault, out);
-                retain_fault(d, &key, out);
+                retain_fault(d, env, &key, out);
                 p.polled.push(key).expect("one poll per flight");
                 p.stage = Stage::Collect;
                 collect(d, env, owner, p, out);
@@ -1956,7 +1977,7 @@ fn advance(
                 Some(selected) => selected_report(selected, failures.as_ref()),
                 None => true,
             };
-            if selected_failed && start_flake_rerun(d, &key, &run, &report, out) {
+            if selected_failed && start_flake_rerun(d, env, &key, &run, &report, out) {
                 p.polled.push(key).expect("one poll per flight");
                 collect(d, env, owner, p, out);
                 return;
@@ -2035,7 +2056,7 @@ fn advance(
             let mut observed = dispatching.clone();
             crate::landing_proofs::run(d, env, &mut observed, &flight, verdict, out);
             if observed.follows != dispatching.follows || observed.entries != dispatching.entries {
-                save(d, observed, out);
+                save(d, env, observed, out);
             }
             if previous_run != current_run {
                 mark_key(d, &key, out);
@@ -2063,9 +2084,9 @@ fn advance(
                         if tests_value(&flight.inputs).is_none() {
                             put_receipt(d, env, key.clone(), receipt, out);
                         }
-                        finish_flight(d, &key, Some((run.number, true)), out);
+                        finish_flight(d, env, &key, Some((run.number, true)), out);
                     }
-                    policy::Verdict::Fault(_) => retain_fault(d, &key, out),
+                    policy::Verdict::Fault(_) => retain_fault(d, env, &key, out),
                     policy::Verdict::Running => {}
                 }
             } else if let Some(read) = next {
@@ -3138,6 +3159,29 @@ fn commit_decision(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pendi
     crate::job_history::prepared(d, env.wall, &mut row, &p.facts, out);
     let prior = row.clone();
     row.landing = stepped.landing;
+    if let policy::Decision::Wait { on, .. } = stepped.decision {
+        let shared = if let policy::Awaited::Receipt { member, gate } = on {
+            facts
+                .members
+                .get(usize::from(member))
+                .expect("receipt member")
+                .gates
+                .get(usize::from(gate))
+                .expect("receipt gate")
+                .flight
+                == policy::Flight::Other
+        } else {
+            false
+        };
+        read_wait::policy_wait(d, env, &row, on, shared);
+        if !read_wait::changed(d.landing.rows.get(&p.task).expect("pending landing"), &row)
+            && let Some(until) = read_wait::bound(d, p.task)
+            && until <= env.now
+        {
+            read_decision(d, env, p.task, ReadStep::Stalled, out);
+            return;
+        }
+    }
     if stepped.decision == policy::Decision::Hold(policy::Hold::Turn)
         && facts.members.get(usize::from(top)).expect("top facts").merge == policy::Status::Failed
         && facts.round_pull != policy::RoundPull::Unread
@@ -3453,7 +3497,7 @@ fn commit_decision(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pendi
             let repo = repository(row.landing.members.get(usize::from(member)).expect("member"));
             p.stage =
                 Stage::Tree { member, gate, candidate, object: candidate, page: 1, main: false, reading_base: false };
-            save(d, row, out);
+            save(d, env, row, out);
             ask(d, env, owner, p, repo, api::Read::Tree { object: candidate, page: 1 }, out);
             return;
         }
@@ -3552,9 +3596,9 @@ fn commit_decision(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pendi
         policy::Decision::Proved => {
             crate::landing_proofs::proved(d, env.wall, &prior, &row, out);
             if row.landing.round.branch.is_empty() {
-                save(d, row.clone(), out);
+                save(d, env, row.clone(), out);
                 if !single_turn(d, &row, &p.heard.kept) {
-                    save(d, row, out);
+                    save(d, env, row, out);
                     emit_decision(
                         out,
                         Request::LandingDecision {
@@ -3694,7 +3738,7 @@ fn commit_decision(d: &mut Domain, env: &Env<Limits>, owner: Token, mut p: Pendi
     if crate::views::matches_turn(&row.landing.phase) && !crate::views::matches_turn(&prior.landing.phase) {
         row.turn_since = Some(env.wall);
     }
-    save(d, row, out);
+    save(d, env, row, out);
     if let Some(step) = news {
         for member in news_members.into_boxed() {
             emit(out, Request::LandingNews { task: p.task, member, step });
@@ -4121,7 +4165,13 @@ pub(crate) fn put_receipt(
     mark_key(d, &key, out);
     emit(out, Request::Save { record: Stored::Receipt { key, receipt }, read_afresh: None, release: None });
 }
-fn finish_flight(d: &mut Domain, key: &ReceiptKey, probed: Option<(u64, bool)>, out: &mut Queue<Request>) {
+fn finish_flight(
+    d: &mut Domain,
+    env: &Env<Limits>,
+    key: &ReceiptKey,
+    probed: Option<(u64, bool)>,
+    out: &mut Queue<Request>,
+) {
     let Some(flight) = d.landing.flights.remove(key) else {
         return;
     };
@@ -4144,7 +4194,7 @@ fn finish_flight(d: &mut Domain, key: &ReceiptKey, probed: Option<(u64, bool)>, 
         }
     }
     saved_follow::prune(&mut row, &d.landing.limits);
-    save(d, row, out);
+    save(d, env, row, out);
     emit(out, Request::WakeProcedure { task: flight.task });
     saved_follow::wake_project(d, key.project, flight.task, out);
 }
@@ -4307,7 +4357,7 @@ pub(crate) fn outcome(
             row.landing.round.failure =
                 crate::preparation::remember(&row.landing.round.failure, &words, d.landing.limits.landing_members);
         }
-        save(d, row, out);
+        save(d, env, row, out);
     }
     if d.landing.rows.get(&task).expect("effect landing").landing.phase != policy::Phase::Cancelled {
         emit(out, Request::WakeProcedure { task });
@@ -4329,11 +4379,11 @@ fn remove_entry(row: &mut LandingRow, entry: u64, limits: &Limits) -> bool {
 }
 
 /// A held write leaves on explicit settlement rather than on its hold.
-pub(crate) fn not_made(d: &mut Domain, task: u64, entry: u64, out: &mut Queue<Request>) {
+pub(crate) fn not_made(d: &mut Domain, env: &Env<Limits>, task: u64, entry: u64, out: &mut Queue<Request>) {
     if let Some(mut row) = d.landing.rows.get(&task).cloned()
         && remove_entry(&mut row, entry, &d.landing.limits)
     {
-        save(d, row, out);
+        save(d, env, row, out);
     }
 }
 fn awaits_pull(row: &LandingRow, member: &policy::Member, provider: api::Repository, number: u64) -> bool {
@@ -4506,6 +4556,7 @@ pub(crate) fn ask_for(d: &Domain, change: &crate::ChangeRow) -> Option<change::A
 #[expect(clippy::match_like_matches_macro, reason = "the foundation forbids matches macros in step code")]
 pub(crate) fn change_advanced(
     d: &mut Domain,
+    env: &Env<Limits>,
     row: &mut crate::ChangeRow,
     prior: &change::Change,
     decision: change::Decision,
@@ -4561,7 +4612,7 @@ pub(crate) fn change_advanced(
         }
     }
     if d.landing.rows.get(&task) != Some(&landing) {
-        save(d, landing, out);
+        save(d, env, landing, out);
     }
     if prior != &row.change {
         emit(out, Request::WakeProcedure { task });
@@ -4693,6 +4744,7 @@ fn reset_results(d: &mut Domain, row: &mut LandingRow, prior: &LandingRow) {
 /// (domain/landing-regate.md, 2, 4, 5).
 fn start_flake_rerun(
     d: &mut Domain,
+    env: &Env<Limits>,
     key: &ReceiptKey,
     run: &api::Run,
     report: &ReceiptReport,
@@ -4741,7 +4793,7 @@ fn start_flake_rerun(
         })
         .expect("one new key");
     row.flake_reruns = reruns.into_boxed();
-    save(d, row, out);
+    save(d, env, row, out);
     emit(out, Request::WakeProcedure { task });
     true
 }
@@ -4801,7 +4853,7 @@ fn continue_flake_rerun(
     let base = entry_base(row, flight.entry);
     if flight.waiting || entry == 0 {
         leave_room(d, row);
-        save(d, row.clone(), out);
+        save(d, env, row.clone(), out);
         emit_decision(
             out,
             Request::LandingDecision {
@@ -4851,7 +4903,7 @@ fn continue_flake_rerun(
             kept.base = base;
         }
     }
-    save(d, row.clone(), out);
+    save(d, env, row.clone(), out);
     mark_key(d, &key, out);
     emit_decision(
         out,
@@ -4913,7 +4965,7 @@ fn continue_retry(
     };
     if result(d, row.landing.task, member, gate, 2) == policy::Status::Pending {
         leave_room(d, row);
-        save(d, row.clone(), out);
+        save(d, env, row.clone(), out);
         emit_decision(
             out,
             Request::LandingDecision {
@@ -4938,7 +4990,7 @@ fn continue_retry(
         }
     {
         leave_room(d, row);
-        save(d, row.clone(), out);
+        save(d, env, row.clone(), out);
         emit_decision(
             out,
             Request::LandingDecision {
@@ -4961,7 +5013,7 @@ fn continue_retry(
     let flight = d.landing.flights.get_mut(&key).expect("admitted reruns");
     let write = flight.write(entry).expect("next failed job");
     keep(d, row, entry, member, gate, Operation::Rerun, write, skein_forge_client::Condition::None, out);
-    save(d, row.clone(), out);
+    save(d, env, row.clone(), out);
     emit_decision(
         out,
         Request::LandingDecision {
@@ -5003,7 +5055,12 @@ fn following_wait(d: &Domain, task: u64) -> Option<policy::Awaited> {
 
 /// Startup's fresh-read wake may precede task activation; rebuild the poll at `CatchUp`
 /// (domain/landing.md, 12; domain/root-restart.md, 1.1).
+pub(crate) fn restoring(d: &mut Domain, env: &Env<Limits>, row: &LandingRow) {
+    read_wait::advanced(d, env, row);
+}
+
 pub(crate) fn restore_waits(d: &mut Domain, env: &Env<Limits>) {
+    read_wait::restore_waits(d, env);
     for (task, row) in &d.landing.rows {
         if row.room.is_some() {
             continue;
@@ -5608,7 +5665,7 @@ impl Domain {
 }
 /// Authority's wait is not a refused merge: it spent no send and keeps its turn
 /// (domain/forge/catching-up.md, 4; domain/landing-turn.md, 1).
-pub(crate) fn defer_merge(d: &mut Domain, task: u64, entry: u64, out: &mut Queue<Request>) {
+pub(crate) fn defer_merge(d: &mut Domain, env: &Env<Limits>, task: u64, entry: u64, out: &mut Queue<Request>) {
     if !matches_entry(d, task, entry) {
         return;
     }
@@ -5642,7 +5699,7 @@ pub(crate) fn defer_merge(d: &mut Domain, task: u64, entry: u64, out: &mut Queue
     row.entries = entries.into_boxed();
     d.entries.remove(&entry);
     emit(out, Request::Erase { key: Key::Entry(entry) });
-    save(d, row, out);
+    save(d, env, row, out);
     let repositories = match d.landing.rows.get(&task) {
         Some(row) => repositories(row, d.repositories.capacity()),
         None => Box::new([]),
@@ -5724,7 +5781,7 @@ pub(crate) fn closing(
             }
         }
         crate::landing_history::transition(d, env.wall, &prior, &row, out);
-        save(d, row, out);
+        save(d, env, row, out);
         for member in told.into_boxed() {
             emit(out, Request::LandingNews { task, member, step: crate::LandingNews::Landed });
         }
@@ -5744,7 +5801,7 @@ pub(crate) fn closing(
         unlink(change, Some(&mut row));
         let changed = change.clone();
         crate::domain::save_change_parts(d, out, changed);
-        save(d, row, out);
+        save(d, env, row, out);
         emit(out, Request::WakeProcedure { task: landing });
     }
 }
@@ -5847,7 +5904,7 @@ fn admit_entry(
         let mut prior = d.landing.rows.get(&task).expect("pending landing").clone();
         if prior.room.is_some() {
             leave_room(d, &mut prior);
-            save(d, prior, out);
+            save(d, env, prior, out);
         }
         refuse_entry(task, row, member, out);
         return false;
@@ -5858,7 +5915,7 @@ fn admit_entry(
     let mut prior = d.landing.rows.get(&task).expect("pending landing").clone();
     if prior.room.is_none() {
         prior.room = Some(crate::room::next_place(d));
-        save(d, prior, out);
+        save(d, env, prior, out);
     }
     d.landing.due.remove(&task);
     emit_decision(
@@ -5906,12 +5963,12 @@ fn reported_end(
     let mut observed = dispatching.clone();
     crate::landing_proofs::run(d, env, &mut observed, &flight, Some(verdict), out);
     if observed.follows != dispatching.follows || observed.entries != dispatching.entries {
-        save(d, observed, out);
+        save(d, env, observed, out);
     }
 }
 
 /// Keep the failed run's job attempts for the policy's retry, never a receipt (domain/landing-proof.md, 2.4).
-fn retain_fault(d: &mut Domain, key: &ReceiptKey, out: &mut Queue<Request>) {
+fn retain_fault(d: &mut Domain, env: &Env<Limits>, key: &ReceiptKey, out: &mut Queue<Request>) {
     let flight = d.landing.flights.get(key).expect("faulting flight");
     let dispatching = d.landing.rows.get(&flight.task).expect("dispatching landing");
     let mut position = None;
@@ -5927,7 +5984,7 @@ fn retain_fault(d: &mut Domain, key: &ReceiptKey, out: &mut Queue<Request>) {
             d.landing.faults.insert(position, flight).expect("bounded faults");
         }
     } else {
-        finish_flight(d, key, None, out);
+        finish_flight(d, env, key, None, out);
     }
     mark_key(d, key, out);
 }
@@ -6027,7 +6084,7 @@ fn failed_jobs(
     let row_logs = log.into_boxed();
     row.landing.round.failure =
         crate::preparation::remember(&row.landing.round.failure, &row_logs, env.limits.landing_members);
-    save(d, row, out);
+    save(d, env, row, out);
     let mut report = None;
     for gate in d.landing.gates(key.project, key.repository) {
         if key.check == Check::Gate(gate.name.clone()) {
@@ -6088,7 +6145,7 @@ fn failed_receipt(
     if !no_verdict {
         put_receipt(d, env, key.clone(), receipt, out);
     }
-    finish_flight(d, &key, if no_verdict { Some((number, false)) } else { None }, out);
+    finish_flight(d, env, &key, if no_verdict { Some((number, false)) } else { None }, out);
     collect(d, env, owner, p, out);
 }
 
@@ -6279,13 +6336,18 @@ pub(crate) fn erase_repository_receipts(d: &mut Domain, repository: api::Reposit
 /// Keep the wait of the decision carried out by the top (domain/landing-waits.md, 4).
 fn emit_decision(out: &mut Queue<Request>, request: Request, d: &mut Domain, env: &Env<Limits>) {
     if let Request::LandingDecision { task, decision, .. } = &request {
+        if let policy::Decision::Wait { on: on @ policy::Awaited::Run { .. }, .. } = decision
+            && let Some(row) = d.landing.rows.get(task).cloned()
+        {
+            read_wait::policy_wait(d, env, &row, *on, false);
+        }
         read_wait::decided(d, env, *task, *decision, out);
         let waiting = if let policy::Decision::Wait { on, .. } = decision { Some(*on) } else { None };
         if let Some(mut row) = d.landing.rows.get(task).cloned()
             && row.waiting != waiting
         {
             row.waiting = waiting;
-            save(d, row, out);
+            save(d, env, row, out);
         }
     }
     emit(out, request);

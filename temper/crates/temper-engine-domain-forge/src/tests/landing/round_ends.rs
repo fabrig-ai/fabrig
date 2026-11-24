@@ -13,7 +13,6 @@ const MOVED: api::Commit = [21; 32];
 const INCIDENT_PAGES: u32 = 3;
 const LONG_PAGES: u32 = CLIENT.rows + 1;
 const ROWS: u64 = 8; // CLIENT.rows
-const POLLS_TO_STALL: u32 = 3; // STALL divided by CLIENT.poll
 const STALL: Duration = Duration::from_secs(15);
 
 #[derive(Clone, Copy)]
@@ -69,6 +68,16 @@ struct World {
     prefix_pages: List<u32>,
     read_log: List<LandingReadNote>,
     held_news: List<u16>,
+    refused_pull: Option<u64>,
+    comparisons: List<(api::Commit, api::Commit)>,
+    open: Open,
+}
+
+#[derive(Clone, Copy)]
+enum Open {
+    Answer,
+    Withhold,
+    Sent(Token),
 }
 impl World {
     fn new(round: u16, goal: bool, by_test: bool) -> Self {
@@ -93,6 +102,9 @@ impl World {
             prefix_pages: List::uncapped(),
             read_log: List::uncapped(),
             held_news: List::uncapped(),
+            refused_pull: None,
+            comparisons: List::uncapped(),
+            open: Open::Answer,
         };
         w.send(Event::Restore { record: Stored::Repository(adopted()) });
         let mut members = List::uncapped();
@@ -200,6 +212,9 @@ impl World {
                 Ok(Answer::Commit(if self.moved && branch.as_ref() == SOURCE_ABOVE { MOVED } else { fixtures::HEAD }))
             }
             Read::Pull { number, .. } => {
+                if self.refused_pull == Some(number) {
+                    return Err(Error::Forbidden);
+                }
                 if let Some(pull) = &self.pull
                     && pull.number == number
                 {
@@ -238,6 +253,12 @@ impl World {
                 PrefixHistory::Refused => Ok(history_page(page, INCIDENT_PAGES)),
                 PrefixHistory::Complete(pages) => Ok(history_page(page, pages)),
             },
+            Read::Commits { .. } if row.landing.round.branch.is_empty() => {
+                Ok(Answer::Commits { commits: Box::new([]), more: true })
+            }
+            Read::Compare { before, after } => {
+                Ok(Answer::Compare { before, after, changed: 0, ahead: 1, behind: 0, files: Box::new([]) })
+            }
             Read::Commits { before, after, .. } => Ok(Answer::Commits {
                 // The outside tip contains neither the source head nor the prepared prefix.
                 commits: if before == self.main && (after == fixtures::HEAD || after == MOVED) {
@@ -346,6 +367,9 @@ impl World {
             {
                 self.prefix_pages.push(page).unwrap();
             }
+            if let Read::Compare { before, after } = read {
+                self.comparisons.push((before, after)).unwrap();
+            }
             let result = self.read(read);
             out = self.send(Event::Client(skein_forge_client::Event::Answered {
                 call,
@@ -379,6 +403,10 @@ impl World {
                     assert_eq!(sent, write);
                     let answer = match &sent {
                         Write::OpenPull { head, .. } => {
+                            if let Open::Withhold = self.open {
+                                self.open = Open::Sent(call);
+                                return;
+                            }
                             let row = self.d.landing(TASK).unwrap();
                             let i = member_at(row, head);
                             let mut pull = fixtures::open_pull();
@@ -499,22 +527,129 @@ fn kept_lower_prefix(history: PrefixHistory) -> World {
 
 #[test]
 fn a_kept_prefixs_refused_second_page_holds_the_round() {
+    const READS: u64 = 22;
     let mut w = kept_lower_prefix(PrefixHistory::Refused);
     let poll = w.env.limits.client.poll;
-    for _ in 0..POLLS_TO_STALL {
+    let since = w.env.wall;
+    for _ in 0_u32..2 {
         assert!(matches!(w.decide_after(poll), policy::Decision::Wait { on: policy::Awaited::Read, .. }));
     }
+    assert_eq!(w.d.landing_advance(TASK), Some((since, READS)));
     assert_eq!(w.decide_after(poll), policy::Decision::Hold(policy::Hold::Read));
-    let reason = skein_lib::bytes::concat(&[b"read: ", &incident_reading(), b": ", REFUSAL.as_bytes()]);
-    assert_eq!(w.d.landing_hold_words(TASK), Some(reason));
+    let ending = alloc::format!(": {REFUSAL}; {READS} reads since 00:02Z, none advanced the round");
+    let words = skein_lib::bytes::concat(&[b"read: ", &incident_reading(), ending.as_bytes()]);
+    let reason: Box<[u8]> = words.get(..skein_lib::usize_of(crate::history::REASON_BYTES)).unwrap_or(&words).into();
+    assert_eq!(w.d.landing_hold_words(TASK), Some(reason.clone()));
     assert_eq!(w.held_news.as_slice(), &[0, 1]);
     assert_eq!(
         w.read_log.as_slice(),
         &[
             read_note(LandingReadNoteKind::Started { why: REFUSAL.as_bytes().into() }),
-            read_note(LandingReadNoteKind::Held { elapsed: STALL, why: REFUSAL.as_bytes().into() }),
+            read_note(LandingReadNoteKind::Held { elapsed: STALL, words: reason }),
         ]
     );
+}
+
+#[test]
+fn unchanged_comparisons_stall_across_ancestry_and_read_waits() {
+    use policy::{Awaited, Decision};
+    const READS: u64 = 41; // Three complete gathers and one ending at pull #2.
+    const FIRST_POLL: Duration = Duration::from_secs(4);
+    let mut w = World::with_members(1, true, false, 2);
+    w.env.limits.change_policy.stall = STALL;
+    let since = Wall::from_nanos(127 * Duration::from_secs(60).as_nanos());
+    w.env.wall = since;
+    let mut row = w.d.landing(TASK).unwrap().clone();
+    row.landing.round = policy::Round::new(Box::new([]));
+    row.landing.branch = b"main".as_slice().into();
+    for member in &mut row.landing.members {
+        w.d.changes.get_mut(&member.change).unwrap().base = row.landing.branch.clone();
+        member.head = Some(MOVED);
+        member.base = Some(fixtures::BASE);
+        member.candidate = Some(fixtures::HEAD);
+    }
+    landing::save(&mut w.d, &w.env, row, &mut Queue::uncapped());
+    turn_rule(&mut w.d, b"main", &[1], false);
+    for (refused, on) in
+        [(None, Awaited::Ancestry { member: 0 }), (Some(2), Awaited::Read), (None, Awaited::Ancestry { member: 0 })]
+    {
+        w.refused_pull = refused;
+        assert!(matches!(w.decide_after(FIRST_POLL), Decision::Wait { on: got, .. } if got == on));
+    }
+    assert_eq!(w.comparisons.as_slice(), &[(fixtures::BASE, fixtures::HEAD); 7]);
+    assert_eq!(w.d.landing_advance(TASK), Some((since, READS)));
+    w.d.wait_landing(&w.env, TASK, Some(wall_after(&w, w.env.limits.client.poll)));
+    let before = Duration::from_secs(2);
+    assert!(!has_wake(fixtures::advance(&mut w.d, &mut w.env, before)));
+    assert!(has_wake(fixtures::advance(&mut w.d, &mut w.env, Duration::from_secs(1))));
+    assert_eq!(w.decide_heard(preparing_heard(None)), Decision::Hold(policy::Hold::Read));
+    let reason = alloc::format!(
+        "read: the comparison of {} and {}, for change 52: answered; {READS} reads since 02:07Z, none advanced the round",
+        "04".repeat(fixtures::BASE.len()),
+        "03".repeat(fixtures::HEAD.len())
+    );
+    assert_eq!(w.d.landing_hold_words(TASK).unwrap().as_ref(), reason.as_bytes());
+    assert_eq!(w.read_log.len(), 3, "one read run and one hold");
+    assert!(matches!(w.read_log.as_slice()[2].kind, LandingReadNoteKind::Held { elapsed: STALL, .. }));
+}
+
+#[test]
+fn arming_a_prepare_retry_does_not_advance_the_landing() {
+    use policy::{Awaited, Decision};
+    let mut w = World::with_members(1, true, false, 1);
+    w.env.limits.change_policy.stall = STALL;
+    w.env.limits.client.poll = STALL.saturating_add(STALL);
+    w.decide(Decision::Prepare { member: 0, head: fixtures::HEAD, main: fixtures::BASE });
+    let since = w.env.wall;
+    let bound = w.env.now.saturating_add(STALL);
+    assert!(w.d.landing(TASK).unwrap().landing.last_prepare.as_ref().unwrap().again.is_none());
+    let decision = w.decide_after(Duration::from_secs(5));
+    let Decision::Wait { on: Awaited::Prefixes, until: Some(again) } = decision else { panic!("{decision:?}") };
+    assert_eq!(w.d.landing(TASK).unwrap().landing.last_prepare.as_ref().unwrap().again, Some(again));
+    assert_eq!(w.d.landing_advance(TASK).unwrap().0, since);
+    assert_eq!(w.d.inspection_landing_bound(TASK), Some(bound));
+}
+
+#[test]
+fn an_unanswered_open_holds_at_the_stall_without_withdrawing_its_entry() {
+    use crate::history::{Job, JobOutcome, JobStep};
+    use policy::{Awaited, Decision};
+    let mut w = World::with_members(1, true, false, 1);
+    let stall = Duration::from_secs(8);
+    w.env.limits.change_policy.stall = stall;
+    w.env.limits.client.lifetime = Duration::from_secs(20);
+    w.env.limits.client.poll = Duration::from_secs(30);
+    w.prepared(true);
+    let job = JobStep { task: 71, attempt: 1, job: Job::Prepare, outcome: None, head: None };
+    w.send(Event::JobHistory { task: TASK, job });
+    w.open = Open::Withhold;
+    let gap = Duration::from_secs(2);
+    assert_eq!(w.decide_after(gap), Decision::Open);
+    let entry = w.entry;
+    let advanced = w.env.wall;
+    assert_eq!(w.decide_after(gap), Decision::Wait { until: None, on: Awaited::Open });
+    assert_eq!(w.d.landing_advance(TASK).unwrap().0, advanced);
+    // The prepare's recorded end is real progress, but the open still owes an answer.
+    w.clock(gap);
+    w.send(Event::JobHistory { task: TASK, job: JobStep { outcome: Some(JobOutcome::Done), ..job } });
+    assert_eq!(w.d.landing_advance(TASK), Some((w.env.wall, 0)));
+    w.d.wait_landing(&w.env, TASK, None);
+    assert!(!has_wake(fixtures::advance(&mut w.d, &mut w.env, gap)));
+    assert!(has_wake(fixtures::advance(
+        &mut w.d,
+        &mut w.env,
+        Duration::from_nanos(stall.as_nanos().checked_sub(gap.as_nanos()).unwrap())
+    )));
+    assert_eq!(w.decide_heard(preparing_heard(None)), Decision::Hold(policy::Hold::Read));
+    let hold = w.d.landing_hold_words(TASK).unwrap();
+    assert_eq!(hold.as_ref(), b"read: the round's pull request to open: no answer");
+    assert!(w.d.entries.contains_key(&entry), "the open remains in the outbox");
+    let Open::Sent(call) = w.open else { panic!("the open was sent") };
+    w.clock(Duration::from_secs(1));
+    fixtures::answer_at(&mut w.d, &w.env, call, Ok(Answer::Created(entry)));
+    assert!(!w.d.entries.contains_key(&entry), "the open settled on its answer while held");
+    assert_eq!(w.d.landing_hold_words(TASK), Some(hold));
+    assert_eq!(w.d.landing_advance(TASK), Some((w.env.wall, 0)), "the recorded answer is an advance");
 }
 
 const REFUSAL: &str = "past forge.client.rows (8): at least 9 rows";
@@ -545,7 +680,8 @@ fn wall_after(w: &World, by: Duration) -> Wall {
 #[test]
 fn two_short_read_runs_log_each_start_and_end_once() {
     let mut w = kept_lower_prefix(PrefixHistory::Refused);
-    let poll = w.env.limits.client.poll;
+    let poll = Duration::from_secs(4);
+    w.env.limits.client.poll = poll;
     for next in [policy::Decision::Open, policy::Decision::None] {
         w.history = PrefixHistory::Refused;
         w.decide_after(poll);
@@ -563,11 +699,12 @@ fn a_read_run_wakes_at_the_stall_before_the_poll() {
     let mut w = kept_lower_prefix(PrefixHistory::Refused);
     let slow_poll = STALL.saturating_add(STALL);
     w.env.limits.client.poll = slow_poll;
-    let decision = w.decide_after(slow_poll);
-    let deadline = wall_after(&w, STALL);
+    let before = Duration::from_secs(5);
+    let decision = w.decide_after(Duration::from_secs(10));
+    let deadline = wall_after(&w, before);
     assert_eq!(decision, read_decision(deadline));
     w.d.wait_landing(&w.env, TASK, Some(deadline));
-    let out = fixtures::advance(&mut w.d, &mut w.env, STALL);
+    let out = fixtures::advance(&mut w.d, &mut w.env, before);
     assert!(has_wake(out));
 }
 
@@ -588,12 +725,14 @@ fn reconnecting_restarts_a_landings_read_stall_clock() {
     w.decide_after(poll);
     w.clock(poll);
     w.send(Event::Connection { forge: REPO.forge, state: Connection::NotConnected });
+    assert_eq!(w.d.inspection_landing_bound(TASK), None);
     w.clock(STALL);
     assert!(matches!(w.decide_after(poll), policy::Decision::Wait { on: policy::Awaited::Read, .. }));
     w.send(Event::Connection {
         forge: REPO.forge,
         state: Connection::Connected { id: 7, login: b"bot".as_slice().into() },
     });
+    assert_eq!(w.d.landing_advance(TASK), Some((w.env.wall, 0)));
     assert!(matches!(w.decide_after(poll), policy::Decision::Wait { on: policy::Awaited::Read, .. }));
     assert_eq!(w.decide_after(STALL), policy::Decision::Hold(policy::Hold::Read));
 }
@@ -611,7 +750,10 @@ fn a_read_queued_for_room_holds_without_an_answer() {
     assert_eq!(decision, policy::Decision::Hold(policy::Hold::Read));
     assert_eq!(
         w.d.landing_hold_words(TASK).as_deref(),
-        Some(b"read: branch temper/c0, for change 51: no answer".as_slice())
+        Some(
+            b"read: branch temper/c0, for change 51: no answer; 1 reads since 00:02Z, none advanced the round"
+                .as_slice()
+        )
     );
     assert!(w.d.landing.pending.is_empty());
 }
@@ -631,9 +773,11 @@ fn an_outage_retry_restarts_the_read_stall_clock() {
     w.offer(preparing_heard(None));
     let (call, _) = fixtures::next_at(&mut w.d, &w.env);
     fixtures::answer_at(&mut w.d, &w.env, call, Err(Error::Unavailable));
+    assert_eq!(w.d.inspection_landing_bound(TASK), None);
     let out = fixtures::advance(&mut w.d, &mut w.env, STALL);
     let out = accepted(&mut w.d, &w.env, out);
     assert_eq!(w.drive(out), read_decision(wall_after(&w, poll)));
+    assert_eq!(w.d.landing_advance(TASK).unwrap().0, w.env.wall);
     assert_eq!(w.decide_after(poll), read_decision(wall_after(&w, poll)));
     assert_eq!(w.decide_after(STALL), policy::Decision::Hold(policy::Hold::Read));
 }
@@ -649,6 +793,7 @@ fn a_read_hold_releases_into_a_new_round_with_receipts() {
     let mut heard = preparing_heard(None);
     heard.released = true;
     assert_eq!(w.decide_heard(heard), policy::Decision::None);
+    assert_eq!(w.d.landing_advance(TASK), Some((w.env.wall, 0)));
     w.history = PrefixHistory::Complete(INCIDENT_PAGES);
     w.decide(policy::Decision::Delete { member: 0 });
     w.decide(policy::Decision::Stale);
