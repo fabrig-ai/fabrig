@@ -6,6 +6,10 @@ use skein_world::{
     streams::{Stream, Streams},
 };
 use temper_engine_forge_world::{World, fake_config, translate};
+use temper_faults::{
+    forge::{LATE, UNAVAILABLE},
+    stale::MOVED_BASE,
+};
 
 #[test]
 fn unavailable_is_copied_before_the_connector_sees_its_answer() {
@@ -23,7 +27,7 @@ fn unavailable_is_copied_before_the_connector_sees_its_answer() {
     assert_eq!(entries.len(), usize::try_from(world.calls()).expect("calls fit"));
     let mut requests = std::collections::BTreeSet::new();
     for entry in entries {
-        assert_eq!(entry.kind, Kind { family: "busy", name: "unavailable" });
+        assert_eq!(entry.kind, UNAVAILABLE);
         assert_eq!(entry.until, Some(entry.from), "unavailable is an instant");
         assert!(entry.from <= end);
         let request = entry.struck.request.as_ref().expect("call's reply token");
@@ -64,7 +68,7 @@ fn late_intervals_use_the_fakes_times_and_faults_stream() {
     let entries = world.ledger().entries();
     assert_eq!(entries.len(), 1);
     let entry = &entries[0];
-    assert_eq!(entry.kind, Kind { family: "busy", name: "late" });
+    assert_eq!(entry.kind, LATE);
     assert_eq!(entry.from, fell.at);
     assert_eq!(entry.until, fell.until);
     assert!(entry.until.expect("late answer ends") > entry.from);
@@ -133,7 +137,7 @@ fn world_injections_start_and_stop_at_world_time_and_can_be_taken() {
     let mut world = World::new_in(&Streams::new(67), fake_config());
     world.run_for(1);
     let start = world.now();
-    let kind = Kind { family: "stale", name: "moved_base" };
+    let kind = MOVED_BASE;
     let struck = Struck { base: Some("main".into()), ..Struck::default() };
     let injection = world.inject(kind, struck.clone());
     assert_eq!(world.ledger().get(injection).kind, kind);

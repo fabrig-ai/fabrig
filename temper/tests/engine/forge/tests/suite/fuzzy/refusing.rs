@@ -3,17 +3,14 @@ use skein_fake_forge_domain::api as raw;
 use skein_forge::api;
 use skein_lib::Duration;
 use skein_world::{
-    faults::Kind,
     streams::{Stream, Streams},
     sweep::{Exclusion, Sweep},
 };
 use temper_engine_domain_forge as top;
 use temper_engine_domain_forge_change as change;
 use temper_engine_forge_world::{REPO, World, changes, fake_config, translate};
+use temper_faults::forge::{CLOSED_BY_ANOTHER, MERGED_BY_ANOTHER, REFUSING};
 
-const CLOSE_REFUSED: Kind = Kind { family: "refusing", name: "close_refused" };
-const CLOSED_BY_ANOTHER: Kind = Kind { family: "refusing", name: "closed_by_another" };
-const MERGED_BY_ANOTHER: Kind = Kind { family: "refusing", name: "merged_by_another" };
 const OUTSIDE: u64 = 54;
 const OUTSIDE_BRANCH: &[u8] = b"temper/outside";
 
@@ -101,7 +98,7 @@ fn release_unqueued(world: &mut World, branch: &top::Name) {
 #[test]
 fn refusals_keep_the_batches_invariants() {
     let mut sweep = Sweep::new("refusals_keep_the_batches_invariants");
-    for kind in [CLOSE_REFUSED, CLOSED_BY_ANOTHER, MERGED_BY_ANOTHER] {
+    for kind in REFUSING {
         sweep.configure(kind);
     }
     let seed = 1;

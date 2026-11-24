@@ -7,6 +7,8 @@ use temper_blame::{
     WRONG_TREE, class, judge,
 };
 
+use temper_faults::forge::LATE;
+
 const AT: Time = Time::from_nanos(20);
 const START: Time = Time::from_nanos(10);
 const SEED: u64 = 42;
@@ -65,11 +67,9 @@ fn kinds_map_to_gate_classes_and_other_kinds_do_not() {
         assert_eq!(kind, Kind { family: "ci", name });
         assert_eq!(class(kind), Some(expected), "{kind:?}");
     }
-    for (kind, expected) in [
-        (Kind { family: "ci", name: "rerun" }, None),
-        (Kind { family: "busy", name: "late" }, None),
-        (Kind { family: "other", name: "lost" }, None),
-    ] {
+    for (kind, expected) in
+        [(Kind { family: "ci", name: "rerun" }, None), (LATE, None), (Kind { family: "other", name: "lost" }, None)]
+    {
         assert_eq!(class(kind), expected, "{kind:?}");
     }
 }
@@ -243,7 +243,7 @@ fn findings_name_reaction_object_time_seed_and_all_striking_kinds_in_observed_or
     let mut ledger = FaultLedger::new();
     ledger.inject(BASE_RED, START, base("cd34"));
     ledger.inject(LOST, START, candidate("ab12"));
-    ledger.inject(Kind { family: "busy", name: "late" }, START, candidate("ab12"));
+    ledger.inject(LATE, START, candidate("ab12"));
     let findings = judge(
         &mut ledger,
         &[

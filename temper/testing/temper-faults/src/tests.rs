@@ -1,4 +1,5 @@
-//! The restart vocabulary's value contract (`temper/docs/design/testing/restarts.md`, section 10).
+//! Fault vocabulary value contracts (`temper/docs/design/testing/restarts.md`, section 10;
+//! `temper/docs/design/testing/workloads.md`, section 2.2).
 
 use std::collections::BTreeSet;
 
@@ -114,5 +115,68 @@ fn world_groups_keep_only_their_kinds_in_order() {
     ];
     for (world, kinds, expected) in groups {
         assert_eq!(kinds, expected, "{world}");
+    }
+}
+
+mod forge_and_stale {
+    use std::collections::BTreeSet;
+
+    use skein_world::faults::Kind;
+
+    use crate::{forge::*, stale::*};
+
+    const NAMED: [(Kind, &str, &str); 18] = [
+        (NO_ROOM, "busy", "no_room"),
+        (UNAVAILABLE, "busy", "unavailable"),
+        (TIMED_OUT, "busy", "timed_out"),
+        (LANDING, "busy", "landing"),
+        (LATE, "busy", "late"),
+        (LIMITED, "busy", "limited"),
+        (HEAD_BEHIND, "lagging", "head_behind"),
+        (BASE_BEHIND, "lagging", "base_behind"),
+        (MERGE_LATE, "lagging", "merge_late"),
+        (PULL_FILES, "bounds", "pull_files"),
+        (COMPARISON, "bounds", "comparison"),
+        (JOB_LOG, "bounds", "job_log"),
+        (CLOSE_REFUSED, "refusing", "close_refused"),
+        (CLOSED_BY_ANOTHER, "refusing", "closed_by_another"),
+        (MERGED_BY_ANOTHER, "refusing", "merged_by_another"),
+        (REOPENED, "stale", "reopened_by_another"),
+        (SQUASHED, "stale", "squashed_dependency"),
+        (MOVED_BASE, "stale", "moved_base"),
+    ];
+
+    #[test]
+    fn moved_kinds_keep_their_literal_values() {
+        assert_eq!(FAMILY, "stale");
+        for (kind, family, name) in NAMED {
+            assert_eq!(kind, Kind { family, name });
+        }
+    }
+
+    #[test]
+    fn moved_kind_names_are_unique_within_each_family() {
+        let mut names = BTreeSet::new();
+        for (kind, _, _) in NAMED {
+            assert!(names.insert((kind.family, kind.name)), "duplicate kind: {kind:?}");
+        }
+    }
+
+    #[test]
+    fn sweep_groups_keep_their_members_in_order() {
+        let groups: [(&str, &[Kind], &[Kind]); 5] = [
+            ("busy", &BUSY, &[NO_ROOM, UNAVAILABLE, TIMED_OUT, LANDING, LATE, LIMITED]),
+            ("lagging", &LAGGING, &[HEAD_BEHIND, BASE_BEHIND, MERGE_LATE]),
+            ("bounds", &PAST_BOUNDS, &[PULL_FILES, COMPARISON, JOB_LOG]),
+            ("refusing", &REFUSING, &[CLOSE_REFUSED, CLOSED_BY_ANOTHER, MERGED_BY_ANOTHER]),
+            (
+                "stale",
+                &STALE,
+                &[HEAD_BEHIND, MERGE_LATE, REOPENED, SQUASHED, MOVED_BASE, CLOSED_BY_ANOTHER, MERGED_BY_ANOTHER],
+            ),
+        ];
+        for (sweep, kinds, expected) in groups {
+            assert_eq!(kinds, expected, "{sweep}");
+        }
     }
 }

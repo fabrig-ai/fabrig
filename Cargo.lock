@@ -5680,6 +5680,7 @@ version = "0.0.0"
 dependencies = [
  "skein-lib",
  "skein-world",
+ "temper-faults",
 ]
 
 [[package]]

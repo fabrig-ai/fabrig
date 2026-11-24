@@ -2,15 +2,11 @@
 use skein_fake_forge_domain::{self as forge, Lag};
 use skein_lib::Duration;
 use skein_world::{
-    faults::Kind,
     streams::{Stream, Streams},
     sweep::{Exclusion, Sweep},
 };
 use temper_engine_forge_world::{World, fake_config};
-
-const HEAD_BEHIND: Kind = Kind { family: "lagging", name: "head_behind" };
-const BASE_BEHIND: Kind = Kind { family: "lagging", name: "base_behind" };
-const MERGE_LATE: Kind = Kind { family: "lagging", name: "merge_late" };
+use temper_faults::forge::{LAGGING, MERGE_LATE};
 
 pub(super) const LATE_RECORD: &str = "a_late_manual_merge_record_finishes_the_landed_batch";
 const RECORDING_SQUASH: &[&str] = &["recording a squashed member already landed on its base"];
@@ -36,7 +32,7 @@ pub(super) fn lag_world(world: &mut World, sweep: &Sweep) {
 #[test]
 fn lagging_views_keep_the_batches_invariants() {
     let mut sweep = Sweep::new("lagging_views_keep_the_batches_invariants");
-    for kind in [HEAD_BEHIND, BASE_BEHIND, MERGE_LATE] {
+    for kind in LAGGING {
         sweep.configure(kind);
     }
     exclude_records(&mut sweep);
