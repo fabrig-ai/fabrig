@@ -796,7 +796,7 @@ impl Domain {
     pub fn offered_landing(&mut self, task: u64) {
         self.landing.due.remove(&task);
     }
-    /// Wall time of the last advance and forge reads issued since it (domain/forge/contracts.md, 5).
+    /// Wall time of the last advance and forge reads issued since it.
     #[must_use]
     pub fn landing_advance(&self, task: u64) -> Option<(Wall, u64)> {
         read_wait::last_advance(self, task)
