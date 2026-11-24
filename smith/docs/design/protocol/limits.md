@@ -144,7 +144,7 @@ name `smith check` and the event stream's header print it under
 | `close` | duration | io's close deadline (section 7) |
 | `write_deadline` | duration | the most one write of the event stream may stay in flight before its destination is given up (events.md, section 5.2) |
 | `wrap_up` | duration | the most time a sub-agent keeps for its final turn (domain/run.md, 5.3); a child's allowance is the smaller of this and a quarter of its effective time |
-| `cancel_grace` | duration | the inline agent's grace for a cancel, before it drops a run (domain/host.md, 9.2) |
+| `cancel_grace` | duration | the inline agent's grace for a cancel, before it drops a run (domain/host.md, 9.2); a host's for its spawned agent's cancel, before it terminates the tree; and an agent's own, once its host is gone, before it drops its run (domain/host.md, section 4) |
 | `live_interval` | duration | the longest the agent holds live bytes before sending them as a piece (channel.md, section 7); the default is 100 ms |
 | `exit_grace` | duration | a host's grace for a spawned agent to exit after its answer, above the agent's teardown bound (section 4) |
 | `refresh_lead` | duration | how long before a sign-in record's access token expires the local host refreshes it: skein's `oauth/README.md` refresh lead, shared by every process on the record (`../shell/settings.md`, 2.5, and `../shell/credentials.md`, 3). A story raises it so that its run refreshes at once (`docs/design/testing.md`, 2.3) |
@@ -383,6 +383,21 @@ reserve against the budget.
   to settle, which io's close deadlines already bound and which adds
   nothing to them. That is its **teardown bound**, from which a host
   derives `exit_grace` (section 4).
+- **An agent whose host is gone** exits within **`orphan_exit`** of the
+  loss: the link's `cancel_grace` plus its `exit_grace`, as
+  `host_limits` derives both from the agent's own configuration, the
+  same derivation its host makes (domain/host.md, section 4). It is what
+  the host would have given the agent from a cancel to its exit: the
+  cancel's grace to answer, then the grace to exit. It is derived, never
+  configured, its sum checked, an overflow refused as `derived` naming
+  `orphan_exit`, and it is an effective limit under that name (section
+  9). The agent drops its run at the cancel's grace at the latest; what
+  the drop ends settles within one `close`, as a machine's close stops a
+  job (above), and the teardown follows within its bound: together
+  `exit_grace` as `host_limits` derives it, the teardown bound plus one
+  `close`. The silence that marks a host gone is timed by the link's
+  `no_progress`, the figure the host times the run by, derived the same
+  way and an effective limit under that name.
 - **Jobs add nothing to the teardown bound.** A session's close cancels
   its running jobs and waits for them to settle (domain/session.md,
   section 5), and the run answers

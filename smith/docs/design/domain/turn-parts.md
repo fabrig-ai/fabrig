@@ -300,7 +300,11 @@ before it asks any completion:
   its start. In jig's channel world, with a real agent, a worker killed
   with its agent at each of those points comes back as a new process,
   its attempt suspended at its hello with no try spent, and the next
-  attempt resumes on it the same way from the parts the engine kept.
+  attempt resumes on it the same way from the parts the engine kept. A
+  worker killed alone while its agent's answer is in flight leaves that
+  agent with no host: it ends on its own within `orphan_exit` of the
+  kill, with no answer (host.md, section 4), and the attempt comes back
+  as it does from the unit's kill.
 
 ## 8. Open questions
 
