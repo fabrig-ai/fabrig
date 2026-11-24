@@ -13,6 +13,12 @@ impl Tier {
         self.ctl_face(self.project_calls().into())
     }
 
+    /// Make a playground before the reader opens its page, without starting a chat.
+    #[must_use]
+    pub fn playground_face(&self) -> Script {
+        self.ctl_face(self.ctl(&["playground", "start", "--key", "history-playground"]).into())
+    }
+
     pub(crate) fn project_calls(&self) -> [Step; 2] {
         self.ctl(&["project", "make", "Project 1", "--key", "browser-project"])
     }
