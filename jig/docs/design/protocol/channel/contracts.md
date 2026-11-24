@@ -85,3 +85,35 @@ impl Peer {
 - **When the opening switches,** the engine's `texts` are its
   `Spoken`s' (`layouts.md`, 7), and `Theirs` is read from the
   credential's `Wire`s (`wires.md`, 2).
+
+## 2. Frames and the parts they carry
+
+A frame's whole conversion (`layouts.md`, 4.1 and 4.2) over a `Peer`
+(1), in a module of its own beside it, so that the engine's workers
+component calls one function each way. Made before the opening switches;
+the version agreement's `translation` module, which it replaces, goes
+when the components take it.
+
+```rust
+// jig_protocol_worker_wire::convert
+/// layouts.md, 4.1: a frame of the engine's, at its layouts, to the
+/// worker's: each part its record carries (layouts.md, 2.1) down by its
+/// Keep plan, a resumed window's turns each on its own, an
+/// `Assignment.parts` item whose body refuses dropped; then the record by
+/// the frames' plan, within the worker's largest body of its kind.
+pub fn send(peer: &mut Peer, frame: Frame, limits: &v22::Limits) -> Result<Frame, Unconverted>;
+/// layouts.md, 4.2: a worker's frame, its kind at the worker's numbers,
+/// to the engine's frame: the record up by the frames' plan, within the
+/// engine's largest body of its kind, then each part it carries up by its
+/// Read plan.
+pub fn receive(peer: &mut Peer, kind: u16, body: &[u8], limits: &v22::Limits) -> Result<Frame, Unconverted>;
+```
+
+- **`Frame`** is skein's channel frame (skein's `net/channel.md`), as the
+  components hand it now; `limits` the engine's, which its codec decodes
+  a record within.
+- **A `Peer` whose wires are all at the engine's layout** (`Peer::same`)
+  hands the frame back as it is: nothing decoded, nothing allocated.
+- **A part with no root** (`layouts.md`, 7) crosses as it is; a part's
+  refusal names the part's wire and declaration, as `Peer::down` and
+  `Peer::up` name it.
