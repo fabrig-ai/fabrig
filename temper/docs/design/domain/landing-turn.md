@@ -12,7 +12,11 @@ This document holds the landing turn and its trains, split from [`landing.md`](l
   that is not the round's base makes the round stale: a push from
   outside the landing moved the branch. The round ends unlanded (`landing-prepare.md`, 1.1),
   the stale count grows, and the landing prepares again in a new round,
-  every member stacked afresh, keeping its receipts.
+  every member stacked afresh, keeping its receipts. These reads are
+  the landing's reads: one that fails or finds its fact not there yet
+  waits `read`, and a run of such waits the forge keeps answering while
+  the turn stays where it was holds past the stall (`landing-waits.md`,
+  3), as a round's reads at preparing do.
 - **Then the branch fast-forwards to the round's proved prefix,** its
   candidate or, after a search, its green prefix, at which this
   section's candidate reads (`landing-search.md`, 5), by the merge of

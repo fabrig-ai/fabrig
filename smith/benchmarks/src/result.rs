@@ -545,7 +545,12 @@ pub struct AttemptResult {
 
 /// Read a result with strict fields and the one supported format version.
 pub fn read_result(file: &Path) -> Result<AttemptResult, Fault> {
-    let text = std::fs::read_to_string(file).map_err(|error| Fault::from(error).document(file, "document"))?;
+    read_result_with(&crate::files::Native, file)
+}
+
+/// Read a strict result document on the supplied filesystem.
+pub fn read_result_with(files: &dyn crate::files::Files, file: &Path) -> Result<AttemptResult, Fault> {
+    let text = files.read_to_string(file).map_err(|error| Fault::from(error).document(file, "document"))?;
     parse_result(file, &text).map_err(|error| format(error.to_string()))
 }
 

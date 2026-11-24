@@ -17,6 +17,7 @@ use skein_lib::Token;
 pub mod v22;
 mod application;
 mod kinds;
+pub mod layouts;
 mod spoken;
 pub use application::{Application, Carried, Kept, Root};
 pub mod translation;

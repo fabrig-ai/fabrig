@@ -1,5 +1,10 @@
 # The channel across versions
 
+Replaced by [`layouts.md`](layouts.md) and [`wires.md`](wires.md), which
+bind; this document holds what the code does until the change that
+switches the channel's components to layouts deletes it with the code
+that cites it.
+
 Provisional, 2026-11-13, revised 2026-11-15. How an engine and a worker of two builds talk
 once each speaks a range of each wire's versions: what each side states
 and the engine states back, the terms at an older agreed version, what

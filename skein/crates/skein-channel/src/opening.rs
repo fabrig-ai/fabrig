@@ -4,6 +4,8 @@
 use alloc::boxed::Box;
 use skein_lib::{Decimal, List, Writer};
 
+use super::schema::KindTableError;
+
 /// Version refusal, with this side's range before the peer's (net/channel.md, 5.2).
 pub(super) fn version_words(ours: (u16, u16), offered: (u16, u16)) -> Box<[u8]> {
     let low = Decimal::of(u64::from(ours.0));
@@ -28,6 +30,23 @@ pub(super) fn version_words(ours: (u16, u16), offered: (u16, u16)) -> Box<[u8]> 
     for part in parts {
         out.put(part).expect("measured version refusal");
     }
+    out.finish()
+}
+
+/// Limits refusal for a responder's invalid replacement table (net/channel.md, 5.2).
+pub(super) fn table_words(error: KindTableError) -> Box<[u8]> {
+    let prefix = b"the responder's table: ";
+    let why: &[u8] = match error {
+        KindTableError::TooManyKinds => b"too many kinds",
+        KindTableError::ReservedKind => b"reserved kind",
+        KindTableError::BodyCapacity => b"body capacity is not representable",
+        KindTableError::OutputCapacity => b"sent frame exceeds the output cap",
+        KindTableError::DuplicateKind => b"duplicate kind",
+    };
+    let length = prefix.len().checked_add(why.len()).expect("fixed table refusal text fits");
+    let mut out = Writer::new(length);
+    out.put(prefix).expect("measured table refusal");
+    out.put(why).expect("measured table refusal");
     out.finish()
 }
 

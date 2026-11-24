@@ -35,7 +35,8 @@ stay `landing.md`'s, and its events `landing-history.md`'s.
 - **No silent wait:** a round at preparing waits only on a live child,
   which its job's deadline and tries bound (`landing.md`, 4.2, `landing-prepare.md`, 1.2), or
   on the reads an answer needs, which are retried as any landing read
-  is; never on a mark alone.
+  is, and held past the stall as any is (`landing-waits.md`, 3); never
+  on a mark alone.
 
 ## 2. The prepare's cases
 

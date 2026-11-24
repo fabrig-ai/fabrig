@@ -539,6 +539,26 @@ The offline tier runs in the focused suite, with no agent and no network:
 - **A tree's containment:** `isolation.md`, section 1's choice as a table, each
   platform with each `force_walk`, run on Linux; and a replay's counts
   name the platform's method, the walk on Linux and the group elsewhere.
+- **The harness over a test tree.** The harness reads and writes files
+  through one face: the native filesystem in a run, the same calls in the
+  same order; in the offline tier, a tree laid on skein's fake machine,
+  with its modes, owners and links. Over it run a Codex rollout tree's
+  discovery, a working directory's and mounts' admission, a pin's and a
+  binary's digests, a credential's staging and removal, a bundle's intake,
+  a scratch root's refusal, the catalogue's walk, a calibration's and a
+  summary's writes, a parity change's named inputs and a written file's
+  settled bytes. A test reads back what was written and asserts what was
+  never read, a login or a credential source above all.
+- **Receipts from supplied completions:** the supervisor's deadlines,
+  capture bounds and overflow, an answer before the tree settles, a
+  partial record and a refused product check are judged over completions,
+  times and exits the test supplies.
+- **What stays a process,** in `tests/suite`: real git and archives, login
+  shells, a write outside, an answer observed before the tree settles, a
+  lingering descendant's teardown, one pipe's overflow, a terminal peer's
+  hangup and a final record drained at its end of file, this checkout's
+  own history choosing its face, and one path each through the shipped
+  `probe` and `suite` commands.
 - **Fuzzy:** parsers fed truncated and corrupted lines never panic and
   never count a response twice.
 

@@ -434,10 +434,9 @@ pub enum TaskRunWait { /* as before */ Worker { worker: u32, until: Wall } }
   worker's process until the engine has admitted one, at the first
   record the engine sends after it, `sources`
   (`../../protocol/channel/README.md`, 4.3, and `../../protocol/channel/worker-link.md`, 1.1), and false on every
-  later hello of that process. The workers' wire carries it from
-  version 19, added last with a default, bridged both ways
-  (`../../protocol/channel/bridges.md`, 5): up, a version 18 hello reads
-  `fresh: false`; down, it is dropped.
+  later hello of that process. It has a default, so a worker whose
+  layout lacks it is read `fresh: false` (`../../protocol/channel/layouts.md`,
+  2.2).
 
   ```
   record Hello { slots: u32 stop_bound: duration workstreams: list 65536 u64 hosting: list 65536 Hosting jobs: list 256 JobBound bounds: Bounds fresh: bool = false }
@@ -457,7 +456,7 @@ pub enum TaskRunWait { /* as before */ Worker { worker: u32, until: Wall } }
   family takes it as an added field, `worker: option u32 = none`, and
   passes it to the fleet with the restored claim. A restored job's
   claim names no worker, and keeps its grace.
-- **Without `fresh`,** from a hello at version 18 or a reconnect of the
+- **Without `fresh`,** from a reconnect of the
   same process, the claims the hello does not list keep their grace, or
   their hold, as before.
 - **Two processes under one worker's name** are a fault of the
