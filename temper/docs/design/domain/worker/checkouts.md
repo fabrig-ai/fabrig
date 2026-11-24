@@ -590,8 +590,10 @@ runs as contained processes and whose output it parses.
     merge it holds, if any, and whether its next save commits though
     unchanged (`unchecked`). It writes the mark again whenever one of
     these changes, and removes it when the hold is released. The drain's
-    keep replaces it with the `kept` mark above. A hold with no
-    saved-work destination writes none.
+    keep replaces it with the `kept` mark above. A worker that stops without
+    a drain, the one-process worker (`README.md`, "In one process"), leaves
+    its held marks as a crash does, and they are taken up at its next start.
+    A hold with no saved-work destination writes none.
   - **Found at the next start.** The start's layout keeps each workspace
     a `held` mark names as it keeps a `kept` one, a crash's leftover,
     and removes from each kept workspace's repositories the lock files
