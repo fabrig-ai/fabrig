@@ -103,7 +103,7 @@ fn targets(workload: &Workload, party: Party, act: Act) -> Vec<String> {
         match act {
             Act::CancelGoal | Act::AmendPassedDeadline => names.push(goal.name.clone()),
             Act::CancelChange | Act::WordsToEndedProducer => {
-                names.extend(goal.changes.iter().map(|change| change.name.clone()))
+                names.extend(goal.changes.iter().map(|change| change.name.clone()));
             }
             Act::CancelLanding | Act::HoldMember if goal.train => {
                 names.extend(goal.changes.iter().map(|change| change.name.clone()));
