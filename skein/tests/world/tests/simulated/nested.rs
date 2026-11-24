@@ -1,9 +1,9 @@
-//! A scripted step waits for its inner real run (skein/docs/design/testing/service-tiers.md, 1).
+//! A scripted step waits for its inner run (skein/docs/design/testing/service-tiers.md, 1).
 
 use skein_io::kernel::{Complete, Submit};
-use skein_lib::{Duration, Queue, Time, Wall};
-use skein_shell::Clock;
-use skein_world::{Host, Referee, real};
+use skein_lib::{Queue, Time, Wall};
+use skein_sim::Config;
+use skein_world::{Host, Memory, Outcome, Referee, World};
 use skein_world_tests::hosted::Script;
 
 struct Judge(Option<&'static str>);
@@ -18,6 +18,12 @@ impl<P> Referee<P> for Judge {
     }
 }
 
+fn run<P: Host>(seed: u64, host: P, judge: Judge) -> Result<Outcome<P>, String> {
+    let mut world = World::new(seed, Config::calm(), judge, Memory::Unchecked);
+    world.spawn(|| host);
+    world.try_run()
+}
+
 #[derive(Debug)]
 struct Nested {
     finding: Option<&'static str>,
@@ -29,14 +35,10 @@ struct Nested {
 impl Host for Nested {
     fn iterate(&mut self, _now: Time, _wall: Wall) {
         if self.answer.is_none() {
-            self.answer = Some(
-                real::try_run(vec![Script::new(&[])], Judge(self.finding), &Clock::new(), Duration::from_secs(2)).map(
-                    |outcome| {
-                        assert!(outcome.killed.is_empty());
-                        assert!(outcome.procs[0].is_empty());
-                    },
-                ),
-            );
+            self.answer = Some(run(2, Script::new(&[]), Judge(self.finding)).map(|outcome| {
+                assert!(outcome.killed.is_empty());
+                assert!(outcome.procs[0].is_empty());
+            }));
         }
     }
 
@@ -78,8 +80,7 @@ fn a_scripted_host_runs_an_inner_world_to_its_end_and_keeps_its_finding_local() 
             completions: Queue::with_capacity(1),
             submissions: Queue::with_capacity(1),
         };
-        let outer = real::try_run(vec![host], Judge(None), &Clock::new(), Duration::from_secs(2))
-            .expect("the outer run stays green even when the inner run returns a finding");
+        let outer = run(1, host, Judge(None)).expect("the outer run passes even when the inner run returns a finding");
         assert!(outer.killed.is_empty());
         assert_eq!(outer.procs[0].answer, Some(finding.map_or(Ok(()), |why| Err(why.into()))));
     }

@@ -1,10 +1,16 @@
 //! A recipe keeps its commit files (qa/places.md, 6; client/drive.md, 3.1 and 3.5).
 //! Only the fields needed to copy files are read here; the place's drive tool
 //! validates the whole recipe. Its grammar uses the journeys' quoting rules.
+use crate::faces::{DirectoryMode, FilesFace, PathKind};
 use crate::{Refusal, refused};
-use std::{ffi::OsString, fs, os::unix::ffi::OsStringExt, path::Path};
+use std::{ffi::OsString, os::unix::ffi::OsStringExt, path::Path};
 
-pub(super) fn copy(lines: &[String], source: &Path, destination: &Path) -> Result<(), Refusal> {
+pub(super) fn copy(
+    lines: &[String],
+    source: &Path,
+    destination: &Path,
+    files: &mut impl FilesFace,
+) -> Result<(), Refusal> {
     for line in lines {
         let (tail, skip) = if let Some(tail) = line.strip_prefix("forge commit forgejo ") {
             (tail, 2)
@@ -30,13 +36,13 @@ pub(super) fn copy(lines: &[String], source: &Path, destination: &Path) -> Resul
             let path = OsString::from_vec(bytes);
             let from = source.join(&path);
             let to = destination.join(&path);
-            let metadata = super::io(&from, fs::symlink_metadata(&from))?;
-            if !metadata.is_file() {
+            let metadata = super::io(&from, files.facts(&from, false))?;
+            if metadata.kind != PathKind::File {
                 return Err(refused(format!("{}: not a regular file", from.display())));
             }
             let parent = to.parent().expect("recipe file's parent");
-            super::io(parent, fs::create_dir_all(parent))?;
-            super::io(&from, fs::copy(&from, &to))?;
+            super::io(parent, files.directory(parent, DirectoryMode::Parents))?;
+            super::io(&from, files.copy(&from, &to))?;
         }
     }
     Ok(())

@@ -2,8 +2,8 @@ use super::{Play, Script, Step};
 use crate::BrowserFace;
 use crate::tests::{face, found, seen};
 use skein_browser::boundary::{Event, Key, Request};
-use skein_fake_person::Find;
-use skein_lib::{Time, Token};
+use skein_fake_person::{Find, Next, Step as PersonStep};
+use skein_lib::{Duration, Time, Token};
 use skein_ui::Role;
 
 #[test]
@@ -42,10 +42,21 @@ fn a_trouble_step_not_met_within_its_bound_fails_naming_its_words() {
     let mut face = face();
     script.next(&mut face, Time::ZERO);
     script.check_deadline(&mut face, Time::ZERO.saturating_add(skein_lib::Duration::from_secs(1)));
+    assert_eq!(face.expired(), Some(Duration::from_secs(1)));
     assert_eq!(face.failure().as_deref(), Some("did not receive trouble containing frame-ancestors within its bound"));
 }
 #[test]
 fn a_request_step_with_another_status_fails_naming_it() {
+    for now in [Time::ZERO, Time::ZERO.saturating_add(Duration::from_secs(1))] {
+        let (mut script, mut face) = unanswered_request();
+        script.answered(403);
+        script.check_deadline(&mut face, now);
+        assert_eq!(face.expired(), None);
+        assert_eq!(face.failure().as_deref(), Some("expected status 200, saw 403"));
+    }
+}
+
+fn unanswered_request() -> (Script, BrowserFace<'static>) {
     let mut script = Script::new(Box::new([Step::Request {
         method: skein_http::Method::Get,
         path: b"/".as_slice().into(),
@@ -58,9 +69,51 @@ fn a_request_step_with_another_status_fails_naming_it() {
     let mut face = face();
     script.next(&mut face, Time::ZERO);
     assert_eq!(script.request().unwrap().host.as_ref(), b"other.test");
-    script.answered(403);
-    script.check_deadline(&mut face, Time::ZERO.saturating_add(skein_lib::Duration::from_secs(1)));
-    assert_eq!(face.failure().as_deref(), Some("did not receive status 200, saw Some(403) within its bound"));
+    (script, face)
+}
+
+#[test]
+fn unanswered_steps_expire_even_while_the_face_is_pending() {
+    let within = Duration::from_secs(1);
+    let until = Time::ZERO.saturating_add(within);
+    let before = Time::from_nanos(until.as_nanos() - 1);
+    let (mut script, mut face) = unanswered_request();
+    script.check_deadline(&mut face, before);
+    assert_eq!(face.failure(), None);
+    script.check_deadline(&mut face, until);
+    assert_eq!(face.expired(), Some(within));
+    assert_eq!(face.failure().as_deref(), Some("did not receive status 200 within its bound"));
+
+    let find = Find::text(b"answer");
+    for step in [PersonStep::See { find: find.clone(), within }, PersonStep::Gone { find, within }] {
+        let mut script = Script::new(Box::new([Step::Person(step)]));
+        let mut face = crate::tests::face();
+        assert_eq!(script.next(&mut face, Time::ZERO), Next::Wait { until: None });
+        assert_eq!(script.next(&mut face, Time::ZERO), Next::Wait { until: Some(until) });
+        assert!(face.pending());
+        script.check_deadline(&mut face, before);
+        assert_eq!(face.failure(), None);
+        script.check_deadline(&mut face, until);
+        assert_eq!(face.expired(), Some(within));
+        assert!(face.failure().is_some());
+    }
+
+    let find = Find::text(b"missing");
+    for step in [
+        PersonStep::Press { find: find.clone() },
+        PersonStep::Type { find: find.clone(), words: b"words".as_slice().into() },
+    ] {
+        let mut script = Script::new(Box::new([Step::Person(step)]));
+        let mut face = crate::tests::face();
+        script.next(&mut face, Time::ZERO);
+        script.next(&mut face, Time::ZERO);
+        found(&mut face, None);
+        assert_eq!(
+            script.next(&mut face, Time::ZERO),
+            Next::Failed { step: 0, why: skein_fake_person::Why::Missing { find: find.clone() } }
+        );
+        assert_eq!(face.expired(), None);
+    }
 }
 #[test]
 fn a_key_step_sends_the_kits_key() {
@@ -293,6 +346,7 @@ fn a_tabs_deadline_names_the_last_tabs_while_the_next_read_is_pending() {
     script.next(&mut face, Time::ZERO.saturating_add(skein_browser::Limits::default().poll));
     assert!(face.pending());
     script.check_deadline(&mut face, Time::ZERO.saturating_add(skein_lib::Duration::from_secs(1)));
+    assert_eq!(face.expired(), Some(Duration::from_secs(1)));
     let failure = face.failure().expect("deadline fails");
     assert!(failure.contains("Waiting") && failure.contains("about:blank") && failure.contains("2 more"), "{failure}");
     assert_eq!(script.at(), 1);
@@ -314,8 +368,7 @@ fn a_viewport_step_sends_dimensions_and_holds_the_face_pending() {
 
 #[test]
 fn the_pressed_step_awaits_the_found_nodes_state_within_its_bound() {
-    use skein_fake_person::{Next, Why};
-    use skein_lib::Duration;
+    use skein_fake_person::Why;
 
     const ROWS: &[(&str, Option<bool>, bool, Option<&str>)] = &[
         ("pressed at first look", Some(true), false, None),
@@ -368,15 +421,7 @@ fn the_pressed_step_awaits_the_found_nodes_state_within_its_bound() {
                     if deadline {
                         script.check_deadline(&mut face, until);
                     } else {
-                        let next = script.next(&mut face, until);
-                        if expected == Some("missing") {
-                            assert_eq!(
-                                next,
-                                Next::Failed { step: 0, why: Why::Missing { find: find.clone() } },
-                                "{name}"
-                            );
-                            continue;
-                        }
+                        assert_eq!(script.next(&mut face, until), Next::Wait { until: None }, "{name}");
                     }
                 }
             }
@@ -386,6 +431,7 @@ fn the_pressed_step_awaits_the_found_nodes_state_within_its_bound() {
                 Some("missing") => Some(format!("{:?}", Why::Missing { find })),
                 Some(other) => panic!("unknown outcome {other}"),
             };
+            assert_eq!(face.expired(), expected.map(|_| within), "{name}, deadline {deadline}");
             assert_eq!(face.failure(), failure, "{name}, deadline {deadline}");
             assert_eq!(script.at(), 1, "{name}, deadline {deadline}");
             assert_eq!(script.next(&mut face, until), Next::Done, "{name}: script goes on");
