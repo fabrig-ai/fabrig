@@ -3,7 +3,7 @@
 //! domain/landing-search.md, 3–5 and 8).
 mod narrowed;
 use super::{
-    ChatJudge, ChatPhase, Ending, LANDING, Process, ctl,
+    ChatJudge, ChatPhase, LANDING, Process, ctl,
     forgejo::{JobBarrier, Throwaway},
     landing_scripts, person, turn_restart,
 };
@@ -833,7 +833,6 @@ pub fn run_narrowed(root: &Path, forge: &Throwaway, barrier: &JobBarrier) {
         chat: ChatJudge {
             failed: None,
             phase: ChatPhase::SettingUp,
-            ending: Ending::Stop,
             deadline: progress,
             forge: Some(forge),
             poll: clock.now().now,

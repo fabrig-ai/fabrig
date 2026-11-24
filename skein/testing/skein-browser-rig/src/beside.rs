@@ -92,7 +92,7 @@ impl Rig {
             Event::Screenshot { op: IMAGE, png } => {
                 assert!(png.starts_with(b"\x89PNG\r\n\x1a\n"), "viewport PNG");
                 self.stage = Stage::Closing;
-                self.ask(Request::Tabs { page: PAGE, op: FIND });
+                self.await_tabs("Chromium's tab beside the page");
             }
             Event::Tabs { op: FIND, tabs, more } => {
                 assert_eq!((tabs.len(), more), (1, 0));
@@ -102,9 +102,10 @@ impl Rig {
                     let expected = format!("http://{}/tab-loaded", self.pages.addr.expect("origin"));
                     assert_eq!(tab.url.as_ref(), expected.as_bytes(), "tab loads behind page");
                     assert!(!tab.opener, "pointing cuts opener");
+                    self.tab_wait = None;
                     self.close_browser();
                 } else {
-                    self.tab_due = Some(self.browser_env.now.saturating_add(self.browser_env.limits.poll));
+                    self.poll_tabs(super::tabs::observed(self.stage, &tabs, more));
                 }
             }
             other => return Err(other),

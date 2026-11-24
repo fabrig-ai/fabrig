@@ -1637,7 +1637,6 @@ dependencies = [
  "skein-scratch",
  "skein-tls",
  "skein-world",
- "tempfile",
 ]
 
 [[package]]
@@ -3325,13 +3324,15 @@ dependencies = [
 [[package]]
 name = "skein-fail-stop"
 version = "0.0.0"
+dependencies = [
+ "skein-lib",
+]
 
 [[package]]
 name = "skein-fail-stop-tests"
 version = "0.0.0"
 dependencies = [
  "skein-fail-stop",
- "skein-lib",
 ]
 
 [[package]]
@@ -6300,6 +6301,7 @@ dependencies = [
  "temper-client-protocol-wire",
  "temper-client-redaction",
  "temper-client-view",
+ "temper-client-view-kit",
  "wasm-bindgen",
  "web-sys",
 ]
@@ -7043,6 +7045,7 @@ dependencies = [
  "temper-fake",
  "temper-fake-checkout",
  "temper-fake-git",
+ "temper-faults",
  "temper-landing-fixtures",
  "temper-limits-fixtures",
  "temper-protocol-reaches",
@@ -7074,6 +7077,7 @@ dependencies = [
  "temper-engine-domain-forge-landing",
  "temper-engine-domain-forge-tiers",
  "temper-engine-inspect",
+ "temper-faults",
  "temper-protocol-reaches",
 ]
 
@@ -7579,6 +7583,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "temper-faults"
+version = "0.0.0"
+dependencies = [
+ "skein-world",
+]
+
+[[package]]
 name = "temper-fetch"
 version = "0.0.0"
 dependencies = [
@@ -7837,6 +7848,7 @@ dependencies = [
  "temper-engine-shell",
  "temper-fake",
  "temper-fake-git-hosted",
+ "temper-faults",
  "temper-fixtures",
  "temper-forge-setup",
  "temper-github-app",
@@ -8355,6 +8367,7 @@ name = "temper-service-shell"
 version = "0.0.0"
 dependencies = [
  "jig-protocol-config",
+ "rustix",
  "skein-io",
  "skein-json",
  "skein-lib",
@@ -8469,6 +8482,7 @@ dependencies = [
  "temper-engine-service-vocabulary",
  "temper-engine-smith",
  "temper-fake-checkout",
+ "temper-faults",
  "temper-limits-fixtures",
  "temper-protocol-worker-wire",
  "temper-service-core",
@@ -8599,6 +8613,7 @@ dependencies = [
  "smith-protocol-channel",
  "smith-transcript",
  "temper-fake-checkout",
+ "temper-faults",
  "temper-worker-checkout-world",
  "temper-worker-domain",
  "temper-worker-inspect",

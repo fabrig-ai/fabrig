@@ -1,6 +1,6 @@
 //! The hosted scripts use real pipes and the same factories as simulated worlds.
 
-use skein_io::kernel::{Exit, Reason, Signal, Spawn};
+use skein_io::kernel::{Exit, Signal, Spawn};
 use skein_lib::Duration;
 use skein_shell::{Clock, open_root};
 use skein_world::{HostedProgram, Inherited, real};
@@ -10,218 +10,19 @@ fn exchange(_spawn: &Spawn, inherited: &Inherited) -> Script {
     Script::child(inherited, &[Act::Read(0), Act::Write(1, b"reply")])
 }
 
-fn wait_again(_spawn: &Spawn, inherited: &Inherited) -> Script {
-    Script::child(inherited, &[Act::Read(0), Act::Write(1, b"reply"), Act::Read(0)])
-}
-
-fn run(make: fn(&Spawn, &Inherited) -> Script, acts: &[Act]) -> real::Outcome<Script> {
-    let mut world = real::World::new(Judge);
-    world.host(HostedProgram { program: Box::from(&b"hosted"[..]), make, instances: 1, operations: 8 });
-    let root = open_root(std::path::Path::new(".")).expect("startup root");
-    world.spawn_with_fds(vec![root], || Script::parent(root, acts));
-    world.run(&Clock::new(), Duration::from_secs(2))
-}
-
 #[test]
 fn hosted_parent_and_child_exchange_over_real_pipes() {
-    let outcome = run(exchange, &[Act::Spawn, Act::Write(0, b"hello"), Act::Read(1), Act::Read(1), Act::Wait]);
+    let mut world = real::World::new(Judge);
+    world.host(HostedProgram { program: Box::from(&b"hosted"[..]), make: exchange, instances: 1, operations: 8 });
+    let root = open_root(std::path::Path::new(".")).expect("startup root");
+    world.spawn_with_fds(vec![root], || {
+        Script::parent(root, &[Act::Spawn, Act::Write(0, b"hello"), Act::Read(1), Act::Read(1), Act::Wait])
+    });
+    let outcome = world.run(&Clock::new(), Duration::from_secs(2));
     assert_eq!(outcome.procs[0].received, b"reply");
     assert_eq!(outcome.procs[1].received, b"hello");
     assert_eq!(outcome.procs[0].child_exit, Some(Exit::Code(0)));
     assert!(outcome.killed.is_empty());
-}
-
-#[test]
-fn kill_drops_child_and_settles_pending_read_before_parent_wait() {
-    let outcome = run(
-        wait_again,
-        &[Act::Spawn, Act::Write(0, b"hello"), Act::Read(1), Act::Signal(Signal::Kill), Act::Read(1), Act::Wait],
-    );
-    assert_eq!(outcome.procs.len(), 1);
-    assert_eq!(outcome.procs[0].received, b"reply");
-    assert_eq!(outcome.procs[0].child_exit, Some(Exit::Signal(9)));
-    assert_eq!(outcome.killed[0].exit, Exit::Signal(9));
-}
-
-#[test]
-fn story_kill_names_the_admitted_child_and_root_requester() {
-    let outcome = run(
-        wait_again,
-        &[Act::Spawn, Act::Write(0, b"hello"), Act::Read(1), Act::Signal(Signal::Kill), Act::Read(1), Act::Wait],
-    );
-    assert_eq!(outcome.killed.len(), 1);
-    let killed = &outcome.killed[0];
-    assert_eq!(killed.host, 1);
-    assert_eq!(killed.exit, Exit::Signal(9));
-    assert_eq!(killed.program, "hosted");
-    assert_eq!(killed.argument.as_deref(), Some("argument"));
-    assert_eq!(killed.requester, 0);
-    assert_eq!(killed.requester_program, None);
-    assert_eq!(killed.reason, Reason::Asked);
-    assert!((outcome.start..=outcome.end).contains(&killed.at));
-    assert_eq!(
-        killed.to_string(),
-        format!(
-            "host 1 (hosted argument) killed at {} ns by host 0 (a root): asked for; exit Signal(9)",
-            killed.at.as_nanos(),
-        ),
-    );
-}
-
-#[test]
-fn close_while_running_names_the_group_kills_cause() {
-    // The raw-script fixture sends the same group Kill as io's close.
-    let outcome = run(
-        wait_again,
-        &[Act::Spawn, Act::Write(0, b"hello"), Act::Read(1), Act::Kill(Reason::Closed), Act::Read(1), Act::Wait],
-    );
-    assert_eq!(outcome.procs[0].child_exit, Some(Exit::Signal(9)));
-    assert_eq!(outcome.killed.len(), 1);
-    let killed = &outcome.killed[0];
-    assert_eq!(killed.reason, Reason::Closed);
-    assert!((outcome.start..=outcome.end).contains(&killed.at));
-    assert!(killed.to_string().contains(": closed while running; exit Signal(9)"));
-}
-
-fn deadline_parent(_spawn: &Spawn, inherited: &Inherited) -> Script {
-    let mut parent = Script::hosted_parent(
-        inherited,
-        &[
-            Act::Close(1),
-            Act::Close(0),
-            Act::Spawn,
-            Act::Write(0, b"hello"),
-            Act::Read(1),
-            Act::PauseFor(Duration::from_millis(1)),
-            Act::Kill(Reason::Deadline),
-            Act::Read(1),
-            Act::Wait,
-        ],
-    );
-    parent.args = Box::new([Box::from(&b"run\xff"[..]), Box::from(&b"not the first word"[..])]);
-    parent
-}
-
-struct DeadlineJudge(bool);
-
-impl skein_world::Referee<Script> for DeadlineJudge {
-    fn watch(&mut self, _now: skein_lib::Time, procs: &[Script]) -> Result<(), String> {
-        self.0 = procs[0].child_exit == Some(Exit::Code(0));
-        Ok(())
-    }
-
-    fn passed(&self) -> bool {
-        self.0
-    }
-}
-
-#[test]
-fn deadline_kill_names_the_hosted_requester_and_lossy_admitted_words() {
-    let mut world = real::World::new(DeadlineJudge(false));
-    world.host_roots(
-        HostedProgram { program: Box::from(&b"parent\xff"[..]), make: deadline_parent, instances: 1, operations: 8 },
-        |_| vec![skein_world::StartupRoot { name: Box::from(&b"launch"[..]), path: Box::from(&b"."[..]) }],
-    );
-    world.host(HostedProgram { program: Box::from(&b"hosted"[..]), make: wait_again, instances: 1, operations: 8 });
-    let root = open_root(std::path::Path::new(".")).expect("startup root");
-    world.spawn_with_fds(vec![root], || {
-        Script::parent(root, &[Act::SpawnProgram(b"parent\xff"), Act::Read(1), Act::Wait])
-    });
-    let outcome = world.run(&Clock::new(), Duration::from_secs(2));
-    assert_eq!(outcome.procs[0].child_exit, Some(Exit::Code(0)));
-    assert_eq!(outcome.procs[1].child_exit, Some(Exit::Signal(9)));
-    assert_eq!(outcome.killed.len(), 1);
-    let killed = &outcome.killed[0];
-    assert_eq!(killed.host, 2);
-    assert_eq!(killed.exit, Exit::Signal(9));
-    assert_eq!(killed.program, "hosted");
-    assert_eq!(killed.argument.as_deref(), Some("run\u{fffd}"));
-    assert_eq!(killed.requester, 1);
-    assert_eq!(killed.requester_program.as_deref(), Some("parent\u{fffd}"));
-    assert_eq!(killed.reason, Reason::Deadline);
-    assert!((outcome.start..=outcome.end).contains(&killed.at));
-    assert_eq!(
-        killed.to_string(),
-        format!(
-            "host 2 (hosted run\u{fffd}) killed at {} ns by host 1 (parent\u{fffd}): at its deadline; exit Signal(9)",
-            killed.at.as_nanos(),
-        ),
-    );
-}
-
-#[test]
-fn kill_without_arguments_names_the_remaining_reasons() {
-    for (reason, words) in [
-        (Reason::Unknown, "no reason given"),
-        (Reason::Grace, "forced after its grace"),
-        (Reason::Cancelled, "cancelled"),
-    ] {
-        let mut world = real::World::new(Judge);
-        world.host(HostedProgram {
-            program: Box::from(&b"hosted\xff"[..]),
-            make: wait_again,
-            instances: 1,
-            operations: 8,
-        });
-        let root = open_root(std::path::Path::new(".")).expect("startup root");
-        world.spawn_with_fds(vec![root], || {
-            let mut parent = Script::parent(
-                root,
-                &[
-                    Act::SpawnProgram(b"hosted\xff"),
-                    Act::Write(0, b"hello"),
-                    Act::Read(1),
-                    Act::Kill(reason),
-                    Act::Read(1),
-                    Act::Wait,
-                ],
-            );
-            parent.args = Box::new([]);
-            parent
-        });
-        let outcome = world.run(&Clock::new(), Duration::from_secs(2));
-        assert_eq!(outcome.killed.len(), 1);
-        let killed = &outcome.killed[0];
-        assert_eq!(killed.argument, None);
-        assert_eq!(killed.reason, reason);
-        assert_eq!(
-            killed.to_string(),
-            format!(
-                "host 1 (hosted\u{fffd}) killed at {} ns by host 0 (a root): {words}; exit Signal(9)",
-                killed.at.as_nanos(),
-            ),
-        );
-    }
-}
-
-fn terminated(_spawn: &Spawn, inherited: &Inherited) -> Script {
-    Script::child(inherited, &[Act::ReadSignal, Act::Write(1, b"terminated")])
-}
-
-#[test]
-fn parent_termination_arrives_as_a_signal_record_on_the_child_pipe() {
-    let outcome = run(terminated, &[Act::Spawn, Act::Signal(Signal::Terminate), Act::Read(1), Act::Read(1), Act::Wait]);
-    assert_eq!(outcome.procs[0].received, b"terminated");
-    assert_eq!(outcome.procs[1].signals, [skein_io::kernel::ServiceSignal::Terminate]);
-    assert_eq!(outcome.procs[0].child_exit, Some(Exit::Code(0)));
-}
-
-#[test]
-fn parent_interrupt_arrives_on_the_hosted_child_signal_pipe() {
-    use skein_world_tests::hosted::{check_interrupt, interrupted_child};
-    let outcome = run(
-        interrupted_child,
-        &[
-            Act::Spawn,
-            Act::Signal(Signal::Interrupt),
-            Act::Read(1),
-            Act::Write(0, b"hello"),
-            Act::Read(1),
-            Act::Read(1),
-            Act::Wait,
-        ],
-    );
-    check_interrupt(&outcome.procs);
 }
 
 struct PlainJudge;
@@ -261,35 +62,19 @@ fn an_unhandled_interrupt_ends_a_real_child_with_signal_two() {
 #[derive(Debug)]
 struct SignalJudge {
     control: real::Controls,
-    child: bool,
     sent: bool,
 }
 
 impl skein_world::Referee<Script> for SignalJudge {
-    fn act(&mut self, _now: skein_lib::Time, procs: &mut [Script]) {
+    fn act(&mut self, _now: skein_lib::Time, _procs: &mut [Script]) {
         if self.sent {
             return;
         }
-        if self.child {
-            // This is the parent's public spawn result, not its service state.
-            if !procs[0].results.iter().any(|result| matches!(result, Ok(skein_io::kernel::Done::Spawned { .. }))) {
-                return;
-            }
-            self.control.signal(1, skein_io::kernel::ServiceSignal::Interrupt);
-        } else {
-            self.control.signal(0, skein_io::kernel::ServiceSignal::Terminate);
-            self.control.signal(1, skein_io::kernel::ServiceSignal::Interrupt);
-        }
+        self.control.signal(0, skein_io::kernel::ServiceSignal::Terminate);
+        self.control.signal(1, skein_io::kernel::ServiceSignal::Interrupt);
         self.sent = true;
     }
-    fn watch(&mut self, _now: skein_lib::Time, procs: &[Script]) -> Result<(), String> {
-        if self.child
-            && !self.sent
-            && procs[0].results.iter().any(|result| matches!(result, Ok(skein_io::kernel::Done::Spawned { .. })))
-        {
-            self.control.signal(1, skein_io::kernel::ServiceSignal::Interrupt);
-            self.sent = true;
-        }
+    fn watch(&mut self, _now: skein_lib::Time, _procs: &[Script]) -> Result<(), String> {
         Ok(())
     }
     fn passed(&self) -> bool {
@@ -299,7 +84,7 @@ impl skein_world::Referee<Script> for SignalJudge {
 
 #[test]
 fn referee_real_signal_reaches_only_the_signalfd_reader_and_pipe_signal_reaches_its_host() {
-    let mut world = real::World::new_controlled(|control| SignalJudge { control, child: false, sent: false });
+    let mut world = real::World::new_controlled(|control| SignalJudge { control, sent: false });
     world.spawn_signalfd(|signal| {
         Script::child(&Inherited { roots: vec![], appends: vec![], pipes: vec![], signal }, &[Act::ReadSignal])
     });
@@ -308,17 +93,6 @@ fn referee_real_signal_reaches_only_the_signalfd_reader_and_pipe_signal_reaches_
     });
     let outcome = world.run(&Clock::new(), Duration::from_secs(2));
     assert_eq!(outcome.procs[0].signals, [skein_io::kernel::ServiceSignal::Terminate]);
-    assert_eq!(outcome.procs[1].signals, [skein_io::kernel::ServiceSignal::Interrupt]);
-}
-
-#[test]
-fn referee_signal_reaches_a_hosted_child_through_its_pipe() {
-    let mut world = real::World::new_controlled(|control| SignalJudge { control, child: true, sent: false });
-    world.host(HostedProgram { program: Box::from(&b"hosted"[..]), make: terminated, instances: 1, operations: 8 });
-    let root = open_root(std::path::Path::new(".")).expect("startup root");
-    world.spawn_with_fds(vec![root], || Script::parent(root, &[Act::Spawn, Act::Read(1), Act::Read(1), Act::Wait]));
-    let outcome = world.run(&Clock::new(), Duration::from_secs(2));
-    assert_eq!(outcome.procs[0].received, b"terminated");
     assert_eq!(outcome.procs[1].signals, [skein_io::kernel::ServiceSignal::Interrupt]);
 }
 

@@ -27,6 +27,15 @@ fn chromium_opens_finds_and_presses_a_button() {
 }
 
 #[test]
+fn a_heading_that_never_appears_fails_with_its_own_deadline_figures() {
+    let profile = Profile::fresh();
+    let mut rig = Rig::new(&chromium(), &profile.0, Scenario::MissingHeading);
+    let report = rig.run_reporting_wait_failure().expect_err("the absent heading must expire its wait");
+    assert!(report.contains("a Chromium expectation: patience 500000000 ns"), "{report}");
+    assert!(rig.root_closed && rig.child_closed);
+}
+
+#[test]
 fn a_render_between_mouse_down_and_up_keeps_the_click_only_on_the_held_element() {
     for replace in [true, false] {
         let update =

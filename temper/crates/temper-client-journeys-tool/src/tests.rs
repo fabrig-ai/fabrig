@@ -3,7 +3,7 @@ mod arguments;
 mod refusals;
 mod table;
 
-pub(super) use fixtures::{TuiWorld, tui_approval_reply};
+pub(super) use fixtures::TuiWorld;
 use fixtures::{absent, fixture_recording, fixture_with_marks_and_secret, fixture_with_secret, stale_recording};
 use temper_client_journeys_kit as fixtures;
 

@@ -4,7 +4,7 @@
 //! Files remain open across positioned operations; names stay beneath a root.
 
 use crate::digest::Digest;
-use crate::kernel::Fd;
+use crate::kernel::{Fd, Kind, Stat};
 use alloc::boxed::Box;
 use skein_lib::Token;
 
@@ -348,7 +348,7 @@ impl core::fmt::Debug for Request {
 #[derive(PartialEq, Eq, Debug)]
 pub struct Entry {
     pub name: Box<[u8]>,
-    pub kind: crate::kernel::Kind,
+    pub kind: Kind,
 }
 
 /// The unsafe metadata io found before reading a private root or file (runtime/io/files.md, 3).
@@ -357,13 +357,36 @@ pub enum Unsafe {
     /// The requested name or a parent is a symbolic link.
     Link,
     /// The opened root is not a directory or its file is not regular.
-    Kind(crate::kernel::Kind),
+    Kind(Kind),
     /// The opened node has these group or other permission bits.
     Mode(u32),
     /// The opened file has this link count, rather than one.
     Links(u32),
     /// The opened node belongs to someone other than the configured effective user.
     Owner { found: u32, expected: u32 },
+}
+
+impl Unsafe {
+    /// Checks the metadata of an opened private file before any read.
+    #[must_use]
+    pub fn private_file(stat: Stat, expected: u32) -> Option<Self> {
+        if stat.owner != expected {
+            return Some(Self::Owner { found: stat.owner, expected });
+        }
+        if stat.kind == Kind::Symlink {
+            return Some(Self::Link);
+        }
+        if stat.kind != Kind::File {
+            return Some(Self::Kind(stat.kind));
+        }
+        if stat.mode & 0o077 != 0 {
+            return Some(Self::Mode(stat.mode & 0o077));
+        }
+        if stat.links != 1 {
+            return Some(Self::Links(stat.links));
+        }
+        None
+    }
 }
 
 #[derive(PartialEq, Eq)]
@@ -420,7 +443,7 @@ pub enum Event {
     /// Kind, size, permissions, owner and links of the open file or directory.
     Stated {
         owner: Token,
-        stat: crate::kernel::Stat,
+        stat: Stat,
     },
     Written {
         owner: Token,

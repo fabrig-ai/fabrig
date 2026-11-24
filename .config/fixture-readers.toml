@@ -935,7 +935,11 @@ paths = [
 [[fixture.reader]]
 pair = "default"
 package = "temper-one-process-world"
-filter = "binary(=suite) & test(=golden::dev_image_opens_and_serves_on_this_build)"
+filter = "binary(=suite) & (test(=golden::dev_image_opens_and_serves_on_this_build) | test(=restarts::an_older_layout_opens_and_serves_the_kept_person))"
+[[fixture.reader]]
+pair = "fuzzy"
+package = "temper-one-process-world"
+filter = "binary(=suite) & test(=fuzzy::restarts::drawn_unit_signals_and_older_layouts_keep_the_worlds_rules)"
 
 [[fixture]]
 paths = [
@@ -1009,7 +1013,7 @@ filter = "binary(=suite) & (test(/^fuzzy::green_light::/) | test(/^fuzzy::repair
 [[fixture.reader]]
 pair = "process-temper"
 package = "temper-box"
-filter = "binary(=process) & test(=rung_b0s_walk_passes_offline_on_its_twin)"
+filter = "binary(=proof_live) & test(=rung_b0s_walk_passes_offline_on_its_twin)"
 
 # real-loop repair::{fixture,recipe,acts,check}; temper suite/fake_opening.rs reads person/llm.
 # llm-base.json feeds the declared regenerator.

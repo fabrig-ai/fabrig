@@ -292,7 +292,11 @@ it byte for byte in its crate's tests.
   `collect` naming a `temper` it can't start; the twin's conversion and
   `--from`, each with its report. Every other row is the unit tests'.
   None starts a browser, a forge or a box, and none writes outside its
-  scratch directory.
+  scratch directory. QA's table test keeps the `--help`, `--version` and
+  refused-command rows alone; the same rows for `-h`, `help` and each
+  command's page, and each command's own refusals, are its crate's steps
+  over the table's answer, which the binary's `main` prints
+  (`qa/README.md`, 6).
 - **The tools' own tests** keep what they check, their expected words
   following 4.2, in their crate or their binary's package (section 5).
 - **Slower tiers:** a browser or process story a move touches is changed

@@ -264,6 +264,32 @@ fn the_outcomes_cards_read_stay_as_written() {
 }
 
 #[test]
+fn a_whole_file_read_has_its_line_count_and_no_skipped_lines() {
+    let source = source(&[
+        message(smith::Role::Assistant, &[call(b"read-id")]),
+        message(
+            smith::Role::User,
+            &[result(
+                b"read-id",
+                owned(smith::Outcome::Read(smith::Read {
+                    content: Box::from(&b"a\nb\nc\nd\ne\nf\ng\n"[..]),
+                    first: 1,
+                    lines: 7,
+                    total: 7,
+                    next: smith::Next::End,
+                    cut: smith::ReadCut::Whole,
+                    window: smith::BytesClamp::Within,
+                })),
+            )],
+        ),
+    ]);
+    let turn = decode(&limits(), &encode(&source)).unwrap();
+    let call = call_at(&turn, 0, 0);
+    assert_eq!(call.outcome.as_ref().unwrap().bytes(), b"Read 7 of 7 lines; skipped 0");
+    assert!(!call.failed);
+}
+
+#[test]
 fn whole_turn_preserves_blocks_and_joins_results_to_calls() {
     let source = source(&[
         message(

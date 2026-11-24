@@ -39,19 +39,18 @@ use skein_io::kernel::{Addr, Family, Fd};
 pub(crate) mod opens;
 pub(crate) mod process;
 pub(crate) mod ring;
-mod roots;
 mod startup;
 mod sync;
 
-pub use roots::make_root;
 pub use startup::resolve_system_links;
 pub(crate) use startup::{read_file, read_private_file};
+pub(crate) use sync::directory_access;
 use sync::encode;
 pub(crate) use sync::{
     clock_nanos, decode_addr, domain, last_errno, list, lock, opened, random, socklen_of, zeroed_storage,
 };
 pub(crate) use sync::{close as close_unchecked, local_addr as getsockname, set_option as setsockopt};
-pub use sync::{directory_access, open_append, open_root, prepare_output, process_id};
+pub use sync::{open_append, open_root, prepare_output, process_id};
 
 /// An `EINTR` is returned, not retried (runtime/readiness.md, 4).
 pub(crate) fn socket(family: Family) -> Result<Fd, i32> {
