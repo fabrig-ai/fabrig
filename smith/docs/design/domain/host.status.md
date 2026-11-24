@@ -18,13 +18,6 @@ remains a tail.
   - 4: an agent spawned in a contained tree, in its view, and gone once
     the tree is proved empty: `smith-host-protocol/src/process.rs`
     spawns a plain child in a process group.
-  - 4: an agent whose host channel ended ending on its own by cancel,
-    grace and drop within `orphan_exit`: a live run can keep the process
-    after the channel's end, live bytes held and calls to the host
-    retained, until something else stops it. [in flight: change 16344]
-  - 4: the host's silence: the agent never times its host, so a host
-    that keeps its ends open and takes or says nothing leaves it waiting.
-    [in flight: change 16346]
   - 7: a missing grant while the local chat still starts. A grant that
     fails for an account the starting chat already holds, as a refresh
     that fails (skein's `oauth/accounts.md`, 3), reaches the starting chat as

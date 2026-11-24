@@ -43,8 +43,6 @@ runtime outcome is supplied here.
 
 - **Not yet:** 2.4: a host's answer stops at 65,536 rather than 262,144
   bytes (`smith-domain-run/src/host.rs`, `HostAnswer::CAPACITY`).
-- **Not yet:** 7, 9: `orphan_exit`, and the agent's `no_progress`, derived
-  and listed among its effective limits. [in flight: change 16344]
 - **Departs:** 2.4: a host's input admits up to 1,048,576 rather than
   262,144 bytes (`smith-domain-run/src/host.rs`, `HostInput::CAPACITY`),
   matching the channel's `host_ask_input` and transcript's `call_input`
