@@ -768,7 +768,7 @@ pub fn smith_with_environment(
 mod exec;
 pub use exec::{
     Reply, chat_modes, chat_resized, chat_waiting, exec_with_provider, fake_provider_settings, key_chat, program_chat,
-    program_interrupt, run as run_product, run_scripted as run_product_scripted,
+    run as run_product, run_scripted as run_product_scripted,
 };
 
 pub mod login;
@@ -778,8 +778,6 @@ pub mod sample_host;
 pub mod window;
 
 pub mod provider_login;
-
-mod program_interrupt;
 
 #[cfg(target_os = "linux")]
 pub mod lifetime;

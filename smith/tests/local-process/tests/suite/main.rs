@@ -9,6 +9,7 @@ mod finalizer;
 mod lending;
 mod live_referee;
 mod memory;
+mod program_rechecks;
 mod referee;
 mod replay;
 mod simulation;

@@ -61,6 +61,11 @@ pub enum Ending {
         text: Vec<u8>,
         workspace: bool,
     },
+    /// A program report followed by a failed sign-in recheck for the next line.
+    ProgramRecheck {
+        text: Vec<u8>,
+        interrupted: bool,
+    },
     Cancelled,
     /// A headless answer failed because its turn budget ran out.
     Budget,
@@ -178,7 +183,10 @@ impl Meeting {
         let borrowed = self.borrowed_notice.as_deref();
         let borrowed_text = borrowed.and_then(|line| line.strip_prefix(b"smith: "));
         let expected = match &self.ending {
-            Ending::Report(text) | Ending::ReadReport(text) | Ending::ProgramReport { text, .. } => text.as_slice(),
+            Ending::Report(text)
+            | Ending::ReadReport(text)
+            | Ending::ProgramReport { text, .. }
+            | Ending::ProgramRecheck { text, .. } => text.as_slice(),
             Ending::Cancelled => b"interrupted: the run was cancelled",
             Ending::Budget => b"run failed: out of turns",
             Ending::Headless { .. } => b"", // The scenario judges its own stdout and stderr.
@@ -201,7 +209,7 @@ impl Meeting {
         }
         let code = match self.ending {
             Ending::HostFailure | Ending::HostFailureBeforeAnswer | Ending::AgentEnded | Ending::OlderStore => 1,
-            Ending::Dropped => 130,
+            Ending::Dropped | Ending::ProgramRecheck { interrupted: true, .. } => 130,
             Ending::Budget => 4,
             Ending::Headless { exit } => exit,
             Ending::UnreadableHead => 2,
@@ -216,6 +224,7 @@ impl Meeting {
                     | Ending::OlderStore
                     | Ending::UnreadableHead
                     | Ending::ProgramReport { .. }
+                    | Ending::ProgramRecheck { .. }
             ) {
                 queries == 0
             } else {
@@ -272,6 +281,8 @@ impl Meeting {
                         errors.strip_suffix(b"smith: interrupted: the run was cancelled: call aborted by its owner\n")
                     })
             })
+        } else if matches!(self.ending, Ending::ProgramRecheck { interrupted: false, .. }) {
+            errors.strip_suffix(b"smith: account work: Claude Code is not signed in: run `smith login work`\n")
         } else if matches!(self.ending, Ending::Unavailable) {
             errors
                 .strip_suffix(b"smith: account 0 has no credential: run `smith login 0`\n")

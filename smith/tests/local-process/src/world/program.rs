@@ -1,8 +1,11 @@
 //! Program-account stories keep only the fake's generated account files across
 //! invocations, beside the ordinary chat store (smith/docs/design/testing.md, 2.1 and 4).
-use super::{Ending, HostedProgram, How, Machine, Placement, World, process};
+use super::{Ending, HostedProgram, How, Machine, Placement, Proc, World, process};
 use crate::terminal::Action;
 use skein_fake_llm_domain::api;
+use skein_io::kernel::{Done, Fd, ServiceSignal};
+use skein_lib::{Duration, Time};
+use skein_sim::{Event, Pid, Sim, Summary, Text};
 use smith_fake_claude::{LOGIN_FILE, OBSERVATIONS_FILE, STORY_FILE, Story};
 
 #[derive(Default)]
@@ -86,6 +89,28 @@ impl World {
             .map_or_else(Vec::new, |(_, bytes)| bytes.clone())
     }
 
+    /// Interrupt the local host after invocation `number` (one-based) of `auth status` appends its observation.
+    pub fn interrupt_on_program_status(&mut self, number: usize) {
+        assert!(self.program_story.is_some() && number > 0, "a numbered program status in this invocation");
+        self.program_interrupt = Some(InterruptOnStatus { remaining: number, trace_read: 0, sent: None });
+    }
+
+    /// Time from that interrupt to full settlement, checking that its status child was reaped.
+    #[must_use]
+    pub fn program_interrupt_settlement(&self) -> Duration {
+        let outcome = self.outcome.as_ref().expect("settled world");
+        let sent = self.program_interrupt.as_ref().and_then(|watch| watch.sent.as_ref()).expect("status interrupted");
+        assert!(
+            outcome.trace[sent.after..].iter().any(|entry| entry.pid == sent.parent
+                && matches!(entry.event,
+                    Event::Complete { kind: Summary::Wait { pidfd, reap: true }, result: Ok(Done::Exit(_)), .. }
+                        if pidfd == sent.child
+                )),
+            "the parent reaped the interrupted status child's exit"
+        );
+        outcome.end.saturating_since(sent.at)
+    }
+
     /// A Direct report whose provider can also answer a tool-free carry-over summary.
     pub fn direct_carry_over(&mut self, summary: &[u8], answer: &str) {
         use smith_agent_world::fixture::{calls, says};
@@ -109,6 +134,63 @@ impl World {
                 )]),
             },
         ]));
+    }
+}
+
+/// Watches the fake's append completion rather than inferring a check from elapsed time.
+pub(super) struct InterruptOnStatus {
+    remaining: usize,
+    trace_read: usize,
+    sent: Option<Sent>,
+}
+
+struct Sent {
+    at: Time,
+    after: usize,
+    parent: Pid,
+    child: Fd,
+}
+
+impl InterruptOnStatus {
+    pub(super) fn observe(&mut self, sim: &Sim, pids: &[Pid], procs: &[Proc], controls: &skein_world::Controls) {
+        if self.sent.is_some() {
+            return;
+        }
+        let trace = sim.trace();
+        for (index, entry) in trace.iter().enumerate().skip(self.trace_read) {
+            // A status process appends exactly one record, its invocation.
+            if !matches!(entry.event, Event::Complete { kind: Summary::Append { .. }, result: Ok(_), .. })
+                || !pids
+                    .iter()
+                    .zip(procs)
+                    .any(|(pid, proc)| *pid == entry.pid && matches!(proc, Proc::Claude(fake) if fake.is_status()))
+            {
+                continue;
+            }
+            self.remaining -= 1;
+            if self.remaining == 0 {
+                assert!(sim.service_running(entry.pid), "the observed status is still live");
+                // This fixture runs one Claude invocation at a time. Its spawn completion
+                // precedes the append; remember that parent's pidfd to identify the reap.
+                let (parent, child) = trace[..index]
+                    .iter()
+                    .rev()
+                    .find_map(|entry| match entry.event {
+                        Event::Complete {
+                            kind: Summary::Spawn { program, .. },
+                            result: Ok(Done::Spawned { pidfd, .. }),
+                            ..
+                        } if program == Text::of(process::CLAUDE) => Some((entry.pid, pidfd)),
+                        _ => None,
+                    })
+                    .expect("observed status has a parent and child descriptor");
+                let host = procs.iter().position(|proc| matches!(proc, Proc::Local(_))).expect("local host");
+                self.sent = Some(Sent { at: sim.now(), after: trace.len(), parent, child });
+                controls.signal(host, ServiceSignal::Interrupt);
+                break;
+            }
+        }
+        self.trace_read = trace.len();
     }
 }
 

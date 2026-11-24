@@ -481,6 +481,7 @@ pub struct World {
     saved_before_query: Rc<Cell<bool>>,
     programs: Rc<RefCell<program::Files>>,
     program_story: Option<smith_fake_claude::Story>,
+    program_interrupt: Option<program::InterruptOnStatus>,
 }
 impl World {
     /// Check the ending using the invocation's retained seed.
@@ -918,6 +919,7 @@ impl World {
             saved_before_query: Rc::new(Cell::new(false)),
             programs: files.programs.clone(),
             program_story: None,
+            program_interrupt: None,
         }
     }
     #[must_use]
@@ -1097,7 +1099,11 @@ impl World {
         if matches!(self.scenario.ending, Ending::HostFailure | Ending::HostFailureBeforeAnswer) {
             referee.fail_turn_at_query(launch.state_directory.clone(), 2);
         }
+        let mut signal_controls = None;
         let mut world = skein_world::World::new_controlled(launch.seed, config, self.memory, |controls| {
+            if self.program_interrupt.is_some() {
+                signal_controls = Some(controls.clone());
+            }
             referee.controlled(controls)
         })
         .with_machine(machine);
@@ -1189,7 +1195,12 @@ impl World {
             });
             world.spawn(|| Proc::Browser(Box::default()));
         }
-        self.outcome = Some(world.run());
+        self.outcome = Some(if let Some(interrupt) = &mut self.program_interrupt {
+            let controls = signal_controls.expect("the world's signal controls");
+            world.run_with_inputs(|sim, pids, procs| interrupt.observe(sim, pids, procs, &controls))
+        } else {
+            world.run()
+        });
         let machine = &mut self.outcome.as_mut().expect("settled").machine;
         if launch.program.is_some() {
             self.programs.borrow_mut().remember(machine);

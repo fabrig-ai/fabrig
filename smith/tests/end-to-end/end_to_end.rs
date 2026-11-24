@@ -3,7 +3,6 @@ mod program_check;
 mod program_children;
 mod program_commands;
 mod program_lifetime;
-mod program_rechecks;
 mod program_runs;
 mod relay;
 pub use smith_end_to_end_kit as support;

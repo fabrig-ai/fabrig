@@ -174,7 +174,7 @@ fn run_fixture(
             command_arguments = setup;
             "/bin/sh"
         }
-        window::Story::None | window::Story::Modes | window::Story::ProgramRun | window::Story::ProgramCheck => smith,
+        window::Story::None | window::Story::Modes | window::Story::ProgramRun => smith,
     };
     let mut binary = Binary::start(
         Command {
@@ -214,7 +214,6 @@ fn run_fixture(
         },
         watching,
         master,
-        scratch.path(),
     ));
     world.spawn_with_fds(binary.descriptors(), || Process::Binary(Box::new(binary)));
     world.spawn_with_fds(descriptors, || {
@@ -230,7 +229,7 @@ fn run_fixture(
     let outcome = world.run(
         &clock,
         match watching {
-            window::Story::ProgramRun | window::Story::ProgramCheck => watching.budget(),
+            window::Story::ProgramRun => watching.budget(),
             window::Story::None | window::Story::Modes | window::Story::Resize => window::WORLD_PATIENCE,
         },
     );
@@ -248,14 +247,4 @@ fn run_fixture(
         })
         .unwrap_or_default();
     (Ran { code, stdout: person.shown().into(), stderr: binary.stderr().into() }, queries)
-}
-
-#[must_use]
-pub fn program_interrupt(scratch: &Scratch, commands: Vec<Action>) -> Ran {
-    run_fixture(
-        scratch,
-        &["--plain"],
-        Options { person: (Mode::Pipes, commands), watching: window::Story::ProgramCheck, ..Options::default() },
-    )
-    .0
 }

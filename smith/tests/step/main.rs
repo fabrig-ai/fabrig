@@ -180,8 +180,6 @@ fn resize_referee_uses_world_patience() {
 }
 
 #[test]
-fn program_stories_allow_thirty_seconds_total() {
-    for story in [Story::ProgramRun, Story::ProgramCheck] {
-        assert_eq!(story.budget(), Duration::from_secs(30));
-    }
+fn program_run_allows_thirty_seconds_total() {
+    assert_eq!(Story::ProgramRun.budget(), Duration::from_secs(30));
 }
